@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import * as z from 'zod/mini'
-import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { createNodeScheduleFs } from '../../src/runtime/schedules/nodeScheduleFs'
 import { createScheduleStore, scheduleStorageHash } from '../../src/core/schedules/store'
 import {
@@ -150,10 +150,20 @@ async function releaseHelpers(): Promise<void> {
 }
 
 // Cold publication and journal fill belong to the fixture budget, outside each
-// assertion's unchanged test deadline. Native handles stay in the test: on
-// Windows an earlier afterEach would release a suite-wide handle before the
-// owning assertion starts.
+// assertion's unchanged test deadline. The cold Windows PowerShell start is
+// paid here too, in the same hook: the first preparation holds and releases a
+// throwaway handle so the per-test native handles below start warm. Those
+// handles stay in the test itself, since an earlier afterEach would release a
+// suite-wide handle before the owning assertion starts.
+const powerShellWarmup = { done: false }
 const nativeFixture = fixtureBudget(['native-pointer', 'native-retirement'], async (name) => {
+  if (!powerShellWarmup.done && process.platform === 'win32') {
+    powerShellWarmup.done = true
+    const warmFile = path.join(root, 'warmup.txt')
+    await disk.writeFile(warmFile, 'warm')
+    const releaseWarm = await handle(warmFile, 'warmup')
+    await releaseWarm()
+  }
   const directory = path.join(root, name)
   const fs = createNodeScheduleFs(directory)
   const store = createScheduleStore(fs)
@@ -313,11 +323,20 @@ describe('native schedule publication and leases', () => {
       await resumed.promise
       await fs.replace('data/current.json', 'stale', guard)
     })
+    // A timeout abandons this function, so the parked holder is released up
+    // front: nothing keeps polling behind the test.
+    onTestFinished(async () => {
+      resumed.resolve(undefined)
+      await Promise.allSettled([first])
+    })
     await entered.promise
     const initial = z
       .object({ heartbeat: z.number(), token: z.string() })
       .parse(JSON.parse((await fs.read(file)) ?? 'null'))
     const pulseFile = `${file}.${initial.token}.heartbeat`
+    // The accelerated heartbeat pulses within milliseconds; the bound stays
+    // far below the unchanged test deadline so a stall fails fast instead of
+    // abandoning the parked holder at the deadline.
     await vi.waitFor(
       async () => {
         const current = z
@@ -325,7 +344,7 @@ describe('native schedule publication and leases', () => {
           .parse(JSON.parse((await fs.read(pulseFile)) ?? 'null'))
         expect(current.heartbeat).toBeGreaterThan(initial.heartbeat)
       },
-      { timeout: 120_000 },
+      { timeout: 4500 },
     )
     const bytes = await fs.read(pulseFile)
     await fs.replace(
@@ -355,12 +374,20 @@ describe('native schedule publication and leases', () => {
     const takerLinkSettled = Promise.withResolvers<undefined>()
     const linkedCandidates: string[] = []
     // Every settlement below is registered before the first wait, so a
-    // timeout leaves no holder or paused publication running behind the test.
+    // timeout leaves no holder or paused publication running behind the test:
+    // vitest abandons the test function on timeout without running finally.
     const settleAll = () => {
       releaseOld.resolve(undefined)
       resumeTakeover.resolve(undefined)
       releaseReplacement.resolve(undefined)
     }
+    // The old, taker and replacement locks are declared below; the closure
+    // only reads them when cleanup runs, by which time each one is assigned.
+    const pendingLocks = () => Promise.allSettled([old, taker, replacement ?? Promise.resolve()])
+    onTestFinished(async () => {
+      settleAll()
+      await pendingLocks()
+    })
     const old = fs.lock(key, async () => {
       entered.resolve(undefined)
       await releaseOld.promise
@@ -397,7 +424,9 @@ describe('native schedule publication and leases', () => {
       await actualDisk.link(...args)
     })
     let hasTakeoverEntered = false
-    const taker = createNodeScheduleFs(directory).lock(key, () => {
+    const takerFs = createNodeScheduleFs(directory)
+    const takerReads = vi.spyOn(takerFs, 'names')
+    const taker = takerFs.lock(key, () => {
       hasTakeoverEntered = true
       return Promise.resolve()
     })
@@ -416,8 +445,25 @@ describe('native schedule publication and leases', () => {
       // The taker consumed its paused publication and is deciding against the
       // replacement's intact fence, which no remaining writer can break: the
       // old holder settled above and the taker only publishes after seeing a
-      // release. No sleep is needed to prove it waits.
+      // release. The link-settled signal fires inside the mocked link, before
+      // the identity check and the wait loop, so the assertions below wait
+      // for the taker's decision itself: two fence-folder re-reads after the
+      // link settled prove it looped back to waiting instead of proceeding.
       await takerLinkSettled.promise
+      const fenceFolder = `leaseFences/${scheduleStorageHash(key)}`
+      const readsAtLink = takerReads.mock.calls.filter(([folder]) =>
+        folder.replaceAll('\\', '/').startsWith(fenceFolder),
+      ).length
+      await vi.waitFor(
+        () => {
+          expect(
+            takerReads.mock.calls.filter(([folder]) =>
+              folder.replaceAll('\\', '/').startsWith(fenceFolder),
+            ).length,
+          ).toBeGreaterThanOrEqual(readsAtLink + 2)
+        },
+        { timeout: 4500 },
+      )
       const replacementHint = z
         .object({ token: z.string() })
         .parse(JSON.parse((await fs.read(file)) ?? 'null'))
@@ -438,6 +484,39 @@ describe('native schedule publication and leases', () => {
     await replacement
     await taker
     expect(hasTakeoverEntered).toBe(true)
+  })
+  // A timeout abandons the test function without running finally, so only
+  // the up-front onTestFinished registration settles the parked holder. The
+  // 300 ms deadline below forces that path on purpose: the test is expected
+  // to time out, and the follow-up proves nothing was left running.
+  const abandonedPause: { directory?: string; held?: Promise<unknown> } = {}
+  it.fails(
+    'an abandoned pause still settles through the registered cleanup',
+    { timeout: 300 },
+    async () => {
+      const directory = path.join(root, 'abandoned-pause')
+      abandonedPause.directory = directory
+      const fs = createNodeScheduleFs(directory)
+      const releaseHolder = Promise.withResolvers<undefined>()
+      const held = fs.lock('abandoned', async () => {
+        await releaseHolder.promise
+      })
+      abandonedPause.held = held
+      onTestFinished(async () => {
+        releaseHolder.resolve(undefined)
+        await Promise.allSettled([held])
+      })
+      await Promise.withResolvers<undefined>().promise
+    },
+  )
+  it('settled the abandoned pause with no holder left behind', async () => {
+    if (abandonedPause.held === undefined || abandonedPause.directory === undefined)
+      throw new Error('abandoned pause never ran')
+    await abandonedPause.held
+    const fs = createNodeScheduleFs(abandonedPause.directory)
+    await expect(
+      fs.lock('abandoned', () => Promise.resolve('next'), { deadlineMs: Date.now() + 1000 }),
+    ).resolves.toBe('next')
   })
   it('expires an unchanged live-owner heartbeat despite wall-clock rollback', async () => {
     const directory = path.join(root, 'rollback')
@@ -485,6 +564,13 @@ describe('native schedule publication and leases', () => {
       await resumeWork.promise
     })
     const outcome = Promise.allSettled([old])
+    // A timeout abandons this function without running the finally below, so
+    // the paused rename and the parked holder are released up front.
+    onTestFinished(async () => {
+      resumeRename.resolve(undefined)
+      resumeWork.resolve(undefined)
+      await outcome
+    })
     await entered.promise
     const owner = z.object({ token: z.string() }).parse(JSON.parse((await fs.read(file)) ?? 'null'))
     const pulse = `${file}.${owner.token}.heartbeat`
