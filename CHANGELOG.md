@@ -203,6 +203,11 @@ happened, not what was planned; superseded entries are kept.
   new guidance is translated in all fourteen UI tables
   (`docs/certification/m106-capability-binding.md`).
 
+- The activity-bar icon is now the extension's own mark: the squiggled "m"
+  from the Marketplace icon as a single-colour mask, replacing the Meta logo
+  silhouette. The Marketplace icon, banner and social preview already used
+  the "m"; the activity-bar icon was missed.
+
 ### Fixed
 
 - Local report sources sort every tied list to a total order, so the same
