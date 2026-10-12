@@ -73,7 +73,22 @@ export interface BudgetReservation {
 /** Authoritative shared spend, including requests whose result is still unknown. */
 export interface SessionBudgetTotal {
   readonly spentUsd: UsdAmount
+  /**
+   * EXECPROV round 7 (R0): money may have been spent that no record bounds
+   * (history written without fees; an open claim whose final cost is still
+   * unbounded). Only this refuses a capped run. Unknown cost that is
+   * bounded and counted as spent arrives in `hasBoundedUnknownCost`
+   * instead and never refuses: the cap can still be guaranteed.
+   */
   readonly hasUnknownHistoricalFees: boolean
+  /**
+   * EXECPROV round 7 (R0): the true cost of some counted claim is not
+   * known, but it IS bounded and the bound is inside `spentUsd` (a hold
+   * closed at its full reservation; a sent request whose answer was lost,
+   * kept at its reservation). Reports say "upper bound" for these; cap
+   * checks ignore this flag. Optional so older readers treat it as absent.
+   */
+  readonly hasBoundedUnknownCost?: boolean
 }
 
 /** One request owns its liability until its verified actual cost or a nonsent refund. */
@@ -131,6 +146,14 @@ export interface SessionBudgetJournal {
     liability?: {
       readonly isUnbounded?: boolean
       readonly hasUnknownCost?: boolean
+      /**
+       * EXECPROV round 7 (R0): the claim's final cost may exceed every
+       * counted bound. No current writer holds such money on a claim (the
+       * seed's legacy flag and old open unknown claims are the sources);
+       * the totals derive old records without this field by the version
+       * rule (unknown + unsettled = unbounded).
+       */
+      readonly hasUnboundedCost?: boolean
     },
   ): Promise<SessionBudgetClaim>
   record(

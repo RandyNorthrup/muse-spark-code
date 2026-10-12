@@ -3087,8 +3087,19 @@ export const EN = {
     'Stopped: the next request (about {estimate}) would pass the session budget of {cap} ({spent} used). It was not sent.',
   sessionBudgetStoreUnavailable:
     'The session spend ledger could not be read or saved. No new request can be sent until it is available.',
+  // EXECPROV round 7 (R0): only fact (b) refuses — money no record
+  // bounds. {scope} is the day or conversation ledger, {spent} what it
+  // counts so far. The remedy names what actually clears it: the age rule
+  // closes ownerless holds on its own, the owning run settles its own, and
+  // no cap always admits. A new conversation is never offered: it does not
+  // clear a shared ledger.
   sessionBudgetLegacyFeesUnknown:
-    'The conversation’s spending is not fully verified. Wait for pending requests to finish, or start a new conversation to use a spend cap.',
+    'The spend ledger for {scope} still holds charges no record bounds ({spent} counted so far). A new conversation does not clear it: wait for the owning run to finish (ownerless holds close on their own), or rerun without a spend cap.',
+  // EXECPROV round 7 (R0): the conversation-scoped twin. A new
+  // conversation starts a fresh ledger, so it IS the remedy here — never
+  // offered for a shared daily ledger, where it clears nothing.
+  sessionBudgetConversationFeesUnknown:
+    'The spend ledger for {scope} still holds charges no record bounds ({spent} counted so far). Start a new conversation to use a spend cap, or rerun this one without a spend cap.',
   sessionBudgetSearchUnavailable:
     'Web search is unavailable under a finite spend cap: its billed query count has no verified limit. Ordinary chat and free web fetch remain available.',
   sessionBudgetRetryUnavailable:

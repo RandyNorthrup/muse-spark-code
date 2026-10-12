@@ -107,6 +107,7 @@ import {
   CONTRIBUTOR_MODEL_SUFFIX,
   DEFAULT_EFFORT,
   DEFAULT_MODEL_ID,
+  EXEC_USD_DECIMALS,
   FILE_REFUSAL_MODEL_TEXT,
   GOAL_OBJECTIVE_MAX_CHARS,
   GOAL_STATUS,
@@ -189,6 +190,7 @@ import {
   TEAM_TOOL_NAMES,
 } from '../../../shared/constants'
 import { fill, formatNumber, plural, uiLocale } from '../../../shared/l10n/text'
+import { formatUsd as formatExactUsd } from '../../../shared/l10n/exactUsd'
 import type { UnattendedRun, ScheduledAgentSession } from '../../schedules/unattended'
 import { SessionOwner, type SessionToken } from '../../schedules/sessionOwner'
 import {
@@ -3855,6 +3857,11 @@ export class ModelApiSession implements ScheduledAgentSession {
       {
         isUnbounded: !reservation.hasCap,
         hasUnknownCost: reservation.hasUnknownCost,
+        // EXECPROV round 7 (R0): an unverified tariff (unpriced or plan
+        // pricing) is fact (b) — no record bounds the final cost — so a
+        // later cap still refuses. Priced flows leave this absent: their
+        // kept reservations bound the cost (fact (a)).
+        hasUnboundedCost: reservation.hasUnknownCost,
       },
     )
     if (this.openReservation !== reservation) {
@@ -3911,14 +3918,26 @@ export class ModelApiSession implements ScheduledAgentSession {
     }
     const total = await journal.read(scope?.sessionId ?? owner.sessionId, accountId)
     owner.budgetIsFreshFork = false
+    // EXECPROV round 7 (R0): only fact (b) refuses a capped run; fact (a)
+    // is counted, so the cap holds. The exact-cost line stays withheld on
+    // either unknown: upper-bound money never prints as an exact figure
+    // (exec reports say "upper bound" through their uncertain totals).
     if (
       Usd.from(this.currentBudgetCap()).compare(Usd.from(0)) > 0 &&
       total.hasUnknownHistoricalFees
     ) {
-      throw new Error(UI_TEXT.sessionBudgetLegacyFeesUnknown)
+      // A conversation ledger: a new conversation starts fresh, so it is
+      // the remedy (never for a shared daily ledger).
+      throw new Error(
+        fill(UI_TEXT.sessionBudgetConversationFeesUnknown, {
+          scope: scope?.sessionId ?? owner.sessionId,
+          spent: formatExactUsd(total.spentUsd, EXEC_USD_DECIMALS),
+        }),
+      )
     }
     this.budgetSpentUsd = total.spentUsd
-    owner.hasUnknownBudgetCost = total.hasUnknownHistoricalFees
+    owner.hasUnknownBudgetCost =
+      total.hasUnknownHistoricalFees || total.hasBoundedUnknownCost === true
   }
 
   /** Each charge owns its journal entry; another host's snapshot cannot erase it. */
@@ -3951,7 +3970,8 @@ export class ModelApiSession implements ScheduledAgentSession {
             )
           : await claim.settle(costUsd, hasUnknownCost, isFinal)
       this.budgetSpentUsd = total.spentUsd
-      owner.hasUnknownBudgetCost = total.hasUnknownHistoricalFees
+      owner.hasUnknownBudgetCost =
+        total.hasUnknownHistoricalFees || total.hasBoundedUnknownCost === true
       this.touch()
     })()
     this.budgetWrites = write

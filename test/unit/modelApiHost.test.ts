@@ -3102,7 +3102,11 @@ describe('ModelApiSession: session budget (M82)', () => {
     await budgetTurn(t, watched, 'known model with old unverified spending', { text: 'not sent' })
     await t.host.close()
     expect(t.api.responseBodies()).toHaveLength(1)
-    expect(lastReason(watched.events)).toBe(UI_TEXT.sessionBudgetLegacyFeesUnknown)
+    // EXECPROV round 7 (R0): an unverified tariff is truly unbounded and
+    // still refuses, with the ledger named and a remedy that works (a new
+    // conversation starts a fresh ledger).
+    expect(lastReason(watched.events)).toContain('still holds charges no record bounds')
+    expect(lastReason(watched.events)).toContain('Start a new conversation')
     expect(
       watched.events.some(
         (event) => event.type === 'backendNotice' && event.text.includes('This turn cost'),
@@ -3842,7 +3846,13 @@ describe('ModelApiSession: session budget (M82)', () => {
         await pair.secondWatched.turnDone()
         expect(pair.second.api.responseBodies()).toEqual([])
         if (firstCap === 0) {
-          expect(lastReason(pair.secondWatched.events)).toBe(UI_TEXT.sessionBudgetLegacyFeesUnknown)
+          // EXECPROV round 7 (R0): the open uncapped hold is bounded, so
+          // it counts as spent and the refusal names the numbers — never
+          // the unknown ledger (its full reservation guarantees the cap).
+          expect(lastReason(pair.secondWatched.events)).toContain('would pass the session budget')
+          expect(lastReason(pair.secondWatched.events)).not.toContain(
+            'still holds charges no record bounds',
+          )
         }
         expect(
           await storedBudget(pair.secondStore, pair.firstWatched.session.sessionId),
@@ -3864,6 +3874,10 @@ describe('ModelApiSession: session budget (M82)', () => {
     },
   )
 
+  // EXECPROV round 7 (R0): a settled ambiguous retry kept its full
+  // reservation, so it is unknown but bounded — the later capped request
+  // is admitted. Refusing here was the same false refusal as the
+  // stale-hold lockout: the kept reservation guarantees the cap.
   it.each([502, 429])(
     'keeps earlier ambiguous uncapped retries unknown despite a successful tail, with 429 as established refusal: %s',
     async (status) => {
@@ -3883,9 +3897,8 @@ describe('ModelApiSession: session budget (M82)', () => {
         expect(pair.first.api.responseBodies()).toHaveLength(2)
         await pair.secondWatched.session.sendTurn([{ type: 'text', text: 'later capped request' }])
         await pair.secondWatched.turnDone()
-        expect(pair.second.api.responseBodies()).toHaveLength(status === 429 ? 1 : 0)
+        expect(pair.second.api.responseBodies()).toHaveLength(1)
         if (status === 502) {
-          expect(lastReason(pair.secondWatched.events)).toBe(UI_TEXT.sessionBudgetLegacyFeesUnknown)
           const journal = pair.secondStore.budget
           if (journal === undefined) {
             throw new Error('No shared budget journal')
@@ -3894,7 +3907,8 @@ describe('ModelApiSession: session budget (M82)', () => {
             pair.firstWatched.session.sessionId,
             FAKE_MODEL_API_ACCOUNT_ID,
           )
-          expect(total.hasUnknownHistoricalFees).toBe(true)
+          expect(total.hasUnknownHistoricalFees).toBe(false)
+          expect(total.hasBoundedUnknownCost).toBe(true)
         }
       } finally {
         await pair.close()
@@ -16707,7 +16721,11 @@ describe('ModelApiSession: the Auto reviewer (M78, PLAN.md D49)', () => {
           { feature: 'autoReviewer', units: 1 },
         ])
         const total = await store.budget?.read(session.sessionId, FAKE_MODEL_API_ACCOUNT_ID)
-        expect(total?.hasUnknownHistoricalFees).toBe(true)
+        // EXECPROV round 7 (R0): invalid usage settles at the kept
+        // reservation, so it is unknown but bounded — retained in spent,
+        // never a later capped refusal.
+        expect(total?.hasUnknownHistoricalFees).toBe(false)
+        expect(total?.hasBoundedUnknownCost).toBe(true)
         expect(Number(total?.spentUsd)).toBeGreaterThan(0)
         await answer(session, request, 'abort')
         await turnDone()
