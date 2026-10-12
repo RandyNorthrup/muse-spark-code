@@ -5158,5 +5158,6 @@
     "topP": "Top-p 取樣機率"
   },
   "teamTryTally": "付費預覽：{attempts}；已收費 {charged}；保留責任金額 {retained}。",
-  "teamTryDenied": "已拒絕付費計畫預覽。未產生費用。"
+  "teamTryDenied": "已拒絕付費計畫預覽。未產生費用。",
+  "teamNotReleased": "智能體團隊在此組建中無法使用。"
 }

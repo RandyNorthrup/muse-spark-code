@@ -100,6 +100,7 @@ import {
   TAB_CONTEXT_FILES,
 } from './shared/constants'
 import { PaidAuthority } from './core/paid/paidAuthority'
+import { teamLatchRefusal } from './shared/teamConversation'
 import { Usd } from './shared/usd'
 import {
   createUsageRecording,
@@ -2547,15 +2548,24 @@ async function activateWindow(
     modelId: string,
   ): Promise<TeamSettingCapabilities | undefined> => {
     const { knownEffortTiers } = await import('./shared/effort')
-    const { teamSettingCapabilities } = await import('./core/team/teamPanelEntry')
+    const { capabilitiesForModelId } = await import('./core/team/teamPanelEntry')
+    const metaRecord = () => subscriptionFeatures().teamMetaRecord(modelId)
     if (modelId.includes('/')) {
       const configured = await subscriptionFeatures().teamDiscovery()
       const match = configured.models.find((entry) => entry.model.modelId === modelId)
-      return match === undefined ? undefined : teamSettingCapabilities(match.record)
+      return capabilitiesForModelId({
+        modelId,
+        discoveryMatch: match?.record,
+        isKnownMetaFamily: false,
+        metaRecord,
+      })
     }
-    return knownEffortTiers(modelId) === undefined
-      ? undefined
-      : teamSettingCapabilities(subscriptionFeatures().teamMetaRecord(modelId))
+    return capabilitiesForModelId({
+      modelId,
+      discoveryMatch: undefined,
+      isKnownMetaFamily: knownEffortTiers(modelId) !== undefined,
+      metaRecord,
+    })
   }
   const teamHost: TeamHostBinding = new TeamHostBinding({
     ports: {
@@ -2635,7 +2645,10 @@ async function activateWindow(
           settings,
         }) => {
           // Dispatch asks the one availability function too: a worker never
-          // starts while the latch is closed, even with a true setting.
+          // starts while the latch is closed, even with a true setting. A
+          // dispatch the latch refuses says the latch, not the budget.
+          const latchRefusal = teamLatchRefusal()
+          if (latchRefusal !== undefined) throw new Error(latchRefusal)
           if (!teamHost.canConfigure()) throw new Error(UI_TEXT.teamBudgetUnavailable)
           let budgetScope
           try {
@@ -4316,20 +4329,18 @@ async function activateWindow(
                   ...configured.models,
                 ]
                 const limits = usageRecording.limits?.() ?? []
-                // The paying identity per provider: Meta keeps the generic
-                // account; a BYO apiKey record contributes its secret digest;
-                // anything else keeps legacy unattributed matching.
-                const { providerKeyDigest } = await import('./host/providers/credentialRecords')
-                const identities = new Map<string, string>()
-                if (currentAccount !== undefined) identities.set('meta', currentAccount)
+                // The paying identity per provider (P2-4): Meta keeps the
+                // generic account; a BYO apiKey record contributes its
+                // secret digest; anything else keeps legacy matching.
+                const { providerIdentities } = await import('./host/providers/credentialRecords')
                 const providers = new Set<string>()
                 for (const entry of engine) providers.add(entry.record.identity.provider)
                 for (const row of limits) providers.add(row.provider)
-                for (const provider of providers) {
-                  if (provider === 'meta') continue
-                  const digest = await providerKeyDigest(context.secrets, provider)
-                  if (digest !== undefined) identities.set(provider, digest)
-                }
+                const identities = await providerIdentities(
+                  context.secrets,
+                  providers,
+                  currentAccount,
+                )
                 const discovered = buildTeamModelOffers({
                   currentAccountOf: (provider) => identities.get(provider),
                   engine,
@@ -4373,6 +4384,9 @@ async function activateWindow(
             dryRun: {
               cost: () => paidFeaturePrice('teamWorkers'),
               run: async (document, sample, signal) => {
+                // A preview the latch refuses says the latch, not the budget.
+                const latchRefusal = teamLatchRefusal()
+                if (latchRefusal !== undefined) throw new Error(latchRefusal)
                 if (
                   workspaceRoot === undefined ||
                   !teamHost.canConfigure() ||
@@ -4393,13 +4407,18 @@ async function activateWindow(
                 const model = models.find((row) => row.modelId === modelId)
                 if (model === undefined) throw new Error(UI_TEXT.teamBudgetUnavailable)
                 const { tryTeam, teamTryConfirmation } = await import('./core/team/teamPanelEntry')
+                const { payingKeyDigest } = await import('./host/providers/credentialRecords')
                 const task = teamTryConfirmation(model)
                 return await tryTeam(
                   {
                     isAllowed: () => teamHost.canConfigure() && paid.gate.isOn('teamWorkers'),
                     modelId,
                     workspaceRoot,
-                    keyDigest: () => modelApi.accountId(),
+                    // The quote bills the account that pays: a
+                    // bring-your-own model's provider credential, not the
+                    // generic Meta account (P2-A).
+                    keyDigest: () =>
+                      payingKeyDigest(context.secrets, modelId, () => modelApi.accountId()),
                     consent: () =>
                       paid.consent.allows(
                         {

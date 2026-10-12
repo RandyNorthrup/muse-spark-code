@@ -6,6 +6,8 @@ import { describe, expect, it } from 'vitest'
 import {
   deleteProviderCredential,
   isOriginBound,
+  payingKeyDigest,
+  providerIdentities,
   providerKeyDigest,
   providerSecretKey,
   readProviderCredential,
@@ -19,6 +21,10 @@ const RECORD: CredentialRecord = {
   auth: 'apiKey',
   origin: 'https://openrouter.ai',
   secret: 'sk-or-test-key',
+}
+
+function metaAccount(): Promise<string | undefined> {
+  return Promise.resolve('meta-account')
 }
 
 describe('provider credential records', () => {
@@ -74,6 +80,49 @@ describe('provider credential records', () => {
     expect(await providerKeyDigest(secrets, 'missing')).toBeUndefined()
     await secrets.store(providerSecretKey('damaged'), 'not json{')
     expect(await providerKeyDigest(secrets, 'damaged')).toBeUndefined()
+  })
+
+  // P2-A: the preview's quote bills the account that pays: a
+  // bring-your-own model's own provider credential, Meta's account
+  // otherwise. The quote, the per-attempt admission and the final
+  // transport admission compare this one value.
+  it('names the paying credential per model for the preview quote', async () => {
+    const secrets = memorySecrets()
+    await saveProviderCredential(secrets, 'openai', { ...RECORD, secret: 'openai-key' })
+    const openaiDigest = createHash('sha256').update('openai-key').digest('hex')
+    const meta = metaAccount
+    expect(await payingKeyDigest(secrets, 'openai/gpt-5', meta)).toBe(openaiDigest)
+    expect(await payingKeyDigest(secrets, 'muse-spark-1.3', meta)).toBe('meta-account')
+    expect(await payingKeyDigest(secrets, 'meta/custom', meta)).toBe('meta-account')
+    // A replaced provider key quotes the new digest, voiding the old approval.
+    await saveProviderCredential(secrets, 'openai', { ...RECORD, secret: 'openai-next' })
+    expect(await payingKeyDigest(secrets, 'openai/gpt-5', meta)).toBe(
+      createHash('sha256').update('openai-next').digest('hex'),
+    )
+    // No record for the provider: no identity to quote.
+    expect(await payingKeyDigest(secrets, 'xai/grok', meta)).toBeUndefined()
+  })
+
+  // P2-4: the per-provider identity map behind the offers: Meta keeps the
+  // generic account, apiKey records contribute digests, anything else keeps
+  // legacy unattributed matching with no entry.
+  it('maps each provider to its spending identity for quota offers', async () => {
+    const secrets = memorySecrets()
+    await saveProviderCredential(secrets, 'openai', { ...RECORD, secret: 'openai-key' })
+    await saveProviderCredential(secrets, 'oauth', { ...RECORD, auth: 'oauth' })
+    const identities = await providerIdentities(
+      secrets,
+      ['meta', 'openai', 'oauth', 'missing'],
+      'meta-account',
+    )
+    expect(identities.get('meta')).toBe('meta-account')
+    expect(identities.get('openai')).toBe(createHash('sha256').update('openai-key').digest('hex'))
+    expect(identities.has('oauth')).toBe(false)
+    expect(identities.has('missing')).toBe(false)
+    // No Meta account signed in: Meta keeps no entry either.
+    const signedOut = await providerIdentities(secrets, ['meta', 'openai'], undefined)
+    expect(signedOut.has('meta')).toBe(false)
+    expect(signedOut.get('openai')).toBe(identities.get('openai'))
   })
 })
 

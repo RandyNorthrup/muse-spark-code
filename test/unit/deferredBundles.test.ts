@@ -877,13 +877,16 @@ describe('deferred cohort bundles', () => {
     // workspacePath) and its MODEL_TEXT keys that activation reads +221.
     // Re-measured and ratcheted down when m105/media-w2 moves media to the
     // deferred dist/productionMedia.js.
-    // CM963JR3 (2026-10-12, kubuntu): +305 B over 530,883 is review-mandated
-    // feature code (RVCM963JB P2-2/P2-4), not an accidental dependency:
-    // ModelApiHost.ts servesReasoningEffort plus the per-request quota
-    // identity capture and stamp. Round 2's pin left 5 bytes of headroom, so
-    // no Model API fix could land without re-measuring. The pin moves to
-    // that measurement; the loaders-stay-out mechanism below is unchanged.
-    expect(Buffer.byteLength(bundleText('modelApi'))).toBeLessThanOrEqual(531_188)
+    // CM963JR4 (2026-10-12, kubuntu): the pin returns to the owner's
+    // 530,883 (round 3's 531,188 move is vetoed: pins are the owner's
+    // alone). Round 3's +310 B over the pin's 5 bytes of headroom leaves
+    // this bundle whole: the per-model effort check and the per-request
+    // quota identity capture and stamp load with the team bundles (the
+    // session stamps the reservation's budget identity, as before; a team
+    // host's recorder wrapper re-stamps bring-your-own rows with the
+    // credential the attempt used). The loaders-stay-out mechanism below
+    // is unchanged.
+    expect(Buffer.byteLength(bundleText('modelApi'))).toBeLessThanOrEqual(530_883)
     const schedules = new Set(inputs('schedules'))
     for (const file of [
       'src/core/backends/modelapi/schedulesEntry.ts',

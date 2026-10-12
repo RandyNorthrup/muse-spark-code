@@ -56,9 +56,9 @@ import type { PermissionSettings } from '../../src/core/permissionSettings'
 import {
   ModelApiHost,
   ModelApiSession,
-  observationAccount,
   type ModelApiHostDeps,
 } from '../../src/core/backends/modelapi/ModelApiHost'
+import type { UsageRecording } from '../../src/core/usage/recording'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { estimateCostUsd, formatUsd } from '../../src/core/usage/insights'
 import { EN } from '../../src/shared/l10n/en'
@@ -463,6 +463,8 @@ function setup(
     beforeMemoryRead?: (path: string) => Promise<void>
     /** The command rules and permission profiles (M78), read at each call. */
     permissionSettings?: () => PermissionSettings
+    /** Quota observation sink, when a test asserts stamped rows. */
+    usageRecording?: ModelApiHostDeps['usageRecording']
     /** The window's web fetch (M69); none unless a test gives one. */
     webFetch?: ModelApiHostDeps['webFetch']
     /** The window's browser check (M81); none unless a test gives one. */
@@ -625,6 +627,7 @@ function setup(
     beforeTurnRuns: options.beforeTurnRuns,
     afterTurnRuns: options.afterTurnRuns,
     ...(options.verify !== undefined && { verify: options.verify }),
+    ...(options.usageRecording !== undefined && { usageRecording: options.usageRecording }),
   })
   return {
     api,
@@ -4910,9 +4913,11 @@ describe('ModelApiSession: turns', () => {
     expect(t.host.sessionCount).toBe(0)
   })
 
-  // P2-2: a default is sent only where the model serves it; only an explicit
-  // saved or requested tier the model cannot serve is refused, with a reason.
-  it('serves effort only where the model does, refusing only explicit tiers', async () => {
+  // CM963JR4 veto: the per-model effort check lives behind the agent-teams
+  // latch, not in this bundle, so a Model API session never answers it:
+  // callers keep today's send. Only an explicit saved or requested tier the
+  // model cannot serve is refused, with a reason.
+  it('refuses only explicit tiers the model cannot serve', async () => {
     const t = setup()
     const session = (await t.host.startSession({
       workspaceRoot: ROOT,
@@ -4920,40 +4925,51 @@ describe('ModelApiSession: turns', () => {
       approvalMode: 'promptUnmatched',
     })) as ModelApiSession
     try {
-      expect(session.servesReasoningEffort('high')).toBe(true)
-      expect(session.servesReasoningEffort('none')).toBe(true)
-      expect(session.servesReasoningEffort('max')).toBe(false)
+      expect('servesReasoningEffort' in session).toBe(false)
       await session.setReasoningEffort('high')
-      await expect(session.setReasoningEffort('max')).rejects.toThrow()
+      await expect(session.setReasoningEffort('max')).rejects.toThrow(/effort.*max.*muse-spark-1.2/)
     } finally {
       session.dispose()
     }
   })
 
-  // P2-4: quota observations are stamped with the identity of the credential
-  // the provider actually used for that response.
-  it('stamps quota observations with the requesting credential per provider', () => {
-    expect(
-      observationAccount({
-        modelId: 'muse-spark-1.3',
-        attemptKeyDigest: 'transport-digest',
-        reservationAccount: 'budget-account',
-      }),
-    ).toBe('budget-account')
-    expect(
-      observationAccount({
-        modelId: 'openai/gpt-5',
-        attemptKeyDigest: 'transport-digest',
-        reservationAccount: 'budget-account',
-      }),
-    ).toBe('transport-digest')
-    expect(
-      observationAccount({
-        modelId: 'openai/gpt-5',
-        attemptKeyDigest: undefined,
-        reservationAccount: 'budget-account',
-      }),
-    ).toBe('budget-account')
+  // P2-4/CM963JR4 veto: this bundle stamps the reservation's budget
+  // identity, as before; the team-only re-stamp loads with the team
+  // bundles. Without a team host the row is unstamped here, exactly the
+  // pre-team output for the same response.
+  it('keeps the reservation stamp on quota observations', async () => {
+    const limited: { observedAccount: string | undefined }[] = []
+    const recording: UsageRecording = {
+      limits: () => [],
+      note: () => undefined,
+      limit: (context) => {
+        limited.push({ observedAccount: context.observedAccount })
+      },
+      today: () => Promise.resolve([]),
+      flush: () => Promise.resolve(),
+    }
+    const t = setup({
+      usageRecording: recording,
+      admitResponseAttempt: Object.assign(() => undefined, {}),
+    })
+    t.api.script({
+      text: 'unstamped',
+      responseHeaders: { 'x-ratelimit-remaining-requests': '99' },
+    })
+    const { session, turnDone } = await startSession(t)
+    try {
+      await session.sendTurn([{ type: 'text', text: 'hi' }])
+      await turnDone()
+      await vi.waitFor(() => {
+        expect(limited).not.toHaveLength(0)
+      })
+      // No reservation on this host, so the row is unstamped: exactly the
+      // pre-team output for the same response.
+      expect(limited.map((row) => row.observedAccount)).toEqual([undefined])
+    } finally {
+      session.dispose()
+      await t.host.close()
+    }
   })
 
   it('sends a PDF as input_file and keeps its name in durable history', async () => {

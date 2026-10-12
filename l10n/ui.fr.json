@@ -5464,5 +5464,6 @@
     "topP": "Probabilité Top-p"
   },
   "teamTryTally": "Aperçu payant : {attempts} ; facturé {charged} ; montant réservé {retained}.",
-  "teamTryDenied": "Aperçu du plan payant refusé. Aucun montant facturé."
+  "teamTryDenied": "Aperçu du plan payant refusé. Aucun montant facturé.",
+  "teamNotReleased": "Les équipes d’agents ne sont pas disponibles dans cette version."
 }

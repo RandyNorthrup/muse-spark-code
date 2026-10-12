@@ -9,7 +9,12 @@
 // the team off sends nothing for the team at any time.
 
 import * as z from 'zod/mini'
-import { OPTIONAL_RUNTIME_AVAILABILITY, TEAM_BOOTSTRAP_MODEL_TEXT, VERIFY_TOOLS } from './constants'
+import {
+  OPTIONAL_RUNTIME_AVAILABILITY,
+  TEAM_BOOTSTRAP_MODEL_TEXT,
+  UI_TEXT,
+  VERIFY_TOOLS,
+} from './constants'
 export { TEAM_BOOTSTRAP_MODEL_TEXT } from './constants'
 
 import type { TeamDecisionSource } from '../core/team/teamSeams'
@@ -41,6 +46,16 @@ export interface TeamConversationDecision {
  */
 export function isTeamAvailable(setting: unknown): boolean {
   return OPTIONAL_RUNTIME_AVAILABILITY.team && setting === true
+}
+
+/**
+ * The refusal an entry point reports when the release latch closes it
+ * (P3-1): the latch, never the budget sentence. Undefined while the latch
+ * is open; a setting switched off or an untrusted workspace keeps its own
+ * error at each site.
+ */
+export function teamLatchRefusal(): string | undefined {
+  return OPTIONAL_RUNTIME_AVAILABILITY.team ? undefined : UI_TEXT.teamNotReleased
 }
 
 /**

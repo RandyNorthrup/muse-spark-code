@@ -1281,6 +1281,17 @@ class AcpSession {
     return true
   }
 
+  /**
+   * The effort the session actually holds, where it is a tier the panel
+   * names; else the standing choice, sent on the next model that serves
+   * it. A default the model was never told is reported as the session's
+   * own, never as sent.
+   */
+  private reportedEffort(): EffortLevel {
+    const held = this.session.currentEffort
+    return held !== undefined && isEffortLevel(held) ? held : this.effort
+  }
+
   public async askPaidUse(request: PaidUseRequest, canRemember: boolean): Promise<PaidUseAnswer> {
     const pending = this.pending
     const preparing = this.preparing
@@ -1438,7 +1449,7 @@ class AcpSession {
         name: UI_TEXT.effortItem,
         category: 'thought_level',
         type: 'select',
-        currentValue: this.effort,
+        currentValue: this.reportedEffort(),
         options: effortLevelsFor(this.modelId).map((level) => ({
           value: level,
           name: effortLabel(level),
@@ -1477,14 +1488,28 @@ class AcpSession {
     const served = servedEffort(this.modelId, effort)
     this.ensureHeld()
     // A default the model does not serve is simply not sent: the session
-    // keeps its host default. An explicit tier the model cannot serve never
-    // reaches here (setConfigOption refuses it); setReasoningEffort refuses
-    // any other explicit value at the admission boundary.
-    if (this.session.servesReasoningEffort?.(effortForThinking(served, true)) === false) {
+    // keeps its host default, and the standing choice is kept for the next
+    // model that serves it. An explicit tier outside the model's listed
+    // options never reaches here (setConfigOption refuses it); anything
+    // else explicit goes to setReasoningEffort, which refuses what the
+    // model cannot serve.
+    const isServed = this.session.servesReasoningEffort?.(effortForThinking(served, true))
+    if (isServed === false) {
       this.effort = served
       return
     }
-    await this.session.setReasoningEffort(effortForThinking(served, true))
+    try {
+      await this.session.setReasoningEffort(effortForThinking(served, true))
+    } catch (error: unknown) {
+      // No per-model check on this session (the Model API bundle does not
+      // carry one): a default the model does not serve is refused here
+      // instead, and the session keeps its host default exactly as above.
+      // A checked session never refuses a tier it claimed to serve, so a
+      // refusal there, like any protocol failure, still fails the adoption.
+      if (isServed !== undefined || error instanceof RequestError) throw error
+      this.effort = served
+      return
+    }
     this.effort = served
   }
 

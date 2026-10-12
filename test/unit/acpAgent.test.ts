@@ -42,6 +42,7 @@ import type {
 import {
   type AcpPaidFeature,
   type PermissionMode,
+  DEFAULT_EFFORT,
   MAX_ATTACHMENTS_PER_MESSAGE,
   UI_TEXT,
 } from '../../src/shared/constants'
@@ -1735,6 +1736,62 @@ describe('the ACP agent (M63)', () => {
       await expect(
         client.request('session/set_mode', { sessionId, modeId: 'bypassPermissions' }),
       ).rejects.toMatchObject({ code: -32_602 })
+    })
+  })
+
+  // P3-2: a default the model does not serve is never sent, so the
+  // reported effort is what the session holds, not the unsent default.
+  it('reports the session-held effort when the model is never told the default', async () => {
+    const h = harness()
+    await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      const session = h.host.sessions[0]
+      if (session === undefined) throw new Error('Expected a session')
+      // The model serves no tier: the standing default is not sent and the
+      // session keeps its host default.
+      session.servesReasoningEffort.mockReturnValue(false)
+      session.currentEffort = 'xhigh'
+      session.setReasoningEffort.mockClear()
+      const switched = await client.request('session/set_config_option', {
+        sessionId,
+        configId: 'model',
+        value: 'muse-spark-1.3',
+      })
+      expect(session.setReasoningEffort).not.toHaveBeenCalled()
+      expect(switched.configOptions[1]).toMatchObject({ currentValue: 'xhigh' })
+    })
+  })
+
+  // CM963JR4 veto collateral: the Model API bundle carries no per-model
+  // effort check, so a default the model does not serve is refused by
+  // setReasoningEffort instead: the adoption keeps the standing choice,
+  // while a protocol failure still fails it.
+  it('keeps the standing effort when a session without a per-model check refuses the default', async () => {
+    const h = harness()
+    await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      const session = h.host.sessions[0]
+      if (session === undefined) throw new Error('Expected a session')
+      Reflect.deleteProperty(session, 'servesReasoningEffort')
+      session.currentEffort = 'turbo'
+      session.setReasoningEffort.mockRejectedValueOnce(new Error('unsupported tier'))
+      const kept = await client.request('session/set_config_option', {
+        sessionId,
+        configId: 'model',
+        value: 'muse-spark-1.3',
+      })
+      expect(session.setReasoningEffort).toHaveBeenCalledWith(DEFAULT_EFFORT)
+      expect(kept.configOptions[1]).toMatchObject({ currentValue: DEFAULT_EFFORT })
+      session.setReasoningEffort.mockRejectedValueOnce(
+        acp.RequestError.internalError(undefined, 'transport down'),
+      )
+      await expect(
+        client.request('session/set_config_option', {
+          sessionId,
+          configId: 'model',
+          value: 'muse-spark-1.3',
+        }),
+      ).rejects.toMatchObject({ code: -32_603 })
     })
   })
 

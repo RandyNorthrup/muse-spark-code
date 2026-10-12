@@ -5617,5 +5617,6 @@
     "topP": "Pravděpodobnost Top-p"
   },
   "teamTryTally": "Placený náhled: {attempts}; účtováno {charged}; zadržený závazek {retained}.",
-  "teamTryDenied": "Placený náhled plánu zamítnut. Nic nebylo účtováno."
+  "teamTryDenied": "Placený náhled plánu zamítnut. Nic nebylo účtováno.",
+  "teamNotReleased": "Týmy agentů nejsou v tomto sestavení k dispozici."
 }

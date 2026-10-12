@@ -30,6 +30,10 @@ function sameTurn(expectedTurnId: string): Promise<TurnSubmission> {
   return Promise.resolve({ turnId: expectedTurnId, disposition: 'steered' })
 }
 
+function canServeEffort(): true {
+  return true
+}
+
 function noOutput(request: { readonly itemId: string }): Promise<never> {
   return Promise.reject(new Error(`no output ${request.itemId}`))
 }
@@ -57,7 +61,16 @@ export class FakeAgentSession implements AgentSession {
   public readonly steer = vi.fn<AgentSession['steer']>(sameTurn)
   public readonly cancel = vi.fn<AgentSession['cancel']>(resolved)
   public readonly setModel = vi.fn<AgentSession['setModel']>(resolved)
-  public readonly setReasoningEffort = vi.fn<AgentSession['setReasoningEffort']>(resolved)
+  public readonly setReasoningEffort = vi.fn<AgentSession['setReasoningEffort']>(
+    (reasoningEffort: string) => {
+      this.currentEffort = reasoningEffort
+      return resolved()
+    },
+  )
+  /** The effort the session holds, as setReasoningEffort leaves it. */
+  public currentEffort = 'high'
+  public readonly servesReasoningEffort =
+    vi.fn<NonNullable<AgentSession['servesReasoningEffort']>>(canServeEffort)
   public readonly setApprovalMode = vi.fn<AgentSession['setApprovalMode']>(resolved)
   public readonly compact = vi.fn<AgentSession['compact']>(() =>
     Promise.resolve({ status: this.sessionId, reason: undefined }),

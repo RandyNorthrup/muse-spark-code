@@ -134,9 +134,28 @@ describe('captured team discovery', () => {
     expect(rotated.offers.map((offer) => offer.ref)).toContain('engine:muse-spark-1.3')
     expect(rotated.offers.map((offer) => offer.ref)).not.toContain('engine:openai/captured')
     expect(rotated.absent).toContainEqual({ provider: 'openai', reason: 'limits' })
-    // A provider with no known identity keeps legacy unattributed matching.
+    // A provider with no known identity drops stamped rows too: only
+    // unstamped rows keep legacy unattributed matching (P3-6).
     const unknown = offersWith({ meta: 'meta-account' }, rows)
-    expect(unknown.offers.map((offer) => offer.ref)).toContain('engine:openai/captured')
+    expect(unknown.offers.map((offer) => offer.ref)).not.toContain('engine:openai/captured')
+    expect(unknown.absent).toContainEqual({ provider: 'openai', reason: 'limits' })
+  })
+  // P3-6: an unknown identity (signed out, or an OAuth or damaged record)
+  // drops every stamped row, so a removed key brings back no other
+  // account's quota.
+  it('brings back no stamped quota once the provider identity is unknown', () => {
+    const removed = buildTeamModelOffers({
+      ...input,
+      engine: [engine('openai')],
+      limits: [stamped('openai', 2, 'openai-old')],
+      currentAccountOf: () => undefined,
+    })
+    expect(removed.offers).toEqual([])
+    expect(removed.absent).toEqual([{ provider: 'openai', reason: 'limits' }])
+    // Meta's offers come from its static limits, not from rows, either way.
+    const metaRows = offersWith({ meta: undefined }, [stamped('meta', 1, 'meta-old')])
+    expect(metaRows.offers.map((offer) => offer.ref)).toContain('engine:muse-spark-1.3')
+    expect(metaRows.offers.map((offer) => offer.ref)).not.toContain('engine:openai/captured')
   })
   it('does not mistake daily Groq requests or router upstreams for provider RPM', () => {
     expect(

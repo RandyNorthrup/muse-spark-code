@@ -5464,5 +5464,6 @@
     "topP": "Probabilità Top-p"
   },
   "teamTryTally": "Anteprima a pagamento: {attempts}; addebitato {charged}; responsabilità trattenuta {retained}.",
-  "teamTryDenied": "Anteprima del piano a pagamento negata. Nessun addebito effettuato."
+  "teamTryDenied": "Anteprima del piano a pagamento negata. Nessun addebito effettuato.",
+  "teamNotReleased": "I team di agenti non sono disponibili in questa build."
 }

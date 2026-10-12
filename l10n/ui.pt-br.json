@@ -5464,5 +5464,6 @@
     "topP": "Probabilidade Top-p"
   },
   "teamTryTally": "Prévia paga: {attempts}; cobrado {charged}; responsabilidade retida {retained}.",
-  "teamTryDenied": "Prévia do plano paga negada. Nenhuma cobrança foi feita."
+  "teamTryDenied": "Prévia do plano paga negada. Nenhuma cobrança foi feita.",
+  "teamNotReleased": "Equipes de agentes não estão disponíveis nesta compilação."
 }

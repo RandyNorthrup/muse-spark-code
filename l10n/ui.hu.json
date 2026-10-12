@@ -5311,5 +5311,6 @@
     "topP": "Top-p valószínűség"
   },
   "teamTryTally": "Fizetős előnézet: {attempts}; felszámítva {charged}; fenntartott kötelezettség {retained}.",
-  "teamTryDenied": "A fizetős tervelőnézet elutasítva. Nem történt terhelés."
+  "teamTryDenied": "A fizetős tervelőnézet elutasítva. Nem történt terhelés.",
+  "teamNotReleased": "Az ügynökcsapatok ebben a buildben nem érhetők el."
 }

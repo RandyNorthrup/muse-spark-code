@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { TeamHostBinding, isTeamSwitchOn } from '../../src/host/teamHostBinding'
 import { createTeamPanelHost } from '../../src/host/models/modelsPanelEntry'
 import { OPTIONAL_RUNTIME_AVAILABILITY, UI_TEXT } from '../../src/shared/constants'
-import { isTeamAvailable } from '../../src/shared/teamConversation'
+import { isTeamAvailable, teamLatchRefusal } from '../../src/shared/teamConversation'
 import { TEAM_WORKSPACE_KEYS } from '../../src/shared/teamConversation'
 
 function noop(): void {
@@ -133,6 +133,19 @@ describe('the team availability switch', () => {
       OPTIONAL_RUNTIME_AVAILABILITY.team = false
     }
     expect(isTeamAvailable(true), 'restored latch').toBe(false)
+  })
+  // P3-1: a dispatch the latch refuses says the latch, not the budget.
+  // Entry points throw this instead of the budget sentence while closed.
+  it('names the latch while it is closed, and stays silent once it opens', () => {
+    expect(OPTIONAL_RUNTIME_AVAILABILITY.team, 'shipped latch').toBe(false)
+    expect(teamLatchRefusal()).toBe(UI_TEXT.teamNotReleased)
+    OPTIONAL_RUNTIME_AVAILABILITY.team = true
+    try {
+      expect(teamLatchRefusal(), 'open latch').toBeUndefined()
+    } finally {
+      OPTIONAL_RUNTIME_AVAILABILITY.team = false
+    }
+    expect(teamLatchRefusal(), 'restored latch').toBe(UI_TEXT.teamNotReleased)
   })
   // P2-1: a true setting with a closed latch opens nothing: no bundle for a
   // saved runnable team, no configuration, no command, no panel content.
