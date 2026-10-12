@@ -17,7 +17,7 @@ import { link, rm } from 'node:fs/promises'
 import path from 'node:path'
 import * as z from 'zod/mini'
 import type { PaidGrantStore } from '../acp/paid'
-import type { CoreLogger } from '../core/logging'
+import { type CoreLogger, wireWordForLog } from '../core/logging'
 import { describeStoreError, storeErrorCode } from '../host/backend/storeErrors'
 import { writeFileAtomically } from '../host/fsAtomic'
 import {
@@ -57,8 +57,12 @@ export function paidGrantFile(deps: PaidGrantFileDeps): PaidGrantStore {
       let raw: unknown
       try {
         raw = JSON.parse(text)
-      } catch {
-        throw new Error('not valid JSON')
+      } catch (error: unknown) {
+        // Only malformed JSON reads invalid here: anything else keeps its
+        // kind. The cause carries the syntax failure, never the record: a
+        // grant record holds no secret.
+        if (!(error instanceof SyntaxError)) throw error
+        throw new Error('not valid JSON', { cause: error })
       }
       const parsed = schema.safeParse(raw)
       if (!parsed.success) {
@@ -136,7 +140,13 @@ export function paidGrantFile(deps: PaidGrantFileDeps): PaidGrantStore {
     let names: string[]
     try {
       names = readdirSync(featureFolder('webSearch'))
-    } catch {
+    } catch (error: unknown) {
+      // A missing quote folder holds no quotes; an unreadable one is
+      // reported with its kind and reads as no quotes, never silently.
+      if (error instanceof Error && storeErrorCode(error) === ENOENT) return []
+      deps.log.warn(
+        `Paid-use quotes could not be read (${wireWordForLog(storeErrorCode(error) ?? 'unknown')}), so no quote grant applies`,
+      )
       return []
     }
     const prefix = `${path.basename(grantFile(workspaceRoot, 'webSearch', generation))}.`

@@ -404,9 +404,7 @@ describe('AcpPaidUse', () => {
     const asker = vi.fn(() => Promise.resolve('always' as const))
     paid.attach(asker)
     expect(await paid.allows(FOLDER, 's1', WEB_SEARCH, false)).toMatchObject(WEB_SEARCH_QUOTE)
-    expect(log.warn).toHaveBeenCalledWith(
-      'Paid search quote could not be kept: read-only data folder',
-    )
+    expect(log.warn).toHaveBeenCalledWith('Paid search quote could not be kept (Error)')
     expect(log.info).toHaveBeenLastCalledWith('Paid use of webSearch: allowed once')
     expect(await paid.allows(FOLDER, 's1', WEB_SEARCH, false)).toMatchObject(WEB_SEARCH_QUOTE)
     expect(asker).toHaveBeenCalledTimes(2)
