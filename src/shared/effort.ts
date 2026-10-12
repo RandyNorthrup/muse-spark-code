@@ -31,6 +31,32 @@ export function effortLabel(effort: EffortLevel): string {
 }
 
 /**
+ * A served model row, as any layer carries it: the controller's cached
+ * options, the palette context's models, the ACP session's summaries. Every
+ * admission caller resolves tiers through `servedEffortLevels` below, never
+ * by reading the static family table directly (RVCM1063D cause 1).
+ */
+export interface ServedEffortRow extends CatalogueTiers {
+  readonly modelId?: string | undefined
+  readonly effortLevels?: readonly EffortLevel[] | undefined
+}
+
+/**
+ * The tiers a model may be asked for (RVCM1063D cause 1): the served
+ * catalogue's row for this model id, through `effortLevelsFor`. The dots,
+ * keyboard stepping, the palette slash command, the conversation
+ * controller's admission and ACP all call this one function. No caller reads
+ * `MODEL_EFFORT_LEVELS` itself.
+ */
+export function servedEffortLevels(
+  models: readonly ServedEffortRow[] | undefined,
+  modelId: string | undefined,
+): readonly EffortLevel[] {
+  const row = models?.find((model) => model.modelId === modelId)
+  return effortLevelsFor(modelId, row?.effortLevels, row)
+}
+
+/**
  * The MSP `ReasoningEffort` for the session: the chosen tier while Thinking
  * is on, `none` while it is off. The chosen tier is kept so switching
  * Thinking back on restores it.

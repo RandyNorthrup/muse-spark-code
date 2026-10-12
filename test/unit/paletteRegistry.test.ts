@@ -81,6 +81,35 @@ it('carries the served catalogue on the effort slider widget', () => {
   })
 })
 
+it('explains a refused tier on the effort row itself, where a screen reader reaches it (RVCM1063D #6)', () => {
+  const groups = pricedPalette({
+    ...context,
+    models: [
+      {
+        modelId: 'muse-spark-1.3',
+        displayLabel: 'Muse',
+        isDefault: true,
+        variants: ['low', 'high', 'turbo'],
+        reasoningEffortVariants: [{ tier: 'turbo', description: 'Turbo boost' }],
+        defaultReasoningEffort: 'high',
+      },
+    ],
+  })
+  const row = groups.flatMap((group) => group.items).find((item) => item.id === 'effort')
+  expect(row?.isDisabled).toBe(false)
+  expect(row?.detail).toContain('Turbo boost')
+})
+
+it('says why the effort row is disabled when no tier selects (RVCM1063D #6)', () => {
+  const groups = pricedPalette({
+    ...context,
+    models: [{ modelId: 'muse-spark-1.3', displayLabel: 'Muse', isDefault: true, variants: [] }],
+  })
+  const row = groups.flatMap((group) => group.items).find((item) => item.id === 'effort')
+  expect(row?.isDisabled).toBe(true)
+  expect(row?.detail).toBe(EN.execEffortUnavailable)
+})
+
 it('disables the effort palette row when the record has no effort tiers', () => {
   const groups = pricedPalette({
     ...context,
