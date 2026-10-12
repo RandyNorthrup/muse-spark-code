@@ -71,40 +71,82 @@ function withRun(
   runs.set(runId, { ...current, ...change })
 }
 
-export function parseTraceLog(text: string): TraceLogFacts {
-  const runs = new Map<string, TraceRun>()
-  const attempts: TraceAttempt[] = []
-  let firstMs: number | undefined
-  let lastMs: number | undefined
-  for (const line of text.split(LINE_BREAK)) {
-    const stamp = TIMESTAMP.exec(line)?.[1]
-    if (stamp === undefined) {
-      continue
-    }
-    const atMs = Date.parse(stamp)
-    firstMs ??= atMs
-    lastMs = atMs
+/** A trace log accumulated one line at a time, for the streaming file reader. */
+export interface TraceLogBuilder {
+  runs: Map<string, TraceRun>
+  attempts: TraceAttempt[]
+  firstMs: number | undefined
+  lastMs: number | undefined
+}
+
+export function createTraceLogBuilder(): TraceLogBuilder {
+  return { runs: new Map<string, TraceRun>(), attempts: [], firstMs: undefined, lastMs: undefined }
+}
+
+/**
+ * One line's facts. Most lines carry no timestamp or no event, so cheap
+ * string tests run before any regular expression, and a line reaches at most
+ * the expressions its markers name: the five event kinds are exclusive, in
+ * the same order the whole-text parser always checked them.
+ */
+export function parseTraceLine(builder: TraceLogBuilder, line: string): void {
+  // A timestamp starts `YYYY-MM-DDT`; anything else fails TIMESTAMP below
+  // (indexing past a short line reads undefined, which never matches).
+  if (line[4] !== '-' || line[7] !== '-' || line[10] !== 'T') {
+    return
+  }
+  const stamp = TIMESTAMP.exec(line)?.[1]
+  if (stamp === undefined) {
+    return
+  }
+  const atMs = Date.parse(stamp)
+  builder.firstMs ??= atMs
+  builder.lastMs = atMs
+  // Every event pattern below names `event="…"`: without it none can match.
+  if (!line.includes('event="')) {
+    return
+  }
+  if (line.includes('child_run_id=')) {
     const child = CHILD_RUN.exec(line)
     if (child?.[1] !== undefined) {
-      withRun(runs, child[1], { isChild: true })
-      continue
-    }
-    const turn = TURN_RUN.exec(line)
-    if (turn?.[1] !== undefined) {
-      withRun(runs, turn[1], { isTurn: true })
-      continue
-    }
-    const surface = SURFACE.exec(line)
-    if (surface?.[1] !== undefined && surface[2] !== undefined) {
-      withRun(runs, surface[1], { registeredTools: Number(surface[2]) })
-      continue
-    }
-    const admission = ADMISSION.exec(line)
-    if (admission?.[1] !== undefined) {
-      attempts.push({ atMs, runId: admission[1] })
+      withRun(builder.runs, child[1], { isChild: true })
+      return
     }
   }
-  return { firstMs, lastMs, attempts, runs }
+  if (line.includes('run_kind="turn"')) {
+    const turn = TURN_RUN.exec(line)
+    if (turn?.[1] !== undefined) {
+      withRun(builder.runs, turn[1], { isTurn: true })
+      return
+    }
+  }
+  if (line.includes('registered_tool_count=')) {
+    const surface = SURFACE.exec(line)
+    if (surface?.[1] !== undefined && surface[2] !== undefined) {
+      withRun(builder.runs, surface[1], { registeredTools: Number(surface[2]) })
+      return
+    }
+  }
+  if (!line.includes('phase="admission"')) {
+    return
+  }
+  const admission = ADMISSION.exec(line)
+  if (admission?.[1] !== undefined) {
+    builder.attempts.push({ atMs, runId: admission[1] })
+  }
+}
+
+export function parseTraceLog(text: string): TraceLogFacts {
+  const builder = createTraceLogBuilder()
+  for (const line of text.split(LINE_BREAK)) {
+    parseTraceLine(builder, line)
+  }
+  return {
+    firstMs: builder.firstMs,
+    lastMs: builder.lastMs,
+    attempts: builder.attempts,
+    runs: builder.runs,
+  }
 }
 
 /**

@@ -4492,6 +4492,10 @@ export const MUSE_TRACE_LOG_SEGMENTS = [
 export const TRACE_LOG_FILE_SUFFIX = '.log'
 export const TRACE_LOG_MAX_BYTES = 8 * 1024 * 1024
 export const TRACE_LOG_MAX_FILES = 200
+// Trace-log refreshes parse at most this many files at once: enough to hide
+// file-open latency behind parsing, few enough that only streaming chunk
+// buffers (not whole files) are ever held together.
+export const TRACE_LOG_READ_CONCURRENCY = 4
 // A reminder agent's run registers one tool (its decision); a subagent's run
 // registers the toolset (verified 2026-09-22: 1 versus 30).
 export const REMINDER_RUN_TOOL_COUNT_MAX = 2
