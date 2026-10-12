@@ -218,3 +218,143 @@ changed files; Prettier clean; `check:l10n` 0 problems. Full
 `package-vsix.mjs` and `package-acp.mjs` cannot run on this rig: the Linux
 `muse-created` helpers and the compiled Darwin `muse-dictate` binary are
 absent (built in CI), a pre-existing limit unrelated to this change.
+
+## 8. Round-3 fixes (MODELAPIDIETR3, 2026-10-11 night, macmini, this engine)
+
+Review RVMODELAPIDIETB left one P2 and one P3. Both are fixed and shipped
+here; golden and M75 files untouched (byte-identical per the review, and no
+R3 commit touches them). No hub file changed (constants, l10n tables,
+featureCatalog, protocol untouched), so no HUB integration run falls on
+this lane. Branch `fix/modelapi-diet`, six R3 commits on top of 90e8338c1.
+
+### P2 — one registry for every filename-loaded chunk
+
+`src/shared/lazyBundleFiles.ts` (new) exports the single table
+`LAZY_BUNDLE_FILES`: 92 dist paths (90 basenames; `whatsNew.js` and
+`reportingDestinations.js` exist both at top level and under
+`dist/webview/`), each with its `vsix` (.vscodeignore) and `acp`
+(scripts/lib/acpBundles.mjs) flags. Every basename occurs in `src`
+outside the registry itself (cross-checked); seven entries are ACP-only
+(`acp.js`, `acpPlaybook.js`, `acpQuestions.js`, `runtimeAccounts.js`,
+`runtimeQuestions.js`, `sharingRuntime.js`, `fontsInstall.js`, the last
+excluded from the VSIX by design); 51 ship in both packages, 34 VSIX
+only. No src loader was re-pointed: the registry is the authority by
+test enforcement, which keeps the hub files untouched.
+
+- `test/unit/lazyBundleFiles.test.ts` (new, 2 tests, no build): the table
+  is well-formed, and a comment-aware sweep of `src/**/*.ts` fails any
+  string or template that names a dist file outside the table — `dist/`
+  path literals anywhere, bare `x.js` literals on loader-context lines
+  (`dist`, `distDir`, `bundlePath`, `bundleFile`, `BUNDLE_FILE`,
+  `__dirname`, `Worker`, `loadBundle`, `requireFile`, `joinPath`,
+  `asWebviewUri`, `loadModule`, `path.join/dirname/resolve`,
+  `require('`, …), and dynamic `dist/${name}.js` templates. Node-module
+  paths (`@muse-code/sdk/dist/…`) are excluded. The one computed adapter,
+  `configured.ts` (`catalogFile.replace(/\.json$/, '.js')` for
+  `providerCatalog.js`), loads a registry member, verified by the
+  packaging half.
+- `test/unit/packagedBundles.test.mjs` (+2 tests): every registry entry
+  is now a traversal root independent of either package inventory, and
+  two direct assertions check each entry against the VSIX allowlist, the
+  agent package list, and the production build outputs (metafiles united
+  with the files on disk, because `dist/providerCatalog.js` is written by
+  `scripts/build.mjs` itself and has no metafile entry — found while
+  proving the new assertion, a test artifact only, the file ships).
+
+Drills (all restored byte-exact, SHA-256 verified):
+
+- Allowlist removal: `!dist/tab.js` renamed in `.vscodeignore` (SHA
+  `36cd1e25…ecd15968f` before and after). Both the old traversal and the
+  new registry assertion fail naming exactly `dist/tab.js` — the review's
+  `VSIX: []` hole is closed.
+- Rogue loader: `src/zzDrillRogue.ts` with
+  `path.join(dir, 'rogueBundle.js')` fails the scan test naming exactly
+  `src/zzDrillRogue.ts:3 names rogueBundle.js`; file deleted after. (The
+  first drill shape, a bare literal with no loader context, correctly did
+  not fire; widening the hints to `path.join`/`require('` caught the
+  realistic adapter shape with zero false positives on the tree.)
+- Unbuilt entry: `neverBuiltDrill.js` added to the registry fails all
+  three packaging assertions naming `dist/neverBuiltDrill.js`; registry
+  restored to SHA `e2ce5e60…0beb9d8b5a463a`.
+
+### P3 — the promised log details exist, scrubbed
+
+`src/core/backends/modelapi/ModelApiHost.ts`: `hookCallFields`,
+`argumentPreviewAssist` and the same-class sibling `checkedPageUrl`
+(which funnels into `MODEL_TEXT.webFetchUnavailable`, "(its log says
+why)") log through one shared `helpersFailure` line —
+`modelApiTools.js failed: <class>` — before throwing the installed
+sentence (both throws chain `{ cause: error }`, required by
+`preserve-caught-error`) or refusing closed. Only the failure's class is
+logged, never the message text: the missing-module error carries the
+absolute chunk path and a constructor error can carry the call's own
+fields, and the sabotage tests prove both stay out. Sibling sweep: the
+other eleven "The log has the details" sentences belong to other lanes'
+host/runtime loaders, which log fixed words through `lazyBundleLoader` /
+`fixedMessageLog` with their bundle loggers; none is this lane's to
+change.
+
+- `test/unit/modelApiBundle.test.ts`: the missing-chunk test asserts the
+  warn line names `modelApiTools.js` and never the scratch folder's
+  absolute path; the sabotaged-constructor test throws
+  `sabotaged preview canary-PROMPT-TEXT /tmp/canary-path` and asserts the
+  canary never reaches the log; the closed-fetch test asserts the same
+  for `sabotaged check`.
+- Drill: removing the three `helpersFailure` calls fails exactly the
+  three log-asserting tests; `ModelApiHost.ts` restored to SHA
+  `6dc25102…cf048030edd8b1400`.
+- Diet pin: the shared line costs measured bytes (one site each, no
+  triplication, no new strings beyond the chunk name). The `modelApi`
+  test-bundle pin moves 516,264 → 516,373 (+109 B) to the measured value
+  exactly, with the R3 reason recorded beside it in
+  `test/unit/deferredBundles.test.ts`. D6's 537,600 B production cap is
+  untouched (21,264 B headroom). **Lead: this pin move is the one
+  guard-adjacent decision to ratify or revert — shrinking further would
+  need dropping a lead-ordered log site.**
+
+### Byte rows (production `npm run build`, exit 0, this rig)
+
+- `dist/modelApi.js`: **516,336 B** (R2: 516,156; +180 B P3 diagnostics).
+- Lane saving vs the original diet base af67368a22 (530,683 B):
+  **14,347 B** (14,419 diet + 108 R2 localization − 180 R3 diagnostics).
+- Against the release-train pin 532,537 B: 532,537 − 516,336 =
+  **16,201 B** arithmetic under — not a measured saving (different source
+  revision; `declaredPreviewFields` is absent here, as the review notes;
+  integration must remeasure before setting the train pin).
+- Unchanged, byte for byte with the review's R2 table: `extension.js`
+  563,929, `headless.js` 98,360, `runtimeEngine.js` 642,596, `uiText.js`
+  96,916, `modelApiTools.js` 23,433. Budgets: modelApi.js 504.2 KiB of
+  525 KiB; every other size row, split guard, host global and notice
+  green in the same build.
+
+### Verification (repository timeouts, `--maxWorkers=3`, one at a time)
+
+- `npm run typecheck`: exit 0, all projects. Changed-file ESLint: 0
+  errors. Prettier: clean. `npm run check:l10n`: 0 problems (1,545
+  source files; no UI string added or changed).
+- Green: `lazyBundleFiles` 2/2, `packagedBundles` 3/3, `modelApiBundle`
+  20/20, `modelApiHost` 670/670, `deferredBundles` + `modelApiHooks` +
+  `modelCallHooks` 140/140, `usagePackaging` 12/12 (clean HOME; the
+  shared `~/.npm` cache has root-owned files, as in R2),
+  `vsixPackaging` + `acpPackageFixtures` + `resourceAcpPackaging` +
+  `teamRuntimePackage` + `integrationPackaging` green,
+  `modelApiGoldenRequests` + `metaGolden` + `modelApiHostedSearch`
+  199/199, `lazyBundle` + `configuredProviders` except below.
+- Pre-existing, base-identical, not this lane: `acpAgent` 1 failure and
+  `runtimeChatGpt` 29 failures reproduce exactly on the untouched base
+  files (checked out 90e8338c1 versions, ran, restored) — this headless
+  rig has no unlocked credential store, so the ChatGPT status path maps
+  to `planUi.retry` instead of the store-unavailable message.
+  `configuredProviders` loopback test cannot run here at all: loopback
+  bind fails EPERM in this sandbox (probed directly), the other 39 pass.
+  The review's four rig-limited files (`judgeFences`, `usageIntegration`,
+  `runtimeChatGptPackage`, `execStdio.e2e`) were not re-run here.
+- Real release VSIX/ACP not built here (same pre-existing limit as the
+  review: no Linux `muse-created` helpers, no compiled Darwin
+  `muse-dictate`). **Lead, on a rig that has them:** `npm run package`
+  (builds production then `node scripts/package-vsix.mjs`) and
+  `npm run package:acp`, install the VSIX, run a Model API turn through
+  first Tab use, then repeat the missing-chunk probe (remove
+  `dist/modelApiTools.js` from the staged tree) and confirm the turn
+  fails with the installed sentence plus the `modelApiTools.js failed`
+  log line.

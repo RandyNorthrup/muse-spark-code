@@ -113,6 +113,3 @@ export const LAZY_BUNDLE_FILES = {
   whatsNew: { file: 'whatsNew.js', vsix: true, acp: false },
   wire: { file: 'wire.js', vsix: true, acp: true },
 } as const satisfies Record<string, LazyBundleEntry>
-
-/** A bundle file path from the registry, below dist/. */
-export type LazyBundleFile = (typeof LAZY_BUNDLE_FILES)[keyof typeof LAZY_BUNDLE_FILES]['file']
