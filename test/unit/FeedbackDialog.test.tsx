@@ -189,4 +189,28 @@ describe('FeedbackDialog: the captured disclosure only', () => {
     await screen.findByText(UI_TEXT.feedbackUploaded)
     expect(screen.getByRole('status').textContent).toBe(UI_TEXT.feedbackUploaded)
   })
+
+  it('returns focus inside the dialog after a busy preview, so Escape closes (RVCM1063D #4)', async () => {
+    const gate = Promise.withResolvers<string>()
+    const submit = vi.fn().mockResolvedValue(UI_TEXT.feedbackUploaded)
+    const { props } = setup({ port: { submit, scrubNote: () => gate.promise } })
+    fireEvent.change(noteBox(), { target: { value: 'A wrong answer' } })
+    const previewButton = screen.getByRole('button', { name: UI_TEXT.reportPreviewLabel })
+    previewButton.focus()
+    fireEvent.click(previewButton)
+    // The browser drops focus to the page when the focused button disables;
+    // jsdom keeps it (and refuses blur on a disabled node), so simulate the
+    // drop around the assertion the fix must satisfy.
+    previewButton.disabled = false
+    previewButton.blur()
+    previewButton.disabled = true
+    expect(document.activeElement).toBe(document.body)
+    gate.resolve('A wrong answer')
+    await screen.findByRole('button', { name: UI_TEXT.feedbackSend })
+    const dialog = screen.getByRole('dialog')
+    expect(dialog.contains(document.activeElement)).toBe(true)
+    // Keyboard ownership is restored: Escape reaches the dialog and closes it.
+    fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
+    expect(props.onClose).toHaveBeenCalledTimes(1)
+  })
 })

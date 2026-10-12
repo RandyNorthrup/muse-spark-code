@@ -929,20 +929,7 @@ describe('App conversation', () => {
   )
 
   it('closes the feedback bridge when the session changes', async () => {
-    renderReady()
-    deliver({ type: 'authState', status: 'signedIn', backend: 'museCode' })
-    deliver({ type: 'sessionInfo', modelId: 'muse-spark-1.3', sessionId: 's1' })
-    deliver({ type: 'agentEvent', event: { type: 'turnStarted', turnId: 't1' } })
-    streamReply('m1', 'hi there')
-    deliver({
-      type: 'agentEvent',
-      event: { type: 'turnCompleted', turnId: 't1', terminal: 'completed' },
-    })
-    const rowButton = document.querySelector('[data-role="assistant"] .row-actions-button')
-    if (!(rowButton instanceof HTMLElement)) throw new Error('Missing assistant row menu')
-    fireEvent.click(rowButton)
-    fireEvent.click(await screen.findByRole('menuitem', { name: UI_TEXT.feedbackTitle }))
-    await screen.findByLabelText(UI_TEXT.feedbackNote)
+    const rowButton = await openFeedbackFromRow()
     const dialog = screen.getByRole('dialog')
     expect(dialog.closest('[inert]')).toBeNull()
     expect(document.querySelector('.header-area')).toHaveAttribute('inert')
@@ -963,20 +950,7 @@ describe('App conversation', () => {
   })
 
   it('queues a host-opened sharing surface while feedback is open (RVCM1063C #3)', async () => {
-    renderReady()
-    deliver({ type: 'authState', status: 'signedIn', backend: 'museCode' })
-    deliver({ type: 'sessionInfo', modelId: 'muse-spark-1.3', sessionId: 's1' })
-    deliver({ type: 'agentEvent', event: { type: 'turnStarted', turnId: 't1' } })
-    streamReply('m1', 'hi there')
-    deliver({
-      type: 'agentEvent',
-      event: { type: 'turnCompleted', turnId: 't1', terminal: 'completed' },
-    })
-    const rowButton = document.querySelector('[data-role="assistant"] .row-actions-button')
-    if (!(rowButton instanceof HTMLElement)) throw new Error('Missing assistant row menu')
-    fireEvent.click(rowButton)
-    fireEvent.click(await screen.findByRole('menuitem', { name: UI_TEXT.feedbackTitle }))
-    await screen.findByLabelText(UI_TEXT.feedbackNote)
+    await openFeedbackFromRow()
     // The host's saved-prompts command arrives while feedback owns the
     // panel: one modal, and the prompt library waits its turn.
     deliver({ type: 'openSharing', surface: 'prompts' })
@@ -984,12 +958,98 @@ describe('App conversation', () => {
     expect(screen.getAllByRole('dialog')).toHaveLength(1)
     expect(screen.queryByRole('dialog', { name: UI_TEXT.promptLibrary })).toBeNull()
     // Closing feedback opens the queued surface, still exactly one modal.
-    fireEvent.keyDown(screen.getByRole('dialog', { name: UI_TEXT.feedbackTitle }), {
-      key: 'Escape',
-    })
-    await screen.findByRole('dialog', { name: UI_TEXT.promptLibrary })
-    expect(screen.getAllByRole('dialog')).toHaveLength(1)
+    escapeFeedbackDialog()
+    await expectOnlyQueuedSurface(UI_TEXT.promptLibrary)
     expect(screen.queryByRole('dialog', { name: UI_TEXT.feedbackTitle })).toBeNull()
+  })
+
+  const modalSurfaces = [
+    {
+      surface: 'help',
+      open: () => {
+        deliver({ type: 'openHelp' })
+      },
+      name: () => UI_TEXT.helpReferenceTitle,
+    },
+    {
+      surface: 'usage',
+      open: () => {
+        deliver({ type: 'openUsage' })
+      },
+      name: () => 'Account & usage',
+    },
+    {
+      surface: 'agents',
+      // Request-only: while feedback owns the panel the map stays queued,
+      // so awaiting its dialog here would time out by design.
+      open: async () => {
+        deliver({
+          type: 'usageReport',
+          backend: 'museCode',
+          account: { signInMethod: 'cli', delegationMode: 'auto' },
+        })
+        deliver({
+          type: 'agentEvent',
+          event: {
+            type: 'itemStarted',
+            item: {
+              itemId: 'sa1',
+              kind: 'subagent',
+              status: 'inProgress',
+              role: 'explorer',
+              objective: 'Map the workspace',
+              childSessionId: 'child-1',
+            },
+          },
+        })
+        fireEvent.click(await screen.findByTitle('Show the agent map'))
+      },
+      name: () => 'Agent map',
+    },
+  ] as const
+
+  it.each(modalSurfaces)(
+    'queues a host-opened $surface while feedback is open (RVCM1063D #3)',
+    async ({ open, name }) => {
+      await openFeedbackFromRow()
+      await open()
+      await screen.findByRole('dialog', { name: UI_TEXT.feedbackTitle })
+      expect(screen.getAllByRole('dialog')).toHaveLength(1)
+      expect(screen.queryByRole('dialog', { name: name() })).toBeNull()
+      // Closing feedback opens the queued surface, still exactly one modal.
+      escapeFeedbackDialog()
+      await expectOnlyQueuedSurface(name())
+      expect(screen.queryByRole('dialog', { name: UI_TEXT.feedbackTitle })).toBeNull()
+    },
+  )
+
+  it.each(modalSurfaces)(
+    'opens feedback alone while a host-opened $surface owns the panel (RVCM1063D cause 2)',
+    async ({ open, name }) => {
+      readySessionWithReply()
+      await open()
+      await screen.findByRole('dialog', { name: name() })
+      // The row menu is inert behind the modal in production; the gate still
+      // mounts exactly one dialog when feedback is asked for.
+      await openRowMenu()
+      await screen.findByRole('dialog', { name: UI_TEXT.feedbackTitle })
+      expect(screen.getAllByRole('dialog')).toHaveLength(1)
+      // Closing feedback reveals the waiting surface, still one modal.
+      escapeFeedbackDialog()
+      await expectOnlyQueuedSurface(name())
+    },
+  )
+
+  it('returns focus to the composer when the session changes under feedback (RVCM1063D cause 2)', async () => {
+    await openFeedbackFromRow()
+    expect(screen.getByRole('dialog', { name: UI_TEXT.feedbackTitle })).toBeInTheDocument()
+    // The new session replaces the transcript, taking the opener with it. The
+    // row menu's own close returns focus to its trigger: what matters is
+    // that focus rests on a control, never on the page behind.
+    deliver({ type: 'sessionInfo', modelId: 'muse-spark-1.3', sessionId: 's2' })
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(document.activeElement).not.toBe(document.body)
+    expect(document.activeElement).not.toBeNull()
   })
 
   it('keeps empty native effort lists from posting fallback tiers', () => {
@@ -1355,6 +1415,49 @@ describe('App transcript (M4)', () => {
 async function openPalette() {
   fireEvent.click(screen.getByLabelText('Commands'))
   return await screen.findByRole('combobox')
+}
+
+/** A signed-in session with one streamed assistant reply, ready for the row menu. */
+function readySessionWithReply() {
+  renderReady()
+  deliver({ type: 'authState', status: 'signedIn', backend: 'museCode' })
+  deliver({ type: 'sessionInfo', modelId: 'muse-spark-1.3', sessionId: 's1' })
+  deliver({ type: 'agentEvent', event: { type: 'turnStarted', turnId: 't1' } })
+  streamReply('m1', 'hi there')
+  deliver({
+    type: 'agentEvent',
+    event: { type: 'turnCompleted', turnId: 't1', terminal: 'completed' },
+  })
+}
+
+/** Opens feedback through a reply's actions menu (one modal at a time: the gate mounts one dialog). */
+async function openFeedbackFromRow() {
+  readySessionWithReply()
+  await openRowMenu()
+  await screen.findByLabelText(UI_TEXT.feedbackNote)
+  const rowButton = document.querySelector('[data-role="assistant"] .row-actions-button')
+  if (!(rowButton instanceof HTMLElement)) throw new Error('Missing assistant row menu')
+  return rowButton
+}
+
+/** Closes the open feedback dialog the keyboard way. */
+function escapeFeedbackDialog() {
+  fireEvent.keyDown(screen.getByRole('dialog', { name: UI_TEXT.feedbackTitle }), {
+    key: 'Escape',
+  })
+}
+
+/** Exactly one dialog, and it is the queued surface the host asked for. */
+async function expectOnlyQueuedSurface(name: string) {
+  expect(await screen.findByRole('dialog', { name })).toBeInTheDocument()
+  expect(screen.getAllByRole('dialog')).toHaveLength(1)
+}
+
+async function openRowMenu() {
+  const rowButton = document.querySelector('[data-role="assistant"] .row-actions-button')
+  if (!(rowButton instanceof HTMLElement)) throw new Error('Missing assistant row menu')
+  fireEvent.click(rowButton)
+  fireEvent.click(await screen.findByRole('menuitem', { name: UI_TEXT.feedbackTitle }))
 }
 
 /** Opens the account modal through the same palette action a user selects. */

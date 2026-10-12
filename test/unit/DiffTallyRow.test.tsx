@@ -29,6 +29,14 @@ describe('DiffTally', () => {
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
   })
 
+  it('goes inert behind a modal so its Review button takes no focus or clicks (RVCM1063D #4)', () => {
+    const { rerender } = render(<DiffTally counts={diffTally([edit])} onReview={vi.fn()} />)
+    const group = screen.getByRole('group', { name: 'Changes in this conversation' })
+    expect(group).not.toHaveAttribute('inert')
+    rerender(<DiffTally counts={diffTally([edit])} onReview={vi.fn()} isInert />)
+    expect(group).toHaveAttribute('inert')
+  })
+
   it('shows singular files, formatted line totals, and the scope tooltip from real edits', () => {
     render(<DiffTally counts={diffTally([edit])} />)
     expect(screen.getByText('1 file changed')).toBeInTheDocument()

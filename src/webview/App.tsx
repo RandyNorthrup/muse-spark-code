@@ -46,7 +46,7 @@ import { isLegalPrompt, parseLegalPrompt } from '../shared/legalCommand'
 import type { LegalScanRequestMessage, LegalFinding } from '../shared/legal'
 import { editorContextLabel } from '../shared/editorContext'
 
-import { effortAt, effortIndex, effortLabel, effortLevelsFor } from '../shared/effort'
+import { effortAt, effortIndex, effortLabel, servedEffortLevels } from '../shared/effort'
 import { parseGoalPrompt, requiresObjective } from '../shared/goalCommand'
 import { parseHandoffPrompt } from '../shared/handoff'
 import { parseLoopPrompt } from '../core/backends/modelapi/schedules'
@@ -2738,7 +2738,9 @@ export function App({
   // vocabulary renders with its catalogue name but cannot travel the
   // EffortLevel-typed setEffort path, so only known tiers select.
   const effortModel = state.models.find((model) => model.modelId === state.model?.modelId)
-  const effortLevels = effortLevelsFor(state.model?.modelId, effortModel?.effortLevels, effortModel)
+  // The dots and keyboard stepping offer what the served catalogue admits,
+  // through the one shared function (RVCM1063D cause 1).
+  const effortLevels = servedEffortLevels(state.models, state.model?.modelId)
 
   const onStepEffort = useCallback(
     (direction: -1 | 1) => {
@@ -3242,26 +3244,33 @@ export function App({
           {history}
           {board}
         </div>
-        <>
-          {overlay === 'help' ? (
-            <ReferencePage
-              postMessage={postMessage}
-              values={state.referenceValues}
-              settings={state.settings}
-              onClose={closeOverlay}
-            />
-          ) : null}
-          {overlay === 'prompts' && feedbackDialog === null ? (
-            <PromptLibraryBridge post={postMessage} onClose={closeOverlay} />
-          ) : null}
-          {overlay === 'chatShare' && feedbackDialog === null ? (
-            <ChatShareBridge key={state.sessionId} post={postMessage} onClose={closeOverlay} />
-          ) : null}
-          {usageDialog}
-          {agentMap}
-          {reviewPane}
-          {bestOfN}
-        </>
+        {/* One modal at a time (RVCM1063D cause 2): while feedback owns the
+            panel no host-opened overlay mounts, and a feedback request while
+            one is open mounts alone while the overlay's state waits — the
+            pending surface appears when the open dialog closes. Modals behind
+            this gate keep their own mount state, so nothing is lost. */}
+        {feedbackDialog === null ? (
+          <>
+            {overlay === 'help' ? (
+              <ReferencePage
+                postMessage={postMessage}
+                values={state.referenceValues}
+                settings={state.settings}
+                onClose={closeOverlay}
+              />
+            ) : null}
+            {overlay === 'prompts' ? (
+              <PromptLibraryBridge post={postMessage} onClose={closeOverlay} />
+            ) : null}
+            {overlay === 'chatShare' ? (
+              <ChatShareBridge key={state.sessionId} post={postMessage} onClose={closeOverlay} />
+            ) : null}
+            {usageDialog}
+            {agentMap}
+            {reviewPane}
+            {bestOfN}
+          </>
+        ) : null}
         {feedbackDialog}
         {handoffDialog}
         {secretPromptDialog}
@@ -3327,7 +3336,9 @@ export function App({
         </main>
         {/* Review opens M70's pane on the same edits (D66 item 10). Mounted
         only with edits to show, so the chunk loads on first use. */}
-        {tally === undefined ? null : <DiffTally counts={tally} onReview={openReviewPane} />}
+        {tally === undefined ? null : (
+          <DiffTally counts={tally} onReview={openReviewPane} isInert={isModalOpen} />
+        )}
         {state.git.form === undefined &&
         state.git.state.worktree === undefined &&
         state.git.state.pullRequest === undefined &&
@@ -3392,6 +3403,7 @@ export function App({
                     },
               nowMs: state.schedulesSurface.nowMs,
               initialView: state.schedulesSurface.initialView,
+              isInert: isModalOpen,
             }}
             request={schedulePortRequest}
             subscribeChanges={schedulePortSubscribe}

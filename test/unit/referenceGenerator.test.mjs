@@ -1024,7 +1024,7 @@ describe('RVHELPREF2 runtime truth regressions', () => {
       ...source.evidence,
       'src/webview/components/Modal.tsx': source.evidence[
         'src/webview/components/Modal.tsx'
-      ].replace("webviewKey('modal.focus', event) !== 'close'", "event.key !== 'Delete'"),
+      ].replace("if (action !== 'close')", "if (event.key !== 'Delete')"),
     }
     expect(() => build(manifest, { evidence })).toThrow('Keyboard dispatch bypasses registry')
   })

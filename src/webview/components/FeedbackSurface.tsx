@@ -27,7 +27,14 @@ export function FeedbackSurface({
     bridge.open()
     return () => {
       bridge.close()
-      if (opener?.isConnected === true) opener.focus()
+      // The dialog returns focus to the control that opened it, or to the
+      // composer when that control is gone — a removed row menu, a session
+      // change — so focus never rests on the page behind (RVCM1063D cause 2).
+      if (opener?.isConnected === true) {
+        opener.focus()
+        return
+      }
+      document.querySelector<HTMLTextAreaElement>('.composer-area .composer-input')?.focus()
     }
   }, [bridge, opener])
   return <LazyFeedbackDialog sessionId={sessionId} port={bridge.port} onClose={onClose} />

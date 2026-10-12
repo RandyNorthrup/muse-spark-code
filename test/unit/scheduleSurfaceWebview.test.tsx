@@ -264,3 +264,11 @@ describe('M115 schedule surface', () => {
     element.remove()
   })
 })
+
+describe('M115 schedule surface inertness (RVCM1063D #4)', () => {
+  it('marks the surface inert behind a modal', async () => {
+    const { schedule } = setup({ isInert: true })
+    await screen.findByRole('article', { name: schedule.name })
+    expect(document.querySelector('.schedule-v2-surface')).toHaveAttribute('inert')
+  })
+})
