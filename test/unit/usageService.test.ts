@@ -112,6 +112,34 @@ describe('shared usage service', () => {
     expect(await deps.readBudgets()).toEqual(beforeBudgets)
     expect(deps.setHistory).not.toHaveBeenCalled()
   })
+  it('shows the cost journal with its own trace sentence when the trace folder cannot be read', async () => {
+    const deps = usageFixtureDeps()
+    const service = createUsageService({
+      ...deps,
+      readAttempts: () => Promise.reject(new Error('EACCES')),
+    })
+    const state = await service.snapshot()
+    // The journal stands: totals, budgets and limits are all present.
+    expect(state.totals.tokens.input).toBe(100)
+    expect(state.budgets).toHaveLength(1)
+    expect(state.limits).toHaveLength(1)
+    expect(state.attempts).toEqual([])
+    expect(state.traceNotice).toBe('unavailable')
+  })
+  it('marks the attempts stale when a kept-changing log stands in with its last good parse', async () => {
+    const deps = usageFixtureDeps()
+    const service = createUsageService({
+      ...deps,
+      readAttempts: () =>
+        Promise.resolve({
+          attempts: [{ day: usageLocalDay(usageNow), origin: 'turn' as const, attempts: 31 }],
+          stale: true,
+        }),
+    })
+    const state = await service.snapshot()
+    expect(state.attempts).toEqual([{ day: usageLocalDay(usageNow), origin: 'turn', attempts: 31 }])
+    expect(state.traceNotice).toBe('stale')
+  })
   it('counts the resource history the same delete removes, and refuses when it cannot count it', async () => {
     const deps = usageFixtureDeps([usageFixtureRecord()])
     const service = createUsageService({ ...deps, countResources: () => Promise.resolve(3) })

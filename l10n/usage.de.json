@@ -191,6 +191,8 @@
   "paidBudgetNote": "Kostenpflichtige Extras fragen vor der ersten Abbuchung und teilen sich museSpark.paidDailyBudgetUsd. Ihr Abonnement zahlt nichts davon.",
   "attempts": "Muse Code Modellversuche",
   "attemptsNote": "Aus lokalen Trace-Logs; die Abdeckung hängt von den aufbewahrten Logs ab.",
+  "attemptsStaleNote": "Ein Trace-Log hat sich während des Lesens geändert, daher können diese Zahlen veraltet sein. Für den neuesten Stand aktualisieren.",
+  "attemptsUnavailableNote": "Der Muse-Code-Trace-Ordner konnte nicht gelesen werden, daher fehlen die Modellversuche. Prüfen, ob sich der Ordner öffnen lässt, dann aktualisieren.",
   "originTurn": "Unterhaltung",
   "originReminder": "Erinnerung",
   "originSubagent": "Subagent",

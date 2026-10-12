@@ -191,6 +191,8 @@
   "paidBudgetNote": "A fizetős extrák az első terhelés előtt engedélyt kérnek, és osztoznak a museSpark.paidDailyBudgetUsd kereten. Az előfizetés ebből semmit sem fizet.",
   "attempts": "Muse Code modellpróbálkozások",
   "attemptsNote": "Helyi nyomkövetési naplókból; a lefedettség a megőrzött naplóktól függ.",
+  "attemptsStaleNote": "Egy nyomkövetési napló olvasás közben megváltozott, ezért ezek a számok elavultak lehetnek. Frissítsen a legfrissebb adatokért.",
+  "attemptsUnavailableNote": "A Muse Code nyomkövetési mappája nem olvasható, ezért a modellkísérletek hiányoznak. Ellenőrizze, hogy a mappa megnyitható-e, majd frissítsen.",
   "originTurn": "Beszélgetés",
   "originReminder": "Emlékeztető",
   "originSubagent": "Alügynök",

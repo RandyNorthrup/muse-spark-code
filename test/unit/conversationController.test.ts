@@ -421,6 +421,8 @@ function setup(
     isRestorable?: boolean
     /** The usage modal's insights (M14). */
     usageInsights?: { day: UsageInsights; week: UsageInsights }
+    /** A failing insights read: the report still posts without them. */
+    usageInsightsError?: unknown
     usageRecording?: ConversationDeps['usageRecording']
     /** Voice dictation (M9). */
     dictation?: DictationSetup
@@ -740,7 +742,11 @@ function setup(
           ? { signInMethod: 'cli' as const, cliVersion: '1.3.0', delegationMode: 'off' }
           : { signInMethod: 'apiKey' as const },
       ),
-    usageInsights: () => Promise.resolve(options.usageInsights),
+    usageInsights:
+      options.usageInsightsError === undefined
+        ? () => Promise.resolve(options.usageInsights)
+        : () =>
+            Promise.reject(new Error('usageInsightsFailed', { cause: options.usageInsightsError })),
     ...(options.usageRecording !== undefined && { usageRecording: options.usageRecording }),
     ...(options.uploadedFiles !== undefined && { uploadedFiles: options.uploadedFiles }),
     ensureHost: async () => {
@@ -4542,6 +4548,26 @@ describe('ConversationController: account & usage (M8)', () => {
     })
   })
 
+  it('still posts the subscription report when the trace insights fail', async () => {
+    const t = setup({ usageInsightsError: new Error('EACCES') })
+    t.server.handle('usage/read', () => ({ usage }))
+    await t.controller.handle({ type: 'readUsage' })
+    // The trace failure is logged, not shown: the subscription stands alone.
+    expect(t.surface.posted.at(-1)).toEqual({
+      type: 'usageReport',
+      backend: 'museCode',
+      account,
+      subscription: usage,
+    })
+    t.server.notify('usage/changed', usage)
+    await settle()
+    expect(t.surface.posted.at(-1)).toEqual({
+      type: 'usageReport',
+      backend: 'museCode',
+      account,
+      subscription: usage,
+    })
+  })
   it('answers readUsage with the backend and the window, then follows usage/changed', async () => {
     const t = setup()
     expect(await firstUsageReport(t)).toEqual({ type: 'usageReport', backend: 'museCode', account })

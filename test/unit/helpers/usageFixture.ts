@@ -95,10 +95,13 @@ export function usageFixtureDeps(records: readonly UsageRecord[] = [usageFixture
       ]),
     ),
     readAttempts: vi.fn((): ReturnType<UsageServiceDeps['readAttempts']> =>
-      Promise.resolve([
-        { day: usageLocalDay(usageNow), origin: 'turn', attempts: 31 },
-        { day: '2026-01-01', origin: 'reminder', attempts: 10 },
-      ]),
+      Promise.resolve({
+        attempts: [
+          { day: usageLocalDay(usageNow), origin: 'turn', attempts: 31 },
+          { day: '2026-01-01', origin: 'reminder', attempts: 10 },
+        ],
+        stale: false,
+      }),
     ),
     providerConsoles: () => [
       { provider: 'openai', consoleUrl: 'https://platform.openai.com/usage' },

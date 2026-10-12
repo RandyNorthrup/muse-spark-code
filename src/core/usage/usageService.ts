@@ -68,7 +68,14 @@ export interface UsageServiceDeps {
   readonly readBudgets: UsageBudgetReadPort['readToday']
   /** Host provides subscription/account snapshots; never requests a model. */
   readonly readLiveLimits: () => Promise<readonly UsageLimitSnapshot[]>
-  readonly readAttempts: () => Promise<UsagePageState['attempts']>
+  /**
+   * Model attempts from the Muse Code trace logs, scoped to the query's
+   * `from` day so old logs are skipped only when the query cannot reach
+   * them. `stale` when a kept-changing log's last good parse stands in.
+   * A rejection never fails the page: the cost journal still shows, with
+   * `traceNotice` saying what is missing.
+   */
+  readonly readAttempts: (fromDay?: string) => Promise<UsageAttemptRead>
   /** M107 J: the machine resource journal's aggregate; a failure shows as unavailable. */
   readonly readResources?: () => Promise<ResourceHistory>
   /** Every stored resource history entry, which Delete history also removes. */
@@ -105,6 +112,11 @@ export interface UsageServiceDeps {
     model: string,
   ) => Promise<NonNullable<UsagePageState['modelDetail']>['price']>
 }
+export interface UsageAttemptRead {
+  readonly attempts: UsagePageState['attempts']
+  readonly stale: boolean
+}
+
 export interface UsageService {
   readonly snapshot: (query?: UsageQuery) => Promise<UsagePageState>
   /** Native postMessage, stdio and HTTP all use this checked boundary. */
@@ -136,13 +148,23 @@ export function createUsageService(deps: UsageServiceDeps): UsageService {
     selected: UsageQuery,
   ): Promise<{ journal: UsageJournalRead; state: UsagePageState }> {
     const now = deps.now()
-    const [journal, budgets, live, attempts, resources] = await Promise.all([
+    const [journal, budgets, live, resources] = await Promise.all([
       deps.journal.read(),
       deps.readBudgets(),
       deps.readLiveLimits(),
-      deps.readAttempts(),
       readResources(deps),
     ])
+    // The trace logs fail independently of the cost journal (P2-2): an
+    // unreadable trace folder shows the journal with its own sentence,
+    // never the journal's "could not be read".
+    let attemptRead: UsageAttemptRead = { attempts: [], stale: false }
+    let traceNotice: UsagePageState['traceNotice']
+    try {
+      attemptRead = await deps.readAttempts(selected.from)
+    } catch {
+      traceNotice = 'unavailable'
+    }
+    if (traceNotice === undefined && attemptRead.stale) traceNotice = 'stale'
     const aggregated = aggregateUsage(journal.records, journal.rollups, selected, now)
     const limits = limitHistory([
       ...journal.limits.filter(
@@ -196,9 +218,10 @@ export function createUsageService(deps: UsageServiceDeps): UsageService {
       unreportedLimits: deps
         .providerConsoles()
         .filter((provider) => limits.every((limit) => limit.provider !== provider.provider)),
-      attempts: attempts.filter(
+      attempts: attemptRead.attempts.filter(
         (attempt) => attempt.day >= aggregated.from && attempt.day <= aggregated.to,
       ),
+      ...(traceNotice !== undefined && { traceNotice }),
       savings: {
         ...(aggregated.totals.tokens.cached !== undefined && {
           cachedTokens: aggregated.totals.tokens.cached,

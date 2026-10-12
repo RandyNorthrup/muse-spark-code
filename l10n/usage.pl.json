@@ -213,6 +213,8 @@
   "paidBudgetNote": "Płatne dodatki proszą o zgodę przed pierwszym obciążeniem i współdzielą museSpark.paidDailyBudgetUsd. Subskrypcja nie pokrywa żadnego z tych kosztów.",
   "attempts": "Próby modeli Muse Code",
   "attemptsNote": "Z lokalnych dzienników śledzenia; pokrycie zależy od przechowywanych dzienników.",
+  "attemptsStaleNote": "Dziennik śledzenia zmienił się podczas odczytu, więc te liczby mogą być nieaktualne. Odśwież, aby zobaczyć najnowsze.",
+  "attemptsUnavailableNote": "Nie można odczytać folderu śledzenia Muse Code, więc brakuje prób modelu. Sprawdź, czy folder da się otworzyć, a następnie odśwież.",
   "originTurn": "Rozmowa",
   "originReminder": "Przypomnienie",
   "originSubagent": "Podagent",

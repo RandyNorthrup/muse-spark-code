@@ -286,7 +286,9 @@ if (scene === 'reporting-page') {
       break
     }
     case 'usage-attempts': {
-      content = <AttemptsSection attempts={usageState.attempts} />
+      content = (
+        <AttemptsSection attempts={usageState.attempts} traceNotice={usageState.traceNotice} />
+      )
       break
     }
     case 'usage-breakdown': {
