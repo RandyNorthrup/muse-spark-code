@@ -349,7 +349,7 @@
   "referenceVaultPanel": "In Arbeit.",
   "referenceVaultLock": "In Arbeit.",
   "referenceAuthClear": "Den gespeicherten Model API-Schlüssel entfernen.",
-  "referenceAuthStatus": "Prüfen, ob ein Model API-Schlüssel gespeichert ist.",
+  "referenceAuthStatus": "Gespeicherte Schlüssel anzeigen (Model-API-Schlüssel und alle konfigurierten Anbieterschlüssel). Exit 0, wenn ein Schlüssel gespeichert ist, sonst 1.",
   "referenceAccountsTitle": "Several accounts per provider",
   "referenceAccounts": "In Arbeit.",
   "referenceDeveloper": "Maschinenlokale Entwickleroptionen anzeigen oder entsperren. Profilaktionen erfordern einen angebundenen Ressourcenverwalter.",
@@ -3301,6 +3301,7 @@
   "scheduleRunConfirmPrice": "Ihrem Model-API-Schlüssel berechnet: {price}. Der Gesamtbetrag hängt von den verwendeten Token ab.",
   "scheduleRunConfirmExtras": "Andere aktivierte kostenpflichtige Tools können zusätzliche Kosten verursachen. Auch im Bypass-Modus ist diese Bestätigung erforderlich.",
   "scheduleConfirmationExpired": "Modell, Unterhaltung oder Eingabe haben sich während der Bestätigung geändert. Prüfen Sie den Zeitplan und wählen Sie erneut „Ausführen“.",
+  "execKeyRotated": "Der Schlüssel wurde während des Laufs rotiert; die Anfrage wurde nicht gesendet.",
   "webNoResults": "Keine Ergebnisse",
   "backgroundRunning": "Läuft im Hintergrund",
   "moveToBackground": "In den Hintergrund",
@@ -3476,6 +3477,18 @@
   "execEffortUnavailable": "Dieser Denkaufwand ist für dieses Modell nicht verfügbar.",
   "execTimedOut": "Der Lauf hat sein Zeitlimit erreicht.",
   "execBudgetRefused": "Die nächste Anfrage überschreitet das verbleibende Budget.",
+  "execPaidDailyStopped": "Bezahlte Extras gestoppt: Tagesbudget {cap} erreicht ({spent} ausgegeben, {held} durch {requests} gebunden); beginnt {reset} neu. Zum Fortsetzen {setting} erhöhen.",
+  "execPaidOpenRequests": {
+    "one": "{count} offene Anfrage",
+    "other": "{count} offene Anfragen"
+  },
+  "execBudgetProgress": {
+    "one": "Das Budget hat den Lauf nach {count} Anfrage gestoppt; die bisherige Arbeit bleibt erhalten.",
+    "other": "Das Budget hat den Lauf nach {count} Anfragen gestoppt; die bisherige Arbeit bleibt erhalten."
+  },
+  "execModelNeedsProvider": "Modell {model} gehört zu Anbieter {provider}; erneut mit --provider {provider} ausführen. Verfügbare Modelle: {available}.",
+  "execModelNotOnProvider": "Modell {model} gibt es bei Anbieter {provider} nicht. Verfügbare Modelle: {available}.",
+  "execModelAvailable": "Modell {model} ist auf diesem Backend nicht verfügbar. Verfügbare Modelle: {available}.",
   "execBudgetMinimum": "Dieser Lauf benötigt mindestens {minimum}.",
   "execBudgetBreach": "Die beobachtete Abrechnung überschritt die Reservierung.",
   "execIncomplete": "Die Antwort wurde nicht abgeschlossen.",
@@ -3557,6 +3570,7 @@
   "providerPrivateNeedsConfirm": "{origin} liegt in einem privaten Netzwerk; rufen Sie den Befehl mit --private-ok erneut auf, um dies zu bestätigen.",
   "providerEndpointRefused": "Diese Adresse kann nicht verwendet werden ({reason}).",
   "providerNoRequestPath": "{provider} kann hier noch nicht ausgeführt werden; die Aufzeichnung seines Datenverkehrs steht noch aus.",
+  "providerModelNoPrice": "{ref} kann nicht laufen: ohne Preiskarte kann kein Lauf dafür reservieren.",
   "execProviderNeedsModelApi": "--provider erfordert --backend modelApi.",
   "execProviderModelRequired": "Diese Provider-Ausführung benötigt --model provider/model.",
   "execProviderNotReady": "Anbieterläufe benötigen die Transportebene für Anbieter; die Prüfung der Anfrage für {provider} war erfolgreich.",

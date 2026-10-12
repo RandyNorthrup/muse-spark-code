@@ -349,7 +349,7 @@
   "referenceVaultPanel": "Folyamatban.",
   "referenceVaultLock": "Folyamatban.",
   "referenceAuthClear": "Eltávolítja a tárolt Model API-kulcsot.",
-  "referenceAuthStatus": "Ellenőrzi, hogy van-e tárolt Model API-kulcs.",
+  "referenceAuthStatus": "Megmutatja a tárolt kulcsokat (Model API-kulcs és minden beállított szolgáltató kulcsa). 0-val lép ki, ha van tárolt kulcs, 1-gyel, ha nincs.",
   "referenceAccountsTitle": "Several accounts per provider",
   "referenceAccounts": "Folyamatban.",
   "referenceDeveloper": "Megjeleníti vagy feloldja a gép helyi fejlesztői beállításait. A profilműveletekhez csatlakoztatott erőforrás-kezelő szükséges.",
@@ -3301,6 +3301,7 @@
   "scheduleRunConfirmPrice": "A Model API-kulcsára terhelve: {price}. A végösszeg a felhasznált tokenektől függ.",
   "scheduleRunConfirmExtras": "Más bekapcsolt fizetős eszközök további díjakat okozhatnak. A Bypass mód nem hagyja ki ezt a megerősítést.",
   "scheduleConfirmationExpired": "A modell, a beszélgetés vagy az utasítás megváltozott a megerősítés alatt. Ellenőrizze az ütemezést, majd válassza ismét a Futtatás lehetőséget.",
+  "execKeyRotated": "A kulcs futás közben lecserélődött; a kérés nem lett elküldve.",
   "webNoResults": "Nincs találat",
   "backgroundRunning": "A háttérben fut",
   "moveToBackground": "Áthelyezés a háttérbe",
@@ -3476,6 +3477,18 @@
   "execEffortUnavailable": "Ez az erőfeszítés nem érhető el ehhez a modellhez.",
   "execTimedOut": "A futás elérte az időkorlátot.",
   "execBudgetRefused": "A következő kérés túllépi a fennmaradó keretet.",
+  "execPaidDailyStopped": "A fizetős extrák leálltak: a napi {cap} keret kimerült ({spent} elköltve, {held} zárolva {requests}); újrakezdés {reset}. A folytatáshoz emeld meg ezt: {setting}.",
+  "execPaidOpenRequests": {
+    "one": "{count} nyitott kérés",
+    "other": "{count} nyitott kérés"
+  },
+  "execBudgetProgress": {
+    "one": "A keret {count} kérés után leállította a futást; az eddigi munka megmarad.",
+    "other": "A keret {count} kérés után leállította a futást; az eddigi munka megmarad."
+  },
+  "execModelNeedsProvider": "A(z) {model} modell a(z) {provider} szolgáltatóé; futtasd újra így: --provider {provider}. Elérhető modellek: {available}.",
+  "execModelNotOnProvider": "A(z) {model} modell nincs a(z) {provider} szolgáltatónál. Elérhető modellek: {available}.",
+  "execModelAvailable": "A(z) {model} modell ezen a backenden nem érhető el. Elérhető modellek: {available}.",
   "execBudgetMinimum": "Ehhez a futáshoz legalább {minimum} szükséges.",
   "execBudgetBreach": "A megfigyelt elszámolás túllépte a foglalást.",
   "execIncomplete": "A válasz nem fejeződött be.",
@@ -3557,6 +3570,7 @@
   "providerPrivateNeedsConfirm": "A(z) {origin} magánhálózaton van; a megerősítéshez futtassa újra --private-ok kapcsolóval.",
   "providerEndpointRefused": "Ez a cím nem használható ({reason}).",
   "providerNoRequestPath": "A(z) {provider} itt még nem futtatható; a forgalomrögzítése még várat magára.",
+  "providerModelNoPrice": "{ref} nem futtatható: nincs árkártyája, ezért egyetlen futás sem foglalhat rá.",
   "execProviderNeedsModelApi": "A --provider használatához --backend modelApi szükséges.",
   "execProviderModelRequired": "Ehhez a szolgáltatói futtatáshoz --model provider/model szükséges.",
   "execProviderNotReady": "A szolgáltatói futásokhoz a szolgáltatói szállítási réteg kell; a(z) {provider} kérésének ellenőrzése sikerült.",

@@ -435,7 +435,8 @@ export const EN = {
   referenceVaultPanel: 'In progress.',
   referenceVaultLock: 'In progress.',
   referenceAuthClear: 'Remove the stored Model API key.',
-  referenceAuthStatus: 'Check whether a Model API key is stored.',
+  referenceAuthStatus:
+    'Show stored keys (the Model API key and every configured provider key). Exits 0 when any key is stored, 1 when none is.',
   referenceAccountsTitle: 'Several Accounts per Provider',
   referenceAccounts: 'In progress.',
   referenceDeveloper:
@@ -3922,6 +3923,8 @@ export const EN = {
     'Other enabled paid tools may add their own charges. Bypass does not skip this confirmation.',
   scheduleConfirmationExpired:
     'The model, conversation or prompt changed during confirmation. Review the schedule and choose Run again.',
+  // P3-2: a rotated key is not a changed mind: the refusal says the key moved.
+  execKeyRotated: 'The key was rotated during the run; the request was not sent.',
   webNoResults: 'No results',
   backgroundRunning: 'Running in the background',
   // M46 (PLAN.md D39): moving a running command to the background, stopping
@@ -4190,6 +4193,28 @@ export const EN = {
   execEffortUnavailable: 'This effort is not available for this model.',
   execTimedOut: 'The run reached its deadline.',
   execBudgetRefused: 'The next request exceeds the remaining budget.',
+  // D1: a daily paid stop names its numbers: the limit, what is spent, what
+  // open requests still hold (and how many), when the day resets, and the
+  // setting that raises it. {requests} is a pre-pluralised open-request count.
+  execPaidDailyStopped:
+    'Paid extras stopped: daily budget {cap} reached ({spent} spent, {held} held by {requests}); resets {reset}. Raise {setting} to continue.',
+  execPaidOpenRequests: forms({
+    one: '{count} open request',
+    other: '{count} open requests',
+  }),
+  // D3: a budget-stopped turn keeps its work; the final message says what was
+  // reached ({count} is the completed request count).
+  execBudgetProgress: forms({
+    one: 'The budget stopped the run after {count} request; work so far is kept.',
+    other: 'The budget stopped the run after {count} requests; work so far is kept.',
+  }),
+  // D4: three causes, three sentences. {available} names what can run.
+  execModelNeedsProvider:
+    'Model {model} belongs to provider {provider}; run again with --provider {provider}. Available models: {available}.',
+  execModelNotOnProvider:
+    'Model {model} is not on provider {provider}. Available models: {available}.',
+  execModelAvailable:
+    'Model {model} is not available on this backend. Available models: {available}.',
   execBudgetMinimum: 'This run requires at least {minimum}.',
   execBudgetBreach: 'Observed accounting exceeded its reservation.',
   execIncomplete: 'The response did not complete.',
@@ -4231,7 +4256,7 @@ export const EN = {
   // {provider}: the provider id; {store}: where the key lives; {origin}: the bound origin.
   providerKeyStored: 'The {provider} key is stored in {store}.',
   providerKeyNotStored: 'No key was entered, so nothing was stored.',
-  providerKeyPresent: 'A {provider} key is stored in {store}, bound to {origin}.',
+  providerKeyPresent: 'The {provider} key is stored in {store}, bound to {origin}.',
   providerKeyAbsent: 'No {provider} key is stored.',
   providerKeyCleared: 'The {provider} key was removed from this computer’s credential store.',
   // {provider}: the id as typed; {hint}: the key's shape as a hint.
@@ -4286,6 +4311,8 @@ export const EN = {
   // {reason}: the endpoint policy's refusal.
   providerEndpointRefused: 'That address cannot be used ({reason}).',
   providerNoRequestPath: '{provider} cannot run here yet; its wire capture is still pending.',
+  // D4: a listed model without a price card cannot run; add/test/list say why.
+  providerModelNoPrice: '{ref} cannot run: it has no price card, so no run can reserve for it.',
   execProviderNeedsModelApi: '--provider needs --backend modelApi.',
   execProviderModelRequired: 'This provider run needs --model provider/model.',
   // {provider}: the provider id the run asked for.

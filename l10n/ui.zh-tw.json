@@ -349,7 +349,7 @@
   "referenceVaultPanel": "進行中.",
   "referenceVaultLock": "進行中.",
   "referenceAuthClear": "刪除已儲存的 Model API 金鑰。",
-  "referenceAuthStatus": "檢查是否儲存了 Model API 金鑰。",
+  "referenceAuthStatus": "顯示已儲存的金鑰（Model API 金鑰和各供應商金鑰）。有金鑰時結束碼為 0，無金鑰時為 1。",
   "referenceAccountsTitle": "Several accounts per provider",
   "referenceAccounts": "進行中.",
   "referenceDeveloper": "顯示或解鎖本機開發者選項。設定檔操作需要連接資源管理元件。",
@@ -3235,6 +3235,7 @@
   "scheduleRunConfirmPrice": "向您的 Model API 金鑰計費：{price}。總費用依使用的權杖數而變動。",
   "scheduleRunConfirmExtras": "其他已啟用的付費工具可能產生額外費用。Bypass 模式不會略過此確認。",
   "scheduleConfirmationExpired": "確認期間模型、對話或提示詞已變更。請檢查排程並再次選擇「執行」。",
+  "execKeyRotated": "金鑰在執行期間已輪換；請求未傳送。",
   "webNoResults": "沒有結果",
   "backgroundRunning": "正在背景執行",
   "moveToBackground": "移至背景",
@@ -3403,6 +3404,16 @@
   "execEffortUnavailable": "此模型不支援該推理強度。",
   "execTimedOut": "執行已達到時限。",
   "execBudgetRefused": "下一次請求將超過剩餘預算。",
+  "execPaidDailyStopped": "付費附加功能已停止：已達每日預算 {cap}（已用 {spent}，{requests}佔用 {held}）；{reset} 重設。請調高 {setting} 後繼續。",
+  "execPaidOpenRequests": {
+    "other": "{count} 個未完成的請求"
+  },
+  "execBudgetProgress": {
+    "other": "預算在 {count} 個請求後停止了本次執行；已完成的工作予以保留。"
+  },
+  "execModelNeedsProvider": "模型 {model} 屬於供應商 {provider}；請使用 --provider {provider} 重新執行。可用模型：{available}。",
+  "execModelNotOnProvider": "供應商 {provider} 沒有模型 {model}。可用模型：{available}。",
+  "execModelAvailable": "模型 {model} 在此後端無法使用。可用模型：{available}。",
   "execBudgetMinimum": "本次執行至少需要 {minimum}。",
   "execBudgetBreach": "觀測到的費用超過預留金額。",
   "execIncomplete": "回應未完成。",
@@ -3480,6 +3491,7 @@
   "providerPrivateNeedsConfirm": "{origin} 在私人網路上；請用 --private-ok 重新執行以確認。",
   "providerEndpointRefused": "該位址無法使用（{reason}）。",
   "providerNoRequestPath": "{provider} 暫時無法在此執行；其流量擷取尚未完成。",
+  "providerModelNoPrice": "{ref} 無法執行：沒有價格卡，因此任何執行都無法為其預留。",
   "execProviderNeedsModelApi": "--provider 需要 --backend modelApi。",
   "execProviderModelRequired": "此提供商執行需要 --model provider/model。",
   "execProviderNotReady": "提供者執行需要提供者傳輸層；{provider} 的要求驗證已通過。",

@@ -349,7 +349,7 @@
   "referenceVaultPanel": "Devam ediyor.",
   "referenceVaultLock": "Devam ediyor.",
   "referenceAuthClear": "Kayıtlı Model API anahtarını kaldırın.",
-  "referenceAuthStatus": "Model API anahtarının kayıtlı olup olmadığını denetleyin.",
+  "referenceAuthStatus": "Saklanan anahtarları gösterir (Model API anahtarı ve yapılandırılmış sağlayıcı anahtarları). Anahtar varsa 0, yoksa 1 ile çıkar.",
   "referenceAccountsTitle": "Several accounts per provider",
   "referenceAccounts": "Devam ediyor.",
   "referenceDeveloper": "Bu bilgisayardaki geliştirici seçeneklerini gösterir veya kilidini açar. Profil işlemleri bağlı bir kaynak yöneticisi gerektirir.",
@@ -3301,6 +3301,7 @@
   "scheduleRunConfirmPrice": "Model API anahtarınıza faturalandırılır: {price}. Toplam, kullanılan tokenlara göre değişir.",
   "scheduleRunConfirmExtras": "Etkin diğer ücretli araçlar ek ücret getirebilir. Bypass modu bu onayı atlamaz.",
   "scheduleConfirmationExpired": "Onay sırasında model, konuşma veya istem değişti. Zamanlamayı gözden geçirip yeniden Çalıştır'ı seçin.",
+  "execKeyRotated": "Anahtar çalıştırma sırasında döndürüldü; istek gönderilmedi.",
   "webNoResults": "Sonuç yok",
   "backgroundRunning": "Arka planda çalışıyor",
   "moveToBackground": "Arka plana taşı",
@@ -3476,6 +3477,18 @@
   "execEffortUnavailable": "Bu düşünme düzeyi bu modelde kullanılamıyor.",
   "execTimedOut": "Çalıştırma süre sınırına ulaştı.",
   "execBudgetRefused": "Sonraki istek kalan bütçeyi aşıyor.",
+  "execPaidDailyStopped": "Ücretli ekstralar durduruldu: günlük bütçe {cap} doldu (harcanan {spent}, {requests} tarafından tutulan {held}); {reset} sıfırlanır. Devam etmek için {setting} değerini yükseltin.",
+  "execPaidOpenRequests": {
+    "one": "{count} açık istek",
+    "other": "{count} açık istek"
+  },
+  "execBudgetProgress": {
+    "one": "Bütçe, {count} istekten sonra çalıştırmayı durdurdu; şu ana kadarki iş korunur.",
+    "other": "Bütçe, {count} istekten sonra çalıştırmayı durdurdu; şu ana kadarki iş korunur."
+  },
+  "execModelNeedsProvider": "{model} modeli {provider} sağlayıcısına ait; --provider {provider} ile yeniden çalıştırın. Kullanılabilir modeller: {available}.",
+  "execModelNotOnProvider": "{model} modeli {provider} sağlayıcısında yok. Kullanılabilir modeller: {available}.",
+  "execModelAvailable": "{model} modeli bu arka uçta kullanılamıyor. Kullanılabilir modeller: {available}.",
   "execBudgetMinimum": "Bu çalıştırma için en az {minimum} gerekir.",
   "execBudgetBreach": "Gözlenen hesaplama ayrılan tutarı aştı.",
   "execIncomplete": "Yanıt tamamlanmadı.",
@@ -3557,6 +3570,7 @@
   "providerPrivateNeedsConfirm": "{origin} özel bir ağda; onaylamak için --private-ok ile yeniden çalıştırın.",
   "providerEndpointRefused": "Bu adres kullanılamaz ({reason}).",
   "providerNoRequestPath": "{provider} burada henüz çalışamaz; trafiğinin kaydı bekleniyor.",
+  "providerModelNoPrice": "{ref} çalıştırılamıyor: fiyat kartı yok, bu yüzden hiçbir çalıştırma rezervasyon yapamaz.",
   "execProviderNeedsModelApi": "--provider için --backend modelApi gerekir.",
   "execProviderModelRequired": "Bu sağlayıcı çalıştırması --model provider/model gerektirir.",
   "execProviderNotReady": "Sağlayıcı çalıştırmaları sağlayıcı taşıma katmanını gerektirir; {provider} isteğinin denetimi geçti.",
