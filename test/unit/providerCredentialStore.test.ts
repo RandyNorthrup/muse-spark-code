@@ -42,7 +42,7 @@ describe('provider credentials in the credential store', () => {
           },
         ]),
     )
-    expect(await store.hasModelApiCredential()).toBe(true)
+    expect(await store.readModelApiCredential()).toEqual({ outcome: 'found' })
   })
   it('round-trips a provider record under its own secret', async () => {
     const secrets = memorySecrets()
@@ -58,19 +58,19 @@ describe('provider credentials in the credential store', () => {
   it('counts nothing when no provider list is wired yet', async () => {
     const store = new CredentialStore(memorySecrets(), unexpectedWarning)
     await store.setProviderCredential('openrouter', RECORD)
-    expect(await store.hasProviderCredential()).toBe(false)
+    expect(await store.readModelApiCredential()).toEqual({ outcome: 'absent' })
   })
 
   it('counts a stored provider record, but not an empty list', async () => {
     const empty = storeWithIds([])
-    expect(await empty.hasProviderCredential()).toBe(false)
+    expect(await empty.readModelApiCredential()).toEqual({ outcome: 'absent' })
     const secrets = memorySecrets()
     const store = new CredentialStore(secrets, unexpectedWarning, 'test store', () =>
       Promise.resolve(['openrouter', 'groq']),
     )
-    expect(await store.hasProviderCredential()).toBe(false)
+    expect(await store.readModelApiCredential()).toEqual({ outcome: 'absent' })
     await store.setProviderCredential('groq', { ...RECORD, origin: 'https://api.groq.com' })
-    expect(await store.hasProviderCredential()).toBe(true)
+    expect(await store.readModelApiCredential()).toEqual({ outcome: 'found' })
   })
 
   it('counts a damaged record as a credential, not as absent', async () => {
@@ -79,31 +79,33 @@ describe('provider credentials in the credential store', () => {
     const store = new CredentialStore(secrets, unexpectedWarning, 'test store', () =>
       Promise.resolve(['openrouter']),
     )
-    expect(await store.hasProviderCredential()).toBe(true)
+    expect(await store.readModelApiCredential()).toEqual({ outcome: 'found' })
   })
 })
 
-describe('hasModelApiCredential', () => {
-  it('is false with neither a key nor a provider secret', async () => {
-    expect(await storeWithIds(['openrouter']).hasModelApiCredential()).toBe(false)
+describe('readModelApiCredential', () => {
+  it('is absent with neither a key nor a provider secret', async () => {
+    expect(await storeWithIds(['openrouter']).readModelApiCredential()).toEqual({
+      outcome: 'absent',
+    })
   })
 
-  it('is true with only the Meta key', async () => {
+  it('is found with only the Meta key', async () => {
     const store = storeWithIds([])
     await store.setApiKey(CURRENT_SHAPE_KEYS[0])
-    expect(await store.hasModelApiCredential()).toBe(true)
+    expect(await store.readModelApiCredential()).toEqual({ outcome: 'found' })
   })
 
-  it('is true with only a provider secret', async () => {
+  it('is found with only a provider secret', async () => {
     const store = storeWithIds(['openrouter'])
     await store.setProviderCredential('openrouter', RECORD)
-    expect(await store.hasModelApiCredential()).toBe(true)
+    expect(await store.readModelApiCredential()).toEqual({ outcome: 'found' })
   })
 
-  it('is true with both', async () => {
+  it('is found with both', async () => {
     const store = storeWithIds(['openrouter'])
     await store.setApiKey(CURRENT_SHAPE_KEYS[0])
     await store.setProviderCredential('openrouter', RECORD)
-    expect(await store.hasModelApiCredential()).toBe(true)
+    expect(await store.readModelApiCredential()).toEqual({ outcome: 'found' })
   })
 })

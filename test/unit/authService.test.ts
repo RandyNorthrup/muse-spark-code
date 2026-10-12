@@ -1765,6 +1765,75 @@ describe('AuthService.signOut and host reports', () => {
   })
 })
 
+/** A harness whose secret store cannot be read: every read throws. */
+function unreadableHarness(): { h: Harness; warnings: string[] } {
+  const warnings: string[] = []
+  const credentials = new CredentialStore(
+    {
+      get: () => Promise.reject(new Error('locked')),
+      store: () => Promise.resolve(),
+      delete: () => Promise.resolve(),
+    },
+    (message) => {
+      warnings.push(message)
+    },
+  )
+  return { h: harness({ credentials }), warnings }
+}
+
+/** The unreadable-store warning notice broadcast to the session's person. */
+function unreadableNotice(h: Harness): HostToWebviewMessage | undefined {
+  return h.broadcasts.find(
+    (message) => message.type === 'notice' && message.text.includes('could not be read'),
+  )
+}
+
+describe('AuthService with an unreadable credential store (P2-1)', () => {
+  it('keeps the logout hold and tells the person instead of releasing it', async () => {
+    const { h } = unreadableHarness()
+    h.facts.cli = 'signedOut'
+    await h.service.signOut()
+    // Could-not-read counts as present: the hold is never released, and the
+    // session's person is told through a notice, not only the log.
+    expect(h.logoutHoldState.isHeld).toBe(true)
+    expect(unreadableNotice(h)).toBeDefined()
+  })
+
+  it('never lets a CLI sign-in lift the hold while the store cannot be read', async () => {
+    const { h } = unreadableHarness()
+    h.facts.cli = 'signedOut'
+    await h.service.signOut()
+    expect(h.logoutHoldState.isHeld).toBe(true)
+    h.facts.cli = 'signedIn'
+    h.runDeviceSignIn.mockResolvedValue('signedIn')
+    await h.service.signIn('browser')
+    // "Can recover" is never true on could-not-read: the hold stays.
+    expect(h.logoutHoldState.isHeld).toBe(true)
+    expect(unreadableNotice(h)).toBeDefined()
+  })
+
+  it('never offers sign-in as if no key existed', async () => {
+    const { h } = unreadableHarness()
+    h.facts.backendMode = 'modelApi'
+    h.facts.cliPresent = false
+    await h.service.refresh(true)
+    // Fail closed: the choice assumes a key may exist (signedIn-capable),
+    // and the person is told the store could not be read.
+    expect(h.service.current.status).not.toBe('signedOut')
+    expect(unreadableNotice(h)).toBeDefined()
+  })
+
+  it('tells the person once per kind, not on every read', async () => {
+    const { h } = unreadableHarness()
+    h.facts.cli = 'signedOut'
+    await h.service.refresh(true)
+    await h.service.refresh(true)
+    expect(
+      h.broadcasts.filter((message) => unreadableNotice({ ...h, broadcasts: [message] })),
+    ).toHaveLength(1)
+  })
+})
+
 // `expired`, `denied` and `failed` as captured live (2026-09-27); any other
 // ending as Muse Code named it.
 describe('AuthService: how Muse Code ends a browser sign-in (D26)', () => {

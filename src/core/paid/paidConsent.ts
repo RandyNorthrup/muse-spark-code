@@ -396,6 +396,8 @@ export class PaidUseConsent {
       // its fence below). The log names only the failure's kind, never the
       // store's message, and the person is told at once; anything that is
       // not an error keeps its kind.
+      // read-state: cert TBL-07. `false` here is "not kept, allowed once,
+      // person told" (onNotKept fired above the return), never "not allowed".
       if (!(error instanceof Error)) throw error
       const kind = wireWordForLog(error.name)
       this.deps.log.warn(
@@ -427,6 +429,8 @@ export class PaidUseConsent {
       // A quote order the store cannot hand out leaves the approved use
       // allowed once, and the person is told at once; anything that is not
       // an error keeps its kind.
+      // read-state: cert TBL-08. `undefined` here is "no order, allowed
+      // once, person told" (onNotKept fired above the return), never "no quote".
       if (!(error instanceof Error)) throw error
       const kind = this.quoteNotKeptKind(error)
       this.deps.log.warn(`Paid search quote could not be kept (${kind})`)
