@@ -117,13 +117,14 @@ function useMuseOptions(deps: ExecDeps): void {
   }
 }
 function bindMspRuntime(host: ReturnType<typeof acpMspHost>['host']) {
+  const backend: ReturnType<typeof actualRuntime>['backend'] = {
+    kind: 'museCode',
+    hostFor: () => Promise.resolve(host),
+    readiness: () => Promise.resolve({ state: 'ready' }),
+  }
   return vi.spyOn(runtimeBackends, 'createRuntimeBackend').mockImplementationOnce((input) => ({
     ...actualRuntime(input),
-    backend: {
-      kind: 'museCode',
-      readiness: () => Promise.resolve({ state: 'ready' }),
-      hostFor: () => Promise.resolve(host),
-    },
+    backend,
   }))
 }
 

@@ -450,3 +450,10 @@ remaining sweep and visual gate, then review/integrate the local commits.
 Six-theme axe receipt: **18 pages, zero violations and zero incomplete rules**,
 all three narrow scenes in light, dark, hc-dark, hc-light, One Dark Pro and
 Dracula; `docs/certification/m106-r4-a11y.json`. Browser and server closed.
+
+Final hook receipt: `84ed63c96` ran installed lint-staged ESLint/Prettier
+and gitleaks successfully; staged and committed diffs re-read. Fixture
+facade cleanup retains identical behaviour; final duplication gate reports
+zero clones. Worktree remains unreleased and the qualification holds above
+remain explicit. HUB: integration run — combined translation tables,
+featureCatalog, referenceSource and generated reference data.
