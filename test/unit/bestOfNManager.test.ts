@@ -296,6 +296,37 @@ describe('BestOfNManager', () => {
     })
   })
 
+  it('fails a turn that ends at the limit and never takes it as the winner', async () => {
+    const host = new FakeHost()
+    const t = managerWith(host)
+    await t.manager.start({ prompt: 'go', attempts: 2, requestCeilingPerAttempt: 20 }, 'modelApi')
+    const [first, second] = host.sessions
+    if (first === undefined || second === undefined) {
+      throw new Error('Expected two attempt sessions')
+    }
+    // The typed outcome, not a count: a completed turn carrying the limit
+    // errorKind is the ceiling, however few requests the fake admits.
+    first.emit(turnStarted('t1'))
+    first.emit({
+      type: 'turnCompleted',
+      turnId: 't1',
+      terminal: 'completed',
+      reason: 'The turn reached its model-call limit.',
+      errorKind: 'max_turn_requests',
+    })
+    second.emit(turnStarted('t2'))
+    second.emit(turnCompleted('t2'))
+    await awaitCompletedRun(t.updates)
+    const finished = t.updates.at(-1)
+    expect(finished?.runAttempts[0]).toMatchObject({
+      status: 'failed',
+      ceilingReached: true,
+      failureReason: 'The turn reached its model-call limit.',
+    })
+    expect(finished?.runAttempts[1]).toMatchObject({ status: 'completed' })
+    await expect(t.manager.take(finished?.runAttempts[0]?.attemptId ?? '')).rejects.toThrow()
+  })
+
   it('cancels the turn and closes the host on dispose', async () => {
     const host = new FakeHost()
     const t = managerWith(host)

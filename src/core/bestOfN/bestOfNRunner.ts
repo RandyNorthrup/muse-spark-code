@@ -567,7 +567,23 @@ export class BestOfNRunner {
           this.disposeOf(entry)
           break
         }
-        if (!event.ceilingReached && (await this.maybeKeepWorking(run, entry))) {
+        if (event.ceilingReached) {
+          // The one exit's typed outcome: the ceiling, not the model, ended
+          // the attempt. Never a success: failed with the typed reason, so
+          // the attempt can never be taken as the winner; its wrap-up text
+          // stays as what the attempt reached and its paid count is exact.
+          this.setAttempt(run, attemptId, {
+            ...entry.attempt,
+            status: 'failed',
+            requestsMade: event.requestsMade,
+            ceilingReached: true,
+            approvalsDenied: event.approvalsDenied,
+            failureReason: event.reason ?? event.terminal,
+          })
+          this.disposeOf(entry)
+          break
+        }
+        if (await this.maybeKeepWorking(run, entry)) {
           break
         }
         await this.completeAttempt(run, entry, event)
