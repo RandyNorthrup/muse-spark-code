@@ -6,6 +6,7 @@ import {
   type ScheduleEditorDeliveryPorts,
 } from '../../src/host/schedules/deliveryBinding'
 import { noScheduleCost } from '../../src/shared/scheduleV2'
+import { UI_TEXT } from '../../src/shared/constants'
 import path from 'node:path'
 import { workspaceKey } from '../../src/runtime/dataFolder'
 import { FakeAgentHost, FakeAgentSession } from './helpers/fakeAgent'
@@ -364,6 +365,45 @@ describe('unregistered schedule delivery factory', () => {
       rig.agent.emit({ type: 'turnCompleted', turnId: 'admitted', terminal: 'completed' })
       await settled
       expect(cost).toHaveBeenCalledOnce()
+    } finally {
+      await rig.lease.release()
+    }
+  })
+
+  it('names a confirmed queue withdrawal as not sent after abort', async () => {
+    const rig = await fixture()
+    const result = rig.run()
+    try {
+      await waitForSubmission(rig.agent)
+      rig.abort.abort()
+      // Only a CONFIRMED withdrawal is a known nothing-sent fire, and it
+      // carries the not-sent sentence the core journals as known.
+      expect(await result).toMatchObject({
+        outcome: 'skipped',
+        reason: UI_TEXT.turnUnqueued,
+        cost: noScheduleCost(),
+      })
+      expect(rig.agent.withdrawQueued).toHaveBeenCalledOnce()
+      expect(rig.agent.cancel).not.toHaveBeenCalled()
+    } finally {
+      await rig.lease.release()
+    }
+  })
+
+  it('never records a started turn as skipped after abort', async () => {
+    const rig = await fixture()
+    rig.agent.sendScheduledTurn.mockImplementation(() =>
+      Promise.resolve({ turnId: 'admitted', disposition: 'started' }),
+    )
+    const result = rig.run()
+    try {
+      await waitForSubmission(rig.agent)
+      rig.abort.abort()
+      // The turn had started: the binding cancels it and reports nothing, so
+      // the core keeps the outcome unknown instead of a false skipped.
+      await expect(result).rejects.toThrow()
+      expect(rig.agent.cancel).toHaveBeenCalledOnce()
+      expect(rig.agent.withdrawQueued).not.toHaveBeenCalled()
     } finally {
       await rig.lease.release()
     }

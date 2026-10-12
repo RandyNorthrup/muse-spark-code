@@ -19,6 +19,7 @@ import {
   type ScheduleApprovalAction,
 } from '../../src/shared/scheduleV2'
 import { Usd } from '../../src/shared/usd'
+import { UI_TEXT } from '../../src/shared/constants'
 import { scheduleEventRunId } from '../../src/shared/scheduleEvents'
 import { FakeAgentHost, FakeAgentSession } from './helpers/fakeAgent'
 import { fakeSchedule } from './helpers/schedules/fixtures'
@@ -412,9 +413,17 @@ describe('runtime schedule session supplier', () => {
       resume.resolve(undefined)
       await closing
       await request
+      // R4: every exit here ends in a CONFIRMED queue withdrawal, so every
+      // fire is a known nothing-sent one carrying the withdrawal sentence —
+      // the user turn is never cancelled and no liability is retained.
       expect(await retiredFire(rig.engine, schedule.workspaceKey)).toMatchObject({
-        outcome: exit === 'detach' ? 'skipped' : 'uncertain',
-        reason: expect.any(String),
+        outcome: 'skipped',
+        reason: UI_TEXT.turnUnqueued,
+        cost: {
+          usd: Usd.from(0).toAmount(),
+          certainty: 'exact',
+          retainedLiabilityUsd: Usd.from(0).toAmount(),
+        },
       })
       await vi.waitFor(() => {
         expect(agent.withdrawQueued).toHaveBeenCalledOnce()
@@ -625,6 +634,33 @@ describe('runtime schedule session supplier', () => {
     resume.resolve(undefined)
     await closing
     await request
+    if (stage === 'lookup' || stage === 'advance') {
+      // Close arrived before the admission was handed to a host: no fire is
+      // recorded and the admission stays pending for the next owner.
+      expect(await rig.engine.store.fires(schedule.workspaceKey)).toEqual([])
+      expect(await rig.engine.store.pending(schedule.workspaceKey)).toHaveLength(1)
+      // A reloaded engine on the same journal still delivers: a fresh manual
+      // fire runs exactly once, while the pre-close admission stays pending
+      // for whoever holds the workspace.
+      const restarted = fixture({ fs: rig.fs })
+      await restarted.engine.runtime.holdWorkspace(root)
+      const retry = await restarted.engine.scheduler.request(
+        { method: 'schedules/runNow', workspaceKey: schedule.workspaceKey, id: schedule.id },
+        `reload-${stage}`,
+      )
+      expect(retry).toMatchObject({ kind: 'accepted' })
+      // The reload replays the pre-close admission and the fresh one behind
+      // it: every admitted fire is delivered exactly once, none is lost.
+      const final = await restarted.engine.store.fires(schedule.workspaceKey)
+      expect(final.map((fire) => fire.runId)).toEqual([
+        `schedule-1:manual:close-${stage}`,
+        `schedule-1:manual:reload-${stage}`,
+      ])
+      expect(final.every((fire) => fire.outcome === 'ran')).toBe(true)
+      expect(await restarted.engine.store.pending(schedule.workspaceKey)).toEqual([])
+      await restarted.engine.runtime.close()
+      return
+    }
     const fires = await rig.engine.store.fires(schedule.workspaceKey)
     expect(fires).toHaveLength(1)
     expect(fires.every((fire) => fire.outcome === 'ran' || typeof fire.reason === 'string')).toBe(
