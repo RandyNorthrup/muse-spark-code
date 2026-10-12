@@ -10,6 +10,7 @@ import { EventEmitter, once } from 'node:events'
 import { setTimeout as delay } from 'node:timers/promises'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import * as z from 'zod/mini'
+import { setHeadlessTeamsAvailable } from '../../src/acp/teamAdmission'
 import { Usd } from '../../src/shared/usd'
 import { runExec, type ExecDeps } from '../../src/runtime/exec/runExec'
 import { createLifecycle } from '../../src/runtime/exec/execLimits'
@@ -39,12 +40,16 @@ cleanupTeamRoots()
 const git = teamGitRunner()
 const built = { dist: '' }
 beforeAll(async () => {
+  // Headless teams sit behind the agent-teams availability switch: every
+  // run below exercises the on-state; the switch-off refusal has its own test.
+  setHeadlessTeamsAvailable(true)
   built.dist = await mkdtemp(path.join(tmpdir(), 'm96b-dist-'))
   trackTeamRoot(built.dist)
   await buildModelApiBundle(built.dist)
   await copyFile('vendor/models-dev/snapshot.json', path.join(built.dist, 'providerCatalog.json'))
 })
 afterAll(() => {
+  setHeadlessTeamsAvailable(false)
   vi.restoreAllMocks()
 })
 // Full engine loop clones, commits, verifies, merges and removes real Git copies.
@@ -360,6 +365,20 @@ describe('M96b headless engine team runner', () => {
     expect(code, f.err.chunks.join('')).toBe(0)
     expect(read.mock.calls.some(([file]) => file.endsWith(EXEC_TEAM_STATE_FILE))).toBe(false)
     expect(f.api.responseBodies()).toHaveLength(1)
+  })
+  it('refuses a team run while the availability switch is off', async () => {
+    const f = await fixture()
+    setHeadlessTeamsAvailable(false)
+    try {
+      f.api.script({ text: 'done' })
+      const { code } = await f.run()
+      expect(code).toBe(2)
+      expect(f.api.requests).toHaveLength(0)
+      const folder = path.join(agentDataFolder(f.deps), ACP_SESSIONS_SUBFOLDER, workspaceKey(f.cwd))
+      expect(await readdir(folder)).toEqual([EXEC_TEAM_STATE_FILE])
+    } finally {
+      setHeadlessTeamsAvailable(true)
+    }
   })
   it('rejects invalid stored state before dispatch', async () => {
     const f = await fixture()

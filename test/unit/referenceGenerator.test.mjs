@@ -613,16 +613,25 @@ describe('RVHELPREF truth regressions', () => {
       expect(build().shortcuts.some((row) => row.key.includes(key))).toBe(true)
   })
   it('R18 rejects missing features, fabricated billing/hosts and new parser options', () => {
+    // RVCM96B2: headless-teams bills the Model API key, so the catalogue's
+    // own paid mark reaches the emitted reference.
+    expect(build().features.find((row) => row.id === 'headless-teams')).toMatchObject({
+      paid: true,
+    })
     const original = source.featureCatalog()
     expect(() =>
       build(manifest, { featureCatalog: () => original.filter((row) => row.id !== 'web-fetch') }),
     ).toThrow('Missing feature: web-fetch')
+    // RVCM96B2: the catalogue's own paid mark counts (headless-teams bills
+    // the Model API key with no registry entry), so the fabrication
+    // direction is legitimate now. The drill proves the other direction: a
+    // registry-backed feature stripped of its mark still mismatches.
     expect(() =>
       build(manifest, {
         featureCatalog: () =>
-          original.map((row) => (row.id === 'code-intelligence' ? { ...row, paid: true } : row)),
+          original.map((row) => (row.id === 'search' ? { ...row, paid: false } : row)),
       }),
-    ).toThrow('Paid claim mismatch: code-intelligence')
+    ).toThrow('Paid claim mismatch: search')
     expect(() =>
       build(manifest, {
         featureCatalog: () =>
@@ -1168,7 +1177,12 @@ describe('RVHELPREF2 runtime truth regressions', () => {
       fleet: 'current',
       seed: '17',
     }
-    const rows = build().cli
+    // RVCM96B2: `exec: --team` is hidden behind the agent-teams availability
+    // switch, so the shared off-state baseline has no row for it. B12 covers
+    // the on-state row (which says refused: without acceptEdits the
+    // default-mode parse refuses) with a fresh build; the bundled parser in
+    // that build also refuses, so both sides agree on invalid.
+    const rows = build(manifest, { headlessTeamsAvailable: true }).cli
     for (const [route, definition] of Object.entries(source.CLI_OPTION_REGISTRY)) {
       for (const [name, option] of Object.entries(definition.options)) {
         // Keep account targeting separate from provider-only authentication.

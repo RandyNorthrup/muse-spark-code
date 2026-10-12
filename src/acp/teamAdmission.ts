@@ -31,6 +31,26 @@ export function parseInput<Schema extends z.ZodMiniType>(
 const teamExecAdmissionInputSchema = z.strictObject({ mode: z.string(), backend: z.string() })
 
 /**
+ * Headless engine teams sit behind the agent-teams availability switch
+ * (`museSpark.team` for the editor surfaces) like every other team surface.
+ * The headless side is this in-memory certification flag, off until the
+ * runner lane is certified: with it off `exec` has no `--team` flag, and no
+ * run reaches the team money path. Tests flip it with
+ * `setHeadlessTeamsAvailable`; production leaves it off.
+ */
+// Holder object (the `setUiText` shape in shared/l10n/text.ts): the setter
+// mutates the holder, never a top-level binding.
+const headlessTeamsState: { isAvailable: boolean } = { isAvailable: false }
+
+export function areHeadlessTeamsAvailable(): boolean {
+  return headlessTeamsState.isAvailable
+}
+
+export function setHeadlessTeamsAvailable(isAvailable: boolean): void {
+  headlessTeamsState.isAvailable = isAvailable
+}
+
+/**
  * Exec validates its hard budget first. Team dispatch additionally requires
  * the Model API engine and acceptEdits; every other mode refuses explicitly.
  */

@@ -2987,6 +2987,19 @@ export const EXEC_TEAM_STATE_FILE = 'team.json'
 export const EXEC_TEAM_RUN_PREFIX = 'muse-exec-team-'
 export const EXEC_TEAM_BOARD_FILE = 'board.json'
 export const EXEC_TEAM_FILE_MODE = 0o600
+// M96b R3: the run's durable clean-up ledger beside the stored snapshot:
+// every worker copy, owned ref, git child and held branch is recorded here
+// before it is created, so a later run sweeps exactly what a gone owner left.
+export const EXEC_TEAM_CLEANUP_FILE = 'team-cleanup.json'
+// A denied merge never destroys the finished branch: it is kept under this
+// prefix (`<prefix><role>/<task>`), outside `refs/heads/agents/`, until an
+// explicit discard or the documented unmerged-task retention removes it.
+export const EXEC_TEAM_HOLD_REF_PREFIX = 'refs/heads/agents-hold/'
+/** Merge gate: each changed file is scanned for conflict markers up to here. */
+export const EXEC_TEAM_MARKER_SCAN_BYTES = 1_048_576
+/** The wrapper's own ref git calls: bounded time and bounded output. */
+export const EXEC_TEAM_GIT_TIMEOUT_MS = 30_000
+export const EXEC_TEAM_GIT_OUTPUT_BYTES = 8192
 /** An unmerged task keeps its working copy and branch until the user acts; then this offers to discard it. */
 export const TEAM_UNMERGED_NOTICE_DAYS = 7
 

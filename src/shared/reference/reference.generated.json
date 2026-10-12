@@ -578,7 +578,7 @@
       "settings": [],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#headless-runs",
       "backends": ["modelApi"],
-      "paid": false,
+      "paid": true,
       "surfaces": ["acp:modelApi"],
       "details": [],
       "facts": {},
@@ -6680,13 +6680,6 @@
         "default": false,
         "purpose": "account-pool"
       }
-    },
-    {
-      "route": "exec",
-      "name": "exec: --team",
-      "description": "--team: Run engine teams with Model API, acceptEdits and a hard budget shared by every worker; prompts deny, merges enter the run working tree.",
-      "text": { "cli": "team" },
-      "contract": { "type": "boolean", "repeatable": false, "default": false, "purpose": "team" }
     },
     {
       "route": "exec",

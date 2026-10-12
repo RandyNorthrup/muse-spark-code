@@ -21,6 +21,10 @@ import {
   EXEC_RAW_TOOL_FIELDS,
   EXEC_SCAN_COMMAND,
   EXEC_SCAN_EXIT_FOUND,
+  EXEC_TEAM_BOARD_FILE,
+  EXEC_TEAM_FILE_MODE,
+  EXEC_TEAM_RUN_PREFIX,
+  EXEC_TEAM_STATE_FILE,
   EXEC_USD_DECIMALS,
   EXEC_USD_UNITS,
   EXEC_WRITE_RETRY_MS,
@@ -469,6 +473,10 @@ describe('M80 schemas (A15/A16/F1)', () => {
       EXEC_PROHIBITED_UPDATE_PATTERN,
       EXEC_RAW_TOOL_FIELDS,
       EXEC_WRITE_RETRY_MS,
+      EXEC_TEAM_STATE_FILE,
+      EXEC_TEAM_RUN_PREFIX,
+      EXEC_TEAM_BOARD_FILE,
+      EXEC_TEAM_FILE_MODE,
     }
     expect(owned).toEqual({
       EXEC_COMMAND: 'exec',
@@ -481,11 +489,17 @@ describe('M80 schemas (A15/A16/F1)', () => {
       EXEC_PROHIBITED_UPDATE_PATTERN: '^(?:agent_(?:message|thought)_chunk|tool)',
       EXEC_RAW_TOOL_FIELDS: ['rawInput', 'rawOutput', 'toolCallId'],
       EXEC_WRITE_RETRY_MS: 10,
+      // M96b: the run-owned team state this lane adds, pinned by name and
+      // value (RVCM96B2 finding 2: a pin is a review point, not a number).
+      EXEC_TEAM_STATE_FILE: 'team.json',
+      EXEC_TEAM_RUN_PREFIX: 'muse-exec-team-',
+      EXEC_TEAM_BOARD_FILE: 'board.json',
+      EXEC_TEAM_FILE_MODE: 0o600,
     })
-    // 44 constants and EXEC_MODEL_TEXT, the run's model text, which only
+    // 53 constants and EXEC_MODEL_TEXT, the run's model text, which only
     // the ACP agent reads (PLAN.md D6, 2026-10-04).
     const source = await readFile(new URL('../../src/shared/constants.ts', import.meta.url), 'utf8')
-    expect(source.match(/^export const EXEC_\w+/gmu)).toHaveLength(45)
+    expect(source.match(/^export const EXEC_\w+/gmu)).toHaveLength(54)
     expect(EXEC_OUTPUT_SCHEMA_LIMITS).toEqual({ expandedNodes: 50_000, validationSteps: 10_000 })
     expect(EXEC_MODEL_TEXT.execOutputSchema).toContain('{schema}')
     expect(EXEC_MODEL_TEXT).toMatchObject({

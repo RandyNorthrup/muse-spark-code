@@ -90,6 +90,7 @@ import type { ExecVaultPort, ExecVaultSession } from '../vault/execVault'
 import { metaSideCallFormats } from '../../core/backends/modelapi/modelCapabilities'
 import { compileOutputSchema, type OutputSchema } from './outputSchema'
 import type { ExecTeam } from './execTeamEntry'
+import { areHeadlessTeamsAvailable } from '../../acp/teamAdmission'
 
 /** Bind to M95's selected output.formats and the backend's session-fixed encoder at integration. */
 export interface ExecOutputSchemaPort {
@@ -538,6 +539,10 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
     }
   }
   try {
+    // Behind the agent-teams availability switch `exec --team` does not
+    // exist: refuse before any ledger, request or money path is reached.
+    if (options.team && !areHeadlessTeamsAvailable())
+      throw new Error(fill(UI_TEXT.acpUnknownArgument, { argument: '--team' }))
     if (
       options.vault &&
       (options.keyFromStdin ||
