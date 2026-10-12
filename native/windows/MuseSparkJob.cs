@@ -654,6 +654,43 @@ public static class MuseSparkCreated {
     // refused with the separators in Open above.
     foreach (char c in name) if (c < ' ') RefuseReason(reason);
   }
+  // On the .NET Framework every System.IO.Path member revalidates its input
+  // and throws ArgumentException on '"', '<', '>', '|' and control
+  // characters: a hostile name would die inside Path.IsPathRooted before
+  // WorkerName ever judged it, and the product would report the helper
+  // itself failed instead of the typed cannot-create sentence ('*' and '?'
+  // are not in the framework's invalid-path set, which is why those two
+  // already reached the helper's own check). Every caller-supplied path
+  // component is judged by the helper's own rules first, with the same
+  // reason the later open would give it; no framework call sees an
+  // unvalidated value. C# 5: no string interpolation below.
+  static void WorkerValidateComponents(string relative, bool file) {
+    if (relative == "") return;
+    string[] parts = relative.Split('/');
+    for (int index = 0; index < parts.Length; index++) {
+      string part = parts[index];
+      string reason = (file && index == parts.Length - 1) ? "invalid filename" : "invalid component";
+      if (String.IsNullOrEmpty(part) || part.IndexOfAny(new char[] {'/', '\\', ':'}) >= 0 ||
+          part == "." || part == "..") RefuseReason(reason);
+      WorkerName(part, reason);
+    }
+  }
+  // The framework's own invalid-path set (GetInvalidPathChars): the four
+  // punctuation marks above plus the control characters. A root holding one
+  // is not a usable path, refused before Path touches it.
+  static bool WorkerPathHasInvalid(string path) {
+    if (String.IsNullOrEmpty(path)) return false;
+    foreach (char c in path)
+      if (c < ' ' || c == '"' || c == '<' || c == '>' || c == '|') return true;
+    return false;
+  }
+  // Path.IsPathRooted's two conditions without its input revalidation, so a
+  // rootedness answer never throws: a leading separator, or a drive letter.
+  static bool WorkerIsRooted(string path) {
+    if (String.IsNullOrEmpty(path)) return false;
+    if (path[0] == '/' || path[0] == '\\') return true;
+    return path.Length >= 2 && path[1] == ':';
+  }
   static SafeFileHandle Open(SafeFileHandle parent, string name, bool directory, bool create, bool allowMissing = false, bool worker = false) {
     if (String.IsNullOrEmpty(name) || name.IndexOfAny(new char[] {'/', '\\', ':'}) >= 0 || name == "." || name == "..") {
       if (!worker) Refuse();
@@ -691,10 +728,38 @@ public static class MuseSparkCreated {
         // A refused folder creation names itself; any other refused worker
         // open names the link or file, as the POSIX helper does.
         if (directory && create) RefuseReason("directory create failed");
+        // A parent that exists as a plain file is not a link: it carries its
+        // own reason, mapped to cannot-create as POSIX maps ENOTDIR. A
+        // reparse point stays linked; anything absent keeps the reason below.
+        if (directory && WorkerParentIsFile(parent, name)) RefuseReason("parent is not a directory");
         if (directory) RefuseReason("parent unavailable or linked");
         RefuseReason("file unavailable or linked");
       } return result;
     } finally { if (security.IsAllocated) security.Free(); Marshal.FreeHGlobal(unicode); Marshal.FreeHGlobal(chars); }
+  }
+  // True when the named entry exists under the held parent as a plain
+  // non-directory, non-link object: opened without the directory flag but
+  // still without traversing a reparse point, then judged by attributes. A
+  // reparse point, an actual directory, or anything absent answers false,
+  // keeping the caller's existing reason. Runs only on a refused directory
+  // open, never on the happy path. C# 5: no string interpolation below.
+  static bool WorkerParentIsFile(SafeFileHandle parent, string name) {
+    IntPtr chars = Marshal.StringToHGlobalUni(name), unicode = Marshal.AllocHGlobal(Marshal.SizeOf(typeof(Unicode)));
+    try {
+      Unicode text = new Unicode { Length=checked((ushort)(name.Length*2)), MaximumLength=checked((ushort)(name.Length*2)), Buffer=chars };
+      Marshal.StructureToPtr(text, unicode, false);
+      Attributes attributes = new Attributes { Length=Marshal.SizeOf(typeof(Attributes)), Root=parent.DangerousGetHandle(), Name=unicode, Flags=0x40 };
+      SafeFileHandle probe; IoStatus status;
+      // SYNCHRONIZE plus read-attributes only: no delete or data access, so
+      // the probe succeeds wherever the entry can be statted at all.
+      int error = NtCreateFile(out probe, 0x100080u, ref attributes, out status, IntPtr.Zero, 0u, 7u, 1u, FILE_OPEN_REPARSE_POINT | 0x20u, IntPtr.Zero, 0);
+      if (error < 0 || probe == null || probe.IsInvalid) return false;
+      try {
+        Info sample; if (!GetFileInformationByHandle(probe, out sample)) return false;
+        if ((sample.Attributes & REPARSE) != 0) return false;
+        return (sample.Attributes & DIRECTORY) == 0;
+      } finally { probe.Dispose(); }
+    } finally { Marshal.FreeHGlobal(unicode); Marshal.FreeHGlobal(chars); }
   }
   sealed class Entry { public string Name; public ulong Id; public uint Flags; }
   static List<Entry> Entries(SafeFileHandle directory) {
@@ -794,8 +859,19 @@ public static class MuseSparkCreated {
   // root, component or file handles: their names cannot move during the operation.
   static string WorkerExecute(string[] args) {
     if (args.Length != 7) RefuseReason("invalid request");
-    if (!Path.IsPathRooted(args[1]) || Path.IsPathRooted(args[3]) ||
-      Path.IsPathRooted(args[5]) || String.IsNullOrEmpty(args[5])) RefuseReason("invalid path");
+    if (String.IsNullOrEmpty(args[5])) RefuseReason("invalid path");
+    // Rootedness is answered by the helper's own non-throwing check, which
+    // matches Path.IsPathRooted exactly: it only indexes, so hostile
+    // characters cannot throw here. Own character and name rules then judge
+    // every caller-supplied component before any System.IO.Path call sees
+    // it: the ancestor's parts as components, the remaining path's inner
+    // parts as components and its last part as the file name. The root is
+    // scanned for the framework's invalid set before Path.Combine below.
+    if (!WorkerIsRooted(args[1]) || WorkerIsRooted(args[3]) ||
+      WorkerIsRooted(args[5])) RefuseReason("invalid path");
+    WorkerValidateComponents(args[3], false);
+    WorkerValidateComponents(args[5], true);
+    if (WorkerPathHasInvalid(args[1])) RefuseReason("invalid path");
     string op = args[0];
     if (op != "worker-create" && op != "worker-prepare" && op != "worker-check" && op != "worker-release") RefuseReason("unknown operation");
     var held = new List<SafeFileHandle>();
