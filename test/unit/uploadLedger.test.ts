@@ -35,6 +35,7 @@ function setup(now: () => number = () => 1_001_000) {
   let current: string | undefined = accountId
   let serial = 0
   let isMissing = false
+  const deleted = new Set<string>()
   const limiter = new FifoLimiter(1)
   const storage: UploadLedgerStorage = {
     read: vi.fn(() => Promise.resolve(structuredClone(saved))),
@@ -66,11 +67,18 @@ function setup(now: () => number = () => 1_001_000) {
           id: serial === 1 ? receipt.id : `file-replaced-${String(serial)}`,
         })
       }
-      if (method === 'DELETE')
+      if (method === 'DELETE') {
+        deleted.add(_route.split('/').at(-1) ?? '')
         return Response.json({ id: _route.split('/').at(-1), object: 'file', deleted: true })
+      }
       if (_route === '/files')
-        return Response.json({ object: 'list', data: [receipt, foreign], has_more: false })
-      if (isMissing) throw new ModelApiError('Not found', 404, undefined, undefined)
+        return Response.json({
+          object: 'list',
+          data: [receipt, foreign].filter((file) => !deleted.has(file.id)),
+          has_more: false,
+        })
+      if (isMissing || deleted.has(_route.split('/').at(-1) ?? ''))
+        throw new ModelApiError('Not found', 404, undefined, undefined)
       return Response.json({ ...receipt, id: _route.split('/').at(-1) })
     },
   )
@@ -102,6 +110,7 @@ function setup(now: () => number = () => 1_001_000) {
     ledger,
     storage,
     requestFile,
+    files,
     source,
     raw: () => saved,
     setRaw: (value: unknown) => {
@@ -280,7 +289,9 @@ describe('upload ownership ledger', () => {
   })
 
   it('deletes a young upload on its last release, while the read sweep spares unseen young orphans until expiry', async () => {
-    const t = setup(() => 4000)
+    // Clocks are honest here: now is milliseconds (4,000 s), the provider
+    // expiry seconds (4,600 s) — one unit everywhere.
+    const t = setup(() => 4_000_000)
     const signal = new AbortController().signal
     await t.ledger.ensure('s1', sha256, t.source, signal)
     await t.ledger.releaseSession('s1')
@@ -300,6 +311,116 @@ describe('upload ownership ledger', () => {
     expect(t.raw()).toMatchObject({ entries: [{ sessions: [] }] })
   })
 
+  it('sweeps an unseen expired orphan on the account read, in seconds against a millisecond clock', async () => {
+    // 8,200 s past a 4,600 s provider expiry: the sweep is the only thing
+    // that deletes orphans, and only once expired.
+    const t = setup(() => 8_200_000)
+    t.setRaw({
+      version: 1,
+      accountId,
+      entries: [{ file: { ...ref }, sessions: [] }],
+      cachedFiles: [],
+    })
+    await t.ledger.accountReport()
+    expect(t.requestFile.mock.calls.filter((call) => call[1] === 'DELETE')).toHaveLength(1)
+    expect(t.raw()).toMatchObject({ entries: [] })
+  })
+
+  it('leaves an unseen orphan alone when an unrelated session syncs', async () => {
+    const t = setup(() => 8_200_000)
+    t.setRaw({
+      version: 1,
+      accountId,
+      entries: [{ file: { ...ref }, sessions: [] }],
+      cachedFiles: [],
+    })
+    await t.ledger.syncSession('unrelated', [])
+    expect(t.requestFile.mock.calls.filter((call) => call[1] === 'DELETE')).toEqual([])
+    expect(t.raw()).toMatchObject({ entries: [{ sessions: [] }] })
+  })
+
+  it('never deletes a pinned file, however stale the window that released it', async () => {
+    const t = setup(() => 4_000_000)
+    const signal = new AbortController().signal
+    await t.ledger.ensure('s1', sha256, t.source, signal)
+    // The active request's bracket pins what it carries.
+    await t.ledger.pinFiles([ref.fileId])
+    // A stale window's save releases the session reference underneath it.
+    await t.ledger.releaseSession('s1')
+    expect(t.requestFile.mock.calls.filter((call) => call[1] === 'DELETE')).toEqual([])
+    expect(t.raw()).toMatchObject({ entries: [{ sessions: [] }], pinned: [ref.fileId] })
+    // An explicit delete refuses the file in use too, with the same words.
+    await expect(t.ledger.deleteFile(ref.fileId, () => Promise.resolve(true))).rejects.toThrow(
+      'Remove this file',
+    )
+    expect(t.requestFile.mock.calls.filter((call) => call[1] === 'DELETE')).toEqual([])
+    // Once the request settles, the next release deletes at once.
+    await t.ledger.unpinFiles([ref.fileId])
+    await t.ledger.deleteAllOurs()
+    expect(t.requestFile.mock.calls.filter((call) => call[1] === 'DELETE')).toHaveLength(1)
+    expect(t.raw()).toMatchObject({ entries: [], pinned: [] })
+  })
+
+  it('retries a failed confirmed foreign-file delete on the next account read', async () => {
+    const t = setup(() => 4_000_000)
+    t.setRaw({
+      version: 1,
+      accountId,
+      entries: [],
+      cachedFiles: [
+        { fileId: foreign.id, name: foreign.filename, bytes: foreign.bytes, expiresAt: 4600 },
+      ],
+    })
+    const real = t.requestFile.getMockImplementation()!
+    let shouldFail = true
+    t.requestFile.mockImplementation(async (...args) => {
+      if (shouldFail && args[1] === 'DELETE') throw new Error('Offline')
+      return await real(...args)
+    })
+    await expect(t.ledger.deleteFile(foreign.id, () => Promise.resolve(true))).rejects.toThrow(
+      'Offline',
+    )
+    // The row and its intent stay durable; reopening the ledger retries.
+    expect(t.raw()).toMatchObject({
+      cachedFiles: [{ fileId: foreign.id }],
+      pendingDeletes: [foreign.id],
+    })
+    shouldFail = false
+    const reopened = new UploadLedger({
+      files: t.files,
+      storage: t.storage,
+      accountId,
+      provider: 'meta',
+      poolBytes: 100 * 1024 ** 3,
+      currentAccountId: () => Promise.resolve(accountId),
+      now: () => 4_000_000,
+    })
+    await reopened.accountReport()
+    expect(t.requestFile.mock.calls.filter((call) => call[1] === 'DELETE')).toHaveLength(2)
+    // The retried delete cleared its row and intent; the provider's
+    // remaining listing (our own live file) is cached again.
+    expect(t.raw()).toMatchObject({ pendingDeletes: [], cachedFiles: [{ fileId: ref.fileId }] })
+  })
+
+  it('deletes nothing when the listing signal aborts during the storage read', async () => {
+    const t = setup(() => 8_200_000)
+    t.setRaw({
+      version: 1,
+      accountId,
+      entries: [{ file: { ...ref }, sessions: [] }],
+      cachedFiles: [],
+    })
+    const controller = new AbortController()
+    const realRead = vi.mocked(t.storage.read).getMockImplementation()!
+    vi.mocked(t.storage.read).mockImplementationOnce(async () => {
+      const state = await realRead()
+      controller.abort()
+      return state
+    })
+    await expect(t.ledger.accountReport(controller.signal)).rejects.toThrow()
+    expect(t.requestFile.mock.calls.filter((call) => call[1] === 'DELETE')).toEqual([])
+  })
+
   it('never deletes an upload another session still references, even past provider expiry', async () => {
     const t = setup(() => 8_200_000)
     const signal = new AbortController().signal
@@ -311,7 +432,7 @@ describe('upload ownership ledger', () => {
   })
 
   it('removes an unseen young orphan early through explicit deletion', async () => {
-    const t = setup(() => 4000)
+    const t = setup(() => 4_000_000)
     t.setRaw({
       version: 1,
       accountId,
@@ -324,7 +445,7 @@ describe('upload ownership ledger', () => {
   })
 
   it('deletes nothing when the delete signal is already aborted', async () => {
-    const t = setup(() => 4000)
+    const t = setup(() => 4_000_000)
     t.setRaw({
       version: 1,
       accountId,
@@ -342,7 +463,7 @@ describe('upload ownership ledger', () => {
   })
 
   it('records a provider-removed single file as gone instead of failing the delete', async () => {
-    const t = setup(() => 4000)
+    const t = setup(() => 4_000_000)
     t.setRaw({
       version: 1,
       accountId,

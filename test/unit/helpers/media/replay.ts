@@ -106,6 +106,8 @@ export function replayRig(
     }),
   )
   const ensure = vi.fn(() => Promise.resolve(uploaded(media)))
+  const pinFiles = vi.fn(() => Promise.resolve())
+  const unpinFiles = vi.fn(() => Promise.resolve())
   const chunk = Promise.resolve(new Uint8Array(1))
   const source = vi.fn(() =>
     Promise.resolve({
@@ -151,7 +153,7 @@ export function replayRig(
           : `${value.name} was left out: ${model.modelName} does not take ${value.info.kind}.`,
       isMissingFile: (error) => error === 'missing-file',
     },
-    ledger: () => ({ ensure }),
+    ledger: () => ({ ensure, pinFiles, unpinFiles }),
     compactionTail: (entries) => (entries.length === 0 ? [] : [entries.at(-1)!.turnId]),
     attachment: () => media,
     source,
@@ -187,6 +189,8 @@ export function replayRig(
     input,
     entries,
     ensure,
+    pinFiles,
+    unpinFiles,
     source,
     authorize,
     encodeInline,

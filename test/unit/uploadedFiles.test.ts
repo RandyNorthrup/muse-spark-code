@@ -96,6 +96,18 @@ describe('uploaded-files port', () => {
     expect(ledger.deleteFile).toHaveBeenCalledWith('file-one', confirmed, undefined)
   })
 
+  it('passes the listing signal to the ledger and deletes nothing once aborted', async () => {
+    const ledger = fakeUploadedFilesLedger(report)
+    const t = setup(ledger)
+    const signal = new AbortController().signal
+    expect(await t.port.read(signal)).toEqual(report)
+    expect(ledger.accountReport).toHaveBeenCalledWith(signal)
+    const aborted = new AbortController()
+    aborted.abort()
+    await expect(t.port.read(aborted.signal)).rejects.toThrow()
+    expect(ledger.accountReport).toHaveBeenCalledTimes(1)
+  })
+
   it('lets a failed provider delete reach the caller with its reason', async () => {
     const ledger = fakeUploadedFilesLedger(report)
     ledger.deleteFile.mockRejectedValueOnce(new Error('Offline'))

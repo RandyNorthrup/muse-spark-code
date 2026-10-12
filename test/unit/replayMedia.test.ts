@@ -274,7 +274,11 @@ describe('media replay and metadata persistence', () => {
         ...mediaModel(id),
         provider: id === 'gemini-video' ? 'gemini' : 'meta',
       }),
-      ledger: (provider) => ({ ensure: provider === 'gemini' ? geminiEnsure : metaEnsure }),
+      ledger: (provider) => ({
+        ensure: provider === 'gemini' ? geminiEnsure : metaEnsure,
+        pinFiles: () => Promise.resolve(),
+        unpinFiles: () => Promise.resolve(),
+      }),
     })
     await rig.replay.prepare(rig.input, 'muse-spark-1.3', signal())
     expect(JSON.stringify(rig.replay.project(rig.input, 'gemini-video', rig.budget))).not.toContain(
@@ -340,7 +344,7 @@ describe('media replay and metadata persistence', () => {
     )
     expect(rig.upload).toHaveBeenCalledTimes(2)
     expect(rig.replay.references(rig.entries)[0]?.fileId).toBe('file-2')
-    rig.replay.beginRequest()
+    await rig.replay.beginRequest(rig.input)
     rig.missing.add('file-2')
     rig.changeSource()
     await expect(rig.replay.prepare(rig.input, 'muse-spark-1.3', signal())).rejects.toThrow(
@@ -755,16 +759,42 @@ describe('media replay and metadata persistence', () => {
         return uploaded(media, `file-${String(uploads)}`)
       },
     )
-    const replay = new ReplayMedia('session', { ...rig.deps, ledger: () => ({ ensure }) })
+    const replay = new ReplayMedia('session', {
+      ...rig.deps,
+      ledger: () => ({
+        ensure,
+        pinFiles: () => Promise.resolve(),
+        unpinFiles: () => Promise.resolve(),
+      }),
+    })
     replay.restore(rig.replay.snapshot(rig.entries))
     const entries: readonly StoredReplayItem[] = rig.replay.snapshot(rig.entries)
     replay.restore(entries)
     const input = entries.map((entry) => entry.item)
-    replay.beginRequest()
+    await replay.beginRequest(input)
     await replay.prepare(input, 'muse-spark-1.3', signal())
     await expect(replay.prepare(input, 'muse-spark-1.3', signal())).rejects.toThrow(
       'Attach clip.mp4 again',
     )
     expect(uploads).toBe(1)
+  })
+
+  it('pins the carried files for the turn bracket and releases them when it ends', async () => {
+    // Finding 1: the request bracket pins what it carries (RULE 1), so a
+    // stale window's save cannot delete it; the turn's end drains the
+    // bracket however the turn settled.
+    const rig = replayRig(videoMedia())
+    await rig.replay.beginRequest(rig.input)
+    // Nothing uploaded yet: no pin and no ledger write.
+    expect(rig.pinFiles).not.toHaveBeenCalled()
+    await rig.replay.prepare(rig.input, 'muse-spark-1.3', signal())
+    // The request's file is pinned at once (the rig's default upload id).
+    expect(rig.pinFiles).toHaveBeenCalledWith(['file-clip'])
+    await rig.replay.endRequest()
+    expect(rig.unpinFiles).toHaveBeenCalledWith(['file-clip'])
+    // A bracket that never opened releases nothing and writes nothing.
+    const idle = replayRig(videoMedia())
+    await idle.replay.endRequest()
+    expect(idle.unpinFiles).not.toHaveBeenCalled()
   })
 })

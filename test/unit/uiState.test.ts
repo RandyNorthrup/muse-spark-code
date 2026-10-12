@@ -295,6 +295,52 @@ describe('uiReducer: shell', () => {
     expect(replaced.uploadedFilesGeneration).toBe(3)
   })
 
+  it('drops an equal-generation report from another account after the boundary', () => {
+    // Finding 5: the boundary keeps the generation and clears the
+    // account, so an equal-generation report is stale unless its account
+    // matches. A same-account repost still applies.
+    const files = {
+      provider: 'meta',
+      isReadOnly: false,
+      poolBytes: 100,
+      usedBytes: 3,
+      files: [],
+    }
+    const cleared = reduceAll([
+      host({ type: 'authState', status: 'signedIn', backend: 'modelApi' }),
+      host({ type: 'uploadedFilesReport', report: files, accountId: 'b', generation: 2 }),
+      host({ type: 'authState', status: 'signedIn', backend: 'modelApi' }),
+    ])
+    expect(cleared.uploadedFiles).toBeUndefined()
+    expect(cleared.uploadedFilesGeneration).toBe(2)
+    const stale = uiReducer(
+      cleared,
+      host({ type: 'uploadedFilesReport', report: files, accountId: 'b', generation: 2 }),
+    )
+    expect(stale.uploadedFiles).toBeUndefined()
+    expect(stale.uploadedFilesAccountId).toBeUndefined()
+    const fresh = uiReducer(
+      cleared,
+      host({
+        type: 'uploadedFilesReport',
+        report: { ...files, usedBytes: 9 },
+        accountId: 'c',
+        generation: 3,
+      }),
+    )
+    expect(fresh.uploadedFiles).toEqual({ ...files, usedBytes: 9 })
+    const repost = uiReducer(
+      fresh,
+      host({
+        type: 'uploadedFilesReport',
+        report: { ...files, usedBytes: 12 },
+        accountId: 'c',
+        generation: 3,
+      }),
+    )
+    expect(repost.uploadedFiles).toEqual({ ...files, usedBytes: 12 })
+  })
+
   it('keeps provider account usage unchanged when only the selected model changes', () => {
     const subscription = {
       observedAtMs: NOW,

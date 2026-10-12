@@ -25,6 +25,7 @@ import {
   SECRET_KEYS,
 } from '../../src/shared/constants'
 import type { StoredSession } from '../../src/core/backends/modelapi/sessionStore'
+import { parseHostToWebviewMessage } from '../../src/shared/protocol'
 import { uploadedFilesReportSchema } from '../../src/shared/media'
 import { UploadLedger, type UploadLedgerState } from '../../src/core/media/uploadLedger'
 import { createUploadedFilesPort } from '../../src/core/media/uploadedFiles'
@@ -55,7 +56,9 @@ const youngContent = new Uint8Array([4, 5, 6])
 const youngSha256 = createHash('sha256').update(youngContent).digest('hex')
 const NOW = 8_200_000
 const OLD = { created_at: 1000, expires_at: 4600 }
-const YOUNG = { created_at: NOW - 1000, expires_at: NOW + 500_000 }
+// Honest units: the clock is milliseconds (8,200 s), provider stamps
+// seconds — young means expiring after now, in seconds.
+const YOUNG = { created_at: 8100, expires_at: 9000 }
 
 function uploadSource(bytes: Uint8Array, name: string, mime: string): UploadSource {
   return {
@@ -442,6 +445,74 @@ describe('uploaded-files production composition', () => {
     expect(state).toMatchObject({ version: 1, entries: [] })
   })
 
+  it('holds a pinned file across a stale window and cancels a listing cleanly', async () => {
+    // Rules 1 and 2 across two windows over real on-disk state: window A
+    // uploads and its request bracket pins the file; window B saves a
+    // snapshot without it; a listing cancelled mid-read deletes nothing;
+    // only the expiry sweep takes the expired orphan once unpinned.
+    const t = rig('table', [OLD])
+    const directory = path.join(t.uploadsDir, t.accountId)
+    const files = new FilesApi({
+      client: t.filesClient(),
+      provider: 'meta',
+      authorizeUpload: () => Promise.resolve(),
+    })
+    const baseStorage = () => fileUploadLedgerStorage(directory)
+    const makeLedger = (storage = baseStorage()) =>
+      new UploadLedger({
+        storage,
+        files,
+        accountId: t.accountId,
+        provider: 'meta',
+        poolBytes: 100,
+        currentAccountId: () => Promise.resolve(t.accountId),
+        now: () => NOW,
+      })
+    const windowA = makeLedger()
+    const windowB = makeLedger()
+    const ref = await windowA.ensure('s', sha256, source, new AbortController().signal)
+    await windowA.pinFiles([ref.fileId])
+    await windowB.syncSession('s', [])
+    expect(deletes(t)).toEqual([])
+    await windowA.unpinFiles([ref.fileId])
+    // The ACP listing cancelled during its storage read rejects and
+    // deletes nothing, through the real core port.
+    const port = createUploadedFilesPort({ ledger: () => Promise.resolve(makeLedger()) })
+    const gate = new AbortController()
+    const realRead = baseStorage().read
+    let wasHeld = false
+    const heldStorage = {
+      ...baseStorage(),
+      read: async () => {
+        const state = await realRead()
+        wasHeld = true
+        gate.abort()
+        return state
+      },
+    }
+    const heldPort = createUploadedFilesPort({
+      ledger: () => Promise.resolve(makeLedger(heldStorage)),
+    })
+    const sent: string[] = []
+    await expect(
+      runUploadsCommand('/uploads', {
+        files: heldPort,
+        send: (text) => {
+          sent.push(text)
+        },
+        signal: gate.signal,
+      }),
+    ).rejects.toThrow()
+    expect(wasHeld).toBe(true)
+    expect(deletes(t)).toEqual([])
+    expect(sent).toEqual([])
+    // The plain listing still reads; the expired orphan goes only by sweep.
+    expect(await runUploadsCommand('/uploads', { files: port, send: () => undefined })).toBe(
+      'handled',
+    )
+    expect(deletes(t).map((call) => call[0])).toEqual([`/files/${ref.fileId}`])
+  })
+
   it('records a provider-removed file as gone during the production purge', async () => {
     const t = rig('gone', [OLD])
     const ledger = await productionUploads(t)(t.accountId)
@@ -641,6 +712,320 @@ describe('uploaded-files runtime assembly', () => {
     } finally {
       await runtime.close()
     }
+  })
+
+  it('keeps the retained list across a runtime restart after key removal', async () => {
+    // Finding 6 through two real runtime backends sharing one home: the
+    // first lists keyed (recording the last account), the key goes, the
+    // restarted instance still lists the persisted ledger read-only while
+    // the provider hears nothing more.
+    const home = mkdtempSync(path.join(root, 'runtime-home-restart-'))
+    const secrets = memorySecrets()
+    const KEY = 'uploads-restart-key'
+    secrets.values.set(SECRET_KEYS.modelApiKey, KEY)
+    const keyed = createHash('sha256').update(KEY).digest('hex')
+    const directory = accountLedgerDirectory(
+      path.join(
+        agentDataFolder({ platform: process.platform, env: {}, homeDir: home }),
+        MODEL_API_UPLOADS_DIR,
+      ),
+      keyed,
+    )
+    await mkdir(directory, { recursive: true })
+    await writeFile(
+      path.join(directory, 'uploads.json'),
+      JSON.stringify({
+        version: 1,
+        accountId: keyed,
+        entries: [
+          {
+            file: {
+              fileId: 'file-one',
+              provider: 'meta',
+              expiresAt: 4_000_000_000,
+              sha256,
+              bytes: 3,
+              name: 'clip.mp4',
+              mime: 'video/mp4',
+            },
+            sessions: [],
+          },
+        ],
+        cachedFiles: [],
+      }),
+    )
+    const listed = {
+      object: 'list',
+      data: [
+        {
+          id: 'file-one',
+          object: 'file',
+          bytes: 3,
+          created_at: 1000,
+          expires_at: 4_000_000_000,
+          filename: 'clip.mp4',
+          purpose: 'user_data',
+          status: 'uploaded',
+        },
+      ],
+      has_more: false,
+    }
+    const backendOptions = {
+      backend: 'modelApi' as const,
+      trustWorkspace: false,
+      canBypass: false,
+      allowsContributorModels: false,
+      museBinary: '',
+      shellSandbox: 'auto' as const,
+      paidFeatures: [],
+      isVerbose: false,
+    }
+    const first = createRuntimeBackend({
+      options: backendOptions,
+      version: 'uploads-composition-test',
+      distDir: root,
+      platform: process.platform,
+      env: {},
+      homeDir: home,
+      secrets,
+      runGit: () => Promise.resolve(''),
+      fetch: (url: unknown) =>
+        String(url).endsWith('/files')
+          ? Promise.resolve(Response.json(listed))
+          : Promise.reject(new Error('unexpected provider traffic')),
+      sleep: () => Promise.resolve(),
+      log: { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+    })
+    try {
+      const live = uploadedFilesReportSchema.parse(await first.uploads?.read())
+      expect(live.isReadOnly).toBe(false)
+      expect(live.files.map((file) => file.fileId)).toEqual(['file-one'])
+    } finally {
+      await first.close()
+    }
+    secrets.values.delete(SECRET_KEYS.modelApiKey)
+    const restarted = createRuntimeBackend({
+      options: backendOptions,
+      version: 'uploads-composition-test',
+      distDir: root,
+      platform: process.platform,
+      env: {},
+      homeDir: home,
+      secrets,
+      runGit: () => Promise.resolve(''),
+      fetch: () => Promise.reject(new Error('unexpected provider traffic')),
+      sleep: () => Promise.resolve(),
+      log: { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+    })
+    try {
+      const retained = uploadedFilesReportSchema.parse(await restarted.uploads?.read())
+      expect(retained.files.map((file) => file.fileId)).toEqual(['file-one'])
+      expect(retained.isReadOnly).toBe(true)
+      await expect(
+        restarted.uploads?.deleteFile('file-one', () => Promise.resolve(true)),
+      ).rejects.toThrow()
+    } finally {
+      await restarted.close()
+    }
+  })
+
+  it('serves the lazy production media entry both hosts import', async () => {
+    // Finding 9: activation and serve reach the ledger through the lazy
+    // productionMediaEntry (dynamic import, UI text, session-uploads
+    // factory), not the source factory directly.
+    const t = rig('entry', [YOUNG])
+    const media = await import('../../src/host/backend/productionMediaEntry')
+    const deps = {
+      uploadLedgerDir: t.uploadsDir,
+      currentAccountId: () => Promise.resolve(t.accountId),
+      filesClient: t.filesClient,
+      expiryDays: () => 7,
+    }
+    const ledger = await media.createSessionUploads(deps)(t.accountId)
+    const ref = await ledger.ensure('s1', sha256, source, new AbortController().signal)
+    await ledger.syncSession('s1', [ref])
+    const port = createUploadedFilesPort({
+      ledger: () => media.createSessionUploads(deps)(t.accountId),
+    })
+    const report = uploadedFilesReportSchema.parse(await port.read())
+    expect(report.files.map((file) => file.fileId)).toEqual([ref.fileId])
+    // Keyless, the same entry reopens the recorded last account read-only.
+    const keyless = createUploadedFilesPort({
+      ledger: () =>
+        media.openLastAccountUploads({
+          ...deps,
+          currentAccountId: () => Promise.resolve(undefined),
+        })(),
+    })
+    const retained = uploadedFilesReportSchema.parse(await keyless.read())
+    expect(retained.files.map((file) => file.fileId)).toEqual([ref.fileId])
+    expect(retained.isReadOnly).toBe(true)
+  })
+
+  it('serves serve ACP /uploads from the runtime backend uploads port', async () => {
+    // Finding 9: serve forwards runtime.uploads into the ACP command
+    // (main.ts). The backend's installed port answers the command's
+    // list and delete flow end to end.
+    const home = mkdtempSync(path.join(root, 'runtime-home-serve-'))
+    const secrets = memorySecrets()
+    const KEY = 'uploads-serve-key'
+    secrets.values.set(SECRET_KEYS.modelApiKey, KEY)
+    const keyed = createHash('sha256').update(KEY).digest('hex')
+    const directory = accountLedgerDirectory(
+      path.join(
+        agentDataFolder({ platform: process.platform, env: {}, homeDir: home }),
+        MODEL_API_UPLOADS_DIR,
+      ),
+      keyed,
+    )
+    await mkdir(directory, { recursive: true })
+    await writeFile(
+      path.join(directory, 'uploads.json'),
+      JSON.stringify({
+        version: 1,
+        accountId: keyed,
+        entries: [
+          {
+            file: {
+              fileId: 'file-one',
+              provider: 'meta',
+              expiresAt: 4_000_000_000,
+              sha256,
+              bytes: 3,
+              name: 'clip.mp4',
+              mime: 'video/mp4',
+            },
+            sessions: [],
+          },
+        ],
+        cachedFiles: [],
+      }),
+    )
+    let wasDeleted = false
+    const runtime = createRuntimeBackend({
+      options: {
+        backend: 'modelApi',
+        trustWorkspace: false,
+        canBypass: false,
+        allowsContributorModels: false,
+        museBinary: '',
+        shellSandbox: 'auto',
+        paidFeatures: [],
+        isVerbose: false,
+      },
+      version: 'uploads-composition-test',
+      distDir: root,
+      platform: process.platform,
+      env: {},
+      homeDir: home,
+      secrets,
+      runGit: () => Promise.resolve(''),
+      fetch: (_url: unknown, init?: { method?: string }) => {
+        if (init?.method === 'DELETE') {
+          wasDeleted = true
+          return Promise.resolve(Response.json({ id: 'file-one', object: 'file', deleted: true }))
+        }
+        return Promise.resolve(
+          Response.json({
+            object: 'list',
+            data: wasDeleted
+              ? []
+              : [
+                  {
+                    id: 'file-one',
+                    object: 'file',
+                    bytes: 3,
+                    created_at: 1000,
+                    expires_at: 4_000_000_000,
+                    filename: 'clip.mp4',
+                    purpose: 'user_data',
+                    status: 'uploaded',
+                  },
+                ],
+            has_more: false,
+          }),
+        )
+      },
+      sleep: () => Promise.resolve(),
+      log: { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+    })
+    try {
+      expect(runtime.uploads).toBeDefined()
+      const sent: string[] = []
+      const send = (text: string) => {
+        sent.push(text)
+      }
+      expect(
+        await runUploadsCommand('/uploads', {
+          files: runtime.uploads,
+          send,
+          confirmForeign: () => Promise.resolve(false),
+        }),
+      ).toBe('handled')
+      expect(sent.join('\n')).toContain('clip.mp4')
+      expect(
+        await runUploadsCommand('/uploads delete file-one', {
+          files: runtime.uploads,
+          send,
+          confirmForeign: () => Promise.resolve(false),
+        }),
+      ).toBe('handled')
+      expect(sent.at(-1)).toBe('No uploaded files.')
+    } finally {
+      await runtime.close()
+    }
+  })
+
+  it('posts activation-shaped uploaded-files messages that validate against the protocol', async () => {
+    // Finding 9: activation binds the real binding with its exact surface
+    // mapping; the posted message validates against the shared protocol
+    // and the delete command removes through the same ledger.
+    const t = rig('activation', [YOUNG])
+    const uploads = productionUploads(t)
+    const ledger = await uploads(t.accountId)
+    const ref = await ledger.ensure('s1', sha256, source, new AbortController().signal)
+    await ledger.syncSession('s1', [ref])
+    const posted: unknown[] = []
+    const binding = createUploadedFilesBinding({
+      uploads,
+      getAccountId: () => Promise.resolve(t.accountId),
+      post: (stamped) => {
+        posted.push({
+          type: 'uploadedFilesReport',
+          report: stamped.report,
+          accountId: stamped.accountId,
+          generation: stamped.generation,
+        })
+      },
+      confirmForeign: () => Promise.resolve(true),
+    })
+    // The controller's readUploadedFiles sequence with the immutable stamp.
+    const stamped = await binding.port.readStamped()
+    binding.port.post(stamped.report, stamped)
+    expect(posted).toHaveLength(1)
+    expect(parseHostToWebviewMessage(posted[0])).toEqual({ ok: true, message: posted[0] })
+    // The Delete Uploaded Files command over the same binding: the file a
+    // session still references cannot go, and the failure names it.
+    const failures: string[] = []
+    await runDeleteUploadedFilesCommand({
+      list: binding.list,
+      remove: binding.remove,
+      confirmForeign: () => Promise.resolve(true),
+      dialogs: {
+        pick: (files) => Promise.resolve(files.map((file) => file.fileId)),
+        inform: () => undefined,
+        fail: (message) => {
+          failures.push(message)
+        },
+      },
+    })
+    expect(failures).toHaveLength(1)
+    expect(failures[0]).toContain('clip.mp4')
+    expect(deletes(t)).toHaveLength(0)
+    // Releasing the last session deletes the provider copy at once.
+    await ledger.releaseSession('s1')
+    expect(deletes(t)).toHaveLength(1)
+    expect(await binding.list()).toEqual(expect.objectContaining({ files: [] }))
   })
 
   it('keeps the ephemeral headless port keyless and provider-silent', async () => {
