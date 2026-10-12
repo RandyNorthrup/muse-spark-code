@@ -368,3 +368,78 @@ results, host instructions, budget projection) — a residual the owner
 rule forbids. The pin and the 530883 diet gate were already red at the
 review base and belong to the diet lane (`MODELAPIDIET`), which exists
 for exactly this. This round's bytes are proved minimal and load-bearing.
+
+## Round 3 — RVACPDOGB failure-boundary redesign (2026-10-12, same rig)
+
+Seven lead rulings, every P1/P2/P3 fixed with no residuals. Each fix got a
+regression test that fails without it; each drill broke the guard, saw the
+named test fail, and restored the file byte-exact (sha256 verified). No new
+dependency; no guard widened (no pin or cap moves; `check:l10n` 0 problems
+with 2 new keys × 14 tables).
+
+| Finding                           | Fix                                                                                                                                                                                                                                                                                                                  | Regression test                                                                                                                                                                                                                                                                                                                                            | Red drill                                                                                                                               |
+| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| R1 one outbound error shape       | `respond` builds every error through `outboundError` (src/acp/agent.ts): allow-listed code, allow-listed sentence (SDK prefixes accounted), rebuilt data (kind/reading/requestSent vocab + schema-validated `_meta.museSpark.usage` only); `promptPrivateText`/`requestFailureText` deleted — nothing left to redact | `acpDogfoodOutbound` (9): property test over the inventory (RequestError, ResourceReadingError, StoreUnavailable, MissingApiKey, Deadline, MSP via real `MspError`, ModelApiError, RangeError, AbortError, unexpected, failed-turn echo, forged reading); sentinels in message/data/kind/code/cause absent from rehydrated message, data and all log lines | allow-list disabled → `withholds sentinels in a typed RequestError` + `failed turn echo` red; restored (sha `f2d83a14`)                 |
+| R2 brand, never instanceof        | `ResourceReadingError.code = 'resource_reading'` (src/runtime/resources/text.ts); `isResourceReadingError` matches brand + vocabulary; agent `respond`, `entry.ts` onError and the reporter use it; `isResourceReadingName` for data rebuilds                                                                        | R2 block in `acpDogfoodResources`: the real text module compiled a second time via esbuild and loaded as its own file (two class objects, `instanceof` false) — failure still arrives named `-32012`                                                                                                                                                       | guard back to `instanceof` → separately-compiled test red; restored (diff-verified + re-backed-up)                                      |
+| R3 every /resources command typed | `history.read` and `writeResumeUntil` wrapped in `readResource` (src/runtime/resources/host.ts) with `resources.history` / `resources.resume`; status/history/resume + `/usage resources` all flow through it                                                                                                        | R3 block: `it.each` over `/resources history`, `/resources resume`, `/usage resources` — each rejects `-32012` with its named reading, warn once, no `log.error`                                                                                                                                                                                           | history wrap removed → history + usage-resources red, resume still green; restored (sha `e2a87673`)                                     |
+| R4 resolved identity              | `confineWorkspacePath` judges alias spellings by real-path-of-nearest-ancestor identity (spelling/home/UNC refusals stay; link/junction refusals stay); `confinedGlob` delegates spelling to `resolveWorkspacePath` and rewrites alias globs onto the real folder                                                    | `acpDogfoodPaths` R4 block: fake-8.3 read + glob rewrite, POSIX symlink-alias accept + link-escape refusal, Windows 8.3 short-name test (skips with reason when the volume offers none)                                                                                                                                                                    | identity accept disabled → both alias tests red; restored (sha `88546585`)                                                              |
+| R5 one source for cost            | `tokenUsage` carries `{usd, certainty}` settled per request at the billed model (host: noteUsage certainty, child-delta propagation, emit; `agentEvents.ts` schema); translator takes it verbatim (`isPricedCarriedCost`), `estimateCostUsd` removed from the answer path; journal stays out                         | host `carries each request's settled cost…` (contributor 1000 in → `0.0001` computed); aux reviewer-exact case (parent-model totals + carried `0.0001` → shown, not `0.00125`); accounting suite uses carried costs                                                                                                                                        | host emit disabled → host test red; translator guard disabled → 3 aux/accounting tests red; both restored (shas `5cfbc0cf`, `aa6d5882`) |
+| R6 translated refusal reasons     | `acpRefusalOutsideWorkspace` / `acpRefusalLinkEscape` in `en.ts` + all 14 `ui.*.json` (English key order); `pathRefusal` builds `failureReason` from them (model detail stays English); translator copies it through untouched                                                                                       | `modelApiTools` German-table test: link + plain refusals in German naming the path, model detail still English                                                                                                                                                                                                                                             | `failureReason` back to English → German test red; restored (sha `a86f202f`)                                                            |
+| R7 bytes                          | below (byte verdict)                                                                                                                                                                                                                                                                                                 | measurement, not a guard test: same-machine deterministic builds (base clone at `5121bacf1` rebuilds to exactly the review's 533473)                                                                                                                                                                                                                       | n/a                                                                                                                                     |
+
+### Round-3 verification
+
+Focused suites green at repository timeouts, `--maxWorkers=3`: outbound 9,
+resources 6, paths 5 (+1 Windows-only skip on this rig), accounting 4,
+errors 9, aux + translate 51, tools 79, agent 146 (+1 pre-existing ChatGPT
+failure, also red on pristine `5121bacf1`), host 671 (incl. the new R5
+test). Host + unit typechecks clean; changed-file ESLint clean;
+Prettier clean; `check:l10n` 0 problems; `check:reference`,
+`check:host-api` clean; knip clean (2 pre-existing config hints);
+`cycles` clean (the new `agentEvents → usageJournal` edge is acyclic).
+Pre-existing assertion updates required by the redesign (all behaviour the
+rulings forbid): failed-turn reason, backend-stop words, `expectCause` log
+shape, English refusal reasons, static-price tallies.
+
+Cannot run in this sandbox (lead to run outside; listed by file for the
+reviewer): the 4 browser suites (`visualCapture`, `visualReadiness`,
+`visualStability`, `m114ConversationReview` — Chrome/loopback blocked),
+`test:a11y` + `test:integration` (browser/VS Code), `check:visual`
+(browsers), and the 4 live e2e suites (no live/paid calls on this lane).
+The full unit run below excludes only the 4 browser suites; its global
+setup stages fine and only the browser spawn fails.
+
+### Byte verdict: round-2's 146 B are gone; round-3's mandated code is itemised
+
+Same-machine deterministic builds: base `5121bacf1` → `dist/modelApi.js`
+**533473** (exactly the review's number); this tip → **535527**
+(+2054). Per-module `bytesInOutput` delta (esbuild metafiles):
+
+- `ModelApiHost.ts` **+1093**: R5 settled-cost fields, per-request
+  certainty at the sent model, event carriage, child settled-delta
+  propagation (the reviewer's exact bug), `ChildRecord` snapshot,
+  `editTarget` path threading. Hot path (every request/event); cannot load
+  on use.
+- `tools.ts` **+461**: R4 glob spelling delegated to `resolveWorkspacePath`
+  (deletes round-2's verbatim block and its `normalWindowsPath` import),
+  alias-glob identity fallback + rewrite, R6 translated `failureReason`.
+  Every search/list pays the lexical path; only the rare outside-spelling
+  fallback is lazy-eligible.
+- `workspacePath.ts` **+500**: R4 identity comparison in
+  `confineWorkspacePath` (every file op already paid a `realPath`; the
+  addition is the alias accept branch), `isLinkEscapeRefusal` for the R6
+  wording split.
+- `agentEvents.ts` +0: the optional `cost` object shakes out to nothing
+  measurable. `dist/acp.js` +145 (`text.ts` brand) — no acp budget exists.
+
+Round-2's +146 B (verbatim ternaries, `glob … is outside the workspace`,
+the extra import binding) is structurally gone: every line of it is
+deleted or replaced in the diff above — verified by rebuilding the base
+clone, not by arithmetic. What remains is round-3's ordered redesign, all
+of it hot-path. Moving hot code to a bundle loaded on use would mean a new
+esbuild entry plus budget/split-gate edits outside this lane's files —
+guard-widening the brief forbids — so no lazy move was made; the lead owns
+that trade. No pin or cap moved. Inherited overage, stated separately:
+533473 is 2590 over the 530883 diet gate (936 over the 532537 pin); with
+this round the file stands 4644 over the gate. The diet lane resolves it
+at integration.
