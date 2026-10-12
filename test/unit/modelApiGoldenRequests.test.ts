@@ -74,6 +74,7 @@ import { judgeJob, judgeOnce, SpyJudgeStore, startJudgeEntry } from './helpers/j
 import * as z from 'zod/mini'
 import { CONSERVATIVE_CAPABILITIES } from '../../src/core/providers/capabilities'
 import { FORMAT_QUIRKS } from '../../src/core/providers/presets'
+import { parseHookConfig } from '../../src/core/backends/modelapi/hooks'
 
 const ROOT = '/ws'
 const FIXTURE_DIR = path.join(__dirname, '..', 'fixtures', 'golden-requests')
@@ -978,4 +979,125 @@ it('records the last permitted call as a tools-disabled wrap-up', async () => {
   await harness.session.sendTurn([{ type: 'text', text: 'Review within the limit' }])
   await harness.turnDone()
   checkGolden('10-turn-limit-wrap-up', harness)
+})
+
+// The 0.18.1 candidate (review RVAPP-DIET0181 P2-2). The Model API bundle
+// diet moved three groups of code out of dist/modelApi.js into
+// dist/modelApiTools.js, and the scenarios above reach none of them: hooks
+// are off, no call fetches, previews are only asserted absent. This turn
+// reaches all three: a PreLLMCall and a PostLLMCall hook see each model call
+// (the hook call fields), the model calls web_fetch and its URL check's
+// refusal goes back to the model, and the call streams an argument preview.
+// The fixture was written by the code at 87d9ab91c, before the move
+// (docs/certification/hotfix-0181-bundle-exports.md): the requests, the hook
+// payloads and the previews stay byte for byte what that code produced.
+describe('golden bytes of the code the diet moved (hook fields, web_fetch, previews)', () => {
+  it('keeps the requests, the model-call hook payloads and the argument previews', async () => {
+    const api = fakeModelApi()
+    const rawBodies: string[] = []
+    const hookPayloads: string[] = []
+    const previews: string[] = []
+    const log = new FakeLogOutputChannel()
+    const io = memoryToolIo({}, ROOT)
+    io.runHook = (_command, payload) => {
+      hookPayloads.push(payload)
+      return Promise.resolve({
+        stdout: '',
+        stderr: '',
+        exitCode: 0,
+        isTimedOut: false,
+        isCancelled: false,
+      })
+    }
+    const fetchPage = vi.fn((): Promise<never> => {
+      throw new Error('must not fetch: the URL check refuses first')
+    })
+    const client = new ModelApiClient({
+      ...fakeModelApiClientSettings(log),
+      fetch: capturingFetch(api, rawBodies),
+    })
+    const base = fakeModelApiHostDeps({ client, workspaceRoot: ROOT, io, log })
+    const host = new ModelApiHost({
+      ...base,
+      now: () => new Date(1970, 0, 1).getTime() + base.now(),
+      outputContinuation: () => false,
+      parallelReads: () => false,
+      teamRosterData: () => ({ stable: [] }),
+      observationPacking: () => true,
+      isHooksEnabled: () => true,
+      loadHooks: () =>
+        Promise.resolve(
+          parseHookConfig(
+            JSON.stringify({
+              hooks: {
+                PreLLMCall: [{ hooks: [{ type: 'command', command: 'observe-before' }] }],
+                PostLLMCall: [{ hooks: [{ type: 'command', command: 'observe-after' }] }],
+              },
+            }),
+            'project',
+            'linux',
+          ).hooks,
+        ),
+      webFetch: fetchPage,
+      argumentPreviewCapabilities: () => ({
+        tools: { streamingArguments: { state: 'yes', value: true } },
+      }),
+      modelFacts: () => ({
+        capabilities: { ...CONSERVATIVE_CAPABILITIES, supportsStrictTools: false },
+        quirks: FORMAT_QUIRKS.responses,
+      }),
+    })
+    const session = await host.startSession({
+      workspaceRoot: ROOT,
+      modelId: 'muse-spark-1.3',
+      approvalMode: 'allowAll',
+    })
+    session.onEvent((event) => {
+      if (event.type === 'toolArgumentPreview') previews.push(event.item.argumentPreview.text)
+    })
+    const watched = watchSessionTurns(session)
+    api.script(
+      {
+        calls: [
+          { name: 'web_fetch', arguments: '{"url":"ftp://example.com/page"}', callId: 'fetch1' },
+        ],
+      },
+      { text: 'Refused as asked.' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'Fetch that page' }])
+    await watched.turnDone()
+    await host.close()
+    expect(fetchPage).not.toHaveBeenCalled()
+    // Two model calls, each seen by both hooks; the call streamed a preview.
+    expect(rawBodies).toHaveLength(2)
+    expect(hookPayloads).toHaveLength(4)
+    expect(previews.length).toBeGreaterThan(0)
+    // The one generated token in a hook payload: the fake numbers its
+    // responses from a module-global counter, so `resp_N` depends on what ran
+    // before this test and names nothing it chose. Distinct ids keep distinct
+    // aliases; every other byte is kept.
+    const responseIds = new Map<string, string>()
+    const hookBytes = hookPayloads.map((payload) =>
+      payload.replaceAll(/"response_id":"(resp_\d+)"/gu, (_match, id: string) => {
+        const alias =
+          responseIds.get(id) ??
+          `resp_${String.fromCodePoint('A'.codePointAt(0)! + responseIds.size)}`
+        responseIds.set(id, alias)
+        return `"response_id":"${alias}"`
+      }),
+    )
+    const doc = {
+      scenario: 'moved-helpers',
+      requests: normalizeBodies(rawBodies),
+      hookPayloads: hookBytes,
+      previews,
+    }
+    const written = `${JSON.stringify(doc, undefined, 2)}\n`
+    const fixture = path.join(FIXTURE_DIR, 'moved-helpers.json')
+    if (isRegenerate()) {
+      writeFileSync(fixture, written)
+      return
+    }
+    expect(written).toBe(readFileSync(fixture, 'utf8'))
+  })
 })

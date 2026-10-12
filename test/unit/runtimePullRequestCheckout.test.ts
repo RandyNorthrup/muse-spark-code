@@ -285,14 +285,16 @@ function isFolderGone(): boolean {
 /**
  * `target` with its links resolved (macOS's temp folder is a link into
  * `/private`, which git prints resolved); for a path that is gone, its
- * parent's, so a worktree git still lists compares the same.
+ * parent's, so a worktree git still lists compares the same. The native
+ * resolver, because only it expands a Windows 8.3 short name: a hosted
+ * runner's temp folder is `C:\Users\RUNNER~1\…`, and git prints the long one.
  */
 function resolvedPath(target: string): string {
   try {
-    return realpathSync(target)
+    return realpathSync.native(target)
   } catch {
     try {
-      return path.join(realpathSync(path.dirname(target)), path.basename(target))
+      return path.join(realpathSync.native(path.dirname(target)), path.basename(target))
     } catch {
       return target
     }

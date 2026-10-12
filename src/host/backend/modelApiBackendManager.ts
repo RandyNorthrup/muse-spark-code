@@ -362,6 +362,11 @@ export class ModelApiBackendManager {
         newId: this.deps.newId,
         now: this.deps.now,
         log: this.deps.log,
+        // A damaged install reads the same whichever part of the backend is
+        // missing: the agent's own sentence where the host set one.
+        ...(this.deps.bundleUnavailable !== undefined && {
+          helpersUnavailable: this.deps.bundleUnavailable,
+        }),
         personalSkillsRoot: this.deps.personalSkillsRoot,
         bundledSkills: this.deps.bundledSkills,
         personalAgentsRoot: this.deps.personalAgentsRoot,

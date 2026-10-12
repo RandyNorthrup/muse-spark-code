@@ -71,6 +71,9 @@
 //   zod (INT0170); or a key of MODEL_TEXT, which every bundle reading any
 //   key of it carries whole, is read by no source file of
 //   dist/extension.js (it belongs in the block of the bundle that reads it).
+// - a built bundle reads a member from a sibling bundle that the sibling does
+//   not export (HOTFIX0181: 0.18.0's provider bundles called three names
+//   dist/modelApi.js lacked), or dist/modelApi.js has no readable export list.
 //
 // Exits 1 on any problem.
 //
@@ -91,10 +94,17 @@ import {
   FOREIGN_HOOKS_ONLY,
   HOOK_RUNTIME_ONLY,
   PLUGIN_HOOKS_ONLY,
+  MODEL_API_TOOLS_ONLY,
   MODEL_API_BOUNDARY_SOURCES,
   checkDeferredBundles,
   checkResourceBundles,
 } from './lib/deferredBundles.mjs'
+import {
+  COMPUTED_LOADS,
+  CROSS_BUNDLE_TARGETS,
+  crossBundleFailures,
+  siblingExportProblems,
+} from './lib/bundleExports.mjs'
 import {
   ADDITIONAL_WEBVIEW_BUDGETS,
   RESOURCE_WEBVIEW_ENTRIES,
@@ -159,7 +169,11 @@ const LAZY_ONLY = [
   // M106: side answers load with the backend, reviewer, judge or Git action.
   'structuredOutput.ts',
   'modelCapabilities.ts',
-  'argumentPreview.ts',
+  // MODELAPIDIET: argument previews load with dist/modelApiTools.js (MODEL_API_TOOLS_ONLY).
+  // MODELAPIDIETR4: the declared-fields reader stays with the backend (the
+  // request path snapshots offered fields on every send); the tools chunk
+  // carries its own copy through argumentPreview.ts.
+  'previewFields.ts',
   // M78: command policy and the paid, read-only Auto reviewer load with the backend.
   'autoReviewer.ts',
   'commandRules.ts',
@@ -178,7 +192,7 @@ const LAZY_ONLY = [
   // code intelligence reads above): offered only with lane S's scanner.
   'mediaBudget.ts',
   'memoryTools.ts',
-  'modelCallHooks.ts',
+  // MODELAPIDIET: the hook call fields load with dist/modelApiTools.js (MODEL_API_TOOLS_ONLY).
   // M95-I: policy stays out of activation/ACP; the provider/reviewer bundles also read it.
   'modelPolicy.ts',
   // M73: observation packing's store, its placeholder and recall_output.
@@ -264,6 +278,7 @@ for (const name of onDisk) {
     Number(FOREIGN_HOOKS_ONLY.includes(name)) +
     Number(HOOK_RUNTIME_ONLY.includes(name)) +
     Number(PLUGIN_HOOKS_ONLY.includes(name)) +
+    Number(MODEL_API_TOOLS_ONLY.includes(name)) +
     Number(TYPES_ONLY.has(name)) +
     Number(UNBUNDLED.has(name))
   if (lists !== 1) {
@@ -284,6 +299,7 @@ for (const name of [
   ...FOREIGN_HOOKS_ONLY,
   ...HOOK_RUNTIME_ONLY,
   ...PLUGIN_HOOKS_ONLY,
+  ...MODEL_API_TOOLS_ONLY,
   ...TYPES_ONLY,
   ...UNBUNDLED,
 ]) {
@@ -1152,7 +1168,7 @@ const TEXT_BLOCKS = [
   {
     block: 'WEB_FETCH_MODEL_TEXT',
     sentinels: ['webFetchUntrusted', 'webFetchMovedOpen'],
-    readers: ['dist/webFetch.js', BUNDLES.modelApi.output, 'dist/runtimeEngine.js'],
+    readers: ['dist/webFetch.js', 'dist/modelApiTools.js', 'dist/runtimeEngine.js'],
   },
   // A headless run's attached files (M80): the ACP agent's runtime only.
   {
@@ -1604,6 +1620,28 @@ if (
 ) {
   problems.push('dist/modelsPanel.js carries unrelated chat schemas')
 }
+// HOTFIX0181: every member a bundle reads from a sibling bundle is exported
+// there, checked on the built text. A build plugin points imports of shared
+// source modules at the bundle that carries them; TypeScript checks those
+// imports against the source module and only the built sibling knows what it
+// exports. 0.18.0 shipped dist/configuredProviders.js, dist/subscriptions.js
+// and the Copilot client calling three names dist/modelApi.js did not export.
+const crossBundle = siblingExportProblems(
+  new Map(
+    readdirSync('dist')
+      .filter((name) => name.endsWith('.js'))
+      .map((name) => [name, readFileSync(path.join('dist', name), 'utf8')]),
+  ),
+)
+// A missing export fails, and so does everything that would let one pass
+// unseen: a loaded sibling whose use the check cannot follow, a sibling whose
+// export list is not in its text, a load by a computed name the gate was not
+// told about, and either of the bundles a plugin points others at when no
+// member was compared with it. Being loaded is not being checked: a target
+// counts by the members compared, never by its presence
+// (scripts/lib/bundleExports.mjs holds the two lists and the reasons).
+for (const failure of crossBundleFailures(crossBundle, CROSS_BUNDLE_TARGETS, COMPUTED_LOADS))
+  problems.push(`dist: ${failure}`)
 if (problems.length > 0) {
   console.error(`bundle split: ${String(problems.length)} problem(s); see PLAN.md D6 and M57`)
   for (const problem of problems) {
@@ -1661,6 +1699,9 @@ console.log(
   `ok   model text: ${TEXT_BLOCKS.map(({ block }) => block).join(', ')} each in its readers and in no other of the ${String(SHIPPED.length)} shipped bundles; ${FILE_REFUSAL.block} pinned to ${String(FILE_REFUSAL.keys.length)} keys; ${String(modelTextKeys.length)} MODEL_TEXT keys, each read at activation, none in dist/headless.js`,
 )
 console.log(`ok   ${UI_TEXT.output}: Node bundles share the English fallback`)
+console.log(
+  `ok   cross-bundle members: ${String(crossBundle.verified.values().reduce((sum, count) => sum + count, 0))} reads of ${String(crossBundle.verified.size)} sibling bundles, each exported by the bundle read; every loaded sibling followed to its members, every export list read, ${String(crossBundle.computed.length)} of ${String(COMPUTED_LOADS.length)} listed load(s) by a computed name`,
+)
 console.log('ok   webview: optional surfaces and highlighting load only in guarded deferred chunks')
 console.log(
   `ok   ${CONVERSATION_GIT.output}: carries the Git adapter and the window's ${String(GIT_ONLY.length - 2)} git and pull request files; activation keeps its checked loader`,
