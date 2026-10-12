@@ -302,9 +302,10 @@ describe('M109 H terminal commands', () => {
     expect(refused.deps.printError).not.toHaveBeenCalledWith(UI_TEXT.vault.noAccess)
     // Without a terminal the list prints and nothing is chosen.
     const headless = commandHarness()
-    headless.deps.isInteractive = false
     headless.port.pendingReceipts.mockResolvedValue([receipt])
-    expect(await runVaultCommand({ command: 'receipts' }, headless.deps)).toBe(0)
+    expect(
+      await runVaultCommand({ command: 'receipts' }, { ...headless.deps, isInteractive: false }),
+    ).toBe(0)
     expect(headless.deps.choose).not.toHaveBeenCalled()
     expect(headless.port.keepImport).not.toHaveBeenCalled()
     expect(headless.port.deleteImport).not.toHaveBeenCalled()

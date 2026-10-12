@@ -45,7 +45,7 @@ function fixture() {
     answer: vi.fn(() => Promise.resolve()),
     importFile: vi.fn<VaultPanelService['importFile']>((_path, _authorize) => generatedImport()),
     keepImport: vi.fn(() => Promise.resolve()),
-    deleteImport: vi.fn(() => Promise.resolve()),
+    deleteImport: vi.fn<VaultPanelService['deleteImport']>(() => Promise.resolve()),
     resetBegin: vi.fn(() => Promise.resolve({ resetId: 'b'.repeat(32), word: 'RESET' })),
     resetConfirm: vi.fn((_id: unknown, _word: unknown, _authorize: () => void) =>
       Promise.resolve(),

@@ -49,6 +49,10 @@ function fixture() {
       },
     ),
     readReceipt: (id) => Promise.resolve(structuredClone(receipts.get(id) ?? null)),
+    listReceipts: () =>
+      Promise.resolve(
+        [...receipts].map(([id, record]) => ({ id, record: structuredClone(record) })),
+      ),
     forgetReceipt: (id, authorize) => {
       authorize()
       receipts.delete(id)

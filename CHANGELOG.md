@@ -191,6 +191,23 @@ happened, not what was planned; superseded entries are kept.
   is already gone but whose import record stuck says the file is gone, with
   nothing to retry, and the record is cleared at the next Delete.
 
+- Review repairs (RVAPP-CM1091D5, CM1091DR6): a Lock or Revoke during an
+  Import or Delete aborts the in-flight call silently (the panel shows the
+  locked state, never a failure toast beside it). Every unlocked snapshot
+  sweeps kept and orphaned import receipts whose source or secret still
+  exists: the panel lists them with Keep and Delete, and `vault receipts`
+  offers the same two actions on the terminal; a receipt whose source and
+  secret are both gone is forgotten by the sweep itself. The terminal prints
+  each refused Delete's true reason instead of No access for all. Probe
+  errors name their cause (permissions, an unavailable drive with its own
+  sentence, other); an unavailable drive is never reported gone. Oversized,
+  missequenced and trailed channel replies close with their typed reasons.
+  Focus returns only to a control that unmounted, and the retry announcement
+  lives in a persistent live region. The vault host bundle is back under its
+  50 KiB cap: explicit-action code (the native Add/Edit editor, write-only
+  crypto, Reset/Setup/Import dialogs) loads on first use from
+  `dist/vaultActions.js` with its own 25 KiB cap.
+
 - Review repairs (RVCM1091G, CM1091DR5): every approval reload carries its
   own sequence inside the view state machine, so two overlapping approval
   reloads settle newest-wins in both landing orders instead of an older
@@ -200,7 +217,8 @@ happened, not what was planned; superseded entries are kept.
   channel names itself and says the operation failed, never Locked beside
   an unlocked section. The source-gone sentence no longer claims the record
   could not be cleared. A Delete rejected as source-gone finishes by
-  clearing the leftover record in the panel and the CLI. A kept view with
+  clearing the leftover record in the panel and the CLI when it can; a
+  record it cannot clear stays for the next finish. A kept view with
   a retry scheduled or in flight says it is retrying with aria-busy, and a
   focused control that disappears hands focus to the first control that can
   act (else the section heading). The mounted harness scenes cover the
