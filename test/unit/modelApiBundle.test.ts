@@ -380,7 +380,7 @@ describe('the Model API bundle (M57)', () => {
     const fetchPage = vi.fn((): Promise<never> => {
       throw new Error('must not fetch: the URL check failed first')
     })
-    const { api, manager } = await sendBackendTurn(
+    const { api, manager, log } = await sendBackendTurn(
       scratchBackend({
         body: `module.exports = { ...require(${JSON.stringify(path.join(built.folder, 'modelApiToolsEntry.js'))}), checkPageUrl: () => { throw new Error('sabotaged check') } };`,
       }),
@@ -396,6 +396,11 @@ describe('the Model API bundle (M57)', () => {
       },
     )
     expectRefusedFetch(api, fetchPage, MODEL_TEXT.webFetchUnavailable)
+    // The refusal reason says the log says why: the check failure's class is
+    // logged with the chunk named, never the sabotaged check's text.
+    const logged = log.warn.mock.calls.map((call) => String(call[0])).join('\n')
+    expect(logged).toContain('modelApiTools.js')
+    expect(logged).not.toContain('sabotaged check')
     await manager.dispose()
   })
 
