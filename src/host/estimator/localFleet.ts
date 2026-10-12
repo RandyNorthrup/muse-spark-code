@@ -1,3 +1,4 @@
+import { EstimateDiagnosticError } from '../../core/estimator/diagnostic'
 // The estimate's local fleet (M117, PLAN.md D97): this machine, measured,
 // nothing invented. Cores and RAM come from the OS; disks stay unknown
 // (Node cannot read headroom); the machine runs one lane at a time
@@ -11,7 +12,7 @@ import { ESTIMATE_BYTES_PER_GIB, ESTIMATE_RAM_ROUND_GIB } from '../../shared/con
 import { fill, UI_TEXT } from '../../shared/l10n/text'
 import { fleetSnapshotSchema, type EstimateLane, type FleetSnapshot } from '../../shared/estimate'
 import type { EstimatorSourcePorts } from './estimatorBundle'
-import { applyFleetBinding, type FleetBindingIo } from './fleetBinding'
+import { bindEstimatorFleet, type FleetBindingIo } from './fleetBinding'
 
 export interface LocalHost {
   readonly platform: string
@@ -28,7 +29,7 @@ const MACHINE_OS: ReadonlyMap<string, MachineOs> = new Map<string, MachineOs>([
 ])
 
 function refuse(detail: string): never {
-  throw new Error(fill(UI_TEXT.estimateFailed, { detail }))
+  throw new EstimateDiagnosticError({ code: 'engine-refused', parameters: { reason: detail } })
 }
 
 /** This machine's fleet for these lanes; refuses platforms it cannot name. */
@@ -100,19 +101,38 @@ export function estimatorSourcePorts(
   snapshot: EstimatorSourcePorts['snapshot'],
   fleetIo?: FleetBindingIo,
 ): EstimatorSourcePorts {
-  const read = (lanes: readonly EstimateLane[], asOf: string): Promise<FleetSnapshot> =>
-    applyFleetBinding(localFleet(lanes, asOf), fleetIo ?? {})
+  const read = (lanes: readonly EstimateLane[], asOf: string) =>
+    bindEstimatorFleet(localFleet(lanes, asOf), fleetIo ?? {})
   return {
     snapshot,
-    fleet: read,
+    fleet: async (lanes, asOf) => {
+      const bound = await read(lanes, asOf)
+      return bound.fleet
+    },
     history: () => Promise.resolve([]),
-    candidatePool: read,
+    candidatePool: async (lanes, asOf) => {
+      const bound = await read(lanes, asOf)
+      return bound.fleet
+    },
     beginEstimate: () => {
       // This memo belongs only to the requesting invocation, including concurrent ones.
-      let snapshot: Promise<FleetSnapshot> | undefined
-      const once = (lanes: readonly EstimateLane[], asOf: string): Promise<FleetSnapshot> =>
+      let snapshot: ReturnType<typeof read> | undefined
+      const once = (lanes: readonly EstimateLane[], asOf: string) =>
         (snapshot ??= read(lanes, asOf))
-      return { fleet: once, candidatePool: once }
+      return {
+        fleet: async (lanes, asOf) => {
+          const bound = await once(lanes, asOf)
+          return bound.fleet
+        },
+        candidatePool: async (lanes, asOf) => {
+          const bound = await once(lanes, asOf)
+          return bound.fleet
+        },
+        limitContext: async (lanes, asOf) => {
+          const bound = await once(lanes, asOf)
+          return bound.context
+        },
+      }
     },
     board: () => ({
       audit: () => missingEstimateBinding('M117-W-M96-board'),
