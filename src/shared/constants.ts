@@ -292,6 +292,12 @@ export const MODELS_TABLE_ROW_PX = 48
 export const PROVIDER_HARNESS_MIN_CONTEXT_TOKENS = 32_000
 /** SecretStorage account names are `museSpark.provider.<id>` (D74). */
 export const PROVIDER_SECRET_PREFIX = 'museSpark.provider.'
+/**
+ * Admin report keys live under their own name, `museSpark.providerAdmin.<id>`
+ * (PROVSPEND): an admin key can read a whole organisation, so it is never
+ * stored where an inference read looks, and removing the provider removes it.
+ */
+export const PROVIDER_ADMIN_SECRET_PREFIX = 'museSpark.providerAdmin.'
 /** The OAuth loopback's one-shot callback lasts ten minutes (D74). */
 export const OAUTH_LOOPBACK_TIMEOUT_MS = 10 * 60 * 1000
 /** ACP grant mutations serialize by exclusively listening on this loopback port. */

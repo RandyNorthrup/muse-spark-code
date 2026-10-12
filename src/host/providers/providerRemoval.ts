@@ -5,7 +5,11 @@
 // window passes.
 
 import { PROVIDER_UNDO_WINDOW_MS } from '../../shared/constants'
-import { deleteProviderCredential, type RecordStore } from './credentialRecords'
+import {
+  deleteProviderAdminCredential,
+  deleteProviderCredential,
+  type RecordStore,
+} from './credentialRecords'
 import type { ProviderEntry, ProvidersStore } from './providerPorts'
 
 /** A removal waiting out its Undo window. */
@@ -74,9 +78,10 @@ export function createProviderRemoval(deps: ProviderRemovalDeps): ProviderRemova
     })
   const deleteRemovedSecret = async (id: string): Promise<void> => {
     const entries = await deps.providers.list()
-    if (entries.every((entry) => entry.id !== id)) {
-      await deleteProviderCredential(deps.secrets, id)
-    }
+    if (entries.some((entry) => entry.id === id)) return
+    await deleteProviderCredential(deps.secrets, id)
+    // Removing the provider removes its admin report key too.
+    await deleteProviderAdminCredential(deps.secrets, id)
   }
 
   const dropPending = async (id: string): Promise<readonly PendingRemoval[]> => {
