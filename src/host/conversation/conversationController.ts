@@ -191,6 +191,7 @@ import {
   type ItemSnapshot,
   type TodoItem,
 } from '../../shared/agentEvents'
+import { usableReply } from '../../core/turns/usableReply'
 import { fill, plural, uiLocale } from '../../shared/l10n/text'
 import type { GitDraftOutputPort } from '../../core/git/gitText'
 import type { GitAction, GitDraftKind } from '../../shared/git'
@@ -1423,6 +1424,12 @@ export class ConversationController {
    * waiting in the dialog. One at a time; a new conversation drops it.
    */
   private pendingHandoff: PendingHandoff | undefined
+  /**
+   * Turns that completed at their model-call limit: their "what is done /
+   * what remains" summary never becomes a handoff brief. Cleared with the
+   * finished turns when the session changes.
+   */
+  private readonly cappedTurns = new Set<string>()
   /** Report a problem (M93): the dialog's handler, one per surface, loaded with dist/report.js. */
   private reportHandler:
     Promise<{ handle: (message: ReportProblemMessage) => Promise<void> }> | undefined
@@ -1985,6 +1992,7 @@ export class ConversationController {
     this.forgetReviews(isOwnedRecovery)
     this.childSessionIds.clear()
     this.finishedTurns.clear()
+    this.cappedTurns.clear()
     this.forgetForegroundShells()
     this.pendingShellApprovals.clear()
     this.pausedForegroundShells.clear()
@@ -2674,6 +2682,7 @@ export class ConversationController {
         if (event.turnId === this.activeTurnId) this.clearJudgeCards()
         this.endTurnClock(event)
         this.finishedTurns.add(event.turnId)
+        if (event.errorKind === 'max_turn_requests') this.cappedTurns.add(event.turnId)
         // A review turn's end puts the user's mode back (M70).
         this.planHold?.hold.turnEnded(event.turnId)
         // A Plan-mode turn that finished with the panel in Plan mode throughout (M79).
@@ -5884,12 +5893,27 @@ export class ConversationController {
         this.handoffFailed(new Error(UI_TEXT.handoffNoBrief))
         return
       }
+      // A capped turn's summary never becomes the brief: only a turn that
+      // completed without a limit answers what was asked. The turn's own
+      // typed limit notice already said why.
+      const usable = usableReply(
+        {
+          terminal: 'completed',
+          errorKind: this.cappedTurns.has(turnId) ? 'max_turn_requests' : undefined,
+        },
+        text,
+      )
+      if (!usable.usable) {
+        this.pendingHandoff = undefined
+        this.notice('warning', UI_TEXT.handoffInterrupted)
+        return
+      }
       if (new TextEncoder().encode(text).byteLength > PLAN_FILE_MAX_BYTES) {
         this.pendingHandoff = undefined
         this.notice('warning', fill(UI_TEXT.handoffTooLarge, { size: PLAN_FILE_MAX_KB }))
         return
       }
-      pending.brief = text
+      pending.brief = usable.reply
       pending.todos = history.todos.filter((todo) => HANDOFF_OPEN_TODO_STATUSES.has(todo.status))
       this.postHandoffReady()
     } catch (error: unknown) {

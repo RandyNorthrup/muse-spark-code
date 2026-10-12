@@ -473,6 +473,40 @@ describe('createRuntimeGit', () => {
     })
   })
 
+  it('never settles a capped turn summary as a draft', () => {
+    const fake = fakeSurface()
+    const { git } = adapterFor(repos().own, fake)
+    const id = git.generationStarting('commitMessage')
+    git.generationSubmitted('t1', id)
+    // A completed turn carrying the typed limit outcome: the summary must
+    // not become a commit-message draft.
+    git.onEvent({
+      type: 'itemCompleted',
+      item: {
+        itemId: 'm-t1',
+        kind: 'agentMessage',
+        status: 'completed',
+        turnId: 't1',
+        text: 'Done; tests remain',
+      },
+    })
+    git.onEvent({
+      type: 'turnCompleted',
+      turnId: 't1',
+      terminal: 'completed',
+      errorKind: 'max_turn_requests',
+      reason: 'The turn stopped after 3 model calls. Send a message to continue.',
+    })
+    const drafts = fake.posted.filter((message) => message.type === 'gitDraft')
+    expect(drafts.at(-1)).toMatchObject({
+      type: 'gitDraft',
+      draft: { kind: 'failed', forKind: 'commitMessage' },
+    })
+    const kinds = drafts.map((draft) => draft.draft.kind)
+    expect(kinds.length).toBeGreaterThan(0)
+    expect(kinds.every((kind) => kind === 'failed')).toBe(true)
+  })
+
   it('answers the pull request half explicitly until lane P', async () => {
     const fake = fakeSurface()
     const { git } = adapterFor(repos().own, fake)

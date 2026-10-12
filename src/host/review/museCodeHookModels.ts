@@ -12,6 +12,7 @@ import { FifoLimiter } from '../../core/fifoLimiter'
 import type { CoreLogger } from '../../core/logging'
 import { withDeadline } from '../../core/timeouts'
 import type { AgentEvent } from '../../shared/agentEvents'
+import { usableReply } from '../../core/turns/usableReply'
 import { THINKING_OFF_EFFORT, UI_TEXT } from '../../shared/constants'
 import { mspApprovalMode } from '../../shared/permissionModes'
 
@@ -204,11 +205,14 @@ export class MuseCodeHookModels {
         finish(undefined)
       }
       const look = () => {
-        if (ending !== undefined) {
-          // The typed limit outcome is not an ordinary completion: a reply
-          // cut at the model-call limit never becomes a hook answer.
-          finish(ending === COMPLETED && !isLimited ? replies.get(turnId) : undefined)
-        }
+        if (ending === undefined) return
+        // Only a turn that completed without a limit answers: a reply cut
+        // at the model-call limit never becomes a hook answer.
+        const usable = usableReply(
+          { terminal: ending, errorKind: isLimited ? 'max_turn_requests' : undefined },
+          replies.get(turnId),
+        )
+        finish(usable.usable ? usable.reply : undefined)
       }
       const hear = (event: AgentEvent) => {
         if (

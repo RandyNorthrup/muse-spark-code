@@ -48,6 +48,13 @@ happened, not what was planned; superseded entries are kept.
   the attempt session surface, so best-of-N attempts reserve the wrap-up
   through it. (Team-task ceilings return with the teams wiring lane: that
   lane binds team tasks through the same member.)
+- One `usableReply` rule decides whether a turn's reply may answer what was
+  asked: only a turn that completed without a limit yields it. The
+  same-model judge, the playbook review, both Git drafts, the reviewer, the
+  hook models, and the handoff brief all go through it, so a capped turn's
+  summary is never taken as a verdict, review, draft, or brief. The wire
+  keeps `completed` with `max_turn_requests`; a source guard fails any new
+  raw completed-terminal read outside the accessor.
 - The wrap-up phase is now decided where every request is built, so a
   whole-stream retry, media recovery, or overflow recovery on the last
   permitted call still sends the wrap-up (no tools, the note appended) and

@@ -7412,6 +7412,7 @@ function modelApiController(
     readonly beforeEnsureHost?: () => Promise<void>
     /** Where sessions are saved, when a test resumes one the host let go of. */
     readonly store?: ModelApiHostDeps['store']
+    readonly remainingModelCalls?: ModelApiHostDeps['remainingModelCalls']
   } = {},
 ) {
   const api = fakeModelApi()
@@ -7439,6 +7440,9 @@ function modelApiController(
     }),
     memory: undefined,
     ...(options.store !== undefined && { store: options.store }),
+    ...(options.remainingModelCalls !== undefined && {
+      remainingModelCalls: options.remainingModelCalls,
+    }),
   })
   const controller = new ConversationController({
     ...t.deps,
@@ -13813,6 +13817,7 @@ async function handoffConversation(
   beforeEnsureHost?: () => Promise<void>,
   options: Parameters<typeof setup>[0] = {},
   store?: ModelApiHostDeps['store'],
+  remainingModelCalls?: ModelApiHostDeps['remainingModelCalls'],
 ): Promise<HandoffConversation> {
   const t = setup(options)
   let nextId = 0
@@ -13820,6 +13825,7 @@ async function handoffConversation(
     newId: () => `id${String(++nextId)}`,
     ...(beforeEnsureHost !== undefined && { beforeEnsureHost }),
     ...(store !== undefined && { store }),
+    ...(remainingModelCalls !== undefined && { remainingModelCalls }),
   })
   api.script(firstReply ?? { text: 'did the thing' })
   await controller.handle({
@@ -14015,6 +14021,23 @@ describe('ConversationController: handoff to a new conversation (M74)', () => {
       })
     })
   }
+
+  it('drops a capped distillation summary instead of briefing it', async () => {
+    // Two calls allowed: the distillation turn spends its first on a tool
+    // round and its last on the wrap-up, so it ends at its limit with the
+    // summary kept. That summary never becomes the handoff brief.
+    const conversation = await handoffConversation(
+      { text: 'did the thing' },
+      undefined,
+      {},
+      undefined,
+      () => 2,
+    )
+    const { api, controller } = conversation
+    api.script({ calls: [{ name: 'get_goal', arguments: '{}' }] }, { text: BRIEF })
+    await controller.handle(handoff('h1'))
+    await expectHandoffFreed(conversation)
+  })
 
   it("distils the conversation as the user's own turn and shows the brief before anything starts", async () => {
     const conversation = await handoffConversation()
