@@ -1089,6 +1089,7 @@ const REFERENCE_DETAILS: Readonly<
   Record<string, readonly Extract<ReferenceText, { ui: unknown }>['ui'][]>
 > = {
   providers: ['providerOpenRouterServices'],
+  // Owned facts and authentication fences are documented with the lazy estimator help.
   estimator: ['estimateCliHelp', 'referenceEstimateFacts'],
   permissions: ['referencePermissionLimits'],
   'native-agents': ['referenceAgentControls', 'referenceNativeAgentsConditions'],

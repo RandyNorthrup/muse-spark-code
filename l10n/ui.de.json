@@ -217,6 +217,15 @@
   "estimateWaiting": "Warten auf {dependency}.",
   "estimateRunning": "Schätzung läuft…",
   "estimateFailed": "Schätzung fehlgeschlagen: {detail}",
+  "estimateNoAccountReader": "Unbekannte Kontolimits auf {source}.",
+  "estimateLimitsUnread": "Unbekannt: Limits für {source} nicht gelesen.",
+  "estimateRefillUnknown": "Künftiger Auffüllzeitraum und Rate unbekannt: {source}.",
+  "estimatePlanWindowUnknown": "{source}: {percent} verbraucht; {reset}; Fensterzeitraum und Arbeitsbedarf unbekannt.",
+  "estimatePercentDemandUnknown": "Prozentbedarf dieser Aufgaben unbekannt: {source}; Zurücksetzung {reset}.",
+  "estimateResetUnknown": "Zurücksetzung unbekannt",
+  "estimateCiUnread": "CI-Kapazität unbekannt: kein Leser.",
+  "estimateSettingsDefault": "Standardeinstellungen: {source}.",
+  "estimateSettingsConfigured": "Konfigurierte Einstellungen: {source}.",
   "estimateSchedule": "Spurzeitplan",
   "estimateGantt": "Zeitplan für {goal} mit kritischem Pfad sowie P50- und P90-Abschlussmarken.",
   "estimateOptimizeDescription": "Wählen Sie die günstigste Ausstattung, die die Frist bei P90 einhält, oder die schnellste mit lohnenden zusätzlichen Zeitersparnissen.",
@@ -5227,14 +5236,5 @@
       "other": "{count} Freigaben"
     }
   },
-  "estimateNoAccountReader": "Unbekannte Kontolimits auf {source}.",
-  "estimateLimitsUnread": "Unbekannt: Limits für {source} nicht gelesen.",
-  "estimateRefillUnknown": "Künftiger Auffüllzeitraum und Rate unbekannt: {source}.",
-  "estimatePlanWindowUnknown": "{source}: {percent} verbraucht; {reset}; Fensterzeitraum und Arbeitsbedarf unbekannt.",
-  "estimatePercentDemandUnknown": "Prozentbedarf dieser Aufgaben unbekannt: {source}; Zurücksetzung {reset}.",
-  "estimateResetUnknown": "Zurücksetzung unbekannt",
-  "estimateCiUnread": "CI-Kapazität unbekannt: kein Leser.",
-  "estimateSettingsDefault": "Standardeinstellungen: {source}.",
-  "estimateSettingsConfigured": "Konfigurierte Einstellungen: {source}.",
-  "referenceEstimateFacts": "Prognosen behalten beobachtete Kontosperren bei, benennen ungelesene Kapazität und unterscheiden Standardwerte von konfigurierten Schwellen. Künftige Auffüllraten bleiben unbekannt, sofern nicht gemeldet."
+  "referenceEstimateFacts": "Prognosen behalten beobachtete Kontosperren bei, benennen ungelesene Kapazität und unterscheiden Standardwerte von konfigurierten Schwellen. Künftige Auffüllraten bleiben unbekannt, sofern nicht gemeldet. Beobachtungen gehören zum jeweiligen Konto und Anmeldestand; bekannte Guthaben und prozentuale Kontingente begrenzen die aktuelle Arbeit auch bei unbekannter Erneuerung."
 }

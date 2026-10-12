@@ -217,6 +217,15 @@
   "estimateWaiting": "{dependency} 대기 중입니다.",
   "estimateRunning": "추정 중…",
   "estimateFailed": "추정 실패: {detail}",
+  "estimateNoAccountReader": "{source}의 계정 한도를 알 수 없습니다.",
+  "estimateLimitsUnread": "알 수 없음: {source}의 한도를 읽지 않았습니다.",
+  "estimateRefillUnknown": "향후 충전 주기와 속도를 알 수 없습니다: {source}.",
+  "estimatePlanWindowUnknown": "{source}: {percent} 사용; {reset}; 창 주기와 작업 수요를 알 수 없습니다.",
+  "estimatePercentDemandUnknown": "이 작업들의 백분율 수요를 알 수 없습니다: {source}; 초기화 {reset}.",
+  "estimateResetUnknown": "초기화 시각 알 수 없음",
+  "estimateCiUnread": "CI 용량을 알 수 없습니다: 읽기 원본이 없습니다.",
+  "estimateSettingsDefault": "기본 설정: {source}.",
+  "estimateSettingsConfigured": "구성된 설정: {source}.",
   "estimateSchedule": "레인 일정",
   "estimateGantt": "임계 경로와 P50 및 P90 완료 표시가 있는 {goal}의 일정입니다.",
   "estimateOptimizeDescription": "P90에서 마감일을 충족하는 가장 저렴한 구성 또는 추가 시간 절약 효과가 충분한 가장 빠른 구성을 선택합니다.",
@@ -5074,14 +5083,5 @@
       "other": "{count} 개 권한"
     }
   },
-  "estimateNoAccountReader": "{source}의 계정 한도를 알 수 없습니다.",
-  "estimateLimitsUnread": "알 수 없음: {source}의 한도를 읽지 않았습니다.",
-  "estimateRefillUnknown": "향후 충전 주기와 속도를 알 수 없습니다: {source}.",
-  "estimatePlanWindowUnknown": "{source}: {percent} 사용; {reset}; 창 주기와 작업 수요를 알 수 없습니다.",
-  "estimatePercentDemandUnknown": "이 작업들의 백분율 수요를 알 수 없습니다: {source}; 초기화 {reset}.",
-  "estimateResetUnknown": "초기화 시각 알 수 없음",
-  "estimateCiUnread": "CI 용량을 알 수 없습니다: 읽기 원본이 없습니다.",
-  "estimateSettingsDefault": "기본 설정: {source}.",
-  "estimateSettingsConfigured": "구성된 설정: {source}.",
-  "referenceEstimateFacts": "예측은 관측된 계정 차단을 유지하고 읽지 않은 용량을 명시하며 기본 임계값과 구성된 임계값을 구분합니다. 향후 충전 속도는 보고될 때까지 알 수 없습니다."
+  "referenceEstimateFacts": "예측은 관측된 계정 차단을 유지하고 읽지 않은 용량을 명시하며 기본 임계값과 구성된 임계값을 구분합니다. 향후 충전 속도는 보고될 때까지 알 수 없습니다. 관측값은 해당 계정과 로그인 세대에 속합니다. 갱신 시점을 알 수 없어도 알려진 잔액과 비율 할당량은 현재 작업을 제한합니다."
 }

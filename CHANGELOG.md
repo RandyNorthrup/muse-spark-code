@@ -11,7 +11,13 @@ happened, not what was planned; superseded entries are kept.
 
 - **Estimator owned limit facts** (M117 C-M117-3R5). Account and machine
   translators preserve independently unknown measurements, UTC windows and
-  observation ownership for every normalized vendor source.
+  observation ownership for every normalized vendor source. Known percentage
+  allowance now constrains work without a captured period, and Model API
+  balances retain their current limits. Account/sign-in changes fence old
+  observations, forecasts are independent of ambient time zone, and typed
+  scheduling refusals survive every surface. Explanations use account labels;
+  invalid owner fields refuse with their source. The panel receives no new code
+  or schema dependency.
 
 - **Estimator plan snapshots** (M117 C-M117-1). `/estimate` goals now resolve
   from your workspace `PLAN.md` with its git and `gh` evidence — lane hours,

@@ -217,6 +217,15 @@
   "estimateWaiting": "In attesa di {dependency}.",
   "estimateRunning": "Stima in corso…",
   "estimateFailed": "Stima non riuscita: {detail}",
+  "estimateNoAccountReader": "Limiti dell’account sconosciuti su {source}.",
+  "estimateLimitsUnread": "Sconosciuto: limiti non letti per {source}.",
+  "estimateRefillUnknown": "Periodo e velocità di ripristino futuri sconosciuti: {source}.",
+  "estimatePlanWindowUnknown": "{source}: {percent} utilizzato; {reset}; periodo della finestra e richiesta delle attività sconosciuti.",
+  "estimatePercentDemandUnknown": "Richiesta percentuale di queste attività sconosciuta: {source}; ripristino {reset}.",
+  "estimateResetUnknown": "ripristino sconosciuto",
+  "estimateCiUnread": "Capacità CI sconosciuta: nessun lettore.",
+  "estimateSettingsDefault": "Impostazioni predefinite: {source}.",
+  "estimateSettingsConfigured": "Impostazioni configurate: {source}.",
   "estimateSchedule": "Calendario delle corsie",
   "estimateGantt": "Calendario per {goal}, con il percorso critico e gli indicatori di conclusione P50 e P90.",
   "estimateOptimizeDescription": "Scegli la configurazione più economica che rispetta la scadenza a P90, oppure la più rapida con risparmi marginali sufficienti.",
@@ -5380,14 +5389,5 @@
       "many": "{count} autorizzazioni"
     }
   },
-  "estimateNoAccountReader": "Limiti dell’account sconosciuti su {source}.",
-  "estimateLimitsUnread": "Sconosciuto: limiti non letti per {source}.",
-  "estimateRefillUnknown": "Periodo e velocità di ripristino futuri sconosciuti: {source}.",
-  "estimatePlanWindowUnknown": "{source}: {percent} utilizzato; {reset}; periodo della finestra e richiesta delle attività sconosciuti.",
-  "estimatePercentDemandUnknown": "Richiesta percentuale di queste attività sconosciuta: {source}; ripristino {reset}.",
-  "estimateResetUnknown": "ripristino sconosciuto",
-  "estimateCiUnread": "Capacità CI sconosciuta: nessun lettore.",
-  "estimateSettingsDefault": "Impostazioni predefinite: {source}.",
-  "estimateSettingsConfigured": "Impostazioni configurate: {source}.",
-  "referenceEstimateFacts": "Le previsioni mantengono i blocchi osservati degli account, indicano la capacità non letta e distinguono le soglie predefinite da quelle configurate. Le velocità future di ripristino restano sconosciute finché non vengono riportate."
+  "referenceEstimateFacts": "Le previsioni mantengono i blocchi osservati degli account, indicano la capacità non letta e distinguono le soglie predefinite da quelle configurate. Le velocità future di ripristino restano sconosciute finché non vengono riportate. Le osservazioni appartengono al proprio account e alla generazione di accesso; i saldi e le quote percentuali noti limitano il lavoro attuale anche quando il rinnovo è sconosciuto."
 }
