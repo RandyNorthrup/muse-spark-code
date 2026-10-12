@@ -3440,6 +3440,27 @@ describe('M105 ACP attachment commands', () => {
     })
     expect(port.release).toHaveBeenCalledOnce()
   })
+
+  it('keeps a media cleanup failure name and content out of ACP logs', async () => {
+    const { h, dispose } = mediaHarness()
+    const canary = 'canary-acp.mp4'
+    class MediaCleanupError extends Error {
+      public override name = canary
+    }
+    dispose.mockRejectedValue(new MediaCleanupError(canary))
+    await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      await prompt(client, sessionId, '/attach clip.mp4')
+      await turn(h, client, sessionId, () => undefined)
+      await until(() =>
+        h.log.warn.mock.calls.some(
+          ([line]: readonly unknown[]) =>
+            typeof line === 'string' && line.includes('cleanup_failed'),
+        ),
+      )
+      expect(JSON.stringify(h.log.warn.mock.calls)).not.toContain(canary)
+    })
+  })
 })
 
 function mediaHarness(isHeadless = false) {

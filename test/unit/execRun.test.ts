@@ -79,6 +79,16 @@ import { mediaModel } from './helpers/media/replay'
 
 const actualMemoryStore = keyInput.memorySecretStore
 
+function refusingMedia(reason: string): NonNullable<ExecDeps['media']> {
+  return () =>
+    Promise.resolve({
+      block: () => Promise.resolve(reason),
+      attach: () => Promise.reject(new Error('unused')),
+      record: () => Promise.reject(new Error('unused')),
+      release: () => undefined,
+    })
+}
+
 function notification(method: string, params: Record<string, unknown>) {
   return { jsonrpc: '2.0', method, params }
 }
@@ -1736,13 +1746,7 @@ it.each(['1', '0.000001'])(
 describe('M105 headless attachment entry', () => {
   it('returns usage/2 for unsupported attached media and headless /record without inference', async () => {
     const h = await harness(['--attach', 'clip.mp4'], [], {
-      media: () =>
-        Promise.resolve({
-          block: () => Promise.resolve(UI_TEXT.media.cappedRateUnknown),
-          attach: () => Promise.reject(new Error('unused')),
-          record: () => Promise.reject(new Error('unused')),
-          release: () => undefined,
-        }),
+      media: refusingMedia(UI_TEXT.media.cappedRateUnknown),
     })
     writeFileSync(path.join(h.cwd, 'clip.mp4'), videoFixture())
     const refused = await h.run()
@@ -1774,6 +1778,21 @@ describe('M105 headless attachment entry', () => {
     expect(done.code).toBe(2)
     expect(h.api.requests).toHaveLength(0)
     expect(h.err.chunks.join('')).toContain(UI_TEXT.textFilePrivate)
+  })
+
+  it('shows a detailed attachment refusal without its name in any exec log line', async () => {
+    const canary = 'canary-exec.mp4'
+    const h = await harness(['--attach', canary], undefined, {
+      media: refusingMedia(canary),
+    })
+    writeFileSync(path.join(h.cwd, canary), videoFixture({ soundtrack: false }))
+    const done = await h.run()
+    expect(done.code).toBe(2)
+    const lines = h.err.chunks.join('').split('\n')
+    expect(lines.some((line) => !line.startsWith('[') && line.includes(canary))).toBe(true)
+    const logs = lines.filter((line) => /^\[(?:trace|info|warn|error)\]/u.test(line))
+    expect(logs.some((line) => line.includes('usage_error'))).toBe(true)
+    expect(logs.join('\n')).not.toContain(canary)
   })
 
   it('binds --attach to the runtime media port, priced against the hard budget (lane V seam 5)', async () => {

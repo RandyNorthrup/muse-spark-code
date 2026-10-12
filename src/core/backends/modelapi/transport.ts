@@ -1018,9 +1018,7 @@ export class RequestTransport {
           throw new ModelApiError(reason, NETWORK_FAILURE_STATUS, undefined, undefined)
         }
         const delay = this.backoffMs(attempt, undefined)
-        this.deps.log.warn(
-          `Model API request failed to send (${credentials.redact(describeNetworkFailure(error).detail)}); retrying in ${String(delay)} ms`,
-        )
+        this.deps.log.warn(`Model API transport_error; retrying in ${String(delay)} ms`)
         await retry(attempt, delay, reason)
         continue
       }
@@ -1102,7 +1100,7 @@ export class RequestTransport {
       }
       const delay = this.backoffMs(attempt, waitMs)
       this.deps.log.warn(
-        `Model API answered ${String(response.status)} (${failure.message}); retrying in ${String(delay)} ms`,
+        `Model API answered ${String(response.status)}; retrying in ${String(delay)} ms`,
       )
       if (
         response.status === PROVIDER_RETRY_HTTP_STATUS.gatewayTimeout &&

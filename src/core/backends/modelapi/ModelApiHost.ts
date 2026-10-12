@@ -4095,10 +4095,10 @@ export class ModelApiSession implements ScheduledAgentSession {
   ): Promise<void> {
     try {
       await work
-    } catch (error: unknown) {
+    } catch {
       // A turn reports its own failures, so one that reaches here is a fault.
       if (!isFailureCallers) {
-        this.deps.log.error(`A Model API turn failed unexpectedly: ${describe(error)}`)
+        this.deps.log.error('A Model API turn failed unexpectedly: failed')
       }
     } finally {
       this.unsettled.delete(id)
@@ -17116,9 +17116,7 @@ export class ModelApiHost implements AgentHost {
       } catch (error: unknown) {
         // Fixed words only: a save can fail on an upload-ownership refusal
         // that names the attachment (RVM105 4). The waiter keeps the detail.
-        this.deps.log.warn(
-          `Session ${sessionId} was not saved: ${error instanceof Error ? error.name : 'unknown failure'}`,
-        )
+        this.deps.log.warn(`Session ${sessionId} was not saved: save_failed`)
         this.settleSaveWaiters(state, coveredThrough, error)
         continue
       }

@@ -12,7 +12,7 @@ import { readFileSync } from 'node:fs'
 import { mkdir, readdir, readFile, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { withMkdirLock } from '../../src/core/fileLock'
 import { MediaCostEstimator } from '../../src/core/media/mediaCost'
 import {
@@ -513,6 +513,8 @@ function orphanRig(options?: {
   readonly failDeletes?: boolean
   readonly failWrites?: number
   readonly abortAfterReceipt?: boolean
+  readonly interruptAt?: 'json' | 'intent' | 'publication'
+  readonly failPublication?: boolean
 }) {
   const api = fakeModelApi()
   const files = fakeFilesApi(api.fetch)
@@ -520,15 +522,25 @@ function orphanRig(options?: {
   let failWrites = options?.failWrites ?? 0
   const shouldAbortAfterReceipt = options?.abortAfterReceipt ?? true
   const caller = new AbortController()
+  const cleanupIntents: unknown[] = []
   const fetch: typeof globalThis.fetch = async (input, init) => {
     const pathname = new URL(requestHref(input)).pathname
     const method = init?.method ?? 'GET'
+    if (method === 'DELETE') cleanupIntents.push(await storage.read())
     if (method === 'DELETE' && shouldFailDeletes && pathname.includes('/files/'))
       return Response.json(
         { error: { message: 'delete failed', type: 'server_error' } },
         { status: 500 },
       )
     const response = await files.fetch(input, init)
+    if (method === 'POST' && options?.interruptAt === 'json') {
+      const json = response.json.bind(response)
+      vi.spyOn(response, 'json').mockImplementation(async () => {
+        const receipt: unknown = await json()
+        caller.abort(new Error('cancelled after receipt'))
+        return receipt
+      })
+    }
     // Cancellation lands after the provider answered with its receipt.
     if (shouldAbortAfterReceipt && method === 'POST' && pathname.endsWith('/files'))
       caller.abort(new Error('cancelled after receipt'))
@@ -552,7 +564,13 @@ function orphanRig(options?: {
         failWrites -= 1
         throw new Error('Disk full')
       }
+      if (options?.failPublication && state.entries.length > 0) throw new Error('Disk full')
       await inner.write(state)
+      if (
+        (options?.interruptAt === 'intent' && (state.orphans?.length ?? 0) > 0) ||
+        (options?.interruptAt === 'publication' && state.entries.length > 0)
+      )
+        caller.abort(new Error('cancelled after receipt'))
     },
   }
   const ledger = () =>
@@ -575,6 +593,7 @@ function orphanRig(options?: {
   const source = mediaByteSource('clip.mp4', 'video/mp4', bytes)
   return {
     files,
+    cleanupIntents,
     caller,
     storage,
     ledger,
@@ -586,7 +605,93 @@ function orphanRig(options?: {
   }
 }
 
+function hasIteratorReturn(
+  target: object | null,
+): target is { return(...args: unknown[]): unknown } {
+  return target !== null && 'return' in target && typeof target.return === 'function'
+}
+
+function spyIteratorClose() {
+  const value = Promise.resolve(1)
+  const iterator = (async function* () {
+    yield await value
+  })()
+  const prototype = Reflect.getPrototypeOf(Reflect.getPrototypeOf(iterator) ?? iterator)
+  if (!hasIteratorReturn(prototype)) throw new Error('Async generator return is unavailable')
+  return vi.spyOn(prototype, 'return')
+}
+
 describe('an upload that reached the provider is never orphaned', () => {
+  it('has durable cleanup intent before the iterator-close await and upload publication', async () => {
+    const t = orphanRig({ abortAfterReceipt: false })
+    const close = spyIteratorClose().mockImplementationOnce(async () => {
+      expect(await t.state()).toMatchObject({ entries: [], orphans: [t.files.uploads[0]?.fileId] })
+      return { done: true, value: undefined }
+    })
+    try {
+      await t.ensure(t.caller.signal)
+      expect(close).toHaveBeenCalled()
+    } finally {
+      close.mockRestore()
+    }
+  })
+
+  it('deletes the known receipt when the final iterator-close await fails', async () => {
+    const close = spyIteratorClose().mockRejectedValueOnce(new Error('close failed'))
+    const t = orphanRig({ abortAfterReceipt: false })
+    try {
+      await expect(t.ensure(t.caller.signal)).rejects.toThrow('close failed')
+      expect(t.files.uploads).toHaveLength(1)
+      expect(t.files.deletes).toEqual([t.files.uploads[0]?.fileId])
+      expect(t.files.files.size).toBe(0)
+    } finally {
+      close.mockRestore()
+    }
+  })
+
+  it.each(['json', 'intent', 'publication'] as const)(
+    'keeps provider cleanup ownership when interrupted during %s',
+    async (interruptAt) => {
+      const t = orphanRig({ abortAfterReceipt: false, interruptAt })
+      // Publication is durable before its await resolves; cancellation there
+      // cannot remove ownership. Every earlier interruption deletes the file.
+      try {
+        await t.ensure(t.caller.signal)
+      } catch {
+        expect(t.caller.signal.aborted).toBe(true)
+      }
+      const id = t.files.uploads[0]?.fileId
+      expect(id).toBeDefined()
+      const state = await t.state()
+      expect(t.files.deletes.includes(id ?? '') || JSON.stringify(state).includes(id ?? '')).toBe(
+        true,
+      )
+    },
+  )
+
+  it.each([
+    {
+      name: 'retains the pre-publication intent when publication and provider deletion fail',
+      isWriteFailure: true,
+    },
+    {
+      name: 'records deletion after cancellation during a committed publication and a failed DELETE',
+      isWriteFailure: false,
+    },
+  ])('$name', async ({ isWriteFailure }) => {
+    const t = orphanRig({
+      abortAfterReceipt: false,
+      failDeletes: true,
+      ...(isWriteFailure ? { failPublication: true } : { interruptAt: 'publication' }),
+    })
+    await expect(t.ensure(t.caller.signal)).rejects.toThrow(
+      isWriteFailure ? 'Disk full' : 'cancelled after receipt',
+    )
+    expect(await t.state()).toMatchObject({ entries: [], orphans: [t.files.uploads[0]?.fileId] })
+    t.setFailDeletes(false)
+    await t.ledger().accountReport()
+    expect(t.files.files.size).toBe(0)
+  })
   it('cancels before any receipt without a clean-up: no DELETE, no intent', async () => {
     const t = orphanRig()
     t.caller.abort(new Error('cancelled before upload'))
@@ -601,37 +706,46 @@ describe('an upload that reached the provider is never orphaned', () => {
     await expect(t.ensure(t.caller.signal)).rejects.toThrow('cancelled after receipt')
     const uploaded = t.files.uploads[0]
     expect(uploaded).toBeDefined()
-    // The clean-up DELETE reached the provider on its own deadline: the file
-    // is gone and nothing durable was recorded for it.
+    // The intent was durable before the detached DELETE started.
     expect(t.files.deletes).toEqual([uploaded?.fileId])
     expect(t.files.files.size).toBe(0)
-    expect(await t.state()).toBeUndefined()
-  })
-
-  it('records a clean-up intent when the DELETE fails, and the next sweep deletes it', async () => {
-    const t = orphanRig({ failDeletes: true })
-    // The caller still sees the original upload failure, not the clean-up.
-    await expect(t.ensure(t.caller.signal)).rejects.toThrow('cancelled after receipt')
-    const uploaded = t.files.uploads[0]
-    expect(uploaded).toBeDefined()
-    expect(t.files.deletes).toEqual([])
-    expect(await t.state()).toMatchObject({ entries: [], orphans: [uploaded?.fileId] })
-    // A fresh ledger over the same directory proves the intent is durable:
-    // the next sweep deletes the provider file and clears the intent.
-    t.setFailDeletes(false)
+    expect(t.cleanupIntents[0]).toMatchObject({ entries: [], orphans: [uploaded?.fileId] })
     await t.ledger().accountReport()
-    expect(t.files.deletes).toEqual([uploaded?.fileId])
-    expect(t.files.files.size).toBe(0)
     expect(await t.state()).toMatchObject({ entries: [], orphans: [] })
   })
+
+  it.each([false, true])(
+    'records a clean-up intent when DELETE fails (first write fails: %s)',
+    async (failWrite) => {
+      const t = orphanRig({
+        failDeletes: true,
+        failWrites: failWrite ? 1 : 0,
+        abortAfterReceipt: !failWrite,
+      })
+      // The caller still sees the original upload failure, not the clean-up.
+      await expect(t.ensure(t.caller.signal)).rejects.toThrow(
+        failWrite ? 'Disk full' : 'cancelled after receipt',
+      )
+      const uploaded = t.files.uploads[0]
+      expect(uploaded).toBeDefined()
+      expect(t.files.deletes).toEqual([])
+      expect(await t.state()).toMatchObject({ entries: [], orphans: [uploaded?.fileId] })
+      // A fresh ledger over the same directory proves the intent is durable:
+      // the next sweep deletes the provider file and clears the intent.
+      t.setFailDeletes(false)
+      await t.ledger().accountReport()
+      expect(t.files.deletes).toEqual([uploaded?.fileId])
+      expect(t.files.files.size).toBe(0)
+      expect(await t.state()).toMatchObject({ entries: [], orphans: [] })
+    },
+  )
 
   it('deletes at the provider when the ledger write after a good upload fails', async () => {
     const t = orphanRig({ failWrites: 1, abortAfterReceipt: false })
     await expect(t.ensure(t.caller.signal)).rejects.toThrow('Disk full')
-    const uploaded = t.files.uploads[0]
-    expect(uploaded).toBeDefined()
+    expect(t.files.uploads).toHaveLength(1)
     // The write-failure path removed the receipt it could not record.
-    expect(t.files.deletes).toEqual([uploaded?.fileId])
+    expect(t.files.deletes).toEqual(t.files.uploads.map((file) => file.fileId))
     expect(t.files.files.size).toBe(0)
     expect(await t.state()).toBeUndefined()
   })

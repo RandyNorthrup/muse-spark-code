@@ -453,8 +453,8 @@ describe('createFileSessionStore', () => {
     await writeFile(path.join(directory, 'notes.txt'), 'ignored', 'utf8')
     await expect(store.list()).resolves.toEqual([headerOf(stored('good'))])
     expect(log.warn).toHaveBeenCalledTimes(2)
-    expect(log.warn).toHaveBeenCalledWith(expect.stringContaining('broken.json skipped'))
-    expect(log.warn).toHaveBeenCalledWith(expect.stringContaining('wrong.json skipped'))
+    expect(log.warn).toHaveBeenCalledWith('Session file skipped: read_failed')
+    expect(log.warn).toHaveBeenCalledWith('Session file skipped: its header does not read')
     expect(JSON.parse(await readFile(path.join(directory, 'good.json'), 'utf8'))).toEqual(
       stored('good'),
     )
@@ -590,16 +590,6 @@ it('keeps an expired session visible when question cleanup fails', async () => {
  * sentence, but the store and the host's save queue log fixed words only.
  * The canary stands in for a real attachment name in each refusal kind.
  */
-function logLines(log: FakeLogOutputChannel): string[] {
-  return [
-    ...log.trace.mock.calls,
-    ...log.debug.mock.calls,
-    ...log.info.mock.calls,
-    ...log.warn.mock.calls,
-    ...log.error.mock.calls,
-  ].map((call) => JSON.stringify(call))
-}
-
 describe('attachment names stay out of the media save logs', () => {
   const canary = 'canary-save.mp4'
   const unknownRef = {
@@ -608,13 +598,24 @@ describe('attachment names stay out of the media save logs', () => {
     name: canary,
   }
 
+  it('keeps names and corrupt media content out of file-read diagnostics', async () => {
+    const directory = path.join(root, 'canary-corrupt')
+    const { store, log } = storeIn(directory)
+    await store.save(stored('good'))
+    await writeFile(path.join(directory, 'canary-corrupt.json'), `{${canary}`, 'utf8')
+    await store.list()
+    expect(log.warn).toHaveBeenCalledWith('Session file skipped: read_failed')
+    expect(log.lines().join('\n')).not.toContain(canary)
+    expect(log.lines().join('\n')).not.toContain('canary-corrupt.json')
+  })
+
   it('tells the save caller the file name without logging it', async () => {
     const t = await ledgerFor('canary-save-refusal')
     const { store, log } = storeIn(t.directory, { uploads: t.uploads })
     await expect(
       store.save({ ...stored('canary'), accountId: t.accountId, fileRefs: [unknownRef] }),
     ).rejects.toThrow(canary)
-    expect(logLines(log).some((line) => line.includes(canary))).toBe(false)
+    expect(log.lines().some((line) => line.includes(canary))).toBe(false)
   })
 
   it('defers a recovery whose ownership expired without logging the file name', async () => {
@@ -636,7 +637,7 @@ describe('attachment names stay out of the media save logs', () => {
     ).toEqual(['canary', 'saved'])
     const warns = recovered.log.warn.mock.calls.map((call) => JSON.stringify(call))
     expect(warns.some((line) => line.includes('deferred'))).toBe(true)
-    expect(logLines(recovered.log).some((line) => line.includes(canary))).toBe(false)
+    expect(recovered.log.lines().some((line) => line.includes(canary))).toBe(false)
     // Deferred, not dropped: the session is retained for the next sweep.
     expect(await recovered.store.load('canary')).toMatchObject({ fileRefs: [unknownRef] })
   })

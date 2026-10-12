@@ -61,7 +61,7 @@ import type { AccountsSessionPort } from '../../acp/accounts'
 import { accountStopText, accountUsageUrl } from '../../acp/accountText'
 import { execFetch, type ExecTransport } from './execFetch'
 import { statusForStop, type Lifecycle, type StopCause } from './execLimits'
-import { createExecLogger, type ExecSink } from './execOutput'
+import { createExecLogger, redactWhole, type ExecSink } from './execOutput'
 import { createResourceExecSink } from '../resources/execSink'
 import type { RuntimeResources } from '../resources/port'
 import type { ResourceSettings } from '../../shared/resources'
@@ -506,8 +506,8 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
       await lifecycle.stopped
       transport?.close()
       cancelSession?.()
-    } catch (error_: unknown) {
-      log.error(error_ instanceof Error ? error_.message : String(error_))
+    } catch {
+      log.error('Exec cancel failed: cleanup_failed')
     }
   })()
   const cleanupStart = { value: 0 }
@@ -1043,9 +1043,9 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
             if (close !== undefined) {
               try {
                 await lifecycle.race(close())
-              } catch (error_: unknown) {
+              } catch {
                 if (lifecycle.cause === null) {
-                  log.error(error_ instanceof Error ? error_.message : String(error_))
+                  log.error('Exec session close: cleanup_failed')
                   lifecycle.latch({ kind: 'internal' })
                 }
               }
@@ -1235,13 +1235,14 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
                 })(),
           ]),
         )
-      } catch (error_: unknown) {
-        log.error(error_ instanceof Error ? error_.message : String(error_))
+      } catch {
+        log.error('Exec runtime close: cleanup_failed')
         lifecycle.latch({ kind: 'internal' })
       }
       await grace(transport?.whenSettled() ?? Promise.resolve())
       if (setup.isUsageError && lifecycle.cause === null) {
-        log.error(error)
+        log.error('Exec request refused: usage_error')
+        deps.stderr.write(`${redactWhole(error, literals)}\n`)
         await grace(deps.stderr.flush(lifecycle.remainingGraceMs()))
         return EXEC_EXIT.usage
       }

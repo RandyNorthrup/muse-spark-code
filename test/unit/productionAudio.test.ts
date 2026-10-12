@@ -197,6 +197,7 @@ function probe(options: {
   readonly assertCurrent?: () => void
   readonly isDailyOpen?: () => boolean
   readonly audioAction?: () => 'transcribe' | 'sendAudio'
+  readonly onAwait?: (stage: string) => void
 }) {
   const file = path.join(mkdtempSync(path.join(root, 'attached-')), 'clip.wav')
   const attachedBytes = contractWav(2)
@@ -216,18 +217,24 @@ function probe(options: {
     },
     reopeningSource(async () => {
       const handle = await open(file, 'r')
+      options.onAwait?.('source-open')
       const { size } = await handle.stat()
+      options.onAwait?.('source-stat')
       return {
         source: {
           sizeBytes: size,
           read: async (offset, length) => {
             const chunk = Buffer.alloc(length)
             const { bytesRead } = await handle.read(chunk, 0, length, offset)
+            options.onAwait?.('source-read')
             return new Uint8Array(chunk.subarray(0, bytesRead))
           },
         },
         path: file,
-        close: () => handle.close(),
+        close: async () => {
+          await handle.close()
+          options.onAwait?.('source-close')
+        },
       }
     }),
   )
@@ -248,6 +255,7 @@ function probe(options: {
       isPaidFeatureOn: options.isVoiceOn ?? (() => true),
       allowsPaidUse: options.allowsPaidUse ?? (() => Promise.resolve(true)),
       reservePaidExtra: (amount) => {
+        options.onAwait?.('daily-reservation')
         reserved.push(amount)
         return Promise.resolve({
           reservedUsd: amount,
@@ -265,9 +273,15 @@ function probe(options: {
     postTranscription: (post) =>
       client.requestTranscription(post.route, post.signal, post, undefined, post.dispatch),
     ...(options.audioAction !== undefined && { audioAction: options.audioAction }),
+    conversionOptions: () => {
+      options.onAwait?.('conversion-options')
+      return Promise.resolve({})
+    },
     converterPath: () => undefined,
-    locateConverter: () =>
-      Promise.resolve({ ok: false as const, reason: UI_TEXT.media.converterUnavailable }),
+    locateConverter: () => {
+      options.onAwait?.('converter-discovery')
+      return Promise.resolve({ ok: false as const, reason: UI_TEXT.media.converterUnavailable })
+    },
   })
   return {
     file,
@@ -288,6 +302,34 @@ function probe(options: {
 }
 
 describe('RVMEDIAV probes over the real registry, production audio and Meta client', () => {
+  it.each([
+    'conversion-options',
+    'converter-discovery',
+    'daily-reservation',
+    'source-open',
+    'source-stat',
+    'source-read',
+    'source-close',
+  ])('refuses an audio-action change during %s before dispatch', async (stage) => {
+    let action: 'transcribe' | 'sendAudio' = 'transcribe'
+    let hasReached = false
+    const t = probe({
+      audioAction: () => action,
+      onAwait: (current) => {
+        if (current !== stage) return
+        hasReached = true
+        action = 'sendAudio'
+      },
+    })
+    await expect(t.run()).rejects.toThrow(
+      fill(UI_TEXT.media.audioUnsupported, { model: 'muse-spark-1.3-contributor' }),
+    )
+    expect(hasReached).toBe(true)
+    expect(t.fetches).not.toHaveBeenCalled()
+    expect(t.notePaidUse).not.toHaveBeenCalled()
+    expect(t.settled).toEqual(t.reserved.length > 0 ? ['0'] : [])
+  })
+
   it('transcribes the attached bytes, reserved and settled on their duration', async () => {
     const t = probe({})
     t.fetches.mockResolvedValueOnce(

@@ -192,6 +192,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- RVPORTM105: cancellation after a Files receipt permits bounded provider
+  cleanup, with durable retry intent when deletion fails. Audio-action changes
+  during preparation refuse before transcription. Exec attachment tests use a
+  Files-capable provider fixture. Media refusal logs retain reason codes while
+  detailed attachment names stay in the user-facing error only.
+
 - Muse Voice transcription of an attached file (RVMEDIAV):
   - It sends only the bytes that were attached. They are read through the
     attachment's digest check (and checked again around a conversion), and a

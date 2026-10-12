@@ -133,14 +133,14 @@ export function execFetch(input: {
         method === 'DELETE' &&
         init?.body == null &&
         /^\/v1\/files\/file-[A-Za-z0-9_-]+$/u.test(parsed.pathname)
-      if (isClosed || input.lifecycle.signal.aborted) {
-        if (!isCleanupDelete) return refuse('closed')
+      if (isCleanupDelete) {
         return await input.fetch(url, {
           ...init,
           redirect: 'error',
           signal: AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
         })
       }
+      if (isClosed || input.lifecycle.signal.aborted) return refuse('closed')
       const media = await import('../runtimeMediaEntry.js')
       return await media.forwardExecFile(parsed, init, {
         forward,
