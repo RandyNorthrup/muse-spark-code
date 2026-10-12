@@ -7,6 +7,7 @@
 
 import { readFileSync } from 'node:fs'
 import { describe, expect, it, vi } from 'vitest'
+import { MODELS_DEV_CATALOGUE_DATE } from '../../src/shared/constants'
 import { PRESETS, presetById } from '../../src/core/providers/presets'
 import {
   SPEND_PAGE_BOUND,
@@ -18,6 +19,7 @@ import {
   fetchKeyUsageSpendReport,
   openAiSpendRequests,
   openRouterSpendRequest,
+  parseOpenRouterKeyBody,
   parseAnthropicCostPage,
   parseAnthropicUsagePage,
   parseDeepSeekBalance,
@@ -141,7 +143,9 @@ describe('spend request goldens', () => {
       expect(request?.origin).toBe('https://api.anthropic.com')
       expect(request?.url.startsWith('https://api.anthropic.com/')).toBe(true)
       expect(request?.headers['anthropic-version']).toBe('2023-06-01')
-      expect(request?.headers['x-api-key']).toBe('TEST-ADMIN-KEY')
+      // The key rides the transport's auth source, never a caller header.
+      expect(request?.headers).not.toHaveProperty('x-api-key')
+      expect(request?.auth).toEqual({ scheme: 'x-api-key', key: 'TEST-ADMIN-KEY' })
       const query = new URL(request?.url ?? '').searchParams
       expect(query.get('starting_at')).toBe('2026-10-01T00:00:00Z')
       expect(query.get('ending_at')).toBe('2026-10-08T00:00:00Z')
@@ -172,7 +176,8 @@ describe('spend request goldens', () => {
     expect(usage?.url).toContain('/v1/organization/usage/completions')
     expect(cost?.url).toContain('/v1/organization/costs')
     for (const request of [usage, cost]) {
-      expect(request?.headers.Authorization).toBe('Bearer TEST-ADMIN-KEY')
+      expect(request?.headers).not.toHaveProperty('Authorization')
+      expect(request?.auth).toEqual({ scheme: 'bearer', key: 'TEST-ADMIN-KEY' })
     }
     expect(new URL(cost?.url ?? '').searchParams.get('bucket_width')).toBe('1d')
   })
@@ -180,10 +185,10 @@ describe('spend request goldens', () => {
   it('builds the OpenRouter key request and the DeepSeek balance request', () => {
     const key = openRouterSpendRequest({ origin: 'https://openrouter.ai', key: 'TEST-KEY' })
     expect(key.url).toBe('https://openrouter.ai/api/v1/key')
-    expect(key.headers.Authorization).toBe('Bearer TEST-KEY')
+    expect(key.auth).toEqual({ scheme: 'bearer', key: 'TEST-KEY' })
     const balance = deepSeekSpendRequest({ origin: 'https://api.deepseek.com', key: 'TEST-KEY' })
     expect(balance.url).toBe('https://api.deepseek.com/user/balance')
-    expect(balance.headers.Authorization).toBe('Bearer TEST-KEY')
+    expect(balance.auth).toEqual({ scheme: 'bearer', key: 'TEST-KEY' })
   })
 })
 
@@ -235,6 +240,54 @@ describe('strict parsing and exact money', () => {
       isAvailable: true,
       balances: [{ currency: 'USD', total: '12.34', granted: '2', toppedUp: '10.34' }],
     })
+  })
+
+  it('reads the OpenRouter key body from the captured field names', () => {
+    expect(
+      parseOpenRouterKeyBody({
+        data: {
+          limit: 10,
+          limit_remaining: 6.5,
+          usage: 4,
+          usage_daily: 1.5,
+          usage_weekly: 2.5,
+          usage_monthly: 3.5,
+          workspace_id: 'redacted',
+        },
+      }),
+    ).toEqual({ usedToday: 1.5, usedThisWeek: 2.5, usedThisMonth: 3.5, limit: 10, remaining: 6.5 })
+    expect(
+      parseOpenRouterKeyBody({
+        data: {
+          limit: null,
+          limit_remaining: null,
+          usage: 4,
+          usage_daily: 1,
+          usage_weekly: 2,
+          usage_monthly: 3,
+        },
+      }),
+    ).toEqual({ usedToday: 1, usedThisWeek: 2, usedThisMonth: 3 })
+    expect(parseOpenRouterKeyBody({ data: { limit: 1 } })).toEqual({ kind: 'unreadable' })
+    expect(
+      parseOpenRouterKeyBody({
+        data: {
+          limit: 1,
+          limit_remaining: 1,
+          usage: 1,
+          usage_daily: -1,
+          usage_weekly: 1,
+          usage_monthly: 1,
+        },
+      }),
+    ).toEqual({ kind: 'unreadable' })
+  })
+
+  it('pins the catalogue date to the vendored snapshot', () => {
+    const vendor = JSON.parse(
+      readFileSync(new URL('../../vendor/models-dev/VENDOR.json', import.meta.url), 'utf8'),
+    ) as { readonly fetchedAt: string }
+    expect(MODELS_DEV_CATALOGUE_DATE).toBe(vendor.fetchedAt)
   })
 
   it('ignores unknown fields but refuses missing required ones, never a zero', () => {
@@ -482,6 +535,13 @@ describe('reconciliation text', () => {
       label,
     )
     expect(lines.join('\n')).toContain('difference of')
+  })
+
+  it('compares dollars only when the journal recorded no tokens', () => {
+    const matching = spendReportLines(adminReport(), { usd: '1.05' }, label)
+    expect(matching.join('\n')).toContain('matches our estimate within rounding')
+    const differing = spendReportLines(adminReport(), { usd: '2.00' }, label)
+    expect(differing.join('\n')).toContain('difference of')
   })
 
   it('shows a balance with no comparison', () => {

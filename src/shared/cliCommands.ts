@@ -40,6 +40,12 @@ export function cliCommands() {
       text: { ui: 'referenceProviders' },
     },
     {
+      route: 'providersUsage',
+      name: 'providers usage <id> [--days <n>] [--output json]',
+      description: UI_TEXT.referenceProvidersUsage,
+      text: { ui: 'referenceProvidersUsage' },
+    },
+    {
       route: 'chatGptProvider',
       name: 'providers add|remove|status chatgpt',
       description: UI_TEXT.referenceProviders,

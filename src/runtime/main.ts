@@ -1357,6 +1357,12 @@ async function main(): Promise<number> {
     }
     case 'authSet': {
       const { target } = command
+      if (command.admin === true && command.provider !== undefined) {
+        const providersFile = await userProvidersFile()
+        return await authSetProvider(authDeps(), command.provider, providersFile.readUserFile, {
+          admin: true,
+        })
+      }
       if (target === undefined) return await authSet(authDeps())
       if (target.provider !== 'meta' && target.account === ACCOUNT_DEFAULT_ID) {
         const providersFile = await userProvidersFile()
@@ -1400,12 +1406,20 @@ async function main(): Promise<number> {
     case 'authStatus': {
       return command.provider === undefined
         ? await authStatus(authDeps())
-        : await authStatusProvider(authDeps(), command.provider)
+        : await authStatusProvider(
+            authDeps(),
+            command.provider,
+            command.admin === true ? { admin: true } : undefined,
+          )
     }
     case 'authClear': {
       return command.provider === undefined
         ? await authClear(authDeps())
-        : await authClearProvider(authDeps(), command.provider)
+        : await authClearProvider(
+            authDeps(),
+            command.provider,
+            command.admin === true ? { admin: true } : undefined,
+          )
     }
     case 'providersList': {
       const { providersList } = await import('./providersCommands')
@@ -1422,6 +1436,32 @@ async function main(): Promise<number> {
     case 'providersRemove': {
       const { providersRemove } = await import('./providersCommands')
       return await providersRemove(await providersDeps(), command.provider)
+    }
+    case 'providersUsage': {
+      const { providersUsage, spendEstimateFromBreakdown } = await import('./providersCommands')
+      const { usageLocalDay } = await import('../core/usage/localDay')
+      const deps = await providersDeps()
+      return await providersUsage(
+        {
+          ...deps,
+          // Our own estimate comes from the local usage journal: the same
+          // provider-grouped read the usage page serves. A journal failure
+          // shows the provider's figures alone, never against a zero.
+          readSpendEstimate: (provider, startMs, endMs) =>
+            (async () => {
+              const access = usageFor(log).access()
+              const state = await access.read({
+                range: 'custom',
+                from: usageLocalDay(startMs),
+                to: usageLocalDay(endMs),
+                groupBy: 'provider',
+                metric: 'cost',
+              })
+              return spendEstimateFromBreakdown(state.breakdown, [provider])
+            })(),
+        },
+        { provider: command.provider, days: command.days, json: command.json },
+      )
     }
     case 'estimate': {
       return await runRuntimeEstimateCommand(command.argv, {
