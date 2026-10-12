@@ -45,7 +45,7 @@ const IDENTIFIER_CHARACTER = /[\w$]/u
  * character on either side. A search, never an expression built from the
  * name: the name comes out of scanned source.
  */
-export function usesIdentifier(text, identifier) {
+export function hasIdentifier(text, identifier) {
   if (identifier === '') return false
   let at = text.indexOf(identifier)
   while (at !== -1) {
@@ -181,7 +181,7 @@ export function scanRequests(root, generatedFile) {
   const usesLoad = new Map()
   for (const [identifier, at] of definitions) {
     const mentioning = [...texts]
-      .filter(([file, text]) => relative(file) !== at && usesIdentifier(text, identifier))
+      .filter(([file, text]) => relative(file) !== at && hasIdentifier(text, identifier))
       .map(([file]) => relative(file))
     uses.set(identifier, mentioning)
     usesLoad.set(
@@ -191,7 +191,7 @@ export function scanRequests(root, generatedFile) {
         .filter(([, text]) =>
           codeLines(text).some(
             (line) =>
-              usesIdentifier(line, identifier) &&
+              hasIdentifier(line, identifier) &&
               !isStaticFrom(line) &&
               (/(\bimport\(|\brequire\()/.test(line) ||
                 LOADER_HINTS.some((hint) => line.includes(hint))),
