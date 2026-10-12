@@ -25,6 +25,7 @@ export interface HelperProcess {
   readonly stdin: Writable
   readonly stdout: Readable
   readonly stderr: Readable
+  on(event: 'spawn', listener: () => void): unknown
   on(event: 'error', listener: (error: Error) => void): unknown
   on(event: 'exit', listener: (code: number | null, signal: NodeJS.Signals | null) => void): unknown
   kill(): unknown
@@ -86,6 +87,9 @@ function admittedVoiceProcess(
               },
             })
       if (job === undefined) observeResourceProcess(resource, child)
+      child.once('spawn', () => {
+        if (!stop.signal.aborted) events.emit('spawn')
+      })
       child.once('error', (error) => {
         events.emit('error', error)
       })
@@ -228,10 +232,15 @@ export function startRecorder(command: string, args: readonly string[]): Recorde
   // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- the command is arecord or parec found by absolute path on PATH (helperLocation.ts, resolveExecutable) with fixed arguments from constants.ts; nothing from the user, the model or the workspace is in it (PLAN.md §8)
   const child = admittedVoiceProcess(command, args, process.env)
   let exitListener: ((description: string) => void) | undefined
+  let startedListener: (() => void) | undefined
+  child.on('spawn', () => startedListener?.())
   watchExit(child, (description) => {
     exitListener?.(description)
   })
   return {
+    onStarted: (listener) => {
+      startedListener = listener
+    },
     onData: (listener) => {
       child.stdout.on('data', listener)
     },

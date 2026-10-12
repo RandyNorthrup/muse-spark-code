@@ -15,6 +15,8 @@ type ChunkListener = (chunk: Buffer | string) => void
 
 /** The slice of a recorder process the adapter touches. */
 export interface RecorderProcess {
+  /** Resource admission and the OS spawn succeeded; never fires on a failed launch. */
+  onStarted(listener: () => void): void
   onData(listener: (chunk: Uint8Array) => void): void
   onStderr(listener: (chunk: string) => void): void
   /** Fires once, when the process has exited or could not be started. */
@@ -95,7 +97,11 @@ export function recorderHelper(recorderName: string, start: () => RecorderProces
         reason: `${recorderName} ended (${description})${detail === '' ? '' : `: ${detail}`}`,
       })
     })
-    stdout.write({ type: 'listening' })
+    running.onStarted(() => {
+      if (!hasExited && recorder === running && !isStopping) {
+        stdout.write({ type: 'listening' })
+      }
+    })
   }
   queueMicrotask(() => {
     if (hasExited) return
