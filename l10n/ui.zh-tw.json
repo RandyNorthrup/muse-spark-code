@@ -5127,5 +5127,8 @@
   "execBudgetQuote": "輸入 {inputTokens}（{inputCost}）+ 輸出上限 {outputTokens}（{outputCost}）= {estimate}；執行預算 {cap}，已用 {spent}。請求未傳送。",
   "execTokenCount": {
     "other": "最多 {count} 個權杖"
-  }
+  },
+  "execProviderNotCatalogue": "此模型不在此版本的目錄中：{model}。",
+  "providerCliModelsRequired": "使用 --model <id>（多個模型可重複指定）。可用模型：{models}。",
+  "providerCliConfigure": "檢查這些選項：--preset {preset}, --model <id>, --key-stdin, --address <url>, --private-ok。"
 }

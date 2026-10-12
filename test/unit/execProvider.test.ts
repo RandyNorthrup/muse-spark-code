@@ -127,7 +127,10 @@ describe('assembleProviderRun', () => {
     )
     expect(other.ok).toBe(false)
     if (other.ok) throw new Error('should fail')
-    expect(other.failure).toMatchObject({ kind: 'usage', reason: UI_TEXT.execUnknownModel })
+    expect(other.failure).toMatchObject({
+      kind: 'usage',
+      reason: expect.stringContaining(UI_TEXT.execProviderModelRequired),
+    })
 
     const wrong = await assembleProviderRun(assemblyInput({ model: 'groq/m9' }))
     expect(wrong.ok).toBe(false)
@@ -145,7 +148,7 @@ describe('assembleProviderRun', () => {
     if (needed.ok) throw new Error('should fail')
     expect(needed.failure).toMatchObject({
       kind: 'usage',
-      reason: UI_TEXT.execProviderModelRequired,
+      reason: expect.stringContaining(UI_TEXT.execProviderModelRequired),
     })
   })
 
@@ -205,7 +208,7 @@ describe('assembleProviderRun', () => {
       answers = ['10.1.2.3']
       await expect(
         assembled.run.fetch('https://openrouter.ai/api/v1/chat/completions'),
-      ).rejects.toThrow('rebinding')
+      ).rejects.toThrow(UI_TEXT.providerProbeRebinding)
       expect(sent).toHaveBeenCalledTimes(1)
     } finally {
       assembled.run.memory?.clear()
@@ -637,5 +640,40 @@ describe('providersFilePath', () => {
     expect(
       providersFilePath({ platform: process.platform, homeDir: home, xdgConfigHome: '/xdg' }),
     ).toContain('xdg')
+  })
+})
+
+describe('EXECPROV configured defaults', () => {
+  it('prefers the configured provider default over the first Meta model', async () => {
+    const models = [
+      ...new FakeAgentHost().models.map((model) => ({ ...model, isDefault: false })),
+      {
+        modelId: 'anthropic/claude-haiku-5-5',
+        displayLabel: 'Haiku',
+        contextLimit: 1_000_000,
+        isDefault: true,
+        isActive: false,
+      },
+    ]
+    const host = new FakeAgentHost(models)
+    const { agent, client } = agentFor(host)
+    await client.connectWith(agent, async (connection) => {
+      await connection.request('session/new', { cwd: CWD, mcpServers: [] })
+      expect(host.startSession).toHaveBeenCalledWith(
+        expect.objectContaining({ modelId: 'anthropic/claude-haiku-5-5' }),
+      )
+    })
+  })
+  it('refuses ACP with no configured default instead of substituting the first model', async () => {
+    const host = new FakeAgentHost(
+      new FakeAgentHost().models.map((model) => ({ ...model, isDefault: false })),
+    )
+    const { agent, client } = agentFor(host)
+    await client.connectWith(agent, async (connection) => {
+      await expect(connection.request('session/new', { cwd: CWD, mcpServers: [] })).rejects.toThrow(
+        UI_TEXT.execProviderModelRequired,
+      )
+      expect(host.startSession).not.toHaveBeenCalled()
+    })
   })
 })

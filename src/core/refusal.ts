@@ -2,7 +2,10 @@ import { UI_TEXT } from '../shared/constants'
 
 /** A local, intentional refusal; its message is already safe for the user. */
 export class UserRefusalError extends Error {
-  public constructor(message: string) {
+  public constructor(
+    message: string,
+    public readonly code?: string,
+  ) {
     super(message)
     this.name = 'UserRefusalError'
   }

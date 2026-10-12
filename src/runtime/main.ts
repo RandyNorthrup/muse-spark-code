@@ -74,7 +74,7 @@ import { defaultServeOptions, sharingPorts, type SharingPortsDeps } from './shar
 import { acpSharingCommands } from '../acp/sharing'
 import { boundedAcpStream } from '../shared/acpStream'
 import type { PlaybookCommand, PlaybookSurfacePort } from './playbook/command'
-import { formatAcpUsage } from './cliOptions'
+import { formatCommandHelp, formatAcpUsage } from './cliOptions'
 import { referenceLoader } from '../host/referenceLoader'
 import { createRuntimeEstimate, runRuntimeEstimateCommand } from './estimator/ports'
 import { isProcessAlive } from '../host/checkpoints/windowPresence'
@@ -802,6 +802,7 @@ async function serve(
         canBypass: options.canBypass,
         allowsContributorModels: options.allowsContributorModels,
         initialMode: SETTING_DEFAULTS.initialPermissionMode,
+        ...(options.initialModelId !== undefined && { initialModelId: options.initialModelId }),
         scheduleAuthorization: {
           scheduledPrompts: options.scheduledPrompts === true,
           ...(options.maxBudgetUsd !== undefined && { maxBudgetUsd: options.maxBudgetUsd }),
@@ -1553,7 +1554,12 @@ async function main(): Promise<number> {
         const nls: unknown = JSON.parse(await readUiTableFile(packageRoot, [file]))
         writeLine(process.stdout, reference.all(nls))
       } else {
-        writeLine(process.stdout, formatAcpUsage(UI_TEXT, ACP_AGENT_NAME))
+        writeLine(
+          process.stdout,
+          command.route === undefined
+            ? formatAcpUsage(UI_TEXT, ACP_AGENT_NAME)
+            : formatCommandHelp(UI_TEXT, ACP_AGENT_NAME, command.route),
+        )
       }
       return 0
     }

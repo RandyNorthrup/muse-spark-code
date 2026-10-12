@@ -5205,6 +5205,10 @@ export const EN = {
     storeUnavailable:
       'This computer’s credential store is unavailable. Sign in from an interactive desktop session with an unlocked credential store; on Linux, start Secret Service first.',
   },
+  execProviderNotCatalogue: 'This model is not in this build’s catalogue: {model}.',
+  providerCliModelsRequired: 'Use --model <id> (repeat for more models). Available: {models}.',
+  providerCliConfigure:
+    'Check these flags: --preset {preset}, --model <id>, --key-stdin, --address <url>, --private-ok.',
   execProviderNotConfigured: 'Provider {id} is not configured.',
   // M95 providers: evaluated through UI_TEXT at use time.
   providerText: {

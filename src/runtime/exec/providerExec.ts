@@ -27,6 +27,8 @@ import type {
   ProvidersFile,
 } from '../../core/providers/providersFile'
 const { readProvidersFile } = providersFile
+import { UserRefusalError } from '../../core/refusal'
+import { unlessAborted } from '../../core/timeouts'
 import {
   credentialRecord,
   endpointPolicy,
@@ -336,41 +338,52 @@ export function pinProviderFetch(
   }
   return async (url, init) => {
     if (typeof url !== 'string') {
-      throw new TypeError('refused')
+      throw new UserRefusalError(UI_TEXT.providerProbeRebinding, 'not_sent')
     }
     let parsed: URL
     try {
       parsed = new URL(url)
     } catch {
-      throw new Error('refused')
+      throw new UserRefusalError(UI_TEXT.providerProbeRebinding, 'not_sent')
     }
     if (parsed.username !== '' || parsed.password !== '') {
-      throw new Error('refused')
+      throw new UserRefusalError(UI_TEXT.providerProbeRebinding, 'not_sent')
     }
     const origin = bareOriginOf(parsed)
     if (origin === undefined || origin !== pinned) {
-      throw new Error('refused')
+      throw new UserRefusalError(UI_TEXT.providerProbeRebinding, 'not_sent')
     }
     if (parsed.protocol !== 'https:' && !(isLoopback && parsed.protocol === 'http:')) {
-      throw new Error('refused')
+      throw new UserRefusalError(UI_TEXT.providerProbeRebinding, 'not_sent')
     }
     if (parsed.hash !== '') {
-      throw new Error('refused')
+      throw new UserRefusalError(UI_TEXT.providerProbeRebinding, 'not_sent')
     }
     const requestRule = provider.request?.rule
     if (requestRule !== undefined && isPathAllowed(requestRule, parsed)) {
       // The family rule already bounds the query to the codec's own; an
       // exact request path carries none.
       if (requestRule.kind === 'exact' && parsed.search !== '') {
-        throw new Error('refused')
+        throw new UserRefusalError(UI_TEXT.providerProbeRebinding, 'not_sent')
       }
     } else if (rules.every((rule) => !(rule.kind === 'exact' && rule.path === parsed.pathname))) {
       // List and key-test paths may carry the provider's own query
       // (`limit`, `zdr`, `supported_parameters`); nothing else passes.
-      throw new Error('refused')
+      throw new UserRefusalError(UI_TEXT.providerProbeRebinding, 'not_sent')
     }
-    const answers = await resolveHost(parsed.hostname)
-    if (!isEndpointBindingCurrent(provider, answers)) throw new Error('rebinding')
+    let answers: readonly string[]
+    try {
+      answers =
+        (await unlessAborted(
+          resolveHost(parsed.hostname),
+          init?.signal ?? new AbortController().signal,
+        )) ?? []
+      if (init?.signal?.aborted === true) init.signal.throwIfAborted()
+    } catch {
+      throw new UserRefusalError(UI_TEXT.providerProbeUnreachable, 'not_sent')
+    }
+    if (!isEndpointBindingCurrent(provider, answers))
+      throw new UserRefusalError(UI_TEXT.providerProbeRebinding, 'not_sent')
     return await fetch(url, { ...init, redirect: 'error' })
   }
 }
@@ -465,7 +478,7 @@ export async function assembleProviderRun(
     // A default that names another provider is the file's choice, not this
     // run's model; only a run with no model anywhere needs --model spelled out.
     return usage(
-      fallback === undefined ? UI_TEXT.execProviderModelRequired : UI_TEXT.execUnknownModel,
+      `${UI_TEXT.execProviderModelRequired}: ${provider.entry.models.map((id) => `${provider.entry.id}/${id}`).join(', ')}`,
     )
   }
   const parsedRef = parseModelRef(modelRef)

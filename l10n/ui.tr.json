@@ -5282,5 +5282,8 @@
   "execTokenCount": {
     "one": "en fazla {count} belirteç",
     "other": "en fazla {count} belirteç"
-  }
+  },
+  "execProviderNotCatalogue": "Bu model bu derlemenin kataloğunda yok: {model}.",
+  "providerCliModelsRequired": "--model <id> kullanın (ek modeller için tekrarlayın). Kullanılabilir: {models}.",
+  "providerCliConfigure": "Şu seçenekleri kontrol edin: --preset {preset}, --model <id>, --key-stdin, --address <url>, --private-ok."
 }

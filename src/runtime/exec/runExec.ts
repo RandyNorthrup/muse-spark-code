@@ -305,7 +305,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
       client: 'cli',
       now: deps.now,
       newId: () => randomUUID(),
-      isEnabled: () => deps.isUsageHistoryEnabled?.() ?? true,
+      isEnabled: () => !options.ephemeral && (deps.isUsageHistoryEnabled?.() ?? true),
       log,
       writer: async (onWriteError) => {
         const bundle = requireFile(path.join(deps.distDir, 'usageService.js'))
@@ -314,7 +314,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
           dataFolder: agentDataFolder(deps),
           writerId: randomUUID(),
           now: deps.now,
-          isEnabled: () => deps.isUsageHistoryEnabled?.() ?? true,
+          isEnabled: () => !options.ephemeral && (deps.isUsageHistoryEnabled?.() ?? true),
           onWriteError,
         })
       },
@@ -457,9 +457,8 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
    * pinned fetch — then the ordinary ACP engine runs the turn.
    */
   async function runWithProvider(): Promise<number | undefined> {
-    const [{ assembleProviderRun }, { providersFilePath, resolveEndpointHost }] = await Promise.all(
-      [import('./providerExec'), import('../providersCommands')],
-    )
+    const { assembleProviderRun, providersFilePath, resolveEndpointHost } =
+      await import('../runtimeAccountingEntry.js')
     const providerId = options.provider ?? ''
     // Past argument parsing: failures from here are the run's, not usage,
     // unless assembly says otherwise.
@@ -652,6 +651,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
           },
           ledger,
           maxOutputTokens,
+          externalResponseAccounting: true,
           get selectedModel() {
             return model ?? ''
           },
@@ -716,44 +716,43 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
           isEphemeral: options.ephemeral,
           maxOutputTokens,
           ...(providerRun !== undefined && { providerRun }),
-          ...(providerRun !== undefined &&
-            ledger !== undefined && {
-              responseAccounting: {
-                ledger,
-                refuse: (reason, message) => {
-                  if (message !== undefined) error = message
-                  if (reason === 'closed') latch({ kind: 'internal' })
-                  else latch({ kind: reason })
-                },
-                started: (n, ticket) => {
-                  tap?.beginResponse(n)
-                  sink.emit({
-                    type: 'attempt',
-                    n,
-                    endpoint: 'responses',
-                    phase: 'admitted',
-                    maxOutputTokens: ticket.maxOutputTokens,
-                    reservedUsd: ticket.reserveUsd,
-                    totals: ledger.totals(),
-                  })
-                },
-                settled: (outcome, ticket, settlement) => {
-                  sink.emit({
-                    type: 'attempt',
-                    n: ticket.n,
-                    endpoint: 'responses',
-                    phase: 'settled',
-                    reservedUsd: ticket.reserveUsd,
-                    outcome: outcome.settlement,
-                    chargedUsd: settlement.chargedUsd,
-                    terminal: outcome.terminal,
-                    totals: ledger.totals(),
-                  })
-                  tap?.settleResponse(outcome)
-                  if (!isFinishing) drain(sink)
-                },
+          ...(ledger !== undefined && {
+            responseAccounting: {
+              ledger,
+              refuse: (reason, message) => {
+                if (message !== undefined) error = message
+                if (reason === 'closed') latch({ kind: 'internal' })
+                else latch({ kind: reason })
               },
-            }),
+              started: (n, ticket) => {
+                tap?.beginResponse(n)
+                sink.emit({
+                  type: 'attempt',
+                  n,
+                  endpoint: 'responses',
+                  phase: 'admitted',
+                  maxOutputTokens: ticket.maxOutputTokens,
+                  reservedUsd: ticket.reserveUsd,
+                  totals: ledger.totals(),
+                })
+              },
+              settled: (outcome, ticket, settlement) => {
+                sink.emit({
+                  type: 'attempt',
+                  n: ticket.n,
+                  endpoint: 'responses',
+                  phase: 'settled',
+                  reservedUsd: ticket.reserveUsd,
+                  outcome: outcome.settlement,
+                  chargedUsd: settlement.chargedUsd,
+                  terminal: outcome.terminal,
+                  totals: ledger.totals(),
+                })
+                tap?.settleResponse(outcome)
+                if (!isFinishing) drain(sink)
+              },
+            },
+          }),
           streamIdleMs: EXEC_STREAM_IDLE_MS,
           headlessPaid: (request, requiresAsking) => {
             const isAllowed =
@@ -794,6 +793,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
       }
       tap = observeBackend(runtime.backend)
       const { createAcpAgent, createExecClient } = engine
+      const initialModelId = providerRun?.modelRef ?? options.model
       const agent = createAcpAgent({
         questions: 'decline',
         ...(accounts !== undefined && { accounts }),
@@ -804,6 +804,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
           allowsContributorModels: options.allowsContributorModels,
           initialMode: options.mode,
           isHeadless: true,
+          ...(initialModelId !== undefined && { initialModelId }),
         },
         signIn: {
           id: 'headless',
@@ -923,11 +924,12 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
               (option) => option.id === ACP_CONFIG_IDS.model,
             )
             model = typeof modelConfig?.currentValue === 'string' ? modelConfig.currentValue : null
-            if (options.model !== undefined) {
+            const requestedModel = providerRun?.modelRef ?? options.model
+            if (requestedModel !== undefined) {
               if (
                 modelConfig?.type !== 'select' ||
                 modelConfig.options.every(
-                  (entry) => !('value' in entry && entry.value === options.model),
+                  (entry) => !('value' in entry && entry.value === requestedModel),
                 )
               ) {
                 setup.isUsageError = true
@@ -938,10 +940,10 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
                 connection.request('session/set_config_option', {
                   sessionId: created.sessionId,
                   configId: ACP_CONFIG_IDS.model,
-                  value: options.model,
+                  value: requestedModel,
                 }),
               )
-              model = options.model
+              model = requestedModel
             }
             if (options.effort === undefined) {
               const config = created.configOptions?.find(
@@ -1057,6 +1059,12 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
       throw error_
     }
   } catch (error_: unknown) {
+    if (
+      error_ instanceof Error &&
+      'code' in error_ &&
+      error_.code === JSON_RPC_ERRORS.invalidParams
+    )
+      setup.isUsageError = true
     if (lifecycle.cause === null) error = error_ instanceof Error ? error_.message : String(error_)
     if (!setup.isUsageError && setup.sessionId === null && lifecycle.cause === null)
       status =
@@ -1084,7 +1092,10 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
       totals?.requests === 0
     if (lifecycle.cause !== null) {
       status = statusForStop(lifecycle.cause)
-      if (lifecycle.cause.kind !== 'budget' || error === UI_TEXT.execIncomplete)
+      if (
+        !['budget', 'unpriced'].includes(lifecycle.cause.kind) ||
+        error === UI_TEXT.execIncomplete
+      )
         error =
           vaultDenial !== undefined && lifecycle.cause.kind === 'denied'
             ? vaultDenial
@@ -1140,6 +1151,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
       model,
       sessionId: setup.sessionId,
       ephemeral: options.ephemeral,
+      ...(options.ephemeral && { usageHistory: 'omitted_ephemeral' as const }),
       finalMessage: hasCompleteResponse ? '' : UI_TEXT.execMessageWithheld,
       filesChanged: [...filesChanged],
       denials,
@@ -1156,8 +1168,11 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
             ? null
             : {
                 settled: totals.settledUsd,
-                uncertain: totals.uncertainUsd,
-                reserved: totals.reservedUsd,
+                uncertain:
+                  cause === null
+                    ? totals.uncertainUsd
+                    : sumUsd(totals.uncertainUsd, totals.reservedUsd),
+                reserved: cause === null ? totals.reservedUsd : Usd.from(0).toAmount(),
                 total: sumUsd(totals.settledUsd, totals.uncertainUsd, totals.reservedUsd),
                 isUpperBound:
                   totals.uncertainUsd !== '0' || totals.reservedUsd !== '0' || cause !== null,

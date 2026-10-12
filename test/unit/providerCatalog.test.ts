@@ -600,33 +600,51 @@ describe('sync validation before writes', () => {
     const manifest: { downloadSha256: string; fetchedAt: string } = JSON.parse(
       readFileSync(path.join(VENDOR_ROOT, 'VENDOR.json'), 'utf8'),
     )
-    it.each([0, 1, 2])('reproduces the sealed snapshot offline: replay %i', async () => {
-      const fetcher = vi.fn<typeof fetch>().mockRejectedValue(new Error('Network forbidden'))
-      vi.stubGlobal('fetch', fetcher)
-      try {
-        await run(
-          [
-            '--sync',
-            '--from',
-            path.join(ROOT, 'docs/certification/m95-c/api.json.raw'),
-            '--date',
-            manifest.fetchedAt,
-            '--sha256',
-            manifest.downloadSha256,
-          ],
-          dir,
-        )
-        expect(fetcher).not.toHaveBeenCalled()
-        for (const file of ['snapshot.json', 'VENDOR.json', 'LICENSE']) {
-          const actual = readFileSync(path.join(dir, file))
-          const expected = readFileSync(path.join(VENDOR_ROOT, file))
-          expect(actual.length).toBe(expected.length)
-          expect(digest(actual)).toBe(digest(expected))
+    it.each([0, 1, 2])(
+      'reproduces sealed captured rows offline, separate from reported unpriced IDs: replay %i',
+      async () => {
+        const fetcher = vi.fn<typeof fetch>().mockRejectedValue(new Error('Network forbidden'))
+        vi.stubGlobal('fetch', fetcher)
+        try {
+          await run(
+            [
+              '--sync',
+              '--from',
+              path.join(ROOT, 'docs/certification/m95-c/api.json.raw'),
+              '--date',
+              manifest.fetchedAt,
+              '--sha256',
+              manifest.downloadSha256,
+            ],
+            dir,
+          )
+          expect(fetcher).not.toHaveBeenCalled()
+          for (const file of ['snapshot.json', 'VENDOR.json', 'LICENSE']) {
+            const actual = readFileSync(path.join(dir, file))
+            let expected = readFileSync(path.join(VENDOR_ROOT, file))
+            const captured: Record<string, unknown> = JSON.parse(
+              readFileSync(path.join(VENDOR_ROOT, 'snapshot.json'), 'utf8'),
+            )
+            delete captured['unpriced']
+            const capturedBytes = Buffer.from(`${JSON.stringify(captured)}\n`)
+            if (file === 'snapshot.json') expected = capturedBytes
+            else if (file === 'VENDOR.json') {
+              const sealed: { files: { path: string; sha256: string }[]; additions?: unknown } =
+                JSON.parse(expected.toString('utf8'))
+              delete sealed.additions
+              const snapshot = sealed.files.find((entry) => entry.path === 'snapshot.json')
+              if (snapshot === undefined) throw new Error('Missing sealed snapshot')
+              snapshot.sha256 = digest(capturedBytes)
+              expected = Buffer.from(`${JSON.stringify(sealed, null, 2)}\n`)
+            }
+            expect(actual.length).toBe(expected.length)
+            expect(digest(actual)).toBe(digest(expected))
+          }
+        } finally {
+          vi.unstubAllGlobals()
         }
-      } finally {
-        vi.unstubAllGlobals()
-      }
-    })
+      },
+    )
   })
 
   it('seals valid filtered data with the original download digest', () => {
@@ -660,4 +678,29 @@ describe('sync validation before writes', () => {
       expect(readFileSync(path.join(dir, 'VENDOR.json'))).toEqual(beforeManifest)
     },
   )
+})
+
+describe('EXECPROV explicitly unpriced catalogue IDs', () => {
+  it('keeps reported IDs separate from captured tool-capable and priced models', () => {
+    const document = {
+      ...snapshotDocument(filterCatalog(downloadFixture()), DATE),
+      unpriced: {
+        anthropic: {
+          reported: {
+            id: 'reported',
+            name: 'Reported model',
+            price: 'unknown',
+            addedAt: DATE,
+            source: 'owner receipt',
+          },
+        },
+      },
+    }
+    expect(() => parseCatalogSnapshot(JSON.stringify(document))).not.toThrow()
+    for (const change of [{ price: 'known' }, { cost: { input: 1, output: 2 } }, { id: 'other' }]) {
+      const invalid = structuredClone(document)
+      Object.assign(invalid.unpriced.anthropic.reported, change)
+      expect(() => parseCatalogSnapshot(JSON.stringify(invalid))).toThrow()
+    }
+  })
 })

@@ -678,7 +678,7 @@
     {
       "id": "M95",
       "title": "Bring your own models",
-      "summary": "Add keys for cloud providers or local model servers, bound to their addresses, with features matched to model capabilities, and refuse output caps below a provider's known minimum before sending.",
+      "summary": "Connect API providers and local servers with origin-bound credentials, captured wire formats and model prices, with headless runs using the model saved in provider settings.",
       "area": "models-providers",
       "release": "0.15.0"
     },

@@ -135,6 +135,7 @@ function setup(
       canBypass: false,
       allowsContributorModels: paidFeatures.includes('webSearch'),
       initialMode: 'manual',
+      ...(paidFeatures.includes('webSearch') && { initialModelId: 'muse-spark-1.3-contributor' }),
     },
     signIn: {
       id: 'model-api-key',

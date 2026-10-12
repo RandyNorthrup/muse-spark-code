@@ -9,11 +9,14 @@ import {
   type ModelResolver,
   type ResolvedModel,
 } from '../backends/modelapi/modelPolicy'
+import { UserRefusalError } from '../refusal'
+import { fill } from '../../shared/l10n/text'
 import { TOKENS_PER_MILLION, UI_TEXT } from '../../shared/constants'
 import { parseModelRef, sanitizeModelLabel } from './modelRef'
 import { reserveRequestAmount, settleUsageAmount, type ModelPricing } from './priceCard'
 
 export interface RegistryModel {
+  readonly catalogueMissing?: boolean
   readonly ref: string
   readonly origin: string
   readonly evidence: ModelPolicyEvidence
@@ -42,7 +45,7 @@ export function createProviderRegistry(deps: ProviderRegistryDeps): ModelResolve
       const models = await deps.models()
       return models.flatMap((model) => {
         const policy = modelPolicyFor(model.ref, { ...model.evidence, pricing: model.pricing })
-        if (policy.tools.calling.state !== 'yes') return []
+        if (policy.tools.calling.state !== 'yes' && model.pricing.kind !== 'unpriced') return []
         const pricing = model.pricing
         return [
           {
@@ -72,6 +75,11 @@ export function createProviderRegistry(deps: ProviderRegistryDeps): ModelResolve
       if (model === undefined || parsed === undefined || parsed.providerId === 'meta') {
         throw new Error(UI_TEXT.execUnknownModel)
       }
+      if (model.catalogueMissing === true)
+        throw new UserRefusalError(
+          fill(UI_TEXT.execProviderNotCatalogue, { model: ref }),
+          'model_not_catalogue',
+        )
       const client = await deps.createClient(model)
       if (!deps.isCurrent(model)) {
         throw new Error(UI_TEXT.scheduleConfirmationExpired)

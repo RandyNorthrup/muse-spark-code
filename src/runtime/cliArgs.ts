@@ -66,6 +66,7 @@ import {
 import { parseVaultCommand, vaultUsage, type VaultCommandOptions } from './vault/vaultCommand'
 
 export interface ServeOptions {
+  readonly initialModelId?: string
   readonly usageHistory?: boolean
   /** Which account pays; chosen here, never guessed (D62). */
   readonly backend: AcpBackendKind
@@ -158,7 +159,7 @@ export type RuntimeCommand =
     }
   | { readonly command: 'accounts'; readonly options: AccountsCommand }
   | { readonly command: 'developer'; readonly args: readonly string[] }
-  | { readonly command: 'help'; readonly all?: boolean }
+  | { readonly command: 'help'; readonly all?: boolean; readonly route?: string }
   | { readonly command: 'version' }
   | { readonly command: 'vaultHelp' }
   | { readonly command: 'invalid'; readonly reason: string; readonly exitCode?: number }
@@ -253,6 +254,42 @@ export function parseCommandLine<T>(
   argv: readonly string[],
   localSharing?: (argv: readonly string[]) => T,
 ): RuntimeCommand | T {
+  const divider = argv.indexOf('--')
+  const flags = divider === -1 ? argv : argv.slice(0, divider)
+  if (flags.includes('--help') || flags.includes('-h')) {
+    if (argv[0] === 'vault') return { command: 'vaultHelp' }
+    const routes: Readonly<Record<string, string>> = {
+      exec: 'exec',
+      'scan-secrets': 'scan-secrets',
+      report: 'report',
+      usage: 'usage',
+      resources: 'resources',
+      login: 'login',
+      setup: 'setup',
+      legal: 'legal',
+      estimate: 'estimate',
+      fonts: 'fontsInstall',
+    }
+    let route = routes[argv[0] ?? '']
+    if (argv[0] === 'providers' && argv[1] === 'accounts') route = 'providers accounts'
+    else if (argv[0] === 'usage' && argv[1] === 'resources') route = 'resources'
+    else if (argv[0] === 'providers')
+      route =
+        argv[1] === 'add'
+          ? 'providersAdd'
+          : `providers${(argv[1] ?? 'list').replace(/^./, (letter) => letter.toUpperCase())}`
+    else if (argv[0] === 'auth')
+      route = `auth${(argv[1] ?? 'status').replace(/^./, (letter) => letter.toUpperCase())}`
+    return {
+      command: 'help',
+      route:
+        route ??
+        (argv[0]?.startsWith('-') === true
+          ? 'serve'
+          : flags.filter((word) => !word.startsWith('-')).join(' ') || 'serve'),
+    }
+  }
+
   // M118-X-CLI: main's owner injects the local parser/runner once P/C bind.
   // Without that binding these reserved commands fail explicitly, never serve.
   if (argv[0] === 'share' || argv[0] === 'prompts') {
@@ -281,8 +318,9 @@ export function parseCommandLine<T>(
       : { command: 'chatGptProvider', action }
   }
   if (argv[0] === 'help') {
-    return argv.length === 1 || (argv.length === 2 && argv[1] === '--all')
-      ? { command: 'help', all: argv[1] === '--all' }
+    return argv.length === 1 ||
+      (argv.length === 2 && (argv[1] === '--all' || argv[1] === 'reference'))
+      ? { command: 'help', all: argv.length === 2 }
       : invalid(argv.join(' '))
   }
   if (argv[0] === 'schedule') {
@@ -364,7 +402,9 @@ export function parseCommandLine<T>(
     values['max-budget-usd'] === undefined ? undefined : scheduleBudgetUsd(values['max-budget-usd'])
   if (budget === undefined && values['max-budget-usd'] !== undefined)
     return { command: 'invalid', reason: UI_TEXT.scheduleV2.runtime.usage }
+  if (values.model !== undefined && values.model.length !== 1) return invalid('--model')
   const options: ServeOptions = {
+    ...(values.model?.[0] !== undefined && { initialModelId: values.model[0] }),
     ...(values['usage-history'] !== undefined && {
       usageHistory: values['usage-history'] === 'on',
     }),
@@ -638,7 +678,7 @@ function parseHeadless(argv: readonly string[]): RuntimeCommand {
         strict: true,
         options: CLI_OPTION_REGISTRY['scan-secrets'].options,
       })
-      if (values.help === true) return { command: 'help', all: true }
+      if (values.help === true) return { command: 'help', route: 'scan-secrets' }
       return positionals.length === 1 && positionals[0] !== undefined
         ? {
             command: 'scan-secrets',
@@ -653,7 +693,7 @@ function parseHeadless(argv: readonly string[]): RuntimeCommand {
       strict: true,
       options: CLI_OPTION_REGISTRY.exec.options,
     })
-    if (values.help === true) return { command: 'help', all: true }
+    if (values.help === true) return { command: 'help', route: argv[0] ?? 'serve' }
     const { help: _help, attach, record, ...execValues } = values
     if (record === true)
       return { command: 'invalid', reason: UI_TEXT.media.recordingUserOnly, exitCode: 2 }
@@ -771,7 +811,7 @@ function parseReport(argv: readonly string[], canUseNamed = true): RuntimeComman
       strict: true,
       options: CLI_OPTION_REGISTRY.report.options,
     })
-    if (values.help === true) return { command: 'help', all: true }
+    if (values.help === true) return { command: 'help', route: argv[0] ?? 'serve' }
     if (positionals.length > 0 || values.out === '') {
       return { command: 'invalid', reason: reportUsage(), exitCode: 2 }
     }

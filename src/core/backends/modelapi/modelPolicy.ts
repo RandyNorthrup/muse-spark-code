@@ -253,6 +253,7 @@ export interface ResolvedModel {
 }
 
 export interface ModelResolver {
+  readonly defaultModel?: () => Promise<string | undefined>
   readonly list?: (() => Promise<readonly ModelSummary[]>) | undefined
   readonly resolve: (ref: string) => Promise<ResolvedModel>
 }

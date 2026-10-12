@@ -1,7 +1,5 @@
 import { Usd, type UsdAmount } from '../../shared/usd'
 import * as z from 'zod/mini'
-import { fill, plural } from '../../shared/l10n/text'
-import { formatUsd } from '../../shared/l10n/exactUsd'
 import {
   EXEC_MAX_BUDGET_USD,
   EXEC_MAX_REQUESTS,
@@ -197,7 +195,7 @@ export function createRunLedger(input: {
       const { maxOutputTokens: m, price } = request
       if (
         !Number.isSafeInteger(m) ||
-        m < EXEC_MIN_OUTPUT_TOKENS ||
+        m < (request.model.includes('/') ? 1 : EXEC_MIN_OUTPUT_TOKENS) ||
         m > (input.maxOutputTokens ?? MODEL_API_MAX_OUTPUT_TOKENS)
       )
         return refuse('request_shape')
@@ -359,28 +357,4 @@ export function createRunLedger(input: {
       }
     },
   }
-}
-
-/** One localized arithmetic sentence for daily/provider and headless Meta admission. */
-export function responseReservationMessage(input: {
-  readonly inputTokens: number
-  readonly inputCost: UsdAmount
-  readonly outputTokens: number
-  readonly reserveUsd: UsdAmount
-  readonly totals: LedgerTotals
-}): string {
-  const cost = Usd.from(input.inputCost).ceiling(EXEC_USD_DECIMALS)
-  const total = Usd.from(input.reserveUsd).ceiling(EXEC_USD_DECIMALS)
-  return fill(UI_TEXT.execBudgetQuote, {
-    inputTokens: plural(UI_TEXT.execTokenCount, input.inputTokens),
-    inputCost: formatUsd(cost.toAmount(), EXEC_USD_DECIMALS),
-    outputTokens: plural(UI_TEXT.execTokenCount, input.outputTokens),
-    outputCost: formatUsd(total.subtract(cost).toAmount(), EXEC_USD_DECIMALS),
-    estimate: formatUsd(total.toAmount(), EXEC_USD_DECIMALS),
-    cap: formatUsd(input.totals.capUsd, EXEC_USD_DECIMALS),
-    spent: formatUsd(
-      Usd.from(input.totals.settledUsd).add(Usd.from(input.totals.uncertainUsd)).toAmount(),
-      EXEC_USD_DECIMALS,
-    ),
-  })
 }

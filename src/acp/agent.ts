@@ -149,6 +149,7 @@ export interface AcpAgentOptions {
   /** Contributor-tier models are listed (`--allow-contributor-models`). */
   readonly allowsContributorModels: boolean
   readonly initialMode: PermissionMode
+  readonly initialModelId?: string
   readonly questionsDeferAfterSeconds?: number
   readonly scheduleAuthorization?: {
     readonly scheduledPrompts: boolean
@@ -296,12 +297,33 @@ function accountRequestError(error: unknown): RequestError {
     : RequestError.internalError(undefined, text)
 }
 
-/** The model a new session starts on: the backend's default, else the first listed. */
-function startingModel(models: readonly ModelSummary[]): string {
-  const model = models.find((candidate) => candidate.isDefault) ?? models[0]
-  if (model === undefined) {
-    throw RequestError.internalError(undefined, UI_TEXT.acpNoModels)
+/** Configured provider defaults never fall through to another model. */
+function startingModel(
+  models: readonly ModelSummary[],
+  requested?: string,
+  isStrict = false,
+): string {
+  if (requested !== undefined) {
+    const matches = models.filter(
+      (model) =>
+        model.modelId === requested ||
+        model.modelId.slice(model.modelId.indexOf('/') + 1) === requested,
+    )
+    if (matches.length === 1 && matches[0] !== undefined) return matches[0].modelId
+    throw RequestError.invalidParams(
+      undefined,
+      `${UI_TEXT.execProviderModelRequired}: ${models.map((model) => model.modelId).join(', ')}`,
+    )
   }
+  const model =
+    models.find((candidate) => candidate.isDefault && candidate.modelId.includes('/')) ??
+    models.find((candidate) => candidate.isDefault) ??
+    (isStrict ? undefined : models[0])
+  if (model === undefined)
+    throw RequestError.invalidParams(
+      undefined,
+      `${UI_TEXT.execProviderModelRequired}: ${models.map((candidate) => candidate.modelId).join(', ')}`,
+    )
   return model.modelId
 }
 
@@ -1480,7 +1502,11 @@ class AcpSession {
     if (active !== undefined && this.models.some((model) => model.modelId === active.modelId)) {
       this.modelId = active.modelId
     } else {
-      const listed = startingModel(this.models)
+      const listed = startingModel(
+        this.models,
+        this.deps.backend.kind === 'modelApi' ? this.modelId : undefined,
+        this.deps.backend.kind === 'modelApi',
+      )
       this.ensureHeld()
       await this.session.setModel(listed)
       this.modelId = listed
@@ -2380,7 +2406,11 @@ class AgentState {
     client: AgentContext,
   ) {
     const { host, models } = await this.openHost(cwd)
-    const modelId = startingModel(models)
+    const modelId = startingModel(
+      models,
+      this.deps.options.initialModelId,
+      this.deps.backend.kind === 'modelApi',
+    )
     const mcpServers = this.forwardedMcp(host, requestedMcp)
     const session = await host.startSession({
       workspaceRoot: cwd,
@@ -2411,7 +2441,11 @@ class AgentState {
       this.ensureClaim(claim, host)
       const loaded = await host.resumeSession(
         sessionId,
-        startingModel(models),
+        startingModel(
+          models,
+          this.deps.options.initialModelId,
+          this.deps.backend.kind === 'modelApi',
+        ),
         this.forwardedMcp(host, requestedMcp),
       )
       // A session resumes on the approval mode, model and effort it last had,

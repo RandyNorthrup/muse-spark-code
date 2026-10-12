@@ -9,10 +9,20 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- Claude Haiku 5.5 is listed with an unknown price pending a documented receipt.
+- `help reference` explicitly opens the full terminal reference.
+
 - Headless Model API runs accept `--max-output-tokens` with a 1024-token default,
   shared by the request body, validation and budget ledger.
 
 ### Fixed
+
+- Exec and ACP honor the configured provider default and refuse a missing default
+  instead of silently choosing another model.
+- Provider setup errors name terminal flags and available model IDs. Models absent
+  from this build’s catalogue have a specific refusal.
+- Ephemeral exec omits durable usage history and says so in its JSON record.
+- Command `--help` stays within that command’s own usage and options.
 
 - Provider and headless Meta requests reserve their actual conservative input
   and output cap instead of a full context window. Budget refusals show the
