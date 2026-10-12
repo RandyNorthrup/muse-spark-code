@@ -130,6 +130,21 @@ describe('M117 dated public catalog lookup', () => {
     const result = await lookupEstimatePrices(options(), fake.port)
     expectRefusedCatalog(result, fake.store)
   })
+  it('reads an unreadable cache as unavailable, not as an absent one, and lets a non-error through', async () => {
+    const offline = { ...options(), networkAllowed: false }
+    const failing = ports()
+    failing.cached.mockRejectedValue(new Error('private store text'))
+    const result = await lookupEstimatePrices(offline, failing.port)
+    expect(result.unavailable).toEqual([{ catalogUrl: CATALOG, reason: 'unavailable' }])
+    expect(JSON.stringify(result)).not.toContain('private')
+    const absent = ports(undefined)
+    const absentResult = await lookupEstimatePrices(offline, absent.port)
+    expect(absentResult.unavailable).toEqual([{ catalogUrl: CATALOG, reason: 'networkOff' }])
+    const foreign = ports()
+    const failure: unknown = 'a string failure'
+    foreign.cached.mockRejectedValue(failure)
+    await expect(lookupEstimatePrices(options(), foreign.port)).rejects.toBe('a string failure')
+  })
   it('refreshes a stale entry with validated new rows and drops a removed ETag', async () => {
     const cached = document('2026-10-06T11:58:00.000Z')
     const rows = [{ classId: 'linux-x64-builder', price: catalogPrice(0.04) }]

@@ -17,7 +17,9 @@ export const accountBindingSchema = z.strictObject({
           url.username === '' &&
           url.password === ''
         )
-      } catch {
+      } catch (error: unknown) {
+        // Only a malformed origin fails the binding: anything else keeps its kind.
+        if (!(error instanceof TypeError)) throw error
         return false
       }
     }),
