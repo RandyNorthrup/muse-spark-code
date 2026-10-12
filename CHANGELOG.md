@@ -9,6 +9,14 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- Judge fast path: the confinement helper answers `stat` itself instead of
+  starting the system `stat`, so the result no longer depends on which
+  coreutils a machine ships. The report comes from the walked files, prints
+  the full device number, refuses recursive runs and mismatched tool
+  arguments, reads the last refusal reason correctly, and prints a dash for
+  any detail the filesystem does not supply. The design record and the
+  F1a certification carry the evidence and the per-program table.
+
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
   reads and writes, and 1-hour cache writes settle at their own price.
   The shared retry classifier refuses known quota codes and excessive
