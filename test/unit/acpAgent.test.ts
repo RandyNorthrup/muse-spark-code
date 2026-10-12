@@ -984,6 +984,33 @@ describe('the ACP agent (M63)', () => {
     ])
   })
 
+  it('delivers the answer before a resumable max_turn_requests stop', async () => {
+    const h = harness()
+    const response = await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      const response = prompt(client, sessionId)
+      const session = h.host.sessions.at(-1)!
+      await until(() => session.sendTurn.mock.calls.length > 0)
+      session.emit(
+        { type: 'itemCompleted', item: message('wrap', 'What remains', 'completed') },
+        {
+          type: 'turnCompleted',
+          turnId: 'turn-1',
+          terminal: 'completed',
+          errorKind: 'max_turn_requests',
+          reason: 'limit',
+        },
+      )
+      const answer = await response
+      expect(h.updates).toContainEqual({
+        sessionUpdate: 'agent_message_chunk',
+        content: { type: 'text', text: 'What remains' },
+      })
+      return answer
+    })
+    expect(response).toEqual({ stopReason: 'max_turn_requests' })
+  })
+
   it('answers /help locally with the companion reference and no model turn', async () => {
     const h = harness()
     const reply = await promptLocalText((work) => h.run(work), start, '/help')

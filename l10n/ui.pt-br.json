@@ -5448,5 +5448,11 @@
       "other": "{count} autorizações",
       "many": "{count} autorizações"
     }
-  }
+  },
+  "modelApiTurnLimit": {
+    "one": "O turno parou após {count} chamada ao modelo. Envie uma mensagem para continuar.",
+    "other": "O turno parou após {count} chamadas ao modelo. Envie uma mensagem para continuar.",
+    "many": "O turno parou após {count} chamadas ao modelo. Envie uma mensagem para continuar."
+  },
+  "referenceTurnLimit": "Ao atingir o limite de chamadas ao modelo, o turno informa um limite que permite continuar. Envie outra mensagem para continuar."
 }

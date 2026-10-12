@@ -1113,6 +1113,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         (last?.usage !== 'valid' || last.settlement !== 'priced')
       )
         status = 'accounting_unverified'
+      else if (stopReason === 'max_turn_requests') status = 'request_cap'
       else status = stopReason === 'end_turn' ? 'completed' : 'failed'
     }
     if (status === 'accounting_unverified') error = UI_TEXT.execAccountingUnverified

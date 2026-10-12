@@ -7,6 +7,12 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- Model API turns reaching the hidden 50-call bound stopped as an English
+  internal error. They now report a translated request-limit notice, return
+  ACP `max_turn_requests`, and accept a new message to continue.
+
 ### Added
 
 - **Several accounts per provider, in the terminal and in ACP** (M108,

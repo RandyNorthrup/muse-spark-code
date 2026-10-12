@@ -3947,6 +3947,11 @@ ACP and headless Model API/BYO requests share a hard local-day budget in the age
 
 ## Limits
 
+Model API turn limits produce a translated notice and a resumable request-limit
+stop in the panel and ACP, rather than an internal error. Send another message
+to continue. TOOLROUNDS is raising the default to 200 and reserving the last call
+for a summary; until that slice lands the turn bound remains 50.
+
 The table below describes Meta Muse. M95's provider core resolves capabilities
 per configured provider and native model, with user overrides taking precedence
 over captures, model lists, the catalogue and presets. Unknown support does not

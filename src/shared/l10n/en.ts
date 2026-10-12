@@ -4228,6 +4228,12 @@ export const EN = {
     one: 'At most {count} input file is allowed.',
     other: 'At most {count} input files are allowed.',
   }),
+  referenceTurnLimit:
+    'At the model-call turn limit, the turn reports a resumable limit. Send another message to continue.',
+  modelApiTurnLimit: forms({
+    one: 'The turn stopped after {count} model call. Send a message to continue.',
+    other: 'The turn stopped after {count} model calls. Send a message to continue.',
+  }),
   execRequestCapReached: forms({
     one: 'The request cap of {count} attempt was reached.',
     other: 'The request cap of {count} attempts was reached.',

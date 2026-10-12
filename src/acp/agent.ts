@@ -913,7 +913,7 @@ class AcpSession {
       )
       return
     }
-    pending.resolve('end_turn')
+    pending.resolve(event.errorKind === 'max_turn_requests' ? 'max_turn_requests' : 'end_turn')
   }
 
   private async askPermission(event: ApprovalRequest): Promise<void> {

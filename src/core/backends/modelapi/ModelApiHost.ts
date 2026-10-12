@@ -370,6 +370,7 @@ import {
   reserveRequest,
   type SessionBudgetClaim,
   SessionBudgetExceededError,
+  ModelCallLimitError,
 } from './sessionBudget'
 
 import { formatUsd } from '../../usage/insights'
@@ -13697,7 +13698,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     }
     this.promoteSteered(turn)
     this.outcomeStopReason = 'budget'
-    throw new Error(`stopped after ${String(MODEL_API_MAX_TOOL_ROUNDS)} tool rounds`)
+    throw new ModelCallLimitError(MODEL_API_MAX_TOOL_ROUNDS)
   }
 
   /** Child turns share checkpoint ownership with their top parent, even after it finishes. */
@@ -14042,7 +14043,11 @@ export class ModelApiSession implements ScheduledAgentSession {
         }
         reason = error instanceof ChildTaskRefusedError ? error.visible : describe(error)
         if (this.isSubagent && this.outcomeStopReason === 'budget') terminal = COMPLETED
-        if (error instanceof ChildTaskRefusedError) {
+        if (error instanceof ModelCallLimitError) {
+          terminal = COMPLETED
+          errorKind = 'max_turn_requests'
+          this.emit({ type: 'backendNotice', level: 'warning', text: reason })
+        } else if (error instanceof ChildTaskRefusedError) {
           errorKind = `subagent_${error.kind}`
         } else if (error instanceof ContextOverflowError) {
           reason = UI_TEXT.contextWindowFull

@@ -5602,5 +5602,12 @@
       "few": "{count} uprawnienia",
       "many": "{count} uprawnień"
     }
-  }
+  },
+  "modelApiTurnLimit": {
+    "one": "Tura zatrzymała się po {count} wywołaniu modelu. Wyślij wiadomość, aby kontynuować.",
+    "other": "Tura zatrzymała się po {count} wywołaniach modelu. Wyślij wiadomość, aby kontynuować.",
+    "few": "Tura zatrzymała się po {count} wywołaniach modelu. Wyślij wiadomość, aby kontynuować.",
+    "many": "Tura zatrzymała się po {count} wywołaniach modelu. Wyślij wiadomość, aby kontynuować."
+  },
+  "referenceTurnLimit": "Po osiągnięciu limitu wywołań modelu tura zgłasza limit z możliwością wznowienia. Wyślij kolejną wiadomość, aby kontynuować."
 }
