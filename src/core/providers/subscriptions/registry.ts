@@ -16,7 +16,10 @@ import {
   type Usage,
 } from '../../backends/modelapi/schemas'
 import { responses, modelRef, recordPlanUsage } from '../../../host/backend/providersEntry'
-import { isChatCodecError } from '../../backends/modelapi/codecs/shared'
+// RVCM1054D P2: the typed refusal comes from the leaf module, never the
+// codec bundle — the subscriptions bundle must not carry
+// src/core/backends/modelapi/codecs/* (they load only in dist/providers.js).
+import { isChatCodecError } from '../../media/codecRefusal'
 const { ChatgptPlanLimitError, createResponsesCodec, ResponsesOutputCapError } = responses
 const { parseModelRef } = modelRef
 import {

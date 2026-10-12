@@ -168,23 +168,8 @@ export function nativeCallId(callId: string, format: CallIdFormat): string {
  * media at the codec stage. Every request encoder throws this (never a
  * plain Error) for a video part with no vendor capture behind it, and the
  * configured production client rethrows it by name, so the sentence the
- * user reads is the refusal's own translated reason. Matched by name so a
- * second copy of this module cannot mask it.
+ * user reads is the refusal's own translated reason. Re-exported from the
+ * leaf module so bundles that must not carry the codecs (the Models panel,
+ * the subscriptions bundle) import it there instead (RVCM1054D P2).
  */
-export class ChatCodecError extends Error {
-  override readonly name = 'ChatCodecError'
-}
-
-/**
- * The one decision point for "is this a codec refusal" (M105 lane V R3,
- * RVCM1054B P2): every production client and wrapper between a codec and
- * the user (the configured-provider client, the subscription client's
- * ChatGPT and Copilot legs, the runtime accounting wrapper, ACP and exec
- * surfacing) calls this instead of keeping its own list, so a codec
- * refusal always reaches the user as its own sentence. Matched by name so
- * a second copy of this module cannot mask it; narrows to Error so callers
- * read `.message` with no cast.
- */
-export function isChatCodecError(error: unknown): error is Error {
-  return error instanceof Error && error.name === 'ChatCodecError'
-}
+export { ChatCodecError, isChatCodecError } from '../../../media/codecRefusal'

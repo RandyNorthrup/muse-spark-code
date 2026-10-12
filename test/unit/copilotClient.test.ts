@@ -669,12 +669,16 @@ describe('Copilot VS Code client', () => {
     controller.abort()
     await expect(run(tester, body(), controller.signal)).rejects.toThrow('translated.cancelled')
     expect(tester.model.sendRequest).not.toHaveBeenCalled()
+    // RVCM1054D P2: the aborted run throws before acquiring anything, so it
+    // creates no cancellation source to dispose; the closed stream below
+    // still cancels and disposes exactly once.
+    expect(tester.dispose).not.toHaveBeenCalled()
     const connected = await client(tester)
     const stream = connected.streamResponse(body(), new AbortController().signal)
     await stream.next()
     await stream.return(undefined)
     expect(tester.cancel).toHaveBeenCalled()
-    expect(tester.dispose).toHaveBeenCalledTimes(2)
+    expect(tester.dispose).toHaveBeenCalledTimes(1)
   })
 
   it('bridges Stop to VS Code while sendRequest is pending', async () => {
