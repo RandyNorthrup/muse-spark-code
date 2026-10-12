@@ -186,6 +186,12 @@ async function discoveredCommands(
         argumentHint: 'prompt',
       },
     ]
+    // The list goes out with the session (B21), so skills settling after the
+    // adopt arrive through the backend's change event, as in production.
+    session.emit({ type: 'skillsChanged' })
+    await vi.waitFor(() => {
+      expect(commands.map((command) => command.name)).toContain('loop')
+    })
     await connection.request('session/prompt', {
       sessionId,
       prompt: [{ type: 'text', text: '/help' }],
@@ -246,8 +252,10 @@ const surfaces = [
   { name: 'ACP available_commands_update', text: '', instructions: true },
   { name: 'ACP dormant invocation', text: '', instructions: true },
   {
-    name: 'first-turn inactive-compaction notice',
-    text: EN.autoCompactionAwaitingEvaluation,
+    // While automatic compaction is inactive by design the first turn says
+    // nothing about it: an empty surface asserts the silence holds.
+    name: 'first-turn inactive-compaction silence',
+    text: '',
     instructions: true,
   },
   { name: 'chat palette and completions', text: '', instructions: true },

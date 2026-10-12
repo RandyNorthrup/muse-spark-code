@@ -10,6 +10,7 @@ import {
 import type { ResponseAttemptGuard, RetryNotice } from '../../src/core/backends/modelapi/client'
 import type { Usage } from '../../src/core/backends/modelapi/schemas'
 import { MODEL_API_MODEL_TEXT } from '../../src/shared/constants'
+import { SESSION_NOT_FOUND_ERROR, isSessionNotFoundError } from '../../src/core/agent/agentBackend'
 import { EN } from '../../src/shared/l10n/en'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { FAKE_MODEL_API_ACCOUNT_ID, fakeModelApi, fakeModelApiClient } from './helpers/fakeModelApi'
@@ -888,12 +889,9 @@ describe('automatic compaction in the shared Model API loop', () => {
       t.api.script({ calls: [TOOL] }, { text: 'done' })
       await t.send()
       expect(t.admissions()).toBe(0)
-      expect(t.events).not.toContainEqual(
-        expect.objectContaining({
-          type: 'backendNotice',
-          text: EN.autoCompactionAwaitingEvaluation,
-        }),
-      )
+      expect(
+        t.events.filter((event) => event.type === 'backendNotice' && /ompaction/i.test(event.text)),
+      ).toHaveLength(0)
     }
     expect(JSON.stringify(off.api.responseBodies())).toBe(
       JSON.stringify(pending.api.responseBodies()),
@@ -902,25 +900,35 @@ describe('automatic compaction in the shared Model API loop', () => {
     await pending.host.close()
   })
 
-  it('reports awaiting evaluation and sends no automatic request with the production latch', async () => {
+  it('stays silent while automatic compaction is inactive by design', async () => {
     const t = await setup({ autoCompactionEvaluated: undefined })
     await t.seed()
     t.api.script(OVERFLOW)
     await t.send()
-    expect(t.events).toContainEqual({
-      type: 'backendNotice',
-      level: 'info',
-      text: EN.autoCompactionAwaitingEvaluation,
-    })
+    // No status of the inactive feature is sent as answer text or notice.
+    expect(
+      t.events.filter((event) => event.type === 'backendNotice' && /ompaction/i.test(event.text)),
+    ).toHaveLength(0)
     t.api.script(OVERFLOW)
     await t.send()
     expect(
-      t.events.filter(
-        (event) =>
-          event.type === 'backendNotice' && event.text === EN.autoCompactionAwaitingEvaluation,
-      ),
-    ).toHaveLength(1)
+      t.events.filter((event) => event.type === 'backendNotice' && /ompaction/i.test(event.text)),
+    ).toHaveLength(0)
     expect(t.admissions()).toBe(0)
+    await t.host.close()
+  })
+
+  it('brands a resume of an id no host holds, so the agent answers resource-not-found', async () => {
+    const t = await setup()
+    let failure: unknown
+    try {
+      await t.host.resumeSession('no-such-session', 'muse-spark-1.3')
+      throw new Error('a load of an unknown id resolved')
+    } catch (error: unknown) {
+      failure = error
+    }
+    expect(isSessionNotFoundError(failure)).toBe(true)
+    expect(failure).toMatchObject({ name: SESSION_NOT_FOUND_ERROR })
     await t.host.close()
   })
 })

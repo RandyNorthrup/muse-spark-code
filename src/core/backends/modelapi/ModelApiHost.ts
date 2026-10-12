@@ -242,6 +242,7 @@ import {
   type StartSessionOptions,
   SteerRefusedError,
   PromptSettledError,
+  SessionNotFoundError,
   type TurnPart,
   type TurnSubmission,
   type WithdrawOutcome,
@@ -2516,7 +2517,6 @@ export class ModelApiSession implements ScheduledAgentSession {
       }
     | undefined
   private readonly autoCompact = new AutoCompact()
-  private didReportCompactionEvaluation = false
   private readonly interruptedWork = new WeakSet<AbortController>()
   private modelHooksRuntime: typeof ModelHooksRuntime | undefined
   /** Interrupt survives the turn's abort, but never the session's lifetime. */
@@ -13971,18 +13971,8 @@ export class ModelApiSession implements ScheduledAgentSession {
       if (this.modelId.includes('/')) await this.resolveModel()
       turn.isWebSearchAllowed =
         !this.isReviewing() && (await this.webSearchConsent(turn.abort.signal))
-      if (
-        this.deps.autoCompaction?.() === true &&
-        !(this.deps.autoCompactionEvaluated?.() ?? IS_AUTO_COMPACTION_EVALUATED) &&
-        !this.didReportCompactionEvaluation
-      ) {
-        this.didReportCompactionEvaluation = true
-        this.emit({
-          type: 'backendNotice',
-          level: 'info',
-          text: UI_TEXT.autoCompactionAwaitingEvaluation,
-        })
-      }
+      // While automatic compaction is inactive by design, the turn says
+      // nothing about it: an internal status is never sent as answer text.
       await this.loop(turn)
     } catch (error: unknown) {
       const pendingRun = turn.scheduleRun === undefined ? this.owner.run(turn.turnId) : undefined
@@ -17285,7 +17275,8 @@ export class ModelApiHost implements AgentHost {
         return stored
       }
     }
-    throw new Error(`session ${sessionId} is not held by this window`)
+    // The ACP agent answers resource-not-found for an id no host holds.
+    throw new SessionNotFoundError(sessionId)
   }
 
   private async storedHistorySource(sessionId: string): Promise<StoredSession> {
@@ -17299,7 +17290,8 @@ export class ModelApiHost implements AgentHost {
       const stored = await this.storedSession(parentId)
       const child = stored.children?.find((entry) => entry.session.sessionId === sessionId)
       if (child === undefined) {
-        throw new Error(`session ${sessionId} is not held by this window`)
+        // Branded as above: no host holds this child id either.
+        throw new SessionNotFoundError(sessionId)
       }
       source = child.session
     }

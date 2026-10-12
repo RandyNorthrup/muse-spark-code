@@ -255,11 +255,7 @@ describe('ACPDOG advisory isolation', () => {
         const response = prompt(client, sessionId)
         const session = h.host.sessions[0]!
         await until(() => session.sendTurn.mock.calls.length === 1)
-        for (const text of [
-          UI_TEXT.autoCompactionAwaitingEvaluation,
-          'MCP unavailable',
-          'Retry pacing',
-        ]) {
+        for (const text of ['Compaction evaluation pending', 'MCP unavailable', 'Retry pacing']) {
           session.emit({ type: 'backendNotice', level: 'info', text })
           session.emit({ type: 'backendNotice', level: 'info', text })
         }
@@ -1076,11 +1072,16 @@ describe('the ACP agent (M63)', () => {
           argumentHint: undefined,
         },
       ]
+      // The list went out with the session, so the installed skill arrives
+      // through the backend's change event, as in production.
+      session.emit({ type: 'skillsChanged' })
+      await until(() => session.listSkills.mock.calls.length === 2)
       await client.request('session/prompt', {
         sessionId,
         prompt: [{ type: 'text', text: '/help' }],
       })
-      expect(session.listSkills).toHaveBeenCalledTimes(1)
+      // Once with the session, once for the installed skill.
+      expect(session.listSkills).toHaveBeenCalledTimes(2)
       expect(session.sendTurn).not.toHaveBeenCalled()
     })
     expect(h.updates).toContainEqual(
@@ -1341,6 +1342,10 @@ describe('the ACP agent (M63)', () => {
         session.skills = [
           { selector: 'review', displayName: 'Review', description: '', argumentHint: '<path>' },
         ]
+        // The list went out with the session, so the installed skill arrives
+        // through the backend's change event, as in production.
+        session.emit({ type: 'skillsChanged' })
+        await until(() => session.listSkills.mock.calls.length === 2)
       }
       const response = client.request('session/prompt', {
         sessionId,
@@ -1350,7 +1355,10 @@ describe('the ACP agent (M63)', () => {
       session?.emit({ type: 'turnCompleted', turnId: 'turn-1', terminal: 'completed' })
       await response
     })
-    expect(h.updates[0]).toEqual(
+    const announcements = h.updates.filter(
+      (update) => update.sessionUpdate === 'available_commands_update',
+    )
+    expect(announcements.at(-1)).toEqual(
       expectedQuestionCommandsUpdate([
         { name: 'review', description: 'Review', input: { hint: '<path>' } },
       ]),
@@ -1805,27 +1813,19 @@ describe('the ACP agent (M63)', () => {
     expect(logged).not.toContain('someone@example.com')
   })
 
-  it('is busy while the skills are first announced, and a cancel then ends the prompt without a turn', async () => {
-    const h = harness()
+  it('is busy while a local command runs, and a cancel then ends the prompt without a turn', async () => {
+    const release = vi.fn<() => Promise<void>>().mockResolvedValue()
+    // The schedule answers only once the gate opens.
+    const gate = Promise.withResolvers<string>()
+    const run = vi.fn<AcpSchedulePort['run']>(() => gate.promise)
+    const holdWorkspace = vi
+      .fn<NonNullable<AcpSchedulePort['holdWorkspace']>>()
+      .mockResolvedValue(release)
+    const h = harness({ schedules: { run, holdWorkspace } })
     const stop = await h.run(async (client) => {
       const { sessionId } = await start(client)
-      const session = h.host.sessions[0]!
-      // The skills answer only once the gate opens.
-      const gate = new AbortController()
-      session.listSkills.mockImplementation(
-        () =>
-          new Promise((resolve) => {
-            gate.signal.addEventListener(
-              'abort',
-              () => {
-                resolve([])
-              },
-              { once: true },
-            )
-          }),
-      )
-      const first = prompt(client, sessionId)
-      await until(() => session.listSkills.mock.calls.length === 1)
+      const first = prompt(client, sessionId, '/schedule list')
+      await until(() => run.mock.calls.length === 1)
       await expect(prompt(client, sessionId, 'again')).rejects.toMatchObject({
         message: expect.stringContaining(UI_TEXT.acpPromptBusy),
       })
@@ -1833,7 +1833,7 @@ describe('the ACP agent (M63)', () => {
       await until(() =>
         h.log.info.mock.calls.some(([line]) => String(line).includes('cancelled before its turn')),
       )
-      gate.abort()
+      gate.resolve('Schedule list')
       return await first
     })
     expect(stop).toEqual({ stopReason: 'cancelled' })
@@ -1921,7 +1921,13 @@ describe('the ACP agent (M63)', () => {
     // Resumed again, the session held before is let go.
     expect(h.host.sessions[1]?.dispose).toHaveBeenCalledTimes(1)
     expect(h.host.sessions[2]?.dispose).not.toHaveBeenCalled()
-    expect(h.updates).toEqual([
+    // Each load also announces its command list with the session; the replay
+    // itself is the user message, the answer and the plan, in that order.
+    expect(
+      h.updates.filter((update) =>
+        ['user_message_chunk', 'agent_message_chunk', 'plan'].includes(update.sessionUpdate),
+      ),
+    ).toEqual([
       { sessionUpdate: 'user_message_chunk', content: { type: 'text', text: 'Fix the bug' } },
       { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'Done.' } },
       {
@@ -2364,6 +2370,10 @@ describe('the ACP agent (M63)', () => {
       session.listSkills.mockRejectedValue(
         new Error(String.raw`cannot read C:\Users\person\secret.json for person@example.com`),
       )
+      // The list went out with the session, so the failure arrives through
+      // the backend's change event, as in production.
+      session.emit({ type: 'skillsChanged' })
+      await until(() => h.log.warn.mock.calls.length === 1)
       await turn(h, client, sessionId, () => undefined)
     })
     const logged = JSON.stringify(h.log.warn.mock.calls)
@@ -2485,16 +2495,32 @@ describe('paid features in the agent (M63c, M58)', () => {
   )
 
   it('denies a paid answer while its prompt is cancelled before its turn starts', async () => {
-    const { answer, h } = delayedPaidSearch()
+    const answer = Promise.withResolvers<acp.RequestPermissionResponse>()
+    const release = vi.fn<() => Promise<void>>().mockResolvedValue()
+    // The prompt waits on this paid question while preparing, as it waited
+    // on the first announcement before the list moved to the session.
+    let heldSessionId = ''
+    let isAllowed = true
+    const h = harness({
+      kind: 'modelApi',
+      paid: ['webSearch'],
+      isTrusted: true,
+      answer: () => answer.promise,
+      schedules: {
+        run: vi.fn(async () => {
+          isAllowed = Boolean(await h.paid.allows(CWD, heldSessionId, WEB_SEARCH, false))
+          return 'Schedule list'
+        }),
+        holdWorkspace: vi
+          .fn<NonNullable<AcpSchedulePort['holdWorkspace']>>()
+          .mockResolvedValue(release),
+      },
+    })
     await h.run(async (client) => {
       const { sessionId } = await start(client)
+      heldSessionId = sessionId
       const session = h.host.sessions[0]!
-      let isAllowed = true
-      session.listSkills.mockImplementation(async () => {
-        isAllowed = Boolean(await h.paid.allows(CWD, sessionId, WEB_SEARCH, false))
-        return []
-      })
-      const response = prompt(client, sessionId)
+      const response = prompt(client, sessionId, '/schedule list')
       await until(() => h.permissions.length === 1)
       await client.notify('session/cancel', { sessionId })
       await until(() =>
