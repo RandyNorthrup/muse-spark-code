@@ -1,4 +1,4 @@
-import { mkdtempSync, readdirSync, rmSync, statSync } from 'node:fs'
+import { appendFileSync, mkdtempSync, readdirSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { cleanup } from '@testing-library/react'
@@ -8,10 +8,12 @@ import { MILLISECONDS_PER_DAY } from '../../src/shared/constants'
 
 // The unit suite never touches the developer's real home: every worker
 // points home, and the data/config/state/cache folders derived from it, at
-// one temp folder per WORKER (shared by that worker's files), removed when
-// the worker's process ends. Tool lookups (a browser, bun, the Muse Code
-// CLI) still need the real machine: their locations are captured BEFORE the
-// redirect below, in test/unit/helpers/realMachine.ts's variables.
+// one temp folder per WORKER (shared by that worker's files), reported to
+// the run's registry for the global teardown to remove (workers are
+// terminated, never exited). A sweep at worker start removes leftovers
+// older than a day. Tool lookups (a browser, bun, the Muse Code CLI) still
+// need the real machine: their locations are captured BEFORE the redirect
+// below, in test/unit/helpers/realMachine.ts's variables.
 // os.homedir() reads $HOME on POSIX and %USERPROFILE% on Windows (falling
 // back to %HOMEDRIVE%%HOMEPATH%, which no test needs); the data folder
 // additionally reads XDG_DATA_HOME / %LOCALAPPDATA%.
@@ -27,7 +29,7 @@ for (const [key, value] of Object.entries(savedReal)) {
 
 const workerState = globalThis as unknown as {
   __museUnitHome?: string
-  __museUnitHomeRegistered?: boolean
+  __museUnitHomeReported?: boolean
 }
 if (workerState.__museUnitHome === undefined) {
   workerState.__museUnitHome = mkdtempSync(path.join(tmpdir(), 'muse-unit-home-'))
@@ -50,15 +52,20 @@ if (workerState.__museUnitHome === undefined) {
   }
 }
 const isolatedHome: string = workerState.__museUnitHome
-if (workerState.__museUnitHomeRegistered !== true) {
-  workerState.__museUnitHomeRegistered = true
-  process.once('exit', () => {
+if (workerState.__museUnitHomeReported !== true) {
+  workerState.__museUnitHomeReported = true
+  // Workers are terminated, never exited, so no exit handler here could
+  // run: report the home to this run's registry instead, which the global
+  // teardown removes. Without a registry (unusual flags) the day sweep
+  // below is the backstop.
+  const registry = process.env['MUSE_UNIT_HOME_REGISTRY']
+  if (registry !== undefined && registry !== '') {
     try {
-      rmSync(isolatedHome, { recursive: true, force: true })
+      appendFileSync(registry, `${isolatedHome}\n`)
     } catch {
-      // Best effort: the next run's sweep removes leftovers older than a day.
+      // A torn-down registry: the day sweep removes the leftover.
     }
-  })
+  }
 }
 process.env['HOME'] = isolatedHome
 process.env['XDG_DATA_HOME'] = path.join(isolatedHome, '.local', 'share')
