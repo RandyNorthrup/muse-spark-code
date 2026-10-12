@@ -481,7 +481,9 @@
           "foreground": "colour.usage-orange",
           "background": "colour.editor-surface",
           "usage": "ui"
-        }
+        },
+        { "foreground": "colour.brand-mark", "background": "colour.surface", "usage": "ui" },
+        { "foreground": "colour.brand-mark-light", "background": "colour.surface", "usage": "ui" }
       ],
       "decorativeColours": [
         "colour.shadow",
@@ -730,6 +732,43 @@
         }
       },
       "$description": "Semantic host theme role: muted."
+    },
+    "brand-mark": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [0.239216, 0.545098, 1.0],
+        "alpha": 1
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-brand-mark",
+          "modes": {
+            "light": "{colour.brand-mark-light}",
+            "hc-light": "{colour.text}",
+            "hc-dark": "{colour.text}"
+          }
+        }
+      },
+      "$description": "Product mark on dark backgrounds: the bright endpoint of the Marketplace icon blue, independent of host button paint."
+    },
+    "brand-mark-light": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [0.039216, 0.360784, 1.0],
+        "alpha": 1
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-brand-mark-light",
+          "modes": {
+            "hc-light": "{colour.text}",
+            "hc-dark": "{colour.text}"
+          }
+        }
+      },
+      "$description": "Product mark on light backgrounds: the deep endpoint of the Marketplace icon blue; selected by the host light theme."
     },
     "accent": {
       "$type": "color",

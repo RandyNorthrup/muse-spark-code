@@ -11,6 +11,8 @@
   );
   --ms-text: var(--vscode-foreground, #e4e7ed);
   --ms-muted: var(--vscode-descriptionForeground, #aeb6c4);
+  --ms-brand-mark: #3d8bff;
+  --ms-brand-mark-light: #0a5cff;
   --ms-accent: var(--vscode-button-background, #0a5cff);
   --ms-on-accent: var(--vscode-button-foreground, #fff);
   --ms-focus: var(--vscode-focusBorder, #7fb2ff);

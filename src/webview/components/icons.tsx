@@ -33,21 +33,24 @@ function Svg({ title, children }: IconProps & { readonly children: ReactNode }) 
  * The product's own mark: the squiggled handwritten "m" of
  * media/marketplace-icon.svg (two humps and a flick, no loops), the same
  * geometry as media/icon.svg, drawn here as a stroke in the brand blue
- * (--ms-accent, set by styles.css; currentColor keeps forced-colors honest).
+ * (--ms-brand-mark, set by styles.css; currentColor keeps forced-colors honest).
  * The box matches the old logo's (24x16) so the empty state's layout does
- * not shift. Decorative next to the product name: no animation.
+ * not shift. Crop to the path bounds plus half the stroke on every side;
+ * fill the existing box without clipping the round caps. Decorative next to
+ * the product name: no animation.
  */
 export function ProductMark({ title }: IconProps) {
   const isDecorative = title === undefined
   return (
     <svg
       className="icon product-mark"
-      viewBox="0 0 24 24"
+      viewBox="2 6.43 20 11.14"
+      preserveAspectRatio="none"
       width="24"
       height="16"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.9"
+      strokeWidth="2"
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden={isDecorative || undefined}
