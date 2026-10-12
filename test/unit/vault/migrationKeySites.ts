@@ -5,6 +5,7 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import ts from 'typescript'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..')
 const SRC = path.join(ROOT, 'src')
@@ -16,11 +17,19 @@ const SRC = path.join(ROOT, 'src')
  * their callers. Writers and deleters that go through `AccountStore` or the
  * `AccountCredentialVault` port carry none of the key fragments, so the
  * entry-point method names (`setCredential`, `rebindOrigin`,
- * `useCredential`, `readForRemoval`), the store delete callers
- * (`accounts.remove(`), the port calls (`write(binding`, `remove(binding`)
- * and the route types (`AccountCredentialVault`, `AccountSecrets`) are
- * matched too. One list entry per occurrence, so a
- * new call breaks the comparison even in an already-listed file.
+ * `useCredential`, `useCredential<`, `readForRemoval`), the store's own
+ * `remove` definition (`remove(provider: string, account: string`), the
+ * port reads (`credentials.read(binding)`, `vault.read(binding)`) and the
+ * port calls (`write(binding`, `remove(binding`) and the route types
+ * (`AccountCredentialVault`, `AccountSecrets`) are matched too. A removal
+ * on an `AccountStore` is found by type, not by how the receiver is
+ * spelled: the checker resolves every `.remove(` call and keeps the ones
+ * whose method belongs to `AccountStore` or a subclass, so `store.remove(`
+ * or `services.store.remove(` breaks the comparison while a different
+ * store's `remove` (confirmations, vault ports) does not. Hook-index
+ * annotations (`AccountSecretsDeps[`) are not key accesses. One list entry
+ * per occurrence, so a new call breaks the comparison even in an
+ * already-listed file.
  */
 const FRAGMENTS = [
   'SECRET_KEYS.modelApiKey',
@@ -45,13 +54,23 @@ const FRAGMENTS = [
   'setCredential(',
   'rebindOrigin(',
   'useCredential(',
+  'useCredential<',
   'readForRemoval(',
-  'accounts.remove(',
+  'remove(provider: string, account: string',
+  'credentials.read(binding)',
+  'vault.read(binding)',
   'remove(binding',
   'write(binding',
   'AccountCredentialVault',
   'AccountSecrets',
 ] as const
+
+/** `AccountSecrets` also matches its hook-deps annotations; only the indexed
+ * hook form (`AccountSecretsDeps[`) is not a key access. */
+const HOOK_INDEX = 'AccountSecretsDeps[' as const
+
+/** A `.remove(` call whose resolved method belongs to `AccountStore`. */
+const ACCOUNT_STORE_REMOVE = 'AccountStore.remove' as const
 
 /** Secret-store calls on a bare `account` variable the runtime proved is a
  * provider slot via `providerSecretAccount` (matched on whitespace-collapsed
@@ -82,10 +101,70 @@ function sourceFiles(): string[] {
   return found.toSorted(compareStrings)
 }
 
+/** The nearest enclosing class, if the node sits inside one. */
+function nearestClass(node: ts.Node | undefined): ts.ClassDeclaration | undefined {
+  let current = node
+  while (current !== undefined && !ts.isClassDeclaration(current)) current = current.parent
+  return current
+}
+
+/** Whether a resolved method declaration is `AccountStore.remove` or a subclass override. */
+function isAccountStoreRemove(declaration: ts.Declaration | undefined): boolean {
+  if (declaration === undefined || !ts.isMethodDeclaration(declaration)) return false
+  const owner = nearestClass(declaration.parent)
+  return (
+    owner?.name !== undefined &&
+    (owner.name.text === 'AccountStore' ||
+      (owner.heritageClauses ?? []).some(
+        (clause) =>
+          clause.token === ts.SyntaxKind.ExtendsKeyword &&
+          clause.types.some((entry) => entry.expression.getText() === 'AccountStore'),
+      ))
+  )
+}
+
+/**
+ * Every `.remove(` call in `src/` whose resolved method belongs to
+ * `AccountStore`, found by the checker rather than by receiver spelling.
+ * Files without the text cannot hold such a call and skip the walk.
+ */
+function collectAccountStoreRemovals(files: readonly string[]): string[] {
+  const roots = files.filter((file) => readFileSync(file, 'utf8').includes('.remove'))
+  const program = ts.createProgram(roots, {
+    target: ts.ScriptTarget.ES2023,
+    module: ts.ModuleKind.NodeNext,
+    moduleResolution: ts.ModuleResolutionKind.NodeNext,
+    strict: true,
+    skipLibCheck: true,
+    types: ['node'],
+  })
+  const checker = program.getTypeChecker()
+  const sites: string[] = []
+  for (const source of program.getSourceFiles()) {
+    if (source.isDeclarationFile || !source.fileName.startsWith(`${SRC}${path.sep}`)) continue
+    const relative = path.relative(ROOT, source.fileName).replaceAll(path.sep, '/')
+    const visit = (node: ts.Node): void => {
+      if (
+        ts.isCallExpression(node) &&
+        ts.isPropertyAccessExpression(node.expression) &&
+        node.expression.name.text === 'remove'
+      ) {
+        const signature = checker.getResolvedSignature(node)
+        if (isAccountStoreRemove(signature?.declaration))
+          sites.push(`${relative} :: ${ACCOUNT_STORE_REMOVE}`)
+      }
+      ts.forEachChild(node, visit)
+    }
+    visit(source)
+  }
+  return sites
+}
+
 /** Every `file :: fragment` occurrence of the three key families in `src/`. */
 export function collectKeyFamilySites(): string[] {
   const sites: string[] = []
-  for (const file of sourceFiles()) {
+  const files = sourceFiles()
+  for (const file of files) {
     const relative = path.relative(ROOT, file).replaceAll(path.sep, '/')
     // Import statements are not accesses, even when they span lines and name
     // a key builder on their own line.
@@ -108,7 +187,8 @@ export function collectKeyFamilySites(): string[] {
     }
     const kept = code.join('\n')
     for (const fragment of FRAGMENTS) {
-      const occurrences = kept.split(fragment).length - 1
+      let occurrences = kept.split(fragment).length - 1
+      if (fragment === 'AccountSecrets') occurrences -= kept.split(HOOK_INDEX).length - 1
       for (let at = 0; at < occurrences; at += 1) sites.push(`${relative} :: ${fragment}`)
     }
     const collapsed = kept.replaceAll(/\s+/gu, '')
@@ -118,5 +198,6 @@ export function collectKeyFamilySites(): string[] {
         sites.push(`${relative} :: secrets.${call}(account)`)
     }
   }
+  for (const site of collectAccountStoreRemovals(files)) sites.push(site)
   return sites.toSorted(compareStrings)
 }

@@ -13,11 +13,12 @@ import { describe, expect, it } from 'vitest'
 import { collectKeyFamilySites, compareStrings } from './migrationKeySites'
 
 // The checked-in call sites, `file :: fragment`, one entry per occurrence
-// (156 on 2026-10-11; R4 adds the account store's write/delete entry
-// points, the vault-port calls, the route types and their callers;
-// recount per family in the certification). A new reader, writer or
-// deleter of these keys changes this list, and the vault join's owed rows
-// with it.
+// (158 on 2026-10-11; R5 finds an `AccountStore` removal by resolved type
+// instead of receiver spelling, holds the store's own `remove` definition,
+// the generic `useCredential<` entry and the two vault-port reads, and
+// drops the three hook-index annotations; recount per family in the
+// certification). A new reader, writer or deleter of these keys changes
+// this list, and the vault join's owed rows with it.
 const EXPECTED_SITES: readonly string[] = [
   'src/core/providers/accountCredentialRecord.ts :: .account.${account}',
   'src/core/providers/accountCredentialRecord.ts :: AccountCredentialVault',
@@ -32,12 +33,15 @@ const EXPECTED_SITES: readonly string[] = [
   'src/core/providers/accounts.ts :: accountSecretKey(',
   'src/core/providers/accounts.ts :: accountSecretKey(',
   'src/core/providers/accounts.ts :: accountSecretKey(',
+  'src/core/providers/accounts.ts :: credentials.read(binding)',
   'src/core/providers/accounts.ts :: readForRemoval(',
+  'src/core/providers/accounts.ts :: remove(provider: string, account: string',
   'src/core/providers/accounts.ts :: rebindOrigin(',
   'src/core/providers/accounts.ts :: remove(binding',
   'src/core/providers/accounts.ts :: setCredential(',
   'src/core/providers/accounts.ts :: useCredential(',
   'src/core/providers/accounts.ts :: useCredential(',
+  'src/core/providers/accounts.ts :: useCredential<',
   'src/core/providers/accounts.ts :: write(binding',
   'src/core/providers/accounts.ts :: write(binding',
   'src/core/providers/configured.ts :: PROVIDER_SECRET_PREFIX',
@@ -66,8 +70,8 @@ const EXPECTED_SITES: readonly string[] = [
   'src/host/auth/metaAccountKey.ts :: setCredential(',
   'src/host/backend/modelApiBackendManager.ts :: .getApiKey(',
   'src/host/backend/modelApiBackendManager.ts :: .getApiKey(',
-  'src/host/models/accountsHandler.ts :: accounts.remove(',
-  'src/host/models/accountsHandler.ts :: accounts.remove(',
+  'src/host/models/accountsHandler.ts :: AccountStore.remove',
+  'src/host/models/accountsHandler.ts :: AccountStore.remove',
   'src/host/prompts/promptEntry.ts :: .getApiKey(',
   'src/host/providers/accountSecrets.ts :: AccountCredentialVault',
   'src/host/providers/accountSecrets.ts :: AccountCredentialVault',
@@ -81,6 +85,7 @@ const EXPECTED_SITES: readonly string[] = [
   'src/host/providers/accountSecrets.ts :: readForRemoval(',
   'src/host/providers/accountSecrets.ts :: readForRemoval(',
   'src/host/providers/accountSecrets.ts :: readForRemoval(',
+  'src/host/providers/accountSecrets.ts :: vault.read(binding)',
   'src/host/providers/accountSecrets.ts :: remove(binding',
   'src/host/providers/accountSecrets.ts :: remove(binding',
   'src/host/providers/accountSecrets.ts :: remove(binding',
@@ -151,14 +156,12 @@ const EXPECTED_SITES: readonly string[] = [
   'src/runtime/main.ts :: SECRET_KEYS.modelApiKey',
   'src/runtime/providers/accountStore.ts :: AccountCredentialVault',
   'src/runtime/providers/accountStore.ts :: AccountSecrets',
-  'src/runtime/providers/accountStore.ts :: AccountSecrets',
-  'src/runtime/providers/accountStore.ts :: AccountSecrets',
   'src/runtime/providers/accountStore.ts :: secretStorageAccountVault(',
-  'src/runtime/providers/accountsCommand.ts :: accounts.remove(',
+  'src/runtime/providers/accountsCommand.ts :: AccountStore.remove',
   'src/runtime/providers/accountsCommand.ts :: setCredential(',
   'src/runtime/providers/runtimeServices.ts :: AccountSecrets',
   'src/runtime/providers/runtimeServices.ts :: AccountSecrets',
-  'src/runtime/providers/runtimeServices.ts :: AccountSecrets',
+  'src/runtime/providers/runtimeServices.ts :: AccountStore.remove',
   'src/runtime/providers/runtimeServices.ts :: SECRET_KEYS.modelApiKey',
   'src/runtime/providers/runtimeServices.ts :: secretStorageAccountVault(',
   'src/runtime/providers/runtimeServices.ts :: setCredential(',
@@ -178,8 +181,14 @@ const EXPECTED_SITES: readonly string[] = [
 ]
 
 describe('C-M109-4 R3 migrated key inventory', () => {
-  it('lists every reader, writer and deleter of the three key families', () => {
-    const actual = collectKeyFamilySites()
-    expect(actual).toEqual([...EXPECTED_SITES].toSorted(compareStrings))
-  })
+  // Named timeout: resolving every `.remove(` receiver's type over the whole
+  // tree takes ~15 s on a loaded rig.
+  it(
+    'lists every reader, writer and deleter of the three key families',
+    { timeout: 120_000 },
+    () => {
+      const actual = collectKeyFamilySites()
+      expect(actual).toEqual([...EXPECTED_SITES].toSorted(compareStrings))
+    },
+  )
 })
