@@ -8,7 +8,7 @@ import { EN } from '../../src/shared/l10n/en'
 import { REPORT_MAX_TEXT_CHARS } from '../../src/shared/constants'
 import { joinPartialReasons } from '../../src/core/reporting/sources/boundary'
 import { readReportSource } from '../../src/core/reporting/sources/boundary'
-import { createLocalReportSources } from '../../src/core/reporting/sources'
+import { stubLocalSources } from './helpers/reporting/localStubs'
 import { createAccountsReportReader } from '../../src/runtime/reporting/reportInputs'
 import type { AccountsFacts } from '../../src/core/reporting/sources/types'
 import { REPORT_FIXTURE_AS_OF, reportOptions } from './helpers/reporting/snapshot'
@@ -64,20 +64,11 @@ describe('bounded problem text', () => {
       ...Array.from({ length: 5000 }, (_, index) => badUsage(`bad-${String(index)}`)),
       goodUsage(),
     ]
-    const sources = createLocalReportSources({
-      files: {
-        read: () => Promise.reject(new Error('unused')),
-        list: () => Promise.reject(new Error('unused')),
-      },
-      git: { run: () => Promise.resolve({ stdout: '', code: 1 }) },
-      scrub: (text) => text,
-      roots: [],
+    const sources = stubLocalSources({
       accounts: createAccountsReportReader({
         dataDir: path.join(TEMP, 'problem-bounds-no-registry'),
         readUsage: () => Promise.resolve(rows),
       }),
-      enabledAgents: [],
-      agentFiles: [],
     })
     const context = {
       reportText: EN,

@@ -34,6 +34,17 @@ function contextFor(
   }
 }
 
+/** A cancelled port holds no data and names the cancelled reason. */
+function expectCancelledResult(result: {
+  data: unknown
+  record: { status: string; reason?: string | null }
+}): void {
+  expect(result.data).toBeNull()
+  expect(result.record.status).toBe('unavailable')
+  if (result.record.status !== 'unavailable') throw new Error('Expected no data')
+  expect(result.record.reason).toContain(EN.reportSourceReasons.cancelled)
+}
+
 /** Resolves once the owner's signal aborts. */
 function aborted(signal: AbortSignal): Promise<void> {
   return new Promise<void>((resolve) => {
@@ -73,10 +84,7 @@ describe('production reads stop on cancellation', () => {
     const result = await pending
     expect(resolveCalls).toBe(1)
     expect(journalCalls).toBe(0)
-    expect(result.data).toBeNull()
-    expect(result.record.status).toBe('unavailable')
-    if (result.record.status !== 'unavailable') throw new Error('Expected no session')
-    expect(result.record.reason).toContain(EN.reportSourceReasons.cancelled)
+    expectCancelledResult(result)
   })
 
   it('an already-aborted session starts neither resolve nor journal', async () => {
@@ -123,10 +131,7 @@ describe('production reads stop on cancellation', () => {
     const result = await pending
     expect(usageCalls).toBe(1)
     expect(eventsCalls).toBe(0)
-    expect(result.data).toBeNull()
-    expect(result.record.status).toBe('unavailable')
-    if (result.record.status !== 'unavailable') throw new Error('Expected no accounts')
-    expect(result.record.reason).toContain(EN.reportSourceReasons.cancelled)
+    expectCancelledResult(result)
   })
 
   it('an already-aborted accounts read starts no sub-source', async () => {
@@ -160,10 +165,7 @@ describe('production reads stop on cancellation', () => {
       contextFor('project', new AbortController().signal, Date.now() - 1000),
     )
     expect(calls).toBe(0)
-    expect(result.data).toBeNull()
-    expect(result.record.status).toBe('unavailable')
-    if (result.record.status !== 'unavailable') throw new Error('Expected no read')
-    expect(result.record.reason).toContain(EN.reportSourceReasons.cancelled)
+    expectCancelledResult(result)
   })
 
   it('a deadline waits for the cooperative reader to settle before returning', async () => {
@@ -178,10 +180,7 @@ describe('production reads stop on cancellation', () => {
       contextFor('project', new AbortController().signal, Date.now() + 30),
     )
     expect(isSettled).toBe(true)
-    expect(result.data).toBeNull()
-    expect(result.record.status).toBe('unavailable')
-    if (result.record.status !== 'unavailable') throw new Error('Expected no read')
-    expect(result.record.reason).toContain(EN.reportSourceReasons.cancelled)
+    expectCancelledResult(result)
   })
 
   it('a wedged reader cannot outlive the settle grace', async () => {
@@ -196,9 +195,6 @@ describe('production reads stop on cancellation', () => {
     )
     // The handed deadline plus one settle grace, with room for a loaded rig.
     expect(Date.now() - startedAt).toBeLessThan(REPORT_SOURCE_SETTLE_MS + 5000)
-    expect(result.data).toBeNull()
-    expect(result.record.status).toBe('unavailable')
-    if (result.record.status !== 'unavailable') throw new Error('Expected no read')
-    expect(result.record.reason).toContain(EN.reportSourceReasons.cancelled)
+    expectCancelledResult(result)
   })
 })

@@ -36,6 +36,7 @@ import { UsageJournalStore, USAGE_JOURNAL_ROOT } from '../../src/core/usage/jour
 import { Usd } from '../../src/shared/usd'
 import { NodeUsageFs } from '../../src/runtime/usage/nodeUsageFs'
 import { reportingServicesFor } from './helpers/reporting/runtime'
+import { stubLocalSources } from './helpers/reporting/localStubs'
 import { usageReportFixtureRecord } from './helpers/usageFixture'
 
 setUiText(EN, 'en')
@@ -268,17 +269,8 @@ describe('bound report inputs', () => {
     expect(lock).not.toBeUndefined()
     try {
       await expect(readUsageReportJournal(data, EN)).rejects.toMatchObject({ code: 'busy' })
-      const sources = createLocalReportSources({
-        files: {
-          read: () => Promise.reject(new Error('unused')),
-          list: () => Promise.reject(new Error('unused')),
-        },
-        git: { run: () => Promise.resolve({ stdout: '', code: 1 }) },
-        scrub: (text) => text,
-        roots: [],
+      const sources = stubLocalSources({
         usage: createUsageReportReader({ dataFolder: data, now: () => NOW, timezoneOffsetMins: 0 }),
-        enabledAgents: [],
-        agentFiles: [],
       })
       const base = context()
       const result = await sources.usage.read({
