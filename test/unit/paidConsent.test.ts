@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   PaidUseConsent,
   paidUseQuestion,
+  type PaidNotKeptNotice,
   type PaidUseAnswer,
 } from '../../src/core/paid/paidConsent'
 import {
@@ -51,6 +52,7 @@ function quoteConsentWith(store: {
 }) {
   const log = new FakeLogOutputChannel()
   const kept: PaidGrant[] = []
+  const notices: PaidNotKeptNotice[] = []
   const ask = vi.fn(() => Promise.resolve<PaidUseAnswer>('always'))
   const consent = new PaidUseConsent({
     isOn: () => true,
@@ -58,6 +60,9 @@ function quoteConsentWith(store: {
     readGrants: () => new Set(),
     writeGrants: () => Promise.resolve(),
     ask,
+    onNotKept: (notice) => {
+      notices.push(notice)
+    },
     quoteGeneration: () => 'stored',
     readQuoteGrant: (quote) =>
       latestPaidGrant(
@@ -74,7 +79,7 @@ function quoteConsentWith(store: {
   })
   const listener = vi.fn()
   consent.onDidChange(listener)
-  return { consent, ask, log, kept, listener }
+  return { consent, ask, log, kept, listener, notices }
 }
 
 const SEARCH: PaidUseRequest = { feature: 'webSearch', priceUsd: Usd.from(0.0025).toAmount() }
@@ -247,6 +252,24 @@ describe('PaidUseConsent (M58)', () => {
     await expect(failing.allows(VOICE)).rejects.toBe('a string failure')
   })
 
+  it('tells the person at once when Always could not be kept', async () => {
+    const notices: PaidNotKeptNotice[] = []
+    const consent = new PaidUseConsent({
+      isOn: () => true,
+      canRemember: () => true,
+      readGrants: () => new Set(),
+      writeGrants: () => Promise.reject(new Error('storage is full')),
+      ask: () => Promise.resolve('always'),
+      onNotKept: (notice) => {
+        notices.push(notice)
+      },
+      log: new FakeLogOutputChannel(),
+    })
+    // The use is allowed once and charged; the sentence arrives when it happens.
+    await expect(consent.allows(VOICE)).resolves.toBe(true)
+    expect(notices).toEqual([{ feature: 'voice', kind: 'Error' }])
+  })
+
   describe('a quoted search "always" its store cannot keep (0.16.0 review)', () => {
     it('keeps a working store’s "always", so the next use asks nothing', async () => {
       const t = quoteConsentWith({})
@@ -285,6 +308,8 @@ describe('PaidUseConsent (M58)', () => {
       expect(t.log.warn).toHaveBeenCalledExactlyOnceWith(
         'Paid search quote could not be kept (Error)',
       )
+      // The person is told at once, with the kind: applied this time, asked again next.
+      expect(t.notices).toEqual([{ feature: 'webSearch', kind: 'Error' }])
       expect(t.log.info).toHaveBeenLastCalledWith('Paid use of webSearch: allowed once')
       expect(t.kept).toEqual([])
       expect(t.listener).not.toHaveBeenCalled()

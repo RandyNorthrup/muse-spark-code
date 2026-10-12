@@ -17,7 +17,12 @@ import {
   UI_TEXT,
   WORKSPACE_STATE_KEYS,
 } from '../../src/shared/constants'
-import { listedPaidFeatures, paidFeaturePrice, usablePaidFeatures } from '../../src/shared/paid'
+import {
+  listedPaidFeatures,
+  paidFeatureName,
+  paidFeaturePrice,
+  usablePaidFeatures,
+} from '../../src/shared/paid'
 import { fill } from '../../src/shared/l10n/text'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { mockJudgePaidConfiguration } from './helpers/judgePaidConfiguration'
@@ -435,6 +440,28 @@ describe('Allow always in this workspace (M58)', () => {
     expect(paid.consent.isRemembered('voice')).toBe(false)
     answerWith(UI_TEXT.paidDeny)
     await expect(paid.consent.allows({ feature: 'voice' })).resolves.toBe(false)
+  })
+
+  it('says at once in the editor when Always could not be saved', async () => {
+    const data = new Map<string, unknown>([[GLOBAL_STATE_KEYS.paidConfirmations, ['voice']]])
+    const workspace = memento(new Map<string, unknown>())
+    workspace.update = () => Promise.reject(new Error('store locked'))
+    const settings = new Set<PaidFeature>(['voice'])
+    const paid = createPaidFeatures({
+      globalState: memento(data),
+      workspaceState: workspace,
+      isSettingOn: (feature) => settings.has(feature),
+      isKeyStored: () => true,
+      canRememberPaidUse: () => true,
+      log: new FakeLogOutputChannel(),
+    })
+    answerWith(UI_TEXT.paidAllowAlways)
+    // The use is allowed once; the sentence arrives as its own warning.
+    await expect(paid.consent.allows({ feature: 'voice' })).resolves.toBe(true)
+    const said = vi.mocked(confirmModal).mock.calls.map((call) => call[0])
+    expect(said.at(-1)).toBe(
+      fill(UI_TEXT.paidAlwaysNotKept, { feature: paidFeatureName('voice'), kind: 'Error' }),
+    )
   })
 
   it('is neither offered nor honoured where it cannot be kept', async () => {

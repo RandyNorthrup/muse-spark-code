@@ -45,7 +45,7 @@ import {
   MAX_ATTACHMENTS_PER_MESSAGE,
   UI_TEXT,
 } from '../../src/shared/constants'
-import type { PaidUseRequest } from '../../src/shared/paid'
+import { paidFeatureName, type PaidUseRequest } from '../../src/shared/paid'
 import { approvalModeFor } from '../../src/shared/permissionModes'
 import { FAKE_MODELS, FakeAgentHost, FakeAgentSession } from './helpers/fakeAgent'
 import { memoryPaidGrants } from './helpers/paidGrants'
@@ -2437,6 +2437,30 @@ describe('paid features in the agent (M63c, M58)', () => {
       expect(h.grants.byFolder.size).toBe(0)
       expect(session.sendTurn).not.toHaveBeenCalled()
     })
+  })
+
+  it('tells the session when its Always could not be saved', async () => {
+    const h = harness({
+      kind: 'modelApi',
+      paid: ['webSearch'],
+      isTrusted: true,
+      answer: () => ({ outcome: { outcome: 'selected', optionId: 'paid-allow-always' } }),
+    })
+    vi.spyOn(h.grants, 'writeQuote').mockRejectedValue(new Error('store locked'))
+    const decision = await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      return await h.paid.allows(CWD, sessionId, WEB_SEARCH, false)
+    })
+    // The use is allowed once; the sentence arrives in the session itself.
+    expect(Boolean(decision)).toBe(true)
+    const said = h.updates.flatMap((update) =>
+      update.sessionUpdate === 'agent_message_chunk' && update.content.type === 'text'
+        ? [update.content.text]
+        : [],
+    )
+    expect(said).toContain(
+      fill(UI_TEXT.paidAlwaysNotKept, { feature: paidFeatureName('webSearch'), kind: 'Error' }),
+    )
   })
 
   it('denies a paid use answered after its session closed (Grok on 78a74430)', async () => {

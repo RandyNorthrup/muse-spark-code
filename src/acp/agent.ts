@@ -1349,6 +1349,14 @@ class AcpSession {
     return answer
   }
 
+  /**
+   * An "always" the session's answer gave but the store could not keep: said
+   * in the session, after the allowed use, so being asked again is expected.
+   */
+  public notePaidNotKept(text: string): void {
+    this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
+  }
+
   public async startAccounts(): Promise<void> {
     // Ordinary sessions never depend on accounts: a failing port leaves the
     // session working without accounts instead of failing adoption.
@@ -2536,6 +2544,18 @@ class AgentState {
     return await acp.askPaidUse(request, canRemember)
   }
 
+  /** An "always" the session's answer gave but the store could not keep. */
+  public notePaidNotKept(sessionId: string, text: string): void {
+    const acp = this.sessions.get(sessionId)
+    if (acp === undefined) {
+      this.deps.log.warn(
+        `ACP session ${sessionId} is gone, so its not-kept paid choice stays only in the log`,
+      )
+      return
+    }
+    acp.notePaidNotKept(text)
+  }
+
   public async askVaultUse(
     sessionId: string,
     request: VaultApprovalRequest,
@@ -2554,6 +2574,9 @@ export function createAcpAgent(deps: AcpAgentDeps): AgentApp {
   deps.paid.attach((sessionId, request, canRemember) =>
     state.askPaidUse(sessionId, request, canRemember),
   )
+  deps.paid.attachNotify((sessionId, text) => {
+    state.notePaidNotKept(sessionId, text)
+  })
   return acpAgent({ name: ACP_AGENT_NAME })
     .onRequest('initialize', (context) => {
       deps.onClientName?.(context.params.clientInfo?.name ?? 'ACP')

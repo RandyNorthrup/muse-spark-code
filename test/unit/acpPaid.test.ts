@@ -8,7 +8,7 @@ import type * as FsPromises from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { AcpPaidUse, paidUseAnswer, paidUseOptions } from '../../src/acp/paid'
+import { AcpPaidUse, paidUseAnswer, paidUseOptions, type PaidGrantStore } from '../../src/acp/paid'
 import { paidGrantFile } from '../../src/runtime/paidGrants'
 import { workspaceKey } from '../../src/runtime/dataFolder'
 import { memoryPaidGrants } from './helpers/paidGrants'
@@ -17,9 +17,69 @@ import { readFileSync as readDocumentation } from 'node:fs'
 import { CLI_OPTION_REGISTRY, formatAcpUsage } from '../../src/runtime/cliOptions'
 import { createReference } from '../../src/shared/reference/referenceEntry'
 import { EN } from '../../src/shared/l10n/en'
-import type { PaidUseRequest } from '../../src/shared/paid'
+import { paidFeatureName, type PaidUseRequest } from '../../src/shared/paid'
+import type { PaidFeature } from '../../src/shared/constants'
 import { referenceModel } from '../../src/shared/reference/reference.generated'
 import { fill } from '../../src/shared/l10n/text'
+
+/** A grant store whose persistence fails, so an "always" is allowed once. */
+function unsavableGrants(): PaidGrantStore {
+  return {
+    read: () => new Set<PaidFeature>(),
+    add: () => Promise.reject(new Error('store locked')),
+    forget: () => Promise.resolve(),
+  }
+}
+
+function compactionRequest(): PaidUseRequest {
+  return {
+    feature: 'autoCompaction',
+    modelId: 'muse-spark-1.3',
+    dailyBudgetUsd: Usd.from(5).toAmount(),
+  }
+}
+
+it('tells the session person at once when Always could not be saved', async () => {
+  const told: [string, string][] = []
+  const paid = new AcpPaidUse({
+    flagged: ['autoCompaction'],
+    autoCompactionEvaluated: () => true,
+    canRemember: () => true,
+    grants: unsavableGrants(),
+    log: logger(),
+  })
+  paid.attach(() => Promise.resolve('always' as const))
+  paid.attachNotify((sessionId, text) => {
+    told.push([sessionId, text])
+  })
+  // The use is allowed once; the sentence reaches the session, not only the log.
+  expect(await paid.allows('/ws', 'session', compactionRequest(), false)).toBe(true)
+  expect(told).toHaveLength(1)
+  expect(told[0]?.[0]).toBe('session')
+  expect(told[0]?.[1]).toBe(
+    fill(EN.paidAlwaysNotKept, { feature: paidFeatureName('autoCompaction'), kind: 'Error' }),
+  )
+})
+
+it('tells the terminal operator at once when Always could not be saved', async () => {
+  const warned: string[] = []
+  const paid = new AcpPaidUse({
+    flagged: ['autoCompaction'],
+    autoCompactionEvaluated: () => true,
+    canRemember: () => true,
+    grants: unsavableGrants(),
+    log: logger(),
+    // As the runtime wires it: the operator's console hears the sentence.
+    notify: (text) => {
+      warned.push(text)
+    },
+  })
+  paid.attach(() => Promise.resolve('always' as const))
+  expect(await paid.allows('/ws', 'session', compactionRequest(), false)).toBe(true)
+  expect(warned).toEqual([
+    fill(EN.paidAlwaysNotKept, { feature: paidFeatureName('autoCompaction'), kind: 'Error' }),
+  ])
+})
 
 it('ACP automatic compaction asks once after its explicit flag and refuses without it', async () => {
   const request: PaidUseRequest = {
