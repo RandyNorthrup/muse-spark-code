@@ -989,6 +989,12 @@ export const EN = {
   // scheduled turns support instead of what billing verified.
   scheduledMediaSupport:
     'Scheduled turns support text and image inputs; video and audio inputs are unsupported in this version.',
+  referenceSchedulesCertified:
+    'Certified scheduled prompts deliver in VS Code, ACP and the terminal. /loop remains manual.',
+  referenceRuntimeSchedulesCertified:
+    'Scheduled prompts use session-owned output, durable fire records and background targets in ACP and the terminal.',
+  referenceSchedulePaidConsentCertified:
+    'Each paid schedule needs its own current consent and shares one schedule cap and daily budget across hosts.',
   referenceSchedules:
     'The v2 schedule editor, list and timeline manage durable records. Automatic VS Code v2 prompt delivery is disabled. Model API /loop jobs run when you choose Run now.',
   runtimeSchedulesItem: 'Runtime schedules',

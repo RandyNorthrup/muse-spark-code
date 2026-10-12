@@ -160,7 +160,7 @@
   "command.schedulePrompt.title": "Schedule this prompt…",
   "command.showSchedules.title": "Show schedules",
   "command.showScheduleTimeline.title": "Show schedule timeline",
-  "config.schedules.description": "Steruje skrótem dotychczasowego polecenia /loop w czacie Muse Code. Zarządzanie harmonogramami i wykonywanie zaplanowanych poleceń są niedostępne.",
+  "config.schedules.description": "Steruje /loop w czacie Muse Code. Dostarczanie zaplanowanych poleceń wymaga certyfikacji.",
   "config.schedules.defaultDelivery.description": "Wybiera sposób dostarczania zapisany w nowych szkicach harmonogramów; nie włącza zaplanowanego wykonywania.",
   "config.schedules.agentCreation.description": "Zachowane dla zgodności; ta preferencja nie ma wpływu na działanie w tej kompilacji.",
   "command.tabLanguages.title": "Języki Tab",

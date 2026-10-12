@@ -160,7 +160,7 @@
   "command.schedulePrompt.title": "Schedule This Prompt…",
   "command.showSchedules.title": "Show Schedules",
   "command.showScheduleTimeline.title": "Show Schedule Timeline",
-  "config.schedules.description": "Controls the legacy /loop shortcut in Muse Code chat. Schedule management and scheduled prompt execution are unavailable.",
+  "config.schedules.description": "Controls the legacy /loop shortcut in Muse Code chat. Scheduled prompt delivery requires certification.",
   "config.schedules.defaultDelivery.description": "Selects the delivery written into new schedule drafts; it does not enable scheduled execution.",
   "config.schedules.agentCreation.description": "Stored for compatibility; no runtime effect.",
   "command.tabLanguages.title": "Tab Languages",

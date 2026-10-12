@@ -2339,34 +2339,25 @@ in that conversation's token estimate. A run admitted just before a crash
 is not replayed, even if its result was never seen. Cancel does not stop a
 turn that already began.
 
-The `schedule` command manages durable
-jobs beyond `/loop`: `schedule add --draft <JSON>` (with
-`--scheduled-prompts --max-budget-usd <USD>` to validate paid authority under
-that hard cap), `list`, `remove`, `run-now`, `pause`, `resume`, `fire`,
-`timeline`, `run-due` and `background`. Without a positive budget, paid
-authorization for an unattended run is refused. Flags alone do not grant
-Model API spending: runtime delivery also requires the schedule's paid policy;
-without that policy the fire is recorded as refused before any response request.
-The durable journal prevents competing holders from dispatching the same
-claimed fire. The ACP `/schedule` command offers the same list, except
-`run-due` and background maintenance.
-
 ### Runtime scheduled delivery
 
-ACP and the terminal deliver Muse Code scheduled prompts through the shared
-unattended engine. Live ACP targets are borrowed; closed targets with **Open**
+Automatic v2 delivery is disabled in VS Code, ACP and the terminal pending
+certification. The candidate runtime adapter supports scheduled prompts through
+the shared unattended engine. Live ACP targets are borrowed; closed targets with **Open**
 resume in the background, and **New conversation** creates a separate session.
 Steer, interrupt, queue and when-idle delivery use the backend's scheduled
 entry points. Approvals outside the standing grant refuse immediately and
 their rows reach the ACP session; questions defer for later answering.
 Output reaches only the session that owns the scheduled target. Background
 and unattached-target output goes to the runtime's standard error stream.
-Shutdown or target detachment withdraws that schedule's queued message without
-cancelling a borrowed user turn, and records the final outcome. Recovery
-retires abandoned claims instead of sending their prompts again. Run now
+An orderly close settles only fires this process handed to a host. A confirmed
+queue withdrawal records a known zero-cost result; an unknown in-flight outcome
+retains its liability and is never sent again. Admissions not handed to a host
+stay pending for delivery once after reload. A closing process leaves another
+process's work untouched. Run now
 reports acceptance only after a successful durable fire record exists.
-The subscription pays for Muse Code turns. Model API delivery remains refused
-until its per-schedule paid policy is installed.
+Muse Code turns use the subscription. Paid Model API fires require current
+per-schedule consent and both daily caps before dispatch.
 
 The private schedule registry retains workspace paths for terminal `run-due`,
 which opens each due target in its recorded workspace, records the outcome,
@@ -2385,8 +2376,8 @@ or payer kinds, and changes to the shared daily budget (including a day's
 override), require renewed consent; unattended fires refuse stale consent
 before HTTP. VS Code and ACP use the same question; CLI authorization requires
 both explicit flags and printing that quote. Exact-money reservations share
-the schedule cap and the host's D78 daily ledger, including retained uncertain
-liability. This port remains behind the automatic-delivery certification gate
+the schedule cap and one shared daily ledger across VS Code, ACP and CLI,
+including retained uncertain liability. This port remains behind the automatic-delivery certification gate
 described above.
 
 Muse Code has its own subscription-backed `cron_create`, `cron_list` and

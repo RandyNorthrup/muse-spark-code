@@ -422,9 +422,14 @@ describe('CX1R5: exhaustive current-publication truth matrix', () => {
     ])
       expect(manifest.contributes.menus.commandPalette).toContainEqual({
         command: `museSpark.${command}`,
-        when: 'false',
+        when:
+          command.startsWith('schedule') || command.startsWith('showSchedule')
+            ? 'museSpark.scheduleDeliveryCertified'
+            : 'false',
       })
-    expect(read('src/runtime/main.ts')).toMatch(/schedules: \{\s+isAvailable: false/)
+    expect(read('src/runtime/main.ts')).toMatch(
+      /schedules: \{\s+isAvailable: OPTIONAL_RUNTIME_AVAILABILITY\.schedules/,
+    )
     expect(read('src/runtime/main.ts')).not.toContain('vault: acpVault')
     for (const id of REFERENCE_IN_PROGRESS_FEATURES)
       expect(featureCatalog().find((feature) => feature.id === id)?.surfaces).toEqual([])

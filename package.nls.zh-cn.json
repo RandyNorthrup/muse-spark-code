@@ -160,7 +160,7 @@
   "command.schedulePrompt.title": "Schedule this prompt…",
   "command.showSchedules.title": "Show schedules",
   "command.showScheduleTimeline.title": "Show schedule timeline",
-  "config.schedules.description": "控制 Muse Code 聊天中原有的 /loop 快捷入口。日程管理和计划提示执行均不可用。",
+  "config.schedules.description": "控制 Muse Code 聊天中的 /loop。计划提示的发送需要认证。",
   "config.schedules.defaultDelivery.description": "选择写入新计划草稿的交付方式；不会启用计划执行。",
   "config.schedules.agentCreation.description": "为兼容性保留；此偏好设置在此构建中不起作用。",
   "command.tabLanguages.title": "Tab 语言",
