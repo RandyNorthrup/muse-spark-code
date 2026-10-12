@@ -28,6 +28,7 @@ import {
 } from '../../src/shared/constants'
 import { resourceSettingsSchema } from '../../src/shared/resources'
 import { findBash } from './helpers/shellParsers'
+import { noteToolSkip } from './helpers/realMachine'
 
 const byText = (a: string, b: string) => a.localeCompare(b)
 
@@ -817,6 +818,11 @@ describe('tiered CI (CIFLOW)', () => {
   })
 
   const bash = findBash()
+  noteToolSkip(
+    'bash',
+    'passes a required name only when its whole tier succeeded',
+    bash !== undefined,
+  )
   // 24 subshells: about 7.5 s on a loaded Windows host, where each one is a
   // new process; well under a second on Linux.
   const BASH_CASES_TIMEOUT_MS = 60_000

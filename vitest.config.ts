@@ -44,6 +44,9 @@ export default defineConfig({
   },
   test: {
     include: ['test/unit/**/*.test.{ts,tsx,mjs}', 'test/e2e/**/*.test.ts'],
+    // The opt-in live drills need the real home and run only under
+    // vitest.live.config.ts (no redirect); here they would inherit it.
+    exclude: ['test/e2e/live.e2e.test.ts', 'test/e2e/*.live.e2e.test.ts'],
     environment: 'node',
     setupFiles: ['test/unit/setup.ts'],
     // Once-per-run artefacts shared by suites (inject()), built before workers start.

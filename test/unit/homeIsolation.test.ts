@@ -1,6 +1,8 @@
+import { existsSync } from 'node:fs'
 import { homedir } from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { bunPath, realHome } from './helpers/realMachine'
 
 /**
  * The unit suite must not read the developer's real home folder: the
@@ -25,5 +27,14 @@ describe('unit home isolation', () => {
     if (process.platform === 'win32') {
       expect(process.env['USERPROFILE']).toBe(home)
     }
+  })
+
+  it('keeps the real machine locations for tool lookups', () => {
+    expect(process.env['MUSE_UNIT_REAL_HOME']).toBeDefined()
+    expect(realHome()).toBe(process.env['MUSE_UNIT_REAL_HOME'])
+    expect(realHome()).not.toContain('muse-unit-home-')
+    // A reported tool path really exists: detection and registry agree.
+    const bun = bunPath()
+    if (bun !== undefined) expect(existsSync(bun)).toBe(true)
   })
 })

@@ -3,13 +3,15 @@
 // per `muse serve` process, readable once that process has exited).
 
 import { readdirSync, readFileSync } from 'node:fs'
-import { homedir } from 'node:os'
 import path from 'node:path'
 import { MuseCodeBackendManager } from '../../src/host/backend/museCodeBackendManager'
 import { CONTRIBUTOR_MODEL_SUFFIX, DEFAULT_MODEL_ID } from '../../src/shared/constants'
 import type { FakeLogOutputChannel } from '../unit/helpers/fakes'
+import { realHome } from '../unit/helpers/realMachine'
 
-const TRACE_DIR = path.join(homedir(), '.local', 'share', 'muse', 'local-tracing', 'bootstrap')
+// The real CLI's trace folder on the real machine: under the unit redirect
+// this is the saved real home, under the live project the current one.
+const TRACE_DIR = path.join(realHome(), '.local', 'share', 'muse', 'local-tracing', 'bootstrap')
 /** One line per model attempt admitted; the two fields are not adjacent on the line. */
 const ATTEMPT_LINE = /event="model.attempt.lifecycle".*phase="admission"/g
 const LOG_WAIT_MS = 30_000
