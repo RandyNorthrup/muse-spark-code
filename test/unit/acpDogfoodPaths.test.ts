@@ -98,9 +98,10 @@ describe('ACPDOG explicit workspace refusals', () => {
             sessionUpdate: 'tool_call_update',
             status: 'failed',
             _meta: {
+              // The client reads the specific reason, not the shown sentence.
               'museSpark.refusal': {
                 code: 'outside_workspace',
-                reason: UI_TEXT.acpOutsideWorkspaceRefused,
+                reason: 'path /outside/report.md is outside the workspace',
               },
             },
           }),
