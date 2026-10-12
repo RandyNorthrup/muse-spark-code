@@ -3307,6 +3307,7 @@
   "scheduleRunConfirmPrice": "Model API anahtarınıza faturalandırılır: {price}. Toplam, kullanılan tokenlara göre değişir.",
   "scheduleRunConfirmExtras": "Etkin diğer ücretli araçlar ek ücret getirebilir. Bypass modu bu onayı atlamaz.",
   "scheduleConfirmationExpired": "Onay sırasında model, konuşma veya istem değişti. Zamanlamayı gözden geçirip yeniden Çalıştır'ı seçin.",
+  "execKeyRotated": "Anahtar çalıştırma sırasında döndürüldü; istek gönderilmedi.",
   "requestStaleTurn": "Gönderim sırasında model veya konuşma değişti. İletinizi yeniden gönderin.",
   "requestStaleCompaction": "Sıkıştırma sırasında model veya konuşma değişti. Yeniden sıkıştırın.",
   "requestStaleRetry": "İstek gönderilmeden önce model veya konuşma değişti. Yeniden deneyin.",
@@ -3465,6 +3466,17 @@
   "acpFontsUsage": "Kullanım: {command} fonts install [--from <directory>]",
   "acpUsage": "Kullanım:\n  {command} [seçenekler]              Agent Client Protocol'ü stdin ve stdout üzerinden sunar\n  {command} [seçenekler] login        Bu terminalde Muse Code'da oturum açar\n  {command} auth set|status|clear  Meta Model API anahtarını saklar, denetler veya kaldırır\n  {command} auth set|status|clear --provider <id>  Bir sağlayıcı anahtarını saklar, denetler veya kaldırır (stdin'den okunur)\n  {command} providers list|add|test|remove  Model sağlayıcılarını yönetir\n  {command} exec [options] <prompt>  Arayüzsüz bir tur çalıştır\n  {command} scan-secrets <file> [--key-stdin]  Bir dosyadaki olası gizli bilgileri say (yalnızca sayıyı yazar)\n  {command} report [options]  Düzeltilmiş sorun raporu yazdır (arka uç başlatmaz, tarayıcı açmaz)\n  {command} legal [options]  Salt okunur yasal taramayı çalıştır (arka uç veya oturum gerekmez)\nSeçenekler:\n  --backend museCode|modelApi      Kim öder: Muse Code (varsayılan) veya Model API anahtarı\n  --trust-workspace                Klasörün kurallarını, becerilerini ve belleğini yükler\n  --muse-binary <yol>             Çalıştırılacak Muse Code CLI\n  --shell-sandbox auto|muse|off    Muse Code'un kabuk korumalı alanı\n  --questions-defer-after <seconds>  Soruları varsayılan olarak 60 saniye sonra ertele; 0 hiçbir zaman, 1–9 değeri 10 sayılır, en fazla 3600\n  --allow-dangerously-skip-permissions  \"İzinleri atla\" modunu sunar\n  --allow-contributor-models       Katkıda bulunan düzeyindeki modelleri listeler (Meta bunların içeriğiyle eğitim yapabilir)\n  --web-search                     Ücretli web aramasını sunar (Model API arka ucu; önce fiyatı sorulur)\n  --image-generation               Ücretli görüntü oluşturmayı sunar (Model API arka ucu; önce fiyatı sorulur)\n  --verbose                        Her ayrıntıyı stderr'e kaydeder\n  --help, --version\n  {command} --trust-workspace setup [--maintenance]  Setup kancalarını çalıştırır ve çıkar",
   "reportUsage": "Kullanım:\n  {command} report [--out <file>] [--description <text>] [--no-facts] [--no-events]\n  Düzeltilmiş sorun raporunu stdout’a yazar veya --out ile <file> dosyasına kaydeder.\n  Arka uç başlatmaz, hiçbir yerde oturum açmaz ve tarayıcı açmaz.\nSeçenekler:\n  --out <file>         Raporu stdout yerine dosyaya yaz\n  --description <text>  Neler olduğunu kendi sözlerinle anlat\n  --no-facts           Destek bilgilerini çıkar\n  --no-events          Son olayları çıkar",
+  "execProgressStarted": "İstek {request} başladı; {reserved} ayrıldı.",
+  "execProgressSettled": "İstek {request} bitti; çalıştırma girdisi {input}, çıktısı {output}; harcanan {settled}, belirsiz {uncertain}.",
+  "execProgressTokens": {
+    "one": "toplam {count} token",
+    "other": "toplam {count} token"
+  },
+  "execTokenCount": {
+    "one": "en fazla {count} belirteç",
+    "other": "en fazla {count} belirteç"
+  },
+  "execBudgetQuote": "Girdi {inputTokens} ({inputCost}) + çıktı sınırı {outputTokens} ({outputCost}) = {estimate}; çalıştırma bütçesi {cap}, kullanılan {spent}. İstek gönderilmedi.",
   "execBudgetRequired": "Model API için --max-budget-usd gerekir.",
   "execNumberInvalid": "Geçersiz sayı veya sınır; USD bütçesi en fazla altı ondalık basamak kabul eder.",
   "execTrustRefused": "Arayüzsüz çalıştırmalar çalışma alanına güvenmeyi ve izinleri atlamayı reddeder.",
@@ -3488,6 +3500,18 @@
   "execEffortUnavailable": "Bu düşünme düzeyi bu modelde kullanılamıyor.",
   "execTimedOut": "Çalıştırma süre sınırına ulaştı.",
   "execBudgetRefused": "Sonraki istek kalan bütçeyi aşıyor.",
+  "execPaidDailyStopped": "Ücretli ekstralar durduruldu: günlük bütçe {cap} doldu (harcanan {spent}, {requests} tarafından tutulan {held}); {reset} sıfırlanır. Devam etmek için {setting} değerini yükseltin.",
+  "execPaidOpenRequests": {
+    "one": "{count} açık istek",
+    "other": "{count} açık istek"
+  },
+  "execBudgetProgress": {
+    "one": "Bütçe, {count} istekten sonra çalıştırmayı durdurdu; şu ana kadarki iş korunur.",
+    "other": "Bütçe, {count} istekten sonra çalıştırmayı durdurdu; şu ana kadarki iş korunur."
+  },
+  "execModelNeedsProvider": "{model} modeli {provider} sağlayıcısına ait; --provider {provider} ile yeniden çalıştırın. Kullanılabilir modeller: {available}.",
+  "execModelNotOnProvider": "{model} modeli {provider} sağlayıcısında yok. Kullanılabilir modeller: {available}.",
+  "execModelAvailable": "{model} modeli bu arka uçta kullanılamıyor. Kullanılabilir modeller: {available}.",
   "execBudgetMinimum": "Bu çalıştırma için en az {minimum} gerekir.",
   "execBudgetBreach": "Gözlenen hesaplama ayrılan tutarı aştı.",
   "execIncomplete": "Yanıt tamamlanmadı.",
@@ -3569,6 +3593,7 @@
   "providerPrivateNeedsConfirm": "{origin} özel bir ağda; onaylamak için --private-ok ile yeniden çalıştırın.",
   "providerEndpointRefused": "Bu adres kullanılamaz ({reason}).",
   "providerNoRequestPath": "{provider} burada henüz çalışamaz; trafiğinin kaydı bekleniyor.",
+  "providerModelNoPrice": "{ref} çalıştırılamıyor: fiyat kartı yok, bu yüzden hiçbir çalıştırma rezervasyon yapamaz.",
   "execProviderNeedsModelApi": "--provider için --backend modelApi gerekir.",
   "execProviderModelRequired": "Bu sağlayıcı çalıştırması --model provider/model gerektirir.",
   "execProviderNotReady": "Sağlayıcı çalıştırmaları sağlayıcı taşıma katmanını gerektirir; {provider} isteğinin denetimi geçti.",
@@ -4282,6 +4307,9 @@
     "failure": "ChatGPT oturumu açılamadı. Yeniden deneyin veya kaldırıp tekrar oturum açın.",
     "storeUnavailable": "Bu bilgisayarın kimlik bilgisi deposu kullanılamıyor. Kilidi açılmış depoyla etkileşimli bir masaüstü oturumundan giriş yapın; Linux’ta önce Secret Service’i başlatın."
   },
+  "execProviderNotCatalogue": "Bu model bu derlemenin kataloğunda yok: {model}.",
+  "providerCliModelsRequired": "--model <id> kullanın (ek modeller için tekrarlayın). Kullanılabilir: {models}.",
+  "providerCliConfigure": "Şu seçenekleri kontrol edin: --preset {preset}, --model <id>, --key-stdin, --address <url>, --private-ok.",
   "execProviderNotConfigured": "{id} sağlayıcısı yapılandırılmadı.",
   "providerText": {
     "wizard": {
@@ -5294,33 +5322,5 @@
       "one": "{count} izin",
       "other": "{count} izin"
     }
-  },
-  "execKeyRotated": "Anahtar çalıştırma sırasında döndürüldü; istek gönderilmedi.",
-  "execPaidDailyStopped": "Ücretli ekstralar durduruldu: günlük bütçe {cap} doldu (harcanan {spent}, {requests} tarafından tutulan {held}); {reset} sıfırlanır. Devam etmek için {setting} değerini yükseltin.",
-  "execPaidOpenRequests": {
-    "one": "{count} açık istek",
-    "other": "{count} açık istek"
-  },
-  "execBudgetProgress": {
-    "one": "Bütçe, {count} istekten sonra çalıştırmayı durdurdu; şu ana kadarki iş korunur.",
-    "other": "Bütçe, {count} istekten sonra çalıştırmayı durdurdu; şu ana kadarki iş korunur."
-  },
-  "execModelNeedsProvider": "{model} modeli {provider} sağlayıcısına ait; --provider {provider} ile yeniden çalıştırın. Kullanılabilir modeller: {available}.",
-  "execModelNotOnProvider": "{model} modeli {provider} sağlayıcısında yok. Kullanılabilir modeller: {available}.",
-  "execModelAvailable": "{model} modeli bu arka uçta kullanılamıyor. Kullanılabilir modeller: {available}.",
-  "providerModelNoPrice": "{ref} çalıştırılamıyor: fiyat kartı yok, bu yüzden hiçbir çalıştırma rezervasyon yapamaz.",
-  "execBudgetQuote": "Girdi {inputTokens} ({inputCost}) + çıktı sınırı {outputTokens} ({outputCost}) = {estimate}; çalıştırma bütçesi {cap}, kullanılan {spent}. İstek gönderilmedi.",
-  "execTokenCount": {
-    "one": "en fazla {count} belirteç",
-    "other": "en fazla {count} belirteç"
-  },
-  "execProviderNotCatalogue": "Bu model bu derlemenin kataloğunda yok: {model}.",
-  "providerCliModelsRequired": "--model <id> kullanın (ek modeller için tekrarlayın). Kullanılabilir: {models}.",
-  "providerCliConfigure": "Şu seçenekleri kontrol edin: --preset {preset}, --model <id>, --key-stdin, --address <url>, --private-ok.",
-  "execProgressStarted": "İstek {request} başladı; {reserved} ayrıldı.",
-  "execProgressSettled": "İstek {request} bitti; çalıştırma girdisi {input}, çıktısı {output}; harcanan {settled}, belirsiz {uncertain}.",
-  "execProgressTokens": {
-    "one": "toplam {count} token",
-    "other": "toplam {count} token"
   }
 }

@@ -14,11 +14,11 @@ happened, not what was planned; superseded entries are kept.
 - Claude Haiku 5.5 is listed with an unknown price pending a documented receipt.
 - `help reference` explicitly opens the full terminal reference.
 
-- Headless Model API runs accept `--max-output-tokens` with a 1024-token default,
-  shared by the request body, validation and budget ledger.
-
 ### Fixed
 
+- A paid limit refusal names the limit with its numbers instead of a generic failure.
+- A budget hold left by a run that died is released instead of leaking into the daily ledger.
+- A turn stopped by its budget keeps the work produced so far instead of withholding it.
 - Stopped headless runs retain the redacted partial answer and its cost with an explicit incomplete marker.
 - Bounded uncertain daily liability keeps its full amount without blocking all later requests as an unknown historical fee.
 

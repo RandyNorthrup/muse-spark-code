@@ -3183,14 +3183,15 @@ popup policy remains in force for interactive sessions.
 
 Admission reserves conservative request input and the resolved output cap for
 each attempt, including retries, with integer micro-USD upward rounding (EXECPROV,
-2026-10-11). There is no fixed full-context startup minimum. Headless output
-now defaults to 1024, adjustable with `--max-output-tokens`; the same value feeds
-the body, request schema, ledger shape check and first real reservation. Lost
-receipts keep their request reservation. Configured price cards include their
-captured cache-write premiums and long-context tier. VS Code's session admission
-already uses `estimateInput` / `reserveRequest`; the standalone daily wrapper now
-uses that same input estimator. See `docs/certification/exec-provider.md`; full
-aggregate quality and installed/live certification remain lead-owned.
+2026-10-11). There is no fixed full-context startup minimum. Each request is
+capped at the model's own output limit (0.18.0 policy cap, kept at the merge
+2026-10-12); the cap feeds the body, request schema, ledger shape check and
+first real reservation. Lost receipts keep their request reservation. Configured
+price cards include their captured cache-write premiums and long-context tier.
+VS Code's session admission already uses `estimateInput` / `reserveRequest`; the
+standalone daily wrapper now uses that same input estimator. See
+`docs/certification/exec-provider.md`; full aggregate quality and installed/live
+certification remain lead-owned.
 Configured defaults are authoritative in exec and ACP; no missing default selects
 another model. Ephemeral exec omits durable usage history and reports
 usageHistory=omitted_ephemeral. Command --help stays local; help reference opens
@@ -33873,6 +33874,25 @@ lane A's first step.
 ---
 
 ## 7. Gates
+
+**EXECPROV round 4 scoped qualification (2026-10-12, kubuntu).** The
+explicit lane brief reserves aggregate `npm run quality` for the lead.
+This lane merges `snap/hotfix-0181` (0.18.0 + 0.18.1) into
+`fix/exec-provider`, keeps the D1-D6 fixes on the release (paid-stop and
+stale-confirmation pass-throughs; policy output cap; cross-bundle refusal
+classifier and provider assembly behind the lazy provider entry, proved
+by the split gate), runs all five typechecks, the production build with
+its budgets, the round-3 and hotfix owning suites at the repository
+timeout, three byte-restored red drills (D1/D2/D3) and the l10n,
+reference, roadmap and host-api checks. FINDING, not a deferral: the
+Model API exact-byte pin (`deferredBundles`, 532,827 B) reads 533,327 B
+(+500 B); every byte is attributed to pinned hot-path behavior
+(transport paid/rotation branches and classifier read, client refusal
+catch, host default-model hunk) in `docs/certification/exec-provider.md`.
+The pin is not moved; the lead disposes (re-measure with owner decision,
+as the hotfix did at +290 B, or direct further diet). Loopback suites are
+sandbox-blocked here (direct probe: `fetch` to 127.0.0.1 throws), named
+for the lead's unsandboxed run.
 
 **TRAINACT scoped qualification.** The explicit rig/common brief reserves
 aggregate `npm run quality` for the lead and forbids it in this lane.

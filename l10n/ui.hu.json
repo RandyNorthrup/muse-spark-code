@@ -3307,6 +3307,7 @@
   "scheduleRunConfirmPrice": "A Model API-kulcsára terhelve: {price}. A végösszeg a felhasznált tokenektől függ.",
   "scheduleRunConfirmExtras": "Más bekapcsolt fizetős eszközök további díjakat okozhatnak. A Bypass mód nem hagyja ki ezt a megerősítést.",
   "scheduleConfirmationExpired": "A modell, a beszélgetés vagy az utasítás megváltozott a megerősítés alatt. Ellenőrizze az ütemezést, majd válassza ismét a Futtatás lehetőséget.",
+  "execKeyRotated": "A kulcs futás közben lecserélődött; a kérés nem lett elküldve.",
   "requestStaleTurn": "A modell vagy a beszélgetés megváltozott küldés közben. Küldje el újra az üzenetet.",
   "requestStaleCompaction": "A modell vagy a beszélgetés megváltozott tömörítés közben. Tömörítsen újra.",
   "requestStaleRetry": "A modell vagy a beszélgetés megváltozott a kérés elküldése előtt. Próbálja újra.",
@@ -3465,6 +3466,17 @@
   "acpFontsUsage": "Használat: {command} fonts install [--from <directory>]",
   "acpUsage": "Használat:\n  {command} [kapcsolók]              Az Agent Client Protocol kiszolgálása stdin és stdout felett\n  {command} [kapcsolók] login        Bejelentkezés a Muse Code-ba ebben a terminálban\n  {command} auth set|status|clear  A Meta Model API-kulcs tárolása, ellenőrzése vagy törlése\n  {command} auth set|status|clear --provider <id>  Szolgáltatói kulcs tárolása, ellenőrzése vagy törlése (stdinről olvasva)\n  {command} providers list|add|test|remove  Modellszolgáltatók kezelése\n  {command} exec [options] <prompt>  Egy kör futtatása felület nélkül\n  {command} scan-secrets <file> [--key-stdin]  Valószínű titkok megszámolása egy fájlban (csak a számot írja ki)\n  {command} report [options]  Tisztított hibajelentés kiírása (nem indít backendet, nem nyit böngészőt)\n  {command} legal [options]  Csak olvasható jogi vizsgálat futtatása (háttérrendszer és bejelentkezés nélkül)\nKapcsolók:\n  --backend museCode|modelApi      Ki fizet: a Muse Code (alapértelmezett) vagy a Model API-kulcs\n  --trust-workspace                A mappa szabályainak, képességeinek és memóriájának betöltése\n  --muse-binary <útvonal>             A futtatandó Muse Code parancssori eszköz\n  --shell-sandbox auto|muse|off    A Muse Code parancsértelmező-védőkörnyezete\n  --questions-defer-after <seconds>  Alapértelmezés szerint 60 másodperc után halassza el a kérdéseket; 0 soha, 1–9 értéke 10, legfeljebb 3600\n  --allow-dangerously-skip-permissions  A(z) „Engedélyek megkerülése” mód felkínálása\n  --allow-contributor-models       A közreműködői szintű modellek listázása (a Meta tanulhat a tartalmukból)\n  --web-search                     Fizetős webes keresés felajánlása (Model API háttérrendszer; előbb az áráról kérdez)\n  --image-generation               Fizetős képkészítés felajánlása (Model API háttérrendszer; előbb az áráról kérdez)\n  --verbose                        Minden részlet naplózása az stderr-re\n  --help, --version\n  {command} --trust-workspace setup [--maintenance]  A Setup hookok futtatása, majd kilépés",
   "reportUsage": "Használat:\n  {command} report [--out <file>] [--description <text>] [--no-facts] [--no-events]\n  Kiírja a tisztított hibajelentést stdout-ra, vagy --out-tal <file>-ba írja.\n  Nem indít backendet, sehová sem jelentkezik be, és nem nyit böngészőt.\nKapcsolók:\n  --out <file>         A jelentés fájlba írása stdout helyett\n  --description <text>  Mi történt, saját szavakkal\n  --no-facts           A támogató tények kihagyása\n  --no-events          A legutóbbi események kihagyása",
+  "execProgressStarted": "A(z) {request}. kérés elindult; lefoglalva: {reserved}.",
+  "execProgressSettled": "A(z) {request}. kérés véget ért; a futás bemenete {input}, kimenete {output}; elköltve {settled}, bizonytalan {uncertain}.",
+  "execProgressTokens": {
+    "one": "összesen {count} token",
+    "other": "összesen {count} token"
+  },
+  "execTokenCount": {
+    "one": "legfeljebb {count} token",
+    "other": "legfeljebb {count} token"
+  },
+  "execBudgetQuote": "Bemenet: {inputTokens} ({inputCost}) + kimeneti korlát: {outputTokens} ({outputCost}) = {estimate}; futási keret: {cap}, felhasználva: {spent}. A kérés nem lett elküldve.",
   "execBudgetRequired": "A Model API használatához --max-budget-usd szükséges.",
   "execNumberInvalid": "Érvénytelen szám vagy korlát; az USD-keret legfeljebb hat tizedesjegyet fogad el.",
   "execTrustRefused": "A felület nélküli futások nem engedélyezik a munkaterület megbízhatónak jelölését és az engedélyek megkerülését.",
@@ -3488,6 +3500,18 @@
   "execEffortUnavailable": "Ez az erőfeszítés nem érhető el ehhez a modellhez.",
   "execTimedOut": "A futás elérte az időkorlátot.",
   "execBudgetRefused": "A következő kérés túllépi a fennmaradó keretet.",
+  "execPaidDailyStopped": "A fizetős extrák leálltak: a napi {cap} keret kimerült ({spent} elköltve, {held} zárolva {requests}); újrakezdés {reset}. A folytatáshoz emeld meg ezt: {setting}.",
+  "execPaidOpenRequests": {
+    "one": "{count} nyitott kérés",
+    "other": "{count} nyitott kérés"
+  },
+  "execBudgetProgress": {
+    "one": "A keret {count} kérés után leállította a futást; az eddigi munka megmarad.",
+    "other": "A keret {count} kérés után leállította a futást; az eddigi munka megmarad."
+  },
+  "execModelNeedsProvider": "A(z) {model} modell a(z) {provider} szolgáltatóé; futtasd újra így: --provider {provider}. Elérhető modellek: {available}.",
+  "execModelNotOnProvider": "A(z) {model} modell nincs a(z) {provider} szolgáltatónál. Elérhető modellek: {available}.",
+  "execModelAvailable": "A(z) {model} modell ezen a backenden nem érhető el. Elérhető modellek: {available}.",
   "execBudgetMinimum": "Ehhez a futáshoz legalább {minimum} szükséges.",
   "execBudgetBreach": "A megfigyelt elszámolás túllépte a foglalást.",
   "execIncomplete": "A válasz nem fejeződött be.",
@@ -3569,6 +3593,7 @@
   "providerPrivateNeedsConfirm": "A(z) {origin} magánhálózaton van; a megerősítéshez futtassa újra --private-ok kapcsolóval.",
   "providerEndpointRefused": "Ez a cím nem használható ({reason}).",
   "providerNoRequestPath": "A(z) {provider} itt még nem futtatható; a forgalomrögzítése még várat magára.",
+  "providerModelNoPrice": "{ref} nem futtatható: nincs árkártyája, ezért egyetlen futás sem foglalhat rá.",
   "execProviderNeedsModelApi": "A --provider használatához --backend modelApi szükséges.",
   "execProviderModelRequired": "Ehhez a szolgáltatói futtatáshoz --model provider/model szükséges.",
   "execProviderNotReady": "A szolgáltatói futásokhoz a szolgáltatói szállítási réteg kell; a(z) {provider} kérésének ellenőrzése sikerült.",
@@ -4282,6 +4307,9 @@
     "failure": "A ChatGPT-bejelentkezést nem sikerült befejezni. Próbálja újra, vagy távolítsa el, és jelentkezzen be ismét.",
     "storeUnavailable": "A számítógép hitelesítőadat-tárolója nem érhető el. Jelentkezzen be interaktív asztali munkamenetből, feloldott tárolóval; Linuxon előbb indítsa el a Secret Service szolgáltatást."
   },
+  "execProviderNotCatalogue": "Ez a modell nem szerepel ennek a verziónak a katalógusában: {model}.",
+  "providerCliModelsRequired": "Használja a --model <id> kapcsolót (további modellekhez ismételje meg). Elérhető: {models}.",
+  "providerCliConfigure": "Ellenőrizze a kapcsolókat: --preset {preset}, --model <id>, --key-stdin, --address <url>, --private-ok.",
   "execProviderNotConfigured": "{id} szolgáltató nincs beállítva.",
   "providerText": {
     "wizard": {
@@ -5294,33 +5322,5 @@
       "one": "{count} engedély",
       "other": "{count} engedély"
     }
-  },
-  "execKeyRotated": "A kulcs futás közben lecserélődött; a kérés nem lett elküldve.",
-  "execPaidDailyStopped": "A fizetős extrák leálltak: a napi {cap} keret kimerült ({spent} elköltve, {held} zárolva {requests}); újrakezdés {reset}. A folytatáshoz emeld meg ezt: {setting}.",
-  "execPaidOpenRequests": {
-    "one": "{count} nyitott kérés",
-    "other": "{count} nyitott kérés"
-  },
-  "execBudgetProgress": {
-    "one": "A keret {count} kérés után leállította a futást; az eddigi munka megmarad.",
-    "other": "A keret {count} kérés után leállította a futást; az eddigi munka megmarad."
-  },
-  "execModelNeedsProvider": "A(z) {model} modell a(z) {provider} szolgáltatóé; futtasd újra így: --provider {provider}. Elérhető modellek: {available}.",
-  "execModelNotOnProvider": "A(z) {model} modell nincs a(z) {provider} szolgáltatónál. Elérhető modellek: {available}.",
-  "execModelAvailable": "A(z) {model} modell ezen a backenden nem érhető el. Elérhető modellek: {available}.",
-  "providerModelNoPrice": "{ref} nem futtatható: nincs árkártyája, ezért egyetlen futás sem foglalhat rá.",
-  "execBudgetQuote": "Bemenet: {inputTokens} ({inputCost}) + kimeneti korlát: {outputTokens} ({outputCost}) = {estimate}; futási keret: {cap}, felhasználva: {spent}. A kérés nem lett elküldve.",
-  "execTokenCount": {
-    "one": "legfeljebb {count} token",
-    "other": "legfeljebb {count} token"
-  },
-  "execProviderNotCatalogue": "Ez a modell nem szerepel ennek a verziónak a katalógusában: {model}.",
-  "providerCliModelsRequired": "Használja a --model <id> kapcsolót (további modellekhez ismételje meg). Elérhető: {models}.",
-  "providerCliConfigure": "Ellenőrizze a kapcsolókat: --preset {preset}, --model <id>, --key-stdin, --address <url>, --private-ok.",
-  "execProgressStarted": "A(z) {request}. kérés elindult; lefoglalva: {reserved}.",
-  "execProgressSettled": "A(z) {request}. kérés véget ért; a futás bemenete {input}, kimenete {output}; elköltve {settled}, bizonytalan {uncertain}.",
-  "execProgressTokens": {
-    "one": "összesen {count} token",
-    "other": "összesen {count} token"
   }
 }

@@ -3241,6 +3241,7 @@
   "scheduleRunConfirmPrice": "向您的 Model API 金鑰計費：{price}。總費用依使用的權杖數而變動。",
   "scheduleRunConfirmExtras": "其他已啟用的付費工具可能產生額外費用。Bypass 模式不會略過此確認。",
   "scheduleConfirmationExpired": "確認期間模型、對話或提示詞已變更。請檢查排程並再次選擇「執行」。",
+  "execKeyRotated": "金鑰在執行期間已輪換；請求未傳送。",
   "requestStaleTurn": "傳送期間模型或對話已變更。請重新傳送您的訊息。",
   "requestStaleCompaction": "壓縮期間模型或對話已變更。請重新壓縮。",
   "requestStaleRetry": "請求傳送前模型或對話已變更。請重試。",
@@ -3392,6 +3393,15 @@
   "acpFontsUsage": "用法：{command} fonts install [--from <directory>]",
   "acpUsage": "用法：\n  {command} [選項]              透過 stdin 與 stdout 提供 Agent Client Protocol\n  {command} [選項] login        在此終端機中登入 Muse Code\n  {command} auth set|status|clear  儲存、檢查或移除 Meta Model API 金鑰\n  {command} auth set|status|clear --provider <id>  儲存、檢查或移除提供者金鑰（從 stdin 讀取）\n  {command} providers list|add|test|remove  管理模型提供者\n  {command} exec [options] <prompt>  無介面執行一輪\n  {command} scan-secrets <file> [--key-stdin]  統計單一檔案中疑似機密的數量（僅輸出數量）\n  {command} report [options]  輸出已清理的問題報告（不啟動後端，不開啟瀏覽器）\n  {command} legal [options]  執行唯讀法律掃描（無需後端、無需登入）\n選項：\n  --backend museCode|modelApi      由誰付費：Muse Code（預設）或 Model API 金鑰\n  --trust-workspace                載入資料夾的規則、技能與記憶\n  --muse-binary <路徑>             要執行的 Muse Code CLI\n  --shell-sandbox auto|muse|off    Muse Code 的 shell 沙箱\n  --questions-defer-after <seconds>  預設在60秒後暫緩問題；0表示永不暫緩，1–9視為10，最大3600\n  --allow-dangerously-skip-permissions  提供「略過權限」模式\n  --allow-contributor-models       列出貢獻者層級模型（Meta 可能會以其內容進行訓練）\n  --web-search                     提供付費網頁搜尋（Model API 後端；會先詢問價格）\n  --image-generation               提供付費圖片產生（Model API 後端；會先詢問價格）\n  --verbose                        在 stderr 記錄所有細節\n  --help, --version\n  {command} --trust-workspace setup [--maintenance]  執行 Setup 鉤子並結束",
   "reportUsage": "用法：\n  {command} report [--out <file>] [--description <text>] [--no-facts] [--no-events]\n  將已清理的問題報告輸出到 stdout，或使用 --out 將其寫入 <file>。\n  不啟動後端，不登入任何位置，不開啟瀏覽器。\n選項：\n  --out <file>         將報告寫入檔案而不是 stdout\n  --description <text>  用自己的話描述當時發生了什麼\n  --no-facts           不包含支援資訊\n  --no-events          不包含最近事件",
+  "execProgressStarted": "請求 {request} 已開始；已預留 {reserved}。",
+  "execProgressSettled": "請求 {request} 已結束；執行輸入 {input}，輸出 {output}；已花費 {settled}，未確定 {uncertain}。",
+  "execProgressTokens": {
+    "other": "共 {count} 個權杖"
+  },
+  "execTokenCount": {
+    "other": "最多 {count} 個權杖"
+  },
+  "execBudgetQuote": "輸入 {inputTokens}（{inputCost}）+ 輸出上限 {outputTokens}（{outputCost}）= {estimate}；執行預算 {cap}，已用 {spent}。請求未傳送。",
   "execBudgetRequired": "Model API 需要 --max-budget-usd。",
   "execNumberInvalid": "數字或限制無效；美元預算最多支援六位小數。",
   "execTrustRefused": "無介面執行不允許信任工作區或略過權限。",
@@ -3415,6 +3425,16 @@
   "execEffortUnavailable": "此模型不支援該推理強度。",
   "execTimedOut": "執行已達到時限。",
   "execBudgetRefused": "下一次請求將超過剩餘預算。",
+  "execPaidDailyStopped": "付費附加功能已停止：已達每日預算 {cap}（已用 {spent}，{requests}佔用 {held}）；{reset} 重設。請調高 {setting} 後繼續。",
+  "execPaidOpenRequests": {
+    "other": "{count} 個未完成的請求"
+  },
+  "execBudgetProgress": {
+    "other": "預算在 {count} 個請求後停止了本次執行；已完成的工作予以保留。"
+  },
+  "execModelNeedsProvider": "模型 {model} 屬於供應商 {provider}；請使用 --provider {provider} 重新執行。可用模型：{available}。",
+  "execModelNotOnProvider": "供應商 {provider} 沒有模型 {model}。可用模型：{available}。",
+  "execModelAvailable": "模型 {model} 在此後端無法使用。可用模型：{available}。",
   "execBudgetMinimum": "本次執行至少需要 {minimum}。",
   "execBudgetBreach": "觀測到的費用超過預留金額。",
   "execIncomplete": "回應未完成。",
@@ -3492,6 +3512,7 @@
   "providerPrivateNeedsConfirm": "{origin} 在私人網路上；請用 --private-ok 重新執行以確認。",
   "providerEndpointRefused": "該位址無法使用（{reason}）。",
   "providerNoRequestPath": "{provider} 暫時無法在此執行；其流量擷取尚未完成。",
+  "providerModelNoPrice": "{ref} 無法執行：沒有價格卡，因此任何執行都無法為其預留。",
   "execProviderNeedsModelApi": "--provider 需要 --backend modelApi。",
   "execProviderModelRequired": "此提供商執行需要 --model provider/model。",
   "execProviderNotReady": "提供者執行需要提供者傳輸層；{provider} 的要求驗證已通過。",
@@ -4169,6 +4190,9 @@
     "failure": "無法完成 ChatGPT 登入。請重試，或移除後重新登入。",
     "storeUnavailable": "此電腦的認證儲存區無法使用。請從互動式桌面工作階段登入，並解鎖認證儲存區；在 Linux 上，請先啟動 Secret Service。"
   },
+  "execProviderNotCatalogue": "此模型不在此版本的目錄中：{model}。",
+  "providerCliModelsRequired": "使用 --model <id>（多個模型可重複指定）。可用模型：{models}。",
+  "providerCliConfigure": "檢查這些選項：--preset {preset}, --model <id>, --key-stdin, --address <url>, --private-ok。",
   "execProviderNotConfigured": "提供者 {id} 未設定。",
   "providerText": {
     "wizard": {
@@ -5140,29 +5164,5 @@
     "grantsCount": {
       "other": "{count} 個授權"
     }
-  },
-  "execKeyRotated": "金鑰在執行期間已輪換；請求未傳送。",
-  "execPaidDailyStopped": "付費附加功能已停止：已達每日預算 {cap}（已用 {spent}，{requests}佔用 {held}）；{reset} 重設。請調高 {setting} 後繼續。",
-  "execPaidOpenRequests": {
-    "other": "{count} 個未完成的請求"
-  },
-  "execBudgetProgress": {
-    "other": "預算在 {count} 個請求後停止了本次執行；已完成的工作予以保留。"
-  },
-  "execModelNeedsProvider": "模型 {model} 屬於供應商 {provider}；請使用 --provider {provider} 重新執行。可用模型：{available}。",
-  "execModelNotOnProvider": "供應商 {provider} 沒有模型 {model}。可用模型：{available}。",
-  "execModelAvailable": "模型 {model} 在此後端無法使用。可用模型：{available}。",
-  "providerModelNoPrice": "{ref} 無法執行：沒有價格卡，因此任何執行都無法為其預留。",
-  "execBudgetQuote": "輸入 {inputTokens}（{inputCost}）+ 輸出上限 {outputTokens}（{outputCost}）= {estimate}；執行預算 {cap}，已用 {spent}。請求未傳送。",
-  "execTokenCount": {
-    "other": "最多 {count} 個權杖"
-  },
-  "execProviderNotCatalogue": "此模型不在此版本的目錄中：{model}。",
-  "providerCliModelsRequired": "使用 --model <id>（多個模型可重複指定）。可用模型：{models}。",
-  "providerCliConfigure": "檢查這些選項：--preset {preset}, --model <id>, --key-stdin, --address <url>, --private-ok。",
-  "execProgressStarted": "請求 {request} 已開始；已預留 {reserved}。",
-  "execProgressSettled": "請求 {request} 已結束；執行輸入 {input}，輸出 {output}；已花費 {settled}，未確定 {uncertain}。",
-  "execProgressTokens": {
-    "other": "共 {count} 個權杖"
   }
 }

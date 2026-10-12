@@ -3439,6 +3439,7 @@
   "scheduleRunConfirmPrice": "Rozliczane przez Twój klucz Model API: {price}. Łączna kwota zależy od liczby użytych tokenów.",
   "scheduleRunConfirmExtras": "Inne włączone płatne narzędzia mogą naliczyć dodatkowe opłaty. Tryb Bypass nie pomija tego potwierdzenia.",
   "scheduleConfirmationExpired": "Model, rozmowa lub polecenie zmieniły się podczas potwierdzania. Sprawdź harmonogram i wybierz Uruchom ponownie.",
+  "execKeyRotated": "Klucz został zmieniony w trakcie przebiegu; żądanie nie zostało wysłane.",
   "requestStaleTurn": "Model lub rozmowa zmienił się podczas wysyłania. Wyślij wiadomość ponownie.",
   "requestStaleCompaction": "Model lub rozmowa zmienił się podczas kompaktowania. Kompaktuj ponownie.",
   "requestStaleRetry": "Model lub rozmowa zmienił się przed wysłaniem żądania. Spróbuj ponownie.",
@@ -3611,6 +3612,21 @@
   "acpFontsUsage": "Użycie: {command} fonts install [--from <directory>]",
   "acpUsage": "Użycie:\n  {command} [opcje]              Obsługuj Agent Client Protocol przez stdin i stdout\n  {command} [opcje] login        Zaloguj się do Muse Code w tym terminalu\n  {command} auth set|status|clear  Zapisz, sprawdź lub usuń klucz Meta Model API\n  {command} auth set|status|clear --provider <id>  Zapisz, sprawdź lub usuń klucz dostawcy (czytany ze stdin)\n  {command} providers list|add|test|remove  Zarządzaj dostawcami modeli\n  {command} exec [options] <prompt>  Uruchomić jedną turę bez interfejsu\n  {command} scan-secrets <file> [--key-stdin]  Policzyć prawdopodobne sekrety w jednym pliku (wypisuje tylko liczbę)\n  {command} report [options]  Wypisać oczyszczony raport o problemie (nie uruchamia backendu, nie otwiera przeglądarki)\n  {command} legal [options]  Uruchom skanowanie prawne tylko do odczytu (bez backendu i logowania)\nOpcje:\n  --backend museCode|modelApi      Kto płaci: Muse Code (domyślnie) lub klucz Model API\n  --trust-workspace                Wczytaj reguły, umiejętności i pamięć folderu\n  --muse-binary <ścieżka>             Interfejs CLI Muse Code do uruchomienia\n  --shell-sandbox auto|muse|off    Piaskownica powłoki Muse Code\n  --questions-defer-after <seconds>  Domyślnie odraczaj pytania po 60 sekundach; 0 nigdy, 1–9 oznacza 10, maksymalnie 3600\n  --allow-dangerously-skip-permissions  Udostępnij tryb „Pomijanie uprawnień”\n  --allow-contributor-models       Wyświetl modele poziomu contributor (Meta może trenować na ich treści)\n  --web-search                     Udostępnij płatne wyszukiwanie w sieci (backend Model API; najpierw pyta o cenę)\n  --image-generation               Udostępnij płatne generowanie obrazów (backend Model API; najpierw pyta o cenę)\n  --verbose                        Zapisuj każdy szczegół w stderr\n  --help, --version\n  {command} --trust-workspace setup [--maintenance]  Uruchom hooki Setup i zakończ",
   "reportUsage": "Użycie:\n  {command} report [--out <file>] [--description <text>] [--no-facts] [--no-events]\n  Wypisuje oczyszczony raport o problemie na stdout albo zapisuje go do <file> z --out.\n  Nie uruchamia backendu, nigdzie się nie loguje i nie otwiera przeglądarki.\nOpcje:\n  --out <file>         Zapisać raport do pliku zamiast na stdout\n  --description <text>  Co się działo, własnymi słowami\n  --no-facts           Pominąć dane wsparcia\n  --no-events          Pominąć ostatnie zdarzenia",
+  "execProgressStarted": "Żądanie {request} rozpoczęte; zarezerwowano {reserved}.",
+  "execProgressSettled": "Żądanie {request} zakończone; wejście wykonania {input}, wyjście {output}; wydano {settled}, niepewne {uncertain}.",
+  "execProgressTokens": {
+    "one": "łącznie {count} token",
+    "few": "łącznie {count} tokeny",
+    "many": "łącznie {count} tokenów",
+    "other": "łącznie {count} tokena"
+  },
+  "execTokenCount": {
+    "one": "maksymalnie {count} token",
+    "other": "maksymalnie {count} tokena",
+    "few": "maksymalnie {count} tokeny",
+    "many": "maksymalnie {count} tokenów"
+  },
+  "execBudgetQuote": "Wejście: {inputTokens} ({inputCost}) + limit wyjścia: {outputTokens} ({outputCost}) = {estimate}; budżet uruchomienia {cap}, wykorzystano {spent}. Żądanie nie zostało wysłane.",
   "execBudgetRequired": "Model API wymaga --max-budget-usd.",
   "execNumberInvalid": "Nieprawidłowa liczba lub limit; budżet w USD dopuszcza najwyżej sześć miejsc po przecinku.",
   "execTrustRefused": "Uruchomienia bez interfejsu odmawiają zaufania obszarowi roboczemu i omijania uprawnień.",
@@ -3634,6 +3650,22 @@
   "execEffortUnavailable": "Ten poziom wysiłku nie jest dostępny dla tego modelu.",
   "execTimedOut": "Uruchomienie osiągnęło limit czasu.",
   "execBudgetRefused": "Następne żądanie przekracza pozostały budżet.",
+  "execPaidDailyStopped": "Płatne dodatki wstrzymane: dzienny budżet {cap} osiągnięty (wydano {spent}, {requests} wstrzymuje {held}); reset {reset}. Aby kontynuować, podnieś {setting}.",
+  "execPaidOpenRequests": {
+    "one": "{count} otwarte żądanie",
+    "other": "{count} otwartego żądania",
+    "few": "{count} otwarte żądania",
+    "many": "{count} otwartych żądań"
+  },
+  "execBudgetProgress": {
+    "one": "Budżet zatrzymał przebieg po {count} żądaniu; dotychczasowa praca zostaje zachowana.",
+    "other": "Budżet zatrzymał przebieg po {count} żądania; dotychczasowa praca zostaje zachowana.",
+    "few": "Budżet zatrzymał przebieg po {count} żądaniach; dotychczasowa praca zostaje zachowana.",
+    "many": "Budżet zatrzymał przebieg po {count} żądaniach; dotychczasowa praca zostaje zachowana."
+  },
+  "execModelNeedsProvider": "Model {model} należy do dostawcy {provider}; uruchom ponownie z --provider {provider}. Dostępne modele: {available}.",
+  "execModelNotOnProvider": "Modelu {model} nie ma u dostawcy {provider}. Dostępne modele: {available}.",
+  "execModelAvailable": "Model {model} jest niedostępny w tym backendzie. Dostępne modele: {available}.",
   "execBudgetMinimum": "To uruchomienie wymaga co najmniej {minimum}.",
   "execBudgetBreach": "Zaobserwowane rozliczenie przekroczyło rezerwację.",
   "execIncomplete": "Odpowiedź nie została ukończona.",
@@ -3723,6 +3755,7 @@
   "providerPrivateNeedsConfirm": "{origin} jest w sieci prywatnej; uruchom ponownie z --private-ok, aby potwierdzić.",
   "providerEndpointRefused": "Tego adresu nie można użyć ({reason}).",
   "providerNoRequestPath": "{provider} nie może tu jeszcze działać; zapis jego ruchu jest w toku.",
+  "providerModelNoPrice": "{ref} nie może działać: brak karty cenowej, więc żaden przebieg nie może zarezerwować.",
   "execProviderNeedsModelApi": "--provider wymaga --backend modelApi.",
   "execProviderModelRequired": "To uruchomienie dostawcy wymaga --model provider/model.",
   "execProviderNotReady": "Uruchomienia dostawców wymagają warstwy transportowej dostawców; sprawdzenie żądania dla {provider} powiodło się.",
@@ -4508,6 +4541,9 @@
     "failure": "Nie udało się zakończyć logowania do ChatGPT. Spróbuj ponownie lub usuń je i zaloguj się jeszcze raz.",
     "storeUnavailable": "Magazyn poświadczeń tego komputera jest niedostępny. Zaloguj się z interaktywnej sesji pulpitu z odblokowanym magazynem; w systemie Linux najpierw uruchom Secret Service."
   },
+  "execProviderNotCatalogue": "Tego modelu nie ma w katalogu tej wersji: {model}.",
+  "providerCliModelsRequired": "Użyj --model <id> (powtórz dla kolejnych modeli). Dostępne: {models}.",
+  "providerCliConfigure": "Sprawdź opcje: --preset {preset}, --model <id>, --key-stdin, --address <url>, --private-ok.",
   "execProviderNotConfigured": "Dostawca {id} nie jest skonfigurowany.",
   "providerText": {
     "wizard": {
@@ -5602,41 +5638,5 @@
       "few": "{count} uprawnienia",
       "many": "{count} uprawnień"
     }
-  },
-  "execKeyRotated": "Klucz został zmieniony w trakcie przebiegu; żądanie nie zostało wysłane.",
-  "execPaidDailyStopped": "Płatne dodatki wstrzymane: dzienny budżet {cap} osiągnięty (wydano {spent}, {requests} wstrzymuje {held}); reset {reset}. Aby kontynuować, podnieś {setting}.",
-  "execPaidOpenRequests": {
-    "one": "{count} otwarte żądanie",
-    "other": "{count} otwartego żądania",
-    "few": "{count} otwarte żądania",
-    "many": "{count} otwartych żądań"
-  },
-  "execBudgetProgress": {
-    "one": "Budżet zatrzymał przebieg po {count} żądaniu; dotychczasowa praca zostaje zachowana.",
-    "other": "Budżet zatrzymał przebieg po {count} żądania; dotychczasowa praca zostaje zachowana.",
-    "few": "Budżet zatrzymał przebieg po {count} żądaniach; dotychczasowa praca zostaje zachowana.",
-    "many": "Budżet zatrzymał przebieg po {count} żądaniach; dotychczasowa praca zostaje zachowana."
-  },
-  "execModelNeedsProvider": "Model {model} należy do dostawcy {provider}; uruchom ponownie z --provider {provider}. Dostępne modele: {available}.",
-  "execModelNotOnProvider": "Modelu {model} nie ma u dostawcy {provider}. Dostępne modele: {available}.",
-  "execModelAvailable": "Model {model} jest niedostępny w tym backendzie. Dostępne modele: {available}.",
-  "providerModelNoPrice": "{ref} nie może działać: brak karty cenowej, więc żaden przebieg nie może zarezerwować.",
-  "execBudgetQuote": "Wejście: {inputTokens} ({inputCost}) + limit wyjścia: {outputTokens} ({outputCost}) = {estimate}; budżet uruchomienia {cap}, wykorzystano {spent}. Żądanie nie zostało wysłane.",
-  "execTokenCount": {
-    "one": "maksymalnie {count} token",
-    "other": "maksymalnie {count} tokena",
-    "few": "maksymalnie {count} tokeny",
-    "many": "maksymalnie {count} tokenów"
-  },
-  "execProviderNotCatalogue": "Tego modelu nie ma w katalogu tej wersji: {model}.",
-  "providerCliModelsRequired": "Użyj --model <id> (powtórz dla kolejnych modeli). Dostępne: {models}.",
-  "providerCliConfigure": "Sprawdź opcje: --preset {preset}, --model <id>, --key-stdin, --address <url>, --private-ok.",
-  "execProgressStarted": "Żądanie {request} rozpoczęte; zarezerwowano {reserved}.",
-  "execProgressSettled": "Żądanie {request} zakończone; wejście wykonania {input}, wyjście {output}; wydano {settled}, niepewne {uncertain}.",
-  "execProgressTokens": {
-    "one": "łącznie {count} token",
-    "few": "łącznie {count} tokeny",
-    "many": "łącznie {count} tokenów",
-    "other": "łącznie {count} tokena"
   }
 }

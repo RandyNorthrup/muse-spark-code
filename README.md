@@ -877,8 +877,8 @@ offers `providers list`, `providers add`, `providers test`, `providers remove`
 and `auth set|status|clear --provider <id>`. Free checks use the shared
 transport; keys are entered through stdin and stored with their origin.
 Headless `exec --provider` runs through that same client with model-specific
-request admission, settlement, and refunds for unsent reservations. Output defaults
-to 1024 tokens per request (`--max-output-tokens <16–32768>`); unknown prices refuse.
+request admission, settlement, and refunds for unsent reservations. Each request
+is capped at the model's own output limit; unknown prices refuse.
 For a configured Anthropic key: With no `--model`, exec and ACP use the configured `defaultModel`;
 a missing or unavailable default refuses and lists the configured models.
 Ephemeral exec omits durable usage history and records
