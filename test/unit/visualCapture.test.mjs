@@ -1,18 +1,19 @@
-import { execFileSync } from 'node:child_process'
 import { readFile, rm } from 'node:fs/promises'
 import path from 'node:path'
 import { makeFixtures } from '../harness/goldens/fixtures.mjs'
-import { beforeAll, describe, expect, it } from 'vitest'
+import { beforeAll, describe, expect, inject, it } from 'vitest'
 import { captureMatrix } from '../harness/goldens/capture.mjs'
 import { decodePng } from '../../scripts/lib/visualImages.mjs'
+import { VISUAL_BUILD_KEY } from './helpers/productionPackage'
+import { REVIEW_BROWSER_KEY, REVIEW_RASTERIZATION_KEY } from './helpers/reviewBrowser.mjs'
 
-// The scenes load the real browser bundles from dist/webview; a clean
-// checkout has none, so build them first (as visualStability.test.mjs does).
-beforeAll(() => {
-  execFileSync(process.execPath, ['scripts/build.mjs', '--production', '--webview-only'], {
-    stdio: 'pipe',
-  })
-})
+// Global setup builds and stages the capture root, starts the shared browser
+// and measures its rasterization before workers, as for visualStability: on
+// hosted macOS a per-scene hook's own Chrome launch and fingerprint (about half
+// of each capture on the Mac mini) ran out its ten seconds (CIFIX017R3).
+const root = inject(VISUAL_BUILD_KEY)
+const browserEndpoint = inject(REVIEW_BROWSER_KEY)
+const rasterization = inject(REVIEW_RASTERIZATION_KEY)
 
 const captured = {
   result: undefined,
@@ -55,7 +56,7 @@ for (const scene of [
     const audit = JSON.parse(await readFile('docs/certification/m114-audit.json', 'utf8'))
     const matrix = JSON.parse(await readFile('test/harness/visual-matrix.json', 'utf8'))
     const result = await captureMatrix(
-      process.cwd(),
+      root,
       {
         ...audit,
         scenes: [scene],
@@ -127,6 +128,9 @@ for (const scene of [
           ),
         ).toBe(true)
       },
+      undefined,
+      browserEndpoint,
+      rasterization,
     )
     if (captured.result === undefined) captured.result = result
     else {
@@ -228,19 +232,20 @@ describe('M114 real visual capture driver', () => {
       ).toMatchObject({ applied: true, target: expect.stringContaining('button') })
   })
   it('isolates fixture CSP origins for concurrent capture runs', async () => {
-    const first = await makeFixtures(process.cwd(), 11_401)
-    const second = await makeFixtures(process.cwd(), 11_402)
+    const first = await makeFixtures(root, 11_401)
+    const second = await makeFixtures(root, 11_402)
     try {
       expect(first).not.toBe(second)
-      expect(await readFile(path.join(first, 'whats-new.html'), 'utf8')).toContain(
+      expect(await readFile(path.join(root, first, 'whats-new.html'), 'utf8')).toContain(
         'http://127.0.0.1:11401',
       )
-      expect(await readFile(path.join(second, 'whats-new.html'), 'utf8')).toContain(
+      expect(await readFile(path.join(root, second, 'whats-new.html'), 'utf8')).toContain(
         'http://127.0.0.1:11402',
       )
     } finally {
       const directories = new Set([first, second])
-      for (const directory of directories) await rm(directory, { recursive: true, force: true })
+      for (const directory of directories)
+        await rm(path.join(root, directory), { recursive: true, force: true })
     }
   })
   it('settles the empty busy composer with its own resize handler at the final width', () => {

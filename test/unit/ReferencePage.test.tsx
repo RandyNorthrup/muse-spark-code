@@ -75,7 +75,7 @@ describe('shared Help & Reference page', () => {
     expect(within(section).getByText('false')).toBeInTheDocument()
     expect(within(section).getByText('true')).toBeInTheDocument()
     fireEvent.click(
-      within(section).getByRole('button', { name: 'Open setting: museSpark.modelApiTab' }),
+      within(section).getByRole('button', { name: 'Open Setting: museSpark.modelApiTab' }),
     )
     expect(postMessage).toHaveBeenLastCalledWith({
       type: 'openReferenceSetting',
@@ -104,7 +104,7 @@ describe('shared Help & Reference page', () => {
       type: 'runReferenceCommand',
       command: 'museSpark.showLogs',
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Documentation: Code intelligence' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Documentation: Code Intelligence' }))
     expect(postMessage).toHaveBeenLastCalledWith(expect.objectContaining({ type: 'openExternal' }))
   })
   it('uses installed control, command and setting translations', () => {

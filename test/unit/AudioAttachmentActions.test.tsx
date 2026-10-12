@@ -49,10 +49,10 @@ describe('M105-A lazy chip sound controls', () => {
       return Promise.resolve()
     })
     const transcribe = await screen.findByRole('button', {
-      name: /Transcribe the sound.*paid.*\$0.18/,
+      name: /Transcribe the Sound.*Paid.*\$0.18/,
     })
     expect(transcribe).toHaveAttribute('aria-pressed', 'true')
-    fireEvent.click(screen.getByRole('button', { name: 'Use muse-spark-1.2 for this message' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Use muse-spark-1.2 for This Message' }))
     expect(onAction).toHaveBeenCalledWith('a', 'useSoundtrackModel')
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.media.sendWithoutSound }))
     expect(onAction).toHaveBeenLastCalledWith('a', 'sendWithoutSound')
@@ -77,7 +77,7 @@ describe('M105-A lazy chip sound controls', () => {
         onAction={onAction}
       />,
     )
-    expect(screen.queryByRole('button', { name: /as a video/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /as a Video/ })).not.toBeInTheDocument()
     rerender(
       <AudioAttachmentActions
         options={{
@@ -89,7 +89,7 @@ describe('M105-A lazy chip sound controls', () => {
         onAction={onAction}
       />,
     )
-    const wrap = screen.getByRole('button', { name: 'Send to muse-spark-1.2 as a video' })
+    const wrap = screen.getByRole('button', { name: 'Send to muse-spark-1.2 as a Video' })
     expect(wrap).toHaveAttribute('aria-pressed', 'true')
     fireEvent.click(wrap)
     expect(onAction).toHaveBeenCalledWith('wrapAsVideo')

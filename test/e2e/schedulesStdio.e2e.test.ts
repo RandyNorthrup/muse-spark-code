@@ -23,6 +23,7 @@ import { agentDataFolder, workspaceKey } from '../../src/runtime/dataFolder'
 import { webReadable } from '../../src/runtime/webStreams'
 import { buildAcpFixture } from './acpFixture'
 import { installFakeMuse, installFakeCredential } from './fakeMuse'
+import { FIXTURE_HOOK_TIMEOUT_MS } from '../unit/helpers/fixtureBudget'
 
 const directory = mkdtempSync(path.join(os.tmpdir(), 'm115-schedule-cli-'))
 const agent = path.join(directory, 'dist', 'acp.js')
@@ -101,7 +102,7 @@ beforeAll(async () => {
     })
   }
   muse.prepared = await prepareMuse()
-}, STDIO_PACKAGE_SETUP_TIMEOUT_MS)
+}, FIXTURE_HOOK_TIMEOUT_MS)
 afterAll(async () => {
   await muse.finish?.()
   await Promise.all(Array.from(children, (child) => stop(child)))
@@ -342,12 +343,14 @@ function run(args: readonly string[]) {
 }
 
 describe('schedule CLI process boundary', () => {
-  it('prints runnable draft and global wake syntax in help', () => {
+  it('keeps dormant v2 grammar out of compact help and retains ordinary ACP usage', () => {
     const result = run(['--help'])
     expect(result.status).toBe(0)
-    expect(result.stdout).toContain(UI_TEXT.scheduleV2.runtime.usage)
-    expect(result.stdout).toContain('--draft')
-    expect(result.stdout).toContain('run-due')
+    expect(result.stdout).toContain('muse-spark-code-acp')
+    expect(result.stdout).toContain('auth')
+    expect(result.stdout).not.toContain(UI_TEXT.scheduleV2.runtime.usage)
+    for (const grammar of ['--draft', '--scheduled-prompts', 'run-due'])
+      expect(result.stdout).not.toContain(grammar)
   })
   it('returns a stable JSON refusal when the real scheduler bundle is absent', () => {
     for (const args of [

@@ -7,6 +7,7 @@ import path from 'node:path'
 import { build, type BuildOptions } from 'esbuild'
 import { JOB_SOURCE_FILES } from '../../src/host/backend/jobSource'
 import { removeFolder } from '../unit/helpers/temporaryFolders'
+import { buildCreatedHelper } from './createdHelperFixture'
 
 export async function buildAcpFixture(
   root: string,
@@ -42,6 +43,7 @@ export async function buildAcpFixture(
   // package ships under native/windows/ (jobSource.ts) before `muse serve`.
   for (const file of Object.values(JOB_SOURCE_FILES))
     cpSync(path.join(root, file), path.join(packageRoot, file))
+  buildCreatedHelper(root, packageRoot)
 }
 
 export async function removeAcpFixture(

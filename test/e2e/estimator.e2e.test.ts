@@ -6,6 +6,7 @@ import { build, type Metafile } from 'esbuild'
 import { chromium, type Browser, type LaunchOptions } from 'playwright-core'
 import { z } from 'zod/mini'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { compactBrowserEnglish } from '../../scripts/lib/uiTextRegions.mjs'
 import { parseEstimateGoal } from '../../src/shared/estimate'
 import { resolveEstimateGoal } from '../../src/core/estimator/goal'
 import { prepareEstimateSchedule } from '../../src/core/estimator/schedule'
@@ -13,6 +14,7 @@ import { EstimateWaveStarter } from '../../src/core/estimator/provision/start'
 import { FakeEstimateStart } from '../unit/helpers/estimator/fakes'
 import { chainSnapshot } from '../unit/helpers/estimator/fixtures'
 import { scheduleFleet, simulationInputs } from '../unit/helpers/estimatorScheduleFixtures'
+import { FIXTURE_HOOK_TIMEOUT_MS } from '../unit/helpers/fixtureBudget'
 
 const THEMES = ['light', 'dark', 'hc-dark', 'hc-light']
 const ORIGIN = 'https://estimator.invalid'
@@ -32,9 +34,12 @@ beforeAll(async () => {
     splitting: true,
     format: 'esm',
     platform: 'browser',
+    target: 'chrome128',
     jsx: 'automatic',
     minify: true,
     metafile: true,
+    // Match independent production pages: cold navigation must not parse the raw English table.
+    plugins: [compactBrowserEnglish],
     define: { 'process.env.NODE_ENV': '"production"' },
   })
   state.metafile = result.metafile
@@ -49,7 +54,17 @@ beforeAll(async () => {
   else if (process.platform === 'darwin')
     launch = { executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' }
   state.browser = await chromium.launch(launch)
-})
+  // Only the first matrix case ever missed its bound on hosted Windows (round 3
+  // at navigation, round 4 at readiness): the browser's one-time first-navigation
+  // work. Pay it here under the hook's limit so every case keeps two seconds.
+  const warm = await openScene(state.browser, 'light', 690)
+  try {
+    await warm.page.goto(ORIGIN)
+    await warm.page.locator('[data-estimator-ready="true"]').waitFor({ timeout: 0 })
+  } finally {
+    await warm.page.close()
+  }
+}, FIXTURE_HOOK_TIMEOUT_MS)
 afterAll(async () => {
   await state.browser?.close()
   if (state.directory !== '') await rm(state.directory, { recursive: true, force: true })
@@ -75,50 +90,17 @@ describe('M117 shared estimator browser harness', () => {
     for (const width of [690, 320]) {
       it(`passes axe and keyboard Gantt/setup flows in ${theme} at ${String(width)} px`, async () => {
         if (state.browser === undefined) throw new Error('browser did not start')
-        const raw: unknown = JSON.parse(await readFile(`test/harness/themes/${theme}.json`, 'utf8'))
-        const variables = themeSchema.parse(raw)
-        const colors = Object.entries(variables.variables)
-          .map(([key, value]) => `${key}:${value}`)
-          .join(';')
-        const page = await state.browser.newPage({ viewport: { width, height: 760 } })
-        page.setDefaultTimeout(2000)
-        const errors: string[] = []
-        page.on('pageerror', (error) => {
-          errors.push(error.message)
-        })
-        await page.route('**/*', async (route) => {
-          const url = new URL(route.request().url())
-          if (url.origin !== ORIGIN) {
-            await route.abort()
-            return
-          }
-          const file = files.get(url.pathname)
-          if (file !== undefined) {
-            await route.fulfill({
-              body: file,
-              contentType: url.pathname.endsWith('.css') ? 'text/css' : 'text/javascript',
-            })
-            return
-          }
-          if (url.pathname === '/') {
-            await route.fulfill({
-              contentType: 'text/html',
-              body: `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Estimator harness</title><style>:root{${colors};--vscode-font-family:sans-serif}body{margin:0}</style><link rel="stylesheet" href="/scene.css"></head><body><div id="root"></div><script type="module" src="/scene.js"></script></body></html>`,
-            })
-            return
-          }
-          await route.abort()
-        })
+        const { page, errors } = await openScene(state.browser, theme, width)
         try {
           await page.goto(ORIGIN)
           await page.locator('[data-estimator-ready="true"]').waitFor()
-          const lane = page.getByRole('button', { name: /^A · Critical path/ })
+          const lane = page.getByRole('button', { name: /^A · Critical Path/ })
           await lane.focus()
           await page.keyboard.press('Enter')
           expect(await lane.getAttribute('aria-expanded')).toBe('true')
-          await page.getByRole('radio', { name: /^Current fleet/ }).focus()
+          await page.getByRole('radio', { name: /^Current Fleet/ }).focus()
           await page.keyboard.press('ArrowDown')
-          expect(await page.getByRole('radio', { name: /^Minimum setup · P50/ }).isChecked()).toBe(
+          expect(await page.getByRole('radio', { name: /^Minimum Setup · P50/ }).isChecked()).toBe(
             true,
           )
           await page.locator('summary').first().focus()
@@ -135,8 +117,8 @@ describe('M117 shared estimator browser harness', () => {
           )
           expect(axeSchema.parse(scan).violations).toEqual([])
           await page.evaluate("window.dispatchEvent(new Event('fixture-lane-finished'))")
-          await page.getByText(/Drift since the previous estimate/).waitFor()
-          expect(await page.getByRole('button', { name: 'Spin it up' }).isDisabled()).toBe(true)
+          await page.getByText(/Drift Since the Previous Estimate/).waitFor()
+          expect(await page.getByRole('button', { name: 'Spin It Up' }).isDisabled()).toBe(true)
           expect(errors).toEqual([])
         } finally {
           await page.close()
@@ -144,6 +126,45 @@ describe('M117 shared estimator browser harness', () => {
       })
     }
 })
+
+/** A page serving only the built harness files, themed, with a two-second action bound. */
+async function openScene(browser: Browser, theme: string, width: number) {
+  const raw: unknown = JSON.parse(await readFile(`test/harness/themes/${theme}.json`, 'utf8'))
+  const variables = themeSchema.parse(raw)
+  const colors = Object.entries(variables.variables)
+    .map(([key, value]) => `${key}:${value}`)
+    .join(';')
+  const page = await browser.newPage({ viewport: { width, height: 760 } })
+  page.setDefaultTimeout(2000)
+  const errors: string[] = []
+  page.on('pageerror', (error) => {
+    errors.push(error.message)
+  })
+  await page.route('**/*', async (route) => {
+    const url = new URL(route.request().url())
+    if (url.origin !== ORIGIN) {
+      await route.abort()
+      return
+    }
+    const file = files.get(url.pathname)
+    if (file !== undefined) {
+      await route.fulfill({
+        body: file,
+        contentType: url.pathname.endsWith('.css') ? 'text/css' : 'text/javascript',
+      })
+      return
+    }
+    if (url.pathname === '/') {
+      await route.fulfill({
+        contentType: 'text/html',
+        body: `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Estimator harness</title><style>:root{${colors};--vscode-font-family:sans-serif}body{margin:0}</style><link rel="stylesheet" href="/scene.css"></head><body><div id="root"></div><script type="module" src="/scene.js"></script></body></html>`,
+      })
+      return
+    }
+    await route.abort()
+  })
+  return { page, errors }
+}
 
 /** Fake-only application source: the M113 parser/board bindings are absent.
  * No external process, model, provider or paid resource is used.

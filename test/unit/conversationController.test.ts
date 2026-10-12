@@ -101,6 +101,7 @@ import {
   CONVERSATION_MODEL_TEXT,
   LEGAL_RESULT_VERSION,
   MSP_READ_OUTPUT_CONCURRENCY,
+  MUSE_INSTALL_COMMANDS,
   REVIEW_MODEL_TEXT,
   MUSE_CODE_REVIEWER_BUNDLE_FILE,
   PLAN_FILE_MAX_BYTES,
@@ -124,6 +125,7 @@ import type { RestoreOutcome } from '../../src/host/checkpoints/checkpointStore'
 import { createReviewCollector, type ReviewCollection } from '../../src/host/review/reviewCollector'
 import { processGitRunner } from '../../src/host/git'
 import { aliasedReviewRepositories, reviewParts } from './helpers/reviewRoots'
+import { isolatedGitConfig, type IsolatedGitConfig } from './helpers/isolatedGitConfig'
 import type {
   HostAction,
   HostToWebviewMessage,
@@ -420,7 +422,7 @@ function setup(
     /** Contributor-tier guard (M7). */
     isConfidentialWorkspace?: boolean
     confirmsContributor?: boolean
-    /** Session history memory (M6). */
+    /** Session History memory (M6). */
     archivedIds?: readonly string[]
     lastSession?: LastSession
     isRestorable?: boolean
@@ -489,7 +491,7 @@ function setup(
     timeouts?: CommandTimeouts
     /** The surface's tasks tab (M87); none unless a test passes one. */
     tasksTab?: TasksTabPort
-    /** The window's Auto reviewer on Muse Code (M90). */
+    /** The window's Auto Reviewer on Muse Code (M90). */
     museCodeReviewer?: ConversationDeps['museCodeReviewer']
     questions?: ConversationDeps['questions']
     judge?: ConversationDeps['judge']
@@ -2182,6 +2184,20 @@ describe('ConversationController: composer controls', () => {
     expect(t.server.requestsFor('session/start')).toHaveLength(2)
   })
 
+  it('shows compaction retry guidance when compaction fails on a stale record', async () => {
+    // RVCM1062E P3: the displayed compaction-failure reason names compaction,
+    // never a schedule the user never ran.
+    const t = setup()
+    t.server.handle('session/compact', () => {
+      throw new Error(UI_TEXT.requestStaleCompaction)
+    })
+    await t.controller.handle({ type: 'compact' })
+    const notice = t.surface.posted.at(-1)
+    expect(notice).toMatchObject({ type: 'notice', level: 'error' })
+    expect(notice?.type === 'notice' ? notice.text : '').toContain('Compact again')
+    expect(notice?.type === 'notice' ? notice.text : '').not.toContain('schedule')
+    t.controller.dispose()
+  })
   it('refuses skills, compaction and mentions when signed out', async () => {
     const t = setup({ status: 'signedOut' })
     await t.controller.handle({ type: 'listSkills' })
@@ -3769,7 +3785,7 @@ describe('ConversationController: editor integration (M5)', () => {
     expect(notices).toEqual(['opened c1'])
   })
 
-  // D66 item 17: an edit row's Revert is one step of "Rewind code to here".
+  // D66 item 17: an edit row's Revert is one step of "Rewind Code to Here".
   it('reverts one edit after its confirmation, and nothing once it is declined (M87)', async () => {
     const t = setup()
     await t.send('l1', 'edit it')
@@ -4415,7 +4431,7 @@ describe('ConversationController: other messages', () => {
       'installMuseCode',
       'cancelSignIn',
       'signOut',
-      // Check again is a click: the CLI is asked afresh (D26).
+      // Check Again is a click: the CLI is asked afresh (D26).
       'checkAgain',
     ])
     expect(t.openExternal).toHaveBeenCalledWith('https://example.invalid/')
@@ -4496,7 +4512,7 @@ describe('ConversationController: other messages', () => {
   })
 })
 
-// --- Session history (M6) ---
+// --- Session History (M6) ---
 
 const storedSession = {
   sessionId: 'old',
@@ -6045,7 +6061,7 @@ describe('ConversationController: session history (M6)', () => {
     expect(noWorkspace.server.requestsFor('session/resume')).toHaveLength(0)
   })
 
-  it('reads a subagent’s child session for the Agent map and reports a failure (M14)', async () => {
+  it('reads a subagent’s child session for the Agent Map and reports a failure (M14)', async () => {
     const t = withHistory()
     t.server.handle('session/read', (params) =>
       envelope({ ...storedSession, sessionId: params['sessionId'], name: 'Explorer' }),
@@ -6239,14 +6255,14 @@ describe('ConversationController: session history (M6)', () => {
       const { host, controller } = modelApiController(t, { newId: () => 'imported-1' })
       const importing = vi.spyOn(host, 'importSession')
       await controller.handle({ type: 'importSession' })
-      expect(t.exported.picks).toEqual(['Import session'])
+      expect(t.exported.picks).toEqual(['Import Session'])
       const info = t.surface.posted.findLast((message) => message.type === 'sessionInfo')
       const modelId = info?.type === 'sessionInfo' ? info.modelId : ''
       expect(modelId).not.toBe('someone-elses-model')
       expect(t.exported.importsConfirmed).toEqual([
         [
-          'Import session',
-          `From Muse Code (your Muse subscription): 2 messages in this conversation. It continues on ${modelId} and starts in ${label}; session rules, goals, schedules and patches are dropped, and the imported history is treated as untrusted.`,
+          'Import Session',
+          `From Muse Code (Your Muse Subscription): 2 messages in this conversation. It continues on ${modelId} and starts in ${label}; session rules, goals, schedules and patches are dropped, and the imported history is treated as untrusted.`,
         ],
       ])
       expect(importing.mock.calls[0]?.[1]).toEqual({ approvalMode, modelId })
@@ -6379,7 +6395,7 @@ describe('ConversationController: session history (M6)', () => {
     'implements a plan written over imported history as untrusted%s: a mode that asks, never "approved" (M84)',
     async (_case, isRestarted) => {
       const { t, api, controller, source } = await modelApiPlan(
-        '# Clean up\n\n1. Delete the build folder.',
+        '# Clean Up\n\n1. Delete the build folder.',
         'Plan',
         { initialPermissionMode: 'auto', hasApprovalUi: true, transferFileContent: transferFile() },
         async (imported) => {
@@ -6478,7 +6494,7 @@ describe('ConversationController: session history (M6)', () => {
   it('opens a share file read-only in the panel, and refuses one it cannot use (M84)', async () => {
     const t = setup({ transferFileContent: transferFile({ redacted: false }) })
     await t.controller.handle({ type: 'openShareFile' })
-    expect(t.exported.picks).toEqual(['Open share file'])
+    expect(t.exported.picks).toEqual(['Open Share File'])
     expect(t.surface.posted.at(-1)).toEqual({
       type: 'sharePreview',
       title: 'Moved over',
@@ -6497,7 +6513,7 @@ describe('ConversationController: session history (M6)', () => {
     await untitled.controller.handle({ type: 'openShareFile' })
     expect(untitled.surface.posted.at(-1)).toMatchObject({
       type: 'sharePreview',
-      title: 'Muse conversation',
+      title: 'Muse Conversation',
     })
     const broken = setup({ transferFileContent: 'not json' })
     await broken.controller.handle({ type: 'openShareFile' })
@@ -7229,8 +7245,8 @@ describe('ConversationController (M15)', () => {
       text: 'inline copy',
     })
     expect(t.opened).toEqual([
-      ['PowerShell tool output (123456)', '{"files":[{"path":"notes.md","hunks":[]}]}#ref-1'],
-      ['Read tool output (123456)', 'inline copy'],
+      ['PowerShell Tool Output (123456)', '{"files":[{"path":"notes.md","hunks":[]}]}#ref-1'],
+      ['Read Tool Output (123456)', 'inline copy'],
     ])
   })
 
@@ -7288,7 +7304,7 @@ describe('ConversationController (M15)', () => {
   })
 
   it('says the captured ledger fault once, as Muse Code’s, and keeps the card waiting (D26)', async () => {
-    const t = setup()
+    const t = setup({ platform: 'win32' })
     await t.send('l1', 'hi')
     t.server.handle('approval/decide', ledgerFault)
     const before = t.surface.posted.length
@@ -7305,7 +7321,7 @@ describe('ConversationController (M15)', () => {
       {
         type: 'notice',
         level: 'warning',
-        text: UI_TEXT.approvalLedgerFault,
+        text: fill(UI_TEXT.approvalLedgerFaultUpdate, { command: MUSE_INSTALL_COMMANDS.win32 }),
         actions: ['newConversation'],
       },
     ])
@@ -7318,7 +7334,43 @@ describe('ConversationController (M15)', () => {
     )
   })
 
-  it('says the captured replay fault once with Restart and New conversation, and restarts on the click (D26)', async () => {
+  it.each([
+    ['1.4.2-R4684.1', true],
+    ['1.4.3', false],
+    ['1.4.3-R5018.1', false],
+    ['1.4.4', false],
+    ['2.0.0', false],
+    ['dev', false],
+  ])(
+    'keeps ledger fault detection on %s and offers an update only below 1.4.3',
+    async (version, needsUpdate) => {
+      const t = setup({
+        platform: 'win32',
+        handshake: { platformOs: 'windows', serverInfo: { name: 'muse', version } },
+      })
+      await t.send('l1', 'hi')
+      t.server.handle('approval/decide', ledgerFault)
+      await t.controller.handle({
+        type: 'decideApproval',
+        approvalId: 'ap-1',
+        choiceId: 'allow_once',
+        requirementId: { approvalId: 'ap-1', sourceIndex: 0 },
+      })
+      expect(t.surface.posted.at(-1)).toMatchObject({
+        type: 'notice',
+        level: 'warning',
+        text: needsUpdate
+          ? fill(UI_TEXT.approvalLedgerFaultUpdate, { command: MUSE_INSTALL_COMMANDS.win32 })
+          : UI_TEXT.approvalLedgerFault,
+        actions: ['newConversation'],
+      })
+      expect(t.surface.posted).not.toContainEqual(
+        expect.objectContaining({ type: 'approvalReopened' }),
+      )
+    },
+  )
+
+  it('says the captured replay fault once with Restart and New Conversation, and restarts on the click (D26)', async () => {
     const t = setup()
     await t.send('l1', 'hi')
     // Whether the next message starts a turn or steers the running one.
@@ -7752,7 +7804,7 @@ function acceptApprovalDecisions(t: ReturnType<typeof setup>): void {
 
 describe('ConversationController: permission hardening (D24)', () => {
   const choices = [
-    { choiceId: 'allow_once', label: 'Allow once', decision: 'approved', scope: 'once' },
+    { choiceId: 'allow_once', label: 'Allow Once', decision: 'approved', scope: 'once' },
     { choiceId: 'abort', label: 'Reject', decision: 'abort', scope: 'once' },
   ]
   function approvalParams(approvalId: string, overrides: Record<string, unknown> = {}) {
@@ -7805,10 +7857,10 @@ describe('ConversationController: permission hardening (D24)', () => {
       rawArgs: JSON.stringify({ command }),
       subject: { kind: 'shell', command },
       availableChoices: [
-        { choiceId: 'allow_once', label: 'Allow once', decision: 'approved', scope: 'once' },
+        { choiceId: 'allow_once', label: 'Allow Once', decision: 'approved', scope: 'once' },
         {
           choiceId: 'allow_session',
-          label: `Always allow: ${command}`,
+          label: `Always Allow: ${command}`,
           decision: 'approvedPolicyAmendment',
           scope: 'session',
         },
@@ -7826,7 +7878,7 @@ describe('ConversationController: permission hardening (D24)', () => {
     expect(JSON.stringify(t.surface.posted)).not.toContain(secret)
   })
 
-  it('answers a plain file-write approval itself in Edit automatically, labelled so', async () => {
+  it('answers a plain file-write approval itself in Edit Automatically, labelled so', async () => {
     const t = setup({ hasApprovalUi: true, initialPermissionMode: 'acceptEdits' })
     t.server.handle('approval/decide', (params) => ({
       status: 'accepted',
@@ -7861,7 +7913,7 @@ describe('ConversationController: permission hardening (D24)', () => {
       approvalId: 'a1',
       itemId: 'item-a1',
       decision: 'approved',
-      resolvedBy: 'Edit automatically',
+      resolvedBy: 'Edit Automatically',
     })
   })
 
@@ -10987,7 +11039,7 @@ describe('ConversationController: scheduled prompts (M52)', () => {
     expect(api.responseBodies()).toHaveLength(1)
     expect(staleNotices()).toHaveLength(3)
     expect(await scheduleStore.list(sessionId)).toEqual([])
-    // Replacing the Model API key restarts its host, then reports signedIn on
+    // Replacing the Model API Key restarts its host, then reports signedIn on
     // the same backend. Clear the old account's prompts at that first drop.
     await controller.handle({
       type: 'scheduleCreate',
@@ -11519,12 +11571,17 @@ describe('ConversationController: review (M70)', () => {
   describe('native material admission', () => {
     let folder: string
     let roots: Awaited<ReturnType<typeof aliasedReviewRepositories>> | undefined
+    let gitConfig: IsolatedGitConfig | undefined
     beforeAll(async () => {
       folder = realpathSync.native(mkdtempSync(path.join(tmpdir(), 'm70-send-root-')))
       roots = await aliasedReviewRepositories(folder, 'admission')
+      // Never the machine's Git configuration: the native collector must
+      // read the same empty filter inventory on every machine.
+      gitConfig = isolatedGitConfig()
     })
     afterAll(async () => {
       await removeFolder(folder)
+      await gitConfig?.dispose()
     })
 
     describe.each([
@@ -11560,7 +11617,7 @@ describe('ConversationController: review (M70)', () => {
         current.collect.mockImplementationOnce(
           createReviewCollector({
             workspaceRoot: roots.alias,
-            runGit: processGitRunner(),
+            runGit: processGitRunner({ env: { ...process.env, ...gitConfig?.env } }),
             pickOne: vi.fn(),
           }),
         )
@@ -12821,7 +12878,7 @@ async function modelApiPlan(
   }
 }
 
-/** Implement in a fresh conversation on a `modelApiPlan` reply, once its first request is sent. */
+/** Implement in a Fresh Conversation on a `modelApiPlan` reply, once its first request is sent. */
 async function implementModelApiPlan({
   t,
   api,
@@ -13569,7 +13626,7 @@ describe('ConversationController: plans as files (M79)', () => {
   })
 })
 
-/** "Rewind conversation and restore files" on the first turn of `s1` (M72). */
+/** "Rewind Conversation and Restore Files" on the first turn of `s1` (M72). */
 const BOTH_REWIND = {
   type: 'rewindConversation' as const,
   sourceSessionId: 's1',
@@ -13593,7 +13650,7 @@ async function afterFirstTurn(t: ReturnType<typeof setup>): Promise<void> {
   await settle()
 }
 
-/** "Rewind conversation and restore files" from the first card (M72, M86). */
+/** "Rewind Conversation and Restore Files" from the first card (M72, M86). */
 async function restoreAndRewind(
   t: ReturnType<typeof setup>,
   rewind: typeof BOTH_REWIND = BOTH_REWIND,
@@ -15304,7 +15361,7 @@ describe('ConversationController: a slow, wedged or damaged Muse Code (CLI recov
       },
       damagedNotice,
     ])
-    // Its New conversation takes messages again, in a session of its own.
+    // Its New Conversation takes messages again, in a session of its own.
     t.server.handle('session/start', (params) => ({
       session: { sessionId: 's2', modelId: params['modelId'], status: 'idle' },
       viewCursor: '',
@@ -16065,7 +16122,7 @@ describe('ConversationController: the tasks tab (M87, PLAN.md D66)', () => {
   })
 })
 
-describe('ConversationController: the Auto reviewer on Muse Code (M90, PLAN.md D69)', () => {
+describe('ConversationController: the Auto Reviewer on Muse Code (M90, PLAN.md D69)', () => {
   const folder = mkdtempSync(path.join(tmpdir(), 'muse-controller-reviewer-'))
   const root = path.join(folder, 'museCodeReviewer')
   const sideSession = 'side-1'
@@ -16907,7 +16964,7 @@ describe('ConversationController: Muse Judge card lifecycle (M98-U)', () => {
     expect(agentEvents(t).filter((e) => e.type === 'approvalCaution')).toHaveLength(0)
   })
 
-  it('never starts Judge for an immediate native allow in Edit automatically', async () => {
+  it('never starts Judge for an immediate native allow in Edit Automatically', async () => {
     const t = await judgeConversation('acceptEdits')
     t.server.notify('approval/requested', {
       ...raceRequested('s1'),

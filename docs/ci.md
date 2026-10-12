@@ -56,7 +56,6 @@ muse-spark-code-acp scan-secrets fix.patch
 | --key-stdin                         | off                    | Model API only; non-TTY stdin.                                                                                              |
 | --muse-binary, --shell-sandbox      | serve defaults         | Muse Code only.                                                                                                             |
 | --account <id>                      | default                | Pin one run to one account; refused with --key-stdin in CI.                                                                 |
-| --account-pool                      | off                    | Requires the profile-owned account pool, currently unavailable; refused with --key-stdin in CI.                             |
 | --verbose                           | off                    | Trace on redacted stderr.                                                                                                   |
 
 Budget grammar is unsigned ASCII decimal `[0-9]+(?:\.[0-9]{1,6})?`,
@@ -796,22 +795,3 @@ journal is unavailable rather than a fabricated pass. CI network collection is
 refused by the report binding, even with `--network`; CI credentials are never
 passed to report tools. Approved service captures and installed native editor
 receipts remain separate certification requirements.
-
-## Local headless vault integration (M109 H)
-
-`exec --vault` opts a local run into pre-existing unattended grants. It never
-prompts. H requires authenticated headless registration, a workspace and
-conversation, then accepts only an unexpired grant ticket for the exact use
-digest and requester. Taint, an approval request, an ordinary mode ticket,
-presence denial, or missing/malformed runtime binding fail closed.
-
-Any vault refusal stops the run with status `denied` and exit 7 even without
-`--fail-on-denial`. The result uses the existing version-1 event/result schemas;
-the flag is an admission change, not a new wire shape. Setup, cancellation and
-final cleanup close the vault session, including setup that arrives late.
-
-CI stays vault-free. `--vault` with `--key-stdin` is a usage error; a CI process
-with `--vault` fails closed before backend startup. The composite Action and
-stdin-key exception are unchanged. Runs without the flag never open a vault
-binding. The installed B/C/P/X factory remains an integration handoff on this
-branch; only fake-only runtime flows are certified here.

@@ -27,7 +27,9 @@ describe('M109 X credential fence', () => {
         unsavedFiles: () => [],
       })
       const result = await io.runShell(
-        process.platform === 'win32' ? 'Get-ChildItem Env:' : 'env',
+        process.platform === 'win32'
+          ? `[Console]::WriteLine([Environment]::GetEnvironmentVariable('SSH_AUTH_SOCK'))`
+          : 'env',
         process.cwd(),
         SHELL_DEFAULT_TIMEOUT_MS,
         undefined,

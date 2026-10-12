@@ -1,5 +1,7 @@
 import type { ScheduleBillingPorts } from '../host/schedules/paidBinding'
 import type { ScheduleCallerContext } from './schedules/args'
+import { resolveExecOutputCap } from './exec/runLedger'
+import type { ModelPolicy } from '../core/backends/modelapi/modelPolicy'
 import type * as RuntimeAccountingEntry from './runtimeAccountingEntry'
 import { Usd } from '../shared/usd'
 import { loadLegalScanner } from './legal/legalScanner'
@@ -23,6 +25,7 @@ import { randomUUID } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import path from 'node:path'
 import type { AcpBackend, BackendReadiness } from '../acp/agent'
+import { accountErrorText, isInvalidProvidersFileError } from '../acp/accountText'
 import { AcpPaidUse, type HeadlessPaidPolicy } from '../acp/paid'
 import type { AgentHost } from '../core/agent/agentBackend'
 import type { CliSignIn } from '../core/backends/musecode/credentialFile'
@@ -68,6 +71,7 @@ import {
   PAID_PRICES_USD,
   PROVIDERS_CONFIG_DIR_NAME,
   PROVIDERS_FILE_NAME,
+  IS_AUTO_COMPACTION_EVALUATED,
   SETTING_DEFAULTS,
   UI_TEXT,
 } from '../shared/constants'
@@ -90,6 +94,7 @@ import { paidGrantFile } from './paidGrants'
 import type { AssembledProviderRun } from './exec/providerExec'
 
 export interface ExecRuntimeOptions {
+  readonly outputCap?: (policy: ModelPolicy) => number
   readonly providerRun?: AssembledProviderRun
   readonly responseAccounting?: RuntimeAccountingEntry.RuntimeResponseAccounting
   readonly isEphemeral: boolean
@@ -426,7 +431,12 @@ function modelApiManager(
       }
       const entry = await accountingEntry()
       entry.setUiText(UI_TEXT, uiLocale())
-      return entry.withRuntimeAccounting(client, await dailyBudget(), deps.exec?.responseAccounting)
+      return entry.withRuntimeAccounting(
+        client,
+        await dailyBudget(),
+        deps.exec?.responseAccounting,
+        deps.exec?.outputCap,
+      )
     },
     reservePaidRequest: async (
       body,
@@ -450,7 +460,15 @@ function modelApiManager(
         return await headlessProviders.accountId()
       },
     }),
-    ...(deps.exec !== undefined && { streamIdleMs: deps.exec.streamIdleMs }),
+    // RVCM1062B P1: no raw-registry resolver here. The entry binds the
+    // selected record through the session client's own resolver, which is
+    // the accounting-wrapped headless client, so every priced request keeps
+    // its daily reservation and run-ledger admission/settlement.
+    ...(deps.exec !== undefined && {
+      streamIdleMs: deps.exec.streamIdleMs,
+      modelOutputMaxTokens: (_ref, resolved) =>
+        deps.exec?.outputCap?.(resolved.policy) ?? resolveExecOutputCap(resolved.policy),
+    }),
     newId: () => randomUUID(),
     now: () => Date.now(),
     sleep: deps.sleep,
@@ -506,6 +524,13 @@ function modelApiManager(
     webSearchMaxPerRequest: () => SETTING_DEFAULTS.webSearchMaxPerRequest,
     isAutoCompactionOn: () =>
       deps.options.autoCompaction ?? SETTING_DEFAULTS.modelApiAutoCompaction,
+    autoCompactionEvaluated: () => IS_AUTO_COMPACTION_EVALUATED,
+    // The wrapped runtime transport owns one daily claim per HTTP attempt.
+    autoCompactionAccounting: 'transport',
+    paidDailyBudgetUsd: async () => {
+      const budget = await dailyBudget()
+      return budget.capUsd()
+    },
     // D78 changes only VS Code's display default; ACP remains unchanged.
     showReplyUsage: () => false,
     // Each use asked in the editor's session (M58, PLAN.md D48). Child tasks
@@ -515,6 +540,7 @@ function modelApiManager(
     allowsPaidUse: (request, requiresAsking, sessionId) =>
       paid.allows(storedWorkspaceRoot, sessionId, request, requiresAsking),
     isPaidUseRemembered: (feature) => paid.isRemembered(storedWorkspaceRoot, feature),
+    paidUseFence: (feature, sessionId) => paid.fence(storedWorkspaceRoot, sessionId, feature),
     noteSubagentUsage: (modelId) => {
       log.warn(`A subagent's usage on ${modelId} was reported, but the agent runs no subagents`)
     },
@@ -554,6 +580,7 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
         deps.options.backend === 'modelApi' && deps.options.scheduledPrompts === true,
       ...(deps.options.maxBudgetUsd !== undefined && { maxBudgetUsd: deps.options.maxBudgetUsd }),
     },
+    autoCompactionEvaluated: () => IS_AUTO_COMPACTION_EVALUATED,
     canRemember: () => deps.options.trustWorkspace,
     grants: paidGrantFile({
       file: paidGrantsFile({ platform: deps.platform, env: deps.env, homeDir: deps.homeDir }),
@@ -626,6 +653,11 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
     try {
       key = await deps.secrets.get(SECRET_KEYS.modelApiKey)
     } catch (error: unknown) {
+      // A refused providers file is not a keyring outage: the runtime is
+      // already on the account service, so its own refusal stands as read
+      // through the runtime's wrapped metadata port.
+      if (isInvalidProvidersFileError(error))
+        return { state: 'unavailable', message: accountErrorText(error) }
       return {
         state: 'unavailable',
         message: fill(UI_TEXT.acpStoreUnavailable, { reason: describe(error) }),

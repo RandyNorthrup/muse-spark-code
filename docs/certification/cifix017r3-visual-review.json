@@ -1,0 +1,309 @@
+{
+  "review": "CIFIX017R3-0.17.0-highlights-2026-10-09",
+  "candidateRevision": "6636c84beb804af52e49363ac10ede3223d3d295",
+  "baselineRevision": "53fb033b49635ec95e0d5fa26dbed5248db445e8",
+  "browser": "150.0.7871.186",
+  "platform": "linux",
+  "rasterization": "19bff3cb769aebd7c533f170076db49f7c141b902beaaa3aafc78ab8f90373d5",
+  "frames": 9792,
+  "byteDifferent": 1251,
+  "overAllowance": 72,
+  "overAllowanceScenes": ["whats-new"],
+  "coverageChanged": 0,
+  "withinAllowance": {
+    "frames": 1179,
+    "scenes": 89,
+    "countedPixels": 17,
+    "maxPerImage": 1
+  },
+  "overAllowanceFrames": [
+    {
+      "file": "whats-new/whats-new/default/light/320.png",
+      "changed": 16530
+    },
+    {
+      "file": "whats-new/whats-new/hover/light/320.png",
+      "changed": 16530
+    },
+    {
+      "file": "whats-new/whats-new/focus-visible/light/320.png",
+      "changed": 16530
+    },
+    {
+      "file": "whats-new/whats-new/pressed/light/320.png",
+      "changed": 16530
+    },
+    {
+      "file": "whats-new/whats-new/disabled/light/320.png",
+      "changed": 16530
+    },
+    {
+      "file": "whats-new/whats-new/selected/light/320.png",
+      "changed": 16530
+    },
+    {
+      "file": "whats-new/whats-new/default/light/690.png",
+      "changed": 6641
+    },
+    {
+      "file": "whats-new/whats-new/hover/light/690.png",
+      "changed": 6641
+    },
+    {
+      "file": "whats-new/whats-new/focus-visible/light/690.png",
+      "changed": 6641
+    },
+    {
+      "file": "whats-new/whats-new/pressed/light/690.png",
+      "changed": 6641
+    },
+    {
+      "file": "whats-new/whats-new/disabled/light/690.png",
+      "changed": 6641
+    },
+    {
+      "file": "whats-new/whats-new/selected/light/690.png",
+      "changed": 6641
+    },
+    {
+      "file": "whats-new/whats-new/default/dark/320.png",
+      "changed": 16609
+    },
+    {
+      "file": "whats-new/whats-new/hover/dark/320.png",
+      "changed": 16609
+    },
+    {
+      "file": "whats-new/whats-new/focus-visible/dark/320.png",
+      "changed": 16609
+    },
+    {
+      "file": "whats-new/whats-new/pressed/dark/320.png",
+      "changed": 16609
+    },
+    {
+      "file": "whats-new/whats-new/disabled/dark/320.png",
+      "changed": 16609
+    },
+    {
+      "file": "whats-new/whats-new/selected/dark/320.png",
+      "changed": 16609
+    },
+    {
+      "file": "whats-new/whats-new/default/dark/690.png",
+      "changed": 6679
+    },
+    {
+      "file": "whats-new/whats-new/hover/dark/690.png",
+      "changed": 6679
+    },
+    {
+      "file": "whats-new/whats-new/focus-visible/dark/690.png",
+      "changed": 6679
+    },
+    {
+      "file": "whats-new/whats-new/pressed/dark/690.png",
+      "changed": 6679
+    },
+    {
+      "file": "whats-new/whats-new/disabled/dark/690.png",
+      "changed": 6679
+    },
+    {
+      "file": "whats-new/whats-new/selected/dark/690.png",
+      "changed": 6679
+    },
+    {
+      "file": "whats-new/whats-new/default/hc-dark/320.png",
+      "changed": 20173
+    },
+    {
+      "file": "whats-new/whats-new/hover/hc-dark/320.png",
+      "changed": 20173
+    },
+    {
+      "file": "whats-new/whats-new/focus-visible/hc-dark/320.png",
+      "changed": 20173
+    },
+    {
+      "file": "whats-new/whats-new/pressed/hc-dark/320.png",
+      "changed": 20173
+    },
+    {
+      "file": "whats-new/whats-new/disabled/hc-dark/320.png",
+      "changed": 20173
+    },
+    {
+      "file": "whats-new/whats-new/selected/hc-dark/320.png",
+      "changed": 20173
+    },
+    {
+      "file": "whats-new/whats-new/default/hc-dark/690.png",
+      "changed": 7367
+    },
+    {
+      "file": "whats-new/whats-new/hover/hc-dark/690.png",
+      "changed": 7367
+    },
+    {
+      "file": "whats-new/whats-new/focus-visible/hc-dark/690.png",
+      "changed": 7367
+    },
+    {
+      "file": "whats-new/whats-new/pressed/hc-dark/690.png",
+      "changed": 7367
+    },
+    {
+      "file": "whats-new/whats-new/disabled/hc-dark/690.png",
+      "changed": 7367
+    },
+    {
+      "file": "whats-new/whats-new/selected/hc-dark/690.png",
+      "changed": 7367
+    },
+    {
+      "file": "whats-new/whats-new/default/hc-light/320.png",
+      "changed": 18913
+    },
+    {
+      "file": "whats-new/whats-new/hover/hc-light/320.png",
+      "changed": 18913
+    },
+    {
+      "file": "whats-new/whats-new/focus-visible/hc-light/320.png",
+      "changed": 18913
+    },
+    {
+      "file": "whats-new/whats-new/pressed/hc-light/320.png",
+      "changed": 18913
+    },
+    {
+      "file": "whats-new/whats-new/disabled/hc-light/320.png",
+      "changed": 18913
+    },
+    {
+      "file": "whats-new/whats-new/selected/hc-light/320.png",
+      "changed": 18913
+    },
+    {
+      "file": "whats-new/whats-new/default/hc-light/690.png",
+      "changed": 6726
+    },
+    {
+      "file": "whats-new/whats-new/hover/hc-light/690.png",
+      "changed": 6726
+    },
+    {
+      "file": "whats-new/whats-new/focus-visible/hc-light/690.png",
+      "changed": 6726
+    },
+    {
+      "file": "whats-new/whats-new/pressed/hc-light/690.png",
+      "changed": 6726
+    },
+    {
+      "file": "whats-new/whats-new/disabled/hc-light/690.png",
+      "changed": 6726
+    },
+    {
+      "file": "whats-new/whats-new/selected/hc-light/690.png",
+      "changed": 6726
+    },
+    {
+      "file": "whats-new/whats-new/default/one-dark-pro/320.png",
+      "changed": 16233
+    },
+    {
+      "file": "whats-new/whats-new/hover/one-dark-pro/320.png",
+      "changed": 16233
+    },
+    {
+      "file": "whats-new/whats-new/focus-visible/one-dark-pro/320.png",
+      "changed": 16233
+    },
+    {
+      "file": "whats-new/whats-new/pressed/one-dark-pro/320.png",
+      "changed": 16233
+    },
+    {
+      "file": "whats-new/whats-new/disabled/one-dark-pro/320.png",
+      "changed": 16233
+    },
+    {
+      "file": "whats-new/whats-new/selected/one-dark-pro/320.png",
+      "changed": 16233
+    },
+    {
+      "file": "whats-new/whats-new/default/one-dark-pro/690.png",
+      "changed": 6520
+    },
+    {
+      "file": "whats-new/whats-new/hover/one-dark-pro/690.png",
+      "changed": 6520
+    },
+    {
+      "file": "whats-new/whats-new/focus-visible/one-dark-pro/690.png",
+      "changed": 6520
+    },
+    {
+      "file": "whats-new/whats-new/pressed/one-dark-pro/690.png",
+      "changed": 6520
+    },
+    {
+      "file": "whats-new/whats-new/disabled/one-dark-pro/690.png",
+      "changed": 6520
+    },
+    {
+      "file": "whats-new/whats-new/selected/one-dark-pro/690.png",
+      "changed": 6520
+    },
+    {
+      "file": "whats-new/whats-new/default/dracula/320.png",
+      "changed": 19559
+    },
+    {
+      "file": "whats-new/whats-new/hover/dracula/320.png",
+      "changed": 19559
+    },
+    {
+      "file": "whats-new/whats-new/focus-visible/dracula/320.png",
+      "changed": 19559
+    },
+    {
+      "file": "whats-new/whats-new/pressed/dracula/320.png",
+      "changed": 19559
+    },
+    {
+      "file": "whats-new/whats-new/disabled/dracula/320.png",
+      "changed": 19559
+    },
+    {
+      "file": "whats-new/whats-new/selected/dracula/320.png",
+      "changed": 19559
+    },
+    {
+      "file": "whats-new/whats-new/default/dracula/690.png",
+      "changed": 6989
+    },
+    {
+      "file": "whats-new/whats-new/hover/dracula/690.png",
+      "changed": 6989
+    },
+    {
+      "file": "whats-new/whats-new/focus-visible/dracula/690.png",
+      "changed": 6989
+    },
+    {
+      "file": "whats-new/whats-new/pressed/dracula/690.png",
+      "changed": 6989
+    },
+    {
+      "file": "whats-new/whats-new/disabled/dracula/690.png",
+      "changed": 6989
+    },
+    {
+      "file": "whats-new/whats-new/selected/dracula/690.png",
+      "changed": 6989
+    }
+  ]
+}

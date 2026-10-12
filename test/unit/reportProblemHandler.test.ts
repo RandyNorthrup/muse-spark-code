@@ -1,4 +1,4 @@
-// Report a problem (M93, PLAN.md D72): the report-only message handler in
+// Report a Problem (M93, PLAN.md D72): the report-only message handler in
 // src/host/conversation/reportProblemHandler.ts. Opening, rebuilding and
 // exporting all go through the builder and the export paths; the preview the
 // dialog shows is byte-identical to what an export carries, its item list is
@@ -186,7 +186,7 @@ describe('reportProblemHandler', () => {
     // The facts and the two records the builder keeps; the three it skips
     // (unknown kind, extra field, outside frame) list no item.
     expect(draft?.items).toEqual([
-      { kind: 'facts', label: 'Support facts' },
+      { kind: 'facts', label: 'Support Facts' },
       {
         kind: 'event',
         eventIndex: 0,
@@ -262,7 +262,7 @@ describe('reportProblemHandler', () => {
       removedEventIndexes: [],
     })
     const draft = draftsOf(posted)[1]
-    expect(draft?.items).toEqual([{ kind: 'facts', label: 'Support facts' }])
+    expect(draft?.items).toEqual([{ kind: 'facts', label: 'Support Facts' }])
     expect(draft?.text).not.toContain('Recent events')
   })
 
@@ -316,7 +316,7 @@ describe('reportProblemHandler', () => {
     ])
     expect(drafts[1]?.text).toContain('The panel went blank.')
     // The facts section and the first event are gone from text and items.
-    expect(drafts[2]?.text).not.toContain('Support facts:')
+    expect(drafts[2]?.text).not.toContain('Support Facts:')
     expect(drafts[2]?.text).not.toContain('toolCallFailed')
     expect(drafts[2]?.text).toContain('backendExit')
     expect(drafts[2]?.items.map((item) => item.eventIndex)).toEqual([1])

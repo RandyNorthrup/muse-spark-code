@@ -62,10 +62,17 @@ export function windowsTrustedPathVerifier(
   },
 ): TrustedPathVerifier {
   const files = { lstat, realpath, stat: statIdentity, ...io }
+  // One PowerShell per component, answered by the CLR alone: no cmdlet, so no
+  // module is looked up or loaded. Get-Item, Get-Acl and ConvertTo-Json each
+  // load a module on first use; on hosted Windows runners one such probe took
+  // over 15 s, where CLR-only probes took under a second (CIFIX017W2). The
+  // attributes are the item's own (a link is not followed, and is refused
+  // before its descriptor is read); the descriptor is read as Get-Acl reads
+  // it, the folder's or the file's, with its owner, group and access sections.
   const isTrustedAcl = async (component: string, isDirectory: boolean) => {
     const literal = component.replaceAll("'", "''")
     const isDriveRoot = path.win32.dirname(component) === component
-    const script = `$ErrorActionPreference = 'Stop'; ${WINDOWS_TRUSTED_ACL_SCRIPT}; $item = Get-Item -Force -LiteralPath '${literal}'; $safe = (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -eq 0) -and (Test-TrustedAcl (Get-Acl -LiteralPath '${literal}') $${String(isDriveRoot)} $${String(isDirectory)}); ConvertTo-Json -Compress -InputObject ([bool]$safe)`
+    const script = `$ErrorActionPreference = 'Stop'; ${WINDOWS_TRUSTED_ACL_SCRIPT}; $target = '${literal}'; $attributes = [IO.File]::GetAttributes($target); $safe = $false; if (($attributes -band [IO.FileAttributes]::ReparsePoint) -eq 0) { if (($attributes -band [IO.FileAttributes]::Directory) -ne 0) { $acl = [IO.Directory]::GetAccessControl($target) } else { $acl = [IO.File]::GetAccessControl($target) }; $safe = Test-TrustedAcl $acl $${String(isDriveRoot)} $${String(isDirectory)} }; [Console]::WriteLine(([bool]$safe).ToString().ToLowerInvariant())`
     const result = await run('powershell.exe', [
       '-NoProfile',
       '-NonInteractive',

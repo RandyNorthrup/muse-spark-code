@@ -1,3 +1,5 @@
+import { reserveRequestAmount } from '../../src/core/providers/priceCard'
+import { requestImageCount } from '../../src/core/backends/modelapi/modelPolicy'
 import { Usd } from '../../src/shared/usd'
 import { Buffer } from 'node:buffer'
 import { describe, expect, it, vi } from 'vitest'
@@ -12,12 +14,22 @@ import type { Usage } from '../../src/core/backends/modelapi/schemas'
 import { MODEL_API_MODEL_TEXT } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
 import { FakeLogOutputChannel } from './helpers/fakes'
-import { FAKE_MODEL_API_ACCOUNT_ID, fakeModelApi, fakeModelApiClient } from './helpers/fakeModelApi'
+import {
+  FAKE_MODEL_API_ACCOUNT_ID,
+  fakeModelApi,
+  fakeModelApiClient,
+  type ScriptedReply,
+} from './helpers/fakeModelApi'
 import { memoryToolIo, type MemoryToolIo } from './helpers/fakeToolIo'
 import { memoryStoreOver } from './helpers/fakeMemoryIo'
 import { memorySessionStore } from './helpers/fakeSessionStore'
 import { fakeModelApiHostDeps } from './helpers/modelApiHostDeps'
 import { watchSessionTurns } from './helpers/sessionTurns'
+import { createAutoCompactionAdmission } from '../../src/core/backends/modelapi/autoCompactionAdmission'
+import type { AutoCompactionLedgerClaim } from '../../src/core/backends/modelapi/autoCompactionAdmission'
+import { PaidUseConsent } from '../../src/core/paid/paidConsent'
+import { estimateInput } from '../../src/core/backends/modelapi/sessionBudget'
+import { MODEL_API_PRICES_PER_MILLION, TOKENS_PER_MILLION } from '../../src/shared/constants'
 import { parseHookConfig } from '../../src/core/backends/modelapi/hooks'
 
 const TODOS = [
@@ -29,6 +41,13 @@ const TOOL = { name: 'todo_write', arguments: JSON.stringify({ items: TODOS }) }
 const OVERFLOW = {
   httpError: { status: 400, body: { error: { message: 'maximum context length exceeded' } } },
 }
+const SUMMARY_RETRY = [
+  OVERFLOW,
+  { httpError: { status: 429, body: { error: { message: 'rate limited' } } } },
+  { calls: [{ name: 'read_file', arguments: '{"path":"never-read.txt"}' }] },
+  { text: 'usable summary' },
+  { text: 'done' },
+] satisfies readonly ScriptedReply[]
 
 async function setup(
   changes: Partial<Omit<ModelApiHostDeps, 'io'>> & { io?: MemoryToolIo } = {},
@@ -153,7 +172,368 @@ async function setup(
   }
 }
 
+function isConsentCurrent(): boolean {
+  return true
+}
+function productionAdmission(
+  overrides: Partial<Parameters<typeof createAutoCompactionAdmission>[0]> = {},
+) {
+  const claims: { check: ReturnType<typeof vi.fn>; settle: ReturnType<typeof vi.fn> }[] = []
+  const allowsPaidUse = vi.fn(() => Promise.resolve(true))
+  const reserveCompaction = vi.fn(
+    (amount: ReturnType<Usd['toAmount']>): Promise<AutoCompactionLedgerClaim> => {
+      let isFinalized = false
+      const claim = {
+        reservedUsd: amount,
+        check: vi.fn(() => {
+          if (isFinalized) throw new Error('isFinalized claim')
+        }),
+        settle: vi.fn(() => {
+          isFinalized = true
+          return Promise.resolve()
+        }),
+      }
+      claims.push(claim)
+      return Promise.resolve(claim)
+    },
+  )
+  const admitAutoCompaction = createAutoCompactionAdmission({
+    loadPricing: () => Promise.resolve({ reserveRequestAmount, requestImageCount }),
+    accounting: { reserveCompaction },
+    allowsPaidUse,
+    isOn: () => true,
+    isTrusted: () => true,
+    isEvaluated: () => true,
+    paidUseFence: () => isConsentCurrent,
+    dailyBudgetUsd: () => Usd.from(5).toAmount(),
+    notePaidUse: () => undefined,
+    log: new FakeLogOutputChannel(),
+    storeUnavailable: EN.sessionBudgetStoreUnavailable,
+    ...overrides,
+  })
+  return { admitAutoCompaction, claims, allowsPaidUse, reserveCompaction }
+}
+
+function stoppingMemoryHook() {
+  const files = new Map<string, string>()
+  const { store } = memoryStoreOver(files)
+  const io = memoryToolIo({}, '/ws')
+  io.runHook = () =>
+    Promise.resolve({
+      exitCode: 0,
+      stdout: JSON.stringify({ continue: false, stopReason: 'stop memory flush' }),
+      stderr: '',
+      isTimedOut: false,
+      isCancelled: false,
+    })
+  return {
+    files,
+    changes: {
+      io,
+      memory: store,
+      loadHooks: () =>
+        Promise.resolve(
+          parseHookConfig(
+            JSON.stringify({
+              hooks: {
+                PostToolUse: [
+                  { matcher: 'add_memory', hooks: [{ type: 'command', command: 'stop' }] },
+                ],
+              },
+            }),
+            'project',
+            'linux',
+          ).hooks,
+        ),
+    },
+  }
+}
+
+function expectStorageFailure(t: Awaited<ReturnType<typeof setup>>) {
+  expect(t.api.responseBodies()).toHaveLength(3)
+  expect(t.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
+    terminal: 'failed',
+    reason: EN.sessionBudgetStoreUnavailable,
+  })
+}
+
 describe('automatic compaction in the shared Model API loop', () => {
+  describe.each(['consent', 'switch', 'trust', 'evaluation'] as const)(
+    'production revoked %s refuses only the automatic compaction',
+    (withdrawn) => {
+      it.each(['memory', 'reservation', 'final send', 'retry'] as const)(
+        'continues the ordinary turn after revocation during %s',
+        async (stage) => {
+          const live = { consent: true, switch: true, trust: true, evaluation: true }
+          const revoke = () => {
+            live[withdrawn] = false
+          }
+          const isConsentCurrent = () => live.consent
+          const paid = productionAdmission({
+            isOn: () => live.switch,
+            isTrusted: () => live.trust,
+            isEvaluated: () => live.evaluation,
+            paidUseFence: () => isConsentCurrent,
+          })
+          const reserve = paid.reserveCompaction.getMockImplementation()
+          if (reserve === undefined) throw new Error('expected reserve')
+          paid.reserveCompaction.mockImplementation(async (amount) => {
+            const claim = await reserve(amount)
+            if (stage === 'reservation') revoke()
+            return claim
+          })
+          const memory = memoryStoreOver(new Map(), {
+            afterWrite: () => {
+              if (stage === 'memory') revoke()
+              return Promise.resolve()
+            },
+          })
+          const t = await setup({
+            admitAutoCompaction: async (request) => {
+              const admission = await paid.admitAutoCompaction(request)
+              if (admission === undefined) throw new Error('expected admission')
+              return {
+                ...admission,
+                guard: Object.assign(
+                  (digest: string | undefined) => {
+                    admission.guard(digest)
+                  },
+                  {
+                    ...admission.guard,
+                    prepareRequest: async (
+                      ...args: Parameters<NonNullable<typeof admission.guard.prepareRequest>>
+                    ) => {
+                      await admission.guard.prepareRequest?.(...args)
+                      if (stage === 'final send') revoke()
+                    },
+                  },
+                ),
+              }
+            },
+            autoCompaction: () => live.switch,
+            autoCompactionEvaluated: () => live.evaluation,
+            memory: memory.store,
+            sideCallFormats: () => ({ state: 'yes', value: ['json_schema'] }),
+          })
+          try {
+            await t.seed()
+            t.nearWindow()
+            t.api.script(
+              { calls: [TOOL] },
+              ...(stage === 'retry' ? [{ ...SUMMARY_RETRY[1], onRequest: revoke }] : []),
+              { text: 'ordinary turn finished' },
+            )
+            await t.send()
+            expect(live[withdrawn]).toBe(false)
+            expect(t.api.responseBodies()).toHaveLength(stage === 'retry' ? 4 : 3)
+            expect(JSON.stringify(t.api.responseBodies().at(-1))).not.toContain(
+              MODEL_API_MODEL_TEXT.autoCompactionFollowup,
+            )
+            expect(t.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
+              terminal: 'completed',
+            })
+            expect(
+              t.events.some(
+                (event) =>
+                  event.type === 'backendNotice' &&
+                  [
+                    EN.autoCompactionFailed,
+                    EN.structuredOutputRepair,
+                    EN.structuredOutputFallback,
+                  ].includes(event.text),
+              ),
+            ).toBe(false)
+            for (const claim of paid.claims) {
+              expect(claim.settle).toHaveBeenCalledExactlyOnceWith(Usd.from(0).toAmount(), false)
+            }
+          } finally {
+            await t.host.close()
+          }
+        },
+      )
+    },
+  )
+
+  it('completed summaries already update session usage and M82 totals', async () => {
+    const store = memorySessionStore()
+    const journal = store.budget
+    if (journal === undefined) throw new Error('test journal missing')
+    const t = await setup({ store, sessionBudgetUsd: () => Usd.from(1).toAmount() })
+    await t.seed()
+    t.api.script({ text: 'summary', usage: { input: 1000, output: 500, cached: 200 } })
+    expect(await t.session.compact()).toMatchObject({ status: 'accepted' })
+    expect(t.session.snapshot().usage).toMatchObject({
+      inputTokens: 1010,
+      outputTokens: 505,
+      cachedTokens: 200,
+    })
+    const total = await journal.read(t.session.sessionId, FAKE_MODEL_API_ACCOUNT_ID)
+    expect(total.spentUsd).toBe(Usd.from(0.00318875).toAmount())
+    await t.host.close()
+  })
+  it('production daily claims bound each actual summary body including fallback', async () => {
+    const paid = productionAdmission()
+    const t = await setup({ admitAutoCompaction: paid.admitAutoCompaction })
+    await t.seed()
+    t.api.script(...SUMMARY_RETRY)
+    await t.send()
+    const summaries = t.api.responseBodies().slice(2, -1)
+    expect(summaries).toHaveLength(3)
+    const rates = MODEL_API_PRICES_PER_MILLION.standard
+    for (const [index, raw] of summaries.entries()) {
+      const body = z
+        .object({
+          instructions: z.string(),
+          tools: z.array(z.unknown()),
+          input: z.array(z.unknown()),
+          max_output_tokens: z.number(),
+        })
+        .parse(raw)
+      const input = estimateInput(
+        [
+          JSON.stringify(body.instructions),
+          JSON.stringify(body.tools),
+          ...body.input.map((item) => JSON.stringify(item)),
+        ],
+        undefined,
+      ).inputTokens
+      const bound = Usd.from(rates.input)
+        .times(input)
+        .add(Usd.from(rates.output).times(body.max_output_tokens))
+        .divide(TOKENS_PER_MILLION)
+      expect(
+        Usd.from(paid.reserveCompaction.mock.calls[index]?.[0] ?? 0).compare(bound),
+      ).toBeGreaterThanOrEqual(0)
+    }
+    await t.host.close()
+  })
+
+  it('manual summary forks never acquire the automatic paid identity', async () => {
+    const t = await setup({
+      autoCompaction: () => false,
+      admitSummaryFork: () => Promise.resolve(() => undefined),
+    })
+    await t.seed()
+    t.api.script({ text: 'manual fork summary' })
+    expect(await t.session.compact('source-session')).toMatchObject({ status: 'accepted' })
+    const row = t.events.findLast(
+      (event) => event.type === 'itemCompleted' && event.item.kind === 'compaction',
+    )
+    expect(row).toBeDefined()
+    if (row?.type !== 'itemCompleted') throw new Error('expected summary row')
+    expect(row.item.paid).toBeUndefined()
+    await t.host.close()
+  })
+
+  it('production consent revoked during reservation sends no summary or continuation', async () => {
+    let grants: ReadonlySet<'autoCompaction'> = new Set(['autoCompaction'])
+    const consent = new PaidUseConsent({
+      isOn: () => true,
+      canRemember: () => true,
+      readGrants: () => grants,
+      writeGrants: () => {
+        grants = new Set()
+        return Promise.resolve()
+      },
+      ask: () => Promise.resolve('deny'),
+      log: new FakeLogOutputChannel(),
+    })
+    const paid = productionAdmission({
+      allowsPaidUse: (request) => consent.allows(request),
+      paidUseFence: () => consent.fence('autoCompaction'),
+    })
+    const reserve = paid.reserveCompaction.getMockImplementation()
+    if (reserve === undefined) throw new Error('expected reserve')
+    paid.reserveCompaction.mockImplementation(async (amount) => {
+      const claim = await reserve(amount)
+      await consent.forget()
+      return claim
+    })
+    const t = await setup({ admitAutoCompaction: paid.admitAutoCompaction })
+    await t.seed()
+    t.api.script(OVERFLOW, { text: 'must not summarize' }, { text: 'must not continue' })
+    await t.send()
+    expect(t.api.responseBodies()).toHaveLength(2)
+    expect(consent.remembered()).toEqual([])
+    expect(paid.claims[0]?.settle).toHaveBeenCalledWith(Usd.from(0).toAmount(), false)
+    expect(t.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
+      terminal: 'failed',
+      errorKind: 'context_overflow',
+    })
+    expect(t.events.findLast((event) => event.type === 'turnCompleted')).not.toMatchObject({
+      reason: EN.sessionBudgetStoreUnavailable,
+    })
+    await t.host.close()
+  })
+
+  it('production admission denies paid consent before summary or continuation', async () => {
+    const paid = productionAdmission()
+    paid.allowsPaidUse.mockResolvedValue(false)
+    const t = await setup({ admitAutoCompaction: paid.admitAutoCompaction })
+    await t.seed()
+    t.api.script(OVERFLOW, { text: 'must not summarize' })
+    await t.send()
+    expect(paid.allowsPaidUse).toHaveBeenCalledTimes(1)
+    expect(paid.reserveCompaction).not.toHaveBeenCalled()
+    expect(t.api.responseBodies()).toHaveLength(2)
+    await t.host.close()
+  })
+  it('production claims survive a 429 retry and tool-less fallback without reuse', async () => {
+    const paid = productionAdmission()
+    const t = await setup({ admitAutoCompaction: paid.admitAutoCompaction })
+    await t.seed()
+    t.api.script(...SUMMARY_RETRY)
+    await t.send()
+    expect(t.api.responseBodies()).toHaveLength(6)
+    expect(paid.claims).toHaveLength(3)
+    expect(
+      t.events.some(
+        (event) =>
+          event.type === 'itemCompleted' &&
+          event.item.kind === 'compaction' &&
+          event.item.paid === 'autoCompaction',
+      ),
+    ).toBe(true)
+    for (const claim of paid.claims) expect(claim.settle).toHaveBeenCalledTimes(1)
+    expect(paid.claims[0]?.settle).toHaveBeenCalledWith(Usd.from(0).toAmount(), false)
+    expect(paid.allowsPaidUse).toHaveBeenCalledTimes(1)
+    expect(t.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
+      terminal: 'completed',
+    })
+    await t.host.close()
+  })
+  it('production settlement failure ends the owning turn before ordinary continuation', async () => {
+    const paid = productionAdmission()
+    paid.reserveCompaction.mockImplementation((amount) =>
+      Promise.resolve({
+        reservedUsd: amount,
+        check: () => undefined,
+        settle: () => Promise.reject(new Error('storage failed')),
+      }),
+    )
+    const t = await setup({ admitAutoCompaction: paid.admitAutoCompaction })
+    await t.seed()
+    t.api.script(OVERFLOW, { text: 'summary' }, { text: 'must not continue' })
+    await t.send()
+    expectStorageFailure(t)
+    expect(paid.reserveCompaction).toHaveBeenCalledTimes(1)
+    await t.host.close()
+  })
+  it('production memory-hook stop owns no unsent daily reservation', async () => {
+    const paid = productionAdmission()
+    const memory = stoppingMemoryHook()
+    const t = await setup({
+      ...memory.changes,
+      admitAutoCompaction: paid.admitAutoCompaction,
+    })
+    await t.seed()
+    t.api.script(OVERFLOW, { text: 'must not summarize' })
+    await t.send()
+    expect(t.api.responseBodies()).toHaveLength(2)
+    expect(paid.reserveCompaction).not.toHaveBeenCalled()
+    await t.host.close()
+  })
+
   it('compacts at a settled tool boundary and restores the exact host list before continuation', async () => {
     const t = await setup()
     await t.seed()
@@ -252,13 +632,7 @@ describe('automatic compaction in the shared Model API loop', () => {
   it('settles every HTTP attempt, including a summary retry and a tool-less fallback', async () => {
     const t = await setup()
     await t.seed()
-    t.api.script(
-      OVERFLOW,
-      { httpError: { status: 429, body: { error: { message: 'rate limited' } } } },
-      { calls: [{ name: 'read_file', arguments: '{"path":"never-read.txt"}' }] },
-      { text: 'usable summary' },
-      { text: 'done' },
-    )
+    t.api.script(...SUMMARY_RETRY)
     await t.send()
     expect(t.starts()).toBe(3)
     expect(t.settled).toHaveLength(3)
@@ -326,11 +700,7 @@ describe('automatic compaction in the shared Model API loop', () => {
       t.api.script(OVERFLOW, plan, { text: 'must not continue' })
       await t.send()
       expect(settlements).toEqual([outcome])
-      expect(t.api.responseBodies()).toHaveLength(3)
-      expect(t.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
-        terminal: 'failed',
-        reason: EN.sessionBudgetStoreUnavailable,
-      })
+      expectStorageFailure(t)
       await t.host.close()
     },
   )
@@ -557,35 +927,8 @@ describe('automatic compaction in the shared Model API loop', () => {
   it.each(['overflow', 'boundary'])(
     'honours a stopping memory hook on %s before buying a summary or continuation',
     async (boundary) => {
-      const files = new Map<string, string>()
-      const { store } = memoryStoreOver(files)
-      const io = memoryToolIo({}, '/ws')
-      io.runHook = () =>
-        Promise.resolve({
-          exitCode: 0,
-          stdout: JSON.stringify({ continue: false, stopReason: 'stop memory flush' }),
-          stderr: '',
-          isTimedOut: false,
-          isCancelled: false,
-        })
-      const t = await setup({
-        io,
-        memory: store,
-        loadHooks: () =>
-          Promise.resolve(
-            parseHookConfig(
-              JSON.stringify({
-                hooks: {
-                  PostToolUse: [
-                    { matcher: 'add_memory', hooks: [{ type: 'command', command: 'stop' }] },
-                  ],
-                },
-              }),
-              'project',
-              'linux',
-            ).hooks,
-          ),
-      })
+      const { files, changes } = stoppingMemoryHook()
+      const t = await setup(changes)
       await t.seed()
       if (boundary === 'boundary') t.nearWindow()
       t.api.script(
@@ -888,6 +1231,12 @@ describe('automatic compaction in the shared Model API loop', () => {
       t.api.script({ calls: [TOOL] }, { text: 'done' })
       await t.send()
       expect(t.admissions()).toBe(0)
+      expect(t.events).not.toContainEqual(
+        expect.objectContaining({
+          type: 'backendNotice',
+          text: EN.autoCompactionAwaitingEvaluation,
+        }),
+      )
     }
     expect(JSON.stringify(off.api.responseBodies())).toBe(
       JSON.stringify(pending.api.responseBodies()),
@@ -906,6 +1255,14 @@ describe('automatic compaction in the shared Model API loop', () => {
       level: 'info',
       text: EN.autoCompactionAwaitingEvaluation,
     })
+    t.api.script(OVERFLOW)
+    await t.send()
+    expect(
+      t.events.filter(
+        (event) =>
+          event.type === 'backendNotice' && event.text === EN.autoCompactionAwaitingEvaluation,
+      ),
+    ).toHaveLength(1)
     expect(t.admissions()).toBe(0)
     await t.host.close()
   })

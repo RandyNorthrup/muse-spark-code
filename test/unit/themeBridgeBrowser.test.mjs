@@ -4,6 +4,7 @@ import { chromium } from 'playwright-core'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { findChrome } from '../../scripts/lib/chrome.mjs'
 import { buildThemeFixture, themeFixtureHtml } from './themeBridgeFixture.mjs'
+import { warmBrowser } from './helpers/warmBrowser'
 
 const consumer = JSON.parse(readFileSync('design/tokens/generated/consumers.json', 'utf8'))
 const modes = ['light', 'dark', 'hc-light', 'hc-dark']
@@ -20,6 +21,10 @@ beforeAll(async () => {
   runtime.browser = await chromium.launch(
     path.isAbsolute(chrome) ? { executablePath: chrome } : { channel: 'chrome' },
   )
+})
+// Browser-wide first-page work once, under this hook's own limit (CIFIX017).
+beforeAll(async () => {
+  await warmBrowser(runtime.browser)
 })
 afterAll(async () => {
   await runtime.browser?.close()

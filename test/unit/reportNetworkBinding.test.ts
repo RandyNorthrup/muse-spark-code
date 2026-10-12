@@ -1,9 +1,10 @@
-import { mkdtemp, readFile, rm, stat } from 'node:fs/promises'
+import { mkdtemp, readFile, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { tmpdir } from 'node:os'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { reportingResponseCache } from '../../src/runtime/reporting/network'
 import { REPORT_AS_OF } from './helpers/reporting/runtime'
+import { removeFolder } from './helpers/temporaryFolders'
 
 // Report storage's own-process identity probe is a bounded OS command; on
 // Windows and macOS it spawns (Linux reads /proc). Its governed admission is
@@ -15,7 +16,7 @@ vi.mock('../../src/core/resources/launcher', async (original) => {
 
 const folders: string[] = []
 afterEach(async () => {
-  for (const folder of folders.splice(0)) await rm(folder, { recursive: true, force: true })
+  for (const folder of folders.splice(0)) await removeFolder(folder)
 })
 describe('the owner-only report response cache binding', () => {
   it('shares one serialized cache and publishes validated entries outside the workspace', async () => {

@@ -9,20 +9,64 @@ import {
   type ResourceProbeLimits,
 } from '../../src/core/resources/sampler/system'
 import { resourceSampleSchema, resourceSettingsSchema } from '../../src/shared/resources'
+import * as linuxMemory from '../../src/core/resources/sampler/linuxMemory'
 
 vi.mock('node:os', { spy: true })
 vi.mock('node:child_process', { spy: true })
+vi.mock('../../src/core/resources/sampler/linuxMemory', { spy: true })
 
 const limits: ResourceProbeLimits = { timeoutMs: 2000, maxOutputBytes: 65_536 }
 const scratch: string[] = []
 afterEach(async () => {
   vi.restoreAllMocks()
+  vi.unstubAllGlobals()
   await Promise.all(
     scratch.splice(0).map((directory) => rm(directory, { recursive: true, force: true })),
   )
 })
 
 describe('resource sampler OS adapter', () => {
+  it.each([
+    { platform: 'darwin', uv: '1.51.0', available: null },
+    { platform: 'darwin', uv: '1.51.999', available: null },
+    { platform: 'darwin', uv: '1.52.0', available: 2000 },
+    { platform: 'darwin', uv: '1.52.1', available: 2000 },
+    { platform: 'darwin', uv: '2.0.0', available: 2000 },
+    { platform: 'darwin', uv: 'unknown', available: null },
+    { platform: 'linux', uv: '1.51.0', available: 100 },
+    { platform: 'win32', uv: '1.51.0', available: 100 },
+  ])('uses genuine headroom on $platform with libuv $uv', async ({ platform, uv, available }) => {
+    const availableMemory = vi.fn(() => 2000)
+    vi.stubGlobal('process', {
+      ...process,
+      platform,
+      versions: { ...process.versions, uv },
+      availableMemory,
+    })
+    vi.mocked(os.totalmem).mockReturnValue(8000)
+    vi.mocked(os.freemem).mockReturnValue(100)
+    vi.mocked(linuxMemory.linuxMemoryLimit).mockResolvedValue(undefined)
+    const sampler = createMachineResourceSampler(() => resourceSettingsSchema.parse({}), limits)
+    expect(availableMemory).not.toHaveBeenCalled()
+    const sample = await sampler.sample()
+    expect(sample.memoryAvailableBytes).toBe(available)
+    expect(sample.memoryUsedPercent).toBe(available === null ? null : (1 - available / 8000) * 100)
+    expect(availableMemory).toHaveBeenCalledTimes(available === null ? 0 : 1)
+  })
+
+  it('keeps Darwin headroom unknown when the runtime has no available-memory API', async () => {
+    vi.stubGlobal('process', {
+      ...process,
+      platform: 'darwin',
+      versions: { ...process.versions, uv: '1.52.0' },
+      availableMemory: undefined,
+    })
+    const sampler = createMachineResourceSampler(() => resourceSettingsSchema.parse({}), limits)
+    const sample = await sampler.sample()
+    expect(sample.memoryAvailableBytes).toBeNull()
+    expect(sample.memoryUsedPercent).toBeNull()
+  })
+
   it('does no OS sampling on import/construction and provides validated real readings on demand', async () => {
     const cpus = vi.mocked(os.cpus)
     const total = vi.mocked(os.totalmem)

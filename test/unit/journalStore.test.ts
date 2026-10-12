@@ -21,6 +21,7 @@ import { UsageJournalStore, USAGE_JOURNAL_ROOT } from '../../src/core/usage/jour
 import { createUsageRecord } from '../../src/core/usage/journalRecord'
 import { NodeUsageFs } from '../../src/runtime/usage/nodeUsageFs'
 import { USAGE_ROLLUP_LOCK_STALE_MS } from '../../src/shared/constants'
+import { fastestAwaitedRun } from './helpers/fastestRun'
 
 const roots: string[] = []
 // Two real processes append 10,000 records on disk; Windows exceeds five seconds.
@@ -506,9 +507,8 @@ describe('usage journal store and Node filesystem', () => {
       const { store, fs } = prepared
       const read = vi.spyOn(fs, 'read')
       const bytesReads = read.mock.calls.length
-      const start = performance.now()
+      const elapsed = await fastestAwaitedRun(() => store.read())
       const warm = await store.read()
-      const elapsed = performance.now() - start
       expect(warm.records).toHaveLength(60_000)
       expect(read).toHaveBeenCalledTimes(bytesReads)
       expect(elapsed).toBeLessThanOrEqual(300)

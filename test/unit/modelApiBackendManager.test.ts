@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import * as z from 'zod/mini'
 import { Usd } from '../../src/shared/usd'
 import type { UsageRecording } from '../../src/core/usage/recording'
 import { watchSessionTurns } from './helpers/sessionTurns'
@@ -11,13 +13,21 @@ import {
 import * as modelApiEntry from '../../src/host/backend/modelApiEntry'
 import { fakeMcpSource } from './helpers/fakeMcpSource'
 import { FakeLogOutputChannel } from './helpers/fakes'
-import { FAKE_MODEL_API_ACCOUNT_ID, fakeModelApi, fakeModelApiClient } from './helpers/fakeModelApi'
+import {
+  FAKE_MODEL_API_ACCOUNT_ID,
+  fakeModelApi,
+  fakeModelApiClient,
+  streamFor,
+  type FakeModelApi,
+} from './helpers/fakeModelApi'
 import { createProviderRegistry } from '../../src/core/providers/providerRegistry'
 import { memoryContextIo } from './helpers/fakeContextIo'
 import { noopToolIo } from './helpers/fakeToolIo'
 import { fakeManagerDeps } from './helpers/modelApiManager'
 import type { ToolIo } from '../../src/core/backends/modelapi/tools'
 import { ModelApiSession } from '../../src/core/backends/modelapi/ModelApiHost'
+import * as hostModule from '../../src/core/backends/modelapi/ModelApiHost'
+import { M106_CAPTURED_META_MODEL } from '../../src/shared/constants'
 import { VerifyLedger } from '../../src/core/backends/modelapi/verifyLedger'
 import { EditReview } from '../../src/host/editor/editReview'
 
@@ -32,19 +42,7 @@ it('loads the provider factory only on first BYO resolution and reuses it', asyn
   const provider = fakeModelApi()
   const log = new FakeLogOutputChannel()
   const ref = 'team/small'
-  const registry = createProviderRegistry({
-    models: () =>
-      Promise.resolve([
-        {
-          ref,
-          origin: 'https://example.test',
-          pricing: { kind: 'local' },
-          evidence: { capabilities: { toolCalling: true } },
-        },
-      ]),
-    createClient: () => Promise.resolve(fakeModelApiClient(provider, log)),
-    isCurrent: () => true,
-  })
+  const registry = byoRegistry(ref, provider, log, { capabilities: { toolCalling: true } })
   const createProviders = vi.fn(() => Promise.resolve(registry))
   const manager = new ModelApiBackendManager(
     fakeManagerDeps(meta, log, {
@@ -78,23 +76,103 @@ it('loads the provider factory only on first BYO resolution and reuses it', asyn
   }
 })
 
+/** A BYO registry with one local model, for production-path binding tests. */
+function byoRegistry(
+  ref: string,
+  provider: FakeModelApi,
+  log: FakeLogOutputChannel,
+  evidence: {
+    readonly capabilities: { readonly toolCalling: true }
+    readonly maxOutputTokens?: number
+  },
+) {
+  return createProviderRegistry({
+    models: () =>
+      Promise.resolve([
+        {
+          ref,
+          origin: 'https://example.test',
+          pricing: { kind: 'local' },
+          evidence,
+        },
+      ]),
+    createClient: () => Promise.resolve(fakeModelApiClient(provider, log)),
+    isCurrent: () => true,
+  })
+}
+
+/** One read_file call ending in done text, scripted on the serving fake. */
+function scriptReadDone(target: FakeModelApi) {
+  target.script(
+    { calls: [{ name: 'read_file', arguments: '{"path":"a.txt"}', callId: 'c1' }] },
+    { text: 'done' },
+  )
+}
+
+/** A started session on the fake API, for production-path binding tests. */
+async function boundSession(
+  log: FakeLogOutputChannel,
+  extra: Partial<ModelApiBackendManagerDeps> = {},
+) {
+  const { manager } = managerOn('/ws', undefined, log, undefined, extra)
+  const host = await manager.ensureHost()
+  const session = await host.startSession({
+    workspaceRoot: '/ws',
+    modelId: 'muse-spark-1.3',
+    approvalMode: 'allowAll',
+  })
+  return { manager, host, session }
+}
+
+/** One read_file turn's request bodies through the serving fake. */
+async function readTurnBodies(
+  session: Parameters<typeof watchSessionTurns>[0],
+  provider: FakeModelApi,
+) {
+  const watched = watchSessionTurns(session)
+  scriptReadDone(provider)
+  await session.sendTurn([{ type: 'text', text: 'read it' }])
+  await watched.turnDone()
+  return provider.responseBodies()
+}
+
+/** One qualified BYO record with a session client resolving through it. */
+function resolvingClient(
+  provider: FakeModelApi,
+  log: FakeLogOutputChannel,
+  ref: string,
+  options: { readonly maxOutputTokens?: number; readonly withList: boolean },
+) {
+  const registry = byoRegistry(ref, provider, log, {
+    capabilities: { toolCalling: true },
+    ...(options.maxOutputTokens !== undefined && { maxOutputTokens: options.maxOutputTokens }),
+  })
+  const resolve = vi.fn((name: string) => registry.resolve(name))
+  const client = Object.assign(fakeModelApiClient(provider, log), {
+    models: {
+      resolve,
+      ...(options.withList && { list: registry.list }),
+    },
+  })
+  return { registry, resolve, client }
+}
+
+/** Every request body carries the selected record's cap, never preview bytes. */
+function expectSelectedCap(bodies: readonly Record<string, unknown>[], cap: number) {
+  expect(bodies.length).toBeGreaterThan(0)
+  for (const body of bodies) {
+    expect(body['max_output_tokens']).toBe(cap)
+  }
+  expect(JSON.stringify(bodies)).not.toContain('argumentPreview')
+}
+
 /** A manager on the fake API with no waits, over the given root and store. */
 function managerOn(
   workspaceRoot: string | undefined,
   store: ModelApiBackendManagerDeps['store'],
   log = new FakeLogOutputChannel(),
   hooks?: HookFixture,
-  extra: Partial<
-    Pick<
-      ModelApiBackendManagerDeps,
-      | 'createMcpServers'
-      | 'ideTools'
-      | 'isObservationPackingOn'
-      | 'newId'
-      | 'browserCheck'
-      | 'legalScan'
-    >
-  > = {},
+  extra: Partial<ModelApiBackendManagerDeps> = {},
 ) {
   const api = fakeModelApi()
   return {
@@ -188,6 +266,289 @@ describe('ModelApiBackendManager', () => {
       await attempt.close()
       expect(api.responseBodies()).toEqual([])
       expect(legalScan).not.toHaveBeenCalled()
+    } finally {
+      await manager.dispose()
+      create.mockRestore()
+    }
+  })
+
+  it('binds the selected record through the unmanaged production path', async () => {
+    // No caller supplies preview or cap deps: the bundle entry installs the
+    // Meta defaults, so this turn runs the same path VS Code, ACP and exec use.
+    const { api, manager } = managerOn('/ws', undefined, new FakeLogOutputChannel(), undefined, {
+      confirmContributorModel: () => Promise.resolve(true),
+    })
+    try {
+      const host = await manager.ensureHost()
+      for (const [modelId, wantPreview, wantCap] of [
+        [M106_CAPTURED_META_MODEL, true, 131_072],
+        ['muse-spark-1.2', false, 131_072],
+        ['unobserved-model', false, 32_768],
+      ] as const) {
+        const session = await host.startSession({
+          workspaceRoot: '/ws',
+          modelId,
+          approvalMode: 'allowAll',
+        })
+        const watched = watchSessionTurns(session)
+        const before = api.responseBodies().length
+        scriptReadDone(api)
+        await session.sendTurn([{ type: 'text', text: 'read it' }])
+        await watched.turnDone()
+        const previews = watched.events.filter((event) => event.type === 'toolArgumentPreview')
+        expect(previews.length > 0).toBe(wantPreview)
+        if (wantPreview) {
+          expect(previews.at(-1)).toMatchObject({
+            item: { argumentPreview: { text: expect.stringContaining('a.txt') } },
+          })
+        }
+        const bodies = api.responseBodies().slice(before)
+        expect(bodies.length).toBeGreaterThan(0)
+        for (const body of bodies) {
+          expect(body['max_output_tokens']).toBe(wantCap)
+        }
+        expect(JSON.stringify(bodies)).not.toContain('argumentPreview')
+      }
+    } finally {
+      await manager.dispose()
+    }
+  })
+
+  it('binds a qualified selected record through the unmanaged production path', async () => {
+    // RVCM1062 P2: a BYO record with authoritative output.maxTokens = 65536
+    // must request 65536 through the production path (manager → entry), not
+    // the legacy 32768. No caller supplies preview or cap deps: the entry
+    // binds the registry record the host resolves for the selected model.
+    // Without a streaming-argument capture the turn stays preview-free.
+    const provider = fakeModelApi()
+    const log = new FakeLogOutputChannel()
+    const ref = 'team/small'
+    const registry = byoRegistry(ref, provider, log, {
+      capabilities: { toolCalling: true },
+      maxOutputTokens: 65_536,
+    })
+    const { manager } = managerOn('/ws', undefined, log, undefined, {
+      createProviders: () => Promise.resolve(registry),
+    })
+    try {
+      const host = await manager.ensureHost()
+      const session = await host.startSession({
+        workspaceRoot: '/ws',
+        modelId: 'muse-spark-1.3',
+        approvalMode: 'allowAll',
+      })
+      await session.setModel(ref)
+      const watched = watchSessionTurns(session)
+      scriptReadDone(provider)
+      await session.sendTurn([{ type: 'text', text: 'read it' }])
+      await watched.turnDone()
+      expect(watched.events.filter((event) => event.type === 'toolArgumentPreview')).toEqual([])
+      const bodies = provider.responseBodies()
+      expect(bodies.length).toBeGreaterThan(0)
+      for (const body of bodies) {
+        expect(body['max_output_tokens']).toBe(65_536)
+      }
+      expect(JSON.stringify(bodies)).not.toContain('argumentPreview')
+    } finally {
+      await manager.dispose()
+    }
+  })
+
+  it('resolves qualified records through the session client, never a standalone registry', async () => {
+    // RVCM1062B P1 (headless accounting) and P2 (plan usage): the session
+    // client already resolves qualified refs — accounting-wrapped on a
+    // provider run, usage-owning where subscriptions live — so the entry
+    // must bind its record without consulting a standalone registry. A
+    // standalone resolve would bypass the daily reservation/run-ledger
+    // admission and record plan usage where no reader looks.
+    const provider = fakeModelApi()
+    const log = new FakeLogOutputChannel()
+    const ref = 'team/small'
+    const { registry, resolve, client } = resolvingClient(provider, log, ref, {
+      maxOutputTokens: 65_536,
+      withList: true,
+    })
+    const createProviders = vi.fn(() => Promise.resolve(registry))
+    const { manager, session } = await boundSession(log, {
+      createProviderClient: () => Promise.resolve(client),
+      createProviders,
+    })
+    try {
+      await session.setModel(ref)
+      expect(resolve).toHaveBeenCalledWith(ref)
+      expect(createProviders).not.toHaveBeenCalled()
+      expectSelectedCap(await readTurnBodies(session, provider), 65_536)
+    } finally {
+      await manager.dispose()
+    }
+  })
+
+  it('keeps subscription models selectable beside a subscription-blind registry', async () => {
+    // RVCM1062B P1 (extension): a standalone registry names no
+    // auth:'subscription' entry, so a plan ref it rejects must still
+    // resolve against the session client, as before any registry existed.
+    const api = fakeModelApi()
+    const log = new FakeLogOutputChannel()
+    const client = Object.assign(fakeModelApiClient(api, log), {
+      isPlanModel: (name: string) => name.startsWith('chatgpt/'),
+    })
+    const blind = byoRegistry('team/small', fakeModelApi(), log, {
+      capabilities: { toolCalling: true },
+    })
+    const { manager, session } = await boundSession(log, {
+      createProviderClient: () => Promise.resolve(client),
+      createProviders: () => Promise.resolve(blind),
+    })
+    try {
+      await session.setModel('chatgpt/gpt-6-astra')
+      const watched = watchSessionTurns(session)
+      await session.sendTurn([{ type: 'text', text: 'hi' }])
+      await watched.turnDone()
+      expect(api.responseBodies().length).toBeGreaterThan(0)
+    } finally {
+      await manager.dispose()
+    }
+  })
+
+  it('binds the selected record cap through the session client resolver alone', async () => {
+    // RVCM1062B P2 (interactive ACP): no createProviders is supplied there;
+    // the configured resolver arrives on client.models, and the selected
+    // record's output maximum must reach the request through the entry
+    // stash, not the legacy cap.
+    const provider = fakeModelApi()
+    const log = new FakeLogOutputChannel()
+    const ref = 'team/small'
+    const { resolve, client } = resolvingClient(provider, log, ref, {
+      maxOutputTokens: 65_536,
+      withList: true,
+    })
+    const { manager, session } = await boundSession(log, {
+      createProviderClient: () => Promise.resolve(client),
+    })
+    try {
+      await session.setModel(ref)
+      expect(resolve).toHaveBeenCalledWith(ref)
+      expectSelectedCap(await readTurnBodies(session, provider), 65_536)
+    } finally {
+      await manager.dispose()
+    }
+  })
+
+  it('keeps the client-only catalogue when the session resolver lists nothing', async () => {
+    // The accounting-wrapped runtime client resolves but does not list; the
+    // entry must not turn that absence into a failure (the ACP agent lists
+    // models on every session/new).
+    const provider = fakeModelApi()
+    const log = new FakeLogOutputChannel()
+    const ref = 'team/small'
+    const { client } = resolvingClient(provider, log, ref, {
+      maxOutputTokens: 65_536,
+      withList: false,
+    })
+    const { manager, host, session } = await boundSession(log, {
+      createProviderClient: () => Promise.resolve(client),
+    })
+    try {
+      await session.setModel(ref)
+      const listed = await host.listModels(session.sessionId)
+      expect(listed.map((row) => row.modelId)).toContain('muse-spark-1.3')
+      expectSelectedCap(await readTurnBodies(session, provider), 65_536)
+    } finally {
+      await manager.dispose()
+    }
+  })
+
+  it('replays the captured U9 argument wire through the production path', async () => {
+    // RVCM1062 P3: the production preview proof replays CAPTURED bytes, not
+    // invented deltas. The U9 fixture keeps no raw per-delta payloads
+    // (rawArgumentFramesAvailable: false), only the done arguments and the
+    // counted delta sequence (two deltas then done). This turn serves the
+    // byte-exact captured arguments as exactly two deltas through real SSE
+    // framing, the production transport, parser and host (manager → entry
+    // with no caller suppliers), and proves the preview renders the captured
+    // text. Only the split point between the two deltas is the test's.
+    const capture = z
+      .object({
+        streamSummary: z.object({
+          function_call_arguments_delta_events: z.number(),
+          function_call_arguments_done: z.array(
+            z.object({ name: z.string(), arguments: z.string() }),
+          ),
+        }),
+      })
+      .parse(
+        JSON.parse(
+          readFileSync(new URL('../fixtures/m106/u9-strict-stream.json', import.meta.url), 'utf8'),
+        ),
+      )
+    expect(capture.streamSummary.function_call_arguments_delta_events).toBe(2)
+    const done = capture.streamSummary.function_call_arguments_done[0]
+    if (done === undefined) throw new Error('the U9 capture names no completed call')
+    const capturedArguments = done.arguments
+    const halves: readonly [string, string] = [
+      capturedArguments.slice(0, Math.floor(capturedArguments.length / 2)),
+      capturedArguments.slice(Math.floor(capturedArguments.length / 2)),
+    ]
+    expect(halves.join('')).toBe(capturedArguments)
+    const wire = streamFor(
+      {
+        calls: [{ name: done.name, arguments: capturedArguments, argumentDeltas: halves }],
+      },
+      'resp_u9',
+      M106_CAPTURED_META_MODEL,
+    )
+    expect(wire.match(/^event: response\.function_call_arguments\.delta$/gm)).toHaveLength(2)
+    expect(wire).toContain(JSON.stringify(capturedArguments).slice(1, -1))
+    const { api, manager } = managerOn('/ws', undefined, new FakeLogOutputChannel(), undefined, {
+      confirmContributorModel: () => Promise.resolve(true),
+    })
+    try {
+      const host = await manager.ensureHost()
+      const session = await host.startSession({
+        workspaceRoot: '/ws',
+        modelId: M106_CAPTURED_META_MODEL,
+        approvalMode: 'allowAll',
+      })
+      const watched = watchSessionTurns(session)
+      api.script({
+        calls: [{ name: done.name, arguments: capturedArguments, argumentDeltas: halves }],
+      })
+      await session.sendTurn([{ type: 'text', text: 'check the weather' }])
+      await watched.turnDone()
+      const previews = watched.events.filter((event) => event.type === 'toolArgumentPreview')
+      expect(previews.length).toBeGreaterThan(0)
+      // The captured tool is undeclared to the host, so the grammar renders
+      // no text (declared fields only) while the captured bytes still drive
+      // every snapshot to the full captured length. Rendering undeclared
+      // model bytes would fail this pin.
+      expect(previews.every((event) => event.item.argumentPreview.text === '')).toBe(true)
+      expect(
+        previews.some((event) => event.item.argumentPreview.bytes === capturedArguments.length),
+      ).toBe(true)
+      const bodies = api.responseBodies()
+      expect(bodies.length).toBeGreaterThan(0)
+      for (const body of bodies) {
+        expect(body['max_output_tokens']).toBe(131_072)
+      }
+      expect(JSON.stringify(bodies)).not.toContain('argumentPreview')
+    } finally {
+      await manager.dispose()
+    }
+  })
+
+  it('keeps a caller-supplied selected record ahead of the Meta default', async () => {
+    const create = vi.spyOn(modelApiEntry, 'createModelApiHost')
+    const previews = vi.fn(() => undefined)
+    const cap = vi.fn(() => 4096)
+    const { manager } = managerOn('/ws', undefined, new FakeLogOutputChannel(), undefined, {
+      argumentPreviewCapabilities: previews,
+      modelOutputMaxTokens: cap,
+    })
+    try {
+      await manager.ensureHost()
+      const host = create.mock.calls.at(-1)?.[0]?.host
+      expect(host?.argumentPreviewCapabilities).toBe(previews)
+      expect(host?.modelOutputMaxTokens).toBe(cap)
     } finally {
       await manager.dispose()
       create.mockRestore()
@@ -662,5 +1023,69 @@ it('records best-of-N requests once with the attempt kind and its own session', 
   } finally {
     await host.close()
     await manager.dispose()
+  }
+})
+
+async function windowHostDeps(
+  api: FakeModelApi,
+  log: FakeLogOutputChannel,
+  reserveAutoCompaction?: () => Promise<undefined>,
+) {
+  const create = vi.spyOn(hostModule, 'ModelApiHost')
+  const manager = new ModelApiBackendManager(
+    fakeManagerDeps(api, log, {
+      workspaceRoot: '/ws',
+      store: undefined,
+      ...(reserveAutoCompaction !== undefined && { reserveAutoCompaction }),
+      bundlePath: 'src/host/backend/modelApiEntry.ts',
+      loadBundle: () => modelApiEntry,
+    }),
+  )
+  await manager.ensureHost()
+  return { manager, host: create.mock.calls.at(-1)?.[0], create }
+}
+
+it('binds the shared automatic-compaction admission and model reader to production host construction', async () => {
+  const api = fakeModelApi()
+  const { manager, host, create } = await windowHostDeps(api, new FakeLogOutputChannel(), () =>
+    Promise.resolve(undefined),
+  )
+  try {
+    expect(typeof host?.autoCompactModel).toBe('function')
+    expect(host?.autoCompactModel?.('muse-spark-1.3')?.pricing.kind).toBe('priced')
+    expect(host?.autoCompactModel?.('openai/gpt-5')).toBe(undefined)
+    expect(typeof host?.admitAutoCompaction).toBe('function')
+    // No ledger means no admission: the host then sends no extra request.
+    await expect(
+      host?.admitAutoCompaction?.({
+        sessionId: 'session',
+        turnId: 'turn',
+        modelId: 'muse-spark-1.3',
+        model: { pricing: { kind: 'unpriced' } },
+        decision: {
+          reason: 'cost',
+          newDebt: 1,
+          saving: 2,
+          breakEvenRequests: 3,
+          writeReadRatio: 1,
+        },
+        signal: new AbortController().signal,
+      }),
+    ).resolves.toBe(undefined)
+    await manager.dispose()
+  } finally {
+    create.mockRestore()
+  }
+})
+
+it('leaves automatic compaction without production admission when the ledger is absent', async () => {
+  const api = fakeModelApi()
+  const { manager, host, create } = await windowHostDeps(api, new FakeLogOutputChannel())
+  try {
+    expect(typeof host?.autoCompactModel).toBe('function')
+    expect(host?.admitAutoCompaction).toBe(undefined)
+    await manager.dispose()
+  } finally {
+    create.mockRestore()
   }
 })

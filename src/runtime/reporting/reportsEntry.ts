@@ -3,7 +3,7 @@ import type { UiText } from '../../shared/l10n/en'
 import { EN } from '../../shared/l10n/en'
 import { tableProblems } from '../../shared/l10n/check'
 import { tableLocaleFor } from '../../shared/l10n/locales'
-import { REPORT_EXIT_CODES, REPORT_KINDS } from '../../shared/constants'
+import { REPORT_EXIT_CODES, REPORT_WORKING_KINDS } from '../../shared/constants'
 import type { AcpReportsPort } from '../../acp/reports'
 import { parseReportsArguments, reportArguments, reportsUsage } from './reportsArgs'
 import { runReportsCommand, type ReportsCommandDeps, type ReportsServices } from './reportsCommand'
@@ -140,7 +140,7 @@ export function createRuntimeReports(input: RuntimeReportsInput) {
         if (args === '')
           return {
             code: REPORT_EXIT_CODES.generated,
-            text: `${UI_TEXT.reportUi.title}\n${REPORT_KINDS.map((kind) => `/report ${kind}: ${UI_TEXT.reportKinds[kind]}`).join('\n')}\n/report history\n`,
+            text: `${UI_TEXT.reportUi.title}\n${REPORT_WORKING_KINDS.map((kind) => `/report ${kind}: ${UI_TEXT.reportKinds[kind]}`).join('\n')}\n/report history\n`,
           }
         let argv
         let request

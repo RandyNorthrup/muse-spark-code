@@ -4,6 +4,7 @@ import type { ChatShareSource } from '../../core/sharing/chatShare'
 import { recoveryStamp } from '../../shared/agentRecovery'
 import type { ReportQuestionsReader } from '../../core/reporting/sources/questions'
 import { QuestionRegistry } from '../../core/questions/registry'
+import { compareVersions, isVersion } from '../../core/whatsNew/whatsNewVersions'
 import type { QuestionAnswerText } from '../../core/questions/lateAnswer'
 import type {
   OpenQuestionAnswer,
@@ -149,6 +150,8 @@ import {
   MSP_READ_OUTPUT_CONCURRENCY,
   MSP_REQUESTED_CAPABILITIES,
   MUSE_EVENT_LOG_FAULT,
+  MUSE_APPROVAL_LEDGER_FIXED_VERSION,
+  MUSE_INSTALL_COMMANDS,
   OUTPUT_DOCUMENT_MAX_PAGES,
   OUTPUT_PAGE_BYTES,
   OUTPUT_TAB_ID_LENGTH,
@@ -465,7 +468,7 @@ export interface ConversationDeps {
   readonly runHostAction: (action: HostAction) => Promise<void>
   /** Code block "Copy": the system clipboard. */
   readonly copyText: (text: string) => Promise<void>
-  /** Code block "Insert at cursor"; false when no text editor is active. */
+  /** Code block "Insert at Cursor"; false when no text editor is active. */
   readonly insertCode: (text: string) => Promise<boolean>
   /** A shell tool reported the OS sandbox missing: the host offers the setup. */
   readonly onSandboxUnavailable: () => void
@@ -673,7 +676,7 @@ export interface ConversationDeps {
    */
   readonly verifyGuidance?: (hasIdeServer: boolean) => string | undefined
   /**
-   * This surface's tasks tab (M87, PLAN.md D66): "Open in a tab" opens it,
+   * This surface's tasks tab (M87, PLAN.md D66): "Open in a Tab" opens it,
    * and it follows the conversation's list. Undefined in a host without
    * editor tabs, where the action says it failed.
    */
@@ -1267,7 +1270,7 @@ export class ConversationController {
   private startingVoiceConsentFence: VoiceConsentFence | undefined
   /** Context changes stay changed for consent, including a model/mode round trip. */
   private voiceContextRevision = 0
-  /** Approvals "Edit automatically" answered itself (D24): their resolution is labelled so. */
+  /** Approvals "Edit Automatically" answered itself (D24): their resolution is labelled so. */
   private readonly autoApproved = new Set<string>()
   /**
    * The Auto reviewer on Muse Code (M90, PLAN.md D69): this conversation's
@@ -1313,6 +1316,8 @@ export class ConversationController {
   private readonly effortSyncs = new WeakMap<AgentSession, EffortSync>()
   /** The backend kind of the attached session (a resume only goes to the same kind). */
   private sessionKind: BackendKind | undefined
+  /** An older Muse Code can fix #29 by updating; actual faults still surface on every version. */
+  private needsApprovalLedgerUpdate = false
   /** Best-of-N runs (M77): one manager per surface, posting to it. */
   private bestOfNManager: BestOfNManager | undefined
   /** The latest run this surface heard of, for the take's branch names. */
@@ -1647,7 +1652,7 @@ export class ConversationController {
    * Says `text` in the panel only: for a failure already logged in more
    * detail. A file restore's notice carries its Redo (M72). An error is
    * journalled as a fact (M93, D72), never its text, and its row offers
-   * "Report this" with the sanitized reference.
+   * "Report This" with the sanitized reference.
    */
   private say(level: NoticeLevel, text: string, redoRestoreId?: string): void {
     const reportRef =
@@ -1677,7 +1682,15 @@ export class ConversationController {
     }
     this.shownFaults.add(key)
     const isReplay = error.fault === 'approvalReplay'
-    const text = isReplay ? UI_TEXT.approvalReplayRefused : UI_TEXT.approvalLedgerFault
+    let text = UI_TEXT.approvalLedgerFault
+    if (this.needsApprovalLedgerUpdate) {
+      text = fill(UI_TEXT.approvalLedgerFaultUpdate, {
+        command: MUSE_INSTALL_COMMANDS[this.deps.platform === 'win32' ? 'win32' : 'posix'],
+      })
+    }
+    if (isReplay) {
+      text = UI_TEXT.approvalReplayRefused
+    }
     const actions: readonly NoticeAction[] = isReplay
       ? ['restartMuseCode', 'newConversation']
       : ['newConversation']
@@ -1844,7 +1857,7 @@ export class ConversationController {
   }
 
   /**
-   * "Open in a tab" on the task list (M87, PLAN.md D66): the tab opens for
+   * "Open in a Tab" on the task list (M87, PLAN.md D66): the tab opens for
    * this conversation, the session it runs on now or resumes on next.
    */
   private openTasksTab(): void {
@@ -2076,7 +2089,7 @@ export class ConversationController {
   }
 
   /**
-   * "Edit automatically" (PLAN.md D24): the allow-once choice for a plain
+   * "Edit Automatically" (PLAN.md D24): the allow-once choice for a plain
    * file write, which the controller answers itself; undefined for anything
    * the user must see (commands, protected writes, escalations, other modes).
    */
@@ -2258,7 +2271,7 @@ export class ConversationController {
   /** An event as the webview sees it, plus the unread mark. */
   /**
    * The failures a session's events show, journalled as facts (M93, D72): a
-   * failed turn (its error row then offers "Report this" with the returned
+   * failed turn (its error row then offers "Report This" with the returned
    * reference) and a failed tool call. Nothing else of the event is kept;
    * the event itself goes to the panel unchanged.
    */
@@ -3542,7 +3555,7 @@ export class ConversationController {
   }
 
   /**
-   * "Rewind code to here": the edits after a message, reverted newest first
+   * "Rewind Code to Here": the edits after a message, reverted newest first
    * (M13), after the same confirmation as a file restore (M72). With `fork`
    * ("Fork and Rewind") the fork follows the rewind in
    * this one action, so neither can overtake the other; declining the
@@ -3599,7 +3612,7 @@ export class ConversationController {
 
   /**
    * An edit row's Revert (M87, D66 item 17): the one edit undone after the
-   * same kind of confirmation as "Rewind code to here", whose single step
+   * same kind of confirmation as "Rewind Code to Here", whose single step
    * it is. `reviewEdit` says what was reverted, or why a file was not.
    */
   private async revertEdit(itemId: string, outputRef: string): Promise<void> {
@@ -3965,6 +3978,13 @@ export class ConversationController {
     this.bindIdeCaller(session)
     this.session = session
     this.sessionKind = host.info.kind
+    // MSP serves 1.4.3; installed build labels such as 1.4.3-R5018.1 name
+    // the same release, not a semver prerelease. Unknown versions stay defensive.
+    const version = host.info.serverVersion.replace(/-R\d+\.\d+$/, '')
+    this.needsApprovalLedgerUpdate =
+      host.info.kind === 'museCode' &&
+      isVersion(version) &&
+      compareVersions(version, MUSE_APPROVAL_LEDGER_FIXED_VERSION) < 0
     const surfaces = sessionSurfaces.get(session) ?? new Set<ConversationController>()
     surfaces.add(this)
     sessionSurfaces.set(session, surfaces)
@@ -5399,7 +5419,7 @@ export class ConversationController {
     }
   }
 
-  /** "Save plan" under the latest Plan-mode reply. */
+  /** "Save Plan" under the latest Plan-mode reply. */
   private async savePlan(sourceSessionId: string, itemId: string): Promise<void> {
     const generation = this.sendInvalidationEpoch
     try {
@@ -5551,7 +5571,7 @@ export class ConversationController {
       : { status: 'refused' }
   }
 
-  /** "Implement in a fresh conversation": the reply on screen (saved first), or a saved plan. */
+  /** "Implement in a Fresh Conversation": the reply on screen (saved first), or a saved plan. */
   private async implementPlan(source: PlanSource): Promise<void> {
     if (this.isSideChat) {
       this.notice('info', UI_TEXT.planImplementSideChat)
@@ -6170,8 +6190,8 @@ export class ConversationController {
   }
 
   /**
-   * "Restore files to here" (M72, M86), and with `rewind` the conversation
-   * too ("Rewind conversation and restore files"), once the files are
+   * "Restore Files to Here" (M72, M86), and with `rewind` the conversation
+   * too ("Rewind Conversation and Restore Files"), once the files are
    * restored.
    */
   private async restoreFiles(
@@ -9523,7 +9543,7 @@ export class ConversationController {
   }
 
   /**
-   * "Import session…" (M84, PLAN.md D49): a picked export file resumed as a
+   * "Import Session…" (M84, PLAN.md D49): a picked export file resumed as a
    * new conversation on the Model API backend, on the user's own model, in a
    * mode that asks (`adopt` applies it, as on every later opening).
    */
@@ -9596,7 +9616,7 @@ export class ConversationController {
   }
 
   /**
-   * "Open share file…" (M84): a picked export file shown read-only in the
+   * "Open Share File…" (M84): a picked export file shown read-only in the
    * panel. Nothing reaches a session or a model; the panel only renders it.
    */
   private async openShareFile(): Promise<void> {
@@ -10002,7 +10022,7 @@ export class ConversationController {
       }
       case 'signIn': {
         // The first-run screen's third choice (M95): not a credential but
-        // the Models & Agents wizard at "Pick a provider" (lane K's
+        // the Models & Agents wizard at "Pick a Provider" (lane K's
         // `museSpark.startWithOwnModel`; an explicit error until it lands).
         if (message.method === 'byo') {
           await this.runHostAction('startWithOwnModel')

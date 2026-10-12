@@ -17,10 +17,10 @@ describe('M115 schedule surface', () => {
     expect(card.textContent).toContain('Set by lead in origin')
     expect(card.textContent).toContain('Interrupt can stop your own running turn.')
     expect(card.textContent).toContain('src/**')
-    fireEvent.click(within(card).getByText('Grant audit'))
-    fireEvent(within(card).getByText('Grant audit').parentElement ?? card, new Event('toggle'))
+    fireEvent.click(within(card).getByText('Grant Audit'))
+    fireEvent(within(card).getByText('Grant Audit').parentElement ?? card, new Event('toggle'))
     await screen.findByText(/Used ·/)
-    fireEvent.click(within(card).getByRole('button', { name: 'Revoke grant' }))
+    fireEvent.click(within(card).getByRole('button', { name: 'Revoke Grant' }))
     await waitFor(() => {
       expect(request).toHaveBeenCalledWith({
         method: 'schedules/revokeGrant',
@@ -29,12 +29,12 @@ describe('M115 schedule surface', () => {
       })
     })
     await waitFor(() => {
-      expect(within(card).getByRole('button', { name: 'Pause schedule' })).toHaveProperty(
+      expect(within(card).getByRole('button', { name: 'Pause Schedule' })).toHaveProperty(
         'disabled',
         false,
       )
     })
-    fireEvent.click(within(card).getByRole('button', { name: 'Pause schedule' }))
+    fireEvent.click(within(card).getByRole('button', { name: 'Pause Schedule' }))
     await waitFor(() => {
       expect(request).toHaveBeenCalledWith({
         method: 'schedules/pause',
@@ -59,12 +59,12 @@ describe('M115 schedule surface', () => {
     )
     const card = await screen.findByRole('article', { name: schedule.name })
     expect(card.textContent).toContain('0 9 * * 1')
-    expect(card.textContent).toContain('End after N runs2')
+    expect(card.textContent).toContain('End After N Runs2')
     expect(card.textContent).toContain('Nov 1, 2026')
-    expect(card.textContent).toContain('Pin scheduleOn')
-    expect(card.textContent).toContain('Run in parallelOff')
-    expect(card.textContent).toContain('Closed targetSkip the fire')
-    expect(card.textContent).toContain('Missed firesSkip the fire')
+    expect(card.textContent).toContain('Pin ScheduleOn')
+    expect(card.textContent).toContain('Run in ParallelOff')
+    expect(card.textContent).toContain('Closed TargetSkip the Fire')
+    expect(card.textContent).toContain('Missed FiresSkip the Fire')
   })
 
   it.each(['yes', 'notNow', 'never'] as const)(
@@ -79,10 +79,10 @@ describe('M115 schedule surface', () => {
       expect(request.mock.calls.some(([input]) => input.method === 'schedules/background')).toBe(
         false,
       )
-      fireEvent.click(screen.getByRole('button', { name: 'Background entry' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Background Entry' }))
       const labels = {
         yes: 'Yes',
-        notNow: 'Not now',
+        notNow: 'Not Now',
         never: 'Never',
       }
       fireEvent.click(await screen.findByRole('button', { name: labels[choice] }))
@@ -102,24 +102,24 @@ describe('M115 schedule surface', () => {
         : undefined,
     )
     await screen.findByRole('article')
-    fireEvent.click(screen.getByRole('button', { name: 'Background entry' }))
-    fireEvent.click(await screen.findByRole('button', { name: 'Remove the background entry' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Background Entry' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Remove the Background Entry' }))
     await waitFor(() => {
       expect(request).toHaveBeenCalledWith({ method: 'schedules/backgroundRemove' })
     })
     await waitFor(() => {
-      expect(screen.queryByRole('button', { name: 'Remove the background entry' })).toBeNull()
+      expect(screen.queryByRole('button', { name: 'Remove the Background Entry' })).toBeNull()
     })
   })
 
   it('shows the host timeline collisions and creator, requesting either supported range', async () => {
     const { request, schedule } = setup()
-    fireEvent.click(await screen.findByRole('button', { name: 'Schedule timeline' }))
-    const timeline = await screen.findByRole('region', { name: 'Schedule timeline' })
+    fireEvent.click(await screen.findByRole('button', { name: 'Schedule Timeline' }))
+    const timeline = await screen.findByRole('region', { name: 'Schedule Timeline' })
     expect(timeline.textContent).toContain('collide; they run in creation order')
     expect(timeline.textContent).toContain('other')
     expect(timeline.textContent).toContain('Set by lead in origin')
-    fireEvent.change(screen.getByRole('combobox', { name: 'Schedule timeline' }), {
+    fireEvent.change(screen.getByRole('combobox', { name: 'Schedule Timeline' }), {
       target: { value: '168' },
     })
     await waitFor(() => {
@@ -135,7 +135,7 @@ describe('M115 schedule surface', () => {
     const { request, schedule } = setup()
     const form = await edit()
     fireEvent.change(within(form).getByLabelText('Name'), { target: { value: 'Renamed' } })
-    fireEvent.click(within(form).getByRole('button', { name: 'Save schedule' }))
+    fireEvent.click(within(form).getByRole('button', { name: 'Save Schedule' }))
     await waitFor(() => {
       expect(request).toHaveBeenCalledWith({
         method: 'schedules/update',
@@ -162,8 +162,8 @@ describe('M115 schedule surface', () => {
     ).toHaveProperty('disabled', true)
     fireEvent.change(target, { target: { value: 'team' } })
     expect(target).toHaveProperty('value', 'current')
-    fireEvent.change(within(form).getByLabelText('Time zone'), { target: { value: 'bad/zone' } })
-    fireEvent.click(within(form).getByRole('button', { name: 'Save schedule' }))
+    fireEvent.change(within(form).getByLabelText('Time Zone'), { target: { value: 'bad/zone' } })
+    fireEvent.click(within(form).getByRole('button', { name: 'Save Schedule' }))
     expect(await screen.findByRole('alert')).toHaveProperty(
       'textContent',
       'Check the schedule fields, target availability and standing grant before saving.',
@@ -174,12 +174,12 @@ describe('M115 schedule surface', () => {
   it('offers no Bypass, confines paths, and allows parallel only with fresh-session delivery', async () => {
     const { request } = setup()
     const form = await edit()
-    expect(within(form).queryByRole('option', { name: 'Bypass permissions' })).toBeNull()
-    expect(within(form).getByLabelText('Run in parallel')).toHaveProperty('disabled', true)
+    expect(within(form).queryByRole('option', { name: 'Bypass Permissions' })).toBeNull()
+    expect(within(form).getByLabelText('Run in Parallel')).toHaveProperty('disabled', true)
     fireEvent.change(within(form).getByLabelText('Target'), { target: { value: 'fresh' } })
     expect(within(form).getByLabelText('Delivery')).toHaveProperty('value', 'newConversation')
-    fireEvent.click(within(form).getByLabelText('Run in parallel'))
-    fireEvent.change(within(form).getByLabelText('Workspace paths'), {
+    fireEvent.click(within(form).getByLabelText('Run in Parallel'))
+    fireEvent.change(within(form).getByLabelText('Workspace Paths'), {
       target: { value: '../escape/**' },
     })
     await refuseScheduleSave(form, request)
@@ -192,10 +192,10 @@ describe('M115 schedule surface', () => {
         : undefined,
     )
     await edit()
-    fireEvent.click(screen.getByRole('button', { name: 'Save schedule' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save Schedule' }))
     expect(await screen.findByRole('alert')).toHaveProperty('textContent', 'Revision conflict')
     await waitFor(() => {
-      expect(screen.queryByRole('region', { name: 'Edit schedule' })).toBeNull()
+      expect(screen.queryByRole('region', { name: 'Edit Schedule' })).toBeNull()
     })
     expect(
       request.mock.calls.filter(([input]) => input.method === 'schedules/update'),
@@ -229,8 +229,8 @@ describe('M115 schedule surface', () => {
         : undefined,
     )
     const card = await screen.findByRole('article', { name: schedule.name })
-    fireEvent.click(within(card).getByText('Grant audit'))
-    fireEvent(within(card).getByText('Grant audit').parentElement ?? card, new Event('toggle'))
+    fireEvent.click(within(card).getByText('Grant Audit'))
+    fireEvent(within(card).getByText('Grant Audit').parentElement ?? card, new Event('toggle'))
     await screen.findByRole('alert')
     expect(card.textContent).not.toContain('private-rule')
   })
@@ -242,7 +242,7 @@ describe('M115 schedule surface', () => {
         : undefined,
     )
     const card = await screen.findByRole('article', { name: schedule.name })
-    fireEvent.click(within(card).getByRole('button', { name: 'Run now' }))
+    fireEvent.click(within(card).getByRole('button', { name: 'Run Now' }))
     expect(await screen.findByRole('alert')).toHaveProperty(
       'textContent',
       'Schedule cap reached; no paid request sent',

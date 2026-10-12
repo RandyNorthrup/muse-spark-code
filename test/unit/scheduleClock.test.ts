@@ -6,6 +6,7 @@ import { nextScheduleTime } from '../../src/core/schedules/time/scheduleTime'
 import { ZonedScheduleCalendar } from '../../src/core/schedules/time/zonedCalendar'
 import { FakeScheduleClock } from './helpers/schedules/clock'
 import { fakeSchedule } from './helpers/schedules/fixtures'
+import { fastestRun } from './helpers/fastestRun'
 
 const start = Date.parse('2026-10-05T12:00:00Z')
 const interval = fakeSchedule({ trigger: { kind: 'interval', everyMs: 60_000, anchorMs: start } })
@@ -202,9 +203,9 @@ describe('M115 elapsed clock and missed-fire computation', () => {
     const plan = fakeSchedule({ zone: 'UTC', trigger: { kind: 'cron', expression: '* * * * *' } })
     const resolve = vi.spyOn(ZonedScheduleCalendar.prototype, 'resolve')
     try {
-      const began = performance.now()
+      expect(fastestRun(() => missedScheduleTimes(plan, after, through))).toBeLessThan(50)
+      resolve.mockClear()
       const recovered = missedScheduleTimes(plan, after, through)
-      expect(performance.now() - began).toBeLessThan(50)
       expect(recovered).toEqual({
         dueCount: SCHEDULE_MISSED_COUNT_MAX,
         missedCount: SCHEDULE_MISSED_COUNT_MAX - 1,

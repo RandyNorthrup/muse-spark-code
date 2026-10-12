@@ -80,6 +80,12 @@ describe('numeric process accounting tables', () => {
       { pid: 710, pgid: 710, parent: 1, exited: false, cpuSeconds: 2, residentBytes: 4096 },
       { pid: 711, pgid: 710, parent: 1, exited: false, cpuSeconds: 60.25, residentBytes: 8192 },
     ])
+    // Hosted macOS 26 printed this row for a process mid-transition; refusing
+    // it voided every tree's membership on the machine (CIFIX017 round 5).
+    expect(parseMacProcessTable('710 1 710 S 0:02.00 4\n39517 950 933 ?< 0:00.00 0\n')).toEqual([
+      { pid: 710, pgid: 710, parent: 1, exited: false, cpuSeconds: 2, residentBytes: 4096 },
+      { pid: 39_517, pgid: 933, parent: 950, exited: false, cpuSeconds: 0, residentBytes: 0 },
+    ])
     expect(parseMacProcessTable('710 1 710 S 0:02.00 4\nps: denied')).toBeNull()
     expect(parseMacProcessTable('710 710 0:02.00 -1')).toBeNull()
     expect(parseMacProcessTable('9007199254740992 1 710 S 0:00.00 0')).toBeNull()

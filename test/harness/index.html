@@ -246,6 +246,9 @@
       const FIND_INTERVAL_MS = 50
       const FIND_TIMEOUT_MS = 3000
       let pendingFinds = 0
+      // Models captures finish counted actions after a lazy section arrives.
+      if (harnessBundle === 'models')
+        globalThis.harnessSceneWorkPending = () => pendingScenarioEvents > 0 || pendingFinds > 0
       const whenFound = (selector, fn) => {
         if (isScenarioDone) refuse(`scene work after scenarioDone() in ${playingScenario}`)
         pendingFinds += 1
@@ -1525,26 +1528,26 @@
         Attach: ['attachTitle'],
         Commands: ['commandsTitle'],
         Model: ['modelPillLabel'],
-        'Record voice': ['dictationLabel'],
-        'Session history': ['historyTitle'],
-        'Session board': ['boardTitle'],
+        'Record Voice': ['dictationLabel'],
+        'Session History': ['historyTitle'],
+        'Session Board': ['boardTitle'],
         // The permission-mode button reads "<title>: <mode>".
-        'Permission mode: Manual': ['permissionModeTitle', 'permissionModes.manual'],
+        'Permission Mode: Manual': ['permissionModeTitle', 'permissionModes.manual'],
         // The Models & Agents panel's buttons carry text, not aria-labels
         // (M95): the steps below click them by that text.
-        'Pick a provider': ['wizardPickProvider'],
+        'Pick a Provider': ['wizardPickProvider'],
         Test: ['testConnection'],
-        'Refresh models': ['refreshModels'],
+        'Refresh Models': ['refreshModels'],
         Accept: ['suggestionAccept'],
         Change: ['suggestionChange'],
         Save: ['saveProvider'],
-        'Save and use now': ['saveAndUseNow'],
+        'Save and Use Now': ['saveAndUseNow'],
         Continue: ['wizardContinue'],
         Back: ['wizardBack'],
         Cancel: ['wizardCancel'],
         Undo: ['undoAction'],
-        'Enter key…': ['enterKey'],
-        'Scan this computer': ['scanComputer'],
+        'Enter Key…': ['enterKey'],
+        'Scan This Computer': ['scanComputer'],
         Import: ['providerImport'],
         Export: ['providerExport'],
       }
@@ -1936,6 +1939,12 @@
             accepted: false,
           },
         ],
+        // The provider wizard reads the real conversation limit (PROVWIZ9).
+        // Match modelsPanelFixtures.makeState() and the strict host contract.
+        sessionBudget: {
+          effectiveUsd: '0',
+          nowLine: 'This is your setting for every conversation; it is $0.00 now (this computer).',
+        },
         lastChoices: {},
         drafts: { edits: {} },
         pendingRemovals: [],
@@ -2913,6 +2922,10 @@
             key({ key: 'Enter' })
           })
         },
+        'assistant-menu': () => {
+          transcriptFixture({ isDone: true })
+          whenFound('.message-assistant .row-actions-button', (control) => control.click())
+        },
         'chat-menu': () => {
           steps.rewind()
           whenFound('[aria-haspopup="menu"][role="menuitem"]', (control) => control.click())
@@ -2925,7 +2938,7 @@
           document.body.style.width = '100%'
           steps['chat-menu']()
         },
-        // An edit row's menu (D66 item 17): Open output, Review and, with a
+        // An edit row's menu (D66 item 17): Open Output, Review and, with a
         // session to revert in, Revert.
         'chat-tool-menu': () => {
           send({ type: 'sessionInfo', modelId: 'muse-spark-1.3', sessionId: 'harness-tools' })
@@ -2947,14 +2960,14 @@
           key({ key: 'Tab', shiftKey: true })
         },
         modes: () => {
-          click('Permission mode: Manual')
+          click('Permission Mode: Manual')
         },
         'modes-bypass': () => {
           send({
             type: 'settingsChanged',
             settings: { ...settings, allowDangerouslySkipPermissions: true },
           })
-          whenFound(`button[aria-label="${shown('Permission mode: Manual')}"]`, (mode) =>
+          whenFound(`button[aria-label="${shown('Permission Mode: Manual')}"]`, (mode) =>
             mode.click(),
           )
         },
@@ -3571,7 +3584,7 @@
           whenFound('[role="menuitem"]:nth-child(2)', (control) => control.click())
         },
         history: () => {
-          click('Session history')
+          click('Session History')
           whenFound('.history .palette-filter', (search) => {
             search.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }))
           })
@@ -3599,7 +3612,7 @@
         // Voice dictation (M9): a tap on the microphone, caught mid-listen.
         dictation: () => {
           textarea().focus()
-          whenFound(`button[aria-label="${shown('Record voice')}"]`, (microphone) => {
+          whenFound(`button[aria-label="${shown('Record Voice')}"]`, (microphone) => {
             microphone.dispatchEvent(new Event('pointerdown', { bubbles: true, cancelable: true }))
           })
         },
@@ -4729,7 +4742,7 @@
             selection.removeAllRanges()
             selection.addRange(range)
             // Right-clicked inside the passage, as a pointer would: the
-            // pills fan out from there, not from the page's corner.
+            // menu anchors to the selected row’s ⋯ button.
             const box = passage.getBoundingClientRect()
             passage.dispatchEvent(
               new MouseEvent('contextmenu', {
@@ -4830,7 +4843,7 @@
         },
         // --- M25: the keyboard stays in the search box through Show archived ---
         'history-archived': () => {
-          click('Session history')
+          click('Session History')
           whenFound('.history-toggle input', (toggle) => {
             toggle.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }))
             toggle.click()
@@ -5894,7 +5907,7 @@
             buttons
               .find(
                 (button) =>
-                  button.textContent === (harnessL10n.table?.legalPreviewFixes ?? 'Preview fixes'),
+                  button.textContent === (harnessL10n.table?.legalPreviewFixes ?? 'Preview Fixes'),
               )
               ?.click()
             // The scene ends once the host's fix preview is on screen.
@@ -6106,7 +6119,7 @@
         },
         // --- M77: the session board: every conversation's state, branch, changes ---
         board: () => {
-          click('Session board')
+          click('Session Board')
           send({
             type: 'sessionBoard',
             rows: [
@@ -6207,43 +6220,43 @@
         // with each scenario's state; the steps below drive the UI from there.
         'models-empty': () => {},
         'models-pick': () => {
-          clickText('Pick a provider')
+          clickText('Pick a Provider')
           whenFound('.models-select input', (box) => {
             setValue(box, HTMLInputElement.prototype, 'Oll')
           })
         },
         'models-configure': () => {
           // The draft is already in the state: opening shows its step.
-          clickText('Pick a provider')
+          clickText('Pick a Provider')
         },
         // Each wizard state below arrives as the host's draft; opening the
         // wizard shows its step.
         'models-credential': () => {
-          clickText('Pick a provider')
+          clickText('Pick a Provider')
         },
         'models-test': () => {
-          clickText('Pick a provider')
+          clickText('Pick a Provider')
         },
         'models-test-cost': () => {
-          clickText('Pick a provider')
+          clickText('Pick a Provider')
         },
         'models-test-failed': () => {
-          clickText('Pick a provider')
+          clickText('Pick a Provider')
         },
         'models-models': () => {
-          clickText('Pick a provider')
+          clickText('Pick a Provider')
         },
         'models-privacy': () => {
-          clickText('Pick a provider')
+          clickText('Pick a Provider')
         },
         'models-suggestions': () => {
-          clickText('Pick a provider')
+          clickText('Pick a Provider')
         },
         'models-confirm': () => {
-          clickText('Pick a provider')
+          clickText('Pick a Provider')
         },
         'models-errors': () => {
-          clickText('Pick a provider')
+          clickText('Pick a Provider')
         },
         'models-providers': () => {},
         'models-edit': () => {

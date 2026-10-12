@@ -167,6 +167,16 @@ describe('M108 Accounts section', () => {
     expect(port.accept).not.toHaveBeenCalled()
     expect(screen.getByRole('alert')).toHaveTextContent(UI_TEXT.actionFailed)
   })
+  it('renders the honest sentence for a refused providers file instead of a generic failure', async () => {
+    const { port } = section()
+    vi.mocked(port.request).mockResolvedValueOnce({
+      type: 'accounts/error',
+      code: 'providersInvalid',
+    })
+    fireEvent.click(screen.getAllByRole('button', { name: UI_TEXT.accounts.use })[1]!)
+    expect(await screen.findByRole('alert')).toHaveTextContent(UI_TEXT.accounts.providersInvalid)
+    expect(port.accept).not.toHaveBeenCalled()
+  })
   it('does not adopt an old reply after the selected provider changes', async () => {
     const { port, rerender } = section()
     const held = Promise.withResolvers<unknown>()
@@ -411,6 +421,10 @@ describe('M108 picker, transcript and policy question', () => {
     if (!(stopped instanceof AccountPoolStoppedError)) throw new Error('expected pool stop')
     const dailyReset = new Date(new Date(POOL_NOW).setHours(24, 0, 0, 0)).toISOString()
     expect(stopped.resetAt).toBe(dailyReset)
+    // The rig labels every account with its id, so the notice must name the
+    // stopped account's label instead of leaving the {account} slot raw.
+    const stopAccount = t.events.find((event) => event.type === 'stop')?.account
+    if (stopAccount === undefined) throw new Error('expected a stop event')
     const h = render(
       <AccountNotices
         value={panelSlice({
@@ -426,9 +440,11 @@ describe('M108 picker, transcript and policy question', () => {
     expect(screen.getByRole('log')).toHaveTextContent(
       fill(UI_TEXT.accounts.stopped, {
         provider: 'Anthropic',
+        account: stopAccount,
         reset: formatDateTime(Date.parse(dailyReset)),
       }),
     )
+    expect(screen.getByRole('log')).not.toHaveTextContent('{account}')
     h.rerender(
       <AccountNotices
         value={panelSlice({
@@ -442,8 +458,9 @@ describe('M108 picker, transcript and policy question', () => {
       />,
     )
     expect(screen.getByRole('log')).toHaveTextContent(
-      fill(UI_TEXT.accounts.resetUnknown, { provider: 'Anthropic' }),
+      fill(UI_TEXT.accounts.resetUnknown, { provider: 'Anthropic', account: stopAccount }),
     )
+    expect(screen.getByRole('log')).not.toHaveTextContent('{account}')
     expect(screen.getByRole('log')).not.toHaveTextContent(formatDateTime(Date.parse(firstReset)))
     h.unmount()
   })
@@ -499,7 +516,7 @@ describe('M108 picker, transcript and policy question', () => {
       await held.promise
     })
   })
-  it('asks again when the quoted row changes and supports Only at my own caps', async () => {
+  it('asks again when the quoted row changes and supports Only at My Own Caps', async () => {
     const onChoose = vi.fn(() => Promise.resolve())
     const value = panelQuestion()
     const props = { provider: 'openai', providerLabel: 'OpenAI', onChoose, onOpenLink: vi.fn() }
@@ -542,7 +559,7 @@ describe('M108 picker, transcript and policy question', () => {
     )
     expect(screen.queryByRole('combobox')).toBeNull()
     rerender(<AccountChip value={value} isPending={false} onUse={onUse} />)
-    expect(screen.getByLabelText('Current account: OpenAI · Work')).toHaveValue('work')
+    expect(screen.getByLabelText('Current Account: OpenAI · Work')).toHaveValue('work')
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'personal' } })
     expect(onUse).toHaveBeenCalledWith({
       type: 'accounts/use',
@@ -552,7 +569,7 @@ describe('M108 picker, transcript and policy question', () => {
     rerender(
       <AccountChip value={{ ...value, currentAccount: null }} isPending={false} onUse={onUse} />,
     )
-    expect(screen.getByLabelText(`Current account: OpenAI · ${UI_TEXT.accounts.none}`)).toHaveValue(
+    expect(screen.getByLabelText(`Current Account: OpenAI · ${UI_TEXT.accounts.none}`)).toHaveValue(
       '',
     )
     expect(screen.getByRole('option', { name: UI_TEXT.accounts.none })).toBeDisabled()
@@ -600,7 +617,7 @@ describe('M108 picker, transcript and policy question', () => {
       />,
     )
     expect(screen.getByRole('log')).toHaveTextContent(
-      'Now on OpenAI · Personal: Work reached User cap: Spend in USD (Day) $0.3000.',
+      'Now on OpenAI · Personal: Work reached User Cap: Spend in USD (Day) $0.3000.',
     )
     expect(screen.getByText('Estimated context re-read cost: $0.000000001.')).toBeVisible()
     expect(screen.getByRole('log')).toHaveTextContent('Resets')

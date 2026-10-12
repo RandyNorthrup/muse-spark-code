@@ -1,6 +1,10 @@
 import { z } from 'zod'
 import { ARCHIVE_BUDGET, digest, PIXEL_POLICY } from './visualImages.mjs'
 
+// The one list of what a screenshot is made from (its own file has no imports,
+// for a CI decision that runs before anything is installed).
+export { CAPTURE_INPUTS, VISUAL_MANIFEST } from './captureInputs.mjs'
+
 const hash = z.string().regex(/^[\da-f]{64}$/)
 const policySchema = z
   .object({

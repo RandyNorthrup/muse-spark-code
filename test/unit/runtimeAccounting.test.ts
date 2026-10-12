@@ -1,4 +1,9 @@
+import { reserveRequestAmount } from '../../src/core/providers/priceCard'
+import { requestImageCount } from '../../src/core/backends/modelapi/modelPolicy'
+import { UI_TEXT } from '../../src/shared/constants'
 import { Usd } from '../../src/shared/usd'
+import { ModelApiClient } from '../../src/core/backends/modelapi/client'
+import { metaResolvedModel, type ModelResolver } from '../../src/core/backends/modelapi/modelPolicy'
 import { fork } from 'node:child_process'
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -12,12 +17,22 @@ import {
   withRuntimeAccounting,
 } from '../../src/runtime/runtimeAccountingEntry'
 import { withoutCredentials } from '../../src/runtime/credentialVariables'
-import { FAKE_MODEL_API_ACCOUNT_ID, fakeModelApi, fakeModelApiClient } from './helpers/fakeModelApi'
+import {
+  FAKE_MODEL_API_ACCOUNT_ID,
+  fakeModelApi,
+  fakeModelApiClient,
+  fakeModelApiClientSettings,
+} from './helpers/fakeModelApi'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { removeFolder } from './helpers/temporaryFolders'
 import type { CreateResponseBody } from '../../src/core/backends/modelapi/schemas'
+import {
+  createAutoCompactionAdmission,
+  resolveAutoCompactModel,
+} from '../../src/core/backends/modelapi/autoCompactionAdmission'
+import { PAID_DAILY_BUDGET } from '../../src/shared/constants'
+import { EN } from '../../src/shared/l10n/en'
 import { createRunLedger } from '../../src/runtime/exec/runLedger'
-import { PAID_DAILY_BUDGET, UI_TEXT } from '../../src/shared/constants'
 import { createSchedulePaidScope } from '../../src/core/paid/paidConsent'
 import { unattendedRun } from './helpers/schedules/unattended'
 import { fakeRunContext } from './helpers/schedules/fixtures'
@@ -62,6 +77,9 @@ const body: CreateResponseBody = {
   include: [],
 }
 
+function isConsentCurrent(): boolean {
+  return true
+}
 describe('standalone daily admission', () => {
   it('preserves scheduled transport authority and reserves both caps without a second shared charge', async () => {
     const daily = dailyBudgetAt(folder())
@@ -150,6 +168,121 @@ describe('standalone daily admission', () => {
         new AbortController().signal,
       )
       expect(remaining.reservedUsd).toBe(Usd.from(sharedCap).subtract(Usd.from('0.2')).toAmount())
+    },
+  )
+  it('runtime automatic summaries use exactly one daily claim and one debit', async () => {
+    const daily = dailyBudgetAt(folder())
+    const original = daily.reserve.bind(daily)
+    const reserve = vi.spyOn(daily, 'reserve')
+    const settlements: ReturnType<typeof vi.fn>[] = []
+    reserve.mockImplementation(async (...args) => {
+      const claim = await original(...args)
+      const settled = vi.fn(claim.settle.bind(claim))
+      settlements.push(settled)
+      return { ...claim, settle: settled }
+    })
+    const api = fakeModelApi()
+    api.script({ text: 'automatic summary', usage: { input: 1000, output: 500, cached: 200 } })
+    const client = withRuntimeAccounting(fakeModelApiClient(api, new FakeLogOutputChannel()), daily)
+    const admit = createAutoCompactionAdmission({
+      loadPricing: () => Promise.resolve({ reserveRequestAmount, requestImageCount }),
+      accounting: 'transport',
+      allowsPaidUse: () => Promise.resolve(true),
+      isOn: () => true,
+      isTrusted: () => true,
+      isEvaluated: () => true,
+      paidUseFence: () => isConsentCurrent,
+      notePaidUse: () => undefined,
+      dailyBudgetUsd: () => Usd.from(5).toAmount(),
+      log: new FakeLogOutputChannel(),
+      storeUnavailable: EN.sessionBudgetStoreUnavailable,
+    })
+    const model = resolveAutoCompactModel(body.model)
+    if (model === undefined) throw new Error('missing test model')
+    const admission = await admit({
+      sessionId: 'session',
+      turnId: 'turn',
+      modelId: body.model,
+      model,
+      decision: {
+        reason: 'cost',
+        newDebt: 0.012,
+        saving: 0.05,
+        breakEvenRequests: 3,
+        writeReadRatio: 2,
+      },
+      signal: new AbortController().signal,
+    })
+    await Array.fromAsync(
+      client.streamResponse(
+        body,
+        new AbortController().signal,
+        undefined,
+        undefined,
+        admission?.guard,
+      ),
+    )
+    await admission?.close?.()
+    expect(api.responseBodies()).toHaveLength(1)
+    expect(reserve).toHaveBeenCalledTimes(1)
+    expect(settlements).toHaveLength(1)
+    expect(settlements[0]).toHaveBeenCalledTimes(1)
+    const debit = settlements[0]?.mock.calls[0]?.[0]
+    expect(debit).toBe(Usd.from(0.003155).toAmount())
+  })
+  it('runtime settlement failures surface the terminal accounting error', async () => {
+    const daily = dailyBudgetAt(folder())
+    const original = daily.reserve.bind(daily)
+    vi.spyOn(daily, 'reserve').mockImplementation(async (...args) => ({
+      ...(await original(...args)),
+      settle: () => Promise.reject(new Error('storage failed')),
+    }))
+    const api = fakeModelApi()
+    api.script({ text: 'summary' })
+    const client = withRuntimeAccounting(fakeModelApiClient(api, new FakeLogOutputChannel()), daily)
+    await expect(
+      Array.fromAsync(client.streamResponse(body, new AbortController().signal)),
+    ).rejects.toThrow(EN.sessionBudgetStoreUnavailable)
+    expect(api.responseBodies()).toHaveLength(1)
+  })
+  it('runtime retries refund a known 429 nonsend before reserving the next attempt', async () => {
+    const daily = dailyBudgetAt(folder())
+    const original = daily.reserve.bind(daily)
+    const settlements: ReturnType<typeof vi.fn>[] = []
+    vi.spyOn(daily, 'reserve').mockImplementation(async (...args) => {
+      const claim = await original(...args)
+      const settle = vi.fn(claim.settle.bind(claim))
+      settlements.push(settle)
+      return { ...claim, settle }
+    })
+    const api = fakeModelApi()
+    api.script(
+      { httpError: { status: 429, body: { error: { message: 'rate limited' } } } },
+      { text: 'done' },
+    )
+    const client = withRuntimeAccounting(fakeModelApiClient(api, new FakeLogOutputChannel()), daily)
+    await Array.fromAsync(client.streamResponse(body, new AbortController().signal))
+    expect(api.responseBodies()).toHaveLength(2)
+    expect(settlements).toHaveLength(2)
+    expect(settlements[0]).toHaveBeenCalledWith(Usd.from(0).toAmount())
+    expect(settlements[1]).toHaveBeenCalledTimes(1)
+  })
+  it.each(['stop', 'unreadable'])(
+    'runtime refuses shared daily %s at reserve and final send',
+    async (state) => {
+      const root = folder()
+      const daily = dailyBudgetAt(root)
+      const claim = await daily.reserve(Usd.from(1).toAmount(), new AbortController().signal)
+      const date = new Date()
+      const scope = [date.getFullYear(), date.getMonth() + 1, date.getDate()].join('-')
+      const directory = path.join(root, PAID_DAILY_BUDGET.directory, scope)
+      mkdirSync(directory, { recursive: true })
+      if (state === 'stop') mkdirSync(path.join(directory, PAID_DAILY_BUDGET.stopDirectory))
+      else writeFileSync(path.join(directory, PAID_DAILY_BUDGET.overrideFile), 'corrupt')
+      await expect(
+        daily.reserve(Usd.from(1).toAmount(), new AbortController().signal),
+      ).rejects.toThrow()
+      expect(() => claim.check(Usd.from(0).toAmount())).toThrow()
     },
   )
   it('refuses admission itself when full, before a final dispatch fence', async () => {
@@ -355,6 +488,29 @@ describe('standalone daily admission', () => {
     expect(api.responseBodies()).toHaveLength(0)
     const claim = await daily.reserve(Usd.from(5).toAmount(), new AbortController().signal)
     expect(claim.check(Usd.from(0).toAmount()).spentUsd).toBe(Usd.from(5).toAmount())
+  })
+  it('names the run when a stale model reaches dispatch', async () => {
+    // RVCM1062E P3: the headless run has no schedule, so its stale-model
+    // refusal names the run instead of borrowing schedule guidance.
+    const daily = dailyBudgetAt(folder())
+    const api = fakeModelApi()
+    api.script({ text: 'done' })
+    // A client whose every resolution is already lapsed when dispatch runs.
+    class StaleModelClient extends ModelApiClient {
+      readonly models: ModelResolver = {
+        resolve: (ref: string) =>
+          Promise.resolve({ ...metaResolvedModel(ref, this), isCurrent: () => false }),
+      }
+    }
+    const client = new StaleModelClient({
+      ...fakeModelApiClientSettings(new FakeLogOutputChannel()),
+      fetch: api.fetch,
+    })
+    const wrapped = withRuntimeAccounting(client, daily)
+    await expect(
+      Array.fromAsync(wrapped.streamResponse(body, new AbortController().signal)),
+    ).rejects.toThrow(UI_TEXT.requestStaleRun)
+    expect(api.responseBodies()).toHaveLength(0)
   })
   it('fails closed on malformed runtime settings and an abandoned process lock', async () => {
     const root = folder()

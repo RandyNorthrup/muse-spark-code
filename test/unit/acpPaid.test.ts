@@ -14,7 +14,114 @@ import { paidGrantFile } from '../../src/runtime/paidGrants'
 import { workspaceKey } from '../../src/runtime/dataFolder'
 import { memoryPaidGrants } from './helpers/paidGrants'
 import { removeFolder } from './helpers/temporaryFolders'
+import { readFileSync as readDocumentation } from 'node:fs'
+import { CLI_OPTION_REGISTRY, formatAcpUsage } from '../../src/runtime/cliOptions'
+import { createReference } from '../../src/shared/reference/referenceEntry'
+import { EN } from '../../src/shared/l10n/en'
 import type { PaidUseRequest } from '../../src/shared/paid'
+import { referenceModel } from '../../src/shared/reference/reference.generated'
+import { fill } from '../../src/shared/l10n/text'
+
+it('ACP automatic compaction asks once after its explicit flag and refuses without it', async () => {
+  const request: PaidUseRequest = {
+    feature: 'autoCompaction',
+    modelId: 'muse-spark-1.3',
+    dailyBudgetUsd: Usd.from(5).toAmount(),
+  }
+  const paid = new AcpPaidUse({
+    flagged: ['autoCompaction'],
+    autoCompactionEvaluated: () => true,
+    canRemember: () => true,
+    grants: memoryPaidGrants(),
+    log: logger(),
+  })
+  const ask = vi.fn(() => Promise.resolve('once' as const))
+  paid.attach(ask)
+  expect(await paid.allows('/ws', 'session', request, false)).toBe(true)
+  expect(await paid.allows('/ws', 'session', request, false)).toBe(true)
+  expect(ask).toHaveBeenCalledTimes(1)
+  expect(await paid.allows('/other-workspace', 'other-session', request, false)).toBe(true)
+  expect(ask).toHaveBeenCalledTimes(2)
+  const dormant = new AcpPaidUse({
+    flagged: ['autoCompaction'],
+    canRemember: () => true,
+    grants: memoryPaidGrants(),
+    log: logger(),
+  })
+  dormant.attach(ask)
+  expect(await dormant.allows('/ws', 'session', request, false)).toBe(false)
+  expect(ask).toHaveBeenCalledTimes(2)
+  const off = new AcpPaidUse({
+    flagged: [],
+    canRemember: () => true,
+    grants: memoryPaidGrants(),
+    log: logger(),
+  })
+  off.attach(ask)
+  expect(await off.allows('/ws', 'session', request, false)).toBe(false)
+  expect(ask).toHaveBeenCalledTimes(2)
+})
+
+it('unevaluated compaction is absent from compact and full ACP/CLI help', () => {
+  expect(formatAcpUsage(EN, 'muse-spark-code-acp')).not.toMatch(/--(?:no-)?auto-compaction/)
+  const help = createReference(EN, 'en').all()
+  expect(help).not.toContain('auto-compaction')
+  expect(help).not.toContain('modelApiAutoCompaction')
+  expect(help).not.toContain(EN.autoCompactionName)
+})
+
+it('hidden automatic compaction preserves the complete ACP and CLI usage manuals', () => {
+  // A visible option's prose may mention a hidden option without being that option.
+  const table = {
+    ...EN,
+    acpUsage: `${EN.acpUsage}\n  --backend note: --auto-compaction is unavailable`,
+    referenceCliOptions: {
+      ...EN.referenceCliOptions,
+      backend: `${EN.referenceCliOptions.backend} (--auto-compaction is unavailable)`,
+    },
+  }
+  const usage = formatAcpUsage(table, 'muse-spark-code-acp')
+  expect(usage).toContain(fill(table.acpUsage, { command: 'muse-spark-code-acp' }))
+  const acpLines = fill(EN.acpUsage, { command: 'muse-spark-code-acp' }).split('\n')
+  for (const line of acpLines) {
+    if (/^\s+--(?:no-)?auto-compaction\b/.test(line)) continue
+    expect(usage).toContain(line)
+  }
+  // CM108ACC put the accounts line back; the exec line offers pooling and stays out.
+  for (const chunk of [EN.acpChatGpt.usage, EN.accounts.cliUsage])
+    expect(usage).toContain(fill(chunk, { command: 'muse-spark-code-acp' }))
+  expect(usage).not.toContain(fill(EN.accounts.execHelp, { command: 'muse-spark-code-acp' }))
+  const help = createReference(table, 'en').all()
+  const inventory = referenceModel()
+  expect(help).toContain(table.referenceCliOptions.backend)
+  for (const [route, definition] of Object.entries(CLI_OPTION_REGISTRY)) {
+    for (const option of Object.keys(definition.options)) {
+      if (option === 'auto-compaction' || option === 'no-auto-compaction') continue
+      // The generated reference deliberately omits accepted-but-unused account/provider routes.
+      const entry = inventory.cli.find(
+        (row) =>
+          row.name === `${route}: --${option}` || row.name.startsWith(`${route}: --${option} `),
+      )
+      if (entry !== undefined) expect(help).toContain(`${entry.name}:`)
+    }
+  }
+  for (const entry of inventory.cli) {
+    if (entry.contract === undefined) expect(help).toContain(`${entry.name}:`)
+  }
+  createReference(EN, 'en')
+})
+
+// While the evaluation latch is off the README and the ACP page do not
+// describe automatic compaction (0.17.1's truth pass); the record keeps the
+// rule, and the two pages get it back with the feature.
+it('records ACP Once as workspace-scoped within the agent process', () => {
+  const texts = ['docs/certification/m101-admission.md', 'README.md', 'docs/acp.md'].map((file) =>
+    readDocumentation(file, 'utf8').replaceAll(/\s+/g, ' '),
+  )
+  expect(texts[0]).toContain('workspace within this agent process')
+  for (const page of texts.slice(1))
+    expect(page).not.toContain('workspace within this agent process')
+})
 
 describe('M80 structural headless paid policy', () => {
   it('P4/P7 headless receives requiresAsking and never reads or changes grants or asks editor', async () => {
@@ -337,7 +444,7 @@ describe('AcpPaidUse', () => {
     const paid = new AcpPaidUse({ flagged: [], canRemember: () => true, grants, log })
     await paid.forgetUnflagged()
     expect(log.warn).toHaveBeenCalledWith(
-      'Paid uses allowed always could not be forgotten for webSearch, imageGeneration: read-only data folder',
+      'Paid uses allowed always could not be forgotten for autoCompaction, webSearch, imageGeneration: read-only data folder',
     )
     expect(paid.isRemembered(FOLDER, 'webSearch')).toBe(false)
   })
@@ -362,7 +469,7 @@ describe('AcpPaidUse', () => {
     const grants = memoryPaidGrants()
     const forget = vi.spyOn(grants, 'forget')
     const paid = new AcpPaidUse({
-      flagged: ['webSearch', 'imageGeneration'],
+      flagged: ['autoCompaction', 'webSearch', 'imageGeneration'],
       canRemember: () => true,
       grants,
       log: logger(),

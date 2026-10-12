@@ -100,13 +100,13 @@ describe('exportConversation', () => {
     const [fileName, content] = prompted.markdown[0]!
     expect(fileName).toBe('muse-refactor-auth-2026-09-24.md')
     expect(content).toContain('# Refactor auth')
-    expect(content).toContain('- Backend: Meta Model API (your key, pay as you go)')
+    expect(content).toContain('- Backend: Meta Model API (Your Key, Pay as You Go)')
     const untitled = fakes('museCode', {
       items: [{ itemId: 'm', kind: 'agentMessage', status: 'completed', text: 'Hello' }],
     })
     await exportConversation(untitled.host, untitled.session, 'markdown', NOW, untitled.exports)
     expect(untitled.markdown[0]?.[0]).toBe('muse-muse-conversation-2026-09-24.md')
-    expect(untitled.markdown[0]?.[1]).toContain('- Backend: Muse Code (your Muse subscription)')
+    expect(untitled.markdown[0]?.[1]).toContain('- Backend: Muse Code (Your Muse Subscription)')
   })
 
   it('previews the redacted file before writing it, on either backend', async () => {

@@ -132,7 +132,7 @@ describe('ACP local usage command', () => {
       sessionUpdate: 'agent_message_chunk',
       content: {
         type: 'text',
-        text: `\n[Open usage page](http://127.0.0.1:1234/#${'a'.repeat(64)})`,
+        text: `\n[Open Usage Page](http://127.0.0.1:1234/#${'a'.repeat(64)})`,
       },
     })
     expect(h.elicitations).toEqual([])
@@ -152,14 +152,14 @@ describe('ACP local usage command', () => {
       expect(h.elicitations).toHaveLength(1)
       expect(h.elicitations[0]).toMatchObject({
         mode: 'url',
-        message: 'Open usage page',
+        message: 'Open Usage Page',
         url: `http://127.0.0.1:1234/#${'a'.repeat(64)}`,
       })
       const links = h.updates.filter(
         (update) =>
           update.sessionUpdate === 'agent_message_chunk' &&
           update.content.type === 'text' &&
-          update.content.text.includes('[Open usage page]'),
+          update.content.text.includes('[Open Usage Page]'),
       )
       expect(links).toHaveLength(isBroken ? 1 : 0)
       expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()

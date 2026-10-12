@@ -26,13 +26,13 @@ describe('M115 schedule editor', () => {
       const { request } = showScheduleSurface({ nowMs: Date.parse('2026-10-07T01:00:00Z') })
       const form = await trigger(kind)
       if (kind === 'afterEvent') {
-        fireEvent.change(within(form).getByDisplayValue('On weekdays'), {
+        fireEvent.change(within(form).getByDisplayValue('On Weekdays'), {
           target: { value: 'daily' },
         })
       }
       const date = form.querySelector('input[type="date"]')
       expect(date).toHaveProperty('value', '2026-10-06')
-      expect(within(form).getByLabelText('Anchor date (in the schedule’s time zone)')).toBe(date)
+      expect(within(form).getByLabelText('Anchor Date (in the Schedule’s Time Zone)')).toBe(date)
       const saved = await saveSchedule(form, request)
       const time = { kind: 'daily', anchorDate: '2026-10-06' }
       expect(saved).toMatchObject({
@@ -46,7 +46,7 @@ describe('M115 schedule editor', () => {
   it('keeps the time trigger unchanged while its zone is invalid', async () => {
     showScheduleSurface()
     const form = await editSchedule()
-    fireEvent.change(within(form).getByLabelText('Time zone'), { target: { value: 'bad/zone' } })
+    fireEvent.change(within(form).getByLabelText('Time Zone'), { target: { value: 'bad/zone' } })
     fireEvent.change(within(form).getByRole('combobox', { name: 'Trigger' }), {
       target: { value: 'daily' },
     })
@@ -57,7 +57,7 @@ describe('M115 schedule editor', () => {
     async (kind) => {
       const { request } = showScheduleSurface()
       const form = await trigger(kind)
-      fireEvent.click(within(form).getByRole('button', { name: 'Save schedule' }))
+      fireEvent.click(within(form).getByRole('button', { name: 'Save Schedule' }))
       await waitFor(() => {
         expect(
           request.mock.calls.some(
@@ -75,8 +75,8 @@ describe('M115 schedule editor', () => {
     )
     const preview = vi.fn(() => Promise.resolve({ available: true, times }))
     showSchedulePreview(preview)
-    await screen.findByRole('button', { name: 'Save schedule' })
-    fireEvent.click(screen.getByRole('button', { name: 'Next five fires' }))
+    await screen.findByRole('button', { name: 'Save Schedule' })
+    fireEvent.click(screen.getByRole('button', { name: 'Next Five Fires' }))
     await waitFor(() => {
       expect(screen.getAllByRole('listitem')).toHaveLength(SCHEDULE_PREVIEW_COUNT)
     })
@@ -89,7 +89,7 @@ describe('M115 schedule editor', () => {
         )
         .join(''),
     )
-    fireEvent.change(screen.getByLabelText('Time zone'), { target: { value: 'Europe/Berlin' } })
+    fireEvent.change(screen.getByLabelText('Time Zone'), { target: { value: 'Europe/Berlin' } })
     expect(screen.queryByRole('list')).toBeNull()
   })
 
@@ -100,16 +100,16 @@ describe('M115 schedule editor', () => {
       'disabled',
       true,
     )
-    fireEvent.change(within(form).getByLabelText('Event source'), { target: { value: 'github' } })
-    expect(within(form).getByLabelText('Event source')).toHaveProperty('value', 'git')
-    fireEvent.change(within(form).getByLabelText('Conditions (field=value, one per line)'), {
+    fireEvent.change(within(form).getByLabelText('Event Source'), { target: { value: 'github' } })
+    expect(within(form).getByLabelText('Event Source')).toHaveProperty('value', 'git')
+    fireEvent.change(within(form).getByLabelText('Conditions (field=value, One per Line)'), {
       target: { value: 'grant=shell' },
     })
-    fireEvent.change(within(form).getByLabelText('Time zone'), { target: { value: 'bad/zone' } })
-    fireEvent.change(within(form).getByDisplayValue('On an event'), {
+    fireEvent.change(within(form).getByLabelText('Time Zone'), { target: { value: 'bad/zone' } })
+    fireEvent.change(within(form).getByDisplayValue('On an Event'), {
       target: { value: 'daily' },
     })
-    fireEvent.change(within(form).getByLabelText('Time zone'), {
+    fireEvent.change(within(form).getByLabelText('Time Zone'), {
       target: { value: 'America/Los_Angeles' },
     })
     await refuseScheduleSave(form, request)
@@ -139,10 +139,10 @@ describe('M115 schedule editor', () => {
         : undefined,
     )
     const form = await trigger('event')
-    fireEvent.change(within(form).getByLabelText('Conditions (field=value, one per line)'), {
+    fireEvent.change(within(form).getByLabelText('Conditions (field=value, One per Line)'), {
       target: { value: 'branch=main' },
     })
-    fireEvent.click(within(form).getByRole('button', { name: 'Next five fires' }))
+    fireEvent.click(within(form).getByRole('button', { name: 'Next Five Fires' }))
     await screen.findByText('Would have fired 3 times in 7 days')
     await saveSchedule(form, request)
     const saved = request.mock.calls.find(([input]) => input.method === 'schedules/update')?.[0]
@@ -162,7 +162,7 @@ describe('M115 schedule editor', () => {
         : undefined,
     )
     const form = await trigger('event')
-    fireEvent.click(within(form).getByRole('button', { name: 'Next five fires' }))
+    fireEvent.click(within(form).getByRole('button', { name: 'Next Five Fires' }))
     await screen.findByText('No history to preview. Source has no retained history')
   })
 
@@ -182,7 +182,7 @@ describe('M115 schedule editor', () => {
           : undefined,
       )
       const form = await trigger('event')
-      fireEvent.click(within(form).getByRole('button', { name: 'Next five fires' }))
+      fireEvent.click(within(form).getByRole('button', { name: 'Next Five Fires' }))
       await within(form).findByText('Schedules could not be loaded. Try again.')
       expect(form.textContent).not.toContain('999')
     },
@@ -191,17 +191,17 @@ describe('M115 schedule editor', () => {
   it('preserves end conditions, catch-up, closed-target policy, grants and pinning on save', async () => {
     const { request } = showScheduleSurface()
     const form = await editSchedule()
-    fireEvent.change(within(form).getByLabelText('End after N runs'), { target: { value: '2' } })
-    fireEvent.change(within(form).getByLabelText('End date and time (UTC)'), {
+    fireEvent.change(within(form).getByLabelText('End After N Runs'), { target: { value: '2' } })
+    fireEvent.change(within(form).getByLabelText('End Date and Time (UTC)'), {
       target: { value: '2026-11-01T12:00' },
     })
-    fireEvent.change(within(form).getByLabelText('Missed fires'), { target: { value: 'skip' } })
-    fireEvent.change(within(form).getByLabelText('Closed target'), { target: { value: 'skip' } })
-    fireEvent.click(within(form).getByLabelText('Pin schedule'))
-    fireEvent.change(within(form).getByLabelText('Allowed tools'), {
+    fireEvent.change(within(form).getByLabelText('Missed Fires'), { target: { value: 'skip' } })
+    fireEvent.change(within(form).getByLabelText('Closed Target'), { target: { value: 'skip' } })
+    fireEvent.click(within(form).getByLabelText('Pin Schedule'))
+    fireEvent.change(within(form).getByLabelText('Allowed Tools'), {
       target: { value: 'mcp__safe__read' },
     })
-    fireEvent.change(within(form).getByLabelText('Command prefixes'), {
+    fireEvent.change(within(form).getByLabelText('Command Prefixes'), {
       target: { value: 'npm test' },
     })
     await saveSchedule(form, request)
@@ -247,7 +247,7 @@ describe('M115 schedule editor', () => {
     const form = await editSchedule()
     fireEvent.change(within(form).getByLabelText('Action'), { target: { value: 'report' } })
     expect(within(form).getByText('schedules: approved destination picker')).toBeTruthy()
-    expect(within(form).queryByLabelText('Daily schedule cap')).toBeNull()
+    expect(within(form).queryByLabelText('Daily Schedule Cap')).toBeNull()
     await saveSchedule(form, request)
     expect(
       request.mock.calls.find(([input]) => input.method === 'schedules/update')?.[0],
@@ -289,8 +289,8 @@ describe('M115 schedule editor', () => {
   ])('refuses malformed time previews $label', async ({ times }) => {
     const preview = vi.fn(() => Promise.resolve({ available: true, times }))
     showSchedulePreview(preview)
-    await screen.findByRole('button', { name: 'Save schedule' })
-    fireEvent.click(screen.getByRole('button', { name: 'Next five fires' }))
+    await screen.findByRole('button', { name: 'Save Schedule' })
+    fireEvent.click(screen.getByRole('button', { name: 'Next Five Fires' }))
     await screen.findByText('Schedules could not be loaded. Try again.')
     expect(screen.queryByRole('listitem')).toBeNull()
   })
@@ -300,7 +300,7 @@ describe('M115 schedule editor', () => {
       .mockResolvedValueOnce({ available: true, times: [1] })
       .mockResolvedValueOnce({ available: false, reason: 'No future fires' })
     showSchedulePreview(preview)
-    const button = await screen.findByRole('button', { name: 'Next five fires' })
+    const button = await screen.findByRole('button', { name: 'Next Five Fires' })
     fireEvent.click(button)
     await screen.findByRole('listitem')
     fireEvent.click(button)
@@ -320,9 +320,9 @@ describe('M115 schedule editor', () => {
         : undefined,
     )
     const form = await trigger('event')
-    fireEvent.click(within(form).getByRole('button', { name: 'Next five fires' }))
+    fireEvent.click(within(form).getByRole('button', { name: 'Next Five Fires' }))
     await screen.findByText('Would have fired 3 times in 7 days')
-    fireEvent.change(within(form).getByLabelText('Conditions (field=value, one per line)'), {
+    fireEvent.change(within(form).getByLabelText('Conditions (field=value, One per Line)'), {
       target: { value: 'grant=shell' },
     })
     expect(screen.queryByText('Would have fired 3 times in 7 days')).toBeNull()
@@ -341,18 +341,18 @@ describe('M115 schedule editor', () => {
         : undefined,
     )
     const form = await trigger('event')
-    fireEvent.change(within(form).getByLabelText('Conditions (field=value, one per line)'), {
+    fireEvent.change(within(form).getByLabelText('Conditions (field=value, One per Line)'), {
       target: { value: 'grant=shell' },
     })
-    fireEvent.change(within(form).getByLabelText('Event source'), { target: { value: 'manual' } })
-    expect(within(form).getByLabelText('Conditions (field=value, one per line)')).toHaveValue('')
+    fireEvent.change(within(form).getByLabelText('Event Source'), { target: { value: 'manual' } })
+    expect(within(form).getByLabelText('Conditions (field=value, One per Line)')).toHaveValue('')
     await saveSchedule(form, request)
   })
 
   it('rejects a condition without an equals separator with a visible message', async () => {
     const { request } = showScheduleSurface()
     const form = await trigger('event')
-    fireEvent.change(within(form).getByLabelText('Conditions (field=value, one per line)'), {
+    fireEvent.change(within(form).getByLabelText('Conditions (field=value, One per Line)'), {
       target: { value: 'branchX' },
     })
     await refuseScheduleSave(form, request)
@@ -364,7 +364,7 @@ describe('M115 schedule editor', () => {
       .mockResolvedValueOnce({ available: false, reason: 'No future fires' })
       .mockResolvedValueOnce({ available: true, times: [1] })
     showSchedulePreview(preview)
-    const button = await screen.findByRole('button', { name: 'Next five fires' })
+    const button = await screen.findByRole('button', { name: 'Next Five Fires' })
     fireEvent.click(button)
     await screen.findByText('No future fires')
     fireEvent.click(button)

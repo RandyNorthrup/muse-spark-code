@@ -33,6 +33,7 @@ export interface PlanReadResult {
   }[]
   readonly ledger: QualityLedger | null
 }
+const UTF8_BYTES_PER_UTF16_UNIT_MAX = 3
 interface Drift {
   code: string
   line: number
@@ -41,6 +42,8 @@ interface Drift {
 
 function ledgerFence(text: string): { json: string; line: number; closed: boolean }[] {
   const blocks: { json: string; line: number; closed: boolean }[] = []
+  // A ledger needs a fence line; without any, skip splitting the whole plan again.
+  if (!/^ {0,3}(?:`{3}|~{3})/m.test(text)) return blocks
   const lines = text.replaceAll('\r\n', '\n').split('\n')
   let fence: { marker: string; length: number; start: number; ledger: boolean } | undefined
   for (let index = 0; index < lines.length; index += 1) {
@@ -256,9 +259,11 @@ function parsePlan(text: string, evidence: PlanEvidence): PlanReadResult {
     deliveryOrder: [],
     drift: [],
   }
+  // Encode only when the bound is reachable: UTF-8 spends at most three bytes per UTF-16 unit.
   if (
     text.length > REPORT_PLAN_MAX_BYTES ||
-    new TextEncoder().encode(text).byteLength > REPORT_PLAN_MAX_BYTES
+    (text.length * UTF8_BYTES_PER_UTF16_UNIT_MAX > REPORT_PLAN_MAX_BYTES &&
+      new TextEncoder().encode(text).byteLength > REPORT_PLAN_MAX_BYTES)
   )
     return {
       facts: {
@@ -299,10 +304,15 @@ function parsePlan(text: string, evidence: PlanEvidence): PlanReadResult {
   const sectionBodies = new Map<number, PlanLine[]>()
   const knownIds = new Map<string, string>()
   const headings: number[] = []
+  // Every pattern below the index pass starts with `## ` or `### `, so only
+  // these lines are parsed again, and each milestone heading only once.
+  const headingItems = new Map<number, ReturnType<typeof milestoneHeading>>()
   // One index pass; each milestone body is visited only within its own boundaries.
-  for (const [index, row] of lines.entries()) {
-    if (/^#{2,3} /.test(row.text)) headings.push(index)
-    const item = milestoneHeading(row.text)
+  for (const [index, { text }] of lines.entries()) {
+    if (!/^#{2,3} /.test(text)) continue
+    headings.push(index)
+    const item = milestoneHeading(text)
+    headingItems.set(index, item)
     if (item) knownIds.set(item.id.toLowerCase(), item.id)
   }
   const seenSections = new Set<number>()
@@ -315,6 +325,12 @@ function parsePlan(text: string, evidence: PlanEvidence): PlanReadResult {
     if (!row) continue
     while ((headings[nextHeading] ?? lines.length) <= index) nextHeading += 1
     const end = headings[nextHeading] ?? lines.length
+    if (!headingItems.has(index)) {
+      sectionBodies.get(section)?.push(row)
+      if (section === PLAN_SECTIONS.milestones && row.text === '**Delivery order**')
+        delivery = deliveryOrder(lines.slice(index + 1, end), drift, knownIds)
+      continue
+    }
     const heading = /^## (\d+)\. (.+)$/.exec(row.text)
     if (heading?.[1] && heading[2]) {
       section = Number(heading[1])
@@ -329,7 +345,7 @@ function parsePlan(text: string, evidence: PlanEvidence): PlanReadResult {
     const decision = /^### (D\d+(?:[a-z]|\.\d+)?) — (.+)$/.exec(row.text)
     if (decision?.[1] && decision[2])
       decisions.push({ id: decision[1], title: decision[2], line: row.line })
-    const item = milestoneHeading(row.text)
+    const item = headingItems.get(index)
     if (item) {
       if (section !== PLAN_SECTIONS.milestones) {
         drift.push({ code: 'milestone-section', line: row.line, detail: item.id })
@@ -345,18 +361,17 @@ function parsePlan(text: string, evidence: PlanEvidence): PlanReadResult {
         knownIds,
       )
       if (parsed) {
-        if (seenMilestones.has(parsed.id.toLowerCase()))
+        const seen = parsed.id.toLowerCase()
+        if (seenMilestones.has(seen))
           drift.push({ code: 'milestone-duplicate', line: row.line, detail: parsed.id })
         milestones.push(parsed)
-        seenMilestones.add(parsed.id.toLowerCase())
+        seenMilestones.add(seen)
       }
     } else if (section === PLAN_SECTIONS.milestones && row.text.startsWith('### ')) {
       if (/^### Delivery order(?: \(\d{4}-\d{2}-\d{2}\))?$/.test(row.text)) {
         delivery = deliveryOrder(lines.slice(index + 1, end), drift, knownIds)
       } else if (!/^### 6\.0 Standard certification checklist(?: \(.+\))?$/.test(row.text))
         drift.push({ code: 'milestone-heading', line: row.line, detail: row.text })
-    } else if (section === PLAN_SECTIONS.milestones && row.text === '**Delivery order**') {
-      delivery = deliveryOrder(lines.slice(index + 1, end), drift, knownIds)
     }
   }
   if (

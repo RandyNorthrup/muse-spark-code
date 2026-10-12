@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 // The models panel's lazy money (STARTUP017 review): consent and budget
 // changes against a held or failed money chunk, on the real panel and its
-// reducer. A pending budget change posts only to the wizard draft it was
-// made for; a cancelled or reopened wizard drops it. A failed load is said
-// with Retry, keeps the typed amount, and never offers Accept.
+// reducer. The wizard's spending limit commits without the chunk, only for
+// the draft it was typed in; a cancelled or reopened wizard posts none, and
+// a failed load keeps the typed amount. The paid check's cost is said with
+// Retry when its load fails, and never offers Accept until stated.
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { useEffect, useReducer } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -42,7 +43,9 @@ async function mountPanel(state: ModelsPanelState) {
     return <ModelsPanel panelState={state} ui={ui} post={post} dispatch={dispatch} />
   }
   render(<Panel />)
-  fireEvent.click(screen.getByRole('button', { name: UI_TEXT.wizardPickProvider }))
+  // The providers section loads behind the shared deferred boundary.
+  const pick = await screen.findByRole('button', { name: UI_TEXT.wizardPickProvider })
+  fireEvent.click(pick)
   return { post, UI_TEXT }
 }
 
@@ -51,7 +54,7 @@ async function suggestionsState(): Promise<ModelsPanelState> {
   return makeState({
     drafts: {
       edits: {},
-      wizard: makeDraft({ step: 'suggestions', presetId: 'ollama', auth: 'none' }),
+      wizard: makeDraft({ step: 'suggestions', presetId: 'ollama', auth: 'none', blockers: [] }),
     },
     suggestions: [makeSuggestion('defaultModel'), makeSuggestion('sessionBudget')],
   })
@@ -78,7 +81,15 @@ async function costState(): Promise<ModelsPanelState> {
 async function release(): Promise<void> {
   await act(async () => {
     chunk.gate.resolve(undefined)
-    await new Promise((resolve) => setTimeout(resolve, 0))
+    // Wait for the document's one money load (started by the mounted panel)
+    // to settle, not for a fixed tick: on a loaded runner resolving the
+    // chunk's imports outlasts a tick and the alert's default 1 s wait.
+    const { loadMoneyDisplay } = await import('../../src/webview/money')
+    try {
+      await loadMoneyDisplay()
+    } catch {
+      // The failure case asserts the panel's alert.
+    }
   })
 }
 
@@ -88,30 +99,39 @@ function budgetChanges(post: ReturnType<typeof vi.fn>): readonly unknown[] {
     .filter((message) => message.type === 'suggestions/change' && message.kind === 'sessionBudget')
 }
 
-function changeBudget(text: typeof UiTextTable, amount: string) {
-  fireEvent.change(screen.getByLabelText(text.suggestSessionBudget), { target: { value: amount } })
-  const change = screen.getAllByRole('button', { name: text.suggestionChange })[1]
-  if (change === undefined) throw new Error('budget Change missing')
-  fireEvent.click(change)
+function typeLimit(text: typeof UiTextTable, amount: string) {
+  fireEvent.change(screen.getByLabelText(text.wizardSessionBudget), { target: { value: amount } })
 }
 
-describe('wizard budget change against a held money chunk', () => {
-  it('posts to the draft it was made for once the chunk arrives', async () => {
-    const { post, UI_TEXT } = await mountPanel(await suggestionsState())
-    changeBudget(UI_TEXT, '7.5')
-    expect(budgetChanges(post)).toEqual([])
-    await release()
+// 0.17.1 merge: the provider fix made the wizard's budget the conversation
+// spending-limit setting's own field (compare-and-set, committed on Continue)
+// and removed the budget suggestion card and its Change press, which were
+// the only money-chunk work on this step. These cases keep STARTUP017's
+// guarantees for the field: nothing on it waits for the chunk, a cancelled
+// or reopened wizard posts no limit, and a failed load loses no typed amount.
+describe('wizard spending limit against a held money chunk', () => {
+  it('commits the typed limit on Continue without waiting for the chunk', async () => {
+    const state = await suggestionsState()
+    const { post, UI_TEXT } = await mountPanel(state)
+    typeLimit(UI_TEXT, '7.5')
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.wizardContinue }))
     const { Usd } = await import('../../src/shared/usd')
-    await waitFor(() => {
-      expect(budgetChanges(post)).toEqual([
-        { type: 'suggestions/change', kind: 'sessionBudget', usd: Usd.from('7.5').toAmount() },
-      ])
-    })
+    // The chunk is still held: the field's commit needs none of it.
+    expect(budgetChanges(post)).toEqual([
+      {
+        type: 'suggestions/change',
+        kind: 'sessionBudget',
+        usd: Usd.from('7.5').toAmount(),
+        expectedUsd: state.sessionBudget.effectiveUsd,
+      },
+    ])
+    await release()
+    expect(budgetChanges(post)).toHaveLength(1)
   })
 
-  it('drops the change when the wizard is cancelled, and when it reopens over a new draft', async () => {
+  it('posts no limit when the wizard is cancelled, nor once it reopens over a new draft', async () => {
     const { post, UI_TEXT } = await mountPanel(await suggestionsState())
-    changeBudget(UI_TEXT, '7.5')
+    typeLimit(UI_TEXT, '7.5')
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.wizardCancel }))
     expect(post).toHaveBeenCalledWith({ type: 'providers/wizard', event: 'cancel' })
     // Reopened before the chunk arrives: a new generation, not the old draft.
@@ -121,18 +141,17 @@ describe('wizard budget change against a held money chunk', () => {
     expect(budgetChanges(post)).toEqual([])
   })
 
-  it('says a failed load with Retry, keeps the typed amount and posts nothing', async () => {
+  it('keeps the typed limit through a failed load and offers no budget Accept', async () => {
     chunk.shouldFail = true
     const { post, UI_TEXT } = await mountPanel(await suggestionsState())
-    changeBudget(UI_TEXT, '7.5')
+    typeLimit(UI_TEXT, '7.5')
     await release()
-    expect(await screen.findByRole('alert')).toHaveTextContent(UI_TEXT.moneyLoadFailed)
-    expect(screen.getByRole('button', { name: UI_TEXT.surfaceLoadRetry })).toBeEnabled()
-    expect(screen.getByLabelText(UI_TEXT.suggestSessionBudget)).toHaveValue(7.5)
+    expect(screen.getByLabelText(UI_TEXT.wizardSessionBudget)).toHaveValue(7.5)
     expect(budgetChanges(post)).toEqual([])
-    // The suggested amount was never stated, so its Accept is never offered.
-    const budgetAccept = screen.getAllByRole('button', { name: UI_TEXT.suggestionAccept })[1]
-    expect(budgetAccept).toBeDisabled()
+    // No budget suggestion card: only the default model's Accept is offered.
+    expect(screen.getAllByRole('button', { name: UI_TEXT.suggestionAccept })).toHaveLength(1)
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.wizardContinue }))
+    expect(budgetChanges(post)).toHaveLength(1)
   })
 })
 
@@ -165,4 +184,24 @@ describe('paid check consent against the money chunk', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(UI_TEXT.moneyLoadFailed)
     expectNoConsent(post, UI_TEXT.suggestionAccept)
   })
+})
+
+it('marks every key usage amount until the held money chunk has formatted it', async () => {
+  const { makeProvider, makeKeyUsage, makeState } = await import('./modelsPanelFixtures')
+  const { UI_TEXT } = await mountPanel(
+    makeState({ providers: [makeProvider({ keyUsage: makeKeyUsage() })] }),
+  )
+  const amounts = document.querySelectorAll('.models-usage dd')
+  expect(amounts).toHaveLength(4)
+  for (const amount of amounts) {
+    expect(amount.querySelector('[data-deferred-loading]')).not.toBeNull()
+    expect(amount).toHaveTextContent('')
+  }
+  await release()
+  expect(await screen.findByText('$1.20')).toBeInTheDocument()
+  expect(screen.getByText('$3.40')).toBeInTheDocument()
+  expect(screen.getByText('$10.00')).toBeInTheDocument()
+  expect(screen.getByText('$6.60')).toBeInTheDocument()
+  expect(document.querySelector('.models-usage [data-deferred-loading]')).toBeNull()
+  expect(screen.queryByText(UI_TEXT.moneyLoadFailed)).toBeNull()
 })

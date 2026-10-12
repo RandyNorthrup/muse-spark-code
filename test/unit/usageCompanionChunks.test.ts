@@ -2,7 +2,7 @@ import { mkdtemp, mkdir } from 'node:fs/promises'
 import path from 'node:path'
 import { build } from 'esbuild'
 import { chromium, type Browser } from 'playwright-core'
-import { afterAll, describe, expect, it } from 'vitest'
+import { beforeAll, afterAll, describe, expect, it } from 'vitest'
 import { openUsageCompanion } from '../../src/runtime/usage/usageCompanionEntry'
 import { createUsageAccess } from '../../src/runtime/usage/usageServiceEntry'
 import { EN } from '../../src/shared/l10n/en'
@@ -11,6 +11,7 @@ import { WEBVIEW_L10N_ELEMENT_ID } from '../../src/shared/constants'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { removeFolder } from './helpers/temporaryFolders'
 import { compactBrowserUiText } from '../../scripts/lib/uiTextRegions.mjs'
+import { warmBrowser } from './helpers/warmBrowser'
 
 await mkdir('temp', { recursive: true })
 const dataFolder = await mkdtemp(path.resolve('temp/train15g-usage-chunks-'))
@@ -37,6 +38,10 @@ await build({
   logLevel: 'silent',
 })
 const browser: Browser = await chromium.launch({ channel: 'chrome', headless: true })
+// Browser-wide first-page work once, under this hook's own limit (CIFIX017).
+beforeAll(async () => {
+  await warmBrowser(browser)
+})
 
 // The case loads the real bundles in a real Chromium page; hosted macOS with
 // coverage took 5.0 s, past the default deadline.

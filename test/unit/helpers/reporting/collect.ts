@@ -29,15 +29,13 @@ export function fixtureFinalize(draft: ReportDraft): ReportDocument {
   return { ...draft, header: { ...draft.header, contentHash } }
 }
 
-export const fixtureCollector = createReportCollector({
-  finalize: fixtureFinalize,
-  nextStepLimit: 3,
-  selections: {
-    changes: (snapshot) =>
+export function changeSelections() {
+  return {
+    changes: (snapshot: SourceSnapshot) =>
       snapshot.sources.git.data === null
         ? unavailableSource('changesRange', 'No range evidence')
         : availableSource('changesRange', snapshot.sources.git.data.commits),
-    changeBranches: (snapshot) =>
+    changeBranches: (snapshot: SourceSnapshot) =>
       snapshot.sources.git.data === null
         ? unavailableSource('changeBranches', 'No branch ancestry evidence')
         : availableSource(
@@ -48,6 +46,14 @@ export const fixtureCollector = createReportCollector({
               branches: commit.sha === 'head' ? ['m12/k'] : [],
             })),
           ),
+  }
+}
+
+export const fixtureCollector = createReportCollector({
+  finalize: fixtureFinalize,
+  nextStepLimit: 3,
+  selections: {
+    ...changeSelections(),
     risksSinceRelease: (snapshot) =>
       snapshot.sources.plan.data === null
         ? unavailableSource('risksSinceRelease', 'No revision evidence')

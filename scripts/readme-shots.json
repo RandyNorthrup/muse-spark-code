@@ -80,7 +80,7 @@
       "theme": "light",
       "width": 690,
       "height": 760,
-      "note": "Highlight, right-click: Copy, Ask about this or Comment on this"
+      "note": "Highlight, right-click: Copy, Ask About This or Comment on This"
     },
     {
       "file": "media/readme/rewind.png",
@@ -88,7 +88,7 @@
       "theme": "light",
       "width": 690,
       "height": 760,
-      "note": "Every sent message's ⋯: fork, fork and rewind code, or open Rewind"
+      "note": "Every sent message's ⋯: Fork Conversation, Fork and Rewind, Rewind, Save Prompt and Share Prompt…"
     },
     {
       "file": "media/readme/slash-commands.png",
