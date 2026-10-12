@@ -695,4 +695,21 @@ describe('M108 account-bound paid use consent', () => {
     expect(await t.create().allows(request)).toBe(false)
     expect(t.deps.ask).toHaveBeenCalledTimes(1)
   })
+
+  it('ignores a malformed quote generation for ordering instead of inheriting it', async () => {
+    const t = rig()
+    const request = quotedSearch('0.0025', 'model-a')
+    // A damaged store entry: text no JSON parser accepts. It is invalid,
+    // never an epoch, so the use asks again and the saved grant restarts
+    // the order instead of inheriting 99.
+    t.quotes.set(bindingKey() + paidAuthorityKey(request.quote), {
+      quote: request.quote,
+      generation: 'not json {{{',
+      order: 99,
+    })
+    t.deps.ask.mockResolvedValue('always')
+    expect(await t.create().allows(request)).toBe(true)
+    expect(t.deps.ask).toHaveBeenCalledTimes(1)
+    expect(t.quotes.get(bindingKey() + paidAuthorityKey(request.quote))?.order).toBe(2)
+  })
 })

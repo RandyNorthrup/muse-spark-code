@@ -47,7 +47,7 @@ import type { SessionBudgetClaim } from '../backends/modelapi/sessionBudget'
 // zod/mini, which the Node bundles read from dist/validation.js: classic zod
 // carried 444 KiB and its `navigator` sniff into dist/extension.js (INT0170).
 import * as z from 'zod/mini'
-import type { CoreLogger } from '../logging'
+import { type CoreLogger, wireWordForLog } from '../logging'
 import { PaidAuthority, paidAuthorityKey, type PaidGrant } from './paidAuthority'
 import {
   schedulePaidConsentSchema,
@@ -373,18 +373,21 @@ export class PaidUseConsent {
       else await this.deps.rememberGrant(feature)
       return true
     } catch (error: unknown) {
+      // A store that cannot be written leaves this use allowed once (an
+      // account decision approved under a revoked epoch is still refused by
+      // its fence below). The log names only the failure's kind, never the
+      // store's message; anything that is not an error keeps its kind.
+      if (!(error instanceof Error)) throw error
       this.deps.log.warn(
-        `Paid use of ${feature}: "always" could not be kept, so it is allowed once: ${error instanceof Error ? error.message : String(error)}`,
+        `Paid use of ${feature}: "always" could not be kept, so it is allowed once (${wireWordForLog(error.name)})`,
       )
       return false
     }
   }
 
-  /** A search "always" that cannot be kept: logged, and this use goes ahead once. */
-  private warnQuoteNotKept(error: unknown): void {
-    this.deps.log.warn(
-      `Paid search quote could not be kept: ${error instanceof Error ? error.message : String(error)}`,
-    )
+  /** A search "always" that cannot be kept: the kind is logged, and this use goes ahead once. */
+  private quoteNotKeptKind(error: Error): string {
+    return wireWordForLog(error.name)
   }
 
   /**
@@ -400,7 +403,10 @@ export class PaidUseConsent {
     try {
       return await (this.deps.nextQuoteOrder?.() ?? this.authority.nextOrder(quote, prior))
     } catch (error: unknown) {
-      this.warnQuoteNotKept(error)
+      // A quote order the store cannot hand out leaves the approved use
+      // allowed once; anything that is not an error keeps its kind.
+      if (!(error instanceof Error)) throw error
+      this.deps.log.warn(`Paid search quote could not be kept (${this.quoteNotKeptKind(error)})`)
       return undefined
     }
   }
@@ -576,7 +582,10 @@ export class PaidUseConsent {
           isOk = true
         }
       } catch (error: unknown) {
-        this.warnQuoteNotKept(error)
+        // A quote grant the store cannot keep leaves the approved use
+        // allowed once; anything that is not an error keeps its kind.
+        if (!(error instanceof Error)) throw error
+        this.deps.log.warn(`Paid search quote could not be kept (${this.quoteNotKeptKind(error)})`)
       }
       if (!isCurrent()) return undefined
       this.authority.dispatch({ type: 'saved', grant: effect.grant, ok: isOk })
@@ -885,7 +894,11 @@ function quoteGrantEpoch(generation: string): number | undefined {
     const parsed: unknown = JSON.parse(generation)
     const result = durableQuoteGenerationSchema.safeParse(parsed)
     return result.success ? result.data.epoch : undefined
-  } catch {
+  } catch (error: unknown) {
+    // Only malformed text fails here; a parsed but unversioned generation
+    // answers undefined above. A corrupt generation is invalid, never an
+    // epoch: its callers refuse it. Anything else keeps its kind.
+    if (!(error instanceof SyntaxError)) throw error
     return undefined
   }
 }

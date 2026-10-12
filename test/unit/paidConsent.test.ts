@@ -188,9 +188,39 @@ describe('PaidUseConsent (M58)', () => {
       tariffUsd: Usd.from('0.0025').toAmount(),
     })
     expect(log.warn).toHaveBeenCalledWith(
-      'Paid use of webSearch: "always" could not be kept, so it is allowed once: storage is full',
+      'Paid use of webSearch: "always" could not be kept, so it is allowed once (Error)',
     )
     expect(log.info).toHaveBeenLastCalledWith('Paid use of webSearch: allowed once')
+  })
+
+  it('names only the failure kind when "always" cannot be kept, and lets a non-error through', async () => {
+    const log = new FakeLogOutputChannel()
+    const message = 'disk full at /private/user/grants.json'
+    const consent = new PaidUseConsent({
+      isOn: () => true,
+      canRemember: () => true,
+      readGrants: () => new Set(),
+      writeGrants: () => Promise.reject(new Error(message)),
+      ask: () => Promise.resolve('always'),
+      log,
+    })
+    await expect(consent.allows(VOICE)).resolves.toBe(true)
+    expect(log.warn).toHaveBeenCalledOnce()
+    const said = String(log.warn.mock.calls[0]?.[0] ?? '')
+    expect(said).toContain('(Error)')
+    expect(said).not.toContain(message)
+    const foreign: unknown = 'a string failure'
+    const failing = new PaidUseConsent({
+      isOn: () => true,
+      canRemember: () => true,
+      readGrants: () => new Set(),
+      writeGrants: () => {
+        throw foreign
+      },
+      ask: () => Promise.resolve('always'),
+      log,
+    })
+    await expect(failing.allows(VOICE)).rejects.toBe('a string failure')
   })
 
   describe('a quoted search "always" its store cannot keep (0.16.0 review)', () => {
@@ -229,7 +259,7 @@ describe('PaidUseConsent (M58)', () => {
       expect(await t.consent.allows(first)).toMatchObject({ id: first.quote.id })
       expect(t.consent.authority.canSpend(first.quote)).toBe(true)
       expect(t.log.warn).toHaveBeenCalledExactlyOnceWith(
-        'Paid search quote could not be kept: read-only profile',
+        'Paid search quote could not be kept (Error)',
       )
       expect(t.log.info).toHaveBeenLastCalledWith('Paid use of webSearch: allowed once')
       expect(t.kept).toEqual([])
@@ -238,6 +268,26 @@ describe('PaidUseConsent (M58)', () => {
       const second = quotedSearch('0.01', 'model-a', 'second')
       expect(await t.consent.allows(second)).toMatchObject({ id: second.quote.id })
       expect(t.ask).toHaveBeenCalledTimes(2)
+    })
+
+    it('logs only the kind when the grant cannot be saved, and lets a non-error through', async () => {
+      const message = 'quota exceeded for /private/user/quotes'
+      const t = quoteConsentWith({
+        writeQuoteGrant: () => Promise.reject(new Error(message)),
+      })
+      const first = quotedSearch('0.01')
+      expect(await t.consent.allows(first)).toMatchObject({ id: first.quote.id })
+      expect(t.log.warn).toHaveBeenCalledExactlyOnceWith(
+        'Paid search quote could not be kept (Error)',
+      )
+      expect(String(t.log.warn.mock.calls[0]?.[0] ?? '')).not.toContain(message)
+      const foreign: unknown = 'a string failure'
+      const failing = quoteConsentWith({
+        nextQuoteOrder: () => {
+          throw foreign
+        },
+      })
+      await expect(failing.consent.allows(quotedSearch('0.01'))).rejects.toBe('a string failure')
     })
   })
 
