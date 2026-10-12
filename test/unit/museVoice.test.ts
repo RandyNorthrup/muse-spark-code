@@ -446,6 +446,13 @@ async function waitVoicePrepared(t: ReturnType<typeof dictationSetup>): Promise<
   })
 }
 
+/** The preparation admitted the start and the microphone is held. */
+async function captureStarted(t: ReturnType<typeof dictationSetup>): Promise<void> {
+  await vi.waitFor(() => {
+    expect(t.capture().starts).toBe(1)
+  })
+}
+
 function holdVoicePublication(budget: VoiceBudgetFixture) {
   const held = Promise.withResolvers<undefined>()
   const written = Promise.withResolvers<undefined>()
@@ -490,7 +497,7 @@ describe('MuseVoiceDictation shared budget (M82)', () => {
       )
       expect(t.sockets).toEqual([])
       await expectVoiceRefund(budget)
-      t.dictation.dispose()
+      await t.dictation.dispose()
     },
   )
 
@@ -502,13 +509,15 @@ describe('MuseVoiceDictation shared budget (M82)', () => {
       t.dictation.start()
       await written.promise
       expect(t.sockets).toEqual([])
-      t.dictation.dispose()
+      // The drain waits for the held write: release it concurrently.
+      const disposed = t.dictation.dispose()
       held.resolve(undefined)
+      await disposed
       await expectVoiceRefund(budget)
     } finally {
       held.resolve(undefined)
       spy.mockRestore()
-      t.dictation.dispose()
+      await t.dictation.dispose()
     }
   })
 
@@ -530,7 +539,7 @@ describe('MuseVoiceDictation shared budget (M82)', () => {
     )
     expect(() => next.check(Usd.from(0.015).toAmount())).toThrow()
     await next.settle(Usd.from(0).toAmount(), false)
-    t.dictation.dispose()
+    await t.dictation.dispose()
     await expectVoiceRefund(budget)
   })
 
@@ -554,7 +563,7 @@ describe('MuseVoiceDictation shared budget (M82)', () => {
     } finally {
       held.resolve(undefined)
       spy.mockRestore()
-      t.dictation.dispose()
+      await t.dictation.dispose()
     }
   })
 
@@ -572,7 +581,7 @@ describe('MuseVoiceDictation shared budget (M82)', () => {
     })
     expect(t.texts).toEqual([])
     await expectVoiceRefund(budget)
-    t.dictation.dispose()
+    await t.dictation.dispose()
   })
 
   it.each(['cap', 'owner'])(
@@ -601,7 +610,7 @@ describe('MuseVoiceDictation shared budget (M82)', () => {
           : UI_TEXT.sessionBudgetVoiceContextChanged,
       )
       await expectVoiceRefund(budget)
-      t.dictation.dispose()
+      await t.dictation.dispose()
     },
   )
 
@@ -624,7 +633,7 @@ describe('MuseVoiceDictation shared budget (M82)', () => {
       }
       if (outcome === 'final') await expectVoiceRefund(budget)
       else await expectUnknownVoiceEstimate(budget)
-      t.dictation.dispose()
+      await t.dictation.dispose()
     },
   )
 
@@ -641,7 +650,8 @@ describe('MuseVoiceDictation shared budget (M82)', () => {
       }),
     ])
     expect(denied.sockets).toEqual([])
-    denied.dictation.dispose()
+    expect(denied.capture().starts).toBe(0)
+    await denied.dictation.dispose()
     const budget = await voiceBudget('owner-change-audio')
     const t = dictationSetup(true, () => Promise.resolve(budget.scope))
     t.dictation.start()
@@ -650,7 +660,7 @@ describe('MuseVoiceDictation shared budget (M82)', () => {
     t.capture().listener.onAudio?.(pcm(1))
     expect(t.socket().binaries).toEqual([])
     expect(t.socket().isClosed).toBe(true)
-    t.dictation.dispose()
+    await t.dictation.dispose()
   })
 })
 
@@ -667,7 +677,7 @@ describe('MuseVoiceDictation (M35)', () => {
   it('records, streams, and inserts the transcript, counting the seconds sent', async () => {
     const t = dictationSetup()
     t.dictation.start()
-    expect(t.capture().starts).toBe(1)
+    await captureStarted(t)
     t.capture().listener.onStatus('listening')
     t.capture().listener.onAudio?.(pcm(1))
     await answered(t)
@@ -716,8 +726,13 @@ describe('MuseVoiceDictation (M35)', () => {
     await vi.waitFor(() => {
       expect(t.errors).toEqual(['Muse Voice needs a Model API key; sign in with one first.'])
     })
+    // Without a key nothing is captured: the failure is said with no
+    // recording and no socket.
+    expect(t.capture().starts).toBe(0)
     expect(t.capture().stops).toBe(1)
     expect(t.sockets).toEqual([])
+    expect(t.statuses).toEqual(['starting', 'idle'])
+    await t.dictation.dispose()
   })
 
   it('drops the stream when the recorder fails, and counts what was sent', async () => {
@@ -737,7 +752,7 @@ describe('MuseVoiceDictation (M35)', () => {
     await vi.waitFor(() => {
       expect(t.sockets).toHaveLength(1)
     })
-    t.dictation.dispose()
+    await t.dictation.dispose()
     expect(t.capture().isDisposed).toBe(true)
     expect(t.socket().isClosed).toBe(true)
     expect(t.seconds).toEqual([0])
@@ -823,7 +838,7 @@ describe('CM352 bounded voice admission and receipts', () => {
     expect(t.daily.settle).toHaveBeenCalledExactlyOnceWith(Usd.from('0.0001').toAmount(), false)
     expect(t.usage).toEqual([expect.stringContaining('reported duration')])
     expect(t.usage[0]).toContain('bill cannot be read back')
-    t.dictation.dispose()
+    await t.dictation.dispose()
   })
 
   it('refuses daily admission before opening and refunds a daily claim when the session cannot fit', async () => {
@@ -834,7 +849,9 @@ describe('CM352 bounded voice admission and receipts', () => {
     await waitVoicePrepared(deny)
     expect(deny.sockets).toEqual([])
     expect(deny.errors).toEqual(['daily cap'])
-    deny.dictation.dispose()
+    // A refused reservation starts no recorder: the microphone never runs.
+    expect(deny.capture().starts).toBe(0)
+    await deny.dictation.dispose()
     const budget = await voiceBudget('daily-refund-session-denied', 0.001)
     const t = dictationSetup(true, () => Promise.resolve(budget.scope))
     t.dictation.start()
@@ -843,8 +860,9 @@ describe('CM352 bounded voice admission and receipts', () => {
       expect(t.daily.settle).toHaveBeenCalledExactlyOnceWith(Usd.from(0).toAmount(), false)
     })
     expect(t.sockets).toEqual([])
+    expect(t.capture().starts).toBe(0)
     await expectVoiceRefund(budget)
-    t.dictation.dispose()
+    await t.dictation.dispose()
   })
 
   it('checks daily admission before every audio send and retains liability after a sent interruption', async () => {
@@ -864,7 +882,7 @@ describe('CM352 bounded voice admission and receipts', () => {
     })
     expect(t.seconds).toEqual([0])
     expect(t.usage[0]).toContain('full reservation remains uncertain')
-    t.dictation.dispose()
+    await t.dictation.dispose()
   })
 
   it('refunds an idle captured errorType frame with no audio, and reports the true pacing sentence', async () => {
@@ -885,7 +903,7 @@ describe('CM352 bounded voice admission and receipts', () => {
     await expectVoiceRefund(budget)
     expect(t.daily.settle).toHaveBeenCalledExactlyOnceWith(Usd.from(0).toAmount(), false)
     expect(t.usage[0]).toContain('No audio was sent')
-    t.dictation.dispose()
+    await t.dictation.dispose()
   })
 
   it('refunds disposal while the daily write is pending, and surfaces settlement failures', async () => {
@@ -897,8 +915,9 @@ describe('CM352 bounded voice admission and receipts', () => {
     })
     t.dictation.start()
     await started.promise
-    t.dictation.dispose()
+    const disposed = t.dictation.dispose()
     pending.resolve(t.daily)
+    await disposed
     await vi.waitFor(() => {
       expect(t.daily.settle).toHaveBeenCalledExactlyOnceWith(Usd.from(0).toAmount(), false)
     })
@@ -914,7 +933,7 @@ describe('CM352 bounded voice admission and receipts', () => {
     await vi.waitFor(() => {
       expect(broken.errors).toContain(UI_TEXT.sessionBudgetStoreUnavailable)
     })
-    broken.dictation.dispose()
+    await broken.dictation.dispose()
   })
 
   it.each([4096, 3200, 65_536])(
@@ -945,7 +964,7 @@ describe('CM352 bounded voice admission and receipts', () => {
       await vi.waitFor(() => {
         expect(t.daily.settle).toHaveBeenCalledExactlyOnceWith(Usd.from('0.009').toAmount(), false)
       })
-      t.dictation.dispose()
+      await t.dictation.dispose()
     },
   )
 
@@ -997,7 +1016,7 @@ describe('CM352 bounded voice admission and receipts', () => {
     })
     expect(t.seconds).toEqual([181])
     expect(t.daily.settle).toHaveBeenCalledExactlyOnceWith(Usd.from('0.00905').toAmount(), false)
-    t.dictation.dispose()
+    await t.dictation.dispose()
   })
 
   it('settles once even when a transport send and close both throw', async () => {
@@ -1014,7 +1033,7 @@ describe('CM352 bounded voice admission and receipts', () => {
     expect(t.errors).toEqual([UI_TEXT.museVoiceTransportFailed])
     expect(t.seconds).toEqual([0])
     expect(t.daily.settle).toHaveBeenCalledExactlyOnceWith(reservation(), true)
-    t.dictation.dispose()
+    await t.dictation.dispose()
   })
 })
 
@@ -1064,8 +1083,8 @@ it('CM352 shares real daily reservations across Muse Code windows and releases f
     expect(first.seconds).toEqual([3])
     expect(second.seconds).toEqual([0, 3])
   } finally {
-    first.dictation.dispose()
-    second.dictation.dispose()
+    await first.dictation.dispose()
+    await second.dictation.dispose()
   }
 })
 
@@ -1221,7 +1240,7 @@ describe('MuseVoiceDictation recording identity (P1 restart race)', () => {
     vi.advanceTimersByTime(MUSE_VOICE_MAX_SECONDS * 1000)
     expect(t.sockets[1]?.texts.at(-1)).toBe('{"type":"endStream"}')
     expect(t.child().sent.at(-1)).toBe('stop')
-    t.driver.dispose()
+    await t.driver.dispose()
   })
 
   it('a late helper error ends each unfinished recording on its own stream', async () => {
@@ -1248,6 +1267,6 @@ describe('MuseVoiceDictation recording identity (P1 restart race)', () => {
     t.driver.start()
     await flushVoicePrepare()
     expect(t.errors).toHaveLength(1)
-    t.driver.dispose()
+    await t.driver.dispose()
   })
 })

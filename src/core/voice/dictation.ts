@@ -145,8 +145,15 @@ interface RunningHelper {
   quitTimer: ReturnType<typeof setTimeout> | undefined
 }
 
-/** What the conversation controller drives: the three calls, nothing else. */
-export type DictationHandle = Pick<Dictation, 'start' | 'stop' | 'dispose'>
+/**
+ * What the conversation controller drives: the two calls, plus a dispose
+ * that drains admission and settlement (awaitable on the paid engine).
+ */
+export interface DictationHandle {
+  start(): void
+  stop(): void
+  dispose(): void | Promise<void>
+}
 
 /** What the host found for a window: a way to start dictating, or why there is none. */
 export type DictationSetup =

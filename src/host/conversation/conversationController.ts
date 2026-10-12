@@ -9687,11 +9687,11 @@ export class ConversationController {
     }
     this.dictation = undefined
     if (this.dictationStatus === 'idle') {
-      old.dispose()
+      void old.dispose()
       return
     }
     old.stop()
-    this.retiredDictation?.dispose()
+    void this.retiredDictation?.dispose()
     this.retiredDictation = old
   }
 
@@ -11129,9 +11129,9 @@ export class ConversationController {
     this.usageWatch.dispose()
     this.usageHost = undefined
     this.latestUsage = undefined
-    this.dictation?.dispose()
+    void this.dictation?.dispose()
     this.dictation = undefined
-    this.retiredDictation?.dispose()
+    void this.retiredDictation?.dispose()
     this.retiredDictation = undefined
     this.checkpoints.dispose()
     this.git.dispose()
