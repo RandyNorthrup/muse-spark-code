@@ -316,7 +316,8 @@ describe('the Model API bundle (M57)', () => {
     await manager.dispose()
   })
 
-  it('refuses the turn naming the helpers chunk when it is missing (MODELAPIDIET)', async () => {
+  it('refuses the turn with the helpers-unavailable words when it is missing (MODELAPIDIET)', async () => {
+    setUiText({ ...EN, modelApiToolsUnavailable: 'Localized helpers failure.' }, 'de')
     const { events, api, manager } = await sendBackendTurn(scratchBackend('missing'), {
       scripts: [{ text: 'Never sent' }],
       text: 'Say hello',
@@ -325,7 +326,7 @@ describe('the Model API bundle (M57)', () => {
       expect.objectContaining({
         type: 'turnCompleted',
         terminal: 'failed',
-        reason: expect.stringContaining('modelApiTools.js'),
+        reason: UI_TEXT.modelApiToolsUnavailable,
       }),
     )
     expect(api.responseBodies()).toHaveLength(0)
@@ -390,9 +391,10 @@ describe('the Model API bundle (M57)', () => {
     await manager.dispose()
   })
 
-  it('fails the turn naming the chunk when previews cannot start (MODELAPIDIET)', async () => {
+  it('fails the turn with localized words when previews cannot start (MODELAPIDIET)', async () => {
     // The helpers chunk loads but its preview constructor throws: the turn
-    // fails with the chunk named, never a raw constructor error.
+    // fails with the installed words, never a raw constructor error.
+    setUiText({ ...EN, modelApiToolsPreviewUnavailable: 'Localized preview failure.' }, 'de')
     const { events, manager } = await sendBackendTurn(
       scratchBackend({
         body: `module.exports = { ...require(${JSON.stringify(path.join(built.folder, 'modelApiToolsEntry.js'))}), ArgumentPreview: class { constructor() { throw new Error('sabotaged preview') } } };`,
@@ -415,7 +417,7 @@ describe('the Model API bundle (M57)', () => {
       expect.objectContaining({
         type: 'turnCompleted',
         terminal: 'failed',
-        reason: expect.stringContaining('argument previews are unavailable'),
+        reason: UI_TEXT.modelApiToolsPreviewUnavailable,
       }),
     )
     await manager.dispose()
