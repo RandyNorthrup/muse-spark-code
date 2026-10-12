@@ -140,7 +140,12 @@ describe('BestOfNRunner extension hooks', () => {
     const { first } = await startTwo(t)
     t.drivers.get(first)?.onEvent(completed('completed', true))
     await vi.waitFor(() => {
-      expect(t.updates.at(-1)?.runAttempts[0]?.status).toBe('completed')
+      // The typed limit outcome is never a success, so there is nothing to
+      // keep working: the attempt settles failed without asking the hook.
+      expect(t.updates.at(-1)?.runAttempts[0]).toMatchObject({
+        status: 'failed',
+        ceilingReached: true,
+      })
     })
     expect(idle).not.toHaveBeenCalled()
     expect(t.drivers.get(first)?.continued).toEqual([])
