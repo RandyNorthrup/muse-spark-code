@@ -1,3 +1,4 @@
+import { writeFileSync } from 'node:fs'
 import {
   link,
   lstat,
@@ -38,9 +39,13 @@ import { configureResources } from '../../src/core/resources/admission'
 import { immediateResourceSettings } from './helpers/resources/fixtureAdmission'
 import {
   CREATE_ERRNOS,
+  WORKER_REFUSAL_PREFIX,
+  WORKER_REFUSALS,
+  mapNativeError,
   recordCreated,
   sweepAbandonedReservations,
   typedCreateError,
+  workerWindowsCommand,
 } from '../../src/core/team/workers/workerOps'
 import { fill } from '../../src/shared/l10n/text'
 import { shellJobAssembly } from '../../src/host/backend/shellJob'
@@ -139,6 +144,16 @@ async function compileWorkerShellAssembly(): Promise<{ folder: string; assembly:
 }
 type SweepRun = NonNullable<WorkerFenceIo['workerNativeOperation']>
 
+/** The rejection of a native attempt, or undefined when it unexpectedly succeeds. */
+async function refusalOf(attempt: Promise<unknown>): Promise<unknown> {
+  try {
+    await attempt
+  } catch (error: unknown) {
+    return error
+  }
+  return undefined
+}
+
 async function seedReservation(
   relative: string,
   identity: string,
@@ -200,6 +215,10 @@ async function refusesLink(kind: 'parent' | 'file', skip: (note?: string) => voi
   )
   const reason = kind === 'parent' ? 'parent unavailable or linked' : 'file unavailable or linked'
   await expect(refusal).rejects.toThrow(process.platform === 'win32' ? undefined : reason)
+  // The refusal reaches the caller as its own typed sentence on every platform.
+  const failure = await refusalOf(refusal)
+  if (failure !== undefined)
+    expect(mapNativeError(failure, 'src/new').message).toBe(UI_TEXT.teamFileLinked)
   if (kind === 'file') expect(await readFile(path.join(src, 'owner'), 'utf8')).toBe('owner')
 }
 async function setup(role = WRITER, admit: () => void = () => undefined) {
@@ -318,8 +337,41 @@ describe('verified native worker creation', () => {
         ancestorIdentity: await workerPathIdentity(path.join(copy, 'src')),
         remaining: name,
       }
-      await expect(runNative(proof, 'worker-create')).rejects.toThrow()
+      const attempt = runNative(proof, 'worker-create')
+      await expect(attempt).rejects.toThrow()
+      // The refusal reaches the caller as its own typed sentence, not the
+      // generic native failure.
+      const failure = await refusalOf(attempt)
+      if (failure !== undefined)
+        expect(mapNativeError(failure, name).message).toBe(
+          fill(UI_TEXT.teamFileCannotCreate, { path: name }),
+        )
       expect(await readdir(path.join(copy, 'src'))).not.toContain(name)
+    })
+    it('NF windows helper refusals arrive typed exactly as on POSIX', async () => {
+      const { copy } = await setup()
+      const rootIdentity = await workerPathIdentity(copy)
+      const ancestorIdentity = await workerPathIdentity(path.join(copy, 'src'))
+      const proofFor = (remaining: string) => ({
+        root: copy,
+        rootIdentity,
+        ancestor: 'src',
+        ancestorIdentity,
+        remaining,
+      })
+      // An occupied target is its own typed sentence.
+      await runNative(proofFor('occupied'), 'worker-create')
+      const occupied = runNative(proofFor('occupied'), 'worker-create')
+      await expect(occupied).rejects.toThrow()
+      const occupiedFailure = await refusalOf(occupied)
+      if (occupiedFailure !== undefined)
+        expect(mapNativeError(occupiedFailure, 'src/occupied').message).toBe(UI_TEXT.teamFileExists)
+      // A changed identity is its own typed sentence.
+      const changed = runNative(proofFor('new'), 'worker-check', '0:0')
+      await expect(changed).rejects.toThrow()
+      const changedFailure = await refusalOf(changed)
+      if (changedFailure !== undefined)
+        expect(mapNativeError(changedFailure, 'src/new').message).toBe(UI_TEXT.teamFileChanged)
     })
   })
   // The production Windows launcher runs for real here: the tool I/O below
@@ -380,6 +432,15 @@ describe('verified native worker creation', () => {
           const target = path.join(copy, 'src', 'launched.ts')
           await tool.writeFile(target, 'launched\n')
           expect(await readFile(target, 'utf8')).toBe('launched\n')
+          // A target occupied after preflight refuses through the PowerShell
+          // forwarding wrapper as the typed sentence, not the generic failure.
+          const raced = path.join(copy, 'src', 'raced.ts')
+          await expect(
+            tool.writeFile(raced, 'late\n', undefined, () => {
+              writeFileSync(raced, 'owner')
+            }),
+          ).rejects.toThrow(UI_TEXT.teamFileExists)
+          expect(await readFile(raced, 'utf8')).toBe('owner')
         } finally {
           resources.dispose()
           resources.dispose = configureResources({
@@ -719,9 +780,9 @@ describe('verified native worker creation', () => {
     const target = path.join(copy, 'docs', 'a', 'b.bin')
     // A concurrent creator makes docs/a after preflight, so the helper
     // reports zero created folders; the failed fill must not take them.
-    const reserved = await tool.reserveFile(target, target, () =>
-      mkdir(path.join(copy, 'docs', 'a'), { recursive: true }),
-    )
+    const reserved = await tool.reserveFile(target, target, async () => {
+      await mkdir(path.join(copy, 'docs', 'a'), { recursive: true })
+    })
     await expect(reserved.fill(Uint8Array.of(1))).rejects.toThrow('fill lost')
     await expect(readFile(target)).rejects.toMatchObject({ code: 'ENOENT' })
     expect(await readdir(path.join(copy, 'docs'))).toContain('a')
@@ -774,6 +835,101 @@ describe('verified native worker creation', () => {
     expect(backstop.message).not.toContain(absolute)
     expect(typedCreateError('gone', 'src/plain/new').message).toBe(UI_TEXT.teamFileNativeFailed)
   })
+  describe('worker refusal vocabulary', () => {
+    const remaining = 'src/plain/new'
+    const sentenceMessage = (sentence: string): string => {
+      switch (sentence) {
+        case 'exists': {
+          return UI_TEXT.teamFileExists
+        }
+        case 'linked': {
+          return UI_TEXT.teamFileLinked
+        }
+        case 'outside': {
+          return UI_TEXT.teamFileOutside
+        }
+        case 'changed': {
+          return UI_TEXT.teamFileChanged
+        }
+        case 'cannotCreate': {
+          return fill(UI_TEXT.teamFileCannotCreate, { path: remaining })
+        }
+        default: {
+          return UI_TEXT.teamFileNativeFailed
+        }
+      }
+    }
+    it.each(WORKER_REFUSALS.map((row) => [row.reason, row.sentence] as const))(
+      'NF refusal %s maps to its typed sentence',
+      (reason, sentence) => {
+        const failure = Object.assign(new Error('Command failed'), {
+          stderr: `${WORKER_REFUSAL_PREFIX}${reason}`,
+        })
+        expect(mapNativeError(failure, remaining).message).toBe(sentenceMessage(sentence))
+      },
+    )
+    it('NF an unknown refusal maps to the named backstop with its code', () => {
+      const failure = Object.assign(new Error('Command failed'), {
+        stderr: `${WORKER_REFUSAL_PREFIX}frobnicate`,
+      })
+      const mapped = mapNativeError(failure, remaining)
+      expect(mapped.message).toBe(UI_TEXT.teamFileNativeFailed)
+      expect(String(mapped.cause)).toContain(`${WORKER_REFUSAL_PREFIX}frobnicate`)
+    })
+    it('NF the refusal table matches the helpers it types', async () => {
+      const root = process.cwd()
+      const cSource = await readFile(
+        path.join(root, 'native', 'darwin', 'MuseSparkWorkerFile.c'),
+        'utf8',
+      )
+      const csSource = await readFile(
+        path.join(root, 'native', 'windows', 'MuseSparkJob.cs'),
+        'utf8',
+      )
+      const cReasons: string[] = []
+      for (const line of cSource.split('\n')) {
+        if (!line.includes('worker_refuse(')) continue
+        for (const match of line.matchAll(/"([^"]+)"/g)) cReasons.push(match[1]!)
+      }
+      // Every pattern below has only required groups, and every worker-path
+      // emission site keeps its reason a string literal, so each match holds
+      // exactly the codes the helper can emit. The lookbehind skips the
+      // unrelated Regex.Match call in the marker reader.
+      const csPatterns = [
+        /RefuseReason\("([^"]+)"\)/g,
+        /RefuseReason\([^()"]*\?\s*"([^"]+)"\s*:\s*"([^"]+)"\)/g,
+        /(?<![\w.])Match\(.*,\s*"([^"]+)"\)/g,
+        /WorkerDirectory\(.*,\s*"([^"]+)"\)/g,
+        /DisposeEntry\(.*,\s*"([^"]+)"\)/g,
+        /WorkerName\(.*\?\s*"([^"]+)"\s*:\s*"([^"]+)"\)/g,
+        /throw new IOException\("worker file helper refused: ([^"]+)"\)/g,
+      ]
+      const csReasons: string[] = []
+      for (const pattern of csPatterns)
+        for (const match of csSource.matchAll(pattern)) csReasons.push(...match.slice(1))
+      const table = WORKER_REFUSALS.map((row) => row.reason)
+      expect(new Set(table).size).toBe(table.length)
+      expect(cReasons.length).toBeGreaterThan(0)
+      expect(csReasons.length).toBeGreaterThan(0)
+      for (const reason of [...cReasons, ...csReasons]) expect(table).toContain(reason)
+      for (const reason of table) expect([...cReasons, ...csReasons]).toContain(reason)
+    })
+    it('NF the Windows wrapper forwards every refusal in the table', () => {
+      const command = workerWindowsCommand(String.raw`C:\assembly.dll`, ['worker-create', 'root'])
+      expect(command.slice(-2)).toEqual(['worker-create', 'root'])
+      const script = command.join('\n')
+      for (const row of WORKER_REFUSALS)
+        expect(script).toContain(`${WORKER_REFUSAL_PREFIX}${row.reason}`)
+      for (const sentence of [
+        UI_TEXT.teamFileExists,
+        UI_TEXT.teamFileLinked,
+        UI_TEXT.teamFileOutside,
+        UI_TEXT.teamFileChanged,
+        UI_TEXT.teamFileNativeFailed,
+      ])
+        expect(script).not.toContain(sentence)
+    })
+  })
   it('NF a file parent reaches ACP as the typed copy-relative sentence', async () => {
     const { copy, input, role } = await setup()
     const parent = path.join(copy, 'src', 'plain')
@@ -823,18 +979,25 @@ describe('verified native worker creation', () => {
       }
       if (kind === 'file') {
         await runNative(proof, 'worker-create')
-        await expect(runNative(proof, 'worker-release', '0:0')).rejects.toThrow()
+        const release = runNative(proof, 'worker-release', '0:0')
+        await expect(release).rejects.toThrow()
+        const releaseFailure = await refusalOf(release)
+        if (releaseFailure !== undefined)
+          expect(mapNativeError(releaseFailure, 'src/new').message).toBe(UI_TEXT.teamFileChanged)
         expect(await readFile(path.join(copy, 'src', 'new'))).toHaveLength(0)
-      } else
-        await expect(
-          runNative(
-            {
-              ...proof,
-              ...(kind === 'root' ? { rootIdentity: '0:0' } : { ancestorIdentity: '0:0' }),
-            },
-            'worker-create',
-          ),
-        ).rejects.toThrow()
+      } else {
+        const create = runNative(
+          {
+            ...proof,
+            ...(kind === 'root' ? { rootIdentity: '0:0' } : { ancestorIdentity: '0:0' }),
+          },
+          'worker-create',
+        )
+        await expect(create).rejects.toThrow()
+        const createFailure = await refusalOf(create)
+        if (createFailure !== undefined)
+          expect(mapNativeError(createFailure, 'src/new').message).toBe(UI_TEXT.teamFileChanged)
+      }
     },
   )
 })

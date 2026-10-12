@@ -91,13 +91,7 @@ export async function nativeOperation(proof: WorkerCreateProof, op: string, iden
     await job.verify()
     file = path.join(systemRoot, WINDOWS_POWERSHELL_RELATIVE_PATH)
     env = { SystemRoot: systemRoot }
-    // The operation arguments reach the helper as $args: no file name is
-    // quoted into the script text. Only the assembly path (our own file) is.
-    command = [
-      ...WINDOWS_POWERSHELL_COMMAND_ARGS,
-      `$ErrorActionPreference='Stop'; try { [void][Reflection.Assembly]::LoadFrom(${powerShellQuoted(job.assemblyPath)}); [MuseSparkCreated]::Execute($args) } catch { if ($_.Exception.GetBaseException().Message -eq 'worker file helper refused: target exists') { [Console]::Error.WriteLine('worker file helper refused: target exists') }; exit 1 }`,
-      ...args,
-    ]
+    command = workerWindowsCommand(job.assemblyPath, args)
   } else if (process.platform === 'darwin') {
     file = path.join(__dirname, '..', 'native', 'darwin', 'muse-dictate')
     command = ['--created-directory', ...args]
@@ -117,6 +111,111 @@ export async function nativeOperation(proof: WorkerCreateProof, op: string, iden
   }
 }
 
+/**
+ * The helper's fixed refusal line, shared by the POSIX helper, the Windows
+ * helper and both launchers: the reason after the prefix is a short code,
+ * never a sentence and never a path.
+ */
+export const WORKER_REFUSAL_PREFIX = 'worker file helper refused: '
+
+/** One refusal reason the worker file helpers can report, and the sentence it becomes. */
+type WorkerRefusalSentence =
+  'exists' | 'linked' | 'cannotCreate' | 'changed' | 'outside' | 'nativeFailed'
+
+/**
+ * Every refusal code the worker file helpers can produce, and the typed
+ * sentence each becomes — one table shared by the Windows forwarding wrapper
+ * below and the mapper, so the two cannot drift. The POSIX C helper and the
+ * Windows C# helper emit exactly this vocabulary; the drift test pins them.
+ */
+export const WORKER_REFUSALS: readonly {
+  readonly reason: string
+  readonly sentence: WorkerRefusalSentence
+}[] = [
+  { reason: 'target exists', sentence: 'exists' },
+  { reason: 'parent unavailable or linked', sentence: 'linked' },
+  { reason: 'file unavailable or linked', sentence: 'linked' },
+  { reason: 'file is not single-link regular', sentence: 'linked' },
+  { reason: 'invalid component', sentence: 'cannotCreate' },
+  { reason: 'invalid filename', sentence: 'cannotCreate' },
+  { reason: 'invalid request', sentence: 'cannotCreate' },
+  { reason: 'invalid path', sentence: 'cannotCreate' },
+  { reason: 'path too long', sentence: 'cannotCreate' },
+  { reason: 'directory create failed', sentence: 'cannotCreate' },
+  { reason: 'identity changed', sentence: 'changed' },
+  { reason: 'root moved', sentence: 'changed' },
+  { reason: 'parent moved', sentence: 'changed' },
+  { reason: 'file name changed', sentence: 'changed' },
+  { reason: 'directory name changed', sentence: 'changed' },
+  { reason: 'reserved file changed', sentence: 'changed' },
+  { reason: 'different device', sentence: 'changed' },
+  { reason: 'different mount', sentence: 'changed' },
+  { reason: 'root unavailable', sentence: 'changed' },
+  { reason: 'parent unavailable', sentence: 'changed' },
+  { reason: 'ancestor unavailable', sentence: 'changed' },
+  { reason: 'handle path unavailable', sentence: 'changed' },
+  { reason: 'directory unavailable', sentence: 'changed' },
+  { reason: 'release failed', sentence: 'changed' },
+  { reason: 'outside root', sentence: 'outside' },
+  { reason: 'unknown operation', sentence: 'nativeFailed' },
+]
+
+/**
+ * The Windows launch of the worker helper. The operation arguments reach the
+ * helper as $args: no file name is quoted into the script text, only the
+ * assembly path (our own file). Every refusal in the shared table is
+ * forwarded on stderr, so Windows refusals arrive typed exactly as on POSIX;
+ * anything else still exits 1 without output and takes the native backstop.
+ */
+export function workerWindowsCommand(
+  assemblyPath: string,
+  args: readonly string[],
+): readonly string[] {
+  const forwarded = WORKER_REFUSALS.map(
+    (row) => `$m -eq ${powerShellQuoted(`${WORKER_REFUSAL_PREFIX}${row.reason}`)}`,
+  ).join(' -or ')
+  return [
+    ...WINDOWS_POWERSHELL_COMMAND_ARGS,
+    `$ErrorActionPreference='Stop'; try { [void][Reflection.Assembly]::LoadFrom(${powerShellQuoted(assemblyPath)}); [MuseSparkCreated]::Execute($args) } catch { $m = $_.Exception.GetBaseException().Message; if (${forwarded}) { [Console]::Error.WriteLine($m) }; exit 1 }`,
+    ...args,
+  ]
+}
+
+/** The first helper refusal reason in the output, if the helper refused. */
+function refusalReason(text: string): string | undefined {
+  const index = text.indexOf(WORKER_REFUSAL_PREFIX)
+  return index === -1
+    ? undefined
+    : text
+        .slice(index + WORKER_REFUSAL_PREFIX.length)
+        .split('\n', 1)[0]
+        ?.trim()
+}
+
+/** One table row as the typed sentence, resolved in the installed language. */
+function refusalError(sentence: WorkerRefusalSentence, remaining: string, cause: Error): Error {
+  switch (sentence) {
+    case 'exists': {
+      return new Error(UI_TEXT.teamFileExists, { cause })
+    }
+    case 'linked': {
+      return new Error(UI_TEXT.teamFileLinked, { cause })
+    }
+    case 'outside': {
+      return new Error(UI_TEXT.teamFileOutside, { cause })
+    }
+    case 'changed': {
+      return new Error(UI_TEXT.teamFileChanged, { cause })
+    }
+    case 'cannotCreate': {
+      return new Error(fill(UI_TEXT.teamFileCannotCreate, { path: remaining }), { cause })
+    }
+    case 'nativeFailed': {
+      return new Error(UI_TEXT.teamFileNativeFailed, { cause })
+    }
+  }
+}
+
 /** Every helper or launcher failure as the typed sentence the worker reports. */
 export function mapNativeError(error: unknown, remaining: string): Error {
   if (isTyped(error)) return error
@@ -128,24 +227,18 @@ export function mapNativeError(error: unknown, remaining: string): Error {
       ? error.stderr
       : ''
   const text = `${stderr}\n${cause.message}`
-  if (text.includes('worker file helper refused: target exists'))
-    return markTyped(new Error(UI_TEXT.teamFileExists, { cause }))
-  if (text.includes('or linked')) return markTyped(new Error(UI_TEXT.teamFileLinked, { cause }))
-  if (
-    text.includes('invalid component') ||
-    text.includes('invalid filename') ||
-    text.includes('invalid path') ||
-    text.includes('invalid request')
-  )
-    return markTyped(new Error(fill(UI_TEXT.teamFileCannotCreate, { path: remaining }), { cause }))
-  if (
-    text.includes('identity changed') ||
-    text.includes('moved') ||
-    text.includes('different device') ||
-    text.includes('different mount') ||
-    text.includes('name changed')
-  )
-    return markTyped(new Error(UI_TEXT.teamFileChanged, { cause }))
+  const reason = refusalReason(text)
+  if (reason !== undefined) {
+    const row = WORKER_REFUSALS.find((entry) => entry.reason === reason)
+    if (row !== undefined) return markTyped(refusalError(row.sentence, remaining, cause))
+    // An unknown refusal still maps to the named backstop, with its code
+    // kept in the cause chain for the log.
+    return markTyped(
+      new Error(UI_TEXT.teamFileNativeFailed, {
+        cause: new Error(`${WORKER_REFUSAL_PREFIX}${reason}`, { cause }),
+      }),
+    )
+  }
   const isMissing =
     cause.message === 'Governed command unavailable' ||
     (cause.cause instanceof Error && 'code' in cause.cause && cause.cause.code === 'ENOENT')
