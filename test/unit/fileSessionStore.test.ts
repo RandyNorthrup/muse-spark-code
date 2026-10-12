@@ -583,3 +583,61 @@ it('keeps an expired session visible when question cleanup fails', async () => {
   expect(await expiring.store.list()).toHaveLength(1)
   expect(await store.load('session-1')).toBeDefined()
 })
+
+/**
+ * RVM105 4: no attachment file name reaches a log. The ledger's ownership
+ * refusals name the file for the user; the save caller still sees that
+ * sentence, but the store and the host's save queue log fixed words only.
+ * The canary stands in for a real attachment name in each refusal kind.
+ */
+function logLines(log: FakeLogOutputChannel): string[] {
+  return [
+    ...log.trace.mock.calls,
+    ...log.debug.mock.calls,
+    ...log.info.mock.calls,
+    ...log.warn.mock.calls,
+    ...log.error.mock.calls,
+  ].map((call) => JSON.stringify(call))
+}
+
+describe('attachment names stay out of the media save logs', () => {
+  const canary = 'canary-save.mp4'
+  const unknownRef = {
+    ...uploadedFile,
+    sha256: 'c'.repeat(64),
+    name: canary,
+  }
+
+  it('tells the save caller the file name without logging it', async () => {
+    const t = await ledgerFor('canary-save-refusal')
+    const { store, log } = storeIn(t.directory, { uploads: t.uploads })
+    await expect(
+      store.save({ ...stored('canary'), accountId: t.accountId, fileRefs: [unknownRef] }),
+    ).rejects.toThrow(canary)
+    expect(logLines(log).some((line) => line.includes(canary))).toBe(false)
+  })
+
+  it('defers a recovery whose ownership expired without logging the file name', async () => {
+    const t = await ledgerFor('canary-recover-deferral')
+    // The crash state: a session file and its save intent are both durable,
+    // but the ledger no longer knows the file.
+    await writeFile(
+      path.join(t.directory, 'canary.json'),
+      JSON.stringify({ ...stored('canary'), accountId: t.accountId, fileRefs: [unknownRef] }),
+    )
+    await writeFile(
+      path.join(t.directory, 'canary.uploads'),
+      JSON.stringify({ version: 1, accountId: t.accountId, operation: 'save' }),
+    )
+    const recovered = storeIn(t.directory, { uploads: t.uploads })
+    const headers = await recovered.store.list()
+    expect(
+      headers.map((header) => header.sessionId).toSorted((a, b) => a.localeCompare(b, 'en')),
+    ).toEqual(['canary', 'saved'])
+    const warns = recovered.log.warn.mock.calls.map((call) => JSON.stringify(call))
+    expect(warns.some((line) => line.includes('deferred'))).toBe(true)
+    expect(logLines(recovered.log).some((line) => line.includes(canary))).toBe(false)
+    // Deferred, not dropped: the session is retained for the next sweep.
+    expect(await recovered.store.load('canary')).toMatchObject({ fileRefs: [unknownRef] })
+  })
+})
