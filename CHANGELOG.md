@@ -7,6 +7,13 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Harden hidden team surfaces for review: availability is the release latch
+  plus the switch (latch closed, nothing opens); effort defaults are sent
+  only where the model serves them; planning previews re-admit the quoted
+  account after host start; quota is stamped per provider credential;
+  saved settings validate against the model's current capability record;
+  the browser harness tree fixture sends exact-string dollars.
+
 - Bind captured engine team discovery, provider ceilings, saved effort/output controls and portable team lifecycle, switch and bounded Idle hook firing; keep unavailable workers and unbound controls absent.
 
 - Bind paid team planning previews to one consent popup, shared daily admission and per-attempt settlement, with an explicit cost/liability tally and cancellation.
