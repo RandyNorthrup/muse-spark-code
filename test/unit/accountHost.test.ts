@@ -149,6 +149,15 @@ describe('readAccountState', () => {
       readAccountState(host({ 'account/read': { state: 'loggedOut' } }).session.connection),
     ).resolves.toBeUndefined()
   })
+
+  it('lets a non-error failure keep its kind instead of reading as no answer', async () => {
+    const t = host({})
+    const foreign: unknown = 'a string failure'
+    vi.mocked(t.session.connection.request).mockImplementationOnce(() => {
+      throw foreign
+    })
+    await expect(readAccountState(t.session.connection)).rejects.toBe('a string failure')
+  })
 })
 
 describe('isStoredSignIn', () => {

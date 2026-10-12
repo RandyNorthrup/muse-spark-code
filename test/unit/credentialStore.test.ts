@@ -98,4 +98,43 @@ describe('CredentialStore', () => {
     await agentStore.getApiKey()
     expect(agentWarnings[0]).toMatch(/^the operating system's credential store could not be read/)
   })
+
+  it('reads an unreadable secret store as no provider credential and says so once', async () => {
+    const warnings: string[] = []
+    const message = 'locked: /home/someone/.local/share/keyrings/login.keyring'
+    const store = new CredentialStore(
+      {
+        get: () => Promise.reject(new Error(message)),
+        store: () => Promise.resolve(),
+        delete: () => Promise.resolve(),
+      },
+      (line) => {
+        warnings.push(line)
+      },
+      "VS Code's secret storage",
+      () => Promise.resolve(['meta']),
+    )
+    await expect(store.hasProviderCredential()).resolves.toBe(false)
+    await expect(store.hasProviderCredential()).resolves.toBe(false)
+    expect(warnings).toHaveLength(1)
+    expect(warnings[0]).toContain('(Error)')
+    expect(warnings[0]).not.toContain('keyring')
+  })
+
+  it('lets a non-error provider read failure keep its kind', async () => {
+    const foreign: unknown = 'a string failure'
+    const store = new CredentialStore(
+      {
+        get: () => {
+          throw foreign
+        },
+        store: () => Promise.resolve(),
+        delete: () => Promise.resolve(),
+      },
+      unexpectedWarning,
+      "VS Code's secret storage",
+      () => Promise.resolve(['meta']),
+    )
+    await expect(store.hasProviderCredential()).rejects.toBe('a string failure')
+  })
 })

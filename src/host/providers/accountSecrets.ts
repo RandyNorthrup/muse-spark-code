@@ -43,7 +43,10 @@ export function secretStorageAccountVault(secrets: SecretStore): AccountCredenti
     let value: unknown
     try {
       value = JSON.parse(stored)
-    } catch {
+    } catch (error: unknown) {
+      // Only malformed stored text reads as an invalid credential; a wrong
+      // shape answers below. Anything else keeps its kind.
+      if (!(error instanceof SyntaxError)) throw error
       throw new AccountStoreError('invalidCredential')
     }
     // Only the legacy default name may omit account identity. Other names
@@ -146,7 +149,9 @@ export class AccountSecrets implements AccountCredentialVault {
     this.register(record.secret)
     try {
       await this.deps.vault.write(binding, record)
-    } catch {
+    } catch (error: unknown) {
+      // A store failure is unavailable: anything else keeps its kind.
+      if (!(error instanceof Error)) throw error
       throw new AccountStoreError('unavailable')
     }
   }
@@ -164,7 +169,9 @@ export class AccountSecrets implements AccountCredentialVault {
       }
       this.available(binding)
       await this.deps.vault.remove(binding)
-    } catch {
+    } catch (error: unknown) {
+      // A store failure is unavailable: anything else keeps its kind.
+      if (!(error instanceof Error)) throw error
       throw new AccountStoreError('unavailable')
     }
   }

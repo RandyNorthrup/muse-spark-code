@@ -80,7 +80,10 @@ async function requestAccount(
       ),
     )
     return result.success ? result.data : undefined
-  } catch {
+  } catch (error: unknown) {
+    // The host failed or did not answer in time: it said nothing, which is
+    // not a state. Anything that is not an error keeps its kind.
+    if (!(error instanceof Error)) throw error
     return undefined
   }
 }
@@ -108,7 +111,10 @@ async function onAccountHost<T>(
   try {
     session = await connect(ended)
   } catch (error: unknown) {
-    log.warn(`The Muse Code account host could not start: ${errorName(error)}`)
+    // A host that cannot start answers with the fallback. Anything that is
+    // not an error keeps its kind.
+    if (!(error instanceof Error)) throw error
+    log.warn(`The Muse Code account host could not start: ${wireWordForLog(errorName(error))}`)
     return fallback
   }
   try {
