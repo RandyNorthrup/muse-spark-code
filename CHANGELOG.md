@@ -15,6 +15,20 @@ happened, not what was planned; superseded entries are kept.
   notice, return ACP `max_turn_requests`, and accept a new message to continue.
   The default is now 200 calls; an existing caller request allowance wins,
   including `exec --max-requests` above 200. Money caps remain enforced.
+- The wrap-up sends the production side-call shape (no tools declared, the
+  choice field as ever, instructions byte-identical, the note a trailing
+  input item); no `tool_choice` goes on the wire without tools, in any codec.
+  The turn's first model call always runs with tools, even when it is also
+  the last one allowed: an answer completes the turn (exec exit 0), while a
+  tool request ends it at the request cap. Stop hooks still run on a wrap-up
+  turn; a hook asking for more work is answered with a notice. Steering and
+  goal wakes arriving before the wrap-up keep their own turn with tools, and
+  compaction after a limit stop reuses the last ordinary body. Call-limit and
+  output-limit stops carry their own evidence stop reason instead of the
+  money stop, and the reference names the turn behavior on the Conversation
+  entry instead of the paid budget. `setModelCallAllowance` is required on
+  the attempt session surface, so best-of-N attempts and team-task ceilings
+  reserve the wrap-up through it.
 
 ### Added
 

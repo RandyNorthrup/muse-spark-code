@@ -36,32 +36,49 @@ verify strikes and stop-hook continuations are not model-call turn caps.
   roadmap gates pass. Full `quality` belongs to the lead's integration run,
   per this rig brief; no browser is permitted here.
 
-## Piece 2 — wrap-up request
+## Piece 2 — wrap-up request (round-2 shape)
 
-The ordinary request builder adds the short model-facing limit note to the
-last request's instructions. It sets canonical `tools: []` and
-`tool_choice: none`. No other request changes. An unsolicited tool call in
-that reply is answered for valid replay and never executed. Steering and
-active goal wake reach the original post-loop promotion block.
+The wrap-up sends the shape the production side calls already send
+(compaction and git-draft side calls, `ModelApiHost.ts`): no tools declared
+and the choice field exactly as those calls carry it. No `tool_choice`
+goes on the wire without tools, in any codec: a request without tools
+carries no `tool_choice` at all (Chat included). `instructions` stay
+byte-identical to the ordinary body and the limit note travels as a trailing
+developer input item, so the instruction prefix stays cacheable. An
+unsolicited tool call in that reply is answered for valid replay and never
+executed. Steering and active goal wake reach the post-loop promotion block
+before the limit throw, so each keeps its own turn with tools.
 
-| Codec family                                                    | Tools disabled in built wire request                                                  |
-| --------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| Meta/direct Responses                                           | `tool_choice: none`, empty tools                                                      |
-| OpenAI/xAI Responses and ChatGPT Responses                      | `tool_choice: none`, empty tools; no empty namespace                                  |
-| Chat completions (OpenRouter, OpenAI-compatible vendors/custom) | `tool_choice: none` when the profile supports choice; otherwise omit tools and choice |
-| Anthropic Messages                                              | Omit tools and tool choice                                                            |
-| Gemini generateContent                                          | Omit tools and toolConfig                                                             |
-| Ollama chat                                                     | Omit tools and unsupported tool choice                                                |
+| Codec family                                                    | Toolless wire shape                                    |
+| --------------------------------------------------------------- | ------------------------------------------------------ |
+| Meta/direct Responses                                           | Empty tools, `tool_choice: auto` (the side-call shape) |
+| OpenAI/xAI Responses and ChatGPT Responses                      | Empty tools, `tool_choice: auto`; no empty namespace   |
+| Chat completions (OpenRouter, OpenAI-compatible vendors/custom) | No tools declared and no `tool_choice` field at all    |
+| Anthropic Messages                                              | Omit tools and tool choice                             |
+| Gemini generateContent                                          | Omit tools and toolConfig                              |
+| Ollama chat                                                     | Omit tools and unsupported tool choice                 |
 
-Codec-family assertions use real encoders with tool-result history retained.
-Red drills: remove the final-call wrap-up marker: the engine's no-tools
-assertion and new golden case fail; change Chat's supported `none` to `auto`:
-the codec assertion fails. Both source files restored byte for byte with
-`cmp` and SHA-256. Green: 151 tests in `toolRounds`, `toolRoundsCodecs` and
-`modelApiGoldenRequests` pass at repository default timeouts.
+Codec-family assertions use real encoders with tool-result history retained
+(the host-built body is parsed back through each codec's own schema).
+Red drill: re-add a `tool_choice: none` to the builder: the codec and golden
+assertions fail; restore byte-exact. Green: `toolRounds`,
+`toolRoundsCodecs` and `modelApiGoldenRequests` pass at repository default
+timeouts.
 
-The golden request suite adds only `10-turn-limit-wrap-up.json`; all existing
-fixtures stay byte-exact. No provider response shape has been added.
+The golden request suite adds only `10-turn-limit-wrap-up.json`, re-recorded
+in the side-call shape (measured: `tools: []`, `tool_choice: auto`,
+instructions byte-identical to the ordinary request, trailing developer
+note present); all other fixtures stay byte-exact. No provider response
+shape has been added.
+
+### Cost of withholding tools (P3-3)
+
+Withholding the tools on the wrap-up saves the whole tool-schema block on
+that request: 7,386 bytes of tool definitions on the re-recorded Responses
+golden (12 tools on its ordinary sibling), plus whatever each vendor's
+choice machinery would have done with them. The price is one extra tool-less
+model call, and the instruction prefix stays byte-identical so the cached
+prefix survives (the codec test asserts both halves).
 
 ## Piece 3 — caller allowance and the 200-call default
 
@@ -167,6 +184,93 @@ cycles zero; jscpd zero; `check:l10n` (0 problems), `check:reference`,
   environment (auth rejection), so it is not this lane's regression.
 - Browser suites were never selected (MacBook rule); full `quality` belongs
   to the lead's integration run.
+
+## Round 2 — review RVAPP-TOOLROUNDS (by reading: 1 P1, 3 P2, 6 P3)
+
+Every finding is fixed with the whole class swept; each fix has a
+regression test that fails without it and a red drill below. Drill
+restoration is verified byte-exact (`git diff --stat` empty) in every row.
+
+| Finding                          | Fix                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | Regression test                                                                                                                                                                                                                                                                                            | Red drill (break → named test fails → restore)                                                                                                                                                                                                               |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| P1-1 wrap-up vendor shape        | Side-call shape: no tools, choice as ever, instructions byte-identical, note as trailing input; no `tool_choice` without tools in any codec                                                                                                                                                                                                                                                                                                                                        | `toolRoundsCodecs`: `keeps instructions byte-identical and carries the note as trailing input` (+ Anthropic/Gemini/Ollama omission tests); golden `10-turn-limit-wrap-up.json` re-recorded                                                                                                                 | Re-add `tool_choice: none`: codec + golden fail; restored byte-exact                                                                                                                                                                                         |
+| P2-1 allowance port              | `setModelCallAllowance` REQUIRED on `WorktreeSession` (compiler lists implementers); `AttemptSession` (best-of-N) forwards it and the errorKind; runner no longer cancels at the ceiling                                                                                                                                                                                                                                                                                           | `bestOfNManager` (forward once / clear with `undefined`); `worktreeConversationHost` (bind + clear); `teamEngineWorker` / `teamWorkerFence` fakes updated                                                                                                                                                  | Drop the forward: allowance tests fail; restored byte-exact                                                                                                                                                                                                  |
+| P2-2 first call ordinary         | `wrapUpLimit` only once `modelCalls >= 1` (also in `beforeRetry`); `exec --max-requests 1` unchanged (answer = completed/exit 0, tool request = request cap plainly); 199-rounds asserts errorKind, 198-rounds asserts none                                                                                                                                                                                                                                                        | `runs the only permitted call with tools: an answer completes, plainly`; `ends the only permitted call that asks for tools at the request cap, plainly`; `finishes the 199th tool round … limit typed`; `finishes {51,80,198} tool rounds under the default cap`                                           | Allow wrap-up on the first call: max-1 answer test fails; restored byte-exact                                                                                                                                                                                |
+| P2-2 hooks on wrap-up            | Stop/SubagentStop hooks run via extracted `runAnswerStopHooks`; a continuation with no calls left answers `modelApiWrapUpHookBlocked` and keeps the answer                                                                                                                                                                                                                                                                                                                         | `runs Stop hooks on a wrap-up turn but keeps the answer when one asks for more`                                                                                                                                                                                                                            | Skip hooks on wrap-up: hook test fails; restored byte-exact                                                                                                                                                                                                  |
+| P2-3 never the compaction prefix | Wrap-up body is never the compaction prefix and never measured as the turn body; compaction after a limit stop reuses the last ordinary body                                                                                                                                                                                                                                                                                                                                       | `compaction after a limit stop reuses the last ordinary body, manually and automatically` (`modelApiAutoCompact`)                                                                                                                                                                                          | Prefix the wrap-up body: auto-compaction half fails; restored byte-exact. The manual half is vacuous under note-as-input (the prefix input is never reused; instructions were already clean), so the guard stands as hygiene with the auto half as its proof |
+| P3-1 truncated wrap-up           | A wrap-up cut at the output limit throws `ModelCallLimitError` with the `modelApiWrapUpTruncated` sentence; partial answer kept, never "again"                                                                                                                                                                                                                                                                                                                                     | `stops a wrap-up cut at the output limit with its own sentence, never "again"`                                                                                                                                                                                                                             | Retry instead of limit-stop: truncated test fails; restored byte-exact                                                                                                                                                                                       |
+| P3-2 steer/goal-wake held        | Goal-wake queued (`queuedGoalWake`) and steers promoted (`promoteSteered`) before the limit throw; each gets its own turn with tools                                                                                                                                                                                                                                                                                                                                               | `holds steering arriving before the wrap-up for its own turn with tools` (goal wake shares the same pre-throw block, `ModelApiHost.ts` promotion site)                                                                                                                                                     | Consume the steer in the wrap-up: held-turn assertions fail; restored byte-exact                                                                                                                                                                             |
+| P3-3 note as input               | Trailing developer input item (see Piece 2 + cost note above)                                                                                                                                                                                                                                                                                                                                                                                                                      | Codec byte-identical test; `counts a shrunk allowance in the wrap-up limit it names`                                                                                                                                                                                                                       | Move the note back into instructions: byte-identical test fails; restored byte-exact                                                                                                                                                                         |
+| P3-4 singular                    | `{limit} {calls}` slots with singular rendered in `wrapUpNote()` (no `forms()`/`plural`: the compressed-model-text gate requires literal strings)                                                                                                                                                                                                                                                                                                                                  | `renders the wrap-up note in the singular for a limit of 1`                                                                                                                                                                                                                                                | Pluralize unconditionally: singular test fails; restored byte-exact                                                                                                                                                                                          |
+| P3-5 reserved slot               | `isWrapUpSlotReserved()` gates the three in-pipeline side calls — overflow-recovery compaction (rethrow), autoReview (`undefined`, user decides), hook-model (empty suggestion) — in the turn and against the exec ledger. Judge and structured direct-budget calls need no gate: the dispatch path skips turn-call counting for `directBudget` (`ModelApiHost.ts` request-started branch), and the judge runs in its own pool via `deps.judge`, so neither can take the turn slot | `refuses overflow recovery on the last permitted call and keeps the failure` (`modelApiAutoCompact`); `spends no reviewer call on the reserved wrap-up slot: the user decides instead` (`modelApiHost` M78 rig); `skips the hook-model call while the wrap-up slot is reserved` (`modelApiLoopGuarantees`) | Remove each gate in turn: the named test fails (reviewer 448 ms, hook-model 1.4 s, both assertion-fast); restored byte-exact every time                                                                                                                      |
+| P3-6 own stop reason             | `outcomeStopReason = 'limit'` on limit paths; `agentStopSchema` + `agentOutcome` + `agentStopReasons.limit`; reference sentence on the Conversation entry                                                                                                                                                                                                                                                                                                                          | `agentOutcome` limit suite; `conversationController`: `handles a completed turn carrying errorKind exactly like a plain completed turn`                                                                                                                                                                    | Break the outcome reason / post an error keyed off errorKind in the turn dispatcher: the named tests fail (panel drill detail below); restored byte-exact                                                                                                    |
+
+### Panel drill detail (P3-6, this rig)
+
+The first drill cut missed the seam twice, and both misses are recorded
+honestly. Cutting `observeFailure` (`terminal !== 'completed'`) cannot fail
+the test: host `turn/completed` reaches the panel through the shared
+forward+track entry, and for a completed terminal that arm is already a
+no-op. Posting a notice in `track`'s branch while the test sent top-level
+`errorKind` over the fake MSP server also cannot fail it: the MSP
+`turn/completed` frame schema (`mapNotification.ts`) carries no top-level
+`errorKind` (zod strips it); `errorKind` reaches the panel only off the
+frame's `error` object (or, on the Model API backend, on the `AgentEvent`
+directly). The shipped test uses the wire-true shape
+(`error: { kind: 'max_turn_requests', … }`) and asserts the settled contract:
+the turn is surfaced as a completion, `errorKind` is kept on the forwarded
+`agentEvent` and appears nowhere else (no failure row, no error notice).
+Breaking the dispatcher to post an error keyed off `errorKind` fails exactly
+that test (`× handles a completed turn carrying errorKind exactly like a
+plain completed turn`); the source is restored byte-exact (empty diff).
+No MSP schema was widened: the frame shape is the captured one.
+
+### Not checked by the reviewer, settled here
+
+- **Reservations when `WrapUpRequiredError` interrupts an attempt that got 429.** `WrapUpRequiredError` is internal control flow, never an error that
+  settles reservations: `beforeRetry` throws it when a retry would spend the
+  last slot after a call went out, and the retry loop catches it (`continue`)
+  so the loop rebuilds through the ordinary builder as the wrap-up. A
+  429-then-limit run is exactly the covered case
+  (`rebuilds an HTTP retry into a wrap-up when one call remains`); the
+  `isCompaction || directBudget` early return keeps side calls from ever
+  throwing it.
+- **Panel handling of a completed turn carrying errorKind.** Settled by the
+  test above: the `turn/completed` dispatcher keys off `terminal` only, so a
+  limit stop is handled exactly as a completion; the limit itself is
+  communicated by the host's warning backend notice, not by a failure row.
+
+### Team-worker binding proof (P2-1)
+
+`runEngineWorker` has no production caller in `src` today (only its prompt
+and routing helpers are imported elsewhere), so there is no team production
+site to bind. The README sentence ("best-of-N attempts and team-task
+ceilings" replace the default) rests on the shared mechanism, which is true
+as written: `runEngineWorker` (`engineWorker.ts:340`) builds a
+`WorktreeConversationHost`, and `WorktreeConversationHost.run()` binds the
+remaining-task ceiling through the now-required
+`session.setModelCallAllowance(...)` (bound at `worktreeConversationHost.ts`
+170, cleared at 254). Best-of-N exercises the same binding in production
+through `bestOfNManager` → `AttemptSession`. When a team production caller
+lands, the compiler enforces the binding through the required port.
+
+### Round-2 verification
+
+Ran on macbook at repo default timeouts, `--maxWorkers=3`, ≤3 files per run
+(round-2 deltas only; round-1 totals stand above):
+`toolRounds` + `toolRoundsCodecs` + `modelApiGoldenRequests`: 166 passed
+(the golden suite keeps every fixture byte-exact except the re-recorded
+wrap-up). Plus `modelApiAutoCompact`, `modelApiHost` (672),
+`modelApiLoopGuarantees` (45), `conversationController` (689), `execRun`,
+`agentOutcome`, `bestOfNManager`, `worktreeConversationHost`,
+`teamEngineWorker`, `teamWorkerFence`, `acpModelApi`. Typechecks
+(`tsconfig.json`, `test/unit/tsconfig.json`), ESLint on changed files,
+prettier, `check:l10n` (0 problems, 3 new keys in `en.ts` + 14 translated
+tables), `check:reference` pass.
+The second review
+(`/tmp/claude/c--Users-Randy-Coding-muse-extension/f5e67bec-452c-4384-85e7-efedc257d060/scratchpad/codex/RVTOOLROUNDS.report.md`)
+was absent on this machine at final check, so only the by-reading review is
+answered here. Suites not run on this rig are listed in the final message.
 
 ## Next slice
 

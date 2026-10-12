@@ -1190,6 +1190,35 @@ describe('M106 loop guarantees', () => {
     await rig.host.close()
   })
 
+  it('skips the hook-model call while the wrap-up slot is reserved', async () => {
+    const hooks = parseHookConfig(
+      '{"hooks":{"UserPromptSubmit":[{"hooks":[{"type":"agent","prompt":"Check the prompt."}]}]}}',
+      'project',
+      'linux',
+    ).hooks
+    expect(hooks).toHaveLength(1)
+    const rig = await setup({
+      loadHooks: () => Promise.resolve(hooks),
+      isHooksEnabled: () => true,
+      isPaidFeatureOn: (feature) => feature === 'hookModels',
+      allowsPaidUse: () => Promise.resolve(true),
+      remainingModelCalls: () => 1,
+    })
+    rig.api.script({ calls: [read(0)] }, { text: 'Main reply.' })
+    await send(rig)
+    // P3-5: the hook model never sends on the reserved slot; the skip is
+    // logged, no hook-marked request goes out, and the turn still answers.
+    expect(rig.log.warn).toHaveBeenCalledWith(
+      'The hook model call was skipped to keep the reserved final request',
+    )
+    expect(
+      rig.api
+        .responseBodies()
+        .filter((body) => JSON.stringify(body).includes('hook of the Muse Spark')),
+    ).toEqual([])
+    await rig.host.close()
+  })
+
   it('discards reads stopped during held realPath settlement, including later recall_output', async () => {
     for (const isPacking of [false, true]) {
       const rig = await setup({

@@ -1173,7 +1173,7 @@ const REFERENCE_DETAILS: Readonly<
   git: ['structuredOutputRepair', 'structuredOutputFallback'],
   judge: ['structuredOutputRepair', 'structuredOutputFallback'],
   'structured-side-calls': ['structuredOutputRepair', 'structuredOutputFallback'],
-  budget: ['referenceBudget', 'referenceTurnLimit'],
+  budget: ['referenceBudget'],
   voice: ['referencePaidContexts'],
   auto: ['referencePaidContexts'],
   subagents: ['referencePaidContexts'],
@@ -1182,6 +1182,7 @@ const REFERENCE_DETAILS: Readonly<
   cache: ['referenceCache'],
   'custom-agents': ['referencePaidContexts'],
   'conversation-actions': [
+    'referenceTurnLimit',
     'referenceWindowsSessions',
     'restoreFilesToHere',
     'rewindAndRestore',

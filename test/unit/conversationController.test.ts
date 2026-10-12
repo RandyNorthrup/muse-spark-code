@@ -383,6 +383,14 @@ async function heldPickerAt(t: ReturnType<typeof setup>, stage: () => void) {
   return { picking }
 }
 
+/** Whether a posted surface message forwards a turn-completed agent event. */
+function isTurnCompletedEvent(message: unknown): boolean {
+  return (
+    (message as { type?: string }).type === 'agentEvent' &&
+    (message as { event?: { type?: string } }).event?.type === 'turnCompleted'
+  )
+}
+
 function setup(
   options: {
     status?: AuthSnapshot['status']
@@ -1488,27 +1496,50 @@ describe('ConversationController.sendMessage', () => {
     expect(t.auth.calls).toContain('authRequired:not logged in')
   })
 
-  it('shows a limit-stopped completed turn as completed, with no failure row', async () => {
-    const made = makeReports()
-    const t = setup({ reports: made.reports })
-    await t.send('l1', 'hi')
-    t.server.notify('turn/started', { sessionId: 's1', turnId: 't1', viewCursor: 'v' })
-    await settle()
-    t.server.notify('turn/completed', {
-      sessionId: 's1',
-      turnId: 't1',
-      terminal: 'completed',
-      errorKind: 'max_turn_requests',
-      reason: 'The turn stopped after 2 model calls. Send a message to continue.',
-    })
-    await settle()
-    // A completed turn that reached its limit is not a failure: no error
-    // row and no error notice; the turn's own warning carries the limit.
-    expect(made.recorded).toEqual([])
-    expect(
-      t.surface.posted.filter((message) => message.type === 'notice' && message.level === 'error'),
-    ).toEqual([])
-    t.controller.dispose()
+  it('handles a completed turn carrying errorKind exactly like a plain completed turn', async () => {
+    const run = async (extra: object): Promise<unknown[]> => {
+      const made = makeReports()
+      const t = setup({ reports: made.reports })
+      await t.send('l1', 'hi')
+      t.server.notify('turn/started', { sessionId: 's1', turnId: 't1', viewCursor: 'v' })
+      await settle()
+      t.server.notify('turn/completed', {
+        sessionId: 's1',
+        turnId: 't1',
+        terminal: 'completed',
+        reason: 'done',
+        ...extra,
+      })
+      await settle()
+      const posted = [...t.surface.posted]
+      const recorded = [...made.recorded]
+      t.controller.dispose()
+      // P3-6: the limit is a stop reason, never a failure row.
+      expect(recorded).toEqual([])
+      return posted
+    }
+    // The turn/completed dispatcher keys off terminal only: a limit stop
+    // (completed + errorKind, which the MSP mapper reads off the frame's
+    // error object) is surfaced as a completion, with the errorKind kept on
+    // the forwarded event and nowhere else (no row, no error notice).
+    const limitError = { error: { kind: 'max_turn_requests', message: 'limit reached' } }
+    const limited = await run(limitError)
+    const plain = await run({})
+    expect(limited.filter((message) => !isTurnCompletedEvent(message))).toEqual(
+      plain.filter((message) => !isTurnCompletedEvent(message)),
+    )
+    expect(limited.filter((message) => isTurnCompletedEvent(message))).toEqual([
+      {
+        type: 'agentEvent',
+        event: {
+          type: 'turnCompleted',
+          turnId: 't1',
+          terminal: 'completed',
+          reason: 'done',
+          errorKind: 'max_turn_requests',
+        },
+      },
+    ])
   })
 
   it('warns when the host refuses the reasoning effort but still sends', async () => {
