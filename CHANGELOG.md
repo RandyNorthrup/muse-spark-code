@@ -42,6 +42,8 @@ happened, not what was planned; superseded entries are kept.
   warning instead of the generic write warning on every run.
 - `estimate --help` lists its deadline and export formats from the route’s own
   reference words instead of the shared flag placeholders.
+- Bare `--help` prints the compact agent help with the machine flags instead of
+  the default launch’s options.
 
 - Provider and headless Meta requests reserve their actual conservative input
   and output cap instead of a full context window. Budget refusals show the

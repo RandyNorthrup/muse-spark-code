@@ -273,6 +273,9 @@ export const CLI_OPTION_TEXT = {
 
 /** Command-local flags without activating the full editor reference catalogue. */
 export function formatCommandHelp(table: UiText, command: string, route: string): string {
+  // No route names no command: answer with the general help, as the help
+  // command does for an undefined route (bare --help names the machine flags).
+  if (route === '') return formatAcpUsage(table, command)
   const definition = Object.entries(CLI_OPTION_REGISTRY).find(
     ([key]) => key === route || key === route.split(' ', 1)[0],
   )?.[1]
