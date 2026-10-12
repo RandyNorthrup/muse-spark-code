@@ -71,7 +71,9 @@ export interface UsageServiceDeps {
    * snapshot carrying any other credentialId belongs to a previous key and
    * is dropped, so no shown or counted number belongs to it. Undefined
    * where the host cannot read credentials; then nothing is dropped. A
-   * supplier failure keeps the snapshots (unknown is not previous).
+   * supplier failure hides that provider's snapshots entirely (RVCM952D:
+   * when the identity of the key in use cannot be read, no budget is shown
+   * at all).
    */
   readonly currentCredentialId?: (providerId: string) => Promise<string | undefined>
   readonly readAttempts: () => Promise<UsagePageState['attempts']>
@@ -136,24 +138,26 @@ async function selectCredentialLimits(
   current: UsageServiceDeps['currentCredentialId'],
 ): Promise<readonly UsageLimitSnapshot[]> {
   if (current === undefined) return limits
-  const providers = new Set(
-    limits.filter((limit) => limit.credentialId !== undefined).map((limit) => limit.provider),
-  )
+  const providers = new Set(limits.map((limit) => limit.provider))
   const identities = new Map<string, string | undefined>()
+  const unreadable = new Set<string>()
   await Promise.all(
     [...providers].map(async (provider) => {
       try {
         identities.set(provider, await current(provider))
       } catch {
-        // An unreadable store is unknown, not a previous key: keep.
+        // The identity of the key in use cannot be read: no budget is shown
+        // at all for that provider, on every surface.
+        unreadable.add(provider)
       }
     }),
   )
   return limits.filter(
     (limit) =>
-      limit.credentialId === undefined ||
-      !identities.has(limit.provider) ||
-      identities.get(limit.provider) === limit.credentialId,
+      !unreadable.has(limit.provider) &&
+      (limit.credentialId === undefined ||
+        !identities.has(limit.provider) ||
+        identities.get(limit.provider) === limit.credentialId),
   )
 }
 /** An unreadable resource journal never fails the usage page or invents data: null. */

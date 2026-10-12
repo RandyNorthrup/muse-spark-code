@@ -5072,6 +5072,11 @@ export const EN = {
   providerCreatedKeyDiscarded:
     'OpenRouter created a key labelled {label}. It was not kept here. Remove it at {url}.',
   providerConnectFailed: 'OpenRouter connection failed. Try connecting again.',
+  providerConnectBusy: 'Another provider change is in progress. Try again when it finishes.',
+  providerConnectRecoveredStored:
+    'A previous OpenRouter connection already stored its key. It is kept.',
+  providerConnectStoredNewKey:
+    'The new OpenRouter key is stored. The previous key could not be restored.',
   providerUsageFailed: 'OpenRouter key usage could not be read. Try again.',
   providerPasteCode: 'Paste the authorization code shown by OpenRouter.',
   usageKeyTotal: 'Total Usage',

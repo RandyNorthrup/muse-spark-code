@@ -107,7 +107,11 @@ const EXACT_DECIMAL_MAX_EXPONENT = 100
 function exactDecimalToAmount(value: ExactDecimal) {
   const exponent = Number(value.decimal.split(/[eE]/, 2)[1] ?? 0)
   if (!Number.isSafeInteger(exponent) || Math.abs(exponent) > EXACT_DECIMAL_MAX_EXPONENT) fail()
-  return Usd.from(value.decimal).toAmount()
+  const amount = Usd.from(value.decimal).toAmount()
+  // Usage amounts are non-negative exact decimals on every field (RVCM952D):
+  // a negative vendor amount is refused, never reported as success.
+  if (amount.startsWith('-')) fail()
+  return amount
 }
 const keyDollars = z.pipe(z.instanceof(ExactDecimal), z.transform(exactDecimalToAmount))
 /**

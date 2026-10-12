@@ -344,6 +344,7 @@ import { isActivationPaidSettingOn } from './host/paid/paidActivation'
 import {
   modelsPanelLoader,
   providerCredentials,
+  recoverOpenRouterConnect,
   recoverProviderRemovals,
 } from './host/models/modelsPanelBundle'
 import type { ModelsPanelFeatures } from './host/models/modelsPanelEntry'
@@ -4152,6 +4153,19 @@ async function activateWindow(
   void recoverProviderRemovals(
     context.globalState.get(GLOBAL_STATE_KEYS.providerPendingRemovals),
     ensureModelsFeatures,
+    log,
+  )
+  // A crashed terminal Connect is found at this start without connecting
+  // again (RVCM952D R5): the journal is compared with the primary and
+  // reported, inside the one credential lease.
+  void recoverOpenRouterConnect(
+    context.secrets,
+    (message) => {
+      void vscode.window.showWarningMessage(message)
+    },
+    (message) => {
+      void vscode.window.showInformationMessage(message)
+    },
     log,
   )
 

@@ -98,10 +98,11 @@ export async function deleteProviderCredential(secrets: RecordStore, id: string)
 
 /**
  * The stored credential's identity (SHA-256 of its secret), or undefined
- * when none is stored or the stored value is damaged. Usage surfaces show
- * only the budgets of this identity, so a rotated or removed key's numbers
- * disappear. An unreadable store still throws: unknown is not a previous
- * key, and the caller keeps the snapshots.
+ * when none is stored, the stored value is damaged, or the store cannot be
+ * read. Usage surfaces show only the budgets of this identity, so a rotated
+ * or removed key's numbers disappear; when the identity cannot be read no
+ * budget is shown at all (RVCM952D: like the runtime adapter, unknown is
+ * never a previous key to keep).
  */
 export async function storedCredentialId(
   secrets: RecordStore,
@@ -111,7 +112,7 @@ export async function storedCredentialId(
   try {
     stored = await secrets.get(providerSecretKey(id))
   } catch {
-    throw new Error(`The stored credential for provider ${id} could not be read`)
+    return undefined
   }
   if (stored === undefined || stored === '') return undefined
   let parsed: unknown

@@ -6,7 +6,19 @@
 // the panel back into dist/extension.js, which the bundle-split gate
 // refuses.
 
+import { homedir } from 'node:os'
+import {
+  CredentialLockBusyError,
+  credentialLockDir,
+  OPENROUTER_JOURNAL_KEY_LABEL,
+  OPENROUTER_JOURNAL_KEYS_URL,
+  openRouterJournalKeys,
+  providerConfigFilePath,
+  recoverCredentialJournal,
+  withCredentialLock,
+} from '../../core/credentialLease'
 import { UI_TEXT } from '../../shared/constants'
+import { fill } from '../../shared/l10n/text'
 import { lazyBundleLoader } from '../lazyBundle'
 import type { Logger } from '../logger'
 import type * as ModelsPanelEntry from './modelsPanelEntry'
@@ -34,6 +46,76 @@ export function providerCredentials(
       }
     },
   )
+}
+
+/**
+ * Surface a crashed terminal Connect at activation, without opening a
+ * Models tab (RVCM952D R5). Runs inside the one credential lease, so it
+ * never deletes a live attempt's journal: a held lease skips silently. A
+ * committed journal reports the key in use (never a removal notice); a
+ * discarded one reports the created key with its label and removal page.
+ */
+export async function recoverOpenRouterConnect(
+  secrets: SecretStore,
+  showWarning: (message: string) => void,
+  showInformation: (message: string) => void,
+  log: Logger,
+  lock?: {
+    readonly withCredentialLock: <T>(operation: () => Promise<T>) => Promise<T>
+  },
+): Promise<void> {
+  // The activation bundle carries the lease statically (it has room) but
+  // never the OAuth flow: the notice is composed here from the journal
+  // binding's label and removal page.
+  const { account, staging } = openRouterJournalKeys()
+  const store = {
+    get: (key: string): Promise<string | undefined> => Promise.resolve(secrets.get(key)),
+    delete: (key: string): Promise<void> => Promise.resolve(secrets.delete(key)),
+  }
+  const acquire =
+    lock?.withCredentialLock ??
+    (async <T>(operation: () => Promise<T>): Promise<T> => {
+      const lockDir = credentialLockDir(
+        providerConfigFilePath({
+          platform: process.platform,
+          homeDir: homedir(),
+          xdgConfigHome: process.env['XDG_CONFIG_HOME'],
+        }),
+      )
+      return await withCredentialLock(lockDir, operation)
+    })
+  let recovery
+  try {
+    recovery = await acquire(() => recoverCredentialJournal(store, account, staging))
+  } catch (error: unknown) {
+    // A live attempt owns its journal; anything else is logged, never shown.
+    if (!(error instanceof CredentialLockBusyError)) log.warn('OpenRouter Connect recovery failed')
+    return
+  }
+  switch (recovery.decision.kind) {
+    case 'discarded':
+    case 'legacy': {
+      if (recovery.journalKept) {
+        log.warn('OpenRouter Connect recovery failed')
+        break
+      }
+      showWarning(
+        fill(UI_TEXT.providerCreatedKeyDiscarded, {
+          label: OPENROUTER_JOURNAL_KEY_LABEL,
+          url: OPENROUTER_JOURNAL_KEYS_URL,
+        }),
+      )
+      break
+    }
+    case 'committed': {
+      showInformation(UI_TEXT.providerConnectRecoveredStored)
+      break
+    }
+    case 'none':
+    case 'stale': {
+      break
+    }
+  }
 }
 
 /** Recover persisted deletion on activation, without opening a Models tab. */

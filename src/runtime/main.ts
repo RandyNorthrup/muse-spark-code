@@ -52,16 +52,7 @@ import {
 import type { SecretStore } from '../host/auth/credentialStore'
 import { fill, uiLocale, UI_TEXT as referenceTable } from '../shared/l10n/text'
 import { setUiText as setProviderPolicyText } from '../host/backend/providerPolicyEntry'
-import {
-  authClear,
-  authClearProvider,
-  type AuthCommandDeps,
-  authSet,
-  authSetProvider,
-  authStatus,
-  authStatusProvider,
-  login,
-} from './authCommands'
+import { authClear, type AuthCommandDeps, authSet, login } from './authCommands'
 import {
   isHeadlessCommand,
   parseCommandLine,
@@ -1399,7 +1390,13 @@ async function main(): Promise<number> {
       if (target === undefined) return await authSet(authDeps())
       if (target.provider !== 'meta' && target.account === ACCOUNT_DEFAULT_ID) {
         const providersFile = await userProvidersFile()
-        return await authSetProvider(authDeps(), target.provider, providersFile.readUserFile)
+        const { runAuthSetProvider } = await import('./providerAuth')
+        return await runAuthSetProvider(
+          authDeps(),
+          target.provider,
+          providersFile.readUserFile,
+          providersFile.withUserFileLock,
+        )
       }
       return target.provider === 'meta' && target.account === ACCOUNT_DEFAULT_ID
         ? await authSet(authDeps())
@@ -1437,14 +1434,24 @@ async function main(): Promise<number> {
       return result.exitCode
     }
     case 'authStatus': {
+      // Every provider command and `auth status` runs the crashed-Connect
+      // recovery first and reports it (R5).
+      const providersFile = await userProvidersFile()
+      const { runAuthStatusProvider, runAuthStatusWithRecovery } = await import('./providerAuth')
+      const deps = authDeps()
       return command.provider === undefined
-        ? await authStatus(authDeps())
-        : await authStatusProvider(authDeps(), command.provider)
+        ? await runAuthStatusWithRecovery(deps, providersFile.withUserFileLock)
+        : await runAuthStatusProvider(deps, command.provider, providersFile.withUserFileLock)
     }
     case 'authClear': {
-      return command.provider === undefined
-        ? await authClear(authDeps())
-        : await authClearProvider(authDeps(), command.provider)
+      if (command.provider === undefined) return await authClear(authDeps())
+      const providersFile = await userProvidersFile()
+      const { runAuthClearProvider } = await import('./providerAuth')
+      return await runAuthClearProvider(
+        authDeps(),
+        command.provider,
+        providersFile.withUserFileLock,
+      )
     }
     case 'providersList': {
       const { providersList } = await import('./providersCommands')
