@@ -107,3 +107,64 @@ dist/test/integration/teamComposition.test.js`.
 Final verification used the repository default throughout; no `--testTimeout`
 anywhere. One exploratory rerun note: none needed — no slow-test failures on
 this rig (load ~normal; no deadline retries required).
+
+## Continuation record (this session, final tree `dd26dcea6` + diet/sibling commits)
+
+This section is the continuation session's own record. Commit authorship in
+this lane is shared (`Muse Spark (contributor) via Muse Code` on every
+commit); the table below names the commits this session authored and the
+drills it ran itself. The sibling session's commits and sections above stand
+as written; where the two overlap (diet number, build rows) this section
+records the final-tree re-verification, not a revision of theirs.
+
+Commits authored here: `0fd532a08` (findings 2/3/4), `b4024585a`
+(finding 7), `cba1ad785` (findings 8/10/11), `e0e29c0bc` (diet
+compression, no behavior change), `dd26dcea6` (finding-1 switch-default
+regression test). Finding (9)'s fixture inventories were authored in-tree
+by the sibling (`326046195`); this session verified them (65/65 size,
+118/118 split, drill below) and restored the diet pin to 530_883 after the
+compression work made the re-pin unnecessary — no guard widened, no
+assertion removed.
+
+| Finding                                         | Fix (file)                                                                                                                                                             | Regression test (fails without fix)                                                                                                               | Red drill (break → fail → byte-exact restore)                                                                                                         |
+| ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| (1) team surfaces reachable with absent setting | `extension.ts` reads the default through `isTeamSwitchOn` (`host/teamHostBinding.ts`); only explicit `true` is on                                                      | `teamAvailability.test.ts`: absent/false/true/truthy-string switch test (the old suite drove injected fakes and could not fail — drill proved it) | `!== false` restored → new test fails `absent setting: expected true to be false`; original `!== false` line kept green, which motivated the new test |
+| (2) saved effort overwritten at attach          | `conversationController.ts`: saved effort becomes the composer's before attach; exotic tiers apply post-creation with dispose-on-failure; resume takes `currentEffort` | saves `low` (not the default), asserts last setter call + pill                                                                                    | skip assignment → `expected 'high' to be 'low'` (the review's scenario)                                                                               |
+| (3) output cap lost on fork/resume              | `sessionStore.ts` + `ModelApiHost.ts` snapshot/adopt/fork/copy by model; `agentBackend.ts` `currentEffort`                                                             | cap 128 persists and rides resume/fork/copy with `max_output_tokens: 128`                                                                         | drop snapshot spread → `expected undefined to deeply equal { 'muse-spark-1.3': 128 }`                                                                 |
+| (4) settings validated before allocate          | `modelSettings.ts` / `orchestratorSlot.ts` validators; wired before copy/session; setters refuse; post-creation failure disposes                                       | refusal cases (unserved effort, malformed cap, temperature refused, `started` empty)                                                              | skip the throw → refusal test fails                                                                                                                   |
+| (5) role permission mode ignored                | `teamEnginePorts.ts` maps the role's mode (Plan denies; only bypass allows all)                                                                                        | Plan-role worker cannot edit                                                                                                                      | force `allowAll` → `expected 'allowAll' to be 'denyUnmatched'`                                                                                        |
+| (6) paying account not pinned                   | `teamTry.ts` pins the digest at quote time, voids on change, revalidates pre-host                                                                                      | key change during consent voids                                                                                                                   | skip revalidation → void test fails                                                                                                                   |
+| (7) quota survives key change                   | `usageJournal.ts` `observedAccount`; stamped at 3 observe sites; `teamModelRegistry.ts` drops foreign/unknown rows                                                     | replaced-key and unstamped rows omit with limits reason; current account yields ceiling                                                           | accept-all filter → stale quota produces an offer                                                                                                     |
+| (8) tally absent                                | `teamHost.ts` `todayTally` from settled claims (spent) + open maxima (ceiling), nano-USD exact strings; composition asserts tariff-exact costs                         | `0.00002775`/`0.00002775` unit asserts; `tree.spentUsdToday/budgetUsdToday` equal the `Usd`-computed tariff total                                 | drop the spread → `expected undefined to be '0.00002775'`                                                                                             |
+| (9) gate fixtures                               | sibling's `TEAM_SECTION_CHUNKS` / `teamEngine` entry / RoleEditor map (verified here)                                                                                  | 65 size + 118 split suites                                                                                                                        | drop RoleEditor → `Missing or duplicated team surface: …/RoleEditor.tsx`                                                                              |
+| (10) preview money as float                     | `teamPanelViews.ts` `stepUsd`/`usedUsd` are `Usd` through the cap comparison (lead ruling, no trackedDebt)                                                             | the exact-money guard itself (was the reported red)                                                                                               | back to `number` → guard fails                                                                                                                        |
+| (11) Agent map always Default                   | `teamHost.ts` publishes the stored override slot                                                                                                                       | override/new-conversation `override`, plain `default`                                                                                             | force `'default'` → `expected 'default' to be 'override'`                                                                                             |
+
+Every drill restored byte-exact (SHA-256 before == after; recorded in
+session notes). Drill (1) additionally proved the old suite could not fail
+and motivated the new `isTeamSwitchOn` test.
+
+Final-tree verification (this session, kubuntu, `--maxWorkers=3`, repo
+default timeout, no `--testTimeout`): five typechecks exit 0; `npm run
+build` exit 0 with zero OVER/MISS/FAIL; production bytes (21:10 rebuild,
+deterministic — identical to the sibling's rows): extension.js 573912 /
+614400, modelApi.js 530878 / 537600, teamHost.js 95870 / 133120,
+teamEngine.js 96829 / 102400, teamPanel.js 94000 / 102400, modelsPanel.js
+120267 / 128000, conversation.js 254493 / 256000. Suites: teamEnginePorts +
+teamOrchestratorSlot + teamTry 67; teamHostService + teamPreview +
+teamPanel 124; TeamTree + money guard + teamModelRegistry 33;
+conversationController + modelApiHost + teamAvailability 1358;
+bundleSize 65; deferredBundles 118/118 (diet pin 530_883 intact);
+`check-l10n` 0 problems; eslint `--max-warnings=0` + prettier clean on all
+touched files. `vitest related` over the changed non-hub sources was
+launched for the dependents rule; its result (if it finished after this
+write) is reported in the lane's final message, else listed NOT RUN HERE.
+
+NOT RUN HERE (sandbox blocks loopback sockets and VS Code; no live or paid
+calls made): `test/integration/teamComposition.test.ts` — lead runs
+`npm run build:dev`, then `xvfb-run -a npx vscode-test --label stable
+--run dist/test/integration/teamComposition.test.js`. ModelApi sweep / M75
+evaluation live drills: not run, per brief.
+
+Scratch: `$TMPDIR/baseprobe` (lane-base clone + diet probe test, outside
+the worktree) is removed at handoff; lane `node_modules` only read.
