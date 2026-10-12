@@ -1,8 +1,8 @@
 import { EN } from '../../src/shared/l10n/en'
 import { describe, expect, it } from 'vitest'
 import { securitySource } from '../../src/core/reporting/sources/security'
-import { reportOptions, REPORT_FIXTURE_AS_OF } from './helpers/reporting/snapshot'
-import type { SecurityFacts, SourceReadContext } from '../../src/core/reporting/sources/types'
+import { sourceContextFor } from './helpers/reporting/reasonCases'
+import type { SecurityFacts } from '../../src/core/reporting/sources/types'
 
 const facts: SecurityFacts = {
   vault: {
@@ -16,15 +16,7 @@ const facts: SecurityFacts = {
   developerAudit: [{ action: 'unlock', source: 'palette' }],
 }
 
-function contextFor(kind: SourceReadContext['options']['kind']): SourceReadContext {
-  return {
-    reportText: EN,
-    asOf: REPORT_FIXTURE_AS_OF,
-    workspaceKey: 'fixture',
-    options: reportOptions(kind),
-    signal: new AbortController().signal,
-  }
-}
+const contextFor = sourceContextFor
 
 describe('security report source', () => {
   it('is not applicable to other kinds and unavailable without a reader', async () => {
