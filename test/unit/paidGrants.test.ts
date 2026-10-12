@@ -73,4 +73,21 @@ describe('paid grant quote folder failures', () => {
     expect(log.warn).toHaveBeenCalledOnce()
     expect(String(log.warn.mock.calls[0]?.[0] ?? '')).toContain('not valid JSON')
   })
+
+  it('carries the syntax failure as the cause when a generation must be captured', async () => {
+    const file = grantsFile()
+    const { store } = fileStore(file)
+    await mkdir(path.join(`${file}.d`, 'webSearch'), { recursive: true })
+    await writeFile(path.join(`${file}.d`, 'webSearch', 'generation.json'), '{oops')
+    let failure: unknown
+    try {
+      await store.prepareQuoteGeneration()
+    } catch (error: unknown) {
+      failure = error
+    }
+    expect(failure).toBeInstanceOf(Error)
+    expect(failure).toMatchObject({
+      cause: expect.objectContaining({ cause: expect.any(SyntaxError) }),
+    })
+  })
 })

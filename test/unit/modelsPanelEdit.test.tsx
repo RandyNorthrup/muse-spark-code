@@ -709,6 +709,7 @@ describe('Saved custom provider Edit through the shared form and production stor
       expect(screen.getByRole('status')).toHaveTextContent(UI_TEXT.providerSavedRefreshFailed)
       expect(JSON.stringify(state())).not.toContain('synthetic-edit-key')
       expect(warnings.join(' ')).not.toContain('synthetic-edit-key')
+      expect(warnings.join(' ')).toContain('(Error)')
       host.dispose()
     },
   )

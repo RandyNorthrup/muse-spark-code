@@ -416,6 +416,40 @@ describe('M109 O OAuth audience and PKCE', () => {
     expect(f.borrowed.every(isWiped)).toBe(true)
   })
 
+  it('lets a foreign fetch failure keep its kind past discovery instead of denying it there', async () => {
+    const f = oauthFixture()
+    const foreign: unknown = 'a string failure'
+    await expect(
+      discoverMcpOAuth(
+        {
+          fetch: () => {
+            throw foreign
+          },
+          allowEndpoint: f.allowEndpoint,
+        },
+        f.binding.resource,
+        f.binding.issuer,
+        f.signal,
+      ),
+    ).rejects.toBe(foreign)
+  })
+
+  it('denies a foreign refresh-save failure without quarantining it as uncertain', async () => {
+    const f = oauthFixture()
+    await f.client.signIn(f.binding, f.signal)
+    f.advance()
+    const foreign: unknown = 'a string failure'
+    f.vault.save = vi.fn<McpOAuthVaultPort['save']>(() => {
+      throw foreign
+    })
+    // Fail-closed stays deny at the boundary; the foreign kind bypasses the
+    // quarantine decision, which only an Error can own.
+    await expect(f.client.fetch(f.binding, f.binding.resource, f.init)).rejects.toThrow(
+      UI_TEXT.vault.noAccess,
+    )
+    expect(f.vault.invalidate).not.toHaveBeenCalled()
+  })
+
   it('lets a caller stop stay a stop instead of denying it', async () => {
     const f = oauthFixture()
     const stop = new AbortController()
