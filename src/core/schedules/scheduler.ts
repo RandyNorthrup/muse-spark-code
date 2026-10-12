@@ -91,6 +91,7 @@ function unspent(
 export function createScheduler(deps: SchedulerDeps) {
   const lifetime = new AbortController()
   const signal = AbortSignal.any([lifetime.signal, deps.host.signal ?? lifetime.signal])
+  const isClosing = () => signal.aborted
   const active = new Set<Promise<void>>()
   const readings = new Map<string, ScheduleClockReading>()
   const pending = new Set<string>()
@@ -153,6 +154,8 @@ export function createScheduler(deps: SchedulerDeps) {
     },
   })
   const execute = async (intent: ScheduleRunIntent): Promise<void> => {
+    // An orderly close keeps every unhanded admission for the next owner.
+    if (isClosing()) return
     const known =
       knownSettlements.get(intent.runId) ??
       (await deps.runs.acknowledged(intent.schedule.workspaceKey, intent.runId))
@@ -227,6 +230,7 @@ export function createScheduler(deps: SchedulerDeps) {
       await settle(intent, unspent(intent, deps.host.now(), 'skipped'))
       return
     }
+    if (isClosing()) return
     const delivery = { ...intent, schedule: fresh }
     if (!(await deps.runs.startDispatch(intent, fresh.grant.paidCapUsd))) {
       const state = await deps.runs.lookupRun(intent.schedule.workspaceKey, intent.runId)
@@ -358,6 +362,7 @@ export function createScheduler(deps: SchedulerDeps) {
           const first = group[0]
           if (first === undefined) return
           for (const _entry of group) {
+            if (signal.aborted) break
             const queue = await deps.runs.pending(first.schedule.workspaceKey)
             const intent = queue.find(
               (intent) =>
