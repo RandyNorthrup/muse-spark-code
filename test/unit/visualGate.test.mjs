@@ -450,3 +450,22 @@ describe('M114 bounded pixelmatch visual gate', () => {
       }
   })
 })
+
+it('includes reviewed filtered Models frames for the entire visual matrix', () => {
+  const audit = JSON.parse(readFileSync('docs/certification/m114-audit.json', 'utf8'))
+  const matrix = JSON.parse(readFileSync('test/harness/visual-matrix.json', 'utf8'))
+  const manifest = JSON.parse(readFileSync('test/harness/goldens/manifest.json', 'utf8'))
+  expect(audit.scenes).toContain('models-table-filtered')
+  const frames = manifest.captures.filter((capture) => capture.scene === 'models-table-filtered')
+  expect(frames).toHaveLength(matrix.themes.length * matrix.widths.length * matrix.states.length)
+  const expected = matrix.themes.flatMap((theme) =>
+    matrix.widths.flatMap((width) =>
+      matrix.states.map((state) =>
+        captureKey({ scene: 'models-table-filtered', state, theme, width }),
+      ),
+    ),
+  )
+  expect(frames.map((frame) => captureKey(frame)).toSorted((a, b) => a.localeCompare(b))).toEqual(
+    expected.toSorted((a, b) => a.localeCompare(b)),
+  )
+})

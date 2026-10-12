@@ -89,6 +89,22 @@ it('continues waiting for ordinary deferred renderers', async () => {
   expect(await runtime.page.locator('[data-deferred-loading]').count()).toBe(0)
 })
 
+it('finishes counted scene actions after a lazy renderer commits', async () => {
+  await runtime.page.setContent('<input aria-label="Provider" />')
+  await runtime.page.evaluate(() => {
+    let isPending = true
+    Object.defineProperty(globalThis, 'harnessSceneWorkPending', {
+      value: () => isPending,
+    })
+    globalThis.setTimeout(() => {
+      globalThis.document.querySelector('input').value = 'Oll'
+      isPending = false
+    }, 700)
+  })
+  await waitForDeferredPaint(runtime.page, 'models-pick')
+  expect(await runtime.page.getByLabel('Provider').inputValue()).toBe('Oll')
+})
+
 it('refuses an unsettled question rather than capturing its temporary layout', async () => {
   // A permanently busy marker tests the bounded refusal without 100 CDP round trips.
   let steps = 0
@@ -136,4 +152,39 @@ it('settles a lazy agent chunk before spending the scenario readiness clock', as
   await playScenarioClock(runtime.page)
   expect(errors).toEqual([])
   expect(await runtime.page.locator('.agent-node-clickable').count()).toBe(1)
+})
+
+it('waits for an outstanding lazy chunk even without a loading marker', async () => {
+  const gate = Promise.withResolvers()
+  const requested = Promise.withResolvers()
+  const page = runtime.page
+  trackRequests(page)
+  await page.route('https://fixture.invalid/money.js', async (route) => {
+    requested.resolve()
+    await gate.promise
+    await route.fulfill({
+      contentType: 'text/javascript',
+      body: "document.querySelector('dd').textContent = '$1.20'",
+    })
+  })
+  await page.setContent('<dl><dd></dd></dl>')
+  await page.evaluate(() => {
+    const script = globalThis.document.createElement('script')
+    script.src = 'https://fixture.invalid/money.js'
+    globalThis.document.body.append(script)
+  })
+  await requested.promise
+  let isSettled = false
+  const waiting = (async () => {
+    await waitForDeferredPaint(page, 'models-models')
+    isSettled = true
+  })()
+  try {
+    await new Promise((resolve) => globalThis.setTimeout(resolve, 30))
+    expect(isSettled).toBe(false)
+  } finally {
+    gate.resolve()
+    await waiting
+  }
+  expect(await page.locator('dd').textContent()).toBe('$1.20')
 })

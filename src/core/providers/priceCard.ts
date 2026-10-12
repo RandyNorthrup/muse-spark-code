@@ -277,6 +277,13 @@ export function ticksToUsdPerToken(ticks: number): number | undefined {
   return Number.isFinite(ticks) && ticks >= 0 ? ticks / XAI_TICKS_PER_USD : undefined
 }
 
+/** A reported tick count as exact dollars: a power-of-ten division, never a float. */
+export function ticksAmount(ticks: number): UsdAmount | undefined {
+  return Number.isFinite(ticks) && ticks >= 0
+    ? Usd.from(ticks).divide(XAI_TICKS_PER_USD).toAmount()
+    : undefined
+}
+
 /**
  * The card's input/output rates for this usage: the long-context tier past
  * its threshold, else the card's own rates. The tier itself is returned so
@@ -356,16 +363,17 @@ export function reserveWorstCaseUsd(
 export function settleUsageAmount(
   card: PriceCard,
   usage: PricedUsage,
-  reported?: { readonly cost?: number | undefined; readonly costInUsdTicks?: number | undefined },
+  reported?: {
+    readonly cost?: UsdAmount | undefined
+    readonly costInUsdTicks?: number | undefined
+  },
 ): UsdAmount | undefined {
-  if (reported?.cost !== undefined && Number.isFinite(reported.cost) && reported.cost >= 0) {
+  if (reported?.cost !== undefined && Usd.from(reported.cost).compare(Usd.from(0)) >= 0) {
     return Usd.from(reported.cost).toAmount()
   }
   if (reported?.costInUsdTicks !== undefined) {
-    const converted = ticksToUsdPerToken(reported.costInUsdTicks)
-    if (converted !== undefined) {
-      return Usd.from(reported.costInUsdTicks).divide(XAI_TICKS_PER_USD).toAmount()
-    }
+    const converted = ticksAmount(reported.costInUsdTicks)
+    if (converted !== undefined) return converted
   }
   if (!isValidPriceCard(card) || !isValidUsage(usage)) {
     return undefined
@@ -408,7 +416,10 @@ export function reserveRequestUsd(card: PriceCard, usage: PricedUsage): number {
 export function settleUsageUsd(
   card: PriceCard,
   usage: PricedUsage,
-  reported?: { readonly cost?: number | undefined; readonly costInUsdTicks?: number | undefined },
+  reported?: {
+    readonly cost?: UsdAmount | undefined
+    readonly costInUsdTicks?: number | undefined
+  },
 ): number | undefined {
   const amount = settleUsageAmount(card, usage, reported)
   return amount === undefined ? undefined : Number(amount)

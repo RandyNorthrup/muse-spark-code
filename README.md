@@ -37,10 +37,11 @@ key to the CLI.
 The [roadmap](ROADMAP.md) shows what is in the next release, what is being
 built, what is planned and what each release shipped.
 
-**Contents:** [What's new](#whats-new-in-0172) · [Roadmap](ROADMAP.md) ·
+**Contents:** [What's new](#whats-new-in-0180) · [Roadmap](ROADMAP.md) ·
 [Highlights](#highlights) · [Screenshots](#screenshots) ·
 [Get started](#get-started) · [Backends](#backends) · [Subscriptions](#subscriptions) ·
 [Permission modes](#permission-modes) ·
+[Several accounts](#several-accounts-per-provider) ·
 [Developer options](#developer-options) ·
 [Rules, skills and memory](#rules-skills-and-memory) ·
 [Muse Code's own tools](#muse-codes-own-tools) · [Web fetch](#web-fetch) ·
@@ -56,7 +57,25 @@ built, what is planned and what each release shipped.
 Saved reports write money version 2; historical numeric reports retain their original
 hash verification and migrate when read.
 
-## What's new in 0.17.2
+## What's new in 0.18.0
+
+- **Several accounts per provider, in the terminal and in ACP editors.**
+  `muse-spark-code-acp providers accounts` lists, adds, orders and removes a
+  provider's accounts and sets their thresholds; `auth set --provider <id>
+--account <id>` stores a key for one account; `exec --account <id>` runs on
+  the account you name. In an ACP editor on a Model API key, `/accounts`
+  shows the list and the current account. Changing account inside a session,
+  pooled runs and an Accounts page in the editor are not available yet.
+- **See a tool call's arguments while the model writes them.** On a Model API
+  key with `muse-spark-1.3-contributor`, a tool row in the panel and in ACP
+  editors shows the file path, command, search pattern or URL as soon as it
+  is complete; content and edits stay hidden and nothing runs until the call
+  is complete. Other models keep the finished-call row for now.
+- **Reviewing Git changes works without a Git filter.** Without Git LFS or
+  another filter configured, every native review was refused since 0.15.0.
+- **The activity-bar icon is the extension's own mark**, the squiggled "m".
+
+### Earlier in 0.17.2
 
 - **Long replies from your own providers and a ChatGPT plan finish.**
   Since 0.15.0 a reply from a provider you added in Models & Agents, or
@@ -542,6 +561,17 @@ and sends nothing. Before the first charge in a window, it asks with the
 model's rates and your budget: **Allow Once** covers that window until it
 closes, **Allow Always in This Workspace** remembers revocable consent, and
 **Deny** snoozes Tab in that window. Closing the question denies it too.
+The question names the model the request will use, and your answer covers
+that model at its price only: a request for another model asks again, even
+under **Allow always**, and **Allow once** never reaches another window. An
+**Allow always** kept by an earlier version asks a migration question. Only
+answering **Allow always in this workspace** saves the model and price;
+answering **Allow once** saves nothing and the next window asks again.
+Accepting another paid feature's price or turning voice off preserves Tab's
+**Allow once**. **Ask again** and Tab's own price acceptance changes end its
+consent; a changed model or price asks again for its own key. A request whose
+model, consent or hook configuration changes before it goes out sends
+nothing; the last check runs immediately before the request is sent.
 
 The hard daily budget defaults to **$1.00 across every window on this
 machine**, reserved before each request. The status shows today's spend;
@@ -587,10 +617,40 @@ request. Snooze offers 15 minutes, an hour or until this window restarts.
 Copilot's sign-in state cannot be detected, so an installed active Copilot
 can cause yielding even when signed out.
 
-Cursor's `beforeTabFileRead` and `afterTabFileEdit` hooks remain planned for
-lane K after M91; this build has their host bridge but does not run those
-hook configurations yet. The probe receipts and current limits are in
-[the M94 record](docs/certification/m94.md).
+Cursor's `beforeTabFileRead` and `afterTabFileEdit` hooks run from the project
+`.muse/spark-hooks.json` or your `spark-hooks.json` beside Muse Code's settings,
+when hooks are enabled and the workspace is trusted, on either chat backend.
+Imported Cursor groups keep their format and source event; their matchers are
+`TabRead` and `TabWrite`. Before a file enters a request, each matching guard
+must exit 0 with `permission: allow`; denial, invalid output, a crash, a
+1,500 ms timeout or an oversized payload refuses that read. Verdicts are
+cached by path and content and cleared when the configuration changes.
+Accepted full and inferred partial edits carry real line text and a 1-based
+range; typing alone fires nothing. Edit hooks observe asynchronously and
+cannot veto an accepted edit. With no configured hook, completion text and
+command arguments remain unchanged.
+
+These hooks are local processes you configure, and they see your code as it
+is: a `beforeTabFileRead` hook receives the file's absolute path and its
+**full, unredacted text**, the workspace folders, the Tab model and the
+request id, for the current file and for every context file. An
+`afterTabFileEdit` hook receives the path, the accepted text and the line
+before and after it (512 characters each at most) and the range. The
+extension sends neither payload anywhere else; the command decides what it
+does with it. Hook processes get a scrubbed environment and never the Model
+API key.
+
+A `spark-hooks.json` that exists but does not load in full (invalid JSON,
+an unreadable or oversized file, or any reported problem, such as an unknown
+event name or a `beforeTabFileRead` matcher that never names `TabRead`)
+stops Tab reading any file, and the status bar says **Tab paused: hook file
+has errors** until you fix it; the Muse Spark log names the problem. Only a
+scope with no hook file reads without a guard. Each request is bound to the
+trust, Tab settings, `files.exclude`, ignore files and hook configuration in
+force when it starts: if any of them change before it is sent or before its
+answer shows, it is dropped. The fake-hook receipts and current release
+blockers are in [the M94 record](docs/certification/m94.md) and
+[the hook wiring record](docs/certification/m94-k.md).
 
 ## Backends
 
@@ -751,6 +811,12 @@ JupyterLab (Jupyter AI) with the agent.
 
 Subscription sign-in is being integrated under M95b; installed-editor and live
 success certification is still pending ([record](docs/certification/m95b.md)).
+
+The Models & Agents panel keeps the current section visible while another
+section loads. A pending tab indicates loading after 150 ms. Reloads reserve
+the section's last measured height; the first visit estimates from the host's
+rows and can adjust once when the section arrives.
+
 In **Models & Agents → Providers**, choose **Continue With ChatGPT** or
 **Use My Copilot Models**. The same actions are available in the command palette.
 Connecting selects the shared in-process harness and the account's first
@@ -890,6 +956,40 @@ Headless `exec` still declines questions immediately, reports
 conversations and the evaluation keep their immediate cancellation or
 clarification. Scheduled/unattended prompts defer at once and keep the
 question open, even when interactive deferral is disabled.
+
+## Several accounts per provider
+
+Accounts keep separate credentials, labels, order, limit groups and thresholds.
+The terminal manages their metadata and pins a headless run to one account,
+and an ACP session on the Model API backend lists them. Automatic swapping,
+pooled runs, placement on other devices and the editor's Accounts and usage
+pages are not part of this yet; the [roadmap](ROADMAP.md#in-progress) tracks
+them.
+
+The installed CLI, ACP agent and headless runs share one account service
+over the runtime's providers file and the OS credential store. Meta's Model
+API entry is built in, so listing, adding, ordering, thresholds and
+per-account credentials work with no pre-existing file; a corrupt file is
+reported, never clobbered. Any other provider needs its stored metadata row.
+Display order never selects a backend credential.
+
+Manage metadata through the agent (credentials only from standard input,
+never an argument or a file):
+
+- `muse-spark-code-acp providers accounts list --provider <id>`
+- `muse-spark-code-acp providers accounts add --provider <id> --account <id> --label <label>`
+- `muse-spark-code-acp providers accounts thresholds --provider <id> --account <id> --thresholds <JSON>`
+- `muse-spark-code-acp auth set --provider <id> --account <id>` (then paste the key)
+- `muse-spark-code-acp exec --account <id> <prompt>` pins one run to one account
+
+ACP's `/accounts` (list, current, thresholds) and the `account` picker read
+the same live metadata on the Model API backend; the Muse Code backend runs
+on its subscription with no account picker. Choosing another account stays
+refused: moving a session credential needs the pooled owner, so the session
+keeps its current account and says so. A pooled headless run stays refused
+until that owner lands too. A vendor limit stops only its own account, and
+the stop names the blocked account and its reset even with no usage page
+bundled.
 
 ## Developer options
 
@@ -1951,6 +2051,48 @@ or GitHub. Its GitHub Marketplace listing is awaiting GitHub's review.
 
 <!-- Marketplace listing (draft, pending GitHub review): https://github.com/marketplace/muse-spark-code-u
      Turn this into a link in the release that follows approval. -->
+
+<!-- reference: streamed-argument-previews -->
+
+## Streamed argument previews
+
+On the Model API backend, a selected model with verified streamed-argument
+support shows an **Argument preview** in its tool row, in the shared panel
+and in ACP. The preview shows only declared top-level string fields after
+their closing quote validates: file paths, shell commands, search patterns
+and fetch URLs. These values pass through the existing credential scrubber
+before display. File content, edits, nested values and other fields stay
+hidden. An offered IDE or MCP tool declares its own string fields the same
+way; a tool the request never offered shows a received byte count only.
+
+One model has that verified record today: `muse-spark-1.3-contributor`.
+Every other model keeps the completed-call row until its own stream is
+captured.
+
+An unfinished string never appears. Malformed JSON, duplicate keys,
+non-string values for declared fields or excessive nesting freeze the last
+safe display with **Preparing arguments…** until valid complete arguments
+arrive. Retained input and display text are bounded at 16,000 characters;
+the byte count continues after that bound. Updates coalesce every 100 ms,
+with a final safe flush before interruption. A preview does not execute a
+tool, request approval or run a hook; only the existing completed-response
+path admits execution. Previews never enter model replay.
+
+Completion, promotion and interruption clear a call's preview. Reloading
+the panel clears saved previews even while the same turn continues, because
+a turn ID cannot prove a tool is still pending. A fresh update restores an
+active preview to its original call row. Recognized credential patterns
+and registered literals are scrubbed; arbitrary unregistered secrets in a
+declared field remain outside that scrubber's contract.
+
+VS Code and interactive ACP use the selected record’s documented output
+maximum (131,072 tokens for Muse Spark), clamped by their budget. Headless
+`exec` requests at most 32,768 output tokens, or the record’s smaller maximum:
+its run ledger reserves the worst case before dispatch, so raising that cap
+would change what existing headless money budgets can run. Headless exec
+records completed tools and does not display live argument previews.
+
+<!-- /reference: streamed-argument-previews -->
 
 ## Code intelligence
 
@@ -4911,12 +5053,21 @@ schedules, workers and hooks always remain fenced.
 
 The unbound features include:
 
-- <a id="several-accounts-per-provider"></a>Several accounts per provider
-- <a id="streamed-argument-previews"></a>Tool argument previews
 - <a id="estimates"></a>Capacity estimates
 - <a id="the-vault"></a>Credential vault
 
 ## Development
+
+The internal B1 confinement build is `npm run build:confine` on Linux.
+It writes the native helper, generated privacy policy and portable inspect
+API to `temp/confine/`; these artifacts are excluded from product packages.
+The internal runner checks protected/private paths on canonical operands,
+rejects noncanonical helper input, and lets a cancelled caller detach from
+the shared self-test while session disposal still waits for its cleanup.
+The runner is unbound from editor approvals. Its certification record is
+[`docs/certification/m125-f1a.md`](docs/certification/m125-f1a.md), including
+the Windows exception and the macOS capture requirement. F1b owns approval
+integration; the shared runner adds no editor-specific behavior.
 
 Resource admission and the lazy launch shims are shared through
 `dist/resourceAdmission.js`; sampler, queue, tree accounting and disk policy
@@ -5376,6 +5527,24 @@ without rebuilding.
 - **Webview is blank after a change** — run `npm run build:dev` (F5 does this
   via the pre-launch task) and reload the window.
 
+#### M106 wire captures
+
+`node scripts/capture-m106-meta.mjs --help` explains the developer capture
+tool; `node scripts/capture-m106-meta.mjs --plan` prints its six requests
+without network access. Live collection requires an explicit paid-capture
+opt-in and a key on standard input. It runs two status GETs and four
+contributor-model POST attempts without retries, including a request with
+the recommended 131,072-token output cap. It writes counted, scrubbed
+receipts into a new directory and exits unsuccessfully if a required wire
+contract is refused or missing. The lead supplies the key and reviews the
+receipts before installing fixtures or enabling a capability.
+
+The [C-M106-1 capture record](docs/certification/m106-completion-captures.md)
+contains Muse Code 1.4.4's observed effort, feedback and lifecycle frames,
+the missing credential or local runtime for every provider, and the remaining
+live checks. The collector is a developer tool shared across Windows,
+macOS and Linux; editor bindings belong to the later completion lanes.
+
 PNG/JPEG images are resized before entering Model API replay when the selected
 model record supplies vision support and documented pixel limits. The portable
 worker preserves aspect ratio, never upscales, and bounds bytes, pixels, memory,
@@ -5534,7 +5703,8 @@ Always remains revocable. Unknown prices cannot spend under a dollar cap.
 Charges and durable claims use exact decimal USD, and uncertain dispatches
 retain liability.
 
-Structured side calls prefer a captured
+Argument previews use a separate lazy chunk and are available only with
+recorded streaming-argument support. Structured side calls prefer a captured
 schema format, allow one repair and retain the text fallback. Git commit and
 pull-request drafts apply this contract to the user's own turn, with repairs
 under the session's hooks and budget. Judge uses the selected model's captured

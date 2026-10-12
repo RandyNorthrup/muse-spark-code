@@ -11,7 +11,6 @@ import {
   openPullRequestInConversation,
 } from '../../src/host/git/conversationGitBundle'
 import type { GitFeaturesDeps, GitWindowFeatures } from '../../src/host/git/gitWindow'
-import { WindowHold, WorktreeRegistry } from '../../src/host/git/worktreeRegistry'
 import {
   CONVERSATION_GIT_BUNDLE_FILE,
   UI_TEXT,
@@ -21,16 +20,19 @@ import { uiLocale } from '../../src/shared/l10n/text'
 import { GitHubError } from '../../src/core/git/github'
 import { GitUnavailableError } from '../../src/host/git/gitExtension'
 import type { HostToWebviewMessage } from '../../src/shared/protocol'
-import { fakeGitWindow, memoryMemento } from './helpers/fakeGit'
+import { fakeGitWindow } from './helpers/fakeGit'
+import { gitFeaturesDeps } from './helpers/gitFeatures'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { removeFolder } from './helpers/temporaryFolders'
 
 const built = { folder: '', file: '' }
 
-// The bundle's VS Code: a trusted workspace and a GitHub session, nothing else.
+// The bundle's VS Code: a trusted workspace, a GitHub session and the git
+// extension installed (so M71's adapter, not M123's native route), nothing else.
 const VSCODE_STUB = `module.exports = {
   workspace: { isTrusted: true },
   authentication: { getSession: async () => ({ accessToken: 'marker-token' }) },
+  extensions: { getExtension: (id) => (id === 'vscode.git' ? { id } : undefined) },
 }
 `
 
@@ -53,32 +55,6 @@ beforeAll(async () => {
 })
 
 afterAll(() => removeFolder(built.folder))
-
-/** No git runs in these tests. */
-function unused(): Promise<never> {
-  return Promise.reject(new Error('not in this test'))
-}
-
-/** Activation's primitives as `createGitFeatures` takes them, over a fake GitHub answer. */
-function featuresDeps(fetch: GitFeaturesDeps['fetch']): GitFeaturesDeps {
-  return {
-    workspaceRoot: '/repo',
-    storageRoot: '/storage',
-    hold: new WindowHold(undefined),
-    registry: new WorktreeRegistry(memoryMemento(), 'linux', () => true),
-    workspaceState: memoryMemento(),
-    fetch,
-    userAgent: 'muse-spark-code/test',
-    runGit: unused,
-    gitProcess: unused,
-    env: {},
-    isCurrent: () => true,
-    admit: (start) => start(),
-    restartBackends: () => Promise.resolve(),
-    holdReleased: () => undefined,
-    log: new FakeLogOutputChannel(),
-  }
-}
 
 describe('conversation Git bundle', () => {
   it('refuses missing or malformed factories and retries a repaired module', () => {
@@ -182,7 +158,7 @@ describe('conversation Git bundle', () => {
     const fetch = vi.fn<GitFeaturesDeps['fetch']>(() =>
       Promise.resolve(Response.json({ message: 'Marker bad credentials' }, { status: 401 })),
     )
-    const deps = featuresDeps(fetch)
+    const deps = gitFeaturesDeps(fetch)
     await deps.workspaceState.update(WORKSPACE_STATE_KEYS.pullRequestLinks, {
       session: {
         repository: 'RandyNorthrup/muse-spark-code',
@@ -225,7 +201,7 @@ describe('conversation Git bundle', () => {
       throw new Error(UI_TEXT.gitUnavailable)
     })
     bundle.mockReturnValue({ createConversationGit: vi.fn(), createGitFeatures })
-    const deps = featuresDeps(vi.fn())
+    const deps = gitFeaturesDeps(vi.fn())
     const load = gitFeaturesLoader(bundle, deps)
     expect(bundle).not.toHaveBeenCalled()
     expect(() => load()).toThrow(UI_TEXT.gitUnavailable)

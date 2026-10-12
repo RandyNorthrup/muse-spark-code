@@ -660,7 +660,13 @@ describe('configured provider production transport', () => {
           confirmed,
         ),
       ),
-    ).rejects.toThrow(UI_TEXT.modelsPanelUnavailable)
+    ).rejects.toThrow(
+      // RVCM1062H P3: a rotated key lapses the confirmation, so the run keeps
+      // the helper's own guidance instead of the unavailable text.
+      condition === 'credential rotation'
+        ? UI_TEXT.scheduleConfirmationExpired
+        : UI_TEXT.modelsPanelUnavailable,
+    )
     expect(send).toHaveBeenCalledTimes(['redirect', 'echoed error'].includes(condition) ? 1 : 0)
     expect(services.client.readPlanUsage?.()).toHaveLength(
       ['redirect', 'echoed error'].includes(condition) ? 1 : 0,

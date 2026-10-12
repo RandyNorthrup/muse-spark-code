@@ -23,6 +23,7 @@ const captured = {
   layouts: [],
   outlines: [],
   bodyWidths: [],
+  footerTargets: [],
 }
 // Each real scene has its own bounded setup hook; retain every state without
 // combining six browser captures under one default ten-second deadline.
@@ -31,6 +32,7 @@ for (const scene of [
   'deferred-modal',
   'whats-new',
   'whats-new-highlights',
+  'whats-new-footer',
   'approval-several',
   'approval-narrow',
   'questions-open',
@@ -64,6 +66,15 @@ for (const scene of [
       { ...matrix, themes: ['light'], widths: [320] },
       async (capture, bytes, page) => {
         decodePng(bytes, capture.width, capture.height)
+        if (capture.scene === 'whats-new-footer' && capture.target !== null)
+          captured.footerTargets.push({
+            state: capture.state,
+            ...(await page.locator('[data-visual-target]').evaluate((element) => ({
+              tag: element.tagName,
+              text: element.textContent.trim(),
+              isInFooter: element.closest('footer') !== null,
+            }))),
+          })
         if (capture.scene === 'playbook-status')
           expect(await page.locator('.playbook-record').count()).toBe(1)
         const selectors =
@@ -230,6 +241,27 @@ describe('M114 real visual capture driver', () => {
           (capture) => capture.scene === 'whats-new-highlights' && capture.state === state,
         ),
       ).toMatchObject({ applied: true, target: expect.stringContaining('button') })
+  })
+  it("applies the footer scene's states to the footer, whatever the notes end with", () => {
+    // The fixture's last screen holds a code block and a link above the
+    // footer; the first control on the screen is not the footer's.
+    for (const state of ['default', 'hover', 'focus-visible', 'pressed'])
+      expect(captured.footerTargets.find((target) => target.state === state)).toEqual({
+        state,
+        tag: 'A',
+        text: 'Full Changelog on GitHub',
+        isInFooter: true,
+      })
+    expect(captured.footerTargets.find((target) => target.state === 'disabled')).toMatchObject({
+      tag: 'INPUT',
+      isInFooter: true,
+    })
+    for (const state of ['hover', 'focus-visible', 'pressed', 'disabled'])
+      expect(
+        captured.result.captures.find(
+          (capture) => capture.scene === 'whats-new-footer' && capture.state === state,
+        ),
+      ).toMatchObject({ applied: true, target: expect.stringMatching(/^(?:a|input)./) })
   })
   it('isolates fixture CSP origins for concurrent capture runs', async () => {
     const first = await makeFixtures(root, 11_401)

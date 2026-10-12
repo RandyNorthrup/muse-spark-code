@@ -49,11 +49,13 @@ import {
   MODEL_API_BASE_URL,
   MODEL_TEXT,
   type PromptCacheRetention,
+  type PaidFeature,
   UI_TEXT,
 } from '../../shared/constants'
 import { uiLocale } from '../../shared/l10n/text'
 import { forgetFile, requireFile } from '../lazyBundle'
 import type { Logger } from '../logger'
+import type { AutoCompactionLedgerClaim } from '../../core/backends/modelapi/autoCompactionAdmission'
 import {
   isModelApiBundle,
   type McpPoolFactory,
@@ -162,6 +164,8 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly isRepoMapInPrompt?: (() => boolean) | undefined
   /** `museSpark.modelApiAutoCompaction`, read at each in-turn decision (M101 C2). */
   readonly isAutoCompactionOn?: (() => boolean) | undefined
+  readonly autoCompactionEvaluated?: (() => boolean) | undefined
+  readonly paidUseFence?: (feature: PaidFeature, sessionId: string) => () => boolean
   /** `museSpark.modelApiObservationPacking`, read when a conversation starts or resumes (M73). */
   readonly isObservationPackingOn?: (() => boolean) | undefined
   /** `museSpark.modelApiShellKeepsDirectory`, read per shell call (M91 lane S). */
@@ -176,6 +180,14 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly createAttemptVerify?: ((workspaceRoot: string) => VerifyHooks) | undefined
   /** The runtime can share notices across aliases without changing its saved-session identity. */
   readonly workspaceEdits?: WorkspaceEdits | undefined
+  /** Runtime transport owns the daily debit; other hosts supply the reserve below. */
+  readonly autoCompactionAccounting?: 'transport'
+  /** The current shared daily cap, quoted before the first charge. */
+  readonly paidDailyBudgetUsd?: () => UsdAmount | Promise<UsdAmount>
+  /** D78 claim per attempt; without either owner there is no automatic admission. */
+  readonly reserveAutoCompaction?:
+    | ((amount: UsdAmount, signal: AbortSignal) => Promise<AutoCompactionLedgerClaim | undefined>)
+    | undefined
   readonly sessionWorkspaceRoot?: string | undefined
   /** Runtime owners refuse a retargeted or replaced workspace before use. */
   readonly assertWorkspaceCurrent?: (() => void) | undefined
@@ -413,6 +425,7 @@ export class ModelApiBackendManager {
         isRepoMapInPrompt: variant.isRepoMapInPrompt,
         observationPacking: this.deps.isObservationPackingOn,
         autoCompaction: this.deps.isAutoCompactionOn,
+        autoCompactionEvaluated: this.deps.autoCompactionEvaluated,
         shellKeepsDirectory: this.deps.isShellKeepsDirectoryOn,
         allowsPaidUse: variant.allowsPaidUse,
         isPaidUseRemembered: variant.isPaidUseRemembered,
@@ -432,6 +445,7 @@ export class ModelApiBackendManager {
         workspaceEdits: variant.workspaceEdits,
         sessionWorkspaceRoot: variant.sessionWorkspaceRoot,
       },
+      autoCompaction: this.deps,
       hookSettingsPath: this.deps.hookSettingsPath,
       createMcpServers: variant.createMcpServers,
     })
