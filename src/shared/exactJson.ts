@@ -7,7 +7,7 @@
 // literal's written digits independently of the runtime; the parsed value is
 // plain `JSON.parse` output, and `isExact` is false when a written literal
 // does not denote the double it parses to.
-import { canonicalUsd } from './usdSchema'
+import { canonicalUsd } from './usd'
 
 export interface ExactJsonRead {
   readonly value: unknown
