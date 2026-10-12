@@ -40307,14 +40307,17 @@ gate now reads the built bundles and fails on a member a sibling bundle does
 not export. On its first run that gate found a second name of the same kind:
 `canonicalUsd`, which `exactJson.ts` reads through
 `dist/modelApiBoundaries.js`; 0.18.0 judged every dollar an earlier version
-had written as a number inexact and left that usage out. `usd.ts` exports
-it now. Report a Problem refused every setting name with a second dot
+had written as a number inexact and left that usage out. That bundle's entry
+exports it now. Report a Problem refused every setting name with a second dot
 (`museSpark.vault.enabled`), so it never opened for anyone who had changed
 one; the name pattern takes dotted segments, and a report with its facts
 switched off no longer depends on them. Evidence, the drills and the live proof:
 `docs/certification/hotfix-0181-bundle-exports.md` (D6). A fixes only patch,
-so without Highlights. No webview input changes: no frame and no README
-screenshot moves. This is preparation, not publication; the public roadmap
+so without Highlights. No browser bundle changes: `dist/webview` is 0.18.0's
+byte for byte (176 files compared), so no frame and no README screenshot
+moves; five other files of `dist` differ (the two bundles above, the report
+builder in `dist/report.js` and `dist/acp.js`, and the release notes). This is
+preparation, not publication; the public roadmap
 (M122) lists 0.18.1 as the next release until a `0.18.1 released (…)`
 record follows here.
 
