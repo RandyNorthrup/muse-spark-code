@@ -99,6 +99,12 @@ export function createScheduler(deps: SchedulerDeps) {
   const lifetime = new AbortController()
   const signal = AbortSignal.any([lifetime.signal, deps.host.signal ?? lifetime.signal])
   const isClosing = () => signal.aborted
+  // One question, asked everywhere before a hand-over to a host: may this
+  // process act on this fire now? It holds the workspace and it is not
+  // closing. A process that releases its hold without closing (an ACP session
+  // ends, a window loses trust or sign-in) stops exactly like a closing one:
+  // the fire stays pending for whoever holds the workspace next.
+  const canAct = (workspaceKey: string) => !isClosing() && deps.host.holds(workspaceKey)
   const active = new Set<Promise<void>>()
   const readings = new Map<string, ScheduleClockReading>()
   const pending = new Set<string>()
@@ -173,12 +179,13 @@ export function createScheduler(deps: SchedulerDeps) {
       : undefined
   }
   const execute = async (intent: ScheduleRunIntent): Promise<void> => {
-    // An orderly close keeps every unhanded admission for the next owner.
-    if (isClosing()) return
+    // An orderly close keeps every unhanded admission for the next owner, and
+    // so does a process that released its hold without closing.
+    if (!canAct(intent.schedule.workspaceKey)) return
     const known =
       knownSettlements.get(intent.runId) ??
       (await deps.runs.acknowledged(intent.schedule.workspaceKey, intent.runId))
-    if (isClosing()) return
+    if (!canAct(intent.schedule.workspaceKey)) return
     if (known !== undefined) {
       await settle(intent, known)
       return
@@ -186,7 +193,7 @@ export function createScheduler(deps: SchedulerDeps) {
     const ledger = scheduleDeliveryStateSchema.parse(
       await deps.runs.lookupRun(intent.schedule.workspaceKey, intent.runId),
     )
-    if (isClosing()) return
+    if (!canAct(intent.schedule.workspaceKey)) return
     if (ledger.status === 'settled' || ledger.status === 'uncertain') {
       await deps.runs.advance(intent)
       await settle(intent, ledger.fire)
@@ -217,9 +224,12 @@ export function createScheduler(deps: SchedulerDeps) {
       return
     }
     const job = await load(intent.schedule.workspaceKey, intent.schedule.id)
-    if (isClosing()) return
+    if (!canAct(intent.schedule.workspaceKey)) return
     const isAdmitted = await deps.runs.advance(intent)
-    if (isClosing()) return
+    // Past this point the admission is consumed; a process that may no longer
+    // act still hands nothing to a host, and settles nothing either: the next
+    // holder replays the idempotent admission and delivers exactly once.
+    if (!canAct(intent.schedule.workspaceKey)) return
     if (!isAdmitted) {
       await settle(
         intent,
@@ -253,7 +263,7 @@ export function createScheduler(deps: SchedulerDeps) {
       return
     }
     const fresh = await load(job.workspaceKey, job.id)
-    if (isClosing()) return
+    if (!canAct(intent.schedule.workspaceKey)) return
     if (fresh === undefined) {
       await settle(
         intent,
@@ -268,10 +278,28 @@ export function createScheduler(deps: SchedulerDeps) {
     }
     const delivery = { ...intent, schedule: fresh }
     if (!(await deps.runs.startDispatch(intent, fresh.grant.paidCapUsd))) {
+      // A lost race is not an uncertain outcome. When another live owner
+      // started the dispatch, this process records nothing and leaves the fire
+      // to its owner; the real result and its cost are never lost to a false
+      // record here.
+      if (
+        await deps.runs.isLiveDispatchOwnedElsewhere?.(intent.schedule.workspaceKey, intent.runId)
+      )
+        return
       const state = await deps.runs.lookupRun(intent.schedule.workspaceKey, intent.runId)
       await settle(
         intent,
         state.status === 'settled' || state.status === 'uncertain' ? state.fire : uncertain(intent),
+      )
+      return
+    }
+    // startDispatch is the hand-over: this process owns the dispatch now. A
+    // hold released after it still sends nothing, and the owned fire is
+    // recorded as not sent with its liability released, never as uncertain.
+    if (!canAct(intent.schedule.workspaceKey)) {
+      await settle(
+        intent,
+        unspent(intent, deps.host.now(), 'skipped', UI_TEXT.scheduleV2.messages.workspaceNotHeld),
       )
       return
     }
@@ -309,10 +337,25 @@ export function createScheduler(deps: SchedulerDeps) {
       // Only the core journals terminal facts. A host may offer a known result,
       // but absence/admission cannot keep a dispatched fire replayable.
       try {
-        // The host owns queue withdrawal and cost facts. An abort does not
-        // discard an answer arriving during that cooperative close.
-        if (returned !== undefined && isClosing()) {
-          result = validateScheduleSettlement(
+        // A host refusal before anything is sent (the hold was released, the
+        // runtime is closing) is a known not-sent fire with its liability
+        // released, never an uncertain one with the cap kept. The refusal is
+        // thrown synchronously at the boundary, before any send.
+        if (
+          !hasReturned &&
+          error instanceof Error &&
+          error.message === UI_TEXT.scheduleV2.messages.workspaceNotHeld
+        ) {
+          result = unspent(
+            delivery,
+            deps.host.now(),
+            'skipped',
+            UI_TEXT.scheduleV2.messages.workspaceNotHeld,
+          )
+        } else if (returned !== undefined && isClosing()) {
+          // The host owns queue withdrawal and cost facts. An abort does not
+          // discard an answer arriving during that cooperative close.
+          const reported = validateScheduleSettlement(
             delivery.schedule,
             delivery.runId,
             delivery.occurrenceMs,
@@ -323,6 +366,13 @@ export function createScheduler(deps: SchedulerDeps) {
             ),
             delivery.event,
           )
+          // Known means known: after an abort only a CONFIRMED withdrawal from
+          // the queue is a known nothing-sent fire. A turn that had started is
+          // never recorded as skipped; its outcome stays unknown.
+          result =
+            reported.outcome === 'skipped' && reported.reason !== UI_TEXT.turnUnqueued
+              ? uncertain(delivery)
+              : reported
         } else {
           const after = scheduleDeliveryStateSchema.parse(await deps.host.lookupRun(intent.runId))
           if (after.status === 'settled' || after.status === 'uncertain')
@@ -412,6 +462,10 @@ export function createScheduler(deps: SchedulerDeps) {
           if (first === undefined) return
           for (const _entry of group) {
             if (signal.aborted) break
+            // The drain selects only what this process may act on. A fire
+            // whose workspace this process no longer holds stays pending for
+            // whoever holds it; this process neither advances nor settles it.
+            if (!canAct(first.schedule.workspaceKey)) break
             const queue = await deps.runs.pending(first.schedule.workspaceKey)
             const intent = queue.find(
               (intent) =>
@@ -453,8 +507,19 @@ export function createScheduler(deps: SchedulerDeps) {
     isOnlyManual: boolean,
   ) => {
     const job = await load(workspaceKey, id)
-    if (job === undefined || !deps.host.holds(workspaceKey) || !canRun(job, deps.host.now()))
-      return { kind: 'refused' as const, reason: UI_TEXT.scheduleV2.labels.paused }
+    // A refusal names its true reason: deleted, not held, ended and paused
+    // each have their own sentence.
+    if (job === undefined)
+      return { kind: 'refused' as const, reason: UI_TEXT.scheduleV2.messages.scheduleDeleted }
+    if (!deps.host.holds(workspaceKey))
+      return { kind: 'refused' as const, reason: UI_TEXT.scheduleV2.messages.workspaceNotHeld }
+    if (!canRun(job, deps.host.now()))
+      return {
+        kind: 'refused' as const,
+        reason: job.paused
+          ? UI_TEXT.scheduleV2.labels.paused
+          : UI_TEXT.scheduleV2.messages.scheduleEnded,
+      }
     const trigger = job.trigger.kind === 'afterEvent' ? job.trigger.event : job.trigger
     if (
       isOnlyManual &&
@@ -490,10 +555,15 @@ export function createScheduler(deps: SchedulerDeps) {
       await Promise.allSettled(active)
       // Retry only terminal facts produced by this scheduler. Closing never
       // acquires another process's target lease or consumes its admissions.
+      // A failed retry keeps its entry and never skips the rest of close.
       for (const [runId, fire] of knownSettlements) {
-        await deps.runs.acknowledge(fire)
-        await deps.store.record(fire)
-        knownSettlements.delete(runId)
+        try {
+          await deps.runs.acknowledge(fire)
+          await deps.store.record(fire)
+          knownSettlements.delete(runId)
+        } catch {
+          continue
+        }
       }
     },
     blockedRuns() {

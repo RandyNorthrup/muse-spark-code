@@ -71,13 +71,12 @@ export class RuntimeScheduleHost implements ScheduleHostPort {
     event?: ScheduleEvent,
   ): Promise<ScheduleDeliveryResult> {
     const s = scheduleV2Schema.parse(schedule)
+    // A released hold refuses synchronously at the boundary, before anything
+    // is sent. The core matches this sentence to record a known not-sent fire
+    // with its liability released, never an uncertain one.
+    if (!this.holds(s.workspaceKey)) throw new Error(UI_TEXT.scheduleV2.messages.workspaceNotHeld)
     const c = scheduleRunContextSchema.parse(context)
-    if (
-      !this.holds(s.workspaceKey) ||
-      !isRunContextOf(s, c) ||
-      !Number.isSafeInteger(occurrenceMs) ||
-      occurrenceMs < 0
-    )
+    if (!isRunContextOf(s, c) || !Number.isSafeInteger(occurrenceMs) || occurrenceMs < 0)
       throw new Error(UI_TEXT.scheduleV2.runtime.invalidRequest)
     const e = event === undefined ? undefined : scheduleEventSchema.parse(event)
     let result: ScheduleDeliveryResult

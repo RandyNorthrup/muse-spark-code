@@ -1,8 +1,6 @@
-import { Usd, legacyUsdSchema, type UsdAmount } from '../shared/usd'
+import { Usd, type UsdAmount } from '../shared/usd'
 // Durable daily admission for the standalone runtime; no VS Code imports.
-import { readFileSync, statSync } from 'node:fs'
 import path from 'node:path'
-import * as z from 'zod/mini'
 import { createSessionBudgetJournal } from '../host/backend/sessionBudgetJournal'
 import {
   isModelApiError,
@@ -22,24 +20,14 @@ import {
   EXEC_USD_DECIMALS,
   HTTP_TOO_MANY_REQUESTS,
   PAID_DAILY_BUDGET,
-  RUNTIME_SETTINGS_FILE,
-  SETTING_DEFAULTS,
   TOKENS_PER_MILLION,
   UI_TEXT,
 } from '../shared/constants'
-import { storeErrorCode } from '../host/backend/storeErrors'
 import { scheduleBudget } from '../core/paid/scheduleBudget'
+import { readSharedDailyCapUsd } from '../core/paid/sharedDailyCap'
 import type { RunLedger, ResponseTicket } from './exec/runLedger'
 import type { LastResponse, Refusal } from './exec/execProtocol'
 
-const settingsSchema = z.strictObject({
-  paidDailyBudgetUsd: z.optional(
-    z
-      .number()
-      .check(z.minimum(PAID_DAILY_BUDGET.minimumUsd), z.maximum(PAID_DAILY_BUDGET.maximumUsd)),
-  ),
-})
-const dailyLimitSchema = z.object({ limitUsd: legacyUsdSchema, stopped: z.boolean() })
 const ceilUsd = (cost: UsdAmount) => Usd.from(cost).ceiling(EXEC_USD_DECIMALS).toAmount()
 
 export function createRuntimeDailyBudget(deps: {
@@ -57,47 +45,10 @@ export function createRuntimeDailyBudget(deps: {
     const date = new Date(deps.now())
     return [date.getFullYear(), date.getMonth() + 1, date.getDate()].join('-')
   }
-  const configuredCapUsd = () => {
-    try {
-      return (
-        settingsSchema.parse(
-          JSON.parse(readFileSync(path.join(deps.dataFolder, RUNTIME_SETTINGS_FILE), 'utf8')),
-        ).paidDailyBudgetUsd ?? SETTING_DEFAULTS.paidDailyBudgetUsd
-      )
-    } catch (error: unknown) {
-      if (storeErrorCode(error) === 'ENOENT') return SETTING_DEFAULTS.paidDailyBudgetUsd
-      throw new Error(UI_TEXT.paidDailyLedgerUnavailable, { cause: error })
-    }
-  }
-  const dailyCapUsd = (scope: string) => {
-    const directory = path.join(deps.dataFolder, PAID_DAILY_BUDGET.directory, scope)
-    let isStopped = true
-    try {
-      statSync(path.join(directory, PAID_DAILY_BUDGET.stopDirectory))
-    } catch (error: unknown) {
-      if (storeErrorCode(error) !== 'ENOENT')
-        throw new Error(UI_TEXT.paidDailyLedgerUnavailable, { cause: error })
-      isStopped = false
-    }
-    if (isStopped) throw new Error(UI_TEXT.paidDailyStopped)
-    let limit: z.infer<typeof dailyLimitSchema>
-    try {
-      limit = dailyLimitSchema.parse(
-        JSON.parse(readFileSync(path.join(directory, PAID_DAILY_BUDGET.overrideFile), 'utf8')),
-      )
-    } catch (error: unknown) {
-      if (storeErrorCode(error) === 'ENOENT') return Usd.from(configuredCapUsd()).toAmount()
-      throw new Error(UI_TEXT.paidDailyLedgerUnavailable, { cause: error })
-    }
-    if (limit.stopped) throw new Error(UI_TEXT.paidDailyStopped)
-    const amount = Usd.from(limit.limitUsd)
-    if (
-      amount.compare(Usd.from(PAID_DAILY_BUDGET.minimumUsd)) < 0 ||
-      amount.compare(Usd.from(PAID_DAILY_BUDGET.maximumUsd)) > 0
-    )
-      throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
-    return amount.toAmount()
-  }
+  // The shared daily cap reads the one source both families share: the
+  // data-folder settings file with the journal's stop/override. Never the
+  // window's VS Code setting, which can name a different number.
+  const dailyCapUsd = (scope: string) => readSharedDailyCapUsd(deps.dataFolder, scope)
   return {
     capUsd: () => dailyCapUsd(day()),
     reserveSchedule: scheduleBudget({

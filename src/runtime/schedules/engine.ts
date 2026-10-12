@@ -467,11 +467,14 @@ export function createScheduleEngine(options: ScheduleEngineOptions) {
     dueWorkspaces: () => registry.list(),
     close: async () => {
       closeSignal.abort()
-      await runtimeDelivery?.close()
-      await coreScheduler.close()
+      // A throw from one stage never skips the rest of close: every dispatch
+      // and tick is still joined before the first error is rethrown. The
+      // settled reasons below keep their identity, as in the drain loop.
+      const stages = await Promise.allSettled([runtimeDelivery?.close(), coreScheduler.close()])
       await Promise.allSettled(activeDispatches)
       await Promise.allSettled(activeTicks)
       controls.clear()
+      for (const stage of stages) if (stage.status === 'rejected') throw stage.reason
     },
     verifyWake: options.verifyWake ?? (() => Promise.resolve({ scheduledPrompts: false })),
     ...(options.platform !== undefined && { platform: options.platform }),
