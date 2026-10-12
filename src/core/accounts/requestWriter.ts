@@ -10,28 +10,32 @@ import { accountStopText } from '../usage/accountUsageText'
 import type { AccountStore } from '../providers/accounts'
 import type { AccountBinding, AccountCredential } from '../providers/accountCredentialRecord'
 import type { ProviderClient, ResponseAttemptGuard } from '../backends/modelapi/client'
+import type { ResponseObservation } from '../backends/modelapi/transport'
 import type { PaidUseRequest, PaidUseDecision } from '../../shared/paid'
 import { PAID_PRICES_USD } from '../../shared/constants'
 import { Usd } from '../../shared/usd'
 import { estimateInput, requestParts } from '../backends/modelapi/sessionBudget'
 import { modelPolicyFor, modelPricedUsage } from '../backends/modelapi/modelPolicy'
 import { estimateCostUsd } from '../usage/insights'
-import type { CreateImageBody, EditImageBody, ImagesResponse } from '../backends/modelapi/schemas'
+import type {
+  CreateImageBody,
+  EditImageBody,
+  ImagesResponse,
+  ResponseObject,
+  StreamEvent,
+} from '../backends/modelapi/schemas'
 import type { ModelClient } from '../backends/modelapi/modelPolicy'
-import { UI_TEXT } from '../../shared/constants'
+import {
+  ACCOUNT_REMOTE_LIMIT_DEFAULT_MS,
+  MILLISECONDS_PER_SECOND,
+  UI_TEXT,
+} from '../../shared/constants'
 import { parseUsd } from '../../shared/accountUsd'
 import { usdAmountSchema, type UsdAmount } from '../../shared/usd'
 
 const context = new AsyncLocalStorage<PaidBilling>()
 export function activeAccountBilling(): PaidBilling | undefined {
   return context.getStore()
-}
-
-class AccountRequestBoundaryError extends Error {
-  public readonly code = 'accountRequestBoundary'
-  public constructor() {
-    super(UI_TEXT.accounts.ownerBusy)
-  }
 }
 
 export interface AccountRequestLease {
@@ -70,13 +74,41 @@ export interface AccountRequestPort {
   current(kind: AccountPoolRequest['kind'], owner: string): string | undefined
 }
 
+/** Terminal response events: whichever carries usage settles the lease. */
+const TERMINAL_RESPONSE_TYPES: ReadonlySet<string> = new Set([
+  'response.completed',
+  'response.incomplete',
+  'response.failed',
+])
+
+function isTerminalResponseEvent(
+  event: StreamEvent,
+): event is Extract<StreamEvent, { readonly response: ResponseObject }> {
+  return TERMINAL_RESPONSE_TYPES.has(event.type)
+}
+
+/** When the payer's 429 block lifts: its retry-after, an HTTP date, or the shared default. */
+function leaseResetAt(header: string | null, now: () => number): string {
+  if (header !== null && header.trim() !== '') {
+    const seconds = Number(header)
+    if (Number.isFinite(seconds) && seconds >= 0)
+      return new Date(now() + seconds * MILLISECONDS_PER_SECOND).toISOString()
+    const at = Date.parse(header)
+    if (!Number.isNaN(at)) return new Date(at).toISOString()
+  }
+  return new Date(now() + ACCOUNT_REMOTE_LIMIT_DEFAULT_MS).toISOString()
+}
+
 function paidGuard(
   lease: AccountRequestLease,
   originalGuard: ResponseAttemptGuard | undefined,
   digest: string,
+  now: () => number,
 ): ResponseAttemptGuard {
   // The original fence owns the unchanged shared budget; this fence owns
-  // the actual credential and its account reservation.
+  // the actual credential and its account reservation. A retry is a new send
+  // on this same lease: the fence rechecks the payer instead of refusing it,
+  // and every 429 observation reaches this lease's durable block and refund.
   return Object.assign(
     (actual: string | undefined) => {
       if (actual !== lease.keyDigest || !lease.isCurrent())
@@ -87,6 +119,12 @@ function paidGuard(
       ...originalGuard,
       beforeRequestStarted: () => {
         lease.beforeSend()
+      },
+      observe: (observation: ResponseObservation) => {
+        if (observation.rateLimited === true) {
+          lease.rateLimit(leaseResetAt(observation.headers?.['retry-after'] ?? null, now))
+        }
+        originalGuard?.observe?.(observation)
       },
     },
   )
@@ -137,6 +175,7 @@ export class AccountRequestWriter implements AccountRequestPort {
     allows: (paid: PaidUseRequest, requiresAsking: boolean) => Promise<PaidUseDecision>,
   ): ProviderClient {
     const within = this.within.bind(this)
+    const now = () => this.deps.pool.deps.now()
     const acquire = async (estimate: AccountPoolRequest['estimate']) => {
       const account =
         activeAccountBilling()?.account ??
@@ -174,7 +213,7 @@ export class AccountRequestWriter implements AccountRequestPort {
         const client = lease.paidClient
         if (client === undefined) throw new Error(UI_TEXT.accounts.unavailable)
         const digest = await original.currentKeyDigest()
-        const fence = paidGuard(lease, admit, digest)
+        const fence = paidGuard(lease, admit, digest, now)
         const result = await within(lease, () =>
           'images' in body
             ? client.editImage(body, signal, fence)
@@ -210,26 +249,29 @@ export class AccountRequestWriter implements AccountRequestPort {
       })
       let cost: UsdAmount | null = null
       let usage: { inputTokens: number; outputTokens: number } | undefined
+      const digest = await original.currentKeyDigest()
+      const events = lease.client.streamResponse(
+        body,
+        signal,
+        onRetry,
+        budget,
+        paidGuard(lease, admit, digest, now),
+        confirmed === undefined
+          ? undefined
+          : {
+              ...confirmed,
+              keyDigest: lease.keyDigest,
+              isStillAllowed: () => confirmed.isStillAllowed() && lease.isCurrent(),
+            },
+      )
       try {
-        const digest = await original.currentKeyDigest()
-        const events = lease.client.streamResponse(
-          body,
-          signal,
-          onRetry,
-          budget,
-          paidGuard(lease, admit, digest),
-          confirmed === undefined
-            ? undefined
-            : {
-                ...confirmed,
-                keyDigest: lease.keyDigest,
-                isStillAllowed: () => confirmed.isStillAllowed() && lease.isCurrent(),
-              },
-        )
         for (;;) {
           const event = await within(lease, () => events.next())
           if (event.done) break
-          if (event.value.type === 'response.completed' && event.value.response.usage != null) {
+          // The settlement comes from whichever terminal event carries usage:
+          // completed, incomplete or failed. Only truly unknown cost stays an
+          // upper bound.
+          if (isTerminalResponseEvent(event.value) && event.value.response.usage != null) {
             const counted = event.value.response.usage
             const priced = modelPricedUsage(counted)
             if (
@@ -257,7 +299,14 @@ export class AccountRequestWriter implements AccountRequestPort {
           yield event.value
         }
       } finally {
-        await lease.settle(cost, usage)
+        // The lease releases the underlying generator and stream on every
+        // exit, including a consumer that throws mid-stream: nothing stays
+        // suspended. Settlement still runs afterwards.
+        try {
+          await events.return(undefined)
+        } finally {
+          await lease.settle(cost, usage)
+        }
       }
     }
     return {
@@ -298,7 +347,10 @@ export class AccountRequestWriter implements AccountRequestPort {
       admission = await this.deps.pool.acquire(request)
     } catch (error: unknown) {
       if (error instanceof AccountPoolStoppedError && error.trigger !== undefined) {
-        const account = this.current(request.kind, request.owner) ?? request.account
+        // The stop event belongs to this lease's own payer: a retry admission
+        // pinned to A names A even while B is queued for the next request.
+        const account =
+          request.retryAccount ?? this.current(request.kind, request.owner) ?? request.account
         const label =
           this.deps.pool.deps.accounts().find((row) => row.id === account)?.label ?? account
         error.message = accountStopText(
@@ -366,8 +418,9 @@ export class AccountRequestWriter implements AccountRequestPort {
               })
             },
             beforeSend: () => {
+              // A retry is a new send on this same lease: recheck the payer's
+              // currency and caps instead of refusing a second send.
               if (!isCurrent()) throw new Error(UI_TEXT.accounts.invalidAccount)
-              if (hasSent) throw new AccountRequestBoundaryError()
               admission.beforeSend()
               admission.check()
               hasSent = true

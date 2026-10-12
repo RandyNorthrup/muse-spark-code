@@ -341,12 +341,15 @@ export class AccountPool {
   ): Promise<
     Awaited<ReturnType<AccountPool['select']>> & { claim: AccountPoolClaim; check: () => void }
   > {
-    // Policy confirmation may remain open indefinitely. Only the short
-    // reserve/check section queues; unrelated owners keep making progress.
-    const selected = await this.select(request, isEligible)
+    // The lease owns its paid request from choice to settlement: selection
+    // runs inside the reservation queue, so a second worker at equal
+    // headroom sees the first reservation and reranks instead of joining it.
+    // Policy confirmation may remain open indefinitely. Only admissions
+    // serialize; unrelated owners keep making progress once admitted.
     const previous = this.admission
     const operation = (async () => {
       await previous
+      const selected = await this.select(request, isEligible)
       if (this.triggers(selected.account, selected.estimate, this.deps.journal, request).length > 0)
         return
       const claim = await this.deps.reserve(selected.account, selected.estimate, request)
