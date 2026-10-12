@@ -183,8 +183,13 @@ export function classifyRetry(tables: RetryTables, failure: RetryFailure): Retry
 export function rateLimitResetAt(retryAfter: string | null | undefined, now: number): string {
   if (retryAfter !== null && retryAfter !== undefined && retryAfter.trim() !== '') {
     const seconds = Number(retryAfter)
-    if (Number.isFinite(seconds) && seconds >= 0)
-      return new Date(now + seconds * MILLISECONDS_PER_SECOND).toISOString()
+    // A numeric value is seconds like the wire parser reads them: negative
+    // means no usable wait, so the shared default, never a date parse of the
+    // digits. Only a non-numeric value can be an HTTP date.
+    if (Number.isFinite(seconds))
+      return seconds >= 0
+        ? new Date(now + seconds * MILLISECONDS_PER_SECOND).toISOString()
+        : new Date(now + ACCOUNT_REMOTE_LIMIT_DEFAULT_MS).toISOString()
     const at = Date.parse(retryAfter)
     if (!Number.isNaN(at)) return new Date(at).toISOString()
   }

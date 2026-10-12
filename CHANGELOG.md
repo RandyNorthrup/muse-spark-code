@@ -53,6 +53,8 @@ happened, not what was planned; superseded entries are kept.
 
 - Held account request path chooses its payer before hosted-search consent; user-selected accounts cannot borrow the default account approval.
 
+- Held paid requests run on one lease from choice to settlement: retries survive the lease's own rate-limit block, image spending questions keep Stop and per-request consent, Judge sends leave no per-send residue and stay on the turn's payer, negative waits map to the shared default, and stop messages name the earliest recovery. Certification stays off.
+
 - The held Accounts section states that the chosen account serves the chat's own requests while background work spreads by headroom, in all fourteen languages.
 
 - Account availability now restores its registered release text, setting

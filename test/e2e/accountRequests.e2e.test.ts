@@ -370,12 +370,14 @@ describe('installed account request writer', () => {
       await t.services.sessions('meta').use(t.session.sessionId, 'work', () => true)
       if (t.requests.paidClient === undefined)
         throw new Error('missing installed paid request port')
-      const question: PaidUseRequest =
-        feature === 'imageGeneration'
-          ? { feature, kind: 'generate', path: 'test.png', sources: [], prompt: 'fixture' }
-          : feature === 'autoReviewer'
-            ? { feature, modelId: MODEL, tool: 'write_file', action: 'fixture' }
-            : { feature, kind: 'prompt', modelId: MODEL, event: 'PreToolUse' }
+      let question: PaidUseRequest
+      if (feature === 'imageGeneration') {
+        question = { feature, kind: 'generate', path: 'test.png', sources: [], prompt: 'fixture' }
+      } else if (feature === 'autoReviewer') {
+        question = { feature, modelId: MODEL, tool: 'write_file', action: 'fixture' }
+      } else {
+        question = { feature, kind: 'prompt', modelId: MODEL, event: 'PreToolUse' }
+      }
       const ask = vi.fn(() => {
         expect(frames).toEqual([])
         expect(activeAccountBilling()).toMatchObject({ account: 'work' })
@@ -474,14 +476,16 @@ describe('installed account request writer', () => {
   it('refuses a miswired A client for admitted B before any model frame or adoption', async () => {
     const t = await rig(true)
     await t.turn()
-    const requests: AccountRequestPort = {
-      current: t.requests.current.bind(t.requests),
-      within: t.requests.within.bind(t.requests),
-      acquire: async (request, target) => ({
+    // The miswired client rides on the real writer: withLease dispatches
+    // through this acquire override, so the refusal path stays exercised.
+    // paidClient stays absent exactly as this double had it.
+    const requests: AccountRequestPort = Object.assign(Object.create(t.requests), {
+      acquire: async (request: Parameters<AccountRequestPort['acquire']>[0], target: string) => ({
         ...(await t.requests.acquire(request, target)),
         client: t.client,
       }),
-    }
+      paidClient: undefined,
+    })
     const host = createHost(t.client, requests)
     hosts.push(host)
     const { session, events } = await observedSession(host)

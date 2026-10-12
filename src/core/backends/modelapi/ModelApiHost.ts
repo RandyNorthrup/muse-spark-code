@@ -1377,6 +1377,9 @@ interface ApprovalOutcome {
   readonly isApproved: boolean
   readonly feedback: string | undefined
   readonly deniedByHook?: boolean
+  /** An image spending question deferred to its lease carries this call's
+   * forced-ask flag with the approval, never on a shared session field. */
+  readonly requiresImageAsking?: boolean
 }
 
 /** One wait in a child task's admission (a question, a hook, a popup): its refusal, if any. */
@@ -2638,7 +2641,6 @@ export class ModelApiSession implements ScheduledAgentSession {
    * The model the request in flight was sent to (M82): its usage is priced
    * at that model's rates, whatever the session switched to meanwhile.
    */
-  private accountImageAsking = false
   private accountLease: AccountRequestLease | undefined
   private sendingModelId: string | undefined
   private sendingContextModel: ContextModel | undefined
@@ -6010,7 +6012,9 @@ export class ModelApiSession implements ScheduledAgentSession {
       const kind = this.accountKind()
       const token = this.owner.token()
       const modelRevision = this.modelRevision
-      const lease = await requests.acquire(
+      // The turn's lease is held only here: acquisition, the attempt and the
+      // release in a finally, in one place. No caller receives a bare lease.
+      return await requests.withLease(
         {
           retryAccount: payer?.account,
           owner: this.sessionId,
@@ -6029,79 +6033,81 @@ export class ModelApiSession implements ScheduledAgentSession {
           checkSharedCaps: () => this.openReservation?.claim?.check(this.currentBudgetCap()),
         },
         resolved.origin,
-      )
-      if (payer !== undefined) payer.account ??= lease.account
-      let cost: UsdAmount | null = null
-      let usage: { inputTokens: number; outputTokens: number } | undefined
-      this.accountLease = lease
-      // Search authorization belongs to this lease's payer, including a user
-      // selection made before the first request. The consent service owns
-      // remembered grants; a turn quote never crosses account boundaries.
-      this.approvedSearchQuote = undefined
-      try {
-        return await requests.within(lease, async () => {
-          const grant = this.childTaskGrant
-          const paidRequest =
-            grant?.paidRequest ??
-            this.deps.admitResponseAttempt?.paidRequest ??
-            confirmedRequest?.paidRequest
-          if (
-            (kind === 'worker' || paidRequest !== undefined) &&
-            lease.account !== ACCOUNT_DEFAULT_ID
-          ) {
-            if (paidRequest === undefined) throw new Error(UI_TEXT.accounts.unavailable)
-            const allows = this.deps.allowsAccountPaidUse ?? this.deps.allowsPaidUse
-            if (
-              (await allows(paidRequest, false, this.askingSessionId)) !== true ||
-              !lease.isCurrent()
-            )
-              throw new Error(UI_TEXT.accounts.unavailable)
-            if (
-              grant !== undefined &&
-              (this.childTaskGrant !== grant ||
-                this.parentSession?.childGrantRefusal(grant, grant.keyDigest, this.modelId) !==
-                  undefined)
-            )
-              throw new Error(UI_TEXT.accounts.unavailable)
-            // The grant owns the unchanged parent budget identity; the lease
-            // separately owns the paying credential and its consent.
-          }
-          const confirmed =
-            confirmedRequest === undefined
-              ? undefined
-              : {
-                  ...confirmedRequest,
-                  keyDigest: lease.keyDigest,
-                  isStillAllowed: () => confirmedRequest.isStillAllowed() && lease.isCurrent(),
-                }
-          return await this.streamAttempt(turnId, signal, open, budget, step, confirmed, {
-            lease,
-            receipt: (response) => {
-              if (response.usage == null || !isCountedUsage(response.usage)) return
-              const tokenCost =
-                resolved.price.settle(modelPricedUsage(response.usage), {
-                  cost: response.usage.provider_cost_usd,
-                }) ?? null
-              const search = this.openReservation
-              cost =
-                tokenCost === null ||
-                (hasSearch &&
-                  isPositiveUsd(search?.searchReservedUsd ?? Usd.from(0).toAmount()) &&
-                  search?.hasTerminalSearchCount !== true)
-                  ? null
-                  : sumUsd(tokenCost, search?.searchSpentUsd ?? Usd.from(0).toAmount())
-              usage = {
-                inputTokens: response.usage.input_tokens,
-                outputTokens: response.usage.output_tokens,
+        async (lease, report) => {
+          if (payer !== undefined) payer.account ??= lease.account
+          this.accountLease = lease
+          // Search authorization belongs to this lease's payer, including a user
+          // selection made before the first request. The consent service owns
+          // remembered grants; a turn quote never crosses account boundaries.
+          this.approvedSearchQuote = undefined
+          try {
+            return await requests.within(lease, async () => {
+              const grant = this.childTaskGrant
+              const paidRequest =
+                grant?.paidRequest ??
+                this.deps.admitResponseAttempt?.paidRequest ??
+                confirmedRequest?.paidRequest
+              if (
+                (kind === 'worker' || paidRequest !== undefined) &&
+                lease.account !== ACCOUNT_DEFAULT_ID
+              ) {
+                if (paidRequest === undefined) throw new Error(UI_TEXT.accounts.unavailable)
+                const allows = this.deps.allowsAccountPaidUse ?? this.deps.allowsPaidUse
+                if (
+                  (await allows(paidRequest, false, this.askingSessionId)) !== true ||
+                  !lease.isCurrent()
+                )
+                  throw new Error(UI_TEXT.accounts.unavailable)
+                if (
+                  grant !== undefined &&
+                  (this.childTaskGrant !== grant ||
+                    this.parentSession?.childGrantRefusal(grant, grant.keyDigest, this.modelId) !==
+                      undefined)
+                )
+                  throw new Error(UI_TEXT.accounts.unavailable)
+                // The grant owns the unchanged parent budget identity; the lease
+                // separately owns the paying credential and its consent.
               }
-            },
-          })
-        })
-      } finally {
-        this.accountLease = undefined
-        this.resolvedModels.delete(resolved.ref)
-        await lease.settle(cost, usage)
-      }
+              const confirmed =
+                confirmedRequest === undefined
+                  ? undefined
+                  : {
+                      ...confirmedRequest,
+                      keyDigest: lease.keyDigest,
+                      isStillAllowed: () => confirmedRequest.isStillAllowed() && lease.isCurrent(),
+                    }
+              return await this.streamAttempt(turnId, signal, open, budget, step, confirmed, {
+                lease,
+                receipt: (response) => {
+                  if (response.usage == null || !isCountedUsage(response.usage)) return
+                  const tokenCost =
+                    resolved.price.settle(modelPricedUsage(response.usage), {
+                      cost: response.usage.provider_cost_usd,
+                    }) ?? null
+                  const search = this.openReservation
+                  // Reported at once: a failed terminal still settles its
+                  // known cost when applyStreamEvent throws for it below.
+                  report(
+                    tokenCost === null ||
+                      (hasSearch &&
+                        isPositiveUsd(search?.searchReservedUsd ?? Usd.from(0).toAmount()) &&
+                        search?.hasTerminalSearchCount !== true)
+                      ? null
+                      : sumUsd(tokenCost, search?.searchSpentUsd ?? Usd.from(0).toAmount()),
+                    {
+                      inputTokens: response.usage.input_tokens,
+                      outputTokens: response.usage.output_tokens,
+                    },
+                  )
+                },
+              })
+            })
+          } finally {
+            this.accountLease = undefined
+            this.resolvedModels.delete(resolved.ref)
+          }
+        },
+      )
     }
     const revision = this.modelRevision
     const resolved = await this.resolveModel()
@@ -6673,7 +6679,13 @@ export class ModelApiSession implements ScheduledAgentSession {
         requiresUserApproval,
         hook.forceApproval,
       )
-      return { isApproved: isAllowed, feedback: undefined }
+      return {
+        isApproved: isAllowed,
+        feedback: undefined,
+        ...(this.imageDefersToLease(question.paid) && {
+          requiresImageAsking: requiresUserApproval || hook.forceApproval,
+        }),
+      }
     }
     if (this.active?.scheduleRun !== undefined) {
       const decision = await this.active.scheduleRun.decide(
@@ -6823,7 +6835,21 @@ export class ModelApiSession implements ScheduledAgentSession {
     return scope?.isStillAllowed(keyDigest) ?? !isPositiveUsd(this.deps.sessionBudgetUsd())
   }
 
-  private accountPaidClient(paid: PaidUseRequest, requiresAsking = false): ProviderClient {
+  /** Whether an image spending question is asked later, inside its own
+   * lease under its own payer, rather than here under no account. */
+  private imageDefersToLease(paid: PaidUseRequest): boolean {
+    return (
+      paid.feature === 'imageGeneration' &&
+      this.deps.accountRequests?.paidClient !== undefined &&
+      !this.modelId.includes('/')
+    )
+  }
+
+  private accountPaidClient(
+    paid: PaidUseRequest,
+    requiresAsking = false,
+    askContext?: { readonly call?: FunctionCallItem; readonly signal?: AbortSignal },
+  ): ProviderClient {
     if (this.modelId.includes('/') || this.deps.accountRequests?.paidClient === undefined)
       return this.client
     return this.deps.accountRequests.paidClient(
@@ -6843,7 +6869,26 @@ export class ModelApiSession implements ScheduledAgentSession {
       new URL(MODEL_API_BASE_URL).origin,
       paid,
       requiresAsking,
-      (question, asks) => this.deps.allowsPaidUse(question, asks, this.askingSessionId),
+      (question, asks) => {
+        // The in-lease spending question waits like the direct one: notified
+        // while it waits, ended by a Stop. Without a call or signal it asks
+        // as before.
+        const stopSignal = askContext?.signal
+        if (stopSignal === undefined) {
+          return this.deps.allowsPaidUse(question, asks, this.askingSessionId)
+        }
+        const stopCall = askContext?.call
+        const asking = this.deps.allowsPaidUse(question, asks, this.askingSessionId)
+        const stopNotifying =
+          stopCall === undefined ? NO_UNSUBSCRIBE : this.notifyWhileAsking(stopCall, stopSignal)
+        return (async () => {
+          try {
+            return await unlessStopped(asking, stopSignal)
+          } finally {
+            stopNotifying()
+          }
+        })()
+      },
     )
   }
 
@@ -6969,12 +7014,16 @@ export class ModelApiSession implements ScheduledAgentSession {
             this.deps.accountRequests?.paidClient !== undefined && !modelId.includes('/')
               ? {
                   ...resolved,
-                  client: this.accountPaidClient({
-                    feature: 'autoReviewer',
-                    modelId,
-                    tool: call.name,
-                    action,
-                  }),
+                  client: this.accountPaidClient(
+                    {
+                      feature: 'autoReviewer',
+                      modelId,
+                      tool: call.name,
+                      action,
+                    },
+                    false,
+                    { call, signal },
+                  ),
                 }
               : resolved,
           table: UI_TEXT,
@@ -7103,16 +7152,13 @@ export class ModelApiSession implements ScheduledAgentSession {
         paid.feature,
         requiresUserApproval || shouldForceApproval,
       )
-    if (
-      paid.feature === 'imageGeneration' &&
-      this.deps.accountRequests?.paidClient !== undefined &&
-      !this.modelId.includes('/')
-    ) {
+    if (this.imageDefersToLease(paid)) {
       // The image lease owns its paid request from choice to settlement: the
       // spending question is asked once, inside that lease under its own
       // payer, not here under no account. The approval card still proceeds;
-      // protected-path permission is enforced at dispatch.
-      this.accountImageAsking = requiresUserApproval || shouldForceApproval
+      // protected-path permission is enforced at dispatch. This call's
+      // forced-ask flag travels with its approval outcome, never on a shared
+      // session field, so one call cannot answer for a later one.
       return true
     }
     const stopNotifying = this.notifyWhileAsking(call, signal)
@@ -8000,6 +8046,8 @@ export class ModelApiSession implements ScheduledAgentSession {
     plan: ImagePlan,
     signal: AbortSignal,
     admission: Admission,
+    call: FunctionCallItem,
+    requiresImageAsking: boolean,
   ): Promise<ToolOutcome> {
     const revision = this.modelRevision
     const selected = this.selectedModel()
@@ -8073,7 +8121,10 @@ export class ModelApiSession implements ScheduledAgentSession {
         await this.onPersisted('budget')
       }
       const outcome = await runImageCall(plan, {
-        client: this.accountPaidClient(imageUseRequest(plan), this.accountImageAsking),
+        client: this.accountPaidClient(imageUseRequest(plan), requiresImageAsking, {
+          call,
+          signal,
+        }),
         io: this.scheduledIo(this.toolWrites()?.io ?? this.deps.io),
         signal,
         isStillOn: () => this.deps.isPaidFeatureOn('imageGeneration'),
@@ -8878,7 +8929,9 @@ export class ModelApiSession implements ScheduledAgentSession {
       {
         deps: {
           ...this.deps,
-          client: this.accountPaidClient({ feature: 'hookModels', event, kind, modelId }),
+          client: this.accountPaidClient({ feature: 'hookModels', event, kind, modelId }, false, {
+            signal,
+          }),
         },
         tools: kind === 'agent' ? this.hookModelTools() : [],
         table: UI_TEXT,
@@ -10281,6 +10334,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     childGrant?: ChildTaskGrant,
     approvedTarget?: { readonly absolute: string; readonly checkedAbsolute: string },
     approvedImagePlan?: ImagePlan,
+    requiresImageAsking = false,
   ): Promise<Performed> {
     // M96 lane T: while an `in-place` worker task runs, the orchestrator's
     // writing tools are refused at call admission, in every mode.
@@ -10324,7 +10378,13 @@ export class ModelApiSession implements ScheduledAgentSession {
           outcome:
             approvedImagePlan === undefined
               ? toolFailure(MODEL_TEXT.imageGenerationOff)
-              : await this.makeImage(approvedImagePlan, signal, admission),
+              : await this.makeImage(
+                  approvedImagePlan,
+                  signal,
+                  admission,
+                  call,
+                  requiresImageAsking,
+                ),
         }
       }
       case MODEL_API_TOOLS.createGoal:
@@ -12067,6 +12127,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     }
     const { verdict } = judgement
     let childGrant: ChildTaskGrant | undefined
+    let requiresImageAsking = false
     if (childTask !== undefined) {
       // The same order as a spawn's (RV70x): the gates, then each wait
       // followed by a recheck. Only a spawn asks the contributor yes every
@@ -12105,6 +12166,9 @@ export class ModelApiSession implements ScheduledAgentSession {
           isRejected: true,
         }
       }
+      // An image spending question deferred to its lease carries this call's
+      // forced-ask flag to dispatch with the approval, never shared.
+      requiresImageAsking = approval.requiresImageAsking ?? false
     }
     // A child task's grant was rechecked after its last wait (consentToChildTask).
     signal.throwIfAborted()
@@ -12164,6 +12228,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         childGrant,
         target?.ok === true ? target : undefined,
         approvedImagePlan,
+        requiresImageAsking,
       )
     } finally {
       completeEdit?.()
@@ -15604,7 +15669,14 @@ export class ModelApiSession implements ScheduledAgentSession {
    * lease owns it from choice to settlement. The lease is chosen and
    * reserved in the reservation queue, carries the payer, the payer's 429
    * observations, the settlement from whichever terminal event has usage,
-   * and the send-time prefix key of exactly what is sent.
+   * and the send-time prefix key of exactly what is sent. The Judge pays on
+   * this turn's admitted payer — the live conversation lease first, else the
+   * admitted choice ignoring a switch queued for the next request — pinned
+   * so it stops rather than paying on an account nobody chose for it. The
+   * send is transient: no sticky entry and no persisted selection per send.
+   * The Judge's own once-per-use admission and consent stay outside the
+   * conversation lease by design; this lease owns payer identity,
+   * settlement and release for exactly that admitted use.
    */
   private async judgeLeasedSend(
     requests: AccountRequestPort,
@@ -15612,7 +15684,6 @@ export class ModelApiSession implements ScheduledAgentSession {
     signal: AbortSignal,
     guard: ResponseAttemptGuard,
     turnId: string,
-    connectionKey: string,
   ): Promise<ModelApiSideResponse> {
     // The side request is keyed at send time from exactly what it sends, on
     // the paying lease: the main body's key never crosses to another payer.
@@ -15625,14 +15696,20 @@ export class ModelApiSession implements ScheduledAgentSession {
       .times(inputTokens)
       .add(Usd.from(price.card.output).times(outputTokens))
       .toAmount()
-    const lease = await requests.acquire(
+    const payer =
+      this.accountLease?.account ??
+      requests.currentWithoutNext(this.accountKind(), this.sessionId) ??
+      ACCOUNT_DEFAULT_ID
+    return await requests.withLease(
       {
         // One lease per paid request: each background batch send owns its
         // payer from choice to settlement, never colliding with the turn.
         owner: `${this.sessionId}:judge:${turnId}:${this.deps.newId()}`,
         budgetOwner: this.budgetOwner().sessionId,
         kind: 'conversation',
-        account: requests.current(this.accountKind(), this.sessionId) ?? ACCOUNT_DEFAULT_ID,
+        account: payer,
+        retryAccount: payer,
+        transient: true,
         modelId: keyedBody.model,
         isInteractive: true,
         estimate: {
@@ -15645,72 +15722,71 @@ export class ModelApiSession implements ScheduledAgentSession {
         checkSharedCaps: () => this.openReservation?.claim?.check(this.currentBudgetCap()),
       },
       new URL(MODEL_API_BASE_URL).origin,
-    )
-    let cost: UsdAmount | null = null
-    let usage: { inputTokens: number; outputTokens: number } | undefined
-    let final: ResponseObject | undefined
-    try {
-      await requests.within(lease, async () => {
-        const fence: ResponseAttemptGuard = Object.assign(
-          (actual: string | undefined) => {
-            if (actual !== lease.keyDigest || !lease.isCurrent())
-              throw new Error(UI_TEXT.accounts.invalidAccount)
-            guard(connectionKey)
-          },
-          {
-            ...guard,
-            beforeRequestStarted: () => {
-              lease.beforeSend()
+      async (lease, report) => {
+        let final: ResponseObject | undefined
+        await requests.within(lease, async () => {
+          const fence: ResponseAttemptGuard = Object.assign(
+            (actual: string | undefined) => {
+              if (actual !== lease.keyDigest || !lease.isCurrent())
+                throw new Error(UI_TEXT.accounts.invalidAccount)
+              // The admission check sees the key this send actually used,
+              // never a constant: a payer its own check did not admit refuses.
+              guard(actual)
             },
-            observe: (observation: ResponseObservation) => {
-              if (observation.rateLimited === true) {
-                lease.rateLimit(
-                  rateLimitResetAt(observation.headers?.['retry-after'] ?? null, this.deps.now()),
-                )
-              }
-              guard.observe?.(observation)
-            },
-          },
-        )
-        const stream = lease.client.streamResponse(
-          keyedBody,
-          signal,
-          undefined,
-          { retriesUsed: MODEL_API_MAX_RETRIES },
-          fence,
-        )
-        try {
-          for await (const event of stream) {
-            if (!isTerminalResponseEvent(event)) continue
-            final = event.response
-            const counted = event.response.usage
-            if (counted == null || !isCountedUsage(counted)) continue
-            const priced = modelPricedUsage(counted)
-            cost =
-              counted.provider_cost_usd === undefined
-                ? estimateCostUsd(
-                    {
-                      inputTokens: priced.inputTokens,
-                      outputTokens: priced.outputTokens,
-                      cachedTokens: priced.cachedTokens ?? 0,
-                    },
-                    keyedBody.model,
+            {
+              ...guard,
+              beforeRequestStarted: () => {
+                lease.beforeSend()
+              },
+              observe: (observation: ResponseObservation) => {
+                if (observation.rateLimited === true) {
+                  lease.rateLimit(
+                    rateLimitResetAt(observation.headers?.['retry-after'] ?? null, this.deps.now()),
                   )
-                : Usd.from(counted.provider_cost_usd).toAmount()
-            usage = {
-              inputTokens: counted.input_tokens,
-              outputTokens: counted.output_tokens,
+                }
+                guard.observe?.(observation)
+              },
+            },
+          )
+          const stream = lease.client.streamResponse(
+            keyedBody,
+            signal,
+            undefined,
+            { retriesUsed: MODEL_API_MAX_RETRIES },
+            fence,
+          )
+          try {
+            for await (const event of stream) {
+              if (!isTerminalResponseEvent(event)) continue
+              final = event.response
+              const counted = event.response.usage
+              if (counted == null || !isCountedUsage(counted)) continue
+              const priced = modelPricedUsage(counted)
+              report(
+                counted.provider_cost_usd === undefined
+                  ? estimateCostUsd(
+                      {
+                        inputTokens: priced.inputTokens,
+                        outputTokens: priced.outputTokens,
+                        cachedTokens: priced.cachedTokens ?? 0,
+                      },
+                      keyedBody.model,
+                    )
+                  : Usd.from(counted.provider_cost_usd).toAmount(),
+                {
+                  inputTokens: counted.input_tokens,
+                  outputTokens: counted.output_tokens,
+                },
+              )
             }
+          } finally {
+            await stream.return(undefined)
           }
-        } finally {
-          await stream.return(undefined)
-        }
-      })
-    } finally {
-      await lease.settle(cost, usage)
-    }
-    if (final?.status !== 'completed') throw new Error('Judge stream has no completed response')
-    return this.judgeSideResponse(final)
+        })
+        if (final?.status !== 'completed') throw new Error('Judge stream has no completed response')
+        return this.judgeSideResponse(final)
+      },
+    )
   }
 
   /** The Judge side answer from its completed terminal response. */
@@ -17166,7 +17242,7 @@ export class ModelApiSession implements ScheduledAgentSession {
           const requests = this.deps.accountRequests
           return requests === undefined || this.modelId.includes('/')
             ? await this.judgeDirectSend(body, signal, guard)
-            : await this.judgeLeasedSend(requests, body, signal, guard, turnId, keyDigest)
+            : await this.judgeLeasedSend(requests, body, signal, guard, turnId)
         },
       },
     }

@@ -39,8 +39,8 @@ it('ACP production paid caller asks once per admitted account and never borrows 
       random: () => 0,
     })
     const requests = await t.services.requests(client)
-    const use = async () => {
-      const lease = await requests.acquire(
+    const use = () =>
+      requests.withLease(
         poolRequest({
           owner: 'paid-owner',
           modelId: ACCOUNT_TEST_MODEL,
@@ -48,26 +48,25 @@ it('ACP production paid caller asks once per admitted account and never borrows 
           checkSharedCaps: () => undefined,
         }),
         new URL(MODEL_API_BASE_URL).origin,
+        async (lease, report) => {
+          const value = await requests.within(lease, () =>
+            t.runtime.paid.allows(
+              t.folder,
+              'paid-session',
+              {
+                feature: 'imageGeneration',
+                kind: 'generate',
+                path: 'fixture.png',
+                sources: [],
+                prompt: 'fixture',
+              },
+              false,
+            ),
+          )
+          report(Usd.from(0).toAmount())
+          return value
+        },
       )
-      try {
-        return await requests.within(lease, () =>
-          t.runtime.paid.allows(
-            t.folder,
-            'paid-session',
-            {
-              feature: 'imageGeneration',
-              kind: 'generate',
-              path: 'fixture.png',
-              sources: [],
-              prompt: 'fixture',
-            },
-            false,
-          ),
-        )
-      } finally {
-        await lease.settle(Usd.from(0).toAmount())
-      }
-    }
     expect(await use()).toBe(true)
     expect(await use()).toBe(true)
     expect(ask).toHaveBeenCalledOnce()

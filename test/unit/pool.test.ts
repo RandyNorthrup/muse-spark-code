@@ -202,20 +202,34 @@ describe('M108 account pool request boundaries', () => {
     expect(await t.run()).toBe(recovered)
   })
 
-  it('honors per-account Retry-After at each send and keeps sent uncertainty on its account', async () => {
+  it('lets an admission retry past its own vendor block while caps still refuse the retry', async () => {
     const t = poolRig()
+    // The second send is a retry continuation of the same admission: the
+    // durable block it just observed does not refuse it, but still fences
+    // the next admission onto another account.
     await expect(
       t.pool.run(poolRequest(), async (admission) => {
         await Promise.resolve()
         admission.beforeSend()
         t.blocks.set(admission.account, blocked)
         admission.beforeSend()
+        return { value: 'retried', actualUsd: parseUsd(0) }
+      }),
+    ).resolves.toBe('retried')
+    expect(t.claims[0]).toMatchObject({ account: 'a', actual: parseUsd(0) })
+    expect(await t.run()).toBe('b')
+
+    const capped = poolRig()
+    await expect(
+      capped.pool.run(poolRequest(), async (admission) => {
+        await Promise.resolve()
+        admission.beforeSend()
+        capped.rows[0]!.thresholds = { requests: { day: 0 } }
+        admission.beforeSend()
         return { value: 'never', actualUsd: parseUsd(0) }
       }),
     ).rejects.toBeInstanceOf(AccountThresholdExceededError)
-    expect(t.claims[0]).toMatchObject({ account: 'a', actual: null })
-    expect(await t.run()).toBe('b')
-    expect(t.claims[0]!.actual).toBeNull()
+    expect(capped.claims[0]).toMatchObject({ account: 'a', actual: null })
   })
 
   it('skips a shared limit group with a notice and propagates a peer/global block', async () => {

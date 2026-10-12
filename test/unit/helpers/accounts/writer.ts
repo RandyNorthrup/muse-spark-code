@@ -1,5 +1,8 @@
 import { vi } from 'vitest'
-import { AccountRequestWriter } from '../../../../src/core/accounts/requestWriter'
+import {
+  AccountRequestWriter,
+  type AccountRequestLease,
+} from '../../../../src/core/accounts/requestWriter'
 import { AccountStore } from '../../../../src/core/providers/accounts'
 import type { AccountCredentialVault } from '../../../../src/core/providers/accountCredentialRecord'
 import type { CreateResponseBody } from '../../../../src/core/backends/modelapi/schemas'
@@ -56,10 +59,59 @@ export function writerRig(
     refresh: () => Promise.resolve(),
     rateLimit: (account, resetAt, identity) => {
       rateLimit(account, resetAt, identity)
+      // Production feedback (accountRequestOwner/journal.block): a 429
+      // observation durably blocks the account, so a same-lease retry must
+      // survive its own block. A detached spy would hide that fence.
+      t.blocks.set(account, { blocked: { reason: 'rateLimited', resetAt } })
     },
     createClient,
   })
-  return { ...t, api, store, client, writer, createClient, rateLimit }
+  // Persisted selections: production writes one file per adopting owner
+  // (journal.select); a transient per-send owner must write none. Suites
+  // count these writes to prove no per-send residue.
+  const selectionWrites: { owner: string; account: string }[] = []
+  t.deps.writeSelection = (owner, account) => {
+    selectionWrites.push({ owner, account })
+  }
+  t.deps.readSelection = (owner) =>
+    selectionWrites.findLast((entry) => entry.owner === owner)?.account
+  // Live leases: every acquired lease counts until it settles. A repeated
+  // settle after a successful one is not a second lease: only the first
+  // settlement counts down. Suites assert zero after each test, so any
+  // leaked lease fails somewhere.
+  let liveLeases = 0
+  const acquired = writer.acquire.bind(writer)
+  writer.acquire = async (...args: Parameters<typeof acquired>): Promise<AccountRequestLease> => {
+    const lease = await acquired(...args)
+    liveLeases += 1
+    const settled = lease.settle.bind(lease)
+    let isCounted = true
+    const counted: AccountRequestLease['settle'] = async (...settleArgs) => {
+      try {
+        await settled(...settleArgs)
+      } finally {
+        if (isCounted) {
+          isCounted = false
+          liveLeases -= 1
+        }
+      }
+    }
+    // Escape hatch (PLAN.md §8): the rig counts live leases by wrapping the
+    // readonly settle; production code never reassigns it.
+    ;(lease as { settle: AccountRequestLease['settle'] }).settle = counted
+    return lease
+  }
+  return {
+    ...t,
+    api,
+    store,
+    client,
+    writer,
+    createClient,
+    rateLimit,
+    selectionWrites,
+    liveLeases: () => liveLeases,
+  }
 }
 
 /** A priced request body for paid-helper stream tests. */
