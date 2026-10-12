@@ -624,3 +624,57 @@ preserving the already-green runtime behavior; the final unit replay is recorded
 below. This does not change a production branch, gate or test assertion.
 
 Final unit-project replay after the explicit resolver argument: exit 0.
+
+## Round 4 — WINSPAWN findings (2026-10-11, flex; Windows run by the lead)
+
+The Linux re-review RVSPAWNM123C was clean; the Windows run at df7d44e9e
+failed three cases of `test/unit/runtimePullRequestCheckout.test.ts`, one
+cause, plus one finding from tonight's release. No production source
+changed in this round: the fixture counted gates with a POSIX literal, the
+test helper resolved paths without the native 8.3 expansion, and the
+product sweep below shows the checkout work already compares by native
+identity everywhere it meets the filesystem. Test file SHA-256 after this
+round: `14721a49bf9aa1ede6a6f922a3c34a0fbd2e9b58f939d7fa9705d8f5b843f4ae`.
+
+| Finding                                                                                                                                                                                                    | Fix (all in `test/unit/runtimePullRequestCheckout.test.ts`)                                                                                                                                                                                                                                                                                                                                                                                                                              | Regression test                                                                                                                                                                                                                                                                                                                                                                                                                                      | Red drill                                                                                                                                                                                                                                                                                                                         |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| WINSPAWN P2: `LAST_GATE_BEFORE_CLAIM` (11) / `GATE_BEFORE_ADD` (12) describe the POSIX route; Windows performs 15 checks before the claim, so injection/refusal at check 12 lands before any folder exists | New `claimThen` helper wraps the runner's claim: the injection runs at the first gate after the claim lands, by name, on every platform. Literals removed                                                                                                                                                                                                                                                                                                                                | `never deletes what another process drops into the claimed folder before git adds it` now asserts git's own refusal `/already exists/u` plus `didRun`; `removes a claimed folder git never used when the checkout is refused at the add` unchanged except the anchor, still `ReservationLostError`; `makes nothing when its claim is refused` asserts the claim ran exactly once after read gates (`runs > 0`) and before any write (`writes === 0`) | Anchor broken to fire on the first gate regardless of claim: both tests fail; the foreign-file case fails with `expected /already exists/ but got 'ENOENT…'` — the exact WINSPAWN mode. Broadening the matcher to `toThrow()` still fails, but at the later read instead of naming the cause. Restored byte-exact (SHA-256 above) |
+| Same class: `starts no git after its gate refuses` walked `1..GATE_BEFORE_ADD`, covering post-claim refusals on POSIX only                                                                                 | A dry run with the recording port learns `gatesThroughAdd` (gates through the worktree-add start); the walk covers `1..gatesThroughAdd`. `expect(gatesThroughAdd).toBeGreaterThan(0)` fails loudly instead of a vacuous walk. Rejection pinned to `ReservationLostError` or the hook-listing `openPullRequestFiltersUnavailable`                                                                                                                                                         | Same test                                                                                                                                                                                                                                                                                                                                                                                                                                            | Spot broken so the bound stays 0: the guard fails, no vacuous pass. Restored byte-exact                                                                                                                                                                                                                                           |
+| Release finding: helper `resolvedPath` used `realpathSync`, which does not expand 8.3 short names while git prints the long name (hosted runner temp is `C:\Users\RUNNER~1`)                               | Carried release/0.18.0 commit 85341b01f: `realpathSync.native` in `resolvedPath` (same behavior on POSIX, platform-neutral by construction)                                                                                                                                                                                                                                                                                                                                              | New `checks out a held pull request when the repository and data folder use 8.3 short names` (`it.runIf(win32)`; `ctx.skip` with reason where the volume answers the long name) runs the whole checkout with repository and data folder in 8.3 form and asserts the listing matches, the record carries `folderIdentity`, and cleanup removes everything                                                                                             | Not drillable on Linux (the test skips by platform; `realpathSync` and `.native` are identical on POSIX): the lead's Windows run below is the drill                                                                                                                                                                               |
+| Ruling (2) product sweep: every checkout comparison of a folder with a git-printed path must use resolved native identity                                                                                  | No product change, verified by reading: the claim, cleanup and record completion compare `dev:ino:birth` identity (`claimCheckoutFolder`, `isMadeFolder`, `folderIdentityOf` in `src/runtime/panel/pullRequests/checkout.ts`); the submodule confinement compares `canonicalPath` (native realpath) on both sides; record-store keys only ever meet same-spelling computed paths and every use re-stats identity. Paths compared: worktree list (test helper, fixed), record keys, claim | Short-name end-to-end test above proves it on Windows                                                                                                                                                                                                                                                                                                                                                                                                | —                                                                                                                                                                                                                                                                                                                                 |
+
+Sibling sweep: the only other gate-count literals in the file were the four
+sites above; the remaining foreign-file tests anchor on `.git` existence or
+pre-create the folder, not on counts. `mcpProcess.ts:175` also calls
+`realpathSync`, but it is the spawn launcher's executable resolution, not
+checkout work, and tonight's release changed only the checkout helper:
+left unchanged and named here so the lead can route it.
+
+### Flex receipts (2026-10-11, lane SPAWNM123R4, `--maxWorkers=2`, repo default timeout, no override)
+
+- `npx vitest run test/unit/runtimePullRequestCheckout.test.ts`: 87 passed,
+  1 skipped (the win32-only short-name test) — 88 total. Targeted verbose
+  replay names all four touched tests green.
+- `npx prettier --check`, `npx eslint --max-warnings=0` on the changed test:
+  exit 0. All five `typecheck:*` projects: exit 0.
+- No `npm run build`: no shipped bundle changed (test and docs only), so all
+  byte caps are untouched. No l10n, reference, roadmap or host-API change.
+
+### Exact commands for the lead Windows rig (win11)
+
+Snapshot this branch as-is and run, sequentially, with the repository's own
+defaults (no timeout override):
+
+```text
+npx.cmd vitest run test/unit/runtimePullRequestCheckout.test.ts --maxWorkers=2
+npx.cmd vitest run test/unit/runtimePullRequestCheckout.test.ts --maxWorkers=2 --reporter=verbose
+```
+
+Expected on win11: 87 passed / 0 failed / 1 skipped when the volume has
+8.3 short names disabled (skip reason recorded), else 88 passed / 0 failed
+with `checks out a held pull request … 8.3 short names` green. The three
+formerly failing titles must prove what they say: the foreign file
+survives, the refused add removes the claimed folder, the refused claim
+makes nothing. Then the round-4 drill the lead owns on Windows: revert
+`resolvedPath` to plain `realpathSync` and watch the short-name test fail
+on the `isListedWorktree` assertion; restore byte-exact.
