@@ -849,6 +849,7 @@
     "fileNoExpiry": "有効期限未設定",
     "fileSessions": "セッション: {sessions}",
     "filesInUse": "削除する前に、このファイルを参照するセッションから取り除いてください。",
+    "filesInUseRequest": "このファイルは実行中のリクエストで使用されています。応答が完了したらもう一度お試しください。",
     "deleteUploadedFiles": "アップロード済みファイルを削除…",
     "deleteAllOurs": "このアプリのファイルをすべて削除",
     "otherAppFileConfirmation": "別のアプリが {name} を使用している可能性があります。それでも削除しますか？",

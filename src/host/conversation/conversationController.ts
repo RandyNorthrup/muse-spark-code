@@ -10592,9 +10592,10 @@ export class ConversationController {
    * a report (or failure) from a previous account or generation is dropped
    * on both paths, never posted over the new account's view.
    */
-  public async readUploadedFiles(): Promise<void> {
+  public async readUploadedFiles(signal?: AbortSignal): Promise<void> {
     const port = this.deps.uploadedFiles
     if (port === undefined || !this.canPostUploadedFiles()) return
+    signal?.throwIfAborted()
     const authGeneration = this.deps.auth.admissionGeneration
     const accountId = await this.deps.voiceAccountId()
     // The generation is compared after the account lookup resolves: a
@@ -10606,7 +10607,10 @@ export class ConversationController {
       this.canPostUploadedFiles() &&
       this.deps.auth.admissionGeneration === authGeneration
     try {
-      const stamped = await port.readStamped()
+      // THE CANCEL SIGNAL REACHES EVERY CLEANUP (round 4, P2-4): the read
+      // carries the turn's signal, so its retry and sweep delete nothing
+      // after a cancel.
+      const stamped = await port.readStamped(signal)
       const report = uploadedFilesReportSchema.parse(stamped.report)
       if (await isCurrent())
         port.post(report, { accountId: stamped.accountId, generation: stamped.generation })
@@ -10635,7 +10639,8 @@ export class ConversationController {
           (name) => port.confirmForeign(fill(UI_TEXT.media.otherAppFileConfirmation, { name })),
           signal,
         )
-      await this.readUploadedFiles()
+      // The listing after the delete carries the signal too (P2-4).
+      await this.readUploadedFiles(signal)
     } catch (error: unknown) {
       if (this.canPostUploadedFiles())
         this.say(

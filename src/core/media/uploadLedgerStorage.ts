@@ -7,7 +7,11 @@ import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import * as z from 'zod/mini'
 import { withMkdirLock } from '../fileLock'
-import { MEDIA_UPLOAD_LOCK_ATTEMPTS, MEDIA_UPLOAD_LOCK_WAIT_MS } from '../../shared/constants'
+import {
+  MEDIA_SHA256_PATTERN,
+  MEDIA_UPLOAD_LOCK_ATTEMPTS,
+  MEDIA_UPLOAD_LOCK_WAIT_MS,
+} from '../../shared/constants'
 import type { UploadLedgerStorage } from './uploadLedger'
 
 export const UPLOAD_LEDGER_FILE = 'uploads.json'
@@ -33,7 +37,11 @@ export async function readLastAccountId(root: string): Promise<string | undefine
     const parsed = lastAccountSchema.safeParse(
       JSON.parse(await readFile(path.join(root, LAST_ACCOUNT_FILE), 'utf8')),
     )
-    return parsed.success && parsed.data.accountId.length > 0 ? parsed.data.accountId : undefined
+    // The digest is validated, not just non-empty (round 4, P3-4): with
+    // ".", the ledger directory would resolve to the root itself.
+    return parsed.success && MEDIA_SHA256_PATTERN.test(parsed.data.accountId)
+      ? parsed.data.accountId
+      : undefined
   } catch {
     return undefined
   }

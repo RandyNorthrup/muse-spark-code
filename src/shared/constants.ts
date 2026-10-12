@@ -1343,6 +1343,11 @@ export const MEDIA_FILE_ID_MIN_BYTES = 1024 * 1024
 // Uploads ride inside the lock, so the wait covers a slow provider round.
 export const MEDIA_UPLOAD_LOCK_ATTEMPTS = 200
 export const MEDIA_UPLOAD_LOCK_WAIT_MS = 25
+// A delete that keeps failing (a foreign file the provider refuses) backs
+// off per entry, so one stuck file never breaks a listing (round 4, P2-6).
+export const MEDIA_PENDING_DELETE_RETRY_BASE_MS = 30_000
+export const MEDIA_PENDING_DELETE_RETRY_MAX_MS = 600_000
+export const MEDIA_PENDING_DELETE_RETRY_MAX_SHIFT = 5
 // The batch transcript endpoint's captured contract (round-3 capture):
 // the 'audio' part must be a mono 16-bit PCM WAV at 16 or 24 kHz.
 export const TRANSCRIBE_WAV_FORMAT_PCM = 1

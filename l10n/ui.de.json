@@ -853,6 +853,7 @@
     "fileNoExpiry": "Kein Ablaufdatum festgelegt",
     "fileSessions": "Sitzungen: {sessions}",
     "filesInUse": "Entfernen Sie diese Datei vor dem Löschen aus ihren Sitzungen.",
+    "filesInUseRequest": "Diese Datei wird gerade von einer laufenden Anfrage verwendet. Versuchen Sie es erneut, wenn die Antwort fertig ist.",
     "deleteUploadedFiles": "Hochgeladene Dateien löschen…",
     "deleteAllOurs": "Alle unsere Dateien löschen",
     "otherAppFileConfirmation": "Eine andere App verwendet {name} möglicherweise noch. Trotzdem löschen?",

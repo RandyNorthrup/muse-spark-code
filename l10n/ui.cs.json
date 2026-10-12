@@ -861,6 +861,7 @@
     "fileNoExpiry": "Doba platnosti není nastavena",
     "fileSessions": "Relace: {sessions}",
     "filesInUse": "Před odstraněním odeberte tento soubor z jeho relací.",
+    "filesInUseRequest": "Tento soubor právě používá běžící požadavek. Zkuste to znovu po dokončení odpovědi.",
     "deleteUploadedFiles": "Smazat nahrané soubory…",
     "deleteAllOurs": "Smazat všechny naše soubory",
     "otherAppFileConfirmation": "Jiná aplikace může stále používat {name}. Přesto jej smazat?",

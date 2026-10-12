@@ -853,6 +853,7 @@
     "fileNoExpiry": "Nincs lejárat beállítva",
     "fileSessions": "Munkamenetek: {sessions}",
     "filesInUse": "Törlés előtt távolítsa el ezt a fájlt a munkameneteiből.",
+    "filesInUseRequest": "Ezt a fájlt egy futó kérés használja. Próbálja újra, amikor a válasz elkészült.",
     "deleteUploadedFiles": "Feltöltött fájlok törlése…",
     "deleteAllOurs": "Az összes saját fájl törlése",
     "otherAppFileConfirmation": "Egy másik alkalmazás még használhatja a(z) {name} fájlt. Mégis törli?",

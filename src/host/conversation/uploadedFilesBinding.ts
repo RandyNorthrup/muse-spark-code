@@ -51,8 +51,8 @@ export interface StampedUploadedFilesPort extends UploadedFilesPort {
 
 export interface UploadedFilesBinding {
   readonly port: StampedUploadedFilesPort
-  /** The validated report the command lists. */
-  readonly list: () => Promise<UploadedFilesReport>
+  /** The validated report the command lists; the signal reaches its cleanup. */
+  readonly list: (signal?: AbortSignal) => Promise<UploadedFilesReport>
   readonly remove: UploadedFilesPort['deleteFile']
 }
 
@@ -77,10 +77,14 @@ export function createUploadedFilesBinding(deps: UploadedFilesBindingDeps): Uplo
   const readStamped = async (signal?: AbortSignal): Promise<UploadedFilesStamp> => {
     // Stamped at the start and never mutated: an older read that lands
     // later posts its own smaller generation, and the reducer drops it.
+    // The account is captured before the read awaits (round 4, P3-5): a
+    // read for A that lands after B resolved keeps A's stamp, so the
+    // controller's generation check sees the read it started.
     const generation = readSequence + 1
     readSequence = generation
+    const accountAtStart = await deps.getAccountId()
     const report = uploadedFilesReportSchema.parse(await inner.read(signal))
-    const stamp: UploadedFilesReadStamp = { accountId: lastResolvedAccountId, generation }
+    const stamp: UploadedFilesReadStamp = { accountId: accountAtStart, generation }
     lastRead = stamp
     return { report, ...stamp }
   }
@@ -102,7 +106,7 @@ export function createUploadedFilesBinding(deps: UploadedFilesBindingDeps): Uplo
   }
   return {
     port,
-    list: async () => uploadedFilesReportSchema.parse(await port.read()),
+    list: async (signal?: AbortSignal) => uploadedFilesReportSchema.parse(await port.read(signal)),
     remove: async (fileId, isForeignDeletionConfirmed, signal) => {
       await port.deleteFile(fileId, isForeignDeletionConfirmed, signal)
     },
@@ -125,7 +129,8 @@ export interface DeleteUploadedFilesDialogs {
 }
 
 export interface DeleteUploadedFilesCommandDeps {
-  readonly list: () => Promise<UploadedFilesReport>
+  /** The listing carries the turn's signal, so its cleanup deletes nothing after a cancel. */
+  readonly list: (signal?: AbortSignal) => Promise<UploadedFilesReport>
   readonly remove: (
     fileId: string,
     isForeignDeletionConfirmed: (name: string) => Promise<boolean>,
@@ -152,7 +157,7 @@ export async function runDeleteUploadedFilesCommand(
   deps.signal?.throwIfAborted()
   let report: UploadedFilesReport
   try {
-    report = await deps.list()
+    report = await deps.list(deps.signal)
   } catch (error: unknown) {
     deps.dialogs.fail(`${UI_TEXT.usageUnavailable}: ${describeError(error)}`)
     return

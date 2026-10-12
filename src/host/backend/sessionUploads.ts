@@ -38,9 +38,15 @@ export function createSessionUploads(
   let lastPointed: string | undefined
   return async (accountId: string) => {
     // Removing the key keeps the retained list across a restart: only the
-    // digest is remembered, never the key.
-    if (lastPointed !== accountId) {
-      await writeLastAccountId(deps.uploadLedgerDir, accountId)
+    // digest is remembered, never the key. THE "LAST ACCOUNT" POINTER
+    // CHANGES ONLY FOR THE CURRENT ACCOUNT (round 4, P2-7): opens for an
+    // old account (a session list or purge touching that account's ledger)
+    // never move it. The on-disk value is re-checked so a fresh factory
+    // per call does not rewrite it on every open.
+    if (lastPointed !== accountId && (await deps.currentAccountId()) === accountId) {
+      if ((await readLastAccountId(deps.uploadLedgerDir)) !== accountId) {
+        await writeLastAccountId(deps.uploadLedgerDir, accountId)
+      }
       lastPointed = accountId
     }
     return new UploadLedger({

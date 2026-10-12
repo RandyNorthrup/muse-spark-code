@@ -1036,6 +1036,8 @@ export const EN = {
     fileNoExpiry: 'No expiry set',
     fileSessions: 'Sessions: {sessions}',
     filesInUse: 'Remove this file from its sessions before deleting it.',
+    filesInUseRequest:
+      'This file is in use by a running request. Try again when the reply finishes.',
     deleteUploadedFiles: 'Delete Uploaded Files…',
     deleteAllOurs: 'Delete All Ours',
     otherAppFileConfirmation: 'Another app may still use {name}. Delete it anyway?',

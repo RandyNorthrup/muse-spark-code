@@ -849,6 +849,7 @@
     "fileNoExpiry": "未設定有效期限",
     "fileSessions": "工作階段：{sessions}",
     "filesInUse": "刪除前，請先從引用此檔案的工作階段中移除它。",
+    "filesInUseRequest": "此檔案正被執行中的請求使用。請在回覆完成後重試。",
     "deleteUploadedFiles": "刪除已上傳的檔案…",
     "deleteAllOurs": "刪除本應用程式的所有檔案",
     "otherAppFileConfirmation": "其他應用程式可能仍在使用 {name}。仍要刪除嗎？",
