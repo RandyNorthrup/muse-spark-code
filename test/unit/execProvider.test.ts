@@ -92,6 +92,38 @@ function assemblyInput(over: Partial<ProviderRunInput> = {}): ProviderRunInput {
 }
 
 describe('assembleProviderRun', () => {
+  it.each(['deepseek/v4', 'openrouter/deepseek/v4'])(
+    'resolves configured slash ID %s',
+    async (model) => {
+      const file = openRouterFile()
+      file.providers[0]?.models.push('deepseek/v4')
+      const assembled = await assembleProviderRun(
+        assemblyInput({
+          model,
+          readFile: () => Promise.resolve(JSON.stringify(file)),
+        }),
+      )
+      expect(assembled).toMatchObject({ ok: true, run: { modelRef: 'openrouter/deepseek/v4' } })
+      const command = parseCommandLine([
+        'exec',
+        '--backend',
+        'modelApi',
+        '--provider',
+        'openrouter',
+        '--model',
+        model,
+        '--max-budget-usd',
+        '0.10',
+        'ready',
+      ])
+      expect(command.command).toBe('exec')
+    },
+  )
+  it('refuses a slash ID not configured on the selected provider', async () => {
+    const assembled = await assembleProviderRun(assemblyInput({ model: 'groq/llama' }))
+    expect(assembled).toMatchObject({ ok: false, failure: { kind: 'usage' } })
+  })
+
   it('assembles a bound run with a pinned fetch and memory secrets', async () => {
     const assembled = await assembleProviderRun(assemblyInput())
     expect(assembled.ok).toBe(true)

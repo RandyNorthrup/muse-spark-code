@@ -356,10 +356,9 @@ describe('execArgs --provider', () => {
     expect(qualifyProviderModel('openrouter', 'openrouter/deepseek/v4')).toBe(
       'openrouter/deepseek/v4',
     )
-    // A ref naming another provider is aimed elsewhere: OpenRouter's
-    // author/slug models need their own `openrouter/` prefix.
-    expect(qualifyProviderModel('openrouter', 'deepseek/v4')).toBe(undefined)
-    expect(qualifyProviderModel('openrouter', 'groq/llama')).toBe(undefined)
+    // Assembly resolves slash IDs against the selected provider's configured models.
+    expect(qualifyProviderModel('openrouter', 'deepseek/v4')).toBe('deepseek/v4')
+    expect(qualifyProviderModel('openrouter', 'groq/llama')).toBe('groq/llama')
     expect(qualifyProviderModel(undefined, 'muse-spark-1.3')).toBe('muse-spark-1.3')
     const parsed = parseExec(
       { backend: 'modelApi', 'max-budget-usd': '1', provider: 'openrouter', model: 'y' },
@@ -372,7 +371,7 @@ describe('execArgs --provider', () => {
         { backend: 'modelApi', 'max-budget-usd': '1', provider: 'openrouter', model: 'groq/y' },
         ['hi'],
       ).ok,
-    ).toBe(false)
+    ).toBe(true)
   })
 
   it('parses exec --provider through the command line', () => {
@@ -618,7 +617,7 @@ describe('providers add', () => {
         keyFromStdin: true,
       }),
     ).toBe(1)
-    expect(fake.errors.join(',')).toContain('Models & Agents panel')
+    expect(fake.errors.join(',')).toContain('--preset')
     expect(fake.written).toHaveLength(0)
   })
 })
@@ -654,7 +653,7 @@ describe('providers test', () => {
       fetch: openRouterFetch(),
     })
     expect(await providersTest(fake.deps, 'openrouter')).toBe(0)
-    expect(fake.printed).toEqual([expect.stringContaining('2 models')])
+    expect(fake.printed).toEqual([expect.stringContaining('2 models'), 'm1, m2'])
   })
 
   it('needs the stored key, and names both origins after an edit', async () => {

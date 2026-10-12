@@ -402,7 +402,12 @@ export function parseCommandLine<T>(
     values['max-budget-usd'] === undefined ? undefined : scheduleBudgetUsd(values['max-budget-usd'])
   if (budget === undefined && values['max-budget-usd'] !== undefined)
     return { command: 'invalid', reason: UI_TEXT.scheduleV2.runtime.usage }
-  if (values.model !== undefined && values.model.length !== 1) return invalid('--model')
+  if (
+    values.model !== undefined &&
+    values.model.length !== 1 &&
+    !(positionals[0] === 'providers' && positionals[1] === 'add')
+  )
+    return invalid('--model')
   const options: ServeOptions = {
     ...(values.model?.[0] !== undefined && { initialModelId: values.model[0] }),
     ...(values['usage-history'] !== undefined && {

@@ -473,14 +473,19 @@ export async function assembleProviderRun(
   const { provider } = resolved
   const fallback = read.file.defaultModel
   const model = (fallback?.startsWith(`${provider.entry.id}/`) ?? false) ? fallback : undefined
-  const modelRef = input.model ?? model
-  if (modelRef === undefined) {
+  const requested = input.model ?? model
+  if (requested === undefined) {
     // A default that names another provider is the file's choice, not this
     // run's model; only a run with no model anywhere needs --model spelled out.
     return usage(
       `${UI_TEXT.execProviderModelRequired}: ${provider.entry.models.map((id) => `${provider.entry.id}/${id}`).join(', ')}`,
     )
   }
+  const matches = provider.entry.models.filter(
+    (id) => requested === id || requested === `${provider.entry.id}/${id}`,
+  )
+  if (matches.length > 1) return usage(UI_TEXT.execUnknownModel)
+  const modelRef = matches.length === 1 ? `${provider.entry.id}/${matches[0] ?? ''}` : requested
   const parsedRef = parseModelRef(modelRef)
   if (parsedRef?.providerId !== provider.entry.id) {
     return usage(UI_TEXT.execUnknownModel)

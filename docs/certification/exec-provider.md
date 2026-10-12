@@ -144,3 +144,14 @@ two outdated expectations were corrected (explicit contributor selection and roo
 help route). The exact remaining list is exec-provider-remaining.md. It is not an
 all-dependents green claim. HUB: constants, l10n tables, feature catalogue and
 generated reference are integration-run inputs.
+
+## Round 2 B: slash-containing native IDs
+
+The parser defers slash-containing native IDs to provider assembly, which resolves
+against that provider's configured IDs and rejects ambiguity or another provider.
+ACP already resolves a unique advertised native suffix, including slashes.
+New bare `deepseek/v4` regression failed on the prior bytes (b-red.log).
+Final execProvider/execArgs/providersX: 111/111, default timeout. No
+wire shape changes. Dependency expectations now match terminal Azure refusal and
+printed native IDs; the repeated --model setup regression exposed the serve-only
+single-model guard incorrectly preceding provider-add parsing, now scoped correctly.
