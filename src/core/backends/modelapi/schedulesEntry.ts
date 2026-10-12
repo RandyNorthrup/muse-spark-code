@@ -482,7 +482,8 @@ interface VerificationContext {
   readonly emit: (event: AgentEvent) => void
   readonly recordTranscript: (turnId: string, item: ItemSnapshot) => void
   readonly rerecordTranscript: (item: ItemSnapshot) => void
-  readonly appendHookEffects: (turnId: string, effects: HookEffects) => void
+  // TOOLCAP: async so hook context spills finish before the next request.
+  readonly appendHookEffects: (turnId: string, effects: HookEffects) => void | Promise<void>
   readonly abortError: () => Error
   readonly isAbortError: (error: unknown) => boolean
   readonly unlessStopped: <T>(promise: Promise<T>, signal: AbortSignal) => Promise<T>
@@ -654,7 +655,7 @@ export async function verifyRound(
   }
   // The model has the reads now: they become the baseline of the next check.
   pending?.commit()
-  context.appendHookEffects(turn.turnId, effects)
+  await context.appendHookEffects(turn.turnId, effects)
   return effects.stopReason
 }
 

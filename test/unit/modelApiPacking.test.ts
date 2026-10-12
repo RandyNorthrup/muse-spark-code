@@ -10,6 +10,7 @@ import {
   MODEL_API_TOOLS,
   MODEL_API_MODEL_TEXT,
   OBS_PACK_THRESHOLD_CHARS,
+  TOOL_OUTPUT_MAX_CHARS,
 } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
 import {
@@ -693,8 +694,12 @@ describe('FIXM101T shell recovery through the host', () => {
       { text: 'done' },
     )
     await sendText(h, 'run')
-    expect(responseOutputsByCall(h.api, 1).get('huge-shell')).not.toContain('MID_CANARY')
-    expect(responseOutputsByCall(h.api, 1).get('huge-shell')?.length).toBeLessThan(8000)
+    // TOOLCAP: the first send carries the bound cut (head, tail, counts,
+    // spill), never the whole megabyte original and never the middle.
+    const first = responseOutputsByCall(h.api, 1).get('huge-shell') ?? ''
+    expect(first).not.toContain('MID_CANARY')
+    expect(first.length).toBeLessThan(TOOL_OUTPUT_MAX_CHARS + 2000)
+    expect(first).toContain('Tool result cut:')
     scriptRecall(h.api, 'huge-shell', 510_000, 'recall-middle', 'recovered')
     await sendText(h, 'recall middle')
     expect(responseOutputsByCall(h.api, 3).get('recall-middle')).toContain('MID_CANARY')

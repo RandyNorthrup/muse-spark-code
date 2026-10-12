@@ -174,6 +174,9 @@ import {
   THEN_RUN_ARGUMENT,
   TOOL_OUTPUT_CLIP_MARKER,
   TOOL_OUTPUT_MAX_CHARS,
+  TOOL_RESULT_MAX_LINE_CHARS,
+  TOOL_RESULT_MAX_TOKENS,
+  TOOL_RESULT_SPILL_DIR,
   TOOL_ARGUMENT_PREVIEW_INTERVAL_MS,
   TOOL_STATUS_INTERRUPTED,
   UI_TEXT,
@@ -356,7 +359,22 @@ import {
   type ResolvedModel,
 } from './modelPolicy'
 import type { HookMcpOutcome, HookModelTurn, HookModelDailyBudget } from './hookHandlers'
-import { ObservationPack, estimatePackTokens } from './observationPack'
+import {
+  ObservationPack,
+  backgroundNoteId,
+  estimatePackTokens,
+  pageRecalledText,
+} from './observationPack'
+import {
+  boundToolResultText,
+  cutNotice,
+  parsePromptTooLong,
+  spillName,
+  validateToolResultCap,
+  type BoundToolResult,
+  type ToolResultCut,
+  type ToolResultLimits,
+} from './toolResultBound'
 import { admitResource, inResourceClass } from '../../resources/admission'
 import type { ResourceLease } from '../../resources/launch'
 import {
@@ -763,6 +781,12 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDep
    * false packs nothing and offers no `recall_output`.
    */
   readonly observationPacking?: (() => boolean) | undefined
+  /**
+   * TOOLCAP: `museSpark.modelApiMaxToolOutputBytes`, or the exec run's
+   * `--max-tool-output-bytes`. The per-result byte guard; absent keeps
+   * TOOL_OUTPUT_MAX_CHARS. Read on every bound so one run can raise it.
+   */
+  readonly maxToolOutputBytes?: (() => number | undefined) | undefined
   /** M106, fixed for the session. Lane W binds modelApiParallelReads in every host. */
   readonly strictTools?: () => boolean
   readonly parallelReads?: () => boolean
@@ -1156,6 +1180,8 @@ export interface ActiveTurn {
   /** It started a process, or one of the conversation's ran in the background (M86, spec 8). */
   ranProcesses: boolean
   didRecoverOverflow?: boolean
+  /** TOOLCAP: the turn already resent once after trimming tool results. */
+  didTrimOverflow?: boolean
   /** The terminal is selected; checkpoint cleanup cannot cancel this turn. */
   isFinalizing?: boolean
 }
@@ -1592,6 +1618,13 @@ class ContextOverflowError extends Error {
     public readonly kind: ContextOverflowKind,
     public readonly modelId: string,
     public readonly contextTokens: number | undefined,
+    /**
+     * TOOLCAP: the provider's own numbers from a typed refusal
+     * (`prompt is too long: N tokens > M maximum`), digits only, so the
+     * turn's last word can say by how much without leaking provider prose.
+     */
+    public readonly promptTokens?: number | undefined,
+    public readonly promptMaximum?: number | undefined,
   ) {
     super(UI_TEXT.contextWindowFull)
     this.name = 'ContextOverflowError'
@@ -2307,6 +2340,20 @@ function clipOutput(text: string): string {
     : text
 }
 
+/**
+ * TOOLCAP: the per-result limits for this session's model. The byte guard is
+ * the configured cap (refused with its reason when it cannot be honoured);
+ * the token and line caps are fixed; the window share follows the room left.
+ */
+function toolResultLimitsFor(maxBytes: number, windowTokens: number | undefined): ToolResultLimits {
+  return {
+    maxTokens: TOOL_RESULT_MAX_TOKENS,
+    maxLineChars: TOOL_RESULT_MAX_LINE_CHARS,
+    maxBytes,
+    windowTokens,
+  }
+}
+
 /** What the MCP servers' state says to the user, each keyed so it is said once per session. */
 function mcpNotices(snapshot: McpPoolSnapshot): readonly { key: string; text: string }[] {
   const { fault } = snapshot
@@ -2642,6 +2689,22 @@ export class ModelApiSession implements ScheduledAgentSession {
   private restoredFileRefs: readonly UploadedMediaRef[] = []
   /** Packed tool outputs and the savings ledger (M73): undefined unless packing is on. */
   private readonly packing: ObservationPack | undefined
+  /**
+   * TOOLCAP: spill files this session wrote (workspace-relative). A spill
+   * holds a cut result's full text where the file tools can page it; the
+   * replay keeps only the bounded head, tail and notice. Names are
+   * deterministic per call, so retries overwrite instead of accumulating,
+   * and the directory is git-ignored. ToolIo offers no delete, so spills
+   * persist as session evidence for restores until the user removes the
+   * directory; the certification record says so.
+   */
+  private readonly spills = new Set<string>()
+  /** TOOLCAP: recall id to spill file, for paging cut results back. */
+  private readonly spillById = new Map<string, string>()
+  /** TOOLCAP: call ids already replaced by the cut form; trim skips them. */
+  private readonly cutToolOutputs = new Set<string>()
+  /** TOOLCAP: whether the byte-guard refusal was already said this session. */
+  private capRefusedSaid = false
   private readonly strictTools: boolean
   private readonly parallelReads: boolean
   private readonly outputContinuation: boolean
@@ -3080,19 +3143,295 @@ export class ModelApiSession implements ScheduledAgentSession {
     }
   }
 
-  private appendHookContexts(turnId: string, contexts: readonly string[]): void {
+  private async appendHookContexts(turnId: string, contexts: readonly string[]): Promise<void> {
     for (const context of contexts) {
-      this.hookTokensAdded += estimatePackTokens(context.length)
+      // TOOLCAP: hook context enters through the bound like every tool
+      // result; a cut hook note keeps its spill, paged the same way.
+      const bounded = boundToolResultText(context, this.toolResultLimits())
+      let text = context
+      if (bounded.cut !== undefined) {
+        const key = `hook-${turnId}-${String(this.hookTokensAdded)}`
+        text = await this.boundHookNote(key, context, bounded)
+      }
+      this.hookTokensAdded += estimatePackTokens(text.length)
       this.replay.push({
         turnId,
         item: {
           type: 'message',
           role: 'user',
-          content: [{ type: 'input_text', text: context }],
+          content: [{ type: 'input_text', text }],
         },
       })
     }
     if (contexts.length > 0) this.emitUsage()
+  }
+
+  /**
+   * TOOLCAP: the session's per-result limits. The byte guard is the
+   * configured cap, refused with its reason when it cannot be honoured; the
+   * window share follows the room the replay leaves in the model's window.
+   */
+  private toolResultLimits(): ToolResultLimits {
+    const windowTokens = this.toolResultWindowTokens()
+    const validated = validateToolResultCap(
+      this.deps.maxToolOutputBytes?.(),
+      windowTokens,
+      TOOL_OUTPUT_MAX_CHARS,
+    )
+    if ('refused' in validated) {
+      if (!this.capRefusedSaid) {
+        this.capRefusedSaid = true
+        this.deps.log.warn(`Tool-output cap refused: ${validated.refused}`)
+        this.emit({
+          type: 'backendNotice',
+          level: 'warning',
+          text: fill(UI_TEXT.toolResultCapRefused, {
+            source: 'setting',
+            value: formatNumber(this.deps.maxToolOutputBytes?.() ?? 0),
+            reason: validated.refused,
+            fallback: formatNumber(validated.fallback),
+          }),
+        })
+      }
+      return toolResultLimitsFor(validated.fallback, windowTokens)
+    }
+    return toolResultLimitsFor(validated.bytes, windowTokens)
+  }
+
+  /**
+   * TOOLCAP: what is left of the model's window in tokens: the window less
+   * the replay's estimated tokens and room for the reply. Unknown when the
+   * model names no window; the share is then skipped, never guessed.
+   */
+  private toolResultWindowTokens(): number | undefined {
+    const window =
+      contextModelFor(this.deps, this.modelId)?.contextTokens ??
+      this.sendingContextModel?.contextTokens
+    if (window === undefined || !Number.isSafeInteger(window) || window <= 0) return undefined
+    // One straight pass over the replay: JSON per item, never the whole
+    // conversation held twice.
+    let chars = 0
+    for (const entry of this.replay) chars += JSON.stringify(entry.item).length
+    return Math.max(0, window - estimatePackTokens(chars) - MODEL_API_MAX_OUTPUT_TOKENS)
+  }
+
+  /**
+   * TOOLCAP: the one function every tool result passes through on its way
+   * into the conversation. Under every cap the text returns byte-identical;
+   * a cut result's full text is spilled where the file tools can page it,
+   * and the model and the person each get the one-line notice naming what
+   * was cut and the spill. Never silent, never a bare success.
+   */
+  private async boundToolOutput(
+    callId: string,
+    text: string,
+  ): Promise<
+    | {
+        readonly output: string
+        readonly visibleOutput: string
+        readonly cut: undefined
+        readonly spill: undefined
+      }
+    | {
+        readonly output: string
+        readonly visibleOutput: string
+        readonly cut: ToolResultCut
+        readonly spill: string
+      }
+  > {
+    const bounded = boundToolResultText(text, this.toolResultLimits())
+    if (bounded.cut === undefined) {
+      return { output: text, visibleOutput: text, cut: undefined, spill: undefined }
+    }
+    const relative = await this.writeSpill(callId, text)
+    this.cutToolOutputs.add(callId)
+    return {
+      output: `${bounded.text}\n${cutNotice(bounded.cut, relative, callId)}`,
+      visibleOutput: `${bounded.text}\n${this.cutPreview(bounded.cut, relative)}`,
+      cut: bounded.cut,
+      spill: relative,
+    }
+  }
+
+  /**
+   * TOOLCAP: a cut hook note, spilled and noticed like a tool result. The
+   * spill write is awaited: the notice never names a file not yet kept.
+   */
+  private async boundHookNote(
+    callId: string,
+    text: string,
+    bounded: BoundToolResult,
+  ): Promise<string> {
+    if (bounded.cut === undefined) return text
+    const relative = await this.writeSpill(callId, text)
+    this.cutToolOutputs.add(callId)
+    return `${bounded.text}\n${cutNotice(bounded.cut, relative, callId)}`
+  }
+
+  /**
+   * TOOLCAP: a finished call's outcome through the bound. Text parts ride
+   * the same cut text the model gets (images ride unchanged); the row keeps
+   * the person's preview. Outcomes already under every cap pass through
+   * untouched, so requests without an oversized result stay byte-identical.
+   */
+  private async boundOutcome(callId: string, outcome: ToolOutcome): Promise<ToolOutcome> {
+    const bounded = await this.boundToolOutput(callId, outcome.output)
+    if (bounded.cut === undefined) return outcome
+    // The row keeps its own text (line-numbered reads, per-stream clips)
+    // with the plain-words preview appended.
+    return {
+      ...outcome,
+      output: bounded.output,
+      visibleOutput: `${outcome.visibleOutput}\n${this.cutPreview(bounded.cut, bounded.spill)}`,
+      ...(outcome.outputParts !== undefined && {
+        outputParts: outcome.outputParts.map((part) =>
+          part.type === 'input_text' ? { ...part, text: bounded.output } : part,
+        ),
+      }),
+    }
+  }
+
+  /** TOOLCAP: the person's preview of a cut says the same in plain words. */
+  private cutPreview(cut: ToolResultCut, spill: string): string {
+    return fill(UI_TEXT.toolResultCutPreview, {
+      total: formatNumber(cut.totalChars),
+      head: formatNumber(cut.headLines),
+      tail: formatNumber(cut.tailLines),
+      omitted: formatNumber(cut.omittedChars),
+      spill,
+    })
+  }
+
+  /** TOOLCAP: the spill's workspace-relative path (forward slashes, every platform). */
+  private spillRelative(callId: string): string {
+    return `${TOOL_RESULT_SPILL_DIR}/${spillName(this.sessionId, callId)}`
+  }
+
+  /**
+   * TOOLCAP: keep the cut result's full text where the file tools can page
+   * it: under the session's spill directory in the workspace root, with a
+   * `.gitignore` keeping spills out of git. A failed write is said out loud
+   * (log and person notice), never silent.
+   */
+  private async writeSpill(callId: string, text: string): Promise<string> {
+    const relative = this.spillRelative(callId)
+    const p = pathModule(this.deps.platform)
+    const absolute = p.resolve(this.deps.workspaceRoot, relative).replaceAll('\\', '/')
+    const ignore = p
+      .resolve(this.deps.workspaceRoot, TOOL_RESULT_SPILL_DIR, '.gitignore')
+      .replaceAll('\\', '/')
+    try {
+      await this.deps.io.writeFile(ignore, '*.txt\n')
+      await this.deps.io.writeFile(absolute, text)
+    } catch (error: unknown) {
+      this.deps.log.warn(`Tool-result spill failed: ${describe(error)}`)
+      this.emit({
+        type: 'backendNotice',
+        level: 'warning',
+        text: fill(UI_TEXT.toolResultCapRefused, {
+          source: 'spill',
+          value: relative,
+          reason: 'the full result could not be kept',
+          fallback: formatNumber(TOOL_OUTPUT_MAX_CHARS),
+        }),
+      })
+      throw error
+    }
+    this.spills.add(relative)
+    this.spillById.set(callId, relative)
+    return relative
+  }
+
+  /**
+   * TOOLCAP: a sub-agent reply through the bound from a push site that
+   * cannot await (child-event handlers, restore). Child texts are already
+   * capped at construction, so a cut is the line edge or a nearly spent
+   * window; the spill path is deterministic and registered before the write
+   * it names, which lands before the next send. Failures are said out loud.
+   */
+  private noteChildCut(childId: string, text: string): string {
+    return this.noteSyncCut(`child-${childId}`, childId, text)
+  }
+
+  /**
+   * TOOLCAP: text through the bound from a synchronous push site (fork,
+   * restore). The deterministic spill path registers before the write it
+   * names; the write lands before the next send. The bound is idempotent,
+   * so already-cut text passes through untouched.
+   */
+  private noteSyncCut(key: string, noticeId: string, text: string): string {
+    const bounded = boundToolResultText(text, this.toolResultLimits())
+    if (bounded.cut === undefined) return text
+    const relative = this.spillRelative(key)
+    this.spillById.set(key, relative)
+    this.spillById.set(noticeId, relative)
+    void this.writeSpill(key, text).catch((error: unknown) => {
+      this.deps.log.warn(`Tool-result spill failed: ${describe(error)}`)
+    })
+    this.cutToolOutputs.add(key)
+    return `${bounded.text}\n${cutNotice(bounded.cut, relative, noticeId)}`
+  }
+
+  /**
+   * TOOLCAP recovery (a): replace the largest tool results still riding
+   * whole (a restored session's, or from before a smaller window) with the
+   * same cut form new results get, spills kept. Covers call outputs and the
+   * harness's own result notes (sub-agent and background leads); the user's
+   * own words are never cut. Returns how many were cut.
+   */
+  private async trimLargestToolOutputs(): Promise<number> {
+    let replaced = 0
+    for (const [index, entry] of this.replay.entries()) {
+      const item = entry.item
+      if (item.type === 'function_call_output' && typeof item.output === 'string') {
+        if (this.cutToolOutputs.has(item.call_id)) continue
+        const bounded = boundToolResultText(item.output, this.toolResultLimits())
+        if (bounded.cut === undefined) continue
+        const relative = await this.writeSpill(item.call_id, item.output)
+        this.replay[index] = {
+          ...entry,
+          item: {
+            ...item,
+            output: `${bounded.text}\n${cutNotice(bounded.cut, relative, item.call_id)}`,
+          },
+        }
+        this.cutToolOutputs.add(item.call_id)
+        replaced += 1
+        continue
+      }
+      const part =
+        item.type === 'message' && item.role === 'user' && item.content.length === 1
+          ? item.content[0]
+          : undefined
+      if (
+        part?.type !== 'input_text' ||
+        (!part.text.startsWith(MODEL_API_MODEL_TEXT.subagentResult) &&
+          !part.text.startsWith(MODEL_API_MODEL_TEXT.backgroundEndedLead))
+      ) {
+        continue
+      }
+      const key = `trim-${String(index)}`
+      if (this.cutToolOutputs.has(key)) continue
+      const bounded = boundToolResultText(part.text, this.toolResultLimits())
+      if (bounded.cut === undefined) continue
+      const relative = await this.writeSpill(key, part.text)
+      this.replay[index] = {
+        ...entry,
+        item: {
+          type: 'message',
+          role: 'user',
+          content: [
+            {
+              type: 'input_text',
+              text: `${bounded.text}\n${cutNotice(bounded.cut, relative, key)}`,
+            },
+          ],
+        },
+      }
+      this.cutToolOutputs.add(key)
+      replaced += 1
+    }
+    return replaced
   }
 
   /** The hooks that run for this session: none in a side chat or with the opt-in off (M51). */
@@ -3400,7 +3739,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       }
     }
     if (turnId !== undefined && shouldReplayContext) {
-      this.appendHookContexts(turnId, result.contexts)
+      await this.appendHookContexts(turnId, result.contexts)
     }
     return result
   }
@@ -3519,7 +3858,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       this.emit({ type: 'backendNotice', level: 'info', text: message })
     }
     if (turnId !== undefined && shouldReplayContexts) {
-      this.appendHookContexts(turnId, result.contexts)
+      await this.appendHookContexts(turnId, result.contexts)
     }
     return result
   }
@@ -3563,7 +3902,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       throw new HookStoppedError(`${blockedHosted.type}: ${UI_TEXT.hookToolRemoved}`)
     const removed = offered.filter((name) => !this.toolSelection?.allowed.includes(name))
     if (removed.length > 0) {
-      this.appendHookContexts(turnId, [
+      await this.appendHookContexts(turnId, [
         `${MODEL_API_MODEL_TEXT.hookToolsUnavailable} ${removed.join(', ')}`,
       ])
     }
@@ -3591,7 +3930,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     if (pre.blockedReason !== undefined) {
       throw new HookStoppedError(pre.blockedReason)
     }
-    this.appendHookContexts(turnId, pre.contexts)
+    await this.appendHookContexts(turnId, pre.contexts)
   }
 
   private async collectStartHooks(
@@ -6287,7 +6626,16 @@ export class ModelApiSession implements ScheduledAgentSession {
           error,
         }) !== undefined
       ) {
-        throw new ContextOverflowError('error', body.model, model?.contextTokens)
+        // TOOLCAP: keep the provider's own numbers (digits only, never its
+        // prose) so the turn's last word can say by how much.
+        const tooLong = parsePromptTooLong(error.message)
+        throw new ContextOverflowError(
+          'error',
+          body.model,
+          model?.contextTokens,
+          tooLong?.tokens,
+          tooLong?.maximum,
+        )
       }
       throw error
     } finally {
@@ -7904,10 +8252,66 @@ export class ModelApiSession implements ScheduledAgentSession {
    * card. Without packing the tool is not offered, and a model that calls
    * it anyway is told so, never run.
    */
-  private recallPacked(call: FunctionCallItem): ToolOutcome {
-    return !this.canPack() || this.packing === undefined
-      ? toolFailure(`unknown tool ${call.name}`)
-      : this.packing.recall(call.arguments)
+  private async recallPacked(call: FunctionCallItem): Promise<ToolOutcome> {
+    if (this.packing !== undefined && this.canPack()) {
+      const outcome = this.packing.recall(call.arguments)
+      if (outcome.failureReason === undefined) return outcome
+      // The store holds only the cut text (or nothing): page the spill's
+      // full result instead, framed exactly as a packed page.
+      const spill = await this.recallSpill(call.arguments)
+      return spill ?? outcome
+    }
+    return (await this.recallSpill(call.arguments)) ?? toolFailure(`unknown tool ${call.name}`)
+  }
+
+  /**
+   * TOOLCAP: one page of a spilled full result, by the recall id the cut
+   * notice named. Undefined when the id names no spill (or the arguments
+   * are not a plausible recall): the packer's own failure then stands.
+   */
+  private async recallSpill(argsJson: string): Promise<ToolOutcome | undefined> {
+    let raw: unknown
+    try {
+      raw = JSON.parse(argsJson)
+    } catch {
+      return undefined
+    }
+    if (typeof raw !== 'object' || raw === null) return undefined
+    const record = raw as Record<string, unknown>
+    const { id, offset, search } = record
+    if (typeof id !== 'string') return undefined
+    // Implausible arguments keep the packer's own failure: the spill only
+    // answers well-formed recalls it can serve.
+    if (
+      offset !== undefined &&
+      (typeof offset !== 'number' || !Number.isSafeInteger(offset) || offset < 0)
+    ) {
+      return undefined
+    }
+    if (search !== undefined && typeof search !== 'string') return undefined
+    const relative = this.spillById.get(id)
+    if (relative === undefined) return undefined
+    const p = pathModule(this.deps.platform)
+    const absolute = p.resolve(this.deps.workspaceRoot, relative).replaceAll('\\', '/')
+    let text: string | undefined
+    try {
+      text = await this.deps.io.readFile(absolute, absolute)
+    } catch {
+      text = undefined
+    }
+    return text === undefined
+      ? undefined
+      : pageRecalledText(text, this.toolOfCall(id), id, offset ?? 0, search)
+  }
+
+  /** TOOLCAP: the tool that returned the call id, for a spill page's source line. */
+  private toolOfCall(callId: string): string | undefined {
+    for (const entry of this.replay) {
+      if (entry.item.type === 'function_call' && entry.item.call_id === callId) {
+        return entry.item.name
+      }
+    }
+    return undefined
   }
 
   /**
@@ -8357,9 +8761,8 @@ export class ModelApiSession implements ScheduledAgentSession {
         signal: stop.signal,
         limit,
         seen: this.seenFiles,
-        // Kept whole for observation packing (M101): a packed shell result
-        // stays recoverable through `recall_output`.
-        wholeShellOutput: this.packing !== undefined,
+        // TOOLCAP: the runner's whole output rides every outcome; the one
+        // bound cuts it with a spill and notices, packing or not.
         provisionalSeen: new Map(),
         assertCanRun: () => {
           if (stop.signal.aborted || !isAllowed(this.backgroundShells.get(itemId) === stop))
@@ -9054,7 +9457,11 @@ export class ModelApiSession implements ScheduledAgentSession {
       }
       this.pendingChildResults.push({
         childId: child.id,
-        text: `${MODEL_API_MODEL_TEXT.subagentResult}\n${child.id}: ${JSON.stringify({ ...child.result, summary: modelText.slice(0, SUBAGENT_SUMMARY_MAX_CHARS), text: modelText.slice(0, SUBAGENT_RESULT_TEXT_MAX_CHARS) })}`,
+        // TOOLCAP: the reply enters through the bound; a cut keeps its spill.
+        text: this.noteChildCut(
+          child.id,
+          `${MODEL_API_MODEL_TEXT.subagentResult}\n${child.id}: ${JSON.stringify({ ...child.result, summary: modelText.slice(0, SUBAGENT_SUMMARY_MAX_CHARS), text: modelText.slice(0, SUBAGENT_RESULT_TEXT_MAX_CHARS) })}`,
+        ),
         revision: child.policyRevision,
       })
       this.emit(event)
@@ -9687,7 +10094,11 @@ export class ModelApiSession implements ScheduledAgentSession {
         child.session.childTaskGrant = undefined
         this.pendingChildResults.push({
           childId: child.id,
-          text: `${MODEL_API_MODEL_TEXT.subagentResult}\n${child.id}: ${JSON.stringify({ summary: messages.model, text: messages.model, errorKind: `subagent_${refusal}` })}`,
+          // TOOLCAP: the reply enters through the bound; a cut keeps its spill.
+          text: this.noteChildCut(
+            child.id,
+            `${MODEL_API_MODEL_TEXT.subagentResult}\n${child.id}: ${JSON.stringify({ summary: messages.model, text: messages.model, errorKind: `subagent_${refusal}` })}`,
+          ),
           revision: child.policyRevision,
         })
         this.updateChild(child)
@@ -10257,7 +10668,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         return { outcome: await this.readSkill(call, turnId, signal) }
       }
       case MODEL_API_TOOLS.recallOutput: {
-        return { outcome: this.recallPacked(call) }
+        return { outcome: await this.recallPacked(call) }
       }
       case MODEL_API_TOOLS.legalScan: {
         return { outcome: await this.runLegalScan(call, signal) }
@@ -10312,7 +10723,6 @@ export class ModelApiSession implements ScheduledAgentSession {
           outcome: await executeTool(call.name, call.arguments, {
             ...this.fileToolContext(signal, provisionalSeen),
             contextTokens: contextModelFor(this.deps, this.modelId)?.contextTokens,
-            wholeShellOutput: this.packing !== undefined,
             assertCanWrite,
             ...(approvedTarget !== undefined && { approvedTarget }),
             ...(formatter !== undefined && { formatter }),
@@ -12317,14 +12727,9 @@ export class ModelApiSession implements ScheduledAgentSession {
     }
     const { line, result } = ran
     if (isAllowed()) this.noteCheckCommandRun(line, result, startedOn)
-    // Kept whole for observation packing (M101): a packed then_run result
-    // stays recoverable through `recall_output`.
-    const finished = shellOutcome(
-      result,
-      SHELL_DEFAULT_TIMEOUT_MS,
-      TOOL_OUTPUT_MAX_CHARS,
-      this.packing !== undefined,
-    )
+    // TOOLCAP: whole like every shell result; the one bound cuts it with a
+    // spill and notices where the edit's outcome enters.
+    const finished = shellOutcome(result, SHELL_DEFAULT_TIMEOUT_MS, TOOL_OUTPUT_MAX_CHARS, true)
     return {
       outcome: {
         ...edit,
@@ -12918,12 +13323,12 @@ export class ModelApiSession implements ScheduledAgentSession {
     // publish only after all awaited settlement work passes Stop.
     let outcome = isRejected ? result.outcome : this.fencedOutcome(admission, result.outcome)
     let attemptReplay: ReplayItem | undefined
-    const commit = () => {
+    const commit = async () => {
       checkStopped()
       if (!isRejected && executed.value.isParallelExecution)
         outcome = this.fencedOutcome(admission, outcome)
       if (running !== undefined) {
-        this.continueInBackground(turnId, started, effectiveCall, outcome, running, admission)
+        await this.continueInBackground(turnId, started, effectiveCall, outcome, running, admission)
         return
       }
       if (!this.canQueueToolMedia(outcome)) {
@@ -12933,6 +13338,9 @@ export class ModelApiSession implements ScheduledAgentSession {
           failureReason: UI_TEXT.mediaTotalTooLarge,
         }
       }
+      // TOOLCAP: every finished call's output enters the conversation through
+      // the one bound: cut with its spill and notices, or byte-identical.
+      outcome = await this.boundOutcome(effectiveCall.call_id, outcome)
       let status = COMPLETED
       if (outcome.failureReason !== undefined) {
         status = isRejected ? REJECTED : FAILED
@@ -12960,12 +13368,12 @@ export class ModelApiSession implements ScheduledAgentSession {
         throw new HookStoppedError(outcome.failureReason)
       }
     }
-    if (!executed.value.isParallelExecution) commit()
+    if (!executed.value.isParallelExecution) await commit()
     if (selectionReason !== undefined) {
       await this.notePermissionDenied(call.name, selectionReason, signal)
       checkStopped()
     }
-    this.appendHookContexts(turnId, [...pre.contexts, ...(hookEffects?.contexts ?? [])])
+    await this.appendHookContexts(turnId, [...pre.contexts, ...(hookEffects?.contexts ?? [])])
     let repeatWitness: string | undefined
     try {
       repeatWitness = this.observedRepeatWitness(
@@ -13001,7 +13409,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       { fileOperation: fileOperationOf(outcome) },
     )
     checkStopped()
-    if (executed.value.isParallelExecution) commit()
+    if (executed.value.isParallelExecution) await commit()
     if (
       attemptReplay !== undefined &&
       outcome.failureReason === undefined &&
@@ -13094,14 +13502,14 @@ export class ModelApiSession implements ScheduledAgentSession {
    * answer now and the turn goes on; the row stays running, marked, and is
    * kept in the history as it is, until the command ends.
    */
-  private continueInBackground(
+  private async continueInBackground(
     turnId: string,
     started: ItemSnapshot,
     call: FunctionCallItem,
     outcome: ToolOutcome,
     running: Promise<ToolOutcome>,
     admission: Admission | undefined,
-  ): void {
+  ): Promise<void> {
     const moved: ItemSnapshot = {
       ...started,
       background: true,
@@ -13109,20 +13517,24 @@ export class ModelApiSession implements ScheduledAgentSession {
     }
     this.emit({ type: 'itemUpdated', item: moved })
     this.rerecordTranscript(moved)
+    // TOOLCAP: the interim output enters through the bound like a finished
+    // call; the final one follows in endInBackground.
+    const bounded = await this.boundOutcome(call.call_id, outcome)
     this.replay.push({
       turnId,
-      item: { type: 'function_call_output', call_id: call.call_id, output: outcome.output },
+      item: { type: 'function_call_output', call_id: call.call_id, output: bounded.output },
     })
     void running
       .catch((error: unknown) => toolFailure(describe(error)))
-      .then((final) => {
-        // Its end is an outcome too: the dispatcher's fence judges it as it is told (M78).
-        this.endInBackground(moved, call, this.fencedOutcome(admission, final))
-      })
+      .then((final) => this.endInBackground(moved, call, this.fencedOutcome(admission, final)))
   }
 
   /** A background command ended (M46): its row completes and the model hears how. */
-  private endInBackground(moved: ItemSnapshot, call: FunctionCallItem, final: ToolOutcome): void {
+  private async endInBackground(
+    moved: ItemSnapshot,
+    call: FunctionCallItem,
+    final: ToolOutcome,
+  ): Promise<void> {
     const stop = this.backgroundShells.get(moved.itemId)
     this.backgroundShells.delete(moved.itemId)
     let status = COMPLETED
@@ -13139,7 +13551,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     }
     this.emit({ type: 'itemCompleted', item: completed })
     this.rerecordTranscript(completed)
-    this.noteForModel(
+    await this.noteForModel(
       `${MODEL_API_MODEL_TEXT.backgroundEndedLead}\n$ ${commandOf(call.arguments)}\n${final.output}`,
       moved.itemId,
     )
@@ -13155,17 +13567,32 @@ export class ModelApiSession implements ScheduledAgentSession {
   /**
    * Something the model reads before its next request (M46): straight into
    * the replay while nothing holds it, else when the running turn next asks
-   * or ends (a compaction: when it ends).
+   * or ends (a compaction: when it ends). TOOLCAP: background completions
+   * are tool results, so the note enters through the bound; a cut note's
+   * spill registers under the same background id the packer will name.
    */
-  private noteForModel(text: string, backgroundTaskId?: string): void {
-    const note: PendingNote = { text, ...(backgroundTaskId !== undefined && { backgroundTaskId }) }
+  private async noteForModel(text: string, backgroundTaskId?: string): Promise<void> {
+    const bounded = boundToolResultText(text, this.toolResultLimits())
+    let finalText = text
+    if (bounded.cut !== undefined) {
+      // The spill key names the note; the packer's later placeholder will
+      // name the background hash of the final text, so register both.
+      const spillKey = backgroundTaskId ?? `note-${this.latestTurnId()}`
+      const relative = await this.writeSpill(spillKey, text)
+      finalText = `${bounded.text}\n${cutNotice(bounded.cut, relative, spillKey)}`
+      this.spillById.set(backgroundNoteId(finalText), relative)
+    }
+    const note: PendingNote = {
+      text: finalText,
+      ...(backgroundTaskId !== undefined && { backgroundTaskId }),
+    }
     if (this.active !== undefined || this.compacting !== undefined) {
       this.pendingNotes.push(note)
       return
     }
     this.replay.push({
       turnId: this.latestTurnId(),
-      item: noteItem(text),
+      item: noteItem(finalText),
       ...(backgroundTaskId !== undefined && { backgroundTaskId }),
     })
     this.touch()
@@ -13236,7 +13663,8 @@ export class ModelApiSession implements ScheduledAgentSession {
     } finally {
       this.userShells.delete(started.itemId)
     }
-    const outcome = shellOutcome(result, USER_SHELL_TIMEOUT_MS)
+    // TOOLCAP: whole; the note enters through the bound with spill and notice.
+    const outcome = shellOutcome(result, USER_SHELL_TIMEOUT_MS, TOOL_OUTPUT_MAX_CHARS, true)
     // A refused entry ran nothing: its row says so, and the model is told
     // nothing about a command that never started.
     const isRefused = result.isEntryRefused === true && !stop.signal.aborted
@@ -13258,7 +13686,9 @@ export class ModelApiSession implements ScheduledAgentSession {
     this.emit({ type: 'itemCompleted', item: completed })
     this.rerecordTranscript(completed)
     if (result.isEntryRefused !== true) {
-      this.noteForModel(`${MODEL_API_MODEL_TEXT.userShellLead}\n$ ${command}\n${outcome.output}`)
+      await this.noteForModel(
+        `${MODEL_API_MODEL_TEXT.userShellLead}\n$ ${command}\n${outcome.output}`,
+      )
     }
   }
 
@@ -13518,9 +13948,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         rerecordTranscript: (item) => {
           this.rerecordTranscript(item)
         },
-        appendHookEffects: (turnId, effects) => {
-          this.appendHookEffects(turnId, effects)
-        },
+        appendHookEffects: (turnId, effects) => this.appendHookEffects(turnId, effects),
         abortError: () => new AbortedError(),
         isAbortError: (error) => error instanceof AbortedError,
         unlessStopped,
@@ -13533,8 +13961,8 @@ export class ModelApiSession implements ScheduledAgentSession {
   }
 
   /** What the checks' hooks added, after the verify note: their contexts, then their reasons. */
-  private appendHookEffects(turnId: string, effects: HookEffects): void {
-    this.appendHookContexts(turnId, [...effects.contexts, ...effects.messages])
+  private async appendHookEffects(turnId: string, effects: HookEffects): Promise<void> {
+    await this.appendHookContexts(turnId, [...effects.contexts, ...effects.messages])
   }
 
   private teamEventsOutcome(name: TeamToolName, outcome: ToolOutcome): ToolOutcome {
@@ -13577,22 +14005,39 @@ export class ModelApiSession implements ScheduledAgentSession {
         if (!isAbortRequested(signal)) turn.modelFailure = error
         if (
           error instanceof ContextOverflowError &&
-          !turn.didRecoverOverflow &&
-          !isAbortRequested(signal)
+          !isAbortRequested(signal) &&
+          (!turn.didTrimOverflow || !turn.didRecoverOverflow)
         ) {
-          turn.didRecoverOverflow = true
-          const compacted = await this.maybeAutoCompact(turn, true)
-          if (this.stopAfterAutoCompaction(turn, compacted, wasBudgetLimited)) return
-          if (compacted) {
-            this.deps.onContextOverflow?.({
-              sessionId: this.sessionId,
-              turnId: turn.turnId,
-              modelId: error.modelId,
-              kind: error.kind,
-              contextTokens: error.contextTokens,
-            })
-            streamed = await this.streamOnce(turn.turnId, signal, round, turn.confirmedRequest)
-          } else throw error
+          // TOOLCAP recovery, in order, at most OVERFLOW_MAX_REQUEST_SENDS
+          // sends: (a) the largest tool results still riding whole become
+          // the cut form with spills, then send again once; (b) compact once
+          // through the existing entry when available, then send again;
+          // (c) otherwise the turn ends with the true sentence below.
+          // Never loops: each step runs once per turn, counted by the flags.
+          if (error.kind === 'error' && !turn.didTrimOverflow) {
+            turn.didTrimOverflow = true
+            if ((await this.trimLargestToolOutputs()) > 0) {
+              streamed = await this.streamOnce(turn.turnId, signal, round, turn.confirmedRequest)
+            } else if (turn.didRecoverOverflow) {
+              throw error
+            } else {
+              const resent = await this.compactAndResend(
+                turn,
+                signal,
+                round,
+                wasBudgetLimited,
+                error,
+              )
+              if ('stopped' in resent) return
+              streamed = resent.streamed
+            }
+          } else if (turn.didRecoverOverflow) {
+            throw error
+          } else {
+            const resent = await this.compactAndResend(turn, signal, round, wasBudgetLimited, error)
+            if ('stopped' in resent) return
+            streamed = resent.streamed
+          }
         } else {
           throw error
         }
@@ -13611,7 +14056,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       }
       if (!wasBudgetLimited && this.goal?.status === GOAL_STATUS.budgetLimited) {
         this.skipCalls(turn.turnId, calls, MODEL_API_MODEL_TEXT.goalBudgetReached)
-        this.appendHookContexts(turn.turnId, postContexts)
+        await this.appendHookContexts(turn.turnId, postContexts)
         this.promoteSteered(turn)
         return
       }
@@ -13619,7 +14064,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         // A completed function item in a cut-short response is still unsafe:
         // answer every call, never execute it (M101 item 8).
         this.skipCalls(turn.turnId, calls, `response.incomplete: ${streamed.incompleteReason}`)
-        this.appendHookContexts(turn.turnId, postContexts)
+        await this.appendHookContexts(turn.turnId, postContexts)
         if (
           streamed.incompleteReason === 'max_output_tokens' &&
           this.outputContinuation &&
@@ -13648,7 +14093,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         this.goalSteps += 1
       }
       if (calls.length === 0) {
-        this.appendHookContexts(turn.turnId, postContexts)
+        await this.appendHookContexts(turn.turnId, postContexts)
         // A message typed while the final answer streamed gets its own round
         // instead of being accepted and dropped (D26).
         if (turn.steered.length === 0 && !(turn.goalWakePending && isGoalActive(this.goal))) {
@@ -13798,7 +14243,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       } finally {
         // A user message between a function call and its output is invalid
         // replay. Post-model context follows the whole tool batch instead.
-        this.appendHookContexts(turn.turnId, postContexts)
+        await this.appendHookContexts(turn.turnId, postContexts)
         // A stopped or failed round names its read files without replaying
         // bytes that no model request saw (M54).
         await this.appendReadFiles(turn.turnId, isRoundComplete && !isAbortRequested(signal))
@@ -14041,7 +14486,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       for (const message of this.pendingHookMessages.splice(0)) {
         this.emit({ type: 'backendNotice', level: 'info', text: message })
       }
-      this.appendHookContexts(turn.turnId, this.pendingHookContexts.splice(0))
+      await this.appendHookContexts(turn.turnId, this.pendingHookContexts.splice(0))
       if (this.hookStartStopReason !== undefined) {
         const stopReason = this.hookStartStopReason
         this.hookStartStopReason = undefined
@@ -14106,7 +14551,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       if (queued.isGoalWake) {
         this.appendGoalWake(turn.turnId, parts)
       } else if (queued.isHookContinuation === true) {
-        this.appendHookContexts(turn.turnId, [typedText(parts)])
+        await this.appendHookContexts(turn.turnId, [typedText(parts)])
       } else {
         const replayStart = this.replay.length
         await this.appendUserMessage(turn.turnId, parts, queued.displayText, queued.userMessageId)
@@ -14197,7 +14642,19 @@ export class ModelApiSession implements ScheduledAgentSession {
         if (error instanceof ChildTaskRefusedError) {
           errorKind = `subagent_${error.kind}`
         } else if (error instanceof ContextOverflowError) {
-          reason = UI_TEXT.contextWindowFull
+          // TOOLCAP recovery (c): the true last word. With the provider's
+          // own numbers, by how much and what the person can do; otherwise
+          // the short sentence. The conversation is intact: cuts kept
+          // spills, so /compact, a larger window or a new conversation
+          // all proceed from usable history.
+          reason =
+            error.promptTokens !== undefined && error.promptMaximum !== undefined
+              ? fill(UI_TEXT.contextWindowTooLong, {
+                  tokens: formatNumber(error.promptTokens),
+                  maximum: formatNumber(error.promptMaximum),
+                  over: formatNumber(Math.max(0, error.promptTokens - error.promptMaximum)),
+                })
+              : UI_TEXT.contextWindowFull
           errorKind = 'context_overflow'
           this.deps.onContextOverflow?.({
             sessionId: this.sessionId,
@@ -14709,6 +15166,36 @@ export class ModelApiSession implements ScheduledAgentSession {
   }
 
   /** Both compaction boundaries preserve goal exhaustion and hook stops. */
+  /**
+   * TOOLCAP recovery (b): compact once through the existing public entry
+   * (automatic compaction stays off here; another lane evaluates it) and
+   * send again. `{ stopped: true }` ends the turn as before.
+   */
+  private async compactAndResend(
+    turn: ActiveTurn,
+    signal: AbortSignal,
+    round: number,
+    wasBudgetLimited: boolean,
+    error: ContextOverflowError,
+  ): Promise<{ readonly stopped: true } | { readonly streamed: StreamedCall }> {
+    turn.didRecoverOverflow = true
+    const compacted = await this.maybeAutoCompact(turn, true)
+    if (this.stopAfterAutoCompaction(turn, compacted, wasBudgetLimited)) return { stopped: true }
+    if (compacted) {
+      this.deps.onContextOverflow?.({
+        sessionId: this.sessionId,
+        turnId: turn.turnId,
+        modelId: error.modelId,
+        kind: error.kind,
+        contextTokens: error.contextTokens,
+      })
+      return {
+        streamed: await this.streamOnce(turn.turnId, signal, round, turn.confirmedRequest),
+      }
+    }
+    throw error
+  }
+
   private stopAfterAutoCompaction(
     turn: ActiveTurn,
     compacted: boolean | 'stopped',
@@ -15116,7 +15603,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       ),
     )
     this.packing?.reset()
-    this.appendHookContexts(COMPACTION_TURN_ID, postContexts)
+    await this.appendHookContexts(COMPACTION_TURN_ID, postContexts)
     const item: ItemSnapshot = {
       itemId: this.deps.newId(),
       kind: 'compaction',
@@ -15828,7 +16315,7 @@ export class ModelApiSession implements ScheduledAgentSession {
             )
             check()
             if (binding?.turnId !== undefined)
-              this.appendHookContexts(binding.turnId, result.contexts)
+              await this.appendHookContexts(binding.turnId, result.contexts)
             if (result.response.output.some((item) => isFunctionCallItem(item)))
               throw new Error(UI_TEXT.gitDraftFailed)
             return result.text
@@ -16788,7 +17275,11 @@ export class ModelApiSession implements ScheduledAgentSession {
     )
     this.status = IDLE
     this.pendingChildResults.push(
-      ...(stored.pendingChildResults ?? []).map((stored) => pendingFromStored(stored)),
+      // TOOLCAP: a restored reply enters through the bound like a new one.
+      ...(stored.pendingChildResults ?? []).map((stored) => {
+        const pending = pendingFromStored(stored)
+        return { ...pending, text: this.noteChildCut(pending.childId, pending.text) }
+      }),
     )
     const savedCommands = Object.entries(stored.spawnCommands ?? {})
     for (const [commandId, childId] of savedCommands) {
@@ -16881,9 +17372,19 @@ export class ModelApiSession implements ScheduledAgentSession {
     kept.add(COMPACTION_TURN_ID)
     const replay = this.replay.filter((entry) => kept.has(entry.turnId))
     const copied = this.media?.snapshot(replay) ?? replay
-    target.media?.restore(copied)
+    // TOOLCAP: a fork is a conversation: whole outputs a restore brought
+    // enter through the bound, spills kept on the target. New entries: the
+    // source keeps its own replay untouched.
+    const boundedCopied = copied.map((entry) => {
+      if (entry.item.type === 'function_call_output' && typeof entry.item.output === 'string') {
+        const cut = target.noteSyncCut(entry.item.call_id, entry.item.call_id, entry.item.output)
+        if (cut !== entry.item.output) return { ...entry, item: { ...entry.item, output: cut } }
+      }
+      return entry
+    })
+    target.media?.restore(boundedCopied)
     target.restoredFileRefs = [...this.restoredFileRefs]
-    target.replay.push(...copied)
+    target.replay.push(...boundedCopied)
     const packedIds = this.packing?.packedCallIds() ?? this.restoredPackedCallIds ?? []
     const keptOutputIds = new Set(
       target.replay.flatMap(({ item }) =>
@@ -16917,7 +17418,13 @@ export class ModelApiSession implements ScheduledAgentSession {
           : `${MODEL_API_MODEL_TEXT.backgroundEndedLead}\n$ ${command}\n${item.visibleOutput ?? ''}`
       target.replay.push({
         turnId: target.latestTurnId(),
-        item: recorded?.item ?? noteItem(pending?.text ?? fallback),
+        // TOOLCAP: the fallback carries a row's output, so it enters
+        // through the bound; recorded and pending notes are already bound.
+        item:
+          recorded?.item ??
+          noteItem(
+            pending?.text ?? target.noteSyncCut(`copy-${item.itemId}`, item.itemId, fallback),
+          ),
         backgroundTaskId: item.itemId,
       })
       copiedNotes.add(item.itemId)

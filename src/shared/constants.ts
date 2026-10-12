@@ -3833,6 +3833,32 @@ export const MEMORY_TRUNCATED_MARKER = '[MEMORY.md truncated]'
 export const MUSE_MEMORY_DOCS_URL = 'https://dev.meta.ai/docs/muse-code/configuration#local-memory'
 export const TOOL_OUTPUT_MAX_CHARS = 64_000
 export const TOOL_OUTPUT_CLIP_MARKER = '\n[output clipped]'
+/* TOOLCAP (one tool result can never end a conversation): the single bound
+ * every tool result passes through on its way into the conversation
+ * (toolResultBound.ts). Three caps, each with its source:
+ * - tokens: 16_000 estimated tokens is ~64_000 characters at the product's
+ *   own 4-characters-per-token rule (OBS_PACK_CHARS_PER_TOKEN), so it keeps
+ *   today's TOOL_OUTPUT_MAX_CHARS behaviour for ordinary results; it sits
+ *   between Claude Code's 30_000-character Bash default (BASH_MAX_OUTPUT_LENGTH)
+ *   and the 65_536 bytes third-party Muse Code adapters pass to
+ *   `muse exec --max-tool-output-bytes`.
+ * - line: 8_000 characters, the product's own OBS_PACK_THRESHOLD_CHARS: a
+ *   line past it is already treated as oversized elsewhere. The measured
+ *   failure was line length (megabyte one-line JSON captures), not count.
+ * - window: a result may never take more than a quarter of the model's
+ *   remaining window, so the same result that fits a 1M-token model is cut
+ *   for a 200k-token one. The measured result took ~94% of the window.
+ * Bytes are only the first cheap guard; tokens are what the provider counts. */
+export const TOOL_RESULT_MAX_TOKENS = 16_000
+export const TOOL_RESULT_MAX_LINE_CHARS = 8000
+export const TOOL_RESULT_WINDOW_SHARE = 1 / 4
+/* A cut result's full text is kept in a spill file under this directory in
+ * the workspace root, so the existing file tools can page through it. The
+ * directory is created with a `.gitignore` that ignores its contents. */
+export const TOOL_RESULT_SPILL_DIR = '.muse-spark/tool-results'
+/* Context-overflow recovery sends at most: the first attempt, one resend
+ * after trimming the largest tool results, one resend after compaction. */
+export const OVERFLOW_MAX_REQUEST_SENDS = 3
 // M101 lane P1 (PLAN.md D81, BYO codec item 1): wire markers the BYO codecs
 // send when a history item cannot ride as it came. Fixed strings, never
 // templated, so the cached prefix stays byte-stable. Model-read, English by
@@ -6535,6 +6561,14 @@ export const MODEL_API_MODEL_TEXT = {
   packKnownIdsMore: '{known}, and {count} more',
   packBadOffset:
     'offset for packed output "{id}" must be a whole number of characters from 0 to {last}, not inside a character',
+  // TOOLCAP: the one line a cut tool result carries. It says how much there
+  // was, which head and tail the model got with the omitted middle counted,
+  // the longest line's length when lines were cut, and the exact way to read
+  // more (the spill file, paged with read_file). Never silent: every cut
+  // ends with this line.
+  toolResultCut:
+    'Tool result cut: {totalChars} characters ({totalTokens} tokens) in {totalLines} lines, kept {keptChars} as the first {headLines} and last {tailLines} lines ({omittedChars} characters omitted in the middle){longest}. Full result in {spill}: page it back with recall_output id "{id}" (offset in characters) or read_file with offset and limit.',
+  toolResultCutLongest: '; longest line {longestLine} characters, cut to {lineCap}',
   // PLAN.md D27: what the Model API's file tools say when they will not write.
   fileChangedSinceRead:
     'has changed since you last read it, or you have not read it yet; read it with read_file first so nothing is overwritten unseen',
