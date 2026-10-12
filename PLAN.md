@@ -791,6 +791,23 @@ re-measured and ratcheted **down** when the media redesign
 Evidence: `docs/certification/int0170-combined.md`, Bundle regressions after
 the lane merges (INT0170).
 
+**HOTFIX0181, cross-bundle members (2026-10-12, kubuntu).** The build points
+every import of `transport.ts`, `sse.ts` and `ndjson.ts` outside
+`dist/modelApi.js` at that bundle (`deferredCohort`), which exports what
+`src/host/backend/modelApiEntry.ts` exports and nothing else. 0.18.0 added
+three names to `transport.ts` that the provider bundles import and the entry
+did not export; every source check passed and the built bundles called
+`undefined`. The split gate now reads every built `dist/*.js`: each member a
+bundle reads from a sibling bundle it loads must be in the export list in the
+sibling's own text (`scripts/lib/bundleExports.mjs`), and a run that compared
+nothing with `dist/modelApi.js` or `dist/modelApiBoundaries.js` fails. Its
+first run found `canonicalUsd` missing from the boundaries bundle in the same
+way. The three export names take `dist/modelApi.js` from
+532,537 B to **532,827 B** (+290 B): 290 B over the pin of the
+bundle test and 4,773 B under the 525 KiB cap. The pin is re-measured in a
+commit of its own, on the owner's word. Evidence:
+`docs/certification/hotfix-0181-bundle-exports.md`.
+
 **Train 0.18.0, Model API pin (2026-10-11, macbook).** The pin is re-measured
 at **532,537 B** on `b7f9de08a6` (train `af67368a22` + argument previews
 `83f8da887`, +1,854 B of intended code), lead decision 2026-10-11 15:45 PT;
@@ -40272,6 +40289,33 @@ Unresolved items remain delivery/security gaps, not accepted legal conclusions:
 
 ## 10. Definition of done and release records
 
+**0.18.1 preparation (2026-10-12, release branch).** `hotfix/0.18.1` is cut from
+main at `f8435aaac` and carries the extension version 0.18.1 and the dated
+`CHANGELOG.md` `[0.18.1]` section: fixes only. Released 0.18.0 could not complete
+a turn on a configured provider, a ChatGPT plan or Copilot, in any host.
+Cause: the build points every other bundle's import of `transport.ts` at
+`dist/modelApi.js`, and that bundle's entry did not export the three
+confirmed-dispatch names 0.18.0 added (`assertConfirmedAllowed`,
+`isStaleConfirmedError`, `noteConfirmedRequestStarted`). TypeScript and the
+source tests check such an import against the source module, so nothing
+failed until the built bundles ran. The entry exports them, and the split
+gate now reads the built bundles and fails on a member a sibling bundle does
+not export. On its first run that gate found a second name of the same kind:
+`canonicalUsd`, which `exactJson.ts` reads through
+`dist/modelApiBoundaries.js`; 0.18.0 judged every dollar an earlier version
+had written as a number inexact and left that usage out. `usd.ts` exports
+it now. Evidence, the drills and the live proof:
+`docs/certification/hotfix-0181-bundle-exports.md` (D6). A fixes only patch,
+so without Highlights. No webview input changes: no frame and no README
+screenshot moves. This is preparation, not publication; the public roadmap
+(M122) lists 0.18.1 as the next release until a `0.18.1 released (…)`
+record follows here.
+
+**0.18.0 released (2026-10-11, tag `v0.18.0` on main's release merge `f8435aaac` (`be6eaefbe` before the identity rewrite), PR #149, release run 38206002231).**
+The Release run succeeded on its first attempt and ended on 2026-10-11 at
+10:12 PM PT, when every channel was verified. Recorded by the 0.18.1
+preparation.
+
 **0.18.0 preparation (2026-10-11, release branch).** `release/0.18.0` is cut from
 the release train `int/train-1011` at `549c6f499` and carries the extension
 version 0.18.0 and the dated `CHANGELOG.md` `[0.18.0]` section. Announced as
@@ -40287,6 +40331,11 @@ release can start (`docs/certification/int0170-combined.md`). The reviewed
 baseline is rendered on top of this commit, because the version is a capture
 input. This is preparation, not publication; the public roadmap (M122) lists
 0.18.0 as the next release until a `0.18.0 released (…)` record follows here.
+
+**0.17.2 released (2026-10-11, tag `v0.17.2` on main's release merge `59309b490`, PR #148, release run 38191365289).**
+The npm step was cancelled and rerun twice; the third attempt of the same
+run published, and the Release run ended in success on 2026-10-11 at
+6:53 PM PT. Recorded by the 0.18.1 preparation.
 
 **0.17.2 preparation (2026-10-11, release branch).** `release/0.17.2` carries
 the extension version 0.17.2 and the dated `CHANGELOG.md` `[0.17.2]` section:
