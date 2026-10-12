@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { buildSync } from 'esbuild'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { FIXTURE_HOOK_TIMEOUT_MS } from './helpers/fixtureBudget'
 import { turnKey } from '../../src/core/checkpoints/turnKey'
 import {
   checkpointStoreLoader,
@@ -47,7 +48,7 @@ beforeAll(() => {
     target: 'node20.18',
     logLevel: 'silent',
   })
-})
+}, FIXTURE_HOOK_TIMEOUT_MS)
 afterEach(async () => {
   for (const store of stores.splice(0)) store.dispose()
   await removeCheckpointFolders()

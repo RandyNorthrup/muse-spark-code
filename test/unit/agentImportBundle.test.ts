@@ -8,6 +8,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { build } from 'esbuild'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { FIXTURE_HOOK_TIMEOUT_MS } from './helpers/fixtureBudget'
 import {
   agentImportLoader,
   isAgentImportBundle,
@@ -53,7 +54,7 @@ beforeAll(async () => {
     plugins: [sharedUiText],
     logLevel: 'silent',
   })
-})
+}, FIXTURE_HOOK_TIMEOUT_MS)
 afterAll(() => removeFolder(built.folder))
 
 describe('isAgentImportBundle', () => {

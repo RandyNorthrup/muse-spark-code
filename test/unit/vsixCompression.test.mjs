@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import { build } from 'esbuild'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { FIXTURE_HOOK_TIMEOUT_MS } from './helpers/fixtureBudget'
 import { unpackUiTable } from '../../src/shared/l10n/packed'
 
 const fixtureRoot = mkdtempSync(path.join(tmpdir(), 'muse-vsix-compression-'))
@@ -30,7 +31,7 @@ beforeAll(async () => {
     target: 'node20.18',
     logLevel: 'silent',
   })
-})
+}, FIXTURE_HOOK_TIMEOUT_MS)
 afterAll(() => rmSync(fixtureRoot, { recursive: true, force: true }))
 
 const PYTHON = ['python3', 'python', 'py'].find(

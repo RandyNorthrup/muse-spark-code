@@ -3,6 +3,7 @@ import { mkdtempSync, readFileSync, rmSync, symlinkSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { beforeAll, describe, expect, it } from 'vitest'
+import { FIXTURE_HOOK_TIMEOUT_MS } from './helpers/fixtureBudget'
 import { buildConfine } from '../../scripts/build-confine.mjs'
 import { normaliseCaptureText } from '../../scripts/lib/inspectCapture.mjs'
 
@@ -38,7 +39,7 @@ if (process.platform === 'linux') {
       } catch (error) {
         throw new Error('inspect capture helper build failed', { cause: error })
       }
-    }, 120_000) // C compile plus esbuild under a loaded rig; measured ~2 s here.
+    }, FIXTURE_HOOK_TIMEOUT_MS) // C compile plus esbuild under a loaded rig; measured ~2 s here.
     // Building the helper and running nine programs is genuinely long.
     it(
       'prints one row per started program with no machine paths or names',

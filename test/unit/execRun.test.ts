@@ -21,6 +21,7 @@ import { syncBuiltinESMExports } from 'node:module'
 import { handleIdentity, lstatIdentity as lstat } from '../../src/core/fs/fileIdentity'
 import * as runtimeBackends from '../../src/runtime/backends'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { FIXTURE_HOOK_TIMEOUT_MS } from './helpers/fixtureBudget'
 import { buildSync } from 'esbuild'
 import * as acp from '@agentclientprotocol/sdk'
 import { runExec, type ExecDeps, type ExecOutputSchemaPort } from '../../src/runtime/exec/runExec'
@@ -167,7 +168,7 @@ beforeAll(async () => {
     path.join(path.dirname(path.dirname(builtMain)), 'package.json'),
     '{"version":"test"}',
   )
-})
+}, FIXTURE_HOOK_TIMEOUT_MS)
 afterAll(async () => {
   await Promise.all(folders.map((created) => removeFolder(created)))
 })
