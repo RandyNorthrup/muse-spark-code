@@ -414,4 +414,18 @@ describe('M109 O OAuth audience and PKCE', () => {
     ).rejects.toThrow(UI_TEXT.vault.noAccess)
     expect(f.borrowed.every(isWiped)).toBe(true)
   })
+
+  it('lets a caller stop stay a stop instead of denying it', async () => {
+    const f = oauthFixture()
+    const stop = new AbortController()
+    stop.abort(new Error('caller stopped'))
+    let failure: unknown
+    try {
+      await f.client.signIn(f.binding, stop.signal)
+    } catch (error: unknown) {
+      failure = error
+    }
+    expect(String(failure)).toContain('caller stopped')
+    expect(String(failure)).not.toContain(UI_TEXT.vault.noAccess)
+  })
 })

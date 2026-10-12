@@ -134,6 +134,22 @@ describe('vault crypto', () => {
       aesGcmOpen(key, nonce, sealed.ciphertext, sealed.tag, Buffer.from('different')),
     ).toThrow()
   })
+  it('reads a wrong key and corrupt data alike as authentication, never as invalid', () => {
+    const key = randomVaultBytes()
+    const context = { vaultId: 'a'.repeat(32), id: 'b'.repeat(32), kind: 'secret', generation: 1 }
+    const plaintext = randomVaultBytes()
+    const block = sealVaultBlock(key, context, plaintext)
+    // A wrong key and a flipped bit are indistinguishable to the cipher, and
+    // both stay the fixed authentication code.
+    expect(() => openVaultBlock(randomVaultBytes(), context, block)).toThrow(
+      expect.objectContaining({ code: 'authentication' }),
+    )
+    const tag = Buffer.from(block.tag, 'base64')
+    tag[0] = (tag[0] ?? 0) ^ 1
+    expect(() => openVaultBlock(key, context, { ...block, tag: tag.toString('base64') })).toThrow(
+      expect.objectContaining({ code: 'authentication' }),
+    )
+  })
   it('binds every context field and rejects tampering before material is returned', () => {
     const key = randomVaultBytes()
     const context = { vaultId: 'a'.repeat(32), id: 'b'.repeat(32), kind: 'secret', generation: 1 }

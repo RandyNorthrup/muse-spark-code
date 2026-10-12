@@ -152,7 +152,10 @@ export class McpOAuthClient {
     this.tail = next
     try {
       return await next
-    } catch {
+    } catch (error: unknown) {
+      // The caller's own stop stays a stop; a timeout or any other failure
+      // of the operation denies.
+      if (signal.aborted) throw error
       oauthDenied()
     } finally {
       this.active.delete(controller)
@@ -452,7 +455,10 @@ export class McpOAuthClient {
                 check()
                 authorize()
                 this.unusable.delete(binding.handle)
-              } catch {
+              } catch (error: unknown) {
+                // A failed or uncertain refresh quarantines the rotation,
+                // then denies: anything else keeps its kind.
+                if (!(error instanceof Error)) throw error
                 if (dispatch.hasStarted)
                   await this.ports.vault.invalidate(binding.handle, parsed.metadata.id)
                 oauthDenied()
