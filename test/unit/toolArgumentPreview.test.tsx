@@ -391,6 +391,7 @@ describe('argument preview across editor surfaces', () => {
         status: 'in_progress',
         rawInput: { path: 'a.ts', content: 'ready' },
         title: 'Write: a.ts',
+        locations: [{ path: path.join('/ws', 'a.ts') }],
         content: [],
       },
     ])
