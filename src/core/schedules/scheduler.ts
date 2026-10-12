@@ -2,7 +2,12 @@ import { Usd } from '../../shared/usd'
 // Shared scheduler owns durable dispatch and terminal settlement for every host.
 // T computes time occurrences; E filters/debounces and persists delayed events;
 // U/D own unattended admission and run-scoped refusal/paid settlement facts.
-import { SCHEDULE_POLL_INTERVAL_MS, SCHEDULE_RECONCILE_MAX_RUNS } from '../../shared/constants'
+import {
+  SCHEDULE_POLL_INTERVAL_MS,
+  SCHEDULE_RECONCILE_MAX_RUNS,
+  SCHEDULE_CLOSE_RESULT_WAIT_MS,
+} from '../../shared/constants'
+import { withDeadline } from '../timeouts'
 import { UI_TEXT } from '../../shared/l10n/text'
 import {
   scheduleEventRunId,
@@ -242,9 +247,9 @@ export function createScheduler(deps: SchedulerDeps) {
     }
     let result: unknown
     let hasReturned = false
+    let returned: Promise<unknown> | undefined
     let stopAbort: (() => void) | undefined
     try {
-      signal.throwIfAborted()
       const aborted = new Promise<never>((_resolve, reject) => {
         const abort = () => {
           reject(new Error(UI_TEXT.scheduleV2.messages.targetClosed))
@@ -255,15 +260,13 @@ export function createScheduler(deps: SchedulerDeps) {
         }
         if (signal.aborted) abort()
       })
-      result = await Promise.race([
-        deps.host.deliver(
-          fresh,
-          scheduleRunContextOf(fresh, intent.runId),
-          intent.occurrenceMs,
-          intent.event,
-        ),
-        aborted,
-      ])
+      returned = deps.host.deliver(
+        fresh,
+        scheduleRunContextOf(fresh, intent.runId),
+        intent.occurrenceMs,
+        intent.event,
+      )
+      result = await Promise.race([returned, aborted])
       hasReturned = true
       validateScheduleSettlement(
         delivery.schedule,
@@ -276,17 +279,33 @@ export function createScheduler(deps: SchedulerDeps) {
       // Only the core journals terminal facts. A host may offer a known result,
       // but absence/admission cannot keep a dispatched fire replayable.
       try {
-        const after = scheduleDeliveryStateSchema.parse(await deps.host.lookupRun(intent.runId))
-        if (after.status === 'settled' || after.status === 'uncertain')
+        // The host owns queue withdrawal and cost facts. An abort does not
+        // discard an answer arriving during that cooperative close.
+        if (returned !== undefined && isClosing()) {
           result = validateScheduleSettlement(
             delivery.schedule,
             delivery.runId,
             delivery.occurrenceMs,
-            after.fire,
+            await withDeadline(
+              returned,
+              SCHEDULE_CLOSE_RESULT_WAIT_MS,
+              UI_TEXT.scheduleV2.messages.targetClosed,
+            ),
             delivery.event,
           )
-        else if (hasReturned) result = await deps.failureSettlement(delivery, error)
-        else result = uncertain(delivery)
+        } else {
+          const after = scheduleDeliveryStateSchema.parse(await deps.host.lookupRun(intent.runId))
+          if (after.status === 'settled' || after.status === 'uncertain')
+            result = validateScheduleSettlement(
+              delivery.schedule,
+              delivery.runId,
+              delivery.occurrenceMs,
+              after.fire,
+              delivery.event,
+            )
+          else if (hasReturned) result = await deps.failureSettlement(delivery, error)
+          else result = uncertain(delivery)
+        }
       } catch {
         result = uncertain(delivery)
       }
