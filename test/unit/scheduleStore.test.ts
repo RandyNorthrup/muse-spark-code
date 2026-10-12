@@ -7,7 +7,7 @@ import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import { build } from 'esbuild'
 import * as z from 'zod/mini'
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, onTestFinished, vi } from 'vitest'
 import {
   createScheduleStore,
   scheduleStorageHash,
@@ -59,20 +59,37 @@ beforeAll(async () => {
           if (mode === 'update') result = await store.update(JSON.parse(value));
           if (mode === 'queueWait' || mode === 'queueProbe') {
             const fs = require('node:fs/promises');
+            const stamp = async (event) => {
+              await fs.appendFile(directory + '/intervals.txt', event + ' ' + String(Date.now()) + '\n');
+            };
             if (mode === 'queueProbe') {
               await fs.writeFile(directory + '/probe-ready', '');
-              // The waiting marker proves the second batch reached its queue
-              // attempt while the first batch still holds, so the test awaits
-              // events instead of sleeping.
+              // The waiting marker keeps the settlement order readable; the
+              // attempt stamp below is the proof the second batch reached its
+              // queue call while the first batch still holds.
               await fs.appendFile(directory + '/order.txt', 'waiting\n');
             }
+            await stamp('attempt');
             await createNodeScheduleQueue(directory).serialize(value, async () => {
-              await fs.appendFile(directory + '/order.txt', 'start\n');
-              if (mode === 'queueWait') {
-                for (;;) {
-                  try { await fs.access(directory + '/release'); break; } catch {}
-                  await new Promise(resolve => setTimeout(resolve, 10));
+              await stamp('enter');
+              try {
+                await fs.appendFile(directory + '/order.txt', 'start\n');
+                if (mode === 'queueWait') {
+                  // The holder leaves only after the release file exists and
+                  // the other batch's attempt stamp is older than the hold:
+                  // without the lock the waiter would enter inside this hold
+                  // and the intervals would intersect, so the overlap proof
+                  // below does not depend on test timing.
+                  for (;;) {
+                    try { await fs.access(directory + '/release'); } catch { await new Promise(resolve => setTimeout(resolve, 10)); continue; }
+                    const lines = (await fs.readFile(directory + '/intervals.txt', 'utf8')).split('\n');
+                    const attempts = lines.filter((line) => line.startsWith('attempt '));
+                    if (attempts.length >= 2 && Date.now() - Number(attempts[1].split(' ')[1]) > 1000) break;
+                    await new Promise(resolve => setTimeout(resolve, 10));
+                  }
                 }
+              } finally {
+                await stamp('leave');
               }
               await fs.appendFile(directory + '/order.txt', 'end\n');
             });
@@ -282,45 +299,124 @@ describe('M115 durable shared store', () => {
   it('serializes target batches in two real processes until their final settlement', async () => {
     const directory = path.join(root, 'queues')
     await createNodeScheduleFs(directory).publish('order.txt', '')
+    await createNodeScheduleFs(directory).publish('intervals.txt', '')
     const first = worker(directory, 'queueWait', 'workspace:session')
+    // A timeout abandons this function without running the finally below, so
+    // the worker cleanup is registered up front: nothing stays running.
+    const pending: { second?: Promise<string> } = {}
+    const settleWorkers = async () => {
+      try {
+        await writeFile(path.join(directory, 'release'), '')
+      } catch {
+        // The directory may already be gone in a repeated cleanup.
+      }
+      await Promise.allSettled([first, pending.second])
+    }
+    onTestFinished(settleWorkers)
     await vi.waitFor(
       async () => {
         expect(await readFile(path.join(directory, 'order.txt'), 'utf8')).toBe('start\n')
       },
-      { timeout: 120_000 },
+      { timeout: 4500 },
     )
-    const second = worker(directory, 'queueProbe', 'workspace:session')
+    pending.second = worker(directory, 'queueProbe', 'workspace:session')
+    const intervals = async () => {
+      const content = await readFile(path.join(directory, 'intervals.txt'), 'utf8')
+      return content
+        .split('\n')
+        .filter((line) => line.length > 0)
+        .map((line) => {
+          const [event, at] = line.split(' ', 2)
+          return { event: event!, at: Number(at) }
+        })
+    }
     try {
-      await vi.waitFor(() => readFile(path.join(directory, 'probe-ready')), { timeout: 120_000 })
-      // The second batch reached its queue attempt while the first still
-      // holds: it must wait, not enter.
+      await vi.waitFor(() => readFile(path.join(directory, 'probe-ready')), { timeout: 4500 })
+      // The second batch reached its queue call while the first batch still
+      // holds: two attempts are stamped but only the first batch entered.
       await vi.waitFor(
         async () => {
-          expect(await readFile(path.join(directory, 'order.txt'), 'utf8')).toBe('start\nwaiting\n')
+          const stamped = await intervals()
+          expect(stamped.filter(({ event }) => event === 'attempt')).toHaveLength(2)
         },
-        { timeout: 120_000 },
+        { timeout: 4500 },
       )
-      // The first batch holds the queue lock while the second waits: its
-      // fence candidate exists and the waiter published none. The fence write
-      // settles before the batch starts, so no wait is needed.
-      expect(
-        await readdir(
-          path.join(directory, 'leaseFences', scheduleStorageHash('target:workspace:session'), '0'),
-        ),
-      ).toEqual(['0.json'])
+      const stamped = await intervals()
+      expect(stamped.filter(({ event }) => event === 'leave')).toHaveLength(0)
     } finally {
-      await writeFile(path.join(directory, 'release'), '')
-      await Promise.allSettled([first, second])
+      await settleWorkers()
     }
-    expect(await Promise.all([first, second])).toEqual(['true', 'true'])
+    expect(await Promise.all([first, pending.second])).toEqual(['true', 'true'])
     expect(await readFile(path.join(directory, 'order.txt'), 'utf8')).toBe(
       'start\nwaiting\nend\nstart\nend\n',
     )
+    // Each process stamped attempt/enter/leave around its critical section.
+    // The second attempt precedes the first leave (it really tried while the
+    // first held) and no two intervals intersect. Removing the lock lets the
+    // waiter enter inside the holder's hold, so this fails without it.
+    const events = await intervals()
+    const attempts = events.filter(({ event }) => event === 'attempt').map(({ at }) => at)
+    const enters = events.filter(({ event }) => event === 'enter').map(({ at }) => at)
+    const leaves = events.filter(({ event }) => event === 'leave').map(({ at }) => at)
+    expect(attempts).toHaveLength(2)
+    expect(enters).toHaveLength(2)
+    expect(leaves).toHaveLength(2)
+    // Millisecond stamps can tie inside one critical section, so the
+    // well-formedness rows allow equality; the cross-process rows below stay
+    // strict (a second apart) except the lock-ordered handoff itself.
+    expect(enters[0]).toBeLessThan(leaves[0])
+    expect(enters[1]).toBeLessThanOrEqual(leaves[1])
+    expect(attempts[1]).toBeLessThan(leaves[0])
+    expect(leaves[0]).toBeLessThanOrEqual(enters[1])
     const queue = createNodeScheduleQueue(directory)
     await expect(
       queue.serialize('workspace:session', () => Promise.reject(new Error('failed'))),
     ).rejects.toThrow('failed')
     await queue.serialize('workspace:session', () => Promise.resolve())
+  })
+  // A timeout abandons the test function without running finally, so only
+  // the up-front onTestFinished registration stops the worker processes. The
+  // 2 s deadline below forces that path on purpose: the test is expected to
+  // time out, and the follow-up proves both workers exited settled.
+  const abandonedQueue: { first?: Promise<string>; second?: Promise<string> } = {}
+  it.fails(
+    'abandoned queue workers still settle through the registered cleanup',
+    { timeout: 2000 },
+    async () => {
+      const directory = path.join(root, 'abandoned-queues')
+      await createNodeScheduleFs(directory).publish('order.txt', '')
+      await createNodeScheduleFs(directory).publish('intervals.txt', '')
+      const first = worker(directory, 'queueWait', 'workspace:abandoned')
+      abandonedQueue.first = first
+      await vi.waitFor(
+        async () => {
+          expect(await readFile(path.join(directory, 'order.txt'), 'utf8')).toBe('start\n')
+        },
+        { timeout: 4500 },
+      )
+      const second = worker(directory, 'queueProbe', 'workspace:abandoned')
+      abandonedQueue.second = second
+      onTestFinished(async () => {
+        try {
+          await writeFile(path.join(directory, 'release'), '')
+        } catch {
+          // The directory may already be gone in a repeated cleanup.
+        }
+        await Promise.allSettled([first, second])
+      })
+      await Promise.withResolvers<undefined>().promise
+    },
+  )
+  it('settled the abandoned queue workers with both processes exited', async () => {
+    if (abandonedQueue.first === undefined || abandonedQueue.second === undefined)
+      throw new Error('abandoned queue never ran')
+    expect(await Promise.all([abandonedQueue.first, abandonedQueue.second])).toEqual([
+      'true',
+      'true',
+    ])
+    expect(await readFile(path.join(root, 'abandoned-queues/order.txt'), 'utf8')).toBe(
+      'start\nwaiting\nend\nstart\nend\n',
+    )
   })
   it('refuses path traversal and stored workspace mismatches', async () => {
     const directory = path.join(root, 'boundary')
