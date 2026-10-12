@@ -4083,7 +4083,7 @@ export const EXEC_MODES = ['plan', 'acceptEdits'] as const
 export const EXEC_DEFAULT_MODE = 'plan'
 export const EXEC_OUTPUTS = ['text', 'json', 'jsonl'] as const
 export const EXEC_DEFAULT_OUTPUT = 'text'
-export const EXEC_PAID_FEATURES = ['imageGeneration'] as const
+export const EXEC_PAID_FEATURES = ['imageGeneration', 'autoCompaction'] as const
 // ACP updates exec never emits (message/thought chunks and every tool
 // variant), and raw tool fields refused at any depth of an update (SPEC §2.2).
 // The runtime schema, the generated JSON schema and the Action's mirror all

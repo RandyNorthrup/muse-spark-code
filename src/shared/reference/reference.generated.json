@@ -3880,7 +3880,7 @@
       },
       "id": "museSpark.modelApiAutoCompaction",
       "name": "museSpark.modelApiAutoCompaction",
-      "description": "On by default. Compacts long Model API conversations at a settled tool boundary; each summary is a paid model call. The paid-use consent notice names the price and daily budget before the first charge. The M75 binding run passed.",
+      "description": "On by default. Compacts long Model API conversations at a settled tool boundary; each summary is a paid model call. The paid-use consent notice names the price and daily budget before the first charge. The ACP agent asks once through the editor permission request and stays off where the client cannot ask; headless exec runs it only with --auto-compaction under --max-budget-usd.",
       "descriptionKey": "config.modelApiAutoCompaction.description",
       "type": "boolean",
       "default": true,
@@ -4988,7 +4988,7 @@
     {
       "route": "serve",
       "name": "serve: --auto-compaction",
-      "description": "autoCompactionEvaluation: Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget.",
+      "description": "autoCompactionEvaluation: Offer paid automatic compaction; where the host can ask, it asks once before its first charge, with model rates and the daily budget. Headless exec never asks and needs --max-budget-usd.",
       "text": {
         "conditions": [{ "when": "autoCompactionEvaluation", "text": { "cli": "auto-compaction" } }]
       },
@@ -5216,7 +5216,7 @@
     {
       "route": "login",
       "name": "login: --auto-compaction",
-      "description": "autoCompactionEvaluation: Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget.",
+      "description": "autoCompactionEvaluation: Offer paid automatic compaction; where the host can ask, it asks once before its first charge, with model rates and the daily budget. Headless exec never asks and needs --max-budget-usd.",
       "text": {
         "conditions": [{ "when": "autoCompactionEvaluation", "text": { "cli": "auto-compaction" } }]
       },
@@ -5443,7 +5443,7 @@
     {
       "route": "setup",
       "name": "setup: --auto-compaction",
-      "description": "autoCompactionEvaluation: Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget.",
+      "description": "autoCompactionEvaluation: Offer paid automatic compaction; where the host can ask, it asks once before its first charge, with model rates and the daily budget. Headless exec never asks and needs --max-budget-usd.",
       "text": {
         "conditions": [{ "when": "autoCompactionEvaluation", "text": { "cli": "auto-compaction" } }]
       },
@@ -5685,7 +5685,7 @@
     {
       "route": "authSet",
       "name": "authSet: --auto-compaction",
-      "description": "autoCompactionEvaluation: Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget.",
+      "description": "autoCompactionEvaluation: Offer paid automatic compaction; where the host can ask, it asks once before its first charge, with model rates and the daily budget. Headless exec never asks and needs --max-budget-usd.",
       "text": {
         "conditions": [{ "when": "autoCompactionEvaluation", "text": { "cli": "auto-compaction" } }]
       },
@@ -5925,7 +5925,7 @@
     {
       "route": "authStatus",
       "name": "authStatus: --auto-compaction",
-      "description": "autoCompactionEvaluation: Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget.",
+      "description": "autoCompactionEvaluation: Offer paid automatic compaction; where the host can ask, it asks once before its first charge, with model rates and the daily budget. Headless exec never asks and needs --max-budget-usd.",
       "text": {
         "conditions": [{ "when": "autoCompactionEvaluation", "text": { "cli": "auto-compaction" } }]
       },
@@ -6165,7 +6165,7 @@
     {
       "route": "authClear",
       "name": "authClear: --auto-compaction",
-      "description": "autoCompactionEvaluation: Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget.",
+      "description": "autoCompactionEvaluation: Offer paid automatic compaction; where the host can ask, it asks once before its first charge, with model rates and the daily budget. Headless exec never asks and needs --max-budget-usd.",
       "text": {
         "conditions": [{ "when": "autoCompactionEvaluation", "text": { "cli": "auto-compaction" } }]
       },
@@ -6464,6 +6464,20 @@
         "repeatable": false,
         "default": false,
         "purpose": "paidFeatures:imageGeneration"
+      }
+    },
+    {
+      "route": "exec",
+      "name": "exec: --auto-compaction",
+      "description": "autoCompactionEvaluation: Offer paid automatic compaction; where the host can ask, it asks once before its first charge, with model rates and the daily budget. Headless exec never asks and needs --max-budget-usd.",
+      "text": {
+        "conditions": [{ "when": "autoCompactionEvaluation", "text": { "cli": "auto-compaction" } }]
+      },
+      "contract": {
+        "type": "boolean",
+        "repeatable": false,
+        "default": false,
+        "purpose": "auto-compaction"
       }
     },
     {

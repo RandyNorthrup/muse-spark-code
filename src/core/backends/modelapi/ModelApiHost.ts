@@ -634,6 +634,12 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDep
   readonly autoCompaction?: (() => boolean) | undefined
   /** Lane E's bounded evaluation override; production uses the certified latch. */
   readonly autoCompactionEvaluated?: (() => boolean) | undefined
+  /**
+   * The context-full stop in the installed language. The editor names the
+   * manual remedies; ACP names the approval, exec the opt-in flag and the
+   * run budget. Absent, the shared manual sentence is used.
+   */
+  readonly contextWindowFullText?: string | undefined
   readonly autoCompactModel?: ((modelId: string) => AutoCompactModel | undefined) | undefined
   /** D78 owns price/budget consent and the ledger; absence fails closed. */
   readonly admitAutoCompaction?:
@@ -1587,8 +1593,9 @@ class ContextOverflowError extends Error {
     public readonly kind: ContextOverflowKind,
     public readonly modelId: string,
     public readonly contextTokens: number | undefined,
+    message?: string,
   ) {
-    super(UI_TEXT.contextWindowFull)
+    super(message ?? UI_TEXT.contextWindowFull)
     this.name = 'ContextOverflowError'
   }
 }
@@ -5386,7 +5393,12 @@ export class ModelApiSession implements ScheduledAgentSession {
       window !== undefined &&
       Math.floor(inputBytes / MODEL_API_CONTEXT_BYTES_PER_TOKEN) > window
     ) {
-      throw new ContextOverflowError('preflight', body.model, window)
+      throw new ContextOverflowError(
+        'preflight',
+        body.model,
+        window,
+        this.deps.contextWindowFullText,
+      )
     }
     return model
   }
@@ -6124,7 +6136,12 @@ export class ModelApiSession implements ScheduledAgentSession {
           : undefined
       if (overflow !== undefined) {
         this.noteUsage(usage, chargedGoalId)
-        throw new ContextOverflowError(overflow, body.model, model?.contextTokens)
+        throw new ContextOverflowError(
+          overflow,
+          body.model,
+          model?.contextTokens,
+          this.deps.contextWindowFullText,
+        )
       }
       this.markReadFileMediaDelivered(turnId, body.input)
       this.media?.delivered(body.input)
@@ -6148,7 +6165,12 @@ export class ModelApiSession implements ScheduledAgentSession {
           error,
         }) !== undefined
       ) {
-        throw new ContextOverflowError('error', body.model, model?.contextTokens)
+        throw new ContextOverflowError(
+          'error',
+          body.model,
+          model?.contextTokens,
+          this.deps.contextWindowFullText,
+        )
       }
       throw error
     } finally {
@@ -14045,7 +14067,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         if (error instanceof ChildTaskRefusedError) {
           errorKind = `subagent_${error.kind}`
         } else if (error instanceof ContextOverflowError) {
-          reason = UI_TEXT.contextWindowFull
+          reason = this.deps.contextWindowFullText ?? UI_TEXT.contextWindowFull
           errorKind = 'context_overflow'
           this.deps.onContextOverflow?.({
             sessionId: this.sessionId,
@@ -14721,27 +14743,41 @@ export class ModelApiSession implements ScheduledAgentSession {
           throw error
         }
       }
-      const outcome = await this.runCompaction(turn.abort.signal, guard, false, settle)
-      assertCurrent()
+      // Currency is decided inside the apply step: the summary and the
+      // todo/goal continuation land together with no await between them, or
+      // the old history stands untouched. No check after the await can
+      // discard a success anymore.
+      const outcome = await this.runCompaction(turn.abort.signal, guard, false, settle, {
+        isCurrent: () => {
+          try {
+            assertCurrent()
+            return true
+          } catch {
+            return false
+          }
+        },
+        onApplied: () => {
+          this.todos = todos
+          this.emit({ type: 'todoChanged', items: [...todos] })
+          this.replay.push({
+            turnId: turn.turnId,
+            item: {
+              type: 'message',
+              role: 'user',
+              content: [
+                {
+                  type: 'input_text',
+                  text: `${MODEL_API_MODEL_TEXT.autoCompactionFollowup}\n${JSON.stringify({ todos, goal: this.goal })}`,
+                },
+              ],
+            },
+          })
+        },
+      })
       if (outcome.status !== ACCEPTED) {
         this.autoCompact.failed()
         return false
       }
-      this.todos = todos
-      this.emit({ type: 'todoChanged', items: [...todos] })
-      this.replay.push({
-        turnId: turn.turnId,
-        item: {
-          type: 'message',
-          role: 'user',
-          content: [
-            {
-              type: 'input_text',
-              text: `${MODEL_API_MODEL_TEXT.autoCompactionFollowup}\n${JSON.stringify({ todos, goal: this.goal })}`,
-            },
-          ],
-        },
-      })
       this.autoCompact.succeeded(decision, this.autoCompact.summaryTokens ?? summaryTokens)
       return true
     } catch (error: unknown) {
@@ -14752,7 +14788,26 @@ export class ModelApiSession implements ScheduledAgentSession {
       )
         throw new Error(UI_TEXT.sessionBudgetStoreUnavailable, { cause: error })
       if (isAutoCompactionNotAuthorizedError(error)) return false
+      if (error instanceof AbortedError && !isAbortRequested(turn.abort.signal)) {
+        // The turn moved on (model switch) without stopping: stand down
+        // gracefully with the history untouched, like the apply gate does.
+        return false
+      }
       if (isAbortRequested(turn.abort.signal) || error instanceof AbortedError) throw error
+      // A money refusal is terminal at once: the reserve threw before any
+      // POST, so no repair ran and nothing was sent. Name the budget and
+      // what to do in one fixed sentence, not a generic failure.
+      if (
+        error instanceof Error &&
+        [UI_TEXT.paidDailyStopped, UI_TEXT.paidDailyLedgerUnavailable].includes(error.message)
+      ) {
+        this.emit({
+          type: 'backendNotice',
+          level: 'warning',
+          text: UI_TEXT.autoCompactionBudgetRefused,
+        })
+        return false
+      }
       this.emit({ type: 'backendNotice', level: 'warning', text: UI_TEXT.autoCompactionFailed })
       return false
     } finally {
@@ -14769,6 +14824,19 @@ export class ModelApiSession implements ScheduledAgentSession {
       usage: Usage | undefined,
       outcome: 'returned' | 'uncertain' | 'rate-limited',
     ) => void | Promise<void>,
+    apply?: {
+      /**
+       * Decided synchronously the moment the summary is ready: false
+       * discards the paid summary and leaves the old history untouched
+       * (its settled charge stands, already tallied at send).
+       */
+      readonly isCurrent: () => boolean
+      /**
+       * Runs synchronously with the history replacement, with no await
+       * between the two, so a summary never lands without its continuation.
+       */
+      readonly onApplied?: () => void
+    },
   ): Promise<CompactOutcome> {
     if (this.teamModeForRequest() === 'team') await this.prepareTeamRuntime()
     if (!this.hasCompactableHistory(isSummaryFork)) {
@@ -14866,7 +14934,15 @@ export class ModelApiSession implements ScheduledAgentSession {
         error instanceof HookStoppedError ||
         isAutoCompactionNotAuthorizedError(error) ||
         error instanceof SessionBudgetExceededError ||
-        (error instanceof Error && error.message === UI_TEXT.sessionBudgetStoreUnavailable),
+        // A stale turn (Stop, setting off, model switch) never compacts
+        // through repairs: genuine aborts already rethrow on the signal.
+        error instanceof AbortedError ||
+        (error instanceof Error &&
+          [
+            UI_TEXT.sessionBudgetStoreUnavailable,
+            UI_TEXT.paidDailyStopped,
+            UI_TEXT.paidDailyLedgerUnavailable,
+          ].includes(error.message)),
       notice: (text) => {
         this.emit({ type: 'backendNotice', level: 'warning', text })
       },
@@ -14907,6 +14983,11 @@ export class ModelApiSession implements ScheduledAgentSession {
     })
     if (signal.aborted) throw new AbortedError()
     if (summaryBody === undefined) throw new Error(UI_TEXT.compactionEmpty)
+    // The turn's currency is decided first, synchronously: a stale turn
+    // (Stop, setting off, model switch during the summary request) keeps
+    // its old history, and the paid summary is discarded.
+    if (apply !== undefined && !apply.isCurrent())
+      return { status: NOOP, reason: UI_TEXT.compactionStopped }
     const recorded = RecordingScope.build(recordProjection, {
       inputs: [
         {
@@ -14940,6 +15021,9 @@ export class ModelApiSession implements ScheduledAgentSession {
       },
       ...tail,
     )
+    // No await sits between the replacement and this continuation: a new
+    // history always carries it, never half-applied.
+    apply?.onApplied?.()
     this.compactionPrefix = undefined
     const summaryEntry = this.replay[0]
     if (summaryEntry !== undefined) {

@@ -518,6 +518,14 @@ function modelApiManager(
     isAutoCompactionOn: () =>
       deps.options.autoCompaction ?? SETTING_DEFAULTS.modelApiAutoCompaction,
     autoCompactionEvaluated: () => IS_AUTO_COMPACTION_EVALUATED,
+    // The route's own context-full stop: modelApi exec names its flag and
+    // budget, ACP the editor approval. Other routes keep the shared manual
+    // sentence.
+    ...(deps.exec !== undefined &&
+      deps.options.backend === 'modelApi' && {
+        contextWindowFullText: UI_TEXT.contextWindowFullExec,
+      }),
+    ...(deps.exec === undefined && { contextWindowFullText: UI_TEXT.contextWindowFullAcp }),
     // The wrapped runtime transport owns one daily claim per HTTP attempt.
     autoCompactionAccounting: 'transport',
     paidDailyBudgetUsd: async () => {
@@ -569,6 +577,7 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
   const paid = new AcpPaidUse({
     flagged: deps.options.paidFeatures,
     autoCompactionEvaluated: () => IS_AUTO_COMPACTION_EVALUATED,
+    autoCompactionOff: deps.options.autoCompaction === false,
     canRemember: () => deps.options.trustWorkspace,
     grants: paidGrantFile({
       file: paidGrantsFile({ platform: deps.platform, env: deps.env, homeDir: deps.homeDir }),

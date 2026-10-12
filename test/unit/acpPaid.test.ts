@@ -21,14 +21,14 @@ import type { PaidUseRequest } from '../../src/shared/paid'
 import { referenceModel } from '../../src/shared/reference/reference.generated'
 import { fill } from '../../src/shared/l10n/text'
 
-it('ACP automatic compaction asks once after its explicit flag and refuses without it', async () => {
+it('ACP automatic compaction is on by default, asks once, and stops only with the off flag', async () => {
   const request: PaidUseRequest = {
     feature: 'autoCompaction',
     modelId: 'muse-spark-1.3',
     dailyBudgetUsd: Usd.from(5).toAmount(),
   }
   const paid = new AcpPaidUse({
-    flagged: ['autoCompaction'],
+    flagged: [],
     autoCompactionEvaluated: () => true,
     canRemember: () => true,
     grants: memoryPaidGrants(),
@@ -42,7 +42,7 @@ it('ACP automatic compaction asks once after its explicit flag and refuses witho
   expect(await paid.allows('/other-workspace', 'other-session', request, false)).toBe(true)
   expect(ask).toHaveBeenCalledTimes(2)
   const dormant = new AcpPaidUse({
-    flagged: ['autoCompaction'],
+    flagged: [],
     autoCompactionEvaluated: () => false,
     canRemember: () => true,
     grants: memoryPaidGrants(),
@@ -53,12 +53,23 @@ it('ACP automatic compaction asks once after its explicit flag and refuses witho
   expect(ask).toHaveBeenCalledTimes(2)
   const off = new AcpPaidUse({
     flagged: [],
+    autoCompactionOff: true,
     canRemember: () => true,
     grants: memoryPaidGrants(),
     log: logger(),
   })
   off.attach(ask)
   expect(await off.allows('/ws', 'session', request, false)).toBe(false)
+  expect(ask).toHaveBeenCalledTimes(2)
+  // No session to ask in (no permission capability): denied without asking.
+  const unaskable = new AcpPaidUse({
+    flagged: [],
+    autoCompactionEvaluated: () => true,
+    canRemember: () => true,
+    grants: memoryPaidGrants(),
+    log: logger(),
+  })
+  expect(await unaskable.allows('/ws', 'session', request, false)).toBe(false)
   expect(ask).toHaveBeenCalledTimes(2)
 })
 
@@ -393,7 +404,7 @@ describe('AcpPaidUse', () => {
     const paid = new AcpPaidUse({ flagged: [], canRemember: () => true, grants, log })
     await paid.forgetUnflagged()
     expect(log.warn).toHaveBeenCalledWith(
-      'Paid uses allowed always could not be forgotten for autoCompaction, webSearch, imageGeneration: read-only data folder',
+      'Paid uses allowed always could not be forgotten for webSearch, imageGeneration: read-only data folder',
     )
     expect(paid.isRemembered(FOLDER, 'webSearch')).toBe(false)
   })

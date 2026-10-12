@@ -200,6 +200,8 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly networkAdvice?: NetworkAdvice | undefined
   /** What a missing or damaged bundle says: reinstall the extension, unless the agent says its own. */
   readonly bundleUnavailable?: (() => string) | undefined
+  /** The route's context-full stop; absent, the host's shared manual sentence is used. */
+  readonly contextWindowFullText?: string | undefined
   /** A turn starts: its checkpoint admission, and its own recorded writes (M86). */
   readonly beforeTurnRuns?: ModelApiHostDeps['beforeTurnRuns']
   readonly afterTurnRuns?: ModelApiHostDeps['afterTurnRuns']
@@ -426,6 +428,9 @@ export class ModelApiBackendManager {
         observationPacking: this.deps.isObservationPackingOn,
         autoCompaction: this.deps.isAutoCompactionOn,
         autoCompactionEvaluated: this.deps.autoCompactionEvaluated,
+        ...(this.deps.contextWindowFullText !== undefined && {
+          contextWindowFullText: this.deps.contextWindowFullText,
+        }),
         shellKeepsDirectory: this.deps.isShellKeepsDirectoryOn,
         allowsPaidUse: variant.allowsPaidUse,
         isPaidUseRemembered: variant.isPaidUseRemembered,

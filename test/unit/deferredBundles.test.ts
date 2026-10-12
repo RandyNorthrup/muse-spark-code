@@ -852,7 +852,12 @@ describe('deferred cohort bundles', () => {
     // 83f8da887, +1,854 B of intended code: the production capability
     // binding and the one confirmed-dispatch gate). D6's 525 KiB cap is
     // unchanged; the pin ratchets down when fix/modelapi-diet merges.
-    expect(Buffer.byteLength(bundleText('modelApi'))).toBeLessThanOrEqual(532_537)
+    // CM1013R10 (lane measurement for lead review, macbook rig): +638 B
+    // over 532,537, all intended compaction-truthfulness code and strings
+    // (the atomic apply gate with its continuation callback, the stale-turn
+    // graceful stand-down, the budget-refusal sentence branch, the per-route
+    // overflow sentence and its three UI strings). Still inside the cap.
+    expect(Buffer.byteLength(bundleText('modelApi'))).toBeLessThanOrEqual(533_175)
     const schedules = new Set(inputs('schedules'))
     for (const file of [
       'src/core/backends/modelapi/schedulesEntry.ts',

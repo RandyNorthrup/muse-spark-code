@@ -1216,8 +1216,18 @@ binding run passed on 2026-10-12 (receipts in
 `docs/certification/m101-binding-report.json` and
 `docs/certification/m101-binding-report.md`).
 `museSpark.modelApiAutoCompaction` defaults to `true`; set it to `false` to
-turn the mechanism off. ACP and headless use the same core and accept
-`--no-auto-compaction`. Muse Code continues to compact itself.
+turn the mechanism off. The ACP agent uses the same core: compaction is on
+by default and its first paid use asks once through the editor's permission
+request, naming the model, the price and the daily budget; `--no-auto-compaction`
+turns it off, and where the client cannot show the approval it stays off.
+Headless `exec` never asks, so it compacts only with `--auto-compaction`
+under `--max-budget-usd` (see `docs/ci.md`). Muse Code continues to compact
+itself. A team-worker (child) session never compacts automatically: the
+engine excludes child sessions before any admission is requested, so nobody
+is asked and nothing is charged, and a child that fills its context fails
+that child's turn with the route's context-full stop. A scheduled turn is an
+ordinary turn of its session for this policy and compacts under the same
+per-host rule above.
 
 With the M75 pair passed and the shared paid gate/ledger connected,
 compaction is considered inside your turn after a settled tool batch. A
@@ -1247,8 +1257,10 @@ Muse window applies only to verified legacy Muse ids without a registry resolver
 an authoritative missing row stays unknown. Provider
 registry wiring must supply each BYO model's window; Ollama needs its loaded
 `num_ctx`, rather than its trained maximum. Automatic recovery is active after
-the passing evaluation: a classified overflow compacts once and retries inside
-the turn, as a paid model call under the paid-use consent.
+the passing evaluation: in the editor a classified overflow compacts once and
+retries inside the turn, as a paid model call under the paid-use consent; the
+ACP agent does the same after its one-time editor approval; headless `exec`
+does it only with `--auto-compaction` under `--max-budget-usd`.
 
 Handoff runs on the Model API backend only: on Muse Code the command says
 so, where Muse Code compacts its own conversations. It starts from the
