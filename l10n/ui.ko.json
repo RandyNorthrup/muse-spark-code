@@ -349,7 +349,7 @@
   "referenceVaultPanel": "진행 중.",
   "referenceVaultLock": "진행 중.",
   "referenceAuthClear": "저장된 Model API 키를 제거합니다.",
-  "referenceAuthStatus": "Model API 키가 저장되어 있는지 확인합니다.",
+  "referenceAuthStatus": "저장된 키(Model API 키 및 구성된 공급자 키)를 표시합니다. 키가 있으면 종료 코드 0, 없으면 1.",
   "referenceAccountsTitle": "Several accounts per provider",
   "referenceAccounts": "진행 중.",
   "referenceDeveloper": "이 컴퓨터의 개발자 옵션을 표시하거나 잠금을 해제합니다. 프로필 작업에는 연결된 리소스 관리자가 필요합니다.",
@@ -3235,6 +3235,7 @@
   "scheduleRunConfirmPrice": "Model API 키로 청구: {price}. 총액은 사용한 토큰 수에 따라 달라집니다.",
   "scheduleRunConfirmExtras": "활성화된 다른 유료 도구로 추가 요금이 발생할 수 있습니다. Bypass 모드에서도 이 확인은 건너뛰지 않습니다.",
   "scheduleConfirmationExpired": "확인하는 동안 모델, 대화 또는 프롬프트가 변경되었습니다. 일정을 확인하고 실행을 다시 선택하세요.",
+  "execKeyRotated": "실행 중에 키가 교체되었습니다. 요청이 전송되지 않았습니다.",
   "webNoResults": "결과 없음",
   "backgroundRunning": "백그라운드에서 실행 중",
   "moveToBackground": "백그라운드로 이동",
@@ -3403,6 +3404,16 @@
   "execEffortUnavailable": "이 모델에서는 이 사고 수준을 사용할 수 없습니다.",
   "execTimedOut": "실행이 제한 시간에 도달했습니다.",
   "execBudgetRefused": "다음 요청이 남은 예산을 초과합니다.",
+  "execPaidDailyStopped": "유료 엑스트라가 중단됨: 일일 예산 {cap} 도달 (사용 {spent}, {requests}가 보유한 {held}); {reset}에 초기화됨. 계속하려면 {setting}을(를) 올리세요.",
+  "execPaidOpenRequests": {
+    "other": "열린 요청 {count}개"
+  },
+  "execBudgetProgress": {
+    "other": "예산으로 인해 {count}개의 요청 후 실행이 중단되었습니다. 지금까지의 작업은 유지됩니다."
+  },
+  "execModelNeedsProvider": "모델 {model}은(는) 공급자 {provider}에 속합니다. --provider {provider}와 함께 다시 실행하세요. 사용 가능한 모델: {available}.",
+  "execModelNotOnProvider": "모델 {model}은(는) 공급자 {provider}에 없습니다. 사용 가능한 모델: {available}.",
+  "execModelAvailable": "모델 {model}은(는) 이 백엔드에서 사용할 수 없습니다. 사용 가능한 모델: {available}.",
   "execBudgetMinimum": "이 실행에는 최소 {minimum}이 필요합니다.",
   "execBudgetBreach": "관찰된 비용이 예약 금액을 초과했습니다.",
   "execIncomplete": "응답이 완료되지 않았습니다.",
@@ -3480,6 +3491,7 @@
   "providerPrivateNeedsConfirm": "{origin}은(는) 사설 네트워크에 있습니다. 확인하려면 --private-ok를 붙여 다시 실행하세요.",
   "providerEndpointRefused": "이 주소는 사용할 수 없습니다({reason}).",
   "providerNoRequestPath": "{provider}는 아직 여기서 실행할 수 없습니다. 트래픽 캡처가 대기 중입니다.",
+  "providerModelNoPrice": "{ref}을(를) 실행할 수 없습니다: 가격 카드가 없어 실행 예약을 할 수 없습니다.",
   "execProviderNeedsModelApi": "--provider에는 --backend modelApi가 필요합니다.",
   "execProviderModelRequired": "이 제공자 실행에는 --model provider/model이 필요합니다.",
   "execProviderNotReady": "공급자 실행에는 공급자 전송 계층이 필요합니다. {provider} 요청 검사는 통과했습니다.",

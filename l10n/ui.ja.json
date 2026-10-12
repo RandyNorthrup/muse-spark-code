@@ -349,7 +349,7 @@
   "referenceVaultPanel": "進行中.",
   "referenceVaultLock": "進行中.",
   "referenceAuthClear": "保存済みの Model API キーを削除します。",
-  "referenceAuthStatus": "Model API キーが保存されているか確認します。",
+  "referenceAuthStatus": "保存済みのキー（Model API キーと設定済みプロバイダーのキー）を表示します。キーがあれば終了コード 0、なければ 1。",
   "referenceAccountsTitle": "Several accounts per provider",
   "referenceAccounts": "進行中.",
   "referenceDeveloper": "このコンピューターの開発者向けオプションを表示またはロック解除します。プロファイル操作には接続済みのリソース管理機構が必要です。",
@@ -3235,6 +3235,7 @@
   "scheduleRunConfirmPrice": "Model API キーへの請求: {price}。合計額は使用トークン数によって変わります。",
   "scheduleRunConfirmExtras": "有効な他の有料ツールによる追加料金が発生する場合があります。Bypass モードでも、この確認は省略されません。",
   "scheduleConfirmationExpired": "確認中にモデル、会話、またはプロンプトが変更されました。予定を確認し、もう一度［実行］を選択してください。",
+  "execKeyRotated": "実行中にキーがローテーションされました。リクエストは送信されませんでした。",
   "webNoResults": "結果はありません",
   "backgroundRunning": "バックグラウンドで実行中",
   "moveToBackground": "バックグラウンドへ移動",
@@ -3403,6 +3404,16 @@
   "execEffortUnavailable": "このモデルではこの思考量を利用できません。",
   "execTimedOut": "実行が制限時間に達しました。",
   "execBudgetRefused": "次のリクエストが残りの予算を超えます。",
+  "execPaidDailyStopped": "有料エキストラは停止中です: 日次予算 {cap} に到達しました（使用済み {spent}、{requests}による保留 {held}）。リセットは {reset} です。続けるには {setting} を引き上げてください。",
+  "execPaidOpenRequests": {
+    "other": "{count} 件のオープンなリクエスト"
+  },
+  "execBudgetProgress": {
+    "other": "予算により {count} 回のリクエスト後に実行が停止しました。ここまでの作業は保持されます。"
+  },
+  "execModelNeedsProvider": "モデル {model} はプロバイダー {provider} のものです。--provider {provider} で再実行してください。利用可能なモデル: {available}。",
+  "execModelNotOnProvider": "モデル {model} はプロバイダー {provider} にありません。利用可能なモデル: {available}。",
+  "execModelAvailable": "モデル {model} はこのバックエンドでは利用できません。利用可能なモデル: {available}。",
   "execBudgetMinimum": "この実行には最低 {minimum} が必要です。",
   "execBudgetBreach": "確認された会計値が予約額を超えました。",
   "execIncomplete": "応答が完了しませんでした。",
@@ -3480,6 +3491,7 @@
   "providerPrivateNeedsConfirm": "{origin} はプライベート ネットワーク上にあります。確認するには --private-ok を付けて再実行してください。",
   "providerEndpointRefused": "このアドレスは使用できません ({reason})。",
   "providerNoRequestPath": "{provider} はまだここでは実行できません。トラフィックのキャプチャ待ちです。",
+  "providerModelNoPrice": "{ref} は実行できません: 価格カードがないため、実行の予約ができません。",
   "execProviderNeedsModelApi": "--provider には --backend modelApi が必要です。",
   "execProviderModelRequired": "このプロバイダー実行には --model provider/model が必要です。",
   "execProviderNotReady": "プロバイダーの実行にはプロバイダー転送層が必要です。{provider} のリクエスト検証は成功しました。",
