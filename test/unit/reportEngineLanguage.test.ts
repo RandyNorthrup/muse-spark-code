@@ -23,6 +23,11 @@ function isTable(value: unknown): value is UiText {
 const raw: unknown = JSON.parse(await readFile(path.join(root, 'l10n/ui.es.json'), 'utf8'))
 if (!isTable(raw)) throw new Error('Invalid Spanish table')
 const spanish = raw
+const SOURCE_FILES: Record<string, string> = {
+  plan: 'src/core/reporting/plan/reader.ts',
+  checkRuns: 'src/core/reporting/checkRuns.ts',
+  usage: 'src/core/reporting/sources/index.ts',
+}
 
 it.each(REPORT_KINDS)('%s overlapping engine generations keep their own language', async (kind) => {
   const englishWait = deferred()
@@ -49,7 +54,9 @@ it.each(REPORT_KINDS)('%s overlapping engine generations keep their own language
     l10n: { table: spanish, locale: 'es' },
     sources: engineSources(snapshot, spanishWait.promise),
   })
-  const scope = kind === 'milestone' ? 'M12' : kind === 'release' ? '0.14.2' : ''
+  let scope = ''
+  if (kind === 'milestone') scope = 'M12'
+  else if (kind === 'release') scope = '0.14.2'
   const options = reportOptions(kind, { scope })
   const first = english.generate?.(options)
   const second = other.generate?.(options)
@@ -79,16 +86,8 @@ it.each(REPORT_KINDS)(
   async (kind) => {
     const registration = REPORT_KIND_REGISTRY[kind]
     const files = new Set<string>()
-    const candidates = registration.sources.flatMap((source) =>
-      source === 'plan'
-        ? ['src/core/reporting/plan/reader.ts']
-        : source === 'checkRuns'
-          ? ['src/core/reporting/checkRuns.ts']
-          : [
-              source === 'usage'
-                ? 'src/core/reporting/sources/index.ts'
-                : `src/core/reporting/sources/${source}.ts`,
-            ],
+    const candidates = registration.sources.map(
+      (source) => SOURCE_FILES[source] ?? `src/core/reporting/sources/${source}.ts`,
     )
     candidates.push(`src/core/reporting/collect/${registration.collector}.ts`)
     if (
