@@ -78,11 +78,6 @@ export type HeadlessPaidPolicy = (
   requiresAsking: boolean,
 ) => Promise<boolean>
 
-/** The agent's own store's failure: its code and our own data folder's path, never a CLI's text. */
-function describe(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
-}
-
 /** The prompt's options: the popup's answers (D48), "always" only where it is kept. */
 export function paidUseOptions(canRemember: boolean): PermissionOption[] {
   const always: PermissionOption = {
@@ -289,8 +284,9 @@ export class AcpPaidUse {
     try {
       await this.deps.grants.forget(unflagged)
     } catch (error: unknown) {
+      // The log carries only the failure's kind, never the store message.
       this.deps.log.warn(
-        `Paid uses allowed always could not be forgotten for ${unflagged.join(', ')}: ${describe(error)}`,
+        `Paid uses allowed always could not be forgotten for ${unflagged.join(', ')}: ${failureForLog(error)}`,
       )
     }
   }

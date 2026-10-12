@@ -9,6 +9,16 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- A failure is never turned into a different fact. When saved credentials
+  cannot be read, sign-out keeps its safety hold, no sign-in lifts it, and
+  the person is told once what could not be read and what to do. A damaged
+  history choice, quote folder or schedule consent is announced once per
+  damage (again if it changes or comes back after a repair), with what is
+  damaged, what the product does, and the next step. A refused upload shows
+  the refusal reason, a stop clears, and a refused recording permission
+  names itself. A panel failure with no known cause says only that it did
+  not work.
+
 - Money, consent and credential failures say what happened, once, where the
   person sees it. An "always" a store cannot keep still allows the current
   use once, and the person is told at once (an editor warning, a session

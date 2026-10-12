@@ -491,8 +491,9 @@ describe('AcpPaidUse', () => {
     const log = logger()
     const paid = new AcpPaidUse({ flagged: [], canRemember: () => true, grants, log })
     await paid.forgetUnflagged()
+    // The log carries only the failure's kind, never the store message.
     expect(log.warn).toHaveBeenCalledWith(
-      'Paid uses allowed always could not be forgotten for autoCompaction, webSearch, imageGeneration: read-only data folder',
+      'Paid uses allowed always could not be forgotten for autoCompaction, webSearch, imageGeneration: Error',
     )
     expect(paid.isRemembered(FOLDER, 'webSearch')).toBe(false)
   })

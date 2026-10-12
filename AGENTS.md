@@ -230,7 +230,8 @@ history from PLAN.md").
     condition and rethrows or reports everything else), REPORTED (every
     path rethrows, throws a typed failure carrying the cause's kind, or
     records it), SWALLOW, GENERIC or CLEANUP (best-effort teardown with
-    a reason comment on the catch line). New code is NARROW or REPORTED;
+    a reason comment on the catch line or as the handler's leading comment,
+    as `scripts/lib/catch-inventory.mjs` implements it). New code is NARROW or REPORTED;
     error message text, paths and prompts never reach a log or a
     sentence. Run `npm run check:catches` (in `npm run quality`): it
     fails when any SWALLOW or GENERIC count rises, and when one fell
