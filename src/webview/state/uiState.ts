@@ -3069,7 +3069,14 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
     case 'uploadedFilesReport': {
       // A report from a previous account or generation never repopulates
       // the new account's view; a legacy post without one still applies.
+      // An equal-generation report from another account is stale too: the
+      // boundary keeps the generation and clears the account.
       if ((message.generation ?? 0) < state.uploadedFilesGeneration) return state
+      if (
+        (message.generation ?? 0) === state.uploadedFilesGeneration &&
+        message.accountId !== state.uploadedFilesAccountId
+      )
+        return state
       return {
         ...state,
         uploadedFiles: message.report,

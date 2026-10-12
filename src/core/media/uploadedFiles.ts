@@ -25,7 +25,8 @@ export interface UploadedFilesPortDeps {
 }
 
 export interface UploadedFilesPort {
-  read(): Promise<unknown>
+  /** The signal reaches the listing's cleanup: a cancel deletes nothing. */
+  read(signal?: AbortSignal): Promise<unknown>
   /** Validates before showing: a byte-bearing or extra-key payload throws. */
   post(report: unknown): void
   deleteFile(
@@ -72,9 +73,11 @@ export function createUploadedFilesPort(deps: UploadedFilesPortDeps): UploadedFi
     return ledger ?? retained
   }
   return {
-    async read(): Promise<unknown> {
+    async read(signal?: AbortSignal): Promise<unknown> {
+      signal?.throwIfAborted()
       const ledger = await current()
-      return ledger === undefined ? emptyUploadedFilesReport() : await ledger.accountReport()
+      signal?.throwIfAborted()
+      return ledger === undefined ? emptyUploadedFilesReport() : await ledger.accountReport(signal)
     },
     post(report: unknown): void {
       deps.post?.(uploadedFilesReportSchema.parse(report))

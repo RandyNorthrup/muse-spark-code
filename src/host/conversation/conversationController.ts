@@ -36,7 +36,7 @@ import { AttachmentStore } from '../../core/attachments'
 import type { MediaAttachmentPort } from '../media/mediaAttach'
 import type { RecordingCommandDeps } from '../media/screenRecordBundle'
 import type { ScreenRecordingPreview } from '../../core/media/record/driver'
-import type { UploadedFilesPort } from '../../core/media/uploadedFiles'
+import type { StampedUploadedFilesPort } from './uploadedFilesBinding'
 import { isProtectedPath } from '../../core/protectedPaths'
 import {
   type AgentHost,
@@ -710,7 +710,7 @@ export interface ConversationDeps {
  * the account ledger, bound per host. Lane W supplies the validated
  * webview/MHP messages and the account-scoped ledger.
  */
-export type ConversationUploadedFilesPort = UploadedFilesPort
+export type ConversationUploadedFilesPort = StampedUploadedFilesPort
 
 const IDLE_STATUS = 'idle'
 const NOOP_STATUS = 'noop'
@@ -10597,13 +10597,19 @@ export class ConversationController {
     if (port === undefined || !this.canPostUploadedFiles()) return
     const authGeneration = this.deps.auth.admissionGeneration
     const accountId = await this.deps.voiceAccountId()
+    // The generation is compared after the account lookup resolves: a
+    // generation change that lands during that await still drops the stale
+    // read. The post carries the read's own immutable stamp, never the
+    // latest one a newer read may have set since.
     const isCurrent = async () =>
+      (await this.deps.voiceAccountId()) === accountId &&
       this.canPostUploadedFiles() &&
-      this.deps.auth.admissionGeneration === authGeneration &&
-      (await this.deps.voiceAccountId()) === accountId
+      this.deps.auth.admissionGeneration === authGeneration
     try {
-      const report = uploadedFilesReportSchema.parse(await port.read())
-      if (await isCurrent()) port.post(report)
+      const stamped = await port.readStamped()
+      const report = uploadedFilesReportSchema.parse(stamped.report)
+      if (await isCurrent())
+        port.post(report, { accountId: stamped.accountId, generation: stamped.generation })
     } catch (error: unknown) {
       if (await isCurrent()) this.say('error', `${UI_TEXT.usageUnavailable}: ${describe(error)}`)
     }

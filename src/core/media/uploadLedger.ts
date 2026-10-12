@@ -2,7 +2,12 @@
 // windows/processes; provider deletion follows the last durable session release.
 import { createHash } from 'node:crypto'
 import * as z from 'zod/mini'
-import { HTTP_STATUS, MEDIA_SHA256_PATTERN, UI_TEXT } from '../../shared/constants'
+import {
+  HTTP_STATUS,
+  MEDIA_SHA256_PATTERN,
+  MILLISECONDS_PER_SECOND,
+  UI_TEXT,
+} from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import {
   uploadedAccountFileSchema as accountFileSchema,
@@ -19,8 +24,22 @@ const ledgerSchema = z.strictObject({
   accountId: z.string().check(z.regex(MEDIA_SHA256_PATTERN)),
   entries: z.array(z.strictObject({ file: uploadedMediaRefSchema, sessions: z.array(z.string()) })),
   cachedFiles: z.array(accountFileSchema),
+  // Durable delete intents (RULE 2): recorded before the provider dispatch,
+  // retried by the next account read, cleared once the rows are gone.
+  pendingDeletes: z.optional(z.array(z.string())),
+  // Durable in-use pins (RULE 1): files an active request carries. A file
+  // in use is never deleted, whatever a stale window snapshot says.
+  pinned: z.optional(z.array(z.string())),
 })
 export type UploadLedgerState = z.infer<typeof ledgerSchema>
+
+function pendingOf(state: UploadLedgerState): string[] {
+  return state.pendingDeletes ?? []
+}
+
+function pinnedOf(state: UploadLedgerState): string[] {
+  return state.pinned ?? []
+}
 
 /** Atomic writes under a cross-process lock; a read boundary is always validated. */
 export interface UploadLedgerStorage {
@@ -92,10 +111,13 @@ export class UploadLedger implements SessionUploadLifecycle {
   }
 
   /**
-   * Delete one file through the provider. A file the provider already
-   * removed (a 404) is recorded as gone, never as an error; any other
-   * failure keeps the row durable and retryable. Every delete consumer —
-   * release, sweep, single-file and Delete all ours — normalizes here.
+   * Delete one file through the provider. The durable intent is recorded
+   * first (RULE 2), then the signal is checked immediately before the
+   * dispatch; a file the provider already removed (a 404) is recorded as
+   * gone, never as an error, while any other failure keeps the row and its
+   * intent durable for the next account read's retry. Every delete
+   * consumer — release, sweep, single-file and Delete all ours —
+   * normalizes here.
    */
   private async removeEntry(
     state: UploadLedgerState,
@@ -103,6 +125,14 @@ export class UploadLedger implements SessionUploadLifecycle {
     signal?: AbortSignal,
   ): Promise<void> {
     signal?.throwIfAborted()
+    if (!pendingOf(state).includes(fileId)) {
+      state.pendingDeletes = [...pendingOf(state), fileId]
+      await this.deps.storage.write(state)
+    }
+    signal?.throwIfAborted()
+    // The lock is held throughout, so no pin can land between the intent
+    // and the dispatch; this is the backstop for the skips above.
+    if (pinnedOf(state).includes(fileId)) throw new Error(UI_TEXT.media.filesInUse)
     try {
       await this.files.delete(fileId, signal)
     } catch (error: unknown) {
@@ -110,30 +140,84 @@ export class UploadLedger implements SessionUploadLifecycle {
     }
     state.entries = state.entries.filter((entry) => entry.file.fileId !== fileId)
     state.cachedFiles = state.cachedFiles.filter((file) => file.fileId !== fileId)
+    state.pendingDeletes = pendingOf(state).filter((pending) => pending !== fileId)
     await this.deps.storage.write(state)
   }
 
   /**
    * Offer unreferenced uploads for automatic clean-up (PLAN D85.2). The
-   * release path (`'release'`) deletes once no session refers to the file,
-   * however young. The account read (`'sweep'`) sweeps only orphans no
-   * release ever saw (a crash, another install) once the provider's own
-   * expiry has passed (`museSpark.mediaUploadExpiryDays` set it at
-   * upload). Failed deletions remain retryable.
+   * release path (`'release'`) deletes the files this sync left without a
+   * session, however young — never an orphan it never saw. The account
+   * read (`'sweep'`) is the only thing that deletes those orphans (a
+   * crash, another install), once the provider's own expiry has passed
+   * (`museSpark.mediaUploadExpiryDays` set it at upload). Provider
+   * `expiresAt` is seconds while the clock is milliseconds: one unit
+   * everywhere. Failed deletions remain retryable through their intent.
    */
   private async cleanup(
     state: UploadLedgerState,
     isCurrent: () => boolean = () => true,
     scope: 'release' | 'sweep' = 'sweep',
+    signal?: AbortSignal,
+    releaseIds?: ReadonlySet<string>,
   ): Promise<void> {
+    signal?.throwIfAborted()
     if (!(await this.isCurrentAccount())) return
     for (const entry of state.entries) {
       if (entry.sessions.length > 0) continue
-      if (scope === 'sweep' && this.deps.now() < entry.file.expiresAt) continue
+      // RULE 1: a file in use is never deleted, in either scope.
+      if (pinnedOf(state).includes(entry.file.fileId)) continue
+      if (scope === 'release' && releaseIds !== undefined && !releaseIds.has(entry.file.fileId))
+        continue
+      if (
+        scope === 'sweep' &&
+        Math.floor(this.deps.now() / MILLISECONDS_PER_SECOND) < entry.file.expiresAt
+      )
+        continue
       await this.requireAccount()
       if (!isCurrent()) return
-      await this.removeEntry(state, entry.file.fileId)
+      await this.removeEntry(state, entry.file.fileId, signal)
     }
+  }
+
+  /** Retry the durable delete intents the previous read left behind. */
+  private async retryPending(state: UploadLedgerState, signal?: AbortSignal): Promise<void> {
+    signal?.throwIfAborted()
+    if (!(await this.isCurrentAccount())) return
+    for (const fileId of pendingOf(state)) {
+      // A file pinned since now waits for its request to settle instead.
+      if (pinnedOf(state).includes(fileId)) continue
+      await this.requireAccount()
+      await this.removeEntry(state, fileId, signal)
+    }
+  }
+
+  /**
+   * Pin the files an active request carries (RULE 1): durable state under
+   * the cross-process lock, so a stale window's save cannot delete them.
+   * No account check: unpinning must succeed even after the key is gone,
+   * or the pin would leak.
+   */
+  public async pinFiles(fileIds: readonly string[]): Promise<void> {
+    if (fileIds.length === 0) return
+    await this.deps.storage.withLock(async () => {
+      const state = await this.read()
+      const pinned = pinnedOf(state)
+      if (fileIds.every((fileId) => pinned.includes(fileId))) return
+      state.pinned = [...pinned, ...fileIds.filter((fileId) => !pinned.includes(fileId))]
+      await this.deps.storage.write(state)
+    })
+  }
+
+  /** Release the request's pins once it settles, however it settled. */
+  public async unpinFiles(fileIds: readonly string[]): Promise<void> {
+    if (fileIds.length === 0) return
+    await this.deps.storage.withLock(async () => {
+      const state = await this.read()
+      if (pinnedOf(state).every((fileId) => !fileIds.includes(fileId))) return
+      state.pinned = pinnedOf(state).filter((fileId) => !fileIds.includes(fileId))
+      await this.deps.storage.write(state)
+    })
   }
 
   /** Same digest shares one upload. A missing/expired ID is replaced once, after hash verification. */
@@ -228,7 +312,18 @@ export class UploadLedger implements SessionUploadLifecycle {
           if (wanted.some((ref) => ref.sha256 === entry.file.sha256)) entry.sessions.push(sessionId)
         }
         await this.deps.storage.write(state)
-        await this.cleanup(state, isCurrent, 'release')
+        // RULE 3: the release deletes only the files this sync left
+        // without a session. An orphan it never saw waits for the sweep.
+        const released = new Set(
+          state.entries
+            .filter(
+              (entry) =>
+                entry.sessions.length === 0 &&
+                (previousSessions.get(entry.file.fileId) ?? []).length > 0,
+            )
+            .map((entry) => entry.file.fileId),
+        )
+        await this.cleanup(state, isCurrent, 'release', undefined, released)
         if (isCurrent()) return
         // A newer save may arrive during the write or account checks. Restore
         // still-existing owners before another account operation can clean them.
@@ -261,12 +356,17 @@ export class UploadLedger implements SessionUploadLifecycle {
     await this.syncSession(sessionId, [])
   }
 
-  public async accountReport(): Promise<UploadedFilesReport> {
+  public async accountReport(signal?: AbortSignal): Promise<UploadedFilesReport> {
     return await this.deps.storage.withLock(async () => {
       const state = await this.read()
+      signal?.throwIfAborted()
       const isReadOnly = !(await this.isCurrentAccount())
       if (!isReadOnly) {
-        await this.cleanup(state)
+        // A cancel that landed during the reads above deletes nothing:
+        // every destructive step below checks the signal first.
+        await this.retryPending(state, signal)
+        await this.cleanup(state, () => true, 'sweep', signal)
+        signal?.throwIfAborted()
         const listed = await this.files.accountFiles()
         state.cachedFiles = listed.map((file) => accountFileSchema.parse(file))
         await this.deps.storage.write(state)
@@ -305,11 +405,16 @@ export class UploadLedger implements SessionUploadLifecycle {
     isForeignDeletionConfirmed: (name: string) => Promise<boolean>,
     signal?: AbortSignal,
   ): Promise<void> {
+    signal?.throwIfAborted()
     await this.deps.storage.withLock(async () => {
       const state = await this.read()
+      signal?.throwIfAborted()
       await this.requireAccount()
       const ours = state.entries.find((entry) => entry.file.fileId === fileId)
       if (ours !== undefined && ours.sessions.length > 0) throw new Error(UI_TEXT.media.filesInUse)
+      // RULE 1: an explicit delete never takes a file an active request
+      // carries, even after its session reference went stale.
+      if (pinnedOf(state).includes(fileId)) throw new Error(UI_TEXT.media.filesInUse)
       if (ours === undefined) {
         const file = state.cachedFiles.find((entry) => entry.fileId === fileId)
         if (file === undefined || !(await isForeignDeletionConfirmed(file.name))) return
@@ -325,11 +430,13 @@ export class UploadLedger implements SessionUploadLifecycle {
    * references is never deleted.
    */
   public async deleteAllOurs(signal?: AbortSignal): Promise<void> {
+    signal?.throwIfAborted()
     await this.deps.storage.withLock(async () => {
       const state = await this.read()
+      signal?.throwIfAborted()
       await this.requireAccount()
       for (const entry of state.entries) {
-        if (entry.sessions.length > 0) continue
+        if (entry.sessions.length > 0 || pinnedOf(state).includes(entry.file.fileId)) continue
         await this.requireAccount()
         await this.removeEntry(state, entry.file.fileId, signal)
       }

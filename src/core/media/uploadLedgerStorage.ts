@@ -5,14 +5,39 @@
 import { randomUUID } from 'node:crypto'
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
+import * as z from 'zod/mini'
 import { withMkdirLock } from '../fileLock'
 import { MEDIA_UPLOAD_LOCK_ATTEMPTS, MEDIA_UPLOAD_LOCK_WAIT_MS } from '../../shared/constants'
 import type { UploadLedgerStorage } from './uploadLedger'
 
 export const UPLOAD_LEDGER_FILE = 'uploads.json'
+/** The digest of the last keyed account, so a keyless restart keeps its list. */
+export const LAST_ACCOUNT_FILE = 'last-account.json'
+const lastAccountSchema = z.strictObject({ version: z.literal(1), accountId: z.string() })
 const LOCK_SUFFIX = '.lock'
 const OWNER_DIRECTORY_MODE = 0o700
 const OWNER_FILE_MODE = 0o600
+
+/**
+ * Remember the last keyed account beneath the uploads root: only the
+ * digest, never the key (it already names the account's directory). A
+ * corrupt or missing pointer reads as none and is rewritten on the next
+ * keyed open.
+ */
+export async function writeLastAccountId(root: string, accountId: string): Promise<void> {
+  await writeStateAtomically(root, LAST_ACCOUNT_FILE, { version: 1, accountId })
+}
+
+export async function readLastAccountId(root: string): Promise<string | undefined> {
+  try {
+    const parsed = lastAccountSchema.safeParse(
+      JSON.parse(await readFile(path.join(root, LAST_ACCOUNT_FILE), 'utf8')),
+    )
+    return parsed.success && parsed.data.accountId.length > 0 ? parsed.data.accountId : undefined
+  } catch {
+    return undefined
+  }
+}
 
 /** The account's ledger directory beneath the uploads root (one per account). */
 export function accountLedgerDirectory(root: string, accountId: string): string {
