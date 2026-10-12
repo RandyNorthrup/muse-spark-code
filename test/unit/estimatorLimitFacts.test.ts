@@ -5,6 +5,8 @@ import {
 } from '../../src/core/estimator/limitFacts'
 import { estimateLimitFactSchema, type EstimateAccountOwner } from '../../src/shared/estimateFacts'
 import type { UsageLimitSnapshot } from '../../src/shared/usageJournal'
+import { legacyUsdSchema, type UsdAmount } from '../../src/shared/usdSchema'
+const usd = (value: number): UsdAmount => legacyUsdSchema.parse(value)
 const observedAt = Date.parse('2026-10-06T12:00:00.000Z')
 const owner: EstimateAccountOwner = {
   kind: 'account',
@@ -26,7 +28,7 @@ function observation(source: UsageLimitSnapshot['source']): UsageLimitSnapshot {
     provider: owner.providerId,
     source,
     windows: [],
-    account: { usedUsd: 100, limitUsd: 100, remainingUsd: 0, period: 'month' },
+    account: { usedUsd: usd(100), limitUsd: usd(100), remainingUsd: usd(0), period: 'month' },
   }
 }
 describe('owned estimator limit facts', () => {
@@ -39,17 +41,17 @@ describe('owned estimator limit facts', () => {
         owner,
         metric: 'balance',
         unit: 'usd',
-        used: 100,
-        limit: 100,
-        remaining: 0,
+        used: '100',
+        limit: '100',
+        remaining: '0',
         window: { startsAt: null, resetsAt: null, periodSeconds: null, calendarPeriod: 'month' },
         observedAt: '2026-10-06T12:00:00.000Z',
         observedBy: source,
       })
-      snapshot.account = { period: 'unknown', remainingUsd: 0 }
+      snapshot.account = { period: 'unknown', remainingUsd: usd(0) }
       expect(
         ESTIMATE_FACT_TRANSLATORS.observation({ owner, observedAt, snapshot })[0],
-      ).toMatchObject({ used: null, limit: null, remaining: 0 })
+      ).toMatchObject({ used: null, limit: null, remaining: '0' })
     },
   )
   it('keeps known percentage allowance with an unknown period', () => {

@@ -30,6 +30,8 @@ import {
   usagePageStateSchema,
 } from '../../src/shared/usagePage'
 import { parseWebviewToHostMessage } from '../../src/shared/protocol'
+import { legacyUsdSchema, type UsdAmount } from '../../src/shared/usdSchema'
+const usd = (value: number): UsdAmount => legacyUsdSchema.parse(value)
 
 const identity: Pick<
   UsageRecord,
@@ -234,7 +236,7 @@ describe('usage journal v1', () => {
       source: 'museCode',
       observedAt: identity.at,
       windows: [{ id: 'weekly', usedPercent: 125, resetsAt: identity.at }],
-      account: { period: 'daily', remainingUsd: 0 },
+      account: { period: 'daily', remainingUsd: usd(0) },
       raw: { 'retry-after': '10' },
     }
     expect(usageLimitSnapshotSchema.parse(snapshot)).toEqual(snapshot)

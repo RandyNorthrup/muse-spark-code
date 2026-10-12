@@ -70,6 +70,10 @@ function accessDeps(root: string) {
   }
 }
 
+// Live hosts bind their owner per observation through this scope (R6).
+function recordedUsageScope(): { accountId: string; generation: string } {
+  return { accountId: 'default', generation: '1' }
+}
 async function prepareRecordedUsage() {
   const root = await folder()
   const log = new FakeLogOutputChannel()
@@ -90,6 +94,9 @@ async function prepareRecordedUsage() {
     writer: () => Promise.resolve(writer),
     log,
   })
+  // Live hosts bind their owner per observation through this scope (R6):
+  // without it their observations publish nothing.
+  MuseCodeHost.usageScope = recordedUsageScope
   const api = fakeModelApi()
   const client = fakeModelApiClient(api, log)
   const card: PriceCard = {
@@ -107,6 +114,7 @@ async function prepareRecordedUsage() {
     }),
     now: Date.now,
     usageRecording: recording,
+    usageScope: recordedUsageScope,
     models: {
       resolve: (ref) =>
         Promise.resolve({

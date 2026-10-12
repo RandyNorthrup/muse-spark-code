@@ -351,6 +351,7 @@ describe('registry dispatch through the real host', () => {
           isPaidFeatureOn: (feature) => feature === 'autoReviewer',
           allowsPaidUse: consent,
           usageRecording: recording,
+          usageScope: () => ({ accountId: 'default', generation: '1' }),
           noteReviewerUsage: () => {
             throw new Error('Legacy observer has no provider tariff')
           },
@@ -533,10 +534,13 @@ describe('registry dispatch through the real host', () => {
 })
 
 function recordingPort(): UsageRecording {
-  return {
+  const port = {
     note: vi.fn(),
     limit: vi.fn(),
     today: () => Promise.resolve([]),
     flush: () => Promise.resolve(),
   }
+  // The scope seam binds the owner (R6); the mock keeps seeing bare fields.
+  const scoped = { ...port }
+  return { ...scoped, scopeLimits: () => scoped }
 }

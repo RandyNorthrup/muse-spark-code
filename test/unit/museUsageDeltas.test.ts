@@ -5,12 +5,16 @@ import { FakeLogOutputChannel } from './helpers/fakes'
 import { fakeMspHost, fakeInitializeResult, settle } from './helpers/fakeMsp'
 
 function setup(isNew: boolean) {
-  const port: UsageRecording = {
+  const base = {
     note: vi.fn(),
     limit: vi.fn(),
     today: () => Promise.resolve([]),
     flush: () => Promise.resolve(),
   }
+  // The scope seam binds the owner (R6); the mock keeps seeing bare fields.
+  const scoped = { ...base }
+  const port: UsageRecording = { ...scoped, scopeLimits: () => scoped }
+  MuseCodeHost.usageScope = () => ({ accountId: 'default', generation: '1' })
   const deltas = new MuseUsageDeltas(port, 'session', 'muse-spark-1.3', isNew, () => 100)
   const report = (inputTokens: number, outputTokens: number) => {
     deltas.receive({ type: 'tokenUsage', inputTokens, outputTokens })
