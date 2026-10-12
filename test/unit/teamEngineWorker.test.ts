@@ -86,6 +86,15 @@ class FakeSession implements WorktreeSession {
   public readonly cancelQuestions = vi.fn<WorktreeSession['cancelQuestions']>(resolvedVoid)
   public readonly cancel = vi.fn<WorktreeSession['cancel']>(resolvedVoid)
 
+  public constructor(
+    private readonly requests = 1,
+    private readonly ending: WorktreeSessionEvent = {
+      type: 'turnCompleted',
+      turnId: 'turn-1',
+      terminal: 'stopped',
+    },
+  ) {}
+
   public onEvent(listener: (event: WorktreeSessionEvent) => void): () => void {
     this.listener = listener
     return () => {
@@ -98,8 +107,10 @@ class FakeSession implements WorktreeSession {
   ): Promise<unknown> {
     this.sent.push(parts[0].text)
     this.listener?.({ type: 'turnStarted', turnId: 'turn-1' })
-    this.listener?.({ type: 'modelRequestCompleted' })
-    this.listener?.({ type: 'turnCompleted', turnId: 'turn-1', terminal: 'stopped' })
+    for (let index = 0; index < this.requests; index += 1) {
+      this.listener?.({ type: 'modelRequestCompleted' })
+    }
+    this.listener?.(this.ending)
     return Promise.resolve({ turnId: 'turn-1' })
   }
 }
@@ -356,6 +367,31 @@ describe('runEngineWorker', () => {
     expect(session.sent[0]).toContain('You are the engineering worker.')
     expect(result.outcome.requestsMade).toBe(1)
     expect(result.report).toEqual({ ok: true, report: { status: 'done', summary: 'Done.' } })
+  })
+
+  it('reports a worker that ends at its ceiling as capped with the wrap-up text', async () => {
+    const tail = vi.fn(() => Promise.resolve('Partial progress; the indexer remains to be wired.'))
+    const result = await runEngineWorker(
+      depsWith({
+        session: new FakeSession(5, {
+          type: 'turnCompleted',
+          turnId: 'turn-1',
+          terminal: 'completed',
+          reason: 'The turn reached its model-call limit.',
+          errorKind: 'max_turn_requests',
+        }),
+        readTranscriptTail: tail,
+      }),
+    )
+    // Five requests against the ceiling of five: the typed outcome, not a
+    // count, marks the ceiling, and the wrap-up text stays as the report.
+    expect(result.outcome).toMatchObject({ requestsMade: 5, ceilingReached: true })
+    expect(result.report).toEqual({
+      ok: false,
+      status: 'capped',
+      stopReason: 'max_turn_requests',
+      summary: 'Partial progress; the indexer remains to be wired.',
+    })
   })
 
   it('refuses an untrusted workspace before anything runs', async () => {
