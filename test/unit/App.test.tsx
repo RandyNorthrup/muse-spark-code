@@ -962,6 +962,36 @@ describe('App conversation', () => {
     }
   })
 
+  it('queues a host-opened sharing surface while feedback is open (RVCM1063C #3)', async () => {
+    renderReady()
+    deliver({ type: 'authState', status: 'signedIn', backend: 'museCode' })
+    deliver({ type: 'sessionInfo', modelId: 'muse-spark-1.3', sessionId: 's1' })
+    deliver({ type: 'agentEvent', event: { type: 'turnStarted', turnId: 't1' } })
+    streamReply('m1', 'hi there')
+    deliver({
+      type: 'agentEvent',
+      event: { type: 'turnCompleted', turnId: 't1', terminal: 'completed' },
+    })
+    const rowButton = document.querySelector('[data-role="assistant"] .row-actions-button')
+    if (!(rowButton instanceof HTMLElement)) throw new Error('Missing assistant row menu')
+    fireEvent.click(rowButton)
+    fireEvent.click(await screen.findByRole('menuitem', { name: UI_TEXT.feedbackTitle }))
+    await screen.findByLabelText(UI_TEXT.feedbackNote)
+    // The host's saved-prompts command arrives while feedback owns the
+    // panel: one modal, and the prompt library waits its turn.
+    deliver({ type: 'openSharing', surface: 'prompts' })
+    await screen.findByRole('dialog', { name: UI_TEXT.feedbackTitle })
+    expect(screen.getAllByRole('dialog')).toHaveLength(1)
+    expect(screen.queryByRole('dialog', { name: UI_TEXT.promptLibrary })).toBeNull()
+    // Closing feedback opens the queued surface, still exactly one modal.
+    fireEvent.keyDown(screen.getByRole('dialog', { name: UI_TEXT.feedbackTitle }), {
+      key: 'Escape',
+    })
+    await screen.findByRole('dialog', { name: UI_TEXT.promptLibrary })
+    expect(screen.getAllByRole('dialog')).toHaveLength(1)
+    expect(screen.queryByRole('dialog', { name: UI_TEXT.feedbackTitle })).toBeNull()
+  })
+
   it('keeps empty native effort lists from posting fallback tiers', () => {
     const postMessage = renderReady()
     deliver({
