@@ -936,6 +936,49 @@ describe('CM352 bounded voice admission and receipts', () => {
     await broken.dictation.dispose()
   })
 
+  it('waits for a pending settlement write on dispose, then settles reported seconds', async () => {
+    const release = Promise.withResolvers<undefined>()
+    const t = dictationSetup()
+    t.daily.settle.mockImplementation(async () => {
+      await release.promise
+      return {
+        spentUsd: Usd.from(0).toAmount(),
+        hasUnknownHistoricalFees: false,
+      }
+    })
+    t.dictation.start()
+    await answered(t)
+    t.capture().listener.onAudio?.(pcm(1.99))
+    t.capture().listener.onStopped?.()
+    t.socket().serverSays({
+      type: 'transcript',
+      transcript: 'held settlement',
+      final: true,
+      audioProcessedMs: 2000,
+    })
+    await vi.waitFor(() => {
+      expect(t.daily.settle).toHaveBeenCalled()
+    })
+    // The drain does not finish while the journal write is still running.
+    let isDrained = false
+    const disposed = t.dictation.dispose()
+    const watchDrain = (async (): Promise<void> => {
+      await disposed
+      isDrained = true
+    })()
+    for (let i = 0; i < 10; i += 1) {
+      await Promise.resolve()
+    }
+    expect(isDrained).toBe(false)
+    expect(t.socket().isClosed).toBe(true)
+    release.resolve(undefined)
+    await disposed
+    await watchDrain
+    expect(isDrained).toBe(true)
+    expect(t.daily.settle).toHaveBeenCalledExactlyOnceWith(Usd.from('0.0001').toAmount(), false)
+    expect(t.seconds).toEqual([2])
+  })
+
   it.each([4096, 3200, 65_536])(
     'reframes recorder chunks of %s bytes, enforces the byte cap, and stops the recorder',
     async (chunkSize) => {

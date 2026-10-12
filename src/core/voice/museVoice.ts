@@ -477,6 +477,8 @@ export class MuseVoiceDictation implements DictationHandle {
   /** Every stream still open, the finishing ones included (a dispose ends them). */
   private readonly open = new Set<MuseVoiceStream>()
   private readonly budgets = new Map<MuseVoiceStream, VoiceBudgetState>()
+  /** Settlement writes still running, so dispose can wait for each of them. */
+  private readonly settling = new Set<Promise<void>>()
   /** The recording admitted but not yet capturing: no microphone is held. */
   private preparingStream: MuseVoiceStream | undefined
   /** Every stop and dispose cancels the preparation still running. */
@@ -583,9 +585,16 @@ export class MuseVoiceDictation implements DictationHandle {
     )
     const budget = this.budgets.get(stream)
     this.budgets.delete(stream)
-    if (budget !== undefined) {
-      void this.settleBudget(budget, stream)
+    if (budget === undefined) {
+      return
     }
+    // Tracked, so dispose drains every settlement write it started.
+    const settlement = this.settleBudget(budget, stream)
+    this.settling.add(settlement)
+    const forget = (): void => {
+      this.settling.delete(settlement)
+    }
+    void settlement.then(forget).catch(forget)
   }
 
   private isStreamOpen(stream: MuseVoiceStream): boolean {
@@ -876,5 +885,8 @@ export class MuseVoiceDictation implements DictationHandle {
       stream.abort()
       this.settle(stream)
     }
+    // Failures already reached the listener through onError; the drain itself
+    // never fails the shutdown waiting on it.
+    await Promise.allSettled(this.settling)
   }
 }

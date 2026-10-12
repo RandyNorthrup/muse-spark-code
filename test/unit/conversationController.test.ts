@@ -73,7 +73,11 @@ import {
 } from '../../src/host/conversation/conversationController'
 import type { AttentionNotice } from '../../src/host/conversation/turnNotifications'
 import type { DictationListener, DictationSetup } from '../../src/core/voice/dictation'
-import { MuseVoiceDictation, type VoiceSocketHandlers } from '../../src/core/voice/museVoice'
+import {
+  MuseVoiceDictation,
+  type MuseVoiceDeps,
+  type VoiceSocketHandlers,
+} from '../../src/core/voice/museVoice'
 import type {
   ExportPreview,
   ExportPreviewChoice,
@@ -9190,6 +9194,7 @@ function noFolderVoice(
     readonly workspaceRoot?: string
     readonly allowsPaidUse?: ConversationDeps['allowsPaidUse']
     readonly apiKey?: () => Promise<string | undefined>
+    readonly reserveDaily?: MuseVoiceDeps['reserveDaily']
   } = {},
 ) {
   const calls: string[] = []
@@ -9246,15 +9251,17 @@ function noFolderVoice(
                 },
               }
             },
-            reserveDaily: () =>
-              Promise.resolve({
-                check: () => undefined,
-                settle: () =>
-                  Promise.resolve({
-                    spentUsd: Usd.from(0).toAmount(),
-                    hasUnknownHistoricalFees: false,
-                  }),
-              }),
+            reserveDaily:
+              options.reserveDaily ??
+              (() =>
+                Promise.resolve({
+                  check: () => undefined,
+                  settle: () =>
+                    Promise.resolve({
+                      spentUsd: Usd.from(0).toAmount(),
+                      hasUnknownHistoricalFees: false,
+                    }),
+                })),
             url: 'wss://voice.example.test/realtime',
             apiKey: options.apiKey ?? (() => Promise.resolve('LLM|1|secret')),
             onSeconds: (count) => {
@@ -9445,6 +9452,84 @@ describe('ConversationController: paid voice without a journal (M82)', () => {
       }
     },
   )
+
+  it('drains an active recording on backendStopping: capture disposed, socket closed, button idle', async () => {
+    const voice = noFolderVoice()
+    try {
+      await openNoFolderVoice(voice)
+      voice.capture().onAudio?.(new Uint8Array(MUSE_VOICE_BYTES_PER_SECOND * 2))
+      await voice.controller.backendStopping(true)
+      expect(voice.calls).toContain('dispose')
+      expect(voice.socket().isClosed).toBe(true)
+      expect(voice.seconds).toEqual([2])
+      expect(voice.t.surface.posted).toContainEqual({
+        type: 'dictationState',
+        status: 'idle',
+        engine: 'museVoice',
+      })
+      // The next press records again: nothing stranded.
+      await voice.controller.handle({ type: 'dictation', action: 'start' })
+      await vi.waitFor(() => {
+        expect(voice.sockets).toHaveLength(2)
+      })
+    } finally {
+      voice.controller.dispose()
+    }
+  })
+
+  it('drains a preparation still reserving on backendStopping and leaves nothing open', async () => {
+    const release = Promise.withResolvers<undefined>()
+    const settled: unknown[] = []
+    const reserve = vi.fn(async () => {
+      await release.promise
+      return {
+        check: () => undefined,
+        settle: (actual: unknown, hasUnknownCost: boolean) => {
+          settled.push([actual, hasUnknownCost])
+          return Promise.resolve({
+            spentUsd: Usd.from(0).toAmount(),
+            hasUnknownHistoricalFees: false,
+          })
+        },
+      }
+    })
+    const voice = noFolderVoice({ reserveDaily: reserve })
+    try {
+      const starting = voice.controller.handle({ type: 'dictation', action: 'start' })
+      await vi.waitFor(() => {
+        expect(reserve).toHaveBeenCalled()
+      })
+      let isStopped = false
+      const stopping = voice.controller.backendStopping(true)
+      const watchStopping = (async (): Promise<void> => {
+        await stopping
+        isStopped = true
+      })()
+      for (let i = 0; i < 10; i += 1) {
+        await Promise.resolve()
+      }
+      // The backend stop waits for the drain: it cannot finish first.
+      expect(isStopped).toBe(false)
+      release.resolve(undefined)
+      await starting
+      await stopping
+      await watchStopping
+      expect(isStopped).toBe(true)
+      // Nothing captured and nothing opened: the refund settled the attempt.
+      // The drain disposed the capture without ever starting it.
+      expect(voice.calls).toEqual(['create', 'dispose'])
+      expect(voice.sockets).toEqual([])
+      expect(settled).toEqual([[Usd.from(0).toAmount(), false]])
+      // The next press records again: nothing stranded.
+      await voice.controller.handle({ type: 'dictation', action: 'start' })
+      await vi.waitFor(() => {
+        expect(voice.sockets).toHaveLength(1)
+      })
+    } finally {
+      release.resolve(undefined)
+      voice.controller.dispose()
+    }
+  })
 })
 
 describe('ConversationController: the microphone’s engine (M35, PLAN.md D30)', () => {
