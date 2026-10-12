@@ -243,6 +243,27 @@ function chatGpt(fetcher: typeof fetch, streamIdleMs?: number) {
   })
 }
 
+/**
+ * A reply of `count` text deltas between its first and its last event,
+ * `gapMs` apart, run to its end: it completes without an error. Returns the
+ * time it took and how many of the deltas arrived.
+ */
+async function steadyReply(count: number, gapMs: number, streamIdleMs?: number) {
+  const delta = frame({ type: 'response.output_text.delta', item_id: 'item_1', delta: 'a' })
+  const frames = [CREATED, ...Array.from({ length: count }, () => delta), COMPLETED]
+  const client = chatGpt((_url, init) => Promise.resolve(reply(frames, gapMs, init)), streamIdleMs)
+  const started = Date.now()
+  const events = await Array.fromAsync(
+    client.streamResponse(request(), new AbortController().signal),
+  )
+  expect(events.at(-1)?.type).toBe('response.completed')
+  expect(events.filter((event) => event.type === 'error')).toEqual([])
+  return {
+    elapsedMs: Date.now() - started,
+    deltas: events.filter((event) => event.type === 'response.output_text.delta').length,
+  }
+}
+
 describe('ChatGPT plan stream limits', () => {
   it('lets a reply run past the bounded-call deadline', async () => {
     // The 30 s deadline is 100 ms here; the reply takes about 600 ms.
@@ -250,17 +271,51 @@ describe('ChatGPT plan stream limits', () => {
     vi.spyOn(AbortSignal, 'timeout').mockImplementation((ms) =>
       realTimeout(ms === MODEL_API_REQUEST_TIMEOUT_MS ? 100 : ms),
     )
-    const delta = frame({ type: 'response.output_text.delta', item_id: 'item_1', delta: 'a' })
-    const client = chatGpt((_url, init) =>
-      Promise.resolve(reply([CREATED, delta, delta, delta, delta, delta, COMPLETED], 100, init)),
-    )
+    const steady = await steadyReply(5, 100)
+    expect(steady.elapsedMs).toBeGreaterThan(400)
+  })
+
+  it('keeps a steady reply alive for several times the idle limit: the limit is on silence, not on the total', async () => {
+    // An event every 50 ms, 32 events: about 1.6 s in total under a 300 ms
+    // idle limit. Every decoded event restarts the clock, and all arrive.
+    const idleMs = 300
+    const steady = await steadyReply(30, 50, idleMs)
+    expect(steady.deltas).toBe(30)
+    expect(steady.elapsedMs).toBeGreaterThan(3 * idleMs)
+  })
+
+  it('ends a reply of keep-alive comments at the idle limit: bytes that decode to no event do not restart the clock', async () => {
+    const idleMs = 300
+    const comment = new TextEncoder().encode(': keep-alive\n\n')
+    let wasAborted = false
+    const client = chatGpt((_url, init) => {
+      init?.signal?.addEventListener('abort', () => {
+        wasAborted = true
+      })
+      // A comment line every 100 ms, for 10 s unless the request is aborted.
+      return Promise.resolve(
+        reply(
+          Array.from({ length: 100 }, () => comment),
+          100,
+          init,
+        ),
+      )
+    }, idleMs)
     const started = Date.now()
     const events = await Array.fromAsync(
       client.streamResponse(request(), new AbortController().signal),
     )
-    expect(events).toContainEqual(expect.objectContaining({ type: 'response.completed' }))
-    expect(events.filter((event) => event.type === 'error')).toEqual([])
-    expect(Date.now() - started).toBeGreaterThan(400)
+    const elapsedMs = Date.now() - started
+    expect(events).toEqual([
+      {
+        type: 'error',
+        code: 'request-failed',
+        message: fill(UI_TEXT.modelApiStalled, { seconds: Math.round(idleMs / 1000) }),
+      },
+    ])
+    expect(wasAborted).toBe(true)
+    expect(elapsedMs).toBeGreaterThanOrEqual(idleMs - 50)
+    expect(elapsedMs).toBeLessThan(3000)
   })
 
   it('ends a reply that goes silent at the idle limit, with the idle sentence', async () => {
