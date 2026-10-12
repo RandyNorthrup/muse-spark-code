@@ -56,8 +56,10 @@ import type { PermissionSettings } from '../../src/core/permissionSettings'
 import {
   ModelApiHost,
   ModelApiSession,
+  incompleteReasonForLog,
   type ModelApiHostDeps,
 } from '../../src/core/backends/modelapi/ModelApiHost'
+import { wireWordForLog } from '../../src/core/logging'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { estimateCostUsd, formatUsd } from '../../src/core/usage/insights'
 import { EN } from '../../src/shared/l10n/en'
@@ -4790,6 +4792,69 @@ describe('ModelApiSession: turns', () => {
     // the detailed reason to the user.
     expect(t.log.warn).toHaveBeenCalledWith(expect.stringContaining('failed: authRequired'))
     expect(JSON.stringify(t.log.warn.mock.calls)).not.toContain('bad key')
+  })
+
+  // RVM105B P2-1: the incomplete-response warnings use fixed log words. A
+  // provider reason carrying an attachment name and a secret-looking token
+  // maps to `other`; the response id passes wireWordForLog. The turn still
+  // reports its partial text to the user.
+  it('logs a hostile incomplete reason in fixed words on an ordinary turn', async () => {
+    const t = setup()
+    const { session, events, turnDone } = await startSession(t)
+    const hostile = 'clip-sk-live-9f8e7d6c5b4a.wav'
+    t.api.script({ text: 'partial', incomplete: { reason: hostile } })
+    await session.sendTurn([{ type: 'text', text: 'go' }])
+    await turnDone()
+    expect(events.at(-2)).toMatchObject({ type: 'turnCompleted', terminal: 'completed' })
+    // The user still sees the partial text the provider sent.
+    expect(JSON.stringify(session.history().items)).toContain('partial')
+    const warnings = t.log.warn.mock.calls.map((call) => String(call[0]))
+    expect(warnings.some((line) => line.includes('incomplete: other'))).toBe(true)
+    expect(warnings.join('\n')).not.toContain(hostile)
+    expect(warnings.join('\n')).not.toContain('sk-live-')
+  })
+
+  it('logs a hostile incomplete reason in fixed words on compaction', async () => {
+    const t = setup()
+    const { session, turnDone } = await startSession(t)
+    await beginBudgetGoal(t, session, turnDone)
+    const hostile = 'clip-sk-live-9f8e7d6c5b4a.wav'
+    t.api.script({ text: 'PARTIAL SUMMARY', incomplete: { reason: hostile } })
+    await expect(session.compact()).rejects.toThrow('response.incomplete')
+    const warnings = t.log.warn.mock.calls.map((call) => String(call[0]))
+    expect(
+      warnings.some(
+        (line) => line.includes('compaction response') && line.includes('incomplete: other'),
+      ),
+    ).toBe(true)
+    expect(warnings.join('\n')).not.toContain(hostile)
+    expect(warnings.join('\n')).not.toContain('sk-live-')
+  })
+
+  it('maps incomplete reasons to a closed log vocabulary', () => {
+    expect(incompleteReasonForLog(undefined)).toBe('no reason')
+    for (const known of [
+      'max_output_tokens',
+      'content_filter',
+      'length',
+      'max_tokens',
+      'refusal',
+      'pause_turn',
+      'missing_stop_reason',
+      'stream_ended',
+      'stream_ended_without_finish_reason',
+    ]) {
+      expect(incompleteReasonForLog(known)).toBe(known)
+    }
+    // Every other provider text — an attachment name, a secret-looking token,
+    // a forged id-shaped reason — is the word `other`.
+    expect(incompleteReasonForLog('clip-sk-live-9f8e7d6c5b4a.wav')).toBe('other')
+    expect(incompleteReasonForLog('resp_abc123')).toBe('other')
+    expect(incompleteReasonForLog('')).toBe('other')
+    // A hostile response id is not word-shaped, so the log names the fixed
+    // phrase instead of the id.
+    expect(wireWordForLog('resp_abc123')).toBe('resp_abc123')
+    expect(wireWordForLog('clip-sk-live-9f8e7d6c5b4a.wav')).toBe('an unrecognized value')
   })
 
   it('compacts by summarising, then replays only the summary', async () => {

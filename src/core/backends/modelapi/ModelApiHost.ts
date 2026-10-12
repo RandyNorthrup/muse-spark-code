@@ -255,7 +255,7 @@ import {
   skillBodyForModel,
 } from '../../context/skills'
 import { WorkspaceContext } from '../../context/workspaceContext'
-import type { CoreLogger } from '../../logging'
+import { wireWordForLog, type CoreLogger } from '../../logging'
 import type { ModelRow } from '../../providers/modelFilters'
 import { textFileInput } from '../../textAttachment'
 import { withDeadline } from '../../timeouts'
@@ -1671,6 +1671,30 @@ class HookCancelledError extends Error {
 
 function describe(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
+}
+
+// Incomplete reasons the wire may carry, as the log names them (RVM105B
+// P2-1): the provider's free text never reaches the log. The Responses API
+// documents `max_output_tokens` and `content_filter`; the bundled codecs map
+// their own cut-short stops to the rest. Anything else is `other`, and a
+// missing reason stays `no reason`. The detailed reason still reaches the
+// user with the turn; only the log uses these words.
+const INCOMPLETE_REASONS_FOR_LOG: ReadonlySet<string> = new Set([
+  'max_output_tokens',
+  'content_filter',
+  'length',
+  'max_tokens',
+  'refusal',
+  'pause_turn',
+  'missing_stop_reason',
+  'stream_ended',
+  'stream_ended_without_finish_reason',
+])
+
+/** A provider incomplete reason as the log names it; never the raw text. */
+export function incompleteReasonForLog(reason: string | undefined): string {
+  if (reason === undefined) return 'no reason'
+  return INCOMPLETE_REASONS_FOR_LOG.has(reason) ? reason : 'other'
 }
 
 function isAuthFailure(error: unknown): boolean {
@@ -5726,7 +5750,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         if (event.response.incomplete_details?.reason === 'max_output_tokens')
           this.outcomeStopReason = 'budget'
         this.deps.log.warn(
-          `Model API response ${event.response.id} incomplete: ${event.response.incomplete_details?.reason ?? 'no reason'}`,
+          `Model API response ${wireWordForLog(event.response.id)} incomplete: ${incompleteReasonForLog(event.response.incomplete_details?.reason)}`,
         )
         return event.response
       }
@@ -14240,7 +14264,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       case 'response.incomplete': {
         this.noteUsage(event.response.usage, chargedGoalId, 'incomplete', event.response.model)
         this.deps.log.warn(
-          `Model API compaction response ${event.response.id} incomplete: ${event.response.incomplete_details?.reason ?? 'no reason'}`,
+          `Model API compaction response ${wireWordForLog(event.response.id)} incomplete: ${incompleteReasonForLog(event.response.incomplete_details?.reason)}`,
         )
         throw new ModelApiError('response.incomplete', 0, undefined, 'response_incomplete')
       }
