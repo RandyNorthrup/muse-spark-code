@@ -284,7 +284,7 @@ import type { CheckAdmission } from '../../browser/browserRun'
 import { browserCheckOutcome, browserCheckRefused, browserCheckRestricted } from './browserCalls'
 import type { WebFetchFailure } from '../../web/fetchFailure'
 import type { JudgeAdvisory, JudgeFence } from '../../judge/use'
-import type { ModelApiJudgeConnection } from '../../judge/same/modelApiSource'
+import type { ModelApiJudgeConnection, ModelApiSideResponse } from '../../judge/same/modelApiSource'
 import { approvalHost } from '../../web/hostName'
 import { checkPageUrl } from '../../web/pageUrl'
 import {
@@ -373,7 +373,7 @@ import {
   SessionBudgetExceededError,
 } from './sessionBudget'
 
-import { formatUsd } from '../../usage/insights'
+import { estimateCostUsd, formatUsd } from '../../usage/insights'
 
 import { runLegalScanCall } from './legalScanTool'
 import { toolHookInput, toolHookOutput } from './toolHookPayload'
@@ -2345,6 +2345,19 @@ function modelOutputPage(content: string, request: OutputPageRequest): Promise<O
     byteLen: slice.length,
     eof: end >= bytes.length,
   })
+}
+
+/** Terminal response events: whichever carries usage settles the paying lease. */
+const TERMINAL_RESPONSE_TYPES: ReadonlySet<string> = new Set([
+  'response.completed',
+  'response.incomplete',
+  'response.failed',
+])
+
+function isTerminalResponseEvent(
+  event: StreamEvent,
+): event is Extract<StreamEvent, { readonly response: ResponseObject }> {
+  return TERMINAL_RESPONSE_TYPES.has(event.type)
 }
 
 export class ModelApiSession implements ScheduledAgentSession {
@@ -6233,6 +6246,10 @@ export class ModelApiSession implements ScheduledAgentSession {
         if (reservation !== undefined) {
           reservation.hasStarted = true
         }
+        // A failed terminal response still carries its usage: settle the
+        // known cost before applyStreamEvent throws for it.
+        if (accountRequest !== undefined && 'response' in event)
+          accountRequest.receipt(event.response)
         final = this.applyStreamEvent(event, open, turnId, chargedGoalId) ?? final
       }
       if (final === undefined) {
@@ -7106,7 +7123,12 @@ export class ModelApiSession implements ScheduledAgentSession {
       this.deps.accountRequests?.paidClient !== undefined &&
       !this.modelId.includes('/')
     ) {
+      // The image lease owns its paid request from choice to settlement: the
+      // spending question is asked once, inside that lease under its own
+      // payer, not here under no account. The approval card still proceeds;
+      // protected-path permission is enforced at dispatch.
       this.accountImageAsking = requiresUserApproval || shouldForceApproval
+      return true
     }
     const stopNotifying = this.notifyWhileAsking(call, signal)
     try {
@@ -15571,6 +15593,177 @@ export class ModelApiSession implements ScheduledAgentSession {
     return Promise.resolve({ turnId: expectedTurnId, disposition: 'steered', userMessageId })
   }
 
+  /** The same-model Judge side request without account admission. */
+  private async judgeDirectSend(
+    body: CreateResponseBody,
+    signal: AbortSignal,
+    guard: ResponseAttemptGuard,
+  ): Promise<ModelApiSideResponse> {
+    let final: ResponseObject | undefined
+    const stream = this.client.streamResponse(
+      body,
+      signal,
+      undefined,
+      { retriesUsed: MODEL_API_MAX_RETRIES },
+      guard,
+    )
+    for await (const event of stream) {
+      if (event.type === 'response.completed') final = event.response
+    }
+    if (final?.status !== 'completed') throw new Error('Judge stream has no completed response')
+    return this.judgeSideResponse(final)
+  }
+
+  /**
+   * The same-model Judge side request on the conversation's account: one
+   * lease owns it from choice to settlement. The lease is chosen and
+   * reserved in the reservation queue, carries the payer, the payer's 429
+   * observations, the settlement from whichever terminal event has usage,
+   * and the send-time prefix key of exactly what is sent.
+   */
+  private async judgeLeasedSend(
+    requests: AccountRequestPort,
+    body: CreateResponseBody,
+    signal: AbortSignal,
+    guard: ResponseAttemptGuard,
+    turnId: string,
+    connectionKey: string,
+  ): Promise<ModelApiSideResponse> {
+    // The side request is keyed at send time from exactly what it sends, on
+    // the paying lease: the main body's key never crosses to another payer.
+    const keyedBody = { ...body, prompt_cache_key: promptCacheKey(body) }
+    const price = modelPolicyFor(keyedBody.model).pricing
+    if (price.kind !== 'priced') throw new Error(UI_TEXT.execModelUnpriced)
+    const inputTokens = estimateInput(requestParts(keyedBody), undefined).inputTokens
+    const outputTokens = keyedBody.max_output_tokens
+    const reservation = Usd.from(price.card.input)
+      .times(inputTokens)
+      .add(Usd.from(price.card.output).times(outputTokens))
+      .toAmount()
+    const lease = await requests.acquire(
+      {
+        // One lease per paid request: each background batch send owns its
+        // payer from choice to settlement, never colliding with the turn.
+        owner: `${this.sessionId}:judge:${turnId}:${this.deps.newId()}`,
+        budgetOwner: this.budgetOwner().sessionId,
+        kind: 'conversation',
+        account: requests.current(this.accountKind(), this.sessionId) ?? ACCOUNT_DEFAULT_ID,
+        modelId: keyedBody.model,
+        isInteractive: true,
+        estimate: {
+          costUsd: accountUsd(reservation),
+          inputTokens,
+          outputTokens,
+          requests: 1,
+        },
+        isCurrent: () => !signal.aborted && !this.isDisposed && !this.isHostClosing(),
+        checkSharedCaps: () => this.openReservation?.claim?.check(this.currentBudgetCap()),
+      },
+      new URL(MODEL_API_BASE_URL).origin,
+    )
+    let cost: UsdAmount | null = null
+    let usage: { inputTokens: number; outputTokens: number } | undefined
+    let final: ResponseObject | undefined
+    try {
+      await requests.within(lease, async () => {
+        const fence: ResponseAttemptGuard = Object.assign(
+          (actual: string | undefined) => {
+            if (actual !== lease.keyDigest || !lease.isCurrent())
+              throw new Error(UI_TEXT.accounts.invalidAccount)
+            guard(connectionKey)
+          },
+          {
+            ...guard,
+            beforeRequestStarted: () => {
+              lease.beforeSend()
+            },
+            observe: (observation: ResponseObservation) => {
+              if (observation.rateLimited === true) {
+                const reset =
+                  this.deps.now() +
+                  (retryAfterMs(observation.headers?.['retry-after'] ?? null, this.deps.now()) ??
+                    ACCOUNT_REMOTE_LIMIT_DEFAULT_MS)
+                lease.rateLimit(new Date(reset).toISOString())
+              }
+              guard.observe?.(observation)
+            },
+          },
+        )
+        const stream = lease.client.streamResponse(
+          keyedBody,
+          signal,
+          undefined,
+          { retriesUsed: MODEL_API_MAX_RETRIES },
+          fence,
+        )
+        try {
+          for await (const event of stream) {
+            if (!isTerminalResponseEvent(event)) continue
+            final = event.response
+            const counted = event.response.usage
+            if (counted == null || !isCountedUsage(counted)) continue
+            const priced = modelPricedUsage(counted)
+            cost =
+              counted.provider_cost_usd === undefined
+                ? estimateCostUsd(
+                    {
+                      inputTokens: priced.inputTokens,
+                      outputTokens: priced.outputTokens,
+                      cachedTokens: priced.cachedTokens ?? 0,
+                    },
+                    keyedBody.model,
+                  )
+                : Usd.from(counted.provider_cost_usd).toAmount()
+            usage = {
+              inputTokens: counted.input_tokens,
+              outputTokens: counted.output_tokens,
+            }
+          }
+        } finally {
+          await stream.return(undefined)
+        }
+      })
+    } finally {
+      await lease.settle(cost, usage)
+    }
+    if (final?.status !== 'completed') throw new Error('Judge stream has no completed response')
+    return this.judgeSideResponse(final)
+  }
+
+  /** The Judge side answer from its completed terminal response. */
+  private judgeSideResponse(final: ResponseObject): ModelApiSideResponse {
+    const text = final.output
+      .flatMap((item) =>
+        item.type === 'message' && 'content' in item
+          ? item.content.flatMap((part) =>
+              part.type === 'output_text' && 'text' in part ? [part.text] : [],
+            )
+          : [],
+      )
+      .join('')
+    const usage = final.usage
+    if (usage !== undefined && usage !== null && !isCountedUsage(usage))
+      throw new Error('Invalid Judge usage')
+    const cached = usage?.input_tokens_details?.cached_tokens
+    const reasoning = usage?.output_tokens_details?.reasoning_tokens
+    return {
+      text,
+      inputTokens: usage?.input_tokens,
+      outputTokens: usage?.output_tokens,
+      ...(usage !== undefined &&
+        usage !== null &&
+        cached !== undefined &&
+        reasoning !== undefined && {
+          usage: {
+            inputTokens: usage.input_tokens,
+            outputTokens: usage.output_tokens,
+            cachedTokens: cached,
+            reasoningTokens: reasoning,
+          },
+        }),
+    }
+  }
+
   /** Recording adapters use the nominal session, never an arbitrary callback. */
   public async runRecordedTool(
     ...args: Parameters<ModelApiSession['decideAndRun']>
@@ -16987,49 +17180,10 @@ export class ModelApiSession implements ScheduledAgentSession {
       transport: {
         send: async (body, signal, guard) => {
           if (guard === undefined) throw new Error('Judge dispatch requires admission')
-          let final: ResponseObject | undefined
-          const stream = this.client.streamResponse(
-            body,
-            signal,
-            undefined,
-            { retriesUsed: MODEL_API_MAX_RETRIES },
-            guard,
-          )
-          for await (const event of stream) {
-            if (event.type === 'response.completed') final = event.response
-          }
-          if (final?.status !== 'completed')
-            throw new Error('Judge stream has no completed response')
-          const text = final.output
-            .flatMap((item) =>
-              item.type === 'message' && 'content' in item
-                ? item.content.flatMap((part) =>
-                    part.type === 'output_text' && 'text' in part ? [part.text] : [],
-                  )
-                : [],
-            )
-            .join('')
-          const usage = final.usage
-          if (usage !== undefined && usage !== null && !isCountedUsage(usage))
-            throw new Error('Invalid Judge usage')
-          const cached = usage?.input_tokens_details?.cached_tokens
-          const reasoning = usage?.output_tokens_details?.reasoning_tokens
-          return {
-            text,
-            inputTokens: usage?.input_tokens,
-            outputTokens: usage?.output_tokens,
-            ...(usage !== undefined &&
-              usage !== null &&
-              cached !== undefined &&
-              reasoning !== undefined && {
-                usage: {
-                  inputTokens: usage.input_tokens,
-                  outputTokens: usage.output_tokens,
-                  cachedTokens: cached,
-                  reasoningTokens: reasoning,
-                },
-              }),
-          }
+          const requests = this.deps.accountRequests
+          return requests === undefined || this.modelId.includes('/')
+            ? await this.judgeDirectSend(body, signal, guard)
+            : await this.judgeLeasedSend(requests, body, signal, guard, turnId, keyDigest)
         },
       },
     }

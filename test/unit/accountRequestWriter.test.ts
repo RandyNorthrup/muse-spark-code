@@ -106,9 +106,10 @@ describe('account request writer', () => {
     expect(t.claims[0]!.actual).toBe(0n)
     const lease = await t.writer.acquire(poolRequest(), ORIGIN)
     lease.beforeSend()
-    expect(() => {
-      lease.beforeSend()
-    }).toThrow(expect.objectContaining({ code: 'accountRequestBoundary' }))
+    // A retry is a new send on the same lease: the fence rechecks the payer
+    // instead of refusing the second send.
+    lease.beforeSend()
+    expect(lease.isCurrent()).toBe(true)
     await lease.settle(null)
     expect(t.claims[1]!.actual).toBeNull()
     expect(lease.isCurrent()).toBe(false)
