@@ -1656,6 +1656,43 @@ describe('ConversationController: composer controls', () => {
     },
   )
 
+  it.each([
+    { catalogue: 'low-only', variants: ['low'], admitted: 'low', composerEffort: 'low' },
+    { catalogue: 'empty', variants: [], admitted: undefined, composerEffort: undefined },
+    {
+      catalogue: 'future-only',
+      variants: ['turbo'],
+      admitted: undefined,
+      composerEffort: undefined,
+    },
+  ])(
+    'the first send admits the $catalogue catalogue (RVCM1063C #1)',
+    async ({ variants, admitted, composerEffort }) => {
+      const t = setup()
+      vi.spyOn(t.host, 'listModels').mockResolvedValue([
+        {
+          modelId: 'muse-spark-1.3',
+          displayLabel: 'Muse Spark 1.3',
+          contextLimit: 1_000_000,
+          isDefault: true,
+          isActive: true,
+          variants,
+        },
+      ])
+      await t.send('l1', 'hi')
+      const efforts = t.server.requestsFor('session/setReasoningEffort')
+      if (admitted === undefined) {
+        expect(efforts).toHaveLength(0)
+      } else {
+        expect(efforts).toHaveLength(1)
+        expect(efforts[0]?.params).toMatchObject({ reasoningEffort: admitted })
+      }
+      if (composerEffort !== undefined) {
+        expect(t.surface.posted).toContainEqual({ ...composerState, effort: composerEffort })
+      }
+    },
+  )
+
   it('drops the effort to the highest tier the new model serves', async () => {
     const t = setup()
     await t.send('l1', 'hi')

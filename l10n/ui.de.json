@@ -3497,6 +3497,7 @@
   "execTooManyChunks": "Die Eingabe überschreitet die Abschnittsgrenze.",
   "execUnknownModel": "Dieses Modell ist für diesen Lauf nicht verfügbar.",
   "execEffortUnavailable": "Dieser Denkaufwand ist für dieses Modell nicht verfügbar.",
+  "effortTierUnsupported": "{tier} kann nicht ausgewählt werden: Die Erweiterung unterstützt diesen Denkaufwand nicht.",
   "execTimedOut": "Der Lauf hat sein Zeitlimit erreicht.",
   "execBudgetRefused": "Die nächste Anfrage überschreitet das verbleibende Budget.",
   "execBudgetMinimum": "Dieser Lauf benötigt mindestens {minimum}.",

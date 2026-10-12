@@ -3960,10 +3960,22 @@ export class ConversationController {
     this.postSessionInfo(this.modelId)
     this.noteActivity()
     this.git.sessionChanged(session.sessionId)
-    await this.applyEffort(session, {
-      effort: this.effort,
-      isThinkingEnabled: this.isThinkingEnabled,
-    })
+    // The first write obeys the served catalogue like every later one: a
+    // composer tier the session's model does not serve is clamped to the
+    // highest tier it does, and a catalogue with no selectable tier sends
+    // nothing instead of a fabricated tier (RVCM1063C #1).
+    const servedRow = this.models?.find((model) => model.modelId === session.modelId)
+    const served = effortLevelsFor(session.modelId, servedRow?.effortLevels, servedRow)
+    if (served.length > 0) {
+      if (!served.includes(this.effort)) {
+        this.effort = served.at(-1) ?? DEFAULT_EFFORT
+        this.postComposerState()
+      }
+      await this.applyEffort(session, {
+        effort: this.effort,
+        isThinkingEnabled: this.isThinkingEnabled,
+      })
+    }
     if (this.session !== session || this.attachmentGeneration !== generation || this.isDisposed) {
       return
     }

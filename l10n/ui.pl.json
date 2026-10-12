@@ -3643,6 +3643,7 @@
   "execTooManyChunks": "Wejście przekracza limit bloków.",
   "execUnknownModel": "Ten model nie jest dostępny dla tego uruchomienia.",
   "execEffortUnavailable": "Ten poziom wysiłku nie jest dostępny dla tego modelu.",
+  "effortTierUnsupported": "{tier} nie może zostać wybrany: rozszerzenie nie obsługuje tego poziomu wysiłku.",
   "execTimedOut": "Uruchomienie osiągnęło limit czasu.",
   "execBudgetRefused": "Następne żądanie przekracza pozostały budżet.",
   "execBudgetMinimum": "To uruchomienie wymaga co najmniej {minimum}.",

@@ -3570,6 +3570,7 @@
   "execTooManyChunks": "A entrada excede o limite de blocos.",
   "execUnknownModel": "Este modelo não está disponível para esta execução.",
   "execEffortUnavailable": "Este esforço não está disponível para este modelo.",
+  "effortTierUnsupported": "{tier} não pode ser selecionado: a extensão não suporta este nível de esforço.",
   "execTimedOut": "A execução atingiu seu prazo.",
   "execBudgetRefused": "A próxima solicitação excede o orçamento restante.",
   "execBudgetMinimum": "Esta execução exige pelo menos {minimum}.",

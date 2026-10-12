@@ -2,6 +2,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { SHARE_VIEW_PAGE_ITEMS, UI_TEXT } from '../../src/shared/constants'
+import { fill } from '../../src/shared/l10n/text'
 import { EMPTY_PAID_TALLY } from '../../src/shared/paid'
 import type { HostToWebviewMessage, WebviewToHostMessage } from '../../src/shared/protocol'
 import { scheduleDraftSchema } from '../../src/shared/scheduleV2'
@@ -872,8 +873,12 @@ describe('App conversation', () => {
     fireEvent.click(screen.getByLabelText('Permission mode: Manual'))
     if (served) {
       expect(screen.queryByTitle('Max')).toBeNull()
-      expect(screen.getByTitle('turbo')).toBeDisabled()
-      fireEvent.click(screen.getByTitle('turbo'))
+      // A tier outside the vocabulary stays visible, disabled, and says why.
+      const turboUnsupported = fill(UI_TEXT.effortTierUnsupported, { tier: 'turbo' })
+      const turbo = screen.getByTitle(turboUnsupported)
+      expect(turbo).toBeDisabled()
+      expect(turbo).toHaveAccessibleName(turboUnsupported)
+      fireEvent.click(turbo)
       expect(postMessage).not.toHaveBeenCalledWith({ type: 'setEffort', effort: 'turbo' })
     } else {
       expect(screen.getByTitle('Max')).toBeEnabled()
@@ -885,6 +890,43 @@ describe('App conversation', () => {
       effort: served || input === 'pointer' ? 'low' : 'medium',
     })
   })
+
+  it.each([
+    { catalogue: 'future-only', variants: ['turbo'] },
+    { catalogue: 'mixed', variants: ['low', 'high', 'turbo'] },
+  ])(
+    'keeps the $catalogue catalogue visible with its disabled tier explained (RVCM1063C #2/#6)',
+    ({ variants }) => {
+      const postMessage = renderReady()
+      deliver({
+        type: 'modelList',
+        models: [
+          {
+            modelId: 'muse-spark-2.0',
+            displayLabel: 'Future',
+            isDefault: true,
+            variants,
+          },
+        ],
+      })
+      deliver({ type: 'sessionInfo', modelId: 'muse-spark-2.0', contextLimit: 1_000_000 })
+      fireEvent.click(screen.getByLabelText('Permission mode: Manual'))
+      // The served tier stays in the footer, disabled, even when nothing
+      // is selectable; its tooltip and accessible name say why.
+      const unsupported = fill(UI_TEXT.effortTierUnsupported, { tier: 'turbo' })
+      const turbo = screen.getByRole('button', { name: unsupported })
+      expect(turbo).toBeDisabled()
+      expect(turbo).toHaveAttribute('title', unsupported)
+      fireEvent.click(turbo)
+      expect(postMessage).not.toHaveBeenCalledWith({ type: 'setEffort', effort: 'turbo' })
+      if (!variants.includes('low')) {
+        return
+      }
+
+      expect(screen.getByTitle('Low')).toBeEnabled()
+      expect(screen.getByTitle('High')).toBeEnabled()
+    },
+  )
 
   it('closes the feedback bridge when the session changes', async () => {
     renderReady()
