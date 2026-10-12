@@ -101,7 +101,7 @@ export function createPrepareAudioMessage(deps: AudioMessagePreparationDeps) {
         const current = deps.audioAction?.() ?? defaultAction
         if (current === action) return
         const options = audioRouteOptions(source.info, context)
-        if (!options.actions.includes(current))
+        if (current === undefined || !options.actions.includes(current))
           throw new Error(
             options.warning ??
               fill(UI_TEXT.media.audioUnsupported, { model: context.model.modelId }),

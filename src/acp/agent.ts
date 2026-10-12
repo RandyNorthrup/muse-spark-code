@@ -1934,8 +1934,8 @@ class AcpSession {
               ),
             )
           })
-          .catch((error: unknown) => {
-            this.deps.log.warn(`ACP media cleanup: ${failureForLog(error)}`)
+          .catch(() => {
+            this.deps.log.warn('ACP media cleanup: cleanup_failed')
           })
         if (submission.userMessageId !== undefined) pending.userMessageId = submission.userMessageId
         const isAccepted =

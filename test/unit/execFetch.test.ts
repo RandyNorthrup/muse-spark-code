@@ -4,6 +4,8 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { execFetch } from '../../src/runtime/exec/execFetch'
+import { FilesApi } from '../../src/core/backends/modelapi/files'
+import { ModelApiClient } from '../../src/core/backends/modelapi/client'
 import * as runtimeMedia from '../../src/runtime/runtimeMediaEntry'
 import { createRunLedger } from '../../src/runtime/exec/runLedger'
 import { createLifecycle } from '../../src/runtime/exec/execLimits'
@@ -18,11 +20,14 @@ import {
 import type { ExecEventBody, LastResponse } from '../../src/runtime/exec/execProtocol'
 import {
   fakeModelApi,
+  fakeModelApiClientSettings,
   FAKE_MODEL_API_KEY,
   streamFor,
   type ScriptedReply,
 } from './helpers/fakeModelApi'
-import { memorySecrets } from './helpers/fakes'
+import { FakeLogOutputChannel, memorySecrets } from './helpers/fakes'
+import { fakeFilesApi } from './helpers/fakeFiles'
+import { mediaByteSource } from './helpers/media/replay'
 import { buildModelApiBundle } from './helpers/modelApiBundle'
 import { removeFolder } from './helpers/temporaryFolders'
 
@@ -121,6 +126,46 @@ async function checkOversize(h: ReturnType<typeof harness>): Promise<void> {
 }
 
 describe('M80 streaming transport boundary', () => {
+  it('deletes a real Files receipt when caller and exec cancel after parsing it', async () => {
+    const provider = fakeFilesApi(fakeModelApi().fetch)
+    const caller = new AbortController()
+    const h = harness(1, async (url, init) => {
+      const response = await provider.fetch(url, init)
+      if (init?.method === 'POST') {
+        const json = response.json.bind(response)
+        vi.spyOn(response, 'json').mockImplementation(async () => {
+          const receipt: unknown = await json()
+          caller.abort(new Error('cancelled after receipt'))
+          h.life.latch({ kind: 'timeout' })
+          return receipt
+        })
+      }
+      return response
+    })
+    try {
+      const files = new FilesApi({
+        provider: 'meta',
+        authorizeUpload: () => Promise.resolve(),
+        client: new ModelApiClient({
+          ...fakeModelApiClientSettings(new FakeLogOutputChannel()),
+          baseUrl: MODEL_API_BASE_URL,
+          fetch: h.transport.fetch,
+        }),
+      })
+      await expect(
+        files.upload(
+          mediaByteSource('clip.mp4', 'video/mp4', new Uint8Array([1, 2])),
+          caller.signal,
+        ),
+      ).rejects.toThrow('cancelled after receipt')
+      expect(provider.uploads).toHaveLength(1)
+      expect(provider.deletes).toEqual([provider.uploads[0]?.fileId])
+      expect(provider.files.size).toBe(0)
+    } finally {
+      h.close()
+    }
+  })
+
   it('names the minimum for a headless request cap below sixteen without dispatch or reservation', async () => {
     for (const cap of [0, 1, 15]) {
       const h = harness()

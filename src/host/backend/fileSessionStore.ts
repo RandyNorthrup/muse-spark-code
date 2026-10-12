@@ -33,7 +33,7 @@ import {
 import type { QuestionStore } from '../../shared/questions'
 import { writeFileAtomically } from '../fsAtomic'
 import type { Logger } from '../logger'
-import { describeStoreError, storeErrorCode } from './storeErrors'
+import { storeErrorCode } from './storeErrors'
 import { createSessionBudgetJournal, type SessionBudgetJournalDeps } from './sessionBudgetJournal'
 import type { SessionUploadLifecycle, SessionUploadOwnership } from '../../core/media/uploadLedger'
 import type { UploadedMediaRef } from '../../shared/media'
@@ -174,7 +174,7 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
       return JSON.parse(await readFile(file, 'utf8'))
     } catch (error: unknown) {
       if (storeErrorCode(error) !== ENOENT) {
-        deps.log.warn(`Session file ${name} skipped: ${describeStoreError(error)}`)
+        deps.log.warn('Session file skipped: read_failed')
       }
       return undefined
     }
@@ -187,7 +187,7 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
     }
     const parsed = parseStoredSession(raw)
     if (!parsed.ok) {
-      deps.log.warn(`Session file ${name} skipped: ${parsed.reason}`)
+      deps.log.warn('Session file skipped: invalid_session')
       return undefined
     }
     if (`${parsed.session.sessionId}${FILE_EXTENSION}` !== name) {
@@ -211,7 +211,7 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
     }
     const parsed = storedSessionHeaderShape.safeParse(raw)
     if (!parsed.success) {
-      deps.log.warn(`Session file ${name} skipped: its header does not read`)
+      deps.log.warn('Session file skipped: its header does not read')
       return undefined
     }
     const header = parsed.data
@@ -355,8 +355,8 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
       if (deps.now() - mtimeMs >= SESSION_FILE_STALE_TEMPORARY_MS) {
         await rm(file, { force: true })
       }
-    } catch (error: unknown) {
-      deps.log.warn(`Leftover ${name} could not be removed: ${describeStoreError(error)}`)
+    } catch {
+      deps.log.warn('Leftover session file could not be removed: cleanup_failed')
     }
   }
 
@@ -377,10 +377,8 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
       await removeSession(session.sessionId, session.accountId, uploads)
       isRemoved = true
       deps.log.info(`Session ${session.sessionId} idle for more than ${String(days)} days deleted`)
-    } catch (error: unknown) {
-      deps.log.warn(
-        `Expired session ${session.sessionId} not deleted: ${describeStoreError(error)}`,
-      )
+    } catch {
+      deps.log.warn(`Expired session ${session.sessionId} not deleted: cleanup_failed`)
     }
     return isRemoved
   }
@@ -412,13 +410,11 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
               await recover(sessionId, session, uploads, intent, isCurrent)
             },
           )
-        } catch (error: unknown) {
+        } catch {
           // Fixed words only: recovery replays the session's upload
           // ownership, whose refusal names the attachment (RVM105 4). The
           // next sweep retries; only its outcome is recorded here.
-          deps.log.warn(
-            `Upload cleanup ${name} deferred: ${error instanceof Error ? error.name : 'unknown failure'}`,
-          )
+          deps.log.warn('Upload cleanup deferred: cleanup_failed')
         }
       }
       for (const name of sorted) {

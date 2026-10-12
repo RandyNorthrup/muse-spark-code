@@ -486,3 +486,79 @@ Post-fix bundle rows (exact bytes, no cap changed):
 Cap bytes are the unchanged budgets from the Round 1 table; `npm run build`
 exits 0 with the new `filesTransport.ts` inside `dist/runtimeMedia.js`
 ownership.
+
+## Round 3 — RVPORTM105 complete-class repairs (2026-10-11, MacBook)
+
+Continuation starts at `091fedec2`, with prior fix commits `0e7d8dff1`
+(provider cleanup and durable intent), `d59d51c53` (audio action currency),
+`1b0f0c1e8` (Files-capable exec fixture), and `091fedec2` (privacy sinks).
+The pending ledger literal cleanup is retained: parsing validates version 1,
+so no const assertion is needed. These commits did not yet contain this round's
+certification; current verification and deliberate failure receipts follow.
+
+NOT RUN HERE: companionUpload.test.ts, companionMediaBrowser.test.mjs,
+configuredProviders.test.ts, and browser/GUI/device suites selected by the
+related graph. The rig brief forbids browsers on this MacBook and assigns
+loopback qualification to the lead. No UI or visual styling changes are made.
+
+Planning status: M105 remains open and partially delivered. Next slice remains
+lead aggregate/blocked-suite qualification, Windows/Linux native qualification,
+and owner device receipts before recorder-driver binding. Existing-file
+composition and zero-clone extraction remain intact; no visibility hold lifted.
+
+### Post-receipt await audit
+
+VS Code and ACP use the same `FilesApi.upload` and account-scoped
+`UploadLedger.ensure`; headless uses them behind `execFetch`/`forwardExecFile`.
+The transport's lazy import and multipart forwarding finish before an id is
+available. DELETE bypasses that lazy import at final dispatch, bound to Meta's
+HTTPS origin, valid file-id path, no query/body/redirect, one attempt and its
+own 30-second deadline. Cancellation closes every other route.
+
+| Await after provider creation / before ledger publication | Interruption oracle                                                                                                                                                                                                                                                           |
+| --------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `FilesApi.upload`: receipt JSON                           | Cancel both caller and exec inside the parsed receipt callback; the real Files client sends DELETE through cancelled exec. Shared ledger receipt-cancellation tests also cover VS Code/ACP's transport.                                                                       |
+| Receipt callback's atomic intent write                    | Abort inside the completed write; provider deletion or durable intent survives. Intent is written immediately after id parsing, before abort/validation cleanup starts. Failed initial write attempts cleanup; failed DELETE carries the known id into a durable retry write. |
+| Guarded iterator close, and final iterator close          | Observe durable intent inside iterator close; inject a close rejection and require provider deletion. Secondary close failure cannot mask the cleanup-pending error.                                                                                                          |
+| `UploadLedger.ensure`: final ownership write              | Abort after the atomic write; DELETE succeeds, or the cancelled ownership is replaced with a durable deletion intent.                                                                                                                                                         |
+| Failed publication's DELETE / intent write                | Fail publication and DELETE together; the earlier intent survives on disk and a fresh ledger sweep deletes it.                                                                                                                                                                |
+
+No id-dependent await exists in a separate editor/ACP wrapper before these
+shared publications. Lock release and later replay/session persistence happen
+after ledger ownership is durable. Tests use the captured U6 Files shape and
+in-memory provider transport; no service call or wire guess is introduced.
+
+### Privacy audit
+
+Media replay, attachment registry, Files and converter paths contain no
+filename/content logger. Calibration and preview failures already use fixed
+words. The production host's ordinary/unexpected turn and save catches now
+use fixed reason codes. Session-store read, validation, expiry, leftover and
+upload recovery sinks no longer interpolate filenames, JSON fragments or
+arbitrary error names. ACP media disposal and exec cancellation/close sinks
+use fixed cleanup codes. Exec writes a detailed usage refusal as a user
+diagnostic, separately from its fixed-code log line; credential redaction
+still applies. Canary tests cover changed bytes, missing source, upload,
+transcript, ownership, corrupt stored content, ACP disposal and exec refusal.
+
+Review continuation also removes seven test-fixture clones introduced by the
+review repairs, using the existing attachment helper, shared fake-log lines,
+shared turn/session preparation, a refusal fixture and parameterized publication
+failures. The unchanged duplication gate returns **Found 0 clones**. No prior
+round-2 extraction or production-composition assertion is removed.
+
+Static preparation exposed the ledger adapter's missing receipt-callback type
+and the original audio-action closure's possibly undefined default. The adapter
+now shares the Files API's awaited ownership callback signature; unsupported/absent current actions
+refuse through the same translated warning. No assertion, ignore, cast, timeout,
+coverage threshold, dependency or bundle cap is changed.
+
+Final privacy sweep found two additional inherited retry sinks in the shared
+HTTP transport: provider refusal prose and network-cause details. Transcribed
+audio becomes an ordinary text request and can use these retries. Two canary
+regressions fail on the old warnings (22 pass / 2 fail), then the complete
+24-case mediaClient suite passes with fixed transport code / numeric HTTP
+status warnings; the user still receives the detailed error. The related graph
+is refreshed over all nine changed non-hub sources (162 selected files).
+The interrupted first batch from the earlier graph is excluded from receipts.
+No browser or socket workaround is used.

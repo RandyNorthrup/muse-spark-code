@@ -10,7 +10,7 @@ import { unattendedRun } from './helpers/schedules/unattended'
 import { quotedSearch } from './helpers/paidQuote'
 import { removeFolder } from './helpers/temporaryFolders'
 import { Usd, type UsdAmount } from '../../src/shared/usd'
-import { UI_TEXT } from '../../src/shared/constants'
+import { MODEL_API_MAX_RETRIES, UI_TEXT } from '../../src/shared/constants'
 import { ModelApiClient } from '../../src/core/backends/modelapi/client'
 import { RequestTransport } from '../../src/core/backends/modelapi/transport'
 import type { CreateResponseBody } from '../../src/core/backends/modelapi/schemas'
@@ -159,6 +159,40 @@ async function scheduledMedia(t: Awaited<ReturnType<typeof setup>>, cap = 1, sha
 }
 
 describe('media accounting at the transport', () => {
+  it.each(['provider', 'network'])(
+    'keeps attachment names and transcript text out of %s retry logs',
+    async (kind) => {
+      const canary = 'canary-private.wav: private transcript words'
+      const reply: ScriptedReply =
+        kind === 'provider'
+          ? {
+              httpError: {
+                status: 500,
+                body: { error: { message: canary, type: 'server_error' } },
+              },
+            }
+          : { networkError: canary }
+      const t = await setup(reply)
+      t.api.script(...Array.from({ length: MODEL_API_MAX_RETRIES }, () => reply))
+      // Transcribed audio is an ordinary text request, with ordinary retries.
+      await expect(
+        Array.fromAsync(
+          t.client.streamResponse(
+            {
+              ...t.body,
+              input: [
+                { type: 'message', role: 'user', content: [{ type: 'input_text', text: canary }] },
+              ],
+            },
+            new AbortController().signal,
+          ),
+        ),
+      ).rejects.toThrow(canary)
+      expect(t.log.warn).toHaveBeenCalled()
+      expect(t.log.lines().join('\n')).not.toContain(canary)
+    },
+  )
+
   it.each([
     { name: 'claims complete media at its exact price', hasSearch: false, spentUsd: '0.000233' },
     {

@@ -12,7 +12,11 @@ import {
   type UploadedMediaRef,
 } from '../../shared/media'
 import { isModelApiError } from '../backends/modelapi/client'
-import { UploadCleanupPendingError, type UploadSource } from '../backends/modelapi/files'
+import {
+  UploadCleanupPendingError,
+  type UploadSource,
+  type FilesApi,
+} from '../backends/modelapi/files'
 
 const orphanSchema = z.string().check(z.regex(/^file-[A-Za-z0-9_-]+$/u))
 const ledgerSchema = z.strictObject({
@@ -35,12 +39,8 @@ export interface UploadLedgerStorage {
 /** Captured provider adapters normalize metadata; this ledger has no vendor wire. */
 interface FilesForLedger {
   forAccount(accountId: string): FilesForLedger
-  upload(
-    source: UploadSource,
-    signal: AbortSignal,
-    onProgress?: (uploaded: number, total: number) => void,
-    expectedSha256?: string,
-  ): Promise<UploadedMediaRef>
+  /** Shares the awaited receipt-ownership callback with the provider adapter. */
+  upload: FilesApi['upload']
   retrieve(fileId: string, signal?: AbortSignal): Promise<unknown>
   accountFiles(): Promise<readonly z.infer<typeof accountFileSchema>[]>
   delete(fileId: string): Promise<void>
@@ -80,7 +80,7 @@ export class UploadLedger implements SessionUploadLifecycle {
     const parsed =
       raw === undefined
         ? {
-            version: 1 as const,
+            version: 1,
             accountId: this.deps.accountId,
             entries: [],
             cachedFiles: [],
@@ -189,7 +189,10 @@ export class UploadLedger implements SessionUploadLifecycle {
       await this.requireAccount()
       let file: UploadedMediaRef
       try {
-        file = await this.files.upload(source, signal, onProgress, sha256)
+        file = await this.files.upload(source, signal, onProgress, sha256, async (fileId) => {
+          state.orphans = [...(state.orphans ?? []), fileId]
+          await this.deps.storage.write(state)
+        })
       } catch (error: unknown) {
         if (!(error instanceof UploadCleanupPendingError)) throw error
         // The upload failed after the provider answered with an id, and the
@@ -197,7 +200,8 @@ export class UploadLedger implements SessionUploadLifecycle {
         // durably under this same lock before anything reaches the caller,
         // so the next sweep deletes it instead of orphaning it (RVM105 1).
         // The caller still sees the original upload failure.
-        state.orphans = [...(state.orphans ?? []), error.fileId]
+        if (!(state.orphans ?? []).includes(error.fileId))
+          state.orphans = [...(state.orphans ?? []), error.fileId]
         await this.deps.storage.write(state)
         // The original failure keeps its identity (an abort stays an abort);
         // only its provider receipt stays behind as the intent.
@@ -209,10 +213,22 @@ export class UploadLedger implements SessionUploadLifecycle {
       state.entries = state.entries.filter((entry) => entry !== existing)
       state.entries.push({ file, sessions })
       try {
+        signal.throwIfAborted()
+        state.orphans = (state.orphans ?? []).filter((id) => id !== file.fileId)
         await this.deps.storage.write(state)
+        signal.throwIfAborted()
       } catch (error: unknown) {
-        // A crash before this write is bounded by expiry; a caught write failure cleans up.
-        await this.files.delete(file.fileId)
+        // The pre-publication intent is already durable. Failed cleanup
+        // leaves it for the next sweep; preserve the original failure.
+        try {
+          await this.files.delete(file.fileId)
+        } catch {
+          // Cancellation can also arrive after publication committed. Replace
+          // that cancelled owner's entry with a retryable deletion intent.
+          state.entries = state.entries.filter((entry) => entry.file.fileId !== file.fileId)
+          state.orphans = [...new Set([...(state.orphans ?? []), file.fileId])]
+          await this.deps.storage.write(state)
+        }
         throw error
       }
       return file

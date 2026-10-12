@@ -86,6 +86,7 @@ export class FilesApi {
     signal: AbortSignal,
     onProgress?: (uploaded: number, total: number) => void,
     expectedSha256?: string,
+    onReceipt?: (fileId: string) => Promise<void>,
   ): Promise<UploadedMediaRef> {
     signal.throwIfAborted()
     const expiry = this.deps.expirySeconds ?? MEDIA_FILE_EXPIRY_DEFAULT_S
@@ -171,7 +172,12 @@ export class FilesApi {
       )
       const raw: unknown = await response.json()
       const identity = z.object({ id: fileId }).safeParse(raw)
-      if (identity.success) createdId = identity.data.id
+      if (identity.success) {
+        createdId = identity.data.id
+        // Ownership precedes validation/abort cleanup, which can outlast
+        // headless shutdown. An interrupted DELETE must leave a durable id.
+        await onReceipt?.(createdId)
+      }
       const created = fileSchema.parse(raw)
       active.throwIfAborted()
       if (
@@ -183,6 +189,9 @@ export class FilesApi {
       ) {
         throw new Error('Invalid upload receipt')
       }
+      // The final stream-close await stays inside the receipt cleanup guard.
+      await iterator.return()
+      active.throwIfAborted()
       return uploadedMediaRefSchema.parse({
         fileId: created.id,
         provider: this.deps.provider,
@@ -207,7 +216,11 @@ export class FilesApi {
       }
       throw error
     } finally {
-      await iterator.return()
+      try {
+        await iterator.return()
+      } catch {
+        /* The guarded close above owns receipt cleanup; preserve its failure. */
+      }
     }
   }
 

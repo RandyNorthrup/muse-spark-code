@@ -1,5 +1,18 @@
 # PLAN — Muse Spark for VS Code (unofficial)
 
+**PORTM105 review round 3 (2026-10-11, MacBook).** Fix all four RVPORTM105
+findings and their sibling paths: cancelled uploads must be deleted or durably
+queued for cleanup; audio-action changes during preparation refuse before ASR;
+the exec attachment fixture must exercise real Files delivery; attachment names
+and content stay out of logs while detailed refusals remain visible to users.
+Continue the four existing fix commits, audit every post-receipt await across
+VS Code/ACP/exec, and certify failing regressions with byte-exact red drills in
+`docs/certification/m105-port.md`. Run complete owning/dependent suites in
+sequential batches of three at repository deadlines, all five typechecks,
+unchanged zero-clone duplication and production budgets. No browser/loopback
+suites here, aggregate quality, new dependency, merge, push or paid/live call.
+Visibility and device/vendor qualification holds remain lead-owned.
+
 **PORTM105 round 2 (2026-10-11, macmini).** Remove all 29 inherited
 duplication clones through shared helpers without changing behavior; the
 section 7 duplication deferral is withdrawn. Then prove existing-file video
