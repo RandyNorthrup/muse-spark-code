@@ -187,6 +187,7 @@ export class MuseCodeHookModels {
     return new Promise((resolve) => {
       const replies = new Map<string, string>()
       let ending: string | undefined
+      let isLimited = false
       let isUsedTool = false
       let isSettled = false
       const finish = (value: string | undefined) => {
@@ -204,7 +205,9 @@ export class MuseCodeHookModels {
       }
       const look = () => {
         if (ending !== undefined) {
-          finish(ending === COMPLETED ? replies.get(turnId) : undefined)
+          // The typed limit outcome is not an ordinary completion: a reply
+          // cut at the model-call limit never becomes a hook answer.
+          finish(ending === COMPLETED && !isLimited ? replies.get(turnId) : undefined)
         }
       }
       const hear = (event: AgentEvent) => {
@@ -219,6 +222,9 @@ export class MuseCodeHookModels {
         }
         if (event.type === 'turnCompleted' && event.turnId === turnId) {
           ending = event.terminal
+          if (event.errorKind === 'max_turn_requests') {
+            isLimited = true
+          }
           look()
           return
         }

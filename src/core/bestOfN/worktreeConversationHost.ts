@@ -122,9 +122,10 @@ const noListener = (): void => undefined
 
 /**
  * A conversation confined to its worktree. `requireTrusted` throws in
- * Restricted Mode before anything runs; `run` sends the prompt, declines
- * every approval and question (counted), and cancels the turn once the
- * ceiling's requests have completed.
+ * Restricted Mode before anything runs; `run` binds the ceiling through the
+ * session's allowance port, declines every approval and question (counted),
+ * and reads the ceiling from the turn's typed outcome (a completed turn
+ * carrying `max_turn_requests`), never from a cancellation.
  */
 export class WorktreeConversationHost {
   public constructor(private readonly deps: WorktreeConversationDeps) {}

@@ -97,6 +97,11 @@ interface SideSession {
   readonly replies: Map<string, string>
   /** How each turn ended. */
   readonly endings: Map<string, string>
+  /**
+   * Turns that ended at the model-call limit (completed with the typed
+   * limit outcome): their replies are truncated, never verdicts.
+   */
+  readonly limited: Set<string>
   /** The turn the latest review sent. */
   lastTurnId: string | undefined
   /** Muse Code exited or closed the session. */
@@ -244,6 +249,9 @@ export class MuseCodeReviewer {
         if (ending === undefined) {
           return
         }
+        if (side.limited.has(turnId)) {
+          return null
+        }
         return ending === COMPLETED ? (side.replies.get(turnId) ?? null) : null
       },
       deadline,
@@ -257,7 +265,9 @@ export class MuseCodeReviewer {
     }
     if (reply === null) {
       this.deps.log.warn(
-        `The Auto reviewer's turn ended ${side.endings.get(turnId) ?? ''} without a reply`,
+        side.limited.has(turnId)
+          ? `The Auto reviewer's turn ended at its model-call limit without a usable reply`
+          : `The Auto reviewer's turn ended ${side.endings.get(turnId) ?? ''} without a reply`,
       )
       return 'failed'
     }
@@ -358,6 +368,7 @@ export class MuseCodeReviewer {
       reviews: 0,
       replies: new Map(),
       endings: new Map(),
+      limited: new Set(),
       lastTurnId: undefined,
       isGone: false,
       wakers: new Set(),
@@ -425,6 +436,11 @@ export class MuseCodeReviewer {
     }
     if (event.type === 'turnCompleted') {
       side.endings.set(event.turnId, event.terminal)
+      // The typed limit outcome is not an ordinary completion: a reply cut
+      // at the model-call limit never becomes a verdict.
+      if (event.errorKind === 'max_turn_requests') {
+        side.limited.add(event.turnId)
+      }
       return
     }
     if (
