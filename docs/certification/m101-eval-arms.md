@@ -1030,3 +1030,30 @@ regression (every flag dropped) demotes a passing floor to incomplete.
 No golden request byte changed; the M75 fixtures, `then_run`, the
 ObservationPack and the reducer are untouched; `modelApi.js` keeps its
 pin (no shipped importer of the touched files).
+
+### CM1013R9 post-flip re-freeze (2026-10-12, macbook rig; the binding run passed)
+
+R9 re-freeze: the previous digest `8699c398…5bb97590` (the binding run's
+certified pin, committed in `docs/certification/m101-binding-report.json`)
+is replaced by `a59c8448…725e28` (recorded here and in
+`src/core/eval/frozen.json` by `node scripts/m101-e.mjs --freeze`;
+`test/unit/eval/evalFrozen.test.ts` reads the pin from that file, and
+`--check-freeze` exits 0). The pin moves in two steps, both from the
+documented unlock step, not from narrowed coverage. First
+(`8699c398…` → `cfa786b4…`, uncommitted intermediate): the latch
+`IS_AUTO_COMPACTION_EVALUATED` is now `true`, the evaluated setting
+description and CLI help text no longer say inactive, and the reference
+publishes the auto-compaction feature. Second (`cfa786b4…` → the pin
+above): the harness's unarmed base pins `autoCompaction` and
+`autoCompactionEvaluated` to `false` (`src/core/eval/driver.ts`,
+`runEvalTurn`). That pin is required, not cosmetic: with the latch on,
+the old fallback let the baseline, packing and strict-tools arms compact,
+and every settled attempt failed its task as a paid use (28 runner
+failures, fixed by the pin; the auto-compaction arm still opts in through
+its frozen change, as before). Every previously hashed byte is still
+hashed; no arm, task, fixture, window, allowance or wrapper changed. The
+binding receipt stays the certification of that run: it records the
+pre-flip tree it ran on (certified equals computed equals `8699c398…`).
+A future live run on this tree certifies the new pin instead;
+`--live-m75` refuses any tree whose computed digest differs from it
+before any credential or call.

@@ -9,6 +9,20 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **Evaluated automatic compaction** (M101 CM1013R9). The binding run
+  passed on 2026-10-12: verdict `pass` on the full frozen set (sixteen
+  tasks across all four arms, 274 of 588 ceiling calls, $0.06285), every
+  arm above both 0.75 floors, packing engaged on both long-output tasks
+  and a settled D78 admission on both long-context tasks (receipts in
+  `docs/certification/m101-binding-report.json` and
+  `docs/certification/m101-binding-report.md`).
+  `IS_AUTO_COMPACTION_EVALUATED` is now `true`: automatic compaction is on
+  by default on the Model API backend (one setting turns it off) and is
+  published in Help, the ACP/CLI usage and the generated reference; its
+  first charge still asks once in the paid-use popup naming the price and
+  daily budget. `modelApiStrictTools` stays on: its arm held both floors in
+  the same run. <!-- try: setting museSpark.modelApiAutoCompaction -->
+
 - **Execution-bound M75 freeze and private tool evidence** (CM1013R4,
   RVCM1013C findings 2–3). The freeze binds the actual runner configuration,
   setup/alias closure, compiler/package inputs and launch policy, including

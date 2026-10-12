@@ -1245,8 +1245,8 @@ describe('automatic compaction in the shared Model API loop', () => {
     await pending.host.close()
   })
 
-  it('reports awaiting evaluation and sends no automatic request with the production latch', async () => {
-    const t = await setup({ autoCompactionEvaluated: undefined })
+  it('reports awaiting evaluation and sends no automatic request with evaluation off', async () => {
+    const t = await setup({ autoCompactionEvaluated: () => false })
     await t.seed()
     t.api.script(OVERFLOW)
     await t.send()
@@ -1264,6 +1264,25 @@ describe('automatic compaction in the shared Model API loop', () => {
       ),
     ).toHaveLength(1)
     expect(t.admissions()).toBe(0)
+    await t.host.close()
+  })
+
+  it('attempts automatic compaction by default with the evaluated production latch', async () => {
+    const t = await setup({ autoCompactionEvaluated: undefined })
+    await t.seed()
+    t.api.script(OVERFLOW, { text: 'summary' }, { text: 'done' })
+    await t.send()
+    expect(t.admissions()).toBe(1)
+    expect(t.settled).toHaveLength(1)
+    expect(t.events).not.toContainEqual(
+      expect.objectContaining({
+        type: 'backendNotice',
+        text: EN.autoCompactionAwaitingEvaluation,
+      }),
+    )
+    expect(t.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
+      terminal: 'completed',
+    })
     await t.host.close()
   })
 })

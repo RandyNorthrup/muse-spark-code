@@ -750,7 +750,7 @@
     {
       "id": "M101",
       "title": "Long-task context upgrades",
-      "summary": "Cache-stable prompts, packed-output recall and manual ACP compaction ship; automatic compaction stays off until its execution-bound evaluation passes completed assertions and accepted summaries under independent task budgets totalling 588 calls.",
+      "summary": "Ships cache-stable prompts, packed-output recall and manual ACP compaction; automatic compaction evaluated and on after the binding run passed, while remaining upstream ports are in progress.",
       "area": "agents",
       "release": "0.15.0"
     },

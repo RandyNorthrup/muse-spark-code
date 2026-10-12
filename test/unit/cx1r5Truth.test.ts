@@ -101,15 +101,16 @@ const claims: Readonly<Record<string, RegExp>> = {
   teams:
     /Configure role pools, task limits and worker|team tasks run on models billed|teams of workers in isolated worktrees/i,
   relocation: /relocation (?:is in progress|.*not available yet)|once relocation is available/i,
-  compaction:
-    /Automatically compact long Model API conversations|Automatic compaction\s+is implemented|production remains inactive\s+pending the paired evaluation/i,
+  // The binding run passed, so the active compaction claim is published and
+  // the forbidden claim is the stale inactive text the flip removed.
+  compaction: /Inactive until evaluation passes|remains inactive|stays inactive/,
   vault:
     /One encrypted vault per user|shared credential vault|broker-backed vault.*(?:opens|stores)/i,
   playbook:
     /the VS Code panel follows|shared editor unlocks use seven clicks|Muse Spark: Developer options/i,
 }
 const usage =
-  /--account-pool|--scheduled-prompts|--no-auto-compaction|exec --vault|\/schedule(?:\s|`)|\/estimate(?:\s|`)|\/vault(?:\s|`)/
+  /--account-pool|--scheduled-prompts|exec --vault|\/schedule(?:\s|`)|\/estimate(?:\s|`)|\/vault(?:\s|`)/
 
 function refuseUnavailable(): never {
   throw new Error('optional runtime owner unavailable')
@@ -356,7 +357,7 @@ describe('CX1R5: exhaustive current-publication truth matrix', () => {
       expect(table['config.schedules.description']).toContain('Controls the legacy /loop shortcut')
       expect(table['config.schedules.defaultDelivery.description']).toContain('new schedule drafts')
       expect(table['config.resourceRelocate.description']).toContain('missing-route note')
-      expect(table['config.modelApiAutoCompaction.description']).toContain('first-turn notice')
+      expect(table['config.modelApiAutoCompaction.description']).toContain('paid model call')
       expect(table['config.vault.agentFence.description']).toContain(
         'interactive Model API shell commands',
       )

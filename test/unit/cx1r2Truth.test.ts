@@ -121,10 +121,11 @@ describe('RVCX1B F3: v2 schedule delivery claims are removed on every surface', 
     expect(help.cli.some((command) => command.name.includes('--scheduled-prompts'))).toBe(false)
   })
 
-  it('compact CLI help omits v2 delivery and inactive compaction instructions', () => {
+  it('compact CLI help omits v2 delivery instructions', () => {
     expect(formatAcpUsage(EN, 'muse-spark-code-acp')).not.toMatch(
-      /schedule add --draft|--scheduled-prompts|--no-auto-compaction/,
+      /schedule add --draft|--scheduled-prompts/,
     )
+    expect(formatAcpUsage(EN, 'muse-spark-code-acp')).toMatch(/--no-auto-compaction/)
   })
 
   it('plan and editor records no longer claim live-session firing or a consent failure point', () => {
@@ -137,7 +138,7 @@ describe('RVCX1B F3: v2 schedule delivery claims are removed on every surface', 
 describe('CX1R3 sibling sweep: dormant features have no published usage', () => {
   // Accounts left both lists with CM108ACC (cx1r4Truth pins what is published);
   // argument previews left them with C-M106-2 (the F1 block above pins theirs).
-  it.each(['team-workers', 'vault', 'estimator', 'auto-compaction'])(
+  it.each(['team-workers', 'vault', 'estimator'])(
     'omits %s from Help and clears its capability inventory',
     (id) => {
       expect(help.features.some((feature) => feature.id === id)).toBe(false)
@@ -145,8 +146,16 @@ describe('CX1R3 sibling sweep: dormant features have no published usage', () => 
     },
   )
 
+  it('publishes evaluated automatic compaction in Help with its Model API surfaces', () => {
+    expect(help.features.some((feature) => feature.id === 'auto-compaction')).toBe(true)
+    expect(featureCatalog().find((feature) => feature.id === 'auto-compaction')?.surfaces).toEqual([
+      'vscode:modelApi',
+      'acp:modelApi',
+    ])
+  })
+
   it('retains only neutral progress text in the dormant source inventory', () => {
-    for (const id of ['team-workers', 'vault', 'estimator', 'auto-compaction']) {
+    for (const id of ['team-workers', 'vault', 'estimator']) {
       const feature = featureCatalog().find((entry) => entry.id === id)
       expect(feature?.summary).toEqual({ ui: 'referenceInProgress' })
       expect(feature?.description).toEqual({ ui: 'referenceInProgress' })
@@ -163,7 +172,7 @@ describe('CX1R3 sibling sweep: dormant features have no published usage', () => 
       false,
     )
     expect(readme).not.toMatch(
-      /teams of workers|Team workers default on|When a team is active|unreleased scheduler and runner adapters ship|Schedule budgets, consent and rental|P50\/P90 dates|One encrypted vault per user|Automatic compaction, its exact/,
+      /teams of workers|Team workers default on|When a team is active|unreleased scheduler and runner adapters ship|Schedule budgets, consent and rental|P50\/P90 dates|One encrypted vault per user/,
     )
   })
 
@@ -216,7 +225,7 @@ describe('CX1R3 sibling sweep: dormant features have no published usage', () => 
       M101: [
         /cache-stable/,
         /First parts shipped in 0\.15\.0/,
-        /automatic compaction is in progress/,
+        /automatic compaction evaluated and on/,
       ],
       // C-M106-2: previews are bound; the native readers are what remains.
       M106: [

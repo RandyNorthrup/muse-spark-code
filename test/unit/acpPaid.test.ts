@@ -43,6 +43,7 @@ it('ACP automatic compaction asks once after its explicit flag and refuses witho
   expect(ask).toHaveBeenCalledTimes(2)
   const dormant = new AcpPaidUse({
     flagged: ['autoCompaction'],
+    autoCompactionEvaluated: () => false,
     canRemember: () => true,
     grants: memoryPaidGrants(),
     log: logger(),
@@ -61,15 +62,16 @@ it('ACP automatic compaction asks once after its explicit flag and refuses witho
   expect(ask).toHaveBeenCalledTimes(2)
 })
 
-it('unevaluated compaction is absent from compact and full ACP/CLI help', () => {
-  expect(formatAcpUsage(EN, 'muse-spark-code-acp')).not.toMatch(/--(?:no-)?auto-compaction/)
+it('evaluated compaction is present in compact and full ACP/CLI help', () => {
+  expect(formatAcpUsage(EN, 'muse-spark-code-acp')).toMatch(/--auto-compaction/)
+  expect(formatAcpUsage(EN, 'muse-spark-code-acp')).toMatch(/--no-auto-compaction/)
   const help = createReference(EN, 'en').all()
-  expect(help).not.toContain('auto-compaction')
-  expect(help).not.toContain('modelApiAutoCompaction')
-  expect(help).not.toContain(EN.autoCompactionName)
+  expect(help).toContain('auto-compaction')
+  expect(help).toContain('modelApiAutoCompaction')
+  expect(help).toContain(EN.autoCompactionName)
 })
 
-it('hidden automatic compaction preserves the complete ACP and CLI usage manuals', () => {
+it('published automatic compaction preserves the complete ACP and CLI usage manuals', () => {
   // A visible option's prose may mention a hidden option without being that option.
   const table = {
     ...EN,
@@ -110,9 +112,9 @@ it('hidden automatic compaction preserves the complete ACP and CLI usage manuals
   createReference(EN, 'en')
 })
 
-// While the evaluation latch is off the README and the ACP page do not
-// describe automatic compaction (0.17.1's truth pass); the record keeps the
-// rule, and the two pages get it back with the feature.
+// The evaluation latch is on, so the README and the ACP page describe
+// automatic compaction again (0.17.1's truth pass took it out while the
+// latch was off); the record keeps the rule.
 it('records ACP Once as workspace-scoped within the agent process', () => {
   const texts = ['docs/certification/m101-admission.md', 'README.md', 'docs/acp.md'].map((file) =>
     readDocumentation(file, 'utf8').replaceAll(/\s+/g, ' '),

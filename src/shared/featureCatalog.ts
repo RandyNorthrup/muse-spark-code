@@ -284,7 +284,6 @@ export const REFERENCE_IN_PROGRESS_FEATURES: readonly string[] = [
   'team-workers',
   'vault',
   'estimator',
-  'auto-compaction',
 ]
 
 export function featureCatalog(): readonly Feature[] {
@@ -519,7 +518,7 @@ export function featureCatalog(): readonly Feature[] {
       ...feature(
         'auto-compaction',
         { ui: 'autoCompactionName' },
-        { ui: 'autoCompactionAwaitingEvaluation' },
+        { setting: 'modelApiAutoCompaction' },
         [],
         ['modelApiAutoCompaction'],
         'agent-loop-guarantees',

@@ -2223,7 +2223,11 @@ export const COMPACTION_TAIL_WINDOW_FRACTION = 0.08
 export const COMPACTION_SUMMARY_MAX_TOKENS = 8192
 export const COMPACTION_SUMMARY_WINDOW_FRACTION = 0.05
 // Lane E flips this only with a current passing M75 pair and D78 wiring.
-export const IS_AUTO_COMPACTION_EVALUATED = false
+// Flipped 2026-10-12 (CM1013R9): the binding run passed (verdict pass,
+// all four arms above both 0.75 floors, packing and compaction engaged,
+// settled D78 admission on both long-context tasks; receipts in
+// docs/certification/m101-binding-report.json/.md).
+export const IS_AUTO_COMPACTION_EVALUATED = true
 /** The single runtime reader for the latch, so every gate flips together. */
 export function isAutoCompactionEvaluated(): boolean {
   return IS_AUTO_COMPACTION_EVALUATED
