@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
+  crashTextForLog,
   createExecLogger,
   createExecSink,
   redactWhole,
@@ -8,6 +9,7 @@ import {
 } from '../../src/runtime/exec/execOutput'
 import { compileOutputSchema, type OutputSchema } from '../../src/runtime/exec/outputSchema'
 import { execEventSchema } from '../../src/runtime/exec/execProtocol'
+import { AccountStoreError } from '../../src/core/providers/accountCredentialRecord'
 import { UI_TEXT } from '../../src/shared/constants'
 import { outputWriter, resultRecord } from './helpers/execContract'
 
@@ -533,5 +535,20 @@ describe('M80 egress (A12–A14, A17, A19, A20)', () => {
     ])
     createExecLogger({ stderr, literals: () => literals, verbose: true }).trace(KEY)
     expect(stderr.chunks.at(-1)).toBe('[trace] [redacted]\n')
+  })
+  it('reports a refused providers file as its own sentence instead of a raw stack', () => {
+    const refusal = new AccountStoreError('invalidProvidersFile')
+    refusal.message = UI_TEXT.accounts.providersInvalid
+    expect(crashTextForLog(refusal)).toBe(UI_TEXT.accounts.providersInvalid)
+    // A foreign bundle's brand counts too: the guard reads the brand, never
+    // the constructor.
+    const foreign = new Error(UI_TEXT.accounts.providersInvalid)
+    Reflect.set(foreign, 'name', 'AccountStoreError')
+    Reflect.set(foreign, 'code', 'invalidProvidersFile')
+    expect(crashTextForLog(foreign)).toBe(UI_TEXT.accounts.providersInvalid)
+    // Anything else keeps the crash stack.
+    const crash = new Error('boom')
+    expect(crashTextForLog(crash)).toBe(crash.stack ?? 'boom')
+    expect(crashTextForLog('boom')).toBe('boom')
   })
 })

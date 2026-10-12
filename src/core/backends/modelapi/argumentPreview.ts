@@ -31,6 +31,32 @@ const SCALAR = /^(?:true|false|null|-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?)
 const WHITESPACE = /^[\t\n\r ]$/
 const HEX = /^[\da-f]$/i
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+/**
+ * Declared top-level string fields of an offered external (IDE/MCP) tool,
+ * for the same declared-fields-only preview text host tools get: only a
+ * completed string under one of these names enters text. Anything else
+ * (unknown shapes, no string fields, tool absent) renders no text, as
+ * before. String-typed array members (`['string', 'null']`) count.
+ */
+export function declaredPreviewFields(
+  tool: { readonly parameters: Record<string, unknown> } | undefined,
+): readonly string[] | undefined {
+  if (tool === undefined || !isRecord(tool.parameters)) return undefined
+  const properties = tool.parameters['properties']
+  if (!isRecord(properties)) return []
+  const fields: string[] = []
+  for (const [name, schema] of Object.entries(properties)) {
+    if (!isRecord(schema)) continue
+    const type = schema['type']
+    if (type === 'string' || (Array.isArray(type) && type.includes('string'))) fields.push(name)
+  }
+  return fields
+}
+
 /** Incremental JSON grammar; only declared, completed top-level strings can enter text. */
 export class ArgumentPreview {
   private text = ''

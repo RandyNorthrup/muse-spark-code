@@ -1,4 +1,5 @@
 import { Usd } from '../../src/shared/usd'
+import type { UsdAmount } from '../../src/shared/usdSchema'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import * as z from 'zod/mini'
@@ -125,7 +126,7 @@ describe('journal records', () => {
     const priced = { ...context, pricing: { kind: 'priced', card } } satisfies UsageRecordContext
     expect(createUsageRecord(usage, priced).cost).toEqual({
       certainty: 'computed',
-      usd: 178.5,
+      usd: '178.5',
       source: 'list',
       date: '2026-10-04',
     })
@@ -135,16 +136,16 @@ describe('journal records', () => {
         providerCostUsd: Usd.from(0).toAmount(),
         costInUsdTicks: 10_000_000_000,
       }).cost,
-    ).toEqual({ certainty: 'reported', usd: 0 })
+    ).toEqual({ certainty: 'reported', usd: '0' })
     expect(
       createUsageRecord(undefined, { ...context, costInUsdTicks: 2_500_000_000 }).cost,
     ).toEqual({
       certainty: 'reported',
-      usd: 0.25,
+      usd: '0.25',
     })
     expect(createUsageRecord(usage, { ...context, pricing: { kind: 'local' } }).cost).toEqual({
       certainty: 'local',
-      usd: 0,
+      usd: '0',
     })
     expect(
       createUsageRecord(usage, { ...context, providerCostUsd: Usd.from(-1).toAmount() }).cost,
@@ -157,10 +158,10 @@ describe('journal records', () => {
         uncertain: true,
         retainedLiabilityUsd: Usd.from(10).toAmount(),
       }).cost,
-    ).toEqual({ certainty: 'uncertain', usd: 10 })
+    ).toEqual({ certainty: 'uncertain', usd: '10' })
     const record = createUsageRecord(usage, priced)
     cardCostChange(record.cost.usd)
-    function cardCostChange(original: number | undefined) {
+    function cardCostChange(original: UsdAmount | undefined) {
       expect(
         createUsageRecord(usage, {
           ...priced,
@@ -177,12 +178,12 @@ describe('journal records', () => {
       pricing: { kind: 'priced', card },
     } satisfies UsageRecordContext
     for (const [partial, expected] of [
-      [{ input_tokens: 100 }, 100.5],
-      [{ output_tokens: 20 }, 80.5],
-      [{ input_tokens: 100, input_tokens_details: usage.input_tokens_details }, 98.5],
-      [{ input_tokens_details: { cached_tokens: 30 } }, 3.5],
-      [{ output_tokens_details: { reasoning_tokens: 4 } }, 16.5],
-    ] satisfies [Partial<Usage>, number][]) {
+      [{ input_tokens: 100 }, '100.5'],
+      [{ output_tokens: 20 }, '80.5'],
+      [{ input_tokens: 100, input_tokens_details: usage.input_tokens_details }, '98.5'],
+      [{ input_tokens_details: { cached_tokens: 30 } }, '3.5'],
+      [{ output_tokens_details: { reasoning_tokens: 4 } }, '16.5'],
+    ] satisfies [Partial<Usage>, string][]) {
       const record = createUsageRecord(partial, priced)
       expect(record.cost).toEqual({
         certainty: 'uncertain',
@@ -196,7 +197,7 @@ describe('journal records', () => {
     expect(createUsageRecord(undefined, priced).cost).toEqual({ certainty: 'uncertain' })
     expect(createUsageRecord({ input_tokens: 100 }, { ...priced, uncertain: true }).cost).toEqual({
       certainty: 'uncertain',
-      usd: 100.5,
+      usd: '100.5',
       source: 'list',
       date: '2026-10-04',
     })
@@ -209,30 +210,30 @@ describe('journal records', () => {
           providerCostUsd: Usd.from(2).toAmount(),
         },
       ).cost,
-    ).toEqual({ certainty: 'uncertain', usd: 2 })
+    ).toEqual({ certainty: 'uncertain', usd: '2' })
     expect(createUsageRecord({ input_tokens: 100 }, context).cost).toEqual({
       certainty: 'unpriced',
     })
     const meta = { ...context, provider: 'meta', model: 'muse-spark-1.3' }
     expect(createUsageRecord({ input_tokens: 100 }, meta).cost).toEqual({
       certainty: 'uncertain',
-      usd: 0.000125,
+      usd: '0.000125',
       source: 'meta-published',
       date: '2026-09-26',
     })
-    expect(createUsageRecord({ output_tokens: 20 }, meta).cost.usd).toBe(0.000085)
+    expect(createUsageRecord({ output_tokens: 20 }, meta).cost.usd).toBe('0.000085')
     expect(
       createUsageRecord(
         { input_tokens: 100 },
         { ...priced, providerCostUsd: Usd.from(2).toAmount() },
       ).cost,
-    ).toEqual({ certainty: 'reported', usd: 2 })
+    ).toEqual({ certainty: 'reported', usd: '2' })
   })
   it('prices only exact published Meta ids and keeps plan equivalents separate', () => {
     const meta = { ...context, provider: 'meta', model: 'muse-spark-1.3' }
     expect(createUsageRecord({ input_tokens: 100, output_tokens: 20 }, meta).cost).toEqual({
       certainty: 'computed',
-      usd: 0.00021,
+      usd: '0.00021',
       source: 'meta-published',
       date: '2026-09-26',
     })
@@ -244,12 +245,12 @@ describe('journal records', () => {
     })
     expect(createUsageRecord(usage, { ...meta, backend: 'museCode' }).cost).toMatchObject({
       certainty: 'plan',
-      apiEquivalentUsd: expect.any(Number),
+      apiEquivalentUsd: expect.any(String),
     })
     expect(
       createUsageRecord(usage, { ...context, pricing: { kind: 'plan' }, apiEquivalentCard: card })
         .cost,
-    ).toEqual({ certainty: 'plan', apiEquivalentUsd: 178.5 })
+    ).toEqual({ certainty: 'plan', apiEquivalentUsd: '178.5' })
     expect(
       createUsageRecord(usage, {
         ...context,
@@ -268,14 +269,23 @@ describe('journal records', () => {
   it('records paid units and retains uncertain voice liability', () => {
     expect(
       createUsageRecord(undefined, { ...context, kind: 'search', units: { searches: 2 } }).cost.usd,
-    ).toBe(0.005)
+    ).toBe('0.005')
     expect(
       createUsageRecord(undefined, { ...context, kind: 'image', units: { images: 2 } }).cost.usd,
-    ).toBe(0.02)
+    ).toBe('0.02')
     expect(
       createUsageRecord(undefined, { ...context, kind: 'voice', units: { audioSeconds: 3600 } })
         .cost,
-    ).toEqual({ certainty: 'uncertain', usd: 0.18 })
+    ).toEqual({ certainty: 'uncertain', usd: '0.18' })
+    // Fractional seconds price exactly; the hour share rounds up to the
+    // nano-dollar (0.17 recorded the binary float product).
+    expect(
+      createUsageRecord(undefined, {
+        ...context,
+        kind: 'voice',
+        units: { audioSeconds: 12.333333333333334 },
+      }).cost,
+    ).toEqual({ certainty: 'uncertain', usd: '0.000616667' })
   })
   it('uses the original local day and offset and validates privacy fields', () => {
     const at = new Date(2026, 9, 5, 23, 59).getTime()
@@ -386,7 +396,7 @@ describe('journal records', () => {
         providerCostUsd: decoded.providerCostUsd,
       }),
     })
-    expect(record.cost).toEqual({ certainty: 'reported', usd: Number(decoded.providerCostUsd) })
+    expect(record.cost).toEqual({ certainty: 'reported', usd: decoded.providerCostUsd })
     expect(record.tokens.input).toBe(decoded.response.usage?.input_tokens)
   })
   it('replays captured Gemini thoughts and Ollama local usage', async () => {
@@ -416,7 +426,7 @@ describe('journal records', () => {
     )
     expect(createUsageRecord(local, { ...context, pricing: { kind: 'local' } })).toMatchObject({
       tokens: { input: local.input_tokens, output: local.output_tokens },
-      cost: { certainty: 'local', usd: 0 },
+      cost: { certainty: 'local', usd: '0' },
     })
   })
 })

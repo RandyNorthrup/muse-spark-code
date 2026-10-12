@@ -108,9 +108,17 @@ async function buildFixturesIn(auditRoot, directory) {
     contributedIds(manifest),
     repositoryUrl(manifest),
   )
-  const content = parseWhatsNewContent(
-    encodeWhatsNewContent(JSON.stringify({ schema: WHATS_NEW_CONTENT_SCHEMA_VERSION, releases })),
+  // The builder answers with a result, not text (the What's New budget): a
+  // fixture too large for what ships is a broken fixture, never a quietly
+  // different page.
+  const encoded = encodeWhatsNewContent(
+    JSON.stringify({ schema: WHATS_NEW_CONTENT_SCHEMA_VERSION, releases }),
   )
+  if (encoded.kind !== 'encoded')
+    throw new Error(
+      `The What's New fixture is ${String(encoded.bytes)} bytes of content; the budget is ${String(encoded.maxBytes)}`,
+    )
+  const content = parseWhatsNewContent(encoded.text)
   const files = new Map()
   const entries = await readdir(directory, { recursive: true, withFileTypes: true })
   for (const entry of entries)

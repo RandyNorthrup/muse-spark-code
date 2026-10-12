@@ -371,7 +371,7 @@ describe('M106 loop guarantees', () => {
     await rig.host.close()
   })
 
-  it('recomputes the selected per-model output cap on every request', async () => {
+  it('recomputes the selected output cap for every request, once per resolved record', async () => {
     const cap = vi.fn((modelId: string) =>
       modelId === 'muse-spark-1.3' ? MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS : 4096,
     )
@@ -382,7 +382,17 @@ describe('M106 loop guarantees', () => {
     expect(rig.api.responseBodies().map((body) => body['max_output_tokens'])).toEqual([
       131_072, 131_072,
     ])
-    expect(cap).toHaveBeenCalledWith('muse-spark-1.3')
+    expect(cap).toHaveBeenCalledTimes(2)
+    expect(cap).toHaveBeenCalledWith(
+      'muse-spark-1.3',
+      expect.objectContaining({
+        ref: 'muse-spark-1.3',
+        policy: expect.objectContaining({
+          // The record also carries the provider's minimum (MINOUT).
+          output: expect.objectContaining({ maxTokens: MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS }),
+        }),
+      }),
+    )
     await rig.session.setModel('muse-spark-1.2')
     rig.api.script({ text: 'Other model.' })
     await send(rig)
@@ -390,7 +400,11 @@ describe('M106 loop guarantees', () => {
     await rig.session.setModel('muse-spark-1.3')
     rig.api.script({ text: 'Original model.' })
     await send(rig)
-    expect(cap).toHaveBeenLastCalledWith('muse-spark-1.3')
+    expect(cap).toHaveBeenCalledTimes(4)
+    expect(cap).toHaveBeenLastCalledWith(
+      'muse-spark-1.3',
+      expect.objectContaining({ ref: 'muse-spark-1.3' }),
+    )
     expect(rig.api.responseBodies().at(-1)?.['max_output_tokens']).toBe(131_072)
     await rig.host.close()
   })

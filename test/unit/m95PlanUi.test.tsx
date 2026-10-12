@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { usdAmountSchema } from '../../src/shared/usdSchema'
 import {
   CHATGPT_MANAGE_USAGE_URL,
   CHATGPT_PLAN_LIMIT_ERROR_KIND,
@@ -591,7 +592,7 @@ describe('M95b shared subscription UI', () => {
               pricing: 'plan',
               inputTokens: 10,
               outputTokens: 20,
-              costUsd: 99,
+              costUsd: usdAmountSchema.parse('99'),
             },
           ],
           plans: tallies,

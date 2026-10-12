@@ -1,6 +1,7 @@
 import { vi } from 'vitest'
 import type { UsageAccess, UsagePagePorts } from '../../../src/runtime/usage/usageAdapter'
 import type { UsagePageState } from '../../../src/shared/usagePage'
+import { Usd } from '../../../src/shared/usd'
 
 export function usageState(): UsagePageState {
   const totals = {
@@ -9,13 +10,13 @@ export function usageState(): UsagePageState {
     units: {},
     costs: [
       { certainty: 'unpriced', records: 1 },
-      { certainty: 'reported', records: 1, usd: 0.42 },
+      { certainty: 'reported', records: 1, usd: Usd.from('0.42').toAmount() },
     ],
     retries: 0,
     rateLimited: 0,
   } satisfies UsagePageState['totals']
   return {
-    v: 1,
+    v: 2,
     query: { range: '30d', groupBy: 'provider', metric: 'cost' },
     generatedAt: 1_791_187_200_000,
     history: {
@@ -26,6 +27,7 @@ export function usageState(): UsagePageState {
       recordCount: 2,
       newerVersionRecords: 0,
       tornLines: 0,
+      inexactRecords: 0,
     },
     totals,
     previousTotals: { records: 0, tokens: {}, units: {}, costs: [], retries: 0, rateLimited: 0 },
