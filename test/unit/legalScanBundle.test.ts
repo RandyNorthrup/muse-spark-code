@@ -136,7 +136,7 @@ describe('the production legal scanner bundle', () => {
     const buildScript = readFileSync('scripts/build.mjs', 'utf8')
     expect(buildScript).toContain("const LEGAL_SCAN_ENTRY = 'src/core/legal/entry.ts'")
     expect(buildScript).toContain('legalScan: esbuild.build(legalScanOptions)')
-    expect(readFileSync('scripts/package-acp.mjs', 'utf8')).toContain("'legalScan.js'")
+    expect(readFileSync('scripts/lib/acpBundles.mjs', 'utf8')).toContain("'legalScan.js'")
     expect(readFileSync('.vscodeignore', 'utf8')).toContain('!dist/legalScan.js')
     expect(readFileSync('.github/workflows/build.yml', 'utf8')).toContain(
       'extension/dist/legalScan.js',
