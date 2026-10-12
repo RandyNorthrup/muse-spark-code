@@ -4950,11 +4950,14 @@ See the [ACP guide](docs/acp.md), the [CI guide](docs/ci.md) and the
 results and what is still open.
 
 `exec --team --backend modelApi --permission-mode acceptEdits
---max-budget-usd <usd>` runs the configured workspace team in-process.
+--max-budget-usd <usd>` runs the configured workspace team in-process
+(behind the agent-teams availability switch, off until certified).
 Every worker request shares the hard run budget; local engines need no key.
-Questions deny, protected merges deny, and ordinary merges enter the run's
-working tree after local checks, for M80's exact patch review. The run removes
-its board and copies on shutdown. Store the workspace `TeamSnapshot` in the
+Questions deny, protected or unreviewed merges are held under a named ref
+instead of discarded, and ordinary merges enter the run's
+working tree after local checks, for M80's exact patch review. The run records
+its board, copies and task refs in a cleanup ledger and removes them on
+shutdown; a later run sweeps what a dead run left. Store the workspace `TeamSnapshot` in the
 agent data folder's `acp/<workspaceKey>/team.json`; Default follows exec's
 provider/model, and `.muse/team.json` can only lower limits. Muse Code and
 external workers cannot run headlessly. See [the headless contract](docs/ci.md)
