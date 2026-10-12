@@ -72,6 +72,7 @@ if (process.platform === 'linux') {
         'Race',
         'StatRace',
         'StatMask',
+        'StatNoExec',
         'Guards',
         'Device',
         'Budget',
@@ -186,13 +187,18 @@ if (process.platform === 'linux') {
       if (program === 'ls')
         expect(result.stdout.toString()).toContain(String(statSync(h.allowed).uid))
     })
-    it('reports stat fields from the walked operands without the system stat binary', async () => {
+    it('reports stat without the system stat binary: mode, owners, links and times match fs.statSync', async () => {
+      // The NoExec variant fails every execve, so exit 0 proves no binary ran.
       const h = await fixture()
       for (const [operand, kind] of [
         ['allowed.txt', 'regular file'],
         ['.', 'directory'],
       ] as const) {
-        const result = await native(binary, h.args('stat', [operand], [operand]), h.root)
+        const result = await native(
+          variant('StatNoExec'),
+          h.args('stat', [operand], [operand]),
+          h.root,
+        )
         expect(result.code, operand).toBe(0)
         expect(result.stderr).toMatch(/^\{"confined":true,/u)
         const expected = statSync(path.join(h.workspace, operand))
@@ -202,6 +208,45 @@ if (process.platform === 'linux') {
         expect(stdout).toContain(`Inode: ${String(expected.ino)} `)
         expect(stdout).toContain(`Device: ${expected.dev.toString(16)}h/${String(expected.dev)}d `)
         expect(stdout).toContain(kind)
+        expect(stdout).toContain(`Links: ${String(expected.nlink)}\n`)
+        const octal = (expected.mode & 0o7777).toString(8).padStart(4, '0')
+        expect(stdout).toContain(`Access: (${octal}/`)
+        expect(stdout).toContain(`Uid: (${String(expected.uid).padStart(5)}/ UNKNOWN)`)
+        expect(stdout).toContain(`Gid: (${String(expected.gid).padStart(5)}/ UNKNOWN)`)
+        // Times print in UTC with nanoseconds; fs.statSync resolves
+        // milliseconds, so the comparison tolerance is milliseconds.
+        const instants: readonly (readonly [string, number])[] = [
+          ['Access', expected.atimeMs],
+          ['Modify', expected.mtimeMs],
+          ['Change', expected.ctimeMs],
+        ]
+        for (const [label, ms] of instants) {
+          const line = stdout
+            .split('\n')
+            .find((entry) => entry.startsWith(`${label}: `) && /\d{4}-/u.test(entry))
+          const match =
+            /^(\w+): (\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})\.(\d{9}) \+0000$/u.exec(
+              line ?? '',
+            )
+          expect(match, `${operand} ${label}`).not.toBeNull()
+          if (match === null) throw new Error('Missing reported time')
+          const reported =
+            Date.UTC(
+              Number(match[2]),
+              Number(match[3]) - 1,
+              Number(match[4]),
+              Number(match[5]),
+              Number(match[6]),
+              Number(match[7]),
+            ) +
+            Number(match[8]) / 1e6
+          expect(Math.abs(reported - ms), `${operand} ${label}`).toBeLessThan(5)
+        }
+        if (expected.birthtimeMs === 0) expect(stdout).toContain('Birth: -\n')
+        else {
+          const line = stdout.split('\n').find((entry) => entry.startsWith('Birth:'))
+          expect(line, `${operand} Birth`).toMatch(/^Birth: \d{4}-/u)
+        }
       }
     })
     it('stat prints a dash for every field the filesystem withholds, never zero or 1970', async () => {
