@@ -95,14 +95,40 @@ async function scheduleLeaseCleanup<T>(work: () => Promise<T>): Promise<T> {
 }
 
 /**
- * Proof that one fence candidate belongs to its acquisition. Only the
- * exclusive-publication success path constructs the known handle, and an
- * interrupted publication is claimed only when the stored candidate bytes
- * carry the acquisition's unique token. Only this handle authorises the
- * immutable release marker; a bare candidate path can never release.
+ * Proof that one fence candidate belongs to its acquisition. The single
+ * factory below issues a handle only for a publication this acquisition
+ * proved it owns (direct exclusive success, or an interrupted publication
+ * whose stored bytes carry the acquisition's unique token). Release accepts
+ * only an issued, unreleased handle for its own candidate: a structural
+ * literal can never be issued (the constructor is private and issuance is
+ * recorded in a module-private set no other module can reach), so a bare
+ * candidate path can never release.
  */
-interface OwnedScheduleFence {
-  readonly candidate: string
+const issuedScheduleFences = new WeakSet<object>()
+export class OwnedScheduleFence {
+  static issue(candidate: string): OwnedScheduleFence {
+    const handle = new OwnedScheduleFence(candidate)
+    issuedScheduleFences.add(handle)
+    return handle
+  }
+  private constructor(readonly candidate: string) {}
+}
+
+/**
+ * The only publisher of fence release markers. A handle that was never
+ * issued, was already released, or belongs to another candidate is refused
+ * with the ownership word; a future edit that publishes a release marker
+ * directly bypasses proof and fails the forge regression test by design.
+ */
+export async function releaseScheduleFence(
+  fs: ScheduleFsPort,
+  handle: OwnedScheduleFence,
+  candidate: string,
+): Promise<void> {
+  if (handle.candidate !== candidate || !issuedScheduleFences.has(handle))
+    throw scheduleQueueFailure('scheduleQueueOwnershipLost')
+  issuedScheduleFences.delete(handle)
+  await scheduleFsOperation('cleanup.release', () => fs.publish(`${candidate}.released`, ''))
 }
 
 /**
@@ -224,6 +250,7 @@ export function createScheduleLeaseLock(fs: ScheduleFsPort): ScheduleFsPort['loc
       // Only a candidate this acquisition published owns a release marker. A
       // candidate can become authoritative even if publication settles after a
       // stop or rejects after linking; its ownership is proved during cleanup.
+      // The handle below is issued only at the two proved-publication points.
       let header: OwnedScheduleFence | undefined
       // The last candidate whose publication outcome a stop obscured. It
       // becomes a handle only through the token claim in cleanup; a cleanly
@@ -232,6 +259,7 @@ export function createScheduleLeaseLock(fs: ScheduleFsPort): ScheduleFsPort['loc
       let heartbeat = Promise.resolve()
       let timer: ReturnType<typeof setInterval> | undefined
       let heartbeatError: Error | undefined
+      let isCompleted = false
       try {
         for (;;) {
           check()
@@ -285,7 +313,7 @@ export function createScheduleLeaseLock(fs: ScheduleFsPort): ScheduleFsPort['loc
           // A lost publication owns nothing: keep no handle and loop, so
           // cleanup cannot release the winner's fence.
           if (!isPublished) continue
-          header = { candidate }
+          header = OwnedScheduleFence.issue(candidate)
           break
         }
         const guard: ScheduleLeaseGuard = Object.assign(
@@ -339,6 +367,10 @@ export function createScheduleLeaseLock(fs: ScheduleFsPort): ScheduleFsPort['loc
         timer = undefined
         await heartbeat
         await guard()
+        // The guard just proved live ownership with a fresh heartbeat: no
+        // successor can exist until the release marker below is published, so
+        // only this completed path may retire the hint it wrote.
+        isCompleted = true
         return result
       } finally {
         if (timer !== undefined) clearInterval(timer)
@@ -355,34 +387,50 @@ export function createScheduleLeaseLock(fs: ScheduleFsPort): ScheduleFsPort['loc
             // publication, a winner's fence, unreadable bytes — owns nothing
             // and releases nothing.
             let handle = owned
+            let candidate = owned?.candidate
             if (handle === undefined && interrupted !== undefined) {
               const content = await scheduleFsOperation('cleanup.header', () =>
                 fs.read(interrupted),
               )
               if (content !== undefined) {
                 try {
-                  if (parseLease(content).token === owner.token) handle = { candidate: interrupted }
+                  if (parseLease(content).token === owner.token) {
+                    handle = OwnedScheduleFence.issue(interrupted)
+                    candidate = interrupted
+                  }
                 } catch {
                   // Bytes this acquisition did not write are never its fence.
                 }
               }
             }
-            if (handle === undefined) return
-            const proven: OwnedScheduleFence = handle
-            await scheduleFsOperation('cleanup.release', () =>
-              fs.publish(`${proven.candidate}.released`, ''),
-            )
-            // Never remove another holder's hint; token-specific pulses are ours.
+            if (handle === undefined || candidate === undefined) return
+            // The hint is retired before the release marker is published, and
+            // only on the completed path whose fresh heartbeat proves no
+            // successor can exist yet. An aborted or interrupted acquisition
+            // leaves its hint to expiry (a successor overwrites it) rather
+            // than risk removing a hint that is no longer its own. The hint's
+            // own bytes name the token they belong to, so a successor's hint
+            // is always spared even here.
             try {
-              const current = await readScheduleLeaseHead(fs, file, folder, parseLease)
-              if (current?.lease.token === owner.token)
-                await scheduleFsOperation('cleanup.hint', () => fs.remove(file))
+              if (isCompleted) {
+                const hintBytes = await scheduleFsOperation('cleanup.hintRead', () => fs.read(file))
+                let isHintOurs = false
+                if (hintBytes !== undefined) {
+                  try {
+                    isHintOurs = parseLease(hintBytes).token === owner.token
+                  } catch {
+                    isHintOurs = false
+                  }
+                }
+                if (isHintOurs) await scheduleFsOperation('cleanup.hint', () => fs.remove(file))
+              }
               await scheduleFsOperation('cleanup.pulse', () =>
                 fs.remove(`${file}.${owner.token}.heartbeat`),
               )
             } catch {
               // Hint/pulse retirement is debt; the release is already authoritative.
             }
+            await releaseScheduleFence(fs, handle, candidate)
           })
         }
       }
