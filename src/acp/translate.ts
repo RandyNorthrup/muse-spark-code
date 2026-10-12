@@ -279,7 +279,6 @@ export class UpdateTranslator {
     private readonly cwd: string,
     /** Replaying a loaded history: the user's own messages go out too. */
     private readonly isReplay: boolean,
-    private readonly readCost?: () => UsageCost | undefined,
     private readonly backend: 'modelApi' | 'museCode' = 'museCode',
     private readonly canShowNotices = false,
   ) {}
@@ -445,7 +444,9 @@ export class UpdateTranslator {
         return [{ sessionUpdate: 'session_info_update', title: event.name }]
       }
       case 'contextUsage': {
-        const cost = this.readCost === undefined ? this.cost : this.readCost()
+        // The turn's own running tally, which includes the request it
+        // describes: never a journal snapshot from before it (finding 3).
+        const cost = this.cost
         const hasCost =
           cost?.usd !== undefined &&
           Number.isFinite(cost.usd) &&

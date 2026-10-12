@@ -9,7 +9,8 @@ import {
   type OllamaDurations,
 } from '../../src/core/backends/modelapi/codecs/ollama'
 import type { UsageRecording } from '../../src/core/usage/recording'
-import { usageRecordSchema, type UsageCost } from '../../src/shared/usageJournal'
+import { usageRecordSchema } from '../../src/shared/usageJournal'
+import { estimateCostUsd } from '../../src/core/usage/insights'
 import { FakeLogOutputChannel } from './helpers/fakes'
 
 function port(): UsageRecording {
@@ -170,7 +171,7 @@ describe('auxiliary recording', () => {
     })
   })
   it('adds priced ACP session cost with certainty and leaves unknown prices absent', () => {
-    const translator = new UpdateTranslator('/workspace', false, undefined, 'modelApi')
+    const translator = new UpdateTranslator('/workspace', false, 'modelApi')
     translator.updates({
       type: 'tokenUsage',
       modelId: 'muse-spark-1.3',
@@ -207,35 +208,41 @@ describe('auxiliary recording', () => {
       { sessionUpdate: 'usage_update', used: 12, size: 100 },
     ])
   })
-  it('uses injected BYO settlement for reported and local prices, withholding plan and uncertainty', () => {
-    let cost: UsageCost | undefined = { certainty: 'reported', usd: 0.12 }
-    const translator = new UpdateTranslator('/workspace', false, () => cost, 'modelApi')
+  it('reports the turn tally in usage updates, withholding cost while unpriced', () => {
+    // Finding 3: no injected journal snapshot feeds a usage update; the cost
+    // is the turn's own running tally, which includes the request it
+    // describes. The tally is recomputed from the price table, not read back
+    // from the translator under test.
+    const translator = new UpdateTranslator('/workspace', false, 'modelApi')
     translator.updates({
       type: 'tokenUsage',
       modelId: 'muse-spark-1.3',
       inputTokens: 100,
       outputTokens: 10,
     })
+    const tally = Number(
+      estimateCostUsd({ inputTokens: 100, outputTokens: 10, cachedTokens: 0 }, 'muse-spark-1.3'),
+    )
     expect(translator.updates(context)).toEqual([
-      expect.objectContaining({
-        cost: { amount: 0.12, currency: 'USD' },
-        _meta: { museSpark: { costCertainty: 'reported' } },
-      }),
+      {
+        sessionUpdate: 'usage_update',
+        used: 12,
+        size: 100,
+        cost: { amount: tally, currency: 'USD' },
+        _meta: { museSpark: { costCertainty: 'computed' } },
+      },
     ])
-    cost = { certainty: 'local', usd: 0 }
-    expect(translator.updates(context)).toEqual([
-      expect.objectContaining({ cost: { amount: 0, currency: 'USD' } }),
-    ])
-    for (const certainty of ['plan', 'uncertain', 'unpriced'] as const) {
-      cost = { certainty, usd: 1 }
-      expect(translator.updates(context)).toEqual([
-        { sessionUpdate: 'usage_update', used: 12, size: 100 },
-      ])
-    }
-    cost = undefined
+    translator.updates({
+      type: 'tokenUsage',
+      modelId: 'unknown/model',
+      inputTokens: 200,
+      outputTokens: 20,
+    })
     expect(translator.updates(context)).toEqual([
       { sessionUpdate: 'usage_update', used: 12, size: 100 },
     ])
+    const fresh = new UpdateTranslator('/workspace', false, 'modelApi')
+    expect(fresh.updates(context)).toEqual([{ sessionUpdate: 'usage_update', used: 12, size: 100 }])
   })
   it('retains all four native Ollama durations from the counted capture', async () => {
     const capture = z

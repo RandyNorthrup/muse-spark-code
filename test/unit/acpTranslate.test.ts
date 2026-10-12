@@ -246,7 +246,7 @@ describe('UpdateTranslator', () => {
   })
 
   it('sends every advisory only as a negotiated notice, once per session', () => {
-    const translator = new UpdateTranslator(CWD, false, undefined, 'modelApi', true)
+    const translator = new UpdateTranslator(CWD, false, 'modelApi', true)
     for (const text of [
       UI_TEXT.autoCompactionAwaitingEvaluation,
       'MCP unavailable',

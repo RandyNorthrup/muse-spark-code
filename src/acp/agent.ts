@@ -340,7 +340,6 @@ class AcpSession {
   private readonly earlyFinishes = new Map<string, TurnCompleted>()
   private outbox: Promise<void> = Promise.resolve()
   private pending: PendingPrompt | undefined
-  private lastUsage: AcpUsageSnapshot | undefined
   private hasLoggedUsageFailure = false
   /**
    * A prompt before its turn starts, while the session's skills are first
@@ -393,14 +392,6 @@ class AcpSession {
     this.translator = new UpdateTranslator(
       cwd,
       false,
-      deps.accounting === undefined
-        ? undefined
-        : () =>
-            this.lastUsage === undefined ||
-            this.lastUsage.session.unknownRequests > 0 ||
-            this.lastUsage.session.upperBoundUsd !== '0'
-              ? undefined
-              : { certainty: 'computed', usd: Number(this.lastUsage.session.settledUsd) },
       deps.backend.kind,
       clientCapabilities.session?.notices != null,
     )
@@ -763,8 +754,8 @@ class AcpSession {
         return
       }
       case 'tokenUsage': {
-        if (this.deps.accounting !== undefined)
-          void this.queueUsage(this.pending?.accounting?.turnId ?? this.activeTurnId)
+        // Token events never read the journal: the usage figures are read
+        // once per completed request, off the answer path (finding 4).
         for (const update of this.translator.updates(event)) this.send(update)
         return
       }
@@ -1338,40 +1329,37 @@ class AcpSession {
     return true
   }
 
-  /** Journal reads are bounded and never turn unavailable accounting into zero spend. */
-  private queueUsage(
+  /**
+   * One accounting read per completed request, off the answer path: token
+   * events never read, and the read never holds the outbox (findings 3
+   * and 4). A hang delays only this request's settled figures, bounded by
+   * the deadline; answers, permission questions and completion never queue
+   * behind a journal read. Journal reads are bounded and never turn
+   * unavailable accounting into zero spend.
+   */
+  private async readUsage(
     turnId: string | undefined,
   ): Promise<AcpUsageSnapshot | { v: 1; available: false } | undefined> {
     const accounting = this.deps.accounting
-    if (accounting === undefined) return Promise.resolve(undefined)
-    const prior = this.outbox
-    const work = (async () => {
-      await prior
-      let usage: AcpUsageSnapshot | { v: 1; available: false }
-      try {
-        usage = await withDeadline(
-          readAcpUsage(accounting, this.sessionId, turnId),
-          ACP_USAGE_READ_TIMEOUT_MS,
-          UI_TEXT.actionFailed,
-        )
-        this.lastUsage = usage
-      } catch {
-        usage = { v: 1, available: false }
-        if (!this.hasLoggedUsageFailure) {
-          this.hasLoggedUsageFailure = true
-          this.deps.log.warn('ACP usage accounting is unavailable')
-        }
+    if (accounting === undefined) return undefined
+    try {
+      return await withDeadline(
+        readAcpUsage(accounting, this.sessionId, turnId),
+        ACP_USAGE_READ_TIMEOUT_MS,
+        UI_TEXT.actionFailed,
+      )
+    } catch {
+      if (!this.hasLoggedUsageFailure) {
+        this.hasLoggedUsageFailure = true
+        this.deps.log.warn('ACP usage accounting is unavailable')
       }
-      await this.deliver(Promise.resolve(), {
-        sessionUpdate: 'session_info_update',
-        _meta: { 'museSpark.usage': usage },
-      })
-      return usage
-    })()
-    this.outbox = (async () => {
-      await work
-    })()
-    return work
+      return { v: 1, available: false }
+    }
+  }
+
+  /** The settled figures for a finished request, as a client update. */
+  private usageUpdate(usage: AcpUsageSnapshot | { v: 1; available: false }): SessionUpdate {
+    return { sessionUpdate: 'session_info_update', _meta: { 'museSpark.usage': usage } }
   }
 
   private showNotice(
@@ -2099,10 +2087,12 @@ class AcpSession {
     const accounting: PromptAccounting = { turnId: undefined }
     try {
       const stopReason = await this.prompt(blocks, accounting)
-      const usage = await this.queueUsage(accounting.turnId)
+      const usage = await this.readUsage(accounting.turnId)
+      if (usage !== undefined) this.send(this.usageUpdate(usage))
       return { stopReason, ...(usage !== undefined && { _meta: { 'museSpark.usage': usage } }) }
     } catch (error: unknown) {
-      const usage = await this.queueUsage(accounting.turnId)
+      const usage = await this.readUsage(accounting.turnId)
+      if (usage !== undefined) this.send(this.usageUpdate(usage))
       if (usage !== undefined && error instanceof RequestError) {
         const data = error.data
         error.data = {
@@ -2652,6 +2642,38 @@ class AgentState {
   }
 }
 
+/** Every string of the request the client submitted: text, media bytes, embedded resource text and bytes, and resource paths. */
+function promptPrivateText(blocks: readonly ContentBlock[]): string[] {
+  return blocks.flatMap((block) => {
+    switch (block.type) {
+      case 'text': {
+        return [block.text]
+      }
+      case 'resource_link': {
+        return [block.uri]
+      }
+      case 'image':
+      case 'audio': {
+        return [
+          block.data,
+          ...(block.type === 'image' && typeof block.uri === 'string' ? [block.uri] : []),
+        ]
+      }
+      case 'resource': {
+        const resource = block.resource
+        return [
+          ...(typeof resource.uri === 'string' ? [resource.uri] : []),
+          ...('text' in resource && typeof resource.text === 'string' ? [resource.text] : []),
+          ...('blob' in resource && typeof resource.blob === 'string' ? [resource.blob] : []),
+        ]
+      }
+      default: {
+        return []
+      }
+    }
+  })
+}
+
 /** Unknown failures retain only redacted diagnostics, never request content or headers. */
 function requestFailureText(error: unknown, privateText: readonly string[]): string {
   if (isMspFailure(error)) return failureForLog(error)
@@ -2687,7 +2709,11 @@ export function createAcpAgent(deps: AcpAgentDeps): AgentApp {
           { kind: 'resource_reading', reading: error.reading },
         )
       }
-      if (error instanceof RequestError && error.code !== ACP_ERROR_CODES.internal) throw error
+      // A typed reply never carries the request back out: a failed turn's
+      // reason can echo the submitted prompt, so it is redacted with the
+      // request's own private text (finding 1). Code and data are untouched.
+      if (error instanceof RequestError && error.code !== ACP_ERROR_CODES.internal)
+        throw new RequestError(error.code, redactSecrets(error.message, privateText), error.data)
       if (error instanceof Error && error.name === 'StoreUnavailableError')
         throw new RequestError(
           ACP_ERROR_CODES.credentialStore,
@@ -2735,21 +2761,31 @@ export function createAcpAgent(deps: AcpAgentDeps): AgentApp {
       respond('authenticate', () => state.authenticate(context.params.methodId)),
     )
     .onRequest('session/new', (context) =>
-      respond('session/new', () =>
-        state.newSession(context.params.cwd, context.params.mcpServers, context.client),
+      respond(
+        'session/new',
+        () => state.newSession(context.params.cwd, context.params.mcpServers, context.client),
+        [context.params.cwd],
       ),
     )
     .onRequest('session/load', (context) =>
-      respond('session/load', () => {
-        const { sessionId, cwd, mcpServers } = context.params
-        return state.loadSession(sessionId, cwd, mcpServers, context.client, true)
-      }),
+      respond(
+        'session/load',
+        () => {
+          const { sessionId, cwd, mcpServers } = context.params
+          return state.loadSession(sessionId, cwd, mcpServers, context.client, true)
+        },
+        [context.params.cwd],
+      ),
     )
     .onRequest('session/resume', (context) =>
-      respond('session/resume', () => {
-        const { sessionId, cwd, mcpServers } = context.params
-        return state.loadSession(sessionId, cwd, mcpServers ?? undefined, context.client, false)
-      }),
+      respond(
+        'session/resume',
+        () => {
+          const { sessionId, cwd, mcpServers } = context.params
+          return state.loadSession(sessionId, cwd, mcpServers ?? undefined, context.client, false)
+        },
+        [context.params.cwd],
+      ),
     )
     .onRequest('session/list', (context) =>
       respond('session/list', () =>
@@ -2779,11 +2815,7 @@ export function createAcpAgent(deps: AcpAgentDeps): AgentApp {
       respond(
         'session/prompt',
         () => state.session(context.params.sessionId).promptResponse(context.params.prompt),
-        context.params.prompt.flatMap((block) => {
-          if (block.type === 'text') return [block.text]
-          if (block.type === 'image' || block.type === 'audio') return [block.data]
-          return block.type === 'resource' && 'text' in block.resource ? [block.resource.text] : []
-        }),
+        promptPrivateText(context.params.prompt),
       ),
     )
     .onNotification('session/cancel', (context) =>
