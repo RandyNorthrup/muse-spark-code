@@ -325,7 +325,7 @@
     "effort": "Escolha quanto esforço o Muse dedica a cada resposta.",
     "output": "Escolher o formato do resultado: text, json ou jsonl.",
     "max-budget-usd": "Definir o limite rígido de gastos em USD para esta execução.",
-    "max-requests": "Definir o máximo de solicitações ao modelo.",
+    "max-requests": "Define o número máximo de solicitações. A última chamada ao modelo produz um resumo final sem ferramentas.",
     "timeout": "Definir o limite de duração em segundos.",
     "fail-on-denial": "Parar a execução se uma permissão for negada.",
     "ephemeral": "Manter a sessão na memória sem salvá-la.",
@@ -3590,6 +3590,13 @@
     "other": "São permitidos no máximo {count} arquivos de entrada.",
     "many": "São permitidos no máximo {count} arquivos de entrada."
   },
+  "referenceTurnLimit": "Os turnos da Model API permitem 200 chamadas ao modelo por padrão. Prevalecem os limites de solicitações existentes do chamador. A última chamada produz um resumo sem ferramentas; envie uma mensagem para continuar.",
+  "modelApiWrapUpReserved": "A solicitação restante está reservada para a resposta final. A imagem não foi gerada.",
+  "modelApiTurnLimit": {
+    "one": "O turno parou após {count} chamada ao modelo. Envie uma mensagem para continuar.",
+    "other": "O turno parou após {count} chamadas ao modelo. Envie uma mensagem para continuar.",
+    "many": "O turno parou após {count} chamadas ao modelo. Envie uma mensagem para continuar."
+  },
   "execRequestCapReached": {
     "one": "O limite de {count} tentativa foi atingido.",
     "other": "O limite de {count} tentativas foi atingido.",
@@ -5448,11 +5455,5 @@
       "other": "{count} autorizações",
       "many": "{count} autorizações"
     }
-  },
-  "modelApiTurnLimit": {
-    "one": "O turno parou após {count} chamada ao modelo. Envie uma mensagem para continuar.",
-    "other": "O turno parou após {count} chamadas ao modelo. Envie uma mensagem para continuar.",
-    "many": "O turno parou após {count} chamadas ao modelo. Envie uma mensagem para continuar."
-  },
-  "referenceTurnLimit": "Ao atingir o limite de chamadas ao modelo, o turno informa um limite que permite continuar. Envie outra mensagem para continuar."
+  }
 }

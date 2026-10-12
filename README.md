@@ -3951,7 +3951,13 @@ Model API turns reserve their last permitted call for an answer without tools:
 what is done, what was found, and what remains. The answer stays in the chat;
 a translated notice explains that sending a message continues it. ACP returns
 `max_turn_requests`; headless exec reports `request_cap` (exit 5) with the answer.
-TOOLROUNDS is raising the default to 200; until that slice lands the default is 50.
+The default is 200 model calls per turn. Existing caller request allowances
+replace that default with what remains: `exec --max-requests` (default 30,
+range 1–500), best-of-N attempts and team-task ceilings.
+A caller allowance above 200 remains usable. Paid child-task grants are the
+exception: all 4 attempts stay tool calls and exhaustion stays the child's
+typed request-limit stop. Retries spend calls; money caps
+and compaction's own admission and accounting still apply.
 
 The table below describes Meta Muse. M95's provider core resolves capabilities
 per configured provider and native model, with user overrides taking precedence
@@ -4821,6 +4827,11 @@ muse-spark-code-acp exec [options] --prompt-file <path>
 muse-spark-code-acp exec [options] -
 muse-spark-code-acp scan-secrets <file> [--key-stdin]
 ```
+
+| Exec flag                | Default / range        | Limit behavior                                                                                                                                                   |
+| ------------------------ | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--max-requests <count>` | 30 / 1–500 (Model API) | Uses the remaining allowance, reserves the last model call for a summary without tools, then returns `request_cap`, exit 5, with that summary in `finalMessage`. |
+| `--max-budget-usd <usd>` | Required on Model API  | Hard spending admission remains separate from the request allowance.                                                                                             |
 
 One turn runs through the existing ACP engine. Plan is the default and
 Accept edits the only other mode; trust, bypass and hosted search are refused.

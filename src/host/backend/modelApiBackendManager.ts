@@ -115,6 +115,7 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly promptCacheRetention: () => PromptCacheRetention
   /** `museSpark.modelApiSessionBudgetUsd`, read per request; 0 is no cap (M82). */
   readonly sessionBudgetUsd: () => UsdAmount
+  readonly remainingModelCalls?: (() => number) | undefined
   /** `museSpark.modelApiReplyUsage`, read per reply (M82). */
   readonly showReplyUsage: () => boolean
   readonly strictTools?: ModelApiHostDeps['strictTools']
@@ -388,6 +389,7 @@ export class ModelApiBackendManager {
         notePaidUse: this.deps.notePaidUse,
         promptCacheRetention: this.deps.promptCacheRetention,
         sessionBudgetUsd: this.deps.sessionBudgetUsd,
+        remainingModelCalls: this.deps.remainingModelCalls,
         showReplyUsage: this.deps.showReplyUsage,
         ...(this.deps.strictTools !== undefined && { strictTools: this.deps.strictTools }),
         ...(this.deps.parallelReads !== undefined && { parallelReads: this.deps.parallelReads }),

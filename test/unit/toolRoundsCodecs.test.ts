@@ -58,12 +58,15 @@ describe('wrap-up requests across codec families', () => {
       expect(request['instructions']).toContain('limit of 3 model calls')
     },
   )
-  it.each(['auto', 'omit'] as const)('Chat respects tool-choice capability %s', (toolChoice) => {
-    const request = encodeChatRequest(WRAP, 'review-model', { ...CHAT, toolChoice }).body
-    expect(request.tools).toBeUndefined()
-    expect(request.tool_choice).toBe(toolChoice === 'auto' ? 'none' : undefined)
-    expect(JSON.stringify(request.messages)).toContain('limit of 3 model calls')
-  })
+  it.each(['auto', 'omit', undefined] as const)(
+    'Chat respects tool-choice capability %s',
+    (toolChoice) => {
+      const request = encodeChatRequest(WRAP, 'review-model', { ...CHAT, toolChoice }).body
+      expect(request.tools).toBeUndefined()
+      expect(request.tool_choice).toBe(toolChoice === 'auto' ? 'none' : undefined)
+      expect(JSON.stringify(request.messages)).toContain('limit of 3 model calls')
+    },
+  )
   it('Anthropic omits declarations and choice while retaining tool-result history', () => {
     const request = encodeAnthropicRequest(WRAP, {
       model: 'claude-sonnet-5-5',

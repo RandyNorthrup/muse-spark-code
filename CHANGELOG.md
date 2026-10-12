@@ -13,6 +13,8 @@ happened, not what was planned; superseded entries are kept.
   internal error and lost their answer. They now reserve the last permitted
   call for a summary without tools, keep it, report a translated request-limit
   notice, return ACP `max_turn_requests`, and accept a new message to continue.
+  The default is now 200 calls; an existing caller request allowance wins,
+  including `exec --max-requests` above 200. Money caps remain enforced.
 
 ### Added
 

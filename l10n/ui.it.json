@@ -325,7 +325,7 @@
     "effort": "Scegli quanto impegno Muse dedica a ogni risposta.",
     "output": "Scegliere il formato del risultato: text, json o jsonl.",
     "max-budget-usd": "Impostare il limite rigido di spesa in USD per questa esecuzione.",
-    "max-requests": "Impostare il numero massimo di richieste al modello.",
+    "max-requests": "Imposta il numero massimo di richieste. L’ultima chiamata al modello produce un riepilogo finale senza strumenti.",
     "timeout": "Impostare il limite di durata in secondi.",
     "fail-on-denial": "Fermare l’esecuzione se viene negato un permesso.",
     "ephemeral": "Tenere la sessione in memoria senza salvarla.",
@@ -3590,6 +3590,13 @@
     "other": "Sono consentiti al massimo {count} file di input.",
     "many": "Sono consentiti al massimo {count} file di input."
   },
+  "referenceTurnLimit": "I turni Model API consentono 200 chiamate al modello per impostazione predefinita. Prevalgono i limiti di richieste esistenti del chiamante. L’ultima chiamata produce un riepilogo senza strumenti; invia un messaggio per continuare.",
+  "modelApiWrapUpReserved": "La richiesta rimanente è riservata alla risposta finale. L’immagine non è stata generata.",
+  "modelApiTurnLimit": {
+    "one": "Il turno si è fermato dopo {count} chiamata al modello. Invia un messaggio per continuare.",
+    "other": "Il turno si è fermato dopo {count} chiamate al modello. Invia un messaggio per continuare.",
+    "many": "Il turno si è fermato dopo {count} chiamate al modello. Invia un messaggio per continuare."
+  },
   "execRequestCapReached": {
     "one": "Raggiunto il limite di {count} tentativo.",
     "other": "Raggiunto il limite di {count} tentativi.",
@@ -5448,11 +5455,5 @@
       "other": "{count} autorizzazioni",
       "many": "{count} autorizzazioni"
     }
-  },
-  "modelApiTurnLimit": {
-    "one": "Il turno si è fermato dopo {count} chiamata al modello. Invia un messaggio per continuare.",
-    "other": "Il turno si è fermato dopo {count} chiamate al modello. Invia un messaggio per continuare.",
-    "many": "Il turno si è fermato dopo {count} chiamate al modello. Invia un messaggio per continuare."
-  },
-  "referenceTurnLimit": "Al limite di chiamate al modello, il turno segnala un limite riprendibile. Invia un altro messaggio per continuare."
+  }
 }

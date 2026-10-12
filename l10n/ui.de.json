@@ -325,7 +325,7 @@
     "effort": "Wählen, wie viel Mühe Muse in jede Antwort steckt.",
     "output": "Das Ergebnisformat wählen: text, json oder jsonl.",
     "max-budget-usd": "Das feste Ausgabenlimit in USD für diesen Lauf festlegen.",
-    "max-requests": "Die maximale Anzahl von Modellanfragen festlegen.",
+    "max-requests": "Legt die maximale Anfragezahl fest. Der letzte Modellaufruf erstellt eine abschließende Zusammenfassung ohne Werkzeuge.",
     "timeout": "Die Laufzeitgrenze in Sekunden festlegen.",
     "fail-on-denial": "Den Lauf bei verweigerter Berechtigung stoppen.",
     "ephemeral": "Die Sitzung im Speicher halten, ohne sie zu speichern.",
@@ -3516,6 +3516,12 @@
     "one": "Höchstens {count} Eingabedatei ist erlaubt.",
     "other": "Höchstens {count} Eingabedateien sind erlaubt."
   },
+  "referenceTurnLimit": "Model API-Durchgänge sind standardmäßig auf 200 Modellaufrufe begrenzt. Vorhandene Anfragegrenzen des Aufrufers gelten. Der letzte Aufruf erstellt eine Zusammenfassung ohne Werkzeuge; senden Sie eine Nachricht, um fortzufahren.",
+  "modelApiWrapUpReserved": "Die verbleibende Anfrage ist für die abschließende Antwort reserviert. Das Bild wurde nicht erzeugt.",
+  "modelApiTurnLimit": {
+    "one": "Der Durchgang wurde nach {count} Modellaufruf angehalten. Senden Sie eine Nachricht, um fortzufahren.",
+    "other": "Der Durchgang wurde nach {count} Modellaufrufen angehalten. Senden Sie eine Nachricht, um fortzufahren."
+  },
   "execRequestCapReached": {
     "one": "Das Anfragenlimit von {count} Versuch wurde erreicht.",
     "other": "Das Anfragenlimit von {count} Versuchen wurde erreicht."
@@ -5294,10 +5300,5 @@
       "one": "{count} Freigabe",
       "other": "{count} Freigaben"
     }
-  },
-  "modelApiTurnLimit": {
-    "one": "Der Durchgang wurde nach {count} Modellaufruf angehalten. Senden Sie eine Nachricht, um fortzufahren.",
-    "other": "Der Durchgang wurde nach {count} Modellaufrufen angehalten. Senden Sie eine Nachricht, um fortzufahren."
-  },
-  "referenceTurnLimit": "Am Modellaufruflimit meldet der Durchgang eine fortsetzbare Begrenzung. Senden Sie eine weitere Nachricht, um fortzufahren."
+  }
 }

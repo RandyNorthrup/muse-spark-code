@@ -6,6 +6,7 @@ import path from 'node:path'
 import { Readable } from 'node:stream'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { createAcpAgent } from '../../src/acp/agent'
+import type { AgentSession } from '../../src/core/agent/agentBackend'
 import { createRuntimeBackend } from '../../src/runtime/backends'
 import { pinnedHttpsRequest } from '../../src/host/web/pinnedRequest'
 import { paidGrantsFile, agentDataFolder } from '../../src/runtime/dataFolder'
@@ -80,6 +81,13 @@ function imageCall() {
 
 function writeCall(file: string, content: string, callId: string) {
   return { name: 'write_file', arguments: JSON.stringify({ path: file, content }), callId }
+}
+
+/** A session exposing the task allowance port its caller binds. */
+function hasModelCallAllowancePort(
+  session: AgentSession,
+): session is AgentSession & { setModelCallAllowance: (remaining: () => number) => void } {
+  return 'setModelCallAllowance' in session && typeof session.setModelCallAllowance === 'function'
 }
 
 function setup(
@@ -234,6 +242,43 @@ async function promptAgain(client: acp.ClientContext, sessionId: string) {
 }
 
 describe('the ACP agent on the Model API backend (M63)', () => {
+  it('delivers the real Model API wrap-up before returning max_turn_requests', async () => {
+    const t = setup(allowOnce)
+    const host = await t.runtime.backend.hostFor(t.workspace)
+    const startSession = host.startSession.bind(host)
+    vi.spyOn(host, 'startSession').mockImplementation(async (options) => {
+      const session = await startSession(options)
+      // The runtime backend may build the session from its lazy bundle, so a
+      // structural port check (not instanceof) binds the caller allowance.
+      if (!hasModelCallAllowancePort(session))
+        throw new Error('Expected the real Model API allowance port')
+      // The default 200 is proved by the memory engine suite; this real disk
+      // runtime proves ACP delivery under the same caller cap without slow setup.
+      session.setModelCallAllowance(() => 3)
+      return session
+    })
+    t.api.script(
+      { calls: [{ name: 'get_goal', arguments: '{}' }] },
+      { calls: [{ name: 'get_goal', arguments: '{}' }] },
+      { text: 'Done; found; remains' },
+    )
+    const response = await t.run(async (client) => {
+      const reply = await promptOnce(client, t.workspace)
+      const text = t.updates
+        .map((update) =>
+          update.sessionUpdate === 'agent_message_chunk' && update.content.type === 'text'
+            ? update.content.text
+            : '',
+        )
+        .join('')
+      expect(text).toContain('Done; found; remains')
+      return reply
+    })
+    expect(response.stopReason).toBe('max_turn_requests')
+    expect(t.api.responseBodies()).toHaveLength(3)
+    expect(t.api.responseBodies().at(-1)).toMatchObject({ tools: [], tool_choice: 'none' })
+  })
+
   it('writes a file the client allowed, streams the reply, and never sends the key to the client', async () => {
     const t = setup(allowOnce)
     t.api.script({ calls: [writeCall('notes.txt', 'hello\n', 'c1')] }, { text: 'Wrote it.' })

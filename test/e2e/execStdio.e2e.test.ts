@@ -697,8 +697,8 @@ function start(args: readonly string[], mode = 'stdin', shouldReadOutput = true)
       USERPROFILE: WORK,
       XDG_DATA_HOME: WORK,
       LOCALAPPDATA: WORK,
-      LANG: 'C',
-      LC_ALL: 'C',
+      LANG: mode === 'toolrounds-de' ? 'de_DE.UTF-8' : 'C',
+      LC_ALL: mode === 'toolrounds-de' ? 'de_DE.UTF-8' : 'C',
       NODE_PATH: path.join(ROOT, 'node_modules'),
       M80D_CASE: mode,
       M80D_REPORT: path.join(WORK, 'report.json'),
@@ -851,22 +851,36 @@ describe('M80 E1-E7 built exec', { timeout: TIMEOUT }, () => {
           // One large synthetic delta reaches the unread pipe without spending
           // the signal test's deadline manufacturing 104,858 tiny SSE frames.
           // The same 512 KiB write stays inside exec's 32 MiB response cap.
-          api.script({text:mode === 'blocked' ? 'x'.repeat(512 * 1024) : 'ok', isSingleTextDelta:mode === 'blocked', usage:{input:10, output:5}, ...(mode === 'hold' ? {hold:new Promise(()=>{})} : {})});
-          globalThis.fetch = (url, init) => {
+          if (!mode?.startsWith('toolrounds')) api.script({text:mode === 'blocked' ? 'x'.repeat(512 * 1024) : 'ok', isSingleTextDelta:mode === 'blocked', usage:{input:10, output:5}, ...(mode === 'hold' ? {hold:new Promise(()=>{})} : {})});
+          globalThis.fetch = async (url, init) => {
             if (mode === 'crash') throw new Error('startup ' + key);
             if (String(url).endsWith('/responses')) writeFileSync(process.env.M80D_REQUEST_MARKER, 'dispatched');
+            if (mode?.startsWith('toolrounds') && String(url).endsWith('/responses')) {
+              const body = JSON.parse(init.body);
+              const wrap = body.tool_choice === 'none' && body.tools.length === 0;
+              api.script(wrap
+                ? { text: 'Done; found defects; testing remains', usage: {input:10, output:5} }
+                : { calls: [{name:'get_goal', arguments:'{}'}], usage: {input:10, output:5} });
+            }
             // The run's own key must arrive; the shared fake then sees its fixed key.
             const headers = new Headers(init?.headers);
             if (headers.get('authorization') !== 'Bearer ' + key) {
               return Promise.resolve(Response.json({ error: { message: 'bad key', type: 'authentication_error' } }, { status: 401 }));
             }
             headers.set('authorization', 'Bearer ' + FAKE_MODEL_API_KEY);
-            return api.fetch(url, { ...init, headers: Object.fromEntries(headers) });
+            const response = await api.fetch(url, { ...init, headers: Object.fromEntries(headers) });
+            if (mode?.startsWith('toolrounds')) {
+              response.headers.set('x-ratelimit-limit-requests', '1000');
+              response.headers.set('x-ratelimit-remaining-requests', '1000');
+              response.headers.set('x-ratelimit-limit-tokens', '100000000');
+              response.headers.set('x-ratelimit-remaining-tokens', '100000000');
+            }
+            return response;
           };
           const hash = value => createHash('sha256').update(value).digest('hex');
           process.on('exit', () => writeFileSync(process.env.M80D_REPORT, JSON.stringify({
             env: Object.fromEntries(Object.entries(process.env).map(([k,v]) => [k,hash(v ?? '')])),
-            argv: process.argv.map(hash), requests: api.requests.map(r => ({path:r.path, method:r.method}))
+            argv: process.argv.map(hash), requests: api.requests.map(r => ({path:r.path, method:r.method, ...(mode?.startsWith('toolrounds') && r.path === '/responses' ? { toolChoice:r.body.tool_choice, tools:r.body.tools.length, wrapNote:r.body.instructions.includes('limit of 60 model calls') } : {})}))
           })));
         `,
         resolveDir: ROOT,
@@ -906,6 +920,61 @@ describe('M80 E1-E7 built exec', { timeout: TIMEOUT }, () => {
     const output = await start([...execArgs(), flag], 'store').closed
     expect(output.code).toBe(2)
   })
+
+  it.each(['toolrounds', 'toolrounds-de'])(
+    'retains the 60-call wrap-up in the real exec process (%s)',
+    async (mode) => {
+      const run = start([...execArgs(), '--max-requests', '60', '--key-stdin'], mode)
+      run.child.stdin.end(`${KEY}\n`)
+      const output = await run.closed
+      expect(output.code, output.stderr).toBe(5)
+      expect(result(output.stdout)).toMatchObject({
+        status: 'request_cap',
+        exitCode: 5,
+        stopReason: 'max_turn_requests',
+        terminal: 'completed',
+        incompleteReason: null,
+        finalMessage: 'Done; found defects; testing remains',
+        usage: {
+          requests: 60,
+          inputTokens: 600,
+          outputTokens: 300,
+          costUsd: {
+            settled: '0.00012',
+            uncertain: '0',
+            reserved: '0',
+            total: '0.00012',
+            isUpperBound: false,
+          },
+        },
+        error: {
+          kind: 'request_cap',
+          message:
+            mode === 'toolrounds-de'
+              ? 'Der Durchgang wurde nach 60 Modellaufrufen angehalten. Senden Sie eine Nachricht, um fortzufahren.'
+              : 'The turn stopped after 60 model calls. Send a message to continue.',
+        },
+      })
+      const report = z
+        .object({
+          requests: z.array(
+            z.object({
+              path: z.string(),
+              toolChoice: z.optional(z.string()),
+              tools: z.optional(z.number()),
+              wrapNote: z.optional(z.boolean()),
+            }),
+          ),
+        })
+        .parse(JSON.parse(readFileSync(path.join(WORK, 'report.json'), 'utf8')))
+      const requests = report.requests.filter((request) => request.path === '/responses')
+      expect(requests).toHaveLength(60)
+      expect(requests.at(-1)).toMatchObject({ toolChoice: 'none', tools: 0, wrapNote: true })
+      expect(output.stdout + output.stderr).not.toContain('Internal error')
+      // Sixty real process admissions/settlements write private journals, unlike one-turn rows.
+    },
+    TIMEOUT,
+  )
 
   it.each(['stdin', 'store'])(
     'E3/E4/H2 completes using test-owned %s auth and real built engine',

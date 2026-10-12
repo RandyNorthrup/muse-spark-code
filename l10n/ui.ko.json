@@ -325,7 +325,7 @@
     "effort": "각 답변에 Muse가 들이는 노력을 선택합니다.",
     "output": "결과 형식을 text, json 또는 jsonl로 선택합니다.",
     "max-budget-usd": "이 실행의 엄격한 지출 한도를 USD로 설정합니다.",
-    "max-requests": "최대 모델 요청 수를 설정합니다.",
+    "max-requests": "최대 요청 수를 설정합니다. 마지막 모델 호출은 도구 없이 최종 요약을 작성합니다.",
     "timeout": "실행 시간 제한을 초 단위로 설정합니다.",
     "fail-on-denial": "권한이 거부되면 실행을 중지합니다.",
     "ephemeral": "저장하지 않고 세션을 메모리에 유지합니다.",
@@ -3442,6 +3442,11 @@
   "execTooManyFiles": {
     "other": "입력 파일은 최대 {count}개까지 허용됩니다."
   },
+  "referenceTurnLimit": "Model API 턴은 기본적으로 모델 호출 200회까지 허용합니다. 호출자의 기존 요청 제한이 우선합니다. 마지막 호출은 도구 없이 요약을 작성합니다. 계속하려면 메시지를 보내세요.",
+  "modelApiWrapUpReserved": "남은 요청은 최종 답변을 위해 예약되었습니다. 이미지는 생성되지 않았습니다.",
+  "modelApiTurnLimit": {
+    "other": "모델 호출이 {count}회에 도달하여 턴이 중지되었습니다. 계속하려면 메시지를 보내세요."
+  },
   "execRequestCapReached": {
     "other": "요청 시도 한도 {count}회에 도달했습니다."
   },
@@ -5140,9 +5145,5 @@
     "grantsCount": {
       "other": "{count} 개 권한"
     }
-  },
-  "modelApiTurnLimit": {
-    "other": "모델 호출이 {count}회에 도달하여 턴이 중지되었습니다. 계속하려면 메시지를 보내세요."
-  },
-  "referenceTurnLimit": "모델 호출 제한에 도달하면 턴은 재개 가능한 제한을 알립니다. 계속하려면 다른 메시지를 보내세요."
+  }
 }

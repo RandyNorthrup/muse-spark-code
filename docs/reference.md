@@ -1320,7 +1320,7 @@ Shared daily budget for interactive paid extras: USD.
 
 Shared daily budget for interactive paid extras: museSpark.paidDailyBudgetUsd. Tab has its own separate budget.
 
-At the model-call turn limit, the turn reports a resumable limit. Send another message to continue.
+Model API turns default to 200 model calls. Existing caller request limits win. The last call produces a summary without tools; send a message to continue.
 
 Surfaces: vscode:modelApi, acp:modelApi. Paid: no extra feature charge; model usage still applies.
 
@@ -3616,7 +3616,7 @@ These are defaults; editor customizations take precedence.
 - `exec: --effort <value>`: Choose how much effort Muse puts into each reply. `{"type":"string","repeatable":false,"enum":["minimal","low","medium","high","xhigh","max"],"purpose":"effort"}`
 - `exec: --output <value>`: Choose the result format: text, json or jsonl. `{"type":"string","repeatable":false,"enum":["text","json","jsonl"],"default":"text","purpose":"output"}`
 - `exec: --max-budget-usd <value>`: Set the hard spending limit in USD for this run. `{"type":"string","repeatable":false,"exclusiveMinimum":0,"maximum":20,"decimals":6,"required":"modelApi","unit":"USD","purpose":"max-budget-usd"}`
-- `exec: --max-requests <value>`: Set the maximum number of model requests. `{"type":"string","repeatable":false,"default":30,"minimum":1,"maximum":500,"purpose":"maxRequests"}`
+- `exec: --max-requests <value>`: Set the maximum request allowance. The last model call produces a final summary without tools. `{"type":"string","repeatable":false,"default":30,"minimum":1,"maximum":500,"purpose":"maxRequests"}`
 - `exec: --timeout <value>`: Set the run deadline in seconds. `{"type":"string","repeatable":false,"default":1800,"minimum":10,"maximum":21600,"unit":"seconds","purpose":"timeoutMs"}`
 - `exec: --muse-binary <value>`: --muse-binary &lt;path&gt; The Muse Code CLI to run `{"type":"string","repeatable":false,"purpose":"muse-binary"}`
 - `exec: --shell-sandbox <value>`: --shell-sandbox auto|muse|off Muse Code’s shell sandbox `{"type":"string","repeatable":false,"enum":["auto","muse","off"],"default":"auto","purpose":"shell-sandbox"}`

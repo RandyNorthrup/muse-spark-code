@@ -548,6 +548,9 @@ export function encodeChatRequest(
   // A trailing developer message is request-only progress (M101), so the
   // rolling marker belongs to the preceding historical native message.
   const suffix = body.input.at(-1)
+  // A wrap-up request disables tools: profiles with an explicit choice send
+  // `none`, the rest omit declarations and choice.
+  const wrapUpChoice = quirks.toolChoice === 'auto' ? { tool_choice: 'none' as const } : {}
   const request: ChatCompletionRequest = {
     model,
     messages: markBreakpoints(
@@ -556,9 +559,7 @@ export function encodeChatRequest(
       suffix?.type === 'message' && suffix.role === 'developer',
     ),
     ...(body.tool_choice === 'none'
-      ? quirks.toolChoice === 'omit'
-        ? {}
-        : { tool_choice: 'none' as const }
+      ? wrapUpChoice
       : nativeTools.length > 0 && {
           tools: nativeTools,
           ...(quirks.toolChoice !== 'omit' && { tool_choice: 'auto' as const }),

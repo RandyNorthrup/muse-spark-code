@@ -76,6 +76,8 @@ import { acpMediaIo } from './helpers/acpMediaIo'
 import { videoFixture } from './helpers/media/fixtures'
 import { mediaModel } from './helpers/media/replay'
 
+// Sixty real runtime admissions/settlements fsync their private journals (11.4 s on this rig).
+const SIXTY_REQUEST_RUNTIME_TIMEOUT_MS = 30_000
 const actualMemoryStore = keyInput.memorySecretStore
 
 function notification(method: string, params: Record<string, unknown>) {
@@ -1190,6 +1192,72 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
     expect(result(r).status).toBe('request_cap')
     expect(h.api.responseBodies()).toHaveLength(2)
   })
+  it('reserves the last headless request for wrap-up before an image can spend it', async () => {
+    const h = await harness(
+      ['--max-requests', '2', '--permission-mode', 'acceptEdits', '--image-generation'],
+      [{ calls: [image('reserved.png')] }, { text: 'Image remains; request limit reached' }],
+    )
+    const r = await h.run()
+    expect(result(r)).toMatchObject({
+      status: 'request_cap',
+      finalMessage: 'Image remains; request limit reached',
+      usage: { requests: 2, paid: { imageAttempts: 0 } },
+    })
+    expect(h.api.requests.filter((request) => request.path.startsWith('/images/'))).toEqual([])
+    expect(h.api.responseBodies().at(-1)).toMatchObject({ tools: [], tool_choice: 'none' })
+    expect(existsSync(path.join(h.cwd, 'reserved.png'))).toBe(false)
+  })
+  it(
+    'uses the full 60-request allowance and retains the wrap-up with settled accounting',
+    async () => {
+      const cap = 60
+      const h = await harness(
+        ['--max-requests', String(cap)],
+        [
+          ...Array.from({ length: cap - 1 }, () => ({
+            calls: [{ name: 'get_goal', arguments: '{}' }],
+            usage: { input: 10, output: 5 },
+          })),
+          { text: 'Done; findings; remaining work', usage: { input: 10, output: 5 } },
+        ],
+      )
+      const fetch = h.deps.fetch
+      h.deps.fetch = async (url, init) => {
+        const response = await fetch(url, init)
+        response.headers.set('x-ratelimit-limit-requests', '1000')
+        response.headers.set('x-ratelimit-remaining-requests', '1000')
+        response.headers.set('x-ratelimit-limit-tokens', '100000000')
+        response.headers.set('x-ratelimit-remaining-tokens', '100000000')
+        return response
+      }
+      const r = await h.run()
+      expect(result(r)).toMatchObject({
+        status: 'request_cap',
+        exitCode: 5,
+        terminal: 'completed',
+        stopReason: 'max_turn_requests',
+        incompleteReason: null,
+        finalMessage: 'Done; findings; remaining work',
+        usage: {
+          requests: cap,
+          inputTokens: 600,
+          outputTokens: 300,
+          costUsd: {
+            settled: '0.00012',
+            uncertain: '0',
+            reserved: '0',
+            total: '0.00012',
+            isUpperBound: false,
+          },
+        },
+        error: { kind: 'request_cap', message: expect.stringContaining('60 model calls') },
+      })
+      expect(h.api.responseBodies()).toHaveLength(cap)
+      expect(h.api.responseBodies().at(-1)).toMatchObject({ tools: [], tool_choice: 'none' })
+      expect(r.events).toContainEqual(expect.objectContaining({ type: 'limit', limit: 'requests' }))
+    },
+    SIXTY_REQUEST_RUNTIME_TIMEOUT_MS,
+  )
   it('D8/L9 too-small start budget names rounded minimum before billable dispatch', async () => {
     const h = await harness(['--max-budget-usd', '0.108134'])
     const r = await h.run()

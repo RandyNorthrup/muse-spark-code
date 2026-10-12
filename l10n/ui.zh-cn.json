@@ -325,7 +325,7 @@
     "effort": "选择 Muse 在每条回答上投入的工作量。",
     "output": "选择结果格式：text、json或jsonl。",
     "max-budget-usd": "以USD设置本次运行的硬性支出上限。",
-    "max-requests": "设置模型请求次数上限。",
+    "max-requests": "设置请求数量上限。最后一次模型调用不使用工具并生成最终总结。",
     "timeout": "以秒设置运行时间上限。",
     "fail-on-denial": "权限被拒绝时停止运行。",
     "ephemeral": "将会话保留在内存中，不保存。",
@@ -3442,6 +3442,11 @@
   "execTooManyFiles": {
     "other": "最多允许 {count} 个输入文件。"
   },
+  "referenceTurnLimit": "Model API 每轮默认最多调用模型 200 次。调用方现有的请求上限优先。最后一次调用不使用工具并生成总结；发送消息以继续。",
+  "modelApiWrapUpReserved": "剩余请求已保留用于最终回答。图像未生成。",
+  "modelApiTurnLimit": {
+    "other": "本轮在调用模型 {count} 次后停止。发送消息以继续。"
+  },
   "execRequestCapReached": {
     "other": "已达到 {count} 次请求尝试的上限。"
   },
@@ -5140,9 +5145,5 @@
     "grantsCount": {
       "other": "{count} 个授权"
     }
-  },
-  "modelApiTurnLimit": {
-    "other": "本轮在调用模型 {count} 次后停止。发送消息以继续。"
-  },
-  "referenceTurnLimit": "达到模型调用上限时，本轮提示可继续的限制。发送另一条消息以继续。"
+  }
 }

@@ -1117,6 +1117,8 @@ interface PreparedAudioMessage {
 }
 
 export interface ActiveTurn {
+  modelCalls: number
+  modelCallLimit: number
   /** Request-only wrap-up instruction, never persisted into conversation replay. */
   wrapUpLimit?: number | undefined
   readonly draft?: PreparedGitDraft
@@ -1611,6 +1613,10 @@ function contextModelFor(deps: ModelApiHostDeps, modelId: string): ContextModel 
     contextTokens:
       window !== undefined && Number.isSafeInteger(window) && window > 0 ? window : undefined,
   }
+}
+
+class WrapUpRequiredError extends Error {
+  public override readonly name = 'WrapUpRequiredError'
 }
 
 class AbortedError extends Error {
@@ -2505,6 +2511,7 @@ export class ModelApiSession implements ScheduledAgentSession {
   private teamRosterStable: string | undefined
   /** The contributor-tier models the user said yes to for an agent's run, in this session (M76). */
   private readonly confirmedContributorModels = new Set<string>()
+  private modelCallAllowance: (() => number) | undefined
   private childTaskGrant: ChildTaskGrant | undefined
   /**
    * A child's top turn (M86, spec 3.2): the parent's turn that spawned it,
@@ -4371,7 +4378,12 @@ export class ModelApiSession implements ScheduledAgentSession {
       this.getScheduledRun() === undefined ? this.promptDate : localPromptDate(this.deps.now()),
       resolved,
     )
-    const wrapUpLimit = this.active?.wrapUpLimit
+    const turn = this.active
+    if (turn !== undefined && this.compacting === undefined) {
+      const remaining = this.modelCallsLeft(turn)
+      turn.wrapUpLimit = remaining <= 1 ? turn.modelCalls + Math.max(0, remaining) : undefined
+    }
+    const wrapUpLimit = this.compacting === undefined ? turn?.wrapUpLimit : undefined
     const body = this.keyed({
       model: resolved.ref,
       input,
@@ -4787,6 +4799,14 @@ export class ModelApiSession implements ScheduledAgentSession {
     const expectedKeyDigest = this.modelKeyDigests.get(body.model)
     const revision = this.modelRevision
     const guard: ResponseAttemptGuard = (keyDigest) => {
+      const turn = this.active
+      if (
+        !isCompaction &&
+        directBudget === undefined &&
+        turn !== undefined &&
+        turn.modelCalls >= turn.modelCallLimit
+      )
+        throw new ModelCallLimitError(turn.modelCalls)
       this.isSendingCompaction = isCompaction
       // Compaction must remain reachable even when ordinary turns no longer fit (D49).
       this.sendingContextModel =
@@ -4942,7 +4962,22 @@ export class ModelApiSession implements ScheduledAgentSession {
         if (reservation !== undefined && settlement.isTerminal)
           reservation.hasTerminalSearchCount = true
       },
+      beforeRetry: () => {
+        const turn = this.active
+        if (isCompaction || directBudget !== undefined || turn === undefined) return
+        const left = this.modelCallsLeft(turn)
+        if (left <= 0) throw new ModelCallLimitError(turn.modelCalls)
+        if (left === 1 && body.tool_choice !== 'none') throw new WrapUpRequiredError()
+      },
       onRequestStarted: () => {
+        const currentTurn = this.active
+        if (
+          !isCompaction &&
+          directBudget === undefined &&
+          currentTurn !== undefined &&
+          currentTurn.turnId === turnId
+        )
+          currentTurn.modelCalls += 1
         this.noteVaultRequest(body)
         if (!isCompaction && directBudget === undefined) {
           const turnIds = this.replay.map((entry) => entry.turnId)
@@ -5864,6 +5899,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         } else {
           this.settleCutShort(open, turnId)
         }
+        if (error instanceof WrapUpRequiredError && !signal.aborted) continue
         if (error instanceof PaidQuoteChangedError && !signal.aborted) {
           await this.refreshSearchConsent(signal)
           continue
@@ -7821,6 +7857,9 @@ export class ModelApiSession implements ScheduledAgentSession {
     signal: AbortSignal,
     admission: Admission,
   ): Promise<ToolOutcome> {
+    const remaining = this.deps.remainingModelCalls?.()
+    if (remaining !== undefined && remaining <= 1)
+      return toolFailure(MODEL_API_MODEL_TEXT.wrapUpReserved, UI_TEXT.modelApiWrapUpReserved)
     const revision = this.modelRevision
     const selected = this.selectedModel()
     const run = this.active?.scheduleRun
@@ -13402,6 +13441,19 @@ export class ModelApiSession implements ScheduledAgentSession {
       : this.team.appendTeamEvents(name, outcome, () => this.deps.takeTeamChanges?.(this.sessionId))
   }
 
+  private callerModelCallsLeft(): number | undefined {
+    // A paid child grant is not a turn-call allowance: admitChildAttempt
+    // refuses the attempt past the grant with ChildTaskRefusedError, so the
+    // grant's tool calls are never reserved for a wrap-up here and the stop
+    // stays the child's own typed refusal.
+    return this.modelCallAllowance?.() ?? this.deps.remainingModelCalls?.()
+  }
+
+  private modelCallsLeft(turn: ActiveTurn): number {
+    const own = turn.modelCallLimit - turn.modelCalls
+    return Math.min(own, this.callerModelCallsLeft() ?? own)
+  }
+
   private async loop(turn: ActiveTurn): Promise<void> {
     this.repeatGuard.reset()
     const { signal } = turn.abort
@@ -13409,10 +13461,9 @@ export class ModelApiSession implements ScheduledAgentSession {
     let isStopHookActive = false
     let stopContinuations = 0
     let outputContinuations = 0
-    const callLimit = this.deps.remainingModelCalls?.() ?? MODEL_API_MAX_TOOL_ROUNDS
+    const callLimit = turn.modelCallLimit
     for (let round = 0; round < callLimit; round += 1) {
-      const isLastRound = round === callLimit - 1
-      turn.wrapUpLimit = isLastRound ? callLimit : undefined
+      if (this.modelCallsLeft(turn) <= 0) break
       if (isAbortRequested(signal)) {
         throw new AbortedError()
       }
@@ -13486,7 +13537,7 @@ export class ModelApiSession implements ScheduledAgentSession {
           streamed.incompleteReason === 'max_output_tokens' &&
           this.outputContinuation &&
           outputContinuations < MODEL_API_CONTINUATIONS_MAX &&
-          round < callLimit - 1
+          this.modelCallsLeft(turn) > 0
         ) {
           outputContinuations += 1
           this.emit({ type: 'backendNotice', level: 'info', text: UI_TEXT.modelApiContinuing })
@@ -13505,12 +13556,12 @@ export class ModelApiSession implements ScheduledAgentSession {
         }
         return
       }
-      if (isLastRound) {
+      if (turn.wrapUpLimit !== undefined) {
         // A provider ignoring the tools-disabled request cannot execute work.
         this.skipCalls(
           turn.turnId,
           calls,
-          fill(MODEL_API_MODEL_TEXT.turnWrapUp, { limit: callLimit }),
+          fill(MODEL_API_MODEL_TEXT.turnWrapUp, { limit: turn.wrapUpLimit }),
         )
         this.appendHookContexts(turn.turnId, postContexts)
         break
@@ -13703,13 +13754,15 @@ export class ModelApiSession implements ScheduledAgentSession {
         this.dropUndeliveredMedia(turn.turnId)
         return
       }
-      const verifyStop = await this.verifyRound(turn, isLastRound)
+      const verifyStop = await this.verifyRound(turn, this.modelCallsLeft(turn) <= 0)
       if (verifyStop !== undefined) {
         // A check's hook stopped the turn after the round, as PostToolBatch can.
         this.dropUndeliveredMedia(turn.turnId)
         return
       }
       this.autoCompact.noteToolWork()
+      // Automatic compaction never spends the reserved wrap-up slot.
+      if (this.modelCallsLeft(turn) <= 1) continue
       const compacted = await this.maybeAutoCompact(turn)
       if (this.stopAfterAutoCompaction(turn, compacted, wasBudgetLimited)) return
     }
@@ -13721,7 +13774,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     }
     this.promoteSteered(turn)
     this.outcomeStopReason = 'budget'
-    throw new ModelCallLimitError(callLimit)
+    throw new ModelCallLimitError(turn.modelCalls)
   }
 
   /** Child turns share checkpoint ownership with their top parent, even after it finishes. */
@@ -13844,6 +13897,8 @@ export class ModelApiSession implements ScheduledAgentSession {
       inputParts: [...queued.parts],
       steered: [],
       acceptedTextAttachmentBytes: textAttachmentBytes(queued.parts),
+      modelCalls: 0,
+      modelCallLimit: this.callerModelCallsLeft() ?? MODEL_API_MAX_TOOL_ROUNDS,
       modelFailure: undefined,
       goalWakePending: false,
       isWebSearchAllowed: false,
@@ -14087,12 +14142,18 @@ export class ModelApiSession implements ScheduledAgentSession {
             errorKind = CHATGPT_PLAN_LIMIT_ERROR_KIND
           else errorKind = isAuthFailure(error) ? AUTH_REQUIRED_ERROR_KIND : MODEL_API_ERROR_KIND
         }
-        this.deps.log.warn(
-          error instanceof HookStoppedError
-            ? `Model API turn ${turn.turnId} stopped by a hook`
-            : `Model API turn ${turn.turnId} failed: ${reason}`,
-        )
-        if (turn.modelFailure !== undefined && !(error instanceof ChildTaskRefusedError)) {
+        let turnEndMessage = `Model API turn ${turn.turnId} failed: ${reason}`
+        if (error instanceof ModelCallLimitError) {
+          turnEndMessage = `Model API turn ${turn.turnId} reached its model-call limit`
+        } else if (error instanceof HookStoppedError) {
+          turnEndMessage = `Model API turn ${turn.turnId} stopped by a hook`
+        }
+        this.deps.log.warn(turnEndMessage)
+        if (
+          turn.modelFailure !== undefined &&
+          !(error instanceof ChildTaskRefusedError) &&
+          !(error instanceof ModelCallLimitError)
+        ) {
           const lastAssistantMessage = this.transcript.findLast(
             (entry) => entry.item.turnId === turn.turnId && entry.item.kind === 'agentMessage',
           )?.item.text
@@ -15763,6 +15824,11 @@ export class ModelApiSession implements ScheduledAgentSession {
     requestFor?: (turnId: string) => ConfirmedModelRequest,
   ): Promise<TurnSubmission> {
     return this.submitTurn(parts, displayText, false, requestFor)
+  }
+
+  /** Task adapters bind their existing allowance without adding a second cap. */
+  public setModelCallAllowance(remaining: (() => number) | undefined): void {
+    this.modelCallAllowance = remaining
   }
 
   /**
