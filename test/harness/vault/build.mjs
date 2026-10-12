@@ -44,5 +44,20 @@ export async function buildVaultSurfaces(outdir, hasHarness = false) {
     plugins: [sharedUiText, sharedValidation],
     logLevel: 'silent',
   })
-  return { browser: browser.metafile, host: host.metafile }
+  // RVAPP-CM1091D5 BYTES: the explicit-action code loads on the first action
+  // that needs it, never when the panel opens.
+  const actions = await build({
+    entryPoints: ['src/host/vault/vaultActionsEntry.ts'],
+    outfile: path.join(outdir, 'vaultActions.js'),
+    bundle: true,
+    minify: true,
+    metafile: true,
+    platform: 'node',
+    format: 'cjs',
+    target: 'node20.18',
+    external: ['vscode'],
+    plugins: [sharedUiText, sharedValidation],
+    logLevel: 'silent',
+  })
+  return { browser: browser.metafile, host: host.metafile, actions: actions.metafile }
 }

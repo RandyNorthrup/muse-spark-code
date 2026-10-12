@@ -12,7 +12,6 @@ import type {
   VaultItemMetadata,
 } from '../../../shared/vault'
 import type { VaultBrokerEvent, VaultBrokerSnapshot } from '../../../shared/vaultProtocol'
-import { encodeVaultMaterial } from '../crypto'
 import type { VaultBrokerClient } from './client'
 import type { VaultChannelResponse } from './frames'
 import type { VaultImportReport, VaultManagementRefusal } from './ports'
@@ -71,7 +70,15 @@ function expectOk(response: VaultChannelResponse['response']): void {
 }
 
 export class VaultManageSession {
-  constructor(private readonly connect: VaultConnect) {}
+  /**
+   * `encode` is injected so the vault's opening bundle never carries the
+   * write-only crypto: the panel passes the lazily loaded actions bundle's
+   * encoder, the CLI its direct one (RVAPP-CM1091D5 BYTES).
+   */
+  constructor(
+    private readonly connect: VaultConnect,
+    private readonly encodeMaterial?: (material: VaultItem['material']) => Buffer,
+  ) {}
 
   /**
    * `authorize` runs after the connection is acquired, immediately before the
@@ -142,7 +149,10 @@ export class VaultManageSession {
   }
   /** add when the id is new, edit otherwise; the encoded material is erased after sending. */
   async write(item: VaultItem, isEdit: boolean, authorize?: () => void): Promise<void> {
-    const encoded = encodeVaultMaterial(item.material)
+    // Unwired only in a test that never writes: both production sessions
+    // inject their encoder at construction.
+    if (this.encodeMaterial === undefined) throw new Error(UI_TEXT.vault.operationFailed)
+    const encoded = this.encodeMaterial(item.material)
     try {
       expectOk(
         await this.simple(

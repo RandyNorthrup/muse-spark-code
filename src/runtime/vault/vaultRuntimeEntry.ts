@@ -22,6 +22,7 @@ import {
   type VaultBrokerPort,
 } from '../../shared/vaultProtocol'
 import { VaultBrokerClient } from '../../core/vault/broker/client'
+import { encodeVaultMaterial } from '../../core/vault/crypto'
 import {
   isCancelled,
   VaultManageSession,
@@ -207,7 +208,7 @@ export async function createRuntimeVault(
   const broker = new VaultBrokerProcess(platform.discovery, platform.process)
   const connect: VaultConnect = async () =>
     await VaultBrokerClient.open(await broker.get(), hostId, hostSession, platform.peers)
-  const session = new VaultManageSession(connect)
+  const session = new VaultManageSession(connect, encodeVaultMaterial)
   return {
     commands: () => Promise.resolve(vaultCommandPort(session)),
     exec: {

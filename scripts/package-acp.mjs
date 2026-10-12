@@ -66,6 +66,7 @@ const BUNDLES = [
   'runtimeEngine.js',
   'modelApiBoundaries.js',
   'vaultRuntime.js',
+  'vaultActions.js',
   'vaultBoundaries.js',
   'estimateContracts.js',
   'legalScan.js',
