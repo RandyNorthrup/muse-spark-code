@@ -6,7 +6,7 @@ import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import * as esbuild from 'esbuild'
 
-async function buildConfine(directory) {
+export async function buildConfine(directory) {
   if (process.platform !== 'linux') throw new Error('B1 requires the macOS capture on this host')
   if (!['x64', 'arm64'].includes(process.arch)) throw new Error('Unsupported B1 architecture')
   const keys = [
