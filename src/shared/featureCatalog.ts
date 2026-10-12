@@ -583,6 +583,7 @@ export function featureCatalog(): readonly Feature[] {
       'agent-loop-guarantees',
       ['museCode'],
     ),
+    // ACP and exec use the selected provider summary's known effort levels.
     feature('effort', { ui: 'effortItem' }, { tip: 'effort' }, [], [], 'the-panel'),
     feature(
       'custom-agents',

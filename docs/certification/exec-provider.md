@@ -163,3 +163,24 @@ Registry-style ACP initialize now offers only actual sign-ins: Muse Code login
 The terminal/manual initialize and authenticate tests plus factory test failed
 before the repair (auth-red.log); final runtimeChatGpt/acpAgent 177/177 at
 default timeout. No external registry/network call was made.
+
+## Round 2 effort and persistent history probes
+
+Provider registry summaries now carry only known supported effort values. ACP's
+picker and validation read the selected summary; exec reads ACP's advertised
+options, including xhigh for the catalogue's Opus row. Unsupported choices name
+--effort and the permitted technical values in the installed language. The
+registry and ACP regression tests failed before repair (effort-red.log).
+Final modelApiProviders/execProvider/execRun: 165/165, repository default timeout.
+The loopback Anthropic request asserts output_config.effort=xhigh, using the
+existing capture and locally configured capability overrides.
+
+The initial persistent-history drill failed for all five families because its
+owned fixture did not build usageService.js. Building the real writer entry
+eliminated the warning. A second exploratory run used the actual production dist
+and asserted one durable usage record per family: 124/124, including exact tokens.
+Final regressions use only owned builds (no cold-checkout dist coupling).
+The original real-store warning is not reproduced by these healthy synthetic
+stores; no warning was suppressed on persistent runs and no owner's store read.
+STREAMCLASS owns streaming helper deadlines, typed idle errors, Copilot idle
+limits and upload progress limits. TOOLROUNDS owns the tool-loop ceiling.

@@ -13,7 +13,12 @@ import type {
   SessionGoal,
   TodoItem,
 } from '../../shared/agentEvents'
-import type { GoalCommandVerb, ModelPricing, SubagentAction } from '../../shared/constants'
+import type {
+  EffortLevel,
+  GoalCommandVerb,
+  ModelPricing,
+  SubagentAction,
+} from '../../shared/constants'
 import type { PlanUsageRow, SubscriptionUsage } from '../../shared/usage'
 export type { QuestionDeferralPort } from '../../shared/questions'
 import type {
@@ -264,6 +269,7 @@ export interface ModelSummary {
    * prices only where the provider prices the model; `trainsOnContent`
    * hides the model in a confidential workspace.
    */
+  readonly effortLevels?: readonly EffortLevel[] | undefined
   readonly providerId?: string | undefined
   readonly providerLabel?: string | undefined
   readonly pricing?: ModelPricing | undefined

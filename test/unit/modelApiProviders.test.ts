@@ -230,6 +230,18 @@ describe('registry dispatch through the real host', () => {
     }
   })
 
+  it('advertises only each selected model’s documented effort levels', async () => {
+    const h = await setup()
+    try {
+      const listed = await h.host.listModels()
+      expect(listed.find((entry) => entry.modelId === ref)).toMatchObject({
+        effortLevels: ['low', 'high'],
+      })
+    } finally {
+      await h.host.close()
+    }
+  })
+
   it('runs an actual workspace tool through the selected client with its output and effort caps', async () => {
     const h = await setup()
     try {

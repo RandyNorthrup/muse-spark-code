@@ -17,6 +17,8 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- ACP and headless runs offer each provider model’s recorded effort levels, including Opus `xhigh`, and list allowed values when a choice is refused.
+
 - ACP sign-in choices include ChatGPT Add; Remove and Status remain terminal commands.
 
 - Headless provider runs accept configured native model IDs containing slashes; provider setup accepts repeated `--model` flags.
