@@ -1,0 +1,118 @@
+// The dist chunks the product loads by file name (RVMODELAPIDIETB P2,
+// PLAN.md D6): lazy bundles, workers and webview scripts, plus the
+// activation entry the manifest loads. The single authority for those
+// names: test/unit/lazyBundleFiles.test.ts fails any string or template
+// in src that names a dist file outside this table, and
+// test/unit/packagedBundles.test.mjs fails a table entry the packages do
+// not carry or the build does not emit. Register a new filename-loaded
+// chunk here before its loader names it.
+export interface LazyBundleEntry {
+  /** The chunk's path below dist/, e.g. 'tab.js' or 'webview/models.js'. */
+  readonly file: string
+  /** The VSIX carries it (.vscodeignore). */
+  readonly vsix: boolean
+  /** The agent npm package carries it (scripts/lib/acpBundles.mjs). */
+  readonly acp: boolean
+}
+
+export const LAZY_BUNDLE_FILES = {
+  acp: { file: 'acp.js', vsix: false, acp: true },
+  acpPlaybook: { file: 'acpPlaybook.js', vsix: false, acp: true },
+  acpQuestions: { file: 'acpQuestions.js', vsix: false, acp: true },
+  agentImport: { file: 'agentImport.js', vsix: true, acp: false },
+  browserCheck: { file: 'browserCheck.js', vsix: true, acp: false },
+  browserRuntime: { file: 'browserRuntime.js', vsix: true, acp: false },
+  bundledSkills: { file: 'bundledSkills.js', vsix: true, acp: false },
+  checkpointStore: { file: 'checkpointStore.js', vsix: true, acp: false },
+  codeIntel: { file: 'codeIntel.js', vsix: true, acp: false },
+  configuredProviders: { file: 'configuredProviders.js', vsix: true, acp: true },
+  conversation: { file: 'conversation.js', vsix: true, acp: false },
+  conversationGit: { file: 'conversationGit.js', vsix: true, acp: false },
+  estimateContracts: { file: 'estimateContracts.js', vsix: true, acp: true },
+  estimator: { file: 'estimator.js', vsix: true, acp: true },
+  extension: { file: 'extension.js', vsix: true, acp: false },
+  extensionHooks: { file: 'extensionHooks.js', vsix: true, acp: true },
+  fontsInstall: { file: 'fontsInstall.js', vsix: false, acp: true },
+  foreignHooks: { file: 'foreignHooks.js', vsix: true, acp: true },
+  hookRuntime: { file: 'hookRuntime.js', vsix: true, acp: true },
+  imageResizeWorker: { file: 'imageResizeWorker.js', vsix: true, acp: true },
+  judge: { file: 'judge.js', vsix: true, acp: false },
+  legalScan: { file: 'legalScan.js', vsix: true, acp: true },
+  mcpPool: { file: 'mcpPool.js', vsix: true, acp: true },
+  mcpVault: { file: 'mcpVault.js', vsix: true, acp: false },
+  media: { file: 'media.js', vsix: true, acp: true },
+  modelApi: { file: 'modelApi.js', vsix: true, acp: true },
+  modelApiBoundaries: { file: 'modelApiBoundaries.js', vsix: true, acp: true },
+  modelApiCodeIntel: { file: 'modelApiCodeIntel.js', vsix: true, acp: true },
+  modelApiHooks: { file: 'modelApiHooks.js', vsix: true, acp: true },
+  modelApiMcp: { file: 'modelApiMcp.js', vsix: true, acp: true },
+  modelApiSessions: { file: 'modelApiSessions.js', vsix: true, acp: false },
+  modelApiTools: { file: 'modelApiTools.js', vsix: true, acp: true },
+  modelsPanel: { file: 'modelsPanel.js', vsix: true, acp: false },
+  museCodeReviewer: { file: 'museCodeReviewer.js', vsix: true, acp: false },
+  pageWorker: { file: 'pageWorker.js', vsix: true, acp: true },
+  planMarkdown: { file: 'planMarkdown.js', vsix: true, acp: false },
+  pluginHooks: { file: 'pluginHooks.js', vsix: true, acp: true },
+  prompts: { file: 'prompts.js', vsix: true, acp: false },
+  providerCatalog: { file: 'providerCatalog.js', vsix: true, acp: true },
+  providerPolicy: { file: 'providerPolicy.js', vsix: true, acp: true },
+  providers: { file: 'providers.js', vsix: true, acp: true },
+  questionNotes: { file: 'questionNotes.js', vsix: true, acp: true },
+  recorder: { file: 'recorder.js', vsix: true, acp: true },
+  reference: { file: 'reference.js', vsix: true, acp: true },
+  report: { file: 'report.js', vsix: true, acp: false },
+  reporting: { file: 'reporting.js', vsix: true, acp: true },
+  reportingDestinations: { file: 'reportingDestinations.js', vsix: true, acp: true },
+  reportingNetwork: { file: 'reportingNetwork.js', vsix: true, acp: true },
+  reportingPanel: { file: 'reportingPanel.js', vsix: true, acp: false },
+  resourceAdmission: { file: 'resourceAdmission.js', vsix: true, acp: true },
+  resourceGovernor: { file: 'resourceGovernor.js', vsix: true, acp: true },
+  resourceJournal: { file: 'resourceJournal.js', vsix: true, acp: true },
+  resourceProcess: { file: 'resourceProcess.js', vsix: true, acp: true },
+  review: { file: 'review.js', vsix: true, acp: false },
+  reviewer: { file: 'reviewer.js', vsix: true, acp: true },
+  runtimeAccounts: { file: 'runtimeAccounts.js', vsix: false, acp: true },
+  runtimeQuestions: { file: 'runtimeQuestions.js', vsix: false, acp: true },
+  schedules: { file: 'schedules.js', vsix: true, acp: true },
+  screenRecord: { file: 'screenRecord.js', vsix: true, acp: false },
+  searchWorker: { file: 'searchWorker.js', vsix: true, acp: true },
+  sessionBoard: { file: 'sessionBoard.js', vsix: true, acp: false },
+  sharingRuntime: { file: 'sharingRuntime.js', vsix: false, acp: true },
+  structuredSchema: { file: 'structuredSchema.js', vsix: true, acp: true },
+  subscriptions: { file: 'subscriptions.js', vsix: true, acp: true },
+  tab: { file: 'tab.js', vsix: true, acp: false },
+  team: { file: 'team.js', vsix: true, acp: true },
+  teamRunners: { file: 'teamRunners.js', vsix: true, acp: true },
+  teamScheduler: { file: 'teamScheduler.js', vsix: true, acp: true },
+  uiText: { file: 'uiText.js', vsix: true, acp: true },
+  uiTextHooks: { file: 'uiTextHooks.js', vsix: true, acp: true },
+  uiTextMedia: { file: 'uiTextMedia.js', vsix: true, acp: true },
+  uiTextRuntime: { file: 'uiTextRuntime.js', vsix: true, acp: true },
+  uiTextSurfaces: { file: 'uiTextSurfaces.js', vsix: true, acp: true },
+  usageCompanion: { file: 'usageCompanion.js', vsix: true, acp: true },
+  usagePanel: { file: 'usagePanel.js', vsix: true, acp: false },
+  usageService: { file: 'usageService.js', vsix: true, acp: true },
+  validation: { file: 'validation.js', vsix: true, acp: true },
+  vault: { file: 'vault.js', vsix: true, acp: true },
+  vaultBoundaries: { file: 'vaultBoundaries.js', vsix: true, acp: true },
+  voice: { file: 'voice.js', vsix: true, acp: false },
+  webFetch: { file: 'webFetch.js', vsix: true, acp: true },
+  webviewMain: { file: 'webview/main.js', vsix: true, acp: false },
+  webviewModels: { file: 'webview/models.js', vsix: true, acp: false },
+  webviewReferencePage: { file: 'webview/referencePage.js', vsix: true, acp: false },
+  webviewReportingDestinations: {
+    file: 'webview/reportingDestinations.js',
+    vsix: true,
+    acp: false,
+  },
+  webviewReportingPage: { file: 'webview/reportingPage.js', vsix: true, acp: false },
+  webviewResourceHistory: { file: 'webview/resourceHistory.js', vsix: true, acp: false },
+  webviewResourceSurface: { file: 'webview/resourceSurface.js', vsix: true, acp: false },
+  webviewUsage: { file: 'webview/usage.js', vsix: true, acp: false },
+  webviewWhatsNew: { file: 'webview/whatsNew.js', vsix: true, acp: false },
+  whatsNew: { file: 'whatsNew.js', vsix: true, acp: false },
+  wire: { file: 'wire.js', vsix: true, acp: true },
+} as const satisfies Record<string, LazyBundleEntry>
+
+/** A bundle file path from the registry, below dist/. */
+export type LazyBundleFile = (typeof LAZY_BUNDLE_FILES)[keyof typeof LAZY_BUNDLE_FILES]['file']
