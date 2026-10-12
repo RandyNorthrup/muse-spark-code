@@ -56,9 +56,9 @@ describe('trace refresh benchmark', () => {
       let opens = 0
       const counting: TraceLogFs = {
         ...defaultTraceLogFs,
-        streamLines: async (file, onLine) => {
+        streamLines: async (file, maxBytes, onLine) => {
           opens += 1
-          await defaultTraceLogFs.streamLines(file, onLine)
+          await defaultTraceLogFs.streamLines(file, maxBytes, onLine)
         },
       }
       const reader = createTraceLogReader({ homeDir: home, fs: counting })
