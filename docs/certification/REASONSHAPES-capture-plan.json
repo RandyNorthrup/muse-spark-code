@@ -1,0 +1,357 @@
+{
+  "captureDate": "2026-10-12",
+  "lane": "REASONSHAPES",
+  "note": "No lane request may carry a key. Send each request with the owner's key out of band (Authorization header or the provider's own tool), then paste back the status code, the response body with any key redacted, and the date. Every fact below stays UNVERIFIED in docs/certification/REASONSHAPES.md until its answer lands.",
+  "requests": [
+    {
+      "body": {
+        "max_tokens": 50,
+        "messages": [{ "content": "Say hi in five words.", "role": "user" }],
+        "model": "deepseek-flash",
+        "reasoning_effort": "ultra",
+        "stream": false
+      },
+      "gap": "DS-G01",
+      "id": "DS-ULTRA",
+      "lookFor": "HTTP status (200 with a mapped max effort, or 4xx naming supported values), whether reasoning_content is present.",
+      "method": "POST",
+      "path": "https://api.deepseek.com/chat/completions",
+      "provider": "deepseek"
+    },
+    {
+      "body": {
+        "max_tokens": 50,
+        "messages": [{ "content": "Say hi in five words.", "role": "user" }],
+        "model": "deepseek-flash",
+        "reasoning_effort": "xhigh",
+        "stream": false
+      },
+      "gap": "DS-G01",
+      "id": "DS-XHIGH",
+      "lookFor": "Status and whether the effort is accepted (docs map xhigh to high) or rejected with a supported-values error.",
+      "method": "POST",
+      "path": "https://api.deepseek.com/chat/completions",
+      "provider": "deepseek"
+    },
+    {
+      "body": {
+        "max_tokens": 200,
+        "messages": [{ "content": "What is 12*13? Reply with one tool call.", "role": "user" }],
+        "model": "deepseek-flash",
+        "stream": false,
+        "tools": [
+          {
+            "function": {
+              "description": "Multiply.",
+              "name": "mul",
+              "parameters": {
+                "additionalProperties": false,
+                "properties": { "a": { "type": "number" }, "b": { "type": "number" } },
+                "required": ["a", "b"],
+                "type": "object"
+              },
+              "strict": true,
+              "type": "function"
+            },
+            "type": "function"
+          }
+        ]
+      },
+      "gap": "DS-G02",
+      "id": "DS-STRICT",
+      "lookFor": "Whether strict:true tool schemas are accepted on the beta endpoint, and the same body against https://api.deepseek.com/chat/completions for comparison.",
+      "method": "POST",
+      "path": "https://api.deepseek.com/beta/chat/completions",
+      "provider": "deepseek"
+    },
+    {
+      "body": {
+        "max_tokens": 100,
+        "messages": [{ "content": "Say hi in five words.", "role": "user" }],
+        "model": "openai/gpt-oss-120b",
+        "reasoning_effort": "medium",
+        "stream": false
+      },
+      "gap": "GQ-G02",
+      "id": "GQ-EFFORT",
+      "lookFor": "Status; whether the reply carries a message.reasoning field.",
+      "method": "POST",
+      "path": "https://api.groq.com/openai/v1/chat/completions",
+      "provider": "groq"
+    },
+    {
+      "body": {
+        "max_tokens": 100,
+        "messages": [{ "content": "Say hi in five words.", "role": "user" }],
+        "model": "openai/gpt-oss-120b",
+        "reasoning_format": "parsed",
+        "stream": false
+      },
+      "gap": "GQ-G02",
+      "id": "GQ-FORMAT",
+      "lookFor": "Status; shape of reasoning in the reply (dedicated message.reasoning field vs <think> tags in content).",
+      "method": "POST",
+      "path": "https://api.groq.com/openai/v1/chat/completions",
+      "provider": "groq"
+    },
+    {
+      "body": {
+        "include_reasoning": false,
+        "max_tokens": 100,
+        "messages": [{ "content": "Say hi in five words.", "role": "user" }],
+        "model": "openai/gpt-oss-120b",
+        "stream": false
+      },
+      "gap": "GQ-G02",
+      "id": "GQ-INCLUDE",
+      "lookFor": "Status; whether reasoning is omitted from the reply.",
+      "method": "POST",
+      "path": "https://api.groq.com/openai/v1/chat/completions",
+      "provider": "groq"
+    },
+    {
+      "body": {
+        "messages": [{ "content": "Say hi in five words.", "role": "user" }],
+        "model": "MODEL_WITH_THINKING",
+        "stream": false,
+        "think": "max"
+      },
+      "gap": "LO-G03",
+      "id": "LO-OLLAMA-MAX",
+      "lookFor": "Status and a normal answer (proves think:max is accepted on /api/chat). Replace MODEL_WITH_THINKING with a thinking model served by the lead's Ollama.",
+      "method": "POST",
+      "path": "http://localhost:11434/api/chat",
+      "provider": "ollama (local, no key)"
+    },
+    {
+      "body": {
+        "messages": [{ "content": "Say hi in five words.", "role": "user" }],
+        "model": "LOADED_MODEL",
+        "reasoning_effort": "high",
+        "stream": true
+      },
+      "gap": "LO-G04",
+      "id": "LO-LLAMA-EFFORT",
+      "lookFor": "Whether reasoning_effort is accepted; which field carries streamed thinking (reasoning_content deltas, <think> tags in content, or other).",
+      "method": "POST",
+      "path": "http://localhost:8080/v1/chat/completions",
+      "provider": "llama.cpp (local, no key)"
+    },
+    {
+      "body": {
+        "messages": [{ "content": "Say hi in five words.", "role": "user" }],
+        "model": "LOADED_MODEL",
+        "reasoning_effort": "none",
+        "stream": false
+      },
+      "gap": "LO-G05",
+      "id": "LO-LLAMA-NONE",
+      "lookFor": "Status and whether thinking is disabled (direct answer, no thinking trace).",
+      "method": "POST",
+      "path": "http://localhost:8080/v1/chat/completions",
+      "provider": "llama.cpp (local, no key)"
+    },
+    {
+      "body": {
+        "messages": [{ "content": "Say hi in five words.", "role": "user" }],
+        "model": "LOADED_MODEL",
+        "reasoning_format": "deepseek",
+        "stream": false
+      },
+      "gap": "LO-G04",
+      "id": "LO-LLAMA-FORMAT",
+      "lookFor": "Which reasoning_format values the server accepts (try deepseek, qwen3, none) and what each changes. Replace LOADED_MODEL with the model the lead serves.",
+      "method": "POST",
+      "path": "http://localhost:8080/v1/chat/completions",
+      "provider": "llama.cpp (local, no key)"
+    },
+    {
+      "body": {
+        "max_tokens": 300,
+        "messages": [
+          { "content": "Think step by step: what is 12*13? Answer in five words.", "role": "user" }
+        ],
+        "model": "mistral-small-latest",
+        "reasoning_effort": "high",
+        "stream": true
+      },
+      "gap": "MI-G03",
+      "id": "MI-CHUNKS",
+      "lookFor": "EXACT streamed delta shapes: is delta.content a string or an array of chunks, and if an array the exact chunk objects (type names, thinking vs text fields). Paste two raw data: lines.",
+      "method": "POST",
+      "path": "https://api.mistral.ai/v1/chat/completions",
+      "provider": "mistral"
+    },
+    {
+      "body": {
+        "max_tokens": 300,
+        "messages": [
+          {
+            "content": "Say hi.",
+            "role": "assistant",
+            "thinking": "HISTORICAL_THINKING_CHUNKS_AS_SENT"
+          }
+        ],
+        "model": "mistral-small-latest",
+        "reasoning_effort": "high",
+        "stream": false
+      },
+      "gap": "MI-G03",
+      "id": "MI-REPLAY",
+      "lookFor": "Which history shape the API accepts for a prior thinking turn (content chunk list vs plain string), and any 4xx naming the expected shape.",
+      "method": "POST",
+      "path": "https://api.mistral.ai/v1/chat/completions",
+      "provider": "mistral"
+    },
+    {
+      "gap": "OR-G02",
+      "id": "OR-PARAMS",
+      "lookFor": "The exact supported_parameters arrays for one tool-capable model and one text-only model (proves which sends to gate).",
+      "method": "GET",
+      "path": "https://openrouter.ai/api/v1/models",
+      "provider": "openrouter"
+    },
+    {
+      "body": {
+        "messages": [{ "content": "Say hi in five words.", "role": "user" }],
+        "model": "MODEL_WITHOUT_REASONING_PARAM",
+        "reasoning": { "effort": "high" },
+        "stream": false
+      },
+      "gap": "OR-G02",
+      "id": "OR-UNSUP",
+      "lookFor": "Whether OpenRouter ignores, normalizes, or rejects reasoning for a model whose supported_parameters lack it.",
+      "method": "POST",
+      "path": "https://openrouter.ai/api/v1/chat/completions",
+      "provider": "openrouter"
+    },
+    {
+      "body": {
+        "messages": [{ "content": "Say hi in five words.", "role": "user" }],
+        "model": "openai/gpt-oss-120b",
+        "reasoning_effort": "medium",
+        "stream": false
+      },
+      "gap": "TO-G01",
+      "id": "TO-EFFORT",
+      "lookFor": "Status and where thinking appears (reasoning vs reasoning_content field).",
+      "method": "POST",
+      "path": "https://api.together.ai/v1/chat/completions",
+      "provider": "together"
+    },
+    {
+      "body": {
+        "messages": [{ "content": "Say hi in five words.", "role": "user" }],
+        "model": "Qwen/Qwen3.6-Plus",
+        "reasoning": { "enabled": false },
+        "stream": false
+      },
+      "gap": "TO-G01",
+      "id": "TO-TOGGLE",
+      "lookFor": "Status and whether the answer comes with no thinking trace (toggle honored).",
+      "method": "POST",
+      "path": "https://api.together.ai/v1/chat/completions",
+      "provider": "together"
+    },
+    {
+      "body": {
+        "messages": [{ "content": "Say hi in five words.", "role": "user" }],
+        "model": "glm-5.2",
+        "stream": false,
+        "thinking": { "type": "disabled" }
+      },
+      "gap": "ZAI-G01",
+      "id": "ZAI-OFF52",
+      "lookFor": "Status 200 with a direct answer (toggle honored on glm-5.2), or the provider's 4xx reason.",
+      "method": "POST",
+      "path": "https://api.z.ai/api/paas/v4/chat/completions",
+      "provider": "zai"
+    },
+    {
+      "body": {
+        "messages": [{ "content": "Say hi in five words.", "role": "user" }],
+        "model": "glm-5.2",
+        "reasoning_effort": "xhigh",
+        "stream": false
+      },
+      "gap": "ZAI-G02",
+      "id": "ZAI-XHIGH",
+      "lookFor": "Status; whether xhigh is accepted as named (docs) or rejected.",
+      "method": "POST",
+      "path": "https://api.z.ai/api/paas/v4/chat/completions",
+      "provider": "zai"
+    },
+    {
+      "body": {
+        "messages": [{ "content": "Say hi in five words.", "role": "user" }],
+        "model": "glm-5.2",
+        "reasoning_effort": "minimal",
+        "stream": false
+      },
+      "gap": "ZAI-G02",
+      "id": "ZAI-MINIMAL",
+      "lookFor": "Status; whether minimal stops thinking (docs) or errors.",
+      "method": "POST",
+      "path": "https://api.z.ai/api/paas/v4/chat/completions",
+      "provider": "zai"
+    },
+    {
+      "body": {
+        "messages": [{ "content": "Say hi in five words.", "role": "user" }],
+        "model": "glm-5.2",
+        "reasoning_effort": "medium",
+        "stream": false
+      },
+      "gap": "ZAI-G02",
+      "id": "ZAI-MEDIUM",
+      "lookFor": "Status; accepted as named (docs map it to high server-side).",
+      "method": "POST",
+      "path": "https://api.z.ai/api/paas/v4/chat/completions",
+      "provider": "zai"
+    },
+    {
+      "body": {
+        "messages": [{ "content": "Say hi in five words.", "role": "user" }],
+        "model": "glm-5.2",
+        "stream": false,
+        "thinking": { "clear_thinking": false, "type": "enabled" }
+      },
+      "gap": "ZAI-G04",
+      "id": "ZAI-CLEAR",
+      "lookFor": "Status; whether clear_thinking is accepted on the standard endpoint and whether a follow-up turn keeps prior thinking coherent.",
+      "method": "POST",
+      "path": "https://api.z.ai/api/paas/v4/chat/completions",
+      "provider": "zai"
+    },
+    {
+      "body": {
+        "messages": [{ "content": "Reply with exactly: {\"hi\": true}.", "role": "user" }],
+        "model": "glm-5.2",
+        "response_format": { "type": "json_object" },
+        "stream": false
+      },
+      "gap": "ZAI-G07",
+      "id": "ZAI-JSON",
+      "lookFor": "Status and whether the reply is a bare JSON object (JSON mode honored on the standard endpoint).",
+      "method": "POST",
+      "path": "https://api.z.ai/api/paas/v4/chat/completions",
+      "provider": "zai"
+    },
+    {
+      "gap": "META-G05",
+      "id": "META-LIST",
+      "lookFor": "The exact model/list rows for two models with different tiers (field names for the tier list, the described subset, and the default), pasted verbatim with secrets redacted. Run against Muse Code >= 1.4.1.",
+      "method": "model/list over MSP (muse CLI)",
+      "path": "n/a (host command)",
+      "provider": "meta (Muse Code CLI)"
+    },
+    {
+      "gap": "CP-G02",
+      "id": "CP-OPTIONS",
+      "lookFor": "The documented LanguageModelChatRequestOptions.modelOptions keys (if any) that select reasoning level or the 1M window, with their documentation address; if none are documented, say so explicitly.",
+      "method": "documentation read (no request possible without guessing keys)",
+      "path": "n/a",
+      "provider": "copilot (vscode.lm API)"
+    }
+  ]
+}
