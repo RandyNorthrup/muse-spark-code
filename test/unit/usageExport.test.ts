@@ -196,6 +196,20 @@ describe('usage exports', () => {
     })
     expect(JSON.stringify(result)).not.toContain('excluded')
   })
+  it('versioned JSON reports the same trace and journal notices the page shows', () => {
+    const noticed = usagePageStateSchema.parse({
+      ...summaryState(),
+      traceNotice: 'stale',
+      journalNotice: 'unavailable',
+    })
+    const result: unknown = JSON.parse(
+      exportUsageJson(journal(), { from: '2026-10-04', to: '2026-10-05' }, noticed),
+    )
+    // The export carries the one carried value: the notices match the page.
+    expect(result).toMatchObject({
+      state: { traceNotice: 'stale', journalNotice: 'unavailable' },
+    })
+  })
   it('validates export inputs so added prompt, path, digest and tool content cannot escape', () => {
     const smuggled = {
       ...record('canary'),
