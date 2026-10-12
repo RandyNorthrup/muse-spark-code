@@ -8,7 +8,10 @@ class FakeRecorder implements RecorderProcess {
   public dataListener: ((chunk: Uint8Array) => void) | undefined
   public stderrListener: ((chunk: string) => void) | undefined
   public exitListener: ((description: string) => void) | undefined
+  public errorListener: ((description: string) => void) | undefined
   public kills = 0
+  /** When true, kill is refused: the recorder keeps running. */
+  public refuseKill = false
 
   public onStarted(listener: () => void): void {
     listener()
@@ -26,9 +29,26 @@ class FakeRecorder implements RecorderProcess {
     this.exitListener = listener
   }
 
+  public onError(listener: (description: string) => void): void {
+    this.errorListener = listener
+  }
+
   public kill(): void {
     this.kills += 1
-    this.exitListener?.('signal SIGTERM')
+    if (!this.refuseKill) {
+      this.exitListener?.('signal SIGTERM')
+    }
+  }
+
+  public failLaunch(description: string): void {
+    this.errorListener?.(description)
+  }
+}
+
+/** Lets reap continuations run. */
+async function flush(): Promise<void> {
+  for (let i = 0; i < 30; i += 1) {
+    await Promise.resolve()
   }
 }
 
@@ -57,8 +77,17 @@ function setup(onStart?: () => void) {
   }
 }
 
+/** Start once and take the single spawned recorder. */
+async function startedRecorder(t: ReturnType<typeof setup>): Promise<FakeRecorder> {
+  t.dictation.start()
+  await Promise.resolve()
+  const recorder = t.recorders[0]
+  if (recorder === undefined) throw new Error('no recorder')
+  return recorder
+}
+
 describe('recorderHelper: the Linux recorders as a capture helper (M35)', () => {
-  it('starts a recorder per recording, hands its audio on, and stops when it has exited', async () => {
+  it('starts a recorder per recording, hands its audio on, and ends on its observed exit', async () => {
     const t = setup()
     t.dictation.start()
     await Promise.resolve()
@@ -66,13 +95,18 @@ describe('recorderHelper: the Linux recorders as a capture helper (M35)', () => 
     expect(t.statuses).toEqual(['starting', 'listening'])
     t.recorders[0]?.dataListener?.(Uint8Array.from([1, 2, 3, 4]))
     t.dictation.stop()
+    // The kill lands at once, but the end waits for the observed exit.
     expect(t.recorders[0]?.kills).toBe(1)
     expect(t.audio).toEqual([[1, 2, 3, 4]])
+    expect(t.stopped()).toBe(0)
+    await flush()
     expect(t.stopped()).toBe(1)
+    expect(t.statuses).toEqual(['starting', 'listening', 'idle'])
     // The next recording is a new process.
     t.dictation.start()
+    await flush()
     expect(t.recorders).toHaveLength(2)
-    t.dictation.dispose()
+    await t.dictation.dispose()
     expect(t.recorders[1]?.kills).toBe(1)
   })
 
@@ -83,10 +117,47 @@ describe('recorderHelper: the Linux recorders as a capture helper (M35)', () => 
     const recorder = t.recorders[0]
     recorder?.stderrListener?.('arecord: main:850: audio open error: No such file or directory\n')
     recorder?.exitListener?.('exit code 1')
+    await flush()
     expect(t.errors).toEqual([
       'arecord ended (exit code 1): arecord: main:850: audio open error: No such file or directory',
     ])
     expect(t.stopped()).toBe(0)
+  })
+
+  it('never reports stopped for a refused kill (RVCM352B P1-b)', async () => {
+    const t = setup()
+    try {
+      const recorder = await startedRecorder(t)
+      recorder.refuseKill = true
+      t.dictation.stop()
+      expect(recorder.kills).toBe(1)
+      // No exit follows the refused kill: no "stopped", no idle, no silence.
+      await flush()
+      expect(t.stopped()).toBe(0)
+      expect(t.statuses).toEqual(['starting', 'listening'])
+      recorder.refuseKill = false
+      recorder.exitListener?.('exit code 0')
+      await flush()
+      expect(t.stopped()).toBe(1)
+      expect(t.statuses).toEqual(['starting', 'listening', 'idle'])
+      expect(t.errors).toEqual([])
+    } finally {
+      await t.dictation.dispose()
+    }
+  })
+
+  it('reports a launch failure at once, with no process to wait for (RVCM352B P1-b)', async () => {
+    const t = setup()
+    try {
+      const recorder = await startedRecorder(t)
+      recorder.failLaunch('could not start: ENOENT')
+      await flush()
+      expect(t.errors).toEqual(['arecord ended (could not start: ENOENT)'])
+      expect(t.statuses).toEqual(['starting', 'listening', 'idle'])
+      expect(t.stopped()).toBe(0)
+    } finally {
+      await t.dictation.dispose()
+    }
   })
 })
 
@@ -97,7 +168,7 @@ it('CM352 reports a synchronous Linux start failure and can retry without fake l
   })
   try {
     t.dictation.start()
-    await Promise.resolve()
+    await flush()
     expect(t.errors).toEqual(['arecord: EACCES'])
     expect(t.statuses).toEqual(['starting', 'idle'])
     expect(t.recorders).toEqual([])
@@ -107,11 +178,11 @@ it('CM352 reports a synchronous Linux start failure and can retry without fake l
     expect(t.statuses.at(-1)).toBe('listening')
     expect(t.recorders).toHaveLength(1)
   } finally {
-    t.dictation.dispose()
+    await t.dictation.dispose()
   }
 })
 
-it('CM352 ignores old recorder data and closed-adapter restart or readiness', async () => {
+it('CM352 spends a closed adapter: no restart, no lines, no audio after its exit', async () => {
   const recorders: FakeRecorder[] = []
   const lines: string[] = []
   const start = vi.fn(() => {
@@ -125,18 +196,18 @@ it('CM352 ignores old recorder data and closed-adapter restart or readiness', as
   })
   await Promise.resolve()
   helper.send('start')
+  expect(start).toHaveBeenCalledTimes(1)
   recorders[0]?.exitListener?.('exit code 1')
+  // The spontaneous end spends the adapter: a restart is refused, and the
+  // old recorder's late data never becomes audio.
   helper.send('start')
   recorders[0]?.dataListener?.(Uint8Array.from([1, 2]))
+  expect(start).toHaveBeenCalledTimes(1)
   expect(lines.some((line) => line.includes('"type":"audio"'))).toBe(false)
   const beforeClosing = lines.length
   helper.send('quit')
-  recorders[1]?.exitListener?.('late close')
+  recorders[0]?.dataListener?.(Uint8Array.from([1, 2]))
   expect(lines).toHaveLength(beforeClosing)
-  recorders[1]?.dataListener?.(Uint8Array.from([1, 2]))
-  helper.send('start')
-  expect(start).toHaveBeenCalledTimes(2)
-  expect(lines.some((line) => line.includes('"type":"audio"'))).toBe(false)
   const closedLines: string[] = []
   const closed = recorderHelper('parec', start)
   closed.stdout.on('data', (chunk) => {
@@ -146,5 +217,5 @@ it('CM352 ignores old recorder data and closed-adapter restart or readiness', as
   closed.send('start')
   await Promise.resolve()
   expect(closedLines).toEqual([])
-  expect(start).toHaveBeenCalledTimes(2)
+  expect(start).toHaveBeenCalledTimes(1)
 })

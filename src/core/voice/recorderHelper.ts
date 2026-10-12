@@ -19,8 +19,14 @@ export interface RecorderProcess {
   onStarted(listener: () => void): void
   onData(listener: (chunk: Uint8Array) => void): void
   onStderr(listener: (chunk: string) => void): void
-  /** Fires once, when the process has exited or could not be started. */
+  /** Fires once, when the process has really exited. Never on a failed stop. */
   onExit(listener: (description: string) => void): void
+  /**
+   * Fires when the recorder could not be launched, or an explicit kill was
+   * refused (the process may still be recording). The adapter tells those
+   * apart by whether a recorder is running.
+   */
+  onError(listener: (description: string) => void): void
   kill(): void
 }
 
@@ -48,18 +54,35 @@ export function recorderHelper(recorderName: string, start: () => RecorderProces
   const stdout = new LineStream()
   let recorder: RecorderProcess | undefined
   let isStopping = false
+  let isQuitting = false
   let exitListener: ((description: string) => void) | undefined
   let hasExited = false
-  const exit = () => {
+  /**
+   * No recorder process exists: report the exit once. A quit with a
+   * recorder running waits for its real end instead (RVCM352B P1-b).
+   */
+  const exit = (description: string) => {
     if (hasExited) {
       return
     }
     hasExited = true
-    recorder?.kill()
-    exitListener?.('exit code 0')
+    exitListener?.(description)
+  }
+  const quit = () => {
+    if (hasExited) {
+      return
+    }
+    isQuitting = true
+    if (recorder === undefined) {
+      exit('quit')
+      return
+    }
+    recorder.kill()
   }
   const startRecording = () => {
     if (hasExited || recorder !== undefined) {
+      // Quit while a spawn was in flight: the kill already aborted it, so
+      // no recording may start here and none can linger.
       return
     }
     let stderrTail = ''
@@ -75,6 +98,16 @@ export function recorderHelper(recorderName: string, start: () => RecorderProces
     }
     recorder = running
     isStopping = false
+    // An ended recorder reports once, with the stderr tail for the cause.
+    const reportEnded = (description: string): void => {
+      recorder = undefined
+      const detail = stderrTail.trim().split('\n').at(-1) ?? ''
+      stdout.write({
+        type: 'error',
+        reason: `${recorderName} ended (${description})${detail === '' ? '' : `: ${detail}`}`,
+      })
+      exit(description)
+    }
     running.onData((chunk) => {
       if (hasExited || recorder !== running) return
       stdout.write({ type: 'audio', data: Buffer.from(chunk).toString('base64') })
@@ -82,20 +115,34 @@ export function recorderHelper(recorderName: string, start: () => RecorderProces
     running.onStderr((chunk) => {
       stderrTail = (stderrTail + chunk).slice(-DICTATION_STDERR_TAIL_CHARS)
     })
+    running.onError((description) => {
+      if (hasExited || recorder !== running) {
+        return
+      }
+      if (isStopping || isQuitting) {
+        // A kill was refused while ending it: the process may still hold
+        // the microphone, so this is an error, never "stopped".
+        recorder = undefined
+        stdout.write({ type: 'error', reason: `${recorderName} did not stop (${description})` })
+        return
+      }
+      reportEnded(description)
+    })
     running.onExit((description) => {
       if (hasExited || recorder !== running) {
         return
       }
       recorder = undefined
+      if (isQuitting) {
+        exit(description)
+        return
+      }
       if (isStopping) {
+        // The recorder really exited: only now is the stop complete.
         stdout.write({ type: 'stopped' })
         return
       }
-      const detail = stderrTail.trim().split('\n').at(-1) ?? ''
-      stdout.write({
-        type: 'error',
-        reason: `${recorderName} ended (${description})${detail === '' ? '' : `: ${detail}`}`,
-      })
+      reportEnded(description)
     })
     running.onStarted(() => {
       if (!hasExited && recorder === running && !isStopping) {
@@ -117,14 +164,14 @@ export function recorderHelper(recorderName: string, start: () => RecorderProces
           break
         }
         case DICTATION_HELPER_COMMANDS.stop: {
-          if (recorder !== undefined) {
+          if (!hasExited && recorder !== undefined) {
             isStopping = true
             recorder.kill()
           }
           break
         }
         case DICTATION_HELPER_COMMANDS.quit: {
-          exit()
+          quit()
           break
         }
       }
@@ -133,7 +180,7 @@ export function recorderHelper(recorderName: string, start: () => RecorderProces
       exitListener = listener
     },
     kill() {
-      exit()
+      quit()
     },
   }
 }

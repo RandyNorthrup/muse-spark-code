@@ -29,6 +29,11 @@ export interface HelperProcess {
   on(event: 'error', listener: (error: Error) => void): unknown
   on(event: 'exit', listener: (code: number | null, signal: NodeJS.Signals | null) => void): unknown
   kill(): unknown
+  /**
+   * Fires when an explicit kill of a live process is refused (the recorder
+   * may still hold the microphone): never an exit, which stays on `exit`.
+   */
+  onStopFailed(listener: (description: string) => void): void
 }
 
 function startProcess(invocation: HelperInvocation): HelperProcess {
@@ -49,6 +54,7 @@ function admittedVoiceProcess(
   const stdout = new PassThrough()
   const stderr = new PassThrough()
   const events = stdout
+  const stopFailures = new Set<(description: string) => void>()
   const stop = new AbortController()
   let child: ChildProcessWithoutNullStreams | undefined
   let resource: ResourceLease | undefined
@@ -120,13 +126,21 @@ function admittedVoiceProcess(
     stdout,
     stderr,
     on: events.on.bind(events),
+    onStopFailed: (listener) => {
+      stopFailures.add(listener)
+    },
     kill: () => {
       stop.abort()
       if (child === undefined) return
       if (resource === undefined) child.kill()
       else
+        // A refused stop is reported on its own channel, never as an exit:
+        // the resource tree (and the microphone) may still be alive.
         void stopResourceTree(resource).catch((error: unknown) => {
-          events.emit('error', error)
+          const description = error instanceof Error ? error.message : String(error)
+          for (const listener of stopFailures) {
+            listener(description)
+          }
         })
     },
   }
@@ -191,6 +205,9 @@ export function spawnHelper(
     onExit(listener) {
       exitListener = listener
     },
+    onStopFailed(listener) {
+      child.onStopFailed(listener)
+    },
     kill() {
       child.kill()
     },
@@ -232,8 +249,18 @@ export function startRecorder(command: string, args: readonly string[]): Recorde
   // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- the command is arecord or parec found by absolute path on PATH (helperLocation.ts, resolveExecutable) with fixed arguments from constants.ts; nothing from the user, the model or the workspace is in it (PLAN.md §8)
   const child = admittedVoiceProcess(command, args, process.env)
   let exitListener: ((description: string) => void) | undefined
+  let errorListener: ((description: string) => void) | undefined
   let startedListener: (() => void) | undefined
   child.on('spawn', () => startedListener?.())
+  // A launch failure is an error, never an exit: nothing was recorded and
+  // nothing can linger. A refused kill is an error too: the recorder may
+  // still hold the microphone, so it must never read as "stopped".
+  child.on('error', (error) => {
+    errorListener?.(`could not start: ${error.message}`)
+  })
+  child.onStopFailed((description) => {
+    errorListener?.(description)
+  })
   watchExit(child, (description) => {
     exitListener?.(description)
   })
@@ -251,6 +278,9 @@ export function startRecorder(command: string, args: readonly string[]): Recorde
     },
     onExit: (listener) => {
       exitListener = listener
+    },
+    onError: (listener) => {
+      errorListener = listener
     },
     kill: () => {
       child.kill()

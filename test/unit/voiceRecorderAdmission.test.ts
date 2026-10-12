@@ -54,6 +54,13 @@ async function pendingRecorder() {
   return { t, admission }
 }
 
+/** Lets reap continuations (exit-awaited ends) run. */
+async function flush(): Promise<void> {
+  for (let i = 0; i < 30; i += 1) {
+    await Promise.resolve()
+  }
+}
+
 describe('Linux recorder admission and OS spawn readiness (RVCM352 P3)', () => {
   it.each(['ENOENT', 'EACCES'])('never announces listening on asynchronous %s', async (code) => {
     admit.mockResolvedValue(undefined)
@@ -65,12 +72,14 @@ describe('Linux recorder admission and OS spawn readiness (RVCM352 P3)', () => {
       })
       expect(t.statuses).toEqual(['starting'])
       t.child.emit('error', Object.assign(new Error(code), { code }))
+      // The failure is said once the (nonexistent) process end settles.
+      await flush()
       expect(t.statuses).toEqual(['starting', 'idle'])
       expect(t.errors).toEqual([`arecord ended (could not start: ${code})`])
       t.child.emit('spawn')
       expect(t.statuses).not.toContain('listening')
     } finally {
-      t.dictation.dispose()
+      await t.dictation.dispose()
     }
   })
 
@@ -86,7 +95,7 @@ describe('Linux recorder admission and OS spawn readiness (RVCM352 P3)', () => {
       expect(t.errors[0]).toContain('resource refused')
       expect(spawn).not.toHaveBeenCalled()
     } finally {
-      t.dictation.dispose()
+      await t.dictation.dispose()
     }
   })
 
@@ -101,13 +110,15 @@ describe('Linux recorder admission and OS spawn readiness (RVCM352 P3)', () => {
       t.child.emit('spawn')
       expect(t.statuses).toEqual(['starting', 'listening'])
       t.dictation.stop()
+      // Idle waits for the recorder's observed exit, not the stop press.
+      await flush()
       expect(t.statuses.at(-1)).toBe('idle')
       expect(t.stopped()).toBe(1)
       const stoppedStatuses = [...t.statuses]
       t.child.emit('spawn')
       expect(t.statuses).toEqual(stoppedStatuses)
     } finally {
-      t.dictation.dispose()
+      await t.dictation.dispose()
     }
   })
 
@@ -127,7 +138,7 @@ describe('Linux recorder admission and OS spawn readiness (RVCM352 P3)', () => {
       expect(t.statuses).toEqual(['starting', 'idle'])
       expect(t.errors).toEqual([])
     } finally {
-      t.dictation.dispose()
+      await t.dictation.dispose()
     }
   })
 })

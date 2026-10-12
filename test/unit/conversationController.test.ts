@@ -9662,6 +9662,7 @@ describe('ConversationController: paid voice without a journal (M82)', () => {
         journal,
         capUsd: () => Usd.from(0).toAmount(),
         isCurrent: () => true,
+        awaitSessionSave: () => Promise.resolve(),
       })
       const key: { current: string | undefined } = { current: FAKE_MODEL_API_KEY }
       const voice = noFolderVoice({

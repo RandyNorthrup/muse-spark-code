@@ -11,16 +11,18 @@
 // more line, "audio": the recording itself, base64 16-bit PCM, which the
 // listener streams on; they recognise nothing.
 //
-// The helper stays resident between recordings so a second press starts
-// listening in milliseconds (the engine takes about a second to load), and
-// quits by itself after DICTATION_IDLE_EXIT_MS unused. This module never
-// imports `vscode` or `child_process`: the host injects the spawn.
+// One recording owns its helper process from Start until that process is
+// observed gone (RVCM352B P1-b): a stop acknowledgement retires the
+// recording, but idle is reported only after the process exits (bounded;
+// then it is killed and that is said). No helper is reused across presses,
+// so a trailing event or a refused stop can never touch the next recording,
+// and after any end no recorder process exists. This module never imports
+// `vscode` or `child_process`: the host injects the spawn.
 
 import { Buffer } from 'node:buffer'
 import * as z from 'zod/mini'
 import {
   DICTATION_HELPER_COMMANDS,
-  DICTATION_IDLE_EXIT_MS,
   DICTATION_QUIT_GRACE_MS,
   DICTATION_STDERR_TAIL_CHARS,
   DICTATION_STOP_GRACE_MS,
@@ -80,9 +82,20 @@ export interface HelperChild {
   readonly stderr: ChunkSource
   /** Writes one command line to the helper's stdin. */
   send(line: string): void
-  /** Fires once, when the process has exited or could not be started. */
+  /**
+   * Fires once, when no process exists for the helper any more: it exited,
+   * it could not be started, or a quit was answered with no process
+   * running. Never fires for a refused kill: that stays on `onStopFailed`,
+   * so waiting for the exit cannot mistake a live microphone for a gone one.
+   */
   onExit(listener: (description: string) => void): void
   kill(): void
+  /**
+   * Fires when an explicit kill of a live helper is refused (the process
+   * may still hold the microphone). Absent on helpers whose kill cannot be
+   * refused; those report every failure through `onExit` or an error line.
+   */
+  onStopFailed?(listener: (description: string) => void): void
 }
 
 /** Per-recording consent; send checks include current paid availability and the spend cap. */
@@ -129,20 +142,27 @@ interface RunningHelper {
   isReady: boolean
   /** "start" was requested and will be sent when the helper says "ready". */
   isStartWanted: boolean
-  /** "stop" was sent; "stopped" (or the grace timer) ends it. */
+  /** "stop" was sent; the recording ends when its process is observed gone. */
   isStopping: boolean
   /**
-   * A "start" pressed while the previous "stop" is still unacknowledged: it
-   * is sent only after "stopped" (or the grace timer) ends that recording,
-   * so trailing events still belong to the old one (M35, the restart race).
+   * A "start" pressed while the previous recording's process is still
+   * winding down: it spawns only after that process is observed gone, so
+   * at most one recorder process exists and trailing events keep their
+   * owner (M35, the restart race).
    */
   isStartPending: boolean
   /** "quit" was sent: an exit is expected and not an error. */
   isQuitting: boolean
+  /** The exit was observed (or no process ever existed): nothing to reap. */
+  hasExited: boolean
+  /** An explicit kill was refused; the process may still be recording. */
+  stopRefused: boolean
+  /** The exit report, kept so a missing acknowledgement still says why. */
+  exitDescription: string | undefined
   stderrTail: string
   stopTimer: ReturnType<typeof setTimeout> | undefined
-  idleTimer: ReturnType<typeof setTimeout> | undefined
-  quitTimer: ReturnType<typeof setTimeout> | undefined
+  /** Every end waiting on this helper's process to be gone. */
+  exitWaiters: Set<() => void>
 }
 
 /**
@@ -165,6 +185,13 @@ export type DictationSetup =
 
 export class Dictation {
   private helper: RunningHelper | undefined
+  /**
+   * The helper whose process is winding down after its recording was
+   * retired: a press meanwhile queues behind its observed exit.
+   */
+  private reaping: RunningHelper | undefined
+  /** Every recording end still waiting on its helper's process. */
+  private readonly pendingReaps = new Set<Promise<unknown>>()
   private status: DictationStatus = 'idle'
   private isDisposed = false
 
@@ -179,14 +206,11 @@ export class Dictation {
   }
 
   private clearTimers(helper: RunningHelper): void {
-    for (const timer of [helper.stopTimer, helper.idleTimer, helper.quitTimer]) {
-      if (timer !== undefined) {
-        clearTimeout(timer)
-      }
+    if (helper.stopTimer === undefined) {
+      return
     }
+    clearTimeout(helper.stopTimer)
     helper.stopTimer = undefined
-    helper.idleTimer = undefined
-    helper.quitTimer = undefined
   }
 
   private spawnHelper(): RunningHelper {
@@ -198,10 +222,12 @@ export class Dictation {
       isStopping: false,
       isStartPending: false,
       isQuitting: false,
+      hasExited: false,
+      stopRefused: false,
+      exitDescription: undefined,
       stderrTail: '',
       stopTimer: undefined,
-      idleTimer: undefined,
-      quitTimer: undefined,
+      exitWaiters: new Set(),
     }
     const lines = new LineSplitter()
     child.stdout.on('data', (chunk) => {
@@ -214,6 +240,13 @@ export class Dictation {
     })
     child.onExit((description) => {
       this.handleExit(helper, description)
+    })
+    child.onStopFailed?.((description) => {
+      if (this.helper !== helper && this.reaping !== helper) {
+        return
+      }
+      helper.stopRefused = true
+      this.deps.log.warn(`Dictation helper stop was refused: ${description}`)
     })
     this.deps.log.info(`Dictation helper started: ${this.deps.invocation.command}`)
     return helper
@@ -240,8 +273,6 @@ export class Dictation {
         if (helper.isStartWanted) {
           helper.isStartWanted = false
           helper.child.send(DICTATION_HELPER_COMMANDS.start)
-        } else {
-          this.armIdleExit(helper)
         }
         return
       }
@@ -256,23 +287,14 @@ export class Dictation {
         return
       }
       case 'stopped': {
+        // The recording is retired, but it is not ended: idle (and the next
+        // press) waits until the helper's process is observed gone.
         helper.isStopping = false
         if (helper.stopTimer !== undefined) {
           clearTimeout(helper.stopTimer)
           helper.stopTimer = undefined
         }
-        if (helper.isStartPending) {
-          // The next recording begins only now that the previous stop is
-          // acknowledged: its events cannot leak into the finished one, and
-          // the button never flashes idle between the two.
-          helper.isStartPending = false
-          helper.child.send(DICTATION_HELPER_COMMANDS.start)
-          this.deps.listener.onStopped?.()
-          return
-        }
-        this.setStatus('idle')
-        this.armIdleExit(helper)
-        this.deps.listener.onStopped?.()
+        void this.finishStop(helper)
         return
       }
       case 'audio': {
@@ -286,16 +308,24 @@ export class Dictation {
     }
   }
 
-  /** The helper is unusable: drop it, go idle, tell the listener once. */
+  /**
+   * The helper is unusable: drop it at once, and tell the listener once its
+   * process is observed gone (bounded; then it is killed and that is said).
+   */
   private fail(helper: RunningHelper, reason: string): void {
-    // A start queued behind the unacknowledged stop dies with the helper: the
+    // A start queued behind the dying recording dies with the helper: the
     // error says the microphone failed, and the next press starts afresh.
+    // The kill lands inside the failure's end, after its exit waiter, so a
+    // failure with no process behind it is said at once.
     helper.isStartPending = false
     this.forget(helper)
     helper.isQuitting = true
+    void this.finishFail(helper, reason)
+  }
+
+  /** The kill signal, remembered so the exit wait kills at most once more. */
+  private killHelper(helper: RunningHelper): void {
     helper.child.kill()
-    this.setStatus('idle')
-    this.deps.listener.onError(reason)
   }
 
   private forget(helper: RunningHelper): void {
@@ -305,7 +335,137 @@ export class Dictation {
     }
   }
 
+  /**
+   * Resolves true once no process exists for the helper: its exit was
+   * observed, or it never had one. Otherwise kills after the grace, waits
+   * once more, and resolves false, so the caller says so. Never rejects.
+   */
+  private awaitHelperExit(helper: RunningHelper, hasKilled: boolean): Promise<boolean> {
+    if (helper.hasExited) {
+      return Promise.resolve(true)
+    }
+    const reap = new Promise<boolean>((resolve) => {
+      let isDone = false
+      let killTimer: ReturnType<typeof setTimeout> | undefined
+      let exitTimer: ReturnType<typeof setTimeout> | undefined
+      const finish = (didExit: boolean): void => {
+        if (isDone) return
+        isDone = true
+        if (killTimer !== undefined) clearTimeout(killTimer)
+        if (exitTimer !== undefined) clearTimeout(exitTimer)
+        helper.exitWaiters.delete(wake)
+        resolve(didExit)
+      }
+      const wake = (): void => {
+        finish(true)
+      }
+      helper.exitWaiters.add(wake)
+      killTimer = setTimeout(() => {
+        killTimer = undefined
+        if (!hasKilled) {
+          hasKilled = true
+          this.killHelper(helper)
+        }
+        exitTimer = setTimeout(() => {
+          exitTimer = undefined
+          finish(false)
+        }, DICTATION_QUIT_GRACE_MS)
+      }, DICTATION_QUIT_GRACE_MS)
+    })
+    this.pendingReaps.add(reap)
+    void reap.finally(() => {
+      this.pendingReaps.delete(reap)
+    })
+    return reap
+  }
+
+  /** A fresh helper for the next recording, starting once it is ready. */
+  private spawnNext(): void {
+    const helper = this.spawnHelper()
+    this.helper = helper
+    helper.isStartWanted = true
+    this.setStatus('starting')
+  }
+
+  /**
+   * A retired recording's end: the helper is asked to quit, and idle (with
+   * the queued press, if any) is reported only after its process is
+   * observed gone. A kill that was needed is said, and the end still lands.
+   */
+  private async finishStop(helper: RunningHelper): Promise<void> {
+    this.forget(helper)
+    this.reaping = helper
+    try {
+      // The waiter goes in before the quit: a quit answered with no
+      // process running resolves it synchronously.
+      const reaped = this.awaitHelperExit(helper, false)
+      helper.child.send(DICTATION_HELPER_COMMANDS.quit)
+      const didExit = await reaped
+      if (!didExit) {
+        this.deps.log.warn(
+          `Dictation helper did not exit after its stop${helper.stopRefused ? ' (its stop was refused)' : ''}; killed it`,
+        )
+        this.deps.listener.onError('The dictation helper stopped responding')
+      }
+      const hasPending = helper.isStartPending && !this.isDisposed
+      helper.isStartPending = false
+      if (this.reaping === helper) {
+        this.reaping = undefined
+      }
+      if (hasPending) {
+        // The next recording begins only now that the previous process is
+        // gone: its events cannot leak into the finished one, and the
+        // button never flashes idle between the two.
+        this.spawnNext()
+      } else {
+        this.setStatus('idle')
+      }
+      this.deps.listener.onStopped?.()
+    } finally {
+      if (this.reaping === helper) {
+        this.reaping = undefined
+      }
+    }
+  }
+
+  /** A failed recording's end: the failure is said once its process is gone. */
+  private async finishFail(helper: RunningHelper, reason: string): Promise<void> {
+    this.reaping = helper
+    try {
+      const reaped = this.awaitHelperExit(helper, true)
+      this.killHelper(helper)
+      const didExit = await reaped
+      if (!didExit) {
+        this.deps.log.warn(
+          `Dictation helper exit was not observed${helper.stopRefused ? ' (its stop was refused)' : ''}; it may still hold the microphone: ${reason}`,
+        )
+      }
+      const hasPending = helper.isStartPending && !this.isDisposed
+      helper.isStartPending = false
+      if (this.reaping === helper) {
+        this.reaping = undefined
+      }
+      this.setStatus('idle')
+      this.deps.listener.onError(reason)
+      if (hasPending) {
+        // A press that landed while the failure wound down starts afresh
+        // on a new process once the failure is said.
+        this.spawnNext()
+      }
+    } finally {
+      if (this.reaping === helper) {
+        this.reaping = undefined
+      }
+    }
+  }
+
   private handleExit(helper: RunningHelper, description: string): void {
+    helper.hasExited = true
+    helper.exitDescription ??= description
+    for (const wake of helper.exitWaiters) {
+      wake()
+    }
+    helper.exitWaiters.clear()
     const wasCurrent = this.helper === helper
     const wasExpected = helper.isQuitting
     this.forget(helper)
@@ -322,28 +482,6 @@ export class Dictation {
     )
   }
 
-  private armIdleExit(helper: RunningHelper): void {
-    if (helper.idleTimer !== undefined) {
-      clearTimeout(helper.idleTimer)
-    }
-    helper.idleTimer = setTimeout(() => {
-      helper.idleTimer = undefined
-      this.quit(helper)
-    }, DICTATION_IDLE_EXIT_MS)
-  }
-
-  private quit(helper: RunningHelper): void {
-    helper.isQuitting = true
-    helper.child.send(DICTATION_HELPER_COMMANDS.quit)
-    if (this.helper === helper) {
-      this.helper = undefined
-    }
-    helper.quitTimer = setTimeout(() => {
-      helper.quitTimer = undefined
-      helper.child.kill()
-    }, DICTATION_QUIT_GRACE_MS)
-  }
-
   /** The user pressed the microphone (or Ctrl+D) while idle. */
   public start(): void {
     if (this.isDisposed) {
@@ -351,11 +489,18 @@ export class Dictation {
     }
     if (this.status !== 'idle') {
       // A press while the previous stop is still unacknowledged queues
-      // behind it: the helper hears "start" only after "stopped", so the
-      // old recording's trailing events keep their owner.
+      // behind it: the next recording spawns only after the old process is
+      // observed gone, so its trailing events keep their owner.
       const stopping = this.helper
       if (stopping?.isStopping === true) {
         stopping.isStartPending = true
+        this.setStatus('starting')
+        return
+      }
+      // A press while the retired recording's process winds down queues
+      // behind its observed exit, never onto a dying process.
+      if (this.reaping !== undefined) {
+        this.reaping.isStartPending = true
         this.setStatus('starting')
       }
       return
@@ -363,10 +508,6 @@ export class Dictation {
     this.setStatus('starting')
     const helper = this.helper ?? this.spawnHelper()
     this.helper = helper
-    if (helper.idleTimer !== undefined) {
-      clearTimeout(helper.idleTimer)
-      helper.idleTimer = undefined
-    }
     if (helper.isReady) {
       helper.child.send(DICTATION_HELPER_COMMANDS.start)
     } else {
@@ -376,16 +517,22 @@ export class Dictation {
 
   /** The user released a held button, or tapped it while listening. */
   public stop(): void {
+    // The latest press wins: a start queued behind a winding-down
+    // recording is cancelled.
+    if (this.reaping !== undefined) {
+      this.reaping.isStartPending = false
+    }
     const helper = this.helper
     if (helper === undefined || this.status === 'idle') {
       return
     }
     if (!helper.isReady) {
-      // Cancelled before the engine even loaded: nothing was ever sent.
+      // Cancelled before the engine even loaded: nothing was ever recorded.
+      // The helper quits without ever having started, and idle waits for
+      // its process to be observed gone.
       helper.isStartWanted = false
-      this.setStatus('idle')
-      this.armIdleExit(helper)
-      this.deps.listener.onStopped?.()
+      helper.isStartPending = false
+      void this.finishStop(helper)
       return
     }
     // The latest press wins: a start queued behind this stop is cancelled.
@@ -395,8 +542,9 @@ export class Dictation {
     helper.child.send(DICTATION_HELPER_COMMANDS.stop)
     // Linux can acknowledge synchronously during send.
     if (this.helper?.isStopping !== true || this.helper !== helper) return
-    // Idle waits for the helper's "stopped" (or the grace timer ending it by
-    // force): until then a new press queues behind this recording, and every
+    // Idle waits for the helper's process to be observed gone (its
+    // "stopped" retires the recording; the grace timer ends it by force):
+    // until then a new press queues behind this recording, and every
     // trailing event still belongs to it.
     helper.stopTimer = setTimeout(() => {
       helper.stopTimer = undefined
@@ -408,15 +556,40 @@ export class Dictation {
     }, DICTATION_STOP_GRACE_MS)
   }
 
-  public dispose(): void {
+  /**
+   * The window, the backend or the recording is going away: the helper is
+   * asked to quit, and this resolves only after its process is observed
+   * gone (bounded; then it is killed and that is said). Never rejects, so
+   * the drain waiting on it cannot fail a shutdown.
+   */
+  public async dispose(): Promise<void> {
     this.isDisposed = true
     const helper = this.helper
     if (helper === undefined) {
+      // A winding-down recording still reaps: the drain outlives the button.
+      await Promise.allSettled(this.pendingReaps)
       return
     }
     this.forget(helper)
+    helper.isStartPending = false
     helper.isQuitting = true
-    helper.child.kill()
+    this.reaping = helper
+    try {
+      const reaped = this.awaitHelperExit(helper, false)
+      helper.child.send(DICTATION_HELPER_COMMANDS.quit)
+      const didExit = await reaped
+      await Promise.allSettled(this.pendingReaps)
+      if (!didExit) {
+        this.deps.log.warn(
+          `Dictation helper did not exit on dispose${helper.stopRefused ? ' (its stop was refused)' : ''}; killed it`,
+        )
+        this.deps.listener.onError('The dictation helper stopped responding')
+      }
+    } finally {
+      if (this.reaping === helper) {
+        this.reaping = undefined
+      }
+    }
     this.status = 'idle'
   }
 }
