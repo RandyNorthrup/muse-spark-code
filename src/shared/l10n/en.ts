@@ -406,7 +406,7 @@ export const EN = {
       '--account-pool                  Request account pooling. Requires a bound resource owner; excludes key-stdin in CI.',
     effort: 'Choose how much effort Muse puts into each reply.',
     output: 'Choose the result format: text, json or jsonl.',
-    'max-budget-usd': 'Set the hard spending limit in USD for this run.',
+    'max-budget-usd': 'Set the spending reservation limit in USD for this run.',
     'max-requests': 'Set the maximum number of model requests.',
     'max-output-tokens':
       'Lower the run’s output cap in tokens; absent is the model’s policy cap, never above it.',
@@ -528,7 +528,7 @@ export const EN = {
   referenceBrowser:
     'The page loads in a fresh private browser profile that is deleted afterwards. All its traffic goes through the extension’s own proxy, which lets through only plain http to this computer and the hosts in museSpark.browserCheckExtraHosts. The browser check is off in Restricted Mode. Trust the workspace to use it.',
   referenceBudget:
-    'Shared daily budget for interactive paid extras: museSpark.paidDailyBudgetUsd. Tab has its own separate budget.',
+    'Shared daily budget: museSpark.paidDailyBudgetUsd; the session cap also applies. Tab has its own separate budget. Requests are admitted atomically. Ambiguous attempts keep their full reservations; only provably dead owners’ unsent claims are released. Provider estimates can exceed the cap on the last request; recorded overages stop the next request.',
   referenceCache: 'Settings (modelApiPromptCacheRetention).',
   referenceMcp:
     'MCP servers: Muse Code runs its own servers; on Model API this window runs configured servers. ACP Model API has no editor MCP servers.',
@@ -3085,6 +3085,24 @@ export const EN = {
   // sent, and the turn's cost is shown against the cap afterwards.
   sessionBudgetStopped:
     'Stopped: the next request (about {estimate}) would pass the session budget of {cap} ({spent} used). It was not sent.',
+  spendLedgerBusy:
+    'Another Muse Spark Code process holds the {scope} spend ledger. Nothing was sent; retry when it finishes.',
+  spendLedgerDamaged:
+    'The {scope} spend ledger is damaged ({file}). Nothing was sent; restore or repair this ledger.',
+  spendLedgerUnreadable:
+    'The {scope} spend ledger cannot be read or saved ({file}: {errno}). Nothing was sent; correct the file access or storage problem.',
+  spendLedgerIntegrity:
+    'The {scope} spend ledger has conflicting ownership or amounts ({file}). Nothing was sent; repair this ledger.',
+  spendLedgerRecovery:
+    'The {scope} spend ledger is recovering. Nothing was sent; retry after recovery finishes.',
+  spendLedgerMidnight:
+    'Local midnight passed. Nothing was sent; restart with today’s daily budget.',
+  execContextLimit:
+    'The request exceeds this model’s context limit. Nothing was sent; reduce the input or output allowance.',
+  execBudgetImpossible:
+    'This request is too large for any spend cap this run accepts. Reduce its input or output allowance.',
+  execEstimateBound:
+    'Input reservation: provider estimate + {margin}, capped by the upper bound from size.',
   sessionBudgetStoreUnavailable:
     'The session spend ledger could not be read or saved. No new request can be sent until it is available.',
   // EXECPROV round 7 (R0): only fact (b) refuses — money no record
@@ -3094,12 +3112,9 @@ export const EN = {
   // no cap always admits. A new conversation is never offered: it does not
   // clear a shared ledger.
   sessionBudgetLegacyFeesUnknown:
-    'The spend ledger for {scope} still holds charges no record bounds ({spent} counted so far). A new conversation does not clear it: wait for the owning run to finish (ownerless holds close on their own), or rerun without a spend cap.',
-  // EXECPROV round 7 (R0): the conversation-scoped twin. A new
-  // conversation starts a fresh ledger, so it IS the remedy here — never
-  // offered for a shared daily ledger, where it clears nothing.
+    'The spend ledger for {scope} includes charges without a verified bound ({spent} counted so far). Nothing was sent; reconcile those charges before using a spend cap.',
   sessionBudgetConversationFeesUnknown:
-    'The spend ledger for {scope} still holds charges no record bounds ({spent} counted so far). Start a new conversation to use a spend cap, or rerun this one without a spend cap.',
+    'The spend ledger for {scope} includes charges without a verified bound ({spent} counted so far). Nothing was sent; reconcile those charges before using a spend cap.',
   sessionBudgetSearchUnavailable:
     'Web search is unavailable under a finite spend cap: its billed query count has no verified limit. Ordinary chat and free web fetch remain available.',
   sessionBudgetRetryUnavailable:
