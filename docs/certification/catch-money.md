@@ -87,6 +87,18 @@ Error(...)` inside a bound catch. Three sites needed structural answers,
   record says so; the new tests pin the observable contract (ordering
   restarts, absent/unreadable split, report-once). All restores verified
   byte-exact by sha256 before committing.
+- Contract change (surfaced decision): `resourceJournal.test.ts` asserted
+  that a corrupt usage-history choice reports nothing. The brief ranks
+  that silence as the defect, and no code shape satisfies both the old
+  assertion and the required report (the recorder's only channels are its
+  boolean answer, which stays fail-closed `false`, and the once-only
+  host record). The test now asserts corrupt → still refused + reported
+  once. Related-suite triage found one more real signal (this one) and
+  otherwise only pre-existing environmental failures, verified identical
+  on a clean base worktree: sandbox-blocked sockets (`EPERM` on loopback
+  listen, process spawn and unix-socket paths), load timeouts on the
+  randomized rollup trials (pass on re-run), and browser/OS-dependent
+  subscription, voice, media and lifetime suites.
 - Commits: `fcfe634d5` (core paid), `65e6037a0` (core shapes),
   `0e253450a` (runtime), `3e30829af` (host auth), `5bf5f018a` (panel).
   Baseline regeneration is committed separately below with this record.

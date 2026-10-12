@@ -355,13 +355,16 @@ describe('M107 J/M102 durable resource journal', () => {
       const recorded = await recorder.history.read()
       expect(recorded.events).toHaveLength(1)
     })
-    // An unreadable choice is not consent.
+    // An unreadable choice is not consent, and it is reported once rather
+    // than passing silently as a refusal (CATCHMONEY contract change: the
+    // audit ranked the silent corrupt-settings read as a defect because a
+    // damaged choice was indistinguishable from "no").
     await writeFile(path.join(folder, USAGE_SETTINGS_FILE), 'nope')
     recorder.event({ type: 'override', atMs: now + 2, untilMs: now + 3 })
     await recorder.flush()
     const refused = await recorder.history.read()
     expect(refused.events).toHaveLength(1)
-    expect(onError).not.toHaveBeenCalled()
+    expect(onError).toHaveBeenCalledTimes(1)
   })
 })
 
