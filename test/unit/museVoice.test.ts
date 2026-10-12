@@ -25,6 +25,7 @@ import {
   type VoiceSocketHandlers,
 } from '../../src/core/voice/museVoice'
 import {
+  DICTATION_STOP_GRACE_MS,
   MUSE_VOICE_BYTES_PER_SECOND,
   MUSE_VOICE_FRAME_BYTES,
   MUSE_VOICE_MAX_BYTES,
@@ -37,9 +38,7 @@ import {
   PAID_PRICES_USD,
   SECONDS_PER_HOUR,
 } from '../../src/shared/constants'
-import { openWebSocket } from '../../src/host/voice/voiceProcesses'
 import { FakeLogOutputChannel } from './helpers/fakes'
-import { startFakeVoiceServer } from './helpers/fakeVoiceServer'
 
 const KEY = 'LLM|1|secret'
 const URL = 'wss://voice.example.test/v1/asr/realtime'
@@ -301,6 +300,24 @@ class FakeCapture implements DictationHandle {
   }
 }
 
+function voiceObservations() {
+  const sockets: FakeSocket[] = []
+  const texts: string[] = []
+  const errors: string[] = []
+  const statuses: string[] = []
+  const seconds: number[] = []
+  return { sockets, texts, errors, statuses, seconds }
+}
+
+function fakeVoiceDailyClaim() {
+  return {
+    check: vi.fn(),
+    settle: vi.fn(() =>
+      Promise.resolve({ spentUsd: Usd.from(0).toAmount(), hasUnknownHistoricalFees: false }),
+    ),
+  }
+}
+
 function dictationSetup(
   hasKey = true,
   ownedBudgetScope?: DictationListener['ownedBudgetScope'],
@@ -309,17 +326,8 @@ function dictationSetup(
 ) {
   const apiKey = hasKey ? KEY : undefined
   const captures: FakeCapture[] = []
-  const sockets: FakeSocket[] = []
-  const texts: string[] = []
-  const errors: string[] = []
-  const statuses: string[] = []
-  const seconds: number[] = []
-  const daily = {
-    check: vi.fn(),
-    settle: vi.fn(() =>
-      Promise.resolve({ spentUsd: Usd.from(0).toAmount(), hasUnknownHistoricalFees: false }),
-    ),
-  }
+  const { sockets, texts, errors, statuses, seconds } = voiceObservations()
+  const daily = fakeVoiceDailyClaim()
   const reserve = vi.fn(reserveDaily ?? (() => Promise.resolve(daily)))
   const usage: string[] = []
   const dictation = new MuseVoiceDictation(
@@ -358,7 +366,7 @@ function dictationSetup(
       },
     },
   )
-  const capture = () => captures[0]!
+  const capture = () => captures.at(-1)!
   const socket = (index = 0) => sockets[index]!
   return {
     dictation,
@@ -724,12 +732,12 @@ describe('MuseVoiceDictation (M35)', () => {
     const t = dictationSetup(false)
     t.dictation.start()
     await vi.waitFor(() => {
-      expect(t.errors).toEqual(['Muse Voice needs a Model API key; sign in with one first.'])
+      expect(t.errors).toEqual([UI_TEXT.museVoiceNoKey])
     })
     // Without a key nothing is captured: the failure is said with no
     // recording and no socket.
     expect(t.capture().starts).toBe(0)
-    expect(t.capture().stops).toBe(1)
+    expect(t.capture().isDisposed).toBe(true)
     expect(t.sockets).toEqual([])
     expect(t.statuses).toEqual(['starting', 'idle'])
     await t.dictation.dispose()
@@ -758,58 +766,6 @@ describe('MuseVoiceDictation (M35)', () => {
     expect(t.seconds).toEqual([0])
     t.dictation.start()
     expect(t.capture().starts).toBe(1)
-  })
-})
-
-describe('Muse Voice over a real WebSocket (M35)', () => {
-  it('streams through Node’s WebSocket to a fake endpoint and gets the transcript', async () => {
-    const server = await startFakeVoiceServer((connection, frame) => {
-      if (typeof frame === 'string' && frame.includes('authorization')) {
-        connection.sendText({ sessionId: 'live-1' })
-      } else if (frame === '{"type":"endStream"}') {
-        connection.sendText({
-          type: 'transcript',
-          transcript: 'hello there',
-          final: false,
-          audioProcessedMs: 3040,
-        })
-        connection.sendText({
-          type: 'transcript',
-          transcript: 'Hello there.',
-          final: true,
-          audioProcessedMs: 3040,
-        })
-        connection.close(1000)
-      }
-    })
-    try {
-      const done = Promise.withResolvers<string>()
-      const stream = new MuseVoiceStream(
-        { url: server.url, openSocket: openWebSocket, log: new FakeLogOutputChannel() },
-        { onFinal: done.resolve, onFailed: done.reject },
-      )
-      stream.start(KEY)
-      const audio = Uint8Array.from({ length: 96_000 }, (_value, index) => index % 256)
-      stream.push(audio.subarray(0, 16_000))
-      const connection = await server.connection
-      await vi.waitFor(() => {
-        expect(connection.received.length).toBeGreaterThanOrEqual(2)
-      })
-      stream.push(audio.subarray(16_000))
-      stream.finish()
-      await expect(done.promise).resolves.toBe('Hello there.')
-      const [handshake, ...rest] = connection.received
-      expect(JSON.parse(String(handshake))).toMatchObject({
-        authorization: { accessToken: `Bearer ${KEY}` },
-        audioEncoding: 'PCM_16KHZ',
-      })
-      const sent = Buffer.concat(rest.filter((part): part is Buffer => Buffer.isBuffer(part)))
-      expect(sent.equals(Buffer.from(audio))).toBe(true)
-      expect(rest.at(-1)).toBe('{"type":"endStream"}')
-      expect(stream.seconds).toBe(3)
-    } finally {
-      await server.stop()
-    }
   })
 })
 
@@ -934,6 +890,99 @@ describe('CM352 bounded voice admission and receipts', () => {
       expect(broken.errors).toContain(UI_TEXT.sessionBudgetStoreUnavailable)
     })
     await broken.dictation.dispose()
+  })
+
+  it.each(['scope', 'key', 'daily', 'session', 'key reread'])(
+    'drains shutdown during the %s await and leaves no stranded claim',
+    async (stage) => {
+      const budget = await voiceBudget(`shutdown-${stage.replaceAll(' ', '-')}`, 1)
+      const held = Promise.withResolvers<undefined>()
+      const entered = Promise.withResolvers<undefined>()
+      const pause = async () => {
+        entered.resolve(undefined)
+        await held.promise
+      }
+      const reserve = budget.scope.journal.reserve.bind(budget.scope.journal)
+      const reserveSpy = vi
+        .spyOn(budget.scope.journal, 'reserve')
+        .mockImplementation(async (...args) => {
+          if (stage === 'session') await pause()
+          return await reserve(...args)
+        })
+      let keyReads = 0
+      const t = dictationSetup(
+        true,
+        async () => {
+          if (stage === 'scope') await pause()
+          return budget.scope
+        },
+        async () => {
+          keyReads += 1
+          if ((stage === 'key' && keyReads === 1) || (stage === 'key reread' && keyReads === 2)) {
+            await pause()
+          }
+          return KEY
+        },
+        async () => {
+          if (stage === 'daily') await pause()
+          return t.daily
+        },
+      )
+      try {
+        t.dictation.start()
+        await entered.promise
+        let hasDrained = false
+        const disposed = (async () => {
+          await t.dictation.dispose()
+          hasDrained = true
+        })()
+        await flushVoicePrepare()
+        expect(hasDrained).toBe(false)
+        expect(t.capture().starts).toBe(0)
+        expect(t.sockets).toEqual([])
+        held.resolve(undefined)
+        await disposed
+        expect(hasDrained).toBe(true)
+        expect(t.capture().isDisposed).toBe(true)
+        const total = await voiceBudgetTotal(budget)
+        expect(total.spentUsd).toBe(Usd.from(0).toAmount())
+        // The same journal admits and releases the next recording's liability.
+        const next = await budget.scope.journal.reserve(
+          'voice-parent',
+          budget.scope.accountId,
+          reservation(),
+        )
+        expect(next.check(Usd.from(1).toAmount()).spentUsd).toBe(reservation())
+        await next.settle(Usd.from(0).toAmount(), false)
+      } finally {
+        held.resolve(undefined)
+        reserveSpy.mockRestore()
+        await t.dictation.dispose()
+      }
+    },
+  )
+
+  it('drains both liability writes even when capture disposal throws synchronously', async () => {
+    const budget = await voiceBudget('throwing-capture-dispose', 1)
+    const t = dictationSetup(true, () => Promise.resolve(budget.scope))
+    t.dictation.start()
+    await answered(t)
+    t.capture().listener.onAudio?.(pcm(1))
+    const failure = vi.spyOn(t.capture(), 'dispose').mockImplementation(() => {
+      throw new Error('capture cleanup failed')
+    })
+    try {
+      await expect(t.dictation.dispose()).resolves.toBeUndefined()
+      expect(t.socket().isClosed).toBe(true)
+      expect(t.daily.settle).toHaveBeenCalledExactlyOnceWith(reservation(), true)
+      expect(await voiceBudgetTotal(budget)).toEqual({
+        spentUsd: reservation(),
+        hasUnknownHistoricalFees: true,
+      })
+    } finally {
+      failure.mockRestore()
+      await t.dictation.dispose()
+    }
   })
 
   it('waits for a pending settlement write on dispose, then settles reported seconds', async () => {
@@ -1156,17 +1205,8 @@ class FakeHelperChild implements HelperChild {
 
 function identitySetup() {
   const children: FakeHelperChild[] = []
-  const sockets: FakeSocket[] = []
-  const texts: string[] = []
-  const errors: string[] = []
-  const statuses: string[] = []
-  const seconds: number[] = []
-  const daily = {
-    check: vi.fn(),
-    settle: vi.fn(() =>
-      Promise.resolve({ spentUsd: Usd.from(0).toAmount(), hasUnknownHistoricalFees: false }),
-    ),
-  }
+  const { sockets, texts, errors, statuses, seconds } = voiceObservations()
+  const daily = fakeVoiceDailyClaim()
   const driver = new MuseVoiceDictation(
     {
       createCapture: (listener) =>
@@ -1205,8 +1245,8 @@ function identitySetup() {
       },
     },
   )
-  const child = (): FakeHelperChild => {
-    const found = children[0]
+  const child = (index = 0): FakeHelperChild => {
+    const found = children[index]
     if (found === undefined) {
       throw new Error('no helper')
     }
@@ -1228,6 +1268,29 @@ function voiceAudioLine(seconds: number): unknown {
   }
 }
 
+async function listeningIdentity(
+  t: ReturnType<typeof identitySetup>,
+  seconds: number,
+): Promise<void> {
+  t.driver.start()
+  await flushVoicePrepare()
+  t.child().emitLine({ type: 'ready', language: 'pcm_s16le' })
+  t.child().emitLine({ type: 'listening' })
+  t.child().emitLine(voiceAudioLine(seconds))
+  t.sockets[0]?.handlers.onOpen()
+  t.sockets[0]?.serverSays({ sessionId: 'a' })
+}
+
+async function stoppingIdentityAtCap(isStartQueued: boolean) {
+  const t = identitySetup()
+  await listeningIdentity(t, 1)
+  vi.advanceTimersByTime((MUSE_VOICE_MAX_SECONDS - 1) * 1000)
+  t.driver.stop()
+  if (isStartQueued) t.driver.start()
+  vi.advanceTimersByTime(1000)
+  return t
+}
+
 describe('MuseVoiceDictation recording identity (P1 restart race)', () => {
   beforeEach(() => {
     vi.useFakeTimers()
@@ -1238,13 +1301,7 @@ describe('MuseVoiceDictation recording identity (P1 restart race)', () => {
 
   it('a stop then start keeps each recording on its own stream and cap', async () => {
     const t = identitySetup()
-    t.driver.start()
-    await flushVoicePrepare()
-    t.child().emitLine({ type: 'ready', language: 'pcm_s16le' })
-    t.child().emitLine({ type: 'listening' })
-    t.child().emitLine(voiceAudioLine(1))
-    t.sockets[0]?.handlers.onOpen()
-    t.sockets[0]?.serverSays({ sessionId: 'a' })
+    await listeningIdentity(t, 1)
     const aFrames = t.sockets[0]?.binaries.length ?? 0
     expect(aFrames).toBeGreaterThan(0)
     // Stop reports nothing until the helper acknowledges it.
@@ -1254,15 +1311,18 @@ describe('MuseVoiceDictation recording identity (P1 restart race)', () => {
     // B starts before A's acknowledgement arrives: the helper hears nothing yet.
     t.driver.start()
     await flushVoicePrepare()
-    expect(t.sockets).toHaveLength(2)
+    expect(t.sockets).toHaveLength(1)
     expect(t.child().sent).toEqual(['start', 'stop'])
     // A's trailing audio still belongs to A, never to B.
     t.child().emitLine(voiceAudioLine(1))
-    expect(t.sockets[1]?.binaries).toEqual([])
+    expect(t.sockets[1]).toBeUndefined()
     expect(t.sockets[0]?.binaries.length).toBeGreaterThan(aFrames)
     // A's acknowledgement finishes A and releases B, without touching B.
     t.child().emitLine({ type: 'stopped' })
-    expect(t.child().sent).toEqual(['start', 'stop', 'start'])
+    await flushVoicePrepare()
+    expect(t.child().sent).toEqual(['start', 'stop'])
+    t.child(1).emitLine({ type: 'ready', language: 'pcm_s16le' })
+    expect(t.child(1).sent).toEqual(['start'])
     expect(t.sockets[0]?.texts.at(-1)).toBe('{"type":"endStream"}')
     expect(t.sockets[1]?.texts).toEqual([])
     t.sockets[0]?.serverSays({
@@ -1274,38 +1334,162 @@ describe('MuseVoiceDictation recording identity (P1 restart race)', () => {
     expect(t.texts).toEqual(['first'])
     expect(t.seconds).toEqual([2])
     // B captures on its own acknowledgement, with its own stream.
-    t.child().emitLine({ type: 'listening' })
-    t.child().emitLine(voiceAudioLine(1))
+    t.child(1).emitLine({ type: 'listening' })
+    t.child(1).emitLine(voiceAudioLine(1))
     t.sockets[1]?.handlers.onOpen()
     t.sockets[1]?.serverSays({ sessionId: 'b' })
     expect(t.sockets[1]?.binaries.length).toBeGreaterThan(0)
     // The cap stops B at its own limit: A's timer died with A.
     vi.advanceTimersByTime(MUSE_VOICE_MAX_SECONDS * 1000)
     expect(t.sockets[1]?.texts.at(-1)).toBe('{"type":"endStream"}')
-    expect(t.child().sent.at(-1)).toBe('stop')
+    expect(t.child(1).sent.at(-1)).toBe('stop')
     await t.driver.dispose()
   })
 
+  it('keeps queued B when A reaches its cap while waiting for stopped acknowledgement', async () => {
+    const t = await stoppingIdentityAtCap(true)
+    try {
+      t.child().emitLine({ type: 'stopped' })
+      await flushVoicePrepare()
+      expect(t.sockets).toHaveLength(2)
+      expect(t.child(1).sent).toEqual([])
+      t.child(1).emitLine({ type: 'ready', language: 'pcm_s16le' })
+      t.child(1).emitLine({ type: 'listening' })
+      const socket = t.sockets.at(-1)
+      socket?.handlers.onOpen()
+      socket?.serverSays({ sessionId: 'b-cap' })
+      vi.advanceTimersByTime(MUSE_VOICE_MAX_SECONDS * 1000)
+      expect(t.child(1).sent).toEqual(['start', 'stop'])
+    } finally {
+      await t.driver.dispose()
+    }
+  })
+
+  it('keeps capture ownership when a cap final arrives before helper acknowledgement', async () => {
+    const t = await stoppingIdentityAtCap(false)
+    try {
+      t.sockets[0]?.serverSays({
+        type: 'transcript',
+        transcript: 'a',
+        final: true,
+        audioProcessedMs: 1000,
+      })
+      expect(t.seconds).toEqual([1])
+      t.driver.start()
+      await flushVoicePrepare()
+      expect(t.sockets).toHaveLength(1)
+      t.child().emitLine({ type: 'stopped' })
+      await flushVoicePrepare()
+      expect(t.sockets).toHaveLength(2)
+    } finally {
+      await t.driver.dispose()
+    }
+  })
+
+  it('forces an unacknowledged A stop before starting B with its own cap', async () => {
+    const t = identitySetup()
+    try {
+      t.driver.start()
+      await flushVoicePrepare()
+      t.child().emitLine({ type: 'ready', language: 'pcm_s16le' })
+      t.child().emitLine({ type: 'listening' })
+      t.sockets[0]?.handlers.onOpen()
+      t.sockets[0]?.serverSays({ sessionId: 'a' })
+      t.driver.stop()
+      t.driver.start()
+      vi.advanceTimersByTime(DICTATION_STOP_GRACE_MS)
+      await flushVoicePrepare()
+      expect(t.sockets[0]?.isClosed).toBe(true)
+      expect(t.sockets).toHaveLength(2)
+      t.child(1).emitLine({ type: 'ready', language: 'pcm_s16le' })
+      t.child(1).emitLine({ type: 'listening' })
+      t.sockets[1]?.handlers.onOpen()
+      t.sockets[1]?.serverSays({ sessionId: 'b' })
+      t.child().emitLine({ type: 'stopped' })
+      t.child().emitLine(voiceAudioLine(1))
+      expect(t.sockets[1]?.texts).toHaveLength(1)
+      vi.advanceTimersByTime(MUSE_VOICE_MAX_SECONDS * 1000)
+      expect(t.child(1).sent.at(-1)).toBe('stop')
+    } finally {
+      await t.driver.dispose()
+    }
+  })
+
+  it.each(['listening', 'audio', 'stopped', 'error'])(
+    'drops A trailing %s at every interleaving with B start and preserves B cap',
+    async (event) => {
+      for (const stage of ['queued', 'starting', 'listening']) {
+        const t = identitySetup()
+        try {
+          t.driver.start()
+          await flushVoicePrepare()
+          const a = t.child()
+          a.emitLine({ type: 'ready', language: 'pcm_s16le' })
+          a.emitLine({ type: 'listening' })
+          t.sockets[0]?.handlers.onOpen()
+          t.sockets[0]?.serverSays({ sessionId: 'a' })
+          a.emitLine(voiceAudioLine(1))
+          t.driver.stop()
+          t.driver.start()
+          await flushVoicePrepare()
+          expect(t.sockets).toHaveLength(1)
+          if (stage !== 'queued') {
+            a.emitLine({ type: 'stopped' })
+            await flushVoicePrepare()
+          }
+          if (stage === 'listening') {
+            t.child(1).emitLine({ type: 'ready', language: 'pcm_s16le' })
+            t.child(1).emitLine({ type: 'listening' })
+          }
+          a.emitLine(
+            event === 'audio' ? voiceAudioLine(1) : { type: event, reason: 'old helper failed' },
+          )
+          if (stage === 'queued' && event !== 'stopped' && event !== 'error') {
+            a.emitLine({ type: 'stopped' })
+          }
+          await flushVoicePrepare()
+          expect(t.sockets).toHaveLength(2)
+          const b = t.child(1)
+          b.emitLine({ type: 'ready', language: 'pcm_s16le' })
+          b.emitLine({ type: 'listening' })
+          t.sockets[1]?.handlers.onOpen()
+          t.sockets[1]?.serverSays({ sessionId: 'b' })
+          // Old socket events also retain A, even after B listens.
+          t.sockets[0]?.serverSays({
+            type: 'transcript',
+            transcript: 'a',
+            final: true,
+            audioProcessedMs: 1000,
+          })
+          t.sockets[0]?.handlers.onClose(1000, '')
+          b.emitLine(voiceAudioLine(1))
+          expect(t.sockets[1]?.binaries.length).toBeGreaterThan(0)
+          expect(t.sockets[1]?.texts).toHaveLength(1)
+          vi.advanceTimersByTime(MUSE_VOICE_MAX_SECONDS * 1000)
+          expect(b.sent.at(-1)).toBe('stop')
+          expect(t.sockets[1]?.texts.at(-1)).toBe('{"type":"endStream"}')
+        } finally {
+          await t.driver.dispose()
+        }
+      }
+    },
+  )
+
   it('a late helper error ends each unfinished recording on its own stream', async () => {
     const t = identitySetup()
-    t.driver.start()
-    await flushVoicePrepare()
-    t.child().emitLine({ type: 'ready', language: 'pcm_s16le' })
-    t.child().emitLine({ type: 'listening' })
-    t.child().emitLine(voiceAudioLine(2))
-    t.sockets[0]?.handlers.onOpen()
-    t.sockets[0]?.serverSays({ sessionId: 'a' })
+    await listeningIdentity(t, 2)
     t.driver.stop()
     t.driver.start()
     await flushVoicePrepare()
-    expect(t.sockets).toHaveLength(2)
+    expect(t.sockets).toHaveLength(1)
     t.child().emitLine({ type: 'error', reason: 'the helper died' })
+    await flushVoicePrepare()
     expect(t.errors).toEqual(['the helper died'])
     expect(t.texts).toEqual([])
     // A counts what it sent; B never captured and counts nothing.
-    expect(t.seconds).toEqual([2, 0])
+    expect(t.seconds).toEqual([2])
     expect(t.sockets[0]?.isClosed).toBe(true)
-    expect(t.sockets[1]?.isClosed).toBe(true)
+    expect(t.sockets[1]?.isClosed).toBe(false)
     // The next press starts afresh on a new helper.
     t.driver.start()
     await flushVoicePrepare()

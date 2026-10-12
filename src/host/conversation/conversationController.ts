@@ -1251,6 +1251,7 @@ export class ConversationController {
    * the transcript of what it already sent arrives or the panel closes.
    */
   private retiredDictation: DictationHandle | undefined
+  private readonly voiceDisposals = new Set<Promise<void>>()
   /**
    * Counts every microphone press (M58): a Muse Voice start waits for the
    * paid-use popup, and a stop pressed meanwhile cancels it.
@@ -7817,9 +7818,11 @@ export class ConversationController {
         return
       }
       hasReachedHost = true
-      const outcome = await this.runResuming(host, session, (current) =>
-        current.controlGoal(command),
-      )
+      const outcome = await this.runResuming(host, session, (current) => {
+        // Preserve the parent goal fence on independently Meta-keyed voice.
+        this.voiceContextRevision += 1
+        return current.controlGoal(command)
+      })
       if (
         generation !== this.sendInvalidationEpoch ||
         !this.isAuthAdmitted() ||
@@ -9674,12 +9677,19 @@ export class ConversationController {
     )
   }
 
-  /**
-   * The driver of an engine that is no longer the microphone's (M35, the
-   * review of PR #27): an idle one goes; a recording one stops at once, so
-   * nothing more is sent (Muse Voice turned off is off), and is kept until
-   * the panel closes, so the transcript of what it already sent arrives.
-   */
+  private disposeVoice(driver: DictationHandle | undefined): void {
+    if (driver === undefined) return
+    const disposal = (async () => {
+      try {
+        await driver.dispose()
+      } catch {
+        this.deps.log.warn('Voice cleanup failed')
+      }
+    })()
+    this.voiceDisposals.add(disposal)
+    void disposal.then(() => this.voiceDisposals.delete(disposal))
+  }
+
   /**
    * The backends are stopping (a restart, sign-out or shutdown): the owned
    * driver and the retired one drain — capture stopped, sockets closed,
@@ -9690,8 +9700,9 @@ export class ConversationController {
     this.dictation = undefined
     const retired = this.retiredDictation
     this.retiredDictation = undefined
-    await current?.dispose()
-    await retired?.dispose()
+    this.disposeVoice(current)
+    this.disposeVoice(retired)
+    await Promise.allSettled(this.voiceDisposals)
     if (this.dictationStatus === 'idle') {
       return
     }
@@ -9699,6 +9710,12 @@ export class ConversationController {
     this.postDictationState()
   }
 
+  /**
+   * The driver of an engine that is no longer the microphone's (M35, the
+   * review of PR #27): an idle one goes; a recording one stops at once, so
+   * nothing more is sent (Muse Voice turned off is off), and is kept until
+   * the panel closes, so the transcript of what it already sent arrives.
+   */
   private retireDictation(): void {
     const old = this.dictation
     if (old === undefined) {
@@ -9706,11 +9723,11 @@ export class ConversationController {
     }
     this.dictation = undefined
     if (this.dictationStatus === 'idle') {
-      void old.dispose()
+      this.disposeVoice(old)
       return
     }
     old.stop()
-    void this.retiredDictation?.dispose()
+    this.disposeVoice(this.retiredDictation)
     this.retiredDictation = old
   }
 
@@ -9805,14 +9822,26 @@ export class ConversationController {
           throw new Error(UI_TEXT.sessionBudgetVoiceContextChanged)
         }
       }
-      if (!isCurrent() || scope?.isStillAllowed(accountId) === false) {
+      // A press a newer one superseded stays quiet; a dead scope never
+      // does: the press had consent and a key, so it hears why it stopped.
+      if (!isCurrent()) {
+        this.postDictationState()
+        return
+      }
+      if (scope?.isStillAllowed(accountId) === false) {
+        this.notice('warning', UI_TEXT.sessionBudgetVoiceContextChanged)
         this.postDictationState()
         return
       }
       consentFence(accountId, true)
       // The first paid recording asks; Allow once covers this window (CM352).
       const isAllowed = (await this.deps.allowsPaidUse({ feature: 'voice' })) === true
-      if (!isAllowed || !isCurrent() || scope?.isStillAllowed(accountId) === false) {
+      if (!isAllowed || !isCurrent()) {
+        this.postDictationState()
+        return
+      }
+      if (scope?.isStillAllowed(accountId) === false) {
+        this.notice('warning', UI_TEXT.sessionBudgetVoiceContextChanged)
         this.postDictationState()
         return
       }
@@ -11152,12 +11181,18 @@ export class ConversationController {
     this.usageWatch.dispose()
     this.usageHost = undefined
     this.latestUsage = undefined
-    void this.dictation?.dispose()
+    this.disposeVoice(this.dictation)
     this.dictation = undefined
-    void this.retiredDictation?.dispose()
+    this.disposeVoice(this.retiredDictation)
     this.retiredDictation = undefined
     this.checkpoints.dispose()
     this.git.dispose()
+  }
+
+  /** Window ownership retains this drain even after a conversation tab closes. */
+  public async disposeAsync(): Promise<void> {
+    this.dispose()
+    await this.stopVoice()
   }
 
   /**

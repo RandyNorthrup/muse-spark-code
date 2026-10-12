@@ -157,9 +157,12 @@ import {
   sideSessionStarted,
 } from './helpers/reviewerCapture'
 import { createMuseCodeReviewer } from '../../src/host/review/museCodeReviewerEntry'
+import { createProviderRegistry } from '../../src/core/providers/providerRegistry'
+import { ownedMetaVoiceBudgetScope } from '../../src/host/voice/voiceBundle'
 import { museCodeReviewerPort } from '../../src/host/review/museCodeReviewerBundle'
 import {
   FAKE_MODEL_API_ACCOUNT_ID,
+  FAKE_MODEL_API_KEY,
   fakeModelApi,
   fakeModelApiClient,
   type FakeModelApi,
@@ -7298,6 +7301,8 @@ function modelApiController(
   t: ReturnType<typeof setup>,
   options: {
     readonly modelId?: string
+    readonly models?: ModelApiHostDeps['models']
+    readonly ownedVoiceBudgetScope?: ConversationDeps['ownedVoiceBudgetScope']
     readonly sideCallFormats?: ModelApiHostDeps['sideCallFormats']
     readonly createGit?: ConversationDeps['createGit']
     readonly workspaceRoot?: string
@@ -7314,6 +7319,7 @@ function modelApiController(
   const api = fakeModelApi()
   const host = new ModelApiHost({
     client: fakeModelApiClient(api, t.log),
+    ...(options.models !== undefined && { models: options.models }),
     ...(options.sideCallFormats !== undefined && { sideCallFormats: options.sideCallFormats }),
     workspaceRoot: options.workspaceRoot ?? '/ws',
     platform: options.platform ?? 'linux',
@@ -7347,6 +7353,9 @@ function modelApiController(
     },
     ...(options.store !== undefined && {
       ownedVoiceBudgetScope: (sessionId: string) => host.getOwnedBudgetScope(sessionId),
+    }),
+    ...(options.ownedVoiceBudgetScope !== undefined && {
+      ownedVoiceBudgetScope: options.ownedVoiceBudgetScope,
     }),
   })
   return { api, host, controller }
@@ -9194,6 +9203,8 @@ function noFolderVoice(
     readonly workspaceRoot?: string
     readonly allowsPaidUse?: ConversationDeps['allowsPaidUse']
     readonly apiKey?: () => Promise<string | undefined>
+    readonly ownedBudgetScope?: ConversationDeps['ownedVoiceBudgetScope']
+    readonly voiceAccountId?: ConversationDeps['voiceAccountId']
     readonly reserveDaily?: MuseVoiceDeps['reserveDaily']
   } = {},
 ) {
@@ -9202,11 +9213,14 @@ function noFolderVoice(
   const captures: DictationListener[] = []
   const sockets: NoFolderVoiceSocket[] = []
   const state = { capUsd: options.capUsd ?? 0 }
-  const scope = vi.fn(() => Promise.resolve(undefined))
+  const scope = vi.fn<ConversationDeps['ownedVoiceBudgetScope']>(
+    options.ownedBudgetScope ?? (() => Promise.resolve(undefined)),
+  )
   const t = setup({
     workspaceRoot: options.workspaceRoot,
     modelApiSessionBudgetUsd: options.capUsd ?? 0,
     ownedVoiceBudgetScope: scope,
+    ...(options.voiceAccountId !== undefined && { voiceAccountId: options.voiceAccountId }),
     ...(options.allowsPaidUse !== undefined && { allowsPaidUse: options.allowsPaidUse }),
     museVoice: () => ({
       isAvailable: true,
@@ -9292,8 +9306,11 @@ function noFolderVoice(
   return { t, controller, calls, seconds, captures, sockets, scope, state, capture, socket }
 }
 
-async function openNoFolderVoice(voice: ReturnType<typeof noFolderVoice>) {
-  await voice.controller.handle({ type: 'dictation', action: 'start' })
+async function openNoFolderVoice(
+  voice: ReturnType<typeof noFolderVoice>,
+  controller = voice.controller,
+) {
+  await controller.handle({ type: 'dictation', action: 'start' })
   await vi.waitFor(() => {
     expect(voice.sockets).toHaveLength(1)
   })
@@ -9412,12 +9429,18 @@ describe('ConversationController: paid voice without a journal (M82)', () => {
     const voice = noFolderVoice({ apiKey: () => key.promise })
     try {
       await voice.controller.handle({ type: 'dictation', action: 'start' })
-      expect(voice.calls).toEqual(['create', 'start'])
+      expect(voice.calls).toEqual(['create'])
       if (variant.enablesCap) voice.state.capUsd = 1
       key.resolve(variant.key)
       await vi.waitFor(() => {
-        expect(voice.calls).toContain('stop')
+        expect(voice.t.surface.posted).toContainEqual(
+          expect.objectContaining({
+            type: 'notice',
+            level: 'error',
+          }),
+        )
       })
+      expect(voice.calls).not.toContain('start')
       expect(voice.sockets).toEqual([])
     } finally {
       key.resolve(undefined)
@@ -9453,6 +9476,51 @@ describe('ConversationController: paid voice without a journal (M82)', () => {
     },
   )
 
+  it('preserves the goal-change fence on independently Meta-keyed voice', async () => {
+    const voice = noFolderVoice({ workspaceRoot: '/ws' })
+    const actual = modelApiController(voice.t)
+    try {
+      await openNoFolderVoice(voice, actual.controller)
+      voice.capture().onAudio?.(new Uint8Array(MUSE_VOICE_BYTES_PER_SECOND))
+      const before = voice.socket().audio.length
+      await actual.controller.handle({
+        type: 'goalCommand',
+        requestId: 'voice-goal',
+        verb: 'set',
+        objective: 'keep this recording fenced',
+      })
+      voice.capture().onAudio?.(new Uint8Array(MUSE_VOICE_BYTES_PER_SECOND))
+      expect(voice.socket().audio).toHaveLength(before)
+      expect(voice.socket().isClosed).toBe(true)
+      expect(voice.t.surface.posted).toContainEqual(
+        expect.objectContaining({
+          type: 'notice',
+          text: expect.stringContaining(UI_TEXT.sessionBudgetVoiceContextChanged),
+        }),
+      )
+    } finally {
+      await actual.controller.disposeAsync()
+      await actual.host.close()
+      await voice.controller.disposeAsync()
+    }
+  })
+
+  it('completes backend stop when voice disposal throws synchronously', async () => {
+    const dispose = vi.fn(() => {
+      throw new Error('voice cleanup failed')
+    })
+    const t = setup({
+      dictation: {
+        isAvailable: true,
+        create: () => ({ start: () => undefined, stop: () => undefined, dispose }),
+      },
+    })
+    await t.controller.handle({ type: 'dictation', action: 'start' })
+    await expect(t.controller.backendStopping(true)).resolves.toBeUndefined()
+    expect(dispose).toHaveBeenCalledOnce()
+    await t.controller.disposeAsync()
+  })
+
   it('drains an active recording on backendStopping: capture disposed, socket closed, button idle', async () => {
     const voice = noFolderVoice()
     try {
@@ -9474,6 +9542,41 @@ describe('ConversationController: paid voice without a journal (M82)', () => {
       })
     } finally {
       voice.controller.dispose()
+    }
+  })
+
+  it('keeps a closed tab drain awaitable until its Meta admission refund lands', async () => {
+    const entered = Promise.withResolvers<undefined>()
+    const held = Promise.withResolvers<undefined>()
+    const settle = vi.fn(() =>
+      Promise.resolve({ spentUsd: Usd.from(0).toAmount(), hasUnknownHistoricalFees: false }),
+    )
+    const voice = noFolderVoice({
+      reserveDaily: async () => {
+        entered.resolve(undefined)
+        await held.promise
+        return { check: () => undefined, settle }
+      },
+    })
+    try {
+      await voice.controller.handle({ type: 'dictation', action: 'start' })
+      await entered.promise
+      let hasDrained = false
+      const disposed = (async () => {
+        await voice.controller.disposeAsync()
+        hasDrained = true
+      })()
+      for (let i = 0; i < 10; i += 1) await Promise.resolve()
+      expect(hasDrained).toBe(false)
+      expect(voice.calls).not.toContain('start')
+      expect(voice.sockets).toEqual([])
+      held.resolve(undefined)
+      await disposed
+      expect(settle).toHaveBeenCalledExactlyOnceWith(Usd.from(0).toAmount(), false)
+      expect(hasDrained).toBe(true)
+    } finally {
+      held.resolve(undefined)
+      await voice.controller.disposeAsync()
     }
   })
 
@@ -9530,6 +9633,130 @@ describe('ConversationController: paid voice without a journal (M82)', () => {
       voice.controller.dispose()
     }
   })
+
+  it.each(['other/provider-model', 'local/local-model'])(
+    'pays Meta voice with the Meta key on %s, and says why without one',
+    async (modelId) => {
+      const journal = {
+        read: () =>
+          Promise.resolve({ spentUsd: Usd.from(0).toAmount(), hasUnknownHistoricalFees: false }),
+        reserve: () =>
+          Promise.resolve({
+            claimId: 'voice-claim',
+            reservedUsd: Usd.from(0).toAmount(),
+            check: () => ({ spentUsd: Usd.from(0).toAmount(), hasUnknownHistoricalFees: false }),
+            settle: () =>
+              Promise.resolve({
+                spentUsd: Usd.from(0).toAmount(),
+                hasUnknownHistoricalFees: false,
+              }),
+          }),
+        record: () =>
+          Promise.resolve({ spentUsd: Usd.from(0).toAmount(), hasUnknownHistoricalFees: false }),
+      }
+      // Production's dedicated scope preserves parent liability and fences
+      // Meta's key independently of the selected provider or local model.
+      const metaScope = await ownedMetaVoiceBudgetScope({
+        sessionId: 'voice-parent',
+        accountId: FAKE_MODEL_API_ACCOUNT_ID,
+        journal,
+        capUsd: () => Usd.from(0).toAmount(),
+        isCurrent: () => true,
+      })
+      const key: { current: string | undefined } = { current: FAKE_MODEL_API_KEY }
+      const voice = noFolderVoice({
+        workspaceRoot: '/ws',
+        apiKey: () => Promise.resolve(key.current),
+        ownedBudgetScope: () => Promise.resolve(metaScope),
+        voiceAccountId: () =>
+          Promise.resolve(key.current === undefined ? undefined : FAKE_MODEL_API_ACCOUNT_ID),
+      })
+      const { t, calls, sockets, captures } = voice
+      const providerApi = fakeModelApi()
+      const providerClient = fakeModelApiClient(providerApi, t.log)
+      const models = createProviderRegistry({
+        models: () =>
+          Promise.resolve([
+            {
+              ref: modelId,
+              origin: 'test-config',
+              evidence: { capabilities: { toolCalling: true } },
+              pricing: { kind: 'local' },
+            },
+          ]),
+        createClient: () =>
+          Promise.resolve({
+            streamResponse: providerClient.streamResponse.bind(providerClient),
+            countInputTokens: providerClient.countInputTokens.bind(providerClient),
+            listModels: providerClient.listModels.bind(providerClient),
+            retryDelayMs: providerClient.retryDelayMs.bind(providerClient),
+            waitBeforeRetry: providerClient.waitBeforeRetry.bind(providerClient),
+            currentKeyDigest: () =>
+              modelId.startsWith('local/')
+                ? Promise.reject(new Error('Local model has no credential'))
+                : Promise.resolve('provider-credential-digest'),
+          }),
+        isCurrent: () => true,
+      })
+      const { controller, host } = modelApiController(t, {
+        modelId,
+        models,
+        store: { ...memorySessionStore(), budget: journal },
+        ownedVoiceBudgetScope: t.deps.ownedVoiceBudgetScope,
+      })
+      try {
+        // The Meta key pays for the recording, whatever credential the
+        // conversation's own model uses: the socket opens and audio bills it.
+        await controller.handle({ type: 'dictation', action: 'start' })
+        await vi.waitFor(() => {
+          expect(sockets).toHaveLength(1)
+        })
+        // The ordinary provider scope has the old mismatch; voice must use
+        // the independent Meta scope instead of weakening that model fence.
+        if (modelId.startsWith('local/')) {
+          await expect(host.getOwnedBudgetScope('fixed')).rejects.toThrow(
+            'Local model has no credential',
+          )
+        } else {
+          const ordinary = await host.getOwnedBudgetScope('fixed')
+          expect(ordinary?.isStillAllowed(FAKE_MODEL_API_ACCOUNT_ID)).toBe(false)
+          expect(ordinary?.isStillAllowed('provider-credential-digest')).toBe(true)
+        }
+        sockets[0]?.handlers.onOpen()
+        expect(sockets[0]?.texts[0]).toContain(FAKE_MODEL_API_KEY)
+        sockets[0]?.handlers.onText(JSON.stringify({ sessionId: 'voice-one' }))
+        captures[0]?.onAudio?.(new Uint8Array(MUSE_VOICE_BYTES_PER_SECOND * 2))
+        await controller.handle({ type: 'dictation', action: 'stop' })
+        expect(sockets[0]?.texts.at(-1)).toBe('{"type":"endStream"}')
+        sockets[0]?.handlers.onText(
+          JSON.stringify({
+            type: 'transcript',
+            transcript: 'meta billed',
+            final: true,
+            audioProcessedMs: 2000,
+          }),
+        )
+        expect(t.surface.posted).toContainEqual({ type: 'insertText', text: 'meta billed ' })
+        // Without a Meta key the press says plainly why it cannot, with no
+        // popup, no new capture and no new socket: it never returns silently.
+        const starts = calls.filter((call) => call === 'start').length
+        key.current = undefined
+        await controller.handle({ type: 'dictation', action: 'start' })
+        expect(sockets).toHaveLength(1)
+        expect(calls.filter((call) => call === 'start')).toHaveLength(starts)
+        expect(t.surface.posted).toContainEqual(
+          expect.objectContaining({
+            type: 'notice',
+            text: expect.stringContaining('Model API key'),
+          }),
+        )
+      } finally {
+        await controller.disposeAsync()
+        await host.close()
+        await voice.controller.disposeAsync()
+      }
+    },
+  )
 })
 
 describe('ConversationController: the microphone’s engine (M35, PLAN.md D30)', () => {

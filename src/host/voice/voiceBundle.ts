@@ -8,6 +8,11 @@
 // any recording fails, through the listener's `onError` ("Voice dictation
 // failed: …", the log has the cause), and the next press tries again.
 
+import type {
+  OwnedSessionBudgetScope,
+  SessionBudgetJournal,
+} from '../../core/backends/modelapi/sessionBudget'
+import type { UsdAmount } from '../../shared/usd'
 import type { DictationHandle, DictationListener } from '../../core/voice/dictation'
 import { UI_TEXT } from '../../shared/constants'
 import { lazyBundleLoader } from '../lazyBundle'
@@ -85,4 +90,25 @@ export function deferredDriver(
       return driver?.dispose()
     },
   }
+}
+
+/** Meta voice owns a Meta-key scope, independent of the conversation's provider credential. */
+export async function ownedMetaVoiceBudgetScope(deps: {
+  readonly journal: SessionBudgetJournal | undefined
+  readonly sessionId: string
+  readonly accountId: string
+  readonly capUsd: () => UsdAmount
+  readonly isCurrent: () => boolean
+}): Promise<OwnedSessionBudgetScope | undefined> {
+  if (deps.journal === undefined) return undefined
+  // Seed/read the same parent journal before reserving; unknown history stays refused.
+  await deps.journal.read(deps.sessionId, deps.accountId)
+  if (!deps.isCurrent()) throw new Error(UI_TEXT.sessionBudgetVoiceContextChanged)
+  return Object.freeze({
+    sessionId: deps.sessionId,
+    accountId: deps.accountId,
+    journal: deps.journal,
+    capUsd: deps.capUsd,
+    isStillAllowed: (digest: string | undefined) => digest === deps.accountId && deps.isCurrent(),
+  })
 }

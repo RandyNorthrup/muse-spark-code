@@ -173,6 +173,7 @@ describe('recording taps', () => {
     async (failsShutdown) => {
       const journal = writer()
       const held = Promise.withResolvers<undefined>()
+      const voiceHeld = Promise.withResolvers<undefined>()
       const shutdownOrder: string[] = []
       vi.mocked(journal.flush).mockImplementation(() => {
         shutdownOrder.push('usage')
@@ -225,6 +226,7 @@ describe('recording taps', () => {
         `${source.slice(start, end + '\n  }'.length)}; (async () => {${deactivate ?? ''}})().then(resolve, reject)`,
         {
           lifecycle: {},
+          controllerDisposals: new Set([voiceHeld.promise]),
           nativeStarts: { abort: vi.fn() },
           accountHosts: { close: vi.fn() },
           promptHost: { dispose: disposePrompts },
@@ -243,6 +245,12 @@ describe('recording taps', () => {
         expect(journal.flush).not.toHaveBeenCalled()
         promptClosed.resolve(undefined)
         await vi.waitFor(() => {
+          expect(restartBackend).toHaveBeenCalledOnce()
+        })
+        expect(journal.flush).not.toHaveBeenCalled()
+        expect(hasFinished).toBe(false)
+        voiceHeld.resolve(undefined)
+        await vi.waitFor(() => {
           expect(journal.flush).toHaveBeenCalledOnce()
         })
         expect(restartBackend).toHaveBeenCalledExactlyOnceWith('the window is closing', true)
@@ -251,6 +259,7 @@ describe('recording taps', () => {
         expect(hasFinished).toBe(false)
       } finally {
         promptClosed.resolve(undefined)
+        voiceHeld.resolve(undefined)
         held.resolve(undefined)
       }
       expect(await result).toBe(failsShutdown ? failure : undefined)

@@ -385,12 +385,16 @@ export class Dictation {
       helper.isStartWanted = false
       this.setStatus('idle')
       this.armIdleExit(helper)
+      this.deps.listener.onStopped?.()
       return
     }
     // The latest press wins: a start queued behind this stop is cancelled.
     helper.isStartPending = false
-    helper.child.send(DICTATION_HELPER_COMMANDS.stop)
+    if (helper.isStopping) return
     helper.isStopping = true
+    helper.child.send(DICTATION_HELPER_COMMANDS.stop)
+    // Linux can acknowledge synchronously during send.
+    if (this.helper?.isStopping !== true || this.helper !== helper) return
     // Idle waits for the helper's "stopped" (or the grace timer ending it by
     // force): until then a new press queues behind this recording, and every
     // trailing event still belongs to it.
