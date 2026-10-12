@@ -4883,6 +4883,7 @@
     "spreadEvent": "작업 분산됨",
     "stopEvent": "작업 중지됨",
     "sourceUndated": "출처 날짜가 표시되지 않음",
+    "selectedRemoved": "선택한 계정이 더 이상 존재하지 않습니다. 이 채팅은 다음 요청에서 기본 계정을 사용합니다.",
     "invalidAccount": "계정 ID, 레이블, 순서, 한도 그룹 및 임계값을 확인하세요.",
     "removeConfirm": "{account}을(를) 제거할까요? 저장된 자격 증명이 삭제되고 로그인 권한이 철회됩니다.",
     "requestCount": {

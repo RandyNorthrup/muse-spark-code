@@ -5032,6 +5032,7 @@
     "spreadEvent": "Munka elosztva",
     "stopEvent": "Munka leállítva",
     "sourceUndated": "A forrás dátuma nincs megadva",
+    "selectedRemoved": "A kiválasztott fiók már nem létezik. Ez a csevegés a következő kérésnél az alapértelmezett fiókot használja.",
     "invalidAccount": "Ellenőrizze a fiókazonosítót, címkét, sorrendet, korlátcsoportot és küszöbértékeket.",
     "removeConfirm": "Eltávolítja ezt: {account}? A tárolt hitelesítő adatok törlődnek, a bejelentkezés visszavonásra kerül.",
     "requestCount": {

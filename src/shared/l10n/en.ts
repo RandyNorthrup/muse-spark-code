@@ -6080,6 +6080,8 @@ export const EN = {
     spreadEvent: 'Work spread',
     stopEvent: 'Work stopped',
     sourceUndated: 'No source date shown',
+    selectedRemoved:
+      'The chosen account no longer exists. This chat will use the default account on its next request.',
     invalidAccount: 'Check the account id, label, order, limit group and thresholds.',
     removeConfirm:
       'Remove {account}? Its stored credential will be deleted and its sign-in revoked.',

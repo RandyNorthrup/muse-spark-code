@@ -96,6 +96,10 @@ export async function createAccountRequestOwner(deps: {
   })
   const pool = new AccountPool({
     provider: deps.provider,
+    readSelection: (owner) => journal.selection(deps.provider, owner),
+    writeSelection: (owner, account) => {
+      journal.select(deps.provider, owner, account)
+    },
     accounts: () => deps.metadata.readNow?.(deps.provider)?.accounts ?? rows,
     policy: () => {
       const current =
@@ -177,7 +181,15 @@ export async function createAccountRequestOwner(deps: {
           const selected = client.withAccountKey(apiKey, isCurrent)
           const models = await selected.listModels()
           if (!models.includes(request.modelId)) throw new Error(UI_TEXT.execUnknownModel)
-          return selected
+          return {
+            streamResponse: selected.streamResponse.bind(selected),
+            countInputTokens: selected.countInputTokens.bind(selected),
+            listModels: selected.listModels.bind(selected),
+            currentKeyDigest: selected.currentKeyDigest.bind(selected),
+            retryDelayMs: selected.retryDelayMs.bind(selected),
+            waitBeforeRetry: selected.waitBeforeRetry.bind(selected),
+            paidClient: selected,
+          }
         },
       }),
   }

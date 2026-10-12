@@ -9,6 +9,14 @@ import { accountLimitIdentity, type AccountLimitBlock } from './limitBlock'
 import { accountStopText } from '../usage/accountUsageText'
 import type { AccountStore } from '../providers/accounts'
 import type { AccountBinding, AccountCredential } from '../providers/accountCredentialRecord'
+import type { ProviderClient, ResponseAttemptGuard } from '../backends/modelapi/client'
+import type { PaidUseRequest, PaidUseDecision } from '../../shared/paid'
+import { PAID_PRICES_USD } from '../../shared/constants'
+import { Usd } from '../../shared/usd'
+import { estimateInput, requestParts } from '../backends/modelapi/sessionBudget'
+import { modelPolicyFor, modelPricedUsage } from '../backends/modelapi/modelPolicy'
+import { estimateCostUsd } from '../usage/insights'
+import type { CreateImageBody, EditImageBody, ImagesResponse } from '../backends/modelapi/schemas'
 import type { ModelClient } from '../backends/modelapi/modelPolicy'
 import { UI_TEXT } from '../../shared/constants'
 import { parseUsd } from '../../shared/accountUsd'
@@ -32,6 +40,7 @@ export interface AccountRequestLease {
   readonly provider: string
   readonly origin: string
   readonly keyDigest: string
+  readonly paidClient?: ProviderClient | undefined
   readonly client: ModelClient
   readonly rateLimit: (resetAt: string) => void
   readonly isCurrent: () => boolean
@@ -43,9 +52,44 @@ export interface AccountRequestLease {
 }
 
 export interface AccountRequestPort {
+  paidClient?(
+    client: ProviderClient,
+    request: AccountPoolRequest,
+    origin: string,
+    paid: PaidUseRequest,
+    requiresAsking: boolean,
+    allows: (paid: PaidUseRequest, requiresAsking: boolean) => Promise<PaidUseDecision>,
+  ): ProviderClient
+  withinRequest?<T>(
+    kind: AccountPoolRequest['kind'],
+    owner: string,
+    run: () => Promise<T>,
+  ): Promise<T>
   acquire(request: AccountPoolRequest, origin: string): Promise<AccountRequestLease>
   within<T>(lease: AccountRequestLease, run: () => Promise<T>): Promise<T>
   current(kind: AccountPoolRequest['kind'], owner: string): string | undefined
+}
+
+function paidGuard(
+  lease: AccountRequestLease,
+  originalGuard: ResponseAttemptGuard | undefined,
+  digest: string,
+): ResponseAttemptGuard {
+  // The original fence owns the unchanged shared budget; this fence owns
+  // the actual credential and its account reservation.
+  return Object.assign(
+    (actual: string | undefined) => {
+      if (actual !== lease.keyDigest || !lease.isCurrent())
+        throw new Error(UI_TEXT.accounts.invalidAccount)
+      originalGuard?.(digest)
+    },
+    {
+      ...originalGuard,
+      beforeRequestStarted: () => {
+        lease.beforeSend()
+      },
+    },
+  )
 }
 
 export class AccountRequestWriter implements AccountRequestPort {
@@ -66,7 +110,7 @@ export class AccountRequestWriter implements AccountRequestPort {
         apiKey: () => Promise<string>,
         request: AccountPoolRequest,
         isCurrent: () => boolean,
-      ) => Promise<ModelClient>
+      ) => Promise<ModelClient & { readonly paidClient?: ProviderClient }>
     },
   ) {}
 
@@ -80,6 +124,162 @@ export class AccountRequestWriter implements AccountRequestPort {
       },
       run,
     )
+  }
+
+  /** Each extra HTTP request chooses its payer before consent, independently
+   * of the main response; repairs/agent steps get their own claims. */
+  public paidClient(
+    original: ProviderClient,
+    request: AccountPoolRequest,
+    origin: string,
+    paid: PaidUseRequest,
+    requiresAsking: boolean,
+    allows: (paid: PaidUseRequest, requiresAsking: boolean) => Promise<PaidUseDecision>,
+  ): ProviderClient {
+    const within = this.within.bind(this)
+    const acquire = async (estimate: AccountPoolRequest['estimate']) => {
+      const account =
+        activeAccountBilling()?.account ??
+        this.current(request.kind, request.owner) ??
+        request.account
+      const lease = await this.acquire(
+        { ...request, owner: `${request.owner}:${paid.feature}`, retryAccount: account, estimate },
+        origin,
+      )
+      try {
+        if (
+          (await within(lease, () => allows(paid, requiresAsking))) !== true ||
+          !lease.isCurrent()
+        )
+          throw new Error(UI_TEXT.accounts.unavailable)
+        return lease
+      } catch (error: unknown) {
+        await lease.settle(Usd.from(0).toAmount())
+        throw error
+      }
+    }
+    const image = async (
+      body: CreateImageBody | EditImageBody,
+      signal: AbortSignal,
+      admit?: ResponseAttemptGuard,
+    ): Promise<ImagesResponse> => {
+      const lease = await acquire({
+        costUsd: parseUsd(PAID_PRICES_USD.imageGeneration),
+        inputTokens: 0,
+        outputTokens: 0,
+        requests: 1,
+      })
+      let cost: UsdAmount | null = null
+      try {
+        const client = lease.paidClient
+        if (client === undefined) throw new Error(UI_TEXT.accounts.unavailable)
+        const digest = await original.currentKeyDigest()
+        const fence = paidGuard(lease, admit, digest)
+        const result = await within(lease, () =>
+          'images' in body
+            ? client.editImage(body, signal, fence)
+            : client.createImage(body, signal, fence),
+        )
+        cost = Usd.from(PAID_PRICES_USD.imageGeneration).times(result.data.length).toAmount()
+        return result
+      } finally {
+        await lease.settle(cost)
+      }
+    }
+    const stream: ProviderClient['streamResponse'] = async function* (
+      body,
+      signal,
+      onRetry,
+      budget,
+      admit,
+      confirmed,
+    ) {
+      const price = modelPolicyFor(body.model).pricing
+      if (price.kind !== 'priced') throw new Error(UI_TEXT.execModelUnpriced)
+      const inputTokens = estimateInput(requestParts(body), undefined).inputTokens
+      const outputTokens = body.max_output_tokens
+      const reservation = Usd.from(price.card.input)
+        .times(inputTokens)
+        .add(Usd.from(price.card.output).times(outputTokens))
+        .toAmount()
+      const lease = await acquire({
+        costUsd: parseUsd(reservation),
+        inputTokens,
+        outputTokens,
+        requests: 1,
+      })
+      let cost: UsdAmount | null = null
+      let usage: { inputTokens: number; outputTokens: number } | undefined
+      try {
+        const digest = await original.currentKeyDigest()
+        const events = lease.client.streamResponse(
+          body,
+          signal,
+          onRetry,
+          budget,
+          paidGuard(lease, admit, digest),
+          confirmed === undefined
+            ? undefined
+            : {
+                ...confirmed,
+                keyDigest: lease.keyDigest,
+                isStillAllowed: () => confirmed.isStillAllowed() && lease.isCurrent(),
+              },
+        )
+        for (;;) {
+          const event = await within(lease, () => events.next())
+          if (event.done) break
+          if (event.value.type === 'response.completed' && event.value.response.usage != null) {
+            const counted = event.value.response.usage
+            const priced = modelPricedUsage(counted)
+            if (
+              [priced.inputTokens, priced.outputTokens, priced.cachedTokens ?? 0].some(
+                (value) => !(Number.isSafeInteger(value) && value >= 0),
+              ) ||
+              (priced.cachedTokens ?? 0) > priced.inputTokens
+            )
+              throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+            cost =
+              counted.provider_cost_usd === undefined
+                ? Usd.from(
+                    estimateCostUsd(
+                      {
+                        inputTokens: priced.inputTokens,
+                        outputTokens: priced.outputTokens,
+                        cachedTokens: priced.cachedTokens ?? 0,
+                      },
+                      body.model,
+                    ),
+                  ).toAmount()
+                : Usd.from(counted.provider_cost_usd).toAmount()
+            usage = { inputTokens: counted.input_tokens, outputTokens: counted.output_tokens }
+          }
+          yield event.value
+        }
+      } finally {
+        await lease.settle(cost, usage)
+      }
+    }
+    return {
+      ...original,
+      hasPaidDailyBudget: original.hasPaidDailyBudget,
+      currentKeyDigest: original.currentKeyDigest.bind(original),
+      retryDelayMs: original.retryDelayMs.bind(original),
+      waitBeforeRetry: original.waitBeforeRetry.bind(original),
+      listModels: original.listModels.bind(original),
+      countInputTokens: original.countInputTokens.bind(original),
+      createImage: image,
+      editImage: image,
+      streamResponse: stream,
+    }
+  }
+
+  public withinRequest<T>(
+    kind: AccountPoolRequest['kind'],
+    owner: string,
+    run: () => Promise<T>,
+  ): Promise<T> {
+    return this.deps.pool.withinRequest(kind, owner, run)
   }
 
   public current(kind: AccountPoolRequest['kind'], owner: string): string | undefined {
@@ -156,6 +356,7 @@ export class AccountRequestWriter implements AccountRequestPort {
             origin: binding.origin,
             keyDigest: createHash('sha256').update(secret).digest('hex'),
             client,
+            paidClient: client.paidClient,
             isCurrent,
             rateLimit: (resetAt) => {
               wasRateLimited = true

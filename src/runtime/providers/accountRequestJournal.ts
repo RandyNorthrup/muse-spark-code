@@ -1,7 +1,7 @@
 // Durable account admission projections. Each claim owns one immutable name;
 // concurrent writers cannot overwrite another claim. Missing completion keeps
 // full liability. Strict records contain opaque ids and counters only.
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import {
   mkdirSync,
   readdirSync,
@@ -10,6 +10,8 @@ import {
   writeFileSync,
   lstatSync,
   unlinkSync,
+  rmSync,
+  existsSync,
 } from 'node:fs'
 import path from 'node:path'
 import * as z from 'zod/mini'
@@ -24,6 +26,8 @@ import {
 } from '../../shared/accounts'
 import {
   ACCOUNT_REQUEST_STORE,
+  ACCOUNT_DAY_MS,
+  ISO_DATE_LENGTH,
   ACCOUNT_HEADROOM_SCALE,
   ACCOUNT_HEADROOM_ONE,
   ACCOUNT_HEADROOM_ZERO,
@@ -45,6 +49,7 @@ import type {
 
 const count = z.int().check(z.nonnegative())
 const rowSchema = z.strictObject({
+  processId: z.optional(z.int().check(z.positive())),
   provider: accountIdSchema,
   account: accountIdSchema,
   time: z.iso.datetime(),
@@ -67,24 +72,78 @@ type Block = z.infer<typeof blockSchema>
 
 export class AccountRequestJournal implements AccountJournalReader {
   private readonly active = new Map<string, string>()
+  private maintenanceDay: string | undefined
   private readonly pendingBlocks = new Map<string, Block>()
   public constructor(
     private readonly directory: string,
     private readonly now: () => number,
   ) {}
 
-  private files(): string[] {
+  private ensure(directory = this.directory): void {
+    mkdirSync(directory, { recursive: true, mode: ACCOUNT_REQUEST_STORE.directoryMode })
+    const stat = lstatSync(directory)
+    if (!stat.isDirectory() || stat.isSymbolicLink())
+      throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+  }
+
+  private maintain(): void {
+    this.ensure()
+    const today = new Date(this.now()).toISOString().slice(0, ISO_DATE_LENGTH)
+    if (this.maintenanceDay === today) return
+    for (const name of readdirSync(this.directory)) {
+      if (name.startsWith('claim-') || name.startsWith('event-') || name.startsWith('limit-')) {
+        const value = this.load(name)
+        const row = name.startsWith('claim-')
+          ? rowSchema.parse(value)
+          : name.startsWith('event-')
+            ? accountEventSchema.parse(value)
+            : blockSchema.parse(value)
+        const bucket = 'time' in row ? row.time.slice(0, ISO_DATE_LENGTH) : 'limits'
+        this.ensure(path.join(this.directory, bucket))
+        renameSync(path.join(this.directory, name), path.join(this.directory, bucket, name))
+      } else if (
+        /^\d{4}-\d{2}-\d{2}$/.test(name) &&
+        Date.parse(name) < this.now() - ACCOUNT_REQUEST_STORE.retentionDays * ACCOUNT_DAY_MS
+      ) {
+        const directory = path.join(this.directory, name)
+        const stat = lstatSync(directory)
+        if (!stat.isDirectory() || stat.isSymbolicLink())
+          throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+        rmSync(directory, { recursive: true, force: true })
+      }
+    }
+    this.maintenanceDay = today
+  }
+
+  private files(start?: string, end?: string): string[] {
     try {
-      mkdirSync(this.directory, { recursive: true, mode: ACCOUNT_REQUEST_STORE.directoryMode })
-      if (!lstatSync(this.directory).isDirectory())
-        throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
-      const files = readdirSync(this.directory).filter((file) => file.endsWith('.json'))
-      if (files.length > ACCOUNT_REQUEST_STORE.maxRows)
-        throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
-      return files
+      this.maintain()
+      const buckets = readdirSync(this.directory).filter((name) =>
+        start === undefined
+          ? name === 'limits'
+          : /^\d{4}-\d{2}-\d{2}$/.test(name) &&
+            name >= start.slice(0, ISO_DATE_LENGTH) &&
+            name <= (end ?? start).slice(0, ISO_DATE_LENGTH),
+      )
+      return buckets.flatMap((bucket) => {
+        const directory = path.join(this.directory, bucket)
+        this.ensure(directory)
+        return readdirSync(directory)
+          .filter((name) => name.endsWith('.json'))
+          .map((name) => path.join(bucket, name))
+      })
     } catch {
       throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
     }
+  }
+
+  private selectionFile(provider: string, owner: string): string {
+    return path.join(
+      'selections',
+      `${createHash('sha256')
+        .update(JSON.stringify([provider, owner]))
+        .digest('hex')}.json`,
+    )
   }
 
   private load(file: string): unknown {
@@ -102,11 +161,37 @@ export class AccountRequestJournal implements AccountJournalReader {
   private row(file: string): Row {
     const parsed = rowSchema.safeParse(this.load(file))
     if (!parsed.success) throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
-    return parsed.data
+    const row = parsed.data
+    if (!row.isClosed && (row.processId === undefined || !this.isAlive(row.processId))) {
+      const recovered = {
+        ...row,
+        isClosed: true,
+        ...(!row.hasSent &&
+          row.settledUsd === null && {
+            settledUsd: Usd.from(0).toAmount(),
+            inputTokens: 0,
+            outputTokens: 0,
+            requests: 0,
+          }),
+      }
+      this.write(file, recovered)
+      return recovered
+    }
+    return row
   }
 
-  private write(file: string, value: Row | AccountEvent | Block): void {
-    this.files()
+  private isAlive(pid: number): boolean {
+    try {
+      process.kill(pid, 0)
+      return true
+    } catch (error: unknown) {
+      return !z.looseObject({ code: z.literal('ESRCH') }).safeParse(error).success
+    }
+  }
+
+  private write(file: string, value: Row | AccountEvent | Block | { account: string }): void {
+    this.ensure()
+    this.ensure(path.dirname(path.join(this.directory, file)))
     const temporary = path.join(this.directory, `${randomUUID()}.pending`)
     let hasFailed = false
     try {
@@ -139,19 +224,21 @@ export class AccountRequestJournal implements AccountJournalReader {
     let inputTokens = 0,
       outputTokens = 0,
       requests = 0
-    for (const file of this.files()) {
-      if (file === exclude || !file.startsWith('claim-')) continue
+    for (const file of this.files(query.start, query.end)) {
+      if (file === exclude || !path.basename(file).startsWith('claim-')) continue
       const row = this.row(file)
-      if (row.time >= query.end || row.provider !== query.provider || row.account !== query.account)
+      if (
+        Date.parse(row.time) < Date.parse(query.start) ||
+        Date.parse(row.time) >= Date.parse(query.end) ||
+        row.provider !== query.provider ||
+        row.account !== query.account
+      )
         continue
       // A receipt is already durable settlement evidence, even if the process
       // died before closing its claim. Charge it once, never also reserve it.
       const isResolved = row.isClosed || row.settledUsd !== null
       if (!isResolved) reserved = reserved.add(Usd.from(row.reservedUsd))
       else if (row.settledUsd === null) uncertain = uncertain.add(Usd.from(row.reservedUsd))
-      if (isResolved && !(row.time >= query.start)) {
-        continue
-      }
 
       if (row.settledUsd !== null) settled = settled.add(Usd.from(row.settledUsd))
       inputTokens += row.inputTokens
@@ -170,6 +257,19 @@ export class AccountRequestJournal implements AccountJournalReader {
     }
   }
 
+  public selection(provider: string, owner: string): string | undefined {
+    const file = this.selectionFile(provider, owner)
+    if (!existsSync(path.join(this.directory, file))) return
+    const value = this.load(file)
+    const parsed = z.strictObject({ account: accountIdSchema }).safeParse(value)
+    if (!parsed.success) throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+    return parsed.data.account
+  }
+
+  public select(provider: string, owner: string, account: string): void {
+    this.write(this.selectionFile(provider, owner), { account: accountIdSchema.parse(account) })
+  }
+
   public read(query: AccountUsageQuery): AccountUsageTotals {
     return this.project(query)
   }
@@ -182,8 +282,13 @@ export class AccountRequestJournal implements AccountJournalReader {
   ): AccountPoolClaim {
     if (request.checkSharedCaps === undefined)
       throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
-    const file = `claim-${randomUUID()}.json`
+    this.maintain()
+    let file = path.join(
+      new Date(this.now()).toISOString().slice(0, ISO_DATE_LENGTH),
+      `claim-${randomUUID()}.json`,
+    )
     let row = rowSchema.parse({
+      processId: process.pid,
       provider,
       account,
       time: new Date(this.now()).toISOString(),
@@ -202,7 +307,12 @@ export class AccountRequestJournal implements AccountJournalReader {
       journal: { read: (query) => this.project(query, file) },
       started: () => {
         const current = this.row(file)
-        this.write(file, { ...current, hasSent: true, time: new Date(this.now()).toISOString() })
+        const time = new Date(this.now()).toISOString()
+        const next = path.join(time.slice(0, ISO_DATE_LENGTH), path.basename(file))
+        this.write(next, { ...current, hasSent: true, time })
+        if (next !== file) unlinkSync(path.join(this.directory, file))
+        file = next
+        this.active.set(owner, file)
       },
       checkSharedCaps: request.checkSharedCaps,
       settle: (cost, hasSent) => {
@@ -234,7 +344,11 @@ export class AccountRequestJournal implements AccountJournalReader {
   }
 
   public record(event: AccountEvent): void {
-    this.write(`event-${randomUUID()}.json`, accountEventSchema.parse(event))
+    this.maintain()
+    this.write(
+      path.join(event.time.slice(0, ISO_DATE_LENGTH), `event-${randomUUID()}.json`),
+      accountEventSchema.parse(event),
+    )
   }
 
   public commit(event: AccountEvent, adopt: () => () => void): void {
@@ -254,10 +368,14 @@ export class AccountRequestJournal implements AccountJournalReader {
     }
     let resetAt: string | undefined
     for (const file of this.files()) {
-      if (!file.startsWith('limit-')) continue
+      if (!path.basename(file).startsWith('limit-')) continue
       const parsed = blockSchema.safeParse(this.load(file))
       if (!parsed.success) throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
       const block = parsed.data
+      if (Date.parse(block.resetAt) <= this.now()) {
+        unlinkSync(path.join(this.directory, file))
+        continue
+      }
       if (
         block.provider !== provider ||
         Date.parse(block.resetAt) <= this.now() ||
@@ -275,7 +393,7 @@ export class AccountRequestJournal implements AccountJournalReader {
     resetAt: string,
     identity?: AccountLimitBlock,
   ): void {
-    const file = `limit-${provider}-${account}-${randomUUID()}.json`
+    const file = path.join('limits', `limit-${provider}-${account}-${randomUUID()}.json`)
     const block = blockSchema.parse({
       provider,
       account,

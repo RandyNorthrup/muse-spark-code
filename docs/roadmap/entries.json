@@ -801,7 +801,7 @@
     {
       "id": "M108",
       "title": "Several accounts per provider",
-      "summary": "Keep labelled provider accounts with thresholds and headless pinning; native Meta request certification stays held while review repairs verify payer consent, retry ownership, durable selection and journal recovery.",
+      "summary": "Keep labelled provider accounts with thresholds and headless pinning; native Meta review repairs pass scoped tests and size checks, while paid-kind and external identity, visual and editor receipts still hold certification.",
       "area": "models-providers",
       "release": "0.17.0"
     },

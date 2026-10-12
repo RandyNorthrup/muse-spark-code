@@ -38,6 +38,8 @@ export interface AccountPoolClaim {
   readonly settle: (actualUsd: Usd | null, hasSent: boolean) => Promise<void>
 }
 export interface AccountPoolDeps {
+  readonly readSelection?: (owner: string) => string | undefined
+  readonly writeSelection?: (owner: string, account: string) => void
   readonly provider: string
   readonly policy: () => AccountPolicy | undefined
   readonly accounts: () => readonly Account[]
@@ -71,6 +73,7 @@ export interface AccountPoolDeps {
   readonly sharedGroupNotice: (account: string) => Promise<void>
 }
 export interface AccountPoolRequest {
+  readonly retryAccount?: string | undefined
   readonly owner: string
   /** Original conversation, including children/candidates/schedules; never the chosen account. */
   readonly budgetOwner: string
@@ -136,6 +139,7 @@ export class AccountPool {
   private readonly active = new Set<string>()
   private readonly next = new Map<string, string>()
   private admission: Promise<void> = Promise.resolve()
+  private readonly boundaries = new Set<string>()
 
   public constructor(public readonly deps: AccountPoolDeps) {}
 
@@ -220,8 +224,20 @@ export class AccountPool {
   private async select(request: AccountPoolRequest, isEligible: (account: Account) => boolean) {
     const rows = this.rows()
     const owner = this.owner(request)
-    const held = this.sticky.get(owner)
-    const current = rows.find((row) => row.id === (held?.account ?? request.account))
+    const saved = this.deps.readSelection?.(owner)
+    const held =
+      this.sticky.get(owner) ??
+      (saved === undefined
+        ? undefined
+        : { account: saved, trigger: undefined, decision: undefined })
+    const chosen = request.retryAccount ?? held?.account ?? request.account
+    const current = rows.find((row) => row.id === chosen)
+    if (current === undefined && saved !== undefined && request.retryAccount === undefined) {
+      this.next.delete(owner)
+      this.sticky.set(owner, { account: request.account, trigger: undefined, decision: undefined })
+      this.deps.writeSelection?.(owner, request.account)
+      throw new Error(UI_TEXT.accounts.selectedRemoved)
+    }
     if (current === undefined || !accountIdSchema.safeParse(this.deps.provider).success)
       throw new Error(UI_TEXT.accounts.invalidAccount)
     const settings = this.deps.settings?.() ?? ACCOUNT_DEFAULTS
@@ -242,7 +258,10 @@ export class AccountPool {
       if (refreshed.kind !== 'allow') return await this.stop(current, triggers, refreshed)
       heldDecision = refreshed
     }
-    if ((!isCurrentEligible || triggers.length > 0) && (!canPool || !settings.isSwapOn))
+    if (
+      (!isCurrentEligible || triggers.length > 0) &&
+      (!canPool || !settings.isSwapOn || request.retryAccount !== undefined)
+    )
       return await this.stop(current, triggers)
     if (triggers.length > 0 && rows.length === 1) return await this.stop(current, triggers)
     const isSpread =
@@ -250,6 +269,7 @@ export class AccountPool {
       settings.isParallelOn &&
       rows.length > 1 &&
       request.kind === 'worker' &&
+      request.retryAccount === undefined &&
       held === undefined
     if (!isSpread && isCurrentEligible && triggers.length === 0)
       return {
@@ -315,55 +335,78 @@ export class AccountPool {
     return await this.stop(current, allTriggers, undefined, recoveries)
   }
 
-  private async admit(request: AccountPoolRequest, isEligible: (account: Account) => boolean) {
+  private async admit(
+    request: AccountPoolRequest,
+    isEligible: (account: Account) => boolean,
+  ): Promise<
+    Awaited<ReturnType<AccountPool['select']>> & { claim: AccountPoolClaim; check: () => void }
+  > {
+    // Policy confirmation may remain open indefinitely. Only the short
+    // reserve/check section queues; unrelated owners keep making progress.
     const selected = await this.select(request, isEligible)
-    const claim = await this.deps.reserve(selected.account, selected.estimate, request)
-    const check = () => {
-      if (this.deps.isHeld?.() === true) throw new AccountPoolBusyError()
-      if (request.isCurrent?.() === false) throw new Error(UI_TEXT.accounts.invalidAccount)
-      const account = this.rows().find((row) => row.id === selected.account.id)
-      const row = this.deps.policy()
-      if (
-        account === undefined ||
-        row === undefined ||
-        !isEligible(account) ||
-        !this.deps.canUseModel(account, request) ||
-        row.pooling === 'notOffered' ||
-        !row.isCredentialHeld ||
-        selected.decision?.isCurrent(row) === false
-      )
-        throw new Error(UI_TEXT.accounts.invalidAccount)
-      if (selected.previousAccount !== account.id) {
-        const settings = this.deps.settings?.() ?? ACCOUNT_DEFAULTS
+    const previous = this.admission
+    const operation = (async () => {
+      await previous
+      if (this.triggers(selected.account, selected.estimate, this.deps.journal, request).length > 0)
+        return
+      const claim = await this.deps.reserve(selected.account, selected.estimate, request)
+      const check = () => {
+        if (this.deps.isHeld?.() === true) throw new AccountPoolBusyError()
+        if (request.isCurrent?.() === false) throw new Error(UI_TEXT.accounts.invalidAccount)
+        const account = this.rows().find((row) => row.id === selected.account.id)
+        const row = this.deps.policy()
         if (
-          !(request.kind === 'worker' && selected.trigger === undefined
-            ? settings.isParallelOn
-            : settings.isSwapOn)
+          account === undefined ||
+          row === undefined ||
+          !isEligible(account) ||
+          !this.deps.canUseModel(account, request) ||
+          row.pooling === 'notOffered' ||
+          !row.isCredentialHeld ||
+          selected.decision?.isCurrent(row) === false
         )
           throw new Error(UI_TEXT.accounts.invalidAccount)
-        const previous = this.rows().find((entry) => entry.id === selected.previousAccount)
-        if (previous === undefined) throw new Error(UI_TEXT.accounts.invalidAccount)
-        const vendor = this.triggers(previous, request.estimate, this.deps.journal, request).find(
-          (entry) => entry.kind === 'vendorLimit',
-        )
-        if (vendor !== undefined && selected.trigger?.kind !== 'vendorLimit')
-          throw new AccountThresholdExceededError(vendor)
+        if (selected.previousAccount !== account.id) {
+          const settings = this.deps.settings?.() ?? ACCOUNT_DEFAULTS
+          if (
+            !(request.kind === 'worker' && selected.trigger === undefined
+              ? settings.isParallelOn
+              : settings.isSwapOn)
+          )
+            throw new Error(UI_TEXT.accounts.invalidAccount)
+          const previous = this.rows().find((entry) => entry.id === selected.previousAccount)
+          if (previous === undefined) throw new Error(UI_TEXT.accounts.invalidAccount)
+          const vendor = this.triggers(previous, request.estimate, this.deps.journal, request).find(
+            (entry) => entry.kind === 'vendorLimit',
+          )
+          if (vendor !== undefined && selected.trigger?.kind !== 'vendorLimit')
+            throw new AccountThresholdExceededError(vendor)
+        }
+        claim.checkSharedCaps()
+        const triggers = this.triggers(account, selected.estimate, claim.journal, request)
+        if (triggers[0] !== undefined) throw new AccountThresholdExceededError(triggers[0])
       }
-      claim.checkSharedCaps()
-      const triggers = this.triggers(account, selected.estimate, claim.journal, request)
-      if (triggers[0] !== undefined) throw new AccountThresholdExceededError(triggers[0])
-    }
-    try {
-      check()
-      return { ...selected, claim, check }
-    } catch (error: unknown) {
-      await claim.settle(parseUsd(0), false)
-      throw error
-    }
+      try {
+        check()
+        return { ...selected, claim, check }
+      } catch (error: unknown) {
+        await claim.settle(parseUsd(0), false)
+        throw error
+      }
+    })()
+    this.admission = (async () => {
+      try {
+        await operation
+      } catch {
+        /* Caller receives the refusal. */
+      }
+    })()
+    const admitted = await operation
+    return admitted ?? (await this.admit(request, isEligible))
   }
 
   private release(owner: string): void {
     this.active.delete(owner)
+    if (this.boundaries.has(owner)) return
     const next = this.next.get(owner)
     this.next.delete(owner)
     if (next !== undefined)
@@ -388,18 +431,7 @@ export class AccountPool {
     const owner = this.owner(request)
     if (this.active.has(owner)) throw new AccountPoolBusyError()
     this.active.add(owner)
-    const previous = this.admission
-    const operation = (async () => {
-      await previous
-      return await this.admit(request, isEligible)
-    })()
-    this.admission = (async () => {
-      try {
-        await operation
-      } catch {
-        /* Caller receives the refusal. */
-      }
-    })()
+    const operation = this.admit(request, isEligible)
     try {
       const admitted = await operation
       const sent = { value: false }
@@ -419,6 +451,7 @@ export class AccountPool {
             admitted.claim.started?.()
             const previous = this.sticky.get(owner)
             const wasSent = sent.value
+            if (!this.next.has(owner)) this.deps.writeSelection?.(owner, admitted.account.id)
             this.sticky.set(owner, {
               account: admitted.account.id,
               decision: admitted.decision,
@@ -504,6 +537,22 @@ export class AccountPool {
     }
   }
 
+  public async withinRequest<T>(
+    kind: AccountPoolRequest['kind'],
+    owner: string,
+    run: () => Promise<T>,
+  ): Promise<T> {
+    const key = JSON.stringify([kind, owner])
+    if (this.boundaries.has(key)) throw new AccountPoolBusyError()
+    this.boundaries.add(key)
+    try {
+      return await run()
+    } finally {
+      this.boundaries.delete(key)
+      this.release(key)
+    }
+  }
+
   /** A user's explicit selection is fenced against an active request. */
   public use(
     kind: AccountPoolRequest['kind'],
@@ -515,6 +564,7 @@ export class AccountPool {
     if (this.active.has(key)) throw new AccountPoolBusyError()
     if (this.rows().every((row) => row.id !== account) || !canCommit())
       throw new Error(UI_TEXT.accounts.invalidAccount)
+    this.deps.writeSelection?.(key, account)
     this.sticky.set(key, { account, trigger: undefined, decision: undefined })
   }
 
@@ -526,18 +576,19 @@ export class AccountPool {
     canCommit: () => boolean,
   ): void {
     const key = JSON.stringify([kind, owner])
-    if (!this.active.has(key)) {
+    if (!this.active.has(key) && !this.boundaries.has(key)) {
       this.use(kind, owner, account, canCommit)
       return
     }
     if (this.rows().every((row) => row.id !== account) || !canCommit())
       throw new Error(UI_TEXT.accounts.invalidAccount)
+    this.deps.writeSelection?.(key, account)
     this.next.set(key, account)
   }
 
   public current(kind: AccountPoolRequest['kind'], owner: string): string | undefined {
     const key = JSON.stringify([kind, owner])
-    return this.next.get(key) ?? this.sticky.get(key)?.account
+    return this.next.get(key) ?? this.sticky.get(key)?.account ?? this.deps.readSelection?.(key)
   }
 }
 

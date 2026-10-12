@@ -86,6 +86,15 @@ describe('bundled What’s New content budget', () => {
       `OVER dist/webview ${name} body: ${budget.toFixed(1)} KiB (budget ${budget} KiB)`,
     )
   })
+  it('accounts closure budget follows measured bytes plus 15 percent rounded to 25 KiB, with its receipt', async () => {
+    const fs = await vi.importActual('node:fs')
+    const receipt = JSON.parse(fs.readFileSync('docs/certification/cm1082-bundles.json', 'utf8'))
+    const row = receipt.rows.find((entry) => entry.name === 'model accounts body')
+    expect(row.capBytes).toBe(Math.ceil((row.bytes * 1.15) / (25 * 1024)) * 25 * 1024)
+    expect(row.bytes).toBeLessThanOrEqual(row.capBytes)
+    const source = fs.readFileSync('scripts/check-bundle-size.mjs', 'utf8')
+    expect(source).toMatch(/label: 'model accounts',[\s\S]*?budgetKiB: 175/)
+  })
   it('bounds the native schedules runtime chunk at 50 KiB', async () => {
     statSync.mockImplementation((file) => ({
       size: file === 'dist/scheduleBackground.js' ? 50 * 1024 + 1 : 0,

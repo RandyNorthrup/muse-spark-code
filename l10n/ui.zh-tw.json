@@ -4883,6 +4883,7 @@
     "spreadEvent": "工作已分配",
     "stopEvent": "工作已停止",
     "sourceUndated": "來源未顯示日期",
+    "selectedRemoved": "所選帳戶已不存在。此聊天將在下次請求時使用預設帳戶。",
     "invalidAccount": "請檢查帳戶識別碼、標籤、順序、限制群組及閾值。",
     "removeConfirm": "移除 {account}？其已儲存的認證將被刪除，登入授權將被撤銷。",
     "requestCount": {

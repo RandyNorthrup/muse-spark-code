@@ -1,5 +1,12 @@
 import { removeTestFolders } from './helpers/tempFolders'
-import { mkdtempSync, readdirSync, writeFileSync } from 'node:fs'
+import {
+  mkdtempSync,
+  readdirSync,
+  writeFileSync,
+  readFileSync,
+  mkdirSync,
+  existsSync,
+} from 'node:fs'
 import { linkSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -8,6 +15,7 @@ import { AccountRequestJournal } from '../../src/runtime/providers/accountReques
 import { Usd } from '../../src/shared/usd'
 import { parseUsd } from '../../src/shared/accountUsd'
 import { poolAccount, poolRequest, POOL_NOW } from './helpers/accounts/pool'
+import { accountPeriodRange } from '../../src/core/accounts/thresholds'
 import { UI_TEXT } from '../../src/shared/constants'
 
 const folders: string[] = []
@@ -62,7 +70,7 @@ describe('durable account request journal', () => {
     const claim = t.journal.reserve('meta', 'a', t.request.estimate, t.request)
     t.advance()
     const today = { ...t.query, start: '2026-10-07T00:00:00Z', end: '2026-10-08T00:00:00Z' }
-    expect(t.journal.read(today).requests).toBe(1)
+    expect(t.journal.read(today).requests).toBe(0)
     claim.started?.()
     await claim.settle(parseUsd('0.1'), true)
     expect(t.journal.read(today)).toMatchObject({ requests: 1, settledUsd: '0.1' })
@@ -107,7 +115,7 @@ describe('durable account request journal', () => {
     linkSync(source, path.join(t.folder, 'claim-linked.json'))
     expect(() => t.journal.read(t.query)).toThrow(UI_TEXT.sessionBudgetStoreUnavailable)
   })
-  it('retains outstanding liability across day reset and restart without double counting its own projection', async () => {
+  it('dates outstanding liability to its original period without double counting its own projection', async () => {
     const t = rig()
     const claim = t.journal.reserve('meta', 'a', t.request.estimate, t.request)
     expect(t.journal.read(t.query).reservedUsd).toBe('0.1')
@@ -116,7 +124,7 @@ describe('durable account request journal', () => {
     expect(
       restarted.read({ ...t.query, start: '2026-10-07T00:00:00Z', end: '2026-10-08T00:00:00Z' })
         .reservedUsd,
-    ).toBe('0.1')
+    ).toBe('0')
     await claim.settle(null, true)
     expect(restarted.read(t.query)).toMatchObject({
       reservedUsd: '0',
@@ -124,6 +132,67 @@ describe('durable account request journal', () => {
       requests: 1,
     })
   })
+  it('unknown sends count only in the day, week and month that incurred them', async () => {
+    const t = rig()
+    const claim = t.journal.reserve('meta', 'a', t.request.estimate, t.request)
+    claim.started?.()
+    await claim.settle(null, true)
+    for (const period of ['day', 'week', 'month'] as const) {
+      expect(
+        t.journal.read({ provider: 'meta', account: 'a', ...accountPeriodRange(period, POOL_NOW) })
+          .uncertainUsd,
+      ).toBe('0.1')
+      expect(
+        t.journal.read({
+          provider: 'meta',
+          account: 'a',
+          ...accountPeriodRange(period, Date.parse('2026-11-16T12:00:00Z')),
+        }),
+      ).toMatchObject({ uncertainUsd: '0', reservedUsd: '0', requests: 0 })
+    }
+  })
+  it('recovers a dead process at its own attempt time as uncertain exactly once', () => {
+    const t = rig()
+    t.journal.reserve('meta', 'a', t.request.estimate, t.request).started?.()
+    const file = readdirSync(t.folder, { recursive: true })
+      .map(String)
+      .find((name) => path.basename(name).startsWith('claim-'))
+    if (file === undefined) throw new Error('missing claim')
+    const name = path.join(t.folder, file)
+    const row: unknown = JSON.parse(readFileSync(name, 'utf8'))
+    if (typeof row !== 'object' || row === null) throw new Error('missing row')
+    writeFileSync(name, JSON.stringify({ ...row, processId: 2_147_483_647 }))
+    const recovered = new AccountRequestJournal(t.folder, () => POOL_NOW)
+    expect(recovered.read(t.query)).toMatchObject({
+      uncertainUsd: '0.1',
+      reservedUsd: '0',
+      requests: 1,
+    })
+    expect(recovered.read(t.query)).toMatchObject({
+      uncertainUsd: '0.1',
+      reservedUsd: '0',
+      requests: 1,
+    })
+    expect(JSON.parse(readFileSync(name, 'utf8'))).toMatchObject({
+      isClosed: true,
+      time: new Date(POOL_NOW).toISOString(),
+    })
+  })
+  it('indexes reads by day and prunes old windows before new reservations', () => {
+    const t = rig()
+    const archive = path.join(t.folder, '2026-01-01')
+    const recentOtherDay = path.join(t.folder, '2026-10-01')
+    for (const directory of [archive, recentOtherDay]) {
+      mkdirSync(directory, { recursive: true })
+      writeFileSync(path.join(directory, 'claim-unread.json'), '{unread archive')
+    }
+    expect(t.journal.read(t.query).requests).toBe(0)
+    expect(existsSync(archive)).toBe(false)
+    expect(existsSync(recentOtherDay)).toBe(true)
+    t.journal.reserve('meta', 'a', t.request.estimate, t.request)
+    expect(t.journal.read(t.query).requests).toBe(1)
+  })
+
   it('settles exact receipt money and counters while refunded nonsends charge nothing', async () => {
     const t = rig()
     const first = t.journal.reserve('meta', 'a', t.request.estimate, t.request)
@@ -149,7 +218,9 @@ describe('durable account request journal', () => {
       blocked: { resetAt: '2026-10-06T13:00:00Z' },
     })
     t.journal.reserve('meta', 'a', t.request.estimate, t.request)
-    const claim = readdirSync(t.folder).find((file) => file.startsWith('claim-'))
+    const claim = readdirSync(t.folder, { recursive: true })
+      .map(String)
+      .find((file) => path.basename(file).startsWith('claim-'))
     if (claim === undefined) throw new Error('missing claim')
     writeFileSync(path.join(t.folder, claim), '{broken')
     expect(() => t.journal.read(t.query)).toThrow(UI_TEXT.sessionBudgetStoreUnavailable)

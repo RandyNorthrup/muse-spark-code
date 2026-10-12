@@ -403,7 +403,12 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
   }
   const handle = async (message: PanelToHostMessage): Promise<void> => {
     switch (message.type) {
+      case 'modelAccounts/ready': {
+        return
+      }
       case 'modelsPanel/ready': {
+        if (deps.accounts !== undefined)
+          await panel.webview.postMessage({ type: 'modelAccounts/available' })
         const cachedScans = await providers.cachedScans()
         for (const cached of cachedScans) {
           rows.set(cached.providerId, cached.rows)

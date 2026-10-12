@@ -1,3 +1,4 @@
+import { accountReleaseReference } from '../../scripts/lib/accountRestore.mjs'
 import { parseEstimateOptions } from '../../src/runtime/estimator/command.ts'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
@@ -31,7 +32,10 @@ beforeAll(async () => {
 const build = (pkg = manifest, overrides = {}) =>
   pkg === manifest && Object.keys(overrides).length === 0
     ? baseline.model
-    : buildReference(pkg, nls, { ...source, ...overrides }, runtime, readme)
+    : accountReleaseReference(
+        buildReference(pkg, nls, { ...source, ...overrides }, runtime, readme),
+        source.ACCOUNT_REQUEST_CERTIFICATION.isComplete,
+      )
 
 describe('the code-derived reference gate', () => {
   it('shares the unchanged reference between lookups', () => {
@@ -74,7 +78,9 @@ describe('the code-derived reference gate', () => {
       'exec: --account <value>',
       'exec: --account-pool',
     ])
-      expect(rows.some((row) => row.name === name)).toBe(true)
+      expect(rows.some((row) => row.name === name)).toBe(
+        name !== 'exec: --account-pool' || source.ACCOUNT_REQUEST_CERTIFICATION.isComplete,
+      )
     for (const route of ['authStatus', 'authClear'])
       expect(
         rows.some((row) => row.route === route && row.name.startsWith(`${route}: --account`)),
@@ -1178,7 +1184,13 @@ describe('RVHELPREF2 runtime truth regressions', () => {
         const row = rows.find(
           (entry) => entry.route === route && entry.name.startsWith(`${route}: --${name}`),
         )
-        if (isRefusedSlot) expect(row, `${route}: --${name}`).toBeUndefined()
+        if (
+          isRefusedSlot ||
+          (route === 'exec' &&
+            name === 'account-pool' &&
+            !source.ACCOUNT_REQUEST_CERTIFICATION.isComplete)
+        )
+          expect(row, `${route}: --${name}`).toBeUndefined()
         else expect(row, `${route}: --${name}`).toBeDefined()
         const flag = [`--${name}`, ...(option.type === 'string' ? [samples[name]] : [])]
         let command = [route]
@@ -1213,7 +1225,7 @@ describe('RVHELPREF2 runtime truth regressions', () => {
         if (route === 'scan-secrets') args.push('/tmp/patch')
         const parsed = source.parseCommandLine(args)
         let expected = route
-        if (isRefusedSlot || row.contract.refused === true) expected = 'invalid'
+        if (isRefusedSlot || row?.contract.refused === true) expected = 'invalid'
         else if (name === 'help' && route !== 'estimate') expected = 'help'
         else if (name === 'version') expected = 'version'
         expect(parsed.command, `${route}: --${name}: ${parsed.reason ?? ''}`).toBe(expected)

@@ -5032,6 +5032,7 @@
     "spreadEvent": "İş dağıtıldı",
     "stopEvent": "İş durduruldu",
     "sourceUndated": "Kaynak tarihi belirtilmemiş",
+    "selectedRemoved": "Seçilen hesap artık yok. Bu sohbet sonraki istekte varsayılan hesabı kullanacak.",
     "invalidAccount": "Hesap kimliğini, etiketini, sırasını, limit grubunu ve eşiklerini kontrol edin.",
     "removeConfirm": "{account} kaldırılsın mı? Saklanan kimlik bilgisi silinecek ve oturum açma yetkisi iptal edilecek.",
     "requestCount": {

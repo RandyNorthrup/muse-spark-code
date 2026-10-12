@@ -1,6 +1,8 @@
 // Synthetic keys only. This actual child ends after durable send reservation,
 // without calling settlement, as an abruptly lost process would.
 import path from 'node:path'
+import { runAccountsCommand } from '../../../src/runtime/providers/accountsCommand'
+import { parseAccountsCommand } from '../../../src/runtime/providers/accountArgs'
 import { createRuntimeAccountServices } from '../../../src/runtime/providers/runtimeServices'
 import { AccountRequestJournal } from '../../../src/runtime/providers/accountRequestJournal'
 import { accountPeriodRange } from '../../../src/core/accounts/thresholds'
@@ -52,7 +54,27 @@ export async function runAccountCrashProcess() {
       error: () => undefined,
     },
   })
-  if (action !== 'inspect') {
+  if (action === 'cli') {
+    const command = parseAccountsCommand([
+      'thresholds',
+      '--provider',
+      'meta',
+      '--account',
+      'work',
+      '--thresholds',
+      '{"requests":{"day":1}}',
+    ])
+    if (command === undefined) throw new Error('missing fixture CLI command')
+    const code = await runAccountsCommand(command, {
+      ...services.commands,
+      print: () => undefined,
+      printError: (message) => {
+        throw new Error(message)
+      },
+    })
+    if (code !== 0) throw new Error('fixture CLI refused')
+  }
+  if (action !== 'inspect' && action !== 'cli') {
     const requests = await services.requests(client, {
       account: 'default',
       isInteractive: false,
@@ -60,7 +82,7 @@ export async function runAccountCrashProcess() {
     })
     const lease = await requests.acquire(
       {
-        owner: 'crash-test',
+        owner: action === 'hold' ? `live-${String(process.pid)}` : 'crash-test',
         budgetOwner: 'fixed-budget',
         kind: 'conversation',
         account: 'default',
@@ -73,7 +95,16 @@ export async function runAccountCrashProcess() {
       origin,
     )
     lease.beforeSend()
-    if (action === 'crash') process.kill(process.pid, 'SIGKILL')
+    if (action === 'hold') {
+      process.stdout.write(JSON.stringify({ type: 'ready', account: lease.account }) + '\n')
+      await new Promise<void>((resolve, reject) =>
+        process.stdin.once('data', (bytes: Buffer) => {
+          if (bytes.toString() === 'go') resolve()
+          else reject(new Error('invalid fixture release'))
+        }),
+      )
+      process.stdin.destroy()
+    } else if (action === 'crash') process.kill(process.pid, 'SIGKILL')
     await lease.settle(Usd.from('0.02').toAmount(), { inputTokens: 10, outputTokens: 2 })
   }
   const journal = new AccountRequestJournal(
