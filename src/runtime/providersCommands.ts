@@ -45,6 +45,7 @@ import type { ProvidersAddOptions } from './cliArgs'
 import {
   formatStoredProviderSecret,
   parseStoredProviderSecret,
+  providerAdminSecretAccount,
   providerSecretAccount,
 } from './keyStore'
 import {
@@ -181,22 +182,25 @@ async function commitProviderChange(
         }),
       )
     const account = isRemoving || secret !== undefined ? providerSecretAccount(id) : undefined
-    let previous: string | undefined
-    if (account !== undefined) {
-      try {
-        previous = await deps.secrets.get(account)
-      } catch {
-        return failed(
-          deps,
-          fill(UI_TEXT.providerSaveFailed, { reason: UI_TEXT.providerSaveSecretFailed }),
-        )
-      }
+    // Removing the provider removes its admin report key too (PROVSPEND).
+    const adminAccount = isRemoving ? providerAdminSecretAccount(id) : undefined
+    const touched = [account, adminAccount].filter((entry) => entry !== undefined)
+    const previous = new Map<string, string | undefined>()
+    try {
+      for (const entry of touched) previous.set(entry, await deps.secrets.get(entry))
+    } catch {
+      return failed(
+        deps,
+        fill(UI_TEXT.providerSaveFailed, { reason: UI_TEXT.providerSaveSecretFailed }),
+      )
     }
     const canRestore = async () => {
-      if (account === undefined) return true
       try {
-        if (previous === undefined) await deps.secrets.delete(account)
-        else await deps.secrets.store(account, previous)
+        for (const entry of touched) {
+          const value = previous.get(entry)
+          if (value === undefined) await deps.secrets.delete(entry)
+          else await deps.secrets.store(entry, value)
+        }
         return true
       } catch {
         return false
@@ -204,8 +208,10 @@ async function commitProviderChange(
     }
     try {
       if (account !== undefined) {
-        if (isRemoving) await deps.secrets.delete(account)
-        else if (secret !== undefined) await deps.secrets.store(account, secret)
+        if (isRemoving) {
+          await deps.secrets.delete(account)
+          if (adminAccount !== undefined) await deps.secrets.delete(adminAccount)
+        } else if (secret !== undefined) await deps.secrets.store(account, secret)
       }
     } catch {
       // A rejecting store may have changed its entry before reporting failure.

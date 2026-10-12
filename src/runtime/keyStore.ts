@@ -10,7 +10,7 @@
 
 import { modelRef, credentialRecord } from '../host/backend/providerPolicyEntry'
 import type { SecretStore } from '../host/auth/credentialStore'
-import { KEYRING_SERVICE, UI_TEXT } from '../shared/constants'
+import { KEYRING_SERVICE, PROVIDER_ADMIN_SECRET_PREFIX, UI_TEXT } from '../shared/constants'
 import type { CredentialRecord } from '../core/providers/credentialRecord'
 const { parseCredentialRecord } = credentialRecord
 const { isProviderId } = modelRef
@@ -66,6 +66,16 @@ export function keyringSecretStore(openEntry: KeyringEntryFactory): SecretStore 
  */
 export function providerSecretAccount(providerId: string): string | undefined {
   return isProviderId(providerId) ? `museSpark.provider.${providerId}` : undefined
+}
+
+/**
+ * The OS store account holding a provider's admin report key (PROVSPEND):
+ * its own name under the same service, so an inference read never finds
+ * it and the admin key is used for nothing but read-only report requests.
+ * Undefined for anything but a provider id, exactly like the inference key.
+ */
+export function providerAdminSecretAccount(providerId: string): string | undefined {
+  return isProviderId(providerId) ? `${PROVIDER_ADMIN_SECRET_PREFIX}${providerId}` : undefined
 }
 
 /**
