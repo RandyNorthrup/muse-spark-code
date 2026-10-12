@@ -13,6 +13,7 @@ import {
   mkdtempSync,
   readFileSync,
   readdirSync,
+  renameSync,
   rmSync,
   writeFileSync,
 } from 'node:fs'
@@ -30,6 +31,7 @@ import {
 } from '../../src/runtime/exec/execProtocol'
 
 import { PROVIDERS_CONFIG_DIR_NAME, PROVIDERS_FILE_NAME } from '../../src/shared/constants'
+import { EN } from '../../src/shared/l10n/en'
 import { TABLE_LOCALES } from '../../src/shared/l10n/locales'
 import { readArchivedUiTable } from '../../src/shared/l10n/tableArchive'
 import { layOutAcpNativeSources } from '../unit/helpers/acpPackageSources'
@@ -759,6 +761,61 @@ function result(stdout: string): ExecResult {
   return validateResult(final.result)
 }
 
+// One plan-mode turn on a provider the user added (Mistral, its captured
+// models list and one captured answer), through whatever PACKAGE holds.
+async function providerTurn() {
+  const providers = path.join(WORK, '.config', PROVIDERS_CONFIG_DIR_NAME, PROVIDERS_FILE_NAME)
+  mkdirSync(path.dirname(providers), { recursive: true })
+  writeFileSync(
+    providers,
+    JSON.stringify({
+      v: 1,
+      defaultModel: 'mistral/ministral-3b-latest',
+      providers: [
+        {
+          id: 'mistral',
+          preset: 'mistral',
+          address: 'https://api.mistral.ai',
+          auth: 'apiKey',
+          models: ['ministral-3b-latest'],
+        },
+      ],
+    }),
+  )
+  try {
+    const output = await start(
+      [
+        'exec',
+        '--backend',
+        'modelApi',
+        '--provider',
+        'mistral',
+        '--model',
+        'ministral-3b-latest',
+        '--permission-mode',
+        'plan',
+        '--max-requests',
+        '1',
+        '--max-budget-usd',
+        '1.00',
+        '--ephemeral',
+        '--output',
+        'jsonl',
+        'Reply ok.',
+      ],
+      'provider',
+    ).closed
+    const report = z
+      .object({ provider: z.array(z.string()) })
+      .parse(JSON.parse(readFileSync(path.join(WORK, 'report.json'), 'utf8')))
+    const context = `${output.stderr}\n${output.stdout}\nprovider requests: ${report.provider.join(', ')}`
+    const sent = report.provider.filter((call) => call.endsWith('/chat/completions'))
+    return { output, context, sent }
+  } finally {
+    rmSync(providers, { force: true })
+  }
+}
+
 // E1-E7 and H2 use the actual production package and engine.
 describe('M80 E1-E7 built exec', { timeout: TIMEOUT }, () => {
   beforeAll(async () => {
@@ -955,63 +1012,34 @@ describe('M80 E1-E7 built exec', { timeout: TIMEOUT }, () => {
   // captured answer (docs/certification/m95-captures/mistral), as in the unit
   // suite's production BYO run; the preload answers them, so nothing leaves.
   it('E8 completes one plan-mode turn on a configured provider through the built bundles', async () => {
-    const providers = path.join(WORK, '.config', PROVIDERS_CONFIG_DIR_NAME, PROVIDERS_FILE_NAME)
-    mkdirSync(path.dirname(providers), { recursive: true })
-    writeFileSync(
-      providers,
-      JSON.stringify({
-        v: 1,
-        defaultModel: 'mistral/ministral-3b-latest',
-        providers: [
-          {
-            id: 'mistral',
-            preset: 'mistral',
-            address: 'https://api.mistral.ai',
-            auth: 'apiKey',
-            models: ['ministral-3b-latest'],
-          },
-        ],
-      }),
-    )
+    const { output, context, sent } = await providerTurn()
+    expect(output.code, context).toBe(0)
+    expect(result(output.stdout), context).toMatchObject({
+      status: 'completed',
+      model: 'mistral/ministral-3b-latest',
+      usage: { requests: 1 },
+    })
+    expect(sent, context).toHaveLength(1)
+  })
+
+  // Review RVAPP-DIET0181 P3-3: the per-call helpers removed from the PACKED
+  // agent under their production name. The unit suite deletes the test
+  // build's name (modelApiToolsEntry.js); this is the file a damaged install
+  // is missing. The turn is refused in the agent's own words, nothing is
+  // sent to the provider, and the log names what was absent.
+  it('E9 refuses the turn in the agent’s words when the packed helpers bundle is gone', async () => {
+    const helpers = path.join(PACKAGE, 'dist', 'modelApiTools.js')
+    const kept = `${helpers}.kept`
+    renameSync(helpers, kept)
     try {
-      const output = await start(
-        [
-          'exec',
-          '--backend',
-          'modelApi',
-          '--provider',
-          'mistral',
-          '--model',
-          'ministral-3b-latest',
-          '--permission-mode',
-          'plan',
-          '--max-requests',
-          '1',
-          '--max-budget-usd',
-          '1.00',
-          '--ephemeral',
-          '--output',
-          'jsonl',
-          'Reply ok.',
-        ],
-        'provider',
-      ).closed
-      const report = z
-        .object({ provider: z.array(z.string()) })
-        .parse(JSON.parse(readFileSync(path.join(WORK, 'report.json'), 'utf8')))
-      const context = `${output.stderr}\n${output.stdout}\nprovider requests: ${report.provider.join(', ')}`
-      expect(output.code, context).toBe(0)
-      expect(result(output.stdout), context).toMatchObject({
-        status: 'completed',
-        model: 'mistral/ministral-3b-latest',
-        usage: { requests: 1 },
-      })
-      expect(
-        report.provider.filter((call) => call.endsWith('/chat/completions')),
-        context,
-      ).toHaveLength(1)
+      const { output, context, sent } = await providerTurn()
+      expect(sent, context).toEqual([])
+      expect(output.code, context).not.toBe(0)
+      expect(output.stdout, context).toContain(EN.acpModelApiBundleUnavailable)
+      expect(output.stdout + output.stderr, context).not.toContain('reinstall the extension')
+      expect(output.stderr, context).toContain('modelApiTools.js failed (absent)')
     } finally {
-      rmSync(providers, { force: true })
+      renameSync(kept, helpers)
     }
   })
 

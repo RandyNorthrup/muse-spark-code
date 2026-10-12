@@ -6,11 +6,18 @@
 // classes and its localization state are copies of this file's, which is
 // what the error guards and the table handoff are for.
 
-import { copyFileSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
+import {
+  copyFileSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { createRequire } from 'node:module'
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi, type Mock } from 'vitest'
 import {
   type AgentSession,
   GoalRefusedError,
@@ -29,14 +36,21 @@ import {
   MODEL_API_IMPORT_MAX_REPLAY_BYTES,
   SESSION_EXPORT_FORMAT,
   SESSION_EXPORT_VERSION,
+  MODEL_TEXT,
   UI_TEXT,
+  WEB_FETCH_MODEL_TEXT,
 } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
 import { BASE_LOCALE, setUiText } from '../../src/shared/l10n/text'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { modelApiClientLoader } from '../../src/host/backend/modelApiBundle'
 import type { createModelApiClient } from '../../src/host/backend/modelApiEntry'
-import { fakeModelApi, fakeModelApiClientSettings } from './helpers/fakeModelApi'
+import {
+  fakeModelApi,
+  fakeModelApiClientSettings,
+  type FakeModelApi,
+  type ScriptedReply,
+} from './helpers/fakeModelApi'
 import { buildModelApiBundle } from './helpers/modelApiBundle'
 import { fakeManagerDeps } from './helpers/modelApiManager'
 import { removeFolder } from './helpers/temporaryFolders'
@@ -72,10 +86,20 @@ beforeAll(async () => {
   built.file = await buildModelApiBundle(built.folder)
 })
 
-/** Installs both runtime modules into a fixture that started with a missing or broken backend. */
+/**
+ * Installs the runtime modules into a fixture that started with a missing or
+ * broken backend: the bundle, its English table, and the deferred per-call
+ * helpers every turn loads (a test for a missing helpers chunk removes that
+ * file after copying).
+ */
 function copyBundleTo(file: string): void {
   copyFileSync(built.file, file)
-  copyFileSync(path.join(built.folder, 'uiText.js'), path.join(path.dirname(file), 'uiText.js'))
+  const folder = path.dirname(file)
+  copyFileSync(path.join(built.folder, 'uiText.js'), path.join(folder, 'uiText.js'))
+  copyFileSync(
+    path.join(built.folder, 'modelApiToolsEntry.js'),
+    path.join(folder, 'modelApiToolsEntry.js'),
+  )
 }
 
 afterAll(() => removeFolder(built.folder))
@@ -117,6 +141,52 @@ function scratchFolder(): string {
   const folder = mkdtempSync(path.join(tmpdir(), 'muse-model-api-missing-'))
   folders.push(folder)
   return folder
+}
+
+/** A scratch copy of the built backend with the helpers chunk as given. */
+function scratchBackend(tools: 'present' | 'missing' | { readonly body: string }): string {
+  const folder = scratchFolder()
+  const file = path.join(folder, MODEL_API_BUNDLE_FILE)
+  copyBundleTo(file)
+  const chunk = path.join(folder, 'modelApiToolsEntry.js')
+  if (tools === 'missing') rmSync(chunk)
+  else if (tools !== 'present') writeFileSync(chunk, tools.body)
+  return file
+}
+
+/** One text turn on the given backend file, waited to its end. */
+async function sendBackendTurn(
+  file: string,
+  options: {
+    readonly deps?: Partial<ModelApiBackendManagerDeps>
+    readonly scripts: readonly [ScriptedReply, ...(readonly ScriptedReply[])]
+    readonly text: string
+  },
+): Promise<{
+  readonly events: AgentEvent[]
+  readonly api: FakeModelApi
+  readonly manager: ModelApiBackendManager
+  readonly log: FakeLogOutputChannel
+}> {
+  const t = managerFor(file, options.deps)
+  const session = await startSession(t.manager)
+  const watched = watchSessionTurns(session)
+  t.api.script(...options.scripts)
+  await session.sendTurn([{ type: 'text', text: options.text }])
+  await watched.turnDone()
+  return { events: watched.events, api: t.api, manager: t.manager, log: t.log }
+}
+
+/** A refused fetch through the helpers chunk: nothing fetched, and the model's next request carries the reason. */
+function expectRefusedFetch(
+  api: FakeModelApi,
+  fetchPage: Mock<() => Promise<never>>,
+  reason: string,
+): void {
+  expect(fetchPage).not.toHaveBeenCalled()
+  expect(api.responseBodies()).toHaveLength(2)
+  const replay = JSON.stringify(api.responseBodies()[1]?.['input'])
+  expect(replay).toContain(reason)
 }
 
 const folders: string[] = []
@@ -224,6 +294,264 @@ describe('the Model API bundle (M57)', () => {
     expect(nativeRequire.cache[reviewer]).toBeUndefined()
     expect(t.log.info).toHaveBeenCalledWith(expect.stringContaining('Model API backend ready'))
     await t.manager.dispose()
+  })
+
+  it('loads the deferred per-call helpers on first use and runs the turn (MODELAPIDIET)', async () => {
+    // A folder of its own: Node caches dynamic imports by path, so only a
+    // fresh folder proves the first use loads the chunk. Real paths, as
+    // beforeAll: require.cache is keyed by real path.
+    const file = realpathSync.native(scratchBackend('present'))
+    const nativeRequire = createRequire(file)
+    const tools = path.join(path.dirname(file), 'modelApiToolsEntry.js')
+    expect(nativeRequire.cache[tools]).toBeUndefined()
+    const { events, api, manager } = await sendBackendTurn(file, {
+      scripts: [{ text: 'Hello from the helpers' }],
+      text: 'Say hello',
+    })
+    // The hook call fields load with the first request, not at activation.
+    expect(events).toContainEqual(
+      expect.objectContaining({ type: 'turnCompleted', terminal: 'completed' }),
+    )
+    expect(nativeRequire.cache[tools]).toBeDefined()
+    expect(api.responseBodies()).toHaveLength(1)
+    await manager.dispose()
+  })
+
+  it('refuses the turn with the helpers-unavailable words when it is missing (MODELAPIDIET)', async () => {
+    setUiText({ ...EN, modelApiToolsUnavailable: 'Localized helpers failure.' }, 'de')
+    const backend = scratchBackend('missing')
+    const { events, api, manager, log } = await sendBackendTurn(backend, {
+      scripts: [{ text: 'Never sent' }],
+      text: 'Say hello',
+    })
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        type: 'turnCompleted',
+        terminal: 'failed',
+        reason: UI_TEXT.modelApiToolsUnavailable,
+      }),
+    )
+    expect(api.responseBodies()).toHaveLength(0)
+    // RVMODELAPIDIETB P3: the sentence promises log details. The cause's
+    // class is logged with the chunk named; the loader's absolute path,
+    // which the module error carries, never reaches the log.
+    // MODELAPIDIETR4 P3-2: the line names the bundle and the failure kind
+    // from the fixed vocabulary, not the bare word Error: a missing chunk
+    // logs absent.
+    const logged = log.warn.mock.calls.map((call) => String(call[0])).join('\n')
+    expect(logged).toContain('modelApiTools.js failed (absent)')
+    expect(logged).not.toContain(path.dirname(backend))
+    await manager.dispose()
+  })
+
+  it('says the agent’s own reinstall sentence where the host set one (RVDIET0181 P3)', async () => {
+    // The terminal and ACP agent hand the manager their sentence for a
+    // damaged backend (src/runtime/backends.ts): "reinstall the extension and
+    // reload the window" names the wrong product to someone on the package.
+    const agent = { bundleUnavailable: () => UI_TEXT.acpModelApiBundleUnavailable }
+    expect(UI_TEXT.acpModelApiBundleUnavailable).toContain('muse-spark-code-acp')
+    const missing = await sendBackendTurn(scratchBackend('missing'), {
+      deps: agent,
+      scripts: [{ text: 'Never sent' }],
+      text: 'Say hello',
+    })
+    expect(missing.events).toContainEqual(
+      expect.objectContaining({
+        type: 'turnCompleted',
+        terminal: 'failed',
+        reason: UI_TEXT.acpModelApiBundleUnavailable,
+      }),
+    )
+    expect(missing.api.responseBodies()).toHaveLength(0)
+    await missing.manager.dispose()
+    const preview = await sendBackendTurn(
+      scratchBackend({
+        body: `module.exports = { ...require(${JSON.stringify(path.join(built.folder, 'modelApiToolsEntry.js'))}), ArgumentPreview: class { constructor() { throw new Error('sabotaged preview') } } };`,
+      }),
+      {
+        deps: {
+          ...agent,
+          argumentPreviewCapabilities: () => ({
+            tools: { streamingArguments: { state: 'yes', value: true } },
+          }),
+        },
+        scripts: [
+          { calls: [{ name: 'web_fetch', arguments: '{"url":"https://example.com/page"}' }] },
+        ],
+        text: 'Fetch that page',
+      },
+    )
+    expect(preview.events).toContainEqual(
+      expect.objectContaining({
+        type: 'turnCompleted',
+        terminal: 'failed',
+        reason: UI_TEXT.acpModelApiBundleUnavailable,
+      }),
+    )
+    await preview.manager.dispose()
+  })
+
+  it('hands the helpers the language once per table, not once per call', async () => {
+    // The diet installed the whole table into the helpers before every model
+    // call, streamed tool call and URL check: 3,469 installs of 4 ms each
+    // while test/unit/modelApiHost.test.ts ran (the 0.18.1 certification).
+    const counter = `museHelperInstalls${String(folders.length)}`
+    const counts = globalThis as Record<string, unknown>
+    const real = JSON.stringify(path.join(built.folder, 'modelApiToolsEntry.js'))
+    const file = scratchBackend({
+      // `{ ...require(file) }` and no local in between: Node reads a CommonJS
+      // module's export names from this text before it runs.
+      body: `globalThis.${counter} = 0; module.exports = { ...require(${real}), setUiText: (table, locale) => { globalThis.${counter} += 1; require(${real}).setUiText(table, locale) } };`,
+    })
+    const t = managerFor(file)
+    const session = await startSession(t.manager)
+    const watched = watchSessionTurns(session)
+    t.api.script(
+      { calls: [{ name: 'read_file', arguments: '{"path":"missing.txt"}' }] },
+      { text: 'Done.' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'Read it' }])
+    await watched.turnDone()
+    // Two model calls, each asking for the helpers before and after.
+    expect(t.api.responseBodies()).toHaveLength(2)
+    expect(counts[counter]).toBe(1)
+    // A table installed in the bundle since: the helpers receive it once more.
+    const bundle = createRequire(file)(file) as {
+      setUiText: (table: typeof EN, locale: string) => void
+    }
+    bundle.setUiText({ ...EN }, 'en')
+    t.api.script({ text: 'Again.' })
+    await session.sendTurn([{ type: 'text', text: 'Again' }])
+    await watched.turnDone()
+    expect(t.api.responseBodies()).toHaveLength(3)
+    expect(counts[counter]).toBe(2)
+    Reflect.deleteProperty(counts, counter)
+    await t.manager.dispose()
+  })
+
+  it('logs the unreadable kind when the helpers chunk cannot be read (MODELAPIDIETR4)', async () => {
+    // P3-2: a load refusal (an EACCES at require time here) logs unreadable
+    // with the chunk named, never the loader's text.
+    const { events, manager, log } = await sendBackendTurn(
+      scratchBackend({
+        body: `throw Object.assign(new Error('sabotaged load'), { code: 'EACCES' })`,
+      }),
+      {
+        scripts: [{ text: 'Never sent' }],
+        text: 'Say hello',
+      },
+    )
+    expect(events).toContainEqual(
+      expect.objectContaining({ type: 'turnCompleted', terminal: 'failed' }),
+    )
+    const logged = log.warn.mock.calls.map((call) => String(call[0])).join('\n')
+    expect(logged).toContain('modelApiTools.js failed (unreadable)')
+    expect(logged).not.toContain('sabotaged load')
+    await manager.dispose()
+  })
+
+  it('streams previews and checks fetch URLs through the helpers chunk (MODELAPIDIET)', async () => {
+    const fetchPage = vi.fn((): Promise<never> => {
+      throw new Error('must not fetch: the URL check refuses first')
+    })
+    const { events, api, manager } = await sendBackendTurn(built.file, {
+      deps: {
+        webFetch: fetchPage,
+        argumentPreviewCapabilities: () => ({
+          tools: { streamingArguments: { state: 'yes', value: true } },
+        }),
+      },
+      scripts: [
+        {
+          calls: [{ name: 'web_fetch', arguments: '{"url":"ftp://example.com/page"}' }],
+        },
+        { text: 'Refused as asked.' },
+      ],
+      text: 'Fetch that page',
+    })
+    const previews = events.flatMap((event) =>
+      event.type === 'toolArgumentPreview' ? [event.item.argumentPreview.text] : [],
+    )
+    expect(previews.length).toBeGreaterThan(0)
+    expect(previews.at(-1)).toContain('ftp://example.com/page')
+    // The URL check refused before any approval or fetch.
+    expectRefusedFetch(api, fetchPage, WEB_FETCH_MODEL_TEXT.webFetchNotHttps)
+    await manager.dispose()
+  })
+
+  it('refuses the fetch closed when the URL check cannot load (MODELAPIDIET)', async () => {
+    // The helpers chunk loads but its URL check throws: an https URL the
+    // real check would pass still refuses, with nothing fetched.
+    const real = createRequire(built.file)(
+      path.join(built.folder, 'modelApiToolsEntry.js'),
+    ) as Record<string, unknown>
+    expect(Object.keys(real)).toContain('preModelCallFields')
+    const fetchPage = vi.fn((): Promise<never> => {
+      throw new Error('must not fetch: the URL check failed first')
+    })
+    const { api, manager, log } = await sendBackendTurn(
+      scratchBackend({
+        body: `module.exports = { ...require(${JSON.stringify(path.join(built.folder, 'modelApiToolsEntry.js'))}), checkPageUrl: () => { throw new Error('sabotaged check') } };`,
+      }),
+      {
+        deps: { webFetch: fetchPage },
+        scripts: [
+          {
+            calls: [{ name: 'web_fetch', arguments: '{"url":"https://example.com/page"}' }],
+          },
+          { text: 'Refused as asked.' },
+        ],
+        text: 'Fetch that page',
+      },
+    )
+    expectRefusedFetch(api, fetchPage, MODEL_TEXT.webFetchUnavailable)
+    // The refusal reason says the log says why: the check failure's class is
+    // logged with the chunk named, never the sabotaged check's text.
+    // MODELAPIDIETR4 P3-2: a chunk whose code throws logs the kind with the
+    // error class name.
+    const logged = log.warn.mock.calls.map((call) => String(call[0])).join('\n')
+    expect(logged).toContain('modelApiTools.js failed (threw while evaluating (Error))')
+    expect(logged).not.toContain('sabotaged check')
+    await manager.dispose()
+  })
+
+  it('fails the turn with localized words when previews cannot start (MODELAPIDIET)', async () => {
+    // The helpers chunk loads but its preview constructor throws: the turn
+    // fails with the installed words, never a raw constructor error.
+    setUiText({ ...EN, modelApiToolsPreviewUnavailable: 'Localized preview failure.' }, 'de')
+    const { events, manager, log } = await sendBackendTurn(
+      scratchBackend({
+        body: `module.exports = { ...require(${JSON.stringify(path.join(built.folder, 'modelApiToolsEntry.js'))}), ArgumentPreview: class { constructor() { throw new Error('sabotaged preview canary-PROMPT-TEXT /tmp/canary-path') } } };`,
+      }),
+      {
+        deps: {
+          argumentPreviewCapabilities: () => ({
+            tools: { streamingArguments: { state: 'yes', value: true } },
+          }),
+        },
+        scripts: [
+          {
+            calls: [{ name: 'web_fetch', arguments: '{"url":"https://example.com/page"}' }],
+          },
+        ],
+        text: 'Fetch that page',
+      },
+    )
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        type: 'turnCompleted',
+        terminal: 'failed',
+        reason: UI_TEXT.modelApiToolsPreviewUnavailable,
+      }),
+    )
+    // RVMODELAPIDIETB P3: the cause's class is logged with the chunk named;
+    // the constructor's text, standing in for prompt text, never reaches it.
+    // MODELAPIDIETR4 P3-2: the kind names the error class, not bare Error.
+    const logged = log.warn.mock.calls.map((call) => String(call[0])).join('\n')
+    expect(logged).toContain('modelApiTools.js failed (threw while evaluating (Error))')
+    expect(logged).not.toContain('sabotaged preview')
+    expect(logged).not.toContain('canary-PROMPT-TEXT')
+    await manager.dispose()
   })
 
   it('loads a paid reviewer on first consented use and installs the current language', async () => {
