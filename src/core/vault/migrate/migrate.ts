@@ -11,6 +11,13 @@ import {
   type MigrationRecord,
 } from './ports'
 
+/**
+ * Journal note recorded when a finished retire finds the legacy copy
+ * already absent: the engine deleted nothing, and the note says so, so the
+ * join can tell a watched retire from a possibly raced external deletion.
+ */
+const RETIRE_RESUMED_WITHOUT_COPY_NOTE = 'retire intent resumed with the legacy copy already absent'
+
 /** Private management service. No method is exposed to agent tools or the public protocol. */
 export class VaultMigration {
   private readonly credentials: ReadonlyMap<string, MigrationCredential>
@@ -217,19 +224,26 @@ export class VaultMigration {
   /**
    * Finish a retire the engine itself started: the journal already carries
    * the retire intent, so the missing legacy copy is evidence of an
-   * interrupted retire, never of a user deletion. Re-verifies the vault
-   * digest and, when a legacy copy is still present, compares it before
-   * deleting, so a change that landed after the intent still refuses.
+   * interrupted retire, never of a user deletion. When the legacy copy is
+   * already absent, verifies only the vault digest and records `retired`
+   * with a note saying the engine did not see the delete. When a legacy
+   * copy is still present, compares it before deleting, so a change that
+   * landed after the intent still refuses.
    */
   private async finishInterruptedRetire(
     entry: MigrationCredential,
     row: MigrationRecord,
     lease: MigrationLease,
   ): Promise<void> {
-    await this.verifyLegacy(entry, row, lease)
-    await this.removeLegacy(entry.key, lease)
     const base = { ...row }
     delete base.retireIntent
+    if (await this.legacyAbsent(entry, lease)) {
+      await this.verified(row, lease)
+      base.retireNote = RETIRE_RESUMED_WITHOUT_COPY_NOTE
+    } else {
+      await this.verifyLegacy(entry, row, lease)
+      await this.removeLegacy(entry.key, lease)
+    }
     await this.save(
       { ...base, retainLegacy: false, phase: 'retired', retirementNoticePending: true },
       lease,
@@ -479,24 +493,37 @@ export class VaultMigration {
   /**
    * Remove the slot from both stores. When the legacy copy is already
    * absent, the vault copy is the only copy left, and deleting it needs the
-   * caller's explicit user confirmation (`destroyLastCopyConfirmed: true`,
-   * typed as the literal so a variable cannot satisfy it by accident):
-   * without it the call refuses with `conflict` and destroys nothing. Rows
-   * already being deleted complete without it: that delete was confirmed
-   * when it started.
+   * caller's explicit confirmation, typed as the literal `true` so a
+   * variable cannot satisfy it by accident. There are two confirmations and
+   * they cannot be confused in code: an `active` slot that still retains
+   * its legacy copy but finds it absent (with no retire intent) is the
+   * `legacyDeleted` report, answered only after asking the person, with
+   * `legacyDeletionConfirmed`; every other last copy — a `retired` slot, a
+   * credential born in the vault, an interrupted retire — is an ordinary
+   * delete, confirmed with `destroyLastCopyConfirmed` (a plain sign-out may
+   * pass it). Without the matching confirmation the call refuses with
+   * `conflict` and destroys nothing. Rows already being deleted complete
+   * without either: that delete was confirmed when it started.
    */
-  async delete(key: string, options?: { destroyLastCopyConfirmed: true }): Promise<void> {
+  async delete(
+    key: string,
+    options?: { destroyLastCopyConfirmed?: true; legacyDeletionConfirmed?: true },
+  ): Promise<void> {
     const entry = this.credential(key)
     await this.run(async (lease) => {
       const row = await this.record(entry, lease)
       if (!row) throw new VaultMigrationFault('invalid')
       if (row.phase === 'deleted') return
-      if (
-        row.phase !== 'deleting' &&
-        (await this.legacyAbsent(entry, lease)) &&
-        options?.destroyLastCopyConfirmed !== true
-      )
-        throw new VaultMigrationFault('conflict')
+      if (row.phase !== 'deleting' && (await this.legacyAbsent(entry, lease))) {
+        const isAnswersLegacyDeleted =
+          row.phase === 'active' && row.retainLegacy && row.retireIntent !== true
+        if (
+          (isAnswersLegacyDeleted
+            ? options?.legacyDeletionConfirmed
+            : options?.destroyLastCopyConfirmed) !== true
+        )
+          throw new VaultMigrationFault('conflict')
+      }
       await this.save({ ...row, previous: undefined, phase: 'deleting' }, lease)
       lease.assertCurrent()
       await this.deps.vault.remove(entry.itemId, () => {
@@ -506,6 +533,7 @@ export class VaultMigration {
       await this.removeLegacy(key, lease)
       const base = { ...row }
       delete base.retireIntent
+      delete base.retireNote
       await this.save({ ...base, phase: 'deleted', digest: null }, lease)
     })
   }
@@ -560,5 +588,50 @@ export class VaultMigration {
         lease,
       )
     })
+  }
+  /**
+   * Startup recovery: finish every pending retire intent at once. The vault
+   * calls this at every open before any other migration call, so no intent
+   * survives an open: a present legacy copy is deleted and the slot is
+   * recorded `retired`; an absent one is recorded `retired` with a journal
+   * note saying the copy was already absent when the intent was resumed. A
+   * row whose legacy copy changed after the intent is left alone — the
+   * engine deletes nobody else's bytes — its stale intent is cleared so the
+   * change reads honestly, and its state is reported; the call goes on to
+   * the other rows instead of throwing for it. A vault-side verification
+   * failure still throws. Returns the outcome per finished row; rows without
+   * a pending intent are absent from the result.
+   */
+  async finishPendingRetires(): Promise<Record<string, 'retired' | 'diverged'>> {
+    const outcome: Record<string, 'retired' | 'diverged'> = {}
+    for (const key of this.credentials.keys()) {
+      const entry = this.credential(key)
+      const state = await this.run(async (lease) => {
+        const row = await this.record(entry, lease)
+        if (row?.phase !== 'active' || row.retireIntent !== true) return null
+        if (await this.legacyAbsent(entry, lease)) {
+          await this.finishInterruptedRetire(entry, row, lease)
+          return 'retired' as const
+        }
+        try {
+          await this.finishInterruptedRetire(entry, row, lease)
+          return 'retired' as const
+        } catch (error: unknown) {
+          if (
+            error instanceof VaultMigrationFault &&
+            (error.code === 'conflict' || error.code === 'invalid')
+          ) {
+            const base = { ...row }
+            delete base.retireIntent
+            delete base.retireNote
+            await this.save(base, lease)
+            return 'diverged' as const
+          }
+          throw error
+        }
+      })
+      if (state !== null) outcome[key] = state
+    }
+    return outcome
   }
 }

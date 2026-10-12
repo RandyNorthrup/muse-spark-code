@@ -1085,7 +1085,12 @@ describe('C-M109-4 R3 vault item names', () => {
       await expect(f.service.delete(f.credential.key)).rejects.toMatchObject({ code: 'conflict' })
       const listing = await f.vault.list()
       expect(listing.map((metadata) => metadata.id)).toContain(f.credential.itemId)
-      await f.service.delete(f.credential.key, { destroyLastCopyConfirmed: true })
+      // The plain sign-out confirmation does not answer `legacyDeleted`: the
+      // join asks the person first and passes the answer's own option.
+      await expect(
+        f.service.delete(f.credential.key, { destroyLastCopyConfirmed: true }),
+      ).rejects.toMatchObject({ code: 'conflict' })
+      await f.service.delete(f.credential.key, { legacyDeletionConfirmed: true })
       expect(f.journal.get(f.credential.key)?.phase).toBe('deleted')
       expect(await f.vault.list()).toEqual([])
       expect(JSON.stringify(await f.vault.list())).not.toContain('synthetic-')
