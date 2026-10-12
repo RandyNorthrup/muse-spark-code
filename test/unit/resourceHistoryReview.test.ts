@@ -157,6 +157,33 @@ describe('RVM107W2 P2: consent, delete boundary, retries, disposal and read boun
     expect(onError).toHaveBeenCalledTimes(1)
   })
 
+  it('reports one corrupt history choice once across windows and a restart, until it changes', async () => {
+    const folder = await temporary()
+    await writeFile(path.join(folder, USAGE_SETTINGS_FILE), '{oops')
+    const window = (onError: () => void) =>
+      resourceHistoryRecorder(
+        { dataFolder: folder, isEnabled: () => true },
+        { read: () => Promise.resolve([]) },
+        onError,
+      )
+    const first = vi.fn()
+    window(first).sample(historyStatus(Date.now()))
+    expect(first).toHaveBeenCalledTimes(1)
+    // A second window over the same corrupt file stays silent ...
+    const second = vi.fn()
+    window(second).sample(historyStatus(Date.now()))
+    expect(second).not.toHaveBeenCalled()
+    // ... and so does a restart: a fresh instance reads the durable marker.
+    const restarted = vi.fn()
+    window(restarted).sample(historyStatus(Date.now()))
+    expect(restarted).not.toHaveBeenCalled()
+    // Until the file changes: new damage announces once more.
+    await writeFile(path.join(folder, USAGE_SETTINGS_FILE), '{oops-different')
+    const changed = vi.fn()
+    window(changed).sample(historyStatus(Date.now()))
+    expect(changed).toHaveBeenCalledTimes(1)
+  })
+
   it('reports a failing sample once instead of replacing it with an invented reading', async () => {
     const folder = await temporary()
     const onError = vi.fn()

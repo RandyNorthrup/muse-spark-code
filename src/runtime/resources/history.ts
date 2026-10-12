@@ -2,11 +2,13 @@
 // every long-lived governor (the editor's window host, the ACP agent) and
 // read by every history surface (usage page, `resources history`,
 // `usage resources`, ACP `/usage resources`).
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
+import { readFileSync, writeFileSync } from 'node:fs'
+import path from 'node:path'
 import { aggregateResources } from '../../core/usage/aggregate'
 import { ResourceJournal } from '../../core/usage/resourceJournal'
 import { ResourceRecords, type ResourceRecordWorkSource } from '../../core/usage/resourceRecords'
-import { RESOURCE_JOURNAL_LIVE_MS } from '../../shared/constants'
+import { RESOURCE_JOURNAL_LIVE_MS, USAGE_SETTINGS_FILE } from '../../shared/constants'
 import type { ResourceHistory } from '../../shared/resourceHistory'
 import type { ResourceEvent, ResourceStatus } from '../../shared/resources'
 import { NodeUsageFs } from '../usage/nodeUsageFs'
@@ -106,16 +108,65 @@ export function resourceHistoryRecorder(
     hasReported = true
     onError()
   }
+  // One corrupt choice is announced once until it changes, in every window
+  // and after a restart: the announcement is keyed to the damaged file's own
+  // content and size, recorded durably beside the journal's state.
+  const settingsFile = path.join(binding.dataFolder, USAGE_SETTINGS_FILE)
+  const reportedChoiceFile = `${settingsFile}.reported`
+  const fingerprintChoice = (): string | undefined => {
+    try {
+      const raw = readFileSync(settingsFile)
+      return `${String(raw.length)}:${createHash('sha256').update(raw).digest('hex')}`
+    } catch (error: unknown) {
+      // A choice that cannot even be fingerprinted is announced, never deduped.
+      if (!(error instanceof Error)) throw error
+      return undefined
+    }
+  }
+  const readReportedChoice = (): string | undefined => {
+    try {
+      const marker: unknown = JSON.parse(readFileSync(reportedChoiceFile, 'utf8'))
+      return typeof marker === 'object' &&
+        marker !== null &&
+        'identity' in marker &&
+        typeof marker.identity === 'string'
+        ? marker.identity
+        : undefined
+    } catch (error: unknown) {
+      // A missing or damaged marker announces, never hides.
+      if (!(error instanceof Error)) throw error
+      return undefined
+    }
+  }
+  const writeReportedChoice = (identity: string): void => {
+    try {
+      writeFileSync(reportedChoiceFile, JSON.stringify({ identity }))
+    } catch (error: unknown) {
+      // Best effort: an unwritten marker only repeats the announcement.
+      if (!(error instanceof Error)) throw error
+    }
+  }
+  const reportedChoices = new Set<string>()
+  const reportChoice = (): void => {
+    const identity = fingerprintChoice()
+    if (identity !== undefined) {
+      if (reportedChoices.has(identity)) return
+      reportedChoices.add(identity)
+      if (readReportedChoice() === identity) return
+      writeReportedChoice(identity)
+    }
+    onError()
+  }
   const isConsented = () => {
     if (!binding.isEnabled()) return false
     try {
       return readUsageHistorySettings(binding.dataFolder).enabled
     } catch (error: unknown) {
       // A missing choice is the default; an unreadable one is not consent,
-      // and is reported once rather than mistaken for a refusal. Anything
-      // that is not an error keeps its kind.
+      // and is announced once per damaged file rather than mistaken for a
+      // refusal. Anything that is not an error keeps its kind.
       if (!(error instanceof Error)) throw error
-      report()
+      reportChoice()
       return false
     }
   }
