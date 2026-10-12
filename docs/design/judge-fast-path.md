@@ -1129,8 +1129,12 @@ remains. The ship rule counts both the time saved and those tokens
   and prints the default report with numeric owners and UTC times. No
   program is verified or executed for `stat`, and no grant beyond the
   walked operands is needed, so the result cannot depend on which
-  implementation a distribution ships (the failure the helper's own report
-  replaces is captured in `docs/certification/m125-f1a.md`).
+  implementation a distribution ships. The failure the helper's own
+  report replaces is not reproduced by the lane-sandbox table in
+  `docs/certification/m125-f1a.md` (every started program refuses there
+  for a sandbox-only reason); the per-program capture on a real machine
+  is still open — see that record's "Real-machine capture: run by the
+  lead".
 - **A neutral environment, not the inherited one.** The child gets exactly
   `PATH=/usr/bin:/bin`, `LC_ALL=C`, `TZ=UTC0` (a rule, so no time-zone
   file is read) and `HOME` set to an empty private folder, and nothing

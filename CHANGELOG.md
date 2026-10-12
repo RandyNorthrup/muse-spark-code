@@ -10,12 +10,16 @@ happened, not what was planned; superseded entries are kept.
 ### Pending
 
 - Judge fast path: the confinement helper answers `stat` itself instead of
-  starting the system `stat`, so the result no longer depends on which
+  starting the system `stat`, so the report cannot depend on which
   coreutils a machine ships. The report comes from the walked files, prints
   the full device number, refuses recursive runs and mismatched tool
-  arguments, reads the last refusal reason correctly, and prints a dash for
-  any detail the filesystem does not supply. The design record and the
-  F1a certification carry the evidence and the per-program table.
+  arguments, accepts only the helper's own refusal lines (never a started
+  program's output), and prints a dash for any detail the filesystem does
+  not supply. A `du` killed for asking for a thread reports process
+  creation refused instead of a generic refusal. The per-program table in
+  the F1a certification is a lane-sandbox measurement; the real-machine
+  capture is still open and is produced with
+  `node scripts/inspect-capture.mjs`.
 
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
   reads and writes, and 1-hour cache writes settle at their own price.
