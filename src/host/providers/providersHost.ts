@@ -16,6 +16,11 @@ import type {
 import { isOriginBound } from './credentialRecords'
 import { readOpenRouterKeyUsage } from './openRouter'
 import { connectOpenRouterAccount } from './openRouter'
+import {
+  isSpendFailure,
+  openRouterSpendReport,
+  type ProviderSpendReport,
+} from '../../core/providers/providerSpend'
 import type { OAuthLoopback } from './oauthLoopback'
 import { promptForProviderKey } from './keyPrompt'
 import { probeLocalServers, type LocalProbeResult } from './localProbe'
@@ -75,6 +80,13 @@ export interface ProvidersHostDeps {
   readonly exchanger: CodeExchanger | undefined
   readonly usage: KeyUsageReader | undefined
   readonly onKeyUsage?: (snapshot: KeyUsageSnapshot) => void
+  /**
+   * The spend report consumer (PROVSPEND): the existing OpenRouter read as
+   * the first shared-shape report. Present beats `onKeyUsage`; the journal
+   * adaptation moves to the report and the snapshot callback stays as the
+   * fallback.
+   */
+  readonly onSpend?: (report: ProviderSpendReport) => void
   readonly pkce: PkceSource
   readonly suggest: SuggestionEngine
   readonly scanStore: ScanStore
@@ -326,7 +338,22 @@ export function createProvidersHost(deps: ProvidersHostDeps): ProvidersHost {
     openRouterUsage: async (credential) => {
       if (deps.usage === undefined) return
       const snapshot = await readOpenRouterKeyUsage(deps.usage, credential)
-      deps.onKeyUsage?.(snapshot)
+      if (deps.onSpend === undefined) {
+        deps.onKeyUsage?.(snapshot)
+      } else {
+        const report = openRouterSpendReport(
+          {
+            usedToday: snapshot.usedToday,
+            usedThisWeek: snapshot.usedThisWeek,
+            usedThisMonth: snapshot.usedThisMonth,
+            ...(snapshot.limit !== undefined && { limit: snapshot.limit }),
+            ...(snapshot.remaining !== undefined && { remaining: snapshot.remaining }),
+          },
+          new Date(deps.now()).toISOString(),
+        )
+        if (isSpendFailure(report)) deps.onKeyUsage?.(snapshot)
+        else deps.onSpend(report)
+      }
       return snapshot
     },
     probe: (preset) => probeLocalServers(preset.localProbes, deps.loopbackFetch),

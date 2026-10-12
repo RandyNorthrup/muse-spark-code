@@ -6196,7 +6196,7 @@ export const EN = {
     usageUnavailable: 'No current usage snapshot.',
     spendReported: 'Reported by {provider}, as of {date}.',
     spendTokensByModel: '{model}: {input} input, {output} output.',
-    spendDollarsByDay: '{day}: {cost}.',
+    spendDollarsByDay: '{day}: {cost} spent.',
     spendBalance: 'Balance: {balance}.',
     spendKeyUsage: 'Spent {today} today, {week} this week, {month} this month.',
     spendKeyLimit: 'Limit {limit}; {remaining} left.',

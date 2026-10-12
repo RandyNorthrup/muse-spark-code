@@ -142,6 +142,21 @@
       "editors": ["vscode", "acp"]
     },
     {
+      "id": "provider-spend",
+      "name": { "ui": "referenceProvidersUsage" },
+      "summary": { "ui": "referenceProvidersUsage" },
+      "description": { "ui": "referenceProvidersUsage" },
+      "commands": [],
+      "settings": [],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#usage-and-cost",
+      "backends": ["museCode", "modelApi"],
+      "paid": false,
+      "surfaces": ["vscode:museCode", "vscode:modelApi", "acp:museCode", "acp:modelApi"],
+      "details": [],
+      "facts": {},
+      "editors": ["vscode", "acp"]
+    },
+    {
       "id": "legal",
       "name": { "ui": "legalScanTitle" },
       "summary": { "ui": "legalScanItemDetail" },
@@ -4433,6 +4448,12 @@
       "text": { "ui": "referenceProviders" }
     },
     {
+      "route": "providersUsage",
+      "name": "providers usage <id> [--days <n>] [--output json]",
+      "description": "Show what the provider itself reports was spent, next to our own estimate. Admin report keys use the credential store and never pay for model requests.",
+      "text": { "ui": "referenceProvidersUsage" }
+    },
+    {
       "route": "chatGptProvider",
       "name": "providers add|remove|status chatgpt",
       "description": "List, add, test or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.",
@@ -4666,6 +4687,32 @@
       "contract": { "type": "boolean", "repeatable": false, "default": false }
     },
     {
+      "route": "providersAdd",
+      "name": "providersAdd: --days <value>",
+      "description": "--days <n>: Spend report period in days",
+      "text": { "cli": "days" },
+      "contract": { "type": "string", "repeatable": false }
+    },
+    {
+      "route": "providersAdd",
+      "name": "providersAdd: --admin",
+      "description": "--admin: Use the admin report key instead of the inference key",
+      "text": { "cli": "admin" },
+      "contract": { "type": "boolean", "repeatable": false, "default": false }
+    },
+    {
+      "route": "providersAdd",
+      "name": "providersAdd: --output <value>",
+      "description": "Choose the result format: text, json or jsonl.",
+      "text": { "cli": "output" },
+      "contract": {
+        "type": "string",
+        "repeatable": false,
+        "enum": ["text", "json", "jsonl"],
+        "default": "text"
+      }
+    },
+    {
       "route": "usage",
       "name": "usage: --range <value>",
       "description": "--range today|7d|30d|90d|custom: Range",
@@ -4851,6 +4898,32 @@
       "description": "auth set: Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations. exec / scan-secrets --key-stdin: Read the key from a pipe, not a terminal. stdin → memory; prompt stdin + key stdin = Prompt and key cannot both use stdin.",
       "text": { "cli": "key-stdin" },
       "contract": { "type": "boolean", "repeatable": false, "refused": true, "default": false }
+    },
+    {
+      "route": "serve",
+      "name": "serve: --days <value>",
+      "description": "--days <n>: Spend report period in days",
+      "text": { "cli": "days" },
+      "contract": { "type": "string", "repeatable": false }
+    },
+    {
+      "route": "serve",
+      "name": "serve: --admin",
+      "description": "--admin: Use the admin report key instead of the inference key",
+      "text": { "cli": "admin" },
+      "contract": { "type": "boolean", "repeatable": false, "default": false }
+    },
+    {
+      "route": "serve",
+      "name": "serve: --output <value>",
+      "description": "Choose the result format: text, json or jsonl.",
+      "text": { "cli": "output" },
+      "contract": {
+        "type": "string",
+        "repeatable": false,
+        "enum": ["text", "json", "jsonl"],
+        "default": "text"
+      }
     },
     {
       "route": "serve",
@@ -5050,6 +5123,38 @@
       "description": "auth set: Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations. exec / scan-secrets --key-stdin: Read the key from a pipe, not a terminal. stdin → memory; prompt stdin + key stdin = Prompt and key cannot both use stdin.",
       "text": { "cli": "key-stdin" },
       "contract": { "type": "boolean", "repeatable": false, "refused": true, "default": false }
+    },
+    {
+      "route": "login",
+      "name": "login: --days <value>",
+      "description": "--days <n>: Spend report period in days",
+      "text": { "cli": "days" },
+      "contract": { "type": "string", "repeatable": false, "purpose": "acceptedUnused" }
+    },
+    {
+      "route": "login",
+      "name": "login: --admin",
+      "description": "--admin: Use the admin report key instead of the inference key",
+      "text": { "cli": "admin" },
+      "contract": {
+        "type": "boolean",
+        "repeatable": false,
+        "default": false,
+        "purpose": "acceptedUnused"
+      }
+    },
+    {
+      "route": "login",
+      "name": "login: --output <value>",
+      "description": "Choose the result format: text, json or jsonl.",
+      "text": { "cli": "output" },
+      "contract": {
+        "type": "string",
+        "repeatable": false,
+        "enum": ["text", "json", "jsonl"],
+        "default": "text",
+        "purpose": "acceptedUnused"
+      }
     },
     {
       "route": "login",
@@ -5286,6 +5391,38 @@
     },
     {
       "route": "setup",
+      "name": "setup: --days <value>",
+      "description": "--days <n>: Spend report period in days",
+      "text": { "cli": "days" },
+      "contract": { "type": "string", "repeatable": false, "purpose": "acceptedUnused" }
+    },
+    {
+      "route": "setup",
+      "name": "setup: --admin",
+      "description": "--admin: Use the admin report key instead of the inference key",
+      "text": { "cli": "admin" },
+      "contract": {
+        "type": "boolean",
+        "repeatable": false,
+        "default": false,
+        "purpose": "acceptedUnused"
+      }
+    },
+    {
+      "route": "setup",
+      "name": "setup: --output <value>",
+      "description": "Choose the result format: text, json or jsonl.",
+      "text": { "cli": "output" },
+      "contract": {
+        "type": "string",
+        "repeatable": false,
+        "enum": ["text", "json", "jsonl"],
+        "default": "text",
+        "purpose": "acceptedUnused"
+      }
+    },
+    {
+      "route": "setup",
       "name": "setup: --usage-history <value>",
       "description": "--usage-history: Track cost, tokens and limits across editors.",
       "text": { "cli": "usage-history" },
@@ -5505,6 +5642,38 @@
       "description": "auth set: Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations. exec / scan-secrets --key-stdin: Read the key from a pipe, not a terminal. stdin → memory; prompt stdin + key stdin = Prompt and key cannot both use stdin.",
       "text": { "cli": "key-stdin" },
       "contract": { "type": "boolean", "repeatable": false, "refused": true, "default": false }
+    },
+    {
+      "route": "authSet",
+      "name": "authSet: --days <value>",
+      "description": "--days <n>: Spend report period in days",
+      "text": { "cli": "days" },
+      "contract": { "type": "string", "repeatable": false, "purpose": "acceptedUnused" }
+    },
+    {
+      "route": "authSet",
+      "name": "authSet: --admin",
+      "description": "--admin: Use the admin report key instead of the inference key",
+      "text": { "cli": "admin" },
+      "contract": {
+        "type": "boolean",
+        "repeatable": false,
+        "default": false,
+        "purpose": "acceptedUnused"
+      }
+    },
+    {
+      "route": "authSet",
+      "name": "authSet: --output <value>",
+      "description": "Choose the result format: text, json or jsonl.",
+      "text": { "cli": "output" },
+      "contract": {
+        "type": "string",
+        "repeatable": false,
+        "enum": ["text", "json", "jsonl"],
+        "default": "text",
+        "purpose": "acceptedUnused"
+      }
     },
     {
       "route": "authSet",
@@ -5755,6 +5924,38 @@
     },
     {
       "route": "authStatus",
+      "name": "authStatus: --days <value>",
+      "description": "--days <n>: Spend report period in days",
+      "text": { "cli": "days" },
+      "contract": { "type": "string", "repeatable": false, "purpose": "acceptedUnused" }
+    },
+    {
+      "route": "authStatus",
+      "name": "authStatus: --admin",
+      "description": "--admin: Use the admin report key instead of the inference key",
+      "text": { "cli": "admin" },
+      "contract": {
+        "type": "boolean",
+        "repeatable": false,
+        "default": false,
+        "purpose": "acceptedUnused"
+      }
+    },
+    {
+      "route": "authStatus",
+      "name": "authStatus: --output <value>",
+      "description": "Choose the result format: text, json or jsonl.",
+      "text": { "cli": "output" },
+      "contract": {
+        "type": "string",
+        "repeatable": false,
+        "enum": ["text", "json", "jsonl"],
+        "default": "text",
+        "purpose": "acceptedUnused"
+      }
+    },
+    {
+      "route": "authStatus",
       "name": "authStatus: --usage-history <value>",
       "description": "--usage-history: Track cost, tokens and limits across editors.",
       "text": { "cli": "usage-history" },
@@ -5992,6 +6193,38 @@
       "description": "auth set: Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations. exec / scan-secrets --key-stdin: Read the key from a pipe, not a terminal. stdin → memory; prompt stdin + key stdin = Prompt and key cannot both use stdin.",
       "text": { "cli": "key-stdin" },
       "contract": { "type": "boolean", "repeatable": false, "refused": true, "default": false }
+    },
+    {
+      "route": "authClear",
+      "name": "authClear: --days <value>",
+      "description": "--days <n>: Spend report period in days",
+      "text": { "cli": "days" },
+      "contract": { "type": "string", "repeatable": false, "purpose": "acceptedUnused" }
+    },
+    {
+      "route": "authClear",
+      "name": "authClear: --admin",
+      "description": "--admin: Use the admin report key instead of the inference key",
+      "text": { "cli": "admin" },
+      "contract": {
+        "type": "boolean",
+        "repeatable": false,
+        "default": false,
+        "purpose": "acceptedUnused"
+      }
+    },
+    {
+      "route": "authClear",
+      "name": "authClear: --output <value>",
+      "description": "Choose the result format: text, json or jsonl.",
+      "text": { "cli": "output" },
+      "contract": {
+        "type": "string",
+        "repeatable": false,
+        "enum": ["text", "json", "jsonl"],
+        "default": "text",
+        "purpose": "acceptedUnused"
+      }
     },
     {
       "route": "authClear",
