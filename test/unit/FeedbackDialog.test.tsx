@@ -196,6 +196,7 @@ describe('FeedbackDialog: the captured disclosure only', () => {
     const { props } = setup({ port: { submit, scrubNote: () => gate.promise } })
     fireEvent.change(noteBox(), { target: { value: 'A wrong answer' } })
     const previewButton = screen.getByRole('button', { name: UI_TEXT.reportPreviewLabel })
+    if (!(previewButton instanceof HTMLButtonElement)) throw new Error('Expected a button')
     previewButton.focus()
     fireEvent.click(previewButton)
     // The browser drops focus to the page when the focused button disables;
