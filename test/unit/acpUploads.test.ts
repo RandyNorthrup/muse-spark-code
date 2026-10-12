@@ -3,6 +3,7 @@ import { runUploadsCommand, uploadsText, type AcpUploadsPort } from '../../src/a
 import { UI_TEXT } from '../../src/shared/constants'
 import { fakeUploadedFilesLedger, uploadedFilesReportFixture } from './helpers/uploadedFiles'
 import { connectedAgent } from './helpers/acpConnected'
+import { until } from './helpers/acpWaits'
 
 const report = uploadedFilesReportFixture()
 
@@ -52,7 +53,7 @@ describe('runUploadsCommand', () => {
         },
       }),
     ).toBe('handled')
-    expect(files.deleteFile).toHaveBeenCalledWith('file-one', expect.any(Function))
+    expect(files.deleteFile).toHaveBeenCalledWith('file-one', expect.any(Function), undefined)
   })
 
   it('keeps a foreign file with its reason and deletes nothing', async () => {
@@ -118,6 +119,74 @@ describe('runUploadsCommand', () => {
   })
 })
 
+describe('runUploadsCommand cancellation', () => {
+  it('deletes nothing when cancelled before the read', async () => {
+    const files = fakePort()
+    const controller = new AbortController()
+    controller.abort()
+    const signal = controller.signal
+    await expect(
+      runUploadsCommand('/uploads delete file-one', { files, send: () => undefined, signal }),
+    ).rejects.toThrow()
+    await expect(
+      runUploadsCommand('/uploads delete-all', { files, send: () => undefined, signal }),
+    ).rejects.toThrow()
+    await expect(
+      runUploadsCommand('/uploads', { files, send: () => undefined, signal }),
+    ).rejects.toThrow()
+    expect(files.read).not.toHaveBeenCalled()
+    expect(files.deleteFile).not.toHaveBeenCalled()
+    expect(files.deleteAllOurs).not.toHaveBeenCalled()
+  })
+
+  it('deletes nothing when cancelled during the report read', async () => {
+    const files = fakePort()
+    const controller = new AbortController()
+    files.read.mockImplementationOnce(() => {
+      // As session/cancel does: the in-flight read finishes after the abort.
+      return new Promise<typeof report>((resolve) => {
+        controller.signal.addEventListener(
+          'abort',
+          () => {
+            resolve(report)
+          },
+          { once: true },
+        )
+      })
+    })
+    const pending = runUploadsCommand('/uploads delete file-one', {
+      files,
+      send: () => undefined,
+      signal: controller.signal,
+    })
+    await until(() => files.read.mock.calls.length > 0)
+    controller.abort()
+    await expect(pending).rejects.toThrow()
+    expect(files.deleteFile).not.toHaveBeenCalled()
+  })
+
+  it('passes the signal into the provider delete', async () => {
+    const files = fakePort()
+    const controller = new AbortController()
+    await runUploadsCommand('/uploads delete file-one', {
+      files,
+      send: () => undefined,
+      signal: controller.signal,
+    })
+    expect(files.deleteFile).toHaveBeenCalledWith(
+      'file-one',
+      expect.any(Function),
+      controller.signal,
+    )
+    await runUploadsCommand('/uploads delete-all', {
+      files,
+      send: () => undefined,
+      signal: controller.signal,
+    })
+    expect(files.deleteAllOurs).toHaveBeenCalledWith(controller.signal)
+  })
+})
+
 function connectedUploads(uploads?: AcpUploadsPort) {
   const h = connectedAgent({
     editor: 'uploads-editor',
@@ -154,7 +223,11 @@ describe('/uploads through the agent', () => {
         prompt: [{ type: 'text', text: '/uploads delete file-one' }],
       })
     })
-    expect(files.deleteFile).toHaveBeenCalledWith('file-one', expect.any(Function))
+    expect(files.deleteFile).toHaveBeenCalledWith(
+      'file-one',
+      expect.any(Function),
+      expect.any(AbortSignal),
+    )
   })
 
   it('says so and deletes nothing without the ledger', async () => {
@@ -167,5 +240,48 @@ describe('/uploads through the agent', () => {
         })
       }),
     ).rejects.toThrow(UI_TEXT.media.filesEmpty)
+  })
+
+  it('cancels a delete held on its report read without touching the provider', async () => {
+    const files = fakePort()
+    // Only the delete's own read holds, on a gate this test owns: later
+    // reads answer at once, so the test can never hang on them. The gate
+    // opens only after the agent logged the cancel: finishing the read
+    // earlier lets the command reach its post-delete listing read first,
+    // before the cancel it must obey.
+    let isFirstRead = true
+    const gate = new AbortController()
+    files.read.mockImplementation(() => {
+      if (!isFirstRead) return Promise.resolve(report)
+      isFirstRead = false
+      return new Promise<typeof report>((resolve) => {
+        gate.signal.addEventListener(
+          'abort',
+          () => {
+            resolve(report)
+          },
+          { once: true },
+        )
+      })
+    })
+    const h = connectedUploads(files)
+    await h.run(async (connection, id) => {
+      const prompt = connection.request('session/prompt', {
+        sessionId: id,
+        prompt: [{ type: 'text', text: '/uploads delete file-one' }],
+      })
+      // Wait until the delete holds its report read, then cancel as the
+      // editor's session/cancel does.
+      await until(() => files.read.mock.calls.length > 0)
+      await connection.notify('session/cancel', { sessionId: id })
+      await until(() =>
+        h.log.info.mock.calls.some(([line]) => String(line).includes('cancelled before its turn')),
+      )
+      gate.abort()
+      const answer = await prompt
+      expect(answer.stopReason).toBe('cancelled')
+    })
+    expect(files.deleteFile).not.toHaveBeenCalled()
+    expect(files.deleteAllOurs).not.toHaveBeenCalled()
   })
 })

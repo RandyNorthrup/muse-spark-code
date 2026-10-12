@@ -62,5 +62,5 @@ export function connectedAgent(input: {
       await op(connection, session.sessionId)
     })
   }
-  return { host, updates, run }
+  return { host, updates, run, log }
 }

@@ -92,40 +92,47 @@ export class UploadLedger implements SessionUploadLifecycle {
   }
 
   /**
-   * Delete one entry through the provider. A file the provider already
-   * removed is recorded as gone, never as an error; any other failure
-   * keeps the row durable and retryable.
+   * Delete one file through the provider. A file the provider already
+   * removed (a 404) is recorded as gone, never as an error; any other
+   * failure keeps the row durable and retryable. Every delete consumer —
+   * release, sweep, single-file and Delete all ours — normalizes here.
    */
   private async removeEntry(
     state: UploadLedgerState,
-    entry: UploadLedgerState['entries'][number],
+    fileId: string,
+    signal?: AbortSignal,
   ): Promise<void> {
+    signal?.throwIfAborted()
     try {
-      await this.files.delete(entry.file.fileId)
+      await this.files.delete(fileId, signal)
     } catch (error: unknown) {
       if (!isModelApiError(error) || error.status !== HTTP_STATUS.notFound) throw error
     }
-    state.entries = state.entries.filter((value) => value !== entry)
-    state.cachedFiles = state.cachedFiles.filter((file) => file.fileId !== entry.file.fileId)
+    state.entries = state.entries.filter((entry) => entry.file.fileId !== fileId)
+    state.cachedFiles = state.cachedFiles.filter((file) => file.fileId !== fileId)
     await this.deps.storage.write(state)
   }
 
   /**
-   * Offer unreferenced uploads for automatic clean-up once the provider's
-   * own expiry has passed (`museSpark.mediaUploadExpiryDays` set it at
-   * upload). A younger orphan stays listed until then; explicit deletion
-   * removes it early. Failed deletions remain retryable.
+   * Offer unreferenced uploads for automatic clean-up (PLAN D85.2). The
+   * release path (`'release'`) deletes once no session refers to the file,
+   * however young. The account read (`'sweep'`) sweeps only orphans no
+   * release ever saw (a crash, another install) once the provider's own
+   * expiry has passed (`museSpark.mediaUploadExpiryDays` set it at
+   * upload). Failed deletions remain retryable.
    */
   private async cleanup(
     state: UploadLedgerState,
     isCurrent: () => boolean = () => true,
+    scope: 'release' | 'sweep' = 'sweep',
   ): Promise<void> {
     if (!(await this.isCurrentAccount())) return
     for (const entry of state.entries) {
-      if (entry.sessions.length > 0 || this.deps.now() < entry.file.expiresAt) continue
+      if (entry.sessions.length > 0) continue
+      if (scope === 'sweep' && this.deps.now() < entry.file.expiresAt) continue
       await this.requireAccount()
       if (!isCurrent()) return
-      await this.removeEntry(state, entry)
+      await this.removeEntry(state, entry.file.fileId)
     }
   }
 
@@ -221,7 +228,7 @@ export class UploadLedger implements SessionUploadLifecycle {
           if (wanted.some((ref) => ref.sha256 === entry.file.sha256)) entry.sessions.push(sessionId)
         }
         await this.deps.storage.write(state)
-        await this.cleanup(state, isCurrent)
+        await this.cleanup(state, isCurrent, 'release')
         if (isCurrent()) return
         // A newer save may arrive during the write or account checks. Restore
         // still-existing owners before another account operation can clean them.
@@ -289,27 +296,26 @@ export class UploadLedger implements SessionUploadLifecycle {
     })
   }
 
-  /** Account cleanup never deletes a file still shared by a session. */
+  /**
+   * Account cleanup never deletes a file still shared by a session. A
+   * provider 404 means gone here too, through the one normalising path.
+   */
   public async deleteFile(
     fileId: string,
     isForeignDeletionConfirmed: (name: string) => Promise<boolean>,
+    signal?: AbortSignal,
   ): Promise<void> {
     await this.deps.storage.withLock(async () => {
       const state = await this.read()
       await this.requireAccount()
       const ours = state.entries.find((entry) => entry.file.fileId === fileId)
       if (ours !== undefined && ours.sessions.length > 0) throw new Error(UI_TEXT.media.filesInUse)
-      const file = state.cachedFiles.find((entry) => entry.fileId === fileId)
-      if (
-        ours === undefined &&
-        (file === undefined || !(await isForeignDeletionConfirmed(file.name)))
-      )
-        return
+      if (ours === undefined) {
+        const file = state.cachedFiles.find((entry) => entry.fileId === fileId)
+        if (file === undefined || !(await isForeignDeletionConfirmed(file.name))) return
+      }
       await this.requireAccount()
-      await this.files.delete(fileId)
-      state.entries = state.entries.filter((entry) => entry.file.fileId !== fileId)
-      state.cachedFiles = state.cachedFiles.filter((entry) => entry.fileId !== fileId)
-      await this.deps.storage.write(state)
+      await this.removeEntry(state, fileId, signal)
     })
   }
 
@@ -318,14 +324,14 @@ export class UploadLedger implements SessionUploadLifecycle {
    * upload goes now, however young. An upload another session still
    * references is never deleted.
    */
-  public async deleteAllOurs(): Promise<void> {
+  public async deleteAllOurs(signal?: AbortSignal): Promise<void> {
     await this.deps.storage.withLock(async () => {
       const state = await this.read()
       await this.requireAccount()
       for (const entry of state.entries) {
         if (entry.sessions.length > 0) continue
         await this.requireAccount()
-        await this.removeEntry(state, entry)
+        await this.removeEntry(state, entry.file.fileId, signal)
       }
     })
   }

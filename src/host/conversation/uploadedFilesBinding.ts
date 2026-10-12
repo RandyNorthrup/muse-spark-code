@@ -47,8 +47,8 @@ export function createUploadedFilesBinding(deps: UploadedFilesBindingDeps): Uplo
   return {
     port,
     list: async () => uploadedFilesReportSchema.parse(await port.read()),
-    remove: async (fileId, isForeignDeletionConfirmed) => {
-      await port.deleteFile(fileId, isForeignDeletionConfirmed)
+    remove: async (fileId, isForeignDeletionConfirmed, signal) => {
+      await port.deleteFile(fileId, isForeignDeletionConfirmed, signal)
     },
   }
 }
@@ -73,9 +73,12 @@ export interface DeleteUploadedFilesCommandDeps {
   readonly remove: (
     fileId: string,
     isForeignDeletionConfirmed: (name: string) => Promise<boolean>,
+    signal?: AbortSignal,
   ) => Promise<void>
   readonly confirmForeign: (question: string) => Promise<boolean>
   readonly dialogs: DeleteUploadedFilesDialogs
+  /** A cancelled pick or turn deletes nothing: checked after every await. */
+  readonly signal?: AbortSignal
 }
 
 function pickDescription(file: UploadedFilesReport['files'][number]): string {
@@ -90,6 +93,7 @@ function pickDescription(file: UploadedFilesReport['files'][number]): string {
 export async function runDeleteUploadedFilesCommand(
   deps: DeleteUploadedFilesCommandDeps,
 ): Promise<void> {
+  deps.signal?.throwIfAborted()
   let report: UploadedFilesReport
   try {
     report = await deps.list()
@@ -97,6 +101,7 @@ export async function runDeleteUploadedFilesCommand(
     deps.dialogs.fail(`${UI_TEXT.usageUnavailable}: ${describeError(error)}`)
     return
   }
+  deps.signal?.throwIfAborted()
   if (report.files.length === 0) {
     deps.dialogs.inform(UI_TEXT.media.filesEmpty)
     return
@@ -110,11 +115,17 @@ export async function runDeleteUploadedFilesCommand(
     })),
   )
   if (chosen === undefined) return
+  deps.signal?.throwIfAborted()
   for (const fileId of chosen) {
+    // A cancel that landed during the pick or the previous delete stops here.
+    deps.signal?.throwIfAborted()
     const name = names.get(fileId) ?? fileId
     try {
-      await deps.remove(fileId, (fileName) =>
-        deps.confirmForeign(fill(UI_TEXT.media.otherAppFileConfirmation, { name: fileName })),
+      await deps.remove(
+        fileId,
+        (fileName) =>
+          deps.confirmForeign(fill(UI_TEXT.media.otherAppFileConfirmation, { name: fileName })),
+        deps.signal,
       )
     } catch (error: unknown) {
       deps.dialogs.fail(

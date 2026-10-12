@@ -10600,18 +10600,24 @@ export class ConversationController {
   }
 
   /** Called only by the integration's explicit account UI/command action. */
-  public async deleteUploadedFiles(fileId?: string): Promise<void> {
+  public async deleteUploadedFiles(fileId?: string, signal?: AbortSignal): Promise<void> {
     if (!this.canPostUploadedFiles()) return
+    signal?.throwIfAborted()
     const port = this.deps.uploadedFiles
     if (port === undefined) {
       this.say('error', UI_TEXT.usageUnavailable)
       return
     }
     try {
-      if (fileId === undefined) await port.deleteAllOurs()
+      // A cancel that landed while the dialog or the command waited here
+      // deletes nothing.
+      signal?.throwIfAborted()
+      if (fileId === undefined) await port.deleteAllOurs(signal)
       else
-        await port.deleteFile(fileId, (name) =>
-          port.confirmForeign(fill(UI_TEXT.media.otherAppFileConfirmation, { name })),
+        await port.deleteFile(
+          fileId,
+          (name) => port.confirmForeign(fill(UI_TEXT.media.otherAppFileConfirmation, { name })),
+          signal,
         )
       await this.readUploadedFiles()
     } catch (error: unknown) {

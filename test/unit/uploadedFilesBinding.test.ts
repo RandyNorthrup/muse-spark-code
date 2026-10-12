@@ -90,6 +90,97 @@ describe('uploaded-files host binding', () => {
     expect(t.ledger.deleteFile).not.toHaveBeenCalled()
   })
 
+  it('deletes nothing once cancelled at any await of the command', async () => {
+    // Before the list.
+    const preAborted = new AbortController()
+    preAborted.abort()
+    const t = setup()
+    const idle = fakeDialogs(['file-one'])
+    await expect(
+      runDeleteUploadedFilesCommand({
+        list: t.binding.list,
+        remove: t.binding.remove,
+        confirmForeign: () => Promise.resolve(true),
+        dialogs: idle,
+        signal: preAborted.signal,
+      }),
+    ).rejects.toThrow()
+    // t.binding.list() reads the ledger through the port: no read happened.
+    expect(t.ledger.accountReport).not.toHaveBeenCalled()
+    expect(idle.pick).not.toHaveBeenCalled()
+    // During the list: the held read finishes on the abort it must obey.
+    const duringList = new AbortController()
+    t.ledger.accountReport.mockImplementationOnce(() => {
+      return new Promise<typeof report>((resolve) => {
+        duringList.signal.addEventListener(
+          'abort',
+          () => {
+            resolve(report)
+          },
+          { once: true },
+        )
+      })
+    })
+    const listed = runDeleteUploadedFilesCommand({
+      list: t.binding.list,
+      remove: t.binding.remove,
+      confirmForeign: () => Promise.resolve(true),
+      dialogs: fakeDialogs(['file-one']),
+      signal: duringList.signal,
+    })
+    while (t.ledger.accountReport.mock.calls.length === 0)
+      await new Promise((settle) => setImmediate(settle))
+    duringList.abort()
+    await expect(listed).rejects.toThrow()
+    // During the pick: the held picker answers on the abort it must obey.
+    const duringPick = new AbortController()
+    const heldPick = {
+      pick: vi.fn(() => {
+        return new Promise<readonly string[] | undefined>((resolve) => {
+          duringPick.signal.addEventListener(
+            'abort',
+            () => {
+              resolve(['file-one'])
+            },
+            {
+              once: true,
+            },
+          )
+        })
+      }),
+      inform: vi.fn(),
+      fail: vi.fn(),
+    }
+    const picking = runDeleteUploadedFilesCommand({
+      list: t.binding.list,
+      remove: t.binding.remove,
+      confirmForeign: () => Promise.resolve(true),
+      dialogs: heldPick,
+      signal: duringPick.signal,
+    })
+    while (heldPick.pick.mock.calls.length === 0)
+      await new Promise((settle) => setImmediate(settle))
+    duringPick.abort()
+    await expect(picking).rejects.toThrow()
+    expect(t.ledger.deleteFile).not.toHaveBeenCalled()
+    // Between two deletes: the first goes, the second never dispatches.
+    const between = new AbortController()
+    t.ledger.deleteFile.mockImplementationOnce(() => {
+      between.abort()
+      return Promise.resolve()
+    })
+    await expect(
+      runDeleteUploadedFilesCommand({
+        list: t.binding.list,
+        remove: t.binding.remove,
+        confirmForeign: () => Promise.resolve(true),
+        dialogs: fakeDialogs(['file-one', 'file-other']),
+        signal: between.signal,
+      }),
+    ).rejects.toThrow()
+    expect(t.ledger.deleteFile).toHaveBeenCalledTimes(1)
+  })
+
   it('asks before deleting a file another app may still use', async () => {
     const t = setup()
     const confirmForeign = vi.fn(() => Promise.resolve(true))

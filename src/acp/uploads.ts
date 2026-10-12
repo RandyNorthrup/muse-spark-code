@@ -14,8 +14,9 @@ export interface AcpUploadsPort {
   deleteFile(
     fileId: string,
     isForeignDeletionConfirmed: (name: string) => Promise<boolean>,
+    signal?: AbortSignal,
   ): Promise<void>
-  deleteAllOurs(): Promise<void>
+  deleteAllOurs(signal?: AbortSignal): Promise<void>
 }
 
 function rowLine(file: UploadedFilesReport['files'][number]): string {
@@ -47,24 +48,32 @@ async function readReport(files: AcpUploadsPort): Promise<UploadedFilesReport> {
  * Runs `/uploads`, `/uploads delete <file>` and `/uploads delete-all`.
  * Anything else is ignored for the model turn. With no ledger it says so
  * and deletes nothing; a failed provider delete names its reason and the
- * row stays.
+ * row stays. A cancelled turn deletes nothing: the signal is checked
+ * before the read and again immediately before every destructive dispatch,
+ * and it travels into the delete sequence itself.
  */
 export async function runUploadsCommand(
   text: string,
-  input: { readonly files: AcpUploadsPort | undefined; readonly send: (text: string) => void },
+  input: {
+    readonly files: AcpUploadsPort | undefined
+    readonly send: (text: string) => void
+    readonly signal?: AbortSignal
+  },
 ): Promise<'handled' | 'ignored'> {
   const args = /^\/uploads(?:\s+(.+))?$/su.exec(text.trim())
   if (args === null) return 'ignored'
   const files = input.files
   if (files === undefined) throw RequestError.invalidParams(undefined, UI_TEXT.media.filesEmpty)
+  input.signal?.throwIfAborted()
   const rest = args[1]?.trim() ?? ''
   if (rest === '') {
     input.send(uploadsText(await readReport(files)))
     return 'handled'
   }
   if (rest === 'delete-all') {
+    input.signal?.throwIfAborted()
     try {
-      await files.deleteAllOurs()
+      await files.deleteAllOurs(input.signal)
     } catch (error: unknown) {
       throw RequestError.internalError(undefined, describeError(error))
     }
@@ -76,6 +85,8 @@ export async function runUploadsCommand(
     throw RequestError.invalidParams(undefined, UI_TEXT.media.uploadsUsage)
   const fileId = single[1]
   const report = await readReport(files)
+  // The read awaited above; a cancel that landed during it deletes nothing.
+  input.signal?.throwIfAborted()
   const file = report.files.find((entry) => entry.fileId === fileId)
   if (file === undefined)
     throw RequestError.invalidParams(undefined, fill(UI_TEXT.media.uploadNotFound, { id: fileId }))
@@ -84,7 +95,7 @@ export async function runUploadsCommand(
     return 'handled'
   }
   try {
-    await files.deleteFile(fileId, () => Promise.resolve(false))
+    await files.deleteFile(fileId, () => Promise.resolve(false), input.signal)
   } catch (error: unknown) {
     throw RequestError.invalidParams(
       undefined,
