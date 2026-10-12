@@ -4,7 +4,7 @@
 // with a recording git port — then end to end on the fixture repositories
 // with the real git runner, every git it starts through the dispatch gate.
 
-import { execFile, execFileSync, spawn } from 'node:child_process'
+import { execFile, execFileSync, execSync, spawn } from 'node:child_process'
 import { once } from 'node:events'
 import {
   existsSync,
@@ -358,23 +358,45 @@ function claimThen(
 
 /**
  * The 8.3 short spelling of `target`, asked of Windows itself; undefined
- * when it cannot be asked. Windows-only: POSIX has no short names.
+ * when it cannot be asked. Windows-only: POSIX has no short names. One
+ * command string through `execSync`, never an argument array: Node's
+ * default Windows argument escaping mangles a quoted FOR expression into
+ * a literal malformed path (WINSPAWN2 P2), while the single string reaches
+ * cmd.exe the way an interactive prompt spells it.
  */
 function shortPathOf(target: string): string | undefined {
+  if (process.platform !== 'win32') return undefined
   try {
-    const shown = execFileSync(
-      'cmd.exe',
-      ['/d', '/s', '/c', `for %I in ("${target}") do @echo %~sI`],
-      {
-        encoding: 'utf8',
-      },
-    )
+    const shown = execSync(`cmd /c for %I in ("${target}") do @echo %~sI`, {
+      encoding: 'utf8',
+    })
     const [first] = shown.split(/\r?\n/u, 1)
     const short = first?.trim() ?? ''
     return short === '' ? undefined : short
   } catch {
     return undefined
   }
+}
+
+/**
+ * A usable 8.3 answer for `longPath`: it exists, it is spelled
+ * differently, one of its segments carries the `~` short-name mark, and
+ * the native resolver expands it back to the long path. A malformed
+ * answer throws instead of passing as a "different string" (WINSPAWN2
+ * P2); only Windows answering the long name back means the volume has
+ * short names disabled, and the caller skips then.
+ */
+function assertShortName(longPath: string, short: string | undefined): void {
+  if (short === undefined) throw new Error(`Windows returned no 8.3 short name for ${longPath}`)
+  expect(existsSync(short), `8.3 short name ${short} exists`).toBe(true)
+  expect(short.toLowerCase(), `8.3 short name ${short} differs from ${longPath}`).not.toBe(
+    longPath.toLowerCase(),
+  )
+  expect(
+    short.split(/[\\/]/u).some((segment) => segment.includes('~')),
+    `8.3 short name ${short} carries a tilde segment`,
+  ).toBe(true)
+  expect(realpathSync.native(short).toLowerCase()).toBe(realpathSync.native(longPath).toLowerCase())
 }
 
 /**
@@ -2711,15 +2733,15 @@ describe('runtime pull request checkout on the fixture repositories (M123 lane P
       await mkdir(longData)
       const shortRepo = shortPathOf(fixtures.fork)
       const shortData = shortPathOf(longData)
-      const hasShortNames =
-        shortRepo !== undefined &&
-        shortData !== undefined &&
-        shortRepo.toLowerCase() !== fixtures.fork.toLowerCase() &&
-        shortData.toLowerCase() !== longData.toLowerCase()
-      if (!hasShortNames) {
+      if (
+        shortRepo?.toLowerCase() === fixtures.fork.toLowerCase() ||
+        shortData?.toLowerCase() === longData.toLowerCase()
+      ) {
         ctx.skip('this volume provides no 8.3 short names')
         return
       }
+      assertShortName(fixtures.fork, shortRepo)
+      assertShortName(longData, shortData)
       const setup = await fixtureSetup('held', {
         repositoryRoot: shortRepo,
         dataFolder: shortData,
