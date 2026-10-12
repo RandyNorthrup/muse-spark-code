@@ -1192,6 +1192,28 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
     expect(result(r).status).toBe('request_cap')
     expect(h.api.responseBodies()).toHaveLength(2)
   })
+  it('runs a single permitted call with tools: an answer completes with exit 0', async () => {
+    const h = await harness(['--max-requests', '1'], [{ text: 'Two plus two is four.' }])
+    const r = await h.run()
+    expect(r.code).toBe(0)
+    expect(result(r)).toMatchObject({ status: 'completed', finalMessage: 'Two plus two is four.' })
+    expect(h.api.responseBodies()).toHaveLength(1)
+    const only = h.api.responseBodies().at(-1)
+    expect(only).toMatchObject({ tool_choice: 'auto' })
+    expect((only?.['tools'] as unknown[]).length).toBeGreaterThan(0)
+  })
+  it('ends a single permitted call that asks for tools at the request cap', async () => {
+    const h = await harness(
+      ['--max-requests', '1'],
+      [{ calls: [{ name: 'get_goal', arguments: '{}' }] }],
+    )
+    const r = await h.run()
+    // No wrap-up exists before a call went out: the request cap is said
+    // plainly, with the tool round run and no final answer kept.
+    expect(r.code).toBe(5)
+    expect(result(r)).toMatchObject({ status: 'request_cap', stopReason: 'max_turn_requests' })
+    expect(h.api.responseBodies()).toHaveLength(1)
+  })
   it('reserves the last headless request for wrap-up before an image can spend it', async () => {
     const h = await harness(
       ['--max-requests', '2', '--permission-mode', 'acceptEdits', '--image-generation'],
@@ -1204,7 +1226,7 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
       usage: { requests: 2, paid: { imageAttempts: 0 } },
     })
     expect(h.api.requests.filter((request) => request.path.startsWith('/images/'))).toEqual([])
-    expect(h.api.responseBodies().at(-1)).toMatchObject({ tools: [], tool_choice: 'none' })
+    expect(h.api.responseBodies().at(-1)).toMatchObject({ tools: [], tool_choice: 'auto' })
     expect(existsSync(path.join(h.cwd, 'reserved.png'))).toBe(false)
   })
   it(
@@ -1253,7 +1275,7 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
         error: { kind: 'request_cap', message: expect.stringContaining('60 model calls') },
       })
       expect(h.api.responseBodies()).toHaveLength(cap)
-      expect(h.api.responseBodies().at(-1)).toMatchObject({ tools: [], tool_choice: 'none' })
+      expect(h.api.responseBodies().at(-1)).toMatchObject({ tools: [], tool_choice: 'auto' })
       expect(r.events).toContainEqual(expect.objectContaining({ type: 'limit', limit: 'requests' }))
     },
     SIXTY_REQUEST_RUNTIME_TIMEOUT_MS,

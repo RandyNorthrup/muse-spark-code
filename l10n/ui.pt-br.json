@@ -2726,7 +2726,8 @@
     "budget": "Orçamento esgotado",
     "error": "Erro",
     "cancelled": "Parado pelo usuário",
-    "unknown": "Indisponível"
+    "unknown": "Indisponível",
+    "limit": "Limite de chamadas atingido"
   },
   "agentContinue": "Continuar",
   "agentRetry": "Tentar novamente",
@@ -3590,7 +3591,7 @@
     "other": "São permitidos no máximo {count} arquivos de entrada.",
     "many": "São permitidos no máximo {count} arquivos de entrada."
   },
-  "referenceTurnLimit": "Os turnos da Model API permitem 200 chamadas ao modelo por padrão. Prevalecem os limites de solicitações existentes do chamador. A última chamada produz um resumo sem ferramentas; envie uma mensagem para continuar.",
+  "referenceTurnLimit": "Os turnos da API de modelos têm 200 chamadas ao modelo por padrão. Os limites de chamada existentes dos chamadores prevalecem. A primeira chamada sempre executa com ferramentas: uma resposta conclui o turno normalmente, uma solicitação de ferramenta o encerra no limite de solicitações. A última chamada de um turno que executou ferramentas produz um resumo sem ferramentas; envie uma mensagem para continuar.",
   "modelApiWrapUpReserved": "A solicitação restante está reservada para a resposta final. A imagem não foi gerada.",
   "modelApiTurnLimit": {
     "one": "O turno parou após {count} chamada ao modelo. Envie uma mensagem para continuar.",
@@ -5455,5 +5456,11 @@
       "other": "{count} autorizações",
       "many": "{count} autorizações"
     }
-  }
+  },
+  "modelApiWrapUpTruncated": {
+    "one": "O turno parou após {count} chamada ao modelo, com a resposta final cortada pelo limite de saída. A resposta parcial foi mantida. Envie uma mensagem para continuar.",
+    "other": "O turno parou após {count} chamadas ao modelo, com a resposta final cortada pelo limite de saída. A resposta parcial foi mantida. Envie uma mensagem para continuar.",
+    "many": "O turno parou após {count} chamadas ao modelo, com a resposta final cortada pelo limite de saída. A resposta parcial foi mantida. Envie uma mensagem para continuar."
+  },
+  "modelApiWrapUpHookBlocked": "Um hook de parada pediu mais trabalho, mas o turno atingiu seu limite de chamadas ao modelo, então a resposta final permanece."
 }

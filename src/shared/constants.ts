@@ -6499,8 +6499,10 @@ export const MODEL_API_MODEL_TEXT = {
     'This tool call repeats the same arguments and unchanged result. It was not run again. Use a different approach or explain what is blocking the task.',
   wrapUpReserved:
     'The remaining request is reserved for the final answer. The image was not generated.',
+  // A count with its noun as slots: model text must stay literal strings
+  // (scripts/lib/compressedModelText.mjs), so forms()/plural cannot apply.
   turnWrapUp:
-    'This turn has reached its limit of {limit} model calls. Call no tools. Give the final answer now: what is done, what was found, and what remains.',
+    'This turn has reached its limit of {limit} {calls}. Call no tools. Give the final answer now: what is done, what was found, and what remains.',
   continuationPrompt:
     'Continue the answer from where the output limit cut it off. Do not repeat the text already returned.',
   // M91 lane E: BeforeToolSelection's tail note, and TeammateIdle's default.

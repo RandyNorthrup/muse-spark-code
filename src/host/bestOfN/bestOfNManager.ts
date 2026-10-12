@@ -118,6 +118,10 @@ class AttemptSession implements WorktreeSession {
     return this.session.sessionId
   }
 
+  public setModelCallAllowance(remaining: (() => number) | undefined): void {
+    this.session.setModelCallAllowance?.(remaining)
+  }
+
   public onEvent(listener: (event: WorktreeSessionEvent) => void): () => void {
     this.listener = listener
     return this.session.onEvent((event: AgentEvent) => {
@@ -152,6 +156,7 @@ class AttemptSession implements WorktreeSession {
             turnId: event.turnId,
             terminal: event.terminal,
             ...(event.reason !== undefined && { reason: event.reason }),
+            ...(event.errorKind !== undefined && { errorKind: event.errorKind }),
           })
           // Stop goals/background work synchronously before the runner's
           // asynchronous index capture can observe more attempt writes.

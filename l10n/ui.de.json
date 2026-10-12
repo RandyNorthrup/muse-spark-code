@@ -2670,7 +2670,8 @@
     "budget": "Budget ausgeschöpft",
     "error": "Fehler",
     "cancelled": "Vom Benutzer gestoppt",
-    "unknown": "Nicht verfügbar"
+    "unknown": "Nicht verfügbar",
+    "limit": "Aufruflimit erreicht"
   },
   "agentContinue": "Fortsetzen",
   "agentRetry": "Erneut versuchen",
@@ -3516,7 +3517,7 @@
     "one": "Höchstens {count} Eingabedatei ist erlaubt.",
     "other": "Höchstens {count} Eingabedateien sind erlaubt."
   },
-  "referenceTurnLimit": "Model API-Durchgänge sind standardmäßig auf 200 Modellaufrufe begrenzt. Vorhandene Anfragegrenzen des Aufrufers gelten. Der letzte Aufruf erstellt eine Zusammenfassung ohne Werkzeuge; senden Sie eine Nachricht, um fortzufahren.",
+  "referenceTurnLimit": "Model-API-Durchgänge haben standardmäßig 200 Modellaufrufe. Bestehende Aufruflimits von Aufrufern gewinnen. Der erste Aufruf läuft immer mit Werkzeugen: Eine Antwort schließt den Durchgang normal ab, eine Werkzeuganfrage beendet ihn am Anfrage-Limit. Der letzte Aufruf eines Durchgangs mit Werkzeugrunden liefert eine Zusammenfassung ohne Werkzeuge; senden Sie eine Nachricht, um fortzufahren.",
   "modelApiWrapUpReserved": "Die verbleibende Anfrage ist für die abschließende Antwort reserviert. Das Bild wurde nicht erzeugt.",
   "modelApiTurnLimit": {
     "one": "Der Durchgang wurde nach {count} Modellaufruf angehalten. Senden Sie eine Nachricht, um fortzufahren.",
@@ -5300,5 +5301,10 @@
       "one": "{count} Freigabe",
       "other": "{count} Freigaben"
     }
-  }
+  },
+  "modelApiWrapUpTruncated": {
+    "one": "Der Durchgang wurde nach {count} Modellaufruf angehalten, wobei die endgültige Antwort durch das Ausgabelimit abgeschnitten wurde. Die Teilantwort bleibt erhalten. Senden Sie eine Nachricht, um fortzufahren.",
+    "other": "Der Durchgang wurde nach {count} Modellaufrufen angehalten, wobei die endgültige Antwort durch das Ausgabelimit abgeschnitten wurde. Die Teilantwort bleibt erhalten. Senden Sie eine Nachricht, um fortzufahren."
+  },
+  "modelApiWrapUpHookBlocked": "Ein Stopp-Hook hat um weitere Arbeit gebeten, aber der Durchgang hat sein Modellaufruf-Limit erreicht, daher bleibt die endgültige Antwort bestehen."
 }

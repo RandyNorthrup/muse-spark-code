@@ -1119,7 +1119,7 @@ interface PreparedAudioMessage {
 export interface ActiveTurn {
   modelCalls: number
   modelCallLimit: number
-  /** Request-only wrap-up instruction, never persisted into conversation replay. */
+  /** Request-only wrap-up note, never persisted into conversation replay. */
   wrapUpLimit?: number | undefined
   readonly draft?: PreparedGitDraft
   scheduleRun?: UnattendedRun
@@ -4336,6 +4336,14 @@ export class ModelApiSession implements ScheduledAgentSession {
     return cap
   }
 
+  /** The wrap-up note, with its count noun in the singular when the limit is 1. */
+  private wrapUpNote(limit: number): string {
+    return fill(MODEL_API_MODEL_TEXT.turnWrapUp, {
+      limit,
+      calls: limit === 1 ? 'model call' : 'model calls',
+    })
+  }
+
   private body(resolved: ResolvedModel, shouldFormatDraft = true): CreateResponseBody {
     this.active?.audioMessage?.assertCurrent()
     this.drainChildResults()
@@ -4381,18 +4389,35 @@ export class ModelApiSession implements ScheduledAgentSession {
     const turn = this.active
     if (turn !== undefined && this.compacting === undefined) {
       const remaining = this.modelCallsLeft(turn)
-      turn.wrapUpLimit = remaining <= 1 ? turn.modelCalls + Math.max(0, remaining) : undefined
+      // The first call is always ordinary, even when it is also the last
+      // one allowed: the wrap-up exists only after a call went out.
+      turn.wrapUpLimit =
+        remaining <= 1 && turn.modelCalls >= 1
+          ? turn.modelCalls + Math.max(0, remaining)
+          : undefined
     }
     const wrapUpLimit = this.compacting === undefined ? turn?.wrapUpLimit : undefined
+    // The wrap-up keeps the production side-call shape (compaction, git
+    // draft): no tools declared, the choice field as ever, instructions
+    // byte-identical, the note a trailing input item. Meta takes
+    // tool_choice auto only; a request without tools carries no tool_choice
+    // on the wire, in every codec.
     const body = this.keyed({
       model: resolved.ref,
-      input,
+      input:
+        wrapUpLimit === undefined
+          ? input
+          : [
+              ...input,
+              {
+                type: 'message',
+                role: 'developer',
+                content: [{ type: 'input_text', text: this.wrapUpNote(wrapUpLimit) }],
+              } satisfies InputItem,
+            ],
       ...prompt,
-      ...(wrapUpLimit !== undefined && {
-        instructions: `${prompt.instructions}\n\n${fill(MODEL_API_MODEL_TEXT.turnWrapUp, { limit: wrapUpLimit })}`,
-        tools: [],
-      }),
-      tool_choice: wrapUpLimit === undefined ? 'auto' : 'none',
+      ...(wrapUpLimit !== undefined && { tools: [] }),
+      tool_choice: 'auto',
       reasoning: {
         effort: effortForPolicy(resolved.policy, this.effort),
         summary: 'auto',
@@ -4967,7 +4992,10 @@ export class ModelApiSession implements ScheduledAgentSession {
         if (isCompaction || directBudget !== undefined || turn === undefined) return
         const left = this.modelCallsLeft(turn)
         if (left <= 0) throw new ModelCallLimitError(turn.modelCalls)
-        if (left === 1 && body.tool_choice !== 'none') throw new WrapUpRequiredError()
+        // A retry spending the last slot rebuilds as the wrap-up, once a
+        // call went out; the first call always retries ordinary.
+        if (left === 1 && turn.wrapUpLimit === undefined && turn.modelCalls >= 1)
+          throw new WrapUpRequiredError()
       },
       onRequestStarted: () => {
         const currentTurn = this.active
@@ -4984,9 +5012,14 @@ export class ModelApiSession implements ScheduledAgentSession {
           // Request-only goal progress belongs to the retained owning turn.
           if (body.input.length === turnIds.length + 1 && this.active !== undefined)
             turnIds.push(this.active.turnId)
-          this.compactionPrefix = {
-            body: structuredClone(body),
-            turnIds,
+          // A wrap-up body is never the compaction prefix: compaction after
+          // a limit stop reuses the last ordinary body, with its sentence
+          // nowhere and the full tools.
+          if (currentTurn?.wrapUpLimit === undefined) {
+            this.compactionPrefix = {
+              body: structuredClone(body),
+              turnIds,
+            }
           }
           this.autoCompact.noteRequest()
         }
@@ -5768,8 +5801,9 @@ export class ModelApiSession implements ScheduledAgentSession {
       }
       case 'response.incomplete': {
         this.responseIncomplete = true
+        // An output limit is a limit stop, never a money stop.
         if (event.response.incomplete_details?.reason === 'max_output_tokens')
-          this.outcomeStopReason = 'budget'
+          this.outcomeStopReason = 'limit'
         this.deps.log.warn(
           `Model API response ${event.response.id} incomplete: ${event.response.incomplete_details?.reason ?? 'no reason'}`,
         )
@@ -6753,6 +6787,11 @@ export class ModelApiSession implements ScheduledAgentSession {
     signal: AbortSignal,
   ): Promise<ReviewedAsk | undefined> {
     if (!this.deps.isPaidFeatureOn('autoReviewer') || this.isSubagent || this.isSideChat) {
+      return undefined
+    }
+    // A reviewer call must not spend the reserved wrap-up slot: the user
+    // decides instead.
+    if (this.isWrapUpSlotReserved()) {
       return undefined
     }
     if (this.reviewBreaker.isTripped) {
@@ -8730,6 +8769,12 @@ export class ModelApiSession implements ScheduledAgentSession {
       throw new Error('the hook model bundle could not be loaded')
     }
     if (!isCurrent()) throw new AbortedError()
+    // A hook-model call must not spend the reserved wrap-up slot: no call
+    // is suggested instead.
+    if (this.isWrapUpSlotReserved()) {
+      this.deps.log.warn('The hook model call was skipped to keep the reserved final request')
+      return { text: '', usage: { inputTokens: 0, outputTokens: 0, cachedTokens: 0 } }
+    }
     // The run is tallied when the gate allowed it; the request observer below
     // counts its attempts for the client's own budget, nothing more.
     const turnId = this.active?.turnId ?? this.turnIds.at(-1) ?? this.sessionId
@@ -13454,6 +13499,62 @@ export class ModelApiSession implements ScheduledAgentSession {
     return Math.min(own, this.callerModelCallsLeft() ?? own)
   }
 
+  /**
+   * The last permitted call is the wrap-up's: side work (recovery
+   * compaction, reviewer and hook-model calls, images) must not spend it,
+   * in the turn or in the exec ledger.
+   */
+  private isWrapUpSlotReserved(): boolean {
+    const turn = this.active
+    if (turn !== undefined && this.compacting === undefined && this.modelCallsLeft(turn) <= 1)
+      return true
+    const ledgerLeft = this.deps.remainingModelCalls?.()
+    return ledgerLeft !== undefined && ledgerLeft <= 1
+  }
+
+  /**
+   * Stop hooks for a turn that produced an answer, with a subagent reply
+   * replacement applied. Callers honour continuations only while the turn
+   * can still spend a call.
+   */
+  private async runAnswerStopHooks(
+    turn: ActiveTurn,
+    signal: AbortSignal,
+    isStopHookActive: boolean,
+  ): Promise<HookDispatch> {
+    const lastAssistantMessage =
+      this.transcript.findLast(
+        (entry) => entry.item.turnId === turn.turnId && entry.item.kind === 'agentMessage',
+      )?.item.text ?? ''
+    const stopEvent = this.isSubagent ? 'SubagentStop' : 'Stop'
+    const stop = await this.runHooks(
+      stopEvent,
+      turn.turnId,
+      {
+        stop_hook_active: isStopHookActive,
+        last_assistant_message: lastAssistantMessage,
+        ...(this.isSubagent &&
+          this.childSubagentId !== undefined && {
+            subagent_id: this.childSubagentId,
+            child_session_id: this.sessionId,
+          }),
+      },
+      undefined,
+      signal,
+    )
+    const requiredAfterStopHook = this.requiredMcpFailure(this.deps.mcpServers?.snapshot())
+    if (requiredAfterStopHook !== undefined) {
+      throw requiredAfterStopHook
+    }
+    // An imported SubagentStop hook's documented replacement of the
+    // child's reply (Copilot `modifiedResponse`): what the parent reads.
+    if (this.isSubagent && stop.replacement?.target === 'subagentResponse') {
+      const { value } = stop.replacement
+      this.hookReplies.set(turn.turnId, typeof value === 'string' ? value : JSON.stringify(value))
+    }
+    return stop
+  }
+
   private async loop(turn: ActiveTurn): Promise<void> {
     this.repeatGuard.reset()
     const { signal } = turn.abort
@@ -13471,8 +13572,13 @@ export class ModelApiSession implements ScheduledAgentSession {
       if (requiredBeforeRound !== undefined) {
         throw requiredBeforeRound
       }
-      await this.drainSteered(turn)
-      this.drainGoalWake(turn)
+      // The next request is the wrap-up once a call went out and one
+      // remains: steering and goal wakes arriving before it are not
+      // consumed by it, but keep their own turn with tools.
+      if (turn.modelCalls < 1 || this.modelCallsLeft(turn) > 1) {
+        await this.drainSteered(turn)
+        this.drainGoalWake(turn)
+      }
       const wasBudgetLimited = this.goal?.status === GOAL_STATUS.budgetLimited
       let streamed: StreamedCall
       try {
@@ -13494,6 +13600,9 @@ export class ModelApiSession implements ScheduledAgentSession {
           !isAbortRequested(signal)
         ) {
           turn.didRecoverOverflow = true
+          // Recovery compaction must not spend the reserved wrap-up slot:
+          // without room for both, the overflow stands with what it kept.
+          if (this.isWrapUpSlotReserved()) throw error
           const compacted = await this.maybeAutoCompact(turn, true)
           if (this.stopAfterAutoCompaction(turn, compacted, wasBudgetLimited)) return
           if (compacted) {
@@ -13547,6 +13656,14 @@ export class ModelApiSession implements ScheduledAgentSession {
           })
           continue
         }
+        if (streamed.incompleteReason === 'max_output_tokens' && turn.wrapUpLimit !== undefined) {
+          // A wrap-up cut at the output limit is a limit stop, never
+          // "again": the partial answer is kept, with its own sentence.
+          throw new ModelCallLimitError(
+            turn.modelCalls,
+            plural(UI_TEXT.modelApiWrapUpTruncated, turn.modelCalls),
+          )
+        }
         if (streamed.incompleteReason === 'max_output_tokens' && this.outputContinuation) {
           this.emit({
             type: 'backendNotice',
@@ -13558,12 +13675,19 @@ export class ModelApiSession implements ScheduledAgentSession {
       }
       if (turn.wrapUpLimit !== undefined) {
         // A provider ignoring the tools-disabled request cannot execute work.
-        this.skipCalls(
-          turn.turnId,
-          calls,
-          fill(MODEL_API_MODEL_TEXT.turnWrapUp, { limit: turn.wrapUpLimit }),
-        )
+        this.skipCalls(turn.turnId, calls, this.wrapUpNote(turn.wrapUpLimit))
         this.appendHookContexts(turn.turnId, postContexts)
+        // The turn ended with an answer, so Stop hooks still run. More work
+        // cannot be honoured past the limit, and the notice says so.
+        const stop = await this.runAnswerStopHooks(turn, signal, isStopHookActive)
+        if (stop.stopReason !== undefined) return
+        if (stop.blockedReason !== undefined) {
+          this.emit({
+            type: 'backendNotice',
+            level: 'warning',
+            text: UI_TEXT.modelApiWrapUpHookBlocked,
+          })
+        }
         break
       }
       // One more model call without progress toward the goal (the step probe, D38).
@@ -13575,39 +13699,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         // A message typed while the final answer streamed gets its own round
         // instead of being accepted and dropped (D26).
         if (turn.steered.length === 0 && !(turn.goalWakePending && isGoalActive(this.goal))) {
-          const lastAssistantMessage =
-            this.transcript.findLast(
-              (entry) => entry.item.turnId === turn.turnId && entry.item.kind === 'agentMessage',
-            )?.item.text ?? ''
-          const stopEvent = this.isSubagent ? 'SubagentStop' : 'Stop'
-          const stop = await this.runHooks(
-            stopEvent,
-            turn.turnId,
-            {
-              stop_hook_active: isStopHookActive,
-              last_assistant_message: lastAssistantMessage,
-              ...(this.isSubagent &&
-                this.childSubagentId !== undefined && {
-                  subagent_id: this.childSubagentId,
-                  child_session_id: this.sessionId,
-                }),
-            },
-            undefined,
-            signal,
-          )
-          const requiredAfterStopHook = this.requiredMcpFailure(this.deps.mcpServers?.snapshot())
-          if (requiredAfterStopHook !== undefined) {
-            throw requiredAfterStopHook
-          }
-          // An imported SubagentStop hook's documented replacement of the
-          // child's reply (Copilot `modifiedResponse`): what the parent reads.
-          if (this.isSubagent && stop.replacement?.target === 'subagentResponse') {
-            const { value } = stop.replacement
-            this.hookReplies.set(
-              turn.turnId,
-              typeof value === 'string' ? value : JSON.stringify(value),
-            )
-          }
+          const stop = await this.runAnswerStopHooks(turn, signal, isStopHookActive)
           if (stop.stopReason !== undefined) {
             return
           }
@@ -13625,7 +13717,8 @@ export class ModelApiSession implements ScheduledAgentSession {
             continue
           }
           if (stop.blockedReason !== undefined) {
-            this.deps.log.warn(`Model API ${stopEvent} hook reached its continuation limit`)
+            const limitedEvent = this.isSubagent ? 'SubagentStop' : 'Stop'
+            this.deps.log.warn(`Model API ${limitedEvent} hook reached its continuation limit`)
           }
           return
         }
@@ -13773,7 +13866,8 @@ export class ModelApiSession implements ScheduledAgentSession {
       this.queuedTurns.unshift(this.queuedGoalWake())
     }
     this.promoteSteered(turn)
-    this.outcomeStopReason = 'budget'
+    // A call limit is not a money stop: it carries its own stop reason.
+    this.outcomeStopReason = 'limit'
     throw new ModelCallLimitError(turn.modelCalls)
   }
 
@@ -14113,7 +14207,8 @@ export class ModelApiSession implements ScheduledAgentSession {
       } else {
         terminal = FAILED
         if (
-          error instanceof SessionBudgetExceededError ||
+          (error instanceof SessionBudgetExceededError &&
+            !(error instanceof ModelCallLimitError)) ||
           (error instanceof ChildTaskRefusedError &&
             (error.kind === 'requestLimit' || error.kind === 'goalEnded'))
         ) {
@@ -14124,6 +14219,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         if (error instanceof ModelCallLimitError) {
           terminal = COMPLETED
           errorKind = 'max_turn_requests'
+          this.outcomeStopReason = 'limit'
           this.emit({ type: 'backendNotice', level: 'warning', text: reason })
         } else if (error instanceof ChildTaskRefusedError) {
           errorKind = `subagent_${error.kind}`

@@ -2726,7 +2726,8 @@
     "budget": "Budget esaurito",
     "error": "Errore",
     "cancelled": "Fermato dall’utente",
-    "unknown": "Non disponibile"
+    "unknown": "Non disponibile",
+    "limit": "Limite di chiamate raggiunto"
   },
   "agentContinue": "Continua",
   "agentRetry": "Riprova",
@@ -3590,7 +3591,7 @@
     "other": "Sono consentiti al massimo {count} file di input.",
     "many": "Sono consentiti al massimo {count} file di input."
   },
-  "referenceTurnLimit": "I turni Model API consentono 200 chiamate al modello per impostazione predefinita. Prevalgono i limiti di richieste esistenti del chiamante. L’ultima chiamata produce un riepilogo senza strumenti; invia un messaggio per continuare.",
+  "referenceTurnLimit": "I turni dell’API modelli hanno un valore predefinito di 200 chiamate al modello. Prevalgono i limiti di chiamata esistenti dei chiamanti. La prima chiamata viene sempre eseguita con gli strumenti: una risposta completa normalmente il turno, una richiesta di strumento lo termina al limite di richieste. L’ultima chiamata di un turno che ha eseguito strumenti produce un riepilogo senza strumenti; invia un messaggio per continuare.",
   "modelApiWrapUpReserved": "La richiesta rimanente è riservata alla risposta finale. L’immagine non è stata generata.",
   "modelApiTurnLimit": {
     "one": "Il turno si è fermato dopo {count} chiamata al modello. Invia un messaggio per continuare.",
@@ -5455,5 +5456,11 @@
       "other": "{count} autorizzazioni",
       "many": "{count} autorizzazioni"
     }
-  }
+  },
+  "modelApiWrapUpTruncated": {
+    "one": "Il turno si è fermato dopo {count} chiamata al modello, con la risposta finale troncata dal limite di output. La risposta parziale viene conservata. Invia un messaggio per continuare.",
+    "other": "Il turno si è fermato dopo {count} chiamate al modello, con la risposta finale troncata dal limite di output. La risposta parziale viene conservata. Invia un messaggio per continuare.",
+    "many": "Il turno si è fermato dopo {count} chiamate al modello, con la risposta finale troncata dal limite di output. La risposta parziale viene conservata. Invia un messaggio per continuare."
+  },
+  "modelApiWrapUpHookBlocked": "Un hook di arresto ha chiesto ulteriore lavoro, ma il turno ha raggiunto il limite di chiamate al modello, quindi la risposta finale resta valida."
 }

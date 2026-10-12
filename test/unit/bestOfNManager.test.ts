@@ -84,6 +84,10 @@ class FakeSession implements AgentSession {
   public readonly sessionId: string
   public readonly modelId = 'muse-spark-1.3'
   public readonly sent: TurnPart[][] = []
+  public allowance: (() => number) | undefined
+  public setModelCallAllowance = vi.fn((remaining: (() => number) | undefined) => {
+    this.allowance = remaining
+  })
   public decideApproval = vi.fn(resolvedVoid)
   public deferQuestions = throwing('deferQuestions')
   public cancelQuestions = vi.fn(resolvedVoid)
@@ -232,6 +236,30 @@ describe('BestOfNManager', () => {
     // Settled attempts release their sessions and hosts.
     expect(first.dispose).toHaveBeenCalled()
     expect(host.close).toHaveBeenCalled()
+  })
+
+  it('binds the attempt ceiling through the session allowance port', async () => {
+    const host = new FakeHost()
+    const t = managerWith(host)
+    await t.manager.start(
+      { prompt: 'bind the ceiling', attempts: 2, requestCeilingPerAttempt: 20 },
+      'modelApi',
+    )
+    const [first, second] = host.sessions
+    if (first === undefined || second === undefined) {
+      throw new Error('Expected two attempt sessions')
+    }
+    // AttemptSession forwards the worktree host's binding to the attempt's
+    // own session, so the ceiling reserves the wrap-up there.
+    expect(first.setModelCallAllowance).toHaveBeenCalledTimes(1)
+    expect(first.allowance?.()).toBe(20)
+    for (const session of [first, second]) {
+      session.emit(turnStarted('t1'))
+      session.emit(turnCompleted('t1'))
+    }
+    await awaitCompletedRun(t.updates)
+    expect(first.allowance).toBeUndefined()
+    expect(first.setModelCallAllowance).toHaveBeenLastCalledWith(undefined)
   })
 
   it('completes the attempt when a decline carries no requirement', async () => {

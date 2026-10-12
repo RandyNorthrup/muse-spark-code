@@ -23,6 +23,10 @@ class FakeSession implements WorktreeSession {
   private listener: ((event: WorktreeSessionEvent) => void) | undefined
   public readonly sessionId = 'attempt-session'
   public readonly sent: string[] = []
+  public allowance: (() => number) | undefined
+  public readonly setModelCallAllowance = vi.fn((remaining: (() => number) | undefined) => {
+    this.allowance = remaining
+  })
   public decideApproval = vi.fn(resolvedVoid)
   public cancelQuestions = vi.fn(resolvedVoid)
   public cancel = vi.fn(resolvedVoid)
@@ -108,19 +112,30 @@ describe('WorktreeConversationHost', () => {
     ])
   })
 
-  it('cancels once at the ceiling and marks it', async () => {
+  it('binds the ceiling through the allowance port and marks a limit stop', async () => {
     const session = new FakeSession()
     const t = hostWith({ session, requestCeiling: 5 })
     const pending = t.host.run('go', true)
+    expect(session.setModelCallAllowance).toHaveBeenCalledTimes(1)
     session.emit({ type: 'turnStarted', turnId: 't1' })
-    for (let index = 0; index < 6; index += 1) {
+    for (let index = 0; index < 5; index += 1) {
       session.emit({ type: 'modelRequestCompleted' })
     }
-    session.emit({ type: 'turnCompleted', turnId: 't1', terminal: 'completed' })
+    // The bound allowance counts the ceiling down.
+    expect(session.allowance?.()).toBe(0)
+    session.emit({
+      type: 'turnCompleted',
+      turnId: 't1',
+      terminal: 'completed',
+      errorKind: 'max_turn_requests',
+    })
     const outcome = await pending
-    expect(session.cancel).toHaveBeenCalledTimes(1)
+    // No cancellation: the session reserves the wrap-up itself.
+    expect(session.cancel).not.toHaveBeenCalled()
     expect(outcome.ceilingReached).toBe(true)
-    expect(outcome.requestsMade).toBe(6)
+    expect(outcome.requestsMade).toBe(5)
+    expect(session.setModelCallAllowance).toHaveBeenLastCalledWith(undefined)
+    expect(session.allowance).toBeUndefined()
   })
 
   it('declines approvals and questions with abort, counted', async () => {

@@ -2726,7 +2726,8 @@
     "budget": "Budget épuisé",
     "error": "Erreur",
     "cancelled": "Arrêté par l’utilisateur",
-    "unknown": "Indisponible"
+    "unknown": "Indisponible",
+    "limit": "Limite d’appels atteinte"
   },
   "agentContinue": "Continuer",
   "agentRetry": "Réessayer",
@@ -3590,7 +3591,7 @@
     "other": "Au plus {count} fichiers d’entrée sont autorisés.",
     "many": "Au plus {count} fichiers d’entrée sont autorisés."
   },
-  "referenceTurnLimit": "Les tours Model API autorisent 200 appels au modèle par défaut. Les limites de requêtes existantes de l’appelant prévalent. Le dernier appel produit un résumé sans outils ; envoyez un message pour continuer.",
+  "referenceTurnLimit": "Les tours de l’API Model comptent 200 appels au modèle par défaut. Les limites d’appels existantes des appelants priment. Le premier appel s’exécute toujours avec les outils : une réponse termine le tour normalement, une demande d’outil le termine au plafond de requêtes. Le dernier appel d’un tour qui a exécuté des outils produit un résumé sans outils ; envoyez un message pour continuer.",
   "modelApiWrapUpReserved": "La requête restante est réservée à la réponse finale. L’image n’a pas été générée.",
   "modelApiTurnLimit": {
     "one": "Le tour s’est arrêté après {count} appel au modèle. Envoyez un message pour continuer.",
@@ -5455,5 +5456,11 @@
       "other": "{count} autorisations",
       "many": "{count} autorisations"
     }
-  }
+  },
+  "modelApiWrapUpTruncated": {
+    "one": "Le tour s’est arrêté après {count} appel au modèle, la réponse finale ayant été tronquée par la limite de sortie. La réponse partielle est conservée. Envoyez un message pour continuer.",
+    "other": "Le tour s’est arrêté après {count} appels au modèle, la réponse finale ayant été tronquée par la limite de sortie. La réponse partielle est conservée. Envoyez un message pour continuer.",
+    "many": "Le tour s’est arrêté après {count} appels au modèle, la réponse finale ayant été tronquée par la limite de sortie. La réponse partielle est conservée. Envoyez un message pour continuer."
+  },
+  "modelApiWrapUpHookBlocked": "Un hook d’arrêt a demandé du travail supplémentaire, mais le tour a atteint sa limite d’appels au modèle ; la réponse finale est donc conservée."
 }

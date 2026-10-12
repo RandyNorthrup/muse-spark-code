@@ -2614,7 +2614,8 @@
     "budget": "预算耗尽",
     "error": "错误",
     "cancelled": "用户停止",
-    "unknown": "不可用"
+    "unknown": "不可用",
+    "limit": "已达到调用上限"
   },
   "agentContinue": "继续",
   "agentRetry": "重试",
@@ -3442,7 +3443,7 @@
   "execTooManyFiles": {
     "other": "最多允许 {count} 个输入文件。"
   },
-  "referenceTurnLimit": "Model API 每轮默认最多调用模型 200 次。调用方现有的请求上限优先。最后一次调用不使用工具并生成总结；发送消息以继续。",
+  "referenceTurnLimit": "Model API 每轮默认可调用模型 200 次。调用方现有的请求上限优先。首次调用始终携带工具执行：有回答则本轮正常完成，有工具请求则在本轮达到请求上限时结束。运行过工具的轮次，其最后一次调用生成不带工具的摘要；发送消息以继续。",
   "modelApiWrapUpReserved": "剩余请求已保留用于最终回答。图像未生成。",
   "modelApiTurnLimit": {
     "other": "本轮在调用模型 {count} 次后停止。发送消息以继续。"
@@ -5145,5 +5146,9 @@
     "grantsCount": {
       "other": "{count} 个授权"
     }
-  }
+  },
+  "modelApiWrapUpTruncated": {
+    "other": "最终回答被输出上限截断，本轮在调用模型 {count} 次后停止。部分回答已保留。发送消息以继续。"
+  },
+  "modelApiWrapUpHookBlocked": "停止钩子请求了更多工作，但本轮已达到模型调用上限，因此最终回答保持不变。"
 }

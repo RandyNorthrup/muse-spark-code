@@ -2782,7 +2782,8 @@
     "budget": "Budżet wyczerpany",
     "error": "Błąd",
     "cancelled": "Zatrzymane przez użytkownika",
-    "unknown": "Niedostępne"
+    "unknown": "Niedostępne",
+    "limit": "Osiągnięto limit wywołań"
   },
   "agentContinue": "Kontynuuj",
   "agentRetry": "Ponów",
@@ -3664,7 +3665,7 @@
     "few": "Limit plików wejściowych: {count}.",
     "many": "Limit plików wejściowych: {count}."
   },
-  "referenceTurnLimit": "Tury Model API domyślnie pozwalają na 200 wywołań modelu. Istniejące limity żądań wywołującego mają pierwszeństwo. Ostatnie wywołanie tworzy podsumowanie bez narzędzi; wyślij wiadomość, aby kontynuować.",
+  "referenceTurnLimit": "Tury Model API mają domyślnie 200 wywołań modelu. Obowiązują istniejące limity wywołań wywołujących. Pierwsze wywołanie zawsze działa z narzędziami: odpowiedź kończy turę normalnie, żądanie narzędzia kończy ją na limicie żądań. Ostatnie wywołanie tury, która uruchamiała narzędzia, daje podsumowanie bez narzędzi; wyślij wiadomość, aby kontynuować.",
   "modelApiWrapUpReserved": "Pozostałe żądanie jest zarezerwowane na końcową odpowiedź. Obraz nie został wygenerowany.",
   "modelApiTurnLimit": {
     "one": "Tura zatrzymała się po {count} wywołaniu modelu. Wyślij wiadomość, aby kontynuować.",
@@ -5610,5 +5611,12 @@
       "few": "{count} uprawnienia",
       "many": "{count} uprawnień"
     }
-  }
+  },
+  "modelApiWrapUpTruncated": {
+    "one": "Tura zatrzymała się po {count} wywołaniu modelu, a ostateczna odpowiedź została ucięta przez limit wyjścia. Częściowa odpowiedź została zachowana. Wyślij wiadomość, aby kontynuować.",
+    "few": "Tura zatrzymała się po {count} wywołaniach modelu, a ostateczna odpowiedź została ucięta przez limit wyjścia. Częściowa odpowiedź została zachowana. Wyślij wiadomość, aby kontynuować.",
+    "many": "Tura zatrzymała się po {count} wywołaniach modelu, a ostateczna odpowiedź została ucięta przez limit wyjścia. Częściowa odpowiedź została zachowana. Wyślij wiadomość, aby kontynuować.",
+    "other": "Tura zatrzymała się po {count} wywołaniach modelu, a ostateczna odpowiedź została ucięta przez limit wyjścia. Częściowa odpowiedź została zachowana. Wyślij wiadomość, aby kontynuować."
+  },
+  "modelApiWrapUpHookBlocked": "Hook zatrzymania poprosił o dalszą pracę, ale tura osiągnęła limit wywołań modelu, więc ostateczna odpowiedź zostaje."
 }

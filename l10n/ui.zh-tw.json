@@ -2614,7 +2614,8 @@
     "budget": "預算耗盡",
     "error": "錯誤",
     "cancelled": "使用者停止",
-    "unknown": "無法使用"
+    "unknown": "無法使用",
+    "limit": "已達到呼叫上限"
   },
   "agentContinue": "繼續",
   "agentRetry": "重試",
@@ -3442,7 +3443,7 @@
   "execTooManyFiles": {
     "other": "最多允許 {count} 個輸入檔案。"
   },
-  "referenceTurnLimit": "Model API 每輪預設最多呼叫模型 200 次。呼叫端現有的請求上限優先。最後一次呼叫不使用工具並產生摘要；傳送訊息以繼續。",
+  "referenceTurnLimit": "Model API 每輪預設可呼叫模型 200 次。呼叫方現有的請求上限優先。首次呼叫一律攜帶工具執行：有回答則本輪正常完成，有工具請求則在本輪達到請求上限時結束。執行過工具的輪次，其最後一次呼叫產生不帶工具的摘要；傳送訊息以繼續。",
   "modelApiWrapUpReserved": "剩餘請求已保留用於最終回答。影像未產生。",
   "modelApiTurnLimit": {
     "other": "本輪在呼叫模型 {count} 次後停止。傳送訊息以繼續。"
@@ -5145,5 +5146,9 @@
     "grantsCount": {
       "other": "{count} 個授權"
     }
-  }
+  },
+  "modelApiWrapUpTruncated": {
+    "other": "最終回答被輸出上限截斷，本輪在呼叫模型 {count} 次後停止。部分回答已保留。傳送訊息以繼續。"
+  },
+  "modelApiWrapUpHookBlocked": "停止鉤子要求了更多工作，但本輪已達到模型呼叫上限，因此最終回答保持不變。"
 }

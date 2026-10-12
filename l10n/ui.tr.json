@@ -2670,7 +2670,8 @@
     "budget": "Bütçe tükendi",
     "error": "Hata",
     "cancelled": "Kullanıcı durdurdu",
-    "unknown": "Kullanılamıyor"
+    "unknown": "Kullanılamıyor",
+    "limit": "Çağrı sınırına ulaşıldı"
   },
   "agentContinue": "Devam et",
   "agentRetry": "Yeniden dene",
@@ -3516,7 +3517,7 @@
     "one": "En fazla {count} girdi dosyasına izin verilir.",
     "other": "En fazla {count} girdi dosyasına izin verilir."
   },
-  "referenceTurnLimit": "Model API turları varsayılan olarak 200 model çağrısına izin verir. Çağıranın mevcut istek sınırları önceliklidir. Son çağrı araç kullanmadan özet oluşturur; devam etmek için bir mesaj gönderin.",
+  "referenceTurnLimit": "Model API turları varsayılan olarak 200 model çağrısı alır. Arayanların mevcut çağrı sınırları geçerlidir. İlk çağrı her zaman araçlarla çalışır: bir yanıt turu normal şekilde tamamlar, bir araç isteği onu istek sınırında bitirir. Araç çalıştıran bir turun son çağrısı araçsız bir özet üretir; devam etmek için bir mesaj gönderin.",
   "modelApiWrapUpReserved": "Kalan istek son yanıt için ayrılmıştır. Görsel oluşturulmadı.",
   "modelApiTurnLimit": {
     "one": "Tur, {count} model çağrısından sonra durdu. Devam etmek için bir mesaj gönderin.",
@@ -5300,5 +5301,10 @@
       "one": "{count} izin",
       "other": "{count} izin"
     }
-  }
+  },
+  "modelApiWrapUpTruncated": {
+    "one": "Tur, {count} model çağrısından sonra durdu ve nihai yanıt çıktı sınırıyla kesildi. Kısmi yanıt korunur. Devam etmek için bir mesaj gönderin.",
+    "other": "Tur, {count} model çağrısından sonra durdu ve nihai yanıt çıktı sınırıyla kesildi. Kısmi yanıt korunur. Devam etmek için bir mesaj gönderin."
+  },
+  "modelApiWrapUpHookBlocked": "Bir durdurma kancası daha fazla iş istedi, ancak tur model çağrısı sınırına ulaştı, bu yüzden nihai yanıt geçerlidir."
 }

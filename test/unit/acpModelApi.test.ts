@@ -276,7 +276,7 @@ describe('the ACP agent on the Model API backend (M63)', () => {
     })
     expect(response.stopReason).toBe('max_turn_requests')
     expect(t.api.responseBodies()).toHaveLength(3)
-    expect(t.api.responseBodies().at(-1)).toMatchObject({ tools: [], tool_choice: 'none' })
+    expect(t.api.responseBodies().at(-1)).toMatchObject({ tools: [], tool_choice: 'auto' })
   })
 
   it('writes a file the client allowed, streams the reply, and never sends the key to the client', async () => {

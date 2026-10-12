@@ -2726,7 +2726,8 @@
     "budget": "Presupuesto agotado",
     "error": "Fallo",
     "cancelled": "Detenido por el usuario",
-    "unknown": "No disponible"
+    "unknown": "No disponible",
+    "limit": "Límite de llamadas alcanzado"
   },
   "agentContinue": "Continuar",
   "agentRetry": "Reintentar",
@@ -3590,7 +3591,7 @@
     "other": "Se permiten como máximo {count} archivos de entrada.",
     "many": "Se permiten como máximo {count} archivos de entrada."
   },
-  "referenceTurnLimit": "Los turnos de Model API permiten 200 llamadas al modelo de forma predeterminada. Prevalecen los límites de solicitudes existentes del llamante. La última llamada produce un resumen sin herramientas; envía un mensaje para continuar.",
+  "referenceTurnLimit": "Los turnos de la API de modelos tienen 200 llamadas al modelo por defecto. Los límites de llamadas existentes de las personas que llaman prevalecen. La primera llamada siempre se ejecuta con herramientas: una respuesta completa el turno con normalidad, una solicitud de herramienta lo termina en el límite de solicitudes. La última llamada de un turno que ejecutó herramientas produce un resumen sin herramientas; envía un mensaje para continuar.",
   "modelApiWrapUpReserved": "La solicitud restante está reservada para la respuesta final. No se generó la imagen.",
   "modelApiTurnLimit": {
     "one": "El turno se detuvo tras {count} llamada al modelo. Envía un mensaje para continuar.",
@@ -5455,5 +5456,11 @@
       "other": "{count} autorizaciones",
       "many": "{count} autorizaciones"
     }
-  }
+  },
+  "modelApiWrapUpTruncated": {
+    "one": "El turno se detuvo tras {count} llamada al modelo, con la respuesta final truncada por el límite de salida. La respuesta parcial se conserva. Envía un mensaje para continuar.",
+    "other": "El turno se detuvo tras {count} llamadas al modelo, con la respuesta final truncada por el límite de salida. La respuesta parcial se conserva. Envía un mensaje para continuar.",
+    "many": "El turno se detuvo tras {count} llamadas al modelo, con la respuesta final truncada por el límite de salida. La respuesta parcial se conserva. Envía un mensaje para continuar."
+  },
+  "modelApiWrapUpHookBlocked": "Un hook de parada pidió más trabajo, pero el turno alcanzó su límite de llamadas al modelo, por lo que la respuesta final se mantiene."
 }

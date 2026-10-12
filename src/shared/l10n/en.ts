@@ -3225,6 +3225,7 @@ export const EN = {
   agentStopReasons: {
     normal: 'Normal End',
     budget: 'Budget Exhausted',
+    limit: 'Call Limit Reached',
     error: 'Error',
     cancelled: 'Stopped by User',
     unknown: 'Unavailable',
@@ -4230,13 +4231,20 @@ export const EN = {
     other: 'At most {count} input files are allowed.',
   }),
   referenceTurnLimit:
-    'Model API turns default to 200 model calls. Existing caller request limits win. The last call produces a summary without tools; send a message to continue.',
+    'Model API turns default to 200 model calls. Existing caller request limits win. The first call always runs with tools: an answer completes the turn, a tool request ends it at the request cap. The last call of a turn that ran tools produces a summary without tools; send a message to continue.',
   modelApiWrapUpReserved:
     'The remaining request is reserved for the final answer. The image was not generated.',
   modelApiTurnLimit: forms({
     one: 'The turn stopped after {count} model call. Send a message to continue.',
     other: 'The turn stopped after {count} model calls. Send a message to continue.',
   }),
+  modelApiWrapUpTruncated: forms({
+    one: 'The turn stopped after {count} model call with the final answer cut short by the output limit. The partial answer is kept. Send a message to continue.',
+    other:
+      'The turn stopped after {count} model calls with the final answer cut short by the output limit. The partial answer is kept. Send a message to continue.',
+  }),
+  modelApiWrapUpHookBlocked:
+    'A stop hook asked for more work, but the turn reached its model-call limit, so the final answer stands.',
   execRequestCapReached: forms({
     one: 'The request cap of {count} attempt was reached.',
     other: 'The request cap of {count} attempts was reached.',
