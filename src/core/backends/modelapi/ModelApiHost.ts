@@ -1635,11 +1635,13 @@ function describe(error: unknown): string {
 }
 
 /**
- * The underlying failure's class for the log, never its text: a loader or
- * constructor message can carry an absolute path or the call's own fields.
+ * The model call helpers' failure for the log, beside the chunk named. One
+ * shared line for every helpers catch so the diet pin holds: the sentences
+ * promise log details, and the failure's class is the only safe detail (a
+ * loader or constructor message can carry a path or the call's own fields).
  */
-function errorName(error: unknown): string {
-  return error instanceof Error ? error.name || 'Error' : 'unknown'
+function helpersFailure(log: CoreLogger, error: unknown): void {
+  log.warn(`modelApiTools.js failed: ${error instanceof Error ? error.name : 'unknown'}`)
 }
 
 function isAuthFailure(error: unknown): boolean {
@@ -3091,11 +3093,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     try {
       return await this.toolAssist()
     } catch (error) {
-      // The sentence promises log details: keep the cause's class beside the
-      // chunk named, never its text (a path, or the call's own fields).
-      this.deps.log.warn(
-        `The model call helpers could not be loaded (modelApiTools.js): ${errorName(error)}`,
-      )
+      helpersFailure(this.deps.log, error)
       throw new Error(UI_TEXT.modelApiToolsUnavailable, { cause: error })
     }
   }
@@ -3111,11 +3109,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       const assist = await this.toolAssist()
       return new assist.ArgumentPreview(previewFields)
     } catch (error) {
-      // The sentence promises log details: keep the cause's class beside the
-      // chunk named, never its text (a path, or the call's own fields).
-      this.deps.log.warn(
-        `The model call helpers could not be loaded (modelApiTools.js): ${errorName(error)}`,
-      )
+      helpersFailure(this.deps.log, error)
       throw new Error(UI_TEXT.modelApiToolsPreviewUnavailable, { cause: error })
     }
   }
@@ -3129,11 +3123,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       const assist = await this.toolAssist()
       return assist.checkPageUrl(raw)
     } catch (error) {
-      // The refusal reason says the log says why: keep the cause's class
-      // beside the chunk named, never its text. Still fail closed.
-      this.deps.log.warn(
-        `The model call helpers could not be loaded (modelApiTools.js): ${errorName(error)}`,
-      )
+      helpersFailure(this.deps.log, error)
       return undefined
     }
   }
