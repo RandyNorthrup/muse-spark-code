@@ -58,6 +58,8 @@ export class CredentialStore {
     try {
       stored = await this.secrets.get(SECRET_KEYS.modelApiKey)
     } catch (error: unknown) {
+      // read-state: cert TBL-02 (see the method note): this collapse is by
+      // design for operational, non-guard use only.
       if (!this.hasReportedFailure) {
         this.hasReportedFailure = true
         // The log carries only the failure's kind, never the raw error: the

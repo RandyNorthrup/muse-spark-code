@@ -69,7 +69,7 @@ export function unreadableKindFor(error: unknown): CredentialUnreadableKind {
  * fourth state or forgetting an arm does not compile.
  */
 export function assertExhaustive(outcome: never, where: string): never {
-  throw new Error(`Unhandled credential read outcome at ${where}`)
+  throw new Error(`Unhandled credential read outcome ${String(outcome)} at ${where}`)
 }
 
 /**
