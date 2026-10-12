@@ -271,6 +271,31 @@ describe.each(['museCode', 'modelApi'] as const)('%s schedule session adapter', 
     session.dispose()
   })
 
+  it('releases the target when the scheduled turn ends at the model-call limit', async () => {
+    const rig = setup(backend)
+    const agent = new FakeAgentSession('session-1', 'chosen-model')
+    const session = new ScheduleAgentSession(agent, backend, rig.contexts)
+    agent.sendTurn.mockImplementationOnce(() => {
+      agent.emit(
+        { type: 'turnStarted', turnId: 'capped-turn' },
+        // The typed limit outcome is still a settled turn: the target goes
+        // idle and never judges the turn a success or a failure.
+        {
+          type: 'turnCompleted',
+          turnId: 'capped-turn',
+          terminal: 'completed',
+          reason: 'The turn reached its model-call limit.',
+          errorKind: 'max_turn_requests',
+        },
+      )
+      return Promise.resolve({ turnId: 'capped-turn', disposition: 'started' })
+    })
+    await session.send('Prompt', fakeRunContext(rig.schedule))
+    expect(session.isRunning()).toBe(false)
+    expect(await session.waitUntilIdle(new AbortController().signal)).toBe(true)
+    session.dispose()
+  })
+
   it('ignores completion of an unrelated queued turn and cleans aborted idle listeners', async () => {
     const rig = setup(backend)
     const agent = new FakeAgentSession('session-1', 'chosen-model')
