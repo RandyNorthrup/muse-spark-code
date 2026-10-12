@@ -859,6 +859,8 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
   const uploads: AcpUploadsPort = createUploadedFilesPort({
     ledger: async (): Promise<UploadLedger | undefined> => {
       if (agentUploadLedgerDir === undefined) return undefined
+      // Removing the key keeps the retained list: the core port serves the
+      // last account's ledger read-only (PLAN D85.2) until another signs in.
       const accountId = await uploadsAccountId()
       if (accountId === undefined) return undefined
       const media = await import('../host/backend/productionMediaEntry')

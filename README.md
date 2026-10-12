@@ -3058,10 +3058,11 @@ integration owners; editor font settings continue to decide inside editors.
   still requires the media bindings. Remote windows need the companion route,
   whose server is pending M104. The Windows VM has no working direct-capture
   receipt. `mediaMaxUploadMiB` caps an upload. Uploads carry
-  `mediaUploadExpiryDays` (seven days by default, 1–30); automatic clean-up
-  offers an upload once no session refers to it and the provider expiry has
-  passed. Deleting a session, or the `cleanupPeriodDays` purge, releases its
-  uploads the same way. **Delete Uploaded Files…** lists the account ledger
+  `mediaUploadExpiryDays` (seven days by default, 1–30); releasing the last
+  session that refers to an upload deletes it at once, however young.
+  Deleting a session, or the `cleanupPeriodDays` purge, releases its
+  uploads the same way; only orphans no release ever saw wait out the
+  provider expiry. **Delete Uploaded Files…** lists the account ledger
   and deletes the chosen files early (ACP `/uploads`, same); a file another
   session still uses is never deleted. These commands do not establish
   provider/editor certification.
@@ -4385,7 +4386,7 @@ remain planned; this reference does not claim those hosts implement the page.
 | Muse Spark: Add Model Provider…                     | —                                                                                                | The quick-pick fast path without the panel: pick a provider, enter or connect the key, test it, pick models and confirm                                                                                                                                                 |
 | Muse Spark: Attach screen recording…                | —                                                                                                | Direct recording is unavailable in this build; choose an existing recording file instead                                                                                                                                                                                |
 | Muse Spark: Attach latest screen recording          | —                                                                                                | Attach the newest recording the OS already saved to the conversation in view                                                                                                                                                                                            |
-| Muse Spark: Delete uploaded files…                  | —                                                                                                | Delete this conversation's uploaded media before its expiry                                                                                                                                                                                                             |
+| Muse Spark: Delete uploaded files…                  | —                                                                                                | Delete this account's uploaded media before its expiry                                                                                                                                                                                                                  |
 
 Windows keeps `Ctrl+Esc` for Start and `Ctrl+Shift+Esc` for Task Manager,
 which is why its two shortcuts add `Alt`. Fifteen commands appear in the

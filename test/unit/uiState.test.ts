@@ -198,6 +198,103 @@ describe('uiReducer: shell', () => {
     ).toBeUndefined()
   })
 
+  it('drops an uploaded-files report from a previous generation', () => {
+    const filesA = {
+      provider: 'meta',
+      isReadOnly: false,
+      poolBytes: 100,
+      usedBytes: 3,
+      files: [],
+    }
+    const filesB = { ...filesA, usedBytes: 12 }
+    const first = reduceAll([
+      host({ type: 'authState', status: 'signedIn', backend: 'modelApi' }),
+      host({ type: 'uploadedFilesReport', report: filesA, accountId: 'a', generation: 2 }),
+    ])
+    expect(first.uploadedFiles).toEqual(filesA)
+    // An older generation never paints over the newer list.
+    expect(
+      uiReducer(
+        first,
+        host({ type: 'uploadedFilesReport', report: filesB, accountId: 'a', generation: 1 }),
+      ).uploadedFiles,
+    ).toEqual(filesA)
+    // After an account change clears the list, the new account's newer
+    // read replaces it, and the previous account's late report still drops.
+    const cleared = uiReducer(
+      first,
+      host({ type: 'authState', status: 'signedIn', backend: 'modelApi' }),
+    )
+    expect(cleared.uploadedFiles).toBeUndefined()
+    const second = uiReducer(
+      cleared,
+      host({ type: 'uploadedFilesReport', report: filesB, accountId: 'b', generation: 3 }),
+    )
+    expect(second.uploadedFiles).toEqual(filesB)
+    expect(second.uploadedFilesAccountId).toBe('b')
+    expect(second.uploadedFilesGeneration).toBe(3)
+    expect(
+      uiReducer(
+        second,
+        host({ type: 'uploadedFilesReport', report: filesA, accountId: 'a', generation: 2 }),
+      ).uploadedFiles,
+    ).toEqual(filesB)
+  })
+
+  it('clears the uploaded-files list on sign-out and backend change', () => {
+    const files = {
+      provider: 'meta',
+      isReadOnly: false,
+      poolBytes: 100,
+      usedBytes: 3,
+      files: [],
+    }
+    const initial = reduceAll([
+      host({ type: 'authState', status: 'signedIn', backend: 'modelApi' }),
+      host({ type: 'uploadedFilesReport', report: files }),
+    ])
+    expect(initial.uploadedFiles).toEqual(files)
+    expect(
+      uiReducer(initial, host({ type: 'authState', status: 'signedOut' })).uploadedFiles,
+    ).toBeUndefined()
+    expect(
+      uiReducer(initial, host({ type: 'authState', status: 'signedIn', backend: 'museCode' }))
+        .uploadedFiles,
+    ).toBeUndefined()
+  })
+
+  it('drops an uploaded-files report from a previous generation', () => {
+    const files = {
+      provider: 'meta',
+      isReadOnly: false,
+      poolBytes: 100,
+      usedBytes: 3,
+      files: [],
+    }
+    const stale = { ...files, isReadOnly: true }
+    const state = reduceAll([
+      host({ type: 'authState', status: 'signedIn', backend: 'modelApi' }),
+      host({ type: 'uploadedFilesReport', report: files, accountId: 'b', generation: 2 }),
+    ])
+    expect(state.uploadedFiles).toEqual(files)
+    expect(state.uploadedFilesAccountId).toBe('b')
+    // A previous generation never repopulates the view, even for its own account.
+    const dropped = uiReducer(
+      state,
+      host({ type: 'uploadedFilesReport', report: stale, accountId: 'a', generation: 1 }),
+    )
+    expect(dropped.uploadedFiles).toEqual(files)
+    expect(dropped.uploadedFilesAccountId).toBe('b')
+    // A newer generation replaces it and records the new identity.
+    const replaced = uiReducer(
+      state,
+      host({ type: 'uploadedFilesReport', report: stale, accountId: 'a', generation: 3 }),
+    )
+    expect(replaced.uploadedFiles).toEqual(stale)
+    expect(replaced.uploadedFilesAccountId).toBe('a')
+    expect(replaced.uploadedFilesGeneration).toBe(3)
+  })
+
   it('keeps provider account usage unchanged when only the selected model changes', () => {
     const subscription = {
       observedAtMs: NOW,

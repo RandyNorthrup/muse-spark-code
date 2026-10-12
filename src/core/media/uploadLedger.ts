@@ -39,7 +39,7 @@ interface FilesForLedger {
   ): Promise<UploadedMediaRef>
   retrieve(fileId: string, signal?: AbortSignal): Promise<unknown>
   accountFiles(): Promise<readonly z.infer<typeof accountFileSchema>[]>
-  delete(fileId: string): Promise<void>
+  delete(fileId: string, signal?: AbortSignal): Promise<void>
 }
 export interface UploadLedgerDeps {
   readonly storage: UploadLedgerStorage
