@@ -5448,5 +5448,11 @@
       "other": "{count} autorisations",
       "many": "{count} autorisations"
     }
-  }
+  },
+  "modelApiTurnLimit": {
+    "one": "Le tour s’est arrêté après {count} appel au modèle. Envoyez un message pour continuer.",
+    "other": "Le tour s’est arrêté après {count} appels au modèle. Envoyez un message pour continuer.",
+    "many": "Le tour s’est arrêté après {count} appels au modèle. Envoyez un message pour continuer."
+  },
+  "referenceTurnLimit": "À la limite d’appels au modèle, le tour signale une limite permettant de reprendre. Envoyez un autre message pour continuer."
 }

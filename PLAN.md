@@ -14238,6 +14238,15 @@ cost and caution, never speed.
   reviewer on B1 and B2, never the only one and never an allow by itself.
   Everywhere else both stand unchanged.
 
+### D108 — Model-call turn limits preserve the answer (TOOLROUNDS, 2026-10-11)
+
+The Model API turn cap is a limit, not a loop detector: default 200 model
+calls. An existing caller request cap replaces that default with its remaining
+allowance. Reserve the last permitted call for a tools-disabled wrap-up; retain
+its answer and report a translated, typed request-limit stop in every host.
+Existing money caps, compaction accounting and queued-input promotion remain
+in force. Certification: [toolrounds](docs/certification/toolrounds.md).
+
 ## 3. Open questions (need the owner)
 
 **Q-VIS0171-RELEASE-NOTES resolved by lead (2026-10-10, linuxlt).** Round 2
@@ -15314,6 +15323,13 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
   extension must track the child PID and kill the tree on dispose.
 
 ## 6. Milestones
+
+### TOOLROUNDS — Preserve answers at the model-call turn limit (D108)
+
+**Status 2026-10-11: building.** Typed translated stop first; tools-disabled
+wrap-up second; caller-aware default of 200 third. Certification and dependent
+suites: [toolrounds](docs/certification/toolrounds.md). Next slice: release-train
+integration and cross-platform certification after these three pieces pass.
 
 ### PROVWIZ10 — Re-entry credential comparison and retry receipts (2026-10-09)
 

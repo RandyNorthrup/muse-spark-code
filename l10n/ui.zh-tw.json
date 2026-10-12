@@ -5140,5 +5140,9 @@
     "grantsCount": {
       "other": "{count} 個授權"
     }
-  }
+  },
+  "modelApiTurnLimit": {
+    "other": "本輪在呼叫模型 {count} 次後停止。傳送訊息以繼續。"
+  },
+  "referenceTurnLimit": "達到模型呼叫上限時，本輪提示可繼續的限制。傳送另一則訊息以繼續。"
 }

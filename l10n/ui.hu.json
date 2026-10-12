@@ -5294,5 +5294,10 @@
       "one": "{count} engedély",
       "other": "{count} engedély"
     }
-  }
+  },
+  "modelApiTurnLimit": {
+    "one": "A kör {count} modellhívás után leállt. A folytatáshoz küldjön üzenetet.",
+    "other": "A kör {count} modellhívás után leállt. A folytatáshoz küldjön üzenetet."
+  },
+  "referenceTurnLimit": "A modellhívások korlátjánál a kör folytatható korlátot jelez. A folytatáshoz küldjön újabb üzenetet."
 }

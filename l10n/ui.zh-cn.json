@@ -5140,5 +5140,9 @@
     "grantsCount": {
       "other": "{count} 个授权"
     }
-  }
+  },
+  "modelApiTurnLimit": {
+    "other": "本轮在调用模型 {count} 次后停止。发送消息以继续。"
+  },
+  "referenceTurnLimit": "达到模型调用上限时，本轮提示可继续的限制。发送另一条消息以继续。"
 }

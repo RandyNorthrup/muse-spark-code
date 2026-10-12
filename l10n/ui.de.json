@@ -5294,5 +5294,10 @@
       "one": "{count} Freigabe",
       "other": "{count} Freigaben"
     }
-  }
+  },
+  "modelApiTurnLimit": {
+    "one": "Der Durchgang wurde nach {count} Modellaufruf angehalten. Senden Sie eine Nachricht, um fortzufahren.",
+    "other": "Der Durchgang wurde nach {count} Modellaufrufen angehalten. Senden Sie eine Nachricht, um fortzufahren."
+  },
+  "referenceTurnLimit": "Am Modellaufruflimit meldet der Durchgang eine fortsetzbare Begrenzung. Senden Sie eine weitere Nachricht, um fortzufahren."
 }

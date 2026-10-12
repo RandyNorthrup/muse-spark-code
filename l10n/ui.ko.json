@@ -5140,5 +5140,9 @@
     "grantsCount": {
       "other": "{count} 개 권한"
     }
-  }
+  },
+  "modelApiTurnLimit": {
+    "other": "모델 호출이 {count}회에 도달하여 턴이 중지되었습니다. 계속하려면 메시지를 보내세요."
+  },
+  "referenceTurnLimit": "모델 호출 제한에 도달하면 턴은 재개 가능한 제한을 알립니다. 계속하려면 다른 메시지를 보내세요."
 }

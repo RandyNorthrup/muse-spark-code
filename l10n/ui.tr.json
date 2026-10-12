@@ -5294,5 +5294,10 @@
       "one": "{count} izin",
       "other": "{count} izin"
     }
-  }
+  },
+  "modelApiTurnLimit": {
+    "one": "Tur, {count} model çağrısından sonra durdu. Devam etmek için bir mesaj gönderin.",
+    "other": "Tur, {count} model çağrısından sonra durdu. Devam etmek için bir mesaj gönderin."
+  },
+  "referenceTurnLimit": "Model çağrısı sınırında tur, devam edilebilir bir sınır bildirir. Devam etmek için başka bir mesaj gönderin."
 }

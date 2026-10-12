@@ -5602,5 +5602,12 @@
       "few": "{count} oprávnění",
       "many": "{count} oprávnění"
     }
-  }
+  },
+  "modelApiTurnLimit": {
+    "one": "Tah se zastavil po {count} volání modelu. Pokračujte odesláním zprávy.",
+    "other": "Tah se zastavil po {count} voláních modelu. Pokračujte odesláním zprávy.",
+    "few": "Tah se zastavil po {count} voláních modelu. Pokračujte odesláním zprávy.",
+    "many": "Tah se zastavil po {count} voláních modelu. Pokračujte odesláním zprávy."
+  },
+  "referenceTurnLimit": "Po dosažení limitu volání modelu tah oznámí limit s možností pokračování. Pokračujte odesláním další zprávy."
 }

@@ -28,7 +28,7 @@ import {
   WEB_SEARCH_MIN_PER_REQUEST,
   WEB_SEARCH_MAX_PER_REQUEST_LIMIT,
 } from '../../../shared/constants'
-import { fill } from '../../../shared/l10n/text'
+import { fill, plural } from '../../../shared/l10n/text'
 import { modelApiPaidTier } from '../../../shared/paid'
 import { Usd, multiplyUsd, usdAmountSchema, type UsdAmount } from '../../../shared/usd'
 import { formatUsd, estimateCostUsd } from '../../usage/insights'
@@ -154,6 +154,14 @@ export class SessionBudgetExceededError extends Error {
   public constructor(message: string) {
     super(message)
     this.name = 'SessionBudgetExceededError'
+  }
+}
+
+/** A normal, resumable model-call limit; carries the actual permitted count. */
+export class ModelCallLimitError extends SessionBudgetExceededError {
+  public constructor(public readonly limit: number) {
+    super(plural(UI_TEXT.modelApiTurnLimit, limit))
+    this.name = 'ModelCallLimitError'
   }
 }
 
