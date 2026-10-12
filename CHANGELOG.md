@@ -7,12 +7,6 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
-### Changed
-
-- The empty panel now shows the extension's own mark instead of Meta's logo,
-  filling the original logo box and staying blue with at least 3:1 contrast
-  in ordinary themes; high contrast and forced colours use the foreground.
-
 ### Pending
 
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
@@ -108,6 +102,22 @@ happened, not what was planned; superseded entries are kept.
   editor's qualification (lane Q). The pull-request checkout's own git
   launches are not yet under the resource governor; nothing in this release
   can start them, and the process inventory fails the day something could.
+
+## [0.18.1] - 2026-10-11
+
+### Highlights
+
+- **The landing screen shows the extension's own mark.** The empty chat
+  panel showed the Meta logo beside the product name. It now shows the
+  product's own squiggled "m", the mark of the Marketplace and activity-bar
+  icons: blue in dark and light themes, and in the theme's text colour in
+  high-contrast themes and under forced colours.
+
+### Changed
+
+- The empty panel now shows the extension's own mark instead of Meta's logo,
+  filling the original logo box and staying blue with at least 3:1 contrast
+  in ordinary themes; high contrast and forced colours use the foreground.
 
 ## [0.18.0] - 2026-10-11
 
