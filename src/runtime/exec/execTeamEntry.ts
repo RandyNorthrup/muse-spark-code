@@ -12,6 +12,7 @@ import type {
   TeamWorkerOutcome,
 } from '../../core/team/teamHostService'
 import type { EngineTeamPortsDeps } from '../../host/team/teamEnginePorts'
+import type { TeamGit } from '../../core/team/teamWorkspaces'
 import type { TeamToolResult } from '../../core/team/teamSeams'
 import { isProtectedPath } from '../../core/protectedPaths'
 import { redactSecrets } from '../../core/redact'
@@ -22,6 +23,7 @@ import { lowerTeamWithJson, parseTeamJson, teamJsonPath } from '../../core/team/
 import {
   ACP_SESSIONS_SUBFOLDER,
   EXEC_PROMPT_MAX_BYTES,
+  EXEC_TEAM_GIT_OUTPUT_BYTES,
   EXEC_TEAM_STATE_FILE,
   EXEC_TEAM_RUN_PREFIX,
   EXEC_TEAM_BOARD_FILE,
@@ -35,6 +37,20 @@ import type { UiText } from '../../shared/l10n/en'
 import { Usd, type UsdAmount } from '../../shared/usd'
 import { workspaceKey } from '../dataFolder'
 import type { CoreLogger } from '../../core/logging'
+import {
+  createHoldRef,
+  currentOwner,
+  isGitTimeout,
+  predictedAgentsRef,
+  pruneCleanupRef,
+  recordCleanupOwner,
+  recordCleanupRef,
+  recordHoldRef,
+  releaseHoldRef,
+  removeStaleCleanupRefs,
+  scanConflictMarkers,
+  sweepStaleTeamRuns,
+} from './execTeamRecovery'
 
 export interface ExecTeamDeps {
   readonly dataFolder: string
@@ -75,6 +91,28 @@ function invalid(reason: string): Error {
   return new Error(fill(UI_TEXT.execTeamConfigInvalid, { reason }))
 }
 
+/**
+ * RVCM96B2 P3-9: team.json failures reach the user through the translated
+ * table keys, never as raw zod or JSON text. The entry path (a key the user
+ * wrote) is spliced as the technical detail.
+ */
+function configRefusal(reason: string): Error {
+  if (reason === 'team.json is not JSON') return new Error(UI_TEXT.execTeamConfigNotJson)
+  if (reason === 'team.json holds an object') return new Error(UI_TEXT.execTeamConfigNotObject)
+  if (reason === 'team.json holds an invalid sharedFiles')
+    return new Error(fill(UI_TEXT.execTeamConfigBadEntry, { entry: 'sharedFiles' }))
+  const separator = reason.indexOf(': ')
+  const entry =
+    separator === -1
+      ? reason.replace(/^team\.json (adds an? |raises |holds an (unknown key|invalid) )/, '')
+      : reason.slice(separator + 2).trim()
+  if (reason.includes(' adds ') || reason.includes(' raises '))
+    return new Error(fill(UI_TEXT.execTeamConfigLowersOnly, { entry }))
+  return entry === reason
+    ? invalid(reason)
+    : new Error(fill(UI_TEXT.execTeamConfigBadEntry, { entry }))
+}
+
 /** Lower only the snapshot's existing caps; repository text cannot add agents. */
 async function lowerSnapshot(
   deps: ExecTeamDeps,
@@ -84,7 +122,7 @@ async function lowerSnapshot(
   const raw = await optionalText(deps, teamJsonPath(deps.cwd, deps.platform))
   if (raw === undefined) return snapshot
   const parsed = parseTeamJson(raw)
-  if (!parsed.ok) throw invalid(parsed.reason)
+  if (!parsed.ok) throw configRefusal(parsed.reason)
   const roles = Object.fromEntries(
     snapshot.roles.map((role) => {
       const measures = new Set(role.pool.flatMap((entry) => entry.caps.map((cap) => cap.measure)))
@@ -103,16 +141,34 @@ async function lowerSnapshot(
     { roles, budgets: { spendUsd: Number(deps.budgetUsd) } },
     parsed.file,
   )
-  if (!lowering.ok) throw invalid(lowering.reason)
+  if (!lowering.ok) throw configRefusal(lowering.reason)
   const budget = lowering.lowered.budgets['spendUsd']
-  if (budget !== undefined) deps.lowerWorkerCap(Usd.from(budget).toAmount())
+  if (budget !== undefined) {
+    // The file's number enters the exact decimal type directly; more than
+    // six decimals is refused in the translated table key, not in English.
+    try {
+      deps.lowerWorkerCap(Usd.from(budget).toAmount())
+    } catch {
+      throw new Error(fill(UI_TEXT.execTeamConfigBadEntry, { entry: 'budgets.spendUsd' }))
+    }
+  }
   // This host's review role is code-review. Refuse a different requirement rather than ignore it.
+  const unsupportedReviewer = Object.entries(lowering.lowered.reviewers).find(
+    ([, reviewer]) => reviewer !== 'code-review',
+  )
   if (
-    Object.values(lowering.lowered.reviewers).some((role) => role !== 'code-review') ||
+    unsupportedReviewer !== undefined ||
     (Object.keys(lowering.lowered.reviewers).length > 0 &&
       snapshot.roles.every((role) => !(role.role === 'code-review' && role.pool.length > 0)))
   )
-    throw invalid(UI_TEXT.teamTaskUnknown)
+    throw new Error(
+      fill(UI_TEXT.execTeamReviewerUnsupported, {
+        entry:
+          unsupportedReviewer === undefined
+            ? 'code-review'
+            : `roles.${unsupportedReviewer[0]}.reviewer`,
+      }),
+    )
   requireReviews(Object.keys(lowering.lowered.reviewers))
   return {
     ...snapshot,
@@ -143,6 +199,60 @@ function unavailable(tool: string): TeamToolResult {
   return { output: `Error: ${reason}`, visibleOutput: reason }
 }
 
+/**
+ * RVCM96B2 P2-6: which hold a merge takes, if any. The card's denial wins;
+ * otherwise any protected file (Windows spellings normalized, so a path
+ * POSIX git reports with backslashes still holds) takes the protected
+ * hold. Exported for tests: POSIX workers cannot produce a backslash
+ * spelling (the tool fence refuses protected writes first, on every
+ * platform), so only a unit test reaches the normalization branch here.
+ */
+export function needsMergeHold(
+  denied: 'protected' | 'review' | undefined,
+  changedFiles: readonly string[],
+): 'protected' | 'review' | undefined {
+  if (denied === 'review') return 'review'
+  if (denied === 'protected') return 'protected'
+  return changedFiles.some((name) => isProtectedPath(name.replaceAll('\\', '/')))
+    ? 'protected'
+    : undefined
+}
+
+/** The translated hold report for a kept branch: where, why, and how to end it. */
+export function heldMergeError(kind: 'protected' | 'review', ref: string): Error {
+  return new Error(
+    fill(kind === 'review' ? UI_TEXT.execTeamMergeHeldReview : UI_TEXT.execTeamMergeHeldProtected, {
+      ref,
+    }),
+  )
+}
+
+/**
+ * A refused tool call carries the tool's bounded output, never a raw dump.
+ * Falls back to the technical fallback (a ref or file name) when the tool
+ * said nothing, so no new prose is needed.
+ */
+function gitFailureDetail(error: unknown, fallback: string): string {
+  // Our own bounded-wait timeout carries no tool output: fall back to the
+  // technical name instead of leaking the timeout's English text.
+  if (isGitTimeout(error)) return fallback
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'stderr' in error &&
+    typeof error.stderr === 'string' &&
+    error.stderr.trim() !== ''
+  )
+    return error.stderr.trim().slice(0, EXEC_TEAM_GIT_OUTPUT_BYTES)
+  return error instanceof Error && error.message !== ''
+    ? error.message.slice(0, EXEC_TEAM_GIT_OUTPUT_BYTES)
+    : fallback
+}
+
+function warnRecord(log: CoreLogger, error: unknown): void {
+  log.warn(error instanceof Error ? error.message : UI_TEXT.execIncomplete)
+}
+
 export async function createExecTeam(
   deps: ExecTeamDeps,
   table: UiText,
@@ -160,11 +270,18 @@ export async function createExecTeam(
   const stateData: Record<string, unknown> = {}
   let requiredReviews: ReadonlySet<string> = new Set()
   if (raw !== undefined) {
-    const document: unknown = JSON.parse(raw)
+    // RVCM96B2 P3-9: the stored file is user data; a malformed one is
+    // refused in the translated key, never as a raw JSON or zod dump.
+    let document: unknown
+    try {
+      document = JSON.parse(raw) as unknown
+    } catch {
+      throw new Error(UI_TEXT.execTeamStateUnreadable)
+    }
     const parsed = teamSnapshotSchema.safeParse(document)
-    if (!parsed.success) throw invalid(parsed.error.message)
+    if (!parsed.success) throw new Error(UI_TEXT.execTeamStateUnreadable)
     const metadata = z.object({ template: z.optional(z.string()) }).safeParse(document)
-    if (!metadata.success) throw invalid(metadata.error.message)
+    if (!metadata.success) throw new Error(UI_TEXT.execTeamStateUnreadable)
     stateData[TEAM_WORKSPACE_KEYS.team] = {
       ...teamSnapshotSchema.parse(
         await lowerSnapshot(deps, parsed.data, (roles) => {
@@ -191,7 +308,11 @@ export async function createExecTeam(
     string,
     { taskId: string; role: TeamTaskSpec['role']; outcome: TeamWorkerOutcome }
   >()
+  // RVCM96B2 P2-6: merges the merge card denies are held, never discarded.
+  const deniedMerges = new Map<string, 'protected' | 'review'>()
   let discardCopies: (() => Promise<void>) | undefined
+  // The run's git handle for close-time reconciliation (set in prepare).
+  let teamGit: TeamGit | undefined
   const state: TeamStatePort = {
     get: (key) => stateData[key],
     update: (key, value) => {
@@ -235,8 +356,34 @@ export async function createExecTeam(
       } finally {
         try {
           await discardCopies?.()
+        } catch (error: unknown) {
+          warnRecord(deps.log, error)
         } finally {
-          if (folder !== undefined) await rm(folder, { recursive: true, force: true })
+          // RVCM96B2 P2-4: a normal end removes and clears the record.
+          // Reconcile first (discards prune as they go; this catches what
+          // they missed), then remove the folder with its ledger. Held
+          // branches are never touched; a failed removal keeps the ledger
+          // for the next run's sweep.
+          if (folder !== undefined && teamGit !== undefined) {
+            try {
+              await removeStaleCleanupRefs({
+                git: teamGit,
+                folder,
+                onError: (error) => {
+                  warnRecord(deps.log, error)
+                },
+              })
+            } catch (error: unknown) {
+              warnRecord(deps.log, error)
+            }
+          }
+          if (folder !== undefined) {
+            try {
+              await rm(folder, { recursive: true, force: true })
+            } catch (error: unknown) {
+              warnRecord(deps.log, error)
+            }
+          }
         }
       }
     }
@@ -294,8 +441,24 @@ export async function createExecTeam(
             setUiText: install,
           } = await import('../../host/team/teamHostEntry')
           install(table, locale)
-          folder = await mkdtemp(path.join(tmpdir(), EXEC_TEAM_RUN_PREFIX))
           const runGit = teamProgramFreeGit(processTeamGit(deps.platform))
+          teamGit = runGit
+          // RVCM96B2 P2-4: a later run sweeps exactly what dead runs left
+          // (folders and owned refs their ledgers name); never fail the run.
+          try {
+            await sweepStaleTeamRuns({ git: runGit })
+          } catch (error: unknown) {
+            warnRecord(deps.log, error)
+          }
+          folder = await mkdtemp(path.join(tmpdir(), EXEC_TEAM_RUN_PREFIX))
+          try {
+            await recordCleanupOwner(folder, currentOwner())
+          } catch (error: unknown) {
+            // Fail closed: without the owner record a dead run's folder is
+            // unsweepable, so remove the empty folder and refuse the run.
+            await rm(folder, { recursive: true, force: true })
+            throw error
+          }
           const ports = createEngineTeamPorts({
             repositoryRoot: () => deps.cwd,
             storageRoot: folder,
@@ -307,7 +470,11 @@ export async function createExecTeam(
             log: deps.log,
           })
           discardCopies = async () => {
-            await Promise.all(Array.from(copies.values(), (task) => ports.merges.discard(task)))
+            // Every copy gets its discard: one failure must not spare the
+            // rest (the close-time reconcile removes what this misses).
+            await Promise.allSettled(
+              Array.from(copies.values(), (task) => ports.merges.discard(task)),
+            )
             copies.clear()
           }
           service = createTeamHostService({
@@ -340,6 +507,24 @@ export async function createExecTeam(
               run: (spec, signal) =>
                 track(
                   (async () => {
+                    // RVCM96B2 P2-4: record the owned ref BEFORE the worker
+                    // starts, so a later run sweeps it when this one dies.
+                    // A failed record fails the worker, never an orphan.
+                    if (
+                      folder !== undefined &&
+                      spec.reviewOf === undefined &&
+                      spec.continueFrom?.folder === undefined
+                    ) {
+                      const ref = predictedAgentsRef(spec.role.role, spec.taskId)
+                      if (ref !== undefined) {
+                        await recordCleanupRef(folder, {
+                          repo: deps.cwd,
+                          role: spec.role.role,
+                          taskId: spec.taskId,
+                          ref,
+                        })
+                      }
+                    }
                     const outcome = await ports.workers.run(spec, signal)
                     if (outcome.folder !== undefined)
                       copies.set(spec.taskId, { taskId: spec.taskId, role: spec.role, outcome })
@@ -353,6 +538,14 @@ export async function createExecTeam(
               discard: async (task) => {
                 await ports.merges.discard(task)
                 copies.delete(task.taskId)
+                // RVCM96B2 P2-4: the run itself removed the ref; clear the record.
+                if (folder !== undefined && task.outcome?.agentsRef !== undefined) {
+                  try {
+                    await pruneCleanupRef(folder, deps.cwd, task.outcome.agentsRef)
+                  } catch (error: unknown) {
+                    warnRecord(deps.log, error)
+                  }
+                }
               },
               merge: async (task, signal) => {
                 const previous = landing
@@ -364,31 +557,108 @@ export async function createExecTeam(
                 try {
                   await previous
                   signal.throwIfAborted()
-                  if (
-                    (task.outcome.changedFiles ?? []).some((name) =>
-                      isProtectedPath(name.replaceAll('\\', '/')),
+                  // RVCM96B2 P2-6: a denied merge never destroys the finished
+                  // branch: hold its head, record the hold, and tell the
+                  // model where it is, why, and how to retry or discard.
+                  const outcome = task.outcome
+                  const outcomeFolder = outcome.folder
+                  const outcomeHead = outcome.head
+                  if (outcomeFolder === undefined || outcomeHead === undefined)
+                    throw new Error(UI_TEXT.teamTaskUnknown)
+                  const hold = needsMergeHold(
+                    deniedMerges.get(task.taskId),
+                    outcome.changedFiles ?? [],
+                  )
+                  if (hold !== undefined) {
+                    let ref: string
+                    try {
+                      ref = await createHoldRef(
+                        runGit,
+                        deps.cwd,
+                        outcomeFolder,
+                        task.role.role,
+                        task.taskId,
+                        outcomeHead,
+                      )
+                    } catch (error: unknown) {
+                      throw new Error(
+                        fill(UI_TEXT.execTeamMergeBlocked, {
+                          entry: task.taskId,
+                          detail: gitFailureDetail(error, task.taskId),
+                        }),
+                        { cause: error },
+                      )
+                    }
+                    if (folder !== undefined) {
+                      try {
+                        await recordHoldRef(folder, {
+                          repo: deps.cwd,
+                          role: task.role.role,
+                          taskId: task.taskId,
+                          ref,
+                        })
+                      } catch (error: unknown) {
+                        warnRecord(deps.log, error)
+                      }
+                    }
+                    throw heldMergeError(hold, ref)
+                  }
+                  const outcomeBase = outcome.baseCommit
+                  if (outcomeBase === undefined) throw new Error(UI_TEXT.teamTaskUnknown)
+                  // RVCM96B2 P2-5: the gate is conflict markers in the merged
+                  // result, not whitespace style: hard breaks, trailing
+                  // spaces and CRLF pass. Local, credential-free Git; every
+                  // refusal carries the bounded tool output, translated.
+                  let scan: Awaited<ReturnType<typeof scanConflictMarkers>>
+                  try {
+                    scan = await scanConflictMarkers(
+                      runGit,
+                      outcomeFolder,
+                      outcomeBase,
+                      outcomeHead,
+                      outcome.changedFiles ?? [],
                     )
-                  )
-                    throw new Error(UI_TEXT.execTeamProtectedDenied)
-                  if (task.outcome.folder === undefined) throw new Error(UI_TEXT.teamTaskUnknown)
-                  // Local, credential-free Git checks; no repository hook or paid call.
-                  await runGit(
-                    [
-                      'diff',
-                      '--check',
-                      '--no-ext-diff',
-                      '--no-textconv',
-                      task.outcome.baseCommit ?? '',
-                      task.outcome.head ?? '',
-                      '--',
-                    ],
-                    task.outcome.folder,
-                  )
+                  } catch (error: unknown) {
+                    throw new Error(
+                      fill(UI_TEXT.execTeamMergeBlocked, {
+                        entry: task.taskId,
+                        detail: gitFailureDetail(error, outcomeHead),
+                      }),
+                      { cause: error },
+                    )
+                  }
+                  if (scan.status === 'markers')
+                    throw new Error(fill(UI_TEXT.execTeamMergeMarkers, { detail: scan.detail }))
+                  if (scan.status === 'too-large')
+                    throw new Error(
+                      fill(UI_TEXT.execTeamMergeBlocked, {
+                        entry: task.taskId,
+                        detail: `${String(scan.bytes)} bytes`,
+                      }),
+                    )
                   const merged = await ports.merges.merge(task, signal, { allowProtected: false })
-                  if (merged.status === 'merged') copies.delete(task.taskId)
+                  if (merged.status === 'merged') {
+                    copies.delete(task.taskId)
+                    // RVCM96B2 P2-4: merged away; clear the record.
+                    if (folder !== undefined && task.outcome.agentsRef !== undefined) {
+                      try {
+                        await pruneCleanupRef(folder, deps.cwd, task.outcome.agentsRef)
+                      } catch (error: unknown) {
+                        warnRecord(deps.log, error)
+                      }
+                    }
+                    // RVCM96B2 P2-6 retention: a later merge of the same
+                    // task replaces its hold.
+                    try {
+                      await releaseHoldRef(runGit, deps.cwd, task.role.role, task.taskId)
+                    } catch (error: unknown) {
+                      warnRecord(deps.log, error)
+                    }
+                  }
                   deps.onWritten(merged.written)
                   return merged
                 } finally {
+                  deniedMerges.delete(task.taskId)
                   release?.()
                 }
               },
@@ -406,14 +676,18 @@ export async function createExecTeam(
                   if (item.kind === 'teamWaiting') {
                     await service.answerWaiting(item.teamWaiting.waitingId, 'cancel')
                   } else {
-                    const shouldDeny =
-                      (item.teamMerge.protectedPaths?.length ?? 0) > 0 ||
-                      (requiredReviews.has(item.teamMerge.roleId) &&
-                        item.teamMerge.review === 'not-reviewed')
-                    await service.decideMerge(
-                      item.teamMerge.taskId,
-                      shouldDeny ? 'discard' : 'merge',
-                    )
+                    // RVCM96B2 P2-6: a denied merge is held, never discarded:
+                    // stash the denial and drive the merge, whose wrapper
+                    // keeps the branch under a hold ref and tells the model.
+                    const denied =
+                      (item.teamMerge.protectedPaths?.length ?? 0) > 0
+                        ? ('protected' as const)
+                        : requiredReviews.has(item.teamMerge.roleId) &&
+                            item.teamMerge.review === 'not-reviewed'
+                          ? ('review' as const)
+                          : undefined
+                    if (denied !== undefined) deniedMerges.set(item.teamMerge.taskId, denied)
+                    await service.decideMerge(item.teamMerge.taskId, 'merge')
                   }
                 })()
                 void (async () => {
