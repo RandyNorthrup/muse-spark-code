@@ -192,7 +192,6 @@ export const usageLimitSnapshotSchema = z
     // never the secret): selection drops a row stamped for a different
     // account, so a replaced key stops using the old quota.
     observedAccount: z.optional(z.string()),
-    ),
   })
   .check(z.refine(isWithinRecordCap))
 export type UsageLimitSnapshot = z.infer<typeof usageLimitSnapshotSchema>

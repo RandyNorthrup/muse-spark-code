@@ -6,6 +6,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { EN } from '../../src/shared/l10n/en'
+import { Usd } from '../../src/shared/usd'
 import { BASE_LOCALE, setUiText } from '../../src/shared/l10n/text'
 import type { TeamTreeData, TeamWorker } from '../../src/shared/teamView'
 import { TeamTree, type TeamTreeActions } from '../../src/webview/components/TeamTree'
@@ -82,8 +83,8 @@ const tree: TeamTreeData = {
       interrupted: [],
     },
   ],
-  spentUsdToday: '1.2',
-  budgetUsdToday: '50',
+  spentUsdToday: Usd.from('1.2').toAmount(),
+  budgetUsdToday: Usd.from('50').toAmount(),
 }
 
 function actions(): TeamTreeActions {
