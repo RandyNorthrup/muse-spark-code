@@ -6007,9 +6007,11 @@ export class ModelApiSession implements ScheduledAgentSession {
       )
       let cost: UsdAmount | null = null
       let usage: { inputTokens: number; outputTokens: number } | undefined
-      const previousAccount = requests.current(kind, this.sessionId)
       this.accountLease = lease
-      if (lease.account !== previousAccount) this.approvedSearchQuote = undefined
+      // Search authorization belongs to this lease's payer, including a user
+      // selection made before the first request. The consent service owns
+      // remembered grants; a turn quote never crosses account boundaries.
+      this.approvedSearchQuote = undefined
       try {
         return await requests.within(lease, async () => {
           const grant = this.childTaskGrant
@@ -14112,7 +14114,10 @@ export class ModelApiSession implements ScheduledAgentSession {
       // The Reviewer never searches (M70): nothing to ask about.
       if (this.modelId.includes('/')) await this.resolveModel()
       turn.isWebSearchAllowed =
-        !this.isReviewing() && (await this.webSearchConsent(turn.abort.signal))
+        !this.isReviewing() &&
+        (this.deps.accountRequests !== undefined && !this.modelId.includes('/')
+          ? this.deps.isPaidFeatureOn('webSearch')
+          : await this.webSearchConsent(turn.abort.signal))
       if (
         this.deps.autoCompaction?.() === true &&
         !(this.deps.autoCompactionEvaluated?.() ?? IS_AUTO_COMPACTION_EVALUATED) &&
