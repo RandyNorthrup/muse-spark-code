@@ -8,7 +8,7 @@ import {
   renameSync,
   unlinkSync,
 } from 'node:fs'
-import { open, mkdir, lstat, rename, unlink } from 'node:fs/promises'
+import { open, mkdir, lstat, link, rename, unlink } from 'node:fs/promises'
 import pathModule from 'node:path'
 import { randomBytes } from 'node:crypto'
 import { UI_TEXT, VAULT_LIMITS } from '../../../shared/constants'
@@ -104,30 +104,64 @@ export async function writeVaultFile(
     throw error
   }
 }
-/** Cleanup only the file we created; never unlink a replacement from a competing process. */
+/** The fixed owner-only temporary an exclusive claim publishes through. */
+export const VAULT_CLAIM_PENDING_SUFFIX = '.pending'
+/**
+ * Publish the complete record, or nothing a reader can see. The bytes are
+ * written to the owner-only temporary name and synced then published with
+ * link(), which fails when the name exists: a publisher killed before the
+ * link leaves only the temporary (no reader opens it), killed after it
+ * leaves the complete record, whose provably dead holder the contender
+ * retires by rule. Never an empty or partial record (RVCM109JE P2-1).
+ * Cleanup only the file we created; never unlink a replacement from a
+ * competing process.
+ */
 export async function vaultExclusiveFile(
   path: string,
   bytes: Uint8Array,
+  onReady?: () => void | Promise<void>,
 ): Promise<() => Promise<void>> {
+  const temporary = `${path}${VAULT_CLAIM_PENDING_SUFFIX}`
   const file = await open(
-    path,
+    temporary,
     constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW,
     ownerFile,
   )
   try {
     await file.writeFile(bytes)
     await file.sync()
-  } catch (error: unknown) {
-    await file.close()
-    throw error
-  }
-  const identity = await handleIdentity(file)
-  return async () => {
+    // The physical publication boundary: the crash table parks here.
+    await onReady?.()
+    await link(temporary, path)
+    const directory = await open(pathModule.dirname(path), constants.O_RDONLY)
     try {
-      if (sameFile(identity, await lstatIdentity(path))) await unlink(path)
+      await directory.sync()
     } finally {
-      await file.close()
+      await directory.close()
     }
+    const identity = await handleIdentity(file)
+    await file.close()
+    try {
+      await unlink(temporary)
+    } catch {
+      /* The complete record is published; a leftover temporary older than a
+         contender's mutex hold is retired by its recovery rule. */
+    }
+    return async () => {
+      if (sameFile(identity, await lstatIdentity(path))) await unlink(path)
+    }
+  } catch (error: unknown) {
+    try {
+      await file.close()
+    } catch {
+      /* The publication path above already closed it. */
+    }
+    try {
+      await unlink(temporary)
+    } catch {
+      /* Never published: nothing a reader can see remains under our name. */
+    }
+    throw error
   }
 }
 export function isVaultFileMissing(error: unknown): boolean {
@@ -244,7 +278,11 @@ export interface VaultPrivateFilesPort {
   directory(path: string): Promise<void>
   read(path: string, maxBytes?: number): Promise<Buffer>
   replace(path: string, bytes: Uint8Array, authorize?: () => void): Promise<void>
-  claim(path: string, bytes: Uint8Array): Promise<() => Promise<void>>
+  claim(
+    path: string,
+    bytes: Uint8Array,
+    onReady?: () => void | Promise<void>,
+  ): Promise<() => Promise<void>>
 }
 export class UnixVaultPrivateFiles implements VaultPrivateFilesPort {
   constructor() {
@@ -262,7 +300,11 @@ export class UnixVaultPrivateFiles implements VaultPrivateFilesPort {
   async replace(path: string, bytes: Uint8Array, authorize?: () => void): Promise<void> {
     await writeVaultFile(path, bytes, authorize)
   }
-  async claim(path: string, bytes: Uint8Array): Promise<() => Promise<void>> {
-    return await vaultExclusiveFile(path, bytes)
+  async claim(
+    path: string,
+    bytes: Uint8Array,
+    onReady?: () => void | Promise<void>,
+  ): Promise<() => Promise<void>> {
+    return await vaultExclusiveFile(path, bytes, onReady)
   }
 }

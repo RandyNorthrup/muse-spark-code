@@ -43,7 +43,11 @@ class InterruptedFiles extends UnixVaultPrivateFiles {
     file: string,
     bytes: Uint8Array,
   ): Promise<Awaited<ReturnType<VaultPrivateFilesPort['claim']>>> {
-    const release = await super.claim(file, bytes)
+    // Park between the temporary write and its publication link for the
+    // writer-opened row: the production boundary, not a copy of it.
+    const release = await super.claim(file, bytes, async () => {
+      if (path.basename(file) === 'lock-epoch.writer') await point('writer-opened')
+    })
     if (path.basename(file) === 'lock-epoch.writer') await point('writer-claimed')
     return async () => {
       await release()

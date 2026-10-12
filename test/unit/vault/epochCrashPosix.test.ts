@@ -5,14 +5,18 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { build } from 'esbuild'
 import { execFileSync, spawn, type ChildProcess } from 'node:child_process'
 import { once } from 'node:events'
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, utimes, writeFile } from 'node:fs/promises'
+import { statSync } from 'node:fs'
 import path from 'node:path'
 import os from 'node:os'
 import process from 'node:process'
 import * as z from 'zod/mini'
 import { vaultPeerExecutable, vaultProcessIdentity } from '../../../src/runtime/vault/posixNative'
 import { bumpVaultEpoch } from '../../../src/runtime/vault/epochContender'
-import { UnixVaultPrivateFiles } from '../../../src/core/vault/broker/files'
+import {
+  UnixVaultPrivateFiles,
+  VAULT_CLAIM_PENDING_SUFFIX,
+} from '../../../src/core/vault/broker/files'
 import { vaultEpochWriterPath } from '../../../src/core/vault/broker/epoch'
 import { UI_TEXT } from '../../../src/shared/constants'
 
@@ -155,8 +159,84 @@ describe.skipIf(process.platform === 'win32')('POSIX epoch crash recovery', () =
       await rm(directory, { recursive: true, force: true })
     }
   })
+  it('an empty writer remnant from an older build is retired and the next starter publishes', async () => {
+    const directory = await mkdtemp(path.join(fixture.directory, 'empty-'))
+    try {
+      const files = new UnixVaultPrivateFiles()
+      await files.directory(directory)
+      // An older build wrote the record in place; a kill left zero bytes.
+      await writeFile(vaultEpochWriterPath(directory), Buffer.alloc(0), { mode: 0o600 })
+      const identity = await vaultProcessIdentity(fixture.helper, process.pid)
+      if (identity === null) throw new Error('test process disappeared')
+      const self = { processId: identity.processId, startedAt: identity.startedAt }
+      await expect(bumpVaultEpoch(fixture.helper, directory, files, self)).resolves.toBe(1)
+      await expect(readFile(vaultEpochWriterPath(directory))).rejects.toMatchObject({
+        code: 'ENOENT',
+      })
+    } finally {
+      await rm(directory, { recursive: true, force: true })
+    }
+  })
+  it('a partial writer remnant is retired and the next starter publishes', async () => {
+    const directory = await mkdtemp(path.join(fixture.directory, 'partial-'))
+    try {
+      const files = new UnixVaultPrivateFiles()
+      await files.directory(directory)
+      await writeFile(vaultEpochWriterPath(directory), '{"v":1,"processId":', { mode: 0o600 })
+      const identity = await vaultProcessIdentity(fixture.helper, process.pid)
+      if (identity === null) throw new Error('test process disappeared')
+      const self = { processId: identity.processId, startedAt: identity.startedAt }
+      await expect(bumpVaultEpoch(fixture.helper, directory, files, self)).resolves.toBe(1)
+    } finally {
+      await rm(directory, { recursive: true, force: true })
+    }
+  })
+  it('a leftover pending temporary is retired and the next starter publishes', async () => {
+    const directory = await mkdtemp(path.join(fixture.directory, 'pending-'))
+    try {
+      const files = new UnixVaultPrivateFiles()
+      await files.directory(directory)
+      await writeFile(`${vaultEpochWriterPath(directory)}${VAULT_CLAIM_PENDING_SUFFIX}`, '{"v":1', {
+        mode: 0o600,
+      })
+      const identity = await vaultProcessIdentity(fixture.helper, process.pid)
+      if (identity === null) throw new Error('test process disappeared')
+      const self = { processId: identity.processId, startedAt: identity.startedAt }
+      await expect(bumpVaultEpoch(fixture.helper, directory, files, self)).resolves.toBe(1)
+      await expect(
+        readFile(`${vaultEpochWriterPath(directory)}${VAULT_CLAIM_PENDING_SUFFIX}`),
+      ).rejects.toMatchObject({ code: 'ENOENT' })
+    } finally {
+      await rm(directory, { recursive: true, force: true })
+    }
+  })
+  it('a remnant newer than the mutex hold is never removed: the starter waits, then is refused', async () => {
+    const directory = await mkdtemp(path.join(fixture.directory, 'fresh-'))
+    try {
+      const files = new UnixVaultPrivateFiles()
+      await files.directory(directory)
+      const writer = vaultEpochWriterPath(directory)
+      await writeFile(writer, Buffer.alloc(0), { mode: 0o600 })
+      // A concurrent publication is impossible under the mutex; a newer file
+      // must therefore wait out the bounded rounds instead of being removed.
+      const future = new Date(Date.now() + 60_000)
+      await utimes(writer, future, future)
+      const identity = await vaultProcessIdentity(fixture.helper, process.pid)
+      if (identity === null) throw new Error('test process disappeared')
+      const self = { processId: identity.processId, startedAt: identity.startedAt }
+      await expect(bumpVaultEpoch(fixture.helper, directory, files, self)).rejects.toMatchObject({
+        message: UI_TEXT.vault.noAccess,
+      })
+      expect(statSync(writer).size).toBe(0)
+    } finally {
+      await rm(directory, { recursive: true, force: true })
+    }
+  })
   it.each([
     { stage: 'mutex-acquired', published: false },
+    // RVCM109JE P2-1: killed between the temporary write and its publication
+    // link. No reader-visible record exists; only the pending temporary does.
+    { stage: 'writer-opened', published: false },
     { stage: 'writer-claimed', published: false },
     { stage: 'epoch-read', published: false },
     { stage: 'epoch-written', published: true },
@@ -189,6 +269,14 @@ describe.skipIf(process.platform === 'win32')('POSIX epoch crash recovery', () =
         expect(epoch).toEqual({ v: 1, epoch: base + 2 })
         expect(await first.exited).toEqual([0, null])
         expect(await second.exited).toEqual([0, null])
+        // Nothing blocking is left: no writer record and no pending temporary
+        // remain for a later publication to trip over.
+        await expect(readFile(vaultEpochWriterPath(runDirectory))).rejects.toMatchObject({
+          code: 'ENOENT',
+        })
+        await expect(
+          readFile(`${vaultEpochWriterPath(runDirectory)}${VAULT_CLAIM_PENDING_SUFFIX}`),
+        ).rejects.toMatchObject({ code: 'ENOENT' })
       } finally {
         for (const child of [held, first, second]) {
           if (child === undefined) continue

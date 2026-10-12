@@ -9,7 +9,11 @@ import {
   VaultLockEpoch,
   type VaultEpochWriterOwner,
 } from '../../core/vault/broker/epoch'
-import { isVaultFileMissing, type VaultPrivateFilesPort } from '../../core/vault/broker/files'
+import {
+  VAULT_CLAIM_PENDING_SUFFIX,
+  isVaultFileMissing,
+  type VaultPrivateFilesPort,
+} from '../../core/vault/broker/files'
 import { UI_TEXT } from '../../shared/constants'
 import { holdVaultStartupLock, vaultProcessIdentity } from './posixNative'
 
@@ -22,14 +26,99 @@ import { holdVaultStartupLock, vaultProcessIdentity } from './posixNative'
  * what it cannot identify, never leaks EEXIST: 'retry' reclaims at once,
  * 'wait' means try again shortly, and only the caller refuses when its
  * bounded rounds run out (RVCM109JD P2-1).
+ *
+ * RVCM109JE P2-1: an empty or unparsable record (a publisher killed before
+ * its atomic publication by an older build, which wrote the record in place)
+ * is retired, but only while the kernel mutex is held — the sole caller
+ * holds it — and only when the remnant predates the hold, so a concurrent
+ * publication (impossible under the mutex) could never be removed. The same
+ * age rule retires the fixed pending temporary first, which also restores
+ * the single link a kill between publication and temporary cleanup leaves
+ * behind. Empty, partial and valid-but-dead records are all covered.
  */
+async function retireStalePending(writer: string, mutexAcquiredAt: number): Promise<void> {
+  const pending = `${writer}${VAULT_CLAIM_PENDING_SUFFIX}`
+  let sample
+  try {
+    sample = await lstat(pending)
+  } catch (error: unknown) {
+    if (isVaultFileMissing(error)) return
+    throw error
+  }
+  // Never opened by a reader; still, only an owner-only remnant older than
+  // the hold is retired. Anything else fails closed below, never deleted.
+  if (
+    sample.isSymbolicLink() ||
+    !sample.isFile() ||
+    sample.nlink !== 1 ||
+    sample.uid !== process.getuid?.() ||
+    (sample.mode & (constants.S_IRWXG | constants.S_IRWXO)) !== 0 ||
+    sample.mtimeMs > mutexAcquiredAt
+  )
+    throw new Error(UI_TEXT.vault.noAccess)
+  await unlink(pending)
+}
+
+/**
+ * Retire an empty or partial writer record left by a publisher killed before
+ * its publication. Only while the kernel mutex is held (the sole caller
+ * holds it) and only when the remnant predates the hold: a newer file waits
+ * for the bounded rounds instead of being removed.
+ */
+async function retireUnparsableWriter(
+  files: VaultPrivateFilesPort,
+  writer: string,
+  mutexAcquiredAt: number,
+): Promise<'retry' | 'wait'> {
+  let sample
+  try {
+    sample = await lstat(writer)
+  } catch (error: unknown) {
+    // Released between the read and this check: reclaim on the next round.
+    if (isVaultFileMissing(error)) return 'retry'
+    throw error
+  }
+  if (
+    sample.isSymbolicLink() ||
+    !sample.isFile() ||
+    sample.nlink !== 1 ||
+    sample.uid !== process.getuid?.() ||
+    (sample.mode & (constants.S_IRWXG | constants.S_IRWXO)) !== 0
+  )
+    throw new Error(UI_TEXT.vault.noAccess)
+  if (sample.mtimeMs > mutexAcquiredAt) return 'wait'
+  let reread: Buffer
+  try {
+    reread = await files.read(writer)
+  } catch (error: unknown) {
+    if (isVaultFileMissing(error)) return 'retry'
+    throw error
+  }
+  try {
+    vaultEpochWriterSchema.parse(JSON.parse(reread.toString('utf8')))
+    // A complete record appeared under the mutex: decide it by rule next round.
+    return 'retry'
+  } catch {
+    /* Still unparsable: the remnant below is retired. */
+  }
+  try {
+    await unlink(writer)
+  } catch (error: unknown) {
+    if (isVaultFileMissing(error)) return 'retry'
+    throw error
+  }
+  return 'retry'
+}
+
 async function settleEpochWriter(
   files: VaultPrivateFilesPort,
   helper: string,
   runDirectory: string,
   self: VaultEpochWriterOwner,
+  mutexAcquiredAt: number,
 ): Promise<'retry' | 'wait'> {
   const writer = vaultEpochWriterPath(runDirectory)
+  await retireStalePending(writer, mutexAcquiredAt)
   let raw: Buffer
   try {
     raw = await files.read(writer)
@@ -43,8 +132,7 @@ async function settleEpochWriter(
     const parsed = vaultEpochWriterSchema.parse(JSON.parse(raw.toString('utf8')))
     owner = { processId: parsed.processId, startedAt: parsed.startedAt }
   } catch {
-    // Empty (pre-identity) or foreign record: fail closed, never delete it.
-    return 'wait'
+    return await retireUnparsableWriter(files, writer, mutexAcquiredAt)
   }
   // Our own record, or a same-process sibling's: both are alive by definition.
   if (owner.processId === self.processId && owner.startedAt === self.startedAt) return 'wait'
@@ -103,6 +191,8 @@ export async function bumpVaultEpoch(
 ): Promise<number> {
   const epoch = new VaultLockEpoch(runDirectory, files, owner)
   const held = await holdVaultStartupLock(helper, path.join(runDirectory, 'lock-epoch.lock'), true)
+  // The recovery age rule retires only remnants older than this hold.
+  const mutexAcquiredAt = Date.now()
   let hasLostLock = false
   held.onLost(() => {
     hasLostLock = true
@@ -119,7 +209,7 @@ export async function bumpVaultEpoch(
         if (!(error instanceof Error && 'code' in error && error.code === 'EEXIST')) throw error
         if (round + 1 >= EPOCH_WRITER_SETTLE_ROUNDS)
           throw new Error(UI_TEXT.vault.noAccess, { cause: error })
-        const settled = await settleEpochWriter(files, helper, runDirectory, owner)
+        const settled = await settleEpochWriter(files, helper, runDirectory, owner, mutexAcquiredAt)
         if (settled === 'wait') await delay(EPOCH_WRITER_SETTLE_WAIT_MS)
       }
     }
