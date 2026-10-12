@@ -492,3 +492,119 @@ worktree-host edit is a comment.
   lane logic runs. Untouched by this lane (no MCP, socket or worker-shell
   code in the diff). The lead runs it outside the sandbox.
 - Browser suites were never selected (MacBook rule).
+
+## Round 5 — the agent packs again: locale key order matches English (TOOLROUNDSR5)
+
+`scripts/package-acp.mjs` exits 1 on this branch because
+`scripts/check-l10n.mjs --packaged-acp` reports
+`packaged l10n/ui.<locale>.json: differs from source` for all 14 locales, so
+`npm pack` of the agent fails. The values are all correct; only the key
+order differs. The UI archive stores values in the English layout
+(`tableLayout(EN)` in `scripts/lib/packedL10n.mjs`) and the reader restores
+the English order (`reorder(EN, …)` in `src/shared/l10n/tableArchive.ts`),
+so the decoded table is always in English order while the locale files kept
+this lane's added keys where rounds 2–4 appended them. The packaged gate
+compares `JSON.stringify(shipped)` with `JSON.stringify(source)`, which is
+order-sensitive, so a misordered locale file can never match.
+
+Why source mode missed it: there was no order rule to fire. `tableProblems`
+(`src/shared/l10n/check.ts`) checked keys, slots, plural forms, markup and
+untranslated text, but never key order — the packaged stringify comparison
+was the only order-sensitive check, and a sandbox cannot run `npm pack`.
+That is the class defect, not a broken rule beside which a second one was
+added.
+
+### The fix
+
+`tableProblems` now requires the English key order at every group level
+when `isStrict` is set, reporting the first misordered key per level as
+`<path>: out of order; it must follow "<predecessor>" in the English
+table`. Both gate modes already call `tableProblems` strictly
+(`checkTables` for source, `checkPackaged` for the archive), so the one
+comparison governs both and they cannot drift again. All runtime callers
+(`src/host/l10n.ts`, `src/webview/installTable.ts`,
+`src/runtime/reporting/reportsEntry.ts`, `src/shared/l10n/usageTable.ts`,
+`src/shared/l10n/vaultEnglish.ts`) use `isStrict: false` and are
+unchanged; plural-form internals are one packed value and keep the file's
+own order, exactly as the pack pipeline treats them. Usage tables and
+`package.nls.<locale>.json` go through the same strict function, but their
+package-time comparison stores them verbatim (JSON round-trip preserves
+order), so order never broke their packaging; they are covered by the same
+rule for uniformity, and all 14 `package.nls` files were already in order.
+
+All 28 locale files were reordered by a script (kept outside the repo: it
+derives the order from `EN`/`USAGE_EN` through `scripts/lib/l10nSource.mjs`,
+the same source `packRuntimeArchive` uses; values untouched, plural leaves
+verbatim, canonical 2-space JSON asserted per file before writing). Pair
+counts (dotted path → value), identical before and after:
+
+| Family | zh-cn | zh-tw | ja   | ko   | de   | fr   | es   | pt-br | ru   | it   | tr   | pl   | cs   | hu   |
+| ------ | ----- | ----- | ---- | ---- | ---- | ---- | ---- | ----- | ---- | ---- | ---- | ---- | ---- | ---- |
+| ui     | 4630  | 4630  | 4630 | 4630 | 4786 | 4942 | 4942 | 4942  | 5098 | 4942 | 4786 | 5098 | 5098 | 4786 |
+| usage  | 190   | 190   | 190  | 190  | 202  | 214  | 214  | 214   | 226  | 214  | 202  | 226  | 226  | 202  |
+
+(Counts differ per locale because plural categories expand per language.)
+
+Older keys out of order too: yes — every `l10n/usage.<locale>.json` had
+`deleteHistory` before `readOnlyActions` (predates this lane), fixed the
+same way in the same pass. Every `l10n/ui.<locale>.json` had exactly the
+two diffs from this lane (top-level `execRequestCapReached` block after
+`modelApiWrapUpHookBlocked`; `agentStopReasons.error` after `limit`) and no
+older disorder. `node ~/lanes/_ctx/codex/l10n-pack-diag.mjs` prints
+`equal=true`, 2966/2966 keys, 0 value diffs for all 14 locales.
+
+### Tests
+
+- `test/unit/l10n.test.ts`: order-rule cases (top level, nested, each with
+  its sentence; non-strict ignores order; missing keys compare over the
+  intersection). Red before the rule (2 failed, 27 passed), green after
+  (29 passed).
+- New `test/unit/l10nPackParity.test.mjs`: packs the real tables with
+  `packRuntimeArchive` into a temp folder (regions generated from the
+  canonical `EN`, as `vsixPackaging` does for CI, which has no `dist/`) and
+  proves every decoded table equals its source, one line per locale on
+  failure. Red on the unordered tree (14 failed), green after the reorder
+  (14 passed). The temp write works in this sandbox
+  (`os.tmpdir()`); no part was left for the lead on those grounds. Setup
+  carries `PACK_SETUP_TIMEOUT_MS` (30 s; 7.1 s measured packing at
+  production brotli quality on macbook) with a `PLAN.md` §8 row; the
+  assertions stay on the default deadline, and the final run uses the
+  repository's own timeout.
+- `test/unit/vsixPackaging.test.mjs` 95/95, including the order-sensitive
+  `round-trips %s byte-exact` cases.
+
+### Round-5 drill ledger
+
+| Drill | Break                                                          | Named test fails                                                                                                                                                              | Restore                                           |
+| ----- | -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
+| D15   | `agentStopReasons.limit` moved to the end in `l10n/ui.de.json` | `npm run check:l10n`: `l10n/ui.de.json: agentStopReasons.error: out of order; it must follow "limit" in the English table` (1 problem); `l10nPackParity`: 1 failed, 13 passed | Byte-exact (SHA-256 `9076a5b0…` before and after) |
+
+### Round-5 verification
+
+Ran on macbook at repo default timeouts, `--maxWorkers=3`, one command at
+a time: `check:l10n` 0 problems; `l10n` (29), `l10nPackParity` (14),
+`l10nPacked`, `usageL10nTables`, `mediaLocalization`,
+`usageL10nGate`, `hostL10n`, `installTable`, `questionStrings`,
+`teamSchedulerText`, `teamConstants`, `teamTables`, `providersL10n`,
+`usageTable`, `browserUiText`, `uiTextRegions`, `reportStrings`,
+`reportsEntry`, `providersXFix`, `vsixPackaging` (95) — all green.
+Typechecks `unit`, `host`, `webview` pass; ESLint and prettier clean on
+every changed file. `npm run build` exits 0 with all size/split gates
+green.
+
+Bundle rows in exact bytes (production build of `df7b7a44b` in temp space
+vs this lane): `dist/extension.js` 564075 → 564496 (+421),
+`dist/reporting.js` 149573 → 149994 (+421), `dist/acp.js` 241039 →
+241460 (+421), `dist/usageCompanion.js` 42914 → 43335 (+421),
+`dist/usageService.js` 92470 → 92891 (+421), `dist/usagePanel.js` 73747 →
+74168 (+421), the webview `installTable` chunk `ET252KUF.js` 2296 →
+`E66EXWA4.js` 2715 (+419; the name is the content hash). Everything else is
+byte-identical, including `dist/modelApi.js` (536119, SHA-256 `6f4308db…`
+both sides) and `dist/uiText.js` (97368): the locale reorder is data only.
+
+- NOT RUN HERE: `test/e2e/execStdio.e2e.test.ts` (the lead reruns it
+  outside the sandbox); `test/unit/usagePackaging.test.mjs`'s
+  `ships the service … in the actual tarball` (its nested `npm pack`
+  dies writing `/Users/user/.npm/_logs`, denied by this sandbox before
+  any lane code runs; the other 11 pass); browser suites were never
+  selected (MacBook rule).
