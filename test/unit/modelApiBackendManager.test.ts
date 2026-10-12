@@ -746,3 +746,37 @@ it('hands the host usage kind to the provider client factory (worker for team wo
     await m.manager.dispose()
   }
 })
+
+it('keeps team trust out of the activation bundle: no isTeamTrusted reaches the lazy host (P1-1)', async () => {
+  // RVCM96B2 P1-1: the worker trust override lives behind the lazy boundary
+  // (ModelApiHost.setTeamTrusted, set by the headless runtime). The
+  // always-loaded manager forwards no isTeamTrusted key of its own, and a
+  // worker host keeps the manager's own workspace trust.
+  const create = vi.spyOn(modelApiEntry, 'createModelApiHost')
+  const m = manager('/ws')
+  try {
+    await m.manager.ensureHost()
+    const worker = await m.manager.buildTeamWorkerHost(
+      '/copy',
+      () => undefined,
+      () => undefined,
+      undefined,
+      (io) => io,
+    )
+    try {
+      expect(create.mock.calls.length).toBeGreaterThanOrEqual(2)
+      for (const call of create.mock.calls) {
+        expect(call[0].host).not.toHaveProperty('isTeamTrusted')
+      }
+      const windowDeps = create.mock.calls[0]?.[0].host
+      const workerDeps = create.mock.calls.at(-1)?.[0].host
+      expect(workerDeps?.usageKind).toBe('worker')
+      expect(workerDeps?.isWorkspaceTrusted).toBe(windowDeps?.isWorkspaceTrusted)
+    } finally {
+      await worker.close()
+    }
+  } finally {
+    await m.manager.dispose()
+    create.mockRestore()
+  }
+})
