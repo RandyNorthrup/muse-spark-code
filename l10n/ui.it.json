@@ -3528,6 +3528,18 @@
   "execPaidNeedsEdits": "La generazione di immagini richiede acceptEdits.",
   "execModelApiOnly": "Queste opzioni richiedono il backend Model API.",
   "execTeamNeedsEdits": "--team richiede --permission-mode acceptEdits.",
+  "execTeamWorkerUnsupported": "I team senza interfaccia eseguono solo worker del motore; {kind} non può essere eseguito in CI.",
+  "execTeamConfigInvalid": "Configurazione del team senza interfaccia non valida: {reason}.",
+  "execTeamConfigNotJson": "team.json non è JSON.",
+  "execTeamConfigNotObject": "team.json deve contenere un singolo oggetto.",
+  "execTeamConfigLowersOnly": "La voce {entry} di team.json non è consentita: il file dell’area di lavoro può solo abbassare i limiti esistenti.",
+  "execTeamConfigBadEntry": "La voce {entry} di team.json non è valida.",
+  "execTeamStateUnreadable": "Impossibile leggere il team headless archiviato; controllare il file del team dell’area di lavoro.",
+  "execTeamReviewerUnsupported": "team.json richiede il revisore {entry}; questo runner offre solo la revisione del codice.",
+  "execTeamMergeMarkers": "Il ramo mostra ancora marcatori di conflitto in {detail}; risolvili e unisci di nuovo.",
+  "execTeamMergeHeldProtected": "I percorsi protetti richiedono approvazione, quindi il ramo è trattenuto in {ref}. Approvali e unisci di nuovo, oppure rimuovi {ref} per scartare il lavoro.",
+  "execTeamMergeHeldReview": "La revisione richiesta non è completa, quindi il ramo è trattenuto in {ref}. Raccogli la revisione e unisci di nuovo, oppure rimuovi {ref} per scartare il lavoro.",
+  "execTeamMergeBlocked": "L'unione non può procedere per l'attività {entry}: {detail}.",
   "execMuseCodeOnly": "Queste opzioni richiedono il backend Muse Code.",
   "execModelUnpriced": "Questo modello non ha una tariffa nota.",
   "execPromptMissing": "Fornisci un’unica istruzione non vuota.",
@@ -5394,17 +5406,5 @@
       "other": "{count} autorizzazioni",
       "many": "{count} autorizzazioni"
     }
-  },
-  "execTeamWorkerUnsupported": "I team senza interfaccia eseguono solo worker del motore; {kind} non può essere eseguito in CI.",
-  "execTeamConfigInvalid": "Configurazione del team senza interfaccia non valida: {reason}.",
-  "execTeamConfigNotJson": "team.json non è JSON.",
-  "execTeamConfigNotObject": "team.json deve contenere un singolo oggetto.",
-  "execTeamConfigLowersOnly": "La voce {entry} di team.json non è consentita: il file dell’area di lavoro può solo abbassare i limiti esistenti.",
-  "execTeamConfigBadEntry": "La voce {entry} di team.json non è valida.",
-  "execTeamStateUnreadable": "Impossibile leggere il team headless archiviato; controllare il file del team dell’area di lavoro.",
-  "execTeamReviewerUnsupported": "team.json richiede il revisore {entry}; questo runner offre solo la revisione del codice.",
-  "execTeamMergeMarkers": "Il ramo mostra ancora marcatori di conflitto in {detail}; risolvili e unisci di nuovo.",
-  "execTeamMergeHeldProtected": "I percorsi protetti richiedono approvazione, quindi il ramo è trattenuto in {ref}. Approvali e unisci di nuovo, oppure rimuovi {ref} per scartare il lavoro.",
-  "execTeamMergeHeldReview": "La revisione richiesta non è completa, quindi il ramo è trattenuto in {ref}. Raccogli la revisione e unisci di nuovo, oppure rimuovi {ref} per scartare il lavoro.",
-  "execTeamMergeBlocked": "L'unione non può procedere per l'attività {entry}: {detail}."
+  }
 }

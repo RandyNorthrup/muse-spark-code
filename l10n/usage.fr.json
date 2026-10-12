@@ -40,12 +40,21 @@
     "other": "L’export CSV par appel n’est disponible que pour {count} jours écoulés."
   },
   "exportComplete": "Utilisation exportée.",
+  "exportTooLarge": "Cette exportation est trop volumineuse pour le navigateur. Choisissez une période plus courte ou exportez avec la CLI.",
+  "exportBound": "Les exportations du navigateur sont limitées à {limit}, encodage JSON compris.",
+  "editorActionsUnavailable": "Cette page ne peut pas ouvrir les paramètres de l’éditeur, afficher le dossier d’historique ni modifier les prix des modèles. Utilisez les paramètres de l’éditeur et les commandes Modèles et agents. La lecture, les filtres, les graphiques et les exportations restent disponibles ici.",
+  "readOnlyActions": "Cette interface textuelle est en lecture seule. Ouvrez la page compagnon pour les graphiques, la gestion de l’historique et les téléchargements.",
   "deleteHistory": "Supprimer l’historique d’utilisation…",
   "deleteTitle": "Supprimer l’historique d’utilisation ?",
   "deleteConfirm": {
     "one": "Supprimer {count} enregistrement d’utilisation sur cette machine ? Les journaux de dépenses et les autorisations accordées sont conservés.",
     "many": "Supprimer {count} d’enregistrements d’utilisation sur cette machine ? Les journaux de dépenses et les autorisations accordées sont conservés.",
     "other": "Supprimer {count} enregistrements d’utilisation sur cette machine ? Les journaux de dépenses et les autorisations accordées sont conservés."
+  },
+  "deleteConfirmResources": {
+    "one": "Cela supprime aussi {count} entrée de l’historique des ressources.",
+    "many": "Cela supprime aussi {count} entrées de l’historique des ressources.",
+    "other": "Cela supprime aussi {count} entrées de l’historique des ressources."
   },
   "deleteAction": "Supprimer l’historique",
   "deleteComplete": "Historique d’utilisation supprimé.",
@@ -222,14 +231,5 @@
   "sortAscending": "Tri croissant",
   "sortDescending": "Tri décroissant",
   "retentionNote": "Le détail par appel est conservé {detailDays} jours ; les récapitulatifs quotidiens, {historyDays} jours.",
-  "privacyNote": "L’historique reste sur cette machine. Il ne contient ni invites, ni réponses, ni arguments d’outils, ni chemins, ni clés.",
-  "exportTooLarge": "Cette exportation est trop volumineuse pour le navigateur. Choisissez une période plus courte ou exportez avec la CLI.",
-  "exportBound": "Les exportations du navigateur sont limitées à {limit}, encodage JSON compris.",
-  "editorActionsUnavailable": "Cette page ne peut pas ouvrir les paramètres de l’éditeur, afficher le dossier d’historique ni modifier les prix des modèles. Utilisez les paramètres de l’éditeur et les commandes Modèles et agents. La lecture, les filtres, les graphiques et les exportations restent disponibles ici.",
-  "readOnlyActions": "Cette interface textuelle est en lecture seule. Ouvrez la page compagnon pour les graphiques, la gestion de l’historique et les téléchargements.",
-  "deleteConfirmResources": {
-    "one": "Cela supprime aussi {count} entrée de l’historique des ressources.",
-    "many": "Cela supprime aussi {count} entrées de l’historique des ressources.",
-    "other": "Cela supprime aussi {count} entrées de l’historique des ressources."
-  }
+  "privacyNote": "L’historique reste sur cette machine. Il ne contient ni invites, ni réponses, ni arguments d’outils, ni chemins, ni clés."
 }

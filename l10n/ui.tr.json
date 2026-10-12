@@ -3455,6 +3455,18 @@
   "execPaidNeedsEdits": "Görsel üretimi için acceptEdits gerekir.",
   "execModelApiOnly": "Bu seçenekler Model API arka ucunu gerektirir.",
   "execTeamNeedsEdits": "--team, --permission-mode acceptEdits gerektirir.",
+  "execTeamWorkerUnsupported": "Arayüzsüz ekipler yalnızca motor çalışanlarını çalıştırır; {kind} CI ortamında çalışamaz.",
+  "execTeamConfigInvalid": "Arayüzsüz ekip yapılandırması geçersiz: {reason}.",
+  "execTeamConfigNotJson": "team.json JSON değil.",
+  "execTeamConfigNotObject": "team.json tek bir nesne içermelidir.",
+  "execTeamConfigLowersOnly": "{entry} team.json girdisine izin verilmez: çalışma alanı dosyası yalnızca mevcut sınırları düşürebilir.",
+  "execTeamConfigBadEntry": "{entry} team.json girdisi geçersiz.",
+  "execTeamStateUnreadable": "Saklanan headless ekip okunamıyor; çalışma alanı ekip dosyasını denetleyin.",
+  "execTeamReviewerUnsupported": "team.json {entry} incelemecisini gerektiriyor; bu çalıştırıcı yalnızca kod incelemesi sunar.",
+  "execTeamMergeMarkers": "Dalda {detail} konumunda hâlâ çakışma işaretleri var; bunları çözüp yeniden birleştirin.",
+  "execTeamMergeHeldProtected": "Korumalı yollar onay gerektirir, bu yüzden dal {ref} konumunda bekletiliyor. Onaylayıp yeniden birleştirin ya da çalışmayı atmak için {ref} öğesini kaldırın.",
+  "execTeamMergeHeldReview": "Gerekli inceleme tamamlanmadı, bu yüzden dal {ref} konumunda bekletiliyor. İncelemeyi toplayıp yeniden birleştirin ya da çalışmayı atmak için {ref} öğesini kaldırın.",
+  "execTeamMergeBlocked": "{entry} görevi için birleştirme devam edemiyor: {detail}.",
   "execMuseCodeOnly": "Bu seçenekler Muse Code arka ucunu gerektirir.",
   "execModelUnpriced": "Bu modelin bilinen tarifesi yok.",
   "execPromptMissing": "Boş olmayan tek bir istem belirtin.",
@@ -5241,17 +5253,5 @@
       "one": "{count} izin",
       "other": "{count} izin"
     }
-  },
-  "execTeamWorkerUnsupported": "Arayüzsüz ekipler yalnızca motor çalışanlarını çalıştırır; {kind} CI ortamında çalışamaz.",
-  "execTeamConfigInvalid": "Arayüzsüz ekip yapılandırması geçersiz: {reason}.",
-  "execTeamConfigNotJson": "team.json JSON değil.",
-  "execTeamConfigNotObject": "team.json tek bir nesne içermelidir.",
-  "execTeamConfigLowersOnly": "{entry} team.json girdisine izin verilmez: çalışma alanı dosyası yalnızca mevcut sınırları düşürebilir.",
-  "execTeamConfigBadEntry": "{entry} team.json girdisi geçersiz.",
-  "execTeamStateUnreadable": "Saklanan headless ekip okunamıyor; çalışma alanı ekip dosyasını denetleyin.",
-  "execTeamReviewerUnsupported": "team.json {entry} incelemecisini gerektiriyor; bu çalıştırıcı yalnızca kod incelemesi sunar.",
-  "execTeamMergeMarkers": "Dalda {detail} konumunda hâlâ çakışma işaretleri var; bunları çözüp yeniden birleştirin.",
-  "execTeamMergeHeldProtected": "Korumalı yollar onay gerektirir, bu yüzden dal {ref} konumunda bekletiliyor. Onaylayıp yeniden birleştirin ya da çalışmayı atmak için {ref} öğesini kaldırın.",
-  "execTeamMergeHeldReview": "Gerekli inceleme tamamlanmadı, bu yüzden dal {ref} konumunda bekletiliyor. İncelemeyi toplayıp yeniden birleştirin ya da çalışmayı atmak için {ref} öğesini kaldırın.",
-  "execTeamMergeBlocked": "{entry} görevi için birleştirme devam edemiyor: {detail}."
+  }
 }
