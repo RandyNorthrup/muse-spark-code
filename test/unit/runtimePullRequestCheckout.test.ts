@@ -20,7 +20,7 @@ import { hostname as hostnameOf, tmpdir } from 'node:os'
 import path from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import { fileURLToPath } from 'node:url'
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { resolveExecutable } from '../../src/core/executables'
 import { fileIdentityKey } from '../../src/core/fs/fileIdentity'
 import { isSamePath } from '../../src/core/paths'
@@ -81,6 +81,13 @@ import { fakeRuntimeGitDeps, fakeTokenSource } from './helpers/github/fakes'
 import { createFixtureRepositories, type FixtureRepositories } from './helpers/github/repositories'
 
 import * as launcher from '../../src/core/resources/launcher'
+import * as admission from '../../src/core/resources/admission'
+import { fakeResourceLease } from './helpers/resources/fakes'
+import type { ResourceProcessLaunch } from '../../src/core/resources/launch'
+import { fixtureRuntimeAdmission } from './helpers/runtimeAdmission'
+import { redactSecrets } from '../../src/core/redact'
+import { GIT_STDERR_MAX_CHARS } from '../../src/shared/constants'
+vi.mock('../../src/core/resources/admission', { spy: true })
 const CANARY = 'm123p-checkout-canary'
 const OWN = { owner: 'RandyNorthrup', name: 'muse-spark-code' }
 const OWN_PULLS = '/repos/RandyNorthrup/muse-spark-code/pulls/56'
@@ -2154,7 +2161,8 @@ describe('the git dispatch gate (M123 lane P)', () => {
   })
 })
 
-/** Real-Git fixture port: synchronous final gate, no machine-pressure policy. */
+/** Recording-only port: used by the two launch-count cases below to observe
+ * the synchronous caller gate. All other real-Git cases use the production port. */
 const directGitProcesses: GitProcessPort = {
   run: (file, args, options) =>
     new Promise<string>((resolve, reject) => {
@@ -2175,8 +2183,10 @@ afterEach(() => vi.restoreAllMocks())
 describe('runtime pull request checkout on the fixture repositories (M123 lane P)', () => {
   let fixtures: FixtureRepositories
   let gitPath: string
+  let disposeAdmission: (() => Promise<void>) | undefined
 
   beforeAll(async () => {
+    if (process.platform === 'win32') disposeAdmission = await fixtureRuntimeAdmission()
     fixtures = createFixtureRepositories(await mkdtemp(path.join(tmpdir(), 'm123p-fixtures-')))
     const resolved = resolveExecutable('git', {
       platform: process.platform,
@@ -2187,6 +2197,89 @@ describe('runtime pull request checkout on the fixture repositories (M123 lane P
       throw new Error('git is not on PATH')
     }
     gitPath = resolved
+  })
+
+  afterAll(async () => {
+    await disposeAdmission?.()
+  })
+
+  beforeEach(() => {
+    // Fake only machine pressure, never the production launcher, collector or
+    // streams. Every POSIX lease stops the real owned group on Cancel/exit.
+    vi.mocked(admission.admitResource).mockImplementation(() => {
+      const lease = fakeResourceLease()
+      let pid: number | undefined
+      const register = vi.fn((launch: ResourceProcessLaunch) => {
+        pid = launch.pid
+      })
+      lease.kill.mockImplementation(() => {
+        if (pid !== undefined && process.platform !== 'win32') {
+          try {
+            process.kill(-pid, 'SIGKILL')
+          } catch (error: unknown) {
+            if (!(error instanceof Error && 'code' in error && error.code === 'ESRCH')) throw error
+          }
+        }
+        return Promise.resolve(true)
+      })
+      return Promise.resolve({ ...lease, register })
+    })
+  })
+
+  it.each(['remote', 'taken worktree', 'missing ref'] as const)(
+    'preserves execFile diagnostics for a real git failure: %s',
+    async (failure) => {
+      const taken = await mkdtemp(path.join(tmpdir(), 'm123p-taken-'))
+      writeFileSync(path.join(taken, 'kept'), FOREIGN_TEXT)
+      const args = {
+        remote: ['fetch', 'no-such-remote', 'refs/pull/51/head'],
+        'taken worktree': ['worktree', 'add', '--detach', taken, 'HEAD'],
+        'missing ref': ['rev-parse', '--verify', 'no-such-ref^{commit}'],
+      }[failure]
+      const options = {
+        cwd: fixtures.fork,
+        env: quietPullRequestEnvironment(fixtures.environment),
+        signal: new AbortController().signal,
+        timeout: 1000,
+        maxBuffer: 10_000,
+        beforeSpawn: () => undefined,
+      }
+      const baseline = await new Promise<Error>((resolve, reject) => {
+        execFile(gitPath, args, { ...options, encoding: 'utf8' }, (error) => {
+          if (error instanceof Error) resolve(error)
+          else reject(new Error('The baseline failure unexpectedly succeeded'))
+        })
+      })
+      const result = await settled(nodeGitProcesses.run(gitPath, args, options))
+      expect(result).toBeInstanceOf(Error)
+      if (!(result instanceof Error)) throw new Error('Expected governed Git failure')
+      expect(result.message).toBe(redactSecrets(baseline.message).slice(0, GIT_STDERR_MAX_CHARS))
+    },
+  )
+
+  it('runs real fixture git through production launch, output and batch streams by default', async () => {
+    const commands = vi.spyOn(launcher, 'execResourceFile')
+    const batches = vi.spyOn(launcher, 'spawnResourceProcess')
+    const setup = await fixtureSetup('held')
+    await heldOpen(setup.checkout, FORK_REMOTES, setup.dataFolder)
+    expect(commands).toHaveBeenCalledWith(
+      'contained',
+      gitPath,
+      expect.arrayContaining(['fetch']),
+      expect.any(Object),
+    )
+    expect(commands).toHaveBeenCalledWith(
+      'probe',
+      gitPath,
+      expect.arrayContaining(['ls-tree']),
+      expect.any(Object),
+    )
+    expect(batches).toHaveBeenCalledWith(
+      'probe',
+      gitPath,
+      expect.arrayContaining(['cat-file', '--batch']),
+      expect.any(Object),
+    )
   })
 
   function git(cwd: string, ...args: string[]): string {
@@ -2271,7 +2364,7 @@ describe('runtime pull request checkout on the fixture repositories (M123 lane P
         log,
         ...(options.batchDeadlineMs !== undefined && { batchDeadlineMs: options.batchDeadlineMs }),
         ...(options.createFile !== undefined && { createFile: options.createFile }),
-        processes: options.processes ?? directGitProcesses,
+        ...(options.processes !== undefined && { processes: options.processes }),
       }),
       pathExists: (fsPath) => existsSync(fsPath),
     } satisfies RuntimeCheckoutDeps)
@@ -2392,7 +2485,7 @@ describe('runtime pull request checkout on the fixture repositories (M123 lane P
       platform: process.platform,
       signal: new AbortController().signal,
       log: recordingLogger(),
-      processes: processes ?? directGitProcesses,
+      ...(processes !== undefined && { processes }),
     })
   }
 
@@ -2814,6 +2907,37 @@ describe('runtime pull request checkout on the fixture repositories (M123 lane P
 })
 
 describe('checkout profile selection and final gate', () => {
+  it.each([
+    '',
+    'fatal: unavailable',
+    `password=synthetic-secret ${'x'.repeat(GIT_STDERR_MAX_CHARS)}`,
+  ])(
+    'keeps bounded redacted diagnostics, with a fallback only for empty stderr: %s',
+    async (stderr) => {
+      const error = Object.assign(new Error('Governed command failed'), { stderr, code: 128 })
+      vi.spyOn(launcher, 'execResourceFile').mockRejectedValue(error)
+      const result = await settled(
+        nodeGitProcesses.run('fixture-git', ['fetch', 'origin'], {
+          cwd: tmpdir(),
+          env: {},
+          signal: new AbortController().signal,
+          timeout: 1000,
+          maxBuffer: 10_000,
+          beforeSpawn: () => undefined,
+        }),
+      )
+      const expected =
+        stderr === ''
+          ? 'Governed command failed'
+          : redactSecrets(`Command failed: fixture-git fetch origin\n${stderr}`).slice(
+              0,
+              GIT_STDERR_MAX_CHARS,
+            )
+      expect(result).toMatchObject({ message: expected, code: 128 })
+      expect(expected).not.toContain('synthetic-secret')
+      expect(expected.length).toBeLessThanOrEqual(GIT_STDERR_MAX_CHARS)
+    },
+  )
   it.each([
     [['config', '--get', 'remote.origin.url'], 'probe'],
     [['config', 'remote.origin.url', 'changed'], 'contained'],

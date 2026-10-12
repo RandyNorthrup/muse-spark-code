@@ -349,3 +349,68 @@ in checkout; localization passes. The full integrated run remains lead-owned.
 Service source is byte-identical to d4b06c62b after undoing only the wrapper
 rename; processOwner source is byte-identical. The restored pinned test's
 byte proof and all six SHA-256 restoration drills are above.
+
+## Round 3 — RVSPAWNM123B findings 1 and 2 (2026-10-11, Kubuntu)
+
+The launcher hook order, host Git runner and checkout gate calls are untouched.
+`failureText` reconstructs execFile’s command/standard-error diagnostic from
+the governed failure, preserves its exit/max-buffer code, redacts before the
+existing `GIT_STDERR_MAX_CHARS` display bound, and remains the single helper
+used at all thirteen checkout error boundaries. With no stderr, the governed
+failure retains its fixed fallback. The base checkout did not impose a separate
+display cap: execFile bounded its stderr with `maxBuffer`; ordinary diagnostics
+are byte-identical, while oversized displayed diagnostics now use the existing
+shared Git stderr cap after redaction. Three real failures compare the same
+commands and environments against Node’s execFile (d4b06c62b’s implementation):
+missing remote, taken worktree and missing ref. All compare equal.
+
+Fixture repositories default to `nodeGitProcesses` again. Only the two cases
+that count synchronous caller launches keep `directGitProcesses`, explicitly
+documented at its definition. Admission is faked per process; its POSIX lease
+records the actual PID and kills the owned group, tolerating only ESRCH. The
+production launcher, stdout/stderr collector, exit codes and batch streams run
+real git. Windows fixture setup prepares the real helper once before tests.
+
+The earlier record’s “16 failures” was an undiagnosed aggregate, and its
+original individual receipts are not retained. It is superseded by this
+controlled reproduction and the complete green replay, not accepted as an
+environmental exception. Removing admission setup now gives 17 failures:
+four new route/diagnostic checks plus thirteen existing fixture cases. An
+unconfigured governed launch fails before git or the claimed folder; higher
+checkout layers consequently show version/configuration refusal, never reach
+the claim/cancellation injection, or leave takeover barriers waiting until the
+repository’s five-second test deadline. The group-stop fake also must kill
+the actual group, rather than report success without stopping it. The sixteen
+original real-Git fixture scenarios are accounted for below; no case’s deadline
+or assertion is weakened.
+
+| Existing fixture scenario          | Failure class exposed by missing setup; final repair                                                       |
+| ---------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| Cancel after first file            | Fetch refused before the file/cancel trigger; real admission and group stop reach cleanup                  |
+| Writer past batch deadline         | No writer reached, barrier times out; real batch streams reach writer and bounded drain                    |
+| Own pull request                   | Fetch refused; production fetch/add now succeed                                                            |
+| Destination populated before claim | Git/version refused before claim; claim now rejects HeldFolderTakenError                                   |
+| Worktree replaced during checkout  | Git/version refused before swap; production git reaches gate and preserves foreign folder                  |
+| Foreign file dropped before add    | Add gate never reached; production add reaches gate and leaves foreign file                                |
+| Reservation refused at add         | Version refusal masks reservation; real route preserves ReservationLostError                               |
+| Claim refused                      | Version refusal masks claim; real route preserves ReservationLostError                                     |
+| Destination already present        | Version refusal masks claim; real route preserves HeldFolderTakenError                                     |
+| Failed held checkout cleanup       | Version refusal masks injected cancellation; real route removes only its own tree                          |
+| Fetch/batch cancel                 | Cancellation already bypasses admission; unchanged abort assertions pass                                   |
+| Held checkout byte for byte        | Fetch refused; real batch/output paths now complete byte for byte                                          |
+| Every git immediately after gate   | Recording port intentionally observes caller launches; production final-hook cases remain in spawnProfiles |
+| No git after gate refusal          | Recording port intentionally counts launches; refusal assertions retained                                  |
+| Trust revoked during claim         | Claim never reached; production path reaches revocation and starts no later git                            |
+| Delayed takeover after claim       | Claim not reached, takeover barriers time out; production route completes both windows with no orphan      |
+
+Red drills, full suite at repository deadlines (no test filtering):
+
+| Drill                                | Named failing regression                                                                                        | Byte-exact restore SHA-256                                         |
+| ------------------------------------ | --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| Remove command/stderr reconstruction | Three `preserves execFile diagnostics for a real git failure` cases and two bounded/redacted cases (5 failures) | `8049ed36f4b07a9089e6767ffc1433970f9b22e949fcabf98fd6e2bc9f685f0b` |
+| Reinstate direct fixture defaults    | `runs real fixture git through production launch, output and batch streams by default` (1 failure)              | `3c21697e094c6e21281c9a8c2550e59f860587dca00daf0d3d8c8011d11d346b` |
+| Remove fixture admission setup       | 17 failures described above, including 13 existing fixture scenarios                                            | `3c21697e094c6e21281c9a8c2550e59f860587dca00daf0d3d8c8011d11d346b` |
+
+Initial production-route replay: 79/79; extended diagnostic replay: 82/82,
+including all sixteen original fixture scenarios. Unit-project typecheck passed. All deliberate mutations were restored byte for byte before any other
+edit. No process helper, gate, deadline, dependency or cap was altered.
