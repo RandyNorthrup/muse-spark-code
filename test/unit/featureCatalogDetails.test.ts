@@ -34,8 +34,12 @@ describe('feature catalogue details merge', () => {
     expect(detailKeys('chat')).toContain('referenceThinking')
     expect(detailKeys('permissions')).toContain('referencePermissionLimits')
     // The train keeps the vault dormant (REFERENCE_IN_PROGRESS_FEATURES), so
-    // Help shows the in-progress summary with no feature details.
+    // Help shows the in-progress summary with no feature details. The
+    // summary pins the dormant state: an active vault would show its own
+    // panel summary here instead.
     expect(detailKeys('vault')).toEqual([])
+    const vault = featureCatalog().find((entry) => entry.id === 'vault')
+    expect(vault?.summary).toEqual({ ui: 'referenceInProgress' })
   })
 
   it('ships the schedules limitation in the generated reference model', () => {
