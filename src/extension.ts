@@ -166,6 +166,7 @@ import { CliAccount, isCliSignedIn } from './host/auth/cliAccount'
 import { runDeviceSignIn } from './host/auth/deviceSignIn'
 import { isValidModelApiKey } from './host/auth/credentialStore'
 import { assertExhaustive, reasonTextForKind } from './host/auth/credentialRead'
+import type { DamagedChoiceNotice } from './runtime/resources/history'
 import { ModelApiBackendManager } from './host/backend/modelApiBackendManager'
 import { createFileScheduleStore } from './host/backend/fileScheduleStore'
 import { MuseCodeBackendManager } from './host/backend/museCodeBackendManager'
@@ -720,6 +721,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }),
     isEnabled: () =>
       vscode.workspace.getConfiguration(SETTINGS_SECTION).get<boolean>('usageHistory', true),
+    // A damaged usage-history choice as a notice, once per distinct damage,
+    // with what is damaged and what to do (the log keeps the onError line).
+    onDamagedChoice: (notice: DamagedChoiceNotice) => {
+      void vscode.window.showWarningMessage(notice.text)
+    },
   }
   context.subscriptions.push({
     dispose: configureResources({

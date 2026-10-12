@@ -3350,6 +3350,10 @@
     "many": "Se ejecutó {count} de veces"
   },
   "scheduleNone": "No hay indicaciones programadas",
+  "scheduleConsentUnreadable": "Los prompts programados están desactivados: su consentimiento guardado {reason}. Corrija sus permisos o elimínelo y vuelva a configurar las programaciones.",
+  "scheduleStoreReasonDenied": "no se pudo leer; se denegó el permiso",
+  "scheduleStoreReasonDiskFull": "no se pudo leer; el disco está lleno o es de solo lectura",
+  "scheduleStoreReasonUnknown": "no se pudo leer",
   "loopItem": "/loop",
   "loopItemDetail": "Programar un prompt en esta conversación de Model API",
   "loopSyntax": "Usa /loop 10m <prompt>, /loop \"0 9 * * 1-5\" <prompt>, /loop list o /loop cancel <id>.",

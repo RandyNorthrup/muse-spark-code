@@ -3218,6 +3218,10 @@
     "other": "{count}회 실행됨"
   },
   "scheduleNone": "예약된 프롬프트가 없습니다",
+  "scheduleConsentUnreadable": "예약된 프롬프트가 꺼져 있습니다: 저장된 동의 {reason}. 권한을 수정하거나 삭제한 뒤 스케줄을 다시 설정하세요.",
+  "scheduleStoreReasonDenied": "를 읽을 수 없습니다. 권한이 거부되었습니다",
+  "scheduleStoreReasonDiskFull": "를 읽을 수 없습니다. 디스크가 가득 찼거나 읽기 전용입니다",
+  "scheduleStoreReasonUnknown": "를 읽을 수 없습니다",
   "loopItem": "/loop",
   "loopItemDetail": "이 Model API 대화에서 프롬프트 예약",
   "loopSyntax": "/loop 10m <prompt>, /loop \"0 9 * * 1-5\" <prompt>, /loop list 또는 /loop cancel <id>를 사용하세요.",

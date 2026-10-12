@@ -9,7 +9,10 @@ import { SCHEDULE_CLEANUP_EXIT_CODE, UI_TEXT } from '../../src/shared/constants'
 import { FakeScheduleBackground } from './helpers/schedules/background'
 import type { ScheduleWakeAuthorization } from '../../src/runtime/schedules/registration'
 import { NativeScheduleBackground } from '../../src/runtime/schedules/nativeBackground'
-import { createBackgroundConsentStore } from '../../src/runtime/schedules/consent'
+import {
+  createBackgroundConsentStore,
+  scheduleStoredUnreadableReason,
+} from '../../src/runtime/schedules/consent'
 import type { ScheduleFsPort } from '../../src/core/schedules/journal'
 import type { ScheduleControlPort } from '../../src/runtime/schedules/command'
 import {
@@ -468,6 +471,27 @@ describe('background consent store reads', () => {
       )
     },
   )
+
+  it.each([
+    ['EACCES', UI_TEXT.scheduleStoreReasonDenied],
+    ['EPERM', UI_TEXT.scheduleStoreReasonDenied],
+    ['ENOSPC', UI_TEXT.scheduleStoreReasonDiskFull],
+    ['EIO', UI_TEXT.scheduleStoreReasonUnknown],
+  ])('tells the consent errno through a kind word, never raw: %s (P3-4)', (code, reason) => {
+    const failure = Object.assign(new Error('store locked'), { code })
+    const stored = new Error(`scheduleStoredUnreadable:${code}`, { cause: failure })
+    const sentence = scheduleStoredUnreadableReason(stored)
+    expect(sentence).toContain(UI_TEXT.scheduleConsentUnreadable.split('{reason}', 1)[0])
+    expect(sentence).toContain(reason)
+    // The errno and the store message never reach the person.
+    expect(sentence).not.toContain(code)
+    expect(sentence).not.toContain('store locked')
+  })
+
+  it('says nothing for failures that are not an unreadable consent file (P3-4)', () => {
+    expect(scheduleStoredUnreadableReason(new Error('scheduleStoredJsonInvalid'))).toBeUndefined()
+    expect(scheduleStoredUnreadableReason('scheduleStoredUnreadable:EACCES')).toBeUndefined()
+  })
 
   it('passes on a codeless read failure instead of calling it corrupt', async () => {
     const failure = new TypeError('faulty port')

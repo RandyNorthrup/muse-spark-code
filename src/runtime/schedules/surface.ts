@@ -15,6 +15,7 @@ import { workspaceKey } from '../dataFolder'
 import type { ScheduleBackgroundCoordinator } from './background'
 import type { ScheduleCallerContext } from './args'
 import { scheduleLauncherReason } from './registration'
+import { scheduleStoredUnreadableReason } from './consent'
 
 export interface ScheduleSurfaceDeps {
   readonly request: (request: ScheduleRequest, caller?: ScheduleCallerContext) => Promise<unknown>
@@ -140,7 +141,12 @@ export class ScheduleSurface {
     } catch (error: unknown) {
       return {
         kind: 'refused',
-        reason: scheduleLauncherReason(error) ?? UI_TEXT.scheduleV2.runtime.unavailable,
+        // An unreadable consent file names its errno's kind word, never the
+        // generic unavailable (P3-4).
+        reason:
+          scheduleLauncherReason(error) ??
+          scheduleStoredUnreadableReason(error) ??
+          UI_TEXT.scheduleV2.runtime.unavailable,
       }
     }
   }

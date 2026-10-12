@@ -1,9 +1,12 @@
 import type { ScheduleFsPort } from '../../core/schedules/journal'
 import { storeErrorCode } from '../../host/backend/storeErrors'
+import { UI_TEXT } from '../../shared/constants'
+import { fill } from '../../shared/l10n/text'
 import { scheduleBackgroundConsentSchema } from '../../shared/scheduleV2'
 import type { BackgroundConsentStore } from './background'
 
 const MISSING_CODE = 'ENOENT'
+const UNREADABLE_PREFIX = 'scheduleStoredUnreadable:'
 
 /** The consent file every native host reads; the fs lease serializes writers. */
 export function createBackgroundConsentStore(
@@ -40,7 +43,7 @@ export function createBackgroundConsentStore(
             isInvalid = true
           }
         }
-        if (unreadable !== undefined) throw new Error(`scheduleStoredUnreadable:${unreadable}`)
+        if (unreadable !== undefined) throw new Error(`${UNREADABLE_PREFIX}${unreadable}`)
         if (isInvalid) throw new Error('scheduleStoredJsonInvalid')
         if (raw === undefined) {
           return await work(undefined, async (consent) => {
@@ -57,4 +60,25 @@ export function createBackgroundConsentStore(
       })
     },
   }
+}
+
+/**
+ * What the person is told when the consent file cannot be read (P3-4): the
+ * errno the store kept reaches the sentence through a closed kind word,
+ * never raw. Anything else (including the invalid shape) is not ours to say.
+ */
+export function scheduleStoredUnreadableReason(error: unknown): string | undefined {
+  if (!(error instanceof Error)) return undefined
+  if (!error.message.startsWith(UNREADABLE_PREFIX)) return undefined
+  const code = error.message.slice(UNREADABLE_PREFIX.length)
+  return fill(UI_TEXT.scheduleConsentUnreadable, { reason: scheduleStoreKindWord(code) })
+}
+
+function scheduleStoreKindWord(code: string): string {
+  if (['EACCES', 'EPERM'].includes(code)) {
+    return UI_TEXT.scheduleStoreReasonDenied
+  }
+  return ['ENOSPC', 'EROFS', 'EDQUOT'].includes(code)
+    ? UI_TEXT.scheduleStoreReasonDiskFull
+    : UI_TEXT.scheduleStoreReasonUnknown
 }

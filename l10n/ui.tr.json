@@ -3284,6 +3284,10 @@
     "other": "{count} kez çalıştı"
   },
   "scheduleNone": "Zamanlanmış istem yok",
+  "scheduleConsentUnreadable": "Zamanlanmış istemler kapalı: kaydedilmiş onay {reason}. İzinlerini düzeltin ya da silip zamanlamaları yeniden kurun.",
+  "scheduleStoreReasonDenied": "okunamadı; erişim reddedildi",
+  "scheduleStoreReasonDiskFull": "okunamadı; disk dolu veya salt okunur",
+  "scheduleStoreReasonUnknown": "okunamadı",
   "loopItem": "/loop",
   "loopItemDetail": "Bu Model API konuşmasında bir istem zamanla",
   "loopSyntax": "/loop 10m <prompt>, /loop \"0 9 * * 1-5\" <prompt>, /loop list veya /loop cancel <id> kullanın.",

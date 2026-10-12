@@ -3350,6 +3350,10 @@
     "many": "Executado {count} de vezes"
   },
   "scheduleNone": "Nenhum prompt agendado",
+  "scheduleConsentUnreadable": "Os prompts agendados estão desativados: seu consentimento salvo {reason}. Corrija suas permissões ou exclua-o e configure os agendamentos de novo.",
+  "scheduleStoreReasonDenied": "não pôde ser lido; a permissão foi negada",
+  "scheduleStoreReasonDiskFull": "não pôde ser lido; o disco está cheio ou é somente leitura",
+  "scheduleStoreReasonUnknown": "não pôde ser lido",
   "loopItem": "/loop",
   "loopItemDetail": "Agendar um prompt nesta conversa da Model API",
   "loopSyntax": "Use /loop 10m <prompt>, /loop \"0 9 * * 1-5\" <prompt>, /loop list ou /loop cancel <id>.",

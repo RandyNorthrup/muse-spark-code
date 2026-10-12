@@ -3218,6 +3218,10 @@
     "other": "已运行 {count} 次"
   },
   "scheduleNone": "没有定时提示",
+  "scheduleConsentUnreadable": "定时提示已关闭：其保存的同意书{reason}。请修正其权限或将其删除，然后重新设置定时。",
+  "scheduleStoreReasonDenied": "无法读取；权限被拒绝",
+  "scheduleStoreReasonDiskFull": "无法读取；磁盘已满或为只读",
+  "scheduleStoreReasonUnknown": "无法读取",
   "loopItem": "/loop",
   "loopItemDetail": "在此 Model API 对话中计划提示词",
   "loopSyntax": "使用 /loop 10m <prompt>、/loop \"0 9 * * 1-5\" <prompt>、/loop list 或 /loop cancel <id>。",

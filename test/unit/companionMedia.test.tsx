@@ -218,6 +218,45 @@ describe('lazy companion media UI', () => {
     expect(screen.getByLabelText(UI_TEXT.media.recordingMicrophone)).not.toBeChecked()
     expect(screen.getByLabelText(UI_TEXT.media.recordingSystemAudio)).not.toBeChecked()
   })
+  it('shows the host refusal reason for a refused upload, not unreadable (P2-7)', async () => {
+    const rig = await setup()
+    const reason = fill(UI_TEXT.media.uploadFailed, { reason: 'the host refused this file' })
+    rig.upload.mockRejectedValueOnce(new Error(reason))
+    fireEvent.change(rig.picker, { target: { files: [rig.file] } })
+    await waitFor(() => {
+      expect(screen.getByRole('status')).toHaveTextContent('the host refused this file')
+    })
+    expect(screen.getByRole('status')).not.toHaveTextContent(UI_TEXT.attachmentUnreadable)
+    expect(rig.attached).not.toHaveBeenCalled()
+  })
+  it('clears back to idle for a stopped upload (P2-7)', async () => {
+    const rig = await setup()
+    rig.upload.mockRejectedValueOnce(new Error(UI_TEXT.media.uploadStop))
+    fireEvent.change(rig.picker, { target: { files: [rig.file] } })
+    await waitFor(() => {
+      expect(rig.attached).not.toHaveBeenCalled()
+    })
+    expect(screen.getByRole('status')).toHaveTextContent(/^$/)
+  })
+  it('names a refused recording permission instead of a generic failure (P2-7)', async () => {
+    const rig = await setup()
+    vi.mocked(rig.record.start).mockRejectedValueOnce(
+      new Error(UI_TEXT.media.recordingPermissionDenied),
+    )
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.media.recordingStart }))
+    await waitFor(() => {
+      expect(screen.getByRole('status')).toHaveTextContent(UI_TEXT.media.recordingPermissionDenied)
+    })
+    expect(screen.getByRole('status')).not.toHaveTextContent(UI_TEXT.media.recordingFailed)
+  })
+  it('keeps the generic sentence for any other recording failure (P2-7)', async () => {
+    const rig = await setup()
+    vi.mocked(rig.record.start).mockRejectedValueOnce(new Error('synthetic capture failure'))
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.media.recordingStart }))
+    await waitFor(() => {
+      expect(screen.getByRole('status')).toHaveTextContent(UI_TEXT.media.recordingFailed)
+    })
+  })
   it('shows browser-specific refusal before capture', async () => {
     const rig = await setup()
     const reason = fill(UI_TEXT.media.recordingBrowserUnsupported, { browser: 'Test browser' })

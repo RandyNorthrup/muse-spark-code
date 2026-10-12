@@ -205,14 +205,15 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
     if (draft === undefined) {
       state.notice = UI_TEXT.actionFailed
     } else {
-      // Save failures name their cause with every retained key redacted.
+      // Save failures name their cause with every retained key redacted. A
+      // foreign failure (or none at all) names no cause: the sentence says
+      // only that it did not work, never a write conflict it was not (P3-1).
       state.notice = undefined
       draft.saveConflict = error instanceof Error && error.message === UI_TEXT.providerEditConflict
+      const cause = error instanceof Error ? error.message : ''
       draft.errors = [
         redactSecrets(
-          error instanceof Error && error.message !== '' && error.message !== UI_TEXT.actionFailed
-            ? error.message
-            : UI_TEXT.providerSaveWriteConflict,
+          cause !== '' && cause !== UI_TEXT.actionFailed ? cause : UI_TEXT.actionFailed,
           Array.from(credentials.values(), (record) => record.secret),
         ),
       ]
