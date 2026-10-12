@@ -259,10 +259,14 @@ export function withRuntimeAccounting(
             if (last !== null) accounting.settled(last, settledTicket, result)
             if (result.latch !== undefined) accounting.refuse(result.latch)
           }
-          await owned.settle(
-            wasSent ? (cost ?? owned.reservedUsd) : Usd.from(0).toAmount(),
-            wasSent && cost === undefined,
-          )
+          // A sent request without a verified price keeps its original durable reservation.
+          if (!wasSent || cost !== undefined) {
+            try {
+              await owned.settle(wasSent ? (cost ?? owned.reservedUsd) : Usd.from(0).toAmount())
+            } catch (error: unknown) {
+              throw new Error(UI_TEXT.sessionBudgetStoreUnavailable, { cause: error })
+            }
+          }
           claim = undefined
           wasSent = false
           response = undefined
