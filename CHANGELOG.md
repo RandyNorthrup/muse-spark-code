@@ -127,45 +127,14 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
-- The Model API bundle is smaller than it was before this hotfix, so no
-  pinned size moves. The three names 0.18.1 exports added 290 B to
-  `dist/modelApi.js`, whose size is pinned. The code that fills a hook's call
-  fields, builds the argument previews and checks a fetch's URL now loads
-  from a bundle of its own, `dist/modelApiTools.js`, the first time a turn
-  needs it: `dist/modelApi.js` is 518,954 B (532,537 B in 0.18.0). If that
-  bundle cannot load, the call that needed it is refused with a message in
-  your language; nothing runs on a default.
-- **Model API bundle diet (lane MODELAPIDIET).** `dist/modelApi.js` drops
-  13,873 B on the 0.18.1 base (532,827 → 518,954 B, cap unchanged) by
-  loading the hook call fields, argument previews and fetch URL checks
-  from the deferred `dist/modelApiTools.js` on first use, with fail-closed
-  refusals when the chunk cannot load. No behaviour change: the golden
-  request suite passes unchanged (141 tests). Packaging checks every
-  imported production Node chunk against each distribution's own
-  inventory; the VSIX includes the helpers chunk, and its load failures
-  use the installed language.
-
-- Model API lazy-bundle packaging and helper-failure diagnostics
-  (MODELAPIDIETR3, review RVMODELAPIDIETB). `src/shared/lazyBundles.generated.ts`
-  is the single registry of every dist chunk loaded by file name, generated
-  from the production build itself; a build check fails any loader naming a
-  dist file outside it, and the packaging gate roots every registry entry
-  unconditionally and checks each against the VSIX allowlist, the agent
-  package list and the production build. Both helper-unavailable catches
-  (and the closed URL-check refusal) log the failure's class with the chunk
-  named through the scrubbed channel before showing the installed sentence,
-  and chain the cause in process. The modelApi.js diet pin is re-measured on
-  the 0.18.1 base at 518,954 B; the 537,600 B cap is untouched.
-- Model API lazy-bundle registry round 4 (MODELAPIDIETR4, review
-  RVAPP-MODELAPIDIET3). The registry is generated, not copied: 97 rows
-  derived from the build metafiles and the redirect map, including the five
-  engine bundles the copy missed, with each row's loading side propagated
-  from the products' own entries; a loader asking for an unknown bundle and
-  a package lacking a loadable bundle fail the build. A lazy load that fails
-  logs the bundle with its kind (absent, unreadable, threw while evaluating
-  with the error class name). The shipped preview fixes ride the deferred
-  loader with only the declared-fields reader in the main bundle. The pin
-  moves +461 B for the log-kind line; the round stays 9,777 B under target.
+- A damaged install now says so before anything is sent. Part of the Model
+  API backend loads from a file of its own (`dist/modelApiTools.js`) the
+  first time a turn needs it. If that file is missing or cannot be read, the
+  turn is refused, nothing goes to the model, and you are told what to
+  reinstall: the extension in VS Code, `muse-spark-code-acp` in a terminal
+  or an ACP editor. The log names the file. Nothing else about a turn
+  changes: what is sent to the model, what your hooks receive and the
+  argument previews are the same bytes as before.
 
 ## [0.18.0] - 2026-10-11
 

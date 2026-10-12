@@ -1,4 +1,15 @@
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, readdirSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
+import {
+  cpSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  renameSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, expect, it } from 'vitest'
@@ -11,8 +22,14 @@ import { removeFolder } from './helpers/temporaryFolders'
 // A real production build and VSCE's inventory run once before assertions;
 // cold builds on hosted runners exceed the ordinary ten-second hook deadline.
 const PRODUCTION_SETUP_TIMEOUT_MS = 60_000
+// Six runs of the registry command over that build, four of them complete:
+// each reads every source that can load a file and inventories the VSIX
+// (3.2 s a run on the Kubuntu rig).
+const REGISTRY_COMMAND_RUNS_TIMEOUT_MS = 180_000
+const REGISTRY = 'src/shared/lazyBundles.generated.ts'
 const root = process.cwd()
 const fixture = { folder: '', missing: undefined }
+const command = {}
 
 const normalized = (file) => file.replaceAll('\\', '/')
 const isChunk = (file) => /^dist\/[^/]+\.js$/u.test(file)
@@ -137,6 +154,61 @@ beforeAll(async () => {
   }
 }, PRODUCTION_SETUP_TIMEOUT_MS)
 
+// scripts/gen-lazy-registry.mjs is a command: it is run as one, the way
+// `npm run build` runs it, over this suite's own copy of the repository and
+// its real production build. Importing its logic and calling it would pass
+// while the command did nothing, which is how its gate shipped empty
+// (docs/certification/hotfix-0181-bundle-exports.md).
+function registryCommand(script, ...argv) {
+  const run = spawnSync(process.execPath, [script, ...argv], {
+    cwd: fixture.folder,
+    encoding: 'utf8',
+  })
+  return { status: run.status, output: `${run.stdout}\n${run.stderr}` }
+}
+
+beforeAll(() => {
+  const folder = fixture.folder
+  const script = path.join(folder, 'scripts', 'gen-lazy-registry.mjs')
+  const registry = path.join(folder, REGISTRY)
+  cpSync(path.join(root, '.vscodeignore'), path.join(folder, '.vscodeignore'))
+  const committed = readFileSync(registry, 'utf8')
+  command.committed = committed.replaceAll('\r\n', '\n')
+  command.current = registryCommand(script, '--check')
+  // A row edited by hand: the file no longer says what the build gives.
+  writeFileSync(
+    registry,
+    committed.replace(
+      "symbol: 'ModelApiSession.toolAssist'",
+      "symbol: 'ModelApiSession.elsewhere'",
+    ),
+  )
+  command.stale = registryCommand(script, '--check')
+  command.generate = registryCommand(script)
+  command.generated = readFileSync(registry, 'utf8')
+  // A loader of a file no build emits and a load by a computed name, with
+  // the command reached through a linked folder (a junction on Windows):
+  // a script that asks "am I the main module" by comparing paths runs
+  // nothing there and exits 0.
+  const planted = path.join(folder, 'src', 'rogueLoader.ts')
+  writeFileSync(
+    planted,
+    "export const load = (): Promise<unknown> => import('./rogueEntry.js')\nexport const named = (name: string): Promise<unknown> => import(name)\n",
+  )
+  const linked = path.join(folder, 'linked-scripts')
+  symlinkSync(path.join(folder, 'scripts'), linked, 'junction')
+  command.planted = registryCommand(path.join(linked, 'gen-lazy-registry.mjs'), '--check')
+  rmSync(planted)
+  // No input, no pass: the agent build's metafiles empty, then absent.
+  const metafiles = path.join(folder, 'dist', 'meta-acp')
+  renameSync(metafiles, `${metafiles}.kept`)
+  mkdirSync(metafiles)
+  command.empty = registryCommand(script, '--check')
+  rmSync(metafiles, { recursive: true })
+  command.absent = registryCommand(script, '--check')
+  renameSync(`${metafiles}.kept`, metafiles)
+}, REGISTRY_COMMAND_RUNS_TIMEOUT_MS)
+
 afterAll(async () => {
   if (fixture.folder !== '') await removeFolder(fixture.folder)
 })
@@ -151,4 +223,41 @@ it('ships every registry bundle in the packages that load it (RVMODELAPIDIETB P2
 
 it('builds every registry bundle (RVMODELAPIDIETB P2)', () => {
   expect(fixture.missing).toMatchObject({ unbuilt: [] })
+})
+
+it('passes the registry command on this build and says what it compared', () => {
+  expect(command.current.status, command.current.output).toBe(0)
+  expect(command.current.output).toMatch(
+    /ok {3}lazy registry: \d+ bundles, \d+ loads by file name resolved, \d+ listed load\(s\) by a computed name, \d+ listed name\(s\) that are not a load; src\/shared\/lazyBundles\.generated\.ts is current/u,
+  )
+})
+
+it('fails the registry command on a stale file and names the row', () => {
+  expect(command.stale.status, command.stale.output).toBe(1)
+  expect(command.stale.output).toContain(`lazy registry: ${REGISTRY} row modelApiTools.js says`)
+  expect(command.stale.output).toContain("symbol: 'ModelApiSession.elsewhere'")
+  expect(command.stale.output).toContain("symbol: 'ModelApiSession.toolAssist'")
+})
+
+it('writes the registry the repository commits', () => {
+  expect(command.generate.status, command.generate.output).toBe(0)
+  expect(command.generate.output).toContain(`${REGISTRY} written`)
+  expect(command.generated).toBe(command.committed)
+})
+
+it('fails on a planted loader and on a computed load, reached through a linked folder', () => {
+  expect(command.planted.status, command.planted.output).toBe(1)
+  expect(command.planted.output).toContain(
+    'lazy registry: src/rogueLoader.ts:1 (load) loads ./rogueEntry.js, which the build does not emit',
+  )
+  expect(command.planted.output).toContain(
+    'lazy registry: src/rogueLoader.ts:2 loads a file whose name is worked out at run time (import(name))',
+  )
+})
+
+it('fails without the build metafiles, empty or absent, and never passes on no input', () => {
+  expect(command.empty.status, command.empty.output).toBe(1)
+  expect(command.empty.output).toContain('lazy registry: dist/meta-acp holds no metafile')
+  expect(command.absent.status, command.absent.output).toBe(1)
+  expect(command.absent.output).toContain('lazy registry: dist/meta-acp cannot be read')
 })

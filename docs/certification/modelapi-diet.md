@@ -428,6 +428,20 @@ well-formed, sides cover requests, the five rows, full-tree scan with
 zero outside, planted strays for every old hole) 6/6;
 `packagedBundles.test.mjs` on derived sides 3/3.
 
+> **Correction, 2026-10-12 (the 0.18.1 candidate; reviews RVDIET0181 and
+> RVAPP-DIET0181).** What this section says the command does was false for
+> the committed bytes. `scripts/gen-lazy-registry.mjs` had no command-line
+> part in any commit of this lane: the file ended after `buildRegistry()`,
+> so `--check` in `npm run build`, `npm run check:lazy-registry` and
+> `npm run lazy-registry:generate` did nothing and exited 0. The red drill
+> recorded above (exit 1 naming `src/__drill__/rogueLoader.ts:2`) cannot have
+> come from those bytes, and nobody ran it again until those reviews; how the
+> 97 committed rows were produced is not recorded. The committed file was
+> also stale while it sat there: its `ModelApiHost.ts` rows were 19 lines
+> off. The command exists as of the 0.18.1 candidate; its record, with each
+> drill as pasted output, is in
+> [hotfix-0181-bundle-exports.md](hotfix-0181-bundle-exports.md).
+
 ### P3-2: the log names the bundle and the kind
 
 `helpersFailure` takes the bundle file and logs the fixed vocabulary:

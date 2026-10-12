@@ -4,7 +4,6 @@
 // use; a bundle that cannot load refuses the call that needed it, never a
 // silent fallback and never a default value.
 export { preModelCallFields, postModelCallFields } from './modelCallHooks'
-export { ArgumentPreview, type ArgumentPreviewCapabilities } from './argumentPreview'
-export { checkPageUrl, type CheckedPageUrl, type PageUrlCheck } from '../../web/pageUrl'
-export type { WebFetchFailure } from '../../web/fetchFailure'
+export { ArgumentPreview } from './argumentPreview'
+export { checkPageUrl } from '../../web/pageUrl'
 export { setUiText } from '../../../shared/l10n/text'

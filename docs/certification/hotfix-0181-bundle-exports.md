@@ -466,3 +466,521 @@ SHA-256 in both builds. `dist/modelApi.js` is 532,827 B (`cae6cd7e029a…`)
 and `dist/extension.js` 563,974 B (`7cd17477a3ec…`) in both;
 `dist/headless.js` 100,078 B and `dist/whatsNew.json` 35,457 B. No cap and
 no pin moved, and no file under `src` is touched.
+
+## The candidate that ships: `hotfix/0.18.1-nopin` (2026-10-12)
+
+Pull request 150 takes `dist/modelApi.js` to 532,827 B, 290 B over its
+0.18.0 pin, and no pinned size goes up. This branch is that pull request's
+head (`87d9ab91c`) plus the Model API bundle diet. It replaces pull request
+150, which is not merged.
+
+### What was merged
+
+`c7afe3533`: `fix/modelapi-diet`, 14 commits, at `4f30cc913` (`31d525e4c` on
+the rig before the identity rewrite; the same tree, `89fd2e2f9`). No textual
+conflict. No commit message in the range carries a `users.noreply.github.com`
+address. The stricter cross-bundle check of pull request 150's review is
+unchanged and passes as it stands; no listed exception was added:
+
+```text
+ok   cross-bundle members: 2258 reads of 45 sibling bundles, each exported by the bundle read; every loaded sibling followed to its members, every export list read, 1 of 1 listed load(s) by a computed name
+```
+
+### Sizes against pull request 150, built on the same machine (Kubuntu)
+
+| File                    | `87d9ab91c` | Candidate   | Cap or pin                                     |
+| ----------------------- | ----------- | ----------- | ---------------------------------------------- |
+| `dist/modelApi.js`      | 532,827 B   | 518,954 B   | 0.18.0 pin 532,537 B; cap 537,600 B, untouched |
+| `dist/modelApiTools.js` |             | 23,433 B    | 51,200 B                                       |
+| `dist/uiText.js`        | 97,020 B    | 97,068 B    | The two new English messages                   |
+| `dist/whatsNew.json`    | 35,457 B    | 38,619 B    | 40,960 B                                       |
+| `dist/webview` (176)    | 1,586,386 B | 1,586,402 B | 136 files differ, 40 keep name and SHA-256     |
+
+`dist/modelApi.js` is 13,583 B under the 0.18.0 pin; the size test asserts
+the measured 518,954 B. Outside `dist/webview` nothing else differs in bytes:
+`dist/extension.js` is 563,974 B (2,622 of the 3,072 B activation budget) and
+`dist/headless.js` 100,078 B in both. `dist` has 268 files against 267.
+
+The browser bundles differ because the diet adds two messages to
+`src/shared/l10n/en.ts` (shown when the helpers bundle cannot load), which
+every bundle with the message table carries: 16 B in all. Pull request 150
+changed no browser bundle; this candidate does, so its frames are rendered
+by the hosted visual job, not assumed.
+
+### Three reds of the lane that its own runs did not include
+
+Each was found by the candidate's gate on Kubuntu and fixed in a commit of
+its own.
+
+1. **The packaging fake** (`191a6008c`).
+   `test/unit/resourceAcpPackaging.test.mjs`: 6 of 11 failed on the lane's
+   head, on Kubuntu and on the Mac mini (`87d9ab91c`: 11 of 11). The lane
+   moved the usage-asset closure into `scripts/lib/acpBundles.mjs`, which
+   reads the metafile by an absolute path; the fake file system answered
+   only the relative spelling, returned its default text, and `JSON.parse`
+   threw. The fake now compares resolved paths: 11 of 11.
+2. **Dead code** (`4550ebaa8`). `npm run deadcode` exit 1: two exports and
+   four exported types of `modelApiToolsEntry.ts` "in a used namespace".
+   The file is a deferred bundle's entry and was not listed in `knip.jsonc`,
+   where every sibling entry is, and it re-exported four types nobody reads
+   through it. The entry is listed and the four type re-exports are gone:
+   exit 0, and no file of `dist` changes.
+3. **Static analysis** (`08b7a7de8`). `npm run security:sast` exit 1: two
+   blocking `detect-non-literal-regexp` findings,
+   `scripts/gen-lazy-registry.mjs:103` and `scripts/lib/lazyRegistry.mjs:41`,
+   each building `\b<name>\b` from a constant's name scanned out of `src`.
+   Both now call `hasIdentifier(text, name)`, an `indexOf` search that
+   accepts a hit with no identifier character on either side; nothing is
+   suppressed. The answer differs from the old expression only beside a
+   dollar sign, which the old one took for a word boundary (`$FOO` counted
+   as a use of `FOO`, and a name holding `$` never matched). This paragraph
+   said until the reviews below that the generated registry was unchanged
+   because `gen-lazy-registry.mjs --check` exited 0. That was false as proof:
+   the command checked nothing then. The proof made since: over the 38
+   bundle-name constants and every one of the 393,180 lines of the 1,546
+   sources, 533,204 comparisons of the old expression with the search, 0
+   where the two answers differ.
+
+Drill for the test the third fix adds (`lazyBundleFiles.test.ts`, "reads a
+bundle-name constant only as a whole name, a dollar sign included"): with the
+check of the character after the name removed, the suite exits 1 (1 failed, 6
+passed, "expected true to be false"); restored, 7 of 7.
+
+### Runs on Kubuntu, three workers, exit codes
+
+On the tree of `8ea450f35` (the merge, the fake fix and the release text):
+`npm run build` 0 (156 size rows, none over); typecheck 0 (five projects);
+lint 0 (`lint:ps` is a reported skip off Windows); Prettier over the
+repository 0; cycles 0; duplication 0; `check:badges`, `check:tokens`,
+`check:l10n`, `check:reference`, `check:host-api`, `check:plan` and
+`check:roadmap` 0; `security:audit` 0; `security:secrets` 0 (4,988 commits);
+the packaging, bundle, report, release-text and usage suites, 77 files: 1,457
+passed, 0 failed; `test/e2e/execStdio.e2e.test.ts` 45 of 45. The suites that
+depend on the lane's sources (`vitest related`, 88 files): 4,398 passed and 1
+failed, `usageIntegration` at its 5,000 ms limit. That deadline is known and
+its cause is measured in a lane of its own (every usage read parsed the
+machine's real Muse Code trace logs again; lane USAGETRACE, `356ab216e`, not
+in this candidate); it was not run again here. `deadcode` 1 and
+`security:sast` 1 on that tree: reds 2 and 3 above.
+
+On `08b7a7de8` (tree `1263053cb`), the head the pull request opened on with
+two document commits after it: `deadcode` 0; `security:sast` 0; typecheck 0;
+`npm run build` 0 with the line above; every one of the 268 files of `dist`
+has the SHA-256 it had on `8ea450f35`; the registry, bundle and packaging
+suites, 6 files: 275 of 275; `test/e2e/execStdio.e2e.test.ts` on the packed
+package 45 of 45.
+
+The packed agent package of that head: `muse-spark-code-acp-0.18.1.tgz`,
+2,490,546 B, 144 files, SHA-256
+`72fa54eac3730a1613c3dc01b967dc05edf5b25ca62a24a70230ec765f6493ff`. It is not
+the package that ships: the changes after the first hosted run, below, change
+built files, and the package of the final head has its own digest and its own
+live run there.
+
+### Live smoke through the packed package, by the lead, 2026-10-12, 8:30 to 8:33 AM PT
+
+Measured by the lead, not by the runs above. That tarball (its SHA-256
+verified after copying), installed with `npm install <tgz>` into an empty
+folder on the owner's Windows 11 PC (Node 24.20.0) and run from an empty
+workspace, the agent's own folders redirected to a private test folder, keys
+from the DPAPI store over standard input and removed afterwards (verified: no
+key stored, no provider configured). Passed on all three routes:
+
+- **Meta Model API, terminal agent**
+  (`exec --backend modelApi --allow-contributor-models --model muse-spark-1.3-contributor`,
+  run cap $0.25): a plain turn completed, 1 request; a tool turn completed, 3
+  requests, and the file it was asked to create exists with the right
+  content; a long answer completed, 1 request, 1,201 output tokens. The model
+  reported on every result is `muse-spark-1.3-contributor`. 5 requests,
+  $0.000686 settled, nothing uncertain.
+- **A configured provider, the route 0.18.0 broke, terminal agent**
+  (`providers add --preset anthropic … --key-stdin`; `providers test`: "Key
+  works · 14 models"; `exec --provider … --model <entry>/claude-sonnet-5-5`,
+  run cap $3): plain turn 1 request; tool turn 2 requests, file created with
+  the right content; long answer 1 request. 4 requests, $0.013986 settled,
+  nothing uncertain.
+- **The editor protocol** (ACP over stdio, the same provider entry; the model
+  read from the session's `model` config option and verified before any
+  prompt): a plain turn ended `end_turn`; a tool turn raised one permission
+  request ("Write: acp-smoke.txt", allowed once) and created the file;
+  `/usage` then shows 3 requests for the session.
+
+12 model requests in all, about three cents.
+
+What the smoke also showed. All of it was present before this candidate and
+none is its regression; each has a lane or gets one:
+
+- a. A contributor model without `--allow-contributor-models`, and a provider
+  model outside the entry's list, are refused with "This model is not
+  available for this run." and no reason or remedy.
+- b. One Sonnet request reserves $2.262144, so a run cap of $0.25 refuses it
+  ("The next request exceeds the remaining budget.", no remedy).
+- c. Each of two such refused runs left an open $2.262144 hold in the day's
+  spending record.
+- d. The third run then failed with "Internal error: Models & Agents is not
+  available in this build." (a false sentence; zero requests).
+- e. `--verbose` placed before `exec` makes `exec` reject its own options;
+  `exec --help` prints the whole 1,374-line reference.
+- f. The first ACP answer is prefixed with "Automatic compaction is awaiting
+  evaluation and is inactive."; the account option reads "meta · Default
+  Account" while the model is a provider's.
+
+b, c and d are the budget defects whose fixes are in lanes (budget holds, the
+start race); they go into the release after this one.
+
+### Finding 4 of pull request 150's review: the complete gate
+
+The finding: four timeouts in an aggregate run and two files passing alone
+afterwards are not an exit-zero `npm run quality`. Agreed. Its answer was to
+be one complete local run on one quiet machine; that plan is withdrawn and the
+rule it cited is changed in this candidate (AGENTS.md, working rule 2, and
+CONTRIBUTING.md, "Before you open a pull request"): hosted CI is the gate for
+a release, every job green on the commit that merges, a red job read and its
+cause measured; local runs are for fast feedback; before a release, real
+conversations go through the packed product. The hosted full tier runs every
+gate the local aggregate runs, the visual render in six shards among them, on
+runners that carry nothing else, and its record is the run itself: the runs of
+this branch are listed at
+<https://github.com/RandyNorthrup/muse-spark-code/actions?query=branch%3Ahotfix%2F0.18.1-nopin>
+and the one that counts is the run on the pull request's final head.
+
+What the local attempts gave, as they were: one complete run was started on a
+clean checkout of `8ea450f35` on the Linux laptop at 7:38 AM PT and stopped
+at 7:49 AM PT, when red 2 changed the code head; it is recorded as stopped,
+not as passed, and none was started after it. One test fails on that laptop
+in a clean checkout of this branch,
+`test/unit/inspectNative.test.ts`, "B1 Linux kernel boundary > runs verified
+stat or refuses its unsupported thread requirement" (exit 1,
+`stat: {"confined":true,"abi":7,"excluded":0}`); the same file passes on
+Kubuntu on this tree (22 of 22), and this branch changes neither the test,
+its helpers nor the code it runs. Its cause is not measured here; a lane of
+its own has it, for `main`.
+
+## After the first hosted run (2026-10-12)
+
+Pull request 151 opened on `b27e48f16`. Its first hosted run and two reviews
+found what the candidate still owed. Everything below is in the candidate.
+
+### The first hosted run, 38270466443
+
+Red. Every failed job, with the tests that failed in it:
+
+| Job                                                   | Failed                                                                                                                                            | Whose                                                  |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| static gates, lint (Ubuntu, Windows, macOS)           | ESLint `unicorn/consistent-boolean-name`: `usesIdentifier` in `scripts/lib/lazyRegistry.d.mts:31`                                                 | The candidate's (`08b7a7de8`)                          |
+| tests, Ubuntu shard 4, macOS shard 6, Windows shard 8 | `cyclesRoots.test.ts`, 5 cases; `flightRecorder.test.ts`, "R2 verifies the frame vocabulary against the shipped extension package"                | The candidate's (the diet's inventories)               |
+| tests, Ubuntu shard 4                                 | `lazyBundleFiles.test.ts`, "resolves every dist name the sources load to a registry row": 5,543 ms of a 5,000 ms limit                            | The candidate's (the diet's test)                      |
+| tests, macOS shard 1                                  | Cancelled by the job's 20-minute limit at 20.5 minutes; `modelApiHost.test.ts`, "refuses before the popup a source it could not send …", 5,446 ms | The candidate's (the diet's per-call install, below)   |
+| tests, Windows shard 3                                | `fileLease.test.ts`, 2 cases; `tokenFile.test.ts`, 3 cases at the 15 s limit                                                                      | Code this change does not touch; with the Windows lane |
+| quality (three systems), package, dictation helper    | The aggregates of the jobs above                                                                                                                  | Consequences                                           |
+
+What each was, and its fix:
+
+- **Lint.** The declaration file was the one changed file of `08b7a7de8`
+  that was not linted before the push; the full lint on the rig had run
+  before the helper existed. Renamed `hasIdentifier` (`b0e716f95`). Before
+  the next push the rig ran the lint parts exactly as the workflow runs them.
+- **Inventories.** The diet added a build entry and a dist file and updated
+  every list that names a sibling but two: the dependency-cycle roots
+  (`scripts/cycles.json`) and the frames a problem report keeps
+  (`REPORT_PACKAGE_FRAME_PATHS`, 84 of 85 packaged scripts). Both name the
+  new file (`48332e552`). Every list that names `dist/modelApiMcp.js` was
+  read again: those two were the only gaps.
+- **The registry test's limit.** One cause on all three systems: a unit test
+  scanned the whole tree in process and sat at its limit (5,543 ms on
+  Ubuntu, red; 4,238 ms on macOS of 5,000; 3,961 ms on Windows of 15,000).
+  That assertion is the registry command's (next section); no limit moved.
+- **macOS shard 1.** Two things. The diet made `modelApiHost.test.ts` slower
+  (the section after next), and macOS had no margin on six shards even
+  green: in run 38225260540 shard 4 took 19.0 of its 20 minutes and shard 1
+  took 15.9. macOS takes eight shards now, as Windows does (`f03b4ef61`);
+  the 20-minute limit and every test limit are unchanged.
+
+The gate that ran on the rig before that push ran named suites, 77 files and
+then 88 dependent ones, not the whole unit suite. Neither
+`cyclesRoots.test.ts` nor `flightRecorder.test.ts` was among them;
+`lazyBundleFiles.test.ts` was, and passed on the rig. Before the next push the
+whole suite ran there.
+
+### Two reviews and the bot's thread
+
+A run-review on Windows (RVDIET0181, `87d9ab91c..8ea450f35`: 0 P1, 4 P2, 1
+P3), a read-review through the product itself (RVAPP-DIET0181: 0 P1, 2 P2, 4
+P3) and the Codex bot's thread on the pull request (P1). The product code
+was judged safe by both; the records and one gate were not.
+
+| Finding                                                                                                  | Answer                                                                                                                                   |
+| -------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `gen-lazy-registry.mjs` does nothing: no command-line part, so the build's check and both scripts exit 0 | A command, tested as one; next section                                                                                                   |
+| The committed registry is stale: `ModelApiHost.ts` rows 19 lines off                                     | Regenerated by the command; rows name a function, not a line                                                                             |
+| The scan misses a template literal, a computed name, a constant loaded where it is defined               | Scanner redesigned on the syntax tree; a computed load fails unless listed                                                               |
+| The scan skips any line with `path.dirname` and `path.join`                                              | Followed; the one such name is listed with its reason                                                                                    |
+| "No behaviour change" rests on goldens that never reach the moved code                                   | A golden that reaches it, written by the code before the move; the changelog says what does change                                       |
+| Terminal and ACP users are told to "reinstall the extension and reload the window"                       | Those hosts say their own sentence                                                                                                       |
+| No test removes `dist/modelApiTools.js` from a packed agent                                              | `execStdio.e2e.test.ts`, E9                                                                                                              |
+| The changelog's 0.18.1 section reads like lane notes                                                     | One entry for a person; the detail is here                                                                                               |
+| The pin comment says "only ever moves down in this lane"                                                 | False against the lane's history (+109, +2,120, +461 B); the comment says so                                                             |
+| `packagedBundles.test.mjs` and `acpStdio.e2e.test.ts` fail on the Windows rig                            | On hosted Windows, run 38270466443: shard 7, 3 of 3, 22.8 s; shard 6, 13 of 13, 22.5 s. The rig's failures are the rig's, measured there |
+
+### The registry command
+
+`scripts/gen-lazy-registry.mjs` had no command-line part in any commit: the
+file ended after `buildRegistry()`. `node scripts/gen-lazy-registry.mjs
+--check` in `npm run build`, `npm run check:lazy-registry` and
+`npm run lazy-registry:generate` did nothing and exited 0. The lane's
+certification recorded a red drill of that check which those bytes cannot
+have produced (corrected in `modelapi-diet.md`), and the candidate's own
+record above took "exit 0" for "checked" once. The registry it guarded was
+stale the whole time.
+
+What it is now (`fb5f9520d`):
+
+- **A command and nothing else.** No exports, no "am I the main module"
+  test: such a test is false when the script is reached through a junction
+  or a symlink, and the script then exits 0 having run nothing. It writes
+  the registry or, with `--check`, compares it.
+- **No input, no pass.** Metafiles missing, empty or unreadable fail with a
+  sentence.
+- **Every form of load.** The scanner reads the TypeScript syntax tree of
+  each source that can hold a load. A literal is a literal wherever it stands:
+  either quote, a template with no substitution, a name wrapped onto a line
+  of its own. A load whose argument does not hold the name (a template with a
+  substitution, a variable, `createRequire(file)(file)`, `new Worker(path)`)
+  is recorded and fails unless `COMPUTED_SOURCE_LOADS` lists it with its
+  reason. Five are listed: the loader adapter, the provider catalog and three
+  worker starts whose path a caller builds from a literal the scan reads.
+- **Nothing skipped.** The old scan skipped a line holding `path.dirname`
+  and `path.join` and said nothing. The one such name,
+  `src/runtime/schedules/wake.ts`, is the agent script the operating system
+  starts for a scheduled wake. Followed as a load it made VS Code a loader of
+  `acp.js` and of everything the agent loads: 14 packaging gaps. It is listed
+  in `NAMED_NOT_LOADED` with that reason; the command checks that the build
+  emits the file, that the agent's package carries it, and that the entry
+  still matches a name in the source.
+- **Rows without line numbers.** A row names the file and the function,
+  method or constant that names the bundle
+  (`ModelApiSession.toolAssist`, `WEB_FETCH_BUNDLE_FILE`). No consumer read
+  the line, and an unrelated edit of a 17,000-line source made the registry
+  stale.
+
+The redesign changes what is found by exactly one name, measured on the tree:
+the old scan and the new one give the same 242 requests, 38 bundle-name
+constants and load attributions, and the new one adds the `wake.ts` name.
+The command's first run, on the committed file, exited 1 and named 73 rows:
+
+```text
+lazy registry: src/shared/lazyBundles.generated.ts row modelApiTools.js says { file: 'modelApiTools.js', side: 'both', requestedBy: [ { importer: 'src/core/backends/modelapi/ModelApiHost.ts', line: 3127, side: ['acp', 'vscode'], }, ], },; the build gives { file: 'modelApiTools.js', side: 'both', requestedBy: [ { importer: 'src/core/backends/modelapi/ModelApiHost.ts', symbol: 'ModelApiSession.toolAssist', side: ['acp', 'vscode'], }, ], },
+lazy registry: 73 problem(s); src/shared/lazyBundles.generated.ts not checked as current; after a real change of loaders run npm run lazy-registry:generate
+```
+
+Generated: 97 bundles, 127 loads by file name. Row by row against the
+committed file: 97 of 97 rows have the same side and the same loading files
+with the same sides. Only the line became a symbol.
+
+Drills on the repository itself, Kubuntu, each the real command after a real
+`npm run build`:
+
+```text
+$ printf "export async function load() {\n  return await import('./rogueEntry.js')\n}\n" > src/__drill__/rogueLoader.ts
+$ node scripts/gen-lazy-registry.mjs --check          # exit 1
+lazy registry: src/__drill__/rogueLoader.ts:2 (load) loads ./rogueEntry.js, which the build does not emit
+lazy registry: 1 problem(s); src/shared/lazyBundles.generated.ts not checked as current; after a real change of loaders run npm run lazy-registry:generate
+
+$ ln -s "$PWD/scripts" /var/tmp/linked-scripts
+$ node /var/tmp/linked-scripts/gen-lazy-registry.mjs --check   # exit 1, through the link
+lazy registry: src/__drill__/rogueLoader.ts:2 (load) loads ./rogueEntry.js, which the build does not emit
+
+$ sed -i "s/symbol: 'ModelApiSession.toolAssist'/symbol: 'ModelApiSession.elsewhere'/" src/shared/lazyBundles.generated.ts
+$ node scripts/gen-lazy-registry.mjs --check          # exit 1
+lazy registry: src/shared/lazyBundles.generated.ts row modelApiTools.js says { … symbol: 'ModelApiSession.elsewhere' … }; the build gives { … symbol: 'ModelApiSession.toolAssist' … }
+
+$ mv dist/meta-acp dist/meta-acp.kept
+$ node scripts/gen-lazy-registry.mjs --check          # exit 1
+lazy registry: dist/meta-acp cannot be read (ENOENT: no such file or directory, scandir '…/dist/meta-acp'); run the production build first (node scripts/build.mjs --production)
+$ mkdir dist/meta-acp
+$ node scripts/gen-lazy-registry.mjs --check          # exit 1
+lazy registry: dist/meta-acp holds no metafile; run the production build first (node scripts/build.mjs --production)
+
+# everything restored
+$ node scripts/gen-lazy-registry.mjs --check          # exit 0
+ok   lazy registry: 97 bundles, 127 loads by file name resolved, 5 listed load(s) by a computed name, 1 listed name(s) that are not a load; src/shared/lazyBundles.generated.ts is current
+```
+
+The same as tests, with the command run as a child process over a real
+production build of a copy of the repository
+(`test/unit/packagedBundles.test.mjs`): current, stale, generate (equal to the
+committed file), a planted loader and a computed load through a linked
+folder, metafiles empty and absent. With the command's main made to return at
+once (`process.exit(0)` before it reads its arguments), those tests fail and
+the suite exits 1. The scanner's forms
+(`test/unit/lazyBundleFiles.test.ts`): with computed loads no longer
+recorded, with templates no longer read, and with a constant loaded in its
+own file dropped again, one test fails each time and the suite exits 1. Each
+drill restored its file byte for byte.
+
+### What a turn paid for the helpers
+
+The diet's `toolAssist()` ran `await import('./modelApiToolsEntry.js')` and
+installed the whole language table into the helpers bundle on every call,
+and it is called before and after every model call, for every streamed tool
+call and for every URL check. An install rewrites every entry of the table
+and builds eight `Intl` objects.
+
+Counted and timed on Kubuntu (the method instrumented in the rig's copy, the
+file restored byte for byte):
+
+| What ran                                                                | Calls of `toolAssist()` | Loads          | Table installs                 |
+| ----------------------------------------------------------------------- | ----------------------- | -------------- | ------------------------------ |
+| `modelApiHost.test.ts`, 670 tests, the diet's body                      | 3,469                   | 3,469 (973 ms) | 3,469: 14,376 ms, 4.14 ms each |
+| the same, fixed                                                         | 3,469                   | 955 (170 ms)   | 4: 5 ms                        |
+| the case that went red on hosted macOS, the diet's body                 | 36                      | 36             | 36: 169 ms                     |
+| the same, fixed                                                         | 36                      | 9              | 1: 5 ms                        |
+| one turn through the built `dist/modelApi.js`, one model call, the diet | 2                       | 2              | 2: 4.9 ms each                 |
+| the same, fixed                                                         | 2                       | 1              | 1: 4.8 ms                      |
+
+So a turn paid two installs of about 5 ms for each model call, in the product
+and not only in tests. Now the helpers are loaded once for a session (a load
+that failed is not kept: the next request tries again) and handed the language
+once per installed table, through one helper that the code-intelligence and
+schedules bundles' loaders in the same file use too. The same shape in
+`src/core/context/recordingReader.ts` belongs to another bundle and is left
+to the bundle-state work. A module is never handed whole to that helper: the
+cross-bundle check fails a sibling it cannot follow to a member, and its
+first form here failed it four times.
+
+`test/unit/modelApiHost.test.ts`, 670 tests, uninstrumented, the same rig,
+one after the other:
+
+| Tree                                | Runs                          |
+| ----------------------------------- | ----------------------------- |
+| Before the diet, `87d9ab91c`        | 41.92 s, 41.69 s              |
+| The diet as the pull request opened | 52.05 s, 53.64 s              |
+| Fixed                               | 40.65 s to 42.73 s in 15 runs |
+
+Before the diet 12 more runs took 41.58 s to 44.40 s.
+
+**Observed, cause not measured.** In a 16th run of the fixed tree, which took
+57.60 s with the rig's load at 5.4, `ModelApiSession: session budget (M82) >
+admits no two-host overspend when both real claims publish before final
+admission` (`test/unit/modelApiHost.test.ts:3638`) hit its 5,000 ms limit. The
+case works two hosts against one real budget journal on disk. Alone it takes
+143 to 291 ms, 8 of 8 on this tree and 8 of 8 before the diet; in the whole
+file it passed 15 of 16 times on this tree and 14 of 14 before the diet. No
+cause is named, no limit is raised and no retry is added.
+
+Test (`modelApiBundle.test.ts`, "hands the helpers the language once per
+table, not once per call", on the built bundle): one install for a turn of
+two model calls, one more after a table is installed in the bundle. With the
+diet's body put back it fails (4 installs) and the suite exits 1.
+
+### The golden of the moved code
+
+The 141 golden requests never reach the three groups of code the diet moved:
+hooks are off, no call fetches, previews are only asserted absent. One new
+scenario reaches all three in one turn: a PreLLMCall and a PostLLMCall hook
+see each model call, the model calls `web_fetch` and its URL check's refusal
+goes back to the model, and the call streams an argument preview. Its fixture
+(`test/fixtures/golden-requests/moved-helpers.json`, 38,109 B: two raw
+requests, four hook payloads, the previews) was written by the sources of
+`87d9ab91c`, before the move, with the test file of this head. The whole
+suite then passes on those sources and on this head, 142 of 142 each: byte for
+byte the same. With one more field in what a PreLLMCall hook receives the
+scenario fails; restored byte for byte (`d8392b7f2`).
+
+What does change for a person, and the changelog now says so: when the
+helpers bundle cannot load, every turn on that backend is refused before
+anything is sent, hooks configured or not.
+
+### A packed agent without its helpers (E9)
+
+`test/e2e/execStdio.e2e.test.ts`, E9: the production package is packed, its
+`dist/modelApiTools.js` removed, and one turn sent on a configured provider.
+Zero provider requests, a non-zero exit, the agent's own sentence ("…
+reinstall muse-spark-code-acp and restart the agent …") and never "reinstall
+the extension", and on stderr `modelApiTools.js failed (absent)`: a missing
+file is reported as absent in the packed agent. Drills: with the extension's
+sentence put back, and with the refusal replaced by empty hook fields, E9
+fails each time and the suite exits 1; restored byte for byte.
+
+The agent hosts hand the Model API backend the sentence they already had for
+a damaged backend (`acpModelApiBundleUnavailable`): no new sentence, no
+locale table changes.
+
+### Sizes on the final head
+
+Built on Kubuntu from `1d2858f6f` (a clean checkout) and compared file by
+file with the build of `87d9ab91c` on the same rig. `npm run build` exit 0;
+156 size rows, none over.
+
+| File                    | `87d9ab91c` | Final head  | Why                                                           |
+| ----------------------- | ----------- | ----------- | ------------------------------------------------------------- |
+| `dist/modelApi.js`      | 532,827 B   | 519,354 B   | The diet; then +68 B the host's sentence, +332 B load once    |
+| `dist/modelApiTools.js` |             | 23,433 B    | New (cap 51,200 B)                                            |
+| `dist/extension.js`     | 563,974 B   | 564,064 B   | The backend manager hands the host's sentence on (+90 B)      |
+| `dist/runtimeEngine.js` | 643,477 B   | 643,567 B   | The same (+90 B)                                              |
+| `dist/acp.js`           | 241,202 B   | 241,226 B   | The frame name (+24 B)                                        |
+| `dist/report.js`        | 19,777 B    | 19,801 B    | The frame name (+24 B)                                        |
+| `dist/recorder.js`      | 21,595 B    | 21,619 B    | The frame name (+24 B)                                        |
+| `dist/uiText.js`        | 97,020 B    | 97,068 B    | The two messages of the diet                                  |
+| `dist/whatsNew.json`    | 35,457 B    | 36,204 B    | The release notes (cap 40,960 B)                              |
+| `dist/webview` (176)    | 1,586,386 B | 1,586,402 B | 136 files differ, 40 keep name and SHA-256 (the two messages) |
+
+`dist/reportingPanel.js` (45,333 B) and `dist/resourceGovernor.js` (108,028 B)
+keep their size and differ in bytes; what differs in them was not examined.
+Every other file is byte-identical. `dist/modelApi.js` is 13,183 B under the
+532,537 B of 0.18.0; the size test's pin moves from 518,954 to the measured
+519,354 with that reason beside it (an exact-size pin moves with its measured
+number and its reason; a cap moves only on the owner's word: no cap moved).
+`dist/extension.js` has grown 2,712 of the 3,072 B the activation budget
+allows. `dist/headless.js` is 100,078 B, unchanged.
+
+### Runs on the final head
+
+Kubuntu, three workers, exit codes.
+
+On the complete tree, before its last commits (which change one test file and
+documents): the lint parts exactly as the workflow runs them (`run-s
+format:check lint:js:main lint:js:tests lint:css lint:ps`; `lint:ps` is a
+reported skip off Windows) 0; `lint:js:unit` 0; typecheck 0 (five projects);
+`deadcode` 0; `security:sast` 0; `security:audit` 0; `check:badges`,
+`check:tokens`, `check:l10n`, `check:reference`, `check:host-api`,
+`check:plan` and `check:roadmap` 0; cycles 0; duplication 0; `npm run build`
+0 with
+
+```text
+ok   cross-bundle members: 2258 reads of 45 sibling bundles, each exported by the bundle read; every loaded sibling followed to its members, every export list read, 1 of 1 listed load(s) by a computed name
+ok   lazy registry: 97 bundles, 127 loads by file name resolved, 5 listed load(s) by a computed name, 1 listed name(s) that are not a load; src/shared/lazyBundles.generated.ts is current
+```
+
+the registry, bundle, golden and packaging suites, 12 files: 491 of 491;
+`test/e2e/execStdio.e2e.test.ts` on the packed package 46 of 46.
+
+The whole unit and process suite on `1d2858f6f`, a clean checkout, 1,355 s,
+while other work took the rig's load to 14: exit 1. Vitest's summary: 1,319
+files passed, 8 failed, 10 skipped; 27,595 tests passed, 6 failed, 224
+skipped. Every red it named:
+
+| Suite                           | Failed                                                                                                                           | What it is                                                                                                                                                                                                                                              |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `acpPackageFixtures.test.ts`    | "every packaging fixture uses the shared layout and keeps no list of its own": four suites found, three expected                 | The candidate's. The scan took `packagedBundles.test.mjs`, which mentions the packager in a comment and now spawns the registry command, for a suite that runs the packager. The scan asks that the packager be named in a string (`3e21a8c62`): 3 of 3 |
+| `playbookOutcomes.test.ts`      | 8 cases                                                                                                                          | The rig's: its shared dependency folder is installed without scripts, so the Husky wrappers the cases run do not exist. A clean checkout with a full install passes them                                                                                |
+| `vault/peer.test.ts`            | 1 case                                                                                                                           | The rig's: `sudo -u nobody` cannot reach the run's private temporary folder ("command not found"). A clean checkout passes it                                                                                                                           |
+| `usageIntegration.test.ts`      | 1 case at its 5,000 ms limit                                                                                                     | Known before this candidate; its cause is measured in a lane of its own (above)                                                                                                                                                                         |
+| `accountsPanel.a11y.test.mjs`   | "hc-light section at 690px passes axe and fits the panel" at its 5,000 ms limit                                                  | Observed, cause not measured. Alone, load 10.6: 34 of 34, that case 1,503 ms                                                                                                                                                                            |
+| `runtimeChatGptPackage.test.ts` | "refuses a missing providers bundle before replacing the package stage" at its 5,000 ms limit                                    | Observed, cause not measured. Alone, load 8.3: 2 of 2, that case 1,431 ms                                                                                                                                                                               |
+| `promptHostLifecycle.test.ts`   | "registers and merges the prompt mirror when Settings Sync is enabled before any sharing command": the awaited call was not seen | Observed, cause not measured. Alone, load 11.1: 3 of 3, that case 188 ms                                                                                                                                                                                |
+| `windowsTrustedPath.test.ts`    | Its `beforeAll` at the 10,000 ms hook limit                                                                                      | Observed, cause not measured. Alone, load 7.8: 25 of 25                                                                                                                                                                                                 |
+
+None of the last four files is touched by this change, and none of them was
+red on the hosted run. No limit was raised and no retry added for any of
+them; hosted CI on the final head is the gate.
+
+The package of the final head: `muse-spark-code-acp-0.18.1.tgz`, 2,490,514 B,
+144 files, SHA-256
+`3e4d4ca2f52b9279152be29a720c1f7ef09a413c4cf9fbb52e9fd733461a74b0`, packed on
+Kubuntu from `1d2858f6f`; the commits after it change one test file and
+documents, nothing the build reads.
+
+The real conversations through this package are the lead's to run, after this
+record is written; the live run recorded above is of the earlier package
+(`72fa54ea…`), and this one's is added under it when it has run.
