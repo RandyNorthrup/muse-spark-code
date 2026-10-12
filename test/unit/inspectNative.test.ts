@@ -1,4 +1,4 @@
-import { spawn, execFileSync, type StdioOptions } from 'node:child_process'
+import { spawn, execFileSync, type ChildProcess, type StdioOptions } from 'node:child_process'
 import {
   closeSync,
   mkdirSync,
@@ -16,7 +16,8 @@ import os from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { fileIdentityKey, statIdentity } from '../../src/core/fs/fileIdentity'
-import { InspectRunner } from '../../src/core/judge/fast/inspectExec'
+import { InspectRunner, type InspectExecOptions } from '../../src/core/judge/fast/inspectExec'
+import { JUDGE_FAST_B1_REFUSED_EXIT } from '../../src/shared/constants'
 import { parseInspectCommand } from '../../src/core/judge/fast/inspectGrammar'
 import { inspectStart } from './helpers/inspectStart'
 import { inspectPathSpellings, inspectProtectedPaths } from './helpers/inspectPaths'
@@ -57,6 +58,45 @@ function native(
   })
 }
 
+// Replays exact helper bytes for runner-parsing tests (the session self-test
+// cannot run in this sandbox): probe and self-test answers, then a confined
+// line followed by the refusal, exit 125.
+const launched = (child: ChildProcess) =>
+  Promise.resolve({
+    child,
+    pid: () => Promise.resolve(child.pid),
+    outcome: () => Promise.resolve(undefined),
+    stop: () => {
+      child.kill('SIGKILL')
+      return Promise.resolve()
+    },
+  })
+const replay = (stdout: string, stderr: string, code: number) =>
+  spawn(
+    process.execPath,
+    [
+      '-e',
+      `process.stdout.write(${JSON.stringify(stdout)}, () => { process.stderr.write(${JSON.stringify(stderr)}, () => process.exit(${String(code)})); });`,
+    ],
+    { stdio: ['pipe', 'pipe', 'pipe'], shell: false },
+  )
+const replayStart: InspectExecOptions['start'] = (_file, args) => {
+  const program = args[0] === 'probe' ? 'probe' : (args[5] ?? '')
+  if (program === 'probe') return launched(replay('{"abi":7,"confined":true}\n', '', 0))
+  if (program === 'cat')
+    return launched(replay('B1_ALLOWED_CANARY', '{"confined":true,"abi":7,"excluded":0}\n', 0))
+  if (program === 'grep')
+    return launched(replay('B1_ALLOWED_CANARY\n', '{"confined":true,"abi":7,"excluded":3}\n', 0))
+  const refused = program === 'stat' ? 'operand' : 'exec'
+  return launched(
+    replay(
+      '',
+      `{"confined":true,"abi":7,"excluded":0}\n{"refused":"${refused}"}\n`,
+      JUDGE_FAST_B1_REFUSED_EXIT,
+    ),
+  )
+}
+
 if (process.platform === 'linux') {
   describe('B1 Linux kernel boundary', () => {
     let scratch = '',
@@ -73,6 +113,7 @@ if (process.platform === 'linux') {
         'StatRace',
         'StatMask',
         'StatNoExec',
+        'ExecFail',
         'Guards',
         'Device',
         'Budget',
@@ -270,6 +311,51 @@ if (process.platform === 'linux') {
       const expected = statSync(h.allowed)
       expect(stdout).toContain(`Inode: ${String(expected.ino)} `)
       expect(stdout).toContain(`Device: ${expected.dev.toString(16)}h/${String(expected.dev)}d `)
+    })
+    it('a refusal after the walk leaves the refusal as the last stderr line', async () => {
+      // The ExecFail variant fails wc's execve. Where /usr/bin/wc verifies,
+      // that is a confined line plus {"refused":"exec"}; on this uutils rig
+      // no system file verifies (every one is nobody-owned), so the refusal
+      // stands alone. Either way the last line is the refusal the runner reads.
+      const h = await fixture()
+      const result = await native(
+        variant('ExecFail'),
+        h.args('wc', ['allowed.txt'], ['-l', 'allowed.txt']),
+        h.root,
+      )
+      expect(result.code).toBe(125)
+      expect(result.stdout.length).toBe(0)
+      const lines = result.stderr.split('\n').filter((line) => line.length > 0)
+      expect(lines.at(-1)).toMatch(/^\{"refused":"[a-zA-Z]+"\}$/u)
+      if (lines.length === 2) {
+        expect(lines[0]).toMatch(/^\{"confined":true,/u)
+        expect(lines.at(-1)).toBe('{"refused":"exec"}')
+      } else expect(lines).toHaveLength(1)
+    })
+    it('the runner reports the refusal reason, not confinement, after the confined line', async () => {
+      // Replays the exact bytes the helper emits (pinned above against the
+      // real helper): probe and self-test answers, then a confined line
+      // followed by the refusal, exit 125. The session self-test cannot run
+      // in this sandbox, so the runner logic is proved here and the helper
+      // bytes against the real binary above.
+      const h = await fixture()
+      const runner = new InspectRunner({
+        helper: binary,
+        storage: path.join(h.root, 'storage'),
+        start: replayStart,
+      })
+      try {
+        expect(await runner.run('wc -l allowed.txt', h.binding)).toEqual({
+          kind: 'refused',
+          reason: 'exec',
+        })
+        expect(await runner.run('stat link', h.binding)).toEqual({
+          kind: 'refused',
+          reason: 'operand',
+        })
+      } finally {
+        await runner.dispose()
+      }
     })
     it('stat -- name answers: the grammar drops the separator the helper would refuse', async () => {
       // Builds the helper argv exactly as InspectRunner.execute does, so the

@@ -250,7 +250,11 @@ export class InspectRunner {
       result.exitCode === null ||
       result.exitCode === JUDGE_FAST_B1_REFUSED_EXIT
     ) {
-      const native = nativeRefusalSchema.safeParse(json(result.stderr.trim()))
+      // A refusal can follow the confined line (a failed exec, or a report
+      // failure), so the refusal is the last complete JSON line on stderr,
+      // not the whole stderr as one value.
+      const lines = result.stderr.split('\n').filter((line) => line.trim().length > 0)
+      const native = nativeRefusalSchema.safeParse(json(lines.at(-1) ?? ''))
       return refused(native.success ? native.data.refused : 'confinement')
     }
     const metadata = runSchema.safeParse(json(result.stderr.slice(0, newline)))
