@@ -1,11 +1,16 @@
-import { fork, type ChildProcess } from 'node:child_process'
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import type { ChildProcess } from 'node:child_process'
+import { mkdtemp, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { build } from 'esbuild'
 import * as z from 'zod/mini'
 import { afterAll, beforeAll, expect, it } from 'vitest'
 import { FIXTURE_HOOK_TIMEOUT_MS } from '../unit/helpers/fixtureBudget'
+import {
+  bundleScheduleWorker,
+  forkScheduleWorker,
+  queueForkWorkerMessages,
+  stopForkWorkers,
+} from './scheduleForkWorker'
 
 const receipt = z.strictObject({ phase: z.enum(['ready', 'reserved', 'refused']) })
 const paths = { root: '', worker: '' }
@@ -20,67 +25,29 @@ const prepared = new Map<
   { window: ReturnType<typeof start>; agent: ReturnType<typeof start> }
 >()
 function start(data: string, family: string, own: string, shared: string) {
-  const child = fork(paths.worker, [data, family, own, shared], {
-    silent: true,
-    env: { SystemRoot: process.env['SystemRoot'], TMPDIR: tmpdir() },
-  })
-  children.push(child)
-  const exit = new Promise<number | null>((resolve) => child.once('exit', resolve))
-  exits.push(exit)
-  const messages: z.infer<typeof receipt>[] = []
-  const waiters: ReturnType<typeof Promise.withResolvers<z.infer<typeof receipt>>>[] = []
-  let stderr = ''
-  child.stderr?.on('data', (chunk: Buffer) => {
-    stderr += chunk.toString()
-  })
-  child.on('exit', () => {
-    for (const waiter of waiters) waiter.reject(new Error(`budget worker exited: ${stderr}`))
-  })
-  child.on('message', (input: unknown) => {
-    const parsed = receipt.parse(input)
-    const waiter = waiters.shift()
-    if (waiter === undefined) messages.push(parsed)
-    else waiter.resolve(parsed)
-  })
-  return {
-    child,
-    exit,
-    next: () => {
-      const queued = messages.shift()
-      if (queued !== undefined) return Promise.resolve(queued)
-      const waiter = Promise.withResolvers<z.infer<typeof receipt>>()
-      waiters.push(waiter)
-      return waiter.promise
-    },
-  }
+  const worker = forkScheduleWorker(paths.worker, [data, family, own, shared])
+  children.push(worker.child)
+  exits.push(worker.exit)
+  return queueForkWorkerMessages(worker, (input) => receipt.parse(input), 'budget worker exited')
 }
 beforeAll(async () => {
   paths.root = await mkdtemp(path.join(tmpdir(), 'schedule-budget-families-'))
   paths.worker = path.join(paths.root, 'worker.cjs')
-  await build({
-    entryPoints: ['test/e2e/scheduleBudgetFamilyWorker.ts'],
-    outfile: paths.worker,
-    bundle: true,
-    format: 'cjs',
-    platform: 'node',
-    target: 'node22',
-    logLevel: 'silent',
-    plugins: [
-      {
-        name: 'fixture-vscode',
-        setup(builder) {
-          builder.onResolve({ filter: /^vscode$/ }, () => ({
-            path: 'vscode',
-            namespace: 'fixture',
-          }))
-          builder.onLoad({ filter: /.*/, namespace: 'fixture' }, () => ({
-            contents: 'export const window = {}',
-            loader: 'js',
-          }))
-        },
+  await bundleScheduleWorker('test/e2e/scheduleBudgetFamilyWorker.ts', paths.worker, [
+    {
+      name: 'fixture-vscode',
+      setup(builder) {
+        builder.onResolve({ filter: /^vscode$/ }, () => ({
+          path: 'vscode',
+          namespace: 'fixture',
+        }))
+        builder.onLoad({ filter: /.*/, namespace: 'fixture' }, () => ({
+          contents: 'export const window = {}',
+          loader: 'js',
+        }))
       },
-    ],
-  })
+    },
+  ])
   for (const test of cases) {
     const data = path.join(paths.root, test.cap)
     const { mkdir } = await import('node:fs/promises')
@@ -96,12 +63,7 @@ beforeAll(async () => {
     prepared.set(test.cap, { window, agent })
   }
 }, FIXTURE_HOOK_TIMEOUT_MS)
-afterAll(async () => {
-  for (const child of children)
-    if (child.exitCode === null && child.signalCode === null) child.kill()
-  await Promise.all(exits)
-  await rm(paths.root, { recursive: true, force: true })
-})
+afterAll(() => stopForkWorkers(children, exits, paths.root))
 it.each(cases)(
   'one $cap daily cap applies to a window-family and agent-family process',
   async (test) => {

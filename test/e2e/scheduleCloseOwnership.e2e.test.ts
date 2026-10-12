@@ -1,12 +1,17 @@
-import { fork, type ChildProcess } from 'node:child_process'
-import { mkdtemp, rm } from 'node:fs/promises'
+import type { ChildProcess } from 'node:child_process'
+import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { build } from 'esbuild'
 import * as z from 'zod/mini'
 import { afterAll, beforeAll, expect, it } from 'vitest'
 import { scheduleFireRecordSchema } from '../../src/shared/scheduleV2'
 import { FIXTURE_HOOK_TIMEOUT_MS } from '../unit/helpers/fixtureBudget'
+import {
+  bundleScheduleWorker,
+  forkScheduleWorker,
+  queueForkWorkerMessages,
+  stopForkWorkers,
+} from './scheduleForkWorker'
 
 const receipt = z.discriminatedUnion('phase', [
   z.strictObject({ phase: z.literal('admitted') }),
@@ -25,52 +30,15 @@ const workers: {
   liveOther?: ReturnType<typeof start>
 } = {}
 function start(role: string, root = paths.root) {
-  const child = fork(paths.worker, [root, role], {
-    silent: true,
-    env: { SystemRoot: process.env['SystemRoot'], TMPDIR: tmpdir() },
-  })
-  children.push(child)
-  const exit = new Promise<number | null>((resolve) => child.once('exit', resolve))
-  exits.push(exit)
-  const messages: z.infer<typeof receipt>[] = []
-  const waiters: ReturnType<typeof Promise.withResolvers<z.infer<typeof receipt>>>[] = []
-  let stderr = ''
-  child.stderr?.on('data', (chunk: Buffer) => {
-    stderr += chunk.toString()
-  })
-  child.on('exit', () => {
-    for (const waiter of waiters) waiter.reject(new Error(`close worker exited: ${stderr}`))
-  })
-  child.on('message', (input: unknown) => {
-    const parsed = receipt.parse(input)
-    const waiter = waiters.shift()
-    if (waiter === undefined) messages.push(parsed)
-    else waiter.resolve(parsed)
-  })
-  return {
-    child,
-    exit,
-    next: () => {
-      const queued = messages.shift()
-      if (queued !== undefined) return Promise.resolve(queued)
-      const waiter = Promise.withResolvers<z.infer<typeof receipt>>()
-      waiters.push(waiter)
-      return waiter.promise
-    },
-  }
+  const worker = forkScheduleWorker(paths.worker, [root, role])
+  children.push(worker.child)
+  exits.push(worker.exit)
+  return queueForkWorkerMessages(worker, (input) => receipt.parse(input), 'close worker exited')
 }
 beforeAll(async () => {
   paths.root = await mkdtemp(path.join(tmpdir(), 'schedule-close-owner-'))
   paths.worker = path.join(paths.root, 'worker.cjs')
-  await build({
-    entryPoints: ['test/e2e/scheduleCloseWorker.ts'],
-    outfile: paths.worker,
-    bundle: true,
-    format: 'cjs',
-    platform: 'node',
-    target: 'node22',
-    logLevel: 'silent',
-  })
+  await bundleScheduleWorker('test/e2e/scheduleCloseWorker.ts', paths.worker)
   workers.owner = start('owner')
   expect(await workers.owner.next()).toEqual({ phase: 'admitted' })
   workers.other = start('other')
@@ -81,12 +49,7 @@ beforeAll(async () => {
   workers.liveOther = start('other', liveRoot)
   expect(await workers.liveOther.next()).toEqual({ phase: 'ready' })
 }, FIXTURE_HOOK_TIMEOUT_MS)
-afterAll(async () => {
-  for (const child of children)
-    if (child.exitCode === null && child.signalCode === null) child.kill()
-  await Promise.all(exits)
-  await rm(paths.root, { recursive: true, force: true })
-})
+afterAll(() => stopForkWorkers(children, exits, paths.root))
 it("another process closing leaves the owning process's due Once admission untouched", async () => {
   const { owner, other } = workers
   if (owner === undefined || other === undefined) throw new Error('missing prepared workers')
