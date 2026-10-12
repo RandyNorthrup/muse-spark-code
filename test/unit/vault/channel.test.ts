@@ -631,27 +631,32 @@ describe.skipIf(!hasUnixPeer)('native authenticated broker channel', () => {
       const client = await openClient(fixture)
       const silenced = silenceServer()
       const clientSocket = clientSocketOf(client)
-      const written = vi.spyOn(clientSocket, 'write')
+      // The sequence is what a real broker peer sees: the request as it
+      // arrives on the server side. Not the client's private pending state,
+      // and not the buffer handed to the client socket's write: the client
+      // wipes its request bytes after the write, so a recorded reference to
+      // that buffer reads as zeros.
+      const arrived: Buffer[] = []
+      const collect = (bytes: Buffer) => {
+        arrived.push(Buffer.from(bytes))
+      }
+      const peers = serverSocketsOf(fixture)
+      for (const peer of peers) peer.on('data', collect)
       try {
         const pending = client.send({ kind: 'status' })
-        await vi.waitFor(() => {
-          expect(written).toHaveBeenCalled()
+        const request = await vi.waitFor(() => {
+          const text = Buffer.concat(arrived).toString('utf8')
+          const end = text.indexOf('\n')
+          expect(end, shape).toBeGreaterThan(0)
+          return text.slice(0, end)
         })
-        // The sequence is what a real broker peer sees: the request the
-        // client wrote, never the client's private pending state.
-        const sent = written.mock.calls
-          .map((args) => args[0])
-          .find((bytes): bytes is Buffer => Buffer.isBuffer(bytes))
-        if (!sent) throw new Error('expected the status request bytes')
-        const sequence = z
-          .object({ sequence: z.number() })
-          .parse(JSON.parse(sent.toString('utf8'))).sequence
+        const sequence = z.object({ sequence: z.number() }).parse(JSON.parse(request)).sequence
         clientSocket.emit('data', payload(sequence))
         const failure = await channelFailureOf(() => pending)
         expect(failure, shape).toBeInstanceOf(VaultChannelError)
         expect(failure, shape).toMatchObject({ name: 'VaultChannelError', code: 'invalidResponse' })
       } finally {
-        written.mockRestore()
+        for (const peer of peers) peer.off('data', collect)
         for (const serverWrite of silenced) serverWrite.mockRestore()
         client.close()
       }
