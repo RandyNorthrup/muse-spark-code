@@ -18,6 +18,17 @@ happened, not what was planned; superseded entries are kept.
   folder that cannot be read no longer fails the whole page: the cost
   history still shows, with its own note in the attempts section.
 
+### Superseded
+
+- Usage trace logs (lane USAGETRACE, round 1, superseded by the round-3
+  redesign above): one cached reader per home folder, shared by the
+  attempts read and the insights read. Unchanged files are never opened
+  again (path, size, mtime, native identity); refreshes share one flight,
+  parse at most 4 files at once as line streams, and skip files older
+  than any caller window. Every usage read after the first in a process
+  re-stats instead of re-parsing. Unit workers run with the home folder
+  redirected at an empty temp folder, so no test reads real user data.
+
 ### Pending
 
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
