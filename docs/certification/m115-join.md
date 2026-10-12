@@ -303,3 +303,10 @@ once with one ran record. `scheduleCloseOwnership.e2e`, `scheduleRestartRecovery
 and `scheduleOutbox` pass 43/43 at default deadlines. Close retries only terminal
 facts remembered by this scheduler, never the shared registry's pending targets.
 The red and restored receipts are `temp/schedjoin2/p1-{red,green}.log`.
+
+## RVSCHEDJOIN P2 — unhanded admissions survive orderly close
+
+The two-schedule, one-target regression failed before repair: both fires were
+uncertain even though only the first reached deliver. An aborted scheduler now
+stops selecting/handing off work and leaves the second admission in the outbox.
+Reload delivers that second fire once, with no replay of the first dispatch.
