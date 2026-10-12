@@ -697,8 +697,8 @@ function start(args: readonly string[], mode = 'stdin', shouldReadOutput = true)
       USERPROFILE: WORK,
       XDG_DATA_HOME: WORK,
       LOCALAPPDATA: WORK,
-      LANG: mode === 'toolrounds-de' ? 'de_DE.UTF-8' : 'C',
-      LC_ALL: mode === 'toolrounds-de' ? 'de_DE.UTF-8' : 'C',
+      LANG: mode.endsWith('-de') ? 'de_DE.UTF-8' : 'C',
+      LC_ALL: mode.endsWith('-de') ? 'de_DE.UTF-8' : 'C',
       NODE_PATH: path.join(ROOT, 'node_modules'),
       M80D_CASE: mode,
       M80D_REPORT: path.join(WORK, 'report.json'),
@@ -838,7 +838,7 @@ describe('M80 E1-E7 built exec', { timeout: TIMEOUT }, () => {
             },
             load(url, context, nextLoad) {
               if (url !== FAKE_KEYRING) return nextLoad(url, context);
-              if (mode !== 'store') throw new Error('keyring must not load on stdin path');
+              if (mode !== 'store' && mode !== 'store-de') throw new Error('keyring must not load on stdin path');
               return {
                 format: 'module',
                 shortCircuit: true,
@@ -857,7 +857,16 @@ describe('M80 E1-E7 built exec', { timeout: TIMEOUT }, () => {
             if (String(url).endsWith('/responses')) writeFileSync(process.env.M80D_REQUEST_MARKER, 'dispatched');
             if (mode?.startsWith('toolrounds') && String(url).endsWith('/responses')) {
               const body = JSON.parse(init.body);
-              const wrap = body.tool_choice === 'none' && body.tools.length === 0;
+              // The golden wrap-up shape (golden 10-turn-limit-wrap-up): empty
+              // tools with tool_choice as ever, instructions byte-identical,
+              // the limit note as the trailing input item — never tool_choice
+              // none, never a note inside instructions.
+              const items = Array.isArray(body.input) ? body.input : [];
+              const tail = items.length > 0 ? items[items.length - 1] : undefined;
+              const tailText = tail?.type === 'message' && Array.isArray(tail.content)
+                ? tail.content.map(part => part?.text ?? '').join('')
+                : '';
+              const wrap = body.tools.length === 0 && tailText.includes('limit of 60 model calls');
               api.script(wrap
                 ? { text: 'Done; found defects; testing remains', usage: {input:10, output:5} }
                 : { calls: [{name:'get_goal', arguments:'{}'}], usage: {input:10, output:5} });
@@ -878,9 +887,17 @@ describe('M80 E1-E7 built exec', { timeout: TIMEOUT }, () => {
             return response;
           };
           const hash = value => createHash('sha256').update(value).digest('hex');
+          const tailNote = body => {
+            const items = Array.isArray(body?.input) ? body.input : [];
+            const tail = items.length > 0 ? items[items.length - 1] : undefined;
+            const text = tail?.type === 'message' && Array.isArray(tail.content)
+              ? tail.content.map(part => part?.text ?? '').join('')
+              : '';
+            return text.includes('limit of 60 model calls');
+          };
           process.on('exit', () => writeFileSync(process.env.M80D_REPORT, JSON.stringify({
             env: Object.fromEntries(Object.entries(process.env).map(([k,v]) => [k,hash(v ?? '')])),
-            argv: process.argv.map(hash), requests: api.requests.map(r => ({path:r.path, method:r.method, ...(mode?.startsWith('toolrounds') && r.path === '/responses' ? { toolChoice:r.body.tool_choice, tools:r.body.tools.length, wrapNote:r.body.instructions.includes('limit of 60 model calls') } : {})}))
+            argv: process.argv.map(hash), requests: api.requests.map(r => ({path:r.path, method:r.method, ...(mode?.startsWith('toolrounds') && r.path === '/responses' ? { toolChoice:r.body.tool_choice, tools:r.body.tools.length, instructionsHash:hash(String(r.body.instructions)), wrapNote:tailNote(r.body) } : {})}))
           })));
         `,
         resolveDir: ROOT,
@@ -962,6 +979,7 @@ describe('M80 E1-E7 built exec', { timeout: TIMEOUT }, () => {
               path: z.string(),
               toolChoice: z.optional(z.string()),
               tools: z.optional(z.number()),
+              instructionsHash: z.optional(z.string()),
               wrapNote: z.optional(z.boolean()),
             }),
           ),
@@ -969,9 +987,60 @@ describe('M80 E1-E7 built exec', { timeout: TIMEOUT }, () => {
         .parse(JSON.parse(readFileSync(path.join(WORK, 'report.json'), 'utf8')))
       const requests = report.requests.filter((request) => request.path === '/responses')
       expect(requests).toHaveLength(60)
-      expect(requests.at(-1)).toMatchObject({ toolChoice: 'none', tools: 0, wrapNote: true })
+      // The golden wrap-up shape: tools empty with the choice as ever, the
+      // limit note as the trailing input item, instructions byte-identical.
+      expect(requests.at(-1)).toMatchObject({ toolChoice: 'auto', tools: 0, wrapNote: true })
+      const tooled = requests.slice(0, -1)
+      for (const request of tooled)
+        expect(request).toMatchObject({ toolChoice: 'auto', wrapNote: false })
+      expect(new Set(requests.map((request) => request.instructionsHash)).size).toBe(1)
       expect(output.stdout + output.stderr).not.toContain('Internal error')
       // Sixty real process admissions/settlements write private journals, unlike one-turn rows.
+    },
+    TIMEOUT,
+  )
+
+  it.each(['store', 'store-de'])(
+    'states the budget minimum in the run language in the real exec process (%s)',
+    async (mode) => {
+      const run = start([...execArgs(), '--max-budget-usd', '0.108134'], mode)
+      const output = await run.closed
+      expect(output.code, output.stderr).toBe(5)
+      expect(result(output.stdout)).toMatchObject({
+        status: 'budget_exceeded',
+        exitCode: 5,
+        usage: { requests: 0 },
+        error: {
+          kind: 'budget_exceeded',
+          message:
+            mode === 'store-de'
+              ? // The space before the currency sign is Intl's non-breaking space.
+                'Dieser Lauf benötigt mindestens 0,108135\u{A0}$.'
+              : 'This run requires at least $0.108135.',
+        },
+        finalMessage:
+          mode === 'store-de'
+            ? 'Nachricht zurückgehalten: Die Antwort wurde nicht abgeschlossen'
+            : 'message withheld: the response did not complete',
+      })
+      expect(output.stdout + output.stderr).not.toContain('Internal error')
+    },
+    TIMEOUT,
+  )
+
+  it.each(['store', 'store-de'])(
+    'names the unavailable model in the run language in the real exec process (%s)',
+    async (mode) => {
+      const run = start([...execArgs(), '--model', 'bogus-model-x'], mode)
+      const output = await run.closed
+      expect(output.code, output.stderr).toBe(2)
+      expect(output.stdout).toBe('')
+      expect(output.stderr).toContain(
+        mode === 'store-de'
+          ? 'Dieses Modell ist für diesen Lauf nicht verfügbar.'
+          : 'This model is not available for this run.',
+      )
+      expect(output.stdout + output.stderr).not.toContain('Internal error')
     },
     TIMEOUT,
   )
