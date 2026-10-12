@@ -40347,10 +40347,20 @@ exports it now. Report a Problem refused every setting name with a second dot
 one; the name pattern takes dotted segments, and a report with its facts
 switched off no longer depends on them. Evidence, the drills and the live proof:
 `docs/certification/hotfix-0181-bundle-exports.md` (D6). A fixes only patch,
-so without Highlights. No browser bundle changes: `dist/webview` is 0.18.0's
-byte for byte (176 files compared), so no frame and no README screenshot
-moves; five other files of `dist` differ (the two bundles above, the report
-builder in `dist/report.js` and `dist/acp.js`, and the release notes). This is
+so without Highlights. On `hotfix/0.18.1` (`87d9ab91c`) no browser bundle
+changes: `dist/webview` is 0.18.0's byte for byte (176 files compared), and
+five other files of `dist` differ (the two bundles above, the report builder
+in `dist/report.js` and `dist/acp.js`, and the release notes). The release is
+`hotfix/0.18.1-nopin`: that branch plus the Model API bundle diet, because no
+pinned size is raised for a hotfix (the owner's decision, 2026-10-12).
+`dist/modelApi.js` is 518,954 B there, under the 532,537 B the bundle test
+pinned in 0.18.0, with the per-call helpers in the deferred
+`dist/modelApiTools.js` (23,433 B). The diet adds two
+messages to `en.ts`, which every webview bundle is built from, so in the
+release 136 of the 176 files of `dist/webview` differ from 0.18.0's (16 B in
+all) and the visual gate renders and compares every screenshot; no scene
+shows the new messages. Pull request 150, the branch without the diet, is
+not merged. This is
 preparation, not publication; the public roadmap
 (M122) lists 0.18.1 as the next release until a `0.18.1 released (…)`
 record follows here.
