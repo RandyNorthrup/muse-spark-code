@@ -334,6 +334,9 @@ export function featureCatalog(): readonly Feature[] {
       // local callbacks need no paste and remote/ACP terminal flows paste an
       // authorization code. Cancellation reaches both exchange and usage transport;
       // both usage surfaces discard missing/changed/failed key observations.
+      // Panel usage reads only on open, Save and Refresh, sharing pending reads.
+      // Terminal replacement asks first and preserves the previous credential on
+      // cancellation; exact usage decimals and discarded-key removal notices are shared.
       // Saved custom limits persist directly from Edit without a new test
       // while the connection is unchanged; pre-write failures retain the draft.
       // Edit and Change key share a full saved snapshot; unchanged routing,

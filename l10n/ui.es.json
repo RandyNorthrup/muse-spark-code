@@ -4282,6 +4282,8 @@
   "providerImportPreviewTitle": "Vista previa de la importación",
   "importNeedsKey": "necesita una clave",
   "importNeedsKeyLabel": "necesita una clave",
+  "providerConnectReplaceKey": "Ya hay una clave de OpenRouter guardada. ¿Reemplazarla? Escribe yes para continuar.",
+  "providerCreatedKeyDiscarded": "OpenRouter creó una clave llamada {label}. No se conservó aquí. Elimínala en {url}.",
   "providerConnectFailed": "La conexión con OpenRouter ha fallado. Vuelve a intentarlo.",
   "providerUsageFailed": "No se pudo consultar el uso de la clave de OpenRouter. Vuelve a intentarlo.",
   "providerPasteCode": "Pega el código de autorización que muestra OpenRouter.",

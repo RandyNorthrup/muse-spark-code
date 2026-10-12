@@ -20,7 +20,7 @@ import { ProviderCredentialStore as CredentialStore } from '../providers/credent
 import type { UiTable } from '../l10n'
 import type { Logger } from '../logger'
 import { showPickOne } from '../quickPick'
-import { startOAuthLoopback } from '../backend/providersEntry'
+import { openRouterDiscardedKeyNotice, startOAuthLoopback } from '../backend/providersEntry'
 import { createModelsPanel, type ModelsPanel, type ModelsPanelNavigate } from './modelsPanel'
 import { runAddProviderQuickPick, type ProviderQuickPickOutcome } from './modelsQuickPick'
 import { createSessionBudgetConfig } from './sessionBudget'
@@ -284,6 +284,9 @@ export function createModelsPanelFeatures(
     now: () => Date.now(),
     setComposerModel: host.setComposerModel,
     ui: {
+      onDiscardedKey: () => {
+        void vscode.window.showWarningMessage(openRouterDiscardedKeyNotice())
+      },
       showInputBox: vscode.window.showInputBox,
       confirmPaidTest: async (message) =>
         (await vscode.window.showWarningMessage(

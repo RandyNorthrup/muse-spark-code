@@ -257,13 +257,13 @@ export interface CodeExchanger {
  * validates the numbers (finite, non-negative) before they are shown.
  */
 export interface KeyUsageSnapshot {
-  readonly usedTotal?: number
+  readonly usedTotal?: number | string
   readonly unlimited?: boolean
-  readonly usedToday: number
-  readonly usedThisWeek: number
-  readonly usedThisMonth: number
-  readonly limit: number | undefined
-  readonly remaining: number | undefined
+  readonly usedToday: number | string
+  readonly usedThisWeek: number | string
+  readonly usedThisMonth: number | string
+  readonly limit: number | string | undefined
+  readonly remaining: number | string | undefined
 }
 
 /** Reads an OpenRouter key's usage and limit (lane T's transport, from the capture). */

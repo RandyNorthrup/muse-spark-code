@@ -26,8 +26,11 @@ export { createModelsPanelSeam } from '../../core/providers/panelSeam'
 export { recordPlanUsage } from '../../core/providers/subscriptions/planUsage'
 export {
   connectOpenRouterAccount,
-  readOpenRouterKeyUsage,
-  readOpenRouterPanelUsage,
+  createOpenRouterPanelUsage,
+  clearOpenRouterPanelUsage,
+  createOpenRouterDraftDiscard,
+  createOpenRouterUsageReader,
+  openRouterDiscardedKeyNotice,
   promptOpenRouterCode,
   OPENROUTER_ORIGIN,
 } from '../providers/openRouter'

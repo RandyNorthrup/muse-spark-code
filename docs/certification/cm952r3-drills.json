@@ -1,0 +1,142 @@
+[
+  {
+    "name": "terminal-preserve",
+    "file": "src/runtime/openRouterCommands.ts",
+    "sha256": "a4f9231ee500143525b6b853b3a94927b8ece45d6609eef8d7fef77fd36bcbcd",
+    "restored": true,
+    "exit": 1,
+    "failed": [
+      "CM952 production OpenRouter composition preserves the exact previous terminal key at every Connect await"
+    ]
+  },
+  {
+    "name": "usage-freshness",
+    "file": "src/host/providers/openRouter.ts",
+    "sha256": "4e4ce477dbbc03742058b5626d299f075162ab01c41ce4029d70fcd36076dff7",
+    "restored": true,
+    "exit": 1,
+    "failed": [
+      "CM952 production OpenRouter composition discards Models usage when the credential changes during its read: rotated",
+      "CM952 production OpenRouter composition discards Models usage when the credential changes during its read: removed"
+    ]
+  },
+  {
+    "name": "nested-order",
+    "file": "scripts/lib/localizationGate.mjs",
+    "sha256": "06a281f3bd27c46154d3d261af2e8121a9703695cc777486839528ce9e3fe8b6",
+    "restored": true,
+    "exit": 1,
+    "failed": [
+      "both localization families rejects nested key order drift with packaging plural normalization"
+    ]
+  },
+  {
+    "name": "wire-decimals",
+    "file": "src/core/providers/configured.ts",
+    "sha256": "d6a6eed180c354ee5effb86eed3ebf2231021911bff3006ac296bcbe72b1c247",
+    "restored": true,
+    "exit": 1,
+    "failed": [
+      "CM952 production OpenRouter composition retains all six exact wire decimals through terminal output"
+    ]
+  },
+  {
+    "name": "callback-state",
+    "file": "src/host/providers/oauthLoopback.ts",
+    "sha256": "61df636cd7351a7fbbcf474fa77478e38f89ea52f2640aa59d6b6fa587aa8f97",
+    "restored": true,
+    "exit": 1,
+    "failed": [
+      "the OAuth loopback server ignores an unrelated or duplicate callback and still accepts the right one: ?error=synthetic-secret&error_description=synthetic-account",
+      "the OAuth loopback server ignores an unrelated or duplicate callback and still accepts the right one: ?code=auth-code&state=forged",
+      "the OAuth loopback server ignores an unrelated or duplicate callback and still accepts the right one: ?error=access_denied&state=forged"
+    ]
+  },
+  {
+    "name": "discard-notice",
+    "file": "src/host/providers/openRouter.ts",
+    "sha256": "4e4ce477dbbc03742058b5626d299f075162ab01c41ce4029d70fcd36076dff7",
+    "restored": true,
+    "exit": 1,
+    "failed": ["connectOpenRouterAccount discards a late exchange result after cancellation"]
+  },
+  {
+    "name": "read-sharing",
+    "file": "src/host/providers/openRouter.ts",
+    "sha256": "4e4ce477dbbc03742058b5626d299f075162ab01c41ce4029d70fcd36076dff7",
+    "restored": true,
+    "exit": 1,
+    "failed": ["createProvidersHost shares an in-flight key read and records one observation"]
+  },
+  {
+    "name": "journal-dedupe",
+    "file": "src/core/usage/recording.ts",
+    "sha256": "f5e24fa141ac3205ca08eaddda57f8069190aab33dc05d003ee4bf9599d43050",
+    "restored": true,
+    "exit": 1,
+    "failed": [
+      "recording taps keeps key observations in credential slots and never appends the same observation twice"
+    ]
+  },
+  {
+    "name": "journal-identity",
+    "file": "src/core/usage/recording.ts",
+    "sha256": "f5e24fa141ac3205ca08eaddda57f8069190aab33dc05d003ee4bf9599d43050",
+    "restored": true,
+    "exit": 1,
+    "failed": [
+      "recording taps keeps key observations in credential slots and never appends the same observation twice"
+    ]
+  },
+  {
+    "name": "refresh-sharing",
+    "file": "src/host/models/modelsPanel.ts",
+    "sha256": "09ad869116ef8d66579fbefcce4164c526bfb827a581cb42ed0107c80d231cdb",
+    "restored": true,
+    "exit": 1,
+    "failed": [
+      "CM952 production OpenRouter composition coalesces panel Refresh deliveries while a read is pending"
+    ]
+  },
+  {
+    "name": "replace-question",
+    "file": "src/runtime/openRouterCommands.ts",
+    "sha256": "a4f9231ee500143525b6b853b3a94927b8ece45d6609eef8d7fef77fd36bcbcd",
+    "restored": true,
+    "exit": 1,
+    "failed": [
+      "CM952 production OpenRouter composition asks in terminal words before replacing a pasted key"
+    ]
+  },
+  {
+    "name": "staged-verification",
+    "file": "src/runtime/openRouterCommands.ts",
+    "sha256": "a4f9231ee500143525b6b853b3a94927b8ece45d6609eef8d7fef77fd36bcbcd",
+    "restored": true,
+    "exit": 1,
+    "failed": [
+      "CM952 production OpenRouter composition refuses an unverified staged key without replacing the previous key"
+    ]
+  },
+  {
+    "name": "usage-network",
+    "file": "src/host/models/modelsPanel.ts",
+    "sha256": "e5ee07cd8703d5eee9b67b5397358b819b5aa6b20bfb3c7c2a491dcb7d8c9ed0",
+    "restored": true,
+    "exit": 1,
+    "failed": [
+      "CM952 production OpenRouter composition keeps six filter and sort actions off the network"
+    ]
+  },
+  {
+    "name": "callback-duplicates",
+    "file": "src/host/providers/oauthLoopback.ts",
+    "sha256": "891fbc86de882755befbd054fc11f08ad8d7e4dd602156617f18643d0f2157e4",
+    "restored": true,
+    "exit": 1,
+    "failed": [
+      "the OAuth loopback server ignores an unrelated or duplicate callback and still accepts the right one: ?code=a&code=b&state=test-state-value",
+      "the OAuth loopback server ignores an unrelated or duplicate callback and still accepts the right one: ?code=a&state=test-state-value&scope=a&scope=b"
+    ]
+  }
+]

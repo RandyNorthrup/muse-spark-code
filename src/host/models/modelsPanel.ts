@@ -41,7 +41,12 @@ import type { ProvidersHost } from '../providers/providersHost'
 import { isOriginBound, type CredentialRecord } from '../providers/credentialRecords'
 import type { WizardSaveOutcome } from '../providers/wizardSave'
 import type { ScanOutcome } from '../providers/modelScans'
-import { OPENROUTER_ORIGIN, readOpenRouterPanelUsage } from '../backend/providersEntry'
+import {
+  OPENROUTER_ORIGIN,
+  createOpenRouterPanelUsage,
+  clearOpenRouterPanelUsage,
+  createOpenRouterDraftDiscard,
+} from '../backend/providersEntry'
 import { Usd } from '../../shared/usd'
 import { redactSecrets } from '../../shared/redact'
 import { type SessionBudgetConfig } from './sessionBudget'
@@ -162,7 +167,11 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
     drafts: { edits: {} },
     pendingRemovals: [],
   }
-  const credentials = new Map<string, { secret: string; origin: string }>()
+  const credentials = new Map<string, { secret: string; origin: string; connected?: boolean }>()
+  const discardCredential = createOpenRouterDraftDiscard(
+    credentials,
+    providers.discardOpenRouterKey,
+  )
   const rows = new Map<string, readonly ProviderModelRow[]>()
   const newModels = new Set<string>()
   // A failed limit write can leave a saved provider. Retrying that draft
@@ -186,6 +195,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
   const lifetime = new AbortController()
   let connectionRequest: AbortController | undefined
   let usageRequest: AbortController | undefined
+  let isUsageQueued = false
   let navigation: ModelsPanelNavigate | undefined
   let operations = Promise.resolve()
   const post = (message: HostToPanelMessage): void => {
@@ -397,19 +407,14 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
     }
     return record?.secret
   }
-  const refresh = async (): Promise<void> => {
+  const refreshUsage = createOpenRouterPanelUsage(providers, (usage) =>
+    providerKeyUsageSchema.parse(usage),
+  )
+  const refresh = async (shouldReadUsage = false): Promise<void> => {
     usageRequest?.abort()
     usageRequest = new AbortController()
     const signal = AbortSignal.any([lifetime.signal, usageRequest.signal])
-    // A failed credential/configuration read must not retain old key amounts.
-    for (const row of state.providers) {
-      if (row.presetId !== 'openrouter') {
-        continue
-      }
-
-      row.keyUsage = undefined
-      row.keyUsageError = UI_TEXT.providerUsageFailed
-    }
+    clearOpenRouterPanelUsage(state.providers)
     state.presets = providers.presetIds().flatMap((id) => {
       const preset = providers.preset(id)
       if (preset === undefined) {
@@ -525,24 +530,12 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         },
       ]
     })
-    for (const row of state.providers) {
-      if (row.presetId !== 'openrouter') continue
-      if (row.key.state !== 'stored') {
-        row.keyUsageError = UI_TEXT.providerUsageFailed
-        continue
-      }
-      row.keyUsage = undefined
-      row.keyUsageError = undefined
-      try {
-        const entry = providerStates.find((item) => item.entry.id === row.id)?.entry
-        if (entry === undefined) throw new Error(UI_TEXT.providerUsageFailed)
-        row.keyUsage = providerKeyUsageSchema.parse(
-          await readOpenRouterPanelUsage(entry, providers, signal),
-        )
-      } catch {
-        row.keyUsageError = UI_TEXT.providerUsageFailed
-      }
-    }
+    await refreshUsage(
+      state.providers,
+      providerStates.map(({ entry }) => entry),
+      shouldReadUsage,
+      signal,
+    )
     const all: ModelRow[] = []
     const families = new Map<string, string>()
     for (const [providerId, models] of rows) {
@@ -707,14 +700,14 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
             ]
     }
   }
-  const handle = async (message: PanelToHostMessage): Promise<void> => {
+  const handle = async (message: PanelToHostMessage, shouldReadUsage: boolean): Promise<void> => {
     switch (message.type) {
       case 'modelsPanel/ready': {
         const cachedScans = await providers.cachedScans()
         for (const cached of cachedScans) {
           rows.set(cached.providerId, cached.rows)
         }
-        await refresh()
+        await refresh(true)
         publish()
         if (navigation !== undefined) {
           post({
@@ -770,7 +763,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
           await scan(await entryOf(preset.id))
           break
         }
-        credentials.delete('wizard')
+        discardCredential('wizard')
         state.drafts.wizard = newDraft(preset)
         break
       }
@@ -779,7 +772,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
           state.drafts.edits = Object.fromEntries(
             Object.entries(state.drafts.edits).filter(([id]) => id !== message.providerId),
           )
-          credentials.delete(message.providerId)
+          discardCredential(message.providerId)
         }
         await createEditDraft(message.providerId)
         break
@@ -807,7 +800,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         }
         if (oldAddress !== draft.address) {
           savedConnections.delete(draft)
-          credentials.delete(id ?? 'wizard')
+          discardCredential(id ?? 'wizard')
           draft.keyPresent = false
           draft.keyShapeOk = false
           draft.privateConfirmed = false
@@ -845,7 +838,6 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
             )
           } finally {
             draft.connecting = false
-            publish()
           }
         }
         const secret =
@@ -854,8 +846,10 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
             : await providers.promptForKey({ ...preset, origin: new URL(entry.address).origin })
         if (secret !== undefined && !isDisposed) {
           enteredCredentials.add(draft)
+          discardCredential(id ?? 'wizard')
           credentials.set(id ?? 'wizard', {
             secret,
+            connected: message.type === 'providers/connect',
             origin:
               message.type === 'providers/connect'
                 ? OPENROUTER_ORIGIN
@@ -927,7 +921,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
       case 'providers/wizard': {
         if (message.event === 'cancel') {
           state.drafts = { edits: {} }
-          credentials.clear()
+          discardCredential()
           break
         }
         const draft = draftOf()
@@ -944,7 +938,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         // Every outcome refreshes through this catch. Earlier outcome text survives.
         const finish = async (isSaved: boolean): Promise<void> => {
           try {
-            await refresh()
+            await refresh(true)
           } catch {
             hasRefreshFailed = true
             log.warn('Models panel could not refresh after provider save')
@@ -1015,6 +1009,13 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
           return
         }
         savedDrafts.add(draft)
+        if (
+          outcome.receipts?.includes(UI_TEXT.providerKeySaved) ||
+          outcome.failedStep === undefined
+        ) {
+          const record = credentials.get(message.providerId ?? 'wizard')
+          if (record !== undefined) record.connected = false
+        }
         const snapshot = editSnapshots.get(draft)
         if (
           snapshot !== undefined &&
@@ -1063,7 +1064,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
           if (outcome.budget?.status === 'conflict')
             draft.sessionBudgetExpectedUsd = outcome.budget.effectiveUsd
         } else {
-          credentials.delete(message.providerId ?? 'wizard')
+          discardCredential(message.providerId ?? 'wizard')
           enteredCredentials.delete(draft)
           if (message.providerId === undefined) state.drafts.wizard = undefined
           else
@@ -1079,7 +1080,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         return
       }
       case 'providers/remove': {
-        credentials.delete(message.providerId)
+        discardCredential(message.providerId)
         state.drafts.edits = Object.fromEntries(
           Object.entries(state.drafts.edits).filter(([id]) => id !== message.providerId),
         )
@@ -1239,10 +1240,16 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
       (message.type !== 'providers/wizard' || message.event === 'next') &&
       !connectionRequest?.signal.aborted
     )
-      await refresh()
+      await refresh(shouldReadUsage)
     publish()
   }
   const enqueue = (message: PanelToHostMessage): void => {
+    const shouldReadUsage =
+      message.type === 'providers/readUsage' || message.type === 'modelsPanel/ready'
+    if (shouldReadUsage) {
+      if (isUsageQueued) return
+      isUsageQueued = true
+    }
     if (message.type === 'providers/connect') {
       if (connectionRequest !== undefined) return
       connectionRequest = new AbortController()
@@ -1266,7 +1273,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         return
       }
       try {
-        await handle(message)
+        await handle(message, shouldReadUsage)
       } catch (error) {
         fail(
           message.type === 'providers/save' && message.providerId !== undefined
@@ -1275,6 +1282,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
           error,
         )
       } finally {
+        if (shouldReadUsage) isUsageQueued = false
         if (message.type === 'providers/connect') connectionRequest = undefined
         if (savingDraft !== undefined) {
           savingDraft.saving = false
@@ -1307,7 +1315,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
   const cleanup = (): void => {
     isDisposed = true
     lifetime.abort()
-    credentials.clear()
+    discardCredential()
     subscription.dispose()
   }
   panel.onDidDispose(cleanup)
@@ -1318,12 +1326,12 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
       if (navigate?.wizard === true) {
         connectionRequest?.abort()
         state.drafts.wizard = newDraft()
-        credentials.clear()
+        discardCredential()
       }
       if (navigate?.presetId !== undefined) {
         connectionRequest?.abort()
         state.drafts.wizard = newDraft(providers.preset(navigate.presetId))
-        credentials.clear()
+        discardCredential()
       }
       publish()
       if (navigate !== undefined) {

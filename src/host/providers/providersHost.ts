@@ -15,7 +15,7 @@ import type {
 } from './credentialRecords'
 import { isOriginBound } from './credentialRecords'
 import {
-  readOpenRouterKeyUsage,
+  createOpenRouterUsageReader,
   connectOpenRouterAccount,
   promptOpenRouterCode,
 } from '../backend/providersEntry'
@@ -65,6 +65,7 @@ export interface ProvidersHostUi {
   readonly confirmPrivateNetwork: (message: string) => Promise<boolean>
   /** Opens a URL in the system browser. */
   readonly openBrowser: (url: string) => Promise<void>
+  readonly onDiscardedKey?: () => void
 }
 
 export interface ProvidersHostDeps {
@@ -77,7 +78,13 @@ export interface ProvidersHostDeps {
   readonly fetcher: ModelFetcher
   readonly exchanger: CodeExchanger | undefined
   readonly usage: KeyUsageReader | undefined
-  readonly onKeyUsage?: (snapshot: KeyUsageSnapshot) => void
+  readonly onKeyUsage?: (
+    snapshot: KeyUsageSnapshot & {
+      readonly providerId: string
+      readonly credentialId: string
+      readonly observationId: string
+    },
+  ) => void
   readonly pkce: PkceSource
   readonly suggest: SuggestionEngine
   readonly scanStore: ScanStore
@@ -131,6 +138,7 @@ export interface ProvidersHost {
     text: string,
     shouldImport: (preview: ImportPreview) => Promise<boolean>,
   ) => Promise<number>
+  readonly discardOpenRouterKey: () => void
   readonly connectOpenRouter: (
     isRemote: boolean,
     signal?: AbortSignal,
@@ -138,6 +146,7 @@ export interface ProvidersHost {
   readonly openRouterUsage: (
     credential: string,
     signal?: AbortSignal,
+    entry?: ProviderEntry,
   ) => Promise<KeyUsageSnapshot | undefined>
   readonly probe: (preset: PresetInfo) => Promise<readonly LocalProbeResult[]>
   readonly suggestDefaultModel: (
@@ -312,6 +321,9 @@ export function createProvidersHost(deps: ProvidersHostDeps): ProvidersHost {
           text,
         ),
       ),
+    discardOpenRouterKey: () => {
+      deps.ui.onDiscardedKey?.()
+    },
     connectOpenRouter: async (isRemote, signal) => {
       const exchanger = deps.exchanger
       if (exchanger === undefined) throw new Error(UI_TEXT.providerConnectFailed)
@@ -323,6 +335,7 @@ export function createProvidersHost(deps: ProvidersHostDeps): ProvidersHost {
           startServer: deps.startLoopback,
           promptForPastedCode: () => promptOpenRouterCode(deps.ui.showInputBox, signal),
           isRemote,
+          ...(deps.ui.onDiscardedKey !== undefined && { onDiscardedKey: deps.ui.onDiscardedKey }),
           ...(signal !== undefined && { signal }),
         })
         return connection === undefined ? undefined : { key: connection.key }
@@ -331,12 +344,11 @@ export function createProvidersHost(deps: ProvidersHostDeps): ProvidersHost {
         throw new Error(UI_TEXT.providerConnectFailed)
       }
     },
-    openRouterUsage: async (credential, signal) => {
-      if (deps.usage === undefined) throw new Error(UI_TEXT.providerUsageFailed)
-      const snapshot = await readOpenRouterKeyUsage(deps.usage, credential, signal)
-      deps.onKeyUsage?.(snapshot)
-      return snapshot
-    },
+    openRouterUsage: createOpenRouterUsageReader({
+      reader: deps.usage,
+      current: (id) => deps.credentials.getProviderCredential(id),
+      ...(deps.onKeyUsage !== undefined && { onKeyUsage: deps.onKeyUsage }),
+    }),
     probe: (preset) => probeLocalServers(preset.localProbes, deps.loopbackFetch),
     suggestDefaultModel: (candidates) => deps.suggest.defaultModel(candidates),
     suggestSessionBudget: (modelPrices) => deps.suggest.sessionBudget(modelPrices),

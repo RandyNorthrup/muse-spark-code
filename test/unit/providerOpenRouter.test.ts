@@ -122,6 +122,54 @@ describe('connectOpenRouterAccount', () => {
     expect(closed).toEqual(['closed'])
   })
 
+  it.each(['listen', 'browser', 'callback', 'exchange'] as const)(
+    'interrupts every local Connect await and closes its listener: %s',
+    async (phase) => {
+      const controller = new AbortController()
+      const started = Promise.withResolvers<undefined>()
+      const release = Promise.withResolvers<undefined>()
+      const close = vi.fn()
+      const onDiscardedKey = vi.fn()
+      const pause = async () => {
+        started.resolve(undefined)
+        await release.promise
+      }
+      const server = {
+        ...loopback('synthetic-code'),
+        close,
+        waitForCode: async () => {
+          if (phase === 'callback') await pause()
+          return { code: 'synthetic-code', params: { code: 'synthetic-code' } }
+        },
+      }
+      const exchange = vi.fn(async () => {
+        if (phase === 'exchange') await pause()
+        return 'sk-or-created-synthetic'
+      })
+      const pending = connectOpenRouterAccount(
+        deps({
+          signal: controller.signal,
+          onDiscardedKey,
+          startServer: async () => {
+            if (phase === 'listen') await pause()
+            return server
+          },
+          openBrowser: async () => {
+            if (phase === 'browser') await pause()
+          },
+          exchange: { exchange },
+        }),
+      )
+      const rejected = expect(pending).rejects.toThrow()
+      await started.promise
+      controller.abort()
+      release.resolve(undefined)
+      await rejected
+      expect(close).toHaveBeenCalled()
+      expect(onDiscardedKey).toHaveBeenCalledTimes(phase === 'exchange' ? 1 : 0)
+    },
+  )
+
   it('closes the loopback when the callback fails', async () => {
     const closed: string[] = []
     await expect(
@@ -204,9 +252,11 @@ describe('connectOpenRouterAccount', () => {
     const controller = new AbortController()
     const started = Promise.withResolvers<undefined>()
     const held = Promise.withResolvers<string>()
+    const onDiscardedKey = vi.fn()
     const pending = connectOpenRouterAccount(
       deps({
         signal: controller.signal,
+        onDiscardedKey,
         exchange: {
           exchange: (request) => {
             expect(request.signal).toBe(controller.signal)
@@ -221,6 +271,7 @@ describe('connectOpenRouterAccount', () => {
     controller.abort()
     held.resolve('late-synthetic-credential')
     await refused
+    expect(onDiscardedKey).toHaveBeenCalledOnce()
   })
 
   it('refuses an empty exchanged key', async () => {

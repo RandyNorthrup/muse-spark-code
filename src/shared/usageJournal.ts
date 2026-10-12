@@ -3,6 +3,7 @@
 // Optional counters remain absent when unknown. Strict objects reject content,
 // paths, credentials and account identifiers rather than silently storing them.
 import * as z from 'zod/mini'
+import { nonnegativeUsdSchema } from './usdSchema'
 import {
   USAGE_HEADER_MAX_CHARS,
   USAGE_ID_MAX_CHARS,
@@ -176,13 +177,15 @@ export const usageLimitSnapshotSchema = z
     ...identity,
     type: z.literal('limit'),
     source: z.enum(['museCode', 'openRouter', 'headers', 'chatgpt']),
+    credentialId: z.optional(z.string().check(z.regex(/^[a-f0-9]{64}$/))),
+    observationId: z.optional(usageLabelSchema),
     observedAt: usageCountSchema,
     windows: z.array(usageLimitWindowSchema),
     account: z.optional(
       z.strictObject({
-        usedUsd: z.optional(usageAmountSchema),
-        limitUsd: z.optional(usageAmountSchema),
-        remainingUsd: z.optional(usageAmountSchema),
+        usedUsd: z.optional(z.union([usageAmountSchema, nonnegativeUsdSchema])),
+        limitUsd: z.optional(z.union([usageAmountSchema, nonnegativeUsdSchema])),
+        remainingUsd: z.optional(z.union([usageAmountSchema, nonnegativeUsdSchema])),
         period: usageLabelSchema,
       }),
     ),

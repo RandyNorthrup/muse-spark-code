@@ -234,38 +234,6 @@ const ALLOW_LIST: Readonly<Record<string, AllowEntry>> = {
     category: 'trackedDebt',
     reason: 'OpenRouter /key wire row rendered as money; M121 converts to UsdAmount.',
   },
-  'shared/usage.ts:todayUsd': {
-    category: 'trackedDebt',
-    reason: 'OpenRouter /key wire row rendered as money; M121 converts to UsdAmount.',
-  },
-  'shared/usage.ts:monthUsd': {
-    category: 'trackedDebt',
-    reason: 'OpenRouter /key wire row rendered as money; M121 converts to UsdAmount.',
-  },
-  'shared/usage.ts:limitUsd': {
-    category: 'trackedDebt',
-    reason: 'OpenRouter /key wire row rendered as money; M121 converts to UsdAmount.',
-  },
-  'shared/usage.ts:remainingUsd': {
-    category: 'trackedDebt',
-    reason: 'OpenRouter /key wire row rendered as money; M121 converts to UsdAmount.',
-  },
-  'shared/modelsPanel.ts:dayUsd': {
-    category: 'trackedDebt',
-    reason: 'Key-usage wire shape rendered as money; M121 converts to UsdAmount.',
-  },
-  'shared/modelsPanel.ts:monthUsd': {
-    category: 'trackedDebt',
-    reason: 'Key-usage wire shape rendered as money; M121 converts to UsdAmount.',
-  },
-  'shared/modelsPanel.ts:limitUsd': {
-    category: 'trackedDebt',
-    reason: 'Key-usage wire shape rendered as money; M121 converts to UsdAmount.',
-  },
-  'shared/modelsPanel.ts:remainingUsd': {
-    category: 'trackedDebt',
-    reason: 'Key-usage wire shape rendered as money; M121 converts to UsdAmount.',
-  },
   'shared/usagePage.ts:usd': {
     category: 'trackedDebt',
     reason: 'Persisted usage-journal numeric row; M121 converts to UsdAmount.',

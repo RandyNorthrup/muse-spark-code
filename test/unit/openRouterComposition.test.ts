@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import * as vscode from 'vscode'
 import * as z from 'zod/mini'
+import { Usd } from '../../src/shared/usd'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   createConfiguredProviderServices,
@@ -22,6 +23,9 @@ import {
   runOpenRouterUsage,
   openRouterAuthenticationMethods,
 } from '../../src/runtime/openRouterCommands'
+import { runAddProviderQuickPick } from '../../src/host/models/modelsQuickPick'
+import { scriptedUi } from './helpers/providerQuickPickScript'
+import { memorySessionBudgetConfig } from './helpers/fakes'
 import { providersAdd, userFileIo } from '../../src/runtime/providersCommands'
 import type { ProvidersDeps } from '../../src/runtime/providersCommands'
 import { formatStoredProviderSecret } from '../../src/runtime/keyStore'
@@ -75,13 +79,25 @@ async function fixture() {
   const calls: { url: string; body: unknown; headers: Readonly<Record<string, string>> }[] = []
   let payload: unknown = usage
   let status = 200
+  let rawPayload: string | undefined
   const send: NonNullable<ConfiguredProviderOptions['send']> = (target, bytes, headers) => {
     calls.push({
       url: target.url.href,
       body: bytes === undefined ? undefined : JSON.parse(bytes),
       headers,
     })
-    return Promise.resolve(response(payload, status))
+    return Promise.resolve(
+      rawPayload === undefined
+        ? response(payload, status)
+        : {
+            status,
+            headers: {},
+            body: (async function* () {
+              yield* await Promise.resolve([Buffer.from(rawPayload)])
+            })(),
+            close: vi.fn(),
+          },
+    )
   }
   const options = {
     configFile,
@@ -103,7 +119,8 @@ async function fixture() {
     secrets,
     fetch: vi.fn(),
     resolveHost: options.resolve,
-    readSecret: () => Promise.resolve('synthetic-code'),
+    readSecret: (prompt) =>
+      Promise.resolve(prompt === UI_TEXT.providerConnectReplaceKey ? 'yes' : 'synthetic-code'),
     print: (line) => {
       printed.push(line)
     },
@@ -124,6 +141,9 @@ async function fixture() {
     errors,
     calls,
     usage,
+    setRawPayload: (text: string) => {
+      rawPayload = text
+    },
     getFile: () => file,
     setPayload: (next: unknown, code = 200) => {
       payload = next
@@ -164,15 +184,251 @@ async function panelWithCredential(host: ReturnType<typeof testProvidersHost>) {
 }
 
 const EXPECTED_USAGE = {
-  usedTotal: 0,
+  usedTotal: Usd.from(0).toAmount(),
   unlimited: false,
-  usedToday: 0,
-  usedThisWeek: 0,
-  usedThisMonth: 0,
-  limit: 2,
-  remaining: 2,
+  usedToday: Usd.from(0).toAmount(),
+  usedThisWeek: Usd.from(0).toAmount(),
+  usedThisMonth: Usd.from(0).toAmount(),
+  limit: Usd.from(2).toAmount(),
+  remaining: Usd.from(2).toAmount(),
 }
 describe('CM952 production OpenRouter composition', () => {
+  it('keeps six filter and sort actions off the network', async () => {
+    const read = vi.fn(() => Promise.resolve(EXPECTED_USAGE))
+    const f = testProvidersHost({ deps: { usage: { read } } })
+    const { panel } = await panelWithCredential(f)
+    try {
+      read.mockClear()
+      for (const query of ['c', 'cl', 'cla', 'clau', 'claud', 'claude'])
+        await send(
+          panel,
+          {
+            type: 'models/filter',
+            filter: { search: query },
+            sort: { key: 'name', direction: 'asc' },
+          },
+          () => {
+            expect(latestState(panel).filter.search).toBe(query)
+            expect(latestState(panel).providers[0]?.keyUsage?.monthUsd).toBe('0')
+          },
+        )
+      expect(read).not.toHaveBeenCalled()
+      await send(panel, { type: 'providers/readUsage' }, () => {
+        expect(read).toHaveBeenCalledOnce()
+      })
+    } finally {
+      panel.dispose()
+    }
+  })
+
+  it('preserves the exact previous terminal key at every Connect await', async () => {
+    const f = await fixture()
+    const account = `${PROVIDER_SECRET_PREFIX}openrouter`
+    const previous = formatStoredProviderSecret(
+      { v: 1, auth: 'apiKey', origin: ORIGIN },
+      'sk-or-previous-synthetic',
+    )
+    const originalGet = f.secrets.get
+    const originalStore = f.secrets.store
+    const originalDelete = f.secrets.delete
+    let count = 0,
+      stopAt = 0
+    let controller = new AbortController()
+    const hit = () => {
+      if (++count === stopAt) controller.abort()
+    }
+    const secrets = {
+      get: async (id: string) => {
+        const value = await originalGet(id)
+        hit()
+        return value
+      },
+      store: async (id: string, value: string) => {
+        await originalStore(id, value)
+        hit()
+      },
+      delete: async (id: string) => {
+        await originalDelete(id)
+        hit()
+      },
+    }
+    const deps = {
+      ...f.deps,
+      secrets,
+      readUserFile: async () => {
+        const value = await f.deps.readUserFile()
+        hit()
+        return value
+      },
+      readSecret: async (prompt: string) => {
+        const value = await f.deps.readSecret(prompt)
+        hit()
+        return value
+      },
+      print: () => {
+        hit()
+      },
+      withUserFileLock: async (work: () => Promise<number>) => {
+        const value = await work()
+        hit()
+        return value
+      },
+    }
+    const api = {
+      ...f.services,
+      openRouterExchange: () => {
+        hit()
+        return Promise.resolve(KEY)
+      },
+    }
+    await originalStore(account, previous)
+    expect(await runOpenRouterConnect(deps, api, controller.signal)).toBe(0)
+    const awaits = count - 1 // final synchronous success print is the commit boundary
+    for (stopAt = 1; stopAt <= awaits; stopAt++) {
+      controller = new AbortController()
+      count = 0
+      await originalStore(account, previous)
+      expect(
+        await runOpenRouterConnect(deps, api, controller.signal),
+        `await ${String(stopAt)}`,
+      ).toBe(1)
+      expect(await originalGet(account), `await ${String(stopAt)}`).toBe(previous)
+      expect(await originalGet(`${account}.connect`)).toBeUndefined()
+    }
+  })
+
+  it('notifies when a successful quick-pick Connect is discarded', async () => {
+    const f = testProvidersHost()
+    const discard = vi.spyOn(f.providers, 'discardOpenRouterKey')
+    vi.spyOn(f.providers, 'connectOpenRouter').mockResolvedValue({ key: KEY })
+    const result = await runAddProviderQuickPick({
+      providers: f.providers,
+      ui: scriptedUi({ pickOne: ['openrouter', 'connect'] }),
+      isRemote: true,
+      sessionBudget: memorySessionBudgetConfig(),
+    })
+    expect(result).toBeUndefined()
+    expect(discard).toHaveBeenCalledOnce()
+    expect(f.secrets.values.size).toBe(0)
+  })
+
+  it('coalesces panel Refresh deliveries while a read is pending', async () => {
+    const held = Promise.withResolvers<typeof EXPECTED_USAGE>()
+    const read = vi.fn(() => Promise.resolve(EXPECTED_USAGE))
+    const f = testProvidersHost({ deps: { usage: { read } } })
+    const { panel } = await panelWithCredential(f)
+    try {
+      read.mockImplementation(() => held.promise)
+      panel.webview.messages.fire({ type: 'providers/readUsage' })
+      await vi.waitFor(() => {
+        expect(read).toHaveBeenCalledTimes(2)
+      })
+      panel.webview.messages.fire({ type: 'providers/readUsage' })
+      held.resolve(EXPECTED_USAGE)
+      await send(
+        panel,
+        {
+          type: 'models/filter',
+          filter: { search: 'settled' },
+          sort: { key: 'name', direction: 'asc' },
+        },
+        () => {
+          expect(latestState(panel).filter.search).toBe('settled')
+        },
+      )
+      expect(read).toHaveBeenCalledTimes(2)
+    } finally {
+      panel.dispose()
+    }
+  })
+
+  it('names a created draft key when the panel cancels it', async () => {
+    const f = testProvidersHost()
+    const onDiscardedKey = vi.spyOn(f.providers, 'discardOpenRouterKey')
+    const { panel } = openModelsPanel({ providers: f.providers, isRemote: true })
+    try {
+      vi.mocked(vscode.window.showInputBox).mockResolvedValue('synthetic-code')
+      await send(panel, { type: 'providers/select', presetId: 'openrouter' }, () => {
+        expect(latestState(panel).drafts.wizard?.presetId).toBe('openrouter')
+      })
+      await send(panel, { type: 'providers/connect' }, () => {
+        expect(latestState(panel).drafts.wizard).toMatchObject({
+          connected: true,
+          presetId: 'openrouter',
+        })
+      })
+      await send(panel, { type: 'providers/wizard', event: 'cancel' }, () => {
+        expect(latestState(panel).drafts).toEqual({ edits: {} })
+      })
+      expect(onDiscardedKey).toHaveBeenCalledOnce()
+      expect(f.secrets.values.size).toBe(0)
+    } finally {
+      panel.dispose()
+    }
+  })
+
+  it('refuses an unverified staged key without replacing the previous key', async () => {
+    const f = await fixture()
+    const account = `${PROVIDER_SECRET_PREFIX}openrouter`
+    const previous = formatStoredProviderSecret(
+      { v: 1, auth: 'apiKey', origin: ORIGIN },
+      'sk-or-previous-synthetic',
+    )
+    await f.secrets.store(account, previous)
+    const get = f.secrets.get
+    vi.spyOn(f.secrets, 'get').mockImplementation((id) =>
+      id === `${account}.connect` ? Promise.resolve('unverified') : get(id),
+    )
+    expect(
+      await runOpenRouterConnect(f.deps, {
+        ...f.services,
+        openRouterExchange: () => Promise.resolve(KEY),
+      }),
+    ).toBe(1)
+    expect(await get(account)).toBe(previous)
+    expect(await get(`${account}.connect`)).toBeUndefined()
+  })
+
+  it('asks in terminal words before replacing a pasted key', async () => {
+    const f = await fixture()
+    const account = `${PROVIDER_SECRET_PREFIX}openrouter`
+    const previous = formatStoredProviderSecret({ v: 1, auth: 'apiKey', origin: ORIGIN }, KEY)
+    await f.secrets.store(account, previous)
+    const readSecret = vi.fn(() => Promise.resolve('no'))
+    const exchange = vi.fn()
+    expect(
+      await runOpenRouterConnect(
+        { ...f.deps, readSecret },
+        { ...f.services, openRouterExchange: exchange },
+      ),
+    ).toBe(1)
+    expect(readSecret).toHaveBeenCalledExactlyOnceWith(UI_TEXT.providerConnectReplaceKey)
+    expect(exchange).not.toHaveBeenCalled()
+    expect(await f.secrets.get(account)).toBe(previous)
+  })
+
+  it('retains all six exact wire decimals through terminal output', async () => {
+    const f = await fixture()
+    const decimal = '0.12345678901234567890123456789'
+    const label = JSON.stringify('digits 123.456 "quoted"')
+    f.setRawPayload(
+      `{"data":{"usage":${decimal},"usage_daily":${decimal},"usage_weekly":${decimal},"usage_monthly":${decimal},"limit":${decimal},"limit_remaining":${decimal},"label":${label}}}`,
+    )
+    expect(await f.services.openRouterUsage(ENTRY)).toEqual({
+      usedTotal: decimal,
+      unlimited: false,
+      usedToday: decimal,
+      usedThisWeek: decimal,
+      usedThisMonth: decimal,
+      limit: decimal,
+      remaining: decimal,
+    })
+    await f.deps.writeUserFile({ v: 1, providers: [ENTRY] }, f.getFile())
+    expect(await runOpenRouterUsage(f.deps, f.services, 'router')).toBe(0)
+    expect(f.printed).toHaveLength(6)
+    for (const line of f.printed) expect(line).toContain(`$${decimal}`)
+  })
+
   it('normalizes every new key-usage money field through the exact boundary', () => {
     const amounts = { totalUsd: 0.0000001, weekUsd: 0.125 }
     const exact = { totalUsd: '0.0000001', weekUsd: '0.125' }
@@ -185,8 +441,10 @@ describe('CM952 production OpenRouter composition', () => {
       outputTokens: 0,
     }
     expect(
-      providerUsageRowSchema.parse({ ...base, keyUsage: { ...amounts, todayUsd: 0, monthUsd: 0 } })
-        .keyUsage,
+      providerUsageRowSchema.parse({
+        ...base,
+        keyUsage: { ...amounts, todayUsd: '0', monthUsd: 0 },
+      }).keyUsage,
     ).toMatchObject(exact)
     for (const invalid of [-1, NaN, Infinity]) {
       expect(
@@ -195,7 +453,7 @@ describe('CM952 production OpenRouter composition', () => {
       expect(
         providerUsageRowSchema.safeParse({
           ...base,
-          keyUsage: { totalUsd: invalid, weekUsd: invalid, todayUsd: 0, monthUsd: 0 },
+          keyUsage: { totalUsd: invalid, weekUsd: invalid, todayUsd: '0', monthUsd: 0 },
         }).success,
       ).toBe(false)
     }
@@ -388,15 +646,11 @@ describe('CM952 production OpenRouter composition', () => {
           }
         }
         read.mockRejectedValue(new Error('unavailable'))
-        await send(
-          panel,
-          { type: 'models/filter', filter: {}, sort: { key: 'name', direction: 'asc' } },
-          () => {
-            const row = latestState(panel).providers[0]
-            expect(row?.keyUsage).toBeUndefined()
-            expect(row?.keyUsageError).toBe(UI_TEXT.providerUsageFailed)
-          },
-        )
+        await send(panel, { type: 'providers/readUsage' }, () => {
+          const row = latestState(panel).providers[0]
+          expect(row?.keyUsage).toBeUndefined()
+          expect(row?.keyUsageError).toBe(UI_TEXT.providerUsageFailed)
+        })
         expect(read).toHaveBeenCalledTimes(event === 'removed' || event === 'unreadable' ? 1 : 2)
       } finally {
         panel.dispose()
@@ -408,9 +662,11 @@ describe('CM952 production OpenRouter composition', () => {
     'discards Models usage when the credential changes during its read: %s',
     async (event) => {
       let shouldChangeCredential = false
+      const onKeyUsage = vi.fn()
       const account = `${PROVIDER_SECRET_PREFIX}openrouter`
       const f = testProvidersHost({
         deps: {
+          onKeyUsage,
           usage: {
             read: async () => {
               if (shouldChangeCredential) {
@@ -440,10 +696,12 @@ describe('CM952 production OpenRouter composition', () => {
       try {
         expect(latestState(panel).providers[0]?.keyUsage?.totalUsd).toBe('8')
         shouldChangeCredential = true
+        expect(onKeyUsage).toHaveBeenCalledOnce()
         await send(panel, { type: 'providers/readUsage' }, () => {
           expect(latestState(panel).providers[0]?.keyUsage).toBeUndefined()
           expect(latestState(panel).providers[0]?.keyUsageError).toBe(UI_TEXT.providerUsageFailed)
         })
+        expect(onKeyUsage).toHaveBeenCalledOnce()
       } finally {
         panel.dispose()
       }
@@ -478,11 +736,11 @@ describe('CM952 production OpenRouter composition', () => {
       },
     })
     expect(await f.services.openRouterUsage(ENTRY)).toEqual({
-      usedTotal: 4,
+      usedTotal: '4',
       unlimited: true,
-      usedToday: 1,
-      usedThisWeek: 2,
-      usedThisMonth: 3,
+      usedToday: '1',
+      usedThisWeek: '2',
+      usedThisMonth: '3',
       limit: undefined,
       remaining: undefined,
     })
@@ -595,11 +853,11 @@ describe('CM952 production OpenRouter composition', () => {
         providerId: 'router',
         keyUsage: {
           totalUsd: '0',
-          todayUsd: 0,
+          todayUsd: '0',
           weekUsd: '0',
-          monthUsd: 0,
-          limitUsd: 2,
-          remainingUsd: 2,
+          monthUsd: '0',
+          limitUsd: '2',
+          remainingUsd: '2',
         },
       },
     ])
@@ -673,9 +931,9 @@ describe('CM952 production OpenRouter composition', () => {
     const { panel } = openModelsPanel({ providers: f.providers })
     await send(panel, { type: 'modelsPanel/ready' }, () => {
       expect(latestState(panel).providers[0]?.keyUsage).toMatchObject({
-        dayUsd: 0,
-        monthUsd: 0,
-        limitUsd: 10,
+        dayUsd: '0',
+        monthUsd: '0',
+        limitUsd: '10',
       })
     })
     await send(panel, { type: 'providers/readUsage' }, () => {
@@ -811,7 +1069,10 @@ describe('CM952 terminal and ACP routes', () => {
     }
     expect(await runOpenRouterConnect(f.deps, api)).toBe(1)
     expect(await f.secrets.get(`${PROVIDER_SECRET_PREFIX}openrouter`)).toBe('concurrently-rotated')
-    expect(f.errors).toEqual([UI_TEXT.providerConnectFailed])
+    expect(f.errors).toEqual([
+      expect.stringContaining('https://openrouter.ai/settings/keys'),
+      UI_TEXT.providerConnectFailed,
+    ])
   })
   it('refuses terminal usage from a key rotated during the read without printing stale amounts', async () => {
     const f = await fixture()
@@ -932,7 +1193,14 @@ describe('CM952 terminal and ACP routes', () => {
       controller.abort()
       released.resolve(undefined)
       expect(await pending).toBe(1)
-      expect(await f.secrets.get(account)).toBeUndefined()
+      expect(await f.secrets.get(account)).toBe(
+        phase === 'interrupted-replacement'
+          ? formatStoredProviderSecret(
+              { v: 1, auth: 'apiKey', origin: ORIGIN },
+              'sk-or-previous-synthetic',
+            )
+          : undefined,
+      )
     },
   )
 

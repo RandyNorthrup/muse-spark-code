@@ -196,6 +196,11 @@ inference. General `providers list|add|test|remove` commands and
 `muse-spark-code-acp providers connect openrouter` prints OpenRouter’s
 PKCE authorization URL. Open it, authorize, then paste the displayed
 single-use code at the hidden prompt; the returned key is never printed.
+If a key is already stored, the terminal asks you to type `yes` before
+replacement. Interrupting Connect preserves that record. A created key that
+cannot be kept is named with its removal page; removing it needs your
+OpenRouter account because inference keys cannot use the management API.
+Usage prints all six exact decimal amounts from the response.
 The same route is offered in ACP’s terminal authentication UI alongside
 pasting an OpenRouter key and viewing its usage. It works in remote editors
 without a loopback listener. After connecting, `providers add --preset

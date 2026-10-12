@@ -4172,6 +4172,8 @@
   "providerImportPreviewTitle": "Importvorschau",
   "importNeedsKey": "braucht einen Schlüssel",
   "importNeedsKeyLabel": "braucht einen Schlüssel",
+  "providerConnectReplaceKey": "Ein OpenRouter-Schlüssel ist bereits gespeichert. Ersetzen? Zum Fortfahren yes eingeben.",
+  "providerCreatedKeyDiscarded": "OpenRouter hat einen Schlüssel mit der Bezeichnung {label} erstellt. Er wurde hier nicht behalten. Entferne ihn unter {url}.",
   "providerConnectFailed": "Die Verbindung zu OpenRouter ist fehlgeschlagen. Versuchen Sie es erneut.",
   "providerUsageFailed": "Die Nutzung des OpenRouter-Schlüssels konnte nicht gelesen werden. Versuchen Sie es erneut.",
   "providerPasteCode": "Fügen Sie den von OpenRouter angezeigten Autorisierungscode ein.",

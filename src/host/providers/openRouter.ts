@@ -8,14 +8,15 @@
 // this module owns the flow, the authorize URL, the spend-limit link and
 // the usage validation.
 
-import { createHash } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import type * as z from 'zod/mini'
-import type { providerKeyUsageSchema } from '../../shared/modelsPanel'
+import { legacyUsdSchema } from '../../shared/usd'
+import type { providerKeyUsageSchema, ModelsPanelState } from '../../shared/modelsPanel'
 import type { ProviderEntry } from './providerPorts'
 import { fill } from '../../shared/l10n/text'
 import { unlessAborted } from '../../core/timeouts'
 import { UI_TEXT } from '../../shared/constants'
-import type { CredentialRecord } from './credentialRecords'
+import { isOriginBound, type CredentialRecord } from './credentialRecords'
 import type { OAuthLoopback } from './oauthLoopback'
 import type { CodeExchanger, KeyUsageReader, KeyUsageSnapshot, PkceSource } from './providerPorts'
 
@@ -67,6 +68,7 @@ export interface OpenRouterConnectDeps {
   /** True in a remote window: no loopback callback is attempted. */
   readonly isRemote: boolean
   readonly signal?: AbortSignal
+  readonly onDiscardedKey?: () => void
 }
 
 export interface OpenRouterConnection {
@@ -78,8 +80,8 @@ export interface OpenRouterConnection {
 /**
  * Connects the OpenRouter account: browser approval, one code exchange.
  * The connected key and its record, or undefined when the user cancelled
- * (dismissed the pasted-code box). A wrong `state`, a refused or missing
- * code, and a failed exchange all reject, and the loopback is closed in
+ * (dismissed the pasted-code box). Unrelated callbacks are ignored; a refusal
+ * with the right state, a missing code or failed exchange rejects. The loopback closes in
  * every path.
  */
 export async function connectOpenRouterAccount(
@@ -145,6 +147,7 @@ export async function connectOpenRouterAccount(
     redirectUri,
     ...(deps.signal !== undefined && { signal: deps.signal }),
   })
+  if (deps.signal?.aborted && key.trim() !== '') deps.onDiscardedKey?.()
   deps.signal?.throwIfAborted()
   if (key.trim() === '') {
     throw new Error(UI_TEXT.providerConnectFailed)
@@ -153,8 +156,8 @@ export async function connectOpenRouterAccount(
   return { key: secret, record: { v: 1, auth: 'apiKey', origin: OPENROUTER_ORIGIN, secret } }
 }
 
-function isValidUsage(value: number): boolean {
-  return Number.isFinite(value) && value >= 0
+function isValidUsage(value: number | string): boolean {
+  return legacyUsdSchema.safeParse(value).success
 }
 
 /**
@@ -183,13 +186,14 @@ export async function readOpenRouterKeyUsage(
 }
 
 /** Current-key observation mapping lives in providers.js, outside the tight panel budget. */
-export async function readOpenRouterPanelUsage(
+async function readOpenRouterPanelUsage(
   entry: ProviderEntry,
   deps: {
     readonly storedCredential: (entry: ProviderEntry) => Promise<string | undefined>
     readonly openRouterUsage: (
       key: string,
       signal?: AbortSignal,
+      entry?: ProviderEntry,
     ) => Promise<KeyUsageSnapshot | undefined>
   },
   signal?: AbortSignal,
@@ -197,7 +201,7 @@ export async function readOpenRouterPanelUsage(
   signal?.throwIfAborted()
   const key = await deps.storedCredential(entry)
   if (key === undefined) throw new Error(UI_TEXT.providerUsageFailed)
-  const snapshot = await deps.openRouterUsage(key, signal)
+  const snapshot = await deps.openRouterUsage(key, signal, entry)
   if (snapshot === undefined || (await deps.storedCredential(entry)) !== key)
     throw new Error(UI_TEXT.providerUsageFailed)
   signal?.throwIfAborted()
@@ -257,4 +261,115 @@ export async function promptOpenRouterCode(
       return disposable
     },
   })
+}
+
+/** Cache values only while their credential remains current; actions never read the network. */
+export function createOpenRouterPanelUsage(
+  deps: Parameters<typeof readOpenRouterPanelUsage>[1],
+  parse: (value: z.input<typeof providerKeyUsageSchema>) => z.infer<typeof providerKeyUsageSchema>,
+) {
+  const cache = new Map<string, { key: string; usage: z.infer<typeof providerKeyUsageSchema> }>()
+  return async (
+    rows: ModelsPanelState['providers'],
+    entries: readonly ProviderEntry[],
+    shouldRead: boolean,
+    signal: AbortSignal,
+  ): Promise<void> => {
+    for (const row of rows) {
+      if (row.presetId !== 'openrouter') continue
+      try {
+        const entry = entries.find((item) => item.id === row.id)
+        if (entry === undefined || row.key.state !== 'stored')
+          throw new Error(UI_TEXT.providerUsageFailed)
+        const key = await deps.storedCredential(entry)
+        if (key === undefined) throw new Error(UI_TEXT.providerUsageFailed)
+        const previous = cache.get(row.id)
+        if (shouldRead) {
+          const usage = parse(await readOpenRouterPanelUsage(entry, deps, signal))
+          cache.set(row.id, { key, usage })
+          row.keyUsage = usage
+        } else if (previous?.key === key) row.keyUsage = previous.usage
+        else throw new Error(UI_TEXT.providerUsageFailed)
+      } catch {
+        cache.delete(row.id)
+        row.keyUsage = undefined
+        row.keyUsageError = UI_TEXT.providerUsageFailed
+      }
+    }
+  }
+}
+
+/** The captured API requires a management key to revoke; Connect has only an inference key. */
+export function openRouterDiscardedKeyNotice(): string {
+  return fill(UI_TEXT.providerCreatedKeyDiscarded, {
+    label: OPENROUTER_KEY_LABEL,
+    url: 'https://openrouter.ai/settings/keys',
+  })
+}
+
+/** One request/observation per pending read, fresh before the recorder sees it. */
+export function createOpenRouterUsageReader(deps: {
+  readonly reader: KeyUsageReader | undefined
+  readonly current: (id: string) => Promise<CredentialRecord | undefined>
+  readonly onKeyUsage?: (
+    snapshot: KeyUsageSnapshot & {
+      readonly providerId: string
+      readonly credentialId: string
+      readonly observationId: string
+    },
+  ) => void
+}) {
+  const usageReads = new Map<string, { credential: string; promise: Promise<KeyUsageSnapshot> }>()
+  return async (credential: string, signal?: AbortSignal, entry?: ProviderEntry) => {
+    const reader = deps.reader
+    if (reader === undefined) throw new Error(UI_TEXT.providerUsageFailed)
+    const id = entry?.id ?? ''
+    const pending = usageReads.get(id)
+    if (pending?.credential === credential) return await pending.promise
+    const promise = (async () => {
+      const snapshot = await readOpenRouterKeyUsage(reader, credential, signal)
+      if (entry !== undefined) {
+        const current = await deps.current(entry.id)
+        if (current?.secret !== credential || !isOriginBound(current, entry.address))
+          throw new Error(UI_TEXT.providerUsageFailed)
+        signal?.throwIfAborted()
+        deps.onKeyUsage?.({
+          ...snapshot,
+          providerId: entry.id,
+          credentialId: createHash('sha256').update(credential).digest('hex'),
+          observationId: randomUUID(),
+        })
+      }
+      return snapshot
+    })()
+    usageReads.set(id, { credential, promise })
+    try {
+      return await promise
+    } finally {
+      if (usageReads.get(id)?.promise === promise) usageReads.delete(id)
+    }
+  }
+}
+
+/** Clears displayed amounts before a fallible configuration read. */
+export function clearOpenRouterPanelUsage(rows: ModelsPanelState['providers']): void {
+  for (const row of rows) {
+    if (row.presetId !== 'openrouter') continue
+    row.keyUsage = undefined
+    row.keyUsageError = UI_TEXT.providerUsageFailed
+  }
+}
+
+/** Retires host-only draft keys without losing the created-key removal notice. */
+export function createOpenRouterDraftDiscard(
+  credentials: Map<string, { secret: string; origin: string; connected?: boolean }>,
+  notify: () => void,
+) {
+  return (id?: string): void => {
+    for (const [key, record] of credentials) {
+      if (id !== undefined && key !== id) continue
+      if (record.connected) notify()
+      credentials.delete(key)
+    }
+  }
 }

@@ -19289,16 +19289,14 @@ in-tree junctions below it, drive-letter spelling) and
 
 ## 3. Open questions (need the owner)
 
-**CM952R2 qualification decision (2026-10-11).** The six assigned review
-findings are repaired with named passing regressions and red controls. Direct
-release packaging needs the absent Darwin/Linux native artifacts. The unchanged
-M102 `usageIntegration.test.ts` authenticated-page case also exceeds its five-
-second default on macmini after isolated replay; real storage reads dominate
-its measured path. The CM952 lane-file fence excludes that test and its
-storage owner. The lead must supply native inputs and decide the M102 fixture
-scope or rig qualification before considering the lane fully gated. Neither
-blocker is an accepted residual or a green gate. Evidence:
-`docs/certification/cm952.md` and `cm952r2-tests.json`.
+**CM952R2 qualification receipt, updated by R3 (2026-10-11).** The
+unchanged M102 `usageIntegration.test.ts` authenticated-page suite now passes
+on macmini at the repository timeout in the R3 dependent run. The earlier
+R2 failure is retained in its certification as historical evidence, not
+reported as green. Direct release packaging still needs the lead's native
+artifacts and owner-account receipts; this review lane runs the required
+fake-backed packaging suites without real sign-in or vendor calls.
+Evidence: `docs/certification/cm952.md`.
 
 **Q-VIS0171-RELEASE-NOTES resolved by lead (2026-10-10, linuxlt).** Round 2
 explicitly approves the 116 Title Case scenes, `models-errors` with the
@@ -28492,6 +28490,18 @@ OpenCode plugin hooks").
 - **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 ### M95 — Bring-your-own model providers (D74)
+
+**CM952R3 review repair (2026-10-11, macmini).** Close all seven
+RVCM952B findings and their siblings. Preserve previous terminal credentials
+through interrupted replacement and ask before replacing an existing key.
+Admit usage observations only after credential freshness validation, identify
+the credential in recorder slots, share in-flight reads, and read only on
+panel open, Save and Refresh. Preserve all six wire decimals, check source
+key order recursively with packaging's plural normalization, ignore unrelated
+loopback callbacks, and name any created key discarded after exchange with
+its removal page (management-key-only deletion is unavailable). Keep existing
+caps, dependencies and Connect protections; certify each red drill and run
+all dependent suites at default timeouts. No merge, push or live call.
 
 **CM952R2 review repair (2026-10-11, macmini).** Close all six RVCM952
 findings and their lane siblings: enforce canonical source localization key

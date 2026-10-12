@@ -4063,15 +4063,21 @@ async function activateWindow(
           onKeyUsage: (snapshot) => {
             usageRecording.limit({
               backend: 'modelApi',
-              provider: 'openrouter',
+              provider: snapshot.providerId,
               source: 'openRouter',
+              credentialId: snapshot.credentialId,
+              observationId: snapshot.observationId,
               observedAt: Date.now(),
               windows: [],
               account: {
-                usedUsd: snapshot.usedThisMonth,
+                usedUsd: Usd.from(snapshot.usedThisMonth).toAmount(),
                 period: 'month',
-                ...(snapshot.limit !== undefined && { limitUsd: snapshot.limit }),
-                ...(snapshot.remaining !== undefined && { remainingUsd: snapshot.remaining }),
+                ...(snapshot.limit !== undefined && {
+                  limitUsd: Usd.from(snapshot.limit).toAmount(),
+                }),
+                ...(snapshot.remaining !== undefined && {
+                  remainingUsd: Usd.from(snapshot.remaining).toAmount(),
+                }),
               },
             })
           },

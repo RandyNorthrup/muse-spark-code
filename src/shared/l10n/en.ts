@@ -5067,6 +5067,10 @@ export const EN = {
   providerImportPreviewTitle: 'Import Preview',
   importNeedsKey: 'needs a key',
   importNeedsKeyLabel: 'Needs a Key',
+  providerConnectReplaceKey:
+    'An OpenRouter key is already stored. Replace it? Type yes to continue.',
+  providerCreatedKeyDiscarded:
+    'OpenRouter created a key labelled {label}. It was not kept here. Remove it at {url}.',
   providerConnectFailed: 'OpenRouter connection failed. Try connecting again.',
   providerUsageFailed: 'OpenRouter key usage could not be read. Try again.',
   providerPasteCode: 'Paste the authorization code shown by OpenRouter.',

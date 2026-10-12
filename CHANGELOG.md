@@ -9,6 +9,15 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- OpenRouter panel actions reuse credential-bound usage; only open, Save and
+  Refresh read the network. Freshness precedes recording, with one journal
+  entry per observation and separate credential slots.
+- Terminal Connect asks before replacing a key and preserves it across every
+  interrupted write. Discarded created keys name their label and removal page.
+- All six OpenRouter usage amounts retain exact wire decimals through terminal
+  output. Unrelated loopback callbacks no longer end Connect. Localization key
+  order is checked recursively, matching packaged plural handling.
+
 - Keep translated UI keys in canonical English order and reject source key
   order drift before ACP or headless packaging.
 - OpenRouter cancellation now interrupts token exchanges and usage reads,

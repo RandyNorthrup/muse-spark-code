@@ -22,14 +22,57 @@ describe('createProvidersHost', () => {
       remaining: 0.7,
     }
     const onKeyUsage = vi.fn()
-    const { providers } = testProvidersHost({
+    const { providers, secrets } = testProvidersHost({
       deps: { usage: { read: () => Promise.resolve(snapshot) }, onKeyUsage },
     })
-    await providers.openRouterUsage('synthetic-provider-credential')
-    expect(onKeyUsage).toHaveBeenCalledExactlyOnceWith(snapshot)
+    await saveProviderCredential(secrets, TEST_ENTRY.id, {
+      v: 1,
+      auth: 'apiKey',
+      origin: TEST_ENTRY.address,
+      secret: 'synthetic-provider-credential',
+    })
+    await providers.openRouterUsage('synthetic-provider-credential', undefined, TEST_ENTRY)
+    expect(onKeyUsage).toHaveBeenCalledExactlyOnceWith({
+      ...snapshot,
+      providerId: TEST_ENTRY.id,
+      credentialId: expect.stringMatching(/^[a-f0-9]{64}$/),
+      observationId: expect.any(String),
+    })
     snapshot.usedToday = -1
-    await expect(providers.openRouterUsage('synthetic-provider-credential')).rejects.toThrow()
+    await expect(
+      providers.openRouterUsage('synthetic-provider-credential', undefined, TEST_ENTRY),
+    ).rejects.toThrow()
     expect(onKeyUsage).toHaveBeenCalledTimes(1)
+  })
+  it('shares an in-flight key read and records one observation', async () => {
+    const held = Promise.withResolvers<{
+      usedToday: number
+      usedThisWeek: number
+      usedThisMonth: number
+      limit: undefined
+      remaining: undefined
+    }>()
+    const read = vi.fn(() => held.promise)
+    const onKeyUsage = vi.fn()
+    const { providers, secrets } = testProvidersHost({ deps: { usage: { read }, onKeyUsage } })
+    await saveProviderCredential(secrets, TEST_ENTRY.id, {
+      v: 1,
+      auth: 'apiKey',
+      origin: TEST_ENTRY.address,
+      secret: 'synthetic',
+    })
+    const first = providers.openRouterUsage('synthetic', undefined, TEST_ENTRY)
+    const second = providers.openRouterUsage('synthetic', undefined, TEST_ENTRY)
+    held.resolve({
+      usedToday: 0,
+      usedThisWeek: 0,
+      usedThisMonth: 0,
+      limit: undefined,
+      remaining: undefined,
+    })
+    await Promise.all([first, second])
+    expect(read).toHaveBeenCalledOnce()
+    expect(onKeyUsage).toHaveBeenCalledOnce()
   })
   it('refuses edited origins before stored-key tests and scans dispatch', async () => {
     const test = vi.fn(() => Promise.resolve({ kind: 'ok' as const, models: 1 }))

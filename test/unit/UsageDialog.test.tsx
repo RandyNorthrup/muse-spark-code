@@ -128,7 +128,12 @@ function providersReport(): Partial<UsageDialogProps> {
           inputTokens: 1200,
           outputTokens: 300,
           costUsd: 0.001,
-          keyUsage: { todayUsd: 0.4, monthUsd: 2.1, limitUsd: 10, remainingUsd: 7.9 },
+          keyUsage: {
+            todayUsd: Usd.from(0.4).toAmount(),
+            monthUsd: Usd.from(2.1).toAmount(),
+            limitUsd: Usd.from(10).toAmount(),
+            remainingUsd: Usd.from(7.9).toAmount(),
+          },
         },
         {
           providerId: 'ollama',
@@ -166,9 +171,9 @@ describe('UsageDialog', () => {
             outputTokens: 0,
             keyUsage: {
               totalUsd: Usd.from(4).toAmount(),
-              todayUsd: 1,
+              todayUsd: Usd.from(1).toAmount(),
               weekUsd: Usd.from(2).toAmount(),
-              monthUsd: 3,
+              monthUsd: Usd.from(3).toAmount(),
               unlimited: true,
             },
           },

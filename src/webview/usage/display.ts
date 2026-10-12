@@ -66,7 +66,7 @@ export function certaintyLabel(certainty: UsageCertainty): string {
     estimated: USAGE_TEXT.certaintyEstimated,
   }[certainty]
 }
-export function money(value: number | undefined): string {
+export function money(value: number | string | undefined): string {
   return value === undefined ? USAGE_TEXT.unknown : formatUsd(value, 2)
 }
 export function count(value: number | undefined): string {

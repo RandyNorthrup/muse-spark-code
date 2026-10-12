@@ -95,7 +95,13 @@ export function makeTest(overrides: Partial<ProviderTest> = {}): ProviderTest {
 }
 
 export function makeKeyUsage(overrides: Partial<ProviderKeyUsage> = {}): ProviderKeyUsage {
-  return { dayUsd: 1.2, monthUsd: 3.4, limitUsd: 10, remainingUsd: 6.6, ...overrides }
+  return {
+    dayUsd: Usd.from(1.2).toAmount(),
+    monthUsd: Usd.from(3.4).toAmount(),
+    limitUsd: Usd.from(10).toAmount(),
+    remainingUsd: Usd.from(6.6).toAmount(),
+    ...overrides,
+  }
 }
 
 export function makeSuggestion(kind: SuggestionKind): PanelSuggestion {
