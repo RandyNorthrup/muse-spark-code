@@ -1014,6 +1014,8 @@ interface ChildRecord {
   chargedGoalId: string | undefined
   /** Already displayed cost; the child settles its own resolved provider price. */
   costUsd: UsdAmount
+  /** The child's settled event cost already folded into the parent's answer tally. */
+  eventCostUsd: UsdAmount
   readonly waiters: Set<() => void>
   readonly pendingMessages: string[]
   followupAfterStop: string | undefined
@@ -2615,6 +2617,14 @@ export class ModelApiSession implements ScheduledAgentSession {
   private budgetSpentUsd = Usd.from(0).toAmount()
   /** Settled usage on this session alone, separate from the shared journal. */
   private usageCostUsd = Usd.from(0).toAmount()
+  /**
+   * Settled dollars behind the `tokenUsage` totals (R5): every priced
+   * request at the model actually billed, children included. Undefined
+   * certainty while any of it is unpriced, so the event carries no cost
+   * rather than a partial tally.
+   */
+  private usageSettledCost = Usd.from(0).toAmount()
+  private usageSettledCertainty: 'reported' | 'computed' | undefined = 'reported'
   private hasUnknownBudgetCost = false
   private budgetIsFreshFork = false
   private budgetAccountId: string | undefined
@@ -5136,10 +5146,36 @@ export class ModelApiSession implements ScheduledAgentSession {
     if (missed !== undefined) {
       this.deps.log.warn(fill(UI_TEXT.promptCacheMiss, { tokens: missed }))
     }
-    const cost = (this.sendingModel ?? this.selectedModel(sentModelId)).price.settle(billable, {
+    const sentModel = this.sendingModel ?? this.selectedModel(sentModelId)
+    const cost = sentModel.price.settle(billable, {
       cost: usage.provider_cost_usd,
     })
     const hasKnownPrice = cost !== undefined
+    // The answer's cost is what the usage record computed for this request
+    // (R5): settled here at the model it was sent to, carried on the usage
+    // event below. Local, plan and ambiguous requests have no displayable
+    // price, exactly as the record marks them (both settle a defined zero).
+    const pricingKind = sentModel.policy.pricing.kind
+    let requestCertainty: 'reported' | 'computed' | undefined
+    if (usage.provider_cost_usd !== undefined) {
+      requestCertainty = 'reported'
+    } else if (
+      !hasKnownPrice ||
+      pricingKind === 'local' ||
+      pricingKind === 'plan' ||
+      this.hasAmbiguousCallAttempt
+    ) {
+      requestCertainty = undefined
+    } else {
+      requestCertainty = 'computed'
+    }
+    if (requestCertainty === undefined) {
+      this.usageSettledCertainty = undefined
+    } else {
+      if (cost !== undefined) this.usageSettledCost = sumUsd(this.usageSettledCost, cost)
+      if (requestCertainty === 'computed' && this.usageSettledCertainty !== undefined)
+        this.usageSettledCertainty = 'computed'
+    }
     const costUsd = cost ?? this.openReservation?.costUsd ?? Usd.from(0).toAmount()
     const nextUsage = {
       inputTokens: this.usage.inputTokens + billable.inputTokens,
@@ -5282,6 +5318,12 @@ export class ModelApiSession implements ScheduledAgentSession {
       type: 'tokenUsage',
       ...this.usage,
       modelId: this.modelId,
+      // One source for cost (R5): the settled dollars behind these totals,
+      // each request priced at the model actually billed. Absent while any
+      // of it is unpriced, so the answer never shows a partial tally.
+      ...(this.usageSettledCertainty !== undefined && {
+        cost: { usd: Number(this.usageSettledCost), certainty: this.usageSettledCertainty },
+      }),
       ...(this.packing !== undefined && { packedTokensAvoided: this.packing.savings() }),
       ...(this.hookTokensAdded > 0 && { hookTokensAdded: this.hookTokensAdded }),
     })
@@ -8738,6 +8780,23 @@ export class ModelApiSession implements ScheduledAgentSession {
         .subtract(Usd.from(child.costUsd))
         .toAmount()
       child.costUsd = child.session.usageCostUsd
+      // One source for cost (R5): the child's settled dollars join the
+      // answer tally at the child's own models, never repriced here. A
+      // child with no displayable price hides the tally, as its tokens do.
+      const settledNow = child.session.usageSettledCost
+      const settledDelta = Usd.from(settledNow).subtract(Usd.from(child.eventCostUsd))
+      child.eventCostUsd = settledNow
+      if (child.session.usageSettledCertainty === undefined) {
+        this.usageSettledCertainty = undefined
+      } else {
+        if (settledDelta.compare(Usd.from(0)) > 0)
+          this.usageSettledCost = sumUsd(this.usageSettledCost, settledDelta.toAmount())
+        if (
+          child.session.usageSettledCertainty === 'computed' &&
+          this.usageSettledCertainty !== undefined
+        )
+          this.usageSettledCertainty = 'computed'
+      }
       const nextUsage = {
         inputTokens: this.usage.inputTokens + inputDelta,
         outputTokens: this.usage.outputTokens + outputDelta,
@@ -9610,6 +9669,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       usage: { inputTokens: 0, outputTokens: 0, cachedTokens: 0, reasoningTokens: 0 },
       chargedGoalId: undefined,
       costUsd: Usd.from(0).toAmount(),
+      eventCostUsd: child.usageSettledCost,
       waiters: new Set(),
       pendingMessages: [],
       followupAfterStop: undefined,
@@ -11766,7 +11826,11 @@ export class ModelApiSession implements ScheduledAgentSession {
     const target = toolClass === 'edit' ? await this.editTarget(call) : undefined
     if (target?.ok === false) {
       // A path the tool would refuse anyway is refused before any card.
-      return { outcome: pathRefusal(target), isRejected: target.code === 'outside_workspace' }
+      const refusedPath = pick(argumentsOf(call), 'path')
+      return {
+        outcome: pathRefusal(target, refusedPath ?? ''),
+        isRejected: target.code === 'outside_workspace',
+      }
     }
     if (target?.ok === true && policy.files.isDenied([target.relative, target.canonical])) {
       return { outcome: deniedPath(target.relative), isRejected: true }
@@ -16568,6 +16632,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         usage: { ...saved.session.usage },
         chargedGoalId: undefined,
         costUsd: session.usageCostUsd,
+        eventCostUsd: session.usageSettledCost,
         waiters: new Set(),
         pendingMessages: [...saved.pendingMessages],
         followupAfterStop: undefined,
@@ -16703,6 +16768,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         usage: { ...child.usage },
         chargedGoalId: undefined,
         costUsd: session.usageCostUsd,
+        eventCostUsd: session.usageSettledCost,
         waiters: new Set(),
         pendingMessages: [],
         followupAfterStop: undefined,

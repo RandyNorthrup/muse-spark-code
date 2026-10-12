@@ -4094,6 +4094,10 @@ export const EN = {
   // {reason}: the operating system's own error.
   acpOutsideWorkspaceRefused:
     'Outside the workspace; nothing was read or written. Approval cannot widen workspace access.',
+  // {path}: the refused path or search pattern, as the user wrote it.
+  acpRefusalOutsideWorkspace: 'Path {path} is outside the workspace; nothing was read or written.',
+  acpRefusalLinkEscape:
+    'Path {path} leads outside the workspace through a link; nothing was read or written.',
   acpCredentialStoreNoAnswer:
     'The credential store did not answer. This request was not sent; try again.',
   acpStoreUnavailable:

@@ -13,7 +13,7 @@ import { resourceHistoryReader, resourceHistoryRecorder } from './history'
 import { createRuntimeResourceHost } from './host'
 import type { ResourceHistoryPort, ResourceMachineStore, RuntimeResources } from './port'
 import { resourceMachineStore } from './settings'
-import { ResourceReadingError } from './text'
+import { isResourceReadingError, ResourceReadingError } from './text'
 
 export interface ResourceEntryOptions {
   machineDir: string
@@ -89,9 +89,7 @@ export async function createResources(
     onError: (error) => {
       // Only our fixed reading identity crosses the resource/log boundary.
       options.onError(
-        error instanceof ResourceReadingError
-          ? error
-          : new ResourceReadingError('resources.status'),
+        isResourceReadingError(error) ? error : new ResourceReadingError('resources.status'),
       )
     },
     history: options.history ?? recorder?.history ?? resourceHistoryReader(options.machineDir),

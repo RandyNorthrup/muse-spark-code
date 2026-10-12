@@ -3358,6 +3358,8 @@
   "acpKeyAbsent": "Meta Model API キーは保存されていません。",
   "acpKeyCleared": "Meta Model API キーをこのコンピューターの資格情報ストアから削除しました。",
   "acpOutsideWorkspaceRefused": "ワークスペースの外部です。読み取りも書き込みも行われていません。承認によってワークスペースへのアクセス範囲を拡張することはできません。",
+  "acpRefusalOutsideWorkspace": "パス {path} はワークスペースの外部です。読み取りも書き込みも行われていません。",
+  "acpRefusalLinkEscape": "パス {path} はリンクを介してワークスペースの外部につながっています。読み取りも書き込みも行われていません。",
   "acpCredentialStoreNoAnswer": "認証情報ストアが応答しませんでした。このリクエストは送信されていません。もう一度お試しください。",
   "acpStoreUnavailable": "このコンピューターの資格情報ストアを使用できません ({reason})。Linux では、GNOME Keyring や KWallet など、実行中でロック解除された Secret Service がエージェントに必要です。",
   "acpStoreNames": {

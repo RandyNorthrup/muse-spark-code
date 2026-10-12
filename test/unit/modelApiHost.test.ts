@@ -3421,6 +3421,25 @@ describe('ModelApiSession: session budget (M82)', () => {
     expectFullBudgetEstimate(t)
   })
 
+  it('carries each request’s settled cost on its usage event at the billed model (R5)', async () => {
+    const store = memorySessionStore()
+    const t = setup({ store, sessionBudgetUsd: Usd.from(10).toAmount() })
+    const { session, events, turnDone } = await startSession(t)
+    await session.setModel('muse-spark-1.3-contributor')
+    t.api.script({ text: 'done', usage: { input: 1000, output: 0 } })
+    await session.sendTurn([{ type: 'text', text: 'go' }])
+    await turnDone()
+    // One source for cost: the event carries the contributor tier's $0.0001
+    // for these 1,000 input tokens — never the standard tier's $0.00125.
+    const usage = events.findLast((event) => event.type === 'tokenUsage')
+    expect(usage?.type).toBe('tokenUsage')
+    if (usage?.type !== 'tokenUsage') throw new Error('Expected a usage event')
+    expect(usage.modelId).toBe('muse-spark-1.3-contributor')
+    expect(usage.cost?.certainty).toBe('computed')
+    expect(usage.cost?.usd).toBeCloseTo(0.0001, 10)
+    await t.host.close()
+  })
+
   it('saves an in-flight reservation to disk before the first response frame, so a crash reload cannot overspend', async () => {
     const directory = path.join(scheduleRoot, 'budget-in-flight')
     const store = budgetStoreIn(directory)
@@ -4250,6 +4269,8 @@ describe('ModelApiSession: turns', () => {
       cachedTokens: 30,
       reasoningTokens: 1,
       modelId: 'muse-spark-1.3',
+      // R5: the settled cost travels on the usage event itself.
+      cost: { usd: 0.000177, certainty: 'computed' },
     })
     expect(events.find((event) => event.type === 'contextUsage')).toEqual({
       type: 'contextUsage',
@@ -4613,7 +4634,7 @@ describe('ModelApiSession: turns', () => {
     )
     expect(row?.item).toMatchObject({
       status: 'rejected',
-      failureReason: 'path ../x is outside the workspace',
+      failureReason: 'Path ../x is outside the workspace; nothing was read or written.',
       refusalCode: 'outside_workspace',
     })
   })

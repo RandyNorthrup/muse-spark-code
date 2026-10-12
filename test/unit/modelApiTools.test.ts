@@ -783,7 +783,7 @@ describe('executeTool: read_file', () => {
   it('refuses paths outside the workspace and reports a missing file', async () => {
     const { run } = context({})
     expect(await run('read_file', { path: '../secret' })).toMatchObject({
-      failureReason: 'path ../secret is outside the workspace',
+      failureReason: 'Path ../secret is outside the workspace; nothing was read or written.',
       refusalCode: 'outside_workspace',
     })
     expect(await run('read_file', { path: 'missing.txt' })).toMatchObject({
@@ -937,9 +937,46 @@ describe('executeTool: search and list_files', () => {
     // A verbatim glob on another drive is still outside, naming the glob.
     expect(await run('list_files', { glob: String.raw`\\?\D:\other\*.md` })).toMatchObject({
       refusalCode: 'outside_workspace',
-      failureReason: String.raw`glob \\?\D:\other\*.md is outside the workspace`,
+      failureReason: String.raw`Path \\?\D:\other\*.md is outside the workspace; nothing was read or written.`,
       visibleOutput: UI_TEXT.acpOutsideWorkspaceRefused,
     })
+  })
+
+  it('tells the person refusals in the installed language under their own keys (R6)', async () => {
+    await loadUiTable({
+      language: 'de',
+      readExtensionFile: () =>
+        Promise.resolve(readFileSync(new URL('../../l10n/ui.de.json', import.meta.url), 'utf8')),
+      log: createLogger(new FakeLogOutputChannel()),
+    })
+    try {
+      const files = memoryToolIo({ 'a.txt': 'x' }, ROOT, undefined, { linked: '/etc' })
+      const ctx: ToolContext = {
+        workspaceRoot: ROOT,
+        platform: 'linux',
+        io: files,
+        seen: new Map(),
+        provisionalSeen: new Map(),
+      }
+      const run = (name: string, args: unknown) => executeTool(name, JSON.stringify(args), ctx)
+      // The link escape names its path in German; the model detail stays English.
+      const read = await run('read_file', { path: 'linked/shadow' })
+      expect(read.failureReason).toBe(
+        'Pfad linked/shadow führt über einen Link aus dem Arbeitsbereich hinaus; es wurde nichts gelesen oder geschrieben.',
+      )
+      expect(read.visibleOutput).toBe(UI_TEXT.acpOutsideWorkspaceRefused)
+      expect(read.visibleOutput).not.toContain('Outside the workspace')
+      expect(read.output).toContain('through a link')
+      // A plain outside refusal uses the plain key, still naming the path.
+      const outside = await run('read_file', { path: '../secret' })
+      expect(outside.failureReason).toBe(
+        'Pfad ../secret liegt außerhalb des Arbeitsbereichs; es wurde nichts gelesen oder geschrieben.',
+      )
+      // The English model-facing reason stays model-facing only.
+      expect(outside.output).toContain('is outside the workspace')
+    } finally {
+      setUiText(EN, BASE_LOCALE)
+    }
   })
 })
 
@@ -1213,8 +1250,8 @@ describe('a conversation in a worktree (M71)', () => {
     }
     const run = (name: string, args: unknown) => executeTool(name, JSON.stringify(args), ctx)
     for (const target of ['../../app/src/a.ts', `${MAIN}/src/a.ts`]) {
-      // The client reads the specific reason; the shown sentence stays fixed.
-      const reason = `path ${target} is outside the workspace`
+      // The client reads the specific reason, translated; the shown sentence stays fixed.
+      const reason = `Path ${target} is outside the workspace; nothing was read or written.`
       expect(await run('read_file', { path: target })).toMatchObject({
         failureReason: reason,
         visibleOutput: UI_TEXT.acpOutsideWorkspaceRefused,

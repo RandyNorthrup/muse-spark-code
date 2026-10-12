@@ -10,7 +10,6 @@ import {
 } from '../../src/core/backends/modelapi/codecs/ollama'
 import type { UsageRecording } from '../../src/core/usage/recording'
 import { usageRecordSchema } from '../../src/shared/usageJournal'
-import { estimateCostUsd } from '../../src/core/usage/insights'
 import { FakeLogOutputChannel } from './helpers/fakes'
 
 function port(): UsageRecording {
@@ -171,20 +170,39 @@ describe('auxiliary recording', () => {
     })
   })
   it('adds priced ACP session cost with certainty and leaves unknown prices absent', () => {
-    const translator = new UpdateTranslator('/workspace', false, 'modelApi')
-    translator.updates({
+    // R5: the answer's cost is what the usage event carried — the settled
+    // figures per model actually billed — never a price the translator
+    // recomputed. A contributor child's dollars stay the child's dollars.
+    const unpriced = new UpdateTranslator('/workspace', false, 'modelApi')
+    unpriced.updates({
       type: 'tokenUsage',
       modelId: 'muse-spark-1.3',
       inputTokens: 100,
       outputTokens: 10,
       cachedTokens: 20,
     })
+    expect(unpriced.updates(context)).toEqual([
+      { sessionUpdate: 'usage_update', used: 12, size: 100 },
+    ])
+    // The reviewer's R5 repro: 1,000 input tokens from a contributor-model
+    // child, aggregated into a standard parent's totals. The event carries
+    // the child's settled $0.0001; pricing the totals at the parent model
+    // would show $0.00125.
+    const translator = new UpdateTranslator('/workspace', false, 'modelApi')
+    translator.updates({
+      type: 'tokenUsage',
+      modelId: 'muse-spark-1.3',
+      inputTokens: 1000,
+      outputTokens: 0,
+      cachedTokens: 0,
+      cost: { usd: 0.0001, certainty: 'computed' },
+    })
     expect(translator.updates(context)).toEqual([
       {
         sessionUpdate: 'usage_update',
         used: 12,
         size: 100,
-        cost: { amount: 0.0001455, currency: 'USD' },
+        cost: { amount: 0.0001, currency: 'USD' },
         _meta: { museSpark: { costCertainty: 'computed' } },
       },
     ])
@@ -203,6 +221,7 @@ describe('auxiliary recording', () => {
       modelId: 'muse-spark-1.3',
       inputTokens: 100,
       outputTokens: 10,
+      cost: { usd: 0.0002, certainty: 'computed' },
     })
     expect(subscription.updates(context)).toEqual([
       { sessionUpdate: 'usage_update', used: 12, size: 100 },
@@ -211,25 +230,22 @@ describe('auxiliary recording', () => {
   it('reports the turn tally in usage updates, withholding cost while unpriced', () => {
     // Finding 3: no injected journal snapshot feeds a usage update; the cost
     // is the turn's own running tally, which includes the request it
-    // describes. The tally is recomputed from the price table, not read back
-    // from the translator under test.
+    // describes. R5: that tally arrives on the usage event itself.
     const translator = new UpdateTranslator('/workspace', false, 'modelApi')
     translator.updates({
       type: 'tokenUsage',
       modelId: 'muse-spark-1.3',
       inputTokens: 100,
       outputTokens: 10,
+      cost: { usd: 0.00055, certainty: 'reported' },
     })
-    const tally = Number(
-      estimateCostUsd({ inputTokens: 100, outputTokens: 10, cachedTokens: 0 }, 'muse-spark-1.3'),
-    )
     expect(translator.updates(context)).toEqual([
       {
         sessionUpdate: 'usage_update',
         used: 12,
         size: 100,
-        cost: { amount: tally, currency: 'USD' },
-        _meta: { museSpark: { costCertainty: 'computed' } },
+        cost: { amount: 0.00055, currency: 'USD' },
+        _meta: { museSpark: { costCertainty: 'reported' } },
       },
     ])
     translator.updates({

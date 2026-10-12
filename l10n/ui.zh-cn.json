@@ -3358,6 +3358,8 @@
   "acpKeyAbsent": "未存储 Meta Model API 密钥。",
   "acpKeyCleared": "已从这台计算机的凭据存储中移除 Meta Model API 密钥。",
   "acpOutsideWorkspaceRefused": "位于工作区之外；未读取或写入任何内容。批准无法扩大工作区访问范围。",
+  "acpRefusalOutsideWorkspace": "路径 {path} 位于工作区之外；未读取或写入任何内容。",
+  "acpRefusalLinkEscape": "路径 {path} 通过链接指向工作区之外；未读取或写入任何内容。",
   "acpCredentialStoreNoAnswer": "凭据存储未响应。此请求未发送，请重试。",
   "acpStoreUnavailable": "无法使用这台计算机的凭据存储（{reason}）。在 Linux 上，代理需要一个正在运行且已解锁的 Secret Service，例如 GNOME Keyring 或 KWallet。",
   "acpStoreNames": {

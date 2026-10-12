@@ -3577,6 +3577,8 @@
   "acpKeyAbsent": "Nie zapisano klucza Meta Model API.",
   "acpKeyCleared": "Klucz Meta Model API został usunięty z magazynu poświadczeń tego komputera.",
   "acpOutsideWorkspaceRefused": "Poza obszarem roboczym; nic nie zostało odczytane ani zapisane. Zatwierdzenie nie może rozszerzyć dostępu do obszaru roboczego.",
+  "acpRefusalOutsideWorkspace": "Ścieżka {path} znajduje się poza obszarem roboczym; nic nie zostało odczytane ani zapisane.",
+  "acpRefusalLinkEscape": "Ścieżka {path} prowadzi poza obszar roboczy przez dowiązanie; nic nie zostało odczytane ani zapisane.",
   "acpCredentialStoreNoAnswer": "Magazyn poświadczeń nie odpowiedział. To żądanie nie zostało wysłane; spróbuj ponownie.",
   "acpStoreUnavailable": "Nie można użyć magazynu poświadczeń tego komputera ({reason}). W systemie Linux agent potrzebuje uruchomionej i odblokowanej usługi Secret Service, takiej jak GNOME Keyring lub KWallet.",
   "acpStoreNames": {
