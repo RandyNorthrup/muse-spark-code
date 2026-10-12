@@ -9,7 +9,9 @@
 import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { afterEach, describe, expect, it } from 'vitest'
+import type * as vscode from 'vscode'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { connectCopilotFromClick, type CopilotPort } from '../../src/host/providers/copilotClient'
 import {
   encodeChatRequest,
   type ChatPresetQuirks,
@@ -31,6 +33,8 @@ import {
   createRuntimeDailyBudget,
   withRuntimeAccounting,
 } from '../../src/runtime/runtimeAccountingEntry'
+import { createRunLedger } from '../../src/runtime/exec/runLedger'
+import { Usd } from '../../src/shared/usd'
 import { fakeModelApi, fakeModelApiClient } from './helpers/fakeModelApi'
 import { FakeLogOutputChannel, memorySecrets } from './helpers/fakes'
 import { metaMediaCapabilities } from '../../src/core/media/metaMediaCapabilities'
@@ -329,11 +333,40 @@ describe('M105 lane V R2 every encoder refuses on every provider route', () => {
     )
   })
 
+  // R4 (RVCM1054C P3): the full user-reachable route list, written out so
+  // this guard can fail: adding a route to any production registry without
+  // covering it here fails the equality below (drill D-R4-4). The Copilot
+  // subscription leg has no request encoder; its row is the refusal pinned
+  // through the real client in 'the refusal arrives as itself on every
+  // plan leg' below, named in CLIENT_COVERED_ROUTES.
+  const EXPECTED_ROUTES: readonly string[] = [
+    'openai',
+    'azure',
+    'xai',
+    'anthropic',
+    'gemini',
+    'openrouter',
+    'groq',
+    'deepseek',
+    'mistral',
+    'mistral-plan',
+    'together',
+    'fireworks',
+    'huggingface',
+    'zai',
+    'ollama',
+    'lmstudio',
+    'vllm',
+    'llamacpp',
+    'custom',
+    'chatgpt-subscription',
+    'copilot-subscription',
+  ]
+  const CLIENT_COVERED_ROUTES: readonly string[] = ['copilot-subscription']
+
   it('covers every supported route, so a route without a row fails', () => {
-    const covered = new Set(rows.map((row) => row[0]))
-    for (const preset of PRESETS) expect(covered.has(preset.id), preset.id).toBe(true)
-    for (const preset of PLAN_KEY_PRESETS) expect(covered.has(preset.id), preset.id).toBe(true)
-    expect(covered.has('chatgpt-subscription')).toBe(true)
+    const covered = new Set([...rows.map((row) => row[0]), ...CLIENT_COVERED_ROUTES])
+    expect(covered).toEqual(new Set(EXPECTED_ROUTES))
   })
 
   it('covers the named non-Meta routes', () => {
@@ -502,6 +535,21 @@ describe('M105 lane V R2 the refusal arrives as itself through the production cl
     } finally {
       setUiText(EN, 'en')
     }
+  })
+
+  it('plan-key route mistral-plan refuses through the real client with zero sends', async () => {
+    // M105 lane V R4 (RVCM1054C P3): the plan-key registry is a second
+    // production route source, so its route runs through the real
+    // production client too, not only through the encoder matrix.
+    expect(
+      await productionRefusal({
+        id: 'mistral-plan',
+        preset: 'mistral-plan',
+        address: 'https://api.mistral.ai',
+        auth: 'apiKey',
+        native: 'mistral-medium-2508',
+      }),
+    ).toBe(0)
   })
 
   it('never surfaces the generic unavailable error for a held video', async () => {
@@ -673,13 +721,72 @@ describe('M105 lane V R3 the refusal arrives as itself on every plan leg', () =>
     },
   )
 
-  it('Copilot subscription leg yields an adapter codec refusal with its own sentence', async () => {
-    let wasInvoked = false
-    const refusal = new ChatCodecError('copilot-model is not known to take video.')
+  it('Copilot subscription leg yields the real client refusal with its own sentence', async () => {
+    // M105 lane V R4 (RVCM1054C P2): the real Copilot client from
+    // connectCopilotFromClick (a fake VS Code port only) behind the real
+    // subscription client. The held video refuses before any request with
+    // the model's own sentence, never the generic unavailable text.
+    const sendRequest = vi.fn()
+    const countTokens = vi.fn()
+    const recordEstimatedUsage = vi.fn()
+    const model: vscode.LanguageModelChat = {
+      id: 'copilot-model',
+      name: 'Copilot Model',
+      vendor: 'copilot',
+      family: 'copilot',
+      version: '1',
+      maxInputTokens: 1000,
+      countTokens,
+      sendRequest,
+    }
+    const port: CopilotPort = {
+      selectChatModels: () => Promise.resolve([model]),
+      user: (text: string) => ({
+        role: 1,
+        content: text === '' ? [] : [{ value: text }],
+        name: undefined,
+      }),
+      assistant: (text: string) => ({
+        role: 2,
+        content: text === '' ? [] : [{ value: text }],
+        name: undefined,
+      }),
+      text: (value: string) => ({ value }),
+      call: (callId: string, name: string, input: object) => ({ callId, name, input }),
+      result: (callId: string, content: unknown[]) => ({ callId, content }),
+      cancellation: () => {
+        const token: vscode.CancellationToken = {
+          get isCancellationRequested() {
+            return false
+          },
+          onCancellationRequested: () => ({ dispose: () => undefined }),
+        }
+        return { token, cancel: () => undefined, dispose: () => undefined }
+      },
+      isText: (part: unknown): part is vscode.LanguageModelTextPart =>
+        typeof part === 'object' && part !== null && 'value' in part,
+      isCall: (_part: unknown): _part is vscode.LanguageModelToolCallPart => false,
+    }
+    const clients = await connectCopilotFromClick({
+      api: port,
+      justification: () => 'test justification',
+      failureText: (code) => {
+        throw new Error(`unexpected Copilot failure ${code}`)
+      },
+      isConfidential: () => false,
+      isUserInitiated: () => true,
+      canSendRequest: () => true,
+      recordEstimatedUsage,
+    })
+    expect(clients).toHaveLength(1)
     const api = fakeModelApi()
     const meta = fakeModelApiClient(api, new FakeLogOutputChannel())
+    let sent = 0
     const subscribed = createSubscriptionClient(meta, {
-      fetch: api.fetch,
+      fetch: () => {
+        sent += 1
+        throw new Error('the codec refusal must throw before any send')
+      },
       providers: () =>
         Promise.resolve({
           v: 1 as const,
@@ -689,20 +796,7 @@ describe('M105 lane V R3 the refusal arrives as itself on every plan leg', () =>
         }),
       chatgpt: () => Promise.reject(new Error('no subscription sign-in')),
       accountId: () => Promise.resolve(undefined),
-      copilot: () =>
-        new Map([
-          [
-            'copilot-model',
-            {
-              countInputTokens: () => Promise.resolve(0),
-              streamResponse: (): AsyncGenerator<StreamEvent> => {
-                // The adapter refuses at encode: no request leaves it.
-                wasInvoked = true
-                throw refusal
-              },
-            },
-          ],
-        ]),
+      copilot: () => new Map([['copilot-model', clients[0]!]]),
     })
     const events = await Array.fromAsync(
       subscribed.streamResponse(
@@ -710,8 +804,77 @@ describe('M105 lane V R3 the refusal arrives as itself on every plan leg', () =>
         new AbortController().signal,
       ),
     )
-    expect(wasInvoked).toBe(true)
-    expect(events).toEqual([{ type: 'error', message: refusal.message }])
+    expect(events).toEqual([
+      { type: 'error', message: 'copilot-model is not known to take video.' },
+    ])
+    expect(sent).toBe(0)
+    expect(api.requests).toHaveLength(0)
+    expect(sendRequest).not.toHaveBeenCalled()
+    expect(countTokens).not.toHaveBeenCalled()
+    expect(recordEstimatedUsage).not.toHaveBeenCalled()
+  })
+
+  it('Meta passthrough rethrows the refusal itself with zero sends', async () => {
+    // M105 lane V R4 (RVCM1054C P2 sweep): a non-plan model takes the
+    // passthrough (registry.ts yield* meta, outside the plan try) into the
+    // REAL configured client with a counting transport. The held video
+    // refuses at encode with the model's own sentence, and the typed
+    // refusal propagates unchanged (the session turns it into the turn
+    // reason, as for the configured client). Nothing is sent on either leg.
+    const openrouter = PRODUCTION_FAMILIES[0]
+    if (openrouter === undefined) throw new Error('openrouter family must exist')
+    const root = await mkdtemp(path.join(tmpdir(), 'm105r2-vendor-'))
+    roots.push(root)
+    const entry = providerEntrySchema.parse({
+      id: openrouter.id,
+      preset: openrouter.preset,
+      address: openrouter.address,
+      auth: openrouter.auth,
+      models: [openrouter.native],
+    })
+    const configFile = path.join(root, 'providers.json')
+    const written = await writeProvidersFileAtomic(configFile, { v: 1, providers: [entry] })
+    expect(written.ok).toBe(true)
+    let sent = 0
+    const services = createConfiguredProviderServices(undefined, {
+      configFile,
+      catalogFile: path.resolve('vendor/models-dev/snapshot.json'),
+      secrets: memorySecrets(),
+      resolve: () => Promise.resolve(['127.0.0.1']),
+      send: () => {
+        sent += 1
+        return Promise.resolve({
+          status: 200,
+          headers: {},
+          body: emptyBytes(),
+          close: () => undefined,
+        })
+      },
+    })
+    let planSends = 0
+    const subscribed = createSubscriptionClient(services.client, {
+      fetch: () => {
+        planSends += 1
+        throw new Error('the Meta passthrough must not reach the plan fetch')
+      },
+      providers: () => Promise.resolve({ v: 1 as const, providers: [] }),
+      chatgpt: () => Promise.reject(new Error('no subscription sign-in')),
+      accountId: () => Promise.resolve(undefined),
+    })
+    const ref = `${openrouter.id}/${openrouter.native}`
+    let error: unknown
+    try {
+      await Array.fromAsync(
+        subscribed.streamResponse(SUBSCRIPTION_VIDEO_BODY(ref), new AbortController().signal),
+      )
+    } catch (error_) {
+      error = error_
+    }
+    // Identity, not just the message: the passthrough maps nothing.
+    if (!isChatCodecError(error)) throw new Error('expected the typed codec refusal')
+    expect(error.message).toBe(`${openrouter.native} is not known to take video.`)
+    expect(sent).toBe(0)
+    expect(planSends).toBe(0)
   })
 })
 
@@ -734,6 +897,10 @@ describe('M105 lane V R3 the capture recipes run as written', () => {
 
 describe('M105 lane V R3 the refusal passes the runtime accounting wrapper untouched', () => {
   it('rejects with the refusal itself and settles nothing', async () => {
+    // M105 lane V R4 (RVCM1054C P3): "settles nothing" is asserted, not
+    // titled: the real wrapper over a refusing inner client reserves
+    // nothing from the daily budget, admits nothing to the ledger, sends
+    // zero requests, and rethrows the refusal itself.
     const refusal = new ChatCodecError('muse-spark-1.3 is not known to take video.')
     const api = fakeModelApi()
     const inner = fakeModelApiClient(api, new FakeLogOutputChannel())
@@ -748,7 +915,23 @@ describe('M105 lane V R3 the refusal passes the runtime accounting wrapper untou
       now: () => Date.now(),
       sleep: (ms: number) => new Promise((resolve) => setTimeout(resolve, ms)),
     })
-    const wrapped = withRuntimeAccounting(inner, daily)
+    const reserve = vi.spyOn(daily, 'reserve')
+    const ledger = createRunLedger({ capUsd: Usd.from(1).toAmount(), maxRequests: 10 })
+    const refusals: unknown[] = []
+    const started: number[] = []
+    const settled: unknown[] = []
+    const wrapped = withRuntimeAccounting(inner, daily, {
+      ledger,
+      refuse: (reason) => {
+        refusals.push(reason)
+      },
+      started: (n) => {
+        started.push(n)
+      },
+      settled: (outcome) => {
+        settled.push(outcome)
+      },
+    })
     let error: unknown
     try {
       await Array.fromAsync(
@@ -762,5 +945,12 @@ describe('M105 lane V R3 the refusal passes the runtime accounting wrapper untou
     }
     // Identity, not just the message: the wrapper maps nothing.
     expect(error).toBe(refusal)
+    expect(api.requests).toHaveLength(0)
+    expect(reserve).not.toHaveBeenCalled()
+    expect(ledger.totals().requests).toBe(0)
+    expect(ledger.lastResponse).toBeNull()
+    expect(refusals).toEqual([])
+    expect(started).toEqual([])
+    expect(settled).toEqual([])
   })
 })
