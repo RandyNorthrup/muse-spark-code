@@ -283,7 +283,8 @@ the `orchestrator-playbook` skill.
 
 Muse Code starts subagents without asking; the panel counts their observed
 rounds and reviews their work, and cannot stop a start. A child's first row
-opens its round before the CLI supplies its session id. Its own ended row,
+opens its round before the CLI supplies its session id, and each round is
+matched to one of its children by subagent id and item id. Its own ended row,
 the next review or the conversation closing ends it; a history repost ends
 nothing. A window with no playbook folder loads no playbook code for child
 work, including when the optional bundle is absent.

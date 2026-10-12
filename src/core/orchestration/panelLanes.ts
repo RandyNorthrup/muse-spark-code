@@ -15,7 +15,7 @@
 // No model text enters here. Synchronous, no `vscode`.
 
 import { createHash, randomUUID } from 'node:crypto'
-import { realpathSync } from 'node:fs'
+import { existsSync, realpathSync } from 'node:fs'
 import path from 'node:path'
 import {
   PLAYBOOK_ID_MAX_CHARS,
@@ -43,6 +43,7 @@ import {
   modulePath,
   predecessorIds,
   renamedFiles,
+  screenModulePath,
   type ModuleState,
 } from './playbook/modules'
 import type { PlaybookWork } from './playbookIntegration'
@@ -138,13 +139,16 @@ function identityOf(absolute: string): string | undefined {
  * A path as the journal names it: the real file under the real workspace,
  * relative, with forward slashes. Links, junctions, drive spellings, 8.3
  * names and (where the file system ignores it) case are resolved first, so
- * two spellings of one file are one path here. Undefined for one answer
- * only: the path was resolved, and it is not a file of the workspace.
- * Everything else is not known to be anything, and throws, so that whoever
- * asked refuses instead of taking it for someone else's file: a path that
- * cannot be read or resolved (with that reason), and a file of the
- * workspace whose name the journal cannot hold (`modulePath`'s own refusal;
- * it reads as a secret).
+ * two spellings of one file are one path here. Undefined for two answers:
+ * the path was resolved, and it is not a file of the workspace; or the
+ * spelling names no file of a real workspace folder where the file system
+ * tells spellings apart (a moved file is lost and means lost, D96.17).
+ * Where the folder itself is gone there is no file to lose, and the
+ * spelling stands. Everything else is not known
+ * to be anything, and throws, so that whoever asked refuses instead of
+ * taking it for someone else's file: a path that cannot be read or resolved
+ * (with that reason), and a file of the workspace whose name the journal
+ * cannot hold (`modulePath`'s own refusal; it reads as a secret).
  */
 export function workspaceFile(
   workspaceFolder: string,
@@ -161,6 +165,16 @@ export function workspaceFile(
   const relative = path.relative(folder, resolved)
   const isOutside =
     relative === '' || path.isAbsolute(relative) || relative.split(path.sep)[0] === '..'
+  // A name the journal cannot hold is refused even when its file is gone:
+  // it is never named. Windows names files without regard to case, so a
+  // missing spelling may still be its file there; anywhere else a spelling
+  // whose file is gone from a real folder is lost (D96.17). Where the
+  // folder itself is gone the spelling stands, so a review that names a
+  // child's file is still that child's in a workspace that is not trusted.
+  if (!isOutside && screenModulePath(relative) === 'withheld')
+    throw new Error(UI_TEXT.playbookUnavailable)
+  if (!isOutside && process.platform !== 'win32' && existsSync(folder) && !existsSync(resolved))
+    return undefined
   return isOutside ? undefined : modulePath(relative)
 }
 

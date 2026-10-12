@@ -451,6 +451,30 @@ describe('a review turn', () => {
     )
   })
 
+  it('opens two children’s rounds that work unasked, owing nothing for it', async () => {
+    const setup = scene({ child: [changed(STORE)], ticket: ticket() })
+    await setup.conversation.dispatch('delegate', SESSION, 'subagent-1', () => Promise.resolve())
+    await setup.conversation.dispatch('delegate', SESSION, 'subagent-2', () => Promise.resolve())
+    const submit = vi.fn(() => Promise.resolve({ turnId: 'turn-1' }))
+    const sent = request(submit)
+    await expect(
+      setup.conversation.review({
+        ...sent.review,
+        agents: [
+          { agentId: 'subagent-1', sessionId: 'child-1' },
+          { agentId: 'subagent-2', sessionId: 'child-2' },
+        ],
+      }),
+    ).resolves.toEqual({ turnId: 'turn-1' })
+    // Both rounds are the review's, unmarked: nothing is owed for the work being unasked.
+    expect(vi.mocked(setup.window.openReview).mock.calls[0]?.[2]).toEqual([
+      { agentId: 'subagent-1', sessionId: 'child-1', files: [STORE] },
+      { agentId: 'subagent-2', sessionId: 'child-2', files: [STORE] },
+    ])
+    expect(setup.told).toHaveLength(0)
+    expect(submit).toHaveBeenCalledTimes(1)
+  })
+
   it('still refuses a review of more files than the journal can hold', async () => {
     const many = Array.from(
       { length: PLAYBOOK_RECORD_MAX + 1 },
