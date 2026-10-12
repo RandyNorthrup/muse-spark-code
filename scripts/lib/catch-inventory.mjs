@@ -168,6 +168,26 @@ function isDiagnosticMarkerCall(node) {
   )
 }
 
+/**
+ * Calls verified (by reading their bodies) to carry only fixed vocabulary
+ * from the error: `storeErrorCode` reads only `.code`;
+ * `describeStoreError` runs `redactSecrets` over the message;
+ * `errorKind` (conversationController.ts) returns only `.code`, `.name` or
+ * `typeof`; `errorName` (accountHost.ts) returns only `.name`; `codeOf`
+ * (pageConverter.ts, webFetcher.ts, runtimeStore.ts) reads only `.code`.
+ * Anything else wrapping the error is opaque to this gate and counts as a
+ * leak, so `String(error)` can no longer pass as REPORTED. A bare `describe`
+ * stays a leak: the same name is `redactSecrets`-wrapped in one module and
+ * a raw message in three others, so the gate cannot bless it by name.
+ */
+const SAFE_ERROR_FNS = new Set([
+  'storeErrorCode',
+  'describeStoreError',
+  'errorKind',
+  'errorName',
+  'codeOf',
+])
+
 /** A logger call (`log.warn(...)`, never `console.*`). */
 function isLogCall(node) {
   if (!ts.isCallExpression(node) || !ts.isPropertyAccessExpression(unparen(node.expression)))
@@ -187,11 +207,15 @@ function isRawErrorLog(node, binding) {
       ts.forEachChild(current, mark)
       return
     }
-    if (!REDACTING_FNS.has(calleeName(current.expression) ?? '')) {
-      ts.forEachChild(current, mark)
+    const callee = calleeName(current.expression) ?? ''
+    if (REDACTING_FNS.has(callee) || SAFE_ERROR_FNS.has(callee)) {
+      for (const argument of current.arguments) collect(argument, true)
       return
     }
-    for (const argument of current.arguments) collect(argument, true)
+    // An identifier inside any other call (String(error), a template span, a
+    // concatenation, an unverified local describe()) is a leak, not a
+    // blessing: collect it as raw so the handler cannot count as REPORTED.
+    ts.forEachChild(current, (child) => collect(child, false))
   }
   const collect = (current, inside) => {
     if (ts.isIdentifier(current) && current.text === binding) {

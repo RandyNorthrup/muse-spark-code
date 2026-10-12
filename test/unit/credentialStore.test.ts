@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { CredentialStore, isValidModelApiKey } from '../../src/host/auth/credentialStore'
+import { SECRET_KEYS } from '../../src/shared/constants'
 import { memorySecrets, unexpectedWarning } from './helpers/fakes'
 import { CURRENT_SHAPE_KEYS, OLDER_SHAPE_KEYS } from './helpers/modelApiKeys'
 
@@ -80,7 +81,10 @@ describe('CredentialStore', () => {
     await expect(store.getApiKey()).resolves.toBeUndefined()
     await expect(store.getApiKey()).resolves.toBeUndefined()
     expect(warnings).toHaveLength(1)
-    expect(warnings[0]).toContain('no keyring')
+    // The log carries only the failure's kind, never the raw error: the
+    // message can name a keyring path (P3-5).
+    expect(warnings[0]).toContain('(Error)')
+    expect(warnings[0]).not.toContain('no keyring')
     expect(warnings[0]).toMatch(/^VS Code's secret storage could not be read/)
     // The ACP agent names its own store (PLAN.md D61).
     const agentWarnings: string[] = []
@@ -99,12 +103,15 @@ describe('CredentialStore', () => {
     expect(agentWarnings[0]).toMatch(/^the operating system's credential store could not be read/)
   })
 
-  it('reads an unreadable secret store as no provider credential and says so once', async () => {
+  it('reads an unreadable provider entry as unknown, never as absent (P2-1)', async () => {
     const warnings: string[] = []
     const message = 'locked: /home/someone/.local/share/keyrings/login.keyring'
     const store = new CredentialStore(
       {
-        get: () => Promise.reject(new Error(message)),
+        get: (key: string) =>
+          key === SECRET_KEYS.modelApiKey
+            ? Promise.resolve(undefined)
+            : Promise.reject(new Error(message)),
         store: () => Promise.resolve(),
         delete: () => Promise.resolve(),
       },
@@ -114,11 +121,60 @@ describe('CredentialStore', () => {
       "VS Code's secret storage",
       () => Promise.resolve(['meta']),
     )
-    await expect(store.hasProviderCredential()).resolves.toBe(false)
-    await expect(store.hasProviderCredential()).resolves.toBe(false)
+    // The boolean is gone: could-not-read is its own state, so no guard can
+    // mistake it for "no credential".
+    await expect(store.readModelApiCredential()).resolves.toEqual({
+      outcome: 'unreadable',
+      kind: 'other',
+    })
+    await expect(store.readModelApiCredential()).resolves.toEqual({
+      outcome: 'unreadable',
+      kind: 'other',
+    })
     expect(warnings).toHaveLength(1)
     expect(warnings[0]).toContain('(Error)')
     expect(warnings[0]).not.toContain('keyring')
+  })
+
+  it('reads an unreadable Meta key as unknown with its kind', async () => {
+    const store = new CredentialStore(
+      {
+        get: () => Promise.reject(Object.assign(new Error('denied'), { code: 'EACCES' })),
+        store: () => Promise.resolve(),
+        delete: () => Promise.resolve(),
+      },
+      () => undefined,
+      "VS Code's secret storage",
+      () => Promise.resolve([]),
+    )
+    await expect(store.readModelApiCredential()).resolves.toEqual({
+      outcome: 'unreadable',
+      kind: 'denied',
+    })
+  })
+
+  it('reads no key and no provider secrets as absent', async () => {
+    const store = new CredentialStore(
+      memorySecrets(),
+      unexpectedWarning,
+      "VS Code's secret storage",
+      () => Promise.resolve([]),
+    )
+    await expect(store.readModelApiCredential()).resolves.toEqual({ outcome: 'absent' })
+  })
+
+  it('reads a stored Meta key as found without listing providers', async () => {
+    const secrets = memorySecrets()
+    const store = new CredentialStore(
+      secrets,
+      unexpectedWarning,
+      "VS Code's secret storage",
+      () => {
+        throw new Error('must not list providers once the key is found')
+      },
+    )
+    await store.setApiKey('LLM|1|x')
+    await expect(store.readModelApiCredential()).resolves.toEqual({ outcome: 'found' })
   })
 
   it.each([
@@ -141,7 +197,7 @@ describe('CredentialStore', () => {
       "VS Code's secret storage",
       () => Promise.resolve(ids),
     )
-    await expect(store.hasProviderCredential()).resolves.toBe(true)
+    await expect(store.readModelApiCredential()).resolves.toEqual({ outcome: 'found' })
     expect(warnings).toHaveLength(1)
     expect(warnings[0]).toContain('broken')
     expect(warnings[0]).toContain('(Error)')
@@ -162,6 +218,6 @@ describe('CredentialStore', () => {
       "VS Code's secret storage",
       () => Promise.resolve(['meta']),
     )
-    await expect(store.hasProviderCredential()).rejects.toBe('a string failure')
+    await expect(store.readModelApiCredential()).rejects.toBe('a string failure')
   })
 })

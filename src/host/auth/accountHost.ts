@@ -83,6 +83,8 @@ async function requestAccount(
   } catch (error: unknown) {
     // The host failed or did not answer in time: it said nothing, which is
     // not a state. Anything that is not an error keeps its kind.
+    // read-state: cert TBL-03. "Cannot say" reads as unsigned-in here; the
+    // sign-in gate re-asks rather than releasing anything on it.
     if (!(error instanceof Error)) throw error
     return undefined
   }

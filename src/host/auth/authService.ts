@@ -26,6 +26,12 @@ import type { Logger } from '../logger'
 import { isCliSignedIn } from './cliAccount'
 import type { CapturedSignInEnding, DeviceSignInEnded, DeviceSignInOutcome } from './deviceSignIn'
 import type { CredentialStore } from './credentialStore'
+import {
+  assertExhaustive,
+  reasonTextForKind,
+  type CredentialRead,
+  type CredentialUnreadableKind,
+} from './credentialRead'
 
 export interface AuthBackendFacts {
   /** The CLI path to run for `login` / `logout`, or the reason it is absent. */
@@ -250,6 +256,8 @@ export class AuthService {
   private liveVersion = 0
   /** Counts logout-hold writes: only the latest one's outcome is kept. */
   private holdWrites = 0
+  /** Store kinds the session's person has already been told about, once each. */
+  private credentialUnreadableNoticed: CredentialUnreadableKind | undefined
 
   public constructor(private readonly deps: AuthServiceDeps) {
     this.isLogoutHeld = deps.logoutHold.get()
@@ -269,6 +277,9 @@ export class AuthService {
       }
       return true
     } catch {
+      // read-state: cert TBL-04. A hold write that fails returns false, and
+      // every caller keeps the hold and says signOutHoldFailed on false:
+      // false here is "not saved", never "not held".
       if (write === this.holdWrites) {
         this.isLogoutPersistenceFailed = true
       }
@@ -311,6 +322,9 @@ export class AuthService {
       await this.restartHosts(true)
       return true
     } catch {
+      // read-state: cert TBL-05. "Could not stop" returns false and the
+      // sign-out keeps its hold with signOutStopFailed on false: false is
+      // "still running", never "nothing to stop".
       this.deps.log.warn('Muse Code backend could not stop during sign-out')
       return false
     }
@@ -460,7 +474,12 @@ export class AuthService {
         hasCli: cli.ok,
         hasCliSession,
         // A provider's secret counts as a Model API credential (M95, D74).
-        hasStoredKey: await this.deps.credentials.hasModelApiCredential(),
+        // Could-not-read counts as present (fail closed): the choice never
+        // offers sign-in as if no key existed.
+        hasStoredKey: this.storedKeyMayExist(
+          await this.deps.credentials.readModelApiCredential(),
+          'authService.choose',
+        ),
       }),
     }
   }
@@ -598,9 +617,14 @@ export class AuthService {
     // (the device runner's, then the file or `account/read` here) lifts the
     // hold, and never while a key would bill instead.
     if (flow.wasLogoutHeld) {
+      // Could-not-read counts as present: a sign-in never lifts the hold
+      // while a key that would bill may exist.
       const hasBillingKey =
         this.deps.backend.hasEnvironmentKey() ||
-        (await this.deps.credentials.hasModelApiCredential())
+        this.storedKeyMayExist(
+          await this.deps.credentials.readModelApiCredential(),
+          'authService.confirmCliSignIn',
+        )
       const confirmed = hasBillingKey
         ? undefined
         : await unlessAborted(this.deps.backend.cliSignIn(true), abort.signal)
@@ -802,6 +826,47 @@ export class AuthService {
     return failed
   }
 
+  /**
+   * Fail-closed projection of a credential read for the sign-in gate (P2-1,
+   * cert TBL-01): found counts as present; absent as missing; could-not-read
+   * counts as present too, and the person is told once per kind. So an
+   * unreadable store never releases a billing hold, never lets a sign-in
+   * lift one, never computes "can recover" as true, and never asks for a
+   * key as if none existed. The switch is exhaustive: a fourth state or a
+   * forgotten arm does not compile.
+   */
+  private storedKeyMayExist(read: CredentialRead, where: string): boolean {
+    switch (read.outcome) {
+      case 'found': {
+        return true
+      }
+      case 'absent': {
+        return false
+      }
+      case 'unreadable': {
+        this.noteCredentialUnreadable(read.kind)
+        return true
+      }
+      default: {
+        return assertExhaustive(read, where)
+      }
+    }
+  }
+
+  /** Tells the session's person once per kind that the store could not be read. */
+  private noteCredentialUnreadable(kind: CredentialUnreadableKind): void {
+    this.deps.log.warn(`Stored credential presence is unknown (${kind}); keeping the safe state`)
+    if (this.credentialUnreadableNoticed === kind) {
+      return
+    }
+    this.credentialUnreadableNoticed = kind
+    this.deps.broadcast({
+      type: 'notice',
+      level: 'warning',
+      text: fill(UI_TEXT.credentialStoreUnreadable, { reason: reasonTextForKind(kind) }),
+    })
+  }
+
   /** Derive from current CLI, setting and SecretStorage facts. */
   private async selectedSnapshot(isUserAction: boolean): Promise<AuthSnapshot> {
     const { cli, hasCliSession, isUnsupportedFile, choice } = await this.choose(isUserAction)
@@ -901,6 +966,9 @@ export class AuthService {
       await this.deps.runInTerminal(cliPath, MUSE_LOGOUT_ARGS)
       return true
     } catch {
+      // read-state: cert TBL-06. "Terminal would not open" returns false and
+      // the sign-out falls back to the next logout path on false: false is
+      // "not attempted", never "logged out".
       this.deps.log.warn('Muse Code logout terminal could not open')
       return false
     }
@@ -971,10 +1039,15 @@ export class AuthService {
       // Provider secrets count too (M95, D74): kept ones still sign in on
       // the Model API backend, so the hold stays with "credentials remain".
       const hasCliCredential = await this.hasCliCredential(true)
+      // Could-not-read counts as present: the hold is never released while
+      // a credential may remain.
       const hasStoredKey =
         isKeyClearFailed ||
         isProviderClearFailed ||
-        (await this.deps.credentials.hasModelApiCredential())
+        this.storedKeyMayExist(
+          await this.deps.credentials.readModelApiCredential(),
+          'authService.signOutTerminal',
+        )
       const shouldKeepHold = hasCliCredential || hasStoredKey || !isHostStopped
       const isReleaseSaved = shouldKeepHold || (await this.setLogoutHold(false))
       let detail: string | undefined
@@ -1141,7 +1214,12 @@ export class AuthService {
       return await this.publishRefresh(ticket, epoch, selected)
     }
     const hasCliCredential = await this.hasCliCredential(isUserAction)
-    const hasStoredKey = await this.deps.credentials.hasModelApiCredential()
+    // Could-not-read counts as present: the hold is never released while
+    // a credential may remain.
+    const hasStoredKey = this.storedKeyMayExist(
+      await this.deps.credentials.readModelApiCredential(),
+      'authService.refreshLogoutHold',
+    )
     if (this.signOutEpoch !== epoch) {
       return this.snapshot
     }
@@ -1161,9 +1239,14 @@ export class AuthService {
       })
     }
     const current = await this.selectedSnapshot(isUserAction)
+    // Could-not-read counts as present: the hold goes back on while a
+    // credential may remain.
     const hasCurrentCredential =
       (await this.hasCliCredential(isUserAction)) ||
-      (await this.deps.credentials.hasModelApiCredential())
+      this.storedKeyMayExist(
+        await this.deps.credentials.readModelApiCredential(),
+        'authService.releaseLogoutHold',
+      )
     if (this.signOutEpoch !== epoch) {
       // A sign-out raced this release: its state is its own, and so is the
       // hold. One still running holds it again; one that has ended decided
@@ -1197,7 +1280,12 @@ export class AuthService {
         method === 'browser' &&
         !this.deps.backend.hasEnvironmentKey() &&
         isCliSignedIn(await this.deps.backend.cliSignIn(true)) &&
-        !(await this.deps.credentials.hasModelApiCredential())
+        // Could-not-read counts as present: "can recover" is never true
+        // while a key that would bill may exist.
+        !this.storedKeyMayExist(
+          await this.deps.credentials.readModelApiCredential(),
+          'authService.signIn',
+        )
       if (epoch !== this.signOutEpoch) {
         return this.snapshot
       }
