@@ -799,6 +799,63 @@ measured 530,683 B after TRAINACT, the branch on its own base 529,946 B.
 Evidence: `docs/certification/m106-capability-binding.md`, the publication
 record of the train merge.
 
+**MODELAPIDIET (2026-10-11, macmini rig).** The Model API pin moves
+**530,883 → 516,264 B** (14,419 B saved, cap unchanged at 537,600 B): the
+hook call fields (`modelCallHooks.ts`), argument previews
+(`argumentPreview.ts`) and fetch URL checks (`pageUrl.ts`,
+`fetchFailure.ts`) move into the deferred **`dist/modelApiTools.js`**
+(23,433 B; new 50 KiB budget, 22.9 KiB +15% rounded up to 25 KiB), loaded
+on first use with the same loader and fail-closed refusal handling as the
+other deferred chunks. `publicAddress.ts` stays: the pinned HTTPS
+transport reads it for every request's SNI. `extension.js`, `headless.js`
+and `runtimeEngine.js` are byte-identical. Evidence:
+`docs/certification/modelapi-diet.md`.
+
+**MODELAPIDIETR2 packaging closure (2026-10-11, macmini).** Ship
+`dist/modelApiTools.js` in the VSIX and exercise its native exports alongside
+its siblings. A production-build regression traverses the build's own
+metafiles, starting from shipped VS Code entries and the ACP build/package
+entries, and checks every reachable Node chunk against VSCE's own inventory
+or the ACP packager's single bundle list. It must name missing chunks;
+no test-maintained bundle inventory is permitted. Add one-line ACP membership
+repairs for any additional missing chunks and record each in certification.
+Both turn-ending helper failures read installed-language UI text from all
+14 tables; removing their fixed English saves another 108 B (516,156 B). D6's initial budget remains 50 KiB: 23,433 × 1.15 = 26,947.95 B,
+rounded up to the next 25 KiB multiple (51,200 B). Certify the removed-VSIX-line
+red drill with byte-exact restoration and run all dependent suites at the
+repository deadlines; full quality remains the integration lead's gate.
+
+**HOTFIX0181, cross-bundle members (2026-10-12, kubuntu).** The build points
+every import of `transport.ts`, `sse.ts` and `ndjson.ts` outside
+`dist/modelApi.js` at that bundle (`deferredCohort`), which exports what
+`src/host/backend/modelApiEntry.ts` exports and nothing else. 0.18.0 added
+three names to `transport.ts` that the provider bundles import and the entry
+did not export; every source check passed and the built bundles called
+`undefined`. The split gate now reads every built `dist/*.js`: each member a
+bundle reads from a sibling bundle it loads must be in the export list in the
+sibling's own text (`scripts/lib/bundleExports.mjs`), and a run that compared
+nothing with `dist/modelApi.js` or `dist/modelApiBoundaries.js` fails. Its
+first run found `canonicalUsd` missing from the boundaries bundle in the same
+way. Since the review of pull request 150 the gate also fails on what it
+cannot check: a loaded bundle whose use it cannot follow to the members read
+(names are resolved by binding through the lexical scopes, and a module is
+followed through the variable, property or function that keeps it), a bundle
+whose export list is not in its text, and a load by a computed name that is
+not listed (one is: the provider catalog, which is data). A bundle counts as
+checked by the members compared with it, never by being loaded; the stricter
+check compares 2,244 reads of 44 bundles where the first form compared 2,135
+of 39, and found no third defect. The three export names take `dist/modelApi.js` from
+532,537 B to **532,827 B** (+290 B), 4,773 B under the 525 KiB cap, which is
+unchanged. The pin of the bundle test is re-measured at that size for 0.18.1
+(owner's decision, 2026-10-12): each name is in the export map and in the
+export annotation, with its getter, and they are exports rather than copies in
+the provider bundles because the state they share lives in `transport.ts`
+once per process. With the Model API bundle diet, which 0.18.1 carries, the
+bundle is 519,354 B and the pin is that number: an exact-size pin moves with
+its measured number and its reason, a cap only on the owner's word (his
+decision, 2026-10-12). Evidence:
+`docs/certification/hotfix-0181-bundle-exports.md`.
+
 **INT0170 resume (2026-10-08, kubuntu).** Merging `m107/w-history` and
 `rel017/startup2` put five budgets over unchanged caps; each is fixed at its
 root. PORTS017's cap checks in `scheduleV2.ts` imported `Usd`, carrying
@@ -40272,6 +40329,59 @@ Unresolved items remain delivery/security gaps, not accepted legal conclusions:
 
 ## 10. Definition of done and release records
 
+**0.18.1 preparation (2026-10-12, release branch).** `hotfix/0.18.1` is cut from
+main at `f8435aaac` and carries the extension version 0.18.1 and the dated
+`CHANGELOG.md` `[0.18.1]` section: fixes only. Released 0.18.0 could not complete
+a turn on a configured provider, a ChatGPT plan or Copilot, in any host.
+Cause: the build points every other bundle's import of `transport.ts` at
+`dist/modelApi.js`, and that bundle's entry did not export the three
+confirmed-dispatch names 0.18.0 added (`assertConfirmedAllowed`,
+`isStaleConfirmedError`, `noteConfirmedRequestStarted`). TypeScript and the
+source tests check such an import against the source module, so nothing
+failed until the built bundles ran. The entry exports them, and the split
+gate now reads the built bundles and fails on a member a sibling bundle does
+not export. On its first run that gate found a second name of the same kind:
+`canonicalUsd`, which `exactJson.ts` reads through
+`dist/modelApiBoundaries.js`; 0.18.0 judged every dollar an earlier version
+had written as a number inexact and left that usage out. That bundle's entry
+exports it now. Report a Problem refused every setting name with a second dot
+(`museSpark.vault.enabled`), so it never opened for anyone who had changed
+one; the name pattern takes dotted segments, and a report with its facts
+switched off no longer depends on them. Evidence, the drills and the live proof:
+`docs/certification/hotfix-0181-bundle-exports.md` (D6). A fixes only patch,
+so without Highlights. On `hotfix/0.18.1` (`87d9ab91c`) no browser bundle
+changes: `dist/webview` is 0.18.0's byte for byte (176 files compared), and
+five other files of `dist` differ (the two bundles above, the report builder
+in `dist/report.js` and `dist/acp.js`, and the release notes). The release is
+`hotfix/0.18.1-nopin` (pull request 151): that branch plus the Model API
+bundle diet, because the hotfix alone took `dist/modelApi.js` 290 B over its
+0.18.0 pin and no pin was to be raised for a hotfix (the owner's word that
+morning). `dist/modelApi.js` is 519,354 B there, under the 532,537 B the
+bundle test pinned in 0.18.0, with the per-call helpers in the deferred
+`dist/modelApiTools.js` (23,433 B). The diet adds two messages to `en.ts`,
+which every webview bundle is built from, so in the release 136 of the 176
+files of `dist/webview` differ from 0.18.0's (16 B in all) and the visual
+gate renders and compares every screenshot; no scene shows the new messages.
+The pull request's first hosted run and two reviews found what the diet still
+owed, and the release carries each fix: a registry check that did nothing
+(`scripts/gen-lazy-registry.mjs` had no command-line part; it is a command
+now, tested as one, and the registry names functions, not lines), two
+inventories without the new bundle, a language-table install on every model
+call (4 ms each, 3,469 of them in one test file), and the extension's
+reinstall sentence shown on the agent. A turn is now refused before anything
+is sent when the helpers bundle cannot load. From this release on hosted CI
+is the release gate, with real conversations through the packed product
+before it (AGENTS.md, working rule 2; the owner's decision, 2026-10-12).
+Pull request 150, the branch without the diet, is not merged. This is
+preparation, not publication; the public roadmap
+(M122) lists 0.18.1 as the next release until a `0.18.1 released (…)`
+record follows here.
+
+**0.18.0 released (2026-10-11, tag `v0.18.0` on main's release merge `f8435aaac` (`be6eaefbe` before the identity rewrite), PR #149, release run 38206002231).**
+The Release run succeeded on its first attempt and ended on 2026-10-11 at
+10:12 PM PT, when every channel was verified. Recorded by the 0.18.1
+preparation.
+
 **0.18.0 preparation (2026-10-11, release branch).** `release/0.18.0` is cut from
 the release train `int/train-1011` at `549c6f499` and carries the extension
 version 0.18.0 and the dated `CHANGELOG.md` `[0.18.0]` section. Announced as
@@ -40287,6 +40397,11 @@ release can start (`docs/certification/int0170-combined.md`). The reviewed
 baseline is rendered on top of this commit, because the version is a capture
 input. This is preparation, not publication; the public roadmap (M122) lists
 0.18.0 as the next release until a `0.18.0 released (…)` record follows here.
+
+**0.17.2 released (2026-10-11, tag `v0.17.2` on main's release merge `59309b490`, PR #148, release run 38191365289).**
+The npm step was cancelled and rerun twice; the third attempt of the same
+run published, and the Release run ended in success on 2026-10-11 at
+6:53 PM PT. Recorded by the 0.18.1 preparation.
 
 **0.17.2 preparation (2026-10-11, release branch).** `release/0.17.2` carries
 the extension version 0.17.2 and the dated `CHANGELOG.md` `[0.17.2]` section:

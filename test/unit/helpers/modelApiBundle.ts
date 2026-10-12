@@ -45,6 +45,7 @@ export async function buildHostBundles(
       './foreignHooksEntry.js',
       './codeIntelEntry.js',
       './mcpPoolEntry.js',
+      './modelApiToolsEntry.js',
       ...external,
     ],
   })
@@ -64,6 +65,7 @@ export async function buildModelApiBundle(folder: string): Promise<string> {
     foreignHooksEntry: path.resolve('src/core/backends/modelapi/foreignHooksEntry.ts'),
     codeIntelEntry: path.resolve('src/core/backends/modelapi/codeIntelEntry.ts'),
     mcpPoolEntry: path.resolve('src/core/backends/modelapi/mcpPoolEntry.ts'),
+    modelApiToolsEntry: path.resolve('src/core/backends/modelapi/modelApiToolsEntry.ts'),
   })
   return file
 }

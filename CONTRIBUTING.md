@@ -72,18 +72,23 @@ Use this order for a candidate branch:
 1. Integrate the planned milestones onto the current `main` in order. Resolve
    conflicts and stage the candidate with no unstaged changes. Record its
    `git write-tree` hash.
-2. Run `npm ci` and `npm run quality` on that exact staged tree. Hosted CI
-   is the platform gate: the merge queue runs every OS once on the commit
-   that lands, so the maintainer's Mac mini, Kubuntu VM and Windows 11 VM
-   serve targeted runs and reproductions only (the affected real
-   filesystem, process and packaging paths, temporary-directory aliases and
-   Windows short names), never a full suite before each push. Record the
-   tree hash, OS and tool versions, commands and process exit codes of any
-   such run.
+2. Run `npm ci` and the fast local checks on that exact staged tree: format,
+   lint, typecheck, the suites you touched and the packed-product file
+   (`npx vitest run test/e2e/execStdio.e2e.test.ts`). Hosted CI is the gate
+   for a release: every job green on the commit that merges. Its full tier
+   runs the static gates and the tests on three systems and the visual
+   render and the accessibility gate on Ubuntu, so no complete local
+   `npm run quality` is owed before a push, and the maintainer's Mac mini,
+   Kubuntu VM and Windows 11 VM serve targeted runs and reproductions only
+   (the affected real filesystem, process and packaging paths,
+   temporary-directory aliases and Windows short names). Record the tree
+   hash, OS and tool versions, commands and process exit codes of any such
+   run. A red hosted job is read and its cause measured; it is never rerun
+   into green.
 3. Have an independent agent review the staged diff and acceptance evidence.
    Scan the staged changes for secrets too: local `security:secrets` scans
    committed history, so it cannot see the index before commit. Fix findings,
-   restage, and repeat the full local gate, staged secret scan and affected
+   restage, and repeat the local checks, staged secret scan and affected
    platform checks. Commit only after the final tree passes; verify the
    commit's tree matches the tested `git write-tree` hash.
 4. Push the reviewed commit to its feature branch and open one pull request.
@@ -105,8 +110,16 @@ Use this order for a candidate branch:
    independent review, and any unproved platform or live gate to the PR
    proof. A printed success line without the process exit status is not a
    gate result.
+7. Before a release, hold real conversations through the packed product:
+   install the tarball the candidate's build packs (`npm run package:acp`)
+   in an empty folder and, on the cheapest models under a stated spending
+   cap, run one plain turn, one turn with a tool call and an approval, and
+   one long streamed answer, then read `usage` back; the terminal agent and
+   ACP both. State the expected number of calls first and count them
+   afterwards. 0.18.0 shipped a defect that every suite passed.
 
-- Run `npm run quality` and make it green. It runs every local gate except
+- `npm run quality` runs every local gate in one go, when you want that
+  before a push; it is feedback, not the release record. It leaves out only
   the VS Code integration tests (`npm run test:integration`, run by
   `npm run quality:ci` and CI): formatting, ESLint (zero warnings),
   stylelint, the PowerShell lint, type checks, the localization and host-API
@@ -118,6 +131,11 @@ Use this order for a candidate branch:
   semgrep as jobs of their own; the PowerShell lint runs only where Windows
   PowerShell exists, so a green run on one platform is not quite the whole
   set.
+- Tests stand on the built product wherever the behaviour is the product's.
+  A stand-in is allowed for the outside world only (for example a server
+  replaying a recorded exchange), never for our own code.
+- An exact-size assertion may move with the measured number and a one-line
+  reason in the same change; a cap moves only on the owner's word.
 - Add or change tests with the code. A new check must be seen to fail once
   on purpose; the certification records under `docs/certification/`
   show how that is written down.
@@ -499,6 +517,23 @@ never a literal in the code:
   duplicates `en.ts` or stops loading it. Each lazily loaded bundle keeps its
   own language state, so one that reads `UI_TEXT` must install the caller's
   table in its factory.
+- **A name one bundle imports from another** exists at run time only if the
+  other bundle's entry exports it. The build points imports of some shared
+  modules at the bundle that carries them (`transport.ts`, `sse.ts` and
+  `ndjson.ts` at `dist/modelApi.js`, whose entry is
+  `src/host/backend/modelApiEntry.ts`; `usdSchema.ts` at
+  `dist/modelApiBoundaries.js`, whose entry is
+  `src/shared/modelApiBoundariesEntry.ts`).
+  TypeScript checks the import against the source module and cannot see a
+  name the entry lacks. `npm run build` reads the built bundles and fails on
+  such a member, and `test/unit/modelApiEntryExports.test.ts` names the file
+  and the import for the Model API bundle. The check follows a loaded bundle
+  to the members read from it, and what it cannot follow fails the build
+  with the form it met, never passes unchecked: keep a sibling's module in a
+  variable, a property or a function that returns it and read its members
+  by name, not passed whole to other code or kept in an object. A load whose
+  file name is worked out at run time has to be listed, with the reason, in
+  `COMPUTED_LOADS` (`scripts/lib/bundleExports.mjs`).
 
 `npm run check:l10n` checks all of this. It fails a key missing from a
 translation, a changed `{slot}`, a wrong set of plural forms, and a
@@ -627,8 +662,8 @@ licence of this repository.
 
 M80 v4 plus F1/F2 rulings assigns A contracts, B engine, C Action and D packaging/
 docs/process/hosts. Implementing lanes run owned focused files serially on rigs;
-the lead runs unchanged `npm run quality` on the exact integrated tree before
-proposing merge, then build.yml, hosts.yml and action-check.yml OS matrices.
+hosted CI gates the exact integrated tree: the build.yml, hosts.yml and
+action-check.yml OS matrices.
 No lane's focused pass certifies integrated behavior or the release.
 
 Focused D command: `npx vitest run test/e2e/execStdio.e2e.test.ts` (on a rig).
@@ -728,8 +763,8 @@ Run the affected complete test files with the repository's ordinary timeout
 and at most three files/workers per rig invocation. New size, split, settings
 and package guards need a deliberate red run and byte-exact restoration in
 the [W record](<docs/certification/m107-w-wiring,-docs-and-gates-(last).md>).
-The lead still runs full quality on the final candidate. Neither integration
-handoffs nor a scoped lane receipt reduce the release gates.
+Hosted CI gates the final candidate. Neither integration handoffs nor a scoped
+lane receipt reduce the release gates.
 
 M106 keeps optional work behind built entry points. The Model API loads code
 intelligence from `dist/modelApiCodeIntel.js` and MCP transport from
