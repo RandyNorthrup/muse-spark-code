@@ -33,9 +33,14 @@ uncertain; a second run ended the same way on its ninth request.
   `streamRequest` between parsed events. The catch now lets that one failure
   through, so the user gets the existing translated sentence
   (`modelApiStalled`). No other case of the catch changed.
-- ChatGPT plan route: it had no idle limit at all. The wait for headers and
-  every read of the body now have it; a silent stream is aborted and the
-  user gets the same sentence as an `error` event.
+- ChatGPT plan route: it had no idle limit at all. It now has one clock,
+  started with the request and restarted when the headers arrive and at
+  every event the codec decodes: the definition of the configured route,
+  where only a validated canonical event renews the deadline. Bytes that
+  decode to no event (SSE comments, empty lines) do not restart it, so
+  keep-alive traffic cannot hold a reply open. A reply that stays silent
+  for the limit is aborted and the user gets the same sentence as an
+  `error` event.
 - `streamIdleMs` is an optional input of both routes so the tests can
   shorten the limit. Production passes nothing and keeps 300 s.
 - The Copilot route was checked and left alone: its two uses of the constant
@@ -76,13 +81,22 @@ server.
 - A request whose headers never arrive ends at the idle limit with the idle
   sentence.
 - Stop ends a stream at once.
+- The idle limit is not a total limit: a stream that sends a frame every
+  30 ms for about 1.3 s under a 300 ms idle limit completes with the same
+  events as the same stream sent at once.
 
 ChatGPT plan route, `test/unit/providerStreamLimits.test.ts`, "ChatGPT plan
 stream limits": the real subscription client with only `fetch` faked. The
-same four cases; the idle limit arrives as an `error` event with the idle
-sentence, and the pending request is aborted.
+same five cases; the idle limit arrives as an `error` event with the idle
+sentence, and the pending request is aborted. In the steady case an event
+arrives every 50 ms for about 1.6 s under a 300 ms limit and all 30 deltas
+are delivered. One more case: a reply of keep-alive comment lines every
+100 ms under a 300 ms limit ends at the limit with the idle sentence and
+the request aborted.
 
-## Red drill (Mac mini rig, 2026-10-11)
+## Red drills (Mac mini rig, 2026-10-11)
+
+### The 30 s wrappers back (first commit, a54c97d19)
 
 Both wrappers were put back and the idle-sentence case was removed from the
 configured catch. The two files were then run: exit 1, 5 failed of 49.
@@ -95,14 +109,43 @@ configured catch. The two files were then run: exit 1, 5 failed of 49.
 | configured: ends a stream that goes silent at the idle limit, with the idle sentence | got "Models & Agents is not available in this build." |
 | configured: ends a stream whose headers never arrive at the idle limit               | got "Models & Agents is not available in this build." |
 
-The fix was restored byte for byte:
+The fix was restored byte for byte (the files as committed in a54c97d19):
 
 - `src/core/providers/configured.ts`
   `38de053e6d06c96bb9036b102a224e0f8b25e92ef7bd8a7961fa0863ff1d65b4`
 - `src/core/providers/subscriptions/registry.ts`
   `ef62eb3804829743aa29b90e3b5a4442625f276ee363948a2bb851e07dbc4b10`
 
-With the fix in place the same run exits 0, 49 passed.
+With the fix in place the same run exited 0, 49 passed.
+
+### Raw bytes restart the ChatGPT idle clock (follow-up commit)
+
+The first commit bounded every read of the ChatGPT reply, so any bytes,
+keep-alive comments included, kept a reply open. The follow-up counts
+decoded events instead. Drill: the clock was restarted after every read
+again. `test/unit/providerStreamLimits.test.ts`: exit 1, 1 failed of 7, the
+keep-alive comments case (the reply stayed open and the test timed out).
+
+### The idle clock starts once and never restarts (follow-up commit)
+
+An idle limit that had quietly become a total limit. Drill: in `registry.ts`
+the two restarts (headers, each decoded event) were removed, and in
+`src/core/backends/modelapi/transport.ts` `eventParsed` armed its timer only
+once. The two files: exit 1, 2 failed of 52.
+
+| Failed test                                                              | Why                                          |
+| ------------------------------------------------------------------------ | -------------------------------------------- |
+| configured: keeps a steady stream alive for several times the idle limit | ended with the idle sentence after the limit |
+| ChatGPT: keeps a steady reply alive for several times the idle limit     | last event `error`, not `response.completed` |
+
+After both follow-up drills the files were restored byte for byte:
+
+- `src/core/providers/subscriptions/registry.ts`
+  `83aabf8c6be135bebe094f2a1233d1fef725251096d66e59516324a7d5cbc5b2`
+- `src/core/backends/modelapi/transport.ts` (not changed by either commit)
+  `75a1d2bf5060e8be491e7894605114ee388194b9911c1b6de502bda602b995da`
+
+With the fix in place the two files exit 0, 52 passed.
 
 ## Not in this change
 
