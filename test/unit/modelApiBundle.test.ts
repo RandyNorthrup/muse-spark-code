@@ -335,9 +335,33 @@ describe('the Model API bundle (M57)', () => {
     // RVMODELAPIDIETB P3: the sentence promises log details. The cause's
     // class is logged with the chunk named; the loader's absolute path,
     // which the module error carries, never reaches the log.
+    // MODELAPIDIETR4 P3-2: the line names the bundle and the failure kind
+    // from the fixed vocabulary, not the bare word Error: a missing chunk
+    // logs absent.
     const logged = log.warn.mock.calls.map((call) => String(call[0])).join('\n')
-    expect(logged).toContain('modelApiTools.js')
+    expect(logged).toContain('modelApiTools.js failed (absent)')
     expect(logged).not.toContain(path.dirname(backend))
+    await manager.dispose()
+  })
+
+  it('logs the unreadable kind when the helpers chunk cannot be read (MODELAPIDIETR4)', async () => {
+    // P3-2: a load refusal (an EACCES at require time here) logs unreadable
+    // with the chunk named, never the loader's text.
+    const { events, manager, log } = await sendBackendTurn(
+      scratchBackend({
+        body: `throw Object.assign(new Error('sabotaged load'), { code: 'EACCES' })`,
+      }),
+      {
+        scripts: [{ text: 'Never sent' }],
+        text: 'Say hello',
+      },
+    )
+    expect(events).toContainEqual(
+      expect.objectContaining({ type: 'turnCompleted', terminal: 'failed' }),
+    )
+    const logged = log.warn.mock.calls.map((call) => String(call[0])).join('\n')
+    expect(logged).toContain('modelApiTools.js failed (unreadable)')
+    expect(logged).not.toContain('sabotaged load')
     await manager.dispose()
   })
 
@@ -398,8 +422,10 @@ describe('the Model API bundle (M57)', () => {
     expectRefusedFetch(api, fetchPage, MODEL_TEXT.webFetchUnavailable)
     // The refusal reason says the log says why: the check failure's class is
     // logged with the chunk named, never the sabotaged check's text.
+    // MODELAPIDIETR4 P3-2: a chunk whose code throws logs the kind with the
+    // error class name.
     const logged = log.warn.mock.calls.map((call) => String(call[0])).join('\n')
-    expect(logged).toContain('modelApiTools.js')
+    expect(logged).toContain('modelApiTools.js failed (threw while evaluating (Error))')
     expect(logged).not.toContain('sabotaged check')
     await manager.dispose()
   })
@@ -435,8 +461,9 @@ describe('the Model API bundle (M57)', () => {
     )
     // RVMODELAPIDIETB P3: the cause's class is logged with the chunk named;
     // the constructor's text, standing in for prompt text, never reaches it.
+    // MODELAPIDIETR4 P3-2: the kind names the error class, not bare Error.
     const logged = log.warn.mock.calls.map((call) => String(call[0])).join('\n')
-    expect(logged).toContain('modelApiTools.js')
+    expect(logged).toContain('modelApiTools.js failed (threw while evaluating (Error))')
     expect(logged).not.toContain('sabotaged preview')
     expect(logged).not.toContain('canary-PROMPT-TEXT')
     await manager.dispose()

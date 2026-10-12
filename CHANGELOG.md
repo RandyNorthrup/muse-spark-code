@@ -10,28 +10,38 @@ happened, not what was planned; superseded entries are kept.
 ### Added
 
 - **Model API bundle diet (lane MODELAPIDIET).** `dist/modelApi.js` drops
-  14,419 B (530,683 → 516,264 B, cap unchanged) by loading the hook call
-  fields, argument previews and fetch URL checks from the deferred
-  `dist/modelApiTools.js` on first use, with fail-closed refusals
-  when the chunk cannot load. No behaviour change; `dist/extension.js`,
-  `dist/headless.js` and `dist/runtimeEngine.js` are byte-identical.
-  Packaging now checks every imported production Node chunk against each
-  distribution's own inventory; the VSIX includes the helpers chunk, and
-  its load failures use the installed language.
+  13,873 B on the 0.18.1 base (532,827 → 518,954 B, cap unchanged) by
+  loading the hook call fields, argument previews and fetch URL checks
+  from the deferred `dist/modelApiTools.js` on first use, with fail-closed
+  refusals when the chunk cannot load. No behaviour change: the golden
+  request suite passes unchanged (141 tests). Packaging checks every
+  imported production Node chunk against each distribution's own
+  inventory; the VSIX includes the helpers chunk, and its load failures
+  use the installed language.
 
 ### Fixed
 
 - Model API lazy-bundle packaging and helper-failure diagnostics
-  (MODELAPIDIETR3, review RVMODELAPIDIETB). `src/shared/lazyBundleFiles.ts`
-  is the single registry of every dist chunk loaded by file name; a new scan
-  test fails any source string naming a dist file outside it, and the
-  packaging gate roots every registry entry unconditionally and checks each
-  against the VSIX allowlist, the agent package list and the production
-  build. Both helper-unavailable catches (and the closed URL-check refusal)
-  log the failure's class with the chunk named through the scrubbed channel
-  before showing the installed sentence, and chain the cause in process.
-  The modelApi.js diet pin moves 516,264 to the measured 516,313 (+109 B
-  for the shared diagnostics line); the 537,600 B cap is untouched.
+  (MODELAPIDIETR3, review RVMODELAPIDIETB). `src/shared/lazyBundles.generated.ts`
+  is the single registry of every dist chunk loaded by file name, generated
+  from the production build itself; a build check fails any loader naming a
+  dist file outside it, and the packaging gate roots every registry entry
+  unconditionally and checks each against the VSIX allowlist, the agent
+  package list and the production build. Both helper-unavailable catches
+  (and the closed URL-check refusal) log the failure's class with the chunk
+  named through the scrubbed channel before showing the installed sentence,
+  and chain the cause in process. The modelApi.js diet pin is re-measured on
+  the 0.18.1 base at 518,954 B; the 537,600 B cap is untouched.
+- Model API lazy-bundle registry round 4 (MODELAPIDIETR4, review
+  RVAPP-MODELAPIDIET3). The registry is generated, not copied: 97 rows
+  derived from the build metafiles and the redirect map, including the five
+  engine bundles the copy missed, with each row's loading side propagated
+  from the products' own entries; a loader asking for an unknown bundle and
+  a package lacking a loadable bundle fail the build. A lazy load that fails
+  logs the bundle with its kind (absent, unreadable, threw while evaluating
+  with the error class name). The shipped preview fixes ride the deferred
+  loader with only the declared-fields reader in the main bundle. The pin
+  moves +461 B for the log-kind line; the round stays 9,777 B under target.
 ### Pending
 
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached

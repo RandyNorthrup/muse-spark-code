@@ -358,3 +358,144 @@ change.
   `dist/modelApiTools.js` from the staged tree) and confirm the turn
   fails with the installed sentence plus the `modelApiTools.js failed`
   log line.
+
+## 9. Round-4 fixes (MODELAPIDIETR4, 2026-10-12, macmini, this engine)
+
+Review RVAPP-MODELAPIDIET3 by reading through our own app: 0 P1, 3 P2,
+2 P3. Every finding fixed in full, no residuals.
+
+### Step 0: the merge
+
+`snap/hotfix-0181-final` (head `39153196d`) merged with
+`git merge --no-ff` into `fix/modelapi-diet` (commit `c3998f65b`).
+18 conflicted files, all resolved as unions:
+
+- CHANGELOG: the lane's two diet entries stay under Unreleased; the other
+  28 entries are byte-identical in 0.18.0 (spot-checked
+  `What's New fits its content budget` byte for byte) and live there now;
+  Pending is common plus the hotfix's resource-governor sentence.
+- PLAN: Train 0.18.0, MODELAPIDIET/R2, HOTFIX0181 paragraphs in order.
+- README: the stale unbound previews line goes (its feature section is
+  in-tree from the hotfix).
+- ROADMAP, `docs/reference.md`, the four generated reference files:
+  regenerated (`gen-reference`, `gen-roadmap`), checks green.
+- `ModelApiHost.ts`: the shipped preview implementation
+  (`declaredPreviewFields`, `offeredPreviewFields`, RVCM1062B/C) behind
+  the lane's deferred loader. The value import would have pulled
+  `argumentPreview.ts` plus `redactSecrets` back into the main bundle, so
+  the tiny pure reader lives in new `previewFields.ts`, imported by both
+  sides; the orphan `argumentPreviewAssist` (hotfix deleted its call) is
+  restored as the deferred constructor. `featureCatalog.ts` and the truth
+  tests take the shipped state (previews left in-progress with C-M106-2).
+- Goldens manifest: the 0.18.0 baseline supersedes.
+- `deferredBundles.test.ts` pin: re-measured on the merged tree.
+- Merge build: exit 1 only on the new file's split-list row, repaired in
+  the same tree (`previewFields.ts` in LAZY_ONLY with its reason);
+  split/size/export checks green after. Test and production builds agree
+  byte-exact (518,493 B then, 518,954 B now).
+
+### R1 (P2-1, P2-3): the registry is generated, not copied
+
+`src/shared/lazyBundleFiles.ts` (the copy no loader read) is deleted.
+`scripts/gen-lazy-registry.mjs` writes
+`src/shared/lazyBundles.generated.ts` from the production metafiles
+(every emitted chunk plus build-written files), the `DEFERRED_OUTFILES`
+redirect map (exported for this), and the two package inventories (vsce
+over the real `.vscodeignore`; the agent's own closure, with
+`acpUsageAssets()` extracted to `scripts/lib/acpBundles.mjs` so the
+packager and the gate share it). Each row's side propagates from the
+manifest main and the agent bin along import edges and filename
+requests; unreached rows keep their carriers' side with empty
+`requestedBy`, so the fallback is visible. 97 rows: the old 92 all
+survive (verified by set diff) plus exactly the five engine bundles the
+copy missed, all derived `acp`. The old `webview/usage.js` vsix-only
+flag was wrong: the agent reads that asset on its usage page
+(`usageAcp.ts:25`), and the packager already ships it; the derived side
+(`both`) matches reality. `--check` runs in `npm run build` and fails
+on an unknown bundle, an unpackaged bundle, or a stale file.
+The scan closes every P2-2 hole as part of the same work: relative
+names resolve through the map or fall to rows, hintless constants count
+at definition, concatenation resolves the stem, extensionless redirected
+imports resolve through the map, bundled imports / suffix fragments /
+sibling launch paths / data-only mentions do not count, and constant
+uses attribute at load-context lines only.
+Red drill (R2): `src/__drill__/rogueLoader.ts` with
+`await import('./rogueEntry.js')` fails `--check` exit 1 naming
+`src/__drill__/rogueLoader.ts:2 names ./rogueEntry.js`; regeneration
+also refuses (it cannot launder a stray); drill file removed, tree
+clean. Regression tests: rewritten `lazyBundleFiles.test.ts` (rows
+well-formed, sides cover requests, the five rows, full-tree scan with
+zero outside, planted strays for every old hole) 6/6;
+`packagedBundles.test.mjs` on derived sides 3/3.
+
+### P3-2: the log names the bundle and the kind
+
+`helpersFailure` takes the bundle file and logs the fixed vocabulary:
+absent (`MODULE_NOT_FOUND`/`ERR_MODULE_NOT_FOUND`/`ENOENT`),
+unreadable (`EACCES`/`EPERM`/`EISDIR`/`EBUSY`), otherwise threw while
+evaluating with the error class name through `wireWordForLog`
+(non-Errors: unknown). One shared line, still the only safe details.
+Regression tests in `modelApiBundle.test.ts`: missing chunk logs
+`modelApiTools.js failed (absent)`, EACCES-at-require logs
+`(unreadable)` (new test), sabotaged check and preview constructor log
+`(threw while evaluating (Error))`, loader text never in the log.
+Red drill: replacing the line with the bare `failed: Error` fails all
+four kind assertions; restored byte-exact (SHA-256
+`3dff4d1f77fe8782f31840028480b9f9af4fb1feb55a1f8136d802bfcf2cf223`).
+
+### P3-1: the changelog states the right pin
+
+Both diet entries re-measured on the 0.18.1 base (532,827 →
+518,954 B); the unverifiable byte-identity clause is replaced by the
+golden-request evidence (141/141 unchanged); the test-build pin reads
+518,954 B, measured equal to production twice.
+
+### R3: the diet, final numbers
+
+Production `npm run build`, exit 0, this rig: `dist/modelApi.js` is
+**518,954 B** — 13,873 B under the 532,827 B hotfix pin and **9,777 B
+under the 528,731 B round target**. Test build measures 518,954 B
+identical. `dist/modelApiTools.js` is 23,433 B. No further moves: every
+remaining top input is sync first-request (table below); the slices
+already took every modelApi-exclusive async-only module. Nothing
+deleted, nothing weakened, no behaviour change.
+
+Largest inputs of `dist/modelApi.js` (source bytes from
+`dist/meta/modelApi.json`; "first request" = a plain text turn's body,
+reservation, send and hook payloads):
+
+| Module                       | Bytes   | First request?      | Where              |
+| ---------------------------- | ------- | ------------------- | ------------------ |
+| `modelapi/ModelApiHost.ts`   | 674,684 | Yes, the host       | Stays              |
+| `shared/constants.ts`        | 400,793 | Yes, text/prices    | Stays              |
+| `modelapi/tools.ts`          | 84,196  | Yes, sync tool list | Stays              |
+| `modelapi/hooks.ts`          | 64,027  | Yes, hook dispatch  | Stays              |
+| `paid/paidConsent.ts`        | 46,843  | Yes, paid admission | Stays              |
+| `modelapi/extensionHooks.ts` | 41,512  | Yes, hook runtime   | Stays              |
+| `modelapi/transport.ts`      | 41,435  | Yes, the send       | Stays              |
+| `modelapi/client.ts`         | 29,458  | Yes, request loop   | Stays              |
+| `memory/memoryStore.ts`      | 28,632  | Yes, definitions    | Stays              |
+| `paid/*`, `agentBackend.ts`  | 18–26k  | Yes, gates/session  | Stays              |
+| `argumentPreview.ts`         | 9,443   | No, display only    | `modelApiTools.js` |
+| `modelCallHooks.ts`          | small   | No, async fields    | `modelApiTools.js` |
+| `web/fetchFailure.ts`        | small   | No, fetch only      | `modelApiTools.js` |
+| `web/pageUrl.ts`             | small   | No, fetch only      | `modelApiTools.js` |
+| `previewFields.ts`           | tiny    | Yes, sync snapshot  | Stays (new)        |
+
+First-use loads on the common path: exactly one, `modelApiTools.js`
+via `beforeModelCall`'s hook fields (`toolAssist`, module-cached after
+the first import). Previews and URL checks reuse the cached namespace
+— no second load. Failure path loads nothing further: the turn refuses
+at once with the chunk named in the installed sentence plus the log
+kind (`missing lazy bundle must name itself` holds; the only
+`not available in this build` string left in `src` is the unrelated
+Models & Agents panel notice).
+
+### E8 packed-package turn (MODELAPIDIETR4, 2026-10-12, macmini, blocked)
+
+Attempted `execStdio.e2e.test.ts -t 'E8 completes one plan-mode turn'`
+on this Mac: the suite's `beforeAll` packaging fails before any
+assertion (`npm pack` inside the test copy exits 1 — npm cannot write
+its log directory `~/.npm/_logs` under this rig's sandbox), so all 46
+tests skip/fail in setup and E8 never runs here. No live or paid call
+was made. The lead runs E8 outside the sandbox.

@@ -257,6 +257,7 @@ import {
 } from '../../context/skills'
 import { WorkspaceContext } from '../../context/workspaceContext'
 import type { CoreLogger } from '../../logging'
+import { wireWordForLog } from '../../logging'
 import type { ModelRow } from '../../providers/modelFilters'
 import { textFileInput } from '../../textAttachment'
 import { withDeadline } from '../../timeouts'
@@ -1638,11 +1639,29 @@ function describe(error: unknown): string {
 /**
  * The model call helpers' failure for the log, beside the chunk named. One
  * shared line for every helpers catch so the diet pin holds: the sentences
- * promise log details, and the failure's class is the only safe detail (a
- * loader or constructor message can carry a path or the call's own fields).
+ * promise log details, and the log names which bundle and the failure kind
+ * from the fixed vocabulary (a loader or constructor message can carry a
+ * path or the call's own fields, so only the kind and the error class name
+ * are safe details).
  */
-function helpersFailure(log: CoreLogger, error: unknown): void {
-  log.warn(`modelApiTools.js failed: ${error instanceof Error ? error.name : 'unknown'}`)
+const ABSENT_BUNDLE_CODES = new Set(['MODULE_NOT_FOUND', 'ERR_MODULE_NOT_FOUND', 'ENOENT'])
+const UNREADABLE_BUNDLE_CODES = new Set(['EACCES', 'EPERM', 'EISDIR', 'EBUSY'])
+
+function helpersFailureKind(error: unknown): string {
+  const code: unknown =
+    typeof error === 'object' && error !== null && 'code' in error ? error.code : undefined
+  if (typeof code === 'string' && ABSENT_BUNDLE_CODES.has(code)) {
+    return 'absent'
+  }
+  if (typeof code === 'string' && UNREADABLE_BUNDLE_CODES.has(code)) {
+    return 'unreadable'
+  }
+  const name = error instanceof Error ? wireWordForLog(error.name) : 'unknown'
+  return `threw while evaluating (${name})`
+}
+
+function helpersFailure(log: CoreLogger, bundleFile: string, error: unknown): void {
+  log.warn(`${bundleFile} failed (${helpersFailureKind(error)})`)
 }
 
 function isAuthFailure(error: unknown): boolean {
@@ -3137,7 +3156,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     try {
       return await this.toolAssist()
     } catch (error) {
-      helpersFailure(this.deps.log, error)
+      helpersFailure(this.deps.log, 'modelApiTools.js', error)
       throw new Error(UI_TEXT.modelApiToolsUnavailable, { cause: error })
     }
   }
@@ -3153,7 +3172,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       const assist = await this.toolAssist()
       return new assist.ArgumentPreview(previewFields)
     } catch (error) {
-      helpersFailure(this.deps.log, error)
+      helpersFailure(this.deps.log, 'modelApiTools.js', error)
       throw new Error(UI_TEXT.modelApiToolsPreviewUnavailable, { cause: error })
     }
   }
@@ -3167,7 +3186,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       const assist = await this.toolAssist()
       return assist.checkPageUrl(raw)
     } catch (error) {
-      helpersFailure(this.deps.log, error)
+      helpersFailure(this.deps.log, 'modelApiTools.js', error)
       return undefined
     }
   }
