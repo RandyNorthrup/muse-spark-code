@@ -263,6 +263,60 @@ describe('M80 streaming transport boundary', () => {
       h.close()
     }
   })
+  it('RVM105 1 lets a bounded clean-up DELETE through after cancellation closes Files', async () => {
+    const h = harness()
+    try {
+      h.life.latch({ kind: 'timeout' })
+      const cleanup = `${MODEL_API_BASE_URL}/files/file-cleanup-1`
+      const response = await h.transport.fetch(cleanup, { method: 'DELETE', headers })
+      expect(response.status).toBe(200)
+      expect(h.forwarded).toHaveBeenCalledTimes(1)
+      const init = h.forwarded.mock.calls[0]?.[1]
+      expect(init).toMatchObject({ redirect: 'error' })
+      expect(init?.body).toBeUndefined()
+      expect(init?.signal?.aborted).toBe(false)
+      // One attempt only: the clean-up reuses no caller signal and retries nothing.
+      // Every other Files route stays closed after cancellation.
+      await expect(
+        h.transport.fetch(`${MODEL_API_BASE_URL}/files`, { method: 'GET' }),
+      ).rejects.toThrow()
+      await expect(
+        h.transport.fetch(cleanup, {
+          method: 'DELETE',
+          headers,
+          body: new ReadableStream<Uint8Array>({
+            start(controller) {
+              controller.close()
+            },
+          }),
+        }),
+      ).rejects.toThrow()
+      await expect(
+        h.transport.fetch(`${MODEL_API_BASE_URL}/files`, { method: 'DELETE' }),
+      ).rejects.toThrow()
+      expect(h.forwarded).toHaveBeenCalledTimes(1)
+    } finally {
+      h.close()
+    }
+  })
+  it('RVM105 1 lets a bounded clean-up DELETE through after the transport closes', async () => {
+    const h = harness()
+    try {
+      h.transport.close()
+      const response = await h.transport.fetch(`${MODEL_API_BASE_URL}/files/file-cleanup-9`, {
+        method: 'DELETE',
+        headers,
+      })
+      expect(response.status).toBe(200)
+      expect(h.forwarded).toHaveBeenCalledTimes(1)
+      await expect(
+        h.transport.fetch(`${MODEL_API_BASE_URL}/files`, { method: 'GET' }),
+      ).rejects.toThrow()
+      expect(h.forwarded).toHaveBeenCalledTimes(1)
+    } finally {
+      h.close()
+    }
+  })
   it('M105 streamed Files bytes stop when cancellation reaches the dispatched body', async () => {
     const stop = new AbortController()
     await expect(

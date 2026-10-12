@@ -37,6 +37,21 @@ const listSchema = z.object({
 const deletionSchema = z.object({ id: fileId, object: z.literal('file'), deleted: z.literal(true) })
 export type ProviderFile = z.infer<typeof fileSchema>
 
+/**
+ * A provider receipt the cleanup DELETE could not remove (RVM105 1): the
+ * upload failed after the provider answered with this id, and the bounded
+ * clean-up route was closed or failed too. The owner records it durably as
+ * a clean-up intent; the ledger's next sweep deletes it. The cause is the
+ * original upload failure the caller sees.
+ */
+export class UploadCleanupPendingError extends Error {
+  public readonly fileId: string
+  public constructor(fileId: string, options?: ErrorOptions) {
+    super('Upload cleanup pending', options)
+    this.fileId = fileId
+  }
+}
+
 /** Open a fresh bounded disk stream each time, after confinement and approval. */
 export interface UploadSource {
   readonly name: string
@@ -179,7 +194,17 @@ export class FilesApi {
       })
     } catch (error: unknown) {
       // A known receipt is attributable; a lost receipt is bounded by expiry.
-      if (createdId !== undefined) await this.delete(createdId)
+      if (createdId !== undefined) {
+        try {
+          await this.delete(createdId)
+        } catch {
+          // The clean-up DELETE runs on a detached deadline so caller
+          // cancellation does not close it, but a closed transport or a
+          // failed request still can: the id travels with the failure so
+          // the ledger records it durably instead of losing it (RVM105 1).
+          throw new UploadCleanupPendingError(createdId, { cause: error })
+        }
+      }
       throw error
     } finally {
       await iterator.return()
