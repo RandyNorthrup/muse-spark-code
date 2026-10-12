@@ -6,20 +6,20 @@
       "GENERIC": 0
     },
     "core": {
-      "SWALLOW": 190,
-      "GENERIC": 352
+      "SWALLOW": 184,
+      "GENERIC": 343
     },
     "host": {
-      "SWALLOW": 67,
-      "GENERIC": 245
+      "SWALLOW": 65,
+      "GENERIC": 236
     },
     "root": {
       "SWALLOW": 2,
       "GENERIC": 6
     },
     "runtime": {
-      "SWALLOW": 51,
-      "GENERIC": 173
+      "SWALLOW": 49,
+      "GENERIC": 169
     },
     "shared": {
       "SWALLOW": 4,
