@@ -806,6 +806,27 @@ re-measured and ratcheted **down** when the media redesign
 Evidence: `docs/certification/int0170-combined.md`, Bundle regressions after
 the lane merges (INT0170).
 
+**HOTFIX0181, cross-bundle members (2026-10-12, kubuntu).** The build points
+every import of `transport.ts`, `sse.ts` and `ndjson.ts` outside
+`dist/modelApi.js` at that bundle (`deferredCohort`), which exports what
+`src/host/backend/modelApiEntry.ts` exports and nothing else. 0.18.0 added
+three names to `transport.ts` that the provider bundles import and the entry
+did not export; every source check passed and the built bundles called
+`undefined`. The split gate now reads every built `dist/*.js`: each member a
+bundle reads from a sibling bundle it loads must be in the export list in the
+sibling's own text (`scripts/lib/bundleExports.mjs`), and a run that compared
+nothing with `dist/modelApi.js` or `dist/modelApiBoundaries.js` fails. Its
+first run found `canonicalUsd` missing from the boundaries bundle in the same
+way. The three export names take `dist/modelApi.js` from
+532,537 B to **532,827 B** (+290 B), 4,773 B under the 525 KiB cap, which is
+unchanged. The pin of the bundle test is re-measured at that size for 0.18.1
+(owner's decision, 2026-10-12): each name is in the export map and in the
+export annotation, with its getter, and they are exports rather than copies in
+the provider bundles because the state they share lives in `transport.ts`
+once per process. The pin still ratchets down when `fix/modelapi-diet`
+merges. Evidence:
+`docs/certification/hotfix-0181-bundle-exports.md`.
+
 **Train 0.18.0, Model API pin (2026-10-11, macbook).** The pin is re-measured
 at **532,537 B** on `b7f9de08a6` (train `af67368a22` + argument previews
 `83f8da887`, +1,854 B of intended code), lead decision 2026-10-11 15:45 PT;
@@ -40287,6 +40308,49 @@ Unresolved items remain delivery/security gaps, not accepted legal conclusions:
 
 ## 10. Definition of done and release records
 
+**0.18.2 preparation (2026-10-12, release branch).** The landing mark, first
+prepared as 0.18.1 on `release/0.18.1` (`111afdfa1d`, cut from the release
+train `int/train-1011` at `07f7aa69f`) before the provider hotfix took that
+number. `int/train-0182` starts from the mark's reviewed baseline
+`0b6259982` (the README images and the manifest on `111afdfa1d`, which the
+manifest names and which stays an ancestor) and merges the hotfix. It carries
+the dated `CHANGELOG.md` `[0.18.2]` section: the chat panel's landing screen
+shows the product's own mark instead of the Meta logo
+(`docs/certification/panelmark.md`; review RVPANELMARKC without a finding).
+One Highlight. The mark is blue in dark and light themes and takes the
+theme's text colour in high contrast and under forced colours, and the notes
+say so. The reviewed baseline was rendered on `111afdfa1d`: sixteen scenes
+and 984 frames moved, every one of them the mark
+(`docs/certification/panelmark-baseline.md`); the lane's own list had said
+fourteen scenes and 1,008 frames. This is preparation, not publication; the
+public roadmap (M122) lists 0.18.2 as the next release until a
+`0.18.2 released (…)` record follows here.
+
+**0.18.1 preparation (2026-10-12, release branch).** `hotfix/0.18.1` is cut from
+main at `f8435aaac` and carries the extension version 0.18.1 and the dated
+`CHANGELOG.md` `[0.18.1]` section: fixes only. Released 0.18.0 could not complete
+a turn on a configured provider, a ChatGPT plan or Copilot, in any host.
+Cause: the build points every other bundle's import of `transport.ts` at
+`dist/modelApi.js`, and that bundle's entry did not export the three
+confirmed-dispatch names 0.18.0 added (`assertConfirmedAllowed`,
+`isStaleConfirmedError`, `noteConfirmedRequestStarted`). TypeScript and the
+source tests check such an import against the source module, so nothing
+failed until the built bundles ran. The entry exports them, and the split
+gate now reads the built bundles and fails on a member a sibling bundle does
+not export. On its first run that gate found a second name of the same kind:
+`canonicalUsd`, which `exactJson.ts` reads through
+`dist/modelApiBoundaries.js`; 0.18.0 judged every dollar an earlier version
+had written as a number inexact and left that usage out. `usd.ts` exports
+it now. Report a Problem refused every setting name with a second dot
+(`museSpark.vault.enabled`), so it never opened for anyone who had changed
+one; the name pattern takes dotted segments, and a report with its facts
+switched off no longer depends on them. Evidence, the drills and the live proof:
+`docs/certification/hotfix-0181-bundle-exports.md` (D6). A fixes only patch,
+so without Highlights. No webview input changes: no frame and no README
+screenshot moves. This is preparation, not publication; the public roadmap
+(M122) lists 0.18.1 as the next release until a `0.18.1 released (…)`
+record follows here.
+
 **2026-10-11 identity rewrite (main, 11:00 PM PT, owner's order).** Two commits
 on main (`2614ed56f`, `a1103c3f0`) ended with
 `Co-Authored-By: Muse Code <noreply@users.noreply.github.com>`, a line a lane
@@ -40298,23 +40362,6 @@ byte-identical, so every gate result stands. main moved from `be6eaefbe` to
 `f8435aaac` and tag `v0.18.0` moved with it; `v0.17.2` and everything before
 it are unchanged. Records written before this one cite the old ids; the
 old-to-new map is `docs/certification/identity-rewrite-2026-10-11.md`.
-
-**0.18.1 preparation (2026-10-11, release branch).** `release/0.18.1` is cut from
-the release train `int/train-1011` at `07f7aa69f` (`a2e014121` before the
-identity rewrite) and carries the extension version 0.18.1 and the dated
-`CHANGELOG.md` `[0.18.1]` section: the chat
-panel's landing screen shows the product's own mark instead of the Meta logo
-(`docs/certification/panelmark.md`; review RVPANELMARKC without a finding).
-One Highlight. The mark is blue in dark and light themes and takes the
-theme's text colour in high contrast and under forced colours, and the notes
-say so. The fourteen panel scenes that show the landing screen move, 72
-frames each, 1,008 frames; the reviewed baseline is rendered on top of this
-commit. Left out: the packaged dogfood harness (C-X-5, `bc445b230`), which on
-the train takes activation to 3,383 B over the immutable baseline against an
-allowance of 3,072 B and whose schedule cells meet the 0.17.1 availability
-latch; it went back to its lane. This is preparation, not publication; the
-public roadmap (M122) lists 0.18.1 as the next release until a
-`0.18.1 released (…)` record follows here.
 
 **0.18.0 released (2026-10-11, tag `v0.18.0` on main's release merge `f8435aaac` (`be6eaefbe` before the identity rewrite), PR #149, release run 38206002231).**
 The Release run succeeded on its first attempt and ended on 2026-10-11 at

@@ -499,6 +499,16 @@ never a literal in the code:
   duplicates `en.ts` or stops loading it. Each lazily loaded bundle keeps its
   own language state, so one that reads `UI_TEXT` must install the caller's
   table in its factory.
+- **A name one bundle imports from another** exists at run time only if the
+  other bundle's entry exports it. The build points imports of some shared
+  modules at the bundle that carries them (`transport.ts`, `sse.ts` and
+  `ndjson.ts` at `dist/modelApi.js`, whose entry is
+  `src/host/backend/modelApiEntry.ts`; `usdSchema.ts` at
+  `dist/modelApiBoundaries.js`, which exports what `usd.ts` exports).
+  TypeScript checks the import against the source module and cannot see a
+  name the entry lacks. `npm run build` reads the built bundles and fails on
+  such a member, and `test/unit/modelApiEntryExports.test.ts` names the file
+  and the import for the Model API bundle.
 
 `npm run check:l10n` checks all of this. It fails a key missing from a
 translation, a changed `{slot}`, a wrong set of plural forms, and a

@@ -20,6 +20,13 @@ import {
 // available when this backend is loaded outside the extension.
 
 // T's one request loop and framing API are shared by the lazy provider adapters.
+// The build points every other bundle's import of transport.ts, sse.ts and
+// ndjson.ts at this bundle (deferredCohort), so a name those bundles import
+// exists at run time only if it is exported here: TypeScript checks the import
+// against the source module and cannot see the difference. 0.18.0 shipped
+// without the three confirmed-dispatch names, and every turn on a configured
+// provider, a plan or Copilot failed before sending (HOTFIX0181). The split
+// gate now reads the built bundles and fails on a member this list lacks.
 export {
   RequestTransport,
   ModelApiError,
@@ -29,6 +36,9 @@ export {
   redactModelApiError,
   ignoreClosingError,
   redactSecrets,
+  assertConfirmedAllowed,
+  isStaleConfirmedError,
+  noteConfirmedRequestStarted,
 } from '../../core/backends/modelapi/transport'
 export { parseSse, boundedChunks, streamLimitError } from '../../core/backends/modelapi/sse'
 export { parseNdjson } from '../../core/backends/modelapi/ndjson'

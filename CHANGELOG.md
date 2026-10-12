@@ -103,7 +103,7 @@ happened, not what was planned; superseded entries are kept.
   launches are not yet under the resource governor; nothing in this release
   can start them, and the process inventory fails the day something could.
 
-## [0.18.1] - 2026-10-11
+## [0.18.2] - 2026-10-12
 
 ### Highlights
 
@@ -123,6 +123,20 @@ happened, not what was planned; superseded entries are kept.
 
 - The README's four screenshots of the landing screen (modes, palette, slash
   commands, voice) show the extension's own mark.
+
+## [0.18.1] - 2026-10-12
+
+### Fixed
+
+- In 0.18.0 a turn on a model provider you added yourself, on a ChatGPT
+  plan or through Copilot stopped before anything was sent, with an internal
+  error ("… is not a function"). Those turns work again, and we are sorry
+  for the broken release. Meta's own models were not affected.
+- Usage recorded by earlier versions is counted again. 0.18.0 left those
+  records out as not exact; nothing was deleted.
+- Report a Problem did nothing if you had changed certain settings (those
+  with a second dot in their name, such as `museSpark.vault.enabled`): it
+  said "That did not work" and never opened. It opens again.
 
 ## [0.18.0] - 2026-10-11
 
