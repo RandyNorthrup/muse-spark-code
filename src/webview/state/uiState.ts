@@ -397,6 +397,9 @@ export interface UiState {
   /** The uploaded-files port's last report (M105 lane F); listed by the usage dialog. */
   readonly uploadedFiles:
     Extract<HostToWebviewMessage, { type: 'uploadedFilesReport' }>['report'] | undefined
+  /** The account and read generation the accepted list was read under. */
+  readonly uploadedFilesAccountId: string | undefined
+  readonly uploadedFilesGeneration: number
   /**
    * The Agent map's team tree (M96 lane U2); undefined where the team
    * cannot run (off, Solo, single-model mode, no runnable role): the map,
@@ -726,6 +729,8 @@ export const initialUiState: UiState = {
   context: undefined,
   usageReport: undefined,
   uploadedFiles: undefined,
+  uploadedFilesAccountId: undefined,
+  uploadedFilesGeneration: 0,
   teamTree: undefined,
   reference: undefined,
   childTranscripts: {},
@@ -2553,6 +2558,9 @@ function clearedAccountView(state: UiState): UiState {
     skills: undefined,
     usageReport: undefined,
     uploadedFiles: undefined,
+    // The generation stays: a report posted before the credentials
+    // changed carries an older one and is dropped by its own case.
+    uploadedFilesAccountId: undefined,
     editorContext: undefined,
     dismissedEditorPath: undefined,
     mentionResults: undefined,
@@ -2902,9 +2910,11 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
             ? current.schedules
             : [],
         // No account identity accompanies authState: discard prior-account
-        // usage even if the backend name stays the same.
+        // usage even if the backend name stays the same. The generation
+        // stays so a report posted before the boundary still drops.
         usageReport: undefined,
         uploadedFiles: undefined,
+        uploadedFilesAccountId: undefined,
         // The tree names the account's models: it goes with the usage.
         teamTree: undefined,
         auth: {
@@ -3057,9 +3067,14 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
       }
     }
     case 'uploadedFilesReport': {
+      // A report from a previous account or generation never repopulates
+      // the new account's view; a legacy post without one still applies.
+      if ((message.generation ?? 0) < state.uploadedFilesGeneration) return state
       return {
         ...state,
         uploadedFiles: message.report,
+        uploadedFilesAccountId: message.accountId,
+        uploadedFilesGeneration: message.generation ?? 0,
       }
     }
     case 'setupComplete': {

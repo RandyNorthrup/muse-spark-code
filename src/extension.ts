@@ -3591,8 +3591,13 @@ async function activateWindow(
           uploadedFiles: createUploadedFilesBinding({
             uploads: (accountId) => loadSessionUploads(accountId),
             getAccountId: () => modelApi.accountId(),
-            post: (report) => {
-              surface.post({ type: 'uploadedFilesReport', report })
+            post: (stamped) => {
+              surface.post({
+                type: 'uploadedFilesReport',
+                report: stamped.report,
+                accountId: stamped.accountId,
+                generation: stamped.generation,
+              })
             },
             confirmForeign: isForeignDeletionConfirmed,
           }).port,
@@ -4461,8 +4466,13 @@ async function activateWindow(
         const binding = createUploadedFilesBinding({
           uploads: (accountId) => loadSessionUploads(accountId),
           getAccountId: () => modelApi.accountId(),
-          post: (report) => {
-            registry.active?.post({ type: 'uploadedFilesReport', report })
+          post: (stamped) => {
+            registry.active?.post({
+              type: 'uploadedFilesReport',
+              report: stamped.report,
+              accountId: stamped.accountId,
+              generation: stamped.generation,
+            })
           },
           confirmForeign: isForeignDeletionConfirmed,
         })

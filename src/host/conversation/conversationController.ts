@@ -10586,16 +10586,26 @@ export class ConversationController {
     this.postStartupNotice()
   }
 
-  /** Kept independent of backend sign-in so a removed key still shows retained expiry. */
+  /**
+   * Kept independent of backend sign-in so a removed key still shows
+   * retained expiry. The list belongs to an account and a read generation:
+   * a report (or failure) from a previous account or generation is dropped
+   * on both paths, never posted over the new account's view.
+   */
   public async readUploadedFiles(): Promise<void> {
     const port = this.deps.uploadedFiles
     if (port === undefined || !this.canPostUploadedFiles()) return
+    const authGeneration = this.deps.auth.admissionGeneration
+    const accountId = await this.deps.voiceAccountId()
+    const isCurrent = async () =>
+      this.canPostUploadedFiles() &&
+      this.deps.auth.admissionGeneration === authGeneration &&
+      (await this.deps.voiceAccountId()) === accountId
     try {
       const report = uploadedFilesReportSchema.parse(await port.read())
-      if (this.canPostUploadedFiles()) port.post(report)
+      if (await isCurrent()) port.post(report)
     } catch (error: unknown) {
-      if (this.canPostUploadedFiles())
-        this.say('error', `${UI_TEXT.usageUnavailable}: ${describe(error)}`)
+      if (await isCurrent()) this.say('error', `${UI_TEXT.usageUnavailable}: ${describe(error)}`)
     }
   }
 

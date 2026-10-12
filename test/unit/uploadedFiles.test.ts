@@ -75,6 +75,27 @@ describe('uploaded-files port', () => {
     expect(ledger.deleteAllOurs).toHaveBeenCalledTimes(1)
   })
 
+  it('keeps the retained list read-only after the key is removed', async () => {
+    const ledger = fakeUploadedFilesLedger(report)
+    let keyed: FakeUploadedFilesLedger | undefined = ledger
+    const port = createUploadedFilesPort({
+      ledger: () => Promise.resolve(keyed),
+      post: () => undefined,
+    })
+    expect(await port.read()).toEqual(report)
+    // Removing the key: the retained ledger still answers, read-only as
+    // the real ledger reports once its account is no longer current.
+    keyed = undefined
+    ledger.accountReport.mockResolvedValue({ ...report, isReadOnly: true })
+    expect(await port.read()).toEqual({ ...report, isReadOnly: true })
+    expect(ledger.accountReport).toHaveBeenCalledTimes(2)
+    // Deletes still reach the retained ledger, whose own account check
+    // refuses them; they are never silently dropped.
+    const confirmed = vi.fn(() => Promise.resolve(true))
+    await port.deleteFile('file-one', confirmed)
+    expect(ledger.deleteFile).toHaveBeenCalledWith('file-one', confirmed, undefined)
+  })
+
   it('lets a failed provider delete reach the caller with its reason', async () => {
     const ledger = fakeUploadedFilesLedger(report)
     ledger.deleteFile.mockRejectedValueOnce(new Error('Offline'))

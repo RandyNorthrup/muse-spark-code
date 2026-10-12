@@ -15,13 +15,22 @@ import { describeError } from '../../shared/redact'
 import { uploadedFilesReportSchema, type UploadedFilesReport } from '../../shared/media'
 import type { ConversationUploadedFilesPort } from './conversationController'
 
+/** What the binding shows: the validated report under the read's identity. */
+export interface UploadedFilesStamp {
+  readonly report: UploadedFilesReport
+  /** The account the stamped read served (last-known while the key is gone). */
+  readonly accountId: string | undefined
+  /** The binding's read generation: a newer read supersedes an older post. */
+  readonly generation: number
+}
+
 export interface UploadedFilesBindingDeps {
   /** The account's ledger over the production storage and Files wire. */
   readonly uploads: (accountId: string) => Promise<UploadedFilesLedger>
   /** The key digest in use; undefined while no account backs the ledger. */
   readonly getAccountId: () => Promise<string | undefined>
-  /** Shows the report on this surface. */
-  readonly post: (report: UploadedFilesReport) => void
+  /** Shows the stamped report on this surface. */
+  readonly post: (stamped: UploadedFilesStamp) => void
   /** Asks whether a file another app may still use may go. */
   readonly confirmForeign: (question: string) => Promise<boolean>
 }
@@ -35,15 +44,36 @@ export interface UploadedFilesBinding {
 
 /** The `ConversationDeps.uploadedFiles` supplier, whichever host binds it. */
 export function createUploadedFilesBinding(deps: UploadedFilesBindingDeps): UploadedFilesBinding {
+  let lastResolvedAccountId: string | undefined
+  let readSequence = 0
+  let lastRead: { accountId: string | undefined; generation: number } | undefined
   const ledger = async (): Promise<UploadedFilesLedger | undefined> => {
+    // Removing the key keeps the retained list: the core port serves the
+    // last account's ledger read-only (PLAN D85.2) until another signs in.
     const accountId = await deps.getAccountId()
+    lastResolvedAccountId = accountId
     return accountId === undefined ? undefined : await deps.uploads(accountId)
   }
-  const port = createUploadedFilesPort({
+  const inner = createUploadedFilesPort({
     ledger,
-    post: deps.post,
+    post: (report) => {
+      deps.post({
+        report,
+        accountId: lastRead?.accountId ?? lastResolvedAccountId,
+        generation: lastRead?.generation ?? 0,
+      })
+    },
     confirmForeign: deps.confirmForeign,
   })
+  const port: UploadedFilesPort = {
+    ...inner,
+    read: async () => {
+      const result = await inner.read()
+      readSequence += 1
+      lastRead = { accountId: lastResolvedAccountId, generation: readSequence }
+      return result
+    },
+  }
   return {
     port,
     list: async () => uploadedFilesReportSchema.parse(await port.read()),

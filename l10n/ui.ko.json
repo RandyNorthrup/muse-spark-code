@@ -386,7 +386,7 @@
   "referenceAttachments": "파일을 선택하거나 끌어 첨부하고 입력창에 이미지를 붙여넣습니다. PNG, JPEG, GIF, WebP에는 이미지 지원 모델이 필요합니다. PDF에는 Model API가 필요합니다. 신뢰하는 작업 공간의 색인된 텍스트 파일을 첨부할 수 있으며 보호되거나 기밀인 파일은 거부됩니다. 전송 전에 아래 한도가 적용됩니다.",
   "referenceScreenRecording": "이 빌드에서는 화면을 직접 녹화할 수 없습니다. 기존 녹화를 선택하세요.",
   "referenceLatestRecording": "Attach the most recent screen recording again without recording a new one. 읽을 수 있는 녹화 파일과 검증된 동영상 업로드 지원이 필요합니다.",
-  "referenceUploadedFiles": "List the files uploaded for this conversation and delete them before they expire. Deleting a file another app also uses asks first. 제공업체 및 계정의 업로드 저장소 연동이 필요합니다.",
+  "referenceUploadedFiles": "List the uploaded files of this account and delete them before they expire. Deleting a file another app also uses asks first. 제공업체 및 계정의 업로드 저장소 연동이 필요합니다.",
   "referenceConversationActions": "대화 이름 변경, 분기 또는 되감기를 사용할 수 있습니다. 되감기는 기록된 편집과 이력을 복원하지만 이후 변경된 파일과 셸 변경은 처리하지 않습니다. 턴 중 새 메시지는 방향을 수정합니다. Model API는 다음 요청 전까지 철회할 수 있으며 Muse Code는 즉시 전달하므로 대기 메시지만 철회할 수 있습니다. 보조 채팅은 완료된 턴을 복사하고 목표를 지우며 Plan에 머뭅니다. Muse Code 파일 도구는 Plan에서도 편집할 수 있습니다. 텍스트를 선택해 답변, 질문, 댓글 또는 복사를 할 수 있습니다.",
   "referenceQuestions": "답변을 선택해 제출하거나, 자신의 말로 설명하거나, 취소할 수 있습니다. 제출한 답변과 설명은 대화에서 Muse에 전달됩니다.",
   "referenceQuestionsDeferral": "각 질문이나 MCP 양식에는 메시지 입력란 위에 고정된 카드가 하나 있습니다. 대화 기록의 미답변 질문 표시에서 답변을 누르면 연기 후에도 카드가 열리거나 펼쳐지고 첫 컨트롤로 포커스가 이동합니다. 제출한 답변과 설명은 대화에서 Muse에 전달됩니다. museSpark.questions.deferAfterSeconds(기본 60초, 0은 무기한 대기)가 지나면 Muse는 답변에 의존하지 않는 작업을 재개합니다. 카드는 나중에 답변하거나 닫을 수 있습니다. 늦은 답변은 사용자 메시지이며 아무것도 승인하지 않습니다. 다음 미답변 질문 / 이전 미답변 질문으로 카드 사이를 이동합니다. 예약된 프롬프트는 질문을 즉시 보류하고 헤드리스 exec는 거절합니다. ACP: --questions-defer-after는 기한을 설정하고 /questions는 미답변 질문을 나열하며 /answer <n> <text>는 하나에 답변합니다.",

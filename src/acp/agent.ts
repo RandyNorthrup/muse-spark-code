@@ -680,8 +680,45 @@ class AcpSession {
         this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
       },
       signal,
+      confirmForeign: (name) => this.confirmUploadForeignDeletion(name, signal),
     })
     return outcome === 'handled'
+  }
+
+  /**
+   * A foreign file's confirmation (PLAN D85.2): the ACP permission request
+   * exactly where VS Code asks with its modal dialog. Refused, failed or
+   * cancelled keeps the file.
+   */
+  private async confirmUploadForeignDeletion(name: string, signal: AbortSignal): Promise<boolean> {
+    try {
+      const response = permissionResponse(
+        await unlessAborted(
+          this.client.request('session/request_permission', {
+            sessionId: this.sessionId,
+            toolCall: {
+              toolCallId: `uploads-foreign-${randomUUID()}`,
+              title: fill(UI_TEXT.media.otherAppFileConfirmation, { name }),
+              kind: 'other',
+              status: 'pending',
+              content: [],
+              locations: [],
+            },
+            options: [
+              { optionId: 'uploads-foreign-allow', name: UI_TEXT.allowOnce, kind: 'allow_once' },
+              { optionId: 'uploads-foreign-deny', name: UI_TEXT.paidDeny, kind: 'reject_once' },
+            ],
+          }),
+          signal,
+        ),
+      )
+      return (
+        response.outcome.outcome === 'selected' &&
+        response.outcome.optionId === 'uploads-foreign-allow'
+      )
+    } catch {
+      return false
+    }
   }
 
   private async mediaCommand(

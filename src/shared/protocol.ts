@@ -1403,7 +1403,14 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('openEstimator') }),
   // The uploaded-files port's report (M105 lane F): the Account & usage
   // dialog lists it; its delete buttons arrive with the dialog's actions.
-  z.object({ type: z.literal('uploadedFilesReport'), report: uploadedFilesReportSchema }),
+  // The list belongs to the account it was read under and a read
+  // generation: a report from a previous account or generation is dropped.
+  z.object({
+    type: z.literal('uploadedFilesReport'),
+    report: uploadedFilesReportSchema,
+    accountId: z.optional(stringSchema),
+    generation: z.optional(numberSchema),
+  }),
 ])
 
 export type HostToWebviewMessage =

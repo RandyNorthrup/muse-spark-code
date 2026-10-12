@@ -57,11 +57,23 @@ export function emptyUploadedFilesReport(): UploadedFilesReport {
   })
 }
 
-/** The ledger behind `ConversationDeps.uploadedFiles`, whichever host binds it. */
+/**
+ * The ledger behind `ConversationDeps.uploadedFiles`, whichever host binds
+ * it. The list belongs to an account (PLAN D85.2): the last account's ledger
+ * is retained, so removing the key keeps the retained list readable
+ * read-only instead of reading empty. A delete through the retained ledger
+ * refuses honestly through the ledger's own account check.
+ */
 export function createUploadedFilesPort(deps: UploadedFilesPortDeps): UploadedFilesPort {
+  let retained: UploadedFilesLedger | undefined
+  const current = async (): Promise<UploadedFilesLedger | undefined> => {
+    const ledger = await deps.ledger()
+    if (ledger !== undefined) retained = ledger
+    return ledger ?? retained
+  }
   return {
     async read(): Promise<unknown> {
-      const ledger = await deps.ledger()
+      const ledger = await current()
       return ledger === undefined ? emptyUploadedFilesReport() : await ledger.accountReport()
     },
     post(report: unknown): void {
@@ -73,13 +85,13 @@ export function createUploadedFilesPort(deps: UploadedFilesPortDeps): UploadedFi
       signal?: AbortSignal,
     ): Promise<void> {
       signal?.throwIfAborted()
-      const ledger = await deps.ledger()
+      const ledger = await current()
       if (ledger === undefined) return
       await ledger.deleteFile(fileId, isForeignDeletionConfirmed, signal)
     },
     async deleteAllOurs(signal?: AbortSignal): Promise<void> {
       signal?.throwIfAborted()
-      const ledger = await deps.ledger()
+      const ledger = await current()
       if (ledger === undefined) return
       await ledger.deleteAllOurs(signal)
     },

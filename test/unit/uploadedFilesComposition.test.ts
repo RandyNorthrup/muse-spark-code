@@ -8,7 +8,7 @@
 // is the production code under test.
 import { createHash } from 'node:crypto'
 import { mkdtempSync, readFileSync } from 'node:fs'
-import { readdir, writeFile } from 'node:fs/promises'
+import { mkdir, readdir, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, describe, expect, it, vi, type Mock } from 'vitest'
@@ -18,12 +18,21 @@ import {
   type UploadSource,
 } from '../../src/core/backends/modelapi/files'
 import { ModelApiError } from '../../src/core/backends/modelapi/client'
-import { MILLISECONDS_PER_DAY, SECONDS_PER_DAY } from '../../src/shared/constants'
+import {
+  MILLISECONDS_PER_DAY,
+  MODEL_API_UPLOADS_DIR,
+  SECONDS_PER_DAY,
+  SECRET_KEYS,
+} from '../../src/shared/constants'
 import type { StoredSession } from '../../src/core/backends/modelapi/sessionStore'
 import { uploadedFilesReportSchema } from '../../src/shared/media'
 import { UploadLedger, type UploadLedgerState } from '../../src/core/media/uploadLedger'
 import { createUploadedFilesPort } from '../../src/core/media/uploadedFiles'
-import { fileUploadLedgerStorage } from '../../src/core/media/uploadLedgerStorage'
+import {
+  accountLedgerDirectory,
+  fileUploadLedgerStorage,
+} from '../../src/core/media/uploadLedgerStorage'
+import { agentDataFolder } from '../../src/runtime/dataFolder'
 import { createFileSessionStore } from '../../src/host/backend/fileSessionStore'
 import { createSessionUploads } from '../../src/host/backend/sessionUploads'
 import {
@@ -31,7 +40,9 @@ import {
   runDeleteUploadedFilesCommand,
 } from '../../src/host/conversation/uploadedFilesBinding'
 import { runUploadsCommand } from '../../src/acp/uploads'
-import { FakeLogOutputChannel } from './helpers/fakes'
+import { createRuntimeBackend } from '../../src/runtime/backends'
+import type { ServeOptions } from '../../src/runtime/cliArgs'
+import { FakeLogOutputChannel, memorySecrets } from './helpers/fakes'
 import { removeFolder } from './helpers/temporaryFolders'
 
 const root = mkdtempSync(path.join(tmpdir(), 'muse-uploaded-files-'))
@@ -450,5 +461,220 @@ describe('uploaded-files production composition', () => {
     await ledger.releaseSession('s1')
     const report = uploadedFilesReportSchema.parse(await ledger.accountReport())
     expect(report.files).toEqual([])
+  })
+})
+
+/**
+ * The runtime assembly (RVCM1058 finding 12): the manually built suites
+ * above stay green when a production binding is removed, so this builds
+ * the REAL createRuntimeBackend and asserts the uploads port it serves and
+ * runExec forward. Removing the backends.ts property fails the first test;
+ * removing runExec's forwarding fails the headless /uploads run in
+ * execRun.test.ts (drilled).
+ */
+function runtimeBackend(backend: ServeOptions['backend']) {
+  return createRuntimeBackend({
+    options: {
+      backend,
+      trustWorkspace: false,
+      canBypass: false,
+      allowsContributorModels: false,
+      museBinary: '',
+      shellSandbox: 'auto',
+      paidFeatures: [],
+      isVerbose: false,
+    },
+    version: 'uploads-composition-test',
+    distDir: root,
+    platform: process.platform,
+    env: {},
+    homeDir: mkdtempSync(path.join(root, 'runtime-home-')),
+    secrets: memorySecrets(),
+    runGit: () => Promise.resolve(''),
+    // Keyless reads never reach the wire: any provider traffic fails this.
+    fetch: () => Promise.reject(new Error('unexpected provider traffic')),
+    sleep: () => Promise.resolve(),
+    log: { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+  })
+}
+
+describe('uploaded-files runtime assembly', () => {
+  it('serves the production uploads port on Model API runtimes, and none on Muse Code', async () => {
+    const modelApi = runtimeBackend('modelApi')
+    try {
+      expect(typeof modelApi.uploads?.read).toBe('function')
+      expect(typeof modelApi.uploads?.deleteFile).toBe('function')
+      expect(typeof modelApi.uploads?.deleteAllOurs).toBe('function')
+      // No stored key: the real port reads the empty retained report.
+      expect(await modelApi.uploads?.read()).toEqual(
+        expect.objectContaining({ files: [], isReadOnly: true }),
+      )
+    } finally {
+      await modelApi.close()
+    }
+    const museCode = runtimeBackend('museCode')
+    try {
+      expect(museCode.uploads).toBeUndefined()
+    } finally {
+      await museCode.close()
+    }
+  })
+
+  it('keeps the retained list read-only after the key is removed', async () => {
+    // Finding 7 through the real runtime assembly: with the key, the port
+    // lists the account's files; without it, the retained list stays
+    // readable read-only and the provider hears nothing more.
+    const home = mkdtempSync(path.join(root, 'runtime-home-retained-'))
+    const secrets = memorySecrets()
+    const KEY = 'uploads-retention-key'
+    secrets.values.set(SECRET_KEYS.modelApiKey, KEY)
+    const keyed = createHash('sha256').update(KEY).digest('hex')
+    const directory = accountLedgerDirectory(
+      path.join(
+        agentDataFolder({ platform: process.platform, env: {}, homeDir: home }),
+        MODEL_API_UPLOADS_DIR,
+      ),
+      keyed,
+    )
+    await mkdir(directory, { recursive: true })
+    await writeFile(
+      path.join(directory, 'uploads.json'),
+      JSON.stringify({
+        version: 1,
+        accountId: keyed,
+        entries: [
+          {
+            file: {
+              fileId: 'file-one',
+              provider: 'meta',
+              expiresAt: 4_000_000_000,
+              sha256,
+              bytes: 3,
+              name: 'clip.mp4',
+              mime: 'video/mp4',
+            },
+            sessions: ['s1'],
+          },
+        ],
+        cachedFiles: [],
+      }),
+    )
+    let listCalls = 0
+    const runtime = createRuntimeBackend({
+      options: {
+        backend: 'modelApi',
+        trustWorkspace: false,
+        canBypass: false,
+        allowsContributorModels: false,
+        museBinary: '',
+        shellSandbox: 'auto',
+        paidFeatures: [],
+        isVerbose: false,
+      },
+      version: 'uploads-composition-test',
+      distDir: root,
+      platform: process.platform,
+      env: {},
+      homeDir: home,
+      secrets,
+      runGit: () => Promise.resolve(''),
+      fetch: (url: unknown, init?: { method?: string }) => {
+        if (
+          typeof url === 'string' &&
+          new URL(url).pathname.endsWith('/files') &&
+          (init?.method === undefined || init.method === 'GET')
+        ) {
+          listCalls += 1
+          return Promise.resolve(
+            Response.json({
+              object: 'list',
+              data: [
+                {
+                  id: 'file-one',
+                  object: 'file',
+                  bytes: 3,
+                  created_at: 1000,
+                  expires_at: 4_000_000_000,
+                  filename: 'clip.mp4',
+                  purpose: 'user_data',
+                  status: 'uploaded',
+                },
+                {
+                  id: 'file-other',
+                  object: 'file',
+                  bytes: 12,
+                  created_at: 1000,
+                  expires_at: 4_000_000_000,
+                  filename: 'other.pdf',
+                  purpose: 'user_data',
+                  status: 'uploaded',
+                },
+              ],
+              has_more: false,
+            }),
+          )
+        }
+        return Promise.reject(new Error('unexpected provider traffic'))
+      },
+      sleep: () => Promise.resolve(),
+      log: { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+    })
+    try {
+      const live = uploadedFilesReportSchema.parse(await runtime.uploads?.read())
+      expect(live.isReadOnly).toBe(false)
+      expect(live.files.map((file) => file.fileId).toSorted((a, b) => a.localeCompare(b))).toEqual([
+        'file-one',
+        'file-other',
+      ])
+      expect(listCalls).toBe(1)
+      secrets.values.delete(SECRET_KEYS.modelApiKey)
+      const retained = uploadedFilesReportSchema.parse(await runtime.uploads?.read())
+      expect(
+        retained.files.map((file) => file.fileId).toSorted((a, b) => a.localeCompare(b)),
+      ).toEqual(['file-one', 'file-other'])
+      expect(retained.isReadOnly).toBe(true)
+      expect(listCalls).toBe(1)
+      await expect(
+        runtime.uploads?.deleteFile('file-one', () => Promise.resolve(true)),
+      ).rejects.toThrow()
+      expect(listCalls).toBe(1)
+    } finally {
+      await runtime.close()
+    }
+  })
+
+  it('keeps the ephemeral headless port keyless and provider-silent', async () => {
+    const runtime = createRuntimeBackend({
+      options: {
+        backend: 'modelApi',
+        trustWorkspace: false,
+        canBypass: false,
+        allowsContributorModels: false,
+        museBinary: '',
+        shellSandbox: 'auto',
+        paidFeatures: [],
+        isVerbose: false,
+      },
+      version: 'uploads-composition-test',
+      distDir: root,
+      platform: process.platform,
+      env: {},
+      homeDir: mkdtempSync(path.join(root, 'runtime-home-')),
+      secrets: memorySecrets(),
+      runGit: () => Promise.resolve(''),
+      fetch: () => Promise.reject(new Error('unexpected provider traffic')),
+      sleep: () => Promise.resolve(),
+      log: { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+      exec: {
+        isEphemeral: true,
+        headlessPaid: () => Promise.resolve(false),
+        streamIdleMs: 1000,
+      },
+    })
+    try {
+      expect(await runtime.uploads?.read()).toEqual(expect.objectContaining({ files: [] }))
+    } finally {
+      await runtime.close()
+    }
   })
 })

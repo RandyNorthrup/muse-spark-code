@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { runUploadsCommand, uploadsText, type AcpUploadsPort } from '../../src/acp/uploads'
 import { UI_TEXT } from '../../src/shared/constants'
 import { fakeUploadedFilesLedger, uploadedFilesReportFixture } from './helpers/uploadedFiles'
@@ -56,6 +56,27 @@ describe('runUploadsCommand', () => {
     expect(files.deleteFile).toHaveBeenCalledWith('file-one', expect.any(Function), undefined)
   })
 
+  it('deletes by listed number and shows the id the delete needs', async () => {
+    const sent: string[] = []
+    const files = fakePort()
+    await runUploadsCommand('/uploads', {
+      files,
+      send: (text) => {
+        sent.push(text)
+      },
+    })
+    expect(sentTexts(sent)).toContain('file-one')
+    expect(sentTexts(sent)).toContain('file-other')
+    expect(await runUploadsCommand('/uploads delete 1', { files, send: () => undefined })).toBe(
+      'handled',
+    )
+    expect(files.deleteFile).toHaveBeenCalledWith('file-one', expect.any(Function), undefined)
+    await expect(
+      runUploadsCommand('/uploads delete 9', { files, send: () => undefined }),
+    ).rejects.toThrow('9')
+    expect(files.deleteFile).toHaveBeenCalledTimes(1)
+  })
+
   it('keeps a foreign file with its reason and deletes nothing', async () => {
     const sent: string[] = []
     const files = fakePort()
@@ -69,6 +90,20 @@ describe('runUploadsCommand', () => {
     ).toBe('handled')
     expect(files.deleteFile).not.toHaveBeenCalled()
     expect(sentTexts(sent)).toContain('other.pdf')
+  })
+
+  it('deletes a foreign file the confirmer allows', async () => {
+    const files = fakePort()
+    const confirmForeign = vi.fn(() => Promise.resolve(true))
+    expect(
+      await runUploadsCommand('/uploads delete file-other', {
+        files,
+        send: () => undefined,
+        confirmForeign,
+      }),
+    ).toBe('handled')
+    expect(confirmForeign).toHaveBeenCalledWith('other.pdf')
+    expect(files.deleteFile).toHaveBeenCalledWith('file-other', expect.any(Function), undefined)
   })
 
   it('deletes all ours, refuses unknown ids and bad syntax, and says so without a ledger', async () => {
@@ -240,6 +275,48 @@ describe('/uploads through the agent', () => {
         })
       }),
     ).rejects.toThrow(UI_TEXT.media.filesEmpty)
+  })
+
+  it('confirms and deletes a foreign file through the editor permission', async () => {
+    const files = fakePort()
+    const asked: unknown[] = []
+    const h = connectedAgent({
+      editor: 'uploads-editor',
+      version: 'uploads-test',
+      extra: { uploads: files },
+      answerPermission: (params) => {
+        asked.push(params)
+        return { outcome: { outcome: 'selected', optionId: 'uploads-foreign-allow' } }
+      },
+    })
+    await h.run(async (connection, id) => {
+      const answer = await connection.request('session/prompt', {
+        sessionId: id,
+        prompt: [{ type: 'text', text: '/uploads delete file-other' }],
+      })
+      expect(answer.stopReason).toBe('end_turn')
+    })
+    expect(files.deleteFile).toHaveBeenCalledWith(
+      'file-other',
+      expect.any(Function),
+      expect.any(AbortSignal),
+    )
+    // The editor was asked with the same question VS Code dialogs.
+    expect(JSON.stringify(asked)).toContain('other.pdf')
+  })
+
+  it('keeps a foreign file when the editor cannot answer the permission', async () => {
+    const files = fakePort()
+    const h = connectedUploads(files)
+    await h.run(async (connection, id) => {
+      const answer = await connection.request('session/prompt', {
+        sessionId: id,
+        prompt: [{ type: 'text', text: '/uploads delete file-other' }],
+      })
+      expect(answer.stopReason).toBe('end_turn')
+    })
+    expect(files.deleteFile).not.toHaveBeenCalled()
+    expect(h.texts().join('\n')).toContain('other.pdf')
   })
 
   it('cancels a delete held on its report read without touching the provider', async () => {

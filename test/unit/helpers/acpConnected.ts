@@ -12,6 +12,10 @@ export function connectedAgent(input: {
   readonly editor: string
   readonly version: string
   readonly extra?: Partial<AcpAgentDeps>
+  /** Answers the editor's permission requests; absent requests fail as denied. */
+  readonly answerPermission?: (
+    params: acp.RequestPermissionRequest,
+  ) => acp.RequestPermissionResponse | Promise<acp.RequestPermissionResponse>
 }) {
   const host = new FakeAgentHost()
   const updates: acp.SessionUpdate[] = []
@@ -48,6 +52,10 @@ export function connectedAgent(input: {
     .client({ name: input.editor })
     .onNotification('session/update', ({ params }) => {
       updates.push(params.update)
+    })
+    .onRequest('session/request_permission', async (context) => {
+      if (input.answerPermission === undefined) throw new Error('permission not handled')
+      return await input.answerPermission(context.params)
     })
   const run = async (op: (client: acp.ClientContext, id: string) => Promise<void>) => {
     await client.connectWith(agent, async (connection) => {

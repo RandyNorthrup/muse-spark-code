@@ -3,6 +3,7 @@ import {
   createUploadedFilesBinding,
   runDeleteUploadedFilesCommand,
 } from '../../src/host/conversation/uploadedFilesBinding'
+import { UploadLedger } from '../../src/core/media/uploadLedger'
 import { UI_TEXT } from '../../src/shared/constants'
 import { type FakeUploadedFilesLedger, uploadedFilesReportFixture } from './helpers/uploadedFiles'
 
@@ -17,14 +18,15 @@ function setup(options?: { missingAccount?: boolean }) {
     deleteAllOurs: vi.fn(() => Promise.resolve()),
   }
   const uploads = vi.fn(() => Promise.resolve(ledger))
+  const post = vi.fn()
   const binding = createUploadedFilesBinding({
     uploads,
     getAccountId: () =>
       Promise.resolve(options?.missingAccount === true ? undefined : 'a'.repeat(64)),
-    post: vi.fn(),
+    post,
     confirmForeign: vi.fn(() => Promise.resolve(true)),
   })
-  return { binding, uploads, ledger }
+  return { binding, uploads, ledger, post }
 }
 
 function fakeDialogs(picked: readonly string[] | undefined) {
@@ -196,5 +198,111 @@ describe('uploaded-files host binding', () => {
     expect(confirmForeign).toHaveBeenCalledWith(
       'Another app may still use other.pdf. Delete it anyway?',
     )
+  })
+
+  it('stamps each posted report with its read account and generation', async () => {
+    const t = setup()
+    await t.binding.list()
+    t.binding.port.post(report)
+    expect(t.post).toHaveBeenCalledWith({
+      report,
+      accountId: 'a'.repeat(64),
+      generation: 1,
+    })
+    await t.binding.list()
+    t.binding.port.post(report)
+    expect(t.post).toHaveBeenLastCalledWith({
+      report,
+      accountId: 'a'.repeat(64),
+      generation: 2,
+    })
+  })
+
+  it('keeps the retained list read-only after the key is removed', async () => {
+    // The finding's scenario through the real ledger: two cached files, the
+    // key goes, the next read still lists both as read-only and no delete
+    // reaches the provider.
+    const accountId = 'b'.repeat(64)
+    let current: string | undefined = accountId
+    let live: string | undefined = accountId
+    const cached = [
+      { fileId: 'file-one', name: 'clip.mp4', bytes: 3, expiresAt: 1_800_000_000 },
+      { fileId: 'file-other', name: 'other.pdf', bytes: 12, expiresAt: 1_800_000_000 },
+    ]
+    let saved: unknown = {
+      version: 1,
+      accountId,
+      entries: [
+        {
+          file: {
+            fileId: 'file-one',
+            provider: 'meta',
+            expiresAt: 1_800_000_000,
+            sha256: 'c'.repeat(64),
+            bytes: 3,
+            name: 'clip.mp4',
+            mime: 'video/mp4',
+          },
+          sessions: [],
+        },
+      ],
+      cachedFiles: cached,
+    }
+    const deleted: string[] = []
+    const accountFiles = vi.fn(() => Promise.resolve(cached))
+    const forAccountFiles = {
+      upload: () => Promise.reject(new Error('no upload here')),
+      retrieve: () => Promise.resolve({}),
+      accountFiles,
+      delete: (fileId: string) => {
+        deleted.push(fileId)
+        return Promise.resolve()
+      },
+      forAccount: () => forAccountFiles,
+    }
+    const ledger = new UploadLedger({
+      storage: {
+        read: () => Promise.resolve(structuredClone(saved)),
+        write: (state) => {
+          saved = structuredClone(state)
+          return Promise.resolve()
+        },
+        withLock: async (operation) => await operation(),
+      },
+      files: forAccountFiles,
+      accountId,
+      provider: 'meta',
+      poolBytes: 100,
+      currentAccountId: () => Promise.resolve(current),
+      now: () => 4000,
+    })
+    const seen: string[] = []
+    const binding = createUploadedFilesBinding({
+      uploads: (id) => {
+        seen.push(id)
+        return Promise.resolve(ledger)
+      },
+      getAccountId: () => Promise.resolve(live),
+      post: () => undefined,
+      confirmForeign: () => Promise.resolve(true),
+    })
+    const before = await binding.list()
+    expect(before.files.map((file) => file.fileId)).toEqual(['file-one', 'file-other'])
+    expect(before.isReadOnly).toBe(false)
+    current = undefined
+    live = undefined
+    const after = await binding.list()
+    // The factory is not asked again: the core port serves its retained
+    // ledger instead of reading empty.
+    expect(seen).toEqual([accountId])
+    expect(after.files.map((file) => file.fileId)).toEqual(['file-one', 'file-other'])
+    expect(after.isReadOnly).toBe(true)
+    // ... and the provider was not asked again without the key.
+    expect(accountFiles).toHaveBeenCalledTimes(1)
+    await expect(binding.remove('file-one', () => Promise.resolve(true))).rejects.toThrow(
+      UI_TEXT.media.filesReadOnly,
+    )
+    await expect(binding.port.deleteAllOurs()).rejects.toThrow(UI_TEXT.media.filesReadOnly)
+    expect(deleted).toEqual([])
   })
 })

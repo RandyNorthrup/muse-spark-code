@@ -4690,6 +4690,84 @@ describe('ConversationController: account & usage (M8)', () => {
     expect(port.deleteAllOurs).not.toHaveBeenCalled()
   })
 
+  it('drops a previous-generation report and failure instead of posting', async () => {
+    const report = uploadedFilesReportFixture()
+    const port = fakeUploadedFilesLedger(report)
+    const t = setup({ uploadedFiles: port })
+    const errorNotices = () =>
+      t.surface.posted.filter((message) => message.type === 'notice' && message.level === 'error')
+    const errorsBefore = errorNotices().length
+    // Success path: hold the read, change the generation, then let it land.
+    const successGate = new AbortController()
+    port.read.mockImplementationOnce(
+      () =>
+        new Promise<typeof report>((resolve) => {
+          successGate.signal.addEventListener(
+            'abort',
+            () => {
+              resolve(report)
+            },
+            { once: true },
+          )
+        }),
+    )
+    const reading = t.controller.readUploadedFiles()
+    while (port.read.mock.calls.length === 0) await new Promise((settle) => setImmediate(settle))
+    t.auth.admissionGeneration += 1
+    successGate.abort()
+    await reading
+    expect(port.post).not.toHaveBeenCalled()
+    // Failure path: the same race with a rejecting read says nothing either.
+    const failureGate = new AbortController()
+    port.read.mockImplementationOnce(
+      () =>
+        new Promise<typeof report>((_resolve, reject) => {
+          failureGate.signal.addEventListener(
+            'abort',
+            () => {
+              reject(new Error('stale read'))
+            },
+            { once: true },
+          )
+        }),
+    )
+    const failing = t.controller.readUploadedFiles()
+    while (port.read.mock.calls.length === 1) await new Promise((settle) => setImmediate(settle))
+    t.auth.admissionGeneration += 1
+    failureGate.abort()
+    await failing
+    expect(port.post).not.toHaveBeenCalled()
+    expect(errorNotices()).toHaveLength(errorsBefore)
+  })
+
+  it('drops a report when the account changes under the same generation', async () => {
+    const report = uploadedFilesReportFixture()
+    const port = fakeUploadedFilesLedger(report)
+    let account: string | undefined = 'a'.repeat(64)
+    const t = setup({ uploadedFiles: port, voiceAccountId: () => Promise.resolve(account) })
+    const gate = new AbortController()
+    port.read.mockImplementationOnce(
+      () =>
+        new Promise<typeof report>((resolve) => {
+          gate.signal.addEventListener(
+            'abort',
+            () => {
+              resolve(report)
+            },
+            { once: true },
+          )
+        }),
+    )
+    const reading = t.controller.readUploadedFiles()
+    while (port.read.mock.calls.length === 0) await new Promise((settle) => setImmediate(settle))
+    // The key switched with no generation bump: the held read's account no
+    // longer backs the view, so its report is dropped, not posted.
+    account = 'b'.repeat(64)
+    gate.abort()
+    await reading
+    expect(port.post).not.toHaveBeenCalled()
+  })
+
   it('refuses byte-bearing uploaded-file reports and does not post after disposal', async () => {
     const byteReport = {
       provider: 'meta',

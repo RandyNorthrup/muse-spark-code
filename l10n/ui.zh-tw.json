@@ -386,7 +386,7 @@
   "referenceAttachments": "選取或拖放檔案以附加，並將圖像貼到輸入框。PNG、JPEG、GIF和WebP需要支援視覺的模型。PDF需要Model API。可附加可信工作區中已索引的文字檔案；受保護或機密檔案會遭拒絕。以下限制在傳送前生效。",
   "referenceScreenRecording": "此版本不支援直接錄製螢幕。請選擇現有的錄製檔案。",
   "referenceLatestRecording": "Attach the most recent screen recording again without recording a new one. 需要可讀取的錄製檔案和經過驗證的影片上傳支援。",
-  "referenceUploadedFiles": "List the files uploaded for this conversation and delete them before they expire. Deleting a file another app also uses asks first. 需要整合供應商與帳戶的上傳儲存空間。",
+  "referenceUploadedFiles": "List the uploaded files of this account and delete them before they expire. Deleting a file another app also uses asks first. 需要整合供應商與帳戶的上傳儲存空間。",
   "referenceConversationActions": "重新命名、分叉或回退對話。回退可復原記錄的編輯和歷程；之後已變更的檔案會保留，命令列變更不在範圍內。輪次執行時的新訊息用於引導。Model API訊息可在下次請求前撤回；Muse Code引導會立即送達，因此只能撤回排隊的訊息。側聊複製已完成的輪次、清除目標並保持Plan；Muse Code檔案工具在Plan中仍可編輯。選取文字可回覆、詢問、評論或複製。",
   "referenceQuestions": "選擇答案並提交、用自己的話說明，或取消。提交的答案及說明會在對話中傳給 Muse。",
   "referenceQuestionsDeferral": "每個問題或 MCP 表單都有一張卡片，固定在訊息輸入欄上方。聊天記錄中待回答問題標記的回答按鈕會開啟或展開卡片，並聚焦第一個控制項，延後後也一樣。提交的答案及說明會在對話中傳給 Muse。超過 museSpark.questions.deferAfterSeconds（預設 60 秒；0 無限期等待）後，Muse 會繼續不依賴答案的工作；你可稍後回答或關閉卡片。延後回答是你自己的訊息，不會核准任何操作。下一個待回答的問題／上一個待回答的問題可切換卡片。排程的提示會立即延後問題，無介面的 exec 會拒絕問題。ACP：--questions-defer-after 設定期限；/questions 列出待回答的問題；/answer <n> <text> 回答其中一個。",
