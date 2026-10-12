@@ -156,7 +156,12 @@ function spec(
   }
 }
 
-const ENGINEERING: TeamRoleConfig = { role: 'engineering', pool: [ENTRY] }
+const ENGINEERING: TeamRoleConfig = {
+  role: 'engineering',
+  pool: [ENTRY],
+  // An editing worker says so explicitly; the untouched selector reads as Plan.
+  permissionMode: 'bypassPermissions',
+}
 const RESEARCH: TeamRoleConfig = { role: 'research', pool: [ENTRY] }
 
 async function changedTask() {
@@ -189,6 +194,51 @@ describe('the engine worker port', () => {
     expect(fixture.started).toEqual([])
   })
 
+  it('runs each saved permission mode in its own worker mode', async () => {
+    const fixture = await setup(() => Promise.resolve())
+    const modes = [
+      ['plan', 'denyUnmatched'],
+      ['manual', 'denyUnmatched'],
+      ['acceptEdits', 'denyUnmatched'],
+      ['auto', 'denyUnmatched'],
+      ['bypassPermissions', 'allowAll'],
+      // An untouched selector reads as the plan the editor shows.
+      [undefined, 'denyUnmatched'],
+    ] as const
+    for (const [index, [permissionMode, approvalMode]] of modes.entries()) {
+      const task = spec(
+        {
+          role: 'engineering',
+          pool: [ENTRY],
+          ...(permissionMode !== undefined && { permissionMode }),
+        },
+        `mode-task-${String(index)}`,
+      )
+      await fixture.ports.workers.run(task, new AbortController().signal)
+      expect(fixture.started.at(-1)?.approvalMode).toBe(approvalMode)
+    }
+  })
+  it('refuses an unsavable permission mode before creating a copy', async () => {
+    const fixture = await setup(() => Promise.resolve())
+    const task = spec({ role: 'engineering', pool: [ENTRY], permissionMode: 'wide-open' })
+    await expect(fixture.ports.workers.run(task, new AbortController().signal)).rejects.toThrow()
+    expect(fixture.started).toEqual([])
+  })
+  it('a Plan role worker cannot edit its copy', async () => {
+    // The fake session honors the documented session contract: anything but
+    // allowAll denies edits (denyUnmatched is read and reason only).
+    const fixture = await setup(async (folder) => {
+      if (fixture.started.at(-1)?.approvalMode !== 'allowAll') return
+      await writeFile(path.join(folder, 'tracked.txt'), 'after\n')
+    })
+    const outcome = await fixture.ports.workers.run(
+      spec({ role: 'engineering', pool: [ENTRY], permissionMode: 'plan' }),
+      new AbortController().signal,
+    )
+    expect(fixture.started[0]?.approvalMode).toBe('denyUnmatched')
+    expect(outcome.changedFiles ?? []).toEqual([])
+    expect(outcome.head).toBe(outcome.baseCommit)
+  })
   it('enforces the saved custom charter while retaining the actual read-only tool fence', async () => {
     const fixture = await setup(() => Promise.resolve())
     const role = teamSnapshotSchema.parse({
