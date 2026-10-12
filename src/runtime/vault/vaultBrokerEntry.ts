@@ -25,12 +25,8 @@ import { KeyringVaultAnchor } from './keyringAnchor'
 import { type KeyringEntryFactory } from '../keyStore'
 import { PosixVaultSlots } from './slots/posixVaultSlots'
 import { startVaultBrokerProcess } from './brokerProcess'
-import {
-  holdVaultStartupLock,
-  vaultPeerExecutable,
-  vaultProcessIdentity,
-  vaultSocketDescriptors,
-} from './posixNative'
+import { vaultPeerExecutable, vaultProcessIdentity, vaultSocketDescriptors } from './posixNative'
+import { bumpVaultEpoch } from './epochContender'
 import {
   UI_TEXT,
   VAULT_LIMITS,
@@ -135,24 +131,21 @@ export async function createVaultBrokerProcess(
         epoch: {
           current: () => epoch.current(),
           bump: async (authorize) => {
-            // Epoch is shared across session/protocol brokers; its exclusive writer must never contend.
-            const held = await holdVaultStartupLock(
+            // Epoch is shared across session/protocol brokers; a contender
+            // that finds the exclusive writer claimed decides by rule under
+            // the kernel mutex (dead holder replaced, live holder awaited
+            // then refused with the fixed reason), never an unhandled EEXIST.
+            // The owner is this broker's startup-proven identity.
+            return await bumpVaultEpoch(
               helper,
-              path.join(context.runDirectory, 'lock-epoch.lock'),
-              true,
+              context.runDirectory,
+              privateFiles,
+              {
+                processId: location.lock.processId,
+                startedAt: location.lock.startedAt,
+              },
+              authorize,
             )
-            let hasLostLock = false
-            held.onLost(() => {
-              hasLostLock = true
-            })
-            try {
-              return await epoch.bump(() => {
-                if (hasLostLock) throw new Error(UI_TEXT.vault.noAccess)
-                authorize?.()
-              })
-            } finally {
-              await held.release()
-            }
           },
           subscribe: (listener) => {
             const unsubscribe = epoch.subscribe(listener)
