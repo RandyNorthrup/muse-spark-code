@@ -352,6 +352,18 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Paid-use and credential failures now report their true reason instead of a
+  misleading one. An "always" a store cannot keep still allows the current
+  use once, but the log names only the failure's kind, never the store's
+  message. An unreadable quote folder or history choice is reported with its
+  kind instead of silently passing as no quotes or a refusal. A credential
+  snapshot the store cannot produce says the credential store failed
+  instead of asking for a key that would not help (an origin mismatch still
+  asks for the key). A broken account host or secret store reads as "could
+  not say" instead of "no account" or assumed presence. A stopped OAuth
+  sign-in stays a stop instead of reading as denied. Unexpected failures
+  keep their kind instead of wearing the expected code.
+
 - Local report sources sort every tied list to a total order, so the same
   inputs produce byte-identical source facts whatever order records arrive
   in: Git commits, tags, branches and worktrees break key ties on their
