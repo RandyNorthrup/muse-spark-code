@@ -204,7 +204,7 @@ describe('Dictation driver', () => {
     t.dictation.start()
     t.dictation.stop()
     t.child().emitLine({ type: 'stopped' })
-    expect(t.child().sent).toEqual(['start', 'stop', 'start', 'stop', 'stop'])
+    expect(t.child().sent).toEqual(['start', 'stop', 'start', 'stop'])
     expect(t.statuses.at(-1)).toBe('idle')
   })
 
@@ -218,6 +218,21 @@ describe('Dictation driver', () => {
     t.dictation.start()
     expect(t.children).toHaveLength(2)
     expect(t.child(1).sent).toEqual([])
+  })
+
+  it('clears the stop deadline when the helper acknowledges synchronously', () => {
+    const t = listening()
+    const send = t.child().send.bind(t.child())
+    vi.spyOn(t.child(), 'send').mockImplementation((line) => {
+      send(line)
+      if (line === 'stop') t.child().emitLine({ type: 'stopped' })
+    })
+    t.dictation.stop()
+    expect(t.statuses.at(-1)).toBe('idle')
+    // Only warm-helper expiry remains: the acknowledged stop has no timer.
+    expect(vi.getTimerCount()).toBe(1)
+    t.dictation.dispose()
+    expect(vi.getTimerCount()).toBe(0)
   })
 
   it('keeps the helper warm for the next start and quits it after the idle timeout', () => {

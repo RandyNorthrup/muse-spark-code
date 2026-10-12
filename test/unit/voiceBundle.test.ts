@@ -7,8 +7,17 @@
 import { copyFileSync, mkdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
+import { createHash } from 'node:crypto'
+import { runInNewContext } from 'node:vm'
+import { Usd } from '../../src/shared/usd'
+import type { SessionBudgetJournal } from '../../src/core/backends/modelapi/sessionBudget'
 import type { DictationHandle, DictationListener } from '../../src/core/voice/dictation'
-import { deferredDriver, isVoiceBundle, voiceLoader } from '../../src/host/voice/voiceBundle'
+import {
+  deferredDriver,
+  isVoiceBundle,
+  ownedMetaVoiceBudgetScope,
+  voiceLoader,
+} from '../../src/host/voice/voiceBundle'
 import { UI_TEXT, VOICE_BUNDLE_FILE } from '../../src/shared/constants'
 import { uiLocale } from '../../src/shared/l10n/text'
 import { FakeLogOutputChannel } from './helpers/fakes'
@@ -87,7 +96,7 @@ describe('deferredDriver', () => {
     expect(make).toHaveBeenCalledOnce()
     expect(driver.start).toHaveBeenCalledTimes(2)
     expect(driver.stop).toHaveBeenCalledOnce()
-    deferred.dispose()
+    void deferred.dispose()
     expect(driver.dispose).toHaveBeenCalledOnce()
   })
 
@@ -112,7 +121,7 @@ describe('deferredDriver', () => {
   it('makes nothing once disposed', () => {
     const make = vi.fn(() => fakeDriver())
     const deferred = deferredDriver(recorder().listener, make)
-    deferred.dispose()
+    void deferred.dispose()
     deferred.start()
     expect(make).not.toHaveBeenCalled()
   })
@@ -143,7 +152,7 @@ describe('the shipped voice bundle', () => {
     })
     driver.stop()
     await stopped
-    driver.dispose()
+    await driver.dispose()
     expect(told.statuses).toEqual(['starting', 'listening', 'idle'])
     expect(told.errors).toEqual([])
   })
@@ -165,7 +174,7 @@ describe('the shipped voice bundle', () => {
     )
     driver.start()
     expect(await failed).toBe('Marker no key.')
-    driver.dispose()
+    await driver.dispose()
   })
 
   it('fails the first recording with the reason while the file is missing, and records once it is back', async () => {
@@ -187,6 +196,106 @@ describe('the shipped voice bundle', () => {
     await vi.waitFor(() => {
       expect(told.texts).toEqual(['hello'])
     })
-    driver.dispose()
+    await driver.dispose()
   })
+})
+
+describe('Meta-owned voice budget (RVCM352 P2 identity)', () => {
+  it('binds only Meta identity and keeps its context fence after journal initialization', async () => {
+    const total = { spentUsd: Usd.from(0).toAmount(), hasUnknownHistoricalFees: false }
+    const read = vi.fn(() => Promise.resolve(total))
+    const journal: SessionBudgetJournal = {
+      read,
+      reserve: () => Promise.reject(new Error('unused')),
+      record: () => Promise.resolve(total),
+    }
+    const context = { isCurrent: true }
+    const deps = {
+      journal,
+      sessionId: 'voice-parent',
+      accountId: 'meta-key-digest',
+      capUsd: () => Usd.from(1).toAmount(),
+      isCurrent: () => context.isCurrent,
+    }
+    const scope = await ownedMetaVoiceBudgetScope(deps)
+    expect(read).toHaveBeenCalledExactlyOnceWith('voice-parent', 'meta-key-digest')
+    expect(scope?.journal).toBe(journal)
+    expect(scope?.capUsd()).toBe(Usd.from(1).toAmount())
+    expect(scope?.isStillAllowed('meta-key-digest')).toBe(true)
+    expect(scope?.isStillAllowed('other-provider-digest')).toBe(false)
+    expect(scope?.isStillAllowed(undefined)).toBe(false)
+    context.isCurrent = false
+    expect(scope?.isStillAllowed('meta-key-digest')).toBe(false)
+    await expect(ownedMetaVoiceBudgetScope(deps)).rejects.toThrow(
+      UI_TEXT.sessionBudgetVoiceContextChanged,
+    )
+    expect(await ownedMetaVoiceBudgetScope({ ...deps, journal: undefined })).toBeUndefined()
+  })
+})
+
+it('production voice callbacks bind Meta scopes and never fall back to the conversation provider', async () => {
+  const source = readFileSync(new URL('../../src/extension.ts', import.meta.url), 'utf8')
+  const start = source.indexOf('          voiceAccountId:')
+  const end = source.indexOf('          exports:', start)
+  expect(start).toBeGreaterThan(-1)
+  expect(end).toBeGreaterThan(start)
+  const key: { current: string | undefined } = { current: 'voice-test-key' }
+  const digest = createHash('sha256')
+    .update(key.current ?? '')
+    .digest('hex')
+  const total = { spentUsd: Usd.from(0).toAmount(), hasUnknownHistoricalFees: false }
+  const journal: SessionBudgetJournal = {
+    read: () => Promise.resolve(total),
+    reserve: () => Promise.reject(new Error('unused')),
+    record: () => Promise.resolve(total),
+  }
+  const bindings = {
+    credentials: { getApiKey: () => Promise.resolve(key.current) },
+    createHash,
+    modelApi: {
+      accountId: () => Promise.resolve(key.current === undefined ? 'provider-digest' : digest),
+      ensureHost: () =>
+        Promise.resolve({
+          getOwnedBudgetScope: () =>
+            Promise.resolve({
+              sessionId: 'parent',
+              accountId: digest,
+              journal,
+              isStillAllowed: (actual: string | undefined) => actual === 'provider-digest',
+            }),
+        }),
+    },
+    modelApiStore: () => ({ budget: journal }),
+    auth: { admissionGeneration: 1, current: { backend: 'modelApi' } },
+    currentSettings: () => ({ modelApiSessionBudgetUsd: Usd.from(1).toAmount() }),
+    ownedMetaVoiceBudgetScope,
+    isProjectTrusted: () => true,
+    nativeStarts: { signal: new AbortController().signal },
+    UI_TEXT,
+    digest,
+  }
+  const done = Promise.withResolvers<unknown>()
+  runInNewContext(
+    `(async () => {
+    const deps = ({${source.slice(start, end)}});
+    const scope = await deps.ownedVoiceBudgetScope('parent');
+    return { account: await deps.voiceAccountId(), scopeAccount: scope.accountId,
+      metaAllowed: scope.isStillAllowed(digest), providerAllowed: scope.isStillAllowed('provider-digest') };
+  })().then(resolve, reject)`,
+    { ...bindings, resolve: done.resolve, reject: done.reject },
+  )
+  expect(await done.promise).toEqual({
+    account: digest,
+    scopeAccount: digest,
+    metaAllowed: true,
+    providerAllowed: false,
+  })
+  key.current = undefined
+  const missing = Promise.withResolvers<unknown>()
+  runInNewContext(`({${source.slice(start, end)}}).voiceAccountId().then(resolve, reject)`, {
+    ...bindings,
+    resolve: missing.resolve,
+    reject: missing.reject,
+  })
+  expect(await missing.promise).toBeUndefined()
 })

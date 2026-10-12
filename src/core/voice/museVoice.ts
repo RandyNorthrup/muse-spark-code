@@ -456,24 +456,16 @@ interface VoiceBudgetState {
 /**
  * The microphone on the paid engine: the capture helper records, each
  * recording is streamed as it is made, and its transcript is the listener's
- * text. A recording's stream finishes on its own after the release, so the
- * next press can start the next one at once.
+ * text. A stop acknowledgement retires its helper before the next capture;
+ * its socket may continue finishing while the next recording begins.
  */
 export class MuseVoiceDictation implements DictationHandle {
-  private readonly capture: DictationHandle
-  /**
-   * Every recording has an identity: the one being made, plus the stopped
-   * ones still waiting for the helper's acknowledgement. A helper event for
-   * a recording that is no longer current goes to its own stream — audio to
-   * the stopped one until the next goes live, "stopped" to the oldest
-   * waiter — never to the current one.
-   */
-  private current:
-    { readonly id: number; readonly stream: MuseVoiceStream; isLive: boolean } | undefined
-  private readonly awaitingStop: { readonly id: number; readonly stream: MuseVoiceStream }[] = []
+  /** Each helper instance and callback belongs to exactly one recording. */
+  private readonly captures = new Map<MuseVoiceStream, DictationHandle>()
+  private current: { readonly id: number; readonly stream: MuseVoiceStream } | undefined
   private nextRecordingId = 0
-  /** Stop requested for the current recording, its acknowledgement pending. */
   private isStopping = false
+  private isStartPending = false
   /** Every stream still open, the finishing ones included (a dispose ends them). */
   private readonly open = new Set<MuseVoiceStream>()
   private readonly budgets = new Map<MuseVoiceStream, VoiceBudgetState>()
@@ -483,54 +475,78 @@ export class MuseVoiceDictation implements DictationHandle {
   private preparingStream: MuseVoiceStream | undefined
   /** Every stop and dispose cancels the preparation still running. */
   private prepareAttempt = 0
-  /** The running preparation, so dispose can wait for its writes. */
-  private preparePromise: Promise<void> | undefined
+  /** Include cancelled preparations still releasing liability when another start arrives. */
+  private readonly preparations = new Set<Promise<void>>()
   private lastStatus: DictationStatus | undefined
   private isDisposed = false
 
   public constructor(
     private readonly deps: MuseVoiceDeps,
     private readonly listener: DictationListener,
-  ) {
-    this.capture = deps.createCapture({
+  ) {}
+
+  private createCapture(stream: MuseVoiceStream): DictationHandle {
+    return this.deps.createCapture({
       onStatus: (status) => {
-        if (status === 'listening' && this.current !== undefined) {
-          this.current.isLive = true
-        }
-        this.setStatus(status)
+        if (
+          this.current?.stream === stream &&
+          !this.isDisposed &&
+          !(status === 'idle' && this.isStopping)
+        )
+          this.setStatus(status)
       },
       onText: ignoreWords,
       onAudio: (pcm) => {
-        this.audioTarget()?.push(pcm)
+        if (this.captures.has(stream)) stream.push(pcm)
       },
-      // Every byte has arrived: the stream asks for its transcript.
       onStopped: () => {
-        const waiter = this.awaitingStop.shift()
-        if (waiter !== undefined) {
-          waiter.stream.finish()
-          return
+        if (!this.captures.has(stream) || this.isDisposed) return
+        // Retire this helper before allowing another recording. A trailing
+        // event from it retains this closure and can never touch the next.
+        this.releaseCapture(stream)
+        if (this.current?.stream === stream) {
+          this.current = undefined
+          this.isStopping = false
         }
-        const stream = this.current?.stream
-        this.current = undefined
-        this.isStopping = false
-        stream?.finish()
+        stream.finish()
+        this.startPending()
       },
       onError: (reason) => {
-        // The helper died: every unfinished recording ends on its own
-        // stream, and none of them survives into the next press.
-        const unfinished = [
-          ...this.awaitingStop.splice(0).map((waiter) => waiter.stream),
-          ...(this.current === undefined ? [] : [this.current.stream]),
-        ]
-        this.current = undefined
-        this.isStopping = false
-        for (const stream of unfinished) {
-          stream.abort()
-          this.settle(stream)
-        }
-        listener.onError(reason)
+        if (!this.captures.has(stream) || this.isDisposed) return
+        this.releaseCapture(stream)
+        stream.abort()
+        this.settle(stream)
+        this.listener.onError(reason)
+        this.startPending()
       },
     })
+  }
+
+  private releaseCapture(stream: MuseVoiceStream): void {
+    const capture = this.captures.get(stream)
+    this.captures.delete(stream)
+    if (this.current?.stream === stream) {
+      this.current = undefined
+      this.isStopping = false
+    }
+    if (capture === undefined) return
+    const disposal = (async () => {
+      await capture.dispose()
+    })()
+    this.settling.add(disposal)
+    void disposal
+      .finally(() => this.settling.delete(disposal))
+      .catch(() => {
+        this.deps.log.warn('Muse Voice capture cleanup failed')
+      })
+  }
+
+  private startPending(): void {
+    if (this.current !== undefined || this.isDisposed) return
+    this.setStatus('idle')
+    if (!this.isStartPending) return
+    this.isStartPending = false
+    this.start()
   }
 
   /** The button state, without repeats (the preparation and the capture both announce). */
@@ -542,26 +558,11 @@ export class MuseVoiceDictation implements DictationHandle {
     this.listener.onStatus(status)
   }
 
-  /**
-   * The stream audio belongs to: the live recording, else the stopped one
-   * still waiting for its acknowledgement, else the one not yet live. A
-   * recording that already finished never hears again (M35, the restart race).
-   */
-  private audioTarget(): MuseVoiceStream | undefined {
-    if (this.current?.isLive === true) {
-      return this.current.stream
-    }
-    const waiter = this.awaitingStop.at(-1)
-    return waiter === undefined ? this.current?.stream : waiter.stream
-  }
-
   /** A stream that ended: its seconds are counted, once. */
   private settle(stream: MuseVoiceStream): void {
-    const index = this.awaitingStop.findIndex((waiter) => waiter.stream === stream)
-    if (index !== -1) {
-      this.awaitingStop.splice(index, 1)
-    }
-    if (this.current?.stream === stream) {
+    // A final may beat the helper's stop acknowledgement at the hard cap.
+    // Settling money must not release microphone ownership early.
+    if (this.current?.stream === stream && !this.captures.has(stream)) {
       this.current = undefined
       this.isStopping = false
     }
@@ -619,10 +620,11 @@ export class MuseVoiceDictation implements DictationHandle {
       .toAmount()
     // A missing final keeps the reservation; known nonsends and idle refund.
     const amount = isUnknown ? this.reservationUsd() : estimate
-    const results = await Promise.allSettled([
-      state.claim?.settle(amount, isUnknown),
-      state.daily?.settle(amount, isUnknown),
-    ])
+    // An async boundary catches a synchronous throw while still starting
+    // both writes immediately and independently.
+    const settle = async (claim: Pick<VoiceDailyClaim, 'settle'> | undefined) =>
+      await claim?.settle(amount, isUnknown)
+    const results = await Promise.allSettled([settle(state.claim), settle(state.daily)])
     if (results.every((result) => result.status === 'fulfilled')) return
     this.deps.log.warn('Muse Voice spend was not saved')
     if (!this.isDisposed) this.listener.onError(UI_TEXT.sessionBudgetStoreUnavailable)
@@ -661,6 +663,8 @@ export class MuseVoiceDictation implements DictationHandle {
     }
     const withdrawPreparation = (): void => {
       endPreparation()
+      stream.abort()
+      this.releaseCapture(stream)
       this.open.delete(stream)
       this.budgets.delete(stream)
     }
@@ -714,12 +718,13 @@ export class MuseVoiceDictation implements DictationHandle {
         return
       }
       stream.start(sendingKey)
+      if (!this.isStreamOpen(stream)) return
       isAdmitted = true
       endPreparation()
       // The microphone starts only now: the key is read and both durable
       // reservations have succeeded, so a refusal never records and never
       // triggers the system's microphone prompt.
-      this.capture.start()
+      this.captures.get(stream)?.start()
     } catch (error: unknown) {
       endPreparation()
       stream.fail(error instanceof Error ? error.message : String(error))
@@ -729,7 +734,10 @@ export class MuseVoiceDictation implements DictationHandle {
       endPreparation()
       // A cancelled start refunds its partial admission without usage noise;
       // a failed stream already settled itself (its guard says settled).
-      if (!isAdmitted) await this.settleBudget(state, stream)
+      if (!isAdmitted || !this.open.has(stream)) {
+        await this.settleBudget(state, stream)
+        this.startPending()
+      }
     }
   }
 
@@ -788,7 +796,7 @@ export class MuseVoiceDictation implements DictationHandle {
         onLimit: () => {
           // The cap belongs to its own recording: only a live current one
           // still holds the microphone.
-          if (this.current?.stream === stream) this.stop()
+          if (this.current?.stream === stream && !this.isStopping) this.stop()
         },
         onFinal: (text) => {
           this.settle(stream)
@@ -809,7 +817,8 @@ export class MuseVoiceDictation implements DictationHandle {
           const isCurrent = this.current?.stream === stream
           this.settle(stream)
           if (isCurrent) {
-            this.capture.stop()
+            this.releaseCapture(stream)
+            this.startPending()
           }
           this.listener.onError(reason)
         },
@@ -821,66 +830,75 @@ export class MuseVoiceDictation implements DictationHandle {
   }
 
   public start(): void {
-    // A press while the previous stop is still unacknowledged starts the
-    // next recording at once: the driver holds both identities, and the
-    // capture layer only begins it once the old stop is acknowledged. A
-    // press while a start is still preparing is dropped: one attempt at a
-    // time, cancelled by stop or dispose.
-    if (this.isDisposed || this.current !== undefined || this.preparingStream !== undefined) {
+    if (this.isDisposed) return
+    if (this.isStopping) {
+      this.isStartPending = true
       return
     }
-    this.isStopping = false
+    if (this.current !== undefined) return
+    if (this.preparingStream !== undefined) {
+      this.isStartPending = true
+      return
+    }
     this.prepareAttempt += 1
     const attempt = this.prepareAttempt
     this.setStatus('starting')
     const id = this.nextRecordingId
     this.nextRecordingId += 1
     const built = this.newStream(this.deps.apiKey())
-    this.current = { id, stream: built.stream, isLive: false }
+    this.current = { id, stream: built.stream }
+    this.captures.set(built.stream, this.createCapture(built.stream))
     this.preparingStream = built.stream
-    this.preparePromise = this.prepareStream(
+    const preparation = this.prepareStream(
       built.stream,
       built.state,
       built.key,
       built.consentFence,
       attempt,
     )
+    this.preparations.add(preparation)
+    void preparation
+      .finally(() => this.preparations.delete(preparation))
+      .catch(() => {
+        this.deps.log.warn('Muse Voice admission cleanup failed')
+      })
   }
 
   public stop(): void {
-    // A preparation still running ends here: nothing was captured, so there
-    // is nothing to finish, and the attempt refunds below.
+    this.isStartPending = false
     this.prepareAttempt += 1
-    this.capture.stop()
     const recording = this.current
-    if (recording === undefined || this.isStopping) {
+    if (recording === undefined || this.isStopping) return
+    if (recording.stream === this.preparingStream) {
+      this.current = undefined
+      recording.stream.abort()
+      this.releaseCapture(recording.stream)
+      this.setStatus('idle')
       return
     }
+    // Keep its identity until acknowledgement (or Dictation's bounded force).
+    // Set before stop: fake and Linux helpers may acknowledge synchronously.
     this.isStopping = true
-    this.current = undefined
-    if (recording.stream !== this.preparingStream) {
-      this.awaitingStop.push(recording)
-    }
+    this.captures.get(recording.stream)?.stop()
   }
 
   /** Stops the capture, closes every socket, and waits for admission and settlement writes. */
   public async dispose(): Promise<void> {
     this.isDisposed = true
     this.prepareAttempt += 1
-    const preparation = this.preparePromise
-    this.preparePromise = undefined
+    const preparations = [...this.preparations]
     // A preparing recording never captured: its own attempt refunds it once
     // the pending write lands, so only the rest end here.
     const finishing = [...this.open].filter((stream) => stream !== this.preparingStream)
     this.current = undefined
     this.isStopping = false
-    this.awaitingStop.length = 0
-    await this.capture.dispose()
+    this.isStartPending = false
+    for (const stream of this.captures.keys()) this.releaseCapture(stream)
     for (const stream of finishing) {
       stream.abort()
       this.settle(stream)
     }
-    await preparation
+    await Promise.allSettled(preparations)
     for (const stream of this.open) {
       stream.abort()
       this.settle(stream)

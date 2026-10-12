@@ -4416,7 +4416,7 @@ export const EN = {
     'Muse may search the web while it answers. Each search is billed to your Model API key at {price}, on top of the tokens its results add. Deny sends the prompt without web search.',
   paidUseVoiceTitle: 'Record with Muse Voice?',
   paidUseVoiceDetail:
-    'Muse Voice bills your Model API key at {price}. Recordings stop at three minutes. Allow once covers this window; Always covers this workspace until revoked. Duration and estimated cost are shown; the provider’s bill cannot be read back. Deny leaves the microphone off.',
+    'Muse Voice is a Meta service and bills your Meta Model API key at {price}, regardless of the conversation model. Recordings stop at three minutes. Allow once covers this window; Always covers this workspace until revoked. Duration and estimated cost are shown; the provider’s bill cannot be read back. Deny leaves the microphone off.',
   paidWebSearchPrice: '{price} per 1,000 searches',
   paidImagePrice: '{price} per image',
   paidVoicePrice: '{price} per hour of audio',
@@ -4685,7 +4685,8 @@ export const EN = {
   dictationPaidTitle:
     'Muse Voice, paid: {price}, billed to your Model API key. Tap or hold to record (Ctrl+D)',
   // Why Muse Voice cannot record or transcribe.
-  museVoiceNoKey: 'Muse Voice needs a Model API key; sign in with one first.',
+  museVoiceNoKey:
+    'Muse Voice needs a Meta Model API key; add one even when your conversation uses another provider or a local model.',
   museVoiceNoAnswer: 'Muse Voice did not answer; check the connection and try again.',
   museVoiceIdle:
     'Muse Voice closed the recording because audio stopped arriving at real-time pace.',

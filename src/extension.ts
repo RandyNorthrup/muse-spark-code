@@ -122,6 +122,7 @@ import type { ReportPanel } from './host/reporting/reportPanel'
 // Extension host entry point. Kept to registration and adapter wiring; the
 // behaviour lives in src/host (VS Code adapters) and src/core (pure logic).
 
+import { createHash } from 'node:crypto'
 import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs'
 import { homedir, hostname, userInfo } from 'node:os'
 import { usagePanelLoader, isUsageBudgetBundle } from './host/usage/usagePanelBundle'
@@ -325,7 +326,7 @@ import type { WebviewHostContext } from './host/views/webviewSetup'
 import { loadUiTable, readUiTableFile } from './host/l10n'
 import type { InsightsReader } from './runtime/usage/traceLogs'
 import { createDictationSetup, createMuseVoiceSetup } from './host/voice/dictationHost'
-import { voiceLoader } from './host/voice/voiceBundle'
+import { ownedMetaVoiceBudgetScope, voiceLoader } from './host/voice/voiceBundle'
 import {
   createMediaAttachDeps,
   createMediaSourceOpen,
@@ -845,6 +846,7 @@ async function activateWindow(
   let promptHost: ReturnType<typeof createPromptHost> | undefined
 
   const controllers = new Map<string, ConversationController>()
+  const controllerDisposals = new Set<Promise<void>>()
   // Approvals and questions waiting on the user, shared by every surface's
   // controller so the session board marks them window-wide (M77).
   const boardPrompts = new PendingPrompts()
@@ -1895,6 +1897,7 @@ async function activateWindow(
       await auth.stopSignIn()
       await restartBackend('the window is closing', true)
     } finally {
+      await Promise.allSettled(controllerDisposals)
       await usageRecording.flush()
     }
   }
@@ -2527,6 +2530,28 @@ async function activateWindow(
       log,
       context: { workspaceRoot: root, storageRoot, l10n },
     })
+  const modelApiStore =
+    context.storageUri === undefined
+      ? undefined
+      : lazyFileSessionStore({
+          bundlePath: vscode.Uri.joinPath(
+            context.extensionUri,
+            'dist',
+            MODEL_API_SESSIONS_BUNDLE_FILE,
+          ).fsPath,
+          log,
+          store: {
+            directory: path.join(context.storageUri.fsPath, MODEL_API_SESSIONS_DIR),
+            questions: questionsStore,
+            log,
+            retentionDays: () => currentSettings().cleanupPeriodDays,
+            now: () => Date.now(),
+            sleep: (ms) =>
+              new Promise((resolve) => {
+                setTimeout(resolve, ms)
+              }),
+          },
+        })
   const modelApi = new ModelApiBackendManager({
     onServiceFailure: () => {
       notify(
@@ -2611,28 +2636,7 @@ async function activateWindow(
     // Sessions survive the window (PLAN.md D14) in the workspace storage
     // directory; no folder open, no storage, no persistence. The store is
     // dist/modelApiSessions.js, required when the host is first built.
-    store:
-      context.storageUri === undefined
-        ? undefined
-        : lazyFileSessionStore({
-            bundlePath: vscode.Uri.joinPath(
-              context.extensionUri,
-              'dist',
-              MODEL_API_SESSIONS_BUNDLE_FILE,
-            ).fsPath,
-            log,
-            store: {
-              directory: path.join(context.storageUri.fsPath, MODEL_API_SESSIONS_DIR),
-              questions: questionsStore,
-              log,
-              retentionDays: () => currentSettings().cleanupPeriodDays,
-              now: () => Date.now(),
-              sleep: (ms) =>
-                new Promise((resolve) => {
-                  setTimeout(resolve, ms)
-                }),
-            },
-          }),
+    store: modelApiStore,
     scheduleStore:
       context.storageUri === undefined
         ? undefined
@@ -3535,13 +3539,28 @@ async function activateWindow(
             return museVoiceSetup
           },
           modelApiSessionBudgetUsd: () => currentSettings().modelApiSessionBudgetUsd,
-          voiceAccountId: () => modelApi.accountId(),
+          // Muse Voice is a Meta service: its account is the stored Meta
+          // key's own digest, never the selected conversation provider's,
+          // and undefined when no Meta key exists (the press then says why).
+          voiceAccountId: async () => {
+            const key = await credentials.getApiKey()
+            return key === undefined ? undefined : createHash('sha256').update(key).digest('hex')
+          },
           ownedVoiceBudgetScope: async (sessionId) => {
-            if (auth.current.backend !== 'modelApi') {
-              throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
-            }
-            const host = await modelApi.ensureHost()
-            return await host.getOwnedBudgetScope(sessionId)
+            const authGeneration = auth.admissionGeneration
+            const key = await credentials.getApiKey()
+            if (key === undefined) throw new Error(UI_TEXT.museVoiceNoKey)
+            return await ownedMetaVoiceBudgetScope({
+              journal: modelApiStore?.().budget,
+              sessionId,
+              accountId: createHash('sha256').update(key).digest('hex'),
+              capUsd: () => currentSettings().modelApiSessionBudgetUsd,
+              isCurrent: () =>
+                auth.current.backend === 'modelApi' &&
+                authGeneration === auth.admissionGeneration &&
+                isProjectTrusted() &&
+                !nativeStarts.signal.aborted,
+            })
           },
           exports: cliFeatures.exports,
           transferFiles: createSessionTransferFiles(),
@@ -3870,7 +3889,14 @@ async function activateWindow(
 
   registry.onRemoved((surface) => {
     promptHost?.close(surface)
-    controllers.get(surface.id)?.dispose()
+    const controller = controllers.get(surface.id)
+    if (controller !== undefined) {
+      const disposal = controller.disposeAsync()
+      controllerDisposals.add(disposal)
+      void disposal
+        .finally(() => controllerDisposals.delete(disposal))
+        .catch(logRejection(log, 'conversation cleanup'))
+    }
     controllers.delete(surface.id)
     tasksTabs.get(surface.id)?.release()
   })
