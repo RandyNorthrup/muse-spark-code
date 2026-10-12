@@ -4552,21 +4552,17 @@ describe('ConversationController: account & usage (M8)', () => {
     const t = setup({ usageInsightsError: new Error('EACCES') })
     t.server.handle('usage/read', () => ({ usage }))
     await t.controller.handle({ type: 'readUsage' })
-    // The trace failure is logged, not shown: the subscription stands alone.
-    expect(t.surface.posted.at(-1)).toEqual({
+    const expectedReport = {
       type: 'usageReport',
       backend: 'museCode',
       account,
       subscription: usage,
-    })
+    }
+    // The trace failure is logged, not shown: the subscription stands alone.
+    expect(t.surface.posted.at(-1)).toEqual(expectedReport)
     t.server.notify('usage/changed', usage)
     await settle()
-    expect(t.surface.posted.at(-1)).toEqual({
-      type: 'usageReport',
-      backend: 'museCode',
-      account,
-      subscription: usage,
-    })
+    expect(t.surface.posted.at(-1)).toEqual(expectedReport)
   })
   it('answers readUsage with the backend and the window, then follows usage/changed', async () => {
     const t = setup()

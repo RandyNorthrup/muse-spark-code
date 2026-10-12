@@ -17,11 +17,6 @@ export function realHome(): string {
   return home
 }
 
-/** The real per-user app-data folder on Windows (a per-user Chrome lives under it). */
-export function realLocalAppData(): string | undefined {
-  return process.env['MUSE_UNIT_REAL_LOCALAPPDATA'] ?? process.env['LOCALAPPDATA']
-}
-
 /** The installed bun, where the machine has one (a rig's `~/.bun`). */
 export function bunPath(): string | undefined {
   const candidate = path.join(
