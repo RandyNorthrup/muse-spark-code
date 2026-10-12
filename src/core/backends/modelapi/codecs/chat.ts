@@ -208,7 +208,7 @@ export interface ChatCompletionRequest {
   readonly model: string
   readonly messages: readonly ChatMessage[]
   readonly tools?: readonly ChatFunctionTool[] | undefined
-  readonly tool_choice?: 'auto' | undefined
+  readonly tool_choice?: 'auto' | 'none' | undefined
   readonly parallel_tool_calls?: boolean | undefined
   readonly stream: true
   readonly stream_options?: { readonly include_usage: true } | undefined
@@ -555,10 +555,14 @@ export function encodeChatRequest(
       options?.cacheBreakpoints ?? 'none',
       suffix?.type === 'message' && suffix.role === 'developer',
     ),
-    ...(nativeTools.length > 0 && {
-      tools: nativeTools,
-      ...(quirks.toolChoice !== 'omit' && { tool_choice: 'auto' as const }),
-    }),
+    ...(body.tool_choice === 'none'
+      ? quirks.toolChoice === 'omit'
+        ? {}
+        : { tool_choice: 'none' as const }
+      : nativeTools.length > 0 && {
+          tools: nativeTools,
+          ...(quirks.toolChoice !== 'omit' && { tool_choice: 'auto' as const }),
+        }),
     ...(quirks.parallelToolCalls !== undefined && {
       parallel_tool_calls: quirks.parallelToolCalls,
     }),

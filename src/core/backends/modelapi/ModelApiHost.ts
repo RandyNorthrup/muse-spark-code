@@ -719,6 +719,8 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDep
   readonly budgetScope?: OwnedSessionBudgetScope
   /** Extension-owned preflight/actual-attempt hooks, composed with budget and child admission. */
   readonly admitResponseAttempt?: ResponseAttemptGuard | undefined
+  /** Remaining caller request allowance; absent uses the default turn cap. */
+  readonly remainingModelCalls?: (() => number) | undefined
   /** The git facts for the prompt's environment section (D15), read once per session. */
   readonly describeEnvironment: () => Promise<EnvironmentFacts>
   /** Whether a paid feature is on (M33–M35, PLAN.md D30): its setting, and its price accepted. */
@@ -1115,6 +1117,8 @@ interface PreparedAudioMessage {
 }
 
 export interface ActiveTurn {
+  /** Request-only wrap-up instruction, never persisted into conversation replay. */
+  wrapUpLimit?: number | undefined
   readonly draft?: PreparedGitDraft
   scheduleRun?: UnattendedRun
   /** Immutable evidence of content already sent before this fire took authority. */
@@ -4363,14 +4367,20 @@ export class ModelApiSession implements ScheduledAgentSession {
         content: [{ type: 'input_text', text: progress }],
       })
     }
+    const prompt = this.promptAndTools(
+      this.getScheduledRun() === undefined ? this.promptDate : localPromptDate(this.deps.now()),
+      resolved,
+    )
+    const wrapUpLimit = this.active?.wrapUpLimit
     const body = this.keyed({
       model: resolved.ref,
       input,
-      ...this.promptAndTools(
-        this.getScheduledRun() === undefined ? this.promptDate : localPromptDate(this.deps.now()),
-        resolved,
-      ),
-      tool_choice: 'auto',
+      ...prompt,
+      ...(wrapUpLimit !== undefined && {
+        instructions: `${prompt.instructions}\n\n${fill(MODEL_API_MODEL_TEXT.turnWrapUp, { limit: wrapUpLimit })}`,
+        tools: [],
+      }),
+      tool_choice: wrapUpLimit === undefined ? 'auto' : 'none',
       reasoning: {
         effort: effortForPolicy(resolved.policy, this.effort),
         summary: 'auto',
@@ -4381,7 +4391,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       max_output_tokens: this.outputCap(resolved),
       ...(this.outputFormat !== undefined && { text: this.outputFormat }),
     })
-    const draft = shouldFormatDraft ? this.active?.draft : undefined
+    const draft = shouldFormatDraft && wrapUpLimit === undefined ? this.active?.draft : undefined
     if (
       draft !== undefined &&
       (draft.signal.aborted ||
@@ -13399,7 +13409,10 @@ export class ModelApiSession implements ScheduledAgentSession {
     let isStopHookActive = false
     let stopContinuations = 0
     let outputContinuations = 0
-    for (let round = 0; round < MODEL_API_MAX_TOOL_ROUNDS; round += 1) {
+    const callLimit = this.deps.remainingModelCalls?.() ?? MODEL_API_MAX_TOOL_ROUNDS
+    for (let round = 0; round < callLimit; round += 1) {
+      const isLastRound = round === callLimit - 1
+      turn.wrapUpLimit = isLastRound ? callLimit : undefined
       if (isAbortRequested(signal)) {
         throw new AbortedError()
       }
@@ -13473,7 +13486,7 @@ export class ModelApiSession implements ScheduledAgentSession {
           streamed.incompleteReason === 'max_output_tokens' &&
           this.outputContinuation &&
           outputContinuations < MODEL_API_CONTINUATIONS_MAX &&
-          round < MODEL_API_MAX_TOOL_ROUNDS - 1
+          round < callLimit - 1
         ) {
           outputContinuations += 1
           this.emit({ type: 'backendNotice', level: 'info', text: UI_TEXT.modelApiContinuing })
@@ -13491,6 +13504,16 @@ export class ModelApiSession implements ScheduledAgentSession {
           })
         }
         return
+      }
+      if (isLastRound) {
+        // A provider ignoring the tools-disabled request cannot execute work.
+        this.skipCalls(
+          turn.turnId,
+          calls,
+          fill(MODEL_API_MODEL_TEXT.turnWrapUp, { limit: callLimit }),
+        )
+        this.appendHookContexts(turn.turnId, postContexts)
+        break
       }
       // One more model call without progress toward the goal (the step probe, D38).
       if (isGoalActive(this.goal)) {
@@ -13680,7 +13703,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         this.dropUndeliveredMedia(turn.turnId)
         return
       }
-      const verifyStop = await this.verifyRound(turn, round === MODEL_API_MAX_TOOL_ROUNDS - 1)
+      const verifyStop = await this.verifyRound(turn, isLastRound)
       if (verifyStop !== undefined) {
         // A check's hook stopped the turn after the round, as PostToolBatch can.
         this.dropUndeliveredMedia(turn.turnId)
@@ -13698,7 +13721,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     }
     this.promoteSteered(turn)
     this.outcomeStopReason = 'budget'
-    throw new ModelCallLimitError(MODEL_API_MAX_TOOL_ROUNDS)
+    throw new ModelCallLimitError(callLimit)
   }
 
   /** Child turns share checkpoint ownership with their top parent, even after it finishes. */

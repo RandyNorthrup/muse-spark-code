@@ -10,8 +10,9 @@ happened, not what was planned; superseded entries are kept.
 ### Fixed
 
 - Model API turns reaching the hidden 50-call bound stopped as an English
-  internal error. They now report a translated request-limit notice, return
-  ACP `max_turn_requests`, and accept a new message to continue.
+  internal error and lost their answer. They now reserve the last permitted
+  call for a summary without tools, keep it, report a translated request-limit
+  notice, return ACP `max_turn_requests`, and accept a new message to continue.
 
 ### Added
 

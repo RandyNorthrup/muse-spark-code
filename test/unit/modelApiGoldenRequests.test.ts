@@ -116,6 +116,7 @@ function capturingFetch(api: FakeModelApi, rawBodies: string[]): typeof fetch {
 async function baseSetup(
   files: Record<string, string>,
   options: {
+    readonly remainingModelCalls?: () => number
     readonly paidSubagents?: boolean
     readonly judge?: JudgeAdvisory
     readonly shouldUseStrictTools?: boolean
@@ -138,6 +139,7 @@ async function baseSetup(
     // A's date is local; preserve the same captured day on every test rig.
     now: () => new Date(1970, 0, 1).getTime() + base.now(),
     judge: options.judge,
+    remainingModelCalls: options.remainingModelCalls,
     outputContinuation: () => false,
     parallelReads: () => false,
 
@@ -965,4 +967,15 @@ describe('M106 production-default golden byte diff', () => {
       expect(onRaw).not.toContain('argumentPreview')
     }
   })
+})
+
+it('records the last permitted call as a tools-disabled wrap-up', async () => {
+  const harness = await baseSetup({}, { remainingModelCalls: () => 2 })
+  harness.api.script(
+    { calls: [{ name: 'get_goal', arguments: '{}', callId: 'last-read' }] },
+    { text: 'Done, found, remaining.' },
+  )
+  await harness.session.sendTurn([{ type: 'text', text: 'Review within the limit' }])
+  await harness.turnDone()
+  checkGolden('10-turn-limit-wrap-up', harness)
 })

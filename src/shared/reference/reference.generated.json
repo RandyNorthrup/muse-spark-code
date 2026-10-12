@@ -1622,7 +1622,7 @@
       "backends": ["modelApi"],
       "paid": false,
       "surfaces": ["vscode:modelApi", "acp:modelApi"],
-      "details": [{ "ui": "referenceBudget" }],
+      "details": [{ "ui": "referenceBudget" }, { "ui": "referenceTurnLimit" }],
       "facts": {},
       "editors": ["vscode", "acp"]
     },

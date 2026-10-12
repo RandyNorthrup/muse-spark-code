@@ -36,7 +36,34 @@ verify strikes and stop-hook continuations are not model-call turn caps.
   roadmap gates pass. Full `quality` belongs to the lead's integration run,
   per this rig brief; no browser is permitted here.
 
+## Piece 2 — wrap-up request
+
+The ordinary request builder adds the short model-facing limit note to the
+last request's instructions. It sets canonical `tools: []` and
+`tool_choice: none`. No other request changes. An unsolicited tool call in
+that reply is answered for valid replay and never executed. Steering and
+active goal wake reach the original post-loop promotion block.
+
+| Codec family                                                    | Tools disabled in built wire request                                                  |
+| --------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| Meta/direct Responses                                           | `tool_choice: none`, empty tools                                                      |
+| OpenAI/xAI Responses and ChatGPT Responses                      | `tool_choice: none`, empty tools; no empty namespace                                  |
+| Chat completions (OpenRouter, OpenAI-compatible vendors/custom) | `tool_choice: none` when the profile supports choice; otherwise omit tools and choice |
+| Anthropic Messages                                              | Omit tools and tool choice                                                            |
+| Gemini generateContent                                          | Omit tools and toolConfig                                                             |
+| Ollama chat                                                     | Omit tools and unsupported tool choice                                                |
+
+Codec-family assertions use real encoders with tool-result history retained.
+Red drills: remove the final-call wrap-up marker: the engine's no-tools
+assertion and new golden case fail; change Chat's supported `none` to `auto`:
+the codec assertion fails. Both source files restored byte for byte with
+`cmp` and SHA-256. Green: 151 tests in `toolRounds`, `toolRoundsCodecs` and
+`modelApiGoldenRequests` pass at repository default timeouts.
+
+The golden request suite adds only `10-turn-limit-wrap-up.json`; all existing
+fixtures stay byte-exact. No provider response shape has been added.
+
 ## Next slice
 
-Complete wrap-up request building, then replace the default with 200 and bind
+Replace the default with 200 and bind
 remaining caller allowances. Release-train integration follows lane completion.
