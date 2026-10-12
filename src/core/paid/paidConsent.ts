@@ -66,6 +66,16 @@ async function paidTeamRuntime() {
 export type PaidUseAnswer = 'once' | 'always' | 'deny'
 
 /**
+ * An "always" that was applied this time but could not be kept: the host
+ * tells the person when it happens, so being asked again never surprises.
+ */
+export interface PaidNotKeptNotice {
+  readonly feature: PaidFeature
+  /** The store failure's kind word, never its message. */
+  readonly kind: string
+}
+
+/**
  * What an allowing answer granted: `always` kept in this workspace, `window`
  * a window-once feature's once, `once` this use only (an "always" that could
  * not be kept, or a feature without a window once).
@@ -301,6 +311,11 @@ export interface PaidUseConsentDeps {
   readonly rememberGrant?: (feature: PaidFeature) => Promise<void>
   /** The popup; "always" is offered only when `canRemember` is true. */
   readonly ask: (request: PaidUseRequest, canRemember: boolean) => Promise<PaidUseAnswer>
+  /**
+   * Tells the person that "always" applied once but could not be kept.
+   * Every host provides it (editor, ACP, terminal); without it only the log knows.
+   */
+  readonly onNotKept?: (notice: PaidNotKeptNotice) => void
   readonly authority?: PaidAuthority
   readonly nextQuoteOrder?: () => number | Promise<number>
   readonly prepareQuoteGeneration?: () => Promise<string>
@@ -379,11 +394,14 @@ export class PaidUseConsent {
       // A store that cannot be written leaves this use allowed once (an
       // account decision approved under a revoked epoch is still refused by
       // its fence below). The log names only the failure's kind, never the
-      // store's message; anything that is not an error keeps its kind.
+      // store's message, and the person is told at once; anything that is
+      // not an error keeps its kind.
       if (!(error instanceof Error)) throw error
+      const kind = wireWordForLog(error.name)
       this.deps.log.warn(
-        `Paid use of ${feature}: "always" could not be kept, so it is allowed once (${wireWordForLog(error.name)})`,
+        `Paid use of ${feature}: "always" could not be kept, so it is allowed once (${kind})`,
       )
+      this.deps.onNotKept?.({ feature, kind })
       return false
     }
   }
@@ -407,9 +425,12 @@ export class PaidUseConsent {
       return await (this.deps.nextQuoteOrder?.() ?? this.authority.nextOrder(quote, prior))
     } catch (error: unknown) {
       // A quote order the store cannot hand out leaves the approved use
-      // allowed once; anything that is not an error keeps its kind.
+      // allowed once, and the person is told at once; anything that is not
+      // an error keeps its kind.
       if (!(error instanceof Error)) throw error
-      this.deps.log.warn(`Paid search quote could not be kept (${this.quoteNotKeptKind(error)})`)
+      const kind = this.quoteNotKeptKind(error)
+      this.deps.log.warn(`Paid search quote could not be kept (${kind})`)
+      this.deps.onNotKept?.({ feature: 'webSearch', kind })
       return undefined
     }
   }
@@ -597,9 +618,12 @@ export class PaidUseConsent {
         }
       } catch (error: unknown) {
         // A quote grant the store cannot keep leaves the approved use
-        // allowed once; anything that is not an error keeps its kind.
+        // allowed once, and the person is told at once; anything that is
+        // not an error keeps its kind.
         if (!(error instanceof Error)) throw error
-        this.deps.log.warn(`Paid search quote could not be kept (${this.quoteNotKeptKind(error)})`)
+        const kind = this.quoteNotKeptKind(error)
+        this.deps.log.warn(`Paid search quote could not be kept (${kind})`)
+        this.deps.onNotKept?.({ feature: 'webSearch', kind })
       }
       if (!isCurrent()) return undefined
       this.authority.dispatch({ type: 'saved', grant: effect.grant, ok: isOk })

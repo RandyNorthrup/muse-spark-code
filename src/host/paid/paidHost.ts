@@ -381,6 +381,16 @@ export function createPaidFeatures(deps: PaidFeaturesDeps): PaidFeatures {
     },
     ask: (request, canRemember) =>
       askPaidUse(request, canRemember, deps.dailyBudgetUsd?.(request.feature)),
+    // A choice that could not be saved is said at once, not only logged: the
+    // use was allowed and charged, and the person will be asked again.
+    onNotKept: (notice) => {
+      void vscode.window.showWarningMessage(
+        fill(UI_TEXT.paidAlwaysNotKept, {
+          feature: paidFeatureName(notice.feature),
+          kind: notice.kind,
+        }),
+      )
+    },
     log: deps.log,
   })
   const usage = new PaidUsage(deps.log, deps.usageRecording)
