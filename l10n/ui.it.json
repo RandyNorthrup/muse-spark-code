@@ -857,6 +857,7 @@
     "fileNoExpiry": "Nessuna scadenza impostata",
     "fileSessions": "Sessioni: {sessions}",
     "filesInUse": "Rimuovi questo file dalle sue sessioni prima di eliminarlo.",
+    "filesInUseRequest": "Questo file è in uso da una richiesta in corso. Riprova quando la risposta è terminata.",
     "deleteUploadedFiles": "Elimina i file caricati…",
     "deleteAllOurs": "Elimina tutti i nostri file",
     "otherAppFileConfirmation": "Un’altra app potrebbe usare ancora {name}. Eliminarlo comunque?",

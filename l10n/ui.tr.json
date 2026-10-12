@@ -853,6 +853,7 @@
     "fileNoExpiry": "Son kullanma tarihi ayarlanmamış",
     "fileSessions": "Oturumlar: {sessions}",
     "filesInUse": "Silmeden önce bu dosyayı bağlı olduğu oturumlardan kaldırın.",
+    "filesInUseRequest": "Bu dosya çalışan bir istek tarafından kullanılıyor. Yanıt bitince yeniden deneyin.",
     "deleteUploadedFiles": "Yüklenen dosyaları sil…",
     "deleteAllOurs": "Bize ait tüm dosyaları sil",
     "otherAppFileConfirmation": "Başka bir uygulama hâlâ {name} dosyasını kullanıyor olabilir. Yine de silinsin mi?",

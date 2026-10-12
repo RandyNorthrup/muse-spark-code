@@ -107,9 +107,20 @@ export async function runUploadsCommand(
   // computed index, where 0 would wrap to the last listed file.
   let file = report.files.find((entry) => entry.fileId === selector)
   if (file === undefined && /^\d+$/u.test(selector)) {
+    // Only a listed number selects: the listing prints `7`, never `007`,
+    // and `0` is not listed either (round 4, P3-1/P3-2). Anything else is
+    // refused with the not-found sentence, not the usage line.
     const number = Number(selector)
-    if (!Number.isSafeInteger(number) || number < 1)
-      throw RequestError.invalidParams(undefined, UI_TEXT.media.uploadsUsage)
+    if (
+      !Number.isSafeInteger(number) ||
+      number < 1 ||
+      number > report.files.length ||
+      String(number) !== selector
+    )
+      throw RequestError.invalidParams(
+        undefined,
+        fill(UI_TEXT.media.uploadNotFound, { id: selector }),
+      )
     file = report.files[number - 1]
   }
   if (file === undefined)
@@ -132,6 +143,9 @@ export async function runUploadsCommand(
       fill(UI_TEXT.media.uploadDeleteFailed, { name: file.name, reason: describeError(error) }),
     )
   }
-  input.send(uploadsText(await readReport(files)))
+  // THE CANCEL SIGNAL REACHES EVERY CLEANUP (round 4, P2-4): the listing
+  // after the delete carries the signal too, so its retry and sweep delete
+  // nothing after a cancel.
+  input.send(uploadsText(await readReport(files, input.signal)))
   return 'handled'
 }

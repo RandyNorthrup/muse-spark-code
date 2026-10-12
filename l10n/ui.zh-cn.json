@@ -849,6 +849,7 @@
     "fileNoExpiry": "未设置有效期",
     "fileSessions": "会话：{sessions}",
     "filesInUse": "删除前，请先从引用此文件的会话中移除它。",
+    "filesInUseRequest": "该文件正被一个运行中的请求使用。请在回复完成后重试。",
     "deleteUploadedFiles": "删除已上传的文件…",
     "deleteAllOurs": "删除本应用的所有文件",
     "otherAppFileConfirmation": "其他应用可能仍在使用 {name}。仍要删除吗？",

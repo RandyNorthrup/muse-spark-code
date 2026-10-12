@@ -11,13 +11,16 @@ happened, not what was planned; superseded entries are kept.
 
 - M105 lane F (C-M105-8): Delete Uploaded Files is bound. Uploads carry
   `museSpark.mediaUploadExpiryDays` (7 days by default, 1–30); the last
-  session reference released or purged deletes the provider copy at once,
-  while explicit deletion removes it early. Only orphans no release ever
-  saw (a crash, another install) wait for the provider expiry sweep. A
-  file an active request carries is never deleted. The VS Code
-  command lists the account ledger and deletes the chosen files, the usage
-  dialog lists and deletes them too, and ACP `/uploads` lists, deletes one
-  file, or deletes all ours. No live provider receipt certified yet.
+  session reference released or purged releases the provider copy once no
+  running request still carries it (each request holds its own counted
+  reference, drained at the turn's end), while explicit deletion removes
+  it early. Only orphans no release ever saw (a crash, another install)
+  wait for the provider expiry sweep. A file an active request carries is
+  never deleted. A delete cancelled before its provider call is dropped
+  and never runs later; a file used again voids its pending delete. The
+  VS Code command lists the account ledger and deletes the chosen files,
+  the usage dialog lists and deletes them too, and ACP `/uploads` lists,
+  deletes one file, or deletes all ours. No live provider receipt certified yet.
 
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
   reads and writes, and 1-hour cache writes settle at their own price.

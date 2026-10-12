@@ -861,6 +861,7 @@
     "fileNoExpiry": "Nie ustawiono terminu wygaśnięcia",
     "fileSessions": "Sesje: {sessions}",
     "filesInUse": "Przed usunięciem usuń ten plik z jego sesji.",
+    "filesInUseRequest": "Ten plik jest używany przez trwające żądanie. Spróbuj ponownie po zakończeniu odpowiedzi.",
     "deleteUploadedFiles": "Usuń przesłane pliki…",
     "deleteAllOurs": "Usuń wszystkie nasze pliki",
     "otherAppFileConfirmation": "Inna aplikacja może nadal używać {name}. Mimo to usunąć?",

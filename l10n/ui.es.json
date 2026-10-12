@@ -857,6 +857,7 @@
     "fileNoExpiry": "Sin fecha de caducidad",
     "fileSessions": "Sesiones: {sessions}",
     "filesInUse": "Quita este archivo de sus sesiones antes de eliminarlo.",
+    "filesInUseRequest": "Este archivo está en uso por una solicitud en curso. Inténtalo de nuevo cuando termine la respuesta.",
     "deleteUploadedFiles": "Eliminar archivos subidos…",
     "deleteAllOurs": "Eliminar todos los nuestros",
     "otherAppFileConfirmation": "Otra aplicación puede seguir usando {name}. ¿Eliminarlo de todos modos?",

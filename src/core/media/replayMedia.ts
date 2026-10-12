@@ -35,7 +35,7 @@ import type { InputContentPart, InputItem } from '../backends/modelapi/schemas'
 import type { StoredReplayItem } from '../backends/modelapi/sessionStore'
 import type { ResponsesMediaCodec } from '../backends/modelapi/codecs/responses'
 import type { MediaBudget } from '../backends/modelapi/mediaBudget'
-import type { UploadLedger } from './uploadLedger'
+import { pinOwnerForRequest, type UploadLedger } from './uploadLedger'
 import { modalityGate, type MediaModelCapabilities, type MediaGateResult } from './modalityGate'
 
 export { storedMediaPartSchema, type StoredMediaPart } from '../../shared/media'
@@ -45,7 +45,9 @@ export interface ReplayMediaDeps {
 
   readonly capabilities: (modelId: string) => MediaModelCapabilities
   readonly codec: ResponsesMediaCodec
-  readonly ledger: (provider: string) => Pick<UploadLedger, 'ensure' | 'pinFiles' | 'unpinFiles'>
+  readonly ledger: (
+    provider: string,
+  ) => Pick<UploadLedger, 'ensure' | 'ensureAndPin' | 'pinFiles' | 'unpinFiles'>
   /** M101 C1 chooses complete recent turns; this lane preserves their canonical media. */
   readonly compactionTail: (entries: readonly StoredReplayItem[]) => readonly string[]
   /** E1/E2 resolve host-issued tokens or approved legacy attachments, never guessed paths.
@@ -186,6 +188,9 @@ export interface MediaReplayPort {
   readonly recover: ReplayMedia['recover']
 }
 
+/** Bracket owners are unique per process: the boot id plus this counter. */
+const bracketIds = { sequence: 0 }
+
 export class ReplayMedia {
   private readonly parts = new WeakMap<InputContentPart, StoredMediaPart>()
   private readonly restored = new WeakSet<InputContentPart>()
@@ -196,6 +201,12 @@ export class ReplayMedia {
   /** RULE 1: the turn bracket's durable pins per provider, drained at its end. */
   private readonly bracketPins = new Map<string, Set<string>>()
   private bracketOpen = false
+  /**
+   * COUNTED REFERENCES WITH AN OWNER (round 4, P2-2): this bracket's pins
+   * carry one owner, so another request's end never releases what this
+   * request still carries. The count lives in the ledger, not here.
+   */
+  private bracketOwner: string | undefined
   /** Inline records: each part's identity read once from its wire bytes
    * (null: not a decodable visual). Never consulted for upload or replay. */
   private readonly inlineVisuals = new WeakMap<InputContentPart, StoredMediaPart | null>()
@@ -342,10 +353,26 @@ export class ReplayMedia {
       : 'inline'
   }
 
-  /** Pin durably and remember for the bracket's end. */
+  /** This bracket's pin owner, minted once so every pin shares it. */
+  private bracketOwnerForPin(): string {
+    if (this.bracketOwner === undefined) {
+      bracketIds.sequence += 1
+      this.bracketOwner = pinOwnerForRequest(`${this.sessionId}:${String(bracketIds.sequence)}`)
+    }
+    return this.bracketOwner
+  }
+
+  /** Remember a file the single-scope upload pinned, so the bracket's end drains it. */
+  private rememberBracket(provider: string, fileId: string): void {
+    const pinned = this.bracketPins.get(provider) ?? new Set<string>()
+    pinned.add(fileId)
+    this.bracketPins.set(provider, pinned)
+  }
+
+  /** Pin durably under this bracket's owner and remember for its end. */
   private async pinBracket(provider: string, fileIds: readonly string[]): Promise<void> {
     if (fileIds.length === 0) return
-    await this.deps.ledger(provider).pinFiles(fileIds)
+    await this.deps.ledger(provider).pinFiles(fileIds, this.bracketOwnerForPin())
     const pinned = this.bracketPins.get(provider) ?? new Set<string>()
     for (const fileId of fileIds) pinned.add(fileId)
     this.bracketPins.set(provider, pinned)
@@ -435,6 +462,7 @@ export class ReplayMedia {
   public async beginRequest(input: readonly InputItem[]): Promise<void> {
     this.replacements.clear()
     this.bracketOpen = true
+    this.bracketOwnerForPin()
     const byProvider = new Map<string, Set<string>>()
     for (const part of this.managed(input)) {
       const media = this.parts.get(part)
@@ -448,19 +476,42 @@ export class ReplayMedia {
         byProvider.set(file.provider, ids)
       }
     }
-    for (const [provider, ids] of byProvider) await this.pinBracket(provider, [...ids])
+    for (const [provider, ids] of byProvider) {
+      try {
+        await this.pinBracket(provider, [...ids])
+      } catch (error: unknown) {
+        // Only the request's own provider can be pinned: a replay holding a
+        // ref from a provider this host never bound (round 4, P3-6) skips
+        // that provider instead of failing the turn. Anything else throws.
+        if (!(error instanceof Error) || error.message !== 'Media upload provider mismatch')
+          throw error
+      }
+    }
   }
 
   /**
    * Close the request bracket, however the turn settled: every pin this
-   * turn took is released. Safe with no bracket open.
+   * turn took is released. Safe with no bracket open. An unpin that fails
+   * is kept for the next end and never throws: this close runs in the
+   * turn's finally and must not replace the turn's real error (P2-1).
    */
   public async endRequest(): Promise<void> {
     this.bracketOpen = false
+    const owner = this.bracketOwner
+    this.bracketOwner = undefined
     if (this.bracketPins.size === 0) return
     const pinned = [...this.bracketPins]
     this.bracketPins.clear()
-    for (const [provider, ids] of pinned) await this.deps.ledger(provider).unpinFiles([...ids])
+    for (const [provider, ids] of pinned) {
+      try {
+        await this.deps.ledger(provider).unpinFiles([...ids], owner)
+      } catch {
+        const kept = this.bracketPins.get(provider) ?? new Set<string>()
+        for (const fileId of ids) kept.add(fileId)
+        this.bracketPins.set(provider, kept)
+        if (owner !== undefined) this.bracketOwner = owner
+      }
+    }
   }
 
   /**
@@ -497,14 +548,19 @@ export class ReplayMedia {
     const gate = modalityGate(media.info, model, undefined, 'upload')
     if (!gate.ok) throw new Error(gate.reason)
     await this.deps.authorize(media, model, gate, signal)
-    const ref = await this.deps
+    // UPLOAD AND PIN HAPPEN IN ONE LOCK SCOPE (round 4, P2-3): no stale
+    // save can land between them. Outside any bracket the upload waits for
+    // the next beginRequest instead, so a file no turn ever carries is
+    // never pinned.
+    if (!this.bracketOpen)
+      return await this.deps
+        .ledger(model.provider)
+        .ensure(this.sessionId, media.sha256, file.source, signal)
+    const uploaded = await this.deps
       .ledger(model.provider)
-      .ensure(this.sessionId, media.sha256, file.source, signal)
-    // RULE 1: a mid-turn upload joins its request's bracket at once. An
-    // upload outside any bracket waits for the next beginRequest instead,
-    // so a file no turn ever carries is never pinned.
-    if (this.bracketOpen) await this.pinBracket(model.provider, [ref.fileId])
-    return ref
+      .ensureAndPin(this.sessionId, media.sha256, file.source, signal, this.bracketOwnerForPin())
+    this.rememberBracket(model.provider, uploaded.fileId)
+    return uploaded
   }
 
   public adopt(
@@ -655,13 +711,13 @@ export class ReplayMedia {
         )
         continue
       }
+      // UPLOAD AND PIN HAPPEN IN ONE LOCK SCOPE (round 4, P2-3): no stale
+      // save can land between the re-upload and its pin.
       const file = await this.deps
         .ledger(model.provider)
-        .ensure(this.sessionId, media.sha256, source, signal)
+        .ensureAndPin(this.sessionId, media.sha256, source, signal, this.bracketOwnerForPin())
+      this.rememberBracket(model.provider, file.fileId)
       if (file.provider !== model.provider) throw new Error('Media upload provider mismatch')
-      // RULE 1: a file this request is about to carry is pinned at once,
-      // however it reached the ledger (an earlier upload or this prepare).
-      await this.pinBracket(model.provider, [file.fileId])
       if (previousFile !== undefined && previousFile.fileId !== file.fileId)
         this.replacements.add(`${model.provider}:${media.sha256}`)
       const files = [
