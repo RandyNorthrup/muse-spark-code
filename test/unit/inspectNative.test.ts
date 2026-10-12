@@ -1,4 +1,10 @@
-import { spawn, execFileSync, type ChildProcess, type StdioOptions } from 'node:child_process'
+import {
+  spawn,
+  execFileSync,
+  type ChildProcessByStdio,
+  type StdioOptions,
+} from 'node:child_process'
+import type { Readable, Writable } from 'node:stream'
 import {
   closeSync,
   mkdirSync,
@@ -61,7 +67,7 @@ function native(
 // Replays exact helper bytes for runner-parsing tests (the session self-test
 // cannot run in this sandbox): probe and self-test answers, then a confined
 // line followed by the refusal, exit 125.
-const launched = (child: ChildProcess) =>
+const launched = (child: ChildProcessByStdio<Writable, Readable, Readable>) =>
   Promise.resolve({
     child,
     pid: () => Promise.resolve(child.pid),
