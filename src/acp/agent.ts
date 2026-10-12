@@ -101,6 +101,7 @@ import {
 import { type AcpPaidUse, paidUseAnswer, paidUseOptions } from './paid'
 import { acpResourceCommand, acpResourceUpdates, resourceCommands } from './resources'
 import type { RuntimeResources } from '../runtime/resources/port'
+import { ResourceReadingError, resourceFailureReporter } from '../runtime/resources/text'
 import type {
   AcpQuestionDeferral,
   AcpQuestionRegistry,
@@ -1681,6 +1682,9 @@ class AcpSession {
   ): Promise<StopReason> {
     this.ensureHeld()
     if (this.deps.resources !== undefined) {
+      // A rejected reading reaches `respond` below, which reports it once
+      // under its own name and carries it to the client as that typed
+      // reason, never an internal error (finding 5).
       const update = await acpResourceCommand(blocks, this.deps.resources)
       this.ensureHeld()
       if (update !== undefined) {
@@ -2665,6 +2669,8 @@ function requestFailureText(error: unknown, privateText: readonly string[]): str
 /** The agent: register it on a stream with `connect`. */
 export function createAcpAgent(deps: AcpAgentDeps): AgentApp {
   const state = new AgentState(deps)
+  // Every known reading failure is logged once under its own name.
+  const reportResource = resourceFailureReporter(deps.log)
   const respond = async <T>(
     method: string,
     work: () => T | Promise<T>,
@@ -2673,6 +2679,14 @@ export function createAcpAgent(deps: AcpAgentDeps): AgentApp {
     try {
       return await work()
     } catch (error: unknown) {
+      if (error instanceof ResourceReadingError) {
+        reportResource(error)
+        throw new RequestError(
+          ACP_ERROR_CODES.unavailable,
+          `${error.reading}: ${UI_TEXT.resourceUnavailable}`,
+          { kind: 'resource_reading', reading: error.reading },
+        )
+      }
       if (error instanceof RequestError && error.code !== ACP_ERROR_CODES.internal) throw error
       if (error instanceof Error && error.name === 'StoreUnavailableError')
         throw new RequestError(
