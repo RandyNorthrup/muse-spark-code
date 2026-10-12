@@ -17,6 +17,21 @@ update render follows with the fixture in place; after it a release with
 notes and a version bump needs none. A scene-filtered update is left to the
 train. Certification: `docs/certification/visfix.md`.
 
+**PANELMARKR2 review repairs (2026-10-11, macmini).** Close all three
+RVPANELMARK findings: give the product mark its own blue tokens (the
+Marketplace gradient's light-background and dark-background endpoints),
+retain theme foreground in high contrast and CanvasText under forced colours,
+and fill the existing 1.8 by 1.2 em logo box with a cropped, stroke-padded
+view box and a weight suited to the bold name. Cover every ProductMark use,
+including the icon gallery. Compute six-theme contrast (at least 3:1) and
+ordinary-theme blue hue (210–240 degrees), prove unchanged surrounding
+layout/pixels at both widths, and certify all fourteen affected panel scenes
+with exact frame counts. Each finding gets a regression and a byte-exact
+red/restored drill in `docs/certification/panelmark.md`. No baseline update,
+dependency, merge, push, subagent or paid/live call. Scoped gates and dependent
+suites run directly on the rig; aggregate quality and the release's reviewed
+visual baseline remain lead-owned under the explicit rig/common brief.
+
 **REL0171C release assembly (2026-10-11, host with Kubuntu, the Mac mini,
 Win11 and linuxlt; 0.17.1).** Merge the accepted share-preview fix (SHAREFIX
 `a7052b708`) and the truth pass (C-X-1 `99e9b4106`) into `rel0171/final`.
