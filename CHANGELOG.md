@@ -117,6 +117,13 @@ happened, not what was planned; superseded entries are kept.
   and reports "awaiting evaluation", and requests sent while it is off are
   byte-identical.
 
+- **Keybindings report kind is real end to end** (M113 C-M113-5a).
+  `/report keybindings` lists every installed editor binding per platform
+  with its command and scope, the panel's gestures and ACP's static local
+  commands, with same-chord same-when editor conflicts flagged. VS Code, ACP
+  and the terminal pass their own install's manifest through the shared
+  report inputs, so all three report the same numbers. Desktop and TUI
+  bindings stay out for phase c (M111a, M110a0).
 - **Session and usage report kinds are real end to end** (M113 C-M113-2).
   `/report session` reads the current conversation in the editor, or a stored
   Model API session by id (`--session <id>` in the terminal and ACP); turns

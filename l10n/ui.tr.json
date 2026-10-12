@@ -1791,6 +1791,8 @@
     "fires": "Tetiklemeler",
     "keybindings": "Tuş atamaları",
     "conflicts": "Çakışmalar",
+    "shortcut": "Kısayol",
+    "command": "Komut",
     "diff": "Fark",
     "sources": "Kaynaklar",
     "planFormat": "Plan biçimi",

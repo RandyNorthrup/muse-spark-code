@@ -873,7 +873,7 @@ limits apply equally to every ACP editor and to headless execution.
 
 `muse-spark-code-acp report project` collects locally through the same engine
 as the editor. `report quality`, `report milestone M113`, `report release
-latest` and `report changes` select other local reports. `report history`
+latest`, `report changes` and `report keybindings` select other local reports. `report history`
 lists verified, workspace-scoped saved entries. Bare `report`, and `report
 problem`, retain M93's problem report.
 

@@ -595,6 +595,10 @@ function runtimeReports(
                 l10n.table,
                 l10n.locale,
               )(context),
+            // M113 C-M113-5: this install's manifest, like the panel's, so
+            // the CLI and the ACP agent report the same installed bindings.
+            keybindings: () =>
+              inputs().keybindingsManifestReader(path.join(packageRoot, 'package.json'))(),
             network: {
               policy: {
                 surface: 'terminal',

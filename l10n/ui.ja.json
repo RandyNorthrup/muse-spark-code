@@ -1763,6 +1763,8 @@
     "fires": "発火",
     "keybindings": "キー割り当て",
     "conflicts": "競合",
+    "shortcut": "ショートカット",
+    "command": "コマンド",
     "diff": "差分",
     "sources": "データソース",
     "planFormat": "計画形式",

@@ -1819,6 +1819,8 @@
     "fires": "Déclenchements",
     "keybindings": "Raccourcis clavier",
     "conflicts": "Conflits",
+    "shortcut": "Raccourci",
+    "command": "Commande",
     "diff": "Différence",
     "sources": "Sources consultées",
     "planFormat": "Format du plan",

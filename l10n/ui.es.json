@@ -1819,6 +1819,8 @@
     "fires": "Activaciones",
     "keybindings": "Atajos de teclado",
     "conflicts": "Conflictos",
+    "shortcut": "Atajo",
+    "command": "Comando",
     "diff": "Diferencia",
     "sources": "Fuentes",
     "planFormat": "Formato del plan",

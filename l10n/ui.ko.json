@@ -1763,6 +1763,8 @@
     "fires": "실행 발생",
     "keybindings": "키 바인딩",
     "conflicts": "충돌",
+    "shortcut": "바로 가기",
+    "command": "명령",
     "diff": "차이",
     "sources": "자료 출처",
     "planFormat": "계획 형식",

@@ -1847,6 +1847,8 @@
     "fires": "Spuštění",
     "keybindings": "Klávesové zkratky",
     "conflicts": "Konflikty",
+    "shortcut": "Zkratka",
+    "command": "Příkaz",
     "diff": "Rozdíl",
     "sources": "Zdroje",
     "planFormat": "Formát plánu",

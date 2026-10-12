@@ -10,6 +10,7 @@ function isBundle(value: unknown): value is Bundle {
     value !== null &&
     typeof bundle?.createSessionReportReader === 'function' &&
     typeof bundle.createUsageReportReader === 'function' &&
+    typeof bundle.keybindingsManifestReader === 'function' &&
     typeof bundle.readStoredReportSession === 'function' &&
     typeof bundle.readUsageReportJournal === 'function' &&
     typeof bundle.createReportJournalReader === 'function' &&
