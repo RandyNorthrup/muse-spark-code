@@ -17,7 +17,11 @@ import {
   createProductionMediaReplay,
   productionMediaDirectory,
 } from '../../src/core/media/productionMedia'
-import { accountLedgerDirectory } from '../../src/core/media/uploadLedgerStorage'
+import {
+  accountLedgerDirectory,
+  readLastAccountId,
+  writeLastAccountId,
+} from '../../src/core/media/uploadLedgerStorage'
 import { fileCalibrationStore } from '../../src/core/media/productionMedia'
 import { MEDIA_ESTIMATE_SAFETY_FACTOR } from '../../src/shared/constants'
 import { ModelApiClient } from '../../src/core/backends/modelapi/client'
@@ -465,6 +469,49 @@ describe('per-account upload ledgers', () => {
       readFileSync(path.join(accountLedgerDirectory(root, ACCOUNT_B), 'uploads.json'), 'utf8'),
     ) as { entries: { file: { fileId: string } }[] }
     expect(stateB.entries[0]?.file.fileId).toBe(uploadedB.fileId)
+  })
+
+  it('moves the last-account pointer only for the current account, and only once', async () => {
+    // Round 4, P2-7: a session list or purge that opens an old account's
+    // ledger must not move the pointer, and a fresh factory per call must
+    // not rewrite it on every open.
+    const root = scratchDir()
+    let current: string | undefined = FAKE_MODEL_API_ACCOUNT_ID
+    const factory = () =>
+      createSessionUploads({
+        uploadLedgerDir: root,
+        currentAccountId: () => Promise.resolve(current),
+        filesClient: () => ({ requestFile: () => Promise.reject(new Error('no network')) }),
+      })
+    await factory()(FAKE_MODEL_API_ACCOUNT_ID)
+    expect(await readLastAccountId(root)).toBe(FAKE_MODEL_API_ACCOUNT_ID)
+    current = ACCOUNT_B
+    await factory()(ACCOUNT_B)
+    expect(await readLastAccountId(root)).toBe(ACCOUNT_B)
+    // An old account's ledger opens (a list, a recovery, a purge) while B
+    // is current: the pointer stays on B.
+    await factory()(FAKE_MODEL_API_ACCOUNT_ID)
+    expect(await readLastAccountId(root)).toBe(ACCOUNT_B)
+    // Reopening the current account rewrites nothing.
+    const pointer = path.join(root, 'last-account.json')
+    const { mtimeMs: before } = await stat(pointer)
+    await new Promise((settle) => setTimeout(settle, 5))
+    await factory()(ACCOUNT_B)
+    const { mtimeMs: after } = await stat(pointer)
+    expect(after).toBe(before)
+  })
+
+  it('reads a corrupt or non-digest last-account pointer as none', async () => {
+    // Round 4, P3-4: only a digest names an account directory; "." would
+    // resolve the ledger directory to the uploads root itself.
+    const root = scratchDir()
+    expect(await readLastAccountId(root)).toBeUndefined()
+    await writeLastAccountId(root, FAKE_MODEL_API_ACCOUNT_ID)
+    expect(await readLastAccountId(root)).toBe(FAKE_MODEL_API_ACCOUNT_ID)
+    await writeLastAccountId(root, '.')
+    expect(await readLastAccountId(root)).toBeUndefined()
+    await writeLastAccountId(root, '')
+    expect(await readLastAccountId(root)).toBeUndefined()
   })
 })
 

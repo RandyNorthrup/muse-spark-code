@@ -46,7 +46,7 @@ describe('media replay and metadata persistence', () => {
     await expect(rig.replay.prepare(rig.input, 'muse-spark-1.3', signal())).rejects.toThrow(
       UI_TEXT.turnStoppedByRestart,
     )
-    expect([rig.source.mock.calls.length, rig.ensure.mock.calls.length]).toEqual([0, 0])
+    expect([rig.source.mock.calls.length, rig.ensureAndPin.mock.calls.length]).toEqual([0, 0])
     // Disposed while the source was being resolved: still no upload.
     state.isClosed = false
     const resolve = rig.source.getMockImplementation()
@@ -58,11 +58,11 @@ describe('media replay and metadata persistence', () => {
     await expect(rig.replay.prepare(rig.input, 'muse-spark-1.3', signal())).rejects.toThrow(
       UI_TEXT.turnStoppedByRestart,
     )
-    expect(rig.ensure).not.toHaveBeenCalled()
+    expect(rig.ensureAndPin).not.toHaveBeenCalled()
     // An open session uploads as before.
     state.isClosed = false
     await rig.replay.prepare(rig.input, 'muse-spark-1.3', signal())
-    expect(rig.ensure).toHaveBeenCalledOnce()
+    expect(rig.ensureAndPin).toHaveBeenCalledOnce()
   })
 
   it('refuses cumulative fresh media across pending messages before fitting can omit any attachment', () => {
@@ -139,7 +139,7 @@ describe('media replay and metadata persistence', () => {
       await restored.prepare(input, 'muse-spark-1.3', signal())
       const encoded = restored.project(input, 'muse-spark-1.3', rig.budget)
       expect(JSON.stringify(encoded)).toContain(`data:${media.info.mediaType};base64,AQID`)
-      expect(rig.ensure).not.toHaveBeenCalled()
+      expect(rig.ensureAndPin).not.toHaveBeenCalled()
       expect(rig.authorize.mock.invocationCallOrder[0]).toBeLessThan(
         rig.source.mock.invocationCallOrder[0]!,
       )
@@ -222,7 +222,7 @@ describe('media replay and metadata persistence', () => {
     )
     rig.replay.delivered(rig.input)
     await rig.replay.prepare(rig.input, 'muse-spark-1.3', signal())
-    expect(rig.ensure).not.toHaveBeenCalled()
+    expect(rig.ensureAndPin).not.toHaveBeenCalled()
     expect(rig.authorize).not.toHaveBeenCalled()
     expect(rig.encodeInline).toHaveBeenCalledTimes(1)
     expect(
@@ -241,7 +241,7 @@ describe('media replay and metadata persistence', () => {
     })
     await rig.replay.prepare(rig.input, 'muse-spark-1.3', signal())
     await rig.replay.prepare(rig.input, 'inline-only', signal())
-    expect(rig.ensure).toHaveBeenCalledTimes(1)
+    expect(rig.ensureAndPin).toHaveBeenCalledTimes(1)
     expect(rig.authorize).toHaveBeenCalledTimes(1)
     const projected = rig.replay.project(rig.input, 'inline-only', rig.budget)
     expect(JSON.stringify(projected)).not.toContain('MEDIA_BYTE_CANARY')
@@ -260,7 +260,7 @@ describe('media replay and metadata persistence', () => {
       await expect(rig.replay.prepare(rig.input, 'muse-spark-1.3', signal())).rejects.toThrow(
         'changed since upload',
       )
-      expect(rig.ensure).not.toHaveBeenCalled()
+      expect(rig.ensureAndPin).not.toHaveBeenCalled()
     },
   )
   it('uses provider-scoped ledgers and keeps both IDs when switching vendors and back', async () => {
@@ -276,6 +276,7 @@ describe('media replay and metadata persistence', () => {
       }),
       ledger: (provider) => ({
         ensure: provider === 'gemini' ? geminiEnsure : metaEnsure,
+        ensureAndPin: provider === 'gemini' ? geminiEnsure : metaEnsure,
         pinFiles: () => Promise.resolve(),
         unpinFiles: () => Promise.resolve(),
       }),
@@ -499,7 +500,7 @@ describe('media replay and metadata persistence', () => {
       await expect(
         rig.replay.prepare(rig.input, 'muse-spark-1.3', controller.signal),
       ).rejects.toThrow()
-      expect(rig.ensure).not.toHaveBeenCalled()
+      expect(rig.ensureAndPin).not.toHaveBeenCalled()
       expect(source).toHaveBeenCalledTimes(stage === 'admission' ? 0 : 1)
     },
   )
@@ -509,7 +510,7 @@ describe('media replay and metadata persistence', () => {
     const rig = replayRig(media)
     await rig.replay.prepare(rig.input, 'muse-spark-1.3', signal())
     expect(rig.authorize.mock.invocationCallOrder[0]).toBeLessThan(
-      rig.ensure.mock.invocationCallOrder[0]!,
+      rig.ensureAndPin.mock.invocationCallOrder[0]!,
     )
     const projected = rig.replay.project(rig.input, 'muse-spark-1.3', rig.budget)
     expect(projected).toMatchObject([{ content: [{ text: 'test-upload:file-clip:video/mp4:1' }] }])
@@ -536,7 +537,7 @@ describe('media replay and metadata persistence', () => {
     const retained = rig.replay.retain(original, switched[0]!)
     expect(retained).toEqual(original)
     await rig.replay.prepare([retained], 'text-only', signal())
-    expect(rig.ensure).toHaveBeenCalledTimes(1)
+    expect(rig.ensureAndPin).toHaveBeenCalledTimes(1)
     expect(rig.replay.project([retained], 'muse-spark-1.3', rig.budget)).toMatchObject([
       { content: [{ text: expect.stringContaining('file-clip') }] },
     ])
@@ -550,10 +551,10 @@ describe('media replay and metadata persistence', () => {
     } as const
     const rig = replayRig(image)
     await rig.replay.prepare(rig.input, 'muse-spark-1.3', signal())
-    expect(rig.ensure).not.toHaveBeenCalled()
+    expect(rig.ensureAndPin).not.toHaveBeenCalled()
     rig.replay.delivered(rig.replay.project(rig.input, 'muse-spark-1.3', rig.budget))
     await rig.replay.prepare(rig.input, 'muse-spark-1.3', signal())
-    expect(rig.ensure).toHaveBeenCalledTimes(1)
+    expect(rig.ensureAndPin).toHaveBeenCalledTimes(1)
     const pdf = {
       ...image,
       name: 'big.pdf',
@@ -593,7 +594,7 @@ describe('media replay and metadata persistence', () => {
     rig.replay.restore(entries)
     const input = entries.map((entry) => entry.item)
     await rig.replay.prepare(input, 'muse-spark-1.3', signal())
-    expect(rig.ensure).toHaveBeenCalledTimes(1)
+    expect(rig.ensureAndPin).toHaveBeenCalledTimes(1)
     expect(JSON.stringify(rig.replay.project(input, 'muse-spark-1.3', rig.budget))).not.toContain(
       'MEDIA_BYTE_CANARY',
     )
@@ -607,7 +608,7 @@ describe('media replay and metadata persistence', () => {
     await rig.replay.prepare(rig.input, 'muse-spark-1.3', signal())
     rig.replay.project(rig.input, 'muse-spark-1.3', rig.budget)
     expect(rig.source).not.toHaveBeenCalled()
-    expect(rig.ensure).not.toHaveBeenCalled()
+    expect(rig.ensureAndPin).not.toHaveBeenCalled()
     expect(rig.encodeInline).toHaveBeenCalledTimes(1)
   })
 
@@ -636,12 +637,12 @@ describe('media replay and metadata persistence', () => {
     await expect(denied.replay.prepare(denied.input, 'muse-spark-1.3', signal())).rejects.toThrow(
       'denied',
     )
-    expect(denied.ensure).not.toHaveBeenCalled()
+    expect(denied.ensureAndPin).not.toHaveBeenCalled()
     const absent = replayRig(videoMedia(), { source: () => Promise.resolve(undefined) })
     await expect(absent.replay.prepare(absent.input, 'muse-spark-1.3', signal())).rejects.toThrow(
       'Attach clip.mp4 again',
     )
-    expect(absent.ensure).not.toHaveBeenCalled()
+    expect(absent.ensureAndPin).not.toHaveBeenCalled()
     const chunk = Promise.resolve(new Uint8Array())
     const changed = replayRig(videoMedia(), {
       source: () =>
@@ -657,7 +658,7 @@ describe('media replay and metadata persistence', () => {
     await expect(changed.replay.prepare(changed.input, 'muse-spark-1.3', signal())).rejects.toThrow(
       'changed since upload',
     )
-    expect(changed.ensure).not.toHaveBeenCalled()
+    expect(changed.ensureAndPin).not.toHaveBeenCalled()
   })
 
   it('refuses cancellation, a mismatched model record and a foreign provider upload', async () => {
@@ -667,13 +668,13 @@ describe('media replay and metadata persistence', () => {
     await expect(
       cancelled.replay.prepare(cancelled.input, 'muse-spark-1.3', abort.signal),
     ).rejects.toThrow()
-    expect(cancelled.ensure).not.toHaveBeenCalled()
+    expect(cancelled.ensureAndPin).not.toHaveBeenCalled()
     expect(cancelled.authorize).not.toHaveBeenCalled()
     expect(() => replayRig(videoMedia(), { capabilities: () => mediaModel('wrong') })).toThrow(
       'model mismatch',
     )
     const rig = replayRig()
-    rig.ensure.mockResolvedValue({ ...uploaded(videoMedia()), provider: 'foreign' })
+    rig.ensureAndPin.mockResolvedValue({ ...uploaded(videoMedia()), provider: 'foreign' })
     await expect(rig.replay.prepare(rig.input, 'muse-spark-1.3', signal())).rejects.toThrow(
       'provider mismatch',
     )
@@ -738,8 +739,8 @@ describe('media replay and metadata persistence', () => {
     expect(
       await rig.replay.recover(new Error('generic 404'), rig.input, 'muse-spark-1.3', signal()),
     ).toBe(false)
-    expect(rig.ensure).toHaveBeenCalledTimes(1)
-    rig.ensure.mockResolvedValue(uploaded(videoMedia(), 'file-replaced'))
+    expect(rig.ensureAndPin).toHaveBeenCalledTimes(1)
+    rig.ensureAndPin.mockResolvedValue(uploaded(videoMedia(), 'file-replaced'))
     expect(await rig.replay.recover('missing-file', rig.input, 'muse-spark-1.3', signal())).toBe(
       true,
     )
@@ -763,6 +764,7 @@ describe('media replay and metadata persistence', () => {
       ...rig.deps,
       ledger: () => ({
         ensure,
+        ensureAndPin: ensure,
         pinFiles: () => Promise.resolve(),
         unpinFiles: () => Promise.resolve(),
       }),
@@ -788,13 +790,85 @@ describe('media replay and metadata persistence', () => {
     // Nothing uploaded yet: no pin and no ledger write.
     expect(rig.pinFiles).not.toHaveBeenCalled()
     await rig.replay.prepare(rig.input, 'muse-spark-1.3', signal())
-    // The request's file is pinned at once (the rig's default upload id).
-    expect(rig.pinFiles).toHaveBeenCalledWith(['file-clip'])
+    // The request's file is pinned at once, under this bracket's owner, in
+    // the same lock scope as the upload (round 4, P2-2/P2-3).
+    expect(rig.ensureAndPin).toHaveBeenCalledOnce()
+    const owner = rig.ensureAndPin.mock.calls[0]?.[4]
+    expect(typeof owner).toBe('string')
+    expect(rig.pinFiles).not.toHaveBeenCalled()
     await rig.replay.endRequest()
-    expect(rig.unpinFiles).toHaveBeenCalledWith(['file-clip'])
+    expect(rig.unpinFiles).toHaveBeenCalledWith(['file-clip'], owner)
     // A bracket that never opened releases nothing and writes nothing.
     const idle = replayRig(videoMedia())
     await idle.replay.endRequest()
     expect(idle.unpinFiles).not.toHaveBeenCalled()
+  })
+
+  it('pins restored file ids at beginRequest and skips providers it never bound', async () => {
+    // Round 4, P3-6: beginRequest pins what the request carries, but a
+    // replay holding a ref from another provider must not fail the turn.
+    // Any other pin failure still fails the bracket honestly.
+    const failing = replayRig(videoMedia(), {
+      ledger: () => ({
+        ensure: () => Promise.resolve(uploaded(videoMedia())),
+        ensureAndPin: () => Promise.resolve(uploaded(videoMedia())),
+        pinFiles: () => Promise.reject(new Error('Media upload provider mismatch')),
+        unpinFiles: () => Promise.resolve(),
+      }),
+    })
+    await failing.replay.prepare(failing.input, 'muse-spark-1.3', signal())
+    await expect(failing.replay.beginRequest(failing.input)).resolves.toBeUndefined()
+    const locked = replayRig(videoMedia(), {
+      ledger: () => ({
+        ensure: () => Promise.resolve(uploaded(videoMedia())),
+        ensureAndPin: () => Promise.resolve(uploaded(videoMedia())),
+        pinFiles: () => Promise.reject(new Error('Upload ledger is locked')),
+        unpinFiles: () => Promise.resolve(),
+      }),
+    })
+    await locked.replay.prepare(locked.input, 'muse-spark-1.3', signal())
+    await expect(locked.replay.beginRequest(locked.input)).rejects.toThrow(
+      'Upload ledger is locked',
+    )
+  })
+
+  it('never throws out of endRequest and retries a failed unpin on the next end', async () => {
+    // Round 4, P2-1: endRequest runs in the turn's finally; a failing unpin
+    // is kept for the next end instead of replacing the turn's real error.
+    const rig = replayRig(videoMedia())
+    await rig.replay.beginRequest(rig.input)
+    await rig.replay.prepare(rig.input, 'muse-spark-1.3', signal())
+    const owner = rig.ensureAndPin.mock.calls[0]?.[4]
+    let shouldFail = true
+    rig.unpinFiles.mockImplementation(() =>
+      shouldFail ? Promise.reject(new Error('Upload ledger is locked')) : Promise.resolve(),
+    )
+    await expect(rig.replay.endRequest()).resolves.toBeUndefined()
+    shouldFail = false
+    await rig.replay.endRequest()
+    expect(rig.unpinFiles).toHaveBeenCalledTimes(2)
+    expect(rig.unpinFiles).toHaveBeenLastCalledWith(['file-clip'], owner)
+  })
+
+  it('uploads and pins mid-turn in one scope under the bracket owner', async () => {
+    // Round 4, P2-3: the mid-turn upload pins through ensureAndPin, never a
+    // separate save that could land between upload and pin.
+    const rig = replayRig(videoMedia())
+    await rig.replay.beginRequest(rig.input)
+    const uploaded = await rig.replay.upload(
+      {
+        name: 'clip.mp4',
+        info: videoMedia().info,
+        sha256: videoMedia().sha256,
+        source: await rig.source(),
+      },
+      'muse-spark-1.3',
+      signal(),
+    )
+    expect(uploaded.fileId).toBe('file-clip')
+    expect(rig.ensureAndPin).toHaveBeenCalledOnce()
+    expect(rig.pinFiles).not.toHaveBeenCalled()
+    await rig.replay.endRequest()
+    expect(rig.unpinFiles).toHaveBeenCalledOnce()
   })
 })

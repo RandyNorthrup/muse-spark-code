@@ -231,6 +231,38 @@ describe('uploaded-files host binding', () => {
     expect(t.post).toHaveBeenNthCalledWith(2, expect.objectContaining({ generation: 1 }))
   })
 
+  it('stamps a read with the account it started under, not one resolved later', async () => {
+    // Round 4, P3-5: read A starts under account A; while its report is in
+    // flight the account resolves as B. The stamp keeps A.
+    const accountA = 'a'.repeat(64)
+    const accountB = 'b'.repeat(64)
+    let resolutions = 0
+    const ledger: Pick<FakeUploadedFilesLedger, 'accountReport' | 'deleteFile' | 'deleteAllOurs'> =
+      {
+        accountReport: vi.fn(
+          () =>
+            new Promise<typeof report>((resolve) => {
+              setTimeout(() => {
+                resolve(report)
+              }, 20)
+            }),
+        ),
+        deleteFile: vi.fn(() => Promise.resolve()),
+        deleteAllOurs: vi.fn(() => Promise.resolve()),
+      }
+    const binding = createUploadedFilesBinding({
+      uploads: vi.fn(() => Promise.resolve(ledger)),
+      getAccountId: () => {
+        resolutions += 1
+        return Promise.resolve(resolutions === 1 ? accountA : accountB)
+      },
+      post: vi.fn(),
+      confirmForeign: vi.fn(() => Promise.resolve(true)),
+    })
+    const stamped = await binding.port.readStamped()
+    expect(stamped.accountId).toBe(accountA)
+  })
+
   it('recovers the last account ledger once the key is gone', async () => {
     // Finding 6: the opener serves the persisted last account when no key
     // backs the ledger, instead of reading empty.

@@ -10,6 +10,7 @@ import {
   type ReplayMediaDeps,
 } from '../../../../src/core/media/replayMedia'
 import type { MediaInfo, UploadedMediaRef } from '../../../../src/shared/media'
+import type { UploadSource } from '../../../../src/core/backends/modelapi/files'
 import type { InputContentPart, InputItem } from '../../../../src/core/backends/modelapi/schemas'
 import type { StoredReplayItem } from '../../../../src/core/backends/modelapi/sessionStore'
 import { MediaBudget } from '../../../../src/core/backends/modelapi/mediaBudget'
@@ -106,6 +107,15 @@ export function replayRig(
     }),
   )
   const ensure = vi.fn(() => Promise.resolve(uploaded(media)))
+  const ensureAndPin = vi.fn(
+    (
+      _sessionId: string,
+      _sha256: string,
+      _source: UploadSource,
+      _signal: AbortSignal,
+      _owner: string,
+    ) => Promise.resolve(uploaded(media)),
+  )
   const pinFiles = vi.fn(() => Promise.resolve())
   const unpinFiles = vi.fn(() => Promise.resolve())
   const chunk = Promise.resolve(new Uint8Array(1))
@@ -153,7 +163,7 @@ export function replayRig(
           : `${value.name} was left out: ${model.modelName} does not take ${value.info.kind}.`,
       isMissingFile: (error) => error === 'missing-file',
     },
-    ledger: () => ({ ensure, pinFiles, unpinFiles }),
+    ledger: () => ({ ensure, ensureAndPin, pinFiles, unpinFiles }),
     compactionTail: (entries) => (entries.length === 0 ? [] : [entries.at(-1)!.turnId]),
     attachment: () => media,
     source,
@@ -189,6 +199,7 @@ export function replayRig(
     input,
     entries,
     ensure,
+    ensureAndPin,
     pinFiles,
     unpinFiles,
     source,

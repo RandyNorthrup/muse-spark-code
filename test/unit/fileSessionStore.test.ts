@@ -144,7 +144,9 @@ async function ledgerFor(directoryName: string) {
 
 async function expectUploadRetained(t: Awaited<ReturnType<typeof ledgerFor>>): Promise<void> {
   expect(await t.store.load('saved')).toMatchObject({ fileRefs: [uploadedFile] })
-  expect(t.state().entries).toEqual([{ file: uploadedFile, sessions: ['saved'] }])
+  expect(t.state().entries).toEqual([
+    { file: uploadedFile, sessions: ['saved'], useGen: expect.any(Number) },
+  ])
   expect(t.requestFile).not.toHaveBeenCalled()
 }
 
@@ -198,7 +200,7 @@ describe('createFileSessionStore', () => {
     const t = await ledgerFor('stale-window-pin')
     const { directory, uploads, session } = t
     await t.ledger.pinFiles([uploadedFile.fileId])
-    expect(t.state().pinned).toEqual([uploadedFile.fileId])
+    expect(t.state().pinned).toEqual([{ fileId: uploadedFile.fileId, owner: expect.any(String) }])
     // A fresh module has a distinct process-local writer map, like another
     // window; both instances share the same on-disk session and ledger.
     vi.resetModules()
@@ -207,7 +209,9 @@ describe('createFileSessionStore', () => {
     const staleWindow = storeIn(directory, { uploads }, independentFactory).store
     await staleWindow.save({ ...session, fileRefs: [] })
     expect(t.requestFile).not.toHaveBeenCalled()
-    expect(t.state().entries).toEqual([{ file: uploadedFile, sessions: [] }])
+    expect(t.state().entries).toEqual([
+      { file: uploadedFile, sessions: [], useGen: expect.any(Number) },
+    ])
     // The request settles: the pin drains and an explicit delete goes at
     // once, while the young orphan still waits out its expiry on reads.
     await t.ledger.unpinFiles([uploadedFile.fileId])
