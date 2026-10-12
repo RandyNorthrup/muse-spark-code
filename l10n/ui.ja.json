@@ -879,6 +879,10 @@
     "recordingStart": "録画を開始",
     "recordingStop": "録画を停止",
     "uploadDeleteFailed": "{name} を削除できませんでした: {reason}",
+    "uploadDeleteProviderRefused": "プロバイダーが削除を拒否しました",
+    "uploadDeleteBacklog": {
+      "other": "{count} 件のアップロード済みファイルを {provider} から削除できませんでした。削除は再試行されます。"
+    },
     "conversionFailed": "変換失敗: {reason}",
     "replayMetadata": "メディア: {name}（{duration}、{size}）",
     "replayMetadataNoDuration": "メディア: {name}（{size}）"

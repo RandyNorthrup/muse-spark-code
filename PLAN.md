@@ -11868,10 +11868,11 @@ The owner's standing rulings apply:
    (M102) hold only the file id, SHA-256, name, mime type, size,
    duration, soundtrack flag, dimensions, expiry and provider. The logs hold
    none of that: every log line uses fixed words (a provider reason maps to
-   one of the known kinds, anything else is `other`; a response id passes
-   `wireWordForLog`), so a file id or an attachment name can never reach a
-   log. Exports and shares carry the metadata line and no file id. Inline
-   parts keep D47's after-first-delivery replacement.
+   one of the known kinds, anything else is `other`; a response id reaches
+   the log only in word shape, anything else as a fixed phrase, through
+   `wireWordForLog`), so a file id or an attachment name reaches a log only
+   if it is already word-shaped. Exports and shares carry the metadata line
+   and no file id. Inline parts keep D47's after-first-delivery replacement.
 
 4. **Sniff the bytes, never trust the name.** Ours, with no dependency and
    no frame decoding, bounded by `MEDIA_SNIFF_MAX_BYTES` from the head and a

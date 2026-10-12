@@ -1677,8 +1677,9 @@ function describe(error: unknown): string {
 // P2-1): the provider's free text never reaches the log. The Responses API
 // documents `max_output_tokens` and `content_filter`; the bundled codecs map
 // their own cut-short stops to the rest. Anything else is `other`, and a
-// missing reason stays `no reason`. The detailed reason still reaches the
-// user with the turn; only the log uses these words.
+// missing reason stays `no reason`. The raw reason is used only in
+// model-visible skip text and exec records; the turn shows its partial text.
+// Only the log uses these words.
 const INCOMPLETE_REASONS_FOR_LOG: ReadonlySet<string> = new Set([
   'max_output_tokens',
   'content_filter',

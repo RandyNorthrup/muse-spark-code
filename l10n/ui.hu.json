@@ -883,6 +883,11 @@
     "recordingStart": "Felvétel indítása",
     "recordingStop": "Felvétel leállítása",
     "uploadDeleteFailed": "A(z) {name} nem törölhető: {reason}",
+    "uploadDeleteProviderRefused": "a szolgáltató megtagadta a törlést",
+    "uploadDeleteBacklog": {
+      "one": "{count} feltöltött fájl nem törölhető innen: {provider}. A törlést újra megkíséreljük.",
+      "other": "{count} feltöltött fájl nem törölhető innen: {provider}. A törlést újra megkíséreljük."
+    },
     "conversionFailed": "A konvertálás sikertelen: {reason}",
     "replayMetadata": "Média: {name} ({duration}, {size})",
     "replayMetadataNoDuration": "Média: {name} ({size})"

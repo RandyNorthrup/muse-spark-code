@@ -11,6 +11,11 @@ happened, not what was planned; superseded entries are kept.
   for VS Code, ACP and headless exec. The machine's `mediaAudioAction` choice
   is honored: transcription asks paid consent first, and unsupported direct
   audio returns its translated refusal.
+- Uploaded-file cleanup no longer blocks saving when the provider refuses a
+  deletion: the failure is recorded with backoff and retried by a later
+  sweep, and repeated failures are reported once in Account & usage as a
+  count. A cancelled re-upload keeps the shared entry, and an explicit
+  delete names the file with a fixed reason.
 
 
 ### Pending

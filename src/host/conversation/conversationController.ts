@@ -33,6 +33,7 @@ import type { EstimateSection } from '../../shared/estimate'
 import path from 'node:path'
 import { Buffer } from 'node:buffer'
 import { AttachmentStore } from '../../core/attachments'
+import { UploadDeleteFailedError } from '../../core/media/uploadLedger'
 import type { MediaAttachmentPort } from '../media/mediaAttach'
 import type { RecordingCommandDeps } from '../media/screenRecordBundle'
 import type { ScreenRecordingPreview } from '../../core/media/record/driver'
@@ -714,6 +715,8 @@ export interface ConversationUploadedFilesPort {
   ): Promise<void>
   deleteAllOurs(): Promise<void>
   confirmForeign(question: string): Promise<boolean>
+  /** Once-only backlog notice; absent where the ledger binding predates it. */
+  deleteNotice?: () => Promise<{ provider: string; count: number } | undefined>
 }
 
 const IDLE_STATUS = 'idle'
@@ -10587,6 +10590,17 @@ export class ConversationController {
     try {
       const report = uploadedFilesReportSchema.parse(await port.read())
       if (this.canPostUploadedFiles()) port.post(report)
+      // Provider deletions that keep failing are told once, here, as a count
+      // only: no file name and no file id ever reaches this notice
+      // (RVAPP-PORTM105R4 P2-B).
+      const notice = await port.deleteNotice?.()
+      if (notice !== undefined && this.canPostUploadedFiles())
+        this.say(
+          'warning',
+          plural(UI_TEXT.media.uploadDeleteBacklog, notice.count, {
+            provider: notice.provider,
+          }),
+        )
     } catch (error: unknown) {
       if (this.canPostUploadedFiles())
         this.say('error', `${UI_TEXT.usageUnavailable}: ${describe(error)}`)
@@ -10609,12 +10623,20 @@ export class ConversationController {
         )
       await this.readUploadedFiles()
     } catch (error: unknown) {
+      // The notice names the file's display name, never its id, with a fixed
+      // reason: the provider's message echoes the id (RVAPP-PORTM105R4 P3-4).
       if (this.canPostUploadedFiles())
         this.say(
           'error',
           fill(UI_TEXT.media.uploadDeleteFailed, {
-            name: fileId ?? UI_TEXT.media.uploadedFiles,
-            reason: describe(error),
+            name:
+              error instanceof UploadDeleteFailedError
+                ? error.fileName
+                : (fileId ?? UI_TEXT.media.uploadedFiles),
+            reason:
+              error instanceof UploadDeleteFailedError
+                ? UI_TEXT.media.uploadDeleteProviderRefused
+                : describe(error),
           }),
         )
     }

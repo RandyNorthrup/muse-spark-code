@@ -879,6 +879,10 @@
     "recordingStart": "녹화 시작",
     "recordingStop": "녹화 중지",
     "uploadDeleteFailed": "{name}을(를) 삭제하지 못했습니다: {reason}",
+    "uploadDeleteProviderRefused": "제공업체가 삭제를 거부했습니다",
+    "uploadDeleteBacklog": {
+      "other": "{count}개의 업로드된 파일을 {provider}에서 삭제하지 못했습니다. 삭제를 다시 시도합니다."
+    },
     "conversionFailed": "변환 실패: {reason}",
     "replayMetadata": "미디어: {name} ({duration}, {size})",
     "replayMetadataNoDuration": "미디어: {name} ({size})"

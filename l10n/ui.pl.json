@@ -891,6 +891,13 @@
     "recordingStart": "Rozpocznij nagrywanie",
     "recordingStop": "Zatrzymaj nagrywanie",
     "uploadDeleteFailed": "Nie można usunąć {name}: {reason}",
+    "uploadDeleteProviderRefused": "dostawca odmówił usunięcia",
+    "uploadDeleteBacklog": {
+      "one": "{count} przesłany plik nie mógł zostać usunięty z {provider}. Usunięcie zostanie ponowione.",
+      "other": "{count} przesłanego pliku nie mogło zostać usuniętych z {provider}. Usunięcie zostanie ponowione.",
+      "few": "{count} przesłane pliki nie mogły zostać usunięte z {provider}. Usunięcie zostanie ponowione.",
+      "many": "{count} przesłanych plików nie mogło zostać usuniętych z {provider}. Usunięcie zostanie ponowione."
+    },
     "conversionFailed": "Konwersja nie powiodła się: {reason}",
     "replayMetadata": "Multimedia: {name} ({duration}, {size})",
     "replayMetadataNoDuration": "Multimedia: {name} ({size})"

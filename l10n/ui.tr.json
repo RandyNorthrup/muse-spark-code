@@ -883,6 +883,11 @@
     "recordingStart": "Kaydı başlat",
     "recordingStop": "Kaydı durdur",
     "uploadDeleteFailed": "{name} silinemedi: {reason}",
+    "uploadDeleteProviderRefused": "sağlayıcı silmeyi reddetti",
+    "uploadDeleteBacklog": {
+      "one": "{count} yüklenen dosya {provider} hizmetinden silinemedi. Silme işlemi yeniden denenecek.",
+      "other": "{count} yüklenen dosya {provider} hizmetinden silinemedi. Silme işlemi yeniden denenecek."
+    },
     "conversionFailed": "Dönüştürme başarısız: {reason}",
     "replayMetadata": "Medya: {name} ({duration}, {size})",
     "replayMetadataNoDuration": "Medya: {name} ({size})"

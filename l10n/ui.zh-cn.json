@@ -879,6 +879,10 @@
     "recordingStart": "开始录制",
     "recordingStop": "停止录制",
     "uploadDeleteFailed": "无法删除 {name}：{reason}",
+    "uploadDeleteProviderRefused": "提供商拒绝了删除",
+    "uploadDeleteBacklog": {
+      "other": "无法从 {provider} 删除 {count} 个已上传的文件。将重试删除。"
+    },
     "conversionFailed": "转换失败：{reason}",
     "replayMetadata": "媒体：{name}（{duration}、{size}）",
     "replayMetadataNoDuration": "媒体：{name}（{size}）"

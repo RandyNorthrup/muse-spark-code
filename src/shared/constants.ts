@@ -1343,6 +1343,21 @@ export const MEDIA_FILE_ID_MIN_BYTES = 1024 * 1024
 // Uploads ride inside the lock, so the wait covers a slow provider round.
 export const MEDIA_UPLOAD_LOCK_ATTEMPTS = 200
 export const MEDIA_UPLOAD_LOCK_WAIT_MS = 25
+// A cancelled upload's deletion intent is retried this often while the lock
+// is held (a transient local failure, such as a scanner lock on rename);
+// the wait doubles from the delay, and only the waits honour cancellation.
+export const MEDIA_CANCEL_INTENT_WRITE_ATTEMPTS = 3
+export const MEDIA_CANCEL_INTENT_WRITE_DELAY_MS = 25
+// A failed provider file deletion never rejects a save: the attempt is
+// recorded on the ledger entry and retried by a later sweep, waiting at
+// least the base delay (doubling per attempt up to the ceiling). After this
+// many failures the account surface is told once which provider still holds
+// files (a count only, never a name or an id).
+export const MEDIA_UPLOAD_DELETE_RETRY_BASE_DELAY_MS = 60_000
+export const MEDIA_UPLOAD_DELETE_RETRY_MAX_DELAY_MS = 3_600_000
+export const MEDIA_UPLOAD_DELETE_NOTICE_ATTEMPTS = 3
+/** The fixed reason code a recorded provider-deletion failure carries. */
+export const MEDIA_UPLOAD_DELETE_FAILURE = 'delete_failed'
 // The batch transcript endpoint's captured contract (round-3 capture):
 // the 'audio' part must be a mono 16-bit PCM WAV at 16 or 24 kHz.
 export const TRANSCRIBE_WAV_FORMAT_PCM = 1

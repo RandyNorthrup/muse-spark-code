@@ -887,6 +887,12 @@
     "recordingStart": "Démarrer l’enregistrement",
     "recordingStop": "Arrêter l’enregistrement",
     "uploadDeleteFailed": "Impossible de supprimer {name} : {reason}",
+    "uploadDeleteProviderRefused": "le fournisseur a refusé la suppression",
+    "uploadDeleteBacklog": {
+      "one": "{count} fichier téléversé n’a pas pu être supprimé de {provider}. La suppression sera réessayée.",
+      "other": "{count} fichiers téléversés n’ont pas pu être supprimés de {provider}. La suppression sera réessayée.",
+      "many": "{count} fichiers téléversés n’ont pas pu être supprimés de {provider}. La suppression sera réessayée."
+    },
     "conversionFailed": "Échec de la conversion : {reason}",
     "replayMetadata": "Média : {name} ({duration}, {size})",
     "replayMetadataNoDuration": "Média : {name} ({size})"

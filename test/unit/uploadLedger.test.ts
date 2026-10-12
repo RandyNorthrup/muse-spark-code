@@ -2,7 +2,18 @@ import { createHash } from 'node:crypto'
 import { describe, expect, it, vi } from 'vitest'
 import { FilesApi, type UploadSource } from '../../src/core/backends/modelapi/files'
 import { ModelApiError } from '../../src/core/backends/modelapi/client'
-import { UploadLedger, type UploadLedgerStorage } from '../../src/core/media/uploadLedger'
+import {
+  UploadDeleteFailedError,
+  UploadLedger,
+  type UploadLedgerDeps,
+  type UploadLedgerStorage,
+} from '../../src/core/media/uploadLedger'
+import {
+  MEDIA_CANCEL_INTENT_WRITE_DELAY_MS,
+  MEDIA_UPLOAD_DELETE_NOTICE_ATTEMPTS,
+  MEDIA_UPLOAD_DELETE_RETRY_BASE_DELAY_MS,
+  MEDIA_UPLOAD_DELETE_RETRY_MAX_DELAY_MS,
+} from '../../src/shared/constants'
 import { uploadedFilesReportSchema } from '../../src/shared/media'
 import { FifoLimiter } from '../../src/core/fifoLimiter'
 
@@ -30,7 +41,7 @@ const ref = {
 }
 const foreign = { ...receipt, id: 'file-other', filename: 'other.pdf', bytes: 12 }
 
-function setup(now: () => number = () => 1_001_000) {
+function setup(now: () => number = () => 1_001_000, sleep?: UploadLedgerDeps['sleep']) {
   let saved: unknown
   let current: string | undefined = accountId
   let serial = 0
@@ -88,6 +99,7 @@ function setup(now: () => number = () => 1_001_000) {
     poolBytes: 100 * 1024 ** 3,
     currentAccountId: () => Promise.resolve(current),
     now,
+    ...(sleep !== undefined && { sleep }),
   })
   const source: UploadSource = {
     name: ref.name,
@@ -150,20 +162,68 @@ describe('upload ownership ledger', () => {
     expect(t.requestFile.mock.calls.filter((call) => call[1] === 'DELETE')).toHaveLength(1)
   })
 
-  it('keeps a failed provider deletion durable and retries cleanup on the next account read', async () => {
-    const t = setup()
+  it('records a failed provider deletion and never fails a save because of it', async () => {
+    let nowMs = 1_001_000
+    const t = setup(() => nowMs)
     await t.ledger.ensure('s1', sha256, t.source, new AbortController().signal)
     const real = t.requestFile.getMockImplementation()!
-    let shouldFail = true
     t.requestFile.mockImplementation(async (...args) => {
-      if (shouldFail && args[1] === 'DELETE') throw new Error('Offline')
+      if (args[1] === 'DELETE') throw new Error('Offline')
       return await real(...args)
     })
-    await expect(t.ledger.releaseSession('s1')).rejects.toThrow('Offline')
-    expect(t.raw()).toMatchObject({ entries: [{ sessions: [] }] })
-    shouldFail = false
+    // The save-side release succeeds while the provider is down: the entry
+    // stays with its recorded attempt, backoff and fixed reason code.
+    await t.ledger.releaseSession('s1')
+    expect(t.raw()).toMatchObject({
+      entries: [{ sessions: [] }],
+      deleteFailures: [
+        {
+          fileId: ref.fileId,
+          attempts: 1,
+          nextAttemptAt: nowMs + MEDIA_UPLOAD_DELETE_RETRY_BASE_DELAY_MS,
+          reason: 'delete_failed',
+        },
+      ],
+    })
+    const deletes = () => t.requestFile.mock.calls.filter((call) => call[1] === 'DELETE').length
+    const attempted = deletes()
+    // A sweep before the backoff is due attempts no DELETE and still succeeds.
+    await t.ledger.syncSession('s2', [])
+    expect(deletes()).toBe(attempted)
+    // Past the backoff the sweep retries; the provider is back, so the entry
+    // and its failure record are forgotten.
+    nowMs += MEDIA_UPLOAD_DELETE_RETRY_BASE_DELAY_MS
+    t.requestFile.mockImplementation(real)
     await t.ledger.accountReport()
-    expect(t.raw()).toMatchObject({ entries: [] })
+    expect(t.raw()).toMatchObject({ entries: [], deleteFailures: [] })
+    expect(deletes()).toBe(attempted + 1)
+  })
+
+  it('tells the account surface once after the named number of delete failures', async () => {
+    let nowMs = 1_001_000
+    const t = setup(() => nowMs)
+    await t.ledger.ensure('s1', sha256, t.source, new AbortController().signal)
+    const real = t.requestFile.getMockImplementation()!
+    t.requestFile.mockImplementation(async (...args) => {
+      if (args[1] === 'DELETE') throw new Error('Offline')
+      return await real(...args)
+    })
+    for (let attempt = 0; attempt < MEDIA_UPLOAD_DELETE_NOTICE_ATTEMPTS; attempt += 1) {
+      nowMs += MEDIA_UPLOAD_DELETE_RETRY_MAX_DELAY_MS
+      await t.ledger.releaseSession('s1')
+    }
+    expect(t.raw()).toMatchObject({
+      deleteFailures: [{ fileId: ref.fileId, attempts: MEDIA_UPLOAD_DELETE_NOTICE_ATTEMPTS }],
+    })
+    // Told once, as a count: the provider still holds one file, unnamed.
+    expect(await t.ledger.consumeDeleteNotice()).toEqual({ provider: 'meta', count: 1 })
+    expect(await t.ledger.consumeDeleteNotice()).toBeUndefined()
+    // The provider is back: the sweep deletes, forgets, and nothing is told.
+    t.requestFile.mockImplementation(real)
+    nowMs += MEDIA_UPLOAD_DELETE_RETRY_MAX_DELAY_MS
+    await t.ledger.accountReport()
+    expect(t.raw()).toMatchObject({ entries: [], deleteFailures: [] })
+    expect(await t.ledger.consumeDeleteNotice()).toBeUndefined()
   })
 
   it('cleans an uploaded file when its ledger write fails and never records bytes or paths', async () => {
@@ -199,6 +259,187 @@ describe('upload ownership ledger', () => {
     expect(replacement.fileId).toBe('file-replaced-2')
     expect(t.raw()).toMatchObject({ entries: [{ sessions: ['s1', 'fork'], file: replacement }] })
     expect(t.requestFile.mock.calls.filter((call) => call[1] === 'POST')).toHaveLength(2)
+  })
+
+  it('restores the shared entry when a re-upload is cancelled, so the other session still saves', async () => {
+    const t = setup()
+    const caller = new AbortController()
+    await t.ledger.ensure('s1', sha256, t.source, caller.signal)
+    await t.ledger.syncSession('fork', [ref])
+    t.missing()
+    // Cancel the replacement as its publication write lands: the write still
+    // commits, so the abort below exercises the post-commit path.
+    const writes = vi.mocked(t.storage.write)
+    const persist = writes.getMockImplementation()!
+    writes.mockImplementation((state) => {
+      if (state.entries.some((entry) => entry.file.fileId !== ref.fileId))
+        caller.abort(new Error('cancelled re-upload'))
+      return persist(state)
+    })
+    await expect(t.ledger.ensure('s1', sha256, t.source, caller.signal)).rejects.toThrow(
+      'cancelled re-upload',
+    )
+    // The pending upload is deleted at the provider and forgotten; the shared
+    // entry is back exactly as it was.
+    expect(t.requestFile.mock.calls.filter((call) => call[1] === 'POST')).toHaveLength(2)
+    expect(t.requestFile.mock.calls.filter((call) => call[1] === 'DELETE')).toHaveLength(1)
+    expect(t.raw()).toMatchObject({
+      entries: [{ file: ref, sessions: ['s1', 'fork'] }],
+      orphans: [],
+    })
+    // The fork that still names the old ref saves without re-uploading.
+    await t.ledger.syncSession('fork', [ref])
+    expect(t.requestFile.mock.calls.filter((call) => call[1] === 'POST')).toHaveLength(2)
+  })
+
+  it('restores the shared entry when the re-upload publication write fails', async () => {
+    const t = setup()
+    const signal = new AbortController().signal
+    await t.ledger.ensure('s1', sha256, t.source, signal)
+    await t.ledger.syncSession('fork', [ref])
+    t.missing()
+    // Fail only the replacement's publication write: the intent write that
+    // follows names the restored entry, so it must land.
+    const writes = vi.mocked(t.storage.write)
+    const persist = writes.getMockImplementation()!
+    let publicationFailures = 1
+    writes.mockImplementation((state) => {
+      if (
+        publicationFailures > 0 &&
+        state.entries.some((entry) => entry.file.fileId !== ref.fileId)
+      ) {
+        publicationFailures -= 1
+        return Promise.reject(new Error('Disk full'))
+      }
+      return persist(state)
+    })
+    await expect(t.ledger.ensure('s1', sha256, t.source, signal)).rejects.toThrow('Disk full')
+    expect(t.requestFile.mock.calls.filter((call) => call[1] === 'DELETE')).toHaveLength(1)
+    expect(t.raw()).toMatchObject({
+      entries: [{ file: ref, sessions: ['s1', 'fork'] }],
+      orphans: [],
+    })
+    await t.ledger.syncSession('fork', [ref])
+  })
+
+  it('retries the cancel intent with backoff after a failed publication', async () => {
+    const pauses: number[] = []
+    const sleep = vi.fn((ms: number) => {
+      pauses.push(ms)
+      return Promise.resolve()
+    })
+    const t = setup(() => 1_001_000, sleep)
+    const writes = vi.mocked(t.storage.write)
+    const persist = writes.getMockImplementation()!
+    let hasFailedPublication = false
+    let intentFailures = 2
+    writes.mockImplementation((state) => {
+      if (!hasFailedPublication && state.entries.length > 0) {
+        hasFailedPublication = true
+        return Promise.reject(new Error('Disk full'))
+      }
+      if (
+        hasFailedPublication &&
+        state.entries.length === 0 &&
+        (state.orphans ?? []).length > 0 &&
+        intentFailures > 0
+      ) {
+        intentFailures -= 1
+        return Promise.reject(new Error('Disk full'))
+      }
+      return persist(state)
+    })
+    await expect(
+      t.ledger.ensure('s1', sha256, t.source, new AbortController().signal),
+    ).rejects.toThrow('Disk full')
+    // Two failed intent attempts pause with a doubling backoff; the third
+    // lands, the provider copy is deleted, and the caller keeps the
+    // publication failure, never a cleanup write error.
+    expect(pauses).toEqual([
+      MEDIA_CANCEL_INTENT_WRITE_DELAY_MS,
+      MEDIA_CANCEL_INTENT_WRITE_DELAY_MS * 2,
+    ])
+    expect(t.requestFile.mock.calls.filter((call) => call[1] === 'DELETE')).toHaveLength(1)
+    expect(t.raw()).toMatchObject({ entries: [], orphans: [] })
+  })
+
+  it('skips the backoff pause but not the attempts when the wait is cancelled', async () => {
+    const caller = new AbortController()
+    const sleep = vi.fn((_ms: number, signal?: AbortSignal) => {
+      // Cancelled while waiting: no pause, but the bounded attempts still run.
+      caller.abort(new Error('stop'))
+      signal?.throwIfAborted()
+      return Promise.resolve()
+    })
+    const t = setup(() => 1_001_000, sleep)
+    const writes = vi.mocked(t.storage.write)
+    const persist = writes.getMockImplementation()!
+    let hasFailedPublication = false
+    writes.mockImplementation((state) => {
+      if (!hasFailedPublication && state.entries.length > 0) {
+        hasFailedPublication = true
+        return Promise.reject(new Error('Disk full'))
+      }
+      return hasFailedPublication && state.entries.length === 0
+        ? Promise.reject(new Error('Disk full'))
+        : persist(state)
+    })
+    // The intent never lands, so the caller falls back to a best-effort
+    // DELETE and still reports the publication failure. All three attempts
+    // ran back-to-back instead of waiting out the backoff.
+    await expect(t.ledger.ensure('s1', sha256, t.source, caller.signal)).rejects.toThrow(
+      'Disk full',
+    )
+    expect(sleep).toHaveBeenCalledTimes(2)
+    expect(sleep).toHaveBeenNthCalledWith(1, MEDIA_CANCEL_INTENT_WRITE_DELAY_MS, caller.signal)
+    expect(sleep).toHaveBeenNthCalledWith(2, MEDIA_CANCEL_INTENT_WRITE_DELAY_MS * 2, caller.signal)
+    expect(t.requestFile.mock.calls.filter((call) => call[1] === 'DELETE')).toHaveLength(1)
+    expect(t.raw()).toMatchObject({ entries: [], orphans: [ref.fileId] })
+  })
+
+  it('treats a missing provider file as already gone on explicit delete', async () => {
+    const t = setup()
+    await t.ledger.ensure('s1', sha256, t.source, new AbortController().signal)
+    await t.ledger.accountReport()
+    const real = t.requestFile.getMockImplementation()!
+    t.requestFile.mockImplementation(async (...args) => {
+      if (args[1] === 'DELETE') throw new ModelApiError('Not found', 404, undefined, undefined)
+      return await real(...args)
+    })
+    const confirmation = vi.fn(() => Promise.resolve(true))
+    await t.ledger.deleteFile(foreign.id, confirmation)
+    expect(confirmation).toHaveBeenCalledWith(foreign.filename)
+    expect(t.raw()).toMatchObject({
+      entries: [{ file: { fileId: ref.fileId } }],
+      cachedFiles: [{ fileId: ref.fileId }],
+    })
+  })
+
+  it('records an explicit delete refusal under the file name, never the provider message', async () => {
+    const t = setup()
+    await t.ledger.ensure('s1', sha256, t.source, new AbortController().signal)
+    const real = t.requestFile.getMockImplementation()!
+    t.requestFile.mockImplementation(async (...args) => {
+      if (args[1] === 'DELETE') throw new Error(`No file found with id '${ref.fileId}'.`)
+      return await real(...args)
+    })
+    // The save-side release succeeds while the provider refuses; the entry
+    // stays with its first recorded failure.
+    await t.ledger.releaseSession('s1')
+    try {
+      await t.ledger.deleteFile(ref.fileId, () => Promise.resolve(true))
+      expect.unreachable()
+    } catch (error: unknown) {
+      expect(error).toBeInstanceOf(UploadDeleteFailedError)
+      // The notice carries the display name, and the fixed message carries
+      // no id-echoing provider text.
+      if (error instanceof UploadDeleteFailedError) expect(error.fileName).toBe(ref.name)
+      expect(String(error)).not.toContain(ref.fileId)
+    }
+    expect(t.raw()).toMatchObject({
+      entries: [{ sessions: [] }],
+      deleteFailures: [{ fileId: ref.fileId, attempts: 2, reason: 'delete_failed' }],
+    })
   })
 
   it('shows every account file and its pool total, then retains read-only metadata after key removal', async () => {
