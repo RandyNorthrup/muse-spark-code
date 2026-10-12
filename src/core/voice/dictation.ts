@@ -131,6 +131,12 @@ interface RunningHelper {
   isStartWanted: boolean
   /** "stop" was sent; "stopped" (or the grace timer) ends it. */
   isStopping: boolean
+  /**
+   * A "start" pressed while the previous "stop" is still unacknowledged: it
+   * is sent only after "stopped" (or the grace timer) ends that recording,
+   * so trailing events still belong to the old one (M35, the restart race).
+   */
+  isStartPending: boolean
   /** "quit" was sent: an exit is expected and not an error. */
   isQuitting: boolean
   stderrTail: string
@@ -183,6 +189,7 @@ export class Dictation {
       isReady: false,
       isStartWanted: false,
       isStopping: false,
+      isStartPending: false,
       isQuitting: false,
       stderrTail: '',
       stopTimer: undefined,
@@ -247,6 +254,15 @@ export class Dictation {
           clearTimeout(helper.stopTimer)
           helper.stopTimer = undefined
         }
+        if (helper.isStartPending) {
+          // The next recording begins only now that the previous stop is
+          // acknowledged: its events cannot leak into the finished one, and
+          // the button never flashes idle between the two.
+          helper.isStartPending = false
+          helper.child.send(DICTATION_HELPER_COMMANDS.start)
+          this.deps.listener.onStopped?.()
+          return
+        }
         this.setStatus('idle')
         this.armIdleExit(helper)
         this.deps.listener.onStopped?.()
@@ -265,6 +281,9 @@ export class Dictation {
 
   /** The helper is unusable: drop it, go idle, tell the listener once. */
   private fail(helper: RunningHelper, reason: string): void {
+    // A start queued behind the unacknowledged stop dies with the helper: the
+    // error says the microphone failed, and the next press starts afresh.
+    helper.isStartPending = false
     this.forget(helper)
     helper.isQuitting = true
     helper.child.kill()
@@ -320,7 +339,18 @@ export class Dictation {
 
   /** The user pressed the microphone (or Ctrl+D) while idle. */
   public start(): void {
-    if (this.isDisposed || this.status !== 'idle') {
+    if (this.isDisposed) {
+      return
+    }
+    if (this.status !== 'idle') {
+      // A press while the previous stop is still unacknowledged queues
+      // behind it: the helper hears "start" only after "stopped", so the
+      // old recording's trailing events keep their owner.
+      const stopping = this.helper
+      if (stopping?.isStopping === true) {
+        stopping.isStartPending = true
+        this.setStatus('starting')
+      }
       return
     }
     this.setStatus('starting')
@@ -331,8 +361,6 @@ export class Dictation {
       helper.idleTimer = undefined
     }
     if (helper.isReady) {
-      // A "start" while the previous "stop" is still finishing is queued by
-      // the helper itself, so it is sent right away either way.
       helper.child.send(DICTATION_HELPER_COMMANDS.start)
     } else {
       helper.isStartWanted = true
@@ -352,10 +380,13 @@ export class Dictation {
       this.armIdleExit(helper)
       return
     }
+    // The latest press wins: a start queued behind this stop is cancelled.
+    helper.isStartPending = false
     helper.child.send(DICTATION_HELPER_COMMANDS.stop)
     helper.isStopping = true
-    // The button reads idle at once; the phrase in flight still arrives.
-    this.setStatus('idle')
+    // Idle waits for the helper's "stopped" (or the grace timer ending it by
+    // force): until then a new press queues behind this recording, and every
+    // trailing event still belongs to it.
     helper.stopTimer = setTimeout(() => {
       helper.stopTimer = undefined
       if (!helper.isStopping) {

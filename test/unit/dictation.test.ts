@@ -171,15 +171,53 @@ describe('Dictation driver', () => {
     expect(t.logged).toContain('info Dictation: 11 characters recognised')
   })
 
-  it('stop sends "stop", goes idle at once, and the late phrase still arrives', () => {
+  it('stop sends "stop", stays live until "stopped", and the late phrase still arrives', () => {
     const t = listening()
     t.dictation.stop()
     expect(t.child().sent).toEqual(['start', 'stop'])
-    expect(t.statuses).toEqual(['starting', 'listening', 'idle'])
+    // Idle waits for the helper's acknowledgement, not the press.
+    expect(t.statuses).toEqual(['starting', 'listening'])
     t.child().emitLine({ type: 'text', text: 'last words' })
     t.child().emitLine({ type: 'stopped' })
+    expect(t.statuses).toEqual(['starting', 'listening', 'idle'])
     expect(t.texts).toEqual(['last words'])
     expect(t.errors).toEqual([])
+  })
+
+  it('a start behind an unacknowledged stop waits for "stopped", then begins', () => {
+    const t = listening()
+    t.dictation.stop()
+    t.dictation.start()
+    // The helper hears nothing new until it confirms the old stop.
+    expect(t.child().sent).toEqual(['start', 'stop'])
+    expect(t.statuses).toEqual(['starting', 'listening', 'starting'])
+    t.child().emitLine({ type: 'text', text: 'trailing' })
+    t.child().emitLine({ type: 'stopped' })
+    // No idle flash: the next recording begins on the acknowledgement.
+    expect(t.child().sent).toEqual(['start', 'stop', 'start'])
+    expect(t.statuses).toEqual(['starting', 'listening', 'starting'])
+    expect(t.texts).toEqual(['trailing'])
+    t.child().emitLine({ type: 'listening' })
+    expect(t.statuses).toEqual(['starting', 'listening', 'starting', 'listening'])
+    // A stop behind the queued start cancels it instead.
+    t.dictation.stop()
+    t.dictation.start()
+    t.dictation.stop()
+    t.child().emitLine({ type: 'stopped' })
+    expect(t.child().sent).toEqual(['start', 'stop', 'start', 'stop', 'stop'])
+    expect(t.statuses.at(-1)).toBe('idle')
+  })
+
+  it('a stop that is never confirmed ends the queued start by force', () => {
+    const t = listening()
+    t.dictation.stop()
+    t.dictation.start()
+    vi.advanceTimersByTime(DICTATION_STOP_GRACE_MS)
+    expect(t.errors).toEqual(['The dictation helper stopped responding'])
+    expect(t.statuses).toEqual(['starting', 'listening', 'starting', 'idle'])
+    t.dictation.start()
+    expect(t.children).toHaveLength(2)
+    expect(t.child(1).sent).toEqual([])
   })
 
   it('keeps the helper warm for the next start and quits it after the idle timeout', () => {

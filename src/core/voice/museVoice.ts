@@ -48,12 +48,7 @@ import {
 import { fill, formatUnit } from '../../shared/l10n/text'
 import { formatUsd } from '../../shared/l10n/exactUsd'
 import type { CoreLogger } from '../logging'
-import type {
-  DictationHandle,
-  DictationListener,
-  DictationStatus,
-  VoiceConsentFence,
-} from './dictation'
+import type { DictationHandle, DictationListener, VoiceConsentFence } from './dictation'
 
 /** What the stream hears from the socket; the host adapts the platform's WebSocket to it. */
 export interface VoiceSocketHandlers {
@@ -461,12 +456,22 @@ interface VoiceBudgetState {
  */
 export class MuseVoiceDictation implements DictationHandle {
   private readonly capture: DictationHandle
-  /** The stream of the recording being made; undefined between recordings. */
-  private recording: MuseVoiceStream | undefined
+  /**
+   * Every recording has an identity: the one being made, plus the stopped
+   * ones still waiting for the helper's acknowledgement. A helper event for
+   * a recording that is no longer current goes to its own stream — audio to
+   * the stopped one until the next goes live, "stopped" to the oldest
+   * waiter — never to the current one.
+   */
+  private current:
+    { readonly id: number; readonly stream: MuseVoiceStream; isLive: boolean } | undefined
+  private readonly awaitingStop: { readonly id: number; readonly stream: MuseVoiceStream }[] = []
+  private nextRecordingId = 0
+  /** Stop requested for the current recording, its acknowledgement pending. */
+  private isStopping = false
   /** Every stream still open, the finishing ones included (a dispose ends them). */
   private readonly open = new Set<MuseVoiceStream>()
   private readonly budgets = new Map<MuseVoiceStream, VoiceBudgetState>()
-  private status: DictationStatus = 'idle'
   private isDisposed = false
 
   public constructor(
@@ -475,24 +480,38 @@ export class MuseVoiceDictation implements DictationHandle {
   ) {
     this.capture = deps.createCapture({
       onStatus: (status) => {
-        this.status = status
+        if (status === 'listening' && this.current !== undefined) {
+          this.current.isLive = true
+        }
         listener.onStatus(status)
       },
       onText: ignoreWords,
       onAudio: (pcm) => {
-        this.recording?.push(pcm)
+        this.audioTarget()?.push(pcm)
       },
       // Every byte has arrived: the stream asks for its transcript.
       onStopped: () => {
-        const stream = this.recording
-        this.recording = undefined
+        const waiter = this.awaitingStop.shift()
+        if (waiter !== undefined) {
+          waiter.stream.finish()
+          return
+        }
+        const stream = this.current?.stream
+        this.current = undefined
+        this.isStopping = false
         stream?.finish()
       },
       onError: (reason) => {
-        const stream = this.recording
-        this.recording = undefined
-        stream?.abort()
-        if (stream !== undefined) {
+        // The helper died: every unfinished recording ends on its own
+        // stream, and none of them survives into the next press.
+        const unfinished = [
+          ...this.awaitingStop.splice(0).map((waiter) => waiter.stream),
+          ...(this.current === undefined ? [] : [this.current.stream]),
+        ]
+        this.current = undefined
+        this.isStopping = false
+        for (const stream of unfinished) {
+          stream.abort()
           this.settle(stream)
         }
         listener.onError(reason)
@@ -500,8 +519,29 @@ export class MuseVoiceDictation implements DictationHandle {
     })
   }
 
+  /**
+   * The stream audio belongs to: the live recording, else the stopped one
+   * still waiting for its acknowledgement, else the one not yet live. A
+   * recording that already finished never hears again (M35, the restart race).
+   */
+  private audioTarget(): MuseVoiceStream | undefined {
+    if (this.current?.isLive === true) {
+      return this.current.stream
+    }
+    const waiter = this.awaitingStop.at(-1)
+    return waiter === undefined ? this.current?.stream : waiter.stream
+  }
+
   /** A stream that ended: its seconds are counted, once. */
   private settle(stream: MuseVoiceStream): void {
+    const index = this.awaitingStop.findIndex((waiter) => waiter.stream === stream)
+    if (index !== -1) {
+      this.awaitingStop.splice(index, 1)
+    }
+    if (this.current?.stream === stream) {
+      this.current = undefined
+      this.isStopping = false
+    }
     if (!this.open.delete(stream)) {
       return
     }
@@ -645,7 +685,9 @@ export class MuseVoiceDictation implements DictationHandle {
       },
       {
         onLimit: () => {
-          if (this.recording === stream) this.capture.stop()
+          // The cap belongs to its own recording: only a live current one
+          // still holds the microphone.
+          if (this.current?.stream === stream) this.stop()
         },
         onFinal: (text) => {
           this.settle(stream)
@@ -663,9 +705,9 @@ export class MuseVoiceDictation implements DictationHandle {
           }
         },
         onFailed: (reason) => {
+          const isCurrent = this.current?.stream === stream
           this.settle(stream)
-          if (this.recording === stream) {
-            this.recording = undefined
+          if (isCurrent) {
             this.capture.stop()
           }
           this.listener.onError(reason)
@@ -681,20 +723,36 @@ export class MuseVoiceDictation implements DictationHandle {
   }
 
   public start(): void {
-    if (this.isDisposed || this.status !== 'idle') {
+    // A press while the previous stop is still unacknowledged starts the
+    // next recording at once: the driver holds both identities, and the
+    // capture layer only begins it once the old stop is acknowledged.
+    if (this.isDisposed || (this.current !== undefined && !this.isStopping)) {
       return
     }
-    this.recording = this.newStream(this.deps.apiKey())
+    this.isStopping = false
+    const id = this.nextRecordingId
+    this.nextRecordingId += 1
+    const stream = this.newStream(this.deps.apiKey())
+    this.current = { id, stream, isLive: false }
     this.capture.start()
   }
 
   public stop(): void {
     this.capture.stop()
+    const recording = this.current
+    if (recording === undefined || this.isStopping) {
+      return
+    }
+    this.isStopping = true
+    this.current = undefined
+    this.awaitingStop.push(recording)
   }
 
   public dispose(): void {
     this.isDisposed = true
-    this.recording = undefined
+    this.current = undefined
+    this.isStopping = false
+    this.awaitingStop.length = 0
     this.capture.dispose()
     for (const stream of this.open) {
       stream.abort()
