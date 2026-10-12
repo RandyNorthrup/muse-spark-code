@@ -490,10 +490,6 @@
   "playbookAnswerFollowUp": "후속 조치",
   "playbookNotCertified": "지침서: 이 라운드는 인증할 수 없어 통과로 계산되지 않습니다.",
   "playbookEvidenceUnreadable": "지침서: 검토 대상 파일 또는 하위 에이전트의 변경 내용을 읽을 수 없어 이 검토가 지침서의 대상인지 판단할 수 없습니다. 검토를 보내지 않았습니다.",
-  "playbookBlockedName": "{child}에 대한 플레이북 지적: 이름을 숨긴 파일이 비밀 정보로 보입니다. 이 하위 에이전트의 라운드를 집계했습니다.",
-  "playbookBlockedLarge": "{child}에 대한 플레이북 지적: 패치 크기는 {size}이며 한도 {bound}를 초과합니다. 이 하위 에이전트의 라운드를 집계했습니다.",
-  "playbookBlockedUnreadable": "{child}에 대한 플레이북 지적: 기여 내용을 읽을 수 없습니다. 이 하위 에이전트의 라운드를 집계했습니다.",
-  "playbookBlockedMany": "{child}에 대한 플레이북 지적: 변경된 파일 수: {count}; 한도: {bound}. 이 하위 에이전트의 라운드를 집계했습니다.",
   "playbookRecordStale": "지침서 기록을 읽을 수 없습니다. 표시된 내용이 최신이 아닐 수 있습니다.",
   "playbookMuseCodeStarts": "Muse Code는 묻지 않고 하위 에이전트를 시작합니다. 플레이북은 라운드를 집계하고 작업을 검토하지만 시작을 막을 수는 없습니다.",
   "playbookStrikeBadge": {
@@ -570,6 +566,10 @@
     "residualOpen": "결정이 필요: {lane}에 미해결 잔여 항목이 있음: {missing}.",
     "contributionBlocked": "{reason}"
   },
+  "playbookBlockedName": "{child}에 대한 플레이북 지적: 이름을 숨긴 파일이 비밀 정보로 보입니다. 이 하위 에이전트의 라운드를 집계했습니다.",
+  "playbookBlockedLarge": "{child}에 대한 플레이북 지적: 패치 크기는 {size}이며 한도 {bound}를 초과합니다. 이 하위 에이전트의 라운드를 집계했습니다.",
+  "playbookBlockedUnreadable": "{child}에 대한 플레이북 지적: 기여 내용을 읽을 수 없습니다. 이 하위 에이전트의 라운드를 집계했습니다.",
+  "playbookBlockedMany": "{child}에 대한 플레이북 지적: 변경된 파일 수: {count}; 한도: {bound}. 이 하위 에이전트의 라운드를 집계했습니다.",
   "scheduleSettlement": {
     "sent": "일정에 따라 전송됨",
     "outcomes": {

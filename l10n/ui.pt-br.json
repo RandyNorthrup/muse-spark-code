@@ -490,10 +490,6 @@
   "playbookAnswerFollowUp": "Acompanhamento",
   "playbookNotCertified": "Manual: não foi possível certificar esta rodada, então ela não conta como aprovada.",
   "playbookEvidenceUnreadable": "Manual: não foi possível ler um arquivo em revisão ou o que um subagente alterou, então o manual não consegue saber se esta revisão é dele. A revisão não foi enviada.",
-  "playbookBlockedName": "Achado do playbook para {child}: um arquivo cujo nome foi ocultado parece conter um segredo. A rodada deste subagente foi contada.",
-  "playbookBlockedLarge": "Achado do playbook para {child}: o patch tem {size}, acima do limite de {bound}. A rodada deste subagente foi contada.",
-  "playbookBlockedUnreadable": "Achado do playbook para {child}: não foi possível ler a contribuição. A rodada deste subagente foi contada.",
-  "playbookBlockedMany": "Achado do playbook para {child}: quantidade de arquivos alterados: {count}; limite: {bound}. A rodada deste subagente foi contada.",
   "playbookRecordStale": "Não foi possível ler o registro do manual. O que é mostrado pode estar desatualizado.",
   "playbookMuseCodeStarts": "O Muse Code inicia subagentes sem perguntar. O playbook conta suas rodadas e revisa seu trabalho, mas não pode impedir um início.",
   "playbookStrikeBadge": {
@@ -572,6 +568,10 @@
     "residualOpen": "Sua decisão é necessária: {lane} tem itens residuais abertos: {missing}.",
     "contributionBlocked": "{reason}"
   },
+  "playbookBlockedName": "Achado do playbook para {child}: um arquivo cujo nome foi ocultado parece conter um segredo. A rodada deste subagente foi contada.",
+  "playbookBlockedLarge": "Achado do playbook para {child}: o patch tem {size}, acima do limite de {bound}. A rodada deste subagente foi contada.",
+  "playbookBlockedUnreadable": "Achado do playbook para {child}: não foi possível ler a contribuição. A rodada deste subagente foi contada.",
+  "playbookBlockedMany": "Achado do playbook para {child}: quantidade de arquivos alterados: {count}; limite: {bound}. A rodada deste subagente foi contada.",
   "scheduleSettlement": {
     "sent": "Enviado conforme o agendamento",
     "outcomes": {

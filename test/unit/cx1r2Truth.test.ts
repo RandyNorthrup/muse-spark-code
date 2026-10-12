@@ -178,6 +178,9 @@ describe('CX1R3 sibling sweep: dormant features have no published usage', () => 
 
   it('roadmap places dormant work in progress with no shipped note or capability claims', () => {
     const progress = roadmap.slice(roadmap.indexOf('## In progress'), roadmap.indexOf('## Planned'))
+    // M116 is mixed: its row names shipped parts beside its dormant panel
+    // integration, so it carries no blanket "in progress" sentence (mixed
+    // record below keeps the dormant cover).
     for (const id of [
       'M96',
       'M96b',
@@ -189,7 +192,6 @@ describe('CX1R3 sibling sweep: dormant features have no published usage', () => 
       'M109',
       'M113',
       'M115',
-      'M116',
       'M117',
     ]) {
       const row = progress.split('\n').find((line) => line.includes(`<sub>${id}</sub>`))
@@ -215,7 +217,12 @@ describe('CX1R3 sibling sweep: dormant features have no published usage', () => 
         /live tool-argument previews are in progress/,
       ],
       M113: [/\/report for project/, /First parts shipped in 0\.17\.0/, /additional report kinds/],
-      M116: [/\/playbook shows status/, /First parts shipped in 0\.17\.0/, /panel integration/],
+      M116: [
+        /CLI\/ACP journal commands ship/,
+        /First parts shipped in 0\.17\.0/,
+        /panel integration/,
+        /cannot stop their starts/,
+      ],
     }
     for (const [id, patterns] of Object.entries(mixed)) {
       const row = progress.split('\n').find((line) => line.includes(`<sub>${id}</sub>`))

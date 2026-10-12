@@ -490,10 +490,6 @@
   "playbookAnswerFollowUp": "フォローアップ",
   "playbookNotCertified": "手引き: このラウンドは検証できなかったため、合格として数えられません。",
   "playbookEvidenceUnreadable": "手引き: レビュー対象のファイル、またはサブエージェントの変更内容を読み取れなかったため、このレビューが手引きの対象かどうか判断できません。レビューは送信されませんでした。",
-  "playbookBlockedName": "{child} に対するプレイブックの指摘：名前を非表示にしたファイルは秘密情報のように見えます。このサブエージェントのラウンドを数えました。",
-  "playbookBlockedLarge": "{child} に対するプレイブックの指摘：パッチのサイズは {size} で、上限 {bound} を超えています。このサブエージェントのラウンドを数えました。",
-  "playbookBlockedUnreadable": "{child} に対するプレイブックの指摘：成果物を読み取れませんでした。このサブエージェントのラウンドを数えました。",
-  "playbookBlockedMany": "{child} に対するプレイブックの指摘：変更ファイル数：{count}、上限：{bound}。このサブエージェントのラウンドを数えました。",
   "playbookRecordStale": "手引きの記録を読み取れませんでした。表示内容は古い可能性があります。",
   "playbookMuseCodeStarts": "Muse Code は確認せずにサブエージェントを開始します。プレイブックはラウンドを数え、作業をレビューしますが、開始を止めることはできません。",
   "playbookStrikeBadge": {
@@ -570,6 +566,10 @@
     "residualOpen": "判断が必要です: {lane} に未解決の残存事項があります: {missing}。",
     "contributionBlocked": "{reason}"
   },
+  "playbookBlockedName": "{child} に対するプレイブックの指摘：名前を非表示にしたファイルは秘密情報のように見えます。このサブエージェントのラウンドを数えました。",
+  "playbookBlockedLarge": "{child} に対するプレイブックの指摘：パッチのサイズは {size} で、上限 {bound} を超えています。このサブエージェントのラウンドを数えました。",
+  "playbookBlockedUnreadable": "{child} に対するプレイブックの指摘：成果物を読み取れませんでした。このサブエージェントのラウンドを数えました。",
+  "playbookBlockedMany": "{child} に対するプレイブックの指摘：変更ファイル数：{count}、上限：{bound}。このサブエージェントのラウンドを数えました。",
   "scheduleSettlement": {
     "sent": "スケジュールにより送信",
     "outcomes": {
