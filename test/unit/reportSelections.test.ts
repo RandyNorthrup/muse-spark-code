@@ -1,3 +1,4 @@
+import { EN } from '../../src/shared/l10n/en'
 import { describe, expect, it, vi } from 'vitest'
 import { readReportSelections } from '../../src/runtime/reporting/selections'
 import {
@@ -63,6 +64,7 @@ describe('bound report Git selections', () => {
       options,
       io,
       new AbortController().signal,
+      EN,
     )
     expect(selection.changes(snapshot, options).data?.map((commit) => commit.sha)).toEqual([head])
     expect(selection.changeBranches(snapshot, options).data).toEqual([
@@ -84,6 +86,7 @@ describe('bound report Git selections', () => {
       options,
       graph(`${head}\n${'e'.repeat(40)}`),
       new AbortController().signal,
+      EN,
     )
     expect(selection.changes(snapshot, options).record.status).toBe('partial')
     expect(selection.changes(snapshot, options).data).toHaveLength(1)
@@ -110,6 +113,7 @@ describe('bound report Git selections', () => {
       { ...options, scope: 'missing' },
       io,
       new AbortController().signal,
+      EN,
     )
     expect(missing.changes(snapshot, options).record.status).toBe('unavailable')
     const release = await readReportSelections(
@@ -117,6 +121,7 @@ describe('bound report Git selections', () => {
       { ...options, kind: 'release' },
       io,
       new AbortController().signal,
+      EN,
     )
     expect(release.risksSinceRelease(snapshot).record.status).toBe('unavailable')
   })

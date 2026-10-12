@@ -1,3 +1,4 @@
+import { EN } from '../../src/shared/l10n/en'
 import { describe, expect, it } from 'vitest'
 import { securitySource } from '../../src/core/reporting/sources/security'
 import { reportOptions, REPORT_FIXTURE_AS_OF } from './helpers/reporting/snapshot'
@@ -17,6 +18,7 @@ const facts: SecurityFacts = {
 
 function contextFor(kind: SourceReadContext['options']['kind']): SourceReadContext {
   return {
+    reportText: EN,
     asOf: REPORT_FIXTURE_AS_OF,
     workspaceKey: 'fixture',
     options: reportOptions(kind),

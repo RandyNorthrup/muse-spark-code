@@ -1,3 +1,4 @@
+import { EN } from '../../src/shared/l10n/en'
 import { createHash } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
 import {
@@ -336,6 +337,7 @@ describe('M113 frozen report contracts', () => {
       availableSource('questions', []),
     )
     const result = await port.read({
+      reportText: EN,
       asOf: snapshot.asOf,
       workspaceKey: snapshot.workspaceKey,
       options: reportOptions(),

@@ -13,11 +13,13 @@ function isBundle(value: unknown): value is Bundle {
   )
 }
 export function reportingNetworkLoader(log: Logger): () => Bundle {
+  const reportUi = UI_TEXT.reportUi
+
   return lazyBundleLoader({
     bundlePath: path.join(__dirname, 'reportingNetwork.js'),
     log,
     isBundle,
     label: 'report network sources',
-    unavailable: () => UI_TEXT.reportUi.generationFailed,
+    unavailable: () => reportUi.generationFailed,
   })
 }

@@ -15,10 +15,12 @@ function isBundle(value: unknown): value is Bundle {
 export function reportsLoader(
   deps: Pick<LazyBundleLoaderOptions<Bundle>, 'bundlePath' | 'log' | 'loadBundle'>,
 ): () => Bundle {
+  const reportUi = UI_TEXT.reportUi
+
   return lazyBundleLoader({
     ...deps,
     isBundle,
     label: 'reporting bundle',
-    unavailable: () => UI_TEXT.reportUi.generationFailed,
+    unavailable: () => reportUi.generationFailed,
   })
 }

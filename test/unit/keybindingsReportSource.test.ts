@@ -52,6 +52,7 @@ vi.mock('../../src/core/resources/launcher', async (original) => {
 
 function keybindingsContext() {
   return {
+    reportText: EN,
     asOf: REPORT_FIXTURE_AS_OF,
     workspaceKey: 'keybindings-fixture',
     options: reportOptions('keybindings'),

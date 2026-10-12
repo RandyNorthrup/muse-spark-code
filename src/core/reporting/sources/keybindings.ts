@@ -127,11 +127,14 @@ export function keybindingsFacts(manifest: unknown): KeybindingsFacts {
 export function keybindingsSource(readManifest: KeybindingsManifestReader) {
   // Section labels stay identifier keys; renderers resolve UI_TEXT at use
   // time, so no display text is read here at all.
-  return localSource('keybindings', async () => {
+  return localSource('keybindings', async (context) => {
     const sections = collectKeybindingSections(keybindingsFacts(await readManifest()))
     const omitted = sections.reduce((total, section) => total + section.omittedRows, 0)
     // A skipped blank chord is invalid data, not a full read: the section
     // counts it and the source reports partial with that reason.
-    return { data: sections, ...(omitted > 0 && { partial: sourceReason('invalid') }) }
+    return {
+      data: sections,
+      ...(omitted > 0 && { partial: sourceReason('invalid', context.reportText) }),
+    }
   })
 }

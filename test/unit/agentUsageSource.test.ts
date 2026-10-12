@@ -1,3 +1,4 @@
+import { EN } from '../../src/shared/l10n/en'
 const clean = (text: string) => text.replaceAll('private-model-canary', '[redacted]')
 import { describe, expect, it, vi } from 'vitest'
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
@@ -50,6 +51,7 @@ const codex = () => ({
   },
 })
 const context = () => ({
+  reportText: EN,
   asOf: REPORT_FIXTURE_AS_OF,
   workspaceKey: 'fixture',
   options: reportOptions('usage'),

@@ -17916,6 +17916,7 @@ describe('RVCM1132 report session ownership', () => {
       sessionId: 's1',
     }
     const context = {
+      reportText: EN,
       options,
       asOf: options.asOf,
       workspaceKey: 'fixture',
@@ -17960,6 +17961,7 @@ describe('RVCM1132 report session ownership', () => {
     // unbound sentence is kept instead of the failed-read one (RVCM1132C
     // finding 4).
     const result = await questionsSource(controller.reportingQuestions(), (text) => text).read({
+      reportText: EN,
       options,
       asOf: options.asOf,
       workspaceKey: 'fixture',

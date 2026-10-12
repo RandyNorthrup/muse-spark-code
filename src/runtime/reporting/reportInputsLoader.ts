@@ -23,10 +23,12 @@ function isBundle(value: unknown): value is Bundle {
 export function reportInputsLoader(
   deps: Pick<LazyBundleLoaderOptions<Bundle>, 'bundlePath' | 'log' | 'loadBundle'>,
 ): () => Bundle {
+  const reportUi = UI_TEXT.reportUi
+
   return lazyBundleLoader({
     ...deps,
     isBundle,
     label: 'report session, usage, accounts and security inputs',
-    unavailable: () => UI_TEXT.reportUi.generationFailed,
+    unavailable: () => reportUi.generationFailed,
   })
 }

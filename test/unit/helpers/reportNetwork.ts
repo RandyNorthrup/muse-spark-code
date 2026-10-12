@@ -27,6 +27,7 @@ import { REPORT_FIXTURE_AS_OF } from './reporting/snapshot'
 
 export function networkContext(isNetworkEnabled = true): SourceReadContext {
   return {
+    reportText: EN,
     asOf: REPORT_FIXTURE_AS_OF,
     workspaceKey: 'network-fixture',
     options: {

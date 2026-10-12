@@ -1,3 +1,4 @@
+import { EN } from '../../src/shared/l10n/en'
 import { mkdir, mkdtemp, readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -71,6 +72,7 @@ describe('deterministic reporting fakes', () => {
       limits: [],
     })
     await port.read({
+      reportText: EN,
       asOf: REPORT_FIXTURE_AS_OF,
       workspaceKey: 'fixture',
       options: reportOptions('usage'),

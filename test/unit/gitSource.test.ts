@@ -1,3 +1,4 @@
+import { EN } from '../../src/shared/l10n/en'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { mkdtemp, realpath, rm } from 'node:fs/promises'
 import os from 'node:os'
@@ -32,6 +33,7 @@ vi.mock('../../src/core/resources/launcher', async (original) => {
 })
 
 const context = () => ({
+  reportText: EN,
   asOf: REPORT_FIXTURE_AS_OF,
   workspaceKey: 'fixture',
   options: reportOptions(),

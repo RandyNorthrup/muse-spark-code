@@ -47,6 +47,7 @@ const NOW = Date.parse('2026-10-07T12:00:00Z')
 const TODAY = usageLocalDay(NOW)
 const AS_OF = new Date(NOW).toISOString()
 const context = (options?: { sessionId?: string; scope?: string; by?: 'session' }) => ({
+  reportText: EN,
   asOf: AS_OF,
   workspaceKey: 'fixture',
   options: {
@@ -230,9 +231,9 @@ describe('bound report inputs', () => {
 
   it('reads an empty journal on a fresh install and real rows after turns', async () => {
     const data = await dir('report-journal-')
-    expect(await readUsageReportJournal(data)).toEqual({ records: [], rollups: [], limits: [] })
+    expect(await readUsageReportJournal(data, EN)).toEqual({ records: [], rollups: [], limits: [] })
     await journalWith(data, [usageEntry('r1', 's1'), usageEntry('r2', 's2')])
-    const journal = await readUsageReportJournal(data)
+    const journal = await readUsageReportJournal(data, EN)
     expect(journal.records).toHaveLength(2)
     const reader = createUsageReportReader({
       dataFolder: data,
@@ -267,7 +268,7 @@ describe('bound report inputs', () => {
           ],
           turnIds: [],
         }),
-      readJournal: () => readUsageReportJournal(data),
+      readJournal: () => readUsageReportJournal(data, EN),
     })
     const source = sessionSource(reader, [], (text) => text)
     const result = await source.read(context({ sessionId: 'live-session' }))
@@ -285,7 +286,7 @@ describe('bound report inputs', () => {
     const data = await dir('report-missing-')
     const reader = createSessionReportReader({
       resolveSession: () => Promise.resolve(null),
-      readJournal: () => readUsageReportJournal(data),
+      readJournal: () => readUsageReportJournal(data, EN),
     })
     await expect(reader.read(context({ sessionId: 'ghost' }))).rejects.toMatchObject({
       code: 'history',
@@ -306,7 +307,7 @@ describe('bound report inputs', () => {
         sessionId === undefined
           ? Promise.resolve(null)
           : bundle.readStoredReportSession(sessions, sessionId),
-      readJournal: () => bundle.readUsageReportJournal(data),
+      readJournal: () => bundle.readUsageReportJournal(data, EN),
     })
     const result = await sessionSource(reader, [], (text) => text).read(
       context({ sessionId: 'stored1' }),
@@ -322,7 +323,7 @@ describe('RVCM1132 input regressions', () => {
     const data = await dir('partial-rollup-session-')
     await writeFile(path.join(data, 's1.json'), JSON.stringify(storedSession('s1')))
     await journalWith(data, [usageEntry('raw', 's1')])
-    const journal = await readUsageReportJournal(data)
+    const journal = await readUsageReportJournal(data, EN)
     const reader = createSessionReportReader({
       resolveSession: () => readStoredReportSession(data, 's1'),
       readJournal: () =>
@@ -559,7 +560,7 @@ describe('RVCM1132 input regressions', () => {
         ]),
       ),
     }
-    const result = await readHostReportSession(host, 'primary')
+    const result = await readHostReportSession(host, 'primary', EN)
     expect(result).toMatchObject({
       backend: 'museCode',
       sessionId: 'primary',
@@ -619,7 +620,7 @@ describe('RVCM1132 input regressions', () => {
         table,
         'de',
       )
-      .read(context())
+      .read({ ...context(), reportText: table })
     expect(result?.activity.approvals).toEqual({
       status: 'unavailable',
       reason: table.reportDetailReasons.sessionApprovalsUnavailable,
@@ -692,7 +693,7 @@ describe('RVCM1132 input regressions', () => {
       { modelId: 'first-model', isActive: false },
       { modelId: 'second-model', isActive: false },
     ])
-    const result = await readHostReportSession(host, 's1')
+    const result = await readHostReportSession(host, 's1', EN)
     expect(result?.modelId).toBe('unknown')
     expect(result?.partial).toBe(EN.reportDetailReasons.sessionModelUnavailable)
     expect(result?.items).toHaveLength(2)
@@ -700,7 +701,7 @@ describe('RVCM1132 input regressions', () => {
     const data = await dir('unknown-model-report-')
     const reader = createSessionReportReader({
       resolveSession: () => Promise.resolve(result!),
-      readJournal: () => readUsageReportJournal(data),
+      readJournal: () => readUsageReportJournal(data, EN),
     })
     const source = await sessionSource(reader, [], (text) => text).read(
       context({ sessionId: 's1' }),
@@ -712,7 +713,7 @@ describe('RVCM1132 input regressions', () => {
 
   it('RVCM1132B reports an empty model catalogue as a failure, not missing history', async () => {
     const host = fakeReportHost([], [])
-    await expect(readHostReportSession(host, 's1')).rejects.toMatchObject({ code: 'failed' })
+    await expect(readHostReportSession(host, 's1', EN)).rejects.toMatchObject({ code: 'failed' })
   })
 
   it('RVCM1132C samples one timezone offset per report for the budget day and the period day', async () => {
@@ -792,7 +793,7 @@ describe('RVCM1132 input regressions', () => {
     const data = await dir('failed-session-report-')
     const reader = createSessionReportReader({
       resolveSession: () => Promise.reject(new LocalSourceError('failed')),
-      readJournal: () => readUsageReportJournal(data),
+      readJournal: () => readUsageReportJournal(data, EN),
     })
     const result = await sessionSource(reader, [], (text) => text).read(
       context({ sessionId: 's1' }),

@@ -1,3 +1,4 @@
+import { EN } from '../../src/shared/l10n/en'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { link, mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises'
 import os from 'node:os'
@@ -12,6 +13,7 @@ import { reportOptions, REPORT_FIXTURE_AS_OF } from './helpers/reporting/snapsho
 import { REPORT_MAX_ROWS, REPORT_MAX_TEXT_CHARS, UI_TEXT } from '../../src/shared/constants'
 
 const context = () => ({
+  reportText: EN,
   asOf: REPORT_FIXTURE_AS_OF,
   workspaceKey: 'fixture',
   options: reportOptions(),

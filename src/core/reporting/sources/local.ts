@@ -1,9 +1,6 @@
+import type { UiText } from '../../../shared/l10n/en'
 import { createHash } from 'node:crypto'
-import {
-  ACP_WORKSPACE_HASH_CHARS,
-  REPORT_SOURCE_TIMEOUT_MS,
-  UI_TEXT,
-} from '../../../shared/constants'
+import { ACP_WORKSPACE_HASH_CHARS, REPORT_SOURCE_TIMEOUT_MS } from '../../../shared/constants'
 import { pathModule } from '../../workspaceRoot'
 import { reportSourceSchema } from '../../../shared/reportSchema'
 import type { ReportSourceRecord } from '../../../shared/reportSchema'
@@ -70,8 +67,8 @@ export interface LocalFileIo {
     signal: AbortSignal,
   ): Promise<readonly { name: string; directory: boolean }[]>
 }
-export function sourceReason(code: LocalFailure): string {
-  return UI_TEXT.reportSourceReasons[code]
+export function sourceReason(code: LocalFailure, reportText: UiText): string {
+  return reportText.reportSourceReasons[code]
 }
 
 /**
@@ -171,7 +168,7 @@ export function localSource<K extends ReportSourceKind>(
           record: {
             id: kind,
             status: code === 'disabled' ? 'notApplicable' : 'unavailable',
-            reason: sourceReason(code),
+            reason: sourceReason(code, context.reportText),
             observedAt: null,
             freshness: { state: 'unknown', ageMs: null },
           },
