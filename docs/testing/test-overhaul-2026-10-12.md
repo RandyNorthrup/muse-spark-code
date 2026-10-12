@@ -52,12 +52,22 @@ transitively: a test reaching a fake through any helper is GO. Output:
 `docs/testing/test-overhaul-2026-10-12.json` (file, verdict, first
 construct or import that decided it) plus counts.
 
-Counts: 1,658 files under `test/` — 767 STAY, 870 GO, 21 LIST.
-Test files: unit 1,321 (547 STAY / 774 GO), e2e 16 (12 GO / 4 LIST, the
-4 LIST are `*.live.e2e.test.ts`), integration 8 (all LIST for the
-integrator). Top GO deciders: `vi.mock` 146, `./helpers/fakes` 115,
-`vi.useFakeTimers` 58, `./helpers/fakeToolIo` 30,
-reporting-snapshot fake 28, `vscode` import 26, `vi.stubGlobal` 20.
+Counts: 1,658 files under `test/` — 755 STAY, 881 GO, 22 LIST.
+Test files: unit 1,321 (535 STAY / 786 GO), e2e 16 (11 GO / 5 LIST: the
+4 `*.live.e2e.test.ts` files plus `live.e2e.test.ts`, the real-CLI drill),
+integration 8 (all LIST for the integrator). Top GO deciders: `vi.mock`
+146, `./helpers/fakes` 115, `vi.useFakeTimers` 58, `./helpers/fakeToolIo`
+30, reporting-snapshot fake 28, `vscode` import 26, `vi.stubGlobal` 20,
+browser/scene rendering 11, visual-audit reads 2.
+
+Two fixes landed after the first hand check, both re-verified by re-run:
+`test/e2e/live.e2e.test.ts` is LIST (real CLI drill; its only fake import
+is the log sink), and tests that launch Chromium or render scripted
+harness scenes are GO (process tests; the short gate is pure logic only).
+Borderlines re-read: `whatsNewFixture` (STAY — pins the What's New
+fixture, not pixels), `chatColumn` (STAY — asserts real stylesheet
+geometry), `teamResources` (STAY — "playwright" is a command string, not
+a browser), `m114PanelEvidence`/`m114Audit` (GO — read the deleted audit).
 
 Known limits (all noted, none silent): bare `process.env` assignment and
 `Date.now` patching are not flagged (not in rule 1's list); dynamic

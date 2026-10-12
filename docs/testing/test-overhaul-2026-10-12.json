@@ -3,8 +3,8 @@
   "root": "test/",
   "rules": "lane TESTCUT brief rules 1+4; parser-based (typescript), transitive test-helper imports",
   "counts": {
-    "STAY": 767,
-    "GO": 869,
+    "STAY": 755,
+    "GO": 881,
     "LIST": 22
   },
   "goByConstruct": {
@@ -26,6 +26,7 @@
     "vi.mock(...)": 146,
     "import \"./helpers/fakes\"": 115,
     "vi.spyOn(...) with mockImplementation(...)": 14,
+    "chromium.launch(...)": 5,
     "vi.spyOn(...) with mockImplementationOnce(...)": 6,
     "import \"./helpers/fakeAgent\"": 10,
     "mockRejectedValue(...) without spyOn (stand-in behaviour)": 6,
@@ -149,6 +150,8 @@
     "function fakeFiles": 1,
     "function fakeScan": 1,
     "function fakeFetch": 2,
+    "reads the visual audit": 2,
+    "renders": 5,
     "imports fake test/unit/helpers/fakeGit.ts": 1,
     "class FakeMacHelper implements ...": 1,
     "import \"./helpers/fakeMcpHttpServer\"": 1,
@@ -693,8 +696,8 @@
     },
     {
       "file": "test/unit/accountsPanel.a11y.test.mjs",
-      "verdict": "STAY",
-      "decidedBy": "real code only by the parser"
+      "verdict": "GO",
+      "decidedBy": "chromium.launch(...)"
     },
     {
       "file": "test/unit/accountsPanel.test.tsx",
@@ -2313,8 +2316,8 @@
     },
     {
       "file": "test/unit/fontsPack.test.mjs",
-      "verdict": "STAY",
-      "decidedBy": "real code only by the parser"
+      "verdict": "GO",
+      "decidedBy": "chromium.launch(...)"
     },
     {
       "file": "test/unit/foreignHookDeadline.test.ts",
@@ -4293,28 +4296,28 @@
     },
     {
       "file": "test/unit/m114Audit.test.mjs",
-      "verdict": "STAY",
-      "decidedBy": "real code only by the parser"
+      "verdict": "GO",
+      "decidedBy": "reads the visual audit via \"./helpers/m114AuditCapture.mjs\""
     },
     {
       "file": "test/unit/m114Conversation.test.mjs",
-      "verdict": "STAY",
-      "decidedBy": "real code only by the parser"
+      "verdict": "GO",
+      "decidedBy": "chromium.launch(...)"
     },
     {
       "file": "test/unit/m114ConversationReview.test.mjs",
-      "verdict": "STAY",
-      "decidedBy": "real code only by the parser"
+      "verdict": "GO",
+      "decidedBy": "renders via \"playwright-core\""
     },
     {
       "file": "test/unit/m114Panel.test.mjs",
-      "verdict": "STAY",
-      "decidedBy": "real code only by the parser"
+      "verdict": "GO",
+      "decidedBy": "chromium.launch(...)"
     },
     {
       "file": "test/unit/m114PanelEvidence.test.mjs",
-      "verdict": "STAY",
-      "decidedBy": "real code only by the parser"
+      "verdict": "GO",
+      "decidedBy": "reads the visual audit via \"./helpers/m114AuditCapture.mjs\""
     },
     {
       "file": "test/unit/m123Unreleased.test.ts",
@@ -7453,8 +7456,8 @@
     },
     {
       "file": "test/unit/themeBridgeBrowser.test.mjs",
-      "verdict": "STAY",
-      "decidedBy": "real code only by the parser"
+      "verdict": "GO",
+      "decidedBy": "chromium.launch(...)"
     },
     {
       "file": "test/unit/themeBridgeFixture.mjs",
@@ -8228,13 +8231,13 @@
     },
     {
       "file": "test/unit/visualCapture.test.mjs",
-      "verdict": "STAY",
-      "decidedBy": "real code only by the parser"
+      "verdict": "GO",
+      "decidedBy": "renders via \"../harness/goldens/capture.mjs\""
     },
     {
       "file": "test/unit/visualGate.test.mjs",
-      "verdict": "STAY",
-      "decidedBy": "real code only by the parser"
+      "verdict": "GO",
+      "decidedBy": "renders via \"../../scripts/lib/visualImages.mjs\""
     },
     {
       "file": "test/unit/visualMatrix.test.mjs",
@@ -8243,8 +8246,8 @@
     },
     {
       "file": "test/unit/visualReadiness.test.mjs",
-      "verdict": "STAY",
-      "decidedBy": "real code only by the parser"
+      "verdict": "GO",
+      "decidedBy": "renders via \"playwright-core\""
     },
     {
       "file": "test/unit/visualSource.test.mjs",
@@ -8253,8 +8256,8 @@
     },
     {
       "file": "test/unit/visualStability.test.mjs",
-      "verdict": "STAY",
-      "decidedBy": "real code only by the parser"
+      "verdict": "GO",
+      "decidedBy": "renders via \"playwright-core\""
     },
     {
       "file": "test/unit/voiceBundle.test.ts",
