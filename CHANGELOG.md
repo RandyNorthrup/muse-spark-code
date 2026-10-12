@@ -52,6 +52,17 @@ happened, not what was planned; superseded entries are kept.
   history off discards buffered rows and their overflow tally, so enabling
   it later cannot publish work collected while history was off.
 
+- Windows runner receivers left at Windows' default execution policy
+  (CM1073 round 5): the SSH remote command now starts Windows PowerShell
+  with the shared `-ExecutionPolicy Bypass` flag (process scope: it changes
+  nothing on the machine), built from the same argument list as every other
+  script-file launch, so the helper runs instead of being refused before
+  its first line. Where Group Policy overrides the flag and still forbids
+  scripts, the run reports its own sentence — “This machine's policy does
+  not allow scripts to run; nothing was started.” — in every language, at
+  the test button and through the run's refusal reason, instead of reading
+  Offline. No machine setting is changed by the product or by a test, ever.
+
 - Runner-route relocation repairs (reviews RVCM1073B, RVAPP-CM1073R3):
   registering or unregistering a route rebinds the relocation target on the
   loaded host instead of disposing it, so unrelated active work is never
@@ -2427,8 +2438,6 @@ Correction (2026-10-10): Several accounts per provider, credential vault, schedu
   Recordings return to their starting conversation; picked media uses drop
   confinement and reasoned refusals. Audio pastes transcribe by default;
   Gemini/OpenAI-compatible video remains unsupported.
-
-
 - On macOS 26, a process that `ps` lists with an unknown state (`?`) while
   it changes no longer voids every resource tree's membership read, which
   could refuse Stop/kill for a tree while any process on the Mac was mid-transition.
