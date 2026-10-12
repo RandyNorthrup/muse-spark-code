@@ -3497,6 +3497,7 @@
   "execTooManyChunks": "Girdi parça sınırını aşıyor.",
   "execUnknownModel": "Bu model bu çalıştırma için kullanılamıyor.",
   "execEffortUnavailable": "Bu düşünme düzeyi bu modelde kullanılamıyor.",
+  "effortTierUnsupported": "{tier} seçilemez: uzantı bu düşünme düzeyini desteklemiyor.",
   "execTimedOut": "Çalıştırma süre sınırına ulaştı.",
   "execBudgetRefused": "Sonraki istek kalan bütçeyi aşıyor.",
   "execBudgetMinimum": "Bu çalıştırma için en az {minimum} gerekir.",

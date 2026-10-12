@@ -3497,6 +3497,7 @@
   "execTooManyChunks": "A bemenet túllépi a blokkok korlátját.",
   "execUnknownModel": "Ez a modell nem érhető el ehhez a futáshoz.",
   "execEffortUnavailable": "Ez az erőfeszítés nem érhető el ehhez a modellhez.",
+  "effortTierUnsupported": "{tier} nem választható ki: a bővítmény nem támogatja ezt az erőfeszítést.",
   "execTimedOut": "A futás elérte az időkorlátot.",
   "execBudgetRefused": "A következő kérés túllépi a fennmaradó keretet.",
   "execBudgetMinimum": "Ehhez a futáshoz legalább {minimum} szükséges.",

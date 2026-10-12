@@ -10,6 +10,7 @@
 
 import { type EffortLevel, UI_TEXT } from '../../shared/constants'
 import { effortLabel, isEffortLevel, type CatalogueTiers } from '../../shared/effort'
+import { fill } from '../../shared/l10n/text'
 
 /**
  * The slider's catalogue path for one row (C-M106-3R3): the panel footer and
@@ -75,18 +76,28 @@ export function EffortSlider({
   const hasCatalogue = variants !== undefined
   const selected = hasCatalogue ? (model?.current ?? model?.defaultReasoningEffort) : current
   const steps = hasCatalogue
-    ? (variants === 'unknown' ? [] : variants).map((tier) => ({
-        tier,
-        label:
-          model?.reasoningEffortVariants?.find((variant) => variant.tier === tier)?.description ??
-          (isEffortLevel(tier) ? effortLabel(tier) : tier),
-        select:
-          model?.onSelect === undefined || !isEffortLevel(tier) || !levels.includes(tier)
-            ? undefined
-            : () => {
-                model.onSelect?.(tier)
-              },
-      }))
+    ? (variants === 'unknown' ? [] : variants).map((tier) => {
+        const description = model?.reasoningEffortVariants?.find(
+          (variant) => variant.tier === tier,
+        )?.description
+        if (!isEffortLevel(tier)) {
+          // A tier outside the extension's vocabulary renders with its
+          // catalogue name, disabled, and says why in its tooltip and
+          // accessible name (RVCM1063C #2/#6).
+          const unsupported = fill(UI_TEXT.effortTierUnsupported, { tier: description ?? tier })
+          return { tier, label: unsupported, select: undefined }
+        }
+        return {
+          tier,
+          label: description ?? effortLabel(tier),
+          select:
+            model?.onSelect === undefined || !levels.includes(tier)
+              ? undefined
+              : () => {
+                  model.onSelect?.(tier)
+                },
+        }
+      })
     : levels.map((tier) => ({
         tier,
         label: effortLabel(tier),

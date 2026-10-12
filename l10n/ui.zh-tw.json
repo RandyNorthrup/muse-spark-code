@@ -3424,6 +3424,7 @@
   "execTooManyChunks": "輸入超過區塊數量限制。",
   "execUnknownModel": "本次執行無法使用此模型。",
   "execEffortUnavailable": "此模型不支援該推理強度。",
+  "effortTierUnsupported": "{tier}無法選擇：擴充功能不支援此推理強度。",
   "execTimedOut": "執行已達到時限。",
   "execBudgetRefused": "下一次請求將超過剩餘預算。",
   "execBudgetMinimum": "本次執行至少需要 {minimum}。",

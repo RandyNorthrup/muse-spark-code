@@ -2739,6 +2739,12 @@ export function App({
   // EffortLevel-typed setEffort path, so only known tiers select.
   const effortModel = state.models.find((model) => model.modelId === state.model?.modelId)
   const effortLevels = effortLevelsFor(state.model?.modelId, effortModel?.effortLevels, effortModel)
+  // A future-only catalogue has no selectable tier, but its names still
+  // render verbatim and disabled in the footer (RVCM1063C #2).
+  const servedVariants = effortModel?.variants
+  const isShowEffortFooter =
+    effortLevels.length > 0 ||
+    (servedVariants !== undefined && servedVariants !== 'unknown' && servedVariants.length > 0)
   const onStepEffort = useCallback(
     (direction: -1 | 1) => {
       if (effortLevels.length === 0) return false
@@ -2965,14 +2971,14 @@ export function App({
           entries={modeEntries}
           align="right"
           footer={
-            effortLevels.length === 0 ? undefined : (
+            isShowEffortFooter ? (
               <EffortSlider
                 levels={effortLevels}
                 current={state.effort}
                 onSelect={onSelectEffort}
                 catalogue={effortModel}
               />
-            )
+            ) : undefined
           }
           onSelect={onSelectMode}
           onStep={onStepEffort}

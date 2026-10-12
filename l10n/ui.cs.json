@@ -3643,6 +3643,7 @@
   "execTooManyChunks": "Vstup překračuje limit bloků.",
   "execUnknownModel": "Tento model není pro tento běh dostupný.",
   "execEffortUnavailable": "Tato úroveň úsilí není pro tento model dostupná.",
+  "effortTierUnsupported": "{tier} nelze vybrat: rozšíření tuto úroveň úsilí nepodporuje.",
   "execTimedOut": "Běh dosáhl časového limitu.",
   "execBudgetRefused": "Další požadavek překračuje zbývající rozpočet.",
   "execBudgetMinimum": "Tento běh vyžaduje alespoň {minimum}.",

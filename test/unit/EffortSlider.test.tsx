@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
+import { UI_TEXT } from '../../src/shared/constants'
+import { fill } from '../../src/shared/l10n/text'
 import { EffortSlider } from '../../src/webview/components/EffortSlider'
 
 const levels = ['low', 'medium', 'high'] as const
@@ -55,9 +57,19 @@ describe('EffortSlider', () => {
     )
     const dots = screen.getAllByRole('button')
     expect(dots).toHaveLength(3)
-    expect(dots[0]).toHaveAccessibleName('No reasoning')
+    // Tiers outside the vocabulary stay visible but disabled, and say why
+    // in their tooltip and accessible name (RVCM1063C #6).
+    expect(dots[0]).toHaveAccessibleName(
+      fill(UI_TEXT.effortTierUnsupported, { tier: 'No reasoning' }),
+    )
     expect(dots[1]).toHaveAttribute('aria-pressed', 'true')
-    expect(dots[2]).toHaveAccessibleName('Deepest reasoning')
+    expect(dots[2]).toHaveAccessibleName(
+      fill(UI_TEXT.effortTierUnsupported, { tier: 'Deepest reasoning' }),
+    )
+    expect(dots[2]).toHaveAttribute(
+      'title',
+      fill(UI_TEXT.effortTierUnsupported, { tier: 'Deepest reasoning' }),
+    )
     fireEvent.click(dots[2]!)
     expect(dots[0]).toBeDisabled()
     expect(dots[2]).toBeDisabled()
@@ -111,7 +123,7 @@ describe('EffortSlider', () => {
       />,
     )
     expect(screen.queryAllByRole('button')).toHaveLength(0)
-    fireEvent.click(screen.getByTitle('ultra'))
+    fireEvent.click(screen.getByTitle(fill(UI_TEXT.effortTierUnsupported, { tier: 'ultra' })))
     expect(onSelect).not.toHaveBeenCalled()
     fireEvent.click(screen.getByTitle('High'))
     expect(onSelect).toHaveBeenCalledExactlyOnceWith('high')

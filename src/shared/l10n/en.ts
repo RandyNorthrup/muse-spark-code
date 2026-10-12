@@ -4232,6 +4232,9 @@ export const EN = {
   execTooManyChunks: 'The input exceeds the chunk limit.',
   execUnknownModel: 'This model is not available for this run.',
   execEffortUnavailable: 'This effort is not available for this model.',
+  // {tier}: a served effort tier outside the extension's vocabulary, by its catalogue name or description.
+  effortTierUnsupported:
+    '{tier} cannot be selected: the extension does not support this effort tier.',
   execTimedOut: 'The run reached its deadline.',
   execBudgetRefused: 'The next request exceeds the remaining budget.',
   execBudgetMinimum: 'This run requires at least {minimum}.',

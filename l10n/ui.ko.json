@@ -3424,6 +3424,7 @@
   "execTooManyChunks": "입력이 청크 수 한도를 초과합니다.",
   "execUnknownModel": "이번 실행에서는 이 모델을 사용할 수 없습니다.",
   "execEffortUnavailable": "이 모델에서는 이 사고 수준을 사용할 수 없습니다.",
+  "effortTierUnsupported": "{tier}을(를) 선택할 수 없습니다. 이 사고 수준은 확장에서 지원되지 않습니다.",
   "execTimedOut": "실행이 제한 시간에 도달했습니다.",
   "execBudgetRefused": "다음 요청이 남은 예산을 초과합니다.",
   "execBudgetMinimum": "이 실행에는 최소 {minimum}이 필요합니다.",
