@@ -49,6 +49,8 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- Held account request path chooses its payer before hosted-search consent; user-selected accounts cannot borrow the default account approval.
+
 - Account availability now restores its registered release text, setting
   descriptions and Help pooling row together during reference generation.
   Certification stays off; local profiles and Muse Code accounts remain held.

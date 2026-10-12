@@ -224,6 +224,50 @@ describe('installed account request writer', () => {
     },
   )
 
+  it('user-selected payer is asked for hosted search before its first charge, never under default consent', async () => {
+    const t = await rig(false)
+    await t.services.sessions('meta').use(t.session.sessionId, 'work', () => true)
+    const asked: string[] = []
+    const host = new ModelApiHost({
+      ...fakeModelApiHostDeps({
+        client: t.client,
+        workspaceRoot: '/workspace',
+        io: memoryToolIo({}, '/workspace'),
+        log,
+      }),
+      now: Date.now,
+      accountRequests: t.requests,
+      store: memorySessionStore(),
+      isPaidFeatureOn: (feature) => feature === 'webSearch',
+      modelCapabilities: () => ({
+        hosted: {
+          webSearch: { state: 'yes', value: { tool: 'web_search' } },
+          maxToolCalls: { state: 'yes', value: true },
+        },
+      }),
+      allowsPaidUse: (request) => {
+        expect(frames).toEqual([])
+        asked.push(activeAccountBilling()?.account ?? 'unleased')
+        if (request.feature !== 'webSearch') throw new Error('unexpected paid fixture feature')
+        return Promise.resolve(request.quote)
+      },
+    })
+    hosts.push(host)
+    const { session, events } = await observedSession(host)
+    await t.services.sessions('meta').use(session.sessionId, 'work', () => true)
+    await session.sendTurn([{ type: 'text', text: 'search' }])
+    await vi.waitFor(() => {
+      expect(events.some((event) => event.type === 'turnCompleted')).toBe(true)
+    })
+    expect(asked).toEqual(['work'])
+    expect(frames).toHaveLength(1)
+    expect(frames[0]).toMatchObject({
+      authorization: `Bearer ${KEY_B}`,
+      body: { tools: expect.arrayContaining([expect.objectContaining({ type: 'web_search' })]) },
+    })
+    t.services.dispose()
+  })
+
   it('sees external cap and credential-revision edits before a held lease can send', async () => {
     for (const edit of ['cap', 'credential'] as const) {
       const t = await rig(false)
