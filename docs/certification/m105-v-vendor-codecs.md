@@ -180,6 +180,142 @@ expected false to be true`. Restored to SHA-256
   four test files is empty, so no AGENTS.md rule 4 register entry is owed.
 - Post-drill run: `vendorMediaCodecs.test.ts` 46 passed.
 
+R4 (RVCM1054C: 1 P2, 5 P3; reviewer notes RVCM1054C.notes.md beside the
+report). Every finding fixed as a class, no residuals. The lane's files
+only: `src/host/providers/copilotClient.ts`, `src/acp/agent.ts`,
+`test/unit/copilotClient.test.ts`, `test/unit/vendorMediaCodecs.test.ts`,
+`test/unit/acpAgent.test.ts`, `test/unit/execRun.test.ts`, this record, the
+changelog. No new dependency, no guard widened, no l10n key added or
+changed (`formatUnsupported` and `videoUnknown` already in all tables).
+
+- P2, the Copilot leg (`copilotClient.ts:160-176`): `content()` had no
+  codec — any non-text part fell to `fail('unsupported-content')`, which
+  the production wiring reads as the generic "Copilot models are
+  unavailable" text. A held video now throws the shared typed refusal with
+  `UI_TEXT.media.videoUnknown` for the model, and an image the model cannot
+  take (no vision, or another provider's held file with no URL to send)
+  throws it with `UI_TEXT.media.formatUnsupported` (`format: 'image'`), the
+  gate's own image sentence shape — both before any request. The refusal
+  also passes through `countInputTokens` and `streamResponse` unmapped
+  (`:264`, `:409`). Proven through the client `connectCopilotFromClick`
+  returns (fake VS Code port only): `copilotClient.test.ts` refuses a held
+  video in English and German asserting the sentence with `sendRequest` and
+  `countTokens` never called, and the former unsupported-image case now
+  asserts the model's own sentence; `vendorMediaCodecs.test.ts` drives the
+  real client behind the real subscription client, asserting the error event
+  is exactly the sentence with zero Meta sends, zero subscription sends, no
+  `sendRequest`, no `countTokens`, no usage recorded.
+- P3, ACP (`acp/agent.ts:897-900`, `:1971-1976`): the R3 branch guarding a
+  `sendTurn` rejection with `ChatCodecError` is DELETED as unreachable —
+  the real Model API session's `submitTurn` (`ModelApiHost.ts:15126-15186`)
+  starts `runTurn` detached and resolves, rejecting only for a disposed
+  session, a refused child task, the text-attachment budget or a stale git
+  draft; a codec refusal fails the turn as `turnCompleted` with
+  `reason = describe(error)` (`ModelApiHost.ts:14055`), settled before this
+  range at `settle`. Nothing else throws `ChatCodecError` into a session:
+  the Copilot client (the only other thrower) sits behind the subscription
+  client's catch, which yields the error event there. The rewritten
+  `acpAgent.test.ts` case drives the REAL agent with the REAL chat encoder
+  producing the sentence (no hand-built error) and a session double that
+  replays only the real session's observable contract (sendTurn resolves,
+  then failed `turnCompleted` with the sentence as reason): the prompt
+  rejects with exactly `Internal error: gpt-6-astra is not known to take
+video.` The editor therefore shows the sentence under the SDK's fixed
+  "Internal error: " prefix — today's shape for every failed turn at ACP,
+  left for the lead to rule on.
+- P3, exec (`execRun.test.ts`, in `M105 headless attachment entry`): a
+  codec refusal through the real run — real `runExec`, real in-process ACP
+  agent, real runtime backend/host, real tap and ledger — with only the
+  turn's model call doubled as in the ACP case and the sentence from the
+  real encoder. The result carries the sentence in both `error.message`
+  (`Internal error: <sentence>`, kind `failed`) and `incompleteReason`,
+  `terminal: 'failed'`, exit code 4 per the exec contract, ledger
+  `usage.requests` 0, zero `/responses` dispatches (the only fetch is the
+  `/models` catalogue lookup at session setup), zero response bodies.
+- P3, zero requests: every refusal assertion now counts. Configured
+  families and mistral-plan assert the counting transport sent 0; ChatGPT
+  leg asserts subscription sends 0 and Meta requests 0; Copilot leg asserts
+  both plus `sendRequest`/`countTokens`/usage untouched; Meta passthrough
+  asserts both legs 0; the accounting case asserts `daily.reserve` never
+  called, ledger requests 0, no refusal/started/settled callbacks and zero
+  Meta requests; ACP asserts one `sendTurn` and no other provider exists
+  behind the contract replay (the sentence is pure encode, no transport);
+  exec asserts ledger requests 0, no `/responses` dispatch, no bodies.
+- P3, route matrix: the guard now compares the covered set against the
+  written-out `EXPECTED_ROUTES` (19 registry routes plus both subscription
+  legs), so a registry route without a row fails the equality instead of
+  passing vacuously; the Copilot leg (no encoder) is covered by name in
+  `CLIENT_COVERED_ROUTES` and pinned through the real client; `mistral-plan`
+  runs through the REAL production client with zero sends, not only through
+  the encoder.
+- P3, capture recipes (check 4), all five bullets: item 5 video parts carry
+  `"type": "video_url"` in all three bodies, with an M0 step reading the
+  exact served id from `GET /v1/models` (known only at run time); item 2
+  polls the uploaded file until `state` is `ACTIVE` before call 1 (every
+  poll GET counted) and both file-deletion confirms record the status the
+  vendor answers instead of fixing 404; item 6's Gemini refusal row is
+  addressed to `gemma-4-31b-it` (text+image input only per the catalog
+  snapshot — the flash models all take video and would likely answer and
+  bill); item 3's M1/call 2 run only when call 1's error body names a
+  file-id form, otherwise the run stops after call 1; item 4's call 2 names
+  the concrete catalog id `o3-mini` (text-only input) with a
+  substitute-or-skip rule, never a paid guess.
+- Class sweep, the three side callers (one sentence each, with the proving
+  type): the legal explanation cannot hold media — `explainLegal` takes
+  only `result: LegalScanResult` (zod-parsed finding/category/severity/
+  license strings) and builds the body internally as one `input_text` part
+  (`legalExplanation.ts:109`); the hook model cannot hold media —
+  `runHookModelTurn` takes only `HookModelTurnInput` (`{ kind, system:
+string, user: string }`, `hookModelEntry.ts:46-50`) and builds history
+  internally as one `input_text` message (`:201-203`); the Reviewer cannot
+  hold media — `reviewPaidCall` takes only `tool: string, action: string`
+  over a `ReviewRequest` of strings (`autoReviewer.ts:26-36`) and builds the
+  body internally as one `input_text` message (`reviewerEntry.ts:230`).
+  The Meta passthrough is pinned by test (rethrows the typed refusal
+  itself); the Model API session's throw-to-reason mapping is read at
+  `ModelApiHost.ts:14055` and exercised downstream by the ACP and exec
+  tests above.
+
+R4 drills (each file restored and SHA-256 verified equal to the pre-drill
+value):
+
+- D-R4-1, `host/providers/copilotClient.ts`: the video branch reverted to
+  `throw this.fail('drill')`; both held-video tests (en, de) failed.
+  Restored to SHA-256
+  `ddca14d6848ccc1d1626d512050fbc7a31ba49c48f2c57f827ce9f822109fb8c`.
+- D-R4-2, `acp/agent.ts`: `settle` changed to drop `event.reason`; the
+  rewritten ACP test failed with `Internal error: failed` instead of the
+  sentence. Restored to SHA-256
+  `6cea1aaa13ff5d59c0dba7a95ddf9c7539a751b0fc1c5b8683a072ae6da8da53`.
+- D-R4-3, `providers/subscriptions/registry.ts`: the Meta passthrough
+  replaced with `throw`; the passthrough test failed with `expected the
+typed codec refusal`. Restored to SHA-256
+  `ca90e2f80ee5376646c82fb18bb53664b519f4c427f2dcd7a455ec1c63edb329`.
+- D-R4-4, `providers/presets.ts` (drill-only change, production file
+  untouched by the lane): a `drill-plan` route added without a row; the
+  route guard failed (`20` covered vs `19` expected). Restored to SHA-256
+  `dc012b2625d666dded5243b72b5f7ed46133e6ee9c304e004863e6870e6beea4`.
+- D-R4-5, `runtime/exec/runExec.ts`: `observe` changed to drop
+  `event.reason`; the exec test failed on `incompleteReason`. Restored to
+  SHA-256
+  `f292330077ae4f2aef18d25365a07094926192d21e8f4d777c5bd88638356c37`.
+- D-R4-6, this record: one body key unquoted; the fenced-JSON test failed.
+  Restored to SHA-256
+  `10c22c74f82cb6aa45decedaeb4ca2de51082d5b779eb5422458d7322738ae40`.
+- D-R4-7, `providers/configured.ts` (production file untouched by the
+  lane): the `isChatCodecError` rethrow dropped; all five family refusal
+  tests failed (the mistral-plan test shares the same `productionRefusal`
+  path). Restored to SHA-256
+  `181faef079b1164ff6b3ca711b14fe832f2bcae25264d2f0da7415335fb3abcb`.
+- D-R4-8, `runtime/runtimeAccountingEntry.ts` (production file untouched by
+  the lane): a `daily.reserve` forced before the inner call; the settlement
+  test failed with `reserve called 1 times`. Restored to SHA-256
+  `3bb71629fab19ad103dbb9e61b9353f9ac72c4769589b86cf38f5443c0342450`.
+- Post-drill runs: `vendorMediaCodecs.test.ts` 48 passed,
+  `copilotClient.test.ts` 52 passed, `acpAgent.test.ts` codec case passed,
+  `execRun.test.ts` codec case passed (repository timeout, linuxlt,
+  `--maxWorkers=3`).
+
 ## Corrections to the lane-V record (RVCM1054 P3-2)
 
 - Drill count (`:65`): drill 1 fails five tests, not four (see above).
@@ -262,11 +398,11 @@ https://generativelanguage.googleapis.com/v1beta/models/{model}:streamGenerateCo
    counts), and the exact accepted mime set and byte limit from any error
    body.
 
-2. Gemini video, Files path (2 model calls; 3 management calls per
-   upload — upload, delete, GET-confirm — one upload required, a second only
-   if call 1 succeeds). The product has no Files caller yet, so this capture
-   defines it: confirm the exact upload path against the live response and
-   record the path used.
+2. Gemini video, Files path (2 model calls; per upload: upload, poll
+   GETs until ACTIVE, delete, GET-confirm — count every management call;
+   one upload required, a second only if call 1 succeeds). The product has
+   no Files caller yet, so this capture defines it: confirm the exact
+   upload path against the live response and record the path used.
 
    M1, upload the small mp4 from item 1 (`/tmp/m105-clip.mp4`):
 
@@ -277,8 +413,24 @@ https://generativelanguage.googleapis.com/v1beta/models/{model}:streamGenerateCo
      --data-binary @/tmp/m105-clip.mp4
    ```
 
-   Record the `name` and `uri` from the JSON response; `<files-uri-from-M1>`
-   below is that `uri`, `<file-id-from-M1>` the trailing id of that `name`.
+   Record the `name` and `uri` from the JSON response (under `file` per
+   the Files API; confirm against the live response and record the path
+   used); `<files-uri-from-M1>` below is that `uri`, `<file-id-from-M1>`
+   the trailing id of that `name`.
+
+   After M1, poll the file until its `state` is `ACTIVE` and only then
+   send call 1: an uploaded video is not usable before that, and a call
+   sent at once can fail on the file's state, which would mis-record a
+   state failure as "call 1 refuses". `<file-name-from-M1>` is the `name`
+   recorded above:
+
+   ```sh
+   curl "https://generativelanguage.googleapis.com/v1beta/<file-name-from-M1>" \
+     -H "x-goog-api-key: $GEMINI_API_KEY"
+   ```
+
+   Repeat until `"state": "ACTIVE"`; count every poll GET as a management
+   call.
 
    Call 1 body, save as `/tmp/m105-gemini-files-1.json`:
 
@@ -309,7 +461,9 @@ https://generativelanguage.googleapis.com/v1beta/models/{model}:streamGenerateCo
    M1, then the same body with `"mimeType": "video/quicktime"` and the
    second upload's uri, saved as `/tmp/m105-gemini-files-2.json`. Record as
    in item 1, plus whether audio rides `inlineData`. Delete each upload and
-   confirm it is gone (expect 404 on the GET); record both statuses:
+   confirm it is gone; the file must be gone — record the status the vendor
+   answers (a gone file reads as 404) rather than calling any other status
+   a failure:
 
    ```sh
    curl -X DELETE "https://generativelanguage.googleapis.com/v1beta/files/<file-id-from-M1>" \
@@ -318,8 +472,9 @@ https://generativelanguage.googleapis.com/v1beta/models/{model}:streamGenerateCo
      -H "x-goog-api-key: $GEMINI_API_KEY"
    ```
 
-3. OpenAI Responses audio (2 model calls plus 3 management calls:
-   upload, delete, GET-confirm). Endpoint, verified in
+3. OpenAI Responses audio (call 1 plus, only when its error body names
+   a file-id form, M1 and call 2; 3 management calls when M1 runs: upload,
+   delete, GET-confirm). Endpoint, verified in
    `src/core/providers/configured.ts:633`:
    `POST https://api.openai.com/v1/responses`. Model: `gpt-5.4` (catalog id
    at time of writing; must be an audio-input model — if it refuses, record
@@ -355,9 +510,14 @@ https://generativelanguage.googleapis.com/v1beta/models/{model}:streamGenerateCo
      -d @/tmp/m105-openai-responses-1.json
    ```
 
-   M1, upload the wav (`/tmp/m105-clip.wav`) for call 2; record the
-   `id` from the JSON response (`<file-id-from-M1>` below) and the accepted
-   `purpose` (first attempt `user_data`):
+   M1 and call 2 run only if call 1's error body names a file-id form
+   for the `audio` field. Otherwise stop after call 1 and record the
+   validation error as-is: a base64 validation error says nothing about a
+   file-id form, and sending call 2 anyway would spend a paid call learning
+   nothing. When the error names the form, upload the wav
+   (`/tmp/m105-clip.wav`); record the `id` from the JSON response
+   (`<file-id-from-M1>` below) and the accepted `purpose` (first attempt
+   `user_data`):
 
    ```sh
    curl -X POST "https://api.openai.com/v1/files" \
@@ -389,8 +549,9 @@ https://generativelanguage.googleapis.com/v1beta/models/{model}:streamGenerateCo
 
    Send it with the call-1 `curl` line pointed at
    `/tmp/m105-openai-responses-2.json`. Record per call: HTTP status, full
-   response bytes, billed usage. Delete the file and confirm it is gone
-   (expect 404 on the GET); record both statuses:
+   response bytes, billed usage. Delete the file and confirm it is gone;
+   the file must be gone — record the status the vendor answers (a gone
+   file reads as 404) rather than calling any other status a failure:
 
    ```sh
    curl -X DELETE "https://api.openai.com/v1/files/<file-id-from-M1>" \
@@ -435,13 +596,17 @@ https://api.openai.com/v1/chat/completions`. Model: `gpt-5.4` as in item 3.
      -d @/tmp/m105-openai-chat-1.json
    ```
 
-   Call 2 targets a model the catalog marks voice-incapable, if one is
-   known: the exact replacement body, save as `/tmp/m105-openai-chat-2.json`
-   (only the model id changes; record the id used):
+   Call 2 targets `o3-mini`, which the catalog marks voice-incapable
+   (text-only input in `vendor/models-dev/snapshot.json` at time of
+   writing): the exact replacement body, save as
+   `/tmp/m105-openai-chat-2.json` (only the model id changes; record the id
+   used; if `o3-mini` has retired, substitute a current text-only catalog
+   id, or skip call 2 and record the skip — never burn a paid call on a
+   guess):
 
    ```json
    {
-     "model": "<voice-incapable-catalog-id>",
+     "model": "o3-mini",
      "messages": [
        {
          "role": "user",
@@ -466,15 +631,21 @@ https://api.openai.com/v1/chat/completions`. Model: `gpt-5.4` as in item 3.
 5. vLLM/SGLang video (2 model calls, owner-hosted, no uploads). Who
    hosts it: the owner on the lead machine. Server: a vLLM release the owner
    pins at run time (record the version); launch line recorded verbatim, e.g.
-   `vllm serve Qwen/Qwen2-VL-2B-Instruct --port 8000` (model id to confirm
-   against what the server actually serves; the lane test uses `qwen2-vl` as
-   the native id example). Endpoint (chat format, loopback preset, default
-   port 8000 per `presets.ts` vLLM row): `POST
+   `vllm serve Qwen/Qwen2-VL-2B-Instruct --port 8000`. Endpoint (chat format,
+   loopback preset, default port 8000 per `presets.ts` vLLM row): `POST
 http://127.0.0.1:8000/v1/chat/completions`. Header names: `Content-Type`
    (plus `Authorization` only if served with `--api-key`).
 
+   M0, read the exact served id (it is known only at run time) and use it
+   for `<served-id>` in every body below, recording the id used:
+
+   ```sh
+   curl http://127.0.0.1:8000/v1/models
+   ```
+
    Call 1 body, save as `/tmp/m105-vllm-1.json` (URL form data vs http to
-   confirm against the live error shape; record the accepted form):
+   confirm against the live error shape; record the accepted form; every
+   content part carries its `type`, as the audio parts elsewhere do):
 
    ```json
    {
@@ -484,7 +655,10 @@ http://127.0.0.1:8000/v1/chat/completions`. Header names: `Content-Type`
          "role": "user",
          "content": [
            { "type": "text", "text": "describe this clip" },
-           { "video_url": { "url": "data:video/mp4;base64,<base64-of-a-small-mp4>" } }
+           {
+             "type": "video_url",
+             "video_url": { "url": "data:video/mp4;base64,<base64-of-a-small-mp4>" }
+           }
          ]
        }
      ],
@@ -509,7 +683,10 @@ http://127.0.0.1:8000/v1/chat/completions`. Header names: `Content-Type`
          "role": "user",
          "content": [
            { "type": "text", "text": "describe this clip" },
-           { "video_url": { "url": "https://<owner-host>/m105-clip.mp4" } }
+           {
+             "type": "video_url",
+             "video_url": { "url": "https://<owner-host>/m105-clip.mp4" }
+           }
          ]
        }
      ],
@@ -600,7 +777,12 @@ http://127.0.0.1:8000/v1/chat/completions`. Header names: `Content-Type`
      -d @/tmp/m105-refuse-anthropic.json
    ```
 
-   Gemini refusal (item 1's endpoint and inline shape), save as
+   Gemini refusal (item 1's endpoint and inline shape), addressed to
+   `gemma-4-31b-it`, which the catalog marks video/audio-incapable
+   (text and image input only in `vendor/models-dev/snapshot.json` at time
+   of writing; the flash models all take video, so one of them would most
+   likely answer — and bill — instead of refusing). If it has retired,
+   substitute a current text-only catalog id. Save as
    `/tmp/m105-refuse-gemini.json`:
 
    ```json
@@ -625,7 +807,7 @@ http://127.0.0.1:8000/v1/chat/completions`. Header names: `Content-Type`
    ```
 
    ```sh
-   curl -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:streamGenerateContent?alt=sse" \
+   curl -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemma-4-31b-it:streamGenerateContent?alt=sse" \
      -H "x-goog-api-key: $GEMINI_API_KEY" \
      -H "Content-Type: application/json" \
      -d @/tmp/m105-refuse-gemini.json
