@@ -6,7 +6,8 @@
 // thread, and the panel's channel and the composer's `/playbook` read and
 // change a real journal file through that thread.
 
-import { existsSync, mkdtempSync, readdirSync, writeFileSync } from 'node:fs'
+import type * as FileSystem from 'node:fs'
+import { existsSync, mkdtempSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
@@ -18,6 +19,7 @@ import {
 } from '../../src/shared/constants'
 import { answerPlaybookCommand } from '../../src/host/playbook/playbookAnswer'
 import {
+  hasWindowPlaybook,
   isPlaybookWindowBundle,
   playbookPanelChannel,
   playbookWindowLoader,
@@ -33,6 +35,11 @@ import { FakeLogOutputChannel } from './helpers/fakes'
 import { buildHostBundles } from './helpers/modelApiBundle'
 import { OFFLOAD_REASON, offloadOffRequest, PANEL_BRIDGE } from './helpers/playbook/panelRequests'
 import { removeFolder } from './helpers/temporaryFolders'
+
+vi.mock('node:fs', async (importOriginal) => {
+  const original = await importOriginal<typeof FileSystem>()
+  return { ...original, statSync: vi.fn(original.statSync) }
+})
 
 const BRIDGE = PANEL_BRIDGE
 const built = { folder: '', file: '' }
@@ -303,5 +310,26 @@ describe('the shipped bundle, as the window and as its worker thread', () => {
     } finally {
       await setup.remove()
     }
+  })
+})
+
+describe('presence without loading policy', () => {
+  it('starts child work with a missing bundle when this window has no playbook', async () => {
+    const load = vi.fn(
+      playbookWindowLoader(path.join(built.folder, 'absent.js'), new FakeLogOutputChannel()),
+    )
+    const effect = vi.fn(() => Promise.resolve('started'))
+    const admit = () => (hasWindowPlaybook(built.folder) ? load() : undefined)
+    expect(admit()).toBeUndefined()
+    expect(await effect()).toBe('started')
+    expect(load).not.toHaveBeenCalled()
+  })
+
+  it('treats an inaccessible folder as present so the bundle can report the failure', () => {
+    const failure = Object.assign(new Error('The folder cannot be read'), { code: 'EACCES' })
+    vi.mocked(statSync).mockImplementationOnce(() => {
+      throw failure
+    })
+    expect(hasWindowPlaybook(built.folder)).toBe(true)
   })
 })

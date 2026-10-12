@@ -1,8 +1,7 @@
 // A conversation's use of its window's playbook (M116, lane C-M116-6; PLAN.md
 // D96.16 and D96.17). The conversation controller lends three small things
-// (a notice, its backend, whether that backend asks before a spawn) and
-// calls in at four points: a review turn, a dispatch, a spawn the backend
-// asks about, and the notice's button. Everything else lives here,
+// (a notice and its backend) and calls in at a review turn, a dispatch,
+// an observed Muse Code child's live row, and the notice's button. Everything else lives here,
 // in the lazy bundle, so a conversation that orchestrates nothing pays for
 // none of it.
 //
@@ -10,7 +9,7 @@
 // controller recorded and the files their own items say they changed, and a
 // best-of-N attempt the person took. No model text decides it.
 
-import type { AgentEvent } from '../../shared/agentEvents'
+import type { AgentEvent, ItemSnapshot } from '../../shared/agentEvents'
 import { agentFilesFromPatch } from '../../shared/agentReceipt'
 import type { BestOfNRun } from '../../shared/bestOfN'
 import {
@@ -23,7 +22,7 @@ import {
   REVIEW_FINDING_TEXT_MAX_CHARS,
 } from '../../shared/constants'
 import { fill, plural, UI_TEXT } from '../../shared/l10n/text'
-import type { AgentHost, AgentSession, TurnPart } from '../../core/agent/agentBackend'
+import type { AgentHost, TurnPart } from '../../core/agent/agentBackend'
 import type { SubagentAdmission } from '../../core/backends/modelapi/subagentTools'
 import type { PanelChild } from '../../core/orchestration/panelLanes'
 import type { PanelAnswer, PanelFinding, PanelModuleSummary } from '../../runtime/playbook/governor'
@@ -31,13 +30,10 @@ import { playbookNoteText } from '../../runtime/playbook/text'
 import { PlaybookRefusal, type PlaybookWindow, type PlaybookWindowReview } from './playbookWindow'
 import type { PlaybookDispatchKind } from './workerProtocol'
 
-/** A round on a child nobody can name yet ends with the next child's row. */
-const NEW_CHILD = ':subagent'
 const BEST_OF_N = ':bestOfN'
+const IN_PROGRESS_STATUS = 'inProgress'
 /** A refusal that names no module, in the model's text. */
 const UNNAMED_MODULE = 'none named'
-/** What every decision that lets a tool run starts with (MSP's own word). */
-const APPROVED = 'approved'
 
 export interface PlaybookPick {
   readonly label: string
@@ -74,16 +70,7 @@ export interface PlaybookConversationHost {
   notice(level: 'info' | 'warning' | 'error', text: string, hasAction: boolean): void
   /** The conversation's backend, for a child session's own items and stored outputs. */
   backend(): Promise<Pick<AgentHost, 'readSession' | 'readSessionOutput'>>
-  /**
-   * Who admits a subagent a model starts, in the backend's mode now: the
-   * backend's own `host` (the Model API, in every mode); the person, `asked`
-   * by the backend first (Muse Code where it prompts); or nobody (`unasked`).
-   */
-  spawnAdmission(): 'host' | 'asked' | 'unasked'
 }
-
-/** The backend's own request to start a subagent, as its approval card would show it. */
-export type PlaybookSpawnRequest = Extract<AgentEvent, { type: 'approvalRequested' }>
 
 export interface PlaybookReviewRequest<T> {
   readonly sessionId: string
@@ -117,58 +104,13 @@ export interface PlaybookConversation {
     effect: () => Promise<T>,
     ended?: (submission: T, signal: AbortSignal) => Promise<void>,
   ): Promise<T>
-  /**
-   * A subagent the backend asks about before it starts one (Muse Code,
-   * D96.17). Resolves with the request to put before the person: as it came
-   * when the spawn is not the playbook's; without the choices that would
-   * stop the asking when the playbook admitted it, or when its refusal could
-   * not be sent. Undefined: refused, and answered through `decide` with the
-   * request's own rejection and the playbook's reason.
-   */
-  spawnRequest(
-    sessionId: string,
-    request: PlaybookSpawnRequest,
-    decide: AgentSession['decideApproval'],
-  ): Promise<PlaybookSpawnRequest | undefined>
-  /**
-   * An approval was resolved. Of a spawn request this playbook was asked
-   * about and that went on to the person: approved, it speaks for one
-   * child's row; anything else starts no child, so the round the playbook
-   * opened for it is over. Any other approval is nothing to it.
-   */
-  approvalResolved(sessionId: string | undefined, approvalId: string, decision: string): void
-  /**
-   * A child's row began that the host had not seen before. One that no
-   * approved request speaks for marks the conversation, for good, as one
-   * whose backend starts subagents unasked (an allow rule of the person's
-   * own, which no host can read).
-   */
-  childBegan(sessionId: string | undefined): void
+  /** A live Muse Code row, keyed before its child session id arrives. */
+  observed(sessionId: string | undefined, item: ItemSnapshot): Promise<void>
   /** A child's row reached its end, or (no agent named) a best-of-N run did. */
   ended(sessionId: string | undefined, agentId: string | undefined): void
   /** The notice's button: what this conversation owes its playbook, in VS Code's pickers. */
   act(sessionId: string | undefined): Promise<void>
-  /**
-   * Whether a governed conversation is owed the line about subagents its
-   * backend starts unasked. Rejects when the journal cannot say.
-   */
-  hasGap(sessionId: string | undefined): Promise<boolean>
-  /** That line, for `/playbook`; the unavailable words when the journal cannot say. */
-  gap(sessionId: string | undefined): Promise<string | undefined>
   dispose(): void
-}
-
-/** A conversation's spawn requests, as its playbook has seen them. */
-interface SpawnState {
-  /**
-   * Requests that went on to the person, each with the card it was given:
-   * `round` where the playbook opened a round for it (one spawn at a time),
-   * `once` where it could only limit the card, `asCame` where it is not the
-   * playbook's.
-   */
-  readonly requests: Map<string, 'round' | 'once' | 'asCame'>
-  /** Approved requests no child's row has used yet. Below zero, for good: one began unasked. */
-  owed: number
 }
 
 interface Waiter {
@@ -272,11 +214,6 @@ export function playbookAdmission(window: Pick<PlaybookWindow, 'dispatch'>): Sub
   }
 }
 
-/** Whether a choice of an approval request lets the tool run. */
-function isApproval(choice: PlaybookSpawnRequest['availableChoices'][number]): boolean {
-  return choice.decision.startsWith(APPROVED)
-}
-
 function findingLabel(finding: PanelFinding): string {
   return `${finding.severity} ${finding.file}${finding.line === undefined ? '' : `:${String(finding.line)}`}`
 }
@@ -288,14 +225,6 @@ function roundText(round: PanelModuleSummary): string {
     : counted
 }
 
-/** The line for a mode in which the backend starts subagents without asking. */
-export function playbookSpawnGapText(): string {
-  return fill(UI_TEXT.playbookSpawnsNotAdmitted, {
-    auto: UI_TEXT.permissionModes.auto,
-    bypass: UI_TEXT.permissionModes.bypassPermissions,
-  })
-}
-
 export function createPlaybookConversation(
   window: PlaybookWindow,
   ui: PlaybookUi,
@@ -304,22 +233,15 @@ export function createPlaybookConversation(
   const followed = new Map<string, () => void>()
   const reviews = new Set<{ readonly ticket: PlaybookWindowReview; readonly stop: () => void }>()
   const rounds = new Map<string, Set<Waiter>>()
-  /** Conversations told once that each subagent is asked about. */
-  const toldEach = new Set<string>()
-  const spawns = new Map<string, SpawnState>()
-
-  const spawnsOf = (sessionId: string): SpawnState => {
-    const state: SpawnState = spawns.get(sessionId) ?? { requests: new Map(), owed: 0 }
-    spawns.set(sessionId, state)
-    return state
+  let isClosed = false
+  const observed = new Map<string, Map<string, string>>()
+  const completed = new Map<string, Set<string>>()
+  const notice: PlaybookConversationHost['notice'] = (level, text, hasAction) => {
+    if (!isClosed) host.notice(level, text, hasAction)
   }
-
-  /**
-   * Whether the backend asks before it starts a subagent in this conversation:
-   * its mode prompts, and no child has begun here that nobody was asked about.
-   */
-  const isAskedFirst = (sessionId: string): boolean =>
-    host.spawnAdmission() !== 'unasked' && (spawns.get(sessionId)?.owed ?? 0) >= 0
+  const assertOpen = (): void => {
+    if (isClosed) throw new Error(UI_TEXT.playbookUnavailable)
+  }
 
   const sweep = (): void => {
     for (const review of reviews) {
@@ -330,32 +252,26 @@ export function createPlaybookConversation(
   }
 
   const follow = (sessionId: string): void => {
-    if (followed.has(sessionId)) return
+    if (isClosed || followed.has(sessionId)) return
     followed.set(
       sessionId,
       window.subscribe(sessionId, {
         note: (note) => {
-          host.notice(note.needsUser ? 'warning' : 'info', playbookNoteText(note), true)
+          notice(note.needsUser ? 'warning' : 'info', playbookNoteText(note), true)
         },
         offer: (_moduleId, moduleKey) => {
-          host.notice(
-            'warning',
-            fill(UI_TEXT.playbookNotes.designRequired, { module: moduleKey }),
-            true,
-          )
+          notice('warning', fill(UI_TEXT.playbookNotes.designRequired, { module: moduleKey }), true)
         },
         rounds: (counted) => {
           sweep()
-          for (const round of counted) host.notice('info', roundText(round), true)
-          // No silent gap: a backend that starts subagents unasked is said, once per count.
-          if (!isAskedFirst(sessionId)) host.notice('info', playbookSpawnGapText(), false)
+          for (const round of counted) notice('info', roundText(round), true)
         },
         hookOutput: (output) => {
-          host.notice('warning', output, false)
+          notice('warning', output, false)
         },
         failure: () => {
           sweep()
-          host.notice('error', UI_TEXT.playbookNotCertified, false)
+          notice('error', UI_TEXT.playbookNotCertified, false)
         },
       }),
     )
@@ -374,6 +290,10 @@ export function createPlaybookConversation(
 
   const roundEnd = (sessionId: string, key: string, signal: AbortSignal): Promise<void> =>
     new Promise((resolve) => {
+      if (isClosed || signal.aborted || completed.get(sessionId)?.has(key) === true) {
+        resolve()
+        return
+      }
       const waiting = rounds.get(sessionId) ?? new Set<Waiter>()
       rounds.set(sessionId, waiting)
       const waiter: Waiter = { key, resolve }
@@ -519,7 +439,7 @@ export function createPlaybookConversation(
       answers.push(given)
     }
     if (await window.answer(sessionId, module.moduleId, answers))
-      host.notice('info', UI_TEXT.playbookNotes.checksPassed, false)
+      notice('info', UI_TEXT.playbookNotes.checksPassed, false)
   }
 
   /** Plan a redesign: the design decision's four fields, recorded as the person gave them. */
@@ -549,38 +469,7 @@ export function createPlaybookConversation(
       planLocation,
     })
     if (isRecorded)
-      host.notice(
-        'info',
-        `${UI_TEXT.playbookDesignDecision}: ${UI_TEXT.playbookDesignPending}`,
-        false,
-      )
-  }
-
-  /**
-   * Whether a spawn the backend asks about is the playbook's, admitted as a
-   * round of its own. False: nothing is under review, so it is not. A
-   * refusal rejects.
-   */
-  const isSpawnAdmitted = async (sessionId: string): Promise<boolean> => {
-    const open = await window.standing(sessionId)
-    if (open.length === 0) return false
-    follow(sessionId)
-    await window.dispatch(
-      { kind: 'subagent', sessionId, targetId: undefined },
-      () => Promise.resolve(),
-      (_submission, signal) => roundEnd(sessionId, NEW_CHILD, signal),
-    )
-    if (!toldEach.has(sessionId)) {
-      toldEach.add(sessionId)
-      host.notice('info', UI_TEXT.playbookSpawnEachAsked, false)
-    }
-    return true
-  }
-
-  const hasGap = async (sessionId: string | undefined): Promise<boolean> => {
-    if (sessionId === undefined || isAskedFirst(sessionId)) return false
-    const open = await window.standing(sessionId)
-    return open.length > 0
+      notice('info', `${UI_TEXT.playbookDesignDecision}: ${UI_TEXT.playbookDesignPending}`, false)
   }
 
   /** The module the person means: the only open one, or the one they pick. */
@@ -602,7 +491,10 @@ export function createPlaybookConversation(
 
   return {
     review: async (request) => {
+      assertOpen()
       const { sessionId } = request
+      const seen = observed.get(sessionId)?.keys() ?? []
+      for (const key of seen) completed.get(sessionId)?.add(key)
       // The fix rounds before it are over: their work is what this review reads.
       settle(sessionId)
       const children = await evidence(request)
@@ -612,6 +504,10 @@ export function createPlaybookConversation(
         ticket = await window.openReview(sessionId, request.files, children)
       } catch (error) {
         throw said(error)
+      }
+      if (isClosed) {
+        ticket?.cancel()
+        assertOpen()
       }
       if (ticket === undefined) return await request.submit(request.parts)
       const admitted = ticket
@@ -635,13 +531,18 @@ export function createPlaybookConversation(
       }
     },
     dispatch: async (kind, sessionId, targetId, effect, ended) => {
+      assertOpen()
       if (sessionId === undefined) return await effect()
       follow(sessionId)
       try {
         return await window.dispatch(
           { kind, sessionId, targetId },
-          effect,
+          () => {
+            assertOpen()
+            return effect()
+          },
           async (submission, signal) => {
+            if (isClosed) return
             await (ended === undefined
               ? roundEnd(sessionId, targetId ?? `:${kind}`, signal)
               : ended(submission, signal))
@@ -651,69 +552,44 @@ export function createPlaybookConversation(
         throw said(error)
       }
     },
-    spawnRequest: async (sessionId, request, decide) => {
-      const { requests } = spawnsOf(sessionId)
-      // One spawn at a time: the choices that would stop the asking are not offered.
-      const once = {
-        ...request,
-        availableChoices: request.availableChoices.filter(
-          (choice) => choice.scope === 'once' || !isApproval(choice),
-        ),
+    observed: async (sessionId, item) => {
+      if (
+        isClosed ||
+        sessionId === undefined ||
+        item.kind !== 'subagent' ||
+        item.subagentId === undefined
+      )
+        return
+      const key = `${item.subagentId}:${item.itemId}`
+      const seen = observed.get(sessionId) ?? new Map<string, string>()
+      observed.set(sessionId, seen)
+      const finished = completed.get(sessionId) ?? new Set<string>()
+      completed.set(sessionId, finished)
+      const prior = seen.get(key)
+      seen.set(key, item.status)
+      if (item.status !== IN_PROGRESS_STATUS) {
+        finished.add(key)
+        settle(sessionId, key)
+        if (prior === IN_PROGRESS_STATUS) settle(sessionId, item.subagentId)
       }
-      // A request said again is the one already asked about: no second round,
-      // and the card it was given the first time.
-      const known = requests.get(request.approvalId)
-      if (known !== undefined) return known === 'asCame' ? request : once
+      if (prior !== undefined) return
+      follow(sessionId)
       try {
-        const isGoverned = await isSpawnAdmitted(sessionId)
-        requests.set(request.approvalId, isGoverned ? 'round' : 'asCame')
-        return isGoverned ? once : request
+        await window.dispatch(
+          { kind: 'subagent', sessionId, targetId: item.subagentId },
+          () => {
+            assertOpen()
+            return Promise.resolve()
+          },
+          (_submission, signal) => roundEnd(sessionId, key, signal),
+        )
       } catch (error) {
-        // A refusal's why-note reached the conversation as it was decided; this did not.
-        if (!(error instanceof PlaybookRefusal))
-          host.notice('error', UI_TEXT.playbookUnavailable, false)
-        const reject = request.availableChoices.find((choice) => !isApproval(choice))
-        try {
-          if (reject === undefined) throw new Error(UI_TEXT.playbookUnavailable, { cause: error })
-          await decide({
-            approvalId: request.approvalId,
-            choiceId: reject.choiceId,
-            requirementId: request.requirementId,
-            ...(reject.acceptsFeedback === true && {
-              feedback: playbookRefusalModelText(error),
-            }),
-          })
-          // Answered: there is nothing to put before the person.
-          return
-        } catch {
-          // The refusal is in the transcript. Unsent, the request stays the person's
-          // to answer, one spawn at a time; no round was opened for it.
-          requests.set(request.approvalId, 'once')
-          return once
-        }
+        if (!(error instanceof PlaybookRefusal)) notice('error', UI_TEXT.playbookUnavailable, false)
       }
-    },
-    approvalResolved: (sessionId, approvalId, decision) => {
-      const state = sessionId === undefined ? undefined : spawns.get(sessionId)
-      const shown = state?.requests.get(approvalId)
-      if (sessionId === undefined || state === undefined || shown === undefined) return
-      state.requests.delete(approvalId)
-      if (decision.startsWith(APPROVED)) {
-        if (state.owed >= 0) state.owed += 1
-      } else if (shown === 'round') settle(sessionId, NEW_CHILD)
-    },
-    childBegan: (sessionId) => {
-      const admission = host.spawnAdmission()
-      // The Model API's host admits each child itself: there is nothing to learn from its rows.
-      if (sessionId === undefined || admission === 'host') return
-      const state = spawnsOf(sessionId)
-      if (state.owed > 0) state.owed -= 1
-      else if (admission === 'asked') state.owed = -1
     },
     ended: (sessionId, agentId) => {
       if (sessionId === undefined) return
       settle(sessionId, agentId ?? BEST_OF_N)
-      if (agentId !== undefined) settle(sessionId, NEW_CHILD)
     },
     act: async (sessionId) => {
       if (sessionId === undefined) return
@@ -722,14 +598,14 @@ export function createPlaybookConversation(
         const open = await window.standing(sessionId)
         const module = await chosen(open)
         if (module === undefined) {
-          if (open.length === 0) host.notice('info', UI_TEXT.playbookEmpty, false)
+          if (open.length === 0) notice('info', UI_TEXT.playbookEmpty, false)
           return
         }
         const unanswered = module.findings.filter((finding) => !finding.isAnswered)
         if (unanswered.length > 0) await answer(sessionId, module, unanswered)
         else if (module.isRedesignDue) await design(sessionId, module)
         else
-          host.notice(
+          notice(
             'info',
             module.design === 'pending'
               ? `${UI_TEXT.playbookDesignDecision}: ${UI_TEXT.playbookDesignPending}`
@@ -737,20 +613,11 @@ export function createPlaybookConversation(
             false,
           )
       } catch {
-        host.notice('error', UI_TEXT.playbookUnavailable, false)
-      }
-    },
-    hasGap,
-    gap: async (sessionId) => {
-      try {
-        return (await hasGap(sessionId)) ? playbookSpawnGapText() : undefined
-      } catch {
-        // The journal could not say whether the line is owed: that is said, not passed over.
-        return UI_TEXT.playbookUnavailable
+        notice('error', UI_TEXT.playbookUnavailable, false)
       }
     },
     dispose: () => {
-      spawns.clear()
+      isClosed = true
       for (const stop of followed.values()) stop()
       followed.clear()
       for (const review of reviews) {
@@ -760,6 +627,8 @@ export function createPlaybookConversation(
       reviews.clear()
       for (const sessionId of rounds.keys()) settle(sessionId)
       rounds.clear()
+      observed.clear()
+      completed.clear()
     },
   }
 }

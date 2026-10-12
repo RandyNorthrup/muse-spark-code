@@ -281,6 +281,13 @@ journal's status, record and settings (**Playbook Settings**). Settings
 changes need a reason and record the owner. The reviewer charter ships as
 the `orchestrator-playbook` skill.
 
+Muse Code starts subagents without asking; the panel counts their observed
+rounds and reviews their work, and cannot stop a start. A child's first row
+opens its round before the CLI supplies its session id. Its own ended row,
+the next review or the conversation closing ends it; a history repost ends
+nothing. A window with no playbook folder loads no playbook code for child
+work, including when the optional bundle is absent.
+
 ## Highlights
 
 - **Streaming chat with tools you can see.** Every read, edit, write and shell

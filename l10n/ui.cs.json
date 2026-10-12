@@ -491,8 +491,7 @@
   "playbookNotCertified": "Příručka: toto kolo se nepodařilo ověřit, proto se nepočítá jako úspěšné.",
   "playbookEvidenceUnreadable": "Příručka: kontrolovaný soubor nebo záznam o změnách podagenta se nepodařilo přečíst, takže příručka nedokáže určit, zda je tato kontrola její. Kontrola nebyla odeslána.",
   "playbookRecordStale": "Záznam příručky se nepodařilo přečíst. Zobrazené údaje mohou být zastaralé.",
-  "playbookSpawnEachAsked": "Příručka: dokud se modul kontroluje, schvaluje se každý podagent jednotlivě.",
-  "playbookSpawnsNotAdmitted": "Příručka: Muse Code zde spouští podagenty bez dotazu (režim {auto}, režim {bypass} nebo vaše vlastní pravidlo povolení), takže je příručka neschvaluje. Jejich změny se započítají při další kontrole.",
+  "playbookMuseCodeStarts": "Muse Code spouští podagenty bez dotazu. Playbook počítá jejich kola a kontroluje jejich práci, ale nemůže zabránit spuštění.",
   "playbookStrikeBadge": {
     "one": "{count} kolo kontroly",
     "other": "{count} kol kontroly",

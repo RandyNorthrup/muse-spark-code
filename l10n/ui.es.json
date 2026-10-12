@@ -491,8 +491,7 @@
   "playbookNotCertified": "Guía: esta ronda no se pudo certificar, así que no cuenta como aprobada.",
   "playbookEvidenceUnreadable": "Guía: no se pudo leer un archivo revisado o lo que cambió un subagente, así que la guía no puede saber si esta revisión es suya. La revisión no se envió.",
   "playbookRecordStale": "No se pudo leer el registro de la guía. Lo que se muestra puede estar desactualizado.",
-  "playbookSpawnEachAsked": "Guía: mientras un módulo está en revisión, cada subagente se aprueba de uno en uno.",
-  "playbookSpawnsNotAdmitted": "Guía: aquí Muse Code inicia subagentes sin preguntar (modo {auto}, modo {bypass} o una regla de permiso tuya), así que la guía no los admite. Lo que cambien se cuenta en la siguiente revisión.",
+  "playbookMuseCodeStarts": "Muse Code inicia subagentes sin preguntar. El playbook cuenta sus rondas y revisa su trabajo, pero no puede impedir un inicio.",
   "playbookStrikeBadge": {
     "one": "{count} ronda de revisión",
     "other": "{count} rondas de revisión",

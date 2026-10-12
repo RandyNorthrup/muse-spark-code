@@ -491,8 +491,7 @@
   "playbookNotCertified": "지침서: 이 라운드는 인증할 수 없어 통과로 계산되지 않습니다.",
   "playbookEvidenceUnreadable": "지침서: 검토 대상 파일 또는 하위 에이전트의 변경 내용을 읽을 수 없어 이 검토가 지침서의 대상인지 판단할 수 없습니다. 검토를 보내지 않았습니다.",
   "playbookRecordStale": "지침서 기록을 읽을 수 없습니다. 표시된 내용이 최신이 아닐 수 있습니다.",
-  "playbookSpawnEachAsked": "지침서: 모듈을 검토하는 동안에는 하위 에이전트를 하나씩 승인합니다.",
-  "playbookSpawnsNotAdmitted": "지침서: 여기서는 Muse Code가 묻지 않고 하위 에이전트를 시작하므로({auto} 모드, {bypass} 모드 또는 직접 설정한 허용 규칙) 지침서가 이를 승인하지 않습니다. 변경 내용은 다음 검토에서 계산됩니다.",
+  "playbookMuseCodeStarts": "Muse Code는 묻지 않고 하위 에이전트를 시작합니다. 플레이북은 라운드를 집계하고 작업을 검토하지만 시작을 막을 수는 없습니다.",
   "playbookStrikeBadge": {
     "other": "검토 {count}라운드"
   },

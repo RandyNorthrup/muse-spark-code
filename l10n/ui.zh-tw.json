@@ -491,8 +491,7 @@
   "playbookNotCertified": "工作準則：本輪無法確認，因此不計為通過。",
   "playbookEvidenceUnreadable": "工作準則：無法讀取受審查的檔案或子代理程式所做的變更，因此工作準則無法判斷此次審查是否歸它管。審查未傳送。",
   "playbookRecordStale": "無法讀取工作準則記錄。顯示的內容可能已過時。",
-  "playbookSpawnEachAsked": "工作準則：模組處於審查期間，每個子代理程式都需逐一核准。",
-  "playbookSpawnsNotAdmitted": "工作準則：在這裡 Muse Code 不經詢問就啟動子代理程式（「{auto}」模式、「{bypass}」模式，或您自己的允許規則），因此工作準則不會放行它們。它們所做的變更會在下次審查時計入。",
+  "playbookMuseCodeStarts": "Muse Code 不經詢問便會啟動子代理。行動手冊會統計其回合並審查其工作，但無法阻止啟動。",
   "playbookStrikeBadge": {
     "other": "{count} 輪審查"
   },

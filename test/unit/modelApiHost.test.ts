@@ -103,6 +103,7 @@ import type {
   ScheduleRunConfirmation,
   ScheduleStore,
 } from '../../src/shared/schedule'
+import { hasWindowPlaybook, playbookWindowLoader } from '../../src/host/playbook/playbookBundle'
 import { removeFolder } from './helpers/temporaryFolders'
 import { parseHookConfig, type HookDefinition } from '../../src/core/backends/modelapi/hooks'
 import type {
@@ -9747,6 +9748,29 @@ describe('ModelApiSession subagents (M48)', () => {
   })
 
   describe('new child work and the window’s playbook (M116)', () => {
+    it('spawns with the optional bundle absent when the window has no playbook', async () => {
+      const data = mkdtempSync(path.join(tmpdir(), 'm116-no-playbook-'))
+      const load = vi.fn(
+        playbookWindowLoader(path.join(data, 'missing.js'), new FakeLogOutputChannel()),
+      )
+      const t = setupSubagents({
+        playbook: () => {
+          if (hasWindowPlaybook(data)) load()
+          return undefined
+        },
+      })
+      const { session } = await startApprovedSubagentSession(t)
+      try {
+        const hold = await spawnHeldChild(t, session, 'no_playbook_bundle')
+        hold.resolve(undefined)
+        await waitForChildReady(t, session)
+        expect(load).not.toHaveBeenCalled()
+        expect(subagentRows(session)[0]).toMatchObject({ controlStatus: 'resultReady' })
+      } finally {
+        await removeFolder(data)
+      }
+    })
+
     it('starts a new child through the playbook, and ends the round with the child’s result', async () => {
       const p = admitting()
       const t = setupSubagents({ playbook: p.playbook })

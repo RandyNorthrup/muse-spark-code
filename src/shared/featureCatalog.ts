@@ -1138,6 +1138,7 @@ const REFERENCE_DETAILS: Readonly<
     'privacyNoRetentionDetail',
     'referenceOutputCapMinimum',
   ],
+  'orchestrator-playbook': ['playbookMuseCodeStarts'],
   estimator: ['estimateCliHelp'],
   permissions: ['referencePermissionLimits'],
   'native-agents': ['referenceAgentControls', 'referenceNativeAgentsConditions'],

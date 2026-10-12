@@ -636,10 +636,8 @@ export const EN = {
   playbookEvidenceUnreadable:
     'Playbook: a reviewed file, or what a subagent changed, could not be read, so the playbook cannot tell whether this review is its own. The review was not sent.',
   playbookRecordStale: 'The playbook record could not be read. What is shown may be out of date.',
-  playbookSpawnEachAsked:
-    'Playbook: while a module is under review, each subagent is approved one at a time.',
-  playbookSpawnsNotAdmitted:
-    'Playbook: Muse Code starts subagents here without asking ({auto} mode, {bypass} mode, or an allow rule of yours), so the playbook does not admit them. What they change is counted at the next review.',
+  playbookMuseCodeStarts:
+    'Muse Code starts subagents without asking. The playbook counts their rounds and reviews their work, and cannot stop a start.',
   playbookStrikeBadge: forms({ one: '{count} review round', other: '{count} review rounds' }),
   playbookRules: {
     threeStrikes: 'Redesign After Three Strikes',

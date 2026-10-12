@@ -1469,6 +1469,8 @@ Commands: —. Settings: `museSpark.judge.engine`. [Documentation](https://githu
 
 Show review strikes, design decisions, safety refusals, settings and unbound acceptance reasons.
 
+Muse Code starts subagents without asking. The playbook counts their rounds and reviews their work, and cannot stop a start.
+
 Surfaces: vscode:museCode, vscode:modelApi, acp:museCode, acp:modelApi. Paid: no extra feature charge; model usage still applies.
 
 Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#orchestrator-playbook-policy-m116)

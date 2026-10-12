@@ -203,7 +203,6 @@ import type { SchedulesBridge } from '../schedules/schedulesBridge'
 import { parseScheduleHostMessage } from '../../shared/scheduleProtocol'
 import { formatMention, parseSkillInvocation } from '../../shared/mentions'
 import { approvalModeFor, untrustedStartMode } from '../../shared/permissionModes'
-import { SUBAGENT_SPAWN_TOOL } from '../../shared/constants'
 import type { MuseCodeReviewerPort } from '../review/museCodeReviewerBundle'
 
 import type { ReviewedApprovals } from '../review/reviewedApprovals'
@@ -525,7 +524,8 @@ export interface ConversationDeps {
   readonly createLegalHold?: ((holdDeps: PlanModeHoldDeps) => PlanModeHold) | undefined
   /** M116 I/W binding: lazy shared-core policy plus the trusted host registry.
    * Absent until the host installs the integration; a configured factory fails closed. */
-  readonly playbook?: ((host: PlaybookConversationHost) => PlaybookConversation) | undefined
+  readonly playbook?:
+    ((host: PlaybookConversationHost) => PlaybookConversation | undefined) | undefined
   /** `/estimate` (M117, PLAN.md D97): the run, from the estimator's own bundle. */
   readonly estimator?: EstimatorRun
   /** A tool output as a read-only editor tab named `title` (M15). */
@@ -2438,11 +2438,7 @@ export class ConversationController {
     return true
   }
 
-  /** `isAsked`: a spawn request the playbook was already asked about, on its way to the card. */
-  private onEvent(event: AgentEvent, isAsked = false): void {
-    if (!isAsked && event.type === 'approvalRequested' && this.holdsSpawn(event)) {
-      return
-    }
+  private onEvent(event: AgentEvent): void {
     // Draft parsing reads the original reply before asynchronous display hooks;
     // its turn can finish while the presentation rewrite is still waiting.
     this.git.onEvent(event)
@@ -2496,12 +2492,6 @@ export class ConversationController {
         break
       }
       case 'approvalResolved': {
-        // The playbook knows which requests were a subagent's (M116, D96.17).
-        this.playbookPort?.approvalResolved(
-          this.session?.sessionId,
-          event.approvalId,
-          event.decision,
-        )
         this.questionApprovals.delete(event.approvalId)
         this.judgeCards.get(event.approvalId)?.discard()
         this.judgeCards.delete(event.approvalId)
@@ -2630,10 +2620,10 @@ export class ConversationController {
 
   /**
    * Remember a subagent row's child session, live or from a loaded history.
-   * `isStart`: the row began just now; a child not seen before is the
-   * playbook's to know of (D96.17).
+   * Live rows reach the binding even before childSessionId arrives;
+   * a history repost updates identity only and ends no round (D96.17).
    */
-  private noteSubagentRow(item: ItemSnapshot, isStart = false): void {
+  private noteSubagentRow(item: ItemSnapshot, isLive = false): void {
     if (item.kind !== SUBAGENT_ITEM_KIND) {
       return
     }
@@ -2643,21 +2633,21 @@ export class ConversationController {
         (item.controlStatus === undefined || SUBAGENT_RUNNING_STATUSES.has(item.controlStatus))
       this.childrenAtWork[isAtWork ? 'add' : 'delete'](item.subagentId)
     }
+    if (isLive && this.sessionKind === 'museCode') {
+      try {
+        void this.playbook()?.observed(this.session?.sessionId, item)
+      } catch (error: unknown) {
+        this.notice('error', UI_TEXT.playbookUnavailable, undefined, error)
+      }
+    }
     if (item.childSessionId === undefined) {
       return
-    }
-    if (isStart && !this.childSessionIds.has(item.childSessionId)) {
-      this.playbookPort?.childBegan(this.session?.sessionId)
     }
     this.childSessionIds.add(item.childSessionId)
     if (item.subagentId === undefined) {
       return
     }
     this.childAgents.set(item.childSessionId, item.subagentId)
-    // A row that has ended ends the playbook round that waited on it (M116).
-    if (item.status !== IN_PROGRESS_STATUS) {
-      this.playbookPort?.ended(this.session?.sessionId, item.subagentId)
-    }
   }
 
   private track(event: AgentEvent): void {
@@ -2837,7 +2827,7 @@ export class ConversationController {
           this.noteReviewCall(event.item)
         }
         this.noteForegroundShell(event.item)
-        this.noteSubagentRow(event.item)
+        this.noteSubagentRow(event.item, true)
         this.noteSandboxFailure(event.item.failureReason)
         // A `!` command says it in its output (captured 2026-09-25, M46).
         if (event.item.kind === USER_SHELL_ITEM_KIND) {
@@ -7305,57 +7295,8 @@ export class ConversationController {
         this.post({ type: 'notice', level, text, ...(hasAction && { actions: ['openPlaybook'] }) })
       },
       backend: this.deps.ensureHost,
-      // The Model API's host admits each child itself; Muse Code asks only in the modes that prompt.
-      spawnAdmission: () => {
-        if ((this.sessionKind ?? this.deps.auth.backend) !== 'museCode') {
-          return 'host'
-        }
-        const mode = approvalModeFor(this.permissionMode, this.deps.hasApprovalUi)
-        return mode === 'promptUnmatched' || mode === 'denyUnmatched' ? 'asked' : 'unasked'
-      },
     })
     return this.playbookPort
-  }
-
-  /**
-   * Muse Code asks before it starts a subagent (M116, D96.17): the playbook
-   * is asked first, in its own bundle. It answers a refusal itself; what it
-   * hands back goes on to the card as any request does.
-   */
-  private holdsSpawn(event: Extract<AgentEvent, { type: 'approvalRequested' }>): boolean {
-    const session = this.session
-    if (
-      session === undefined ||
-      this.deps.playbook === undefined ||
-      this.sessionKind !== 'museCode' ||
-      event.toolName !== SUBAGENT_SPAWN_TOOL
-    ) {
-      return false
-    }
-    void this.answerSpawn(session, event)
-    return true
-  }
-
-  private async answerSpawn(
-    session: AgentSession,
-    event: Extract<AgentEvent, { type: 'approvalRequested' }>,
-  ): Promise<void> {
-    let next: typeof event | undefined = event
-    try {
-      const playbook = this.playbook()
-      if (playbook !== undefined) {
-        next = await playbook.spawnRequest(session.sessionId, event, (decision) =>
-          session.decideApproval(decision),
-        )
-      }
-    } catch (error: unknown) {
-      // A playbook that cannot even load knows of no review: the person is asked, and told.
-      this.notice('error', UI_TEXT.playbookUnavailable, undefined, error)
-    }
-    if (next === undefined || this.session !== session || this.isDisposed) {
-      return
-    }
-    this.onEvent(next, true)
   }
 
   /**
@@ -10046,7 +9987,10 @@ export class ConversationController {
       const playbook = await answerPlaybookCommand(this.deps.playbookSource, message.text)
       if (playbook !== undefined) {
         // A governed conversation in a mode that starts subagents unasked is told so (D96.17).
-        const gap = playbook.ok ? await this.playbook()?.gap(this.session?.sessionId) : undefined
+        const gap =
+          playbook.ok && (this.sessionKind ?? this.deps.auth.backend) === 'museCode'
+            ? UI_TEXT.playbookMuseCodeStarts
+            : undefined
         this.post({
           type: 'sendFailed',
           localId: message.localId,
@@ -10421,7 +10365,7 @@ export class ConversationController {
           (answer) => {
             this.post({ type: 'playbook', message: answer })
           },
-          () => this.playbook()?.hasGap(this.session?.sessionId),
+          () => Promise.resolve((this.sessionKind ?? this.deps.auth.backend) === 'museCode'),
         )
         break
       }

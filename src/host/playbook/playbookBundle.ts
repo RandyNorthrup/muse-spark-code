@@ -4,7 +4,9 @@
 // imported from there would carry the policy into dist/extension.js, which
 // the bundle-split gate refuses.
 
-import { UI_TEXT } from '../../shared/constants'
+import { statSync } from 'node:fs'
+import path from 'node:path'
+import { PLAYBOOK_RECORD_FOLDER, UI_TEXT } from '../../shared/constants'
 import { lazyBundleLoader } from '../lazyBundle'
 import type { Logger } from '../logger'
 import type * as PlaybookEntry from './playbookEntry'
@@ -48,4 +50,19 @@ export function playbookWindowLoader(bundlePath: string, log: Logger): () => typ
     label: 'playbook',
     unavailable: () => UI_TEXT.playbookUnavailable,
   })
+}
+
+/** Decide presence before loading any policy; unreadable means present and fails in the bundle. */
+export function hasWindowPlaybook(agentDataFolder: string): boolean {
+  try {
+    statSync(path.join(agentDataFolder, PLAYBOOK_RECORD_FOLDER))
+    return true
+  } catch (error) {
+    return !(
+      typeof error === 'object' &&
+      error !== null &&
+      'code' in error &&
+      error.code === 'ENOENT'
+    )
+  }
 }

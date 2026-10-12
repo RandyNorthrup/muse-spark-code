@@ -491,8 +491,7 @@
   "playbookNotCertified": "Leitfaden: Diese Runde konnte nicht bestätigt werden und zählt daher nicht als bestanden.",
   "playbookEvidenceUnreadable": "Leitfaden: Eine geprüfte Datei oder die Änderungen eines Subagenten konnten nicht gelesen werden, daher kann der Leitfaden nicht feststellen, ob diese Prüfung zu ihm gehört. Die Prüfung wurde nicht gesendet.",
   "playbookRecordStale": "Das Protokoll des Leitfadens konnte nicht gelesen werden. Die Anzeige ist möglicherweise veraltet.",
-  "playbookSpawnEachAsked": "Leitfaden: Solange ein Modul geprüft wird, wird jeder Subagent einzeln genehmigt.",
-  "playbookSpawnsNotAdmitted": "Leitfaden: Muse Code startet Subagenten hier ohne Rückfrage (Modus {auto}, Modus {bypass} oder eine eigene Erlaubnisregel), daher lässt der Leitfaden sie nicht zu. Ihre Änderungen werden bei der nächsten Prüfung gezählt.",
+  "playbookMuseCodeStarts": "Muse Code startet Unteragenten ohne Nachfrage. Das Playbook zählt ihre Runden und prüft ihre Arbeit, kann einen Start aber nicht verhindern.",
   "playbookStrikeBadge": {
     "one": "{count} Prüfrunde",
     "other": "{count} Prüfrunden"

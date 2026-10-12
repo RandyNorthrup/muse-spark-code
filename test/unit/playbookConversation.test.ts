@@ -12,17 +12,14 @@ import {
 } from '../../src/shared/constants'
 import { UI_TEXT } from '../../src/shared/l10n/text'
 import type { PlaybookWhyNote } from '../../src/shared/playbook'
-import type { AgentSession, OutputPageRequest, TurnPart } from '../../src/core/agent/agentBackend'
+import type { OutputPageRequest, TurnPart } from '../../src/core/agent/agentBackend'
 import type { PanelModuleSummary } from '../../src/runtime/playbook/governor'
 import { playbookNoteText } from '../../src/runtime/playbook/text'
 import {
   createPlaybookConversation,
   playbookAdmission,
   playbookRefusalModelText,
-  playbookSpawnGapText,
-  type PlaybookConversationHost,
   type PlaybookPick,
-  type PlaybookSpawnRequest,
   type PlaybookUi,
 } from '../../src/host/playbook/playbookConversation'
 import {
@@ -32,7 +29,6 @@ import {
   type PlaybookWindow,
   type PlaybookWindowReview,
 } from '../../src/host/playbook/playbookWindow'
-import { SPAWN_CHOICES } from './helpers/playbook/fakeConversation'
 
 const SESSION = 'session-1'
 const CHILD_SESSION = 'child-1'
@@ -198,8 +194,7 @@ interface Scene {
   /** What the window refuses every request with. */
   readonly refusal?: Error
   readonly child?: readonly ItemSnapshot[]
-  /** Who admits a model's subagent in the backend's mode; the backend asks unless a test says otherwise. */
-  readonly spawnAdmission?: ReturnType<PlaybookConversationHost['spawnAdmission']>
+  readonly admission?: Promise<void>
   readonly steps?: Step[]
 }
 
@@ -223,6 +218,7 @@ function scene(given: Scene = {}) {
     ): Promise<T> => {
       dispatched.push(request)
       if (given.refusal !== undefined) throw given.refusal
+      await given.admission
       const submission = await effect()
       ends.push(completion(submission, stop.signal))
       return submission
@@ -253,7 +249,6 @@ function scene(given: Scene = {}) {
       told.push({ level, text, hasAction })
     },
     backend: () => Promise.resolve({ readSession, readSessionOutput }),
-    spawnAdmission: () => given.spawnAdmission ?? 'asked',
   })
   return {
     conversation,
@@ -267,36 +262,6 @@ function scene(given: Scene = {}) {
     readSessionOutput,
     ...pickers,
   }
-}
-
-/** Muse Code's own request to start a subagent, as captured (M18). */
-const SPAWN: PlaybookSpawnRequest = {
-  type: 'approvalRequested',
-  approvalId: 'a1',
-  itemId: 'spawn-1',
-  toolName: 'subagent_spawn',
-  rawArgs: '{}',
-  requirementId: { approvalId: 'a1', sourceIndex: 0 },
-  subject: { kind: 'tool', toolName: 'subagent_spawn' },
-  availableChoices: [...SPAWN_CHOICES],
-  isJudgeEscalated: false,
-  isProtectedWrite: false,
-}
-
-/** The same request for another subagent: an approval of its own. */
-function another(approvalId: string): PlaybookSpawnRequest {
-  return { ...SPAWN, approvalId, requirementId: { approvalId, sourceIndex: 0 } }
-}
-
-function choiceIds(request: PlaybookSpawnRequest | undefined): string[] | undefined {
-  return request?.availableChoices.map((choice) => choice.choiceId)
-}
-
-/** The backend's answer to a request, for a spawn that must not be answered. */
-function unasked() {
-  return vi.fn<AgentSession['decideApproval']>(() =>
-    Promise.reject(new Error('This request was not to be answered')),
-  )
 }
 
 /** A review request of the conversation's one child agent. */
@@ -591,166 +556,6 @@ describe('a dispatch', () => {
   })
 })
 
-describe('a subagent the backend asks about', () => {
-  it('is handed back exactly as it came while the conversation has nothing under review', async () => {
-    const setup = scene()
-    const decide = unasked()
-    // The very request: no choice is taken from a conversation the playbook does not govern.
-    await expect(setup.conversation.spawnRequest(SESSION, SPAWN, decide)).resolves.toBe(SPAWN)
-    expect(setup.dispatched).toEqual([])
-    expect(setup.told).toEqual([])
-    expect(decide).not.toHaveBeenCalled()
-  })
-
-  it('is admitted as a round of its own, without the choice that would stop the asking', async () => {
-    const setup = scene({ standing: [module()] })
-    const decide = unasked()
-    const first = await setup.conversation.spawnRequest(SESSION, SPAWN, decide)
-    const second = await setup.conversation.spawnRequest(SESSION, another('a2'), decide)
-    // "Allow for this session" is gone; allowing once and rejecting stay.
-    expect(choiceIds(first)).toEqual(['allow_once', 'abort'])
-    expect(choiceIds(second)).toEqual(['allow_once', 'abort'])
-    // The first request said again is the one already asked about: no third round.
-    const again = await setup.conversation.spawnRequest(SESSION, SPAWN, decide)
-    expect(choiceIds(again)).toEqual(['allow_once', 'abort'])
-    expect(setup.dispatched).toEqual([
-      { kind: 'subagent', sessionId: SESSION, targetId: undefined },
-      { kind: 'subagent', sessionId: SESSION, targetId: undefined },
-    ])
-    // The conversation is told why, once.
-    expect(setup.told).toEqual([
-      { level: 'info', text: UI_TEXT.playbookSpawnEachAsked, hasAction: false },
-    ])
-    expect(decide).not.toHaveBeenCalled()
-    // Nobody can name the child yet: the round ends with the next child's row.
-    const round = firstRound(setup)
-    expect(await isSettled(round)).toBe(false)
-    setup.conversation.ended(SESSION, AGENT)
-    expect(await isSettled(round)).toBe(true)
-  })
-
-  it('ends the round it opened for a spawn the person then turned down', async () => {
-    const setup = scene({ standing: [module()] })
-    await setup.conversation.spawnRequest(SESSION, SPAWN, unasked())
-    const round = firstRound(setup)
-    expect(await isSettled(round)).toBe(false)
-    // Another approval's end, and another conversation's, are not this round's.
-    setup.conversation.approvalResolved(SESSION, 'a-file-write', 'abort')
-    setup.conversation.approvalResolved('session-2', 'a1', 'abort')
-    expect(await isSettled(round)).toBe(false)
-    setup.conversation.approvalResolved(SESSION, 'a1', 'abort')
-    expect(await isSettled(round)).toBe(true)
-  })
-
-  it('keeps the round of an approved spawn open for its child, and ends it with the child’s row', async () => {
-    const setup = scene({ standing: [module()] })
-    await setup.conversation.spawnRequest(SESSION, SPAWN, unasked())
-    const round = firstRound(setup)
-    setup.conversation.approvalResolved(SESSION, 'a1', 'approved')
-    setup.conversation.childBegan(SESSION)
-    expect(await isSettled(round)).toBe(false)
-    setup.conversation.ended(SESSION, AGENT)
-    expect(await isSettled(round)).toBe(true)
-  })
-
-  it('learns from a child no approved request speaks for that the backend does not ask here, for good', async () => {
-    const setup = scene({ standing: [module()] })
-    // Asked and approved, then its child: the backend asked.
-    await setup.conversation.spawnRequest(SESSION, SPAWN, unasked())
-    setup.conversation.approvalResolved(SESSION, 'a1', 'approved')
-    setup.conversation.childBegan(SESSION)
-    await expect(setup.conversation.hasGap(SESSION)).resolves.toBe(false)
-    // A request the person turned down speaks for no child.
-    await setup.conversation.spawnRequest(SESSION, another('a2'), unasked())
-    setup.conversation.approvalResolved(SESSION, 'a2', 'abort')
-    await expect(setup.conversation.hasGap(SESSION)).resolves.toBe(false)
-    // A child nobody was asked about: an allow rule of the person's own, known by this alone.
-    setup.conversation.childBegan(SESSION)
-    await expect(setup.conversation.hasGap(SESSION)).resolves.toBe(true)
-    await expect(setup.conversation.gap(SESSION)).resolves.toBe(playbookSpawnGapText())
-    // Being asked again later does not undo what was seen.
-    await setup.conversation.spawnRequest(SESSION, another('a3'), unasked())
-    setup.conversation.approvalResolved(SESSION, 'a3', 'approved')
-    await expect(setup.conversation.hasGap(SESSION)).resolves.toBe(true)
-    // Another conversation of the window is not this one.
-    await expect(setup.conversation.hasGap('session-2')).resolves.toBe(false)
-  })
-
-  it('learns nothing from the children of a backend whose own host admits each one', async () => {
-    const setup = scene({ standing: [module()], spawnAdmission: 'host' })
-    setup.conversation.childBegan(SESSION)
-    setup.conversation.childBegan(SESSION)
-    await expect(setup.conversation.hasGap(SESSION)).resolves.toBe(false)
-  })
-
-  it('answers a refused spawn with the request’s own rejection and the playbook’s reason', async () => {
-    const setup = scene({ refusal: new PlaybookRefusal(NOTE) })
-    const decide = vi.fn<AgentSession['decideApproval']>(() => Promise.resolve())
-    await expect(setup.conversation.spawnRequest(SESSION, SPAWN, decide)).resolves.toBeUndefined()
-    // The model reads English, with the journal's own codes for the rule and the reason.
-    expect(decide).toHaveBeenCalledExactlyOnceWith({
-      approvalId: 'a1',
-      choiceId: 'abort',
-      requirementId: { approvalId: 'a1', sourceIndex: 0 },
-      feedback: REFUSED_TEXT,
-    })
-    expect(REFUSED_TEXT).toContain('rule: threeStrikes; reason: answersPending')
-    expect(REFUSED_TEXT).toContain('module: src/core/schedules')
-    // The why-note is the window's to show; the binding adds no notice of its own.
-    expect(setup.told).toEqual([])
-  })
-
-  it('refuses when the playbook cannot be asked, and says so to the model and the person', async () => {
-    const setup = scene({ refusal: new Error('the worker is gone') })
-    const decide = vi.fn<AgentSession['decideApproval']>(() => Promise.resolve())
-    await expect(setup.conversation.spawnRequest(SESSION, SPAWN, decide)).resolves.toBeUndefined()
-    expect(decide.mock.calls[0]?.[0]).toMatchObject({
-      choiceId: 'abort',
-      feedback: PLAYBOOK_REFUSAL_MODEL_TEXT.playbookWorkUnavailable,
-    })
-    expect(setup.told).toEqual([
-      { level: 'error', text: UI_TEXT.playbookUnavailable, hasAction: false },
-    ])
-  })
-
-  it('sends a rejection that takes no feedback without any', async () => {
-    const setup = scene({ refusal: new PlaybookRefusal(NOTE) })
-    const decide = vi.fn<AgentSession['decideApproval']>(() => Promise.resolve())
-    const plain = SPAWN.availableChoices.map((choice) => ({ ...choice, acceptsFeedback: false }))
-    await setup.conversation.spawnRequest(SESSION, { ...SPAWN, availableChoices: plain }, decide)
-    expect(decide).toHaveBeenCalledExactlyOnceWith({
-      approvalId: 'a1',
-      choiceId: 'abort',
-      requirementId: { approvalId: 'a1', sourceIndex: 0 },
-    })
-  })
-
-  it('leaves the request to the person, one spawn at a time, when its refusal cannot be sent', async () => {
-    const setup = scene({ refusal: new PlaybookRefusal(NOTE) })
-    const decide = vi.fn<AgentSession['decideApproval']>(() =>
-      Promise.reject(new Error('the session is closing')),
-    )
-    const shown = await setup.conversation.spawnRequest(SESSION, SPAWN, decide)
-    expect(choiceIds(shown)).toEqual(['allow_once', 'abort'])
-    // Said again, it is given the same card, and nothing more is sent for it.
-    expect(choiceIds(await setup.conversation.spawnRequest(SESSION, SPAWN, unasked()))).toEqual([
-      'allow_once',
-      'abort',
-    ])
-    // A request with no way to reject is shown the same way, and nothing is sent for it.
-    const approvals = SPAWN.availableChoices.filter((choice) => choice.decision === 'approved')
-    const only = await setup.conversation.spawnRequest(
-      SESSION,
-      { ...another('a2'), availableChoices: approvals },
-      unasked(),
-    )
-    expect(choiceIds(only)).toEqual(['allow_once'])
-    // No round was opened for either: turning one down ends nothing, and is no error.
-    setup.conversation.approvalResolved(SESSION, 'a1', 'abort')
-    expect(setup.ends).toEqual([])
-  })
-})
-
 /** A child whose work is not over, whenever it is asked. */
 function isOverYet(): boolean {
   return false
@@ -762,7 +567,10 @@ function bothWordings(reason: string, shown: string): string {
 }
 
 /** A Model API conversation's spawn of a child that never finishes, through the window's playbook. */
-function newChild(setup: ReturnType<typeof scene>, effect: () => Promise<string>): Promise<string> {
+function newChild(
+  setup: ReturnType<typeof scene>,
+  effect: () => Promise<string>,
+): Promise<string> | undefined {
   return playbookAdmission(setup.window)(
     'subagent',
     SESSION,
@@ -841,7 +649,7 @@ describe('a Model API conversation’s new child work', () => {
 describe('what a followed conversation is told', () => {
   it('shows each why-note, offer and counted round with the playbook’s button', async () => {
     const setup = scene({ standing: [module()] })
-    await setup.conversation.spawnRequest(SESSION, SPAWN, unasked())
+    await setup.conversation.dispatch('delegate', SESSION, AGENT, () => Promise.resolve())
     setup.told.length = 0
     const events = setup.events.get(SESSION)
     if (events === undefined) throw new Error('The conversation is not followed')
@@ -861,38 +669,6 @@ describe('what a followed conversation is told', () => {
     expect(setup.told[2]?.text).toContain('src/core/schedules')
     expect(setup.told[3]?.text).toBe('lint failed')
     expect(setup.told[4]?.text).toBe(UI_TEXT.playbookNotCertified)
-  })
-
-  it('says, with each counted round, that a mode which starts subagents unasked is not admitted', async () => {
-    const setup = scene({ standing: [module()], spawnAdmission: 'unasked' })
-    await setup.conversation.spawnRequest(SESSION, SPAWN, unasked())
-    setup.told.length = 0
-    setup.events.get(SESSION)?.rounds([module()])
-    expect(setup.told.at(-1)).toEqual({
-      level: 'info',
-      text: playbookSpawnGapText(),
-      hasAction: false,
-    })
-    await expect(setup.conversation.hasGap(SESSION)).resolves.toBe(true)
-    await expect(setup.conversation.gap(SESSION)).resolves.toBe(playbookSpawnGapText())
-  })
-
-  it('has no gap to name while the backend asks, or while nothing is under review', async () => {
-    const asking = scene({ standing: [module()] })
-    await expect(asking.conversation.gap(SESSION)).resolves.toBeUndefined()
-    // A backend that asks is never read about: there is nothing to find out.
-    expect(asking.window.standing).not.toHaveBeenCalled()
-    const idle = scene({ spawnAdmission: 'unasked' })
-    await expect(idle.conversation.hasGap(SESSION)).resolves.toBe(false)
-    await expect(idle.conversation.gap(SESSION)).resolves.toBeUndefined()
-    await expect(idle.conversation.hasGap(undefined)).resolves.toBe(false)
-  })
-
-  it('says that it cannot say when the journal cannot be read, and never that there is no gap', async () => {
-    const unreadable = scene({ refusal: new Error('unreadable'), spawnAdmission: 'unasked' })
-    // The map's question fails as a failure; the status line carries the unavailable words.
-    await expect(unreadable.conversation.hasGap(SESSION)).rejects.toThrow('unreadable')
-    await expect(unreadable.conversation.gap(SESSION)).resolves.toBe(UI_TEXT.playbookUnavailable)
   })
 })
 
@@ -1025,4 +801,112 @@ describe('a conversation that ends', () => {
     expect(admitted.cancelled.count).toBe(1)
     expect(await isSettled(end)).toBe(true)
   })
+})
+
+function observedRow(subagentId = AGENT, itemId = 'row-1', status = 'inProgress'): ItemSnapshot {
+  return { itemId, subagentId, kind: 'subagent', status }
+}
+
+describe('observed Muse Code children after the 1.4.4/1.4.6 capture', () => {
+  it('opens exactly one round before the child session id arrives and ends only its own row', async () => {
+    const setup = scene()
+    const row = observedRow()
+    await setup.conversation.observed(SESSION, row)
+    await setup.conversation.observed(SESSION, { ...row, childSessionId: CHILD_SESSION })
+    expect(setup.dispatched).toEqual([{ kind: 'subagent', sessionId: SESSION, targetId: AGENT }])
+    const end = firstRound(setup)
+    await setup.conversation.observed(SESSION, observedRow('other', 'other-row', 'completed'))
+    await setup.conversation.observed(SESSION, observedRow(AGENT, 'other-row', 'completed'))
+    expect(await isSettled(end)).toBe(false)
+    await setup.conversation.observed(SESSION, observedRow(AGENT, 'row-1', 'completed'))
+    expect(await isSettled(end)).toBe(true)
+  })
+
+  it.each(['completed', 'failed', 'cancelled'])(
+    'closes the matching round on %s',
+    async (status) => {
+      const setup = scene()
+      await setup.conversation.observed(SESSION, observedRow())
+      const end = firstRound(setup)
+      await setup.conversation.observed(SESSION, observedRow(AGENT, 'row-1', status))
+      expect(await isSettled(end)).toBe(true)
+    },
+  )
+
+  it('closes a child that never reports at the next review', async () => {
+    const setup = scene()
+    await setup.conversation.observed(SESSION, observedRow())
+    const end = firstRound(setup)
+    await setup.conversation.review(request(() => Promise.resolve({ turnId: 'review' })).review)
+    expect(await isSettled(end)).toBe(true)
+  })
+
+  it('closes on conversation replacement or window reload and accepts no later work', async () => {
+    const setup = scene()
+    await setup.conversation.observed(SESSION, observedRow())
+    const end = firstRound(setup)
+    setup.conversation.dispose()
+    expect(await isSettled(end)).toBe(true)
+    const effect = vi.fn(() => Promise.resolve())
+    await expect(setup.conversation.dispatch('delegate', SESSION, AGENT, effect)).rejects.toThrow(
+      UI_TEXT.playbookUnavailable,
+    )
+    expect(effect).not.toHaveBeenCalled()
+  })
+
+  it.each(['delegate', 'bestOfN', 'subagent'] as const)(
+    'closes before an in-flight %s admission and suppresses its notices',
+    async (kind) => {
+      const admission = Promise.withResolvers<undefined>()
+      const setup = scene({ admission: admission.promise })
+      const effect = vi.fn(() => Promise.resolve())
+      const work =
+        kind === 'subagent'
+          ? setup.conversation.observed(SESSION, observedRow())
+          : setup.conversation.dispatch(kind, SESSION, AGENT, effect)
+      const result = settleWork(work)
+      const events = setup.events.get(SESSION)
+      setup.conversation.dispose()
+      events?.note(NOTE, undefined)
+      admission.resolve(undefined)
+      await result
+      expect(effect).not.toHaveBeenCalled()
+      expect(setup.ends).toEqual([])
+      expect(setup.told).toEqual([])
+      expect(setup.events.size).toBe(0)
+    },
+  )
+
+  it('settles a row that ended while admission was in flight', async () => {
+    const admission = Promise.withResolvers<undefined>()
+    const setup = scene({ admission: admission.promise })
+    const work = setup.conversation.observed(SESSION, observedRow())
+    await setup.conversation.observed(SESSION, observedRow(AGENT, 'row-1', 'completed'))
+    admission.resolve(undefined)
+    await work
+    expect(await isSettled(firstRound(setup))).toBe(true)
+  })
+})
+
+async function settleWork(work: Promise<void>): Promise<void> {
+  try {
+    await work
+  } catch {
+    // The old conversation was closed before admission returned.
+  }
+}
+
+it('a repeated live completion does not close a later follow-up', async () => {
+  const setup = scene()
+  const row = observedRow()
+  await setup.conversation.observed(SESSION, row)
+  await setup.conversation.observed(SESSION, { ...row, status: 'completed' })
+  await setup.conversation.dispatch('delegate', SESSION, AGENT, () => Promise.resolve())
+  const end = setup.ends.at(-1)
+  if (end === undefined) throw new Error('The follow-up has no completion')
+  await setup.conversation.observed(SESSION, { ...row, status: 'completed' })
+  expect(await isSettled(end)).toBe(false)
+  await setup.conversation.observed(SESSION, row)
+  await setup.conversation.observed(SESSION, { ...row, status: 'completed' })
+  expect(await isSettled(end)).toBe(true)
 })

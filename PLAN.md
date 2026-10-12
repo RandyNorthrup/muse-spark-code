@@ -18562,29 +18562,18 @@ repository's own working rule (AGENTS.md rule 14).
       and reason codes in English, the row shows the why-note in the display
       language, no child starts and no grant is spent. A best-of-N attempt's
       host has no playbook: its children are not the conversation's.
-    - **Muse Code: at its approval request, where it asks.** The CLI starts
-      its own subagents; the one boundary the host has is the CLI's approval
-      request for `subagent_spawn`. In **Manual** and **Edit automatically**
-      the CLI asks first, and while the conversation has a module under
-      review each request is admitted as a round of its own before its card
-      is shown. The card then does not offer "Allow for this session" (one
-      sentence in the transcript says why, once). A refusal answers the
-      request with its own rejection and the reason for the model; no card
-      is shown. A request the person then turns down starts no child, so
-      its round ends with that answer; an approved one ends with its child's
-      row. With nothing under review the request goes on exactly as it
-      came.
-    - **Muse Code in Bypass, in Auto, and under the person's own allow
-      rules: not admitted, and said.** There the CLI starts subagents
-      without asking the host, so nothing is claimed. Auto (`onRequest`) is
-      treated like Bypass in code. An allow rule is not the host's to read,
-      so it is known from evidence: a subagent row that no approved spawn
-      request preceded marks the conversation, for good, as one whose
-      backend starts subagents unasked. In each of these cases one plain
-      line says that subagent spawns are not admitted here and that what
-      they change is still counted at the next review: with `/playbook` in
-      the composer, with each counted round, and in the Agent map. No
-      silent gap.
+    - **Muse Code: counted from its first live row, never admitted before start.**
+      Captured Muse Code 1.4.4 and 1.4.6 send no spawn request in prompting,
+      Auto or Bypass modes. Each live subagent opens an observed round keyed
+      by subagentId and itemId before childSessionId appears; revision 2
+      attaches the session for review evidence. Reminder children never count.
+      The CLI has already started the child: a refusal shows its why-note
+      and cannot stop that start. The standing sentence in status and the
+      Agent map says this in every language, without consulting the journal.
+      Its own row leaving in progress, the next review, disposal or window
+      reload closes the round; a history repost closes nothing. Disposal
+      closes the binding first, cancels waiters and rejects later admissions.
+      A turned-down spawn's completion hook is Model API only.
     - **The person's own actions on a child (review RVCM1166C, finding 1;
       lead's ruling 2026-10-11).** Every action in the panel that starts or
       resumes a child's work is a dispatch, on both backends. These are
@@ -18622,20 +18611,19 @@ repository's own working rule (AGENTS.md rule 14).
       wording must never be able to stop a round from being counted. Test:
       `playbookGovernor`, "counts the round of a reply that names a file
       nobody can place, without that finding".
-    - **The claim, as published:** enforcement of a model's own subagent
-      spawns is whole for the Model API backend; for Muse Code it holds in
-      Manual and Edit automatically, where the CLI asks before it starts a
-      subagent. Not Bypass, not Auto. The truth test asserts exactly that.
-    - **Evidence and what is owed.** That the CLI asks before a spawn is
-      from the Muse Code 1.3.0 capture (M18); a trace from 1.4.4 is owed and
-      named in the certification. Host-decided admission for
-      `subagent_spawn` in every mode is asked for upstream
-      (`docs/research/m116-upstream-subagent-admission.md`).
-    - **When the playbook cannot be asked.** A journal that cannot be read
-      refuses the spawn on both backends. A window bundle that cannot load
-      fails the Model API's tool call (no child starts); on Muse Code the
-      card is shown as it came, with an error notice, because the person is
-      still asked there.
+    - **The claim, as published:** Model API child work is admitted before
+      dispatch; Muse Code subagents start without asking, their rounds are
+      counted and their work reviewed, and the playbook cannot stop a start.
+    - **Evidence.** Live captures on Kubuntu (1.4.6) and linuxlt (1.4.4),
+      contributor model, stdio `muse serve --trust-workspace`, delegation
+      `run.subagent_delegation_mode="auto"`, recorded every frame. The older
+      1.3.0 premise is superseded. Upstream draft now requests admission
+      before a start; the lead dedupes and files it.
+    - **Presence before loading.** With no playbook folder the activation
+      shim returns no port and loads nothing, even if playbook.js is absent.
+      ENOENT alone means absent; other filesystem errors load the bundle to
+      report the failure. With a playbook, Model API failures refuse dispatch;
+      Muse Code failures report honestly after the observed start.
 
 ---
 
@@ -19483,6 +19471,10 @@ in-tree junctions below it, drive-letter spelling) and
 `docs/certification/trustroot.md`.
 
 ## 3. Open questions (need the owner)
+
+- **M116 Muse Code admission experiment (2026-10-11):** can denyUnmatched
+  plus a host-controlled allow rule gate subagent starts? The capture shows
+  a policy denial there. Not implemented in C-M116-6; requires a new capture.
 
 **Q-VIS0171-RELEASE-NOTES resolved by lead (2026-10-10, linuxlt).** Round 2
 explicitly approves the 116 Title Case scenes, `models-errors` with the
@@ -36996,7 +36988,13 @@ D96.16 and D96.17. A series of commits, each reviewed.
    `dist/modelApi.js`. A table test in `conversationController` has a row
    for every action and for every way a child's row can stand, each against
    a playbook that refuses and one that admits.
-8. **Review RVCM1166C, findings 2 to 6 (its own commit).**
+8. **Capture rewrite and RVCM1166C lifecycle classes (series commit 4).**
+   Implement rulings (a), (b), (c), (e), (f), remove Muse Code request holding,
+   test all surviving round endings, disposal in flight, matching and no-load
+   behavior. Then series commit 5 records blocked child contributions once,
+   lets clean reviews proceed, and closes or measures the Model API note race.
+   Series commit 6 attributes unrequested child approvals to the CLI reviewer.
+   Each piece gets scoped gates, byte measurements and byte-exact red drills.
 9. **Restores.** The walked-back claims return with the code that makes
    each true, in the wording D96.17 fixes; the certification and the red
    drills of item 5's suites land with them.
@@ -38814,6 +38812,15 @@ lane A's first step.
 ---
 
 ## 7. Gates
+
+**CM1166C inherited timing receipt (2026-10-11).** The complete 189-file
+non-hub dependent run at repository defaults has one red: usageIntegration,
+“settles two vendor host turns and one MSP subscription turn…” at 5000 ms.
+The hand-off records the same failure on every ancestor on Kubuntu and places
+its repair with the lead; the Model API production bytes are unchanged.
+Its solo rerun passed 3/3 at load 2.16 / 5.09 / 6.04; no timeout, test
+or gate is changed.
+The lane does not run aggregate quality under its explicit rig/common brief.
 
 **REL0171B final 0.17.1 branch (2026-10-10, linuxlt + Kubuntu).** Merge
 MENUFAN and VIS0171 onto `release/0.17.1` by meaning, regenerate every

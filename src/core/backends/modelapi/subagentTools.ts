@@ -207,4 +207,4 @@ export type SubagentAdmission = <T>(
   effect: () => Promise<T>,
   isOver: (wake: () => void) => boolean,
   refused: (reason: string, shown: string) => T,
-) => Promise<T>
+) => Promise<T> | undefined

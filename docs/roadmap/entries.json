@@ -848,7 +848,7 @@
     {
       "id": "M116",
       "title": "Orchestrator playbook",
-      "summary": "The orchestration rules ship as a built-in skill, and /playbook shows status, records and settings locally in the CLI and ACP editors; the VS Code panel integration is in progress.",
+      "summary": "The built-in skill and CLI/ACP journal commands ship; VS Code panel integration counts and reviews Muse Code children but cannot stop their starts; Model API child work is admitted before dispatch.",
       "area": "agents",
       "release": "0.17.0"
     },
