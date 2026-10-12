@@ -17,6 +17,8 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Deep command `--help` stays in the terminal’s command, including prompts, provider accounts, named reports, schedules and ChatGPT maintenance; authentication help shows its own flags.
+
 - Headless daily claims recover killed owners, refund interrupted DNS checks, and durably retain sent requests whose usage is unknown.
 
 - ACP and headless runs offer each provider model’s recorded effort levels, including Opus `xhigh`, and list allowed values when a choice is refused.

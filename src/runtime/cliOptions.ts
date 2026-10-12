@@ -1,14 +1,24 @@
 import { ESTIMATE_OPTIONS } from './estimator/options'
 import type { UiText } from '../shared/l10n/en'
-import { sharingHelp } from '../shared/featureCatalog'
 import { fill } from '../shared/l10n/text'
+
+function sharingCliHelp(table: UiText, command: string): string {
+  return [
+    `${command} share chat SESSION_ID [--mode full|conversation] [--format md|html|json] [--destination copy|file|browser] [--out FILE]`,
+    `${command} prompts save --title TITLE [--scope user|workspace] [--cwd FOLDER] < prompt.txt`,
+    `${command} prompts list [--search TEXT] [--tag TAG] [--cwd FOLDER]`,
+    `${command} prompts use ID [--scope user|workspace] [--chat active|new] [--cwd FOLDER]`,
+    `${command} prompts share ID [--scope user|workspace] [--format md|html|json] [--destination copy|file|browser] [--out FILE]`,
+    table.promptSecretsNote,
+  ].join('\n')
+}
 
 /** Compact CLI help, also checked against the installed package's tables. */
 export function formatAcpUsage(table: UiText, command: string): string {
   return [
     fill(table.acpUsage, { command }),
     fill(table.acpChatGpt.usage, { command }),
-    sharingHelp(table),
+    sharingCliHelp(table, command),
     `${command} resources [status|history|resume] [--json]`,
     `${command} usage resources [--json]`,
     ...(['resource-governor', 'cpu-max', 'memory-max'] as const).map(
@@ -152,9 +162,27 @@ export const CLI_OPTION_REGISTRY = {
   serve: { options: SERVE_OPTIONS },
   login: { options: COMMON_OPTIONS },
   setup: { options: COMMON_OPTIONS },
-  authSet: { options: COMMON_OPTIONS },
-  authStatus: { options: COMMON_OPTIONS },
-  authClear: { options: COMMON_OPTIONS },
+  authSet: {
+    options: {
+      provider: COMMON_OPTIONS.provider,
+      account: COMMON_OPTIONS.account,
+      help: COMMON_OPTIONS.help,
+    },
+  },
+  authStatus: {
+    options: {
+      provider: COMMON_OPTIONS.provider,
+      account: COMMON_OPTIONS.account,
+      help: COMMON_OPTIONS.help,
+    },
+  },
+  authClear: {
+    options: {
+      provider: COMMON_OPTIONS.provider,
+      account: COMMON_OPTIONS.account,
+      help: COMMON_OPTIONS.help,
+    },
+  },
   exec: { options: EXEC_OPTIONS },
   'scan-secrets': { options: SCAN_OPTIONS },
   report: { options: REPORT_OPTIONS },
@@ -245,11 +273,16 @@ export const CLI_OPTION_TEXT = {
 
 /** Command-local flags without activating the full editor reference catalogue. */
 export function formatCommandHelp(table: UiText, command: string, route: string): string {
-  const definition = Object.entries(CLI_OPTION_REGISTRY).find(([key]) => key === route)?.[1]
-  const name = route.replace(
-    /^(providers|auth|fonts)([A-Z])/,
-    (_match, prefix: string, letter: string) => `${prefix} ${letter.toLowerCase()}`,
-  )
+  const definition = Object.entries(CLI_OPTION_REGISTRY).find(
+    ([key]) => key === route || key === route.split(' ', 1)[0],
+  )?.[1]
+  const name = route
+    .replace(/^reports /, 'report ')
+    .replace(/^chatGptProvider (.*)$/, 'providers $1 chatgpt')
+    .replace(
+      /^(providers|auth|fonts)([A-Z])/,
+      (_match, prefix: string, letter: string) => `${prefix} ${letter.toLowerCase()}`,
+    )
   const localUsage: Readonly<Record<string, string>> = {
     'providers list': 'providers list',
     providersList: 'providers list',
@@ -259,14 +292,22 @@ export function formatCommandHelp(table: UiText, command: string, route: string)
   const lines = [`${command} ${localUsage[route] ?? name}`]
   if (definition === undefined) {
     const usage: Readonly<Record<string, string>> = {
+      providersList: table.referenceProviders,
+      providersTest: table.referenceProviders,
+      providersRemove: table.referenceProviders,
       schedule: table.scheduleV2.runtime.usage,
       playbook: table.playbookCommandUsage,
       developer: table.developer.commandUsage,
       'providers accounts': table.accounts.cliUsage,
-      share: sharingHelp(table),
-      prompts: sharingHelp(table),
+      chatGptProvider: table.acpChatGpt.usage,
+      reports: table.reportCliUsage,
+      help: table.referenceBriefHelp,
+      share: sharingCliHelp(table, command),
+      prompts: sharingCliHelp(table, command),
     }
-    const description = usage[route.split(' ', 1)[0] ?? ''] ?? usage[route]
+    const description = Object.entries(usage).find(
+      ([prefix]) => route === prefix || route.startsWith(`${prefix} `),
+    )?.[1]
     if (description !== undefined) lines.push(fill(description, { command }))
   }
   if (definition !== undefined) {
@@ -281,7 +322,7 @@ export function formatCommandHelp(table: UiText, command: string, route: string)
       }
     }
   }
-  if (definition !== undefined && !('help' in definition.options))
-    lines.push(table.referenceCliOptions.help)
+  if (definition === undefined || !('help' in definition.options))
+    lines.push(`--help: ${table.referenceCliOptions.help}`)
   return lines.join('\n')
 }

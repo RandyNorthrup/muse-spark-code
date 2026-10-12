@@ -167,6 +167,10 @@ asks for it. Elsewhere, run it yourself once:
   Service (GNOME Keyring, KWallet, KeePassXC). `auth status` says whether
   one is stored; `auth clear` removes it.
 
+`--help` on any deep subcommand prints that command’s terminal usage, including
+`providers accounts thresholds --help`, `schedule background status --help` and
+`report usage --help`. `help reference` loads the full catalogue.
+
 ACP effort options and `exec --effort` use the selected model’s capability record; unsupported choices list the allowed values. Opus 5.5’s captured record includes `xhigh`.
 
 **ChatGPT subscription sign-in (M95b preview):** the agent advertises
