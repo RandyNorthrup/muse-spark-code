@@ -22,6 +22,8 @@ import {
 import type { SecretStore } from '../host/auth/credentialStore'
 const { isCredentialBound } = credentialRecord
 const { checkEndpointUrl } = endpointPolicy
+import type { TransportResponse } from '../core/backends/modelapi/transport'
+import type { SpendEstimate } from '../core/providers/providerSpend'
 import type { ProviderPreset } from '../core/providers/presets'
 const { azureOrigin, isKeyShape, OPENROUTER_ATTRIBUTION, presetById } = presets
 const { applyWizardEvent, startWizard, wizardBlockers, wizardSummary } = wizardFlow
@@ -32,10 +34,8 @@ import type {
 } from '../core/providers/providersFile'
 const { emptyProvidersFile, readProvidersFile, writeProvidersFileAtomic } = providersFile
 import {
-  ACCOUNT_DAY_MS,
   CREDENTIAL_RECORD_VERSION,
   HTTP_STATUS,
-  MODELS_DEV_CATALOGUE_DATE,
   PROVIDER_PROBE_MODEL_IDS_MAX,
   PROVIDER_PROBE_TIMEOUT_MS,
   PROVIDERS_CONFIG_DIR_NAME,
@@ -56,28 +56,8 @@ import {
   pinProviderFetch,
   providerModelsPath,
   resolveProvider,
-  type ProviderPathRule,
   type ResolvedProvider,
 } from './exec/providerExec'
-import { Usd } from '../shared/usd'
-import {
-  fetchAdminSpendReport,
-  fetchBalanceSpendReport,
-  fetchKeyUsageSpendReport,
-  isSpendFailure,
-  openRouterSpendRequest,
-  parseOpenRouterKeyBody,
-  spendFailureText,
-  spendHttpFailure,
-  spendKeyKindFor,
-  spendReportLines,
-  type ProviderSpendReport,
-  type SpendEstimate,
-  type SpendFailure,
-  type SpendFetcher,
-  type SpendHttpRequest,
-  type SpendPage,
-} from '../core/providers/providerSpend'
 
 const EXIT_OK = 0
 const EXIT_FAILED = 1
@@ -178,13 +158,13 @@ function fileOrError(
   return read.reason === 'missing' ? { file: emptyProvidersFile() } : { reason: read.detail }
 }
 
-function failed(deps: ProvidersDeps, line: string): number {
+export function failed(deps: ProvidersDeps, line: string): number {
   deps.printError(line)
   return EXIT_FAILED
 }
 
 /** Read once and report a malformed user file consistently across commands. */
-async function commandFile(deps: ProvidersDeps): Promise<ProvidersFile | undefined> {
+export async function commandFile(deps: ProvidersDeps): Promise<ProvidersFile | undefined> {
   const loaded = fileOrError(await deps.readUserFile())
   if ('reason' in loaded) {
     failed(deps, fill(UI_TEXT.providerTestFailed, { reason: loaded.reason }))
@@ -378,6 +358,32 @@ function ignoreProbeLog(): void {
 }
 
 /**
+ * One pinned read-only JSON GET, shared by the key probe and the spend
+ * fetcher: an HTTP failure (a status, even 4xx/5xx) comes back as a page so
+ * the caller can report it; anything below HTTP rethrows for the caller to
+ * classify. An unreadable body is a page without a body, never a zero.
+ */
+export async function getPinnedJsonPage(
+  send: () => Promise<TransportResponse>,
+  read: (result: TransportResponse) => Promise<unknown>,
+  httpStatusOf: (error: unknown) => number | undefined,
+): Promise<{ readonly status: number; readonly body: unknown }> {
+  let result: TransportResponse
+  try {
+    result = await send()
+  } catch (error: unknown) {
+    const status = httpStatusOf(error)
+    if (status === undefined) throw error
+    return { status, body: undefined }
+  }
+  try {
+    return { status: result.response.status, body: await read(result) }
+  } catch {
+    return { status: result.response.status, body: undefined }
+  }
+}
+
+/**
  * The free check that proves a key works (D74): the preset's models list,
  * or its provider-key path where the list is public. Nothing is billed.
  * Azure's `paid-token` test has no free check and stays in the panel, where
@@ -444,33 +450,28 @@ export async function probeProvider(
         trace: ignoreProbeLog,
       },
     })
-    let result: Awaited<ReturnType<typeof client.request>>
+    const httpStatusOf = (error: unknown): number | undefined =>
+      error instanceof shared.ModelApiError && error.status !== 0 ? error.status : undefined
     try {
-      result = await client.request(
-        url.slice(origin.length),
-        {
-          method: 'GET',
-          headers,
-          accept: 'application/json',
-          retries: 'rateLimitOnly',
-        },
-        AbortSignal.timeout(PROVIDER_PROBE_TIMEOUT_MS),
+      return await getPinnedJsonPage(
+        () =>
+          client.request(
+            url.slice(origin.length),
+            {
+              method: 'GET',
+              headers,
+              accept: 'application/json',
+              retries: 'rateLimitOnly',
+            },
+            AbortSignal.timeout(PROVIDER_PROBE_TIMEOUT_MS),
+          ),
+        (result) => shared.parseJsonResponse(result, (value) => value),
+        httpStatusOf,
       )
     } catch (error: unknown) {
-      if (error instanceof shared.ModelApiError && error.status !== 0) {
-        return { status: error.status, body: undefined }
-      }
       failureReason =
         error instanceof Error && error.message === 'rebinding' ? 'rebinding' : 'unreachable'
       return undefined
-    }
-    try {
-      return {
-        status: result.response.status,
-        body: await shared.parseJsonResponse(result, (value) => value),
-      }
-    } catch {
-      return { status: result.response.status, body: undefined }
     }
   }
   return await presets.runProviderKeyTest(
@@ -848,13 +849,7 @@ export async function providersTest(deps: ProvidersDeps, providerId: string): Pr
     }
     key = parsed.key
   }
-  const answers = await deps.resolveHost(new URL(provider.origin).hostname)
-  if (!isEndpointBindingCurrent(provider, answers)) {
-    return failed(
-      deps,
-      fill(UI_TEXT.providerEndpointRefused, { reason: UI_TEXT.providerProbeRebinding }),
-    )
-  }
+  if (!(await isEndpointSafe(deps, provider))) return EXIT_FAILED
   const probe = await probeProvider(deps.fetch, provider, key, deps.resolveHost)
   if (!probe.ok) {
     return failed(
@@ -934,346 +929,16 @@ export async function keyTargetFor(
   return { ok: true, preset, origin }
 }
 
-/** The spend report's allowed paths on the pinned origin (PROVSPEND). */
-export function spendAllowedPaths(presetId: string): readonly ProviderPathRule[] {
-  switch (presetId) {
-    case 'anthropic': {
-      return [
-        { kind: 'exact', path: '/v1/organizations/usage_report/messages' },
-        { kind: 'exact', path: '/v1/organizations/cost_report' },
-      ]
-    }
-    case 'openai': {
-      return [
-        { kind: 'exact', path: '/v1/organization/usage/completions' },
-        { kind: 'exact', path: '/v1/organization/costs' },
-      ]
-    }
-    case 'openrouter': {
-      return [{ kind: 'exact', path: '/api/v1/key' }]
-    }
-    case 'deepseek': {
-      return [{ kind: 'exact', path: '/user/balance' }]
-    }
-    default: {
-      return []
-    }
-  }
-}
-
-function spendSilent(): void {
-  // Spend reports never log: the transport needs a logger shape only.
-}
-
-function spendLog(): {
-  readonly info: () => void
-  readonly warn: () => void
-  readonly error: () => void
-  readonly trace: () => void
-} {
-  return { info: spendSilent, warn: spendSilent, error: spendSilent, trace: spendSilent }
-}
-
 /**
- * The spend fetcher over the product's pinned, proxy-aware path: the exact
- * report paths on the resolved origin, the rebinding check at every
- * dispatch, the request's own key through the transport's auth source (the
- * transport strips credential headers from caller input), a deadline per
- * request, nothing retried in a loop.
+ * The rebinding check every provider request repeats before dispatch:
+ * false after reporting the refusal.
  */
-async function spendFetcherFor(
+export async function isEndpointSafe(
   deps: ProvidersDeps,
   provider: ResolvedProvider,
-): Promise<SpendFetcher> {
-  const shared = await import('../host/backend/modelApiEntry')
-  const auth = await import('../host/backend/configuredProvidersEntry')
-  shared.setUiText(UI_TEXT, uiLocale())
-  auth.setUiText(UI_TEXT, uiLocale())
-  const pinned = pinProviderFetch(
-    deps.fetch,
-    provider,
-    spendAllowedPaths(provider.preset.id),
-    deps.resolveHost,
-  )
-  const sourceFor = (request: { readonly auth: SpendHttpRequest['auth'] }) =>
-    new auth.ApiKeyAuthSource(
-      () =>
-        Promise.resolve({
-          record: { v: CREDENTIAL_RECORD_VERSION, auth: 'apiKey', origin: provider.origin },
-          key: request.auth.key,
-        }),
-      request.auth.scheme,
-    )
-  const clientFor = (request: { readonly auth: SpendHttpRequest['auth'] }) => {
-    const source = sourceFor(request)
-    return new shared.RequestTransport({
-      baseUrl: provider.origin,
-      auth: source,
-      verifyEndpoint: async (requestUrl) => {
-        await source.headers(requestUrl)
-      },
-      fetch: pinned,
-      now: Date.now,
-      random: Math.random,
-      sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
-      log: spendLog(),
-    })
-  }
-  return async (request) => {
-    const client = clientFor(request)
-    let result: Awaited<ReturnType<typeof client.request>>
-    try {
-      result = await client.request(
-        request.url.slice(provider.origin.length),
-        {
-          method: 'GET',
-          headers: { ...request.headers },
-          accept: 'application/json',
-          retries: 'rateLimitOnly',
-        },
-        AbortSignal.timeout(PROVIDER_PROBE_TIMEOUT_MS),
-      )
-    } catch (error: unknown) {
-      if (error instanceof shared.ModelApiError && error.status !== 0) {
-        return { status: error.status, body: undefined }
-      }
-      throw error
-    }
-    try {
-      return {
-        status: result.response.status,
-        body: await shared.parseJsonResponse(result, (value) => value),
-      }
-    } catch {
-      return { status: result.response.status, body: undefined }
-    }
-  }
-}
-
-/** The stored key for a spend report: the envelope, checked and bound. */
-async function spendStoredKey(
-  deps: ProvidersDeps,
-  provider: ResolvedProvider,
-  account: string | undefined,
-): Promise<
-  | { readonly ok: true; readonly key: string }
-  | { readonly ok: false; readonly missing: boolean; readonly reason: string }
-> {
-  if (account === undefined || provider.preset.auth !== 'apiKey') {
-    return { ok: false, missing: true, reason: '' }
-  }
-  const stored = await deps.secrets.get(account)
-  if (stored === undefined || stored === '') return { ok: false, missing: true, reason: '' }
-  let value: unknown
-  try {
-    value = JSON.parse(stored)
-  } catch {
-    return {
-      ok: false,
-      missing: false,
-      reason: fill(UI_TEXT.providerSecretUnreadable, { provider: provider.entry.id }),
-    }
-  }
-  const parsed = parseStoredProviderSecret(value)
-  if (parsed === undefined) {
-    return {
-      ok: false,
-      missing: false,
-      reason: fill(UI_TEXT.providerSecretUnreadable, { provider: provider.entry.id }),
-    }
-  }
-  if (!isCredentialBound(parsed.record, provider.origin)) {
-    return {
-      ok: false,
-      missing: false,
-      reason: fill(UI_TEXT.providerOriginMismatch, {
-        provider: provider.entry.id,
-        stored: parsed.record.origin,
-        current: provider.origin,
-      }),
-    }
-  }
-  return { ok: true, key: parsed.key }
-}
-
-/**
- * Our own estimate for the provider's spend in a journal range (PROVSPEND):
- * the matched breakdown row's exact cost lines, with token counts when the
- * journal recorded them. Undefined when the journal recorded no spend: the
- * provider's figures are then shown alone, never against a zero.
- */
-export function spendEstimateFromBreakdown(
-  breakdown: readonly {
-    readonly id: string
-    readonly label: string
-    readonly provider?: string | undefined
-    readonly totals: {
-      readonly tokens: { readonly input?: number | undefined; readonly output?: number | undefined }
-      readonly costs: readonly { readonly usd?: string | undefined }[]
-    }
-  }[],
-  candidates: readonly string[],
-): SpendEstimate | undefined {
-  const wanted = new Set(candidates.map((candidate) => candidate.toLowerCase()))
-  const row = breakdown.find(
-    (entry) =>
-      (entry.provider !== undefined && wanted.has(entry.provider.toLowerCase())) ||
-      wanted.has(entry.id.toLowerCase()) ||
-      wanted.has(entry.label.toLowerCase()),
-  )
-  if (row === undefined) return undefined
-  const amounts = row.totals.costs
-    .map((cost) => cost.usd)
-    .filter((usd): usd is string => usd !== undefined)
-  if (amounts.length === 0) return undefined
-  let total = Usd.from(0)
-  try {
-    for (const amount of amounts) total = total.add(Usd.from(amount))
-  } catch {
-    return undefined
-  }
-  const { input, output } = row.totals.tokens
-  return {
-    usd: total.toString(),
-    ...(input !== undefined &&
-      output !== undefined && { inputTokens: input, outputTokens: output }),
-  }
-}
-
-/**
- * `providers usage <id> [--days n] [--output json]` (PROVSPEND): the
- * provider's own figures for the period, next to our own estimate and the
- * difference. Display and reconciliation only: nothing here feeds a cap.
- */
-export async function providersUsage(
-  deps: ProvidersDeps,
-  options: { readonly provider: string; readonly days: number; readonly json: boolean },
-): Promise<number> {
-  const file = await commandFile(deps)
-  if (file === undefined) return EXIT_FAILED
-  const resolved = await resolveProvider(file, options.provider, presetById, deps.resolveHost)
-  if (!resolved.ok) {
-    if (resolved.error === 'unknown-provider' || resolved.error === 'unknown-preset') {
-      return failed(deps, fill(UI_TEXT.providerUnknown, { provider: options.provider }))
-    }
-    return failed(
-      deps,
-      resolved.error === 'no-request-path'
-        ? fill(UI_TEXT.providerNoRequestPath, { provider: options.provider })
-        : fill(UI_TEXT.providerEndpointRefused, { reason: resolved.error }),
-    )
-  }
-  const { provider } = resolved
-  const capability = provider.preset.spend
-  if (capability === 'none') {
-    deps.print(UI_TEXT.accounts.spendUnsupported)
-    return EXIT_FAILED
-  }
-  const keyKind = spendKeyKindFor(capability)
-  const accountFor = keyKind === 'admin' ? providerAdminSecretAccount : providerSecretAccount
-  const stored = await spendStoredKey(deps, provider, accountFor(provider.entry.id))
-  if (!stored.ok) {
-    if (stored.missing) {
-      deps.print(
-        fill(keyKind === 'admin' ? UI_TEXT.accounts.spendAdminMissing : UI_TEXT.providerKeyAbsent, {
-          provider: provider.entry.id,
-        }),
-      )
-    } else {
-      deps.printError(stored.reason)
-    }
-    return EXIT_FAILED
-  }
+): Promise<boolean> {
   const answers = await deps.resolveHost(new URL(provider.origin).hostname)
-  if (!isEndpointBindingCurrent(provider, answers)) {
-    return failed(
-      deps,
-      fill(UI_TEXT.providerEndpointRefused, { reason: UI_TEXT.providerProbeRebinding }),
-    )
-  }
-  const now = (deps.now ?? Date.now)()
-  const start = now - options.days * ACCOUNT_DAY_MS
-  const startingAt = new Date(start).toISOString()
-  const endingAt = new Date(now).toISOString()
-  const asOf = new Date(now).toISOString()
-  const fetch = await spendFetcherFor(deps, provider)
-  let report: ProviderSpendReport | SpendFailure
-  if (
-    capability === 'admin-report' &&
-    (provider.preset.id === 'anthropic' || provider.preset.id === 'openai')
-  ) {
-    report = await fetchAdminSpendReport({
-      fetch,
-      provider: provider.preset.id,
-      origin: provider.origin,
-      key: stored.key,
-      keyKind,
-      startingAt,
-      endingAt,
-      asOf,
-    })
-  } else if (capability === 'balance') {
-    report = await fetchBalanceSpendReport({
-      fetch,
-      origin: provider.origin,
-      key: stored.key,
-      keyKind,
-      asOf,
-    })
-  } else if (capability === 'key-usage') {
-    let answer: SpendPage
-    try {
-      answer = await fetch(openRouterSpendRequest({ origin: provider.origin, key: stored.key }))
-    } catch {
-      return failed(deps, spendFailureText({ kind: 'unreachable' }, provider.preset.label))
-    }
-    if (answer.status !== HTTP_STATUS.ok) {
-      return failed(
-        deps,
-        spendFailureText(spendHttpFailure(answer.status, answer.body), provider.preset.label),
-      )
-    }
-    const snapshot = parseOpenRouterKeyBody(answer.body)
-    if (isSpendFailure(snapshot)) {
-      return failed(deps, spendFailureText(snapshot, provider.preset.label))
-    }
-    report = await fetchKeyUsageSpendReport({
-      read: () => Promise.resolve(snapshot),
-      key: stored.key,
-      keyKind,
-      asOf,
-    })
-  } else {
-    deps.print(UI_TEXT.accounts.spendUnsupported)
-    return EXIT_FAILED
-  }
-  if (isSpendFailure(report)) {
-    return failed(deps, spendFailureText(report, provider.preset.label))
-  }
-  let estimate: SpendEstimate | undefined
-  try {
-    estimate = await deps.readSpendEstimate?.(provider.entry.id, start, now)
-  } catch {
-    estimate = undefined
-  }
-  if (options.json) {
-    deps.print(
-      JSON.stringify({
-        provider: provider.entry.id,
-        days: options.days,
-        asOf,
-        report,
-        estimate: estimate ?? null,
-      }),
-    )
-    return EXIT_OK
-  }
-  const lines = spendReportLines(report, estimate, {
-    providerLabel: provider.preset.label,
-    catalogueDate: MODELS_DEV_CATALOGUE_DATE,
-  })
-  for (const line of lines) {
-    deps.print(line)
-  }
-  return EXIT_OK
+  if (isEndpointBindingCurrent(provider, answers)) return true
+  failed(deps, fill(UI_TEXT.providerEndpointRefused, { reason: UI_TEXT.providerProbeRebinding }))
+  return false
 }

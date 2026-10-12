@@ -16,11 +16,7 @@ import type {
 import { isOriginBound } from './credentialRecords'
 import { readOpenRouterKeyUsage } from './openRouter'
 import { connectOpenRouterAccount } from './openRouter'
-import {
-  isSpendFailure,
-  openRouterSpendReport,
-  type ProviderSpendReport,
-} from '../../core/providers/providerSpend'
+import type { ProviderSpendReport } from '../../core/providers/providerSpend'
 import type { OAuthLoopback } from './oauthLoopback'
 import { promptForProviderKey } from './keyPrompt'
 import { probeLocalServers, type LocalProbeResult } from './localProbe'
@@ -341,17 +337,14 @@ export function createProvidersHost(deps: ProvidersHostDeps): ProvidersHost {
       if (deps.onSpend === undefined) {
         deps.onKeyUsage?.(snapshot)
       } else {
-        const report = openRouterSpendReport(
-          {
-            usedToday: snapshot.usedToday,
-            usedThisWeek: snapshot.usedThisWeek,
-            usedThisMonth: snapshot.usedThisMonth,
-            ...(snapshot.limit !== undefined && { limit: snapshot.limit }),
-            ...(snapshot.remaining !== undefined && { remaining: snapshot.remaining }),
-          },
+        // The provider core loads with its bundle: the entry require runs
+        // here, on the key-usage read.
+        const { providerSpendKeyUsage } = await import('../backend/providersEntry')
+        const report = providerSpendKeyUsage.openRouterSpendReport(
+          snapshot,
           new Date(deps.now()).toISOString(),
         )
-        if (isSpendFailure(report)) deps.onKeyUsage?.(snapshot)
+        if (providerSpendKeyUsage.isSpendFailure(report)) deps.onKeyUsage?.(snapshot)
         else deps.onSpend(report)
       }
       return snapshot

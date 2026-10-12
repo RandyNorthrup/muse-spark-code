@@ -1438,7 +1438,7 @@ async function main(): Promise<number> {
       return await providersRemove(await providersDeps(), command.provider)
     }
     case 'providersUsage': {
-      const { providersUsage, spendEstimateFromBreakdown } = await import('./providersCommands')
+      const { providersUsage, spendEstimateFromBreakdown } = await import('./providersSpend')
       const { usageLocalDay } = await import('../core/usage/localDay')
       const deps = await providersDeps()
       return await providersUsage(

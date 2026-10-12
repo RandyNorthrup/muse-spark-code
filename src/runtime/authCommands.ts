@@ -129,7 +129,25 @@ export async function authSetProvider(
     return EXIT_FAILED
   }
   const account = providerAccount(deps, providerId)
-  if (account === undefined) return EXIT_FAILED
+  return account === undefined
+    ? EXIT_FAILED
+    : await storeProviderSecret(
+        deps,
+        account,
+        origin,
+        candidate,
+        fill(UI_TEXT.providerKeyStored, { provider: providerId, store: deps.storeName }),
+      )
+}
+
+/** Stores a provider key envelope and reports it, with one failure path. */
+async function storeProviderSecret(
+  deps: AuthCommandDeps,
+  account: string,
+  origin: string,
+  candidate: string,
+  storedLine: string,
+): Promise<number> {
   try {
     await deps.secrets.store(
       account,
@@ -141,7 +159,7 @@ export async function authSetProvider(
   } catch (error: unknown) {
     return unavailable(deps, error)
   }
-  deps.print(fill(UI_TEXT.providerKeyStored, { provider: providerId, store: deps.storeName }))
+  deps.print(storedLine)
   return EXIT_OK
 }
 
@@ -176,21 +194,13 @@ async function authSetProviderAdmin(
     deps.printError(fill(UI_TEXT.providerUnknown, { provider: providerId }))
     return EXIT_FAILED
   }
-  try {
-    await deps.secrets.store(
-      account,
-      formatStoredProviderSecret(
-        { v: CREDENTIAL_RECORD_VERSION, auth: 'apiKey', origin },
-        candidate,
-      ),
-    )
-  } catch (error: unknown) {
-    return unavailable(deps, error)
-  }
-  deps.print(
+  return await storeProviderSecret(
+    deps,
+    account,
+    origin,
+    candidate,
     fill(UI_TEXT.accounts.spendAdminStored, { provider: providerId, store: deps.storeName }),
   )
-  return EXIT_OK
 }
 
 /** The validated account, with one consistent refusal for every auth command. */
@@ -201,21 +211,31 @@ function providerAccount(deps: AuthCommandDeps, providerId: string): string | un
   return account
 }
 
+/**
+ * The store account an auth command reads: the admin name with `--admin`,
+ * else the inference one. An admin name for a non-provider refuses here.
+ */
+function commandAccount(
+  deps: AuthCommandDeps,
+  providerId: string,
+  isAdmin: boolean,
+): string | undefined {
+  const account = isAdmin
+    ? providerAdminSecretAccount(providerId)
+    : providerAccount(deps, providerId)
+  if (account === undefined && isAdmin)
+    deps.printError(fill(UI_TEXT.providerUnknown, { provider: providerId }))
+  return account
+}
+
 /** `auth status --provider <id>`: the stored key's bound origin, never the key. */
 export async function authStatusProvider(
   deps: AuthCommandDeps,
   providerId: string,
   options?: { readonly admin?: boolean | undefined },
 ): Promise<number> {
-  const account =
-    options?.admin === true
-      ? providerAdminSecretAccount(providerId)
-      : providerAccount(deps, providerId)
-  if (account === undefined) {
-    if (options?.admin === true)
-      deps.printError(fill(UI_TEXT.providerUnknown, { provider: providerId }))
-    return EXIT_FAILED
-  }
+  const account = commandAccount(deps, providerId, options?.admin === true)
+  if (account === undefined) return EXIT_FAILED
   let stored: string | undefined
   try {
     stored = await deps.secrets.get(account)
@@ -253,23 +273,16 @@ export async function authStatusProvider(
 export async function authClearProvider(
   deps: AuthCommandDeps,
   providerId: string,
-  options?: { readonly admin?: boolean | undefined },
+  options: { readonly admin?: boolean | undefined } = {},
 ): Promise<number> {
-  const account =
-    options?.admin === true
-      ? providerAdminSecretAccount(providerId)
-      : providerAccount(deps, providerId)
-  if (account === undefined) {
-    if (options?.admin === true)
-      deps.printError(fill(UI_TEXT.providerUnknown, { provider: providerId }))
-    return EXIT_FAILED
-  }
+  const account = commandAccount(deps, providerId, options.admin === true)
+  if (account === undefined) return EXIT_FAILED
   try {
     await deps.secrets.delete(account)
   } catch (error: unknown) {
     return unavailable(deps, error)
   }
-  if (options?.admin === true) {
+  if (options.admin === true) {
     deps.print(fill(UI_TEXT.accounts.spendAdminCleared, { provider: providerId }))
     return EXIT_OK
   }
