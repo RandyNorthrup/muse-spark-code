@@ -141,12 +141,29 @@ export function traceLogCutoffMs(nowMs: number, fromDay?: string): number {
 }
 
 /**
+ * One stream chunk's complete lines, split exactly as the old whole-text
+ * parser split (LF and CRLF only; a lone CR stays inside its line). A
+ * trailing CR is held back: it may be the first half of a CRLF split across
+ * two chunks. Exported for the equivalence tests; the reader below is the
+ * only other caller.
+ */
+export function splitTraceChunk(tail: string, chunk: string): { lines: string[]; tail: string } {
+  const text = tail + chunk
+  const complete = text.endsWith('\r') ? text.slice(0, -1) : text
+  const pieces = complete.split('\n')
+  const tailPiece = pieces.pop() ?? ''
+  return {
+    lines: pieces.map((piece) => (piece.endsWith('\r') ? piece.slice(0, -1) : piece)),
+    tail: `${tailPiece}${text.endsWith('\r') ? '\r' : ''}`,
+  }
+}
+
+/**
  * The production streaming reader: each complete line in the file's first
- * `maxBytes` bytes, split exactly as the old whole-text parser split (LF
- * and CRLF only; a lone CR stays inside its line). The string decoder heals
- * multibyte characters split across chunks; a trailing piece without its
- * newline is dropped (a torn write, not a line yet). `end` is inclusive, so
- * `[0, maxBytes)` is exactly the snapshot the first stat saw.
+ * `maxBytes` bytes. The string decoder heals multibyte characters split
+ * across chunks; a trailing piece without its newline is dropped (a torn
+ * write, not a line yet). `end` is inclusive, so `[0, maxBytes)` is exactly
+ * the snapshot the first stat saw.
  */
 function streamTraceLines(
   file: string,
@@ -168,13 +185,12 @@ function streamTraceLines(
     const input = createReadStream(file, { encoding: 'utf8', start: 0, end: maxBytes - 1 })
     let tail = ''
     input.on('data', (chunk: string | Buffer) => {
-      const text = tail + (typeof chunk === 'string' ? chunk : chunk.toString('utf8'))
-      // Hold back a trailing CR: it may be the first half of a CRLF split
-      // across two chunks.
-      const complete = text.endsWith('\r') ? text.slice(0, -1) : text
-      const pieces = complete.split('\n')
-      tail = `${pieces.pop() ?? ''}${text.endsWith('\r') ? '\r' : ''}`
-      for (const piece of pieces) onLine(piece.endsWith('\r') ? piece.slice(0, -1) : piece)
+      const split = splitTraceChunk(
+        tail,
+        typeof chunk === 'string' ? chunk : chunk.toString('utf8'),
+      )
+      tail = split.tail
+      for (const line of split.lines) onLine(line)
     })
     input.on('error', (error) => {
       done(error)
