@@ -573,18 +573,19 @@ uncertain row (`readExisting` carries `uncertainUsd` into
 
 ### Round-5 results (repo default timeout, maxWorkers=3)
 
-| Suite                               | Result                                                                                   |
-| ----------------------------------- | ---------------------------------------------------------------------------------------- |
-| execArgs (new parse test)           | 56/56                                                                                    |
-| execLimits (new sweep test)         | part of 76-file green                                                                    |
-| execPaidRefusal (3 new aging tests) | 12/12                                                                                    |
-| execSchema (new unpriced A16 row)   | 29/29                                                                                    |
-| referenceEntry + executables        | 19/19                                                                                    |
-| actionRunExec                       | green (with usageIntegration file run)                                                   |
-| execRun                             | 113 local green; 24 loopback-shaped red here only (sandbox transport block; ENOENT gone) |
-| configuredProviders                 | 5 red here only (loopback pin + 4 stream limits; lead green at round head)               |
-| usageIntegration                    | 1 red here only (panel 502 via sandbox proxy; unrelated path)                            |
-| deferredBundles                     | 122/123 (the pin above, unmoved)                                                         |
+| Suite                               | Result                                                                                                                        |
+| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| execArgs (new parse test)           | 56/56                                                                                                                         |
+| execLimits (new sweep test)         | part of 76-file green                                                                                                         |
+| execPaidRefusal (3 new aging tests) | 12/12                                                                                                                         |
+| execSchema (new unpriced A16 row)   | 29/29                                                                                                                         |
+| referenceEntry + executables        | 19/19                                                                                                                         |
+| actionRunExec                       | green (with usageIntegration file run)                                                                                        |
+| execRun                             | 113 local green; 24 loopback-shaped red here only (sandbox transport block; ENOENT gone)                                      |
+| configuredProviders                 | 5 red here only (loopback pin + 4 stream limits; lead green at round head)                                                    |
+| usageIntegration                    | 1 red here only (panel 502 via sandbox proxy; unrelated path)                                                                 |
+| deferredBundles                     | 122/123 (the pin above, unmoved)                                                                                              |
+| commandHelp                         | 1 red, pre-existing on `e659e5bed` (scratch worktree at base fails identically; prompt-setting names in help, untouched here) |
 
 Also green: all five typechecks; eslint (0 warnings); `format:check`;
 knip (hints only); `check:l10n` (0 problems); `check:reference`
