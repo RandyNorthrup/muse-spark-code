@@ -226,6 +226,9 @@ export const vaultBrokerResponseSchema = z.strictObject({
         // RVCM1091G P2: a Delete whose source cannot be read (permissions).
         // The receipt stays; the sentence names the true reason.
         'sourceUnreadable',
+        // RVAPP-CM1091D5 P3-1: the source's location is not available (a
+        // drive down or away). Never "gone": the receipt stays.
+        'sourceUnavailable',
         'busy',
         'invalid',
         'rollback',

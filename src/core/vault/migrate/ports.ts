@@ -1,5 +1,5 @@
 import * as z from 'zod/mini'
-import { UI_TEXT, VAULT_LIMITS } from '../../../shared/constants'
+import { VAULT_LIMITS } from '../../../shared/constants'
 import { type VaultItem, type VaultStorePort } from '../../../shared/vault'
 import { type vaultPrivateReadSchema } from '../../../shared/vaultProtocol'
 
@@ -73,20 +73,5 @@ export interface MigrationDeps {
   onRetired(key: string): void
 }
 
-/** Never forward a store/codec exception that could contain credential bytes. */
-export class VaultMigrationFault extends Error {
-  constructor(
-    readonly code:
-      | 'invalid'
-      | 'conflict'
-      | 'verification'
-      | 'window'
-      | 'storage'
-      | 'orphaned'
-      /** The source cannot be read (permissions): the receipt stays (RVCM1091G P2). */
-      | 'unreadable',
-  ) {
-    super(UI_TEXT.vault.noAccess)
-    this.name = 'VaultMigrationFault'
-  }
-}
+/** Re-exported so existing importers are untouched; ambient imports './fault' directly. */
+export { VaultMigrationFault } from './fault'

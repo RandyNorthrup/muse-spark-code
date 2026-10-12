@@ -131,6 +131,9 @@ function importRefusal(error: unknown): unknown {
     case 'unreadable': {
       return new VaultManagementError('sourceUnreadable')
     }
+    case 'unavailable': {
+      return new VaultManagementError('sourceUnavailable')
+    }
     case 'invalid':
     case 'verification': {
       return new VaultManagementError('invalid')

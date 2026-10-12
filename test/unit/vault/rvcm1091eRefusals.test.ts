@@ -20,6 +20,11 @@ afterEach(cleanupTempHomes)
 
 const unsubscribe = (): void => undefined
 
+/** Root ignores permission bits, so permission-shaping tests skip for root. */
+function isRoot(): boolean {
+  return typeof process.geteuid === 'function' && process.geteuid() === 0
+}
+
 describe('RVCM1091E delete refusals name what stayed', () => {
   it('a source changed after a successful import refuses Delete as deleteConflict', async () => {
     const home = await tempHome()
@@ -214,6 +219,10 @@ describe('RVCM1091E refusal sentences per operation', () => {
     // A Delete whose source cannot be read keeps its receipt and names the
     // true reason, never a deletion (RVCM1091G P2).
     { operation: 'delete', reason: 'sourceUnreadable', forbidden: ['unlock', 'added'] },
+    // RVAPP-CM1091D5 P3-1: an unavailable drive is never "gone" and never
+    // a permissions problem either — the receipt stays, retrying later is
+    // honest.
+    { operation: 'delete', reason: 'sourceUnavailable', forbidden: ['unlock', 'added', 'gone'] },
     { operation: 'delete', reason: 'invalid', forbidden: ['unlock', 'added', 'delet'] },
     { operation: 'delete', reason: 'io', forbidden: ['unlock', 'added', 'delet'] },
     { operation: 'delete', reason: 'storeUnavailable', forbidden: [] },
@@ -247,6 +256,11 @@ describe('RVCM1091E refusal sentences per operation', () => {
           expect(sentence).toBe(UI_TEXT.vault.sourceUnreadable)
           break
         }
+        case 'sourceUnavailable': {
+          expect(operation).toBe('delete')
+          expect(sentence).toBe(UI_TEXT.vault.sourceUnavailable)
+          break
+        }
         case 'busy': {
           expect(sentence).toBe(UI_TEXT.vault.busy)
           break
@@ -276,6 +290,7 @@ describe('RVCM1091E refusal sentences per operation', () => {
       'deleteConflict',
       'sourceGone',
       'sourceUnreadable',
+      'sourceUnavailable',
       'busy',
       'invalid',
       'rollback',
@@ -342,16 +357,10 @@ describe('RVCM1091F refusal rows reach the broker for every operation', () => {
       await f.broker.unlock(null)
       const report = await f.management.importFile(file, () => true)
       const store = f.repository.current()
-      vi.spyOn(store, 'readReceipt').mockRejectedValueOnce(new VaultError(code))
-      // The store refusal before the unlink names itself: nothing was
-      // deleted and the receipt stays for a later retry.
-      await expect(f.management.deleteImport(report.receipt, () => true)).rejects.toMatchObject({
-        code,
-      })
-      await expect(stat(file)).resolves.toBeDefined()
-      expect(await store.readReceipt(report.receipt)).not.toBeNull()
-      // The same holds when the refusal lands deeper: while rereading the
-      // vault copy before the unlink.
+      // The refusal lands while rereading the vault copy before the unlink:
+      // the store reason names itself, nothing was deleted and the receipt
+      // stays for a later retry. (The receipt read runs before the guarded
+      // section, so only this half guards the rethrow.)
       vi.spyOn(store, 'read').mockRejectedValueOnce(new VaultError(code))
       await expect(f.management.deleteImport(report.receipt, () => true)).rejects.toMatchObject({
         code,
@@ -361,11 +370,12 @@ describe('RVCM1091F refusal rows reach the broker for every operation', () => {
     }
   })
 
-  it.skipIf(process.platform === 'win32')(
+  it.skipIf(process.platform === 'win32' || isRoot())(
     'an unreadable source keeps its receipt and names the true reason',
     async () => {
-      // Windows ACLs have no POSIX search bit, so this shapes only POSIX;
-      // the error-code branch it covers decides by code, not by platform.
+      // Windows ACLs have no POSIX search bit, and root ignores permission
+      // bits, so this shapes only POSIX non-root; the error-code branch it
+      // covers decides by code, not by platform.
       const home = await tempHome()
       const file = path.join(home, '.netrc')
       await writeFile(
@@ -391,6 +401,37 @@ describe('RVCM1091F refusal rows reach the broker for every operation', () => {
         await chmod(home, 0o755)
       }
       // Restored: the source was never touched.
+      await expect(stat(file)).resolves.toBeDefined()
+    },
+  )
+
+  it.skipIf(process.platform === 'win32' || isRoot())(
+    'a source that fails after the probe keeps its receipt with the access reason',
+    async () => {
+      // The probe's lstat succeeds (stat needs no read permission) but the
+      // open fails: this covers the post-probe access branch, which had no
+      // test (RVAPP-CM1091D5 P3-5). Fails without it: the refusal is io.
+      const home = await tempHome()
+      const file = path.join(home, '.netrc')
+      await writeFile(
+        file,
+        'machine example.test login generated-user password generated-password\n',
+      )
+      const f = managementFixture(undefined, home)
+      const setup = await lockedVault(f)
+      setup.fill(0)
+      await f.broker.unlock(null)
+      const report = await f.management.importFile(file, () => true)
+      const store = f.repository.current()
+      await chmod(file, 0o000)
+      try {
+        await expect(f.management.deleteImport(report.receipt, () => true)).rejects.toMatchObject({
+          reason: 'sourceUnreadable',
+        })
+        expect(await store.readReceipt(report.receipt)).not.toBeNull()
+      } finally {
+        await chmod(file, 0o600)
+      }
       await expect(stat(file)).resolves.toBeDefined()
     },
   )
