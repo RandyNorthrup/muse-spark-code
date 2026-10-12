@@ -1,3 +1,4 @@
+import { REPORT_KIND_REGISTRY } from '../../src/core/reporting/registry'
 import { readFile, readdir } from 'node:fs/promises'
 import path from 'node:path'
 import { createRequire } from 'node:module'
@@ -8,6 +9,7 @@ import { beforeAll, describe, expect, it } from 'vitest'
 import { REPORT_KINDS } from '../../src/shared/constants'
 import {
   reportDocumentSchema,
+  reportKindSchema,
   reportSectionSchema,
   type ReportKind,
 } from '../../src/shared/reportSchema'
@@ -34,18 +36,19 @@ const casesByKind: Record<ReportKind, string> = {
   usage:
     'usage.ts:usageSections:0 usage.ts:usageSections:1 usage.ts:usageSections:2 usage.ts:otherAgentUsage:0 usage.ts:otherAgentLimits:0',
   fleet: 'index.ts:forward:0',
-  security: 'index.ts:forward:0',
-  accounts: 'index.ts:forward:0',
+  security:
+    'security.ts:grouped:0 security.ts:collectSecurity:0 security.ts:collectSecurity:1 security.ts:collectSecurity:2 security.ts:collectSecurity:3 security.ts:collectSecurity:4',
+  accounts:
+    'accounts.ts:collectAccounts:0 accounts.ts:collectAccounts:1 accounts.ts:collectAccounts:2 accounts.ts:collectAccounts:3 accounts.ts:collectAccounts:4 accounts.ts:collectAccounts:5 accounts.ts:collectAccounts:6',
   estimate: 'index.ts:forward:0',
   playbook: 'index.ts:forward:0',
   issues: 'index.ts:forward:0',
   schedules: 'index.ts:forward:0',
-  keybindings: 'index.ts:forward:0',
+  keybindings:
+    'index.ts:forward:0 keybindings.ts:bindingRows:0 keybindings.ts:bindingRows:1 keybindings.ts:bindingRows:2 keybindings.ts:conflictRows:0',
 }
 const forwardedFacets = {
   fleet: 'agents workers devices nodes',
-  security: 'vault breakdown grants usage denials locks developerAudit',
-  accounts: 'accounts limits usage swaps refusals confirmations',
   estimate: 'totals criticalPath limitingResource setups inputs calibration',
   playbook: 'totals decisions drills disabledRules refusals',
   issues: 'issues limits',
@@ -137,10 +140,10 @@ function instrument(name: string, text: string): string {
         : node.initializer
       if (ts.isObjectLiteralExpression(object))
         for (const field of object.properties) {
-          if (ts.isPropertyAssignment(field) && ts.isArrayLiteralExpression(field.initializer))
-            forwardedRegistry[field.name.getText(file)] = field.initializer.elements.map((entry) =>
-              ts.isStringLiteral(entry) ? entry.text : entry.getText(file),
-            )
+          if (!ts.isPropertyAssignment(field)) continue
+          const kind = reportKindSchema.parse(field.name.getText(file))
+          expect(field.initializer.getText(file)).toBe(`REPORT_KIND_REGISTRY.${kind}.sections`)
+          forwardedRegistry[kind] = [...REPORT_KIND_REGISTRY[kind].sections]
         }
     }
     ts.forEachChild(node, visit)
@@ -157,8 +160,21 @@ beforeAll(async () => {
   // singleton/aggregated sources which raw facts cannot naturally repeat.
   const result = await build({
     stdin: {
-      contents:
-        "export { collectFixture as collect } from './test/unit/helpers/reporting/collect'; export { target, keys } from 'row-probe';",
+      contents: `
+        import { collectFixture } from './test/unit/helpers/reporting/collect';
+        import { availableSource } from './test/unit/helpers/reporting/snapshot';
+        import { collectKeybindingSections } from './src/core/reporting/collect/keybindings';
+        export { target, keys } from 'row-probe';
+        export function collect(kind, options, snapshot) {
+          if (kind === 'keybindings') snapshot = { ...snapshot, sources: { ...snapshot.sources,
+            keybindings: availableSource('keybindings', collectKeybindingSections({
+              editor: [{ command: 'first', key: 'ctrl+a' }, { command: 'second', key: 'ctrl+a' }],
+              panel: [{ context: 'row', key: 'Enter' }], acp: [{ name: 'help' }],
+            })),
+          } };
+          return collectFixture(kind, options, snapshot);
+        }
+      `,
       resolveDir: root,
       loader: 'ts',
     },

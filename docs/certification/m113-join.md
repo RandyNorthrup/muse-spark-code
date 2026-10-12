@@ -30,3 +30,21 @@ roadmap and host API records are regenerated from the merged source. The new
 accounts/security goldens carried older sentence-case labels; regeneration
 intentionally uses the train’s installed Title Case English labels. No
 report fact, content hash or visual UI baseline changes for this repair.
+
+## Guarantee (c): final row admission
+
+`collect/common.ts:section` admits rows at the display/final-schema limit,
+including source disclosures, and increments `omittedRows` for every refusal.
+The existing renderers name that exact count in the request language. Original
+keys and duplicate evidence survive; ties sort canonically before allocating
+suffixes. The kind registry also supplies forwarded headings.
+
+`reportEngineBounds` enumerates all 15 kinds and 75 declared sections; all
+75 exact-cap/disclosure/final-document cases pass. Existing identity and
+determinism suites pass after adapting the two older forwarded fixtures to
+real accounts/security facts. The executable row-call inventory now covers
+accounts/security and keybindings factory calls: 134 tests pass.
+
+Deliberately admitting one excess full row fires all 75 bound cases. Byte-exact
+restoration SHA-256: `454615f4bb528afaff4ac20102144e646e8e8a6e8e3c76bdad336689af0d7de0`;
+drill log SHA-256: `300e757526e82e734156c7ae319df29144831b17faaee82929baa5b7e491d058`. No schema cap moves.
