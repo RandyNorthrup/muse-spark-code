@@ -1,4 +1,9 @@
-import type { ResourceEvent, ResourceLevel, ResourceSettings } from '../../shared/resources'
+import type {
+  ResourceEvent,
+  ResourceLevel,
+  ResourceSettings,
+  ResourceStatus,
+} from '../../shared/resources'
 import type { ResourceLaunchHost } from '../resources/launchHost'
 import type {
   ResourceRelocationAttempt,
@@ -92,6 +97,12 @@ export interface CheckRoutingDeps {
   readonly local: (job: CheckJob) => Promise<CheckResult>
   /** One binding per conversation, supplied by the existing runner/scheduler owner. */
   readonly resources?: ResourceRunnerRouter | undefined
+  /**
+  A proved receiver refusal on the ordinary route keeps its true reason
+  for the source observer. Called at most once per item, only when every
+  runner is exhausted and the check falls back to local.
+  */
+  readonly onRefusal?: ((reason: 'commandTooLong') => void) | undefined
 }
 
 export interface ResourceRunnerRouteOptions {
@@ -221,8 +232,17 @@ export class ResourceRunnerRouter {
     )
       // No approved runner: kept locally, no probes.
       return undefined
-    const state: { completion?: Promise<RunnerDispatch>; isClaimRefused: boolean } = {
+    const state: {
+      completion?: Promise<RunnerDispatch>
+      isClaimRefused: boolean
+      /** A target proved busy (receiver refusal or no headroom); the check stays. */
+      sawBusy: boolean
+      /** The busy reason already reached the source observer. */
+      reportedBusy: boolean
+    } = {
       isClaimRefused: false,
+      sawBusy: false,
+      reportedBusy: false,
     }
     const work: ResourceRelocationWork = {
       repository: job.cwd,
@@ -256,6 +276,9 @@ export class ResourceRunnerRouter {
             parsed.data.inputReady &&
             parsed.data.freeSlots > 0 &&
             parsed.data.load < parsed.data.cores
+          // No headroom is a proved busy target, not an unreachable one:
+          // remembered so the hand-over stays on the source and says why.
+          if (!isReady) state.sawBusy = true
           return { level: isReady ? 'normal' : 'pause', headroom: isReady ? 'some' : 'none' }
         },
         dispatch: async (metadata, relocationSignal) =>
@@ -269,6 +292,7 @@ export class ResourceRunnerRouter {
               signal,
               relocationSignal,
               resolve,
+              state,
             )
           }),
       }
@@ -288,7 +312,7 @@ export class ResourceRunnerRouter {
       if (result === 'kept') {
         signal.throwIfAborted()
         if (this.options.phase(job) !== 'queued') throw new Error(UI_TEXT.teamRunners.busy)
-        return
+        return this.handOver(job, deps, status, state)
       }
       const answer = await state.completion
       if (answer?.kind !== 'finished' || answer.result.runId !== job.runId) {
@@ -301,6 +325,45 @@ export class ResourceRunnerRouter {
     }
   }
 
+  /**
+  The hand-over under the decision snapshot: one synchronous step, so no
+  later pressure change can strand a check. Awaits between the decision
+  (`move`'s status read) and here, each already closed: the Ask answer and
+  every headroom probe (the relocator re-reads status and phase before
+  each), the row (the offer and level are rechecked right after it), and
+  the dispatch (offer, setting and level rechecked before sending;
+  admission wins over a late abort). This re-read closes the last window:
+  a changed level or relocation setting runs the ordinary route, so a
+  label-bound check reaches its runner instead of failing Offline on a
+  machine that is online. An unchanged snapshot stays on the source and
+  says why when a target proved busy.
+  */
+  private handOver(
+    job: CheckJob,
+    deps: CheckRoutingDeps,
+    decided: Pick<ResourceStatus, 'level' | 'settings'>,
+    state: { sawBusy: boolean; reportedBusy: boolean },
+  ): typeof DECLINED | undefined {
+    const current = this.options.port.status()
+    if (
+      current.level !== decided.level ||
+      current.settings.relocate !== decided.settings.relocate ||
+      current.settings.enabled !== decided.settings.enabled
+    )
+      return DECLINED
+    if (state.sawBusy) {
+      if (!state.reportedBusy) {
+        this.options.onError(new Error(UI_TEXT.teamRunners.busy))
+        state.reportedBusy = true
+      }
+      // Local admission cannot take labels that live only on a runner, and
+      // the runner just proved reachable: retry the ordinary route instead
+      // of failing Offline for a busy machine.
+      if (job.labels.some((label) => !deps.localLabels.includes(label))) return DECLINED
+    }
+    return undefined
+  }
+
   private async dispatch(
     job: CheckJob,
     runner: Runner,
@@ -310,6 +373,7 @@ export class ResourceRunnerRouter {
     signal: AbortSignal,
     relocationSignal: AbortSignal,
     receipt: (result: 'admitted' | 'refused' | 'uncertain') => void,
+    state: { sawBusy: boolean; reportedBusy: boolean },
   ): Promise<RunnerDispatch> {
     const withdrawal = new AbortController()
     const withdraw = () => {
@@ -335,8 +399,10 @@ export class ResourceRunnerRouter {
         final.settings.relocate === 'off' ||
         final.settings.relocate !== relocation
       ) {
+        // A pressure or setting change before sending is a refusal, never
+        // an unreachable runner: Offline is produced only by the transport.
         receipt('refused')
-        return { kind: 'offline' }
+        return { kind: 'busy' }
       }
       // The only sent fact: fired immediately before the start command is
       // written, by the transport itself. Every stop before it reads refused.
@@ -358,9 +424,19 @@ export class ResourceRunnerRouter {
       else receipt(answer.kind === 'offline' || answer.kind === 'busy' ? 'refused' : 'uncertain')
       // A target that became busy keeps the check on the source and says
       // why: the known refusal reason reaches the source observer while the
-      // proved refusal still runs locally once.
-      if (answer.kind === 'busy' && answer.reason === 'commandTooLong')
-        this.options.onError(new Error(UI_TEXT.teamRunners.commandTooLong))
+      // proved refusal still runs locally once. A reason-less busy (a full
+      // receiver, a busy cache) reports the busy sentence itself.
+      if (answer.kind === 'busy') {
+        state.sawBusy = true
+        this.options.onError(
+          new Error(
+            answer.reason === 'commandTooLong'
+              ? UI_TEXT.teamRunners.commandTooLong
+              : UI_TEXT.teamRunners.busy,
+          ),
+        )
+        state.reportedBusy = true
+      }
       return answer
     } catch (error: unknown) {
       receipt(sendState.sent ? 'uncertain' : 'refused')
@@ -458,6 +534,7 @@ export async function routeChecks(
   // Ordinary M96c runner routing, unchanged by the relocation binding: a
   // declined relocation runs exactly this, never straight to local.
   const ordinary = async () => {
+    let refusedReason: 'commandTooLong' | undefined
     for (const runner of candidates) {
       admit()
       const health = await deps.sample(runner)
@@ -477,7 +554,12 @@ export async function routeChecks(
       )
         throw new Error(UI_TEXT.teamTrafficNotices.uncertainAttempt)
       if (answer.kind === 'finished') return answer.result
+      // A proved receiver refusal keeps its true reason instead of being
+      // dropped while the loop moves on; it is reported only when every
+      // runner is exhausted and the check falls back to local.
+      if (answer.kind === 'busy' && answer.reason !== undefined) refusedReason ??= answer.reason
     }
+    if (refusedReason !== undefined) deps.onRefusal?.(refusedReason)
     return await local()
   }
   if (isResourceRouting) {
