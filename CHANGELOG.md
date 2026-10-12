@@ -336,6 +336,10 @@ happened, not what was planned; superseded entries are kept.
   pressed to the footer's own links, whatever the notes above them end with
   (VISFOOT).
 
+- The Cost Over Time chart now scales its bars to the largest period, like
+  the token and time charts; before, a period under $1 drew a short bar
+  whatever the others were.
+
 ### Fixed
 
 - Local report sources sort every tied list to a total order, so the same
@@ -532,6 +536,10 @@ happened, not what was planned; superseded entries are kept.
   changes to review" (lane REVIEWEXIT).
 
 ### Documentation
+
+- The README's Resources screenshot shows the relocation sentence users
+  see ("Relocation requires a paired device or runner route."); it still
+  showed the wording 0.17.1 replaced.
 
 - PLAN.md had grown to 4,157,477 bytes, 36,827 short of the 4 MiB bound at
   which `check:plan`, `check:roadmap` and `/report` refuse it. Closed history
