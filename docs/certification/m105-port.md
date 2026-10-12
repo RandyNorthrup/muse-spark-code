@@ -562,3 +562,72 @@ status warnings; the user still receives the detailed error. The related graph
 is refreshed over all nine changed non-hub sources (162 selected files).
 The interrupted first batch from the earlier graph is excluded from receipts.
 No browser or socket workaround is used.
+
+### Red drills (Round 3, 2026-10-11, MacBook)
+
+Each guard below was broken on purpose, the named regression was seen to
+fail, and the file was restored from a backup copy with its SHA-256
+verified byte-exact before the green re-run. No `--testTimeout` was used.
+
+| Finding            | Break                                                                                                                  | Named test (red evidence)                                                                                                                                         | Restore SHA-256                                                    |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| 1, cleanup route   | `execFetch.ts`: closed/lifecycle check moved ahead of the cleanup-DELETE branch, so cancellation refuses the delete    | `execFetch.test.ts` "deletes a real Files receipt when caller and exec cancel after parsing it": expected `cancelled after receipt`, got `Upload cleanup pending` | `32c320f9cc1dbd815cc83b802773e978b459cc8e1afb3690222ba9590dc87c96` |
+| 2, action currency | `audioMessagePreparation.ts`: `assertAudioAction` reads `current = action`, neutering the mid-preparation change check | `mediaAttachmentComposition.test.ts` "refuses an audio setting changed inside production consent before any ASR request": turn completed instead of failing       | `516703490e5e060168cf5f89462e2c676b37c524b8731a1146c4e992aac8b7f2` |
+| 3, Files fixture   | `execRun.test.ts` harness: `fetch: files.fetch` reverted to bare `fetch: api.fetch` (no Files route)                   | `execRun.test.ts` "binds --attach to the runtime media port, priced against the hard budget (lane V seam 5)": expected uploads length 1, got 0                    | `82c6f5d71fe48f07c549e7baedadf0410865fb36390522cd934547cda6b5d49c` |
+| 4, log privacy     | `ModelApiHost.ts` save catch: fixed `save_failed` replaced with the interpolated error message                         | `mediaAttachmentComposition.test.ts` "keeps the attachment name out of the session-save log when ownership expired (RVM105 4)": canary found in a log line        | `b33c1d74e18c0f302a0204f5d9f957186f3b94f6dae07b41bf41887a9b8b36ee` |
+
+A first drill-4 variant (restoring `${describe(error)}` in the
+unexpected-turn catch) stayed green: the changed-byte refusal never reaches
+that sink, so it is not on the canary path. The save catch above is the sink
+the canary test guards, and it fires.
+
+Pre-existing failure, not this lane: `acpAgent.test.ts` "exposes all three
+ChatGPT actions to terminal and manual editors and verifies them
+independently of Meta" fails identically on the untouched base `48023c302`
+(verified in a scratch worktree with linked `node_modules`, removed after),
+with `RequestError: Authentication required`. It is outside the
+media/attachment/upload/audio/exec-log paths this round changed.
+
+### Related-graph receipts (Round 3)
+
+`npx vitest related --run` over all nine changed non-hub sources selected
+158 files (browser suites and the named loopback suites excluded up front).
+First run: 135 files passed, 20 failed, 3 skipped (4,902 tests passed).
+Second run with JSON results: 143 files passed, 15 failed. Every failed
+file was classified; none is a regression from this round:
+
+- Fixed by updating stale log-string assertions to the ruled fixed-word
+  contract (user-visible detail assertions kept and green):
+  `modelApiClient.test.ts` (429 retry keeps the status, drops `slow down`;
+  cert-store retry keeps `transport_error`, drops the chain detail) and
+  `modelApiHost.test.ts` (turn log keeps `failed: authRequired`, drops the
+  reason; save log keeps `was not saved: save_failed`). Full suites after:
+  76/76 and 670/670. Same class as the earlier `fileSessionStore.test.ts`
+  expectation update; no test was deleted or skipped.
+- Sandbox-blocked loopback (`listen EPERM 127.0.0.1` in the failure text),
+  for the lead to run: `files.test.ts` (real local Files server; the
+  `onReceipt` change is additive and the FakeFiles suites pass),
+  `chatGptVsCode.test.ts`, `runtimeChatGptLock.test.ts`, `mcpPool.test.ts`
+  (streamable-HTTP entry), `museVoice.test.ts` (fake WebSocket endpoint),
+  `subscriptionIntegration.test.ts`, `teamMcpBridge.test.ts`,
+  `usageIntegration.test.ts`.
+- Pre-existing, verified identical on untouched base `48023c302` in the
+  scratch worktree: `runtimeChatGpt.test.ts` (29 failed / 6 passed both),
+  `runtimeChatGptCallback.test.ts` (12 failed / 6 passed both), and the one
+  `acpAgent.test.ts` ChatGPT-actions case above.
+- Slow on a loaded rig, logic green: `sessionBudgetJournal.test.ts` "settles
+  200 search fees" (400+ real-disk ops) passes with an exploratory raised
+  timeout (37.9 s, assertions all green); untouched by this lane, repo
+  default kept.
+- Environmental: `execTestLauncher.e2e.test.ts` shells `npm pack`, which
+  fails in this sandbox even as a direct dry-run (`ENOENT` scandir plus
+  unwritable `~/.npm/_logs`), before any test code runs. The added
+  `modelApiSessions` entry file exists and `typecheck:e2e` passes.
+
+NOT RUN HERE (no browser on this MacBook; sandbox blocks loopback and the
+e2e pack): `companionUpload.test.ts`, `companionMediaBrowser.test.mjs`,
+`configuredProviders.test.ts`, `files.test.ts`, `mcpPool.test.ts`,
+`museVoice.test.ts`, `chatGptVsCode.test.ts`, `runtimeChatGpt*.test.ts`,
+`subscriptionIntegration.test.ts`, `teamMcpBridge.test.ts`,
+`usageIntegration.test.ts`, `execTestLauncher.e2e.test.ts`, and any
+browser/GUI/device suite the graph selects.

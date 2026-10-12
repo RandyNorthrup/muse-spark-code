@@ -4786,7 +4786,10 @@ describe('ModelApiSession: turns', () => {
       terminal: 'failed',
       reason: 'the model failed',
     })
-    expect(t.log.warn).toHaveBeenCalledWith(expect.stringContaining('failed: bad key'))
+    // RVM105 4: the log carries the reason code; the turn above still reports
+    // the detailed reason to the user.
+    expect(t.log.warn).toHaveBeenCalledWith(expect.stringContaining('failed: authRequired'))
+    expect(JSON.stringify(t.log.warn.mock.calls)).not.toContain('bad key')
   })
 
   it('compacts by summarising, then replays only the summary', async () => {
@@ -7832,7 +7835,8 @@ describe('ModelApiHost: sessions between windows (M11)', () => {
     await session.sendTurn([{ type: 'text', text: 'hello' }])
     await turnDone()
     await t.host.close()
-    expect(t.log.warn).toHaveBeenCalledWith(expect.stringContaining('was not saved: disk full'))
+    // RVM105 4: the save log carries fixed words; the waiter keeps the error.
+    expect(t.log.warn).toHaveBeenCalledWith(expect.stringContaining('was not saved: save_failed'))
     expect(store.saved.has(session.sessionId)).toBe(true)
     const page = await t.host.listSessions({ workspaceRoot: ROOT, limit: 10 })
     expect(page.sessions.map((record) => record.sessionId)).toEqual([session.sessionId])
