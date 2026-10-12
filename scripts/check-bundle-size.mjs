@@ -134,6 +134,11 @@ const BUDGETS = [
   // out (2026-10-05), 33.8 KiB on 0.13.0's shared dist/validation.js; plus
   // 15%, rounded up to 25 KiB (PLAN.md D6).
   { path: 'dist/pluginHooks.js', budgetKiB: 50 },
+  // MODELAPIDIET: the Model API backend's deferred per-call helpers (hook
+  // call fields, argument previews, fetch URL checks), loaded on first use:
+  // 23,433 B measured (2026-10-11); D6: 23,433 × 1.15 = 26,947.95 B,
+  // rounded up to the next 25 KiB multiple = 51,200 B (50 KiB).
+  { path: 'dist/modelApiTools.js', budgetKiB: 50 },
   // The plan reader, the panel's Markdown parser, loaded on the first plan
   // action (M79): 114.7 KiB when split out, 139.0 KiB with the brief's writer.
   { path: 'dist/planMarkdown.js', budgetKiB: 150 },

@@ -6,6 +6,7 @@
     "src/runtime/runtimeAccountingEntry.ts",
     "src/core/backends/modelapi/modelApiHooksEntry.ts",
     "src/core/backends/modelapi/modelApiMcpEntry.ts",
+    "src/core/backends/modelapi/modelApiToolsEntry.ts",
     "src/shared/wireEntry.ts",
     "src/shared/modelApiBoundariesEntry.ts",
     "src/extension.ts",

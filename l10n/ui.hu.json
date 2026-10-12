@@ -1446,6 +1446,8 @@
   "manualHookFailed": "A(z) {name} hook sikertelen volt: {reason}",
   "manualHookSlashDetail": "Manual hook futtatása a spark-hooks.json fájlból",
   "extensionHooksUnavailable": "A bővítmény hookjait nem sikerült betölteni, ezért egy hook sem futott le; telepítse újra a bővítményt, és töltse be újra az ablakot. A részletek a naplóban vannak.",
+  "modelApiToolsUnavailable": "A modellhívási segédeket nem sikerült betölteni, ezért a hookhívási mezők nem érhetők el; telepítse újra a bővítményt, és töltse be újra az ablakot. A részletek a naplóban vannak.",
+  "modelApiToolsPreviewUnavailable": "A modellhívási segédeket nem sikerült betölteni, ezért az argumentum-előnézetek nem érhetők el; telepítse újra a bővítményt, és töltse be újra az ablakot. A részletek a naplóban vannak.",
   "shellDirectory": "Itt: {path}",
   "shellDirectoryReset": "A parancshéj visszatért a munkaterület gyökeréhez: a(z) {path} a munkaterületen kívül esik.",
   "elicitationTitle": "A(z) {server} információt kér",
