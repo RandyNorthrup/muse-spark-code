@@ -3416,6 +3416,10 @@
     "many": "Spuštěno {count}krát"
   },
   "scheduleNone": "Žádné naplánované výzvy",
+  "scheduleConsentUnreadable": "Naplánované výzvy jsou vypnuté: uložený souhlas {reason}. Opravte jeho oprávnění nebo jej smažte a naplánování nastavte znovu.",
+  "scheduleStoreReasonDenied": "nešlo přečíst; přístup byl odepřen",
+  "scheduleStoreReasonDiskFull": "nešlo přečíst; disk je plný nebo jen pro čtení",
+  "scheduleStoreReasonUnknown": "nešlo přečíst",
   "loopItem": "/loop",
   "loopItemDetail": "Naplánovat prompt v této konverzaci Model API",
   "loopSyntax": "Použijte /loop 10m <prompt>, /loop \"0 9 * * 1-5\" <prompt>, /loop list nebo /loop cancel <id>.",

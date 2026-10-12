@@ -3218,6 +3218,10 @@
     "other": "已執行 {count} 次"
   },
   "scheduleNone": "沒有已排程的提示",
+  "scheduleConsentUnreadable": "排程提示已關閉：其儲存的同意書{reason}。請修正其權限或將其刪除，然後重新設定排程。",
+  "scheduleStoreReasonDenied": "無法讀取；權限被拒絕",
+  "scheduleStoreReasonDiskFull": "無法讀取；磁碟已滿或為唯讀",
+  "scheduleStoreReasonUnknown": "無法讀取",
   "loopItem": "/loop",
   "loopItemDetail": "在此 Model API 對話中排程提示詞",
   "loopSyntax": "使用 /loop 10m <prompt>、/loop \"0 9 * * 1-5\" <prompt>、/loop list 或 /loop cancel <id>。",

@@ -669,7 +669,9 @@ describe('Saved custom provider Edit through the shared form and production stor
       })
       fireEvent.click(screen.getByRole('button', { name: UI_TEXT.saveProvider }))
       await waitFor(() => {
-        expect(state().drafts.edits['custom']?.errors).toEqual([UI_TEXT.providerSaveWriteConflict])
+        // A foreign failure is said as one, not as a write conflict it was
+        // not: the old assertion named a false reason, so it is rewritten.
+        expect(state().drafts.edits['custom']?.errors).toEqual([UI_TEXT.actionFailed])
       })
       expect(warnings.join('\n')).toContain('Models panel operation failed')
       // The queue survives the foreign failure: saving again still works.

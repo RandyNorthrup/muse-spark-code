@@ -3284,6 +3284,10 @@
     "other": "{count}-mal ausgeführt"
   },
   "scheduleNone": "Keine geplanten Prompts",
+  "scheduleConsentUnreadable": "Geplante Prompts sind aus: Ihre gespeicherte Zustimmung {reason}. Berechtigungen korrigieren oder sie löschen, dann Prompts erneut einrichten.",
+  "scheduleStoreReasonDenied": "konnte nicht gelesen werden; der Zugriff wurde verweigert",
+  "scheduleStoreReasonDiskFull": "konnte nicht gelesen werden; der Datenträger ist voll oder schreibgeschützt",
+  "scheduleStoreReasonUnknown": "konnte nicht gelesen werden",
   "loopItem": "/loop",
   "loopItemDetail": "Einen Prompt in dieser Model-API-Unterhaltung planen",
   "loopSyntax": "Verwenden Sie /loop 10m <prompt>, /loop \"0 9 * * 1-5\" <prompt>, /loop list oder /loop cancel <id>.",

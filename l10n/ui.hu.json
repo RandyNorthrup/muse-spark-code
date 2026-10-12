@@ -3284,6 +3284,10 @@
     "other": "{count} alkalommal futott"
   },
   "scheduleNone": "Nincsenek ütemezett promptok",
+  "scheduleConsentUnreadable": "Az ütemezett promptok ki vannak kapcsolva: a mentett hozzájárulás {reason}. Javítsa az engedélyeit vagy törölje, majd állítsa be újra az ütemezéseket.",
+  "scheduleStoreReasonDenied": "nem olvasható; a hozzáférés meg lett tagadva",
+  "scheduleStoreReasonDiskFull": "nem olvasható; a lemez megtelt vagy csak olvasható",
+  "scheduleStoreReasonUnknown": "nem olvasható",
   "loopItem": "/loop",
   "loopItemDetail": "Prompt ütemezése ebben a Model API-beszélgetésben",
   "loopSyntax": "Használat: /loop 10m <prompt>, /loop \"0 9 * * 1-5\" <prompt>, /loop list vagy /loop cancel <id>.",

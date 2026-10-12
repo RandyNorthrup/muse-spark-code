@@ -3218,6 +3218,10 @@
     "other": "{count} 回実行済み"
   },
   "scheduleNone": "スケジュール済みのプロンプトはありません",
+  "scheduleConsentUnreadable": "スケジュール済みプロンプトはオフです：保存された同意{reason}。権限を修正するか削除して、スケジュールを設定し直してください。",
+  "scheduleStoreReasonDenied": "を読み取れませんでした（権限が拒否されました）",
+  "scheduleStoreReasonDiskFull": "を読み取れませんでした（ディスクがいっぱいか読み取り専用です）",
+  "scheduleStoreReasonUnknown": "を読み取れませんでした",
   "loopItem": "/loop",
   "loopItemDetail": "この Model API 会話でプロンプトを予約",
   "loopSyntax": "/loop 10m <prompt>、/loop \"0 9 * * 1-5\" <prompt>、/loop list、または /loop cancel <id> を使用します。",

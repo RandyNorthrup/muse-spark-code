@@ -3350,6 +3350,10 @@
     "many": "Eseguito {count} di volte"
   },
   "scheduleNone": "Nessun prompt pianificato",
+  "scheduleConsentUnreadable": "I prompt pianificati sono disattivati: il consenso salvato {reason}. Correggine i permessi o eliminalo, poi configura di nuovo le pianificazioni.",
+  "scheduleStoreReasonDenied": "non ha potuto essere letto; l’accesso è stato negato",
+  "scheduleStoreReasonDiskFull": "non ha potuto essere letto; il disco è pieno o di sola lettura",
+  "scheduleStoreReasonUnknown": "non ha potuto essere letto",
   "loopItem": "/loop",
   "loopItemDetail": "Pianifica un prompt in questa conversazione Model API",
   "loopSyntax": "Usa /loop 10m <prompt>, /loop \"0 9 * * 1-5\" <prompt>, /loop list oppure /loop cancel <id>.",

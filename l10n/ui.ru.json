@@ -3416,6 +3416,10 @@
     "many": "Запущен {count} раз"
   },
   "scheduleNone": "Нет запланированных запросов",
+  "scheduleConsentUnreadable": "Запланированные запросы выключены: сохранённое согласие {reason}. Исправьте его разрешения или удалите его, затем настройте расписания заново.",
+  "scheduleStoreReasonDenied": "не удалось прочитать; в доступе отказано",
+  "scheduleStoreReasonDiskFull": "не удалось прочитать; диск полон или только для чтения",
+  "scheduleStoreReasonUnknown": "не удалось прочитать",
   "loopItem": "/loop",
   "loopItemDetail": "Запланировать запрос в этом диалоге Model API",
   "loopSyntax": "Используйте /loop 10m <prompt>, /loop \"0 9 * * 1-5\" <prompt>, /loop list или /loop cancel <id>.",

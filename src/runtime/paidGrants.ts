@@ -19,6 +19,7 @@ import * as z from 'zod/mini'
 import type { PaidQuoteNotice } from '../shared/paid'
 import type { PaidGrantStore } from '../acp/paid'
 import { type CoreLogger, wireWordForLog } from '../core/logging'
+import { DamageNoter, fileDamageMarkers } from './damageNotice'
 import { describeStoreError, storeErrorCode } from '../host/backend/storeErrors'
 import { writeFileAtomically } from '../host/fsAtomic'
 import {
@@ -143,6 +144,14 @@ export function paidGrantFile(deps: PaidGrantFileDeps): PaidGrantStore {
   // The last quote-folder read failure's kind, while saved Always quotes
   // cannot be listed. Consent carries it in the question it then asks.
   let quoteNotice: PaidQuoteNotice | undefined
+  // An unreadable quote folder warns once per distinct damage (Part 2.1),
+  // never on every read: the rule is the shared DamageNoter.
+  const quoteListNoter = new DamageNoter(
+    fileDamageMarkers(path.join(`${deps.file}.d`, 'webSearch.quoteList')),
+    (identity) => {
+      deps.log.warn(`Paid-use quotes could not be read (${identity}), so no quote grant applies`)
+    },
+  )
   const readQuotes = (workspaceRoot: string, generation: string) => {
     let names: string[]
     try {
@@ -153,12 +162,16 @@ export function paidGrantFile(deps: PaidGrantFileDeps): PaidGrantStore {
       // Fail-closed stays: asking again is the safe direction for money.
       // read-state: cert TBL-10. `[]` here is "cannot list, ask again" with
       // the kind warned and carried in the next question, never "no quotes".
-      if (error instanceof Error && storeErrorCode(error) === ENOENT) return []
+      if (error instanceof Error && storeErrorCode(error) === ENOENT) {
+        quoteListNoter.noteHealthy()
+        return []
+      }
       const kind = wireWordForLog(storeErrorCode(error) ?? 'unknown')
-      deps.log.warn(`Paid-use quotes could not be read (${kind}), so no quote grant applies`)
+      quoteListNoter.noteDamaged(kind)
       quoteNotice = { kind }
       return []
     }
+    quoteListNoter.noteHealthy()
     quoteNotice = undefined
     const prefix = `${path.basename(grantFile(workspaceRoot, 'webSearch', generation))}.`
     return names
@@ -189,7 +202,13 @@ export function paidGrantFile(deps: PaidGrantFileDeps): PaidGrantStore {
     quoteGeneration: () => read(generationFile('webSearch'), generationSchema)?.id ?? 'missing',
     readQuote: (workspaceRoot, quote) => {
       const generation = read(generationFile('webSearch'), generationSchema)
-      if (generation === undefined) return
+      if (generation === undefined) {
+        // No generation: no quotes exist, so an older listing failure must
+        // not survive as a notice claiming saved choices are unreadable
+        // when none exist (P3-3).
+        quoteNotice = undefined
+        return
+      }
       const grant = latestPaidGrant(
         readQuotes(workspaceRoot, generation.id).filter(
           (record) => paidAuthorityKey(record.quote) === paidAuthorityKey(quote),

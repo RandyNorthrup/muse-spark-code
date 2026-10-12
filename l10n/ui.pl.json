@@ -3416,6 +3416,10 @@
     "many": "Uruchomiono {count} razy"
   },
   "scheduleNone": "Brak zaplanowanych promptów",
+  "scheduleConsentUnreadable": "Zaplanowane monity są wyłączone: zapisana zgoda {reason}. Popraw jej uprawnienia lub ją usuń, a potem ponownie skonfiguruj harmonogramy.",
+  "scheduleStoreReasonDenied": "nie mogła zostać odczytana; odmówiono uprawnień",
+  "scheduleStoreReasonDiskFull": "nie mogła zostać odczytana; dysk jest pełny lub tylko do odczytu",
+  "scheduleStoreReasonUnknown": "nie mogła zostać odczytana",
   "loopItem": "/loop",
   "loopItemDetail": "Zaplanuj monit w tej rozmowie Model API",
   "loopSyntax": "Użyj /loop 10m <prompt>, /loop \"0 9 * * 1-5\" <prompt>, /loop list lub /loop cancel <id>.",

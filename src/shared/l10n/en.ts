@@ -3916,6 +3916,14 @@ export const EN = {
   scheduleNextRun: 'Next run {date}',
   scheduleFired: forms({ one: 'Ran {count} time', other: 'Ran {count} times' }),
   scheduleNone: 'No scheduled prompts',
+  // A schedule consent file that cannot be read (CATCHMONEY R3, P3-4): the
+  // errno reaches the person through a closed kind word, never raw. `{reason}`
+  // is one of the scheduleStoreReason* words below.
+  scheduleConsentUnreadable:
+    'Scheduled prompts are off: their saved consent {reason}. Fix its permissions or delete it, then set up schedules again.',
+  scheduleStoreReasonDenied: 'could not be read; permission was refused',
+  scheduleStoreReasonDiskFull: 'could not be read; the disk is full or read-only',
+  scheduleStoreReasonUnknown: 'could not be read',
   // M52: extension-owned schedules on the Model API backend. Muse Code's cron
   // jobs stay model-mediated until its MSP exposes scheduler verbs.
   loopItem: '/loop',

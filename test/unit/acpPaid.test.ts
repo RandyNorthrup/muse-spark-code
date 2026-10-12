@@ -65,7 +65,7 @@ it('tells the asking session when its save fails, not a later session (P2-3)', a
   // A's grant write stays pending while B asks in the same folder: the old
   // lookup read the session when the failure happened (B) instead of when
   // the question was asked (A).
-  const { promise: writeGate, resolve: releaseWrite } = Promise.withResolvers<unknown>()
+  const { promise: writeGate, resolve: releaseWrite } = Promise.withResolvers<undefined>()
   const grants: PaidGrantStore = {
     read: () => new Set<PaidFeature>(),
     add: async () => {
@@ -87,12 +87,14 @@ it('tells the asking session when its save fails, not a later session (P2-3)', a
   })
   const imageRequest: PaidUseRequest = {
     feature: 'imageGeneration',
-    modelId: 'muse-spark-1.3',
-    dailyBudgetUsd: Usd.from(5).toAmount(),
+    kind: 'generate',
+    path: 'image.png',
+    sources: [],
+    prompt: 'a test image',
   }
   const a = paid.allows('/ws', 'session-a', imageRequest, false)
   const b = paid.allows('/ws', 'session-b', imageRequest, false)
-  releaseWrite()
+  releaseWrite(undefined)
   expect(await a).toBe(true)
   expect(await b).toBe(true)
   // Each failure reaches the session that asked: A's pending write tells A
