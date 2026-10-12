@@ -152,7 +152,7 @@ const answer = z.discriminatedUnion('status', [
  * child's review proceeds normally.
  */
 export type BlockedContributionCode =
-  'nameWithheld' | 'patchTooLarge' | 'patchUnreadable' | 'tooManyFiles'
+  'nameWithheld' | 'patchTooLarge' | 'patchUnreadable' | 'identityUnreadable' | 'tooManyFiles'
 
 export const playbookRoundSchema = z.strictObject({
   module: playbookModuleSchema,

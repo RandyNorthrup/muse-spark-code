@@ -172,25 +172,44 @@ describe('the panel’s playbook channel', () => {
 
   it('gives the map’s rows their records, and says so when they cannot be read', async () => {
     const setup = panelOver()
+    const scope = { bridgeId: BRIDGE, workspaceId: await workspaceOf(setup) }
     const answer = playbookAgentsSchema.parse(
-      await setup.ask({ type: 'playbookAgents', requestId: 7, children: [ROW] }),
+      await setup.ask({ type: 'playbookAgents', ...scope, requestId: 7, children: [ROW] }),
     )
-    expect(answer.requestId).toBe(7)
+    expect(answer).toMatchObject({ ...scope, requestId: 7 })
     expect(Object.keys(answer.records)).toEqual([ROW.itemId])
     expect(setup.window.agents).toHaveBeenCalledWith([ROW])
     // A journal that holds nothing for the rows is a read that succeeded.
     const empty = panelOver({ agents: () => Promise.resolve({}) })
-    expect(await empty.ask({ type: 'playbookAgents', requestId: 8, children: [ROW] })).toEqual({
+    const emptyScope = { bridgeId: BRIDGE, workspaceId: await workspaceOf(empty) }
+    expect(
+      await empty.ask({ type: 'playbookAgents', ...emptyScope, requestId: 8, children: [ROW] }),
+    ).toEqual({
       type: 'playbookAgents',
+      ...emptyScope,
       requestId: 8,
       records: {},
     })
     // One that could not be read is not: nothing is said about what the rows hold.
     const broken = panelOver({ agents: () => Promise.reject(new Error('private detail')) })
-    expect(await broken.ask({ type: 'playbookAgents', requestId: 9, children: [ROW] })).toEqual({
+    const brokenScope = { bridgeId: BRIDGE, workspaceId: await workspaceOf(broken) }
+    expect(
+      await broken.ask({ type: 'playbookAgents', ...brokenScope, requestId: 9, children: [ROW] }),
+    ).toEqual({
       type: 'playbookAgentsFailed',
+      ...brokenScope,
       requestId: 9,
     })
+  })
+
+  it('answers another journal’s rows as a failure of the bridge that asked', async () => {
+    const setup = panelOver()
+    const scope = { bridgeId: BRIDGE, workspaceId: 'another-window', requestId: 10 }
+    expect(await setup.ask({ type: 'playbookAgents', ...scope, children: [ROW] })).toEqual({
+      type: 'playbookAgentsFailed',
+      ...scope,
+    })
+    expect(setup.window.agents).not.toHaveBeenCalled()
   })
 
   it('answers nothing it cannot read, and does nothing for it', async () => {

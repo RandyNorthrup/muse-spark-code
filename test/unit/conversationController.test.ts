@@ -7361,6 +7361,24 @@ describe('the Agent map’s actions on a child and the window’s playbook (M116
     }
   })
 
+  it('takes a message for new work after a replayed running row for an ended row', async () => {
+    const { f, t, sent } = await childUnderPlaybook({}, CHILD_ROWS.resultReady)
+    // The old running row arrives again: its row already ended, so it is
+    // ignored and the child is not back at work.
+    const began = subagentStarted('sub-1')
+    t.server.notify('item/updated', { ...began, item: { ...began.item, ...CHILD_ROWS.running } })
+    await settle()
+    await t.controller.handle({
+      type: 'subagentMessage',
+      subagentId: 'sub-1',
+      body: 'next',
+      isFollowup: false,
+    })
+    expect(f.dispatches).toEqual([{ kind: 'delegate', sessionId: 's1', targetId: 'sub-1' }])
+    expect(sent()).toEqual(['subagent/sendMessage'])
+    t.controller.dispose()
+  })
+
   it('is one gate for both backends: it stands before the session, whichever backend that is', async () => {
     const f = fakePlaybookConversation({ refusal: new Error(PLAYBOOK_SENTENCE) })
     const t = setup({ hasApprovalUi: true, playbook: f.factory })

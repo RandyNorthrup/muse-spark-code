@@ -53,7 +53,13 @@ export const panelChildSchema = z.strictObject({
   blocked: z.optional(
     z.strictObject({
       id,
-      code: z.enum(['nameWithheld', 'patchTooLarge', 'patchUnreadable', 'tooManyFiles']),
+      code: z.enum([
+        'nameWithheld',
+        'patchTooLarge',
+        'patchUnreadable',
+        'identityUnreadable',
+        'tooManyFiles',
+      ]),
       text,
     }),
   ),

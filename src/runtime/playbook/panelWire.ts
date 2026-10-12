@@ -58,6 +58,7 @@ export const playbookAgentRecordsSchema = z.record(
 const hello = z.strictObject({ type: z.literal('playbookHello') })
 const agents = z.strictObject({
   type: z.literal('playbookAgents'),
+  ...scope,
   requestId,
   children: agentRefs,
 })
@@ -81,9 +82,14 @@ export const playbookHelloSchema = z.strictObject({
  * and offers to ask again; it is never left to look like a host without one.
  */
 export const playbookFailedSchema = z.strictObject({ type: z.literal('playbookFailed') })
-/** The rows' records, as the journal has them: empty when it holds none for them. */
+/**
+ * The rows' records, as the journal has them: empty when it holds none for
+ * them. Both carry the bridge lifetime id, like the read and change calls,
+ * so a reply for a closed map is dropped.
+ */
 export const playbookAgentsSchema = z.strictObject({
   type: z.literal('playbookAgents'),
+  ...scope,
   requestId,
   records: playbookAgentRecordsSchema,
 })
@@ -93,6 +99,7 @@ export const playbookAgentsSchema = z.strictObject({
  */
 export const playbookAgentsFailedSchema = z.strictObject({
   type: z.literal('playbookAgentsFailed'),
+  ...scope,
   requestId,
 })
 export type PlaybookPanelResponse =

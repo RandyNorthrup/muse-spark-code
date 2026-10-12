@@ -425,11 +425,22 @@ describe('which file a path names', { timeout: GOVERNED_ROUND_TIMEOUT_MS }, () =
     expect(() => reviewedChanges(workspace, SESSION, [PANEL_FILES.store], [CHILD], locked)).toThrow(
       UI_TEXT.playbookEvidenceUnreadable,
     )
-    // Only the child's path cannot be read: it may be the reviewed file under another name.
-    const others = [{ ...CHILD, files: [PANEL_FILES.store] }]
-    expect(() => reviewedChanges(workspace, SESSION, [PANEL_FILES.clock], others, locked)).toThrow(
-      UI_TEXT.playbookEvidenceUnreadable,
+    // Only one child's path cannot be read: that child is skipped, and a
+    // clean sibling's review still opens (the conversation reports the
+    // unreadable file as a finding about that child instead).
+    const unreadable = { ...CHILD, files: [PANEL_FILES.store] }
+    expect(reviewedChanges(workspace, SESSION, [PANEL_FILES.clock], [unreadable], locked)).toEqual(
+      [],
     )
+    const siblings: PanelChild[] = [
+      unreadable,
+      { agentId: 'clean-child', sessionId: 'clean-session', files: [PANEL_FILES.clock] },
+    ]
+    expect(
+      reviewedChanges(workspace, SESSION, [PANEL_FILES.clock], siblings, locked).map(
+        (change) => change.file,
+      ),
+    ).toEqual([PANEL_FILES.clock])
     // With no child's file to compare, nothing is read, so nothing can fail.
     expect(reviewedChanges(workspace, SESSION, [PANEL_FILES.store], [], locked)).toEqual([])
     expect(
@@ -616,7 +627,7 @@ describe('which file a path names', { timeout: GOVERNED_ROUND_TIMEOUT_MS }, () =
     setup.governor.cancelReview(reviewId)
   })
 
-  it('knows a file that is gone by its spelling, without regard to case on Windows alone', () => {
+  it('loses a file that is gone by its spelling, on every platform', () => {
     const setup = governed()
     const shouted = 'src/core/schedules/REMOVED.ts'
     const changes = reviewedChanges(
@@ -625,9 +636,23 @@ describe('which file a path names', { timeout: GOVERNED_ROUND_TIMEOUT_MS }, () =
       [shouted],
       [{ ...CHILD, files: [shouted.toLowerCase()] }],
     )
-    // Nothing on disk can say whether the two are one file; Windows names files without case.
+    // A moved file is lost and means lost, on Windows too: existence is
+    // asked of the resolved identity, and neither spelling names a file.
+    expect(changes.map((change) => change.file)).toEqual([])
+  })
+
+  it('still matches a case-different spelling of a file that exists where the file system ignores case', () => {
+    const setup = governed()
+    const upper = PANEL_FILES.clock.toUpperCase()
+    const changes = reviewedChanges(
+      setup.repository.workspace,
+      SESSION,
+      [upper],
+      [{ ...CHILD, files: [PANEL_FILES.clock] }],
+    )
+    // The resolved identity exists: on Windows the two spellings are one file.
     expect(changes.map((change) => change.file)).toEqual(
-      process.platform === 'win32' ? [shouted] : [],
+      process.platform === 'win32' ? [PANEL_FILES.clock] : [],
     )
   })
 })

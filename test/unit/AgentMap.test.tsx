@@ -448,7 +448,13 @@ function hostPlaybook(
       return
     }
     if (request.type === 'playbookAgents') {
-      deliver({ type: 'playbookAgents', requestId: request.requestId, records })
+      deliver({
+        type: 'playbookAgents',
+        bridgeId: request.bridgeId,
+        workspaceId: request.workspaceId,
+        requestId: request.requestId,
+        records,
+      })
       return
     }
     deliver({
@@ -521,11 +527,14 @@ describe('AgentMap and its window’s playbook (M116)', () => {
     const badge = await screen.findByText(/Concurrency: 3 review rounds/u)
     expect(badge.closest('button')).toHaveTextContent('Map the workspace')
     // The reviewer's row has no child session the host recorded: it is not asked about.
-    expect(host.requests).toContainEqual({
-      type: 'playbookAgents',
-      requestId: 1,
-      children: [{ itemId: 'sa1', agentId: 'sub-1', sessionId: 'child-1' }],
-    })
+    expect(host.requests).toContainEqual(
+      expect.objectContaining({
+        type: 'playbookAgents',
+        workspaceId: 'journal-1',
+        requestId: 1,
+        children: [{ itemId: 'sa1', agentId: 'sub-1', sessionId: 'child-1' }],
+      }),
+    )
     expect(screen.getByRole('button', { name: /Review the diff/u })).not.toHaveTextContent(
       'review rounds',
     )
@@ -606,7 +615,12 @@ describe('AgentMap and its window’s playbook (M116)', () => {
         return
       }
       setTimeout(() => {
-        deliver({ type: 'playbookAgentsFailed', requestId: request.requestId })
+        deliver({
+          type: 'playbookAgentsFailed',
+          bridgeId: request.bridgeId,
+          workspaceId: request.workspaceId,
+          requestId: request.requestId,
+        })
       }, 0)
     })
     const props = { ...agentMapProps(), onPlaybook: post }
@@ -643,6 +657,50 @@ describe('AgentMap and its window’s playbook (M116)', () => {
     await screen.findByRole('alert')
     view.rerender(<AgentMap {...props} agents={[reviewer]} />)
     expect(screen.queryByRole('alert')).toBeNull()
+  })
+
+  it('drops a closed map’s reply after the map is closed and reopened', async () => {
+    const held: unknown[] = []
+    const holding = vi.fn((raw: unknown) => {
+      held.push(raw)
+      const request = playbookPanelRequestSchema.parse(raw)
+      if (request.type !== 'playbookHello') return
+      setTimeout(() => {
+        deliver({ type: 'playbookHello', workspaceId: 'journal-1' })
+      }, 0)
+      // The rows' records are held: the first map closes with its request unanswered.
+    })
+    const props = { ...agentMapProps(), onPlaybook: holding }
+    const first = render(<AgentMap {...props} agents={[explorer, reviewer]} />)
+    await waitFor(() => {
+      expect(held.map((raw) => playbookPanelRequestSchema.parse(raw).type)).toContain(
+        'playbookAgents',
+      )
+    })
+    const old = playbookPanelRequestSchema.parse(
+      held.find((raw) => playbookPanelRequestSchema.parse(raw).type === 'playbookAgents'),
+    )
+    if (old.type !== 'playbookAgents') throw new Error('The first map never asked for its rows')
+    first.unmount()
+    // The reopened map asks anew and is answered; then the old map's reply arrives late.
+    const host = hostPlaybook('journal-1', { sa1: surfaceSnapshot().records })
+    const reopened = { ...agentMapProps(), onPlaybook: host.post }
+    render(<AgentMap {...reopened} agents={[explorer, reviewer]} />)
+    await screen.findByText(/Concurrency: 3 review rounds/u)
+    deliver({
+      type: 'playbookAgents',
+      bridgeId: old.bridgeId,
+      workspaceId: old.workspaceId,
+      requestId: old.requestId,
+      records: {},
+    })
+    await act(async () => {
+      await new Promise((resolve) => {
+        setTimeout(resolve, 20)
+      })
+    })
+    // The closed map's empty records never overwrite the open map's badge.
+    expect(screen.getByText(/Concurrency: 3 review rounds/u)).toBeInTheDocument()
   })
 
   it('leaves a host that hands the map its own port alone', async () => {
