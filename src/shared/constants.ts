@@ -5989,6 +5989,7 @@ export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
   'dist/providerCatalog.js',
   'dist/modelApiHooks.js',
   'dist/modelApiMcp.js',
+  'dist/modelApiTools.js',
 ])
 // One window journals at most this many failures in REPORT_RECORD_WINDOW_MS
 // (M93): a render or reconnect loop cannot turn every frame into a disk
