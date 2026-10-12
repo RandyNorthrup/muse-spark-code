@@ -10,9 +10,10 @@
 //   through a redacting formatter (failureForLog and friends), the error sent
 //   through a record-bound channel (the webview's webviewErrorReport), a
 //   fixed-message log on a path that returns nothing to the person, or a
-//   fixed-vocabulary code (observeError and friends, `deps.failed()`). A fixed
-//   throw or fallback counts as REPORTED when the same handler also records
-//   the kind: the person gets a typed failure and the record keeps the cause.
+//   fixed-vocabulary code (observeError and friends, the `deps.failed()` and
+//   `questionFailed()` / `questionStateNotSaved()` markers). A fixed throw or
+//   fallback counts as REPORTED when the same handler also records the kind:
+//   the person gets a typed failure and the record keeps the cause.
 // - SWALLOW: the handler neither uses the error nor rethrows nor reports.
 // - GENERIC: the handler replaces whatever was thrown with one fixed sentence
 //   or generic error for every cause. A fixed-string log without the error
@@ -20,7 +21,10 @@
 //   the raw error outside a redacting formatter is GENERIC too, never
 //   REPORTED, so the audit cannot bless a privacy leak.
 // - CLEANUP: a swallow-shaped handler on an already-failing path, marked by a
-//   reason comment on the catch line itself.
+//   reason comment on the catch line or as the handler's leading comment
+//   (prettier expands an empty `catch { // reason }` onto its own lines, so a
+//   same-line comment does not survive formatting; the leading comment is the
+//   stable form).
 //
 // The classifier is conservative: when unsure it answers SWALLOW or GENERIC,
 // never NARROW or REPORTED. A `throw` inside a nested function does not
@@ -144,16 +148,21 @@ function isCodeRecordCall(node) {
 }
 
 /**
- * A `deps.failed()` marker: the dependencies' documented fixed diagnostic
- * (the question stack funnels it to a fixed-vocabulary code). Scoped to
- * `deps` receivers so an unrelated `failed()` cannot bless a handler.
+ * A fixed-diagnostic marker: the dependencies' documented `failed()` (the
+ * question stack funnels it to a fixed-vocabulary code) and the agent's own
+ * `questionFailed()` / `questionStateNotSaved()`, whose bodies are a single
+ * fixed-message log. Scoped to zero-argument calls on `deps`/`this`
+ * receivers, so an unrelated `failed()` cannot bless a handler.
  */
-function isDepsFailedCall(node) {
+const DIAGNOSTIC_MARKERS = new Set(['failed', 'questionFailed', 'questionStateNotSaved'])
+function isDiagnosticMarkerCall(node) {
   if (!ts.isCallExpression(node) || node.arguments.length > 0) return false
   const target = unparen(node.expression)
-  if (!ts.isPropertyAccessExpression(target) || target.name.text !== 'failed') return false
+  if (!ts.isPropertyAccessExpression(target) || !DIAGNOSTIC_MARKERS.has(target.name.text))
+    return false
   const receiver = unparen(target.expression)
   return (
+    receiver.kind === ts.SyntaxKind.ThisKeyword ||
     (ts.isIdentifier(receiver) && receiver.text === 'deps') ||
     (ts.isPropertyAccessExpression(receiver) && receiver.name.text === 'deps')
   )
@@ -313,14 +322,15 @@ function isMeaningfulReturn(node) {
 
 /**
  * Classify one handler body. `binding` is the caught name, if any.
- * `catchLine` is the source line of the `catch` keyword or `.catch(` call:
- * only a reason comment there marks CLEANUP.
+ * `catchLine` is the source line of the `catch` keyword or `.catch(` call;
+ * `leading` is the handler's leading comment text, if any. A reason comment
+ * in either place marks CLEANUP.
  */
 export function classifyHandler(body, options) {
-  const { binding, catchLine } = options
+  const { binding, catchLine, leading } = options
   const block = ts.isBlock(body) ? body : undefined
   if (block === undefined && body === undefined)
-    return hasReasonComment(catchLine) ? 'CLEANUP' : 'SWALLOW'
+    return hasReason(catchLine, leading) ? 'CLEANUP' : 'SWALLOW'
   let isTested = false
   let isAborted = false
   let isThrown = false
@@ -354,7 +364,7 @@ export function classifyHandler(body, options) {
     }
     if (binding !== undefined && isRedactedCall(node, binding)) isRedacted = true
     if (isErrorSinkCall(node, binding)) isSink = true
-    if (isCodeRecordCall(node) || isDepsFailedCall(node)) isCodeRecorded = true
+    if (isCodeRecordCall(node) || isDiagnosticMarkerCall(node)) isCodeRecorded = true
     if (!isLogCall(node)) {
       return
     }
@@ -371,7 +381,7 @@ export function classifyHandler(body, options) {
   walkOwn(block ?? body, examine)
   const namedTest = isTested || isAborted
   const reported = isRedacted || isSink
-  if (!hasRawLog && namedTest && (isThrown || reported)) return 'NARROW'
+  if (!hasRawLog && namedTest && (isThrown || reported || isCodeRecorded)) return 'NARROW'
   if (!hasRawLog && isThrown) {
     // A rethrow (or a throw carrying the cause) reports everything. A fixed
     // throw counts too when the handler records the kind beside it; a fixed
@@ -390,14 +400,14 @@ export function classifyHandler(body, options) {
     !isCodeRecorded &&
     !isReturnedValue
   )
-    return hasReasonComment(catchLine) ? 'CLEANUP' : 'SWALLOW'
+    return hasReason(catchLine, leading) ? 'CLEANUP' : 'SWALLOW'
   if (!hasErrorUse && !isThrown && !reported && !isLogged && !isCodeRecorded && !isReturnedValue)
-    return hasReasonComment(catchLine) ? 'CLEANUP' : 'SWALLOW'
+    return hasReason(catchLine, leading) ? 'CLEANUP' : 'SWALLOW'
   return 'GENERIC'
 }
 
-function hasReasonComment(catchLine) {
-  return catchLine.includes('//') || catchLine.includes('/*')
+function hasReason(catchLine, leading) {
+  return catchLine.includes('//') || catchLine.includes('/*') || (leading ?? '').trim().length > 0
 }
 
 function snippetOf(source, node) {
@@ -411,6 +421,18 @@ function catchLineOf(source, position) {
   let end = position
   while (end < text.length && text[end] !== '\n') end++
   return text.slice(start, end)
+}
+
+/** The comment text directly inside the handler's opening brace, if any. */
+function leadingOf(source, body) {
+  if (!ts.isBlock(body)) return ''
+  // getEnd sits past `}`: step back onto it. A first statement's own start
+  // scans back over exactly its leading trivia.
+  // The span holds only trivia (whitespace and comments): statements start
+  // after it, and strings cannot appear before the first statement.
+  const innerEnd =
+    body.statements.length > 0 ? body.statements[0].getFullStart() : body.getEnd() - 1
+  return source.text.slice(body.getStart(source) + 1, innerEnd)
 }
 
 function isCatchProperty(expression) {
@@ -439,6 +461,7 @@ export function classifySource(relative, source) {
         class: classifyHandler(node.block, {
           binding,
           catchLine: catchLineOf(source, node.getStart(source)),
+          leading: leadingOf(source, node.block),
         }),
         snippet: snippetOf(source, node.block),
       })
@@ -460,6 +483,7 @@ export function classifySource(relative, source) {
           class: classifyHandler(handler.body, {
             binding,
             catchLine: catchLineOf(source, node.expression.getStart(source)),
+            leading: leadingOf(source, handler.body),
           }),
           snippet: snippetOf(source, handler.body),
         })

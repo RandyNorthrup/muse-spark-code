@@ -728,6 +728,43 @@ describe('the ACP agent (M63)', () => {
     expect(messages).toContain('Final message')
   })
 
+  it('CATCHAUDIT: a failed subagent recovery is recorded and reads unavailable', async () => {
+    const h = harness({
+      canBypass: true,
+      initialMode: 'bypassPermissions',
+      answer: () => ({ outcome: { outcome: 'selected', optionId: 'recover' } }),
+    })
+    vi.spyOn(h.host, 'readSession').mockResolvedValue({
+      mode: 'inline',
+      items: [
+        {
+          itemId: 'a',
+          kind: 'subagent',
+          subagentId: 'child',
+          status: 'failed',
+        },
+      ],
+      name: undefined,
+      todos: [],
+    })
+    await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      h.host.sessions[0]?.controlSubagent.mockRejectedValueOnce(new Error('CONTROL-CANARY'))
+      await prompt(client, sessionId, '/agents continue child')
+    })
+    const messages = h.updates
+      .flatMap((update) =>
+        update.sessionUpdate === 'agent_message_chunk' && update.content.type === 'text'
+          ? [update.content.text]
+          : [],
+      )
+      .join('\n')
+    expect(messages).toContain(UI_TEXT.agentContinueUnavailable)
+    const logged = h.log.warn.mock.calls.map((call) => String(call[0])).join('\n')
+    expect(logged).toContain('subagent continue failed')
+    expect(logged).not.toContain('CONTROL-CANARY')
+  })
+
   it('initializes with its capabilities, and a terminal sign-in only for a client that runs one', async () => {
     const h = harness()
     const [plain, terminal] = await h.run(async (client) => [
@@ -1655,6 +1692,12 @@ describe('the ACP agent (M63)', () => {
     expect(h.host.sessions[0]?.settleElicitation).toHaveBeenLastCalledWith('elicit-1', {
       kind: 'cancelled',
     })
+    // CATCHAUDIT: the refused accept is recorded redacted, never the content.
+    const logged = h.log.warn.mock.calls.map((call) => String(call[0])).join('\n')
+    expect(logged).toContain('not accepted')
+    expect(logged).toContain('Error')
+    expect(logged).not.toContain('Ada')
+    expect(logged).not.toContain('does not fit')
   })
 
   it('logs a backend failure by its MSP kind and code, never the CLI’s message', async () => {
@@ -3198,6 +3241,10 @@ describe('FIXM116I4 model-start answer commits', () => {
       await f.seed(sessionId)
       f.save.mockRejectedValueOnce(new Error('PRIVATE-COMMIT-CANARY'))
       await expect(prompt(client, sessionId)).rejects.toThrow(UI_TEXT.questionQueueCommitFailed)
+      // CATCHAUDIT: the failed commit is recorded redacted, never the cause.
+      const logged = f.h.log.warn.mock.calls.map((call) => String(call[0])).join('\n')
+      expect(logged).toContain('retaining pending')
+      expect(logged).not.toContain('PRIVATE-COMMIT-CANARY')
       const overlap = didRequestSucceed(prompt(client, sessionId, 'overlap'))
       await prompt(client, sessionId, '/questions')
       expect(f.h.host.sessions[0]!.sendTurn).toHaveBeenCalledTimes(1)
