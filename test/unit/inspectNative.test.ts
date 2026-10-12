@@ -17,6 +17,7 @@ import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { fileIdentityKey, statIdentity } from '../../src/core/fs/fileIdentity'
 import { InspectRunner } from '../../src/core/judge/fast/inspectExec'
+import { parseInspectCommand } from '../../src/core/judge/fast/inspectGrammar'
 import { inspectStart } from './helpers/inspectStart'
 import { inspectPathSpellings, inspectProtectedPaths } from './helpers/inspectPaths'
 
@@ -201,6 +202,35 @@ if (process.platform === 'linux') {
         expect(stdout).toContain(`Device: ${expected.dev.toString(16)}h/${String(expected.dev)}d `)
         expect(stdout).toContain(kind)
       }
+    })
+    it('stat -- name answers: the grammar drops the separator the helper would refuse', async () => {
+      // Builds the helper argv exactly as InspectRunner.execute does, so the
+      // grammar's tool arguments and the helper's mirror check must agree.
+      const h = await fixture()
+      const parsed = parseInspectCommand('stat -- allowed.txt')
+      expect(parsed).toMatchObject({
+        program: 'stat',
+        args: ['allowed.txt'],
+        operands: ['allowed.txt'],
+      })
+      if (parsed === undefined) throw new Error('Missing parsed command')
+      const result = await native(
+        binary,
+        [
+          'run',
+          h.workspace,
+          h.binding.identity,
+          h.home,
+          'single',
+          parsed.program,
+          ...parsed.operands,
+          '--',
+          ...parsed.args,
+        ],
+        h.root,
+      )
+      expect(result.code, result.stderr).toBe(0)
+      expect(result.stdout.toString()).toContain('File: allowed.txt\n')
     })
     it('B1-3/4/5/6/7 excludes protected/private descendants, links, devices, hard links and foreign device ids', async () => {
       const h = await fixture()
