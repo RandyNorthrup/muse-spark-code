@@ -11566,7 +11566,7 @@
     },
     {
       "file": "src/webview/usage/AttemptsSection.tsx",
-      "sha256": "239a401e13291aeb8547433d398138323063958be5beeb0691ec8e1ca938f409"
+      "sha256": "8d3e95112a10f105e70829dd1597924eba7a7cd68eaabed4cd0cb4e455519fef"
     },
     {
       "file": "src/webview/usage/BreakdownTable.tsx",
@@ -11614,7 +11614,7 @@
     },
     {
       "file": "src/webview/usage/UsageApp.tsx",
-      "sha256": "fba19e01942e5765b548101cd1745503bda87eb468f2c25fc76edb92cc954ac8"
+      "sha256": "94df1718a3631eca3ffd84663f357065598d55064d9f5990d91c0175a2cbb50f"
     },
     {
       "file": "src/webview/usage/accountsSectionLoader.ts",
