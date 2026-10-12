@@ -3128,7 +3128,12 @@ export class ModelApiSession implements ScheduledAgentSession {
     try {
       const assist = await this.toolAssist()
       return assist.checkPageUrl(raw)
-    } catch {
+    } catch (error) {
+      // The refusal reason says the log says why: keep the cause's class
+      // beside the chunk named, never its text. Still fail closed.
+      this.deps.log.warn(
+        `The model call helpers could not be loaded (modelApiTools.js): ${errorName(error)}`,
+      )
       return undefined
     }
   }
