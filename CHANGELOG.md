@@ -9,6 +9,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Workspace file refusals reach both the model and ACP tool rows with a typed reason; approval cannot widen write access.
+- ACP, CLI and exec model instructions describe their actual host and available tools, preserving VS Code request text. Account, resource, question and schedule advisories stay out of model answers.
+
 - ACP turn responses and updates expose journal-backed exact costs, token classes and remaining budgets. Failed turns retain incurred-cost metadata.
 - Verbose exec logs name failed-turn causes; resource logs name unavailable readings once.
 

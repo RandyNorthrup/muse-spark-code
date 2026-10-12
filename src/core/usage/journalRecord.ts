@@ -34,15 +34,15 @@ export type UsageRecordContext = Omit<
   UsageRecord,
   'v' | 'type' | 'tokens' | 'cost' | 'day' | 'timezoneOffsetMins'
 > & {
-  readonly pricing?: ModelPricing
+  readonly pricing?: ModelPricing | undefined
   /** The same model's list card only; never an alias or a user override. */
-  readonly apiEquivalentCard?: PriceCard
-  readonly priceDate?: string
-  readonly providerCostUsd?: UsdAmount
-  readonly costInUsdTicks?: number
-  readonly estimatedTokens?: boolean
-  readonly uncertain?: boolean
-  readonly retainedLiabilityUsd?: UsdAmount
+  readonly apiEquivalentCard?: PriceCard | undefined
+  readonly priceDate?: string | undefined
+  readonly providerCostUsd?: UsdAmount | undefined
+  readonly costInUsdTicks?: number | undefined
+  readonly estimatedTokens?: boolean | undefined
+  readonly uncertain?: boolean | undefined
+  readonly retainedLiabilityUsd?: UsdAmount | undefined
 }
 
 export function normaliseUsage(
@@ -200,7 +200,10 @@ function settleCost(context: UsageRecordContext, tokens: UsageTokens): UsageCost
     certainty,
     usd: Number(computed),
     usdAmount: computed,
-    ...(settlement?.upperBound === true && { upperBound: true }),
+    ...((settlement?.upperBound === true ||
+      (card === undefined && hasMetaPrice(context) && (tokens.cacheWrite ?? 0) > 0)) && {
+      upperBound: true,
+    }),
     source: tool !== undefined || card === undefined ? 'meta-published' : card.source,
     ...(date !== undefined && { date }),
   }

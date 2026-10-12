@@ -4,7 +4,7 @@ import { usdInputSchema } from '../../src/shared/usdSchema'
 import { AcpAccounts, companionAccountsPanel, type AccountsPanelPort } from '../../src/acp/accounts'
 import { createAcpAgent, type AcpAgentDeps } from '../../src/acp/agent'
 import { AcpPaidUse } from '../../src/acp/paid'
-import { ACP_CONFIG_IDS, UI_TEXT } from '../../src/shared/constants'
+import { ACP_CONFIG_IDS, ACP_ERROR_CODES, UI_TEXT } from '../../src/shared/constants'
 import {
   accountSwap,
   commandAccountsRig,
@@ -57,7 +57,7 @@ function connectedAccounts(isBound = true) {
     await client.connectWith(agent, async (connection) => {
       await connection.request('initialize', {
         protocolVersion: acp.PROTOCOL_VERSION,
-        clientCapabilities: {},
+        clientCapabilities: { session: { notices: {} } },
       })
       const session = await connection.request('session/new', {
         cwd: process.cwd(),
@@ -137,7 +137,7 @@ describe('M108 ACP accounts', () => {
           prompt: [{ type: 'text', text: '/accounts' }],
         }),
       ).rejects.toMatchObject({
-        code: acp.RequestError.internalError().code,
+        code: ACP_ERROR_CODES.unavailable,
         message: expect.stringContaining(UI_TEXT.accounts.unavailable),
       })
       await expect(
@@ -147,7 +147,7 @@ describe('M108 ACP accounts', () => {
           value: 'work',
         }),
       ).rejects.toMatchObject({
-        code: acp.RequestError.internalError().code,
+        code: ACP_ERROR_CODES.unavailable,
         message: expect.stringContaining(UI_TEXT.accounts.unavailable),
       })
       expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
@@ -172,7 +172,7 @@ describe('M108 ACP accounts', () => {
           ]),
         }),
       )
-      const notices = h.updates.filter((update) => update.sessionUpdate === 'agent_message_chunk')
+      const notices = h.updates.filter((update) => update.sessionUpdate === 'notice')
       expect(JSON.stringify(notices)).toContain(
         'Now on meta · Work: Default reached spendUsd: $1.00 (day).',
       )
@@ -201,7 +201,7 @@ describe('M108 ACP accounts', () => {
         sessionId: id,
         prompt: [{ type: 'text', text: '/accounts current' }],
       })
-      const notices = h.updates.filter((update) => update.sessionUpdate === 'agent_message_chunk')
+      const notices = h.updates.filter((update) => update.sessionUpdate === 'notice')
       expect(JSON.stringify(notices)).toContain('spendUsd: $0.1001 (day).')
       expect(JSON.stringify(notices)).not.toContain('$0.1000')
     })
@@ -634,10 +634,7 @@ describe('M108 ACP accounts', () => {
                     value: 'work',
                   })
             await expect(request).rejects.toThrow(UI_TEXT.accounts.unavailable)
-            await expect(request).rejects.toHaveProperty(
-              'code',
-              acp.RequestError.internalError().code,
-            )
+            await expect(request).rejects.toHaveProperty('code', ACP_ERROR_CODES.unavailable)
           }
         }
         expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()

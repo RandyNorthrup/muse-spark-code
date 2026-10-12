@@ -491,6 +491,7 @@ import {
   type EditFormatter,
   type FormatTarget,
   executeTool,
+  pathRefusal,
   parseQuestions,
   type ReadMediaFile,
   readSkillArgs,
@@ -601,6 +602,7 @@ export interface ModelApiPaidHooks {
 }
 
 export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDeps {
+  readonly hostKind?: 'vscode' | 'acp' | 'cli' | 'exec' | undefined
   /** M105-A: M2 binds the attachment choices to the portable sound router in
    * dist/media.js. Absent until that lane is integrated; no eager media load. */
   readonly prepareAudioMessage?: (request: {
@@ -4191,6 +4193,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       read(checks, JSON.stringify(checks), { kind: 'harness', operation: 'verify-settings' }, false)
     return {
       instructions: instructionsFor({
+        hostKind: this.deps.hostKind,
         identity: replayProducer(this.modelId),
         workspaceRoot: this.deps.workspaceRoot,
         platform: this.deps.platform,
@@ -9870,7 +9873,11 @@ export class ModelApiSession implements ScheduledAgentSession {
       return { output: reason, visibleOutput: reason, failureReason: reason }
     }
     if ((name === 'delegate' || name === 'merge') && !this.deps.isWorkspaceTrusted()) {
-      return toolFailure(MODEL_API_MODEL_TEXT.shellRestrictedMode)
+      return toolFailure(
+        this.deps.hostKind === undefined || this.deps.hostKind === 'vscode'
+          ? MODEL_API_MODEL_TEXT.shellRestrictedMode
+          : MODEL_API_MODEL_TEXT.runtimeNoShell,
+      )
     }
     if (
       this.approvalMode === 'denyUnmatched' &&
@@ -10672,7 +10679,13 @@ export class ModelApiSession implements ScheduledAgentSession {
     isAllowed: () => boolean,
   ): Promise<Performed> {
     if (!this.deps.isWorkspaceTrusted())
-      return { outcome: toolFailure(MODEL_API_MODEL_TEXT.checkSkipRestricted) }
+      return {
+        outcome: toolFailure(
+          this.deps.hostKind === undefined || this.deps.hostKind === 'vscode'
+            ? MODEL_API_MODEL_TEXT.checkSkipRestricted
+            : MODEL_API_MODEL_TEXT.runtimeNoShell,
+        ),
+      }
     const configured = this.checkCommands()
     if (configured.length === 0) {
       return { outcome: toolFailure(MODEL_API_MODEL_TEXT.runChecksNone) }
@@ -11719,10 +11732,18 @@ export class ModelApiSession implements ScheduledAgentSession {
     if ((toolClass === 'shell' || toolClass === 'mcp') && !this.deps.isWorkspaceTrusted()) {
       // Restricted Mode (PLAN.md D13): the tool is not offered, and a model
       // that calls it anyway is refused, never prompted.
-      const reason =
-        toolClass === 'mcp'
-          ? MODEL_API_MODEL_TEXT.mcpRestrictedMode
-          : MODEL_API_MODEL_TEXT.shellRestrictedMode
+      let reason: string
+      if (this.deps.hostKind !== undefined && this.deps.hostKind !== 'vscode') {
+        reason =
+          toolClass === 'mcp'
+            ? MODEL_API_MODEL_TEXT.runtimeMcpRefused
+            : MODEL_API_MODEL_TEXT.runtimeNoShell
+      } else {
+        reason =
+          toolClass === 'mcp'
+            ? MODEL_API_MODEL_TEXT.mcpRestrictedMode
+            : MODEL_API_MODEL_TEXT.shellRestrictedMode
+      }
       return { outcome: toolFailure(reason), isRejected: true }
     }
     const policy = this.policy()
@@ -11745,7 +11766,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     const target = toolClass === 'edit' ? await this.editTarget(call) : undefined
     if (target?.ok === false) {
       // A path the tool would refuse anyway is refused before any card.
-      return { outcome: toolFailure(target.reason), isRejected: false }
+      return { outcome: pathRefusal(target), isRejected: target.code === 'outside_workspace' }
     }
     if (target?.ok === true && policy.files.isDenied([target.relative, target.canonical])) {
       return { outcome: deniedPath(target.relative), isRejected: true }
@@ -12166,6 +12187,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       ...started,
       status,
       visibleOutput: outcome.visibleOutput,
+      ...(outcome.refusalCode !== undefined && { refusalCode: outcome.refusalCode }),
       ...(outcome.exitCode !== undefined && { exitCode: outcome.exitCode }),
       ...(started.recordedAt !== undefined && {
         durationMs: Math.max(0, this.deps.now() - Date.parse(started.recordedAt)),
@@ -12579,6 +12601,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       // about, not the end of the turn.
       result = { outcome: thrownToolOutcome(error), isRejected: false }
     }
+    if (result.outcome.refusalCode !== undefined) result = { ...result, isRejected: true }
     if (signal.aborted || result.isRejected || result.outcome.failureReason !== undefined)
       prepared.provisionalSeen.clear()
     if (isParallelRead(effectiveCall.name) && this.externalTool(effectiveCall.name)?.kind !== 'mcp')

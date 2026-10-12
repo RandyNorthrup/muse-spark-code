@@ -71,7 +71,7 @@ async function scene() {
     client.connectWith(agent, async (connection) => {
       await connection.request('initialize', {
         protocolVersion: acp.PROTOCOL_VERSION,
-        clientCapabilities: {},
+        clientCapabilities: { session: { notices: {} } },
       })
       const { sessionId } = await connection.request('session/new', {
         cwd: process.cwd(),
@@ -255,9 +255,7 @@ describe('M107 H ACP resources', () => {
         ).toBe(true)
       })
       expect(s.updates.filter((update) => update.sessionId === created.sessionId)).toHaveLength(0)
-      const notices = s.updates.filter(
-        ({ update }) => update.sessionUpdate === 'agent_message_chunk',
-      )
+      const notices = s.updates.filter(({ update }) => update.sessionUpdate === 'notice')
       expect(notices).toHaveLength(1)
       const call = s.updates.find(
         ({ update }) => update.sessionUpdate === 'tool_call_update',
@@ -337,7 +335,7 @@ describe('M107 H ACP resources', () => {
         s.updates.filter(
           ({ sessionId: updatedId, update }) =>
             updatedId === id &&
-            update.sessionUpdate === 'agent_message_chunk' &&
+            update.sessionUpdate === 'session_info_update' &&
             update._meta?.['museSpark.resources'] !== undefined,
         )
       await vi.waitFor(() => {
@@ -352,11 +350,11 @@ describe('M107 H ACP resources', () => {
         })),
       )
       const fullWarnings = (id: string) =>
-        levelUpdates(id).filter(
-          ({ update }) =>
-            update.sessionUpdate === 'agent_message_chunk' &&
-            update.content.type === 'text' &&
-            update.content.text.includes(UI_TEXT.resourceResumeNow),
+        s.updates.filter(
+          ({ sessionId: updatedId, update }) =>
+            updatedId === id &&
+            update.sessionUpdate === 'notice' &&
+            update.description?.includes(UI_TEXT.resourceResumeNow),
         )
       expect(fullWarnings(sessionId)).toHaveLength(1)
       expect(fullWarnings(second.sessionId)).toHaveLength(1)
@@ -409,8 +407,8 @@ describe('M107 H ACP resources', () => {
       }),
     ).toMatchObject([
       {
-        sessionUpdate: 'agent_message_chunk',
-        content: { text: 'device notice from the relocation port' },
+        sessionUpdate: 'session_info_update',
+        _meta: { 'museSpark.resources': { event: { type: 'relocated' } } },
       },
     ])
   })

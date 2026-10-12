@@ -101,7 +101,6 @@ import {
 import { type AcpPaidUse, paidUseAnswer, paidUseOptions } from './paid'
 import { acpResourceCommand, acpResourceUpdates, resourceCommands } from './resources'
 import type { RuntimeResources } from '../runtime/resources/port'
-import { resourceStatusText } from '../runtime/resources/text'
 import type {
   AcpQuestionDeferral,
   AcpQuestionRegistry,
@@ -350,7 +349,7 @@ class AcpSession {
   private preparing: PreparingPrompt | undefined
   private skills: readonly SkillSummary[] = []
   private areCommandsAnnounced = false
-  private hasShownResourcePause = false
+  private readonly notices = new Set<string>()
   private releaseSchedules: (() => Promise<void>) | undefined
   private isScheduleHostAvailable = true
   private effort: EffortLevel = DEFAULT_EFFORT
@@ -406,13 +405,14 @@ class AcpSession {
     )
     this.unsubscribeResources = deps.resources?.subscribe(this.sessionId, (notice) => {
       const updates = acpResourceUpdates(notice)
-      const isPause = notice.event.type === 'levelChanged' && notice.event.to === 'pause'
-      for (const update of updates) {
-        if (isPause && this.hasShownResourcePause && update.sessionUpdate === 'agent_message_chunk')
-          update.content = { type: 'text', text: resourceStatusText(notice.status) }
-        this.send(update)
-      }
-      if (isPause) this.hasShownResourcePause = true
+      for (const update of updates) this.send(update)
+      if (updates.some((update) => update.sessionUpdate === 'session_info_update'))
+        this.showNotice(
+          notice.text,
+          `resources.${notice.event.type}.${notice.status.level}`,
+          UI_TEXT.resourceTitle,
+          notice.status.level === 'pause' ? 'warning' : 'info',
+        )
     })
     // The session subscribes in loadQuestions (M112): subscribing here too
     // would deliver every backend event twice.
@@ -430,10 +430,10 @@ class AcpSession {
             },
             (text, event) => {
               this.send({
-                sessionUpdate: 'agent_message_chunk',
+                sessionUpdate: 'session_info_update',
                 _meta: { accountNotice: event },
-                content: { type: 'text', text },
               })
+              this.showNotice(text, `account.${text}`)
             },
           )
   }
@@ -454,7 +454,7 @@ class AcpSession {
           starting: this.starting,
         }),
         notice: (text) => {
-          this.questionNotice(text)
+          this.showNotice(text)
         },
         failed: () => {
           this.questionFailed()
@@ -1021,10 +1021,15 @@ class AcpSession {
       const { elicitationSchema, elicitationText, parseElicitationResult } =
         this.questionBundle().acpElicitation(UI_TEXT, uiLocale())
       if (settle === undefined || this.clientCapabilities.elicitation?.form == null) {
-        this.send({
-          sessionUpdate: 'agent_message_chunk',
-          content: { type: 'text', text: elicitationText(message, event.fields) },
-        })
+        const text = elicitationText(message, event.fields)
+        if (event.itemId === undefined) this.showNotice(text, `elicitation.${event.elicitationId}`)
+        else
+          this.send({
+            sessionUpdate: 'tool_call_update',
+            toolCallId: event.itemId,
+            status: 'pending',
+            content: [{ type: 'content', content: { type: 'text', text } }],
+          })
       } else {
         const request: CreateElicitationRequest = {
           sessionId: this.sessionId,
@@ -1366,6 +1371,22 @@ class AcpSession {
       await work
     })()
     return work
+  }
+
+  private showNotice(
+    text: string,
+    key = text,
+    title = text,
+    severity: 'info' | 'warning' = 'info',
+  ): void {
+    if (this.clientCapabilities.session?.notices == null || this.notices.has(key)) return
+    this.notices.add(key)
+    this.send({
+      sessionUpdate: 'notice',
+      severity,
+      title,
+      ...(title !== text && { description: text }),
+    })
   }
 
   public async askPaidUse(request: PaidUseRequest, canRemember: boolean): Promise<PaidUseAnswer> {
@@ -2148,10 +2169,12 @@ class AcpSession {
       this.isScheduleHostAvailable = false
       this.deps.log.warn('ACP schedule workspace startup failed')
       observeError(this.deps, 'scheduleHostStartFailed')
-      this.send({
-        sessionUpdate: 'agent_message_chunk',
-        content: { type: 'text', text: UI_TEXT.scheduleV2.runtime.hostUnavailable },
-      })
+      this.showNotice(
+        UI_TEXT.scheduleV2.runtime.hostUnavailable,
+        'schedule.host',
+        UI_TEXT.scheduleV2.labels.title,
+        'warning',
+      )
     }
   }
 

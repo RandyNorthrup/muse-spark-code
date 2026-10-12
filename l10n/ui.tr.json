@@ -3430,6 +3430,7 @@
   "acpKeyPresent": "Bir Meta Model API anahtarı saklanıyor: {store}.",
   "acpKeyAbsent": "Saklanan Meta Model API anahtarı yok.",
   "acpKeyCleared": "Meta Model API anahtarı bu bilgisayarın kimlik bilgisi deposundan kaldırıldı.",
+  "acpOutsideWorkspaceRefused": "Çalışma alanının dışında; hiçbir şey okunmadı veya yazılmadı. Onay, çalışma alanı erişimini genişletemez.",
   "acpCredentialStoreNoAnswer": "Kimlik bilgisi deposu yanıt vermedi. Bu istek gönderilmedi; tekrar deneyin.",
   "acpStoreUnavailable": "Bu bilgisayarın kimlik bilgisi deposu kullanılamıyor ({reason}). Linux'ta aracının GNOME Keyring veya KWallet gibi çalışan ve kilidi açık bir Secret Service hizmetine ihtiyacı vardır.",
   "acpStoreNames": {

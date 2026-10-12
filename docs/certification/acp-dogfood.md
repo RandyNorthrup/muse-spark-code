@@ -88,3 +88,46 @@ unavailable after two settled calls. Four complete cases pass at default
 5 s test deadlines. Failed requests do not reach HTTP and the next prompt
 succeeds. Receipts and metadata share the journal's exact $0.000548 per
 request. All servers and keep-alive sockets close in finally.
+
+## Items 5 and 6 — boundaries and host facts
+
+Outside writes/edits/read failures and outside list/search globs are typed
+`outside_workspace` results, visible to model and client, with no approval or
+I/O. Linked escapes retain their technical detail. Windows separators and
+absolute/traversal paths are covered. Red: 3/3 cases failed without the guard;
+`temp/acpdog-5-red.log`. Green: paths + host environments + complete tools:
+3 files / 88 tests at repository deadlines.
+
+Runtime host identity, absent shell, questions, language services, diagnostics
+and unavailable git facts name their actual host. VS Code defaults retain
+identical text. Red: environment suite 7 failed / 1 passed before the fix.
+Added deliberate host goldens: `hosts/acp-meta.json`, `hosts/acp-provider.json`,
+`hosts/cli-meta.json`, `hosts/cli-provider.json`, `hosts/exec-meta.json` and
+`hosts/exec-provider.json`, under `test/fixtures/golden-requests/`.
+Each records its actual standalone host; exec also records absent questions.
+Original VS Code goldens are unchanged.
+
+Item 7 sweep: resource/account state and unsolicited question-delivery/status
+notices use negotiated notices; resource/account machine data use session-info
+metadata. An elicitation without forms stays under its tool row (or a notice
+when standalone). Schedule startup failures use notices. Explicit local command
+answers remain answers. ACP agent/resources/accounts: 3 files / 181 tests pass.
+
+## Intentional-break drills after implementation
+
+Each mutation failed its owning suite at the repository deadline, in batches
+of at most three files and three workers. A `finally` restored the original
+bytes and compared SHA-256. No gate, timeout, baseline or hook was weakened.
+Mutation receipts: `temp/acpdog-drill-{0,1,2}.{log,json}`.
+
+| Item | Deliberately broken guard       | Restored SHA-256                                                   |
+| ---- | ------------------------------- | ------------------------------------------------------------------ |
+| 7    | notice channel                  | `6979370a674b4d8677928108eede820999288c5cf541f8b8b4fbbd53ef6d393c` |
+| 1    | request-local retry loop        | `23b65d867ef79e334343a4b1b67bcfd3722bb03746e63a2cb0bfd5ca53eef463` |
+| 4    | 5 m write rate                  | `759fc7e67844582b3e6373012dc5259f45749978ffd0f07fd6f46e55dc91bd7b` |
+| 2    | internal failure cause log      | `92ad9f77fe57de97f1894e0a35488718aebdc18bbb7faa7a204dfa8a7c19ad9a` |
+| 5    | outside-workspace typed result  | `a674c30b9719ee0fa6580d9aa8d7c2c8b3e6af78ddbe26bcb4f3dc1452c85ce6` |
+| 6    | runtime identity and host facts | `581b174ad4c619881c7e5ff238c21dcfdbcdd26698fb68c5ebbd60349825e03a` |
+| 3    | turn record selection           | `8ccd86e60132ba952a96719942657b40c7e6eb04766e8f6680db5366afcec1d2` |
+| 8    | named reading deduplication     | `049ce444049097b5c8e6e41807f4dc9ed55575dde7242b9f1c01f111b9ccaa2f` |
+| 8    | exec typed cause log            | `dece600b6ab7b8940268fca61d60a6813f3be97bcf26fa8016f58c77e931a66a` |

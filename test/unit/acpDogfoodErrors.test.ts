@@ -2,12 +2,11 @@ import path from 'node:path'
 import * as acp from '@agentclientprotocol/sdk'
 import { describe, expect, it, vi } from 'vitest'
 import { createAcpAgent, type AcpAgentDeps } from '../../src/acp/agent'
-import { AcpPaidUse } from '../../src/acp/paid'
 import { DeadlineError } from '../../src/core/timeouts'
 import { ModelApiError } from '../../src/core/backends/modelapi/transport'
 import { ACP_CONFIG_IDS, ACP_ERROR_CODES, UI_TEXT } from '../../src/shared/constants'
 import { FakeAgentHost, FakeAgentSession } from './helpers/fakeAgent'
-import { memoryPaidGrants } from './helpers/paidGrants'
+import { dogfoodAgentDeps, dogfoodSession } from './helpers/acpDogfood'
 
 const cwd = path.resolve('/work/app')
 const prompt = 'private prompt sentinel'
@@ -22,17 +21,8 @@ function scene() {
   const onClientName = vi.fn()
   host.startSession.mockResolvedValue(session)
   const deps: AcpAgentDeps = {
+    ...dogfoodAgentDeps(host, log),
     backend: { kind: 'modelApi', readiness, hostFor },
-    version: 'test',
-    options: { canBypass: false, allowsContributorModels: true, initialMode: 'manual' },
-    signIn: { id: 'auth', name: 'Auth', description: 'Auth', args: [], command: 'auth' },
-    paid: new AcpPaidUse({
-      flagged: [],
-      canRemember: () => false,
-      grants: memoryPaidGrants(),
-      log,
-    }),
-    log,
     defaultCwd: cwd,
     questions: 'decline',
     onClientName,
@@ -50,8 +40,7 @@ function scene() {
   }
 }
 async function start(client: acp.ClientContext) {
-  await client.request('initialize', { protocolVersion: acp.PROTOCOL_VERSION })
-  return await client.request('session/new', { cwd, mcpServers: [] })
+  return await dogfoodSession(client, cwd)
 }
 function expectCause(log: ReturnType<typeof scene>['log'], cause: string) {
   expect(log.error).toHaveBeenCalledOnce()

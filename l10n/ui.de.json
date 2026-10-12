@@ -3430,6 +3430,7 @@
   "acpKeyPresent": "Ein Schlüssel für die Meta Model API ist gespeichert: {store}.",
   "acpKeyAbsent": "Es ist kein Schlüssel für die Meta Model API gespeichert.",
   "acpKeyCleared": "Der Schlüssel für die Meta Model API wurde aus dem Anmeldeinformationsspeicher dieses Computers entfernt.",
+  "acpOutsideWorkspaceRefused": "Außerhalb des Arbeitsbereichs; es wurde nichts gelesen oder geschrieben. Eine Genehmigung kann den Zugriff auf den Arbeitsbereich nicht erweitern.",
   "acpCredentialStoreNoAnswer": "Der Anmeldedatenspeicher hat nicht geantwortet. Diese Anfrage wurde nicht gesendet; versuchen Sie es erneut.",
   "acpStoreUnavailable": "Der Anmeldeinformationsspeicher dieses Computers kann nicht verwendet werden ({reason}). Unter Linux benötigt der Agent einen laufenden, entsperrten Secret Service wie GNOME Keyring oder KWallet.",
   "acpStoreNames": {

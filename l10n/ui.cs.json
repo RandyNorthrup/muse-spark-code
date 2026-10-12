@@ -3576,6 +3576,7 @@
   "acpKeyPresent": "Klíč Meta Model API je uložen: {store}.",
   "acpKeyAbsent": "Není uložen žádný klíč Meta Model API.",
   "acpKeyCleared": "Klíč Meta Model API byl odebrán z úložiště přihlašovacích údajů tohoto počítače.",
+  "acpOutsideWorkspaceRefused": "Mimo pracovní prostor; nic nebylo přečteno ani zapsáno. Schválení nemůže rozšířit přístup k pracovnímu prostoru.",
   "acpCredentialStoreNoAnswer": "Úložiště přihlašovacích údajů neodpovědělo. Tento požadavek nebyl odeslán; zkuste to znovu.",
   "acpStoreUnavailable": "Úložiště přihlašovacích údajů tohoto počítače nelze použít ({reason}). V Linuxu agent potřebuje spuštěnou a odemčenou službu Secret Service, například GNOME Keyring nebo KWallet.",
   "acpStoreNames": {

@@ -3503,6 +3503,7 @@
   "acpKeyPresent": "Hay una clave de Meta Model API guardada: {store}.",
   "acpKeyAbsent": "No hay ninguna clave de Meta Model API guardada.",
   "acpKeyCleared": "La clave de Meta Model API se quitó del almacén de credenciales de este equipo.",
+  "acpOutsideWorkspaceRefused": "Fuera del espacio de trabajo; no se leyó ni escribió nada. La aprobación no puede ampliar el acceso al espacio de trabajo.",
   "acpCredentialStoreNoAnswer": "El almacén de credenciales no respondió. Esta solicitud no se envió; inténtalo de nuevo.",
   "acpStoreUnavailable": "No se puede usar el almacén de credenciales de este equipo ({reason}). En Linux, el agente necesita un Secret Service en ejecución y desbloqueado, como GNOME Keyring o KWallet.",
   "acpStoreNames": {

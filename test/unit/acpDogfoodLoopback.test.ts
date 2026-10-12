@@ -8,7 +8,6 @@ import { createProviderRegistry } from '../../src/core/providers/providerRegistr
 import { createUsageRecording, type UsageWriter } from '../../src/core/usage/recording'
 import { createUsageRecord } from '../../src/core/usage/journalRecord'
 import { createAcpAgent } from '../../src/acp/agent'
-import { AcpPaidUse } from '../../src/acp/paid'
 import { keyringSecretStore } from '../../src/runtime/keyStore'
 import { Usd } from '../../src/shared/usd'
 import type { UsageRecord } from '../../src/shared/usageJournal'
@@ -21,7 +20,7 @@ import {
 import { fakeModelApiHostDeps } from './helpers/modelApiHostDeps'
 import { memoryToolIo } from './helpers/fakeToolIo'
 import { FakeLogOutputChannel } from './helpers/fakes'
-import { memoryPaidGrants } from './helpers/paidGrants'
+import { dogfoodAgentDeps, dogfoodSession, dogfoodPrompt } from './helpers/acpDogfood'
 
 const root = '/workspace'
 const ref = 'dogfood/native'
@@ -59,7 +58,7 @@ async function fixture(mode: 'busy' | 'slow' | 'absent' | 'mid-turn') {
     })
     requests++
     const result = await api.fetch(`https://fake.meta.test${request.url ?? ''}`, {
-      method: request.method,
+      method: request.method ?? 'POST',
       ...(body !== '' && { body }),
       headers: { Authorization: request.headers.authorization ?? '' },
     })
@@ -152,23 +151,8 @@ async function fixture(mode: 'busy' | 'slow' | 'absent' | 'mid-turn') {
     }),
   })
   const agent = createAcpAgent({
-    backend: {
-      kind: 'modelApi',
-      readiness: () => Promise.resolve({ state: 'ready' }),
-      hostFor: () => Promise.resolve(host),
-    },
-    version: 'test',
-    options: { canBypass: false, allowsContributorModels: false, initialMode: 'manual' },
+    ...dogfoodAgentDeps(host, log),
     defaultCwd: root,
-    signIn: { id: 'auth', name: 'Auth', description: 'Auth', args: [], command: 'auth' },
-    paid: new AcpPaidUse({
-      flagged: [],
-      canRemember: () => false,
-      grants: memoryPaidGrants(),
-      log,
-    }),
-    log,
-    questions: 'decline',
     accounting: {
       readRecords: () => recording.records?.() ?? recording.today(),
       readBudgets: () => Promise.resolve([]),
@@ -202,12 +186,8 @@ describe('ACPDOG real ACP / HTTP / credential stack', () => {
       const h = await fixture(mode)
       try {
         await h.run(async (client) => {
-          await client.request('initialize', { protocolVersion: acp.PROTOCOL_VERSION })
-          const { sessionId } = await client.request('session/new', { cwd: root, mcpServers: [] })
-          const result = await client.request('session/prompt', {
-            sessionId,
-            prompt: [{ type: 'text', text: 'Read the files' }],
-          })
+          const { sessionId } = await dogfoodSession(client, root)
+          const result = await dogfoodPrompt(client, sessionId, 'Read the files')
           expect(result).toMatchObject({
             stopReason: 'end_turn',
             _meta: { 'museSpark.usage': { turn: { requests: 3, settledUsd: '0.001644' } } },
@@ -229,25 +209,16 @@ describe('ACPDOG real ACP / HTTP / credential stack', () => {
       const h = await fixture(mode)
       try {
         await h.run(async (client) => {
-          await client.request('initialize', { protocolVersion: acp.PROTOCOL_VERSION })
-          const { sessionId } = await client.request('session/new', { cwd: root, mcpServers: [] })
-          await expect(
-            client.request('session/prompt', {
-              sessionId,
-              prompt: [{ type: 'text', text: 'Read the files' }],
-            }),
-          ).rejects.toMatchObject({
+          const { sessionId } = await dogfoodSession(client, root)
+          await expect(dogfoodPrompt(client, sessionId, 'Read the files')).rejects.toMatchObject({
             code:
               mode === 'mid-turn' ? ACP_ERROR_CODES.credentialStore : ACP_ERROR_CODES.turnFailed,
           })
           expect(h.requests()).toBe(mode === 'mid-turn' ? 2 : 0)
           h.recover()
-          expect(
-            await client.request('session/prompt', {
-              sessionId,
-              prompt: [{ type: 'text', text: 'Continue' }],
-            }),
-          ).toMatchObject({ stopReason: 'end_turn' })
+          expect(await dogfoodPrompt(client, sessionId, 'Continue')).toMatchObject({
+            stopReason: 'end_turn',
+          })
         })
       } finally {
         await h.close()

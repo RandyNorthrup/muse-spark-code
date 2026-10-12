@@ -3357,6 +3357,7 @@
   "acpKeyPresent": "Meta Model API 키가 저장되어 있습니다: {store}.",
   "acpKeyAbsent": "저장된 Meta Model API 키가 없습니다.",
   "acpKeyCleared": "이 컴퓨터의 자격 증명 저장소에서 Meta Model API 키를 제거했습니다.",
+  "acpOutsideWorkspaceRefused": "작업 영역 밖입니다. 읽거나 쓴 내용이 없습니다. 승인은 작업 영역 접근 범위를 넓힐 수 없습니다.",
   "acpCredentialStoreNoAnswer": "자격 증명 저장소가 응답하지 않았습니다. 이 요청은 전송되지 않았습니다. 다시 시도하세요.",
   "acpStoreUnavailable": "이 컴퓨터의 자격 증명 저장소를 사용할 수 없습니다({reason}). Linux에서는 GNOME Keyring이나 KWallet처럼 실행 중이고 잠금 해제된 Secret Service가 에이전트에 필요합니다.",
   "acpStoreNames": {

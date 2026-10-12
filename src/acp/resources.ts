@@ -64,8 +64,7 @@ export function acpResourceUpdates(notice: RuntimeResourceNotice): SessionUpdate
     return []
   return [
     {
-      sessionUpdate: 'agent_message_chunk',
-      content: { type: 'text', text: notice.text },
+      sessionUpdate: 'session_info_update',
       _meta: { 'museSpark.resources': { event, status } },
     },
   ]

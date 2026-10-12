@@ -155,6 +155,7 @@ export const itemSnapshotFields = {
   /** `toolCall` / `userShell`: transcript-visible result text (streams as `output`). */
   visibleOutput: optionalString,
   failureReason: optionalString,
+  refusalCode: z.optional(z.literal('outside_workspace')),
   outputRef: z.optional(outputRefSchema),
   patchRef: z.optional(outputRefSchema),
   patchSummary: z.optional(patchSummarySchema),

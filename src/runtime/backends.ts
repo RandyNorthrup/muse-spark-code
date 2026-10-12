@@ -96,6 +96,7 @@ export interface ExecRuntimeOptions {
 }
 
 export interface RuntimeBackendDeps {
+  readonly hostKind?: 'acp' | 'cli'
   readonly usageRecording?: UsageRecording | undefined
   readonly questions?: { remove(sessionId: string): Promise<void> }
   readonly exec?: ExecRuntimeOptions
@@ -336,6 +337,7 @@ function modelApiManager(
   return new ModelApiBackendManager({
     log,
     usageRecording: deps.usageRecording,
+    hostKind: deps.exec === undefined ? (deps.hostKind ?? 'cli') : 'exec',
     hasExternalPaidRecording: deps.exec !== undefined,
     getApiKey: async () => {
       const key = await deps.secrets.get(SECRET_KEYS.modelApiKey)

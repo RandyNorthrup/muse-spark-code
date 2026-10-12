@@ -624,7 +624,7 @@ export function featureCatalog(): readonly Feature[] {
       ['modelApi'],
     ),
     feature(
-      // ACP advisories use negotiated notices and never enter answer text (ACPDOG).
+      // ACPDOG: negotiated notices, journal accounting metadata and typed workspace refusals.
       'acp',
       { ui: 'helpReferenceTitle' },
       { ui: 'referenceAcp' },

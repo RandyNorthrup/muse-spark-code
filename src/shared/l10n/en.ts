@@ -4092,6 +4092,8 @@ export const EN = {
   acpKeyAbsent: 'No Meta Model API key is stored.',
   acpKeyCleared: 'The Meta Model API key was removed from this computer’s credential store.',
   // {reason}: the operating system's own error.
+  acpOutsideWorkspaceRefused:
+    'Outside the workspace; nothing was read or written. Approval cannot widen workspace access.',
   acpCredentialStoreNoAnswer:
     'The credential store did not answer. This request was not sent; try again.',
   acpStoreUnavailable:
