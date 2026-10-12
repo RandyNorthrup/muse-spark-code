@@ -7,6 +7,11 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- The VS Code playbook counts Muse Code subagents from their first live row,
+  states that it cannot stop their starts, matches each round to its child,
+  and closes safely when a conversation ends. Windows native replay remains
+  lead-owned; the Model API keeps admission before dispatch.
+
 ### Pending
 
 - M116 lane C-M116-6 (the playbook in the VS Code panel; PLAN.md D96.16),

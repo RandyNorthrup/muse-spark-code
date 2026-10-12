@@ -498,14 +498,14 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `node:dns`               | 1     |
 | `node:dns/promises`      | 6     |
 | `node:events`            | 3     |
-| `node:fs`                | 72    |
+| `node:fs`                | 73    |
 | `node:fs/promises`       | 110   |
 | `node:http`              | 15    |
 | `node:https`             | 2     |
 | `node:module`            | 2     |
 | `node:net`               | 20    |
 | `node:os`                | 35    |
-| `node:path`              | 196   |
+| `node:path`              | 197   |
 | `node:perf_hooks`        | 2     |
 | `node:process`           | 10    |
 | `node:readline`          | 1     |

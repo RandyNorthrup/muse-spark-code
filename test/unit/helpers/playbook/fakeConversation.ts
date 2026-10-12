@@ -10,18 +10,6 @@ import type {
 
 type Review = PlaybookReviewRequest<{ readonly turnId: string }>
 
-/** The choices of Muse Code's own request to start a subagent, as captured live (M18). */
-export const SPAWN_CHOICES = [
-  { choiceId: 'allow_once', label: 'Allow once', decision: 'approved', scope: 'once' },
-  {
-    choiceId: 'allow_session',
-    label: 'Allow for this session',
-    decision: 'approved',
-    scope: 'session',
-  },
-  { choiceId: 'abort', label: 'Reject', decision: 'abort', scope: 'once', acceptsFeedback: true },
-] as const
-
 export interface FakeDispatch {
   readonly kind: string
   readonly sessionId: string | undefined
@@ -33,9 +21,6 @@ export interface FakeConversationOptions {
   readonly review?: (request: Review) => Promise<{ readonly turnId: string }>
   /** Thrown instead of running a dispatch's work. */
   readonly refusal?: Error
-  /** What `spawnRequest` answers; by default the request as it came. */
-  readonly spawnRequest?: PlaybookConversation['spawnRequest']
-  readonly gap?: string
 }
 
 export function fakePlaybookConversation(options: FakeConversationOptions = {}) {
@@ -60,15 +45,9 @@ export function fakePlaybookConversation(options: FakeConversationOptions = {}) 
       if (options.refusal !== undefined) throw options.refusal
       return await effect()
     },
-    spawnRequest: vi.fn<PlaybookConversation['spawnRequest']>(
-      options.spawnRequest ?? ((_sessionId, request) => Promise.resolve(request)),
-    ),
-    approvalResolved: vi.fn(),
-    childBegan: vi.fn(),
+    observed: vi.fn(() => Promise.resolve()),
     ended: vi.fn(),
     act: vi.fn(() => Promise.resolve()),
-    hasGap: vi.fn(() => Promise.resolve(options.gap !== undefined)),
-    gap: vi.fn(() => Promise.resolve(options.gap)),
     dispose: vi.fn(),
   }
   return {

@@ -559,7 +559,7 @@ describe('AgentMap and its window’s playbook (M116)', () => {
     const host = hostPlaybook('journal-1', {}, true)
     renderMap({ onPlaybook: host.post })
     const line = await screen.findByText(
-      'Playbook: Muse Code starts subagents here without asking (Auto mode, Bypass Permissions mode, or an allow rule of yours), so the playbook does not admit them. What they change is counted at the next review.',
+      'Muse Code starts subagents without asking. The playbook counts their rounds and reviews their work, and cannot stop a start.',
     )
     expect(line).toHaveAttribute('role', 'note')
     expect(screen.getByRole('button', { name: 'Playbook Settings' })).toBeInTheDocument()

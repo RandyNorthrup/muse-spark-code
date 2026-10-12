@@ -108,7 +108,11 @@ import { MuseCodeHost } from './core/backends/musecode/MuseCodeHost'
 import { agentDataFolder } from './runtime/dataFolder'
 import { requireFile } from './host/lazyBundle'
 import type { PlaybookSource } from './host/playbook/playbookAnswer'
-import { playbookPanelChannel, playbookWindowLoader } from './host/playbook/playbookBundle'
+import {
+  hasWindowPlaybook,
+  playbookPanelChannel,
+  playbookWindowLoader,
+} from './host/playbook/playbookBundle'
 import type { PlaybookWindowBundle } from './host/playbook/playbookEntry'
 import { isJudgeEngineOn } from './core/judge/engine'
 import { promptBundleLoader } from './host/prompts/promptBundle'
@@ -2556,7 +2560,8 @@ async function activateWindow(
     afterTurnRuns: (sessionId, turnId, end) =>
       finishCheckpointTurn(checkpoints, turnRecorder, sessionId, turnId, end),
     // A conversation's new child work starts through the window's playbook (M116).
-    playbook: (...work) => playbook().admit(...work),
+    playbook: (...work) =>
+      hasWindowPlaybook(playbookDataFolder) ? playbook().admit(...work) : undefined,
     getApiKey: () => credentials.getApiKey(),
     workspaceRoot,
     io: checkpointedIo,
@@ -3394,7 +3399,8 @@ async function activateWindow(
             locale: l10n.locale,
             log,
           } satisfies PlaybookSource,
-          playbook: (host) => playbook().conversation(host),
+          playbook: (host) =>
+            hasWindowPlaybook(playbookDataFolder) ? playbook().conversation(host) : undefined,
           playbookPanel: playbookPanelChannel(playbook),
           tasksTab,
           auth,

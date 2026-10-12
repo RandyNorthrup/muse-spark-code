@@ -491,8 +491,7 @@
   "playbookNotCertified": "Podręcznik: tej rundy nie udało się potwierdzić, więc nie liczy się jako zaliczona.",
   "playbookEvidenceUnreadable": "Podręcznik: nie udało się odczytać przeglądanego pliku albo zmian podagenta, więc podręcznik nie może ustalić, czy ten przegląd należy do niego. Przegląd nie został wysłany.",
   "playbookRecordStale": "Nie udało się odczytać rejestru podręcznika. Wyświetlane dane mogą być nieaktualne.",
-  "playbookSpawnEachAsked": "Podręcznik: dopóki moduł jest w przeglądzie, każdy podagent jest zatwierdzany osobno.",
-  "playbookSpawnsNotAdmitted": "Podręcznik: Muse Code uruchamia tu podagentów bez pytania (tryb {auto}, tryb {bypass} albo własna reguła zezwolenia), więc podręcznik ich nie dopuszcza. Ich zmiany są liczone przy następnym przeglądzie.",
+  "playbookMuseCodeStarts": "Muse Code uruchamia podagentów bez pytania. Playbook liczy ich rundy i sprawdza ich pracę, ale nie może zapobiec uruchomieniu.",
   "playbookStrikeBadge": {
     "one": "{count} runda przeglądu",
     "other": "{count} rundy przeglądu",

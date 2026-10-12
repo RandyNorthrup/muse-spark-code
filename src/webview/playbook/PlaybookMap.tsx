@@ -2,7 +2,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import * as z from 'zod/mini'
 import { PLAYBOOK_PANEL_TIMEOUT_MS, UI_TEXT } from '../../shared/constants'
-import { fill } from '../../shared/l10n/text'
 import type { PlaybookRecord } from '../../shared/playbook'
 import type { PlaybookSurfacePort } from '../../runtime/playbook/command'
 import {
@@ -131,10 +130,7 @@ export function PlaybookLink({ post, agents, onPort, onRecords }: PlaybookLinkPr
       ) : null}
       {hasSpawnGap ? (
         <p className="usage-row-meta" role="note">
-          {fill(UI_TEXT.playbookSpawnsNotAdmitted, {
-            auto: UI_TEXT.permissionModes.auto,
-            bypass: UI_TEXT.permissionModes.bypassPermissions,
-          })}
+          {UI_TEXT.playbookMuseCodeStarts}
         </p>
       ) : null}
     </>
