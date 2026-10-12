@@ -3439,6 +3439,7 @@
   "scheduleRunConfirmPrice": "Списание через ваш ключ Model API: {price}. Итоговая сумма зависит от использованных токенов.",
   "scheduleRunConfirmExtras": "Другие включённые платные инструменты могут привести к дополнительным расходам. Режим Bypass не пропускает это подтверждение.",
   "scheduleConfirmationExpired": "Во время подтверждения изменилась модель, беседа или запрос. Проверьте расписание и снова выберите «Запустить».",
+  "execKeyRotated": "Ключ был заменён во время запуска; запрос не отправлен.",
   "requestStaleTurn": "Модель или беседа изменились во время отправки. Отправьте сообщение ещё раз.",
   "requestStaleCompaction": "Модель или беседа изменились во время сжатия. Выполните сжатие ещё раз.",
   "requestStaleRetry": "Модель или беседа изменились перед отправкой запроса. Попробуйте ещё раз.",
@@ -3611,6 +3612,21 @@
   "acpFontsUsage": "Использование: {command} fonts install [--from <directory>]",
   "acpUsage": "Использование:\n  {command} [параметры]              Обслуживать Agent Client Protocol через stdin и stdout\n  {command} [параметры] login        Войти в Muse Code в этом терминале\n  {command} auth set|status|clear  Сохранить, проверить или удалить ключ Meta Model API\n  {command} auth set|status|clear --provider <id>  Сохранить, проверить или удалить ключ провайдера (читается из stdin)\n  {command} providers list|add|test|remove  Управлять провайдерами моделей\n  {command} exec [options] <prompt>  Выполнить один ход без интерфейса\n  {command} scan-secrets <file> [--key-stdin]  Подсчитать вероятные секреты в одном файле (выводит только число)\n  {command} report [options]  Вывести очищенный отчет о проблеме (не запускает backend, не открывает браузер)\n  {command} legal [options]  Запустить сканирование лицензий только для чтения (без бэкенда и входа)\nПараметры:\n  --backend museCode|modelApi      Кто платит: Muse Code (по умолчанию) или ключ Model API\n  --trust-workspace                Загрузить правила, навыки и память папки\n  --muse-binary <путь>             Запускаемый CLI Muse Code\n  --shell-sandbox auto|muse|off    Песочница оболочки Muse Code\n  --questions-defer-after <seconds>  По умолчанию откладывать вопросы через 60 секунд; 0 — никогда, 1–9 считаются 10, максимум 3600\n  --allow-dangerously-skip-permissions  Предлагать режим «Обход разрешений»\n  --allow-contributor-models       Показывать модели уровня contributor (Meta может обучаться на их содержимом)\n  --web-search                     Предлагать платный веб-поиск (бэкенд Model API; сначала запрашивается согласие с ценой)\n  --image-generation               Предлагать платное создание изображений (бэкенд Model API; сначала запрашивается согласие с ценой)\n  --verbose                        Записывать все подробности в stderr\n  --help, --version\n  {command} --trust-workspace setup [--maintenance]  Запустить хуки Setup и выйти",
   "reportUsage": "Использование:\n  {command} report [--out <file>] [--description <text>] [--no-facts] [--no-events]\n  Выводит очищенный отчет о проблеме в stdout или записывает его в <file> с --out.\n  Не запускает backend, никуда не входит и не открывает браузер.\nПараметры:\n  --out <file>         Записать отчет в файл вместо stdout\n  --description <text>  Что происходило, своими словами\n  --no-facts           Пропустить сведения для поддержки\n  --no-events          Пропустить недавние события",
+  "execProgressStarted": "Запрос {request} начат; зарезервировано {reserved}.",
+  "execProgressSettled": "Запрос {request} завершён; вход выполнения {input}, выход {output}; потрачено {settled}, неопределённо {uncertain}.",
+  "execProgressTokens": {
+    "one": "всего {count} токен",
+    "few": "всего {count} токена",
+    "many": "всего {count} токенов",
+    "other": "всего {count} токена"
+  },
+  "execTokenCount": {
+    "one": "максимум {count} токен",
+    "other": "максимум {count} токена",
+    "few": "максимум {count} токена",
+    "many": "максимум {count} токенов"
+  },
+  "execBudgetQuote": "Ввод: {inputTokens} ({inputCost}) + лимит вывода: {outputTokens} ({outputCost}) = {estimate}; бюджет запуска {cap}, использовано {spent}. Запрос не отправлен.",
   "execBudgetRequired": "Model API требует --max-budget-usd.",
   "execNumberInvalid": "Недопустимое число или ограничение; бюджет в USD допускает не более шести знаков после запятой.",
   "execTrustRefused": "Запуски без интерфейса запрещают доверие рабочей области и обход разрешений.",
@@ -3634,6 +3650,22 @@
   "execEffortUnavailable": "Этот уровень усилий недоступен для данной модели.",
   "execTimedOut": "Запуск достиг предельного времени.",
   "execBudgetRefused": "Следующий запрос превышает оставшийся бюджет.",
+  "execPaidDailyStopped": "Платные дополнения остановлены: дневной бюджет {cap} исчерпан (потрачено {spent}, удерживается {requests}: {held}); сброс {reset}. Чтобы продолжить, увеличьте {setting}.",
+  "execPaidOpenRequests": {
+    "one": "{count} открытый запрос",
+    "other": "{count} открытого запроса",
+    "few": "{count} открытых запроса",
+    "many": "{count} открытых запросов"
+  },
+  "execBudgetProgress": {
+    "one": "Бюджет остановил запуск после {count} запроса; проделанная работа сохранена.",
+    "other": "Бюджет остановил запуск после {count} запросов; проделанная работа сохранена.",
+    "few": "Бюджет остановил запуск после {count} запроса; проделанная работа сохранена.",
+    "many": "Бюджет остановил запуск после {count} запросов; проделанная работа сохранена."
+  },
+  "execModelNeedsProvider": "Модель {model} принадлежит провайдеру {provider}; повторите с --provider {provider}. Доступные модели: {available}.",
+  "execModelNotOnProvider": "Модели {model} нет у провайдера {provider}. Доступные модели: {available}.",
+  "execModelAvailable": "Модель {model} недоступна в этом бэкенде. Доступные модели: {available}.",
   "execBudgetMinimum": "Для этого запуска требуется не менее {minimum}.",
   "execBudgetBreach": "Наблюдаемое начисление превысило резерв.",
   "execIncomplete": "Ответ не был завершён.",
@@ -3723,6 +3755,7 @@
   "providerPrivateNeedsConfirm": "{origin} в частной сети; перезапустите с --private-ok для подтверждения.",
   "providerEndpointRefused": "Этот адрес нельзя использовать ({reason}).",
   "providerNoRequestPath": "{provider} пока не может работать здесь; запись его трафика еще ожидается.",
+  "providerModelNoPrice": "{ref} нельзя запустить: нет тарифной карты, поэтому ни один запуск не может зарезервировать.",
   "execProviderNeedsModelApi": "--provider требует --backend modelApi.",
   "execProviderModelRequired": "Этому запуску провайдера нужен --model provider/model.",
   "execProviderNotReady": "Запускам провайдеров нужен транспортный уровень провайдеров; проверка запроса для {provider} прошла.",
@@ -4508,6 +4541,9 @@
     "failure": "Не удалось завершить вход в ChatGPT. Повторите попытку либо удалите его и войдите снова.",
     "storeUnavailable": "Хранилище учётных данных этого компьютера недоступно. Войдите из интерактивного сеанса рабочего стола с разблокированным хранилищем; в Linux сначала запустите Secret Service."
   },
+  "execProviderNotCatalogue": "Этой модели нет в каталоге данной сборки: {model}.",
+  "providerCliModelsRequired": "Укажите --model <id> (повторите для других моделей). Доступны: {models}.",
+  "providerCliConfigure": "Проверьте параметры: --preset {preset}, --model <id>, --key-stdin, --address <url>, --private-ok.",
   "execProviderNotConfigured": "Поставщик {id} не настроен.",
   "providerText": {
     "wizard": {
@@ -5602,41 +5638,5 @@
       "few": "{count} разрешения",
       "many": "{count} разрешений"
     }
-  },
-  "execKeyRotated": "Ключ был заменён во время запуска; запрос не отправлен.",
-  "execPaidDailyStopped": "Платные дополнения остановлены: дневной бюджет {cap} исчерпан (потрачено {spent}, удерживается {requests}: {held}); сброс {reset}. Чтобы продолжить, увеличьте {setting}.",
-  "execPaidOpenRequests": {
-    "one": "{count} открытый запрос",
-    "other": "{count} открытого запроса",
-    "few": "{count} открытых запроса",
-    "many": "{count} открытых запросов"
-  },
-  "execBudgetProgress": {
-    "one": "Бюджет остановил запуск после {count} запроса; проделанная работа сохранена.",
-    "other": "Бюджет остановил запуск после {count} запросов; проделанная работа сохранена.",
-    "few": "Бюджет остановил запуск после {count} запроса; проделанная работа сохранена.",
-    "many": "Бюджет остановил запуск после {count} запросов; проделанная работа сохранена."
-  },
-  "execModelNeedsProvider": "Модель {model} принадлежит провайдеру {provider}; повторите с --provider {provider}. Доступные модели: {available}.",
-  "execModelNotOnProvider": "Модели {model} нет у провайдера {provider}. Доступные модели: {available}.",
-  "execModelAvailable": "Модель {model} недоступна в этом бэкенде. Доступные модели: {available}.",
-  "providerModelNoPrice": "{ref} нельзя запустить: нет тарифной карты, поэтому ни один запуск не может зарезервировать.",
-  "execBudgetQuote": "Ввод: {inputTokens} ({inputCost}) + лимит вывода: {outputTokens} ({outputCost}) = {estimate}; бюджет запуска {cap}, использовано {spent}. Запрос не отправлен.",
-  "execTokenCount": {
-    "one": "максимум {count} токен",
-    "other": "максимум {count} токена",
-    "few": "максимум {count} токена",
-    "many": "максимум {count} токенов"
-  },
-  "execProviderNotCatalogue": "Этой модели нет в каталоге данной сборки: {model}.",
-  "providerCliModelsRequired": "Укажите --model <id> (повторите для других моделей). Доступны: {models}.",
-  "providerCliConfigure": "Проверьте параметры: --preset {preset}, --model <id>, --key-stdin, --address <url>, --private-ok.",
-  "execProgressStarted": "Запрос {request} начат; зарезервировано {reserved}.",
-  "execProgressSettled": "Запрос {request} завершён; вход выполнения {input}, выход {output}; потрачено {settled}, неопределённо {uncertain}.",
-  "execProgressTokens": {
-    "one": "всего {count} токен",
-    "few": "всего {count} токена",
-    "many": "всего {count} токенов",
-    "other": "всего {count} токена"
   }
 }

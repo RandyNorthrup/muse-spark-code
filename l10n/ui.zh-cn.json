@@ -3241,6 +3241,7 @@
   "scheduleRunConfirmPrice": "向您的 Model API 密钥计费：{price}。总费用随使用的令牌数变化。",
   "scheduleRunConfirmExtras": "其他已启用的付费工具可能产生额外费用。Bypass 模式不会跳过此确认。",
   "scheduleConfirmationExpired": "确认期间模型、对话或提示词已更改。请检查计划并再次选择“运行”。",
+  "execKeyRotated": "密钥在运行期间已轮换；请求未发送。",
   "requestStaleTurn": "发送期间模型或对话已更改。请重新发送您的消息。",
   "requestStaleCompaction": "压缩期间模型或对话已更改。请重新压缩。",
   "requestStaleRetry": "请求发送前模型或对话已更改。请重试。",
@@ -3392,6 +3393,15 @@
   "acpFontsUsage": "用法：{command} fonts install [--from <directory>]",
   "acpUsage": "用法：\n  {command} [选项]              通过 stdin 和 stdout 提供 Agent Client Protocol\n  {command} [选项] login        在此终端中登录 Muse Code\n  {command} auth set|status|clear  存储、检查或移除 Meta Model API 密钥\n  {command} auth set|status|clear --provider <id>  存储、检查或移除提供方密钥（从 stdin 读取）\n  {command} providers list|add|test|remove  管理模型提供方\n  {command} exec [options] <prompt>  无界面运行一轮\n  {command} scan-secrets <file> [--key-stdin]  统计单个文件中疑似机密的数量（仅输出数量）\n  {command} report [options]  输出已清理的问题报告（不启动后端，不打开浏览器）\n  {command} legal [options]  运行只读法律扫描（无需后端、无需登录）\n选项：\n  --backend museCode|modelApi      由谁付费：Muse Code（默认）或 Model API 密钥\n  --trust-workspace                加载文件夹的规则、技能和记忆\n  --muse-binary <路径>             要运行的 Muse Code CLI\n  --shell-sandbox auto|muse|off    Muse Code 的 shell 沙盒\n  --questions-defer-after <seconds>  默认在60秒后暂缓问题；0表示从不暂缓，1–9按10处理，最大3600\n  --allow-dangerously-skip-permissions  提供“绕过权限”模式\n  --allow-contributor-models       列出贡献者级模型（Meta 可能使用其内容进行训练）\n  --web-search                     提供付费网页搜索（Model API 后端；会先询问价格）\n  --image-generation               提供付费图片生成（Model API 后端；会先询问价格）\n  --verbose                        在 stderr 上记录所有细节\n  --help, --version\n  {command} --trust-workspace setup [--maintenance]  运行 Setup 钩子并退出",
   "reportUsage": "用法：\n  {command} report [--out <file>] [--description <text>] [--no-facts] [--no-events]\n  将已清理的问题报告输出到 stdout，或使用 --out 将其写入 <file>。\n  不启动后端，不登录任何位置，不打开浏览器。\n选项：\n  --out <file>         将报告写入文件而不是 stdout\n  --description <text>  用自己的话描述当时发生了什么\n  --no-facts           不包含支持信息\n  --no-events          不包含最近事件",
+  "execProgressStarted": "请求 {request} 已开始；已预留 {reserved}。",
+  "execProgressSettled": "请求 {request} 已结束；运行输入 {input}，输出 {output}；已花费 {settled}，未确定 {uncertain}。",
+  "execProgressTokens": {
+    "other": "共 {count} 个令牌"
+  },
+  "execTokenCount": {
+    "other": "最多 {count} 个令牌"
+  },
+  "execBudgetQuote": "输入 {inputTokens}（{inputCost}）+ 输出上限 {outputTokens}（{outputCost}）= {estimate}；运行预算 {cap}，已用 {spent}。请求未发送。",
   "execBudgetRequired": "Model API 需要 --max-budget-usd。",
   "execNumberInvalid": "数字或限制无效；美元预算最多支持六位小数。",
   "execTrustRefused": "无界面运行不允许信任工作区或绕过权限。",
@@ -3415,6 +3425,16 @@
   "execEffortUnavailable": "此模型不支持该推理强度。",
   "execTimedOut": "运行已达到时限。",
   "execBudgetRefused": "下一次请求将超过剩余预算。",
+  "execPaidDailyStopped": "付费附加功能已停止：已达到每日预算 {cap}（已用 {spent}，{requests}占用 {held}）；{reset} 重置。请调高 {setting} 后继续。",
+  "execPaidOpenRequests": {
+    "other": "{count} 个未完成的请求"
+  },
+  "execBudgetProgress": {
+    "other": "预算在 {count} 个请求后停止了本次运行；已完成的工作予以保留。"
+  },
+  "execModelNeedsProvider": "模型 {model} 属于供应商 {provider}；请使用 --provider {provider} 重新运行。可用模型：{available}。",
+  "execModelNotOnProvider": "供应商 {provider} 没有模型 {model}。可用模型：{available}。",
+  "execModelAvailable": "模型 {model} 在此后端不可用。可用模型：{available}。",
   "execBudgetMinimum": "本次运行至少需要 {minimum}。",
   "execBudgetBreach": "观测到的费用超过预留金额。",
   "execIncomplete": "响应未完成。",
@@ -3492,6 +3512,7 @@
   "providerPrivateNeedsConfirm": "{origin} 在专用网络上；请用 --private-ok 重新运行以确认。",
   "providerEndpointRefused": "该地址无法使用（{reason}）。",
   "providerNoRequestPath": "{provider} 暂时无法在此运行；其流量抓包尚未完成。",
+  "providerModelNoPrice": "{ref} 无法运行：没有价格卡，因此任何运行都无法为其预留。",
   "execProviderNeedsModelApi": "--provider 需要 --backend modelApi。",
   "execProviderModelRequired": "此提供商运行需要 --model provider/model。",
   "execProviderNotReady": "提供方运行需要提供方传输层；{provider} 的请求校验已通过。",
@@ -4169,6 +4190,9 @@
     "failure": "无法完成 ChatGPT 登录。请重试，或移除后重新登录。",
     "storeUnavailable": "此计算机的凭据存储不可用。请从交互式桌面会话中登录，并解锁凭据存储；在 Linux 上，请先启动 Secret Service。"
   },
+  "execProviderNotCatalogue": "此模型不在此版本的目录中：{model}。",
+  "providerCliModelsRequired": "使用 --model <id>（多个模型可重复指定）。可用模型：{models}。",
+  "providerCliConfigure": "检查这些选项：--preset {preset}, --model <id>, --key-stdin, --address <url>, --private-ok。",
   "execProviderNotConfigured": "提供方 {id} 未配置。",
   "providerText": {
     "wizard": {
@@ -5140,29 +5164,5 @@
     "grantsCount": {
       "other": "{count} 个授权"
     }
-  },
-  "execKeyRotated": "密钥在运行期间已轮换；请求未发送。",
-  "execPaidDailyStopped": "付费附加功能已停止：已达到每日预算 {cap}（已用 {spent}，{requests}占用 {held}）；{reset} 重置。请调高 {setting} 后继续。",
-  "execPaidOpenRequests": {
-    "other": "{count} 个未完成的请求"
-  },
-  "execBudgetProgress": {
-    "other": "预算在 {count} 个请求后停止了本次运行；已完成的工作予以保留。"
-  },
-  "execModelNeedsProvider": "模型 {model} 属于供应商 {provider}；请使用 --provider {provider} 重新运行。可用模型：{available}。",
-  "execModelNotOnProvider": "供应商 {provider} 没有模型 {model}。可用模型：{available}。",
-  "execModelAvailable": "模型 {model} 在此后端不可用。可用模型：{available}。",
-  "providerModelNoPrice": "{ref} 无法运行：没有价格卡，因此任何运行都无法为其预留。",
-  "execBudgetQuote": "输入 {inputTokens}（{inputCost}）+ 输出上限 {outputTokens}（{outputCost}）= {estimate}；运行预算 {cap}，已用 {spent}。请求未发送。",
-  "execTokenCount": {
-    "other": "最多 {count} 个令牌"
-  },
-  "execProviderNotCatalogue": "此模型不在此版本的目录中：{model}。",
-  "providerCliModelsRequired": "使用 --model <id>（多个模型可重复指定）。可用模型：{models}。",
-  "providerCliConfigure": "检查这些选项：--preset {preset}, --model <id>, --key-stdin, --address <url>, --private-ok。",
-  "execProgressStarted": "请求 {request} 已开始；已预留 {reserved}。",
-  "execProgressSettled": "请求 {request} 已结束；运行输入 {input}，输出 {output}；已花费 {settled}，未确定 {uncertain}。",
-  "execProgressTokens": {
-    "other": "共 {count} 个令牌"
   }
 }

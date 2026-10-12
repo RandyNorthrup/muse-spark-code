@@ -3373,6 +3373,7 @@
   "scheduleRunConfirmPrice": "Facturé sur votre clé Model API : {price}. Le total dépend du nombre de jetons utilisés.",
   "scheduleRunConfirmExtras": "D’autres outils payants activés peuvent entraîner des frais supplémentaires. Le mode Bypass ne dispense pas de cette confirmation.",
   "scheduleConfirmationExpired": "Le modèle, la conversation ou la demande a changé pendant la confirmation. Vérifiez la programmation et choisissez de nouveau Exécuter.",
+  "execKeyRotated": "La clé a été renouvelée pendant l’exécution ; la requête n’a pas été envoyée.",
   "requestStaleTurn": "Le modèle ou la conversation a changé pendant l'envoi. Envoyez votre message à nouveau.",
   "requestStaleCompaction": "Le modèle ou la conversation a changé pendant la compaction. Compactez à nouveau.",
   "requestStaleRetry": "Le modèle ou la conversation a changé avant l'envoi de la requête. Réessayez.",
@@ -3538,6 +3539,19 @@
   "acpFontsUsage": "Utilisation : {command} fonts install [--from <directory>]",
   "acpUsage": "Utilisation :\n  {command} [options]              Servir l’Agent Client Protocol sur stdin et stdout\n  {command} [options] login        Se connecter à Muse Code dans ce terminal\n  {command} auth set|status|clear  Enregistrer, vérifier ou supprimer la clé Meta Model API\n  {command} auth set|status|clear --provider <id>  Enregistrer, vérifier ou supprimer une clé de fournisseur (lue sur stdin)\n  {command} providers list|add|test|remove  Gérer les fournisseurs de modèles\n  {command} exec [options] <prompt>  Exécuter un tour sans interface\n  {command} scan-secrets <file> [--key-stdin]  Compter les secrets probables dans un fichier (affiche seulement leur nombre)\n  {command} report [options]  Afficher un rapport de problème épuré (ne démarre aucun backend, n’ouvre aucun navigateur)\n  {command} legal [options]  Exécuter l’analyse juridique en lecture seule (sans backend ni connexion)\nOptions :\n  --backend museCode|modelApi      Qui paie : Muse Code (par défaut) ou la clé Model API\n  --trust-workspace                Charger les règles, les compétences et la mémoire du dossier\n  --muse-binary <chemin>             La CLI Muse Code à exécuter\n  --shell-sandbox auto|muse|off    Le bac à sable du shell de Muse Code\n  --questions-defer-after <seconds>  Différer les questions après 60 secondes par défaut ; 0 jamais, 1–9 valent 10, maximum 3600\n  --allow-dangerously-skip-permissions  Proposer le mode « Contourner les autorisations »\n  --allow-contributor-models       Lister les modèles de niveau contributeur (Meta peut s’entraîner sur leur contenu)\n  --web-search                     Proposer la recherche web payante (back-end Model API ; son prix est demandé d’abord)\n  --image-generation               Proposer la génération d’images payante (back-end Model API ; son prix est demandé d’abord)\n  --verbose                        Journaliser chaque détail sur stderr\n  --help, --version\n  {command} --trust-workspace setup [--maintenance]  Exécuter les hooks Setup puis quitter",
   "reportUsage": "Utilisation :\n  {command} report [--out <file>] [--description <text>] [--no-facts] [--no-events]\n  Affiche le rapport de problème épuré sur stdout, ou l’écrit dans <file> avec --out.\n  Ne démarre aucun backend, ne se connecte nulle part et n’ouvre aucun navigateur.\nOptions :\n  --out <file>         Écrire le rapport dans un fichier plutôt que sur stdout\n  --description <text>  Ce qui se passait, avec vos mots\n  --no-facts           Omettre les informations de support\n  --no-events          Omettre les événements récents",
+  "execProgressStarted": "Requête {request} démarrée ; {reserved} réservés.",
+  "execProgressSettled": "Requête {request} terminée ; entrée de l’exécution {input}, sortie {output} ; {settled} dépensés, {uncertain} incertains.",
+  "execProgressTokens": {
+    "one": "{count} jeton au total",
+    "many": "{count} jetons au total",
+    "other": "{count} jetons au total"
+  },
+  "execTokenCount": {
+    "one": "au plus {count} jeton",
+    "other": "au plus {count} jetons",
+    "many": "au plus {count} jetons"
+  },
+  "execBudgetQuote": "Entrée de {inputTokens} ({inputCost}) + plafond de sortie de {outputTokens} ({outputCost}) = {estimate} ; budget de l’exécution {cap}, {spent} utilisés. Requête non envoyée.",
   "execBudgetRequired": "La Model API exige --max-budget-usd.",
   "execNumberInvalid": "Nombre ou limite incorrect ; le budget en USD accepte au plus six décimales.",
   "execTrustRefused": "Les exécutions sans interface refusent la confiance dans l’espace de travail et le contournement des autorisations.",
@@ -3561,6 +3575,20 @@
   "execEffortUnavailable": "Cet effort n’est pas disponible pour ce modèle.",
   "execTimedOut": "L’exécution a atteint son délai.",
   "execBudgetRefused": "La prochaine requête dépasse le budget restant.",
+  "execPaidDailyStopped": "Extras payantes interrompues : budget quotidien {cap} atteint ({spent} dépensés, {held} retenus par {requests}) ; réinitialisation {reset}. Augmentez {setting} pour continuer.",
+  "execPaidOpenRequests": {
+    "one": "{count} requête ouverte",
+    "other": "{count} requêtes ouvertes",
+    "many": "{count} requêtes ouvertes"
+  },
+  "execBudgetProgress": {
+    "one": "Le budget a arrêté l’exécution après {count} requête ; le travail accompli est conservé.",
+    "other": "Le budget a arrêté l’exécution après {count} requêtes ; le travail accompli est conservé.",
+    "many": "Le budget a arrêté l’exécution après {count} requêtes ; le travail accompli est conservé."
+  },
+  "execModelNeedsProvider": "Le modèle {model} appartient au fournisseur {provider} ; relancez avec --provider {provider}. Modèles disponibles : {available}.",
+  "execModelNotOnProvider": "Le modèle {model} n’existe pas chez le fournisseur {provider}. Modèles disponibles : {available}.",
+  "execModelAvailable": "Le modèle {model} n’est pas disponible sur ce backend. Modèles disponibles : {available}.",
   "execBudgetMinimum": "Cette exécution exige au moins {minimum}.",
   "execBudgetBreach": "La facturation observée a dépassé sa réservation.",
   "execIncomplete": "La réponse n’a pas été terminée.",
@@ -3646,6 +3674,7 @@
   "providerPrivateNeedsConfirm": "{origin} est sur un réseau privé ; relancez avec --private-ok pour confirmer.",
   "providerEndpointRefused": "Cette adresse ne peut pas être utilisée ({reason}).",
   "providerNoRequestPath": "{provider} ne peut pas encore s’exécuter ici ; la capture de son trafic est en attente.",
+  "providerModelNoPrice": "{ref} ne peut pas s’exécuter : sans carte tarifaire, aucune exécution ne peut réserver pour lui.",
   "execProviderNeedsModelApi": "--provider nécessite --backend modelApi.",
   "execProviderModelRequired": "Cette exécution de fournisseur nécessite --model provider/model.",
   "execProviderNotReady": "Les exécutions de fournisseur nécessitent la couche de transport des fournisseurs ; la vérification de la demande pour {provider} a réussi.",
@@ -4395,6 +4424,9 @@
     "failure": "La connexion ChatGPT n’a pas pu être terminée. Réessayez ou supprimez-la et reconnectez-vous.",
     "storeUnavailable": "Le magasin d’identifiants de cet ordinateur est indisponible. Connectez-vous depuis une session de bureau interactive avec le magasin déverrouillé ; sous Linux, démarrez d’abord Secret Service."
   },
+  "execProviderNotCatalogue": "Ce modèle ne figure pas dans le catalogue de cette version : {model}.",
+  "providerCliModelsRequired": "Utilisez --model <id> (répétez pour d’autres modèles). Disponibles : {models}.",
+  "providerCliConfigure": "Vérifiez ces options : --preset {preset}, --model <id>, --key-stdin, --address <url>, --private-ok.",
   "execProviderNotConfigured": "Le fournisseur {id} n’est pas configuré.",
   "providerText": {
     "wizard": {
@@ -5448,37 +5480,5 @@
       "other": "{count} autorisations",
       "many": "{count} autorisations"
     }
-  },
-  "execKeyRotated": "La clé a été renouvelée pendant l’exécution ; la requête n’a pas été envoyée.",
-  "execPaidDailyStopped": "Extras payantes interrompues : budget quotidien {cap} atteint ({spent} dépensés, {held} retenus par {requests}) ; réinitialisation {reset}. Augmentez {setting} pour continuer.",
-  "execPaidOpenRequests": {
-    "one": "{count} requête ouverte",
-    "other": "{count} requêtes ouvertes",
-    "many": "{count} requêtes ouvertes"
-  },
-  "execBudgetProgress": {
-    "one": "Le budget a arrêté l’exécution après {count} requête ; le travail accompli est conservé.",
-    "other": "Le budget a arrêté l’exécution après {count} requêtes ; le travail accompli est conservé.",
-    "many": "Le budget a arrêté l’exécution après {count} requêtes ; le travail accompli est conservé."
-  },
-  "execModelNeedsProvider": "Le modèle {model} appartient au fournisseur {provider} ; relancez avec --provider {provider}. Modèles disponibles : {available}.",
-  "execModelNotOnProvider": "Le modèle {model} n’existe pas chez le fournisseur {provider}. Modèles disponibles : {available}.",
-  "execModelAvailable": "Le modèle {model} n’est pas disponible sur ce backend. Modèles disponibles : {available}.",
-  "providerModelNoPrice": "{ref} ne peut pas s’exécuter : sans carte tarifaire, aucune exécution ne peut réserver pour lui.",
-  "execBudgetQuote": "Entrée de {inputTokens} ({inputCost}) + plafond de sortie de {outputTokens} ({outputCost}) = {estimate} ; budget de l’exécution {cap}, {spent} utilisés. Requête non envoyée.",
-  "execTokenCount": {
-    "one": "au plus {count} jeton",
-    "other": "au plus {count} jetons",
-    "many": "au plus {count} jetons"
-  },
-  "execProviderNotCatalogue": "Ce modèle ne figure pas dans le catalogue de cette version : {model}.",
-  "providerCliModelsRequired": "Utilisez --model <id> (répétez pour d’autres modèles). Disponibles : {models}.",
-  "providerCliConfigure": "Vérifiez ces options : --preset {preset}, --model <id>, --key-stdin, --address <url>, --private-ok.",
-  "execProgressStarted": "Requête {request} démarrée ; {reserved} réservés.",
-  "execProgressSettled": "Requête {request} terminée ; entrée de l’exécution {input}, sortie {output} ; {settled} dépensés, {uncertain} incertains.",
-  "execProgressTokens": {
-    "one": "{count} jeton au total",
-    "many": "{count} jetons au total",
-    "other": "{count} jetons au total"
   }
 }

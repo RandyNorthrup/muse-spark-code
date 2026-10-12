@@ -3373,6 +3373,7 @@
   "scheduleRunConfirmPrice": "Facturado a tu clave de Model API: {price}. El total varía según los tokens usados.",
   "scheduleRunConfirmExtras": "Otras herramientas de pago activadas pueden añadir cargos. El modo Bypass no omite esta confirmación.",
   "scheduleConfirmationExpired": "El modelo, la conversación o la instrucción cambiaron durante la confirmación. Revisa la programación y elige Ejecutar de nuevo.",
+  "execKeyRotated": "La clave se rotó durante la ejecución; la solicitud no se envió.",
   "requestStaleTurn": "El modelo o la conversación cambió durante el envío. Envía tu mensaje de nuevo.",
   "requestStaleCompaction": "El modelo o la conversación cambió durante la compactación. Compacta de nuevo.",
   "requestStaleRetry": "El modelo o la conversación cambió antes de enviar la solicitud. Inténtalo de nuevo.",
@@ -3538,6 +3539,19 @@
   "acpFontsUsage": "Uso: {command} fonts install [--from <directory>]",
   "acpUsage": "Uso:\n  {command} [opciones]              Servir el Agent Client Protocol por stdin y stdout\n  {command} [opciones] login        Iniciar sesión en Muse Code en este terminal\n  {command} auth set|status|clear  Guardar, comprobar o quitar la clave de Meta Model API\n  {command} auth set|status|clear --provider <id>  Guardar, comprobar o quitar una clave de proveedor (se lee de stdin)\n  {command} providers list|add|test|remove  Gestionar los proveedores de modelos\n  {command} exec [options] <prompt>  Ejecutar un turno sin interfaz\n  {command} scan-secrets <file> [--key-stdin]  Contar posibles secretos en un archivo (solo muestra el número)\n  {command} report [options]  Mostrar un informe de problema depurado (no inicia ningún backend, no abre el navegador)\n  {command} legal [options]  Ejecutar el análisis legal de solo lectura (sin backend ni inicio de sesión)\nOpciones:\n  --backend museCode|modelApi      Quién paga: Muse Code (predeterminado) o la clave de Model API\n  --trust-workspace                Cargar las reglas, las habilidades y la memoria de la carpeta\n  --muse-binary <ruta>             La CLI de Muse Code que se ejecuta\n  --shell-sandbox auto|muse|off    El espacio aislado del shell de Muse Code\n  --questions-defer-after <seconds>  Posponer preguntas tras 60 segundos por defecto; 0 nunca, 1–9 se toman como 10, máximo 3600\n  --allow-dangerously-skip-permissions  Ofrecer el modo «Omitir permisos»\n  --allow-contributor-models       Mostrar los modelos de nivel colaborador (Meta puede entrenar con su contenido)\n  --web-search                     Ofrecer la búsqueda web de pago (back-end de Model API; primero se pregunta su precio)\n  --image-generation               Ofrecer la generación de imágenes de pago (back-end de Model API; primero se pregunta su precio)\n  --verbose                        Registrar cada detalle en stderr\n  --help, --version\n  {command} --trust-workspace setup [--maintenance]  Ejecutar los hooks Setup y salir",
   "reportUsage": "Uso:\n  {command} report [--out <file>] [--description <text>] [--no-facts] [--no-events]\n  Muestra el informe de problema depurado en stdout, o lo escribe en <file> con --out.\n  No inicia ningún backend, no inicia sesión en ningún sitio y no abre el navegador.\nOpciones:\n  --out <file>         Escribir el informe en un archivo en lugar de stdout\n  --description <text>  Qué estaba pasando, en tus palabras\n  --no-facts           Omitir los datos de soporte\n  --no-events          Omitir los eventos recientes",
+  "execProgressStarted": "Solicitud {request} iniciada; {reserved} reservados.",
+  "execProgressSettled": "Solicitud {request} terminada; entrada de la ejecución {input}, salida {output}; {settled} gastados, {uncertain} inciertos.",
+  "execProgressTokens": {
+    "one": "{count} token en total",
+    "many": "{count} tokens en total",
+    "other": "{count} tokens en total"
+  },
+  "execTokenCount": {
+    "one": "como máximo {count} token",
+    "other": "como máximo {count} tokens",
+    "many": "como máximo {count} tokens"
+  },
+  "execBudgetQuote": "Entrada de {inputTokens} ({inputCost}) + límite de salida de {outputTokens} ({outputCost}) = {estimate}; presupuesto de ejecución {cap}, {spent} gastados. Solicitud no enviada.",
   "execBudgetRequired": "La Model API requiere --max-budget-usd.",
   "execNumberInvalid": "Número o límite no válido; el presupuesto en USD admite como máximo seis decimales.",
   "execTrustRefused": "Las ejecuciones sin interfaz rechazan la confianza en el espacio de trabajo y la omisión de permisos.",
@@ -3561,6 +3575,20 @@
   "execEffortUnavailable": "Este esfuerzo no está disponible para este modelo.",
   "execTimedOut": "La ejecución alcanzó su plazo.",
   "execBudgetRefused": "La próxima solicitud supera el presupuesto restante.",
+  "execPaidDailyStopped": "Extras de pago detenidos: presupuesto diario {cap} alcanzado ({spent} gastados, {held} retenidos por {requests}); se restablece {reset}. Aumenta {setting} para continuar.",
+  "execPaidOpenRequests": {
+    "one": "{count} solicitud abierta",
+    "other": "{count} solicitudes abiertas",
+    "many": "{count} solicitudes abiertas"
+  },
+  "execBudgetProgress": {
+    "one": "El presupuesto detuvo la ejecución tras {count} solicitud; el trabajo realizado se conserva.",
+    "other": "El presupuesto detuvo la ejecución tras {count} solicitudes; el trabajo realizado se conserva.",
+    "many": "El presupuesto detuvo la ejecución tras {count} solicitudes; el trabajo realizado se conserva."
+  },
+  "execModelNeedsProvider": "El modelo {model} pertenece al proveedor {provider}; repite con --provider {provider}. Modelos disponibles: {available}.",
+  "execModelNotOnProvider": "El modelo {model} no está en el proveedor {provider}. Modelos disponibles: {available}.",
+  "execModelAvailable": "El modelo {model} no está disponible en este backend. Modelos disponibles: {available}.",
   "execBudgetMinimum": "Esta ejecución requiere al menos {minimum}.",
   "execBudgetBreach": "La contabilidad observada superó su reserva.",
   "execIncomplete": "La respuesta no se completó.",
@@ -3646,6 +3674,7 @@
   "providerPrivateNeedsConfirm": "{origin} está en una red privada; repita con --private-ok para confirmar.",
   "providerEndpointRefused": "Esa dirección no se puede usar ({reason}).",
   "providerNoRequestPath": "{provider} aún no puede ejecutarse aquí; la captura de su tráfico está pendiente.",
+  "providerModelNoPrice": "{ref} no puede ejecutarse: no tiene tarjeta de precios, así que ninguna ejecución puede reservar para él.",
   "execProviderNeedsModelApi": "--provider requiere --backend modelApi.",
   "execProviderModelRequired": "Esta ejecución de proveedor necesita --model provider/model.",
   "execProviderNotReady": "Las ejecuciones de proveedor necesitan la capa de transporte de proveedores; la comprobación de la solicitud para {provider} fue correcta.",
@@ -4395,6 +4424,9 @@
     "failure": "No se pudo completar el inicio de sesión de ChatGPT. Inténtelo de nuevo o elimínelo y vuelva a iniciar sesión.",
     "storeUnavailable": "El almacén de credenciales de este equipo no está disponible. Inicie sesión desde una sesión de escritorio interactiva con el almacén desbloqueado; en Linux, inicie primero Secret Service."
   },
+  "execProviderNotCatalogue": "Este modelo no está en el catálogo de esta compilación: {model}.",
+  "providerCliModelsRequired": "Use --model <id> (repita para más modelos). Disponibles: {models}.",
+  "providerCliConfigure": "Revise estas opciones: --preset {preset}, --model <id>, --key-stdin, --address <url>, --private-ok.",
   "execProviderNotConfigured": "El proveedor {id} no está configurado.",
   "providerText": {
     "wizard": {
@@ -5448,37 +5480,5 @@
       "other": "{count} autorizaciones",
       "many": "{count} autorizaciones"
     }
-  },
-  "execKeyRotated": "La clave se rotó durante la ejecución; la solicitud no se envió.",
-  "execPaidDailyStopped": "Extras de pago detenidos: presupuesto diario {cap} alcanzado ({spent} gastados, {held} retenidos por {requests}); se restablece {reset}. Aumenta {setting} para continuar.",
-  "execPaidOpenRequests": {
-    "one": "{count} solicitud abierta",
-    "other": "{count} solicitudes abiertas",
-    "many": "{count} solicitudes abiertas"
-  },
-  "execBudgetProgress": {
-    "one": "El presupuesto detuvo la ejecución tras {count} solicitud; el trabajo realizado se conserva.",
-    "other": "El presupuesto detuvo la ejecución tras {count} solicitudes; el trabajo realizado se conserva.",
-    "many": "El presupuesto detuvo la ejecución tras {count} solicitudes; el trabajo realizado se conserva."
-  },
-  "execModelNeedsProvider": "El modelo {model} pertenece al proveedor {provider}; repite con --provider {provider}. Modelos disponibles: {available}.",
-  "execModelNotOnProvider": "El modelo {model} no está en el proveedor {provider}. Modelos disponibles: {available}.",
-  "execModelAvailable": "El modelo {model} no está disponible en este backend. Modelos disponibles: {available}.",
-  "providerModelNoPrice": "{ref} no puede ejecutarse: no tiene tarjeta de precios, así que ninguna ejecución puede reservar para él.",
-  "execBudgetQuote": "Entrada de {inputTokens} ({inputCost}) + límite de salida de {outputTokens} ({outputCost}) = {estimate}; presupuesto de ejecución {cap}, {spent} gastados. Solicitud no enviada.",
-  "execTokenCount": {
-    "one": "como máximo {count} token",
-    "other": "como máximo {count} tokens",
-    "many": "como máximo {count} tokens"
-  },
-  "execProviderNotCatalogue": "Este modelo no está en el catálogo de esta compilación: {model}.",
-  "providerCliModelsRequired": "Use --model <id> (repita para más modelos). Disponibles: {models}.",
-  "providerCliConfigure": "Revise estas opciones: --preset {preset}, --model <id>, --key-stdin, --address <url>, --private-ok.",
-  "execProgressStarted": "Solicitud {request} iniciada; {reserved} reservados.",
-  "execProgressSettled": "Solicitud {request} terminada; entrada de la ejecución {input}, salida {output}; {settled} gastados, {uncertain} inciertos.",
-  "execProgressTokens": {
-    "one": "{count} token en total",
-    "many": "{count} tokens en total",
-    "other": "{count} tokens en total"
   }
 }

@@ -207,8 +207,7 @@ Ephemeral exec omits durable usage history and records
 `usageHistory: "omitted_ephemeral"`; ordinary runs retain usage history.
 Command `--help` prints only its own usage; `help reference` prints the catalogue.
 Unsent daily and run claims are refunded.
-Output defaults to 1024 tokens per request; `--max-output-tokens <16–32768>`
-sets the run's cap for its body, schema and ledger. For a configured Anthropic key:
+Each request is capped at the model's own output limit. For a configured Anthropic key:
 
 ```sh
 muse-spark-code-acp exec --backend modelApi --provider anthropic --model anthropic/claude-opus-5-5 --max-budget-usd 0.10 --max-requests 1 --ephemeral --output json "Reply with the single word: ready"

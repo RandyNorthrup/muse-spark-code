@@ -308,3 +308,112 @@ only on sandbox-proxied fetch (`fetch failed`, proxy 502 on HTTP tunneling);
 its transport and cost paths are untouched by this lane. runtimeChatGpt and
 the loopback exec/provider families cannot run where loopback sockets are
 blocked (direct probe: `fetch` to 127.0.0.1 throws at once).
+
+## Round 4: onto the current release (0.18.0 + 0.18.1 hotfix)
+
+Base: `snap/hotfix-0181` head `d90646575` merged into `fix/exec-provider`
+as `00abc0ca9`. Kubuntu, 2026-10-12. Fake-only; no live/paid calls. The
+branch was cut before 0.17.2/0.18.0, so the merge brings the stream-limit
+fix (no total-time stream timeout; idle limit with its sentence) and the
+account work, and keeps the round-3 D1-D6 fixes on top.
+
+Conflict unions (all 33 resolved, none taken blindly):
+
+- `configured.ts`: paid stop, user refusal and abort pass through first
+  (D1), then stale confirmation, then the idle-limit stall — both
+  round-3 and hotfix lines kept. The stream call keeps the release's
+  no-total-timeout form.
+- `transport.ts`: key rotation keeps its own sentence (P3-2,
+  `execKeyRotated`); other stale confirmations use the runKind-aware
+  helper; `markSent` runs beside the release's confirm/admit calls.
+- `runExec`/`runLedger`/`execFetch`: the release's policy-driven
+  `outputCap` replaces the round-3 fixed 1024 default and the
+  `--max-output-tokens` option (removed from code, tests, tables, docs
+  and PLAN). The ledger keeps `reject`/`releaseResponse`; the admission
+  check keeps the slash-model minimum with the policy cap.
+- `runtimeAccountingEntry`: our lifecycle kept (late claim clear,
+  unsent-ticket withdrawal); cost-zeroing unions the release's
+  rate-limited flag with our 429/bad-request flags; settlement adopts the
+  release form (skip on sent-unpriced, wrap store failures).
+- `en.ts` + 14 tables: union of both key sets in English key order (the
+  packaged archive compares byte-for-byte, so order matters); the removed
+  option's key is gone everywhere. `referenceAuthStatus` reworded without
+  conditional-state words for the catalogue lint.
+- Generated files (`reference.*`, `reference.node.*`, `ROADMAP.md`,
+  `docs/reference.md`) regenerated with their scripts, not hand-edited.
+
+Size work (no pin or budget moved):
+
+- The refusal classifier (`isPaidStop`, `isUserRefusal`) rides
+  `dist/configuredProviders.js` behind new entry exports; the Model API
+  bundle reads it across the boundary only on an error via dynamic
+  import (new `deferredCohort` mapping). Provider assembly
+  (`assembleProviderRun`, `providersFilePath`, `resolveEndpointHost`)
+  rides the same lazy bundle the same way.
+- Build guard line: `ok cross-bundle members: 2137 reads of 39 sibling
+bundles, each exported by the bundle read (...)`.
+- Rows: modelApi.js 520.8 KiB (budget 525 KiB), headless.js 80.4 KiB
+  (100), runtimeAccounting.js 44.0 KiB (50), configuredProviders.js
+  39.9 KiB (50), providers.js 139.3 KiB (150), extension.js 551.0 KiB
+  (600). Exact bytes: modelApi.js 533,327; runtimeAccounting.js 45,026;
+  headless.js 82,290; configuredProviders.js 40,836.
+
+FINDING, not a deferral: the Model API exact-byte pin
+(`deferredBundles`, 532,827 B) reads 533,327 B (+500 B). Metafile
+attribution is exact: transport.ts +250 (paid/rotation branches and the
+dynamic classifier read), ModelApiHost.ts +147 (configured-default
+hunk), client.ts +103 (refusal catch). Each is pinned hot-path behavior
+(the drills below and the refusal suites); the pin is not moved. The
+lead disposes: re-measure with owner decision (as the hotfix did at
++290 B) or direct further diet.
+
+Round-3 results on the merged tree (repo default timeout, maxWorkers=3):
+
+| Suite                             | Result                      |
+| --------------------------------- | --------------------------- |
+| execPaidRefusal                   | 9/9                         |
+| execCliFindings                   | 24/24                       |
+| providerRefusals                  | 7/7                         |
+| execRun                           | 109/132 (23 ENV, see below) |
+| paidDailyBudget                   | 36/36                       |
+| execProvider                      | 27/27                       |
+| runtimeAccounting + interruptions | 50/50                       |
+| configuredProviders               | 40/45 (5 ENV, see below)    |
+| execFetch + execSchema            | all green                   |
+| runLedger + bundleExports         | 40/40                       |
+| modelApiEntryExports              | 3/3                         |
+| deferredBundles                   | 122/123 (pin, see above)    |
+
+Also green: all five typechecks; production build incl. split guard;
+`check:l10n` (0 problems), `check:reference` (current),
+`check:roadmap` (current), `check:host-api` (0 problems). The tiny-budget
+preflight sentence now quotes the release minimum reservation
+(`This run requires at least ...`); one test expectation updated to it.
+
+Red drills (break once, show red, restore byte-exact, green):
+
+- D1 (a paid limit says what it is): forced `isPaidStop` false —
+  execPaidRefusal 3 failed; restored SHA-256
+  `c13710cd8c73c64e32603f323e2e14ce941433d155b2a4af0de2dccd91641ad0`,
+  9/9 green.
+- D2 (a dead run's hold is released): `releaseResponse` made a no-op —
+  `releases both reservations` 5 failed; restored SHA-256
+  `f44a68399891c0a8c0ac22750fc6c1c8dd65a59337f53453cb298cf282cf20f3`,
+  6/6 green.
+- D3 (a budget stop keeps its work): `partialText` forced undefined —
+  `D3 a budget stop keeps the first request work` failed (`to contain
+'first progress'`); restored SHA-256
+  `3b1b97616db4b48af59bda83bb69ac692b49d690adb816747cfa446281d4410e`,
+  green.
+
+Blocked here, named for the lead's unsandboxed run (no product change,
+same probe as round 2: `fetch` to 127.0.0.1 throws at once):
+
+- execRun 23 (21 loopback families + persistent-invalid-settings +
+  ephemeral-bundle cases, all provider-turn shaped) and
+  configuredProviders 5 (loopback pin + 4 stream-limit cases): the turn
+  fails before any HTTP response with the pinned-send refusal.
+- E8 (`execStdio` packed package): packaging now passes the l10n gate
+  (the English-order fix above) but stops at `npm pack`: the sandbox
+  leaves `/home/randy/.npm/_logs` read-only and the pack scandir fails.
+  The Mistral-capture turn itself never runs here.

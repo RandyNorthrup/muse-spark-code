@@ -3241,6 +3241,7 @@
   "scheduleRunConfirmPrice": "Model API 키로 청구: {price}. 총액은 사용한 토큰 수에 따라 달라집니다.",
   "scheduleRunConfirmExtras": "활성화된 다른 유료 도구로 추가 요금이 발생할 수 있습니다. Bypass 모드에서도 이 확인은 건너뛰지 않습니다.",
   "scheduleConfirmationExpired": "확인하는 동안 모델, 대화 또는 프롬프트가 변경되었습니다. 일정을 확인하고 실행을 다시 선택하세요.",
+  "execKeyRotated": "실행 중에 키가 교체되었습니다. 요청이 전송되지 않았습니다.",
   "requestStaleTurn": "전송 중에 모델 또는 대화가 변경되었습니다. 메시지를 다시 보내세요.",
   "requestStaleCompaction": "압축 중에 모델 또는 대화가 변경되었습니다. 압축을 다시 실행하세요.",
   "requestStaleRetry": "요청을 보내기 전에 모델 또는 대화가 변경되었습니다. 다시 시도하세요.",
@@ -3392,6 +3393,15 @@
   "acpFontsUsage": "사용법: {command} fonts install [--from <directory>]",
   "acpUsage": "사용법:\n  {command} [옵션]              stdin과 stdout으로 Agent Client Protocol을 제공합니다\n  {command} [옵션] login        이 터미널에서 Muse Code에 로그인합니다\n  {command} auth set|status|clear  Meta Model API 키를 저장, 확인 또는 제거합니다\n  {command} auth set|status|clear --provider <id>  공급자 키를 저장, 확인 또는 제거합니다(stdin에서 읽음)\n  {command} providers list|add|test|remove  모델 공급자를 관리합니다\n  {command} exec [options] <prompt>  헤드리스 한 턴 실행\n  {command} scan-secrets <file> [--key-stdin]  파일 하나에서 비밀로 보이는 항목 수 세기(개수만 출력)\n  {command} report [options]  정제된 문제 보고서 출력(백엔드를 시작하지 않고 브라우저를 열지 않음)\n  {command} legal [options]  읽기 전용 법률 검사를 실행합니다(백엔드, 로그인 불필요)\n옵션:\n  --backend museCode|modelApi      결제 주체: Muse Code(기본값) 또는 Model API 키\n  --trust-workspace                폴더의 규칙, 스킬, 메모리를 불러옵니다\n  --muse-binary <경로>             실행할 Muse Code CLI\n  --shell-sandbox auto|muse|off    Muse Code의 셸 샌드박스\n  --questions-defer-after <seconds>  기본적으로 60초 후 질문 보류; 0은 보류하지 않음, 1–9는 10으로 처리, 최대 3600\n  --allow-dangerously-skip-permissions  \"권한 우회\" 모드를 제공합니다\n  --allow-contributor-models       기여자 등급 모델을 표시합니다(Meta가 해당 콘텐츠로 학습할 수 있음)\n  --web-search                     유료 웹 검색을 제공합니다(Model API 백엔드, 먼저 요금을 묻습니다)\n  --image-generation               유료 이미지 생성을 제공합니다(Model API 백엔드, 먼저 요금을 묻습니다)\n  --verbose                        모든 세부 정보를 stderr에 기록합니다\n  --help, --version\n  {command} --trust-workspace setup [--maintenance]  Setup 후크를 실행하고 종료합니다",
   "reportUsage": "사용법:\n  {command} report [--out <file>] [--description <text>] [--no-facts] [--no-events]\n  정제된 문제 보고서를 stdout에 출력하거나 --out와 함께 <file>에 쓴다.\n  백엔드를 시작하지 않고, 어디에도 로그인하지 않으며, 브라우저를 열지 않는다.\n옵션:\n  --out <file>         stdout 대신 파일에 보고서 쓰기\n  --description <text>  무슨 일이 있었는지 자신의 말로\n  --no-facts           지원 정보 제외\n  --no-events          최근 이벤트 제외",
+  "execProgressStarted": "요청 {request} 시작; {reserved} 예약됨.",
+  "execProgressSettled": "요청 {request} 종료; 실행 입력 {input}, 출력 {output}; 지출 {settled}, 불확실 {uncertain}.",
+  "execProgressTokens": {
+    "other": "총 {count}개 토큰"
+  },
+  "execTokenCount": {
+    "other": "최대 {count} 토큰"
+  },
+  "execBudgetQuote": "입력 {inputTokens}({inputCost}) + 출력 한도 {outputTokens}({outputCost}) = {estimate}; 실행 예산 {cap}, 사용액 {spent}. 요청을 보내지 않았습니다.",
   "execBudgetRequired": "Model API에는 --max-budget-usd가 필요합니다.",
   "execNumberInvalid": "숫자 또는 한도가 잘못되었습니다. USD 예산은 소수점 이하 여섯 자리까지 허용합니다.",
   "execTrustRefused": "헤드리스 실행에서는 작업 영역 신뢰와 권한 우회를 거부합니다.",
@@ -3415,6 +3425,16 @@
   "execEffortUnavailable": "이 모델에서는 이 사고 수준을 사용할 수 없습니다.",
   "execTimedOut": "실행이 제한 시간에 도달했습니다.",
   "execBudgetRefused": "다음 요청이 남은 예산을 초과합니다.",
+  "execPaidDailyStopped": "유료 엑스트라가 중단됨: 일일 예산 {cap} 도달 (사용 {spent}, {requests}가 보유한 {held}); {reset}에 초기화됨. 계속하려면 {setting}을(를) 올리세요.",
+  "execPaidOpenRequests": {
+    "other": "열린 요청 {count}개"
+  },
+  "execBudgetProgress": {
+    "other": "예산으로 인해 {count}개의 요청 후 실행이 중단되었습니다. 지금까지의 작업은 유지됩니다."
+  },
+  "execModelNeedsProvider": "모델 {model}은(는) 공급자 {provider}에 속합니다. --provider {provider}와 함께 다시 실행하세요. 사용 가능한 모델: {available}.",
+  "execModelNotOnProvider": "모델 {model}은(는) 공급자 {provider}에 없습니다. 사용 가능한 모델: {available}.",
+  "execModelAvailable": "모델 {model}은(는) 이 백엔드에서 사용할 수 없습니다. 사용 가능한 모델: {available}.",
   "execBudgetMinimum": "이 실행에는 최소 {minimum}이 필요합니다.",
   "execBudgetBreach": "관찰된 비용이 예약 금액을 초과했습니다.",
   "execIncomplete": "응답이 완료되지 않았습니다.",
@@ -3492,6 +3512,7 @@
   "providerPrivateNeedsConfirm": "{origin}은(는) 사설 네트워크에 있습니다. 확인하려면 --private-ok를 붙여 다시 실행하세요.",
   "providerEndpointRefused": "이 주소는 사용할 수 없습니다({reason}).",
   "providerNoRequestPath": "{provider}는 아직 여기서 실행할 수 없습니다. 트래픽 캡처가 대기 중입니다.",
+  "providerModelNoPrice": "{ref}을(를) 실행할 수 없습니다: 가격 카드가 없어 실행 예약을 할 수 없습니다.",
   "execProviderNeedsModelApi": "--provider에는 --backend modelApi가 필요합니다.",
   "execProviderModelRequired": "이 제공자 실행에는 --model provider/model이 필요합니다.",
   "execProviderNotReady": "공급자 실행에는 공급자 전송 계층이 필요합니다. {provider} 요청 검사는 통과했습니다.",
@@ -4169,6 +4190,9 @@
     "failure": "ChatGPT 로그인을 완료할 수 없습니다. 다시 시도하거나 제거한 뒤 다시 로그인하세요.",
     "storeUnavailable": "이 컴퓨터의 자격 증명 저장소를 사용할 수 없습니다. 저장소가 잠금 해제된 대화형 데스크톱 세션에서 로그인하세요. Linux에서는 먼저 Secret Service를 시작하세요."
   },
+  "execProviderNotCatalogue": "이 모델은 이 빌드의 카탈로그에 없습니다: {model}.",
+  "providerCliModelsRequired": "--model <id>를 사용하세요(모델마다 반복). 사용 가능: {models}.",
+  "providerCliConfigure": "옵션을 확인하세요: --preset {preset}, --model <id>, --key-stdin, --address <url>, --private-ok.",
   "execProviderNotConfigured": "공급자 {id}가 구성되지 않았습니다.",
   "providerText": {
     "wizard": {
@@ -5140,29 +5164,5 @@
     "grantsCount": {
       "other": "{count} 개 권한"
     }
-  },
-  "execKeyRotated": "실행 중에 키가 교체되었습니다. 요청이 전송되지 않았습니다.",
-  "execPaidDailyStopped": "유료 엑스트라가 중단됨: 일일 예산 {cap} 도달 (사용 {spent}, {requests}가 보유한 {held}); {reset}에 초기화됨. 계속하려면 {setting}을(를) 올리세요.",
-  "execPaidOpenRequests": {
-    "other": "열린 요청 {count}개"
-  },
-  "execBudgetProgress": {
-    "other": "예산으로 인해 {count}개의 요청 후 실행이 중단되었습니다. 지금까지의 작업은 유지됩니다."
-  },
-  "execModelNeedsProvider": "모델 {model}은(는) 공급자 {provider}에 속합니다. --provider {provider}와 함께 다시 실행하세요. 사용 가능한 모델: {available}.",
-  "execModelNotOnProvider": "모델 {model}은(는) 공급자 {provider}에 없습니다. 사용 가능한 모델: {available}.",
-  "execModelAvailable": "모델 {model}은(는) 이 백엔드에서 사용할 수 없습니다. 사용 가능한 모델: {available}.",
-  "providerModelNoPrice": "{ref}을(를) 실행할 수 없습니다: 가격 카드가 없어 실행 예약을 할 수 없습니다.",
-  "execBudgetQuote": "입력 {inputTokens}({inputCost}) + 출력 한도 {outputTokens}({outputCost}) = {estimate}; 실행 예산 {cap}, 사용액 {spent}. 요청을 보내지 않았습니다.",
-  "execTokenCount": {
-    "other": "최대 {count} 토큰"
-  },
-  "execProviderNotCatalogue": "이 모델은 이 빌드의 카탈로그에 없습니다: {model}.",
-  "providerCliModelsRequired": "--model <id>를 사용하세요(모델마다 반복). 사용 가능: {models}.",
-  "providerCliConfigure": "옵션을 확인하세요: --preset {preset}, --model <id>, --key-stdin, --address <url>, --private-ok.",
-  "execProgressStarted": "요청 {request} 시작; {reserved} 예약됨.",
-  "execProgressSettled": "요청 {request} 종료; 실행 입력 {input}, 출력 {output}; 지출 {settled}, 불확실 {uncertain}.",
-  "execProgressTokens": {
-    "other": "총 {count}개 토큰"
   }
 }

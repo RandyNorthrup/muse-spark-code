@@ -3241,6 +3241,7 @@
   "scheduleRunConfirmPrice": "Model API キーへの請求: {price}。合計額は使用トークン数によって変わります。",
   "scheduleRunConfirmExtras": "有効な他の有料ツールによる追加料金が発生する場合があります。Bypass モードでも、この確認は省略されません。",
   "scheduleConfirmationExpired": "確認中にモデル、会話、またはプロンプトが変更されました。予定を確認し、もう一度［実行］を選択してください。",
+  "execKeyRotated": "実行中にキーがローテーションされました。リクエストは送信されませんでした。",
   "requestStaleTurn": "送信中にモデルまたは会話が変更されました。メッセージをもう一度送信してください。",
   "requestStaleCompaction": "圧縮中にモデルまたは会話が変更されました。もう一度圧縮してください。",
   "requestStaleRetry": "リクエストの送信前にモデルまたは会話が変更されました。もう一度お試しください。",
@@ -3392,6 +3393,15 @@
   "acpFontsUsage": "使用方法: {command} fonts install [--from <directory>]",
   "acpUsage": "使い方:\n  {command} [オプション]              stdin と stdout で Agent Client Protocol を提供します\n  {command} [オプション] login        このターミナルで Muse Code にサインインします\n  {command} auth set|status|clear  Meta Model API キーを保存、確認、または削除します\n  {command} auth set|status|clear --provider <id>  プロバイダー キーを保存、確認、または削除します (stdin から読み取り)\n  {command} providers list|add|test|remove  モデル プロバイダーを管理します\n  {command} exec [options] <prompt>  ヘッドレスで1ターン実行\n  {command} scan-secrets <file> [--key-stdin]  1つのファイル内の秘密情報らしきものを数える（件数のみ出力）\n  {command} report [options]  問題レポート（無害化済み）を出力する（バックエンドを起動せず、ブラウザも開かない）\n  {command} legal [options]  読み取り専用のリーガルスキャンを実行する（バックエンド・サインイン不要）\nオプション:\n  --backend museCode|modelApi      支払い元: Muse Code (既定) または Model API キー\n  --trust-workspace                フォルダーのルール、スキル、メモリを読み込みます\n  --muse-binary <パス>             実行する Muse Code CLI\n  --shell-sandbox auto|muse|off    Muse Code のシェル サンドボックス\n  --questions-defer-after <seconds>  既定では60秒後に質問を保留；0は保留しない、1～9は10として扱い、上限3600\n  --allow-dangerously-skip-permissions  「権限バイパス」モードを表示します\n  --allow-contributor-models       コントリビューター階層のモデルを表示します (Meta がその内容で学習する場合があります)\n  --web-search                     有料の Web 検索を提供します (Model API バックエンド、先に料金を確認します)\n  --image-generation               有料の画像生成を提供します (Model API バックエンド、先に料金を確認します)\n  --verbose                        すべての詳細を stderr に記録します\n  --help, --version\n  {command} --trust-workspace setup [--maintenance]  Setup フックを実行して終了します",
   "reportUsage": "使い方:\n  {command} report [--out <file>] [--description <text>] [--no-facts] [--no-events]\n  無害化済みの問題レポートをstdoutに出力する。--outを指定すると<file>に書き込む。\n  バックエンドを起動せず、サインインも行わず、ブラウザも開かない。\nオプション:\n  --out <file>         stdoutの代わりにファイルにレポートを書き込む\n  --description <text>  何が起きていたかを自分の言葉で\n  --no-facts           サポート情報を省く\n  --no-events          最近のイベントを省く",
+  "execProgressStarted": "リクエスト {request} を開始しました。予約額：{reserved}。",
+  "execProgressSettled": "リクエスト {request} が終了しました。実行の入力：{input}、出力：{output}、支出：{settled}、未確定：{uncertain}。",
+  "execProgressTokens": {
+    "other": "合計 {count} トークン"
+  },
+  "execTokenCount": {
+    "other": "最大 {count} トークン"
+  },
+  "execBudgetQuote": "入力 {inputTokens}（{inputCost}）+ 出力上限 {outputTokens}（{outputCost}）= {estimate}。実行予算 {cap}、使用済み {spent}。リクエストは送信されていません。",
   "execBudgetRequired": "Model API には --max-budget-usd が必要です。",
   "execNumberInvalid": "数値または上限が無効です。USD 予算の小数部は6桁までです。",
   "execTrustRefused": "ヘッドレス実行ではワークスペースの信頼と権限の回避を許可しません。",
@@ -3415,6 +3425,16 @@
   "execEffortUnavailable": "このモデルではこの思考量を利用できません。",
   "execTimedOut": "実行が制限時間に達しました。",
   "execBudgetRefused": "次のリクエストが残りの予算を超えます。",
+  "execPaidDailyStopped": "有料エキストラは停止中です: 日次予算 {cap} に到達しました（使用済み {spent}、{requests}による保留 {held}）。リセットは {reset} です。続けるには {setting} を引き上げてください。",
+  "execPaidOpenRequests": {
+    "other": "{count} 件のオープンなリクエスト"
+  },
+  "execBudgetProgress": {
+    "other": "予算により {count} 回のリクエスト後に実行が停止しました。ここまでの作業は保持されます。"
+  },
+  "execModelNeedsProvider": "モデル {model} はプロバイダー {provider} のものです。--provider {provider} で再実行してください。利用可能なモデル: {available}。",
+  "execModelNotOnProvider": "モデル {model} はプロバイダー {provider} にありません。利用可能なモデル: {available}。",
+  "execModelAvailable": "モデル {model} はこのバックエンドでは利用できません。利用可能なモデル: {available}。",
   "execBudgetMinimum": "この実行には最低 {minimum} が必要です。",
   "execBudgetBreach": "確認された会計値が予約額を超えました。",
   "execIncomplete": "応答が完了しませんでした。",
@@ -3492,6 +3512,7 @@
   "providerPrivateNeedsConfirm": "{origin} はプライベート ネットワーク上にあります。確認するには --private-ok を付けて再実行してください。",
   "providerEndpointRefused": "このアドレスは使用できません ({reason})。",
   "providerNoRequestPath": "{provider} はまだここでは実行できません。トラフィックのキャプチャ待ちです。",
+  "providerModelNoPrice": "{ref} は実行できません: 価格カードがないため、実行の予約ができません。",
   "execProviderNeedsModelApi": "--provider には --backend modelApi が必要です。",
   "execProviderModelRequired": "このプロバイダー実行には --model provider/model が必要です。",
   "execProviderNotReady": "プロバイダーの実行にはプロバイダー転送層が必要です。{provider} のリクエスト検証は成功しました。",
@@ -4169,6 +4190,9 @@
     "failure": "ChatGPT のサインインを完了できませんでした。再試行するか、削除して再度サインインしてください。",
     "storeUnavailable": "このコンピューターの資格情報ストアを利用できません。ストアのロックを解除した対話型デスクトップセッションからサインインしてください。Linux では、先に Secret Service を起動してください。"
   },
+  "execProviderNotCatalogue": "このモデルはこのビルドのカタログにありません: {model}。",
+  "providerCliModelsRequired": "--model <id> を指定してください（複数の場合は繰り返します）。利用可能: {models}。",
+  "providerCliConfigure": "次のオプションを確認してください: --preset {preset}, --model <id>, --key-stdin, --address <url>, --private-ok。",
   "execProviderNotConfigured": "プロバイダー {id} は設定されていません。",
   "providerText": {
     "wizard": {
@@ -5140,29 +5164,5 @@
     "grantsCount": {
       "other": "{count} 件の許可"
     }
-  },
-  "execKeyRotated": "実行中にキーがローテーションされました。リクエストは送信されませんでした。",
-  "execPaidDailyStopped": "有料エキストラは停止中です: 日次予算 {cap} に到達しました（使用済み {spent}、{requests}による保留 {held}）。リセットは {reset} です。続けるには {setting} を引き上げてください。",
-  "execPaidOpenRequests": {
-    "other": "{count} 件のオープンなリクエスト"
-  },
-  "execBudgetProgress": {
-    "other": "予算により {count} 回のリクエスト後に実行が停止しました。ここまでの作業は保持されます。"
-  },
-  "execModelNeedsProvider": "モデル {model} はプロバイダー {provider} のものです。--provider {provider} で再実行してください。利用可能なモデル: {available}。",
-  "execModelNotOnProvider": "モデル {model} はプロバイダー {provider} にありません。利用可能なモデル: {available}。",
-  "execModelAvailable": "モデル {model} はこのバックエンドでは利用できません。利用可能なモデル: {available}。",
-  "providerModelNoPrice": "{ref} は実行できません: 価格カードがないため、実行の予約ができません。",
-  "execBudgetQuote": "入力 {inputTokens}（{inputCost}）+ 出力上限 {outputTokens}（{outputCost}）= {estimate}。実行予算 {cap}、使用済み {spent}。リクエストは送信されていません。",
-  "execTokenCount": {
-    "other": "最大 {count} トークン"
-  },
-  "execProviderNotCatalogue": "このモデルはこのビルドのカタログにありません: {model}。",
-  "providerCliModelsRequired": "--model <id> を指定してください（複数の場合は繰り返します）。利用可能: {models}。",
-  "providerCliConfigure": "次のオプションを確認してください: --preset {preset}, --model <id>, --key-stdin, --address <url>, --private-ok。",
-  "execProgressStarted": "リクエスト {request} を開始しました。予約額：{reserved}。",
-  "execProgressSettled": "リクエスト {request} が終了しました。実行の入力：{input}、出力：{output}、支出：{settled}、未確定：{uncertain}。",
-  "execProgressTokens": {
-    "other": "合計 {count} トークン"
   }
 }
