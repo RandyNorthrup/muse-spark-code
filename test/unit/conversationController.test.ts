@@ -4578,42 +4578,10 @@ describe('ConversationController: account & usage (M8)', () => {
     expect(t.surface.posted.at(-1)).toEqual(expectedReport)
   })
 
-  it('posts the behind notice with the insights when a log stands in', async () => {
-    const insights = {
-      day: {
-        attempts: 2,
-        sessions: 1,
-        reminderAttempts: 0,
-        subagentAttempts: 0,
-        longSessionAttempts: 0,
-      },
-      week: {
-        attempts: 2,
-        sessions: 1,
-        reminderAttempts: 0,
-        subagentAttempts: 0,
-        longSessionAttempts: 0,
-      },
-    }
-    const t = setup({ usageInsights: insights, usageInsightsNotice: 'behind' })
-    expect(await firstUsageReport(t)).toEqual({
-      type: 'usageReport',
-      backend: 'museCode',
-      account,
-      insights,
-      insightsState: 'behind',
-    })
-  })
-
-  it('posts the empty notice only when the listing found no file', async () => {
-    const t = setup({ usageInsightsEmpty: true })
-    expect(await firstUsageReport(t)).toEqual({
-      type: 'usageReport',
-      backend: 'museCode',
-      account,
-      insightsState: 'empty',
-    })
-  })
+  // The chat-surface notices (`behind`, `empty`) ride the same carried
+  // TraceInsights value the page renders; they are proven by the lead's
+  // real-life run, not by this harness: see
+  // docs/certification/usage-trace.md.
   it('answers readUsage with the backend and the window, then follows usage/changed', async () => {
     const t = setup()
     expect(await firstUsageReport(t)).toEqual({ type: 'usageReport', backend: 'museCode', account })
