@@ -985,7 +985,10 @@ describe('M112 through the pinned ACP SDK client', () => {
       starting.reject(new Error('send failed'))
       await rejection
       expect(h.log.error).toHaveBeenCalledOnce()
-      expect(JSON.stringify(h.log.error.mock.calls)).toContain('send failed')
+      // R1: the log line is built from the same allow-listed shape (code,
+      // kind, fixed sentence), never the raw failure text.
+      expect(JSON.stringify(h.log.error.mock.calls)).toContain('internal')
+      expect(JSON.stringify(h.log.error.mock.calls)).not.toContain('send failed')
       expect(registry.releaseQueued).toHaveBeenCalledTimes(1)
       expect(registry.commitQueued).not.toHaveBeenCalled()
       const retry = h.prompt(client, 'retry')

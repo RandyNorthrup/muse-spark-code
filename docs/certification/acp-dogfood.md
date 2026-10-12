@@ -443,3 +443,68 @@ that trade. No pin or cap moved. Inherited overage, stated separately:
 533473 is 2590 over the 530883 diet gate (936 over the 532537 pin); with
 this round the file stands 4644 over the gate. The diet lane resolves it
 at integration.
+
+### Round-3 verification follow-ups (same session, before commit)
+
+Focused verification caught two regressions the strict R1 allow-list
+introduced against repo tests, plus one R1-mandated contract update. All
+three are fixed below; the R7 numbers above are unaffected (the follow-up
+edits touch only `src/acp/agent.ts`, which ships in `dist/acp.js`, plus
+tests).
+
+- **V1 — dropped send-failure advice (Q66).** The strict allow-list mapped
+  every `ModelApiError` to the generic sentence, but the transport's
+  send-failure message is fixed advice text (`networkFailureMessage`, kind
+  from the fixed `NetworkFailureKind` vocabulary) plus a parenthesised
+  technical detail — the `acpModelApi` Q66 test expects the advice sentence.
+  Fix: `networkAdviceSentence` in `src/acp/agent.ts` keeps exactly the fixed
+  sentence when the message begins with one of the three slot-free agent
+  advice sentences (detail dropped); it also applies to the failed turn's
+  wrapping `RequestError`, whose reason is the transport message. Output is
+  always exactly fixed text, so the R1 property (raw planted secrets stay
+  generic) is unchanged. Regression tests: two new cases in
+  `test/unit/acpDogfoodOutbound.test.ts` (direct `ModelApiError`, wrapped
+  turn with sentinels in the detail — emitted message is exactly the fixed
+  sentence) and the end-to-end Q66. Red drill: matcher forced to
+  `undefined` → exactly the 2 new tests red, all 9 property tests still
+  green; restored byte-exact (`sha256sum -c` clean for `src/acp/agent.ts`
+  `dbdf103d931683ba4d3210340ac35b0f00ae0844248df3279eb84c6baf46d72f`
+  and the test file).
+- **V2 — dropped unknown-command template (4 `acpSharing` tests).** The
+  local-command error is a constructed l10n template
+  (`acpUnknownArgument: 'Unknown argument: {argument}'`, in all 14 tables),
+  not a copied thrown message, and the review's leak inventory does not cite
+  it; the repo tests require the filled sentence. Fix: `outboundTemplates`
+  admits messages that fill exactly this template (prefix/suffix read from
+  the installed table at use time, matched past the SDK factories' own
+  prefix). A raw planted secret carries no template prefix and stays
+  generic. Sibling sweep: every other `RequestError` site in `agent.ts`
+  throws fixed sentences (all in the set); the `modeId`/`configId`/`value`
+  echoes have no repo test at the client boundary and stay generic, which is
+  R1-correct. Regression test: new unit case plus the 4 sharing tests.
+  Red drill: template list forced to empty → the named unit test red;
+  restored byte-exact (`src/acp/agent.ts`
+  `2ab8a1f65889df6facc4121087383c50702a5c447be39581f39e9d525366863c` OK).
+- **V3 — deferral log-shape contract.** `acpQuestionDeferral` asserted the
+  log line contains the raw text `'send failed'`; R1 requires the log from
+  the same built shape (code/kind/fixed sentence), and the sibling test in
+  the same file already asserts a canary never reaches logs. The assertion
+  now pins the built shape (`internal`) and the raw text's absence — a
+  stricter contract, behaviour assertions untouched.
+- **Pre-existing, not this lane.** The `acpAgent` ChatGPT-actions test fails
+  identically on the pristine round-2 tip `bd8f364a0` (single-test run in a
+  scratch worktree): needs a live/cloud path the sandbox denies. Lead to
+  verify outside.
+- **Sandbox-signatured.** `usageIntegration` M102 fails with `listen EPERM:
+operation not permitted 127.0.0.1` (sandbox blocks loopback); the full
+  unit run shows the same EPERM worker kills (e.g.
+  `harnessHistoricalFixture`). `deferredBundles` RVM115U5 diet asserts
+  `<= 530883` against the measured 535527 — red at the base too (533473),
+  diet-lane owned per the brief (no pin/cap moves).
+- **Full suite (this rig).** `npx vitest run --maxWorkers=3` excluding the 4
+  browser files: 1205 files passed, 79 failed, 13 skipped; 24700 tests
+  passed, 471 failed, 441 skipped; 45 worker errors (EPERM loopback). The
+  run's tail was truncated so the failed-file list is not attributable from
+  it; every suite covering this lane's modules was re-run focused at repo
+  timeouts and is green (table in the final report). The lead re-runs the
+  full suite outside the sandbox.
