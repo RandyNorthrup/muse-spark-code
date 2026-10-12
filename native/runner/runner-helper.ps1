@@ -120,6 +120,16 @@ public static class MuseRunnerJob {
       return code;
     } finally { if(child.thread!=IntPtr.Zero) CloseHandle(child.thread); if(child.process!=IntPtr.Zero) CloseHandle(child.process); CloseHandle(job); }
   }
+  // The supervisor's own stdout/stderr are the run's output file (Start
+  // duplicates the log handle into the child). Closing them is what lets
+  // the exit record mean settled: no handle on the run's files is held
+  // once the record is observable. Call only after the job drains, and
+  // write no console output afterwards.
+  public static void ReleaseOutput() {
+    IntPtr output=GetStdHandle(-11), error=GetStdHandle(-12);
+    if(output!=IntPtr.Zero && output!=(IntPtr)(-1)) CloseHandle(output);
+    if(error!=IntPtr.Zero && error!=(IntPtr)(-1) && error!=output) CloseHandle(error);
+  }
 }
 '@
 
@@ -236,6 +246,11 @@ switch ($Action) {
             try { $creation=[IO.File]::Open(($cache+'.creating'),[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::Read) }
             catch [IO.IOException] {
                 [IO.File]::WriteAllText((Join-Path $run 'cache-busy'),'')
+                Initialize-RunnerJob
+                # The supervisor's own stdout/stderr are the run's output
+                # file: release them before announcing, so the record is
+                # observable only once the files are free to touch.
+                [MuseRunnerJob]::ReleaseOutput()
                 [IO.File]::WriteAllText((Join-Path $run 'exit.new'),(ConvertTo-Json -Compress @{runId=$RunId;state='ended';exitCode=75;reason='cacheBusy'}))
                 Move-Item -LiteralPath (Join-Path $run 'exit.new') -Destination (Join-Path $run 'exit.json'); break
             }
@@ -254,6 +269,11 @@ switch ($Action) {
         $code=[MuseRunnerJob]::Run($application,$line,([uint32]$Timeout * 1000))
         $run=Get-RunPath $RunId
         Remove-CacheLock (Join-Path (Join-Path $Root 'cache') $CacheKey) $RunId
+        # The job object is drained (active count zero above) and the run's
+        # processes are gone; the supervisor's own stdout/stderr are the
+        # last handles on the output file. Release them before announcing,
+        # so the exit record is observable only once the files are free.
+        [MuseRunnerJob]::ReleaseOutput()
         $result=@{runId=$RunId;state='ended';exitCode=[int]$code}
         if (Test-Path -LiteralPath (Join-Path $run 'cache-busy')) { $result.reason='cacheBusy' }
         [IO.File]::WriteAllText((Join-Path $run 'exit.new'),(ConvertTo-Json -Compress $result))
