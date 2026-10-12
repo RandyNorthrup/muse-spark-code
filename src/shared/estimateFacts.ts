@@ -1,20 +1,21 @@
 // M117: normalized owner facts, never provider wire shapes or display text.
 import * as z from 'zod/mini'
-import { accountIdSchema } from './accountId'
+import { compareUsdAmounts, nonnegativeUsdSchema } from './usdSchema'
 import { USAGE_ID_MAX_CHARS } from './constants'
+// The ownership contract lives alone for the capped headless bundle; every
+// existing importer keeps reading it from here.
+export { estimateAccountOwnerSchema, type EstimateAccountOwner } from './estimateOwner'
+import { estimateAccountOwnerSchema } from './estimateOwner'
 const usageIdSchema = z
   .string()
   .check(z.minLength(1), z.maxLength(USAGE_ID_MAX_CHARS), z.regex(/^[\w.-]+$/))
 
-const amount = z.nullable(z.number().check(z.nonnegative()))
+// Counts and percentages stay binary numbers; money is exact decimal
+// strings end to end, so a boundary value floating point gets wrong still
+// admits exactly.
+const amount = z.nullable(z.union([z.number().check(z.nonnegative()), nonnegativeUsdSchema]))
 const instant = z.iso.datetime().check(z.refine((value) => Number.isFinite(Date.parse(value))))
 const maybeInstant = z.nullable(instant)
-export const estimateAccountOwnerSchema = z.strictObject({
-  kind: z.literal('account'),
-  id: accountIdSchema,
-  providerId: accountIdSchema,
-  generation: z.string().check(z.minLength(1)),
-})
 export const estimateLimitFactSchema = z
   .strictObject({
     owner: z.discriminatedUnion('kind', [
@@ -50,11 +51,31 @@ export const estimateLimitFactSchema = z
     ]),
   })
   .check(
-    z.refine(
-      (fact) =>
-        (fact.limit === null || fact.remaining === null || fact.remaining <= fact.limit) &&
-        (fact.unit !== 'percent' || fact.limit === null || fact.limit <= 100),
-    ),
+    z.refine((fact) => {
+      if (fact.unit === 'usd') {
+        // Money travels only as exact decimal strings, with no renewal the
+        // estimator could schedule against: a usd balance never resets.
+        const amounts = [fact.used, fact.limit, fact.remaining]
+        if (
+          amounts.some((value) => value !== null && typeof value !== 'string') ||
+          fact.window.resetsAt !== null
+        )
+          return false
+        const { limit, remaining } = fact
+        return (
+          limit === null ||
+          remaining === null ||
+          (typeof limit === 'string' &&
+            typeof remaining === 'string' &&
+            compareUsdAmounts(remaining, limit) <= 0)
+        )
+      }
+      const limit = typeof fact.limit === 'string' ? Number(fact.limit) : fact.limit
+      const remaining = typeof fact.remaining === 'string' ? Number(fact.remaining) : fact.remaining
+      return (
+        (limit === null || remaining === null || remaining <= limit) &&
+        (fact.unit !== 'percent' || limit === null || limit <= 100)
+      )
+    }),
   )
 export type EstimateLimitFact = z.infer<typeof estimateLimitFactSchema>
-export type EstimateAccountOwner = z.infer<typeof estimateAccountOwnerSchema>

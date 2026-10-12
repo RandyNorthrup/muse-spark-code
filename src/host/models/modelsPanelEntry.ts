@@ -330,12 +330,14 @@ export function createModelsPanelFeatures(
           )
         },
         onWizardSaved: (outcome: WizardSaveOutcome) => {
-          if (!outcome.composerSet) {
-            return
-          }
+          // Every saved credential retires the ownership generation, whether
+          // or not the composer adopts it now; only the notice needs the set.
           void Promise.resolve(host.onWizardSaved?.(outcome)).catch(() => {
             host.log.warn('Provider setup notification failed')
           })
+          if (!outcome.composerSet) {
+            return
+          }
           void vscode.window
             .showInformationMessage(
               fill(UI_TEXT.setupComplete, {

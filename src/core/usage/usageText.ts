@@ -37,7 +37,7 @@ function certaintyNote(certainty: UsageCertainty): string | undefined {
   if (certainty === 'plan') return USAGE_TEXT.apiEquivalentNote
   return
 }
-function amount(value: number | undefined): string {
+function amount(value: number | string | undefined): string {
   return value === undefined ? USAGE_TEXT.unknown : formatUsd(value, 2)
 }
 function count(value: number | undefined): string {

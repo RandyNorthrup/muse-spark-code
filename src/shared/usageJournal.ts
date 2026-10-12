@@ -180,9 +180,11 @@ export const usageLimitSnapshotSchema = z
     windows: z.array(usageLimitWindowSchema),
     account: z.optional(
       z.strictObject({
-        usedUsd: z.optional(usageAmountSchema),
-        limitUsd: z.optional(usageAmountSchema),
-        remainingUsd: z.optional(usageAmountSchema),
+        // Money is exact decimal strings end to end; historical numbers
+        // normalize once to their canonical decimal spelling on read.
+        usedUsd: z.optional(legacyUsdSchema),
+        limitUsd: z.optional(legacyUsdSchema),
+        remainingUsd: z.optional(legacyUsdSchema),
         period: usageLabelSchema,
       }),
     ),
@@ -199,5 +201,6 @@ export type UsageJournalEntry = z.infer<typeof usageJournalEntrySchema>
 // M102 extends its record schemas with these fields once its journal lands.
 // Absence denotes a pre-M108 record; the reader resolves it to `default`.
 import { accountIdSchema } from './accountId'
+import { legacyUsdSchema } from './usdSchema'
 
 export const usageAccountFields = { account: z.optional(accountIdSchema) }

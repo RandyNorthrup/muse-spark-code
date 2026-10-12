@@ -315,7 +315,10 @@ function fleetAccountFromFacts(
       if (Date.parse(reset) > nowMs) resets.push(reset)
     }
     if (reset === null || fact.unit === null || fact.remaining === null) continue
-    const allowance = fact.limit ?? fact.remaining
+    // Money never becomes a numeric window: usd facts carry exact decimal
+    // strings and no reset, and admit on the schedule's fact-direct path.
+    if (typeof fact.remaining !== 'number') continue
+    const allowance = typeof fact.limit === 'number' ? fact.limit : fact.remaining
     windows.push({
       id: `${accountId}-${
         fact.observedBy === 'account-limits'
@@ -439,6 +442,7 @@ const currentOwnerSchema = z.strictObject({
 const ownedObservationSchema = z.strictObject({
   owner: estimateAccountOwnerSchema,
   snapshot: usageLimitSnapshotSchema,
+  sequence: z.int().check(z.gte(0)),
 })
 function currentOwner(deps: FleetUsageOwners) {
   let value: ReturnType<NonNullable<FleetUsageOwners['currentOwner']>> | undefined
@@ -507,7 +511,7 @@ async function liveAccountSource(deps: FleetUsageOwners): Promise<FleetAccountSo
         row.owner.generation === before.generation &&
         row.owner.providerId === (before.providerId ?? 'meta'),
     )
-    .toSorted((a, b) => b.snapshot.observedAt - a.snapshot.observedAt)
+    .toSorted((a, b) => b.snapshot.observedAt - a.snapshot.observedAt || b.sequence - a.sequence)
   const selected = current[0]
   if (selected === undefined) return undefined
   const facts = current
@@ -660,15 +664,24 @@ export function headlessFleetSources(
             : 'invalidAccount'
         refuse(`fleet-account-invalid registry ${reason}`)
       }
+      const owner = currentOwner(deps)
       const live = await liveAccountSource(deps)
-      if (live !== undefined) return live
-      const id = selectFleetAccount(rows, currentOwner(deps)?.accountId ?? null)
+      if (live !== undefined) {
+        // Live facts keep the selected owner's identity; when the owner
+        // supplies no display label the registry's label still applies.
+        if (live.kind === 'facts' && live.label === undefined) {
+          const label = rows.find((row) => row.id === live.owner.id)?.label
+          if (label !== undefined) return { ...live, label }
+        }
+        return live
+      }
+      const id = selectFleetAccount(rows, owner?.accountId ?? null)
       const label = rows.find((row) => row.id === id)?.label
       return id === undefined
         ? { kind: 'no-reader', surface: 'runtime' }
         : {
             kind: 'registry',
-            providerId: 'meta',
+            providerId: owner?.providerId ?? 'meta',
             accountId: id,
             ...(label !== undefined && { label }),
           }

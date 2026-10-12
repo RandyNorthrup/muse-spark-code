@@ -951,6 +951,12 @@ function isContributorModel(modelId: string): boolean {
   return modelId.endsWith(CONTRIBUTOR_MODEL_SUFFIX)
 }
 
+/** The account provider a validated model reference reads its limits from. */
+function providerOfModel(modelId: string): string {
+  const slash = modelId.indexOf('/')
+  return slash === -1 ? 'meta' : modelId.slice(0, slash)
+}
+
 /**
  * A new conversation that starts from a brief (M79's "Implement in a fresh
  * conversation"; M74's `/handoff` is to reuse it). The old conversation is
@@ -8200,6 +8206,7 @@ export class ConversationController {
         if (appliedModel !== modelId && this.session.fireExtensionHook !== undefined) {
           this.modelId = appliedModel
           this.postSessionInfo(appliedModel)
+          this.invalidateEstimateOnProviderSwitch(previous)
           return
         }
       } catch (error: unknown) {
@@ -8208,6 +8215,7 @@ export class ConversationController {
         return
       }
     }
+    this.invalidateEstimateOnProviderSwitch(previous)
     this.postSessionInfo(modelId)
     // A tier the new model does not serve would fail its turns with a 400
     // (muse-spark-1.2 has no `max`); drop to the highest tier it does serve.
@@ -9338,11 +9346,24 @@ export class ConversationController {
     this.lastEstimateSection = undefined
   }
 
+  /**
+   * A provider switch retires the pending and the displayed estimate: the
+   * old forecast was read under another owner and must never be delivered
+   * here.
+   */
+  private invalidateEstimateOnProviderSwitch(previousModelId: string): void {
+    if (providerOfModel(this.modelId) !== providerOfModel(previousModelId))
+      this.invalidateEstimate()
+  }
+
   private async handleEstimateMessage(
     message: Extract<WebviewToHostMessage, { type: 'estimateRun' | 'estimateSpinUp' }>,
   ): Promise<void> {
     const estimator = this.deps.estimator
     const generation = this.sendInvalidationEpoch
+    // The owner this request was read under: a provider switch meanwhile
+    // retires it, so a late forecast is never delivered to another owner.
+    const provider = this.estimateProviderId
     const correlation = message.requestId === undefined ? {} : { requestId: message.requestId }
     if (message.type === 'estimateRun') {
       this.invalidateEstimate()
@@ -9351,7 +9372,12 @@ export class ConversationController {
       try {
         if (estimator === undefined) throw new Error(UI_TEXT.estimateUnavailable)
         const section = await estimator.estimate(message.request, pending.signal)
-        if (pending.signal.aborted || generation !== this.sendInvalidationEpoch || this.isDisposed)
+        if (
+          pending.signal.aborted ||
+          generation !== this.sendInvalidationEpoch ||
+          provider !== this.estimateProviderId ||
+          this.isDisposed
+        )
           return
         this.lastEstimateInputs = section.inputs
         this.lastEstimateSection = section
@@ -10746,8 +10772,7 @@ export class ConversationController {
 
   /** The account provider selected by this composer's validated model reference. */
   public get estimateProviderId(): string {
-    const slash = this.modelId.indexOf('/')
-    return slash === -1 ? 'meta' : this.modelId.slice(0, slash)
+    return providerOfModel(this.modelId)
   }
 
   /** Whether Ctrl+B has a running command to move here (M46): its context key. */

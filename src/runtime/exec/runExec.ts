@@ -695,7 +695,13 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         })
       const engine = await import('../runtimeEngineEntry')
       engine.setUiText(UI_TEXT, uiLocale())
-      restoreUsageRecording = engine.installUsageRecording(usageRecording)
+      // Exec runs publish owned observations under the run's account, so a
+      // later credential change retires them with the run.
+      const execGeneration = randomUUID()
+      restoreUsageRecording = engine.installUsageRecording(usageRecording, () => ({
+        accountId: ACCOUNT_DEFAULT_ID,
+        generation: execGeneration,
+      }))
       const { createRuntimeBackend } = engine
       const runtimeDeps: RuntimeBackendDeps = {
         options: serveOptionsFor(options),

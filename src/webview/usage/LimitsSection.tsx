@@ -273,10 +273,16 @@ export function LimitsSection({
           .map((snapshot) => {
             const account = snapshot.account
             if (account === undefined) return null
+            // Balance amounts are exact decimal strings; the meter bar reads
+            // them as display numbers only, never for admission.
+            const used = account.usedUsd === undefined ? undefined : Number(account.usedUsd)
+            const cap = account.limitUsd === undefined ? undefined : Number(account.limitUsd)
             const description = fill(USAGE_TEXT.budgetSpent, {
               spent: money(account.usedUsd),
               cap: money(account.limitUsd),
             })
+            const percent =
+              used === undefined || cap === undefined || cap === 0 ? 100 : (used / cap) * 100
             return (
               <article key={snapshot.id} className="usage-limit-card">
                 <h3>
@@ -284,19 +290,10 @@ export function LimitsSection({
                 </h3>
                 <p>{account.period}</p>
                 <p>{description}</p>
-                {account.usedUsd === undefined || account.limitUsd === undefined ? null : (
+                {used === undefined || cap === undefined ? null : (
                   <>
-                    <Meter
-                      percent={
-                        account.limitUsd === 0 ? 100 : (account.usedUsd / account.limitUsd) * 100
-                      }
-                      description={description}
-                    />
-                    <Warning
-                      percent={
-                        account.limitUsd === 0 ? 100 : (account.usedUsd / account.limitUsd) * 100
-                      }
-                    />
+                    <Meter percent={percent} description={description} />
+                    <Warning percent={percent} />
                   </>
                 )}
                 <p>

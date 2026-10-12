@@ -1,6 +1,6 @@
 import { Usd, type UsdAmount } from '../../shared/usd'
 import type { CreateResponseBody, StreamEvent } from '../../core/backends/modelapi/schemas'
-import type { UsageRecording } from '../../core/usage/recording'
+import type { UsageRecording, UsageScopeReader } from '../../core/usage/recording'
 import type { UsageBudgetRead } from '../../core/usage/usageService'
 // Owns the Model API host for this extension host (M7): one in-process
 // `ModelApiHost` over the real `fetch`, the stored key and the workspace's
@@ -236,6 +236,8 @@ function describe(error: unknown): string {
 export class ModelApiBackendManager {
   /** Runtime/activation injects the same journal into every owned host. */
   public static usageRecording: UsageRecording | undefined
+  /** Where surviving hosts read their current owner after a credential change. */
+  public static usageScope: UsageScopeReader | undefined
   private host: ModelApiHost | undefined
   /**
    * The host being built (PLAN.md D25): every caller waits for the stored
@@ -367,6 +369,7 @@ export class ModelApiBackendManager {
         admitResponseAttempt: variant.admitResponseAttempt,
         noteResponseUsage: variant.noteResponseUsage,
         usageRecording: this.deps.usageRecording ?? ModelApiBackendManager.usageRecording,
+        usageScope: this.deps.usageScope ?? ModelApiBackendManager.usageScope,
         hasExternalPaidRecording: this.deps.hasExternalPaidRecording,
         usageKind: variant.usageKind,
         hasMetaCredential: this.deps.hasMetaCredential,
