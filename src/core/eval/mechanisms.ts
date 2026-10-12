@@ -258,12 +258,14 @@ export function canonicalDigestPath(file: string): string {
 }
 
 /**
- * The digest's byte form (M101 R6): the bytes Git stores are LF, but a
- * checkout may convert line endings, so CRLF pairs and any lone CR fold
- * to LF before hashing. LF bytes hash unchanged.
+ * The digest's byte form (M101 R6, R8): the bytes Git stores are LF, but
+ * a checkout may convert line endings, so CRLF pairs fold to LF before
+ * hashing. A lone CR is program text (a string or template literal may
+ * hold one), so it hashes as it is: folding it would let two different
+ * programs hash equal. LF bytes hash unchanged.
  */
 export function canonicalDigestText(text: string): string {
-  return text.replaceAll('\r\n', '\n').replaceAll('\r', '\n')
+  return text.replaceAll('\r\n', '\n')
 }
 
 /**

@@ -165,13 +165,15 @@ describe('the frozen evaluation harness', () => {
     }
   })
 
-  it('hashes one value for a CRLF tree and an LF tree, including lone carriage returns', () => {
-    // The digest folds line endings before hashing: a checkout whose line
-    // endings were converted hashes like the bytes Git stores.
+  it('hashes one value for a CRLF tree and an LF tree, but not for a lone carriage return', () => {
+    // The digest folds CRLF pairs before hashing: a checkout whose line
+    // endings were converted hashes like the bytes Git stores. A lone CR
+    // is program text, so it hashes as it is and differs from LF.
     const lf = 'line one\nline two\n'
     const crlf = 'line one\r\nline two\r\n'
     expect(canonicalDigestText(crlf)).toBe(lf)
-    expect(canonicalDigestText('a\rb')).toBe('a\nb')
+    expect(canonicalDigestText('a\rb')).toBe('a\rb')
+    expect(canonicalDigestText('a\rb')).not.toBe('a\nb')
     expect(canonicalDigestText(lf)).toBe(lf)
     const fromLf = frozenSourceDigests([
       { path: 'src/core/eval/a.ts', text: lf },
@@ -182,6 +184,11 @@ describe('the frozen evaluation harness', () => {
       { path: 'src/core/eval/b.ts', text: 'export const x = 1\r\n' },
     ])
     expect(fromCrlf).toEqual(fromLf)
+    // A lone CR inside a source is different program text from LF, so the
+    // digests differ where the CRLF and LF checkouts above agree.
+    const fromLoneCr = frozenSourceDigests([{ path: 'src/core/eval/a.ts', text: 'a\rb' }])
+    const fromLoneLf = frozenSourceDigests([{ path: 'src/core/eval/a.ts', text: 'a\nb' }])
+    expect(fromLoneCr).not.toEqual(fromLoneLf)
   })
 
   it('hashes one value for backslash and forward-slash paths in byte order', () => {
