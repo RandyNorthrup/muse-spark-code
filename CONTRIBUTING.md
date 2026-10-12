@@ -47,6 +47,16 @@ On CI or another rasterization environment the recorded Git revision is
 rendered beside the candidate. Fetch that revision if a shallow checkout does
 not have it; a missing source or screenshot fails, never skips.
 
+The capture inputs are one list, `scripts/lib/captureInputs.mjs`: `src`,
+`design`, `test/harness`, `scripts/build.mjs`, `scripts/lib`,
+`package.json` and `package-lock.json`. `CHANGELOG.md` is not one: the
+What's New scenes render a fixed fixture
+(`test/harness/whats-new/CHANGELOG.fixture.md`, two made-up releases and a
+fixed version), so a release's notes and its version move no frame. The
+fixture must hold every kind of part the real notes use;
+`test/unit/whatsNewFixture.test.mjs` names a missing kind, and adding it to
+the fixture means re-rendering those scenes.
+
 Commit capture inputs, run an update with a named review and a fresh external
 archive directory, inspect the candidate images, then commit the manifest.
 Normal checks never rewrite it. Keep full-resolution capture sets out of git;

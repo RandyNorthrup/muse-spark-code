@@ -4,7 +4,7 @@ import { Usd } from '../../src/shared/usd'
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { createServer } from 'node:http'
+import { createServer, type Server, type ServerResponse } from 'node:http'
 import * as z from 'zod/mini'
 import * as vscode from 'vscode'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -31,7 +31,9 @@ import { memoryToolIo } from './helpers/fakeToolIo'
 import { FakeLogOutputChannel, memorySecrets } from './helpers/fakes'
 import { watchSessionTurns } from './helpers/sessionTurns'
 import { EN } from '../../src/shared/l10n/en'
+import { fill } from '../../src/shared/l10n/text'
 import {
+  MODEL_API_REQUEST_TIMEOUT_MS,
   PROVIDER_SECRET_PREFIX,
   SUBSCRIPTION_STREAM_MAX_BYTES,
   UI_TEXT,
@@ -51,6 +53,19 @@ const ENTRY = providerEntrySchema.parse({
   models: ['ministral-3b-latest'],
 })
 const REF = 'mistral-plan/ministral-3b-latest'
+/** A user's own local provider at the test listener's loopback address, with no credential. */
+function localEntry(server: Server) {
+  const address = server.address()
+  if (address === null || typeof address === 'string') throw new Error('Missing test listener')
+  return providerEntrySchema.parse({
+    ...ENTRY,
+    id: 'local',
+    preset: 'custom',
+    auth: 'none',
+    address: `http://127.0.0.1:${String(address.port)}`,
+    modelLimits: { 'ministral-3b-latest': { contextTokens: 128_000, outputTokens: 128_000 } },
+  })
+}
 const capture = async (file: string) =>
   JSON.parse(
     await readFile(path.join('docs/certification/m95-captures/mistral', file), 'utf8'),
@@ -841,17 +856,7 @@ describe('configured provider production transport', () => {
     })
     await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
     try {
-      const address = server.address()
-      if (address === null || typeof address === 'string') throw new Error('Missing test listener')
-      const entry = providerEntrySchema.parse({
-        ...ENTRY,
-        id: 'local',
-        preset: 'custom',
-        auth: 'none',
-        address: `http://127.0.0.1:${String(address.port)}`,
-        modelLimits: { 'ministral-3b-latest': { contextTokens: 128_000, outputTokens: 128_000 } },
-      })
-      await writeProvidersFileAtomic(f.configFile, { v: 1, providers: [entry] })
+      await writeProvidersFileAtomic(f.configFile, { v: 1, providers: [localEntry(server)] })
       const services = createConfiguredProviderServices(undefined, f)
       const model = await services.registry.resolve('local/ministral-3b-latest')
       const events = await consume(
@@ -1053,4 +1058,151 @@ it('preserves the minimum if a stored cap changes before a bound client sends', 
     consume(selected.client.streamResponse(body(), new AbortController().signal)),
   ).rejects.toThrow('Output cap must be at least 16 tokens.')
   expect(send).not.toHaveBeenCalled()
+})
+
+// 0.17.2: an inference stream has no limit on its total time. From 0.15.0 to
+// 0.17.1 the 30 s deadline of a bounded call wrapped the whole stream, so an
+// answer that took longer was cut off and reported as an unavailable feature.
+describe('configured provider stream limits', () => {
+  const LOCAL = 'local/ministral-3b-latest'
+  const IDLE_MS = 600
+  const stalled = fill(UI_TEXT.modelApiStalled, { seconds: 1 })
+
+  /** The production transport against a loopback server, as a user's own local provider. */
+  async function localProvider(answer: (res: ServerResponse) => void, streamIdleMs?: number) {
+    const f = await fixture()
+    const server = createServer((_request, res) => {
+      answer(res)
+    })
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+    await writeProvidersFileAtomic(f.configFile, { v: 1, providers: [localEntry(server)] })
+    const services = createConfiguredProviderServices(undefined, {
+      ...f,
+      ...(streamIdleMs !== undefined && { streamIdleMs }),
+    })
+    const model = await services.registry.resolve(LOCAL)
+    return {
+      run: (signal: AbortSignal) =>
+        consume(model.client.streamResponse({ ...body(), model: LOCAL }, signal)),
+      close: async () => {
+        server.closeAllConnections()
+        await new Promise<void>((resolve) => {
+          server.close(() => {
+            resolve()
+          })
+        })
+      },
+    }
+  }
+  const HEADERS = { 'content-type': 'text/event-stream' }
+  /** An answer that sends `parts` one at a time, `gapMs` apart, then ends. */
+  const paced = (parts: readonly Uint8Array[], gapMs: number) => (res: ServerResponse) => {
+    res.writeHead(200, HEADERS)
+    let sent = 0
+    const timer = setInterval(() => {
+      const part = parts[sent]
+      sent += 1
+      if (part !== undefined) res.write(part)
+      if (sent < parts.length) return
+      clearInterval(timer)
+      res.end()
+    }, gapMs)
+    res.on('close', () => {
+      clearInterval(timer)
+    })
+  }
+  /** An answer that sends the first frame of a real stream, then nothing. */
+  async function firstFrameThenSilence() {
+    const payload = await stream('03-tool-result-stream.json')
+    return (res: ServerResponse) => {
+      res.writeHead(200, HEADERS)
+      res.write(payload.subarray(0, payload.indexOf('\n\n') + 2))
+    }
+  }
+
+  it('lets a stream run past the bounded-call deadline', async () => {
+    // The 30 s deadline is 100 ms here; the stream takes about 600 ms.
+    const realTimeout = AbortSignal.timeout.bind(AbortSignal)
+    vi.spyOn(AbortSignal, 'timeout').mockImplementation((ms) =>
+      realTimeout(ms === MODEL_API_REQUEST_TIMEOUT_MS ? 100 : ms),
+    )
+    const payload = await stream('03-tool-result-stream.json')
+    const size = Math.ceil(payload.byteLength / 6)
+    const slices = Array.from({ length: 6 }, (_, index) =>
+      payload.subarray(index * size, (index + 1) * size),
+    )
+    const local = await localProvider(paced(slices, 100))
+    try {
+      const started = Date.now()
+      const events = await local.run(new AbortController().signal)
+      expect(events).toContainEqual(expect.objectContaining({ type: 'response.completed' }))
+      expect(Date.now() - started).toBeGreaterThan(400)
+    } finally {
+      await local.close()
+    }
+  })
+
+  it('keeps a steady stream alive for several times the idle limit: the limit is on silence, not on the total', async () => {
+    // One frame every 30 ms, 44 frames: about 1.3 s in total under a 300 ms
+    // idle limit. Every event arrives, as when the stream is sent at once.
+    const idleMs = 300
+    const payload = await stream('03-tool-result-stream.json')
+    const frames = payload
+      .toString('utf8')
+      .split('\n\n')
+      .filter((frame) => frame !== '')
+      .map((frame) => Buffer.from(`${frame}\n\n`))
+    const whole = await localProvider(paced([payload], 1))
+    const steady = await localProvider(paced(frames, 30), idleMs)
+    try {
+      const expected = await whole.run(new AbortController().signal)
+      const started = Date.now()
+      const events = await steady.run(new AbortController().signal)
+      expect(Date.now() - started).toBeGreaterThan(3 * idleMs)
+      const types = (list: readonly unknown[]) =>
+        list.map((event) => z.object({ type: z.string() }).parse(event).type)
+      expect(types(events)).toEqual(types(expected))
+      expect(types(events).at(-1)).toBe('response.completed')
+    } finally {
+      await whole.close()
+      await steady.close()
+    }
+  })
+
+  it('ends a stream that goes silent at the idle limit, with the idle sentence', async () => {
+    const local = await localProvider(await firstFrameThenSilence(), IDLE_MS)
+    try {
+      const started = Date.now()
+      await expect(local.run(new AbortController().signal)).rejects.toThrow(stalled)
+      expect(Date.now() - started).toBeLessThan(5000)
+    } finally {
+      await local.close()
+    }
+  })
+
+  it('ends a stream whose headers never arrive at the idle limit, with the idle sentence', async () => {
+    const local = await localProvider(() => {
+      // The server accepts the request and never answers.
+    }, IDLE_MS)
+    try {
+      await expect(local.run(new AbortController().signal)).rejects.toThrow(stalled)
+    } finally {
+      await local.close()
+    }
+  })
+
+  it('ends a stream at once when the caller stops it', async () => {
+    const local = await localProvider(await firstFrameThenSilence())
+    try {
+      const stop = new AbortController()
+      const started = Date.now()
+      setTimeout(() => {
+        stop.abort()
+      }, 150)
+      await expect(local.run(stop.signal)).rejects.toThrow()
+      expect(Date.now() - started).toBeLessThan(3000)
+    } finally {
+      await local.close()
+    }
+  })
 })
