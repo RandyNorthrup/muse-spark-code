@@ -82,8 +82,8 @@ const tree: TeamTreeData = {
       interrupted: [],
     },
   ],
-  spentUsdToday: 1.2,
-  budgetUsdToday: 50,
+  spentUsdToday: '1.2',
+  budgetUsdToday: '50',
 }
 
 function actions(): TeamTreeActions {

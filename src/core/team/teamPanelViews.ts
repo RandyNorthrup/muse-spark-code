@@ -202,10 +202,11 @@ interface PreviewStepNeed {
   readonly stepInput: number
   readonly stepOutput: number
   readonly usedTokens: number
-  readonly usedUsd: number
+  /** Exact decimals: a preview total is money the user reads (M96 review). */
+  readonly usedUsd: Usd
   readonly usedTasks: number
   /** Undefined when the entry's model is unpriced; validation refuses dollar caps there. */
-  readonly stepUsd: number | undefined
+  readonly stepUsd: Usd | undefined
 }
 
 /** The step's estimated cost on the entry's model, at full input rates. */
@@ -215,7 +216,7 @@ function previewStepUsd(
   defaultRef: string,
   stepInput: number,
   stepOutput: number,
-): number | undefined {
+): Usd | undefined {
   const offer =
     entry.agent === undefined
       ? offers.find((item) => item.ref === defaultRef)
@@ -224,7 +225,10 @@ function previewStepUsd(
   const outputRate = offer?.outputRate
   return inputRate === undefined || outputRate === undefined
     ? undefined
-    : (stepInput * inputRate + stepOutput * outputRate) / TEAM_TOKENS_PER_MTOK
+    : Usd.from(inputRate)
+        .times(stepInput)
+        .divide(TEAM_TOKENS_PER_MTOK)
+        .add(Usd.from(outputRate).times(stepOutput).divide(TEAM_TOKENS_PER_MTOK))
 }
 
 /** Whether one cap leaves room for the preview step: every measure, every window. */
@@ -249,10 +253,9 @@ function hasPreviewCapRoom(
     }
     case 'spendUsd': {
       // An unpriced entry cannot be costed; validation refuses its dollar caps instead.
-      return (
-        need.stepUsd === undefined ||
-        (cap.window === 'task' ? need.stepUsd : need.usedUsd + need.stepUsd) <= cap.amount
-      )
+      if (need.stepUsd === undefined) return true
+      const step = cap.window === 'task' ? need.stepUsd : need.usedUsd.add(need.stepUsd)
+      return step.compare(Usd.from(cap.amount)) <= 0
     }
     case 'tasks': {
       const total = cap.window === 'task' ? 1 : need.usedTasks + 1
@@ -308,7 +311,7 @@ export function deriveTeamPanel(
   }))
   // Per-entry spend and step counts behind the preview's selection, so
   // `day` and `lifetime` dollar and task caps see what earlier steps used.
-  const previewSpentUsd = new Map<string, number[]>()
+  const previewSpentUsd = new Map<string, Usd[]>()
   const previewTaskCounts = new Map<string, number[]>()
   const preview = previewDraft({
     draft,
@@ -329,7 +332,7 @@ export function deriveTeamPanel(
             stepInput,
             stepOutput,
             usedTokens: spent[index] ?? 0,
-            usedUsd: usedUsd[index] ?? 0,
+            usedUsd: usedUsd[index] ?? Usd.from(0),
             usedTasks: usedTasks[index] ?? 0,
             stepUsd: previewStepUsd(entry, offers, defaultRef, stepInput, stepOutput),
           }),
@@ -339,7 +342,7 @@ export function deriveTeamPanel(
       const placed = pool[chosen]
       if (placed !== undefined) {
         const cost = previewStepUsd(placed, offers, defaultRef, stepInput, stepOutput)
-        usedUsd[chosen] = (usedUsd[chosen] ?? 0) + (cost ?? 0)
+        usedUsd[chosen] = (usedUsd[chosen] ?? Usd.from(0)).add(cost ?? Usd.from(0))
         usedTasks[chosen] = (usedTasks[chosen] ?? 0) + 1
         previewSpentUsd.set(roleId, usedUsd)
         previewTaskCounts.set(roleId, usedTasks)

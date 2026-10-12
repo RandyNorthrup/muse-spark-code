@@ -334,14 +334,9 @@ const ALLOW_LIST: Readonly<Record<string, AllowEntry>> = {
     category: 'trackedDebt',
     reason: 'Team view display-state cost; M121 converts to UsdAmount.',
   },
-  'shared/teamView.ts:spentUsdToday': {
-    category: 'trackedDebt',
-    reason: 'Team view display-state cost; M121 converts to UsdAmount.',
-  },
-  'shared/teamView.ts:budgetUsdToday': {
-    category: 'trackedDebt',
-    reason: 'Team view display-state budget; M121 converts to UsdAmount.',
-  },
+  // shared/teamView.ts:spentUsdToday and :budgetUsdToday were exact
+  // UsdAmount strings from RVCM963J 8 on: string leaves are not numeric
+  // money, so they need no entry here.
   'core/team/preview.ts:usdLow': {
     category: 'trackedDebt',
     reason: 'Team price-preview total in USD; M121 converts to UsdAmount.',
