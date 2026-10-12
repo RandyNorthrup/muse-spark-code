@@ -9,7 +9,7 @@ import { randomBytes } from 'node:crypto'
 import * as z from 'zod/mini'
 import { once } from 'node:events'
 import { VaultChannelServer, type VaultChannelDeps } from '../../../src/core/vault/broker/channel'
-import { VaultBrokerClient } from '../../../src/core/vault/broker/client'
+import { VaultBrokerClient, VaultChannelError } from '../../../src/core/vault/broker/client'
 import { VaultFirstPartyReader } from '../../../src/core/vault/broker/firstParty'
 import { UnixVaultPrivateFiles } from '../../../src/core/vault/broker/files'
 import {
@@ -251,6 +251,15 @@ async function closedOrReply(socket: Socket): Promise<'closed' | 'reply'> {
     socket.removeListener('data', reply)
   }
 }
+async function channelFailureOf(work: () => Promise<unknown>): Promise<unknown> {
+  try {
+    await work()
+  } catch (error: unknown) {
+    return error
+  }
+  expect.unreachable('expected the channel call to reject')
+}
+
 describe.skipIf(!hasUnixPeer)('native authenticated broker channel', () => {
   it.each(['fragment', 'remote', 'throwingDestroy', 'parsed'])(
     'RVM109B5 P1 channel erases owned input on %s',
@@ -529,6 +538,64 @@ describe.skipIf(!hasUnixPeer)('native authenticated broker channel', () => {
     expect(fixture.brokerDeps.onApproval).not.toHaveBeenCalled()
     expect(fixture.deps.perform).not.toHaveBeenCalled()
     client.close()
+  })
+
+  it('RVCM1091G P3 a closed socket, failed write and invalid response name themselves, never Locked', async () => {
+    const fixture = await channelSetup()
+    const serverSockets = (): Socket[] => [
+      ...z.set(z.instanceof(Socket)).parse(Reflect.get(fixture.server, 'sockets')),
+    ]
+    // 1. A send on a closed channel.
+    const closed = await openClient(fixture)
+    try {
+      closed.close()
+      const failure = await channelFailureOf(() => closed.send({ kind: 'status' }))
+      expect(failure).toBeInstanceOf(VaultChannelError)
+      expect(failure).toMatchObject({ name: 'VaultChannelError', code: 'closed' })
+      expect(failure).toMatchObject({ message: UI_TEXT.vault.operationFailed })
+      expect(failure).not.toMatchObject({ message: UI_TEXT.vault.locked })
+    } finally {
+      closed.close()
+    }
+    // 2. A failed write.
+    const writer = await openClient(fixture)
+    const clientSocket = z.instanceof(Socket).parse(Reflect.get(writer, 'socket'))
+    const write = vi.spyOn(clientSocket, 'write').mockImplementation(() => {
+      throw new Error('test write failed')
+    })
+    try {
+      const failure = await channelFailureOf(() => writer.send({ kind: 'status' }))
+      expect(failure).toBeInstanceOf(VaultChannelError)
+      expect(failure).toMatchObject({ name: 'VaultChannelError', code: 'writeFailed' })
+      expect(failure).toMatchObject({ message: UI_TEXT.vault.operationFailed })
+      expect(failure).not.toMatchObject({ message: UI_TEXT.vault.locked })
+    } finally {
+      write.mockRestore()
+      writer.close()
+    }
+    // 3. An invalid response.
+    const reader = await openClient(fixture)
+    const serverWrites = serverSockets().map((serverSocket) =>
+      vi.spyOn(serverSocket, 'write').mockImplementation(() => true),
+    )
+    try {
+      // The server's reply goes nowhere, so the invalid frame below is the
+      // only answer the pending request can get.
+      const pending = reader.send({ kind: 'status' })
+      await vi.waitFor(() => {
+        expect(Reflect.get(reader, 'pending')).not.toBeNull()
+      })
+      const socket = z.instanceof(Socket).parse(Reflect.get(reader, 'socket'))
+      socket.emit('data', Buffer.from('not a frame\n'))
+      const failure = await channelFailureOf(() => pending)
+      expect(failure).toBeInstanceOf(VaultChannelError)
+      expect(failure).toMatchObject({ name: 'VaultChannelError', code: 'invalidResponse' })
+      expect(failure).toMatchObject({ message: UI_TEXT.vault.operationFailed })
+      expect(failure).not.toMatchObject({ message: UI_TEXT.vault.locked })
+    } finally {
+      for (const serverWrite of serverWrites) serverWrite.mockRestore()
+      reader.close()
+    }
   })
 
   it('P2-7 closing a private connection cancels presence and erases its pending material', async () => {

@@ -6,7 +6,7 @@
 // that wins the race past add's pre-check is a `conflict`, never the generic
 // failure. Table: each operation crossed with each refusal it can return.
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { writeFile, stat } from 'node:fs/promises'
+import { chmod, writeFile, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { UI_TEXT } from '../../../src/shared/constants'
 import { VaultError } from '../../../src/core/vault/crypto'
@@ -200,10 +200,20 @@ describe('RVCM1091E refusal sentences per operation', () => {
     { operation: 'import', reason: 'storeUnavailable', forbidden: [] },
     { operation: 'delete', reason: 'locked', forbidden: [] },
     { operation: 'delete', reason: 'deleteConflict', forbidden: ['added'] },
-    // A Delete meets `busy`/`rollback` only at the receipt forget, after the
-    // source is gone: the broker names that truth (`sourceGone`), never a
-    // retryable failure — covered live below, not by a borrowed sentence.
-    { operation: 'delete', reason: 'sourceGone', forbidden: ['unlock', 'added'] },
+    // A Delete refused before the unlink (a busy or rolled-back store while
+    // rereading the receipt) names the broker reason: the source and the
+    // receipt both stay, and retrying later is honest (RVCM1091G P3). Only
+    // a busy/rollback at the receipt forget after the unlink becomes
+    // `sourceGone` — covered live below.
+    { operation: 'delete', reason: 'busy', forbidden: ['delet'] },
+    { operation: 'delete', reason: 'rollback', forbidden: ['delet'] },
+    // RVCM1091G P3: the sentence is true whether the leftover record was
+    // cleared or is still stuck — it never claims the record could not be
+    // cleared when it was.
+    { operation: 'delete', reason: 'sourceGone', forbidden: ['unlock', 'added', 'clear'] },
+    // A Delete whose source cannot be read keeps its receipt and names the
+    // true reason, never a deletion (RVCM1091G P2).
+    { operation: 'delete', reason: 'sourceUnreadable', forbidden: ['unlock', 'added'] },
     { operation: 'delete', reason: 'invalid', forbidden: ['unlock', 'added', 'delet'] },
     { operation: 'delete', reason: 'io', forbidden: ['unlock', 'added', 'delet'] },
     { operation: 'delete', reason: 'storeUnavailable', forbidden: [] },
@@ -232,6 +242,19 @@ describe('RVCM1091E refusal sentences per operation', () => {
           expect(sentence).toBe(UI_TEXT.vault.sourceGone)
           break
         }
+        case 'sourceUnreadable': {
+          expect(operation).toBe('delete')
+          expect(sentence).toBe(UI_TEXT.vault.sourceUnreadable)
+          break
+        }
+        case 'busy': {
+          expect(sentence).toBe(UI_TEXT.vault.busy)
+          break
+        }
+        case 'rollback': {
+          expect(sentence).toBe(UI_TEXT.vault.rollback)
+          break
+        }
         case 'invalid':
         case 'io': {
           expect(sentence).toBe(UI_TEXT.vault.operationFailed)
@@ -252,6 +275,7 @@ describe('RVCM1091E refusal sentences per operation', () => {
       'conflict',
       'deleteConflict',
       'sourceGone',
+      'sourceUnreadable',
       'busy',
       'invalid',
       'rollback',
@@ -303,6 +327,73 @@ describe('RVCM1091F refusal rows reach the broker for every operation', () => {
       )
     }
   })
+
+  it('a Delete refused before the unlink keeps the source and the receipt with the broker reason', async () => {
+    for (const code of ['busy', 'rollback'] as const) {
+      const home = await tempHome()
+      const file = path.join(home, '.netrc')
+      await writeFile(
+        file,
+        'machine example.test login generated-user password generated-password\n',
+      )
+      const f = managementFixture(undefined, home)
+      const setup = await lockedVault(f)
+      setup.fill(0)
+      await f.broker.unlock(null)
+      const report = await f.management.importFile(file, () => true)
+      const store = f.repository.current()
+      vi.spyOn(store, 'readReceipt').mockRejectedValueOnce(new VaultError(code))
+      // The store refusal before the unlink names itself: nothing was
+      // deleted and the receipt stays for a later retry.
+      await expect(f.management.deleteImport(report.receipt, () => true)).rejects.toMatchObject({
+        code,
+      })
+      await expect(stat(file)).resolves.toBeDefined()
+      expect(await store.readReceipt(report.receipt)).not.toBeNull()
+      // The same holds when the refusal lands deeper: while rereading the
+      // vault copy before the unlink.
+      vi.spyOn(store, 'read').mockRejectedValueOnce(new VaultError(code))
+      await expect(f.management.deleteImport(report.receipt, () => true)).rejects.toMatchObject({
+        code,
+      })
+      await expect(stat(file)).resolves.toBeDefined()
+      expect(await store.readReceipt(report.receipt)).not.toBeNull()
+    }
+  })
+
+  it.skipIf(process.platform === 'win32')(
+    'an unreadable source keeps its receipt and names the true reason',
+    async () => {
+      // Windows ACLs have no POSIX search bit, so this shapes only POSIX;
+      // the error-code branch it covers decides by code, not by platform.
+      const home = await tempHome()
+      const file = path.join(home, '.netrc')
+      await writeFile(
+        file,
+        'machine example.test login generated-user password generated-password\n',
+      )
+      const f = managementFixture(undefined, home)
+      const setup = await lockedVault(f)
+      setup.fill(0)
+      await f.broker.unlock(null)
+      const report = await f.management.importFile(file, () => true)
+      const store = f.repository.current()
+      // No search permission: the file is there, but cannot be read — an
+      // existence check would answer false and discard the receipt (P2).
+      await chmod(home, 0o444)
+      try {
+        await expect(f.management.deleteImport(report.receipt, () => true)).rejects.toMatchObject({
+          reason: 'sourceUnreadable',
+        })
+        expect(vaultRefusalMessage('sourceUnreadable')).toBe(UI_TEXT.vault.sourceUnreadable)
+        expect(await store.readReceipt(report.receipt)).not.toBeNull()
+      } finally {
+        await chmod(home, 0o755)
+      }
+      // Restored: the source was never touched.
+      await expect(stat(file)).resolves.toBeDefined()
+    },
+  )
 
   it('a Delete that removes the source and then cannot forget its receipt says the file is gone', async () => {
     for (const code of ['busy', 'rollback'] as const) {

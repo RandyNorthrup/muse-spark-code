@@ -223,6 +223,9 @@ export const vaultBrokerResponseSchema = z.strictObject({
         // RVCM1091F P3: a Delete that removed the source and then could not
         // forget its receipt. The file is gone; nothing to retry.
         'sourceGone',
+        // RVCM1091G P2: a Delete whose source cannot be read (permissions).
+        // The receipt stays; the sentence names the true reason.
+        'sourceUnreadable',
         'busy',
         'invalid',
         'rollback',

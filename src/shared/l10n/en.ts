@@ -6326,11 +6326,18 @@ export const EN = {
     // RVCM1091F REDESIGN: the person's own Retry after a transient failure
     // spent the bounded auto-retries.
     retry: 'Retry',
-    // RVCM1091F P3: a Delete that removed the source file and then could not
-    // forget its receipt. The file is gone; nothing to retry; the imported
-    // credentials stay in the vault.
+    // RVCM1091G P3: true whether the leftover record was cleared or is
+    // still stuck — the file is gone either way, there is nothing to retry,
+    // and the imported credentials stay in the vault.
     sourceGone:
-      'The original file was already deleted, but its import record could not be cleared. The imported credentials stay in the vault; there is nothing to retry.',
+      'The original file is already gone; there is nothing to retry. The imported credentials stay in the vault.',
+    // RVCM1091G P2: a Delete whose source cannot be read (permissions). The
+    // import record is kept and nothing is deleted.
+    sourceUnreadable:
+      'The original file could not be read. Check its permissions and try again; the import record was kept and nothing was deleted.',
+    // RVCM1091G P3: the kept view shown while a bounded auto-retry is
+    // scheduled or in flight.
+    retrying: 'Retrying the last request. The view shown may be stale.',
     invalidFields: 'Check the grant fields and its target.',
     grantHelp:
       'Every scope below limits this grant. Empty count, expiry or time window means no limit.',
