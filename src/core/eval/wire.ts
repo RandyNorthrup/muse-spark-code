@@ -49,6 +49,13 @@ export interface EvalWireCall {
     readonly packageTypeModuleVisible: boolean
     readonly responseTools: string[]
     otherTools: number
+    /**
+     * The request offered at least one function tool and every one of
+     * them carried a strict schema (M101 strict-tools engagement). A
+     * request with no function tool proves nothing either way, so it
+     * reads false: the arm engages only through strict requests.
+     */
+    readonly strictTools: boolean
   }
 }
 
@@ -97,7 +104,15 @@ const modelBodySchema = z.object({
   model: z.optional(z.string()),
   instructions: z.optional(z.string()),
   input: z.optional(z.array(z.json())),
-  tools: z.optional(z.array(z.object({ type: z.string(), name: z.optional(z.string()) }))),
+  tools: z.optional(
+    z.array(
+      z.object({
+        type: z.string(),
+        name: z.optional(z.string()),
+        strict: z.optional(z.boolean()),
+      }),
+    ),
+  ),
 })
 
 const terminalFrameSchema = z.object({
@@ -120,6 +135,20 @@ function parseJson(text: string): unknown {
 function modelOf(body: string): string | undefined {
   const parsed = modelBodySchema.safeParse(parseJson(body))
   return parsed.success ? parsed.data.model : undefined
+}
+
+/**
+ * Whether a model-call request body offers function tools with strict
+ * schemas throughout (M101 strict-tools engagement): at least one
+ * function tool, and every function tool carries `strict: true`.
+ * Non-function tools (search) carry no strict flag and count neither
+ * way; a request with no function tool reads false.
+ */
+function hasStrictTools(body: string): boolean {
+  const parsed = modelBodySchema.safeParse(parseJson(body))
+  if (!parsed.success) return false
+  const functions = (parsed.data.tools ?? []).filter((tool) => tool.type === 'function')
+  return functions.length > 0 && functions.every((tool) => tool.strict === true)
 }
 
 /** Recognize the explicit package fact, including JSON-encoded tool results. */
@@ -389,6 +418,7 @@ export function createEvalWire(deps: EvalWireDeps): EvalWire {
           ),
           responseTools: [],
           otherTools: 0,
+          strictTools: hasStrictTools(body),
         },
       }),
     }

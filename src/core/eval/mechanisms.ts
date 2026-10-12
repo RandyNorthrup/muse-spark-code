@@ -3,6 +3,7 @@
 // The fixed parent and production system under test contribute source provenance
 // without gaining any additional arm execution permissions.
 
+import { Buffer } from 'node:buffer'
 import { createHash } from 'node:crypto'
 import {
   EVAL_APPROVAL_MODE,
@@ -247,6 +248,76 @@ function compilerFiles(repo: string, inputs: readonly string[]): string[] {
   return [...files].map((file) => path.relative(repo, file).replaceAll('\\', '/'))
 }
 
+/**
+ * The digest's path form (M101 R6): repository-relative forward slashes
+ * on every platform. Git lists forward slashes; Windows checkouts,
+ * metafiles and directory walks use backslashes.
+ */
+export function canonicalDigestPath(file: string): string {
+  return file.replaceAll('\\', '/')
+}
+
+/**
+ * The digest's byte form (M101 R6): the bytes Git stores are LF, but a
+ * checkout may convert line endings, so CRLF pairs and any lone CR fold
+ * to LF before hashing. LF bytes hash unchanged.
+ */
+export function canonicalDigestText(text: string): string {
+  return text.replaceAll('\r\n', '\n').replaceAll('\r', '\n')
+}
+
+/**
+ * The digest's order (M101 R6): UTF-8 byte order, the same on every
+ * platform and locale. UTF-16 code-unit comparison agrees with it on
+ * ASCII but disagrees past the Basic Multilingual Plane, so the hashed
+ * list never relies on it. Relation comparison itself is already
+ * locale-independent; this makes it byte-explicit.
+ */
+export function compareDigestPath(left: string, right: string): number {
+  return Buffer.from(left, 'utf8').compare(Buffer.from(right, 'utf8'))
+}
+
+export interface FrozenSourceEntry {
+  readonly path: string
+  readonly text: string
+}
+
+/**
+ * The hashed source list from raw entries: canonical paths, canonical
+ * bytes, byte order. Pure, so tests feed it CRLF and LF trees and
+ * backslash paths directly.
+ */
+export function frozenSourceDigests(
+  entries: readonly FrozenSourceEntry[],
+): { path: string; sha256: string }[] {
+  return entries
+    .map((entry) => ({
+      path: canonicalDigestPath(entry.path),
+      sha256: createHash('sha256').update(canonicalDigestText(entry.text), 'utf8').digest('hex'),
+    }))
+    .toSorted((left, right) => compareDigestPath(left.path, right.path))
+}
+
+/**
+ * The committed source family under `src/` (M101 R6): the digest covers
+ * committed content only, so the working-tree walk is intersected with
+ * the files Git tracks. Untracked scratch, editor backups and merge
+ * leftovers never move the digest; a file the run actually loads stays
+ * hashed through the resolver graph, tracked or not.
+ */
+export function trackedSourceFamily(repo: string): Set<string> {
+  const listed = execFileSync('git', ['-C', repo, 'ls-files', '-z', 'src'], {
+    encoding: 'utf8',
+    windowsHide: true,
+  })
+  return new Set(
+    listed
+      .split('\0')
+      .filter((file) => file !== '')
+      .map((file) => canonicalDigestPath(file)),
+  )
+}
+
 /** The actual resolver graph, including the live verdict wrappers and launcher. */
 export function evalHarnessSources(): string[] {
   const repo = armRepoRoot()
@@ -272,13 +343,17 @@ export function evalHarnessSources(): string[] {
   }).metafile
   // Global setup's language builders also read UI entries and regional readers as data.
   // Bind the complete repository source family so those non-import reads cannot escape.
+  // The walk is intersected with the files Git tracks: untracked scratch,
+  // editor backups and merge leftovers never move the digest on one machine.
+  const tracked = trackedSourceFamily(repo)
   const dataInputs = readdirSync(path.join(repo, 'src'), { recursive: true, withFileTypes: true })
     .filter((entry) => entry.isFile())
     .map((entry) =>
-      path.relative(repo, path.join(entry.parentPath, entry.name)).replaceAll('\\', '/'),
+      canonicalDigestPath(path.relative(repo, path.join(entry.parentPath, entry.name))),
     )
+    .filter((file) => tracked.has(file))
   const inputs = Object.keys(graph.inputs).map((file) =>
-    file.replaceAll('\\', '/').replace(/ with \{.*\}$/u, ''),
+    canonicalDigestPath(file).replace(/ with \{.*\}$/u, ''),
   )
   // The expected digest is an output of the freeze, never its own input.
   // Lockfile and build recipe bind external packages and the search worker.
@@ -295,7 +370,7 @@ export function evalHarnessSources(): string[] {
     ]),
   ]
     .filter((file) => file !== 'src/core/eval/frozen.json')
-    .toSorted((left, right) => Number(left > right) - Number(left < right))
+    .toSorted(compareDigestPath)
 }
 
 /** Live launch and direct live-test execution refuse a mismatch before opening credentials. */
@@ -332,20 +407,14 @@ export function freezeEvalHarness(
     sha256: createHash('sha256').update(worker.contents).digest('hex'),
   }
   const sources = evalHarnessSources()
-  const sourceDigests = sources.map((file) => ({
-    path: file,
-    sha256: createHash('sha256')
-      .update(readFileSync(path.join(repo, file), 'utf8').replaceAll('\r\n', '\n'), 'utf8')
-      .digest('hex'),
-  }))
+  const sourceDigests = frozenSourceDigests(
+    sources.map((file) => ({ path: file, text: readFileSync(path.join(repo, file), 'utf8') })),
+  )
   const fixtures: ArmFixture[] = ['armSources', 'mechanisms', 'runner', 'heldDeps', 'tasks'].map(
     (file) => ({
       path: `${file}.ts`,
       bytes: Buffer.from(
-        readFileSync(path.join(repo, 'src/core/eval', `${file}.ts`), 'utf8').replaceAll(
-          '\r\n',
-          '\n',
-        ),
+        canonicalDigestText(readFileSync(path.join(repo, 'src/core/eval', `${file}.ts`), 'utf8')),
         'utf8',
       ),
     }),

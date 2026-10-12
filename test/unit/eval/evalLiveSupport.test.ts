@@ -11,8 +11,10 @@ import {
   loadEvalLiveCredentials,
   unengagedCompactionTasks,
   unengagedLongOutputTasks,
+  unengagedStrictToolsTasks,
   withCompactionEngagement,
   withPackingEngagement,
+  withStrictToolsEngagement,
 } from '../../e2e/evalLiveSupport'
 import {
   type EvalReport,
@@ -624,6 +626,174 @@ describe('an auto-compaction run engaged', () => {
     expect(withCompactionEngagement(failed, 'auto-compaction', 'baseline', small).verdict).toBe(
       'incomplete',
     )
+  })
+})
+
+/**
+ * A report whose `strict-tools` arm ran every task, with two recorded
+ * requests per task: both strict where `strictOf` returns true, the
+ * second non-strict where it returns false, and no evidence at all
+ * where it returns undefined (as in reports made before the flag).
+ */
+function strictReport(
+  strictOf: (taskId: string) => boolean | undefined,
+): Extract<EvalReport, { version: typeof EVAL_REPORT_VERSION }> {
+  return {
+    version: EVAL_REPORT_VERSION,
+    model: EVAL_MODEL_ID,
+    generatedAt: '2026-10-01T00:00:00.000Z',
+    arms: [
+      {
+        name: 'strict-tools',
+        results: EVAL_TASKS.map((task) => {
+          const strict = strictOf(task.id)
+          return {
+            taskId: task.id,
+            title: task.title,
+            split: task.split,
+            passed: true,
+            terminal: 'completed',
+            failures: [],
+            attempts: 2,
+            requests: 2,
+            inputTokens: 1,
+            cachedTokens: 0,
+            outputTokens: 1,
+            costUsd: Usd.from(0).toAmount(),
+            toolCalls: 1,
+            approvals: 0,
+            questions: 0,
+            paidRefusals: 0,
+            order: 1,
+            ...(strict !== undefined && {
+              requestEvidence: [
+                {
+                  sha256: 'first request',
+                  packageTypeModuleVisible: false,
+                  responseTools: [],
+                  strictTools: true,
+                },
+                {
+                  sha256: 'second request',
+                  packageTypeModuleVisible: false,
+                  responseTools: [],
+                  strictTools: strict,
+                },
+              ],
+            }),
+          }
+        }),
+        summaries: [],
+      },
+    ],
+    floors: [],
+    verdict: 'pass',
+  }
+}
+
+describe('a strict-tools run engaged', () => {
+  const taskIds = EVAL_TASKS.map((task) => task.id)
+
+  it('needs strict schemas on every request of every task it ran', () => {
+    expect(
+      unengagedStrictToolsTasks(
+        strictReport(() => true),
+        'strict-tools',
+        EVAL_TASKS,
+      ),
+    ).toEqual([])
+    const [first] = taskIds
+    if (first === undefined) throw new Error('the task set is empty')
+    // One non-strict request among strict ones still leaves the task unengaged.
+    expect(
+      unengagedStrictToolsTasks(
+        strictReport((taskId) => taskId !== first),
+        'strict-tools',
+        EVAL_TASKS,
+      ),
+    ).toEqual([first])
+    // Evidence from before the flag counts as never engaged.
+    expect(
+      unengagedStrictToolsTasks(
+        strictReport(() => undefined),
+        'strict-tools',
+        EVAL_TASKS,
+      ),
+    ).toEqual(taskIds)
+  })
+
+  it('counts an arm missing from the report as never engaged', () => {
+    expect(
+      unengagedStrictToolsTasks(
+        strictReport(() => true),
+        'other',
+        EVAL_TASKS,
+      ),
+    ).toEqual(taskIds)
+  })
+
+  it('records a run whose floors pass but which never sent strict schemas as incomplete, in both artifacts', () => {
+    // Every task passed and no floor fell, yet no request carried strict
+    // schemas (as when a host regression drops supportsStrictTools):
+    // incomplete, never pass — and never fail either.
+    const floorsPass = strictReport(() => false)
+    expect(floorsPass.verdict).toBe('pass')
+    const report = withStrictToolsEngagement(floorsPass, 'strict-tools', EVAL_TASKS)
+    expect(report.verdict).toBe('incomplete')
+    const json = evalReportSchema.parse(JSON.parse(formatEvalReportJson(report)))
+    expect(json.verdict).toBe('incomplete')
+    expect(json.version === EVAL_REPORT_VERSION ? json.strictToolsEngagement : undefined).toEqual({
+      arm: 'strict-tools',
+      tasks: taskIds,
+      unengaged: taskIds,
+      held: false,
+    })
+    const markdown = formatEvalReportMarkdown(report)
+    expect(markdown).toContain('verdict: incomplete')
+    expect(markdown).not.toContain('verdict: pass')
+    expect(markdown).toContain(
+      `| strict-tools | ${taskIds.join(', ')} | ${taskIds.join(', ')} | no |`,
+    )
+  })
+
+  it('leaves the verdict to the floors when every request carried strict schemas', () => {
+    const report = withStrictToolsEngagement(
+      strictReport(() => true),
+      'strict-tools',
+      EVAL_TASKS,
+    )
+    expect(report.verdict).toBe('pass')
+    const json = evalReportSchema.parse(JSON.parse(formatEvalReportJson(report)))
+    expect(
+      json.version === EVAL_REPORT_VERSION ? json.strictToolsEngagement?.held : undefined,
+    ).toBe(true)
+    expect(formatEvalReportMarkdown(report)).toContain(
+      `| strict-tools | ${taskIds.join(', ')} | none | yes |`,
+    )
+  })
+
+  it.each(['fail', 'incomplete'] as const)(
+    'preserves a %s verdict through the wrapper',
+    (verdict) => {
+      const incoming = { ...strictReport(() => false), verdict } satisfies EvalReport
+      expect(withStrictToolsEngagement(incoming, 'strict-tools', EVAL_TASKS).verdict).toBe(verdict)
+    },
+  )
+
+  it('calls an empty selection incomplete, never a pass', () => {
+    const report = withStrictToolsEngagement(
+      strictReport(() => true),
+      'strict-tools',
+      [],
+    )
+    expect(report.verdict).toBe('incomplete')
+    const json = evalReportSchema.parse(JSON.parse(formatEvalReportJson(report)))
+    expect(json.version === EVAL_REPORT_VERSION ? json.strictToolsEngagement : undefined).toEqual({
+      arm: 'strict-tools',
+      tasks: [],
+      unengaged: [],
+      held: false,
+    })
   })
 })
 

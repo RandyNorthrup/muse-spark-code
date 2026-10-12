@@ -8,7 +8,7 @@
 import pin from '../../../src/core/eval/frozen.json'
 import { buildSync } from 'esbuild'
 import config from '../../../vitest.config'
-import { readFileSync, readdirSync } from 'node:fs'
+import { readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import * as z from 'zod/mini'
 import { JOB_SOURCE_FILES } from '../../../src/host/backend/jobSource'
@@ -21,11 +21,16 @@ import {
   EVAL_ARMS,
   OBSERVATION_PACKING_ARM,
   STRICT_TOOLS_ARM,
+  canonicalDigestPath,
+  canonicalDigestText,
+  compareDigestPath,
   evalHarnessSources,
   evalHarnessDigest,
   assertEvalHarnessDigest,
   freezeEvalHarness,
+  frozenSourceDigests,
   frozenBundleChange,
+  trackedSourceFamily,
 } from '../../../src/core/eval/mechanisms'
 import type { EvalArm } from '../../../src/core/eval/runner'
 import type { ModelApiHostDeps } from '../../../src/core/backends/modelapi/ModelApiHost'
@@ -145,13 +150,77 @@ describe('the frozen evaluation harness', () => {
       expect(frozen.sources).toContain(file.replaceAll('\\', '/'))
     expect(frozen.sources.some((file) => file.includes('\\'))).toBe(false)
     // The actual global setup also compiles UI entries and scans regional readers as data.
+    // The walk covers the committed family only, like the digest: untracked
+    // scratch never moves it (proved below), so the assertion reads the
+    // same tracked set.
+    const tracked = trackedSourceFamily(process.cwd())
     const dataInputs = readdirSync('src', { recursive: true, withFileTypes: true })
     for (const entry of dataInputs) {
       if (!entry.isFile()) continue
-      const file = path
-        .relative(process.cwd(), path.join(entry.parentPath, entry.name))
-        .replaceAll('\\', '/')
-      if (file !== 'src/core/eval/frozen.json') expect(frozen.sources).toContain(file)
+      const file = canonicalDigestPath(
+        path.relative(process.cwd(), path.join(entry.parentPath, entry.name)),
+      )
+      if (file !== 'src/core/eval/frozen.json' && tracked.has(file))
+        expect(frozen.sources).toContain(file)
+    }
+  })
+
+  it('hashes one value for a CRLF tree and an LF tree, including lone carriage returns', () => {
+    // The digest folds line endings before hashing: a checkout whose line
+    // endings were converted hashes like the bytes Git stores.
+    const lf = 'line one\nline two\n'
+    const crlf = 'line one\r\nline two\r\n'
+    expect(canonicalDigestText(crlf)).toBe(lf)
+    expect(canonicalDigestText('a\rb')).toBe('a\nb')
+    expect(canonicalDigestText(lf)).toBe(lf)
+    const fromLf = frozenSourceDigests([
+      { path: 'src/core/eval/a.ts', text: lf },
+      { path: 'src/core/eval/b.ts', text: 'export const x = 1\n' },
+    ])
+    const fromCrlf = frozenSourceDigests([
+      { path: 'src/core/eval/a.ts', text: crlf },
+      { path: 'src/core/eval/b.ts', text: 'export const x = 1\r\n' },
+    ])
+    expect(fromCrlf).toEqual(fromLf)
+  })
+
+  it('hashes one value for backslash and forward-slash paths in byte order', () => {
+    // A Windows-style file list hashes like the POSIX one; entries hash
+    // in UTF-8 byte order whatever order they arrive in.
+    expect(canonicalDigestPath(String.raw`src\core\eval\a.ts`)).toBe('src/core/eval/a.ts')
+    const forward = frozenSourceDigests([
+      { path: 'src/core/eval/b.ts', text: 'two\n' },
+      { path: 'src/core/eval/a.ts', text: 'one\n' },
+    ])
+    const backward = frozenSourceDigests([
+      { path: String.raw`src\core\eval\a.ts`, text: 'one\n' },
+      { path: String.raw`src\core\eval\b.ts`, text: 'two\n' },
+    ])
+    expect(backward).toEqual(forward)
+    expect(forward.map((entry) => entry.path)).toEqual(['src/core/eval/a.ts', 'src/core/eval/b.ts'])
+  })
+
+  it('sorts this tree identically in byte order and code-unit order', () => {
+    // The byte-order sort changes nothing on this ASCII tree: swapping
+    // the comparator cannot move the pin by itself.
+    const sources = frozenSnapshot().sources
+    expect([...sources].toSorted(compareDigestPath)).toEqual(sources)
+    expect(
+      [...sources].toSorted((left, right) => Number(left > right) - Number(left < right)),
+    ).toEqual(sources)
+  })
+
+  it('leaves an untracked file under src/ out of the hashed sources', () => {
+    // Untracked scratch, editor backups and merge leftovers never move
+    // the digest on one machine: the family walk covers tracked files
+    // only, while files the run loads stay hashed through the graph.
+    const probe = 'src/m101-untracked-probe.tmp'
+    writeFileSync(probe, 'untracked scratch\n')
+    try {
+      expect(trackedSourceFamily(process.cwd()).has(probe)).toBe(false)
+      expect(evalHarnessSources()).toEqual(frozenSnapshot().sources)
+    } finally {
+      rmSync(probe)
     }
   })
 
