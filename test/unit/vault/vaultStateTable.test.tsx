@@ -12,7 +12,7 @@ import {
 } from '../../../src/webview/models/sections/vault/VaultSection'
 import { UI_TEXT } from '../../../src/shared/constants'
 import { type VaultStatus } from '../../../src/shared/vaultStatus'
-import { panel } from '../helpers/vault/fixtures'
+import { metadata, panel } from '../helpers/vault/fixtures'
 
 function status(overrides: Partial<VaultStatus>): VaultStatus {
   return { ...panel().status, ...overrides }
@@ -99,9 +99,11 @@ describe('RVCM1091D vault state table', () => {
       // The true post-fix shape: the snapshot carries no slot (RVCM1091E P3).
       const state = panel()
       state.status = status({ ...entry, tier: null, provider: null, silentUnlock: false })
-      const { unmount } = render(<VaultSection state={state} post={vi.fn()} />)
-      const card = screen.getByRole('status')
-      const cells = [...card.querySelectorAll('dd')].map((cell) => cell.textContent)
+      const { container, unmount } = render(<VaultSection state={state} post={vi.fn()} />)
+      // The tier card div: the retry live region is a separate persistent
+      // paragraph with the same role (RVAPP-CM1091D5 P3-4).
+      const card = container.querySelector('div[role="status"]')
+      const cells = [...(card?.querySelectorAll('dd') ?? [])].map((cell) => cell.textContent)
       expect(cells[0]).toBe('—')
       expect(cells[1]).toBe('—')
       expect(cells[2]).toBe(UI_TEXT.toggleOff)
@@ -174,13 +176,14 @@ describe('RVCM1091D vault state table', () => {
     for (const entry of cases) {
       const state = panel()
       state.status = status({ state: entry.state, tier: entry.tier, reason: entry.reason })
-      const { unmount } = render(<VaultSection state={state} post={vi.fn()} />)
+      const { container, unmount } = render(<VaultSection state={state} post={vi.fn()} />)
       expect(screen.getByRole('heading', { level: 2 })).toHaveTextContent(entry.heading)
       // The tier card's sentence paragraph carries the one true sentence; the
       // card's detail rows (like Silent Unlock) and the action buttons below
-      // keep their fixed names.
-      const card = screen.getByRole('status')
-      const sentence = card.querySelector('p')?.textContent ?? ''
+      // keep their fixed names. The card div is selected explicitly: the
+      // retry live region shares the role (RVAPP-CM1091D5 P3-4).
+      const card = container.querySelector('div[role="status"]')
+      const sentence = card?.querySelector('p')?.textContent ?? ''
       expect(sentence).toContain(entry.sentence)
       if (entry.state !== 'locked' && entry.state !== 'unlocked') {
         expect(sentence.toLowerCase()).not.toContain('unlock')
@@ -301,6 +304,69 @@ describe('RVCM1091G retrying views and keyboard focus', () => {
     const focused = document.activeElement
     expect(focused).not.toBe(document.body)
     expect(focused?.tagName).toBe('H2')
+    unmount()
+  })
+
+  it('losing focus to nowhere while the control lives never pulls focus back in', () => {
+    // RVAPP-CM1091D5 P3-3: clicking a non-focusable spot fires focusout with
+    // a null target while the control is still in the page. The next render
+    // must leave focus where the person put it. Fails without the fix: focus
+    // jumps to the first vault action.
+    const state = panel()
+    const { rerender, unmount } = render(<VaultSection state={state} post={vi.fn()} />)
+    const lock = screen.getByRole('button', { name: UI_TEXT.vault.lock })
+    lock.focus()
+    expect(document.activeElement).toBe(lock)
+    // The person clicks a non-focusable spot: focus falls to the body while
+    // the button lives on.
+    lock.blur()
+    expect(document.activeElement).toBe(document.body)
+    rerender(<VaultSection state={panel()} post={vi.fn()} />)
+    expect(document.activeElement).toBe(document.body)
+    unmount()
+  })
+
+  it('the retry announcement lives in the page before its text changes', () => {
+    // RVAPP-CM1091D5 P3-4: screen readers announce changes inside an
+    // existing live region, not text mounted with it. Fails without the fix:
+    // no live region exists until retrying starts.
+    const { container, rerender, unmount } = render(<VaultSection state={panel()} post={vi.fn()} />)
+    const regions = [...container.querySelectorAll('p[role="status"]')]
+    expect(regions).toHaveLength(1)
+    const live = regions[0]
+    expect(live?.textContent).toBe('')
+    const retrying = panel()
+    retrying.retrying = true
+    rerender(<VaultSection state={retrying} post={vi.fn()} />)
+    expect(container.querySelector('p[role="status"]')).toBe(live)
+    expect(live?.textContent).toBe(UI_TEXT.vault.retrying)
+    unmount()
+  })
+})
+
+describe('RVAPP-CM1091D5 P2-2 kept receipts finish from the section', () => {
+  const RECEIPT = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
+  function listed() {
+    const state = panel()
+    state.pendingReceipts = [{ receipt: RECEIPT, path: '/home/user/.netrc', items: [metadata()] }]
+    return state
+  }
+  it('a listed receipt offers Keep and Delete, posting its own messages', () => {
+    const post = vi.fn()
+    const { unmount } = render(<VaultSection state={listed()} post={post} />)
+    screen.getByText(UI_TEXT.vault.pendingImports)
+    screen.getByText(UI_TEXT.vault.importKeepOrDelete)
+    screen.getByRole('button', { name: UI_TEXT.vault.keepFile }).click()
+    expect(post).toHaveBeenLastCalledWith({ type: 'vaultKeepReceipt', receipt: RECEIPT })
+    screen.getByRole('button', { name: UI_TEXT.vault.deleteFile }).click()
+    expect(post).toHaveBeenLastCalledWith({ type: 'vaultDeleteReceipt', receipt: RECEIPT })
+    unmount()
+  })
+  it('no unfinished import means no heading and no receipt buttons', () => {
+    const { unmount } = render(<VaultSection state={panel()} post={vi.fn()} />)
+    expect(screen.queryByText(UI_TEXT.vault.pendingImports)).toBeNull()
+    expect(screen.queryByRole('button', { name: UI_TEXT.vault.keepFile })).toBeNull()
+    expect(screen.queryByRole('button', { name: UI_TEXT.vault.deleteFile })).toBeNull()
     unmount()
   })
 })

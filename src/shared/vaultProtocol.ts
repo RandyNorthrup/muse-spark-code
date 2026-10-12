@@ -46,6 +46,14 @@ export {
 } from './vaultStatus'
 
 /** v2 `snapshot`: the value-free management view (every item, grants, pending cards). */
+/** A kept or orphaned import receipt that can still be finished (RVAPP-CM1091D5 P2-2). */
+export const vaultPendingReceiptSchema = z.strictObject({
+  receipt: importReceipt,
+  path: text,
+  items: z.array(vaultItemMetadataSchema).check(z.maxLength(VAULT_LIMITS.items)),
+})
+export type VaultPendingReceipt = z.infer<typeof vaultPendingReceiptSchema>
+
 export const vaultBrokerSnapshotSchema = z.strictObject({
   status: vaultStatusSchema,
   // Pending setup only: the id the confirmation must echo; never the code.
@@ -53,6 +61,9 @@ export const vaultBrokerSnapshotSchema = z.strictObject({
   items: z.array(vaultItemMetadataSchema).check(z.maxLength(VAULT_LIMITS.items)),
   grants: z.array(vaultGrantSchema).check(z.maxLength(VAULT_LIMITS.grants)),
   pending: z.array(vaultApprovalRequestSchema).check(z.maxLength(VAULT_LIMITS.items)),
+  // The finish sweep: kept or orphaned receipts whose source or secret
+  // still exists, with the two real actions (RVAPP-CM1091D5 P2-2).
+  pendingReceipts: z.array(vaultPendingReceiptSchema).check(z.maxLength(VAULT_LIMITS.items)),
 })
 export type VaultBrokerSnapshot = z.infer<typeof vaultBrokerSnapshotSchema>
 

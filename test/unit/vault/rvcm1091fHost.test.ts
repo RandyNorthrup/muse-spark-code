@@ -376,6 +376,12 @@ describe('RVCM1091F P2 generations: an older snapshot never overwrites a newer s
       const f = fixture()
       await f.host.refresh()
       const one = structuredClone(f.state)
+      // The older reply differs from the current view (two items, not one),
+      // so dropping it as stale is observable in this order too: applying it
+      // would show two. Without the guard this order cannot fail
+      // (RVAPP-CM1091D5 P3-5).
+      one.items = [metadata(), metadata()]
+      one.status.itemCount = 2
       const two = structuredClone(f.state)
       two.items = []
       two.status.itemCount = 0
@@ -600,6 +606,56 @@ describe('RVCM1091F P3 failures kept, barrier aborts silent, sentences true', ()
     f.deps.service.deleteImport.mockRejectedValueOnce(new Error(UI_TEXT.vault.sourceGone))
     f.deps.importDone.mockResolvedValueOnce('delete' as const)
     await f.host.handle({ type: 'vaultImport', path: '/home/user/.netrc' })
+    expect(f.deps.showError).toHaveBeenCalledWith(UI_TEXT.vault.sourceGone)
+    f.host.dispose()
+  })
+})
+
+describe('RVAPP-CM1091D5 P2-2 kept receipts finish from the panel', () => {
+  const RECEIPT = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
+  function listed(f: ReturnType<typeof fixture>): void {
+    f.state.pendingReceipts = [{ receipt: RECEIPT, path: '/home/user/.netrc', items: [metadata()] }]
+  }
+  it('Keep clears the receipt and reloads without a toast', async () => {
+    const f = fixture()
+    listed(f)
+    await f.host.refresh()
+    await f.host.handle({ type: 'vaultKeepReceipt', receipt: RECEIPT })
+    expect(f.deps.service.keepImport).toHaveBeenCalledWith(RECEIPT)
+    expect(f.deps.showError).not.toHaveBeenCalled()
+    expect(lastState(f).status.state).toBe('unlocked')
+    f.host.dispose()
+  })
+  it('Delete finishes the receipt and reloads without a toast', async () => {
+    const f = fixture()
+    listed(f)
+    await f.host.refresh()
+    await f.host.handle({ type: 'vaultDeleteReceipt', receipt: RECEIPT })
+    expect(f.deps.service.deleteImport).toHaveBeenCalledWith(
+      RECEIPT,
+      expect.any(Function),
+      expect.anything(),
+    )
+    expect(f.deps.showError).not.toHaveBeenCalled()
+    expect(lastState(f).status.state).toBe('unlocked')
+    f.host.dispose()
+  })
+  it('a refused Delete from the list names its true reason', async () => {
+    const f = fixture()
+    listed(f)
+    await f.host.refresh()
+    f.deps.service.deleteImport.mockRejectedValueOnce(new Error(UI_TEXT.vault.sourceUnreadable))
+    await f.host.handle({ type: 'vaultDeleteReceipt', receipt: RECEIPT })
+    expect(f.deps.showError).toHaveBeenCalledWith(UI_TEXT.vault.sourceUnreadable)
+    f.host.dispose()
+  })
+  it('a listed Delete that lost its receipt finishes by clearing it', async () => {
+    const f = fixture()
+    listed(f)
+    await f.host.refresh()
+    f.deps.service.deleteImport.mockRejectedValueOnce(new Error(UI_TEXT.vault.sourceGone))
+    await f.host.handle({ type: 'vaultDeleteReceipt', receipt: RECEIPT })
+    expect(f.deps.service.keepImport).toHaveBeenCalledWith(RECEIPT)
     expect(f.deps.showError).toHaveBeenCalledWith(UI_TEXT.vault.sourceGone)
     f.host.dispose()
   })

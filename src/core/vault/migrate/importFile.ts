@@ -56,7 +56,16 @@ export interface VaultFileImportPort {
     authorize: () => void,
   ): Promise<void>
   readReceipt(id: string): Promise<unknown>
+  /** Every kept or orphaned receipt's id and opaque record, for the finish sweep. */
+  listReceipts(): Promise<readonly { id: string; record: unknown }[]>
   forgetReceipt(id: string, authorize: () => void): Promise<void>
+}
+
+/** A kept or orphaned import receipt that can still be finished (RVAPP-CM1091D5 P2-2). */
+export interface PendingImport {
+  receipt: string
+  path: string
+  items: readonly VaultItemMetadata[]
 }
 
 /** U/H call only from a user's Import/Keep/Delete action; neither agent tools nor models own this port. */
@@ -309,6 +318,56 @@ export class VaultFileImporter {
       await this.vault.forgetReceipt(receipt, () => {
         this.assertActive(lease)
       })
+    })
+  }
+  /**
+   * The finish sweep (RVAPP-CM1091D5 P2-2): every receipt whose source or
+   * secret still exists, listed with the two real actions (finish the
+   * delete, keep the file). A receipt whose source is proven gone AND whose
+   * secret is gone is forgotten best-effort here instead of listed.
+   * Anything unproven keeps its receipt and is listed.
+   */
+  async pending(): Promise<readonly PendingImport[]> {
+    return await this.owner.run(async (lease) => {
+      this.assertActive(lease)
+      const entries = await this.vault.listReceipts()
+      this.assertActive(lease)
+      const existing = await this.vault.list()
+      this.assertActive(lease)
+      const found: PendingImport[] = []
+      for (const entry of entries) {
+        const parsed = receiptSchema.safeParse(entry.record)
+        if (!parsed.success) {
+          try {
+            await this.vault.forgetReceipt(entry.id, () => {
+              this.assertActive(lease)
+            })
+          } catch {
+            /* Best effort: never listed; retried at the next sweep. */
+          }
+          continue
+        }
+        const saved = parsed.data
+        let isSourceGone = false
+        try {
+          lstatSync(saved.path)
+        } catch (error: unknown) {
+          isSourceGone = this.probeRefusal(error).code === 'orphaned'
+        }
+        const items = existing.filter((item) => saved.items.some((kept) => kept.id === item.id))
+        if (isSourceGone && items.length === 0) {
+          try {
+            await this.vault.forgetReceipt(entry.id, () => {
+              this.assertActive(lease)
+            })
+          } catch {
+            /* Best effort: retried at the next sweep. */
+          }
+          continue
+        }
+        found.push({ receipt: entry.id, path: saved.path, items })
+      }
+      return found
     })
   }
   async deleteSource(receipt: string, assertUserAction: () => void): Promise<void> {

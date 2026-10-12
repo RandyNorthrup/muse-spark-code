@@ -103,6 +103,7 @@ describe('C-M109-1 dist/vaultRuntime.js', () => {
         items: [metadata()],
         grants: [],
         pending: [],
+        pendingReceipts: [],
       },
     }))
     const port = vaultCommandPort(new VaultManageSession(() => Promise.resolve(client)))

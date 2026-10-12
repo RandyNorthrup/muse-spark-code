@@ -15,7 +15,7 @@ import {
 } from '../../../src/host/vault/vaultViewMachine'
 import { UI_TEXT } from '../../../src/shared/constants'
 import type { VaultPanelState } from '../../../src/shared/vaultPanel'
-import { panel } from '../helpers/vault/fixtures'
+import { metadata, panel } from '../helpers/vault/fixtures'
 
 const BUDGET = 2
 const DELAY = 250
@@ -456,6 +456,11 @@ describe('RVCM1091F view state machine table', () => {
 
   it('overlapping reloads settle newest-wins in both landing orders', () => {
     const one = unlockedSnapshot()
+    // The older reply differs from the current view (two items, not one),
+    // so dropping it as stale is observable: applying it would show two.
+    // Without the guard this order cannot fail (RVAPP-CM1091D5 P3-5).
+    one.items = [metadata(), metadata()]
+    one.status.itemCount = 2
     const two = unlockedSnapshot()
     two.items = []
     two.status.itemCount = 0
@@ -497,8 +502,9 @@ describe('RVCM1091F view state machine table', () => {
     expect(olderAfter.state.kind).toBe('unlocked')
     expect(olderAfter.effects.frame?.items).toEqual([])
     expect(olderAfter.effects.frame?.status.itemCount).toBe(0)
-    // The other order: the older reply lands first and applies (it is the
-    // newest known then), and the newer reply still wins after it.
+    // The other order: the older reply lands first and is dropped as stale
+    // (the request is already 2), so the current one-item view republishes
+    // unchanged — and the newer reply still wins after it.
     const olderFirst = applyVaultViewEvent(
       second.state,
       { kind: 'snapshotOk', generation: GEN, seq: 1, snapshot: one },
@@ -506,6 +512,7 @@ describe('RVCM1091F view state machine table', () => {
       BUDGET,
       DELAY,
     )
+    expect(olderFirst.effects.frame?.items).toHaveLength(1)
     expect(olderFirst.effects.frame?.status.itemCount).toBe(1)
     const newerAfter = applyVaultViewEvent(
       olderFirst.state,

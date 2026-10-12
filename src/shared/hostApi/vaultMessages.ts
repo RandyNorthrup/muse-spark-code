@@ -35,6 +35,16 @@ export const vaultClientMessageSchema = z.discriminatedUnion('type', [
     itemId: z.string().check(z.regex(/^[a-f0-9]{32}$/u)),
   }),
   z.strictObject({ type: z.literal('vaultImport'), path: z.string() }),
+  // A kept or orphaned receipt's two real actions: finish the delete, or
+  // keep the file (RVAPP-CM1091D5 P2-2).
+  z.strictObject({
+    type: z.literal('vaultKeepReceipt'),
+    receipt: z.string().check(z.regex(/^[a-f0-9-]{36}$/u)),
+  }),
+  z.strictObject({
+    type: z.literal('vaultDeleteReceipt'),
+    receipt: z.string().check(z.regex(/^[a-f0-9-]{36}$/u)),
+  }),
   z.strictObject({
     type: z.literal('vaultPublicKey'),
     itemId: z.string().check(z.regex(/^[a-f0-9]{32}$/u)),
