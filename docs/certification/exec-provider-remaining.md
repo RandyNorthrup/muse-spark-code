@@ -193,3 +193,52 @@ in that run. Run them before integration, at the repository default timeout.
 - `test/e2e/modelApi.live.e2e.test.ts`
 - `test/e2e/questions.e2e.test.ts`
 - `test/e2e/tab.live.e2e.test.ts`
+
+## Results (round 2, rig kubuntu, repo-default 5 s timeout, `--maxWorkers=3`)
+
+Batches 1–61 ran (files 1–183 of 189); batches 62–63 (files 184–189)
+never started — see NOT RUN HERE. Per-batch tallies live in the lane
+scratch log; the file-level dispositions follow. Every red below was
+re-run solo for attribution. "ENV" means the failure needs a loopback
+socket or unproxied fetch, which this sandbox blocks (direct probe:
+`fetch` to 127.0.0.1 throws at once; loopback HTTP answers proxy 502);
+the product code on those paths is untouched by this lane.
+
+Green on first run or on clean rerun after a lane fix:
+
+- Batch 11 (`execOutput`, `execProvider` 26, `execResources`): the one
+  batch-time failure is green on rerun (loopback timeout under parallel
+  load); `execProvider` 26/26 and `execSchema` 28/28 solo.
+- Batch 8 (`cx1r5Truth`, `estimateCommand`), batch 18 (`legalArgs`,
+  `legalExplanation`), batch 20 (`mediaClient`): fixed in-lane,
+  re-verified green (87 + 44 tests).
+- `configuredProviders`: credential-rotation premise corrected in
+  4f817622a (39/40; the one remainder is the loopback pin case, ENV).
+- `reportCommand`: belated test half of b8547a63f committed in
+  4f42e7b0e (20/20).
+- `execSchema`: count pin corrected in dec969c3f (28/28).
+- `conversationController`: 686/686 solo (batch 6's count belonged to
+  the two files below it).
+- Batches 25–34, 36–45, 47–51, 53, 55, 57–61: all green, including the
+  command-table help walk (`commandHelp`), the refusal-preservation
+  suite (`providerRefusals` 7/7), the slash-ID matrix (`execProvider`),
+  and the E invalid-settings regression (`usageIntegration`).
+
+ENV reds, named for the lead's unsandboxed run (no product change):
+
+- `chatGptVsCode` (9): ChatGPT callback port on loopback, proxy 502.
+- `companionUpload` (42): guarded-upload endpoint timeouts on loopback.
+- `configuredProviders` loopback pin case (1): 5 s timeout on loopback.
+- `execRun` EXECPROV/ollama loopback cases (23): loopback only.
+- `files.test.ts` (5): Files API fake endpoint, proxy 502 on tunneling.
+- `mcpPool` (1): streamable-HTTP server on loopback never connects.
+- `museVoice` (1): fake voice WebSocket server, 5 s timeout.
+- `runtimeChatGpt`, `runtimeChatGptCallback` (38): loopback timeouts.
+- `subscriptionIntegration` (2): real-host/registry turns on loopback.
+- `teamMcpBridge` (12): HTTP-endpoint cases on loopback.
+- `usageIntegration` companion page (1): proxy 502 vs expected 401.
+
+NOT RUN HERE (batches 62–63, files 184–189): `eval.live.e2e`,
+`execStdio.e2e`, `execTestLauncher.e2e`, `modelApi.live.e2e`,
+`questions.e2e`, `tab.live.e2e`. The `.live.` suites need the owner's
+key and billable calls (never on a rig); the rest need the e2e host.
