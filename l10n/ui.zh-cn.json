@@ -1430,6 +1430,8 @@
   "manualHookFailed": "钩子 {name} 失败：{reason}",
   "manualHookSlashDetail": "运行 spark-hooks.json 中的 Manual 钩子",
   "extensionHooksUnavailable": "无法加载扩展钩子，因此未运行任何钩子；请重新安装扩展并重新加载窗口。日志中有详细信息。",
+  "modelApiToolsUnavailable": "无法加载模型调用助手，因此钩子调用字段不可用；请重新安装扩展并重新加载窗口。日志中有详细信息。",
+  "modelApiToolsPreviewUnavailable": "无法加载模型调用助手，因此参数预览不可用；请重新安装扩展并重新加载窗口。日志中有详细信息。",
   "shellDirectory": "位于 {path}",
   "shellDirectoryReset": "shell 已返回工作区根目录：{path} 位于工作区之外。",
   "elicitationTitle": "{server} 请求提供信息",

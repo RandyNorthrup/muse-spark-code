@@ -1478,6 +1478,8 @@
   "manualHookFailed": "Hook {name} selhal: {reason}",
   "manualHookSlashDetail": "Spustit hook Manual ze souboru spark-hooks.json",
   "extensionHooksUnavailable": "Hooky rozšíření se nepodařilo načíst, takže se žádný hook nespustil; přeinstalujte rozšíření a znovu načtěte okno. Podrobnosti jsou v protokolu.",
+  "modelApiToolsUnavailable": "Pomocné funkce volání modelu se nepodařilo načíst, takže pole volání hooků nejsou k dispozici; přeinstalujte rozšíření a znovu načtěte okno. Podrobnosti jsou v protokolu.",
+  "modelApiToolsPreviewUnavailable": "Pomocné funkce volání modelu se nepodařilo načíst, takže náhledy argumentů nejsou k dispozici; přeinstalujte rozšíření a znovu načtěte okno. Podrobnosti jsou v protokolu.",
   "shellDirectory": "Ve složce {path}",
   "shellDirectoryReset": "Shell se vrátil do kořene pracovního prostoru: {path} leží mimo pracovní prostor.",
   "elicitationTitle": "Server {server} žádá o informace",
