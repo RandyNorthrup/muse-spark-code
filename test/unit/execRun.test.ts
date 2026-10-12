@@ -75,6 +75,13 @@ import { AcpMedia } from '../../src/acp/media'
 import { acpMediaIo } from './helpers/acpMediaIo'
 import { videoFixture } from './helpers/media/fixtures'
 import { mediaModel } from './helpers/media/replay'
+import {
+  encodeChatRequest,
+  type ChatPresetQuirks,
+} from '../../src/core/backends/modelapi/codecs/chat'
+import { isChatCodecError } from '../../src/core/backends/modelapi/codecs/shared'
+import type { AgentEvent } from '../../src/shared/agentEvents'
+import type { AgentHost, AgentSession } from '../../src/core/agent/agentBackend'
 
 const actualMemoryStore = keyInput.memorySecretStore
 
@@ -1729,6 +1736,90 @@ it.each(['1', '0.000001'])(
     }
   },
 )
+/**
+ * A codec refusal through the real headless run (M105 lane V R4,
+ * RVCM1054C P3). Everything is real — runExec, the in-process ACP agent,
+ * the runtime backend and its host, the tap, the ledger — except the turn's
+ * model call: the wrapped session replays the real Model API session's
+ * contract for this case (sendTurn resolves synchronously; the detached
+ * turn then fails with turnCompleted terminal failed and the codec sentence
+ * as reason). The sentence itself comes from the REAL chat encoder over no
+ * transport: encode is a pure function, so no request can leave it.
+ */
+function codecRefusalSession(real: AgentSession, sentence: string): AgentSession {
+  const listeners = new Set<(event: AgentEvent) => void>()
+  let turns = 0
+  let hasForwarded = false
+  return new Proxy(real, {
+    get(target, property): unknown {
+      if (property === 'sendTurn') {
+        return (): Promise<{ turnId: string; disposition: string }> => {
+          turns += 1
+          const turnId = `turn-${String(turns)}`
+          // The agent's waiter and the tap are both listening before the
+          // prompt is sent; the macrotask delay stands in for the detached
+          // runTurn, so the failure can never win the race with them.
+          setTimeout(() => {
+            const event: AgentEvent = {
+              type: 'turnCompleted',
+              turnId,
+              terminal: 'failed',
+              reason: sentence,
+            }
+            for (const listener of listeners) listener(event)
+          }, 25)
+          return Promise.resolve({ turnId, disposition: 'started' })
+        }
+      }
+      if (property === 'onEvent') {
+        return (listener: (event: AgentEvent) => void): (() => void) => {
+          listeners.add(listener)
+          if (!hasForwarded) {
+            hasForwarded = true
+            target.onEvent((event) => {
+              for (const each of listeners) each(event)
+            })
+          }
+          return () => {
+            listeners.delete(listener)
+          }
+        }
+      }
+      const value: unknown = Reflect.get(target, property, target)
+      if (typeof value !== 'function') return value
+      return (...args: unknown[]): unknown => {
+        const applied: unknown = Reflect.apply(value, target, args)
+        return applied
+      }
+    },
+  })
+}
+
+/** The real backend host with every session failing turns as above. */
+function codecRefusalHost(host: AgentHost, sentence: string): AgentHost {
+  return {
+    info: host.info,
+    onExit: host.onExit.bind(host),
+    listModels: host.listModels.bind(host),
+    startSession: async (options) =>
+      codecRefusalSession(await host.startSession(options), sentence),
+    listSessions: host.listSessions.bind(host),
+    readSession: host.readSession.bind(host),
+    readSessionOutput: host.readSessionOutput.bind(host),
+    resumeSession: host.resumeSession.bind(host),
+    forkSession: host.forkSession.bind(host),
+    onSessionListEvent: host.onSessionListEvent.bind(host),
+    readUsage: host.readUsage.bind(host),
+    ...(host.readPlanUsage !== undefined && { readPlanUsage: host.readPlanUsage.bind(host) }),
+    onUsageChanged: host.onUsageChanged.bind(host),
+    ...(host.importSession !== undefined && { importSession: host.importSession.bind(host) }),
+    get sessionCount() {
+      return host.sessionCount
+    },
+    close: host.close.bind(host),
+  }
+}
+
 describe('M105 headless attachment entry', () => {
   it('returns usage/2 for unsupported attached media and headless /record without inference', async () => {
     const h = await harness(['--attach', 'clip.mp4'], [], {
@@ -1822,6 +1913,85 @@ describe('M105 headless attachment entry', () => {
     expect([...h.out.chunks, ...h.err.chunks].join('')).not.toContain(
       Buffer.from(bytes).toString('base64'),
     )
+  })
+
+  it('reports a codec refusal with the sentence, exit 4 and zero requests', async () => {
+    // The sentence comes from the REAL chat encoder over no transport.
+    let refusal: unknown
+    try {
+      encodeChatRequest(
+        {
+          model: 'muse-spark-1.3-contributor',
+          instructions: 'be brief',
+          input: [
+            {
+              type: 'message',
+              role: 'user',
+              content: [
+                { type: 'input_text', text: 'what is in this clip?' },
+                { type: 'input_video', file_id: 'file-abc123' },
+              ],
+            },
+          ],
+          tools: [],
+          tool_choice: 'auto',
+          reasoning: { effort: 'low', summary: 'auto' },
+          stream: true,
+          store: false,
+          include: [],
+          max_output_tokens: 1024,
+          prompt_cache_key: 'test',
+          prompt_cache_retention: '24h',
+        },
+        'muse-spark-1.3-contributor',
+        {
+          presetId: 'openrouter',
+          outputCap: 'max_tokens',
+          reasoningParam: 'effort-object',
+          sendCacheKey: false,
+          includeUsage: true,
+          toolStream: false,
+          toolResultName: false,
+          replayField: 'details',
+        } satisfies ChatPresetQuirks,
+      )
+    } catch (error) {
+      refusal = error
+    }
+    if (!isChatCodecError(refusal)) throw new Error('the real encoder must refuse the held video')
+    const sentence = refusal.message
+    expect(sentence).toBe('muse-spark-1.3-contributor is not known to take video.')
+    const h = await harness([], [{ text: 'must not dispatch' }])
+    const spy = vi
+      .spyOn(runtimeBackends, 'createRuntimeBackend')
+      .mockImplementationOnce((input) => {
+        const runtime = actualRuntime(input)
+        return {
+          ...runtime,
+          backend: {
+            ...runtime.backend,
+            hostFor: async (cwd: string) =>
+              codecRefusalHost(await runtime.backend.hostFor(cwd), sentence),
+          },
+        }
+      })
+    try {
+      const r = await h.run()
+      expect(r.code).toBe(EXEC_EXIT.failed)
+      expect(result(r)).toMatchObject({
+        status: 'failed',
+        terminal: 'failed',
+        incompleteReason: sentence,
+        error: { kind: 'failed', message: `Internal error: ${sentence}` },
+      })
+      expect(result(r).usage.requests).toBe(0)
+      // Zero turn dispatches: the only fetch is the catalogue lookup at
+      // session setup, never a model request for the refused turn.
+      expect(h.api.requests.map((request) => request.path)).toEqual(['/models'])
+      expect(h.api.responseBodies()).toHaveLength(0)
+    } finally {
+      spy.mockRestore()
+    }
   })
 })
 

@@ -54,7 +54,6 @@ import {
 } from '../core/agent/agentBackend'
 import { editAutomaticallyChoice } from '../core/agent/approvalRules'
 import { failureForLog } from '../core/backends/musecode/logText'
-import { isChatCodecError } from '../core/backends/modelapi/codecs/shared'
 import { unlessAborted } from '../core/timeouts'
 import type { CoreLogger } from '../core/logging'
 import { type PaidUseAnswer, paidUseQuestion } from '../core/paid/paidConsent'
@@ -1968,11 +1967,12 @@ class AcpSession {
         }
         return outcome.reason
       }
-      // M105 lane V R3 (RVCM1054B P2): a codec refusal thrown while
-      // starting (at encode, before anything is sent) reaches the editor
-      // as its own sentence. The SDK turns any other raw error into a
-      // generic "Internal error"; that behaviour is unchanged.
-      if (isChatCodecError(error)) throw RequestError.internalError(undefined, error.message)
+      // M105 lane V R4 (RVCM1054C P3): no codec branch here. The real
+      // Model API session never rejects sendTurn with a codec refusal:
+      // submitTurn starts the turn detached and resolves, and the refusal
+      // fails the turn as turnCompleted with the sentence as reason
+      // (ModelApiHost.ts: reason = describe(error)), settled above at
+      // settle. A raw error here keeps the SDK's shape unchanged.
       throw error
     } finally {
       this.starting = undefined

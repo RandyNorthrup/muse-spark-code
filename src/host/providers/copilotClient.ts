@@ -5,6 +5,8 @@ import { setTimeout as pause } from 'node:timers/promises'
 import * as vscode from 'vscode'
 import * as z from 'zod/mini'
 import { MODEL_API_REQUEST_TIMEOUT_MS } from '../../shared/constants'
+import { ChatCodecError, isChatCodecError } from '../../core/backends/modelapi/codecs/shared'
+import { fill, UI_TEXT } from '../../shared/l10n/text'
 import type {
   ConfirmedModelRequest,
   ModelApiClient,
@@ -155,16 +157,38 @@ class CopilotClient implements ProviderClient {
     message: vscode.LanguageModelChatMessage,
     parts: readonly (InputContentPart | FunctionOutputPart)[],
   ): void {
-    for (const part of parts) {
-      if (part.type === 'input_text' || part.type === 'output_text')
+    for (const part of parts) this.appendPart(message, part)
+  }
+  private appendPart(
+    message: vscode.LanguageModelChatMessage,
+    part: InputContentPart | FunctionOutputPart,
+  ): void {
+    switch (part.type) {
+      case 'input_text':
+      case 'output_text': {
         message.content.push(this.api.text(part.text))
-      else if (
-        part.type === 'input_image' &&
-        'image_url' in part &&
-        this.deps.images?.supports(this.model) === true
-      )
+        return
+      }
+      case 'input_image': {
+        // M105 lane V R4 (RVCM1054C P2): content this client cannot send
+        // refuses with the shared typed refusal and the model's own
+        // sentence, before any request, never the generic unavailable text.
+        // An image the model cannot take (no vision, or another provider's
+        // held file with no URL to send) reads as the gate's own
+        // unsupported-image sentence.
+        if (!('image_url' in part) || this.deps.images?.supports(this.model) !== true)
+          throw new ChatCodecError(
+            fill(UI_TEXT.media.formatUnsupported, { model: this.model.id, format: 'image' }),
+          )
         this.deps.images.append(message, part.image_url)
-      else throw this.fail('unsupported-content')
+        return
+      }
+      case 'input_video': {
+        throw new ChatCodecError(fill(UI_TEXT.media.videoUnknown, { model: this.model.id }))
+      }
+      default: {
+        throw this.fail('unsupported-content')
+      }
     }
   }
   private messages(body: Omit<CreateResponseBody, 'stream'>): vscode.LanguageModelChatMessage[] {
@@ -249,7 +273,9 @@ class CopilotClient implements ProviderClient {
       count += await this.tokens(JSON.stringify(body.tools), cancellation, deadline)
       return tokenCountSchema.parse(count)
     } catch (error) {
-      if (error instanceof CopilotFailureError) throw error
+      // M105 lane V R4 (RVCM1054C P2): the shared typed refusal keeps its
+      // own sentence on the token-count path too, never the generic text.
+      if (error instanceof CopilotFailureError || isChatCodecError(error)) throw error
       throw this.fail('request-failed')
     }
   }
@@ -392,7 +418,9 @@ class CopilotClient implements ProviderClient {
       else yield { type: 'response.completed', response: final }
     } catch (error) {
       if (isAborted(signal)) throw this.fail('cancelled')
-      if (error instanceof CopilotFailureError) throw error
+      // M105 lane V R4 (RVCM1054C P2): the shared typed refusal keeps its
+      // own sentence on the send path too, never the generic text.
+      if (error instanceof CopilotFailureError || isChatCodecError(error)) throw error
       throw this.fail(failureCode(error))
     } finally {
       signal.removeEventListener('abort', abort)
