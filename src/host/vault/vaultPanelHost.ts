@@ -12,6 +12,7 @@ import {
   vaultItemMetadataSchema,
 } from '../../shared/vault'
 import { UI_TEXT, VAULT_VIEW_RETRY_BUDGET, VAULT_VIEW_RETRY_MS } from '../../shared/constants'
+import { vaultRefusalSentences } from '../../shared/vaultRefusals'
 import type { VaultImportReport } from '../../core/vault/broker/ports'
 import { VaultChannelError } from '../../core/vault/broker/client'
 import {
@@ -86,22 +87,11 @@ function wipe(item: VaultItem): void {
  * Exact match only: no foreign text can quote a full sentence.
  */
 function refusalMessage(error: unknown): string {
+  // Every named sentence, shared with the terminal (RVAPP-CM1091D5 P2-3),
+  // plus the broker-shape fallback only the panel names.
   const named: readonly string[] = [
-    UI_TEXT.vault.locked, // protocol refusal `locked`
-    UI_TEXT.vault.setupNeeded, // `uncreated`
-    UI_TEXT.vault.setupExists, // `exists`
-    UI_TEXT.vault.itemConflict, // `conflict`: an item or path collision, never setup
-    UI_TEXT.vault.deleteConflict, // `deleteConflict`: a Delete refused after import
-    UI_TEXT.vault.busy, // `busy`
-    UI_TEXT.vault.rollback, // `rollback`
-    UI_TEXT.vault.storeUnavailable, // `storeUnavailable`
-    UI_TEXT.vault.sourceGone, // `sourceGone`: the file is gone, nothing to retry
-    UI_TEXT.vault.sourceUnreadable, // `sourceUnreadable`: unreadable source, receipt kept
-    UI_TEXT.vault.sourceUnavailable, // `sourceUnavailable`: location away, receipt kept
-    UI_TEXT.vault.operationFailed, // `invalid`, `io`
+    ...vaultRefusalSentences(),
     UI_TEXT.vault.noAccess, // an unexpected broker shape
-    UI_TEXT.vault.useChanged, // a guard below
-    UI_TEXT.vault.approvalExpired, // a guard below
   ]
   return error instanceof Error && named.includes(error.message)
     ? error.message

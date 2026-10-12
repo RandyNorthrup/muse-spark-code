@@ -5,42 +5,38 @@
 // its fix: the sweep, the listing, or the shape it travels in.
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { rm, writeFile } from 'node:fs/promises'
-import path from 'node:path'
 import { VaultError } from '../../../src/core/vault/crypto'
 import { vaultPendingReceiptSchema } from '../../../src/shared/vaultProtocol'
 import { vaultPanelStateSchema } from '../../../src/shared/vaultPanel'
 import { vaultHostMessageSchema } from '../../../src/shared/hostApi/vaultMessages'
-import { cleanupTempHomes, lockedVault, managementFixture, tempHome } from './managementFixture'
+import { cleanupTempHomes, importedNetrc } from './managementFixture'
+import type { managementFixture } from './managementFixture'
 
 afterEach(cleanupTempHomes)
 
 const NETRC = 'machine example.test login generated-user password generated-password\n'
 
-async function imported(): Promise<{
-  f: ReturnType<typeof managementFixture>
-  receipt: string
-  file: string
-}> {
-  const home = await tempHome()
-  const file = path.join(home, '.netrc')
-  await writeFile(file, NETRC)
-  const f = managementFixture(undefined, home)
-  const setup = await lockedVault(f)
-  setup.fill(0)
-  await f.broker.unlock(null)
-  const report = await f.management.importFile(file, () => true)
+async function imported() {
+  const { f, report, file } = await importedNetrc()
   return { f, receipt: report.receipt, file }
+}
+
+/** A Delete refused after the source changed: the receipt stays to finish. */
+async function refused(
+  f: ReturnType<typeof managementFixture>,
+  receipt: string,
+  file: string,
+): Promise<void> {
+  await writeFile(file, NETRC.replace('generated-password', 'generated-replacement'))
+  await expect(f.management.deleteImport(receipt, () => true)).rejects.toMatchObject({
+    reason: 'deleteConflict',
+  })
 }
 
 describe('RVAPP-CM1091D5 P2-2 the sweep lists finishable receipts', () => {
   it('a receipt a refused Delete kept is listed with its path and items', async () => {
     const { f, receipt, file } = await imported()
-    // The source changes after the import: the Delete is refused, and the
-    // receipt stays for a later finish.
-    await writeFile(file, NETRC.replace('generated-password', 'generated-replacement'))
-    await expect(f.management.deleteImport(receipt, () => true)).rejects.toMatchObject({
-      reason: 'deleteConflict',
-    })
+    await refused(f, receipt, file)
     const snapshot = await f.management.snapshot()
     expect(snapshot.pendingReceipts).toHaveLength(1)
     const [entry] = snapshot.pendingReceipts
@@ -97,10 +93,7 @@ describe('RVAPP-CM1091D5 P2-2 the sweep lists finishable receipts', () => {
   it('locked snapshots list no receipts', async () => {
     const { f, receipt, file } = await imported()
     // A kept receipt exists before the lock: locking still strips the list.
-    await writeFile(file, NETRC.replace('generated-password', 'generated-replacement'))
-    await expect(f.management.deleteImport(receipt, () => true)).rejects.toMatchObject({
-      reason: 'deleteConflict',
-    })
+    await refused(f, receipt, file)
     const listed = await f.management.snapshot()
     expect(listed.pendingReceipts).toHaveLength(1)
     f.broker.lock()

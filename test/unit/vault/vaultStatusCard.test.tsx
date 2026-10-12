@@ -15,7 +15,7 @@ afterEach(() => {
   setUiText(EN, 'en')
 })
 
-function renderUnlocked(): string {
+function renderUnlocked(): { container: HTMLElement } {
   const state = panel()
   state.status = {
     state: 'unlocked',
@@ -27,13 +27,15 @@ function renderUnlocked(): string {
     reason: null,
   }
   const { container } = render(<VaultSection state={state} post={vi.fn()} />)
-  return container.textContent
+  return { container }
 }
 
 describe('RVCM1091D vault status card', () => {
   it('labels the protection rows in plain localized words', () => {
-    renderUnlocked()
-    const card = screen.getByRole('status')
+    const { container } = renderUnlocked()
+    // The tier card div: the retry live region is a separate persistent
+    // paragraph with the same role (RVAPP-CM1091D5 P3-4).
+    const card = container.querySelector('div[role="status"]')
     expect(card).toHaveTextContent(UI_TEXT.vault.tier)
     expect(card).toHaveTextContent(UI_TEXT.vault.provider)
     expect(card).toHaveTextContent(UI_TEXT.vault.silentUnlock)
@@ -43,7 +45,8 @@ describe('RVCM1091D vault status card', () => {
   })
 
   it('shows no raw protocol token anywhere on the card', () => {
-    const text = renderUnlocked()
+    const { container } = renderUnlocked()
+    const text = container.textContent
     for (const token of ['tier:', 'osStore', 'loginKeychain', 'silentUnlock']) {
       expect(text).not.toContain(token)
     }

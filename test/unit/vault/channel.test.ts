@@ -188,6 +188,14 @@ async function openClient(fixture: Awaited<ReturnType<typeof channelSetup>>) {
     fixture.peers,
   )
 }
+/** The server side of every open channel in the fixture. */
+function serverSocketsOf(fixture: Awaited<ReturnType<typeof channelSetup>>): Socket[] {
+  return [...z.set(z.instanceof(Socket)).parse(Reflect.get(fixture.server, 'sockets'))]
+}
+/** The client socket behind an opened test client. */
+function clientSocketOf(client: Awaited<ReturnType<typeof openClient>>): Socket {
+  return z.instanceof(Socket).parse(Reflect.get(client, 'socket'))
+}
 async function auditRecord(fixture: Awaited<ReturnType<typeof channelSetup>>) {
   await fixture.broker.request(fixture.identity, fixture.stored.metadata.handle, use(), {
     tainted: false,
@@ -542,9 +550,7 @@ describe.skipIf(!hasUnixPeer)('native authenticated broker channel', () => {
 
   it('RVCM1091G P3 a closed socket, failed write and invalid response name themselves, never Locked', async () => {
     const fixture = await channelSetup()
-    const serverSockets = (): Socket[] => [
-      ...z.set(z.instanceof(Socket)).parse(Reflect.get(fixture.server, 'sockets')),
-    ]
+    const serverSockets = (): Socket[] => serverSocketsOf(fixture)
     // 1. A send on a closed channel.
     const closed = await openClient(fixture)
     try {
@@ -606,73 +612,40 @@ describe.skipIf(!hasUnixPeer)('native authenticated broker channel', () => {
   // sandboxed rig (unix-socket listen is blocked); the lead runs it outside.
   it('RVAPP-CM1091D5 P3-2 oversized, missequenced and trailed replies are invalidResponse', async () => {
     const fixture = await channelSetup()
-    const serverSockets = (): Socket[] => [
-      ...z.set(z.instanceof(Socket)).parse(Reflect.get(fixture.server, 'sockets')),
-    ]
     const silenceServer = () =>
-      serverSockets().map((serverSocket) =>
+      serverSocketsOf(fixture).map((serverSocket) =>
         vi.spyOn(serverSocket, 'write').mockImplementation(() => true),
       )
-    const clientSocketOf = (client: Awaited<ReturnType<typeof openClient>>): Socket =>
-      z.instanceof(Socket).parse(Reflect.get(client, 'socket'))
-    // 1. A reply too large for one frame.
-    const oversized = await openClient(fixture)
-    const oversizedSilenced = silenceServer()
-    try {
-      const pending = oversized.send({ kind: 'status' })
-      await vi.waitFor(() => {
-        expect(Reflect.get(oversized, 'pending')).not.toBeNull()
-      })
-      clientSocketOf(oversized).emit('data', Buffer.alloc(VAULT_LIMITS.frameBytes + 1))
-      const failure = await channelFailureOf(() => pending)
-      expect(failure).toBeInstanceOf(VaultChannelError)
-      expect(failure).toMatchObject({ name: 'VaultChannelError', code: 'invalidResponse' })
-    } finally {
-      for (const silenced of oversizedSilenced) silenced.mockRestore()
-      oversized.close()
-    }
-    // 2. A well-formed reply with the wrong sequence.
-    const missequenced = await openClient(fixture)
-    const missequencedSilenced = silenceServer()
-    try {
-      const pending = missequenced.send({ kind: 'status' })
-      await vi.waitFor(() => {
-        expect(Reflect.get(missequenced, 'pending')).not.toBeNull()
-      })
-      clientSocketOf(missequenced).emit(
-        'data',
+    // One corrupt reply per shape; each fails without its invalidResponse
+    // literal in src/core/vault/broker/client.ts.
+    const corrupt: Record<string, (sequence: number) => Buffer> = {
+      oversized: () => Buffer.alloc(VAULT_LIMITS.frameBytes + 1),
+      missequenced: () =>
         Buffer.from(`${JSON.stringify({ v: 2, sequence: 9999, response: { kind: 'ok' } })}\n`),
-      )
-      const failure = await channelFailureOf(() => pending)
-      expect(failure).toBeInstanceOf(VaultChannelError)
-      expect(failure).toMatchObject({ name: 'VaultChannelError', code: 'invalidResponse' })
-    } finally {
-      for (const silenced of missequencedSilenced) silenced.mockRestore()
-      missequenced.close()
-    }
-    // 3. A well-formed reply followed by trailing bytes.
-    const trailed = await openClient(fixture)
-    const trailedSilenced = silenceServer()
-    try {
-      const pending = trailed.send({ kind: 'status' })
-      await vi.waitFor(() => {
-        expect(Reflect.get(trailed, 'pending')).not.toBeNull()
-      })
-      const sequence = z
-        .strictObject({ sequence: z.number() })
-        .parse(Reflect.get(trailed, 'pending')).sequence
-      clientSocketOf(trailed).emit(
-        'data',
+      trailed: (sequence) =>
         Buffer.from(
           `${JSON.stringify({ v: 2, sequence, response: { kind: 'ok' } })}\n{"extra":true}\n`,
         ),
-      )
-      const failure = await channelFailureOf(() => pending)
-      expect(failure).toBeInstanceOf(VaultChannelError)
-      expect(failure).toMatchObject({ name: 'VaultChannelError', code: 'invalidResponse' })
-    } finally {
-      for (const silenced of trailedSilenced) silenced.mockRestore()
-      trailed.close()
+    }
+    for (const [shape, payload] of Object.entries(corrupt)) {
+      const client = await openClient(fixture)
+      const silenced = silenceServer()
+      try {
+        const pending = client.send({ kind: 'status' })
+        await vi.waitFor(() => {
+          expect(Reflect.get(client, 'pending')).not.toBeNull()
+        })
+        const sequence = z
+          .strictObject({ sequence: z.number() })
+          .parse(Reflect.get(client, 'pending')).sequence
+        clientSocketOf(client).emit('data', payload(sequence))
+        const failure = await channelFailureOf(() => pending)
+        expect(failure, shape).toBeInstanceOf(VaultChannelError)
+        expect(failure, shape).toMatchObject({ name: 'VaultChannelError', code: 'invalidResponse' })
+      } finally {
+        for (const serverWrite of silenced) serverWrite.mockRestore()
+        client.close()
+      }
     }
   })
 
