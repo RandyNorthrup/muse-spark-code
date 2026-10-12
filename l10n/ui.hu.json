@@ -2668,10 +2668,10 @@
   "agentStopReasons": {
     "normal": "Normál befejezés",
     "budget": "Keret kimerült",
+    "limit": "Híváskorlát elérve",
     "error": "Hiba",
     "cancelled": "Felhasználó leállította",
-    "unknown": "Nem elérhető",
-    "limit": "Híváskorlát elérve"
+    "unknown": "Nem elérhető"
   },
   "agentContinue": "Folytatás",
   "agentRetry": "Újrapróbálás",
@@ -3523,6 +3523,11 @@
     "one": "A kör {count} modellhívás után leállt. A folytatáshoz küldjön üzenetet.",
     "other": "A kör {count} modellhívás után leállt. A folytatáshoz küldjön üzenetet."
   },
+  "modelApiWrapUpTruncated": {
+    "one": "A kör {count} modellhívás után leállt, a végső választ pedig a kimeneti korlát vágta le. A részleges válasz megmarad. A folytatáshoz küldjön üzenetet.",
+    "other": "A kör {count} modellhívás után leállt, a végső választ pedig a kimeneti korlát vágta le. A részleges válasz megmarad. A folytatáshoz küldjön üzenetet."
+  },
+  "modelApiWrapUpHookBlocked": "Egy leállítási hook további munkát kért, de a kör elérte a modellhívási korlátot, így a végső válasz érvényben marad.",
   "execRequestCapReached": {
     "one": "A kérések elérték a(z) {count} próbás korlátot.",
     "other": "A kérések elérték a(z) {count} próbás korlátot."
@@ -5301,10 +5306,5 @@
       "one": "{count} engedély",
       "other": "{count} engedély"
     }
-  },
-  "modelApiWrapUpTruncated": {
-    "one": "A kör {count} modellhívás után leállt, a végső választ pedig a kimeneti korlát vágta le. A részleges válasz megmarad. A folytatáshoz küldjön üzenetet.",
-    "other": "A kör {count} modellhívás után leállt, a végső választ pedig a kimeneti korlát vágta le. A részleges válasz megmarad. A folytatáshoz küldjön üzenetet."
-  },
-  "modelApiWrapUpHookBlocked": "Egy leállítási hook további munkát kért, de a kör elérte a modellhívási korlátot, így a végső válasz érvényben marad."
+  }
 }

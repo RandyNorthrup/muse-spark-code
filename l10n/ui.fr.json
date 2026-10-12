@@ -2724,10 +2724,10 @@
   "agentStopReasons": {
     "normal": "Fin normale",
     "budget": "Budget épuisé",
+    "limit": "Limite d’appels atteinte",
     "error": "Erreur",
     "cancelled": "Arrêté par l’utilisateur",
-    "unknown": "Indisponible",
-    "limit": "Limite d’appels atteinte"
+    "unknown": "Indisponible"
   },
   "agentContinue": "Continuer",
   "agentRetry": "Réessayer",
@@ -3598,6 +3598,12 @@
     "other": "Le tour s’est arrêté après {count} appels au modèle. Envoyez un message pour continuer.",
     "many": "Le tour s’est arrêté après {count} appels au modèle. Envoyez un message pour continuer."
   },
+  "modelApiWrapUpTruncated": {
+    "one": "Le tour s’est arrêté après {count} appel au modèle, la réponse finale ayant été tronquée par la limite de sortie. La réponse partielle est conservée. Envoyez un message pour continuer.",
+    "other": "Le tour s’est arrêté après {count} appels au modèle, la réponse finale ayant été tronquée par la limite de sortie. La réponse partielle est conservée. Envoyez un message pour continuer.",
+    "many": "Le tour s’est arrêté après {count} appels au modèle, la réponse finale ayant été tronquée par la limite de sortie. La réponse partielle est conservée. Envoyez un message pour continuer."
+  },
+  "modelApiWrapUpHookBlocked": "Un hook d’arrêt a demandé du travail supplémentaire, mais le tour a atteint sa limite d’appels au modèle ; la réponse finale est donc conservée.",
   "execRequestCapReached": {
     "one": "La limite de {count} tentative a été atteinte.",
     "other": "La limite de {count} tentatives a été atteinte.",
@@ -5456,11 +5462,5 @@
       "other": "{count} autorisations",
       "many": "{count} autorisations"
     }
-  },
-  "modelApiWrapUpTruncated": {
-    "one": "Le tour s’est arrêté après {count} appel au modèle, la réponse finale ayant été tronquée par la limite de sortie. La réponse partielle est conservée. Envoyez un message pour continuer.",
-    "other": "Le tour s’est arrêté après {count} appels au modèle, la réponse finale ayant été tronquée par la limite de sortie. La réponse partielle est conservée. Envoyez un message pour continuer.",
-    "many": "Le tour s’est arrêté après {count} appels au modèle, la réponse finale ayant été tronquée par la limite de sortie. La réponse partielle est conservée. Envoyez un message pour continuer."
-  },
-  "modelApiWrapUpHookBlocked": "Un hook d’arrêt a demandé du travail supplémentaire, mais le tour a atteint sa limite d’appels au modèle ; la réponse finale est donc conservée."
+  }
 }

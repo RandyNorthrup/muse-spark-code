@@ -2612,10 +2612,10 @@
   "agentStopReasons": {
     "normal": "正常終了",
     "budget": "予算を使い切りました",
+    "limit": "呼び出し上限に達しました",
     "error": "エラー",
     "cancelled": "ユーザーが停止",
-    "unknown": "利用不可",
-    "limit": "呼び出し上限に達しました"
+    "unknown": "利用不可"
   },
   "agentContinue": "続行",
   "agentRetry": "再試行",
@@ -3448,6 +3448,10 @@
   "modelApiTurnLimit": {
     "other": "モデルの呼び出しが {count} 回に達したため、このターンは停止しました。続けるにはメッセージを送信してください。"
   },
+  "modelApiWrapUpTruncated": {
+    "other": "最終回答が出力上限で途切れたため、このターンはモデルの呼び出しが {count} 回に達して停止しました。部分的な回答は保持されます。続けるにはメッセージを送信してください。"
+  },
+  "modelApiWrapUpHookBlocked": "停止フックが追加の作業を求めましたが、このターンはモデル呼び出しの上限に達したため、最終回答がそのまま残ります。",
   "execRequestCapReached": {
     "other": "リクエスト試行の上限 {count} 回に達しました。"
   },
@@ -5146,9 +5150,5 @@
     "grantsCount": {
       "other": "{count} 件の許可"
     }
-  },
-  "modelApiWrapUpTruncated": {
-    "other": "最終回答が出力上限で途切れたため、このターンはモデルの呼び出しが {count} 回に達して停止しました。部分的な回答は保持されます。続けるにはメッセージを送信してください。"
-  },
-  "modelApiWrapUpHookBlocked": "停止フックが追加の作業を求めましたが、このターンはモデル呼び出しの上限に達したため、最終回答がそのまま残ります。"
+  }
 }

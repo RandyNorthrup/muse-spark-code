@@ -2724,10 +2724,10 @@
   "agentStopReasons": {
     "normal": "Fim normal",
     "budget": "Orçamento esgotado",
+    "limit": "Limite de chamadas atingido",
     "error": "Erro",
     "cancelled": "Parado pelo usuário",
-    "unknown": "Indisponível",
-    "limit": "Limite de chamadas atingido"
+    "unknown": "Indisponível"
   },
   "agentContinue": "Continuar",
   "agentRetry": "Tentar novamente",
@@ -3598,6 +3598,12 @@
     "other": "O turno parou após {count} chamadas ao modelo. Envie uma mensagem para continuar.",
     "many": "O turno parou após {count} chamadas ao modelo. Envie uma mensagem para continuar."
   },
+  "modelApiWrapUpTruncated": {
+    "one": "O turno parou após {count} chamada ao modelo, com a resposta final cortada pelo limite de saída. A resposta parcial foi mantida. Envie uma mensagem para continuar.",
+    "other": "O turno parou após {count} chamadas ao modelo, com a resposta final cortada pelo limite de saída. A resposta parcial foi mantida. Envie uma mensagem para continuar.",
+    "many": "O turno parou após {count} chamadas ao modelo, com a resposta final cortada pelo limite de saída. A resposta parcial foi mantida. Envie uma mensagem para continuar."
+  },
+  "modelApiWrapUpHookBlocked": "Um hook de parada pediu mais trabalho, mas o turno atingiu seu limite de chamadas ao modelo, então a resposta final permanece.",
   "execRequestCapReached": {
     "one": "O limite de {count} tentativa foi atingido.",
     "other": "O limite de {count} tentativas foi atingido.",
@@ -5456,11 +5462,5 @@
       "other": "{count} autorizações",
       "many": "{count} autorizações"
     }
-  },
-  "modelApiWrapUpTruncated": {
-    "one": "O turno parou após {count} chamada ao modelo, com a resposta final cortada pelo limite de saída. A resposta parcial foi mantida. Envie uma mensagem para continuar.",
-    "other": "O turno parou após {count} chamadas ao modelo, com a resposta final cortada pelo limite de saída. A resposta parcial foi mantida. Envie uma mensagem para continuar.",
-    "many": "O turno parou após {count} chamadas ao modelo, com a resposta final cortada pelo limite de saída. A resposta parcial foi mantida. Envie uma mensagem para continuar."
-  },
-  "modelApiWrapUpHookBlocked": "Um hook de parada pediu mais trabalho, mas o turno atingiu seu limite de chamadas ao modelo, então a resposta final permanece."
+  }
 }
