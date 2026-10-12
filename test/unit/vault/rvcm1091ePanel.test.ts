@@ -337,7 +337,7 @@ describe('RVCM1091E CLASS 1: every failed operation settles on a fresh view', ()
     },
   )
 
-  it('a change during a lock whose snapshot is down settles once, on the lock', async () => {
+  it('a change during a lock whose snapshot is down is answered, not ignored', async () => {
     const f = harness()
     f.deps.service.snapshot.mockRejectedValue(new Error('snapshot down'))
     const pending = deferred()
@@ -346,31 +346,31 @@ describe('RVCM1091E CLASS 1: every failed operation settles on a fresh view', ()
     await vi.waitFor(() => {
       expect(f.deps.service.lock).toHaveBeenCalled()
     })
-    // A watch reconnect lands while the lock is failing. The lock owns the
-    // next publish — no mid-lock refresh runs — so the lock's own settle is
-    // the one publish (Unavailable, no item labels) and the one report.
-    // The timer yields after drained microtasks, so the superseded refresh
-    // (if one ran) would settle while the lock is still in flight.
+    // A change lands while the lock is failing. RVCM1091F: no event is ever
+    // gated on an earlier one — the change republishes and reloads at once
+    // (the timer yields after drained microtasks, so its settle lands while
+    // the lock is still in flight), and the lock's own settle follows.
+    const publishes = f.deps.publish.mock.calls.length
+    expect(publishes).toBeGreaterThan(0)
     f.changed.callback({ kind: 'changed' })
     await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(f.deps.publish.mock.calls.length).toBeGreaterThan(publishes)
     pending.reject(new Error('boom-lock'))
     await locking
-    // Drain stragglers: a superseded refresh that still ran would publish
-    // and report here, before disposal can mask it.
     await new Promise((resolve) => setTimeout(resolve, 20))
-    expect(f.deps.publish).toHaveBeenCalledTimes(1)
     const state = lastState(f)
     expect(state.status.state).toBe('unavailable')
     expect(state.items).toEqual([])
     expect(publishedText(f)).not.toContain('test-secret')
-    expect(f.deps.showError).toHaveBeenCalledTimes(1)
     expect(lastError(f)).toBe(UI_TEXT.vault.operationFailed)
-    for (const call of f.deps.showError.mock.calls)
+    for (const call of f.deps.showError.mock.calls) {
       expect(call[0] as string).not.toContain('snapshot down')
+      expect(call[0] as string).not.toContain('boom-lock')
+    }
     f.host.dispose()
   })
 
-  it('a watch outage during a lock stays silent until the lock settles', async () => {
+  it('a watch outage during a lock is shown at once, never silent', async () => {
     const f = harness()
     f.deps.service.snapshot.mockRejectedValue(new Error('snapshot down'))
     const pending = deferred()
@@ -380,18 +380,21 @@ describe('RVCM1091E CLASS 1: every failed operation settles on a fresh view', ()
       expect(f.deps.service.lock).toHaveBeenCalled()
     })
     // The outage settles while the lock is still in flight (the timer
-    // yields after drained microtasks): the lock owns the view, so the
-    // outage reports nothing and the lock's own settle is the one publish
-    // and the one report.
+    // yields after drained microtasks). RVCM1091F: a watch outage shows
+    // what happened — it is reported at once, not held for the lock.
     f.failed.callback()
     await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(f.deps.showError.mock.calls.length).toBeGreaterThan(0)
+    expect(lastError(f)).toBe(UI_TEXT.vault.operationFailed)
     pending.reject(new Error('boom-lock'))
     await locking
     await new Promise((resolve) => setTimeout(resolve, 20))
-    expect(f.deps.publish).toHaveBeenCalledTimes(1)
     expect(lastState(f).status.state).toBe('unavailable')
-    expect(f.deps.showError).toHaveBeenCalledTimes(1)
     expect(lastError(f)).toBe(UI_TEXT.vault.operationFailed)
+    for (const call of f.deps.showError.mock.calls) {
+      expect(call[0] as string).not.toContain('snapshot down')
+      expect(call[0] as string).not.toContain('boom-lock')
+    }
     f.host.dispose()
   })
 

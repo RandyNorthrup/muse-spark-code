@@ -5381,6 +5381,8 @@
     "seUnavailable": "La protección de Secure Enclave no está disponible. Usa una frase de contraseña para confirmar tu presencia.",
     "passphraseWarning": "Se requiere una frase de contraseña para desbloquear. Protege un disco copiado e impide que programas ejecutados como usted desbloqueen en silencio.",
     "operationFailed": "La operación de la bóveda falló. Inténtelo de nuevo.",
+    "retry": "Reintentar",
+    "sourceGone": "El archivo original ya se había eliminado, pero su registro de importación no se pudo borrar. Las credenciales importadas permanecen en la bóveda; no hay nada que reintentar.",
     "invalidFields": "Revise los campos del permiso y su destino.",
     "grantHelp": "Cada ámbito de abajo limita este permiso. Un recuento, vencimiento o intervalo vacío significa sin límite.",
     "metadataOnly": "Editar solo la configuración",

@@ -5381,6 +5381,8 @@
     "seUnavailable": "La protection Secure Enclave est indisponible. Utilisez une phrase secrète pour confirmer votre présence.",
     "passphraseWarning": "Une phrase secrète est nécessaire pour déverrouiller. Elle protège un disque copié et empêche le déverrouillage silencieux par les programmes exécutés sous votre compte.",
     "operationFailed": "L’opération du coffre a échoué. Réessayez.",
+    "retry": "Réessayer",
+    "sourceGone": "Le fichier d’origine avait déjà été supprimé, mais son reçu d’importation n’a pas pu être effacé. Les identifiants importés restent dans le coffre-fort ; il n’y a rien à réessayer.",
     "invalidFields": "Vérifiez les champs de l’autorisation et sa cible.",
     "grantHelp": "Chaque portée ci-dessous limite cette autorisation. Un nombre, une expiration ou une plage horaire vide signifie aucune limite.",
     "metadataOnly": "Modifier seulement les paramètres",

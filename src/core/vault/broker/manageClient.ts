@@ -39,6 +39,9 @@ export function vaultRefusalMessage(reason: VaultManagementRefusal): string {
     case 'deleteConflict': {
       return UI_TEXT.vault.deleteConflict
     }
+    case 'sourceGone': {
+      return UI_TEXT.vault.sourceGone
+    }
     case 'busy': {
       return UI_TEXT.vault.busy
     }

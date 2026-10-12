@@ -7808,6 +7808,11 @@ export const VAULT_LOCK_DRAIN_MS = 1000
 export const VAULT_WATCH_RETRY_MS = 1000
 // RVCM1091A F7: the panel's watch backoff doubles up to this while the broker is down.
 export const VAULT_WATCH_RETRY_MAX_MS = 30_000
+// RVCM1091F REDESIGN: a transient snapshot failure (busy, rollback, timeout,
+// watch lost) keeps the last good view and retries this many times before the
+// section goes unavailable and offers the person's own Retry.
+export const VAULT_VIEW_RETRY_BUDGET = 2
+export const VAULT_VIEW_RETRY_MS = 250
 export const VAULT_ASKPASS_USES = 3
 export const VAULT_ASKPASS_TTL_MS = 600_000
 export const VAULT_SESSION_MAX_DAYS = 30

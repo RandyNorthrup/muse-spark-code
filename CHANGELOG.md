@@ -178,6 +178,19 @@ happened, not what was planned; superseded entries are kept.
   protection; and setup confirmation broadcasts once, so its unlock no
   longer loses the writer to a mid-flight snapshot.
 
+- Review repairs (RVCM1091F, CM1091DR4): the vault section's host is one
+  explicit view state machine instead of a flag, so a lock from anywhere
+  (idle auto-lock, screen lock, another window, the CLI) locks this window
+  at once with no item names listed, and later changes, approval cards and
+  re-shown tabs always recover it. A failure while the broker is busy keeps
+  the last view, says it is retrying, retries twice, then offers **Retry**;
+  only a broker that cannot start names the repair. Guard refusals on the
+  current view (Reset on a vault that is not lost, edit/grant/answer/import
+  guards) still toast; only a retired older generation stays silent.
+  A Delete whose source
+  is already gone but whose import record stuck says the file is gone, with
+  nothing to retry, and the record is cleared at the next Delete.
+
 - On macOS 26, a process that `ps` lists with an unknown state (`?`) while
   it changes no longer voids every resource tree's membership read, which
   could refuse Stop/kill for a tree while any process on the Mac was mid-transition.

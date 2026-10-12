@@ -5531,6 +5531,8 @@
     "seUnavailable": "Ochrana Secure Enclave není dostupná. Pro potvrzení přítomnosti použijte heslovou frázi.",
     "passphraseWarning": "Odemknutí vyžaduje heslovou frázi. Chrání zkopírovaný disk a brání tichému odemknutí programy běžícími pod vaším účtem.",
     "operationFailed": "Operace trezoru selhala. Zkuste to znovu.",
+    "retry": "Opakovat",
+    "sourceGone": "Původní soubor byl již smazán, ale jeho záznam o importu se nepodařilo vymazat. Importované položky zůstávají v trezoru; není co opakovat.",
     "invalidFields": "Zkontrolujte pole oprávnění a jeho cíl.",
     "grantHelp": "Každý rozsah níže omezuje toto oprávnění. Prázdný počet, platnost nebo časové okno znamená bez omezení.",
     "metadataOnly": "Upravit pouze nastavení",

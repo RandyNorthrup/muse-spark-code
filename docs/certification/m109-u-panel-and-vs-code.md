@@ -261,3 +261,103 @@ The lane-0 `m109-manifest-strings.json` already supplies EN plus fourteen real
 NLS tables for these commands/settings. The prepared command ids and proposed
 binding are tested; actual manifest contributions/activation must be joined
 with the real service before product documentation says they are available.
+
+## RVCM1091F redesign — explicit vault view state machine (lane CM1091DR4, 2026-10-12)
+
+Fourth review round on the vault section's host. All three P2 came from one
+boolean (`lockRequested`) standing for a state; the lane replaces it with ONE
+pure transition in `src/host/vault/vaultViewMachine.ts`:
+
+- STATES (closed union): `loading`, `locked`, `unlocked` with its snapshot,
+  `unavailable` with a typed reason (transient `busy`/`rollback`/`timeout`/
+  `watchLost`; `brokerCannotStart`; snapshot-carried `storeUnavailable`,
+  `vaultLost`, `auditInvalid`, `slotUnavailable`, `basicText`, `uncreated`,
+  `setupPending`, `firstPartyOnly`; `unreachable` for a failure with no cause).
+- EVENTS (closed union): broker `locked`/`unlocked`/`changed`/`approval`/
+  `revoked`, `vaultReady`, `watchLost`/`watchRestored`, user `Lock`/`Unlock`/
+  `add`/`Import`/`Delete`/`Revoke`/`Retry` (+ the scheduled `autoRetry`),
+  snapshot `ok` (generation + snapshot) / `failed` (generation + reason).
+- ONE PURE TRANSITION `(state, event, generation) -> (state, effects)`.
+  `test/unit/vault/vaultViewMachine.test.ts` enumerates EVERY state crossed
+  with EVERY event from the unions themselves; a new member without a row
+  fails the table. Every cell publishes a frame now or reloads (whose settle
+  always publishes): there is no silent path.
+- Rules, each with its named test: locked-from-anywhere locks at once with
+  no item labels/grants; later events never gated; transient keeps the last
+  good view + reports + bounded retries (budget 2, 250 ms;
+  `VAULT_VIEW_RETRY_BUDGET`/`VAULT_VIEW_RETRY_MS`) then offers Retry;
+  only `brokerCannotStart` (reached solely from the broker's own
+  `brokerBlocked` verdict) shows the repair sentence; stale failures still
+  toast; older generations/epochs never overwrite newer state (overlapping
+  reloads settle on the newer snapshot at the host; stale rows republish at
+  the table); toasts never contradict the section.
+
+P3 classes: Delete-after-forget-failure gets `sourceGone` (file gone,
+nothing to retry, credentials stay; receipt cleared at the next Delete);
+barrier-aborted in-flight requests settle silent; refusal table crosses
+add/import with live broker `busy`/`rollback` rows and Delete with live
+`sourceGone` rows; ja/ko/zh-cn/zh-tw use the majority vault term in every
+vault string. New UI strings `retry`/`sourceGone` in EN + 14 tables
+(`npm run check:l10n`: 0 problems). New status reasons
+`busy`/`timeout`/`watchLost`/`unreachable`/`storeUnavailable` with own
+section sentences; the section offers Retry (posts `vaultRetry`) only for
+retryable reasons.
+
+Red drills (each: break guard, see the named test fail, restore byte-exact,
+SHA-256 verified before and after):
+
+- `lockedFrame` keeps item labels → `vaultViewMachine` "locks at once with
+  no item labels or grants" fails. File SHA before/after:
+  `f386fca84620fc9635c1b88b185d41c219c57a1c412527b570069c796a532f2a`.
+- Locked branch without reload → `rvcm1091fHost` "locked event reloads"
+  fails (snapshot count never grows). `vaultPanelHost.ts` SHA before/after:
+  `2c092b8ed868c8756b2cbdba59cdf32bad4ff8126292c503b037ca4076c909ad`.
+- `sourceGone` mapped to `io` → refusals "cannot forget its receipt"
+  fails with `reason: 'io'`. `management.ts` SHA before/after:
+  `82193b61171039e022c6c4312ce9a59600697b5a77dd6e901a2be3562aa5f6c2`.
+- ja `operationFailed` back to ボールト → host "majority term" test fails.
+  `l10n/ui.ja.json` SHA before/after:
+  `d61821f7eb78ce651eb2443736ecc5bcd68a3c778ccece06658d8dab34edc289`.
+- `confirmed` dropped from the keep-Locked branch → panel "a failed Lock
+  with no snapshot says Unavailable, never Locked" fails (the optimistic
+  Locked is kept although the lock failed). File SHA before/after:
+  `5b8c21a1962c525e7c996dbc8fcb89327549aa17bd8ef4f870a466172e5e2c9e`.
+
+Refinement (same session): the `locked` state carries `confirmed` — broker
+event, locked snapshot, or this window's own Lock call returning
+(`userLockConfirmed`, the 19th event) — so a _failed_ Lock with no snapshot
+says Unavailable (the RVCM1091E panel table's contract) while a Lock that
+_succeeded_ while the snapshot is down keeps the stripped Locked view. ko
+`unknownTierWarning` uses 보관함이 (correct particle). CHANGELOG Fixed gains
+the RVCM1091F bullet; PLAN.md §8 registers the transition's `default`
+`(event as VaultViewEvent).kind` cast.
+
+Continuation (same lane, 2026-10-12 evening): the related run caught one
+real regression the redesign introduced — `settleFailure` treated every
+`useChanged` word as a silent retirement, so genuine guard refusals on the
+current generation (Reset on a vault that is not lost, edit-target-gone,
+grant/answer/import guards) never toasted. Fixed in
+`src/host/vault/vaultPanelHost.ts`: silence applies only when an older
+generation carries the veto (`isRetiredSilent`); a current-generation refusal
+is still reported after its reload. Regression test: the pre-existing
+`vaultPanelBinding` "reset asks the typed word natively, only for the lost
+vault" (it failed 0-showErrorMessage-calls on the broken code, passes after).
+
+Red drill: `isRetiredSilent` back to `!isVeto(error)` → binding suite fails
+(1 failed, 6 passed); restored byte-exact. `vaultPanelHost.ts` SHA
+before/after:
+`ff373ada6c014295053701c7b04290ecbf343d244b3456436346089ddf5208b9`.
+
+NOT RUN HERE (no browser on this machine; reviewer's): mounted-harness and
+visual checks. Socket suites: `channel.test.ts` (unix-socket `listen`
+blocked by the sandbox: `EPERM: operation not permitted ... broker.sock`,
+48 failed on listen, 0 on assertions) is NOT RUN HERE; the reviewer runs it.
+Every other related suite ran here at the repo default timeout: the six
+vault section/host files plus binding, panel, status card, harness
+scenarios, management, import, migrate, the rvcm1091a/b rounds, conflicts,
+boundaries, delegation, remote, runtime entry, fakes, contracts, broker,
+migration lifecycle, native editor, credential adapter, modelsPanelVault,
+execVault, and the l10n triple — all green. One timing flake under load
+(11.4 on 12 cores) in the host/panel/table trio passed on rerun (73/73).
+`typecheck:host`, `typecheck:unit`, eslint on all changed files,
+`prettier --check`, and `node scripts/check-l10n.mjs` (0 problems) pass.

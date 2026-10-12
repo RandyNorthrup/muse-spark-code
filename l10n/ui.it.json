@@ -5381,6 +5381,8 @@
     "seUnavailable": "La protezione Secure Enclave non è disponibile. Usa una passphrase per confermare la presenza.",
     "passphraseWarning": "Per sbloccare serve una passphrase. Protegge un disco copiato e impedisce lo sblocco silenzioso da parte di programmi eseguiti con il tuo account.",
     "operationFailed": "L’operazione del vault non è riuscita. Riprova.",
+    "retry": "Riprova",
+    "sourceGone": "Il file originale era già stato eliminato, ma la relativa ricevuta di importazione non è stata cancellata. Le credenziali importate restano nella cassaforte; non c’è nulla da riprovare.",
     "invalidFields": "Controllare i campi dell’autorizzazione e la destinazione.",
     "grantHelp": "Ogni ambito seguente limita questa autorizzazione. Conteggio, scadenza o intervallo vuoti indicano nessun limite.",
     "metadataOnly": "Modifica solo le impostazioni",

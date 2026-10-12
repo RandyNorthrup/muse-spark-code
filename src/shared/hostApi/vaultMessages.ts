@@ -9,6 +9,9 @@ export const vaultHostMessageSchema = z.strictObject({
 })
 export const vaultClientMessageSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('vaultReady') }),
+  // RVCM1091F: the person's own Retry after a transient failure spent the
+  // bounded auto-retries. It reloads with a restored budget.
+  z.strictObject({ type: z.literal('vaultRetry') }),
   z.strictObject({ type: z.literal('vaultLock') }),
   z.strictObject({ type: z.literal('vaultUnlock') }),
   // Set Up Vault: the host generates and shows the one-time recovery code natively.

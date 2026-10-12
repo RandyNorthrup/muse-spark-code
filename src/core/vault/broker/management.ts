@@ -125,6 +125,9 @@ function importRefusal(error: unknown): unknown {
     case 'storage': {
       return new VaultManagementError('io')
     }
+    case 'orphaned': {
+      return new VaultManagementError('sourceGone')
+    }
     case 'invalid':
     case 'verification': {
       return new VaultManagementError('invalid')
@@ -475,9 +478,13 @@ export class VaultManagement implements VaultManagementPort {
       })
     } catch (error: unknown) {
       // A source that changed after a successful import is not an add/import
-      // collision: Delete names what stayed behind (RVCM1091E P2).
+      // collision: Delete names what stayed behind (RVCM1091E P2). A source
+      // already gone (a previous Delete removed it but could not forget its
+      // receipt) names that truth instead of a retryable failure (RVCM1091F).
       if (error instanceof VaultMigrationFault && error.code === 'conflict')
         throw new VaultManagementError('deleteConflict')
+      if (error instanceof VaultMigrationFault && error.code === 'orphaned')
+        throw new VaultManagementError('sourceGone')
       throw importRefusal(error)
     }
   }

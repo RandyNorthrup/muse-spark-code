@@ -5381,6 +5381,8 @@
     "seUnavailable": "A proteção Secure Enclave não está disponível. Use uma frase secreta para confirmar a presença.",
     "passphraseWarning": "É necessária uma frase secreta para desbloquear. Ela protege um disco copiado e impede o desbloqueio silencioso por programas executados como você.",
     "operationFailed": "A operação do cofre falhou. Tente novamente.",
+    "retry": "Tentar de novo",
+    "sourceGone": "O arquivo original já tinha sido excluído, mas seu registro de importação não pôde ser apagado. As credenciais importadas permanecem no cofre; não há nada para tentar de novo.",
     "invalidFields": "Verifique os campos da permissão e seu destino.",
     "grantHelp": "Cada escopo abaixo limita esta permissão. Contagem, validade ou intervalo vazio significa sem limite.",
     "metadataOnly": "Editar apenas configurações",
