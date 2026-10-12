@@ -545,3 +545,125 @@ secret service (`runtimeChatGpt` DBus line), blocked outbound fetch
 and a proxy-injected 502 where 401 was expected
 (`usageIntegration`); all five passed in the review's rig replay, and
 none touches an edited path. Lead re-runs them outside the sandbox.
+
+## Round 6 — RVCM1063D findings (2026-10-12, linuxlt rig, resumed lane)
+
+Fourth review of this piece; the lead's three causes, each fixed once
+where it belongs. No new dependency, no guard widened, no cap moved,
+no `as`/`eslint-disable`/`any` added.
+
+Cause 1 — capability admission has one source. `servedEffortLevels`
+(`src/shared/effort.ts`) resolves tiers from the served variants; the
+dots, keyboard stepping (`App.tsx`), the palette slash command
+(`paletteRegistry.ts`), the controller's attach / model-switch /
+Thinking / setEffort sites and ACP (`acp/agent.ts`) all call it, and a
+test greps the static table name to prove only the one function reads
+it. Siblings swept: `capabilityRecord.ts`, `modelPolicy.ts` and
+`resolveAgentEffort` call `effortLevelsFor`, never the static name
+(the Model API spawn has no served-variants row, so the shared
+fallback is the only source there); the enumeration test pins the
+rule. A refused tier's reason rides the palette row's own detail, so
+the option's accessible name carries it while the dots stay
+mouse-only inside the option (P3 slider). Findings 1 (resume admits
+against the announced active row), 2 (Thinking with no served tier
+sends nothing and says why), 6 (row-level reason). Tests:
+`test/unit/effortAdmission.test.ts` (one-source grep),
+`conversationController.test.ts` (resume-against-active,
+Thinking-empty/future-only), `paletteRegistry.test.ts` (refusal
+detail), `Palette.test.tsx` (row accessible name).
+
+Cause 2 — one modal at a time, with one owner of focus. The overlay
+fragment (`help`, `prompts`, `chatShare`, `usage`, `agents`,
+`review`, `bestOfN`) mounts only while no feedback dialog is mounted;
+a host surface arriving under feedback (or feedback asked for under
+one) keeps its state and appears on close — the queue R5 built for
+sharing, generalized, which also let the two per-site guards go. The
+`history`/`board` dialogs hang from the inert header and are not
+modals (M74 taxonomy), so they need no gate. Focus: the dialog
+returns to its opener on unmount, or to the composer when the opener
+is gone (`FeedbackSurface`); a busy preview/send that disables the
+focused button restores focus inside on completion
+(`FeedbackDialog`), so Tab stays trapped and Escape closes; every
+background action is inert (`DiffTally`, the schedules surface join
+the M25 set). Findings 3 (Help/Usage queue both orders, plus agents)
+and 4 (focus lost after preview/send, Escape dead, Review reachable).
+Tests: `App.test.tsx` (help/usage/agents pairs both orders,
+session-change focus), `FeedbackDialog.test.tsx` (busy restore +
+Escape), `FeedbackSurface.test.tsx` (opener/composer),
+`DiffTallyRow.test.tsx` + `scheduleSurfaceWebview.test.tsx`
+(inert). `Modal.tsx` drops a duplicated keybinding lookup (pure
+function, behavior-identical) to pay for the gate: startup room is 2
+bytes, FIXDIET1 green, no cap moved.
+
+Cause 3 — the visual record is generated, not typed. R5's hand-typed
+audit grades/scenes for the three feedback scenes are removed
+(`m114-audit.json`: 2 component rows, 3 scene names;
+`visual-matrix.json`: 2 inventory lines). The two renderer files move
+to `otherWebviewFiles` as `pending-capture` (honest: harness scenes
+
+- browser suites cover them, no reviewed grades exist), the bridge
+  stays `logic-only`, and the eight stale source hashes for this lane's
+  touched files are refreshed mechanically. Production
+  `validateManifest` passes again (9,792 captures, 136 scenes, 185
+  components). `visualMatrix`'s every-component test stays red until
+  the lead captures — that red IS the tracker, not a residual to fix
+  here (no renderer renders in this sandbox). Lead capture spec:
+  scenes `feedback-narrow`, `feedback-preview-narrow`,
+  `feedback-sent-narrow`; matrix 6 states × 6 themes × widths
+  [320, 690], height 760 → 3 × 72 = 216 frames; reviewer's reference
+  216 frames, 9,883,372 PNG bytes, Chrome 153.0.8010.52,
+  capture-record SHA-256
+  `56b8d5e07e87aa1e5ab055234ac8814846b38e1e2480409ca1c7edbe5605`;
+  then the tool promotes the two files back to the component
+  inventory with generated grades. No PNG created or changed here.
+
+Finding 7 — the `gitExitCode` comment claimed signals produce
+undefined; the runner records the `-1` sentinel (`code ?? -1`), so a
+signal kill reads back as -1. Comment corrected to the settle-path
+contract; `git.test.ts` pins `-1`/`1`/plain-error/missing. The
+R5-ported review-collector hunks are superseded by the release
+train's fix (same statement corrected in `4bcd7502f`): at the merge,
+take the train's `src/host/git.ts` hunk and drop this lane's port
+(the contract test still holds against it).
+
+Red drills (break → named failure → SHA-256 byte-exact restore, all
+10 files OK): D1 resume-against-handle → 1 fail; D2 Thinking guard
+→ 2 fail; D3 second static-table reader → 1 fail; D4 row detail
+dropped → 3 fail; D5 gate forced open → 6 fail; D6 restore disabled
+→ 1 fail; D7 composer fallback dropped → 1 fail; D8 tally inert
+dropped → 1 fail; D9 surface inert dropped → 1 fail; D10 sentinel
+passthrough dropped → 1 fail; D11 in-memory scene re-added →
+`Missing visual captures: 72` (×3 = the review's 216), no file
+touched.
+
+Final gates (linuxlt, repository timeouts throughout, no
+`--testTimeout` anywhere): five typechecks pass; `npm run build`
+exits 0; FIXDIET1 green (startup 761,546 bytes vs the 761,548.8
+gate); `check-l10n` 0 problems; `check:host-api` 0 problems;
+`deadcode` exit 0; `jscpd` 0 clones (two test preludes and the
+catalogue mocks deduplicated into shared helpers); scoped
+ESLint/Prettier clean.
+
+Dependents (`vitest related` over the twelve touched src files,
+repo timeouts, linuxlt): **310 files, 294 pass, 13 fail; 8,576
+pass, 112 fail, 82 skip.** Twelve fail on sandbox primitives only:
+loopback through the sandbox proxy (`chatGptVsCode`,
+`runtimeChatGptCallback`, `teamMcpBridge`, `files`,
+`configuredProviders`, `companionUpload`, `usageIntegration` —
+the last two proven green with the proxy env off: 3/3 and 50/50),
+loopback listen/DBus (`runtimeChatGpt`, `mcpPool`),
+blocked outbound fetch (`subscriptionIntegration`), no Chrome
+(`accountsPanel.a11y`), npm home unwritable
+(`execTestLauncher.e2e`). The thirteenth,
+`referenceGenerator.test.mjs` B06, was this round's: it mutates the
+exact Modal close-check line this round simplified, so its stale
+snippet no longer matched — updated to the current line, B06 green.
+None of the twelve touches an edited path. The review's two named
+reds place as: `nativeScheduleBackground` 46/46 here (no user
+systemd manager, so the 0775-ancestor case returns early; the guard
+is correct and this lane never touched it); `usageIntegration` :212
+red here by the proxy mechanism above, green without it.
+
+For the lead (outside the sandbox): the 216 feedback captures
+above; the twelve sandbox-blocked suites; `reviewMaterial` full and
+`check:visual` captures (browser); the ported-hunk drop at merge.

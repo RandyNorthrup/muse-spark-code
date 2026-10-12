@@ -2,7 +2,7 @@ import type { ExecFileOptions } from 'node:child_process'
 import { describe, expect, it, vi } from 'vitest'
 import { UI_TEXT } from '../../src/shared/constants'
 import { worktreeAddHeldArgs } from '../../src/core/worktrees'
-import { createGitRunner } from '../../src/host/git'
+import { GitExitError, GitMissingError, createGitRunner, gitExitCode } from '../../src/host/git'
 import { UNTRUSTED_CHECKOUT_OPTIONS, untrustedCheckoutArgs } from '../../src/host/git/untrustedGit'
 
 function runner(env: NodeJS.ProcessEnv, installed: ReadonlySet<string>) {
@@ -304,5 +304,16 @@ describe('createGitRunner (D24)', () => {
     await expect(run(['status'], '/ws')).rejects.toThrow(/not found/)
     installed.add('/usr/bin/git')
     await expect(run(['status'], '/ws')).resolves.toBe('ok\n')
+  })
+})
+
+describe('gitExitCode (RVCM1063D #7)', () => {
+  it('reads a close without an exit code as the -1 sentinel, never undefined', () => {
+    // The runner records `GitExitError(code ?? -1, ...)` when git closes
+    // with a null code (a signal kill): the contract is -1, not undefined.
+    expect(gitExitCode(new GitExitError(-1, '', 'rev-parse'))).toBe(-1)
+    expect(gitExitCode(new GitExitError(1, 'fatal', 'rev-parse'))).toBe(1)
+    expect(gitExitCode(new Error('git rev-parse timed out after 1 ms'))).toBeUndefined()
+    expect(gitExitCode(new GitMissingError())).toBeUndefined()
   })
 })
