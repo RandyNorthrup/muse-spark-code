@@ -5181,6 +5181,7 @@
     "spreadEvent": "Lavoro distribuito",
     "stopEvent": "Lavoro interrotto",
     "sourceUndated": "Nessuna data della fonte indicata",
+    "selectedRemoved": "L’account scelto non esiste più. Questa chat userà l’account predefinito alla prossima richiesta.",
     "invalidAccount": "Controlla identificativo, etichetta, ordine, gruppo di limiti e soglie dell’account.",
     "removeConfirm": "Rimuovere {account}? Le credenziali memorizzate saranno eliminate e l’accesso revocato.",
     "requestCount": {

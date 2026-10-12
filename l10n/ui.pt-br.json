@@ -5181,6 +5181,7 @@
     "spreadEvent": "Trabalho distribuído",
     "stopEvent": "Trabalho interrompido",
     "sourceUndated": "A fonte não mostra data",
+    "selectedRemoved": "A conta escolhida não existe mais. Este chat usará a conta padrão na próxima solicitação.",
     "invalidAccount": "Verifique o identificador, o rótulo, a ordem, o grupo de limites e os limiares da conta.",
     "removeConfirm": "Remover {account}? A credencial armazenada será excluída e o login será revogado.",
     "requestCount": {

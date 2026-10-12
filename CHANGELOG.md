@@ -49,6 +49,8 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- Held account requests retain their payer through retries, restore conversation choice, scope uncertain liability to its original period, and prune day-indexed admission history. Paid image/reviewer/hook calls ask after choosing their payer. Models account bootstrap stays hidden and typed; policy questions no longer block unrelated eligible chats. Certification remains off.
+
 - Held account request path chooses its payer before hosted-search consent; user-selected accounts cannot borrow the default account approval.
 
 - Account availability now restores its registered release text, setting

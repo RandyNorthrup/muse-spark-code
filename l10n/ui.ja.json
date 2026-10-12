@@ -4883,6 +4883,7 @@
     "spreadEvent": "処理を分散",
     "stopEvent": "処理を停止",
     "sourceUndated": "出典の日付表示なし",
+    "selectedRemoved": "選択したアカウントはもう存在しません。このチャットは次のリクエストで既定のアカウントを使用します。",
     "invalidAccount": "アカウント ID、ラベル、順序、制限グループ、しきい値を確認してください。",
     "removeConfirm": "{account} を削除しますか？保存された認証情報が削除され、ログインが取り消されます。",
     "requestCount": {

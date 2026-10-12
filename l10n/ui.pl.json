@@ -5330,6 +5330,7 @@
     "spreadEvent": "Praca rozdzielona",
     "stopEvent": "Praca zatrzymana",
     "sourceUndated": "Brak daty źródła",
+    "selectedRemoved": "Wybrane konto już nie istnieje. Ten czat użyje konta domyślnego przy następnym żądaniu.",
     "invalidAccount": "Sprawdź identyfikator, etykietę, kolejność, grupę limitów i progi konta.",
     "removeConfirm": "Usunąć {account}? Zapisane dane uwierzytelniające zostaną usunięte, a logowanie odwołane.",
     "requestCount": {

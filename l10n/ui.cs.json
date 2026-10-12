@@ -5330,6 +5330,7 @@
     "spreadEvent": "Práce rozdělena",
     "stopEvent": "Práce zastavena",
     "sourceUndated": "Datum zdroje není uvedeno",
+    "selectedRemoved": "Vybraný účet už neexistuje. Tento chat použije při příštím požadavku výchozí účet.",
     "invalidAccount": "Zkontrolujte identifikátor, popisek, pořadí, skupinu limitů a prahové hodnoty účtu.",
     "removeConfirm": "Odebrat {account}? Uložené přihlašovací údaje budou smazány a přihlášení odvoláno.",
     "requestCount": {

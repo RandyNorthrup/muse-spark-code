@@ -5032,6 +5032,7 @@
     "spreadEvent": "Arbeit verteilt",
     "stopEvent": "Arbeit gestoppt",
     "sourceUndated": "Kein Quelldatum angegeben",
+    "selectedRemoved": "Das gewählte Konto existiert nicht mehr. Dieser Chat verwendet bei der nächsten Anfrage das Standardkonto.",
     "invalidAccount": "Konto-ID, Bezeichnung, Reihenfolge, Limitgruppe und Schwellenwerte prüfen.",
     "removeConfirm": "{account} entfernen? Die gespeicherten Zugangsdaten werden gelöscht und die Anmeldung widerrufen.",
     "requestCount": {

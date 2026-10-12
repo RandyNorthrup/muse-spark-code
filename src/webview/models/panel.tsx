@@ -63,7 +63,6 @@ export function ModelsApp({
     host.messages.addEventListener('message', onMessage)
     // Subscribe before ready: the host may reply in the same task.
     host.post({ type: 'modelsPanel/ready' })
-    host.post({ type: 'modelAccounts/ready' })
     return () => {
       host.messages.removeEventListener('message', onMessage)
     }

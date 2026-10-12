@@ -5181,6 +5181,7 @@
     "spreadEvent": "Travail réparti",
     "stopEvent": "Travail arrêté",
     "sourceUndated": "Aucune date de source indiquée",
+    "selectedRemoved": "Le compte choisi n’existe plus. Ce chat utilisera le compte par défaut à la prochaine requête.",
     "invalidAccount": "Vérifiez l’identifiant, le libellé, l’ordre, le groupe de limites et les seuils du compte.",
     "removeConfirm": "Supprimer {account} ? Ses identifiants stockés seront supprimés et sa connexion révoquée.",
     "requestCount": {

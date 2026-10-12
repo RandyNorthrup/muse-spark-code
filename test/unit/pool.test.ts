@@ -286,6 +286,35 @@ describe('M108 account pool request boundaries', () => {
     expect(await Promise.all([first, second])).toEqual(['c', 'b'])
   })
 
+  it('a held policy popup never blocks admission for another eligible chat', async () => {
+    const t = poolRig('meta', 'model-api')
+    t.blocks.set('a', blocked)
+    const answer = Promise.withResolvers<'confirm'>()
+    t.ask.mockReturnValue(answer.promise)
+    const pending = t.run()
+    await vi.waitFor(() => {
+      expect(t.ask).toHaveBeenCalledOnce()
+    })
+    t.pool.useNext('conversation', 'other-chat', 'b', () => true)
+    expect(await t.run({ owner: 'other-chat' })).toBe('b')
+    answer.resolve('confirm')
+    expect(await pending).toBe('b')
+  })
+  it('a queued switch waits until the logical request has finished all retries', async () => {
+    const t = poolRig()
+    await t.pool.withinRequest('conversation', 'main', async () => {
+      const first = await t.pool.acquire(poolRequest())
+      first.beforeSend()
+      t.pool.useNext('conversation', 'main', 'b', () => true)
+      await first.settle(null)
+      const retry = await t.pool.acquire(poolRequest({ retryAccount: 'a' }))
+      expect(retry.account).toBe('a')
+      retry.beforeSend()
+      await retry.settle(parseUsd('0.01'))
+    })
+    expect(await t.run()).toBe('b')
+  })
+
   it('includes the exact cold-cache estimate in both the swap row and the reservation', async () => {
     expect(accountColdCacheEstimate(333, '0.1')).toBe(parseUsd('0.0000333'))
     expect(() => accountColdCacheEstimate(0.5, '0.1')).toThrow()

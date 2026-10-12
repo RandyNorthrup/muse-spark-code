@@ -136,7 +136,24 @@ export function createConfiguredProviderServices(
     }
   }
   const delegate = () => meta ?? fail()
+  const searchPrice = meta?.searchPriceUsd?.bind(meta)
+  const inheritSearch = meta?.inheritSearchQuote?.bind(meta)
+  const releaseSearch = meta?.releaseSearchQuotes?.bind(meta)
+  const status = meta?.readServiceStatus?.bind(meta)
+  const providerId = meta?.providerId?.bind(meta)
   const base: ProviderClient = {
+    ...(searchPrice !== undefined && {
+      searchPriceUsd: (model) => (model.includes('/') ? undefined : searchPrice(model)),
+    }),
+    ...(inheritSearch !== undefined && { inheritSearchQuote: inheritSearch }),
+    ...(releaseSearch !== undefined && { releaseSearchQuotes: releaseSearch }),
+    ...(status !== undefined && { readServiceStatus: status }),
+    ...(providerId !== undefined && {
+      providerId: (model) =>
+        model.includes('/')
+          ? (modelRef.parseModelRef(model)?.providerId ?? fail())
+          : providerId(model),
+    }),
     ...(meta?.withAccountKey !== undefined && {
       withAccountKey: (apiKey, isCurrent) => meta.withAccountKey?.(apiKey, isCurrent) ?? fail(),
     }),

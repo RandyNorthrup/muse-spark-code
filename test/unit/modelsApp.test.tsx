@@ -8,6 +8,12 @@ import { ModelsApp } from '../../src/webview/models/panel'
 import { makeProvider, makeRow, makeState } from './modelsPanelFixtures'
 
 describe('ModelsApp shared host contract', () => {
+  it('accepts only the typed account readiness envelope', () => {
+    expect(parsePanelToHostMessage({ type: 'modelAccounts/ready' }).ok).toBe(true)
+    expect(parsePanelToHostMessage({ type: 'modelAccounts/ready', key: 'forbidden' }).ok).toBe(
+      false,
+    )
+  })
   it('subscribes before ready, renders host state, follows navigation and posts top-level requests', () => {
     const state = makeState({ providers: [makeProvider()], models: [makeRow()], totalModels: 1 })
     const post = vi.fn<HostBridge['post']>((message) => {
@@ -27,6 +33,9 @@ describe('ModelsApp shared host contract', () => {
     const report = vi.fn()
     const { unmount } = render(<ModelsApp host={host} report={report} />)
     expect(post).toHaveBeenCalledWith({ type: 'modelsPanel/ready' })
+    expect(post.mock.calls.some(([message]) => message.type.startsWith('modelAccounts/'))).toBe(
+      false,
+    )
     expect(screen.getByText('Ollama')).toBeInTheDocument()
     expect(screen.queryByText(UI_TEXT.connecting)).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.providerEdit }))

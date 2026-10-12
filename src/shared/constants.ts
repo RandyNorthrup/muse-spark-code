@@ -145,7 +145,8 @@ export const ACCOUNT_HEADROOM_ONE = 1n
 export const ACCOUNT_HEADROOM_SCALE = 1_000_000
 export const ACCOUNT_REQUEST_STORE = {
   directory: 'account-requests',
-  maxRows: 100_000,
+  // Covers current local month/week, including UTC bucket boundaries.
+  retentionDays: 62,
   maxRowBytes: 16_384,
   directoryMode: 0o700,
   fileMode: 0o600,
