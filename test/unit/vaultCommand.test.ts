@@ -7,6 +7,8 @@ import {
   type VaultCommandOptions,
 } from '../../src/runtime/vault/vaultCommand'
 import { UI_TEXT, VAULT_PROTOCOL_VERSION, VAULT_LIMITS } from '../../src/shared/constants'
+import { vaultRefusalMessage } from '../../src/core/vault/broker/manageClient'
+import type { VaultManagementRefusal } from '../../src/core/vault/broker/ports'
 import { approval, grant, metadata, panel, audit } from './helpers/vault/fixtures'
 import { commandHarness } from './helpers/vault/runtime'
 
@@ -234,21 +236,29 @@ describe('M109 H terminal commands', () => {
   })
   it('RVAPP-CM1091D5 P2-3 the terminal tells the true reason for a refused Delete', async () => {
     // Each refusal reason keeps its own sentence on the terminal, never "No
-    // access" for all. Fails without vaultCommandFailure: every sentence
-    // below printed as No access.
-    const sentences = [
-      UI_TEXT.vault.locked,
-      UI_TEXT.vault.setupNeeded,
-      UI_TEXT.vault.setupExists,
-      UI_TEXT.vault.itemConflict,
-      UI_TEXT.vault.deleteConflict,
-      UI_TEXT.vault.busy,
-      UI_TEXT.vault.rollback,
-      UI_TEXT.vault.storeUnavailable,
-      UI_TEXT.vault.sourceGone,
-      UI_TEXT.vault.sourceUnreadable,
-      UI_TEXT.vault.operationFailed,
+    // access" for all. The broker's own sentences are the oracle — not the
+    // shared list under test — so dropping a sentence from the list fails
+    // here: the broker still says it, the terminal no longer does.
+    const broker: readonly VaultManagementRefusal[] = [
+      'locked',
+      'uncreated',
+      'exists',
+      'conflict',
+      'deleteConflict',
+      'sourceGone',
+      'sourceUnreadable',
+      'sourceUnavailable',
+      'busy',
+      'invalid',
+      'rollback',
+      'io',
+      'storeUnavailable',
     ]
+    const sentences = new Set([
+      ...broker.map((reason) => vaultRefusalMessage(reason)),
+      UI_TEXT.vault.useChanged,
+      UI_TEXT.vault.approvalExpired,
+    ])
     for (const sentence of sentences) {
       const h = commandHarness()
       h.deps.choose.mockResolvedValue('delete')

@@ -100,27 +100,17 @@ function isRetryingFrame(message: unknown): boolean {
 // silent (the barrier owns the view), never a failure toast. The abort
 // rejects the way the real client now does (VaultChannelError('closed')),
 // not with the hand-built locked sentence the stale test used before.
-function abortableImport(f: ReturnType<typeof fixture>): void {
-  f.deps.service.importFile.mockImplementationOnce(
-    (_path: string, _authorize: () => void, signal: AbortSignal) => {
-      const pending = Promise.withResolvers<never>()
-      signal.addEventListener('abort', () => {
-        pending.reject(new VaultChannelError('closed'))
-      })
-      return pending.promise
-    },
-  )
+/** An in-flight call that rejects the way the real client does once aborted. */
+function rejectOnAbort(_id: string, _authorize: () => void, signal: AbortSignal) {
+  const pending = Promise.withResolvers<never>()
+  signal.addEventListener('abort', () => {
+    pending.reject(new VaultChannelError('closed'))
+  })
+  return pending.promise
 }
-function abortableDelete(f: ReturnType<typeof fixture>): void {
-  f.deps.service.deleteImport.mockImplementationOnce(
-    (_receipt: string, _authorize: () => void, signal: AbortSignal) => {
-      const pending = Promise.withResolvers<never>()
-      signal.addEventListener('abort', () => {
-        pending.reject(new VaultChannelError('closed'))
-      })
-      return pending.promise
-    },
-  )
+function abortable(f: ReturnType<typeof fixture>, operation: 'import' | 'delete'): void {
+  if (operation === 'import') f.deps.service.importFile.mockImplementationOnce(rejectOnAbort)
+  else f.deps.service.deleteImport.mockImplementationOnce(rejectOnAbort)
 }
 
 describe('RVCM1091F P2 locked events reload and strip, later events recover', () => {
@@ -578,8 +568,7 @@ describe('RVCM1091F P3 failures kept, barrier aborts silent, sentences true', ()
       const f = fixture()
       f.state.ambientFiles = [{ path: '/home/user/.netrc', kind: 'netrc' }]
       await f.host.refresh()
-      if (operation === 'import') abortableImport(f)
-      else abortableDelete(f)
+      abortable(f, operation)
       f.deps.importDone.mockResolvedValueOnce('delete' as const)
       const working = f.host.handle({ type: 'vaultImport', path: '/home/user/.netrc' })
       await vi.waitFor(() => {

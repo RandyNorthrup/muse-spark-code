@@ -4,5 +4,5 @@
 // Setup/recovery-code and Import Keep/Delete dialogs. Loaded on the first
 // action that needs it through vaultActionsLoader; a missing bundle refuses
 // with the operation failure sentence and logs the bundle name.
-export { vaultActionDialogs, type VaultActionDialogDeps } from './vaultActionDialogs'
+export { vaultActionDialogs } from './vaultActionDialogs'
 export { encodeVaultMaterial } from '../../core/vault/crypto'

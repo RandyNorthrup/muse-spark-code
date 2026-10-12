@@ -19,6 +19,7 @@ import {
   vaultStatusSchema,
   type VaultPendingReceipt,
 } from '../../shared/vaultProtocol'
+import { vaultRefusalSentences } from '../../shared/vaultRefusals'
 import { vaultApprovalText, vaultDecisionChoices } from './vaultApproval'
 import type { VaultImportReport, VaultManagementPort } from '../../core/vault/broker/ports'
 
@@ -428,23 +429,8 @@ async function setUpVault(port: VaultCommandPort, deps: VaultCommandDeps): Promi
  * Exact match only: no foreign text can quote a full sentence.
  */
 export function vaultCommandFailure(error: unknown): string {
-  const named: readonly string[] = [
-    UI_TEXT.vault.locked,
-    UI_TEXT.vault.setupNeeded,
-    UI_TEXT.vault.setupExists,
-    UI_TEXT.vault.itemConflict,
-    UI_TEXT.vault.deleteConflict,
-    UI_TEXT.vault.busy,
-    UI_TEXT.vault.rollback,
-    UI_TEXT.vault.storeUnavailable,
-    UI_TEXT.vault.sourceGone,
-    UI_TEXT.vault.sourceUnreadable,
-    UI_TEXT.vault.sourceUnavailable,
-    UI_TEXT.vault.operationFailed,
-    UI_TEXT.vault.useChanged,
-    UI_TEXT.vault.approvalExpired,
-  ]
-  return error instanceof Error && named.includes(error.message)
+  // Every named sentence, shared with the panel (RVAPP-CM1091D5 P2-3).
+  return error instanceof Error && vaultRefusalSentences().includes(error.message)
     ? error.message
     : UI_TEXT.vault.noAccess
 }

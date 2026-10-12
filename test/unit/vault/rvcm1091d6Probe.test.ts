@@ -4,9 +4,7 @@
 // the OS codes are injected through a scoped lstatSync mock (every other
 // fs call delegates to the real one). Each case fails without probeRefusal.
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { writeFile } from 'node:fs/promises'
-import path from 'node:path'
-import { cleanupTempHomes, lockedVault, managementFixture, tempHome } from './managementFixture'
+import { cleanupTempHomes, importedNetrc } from './managementFixture'
 
 const probe = vi.hoisted(() => ({ mode: 'real', home: '' }))
 
@@ -32,66 +30,27 @@ vi.mock('node:fs', async () => {
   }
 })
 
-async function imported(): Promise<{
-  f: ReturnType<typeof managementFixture>
-  receipt: string
-}> {
-  const home = await tempHome()
-  probe.home = home
-  const file = path.join(home, '.netrc')
-  await writeFile(file, 'machine example.test login generated-user password generated-password\n')
-  const f = managementFixture(undefined, home)
-  const setup = await lockedVault(f)
-  setup.fill(0)
-  await f.broker.unlock(null)
-  const report = await f.management.importFile(file, () => true)
-  return { f, receipt: report.receipt }
-}
-
 describe('RVAPP-CM1091D5 P3-1 probe errors name their true reason', () => {
   afterEach(async () => {
     probe.mode = 'real'
     await cleanupTempHomes()
   })
 
-  it('ENOENT with an unreachable home is unavailable, never gone', async () => {
-    const { f, receipt } = await imported()
-    const store = f.repository.current()
-    probe.mode = 'deadDrive'
+  // One injected code per probe shape; each fails without probeRefusal.
+  // The receipt always stays: retrying after the drive returns is honest.
+  it.each([
+    { mode: 'deadDrive', reason: 'sourceUnavailable' },
+    { mode: 'EIO', reason: 'sourceUnavailable' },
+    { mode: 'ELOOP', reason: 'invalid' },
+  ])('$mode refuses as $reason, never gone and never permissions', async ({ mode, reason }) => {
+    const { f, report, home, store } = await importedNetrc()
+    probe.home = home
+    probe.mode = mode
     try {
-      await expect(f.management.deleteImport(receipt, () => true)).rejects.toMatchObject({
-        reason: 'sourceUnavailable',
+      await expect(f.management.deleteImport(report.receipt, () => true)).rejects.toMatchObject({
+        reason,
       })
-      // The receipt stays: retrying after the drive returns is honest.
-      expect(await store.readReceipt(receipt)).not.toBeNull()
-    } finally {
-      probe.mode = 'real'
-    }
-  })
-
-  it('a drive error on the source is unavailable, never permissions', async () => {
-    const { f, receipt } = await imported()
-    const store = f.repository.current()
-    probe.mode = 'EIO'
-    try {
-      await expect(f.management.deleteImport(receipt, () => true)).rejects.toMatchObject({
-        reason: 'sourceUnavailable',
-      })
-      expect(await store.readReceipt(receipt)).not.toBeNull()
-    } finally {
-      probe.mode = 'real'
-    }
-  })
-
-  it('any other probe code is invalid, never gone and never permissions', async () => {
-    const { f, receipt } = await imported()
-    const store = f.repository.current()
-    probe.mode = 'ELOOP'
-    try {
-      await expect(f.management.deleteImport(receipt, () => true)).rejects.toMatchObject({
-        reason: 'invalid',
-      })
-      expect(await store.readReceipt(receipt)).not.toBeNull()
+      expect(await store.readReceipt(report.receipt)).not.toBeNull()
     } finally {
       probe.mode = 'real'
     }

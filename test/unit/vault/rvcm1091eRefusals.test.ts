@@ -14,7 +14,13 @@ import { vaultRefusalMessage } from '../../../src/core/vault/broker/manageClient
 import type { VaultManagementRefusal } from '../../../src/core/vault/broker/ports'
 import { VaultPanelHost, type VaultPanelHostDeps } from '../../../src/host/vault/vaultPanelHost'
 import { item, metadata, panel } from '../helpers/vault/fixtures'
-import { cleanupTempHomes, lockedVault, managementFixture, tempHome } from './managementFixture'
+import {
+  cleanupTempHomes,
+  importedNetrc,
+  lockedVault,
+  managementFixture,
+  tempHome,
+} from './managementFixture'
 
 afterEach(cleanupTempHomes)
 
@@ -27,14 +33,7 @@ function isRoot(): boolean {
 
 describe('RVCM1091E delete refusals name what stayed', () => {
   it('a source changed after a successful import refuses Delete as deleteConflict', async () => {
-    const home = await tempHome()
-    const file = path.join(home, '.netrc')
-    await writeFile(file, 'machine example.test login generated-user password generated-password\n')
-    const f = managementFixture(undefined, home)
-    const code = await lockedVault(f)
-    code.fill(0)
-    await f.broker.unlock(null)
-    const report = await f.management.importFile(file, () => true)
+    const { f, report, file } = await importedNetrc()
     // The source is replaced after the import committed, before Delete.
     await writeFile(
       file,
@@ -345,18 +344,7 @@ describe('RVCM1091F refusal rows reach the broker for every operation', () => {
 
   it('a Delete refused before the unlink keeps the source and the receipt with the broker reason', async () => {
     for (const code of ['busy', 'rollback'] as const) {
-      const home = await tempHome()
-      const file = path.join(home, '.netrc')
-      await writeFile(
-        file,
-        'machine example.test login generated-user password generated-password\n',
-      )
-      const f = managementFixture(undefined, home)
-      const setup = await lockedVault(f)
-      setup.fill(0)
-      await f.broker.unlock(null)
-      const report = await f.management.importFile(file, () => true)
-      const store = f.repository.current()
+      const { f, report, store, file } = await importedNetrc()
       // The refusal lands while rereading the vault copy before the unlink:
       // the store reason names itself, nothing was deleted and the receipt
       // stays for a later retry. (The receipt read runs before the guarded
@@ -376,18 +364,7 @@ describe('RVCM1091F refusal rows reach the broker for every operation', () => {
       // Windows ACLs have no POSIX search bit, and root ignores permission
       // bits, so this shapes only POSIX non-root; the error-code branch it
       // covers decides by code, not by platform.
-      const home = await tempHome()
-      const file = path.join(home, '.netrc')
-      await writeFile(
-        file,
-        'machine example.test login generated-user password generated-password\n',
-      )
-      const f = managementFixture(undefined, home)
-      const setup = await lockedVault(f)
-      setup.fill(0)
-      await f.broker.unlock(null)
-      const report = await f.management.importFile(file, () => true)
-      const store = f.repository.current()
+      const { f, report, store, home, file } = await importedNetrc()
       // No search permission: the file is there, but cannot be read — an
       // existence check would answer false and discard the receipt (P2).
       await chmod(home, 0o444)
@@ -411,18 +388,7 @@ describe('RVCM1091F refusal rows reach the broker for every operation', () => {
       // The probe's lstat succeeds (stat needs no read permission) but the
       // open fails: this covers the post-probe access branch, which had no
       // test (RVAPP-CM1091D5 P3-5). Fails without it: the refusal is io.
-      const home = await tempHome()
-      const file = path.join(home, '.netrc')
-      await writeFile(
-        file,
-        'machine example.test login generated-user password generated-password\n',
-      )
-      const f = managementFixture(undefined, home)
-      const setup = await lockedVault(f)
-      setup.fill(0)
-      await f.broker.unlock(null)
-      const report = await f.management.importFile(file, () => true)
-      const store = f.repository.current()
+      const { f, report, store, file } = await importedNetrc()
       await chmod(file, 0o000)
       try {
         await expect(f.management.deleteImport(report.receipt, () => true)).rejects.toMatchObject({
@@ -438,18 +404,7 @@ describe('RVCM1091F refusal rows reach the broker for every operation', () => {
 
   it('a Delete that removes the source and then cannot forget its receipt says the file is gone', async () => {
     for (const code of ['busy', 'rollback'] as const) {
-      const home = await tempHome()
-      const file = path.join(home, '.netrc')
-      await writeFile(
-        file,
-        'machine example.test login generated-user password generated-password\n',
-      )
-      const f = managementFixture(undefined, home)
-      const setup = await lockedVault(f)
-      setup.fill(0)
-      await f.broker.unlock(null)
-      const report = await f.management.importFile(file, () => true)
-      const store = f.repository.current()
+      const { f, report, store, file } = await importedNetrc()
       vi.spyOn(store, 'forgetReceipt').mockRejectedValueOnce(new VaultError(code))
       // The file is gone; the receipt remains; retrying can never succeed.
       await expect(f.management.deleteImport(report.receipt, () => true)).rejects.toMatchObject({
