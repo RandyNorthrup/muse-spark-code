@@ -52,7 +52,7 @@ import type { PushPlan } from '../../../core/git/pushPlan'
 import type { RuntimeGitDeps } from '../../../core/git/runtimeGit'
 import type { NativeStatusSnapshot } from '../../../core/git/status'
 import { fill } from '../../../shared/l10n/text'
-import { usableReply } from '../../../core/turns/usableReply'
+import { replyIfUsable } from '../../../core/turns/usableReply'
 import type { AgentEvent } from '../../../shared/agentEvents'
 import {
   GIT_FORM_FILES_SHOWN,
@@ -698,8 +698,7 @@ export class RuntimeGit implements ConversationGitPort {
     }
     // A capped turn's summary is never a draft: only a turn that completed
     // without a limit answers what was asked.
-    const usable = usableReply({ terminal: seen.terminal, errorKind: seen.errorKind }, seen.text)
-    const reply = usable.usable ? usable.reply : undefined
+    const reply = replyIfUsable({ terminal: seen.terminal, errorKind: seen.errorKind }, seen.text)
     if (reply !== undefined && draft.output !== undefined) {
       if (draft.settling === true) {
         return

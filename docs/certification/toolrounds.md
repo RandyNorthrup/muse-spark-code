@@ -56,15 +56,15 @@ replay and never executed. Held steers, scheduled steers and goal wakes are
 never consumed by the wrap-up: the one exit re-queues them, so each keeps
 its own turn with tools.
 
-| Codec family                                                    | Toolless wire shape                                             |
-| --------------------------------------------------------------- | --------------------------------------------------------------- |
-| Meta/direct Responses                                           | Empty tools, `tool_choice: auto` (the side-call shape)          |
-| OpenAI/xAI Responses                                            | Empty tools, `tool_choice: auto` (kept deliberately; see above) |
-| ChatGPT Responses                                               | Empty namespace, `tool_choice: auto` (kept deliberately)        |
-| Chat completions (OpenRouter, OpenAI-compatible vendors/custom) | No tools declared and no `tool_choice` field at all             |
-| Anthropic Messages                                              | Omit tools and tool choice                                      |
-| Gemini generateContent                                          | Omit tools and toolConfig                                       |
-| Ollama chat                                                     | Omit tools and unsupported tool choice                          |
+| Codec family                                                    | Toolless wire shape                                                                                                                          |
+| --------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Meta/direct Responses                                           | Empty tools, `tool_choice: auto` (the side-call shape)                                                                                       |
+| OpenAI/xAI Responses                                            | Empty tools, `tool_choice: auto` (kept deliberately; see above)                                                                              |
+| ChatGPT Responses                                               | Empty namespace, `tool_choice: auto` (kept deliberately)                                                                                     |
+| Chat completions (OpenRouter, OpenAI-compatible vendors/custom) | No tools declared and no `tool_choice` field at all — UNVERIFIED (no live capture; shape from the codec, mirrors the long-standing omission) |
+| Anthropic Messages                                              | Omit tools and tool choice                                                                                                                   |
+| Gemini generateContent                                          | Omit tools and toolConfig — UNVERIFIED (no live capture; shape from the codec, mirrors the long-standing omission)                           |
+| Ollama chat                                                     | Omit tools and unsupported tool choice                                                                                                       |
 
 Codec-family assertions use real encoders with tool-result history retained
 (the host-built body is parsed back through each codec's own schema).
@@ -709,3 +709,363 @@ the entry's own). Everything else byte-identical, including
 `dist/acp.js` (241460) and `dist/uiText.js` (97368).
 
 - NOT RUN HERE: browser suites were never selected (MacBook rule).
+
+## Round 7 — one place per rule: the last call is always the wrap-up; a capped turn is never finished (RVAPP-TOOLROUNDS6)
+
+Review verdict: 0 P1, 2 P2, 4 P3, "safe to ship: no". Both P2 were the
+same failure of method as in earlier rounds: a rule enforced site by
+site, the review finding the next site. This round moves each rule to
+one place. Commits: Part A `4aab82629`, Part B `1bd2ccd25`, Part C
+`8d06136cd` (all on `fix/tool-rounds`; this section's commit follows
+the Prove receipts).
+
+### Part A — the last permitted call is always the wrap-up (P2-1)
+
+Current design: `enterWrapUpPhase(turn)` is the single writer of
+`turn.wrapUpLimit`, called at the top of `streamAttempt` — the one
+builder every send path uses. `body()` (and every retry/recovery
+rebuild) only reads the phase. The latch needs a call already out
+(`turn.modelCalls >= 1`) with one call left: the turn's first request
+is always ordinary, even when it is also the last one allowed (an
+answer completes the turn; a tool request ends it at the plain
+request cap — pinned by `runs the only permitted call with tools` and
+`ends the only permitted call that asks for tools at the request cap,
+plainly`). `lastRetryRateLimited` on `ActiveTurn` is reset per build
+and set in `onRetry` (pacing vs HTTP 429), so `beforeRetry` with no
+calls left on a wrap-up throws `wrapUpFailedLimit(rateLimited |
+modelError)`. The loop catch converts wrap-up-request failures via the
+pure `wrapUpFailedKindFor` (`rateLimited | modelError | budget |
+stopped`) to `wrapUpFailedLimit`; `ModelCallLimitError` carries the
+optional `wrapUpFailed: WrapUpFailedKind`. New l10n keys
+`modelApiWrapUpFailed` (plural) + `modelApiWrapUpFailedReason` in
+`en.ts` + all 14 translated tables (key order = English, order diag
+green). Guard `scripts/check-wrap-up-request.mjs`
+(+ `scripts/lib/wrapUpSingleBuilder.mjs`) fails any second
+`wrapUpLimit` writer and any `streamAttempt` that never enters the
+phase; wired as `check:wrap-up-request` in `quality:gates`.
+
+Table (`sends the last permitted call as the wrap-up after a $path`,
+plus the media-recovery row): last recorded request tools-less with
+the note, turn ends with the wrap-up text — yes per cell:
+
+| Send path          | Cap | Last request: no tools + note | Wrap-up text kept |
+| ------------------ | --- | ----------------------------- | ----------------- |
+| First attempt      | 4   | yes                           | yes               |
+| First attempt      | 2   | yes                           | yes               |
+| HTTP 429 retry     | 4   | yes                           | yes               |
+| HTTP 429 retry     | 3   | yes                           | yes               |
+| HTTP 5xx retry     | 4   | yes                           | yes               |
+| HTTP 5xx retry     | 3   | yes                           | yes               |
+| Whole-stream retry | 4   | yes                           | yes               |
+| Whole-stream retry | 3   | yes                           | yes               |
+| Media recovery     | 3   | yes                           | yes               |
+
+Overflow recovery has no dedicated success row: the recovery rebuild
+goes through the same guard-pinned `streamAttempt` (loop comment says
+so; the guard fails a second builder), and the no-room case is pinned
+by `leaves a first-call overflow standing on a single-call allowance`
+(`failed` / `context_overflow`). When the wrap-up request itself
+cannot be completed, the turn ends with the typed limit saying in one
+translated sentence that the summary could not be produced and why
+(`ends a wrap-up lost to a $kind …`: 429 → `rateLimited`, 400 and 500
+→ `modelError`; the 400 cell is P3-3's honest degrade, below).
+
+### Part B — a capped turn is never read as a finished one (P2-2)
+
+One accessor answers "may this turn's reply be used as the answer to
+what was asked?": `usableReply(outcome, reply)` in
+`src/core/turns/usableReply.ts` yields `{usable: true, reply}` only
+for a turn that completed WITHOUT a limit, else `{usable: false,
+capped}` (capped vs any other ending distinguished). The two Git
+drafts share `replyIfUsable` (same rule, one line). Shape choice: the
+wire keeps `terminal: 'completed'` + `errorKind: 'max_turn_requests'`
+— the ACP `stopReason` (`src/acp/agent.ts`) and the exec JSON result
+(`terminal` / `stopReason` / exit codes) are wire contracts that must
+keep today's values — and in-process the reply of a capped turn sits
+under the union's differently named branch, so a consumer written
+tomorrow that reads the old shape does not compile or does not match.
+Guard `scripts/check-usable-reply.mjs`
+(+ `scripts/lib/usableReplyGuard.mjs`) fails any `terminal ===
+'completed'` comparison outside the accessor and a 10-entry
+allow-list with a reason per entry (pure display, exec/ACP wire
+accounting, the engine's own event, and attempt-level outcomes with
+their own capped flag — e.g. `bestOfNRunner`'s `ceilingReached`, which
+fails a capped attempt so it can never be taken as winner); wired as
+`check:usable-reply` in `quality:gates`.
+
+Consumers converted (every one takes its reply through the accessor;
+each has a capped-turn test):
+
+| Consumer                                                       | No longer reads as a result | Capped-turn test                                                                    |
+| -------------------------------------------------------------- | --------------------------- | ----------------------------------------------------------------------------------- |
+| Same-model judge (`museCodeSameJudge.ts`)                      | capped reply as verdict     | `never returns a capped turn reply as a verdict`                                    |
+| Playbook review (`panelPlaybook.ts`)                           | wrap-up text as review      | `never consumes a capped turn wrap-up text as a review`                             |
+| Git draft, host (`conversationGit.ts`)                         | summary as commit/PR draft  | `never posts a capped turn summary as a commit-message or pull-request draft`       |
+| Git draft, runtime panel (`adapter.ts`)                        | summary as draft            | `never settles a capped turn summary as a draft`                                    |
+| Auto reviewer (`museCodeReviewer.ts`)                          | truncated reply as verdict  | `leaves the approval to the user when the review turn ends at the model-call limit` |
+| Hook models (`museCodeHookModels.ts`)                          | truncated reply as answer   | `discards a reply cut at the model-call limit instead of answering with it`         |
+| Handoff brief (`conversationController.ts`, via `cappedTurns`) | summary as brief            | `drops a capped distillation summary instead of briefing it`                        |
+
+Earlier rounds' consumers keep their boundaries: best-of-N attempts
+fail on `ceilingReached` (allow-listed), team workers resolve through
+`reportForStop` → `capped`, scheduled turns and side sessions read
+their own outcome types — none takes reply text as a result through a
+raw completed-terminal read (guard-green proves it).
+
+### Part C — the P3 findings, each closed (commit `8d06136cd`)
+
+- P3-1 (image gate, test `refuses an image on a caller allowance the
+old gate could not see`): `makeImage` takes the same synchronous
+  take-or-refuse slot (`takeSideSlot` / `giveSideSlot` in `finally`)
+  as the reviewer, hook models and every other caller-ledger side
+  call. The drill bypassing the take fails the test (exit 1).
+- P3-2 (wake requeue, test `re-queues a goal wake held across a
+failed wrap-up for its own turn`): `wrapUpRequestFailed` runs the
+  same `requeueHeldInput` exit as the wrap-up's success path, so a
+  held goal wake keeps its own turn with tools after a model-error
+  wrap-up (typed `max_turn_requests` saying the summary failed, then
+  a clean second turn). The drill dropping the requeue fails the test
+  (exit 1); the CHANGELOG goal-wake claim is true.
+- P3-3 (captures + honest degrade): a 400 on the wrap-up request is in
+  no retry table (`src/shared/retryPolicy.ts`: tables list 408/409/
+  429/500/502/503/504 plus per-format kinds — `classifyRetry` says
+  `not-retryable`), surfaces as `ModelApiError`, and converts to the
+  typed `wrapUpFailedLimit(modelError)` — never a retry with tools.
+  Pinned by the 400 cell of `ends a wrap-up lost to a $kind …`. The
+  OpenAI-chat-compatible and Gemini tools-less wrap-up shapes stay
+  UNVERIFIED in the wire table above: codec unit tests assert them,
+  but no live vendor capture backs them. Capture procedure for the
+  lead (who holds the keys) is below.
+- P3-4 (docs agree with code): production ACP binds no caller
+  allowance — CHANGELOG, README `## Limits` and this record say so;
+  the ACP test binds its 3-call cap by hand and is renamed to what it
+  proves (`delivers the real Model API wrap-up over ACP under a
+hand-bound caller cap`, with the comment in the test). The
+  engine-worker ceiling claim is removed: `runEngineWorker` has no
+  production caller, so there is no production ceiling claim — the
+  binding lives in code only (`WorktreeConversationHost.run` through
+  the required allowance port).
+- Not-checked (i) concurrency (test `refuses a racing second side
+slot with two calls left`): synchronous take-or-refuse, no async
+  lock — JS run-to-completion makes the take and the refusal one
+  atomic block. The off-by-one drill (`<= 1` → `< 1`) fails the test
+  (exit 1).
+- Not-checked (ii) compaction with allowance 1 (test `leaves a
+first-call overflow standing on a single-call allowance`): the loop
+  skips compaction outright and recovery refuses the reserved slot,
+  so the first-call overflow stands as `failed` / `context_overflow`
+  with zero admissions. Removing the refusal fails the test (exit 1).
+- Not-checked (iii) `dist/exec.js`'s table (measured on the built
+  `dist/`): `dist/exec.js` (1,428 bytes) is only the installer shim —
+  it requires `./uiText.js`, installs the run table into its own copy
+  and the headless copy, then delegates to `headless.js`. It carries
+  no English strings (`modelApiWrapUpFailed` ×0). The strings live
+  compressed in `dist/uiText.js` (2,968-key EN table, both new keys
+  present); `dist/modelApi.js` references `modelApiWrapUpFailed` ×2.
+
+### P3-3 capture commands for the lead (UNVERIFIED rows)
+
+No model call from this lane: run these with the provider keys, one
+short turn each, and file the frames under
+`docs/certification/toolrounds-captures/<vendor>/` (request URL,
+scrubbed headers, body; response status, headers, parsed body) after
+the m95 scrubbing pass (keys → `<redacted>`, no key in an argument,
+environment variable or file — keys travel on the script's stdin only,
+then `gitleaks detect --no-git` before committing). Flip the
+UNVERIFIED rows once the frames land.
+
+Chat completions (OpenAI-compatible vendor). Save as scratch
+`wrapup-chat-capture.mjs` (NOT committed), run
+`decrypt-helper | node wrapup-chat-capture.mjs <base-url> <model>
+<outdir>`:
+
+```js
+// Reads the vendor key from stdin; posts the exact tools-less wrap-up
+// shape the chat codec builds (chat.ts: developer items go out as
+// system messages, tool calls as assistant tool_calls, outputs as tool
+// messages, the wrap-up note as the trailing system message; no tools,
+// no tool_choice, no parallel_tool_calls unless the preset sets it;
+// the product streams — stream:false here only to read one JSON body).
+import { writeFileSync, mkdirSync } from 'node:fs'
+let key = ''
+for await (const chunk of process.stdin) key += chunk
+key = key.trim()
+const [baseUrl, model, outdir] = process.argv.slice(2)
+const body = {
+  model,
+  messages: [
+    { role: 'system', content: '<instructions>' },
+    { role: 'user', content: 'What time is it?' },
+    {
+      role: 'assistant',
+      content: null,
+      tool_calls: [
+        {
+          id: 'call_1',
+          type: 'function',
+          function: { name: 'get_time', arguments: '{"timezone":"UTC"}' },
+        },
+      ],
+    },
+    { role: 'tool', tool_call_id: 'call_1', content: '12:00 UTC' },
+    { role: 'system', content: '<wrap-up note>' },
+  ],
+  max_completion_tokens: 64,
+  stream: false,
+}
+const res = await fetch(`${baseUrl}/chat/completions`, {
+  method: 'POST',
+  redirect: 'manual',
+  headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },
+  body: JSON.stringify(body),
+})
+const text = await res.text()
+mkdirSync(outdir, { recursive: true })
+writeFileSync(
+  `${outdir}/wrapup-chat.json`,
+  JSON.stringify(
+    {
+      request: { url: `${baseUrl}/chat/completions`, headers: '<redacted>', body },
+      response: { status: res.status, text },
+    },
+    null,
+    2,
+  ),
+)
+console.log(`status=${res.status}`)
+```
+
+Expected accept: HTTP 200 with a text answer (`choices[0].message`
+has `content`, no `tool_calls`). Expected reject: HTTP 400 with the
+vendor's error JSON — record it verbatim; the product already degrades
+honestly (typed summary-failed stop, never a retry with tools).
+
+Gemini. Save as scratch `wrapup-gemini-capture.mjs`, run
+`decrypt-helper | node wrapup-gemini-capture.mjs <model> <outdir>`
+(the key travels in the request URL query on the wire as the API
+requires; it is scrubbed to `<redacted>` before anything is written):
+
+```js
+// Reads the Gemini API key from stdin; posts the exact tools-less
+// wrap-up shape the Gemini codec builds (gemini.ts: instructions as
+// systemInstruction, history as user/model contents with functionCall
+// + functionResponse parts, the wrap-up note as trailing user text;
+// no tools, no toolConfig; the product also sends the thinking
+// signature part it received — a synthetic capture omits it, record
+// whether that matters).
+import { writeFileSync, mkdirSync } from 'node:fs'
+let key = ''
+for await (const chunk of process.stdin) key += chunk
+key = key.trim()
+const [model, outdir] = process.argv.slice(2)
+const body = {
+  systemInstruction: { parts: [{ text: '<instructions>' }] },
+  contents: [
+    { role: 'user', parts: [{ text: 'What time is it?' }] },
+    { role: 'model', parts: [{ functionCall: { name: 'get_time', args: { timezone: 'UTC' } } }] },
+    {
+      role: 'user',
+      parts: [{ functionResponse: { name: 'get_time', response: { result: '12:00 UTC' } } }],
+    },
+    { role: 'user', parts: [{ text: '<wrap-up note>' }] },
+  ],
+  generationConfig: { maxOutputTokens: 64 },
+}
+const res = await fetch(
+  `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
+  {
+    method: 'POST',
+    redirect: 'manual',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  },
+)
+const text = await res.text()
+mkdirSync(outdir, { recursive: true })
+writeFileSync(
+  `${outdir}/wrapup-gemini.json`,
+  JSON.stringify(
+    {
+      request: {
+        url: `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=<redacted>`,
+        body,
+      },
+      response: { status: res.status, text },
+    },
+    null,
+    2,
+  ),
+)
+console.log(`status=${res.status}`)
+```
+
+Expected accept: HTTP 200 with `candidates[0].content.parts` text
+and no functionCall. Expected reject: HTTP 400 with the API's error
+JSON — record it verbatim; same honest degrade as above.
+
+### Round-7 drill ledger
+
+Every drill restores its file byte-exact (SHA-256 before/after; all
+nine drilled files verified `OK`). Vitest drills run at repo default
+timeouts with `-t` filters; guard drills run the `.mjs` as a process.
+
+| Drill | Break                                                           | Bite                                                                                                                                                                                                                                                                                                                                                | Exit              |
+| ----- | --------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- |
+| D-A1  | `enterWrapUpPhase` call removed from `streamAttempt`            | Guard: `streamAttempt never calls enterWrapUpPhase`; table cells `whole-stream retry` (cap 3) + `media recovery` fail with tools on the last request (`expected [12 tools] to deeply equal []`) — the review's defect reproduced; first-attempt/HTTP cells still pass via the loop-top/`beforeRetry` entries, which is why the decision had to move | guard 1, vitest 1 |
+| D-A2  | `budget` → `modelError` in `wrapUpFailedKindFor`                | `names the fixed kind of every wrap-up-request failure` fails                                                                                                                                                                                                                                                                                       | 1                 |
+| D-A3  | `requeueHeldInput` dropped from `wrapUpRequestFailed`           | `re-queues a goal wake held across a failed wrap-up` fails                                                                                                                                                                                                                                                                                          | 1                 |
+| D-A4  | `canReserveSideSlot` `<= 1` → `< 1`                             | `refuses a racing second side slot` fails                                                                                                                                                                                                                                                                                                           | 1                 |
+| D-A5  | `isWrapUpSlotReserved` refusal removed from overflow recovery   | `leaves a first-call overflow standing` fails (admission runs)                                                                                                                                                                                                                                                                                      | 1                 |
+| D-A6  | `takeSideSlot` refusal bypassed in `makeImage`                  | `refuses an image on a caller allowance the old gate could not see` fails                                                                                                                                                                                                                                                                           | 1                 |
+| D-B1  | `usableReply` capped branch returns usable                      | `withholds a capped turn reply as capped` fails (the terminal early-return still guards the other endings — one break, one failure)                                                                                                                                                                                                                 | 1                 |
+| D-B2  | judge finishes `tracked.reply` directly                         | `never returns a capped turn reply as a verdict` fails (`'caution'` instead of `'failed'`)                                                                                                                                                                                                                                                          | 1                 |
+| D-B3  | playbook `!usable.usable` early return removed                  | `never consumes a capped turn wrap-up text as a review` fails (capped text reaches `afterReview`)                                                                                                                                                                                                                                                   | 1                 |
+| D-B4  | host Git draft uses `seen.text` directly                        | `never posts a capped turn summary …` fails                                                                                                                                                                                                                                                                                                         | 1                 |
+| D-B5  | panel Git draft uses `seen.text` directly                       | `never settles a capped turn summary as a draft` fails                                                                                                                                                                                                                                                                                              | 1                 |
+| D-B6  | reviewer returns the side reply directly                        | `leaves the approval to the user when the review turn ends at the model-call limit` fails                                                                                                                                                                                                                                                           | 1                 |
+| D-B7  | hook model finishes the raw reply directly                      | `discards a reply cut at the model-call limit` fails                                                                                                                                                                                                                                                                                                | 1                 |
+| D-B8  | handoff `cappedTurns` check replaced with `undefined`           | `drops a capped distillation summary instead of briefing it` fails                                                                                                                                                                                                                                                                                  | 1                 |
+| D-G1  | wrap-up guard, no args                                          | `pass the ModelApiHost.ts path to check`                                                                                                                                                                                                                                                                                                            | 1                 |
+| D-G2  | wrap-up guard, green host                                       | `single builder ok`                                                                                                                                                                                                                                                                                                                                 | 0                 |
+| D-G3  | usable-reply guard, no args                                     | `pass the source root to check`                                                                                                                                                                                                                                                                                                                     | 1                 |
+| D-G4  | usable-reply guard, green `src`                                 | `no raw completed-terminal reads`                                                                                                                                                                                                                                                                                                                   | 0                 |
+| D-G5  | usable-reply guard, planted `terminal === "completed"` consumer | names `consumer.ts:2`                                                                                                                                                                                                                                                                                                                               | 1                 |
+
+### Round-7 verification (macbook, repo default timeouts, `--maxWorkers=3`)
+
+- `npm run typecheck` exit 0; ESLint `--max-warnings=0` clean on every
+  changed file; Prettier clean; `npm run check:l10n` 0 problems;
+  14-locale order diag all `sameOrder=true` (2,968/2,968 keys);
+  `npm run deadcode` exit 0; `npm run cycles` exit 0 (no circular
+  dependencies); `npm run build` exit 0 (`dist/modelApi.js` 537,448 B
+  vs the 525 KiB budget).
+- `duplication` exits 1 — pre-existing: the round-6 head `04e82a18c`
+  already fails it (26 pairs, measured on a scratch worktree). This
+  lane fixed the 5 pairs it introduced that had an honest shared home
+  (guard-drill harness → `test/unit/helpers/guardProcess.ts`; Git
+  drafts → `replyIfUsable`); the 12 remaining new pairs are the
+  mandated table-test proof skeleton plus one test-rig stub. Recorded
+  as a justified deferral in PLAN.md §7; no gate file touched.
+- Suites (whole files, ≤3 per run): `toolRounds` 36,
+  `toolRoundsCodecs` + `modelApiGoldenRequests` + `bestOfNAttempts`
+  154, `judgeSameMuseCode` + `panelPlaybook` + `acpModelApi` 31,
+  `modelApiLoopGuarantees` + `museCodeReviewer` +
+  `museCodeHookModels` 93, `modelApiHost` 672,
+  `conversationController` 690, `conversationGit` +
+  `nativeGitAdapter` 124, `usableReply` + both guard suites 13.
+- Packed product:
+  `NPM_CONFIG_CACHE="$TMPDIR/npm-cache" npx vitest run
+test/e2e/execStdio.e2e.test.ts --maxWorkers=3` — 50 passed.
+- NOT RUN HERE: browser suites (MacBook rule); aggregate
+  `npm run quality` (lead-owned); live vendor captures (lead holds
+  the keys — procedure above).
+
+### What the lead must run
+
+1. The two P3-3 captures above; file frames under
+   `docs/certification/toolrounds-captures/<vendor>/`; flip the two
+   UNVERIFIED wire-table rows.
+2. Aggregate `npm run quality` (incl. the duplication accept/reject)
+   on the integrated tree.
+3. Nothing else is outstanding: every other Prove item ran here with
+   the receipts above.

@@ -36675,6 +36675,24 @@ actual receipts in `docs/certification/m101-p2.md`. The lead must run the
 aggregate quality/coverage/platform matrix before integration/release. No
 threshold, ignore or rule is changed.
 
+**TOOLROUNDS round-7 duplication deferral (2026-10-12, macbook).** The
+zero-clone jscpd gate already fails on the round-6 head `04e82a18c`
+(26 pairs, exit 1; measured on a scratch worktree), so this lane cannot
+turn it green. This lane fixed the 5 pairs it introduced that had an
+honest shared home: the two guard-drill harnesses now share
+`test/unit/helpers/guardProcess.ts` (`runGuardProcess`,
+`execGuardViaSymlinkedScripts`, `withGuardScratch`), and the two Git
+drafts share `replyIfUsable` from `src/core/turns/usableReply.ts`
+(43 pairs before the fix, 38 after). The remaining 12 new pairs are
+proof-skeleton repetition inside `test/unit/toolRounds.test.ts`
+(the send-path × calls-left × failure-kind table the review mandates:
+each cell repeats the script/turn/assert shape so the cell stays a
+complete proof) plus one 8-line admission-stub pair with
+`modelApiAutoCompact.test.ts`. Collapsing the table cells would thin
+the per-cell proof the review demanded; no gate file, threshold or
+ignore is changed. The lead's aggregate run owns the green-or-accepted
+decision; receipts are in `docs/certification/toolrounds.md` (Round 7).
+
 ## 8. Escape hatches register
 
 TOOLROUNDS, 2026-10-12: `// eslint-disable-next-line

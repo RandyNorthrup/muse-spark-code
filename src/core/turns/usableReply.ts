@@ -26,3 +26,12 @@ export function usableReply<T>(outcome: TurnReplyOutcome, reply: T | undefined):
     ? { usable: false, capped: true }
     : { usable: true, reply }
 }
+
+/**
+ * The reply when the turn completed without a limit, else undefined. The
+ * two Git drafts share this so the capped-never-a-draft read is one line.
+ */
+export function replyIfUsable<T>(outcome: TurnReplyOutcome, reply: T | undefined): T | undefined {
+  const usable = usableReply(outcome, reply)
+  return usable.usable ? usable.reply : undefined
+}
