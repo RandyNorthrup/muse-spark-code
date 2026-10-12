@@ -32,7 +32,7 @@ const { isProviderId, parseModelRef } = modelRef
 import type { ServeOptions } from '../cliArgs'
 import { accountIdSchema } from '../../shared/accounts'
 import { ACCOUNT_DEFAULT_ID } from '../../shared/constants'
-import { teamExecAdmission } from '../../acp/teamAdmission'
+import { areHeadlessTeamsAvailable, teamExecAdmission } from '../../acp/teamAdmission'
 
 export type ExecMode = 'plan' | 'acceptEdits'
 export type ExecOutput = 'text' | 'json' | 'jsonl'
@@ -303,6 +303,10 @@ export function parseExec(
     return invalid(UI_TEXT.execUnknownModel)
   }
   // Team admission follows the prompt, provider and hard-budget checks.
+  // Behind the agent-teams availability switch the flag is unknown: the
+  // parser answers as if `--team` did not exist.
+  if (values['team'] === true && !areHeadlessTeamsAvailable())
+    return invalid(fill(UI_TEXT.acpUnknownArgument, { argument: '--team' }))
   if (values['team'] === true) {
     const admission = teamExecAdmission({ mode, backend })
     if (!admission.ok) return invalid(admission.reason)
