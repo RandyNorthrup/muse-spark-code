@@ -179,6 +179,9 @@
     "test/unit/helpers/fakeMcpStartMarker.mjs",
     // ACP crash regression bundles this child by path; esbuild entries are not traced.
     "test/unit/helpers/questions/queuedTurnCrash.ts",
+    // Round-4 two-process ledger proof bundles this child by path; esbuild
+    // entries are not traced.
+    "test/unit/helpers/media/ledgerChild.ts",
     // The never-ending monitor the M92b bounded-run proof starts by path.
     "test/fixtures/never-ending-monitor.mjs",
     // M116 playbook scenes: the axe runner (an npm script knip already sees)
