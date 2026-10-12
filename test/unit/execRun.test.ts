@@ -249,12 +249,15 @@ async function harness(
   const run = async () => {
     try {
       const code = await runExec(life, deps)
-      const events: ResourceExecEvent[] = out.chunks.flatMap((chunk) =>
-        chunk
-          .trim()
-          .split('\n')
-          .map((line): ExecEvent => validateSchemaEvent(JSON.parse(line))),
-      )
+      const events: ResourceExecEvent[] =
+        deps.options.output === 'json'
+          ? [{ type: 'result', result: validateSchemaResult(JSON.parse(out.chunks.join(''))) }]
+          : out.chunks.flatMap((chunk) =>
+              chunk
+                .trim()
+                .split('\n')
+                .map((line): ExecEvent => validateSchemaEvent(JSON.parse(line))),
+            )
       const records = events.filter((event) => event.type === 'result')
       const result =
         records.length === 0
@@ -1650,12 +1653,7 @@ it.each(['1', '0.000001'])(
       [],
       { usageRecording: recording },
     )
-    const config = providersCommands.providersFilePath({
-      platform: process.platform,
-      homeDir: h.homeDir,
-      xdgConfigHome: undefined,
-    })
-    mkdirSync(path.dirname(config), { recursive: true })
+    const config = providerConfigFile(h.homeDir)
     writeFileSync(
       config,
       JSON.stringify({
@@ -1975,6 +1973,15 @@ const providerFamilies = [
     cost: '0.000024',
   },
 ] as const
+function providerConfigFile(homeDir: string): string {
+  const config = providersCommands.providersFilePath({
+    platform: process.platform,
+    homeDir,
+    xdgConfigHome: undefined,
+  })
+  mkdirSync(path.dirname(config), { recursive: true })
+  return config
+}
 function providerCaptureStream(file: string) {
   const response = z
     .object({
@@ -1997,7 +2004,7 @@ function providerCaptureStream(file: string) {
     .join('')
 }
 for (const family of providerFamilies) {
-  it.each(['success', 'budget', 'unpriced', 'default'])(
+  it.each(['success', 'budget', 'unpriced', 'default', 'json'])(
     `EXECPROV real loopback ${family.format}: %s`,
     async (mode) => {
       const stream = providerCaptureStream(family.capture)
@@ -2042,9 +2049,10 @@ for (const family of providerFamilies) {
           '--ephemeral',
         ],
         [],
-        { usageRecording: journalTap() },
+        {},
       )
-      if (mode === 'default') h.deps.options = { ...h.deps.options, model: undefined }
+      if (mode === 'json') h.deps.options = { ...h.deps.options, output: 'json' }
+      else if (mode === 'default') h.deps.options = { ...h.deps.options, model: undefined }
       const yes = { state: 'yes', value: true }
       const limits = { contextTokens: 1_000_000, outputTokens: 32_768 }
       const capability = {
@@ -2059,12 +2067,7 @@ for (const family of providerFamilies) {
         cachedInput: family.format === 'anthropic' ? 0.0000002 : 0.0000001,
         cacheWrite: family.format === 'anthropic' ? 0.000005 : 0.00000125,
       }
-      const config = providersCommands.providersFilePath({
-        platform: process.platform,
-        homeDir: h.homeDir,
-        xdgConfigHome: undefined,
-      })
-      mkdirSync(path.dirname(config), { recursive: true })
+      const config = providerConfigFile(h.homeDir)
       writeFileSync(
         config,
         JSON.stringify({
@@ -2113,6 +2116,8 @@ for (const family of providerFamilies) {
         } else {
           expect(run.code, JSON.stringify(run.result)).toBe(0)
           expect(dispatched).toHaveLength(1)
+          expect(result(run).usageHistory).toBe('omitted_ephemeral')
+          expect(h.err.chunks.join('')).not.toContain('Usage history could not be recorded')
           expect(result(run)).toMatchObject({
             model: `local/${family.native}`,
             usage: {

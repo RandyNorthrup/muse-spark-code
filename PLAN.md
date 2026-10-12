@@ -5259,6 +5259,12 @@ captured cache-write premiums and long-context tier. VS Code's session admission
 already uses `estimateInput` / `reserveRequest`; the standalone daily wrapper now
 uses that same input estimator. See `docs/certification/exec-provider.md`; full
 aggregate quality and installed/live certification remain lead-owned.
+Configured defaults are authoritative in exec and ACP; no missing default selects
+another model. Ephemeral exec omits durable usage history and reports
+usageHistory=omitted_ephemeral. Command --help stays local; help reference opens
+the complete catalogue (EXECPROV, 2026-10-11). The usage panel shares the portable
+journal through runtimeAccounting, installing the caller’s language before use,
+to retain its existing size cap.
 
 Proposals, secret-free tests and reviewer-approved push run in separate jobs.
 Text patches publish only after exact staged-byte scanning. Any binary/image

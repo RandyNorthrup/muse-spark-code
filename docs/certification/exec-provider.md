@@ -77,3 +77,70 @@ A2 red drill: restoring full-context input caused the small-request quote test t
 fail; SHA-256 byte-exact restoration
 `1364d18157c8313ee03ff8069ad9f3743e30f97ce5eb7d980d16f1d796b95fa7`.
 Final execRun remains 114/114 after admission/settlement events were added.
+
+## B–G: defaults, catalogue and terminal workflows
+
+Exec passes the assembled configured default into ACP session creation. ACP honors
+the selected provider default and refuses a missing/unavailable default before
+creating a session, listing configured refs. Muse Code keeps its native selection.
+Bare native IDs resolve only when a single advertised ref matches.
+
+The captured 2026-10-05 catalogue already contains Fable 5.1 (10/50), Opus 5.5
+(4/20) and Sonnet 5.5 (2/10), USD per million input/output. The owner's report
+names Haiku 5.5 but provides no published price/capability receipt. Its separate unpriced row
+has id/name and dated source metadata, unknown price and capabilities; the original
+captured-tool validation remains intact, and the new strict unpriced-row validator
+refuses prices, capabilities, mismatched IDs and replacement of captured rows.
+VENDOR.json records that
+addition separately from the unchanged capture date/download hash. Unknown
+catalogue models have a specific local refusal. No tariff is invented.
+
+Provider setup errors use terminal flags in all fourteen translations; successful
+free probes print server model IDs for --model. No panel Tick/Click/Open prompt
+remains in the provider/auth terminal path. Command --help routes to command-local
+options; help reference (and existing help --all) explicitly loads the catalogue.
+
+Usage writer probe against the production bundle and an isolated disk-backed
+folder: zero errors, one persisted record. Ephemeral runs deliberately omit
+durable history, never load its writer, and report usageHistory=omitted_ephemeral
+in the validated JSON result. Real loopback families prove no usage warning.
+Non-ephemeral failures remain visible; no real owner's storage was inspected.
+
+Final focused green: execRun/execProvider/commandHelp, 175/175 at repository
+timeout and maxWorkers=3, including five JSON-output family cases. All five
+typecheck projects passed. Combined red drill: disable strict default selection,
+local-help routing, ephemeral history omission and unknown-price admission;
+42 tests fail across all three files. Restored byte for byte (SHA-256):
+
+- src/acp/agent.ts: `d21e624311b5efe32eb1f589df3b8ffa1b357375a9869197ef4e90ad5e22585b`
+- src/runtime/cliArgs.ts: `0ed6728e32e4149c5d1a34a4d566ecc18394f33050537ca97972e1e1b23fd235`
+- src/runtime/exec/runExec.ts: `4254ee676ba4f0f9215cdfacd17c611fabb260a955554c074c9423cab003b81f`
+- src/runtime/runtimeAccountingEntry.ts: `cb1e907708d20a70aed45212be6d70a7f4a9e5e5ecff671a31919414a152fe15`
+
+Cancellation snapshot retains an interrupted active reservation as uncertain
+liability before asynchronous cleanup; daily sent claims remain retained without
+a verified receipt. The final pinned DNS check tags a provably unsent refusal,
+clears send intent and refunds both claims. There are no awaits between daily
+admission and transport dispatch other than that abort-aware DNS check; transport
+pacing and credential reads precede admission.
+
+Verification logs are lane-local under temp/. Aggregate npm run quality and
+installed/live proof are lead-owned, as required by the rig brief. No caps, gates,
+hooks, dependencies or test deadlines changed.
+
+The headless size gate fired at 104,699 bytes (100 KiB cap); optional provider
+assembly and endpoint helpers now load through the existing runtimeAccounting
+bundle on first provider use. No new artifact, dependency or size exemption.
+The initial catalogue build also refused a non-tool-capable row, prompting the
+separate strictly unpriced section described above rather than weakening that
+captured-tool guard.
+
+Production build passed with unchanged caps after sharing the portable journal:
+headless.js 82,292 bytes; modelApi.js 531,482; extension.js 563,352;
+usagePanel.js 67,567; runtimeAccounting.js 46,620. The source subsequently received
+a type-only formatting-call correction; final verification is listed in the lane
+report. The dependent run completed 18 of 207 selected suites before the time box;
+two outdated expectations were corrected (explicit contributor selection and root
+help route). The exact remaining list is exec-provider-remaining.md. It is not an
+all-dependents green claim. HUB: constants, l10n tables, feature catalogue and
+generated reference are integration-run inputs.

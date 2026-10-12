@@ -5282,5 +5282,8 @@
   "execTokenCount": {
     "one": "höchstens {count} Token",
     "other": "höchstens {count} Tokens"
-  }
+  },
+  "execProviderNotCatalogue": "Dieses Modell fehlt im Katalog dieses Builds: {model}.",
+  "providerCliModelsRequired": "Verwenden Sie --model <id> (für weitere Modelle wiederholen). Verfügbar: {models}.",
+  "providerCliConfigure": "Prüfen Sie diese Optionen: --preset {preset}, --model <id>, --key-stdin, --address <url>, --private-ok."
 }

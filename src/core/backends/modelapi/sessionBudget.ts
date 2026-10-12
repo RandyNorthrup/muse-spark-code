@@ -82,6 +82,7 @@ export interface SessionBudgetClaim {
   readonly reservedUsd: UsdAmount
   /** Durable send intent before dispatch; unsent claims alone can recover after owner exit. */
   readonly markSent?: () => void
+  readonly markUnsent?: () => void
   /** Synchronous final admission after key retrieval; refuses an incomplete or over-cap ledger. */
   check(capUsd: UsdAmount): SessionBudgetTotal
   /** Only this claim's owner settles it. Entries remain visible, including a zero refund. */

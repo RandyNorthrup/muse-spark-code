@@ -4,7 +4,11 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import * as z from 'zod/mini'
 import { createSessionBudgetJournal } from '../host/backend/sessionBudgetJournal'
-import type { ProviderClient, ResponseAttemptGuard } from '../core/backends/modelapi/client'
+import type {
+  ProviderClient,
+  ResponseAttemptGuard,
+  ResponseObservation,
+} from '../core/backends/modelapi/client'
 import {
   metaResolvedModel,
   modelPricedUsage,
@@ -21,6 +25,8 @@ import { UserRefusalError } from '../core/refusal'
 import type { ResponseObject } from '../core/backends/modelapi/schemas'
 import {
   EXEC_USD_DECIMALS,
+  HTTP_STATUS,
+  HTTP_TOO_MANY_REQUESTS,
   PAID_DAILY_BUDGET,
   RUNTIME_SETTINGS_FILE,
   SETTING_DEFAULTS,
@@ -28,13 +34,11 @@ import {
   UI_TEXT,
 } from '../shared/constants'
 import { storeErrorCode } from '../host/backend/storeErrors'
-import {
-  responseReservationMessage,
-  type RunLedger,
-  type ResponseTicket,
-  type SettlementResult,
-} from './exec/runLedger'
-import type { LastResponse, Refusal } from './exec/execProtocol'
+import { type RunLedger, type ResponseTicket, type SettlementResult } from './exec/runLedger'
+import type { LastResponse, Refusal, LedgerTotals } from './exec/execProtocol'
+import { fill, plural } from '../shared/l10n/text'
+import { formatUsd } from '../shared/l10n/exactUsd'
+import { isModelApiError } from '../core/backends/modelapi/transport'
 
 const settingsSchema = z.strictObject({
   paidDailyBudgetUsd: z.optional(
@@ -158,6 +162,7 @@ export function withRuntimeAccounting(
         let ticket: ResponseTicket | undefined
         let wasSent = false
         let response: ResponseObject | undefined
+        let httpStatus: number | undefined
         let hasEof = false
         const settle = async () => {
           if (claim === undefined) return
@@ -169,10 +174,13 @@ export function withRuntimeAccounting(
                   cost: response.usage.provider_cost_usd,
                 })
               : undefined
-          const cost = actual === undefined ? undefined : ceilUsd(actual)
+          const cost =
+            httpStatus === HTTP_TOO_MANY_REQUESTS || httpStatus === HTTP_STATUS.badRequest
+              ? Usd.from(0).toAmount()
+              : actual === undefined
+                ? undefined
+                : ceilUsd(actual)
           // A sent request without a verified price keeps its original durable reservation.
-          if (!wasSent || cost !== undefined)
-            await owned.settle(wasSent ? (cost ?? owned.reservedUsd) : Usd.from(0).toAmount())
           if (!wasSent && ticket !== undefined) {
             accounting?.ledger.releaseResponse(ticket)
             ticket = undefined
@@ -181,12 +189,16 @@ export function withRuntimeAccounting(
             const result = accounting.ledger.settleResponse(
               ticket,
               {
-                ...(hasEof
-                  ? ({ kind: 'eof', parseInvalid: false } as const)
-                  : ({ kind: 'transport', why: 'error' } as const)),
-                terminal: response?.status ?? null,
-                incompleteReason: response?.incomplete_details?.reason ?? null,
-                usage: response?.usage,
+                ...(httpStatus === undefined
+                  ? {
+                      ...(hasEof
+                        ? ({ kind: 'eof', parseInvalid: false } as const)
+                        : ({ kind: 'transport', why: 'error' } as const)),
+                      terminal: response?.status ?? null,
+                      incompleteReason: response?.incomplete_details?.reason ?? null,
+                      usage: response?.usage,
+                    }
+                  : { kind: 'http' as const, status: httpStatus }),
               },
               { costUsd: cost },
             )
@@ -195,9 +207,12 @@ export function withRuntimeAccounting(
             ticket = undefined
             if (result.latch !== undefined) accounting.refuse(result.latch)
           }
+          if (!wasSent || cost !== undefined)
+            await owned.settle(wasSent ? (cost ?? owned.reservedUsd) : Usd.from(0).toAmount())
           wasSent = false
           response = undefined
           hasEof = false
+          httpStatus = undefined
         }
         const attempt: ResponseAttemptGuard = Object.assign(
           (digest: string | undefined) => {
@@ -207,6 +222,10 @@ export function withRuntimeAccounting(
           },
           {
             ...guard,
+            observe: (observation: ResponseObservation) => {
+              if (observation.rateLimited === true) httpStatus = HTTP_TOO_MANY_REQUESTS
+              guard?.observe?.(observation)
+            },
             prepare: async () => {
               await settle()
               await guard?.prepare?.()
@@ -267,7 +286,9 @@ export function withRuntimeAccounting(
             },
             onRequestStarted: () => {
               claim?.markSent?.()
-              if (ticket !== undefined) accounting?.started(ticket.n, ticket)
+              if (ticket !== undefined) {
+                accounting?.started(ticket.n, ticket)
+              }
               guard?.onRequestStarted?.()
               wasSent = true
             },
@@ -286,6 +307,18 @@ export function withRuntimeAccounting(
             yield event
           }
           hasEof = true
+        } catch (error: unknown) {
+          if (isModelApiError(error) && error.status > 0) httpStatus = error.status
+          if (
+            error instanceof Error &&
+            error.name === 'UserRefusalError' &&
+            'code' in error &&
+            error.code === 'not_sent'
+          ) {
+            wasSent = false
+            claim?.markUnsent?.()
+          }
+          throw error
         } finally {
           await settle()
         }
@@ -294,10 +327,19 @@ export function withRuntimeAccounting(
     return { ...model, client: bounded }
   }
   const resolve = async (ref: string) => {
-    const model =
-      client.models === undefined
-        ? metaResolvedModel(ref, client)
-        : await client.models.resolve(ref)
+    let model: ResolvedModel
+    try {
+      model =
+        client.models === undefined
+          ? metaResolvedModel(ref, client)
+          : await client.models.resolve(ref)
+    } catch (error: unknown) {
+      if (error instanceof Error && 'code' in error && error.code === 'model_not_catalogue') {
+        accounting?.ledger.reject('unpriced')
+        accounting?.refuse('unpriced', error.message)
+      }
+      throw error
+    }
     if (model.policy.pricing.kind === 'unpriced') {
       accounting?.ledger.reject('unpriced')
       accounting?.refuse('unpriced')
@@ -320,7 +362,7 @@ export function withRuntimeAccounting(
     }),
     ...(client.isPlanModel !== undefined && { isPlanModel: client.isPlanModel.bind(client) }),
     ...(client.readPlanUsage !== undefined && { readPlanUsage: client.readPlanUsage.bind(client) }),
-    models: { ...(client.models?.list !== undefined && { list: client.models.list }), resolve },
+    models: { ...client.models, resolve },
     async *streamResponse(body, ...args) {
       const model = await resolve(body.model)
       yield* model.client.streamResponse(body, ...args)
@@ -328,3 +370,32 @@ export function withRuntimeAccounting(
   }
 }
 export { setUiText } from '../shared/l10n/text'
+
+/** One localized arithmetic sentence for daily/provider and headless Meta admission. */
+export function responseReservationMessage(input: {
+  readonly inputTokens: number
+  readonly inputCost: UsdAmount
+  readonly outputTokens: number
+  readonly reserveUsd: UsdAmount
+  readonly totals: LedgerTotals
+}): string {
+  const cost = Usd.from(input.inputCost).ceiling(EXEC_USD_DECIMALS)
+  const total = Usd.from(input.reserveUsd).ceiling(EXEC_USD_DECIMALS)
+  return fill(UI_TEXT.execBudgetQuote, {
+    inputTokens: plural(UI_TEXT.execTokenCount, input.inputTokens),
+    inputCost: formatUsd(cost.toAmount(), EXEC_USD_DECIMALS),
+    outputTokens: plural(UI_TEXT.execTokenCount, input.outputTokens),
+    outputCost: formatUsd(total.subtract(cost).toAmount(), EXEC_USD_DECIMALS),
+    estimate: formatUsd(total.toAmount(), EXEC_USD_DECIMALS),
+    cap: formatUsd(input.totals.capUsd, EXEC_USD_DECIMALS),
+    spent: formatUsd(
+      Usd.from(input.totals.settledUsd).add(Usd.from(input.totals.uncertainUsd)).toAmount(),
+      EXEC_USD_DECIMALS,
+    ),
+  })
+}
+
+export { assembleProviderRun } from './exec/providerExec'
+export { providersFilePath, resolveEndpointHost } from './providersCommands'
+
+export { createSessionBudgetJournal } from '../host/backend/sessionBudgetJournal'

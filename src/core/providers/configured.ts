@@ -81,24 +81,27 @@ const secretSchema = z.object({
   secret: z.string().check(z.minLength(1)),
 })
 const catalogSchema = z.object({
+  unpriced: z.optional(
+    z.record(z.string(), z.record(z.string(), modelMetadata.nativeModelMetadataSchema)),
+  ),
   fetchedAt: z.optional(z.string()),
   providers: z.record(
     z.string(),
     z.object({ models: z.record(z.string(), modelMetadata.nativeModelMetadataSchema) }),
   ),
 })
-const costSchema = z.object({
+const costRates = {
   input: z.number().check(z.nonnegative()),
   output: z.number().check(z.nonnegative()),
   cache_read: z.optional(z.number().check(z.nonnegative())),
   cache_write: z.optional(z.number().check(z.nonnegative())),
+}
+const costSchema = z.object({
+  ...costRates,
   tiers: z.optional(
     z.array(
       z.object({
-        input: z.number().check(z.nonnegative()),
-        output: z.number().check(z.nonnegative()),
-        cache_read: z.optional(z.number().check(z.nonnegative())),
-        cache_write: z.optional(z.number().check(z.nonnegative())),
+        ...costRates,
         tier: z.object({ type: z.literal('context'), size: z.int().check(z.minimum(1)) }),
       }),
     ),
@@ -436,7 +439,9 @@ export function createConfiguredProviderServices(
       const preset = presetFor(entry)
       for (const nativeModel of entry.models) {
         const ref = `${entry.id}/${nativeModel}`
-        const native = catalogue.providers[preset.id.replace('-plan', '')]?.models[nativeModel]
+        const native =
+          catalogue.providers[preset.id.replace('-plan', '')]?.models[nativeModel] ??
+          catalogue.unpriced?.[preset.id.replace('-plan', '')]?.[nativeModel]
         const evidence =
           native === undefined
             ? []
@@ -500,6 +505,11 @@ export function createConfiguredProviderServices(
         else if (card !== undefined) pricing = { kind: 'priced', card }
         const model: RegistryModel = {
           ref,
+          catalogueMissing:
+            native === undefined &&
+            preset.id !== 'custom' &&
+            entry.auth !== 'none' &&
+            entered === undefined,
           origin: endpointPolicy.originOf(entry.address ?? '') ?? fail(),
           evidence: {
             capabilities: four,
@@ -832,6 +842,10 @@ export function createConfiguredProviderServices(
         ? []
         : await delegate().listModels(),
     models: {
+      defaultModel: async () => {
+        const file = await read()
+        return file.defaultModel
+      },
       list: registry.list,
       resolve: async (ref) =>
         modelRef.parseModelRef(ref)?.providerId === 'meta' || meta?.isPlanModel?.(ref) === true
@@ -879,7 +893,9 @@ export function createConfiguredProviderServices(
           .check(z.minLength(1))
           .parse(native['id'] ?? native['name'])
         const source = { kind: 'models-list' as const, ref: entry.address ?? fail() }
-        const known = catalogue.providers[preset.id.replace('-plan', '')]?.models[id]
+        const known =
+          catalogue.providers[preset.id.replace('-plan', '')]?.models[id] ??
+          catalogue.unpriced?.[preset.id.replace('-plan', '')]?.[id]
         const record = capabilities.resolveModelCapabilities(
           { provider: entry.id, nativeModel: id, format: entry.format ?? preset.format },
           [

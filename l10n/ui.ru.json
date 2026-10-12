@@ -5592,5 +5592,8 @@
     "other": "максимум {count} токена",
     "few": "максимум {count} токена",
     "many": "максимум {count} токенов"
-  }
+  },
+  "execProviderNotCatalogue": "Этой модели нет в каталоге данной сборки: {model}.",
+  "providerCliModelsRequired": "Укажите --model <id> (повторите для других моделей). Доступны: {models}.",
+  "providerCliConfigure": "Проверьте параметры: --preset {preset}, --model <id>, --key-stdin, --address <url>, --private-ok."
 }

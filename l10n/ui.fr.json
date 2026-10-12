@@ -5437,5 +5437,8 @@
     "one": "au plus {count} jeton",
     "other": "au plus {count} jetons",
     "many": "au plus {count} jetons"
-  }
+  },
+  "execProviderNotCatalogue": "Ce modèle ne figure pas dans le catalogue de cette version : {model}.",
+  "providerCliModelsRequired": "Utilisez --model <id> (répétez pour d’autres modèles). Disponibles : {models}.",
+  "providerCliConfigure": "Vérifiez ces options : --preset {preset}, --model <id>, --key-stdin, --address <url>, --private-ok."
 }

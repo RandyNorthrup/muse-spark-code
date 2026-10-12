@@ -242,3 +242,46 @@ export const CLI_OPTION_TEXT = {
     keyof UiText['referenceCliOptions']
   >
 >
+
+/** Command-local flags without activating the full editor reference catalogue. */
+export function formatCommandHelp(table: UiText, command: string, route: string): string {
+  const definition = Object.entries(CLI_OPTION_REGISTRY).find(([key]) => key === route)?.[1]
+  const name = route.replace(
+    /^(providers|auth|fonts)([A-Z])/,
+    (_match, prefix: string, letter: string) => `${prefix} ${letter.toLowerCase()}`,
+  )
+  const localUsage: Readonly<Record<string, string>> = {
+    'providers list': 'providers list',
+    providersList: 'providers list',
+    providersTest: 'providers test <provider>',
+    providersRemove: 'providers remove <provider>',
+  }
+  const lines = [`${command} ${localUsage[route] ?? name}`]
+  if (definition === undefined) {
+    const usage: Readonly<Record<string, string>> = {
+      schedule: table.scheduleV2.runtime.usage,
+      playbook: table.playbookCommandUsage,
+      developer: table.developer.commandUsage,
+      'providers accounts': table.accounts.cliUsage,
+      share: sharingHelp(table),
+      prompts: sharingHelp(table),
+    }
+    const description = usage[route.split(' ', 1)[0] ?? ''] ?? usage[route]
+    if (description !== undefined) lines.push(fill(description, { command }))
+  }
+  if (definition !== undefined) {
+    for (const [flag, option] of Object.entries(definition.options)) {
+      const key = Object.entries(CLI_OPTION_TEXT).find(([option]) => option === flag)?.[1]
+      if (key === undefined) {
+        lines.push(`--${flag}`)
+      } else {
+        lines.push(
+          `--${flag}${option.type === 'string' ? ' <value>' : ''}: ${fill(table.referenceCliOptions[key], { command, origin: '<address>' })}`,
+        )
+      }
+    }
+  }
+  if (definition !== undefined && !('help' in definition.options))
+    lines.push(table.referenceCliOptions.help)
+  return lines.join('\n')
+}

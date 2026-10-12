@@ -1,3 +1,4 @@
+import { uiLocale } from '../../shared/l10n/text'
 import { outputTokenMinimumMessage } from '../../shared/providerRouting'
 import { Usd } from '../../shared/usd'
 import * as z from 'zod/mini'
@@ -21,12 +22,7 @@ import {
 } from '../../shared/constants'
 import type { ExecEventBody, LastResponse, Refusal } from './execProtocol'
 import type { Lifecycle, StopCause } from './execLimits'
-import {
-  responseReservationMessage,
-  type ImageSettlement,
-  type ResponseSettlement,
-  type RunLedger,
-} from './runLedger'
+import { type ImageSettlement, type ResponseSettlement, type RunLedger } from './runLedger'
 
 export interface ExecTransport {
   readonly fetch: typeof fetch
@@ -68,6 +64,7 @@ export function execFetch(input: {
   ledger: RunLedger
   selectedModel: string
   readonly maxOutputTokens?: number
+  readonly externalResponseAccounting?: boolean
   imageGeneration: boolean
   lifecycle: Lifecycle
   onLatch: (cause: StopCause, message?: string) => void
@@ -162,6 +159,8 @@ export function execFetch(input: {
       return refuse('request_shape', true)
     const tier = modelApiPaidTier(input.selectedModel)
     if (isResponse && tier === undefined) return refuse('unpriced')
+    if (isResponse && input.externalResponseAccounting === true)
+      return await input.fetch(url, { ...init, redirect: 'error' })
     // Each caller captures the current tail synchronously. Rechecking after
     // this wait and reserving have no intervening await.
     const previous = barrier
@@ -206,11 +205,13 @@ export function execFetch(input: {
     if ('refused' in ticket) {
       release.run?.()
       const totals = input.ledger.totals()
+      const accounting = await import('../runtimeAccountingEntry.js')
+      accounting.setUiText(UI_TEXT, uiLocale())
       return refuse(
         ticket.refused,
         isImage,
         ticket.refused === 'budget' && input.maxOutputTokens !== undefined
-          ? responseReservationMessage({
+          ? accounting.responseReservationMessage({
               inputTokens,
               inputCost: inputCost.toAmount(),
               outputTokens: responseShape.success ? responseShape.data.max_output_tokens : 0,

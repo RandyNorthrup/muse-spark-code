@@ -272,7 +272,7 @@ describe('parseCommandLine', () => {
       command: 'login',
       options: { ...DEFAULTS, museBinary: '/m' },
     })
-    expect(parseCommandLine(['-h'])).toEqual({ command: 'help' })
+    expect(parseCommandLine(['-h'])).toEqual({ command: 'help', route: 'serve' })
     expect(parseCommandLine(['--version'])).toEqual({ command: 'version' })
   })
 

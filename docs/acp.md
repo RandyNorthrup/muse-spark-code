@@ -195,7 +195,12 @@ inference. General `providers list|add|test|remove` commands and
 Free probes use the shared request transport. `exec --provider` dispatches through
 that same configured client, reserving each request's conservative input and
 capped output at its model's price before sending, then settling its usage.
-Unknown prices refuse without sending. Unsent daily and run claims are refunded.
+Unknown prices refuse without sending. With no `--model`, exec and ACP use the configured `defaultModel`;
+a missing or unavailable default refuses and lists the configured models.
+Ephemeral exec omits durable usage history and records
+`usageHistory: "omitted_ephemeral"`; ordinary runs retain usage history.
+Command `--help` prints only its own usage; `help reference` prints the catalogue.
+Unsent daily and run claims are refunded.
 Output defaults to 1024 tokens per request; `--max-output-tokens <16–32768>`
 sets the run's cap for its body, schema and ledger. For a configured Anthropic key:
 
@@ -599,8 +604,9 @@ fallback. The interactive options above retain their existing behavior.
 
 Model API needs a hard USD cap and known priced model; request cap counts every
 billable HTTP attempt, including retries. Context-window liability rounds upward
-to integer micro-USD: contributor $0.108135 minimum ($0.118135 with image flag),
-standard $1.409024 ($1.419024 with image flag). Contributor requires explicit
+to integer micro-USD using this request's conservative input estimate plus its
+resolved output cap (1024 by default), including cache-write premiums. The refusal
+shows the arithmetic. Contributor requires explicit
 opt-in and training eligibility. Images require Model API, explicit flag,
 acceptEdits, budget and per-use admission/tally; no grant store is used.
 
@@ -776,7 +782,7 @@ publishing, hosted links, team destinations and email remain phase 2/3.
 
 ## Help and reference
 
-Send `/help` in an ACP session for its local command list and the [generated reference](reference.md). Run `muse-spark-code-acp help --all` in a terminal for the complete reference. Help starts no backend and makes no model request.
+Send `/help` in an ACP session for its local command list and the [generated reference](reference.md). Run `muse-spark-code-acp help reference` in a terminal for the complete reference. Help starts no backend and makes no model request.
 
 ## Resource status and resume
 

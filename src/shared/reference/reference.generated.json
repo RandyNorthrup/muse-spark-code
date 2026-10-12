@@ -4488,7 +4488,7 @@
     },
     {
       "route": "help",
-      "name": "help --all",
+      "name": "help reference / help --all",
       "description": "Commands, settings and features, with descriptions and documentation.",
       "text": { "ui": "referenceIntro" }
     },

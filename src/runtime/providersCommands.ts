@@ -460,7 +460,7 @@ export async function probeProvider(
       const ids = listModelIds(listed.body, provider.preset)
       return ids === undefined
         ? { ok: false, paid: false, reason: 'unparseable' }
-        : { ok: true, modelCount: ids.length }
+        : { ok: true, modelCount: ids.length, modelIds: ids }
     },
   )
 }
@@ -552,6 +552,8 @@ export async function providersAdd(
   if (file.providers.some((entry) => entry.id === id)) {
     return failed(deps, fill(UI_TEXT.providerAlreadyConfigured, { provider: id }))
   }
+  const invalidWizard = () =>
+    failed(deps, fill(UI_TEXT.providerCliConfigure, { preset: preset.id }))
   let state = applyWizardEvent(startWizard(), {
     type: 'select-preset',
     presetId: preset.id,
@@ -597,7 +599,7 @@ export async function providersAdd(
   const advance = (current: typeof state) => applyWizardEvent(current, { type: 'next' })
   state = advance(state)
   if (state.error !== undefined) {
-    return failed(deps, state.error)
+    return invalidWizard()
   }
   let key: string | undefined
   if (preset.auth === 'apiKey') {
@@ -617,15 +619,18 @@ export async function providersAdd(
     }
     state = applyWizardEvent(state, { type: 'submit-key', shapeOk: true })
     if (state.error !== undefined) {
-      return failed(deps, state.error)
+      return invalidWizard()
     }
     state = advance(state)
     if (state.error !== undefined) {
-      return failed(deps, state.error)
+      return invalidWizard()
     }
   }
   if (preset.keyTest.kind === 'paid-token') {
-    return failed(deps, fill(UI_TEXT.providerPaidTest, { provider: preset.label }))
+    return failed(
+      deps,
+      `${fill(UI_TEXT.providerNoRequestPath, { provider: preset.label })} ${fill(UI_TEXT.providerCliConfigure, { preset: 'openai|anthropic|gemini|custom' })}`,
+    )
   }
   const resolved = await resolvedForAdd(
     deps,
@@ -648,7 +653,7 @@ export async function providersAdd(
     return failed(
       deps,
       probe.paid
-        ? fill(UI_TEXT.providerPaidTest, { provider: preset.label })
+        ? `${fill(UI_TEXT.providerNoRequestPath, { provider: preset.label })} ${fill(UI_TEXT.providerCliConfigure, { preset: 'openai|anthropic|gemini|custom' })}`
         : fill(UI_TEXT.providerTestFailed, { detail: probeReason(probe.reason) }),
     )
   }
@@ -658,18 +663,25 @@ export async function providersAdd(
   })
   state = advance(state)
   if (state.error !== undefined) {
-    return failed(deps, state.error)
+    return invalidWizard()
   }
+  if (options.models.length === 0)
+    return failed(
+      deps,
+      fill(UI_TEXT.providerCliModelsRequired, {
+        models: probe.modelIds?.join(', ') ?? `providers test ${id}`,
+      }),
+    )
   const models = options.models
     .map((model) => model.trim())
     .filter((model) => model !== '' && !/\s/.test(model))
   state = applyWizardEvent(state, { type: 'set-models', models })
   if (state.error !== undefined) {
-    return failed(deps, state.error)
+    return invalidWizard()
   }
   state = advance(state)
   if (state.error !== undefined) {
-    return failed(deps, state.error)
+    return invalidWizard()
   }
   if (preset.id === 'openrouter') {
     state = applyWizardEvent(state, {
@@ -677,11 +689,11 @@ export async function providersAdd(
       privacy: options.privacy ?? 'zdr',
     })
     if (state.error !== undefined) {
-      return failed(deps, state.error)
+      return invalidWizard()
     }
     state = advance(state)
     if (state.error !== undefined) {
-      return failed(deps, state.error)
+      return invalidWizard()
     }
   }
   // The suggestions step has no terminal input: the default model is the
@@ -690,10 +702,7 @@ export async function providersAdd(
   state = applyWizardEvent(state, { type: 'confirm' })
   const blockers = wizardBlockers(state)
   if (state.step !== 'done' || blockers.length > 0) {
-    return failed(
-      deps,
-      state.error ?? fill(UI_TEXT.providerTestFailed, { detail: blockers[0] ?? 'confirm' }),
-    )
+    return invalidWizard()
   }
   const entry: ProviderEntry = {
     id,
@@ -820,7 +829,7 @@ export async function providersTest(deps: ProvidersDeps, providerId: string): Pr
     return failed(
       deps,
       probe.paid
-        ? fill(UI_TEXT.providerPaidTest, { provider: provider.preset.label })
+        ? `${fill(UI_TEXT.providerNoRequestPath, { provider: provider.preset.label })} ${fill(UI_TEXT.providerCliConfigure, { preset: 'openai|anthropic|gemini|custom' })}`
         : fill(UI_TEXT.providerTestFailed, { detail: probeReason(probe.reason) }),
     )
   }
@@ -829,6 +838,7 @@ export async function providersTest(deps: ProvidersDeps, providerId: string): Pr
       ? UI_TEXT.providerTestOkKey
       : plural(UI_TEXT.providerTestOk, probe.modelCount),
   )
+  if (probe.modelIds !== undefined) deps.print(probe.modelIds.join(', '))
   return EXIT_OK
 }
 

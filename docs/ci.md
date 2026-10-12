@@ -219,15 +219,12 @@ Exact Meta HTTPS origin, empty user-info/fragment/unexpected query, string POST
 body and `redirect:error` are required. Only GET /v1/models and POST
 /v1/responses, /v1/images/generations, /v1/images/edits may pass.
 
-With W=1,048,576 and M=max_output_tokens, context liability is
-`R=((W-M)*p_in + M*p_out)/1,000,000`. Admission uses exact tariff arithmetic,
-then rounds each reservation and priced liability **up** to integer micro-USD
-(EXEC_USD_UNITS=1,000,000; F1 supersedes v4's earlier nanodollar text).
-
-| Tier, M=32,768 | Exact context liability | Admitted reservation/minimum | Minimum with images |
-| -------------- | ----------------------: | ---------------------------: | ------------------: |
-| Contributor    |              $0.1081344 |                    $0.108135 |           $0.118135 |
-| Standard       |               $1.409024 |                    $1.409024 |           $1.419024 |
+With I conservatively estimated from the actual request and M the resolved output
+cap (1024 by default), response liability is `R=I*p_in + M*p_out` at the selected
+model's per-token rates, including the largest applicable cache-write tariff.
+Admission rounds each reservation upward to integer micro-USD. Input and output
+must still fit the model's known context and output limits. There is no fixed
+full-context minimum; refusals show the actual arithmetic.
 
 Standard recipes use $2.00; contributor recipes explicitly opt in and use $1.00.
 Cached input is priced at its lower tariff, reasoning is already part of output.
@@ -662,12 +659,11 @@ generated/m80.png; each then returns its final reply. `test/action/w-check.mjs`
 judges each invocation. `test/e2e/execTestLauncher.e2e.test.ts` packs the same
 launcher and rehearses all four scenarios through the real run-exec entry on
 each platform.
-Two responses each report 10 input/5 output tokens. Upward micro-USD reservations
-are $0.216270 for two replies, $0.226270 with image, within $1.00.
+Two responses each report 10 input/5 output tokens. Upward micro-USD reservations depend on the serialized requests and their output
+caps, within $1.00.
 Simulated priced cost is $0.000004 text/review and $0.010004 with returned image,
 about one cent; **actual fake W spend is $0**. Image case must publish no patch/
-manifest and never invoke apply. Contributor $0.10 refuses below $0.108135
-before any billable call. W also requires startup/env/argv traps, trusted gate
+manifest and never invoke apply. A cap below the actual request quote refuses before any billable call. W also requires startup/env/argv traps, trusted gate
 drills and exact digest/head/lease bare-repo apply tests on Linux/macOS/Windows.
 
 `.github/workflows/action-live.yml` is LA's workflow. Only the repository

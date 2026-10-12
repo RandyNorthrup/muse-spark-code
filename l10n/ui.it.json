@@ -5437,5 +5437,8 @@
     "one": "al massimo {count} token",
     "other": "al massimo {count} token",
     "many": "al massimo {count} token"
-  }
+  },
+  "execProviderNotCatalogue": "Questo modello non è nel catalogo di questa versione: {model}.",
+  "providerCliModelsRequired": "Usare --model <id> (ripetere per altri modelli). Disponibili: {models}.",
+  "providerCliConfigure": "Controllare queste opzioni: --preset {preset}, --model <id>, --key-stdin, --address <url>, --private-ok."
 }

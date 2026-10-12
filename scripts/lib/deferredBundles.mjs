@@ -1013,6 +1013,16 @@ export const deferredCohort = {
   setup(build) {
     // The shared request/framing implementations stay in the existing backend
     // bundle; providers and ACP require its exported API only when used.
+    // The usage panel shares the portable journal with headless accounting.
+    build.onResolve({ filter: /\/sessionBudgetJournal(?:\.ts)?$/ }, (args) => {
+      const source = path.resolve(args.resolveDir, `${args.path.replace(/\.ts$/, '')}.ts`)
+      if (
+        source !== path.resolve('src/host/backend/sessionBudgetJournal.ts') ||
+        path.resolve(build.initialOptions.outfile ?? '') !== path.resolve('dist/usagePanel.js')
+      )
+        return
+      return { path: './runtimeAccounting.js', external: true }
+    })
     build.onResolve({ filter: /\/(?:transport|sse|ndjson|modelApiEntry)(?:\.ts)?$/ }, (args) => {
       if (args.kind === 'entry-point') return
       const source = path.resolve(args.resolveDir, `${args.path.replace(/\.ts$/, '')}.ts`)

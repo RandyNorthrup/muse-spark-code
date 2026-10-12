@@ -178,7 +178,7 @@ hash verification and migrate when read.
 - **Accurate details.** Help is generated from the extension's own tables.
   Defaults, availability and paid costs are now described for each backend.
 - **Editors and terminal.** Use `/help` in the chat panel and ACP editors, or
-  `muse-spark-code-acp help --all` in the terminal.
+  `muse-spark-code-acp help reference` in the terminal.
 
 **0.14.1**
 
@@ -795,7 +795,11 @@ transport; keys are entered through stdin and stored with their origin.
 Headless `exec --provider` runs through that same client with model-specific
 request admission, settlement, and refunds for unsent reservations. Output defaults
 to 1024 tokens per request (`--max-output-tokens <16–32768>`); unknown prices refuse.
-For a configured Anthropic key:
+For a configured Anthropic key: With no `--model`, exec and ACP use the configured `defaultModel`;
+a missing or unavailable default refuses and lists the configured models.
+Ephemeral exec omits durable usage history and records
+`usageHistory: "omitted_ephemeral"`; ordinary runs retain usage history.
+Command `--help` prints only its own usage; `help reference` prints the catalogue.
 
 ```sh
 muse-spark-code-acp exec --backend modelApi --provider anthropic --model anthropic/claude-opus-5-5 --max-budget-usd 0.10 --max-requests 1 --ephemeral --output json "Reply with the single word: ready"
@@ -3992,7 +3996,7 @@ the editor’s theme and display language.
 ACP editors can send `/help` for the current installed-skill list and the
 [generated reference](docs/reference.md). ACP locally handles `/help`, `/compact`, `/legal`, `/usage`, `/questions`, `/answer` and
 installed skills; the linked panel slash commands and settings are extension
-workflows. In a terminal, `muse-spark-code-acp help --all` prints the full
+workflows. In a terminal, `muse-spark-code-acp help reference` prints the full
 reference in the installed language without a model call. `exec --help`,
 `report --help` and `scan-secrets --help` also print it; `--help` prints concise
 ACP usage. Terminal help states that VS Code current values are unavailable.
@@ -4715,9 +4719,9 @@ stays in memory and conflicts with a stdin prompt. CI never runs `auth set` or
 gives the agent a key environment variable.
 
 Budgets are positive ASCII decimals up to $20 with at most six fractional
-digits, parsed straight into integer micro-USD. At 32,768 output tokens the
-minimum reservation is $0.108135 for the contributor model ($0.118135 with
-images) and $1.409024 for standard ($1.419024). The contributor model needs
+digits, parsed straight into integer micro-USD. Each request reserves its conservative input estimate plus the resolved output
+cap (1024 by default), including cache-write premiums. The refusal shows the
+input and output arithmetic. The contributor model needs
 `--allow-contributor-models`; its content may be used for training under
 Meta's contributor terms. `--image-generation` also needs
 `--permission-mode acceptEdits`; images are off by default and tallied per

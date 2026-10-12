@@ -230,7 +230,7 @@ function scenarioInputs(scenario: Scenario): Record<string, string> {
   return {
     MUSE_INPUT_MODEL: 'muse-spark-1.3-contributor',
     MUSE_INPUT_ALLOW_CONTRIBUTOR_MODELS: 'true',
-    MUSE_INPUT_MAX_BUDGET_USD: scenario === 'low-budget' ? '0.10' : '1.00',
+    MUSE_INPUT_MAX_BUDGET_USD: scenario === 'low-budget' ? '0.000001' : '1.00',
     ...(scenario === 'image' && { MUSE_INPUT_IMAGE_GENERATION: 'true' }),
   }
 }

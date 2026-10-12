@@ -5,7 +5,7 @@
 // so an incomplete or missing scope can never be silently seeded again.
 
 import { randomUUID } from 'node:crypto'
-import { mkdirSync, readFileSync, readdirSync, statSync } from 'node:fs'
+import { rmdirSync, mkdirSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { mkdir, rmdir, stat } from 'node:fs/promises'
 import path from 'node:path'
 import * as z from 'zod/mini'
@@ -22,7 +22,8 @@ import {
   DAILY_BUDGET_LOCK_WAIT_MS,
   UI_TEXT,
 } from '../../shared/constants'
-import { fill } from '../../shared/l10n/text'
+import { fill, setUiText } from '../../shared/l10n/text'
+import type { UiText } from '../../shared/l10n/en'
 import { Usd, usdAmountSchema, type UsdAmount } from '../../shared/usd'
 import { writeFileAtomically } from '../fsAtomic'
 import { storeErrorCode } from './storeErrors'
@@ -109,6 +110,7 @@ const claimFlagsSchema = z.object({
 type ClaimFlags = z.infer<typeof claimFlagsSchema>
 
 export type SessionBudgetJournalDeps = {
+  readonly l10n?: { readonly table: UiText; readonly locale: string }
   readonly directory: string
   readonly sleep: (ms: number) => Promise<void>
   /** Daily scopes recover only new, durably nonsent claims whose PID no longer exists. */
@@ -293,6 +295,7 @@ function projectedTotal(scope: Scope): SessionBudgetTotal {
 export function createSessionBudgetJournal(
   deps: SessionBudgetJournalDeps,
 ): ProjectedSessionBudgetJournal {
+  if (deps.l10n !== undefined) setUiText(deps.l10n.table, deps.l10n.locale)
   const ownerId = randomUUID()
   const options = {
     sleep: deps.sleep,
@@ -489,6 +492,15 @@ export function createSessionBudgetJournal(
       claimId: created.claimId,
       reservedUsd: Usd.from(created.reservedUsd).toAmount(),
       ...(created.ownerPid !== undefined && {
+        markUnsent: () => {
+          const claim = owned()
+          if (claim.settledUsd !== undefined) throw unavailable()
+          try {
+            rmdirSync(path.join(scope.directory, CLAIMS_DIRECTORY, claim.claimId, SENT_DIRECTORY))
+          } catch (error: unknown) {
+            if (storeErrorCode(error) !== MISSING) throw unavailable(error)
+          }
+        },
         markSent: () => {
           const claim = owned()
           if (claim.settledUsd !== undefined) throw unavailable()

@@ -5592,5 +5592,8 @@
     "other": "maksymalnie {count} tokena",
     "few": "maksymalnie {count} tokeny",
     "many": "maksymalnie {count} tokenów"
-  }
+  },
+  "execProviderNotCatalogue": "Tego modelu nie ma w katalogu tej wersji: {model}.",
+  "providerCliModelsRequired": "Użyj --model <id> (powtórz dla kolejnych modeli). Dostępne: {models}.",
+  "providerCliConfigure": "Sprawdź opcje: --preset {preset}, --model <id>, --key-stdin, --address <url>, --private-ok."
 }

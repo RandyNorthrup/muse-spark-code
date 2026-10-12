@@ -944,6 +944,13 @@ export class RequestTransport {
       try {
         response = await this.fetchWithIdleDeadline(url, requestInit)
       } catch (error: unknown) {
+        if (
+          error instanceof Error &&
+          error.name === 'UserRefusalError' &&
+          'code' in error &&
+          error.code === 'not_sent'
+        )
+          throw error
         if (error instanceof ModelApiError || signal?.aborted === true) {
           throw error instanceof ModelApiError
             ? redactModelApiError(error, credentials.redact, NETWORK_FAILURE_STATUS)

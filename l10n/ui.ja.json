@@ -5127,5 +5127,8 @@
   "execBudgetQuote": "入力 {inputTokens}（{inputCost}）+ 出力上限 {outputTokens}（{outputCost}）= {estimate}。実行予算 {cap}、使用済み {spent}。リクエストは送信されていません。",
   "execTokenCount": {
     "other": "最大 {count} トークン"
-  }
+  },
+  "execProviderNotCatalogue": "このモデルはこのビルドのカタログにありません: {model}。",
+  "providerCliModelsRequired": "--model <id> を指定してください（複数の場合は繰り返します）。利用可能: {models}。",
+  "providerCliConfigure": "次のオプションを確認してください: --preset {preset}, --model <id>, --key-stdin, --address <url>, --private-ok。"
 }

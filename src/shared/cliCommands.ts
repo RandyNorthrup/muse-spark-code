@@ -142,7 +142,7 @@ export function cliCommands() {
     },
     {
       route: 'help',
-      name: 'help --all',
+      name: 'help reference / help --all',
       description: UI_TEXT.referenceIntro,
       text: { ui: 'referenceIntro' },
     },

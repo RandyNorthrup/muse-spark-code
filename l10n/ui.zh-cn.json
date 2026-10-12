@@ -5127,5 +5127,8 @@
   "execBudgetQuote": "输入 {inputTokens}（{inputCost}）+ 输出上限 {outputTokens}（{outputCost}）= {estimate}；运行预算 {cap}，已用 {spent}。请求未发送。",
   "execTokenCount": {
     "other": "最多 {count} 个令牌"
-  }
+  },
+  "execProviderNotCatalogue": "此模型不在此版本的目录中：{model}。",
+  "providerCliModelsRequired": "使用 --model <id>（多个模型可重复指定）。可用模型：{models}。",
+  "providerCliConfigure": "检查这些选项：--preset {preset}, --model <id>, --key-stdin, --address <url>, --private-ok。"
 }

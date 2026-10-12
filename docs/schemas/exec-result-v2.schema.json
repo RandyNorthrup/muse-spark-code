@@ -32,6 +32,7 @@
     "model": { "type": ["string", "null"] },
     "sessionId": { "type": ["string", "null"] },
     "ephemeral": { "type": "boolean" },
+    "usageHistory": { "type": "string", "const": "omitted_ephemeral" },
     "finalMessage": { "type": "string" },
     "output": {
       "type": "object",

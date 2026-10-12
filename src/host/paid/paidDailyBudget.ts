@@ -17,7 +17,7 @@ import { fingerprint } from '../../core/verify/fingerprint'
 import { estimateCostUsd } from '../../core/usage/insights'
 import { unlessAborted } from '../../core/timeouts'
 import { PAID_DAILY_BUDGET, PAID_PRICES_USD, UI_TEXT } from '../../shared/constants'
-import { fill } from '../../shared/l10n/text'
+import { fill, uiLocale } from '../../shared/l10n/text'
 import { formatUsd } from '../../shared/l10n/exactUsd'
 import { modelApiPaidTier } from '../../shared/paid'
 import { createSessionBudgetJournal } from '../backend/sessionBudgetJournal'
@@ -56,6 +56,7 @@ export function createPaidDailyBudget(deps: {
     directory: deps.directory,
     sleep: deps.sleep,
     recoverUnsent: true,
+    l10n: { table: UI_TEXT, locale: uiLocale() },
     initialBudget: () =>
       Promise.resolve({ spentUsd: Usd.from(0).toAmount(), hasUnknownHistoricalFees: false }),
   })

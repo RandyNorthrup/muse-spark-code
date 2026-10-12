@@ -17401,6 +17401,10 @@ export class ModelApiHost implements AgentHost {
   public async listModels(sessionId?: string): Promise<readonly ModelSummary[]> {
     const ids = this.deps.hasMetaCredential?.() === false ? [] : await this.deps.client.listModels()
     const providers = (await this.deps.models?.list?.()) ?? []
+    const preferred = await this.deps.models?.defaultModel?.()
+    const isConfigured =
+      preferred !== undefined ||
+      (this.deps.models?.defaultModel !== undefined && providers.length > 0)
     const active = sessionId === undefined ? undefined : this.sessions.get(sessionId)?.modelId
     return [
       ...ids
@@ -17420,10 +17424,14 @@ export class ModelApiHost implements AgentHost {
             providerId: replayProducer(id).provider,
             trainsOnContent: id.startsWith('copilot/'),
           }),
-          isDefault: id === DEFAULT_MODEL_ID,
+          isDefault: id === (isConfigured ? preferred : DEFAULT_MODEL_ID),
           isActive: id === active,
         })),
-      ...providers.map((model) => ({ ...model, isActive: model.modelId === active })),
+      ...providers.map((model) => ({
+        ...model,
+        ...(isConfigured && { isDefault: model.modelId === preferred }),
+        isActive: model.modelId === active,
+      })),
     ]
   }
 

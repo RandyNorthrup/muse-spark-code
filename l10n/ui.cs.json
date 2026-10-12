@@ -5592,5 +5592,8 @@
     "other": "nejvýše {count} tokenů",
     "few": "nejvýše {count} tokeny",
     "many": "nejvýše {count} tokenu"
-  }
+  },
+  "execProviderNotCatalogue": "Tento model není v katalogu tohoto sestavení: {model}.",
+  "providerCliModelsRequired": "Použijte --model <id> (opakujte pro další modely). Dostupné: {models}.",
+  "providerCliConfigure": "Zkontrolujte přepínače: --preset {preset}, --model <id>, --key-stdin, --address <url>, --private-ok."
 }
