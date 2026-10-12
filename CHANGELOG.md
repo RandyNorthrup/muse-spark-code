@@ -23,6 +23,8 @@ happened, not what was planned; superseded entries are kept.
 
 - ACP backend advisories use negotiated session notices once per session, keeping model answers free of feature-state and transport notices.
 
+- ACP slash handling: unknown slash commands are answered locally with the nearest known commands and never reach the model; `/help <command>` explains one command; `\/` sends a literal leading slash to the model; `/models` is answered as unknown, matching the Help reference. `session/load` of an unknown id answers resource-not-found like a prompt on an unknown session. `/compact` always ends with a message saying what it did. The command list arrives with the new or loaded session. Inactive automatic-compaction status is never sent as answer text.
+
 ### Pending
 
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached

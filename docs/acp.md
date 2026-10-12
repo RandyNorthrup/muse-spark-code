@@ -357,7 +357,16 @@ Creator's ACP Client, sublime-acp, Devin Desktop's custom agents).
 - **Commands**: the session's skills, run as `/name arguments`, plus M112's
   `/questions` and `/answer <n> <text>` (reserved ahead of skills), and
   M116's `/playbook <status|record|settings ...>`, answered locally with no
-  model turn.
+  model turn. The command list (`available_commands_update`) arrives with the
+  new or loaded session, so the editor builds its slash menu before the
+  first prompt; a skill that settles later is announced through the
+  backend's skill-change event. A slash message that names no local command,
+  no advertised command and no installed skill is answered locally with the
+  nearest known commands and never reaches the model. `/help <command>`
+  explains one command, or says there is no such topic. A message that must
+  start with a slash starts with `\/`, which the agent strips and sends to
+  the model with a literal leading slash; `/models` is not a command (help
+  lists the real ones), so it gets the unknown-command answer.
 - **Permission prompts**: the backend's own choices (allow once, allow for
   the session, reject). A prompt the editor cancels, or answers with a
   choice it was not offered, is rejected; nothing runs by default.
@@ -372,7 +381,9 @@ Creator's ACP Client, sublime-acp, Devin Desktop's custom agents).
 - **Sessions**: listed, loaded with their history, resumed and closed.
   Closing a session (or loading it again) ends its running prompt as
   cancelled and stops that turn, and an answer you give it afterwards
-  decides nothing.
+  decides nothing. Loading an id no host holds answers resource-not-found,
+  the same shape as a prompt on an unknown session, never an internal
+  error.
 - **Prompts**: text, files as @mentions, attached excerpts, and PNG, JPEG,
   GIF and WebP images up to 10 MB.
 - **MCP servers** the editor offers (Zed's context servers, Jupyter AI's
@@ -633,11 +644,15 @@ ACP advertises `/compact` alongside skills. An exact text-only `/compact`
 prompt calls the backend's shared compaction core and waits for its updates
 before returning. Cancellation stops the compaction; another prompt is refused
 while it runs. The headless runtime uses this same ACP dispatch and its existing
-request/budget ledger. On an empty headless session, `/compact` is a no-op and
-sends no model request. Its exec result retains the response-proof contract:
+request/budget ledger. Every `/compact` ends with a message saying what it
+did: what was compacted, that there was nothing to compact yet, that it
+stopped, or that it failed. On an empty session it answers that there is
+nothing to compact yet and sends no model request. Its exec result retains the response-proof contract:
 `incomplete` (exit 8), null terminal and `no_compactable_history`, rather than
 claiming a completed model response. Attachments or additional arguments remain ordinary
-prompts, rather than being silently discarded as command input.
+prompts, rather than being silently discarded as command input. While automatic
+compaction stays off by design, the turn says nothing about it: no status of
+that feature is sent as answer text or as a notice.
 
 ## Local usage history
 
@@ -769,7 +784,7 @@ publishing, hosted links, team destinations and email remain phase 2/3.
 
 ## Help and reference
 
-Send `/help` in an ACP session for its local command list and the [generated reference](reference.md). Run `muse-spark-code-acp help --all` in a terminal for the complete reference. Help starts no backend and makes no model request.
+Send `/help` in an ACP session for its local command list and the [generated reference](reference.md). Run `muse-spark-code-acp help --all` in a terminal for the complete reference. Help starts no backend and makes no model request. `/help <command>` explains one command; unknown slash commands and the `\/` escape are answered the same local way (see [What the editor sees](#what-the-editor-sees)).
 
 ## Resource status and resume
 

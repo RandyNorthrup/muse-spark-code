@@ -49,6 +49,7 @@ import {
   type AgentHost,
   type AgentSession,
   isPromptSettledError,
+  isSessionNotFoundError,
   type ModelSummary,
   type SessionMcpServer,
   type SkillSummary,
@@ -305,6 +306,13 @@ interface SessionClaim {
 }
 
 const CANCELLED_TERMINAL = 'cancelled'
+/** How many known commands the unknown-slash answer names. */
+const NEAREST_COMMAND_COUNT = 3
+
+/** Alphabetical fallback order for the unknown-slash suggestions. */
+function compareCommandName(left: string, right: string): number {
+  return left.localeCompare(right)
+}
 const FAILED_TERMINAL = 'failed'
 // Turns that finished before `sendTurn` answered with their id; a few suffice.
 const EARLY_FINISHES_KEPT = 8
@@ -508,7 +516,84 @@ class AcpSession {
     }
   }
 
-  /** `/selector arguments` naming one of the session's skills runs that skill, as in the panel. */
+  /**
+   * A slash message no local command, advertised command or installed skill
+   * owns is answered here, never sent to the model. `/help <topic>` answers
+   * about that command. A name the session owns falls through to its owner.
+   */
+  private unknownSlashText(typed: string): string | undefined {
+    if (typed === '/' || !typed.startsWith('/')) {
+      return undefined
+    }
+    const match = /^\/(\S+)(?:\s+([\s\S]*))?$/.exec(typed)
+    const name = match?.[1] ?? ''
+    const topic = match?.[2]?.trim() ?? ''
+    if (topic !== '' && name === SLASH_COMMAND_NAMES.help) {
+      return this.helpTopicText(topic)
+    }
+    const known = new Set(this.availableCommands().map((command) => command.name))
+    const isKnown = name === '' || name === SLASH_COMMAND_NAMES.help || known.has(name)
+    return isKnown
+      ? undefined
+      : fill(UI_TEXT.acpUnknownCommand, {
+          command: `/${name}`,
+          commands: this.nearestCommands(name),
+        })
+  }
+
+  /** The `/help <topic>` answer: what the command does, or no such topic. */
+  private helpTopicText(topic: string): string {
+    const found = this.availableCommands().find((command) => command.name === topic)
+    return found === undefined
+      ? fill(UI_TEXT.acpHelpUnknownTopic, { topic })
+      : `/${found.name}: ${found.description}`
+  }
+
+  /** Up to three known commands `name` is nearest to, for the unknown answer. */
+  private nearestCommands(name: string): string {
+    const names = this.availableCommands().map((command) => command.name)
+    const lower = name.toLowerCase()
+    const starts = names
+      .filter((candidate) => candidate.toLowerCase().startsWith(lower))
+      .toSorted(compareCommandName)
+    const holds = names
+      .filter((candidate) => !starts.includes(candidate) && candidate.toLowerCase().includes(lower))
+      .toSorted(compareCommandName)
+    const nearest = [...starts, ...holds].slice(0, NEAREST_COMMAND_COUNT)
+    const shown =
+      nearest.length > 0
+        ? nearest
+        : names.toSorted(compareCommandName).slice(0, NEAREST_COMMAND_COUNT)
+    return shown.map((candidate) => `/${candidate}`).join(', ')
+  }
+
+  /** A finished compact says what it did, so the turn never ends silent. */
+  private answerCompaction(status: string, reason: string | undefined): void {
+    let text =
+      reason === undefined
+        ? UI_TEXT.nothingToCompact
+        : fill(UI_TEXT.nothingToCompactReason, { reason })
+    switch (status) {
+      case 'completed': {
+        text = UI_TEXT.compactionDone
+        break
+      }
+      case 'cancelled': {
+        text = UI_TEXT.compactionStoppedNotice
+        break
+      }
+      case 'failed': {
+        text = UI_TEXT.compactionFailed
+        break
+      }
+      default: {
+        break
+      }
+    }
+    this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
+  }
+
+  /** `/selector arguments` naming one of the session's listed skills runs that skill. */
   private withSkill(parts: TurnPart[]): TurnPart[] {
     const [first, ...rest] = parts
     if (first?.type !== 'text') {
@@ -524,14 +609,6 @@ class AcpSession {
         ? { type: 'skill', selector: invocation.selector }
         : { type: 'skill', selector: invocation.selector, arguments: invocation.arguments }
     return [skill, ...rest]
-  }
-
-  private async announceCommands(): Promise<void> {
-    if (this.areCommandsAnnounced) {
-      return
-    }
-    this.areCommandsAnnounced = true
-    await this.refreshCommands()
   }
 
   private async refreshCommands(): Promise<void> {
@@ -1674,6 +1751,18 @@ class AcpSession {
     })
   }
 
+  /**
+   * Sends the session's command list once; the agent calls it while adopting
+   * a session, so later prompts find it already sent.
+   */
+  public async announceCommands(): Promise<void> {
+    if (this.areCommandsAnnounced) {
+      return
+    }
+    this.areCommandsAnnounced = true
+    await this.refreshCommands()
+  }
+
   public async prompt(
     blocks: readonly ContentBlock[],
     accounting?: PromptAccounting,
@@ -1773,7 +1862,11 @@ class AcpSession {
     }
     const preparing: PreparingPrompt = { isCancelled: false, abort: new AbortController() }
     this.preparing = preparing
-    let parsed: Awaited<ReturnType<typeof promptParts>>
+    // A `\/...` message goes to the model with a literal leading slash: set
+    // where the escape is stripped, read where the turn is sent.
+    let isLiteralSlash: boolean
+    let turnParts: TurnPart[]
+    let turnText: string
     let isCompact: boolean
     let isUsage: boolean
     let lease: Awaited<ReturnType<AcpQuestionRegistry['peekQueued']>>
@@ -1796,7 +1889,7 @@ class AcpSession {
       )
       const media =
         isNeedsMedia && this.deps.media !== undefined ? await this.mediaPort() : undefined
-      parsed = await promptParts(
+      const parsed = await promptParts(
         blocks,
         this.cwd,
         media,
@@ -1872,7 +1965,10 @@ class AcpSession {
             sessionUpdate: 'agent_message_chunk',
             content: {
               type: 'text',
-              text: compactReference(this.availableCommands().map((command) => command.name)),
+              text: [
+                compactReference(this.availableCommands().map((command) => command.name)),
+                UI_TEXT.acpCommandHelpNote,
+              ].join('\n\n'),
             },
           })
         await this.outbox
@@ -1963,7 +2059,38 @@ class AcpSession {
         await this.outbox
         return 'end_turn'
       }
-      isUsage = await this.usageReply(blocks, preparing)
+      // `\/...` sends a literal leading slash to the model: the escape is
+      // stripped here, after every local command missed it, and nothing
+      // below names the stripped text a command, a skill or an unknown
+      // slash. A lone `/` is ordinary prompt text, not a command.
+      const escape =
+        parsed.parts.length === 1 && part?.type === 'text' && typed.startsWith('/\\')
+          ? {
+              parts: [{ ...part, text: part.text.replace(/^(\s*)\/\\\//u, '$1/') }],
+              text: parsed.displayText.replace(/^(\s*)\/\\\//u, '$1/'),
+            }
+          : undefined
+      isLiteralSlash = escape !== undefined
+      turnParts = escape?.parts ?? parsed.parts
+      turnText = escape?.text ?? parsed.displayText
+      // A playbook answer, even a refusal or a usage correction, owns its
+      // command: only a slash nothing above named is unknown.
+      if (!isLiteralSlash && local === undefined) {
+        const unknownText =
+          parsed.parts.length === 1 && part?.type === 'text'
+            ? this.unknownSlashText(typed)
+            : undefined
+        if (unknownText !== undefined) {
+          if (!preparing.isCancelled && !this.isDisposed)
+            this.send({
+              sessionUpdate: 'agent_message_chunk',
+              content: { type: 'text', text: unknownText },
+            })
+          await this.outbox
+          return 'end_turn'
+        }
+      }
+      isUsage = !isLiteralSlash && (await this.usageReply(blocks, preparing))
       if (!isUsage && !isCompact && local === undefined)
         lease = await this.questionRegistry?.peekQueued()
     } catch (error: unknown) {
@@ -2022,18 +2149,23 @@ class AcpSession {
         // compact starts synchronously, so cancellation need not wait for it.
         // No answer lease is peeked for a compact: a queued answer stays queued.
         const outcome = await this.session.compact()
+        // Every local command says what it did: a compact with nothing to
+        // say would end the turn with no text and no update.
+        this.answerCompaction(outcome.status, outcome.reason)
         this.finishCompaction(outcome.status)
       } else {
         const mediaQueued = [...this.attachments]
         const starting = this.session.sendTurn(
           [
             ...(pending.answerLease?.parts ?? []),
-            ...this.withSkill([
-              ...parsed.parts,
-              ...mediaQueued.map((attachment) => attachment.part),
-            ]),
+            ...(isLiteralSlash
+              ? turnParts
+              : this.withSkill([
+                  ...turnParts,
+                  ...mediaQueued.map((attachment) => attachment.part),
+                ])),
           ],
-          parsed.displayText,
+          turnText,
         )
         this.starting = starting
         const submission = await starting
@@ -2361,6 +2493,11 @@ class AgentState {
       await acp.holdSchedules()
       await prepare(acp)
       await acp.startAccounts()
+      // The editor builds its slash menu from available_commands_update, so
+      // the list goes out with the new or loaded session, never with the
+      // first prompt: prepare ran first, so modes, models and replay order
+      // keep what the session had.
+      await acp.announceCommands()
       this.ensureClaim(claim, host)
       if (acp.isReleased) {
         // A newer load of this session, or a close, let it go meanwhile.
@@ -2577,6 +2714,9 @@ class AgentState {
       if (this.claims.get(sessionId) === claim) {
         this.claims.delete(sessionId)
       }
+      // An id no host holds loads nothing: the same resource-not-found a
+      // prompt on an unknown session answers, never an internal error.
+      if (isSessionNotFoundError(error)) throw RequestError.resourceNotFound(sessionId)
       throw error
     }
   }

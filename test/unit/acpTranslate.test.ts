@@ -247,11 +247,7 @@ describe('UpdateTranslator', () => {
 
   it('sends every advisory only as a negotiated notice, once per session', () => {
     const translator = new UpdateTranslator(CWD, false, 'modelApi', true)
-    for (const text of [
-      UI_TEXT.autoCompactionAwaitingEvaluation,
-      'MCP unavailable',
-      'Retry pacing',
-    ]) {
+    for (const text of ['Compaction evaluation pending', 'MCP unavailable', 'Retry pacing']) {
       const event = { type: 'backendNotice', level: 'info', text } as const
       expect(translator.updates(event)).toEqual([
         { sessionUpdate: 'notice', severity: 'info', title: text },

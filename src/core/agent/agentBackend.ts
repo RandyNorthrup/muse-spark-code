@@ -61,6 +61,8 @@ export interface HostExit {
 // `is…` guards instead, which read the name and the field every copy sets;
 // the lint config refuses `instanceof` on these classes in src/.
 const SESSION_NOT_LOADED_ERROR = 'SessionNotLoadedError'
+/** The brand a load failure carries when no host holds the session id. */
+export const SESSION_NOT_FOUND_ERROR = 'SessionNotFoundError'
 const PROMPT_SETTLED_ERROR = 'PromptSettledError'
 const GOAL_REFUSED_ERROR = 'GoalRefusedError'
 const MUSE_CODE_FAULT_ERROR = 'MuseCodeFaultError'
@@ -84,6 +86,23 @@ export class SessionNotLoadedError extends Error {
     super(message)
     this.name = SESSION_NOT_LOADED_ERROR
   }
+}
+
+/**
+ * A load named a session id no host holds (never opened, or gone before the
+ * load). The agent answers resource-not-found, never an internal error. The
+ * name alone is the brand: the agent already knows the id from its request.
+ */
+export class SessionNotFoundError extends Error {
+  public constructor(public readonly sessionId: string) {
+    super(`session ${sessionId} is not known to this host`)
+    this.name = SESSION_NOT_FOUND_ERROR
+  }
+}
+
+/** Whether a load failed for a session id no host holds. */
+export function isSessionNotFoundError(error: unknown): error is SessionNotFoundError {
+  return isNamedError(error, SESSION_NOT_FOUND_ERROR)
 }
 
 /** Whether a host refused a command for a session it no longer holds. */
