@@ -549,6 +549,7 @@ describe('ACP agent BYO model options', () => {
     {
       modelId: 'openrouter/deepseek/deepseek-v4-pro',
       displayLabel: 'DeepSeek V4 Pro (OpenRouter)',
+      effortLevels: ['low', 'high', 'xhigh'],
       contextLimit: 128_000,
       isDefault: false,
       isActive: false,
@@ -562,6 +563,37 @@ describe('ACP agent BYO model options', () => {
     },
   ]
 
+  it('offers the selected provider efforts and accepts xhigh while rejecting unlisted tiers', async () => {
+    const host = new FakeAgentHost([...BYO_MODELS])
+    const { agent, client } = agentFor(host)
+    await client.connectWith(agent, async (connection) => {
+      const created = await connection.request('session/new', { cwd: CWD, mcpServers: [] })
+      const selected = await connection.request('session/set_config_option', {
+        sessionId: created.sessionId,
+        configId: 'model',
+        value: BYO_MODELS[1]?.modelId ?? '',
+      })
+      const effort = selected.configOptions.find((option) => option.id === 'effort')
+      expect(effort?.type === 'select' && effort.options).toEqual([
+        { value: 'low', name: UI_TEXT.effortLevels.low },
+        { value: 'high', name: UI_TEXT.effortLevels.high },
+        { value: 'xhigh', name: UI_TEXT.effortLevels.xhigh },
+      ])
+      await connection.request('session/set_config_option', {
+        sessionId: created.sessionId,
+        configId: 'effort',
+        value: 'xhigh',
+      })
+      expect(host.sessions.at(-1)?.setReasoningEffort).toHaveBeenLastCalledWith('xhigh')
+      await expect(
+        connection.request('session/set_config_option', {
+          sessionId: created.sessionId,
+          configId: 'effort',
+          value: 'max',
+        }),
+      ).rejects.toThrow('low, high, xhigh')
+    })
+  })
   it('lists BYO refs beside Meta models and selects one', async () => {
     const host = new FakeAgentHost([...BYO_MODELS])
     const { agent, client } = agentFor(host)

@@ -12,6 +12,7 @@ import {
 import { UserRefusalError } from '../refusal'
 import { fill } from '../../shared/l10n/text'
 import { TOKENS_PER_MILLION, UI_TEXT } from '../../shared/constants'
+import { isEffortLevel } from '../../shared/effort'
 import { parseModelRef, sanitizeModelLabel } from './modelRef'
 import { reserveRequestAmount, settleUsageAmount, type ModelPricing } from './priceCard'
 
@@ -54,6 +55,10 @@ export function createProviderRegistry(deps: ProviderRegistryDeps): ModelResolve
             providerId: policy.identity.provider,
             providerLabel: sanitizeModelLabel(model.providerLabel ?? policy.identity.provider),
             contextLimit: model.contextTokens,
+            effortLevels:
+              policy.reasoning.effortLevels.state === 'yes'
+                ? policy.reasoning.effortLevels.value.filter(isEffortLevel)
+                : [],
             isActive: false,
             isDefault: model.isDefault === true,
             pricing: pricing.kind,

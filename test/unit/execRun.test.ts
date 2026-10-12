@@ -144,7 +144,9 @@ const dist = folder()
 const builtMain = path.join(folder(), 'dist', 'acp.js')
 beforeAll(async () => {
   await buildModelApiBundle(dist)
-  await buildHostBundles(dist, { usageService: path.resolve('src/runtime/usage/usageServiceEntry.ts') })
+  await buildHostBundles(dist, {
+    usageService: path.resolve('src/runtime/usage/usageServiceEntry.ts'),
+  })
   writeFileSync(
     path.join(dist, 'providerCatalog.json'),
     readFileSync('vendor/models-dev/snapshot.json'),
@@ -2005,156 +2007,200 @@ function providerCaptureStream(file: string) {
     .join('')
 }
 for (const family of providerFamilies) {
-  it.each(['success', 'budget', 'unpriced', 'default', 'json', 'persistent'])(
-    `EXECPROV real loopback ${family.format}: %s`,
-    async (mode) => {
-      const stream = providerCaptureStream(family.capture)
-      const dispatched: string[] = []
-      const server = createServer((request, response) => {
-        let body = ''
-        request.on('data', (part: Buffer) => {
-          body += part.toString('utf8')
-        })
-        request.on('end', () => {
-          if (request.method === 'GET')
-            response.end(JSON.stringify({ data: [{ id: family.native }] }))
-          else {
-            dispatched.push(body)
-            response.writeHead(200, {
-              'Content-Type':
-                family.format === 'ollama' ? 'application/x-ndjson' : 'text/event-stream',
-            })
-            response.end(stream)
-          }
-        })
+  it.each([
+    'success',
+    'budget',
+    'unpriced',
+    'default',
+    'json',
+    'persistent',
+    ...(family.format === 'anthropic' ? ['effort'] : []),
+  ])(`EXECPROV real loopback ${family.format}: %s`, async (mode) => {
+    const stream = providerCaptureStream(family.capture)
+    const dispatched: string[] = []
+    const server = createServer((request, response) => {
+      let body = ''
+      request.on('data', (part: Buffer) => {
+        body += part.toString('utf8')
       })
-      await new Promise<void>((resolve) => {
-        server.listen(0, '127.0.0.1', () => {
-          resolve()
-        })
-      })
-      const address = server.address()
-      if (address === null || typeof address === 'string')
-        throw new Error('Missing loopback address')
-      const origin = `http://127.0.0.1:${String(address.port)}`
-      const h = await harness(
-        [
-          '--provider',
-          'local',
-          '--model',
-          family.native,
-          '--max-budget-usd',
-          mode === 'budget' ? '0.000001' : '0.1',
-          '--max-requests',
-          '1',
-          '--ephemeral',
-        ],
-        [],
-        {},
-      )
-      if (mode === 'persistent') {
-        h.deps.options = { ...h.deps.options, ephemeral: false }
-        h.deps.distDir = path.resolve('dist')
-      }
-      if (mode === 'json') h.deps.options = { ...h.deps.options, output: 'json' }
-      else if (mode === 'default') h.deps.options = { ...h.deps.options, model: undefined }
-      const yes = { state: 'yes', value: true }
-      const limits = { contextTokens: 1_000_000, outputTokens: 32_768 }
-      const capability = {
-        tools: { calling: yes },
-        reasoning: { supported: { state: 'no' }, canDisable: yes },
-        output: { acceptsLimit: yes, maxTokens: 32_768 },
-        limits: { contextTokens: 1_000_000 },
-      }
-      const price = {
-        input: family.format === 'anthropic' ? 0.000004 : 0.000001,
-        output: family.format === 'anthropic' ? 0.00002 : 0.000002,
-        cachedInput: family.format === 'anthropic' ? 0.0000002 : 0.0000001,
-        cacheWrite: family.format === 'anthropic' ? 0.000005 : 0.00000125,
-      }
-      const config = providerConfigFile(h.homeDir)
-      writeFileSync(
-        config,
-        JSON.stringify({
-          v: 1,
-          defaultModel: `local/${family.native}`,
-          providers: [
-            {
-              id: 'local',
-              preset: 'custom',
-              format: family.format,
-              address: origin,
-              privateNetwork: true,
-              auth: 'apiKey',
-              models: ['expensive', family.native],
-              numCtx: { expensive: 1_000_000, [family.native]: 1_000_000 },
-              modelLimits: { expensive: limits, [family.native]: limits },
-              modelCapabilities: { expensive: capability, [family.native]: capability },
-              prices: { expensive: price, ...(mode !== 'unpriced' && { [family.native]: price }) },
-            },
-          ],
-        }),
-      )
-      await h.store.delete(SECRET_KEYS.modelApiKey)
-      await h.store.store(
-        'museSpark.provider.local',
-        formatStoredProviderSecret({ v: 1, auth: 'apiKey', origin }, 'synthetic-owned-key'),
-      )
-      h.deps.fetch = globalThis.fetch
-      try {
-        const run = await h.run()
-        if (mode === 'budget' || mode === 'unpriced') {
-          expect(run.code, JSON.stringify(run.result)).toBe(EXEC_EXIT.limit)
-          expect(dispatched).toHaveLength(0)
-          expect(result(run).usage.requests).toBe(0)
-          const daily = createRuntimeDailyBudget({
-            dataFolder: agentDataFolder({
-              platform: process.platform,
-              env: {},
-              homeDir: h.homeDir,
-            }),
-            now: Date.now,
-            sleep: () => Promise.resolve(),
+      request.on('end', () => {
+        if (request.method === 'GET')
+          response.end(JSON.stringify({ data: [{ id: family.native }] }))
+        else {
+          dispatched.push(body)
+          response.writeHead(200, {
+            'Content-Type':
+              family.format === 'ollama' ? 'application/x-ndjson' : 'text/event-stream',
           })
-          const claim = await daily.reserve(Usd.from(5).toAmount(), new AbortController().signal)
-          await claim.settle(Usd.from(0).toAmount())
-        } else {
-          expect(run.code, JSON.stringify(run.result)).toBe(0)
-          expect(dispatched).toHaveLength(1)
-          expect(result(run).usageHistory).toBe(
-            mode === 'persistent' ? undefined : 'omitted_ephemeral',
-          )
-          expect(h.err.chunks.join('')).not.toContain('Usage history could not be recorded')
-          if (mode === 'persistent') {
-            const root = path.join(agentDataFolder(h.deps), 'usage')
-            const files = readdirSync(root, { recursive: true }).filter((name) => typeof name === 'string' && name.endsWith('.jsonl'))
-            expect(files).toHaveLength(1)
-            const records = files.flatMap((name) => readFileSync(path.join(root, String(name)), 'utf8').trim().split('\n').map((line): unknown => JSON.parse(line)))
-            expect(records).toEqual([expect.objectContaining({
-              client: 'cli', backend: 'modelApi', provider: 'local', model: `local/${family.native}`, outcome: 'completed', tokens: expect.objectContaining({ input: family.input, output: family.output }),
-            })])
-          }
-
-          expect(result(run)).toMatchObject({
-            model: `local/${family.native}`,
-            usage: {
-              requests: 1,
-              inputTokens: family.input,
-              outputTokens: family.output,
-              cachedTokens: family.cached,
-              costUsd: { settled: Usd.from(family.cost).toAmount(), uncertain: '0', reserved: '0' },
-            },
-          })
+          response.end(stream)
         }
-      } finally {
-        server.closeAllConnections()
-        await new Promise<void>((resolve, reject) => {
-          server.close((error) => {
-            if (error === undefined) resolve()
-            else reject(error)
-          })
+      })
+    })
+    await new Promise<void>((resolve) => {
+      server.listen(0, '127.0.0.1', () => {
+        resolve()
+      })
+    })
+    const address = server.address()
+    if (address === null || typeof address === 'string') throw new Error('Missing loopback address')
+    const origin = `http://127.0.0.1:${String(address.port)}`
+    const h = await harness(
+      [
+        '--provider',
+        'local',
+        '--model',
+        family.native,
+        '--max-budget-usd',
+        mode === 'budget' ? '0.000001' : '0.1',
+        '--max-requests',
+        '1',
+        '--ephemeral',
+      ],
+      [],
+      {},
+    )
+    switch (mode) {
+      case 'json': {
+        h.deps.options = { ...h.deps.options, output: 'json' }
+        break
+      }
+      case 'default': {
+        h.deps.options = { ...h.deps.options, model: undefined }
+        break
+      }
+      case 'effort': {
+        h.deps.options = { ...h.deps.options, ephemeral: false, effort: 'xhigh' }
+        break
+      }
+      case 'persistent': {
+        {
+          h.deps.options = { ...h.deps.options, ephemeral: false }
+          // No default
+        }
+        break
+      }
+    }
+    const yes = { state: 'yes', value: true }
+    const limits = { contextTokens: 1_000_000, outputTokens: 32_768 }
+    const capability = {
+      tools: { calling: yes },
+      reasoning:
+        mode === 'effort'
+          ? {
+              supported: yes,
+              canDisable: yes,
+              modes: { state: 'yes', value: ['adaptive'] },
+              effortLevels: { state: 'yes', value: ['low', 'medium', 'high', 'xhigh', 'max'] },
+            }
+          : { supported: { state: 'no' }, canDisable: yes },
+      output: { acceptsLimit: yes, maxTokens: 32_768 },
+      limits: { contextTokens: 1_000_000 },
+    }
+    const price = {
+      input: family.format === 'anthropic' ? 0.000004 : 0.000001,
+      output: family.format === 'anthropic' ? 0.00002 : 0.000002,
+      cachedInput: family.format === 'anthropic' ? 0.0000002 : 0.0000001,
+      cacheWrite: family.format === 'anthropic' ? 0.000005 : 0.00000125,
+    }
+    const config = providerConfigFile(h.homeDir)
+    writeFileSync(
+      config,
+      JSON.stringify({
+        v: 1,
+        defaultModel: `local/${family.native}`,
+        providers: [
+          {
+            id: 'local',
+            preset: 'custom',
+            format: family.format,
+            address: origin,
+            privateNetwork: true,
+            auth: 'apiKey',
+            models: ['expensive', family.native],
+            numCtx: { expensive: 1_000_000, [family.native]: 1_000_000 },
+            modelLimits: { expensive: limits, [family.native]: limits },
+            modelCapabilities: { expensive: capability, [family.native]: capability },
+            prices: {
+              expensive: price,
+              ...(mode !== 'unpriced' && { [family.native]: price }),
+            },
+          },
+        ],
+      }),
+    )
+    await h.store.delete(SECRET_KEYS.modelApiKey)
+    await h.store.store(
+      'museSpark.provider.local',
+      formatStoredProviderSecret({ v: 1, auth: 'apiKey', origin }, 'synthetic-owned-key'),
+    )
+    h.deps.fetch = globalThis.fetch
+    try {
+      const run = await h.run()
+      if (mode === 'budget' || mode === 'unpriced') {
+        expect(run.code, JSON.stringify(run.result)).toBe(EXEC_EXIT.limit)
+        expect(dispatched).toHaveLength(0)
+        expect(result(run).usage.requests).toBe(0)
+        const daily = createRuntimeDailyBudget({
+          dataFolder: agentDataFolder({
+            platform: process.platform,
+            env: {},
+            homeDir: h.homeDir,
+          }),
+          now: Date.now,
+          sleep: () => Promise.resolve(),
+        })
+        const claim = await daily.reserve(Usd.from(5).toAmount(), new AbortController().signal)
+        await claim.settle(Usd.from(0).toAmount())
+      } else {
+        expect(run.code, JSON.stringify(run.result)).toBe(0)
+        expect(dispatched).toHaveLength(1)
+        expect(result(run).usageHistory).toBe(
+          ['persistent', 'effort'].includes(mode) ? undefined : 'omitted_ephemeral',
+        )
+        expect(h.err.chunks.join('')).not.toContain('Usage history could not be recorded')
+        if (mode === 'persistent' || mode === 'effort') {
+          const root = path.join(agentDataFolder(h.deps), 'usage')
+          const files = readdirSync(root, { recursive: true }).filter(
+            (name) => typeof name === 'string' && name.endsWith('.jsonl'),
+          )
+          expect(files).toHaveLength(1)
+          const records = files.flatMap((name) =>
+            readFileSync(path.join(root, String(name)), 'utf8')
+              .trim()
+              .split('\n')
+              .map((line): unknown => JSON.parse(line)),
+          )
+          expect(records).toEqual([
+            expect.objectContaining({
+              client: 'cli',
+              backend: 'modelApi',
+              provider: 'local',
+              model: `local/${family.native}`,
+              outcome: 'completed',
+              tokens: expect.objectContaining({ input: family.input, output: family.output }),
+            }),
+          ])
+        }
+
+        expect(result(run)).toMatchObject({
+          model: `local/${family.native}`,
+          usage: {
+            requests: 1,
+            inputTokens: family.input,
+            outputTokens: family.output,
+            cachedTokens: family.cached,
+            costUsd: { settled: Usd.from(family.cost).toAmount(), uncertain: '0', reserved: '0' },
+          },
         })
       }
-    },
-  )
+    } finally {
+      server.closeAllConnections()
+      await new Promise<void>((resolve, reject) => {
+        server.close((error) => {
+          if (error === undefined) resolve()
+          else reject(error)
+        })
+      })
+    }
+  })
 }

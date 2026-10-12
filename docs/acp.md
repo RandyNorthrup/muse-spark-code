@@ -167,6 +167,8 @@ asks for it. Elsewhere, run it yourself once:
   Service (GNOME Keyring, KWallet, KeePassXC). `auth status` says whether
   one is stored; `auth clear` removes it.
 
+ACP effort options and `exec --effort` use the selected model’s capability record; unsupported choices list the allowed values. Opus 5.5’s captured record includes `xhigh`.
+
 **ChatGPT subscription sign-in (M95b preview):** the agent advertises
 `providers add chatgpt` as a terminal sign-in method. Maintenance remains available
 through `providers remove chatgpt` and `providers status chatgpt` in the terminal. Editors without terminal authentication

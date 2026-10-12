@@ -328,8 +328,7 @@ function startingModel(
 }
 
 /** The default effort where the model serves it, else the nearest tier it has. */
-function servedEffort(modelId: string, wanted: EffortLevel): EffortLevel {
-  const levels = effortLevelsFor(modelId)
+function servedEffort(levels: readonly EffortLevel[], wanted: EffortLevel): EffortLevel {
   return levels.includes(wanted) ? wanted : (levels.at(-1) ?? DEFAULT_EFFORT)
 }
 
@@ -1477,7 +1476,10 @@ class AcpSession {
         category: 'thought_level',
         type: 'select',
         currentValue: this.effort,
-        options: effortLevelsFor(this.modelId).map((level) => ({
+        options: effortLevelsFor(
+          this.modelId,
+          this.models.find((model) => model.modelId === this.modelId)?.effortLevels,
+        ).map((level) => ({
           value: level,
           name: effortLabel(level),
         })),
@@ -1516,9 +1518,21 @@ class AcpSession {
 
   /** The session's standing effort, as the panel sets it on a new session. */
   public async applyEffort(effort: EffortLevel): Promise<void> {
-    const served = servedEffort(this.modelId, effort)
+    const served = servedEffort(
+      effortLevelsFor(
+        this.modelId,
+        this.models.find((model) => model.modelId === this.modelId)?.effortLevels,
+      ),
+      effort,
+    )
     this.ensureHeld()
-    await this.session.setReasoningEffort(effortForThinking(served, true))
+    if (
+      effortLevelsFor(
+        this.modelId,
+        this.models.find((model) => model.modelId === this.modelId)?.effortLevels,
+      ).length > 0
+    )
+      await this.session.setReasoningEffort(effortForThinking(served, true))
     this.effort = served
   }
 
@@ -1566,8 +1580,17 @@ class AcpSession {
     if (configId !== ACP_CONFIG_IDS.effort) {
       throw RequestError.invalidParams(undefined, configId)
     }
-    if (!isEffortLevel(value) || !effortLevelsFor(this.modelId).includes(value)) {
-      throw RequestError.invalidParams(undefined, value)
+    if (
+      !isEffortLevel(value) ||
+      !effortLevelsFor(
+        this.modelId,
+        this.models.find((model) => model.modelId === this.modelId)?.effortLevels,
+      ).includes(value)
+    ) {
+      throw RequestError.invalidParams(
+        undefined,
+        `${UI_TEXT.execEffortUnavailable} --effort: ${effortLevelsFor(this.modelId, this.models.find((model) => model.modelId === this.modelId)?.effortLevels).join(', ')}`,
+      )
     }
     await this.applyEffort(value)
   }
