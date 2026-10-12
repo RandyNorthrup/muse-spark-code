@@ -92,7 +92,8 @@ prefix survives (the codec test asserts both halves).
 
 Ordinary requests count at actual dispatch, including HTTP and whole-stream
 retries. Existing callers replace the default. Headless reads its authoritative ledger's remaining attempts;
-worktree attempts and engine workers bind their own remaining task ceiling.
+worktree attempts bind their own remaining task ceiling (the engine worker
+carries the same binding in code, with no production caller yet).
 The fallback cancellation path remains for backends without the allowance port.
 A retry reaching the last slot rebuilds through the ordinary builder after
 existing retry accounting and backoff. Automatic compaction does not consume
@@ -105,8 +106,9 @@ measure the sixty real admissions/settlements: 11.413 s, load 10.52. Those
 journals are real OS operations; the final source names a 30-second timeout
 for that one workload (PLAN §8), and the packaged sixty-request rows reuse
 their existing 30-second operation bound. Final runs use no timeout flag.
-The 200-call default is proved in the memory engine; ACP's real runtime
-proves answer delivery and `max_turn_requests` with a three-call task allowance.
+The 200-call default is proved in the memory engine. Production ACP binds
+no caller allowance: the ACP runtime test binds a three-call allowance by
+hand and proves answer delivery and `max_turn_requests` under a caller cap.
 Long-turn memory tests are load-sensitive on a shared rig (199 rounds 2.9–3.4 s
 at load 25–33 against a 5 s per-test budget); each passed repeatedly at the repo
 default with no timeout flag.
@@ -252,9 +254,8 @@ No MSP schema was widened: the frame shape is the captured one.
 
 `runEngineWorker` has no production caller in `src` today (only its prompt
 and routing helpers are imported elsewhere), so there is no team production
-site to bind. The README sentence ("best-of-N attempts and team-task
-ceilings" replace the default) rests on the shared mechanism, which is true
-as written: `runEngineWorker` (`engineWorker.ts:340`) builds a
+site to bind and no production ceiling claim: the binding lives in code
+only. `runEngineWorker` (`engineWorker.ts:340`) builds a
 `WorktreeConversationHost`, and `WorktreeConversationHost.run()` binds the
 remaining-task ceiling through the now-required
 `session.setModelCallAllowance(...)` (bound at `worktreeConversationHost.ts`
@@ -443,7 +444,7 @@ paid request is blocked.
 | Team tasks (ACP / Muse Code workers)                                  | The wire/peer `stopReason` through `reportForStop` → `capped`                                                                                                                     | Same                                                                                                                                                                                                                                                                         | `teamAcpProcess` RVM96W2C-N6 (`max_turn_requests` → `capped`) and the `teamMuseCodeWorker` stop mapping                                                                                                                                                                                               |
 | Team tasks (engine worker)                                            | Nothing: `runEngineWorker` ignored `outcome.ceilingReached` when resolving the report (no production caller on this branch)                                                       | A `ceilingReached` outcome resolves through `reportForStop(text, 'max_turn_requests')` → `capped`, keeping the wrap-up text                                                                                                                                                  | New `teamEngineWorker`: `reports a worker that ends at its ceiling as capped with the wrap-up text` (5 requests at a ceiling of 5)                                                                                                                                                                    |
 | Reviewer (Auto reviewer + hook models)                                | The terminal only: a completed turn carrying the typed outcome would decide with a truncated reply                                                                                | Completed turns carrying `max_turn_requests` are recorded and their replies treated as unusable: the review fails to the user (side session survives) and the hook gets no answer                                                                                            | New `museCodeReviewer` wire-true test (captured reply streams, `turn/completed` carries `error: { kind: 'max_turn_requests' }` through the real host mapping; next review reuses the session) and new `museCodeHookModels` discard test                                                               |
-| ACP                                                                   | `settle` resolves the typed outcome to the `max_turn_requests` stop for the client                                                                                                | Same; the client sees `stopReason: 'max_turn_requests'` with the wrap-up text delivered as the final agent message                                                                                                                                                           | `acpModelApi`: `delivers the real Model API wrap-up before returning max_turn_requests` (allowance 3, 3 requests, last body tools-disabled)                                                                                                                                                           |
+| ACP                                                                   | `settle` resolves the typed outcome to the `max_turn_requests` stop for the client                                                                                                | Same; the client sees `stopReason: 'max_turn_requests'` with the wrap-up text delivered as the final agent message                                                                                                                                                           | `acpModelApi`: `delivers the real Model API wrap-up over ACP under a hand-bound caller cap` (allowance 3 bound by hand — production ACP binds none; 3 requests, last body tools-disabled)                                                                                                             |
 
 ### Round-4 drills ledger
 

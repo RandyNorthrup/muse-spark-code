@@ -4,6 +4,8 @@ import {
   ContextOverflowError,
   HookCancelledError,
   ModelApiHost,
+  canReserveSideSlot,
+  type SideSlotReservation,
   wrapUpFailedKindFor,
 } from '../../src/core/backends/modelapi/ModelApiHost'
 import {
@@ -688,6 +690,76 @@ describe('model-call turn limit', () => {
         reason: UI_TEXT.modelApiWrapUpFailedReason.rateLimited,
       }),
     )
+  })
+
+  it('refuses a racing second side slot with two calls left', () => {
+    const reservation: SideSlotReservation = { reserved: 0 }
+    // The first concurrent side call takes the reservation synchronously.
+    expect(canReserveSideSlot(reservation, 2)).toBe(true)
+    expect(reservation.reserved).toBe(1)
+    // The racer sees one left and refuses, so the turn's last request stays
+    // the wrap-up; the take and the refusal are one synchronous block.
+    expect(canReserveSideSlot(reservation, 2)).toBe(false)
+    expect(reservation.reserved).toBe(1)
+    // With one call left even the first refuses.
+    expect(canReserveSideSlot({ reserved: 0 }, 1)).toBe(false)
+  })
+
+  it('leaves a first-call overflow standing on a single-call allowance', async () => {
+    // A caller allowance of 1 leaves no room for both a recovery compaction
+    // and the wrap-up: the loop skips compaction outright, and overflow
+    // recovery refuses the reserved slot, so the overflow stands typed.
+    const api = fakeModelApi()
+    const log = new FakeLogOutputChannel()
+    const client = fakeModelApiClient(api, log)
+    const io = memoryToolIo({}, '/ws')
+    let admissions = 0
+    const model = { window: 100_000 }
+    const host = new ModelApiHost({
+      ...fakeModelApiHostDeps({ client, io, log, workspaceRoot: '/ws' }),
+      remainingModelCalls: () => 1,
+      contextModel: () => ({ format: 'responses', contextTokens: model.window }),
+      autoCompaction: () => true,
+      autoCompactionEvaluated: () => true,
+      admitAutoCompaction: () => {
+        admissions += 1
+        return Promise.resolve({
+          guard: Object.assign(() => undefined, { onRequestStarted: () => undefined }),
+          settle: () => undefined,
+        })
+      },
+    })
+    const t = {
+      api,
+      host,
+      ...(await startWatchedSession(host, '/ws', mspApprovalMode('acceptEdits'))),
+    }
+    try {
+      // A small tool round first, under the wide window: compactable history
+      // and a stored prefix, so only the reserved-slot refusal stands
+      // between the next turn's overflow and a real recovery compaction.
+      api.script({ calls: [{ name: 'get_goal', arguments: '{}' }] })
+      await t.session.sendTurn([{ type: 'text', text: 'Seed the history' }])
+      await t.turnDone()
+      // Shrink the window below the stored context: the next turn's only
+      // permitted call overflows before it is sent.
+      model.window = 64
+      api.script({ text: 'summary one' }, { text: 'summary two' })
+      await t.session.sendTurn([{ type: 'text', text: 'Review' }])
+      await t.turnDone()
+      // No compaction ran (neither in-loop, skipped for the single slot, nor
+      // recovery, refused for it): the only request is the seed tool call,
+      // and the turn ends on the overflow's own stop.
+      expect(t.api.responseBodies()).toHaveLength(1)
+      expect(admissions).toBe(0)
+      expect(t.events.findLast((e) => e.type === 'turnCompleted')).toMatchObject({
+        terminal: 'failed',
+        errorKind: 'context_overflow',
+        reason: UI_TEXT.contextWindowFull,
+      })
+    } finally {
+      await host.close()
+    }
   })
 
   it('renders the wrap-up note in the singular for a limit of 1', async () => {

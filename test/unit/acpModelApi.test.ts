@@ -242,7 +242,7 @@ async function promptAgain(client: acp.ClientContext, sessionId: string) {
 }
 
 describe('the ACP agent on the Model API backend (M63)', () => {
-  it('delivers the real Model API wrap-up before returning max_turn_requests', async () => {
+  it('delivers the real Model API wrap-up over ACP under a hand-bound caller cap', async () => {
     const t = setup(allowOnce)
     const host = await t.runtime.backend.hostFor(t.workspace)
     const startSession = host.startSession.bind(host)
@@ -252,8 +252,9 @@ describe('the ACP agent on the Model API backend (M63)', () => {
       // structural port check (not instanceof) binds the caller allowance.
       if (!hasModelCallAllowancePort(session))
         throw new Error('Expected the real Model API allowance port')
+      // Production ACP binds no caller allowance; this binds one by hand.
       // The default 200 is proved by the memory engine suite; this real disk
-      // runtime proves ACP delivery under the same caller cap without slow setup.
+      // runtime proves ACP delivery under a caller cap without slow setup.
       session.setModelCallAllowance(() => 3)
       return session
     })
