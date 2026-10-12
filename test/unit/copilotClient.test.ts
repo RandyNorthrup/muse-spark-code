@@ -735,7 +735,9 @@ describe('Copilot VS Code client', () => {
     expect(admission).toHaveBeenCalledWith(undefined)
   })
 
-  it('refuses a stale scheduled confirmation and a mismatched model before dispatch', async () => {
+  it('refuses a lapsed or mismatched confirmation but runs a still-allowed one', async () => {
+    // RVCM1062F P3 sibling: the adapter honours the confirmation like the
+    // other clients instead of refusing every confirmed request.
     const tester = rig()
     const connected = await client(tester)
     const confirmed = {
@@ -744,30 +746,73 @@ describe('Copilot VS Code client', () => {
       isStillAllowed: () => false,
       onRequestStarted: vi.fn(),
     }
-    await expect(
+    const attempt = (request: CreateResponseBody, gate: typeof confirmed) =>
       connected
         .streamResponse(
-          body(),
+          request,
           new AbortController().signal,
           undefined,
           undefined,
           undefined,
-          confirmed,
+          gate,
         )
-        .next(),
-    ).rejects.toThrow('translated.confirmation-expired')
+        .next()
+    await expect(attempt(body(), confirmed)).rejects.toThrow('translated.confirmation-expired')
     await expect(
-      connected
-        .streamResponse(body(), new AbortController().signal, undefined, undefined, undefined, {
-          ...confirmed,
-          isStillAllowed: () => true,
-        })
-        .next(),
+      attempt(body(), {
+        ...confirmed,
+        modelId: 'copilot/other-model',
+        isStillAllowed: () => true,
+      }),
     ).rejects.toThrow('translated.confirmation-expired')
+    expect(tester.model.sendRequest).not.toHaveBeenCalled()
+    const events: unknown[] = []
+    const allowed = connected.streamResponse(
+      body(),
+      new AbortController().signal,
+      undefined,
+      undefined,
+      undefined,
+      { ...confirmed, isStillAllowed: () => true },
+    )
+    for await (const event of allowed) {
+      expect(streamEventSchema.safeParse(event).success).toBe(true)
+      events.push(event)
+    }
+    expect(tester.model.sendRequest).toHaveBeenCalledTimes(1)
+    expect(events.length).toBeGreaterThan(0)
     await expect(run(tester, { ...body(), model: 'copilot/other-model' })).rejects.toThrow(
       'translated.unavailable',
     )
-    expect(tester.model.sendRequest).not.toHaveBeenCalled()
+  })
+
+  it('accepts a catalogue request id against a session confirmation id', async () => {
+    // RVCM1062G P3: the session stores `copilot/<id>` while a request may
+    // carry the catalogue `<id>`; both name this adapter's model.
+    const tester = rig()
+    const connected = await client(tester)
+    const started = vi.fn()
+    const events: unknown[] = []
+    const stream = connected.streamResponse(
+      { ...body(), model: 'synthetic-model' },
+      new AbortController().signal,
+      undefined,
+      undefined,
+      Object.assign(vi.fn(), { onRequestStarted: started }),
+      {
+        modelId: 'copilot/synthetic-model',
+        keyDigest: 'synthetic',
+        isStillAllowed: () => true,
+        onRequestStarted: vi.fn(),
+      },
+    )
+    for await (const event of stream) {
+      expect(streamEventSchema.safeParse(event).success).toBe(true)
+      events.push(event)
+    }
+    expect(tester.model.sendRequest).toHaveBeenCalledTimes(1)
+    expect(events.length).toBeGreaterThan(0)
+    expect(started).toHaveBeenCalledTimes(1)
   })
 
   it('refuses requests exceeding the selected model window before dispatch', async () => {

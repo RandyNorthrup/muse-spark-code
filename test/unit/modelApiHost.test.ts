@@ -2782,6 +2782,17 @@ function lastReason(events: readonly AgentEvent[]): string {
   return completed?.type === 'turnCompleted' ? (completed.reason ?? '') : ''
 }
 
+/** A turn its cap cannot fit: nothing is requested and it fails with the budget message. */
+async function expectNeverSent(t: ReturnType<typeof setup>): Promise<void> {
+  const watched = await startSession(t)
+  await budgetTurn(t, watched, 'hi', { text: 'never sent' })
+  expect(t.api.responseBodies()).toEqual([])
+  expect(watched.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
+    terminal: 'failed',
+  })
+  expect(lastReason(watched.events)).toContain('It was not sent.')
+}
+
 const TODO_CALL = {
   name: 'todo_write',
   arguments: '{"items":[{"text":"First","status":"completed"}]}',
@@ -3001,14 +3012,23 @@ describe('ModelApiSession: session budget (M82)', () => {
 
   it('never sends a request the cap cannot fit, and the turn says why', async () => {
     setUiText(EN, BASE_LOCALE)
-    const t = setup({ sessionBudgetUsd: Usd.from(0.000001).toAmount() })
-    const watched = await startSession(t)
-    await budgetTurn(t, watched, 'hi', { text: 'never sent' })
-    expect(t.api.responseBodies()).toEqual([])
-    expect(watched.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
-      terminal: 'failed',
-    })
-    expect(lastReason(watched.events)).toContain('It was not sent.')
+    await expectNeverSent(setup({ sessionBudgetUsd: Usd.from(0.000001).toAmount() }))
+  })
+
+  it('stops with the budget message when the cap affords fewer than sixteen output tokens', async () => {
+    setUiText(EN, BASE_LOCALE)
+    // Meta rejects max_output_tokens below 16, so ten affordable tokens must
+    // refuse exactly like zero: nothing is sent and the turn says why.
+    const probe = setup({ sessionBudgetUsd: Usd.from(10).toAmount() })
+    await budgetTurn(probe, await startSession(probe), 'hi', { text: 'ok' })
+    const [sent] = probe.api.responseBodies()
+    const estimated = estimateInput(sentParts(sent), undefined).inputTokens
+    const capUsd = Usd.from('1.25')
+      .times(estimated)
+      .divide(1_000_000)
+      .add(Usd.from('4.25').times(10).divide(1_000_000))
+      .toAmount()
+    await expectNeverSent(setup({ sessionBudgetUsd: capUsd }))
   })
 
   it('stops a turn at the request that no longer fits, after the ones that did', async () => {

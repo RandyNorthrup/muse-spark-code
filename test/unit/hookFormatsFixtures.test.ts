@@ -15,6 +15,7 @@ import {
   buildForeignStdin,
   parseForeignResult,
 } from '../../src/core/backends/modelapi/hookFormats'
+import { cursorTabExample } from './helpers/cursorTabFixture'
 
 type Row = VendorContract['rows'][number]
 const FIXTURES = path.join(process.cwd(), 'test/fixtures/hookFormats')
@@ -66,9 +67,6 @@ function rowOf(format: HookFormat, flavor: string | undefined, event: string): R
 const REFUSED_EVENTS: Readonly<Record<string, string>> = {
   // m91-lane-common decision I: its original can block where ours cannot.
   'cursor/subagentStart': 'lane-common I',
-  // Tab hooks arrive with M94 lane K (lane-common round 2).
-  'cursor/beforeTabFileRead': 'M94 lane K',
-  'cursor/afterTabFileEdit': 'M94 lane K',
   // Mutation-only prompt rewrite (C:371-395); Muse has no such event.
   'copilot/userPromptTransformed': 'no Muse event',
   // m91-research.md:223: the transcript variant is refused.
@@ -132,6 +130,8 @@ function payloadFor(event: string): Record<string, unknown> {
     tool_input: toolInput,
     tool_response: 'preview',
     content: 'text',
+    file_path: `${ROOT}/a.py`,
+    edits: cursorTabExample('afterTabFileEdit')['edits'],
     prompt: 'hello',
     text: 'thinking',
     last_assistant_message: 'done',

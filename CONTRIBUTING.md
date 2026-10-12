@@ -183,6 +183,11 @@ Use this order for a candidate branch:
 - No new dependency without a reason in the pull request and a
   compatibility check; no suppressed lint rule or `any` without an inline
   reason and a row in PLAN.md §8.
+- A test or script that cites `PLAN.md`, `README.md` or `CHANGELOG.md` names
+  a heading and quotes a phrase from under it
+  (`test/unit/helpers/planCitation.ts`), never a line number. Every branch
+  moves the lines; the phrase must be found exactly once, under that
+  heading, or the check fails.
 - Keep secrets out: the pre-commit hook runs gitleaks, and nothing in the
   repository may contain a real credential.
 - The pre-commit hook runs staged lint and format tasks serially to limit
@@ -293,6 +298,117 @@ whose entry names a release, a sign that its PLAN status line is behind.
 Write for users: no lane, machine, agent or review-round names, no
 credentials, and nothing PLAN or the certification does not support. When
 unsure, say less.
+
+## Archiving closed history from PLAN.md
+
+`PLAN.md` is read whole by `npm run check:plan`, `npm run check:roadmap` and
+`/report`, and their reader refuses a plan over 4 MiB
+(`REPORT_PLAN_MAX_BYTES`). Reaching that bound stops all three at once, in the
+middle of whatever branch added the last paragraph, so `check:plan` fails
+earlier: once the file passes 85% of the bound. When it does, move closed
+history to [`docs/plan-archive/`](docs/plan-archive/) before adding more. What
+moves is kept there byte for byte:
+
+- **`milestones.md`**: sections of closed, released milestones. PLAN.md §6
+  keeps the heading, every status row, the Goal / Depends on / Gates fields,
+  the lane tables and the line `- **Archived.** The full section is in …`.
+  The checklist of a closed section may follow its text into the archive
+  when room is needed (the stub then lists no items in `/report`); a lane
+  table a test reads never does.
+- **`gates.md`**: §7 gate records of lanes that are verified and no longer
+  worked on. One paragraph in §7 says where they went.
+- **`decisions.md`**: the design record of §2 decisions. PLAN.md §2 keeps the
+  heading and one paragraph that states the rule in force and ends with
+  `Full record: …`. It also keeps, in place, every passage an open branch
+  touches with the passages next to it, every passage a test cites, and every
+  live table (budgets, caps, prices, limits, version pins).
+
+What never moves: §3, §8, §9 and §10; a milestone that is not fully released;
+the status rows, fields, checklists and lane tables of unfinished work;
+anything a test or script cites; D3 and D6.
+
+To archive:
+
+1. List what open work touches: each unmerged branch's own `PLAN.md` diff
+   against its merge base. A passage a branch changes or stands next to stays
+   where it is, so that branch still merges without a modify/delete conflict.
+2. Move whole top-level blocks only: a paragraph, a list item with everything
+   indented under it, a table, a whole ordered list. Never part of one.
+3. Put each moved passage in its archive file between
+   `<!-- plan-archive:begin id="…" lines="…" at="…" bytes="…" sha256="…" -->`
+   and `<!-- plan-archive:end id="…" -->`, with one blank line inside each
+   marker (`at` is the commit the line numbers refer to; the first move's
+   blocks carry none). `test/unit/planArchive.test.ts` hashes every block;
+   never edit inside one.
+4. Write each decision's summary from the decision itself, amendments
+   included, and nothing beyond it. Lanes read it first and act on it.
+5. Prove nothing was lost and nothing got harder: rebuild the old `PLAN.md`
+   from the new one plus the archive and compare the bytes; merge every open
+   branch's `PLAN.md` onto the new file and onto the old one, and accept no
+   new and no larger conflict.
+6. Run `npm run check:plan`, `npm run roadmap:generate` (`ROADMAP.md` must not
+   change), `npm run check:reference`, `prettier --check` on `PLAN.md` and
+   the archive files, and the suites that read the plan (`planReader`,
+   `checkPlan`, `planArchive`, `planCitation`, `autoCompact`, `geminiCodec`,
+   `m113cLaneClosure`, `teamPlanRecord`, `paidMoneyStructure`).
+7. Record the bytes before and after, the bytes moved per section and the
+   proofs in [`docs/certification/plan-archive.md`](docs/certification/plan-archive.md).
+
+### The command
+
+`npm run plan:archive` (`scripts/plan-archive.mjs`) does steps 2 and 3 and
+the first proof of step 5, and refuses a move it cannot prove. It works on
+the `PLAN.md` of your checkout, so a lane archives the passages of its own
+branch with it.
+
+```sh
+# Where the plan stands against the bound and the gate; every block's hash.
+npm run plan:archive -- status
+
+# A decision's design record: the summary paragraph stays, with the link.
+npm run plan:archive -- move decisions --heading "D108 — Role preference" \
+  --lines 6120-6230,6240-6300 --summary summary.txt --dry-run
+
+# Lane history or a gate record: one pointer line stays.
+npm run plan:archive -- move gates --heading "0.17.1 gate records" \
+  --lines 39714-39727 --pointer
+
+# A closed milestone that already links to its archive section: nothing stays.
+npm run plan:archive -- move milestones --heading "QPIN — One question card" \
+  --lines 16599-16608 --linked --allow-fact-change
+
+# Several moves in the line numbers of one PLAN.md.
+npm run plan:archive -- move --batch moves.json --dry-run
+```
+
+- `--lines` are 1-based, inclusive ranges of `PLAN.md` as it stands, each a
+  run of whole top-level blocks. A heading never moves.
+- The first range is replaced by the paragraph in `--summary <file>` followed
+  by `Full record: <link>`, by one `- **Archived.**` line (`--pointer`), or by
+  nothing (`--linked`, allowed only where the section already links to the
+  archive file). The blocks go under `## <heading>` in the archive file.
+- `--batch` takes a JSON list such as
+  `[{ "to": "milestones", "heading": "…", "lines": "A-B,C-D", "pointer": true }]`,
+  with `"summary": "…"` or `"linked": true` in place of `"pointer"`.
+- Each block's marker names the commit its `lines` refer to: `HEAD`, or
+  `--at <commit>` for text a merge in progress brought in (the branch's
+  commit). When `PLAN.md` differs from that commit's, every passage is looked
+  up there and must stand in it exactly once.
+- Before anything is written the command rebuilds the old `PLAN.md` from the
+  new one plus the archive files and compares the bytes, and compares what the
+  plan reader parses before and after. Either difference stops it;
+  `--allow-fact-change` accepts the second for a closed milestone whose
+  fields, checklist or lane tables move.
+- `--dry-run` prints the same report (sizes before and after against the
+  bound and the gate, each block's id, lines, bytes and SHA-256, the
+  reassembly result, the parsed facts) and writes nothing.
+
+The command does not look at other branches: step 1 and the merge proof of
+step 5 stay with whoever moves text that open work may touch.
+
+A design record lives in the archive from the day it lands: `PLAN.md` carries
+the rule in force and the link, and a branch that adds a decision moves its
+record with this command in the same change.
 
 ## Style
 

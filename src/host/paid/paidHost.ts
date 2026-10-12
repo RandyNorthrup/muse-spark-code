@@ -70,7 +70,7 @@ export interface PaidFeaturesDeps {
   readonly orderDirectory?: string
   readonly usageRecording?: UsageRecording | undefined
   readonly globalState: MementoLike
-  /** Where "Allow always in this workspace" is kept (M58). */
+  /** Where "Allow Always in This Workspace" is kept (M58). */
   readonly workspaceState: MementoLike & { keys(): readonly string[] }
   /** Whether the feature's setting is on, as the settings reader validated it. */
   readonly isSettingOn: (feature: PaidFeature) => boolean
@@ -297,7 +297,7 @@ export function createPaidFeatures(deps: PaidFeaturesDeps): PaidFeatures {
   }
   const consent = new PaidUseConsent({
     isOn: (feature) => gate.isOn(feature),
-    // Tab's "Allow once" covers this window until it closes (M94 Q-M94a):
+    // Tab's "Allow Once" covers this window until it closes (M94 Q-M94a):
     // memory only, so it never persists past the window. "Allow always"
     // stays workspace-scoped, as for every feature.
     windowOnceFeatures: paidWindowOnceFeatures(),

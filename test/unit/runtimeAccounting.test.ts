@@ -1,4 +1,9 @@
+import { reserveRequestAmount } from '../../src/core/providers/priceCard'
+import { requestImageCount } from '../../src/core/backends/modelapi/modelPolicy'
+import { UI_TEXT } from '../../src/shared/constants'
 import { Usd } from '../../src/shared/usd'
+import { ModelApiClient } from '../../src/core/backends/modelapi/client'
+import { metaResolvedModel, type ModelResolver } from '../../src/core/backends/modelapi/modelPolicy'
 import { fork } from 'node:child_process'
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -12,7 +17,11 @@ import {
   withRuntimeAccounting,
 } from '../../src/runtime/runtimeAccountingEntry'
 import { withoutCredentials } from '../../src/runtime/credentialVariables'
-import { fakeModelApi, fakeModelApiClient } from './helpers/fakeModelApi'
+import {
+  fakeModelApi,
+  fakeModelApiClient,
+  fakeModelApiClientSettings,
+} from './helpers/fakeModelApi'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { removeFolder } from './helpers/temporaryFolders'
 import type { CreateResponseBody } from '../../src/core/backends/modelapi/schemas'
@@ -82,6 +91,7 @@ describe('standalone daily admission', () => {
     api.script({ text: 'automatic summary', usage: { input: 1000, output: 500, cached: 200 } })
     const client = withRuntimeAccounting(fakeModelApiClient(api, new FakeLogOutputChannel()), daily)
     const admit = createAutoCompactionAdmission({
+      loadPricing: () => Promise.resolve({ reserveRequestAmount, requestImageCount }),
       accounting: 'transport',
       allowsPaidUse: () => Promise.resolve(true),
       isOn: () => true,
@@ -310,6 +320,29 @@ describe('standalone daily admission', () => {
     expect(api.responseBodies()).toHaveLength(0)
     const claim = await daily.reserve(Usd.from(5).toAmount(), new AbortController().signal)
     expect(claim.check(Usd.from(0).toAmount()).spentUsd).toBe(Usd.from(5).toAmount())
+  })
+  it('names the run when a stale model reaches dispatch', async () => {
+    // RVCM1062E P3: the headless run has no schedule, so its stale-model
+    // refusal names the run instead of borrowing schedule guidance.
+    const daily = dailyBudgetAt(folder())
+    const api = fakeModelApi()
+    api.script({ text: 'done' })
+    // A client whose every resolution is already lapsed when dispatch runs.
+    class StaleModelClient extends ModelApiClient {
+      readonly models: ModelResolver = {
+        resolve: (ref: string) =>
+          Promise.resolve({ ...metaResolvedModel(ref, this), isCurrent: () => false }),
+      }
+    }
+    const client = new StaleModelClient({
+      ...fakeModelApiClientSettings(new FakeLogOutputChannel()),
+      fetch: api.fetch,
+    })
+    const wrapped = withRuntimeAccounting(client, daily)
+    await expect(
+      Array.fromAsync(wrapped.streamResponse(body, new AbortController().signal)),
+    ).rejects.toThrow(UI_TEXT.requestStaleRun)
+    expect(api.responseBodies()).toHaveLength(0)
   })
   it('fails closed on malformed runtime settings and an abandoned process lock', async () => {
     const root = folder()

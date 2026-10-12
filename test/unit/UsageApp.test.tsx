@@ -88,19 +88,19 @@ describe('UsageApp', () => {
     state.history.newerVersionRecords = 7
     state.history.tornLines = 1
     setup(state)
-    expect(screen.getByRole('heading', { name: 'No usage yet' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'No Usage Yet' })).toBeInTheDocument()
     expect(screen.getByText('7 records from a newer version')).toBeInTheDocument()
     expect(screen.getByText('1 incomplete line skipped')).toBeInTheDocument()
     expect(screen.queryByRole('table', { name: 'Breakdown' })).toBeNull()
-    expect(screen.queryByRole('table', { name: 'Usage by feature' })).toBeNull()
-    expect(screen.queryByRole('table', { name: 'Muse Code model attempts' })).toBeNull()
+    expect(screen.queryByRole('table', { name: 'Usage by Feature' })).toBeNull()
+    expect(screen.queryByRole('table', { name: 'Muse Code Model Attempts' })).toBeNull()
   })
   it('makes no data/network request while rendering and operating the page', () => {
     const fetch = vi.fn()
     vi.stubGlobal('fetch', fetch)
     const { host } = setup()
     fireEvent.click(screen.getByRole('button', { name: 'Refresh' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Open provider console' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Open Provider Console' }))
     expect(host.post).toHaveBeenCalledWith({ type: 'usage/refresh' })
     expect(host.post).toHaveBeenCalledWith({
       type: 'usage/openExternal',
@@ -114,8 +114,8 @@ describe('UsageApp', () => {
       const state = usageStateFor(scenario, NOW)
       expect(usagePageStateSchema.safeParse(state).success).toBe(true)
       setup(state)
-      expect(screen.getByRole('heading', { name: 'Usage & cost', level: 1 })).toBeInTheDocument()
-      expect(screen.getByRole('heading', { name: 'Limits & budgets' })).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: 'Usage & Cost', level: 1 })).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: 'Limits & Budgets' })).toBeInTheDocument()
       expect(screen.getByText('History is stored on win11 · remote workspace.')).toBeInTheDocument()
       expect(
         screen.getByText('gemini does not report a limit here.', { exact: false }),
@@ -147,7 +147,7 @@ describe('UsageApp', () => {
         query: { range, groupBy: 'provider', metric: 'cost' },
       })
     }
-    fireEvent.change(screen.getByLabelText('Group by'), { target: { value: 'model' } })
+    fireEvent.change(screen.getByLabelText('Group By'), { target: { value: 'model' } })
     fireEvent.change(screen.getByLabelText('Metric'), { target: { value: 'tokens' } })
     expect(host.post).toHaveBeenLastCalledWith({
       type: 'usage/query',
@@ -161,13 +161,13 @@ describe('UsageApp', () => {
     })
     expect(screen.getByRole('button', { name: 'Refresh' })).not.toBeDisabled()
     expect(
-      screen.getByText('Input & output tokens over time', { selector: 'figcaption' }),
+      screen.getByText('Input & Output Tokens Over Time', { selector: 'figcaption' }),
     ).toBeInTheDocument()
   })
 
   it('refuses incomplete or backwards custom dates and sends inclusive valid dates', () => {
     const { host } = setup()
-    fireEvent.click(screen.getByRole('radio', { name: 'Custom range' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'Custom Range' }))
     fireEvent.change(screen.getByLabelText('From'), { target: { value: '2026-10-05' } })
     fireEvent.change(screen.getByLabelText('To'), { target: { value: '2026-10-04' } })
     expect(screen.getByText('Choose an end date on or after the start date.')).toBeInTheDocument()
@@ -195,7 +195,7 @@ describe('UsageApp', () => {
       metric: 'cost',
     }
     const { host } = setup(state)
-    expect(screen.getByRole('radio', { name: 'Custom range' })).toBeChecked()
+    expect(screen.getByRole('radio', { name: 'Custom Range' })).toBeChecked()
     expect(screen.getByLabelText('From')).toHaveValue('2026-10-01')
     expect(screen.getByLabelText('To')).toHaveValue('2026-10-05')
     fireEvent.change(screen.getByLabelText('From'), { target: { value: '' } })
@@ -204,7 +204,7 @@ describe('UsageApp', () => {
   })
   it('refuses unknown grouping and metrics from a control event', () => {
     const { host } = setup()
-    fireEvent.change(screen.getByLabelText('Group by'), { target: { value: 'invented' } })
+    fireEvent.change(screen.getByLabelText('Group By'), { target: { value: 'invented' } })
     fireEvent.change(screen.getByLabelText('Metric'), { target: { value: 'invented' } })
     expect(host.post).toHaveBeenCalledTimes(1)
   })
@@ -269,7 +269,7 @@ describe('UsageApp', () => {
       locale: 'de',
       table: { ...USAGE_EN, readFailed: 'Der Nutzungsverlauf konnte nicht gelesen werden.' },
     })
-    for (const label of ['Refresh', 'Usage settings']) {
+    for (const label of ['Refresh', 'Usage Settings']) {
       vi.mocked(host.post).mockImplementationOnce(() => {
         throw new Error('Private native transport detail')
       })
@@ -280,7 +280,7 @@ describe('UsageApp', () => {
       expect(screen.getByRole('main')).toHaveAttribute('aria-busy', 'false')
       expect(screen.getByRole('button', { name: 'Refresh' })).not.toBeDisabled()
       expect(screen.queryByText(/Private native transport detail/)).toBeNull()
-      fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Try Again' }))
       expect(host.post).toHaveBeenLastCalledWith({ type: 'usage/refresh' })
       send({ type: 'usage/state', state })
       expect(screen.queryByRole('alert')).toBeNull()
@@ -294,7 +294,7 @@ describe('UsageApp', () => {
     })
     fireEvent.click(screen.getByRole('radio', { name: '7 days' }))
     expect(screen.getByRole('alert')).toHaveTextContent(USAGE_EN.readFailed)
-    fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Try Again' }))
     send({ type: 'usage/state', state })
     expect(screen.getByRole('radio', { name: 'Today' })).toBeChecked()
     expect(screen.getByRole('main')).toHaveAttribute('aria-busy', 'false')
@@ -305,7 +305,7 @@ describe('UsageApp', () => {
       if (action === 'export') {
         fireEvent.click(screen.getByRole('button', { name: 'Export' }))
         fireEvent.click(screen.getByRole('button', { name: 'Versioned JSON' }))
-      } else fireEvent.click(screen.getByRole('button', { name: 'Delete usage history…' }))
+      } else fireEvent.click(screen.getByRole('button', { name: 'Delete Usage History…' }))
       const message = vi.mocked(host.post).mock.calls.at(-1)?.[0]
       if (message === undefined || !('requestId' in message)) throw new Error('Missing action')
       send({ type: 'usage/result', requestId: message.requestId, action, outcome: 'completed' })
@@ -318,7 +318,7 @@ describe('UsageApp', () => {
   it('exports each format with the exact query and correlates results without inventing grants', () => {
     const { host, state, send } = setup()
     for (const [name, format] of [
-      ['Per-call CSV (last 30 days)', 'callsCsv'],
+      ['Per-Call CSV (Last 30 Days)', 'callsCsv'],
       ['Summary CSV', 'summaryCsv'],
       ['Versioned JSON', 'json'],
     ] as const) {
@@ -337,7 +337,7 @@ describe('UsageApp', () => {
     })
     expect(screen.queryByRole('button', { name: 'Versioned JSON' })).toBeNull()
     expect(screen.getByRole('button', { name: 'Export' })).toHaveAttribute('aria-expanded', 'false')
-    fireEvent.click(screen.getByRole('button', { name: 'Delete usage history…' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Usage History…' }))
     expect(host.post).toHaveBeenLastCalledWith({
       type: 'usage/deleteHistory',
       requestId: expect.any(String),
@@ -371,11 +371,11 @@ describe('UsageApp', () => {
       screen.getByRole('progressbar', { name: '62% used, resets in 2h 5m' }),
     ).toBeInTheDocument()
     for (const [label, message] of [
-      ['Turn on usage history', { type: 'usage/setHistory', enabled: true }],
-      ['Usage settings', { type: 'usage/openSettings' }],
-      ['Open history folder', { type: 'usage/revealFolder' }],
+      ['Turn On Usage History', { type: 'usage/setHistory', enabled: true }],
+      ['Usage Settings', { type: 'usage/openSettings' }],
+      ['Open History Folder', { type: 'usage/revealFolder' }],
       [
-        'Open provider console',
+        'Open Provider Console',
         { type: 'usage/openExternal', url: 'https://aistudio.google.com/' },
       ],
     ] as const) {
@@ -393,16 +393,16 @@ describe('UsageApp', () => {
       { certainty: 'unpriced', records: 1 },
     )
     setup(state)
-    const total = screen.getByText('Total cost', { selector: 'dt' }).closest('div')
+    const total = screen.getByText('Total Cost', { selector: 'dt' }).closest('div')
     expect(total).toHaveTextContent('Unknown')
     expect(
-      screen.getByText('API-equivalent cost', { selector: 'dt' }).closest('div'),
+      screen.getByText('API-Equivalent Cost', { selector: 'dt' }).closest('div'),
     ).toHaveTextContent('$0.10')
-    expect(screen.getByText('Input tokens', { selector: 'dt' }).closest('div')).toHaveTextContent(
+    expect(screen.getByText('Input Tokens', { selector: 'dt' }).closest('div')).toHaveTextContent(
       'Unknown',
     )
     expect(
-      screen.getByText('Total request time', { selector: 'dt' }).closest('div'),
+      screen.getByText('Total Request Time', { selector: 'dt' }).closest('div'),
     ).toHaveTextContent('Unknown')
     expect(
       screen.getByText('No price card is available. Unknown cost is not zero.'),
@@ -421,13 +421,13 @@ describe('UsageApp', () => {
     state.breakdown.push({ ...state.breakdown[0]!, id: 'unknown-tail', label: 'unknown-tail' })
     const { host, send } = setup(state)
     const table = screen.getByRole('table', { name: 'Breakdown' })
-    fireEvent.click(within(table).getByRole('button', { name: 'Cost: Sort ascending' }))
+    fireEvent.click(within(table).getByRole('button', { name: 'Cost: Sort Ascending' }))
     expect(
-      within(table).getByRole('button', { name: 'Cost: Sort descending' }).closest('th'),
+      within(table).getByRole('button', { name: 'Cost: Sort Descending' }).closest('th'),
     ).toHaveAttribute('aria-sort', 'ascending')
     expect(within(table).getAllByRole('row').at(-2)).toHaveTextContent('meta')
     expect(within(table).getAllByRole('row').at(-1)).toHaveTextContent('unknown-tail')
-    fireEvent.click(within(table).getByRole('button', { name: 'Cost: Sort descending' }))
+    fireEvent.click(within(table).getByRole('button', { name: 'Cost: Sort Descending' }))
     expect(within(table).getAllByRole('row').at(-2)).toHaveTextContent('meta')
     expect(within(table).getAllByRole('row').at(-1)).toHaveTextContent('unknown-tail')
     fireEvent.click(within(table).getByRole('button', { name: 'openai' }))
@@ -461,14 +461,14 @@ describe('UsageApp', () => {
     ).toBeInTheDocument()
     // STARTUP017: exact prices fill in once the money chunk loads.
     expect(await screen.findByText('$0.002000')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Set price' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Set Price' }))
     expect(host.post).toHaveBeenLastCalledWith({
       type: 'usage/openModels',
       provider: 'openai',
       model: 'model-1',
     })
     fireEvent.click(screen.getByRole('button', { name: 'Close' }))
-    expect(screen.queryByRole('heading', { name: 'Model detail: openai / model-1' })).toBeNull()
+    expect(screen.queryByRole('heading', { name: 'Model Detail: openai / model-1' })).toBeNull()
   })
 
   it('keeps an empty model trend readable without an empty chart table', () => {
@@ -482,7 +482,7 @@ describe('UsageApp', () => {
     }
     setup(state)
     const detail = screen
-      .getByRole('heading', { name: 'Model detail: meta / model-0' })
+      .getByRole('heading', { name: 'Model Detail: meta / model-0' })
       .closest('section')!
     expect(within(detail).getByText('No model calls in this range.')).toBeInTheDocument()
     expect(within(detail).queryByRole('table', { hidden: true })).toBeNull()
@@ -497,7 +497,7 @@ describe('UsageApp', () => {
       table: { ...USAGE_EN, title: 'Nutzung und Kosten', refresh: 'Aktualisieren' },
     })
     expect(screen.getByRole('heading', { name: 'Nutzung und Kosten' })).toBeInTheDocument()
-    expect(screen.getByText('Input tokens', { selector: 'dt' }).closest('div')).toHaveTextContent(
+    expect(screen.getByText('Input Tokens', { selector: 'dt' }).closest('div')).toHaveTextContent(
       '1.000',
     )
     send({ type: 'usage/table', locale: 'invalid_locale!', table: USAGE_EN })
@@ -518,7 +518,7 @@ describe('UsageApp', () => {
       send({ type: 'usage/error', code })
       expect(screen.getByRole('alert')).toHaveTextContent(text!)
     }
-    fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Try Again' }))
     expect(host.post).toHaveBeenLastCalledWith({ type: 'usage/refresh' })
   })
 })

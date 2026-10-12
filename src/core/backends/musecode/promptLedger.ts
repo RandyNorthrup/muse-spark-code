@@ -23,7 +23,7 @@ function stageKey(requirementId: RequirementRef): string {
   return `${requirementId.approvalId}\u{0}${String(requirementId.sourceIndex)}`
 }
 
-/** The stage's own "Always allow" label, when the subject lists stages. */
+/** The stage's own "Always Allow" label, when the subject lists stages. */
 function prefixLabel(approval: ApprovalRequested, sourceIndex: number): string | undefined {
   return approval.subject.stages?.find((stage) => stage.requirementId.sourceIndex === sourceIndex)
     ?.suggestedPrefix?.label
@@ -118,7 +118,7 @@ export class PromptLedger {
   /**
    * The card moved to the stage a stale refusal named (MSP's
    * `currentRequirementId`), when Muse Code announces none itself: after an
-   * "Always allow" rule, 1.4.2 can resolve the stage it shows by that rule
+   * "Always Allow" rule, 1.4.2 can resolve the stage it shows by that rule
    * and wait on the next one without an `approval/updated` (captured
    * 2026-10-02). A choice tied to the old stage's rule takes the new stage's
    * label, or goes when that stage suggests no rule. The update is admitted

@@ -112,12 +112,12 @@ describe('groupSessions', () => {
     row({ sessionId: 'hidden', updatedAt: at(HOUR), title: 'Archived by hand' }),
   ]
 
-  it('groups newest-first into Today / Yesterday / Previous 7 days / Older, hiding archived rows', () => {
+  it('groups newest-first into Today / Yesterday / Previous 7 Days / Older, hiding archived rows', () => {
     const groups = groupSessions(rows, { ...options, archivedIds: new Set(['hidden']) })
     expect(groups.map((group) => group.title)).toEqual([
       'Today',
       'Yesterday',
-      'Previous 7 days',
+      'Previous 7 Days',
       'Older',
     ])
     expect(groups.map((group) => group.rows.map((r) => r.sessionId))).toEqual([

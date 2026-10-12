@@ -5,7 +5,9 @@ repository. This file adds only Claude-specific notes.
 
 - Start every task by reading `PLAN.md` (decisions §2, open questions §3,
   the latest milestone in §6, escape-hatch register §8, the release records
-  in §10).
+  in §10). §2 keeps each decision's rule in force; its full design record,
+  closed milestone sections and older gate records live in
+  `docs/plan-archive/` (`decisions.md`, `milestones.md`, `gates.md`).
 - Before proposing a commit, run `npm run quality` and paste the tail of its
   output. A failing or skipped gate is reported as such, never as passing.
 - When a gate or test is added, break the code on purpose once, confirm the

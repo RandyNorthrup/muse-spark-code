@@ -37,7 +37,7 @@ describe('ErrorBoundary', () => {
       </ErrorBoundary>,
     )
     const alert = screen.getByRole('alert')
-    expect(alert).toHaveTextContent('The panel hit an error')
+    expect(alert).toHaveTextContent('The Panel Hit an Error')
     expect(alert).toHaveTextContent('render exploded')
     expect(screen.queryByText('fine')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Reload' }))

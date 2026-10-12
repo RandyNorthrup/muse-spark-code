@@ -961,7 +961,14 @@ export function toolDefinitions(
       : []),
     ...(options.scheduleTools ?? []),
   ]
-  return withStrictTools(definitions, options.shouldUseStrictTools === true)
+  // Recall and injected host declarations may have no curated fields. Mark
+  // them explicitly so request previews never treat them as external tools.
+  const curated = definitions.map((tool) =>
+    Object.hasOwn(tool, 'previewFields')
+      ? tool
+      : Object.defineProperty({ ...tool }, 'previewFields', { value: undefined }),
+  )
+  return withStrictTools(curated, options.shouldUseStrictTools === true)
 }
 
 // --- helpers ---

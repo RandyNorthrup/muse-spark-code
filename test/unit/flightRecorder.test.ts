@@ -49,7 +49,7 @@ import { FakeLogOutputChannel } from './helpers/fakes'
 
 const EXT = '0.1.0'
 const HOST = '1.99.0'
-// A Model API key shape: the shared redaction table recognises it.
+// A Model API Key shape: the shared redaction table recognises it.
 const SECRET = 'LLM_abcdefghijklmnop'
 
 function event(overrides?: Partial<FlightEventInput>): FlightEventInput {
@@ -1188,7 +1188,7 @@ describe('RVM93R regressions', () => {
     expect(
       Buffer.byteLength(merged.entries.map((record) => serializeFlightRecord(record)).join('')),
     ).toBeLessThanOrEqual(REPORT_JOURNAL_MAX_BYTES)
-    // Named residual R7: live files each stay bounded, but their combined disk
+    // Named Residual R7: live files each stay bounded, but their combined disk
     // budget needs a cross-process transaction, not a peer's unqueued rewrite.
     expect(
       files.reduce((total, file) => total + Buffer.byteLength(store.files.get(file) ?? ''), 0),

@@ -1,7 +1,15 @@
 import * as acp from '@agentclientprotocol/sdk'
 import { describe, expect, it, vi } from 'vitest'
 import { usdInputSchema } from '../../src/shared/usdSchema'
-import { AcpAccounts, companionAccountsPanel, type AccountsPanelPort } from '../../src/acp/accounts'
+import {
+  AcpAccounts,
+  AccountSwitchRefusedError,
+  companionAccountsPanel,
+  type AccountsPanelPort,
+} from '../../src/acp/accounts'
+import { accountErrorText } from '../../src/acp/accountText'
+import { AccountStoreError } from '../../src/core/providers/accountCredentialRecord'
+import { fill } from '../../src/shared/l10n/text'
 import { createAcpAgent, type AcpAgentDeps } from '../../src/acp/agent'
 import { AcpPaidUse } from '../../src/acp/paid'
 import { ACP_CONFIG_IDS, UI_TEXT } from '../../src/shared/constants'
@@ -13,6 +21,68 @@ import {
 } from './helpers/runtimeAccounts'
 import { FakeAgentHost } from './helpers/fakeAgent'
 import { memoryPaidGrants } from './helpers/paidGrants'
+
+/** A refusal copy from another bundle: same shape and brand, but a
+ * different constructor, so `instanceof` the shipped class is false. */
+class ForeignRefusal extends Error {
+  public override readonly name = 'AccountSwitchRefusedError'
+  public readonly code = 'accountSwitchRefused'
+}
+
+/** A refused providers file from another bundle: same shape and brand, but a
+ * different constructor, so `instanceof` the shipped class is false. */
+class ForeignStoreError extends Error {
+  public override readonly name = 'AccountStoreError'
+  public readonly code = 'invalidProvidersFile'
+
+  public constructor() {
+    super('invalidProvidersFile')
+  }
+}
+
+function foreignRefusal(message: string): ForeignRefusal {
+  const foreign = new ForeignRefusal(message)
+  expect(foreign).not.toBeInstanceOf(AccountSwitchRefusedError)
+  return foreign
+}
+
+/** A refused switch answers the account option as an invalid request. */
+async function expectRefusedSwitch(
+  client: acp.ClientContext,
+  id: string,
+  stayPut: string,
+): Promise<void> {
+  await expect(
+    client.request('session/set_config_option', {
+      sessionId: id,
+      configId: ACP_CONFIG_IDS.account,
+      value: 'work',
+    }),
+  ).rejects.toMatchObject({
+    code: acp.RequestError.invalidRequest().code,
+    message: expect.stringContaining(stayPut),
+  })
+}
+
+/** Start a controller, emit one vendor-limit stop, and return its notices. */
+async function stopNotice(event: {
+  account: string
+  resetAt: string | null
+}): Promise<ReturnType<typeof vi.fn>> {
+  const h = sessionAccountsRig(),
+    notice = vi.fn()
+  const controller = new AcpAccounts('session', h.port, vi.fn(), notice)
+  await controller.start()
+  h.emit({
+    type: 'stop',
+    provider: 'meta',
+    account: event.account,
+    time: '2026-10-06T12:00:00Z',
+    trigger: { kind: 'vendorLimit', reason: 'rateLimited', resetAt: event.resetAt },
+  })
+  controller.dispose()
+  return notice
+}
 import { until } from './helpers/acpWaits'
 
 function connectedAccounts(isBound = true) {
@@ -122,7 +192,7 @@ describe('M108 ACP accounts', () => {
       expect(h.updates).toContainEqual(
         expect.objectContaining({
           sessionUpdate: 'agent_message_chunk',
-          content: { type: 'text', text: 'Current account: meta · Work' },
+          content: { type: 'text', text: 'Current Account: meta · Work' },
         }),
       )
     })
@@ -810,29 +880,150 @@ describe('M108 ACP accounts', () => {
     ]) {
       h.port.usageUrl = () => url
       h.emit(stop)
-      expect(notice).toHaveBeenLastCalledWith(UI_TEXT.accounts.unavailable, stop)
+      // No bundled usage page: the stop still names the blocked account and
+      // its reset instead of becoming a failure.
+      expect(notice).toHaveBeenLastCalledWith(
+        'meta · Default has no room. Reset time is unknown.',
+        stop,
+      )
     }
     expect(JSON.stringify(notice.mock.calls)).not.toContain('account-secret-canary')
     controller.dispose()
   })
 
   it('shows stop reset times and the provider usage page', async () => {
-    const h = sessionAccountsRig(),
-      notice = vi.fn()
-    const controller = new AcpAccounts('session', h.port, vi.fn(), notice)
-    await controller.start()
-    h.emit({
-      type: 'stop',
-      provider: 'meta',
-      account: 'default',
-      time: '2026-10-06T12:00:00Z',
-      trigger: { kind: 'vendorLimit', reason: 'rateLimited', resetAt: null },
-    })
+    const notice = await stopNotice({ account: 'default', resetAt: null })
     expect(notice).toHaveBeenCalledWith(
-      'meta has no account with room. Reset time is unknown. https://example.test/usage',
+      'meta · Default has no room. Reset time is unknown. https://example.test/usage',
       expect.objectContaining({ type: 'stop' }),
     )
+  })
+
+  it('names the blocked account and its reset when the reset is known', async () => {
+    const notice = await stopNotice({ account: 'work', resetAt: '2026-10-07T12:00:00Z' })
+    expect(notice).toHaveBeenCalledWith(
+      expect.stringContaining('meta · Work has no room. Resets '),
+      expect.objectContaining({ type: 'stop' }),
+    )
+  })
+
+  it('repeats a refused switch with the stay-put text instead of a generic failure', async () => {
+    const h = sessionAccountsRig()
+    const controller = new AcpAccounts('session', h.port, vi.fn(), vi.fn())
+    await controller.start()
+    const refused = new AccountSwitchRefusedError('meta', 'Default')
+    h.port.use = () => Promise.reject(refused)
+    await expect(controller.use('work', () => true)).rejects.toBe(refused)
+    // Any other port failure stays a generic unavailable, never raw text.
+    h.port.use = () => Promise.reject(new Error('account-secret-canary'))
+    await expect(controller.use('work', () => true)).rejects.toThrow(UI_TEXT.accounts.unavailable)
     controller.dispose()
+  })
+
+  it('keeps a branded providers-file refusal through refresh, selection and start', async () => {
+    const h = sessionAccountsRig()
+    const controller = new AcpAccounts('session', h.port, vi.fn(), vi.fn())
+    await controller.start()
+    // The producer bundle carries its own copy of the store error
+    // constructor, so `instanceof` is false here: only the brand travels.
+    const refused = new ForeignStoreError()
+    expect(refused).not.toBeInstanceOf(AccountStoreError)
+    h.port.read = () => Promise.reject(refused)
+    await expect(controller.command('/accounts list', () => true)).rejects.toBe(refused)
+    await expect(controller.use('work', () => true)).rejects.toBe(refused)
+    const late = new AcpAccounts('session', h.port, vi.fn(), vi.fn())
+    await expect(late.start()).rejects.toBe(refused)
+    // The selection catch preserves the brand too when the read succeeds.
+    h.port.read = () => Promise.resolve(h.state())
+    h.port.use = () => Promise.reject(refused)
+    await expect(controller.use('work', () => true)).rejects.toBe(refused)
+    controller.dispose()
+    late.dispose()
+  })
+
+  it('answers a branded providers-file refusal as an internal error with the honest sentence', async () => {
+    const h = connectedAccounts()
+    h.port.use = () => Promise.reject(new ForeignStoreError())
+    await h.run(async (client, id) => {
+      await expect(
+        client.request('session/prompt', {
+          sessionId: id,
+          prompt: [{ type: 'text', text: '/accounts use work' }],
+        }),
+      ).rejects.toMatchObject({
+        code: acp.RequestError.internalError().code,
+        message: expect.stringContaining(UI_TEXT.accounts.providersInvalid),
+      })
+      // The picker selection route reports the same honest sentence.
+      await expect(
+        client.request('session/set_config_option', {
+          sessionId: id,
+          configId: ACP_CONFIG_IDS.account,
+          value: 'work',
+        }),
+      ).rejects.toMatchObject({
+        code: acp.RequestError.internalError().code,
+        message: expect.stringContaining(UI_TEXT.accounts.providersInvalid),
+      })
+      expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
+    })
+  })
+
+  it('answers a refused switch as an invalid request with the stay-put text', async () => {
+    const h = connectedAccounts()
+    h.port.use = () => Promise.reject(new AccountSwitchRefusedError('meta', 'Default'))
+    await h.run(async (client, id) => {
+      const stayPut =
+        'This session stays on meta · Default. Account switching is unavailable in this runtime.'
+      await expect(
+        client.request('session/prompt', {
+          sessionId: id,
+          prompt: [{ type: 'text', text: '/accounts use work' }],
+        }),
+      ).rejects.toMatchObject({
+        code: acp.RequestError.invalidRequest().code,
+        message: expect.stringContaining(stayPut),
+      })
+      await expectRefusedSwitch(client, id, stayPut)
+      expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
+    })
+  })
+
+  it('repeats a cross-bundle refusal copy by its brand instead of a generic failure', async () => {
+    const h = sessionAccountsRig()
+    const controller = new AcpAccounts('session', h.port, vi.fn(), vi.fn())
+    await controller.start()
+    // A producer bundle carries its own copy of the refusal constructor, so
+    // `instanceof` is false here: only the brand travels the boundary.
+    const foreign = foreignRefusal(
+      fill(UI_TEXT.accounts.switchUnavailable, { provider: 'meta', account: 'Work' }),
+    )
+    h.port.use = () => Promise.reject(foreign)
+    await expect(controller.use('work', () => true)).rejects.toBe(foreign)
+    controller.dispose()
+  })
+
+  it('answers a cross-bundle refusal copy as an invalid request, never an internal error', async () => {
+    const h = connectedAccounts()
+    const foreign = foreignRefusal(
+      'This session stays on meta · Default. Account switching is unavailable in this runtime.',
+    )
+    h.port.use = () => Promise.reject(foreign)
+    await h.run(async (client, id) => {
+      await expectRefusedSwitch(client, id, 'This session stays on meta · Default.')
+      expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
+    })
+  })
+
+  it('names a refused providers file by its brand instead of the connection sentence', () => {
+    // The producer bundle carries its own copy of the store error
+    // constructor, so `instanceof` is false here: only the brand travels.
+    const foreign = new ForeignStoreError()
+    expect(foreign).not.toBeInstanceOf(AccountStoreError)
+    expect(accountErrorText(foreign)).toBe(UI_TEXT.accounts.providersInvalid)
+    expect(accountErrorText(new AccountStoreError('unavailable'))).toBe(
+      UI_TEXT.accounts.unavailable,
+    )
   })
 })
 
@@ -889,6 +1080,12 @@ describe('M108 companion through the shared panel', () => {
     await expect(panel.dispatch({ type: 'accounts/list', provider: 'meta' })).resolves.toEqual({
       type: 'accounts/error',
       code: 'unavailable',
+    })
+    // A branded providers-file refusal from the inner port keeps its code.
+    dispatch.mockRejectedValue(new ForeignStoreError())
+    await expect(panel.dispatch({ type: 'accounts/list', provider: 'meta' })).resolves.toEqual({
+      type: 'accounts/error',
+      code: 'providersInvalid',
     })
     const listener = vi.fn()
     panel.subscribe(listener)

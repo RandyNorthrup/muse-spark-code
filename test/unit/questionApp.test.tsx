@@ -54,7 +54,7 @@ function row() {
   return within(screen.getByRole('main'))
 }
 function dock() {
-  return within(screen.getByRole('region', { name: 'Open question' }))
+  return within(screen.getByRole('region', { name: 'Open Question' }))
 }
 async function submitTwice() {
   await act(async () => {
@@ -74,7 +74,7 @@ describe('M112 App commands and shared question delivery', () => {
     await app()
     expect(screen.getAllByRole('radio', { name: 'Blue' })).toHaveLength(1)
     expect(screen.getAllByRole('button', { name: 'Submit' })).toHaveLength(1)
-    const marker = row().getByRole('button', { name: 'Answer Open question Colour' })
+    const marker = row().getByRole('button', { name: 'Answer Open Question Colour' })
     expect(marker).toBeEnabled()
     expect(marker.closest('li')).toHaveClass('tool-question-open')
     expect(screen.getByRole('main').querySelector('input, textarea, [role="tab"]')).toBeNull()
@@ -90,7 +90,7 @@ describe('M112 App commands and shared question delivery', () => {
     })
     host({ type: 'openQuestions', snapshot: { sessionId: 'session-1', questions: [record] } })
     expect(dock().queryByRole('radio')).toBeNull()
-    const marker = row().getByRole('button', { name: 'Answer Open question Colour' })
+    const marker = row().getByRole('button', { name: 'Answer Open Question Colour' })
     act(() => {
       marker.focus()
     })
@@ -98,7 +98,7 @@ describe('M112 App commands and shared question delivery', () => {
     fireEvent.click(marker)
     expect(dock().getByRole('radio', { name: 'Blue' })).toHaveFocus()
     expect(row().queryByRole('radio')).toBeNull()
-    fireEvent.click(dock().getByRole('button', { name: 'Collapse question' }))
+    fireEvent.click(dock().getByRole('button', { name: 'Collapse Question' }))
     fireEvent.click(marker)
     expect(dock().getByRole('radio', { name: 'Blue' })).toHaveFocus()
     fireEvent.click(dock().getByRole('radio', { name: 'Blue' }))
@@ -128,7 +128,7 @@ describe('M112 App commands and shared question delivery', () => {
         fields: [{ name: 'nickname', type: 'string', required: true }],
       },
     })
-    const marker = await row().findByRole('button', { name: 'Answer Open question Profile' })
+    const marker = await row().findByRole('button', { name: 'Answer Open Question Profile' })
     expect(row().queryByRole('form')).toBeNull()
     expect(screen.getByRole('main').querySelector('input, textarea')).toBeNull()
     fireEvent.click(marker)
@@ -209,7 +209,7 @@ describe('M112 App commands and shared question delivery', () => {
     fireEvent.click(screen.getByRole('button', { name: '1 open question' }))
     fireEvent.change(dock().getByLabelText('Other: Colour'), { target: { value: 'Teal' } })
     host({ type: 'openQuestions', snapshot: { sessionId: 'session-1', questions: [] } })
-    expect(row().getByText('No longer open')).toBeVisible()
+    expect(row().getByText('No Longer Open')).toBeVisible()
     expect(screen.queryByRole('button', { name: '1 open question' })).toBeNull()
     expect(row().queryByRole('button', { name: 'Submit' })).toBeNull()
     expect(document.title).toBe('Choices')
@@ -274,7 +274,7 @@ describe('M112 App commands and shared question delivery', () => {
         type: 'openQuestions',
         snapshot: { sessionId: 'session-1', questions: [{ ...record, state: 'answeredLater' }] },
       })
-      expect(row().getByText('Answered later')).toBeVisible()
+      expect(row().getByText('Answered Later')).toBeVisible()
       expect(screen.queryByRole('button', { name: '1 open question' })).toBeNull()
       expect(document.title).toBe('Choices')
       expect(screen.getByText(UI_TEXT.announceLateAnswerSent)).toBeInTheDocument()
@@ -283,14 +283,14 @@ describe('M112 App commands and shared question delivery', () => {
 
   it('delivers an explanation after deferral and retains uncertainty without offering another send', async () => {
     const { host, record, post } = await app()
-    fireEvent.click(dock().getByRole('button', { name: 'Explain instead' }))
-    fireEvent.change(dock().getByLabelText('Your explanation'), {
+    fireEvent.click(dock().getByRole('button', { name: 'Explain Instead' }))
+    fireEvent.change(dock().getByLabelText('Your Explanation'), {
       target: { value: ' Neither choice ' },
     })
     host({ type: 'openQuestions', snapshot: { sessionId: 'session-1', questions: [record] } })
     await act(async () => {
       await import('../../src/webview/components/QuestionUi')
-      fireEvent.click(dock().getByRole('button', { name: 'Send explanation' }))
+      fireEvent.click(dock().getByRole('button', { name: 'Send Explanation' }))
     })
     expect(post).toHaveBeenCalledWith({
       type: 'answerOpenQuestion',
@@ -299,12 +299,12 @@ describe('M112 App commands and shared question delivery', () => {
       reply: { explanation: 'Neither choice' },
     })
     host({ type: 'notice', level: 'error', text: UI_TEXT.questionAnswerUncertain })
-    expect(dock().getByRole('button', { name: 'Send explanation' })).toBeDisabled()
+    expect(dock().getByRole('button', { name: 'Send Explanation' })).toBeDisabled()
     host({ type: 'notice', level: 'error', text: UI_TEXT.questionAnswerFailed })
-    expect(dock().getByRole('button', { name: 'Send explanation' })).toBeEnabled()
+    expect(dock().getByRole('button', { name: 'Send Explanation' })).toBeEnabled()
     await act(async () => {
       await import('../../src/webview/components/QuestionUi')
-      fireEvent.click(dock().getByRole('button', { name: 'Send explanation' }))
+      fireEvent.click(dock().getByRole('button', { name: 'Send Explanation' }))
     })
     expect(
       post.mock.calls.filter(([message]) => message.type === 'answerOpenQuestion'),
@@ -314,13 +314,13 @@ describe('M112 App commands and shared question delivery', () => {
   it('handles host navigation without echo, expands/focuses the dock and updates document title', async () => {
     const { host, record, post } = await app()
     host({ type: 'openQuestions', snapshot: { sessionId: 'session-1', questions: [record] } })
-    expect(document.title).toBe('Choices · 1 open')
+    expect(document.title).toBe('Choices · 1 Open')
     post.mockClear()
     host({ type: 'jumpToOpenQuestion', sessionId: 'session-1', direction: 'next' })
     expect(dock().getByRole('radio', { name: 'Blue' })).toHaveFocus()
     expect(dock().getByRole('button', { name: 'Submit' })).toBeVisible()
     expect(post.mock.calls.some(([message]) => message.type === 'jumpToOpenQuestion')).toBe(false)
-    fireEvent.click(dock().getByRole('button', { name: 'Collapse question' }))
+    fireEvent.click(dock().getByRole('button', { name: 'Collapse Question' }))
     expect(row().queryByRole('button', { name: 'Submit' })).toBeNull()
     host({ type: 'jumpToOpenQuestion', sessionId: 'session-1', direction: 'next' })
     expect(dock().getByRole('button', { name: 'Submit' })).toBeVisible()
@@ -345,10 +345,10 @@ describe('M112 App commands and shared question delivery', () => {
 
   it('offers Dismiss only for open questions and sends the session-scoped command once', async () => {
     const { host, record, post } = await app()
-    expect(row().queryByRole('button', { name: 'More actions' })).toBeNull()
+    expect(row().queryByRole('button', { name: 'More Actions' })).toBeNull()
     host({ type: 'openQuestions', snapshot: { sessionId: 'session-1', questions: [record] } })
-    fireEvent.click(row().getByRole('button', { name: 'Answer Open question Colour' }))
-    fireEvent.click(dock().getByRole('button', { name: 'More actions' }))
+    fireEvent.click(row().getByRole('button', { name: 'Answer Open Question Colour' }))
+    fireEvent.click(dock().getByRole('button', { name: 'More Actions' }))
     const dismissItem = await screen.findByRole('menuitem', { name: 'Dismiss' })
     fireEvent.click(dismissItem)
     // App dispatches through a lazy command module; wait for its observable
@@ -361,7 +361,7 @@ describe('M112 App commands and shared question delivery', () => {
       })
     })
     fireEvent.click(screen.getByRole('button', { name: '1 open question' }))
-    fireEvent.click(dock().getByRole('button', { name: 'More actions' }))
+    fireEvent.click(dock().getByRole('button', { name: 'More Actions' }))
     const dismiss = await screen.findByRole('menuitem', { name: 'Dismiss' })
     expect(dismiss).toHaveAttribute('aria-disabled', 'true')
     fireEvent.click(dismiss)

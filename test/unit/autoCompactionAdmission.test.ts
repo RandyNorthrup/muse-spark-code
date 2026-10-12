@@ -1,3 +1,5 @@
+import { reserveRequestAmount } from '../../src/core/providers/priceCard'
+import { requestImageCount } from '../../src/core/backends/modelapi/modelPolicy'
 import { mkdtemp } from 'node:fs/promises'
 import path from 'node:path'
 import { tmpdir } from 'node:os'
@@ -88,7 +90,13 @@ function fakeClaim(reservedUsd = Usd.from(0.012).toAmount()) {
     }),
   }
 }
-function setup(reserve?: AutoCompactionLedger['reserveCompaction'], isOn = () => true) {
+function setup(
+  reserve?: AutoCompactionLedger['reserveCompaction'],
+  isOn = () => true,
+  loadPricing: NonNullable<
+    Parameters<typeof createAutoCompactionAdmission>[0]['loadPricing']
+  > | null = () => Promise.resolve({ reserveRequestAmount, requestImageCount }),
+) {
   const claims: ReturnType<typeof fakeClaim>[] = []
   const reserveCompaction = vi.fn(
     reserve ??
@@ -101,6 +109,7 @@ function setup(reserve?: AutoCompactionLedger['reserveCompaction'], isOn = () =>
   const allowsPaidUse = vi.fn(() => Promise.resolve(true))
   const notePaidUse = vi.fn()
   const admit = createAutoCompactionAdmission({
+    ...(loadPricing !== null && { loadPricing }),
     accounting: { reserveCompaction },
     allowsPaidUse,
     isOn,
@@ -115,7 +124,181 @@ function setup(reserve?: AutoCompactionLedger['reserveCompaction'], isOn = () =>
   return { admit, claims, reserveCompaction, allowsPaidUse, notePaidUse }
 }
 
+async function rejection(work: Promise<unknown> | undefined): Promise<unknown> {
+  try {
+    await work
+    return undefined
+  } catch (error: unknown) {
+    return error
+  }
+}
+function thrown(run: () => void): unknown {
+  try {
+    run()
+    return undefined
+  } catch (error: unknown) {
+    return error
+  }
+}
+
+/**
+ * One session's overlapping automatic compactions against shared ports: a
+ * ledger whose cap fits one open reservation, ask-once consent and a
+ * revocable session fence. `reused` keeps one admission for the session;
+ * `per-request` builds one for every request, as the production entry does.
+ * Returns every port call and what the caller saw.
+ */
+async function crossRequestRun(mode: 'reused' | 'per-request') {
+  const trace: string[] = []
+  const outcomes: string[] = []
+  const cap = Usd.from(0.03)
+  let open = Usd.from(0)
+  let spent = Usd.from(0)
+  const reserveCompaction: AutoCompactionLedger['reserveCompaction'] = (amount) => {
+    if (spent.add(open).add(Usd.from(amount)).compare(cap) > 0) {
+      trace.push(`refuse ${amount}`)
+      return Promise.reject(new Error('over the daily cap'))
+    }
+    open = open.add(Usd.from(amount))
+    trace.push(`reserve ${amount}`)
+    let isSettled = false
+    return Promise.resolve({
+      reservedUsd: amount,
+      check: () => {
+        trace.push(`check ${amount}`)
+      },
+      settle: (actual: UsdAmount, hasUnknownCost: boolean) => {
+        if (isSettled) throw new Error('double settlement')
+        isSettled = true
+        open = open.subtract(Usd.from(amount))
+        spent = spent.add(Usd.from(actual))
+        trace.push(`settle ${actual} ${String(hasUnknownCost)} spent ${spent.toAmount()}`)
+        return Promise.resolve()
+      },
+    })
+  }
+  const consented = new Set<string>()
+  let fence = 0
+  const deps: Parameters<typeof createAutoCompactionAdmission>[0] = {
+    loadPricing: () => Promise.resolve({ reserveRequestAmount, requestImageCount }),
+    accounting: { reserveCompaction },
+    allowsPaidUse: (_request, _requiresAsking, sessionId) => {
+      trace.push(`${consented.has(sessionId) ? 'remembered' : 'ask'} ${sessionId}`)
+      consented.add(sessionId)
+      return Promise.resolve(true)
+    },
+    isOn: () => true,
+    isTrusted: () => true,
+    isEvaluated: () => true,
+    paidUseFence: () => {
+      const captured = fence
+      return () => fence === captured
+    },
+    dailyBudgetUsd: () => Usd.from(5).toAmount(),
+    notePaidUse: (feature, units) => {
+      trace.push(`note ${feature} ${String(units)}`)
+    },
+    log: new FakeLogOutputChannel(),
+    storeUnavailable: 'ledger unavailable',
+  }
+  const shared = createAutoCompactionAdmission(deps)
+  const admit = (turnId: string) =>
+    (mode === 'reused' ? shared : createAutoCompactionAdmission(deps))({ ...requestFor(), turnId })
+
+  // The first request reserves and stays in flight.
+  const first = await admit('turn-1')
+  await first?.guard.prepareRequest?.(BODY, 1000)
+  outcomes.push('first reserved')
+  // A second request of the same session meets the first one's open claim.
+  const second = await admit('turn-2')
+  outcomes.push(
+    (await rejection(second?.guard.prepareRequest?.(BODY, 1000))) === undefined
+      ? 'second reserved beside the first claim'
+      : 'second refused while the first claim is open',
+  )
+  // The first is sent and settles: its cost joins the day's tally.
+  first?.guard('digest')
+  first?.guard.onRequestStarted?.()
+  await first?.settle('muse-spark-1.3', USAGE, 'returned')
+  await first?.close?.()
+  await second?.close?.()
+  const third = await admit('turn-3')
+  await third?.guard.prepareRequest?.(BODY, 1000)
+  outcomes.push('third reserved after the first settled')
+  // Revocation reaches every admitted use, whichever admission made it.
+  const fourth = await admit('turn-4')
+  fence += 1
+  const refusals = [
+    thrown(() => {
+      third?.guard('digest')
+    }),
+    await rejection(fourth?.guard.prepareRequest?.(BODY, 1000)),
+  ]
+  outcomes.push(
+    refusals.every((error) => error instanceof AutoCompactionNotAuthorizedError)
+      ? 'revocation stops both admitted uses'
+      : 'revocation missed an admitted use',
+  )
+  await third?.close?.()
+  await fourth?.close?.()
+  return { trace, outcomes }
+}
+
 describe('automatic compaction production admission', () => {
+  it('refuses a missing pricing dependency before consent or reservation', async () => {
+    const t = setup(undefined, () => true, null)
+    expect(await t.admit(requestFor())).toBe(undefined)
+    expect(t.allowsPaidUse).not.toHaveBeenCalled()
+    expect(t.reserveCompaction).not.toHaveBeenCalled()
+    expect(t.notePaidUse).not.toHaveBeenCalled()
+  })
+
+  it.each(['absent', 'failed'] as const)(
+    'refuses %s lazy pricing before reserving or dispatching',
+    async (outcome) => {
+      const t = setup(
+        undefined,
+        () => true,
+        () =>
+          outcome === 'absent'
+            ? Promise.resolve(undefined)
+            : Promise.reject(new Error('pricing chunk unavailable')),
+      )
+      const a = await t.admit(requestFor())
+      await expect(a?.guard.prepareRequest?.(BODY, 1000)).rejects.toThrow()
+      expect(t.reserveCompaction).not.toHaveBeenCalled()
+      expect(t.notePaidUse).not.toHaveBeenCalled()
+      expect(() => a?.guard('digest')).toThrow('ledger unavailable')
+      await a?.close?.()
+    },
+  )
+
+  it.each(['switch', 'stop'] as const)(
+    'rechecks %s after the lazy pricing wait before reservation',
+    async (withdrawn) => {
+      let isOn = true
+      const controller = new AbortController()
+      const loaded = Promise.withResolvers<{
+        readonly reserveRequestAmount: typeof reserveRequestAmount
+        readonly requestImageCount: typeof requestImageCount
+      }>()
+      const loadPricing = vi.fn(() => loaded.promise)
+      const t = setup(undefined, () => isOn, loadPricing)
+      const a = await t.admit(requestFor(COST, controller.signal))
+      const preparing = a?.guard.prepareRequest?.(BODY, 1000)
+      await vi.waitFor(() => {
+        expect(loadPricing).toHaveBeenCalledExactlyOnceWith()
+      })
+      if (withdrawn === 'switch') isOn = false
+      else controller.abort()
+      loaded.resolve({ reserveRequestAmount, requestImageCount })
+      await expect(preparing).rejects.toThrow()
+      expect(t.reserveCompaction).not.toHaveBeenCalled()
+      expect(t.notePaidUse).not.toHaveBeenCalled()
+      await a?.close?.()
+    },
+  )
+
   it('a short previous summary cannot overspend the real hard daily journal', async () => {
     const directory = await mkdtemp(path.join(tmpdir(), 'm101-hard-bound-'))
     try {
@@ -170,6 +353,7 @@ describe('automatic compaction production admission', () => {
       const reserveCompaction = vi.fn((amount: UsdAmount) => Promise.resolve(fakeClaim(amount)))
       const allowsPaidUse = vi.fn(() => Promise.resolve(true))
       const admit = createAutoCompactionAdmission({
+        loadPricing: () => Promise.resolve({ reserveRequestAmount, requestImageCount }),
         accounting: { reserveCompaction },
         allowsPaidUse,
         isOn: () => live.switch,
@@ -381,6 +565,29 @@ describe('automatic compaction production admission', () => {
         autoCompactionRequests: 1,
       }),
     ).toBe(ZERO)
+  })
+
+  // The production entry (modelApiEntry.ts) builds this admission anew for
+  // every request, so the factory can load behind the backend. That is sound
+  // only while the factory keeps nothing between requests: in-flight claims
+  // and the day's tally live in the ledger, consent and its fence in the
+  // paid-use ports. One scripted session, both constructions: the ports must
+  // see the same calls and the caller the same answers.
+  it('keeps nothing between requests: one admission and one per request are indistinguishable', async () => {
+    const reused = await crossRequestRun('reused')
+    const perRequest = await crossRequestRun('per-request')
+    expect(perRequest).toEqual(reused)
+    expect(perRequest.outcomes).toEqual([
+      'first reserved',
+      'second refused while the first claim is open',
+      'third reserved after the first settled',
+      'revocation stops both admitted uses',
+    ])
+    // Asked once for the session; the three later requests found it remembered.
+    expect(perRequest.trace.filter((line) => line.startsWith('ask '))).toEqual(['ask session'])
+    expect(perRequest.trace.filter((line) => line.startsWith('remembered '))).toHaveLength(3)
+    expect(perRequest.trace.filter((line) => line.startsWith('reserve '))).toHaveLength(2)
+    expect(perRequest.trace.filter((line) => line.startsWith('refuse '))).toHaveLength(1)
   })
 })
 

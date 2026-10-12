@@ -144,6 +144,12 @@ describe('companion browser transport', () => {
     await expect(rig.pending).rejects.toThrow(UI_TEXT.media.uploadStop)
     expect(rig.progress).toHaveBeenCalledExactlyOnceWith(0, rig.file.size)
   })
+  it('keeps the sentence-case stop error when an upload is aborted', async () => {
+    const rig = setup()
+    rig.stop.abort()
+    rig.reply()
+    await expect(rig.pending).rejects.toThrow('Stop upload')
+  })
   it('Stop aborts the request; no stale token survives it', async () => {
     const rig = setup()
     rig.init?.signal?.addEventListener('abort', () => {

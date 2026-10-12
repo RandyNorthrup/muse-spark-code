@@ -1,0 +1,595 @@
+{
+  "marker": "<!-- whats-new: historical -->",
+  "truthPass": "99e9b4106",
+  "count": 66,
+  "rows": [
+    {
+      "id": "H01",
+      "release": "[0.17.0] - 2026-10-08",
+      "section": "Highlights",
+      "line": 402,
+      "addedBy": "C-X-1",
+      "text": "**Capacity estimates (preview).** `/estimate <goal>` and the Estimator are in place and verified with test data. Real forecasts need the plan reader bound into the estimator; the reader is on main but still unbound, so until then they say so instead of guessing."
+    },
+    {
+      "id": "H02",
+      "release": "[0.17.0] - 2026-10-08",
+      "section": "Highlights",
+      "line": 408,
+      "addedBy": "C-X-1",
+      "text": "**Several accounts per provider.** List provider accounts, see the current one and its thresholds; a vendor limit blocks only the affected account."
+    },
+    {
+      "id": "H03",
+      "release": "[0.17.0] - 2026-10-08",
+      "section": "Highlights",
+      "line": 412,
+      "addedBy": "C-X-1",
+      "text": "**Orchestrator playbook.** The nine orchestration rules ship as a first-party skill. In the ACP agent and the CLI, `/playbook status`, `record` and `settings` answer locally. Today: the VS Code panel does not enforce them yet."
+    },
+    {
+      "id": "H04",
+      "release": "[0.17.0] - 2026-10-08",
+      "section": "Changed",
+      "line": 429,
+      "addedBy": "C-X-1",
+      "text": "Restore bundle budgets through shared wire schemas and report redaction, a backend port for accounts, fewer ACP locales, and deferred vault English, Help facts, estimate schemas and exact dollar formatting. Accounts shrink from 348 to 48 KB; the ACP engine from 915 to 639 KB. The provisional universal VSIX cap is 3700 KiB pending hosted measurement."
+    },
+    {
+      "id": "H05",
+      "release": "[0.17.0] - 2026-10-08",
+      "section": "Fixed",
+      "line": 442,
+      "addedBy": "C-X-1",
+      "text": "`/estimate` recognizes Windows instead of rejecting Node's `win32` name."
+    },
+    {
+      "id": "H06",
+      "release": "[0.17.0] - 2026-10-08",
+      "section": "Fixed",
+      "line": 468,
+      "addedBy": "C-X-1",
+      "text": "Centre chat in its container, await schedule mounts before accessibility scans, and supply the real report panel input in CI."
+    },
+    {
+      "id": "H07",
+      "release": "[0.17.0] - 2026-10-08",
+      "section": "Fixed",
+      "line": 472,
+      "addedBy": "C-X-1",
+      "text": "Register both schedule defaults as flat machine-scoped settings beside the schedule switch; keep validated legacy reads."
+    },
+    {
+      "id": "H08",
+      "release": "[0.17.0] - 2026-10-08",
+      "section": "Fixed",
+      "line": 488,
+      "addedBy": "C-X-1",
+      "text": "Reuse schedule-journal validation only while serialized bytes match; reread storage and validate every change and lease."
+    },
+    {
+      "id": "H09",
+      "release": "[0.17.0] - 2026-10-08",
+      "section": "Fixed",
+      "line": 492,
+      "addedBy": "C-X-1",
+      "text": "Include schedule usage in shared CLI help; keep the native theme bridge within budget and validate original role keys."
+    },
+    {
+      "id": "H10",
+      "release": "[0.17.0] - 2026-10-08",
+      "section": "Fixed",
+      "line": 496,
+      "addedBy": "C-X-1",
+      "text": "Share schedule XML encoding, use maintained report task-glob matching, and verify literal private paths before redaction."
+    },
+    {
+      "id": "H11",
+      "release": "[0.17.0] - 2026-10-08",
+      "section": "Fixed",
+      "line": 507,
+      "addedBy": "C-X-1",
+      "text": "Discard late acknowledgements for idle turns; refuse automatic verification as soon as scheduled steering claims the session, before adopting input."
+    },
+    {
+      "id": "H12",
+      "release": "[0.17.0] - 2026-10-08",
+      "section": "Fixed",
+      "line": 511,
+      "addedBy": "C-X-1",
+      "text": "Record cached scheduled inputs, Git facts and directory indexes in closed reader scopes. Refuse replay of undelivered Git subjects and verification that would read unconfined editor dependencies. Defer schedule authorization and context builders, freeing over 10 KiB in the Model API bundle."
+    },
+    {
+      "id": "H13",
+      "release": "[0.17.0] - 2026-10-08",
+      "section": "Fixed",
+      "line": 524,
+      "addedBy": "C-X-1",
+      "text": "Release stale schedule mode effects and stopped or withdrawn admissions, settle refused queued fires, and validate steer media before claiming a session, allowing later work to proceed."
+    },
+    {
+      "id": "H14",
+      "release": "[0.17.0] - 2026-10-08",
+      "section": "Fixed",
+      "line": 529,
+      "addedBy": "C-X-1",
+      "text": "Load tool rows and schedule channels on first use with accessible loading, explicit failure and retry; preserve provider, usage, report and schedule behavior alongside playbook fixes."
+    },
+    {
+      "id": "H15",
+      "release": "[0.17.0] - 2026-10-08",
+      "section": "Fixed",
+      "line": 537,
+      "addedBy": "C-X-1",
+      "text": "Preserve reports, provider/team workflows and playbook during integration; remove duplicate Help, retain prompt scope for a local user named `user`, and generate report palettes from shared tokens."
+    },
+    {
+      "id": "H16",
+      "release": "[0.17.0] - 2026-10-08",
+      "section": "Fixed",
+      "line": 551,
+      "addedBy": "C-X-1",
+      "text": "Preserve provider, team, legal, sharing and local usage workflows alongside reports, design and playbook, within existing bundle caps."
+    },
+    {
+      "id": "H17",
+      "release": "[0.17.0] - 2026-10-08",
+      "section": "Added",
+      "line": 563,
+      "addedBy": "C-X-1",
+      "text": "Ship the orchestrator-playbook skill with nine rules, a third-strike redesign template and two repository examples. Project or personal skills take precedence on Model API; Install Bundled Skills copies it byte-exact for Muse Code and offers Update when its digest changes. Missing sources, invalid ids, non-file skills and linked roots refuse installation. Its reviewer charter covers eight classes, coverage, dispositions and exact prior-finding resolutions, loading only through the skills bundle. Orchestrated reviewer bindings remain pending."
+    },
+    {
+      "id": "H18",
+      "release": "[0.17.0] - 2026-10-08",
+      "section": "Added",
+      "line": 573,
+      "addedBy": "C-X-1",
+      "text": "ACP `/playbook <status|record|settings ...>` and terminal `playbook` answer locally from a journal without a backend or model turn. Settings record owner and reason; rule opt-outs and fallback reviewers require a user decision. Residuals stay open until lead or owner acceptance and block release while open. Dispatch briefs record hashes before rendering. Help and capability inventories cover all four editor/backend surfaces; full panel enforcement still awaits the planner."
+    },
+    {
+      "id": "H19",
+      "release": "[0.17.0] - 2026-10-08",
+      "section": "Fixed",
+      "line": 585,
+      "addedBy": "C-X-1",
+      "text": "CLI, ACP and React playbook records show unmatched legacy acceptance reasons and original decisions, distinguish identical entries by journal position, and use browser-safe contracts. All fourteen languages include the labels; queued-answer write failures warn that retained answers may repeat."
+    },
+    {
+      "id": "H20",
+      "release": "[0.17.0] - 2026-10-08",
+      "section": "Fixed",
+      "line": 597,
+      "addedBy": "C-X-1",
+      "text": "Panel subagent, delegate, best-of-N and `/review` dispatches use shared playbook policy and offer a Plan redesign at round three. Planner, fleet, schedule and review integrations remain named handoffs."
+    },
+    {
+      "id": "H21",
+      "release": "[0.17.0] - 2026-10-08",
+      "section": "Fixed",
+      "line": 613,
+      "addedBy": "C-X-1",
+      "text": "Persist playbook safety refusals across tools, agents and restart to block same-effect retries. Journal fixtures own and clean their temporary folders."
+    },
+    {
+      "id": "H22",
+      "release": "[0.17.0] - 2026-10-08",
+      "section": "Fixed",
+      "line": 624,
+      "addedBy": "C-X-1",
+      "text": "Fence playbook replies by bridge lifetime, request and workspace so disposed surfaces cannot populate another workspace."
+    },
+    {
+      "id": "H23",
+      "release": "[0.17.0] - 2026-10-08",
+      "section": "Fixed",
+      "line": 631,
+      "addedBy": "C-X-1",
+      "text": "Refresh saved playbook fields, including another window's lowered round limit, so stale controls cannot overwrite them."
+    },
+    {
+      "id": "H24",
+      "release": "[0.17.0] - 2026-10-08",
+      "section": "Fixed",
+      "line": 635,
+      "addedBy": "C-X-1",
+      "text": "Local ACP playbook commands settle unused answer leases. Residual acceptance binds to its instance, rationale, follow-up and module. Submodules and separate Git directories without `commondir` work. All deferred playbook wrappers offer accessible loading, failure and retry. Slash/mention menus, edit tally, task panel and effort controls defer startup work; playbook loads separately to restore the ACP 850 KiB budget."
+    },
+    {
+      "id": "H25",
+      "release": "[0.17.0] - 2026-10-08",
+      "section": "Added",
+      "line": 663,
+      "addedBy": "C-X-1",
+      "text": "Load exact money arithmetic, paid tariffs and estimates after first paint. Names, badges and tooltips paint immediately; prices never use guesses. Failed loading offers \"Prices could not load.\" and Try again, rebuilding the panel. Paid and session-budget acceptance waits for the price; cancelled or replaced wizard drafts drop pending budget changes. Schedule prompt mapping loads on submit; failure restores the command in an empty composer with a warning, and closed surfaces or sessions stash nothing. Restored schedule rows use a small English group; other schedule text loads with its surfaces. Exact cap checks avoid startup arithmetic. The first-paint baseline is 760,059 B plus the prior 1.4 KB margin."
+    },
+    {
+      "id": "H26",
+      "release": "[0.17.0] - 2026-10-08",
+      "section": "Changed",
+      "line": 722,
+      "addedBy": "REL0171C",
+      "feature": "scheduled prompts v2, capacity estimates, several accounts",
+      "kind": "mixed",
+      "why": "names schedule authorization, rental cost estimates and account totals as delivered; the truth pass removed the same sentence from the README; its working fact is the new bullet below it",
+      "text": "Preserve exact decimal USD across schedule authorization, consent and agent caps, rental cost estimates, reporting facts, account totals and voice consent. Read historical numeric records at validated boundaries; saved reports verify their original hashes before migration to exact money version 2."
+    },
+    {
+      "id": "H27",
+      "release": "[0.17.0] - 2026-10-08",
+      "section": "Fixed",
+      "line": 776,
+      "addedBy": "C-X-1",
+      "text": "Reuse validated estimator scheduling without report-only timelines or unused reservation sorting; keep all 2,000 draws and the selected P50 schedule."
+    },
+    {
+      "id": "H28",
+      "release": "[0.17.0] - 2026-10-08",
+      "section": "Fixed",
+      "line": 780,
+      "addedBy": "C-X-1",
+      "text": "Account projections load without unrelated Models, vault, team or keybinding schemas."
+    },
+    {
+      "id": "H29",
+      "release": "[0.17.0] - 2026-10-08",
+      "section": "Fixed",
+      "line": 784,
+      "addedBy": "C-X-1",
+      "text": "Honor approved audio models for ordinary requests, retaining model, key and consent fences. Include vault/estimator bundles in problem-recorder frames."
+    },
+    {
+      "id": "H30",
+      "release": "[0.17.0] - 2026-10-08",
+      "section": "Fixed",
+      "line": 788,
+      "addedBy": "C-X-1",
+      "text": "Speed vault scanning without changing redaction or stream boundaries; retain Unicode SSH wildcard matching without regex construction; share HTML encoding for estimator exports."
+    },
+    {
+      "id": "H31",
+      "release": "[0.17.0] - 2026-10-08",
+      "section": "Fixed",
+      "line": 793,
+      "addedBy": "C-X-1",
+      "text": "Register `museSpark.vault.enabled` and nested defaults in VS Code while preserving opt-outs; use accepted release captures for request baselines."
+    },
+    {
+      "id": "H32",
+      "release": "[0.17.0] - 2026-10-08",
+      "section": "Fixed",
+      "line": 802,
+      "addedBy": "C-X-1",
+      "text": "Preserve provider, media and account contracts; defer credential-bearing account commands. Files requests retain endpoint checks and scrubbed errors; upload cleanup requires its ownership ledger. Both packages include vault and estimator assets, with the native macOS helper from CI. Fresh clones retain browser English readers under temporary parents. Unbound vault shell descriptors preserve strict-tool requests; account help shares usage text, GCM decryption pins tag length, and legacy credentials reuse shared validators. Harnesses supply the estimator setting. Budgets remain unchanged."
+    },
+    {
+      "id": "H33",
+      "release": "[0.17.0] - 2026-10-08",
+      "section": "Added",
+      "line": 830,
+      "addedBy": "C-X-1",
+      "text": "Add several-account storage, thresholds, confirmations and shared account/ usage/developer UI, certified with fake editor ports. Installed mounts, pooling, credential-changing selection and profile/device owners remain pending; extra Muse Code accounts await captures. Account changes never reset paid gates or shared budgets. See [policy](docs/certification/m108-policy.md) and [integration evidence](docs/certification/m108.md)."
+    },
+    {
+      "id": "H34",
+      "release": "[0.17.0] - 2026-10-08",
+      "section": "Added",
+      "line": 873,
+      "addedBy": "C-X-1",
+      "text": "Read-only Git, gh, birth and media-version probes keep admission/containment without temporary folders. This avoids missing-helper refusals in Linux/ macOS source checkouts and repeated Windows PowerShell starts. Writers, including converters and schedule OS commands, retain temporary folders; runtime Windows helpers prepare once."
+    },
+    {
+      "id": "H35",
+      "release": "[0.17.0] - 2026-10-08",
+      "section": "Added",
+      "line": 880,
+      "addedBy": "C-X-1",
+      "text": "Helper compilation uses heavy bootstrap admission, bounded output and whole-tree deadlines/cancellation. Runtime admission covers login/browser launches. Windows report leases close before restoration, preserving concurrent journal entries; birth probes avoid module discovery. Help names unavailable recording and vault-broker services."
+    },
+    {
+      "id": "H36",
+      "release": "[0.17.0] - 2026-10-08",
+      "section": "Added",
+      "line": 887,
+      "addedBy": "C-X-1",
+      "text": "Account-scoped Muse Code hosts share governed native jobs and retirement. Vault MCP stdio uses a guarded governed builder. Media, vault helpers, reporting and schedule readers use admission/containment; missing native launch services refuse before spawning."
+    },
+    {
+      "id": "H37",
+      "release": "[0.17.0] - 2026-10-08",
+      "section": "Fixed",
+      "line": 955,
+      "addedBy": "C-X-1",
+      "text": "Media keeps exact currency, ceiling display and tariff text outside startup; tool rows offer lazy accessible loading/failure/retry. Patch projections share schemas within existing caps. Headless `--record` help is corrected; pending capture, provider, accounting, recorder and companion bindings are explicit. Packages preserve signed recorder resources and media bundles; macOS CI needs no permission. Estimates round upward and refused fills close reserved descriptors. ACP/VS Code inspect media on first use; shared reference values restore ACP/reference budgets to 850/100 KiB. Attachment and inspection factories install the caller's language before refusals."
+    },
+    {
+      "id": "H38",
+      "release": "[0.17.0] - 2026-10-08",
+      "section": "Fixed",
+      "line": 991,
+      "addedBy": "REL0171C",
+      "feature": "several accounts, capacity estimates",
+      "kind": "test note",
+      "why": "a two-account backend test and the estimator harness",
+      "text": "The two-account Muse Code backend test waits for the usage event that follows a turn instead of assuming both arrive together, and the estimator browser harness pays the browser's first-navigation work once before its matrix, keeping every case's two-second bound."
+    },
+    {
+      "id": "H39",
+      "release": "[0.17.0] - 2026-10-08",
+      "section": "Fixed",
+      "line": 997,
+      "addedBy": "REL0171C",
+      "feature": "capacity estimates",
+      "kind": "test note",
+      "why": "the estimator browser harness",
+      "text": "The estimator browser harness uses the same packed English fallback as independent production pages, avoiding cold Windows navigation timeouts while keeping its two-second bound and complete accessibility/keyboard matrix."
+    },
+    {
+      "id": "H40",
+      "release": "[0.17.0] - 2026-10-08",
+      "section": "Fixed",
+      "line": 1027,
+      "addedBy": "REL0171C",
+      "feature": "scheduled prompts v2 (native background scheduler)",
+      "kind": "test note",
+      "why": "schedule runtime tests",
+      "text": "Schedule runtime tests cover Linux, Windows and macOS rearm ownership explicitly; macOS wake shutdown retains its independent after-exit helper."
+    },
+    {
+      "id": "H41",
+      "release": "[0.17.0] - 2026-10-08",
+      "section": "Fixed",
+      "line": 1045,
+      "addedBy": "REL0171C",
+      "feature": "scheduled prompts v2 (background schedules)",
+      "kind": "engineering note",
+      "why": "describes background schedules as running",
+      "text": "Windows: the trusted-path check behind background schedules reads each folder's attributes and ACL through .NET alone. Its PowerShell no longer loads the modules behind `Get-Item`, `Get-Acl` and `ConvertTo-Json`, which took over 15 s per folder on machines with many PowerShell modules installed, such as hosted CI runners (CIFIX017W2)."
+    },
+    {
+      "id": "H42",
+      "release": "[0.17.0] - 2026-10-08",
+      "section": "Fixed",
+      "line": 1079,
+      "addedBy": "REL0171C",
+      "feature": "scheduled prompts v2, several accounts",
+      "kind": "test note",
+      "why": "the schedule surface and the accounts stylesheet in the visual gate",
+      "text": "Visual regression reconstructs the recorded schedule surface inside the served historical revision, so clean CI can load its lazy schedule entry. The current-source audit also records the accounts accessibility stylesheet."
+    },
+    {
+      "id": "H43",
+      "release": "[0.17.0] - 2026-10-08",
+      "section": "Fixed",
+      "line": 1084,
+      "addedBy": "REL0171C",
+      "feature": "scheduled prompts v2 (native schedules)",
+      "kind": "mixed",
+      "why": "presents native schedules as working; the helper fix is the new bullet below it",
+      "text": "Native schedules and helpers no longer refuse a Windows profile folder that is a junction or redirected to another drive. Paths are now checked from the folder the extension owns: links above it are accepted by their resolved identity, and a link below it is still refused."
+    },
+    {
+      "id": "H44",
+      "release": "[0.17.0] - 2026-10-08",
+      "section": "Fixed",
+      "line": 1095,
+      "addedBy": "REL0171C",
+      "feature": "scheduled prompts v2",
+      "kind": "engineering note",
+      "why": "the v2 store and its fires",
+      "text": "Scheduled prompts spend about half the time on their store per fire: the store keeps one journal per workspace, so its validated snapshot and deltas are reused between calls, and a read copies the folded state once instead of every journal entry. Every read still rereads and checks the bytes."
+    },
+    {
+      "id": "H45",
+      "release": "[0.17.0] - 2026-10-08",
+      "section": "Fixed",
+      "line": 1134,
+      "addedBy": "REL0171C",
+      "feature": "teams",
+      "kind": "test note",
+      "why": "the team browser tests",
+      "text": "Start the team browser tests' card and tree deadline once the harness reports the scene played, keeping bundle start-up, the ready handshake and the steps' settle time outside that wait, and list still-open requests when a team test's wait fails."
+    },
+    {
+      "id": "H46",
+      "release": "[0.17.0] - 2026-10-08",
+      "section": "Fixed",
+      "line": 1144,
+      "addedBy": "REL0171C",
+      "feature": "scheduled prompts v2",
+      "kind": "claim",
+      "why": "says the three editor commands and their panels work; they are hidden and refuse",
+      "text": "Restore the Schedule Prompt, Schedules and Schedule Timeline editor commands, including panels opened on demand."
+    },
+    {
+      "id": "H47",
+      "release": "[0.17.0] - 2026-10-08",
+      "section": "Fixed",
+      "line": 1146,
+      "addedBy": "REL0171C",
+      "feature": "scheduled prompts v2",
+      "kind": "engineering note",
+      "why": "the v2 schedule journal",
+      "text": "Reuse successful time-zone validation during repeated schedule journal reads, preserving storage checks and workload deadlines."
+    },
+    {
+      "id": "H48",
+      "release": "[0.17.0] - 2026-10-08",
+      "section": "Fixed",
+      "line": 1155,
+      "addedBy": "REL0171C",
+      "feature": "several accounts",
+      "kind": "test note",
+      "why": "the accounts surface in a test probe",
+      "text": "Include lazy account and developer surfaces in the browser English regression probe while preserving deferred fallback checks."
+    },
+    {
+      "id": "H49",
+      "release": "[0.17.0] - 2026-10-08",
+      "section": "Fixed",
+      "line": 1159,
+      "addedBy": "REL0171C",
+      "feature": "teams (traffic, runners)",
+      "kind": "engineering note",
+      "why": "styling of the team traffic and Runners views, which no team can reach",
+      "text": "Give team traffic and Runners buttons the secondary-button token role instead of input-field colours, and draw their keyboard focus ring from the M114 token contract."
+    },
+    {
+      "id": "H50",
+      "release": "[0.17.0] - 2026-10-08",
+      "section": "Fixed",
+      "line": 1161,
+      "addedBy": "REL0171C",
+      "feature": "several accounts, teams (traffic)",
+      "kind": "mixed",
+      "why": "names the accounts picker and traffic buttons; the Models buttons fact is the new bullet below it",
+      "text": "Draw Models buttons, the accounts picker and traffic buttons from a new assured boundary role that mixes the theme foreground into its background, keeping control boundaries at 3:1 or more in every captured theme."
+    },
+    {
+      "id": "H51",
+      "release": "[0.17.0] - 2026-10-08",
+      "section": "Fixed",
+      "line": 1164,
+      "addedBy": "REL0171C",
+      "feature": "teams",
+      "kind": "engineering note",
+      "why": "the team merge card",
+      "text": "Give the team merge card's path lists their own full-width row so long paths wrap instead of one character per line at narrow widths."
+    },
+    {
+      "id": "H52",
+      "release": "[0.17.0] - 2026-10-08",
+      "section": "Fixed",
+      "line": 1187,
+      "addedBy": "REL0171C",
+      "feature": "scheduled prompts v2, several accounts",
+      "kind": "test note",
+      "why": "schedule and account-consent tests",
+      "text": "The 0.17.0 integration's daily-budget and durable schedule tests now assert exact decimal money, including entered limits below nano precision, while account consent fixtures persist quote ceilings and retain account refusal. Account-bound paid consent carries exact decimal budgets through its popup."
+    },
+    {
+      "id": "H53",
+      "release": "[0.17.0] - 2026-10-08",
+      "section": "Fixed",
+      "line": 1193,
+      "addedBy": "REL0171C",
+      "feature": "several accounts (account-bound consent)",
+      "kind": "engineering note",
+      "why": "account-bound consent, which no production host constructs",
+      "text": "Account-bound paid consent holds \"Always\" across instances and restarts for the same workspace, provider, account and price through the binding-kept grant when no host quote store is configured; it still asks again when any of them changes, when the quote generation changes, or when only a differently-keyed legacy grant exists."
+    },
+    {
+      "id": "H54",
+      "release": "[0.17.0] - 2026-10-08",
+      "section": "Fixed",
+      "line": 1200,
+      "addedBy": "REL0171C",
+      "feature": "several accounts (account-bound consent)",
+      "kind": "engineering note",
+      "why": "account-bound consent; also says \"Help now says so\", which the truth pass replaced",
+      "text": "Account-bound paid consent no longer fabricates quote approval from the binding's feature grant: it requires an account-scoped quote store and generation, persists the approved quote and generation per account, asks again for a higher tariff or a different model on the same or a new instance, and revoke() clears that account's quote grants too. No production host constructs account-bound consent yet — paid approval stays per workspace until M108 lane P wires it — and Help now says so."
+    },
+    {
+      "id": "H55",
+      "release": "[0.17.0] - 2026-10-08",
+      "section": "Fixed",
+      "line": 1209,
+      "addedBy": "REL0171C",
+      "feature": "several accounts (account-bound consent)",
+      "kind": "engineering note",
+      "why": "account-bound consent; also describes Help text the truth pass replaced",
+      "text": "Account-bound paid consent binds grant authority to a durable revocation epoch persisted per account binding: revoke() advances the epoch before clearing, so leftover grants from a failed clear stay stale on every instance after a restart, and a failed advance rejects with the grants still working. Every grant records its approval epoch; concurrent asks on another instance cannot resurrect a revoked grant. Help says paid consent stays per workspace in all fourteen translated tables."
+    },
+    {
+      "id": "H56",
+      "release": "[0.17.0] - 2026-10-08",
+      "section": "Fixed",
+      "line": 1218,
+      "addedBy": "REL0171C",
+      "feature": "credential vault",
+      "kind": "mixed",
+      "why": "says vault-backed MCP servers start; the resource-history fact is the new bullet below it",
+      "text": "Resource history now includes Windows contained and probe commands: the helper's final CPU and memory use is recorded once in this window's history (at most 512 waiting results between reads). The governed process launcher and the start of vault-backed MCP servers now load on first use in bundles of their own (`dist/resourceProcess.js`, new 50 KiB budget; `dist/mcpVault.js`, new 25 KiB budget), so the resource governor is back within its unchanged 125 KiB budget and activation no longer carries the vault MCP start."
+    },
+    {
+      "id": "H57",
+      "release": "[0.17.0] - 2026-10-08",
+      "section": "Security",
+      "line": 1248,
+      "addedBy": "C-X-1",
+      "text": "Document process-tree cleanup after timeouts, explicit background-job handoffs, blind readings for protected processes and no tight security-status polling. Shared orchestration, resource, vault and support policy and the placement playbook adopt these rules across models."
+    },
+    {
+      "id": "H58",
+      "release": "[0.16.0] - 2026-10-07",
+      "section": "Highlights",
+      "line": 1261,
+      "addedBy": "C-X-1",
+      "text": "**Loop guarantees.** Strict tool contracts, bounded hosted search and streamed tool rows make Model API work easier to follow; read-only calls can run concurrently while results retain their original order. Today: rows stream while arguments arrive, but the argument text is not shown yet (no production tool declares preview fields)."
+    },
+    {
+      "id": "H59",
+      "release": "[0.16.0] - 2026-10-07",
+      "section": "Added",
+      "line": 1286,
+      "addedBy": "C-X-1",
+      "text": "Tool argument previews load on first use."
+    },
+    {
+      "id": "H60",
+      "release": "[0.16.0] - 2026-10-07",
+      "section": "Changed",
+      "line": 1492,
+      "addedBy": "C-X-1",
+      "text": "Rebuild 0.16.0 on the complete 0.15.0 candidate, preserving loop guarantees, machine resource controls, provider/team/usage/legal features and prompt sharing. Regenerate the combined reference and localization tables. Remove duplicated headless engine loading and measure the combined deferred bundles with D6's authorized 5% margin rounded to 25 KiB."
+    },
+    {
+      "id": "H61",
+      "release": "[0.16.0] - 2026-10-07",
+      "section": "Fixed",
+      "line": 1520,
+      "addedBy": "C-X-1",
+      "text": "The `museSpark.resourceRelocate` setting no longer implies relocation works. No paired-device or runner route is bound in this release, so resource status, the pause notice and `resources status` say relocation is in progress, and the setting's description says so too."
+    },
+    {
+      "id": "H62",
+      "release": "[0.15.0] - 2026-10-06",
+      "section": "Highlights",
+      "line": 1754,
+      "addedBy": "C-X-1",
+      "text": "**Agent roles and teams.** Configure role pools, task limits and worker review, with explicit paid-worker consent and the shared daily budget. Today: teams of workers in isolated workspaces cannot be created yet. <!-- try: command museSpark.modelsAndAgents -->"
+    },
+    {
+      "id": "H63",
+      "release": "[0.15.0] - 2026-10-06",
+      "section": "Highlights",
+      "line": 1758,
+      "addedBy": "C-X-1",
+      "text": "**Long-task context and upstream sync.** Pi and SoL-Pi ports preserve packed output, literal recall and cache-stable prompts; automatic compaction is implemented but remains inactive pending its paired evaluation. <!-- try: setting museSpark.modelApiAutoCompaction -->"
+    },
+    {
+      "id": "H64",
+      "release": "[0.15.0] - 2026-10-06",
+      "section": "Added",
+      "line": 1776,
+      "addedBy": "C-X-1",
+      "text": "**Roles and teams.** Configure role charters, tools, model pools, task limits, templates and intensity. Workers use isolated workspaces, show their role and task in the transcript and Agent map, and support review before merging. Paid workers ask for consent naming model prices, task ceilings and the shared daily budget; subscriptions do not pay for these extras."
+    },
+    {
+      "id": "H65",
+      "release": "[0.15.0] - 2026-10-06",
+      "section": "Changed",
+      "line": 1799,
+      "addedBy": "C-X-1",
+      "text": "Port Pi and SoL-Pi context improvements: sticky packed output, literal recall, cache-stable prompts, selected-model strict tool schemas and bounded replay image resizing. Manual compaction is available in ACP. Automatic compaction remains inactive until its paired evaluation passes, even with its setting on."
+    },
+    {
+      "id": "H66",
+      "release": "[0.15.0] - 2026-10-06",
+      "section": "Fixed",
+      "line": 1852,
+      "addedBy": "C-X-1",
+      "text": "Translated ACP help retains provider and legal commands alongside sharing, and names the automatic compaction opt-out in every installed language."
+    }
+  ]
+}

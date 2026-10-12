@@ -6,7 +6,7 @@
 
 import { OLLAMA_NUM_CTX_OPTIONS, UI_TEXT } from '../../shared/constants'
 import { fill, formatNumber, plural } from '../../shared/l10n/text'
-import { useFormatUsd } from '../money'
+import { useMoneyLoad } from '../money'
 import type { ModelPriceNote, ModelRow, ModelSort } from '../../shared/modelsPanel'
 import { Badge, type BadgeKind } from './components/Badge'
 import { DataTable, type DataColumn } from './components/DataTable'
@@ -54,15 +54,41 @@ function contextCell(row: ModelRow): string {
 function InputPriceCell({ row }: { readonly row: ModelRow }) {
   // The exact display arrives with the lazy money chunk; until then the
   // cell reads as unpriced, never a guessed number.
-  const formatted = useFormatUsd(row.inputPerMillion ?? 0, 2)
+  const money = useMoneyLoad(undefined, row.inputPerMillion !== undefined)
+  const formatted =
+    money.status === 'ready' ? money.display.formatMoney(row.inputPerMillion ?? 0, 2) : undefined
   const text = formatted === undefined || row.inputPerMillion === undefined ? '—' : formatted
-  return row.priceNote === 'priced' ? <>{text}</> : <PriceNote priceNote={row.priceNote} />
+  return row.priceNote === 'priced' ? (
+    <span
+      data-deferred-loading={
+        (row.inputPerMillion !== undefined &&
+          (money.status === 'idle' || money.status === 'loading')) ||
+        undefined
+      }
+    >
+      {text}
+    </span>
+  ) : (
+    <PriceNote priceNote={row.priceNote} />
+  )
 }
 
 function OutputPriceCell({ row }: { readonly row: ModelRow }) {
-  const formatted = useFormatUsd(row.outputPerMillion ?? 0, 2)
+  const money = useMoneyLoad(undefined, row.outputPerMillion !== undefined)
+  const formatted =
+    money.status === 'ready' ? money.display.formatMoney(row.outputPerMillion ?? 0, 2) : undefined
   const text = formatted === undefined || row.outputPerMillion === undefined ? '—' : formatted
-  return row.priceNote === 'priced' ? <>{text}</> : null
+  return row.priceNote === 'priced' ? (
+    <span
+      data-deferred-loading={
+        (row.outputPerMillion !== undefined &&
+          (money.status === 'idle' || money.status === 'loading')) ||
+        undefined
+      }
+    >
+      {text}
+    </span>
+  ) : null
 }
 
 function RowBadges({ row }: { readonly row: ModelRow }) {
@@ -108,7 +134,9 @@ export function ModelsSection({ panelState, post, highlightedItem }: SectionProp
         : { key: sortKey, direction: 'asc' }
     post({ type: 'models/filter', filter: panelState.filter, sort })
   }
-  const scanning = Object.values(panelState.scans).filter((scan) => scan.status === 'scanning')
+  const scans = Object.values(panelState.scans).filter(
+    (scan) => scan.status === 'scanning' || scan.status === 'failed',
+  )
   return (
     <section aria-label={UI_TEXT.modelsSectionTitle}>
       <h2>{UI_TEXT.modelsSectionTitle}</h2>
@@ -232,7 +260,7 @@ export function ModelsSection({ panelState, post, highlightedItem }: SectionProp
         </div>
       )}
       <p className="models-hint">{UI_TEXT.pricePerMillion}</p>
-      {scanning.map((scan) => (
+      {scans.map((scan) => (
         <ScanStatus
           key={scan.providerId}
           scan={scan}

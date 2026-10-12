@@ -58,7 +58,7 @@ describe('MarkdownView', () => {
       vi.advanceTimersByTime(2000)
     })
     expect(screen.getByText('Copy')).toBeInTheDocument()
-    fireEvent.click(screen.getByText('Insert at cursor'))
+    fireEvent.click(screen.getByText('Insert at Cursor'))
     expect(onInsert).toHaveBeenCalledWith('const a = 1')
     vi.useRealTimers()
   })

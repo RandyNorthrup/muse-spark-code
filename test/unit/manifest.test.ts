@@ -47,7 +47,10 @@ const SURFACE_ACTIVE = `activeWebviewPanelId == '${CHAT_PANEL_VIEW_TYPE}' || foc
 const nlsKeyOf = (reference: string | undefined) => reference?.replace(/^%(.+)%$/, '$1') ?? ''
 
 describe('package.json manifest', () => {
-  it('describes the visible automatic compaction setting as a dormant preference', () => {
+  // 0.17.1's truth pass (CX1R5) words the setting by the one thing it does
+  // while the feature is inactive, in every manifest table, and takes the
+  // inactive feature's description out of the README.
+  it('describes the visible automatic compaction setting by what it does while inactive', () => {
     expect(isAutoCompactionEvaluated()).toBe(false)
     const setting =
       manifest.contributes.configuration.properties['museSpark.modelApiAutoCompaction']
@@ -55,13 +58,16 @@ describe('package.json manifest', () => {
     expect(setting.scope).toBe('machine')
     expect(setting.description).toBe('%config.modelApiAutoCompaction.description%')
     const description = nls['config.modelApiAutoCompaction.description']
-    expect(description).toContain('preference only')
-    expect(description).toContain('currently inactive and sends no extra model requests')
+    expect(description).toContain('first-turn notice')
+    expect(description).toContain('Automatic compaction remains inactive')
     const readme = readFileSync(new URL('../../README.md', import.meta.url), 'utf8').replaceAll(
       /\s+/g,
       ' ',
     )
-    expect(readme).toContain('visible in the native Settings editor as an inactive preference')
+    expect(readme).toContain(
+      '`modelApiAutoCompaction` controls the first-turn awaiting-evaluation notice',
+    )
+    expect(readme).not.toContain('inactive preference')
     expect(readme).not.toContain('automatic feature is absent from Settings')
     expect(readme).not.toContain('The hidden `museSpark.modelApiAutoCompaction`')
   })
@@ -383,6 +389,14 @@ describe('package.json manifest', () => {
       [COMMAND_IDS.attachLatestScreenRecording]: `activeWebviewPanelId == '${CHAT_PANEL_VIEW_TYPE}' || view.${CHAT_VIEW_ID}.visible`,
       // Deletes the conversation in front of the user's uploaded media (M105).
       [COMMAND_IDS.deleteUploadedFiles]: `activeWebviewPanelId == '${CHAT_PANEL_VIEW_TYPE}' || view.${CHAT_VIEW_ID}.visible`,
+      // C-X-1: no runtime owner is bound for these yet, so the palette never
+      // lists them; each command's shim refuses when it is run another way.
+      [COMMAND_IDS.schedulePrompt]: 'false',
+      [COMMAND_IDS.showSchedules]: 'false',
+      [COMMAND_IDS.showScheduleTimeline]: 'false',
+      [COMMAND_IDS.vault]: 'false',
+      [COMMAND_IDS.lockVault]: 'false',
+      [COMMAND_IDS.estimate]: 'false',
     })
     const registered: readonly string[] = Object.values(COMMAND_IDS)
     for (const command of palette.keys()) {

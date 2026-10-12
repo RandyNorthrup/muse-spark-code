@@ -37,14 +37,14 @@ describe('requested legal Markdown', () => {
     const rendered = renderLegalMarkdown(report)
     for (const value of [
       UI_TEXT.legalScanDisclaimer,
-      'Should fix',
+      'Should Fix',
       'dependency/1/1',
       'package.json:2-3',
       'example@1.0.0',
       'MIT OR Apache-2.0',
       'Manifest reader',
       '90%',
-      'Recommendation only',
+      'Recommendation Only',
       'Unresolved dependency',
       'dist/generated.ts',
       'Verify distributed terms',

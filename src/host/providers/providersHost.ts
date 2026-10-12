@@ -9,7 +9,10 @@ import type * as vscode from 'vscode'
 import { PROVIDER_SECRET_PREFIX, UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import type { SecretStore } from '../auth/credentialStore'
-import type { ProviderCredentialStore as CredentialStore } from './credentialRecords'
+import type {
+  CredentialRecord,
+  ProviderCredentialStore as CredentialStore,
+} from './credentialRecords'
 import { isOriginBound } from './credentialRecords'
 import { readOpenRouterKeyUsage } from './openRouter'
 import { connectOpenRouterAccount } from './openRouter'
@@ -96,8 +99,11 @@ export interface ProviderState {
 
 export interface ProvidersHost {
   readonly providers: () => Promise<readonly ProviderEntry[]>
+  readonly defaultModel: () => Promise<string | undefined>
   readonly updateProvider: (entry: ProviderEntry) => Promise<void>
   readonly storedCredential: (entry: ProviderEntry) => Promise<string | undefined>
+  /** Host-only edit baseline, including credentials refused at the entry's origin. */
+  readonly credentialSnapshot: (id: string) => Promise<CredentialRecord | undefined>
   readonly preset: (id: string) => PresetInfo | undefined
   readonly presetIds: () => readonly string[]
   readonly suggestedPreset: (settingValue: string | undefined) => string | undefined
@@ -129,7 +135,10 @@ export interface ProvidersHost {
     candidates: readonly ProviderModelRow[],
   ) => ModelSuggestion | undefined
   readonly suggestSessionBudget: (modelPrices: readonly string[]) => ModelSuggestion | undefined
-  readonly saveDraft: (draft: WizardDraft) => Promise<WizardSaveOutcome>
+  readonly saveDraft: (
+    draft: WizardDraft,
+    sessionBudget?: Parameters<typeof saveWizardDraft>[0]['sessionBudget'],
+  ) => Promise<WizardSaveOutcome>
 }
 
 /**
@@ -198,7 +207,9 @@ export function createProvidersHost(deps: ProvidersHostDeps): ProvidersHost {
 
   return {
     providers: () => deps.store.list(),
+    defaultModel: () => deps.store.defaultModel(),
     storedCredential: (entry) => credentialFor(deps.credentials, entry),
+    credentialSnapshot: (id) => deps.credentials.getProviderCredential(id),
     updateProvider: (entry) =>
       serialize(async () => {
         const entries = await deps.store.list()
@@ -224,7 +235,7 @@ export function createProvidersHost(deps: ProvidersHostDeps): ProvidersHost {
       if (isConfirmed) {
         confirmedAddresses.add(address)
       }
-      return isConfirmed ? verdict : { kind: 'refused', detail: verdict.address }
+      return isConfirmed ? verdict : { kind: 'refused', detail: UI_TEXT.providerPrivateConfirm }
     },
     promptForKey: (preset) =>
       promptForProviderKey(deps.ui.showInputBox, {
@@ -250,7 +261,11 @@ export function createProvidersHost(deps: ProvidersHostDeps): ProvidersHost {
           continue
         }
         const record = await deps.credentials.getProviderCredential(entry.id)
-        states.push({ entry, hasKey: record !== undefined, origin: record?.origin })
+        states.push({
+          entry,
+          hasKey: record !== undefined && isOriginBound(record, entry.address),
+          origin: record?.origin,
+        })
       }
       return states
     },
@@ -317,13 +332,14 @@ export function createProvidersHost(deps: ProvidersHostDeps): ProvidersHost {
     probe: (preset) => probeLocalServers(preset.localProbes, deps.loopbackFetch),
     suggestDefaultModel: (candidates) => deps.suggest.defaultModel(candidates),
     suggestSessionBudget: (modelPrices) => deps.suggest.sessionBudget(modelPrices),
-    saveDraft: (draft) =>
+    saveDraft: (draft, sessionBudget) =>
       serialize(() =>
         saveWizardDraft(
           {
             store: deps.store,
             credentials: deps.credentials,
             policy: deps.policy,
+            ...(sessionBudget !== undefined && { sessionBudget }),
             setComposerModel: deps.setComposerModel,
             isPrivateConfirmed: (address) => confirmedAddresses.has(address),
           },

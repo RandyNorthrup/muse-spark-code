@@ -100,7 +100,7 @@ function UnknownPaidRequests({ count }: { readonly count: number }) {
  * The Tab row (M94 lane U, PLAN.md D73 acceptance 16): today's spend against
  * the daily budget, the request count, and the on/off state. "Today" is the
  * ledger's total for the local day across every window, shown once Tab has
- * run in this window (the ledger is read by dist/tab.js); "This window" is
+ * run in this window (the ledger is read by dist/tab.js); "This Window" is
  * this window's reported cost; the budget is the configured one (RVM94HU
  * 23–24). While Tab is off and has never run here, the row says off with the
  * budget instead of zeros that read as use. The facts wrap, as the other

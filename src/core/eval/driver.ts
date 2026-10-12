@@ -61,6 +61,20 @@ export function bindEvalAdmission(
     admitAutoCompaction: createAutoCompactionAdmission({
       accounting: admission.ledger,
       allowsPaidUse: admission.allowsPaidUse,
+      // The production compaction path through its on-demand pricing port,
+      // exactly as a user's session loads it: price and model-policy code
+      // stays out until the first compaction prepares, and the harness
+      // never reaches past the port into the old import path.
+      loadPricing: async () => {
+        const [providers, policy] = await Promise.all([
+          import('../../host/backend/providersEntry'),
+          import('../backends/modelapi/modelPolicy'),
+        ])
+        return {
+          reserveRequestAmount: providers.priceCard.reserveRequestAmount,
+          requestImageCount: policy.requestImageCount,
+        }
+      },
       isOn: () => readArmed().autoCompaction?.() ?? SETTING_DEFAULTS.modelApiAutoCompaction,
       isTrusted: () => readArmed().isWorkspaceTrusted(),
       isEvaluated: () => readArmed().autoCompactionEvaluated?.() ?? IS_AUTO_COMPACTION_EVALUATED,

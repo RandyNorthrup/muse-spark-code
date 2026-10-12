@@ -1,7 +1,7 @@
 import { Usd } from '../../src/shared/usd'
 // Offline composition over the owner's 2026-10-04 Mistral captures.
 // Tool name/arguments alone are adapted to the real harness read_file tool.
-import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { createServer } from 'node:http'
@@ -19,8 +19,10 @@ import { formatStoredProviderSecret } from '../../src/runtime/keyStore'
 import {
   providerEntrySchema,
   writeProvidersFileAtomic,
+  type ProviderEntry,
 } from '../../src/core/providers/providersFile'
 import { ModelApiHost } from '../../src/core/backends/modelapi/ModelApiHost'
+import { effortForPolicy } from '../../src/core/backends/modelapi/modelPolicy'
 import type { CreateResponseBody, StreamEvent } from '../../src/core/backends/modelapi/schemas'
 import * as responsesCodec from '../../src/core/backends/modelapi/codecs/responses'
 import { fakeModelApi, fakeModelApiClient } from './helpers/fakeModelApi'
@@ -70,6 +72,26 @@ async function stream(file: string, isAdapted = false) {
     .join('')
   return Buffer.from(`${text}data: [DONE]\n\n`)
 }
+async function deepseekStream() {
+  const parsed = z
+    .object({ response: z.object({ events: z.array(z.object({ data: z.json() })) }) })
+    .parse(
+      JSON.parse(
+        await readFile(
+          path.join('docs/certification/m95-captures/deepseek', '04-tool-result-stream.json'),
+          'utf8',
+        ),
+      ),
+    )
+  const text = parsed.response.events
+    .map((event) => `data: ${JSON.stringify(event.data)}\n\n`)
+    .join('')
+  return Buffer.from(`${text}data: [DONE]\n\n`)
+}
+function expectDisabledSwitch(wire: Record<string, unknown>) {
+  expect(wire).toMatchObject({ model: 'deepseek-flash', thinking: { type: 'disabled' } })
+  expect(wire).not.toHaveProperty('reasoning_effort')
+}
 const response = (bytes: Uint8Array, status = 200) => ({
   status,
   headers: {},
@@ -78,6 +100,79 @@ const response = (bytes: Uint8Array, status = 200) => ({
   })(),
   close: vi.fn(),
 })
+async function anthropicStream() {
+  const parsed = z
+    .object({
+      response: z.object({ events: z.array(z.object({ event: z.string(), data: z.json() })) }),
+    })
+    .parse(
+      JSON.parse(
+        await readFile(
+          path.join('docs/certification/m95-captures/anthropic', '04-tool-result-stream.json'),
+          'utf8',
+        ),
+      ),
+    )
+  return Buffer.from(
+    parsed.response.events
+      .map((event) => `event: ${event.event}\ndata: ${JSON.stringify(event.data)}\n\n`)
+      .join(''),
+  )
+}
+
+async function providerFixture(entry: ProviderEntry, payload: () => Promise<Buffer>) {
+  const f = await fixture()
+  await writeProvidersFileAtomic(f.configFile, { v: 1, providers: [entry] })
+  await f.secrets.store(
+    `${PROVIDER_SECRET_PREFIX}${entry.id}`,
+    formatStoredProviderSecret(
+      { v: 1, auth: 'apiKey', origin: new URL(entry.address ?? '').origin },
+      'test-owned-key',
+    ),
+  )
+  const sent: Record<string, unknown>[] = []
+  const send: NonNullable<ConfiguredProviderOptions['send']> = async (_target, bytes) => {
+    if (bytes !== undefined) sent.push(JSON.parse(bytes) as Record<string, unknown>)
+    return response(await payload())
+  }
+  const services = createConfiguredProviderServices(undefined, {
+    ...f,
+    resolve: () => Promise.resolve(['8.8.8.8']),
+    send,
+  })
+  return { services, sent }
+}
+/** One real ModelApiHost turn at `effort` over the configured client. */
+async function hostTurn(
+  services: ReturnType<typeof createConfiguredProviderServices>,
+  ref: string,
+  effort: string,
+) {
+  const host = new ModelApiHost({
+    ...fakeModelApiHostDeps({
+      client: services.client,
+      io: memoryToolIo({}, '/workspace'),
+      log: new FakeLogOutputChannel(),
+      workspaceRoot: '/workspace',
+    }),
+    models: services.client.models,
+  })
+  try {
+    const session = await host.startSession({
+      modelId: ref,
+      approvalMode: 'allowAll',
+      workspaceRoot: '/workspace',
+    })
+    await session.setReasoningEffort(effort)
+    const watch = watchSessionTurns(session)
+    const done = watch.turnDone()
+    await session.sendTurn([{ type: 'text', text: 'Hi.' }])
+    await done
+    return watch.events
+  } finally {
+    await host.close()
+  }
+}
 async function fixture() {
   const root = await mkdtemp(path.join(tmpdir(), 'm95-configured-'))
   roots.push(root)
@@ -550,7 +645,13 @@ describe('configured provider production transport', () => {
           confirmed,
         ),
       ),
-    ).rejects.toThrow(UI_TEXT.modelsPanelUnavailable)
+    ).rejects.toThrow(
+      // RVCM1062H P3: a rotated key lapses the confirmation, so the run keeps
+      // the helper's own guidance instead of the unavailable text.
+      condition === 'credential rotation'
+        ? UI_TEXT.scheduleConfirmationExpired
+        : UI_TEXT.modelsPanelUnavailable,
+    )
     expect(send).toHaveBeenCalledTimes(['redirect', 'echoed error'].includes(condition) ? 1 : 0)
     expect(services.client.readPlanUsage?.()).toHaveLength(
       ['redirect', 'echoed error'].includes(condition) ? 1 : 0,
@@ -602,6 +703,138 @@ describe('configured provider production transport', () => {
     expect(old.isCurrent()).toBe(false)
   })
 
+  describe('reasoning resolver production path (lane DSTHINK3)', () => {
+    const DEEPSEEK_ENTRY = providerEntrySchema.parse({
+      id: 'deepseek',
+      preset: 'deepseek',
+      address: 'https://api.deepseek.com',
+      format: 'chat',
+      auth: 'apiKey',
+      models: ['deepseek-flash'],
+    })
+    const DEEPSEEK_REF = 'deepseek/deepseek-flash'
+    const HAIKU_ENTRY = providerEntrySchema.parse({
+      id: 'anthropic',
+      preset: 'anthropic',
+      address: 'https://api.anthropic.com',
+      format: 'anthropic',
+      auth: 'apiKey',
+      models: ['claude-haiku-4-5'],
+      // RVDSTHINK2 finding 1: a valid output ceiling below Haiku's 1,024-token
+      // minimum thinking budget.
+      modelLimits: { 'claude-haiku-4-5': { contextTokens: 200_000, outputTokens: 512 } },
+    })
+    const HAIKU_REF = 'anthropic/claude-haiku-4-5'
+    const THINKING_LOCKED = {
+      'deepseek-flash': {
+        reasoning: {
+          effortLevels: { state: 'no' },
+          canDisable: { state: 'no' },
+          forced: { state: 'yes', value: true },
+        },
+      },
+    } as const
+    const TOGGLE_ONLY = {
+      'deepseek-flash': {
+        reasoning: {
+          effortLevels: { state: 'no' },
+          canDisable: { state: 'yes', value: true },
+        },
+      },
+    } as const
+
+    const deepseekFixture = (overrides?: unknown) =>
+      providerFixture(
+        overrides === undefined
+          ? DEEPSEEK_ENTRY
+          : providerEntrySchema.parse({ ...DEEPSEEK_ENTRY, modelCapabilities: overrides }),
+        deepseekStream,
+      )
+
+    const completed = expect.objectContaining({ type: 'turnCompleted', terminal: 'completed' })
+
+    it('maps an unlisted Thinking-on effort to the nearest listed level, never to off', async () => {
+      // RVDSTHINK finding 1: catalogue DeepSeek `[low, high, max]` at `medium`.
+      const { services, sent } = await deepseekFixture()
+      expect(await hostTurn(services, DEEPSEEK_REF, 'medium')).toContainEqual(completed)
+      expect(sent).toHaveLength(1)
+      expect(sent[0]).toMatchObject({ model: 'deepseek-flash', reasoning_effort: 'high' })
+      expect(sent[0]).not.toHaveProperty('thinking')
+    })
+
+    it('sends Thinking off as the switch and a listed level as named', async () => {
+      const { services, sent } = await deepseekFixture()
+      expect(await hostTurn(services, DEEPSEEK_REF, 'none')).toContainEqual(completed)
+      expectDisabledSwitch(sent[0] ?? {})
+      expect(await hostTurn(services, DEEPSEEK_REF, 'max')).toContainEqual(completed)
+      expect(sent[1]).toMatchObject({ reasoning_effort: 'max' })
+      expect(sent[1]).not.toHaveProperty('thinking')
+    })
+
+    it('sends the switch for a toggle-only override and nothing for Thinking on', async () => {
+      // RVDSTHINK finding 2: canDisable yes with effortLevels no.
+      const { services, sent } = await deepseekFixture(TOGGLE_ONLY)
+      expect(await hostTurn(services, DEEPSEEK_REF, 'none')).toContainEqual(completed)
+      expectDisabledSwitch(sent[0] ?? {})
+      expect(sent[0]).not.toHaveProperty('reasoning')
+      expect(await hostTurn(services, DEEPSEEK_REF, 'high')).toContainEqual(completed)
+      for (const field of ['thinking', 'reasoning_effort', 'reasoning'])
+        expect(sent[1]).not.toHaveProperty(field)
+    })
+
+    it('refuses Thinking off on a model that forbids disabling, with no dispatch', async () => {
+      // RVDSTHINK2 finding 2, through the host and the resolved client.
+      const { services, sent } = await deepseekFixture(THINKING_LOCKED)
+      const model = await services.registry.resolve(DEEPSEEK_REF)
+      expect(model.policy.reasoning.canDisable.state).toBe('no')
+      const events = await hostTurn(services, DEEPSEEK_REF, 'none')
+      expect(sent).toHaveLength(0)
+      expect(JSON.stringify(events)).toContain(
+        `${UI_TEXT.chatCodecThinkingOffUnsupported} (unsupported_reasoning_effort)`,
+      )
+      expect(events).not.toContainEqual(completed)
+      expect(await hostTurn(services, DEEPSEEK_REF, 'high')).toContainEqual(completed)
+      expect(sent[0]).not.toHaveProperty('thinking')
+    })
+
+    it('keeps the typed refusal and its translated reason through the configured client', async () => {
+      // RVDSTHINK finding 3: no generic unavailable error, no dispatch.
+      const { services, sent } = await deepseekFixture(THINKING_LOCKED)
+      const model = await services.registry.resolve(DEEPSEEK_REF)
+      for (const [effort, reason] of [
+        ['none', UI_TEXT.chatCodecThinkingOffUnsupported],
+        ['ultra', UI_TEXT.chatCodecEffortUnsupported],
+      ] as const) {
+        let failure: unknown
+        try {
+          await consume(
+            model.client.streamResponse(
+              { ...body(), model: DEEPSEEK_REF, reasoning: { effort } },
+              new AbortController().signal,
+            ),
+          )
+        } catch (error) {
+          failure = error
+        }
+        expect(failure).toBeInstanceOf(Error)
+        expect((failure as Error).name).toBe('ChatCodecError')
+        expect((failure as Error).message).toBe(`${reason} (unsupported_reasoning_effort)`)
+      }
+      expect(sent).toHaveLength(0)
+    })
+
+    it('keeps a short Haiku reply at the default effort working as before', async () => {
+      // RVDSTHINK2 finding 1: no thinking budget is added above the 512 cap.
+      const { services, sent } = await providerFixture(HAIKU_ENTRY, anthropicStream)
+      const model = await services.registry.resolve(HAIKU_REF)
+      expect(effortForPolicy(model.policy, 'high')).toBe('none')
+      expect(await hostTurn(services, HAIKU_REF, 'high')).toContainEqual(completed)
+      expect(sent).toHaveLength(1)
+      expect(sent[0]).toMatchObject({ model: 'claude-haiku-4-5', max_tokens: 512 })
+      expect(sent[0]).not.toHaveProperty('thinking')
+    })
+  })
+
   it('pins a loopback HTTP request with no proxy or credential and parses a real local stream', async () => {
     const f = await fixture()
     const payload = await stream('03-tool-result-stream.json')
@@ -647,4 +880,183 @@ describe('configured provider production transport', () => {
       )
     }
   })
+})
+
+describe('output cap minimum admission', () => {
+  const withMinimum = {
+    ...ENTRY,
+    modelCapabilities: { 'ministral-3b-latest': { output: { minTokens: 16 } } },
+  }
+  it.each([0, 1, 15])(
+    'rejects a provider capability cap of %s below its minimum when saved',
+    async (cap) => {
+      const f = await fixture()
+      const written = await writeProvidersFileAtomic(f.configFile, {
+        v: 1,
+        providers: [
+          {
+            ...withMinimum,
+            modelCapabilities: {
+              'ministral-3b-latest': { output: { minTokens: 16, maxTokens: cap } },
+            },
+          },
+        ],
+      })
+      expect(written).toMatchObject({
+        ok: false,
+        reason: 'invalid',
+        detail: expect.stringContaining('Output cap must be at least 16 tokens.'),
+      })
+      expect(await readFile(f.configFile, 'utf8')).not.toContain('minTokens')
+    },
+  )
+  it('refuses an older stored provider cap with the same minimum message', async () => {
+    const f = await fixture()
+    await writeFile(
+      f.configFile,
+      JSON.stringify({
+        v: 1,
+        providers: [
+          {
+            ...withMinimum,
+            modelLimits: { 'ministral-3b-latest': { contextTokens: 8192, outputTokens: 15 } },
+          },
+        ],
+      }),
+    )
+    const send = vi.fn(() => Promise.resolve(response(new Uint8Array())))
+    const services = createConfiguredProviderServices(undefined, { ...f, send })
+    await expect(services.client.models?.resolve(REF)).rejects.toThrow(
+      'Output cap must be at least 16 tokens.',
+    )
+    expect(send).not.toHaveBeenCalled()
+  })
+  it.each([0, 1, 15])(
+    'rejects custom output limit %s below the declared provider minimum',
+    (cap) => {
+      const parsed = providerEntrySchema.safeParse({
+        ...withMinimum,
+        preset: 'custom',
+        modelLimits: { 'ministral-3b-latest': { contextTokens: 8192, outputTokens: cap } },
+      })
+      expect(parsed.success).toBe(false)
+      if (!parsed.success)
+        expect(parsed.error.message).toContain('Output cap must be at least 16 tokens.')
+    },
+  )
+  it('refuses sub-minimum configured requests before send', async () => {
+    const f = await fixture()
+    const written = await writeProvidersFileAtomic(f.configFile, { v: 1, providers: [withMinimum] })
+    expect(written.ok).toBe(true)
+    const send = vi.fn<NonNullable<ConfiguredProviderOptions['send']>>(() =>
+      Promise.resolve(response(new Uint8Array())),
+    )
+    const services = createConfiguredProviderServices(undefined, {
+      ...f,
+      send,
+      resolve: () => Promise.resolve(['8.8.8.8']),
+    })
+    const selected = await services.client.models?.resolve(REF)
+    expect(selected).toBeDefined()
+    if (selected === undefined) throw new Error('missing model')
+    for (const cap of [0, 1, 15]) {
+      await expect(
+        consume(
+          selected.client.streamResponse(
+            { ...body(), max_output_tokens: cap },
+            new AbortController().signal,
+          ),
+        ),
+      ).rejects.toThrow('Output cap must be at least 16 tokens.')
+    }
+    expect(send).not.toHaveBeenCalled()
+    const payload = await stream('03-tool-result-stream.json')
+    send.mockImplementation(() => Promise.resolve(response(payload)))
+    await consume(
+      selected.client.streamResponse(
+        { ...body(), max_output_tokens: 16 },
+        new AbortController().signal,
+      ),
+    )
+    expect(send).toHaveBeenCalledTimes(1)
+    expect(send.mock.calls[0]?.[1]).toContain('"max_tokens":16')
+  })
+})
+
+it('retains Meta’s captured minimum for a custom entry without a declared minimum', async () => {
+  const f = await fixture()
+  const model = 'muse-spark-1.3-contributor'
+  const ref = `${ENTRY.id}/${model}`
+  const entry = {
+    ...ENTRY,
+    preset: 'custom',
+    address: 'https://api.meta.ai/v1',
+    format: 'responses',
+    models: [model],
+    modelLimits: { [model]: { contextTokens: 8192, outputTokens: 64 } },
+  }
+  for (const cap of [0, 1, 15]) {
+    const written = await writeProvidersFileAtomic(f.configFile, {
+      v: 1,
+      providers: [
+        { ...entry, modelLimits: { [model]: { contextTokens: 8192, outputTokens: cap } } },
+      ],
+    })
+    expect(written).toMatchObject({ ok: false, detail: 'Output cap must be at least 16 tokens.' })
+    const override = await writeProvidersFileAtomic(f.configFile, {
+      v: 1,
+      providers: [{ ...entry, modelCapabilities: { [model]: { output: { maxTokens: cap } } } }],
+    })
+    expect(override).toMatchObject({ ok: false, detail: 'Output cap must be at least 16 tokens.' })
+  }
+  const written = await writeProvidersFileAtomic(f.configFile, { v: 1, providers: [entry] })
+  expect(written.ok).toBe(true)
+  const send = vi.fn(() => Promise.resolve(response(new Uint8Array())))
+  const services = createConfiguredProviderServices(undefined, { ...f, send })
+  const selected = await services.client.models?.resolve(ref)
+  if (selected === undefined) throw new Error('missing model')
+  expect(selected.policy.output.minTokens).toBe(16)
+  await expect(
+    consume(
+      selected.client.streamResponse(
+        { ...body(), model: ref, max_output_tokens: 15 },
+        new AbortController().signal,
+      ),
+    ),
+  ).rejects.toThrow('Output cap must be at least 16 tokens.')
+  expect(send).not.toHaveBeenCalled()
+})
+
+it('preserves the minimum if a stored cap changes before a bound client sends', async () => {
+  const f = await fixture()
+  const entry = {
+    ...ENTRY,
+    modelCapabilities: { 'ministral-3b-latest': { output: { minTokens: 16 } } },
+  }
+  const written = await writeProvidersFileAtomic(f.configFile, { v: 1, providers: [entry] })
+  expect(written.ok).toBe(true)
+  const send = vi.fn(() => Promise.resolve(response(new Uint8Array())))
+  const services = createConfiguredProviderServices(undefined, {
+    ...f,
+    send,
+    resolve: () => Promise.resolve(['8.8.8.8']),
+  })
+  const selected = await services.client.models?.resolve(REF)
+  if (selected === undefined) throw new Error('missing model')
+  await writeFile(
+    f.configFile,
+    JSON.stringify({
+      v: 1,
+      providers: [
+        {
+          ...entry,
+          modelLimits: { 'ministral-3b-latest': { contextTokens: 8192, outputTokens: 15 } },
+        },
+      ],
+    }),
+  )
+  await expect(
+    consume(selected.client.streamResponse(body(), new AbortController().signal)),
+  ).rejects.toThrow('Output cap must be at least 16 tokens.')
+  expect(send).not.toHaveBeenCalled()
 })

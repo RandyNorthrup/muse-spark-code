@@ -22,7 +22,7 @@ import {
   STRICT_TOOLS_ARM,
 } from '../../../src/core/eval/mechanisms'
 import { Usd, sumUsd } from '../../../src/shared/usd'
-import { evalReportSchema } from '../../../src/core/eval/report'
+import { evalReportSchema, type EvalReport } from '../../../src/core/eval/report'
 import { runPairedEval, type EvalArm, type EvalRunDeps } from '../../../src/core/eval/runner'
 import plan from '../../../src/core/eval/plan.json'
 import { withPackingEngagement, withCompactionEngagement } from '../../e2e/evalLiveSupport'
@@ -99,6 +99,44 @@ function canonical(task: EvalTask): ScriptedReply[] {
 
 /** A run that changes nothing. */
 const IDLE: ScriptedReply[] = [{ text: 'Nothing to change.' }]
+
+/**
+ * Two arms ran where the frozen set has four: incomplete, never pass. Both
+ * narrowed fake pairs hold every floor, so the arm set alone decides.
+ */
+function expectIncompleteTwoArmRun(
+  report: EvalReport,
+): asserts report is Extract<EvalReport, { version: typeof EVAL_REPORT_VERSION }> {
+  if (report.version !== EVAL_REPORT_VERSION) throw new Error('unexpected legacy report')
+  expect(report.verdict).toBe('incomplete')
+  expect(report.incompleteReasons).toEqual(['arm set differs from the frozen arms'])
+  expect(report.floors.every((floor) => floor.held)).toBe(true)
+}
+
+/** The mechanism idles on the leading tasks and runs canonical replies elsewhere. */
+function runWithLosses(
+  tasks: readonly EvalTask[],
+  losses: number,
+): ReturnType<typeof runPairedEval> {
+  const { api, deps } = rig()
+  api.script(
+    ...tasks.flatMap((task, index) => {
+      const mechanism = index < losses ? IDLE : canonical(task)
+      // The arms take turns going first: odd tasks start with the mechanism.
+      return index % 2 === 0
+        ? [...canonical(task), ...mechanism]
+        : [...mechanism, ...canonical(task)]
+    }),
+  )
+  return runPairedEval(tasks, [BASELINE, RECHECK], deps)
+}
+
+/** The task's canonical replies, once per attempt the single-task run may take. */
+function canonicalAttempts(task: EvalTask, attempts: number): ScriptedReply[] {
+  const replies: ScriptedReply[] = []
+  for (let attempt = 0; attempt < attempts; attempt += 1) replies.push(...canonical(task))
+  return replies
+}
 
 interface Rig {
   readonly api: FakeModelApi
@@ -207,10 +245,7 @@ describe('runPairedEval', { timeout: RUNS_TIMEOUT_MS }, () => {
     const { api, deps } = rig()
     api.script(...EVAL_TASKS.flatMap((task) => [...canonical(task), ...canonical(task)]))
     const report = await runPairedEval(EVAL_TASKS, [BASELINE, STRICT_TOOLS], deps)
-    // Two arms ran where the frozen set has four: incomplete, never pass.
-    expect(report.verdict).toBe('incomplete')
-    expect(report.incompleteReasons).toEqual(['arm set differs from the frozen arms'])
-    expect(report.floors.every((floor) => floor.held)).toBe(true)
+    expectIncompleteTwoArmRun(report)
     for (const arm of report.arms) {
       expect(arm.summaries).toMatchObject([
         { split: 'accept', tasks: 9, passed: 9, attempts: 27 },
@@ -239,6 +274,7 @@ describe('runPairedEval', { timeout: RUNS_TIMEOUT_MS }, () => {
       ]),
     )
     const report = await runPairedEval(EVAL_TASKS, [BASELINE, RECHECK], deps)
+    if (report.version !== EVAL_REPORT_VERSION) throw new Error('unexpected legacy report')
     expect(report).toMatchObject({
       version: EVAL_REPORT_VERSION,
       model: EVAL_MODEL_ID,
@@ -296,19 +332,7 @@ describe('runPairedEval', { timeout: RUNS_TIMEOUT_MS }, () => {
 
   it('holds the held-out floor through one lost task and not through two', async () => {
     const heldout = evalTasksOfSplit('heldout')
-    const runWith = async (losses: number) => {
-      const { api, deps } = rig()
-      api.script(
-        ...heldout.flatMap((task, index) => {
-          const mechanism = index < losses ? IDLE : canonical(task)
-          // The arms take turns going first: odd tasks start with the mechanism.
-          return index % 2 === 0
-            ? [...canonical(task), ...mechanism]
-            : [...mechanism, ...canonical(task)]
-        }),
-      )
-      return await runPairedEval(heldout, [BASELINE, RECHECK], deps)
-    }
+    const runWith = (losses: number) => runWithLosses(heldout, losses)
     const one = await runWith(1)
     // The accept split did not run: every floor that ran held, and that is all.
     expect(one.verdict).toBe('incomplete')
@@ -328,19 +352,7 @@ describe('runPairedEval', { timeout: RUNS_TIMEOUT_MS }, () => {
 
   it('holds the accept floor through two lost tasks and not through three', async () => {
     const accept = evalTasksOfSplit('accept')
-    const runWith = async (losses: number) => {
-      const { api, deps } = rig()
-      api.script(
-        ...accept.flatMap((task, index) => {
-          const mechanism = index < losses ? IDLE : canonical(task)
-          // The arms take turns going first: odd tasks start with the mechanism.
-          return index % 2 === 0
-            ? [...canonical(task), ...mechanism]
-            : [...mechanism, ...canonical(task)]
-        }),
-      )
-      return await runPairedEval(accept, [BASELINE, RECHECK], deps)
-    }
+    const runWith = (losses: number) => runWithLosses(accept, losses)
     const two = await runWith(2)
     // The held-out split did not run: every floor that ran held, and that is all.
     expect(two.verdict).toBe('incomplete')
@@ -385,6 +397,7 @@ describe('runPairedEval', { timeout: RUNS_TIMEOUT_MS }, () => {
         }),
       )
       const report = await runPairedEval(EVAL_TASKS, [first, second, third], deps)
+      if (report.version !== EVAL_REPORT_VERSION) throw new Error('unexpected legacy report')
       // Every task passed on every arm that ran, and still the run decides
       // nothing: one frozen arm never ran.
       expect(report.floors.every((floor) => floor.held)).toBe(true)
@@ -397,13 +410,7 @@ describe('runPairedEval', { timeout: RUNS_TIMEOUT_MS }, () => {
     const [task] = EVAL_TASKS
     if (task === undefined) throw new Error('the task set is empty')
     const { api, deps } = rig()
-    api.script(
-      ...canonical(task),
-      ...canonical(task),
-      ...canonical(task),
-      ...canonical(task),
-      ...canonical(task),
-    )
+    api.script(...canonicalAttempts(task, 5))
     const report = await runPairedEval(
       [task],
       [
@@ -415,6 +422,7 @@ describe('runPairedEval', { timeout: RUNS_TIMEOUT_MS }, () => {
       ],
       deps,
     )
+    if (report.version !== EVAL_REPORT_VERSION) throw new Error('unexpected legacy report')
     expect(report.verdict).toBe('incomplete')
     expect(report.incompleteReasons).toContain('arm set differs from the frozen arms')
   })
@@ -423,7 +431,7 @@ describe('runPairedEval', { timeout: RUNS_TIMEOUT_MS }, () => {
     const [task] = EVAL_TASKS
     if (task === undefined) throw new Error('the task set is empty')
     const { api, deps } = rig()
-    api.script(...canonical(task), ...canonical(task), ...canonical(task), ...canonical(task))
+    api.script(...canonicalAttempts(task, 4))
     // The frozen names all ran, but packing arrived as an unfrozen callback
     // with no bundle: the receipt cannot cover what ran.
     const report = await runPairedEval(
@@ -436,6 +444,7 @@ describe('runPairedEval', { timeout: RUNS_TIMEOUT_MS }, () => {
       ],
       deps,
     )
+    if (report.version !== EVAL_REPORT_VERSION) throw new Error('unexpected legacy report')
     expect(report.verdict).toBe('incomplete')
     expect(report.incompleteReasons).toEqual([
       'narrowed selection',
@@ -757,6 +766,7 @@ describe('runPairedEval', { timeout: RUNS_TIMEOUT_MS }, () => {
       }),
     )
     const report = await runPairedEval(EVAL_TASKS, [BASELINE, AUTO_COMPACTION_ARM], deps)
+    if (report.version !== EVAL_REPORT_VERSION) throw new Error('unexpected report version')
     // Two arms ran where the frozen set has four: incomplete, never pass.
     expect(report.verdict).toBe('incomplete')
     expect(report.incompleteReasons).toEqual(['arm set differs from the frozen arms'])
@@ -788,7 +798,6 @@ describe('runPairedEval', { timeout: RUNS_TIMEOUT_MS }, () => {
     // The settled-admission count rides on every task result: one on each
     // long-context run of the arm, zero everywhere else — the baseline
     // settled nothing on any task.
-    if (report.version !== EVAL_REPORT_VERSION) throw new Error('unexpected report version')
     const [baselineArm, compactionArm] = report.arms
     const baselineResults = baselineArm?.results ?? []
     for (const result of baselineResults) {

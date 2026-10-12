@@ -2,7 +2,14 @@ import { readdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
+import {
+  SANCTIONED_ESTIMATOR,
+  SANCTIONED_RATE,
+  SANCTIONED_SETTING,
+  SANCTIONED_WIRE,
+} from './helpers/moneyPlanCitations'
 import { analyzeFixtures, analyzeSource, MAX_TYPE_DEPTH, MONEY_KEY } from './helpers/moneyTypeGuard'
+import { planCitationChecker, type PlanCitation } from './helpers/planCitation'
 
 // Exact-money guard (M121, replacing the PORTS017D runtime walk and text scan).
 //
@@ -24,7 +31,9 @@ import { analyzeFixtures, analyzeSource, MAX_TYPE_DEPTH, MONEY_KEY } from './hel
 // - `sanctioned`: numeric money PLAN keeps (PLAN.md M121 "Sanctioned numeric
 //   money"): per-unit price-card and catalog rates, vendor wire units captured
 //   as sent, and VS Code number settings with their declared defaults. Each
-//   entry cites a PLAN line.
+//   entry cites the clause of that paragraph that sanctions it, by M121's
+//   heading and the clause's own words (`./helpers/planCitation`), never by
+//   line number: the clause must be in PLAN.md exactly once, under M121.
 //
 // M121 converted every former `trackedDebt` entry (the 0.17 inventory of
 // current numeric money) to `UsdAmount`; that category no longer exists.
@@ -32,16 +41,25 @@ import { analyzeFixtures, analyzeSource, MAX_TYPE_DEPTH, MONEY_KEY } from './hel
 // Every other money leaf fails, and a listed entry that no longer matches is
 // stale and fails too.
 
-type MoneyCategory = 'nonMoney' | 'sanctioned'
-interface AllowEntry {
-  readonly category: MoneyCategory
-  readonly reason: string
-}
+type AllowEntry =
+  | { readonly category: 'nonMoney'; readonly reason: string }
+  | { readonly category: 'sanctioned'; readonly reason: string; readonly plan: PlanCitation }
 
-const RATE = 'Per-unit price-card or catalog rate, display and comparison only (PLAN.md:20254).'
-const WIRE = 'Vendor wire unit captured as sent, converted exactly at the boundary (PLAN.md:20254).'
-const SETTING =
-  'VS Code number setting or its declared default/limit, read with Usd.from (PLAN.md:20254).'
+const RATE: AllowEntry = {
+  category: 'sanctioned',
+  reason: 'Per-unit price-card or catalog rate, display and comparison only.',
+  plan: SANCTIONED_RATE,
+}
+const WIRE: AllowEntry = {
+  category: 'sanctioned',
+  reason: 'Vendor wire unit captured as sent, converted exactly at the boundary.',
+  plan: SANCTIONED_WIRE,
+}
+const SETTING: AllowEntry = {
+  category: 'sanctioned',
+  reason: 'VS Code number setting or its declared default/limit, read with Usd.from.',
+  plan: SANCTIONED_SETTING,
+}
 const TOKENS = 'Token count, not money.'
 
 const ALLOW_LIST: Readonly<Record<string, AllowEntry>> = {
@@ -75,96 +93,78 @@ const ALLOW_LIST: Readonly<Record<string, AllowEntry>> = {
     reason: 'Worker count, not money.',
   },
   // --- sanctioned: per-unit rates.
-  'core/agent/agentBackend.ts:inputUsdPerMTokens': { category: 'sanctioned', reason: RATE },
-  'core/agent/agentBackend.ts:outputUsdPerMTokens': { category: 'sanctioned', reason: RATE },
-  'core/backends/musecode/MuseCodeHost.ts:inputUsdPerMTokens': {
-    category: 'sanctioned',
-    reason: RATE,
-  },
-  'core/backends/musecode/MuseCodeHost.ts:outputUsdPerMTokens': {
-    category: 'sanctioned',
-    reason: RATE,
-  },
-  'shared/protocol.ts:inputUsdPerMTokens': { category: 'sanctioned', reason: RATE },
-  'shared/protocol.ts:outputUsdPerMTokens': { category: 'sanctioned', reason: RATE },
-  'core/providers/providerRegistry.ts:inputUsdPerMTokens': { category: 'sanctioned', reason: RATE },
-  'core/providers/providerRegistry.ts:outputUsdPerMTokens': {
-    category: 'sanctioned',
-    reason: RATE,
-  },
-  'host/conversation/conversationController.ts:inputUsdPerMTokens': {
-    category: 'sanctioned',
-    reason: RATE,
-  },
-  'host/conversation/conversationController.ts:outputUsdPerMTokens': {
-    category: 'sanctioned',
-    reason: RATE,
-  },
-  'core/team/intensity.ts:cachedUsdPerMTok': { category: 'sanctioned', reason: RATE },
-  'core/team/intensity.ts:usdPerMTok': { category: 'sanctioned', reason: RATE },
-  'core/team/intensity.ts:usdPerHourLow': { category: 'sanctioned', reason: RATE },
-  'core/team/intensity.ts:usdPerHourHigh': { category: 'sanctioned', reason: RATE },
-  'core/team/autofill.ts:usdPerMTokInput': { category: 'sanctioned', reason: RATE },
-  'core/team/capValidation.ts:usdPerMTok': { category: 'sanctioned', reason: RATE },
-  'core/team/preview.ts:usdPerMTokInput': { category: 'sanctioned', reason: RATE },
-  'core/team/preview.ts:usdPerMTokOutput': { category: 'sanctioned', reason: RATE },
-  'core/team/preview.ts:usdPerMTokCachedInput': { category: 'sanctioned', reason: RATE },
-  'shared/estimate.ts:hourlyUsd': { category: 'sanctioned', reason: RATE },
+  'core/agent/agentBackend.ts:inputUsdPerMTokens': RATE,
+  'core/agent/agentBackend.ts:outputUsdPerMTokens': RATE,
+  'core/backends/musecode/MuseCodeHost.ts:inputUsdPerMTokens': RATE,
+  'core/backends/musecode/MuseCodeHost.ts:outputUsdPerMTokens': RATE,
+  'shared/protocol.ts:inputUsdPerMTokens': RATE,
+  'shared/protocol.ts:outputUsdPerMTokens': RATE,
+  'core/providers/providerRegistry.ts:inputUsdPerMTokens': RATE,
+  'core/providers/providerRegistry.ts:outputUsdPerMTokens': RATE,
+  'host/conversation/conversationController.ts:inputUsdPerMTokens': RATE,
+  'host/conversation/conversationController.ts:outputUsdPerMTokens': RATE,
+  'core/team/intensity.ts:cachedUsdPerMTok': RATE,
+  'core/team/intensity.ts:usdPerMTok': RATE,
+  'core/team/intensity.ts:usdPerHourLow': RATE,
+  'core/team/intensity.ts:usdPerHourHigh': RATE,
+  'core/team/autofill.ts:usdPerMTokInput': RATE,
+  'core/team/capValidation.ts:usdPerMTok': RATE,
+  'core/team/preview.ts:usdPerMTokInput': RATE,
+  'core/team/preview.ts:usdPerMTokOutput': RATE,
+  'core/team/preview.ts:usdPerMTokCachedInput': RATE,
+  'shared/estimate.ts:hourlyUsd': RATE,
   'shared/estimate.ts:CatalogPrice': {
     category: 'sanctioned',
-    reason: 'Hourly catalog rate, display and comparison only (PLAN.md:20258).',
+    reason: 'Hourly catalog rate, display and comparison only.',
+    plan: SANCTIONED_RATE,
   },
   'shared/estimate.ts:catalogPriceSchema': {
     category: 'sanctioned',
-    reason: 'Hourly catalog rate, display and comparison only (PLAN.md:20258).',
+    reason: 'Hourly catalog rate, display and comparison only.',
+    plan: SANCTIONED_RATE,
   },
   'shared/estimate.ts:accountUsdPerHour': {
     category: 'sanctioned',
-    reason: 'Estimator USD/hour demand forecast, scheduling math (PLAN.md:20265).',
+    reason: 'Estimator USD/hour demand forecast, scheduling math.',
+    plan: SANCTIONED_ESTIMATOR,
   },
   'core/estimator/schedule.ts:accountUsdPerHour': {
     category: 'sanctioned',
-    reason:
-      'The same estimator USD/hour demand forecast, seen through Reservation (PLAN.md:20265).',
+    reason: 'The same estimator USD/hour demand forecast, seen through Reservation.',
+    plan: SANCTIONED_ESTIMATOR,
   },
   'core/estimator/schedule.ts:usd': {
     category: 'sanctioned',
-    reason: 'Estimator USD/hour demand forecast, scheduling math (PLAN.md:20265).',
+    reason: 'Estimator USD/hour demand forecast, scheduling math.',
+    plan: SANCTIONED_ESTIMATOR,
   },
   'core/providers/providersFile.ts:UserPriceCard': {
     category: 'sanctioned',
-    reason: 'User-entered USD-per-token price card (PLAN.md:20258).',
+    reason: 'User-entered USD-per-token price card.',
+    plan: SANCTIONED_RATE,
   },
   'core/providers/providersFile.ts:userPriceCardSchema': {
     category: 'sanctioned',
-    reason: 'User-entered USD-per-token price card (PLAN.md:20258).',
+    reason: 'User-entered USD-per-token price card.',
+    plan: SANCTIONED_RATE,
   },
-  'core/backends/modelapi/codecs/responses.ts:settledCostSchema': {
-    category: 'sanctioned',
-    reason: 'Vendor wire unit captured as sent, converted exactly at the boundary (PLAN.md:20260).',
-  },
+  'core/backends/modelapi/codecs/responses.ts:settledCostSchema': WIRE,
   // --- sanctioned: vendor wire units (xAI ticks of 1e-10 USD).
-  'core/backends/modelapi/codecs/responses.ts:cost_in_usd_ticks': {
-    category: 'sanctioned',
-    reason: WIRE,
-  },
-  'core/usage/journalRecord.ts:costInUsdTicks': { category: 'sanctioned', reason: WIRE },
-  'core/backends/modelapi/modelPolicy.ts:costInUsdTicks': { category: 'sanctioned', reason: WIRE },
-  'core/providers/priceCard.ts:costInUsdTicks': { category: 'sanctioned', reason: WIRE },
+  'core/backends/modelapi/codecs/responses.ts:cost_in_usd_ticks': WIRE,
+  'core/usage/journalRecord.ts:costInUsdTicks': WIRE,
+  'core/backends/modelapi/modelPolicy.ts:costInUsdTicks': WIRE,
+  'core/providers/priceCard.ts:costInUsdTicks': WIRE,
   // --- sanctioned: VS Code number settings and their declared defaults/limits.
-  'shared/constants.ts:paidDailyBudgetUsd': { category: 'sanctioned', reason: SETTING },
-  'shared/constants.ts:tabDailyBudgetUsd': { category: 'sanctioned', reason: SETTING },
-  'shared/constants.ts:modelApiSessionBudgetUsd': { category: 'sanctioned', reason: SETTING },
-  'shared/constants.ts:minimumUsd': { category: 'sanctioned', reason: SETTING },
-  'shared/constants.ts:maximumUsd': { category: 'sanctioned', reason: SETTING },
-  'runtime/runtimeAccountingEntry.ts:paidDailyBudgetUsd': {
-    category: 'sanctioned',
-    reason: SETTING,
-  },
+  'shared/constants.ts:paidDailyBudgetUsd': SETTING,
+  'shared/constants.ts:tabDailyBudgetUsd': SETTING,
+  'shared/constants.ts:modelApiSessionBudgetUsd': SETTING,
+  'shared/constants.ts:minimumUsd': SETTING,
+  'shared/constants.ts:maximumUsd': SETTING,
+  'runtime/runtimeAccountingEntry.ts:paidDailyBudgetUsd': SETTING,
 }
 
 const ROOT = fileURLToPath(new URL('../../', import.meta.url))
-const PLAN_LINES = readFileSync(path.join(ROOT, 'PLAN.md'), 'utf8').split('\n')
+const planProblem = planCitationChecker(readFileSync(path.join(ROOT, 'PLAN.md'), 'utf8'))
 
 // Collection time, like the walk it replaces: one checker over all of `src`
 // is a ten-second build, which the per-test deadline is not for.
@@ -380,9 +380,9 @@ describe('exact-money type guard', () => {
         continue
       }
       if (!SOURCE.flagged.has(id)) problems.push(`${id}: stale ${entry.category} entry`)
-      const line = /PLAN\.md:(\d+)/.exec(entry.reason)?.[1]
-      if (line === undefined || (PLAN_LINES[Number(line) - 1] ?? '').trim() === '')
-        problems.push(`${id}: sanctioned entry without a PLAN citation`)
+      const unresolved = planProblem(entry.plan)
+      if (unresolved !== undefined)
+        problems.push(`${id}: sanctioned entry without a PLAN citation (${unresolved})`)
     }
     problems.sort((left, right) => left.localeCompare(right))
     expect({ unexpected, problems }).toEqual({ unexpected: [], problems: [] })
