@@ -61,6 +61,45 @@ it('tells the session person at once when Always could not be saved', async () =
   )
 })
 
+it('tells the asking session when its save fails, not a later session (P2-3)', async () => {
+  // A's grant write stays pending while B asks in the same folder: the old
+  // lookup read the session when the failure happened (B) instead of when
+  // the question was asked (A).
+  const { promise: writeGate, resolve: releaseWrite } = Promise.withResolvers<unknown>()
+  const grants: PaidGrantStore = {
+    read: () => new Set<PaidFeature>(),
+    add: async () => {
+      await writeGate
+      throw new Error('store locked')
+    },
+    forget: () => Promise.resolve(),
+  }
+  const paid = new AcpPaidUse({
+    flagged: ['imageGeneration'],
+    canRemember: () => true,
+    grants,
+    log: logger(),
+  })
+  paid.attach(() => Promise.resolve('always' as const))
+  const told: [string, string][] = []
+  paid.attachNotify((sessionId, text) => {
+    told.push([sessionId, text])
+  })
+  const imageRequest: PaidUseRequest = {
+    feature: 'imageGeneration',
+    modelId: 'muse-spark-1.3',
+    dailyBudgetUsd: Usd.from(5).toAmount(),
+  }
+  const a = paid.allows('/ws', 'session-a', imageRequest, false)
+  const b = paid.allows('/ws', 'session-b', imageRequest, false)
+  releaseWrite()
+  expect(await a).toBe(true)
+  expect(await b).toBe(true)
+  // Each failure reaches the session that asked: A's pending write tells A
+  // even though B asked meanwhile, and B's own write tells B.
+  expect(told.map(([session]) => session)).toEqual(['session-a', 'session-b'])
+})
+
 it('tells the terminal operator at once when Always could not be saved', async () => {
   const warned: string[] = []
   const paid = new AcpPaidUse({

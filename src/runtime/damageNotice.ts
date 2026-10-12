@@ -89,6 +89,9 @@ export function fileDamageMarkers(file: string): DamageMarkerStore {
   const temporaryFile = `${file}.reported.tmp`
   return {
     readMarker: () => {
+      // read-state: cert TBL-11. A missing or damaged marker reads as no
+      // marker, and no marker announces: the marker only ever suppresses a
+      // DUPLICATE announcement, so its absence can never hide damage.
       try {
         const marker: unknown = JSON.parse(readFileSync(markerFile, 'utf8'))
         return typeof marker === 'object' &&

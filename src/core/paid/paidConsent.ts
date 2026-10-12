@@ -73,6 +73,12 @@ export interface PaidNotKeptNotice {
   readonly feature: PaidFeature
   /** The store failure's kind word, never its message. */
   readonly kind: string
+  /**
+   * The session that asked, bound when the question was asked: the pending
+   * write carries it, so a later question in another session cannot steal
+   * the notice (P2-3). Hosts without sessions leave it unset.
+   */
+  readonly sessionId?: string
 }
 
 /**
@@ -384,7 +390,7 @@ export class PaidUseConsent {
    * logged and leaves this use allowed once, so the next one asks again
    * instead of this one failing.
    */
-  private async remember(feature: PaidFeature): Promise<boolean> {
+  private async remember(feature: PaidFeature, notifySession?: string): Promise<boolean> {
     try {
       if (this.deps.rememberGrant === undefined)
         await this.deps.writeGrants(new Set([...this.deps.readGrants(), feature]))
@@ -403,7 +409,11 @@ export class PaidUseConsent {
       this.deps.log.warn(
         `Paid use of ${feature}: "always" could not be kept, so it is allowed once (${kind})`,
       )
-      this.deps.onNotKept?.({ feature, kind })
+      this.deps.onNotKept?.({
+        feature,
+        kind,
+        ...(notifySession !== undefined && { sessionId: notifySession }),
+      })
       return false
     }
   }
@@ -422,6 +432,7 @@ export class PaidUseConsent {
   private async searchApprovalOrder(
     quote: PaidQuote,
     prior: PaidGrant | undefined,
+    notifySession?: string,
   ): Promise<number | undefined> {
     try {
       return await (this.deps.nextQuoteOrder?.() ?? this.authority.nextOrder(quote, prior))
@@ -434,7 +445,11 @@ export class PaidUseConsent {
       if (!(error instanceof Error)) throw error
       const kind = this.quoteNotKeptKind(error)
       this.deps.log.warn(`Paid search quote could not be kept (${kind})`)
-      this.deps.onNotKept?.({ feature: 'webSearch', kind })
+      this.deps.onNotKept?.({
+        feature: 'webSearch',
+        kind,
+        ...(notifySession !== undefined && { sessionId: notifySession }),
+      })
       return undefined
     }
   }
@@ -446,14 +461,19 @@ export class PaidUseConsent {
   }
 
   /** Asks in the popup now and keeps what the answer grants. */
-  private async decide(request: PaidUseRequest, ask: PaidUseConsentDeps['ask']): Promise<boolean> {
-    return (await this.decideScope(request, ask)) !== undefined
+  private async decide(
+    request: PaidUseRequest,
+    ask: PaidUseConsentDeps['ask'],
+    notifySession?: string,
+  ): Promise<boolean> {
+    return (await this.decideScope(request, ask, notifySession)) !== undefined
   }
 
   /** Asks in the popup now, keeps what the answer grants and names it; undefined refuses. */
   private async decideScope(
     request: PaidUseRequest,
     ask: PaidUseConsentDeps['ask'],
+    notifySession?: string,
   ): Promise<PaidUseScope | undefined> {
     const { feature } = request
     const canRemember = this.deps.canRemember()
@@ -476,7 +496,7 @@ export class PaidUseConsent {
       answer === 'always' &&
       canRemember &&
       this.deps.canRemember() &&
-      (await this.remember(feature))
+      (await this.remember(feature, notifySession))
     ) {
       this.deps.log.info(`Paid use of ${feature}: allowed always in this workspace`)
       this.notify()
@@ -495,6 +515,7 @@ export class PaidUseConsent {
     request: Extract<PaidUseRequest, { feature: 'webSearch' }>,
     requiresAsking: boolean,
     ask: PaidUseConsentDeps['ask'],
+    notifySession?: string,
   ): Promise<PaidQuote | undefined> {
     if (!this.isEnabled('webSearch')) return undefined
     const localGeneration = this.revocation
@@ -600,7 +621,7 @@ export class PaidUseConsent {
     if (answer === 'once' && isWindowUse) this.searchWindowOnce.add(windowKey)
     const approvalOrder =
       answer === 'always' && this.deps.canRemember()
-        ? await this.searchApprovalOrder(quote, prior)
+        ? await this.searchApprovalOrder(quote, prior, notifySession)
         : undefined
     if (!isCurrent()) return undefined
     const isKept = approvalOrder !== undefined && this.deps.canRemember()
@@ -615,7 +636,8 @@ export class PaidUseConsent {
       tag = effect.grant
       let isOk = false
       try {
-        if (this.deps.writeQuoteGrant === undefined) isOk = await this.remember('webSearch')
+        if (this.deps.writeQuoteGrant === undefined)
+          isOk = await this.remember('webSearch', notifySession)
         else {
           await this.deps.writeQuoteGrant({ ...effect.grant, generation: storedGeneration })
           isOk = true
@@ -627,7 +649,11 @@ export class PaidUseConsent {
         if (!(error instanceof Error)) throw error
         const kind = this.quoteNotKeptKind(error)
         this.deps.log.warn(`Paid search quote could not be kept (${kind})`)
-        this.deps.onNotKept?.({ feature: 'webSearch', kind })
+        this.deps.onNotKept?.({
+          feature: 'webSearch',
+          kind,
+          ...(notifySession !== undefined && { sessionId: notifySession }),
+        })
       }
       if (!isCurrent()) return undefined
       this.authority.dispatch({ type: 'saved', grant: effect.grant, ok: isOk })
@@ -691,27 +717,34 @@ export class PaidUseConsent {
     requiresAsking?: boolean,
     ask?: PaidUseConsentDeps['ask'],
     signal?: AbortSignal,
+    notifySession?: string,
   ): Promise<boolean>
   public allows(
     request: PaidUseRequest,
     requiresAsking?: boolean,
     ask?: PaidUseConsentDeps['ask'],
     signal?: AbortSignal,
+    notifySession?: string,
   ): Promise<PaidUseDecision>
   public async allows(
     request: PaidUseRequest,
     requiresAsking = false,
     ask = this.deps.ask,
     signal?: AbortSignal,
+    notifySession?: string,
   ): Promise<PaidUseDecision> {
     if (signal !== undefined) {
       // Stop ends this caller's wait; the shared popup still owns its answer.
       signal.throwIfAborted()
-      const decision = await unlessAborted(this.allows(request, requiresAsking, ask), signal)
+      const decision = await unlessAborted(
+        this.allows(request, requiresAsking, ask, undefined, notifySession),
+        signal,
+      )
       signal.throwIfAborted()
       return decision
     }
-    if (request.feature === 'webSearch') return await this.allowSearch(request, requiresAsking, ask)
+    if (request.feature === 'webSearch')
+      return await this.allowSearch(request, requiresAsking, ask, notifySession)
     const { feature } = request
     if (!this.isEnabled(feature)) {
       return false
@@ -732,14 +765,14 @@ export class PaidUseConsent {
       return true
     }
     if (requiresAsking || !this.isWindowOnceFeature(feature)) {
-      return await this.decide(request, ask)
+      return await this.decide(request, ask, notifySession)
     }
     const pending = this.pendingWindowOnce.get(feature)
     if (pending !== undefined) {
       this.deps.log.info(`Paid use of ${feature}: waits for the question open in this window`)
       return await pending
     }
-    const decision = this.decide(request, ask)
+    const decision = this.decide(request, ask, notifySession)
     this.pendingWindowOnce.set(feature, decision)
     try {
       return await decision

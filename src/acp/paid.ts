@@ -194,11 +194,12 @@ export class AcpPaidUse {
         readGrants: () => this.deps.grants.read(workspaceRoot),
         writeGrants: (grants) => this.keep(workspaceRoot, grants),
         ask: (asked, canRemember) => this.ask(sessionId, asked, canRemember),
-        // A choice that could not be saved is said at once: the session's
-        // person where there is one, else the terminal operator.
+        // A choice that could not be saved is said at once: the session
+        // that asked (bound when the question was asked and carried with
+        // the pending write, P2-3), else the terminal operator.
         onNotKept: (notice) => {
           const text = this.notKeptText(notice)
-          const notifySession = this.notifySessions.get(workspaceRoot)
+          const notifySession = notice.sessionId ?? this.notifySessions.get(workspaceRoot)
           if (notifySession !== undefined && this.sessionNotifier !== undefined) {
             this.sessionNotifier(notifySession, text)
             return
@@ -249,6 +250,10 @@ export class AcpPaidUse {
           request,
           requiresAsking,
           (asked, canRemember) => this.ask(sessionId, asked, canRemember),
+          undefined,
+          // The asking session travels with the pending write: a later
+          // question in another session cannot steal its notice (P2-3).
+          sessionId,
         )
       : this.isOn(request.feature) && (await this.deps.headless(request, requiresAsking))
   }

@@ -74,6 +74,9 @@ export function paidGrantFile(deps: PaidGrantFileDeps): PaidGrantStore {
       if (storeErrorCode(error) === ENOENT) {
         return undefined
       }
+      // read-state: cert TBL-09. Any other read failure warns with its kind
+      // and reads as no record, so the use asks again (fail closed for
+      // money); the failure is never silent and never "no grant".
       const reason = describeStoreError(error)
       if (isChanging) {
         throw new Error(`${file} could not be read: ${reason}`, { cause: error })
@@ -148,6 +151,8 @@ export function paidGrantFile(deps: PaidGrantFileDeps): PaidGrantStore {
       // A missing quote folder holds no quotes; an unreadable one is
       // reported with its kind and reads as no quotes, never silently.
       // Fail-closed stays: asking again is the safe direction for money.
+      // read-state: cert TBL-10. `[]` here is "cannot list, ask again" with
+      // the kind warned and carried in the next question, never "no quotes".
       if (error instanceof Error && storeErrorCode(error) === ENOENT) return []
       const kind = wireWordForLog(storeErrorCode(error) ?? 'unknown')
       deps.log.warn(`Paid-use quotes could not be read (${kind}), so no quote grant applies`)
