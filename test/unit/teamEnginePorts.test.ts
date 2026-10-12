@@ -7,7 +7,8 @@
 import { mkdir, mkdtemp, readFile, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { OPTIONAL_RUNTIME_AVAILABILITY } from '../../src/shared/constants'
 import { resolveWorkerReport } from '../../src/core/team/workers/engineWorker'
 import {
   createEngineTeamPorts,
@@ -44,10 +45,21 @@ import {
 import { fakeModelApiHostDeps } from './helpers/modelApiHostDeps'
 import { memoryToolIo } from './helpers/fakeToolIo'
 import { Usd } from '../../src/shared/usd'
+import { teamSettingCapabilities } from '../../src/core/team/modelSettings'
+import { metaCapabilityRecord } from '../../src/core/providers/capabilityRecord'
 import { FakeAgentSession } from './helpers/fakeAgent'
 import { cleanupTeamRoots, teamFixtureRepo, teamGitRunner, trackTeamRoot } from './helpers/teamGit'
 
 cleanupTeamRoots()
+
+// The feature's own suites run with the release latch open (teamAvailability
+// certifies the closed latch); the latch ships closed.
+beforeAll(() => {
+  OPTIONAL_RUNTIME_AVAILABILITY.team = true
+})
+afterAll(() => {
+  OPTIONAL_RUNTIME_AVAILABILITY.team = false
+})
 
 const runGit = teamGitRunner()
 const REPORT = '```muse-team-report\n{"status":"done","summary":"changed it"}\n```'
@@ -69,6 +81,7 @@ async function setup(
   edit: (folder: string) => Promise<void>,
   message = REPORT,
   start?: EngineTeamPortsDeps['startWorker'],
+  capabilitiesForModel?: EngineTeamPortsDeps['capabilitiesForModel'],
 ) {
   const { root, head } = await teamFixtureRepo(runGit)
   const storage = await mkdtemp(path.join(tmpdir(), 'muse-team-store-'))
@@ -87,6 +100,7 @@ async function setup(
     platform: process.platform,
     isTrusted: () => true,
     listModels: () => Promise.resolve(['other-model', 'muse-spark-1.3']),
+    ...(capabilitiesForModel !== undefined && { capabilitiesForModel }),
     startWorker: ({ folder, modelId, approvalMode, admit, noteUsage, fenceIo }) => {
       started.push({ folder, approvalMode, admit, noteUsage, fenceIo })
       if (start !== undefined)
@@ -248,6 +262,48 @@ describe('the engine worker port', () => {
       ),
     ).rejects.toThrow(/outputCap/)
     expect(fixture.started).toEqual([])
+  })
+  // P2-5: dispatch validates saved settings against the entry model's
+  // current capability record before anything is allocated: an output cap
+  // above the model maximum is refused, never clamped in silence, and a
+  // changed effort capability is refused too, qualified ids included.
+  it('refuses settings above the current record before creating a copy, never clamping', async () => {
+    const records = new Map([
+      ['muse-spark-1.2', teamSettingCapabilities(metaCapabilityRecord('muse-spark-1.2'))],
+      ['openai/gpt-x', { effortTiers: ['low'], maxOutputTokens: 1000 }],
+    ])
+    const fixture = await setup(
+      () => Promise.resolve(),
+      REPORT,
+      undefined,
+      (modelId) => records.get(modelId),
+    )
+    // The review's worker case: muse-spark-1.2 plus an above-maximum cap
+    // refuses instead of resolving to a worker outcome.
+    await expect(
+      fixture.ports.workers.run(
+        taskFor('muse-spark-1.2', { outputCap: Number.MAX_SAFE_INTEGER }),
+        new AbortController().signal,
+      ),
+    ).rejects.toThrow(/outputCap.*muse-spark-1\.2/)
+    await expect(
+      fixture.ports.workers.run(
+        taskFor('openai/gpt-x', { effort: 'high' }),
+        new AbortController().signal,
+      ),
+    ).rejects.toThrow(/effort.*high.*openai\/gpt-x/)
+    await expect(
+      fixture.ports.workers.run(
+        taskFor('openai/gpt-x', { outputCap: 2000 }),
+        new AbortController().signal,
+      ),
+    ).rejects.toThrow(/outputCap.*openai\/gpt-x/)
+    // Served values still dispatch.
+    await fixture.ports.workers.run(
+      taskFor('openai/gpt-x', { effort: 'low', outputCap: 500 }),
+      new AbortController().signal,
+    )
+    expect(fixture.started).toHaveLength(1)
   })
   it('refuses an unsavable permission mode before creating a copy', async () => {
     const fixture = await setup(() => Promise.resolve())

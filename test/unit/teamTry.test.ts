@@ -208,6 +208,28 @@ describe('paid team planning preview', () => {
       await t.manager.dispose()
     }
   })
+  // P2-3: the quoted account travels into final admission. A credential
+  // replaced while the preview host initialises sends nothing: no session,
+  // no reserve, no dispatch.
+  it('voids the approval when the stored key changes while the preview host starts', async () => {
+    const t = rig([{ text: 'Plan engineering.', usage: { input: 12, output: 3 } }])
+    const realStart = t.deps.start
+    t.deps.start = (guard) => {
+      // The independent host adopts the replacement account while starting.
+      t.replaceKey('key-b')
+      return realStart(guard)
+    }
+    try {
+      await expect(
+        tryTeam(t.deps, document, 'feature-tests', new AbortController().signal),
+      ).rejects.toThrow(UI_TEXT.teamTryDenied)
+      expect(t.maxima).toEqual([])
+      expect(t.api.requests.filter((row) => row.path.endsWith('/responses'))).toEqual([])
+      expect(t.deps.noteDispatched).not.toHaveBeenCalled()
+    } finally {
+      await t.manager.dispose()
+    }
+  })
   it('rechecks the gate after the consent popup', async () => {
     const t = rig()
     t.consent.mockImplementation(() => {

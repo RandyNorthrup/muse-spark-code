@@ -28,7 +28,7 @@ import type { AgentSession } from '../../core/agent/agentBackend'
 import type { CoreLogger } from '../../core/logging'
 import { AgentWorktreeSession } from '../../core/bestOfN/agentWorktreeSession'
 import { builtinRoles } from '../../core/team/builtInRoles'
-import { validateWorkerSettings } from '../../core/team/modelSettings'
+import { validateWorkerSettings, type TeamSettingCapabilities } from '../../core/team/modelSettings'
 import { buildTeamCharter } from '../../core/team/charter'
 import { isSameTeamModel } from '../../core/team/sameModel'
 import { resolveTeamToolset } from '../../core/team/toolsets'
@@ -79,6 +79,14 @@ export interface EngineTeamPortsDeps {
   /** The engine's model list: the declared setup probe reads it. */
   readonly rates?: TeamWorkerPort['rates']
   readonly listModels: () => Promise<readonly string[]>
+  /**
+   * The entry model's current capability record for pre-dispatch
+   * validation, qualified provider ids included. Absent keeps the fixed
+   * family table (unknown families stay lenient; the session re-checks).
+   */
+  readonly capabilitiesForModel?:
+    | ((modelId: string) => TeamSettingCapabilities | undefined)
+    | ((modelId: string) => Promise<TeamSettingCapabilities | undefined>)
   /** A Model API conversation rooted in `folder`, billed as `teamWorkers`. */
   readonly startWorker: (input: {
     readonly settings?: TeamTaskSpec['entry']['settings']
@@ -217,7 +225,11 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
     // The complete saved settings are checked against the entry model's
     // current capabilities before the working copy exists: an unsupported
     // value refuses with its reason, never silently changed or clamped later.
-    const unsupported = validateWorkerSettings(spec.entry.settings, spec.entry.agent.model)
+    const unsupported = validateWorkerSettings(
+      spec.entry.settings,
+      spec.entry.agent.model,
+      await deps.capabilitiesForModel?.(spec.entry.agent.model),
+    )
     if (unsupported !== undefined) throw new Error(unsupported)
     const repositoryRoot = repository()
     const builtin = builtinRoles().find((role) => role.id === spec.role.role)

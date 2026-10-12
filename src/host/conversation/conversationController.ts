@@ -174,6 +174,7 @@ import {
   UI_TEXT,
   QUESTION_DEFER_DEFAULT_SECONDS,
   SCHEDULE_PROTOCOL_VERSION,
+  THINKING_OFF_EFFORT,
   USER_SHELL_ITEM_KIND,
   USER_SHELL_SANDBOX_FAILURE_MARKER,
   TEAM_MCP_SERVER_NAME,
@@ -3794,17 +3795,22 @@ export class ConversationController {
       const sent = sync.wanted
       const sentState = sync.wantedState
       let isApplied = true
-      try {
-        await session.setReasoningEffort(sent)
+      // A default the model does not serve is simply not sent, never refused
+      // into a warning: the session keeps its host default.
+      if (session.servesReasoningEffort?.(sent) === false) {
         sync.kept = sentState
-      } catch (error: unknown) {
-        isApplied = false
-        this.deps.log.warn(`session/setReasoningEffort failed: ${failureForLog(error)}`)
-        if (!hasWarned) {
-          hasWarned = true
-          this.say('warning', `${UI_TEXT.effortNotApplied}: ${describe(error)}`)
+      } else
+        try {
+          await session.setReasoningEffort(sent)
+          sync.kept = sentState
+        } catch (error: unknown) {
+          isApplied = false
+          this.deps.log.warn(`session/setReasoningEffort failed: ${failureForLog(error)}`)
+          if (!hasWarned) {
+            hasWarned = true
+            this.say('warning', `${UI_TEXT.effortNotApplied}: ${describe(error)}`)
+          }
         }
-      }
       // Ended in the same step that saw nothing newer: a change after this
       // starts a burst of its own.
       if (sync.wanted === sent) {
@@ -4210,13 +4216,10 @@ export class ConversationController {
     }
     this.activeTurnId = loaded.activeTurnId
     // A resumed conversation keeps its stored effort and cap: the composer
-    // takes a stored level before attach, so the attach sync does not
-    // overwrite it with the default (the cap rides the session snapshot).
-    const resumedEffort = loaded.session.currentEffort
-    if (resumedEffort !== undefined && isEffortLevel(resumedEffort)) {
-      this.effort = resumedEffort
-      this.postComposerState()
-    }
+    // takes the session's own settings before attach, so the attach sync
+    // does not overwrite them with the default (the cap rides the session
+    // snapshot).
+    this.restoreSessionEffort(loaded.session)
     await this.attach(host, loaded.session, 'continued after a restart')
     this.requireCurrentOpening(generation)
     try {
@@ -4756,6 +4759,26 @@ export class ConversationController {
    * row (never the record's `modelId`, PLAN.md M6), and this surface's
    * composer settings are applied to it.
    */
+  /**
+   * The session's own effort becomes the composer's before attach, on every
+   * adoption path (restart reconnect, History resume, fork): the attach sync
+   * then carries the stored value instead of overwriting it with the panel
+   * default. Thinking off restores as off; a tier the model does not serve
+   * is simply not sent, and the session keeps what it holds. One function,
+   * called by every path that adopts a stored session.
+   */
+  private restoreSessionEffort(session: AgentSession): void {
+    const resumedEffort = session.currentEffort
+    if (resumedEffort === THINKING_OFF_EFFORT) {
+      this.isThinkingEnabled = false
+      this.postComposerState()
+      return
+    }
+    if (resumedEffort === undefined || !isEffortLevel(resumedEffort)) return
+    this.effort = resumedEffort
+    this.postComposerState()
+  }
+
   private async adopt(
     host: AgentHost,
     loaded: LoadedSession,
@@ -4848,6 +4871,9 @@ export class ConversationController {
     }
     // Before attaching: the events held for this surface may end that turn (D26).
     this.activeTurnId = loaded.activeTurnId
+    // History resume and fork restore the session's own effort before attach,
+    // the same restoration a restart reconnect uses.
+    this.restoreSessionEffort(loaded.session)
     await this.attach(host, loaded.session, origin)
     if (generation !== this.sendInvalidationEpoch) {
       return false

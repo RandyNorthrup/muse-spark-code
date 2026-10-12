@@ -136,6 +136,7 @@ import path from 'node:path'
 import * as vscode from 'vscode'
 import * as z from 'zod/mini'
 import type { AgentHost, BackendKind } from './core/agent/agentBackend'
+import type { TeamSettingCapabilities } from './core/team/modelSettings'
 import { environmentValue, terminalEnvironment } from './core/backends/musecode/launch'
 import { confineWorkspacePath, resolveWorkspacePath } from './core/workspacePath'
 import { isProtectedPath } from './core/protectedPaths'
@@ -2537,6 +2538,25 @@ async function activateWindow(
     return surface === undefined ? undefined : controllers.get(surface.id)?.teamComposerModel()
   }
   const teamModelRates = new Map<string, { input: number; output: number }>()
+  // An entry model's current capability record for pre-dispatch and
+  // new-conversation validation (P2-5), qualified provider ids included:
+  // Meta's known families resolve locally, anything else from today's
+  // discovery match. Unknown stays unknown (legacy leniency; the session
+  // re-checks live tiers at apply).
+  const teamCapabilitiesForModel = async (
+    modelId: string,
+  ): Promise<TeamSettingCapabilities | undefined> => {
+    const { knownEffortTiers } = await import('./shared/effort')
+    const { teamSettingCapabilities } = await import('./core/team/teamPanelEntry')
+    if (modelId.includes('/')) {
+      const configured = await subscriptionFeatures().teamDiscovery()
+      const match = configured.models.find((entry) => entry.model.modelId === modelId)
+      return match === undefined ? undefined : teamSettingCapabilities(match.record)
+    }
+    return knownEffortTiers(modelId) === undefined
+      ? undefined
+      : teamSettingCapabilities(subscriptionFeatures().teamMetaRecord(modelId))
+  }
   const teamHost: TeamHostBinding = new TeamHostBinding({
     ports: {
       hooks: {
@@ -2603,6 +2623,7 @@ async function activateWindow(
           }
           return models.map((model) => model.modelId)
         },
+        capabilitiesForModel: teamCapabilitiesForModel,
         startWorker: async ({
           folder,
           modelId,
@@ -2613,6 +2634,9 @@ async function activateWindow(
           fenceIo,
           settings,
         }) => {
+          // Dispatch asks the one availability function too: a worker never
+          // starts while the latch is closed, even with a true setting.
+          if (!teamHost.canConfigure()) throw new Error(UI_TEXT.teamBudgetUnavailable)
           let budgetScope
           try {
             budgetScope = await modelApi.bestOfNBudgetScope(parentSessionId)
@@ -3522,7 +3546,13 @@ async function activateWindow(
               // model's current capabilities before any session exists: an
               // unsupported value refuses with its reason, never silently
               // changed or left unapplied.
-              const unsupported = validateOrchestratorSettings(override.settings, override.modelId)
+              const unsupported = validateOrchestratorSettings(
+                override.settings,
+                override.modelId,
+                override.backend === 'modelApi'
+                  ? await teamCapabilitiesForModel(override.modelId)
+                  : undefined,
+              )
               if (unsupported !== undefined) throw new Error(unsupported)
               const kind = override.backend === 'modelApi' ? 'modelApi' : 'museCode'
               if (
@@ -4270,24 +4300,41 @@ async function activateWindow(
                   auth.backend === 'museCode' ? await backend.ensureHost() : undefined
                 const museCode = museHost === undefined ? [] : await museHost.listModels()
                 // Quota rows stamped for another account are dropped, so a
-                // replaced key stops using the old quota (RVCM963J 7).
+                // replaced key stops using the old quota (RVCM963J 7,
+                // RVCM963JB P2-4: per provider, not one generic account).
                 const currentAccount = await modelApi.accountId()
+                const engine = [
+                  ...models
+                    .filter(
+                      (model) => model.providerId === undefined || model.providerId === 'meta',
+                    )
+                    .map((model) => ({
+                      model,
+                      record: subscriptionFeatures().teamMetaRecord(model.modelId),
+                      preset: 'meta',
+                    })),
+                  ...configured.models,
+                ]
+                const limits = usageRecording.limits?.() ?? []
+                // The paying identity per provider: Meta keeps the generic
+                // account; a BYO apiKey record contributes its secret digest;
+                // anything else keeps legacy unattributed matching.
+                const { providerKeyDigest } = await import('./host/providers/credentialRecords')
+                const identities = new Map<string, string>()
+                if (currentAccount !== undefined) identities.set('meta', currentAccount)
+                const providers = new Set<string>()
+                for (const entry of engine) providers.add(entry.record.identity.provider)
+                for (const row of limits) providers.add(row.provider)
+                for (const provider of providers) {
+                  if (provider === 'meta') continue
+                  const digest = await providerKeyDigest(context.secrets, provider)
+                  if (digest !== undefined) identities.set(provider, digest)
+                }
                 const discovered = buildTeamModelOffers({
-                  currentAccountOf: () => currentAccount,
-                  engine: [
-                    ...models
-                      .filter(
-                        (model) => model.providerId === undefined || model.providerId === 'meta',
-                      )
-                      .map((model) => ({
-                        model,
-                        record: subscriptionFeatures().teamMetaRecord(model.modelId),
-                        preset: 'meta',
-                      })),
-                    ...configured.models,
-                  ],
+                  currentAccountOf: (provider) => identities.get(provider),
+                  engine,
                   museCode,
-                  limits: usageRecording.limits?.() ?? [],
+                  limits,
                   maxWorkers: Math.min(
                     TEAM_ENGINE_HARD_CEILING,
                     TEAM_MAX_WORKERS_PER_CPU * availableParallelism(),
@@ -4402,24 +4449,23 @@ async function activateWindow(
           suggestedProviderSetting,
           isRemote: vscode.env.remoteName !== undefined,
           setComposerModel,
-          onKeyUsage: (snapshot) => {
-            // The stamp is resolved before recording, so the row carries the
-            // account it was observed under (RVCM963J 7).
-            void modelApi.accountId().then((observedAccount) => {
-              usageRecording.limit({
-                backend: 'modelApi',
-                provider: 'openrouter',
-                source: 'openRouter',
-                observedAt: Date.now(),
-                windows: [],
-                ...(observedAccount !== undefined && { observedAccount }),
-                account: {
-                  usedUsd: snapshot.usedThisMonth,
-                  period: 'month',
-                  ...(snapshot.limit !== undefined && { limitUsd: snapshot.limit }),
-                  ...(snapshot.remaining !== undefined && { remainingUsd: snapshot.remaining }),
-                },
-              })
+          onKeyUsage: (snapshot, observedAccount) => {
+            // The identity that fetched this usage travels with it: never
+            // re-read "current" after the response, or a rotated key inherits
+            // old quota (RVCM963JB P2-4).
+            usageRecording.limit({
+              backend: 'modelApi',
+              provider: 'openrouter',
+              source: 'openRouter',
+              observedAt: Date.now(),
+              windows: [],
+              ...(observedAccount !== undefined && { observedAccount }),
+              account: {
+                usedUsd: snapshot.usedThisMonth,
+                period: 'month',
+                ...(snapshot.limit !== undefined && { limitUsd: snapshot.limit }),
+                ...(snapshot.remaining !== undefined && { remainingUsd: snapshot.remaining }),
+              },
             })
           },
           onWizardSaved: async (outcome) => {

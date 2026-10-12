@@ -11,6 +11,7 @@ export function createTeamPanel(table: UiText, locale: string, deps: TeamPanelDe
 export { readTeamRoleRecords } from './teamTaskState'
 
 export { readOrchestratorOverride, validateOrchestratorSettings } from './orchestratorSlot'
+export { teamSettingCapabilities, type TeamSettingCapabilities } from './modelSettings'
 
 export { tryTeam, teamTryConfirmation } from './teamTry'
 

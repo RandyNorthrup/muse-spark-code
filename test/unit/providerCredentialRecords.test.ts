@@ -1,10 +1,12 @@
 // M95 lane K (PLAN.md D74, M95 acceptance 5): provider credential records
 // are bound to the exact origin they were entered for.
 
+import { createHash } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
 import {
   deleteProviderCredential,
   isOriginBound,
+  providerKeyDigest,
   providerSecretKey,
   readProviderCredential,
   saveProviderCredential,
@@ -57,6 +59,21 @@ describe('provider credential records', () => {
     await saveProviderCredential(secrets, 'openrouter', RECORD)
     await deleteProviderCredential(secrets, 'openrouter')
     expect(await readProviderCredential(secrets, 'openrouter')).toBeUndefined()
+  })
+
+  // P2-4: offers compare quota rows against the digest of the credential the
+  // provider actually uses. Only the digest leaves the store, never the key.
+  it('digests an apiKey record, and nothing else, for quota identity', async () => {
+    const secrets = memorySecrets()
+    await saveProviderCredential(secrets, 'openai', { ...RECORD, secret: 'openai-key' })
+    expect(await providerKeyDigest(secrets, 'openai')).toBe(
+      createHash('sha256').update('openai-key').digest('hex'),
+    )
+    await saveProviderCredential(secrets, 'oauth', { ...RECORD, auth: 'oauth' })
+    expect(await providerKeyDigest(secrets, 'oauth')).toBeUndefined()
+    expect(await providerKeyDigest(secrets, 'missing')).toBeUndefined()
+    await secrets.store(providerSecretKey('damaged'), 'not json{')
+    expect(await providerKeyDigest(secrets, 'damaged')).toBeUndefined()
   })
 })
 

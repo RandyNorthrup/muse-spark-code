@@ -4084,6 +4084,25 @@ describe('ConversationController: team server and orchestrator slot (M96 lane T)
       effort: 'low',
     })
   })
+  // P2-6: History resume and fork go through adopt() and restore the saved
+  // effort like a restart reconnect does, instead of the panel default.
+  it('restores the saved effort on History resume instead of the panel default', async () => {
+    const t = setup()
+    const { host, controller } = modelApiController(t, { store: memorySessionStore() })
+    const started = await host.startSession({
+      workspaceRoot: '/ws',
+      modelId: 'muse-spark-1.3',
+      approvalMode: 'promptUnmatched',
+    })
+    await started.setReasoningEffort('low')
+    // The panel default is high; the resumed session holds low.
+    await controller.handle({ type: 'resumeSession', sessionId: started.sessionId })
+    // The pill shows the session's own effort: the attach sync carries it,
+    // and the panel default is never sent.
+    expect(t.surface.posted.findLast((message) => message.type === 'composerState')).toMatchObject({
+      effort: 'low',
+    })
+  })
   it('refuses a conversation whose override the selected model cannot serve', async () => {
     const target = new FakeAgentHost([
       {

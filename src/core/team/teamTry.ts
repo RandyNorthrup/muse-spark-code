@@ -70,6 +70,11 @@ export async function tryTeam(
       readonly inputTokens?: number | undefined
     }) => {
       check()
+      // The quoted account travels with the request into final transport
+      // admission: every attempt re-admits the paying identity, in quote
+      // space (a transport key digest would misfire on provider-billed
+      // models). A credential replaced after consent sends nothing further.
+      if ((await deps.keyDigest()) !== quotedAccount) throw new Error(UI_TEXT.teamTryDenied)
       if (
         attempts >= TEAM_TRY_MAX_REQUESTS ||
         maximum.costUsd === undefined ||
@@ -104,6 +109,13 @@ export async function tryTeam(
   // for the quoted account never starts a billed host for another one.
   if ((await deps.keyDigest()) !== quotedAccount) throw new Error(UI_TEXT.teamTryDenied)
   const host = await deps.start(guard)
+  // The host initialised asynchronously: a credential replaced while it
+  // started voids the approval before any session exists, so nothing is
+  // reserved or sent under the earlier approval.
+  if ((await deps.keyDigest()) !== quotedAccount) {
+    await host.close()
+    throw new Error(UI_TEXT.teamTryDenied)
+  }
   let text = ''
   let failure: string | undefined
   let unsubscribe: (() => void) | undefined

@@ -506,6 +506,12 @@ export interface AgentSession {
   setReasoningEffort(reasoningEffort: string): Promise<void>
   /** The effort the session currently holds, where the host tracks one. */
   readonly currentEffort?: string
+  /**
+   * Whether the session's model serves this effort tier. A default is sent
+   * only where this says so; an explicit setting the model cannot serve is
+   * refused by setReasoningEffort instead. Absent keeps today's send.
+   */
+  readonly servesReasoningEffort?: (reasoningEffort: string) => boolean
   readonly setOutputCap?: (cap: number) => Promise<void>
   /** One of the four MSP approval modes (shared/permissionModes.ts). */
   setApprovalMode(mode: string): Promise<void>

@@ -3,7 +3,7 @@
 // Every port is a fake that records its calls; nothing here touches a model,
 // git or the disk.
 
-import { beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { createTeamHostService, TEAM_TASKS_STATE_KEY } from '../../src/core/team/teamHost'
 import type {
   TeamCardItem,
@@ -18,7 +18,12 @@ import type { TeamCap, TeamPoolEntry, TeamRoleConfig, TeamSnapshot } from '../..
 import { TEAM_WORKSPACE_KEYS, decideTeamConversationMode } from '../../src/shared/teamConversation'
 import { TeamHostBinding } from '../../src/host/teamHostBinding'
 import type { EngineTeamPortsDeps } from '../../src/host/team/teamEnginePorts'
-import { TEAM_MODEL_TEXT, UI_TEXT, HOOK_MAX_STOP_CONTINUATIONS } from '../../src/shared/constants'
+import {
+  OPTIONAL_RUNTIME_AVAILABILITY,
+  TEAM_MODEL_TEXT,
+  UI_TEXT,
+  HOOK_MAX_STOP_CONTINUATIONS,
+} from '../../src/shared/constants'
 
 const ORCHESTRATOR = 'muse-spark-1.3'
 const WORKER_MODEL = 'other-model-7'
@@ -28,6 +33,15 @@ const LIFETIME_SPEND_CAP = { measure: 'spendUsd', window: 'lifetime', amount: 2 
 // budget pays the transform cost (production loads the built chunk instead).
 beforeAll(async () => {
   await import('../../src/core/team/teamMergeFlow')
+})
+
+// The feature's own suites run with the release latch open (teamAvailability
+// certifies the closed latch); the latch ships closed.
+beforeAll(() => {
+  OPTIONAL_RUNTIME_AVAILABILITY.team = true
+})
+afterAll(() => {
+  OPTIONAL_RUNTIME_AVAILABILITY.team = false
 })
 
 function entry(id: string, model: string | undefined, concurrent = 2): TeamPoolEntry {
