@@ -32,31 +32,38 @@ untouched.
 
 ## Affected release frames
 
-Each scene has 6 themes × 2 widths × 6 interaction states = 72 frames,
-checked against `test/harness/goldens/manifest.json` by the certification
-regression. Thirteen scenes retain the empty-state mark; the icon gallery
-reflows because the original swap changed its alphabetically sorted exports.
-The fourteen scenes total **1,008 frames**; the thirteen previously omitted
-scenes account for **936 frames**. The review's seven-pixel `panel/column`
-noise stays within its unchanged twelve-pixel allowance and is not a mark
-change.
+Each scene has 6 themes × 2 widths × 6 interaction states = 72 frames in
+`test/harness/goldens/manifest.json`. This lane listed fourteen scenes at 72
+frames each, 1,008 frames, from where the mark is mounted: thirteen scenes
+keep the empty-state mark, and the icon gallery reflows because the swap
+changed its alphabetically sorted exports. The reviewed render on
+`111afdfa1d` then measured what moved
+(`docs/certification/panelmark-baseline.md`; every frame is in
+`panelmark-baseline-review.json`): **sixteen scenes and 984 frames**, each of
+them the mark. `handoff` and `prompt-library` move in 24 of their 72 frames,
+and `git-pr-narrow` and `schedules-narrow`, which the list did not have, in
+36 each. The certification regression checks the table below against that
+record and the manifest. The review's seven-pixel `panel/column` noise stays
+within its unchanged twelve-pixel allowance and is not a mark change.
 
-| Scene                         | Frames | Intended change                             |
-| ----------------------------- | -----: | ------------------------------------------- |
-| `panel/empty`                 |     72 | Mark paint and ink extent                   |
-| `panel/context-meter-full`    |     72 | Empty-state mark                            |
-| `panel/context-meter-warning` |     72 | Empty-state mark                            |
-| `panel/goal-edit`             |     72 | Empty-state mark                            |
-| `panel/handoff`               |     72 | Empty-state mark                            |
-| `panel/mention`               |     72 | Empty-state mark                            |
-| `panel/models`                |     72 | Empty-state mark                            |
-| `panel/modes`                 |     72 | Empty-state mark                            |
-| `panel/palette`               |     72 | Empty-state mark                            |
-| `panel/prompt-library`        |     72 | Empty-state mark                            |
-| `panel/questions-chip`        |     72 | Empty-state mark                            |
-| `panel/slash-commands`        |     72 | Empty-state mark                            |
-| `panel/stop-running`          |     72 | Empty-state mark                            |
-| `panel/icons`                 |     72 | Export-list reflow plus mark paint/geometry |
+| Scene                         | Frames moved | Intended change                                                                                    |
+| ----------------------------- | -----------: | -------------------------------------------------------------------------------------------------- |
+| `panel/empty`                 |           72 | Mark paint and ink extent                                                                          |
+| `panel/context-meter-full`    |           72 | Empty-state mark                                                                                   |
+| `panel/context-meter-warning` |           72 | Empty-state mark                                                                                   |
+| `panel/goal-edit`             |           72 | Empty-state mark                                                                                   |
+| `panel/handoff`               |           24 | Empty-state mark through the dialog's backdrop: 320 px, the four themes that are not high contrast |
+| `panel/mention`               |           72 | Empty-state mark                                                                                   |
+| `panel/models`                |           72 | Empty-state mark                                                                                   |
+| `panel/modes`                 |           72 | Empty-state mark                                                                                   |
+| `panel/palette`               |           72 | Empty-state mark                                                                                   |
+| `panel/prompt-library`        |           24 | Empty-state mark through the dialog's backdrop: 320 px, the four themes that are not high contrast |
+| `panel/questions-chip`        |           72 | Empty-state mark                                                                                   |
+| `panel/slash-commands`        |           72 | Empty-state mark                                                                                   |
+| `panel/stop-running`          |           72 | Empty-state mark                                                                                   |
+| `panel/icons`                 |           72 | Export-list reflow plus mark paint/geometry                                                        |
+| `panel/git-pr-narrow`         |           36 | Empty-state mark above the card at 690 px (not on the lane's list)                                 |
+| `panel/schedules-narrow`      |           36 | Empty-state mark above the card at 690 px (not on the lane's list)                                 |
 
 ## Regressions and red drills
 
@@ -70,7 +77,7 @@ The initial complete three-file run (`panelMark`, `panelMarkBrowser`,
 | ------------- | ---------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
 | P2 theming    | Independent dark/light brand tokens; theme/CanvasText overrides for both mark uses | Six-theme/two-width blue hue and computed 3:1 contrast; forced-colour cases                                    | Point `.product-mark` back at `--ms-accent`: twelve matrix cases fail; One Dark Pro 1.647:1, Dracula 1.726:1 |
 | P3 size       | Stroke-padded path crop; 2-unit stroke; fill the retained box                      | Computed path/stroke transform equals the 28.8 × 19.2 px box; positions and every outside pixel stay unchanged | Restore the square view box: all twelve matrix cases fail, 15.99 px ink width versus 28.80 px box            |
-| P3 frame list | All fourteen scenes above, 72 frames each                                          | `certifies every affected scene with its exact manifest frame count`                                           | Delete `panel/icons`: the certification regression fails with the missing 72-frame row                       |
+| P3 frame list | The sixteen scenes above, with the frames the reviewed render measured             | `certifies every moved scene with the frame count the reviewed render measured`                                | Delete `panel/icons`: the certification regression fails with the missing 72-frame row                       |
 
 - colour: `src/webview/styles.css`, before/restored SHA-256
   `30d066ffb9ec89d3a92f72bcccc80c671a90b793a16304539faeab7de0d94186` (equal).
@@ -130,7 +137,9 @@ The P3 keeps its own proportions: `preserveAspectRatio="xMidYMid meet"`
 replaces `"none"` in `ProductMark`, so the mark fills the retained box in
 the limiting width and centres vertically. The box, the surrounding layout,
 the token paint and the six colours are untouched. The frame list is
-unchanged: the fourteen scenes above, 72 frames each, **1,008 frames**.
+unchanged from this lane's list at the time (fourteen scenes, 72 frames each,
+1,008 frames); the reviewed render measured sixteen scenes and 984 frames, as
+the table above now says.
 
 | Finding           | Fix                                                                                                                                                                                                                                 | Regression                                                                                                                                                          | Deliberate failure                                                                                                                                                          |
 | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
