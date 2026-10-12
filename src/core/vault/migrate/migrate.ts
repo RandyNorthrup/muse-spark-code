@@ -260,8 +260,10 @@ export class VaultMigration {
    * `retired` with a note saying the engine did not see the delete. A copy
    * changed after the intent is left alone — the engine deletes nobody
    * else's bytes — its stale intent is cleared so the change reads honestly,
-   * and `diverged` is reported instead of throwing. A vault-side
-   * verification failure still throws.
+   * and `diverged` is reported instead of throwing. A vault-side failure is
+   * told apart from a changed legacy copy: the vault is re-verified before
+   * the row is touched, so a vault-side failure propagates with the intent
+   * intact and only a healthy vault with a changed copy reports `diverged`.
    */
   private async finishOneIntent(
     entry: MigrationCredential,
@@ -280,6 +282,12 @@ export class VaultMigration {
         error instanceof VaultMigrationFault &&
         (error.code === 'conflict' || error.code === 'invalid')
       ) {
+        // The failure may be the vault's, not the legacy copy's: re-verify
+        // the vault digest before touching the row. A vault-side failure
+        // throws here with the retire intent intact; only a vault that still
+        // verifies proves the copy changed, and only then is the stale
+        // intent cleared.
+        await this.verified(row, lease)
         const base = { ...row }
         delete base.retireIntent
         delete base.retireNote
@@ -289,10 +297,20 @@ export class VaultMigration {
       throw error
     }
   }
+  /**
+   * Whether the legacy copy is absent. The read buffer is owned inside a
+   * `try` that already exists before the first await: a stale lease refuses
+   * only after the buffer is wiped, so no refusal path leaves key material
+   * live. Every other helper that holds key material follows the same shape
+   * (the `try` opens before the first await); this one did not, and a lease
+   * invalidated between the read and the assert left the returned bytes
+   * unwiped.
+   */
   private async legacyAbsent(entry: MigrationCredential, lease: MigrationLease): Promise<boolean> {
-    const source = await this.deps.legacy.read(entry.key)
-    lease.assertCurrent()
+    let source: Uint8Array | null = null
     try {
+      source = await this.deps.legacy.read(entry.key)
+      lease.assertCurrent()
       return source === null
     } finally {
       source?.fill(0)
@@ -566,7 +584,12 @@ export class VaultMigration {
       })
       lease.assertCurrent()
       await this.removeLegacy(key, lease)
+      // The final row is terminal: transition-only fields (`previous`,
+      // retire evidence) are cleared with it, so the row is schema-valid in
+      // every path — including a delete that follows an interrupted
+      // rotation, whose source row still carries `previous`.
       const base = { ...row }
+      delete base.previous
       delete base.retireIntent
       delete base.retireNote
       await this.save({ ...base, phase: 'deleted', digest: null }, lease)
@@ -602,9 +625,44 @@ export class VaultMigration {
       return
     }
     if (phase !== 'writing') return
-    await this.run(async (lease) => {
+    // A first `store` (no `previous`) interrupted after its journal intent
+    // commits but before its first vault write leaves a `writing` row with
+    // no vault item and no previous value to restore. The crashed call took
+    // the new key material with it, so recovery settles for the old state
+    // whole: a surviving legacy copy is migrated to `active`, and with no
+    // copy anywhere the slot is recorded `deleted`. Both settle with a
+    // schema-valid record, and neither invents the lost value.
+    // Whether the abandoned intent rewound to `copying` below: the
+    // migration runs after this run returns, never nested inside it (a
+    // nested owner run would deadlock the serialized owner).
+    const shouldMigrateAfterResume = await this.run(async (lease) => {
       const row = await this.record(entry, lease)
-      if (row?.phase !== 'writing') return
+      if (row?.phase !== 'writing') return false
+      const listed = await this.deps.vault.list()
+      lease.assertCurrent()
+      if (listed.every((metadata) => metadata.id !== row.itemId)) {
+        // The atomic vault write never committed.
+        if (row.previous !== undefined) {
+          // A rotation: restore the previous usable journal row.
+          await this.save({ ...row, ...row.previous, previous: undefined }, lease)
+          return false
+        }
+        if (await this.legacyAbsent(entry, lease)) {
+          const base = { ...row }
+          delete base.previous
+          delete base.retireIntent
+          delete base.retireNote
+          await this.save({ ...base, previous: undefined, phase: 'deleted', digest: null }, lease)
+          return false
+        }
+        // The legacy copy survived: rewind the abandoned intent to
+        // `copying` and migrate it after this run, so the old value stays
+        // whole with an `active` record a later `store` can rotate from.
+        // The stale digest rides along — `migrate` recomputes it — because
+        // only a `deleted` row may carry a null digest.
+        await this.save({ ...row, previous: undefined, phase: 'copying' }, lease)
+        return true
+      }
       let copied: VaultItem | undefined
       try {
         copied = await this.deps.vault.read(row.itemId)
@@ -615,7 +673,7 @@ export class VaultMigration {
           if (digest !== row.previous?.digest) throw new VaultMigrationFault('verification')
           // Atomic vault write did not commit. Restore the previous usable journal row.
           await this.save({ ...row, ...row.previous, previous: undefined }, lease)
-          return
+          return false
         }
       } finally {
         eraseItem(copied)
@@ -625,7 +683,9 @@ export class VaultMigration {
         { ...row, previous: undefined, phase: row.retainLegacy ? 'active' : 'retired' },
         lease,
       )
+      return false
     })
+    if (shouldMigrateAfterResume) await this.migrate(key)
   }
   /**
    * Startup recovery: finish every pending retire intent at once. The vault
