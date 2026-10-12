@@ -276,12 +276,11 @@ export function parseCommandLine<T>(
     else if (argv[0] === 'providers' && argv[2] === 'chatgpt')
       route = `chatGptProvider ${argv[1] ?? 'add'}`
     else if (argv[0] === 'exec' && argv[1] === 'legal-scan') route = 'legal'
-    else if (argv[0] === 'report' && argv[1] !== undefined && argv[1] !== 'problem')
-      route = `reports ${flags
-        .slice(1)
-        .filter((word) => !word.startsWith('-'))
-        .join(' ')}`
-    else if (argv[0] === 'usage' && argv[1] === 'resources') route = 'resources'
+    else if (argv[0] === 'report' && argv[1] !== undefined) {
+      // `problem` aliases bare report, so it never names a subcommand here.
+      const sub = argv[1] === 'problem' ? flags.slice(2) : flags.slice(1)
+      route = `reports ${sub.filter((word) => !word.startsWith('-')).join(' ')}`
+    } else if (argv[0] === 'usage' && argv[1] === 'resources') route = 'resources'
     else if (argv[0] === 'providers')
       route =
         argv[1] === 'add'
