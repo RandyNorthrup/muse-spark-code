@@ -9,7 +9,7 @@
 // docs/certification/m109-m-migration-and-import.md says what the join owes
 // there. Occurrence counts are exact: a second call of an already-listed
 // helper in an already-listed file still breaks this test.
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
@@ -242,4 +242,66 @@ describe('C-M109-4 R3 migrated key inventory', () => {
       }
     },
   )
+  it('hand-off symbol anchors resolve at the head and carry no line numbers', () => {
+    // RVCM1094E finding 3: the hand-off rows, the wiring list and the join
+    // test's comment name symbols, never line numbers. Every `file › symbol`
+    // pair must resolve against the head, so a rename or move breaks this
+    // test instead of silently staling the hand-off.
+    const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..')
+    const doc = readFileSync(
+      path.join(root, 'docs/certification/m109-m-migration-and-import.md'),
+      'utf8',
+    )
+    const start = doc.indexOf('<!-- hand-off anchors start')
+    const end = doc.indexOf('<!-- hand-off anchors end -->')
+    expect(start).toBeGreaterThan(-1)
+    expect(end).toBeGreaterThan(start)
+    const handOff = doc.slice(start, end)
+    expect(handOff).not.toMatch(/`[^`\n]*\.ts:[0-9]/u)
+    expect(handOff).not.toMatch(/`:[0-9]/u)
+    expect(unresolvedAnchors(root, handOff)).toEqual([])
+    expect(countAnchors(handOff)).toBeGreaterThan(40)
+    const joinTest = readFileSync(
+      path.join(root, 'test/unit/vault/migrationCodecs.test.ts'),
+      'utf8',
+    )
+    expect(joinTest).not.toMatch(/`[^`\n]*\.ts:[0-9]/u)
+    expect(joinTest).not.toMatch(/`:[0-9]/u)
+    expect(unresolvedAnchors(root, joinTest)).toEqual([])
+    expect(countAnchors(joinTest)).toBeGreaterThan(5)
+  })
 })
+
+const ANCHOR_PATTERN = /`((?:src|test)\/[^`\n]*?\.ts)`((?:(?:\s|\/\/)+›(?:\s|\/\/)+`[^`\n]+?`)+)/gu
+
+/** Every `file › symbol` match in `text`. */
+function anchorMatches(text: string): RegExpMatchArray[] {
+  const found: RegExpMatchArray[] = []
+  const matches = text.matchAll(ANCHOR_PATTERN)
+  let step = matches.next()
+  while (step.done !== true) {
+    found.push(step.value)
+    step = matches.next()
+  }
+  return found
+}
+
+/** `file › symbol` pairs in `text` whose symbol the file does not contain. */
+function unresolvedAnchors(root: string, text: string): string[] {
+  const failures: string[] = []
+  for (const match of anchorMatches(text)) {
+    const file = match[1]!
+    const chain = match[2]!
+    const content = readFileSync(path.join(root, file), 'utf8')
+    for (const part of chain.split('›')) {
+      const symbol = part.replaceAll(/[`/]/gu, '').trim()
+      if (!content.includes(symbol)) failures.push(`${file} › ${symbol}`)
+    }
+  }
+  return failures
+}
+
+/** How many `file › symbol` pairs `text` carries. */
+function countAnchors(text: string): number {
+  return anchorMatches(text).length
+}

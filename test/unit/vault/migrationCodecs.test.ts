@@ -1357,13 +1357,16 @@ describe('C-M109-4 R3 vault item names', () => {
     // value, the legacy mirror matches, and `migrate` reports `active`
     // rather than `diverged`. This goes through the real installed writer
     // (`saveProviderCredential`), never the service directly; its only
-    // caller chain is the host wizard (`setProviderCredential` at
-    // credentialRecords.ts:45 from wizardSave.ts:101 and :118). The other
+    // caller chain is the host wizard (`src/host/providers/credentialRecords.ts`
+    // › `ProviderCredentialStore` › `setProviderCredential` from
+    // `src/host/providers/wizardSave.ts` › `saveWizardDraft`). The other
     // writers land elsewhere today: `activateApiKey` writes the model key
-    // through `credentials.setApiKey` (authService.ts:858), `auth set`
-    // calls `deps.secrets.store` directly (authCommands.ts:56 and :128),
-    // and `providers add` does the same (providersCommands.ts:208), so the
-    // join owes acceptance cases for those routes too. RED today: nothing
+    // through `credentials.setApiKey` (`src/host/auth/authService.ts` ›
+    // `AuthService` › `activateApiKey`), `auth set` and `authSetProvider` call
+    // `deps.secrets.store` directly (`src/runtime/authCommands.ts` › `authSet` and
+    // `src/runtime/authCommands.ts` › `authSetProvider`), and `providers add` does
+    // the same (`src/runtime/providersCommands.ts` › `commitProviderChange` › `commit`),
+    // so the join owes acceptance cases for those routes too. RED today: nothing
     // routes the installed writer, so the vault keeps the first key and
     // `migrate` reports `diverged`. Un-skip when the join lands.
     const f = providerFixture()
