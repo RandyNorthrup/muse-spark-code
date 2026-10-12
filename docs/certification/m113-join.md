@@ -251,8 +251,10 @@ train's diet), `validation.js` 47933 (51200).
   Windows pipe wire contract for the pending C-M109-1c C# helper,
   documented in `docs/design/vault-windows-pipe-helper.md`; deleting or
   de-exporting another lane's cross-language contract to green the gate
-  would be destructive, and adding ignores would weaken the gate. Left
-  for the vault lane with the lead's decision. No other knip findings.
+  would be destructive, and adding ignores would weaken the gate. Recorded
+  as a justified deferral in PLAN.md §7 (REPORTJOIN record) for the
+  vault lane and the lead; clearance condition named there. No other
+  knip findings.
 - Live e2e (`reports.e2e.test.ts`) not run here: it bills the owner's
   key; its one stale (iv) assertion was updated to the installed
   labels for the lead's run.
