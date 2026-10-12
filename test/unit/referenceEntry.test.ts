@@ -135,7 +135,7 @@ describe('reference host actions and command line', () => {
     expect(parseCommandLine(['help', '--all'])).toEqual({ command: 'help', all: true })
     expect(parseCommandLine(['help'])).toEqual({ command: 'help', all: false })
     expect(parseCommandLine(['help', '--unknown'])).toMatchObject({ command: 'invalid' })
-    expect(parseCommandLine(['exec', '--help'])).toEqual({ command: 'help', all: true })
+    expect(parseCommandLine(['exec', '--help'])).toEqual({ command: 'help', route: 'exec' })
   })
 })
 
@@ -156,8 +156,12 @@ describe('RVHELPREF host and terminal regressions', () => {
       '/goal pause',
     ])
       expect(text).toContain(marker)
-    for (const route of ['exec', 'report', 'scan-secrets'])
-      expect(parseCommandLine([route, '--help'])).toEqual({ command: 'help', all: true })
+    for (const [invocation, route] of [
+      ['exec', 'exec'],
+      ['report', 'reports '],
+      ['scan-secrets', 'scan-secrets'],
+    ] as const)
+      expect(parseCommandLine([invocation, '--help'])).toEqual({ command: 'help', route })
   })
   it('R20 leaves an unsupported host value set empty without reading sensitive values', async () => {
     const bridge = host()
