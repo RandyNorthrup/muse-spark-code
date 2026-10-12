@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from 'vitest'
 import { scheduleEventRunId, type ScheduleEvent } from '../../src/shared/scheduleEvents'
 import { Usd } from '../../src/shared/usd'
+import { ScheduleDelivery } from '../../src/core/schedules/delivery'
+import { IdleScheduleSession } from './helpers/schedules/session'
 import { createScheduler } from '../../src/core/schedules/scheduler'
+import { scheduleRunContextOf } from '../../src/core/schedules/fireRecord'
 import { createScheduleStore } from '../../src/core/schedules/store'
 import { SCHEDULE_DELIVERIES, UI_TEXT } from '../../src/shared/constants'
 import {
@@ -12,8 +15,9 @@ import {
 import { MemoryScheduleFs } from './helpers/schedules/storage'
 import { fakeSchedule } from './helpers/schedules/fixtures'
 
-// Every production delivery enum participates, plus host-specific entry paths.
-const kinds = [...SCHEDULE_DELIVERIES, 'background', 'run-now', 'native queue promotion'] as const
+// The real delivery adapter distinguishes every enum, background opening,
+// Run now and native queue admission. Host composition owns promotion receipts.
+const kinds = [...SCHEDULE_DELIVERIES, 'background', 'run-now', 'native queue admission'] as const
 const exits = [
   'returned',
   'refused',
@@ -43,15 +47,16 @@ function terminal(schedule: ScheduleV2, runId: string, occurrenceMs: number): Sc
 
 describe('scheduler settlement ownership across every exit and entry', () => {
   it.each(kinds.flatMap((kind) => exits.map((exit) => ({ kind, exit }))))(
-    'journals $exit for $kind, drains next fire and never replays after reload',
+    'journals $exit for $kind, preserves/delivers the next fire and never replays',
     async ({ kind, exit }) => {
       const fs = new MemoryScheduleFs()
       const store = createScheduleStore(fs)
       const delivery =
         SCHEDULE_DELIVERIES.find((delivery) => delivery === kind) ??
-        (kind === 'native queue promotion' ? 'queue' : 'whenIdle')
+        (kind === 'native queue admission' ? 'queue' : 'whenIdle')
       const first = fakeSchedule({
         id: 'first',
+        target: { kind: 'conversation', backend: 'museCode', sessionId: 'session-1' },
         delivery,
         ...(kind === 'background' && { whenClosed: 'open' }),
         catchUp: 'runOnce',
@@ -74,27 +79,93 @@ describe('scheduler settlement ownership across every exit and entry', () => {
             status: 'dispatchStarted',
             retainedLiabilityUsd: schedule.grant.paidCapUsd,
           })
-          const fire = {
-            ...terminal(schedule, context.runId, at),
-            ...(event !== undefined && { event }),
-          }
-          if (exit === 'returned' || schedule.id === 'second') return fire
-          if (exit === 'refused') return { ...fire, outcome: 'refused' as const }
-          if (exit === 'cost read failed')
-            return {
-              ...fire,
-              reason: UI_TEXT.scheduleV2.messages.costUnknown,
-              cost: {
-                ...noScheduleCost(),
-                certainty: 'unknown' as const,
-                retainedLiabilityUsd: Usd.from(1).toAmount(),
+          const session = new IdleScheduleSession('museCode')
+          session.running =
+            delivery === 'steer' || delivery === 'interrupt' || kind === 'native queue admission'
+          const lease = { session, release: () => Promise.resolve() }
+          const open = vi.fn(() => Promise.resolve(lease))
+          const fresh = vi.fn(() => Promise.resolve(lease))
+          const pipeline = new ScheduleDelivery({
+            now: () => now,
+            monotonicNow: () => now,
+            holds: () => true,
+            targets: {
+              find: () => Promise.resolve(kind === 'background' ? undefined : lease),
+              open,
+              fresh,
+            },
+            prompt: () => 'matrix prompt',
+            runs: {
+              run: async (_session, _job, _context, dispatch) => {
+                const fire = {
+                  ...terminal(schedule, context.runId, at),
+                  ...(event !== undefined && { event }),
+                }
+                if (exit === 'refused' && schedule.id === 'first') {
+                  expect(session.calls).toEqual([])
+                  return { ...fire, outcome: 'refused' }
+                }
+                await dispatch()
+                let expected: string[]
+                switch (delivery) {
+                  case 'interrupt': {
+                    expected = ['cancel', 'send']
+                    break
+                  }
+                  case 'steer': {
+                    expected = ['steer']
+                    break
+                  }
+                  case 'queue':
+                  case 'whenIdle': {
+                    expected = ['queue']
+                    break
+                  }
+                  case 'newConversation': {
+                    expected = ['send']
+                    break
+                  }
+                }
+                expect(session.calls.map((call) => call.kind)).toEqual(expected)
+                if (kind === 'native queue admission') expect(session.queued.size).toBe(1)
+                if (exit === 'returned' || schedule.id === 'second') return fire
+                if (exit === 'cost read failed')
+                  return {
+                    ...fire,
+                    reason: UI_TEXT.scheduleV2.messages.costUnknown,
+                    cost: {
+                      ...noScheduleCost(),
+                      certainty: 'unknown',
+                      retainedLiabilityUsd: Usd.from(1).toAmount(),
+                    },
+                  }
+                if (exit === 'runtime closed' || exit === 'host process ending') {
+                  closing.abort()
+                  return await new Promise<ScheduleFireRecord>(() => undefined)
+                }
+                if (['aborted', 'window closed', 'session closed'].includes(exit)) {
+                  closing.abort()
+                  if (exit !== 'aborted') session.open = false
+                  await new Promise<void>((resolve) => setImmediate(resolve))
+                  return {
+                    ...fire,
+                    outcome: 'skipped',
+                    reason: UI_TEXT.scheduleV2.messages.targetClosed,
+                  }
+                }
+                throw new Error(exit)
               },
-            }
-          if (exit === 'host process ending' || exit === 'runtime closed') {
-            closing.abort()
-            return await new Promise<ScheduleFireRecord>(() => undefined)
-          }
-          throw new Error(exit)
+            },
+          })
+          const result = await pipeline.deliver(
+            schedule,
+            { ...scheduleRunContextOf(schedule, context.runId) },
+            at,
+            event,
+          )
+          if (delivery === 'newConversation') expect(fresh).toHaveBeenCalledOnce()
+          else if (kind === 'background') expect(open).toHaveBeenCalledOnce()
+          return result
         },
       )
       const deps = {
@@ -137,13 +208,34 @@ describe('scheduler settlement ownership across every exit and entry', () => {
         )
       } else await scheduler.poll(first.workspaceKey)
       const fires = await store.fires(first.workspaceKey)
-      expect(fires).toHaveLength(2)
-      expect(await store.pending(first.workspaceKey)).toEqual([])
+      expect(fires).toHaveLength(closing.signal.aborted ? 1 : 2)
+      if (closing.signal.aborted) {
+        expect(await store.pending(first.workspaceKey)).toHaveLength(1)
+        expect(deliver.mock.calls.filter(([schedule]) => schedule.id === second.id)).toHaveLength(0)
+      } else {
+        expect(await store.pending(first.workspaceKey)).toEqual([])
+        expect(fires.find((fire) => fire.scheduleId === second.id)?.outcome).toBe('ran')
+      }
       expect(scheduler.blockedRuns()).toEqual([])
       const fire = fires.find((fire) => fire.scheduleId === first.id)!
       let expectedOutcome: ScheduleFireRecord['outcome'] = 'uncertain'
-      if (exit === 'returned' || exit === 'cost read failed') expectedOutcome = 'ran'
-      else if (exit === 'refused') expectedOutcome = 'refused'
+      switch (exit) {
+        case 'returned':
+        case 'cost read failed': {
+          expectedOutcome = 'ran'
+          break
+        }
+        case 'refused': {
+          expectedOutcome = 'refused'
+          break
+        }
+        case 'aborted':
+        case 'window closed':
+        case 'session closed': {
+          expectedOutcome = 'skipped'
+          break
+        }
+      }
       expect(fire.outcome).toBe(expectedOutcome)
       if (fire.outcome === 'uncertain')
         expect(fire).toMatchObject({
@@ -170,6 +262,11 @@ describe('scheduler settlement ownership across every exit and entry', () => {
           )
       } else await reload.poll(first.workspaceKey)
       expect(deliver.mock.calls.filter(([schedule]) => schedule.id === first.id)).toHaveLength(1)
+      expect(deliver.mock.calls.filter(([schedule]) => schedule.id === second.id)).toHaveLength(1)
+      const final = await reopened.fires(first.workspaceKey)
+      expect(final).toHaveLength(2)
+      expect(final.find((fire) => fire.scheduleId === second.id)?.outcome).toBe('ran')
+      expect(await reopened.pending(first.workspaceKey)).toEqual([])
       expect(await reopened.lookupRun(first.workspaceKey, fire.runId)).toMatchObject({
         status: fire.outcome === 'uncertain' ? 'uncertain' : 'settled',
         fire,

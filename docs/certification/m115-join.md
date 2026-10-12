@@ -367,3 +367,15 @@ Five additional close cuts abort/release during acknowledged, lookupRun,
 advance, initial load and final load. Each failed before the added lifetime
 rechecks; each now keeps both unhanded admissions with zero calls to deliver.
 The lease, foreign close and close-cut files passed 9/9 at default deadlines.
+
+## RVSCHEDJOIN P3 — meaningful settlement matrix
+
+The 72 combinations now run the real ScheduleDelivery adapter: steer, cancel
+then send, queue/when-idle admission, fresh targets and background opening have
+distinct operation assertions. Native queue admission is named honestly;
+production promotion remains owned by its binding/assembly suites. Refusal,
+throw, cooperative withdrawal, unresponsive close and unknown-cost completion
+have different results. Every row checks the second fire: no pre-reload send on
+close, exactly one post-reload send, ran outcome and empty outbox afterward.
+It passes 73/73 including liability-snapshot recovery. Disabling close guards
+makes 40 assertions fail; the scheduler is restored byte-exact by SHA-256.
