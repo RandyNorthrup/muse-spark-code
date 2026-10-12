@@ -20,6 +20,7 @@ export interface ResourceWindowHost {
     | 'settingsChanged'
     | 'createRelocator'
     | 'routesChanged'
+    | 'updateRelocationTarget'
   >
   readonly createStatus: typeof Governor.createResourceStatus
   readonly createVsCodeItem: typeof Governor.createVsCodeResourceStatusItem
@@ -35,41 +36,47 @@ const state: {
 } = { isDisposed: false, attachers: new Set() }
 
 const runnerRoutes = new Set<() => boolean>()
-/** Host-load generation: a rebind discards an in-flight host built before it. */
-const hostEpoch = { value: 0 }
 
 /**
+
 The agent-teams availability switch. Null declares no relocation route at
 all, so pressure goes throttle to pause and the UI explains that
-relocation is unavailable. The live function reads the registered set, so
-the runner-route sentence appears only once the wiring binds a route.
+relocation is unavailable. An explicitly null target and an absent one
+agree while no runner is registered; the live function reads the
+registered set, so the runner-route sentence appears only once the wiring
+binds a route.
 */
 function boundRelocationTarget(configured: ResourceHostSettings): (() => boolean) | null {
-  return configured.hasRelocationTarget === undefined && !hasResourceRunnerRoutes()
+  const isUnbound =
+    !hasResourceRunnerRoutes() &&
+    (configured.hasRelocationTarget === undefined || configured.hasRelocationTarget === null)
+  return isUnbound
     ? null
     : () =>
         configured.hasRelocationTarget?.() === true ||
         [...runnerRoutes].some((hasTarget) => hasTarget())
 }
 
-/** Rebind the loaded host when the first route arrives or the last one leaves. */
-function rebindRoutes(): void {
+/**
+Rebind the relocation target on the loaded host when routes arrive or
+leave. This is one synchronous step — set membership plus a live target
+update, with no await between the decision and the action — so route
+registration never disturbs unrelated active work, queued admissions, or
+the governor's pressure/override state. A host still loading reads the
+current set when its build resumes.
+*/
+function refreshRoutes(): void {
   const options = state.options
   if (options === undefined) return
-  if (state.pending === undefined && state.window === undefined) return
-  const previous = state.pending
-  delete state.pending
-  state.window = undefined
-  hostEpoch.value += 1
-  void (async () => {
-    try {
-      const host = await previous
-      host?.dispose()
-      await state.flush?.()
-    } catch {
+  const target = boundRelocationTarget(options)
+  void state.pending
+    ?.then((host) => {
+      if (state.options === options) host.updateRelocationTarget(target)
+    })
+    .catch(() => {
       options.onError()
-    }
-  })()
+    })
+  state.window?.port.updateRelocationTarget(target)
 }
 
 /**
@@ -91,14 +98,11 @@ export function registerResourceRunnerRoutes(hasTarget: () => boolean): () => vo
     return () => {
       // Refused: the join has not landed, so no route was registered.
     }
-  const wasEmpty = runnerRoutes.size === 0
   runnerRoutes.add(hasTarget)
-  if (wasEmpty) rebindRoutes()
-  else state.window?.port.routesChanged()
+  refreshRoutes()
   return () => {
     runnerRoutes.delete(hasTarget)
-    if (runnerRoutes.size === 0) rebindRoutes()
-    else state.window?.port.routesChanged()
+    refreshRoutes()
   }
 }
 
@@ -142,14 +146,13 @@ async function createHost(configured: ResourceHostSettings): Promise<ResourceLau
   // H–C1: the runtime's one governor host builds its process's launches.
   const shared = await configured.runtime?.()
   if (shared !== undefined) return shared
-  const epoch = hostEpoch.value
   const bundle = await import('./resourceGovernorEntry.js')
   state.flush = bundle.flushResourceHistory
   const host = bundle.resourceGovernorHost({
     ...configured,
     hasRelocationTarget: boundRelocationTarget(configured),
   })
-  if (epoch === hostEpoch.value && !state.isDisposed && state.options === configured) {
+  if (!state.isDisposed && state.options === configured) {
     const window: ResourceWindowHost = {
       port: host,
       createStatus: bundle.createResourceStatus,

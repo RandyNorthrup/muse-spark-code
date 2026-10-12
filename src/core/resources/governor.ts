@@ -362,6 +362,15 @@ export class ResourceGovernor {
     this.recoveredSince = undefined
   }
 
+  /**
+  Runner-route availability changed without changing a setting value:
+  rebind the relocation target live. The governor, its pressure history
+  and its override state stay put; nothing is re-created or discarded.
+  */
+  updateRelocationTarget(target: (() => boolean) | null): void {
+    this.options.hasRelocationTarget = target
+  }
+
   /** Admission must wake on disk recovery even while an override keeps the level normal. */
   /** Aggregate outcomes only: no endpoint, account, error text or transport payload. */
   recordTransportResult(wasSuccessful: boolean): void {
