@@ -29,9 +29,16 @@ a unit test reads the developer's real home folder.
 - Bounded work: at most `TRACE_LOG_READ_CONCURRENCY` (4, new constant in
   `src/shared/constants.ts`) files parse at once — enough to hide
   file-open latency behind parsing, few enough that only streaming chunk
-  buffers ever sit together. Each file is read as a stream of lines
-  (`node:readline` with `crLfDelay: Infinity`, matching `/\r?\n/`
-  splitting including the partial last line), never as one string.
+  buffers ever sit together. Each file is read as a stream of lines,
+  never as one string.
+- CORRECTION (round 2, 2026-10-12): the sentence that stood here claimed
+  `node:readline` with `crlfDelay: Infinity` matched `/\r?\n/` splitting.
+  The review by reading showed it does not (a lone CR also ends a line),
+  and the equivalence test could not show it. Round 2 replaced readline
+  with the reader's own LF/CRLF-only chunk splitter
+  (`splitTraceChunk`), drops the unterminated tail by design, and drives
+  the equivalence tests through the production streaming reader over real
+  files (see `docs/certification/usage-trace-read-2.md`, P2-3).
   Worst case per refresh: 4 stream buffers (~64 KiB each) plus one line
   buffer per flight (a file is skipped whole past `TRACE_LOG_MAX_BYTES`,
   so one line is at most 8 MiB) plus parsed facts — against 1.6 GB of
