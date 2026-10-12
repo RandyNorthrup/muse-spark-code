@@ -5108,6 +5108,7 @@
     "none": "Ninguna cuenta seleccionada",
     "id": "ID de la cuenta",
     "use": "Usar cuenta",
+    "useScope": "La cuenta elegida atiende las solicitudes de este chat; el trabajo en segundo plano se distribuye según el margen.",
     "earlier": "Mover antes",
     "later": "Mover después",
     "keyPrompt": "Clave API de {provider} · {account} (oculta al escribir): ",

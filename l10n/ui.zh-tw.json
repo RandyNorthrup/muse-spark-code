@@ -4810,6 +4810,7 @@
     "none": "未選取帳戶",
     "id": "帳戶 ID",
     "use": "使用帳戶",
+    "useScope": "所選帳戶處理此聊天的請求；背景工作按餘裕分配。",
     "earlier": "向前移動",
     "later": "向後移動",
     "keyPrompt": "{provider} · {account} API金鑰（輸入時隱藏）：",

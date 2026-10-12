@@ -5992,6 +5992,8 @@ export const EN = {
     none: 'No account selected',
     id: 'Account id',
     use: 'Use account',
+    useScope:
+      "The chosen account serves this chat's own requests; background work spreads by headroom.",
     earlier: 'Move earlier',
     later: 'Move later',
     keyPrompt: '{provider} · {account} API key (not shown as you type): ',

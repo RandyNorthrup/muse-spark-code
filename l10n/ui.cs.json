@@ -5257,6 +5257,7 @@
     "none": "Není vybrán žádný účet",
     "id": "ID účtu",
     "use": "Použít účet",
+    "useScope": "Vybraný účet obsluhuje požadavky tohoto chatu; práce na pozadí se rozděluje podle rezervy.",
     "earlier": "Posunout dříve",
     "later": "Posunout později",
     "keyPrompt": "API klíč pro {provider} · {account} (při psaní se nezobrazuje): ",
