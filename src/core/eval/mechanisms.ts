@@ -392,6 +392,13 @@ export function freezeEvalHarness(
   tasks: readonly EvalTask[] = EVAL_TASKS,
 ): FrozenEvalHarness {
   const repo = armRepoRoot()
+  // Layout-independent bytes (M101 R7): without minification esbuild
+  // separates bundled modules with `// <path>` comments whose text is the
+  // dependency folder's path relative to this checkout (a nested worktree
+  // resolving a hoisted node_modules emits `// ../../../node_modules/…`
+  // where a root checkout emits `// node_modules/…`), so the frozen text
+  // moved with the machine. Whitespace minification emits no path
+  // comments; identifiers and syntax are untouched.
   const worker = buildSync({
     absWorkingDir: repo,
     entryPoints: ['src/host/backend/searchWorker.ts'],
@@ -399,6 +406,8 @@ export function freezeEvalHarness(
     write: false,
     platform: 'node',
     format: 'cjs',
+    minifyWhitespace: true,
+    legalComments: 'none',
     logLevel: 'silent',
   }).outputFiles[0]
   if (worker === undefined) throw new Error('the frozen search worker emitted no code')
