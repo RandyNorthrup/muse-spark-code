@@ -107,6 +107,25 @@ describe('M116 panel review integration', () => {
     f.panel.review('s1', f.work.module.files).cancel()
   })
 
+  it('never consumes a capped turn wrap-up text as a review', () => {
+    const f = integrationFixture()
+    const before = f.policy.getRecord().filter((record) => record.kind === 'round').length
+    const ticket = f.panel.review('s1', f.work.module.files)
+    ticket.bind('capped')
+    ticket.observe(reply('capped', reviewBlock()))
+    // A completed turn carrying the typed limit outcome ends the review
+    // without consuming it: the summary is not a verdict on the module.
+    ticket.observe({
+      type: 'turnCompleted',
+      turnId: 'capped',
+      terminal: 'completed',
+      errorKind: 'max_turn_requests',
+      reason: 'The turn reached its model-call limit.',
+    })
+    expect(ticket.isClosed).toBe(true)
+    expect(f.policy.getRecord().filter((record) => record.kind === 'round')).toHaveLength(before)
+  })
+
   it.each(['caught', 'remains'] as const)(
     'keeps %s redesign evidence open and user-first',
     (outcome) => {

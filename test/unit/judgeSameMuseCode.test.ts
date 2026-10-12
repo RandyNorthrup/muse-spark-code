@@ -311,6 +311,37 @@ describe('MuseCodeSameJudge on fakes', () => {
     expect(rig.cache.get(key.key)).toBeUndefined()
   })
 
+  it('never returns a capped turn reply as a verdict', async () => {
+    const rig = fakeSetup()
+    rig.autoReply = false
+    const key = startKey(rig.entries)
+    const pending = judgeOnce(rig.judge, rig.entries, judgeJob(key, 'x', [NOUL]))
+    await vi.waitFor(() => {
+      expect(rig.sessions).toHaveLength(1)
+    })
+    const session = rig.sessions[0]
+    if (session === undefined) {
+      throw new Error('no side session started')
+    }
+    await vi.waitFor(() => {
+      expect(session.sendTurn).toHaveBeenCalledTimes(1)
+    })
+    // A completed turn carrying the typed limit outcome is not an ordinary
+    // completion: its reply never becomes the verdict.
+    session.emit(
+      itemCompleted('turn-1', { kind: 'agentMessage', text: '{"answer":"yes","confidence":95}' }),
+      {
+        ...turnCompleted('turn-1'),
+        errorKind: 'max_turn_requests',
+        reason: 'The turn stopped after 3 model calls. Send a message to continue.',
+      },
+    )
+    expect(await pending).toBe('failed')
+    expect(session.dispose).toHaveBeenCalled()
+    expect(rig.cache.get(key.key)).toBeUndefined()
+    expect(rig.removed).toHaveLength(1)
+  })
+
   it('drops a result that arrives after its fence', async () => {
     const rig = fakeSetup()
     rig.autoReply = false

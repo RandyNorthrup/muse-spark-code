@@ -1201,6 +1201,38 @@ describe('drafts inside the user’s own turn (M71)', () => {
     expect(t.ofType('gitDraft')).toEqual([])
   })
 
+  it('never posts a capped turn summary as a commit-message or pull-request draft', async () => {
+    for (const kind of ['commitMessage', 'pullRequest'] as const) {
+      const action = kind === 'commitMessage' ? 'openCommit' : 'openPullRequest'
+      const t = setup({ repository: fakeRepository({ indexChanges: [change('first.ts')] }) })
+      await t.git.handleAction(action)
+      const epoch = t.git.generationStarting(kind)
+      t.git.generationSubmitted('capped-turn', epoch)
+      // A completed turn carrying the typed limit outcome: the "what is
+      // done / what remains" summary must not become a draft.
+      t.git.onEvent({
+        type: 'itemCompleted',
+        item: {
+          itemId: 'm-capped-turn',
+          kind: 'agentMessage',
+          status: 'completed',
+          turnId: 'capped-turn',
+          text: 'Done; found a bug; tests remain',
+        },
+      })
+      t.git.onEvent({
+        type: 'turnCompleted',
+        turnId: 'capped-turn',
+        terminal: 'completed',
+        errorKind: 'max_turn_requests',
+        reason: 'The turn stopped after 3 model calls. Send a message to continue.',
+      })
+      expect(t.ofType('gitDraft').at(-1)?.draft).toEqual({ kind: 'failed', forKind: kind })
+      expect(t.ofType('gitDraft').filter((message) => message.draft.kind !== 'failed')).toEqual([])
+      expect(t.notices).toContainEqual(['warning', UI_TEXT.gitDraftFailed])
+    }
+  })
+
   it('compares a fork draft against upstream main, excluding commits from behind origin main', async () => {
     const repository = aheadRepository()
     repository.state.remotes = [

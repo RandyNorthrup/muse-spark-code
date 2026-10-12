@@ -40,6 +40,7 @@ import { FifoLimiter } from '../../core/fifoLimiter'
 import type { CoreLogger } from '../../core/logging'
 import { unlessAborted, withDeadline } from '../../core/timeouts'
 import type { AgentEvent } from '../../shared/agentEvents'
+import { usableReply } from '../../core/turns/usableReply'
 import {
   AUTO_REVIEWER_MODEL_TEXT,
   MUSE_CODE_REVIEW_TIMEOUT_MS,
@@ -249,10 +250,16 @@ export class MuseCodeReviewer {
         if (ending === undefined) {
           return
         }
-        if (side.limited.has(turnId)) {
-          return null
-        }
-        return ending === COMPLETED ? (side.replies.get(turnId) ?? null) : null
+        // Only a turn that completed without a limit answers: a reply cut
+        // at the model-call limit never becomes a verdict.
+        const usable = usableReply(
+          {
+            terminal: ending,
+            errorKind: side.limited.has(turnId) ? 'max_turn_requests' : undefined,
+          },
+          side.replies.get(turnId),
+        )
+        return usable.usable ? usable.reply : null
       },
       deadline,
       job.signal,
