@@ -108,11 +108,11 @@ async function raceFolder(): Promise<{ readonly folder: string; readonly foreign
   return { folder, foreign: path.join(folder, 'foreign.txt') }
 }
 
-// The held checkout's gate calls before the worktree is added: twice per
-// hook listing (once more for git's version, the first time only), once
-// for the tree listing, plus one final beforeSpawn check per process; then the folder is claimed and the add gated.
-const LAST_GATE_BEFORE_CLAIM = 11
-const GATE_BEFORE_ADD = 12
+// The held checkout's gates are counted by the route, never by a literal:
+// POSIX checks twice per git and Windows rechecks at GO too, so the claim
+// lands after a different number of checks on each platform. A test that
+// must act at the claim or the add anchors on the claim itself (below),
+// and a test that must cover every check learns the count from a dry run.
 const CAPTURED_ORIGIN = {
   repository: 'RandyNorthrup/muse-spark-code',
   number: 51,
@@ -299,15 +299,17 @@ function isFolderGone(): boolean {
 
 /**
  * `target` with its links resolved (macOS's temp folder is a link into
- * `/private`, which git prints resolved); for a path that is gone, its
- * parent's, so a worktree git still lists compares the same.
+ * `/private`, which git prints resolved; Windows 8.3 short names, which
+ * git prints expanded); for a path that is gone, its parent's, so a
+ * worktree git still lists compares the same. The native resolver on every
+ * platform: plain `realpathSync` does not expand 8.3 names on Windows.
  */
 function resolvedPath(target: string): string {
   try {
-    return realpathSync(target)
+    return realpathSync.native(target)
   } catch {
     try {
-      return path.join(realpathSync(path.dirname(target)), path.basename(target))
+      return path.join(realpathSync.native(path.dirname(target)), path.basename(target))
     } catch {
       return target
     }
@@ -317,6 +319,62 @@ function resolvedPath(target: string): string {
 /** The runner's own claim: the folder made exclusively. */
 function claimOf(runner: PullRequestCheckoutGit, folder: string): () => Promise<MadeFolder> {
   return () => runner.claimFolder(folder)
+}
+
+/**
+ * The runner's claim wrapped so the test knows the claim by name: `check`
+ * runs `afterClaim` at the first gate after the claim lands, wherever the
+ * route puts the claim on this platform. `didRun` stays false when the
+ * claim never landed, so the test fails loudly instead of asserting on a
+ * state that was never created.
+ */
+function claimThen(
+  runner: PullRequestCheckoutGit,
+  folder: string,
+  afterClaim: () => void,
+): {
+  readonly claim: () => Promise<MadeFolder>
+  readonly check: () => void
+  readonly didRun: () => boolean
+} {
+  let isClaimed = false
+  let hasRun = false
+  return {
+    claim: async () => {
+      const made = await runner.claimFolder(folder)
+      isClaimed = true
+      return made
+    },
+    check: () => {
+      if (!isClaimed || hasRun) {
+        return
+      }
+      hasRun = true
+      afterClaim()
+    },
+    didRun: () => hasRun,
+  }
+}
+
+/**
+ * The 8.3 short spelling of `target`, asked of Windows itself; undefined
+ * when it cannot be asked. Windows-only: POSIX has no short names.
+ */
+function shortPathOf(target: string): string | undefined {
+  try {
+    const shown = execFileSync(
+      'cmd.exe',
+      ['/d', '/s', '/c', `for %I in ("${target}") do @echo %~sI`],
+      {
+        encoding: 'utf8',
+      },
+    )
+    const [first] = shown.split(/\r?\n/u, 1)
+    const short = first?.trim() ?? ''
+    return short === '' ? undefined : short
+  } catch {
+    return undefined
+  }
 }
 
 /**
@@ -2311,6 +2369,8 @@ describe('runtime pull request checkout on the fixture repositories (M123 lane P
     readonly isTrusted?: () => boolean
     /** Another window over the same data folder. */
     readonly dataFolder?: string
+    /** The same repository under another spelling (an 8.3 short name, say). */
+    readonly repositoryRoot?: string
     readonly records?: WorktreeRecordStore
     readonly now?: number
     /** Added to every quiet git's environment (a trace file, say). */
@@ -2328,7 +2388,7 @@ describe('runtime pull request checkout on the fixture repositories (M123 lane P
     records: WorktreeRecordStore
     heldRoots: readonly string[]
   }> {
-    const repositoryRoot = kind === 'own' ? fixtures.own : fixtures.fork
+    const repositoryRoot = options.repositoryRoot ?? (kind === 'own' ? fixtures.own : fixtures.fork)
     if (kind === 'own') {
       // The pull ref serves the branch tip, so the branch goes up first.
       git(repositoryRoot, 'push', '-q', 'origin', 'feature')
@@ -2552,37 +2612,49 @@ describe('runtime pull request checkout on the fixture repositories (M123 lane P
     // RVM123P4 finding 1, inside the claim: the folder is this checkout's,
     // but git refuses it once another process wrote into it. Only an empty
     // folder of this checkout's own is ever removed when git added nothing.
+    // The foreign file lands at the first check after the claim, by name:
+    // WINSPAWN showed a gate count injects before any folder exists.
     const { folder, foreign } = await raceFolder()
     const sha = git(fixtures.fork, 'rev-parse', 'HEAD')
     const runner = heldRunner()
-    let gates = 0
-    const check = () => {
-      gates += 1
-      if (gates === GATE_BEFORE_ADD) {
-        writeFileSync(foreign, FOREIGN_TEXT)
-      }
-    }
+    const afterClaim = claimThen(runner, folder, () => {
+      writeFileSync(foreign, FOREIGN_TEXT)
+    })
     await expect(
-      runner.checkOutHeld(folder, sha, fixtures.fork, runnerGates(check), claimOf(runner, folder)),
-    ).rejects.toThrow()
+      runner.checkOutHeld(
+        folder,
+        sha,
+        fixtures.fork,
+        runnerGates(afterClaim.check),
+        afterClaim.claim,
+      ),
+      // Git's own refusal for a non-empty destination, not an earlier error:
+      // a broad matcher would accept the injection landing too early.
+    ).rejects.toThrow(/already exists/u)
+    expect(afterClaim.didRun()).toBe(true)
     expect(readFileSync(foreign, 'utf8')).toBe(FOREIGN_TEXT)
     expect(isListedWorktree(folder)).toBe(false)
   })
 
   it('removes a claimed folder git never used when the checkout is refused at the add', async () => {
+    // Refused at the first check after the claim, by name: the folder is
+    // this checkout's and empty, so the cleanup removes it whole.
     const { folder } = await raceFolder()
     const sha = git(fixtures.fork, 'rev-parse', 'HEAD')
     const runner = heldRunner()
-    let gates = 0
-    const check = () => {
-      gates += 1
-      if (gates === GATE_BEFORE_ADD) {
-        throw new ReservationLostError(folder)
-      }
-    }
+    const afterClaim = claimThen(runner, folder, () => {
+      throw new ReservationLostError(folder)
+    })
     await expect(
-      runner.checkOutHeld(folder, sha, fixtures.fork, runnerGates(check), claimOf(runner, folder)),
+      runner.checkOutHeld(
+        folder,
+        sha,
+        fixtures.fork,
+        runnerGates(afterClaim.check),
+        afterClaim.claim,
+      ),
     ).rejects.toBeInstanceOf(ReservationLostError)
+    expect(afterClaim.didRun()).toBe(true)
     expect(existsSync(folder)).toBe(false)
     expect(readdirSync(path.dirname(folder))).toEqual([])
     expect(isListedWorktree(folder)).toBe(false)
@@ -2591,25 +2663,86 @@ describe('runtime pull request checkout on the fixture repositories (M123 lane P
   it('makes nothing when its claim is refused', async () => {
     // RVM123P5 finding 2 on the real runner: the records refused the claim
     // (another checkout took the reservation over); the tree was listed,
-    // nothing was made.
+    // nothing was made. The claim itself is the named checkpoint: it runs
+    // exactly once, after the route's read checks and before any write.
     const { folder } = await raceFolder()
     const sha = git(fixtures.fork, 'rev-parse', 'HEAD')
-    let gates = 0
+    let claims = 0
+    let runs = 0
+    let writes = 0
     await expect(
       heldRunner().checkOutHeld(
         folder,
         sha,
         fixtures.fork,
-        runnerGates(() => {
-          gates += 1
-        }),
-        () => Promise.reject(new ReservationLostError(folder)),
+        {
+          run: () => {
+            runs += 1
+          },
+          write: () => {
+            writes += 1
+          },
+          cleanup: () => undefined,
+        },
+        () => {
+          claims += 1
+          return Promise.reject(new ReservationLostError(folder))
+        },
       ),
     ).rejects.toBeInstanceOf(ReservationLostError)
-    expect(gates).toBe(LAST_GATE_BEFORE_CLAIM)
+    expect(claims).toBe(1)
+    expect(runs).toBeGreaterThan(0)
+    expect(writes).toBe(0)
     // Not even the held root: the claim never made anything.
     expect(existsSync(path.dirname(folder))).toBe(false)
   })
+
+  it.runIf(process.platform === 'win32')(
+    'checks out a held pull request when the repository and data folder use 8.3 short names',
+    async (ctx) => {
+      // 8.3 short names exist only on Windows volumes with short names
+      // enabled (tonight's hosted runner temp folder is C:\Users\RUNNER~1):
+      // a long-named folder's short spelling carries the whole checkout —
+      // the record keys, the claim, and git's long-spelled listing.
+      const longData = path.join(
+        await mkdtemp(path.join(tmpdir(), 'm123p-short-')),
+        'very-long-data-directory-name-for-the-short-name-checkout',
+      )
+      await mkdir(longData)
+      const shortRepo = shortPathOf(fixtures.fork)
+      const shortData = shortPathOf(longData)
+      const hasShortNames =
+        shortRepo !== undefined &&
+        shortData !== undefined &&
+        shortRepo.toLowerCase() !== fixtures.fork.toLowerCase() &&
+        shortData.toLowerCase() !== longData.toLowerCase()
+      if (!hasShortNames) {
+        ctx.skip('this volume provides no 8.3 short names')
+        return
+      }
+      const setup = await fixtureSetup('held', {
+        repositoryRoot: shortRepo,
+        dataFolder: shortData,
+      })
+      const result = await heldOpen(setup.checkout, FORK_REMOTES, setup.dataFolder)
+      try {
+        expect(existsSync(result.folder)).toBe(true)
+        // Git prints the long spelling while the folder is the short one:
+        // only the native resolver compares them the same.
+        expect(isListedWorktree(result.folder)).toBe(true)
+        const [record] = await setup.records.list()
+        expect(record?.folderIdentity).toBeDefined()
+      } finally {
+        try {
+          git(shortRepo, 'worktree', 'remove', '--force', result.folder)
+        } catch {
+          await rm(result.folder, { recursive: true, force: true })
+        }
+      }
+      expect(existsSync(result.folder)).toBe(false)
+      expect(isListedWorktree(result.folder)).toBe(false)
+    },
+  )
 
   it('leaves a folder already at the destination alone', async () => {
     const { folder, foreign } = await raceFolder()
@@ -2764,7 +2897,37 @@ describe('runtime pull request checkout on the fixture repositories (M123 lane P
 
   it('starts no git after its gate refuses, wherever that is', async () => {
     const sha = git(fixtures.fork, 'rev-parse', 'HEAD')
-    for (let refusing = 1; refusing <= GATE_BEFORE_ADD; refusing += 1) {
+    // The route's own boundary, learned from a dry run: how many gates it
+    // performs through the worktree add's start. No literal fits every
+    // platform (POSIX and Windows GO recheck a different number of times),
+    // so the refusals below walk the dry run's count.
+    let gatesThroughAdd = 0
+    {
+      const { folder: dry } = await raceFolder()
+      let gates = 0
+      const spotAdd: GitProcessPort = {
+        run: (file, args, options) => {
+          if (gatesThroughAdd === 0 && args.includes('worktree') && args.includes('add')) {
+            gatesThroughAdd = gates
+          }
+          return directGitProcesses.run(file, args, options)
+        },
+        start: (file, args, options) => directGitProcesses.start(file, args, options),
+      }
+      const dryRunner = heldRunner(spotAdd)
+      await dryRunner.checkOutHeld(
+        dry,
+        sha,
+        fixtures.fork,
+        runnerGates(() => {
+          gates += 1
+        }),
+        claimOf(dryRunner, dry),
+      )
+      git(fixtures.fork, 'worktree', 'remove', '--force', dry)
+    }
+    expect(gatesThroughAdd).toBeGreaterThan(0)
+    for (let refusing = 1; refusing <= gatesThroughAdd; refusing += 1) {
       const { folder } = await raceFolder()
       let gates = 0
       let startedAfter = 0
@@ -2789,17 +2952,27 @@ describe('runtime pull request checkout on the fixture repositories (M123 lane P
         throw new ReservationLostError(folder)
       }
       // Refused inside a hook listing, the checkout reports git as
-      // unavailable; elsewhere, the gate's own error. Either way it stops.
-      await expect(
-        runner.checkOutHeld(
+      // unavailable; elsewhere, the gate's own error. Either way it stops,
+      // and the refusal (not an earlier error) is what stops it.
+      let outcome: unknown
+      try {
+        await runner.checkOutHeld(
           folder,
           sha,
           fixtures.fork,
           runnerGates(check),
           claimOf(runner, folder),
-        ),
-      ).rejects.toThrow()
+        )
+        outcome = 'succeeded'
+      } catch (error: unknown) {
+        outcome = error
+      }
       expect(isRefused).toBe(true)
+      expect(
+        outcome instanceof ReservationLostError ||
+          (outcome instanceof Error &&
+            outcome.message.includes(UI_TEXT.openPullRequestFiltersUnavailable)),
+      ).toBe(true)
       expect(startedAfter).toBe(0)
       expect(existsSync(folder)).toBe(false)
       expect(isListedWorktree(folder)).toBe(false)
