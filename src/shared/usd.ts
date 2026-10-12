@@ -8,13 +8,7 @@ import {
 } from './usdConstants'
 
 import { usdAmountSchema, type UsdAmount } from './usdSchema'
-// In the Node bundles usdSchema.ts and this file are read from
-// dist/modelApiBoundaries.js, which exports what this file exports. A name a
-// bundled file needs from usdSchema.ts must therefore be in this list:
-// exactJson.ts called `canonicalUsd` through it in 0.18.0, it was not here,
-// and every version 1 amount was judged inexact (HOTFIX0181).
 export {
-  canonicalUsd,
   compareUsdAmounts,
   usdAmountSchema,
   nonnegativeUsdSchema,
