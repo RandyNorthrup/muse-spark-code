@@ -461,14 +461,23 @@ export function parseCommandLine<T>(
  * `providers usage <id> [--days n] [--output json]` (PROVSPEND): what the
  * provider itself reports was spent. Only its own flags ride along.
  */
-function parseProvidersUsage(values: StrictValues, rest: readonly string[]): RuntimeCommand {
+/**
+ * The `<id>` of `providers test|remove|usage`: the id, or the invalid
+ * command unless exactly one known provider id rides along.
+ */
+function providersIdOrInvalid(rest: readonly string[]): string | RuntimeCommand {
   const [provider] = rest
-  if (provider === undefined || rest.length !== 1 || !isProviderId(provider)) {
-    return {
-      command: 'invalid',
-      reason: fill(UI_TEXT.providerUnknown, { provider: provider ?? '' }),
-    }
-  }
+  return provider !== undefined && rest.length === 1 && isProviderId(provider)
+    ? provider
+    : {
+        command: 'invalid',
+        reason: fill(UI_TEXT.providerUnknown, { provider: provider ?? '' }),
+      }
+}
+
+function parseProvidersUsage(values: StrictValues, rest: readonly string[]): RuntimeCommand {
+  const provider = providersIdOrInvalid(rest)
+  if (typeof provider !== 'string') return provider
   if (
     values.preset !== undefined ||
     values.as !== undefined ||
@@ -506,13 +515,8 @@ function parseProviders(
     }
     case 'test':
     case 'remove': {
-      const [provider] = rest
-      if (provider === undefined || rest.length !== 1 || !isProviderId(provider)) {
-        return {
-          command: 'invalid',
-          reason: fill(UI_TEXT.providerUnknown, { provider: provider ?? '' }),
-        }
-      }
+      const provider = providersIdOrInvalid(rest)
+      if (typeof provider !== 'string') return provider
       return { command: verb === 'test' ? 'providersTest' : 'providersRemove', provider }
     }
     case 'usage': {

@@ -1,5 +1,15 @@
 # PLAN — Muse Spark for VS Code (unofficial)
 
+**PROVSPEND: provider-reported spend beside our estimate (2026-10-12,
+kubuntu lane).** Each preset declares one spend capability (`none`,
+`key-usage`, `balance`, `admin-report`); `providers usage <id> [--days n]
+[--output json]` shows the provider's own figures next to the journal
+estimate with the difference, and `auth --admin` stores the separate admin
+report key. The OpenRouter read is the first shared-shape report. Admin
+wire shapes are documented, not live captured (UNVERIFIED); the lead's
+capture checklist lives in `docs/certification/provider-spend.md`. Spend
+reports are display only and never feed a cap.
+
 **VISFIX: release notes move no screenshot (2026-10-11, host with the Mac
 mini and linuxlt; before 0.17.2).** Lead's ruling after REL0171C's finding
 that a `CHANGELOG.md` entry or a version bump moved 108 What's New frames and

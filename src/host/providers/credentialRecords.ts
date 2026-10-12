@@ -48,19 +48,6 @@ export class ProviderCredentialStore extends CredentialStore {
   public async clearProviderCredential(id: string): Promise<void> {
     await deleteProviderCredential(this.records, id)
   }
-  /**
-   * The admin report key (PROVSPEND): stored under its own name, read only
-   * for read-only spend reports, never for a model request.
-   */
-  public async getProviderAdminCredential(id: string): Promise<CredentialRecord | undefined> {
-    return await readProviderAdminCredential(this.records, id)
-  }
-  public async setProviderAdminCredential(id: string, record: CredentialRecord): Promise<void> {
-    await saveProviderAdminCredential(this.records, id, record)
-  }
-  public async clearProviderAdminCredential(id: string): Promise<void> {
-    await deleteProviderAdminCredential(this.records, id)
-  }
 }
 
 /** The SecretStorage account name for a provider id. */

@@ -14,8 +14,9 @@ import {
   providersUsage,
   spendAllowedPaths,
   spendEstimateFromBreakdown,
-  type ProvidersDeps,
-} from '../../src/runtime/providersCommands'
+} from '../../src/runtime/providersSpend'
+import type { ProvidersDeps } from '../../src/runtime/providersCommands'
+import type { SpendEstimate } from '../../src/core/providers/providerSpend'
 import {
   authClearProvider,
   authSetProvider,
@@ -50,6 +51,20 @@ function secretStore(entries: readonly (readonly [string, string])[]): Map<strin
   return new Map<string, string>(entries)
 }
 
+function anthropicReportDeps(estimate: SpendEstimate | undefined) {
+  return depsWith(
+    fileWith(['anthropic']),
+    secretStore([
+      [
+        providerAdminSecretAccount('anthropic') ?? '',
+        envelope('https://api.anthropic.com', 'TEST-ADMIN-KEY'),
+      ],
+    ]),
+    scriptedFetch({ usage_report: ANTHROPIC_USAGE, cost_report: ANTHROPIC_COST }),
+    { readSpendEstimate: () => Promise.resolve(estimate) },
+  )
+}
+
 function spendPathsForTest(id: string): readonly string[] {
   const paths: string[] = []
   for (const rule of spendAllowedPaths(id)) {
@@ -60,6 +75,20 @@ function spendPathsForTest(id: string): readonly string[] {
 
 function envelope(origin: string, key: string): string {
   return formatStoredProviderSecret({ v: 1, auth: 'apiKey', origin }, key)
+}
+
+function fakeSecretStore(secrets: Map<string, string>) {
+  return {
+    get: (key: string) => Promise.resolve(secrets.get(key)),
+    store: (key: string, value: string) => {
+      secrets.set(key, value)
+      return Promise.resolve()
+    },
+    delete: (key: string) => {
+      secrets.delete(key)
+      return Promise.resolve()
+    },
+  }
 }
 
 function depsWith(
@@ -75,17 +104,7 @@ function depsWith(
     errors,
     readUserFile: () => Promise.resolve({ ok: true as const, file }),
     writeUserFile: () => Promise.resolve(true),
-    secrets: {
-      get: (key) => Promise.resolve(secrets.get(key)),
-      store: (key, value) => {
-        secrets.set(key, value)
-        return Promise.resolve()
-      },
-      delete: (key) => {
-        secrets.delete(key)
-        return Promise.resolve()
-      },
-    },
+    secrets: fakeSecretStore(secrets),
     resolveHost: () => Promise.resolve(['93.184.216.34']),
     fetch,
     readSecret: () => Promise.resolve(''),
@@ -109,17 +128,7 @@ function authDepsWith(
   return {
     printed,
     errors,
-    secrets: {
-      get: (key) => Promise.resolve(secrets.get(key)),
-      store: (key, value) => {
-        secrets.set(key, value)
-        return Promise.resolve()
-      },
-      delete: (key) => {
-        secrets.delete(key)
-        return Promise.resolve()
-      },
-    },
+    secrets: fakeSecretStore(secrets),
     storeName: 'test store',
     readSecret: () => Promise.resolve(secret),
     print: (line) => {
@@ -150,14 +159,20 @@ const ANTHROPIC_COST = {
   has_more: false,
 }
 
+function requestUrlText(url: string | URL | Request): string {
+  if (typeof url === 'string') return url
+  return url instanceof URL ? url.href : url.url
+}
+
 function scriptedFetch(routes: Readonly<Record<string, unknown>>): typeof globalThis.fetch {
-  return (url: unknown) => {
-    const text = String(url)
+  const scripted: typeof globalThis.fetch = (url) => {
+    const text = requestUrlText(url)
     for (const [part, body] of Object.entries(routes)) {
       if (text.includes(part)) return Promise.resolve(Response.json(body))
     }
     return Promise.resolve(Response.json({}, { status: 404 }))
   }
+  return scripted
 }
 
 describe('providers usage parsing', () => {
@@ -254,13 +269,13 @@ describe('providers usage command', () => {
       ],
     ])
     const seen: string[] = []
-    const recordingFetch = ((url: unknown, init?: { readonly headers?: unknown }) => {
-      seen.push(`${String(url)} ${JSON.stringify(init?.headers ?? {})}`)
+    const recordingFetch: typeof globalThis.fetch = (url, init) => {
+      seen.push(`${requestUrlText(url)} ${JSON.stringify(init?.headers ?? {})}`)
       return scriptedFetch({ usage_report: ANTHROPIC_USAGE, cost_report: ANTHROPIC_COST })(
         url,
         init,
       )
-    }) as typeof globalThis.fetch
+    }
     const deps = depsWith(fileWith(['anthropic']), secrets, recordingFetch, {
       readSpendEstimate: () =>
         Promise.resolve({ usd: '0.50', inputTokens: 1250, outputTokens: 500 }),
@@ -281,18 +296,7 @@ describe('providers usage command', () => {
   })
 
   it('emits machine-readable JSON on request', async () => {
-    const secrets = secretStore([
-      [
-        providerAdminSecretAccount('anthropic') ?? '',
-        envelope('https://api.anthropic.com', 'TEST-ADMIN-KEY'),
-      ],
-    ])
-    const deps = depsWith(
-      fileWith(['anthropic']),
-      secrets,
-      scriptedFetch({ usage_report: ANTHROPIC_USAGE, cost_report: ANTHROPIC_COST }),
-      { readSpendEstimate: () => Promise.resolve({ usd: '1.05' }) },
-    )
+    const deps = anthropicReportDeps({ usd: '1.05' })
     expect(await providersUsage(deps, { provider: 'anthropic', days: 30, json: true })).toBe(0)
     const parsed = JSON.parse(deps.printed.join('\n')) as {
       readonly provider: string
@@ -305,18 +309,7 @@ describe('providers usage command', () => {
   })
 
   it('shows provider figures alone when the journal recorded nothing', async () => {
-    const secrets = secretStore([
-      [
-        providerAdminSecretAccount('anthropic') ?? '',
-        envelope('https://api.anthropic.com', 'TEST-ADMIN-KEY'),
-      ],
-    ])
-    const deps = depsWith(
-      fileWith(['anthropic']),
-      secrets,
-      scriptedFetch({ usage_report: ANTHROPIC_USAGE, cost_report: ANTHROPIC_COST }),
-      { readSpendEstimate: () => Promise.resolve(undefined) },
-    )
+    const deps = anthropicReportDeps(undefined)
     expect(await providersUsage(deps, { provider: 'anthropic', days: 30, json: false })).toBe(0)
     const text = deps.printed.join('\n')
     expect(text).toContain('claude-opus-4-1')

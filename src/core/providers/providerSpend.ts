@@ -19,6 +19,12 @@ import { fill, formatDateTime, formatNumber } from '../../shared/l10n/text'
 import { formatUsd, parseUsd } from '../../shared/accountUsd'
 import { Usd } from '../../shared/usd'
 import type { ProviderSpendCapability } from './presets'
+import {
+  isSpendFailure,
+  openRouterSpendReport,
+  unreadable,
+  type SpendFailure,
+} from './providerSpendKeyUsage'
 
 /** Which key a capability's report request must ride. */
 export type SpendKeyKind = 'inference' | 'admin'
@@ -48,14 +54,6 @@ export interface SpendHttpRequest {
   readonly auth: { readonly scheme: 'bearer' | 'x-api-key'; readonly key: string }
   /** The origin the caller's pin must allow; the key goes nowhere else. */
   readonly origin: string
-}
-
-/** Why a spend report is shown as a fixed sentence instead of figures. */
-export type SpendFailureKind =
-  'wrong-key-kind' | 'plan-unavailable' | 'refused' | 'unreadable' | 'unreachable'
-
-export interface SpendFailure {
-  readonly kind: SpendFailureKind
 }
 
 /** Fixed sentences: a failure never leaks status bodies or key material. */
@@ -92,7 +90,7 @@ export function anthropicSpendRequests(input: {
   readonly startingAt: string
   readonly endingAt: string
   readonly page?: string | undefined
-}): readonly SpendHttpRequest[] {
+}): readonly [SpendHttpRequest, SpendHttpRequest] {
   const headers = { 'anthropic-version': '2023-06-01' }
   const auth = { scheme: 'x-api-key' as const, key: input.key }
   const query = new URLSearchParams({
@@ -125,8 +123,8 @@ export function openAiSpendRequests(input: {
   readonly startTime: string
   readonly endTime: string
   readonly page?: string | undefined
-}): readonly SpendHttpRequest[] {
-  const headers = {}
+}): readonly [SpendHttpRequest, SpendHttpRequest] {
+  const headers: Readonly<Record<string, string>> = {}
   const auth = { scheme: 'bearer' as const, key: input.key }
   const usageQuery = new URLSearchParams({ start_time: input.startTime, end_time: input.endTime })
   const costQuery = new URLSearchParams({
@@ -378,15 +376,6 @@ const deepSeekBalanceBody = z.object({
     }),
   ),
 })
-
-function unreadable(): SpendFailure {
-  return { kind: 'unreadable' }
-}
-
-/** True for a failure value; no report or page result carries `kind`. */
-export function isSpendFailure(value: unknown): value is SpendFailure {
-  return typeof value === 'object' && value !== null && 'kind' in value
-}
 
 function centsToUsd(cents: string): string {
   return Usd.fromUnits(BigInt(cents), 2).toString()
@@ -708,70 +697,7 @@ export async function fetchKeyUsageSpendReport(input: {
   } catch {
     return { kind: 'unreachable' }
   }
-  return openRouterSpendReport(
-    {
-      usedToday: snapshot.usedToday,
-      usedThisWeek: snapshot.usedThisWeek,
-      usedThisMonth: snapshot.usedThisMonth,
-      ...(snapshot.limit !== undefined && { limit: snapshot.limit }),
-      ...(snapshot.remaining !== undefined && { remaining: snapshot.remaining }),
-    },
-    input.asOf,
-  )
-}
-
-/**
- * The existing OpenRouter read as the first shared-shape report: the
- * validated key-usage snapshot becomes exact dollars. A non-finite or
- * negative amount is unreadable, never a zero.
- */
-export function openRouterSpendReport(
-  snapshot: {
-    readonly usedToday: number
-    readonly usedThisWeek: number
-    readonly usedThisMonth: number
-    readonly limit?: number | undefined
-    readonly remaining?: number | undefined
-  },
-  asOf: string,
-): SpendFailure | ProviderSpendReport {
-  const numbers = [
-    snapshot.usedToday,
-    snapshot.usedThisWeek,
-    snapshot.usedThisMonth,
-    ...(snapshot.limit === undefined ? [] : [snapshot.limit]),
-    ...(snapshot.remaining === undefined ? [] : [snapshot.remaining]),
-  ]
-  if (numbers.some((value) => !Number.isFinite(value) || value < 0)) return { kind: 'unreadable' }
-  const today = snapshotDollars(snapshot.usedToday)
-  if (isSpendFailure(today)) return today
-  const week = snapshotDollars(snapshot.usedThisWeek)
-  if (isSpendFailure(week)) return week
-  const month = snapshotDollars(snapshot.usedThisMonth)
-  if (isSpendFailure(month)) return month
-  const limit = snapshot.limit === undefined ? undefined : snapshotDollars(snapshot.limit)
-  if (isSpendFailure(limit)) return limit
-  const remaining =
-    snapshot.remaining === undefined ? undefined : snapshotDollars(snapshot.remaining)
-  if (isSpendFailure(remaining)) return remaining
-  return {
-    capability: 'key-usage',
-    provider: 'openrouter',
-    asOf,
-    usedTodayUsd: today,
-    usedThisWeekUsd: week,
-    usedThisMonthUsd: month,
-    ...(limit !== undefined && { limitUsd: limit }),
-    ...(remaining !== undefined && { remainingUsd: remaining }),
-  }
-}
-
-function snapshotDollars(value: number): string | SpendFailure {
-  try {
-    return Usd.from(value).toString()
-  } catch {
-    return unreadable()
-  }
+  return openRouterSpendReport(snapshot, input.asOf)
 }
 
 /** Fetch a DeepSeek balance report; the inference key reads its own balance. */

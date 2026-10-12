@@ -9,6 +9,18 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- PROVUSAGE (provider-reported spend): each preset declares one spend
+  capability (`none`, `key-usage`, `balance`, `admin-report`). `providers
+  usage <id> [--days n] [--output json]` shows the provider's own figures
+  for the period (tokens by model, dollars by day) next to the journal
+  estimate with the difference, over the pinned transport; `auth
+  set|status|clear --provider <id> --admin` stores the separate admin
+  report key after saying what it can read. The OpenRouter read is the
+  first shared-shape report. Admin wire shapes are documented, not live
+  captured (UNVERIFIED until the lead's capture); a provider with no spend
+  API shows nothing new. Spend reports are display only and never feed a
+  cap.
+
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
   reads and writes, and 1-hour cache writes settle at their own price.
   The shared retry classifier refuses known quota codes and excessive
