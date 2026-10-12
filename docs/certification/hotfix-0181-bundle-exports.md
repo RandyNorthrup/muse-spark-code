@@ -180,6 +180,37 @@ with four failures. The built usage service reported 27 inexact records for
 the 0.17.0 fixture where the source reports 0, and the built schedule reader
 threw `scheduleStoredJsonInvalid`.
 
+## Report a Problem and dotted setting names
+
+Found by an audit, verified by a failing test first. `SETTING_NAME_PATTERN` in
+`src/core/support/problemReport.ts` allowed one segment after `museSpark.`.
+The report's facts carry the names of the settings the user changed
+(`manifestSettingNames` and `changedSettingNames`, `host/support/reportFacts.ts`),
+and 14 of the manifest's 100 settings have a second dot
+(`museSpark.vault.enabled`, `museSpark.judge.engine`,
+`museSpark.shell.passEnvironmentVariables` and others). For anyone who had
+changed one, `validatedFacts` threw, the handler said "That did not work" and
+the dialog never opened; unticking the facts could not help, because they were
+validated before `includeFacts` was read.
+
+- The pattern takes one to four dotted segments, each with the old character
+  rule; nothing but `museSpark.` plus letters, digits and dots between
+  segments passes. The count bound moves from 64 to 128 names, above the
+  manifest's 100, so a user who changed every setting still gets a report.
+- A report whose facts are switched off is built without them, title
+  included, when they do not validate. With facts on, the refusal stands.
+- Tests: every `museSpark.*` property of the real `package.json` passes the
+  builder, one at a time and all at once (read from the manifest, so a setting
+  added later cannot break reports); ten names that are not setting names are
+  still refused; the handler opens for a changed dotted setting; the
+  facts-off cases.
+
+**Drill D.** `problemReport.ts` as released (`f8435aaac`), the new tests
+unchanged: exit 1, four failures (`accepts every setting of the manifest on
+its own`, `carries all of them at once`, `builds the report without them when
+they do not validate`, `opens for a user who changed a dotted setting`), 105
+passed. Restored byte for byte (`b4fa9fa5c0f8da88`): both files pass.
+
 ## Live proof by the lead, 2026-10-12 12:07 AM PT, Kubuntu, Anthropic claude-opus-5-5
 
 On the agent package built from tree `790285dd`, installed the way a user
