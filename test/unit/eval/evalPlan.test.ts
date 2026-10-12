@@ -41,16 +41,20 @@ describe('the lane E call plan', () => {
     expect(plan.plannedCalls).toBe(
       plan.tasks.reduce((sum, task) => sum + task.callBudget * plan.arms.length, 0),
     )
-    expect(plan.plannedCalls).toBe(548)
+    expect(plan.plannedCalls).toBe(588)
     expect(plan.callCeiling).toBe(plan.plannedCalls)
     expect(plan.budgetUsd).toBe(EVAL_BUDGET_USD)
-    expect(plan.measuredCostEstimateUsd).toBeCloseTo((548 * 0.026384174) / 198, 10)
+    expect(plan.measuredCostEstimateUsd).toBeCloseTo((588 * 0.026384174) / 198, 10)
     for (const task of plan.tasks) {
       const prior = task.id.includes('compaction') ? 6 : 3
       const observed = Math.max(...task.measuredAttempts)
-      expect(task.callBudget).toBe(
-        Math.max(6, Math.ceil((observed === 0 ? prior : observed) * 1.5)),
-      )
+      // CM1013R5 headroom: the live run used 8 of 9 requests on the
+      // auto-compaction arm, so the unrun long-context tasks budget 14.
+      const budgeted =
+        observed === 0 && task.id.endsWith('-long-compaction')
+          ? 14
+          : Math.max(6, Math.ceil((observed === 0 ? prior : observed) * 1.5))
+      expect(task.callBudget).toBe(budgeted)
     }
     expect(plan.tasks).toEqual(measurement.tasks)
   })
@@ -103,6 +107,6 @@ import(${JSON.stringify(new URL('../../../scripts/m101-e.mjs', import.meta.url).
     expect(plan.selection).toBe('narrowed selection')
     expect(plan.tasks).toHaveLength(6)
     expect(plan.callCeiling).toBe(plan.tasks.reduce((sum, task) => sum + task.callBudget * 4, 0))
-    expect(plan.callCeiling).toBe(224)
+    expect(plan.callCeiling).toBe(264)
   })
 })
