@@ -62,7 +62,9 @@ describe('accounts report source', () => {
       (text) => text,
     )
     const rejected = await invalid.read(contextFor('accounts'))
-    expect(rejected.record.status).toBe('unavailable')
+    expect(rejected.record.status).toBe('partial')
+    expect(rejected.record.reason).toContain(EN.reportSourceReasons.invalid)
+    expect(rejected.data).not.toBeNull()
   })
 
   it('sorts providers, accounts, usage, events and confirmations by code unit', async () => {

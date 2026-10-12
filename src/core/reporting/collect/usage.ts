@@ -6,7 +6,6 @@ import type {
 } from '../../../shared/reportSchema'
 import type { SourceSnapshot, UsageFacts } from '../sources/types'
 import { compare, count, derivedSourceId, label, row, sourcedSection, text } from './common'
-import { Usd } from '../../../shared/usd'
 
 function limitCells(limit: UsageFacts['limits'][number]): Record<string, ReportValue> {
   // Dollars in dollar fields, percentages in percent fields (RVCM1132B
@@ -16,8 +15,8 @@ function limitCells(limit: UsageFacts['limits'][number]): Record<string, ReportV
     limit.resetsAt === null ? label('unknown') : { type: 'timestamp', value: limit.resetsAt }
   if (limit.unit === 'usd')
     return {
-      count: { type: 'usd', value: Usd.from(limit.used).toAmount(), certainty: 'reported' },
-      totals: { type: 'usd', value: Usd.from(limit.limit).toAmount(), certainty: 'reported' },
+      count: { type: 'usd', value: limit.used, certainty: 'reported' },
+      totals: { type: 'usd', value: limit.limit, certainty: 'reported' },
       date,
     }
   if (limit.unit === 'percent')

@@ -1,4 +1,4 @@
-import { legacyUsdSchema } from '../../../shared/usdSchema'
+import { legacyUsdSchema, nonnegativeUsdSchema } from '../../../shared/usdSchema'
 import * as z from 'zod/mini'
 import { REPORT_MAX_ROWS } from '../../../shared/constants'
 import {
@@ -42,15 +42,22 @@ const usageSchema = z.object({
     .check(z.maxLength(REPORT_MAX_ROWS)),
   limits: z
     .array(
-      z.object({
-        key: z.string(),
-        used: z.number().check(z.nonnegative()),
-        limit: z.number().check(z.nonnegative()),
-        resetsAt: z.nullable(z.iso.datetime({ offset: true })),
-        // Dollars render in dollar fields, percentages in percent fields
-        // (RVCM1132B finding 5); the scrub must carry the unit, not strip it.
-        unit: z.optional(z.enum(['percent', 'usd'])),
-      }),
+      z.union([
+        z.object({
+          key: z.string(),
+          used: nonnegativeUsdSchema,
+          limit: nonnegativeUsdSchema,
+          resetsAt: z.nullable(z.iso.datetime({ offset: true })),
+          unit: z.literal('usd'),
+        }),
+        z.object({
+          key: z.string(),
+          used: z.number().check(z.nonnegative()),
+          limit: z.number().check(z.nonnegative()),
+          resetsAt: z.nullable(z.iso.datetime({ offset: true })),
+          unit: z.optional(z.literal('percent')),
+        }),
+      ]),
     )
     .check(z.maxLength(REPORT_MAX_ROWS)),
 })

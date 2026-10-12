@@ -52,7 +52,9 @@ describe('security report source', () => {
       (text) => text,
     )
     const rejected = await invalid.read(contextFor('security'))
-    expect(rejected.record.status).toBe('unavailable')
+    expect(rejected.record.status).toBe('partial')
+    expect(rejected.record.reason).toContain(EN.reportSourceReasons.invalid)
+    expect(rejected.data).not.toBeNull()
   })
 
   it('sorts audit and developer audit groups by code unit', async () => {

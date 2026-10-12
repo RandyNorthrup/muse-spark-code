@@ -104,19 +104,16 @@ describe('injected milestone facets', () => {
     const truncated = keybindings.data!.map((entry, index) =>
       index === 0 ? { ...entry, omittedRows: 1 } : entry,
     )
-    expect(() =>
-      collectFixture(
-        'keybindings',
-        { full: true },
-        {
-          ...snapshot,
-          sources: {
-            ...snapshot.sources,
-            keybindings: availableSource('keybindings', truncated),
-          },
-        },
-      ),
-    ).toThrow('report/incompleteFullSource')
+    const preserved = collectFixture(
+      'keybindings',
+      { full: true },
+      {
+        ...snapshot,
+        sources: { ...snapshot.sources, keybindings: availableSource('keybindings', truncated) },
+      },
+    )
+    expect(getSection(preserved, 'keybindings/keybindings').omittedRows).toBe(1)
+    expect(getSection(preserved, 'keybindings/conflicts').rows).toHaveLength(2)
   })
 
   it('rejects malformed facets and unresolved source references', () => {

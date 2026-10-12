@@ -147,18 +147,10 @@ export interface UsageFacts {
     readonly costUsd: UsdAmount | null
     readonly certainty: 'reported' | 'estimated' | 'unknown'
   }[]
-  readonly limits: readonly {
-    readonly key: string
-    readonly used: number
-    readonly limit: number
-    readonly resetsAt: string | null
-    /**
-     * Dollars render in dollar fields, percentages in percent fields
-     * (RVCM1132B finding 5). Absent for foreign agent files, whose unit the
-     * journal never records; those keep the legacy plain-number cells.
-     */
-    readonly unit?: 'percent' | 'usd'
-  }[]
+  readonly limits: readonly ({ readonly key: string; readonly resetsAt: string | null } & (
+    | { readonly unit: 'usd'; readonly used: UsdAmount; readonly limit: UsdAmount }
+    | { readonly unit?: 'percent'; readonly used: number; readonly limit: number }
+  ))[]
 }
 export interface CheckRunRecord {
   readonly check: string

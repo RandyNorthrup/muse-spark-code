@@ -115,7 +115,13 @@ describe('PORTS017 boundary precision and historical reads', () => {
       {
         ...rawUsage,
         limits: [
-          { key: 'paidDaily/daily', used: 0.5, limit: 1, resetsAt: null, unit: 'usd' },
+          {
+            key: 'paidDaily/daily',
+            used: Usd.from('0.5').toAmount(),
+            limit: Usd.from('1').toAmount(),
+            resetsAt: null,
+            unit: 'usd',
+          },
           { key: 'meta/weekly', used: 25, limit: 100, resetsAt: null, unit: 'percent' },
         ],
       },
@@ -123,7 +129,13 @@ describe('PORTS017 boundary precision and historical reads', () => {
     )
     expect(scrubbed.limits).toEqual([
       { key: 'meta/weekly', used: 25, limit: 100, resetsAt: null, unit: 'percent' },
-      { key: 'paidDaily/daily', used: 0.5, limit: 1, resetsAt: null, unit: 'usd' },
+      {
+        key: 'paidDaily/daily',
+        used: Usd.from('0.5').toAmount(),
+        limit: Usd.from('1').toAmount(),
+        resetsAt: null,
+        unit: 'usd',
+      },
     ])
   })
   it('reads legacy schedule v2 numeric consent into exact current amounts', () => {

@@ -153,8 +153,9 @@ const coverage: Record<string, string> = {
   'readDataFile/handle.read': 'file operations and split body',
   'readDataFile/handle.close': 'file operations',
   "readDataFile/new TextDecoder('utf-8', { fatal: true }).decode": 'file decoding',
-  'admitRow/into.push': 'row bounds',
-  'collectValidRows/admitRow': 'row bounds',
+  'collectValidRows/readReportRows': 'adapter/vault record families',
+  'collectValidRows/into.push': 'adapter/vault record families',
+  'readSnapshotFacet/readReportField': 'throwing snapshot facet',
   'projectThresholds/accountThresholdsSchema.safeParse': 'threshold records',
   'projectThresholds/recordFieldsSchema.safeParse': 'threshold records',
   'projectThresholds/accountIdSchema.safeParse': 'threshold records',
@@ -163,10 +164,8 @@ const coverage: Record<string, string> = {
   'createAccountsReportReader/registryAccountMetadataSchema.safeParse': 'registry records',
   'createSecurityReportReader/z.object({}).safeParse': 'vault results',
   'createSecurityReportReader/readSnapshotFacet': 'throwing snapshot facet',
-  'readSnapshotFacet/field.safeParse': 'throwing snapshot facet',
   'accountsSource/reader.read': 'final assembled validation',
   'securitySource/reader.read': 'final assembled validation',
-  'collectValidRows/schema.safeParse': 'adapter/vault record families',
   'createAccountsReportReader/readDataFile': 'file operations',
   'createAccountsReportReader/JSON.parse': 'registry decoding',
   'createAccountsReportReader/z.object({ providers: z.record(z.string(), z.unknown()) }).safeParse':
@@ -249,9 +248,15 @@ it('inventories every read, validation, decode and admission boundary from sourc
           /\.(?:safeParse|parse|decode)$/u.test(expression) ||
           (expression.endsWith('.push') &&
             !['partials.push', 'missing.push'].includes(expression)) ||
-          ['collectValidRows', 'projectThresholds', 'admitRow', 'readSnapshotFacet'].includes(
-            expression,
-          )
+          [
+            'collectValidRows',
+            'projectThresholds',
+            'admitRow',
+            'readSnapshotFacet',
+            'isReportRowAdmitted',
+            'readReportRows',
+            'readReportField',
+          ].includes(expression)
         ) {
           const key = `${scope}/${expression}`
           found.set(key, (found.get(key) ?? 0) + 1)
@@ -320,7 +325,7 @@ it.each(malformedResults)('adapter results retain other facets: %j', async (valu
   const result = await accounts(dir, { readEvents: async () => await malformed(value) })
   partial(result, [
     value == null
-      ? 'Unavailable account details: swaps, confirmations.'
+      ? 'Unavailable account details: Swaps, Confirmations.'
       : EN.reportSourceReasons.invalid,
   ])
   accountSurvivors(result, ['events', 'confirmations'])
@@ -335,7 +340,7 @@ it.each(malformedResults)('adapter results retain other facets: %j', async (valu
 })
 it.each([null, undefined])('usage absence is named: %j', async (value) => {
   const result = await accounts(await setup(), { readUsage: async () => await malformed(value) })
-  partial(result, ['Unavailable account details: usage.'])
+  partial(result, ['Unavailable account details: Usage.'])
   accountSurvivors(result, ['usage'])
 })
 it.each(['events', 'confirmations'] as const)(
@@ -351,7 +356,7 @@ it.each(['events', 'confirmations'] as const)(
       readUsage: () => Promise.resolve(null),
       readEvents: () => Promise.resolve(response),
     })
-    partial(result, [EN.reportSourceReasons.failed, 'Unavailable account details: usage.'])
+    partial(result, [EN.reportSourceReasons.failed, 'Unavailable account details: Usage.'])
     accountSurvivors(result, ['usage', facet])
   },
 )
