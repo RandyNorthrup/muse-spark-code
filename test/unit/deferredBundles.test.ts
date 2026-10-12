@@ -1046,7 +1046,16 @@ describe('deferred cohort bundles', () => {
     // 83f8da887, +1,854 B of intended code: the production capability
     // binding and the one confirmed-dispatch gate). D6's 525 KiB cap is
     // unchanged; the pin ratchets down when fix/modelapi-diet merges.
-    expect(Buffer.byteLength(bundleText('modelApi'))).toBeLessThanOrEqual(532_537)
+    // HOTFIX0181 (0.18.1, owner's decision 2026-10-12; Kubuntu): re-measured
+    // at 532,827 B, +290 B over 532,537. The entry now exports the three
+    // confirmed-dispatch names the provider bundles read from this bundle
+    // (assertConfirmedAllowed, isStaleConfirmedError,
+    // noteConfirmedRequestStarted): each name twice, in the export map and in
+    // the export annotation, with its getter. They are exports and not copies
+    // in the provider bundles because the state they share lives in
+    // transport.ts once per process. No other byte changed; D6's cap is
+    // unchanged and the pin still ratchets down with fix/modelapi-diet.
+    expect(Buffer.byteLength(bundleText('modelApi'))).toBeLessThanOrEqual(532_827)
     const schedules = new Set(inputs('schedules'))
     for (const file of [
       'src/core/backends/modelapi/schedulesEntry.ts',

@@ -139,7 +139,8 @@ its export annotation. They must be exports of that bundle and not copies in
 the provider bundles: the confirmed-dispatch state they read and write lives
 in `transport.ts`, once per process, and a copy would have its own. The bundle
 test pinned the size at 532,537 B exactly; the pin is the owner's and is
-re-measured in its own commit.
+re-measured at 532,827 B in its own commit, the last of the branch, so it can
+be kept or dropped on his word. With it the suites above all pass.
 
 ## Drills
 
