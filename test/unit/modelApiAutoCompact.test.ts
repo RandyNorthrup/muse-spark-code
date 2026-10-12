@@ -2,6 +2,7 @@ import { reserveRequestAmount } from '../../src/core/providers/priceCard'
 import { requestImageCount } from '../../src/core/backends/modelapi/modelPolicy'
 import { Usd } from '../../src/shared/usd'
 import { Buffer } from 'node:buffer'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { describe, expect, it, vi } from 'vitest'
 import * as z from 'zod/mini'
 import {
@@ -255,6 +256,25 @@ function expectStorageFailure(t: Awaited<ReturnType<typeof setup>>) {
     terminal: 'failed',
     reason: EN.sessionBudgetStoreUnavailable,
   })
+}
+
+function replayText(t: Awaited<ReturnType<typeof setup>>): string {
+  return JSON.stringify(t.session.snapshot().replay)
+}
+
+function expectOldHistory(t: Awaited<ReturnType<typeof setup>>): void {
+  // Fully old: the summary never landed, and no continuation was pushed.
+  expect(replayText(t)).not.toContain(MODEL_API_MODEL_TEXT.compactionPrefix)
+  expect(replayText(t)).not.toContain(MODEL_API_MODEL_TEXT.autoCompactionFollowup)
+}
+
+function expectNewHistoryWithContinuation(t: Awaited<ReturnType<typeof setup>>): void {
+  // Fully new: the summary replaced the history and the continuation
+  // followed it in the same uninterrupted step.
+  const before = replayText(t).indexOf(MODEL_API_MODEL_TEXT.compactionPrefix)
+  const after = replayText(t).indexOf(MODEL_API_MODEL_TEXT.autoCompactionFollowup)
+  expect(before).toBeGreaterThanOrEqual(0)
+  expect(after).toBeGreaterThan(before)
 }
 
 describe('automatic compaction in the shared Model API loop', () => {
@@ -1268,7 +1288,9 @@ describe('automatic compaction in the shared Model API loop', () => {
   })
 
   it('attempts automatic compaction by default with the evaluated production latch', async () => {
-    const t = await setup({ autoCompactionEvaluated: undefined })
+    // P3-4: neither the setting nor the latch is forced: both fall back to
+    // the production defaults, so flipping SETTING_DEFAULTS must fail this.
+    const t = await setup({ autoCompaction: undefined, autoCompactionEvaluated: undefined })
     await t.seed()
     t.api.script(OVERFLOW, { text: 'summary' }, { text: 'done' })
     await t.send()
@@ -1284,5 +1306,337 @@ describe('automatic compaction in the shared Model API loop', () => {
       terminal: 'completed',
     })
     await t.host.close()
+  })
+
+  it.each([EN.paidDailyStopped, EN.paidDailyLedgerUnavailable])(
+    'a budget refusal of the summary request sends nothing and names the budget once: %s',
+    async (refusal) => {
+      const paid = productionAdmission({
+        accounting: {
+          reserveCompaction: () => Promise.reject(new Error(refusal)),
+        },
+      })
+      const t = await setup({
+        admitAutoCompaction: paid.admitAutoCompaction,
+        // Structured mode: without the terminal listing, the refusal would
+        // run repairs and a fallback send instead of stopping at once.
+        sideCallFormats: () => ({ state: 'yes', value: ['json_schema'] }),
+      })
+      try {
+        await t.seed()
+        const sent = t.api.responseBodies().length
+        t.api.script(OVERFLOW)
+        await t.send()
+        // Refused at reserve, before any POST: no repair, no fallback send.
+        expect(t.api.responseBodies()).toHaveLength(sent + 1)
+        expect(t.events.filter((event) => event.type === 'backendNotice')).toEqual([
+          { type: 'backendNotice', level: 'warning', text: EN.autoCompactionBudgetRefused },
+        ])
+        expect(t.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
+          terminal: 'failed',
+          reason: EN.contextWindowFull,
+        })
+        expectOldHistory(t)
+      } finally {
+        await t.host.close()
+      }
+    },
+  )
+
+  it.each(['stop', 'setting', 'model'] as const)(
+    'a stale turn during the summary request keeps the old history untouched: %s',
+    async (trigger) => {
+      const flags = { on: true }
+      const t = await setup({ autoCompaction: () => flags.on })
+      try {
+        await t.seed()
+        t.nearWindow()
+        const entered = Promise.withResolvers<undefined>()
+        const held = Promise.withResolvers<undefined>()
+        t.api.script(
+          { calls: [TOOL] },
+          {
+            text: 'usable summary',
+            hold: held.promise,
+            onRequest: () => {
+              entered.resolve(undefined)
+            },
+          },
+          { text: 'done' },
+        )
+        const done = t.send()
+        await entered.promise
+        if (trigger === 'stop') await t.session.cancel()
+        else if (trigger === 'setting') flags.on = false
+        else await t.session.setModel('muse-spark-1.3-other')
+        held.resolve(undefined)
+        await done
+        expectOldHistory(t)
+        // A stale turn never compacts through repairs or fallbacks.
+        expect(
+          t.events.filter(
+            (event) =>
+              event.type === 'backendNotice' &&
+              (event.text === EN.structuredOutputRepair ||
+                event.text === EN.structuredOutputFallback),
+          ),
+        ).toEqual([])
+        if (trigger === 'stop') {
+          expect(t.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
+            terminal: 'cancelled',
+          })
+        } else {
+          // The turn itself continues on the untouched history.
+          expect(t.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
+            terminal: 'completed',
+          })
+        }
+      } finally {
+        await t.host.close()
+      }
+    },
+  )
+
+  it.each(['setting', 'model'] as const)(
+    'a stale turn at the admission await keeps the old history untouched: %s',
+    async (trigger) => {
+      const flags = { on: true }
+      const paid = productionAdmission({})
+      const t = await setup({
+        autoCompaction: () => flags.on,
+        admitAutoCompaction: async (request) => {
+          const admission = await paid.admitAutoCompaction(request)
+          if (trigger === 'setting') flags.on = false
+          else await t.session.setModel('muse-spark-1.3-other')
+          return admission
+        },
+      })
+      try {
+        await t.seed()
+        t.nearWindow()
+        t.api.script({ calls: [TOOL] }, { text: 'usable summary' }, { text: 'done' })
+        await t.send()
+        expectOldHistory(t)
+        // The turn itself continues on the untouched history.
+        expect(t.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
+          terminal: 'completed',
+        })
+      } finally {
+        await t.host.close()
+      }
+    },
+  )
+
+  it('an applied compaction always carries its continuation', async () => {
+    const t = await setup()
+    try {
+      await t.seed()
+      t.nearWindow()
+      t.api.script({ calls: [TOOL] }, { text: 'usable summary' }, { text: 'done' })
+      await t.send()
+      expect(t.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
+        terminal: 'completed',
+      })
+      expectNewHistoryWithContinuation(t)
+    } finally {
+      await t.host.close()
+    }
+  })
+
+  it('a manual compact during an automatic one is refused, and the automatic one still completes', async () => {
+    const t = await setup()
+    try {
+      await t.seed()
+      t.nearWindow()
+      const entered = Promise.withResolvers<undefined>()
+      const held = Promise.withResolvers<undefined>()
+      t.api.script(
+        { calls: [TOOL] },
+        {
+          text: 'usable summary',
+          hold: held.promise,
+          onRequest: () => {
+            entered.resolve(undefined)
+          },
+        },
+        { text: 'done' },
+      )
+      const done = t.send()
+      await entered.promise
+      // The active turn holds the replay: manual entry is refused, not queued.
+      await expect(t.session.compact()).rejects.toThrow('a turn is running')
+      held.resolve(undefined)
+      await done
+      expect(t.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
+        terminal: 'completed',
+      })
+      // The automatic summary applied with its continuation; no manual run landed.
+      expectNewHistoryWithContinuation(t)
+    } finally {
+      await t.host.close()
+    }
+  })
+
+  it('two manual compacts never overlap', async () => {
+    const t = await setup()
+    try {
+      await t.seed()
+      const entered = Promise.withResolvers<undefined>()
+      const held = Promise.withResolvers<undefined>()
+      t.api.script({
+        text: 'manual summary',
+        hold: held.promise,
+        onRequest: () => {
+          entered.resolve(undefined)
+        },
+      })
+      const first = t.session.compact()
+      await entered.promise
+      await expect(t.session.compact()).rejects.toThrow('a turn is running')
+      held.resolve(undefined)
+      await expect(first).resolves.toMatchObject({ status: 'accepted' })
+      // The manual summary applied without the automatic continuation.
+      expect(replayText(t)).toContain(MODEL_API_MODEL_TEXT.compactionPrefix)
+      expect(replayText(t)).not.toContain(MODEL_API_MODEL_TEXT.autoCompactionFollowup)
+    } finally {
+      await t.host.close()
+    }
+  })
+
+  it('Stop during the recount keeps the applied summary with its continuation', async () => {
+    const t = await setup()
+    try {
+      await t.seed()
+      t.nearWindow()
+      const entered = Promise.withResolvers<undefined>()
+      const held = Promise.withResolvers<number>()
+      const original = t.client.countInputTokens.bind(t.client)
+      vi.spyOn(t.client, 'countInputTokens').mockImplementation((...args) => {
+        // Earlier counts pass through; only the post-summary recount is held.
+        if (t.api.responseBodies().length < 3) return original(...args)
+        entered.resolve(undefined)
+        return held.promise
+      })
+      t.api.script({ calls: [TOOL] }, { text: 'usable summary' }, { text: 'done' })
+      const done = t.send()
+      await entered.promise
+      await t.session.cancel()
+      held.resolve(0)
+      await done
+      expect(t.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
+        terminal: 'cancelled',
+      })
+      // Applied before the recount: fully new, continuation included.
+      expectNewHistoryWithContinuation(t)
+    } finally {
+      await t.host.close()
+    }
+  })
+
+  it('a forked conversation sees the compacted history', async () => {
+    const t = await setup()
+    try {
+      await t.seed()
+      t.api.script({ text: 'manual summary' })
+      expect(await t.session.compact()).toMatchObject({ status: 'accepted' })
+      const forked = await t.host.forkSession(t.session.sessionId, 'muse-spark-1.3')
+      if (!(forked.session instanceof ModelApiSession))
+        throw new Error('expected the forked session')
+      const replay = JSON.stringify(forked.session.snapshot().replay)
+      // The fork carries the summary, not the original long history.
+      expect(replay).toContain(MODEL_API_MODEL_TEXT.compactionPrefix)
+      expect(replay).toContain('manual summary')
+      // A manual summary brings no automatic continuation.
+      expect(replay).not.toContain(MODEL_API_MODEL_TEXT.autoCompactionFollowup)
+      t.api.script({ text: 'forked result' })
+      const turns = watchSessionTurns(forked.session)
+      await forked.session.sendTurn([{ type: 'text', text: 'continue' }])
+      await turns.turnDone()
+      expect(turns.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
+        terminal: 'completed',
+      })
+    } finally {
+      await t.host.close()
+    }
+  })
+
+  it('a resumed conversation sees the compacted history', async () => {
+    const store = memorySessionStore()
+    const first = await setup({ store })
+    try {
+      await first.seed()
+      first.api.script({ text: 'manual summary' })
+      expect(await first.session.compact()).toMatchObject({ status: 'accepted' })
+      const sessionId = first.session.sessionId
+      await first.host.flush()
+      // A distinct id prefix: revive must miss this host's live session and
+      // read the stored one instead of returning an empty live session.
+      let revivedIds = 0
+      const second = await setup({ store, newId: () => `revived-id${String((revivedIds += 1))}` })
+      try {
+        await second.host.load()
+        const revived = await second.host.resumeSession(sessionId, 'muse-spark-1.3')
+        if (!(revived.session instanceof ModelApiSession))
+          throw new Error('expected the revived session')
+        const replay = JSON.stringify(revived.session.snapshot().replay)
+        expect(replay).toContain(MODEL_API_MODEL_TEXT.compactionPrefix)
+        expect(replay).toContain('manual summary')
+        second.api.script({ text: 'resumed result' })
+        const turns = watchSessionTurns(revived.session)
+        await revived.session.sendTurn([{ type: 'text', text: 'continue' }])
+        await turns.turnDone()
+        expect(turns.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
+          terminal: 'completed',
+        })
+      } finally {
+        await second.host.close()
+      }
+    } finally {
+      await first.host.close()
+    }
+  })
+
+  it.each([
+    ['editor', undefined, EN.contextWindowFull],
+    ['acp', EN.contextWindowFullAcp, EN.contextWindowFullAcp],
+    ['exec', EN.contextWindowFullExec, EN.contextWindowFullExec],
+  ] as const)('the %s route owns the context-full sentence', async (_route, text, expected) => {
+    const t = await setup({
+      ...(text !== undefined && { contextWindowFullText: text }),
+      admitAutoCompaction: () => Promise.resolve(undefined),
+    })
+    try {
+      await t.seed()
+      t.api.script(OVERFLOW)
+      await t.send()
+      expect(t.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
+        terminal: 'failed',
+        reason: expected,
+      })
+    } finally {
+      await t.host.close()
+    }
+  })
+
+  it('pins the compaction-off request bytes against the committed golden', async () => {
+    const t = await setup(
+      { autoCompaction: () => false, autoCompactionEvaluated: undefined },
+      'onRequest',
+      true,
+    )
+    try {
+      t.api.script({ text: 'hi there' })
+      await t.send('hi')
+      const bodies = t.api.responseBodies()
+      expect(bodies).toHaveLength(1)
+      const goldenUrl = new URL('../fixtures/auto-compaction-off.json', import.meta.url)
+      if (process.env['MUSE_SPARK_UPDATE_GOLDEN_REQUESTS'] === '1') {
+        writeFileSync(goldenUrl, `${JSON.stringify(bodies, null, 2)}\n`)
+      }
+      const golden = JSON.parse(readFileSync(goldenUrl, 'utf8'))
+      expect(bodies).toEqual(golden)
+    } finally {
+      await t.host.close()
+    }
   })
 })

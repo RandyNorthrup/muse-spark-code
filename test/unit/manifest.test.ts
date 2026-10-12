@@ -59,7 +59,8 @@ describe('package.json manifest', () => {
     expect(setting.description).toBe('%config.modelApiAutoCompaction.description%')
     const description = nls['config.modelApiAutoCompaction.description']
     expect(description).toContain('paid model call')
-    expect(description).toContain('M75 binding run passed')
+    expect(description).not.toContain('M75 binding run passed')
+    expect(description).toContain('--auto-compaction')
     const readme = readFileSync(new URL('../../README.md', import.meta.url), 'utf8').replaceAll(
       /\s+/g,
       ' ',

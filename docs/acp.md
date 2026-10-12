@@ -340,7 +340,8 @@ Creator's ACP Client, sublime-acp, Devin Desktop's custom agents).
 | `--web-search`                         | Offer paid web search (Model API backend only); each prompt asks in the editor first, naming the price                  |
 | `--image-generation`                   | Offer paid image generation (Model API backend only); each image asks in the editor first, naming the price             |
 | `--verbose`                            | Log every detail to stderr (the editor's agent log)                                                                     |
-| `--no-auto-compaction`                 | Disable automatic compaction in the shared Model API core (also accepted by exec)                                       |
+| `--auto-compaction`                    | Accepted; automatic compaction is already on by default once evaluated, so the flag changes nothing on its own          |
+| `--no-auto-compaction`                 | Turn the default-on automatic compaction off (also accepted by exec, where it wins over `--auto-compaction`)            |
 
 ## What the editor sees
 
@@ -502,6 +503,19 @@ answers are **Allow Once**, **Allow Always in This Workspace** and
 A cancelled prompt, an answer the prompt did not offer, or an editor
 that cannot ask counts as Deny.
 
+Automatic compaction is the exception to the flag rule: it is on by
+default like the panel once evaluated, so no flag is needed. Its first
+paid summary asks once through the same permission prompt, naming the
+model, that it is a paid request, and the daily budget; no answer counts
+as Deny. `--no-auto-compaction` turns it
+off. Where the client cannot show the approval (no permission
+capability), compaction does not run and the context-full stop says how
+to turn it on. A team-worker (child) session never compacts automatically:
+the engine excludes child sessions before any admission is requested, so
+nobody is asked and nothing is charged. A scheduled turn is an ordinary
+turn of its session for this policy; an approval nobody answers counts as
+Deny.
+
 **Allow Always in This Workspace** is offered only when the agent runs
 with `--trust-workspace`. It is kept for that folder in the agent's data
 folder (`paid-uses.json.d` under `%LOCALAPPDATA%\Muse Spark Code\acp`,
@@ -514,7 +528,8 @@ maps are ignored, so their next use asks again. Storage that cannot safely
 publish a generation keeps the explicit use as Allow once and asks next time.
 The grant lapses in every folder when a Model API agent (`--backend
 modelApi`, not `exec`) starts without that feature's flag, so turning the
-flag on again asks again. Every paid row names its
+flag on again asks again; automatic compaction's grant lapses instead when
+the agent starts with `--no-auto-compaction`. Every paid row names its
 price, and the agent log counts each billed use. Subagents,
 best-of-N, the Auto reviewer and Muse Voice are not offered: the agent has no flag for them
 (Muse Voice needs the VS Code panel's microphone).

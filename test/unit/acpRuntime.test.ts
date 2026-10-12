@@ -1,4 +1,6 @@
 import { Usd } from '../../src/shared/usd'
+import { EN } from '../../src/shared/l10n/en'
+import { isHeadlessPaidUseAllowed } from '../../src/runtime/exec/execArgs'
 import { EventEmitter } from 'node:events'
 import {
   lstatSync,
@@ -54,26 +56,39 @@ import {
   PAID_FEATURES,
 } from '../../src/shared/constants'
 import { memorySecrets } from './helpers/fakes'
-import { FAKE_MODEL_API_KEY, fakeModelApi, responseOutputsByCall } from './helpers/fakeModelApi'
+import {
+  FAKE_MODEL_API_KEY,
+  fakeModelApi,
+  responseOutputsByCall,
+  type ScriptedReply,
+} from './helpers/fakeModelApi'
 import { watchSessionTurns } from './helpers/sessionTurns'
 import { recalledParts } from './helpers/recalledOutput'
 import { buildModelApiBundle } from './helpers/modelApiBundle'
 import { removeFolder } from './helpers/temporaryFolders'
 
 describe('M80 command and process boundaries', () => {
-  it('automatic compaction is an explicit ACP paid opt-in and never an exec flag', () => {
+  it('automatic compaction is on by default on ACP, off with its flag, and an explicit exec opt-in', () => {
     expect(parseCommandLine(['--backend', 'modelApi', '--auto-compaction'])).toMatchObject({
       command: 'serve',
-      options: { paidFeatures: ['autoCompaction'] },
+      options: { paidFeatures: ['autoCompaction'], autoCompaction: true },
     })
     expect(parseCommandLine(['--backend', 'modelApi'])).toMatchObject({
       command: 'serve',
-      options: { paidFeatures: [] },
+      options: { paidFeatures: [], autoCompaction: true },
+    })
+    expect(parseCommandLine(['--backend', 'modelApi', '--no-auto-compaction'])).toMatchObject({
+      command: 'serve',
+      options: { autoCompaction: false },
     })
     expect(parseCommandLine(['--auto-compaction'])).toMatchObject({ command: 'invalid' })
     expect(parseCommandLine(['exec', '--auto-compaction', 'hi'])).toMatchObject({
-      command: 'invalid',
-      exitCode: 2,
+      command: 'exec',
+      options: { autoCompaction: true, paidFeatures: ['autoCompaction'] },
+    })
+    expect(parseCommandLine(['exec', 'hi'])).toMatchObject({
+      command: 'exec',
+      options: { autoCompaction: false },
     })
   })
   it('A10 preserves serve usage/1 and parses exec/scanner separately', () => {
@@ -753,13 +768,14 @@ describe('createRuntimeBackend', () => {
     )
   })
 
-  it('D78 keeps ACP extras off without flags and omits the VS Code reply usage display', async () => {
+  it('D78 keeps ACP extras off without flags except default-on compaction, and omits the VS Code reply usage display', async () => {
     const secrets = memorySecrets()
     secrets.values.set(SECRET_KEYS.modelApiKey, KEY)
     const api = fakeModelApi()
     const runtime = backend({ backend: 'modelApi' }, secrets, {}, dist.folder, api.fetch)
     try {
-      for (const feature of PAID_FEATURES) expect(runtime.paid.isOn(feature)).toBe(false)
+      for (const feature of PAID_FEATURES)
+        expect(runtime.paid.isOn(feature)).toBe(feature === 'autoCompaction')
       const root = folder()
       const host = await runtime.backend.hostFor(root)
       const session = await host.startSession({
@@ -1073,6 +1089,190 @@ describe('createRuntimeBackend', () => {
       await runtime.close()
     },
   )
+  const OVERFLOW_CONTEXT = {
+    httpError: { status: 400, body: { error: { message: 'maximum context length exceeded' } } },
+  }
+  // The backend entry takes the summary as prose here, so the scripted
+  // summary is plain text carrying a marker the retry must show.
+  const SUMMARY_CALL = {
+    text: 'Summary of the work so far. The recovered record says Build 781924; write it to the answer file next.',
+  }
+  async function compactingSession(options: {
+    serve: Partial<ServeOptions>
+    exec?: ExecRuntimeOptions
+    asker?: () => Promise<'once' | 'deny'>
+    scripts: readonly ScriptedReply[]
+  }) {
+    const home = folder()
+    const env = { LOCALAPPDATA: home, XDG_DATA_HOME: home }
+    const api = fakeModelApi()
+    const secrets = memorySecrets()
+    secrets.values.set(SECRET_KEYS.modelApiKey, FAKE_MODEL_API_KEY)
+    const runtime = backend(
+      { backend: 'modelApi', trustWorkspace: true, ...options.serve },
+      secrets,
+      env,
+      dist.folder,
+      api.fetch,
+      options.exec,
+      home,
+    )
+    if (options.asker !== undefined) runtime.paid.attach(options.asker)
+    const root = folder()
+    const host = await runtime.backend.hostFor(root)
+    const session = await host.startSession({
+      workspaceRoot: root,
+      modelId: 'muse-spark-1.3',
+      approvalMode: 'allowAll',
+    })
+    const turns = watchSessionTurns(session)
+    // A seed turn first: compaction needs a history to replace, so an
+    // overflow on the very first request stands down before any admission.
+    api.script({ text: 'seed done' }, ...options.scripts)
+    await session.sendTurn([{ type: 'text', text: 'establish history' }])
+    await turns.turnDone()
+    await session.sendTurn([{ type: 'text', text: 'recover the record, then write the answer' }])
+    await turns.turnDone()
+    return { runtime, api, turns }
+  }
+  it('ACP compacts by default through the production admission after one approval', async () => {
+    // P3-4: the production default (no flag, evaluated latch) and the
+    // production admission (entry-built, transport accounting) with only the
+    // provider, the permission answer and the stores stood in.
+    const ask = vi.fn().mockResolvedValue('once' as const)
+    const { runtime, api, turns } = await compactingSession({
+      serve: {},
+      asker: ask,
+      scripts: [OVERFLOW_CONTEXT, SUMMARY_CALL, { text: 'done' }],
+    })
+    try {
+      expect(turns.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
+        terminal: 'completed',
+      })
+      expect(ask).toHaveBeenCalledOnce()
+      expect(api.responseBodies()).toHaveLength(4)
+      // The summary request went out, and the retry carries the applied
+      // summary instead of the original earlier history.
+      expect(JSON.stringify(api.responseBodies()[2])).toContain('Summarise this conversation')
+      const retried = JSON.stringify(api.responseBodies()[3])
+      expect(retried).toContain('Build 781924')
+      expect(retried).not.toContain('establish history')
+    } finally {
+      await runtime.close()
+    }
+  })
+  it('ACP refusal stops with the approval sentence', async () => {
+    const ask = vi.fn().mockResolvedValue('deny' as const)
+    const { runtime, api, turns } = await compactingSession({
+      serve: {},
+      asker: ask,
+      scripts: [OVERFLOW_CONTEXT],
+    })
+    try {
+      expect(turns.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
+        terminal: 'failed',
+        reason: EN.contextWindowFullAcp,
+      })
+      expect(ask).toHaveBeenCalledOnce()
+      expect(api.responseBodies()).toHaveLength(2)
+    } finally {
+      await runtime.close()
+    }
+  })
+  it('ACP without a permission capability stops with the approval sentence, unasked', async () => {
+    const { runtime, api, turns } = await compactingSession({
+      serve: {},
+      scripts: [OVERFLOW_CONTEXT],
+    })
+    try {
+      expect(turns.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
+        terminal: 'failed',
+        reason: EN.contextWindowFullAcp,
+      })
+      expect(api.responseBodies()).toHaveLength(2)
+    } finally {
+      await runtime.close()
+    }
+  })
+  it('ACP with the off flag stops with the approval sentence', async () => {
+    const ask = vi.fn().mockResolvedValue('once' as const)
+    const { runtime, api, turns } = await compactingSession({
+      serve: { autoCompaction: false },
+      asker: ask,
+      scripts: [OVERFLOW_CONTEXT],
+    })
+    try {
+      expect(turns.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
+        terminal: 'failed',
+        reason: EN.contextWindowFullAcp,
+      })
+      expect(ask).not.toHaveBeenCalled()
+      expect(api.responseBodies()).toHaveLength(2)
+    } finally {
+      await runtime.close()
+    }
+  })
+  it('exec with the flag and a budget compacts through the production headless policy', async () => {
+    const { runtime, api, turns } = await compactingSession({
+      serve: { autoCompaction: true, paidFeatures: ['autoCompaction'] },
+      exec: {
+        isEphemeral: true,
+        streamIdleMs: 1000,
+        headlessPaid: (request, requiresAsking) =>
+          Promise.resolve(
+            isHeadlessPaidUseAllowed(
+              { paidFeatures: ['autoCompaction'], mode: 'plan' },
+              Usd.from(2).toAmount(),
+              false,
+              request,
+              requiresAsking,
+            ),
+          ),
+      },
+      scripts: [OVERFLOW_CONTEXT, SUMMARY_CALL, { text: 'done' }],
+    })
+    try {
+      expect(turns.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
+        terminal: 'completed',
+      })
+      expect(api.responseBodies()).toHaveLength(4)
+      expect(JSON.stringify(api.responseBodies()[2])).toContain('Summarise this conversation')
+      const retriedExec = JSON.stringify(api.responseBodies()[3])
+      expect(retriedExec).toContain('Build 781924')
+      expect(retriedExec).not.toContain('establish history')
+    } finally {
+      await runtime.close()
+    }
+  })
+  it('exec without the flag stops with the flag sentence', async () => {
+    const { runtime, api, turns } = await compactingSession({
+      serve: { autoCompaction: false, paidFeatures: [] },
+      exec: {
+        isEphemeral: true,
+        streamIdleMs: 1000,
+        headlessPaid: (request, requiresAsking) =>
+          Promise.resolve(
+            isHeadlessPaidUseAllowed(
+              { paidFeatures: [], mode: 'plan' },
+              Usd.from(2).toAmount(),
+              false,
+              request,
+              requiresAsking,
+            ),
+          ),
+      },
+      scripts: [OVERFLOW_CONTEXT],
+    })
+    try {
+      expect(turns.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
+        terminal: 'failed',
+        reason: EN.contextWindowFullExec,
+      })
+      expect(api.responseBodies()).toHaveLength(2)
+    } finally {
+      await runtime.close()
+    }
+  })
   it('keeps paid-use grants in the agent’s data folder (M58)', () => {
     const home = folder()
     const input = { platform: 'linux' as const, env: { XDG_DATA_HOME: home }, homeDir: home }
