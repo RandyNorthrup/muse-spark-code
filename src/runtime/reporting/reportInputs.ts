@@ -223,6 +223,12 @@ export async function readUsageReportJournal(
     journal = await store.read()
   } catch (error) {
     if (errorCode(error) === 'ENOENT') return { records: [], rollups: [], limits: [] }
+    // The store signals a live holder with the usageLocked message (see
+    // UsageJournalStore.read): a journal another process really holds is
+    // busy, never failed, so the source names the holder state
+    // (RVREPORTJOIN P3-7).
+    if (error instanceof Error && error.message === 'usageLocked')
+      throw new LocalSourceError('busy')
     throw new LocalSourceError('failed')
   }
   const rollups: UsageAggregateRow[] = journal.rollups.map((row) => toAggregateRow(row))
@@ -875,14 +881,14 @@ export function createAccountsReportReader(input: {
               keepReason(partials, reportText.reportSourceReasons.invalid)
             else {
               collectValidRows(
-                readSnapshotFacet(read, 'events', partials, reportText),
+                readSnapshotFacet(read, 'events', 'swaps', partials, reportText),
                 accountsEventRowSchema,
                 events,
                 partials,
                 reportText,
               )
               collectValidRows(
-                readSnapshotFacet(read, 'confirmations', partials, reportText),
+                readSnapshotFacet(read, 'confirmations', 'confirmations', partials, reportText),
                 accountsConfirmationRowSchema,
                 confirmations,
                 partials,
@@ -925,12 +931,13 @@ export interface SecurityVaultSnapshot {
 function readSnapshotFacet(
   snapshot: unknown,
   key: string,
+  facet: ReportLabelKey,
   partials: string[],
   reportText: UiText,
 ): unknown {
   const result = readReportField(
     reportText,
-    'vault',
+    facet,
     `snapshot/${key}`,
     () => {
       if (typeof snapshot !== 'object' || snapshot === null) throw new LocalSourceError('invalid')
@@ -984,7 +991,7 @@ export function createSecurityReportReader(input: {
           // Audit evidence is independent of view state/tier and item/grant validity.
           const records: z.infer<typeof vaultAuditRecordSchema>[] = []
           collectValidRows(
-            readSnapshotFacet(snapshot, 'audit', partials, reportText),
+            readSnapshotFacet(snapshot, 'audit', 'vault', partials, reportText),
             vaultAuditRecordSchema,
             records,
             partials,
@@ -1011,13 +1018,13 @@ export function createSecurityReportReader(input: {
               tier: vaultStatusSchema.shape.tier,
             })
             .safeParse({
-              state: readSnapshotFacet(snapshot, 'state', partials, reportText),
-              tier: readSnapshotFacet(snapshot, 'tier', partials, reportText),
+              state: readSnapshotFacet(snapshot, 'state', 'vault', partials, reportText),
+              tier: readSnapshotFacet(snapshot, 'tier', 'vault', partials, reportText),
             })
           if (view.success) {
             const items: z.infer<typeof vaultItemMetadataSchema>[] = []
             collectValidRows(
-              readSnapshotFacet(snapshot, 'items', partials, reportText),
+              readSnapshotFacet(snapshot, 'items', 'vault', partials, reportText),
               vaultItemMetadataSchema,
               items,
               partials,
@@ -1025,7 +1032,7 @@ export function createSecurityReportReader(input: {
             )
             const grants: z.infer<typeof vaultGrantSchema>[] = []
             collectValidRows(
-              readSnapshotFacet(snapshot, 'grants', partials, reportText),
+              readSnapshotFacet(snapshot, 'grants', 'vault', partials, reportText),
               vaultGrantSchema,
               grants,
               partials,

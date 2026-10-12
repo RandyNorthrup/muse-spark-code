@@ -249,8 +249,8 @@ and approval totals require retained activity facts; transcript row counts
 never substitute for them. The session report reads the current conversation
 in the editor, a stored Model API session by id, or primary-backend history
 through the active ACP host (the CLI opens a read-only host when needed).
-Usage periods use an explicit UTC offset of zero, independent of the machine
-timezone; journal day labels remain as recorded. The usage report reads
+Usage periods use the machine timezone unless `--as-of` carries an explicit
+offset; journal day labels remain as recorded. The usage report reads
 the on-disk usage journal through the same aggregation as Account & usage, so
 its totals match that page for the same period; `--by model`, `provider`,
 `kind`, `session`, `client` or `account` chooses the breakdown. Per-tool
@@ -285,7 +285,7 @@ retain honest unavailable or partial status. Store, workflow and release
 channels read their captured public endpoints (Marketplace, Open VSX, npm,
 GitHub Actions runs, releases with tag commits); uncaptured shapes refuse
 with named reasons. Posting, scheduled destinations,
-mail/vault and node-browser integration await their owning milestones;
+mail, vault and node-browser integration await their owning milestones;
 the tab does not offer them yet.
 
 `museSpark.reports.agentSources` defaults to an empty array. Only agents you
