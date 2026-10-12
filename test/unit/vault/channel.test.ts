@@ -630,19 +630,28 @@ describe.skipIf(!hasUnixPeer)('native authenticated broker channel', () => {
     for (const [shape, payload] of Object.entries(corrupt)) {
       const client = await openClient(fixture)
       const silenced = silenceServer()
+      const clientSocket = clientSocketOf(client)
+      const written = vi.spyOn(clientSocket, 'write')
       try {
         const pending = client.send({ kind: 'status' })
         await vi.waitFor(() => {
-          expect(Reflect.get(client, 'pending')).not.toBeNull()
+          expect(written).toHaveBeenCalled()
         })
+        // The sequence is what a real broker peer sees: the request the
+        // client wrote, never the client's private pending state.
+        const sent = written.mock.calls
+          .map((args) => args[0])
+          .find((bytes): bytes is Buffer => Buffer.isBuffer(bytes))
+        if (!sent) throw new Error('expected the status request bytes')
         const sequence = z
-          .strictObject({ sequence: z.number() })
-          .parse(Reflect.get(client, 'pending')).sequence
-        clientSocketOf(client).emit('data', payload(sequence))
+          .object({ sequence: z.number() })
+          .parse(JSON.parse(sent.toString('utf8'))).sequence
+        clientSocket.emit('data', payload(sequence))
         const failure = await channelFailureOf(() => pending)
         expect(failure, shape).toBeInstanceOf(VaultChannelError)
         expect(failure, shape).toMatchObject({ name: 'VaultChannelError', code: 'invalidResponse' })
       } finally {
+        written.mockRestore()
         for (const serverWrite of silenced) serverWrite.mockRestore()
         client.close()
       }

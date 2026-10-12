@@ -1,5 +1,5 @@
 import { socketDescriptors } from './brokerFixture'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi, type TestContext } from 'vitest'
 import { mkdtemp, chmod, rm } from 'node:fs/promises'
 import { execFile, execFileSync } from 'node:child_process'
 import { createServer } from 'node:net'
@@ -12,7 +12,12 @@ import { VAULT_APPROVAL_TTL_MS } from '../../../src/shared/constants'
 // Windows peers are named-pipe clients judged by WindowsVaultPeerVerifier
 // (channel.test.ts covers that seam), so this suite has no Windows half.
 describe.skipIf(process.platform === 'win32')('native Unix foreign-user rejection', () => {
-  it('owner-only socket denies another user and OS uid still refuses on a deliberately relaxed test socket', async () => {
+  it('owner-only socket denies another user and OS uid still refuses on a deliberately relaxed test socket', async (context: TestContext) => {
+    try {
+      execFileSync('/usr/bin/sudo', ['-n', 'true'], { env: {}, stdio: 'ignore' })
+    } catch {
+      context.skip('needs passwordless sudo to run as another user')
+    }
     const directory = await mkdtemp(
       path.join(process.platform === 'darwin' ? '/private/tmp' : os.tmpdir(), 'm109-b-peer-uid-'),
     )
