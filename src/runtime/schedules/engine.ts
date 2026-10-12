@@ -98,6 +98,7 @@ export function createScheduleEngine(options: ScheduleEngineOptions) {
     throw new Error(UI_TEXT.scheduleV2.runtime.unavailable)
   const late: { delivery?: ScheduleDelivery } = {}
   const host: RuntimeScheduleHost = new RuntimeScheduleHost({
+    isAvailable: () => options.delivery !== undefined || runtimeDelivery !== undefined,
     now,
     signal: AbortSignal.any([closeSignal.signal, options.signal ?? closeSignal.signal]),
     lookupRun: (workspace, runId) => store.lookupRun(workspace, runId),

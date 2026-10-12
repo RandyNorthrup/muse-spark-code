@@ -338,3 +338,12 @@ The real-disk regression imports into an already-open common day and proves
 repeat reads, held amounts and admission still count once. Removing the import
 fires the regression; restoration matches SHA-256 byte for byte. The family,
 schedule-paid and journal run passed 80/80; migration/family replay passed 4/4.
+
+## Unconfirmed drill 1 — disabled runtime admission (confirmed, repaired)
+
+With ACP's workspace hold and the binding's delivery ports removed, the prior
+engine consumes the due Once fire as missed. The engine host now reports no
+held delivery workspace without a complete supplier. The due job retains its
+next-fire time and zero fireCount, with no admission or record. Store-only
+runtime fixtures that test an enabled engine now install their explicit fake
+supplier. Runtime entry/host replay passes 15/15 at default deadlines.

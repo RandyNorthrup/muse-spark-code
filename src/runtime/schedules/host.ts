@@ -16,6 +16,7 @@ import {
 } from '../../shared/scheduleV2'
 
 export interface RuntimeScheduleHostDeps {
+  readonly isAvailable?: () => boolean
   readonly signal?: AbortSignal
   lookupRun?(workspaceKey: string, runId: string): Promise<ScheduleDeliveryState>
   readonly reports?: ScheduleReportDeliveryPort
@@ -50,7 +51,7 @@ export class RuntimeScheduleHost implements ScheduleHostPort {
     return (this.deps.monotonicNow ?? (() => performance.now()))()
   }
   holds(workspaceKey: string): boolean {
-    return (this.workspaces.get(workspaceKey) ?? 0) > 0
+    return (this.deps.isAvailable?.() ?? true) && (this.workspaces.get(workspaceKey) ?? 0) > 0
   }
   hold(workspaceKey: string): () => void {
     this.workspaces.set(workspaceKey, (this.workspaces.get(workspaceKey) ?? 0) + 1)
