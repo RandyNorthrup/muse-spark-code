@@ -487,11 +487,6 @@
         "colour.shadow",
         "colour.disabled",
         "colour.modal-scrim",
-        "colour.meta-start",
-        "colour.meta-middle",
-        "colour.meta-end",
-        "colour.meta-return",
-        "colour.meta-fill",
         "colour.status-low",
         "colour.status-mid",
         "colour.status-high"
@@ -1293,76 +1288,6 @@
         "org.muse-spark-code": {
           "css": "--ms-shadow",
           "vscode": ["--vscode-widget-shadow"]
-        }
-      },
-      "$description": "Decorative paint; content and state are named in text. No foreground/background contrast claim."
-    },
-    "meta-start": {
-      "$type": "color",
-      "$value": {
-        "colorSpace": "srgb",
-        "components": [0.0, 0.392157, 0.882353],
-        "alpha": 1
-      },
-      "$extensions": {
-        "org.muse-spark-code": {
-          "css": "--ms-meta-start"
-        }
-      },
-      "$description": "Decorative paint; content and state are named in text. No foreground/background contrast claim."
-    },
-    "meta-middle": {
-      "$type": "color",
-      "$value": {
-        "colorSpace": "srgb",
-        "components": [0.0, 0.45098, 0.933333],
-        "alpha": 1
-      },
-      "$extensions": {
-        "org.muse-spark-code": {
-          "css": "--ms-meta-middle"
-        }
-      },
-      "$description": "Decorative paint; content and state are named in text. No foreground/background contrast claim."
-    },
-    "meta-end": {
-      "$type": "color",
-      "$value": {
-        "colorSpace": "srgb",
-        "components": [0.0, 0.509804, 0.984314],
-        "alpha": 1
-      },
-      "$extensions": {
-        "org.muse-spark-code": {
-          "css": "--ms-meta-end"
-        }
-      },
-      "$description": "Decorative paint; content and state are named in text. No foreground/background contrast claim."
-    },
-    "meta-return": {
-      "$type": "color",
-      "$value": {
-        "colorSpace": "srgb",
-        "components": [0.0, 0.392157, 0.878431],
-        "alpha": 1
-      },
-      "$extensions": {
-        "org.muse-spark-code": {
-          "css": "--ms-meta-return"
-        }
-      },
-      "$description": "Decorative paint; content and state are named in text. No foreground/background contrast claim."
-    },
-    "meta-fill": {
-      "$type": "color",
-      "$value": {
-        "colorSpace": "srgb",
-        "components": [0.0, 0.505882, 0.984314],
-        "alpha": 1
-      },
-      "$extensions": {
-        "org.muse-spark-code": {
-          "css": "--ms-meta-fill"
         }
       },
       "$description": "Decorative paint; content and state are named in text. No foreground/background contrast claim."
