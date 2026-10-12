@@ -50,6 +50,13 @@ export const panelChildSchema = z.strictObject({
   agentId: session,
   sessionId: session,
   files: z.array(file).check(z.maxLength(PLAYBOOK_RECORD_MAX)),
+  blocked: z.optional(
+    z.strictObject({
+      id,
+      code: z.enum(['nameWithheld', 'patchTooLarge', 'patchUnreadable', 'tooManyFiles']),
+      text,
+    }),
+  ),
 })
 
 /** The two events a review is settled by; nothing else of a turn crosses. */

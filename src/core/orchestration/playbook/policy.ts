@@ -12,6 +12,7 @@ import {
   playbookRoundSchema,
   playbookSettingsSchema,
   playbookWhyNoteSchema,
+  type BlockedContributionCode,
   type PlaybookAction,
   type PlaybookBoard,
   type PlaybookBrief,
@@ -135,6 +136,13 @@ export class OrchestratorPlaybook implements PlaybookPolicy {
     this.expected = next
     this.records = next
     this.states = states
+  }
+
+  /** The latest state declared under a module key, if the journal has one. */
+  private stateForKey(key: string): ModuleState | undefined {
+    let found: ModuleState | undefined
+    for (const state of this.states.values()) if (state.module.key === key) found = state
+    return found
   }
 
   private note(
@@ -598,6 +606,73 @@ export class OrchestratorPlaybook implements PlaybookPolicy {
       this.declare(input, override) ??
       this.decide('allow', 'threeStrikes', 'checksPassed', { module: input.key })
     )
+  }
+
+  /**
+   * Journals a host-evidenced, unreviewable child contribution (M116,
+   * D96.17) as a finding about that child: one why-note per module key its
+   * readable changes touch, each counting its module's next round, or one
+   * note under no module when none is readable. Once per child round: an id
+   * seen before records nothing and returns false. Never refuses: a model
+   * must not be able to stop the playbook with an awkward file, nor to make
+   * its own round disappear.
+   */
+  recordContribution(
+    input: {
+      readonly id: string
+      readonly actor: string
+      readonly finding: { readonly code: BlockedContributionCode; readonly text: string }
+    },
+    moduleKeys: readonly string[],
+  ): boolean {
+    this.refresh()
+    if (
+      this.records.some(
+        (record) =>
+          record.kind === 'note' &&
+          record.value.code === 'contributionBlocked' &&
+          record.value.workerId === input.id,
+      )
+    )
+      return false
+    const notes: Extract<PlaybookRecord, { kind: 'note' }>[] = []
+    if (moduleKeys.length === 0) {
+      notes.push({
+        kind: 'note',
+        value: this.note('onePassReview', 'contributionBlocked', {
+          workerId: input.id,
+          actor: input.actor,
+          round:
+            this.records.filter(
+              (record) =>
+                record.kind === 'note' &&
+                record.value.code === 'contributionBlocked' &&
+                record.value.actor === input.actor,
+            ).length + 1,
+          missing: [input.finding.code],
+          reason: input.finding.text,
+          needsUser: true,
+        }),
+      })
+    } else {
+      const keys = new Set(moduleKeys)
+      for (const module of keys) {
+        notes.push({
+          kind: 'note',
+          value: this.note('onePassReview', 'contributionBlocked', {
+            workerId: input.id,
+            actor: input.actor,
+            module,
+            round: (this.stateForKey(module)?.counts.get(undefined) ?? 0) + 1,
+            missing: [input.finding.code],
+            reason: input.finding.text,
+            needsUser: true,
+          }),
+        })
+      }
+    }
+    this.publish(notes)
+    return true
   }
 
   beforeFixRound(module: PlaybookModule, laneId = this.options.laneId): PlaybookDecision {

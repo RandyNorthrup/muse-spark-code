@@ -490,6 +490,10 @@
   "playbookAnswerFollowUp": "后续跟进",
   "playbookNotCertified": "工作准则：本轮无法得到确认，因此不计为通过。",
   "playbookEvidenceUnreadable": "工作准则：无法读取受审查的文件或子代理所做的更改，因此工作准则无法判断此次审查是否归它管。审查未发送。",
+  "playbookBlockedName": "行动手册对 {child} 的发现：一个名称已隐藏的文件看起来包含秘密信息。已统计此子代理的轮次。",
+  "playbookBlockedLarge": "行动手册对 {child} 的发现：补丁大小为 {size}，超过上限 {bound}。已统计此子代理的轮次。",
+  "playbookBlockedUnreadable": "行动手册对 {child} 的发现：无法读取贡献内容。已统计此子代理的轮次。",
+  "playbookBlockedMany": "行动手册对 {child} 的发现：更改文件数量：{count}；上限：{bound}。已统计此子代理的轮次。",
   "playbookRecordStale": "无法读取工作准则记录。显示的内容可能已过时。",
   "playbookMuseCodeStarts": "Muse Code 无需询问便会启动子代理。行动手册会统计其轮次并审查其工作，但无法阻止启动。",
   "playbookStrikeBadge": {
@@ -563,7 +567,8 @@
     "briefRecorded": " playbook：已记录 {module} 的任务简报 ({reason})。",
     "configDrift": "需要您处理：{module} 的共享仓库配置已更改 ({reason})。",
     "fallbackReviewer": " playbook：{actor} 作为已记录的备选评审人复查 {module} ({reason})。",
-    "residualOpen": "需要您处理：{lane} 存在未关闭的遗留事项：{missing}。"
+    "residualOpen": "需要您处理：{lane} 存在未关闭的遗留事项：{missing}。",
+    "contributionBlocked": "{reason}"
   },
   "scheduleSettlement": {
     "sent": "按计划发送",

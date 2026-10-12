@@ -490,6 +490,10 @@
   "playbookAnswerFollowUp": "Seguito",
   "playbookNotCertified": "Guida: non è stato possibile certificare questo ciclo, quindi non conta come superato.",
   "playbookEvidenceUnreadable": "Guida: non è stato possibile leggere un file in revisione o le modifiche di un agente secondario, quindi la guida non può stabilire se questa revisione è sua. La revisione non è stata inviata.",
+  "playbookBlockedName": "Rilievo del playbook per {child}: un file il cui nome è nascosto sembra contenere un segreto. Il turno di questo sottoagente è stato conteggiato.",
+  "playbookBlockedLarge": "Rilievo del playbook per {child}: la patch occupa {size}, oltre il limite di {bound}. Il turno di questo sottoagente è stato conteggiato.",
+  "playbookBlockedUnreadable": "Rilievo del playbook per {child}: non è stato possibile leggere il contributo. Il turno di questo sottoagente è stato conteggiato.",
+  "playbookBlockedMany": "Rilievo del playbook per {child}: numero di file modificati: {count}; limite: {bound}. Il turno di questo sottoagente è stato conteggiato.",
   "playbookRecordStale": "Non è stato possibile leggere il registro della guida. Quanto mostrato potrebbe non essere aggiornato.",
   "playbookMuseCodeStarts": "Muse Code avvia i sottoagenti senza chiedere. Il playbook conta i loro turni e ne esamina il lavoro, ma non può impedire un avvio.",
   "playbookStrikeBadge": {
@@ -565,7 +569,8 @@
     "briefRecorded": "Guida: scheda per {module} registrata ({reason}).",
     "configDrift": "Serve il tuo intervento: la configurazione condivisa del repository è cambiata per {module} ({reason}).",
     "fallbackReviewer": "Guida: {actor} esamina {module} come revisore supplente registrato ({reason}).",
-    "residualOpen": "Serve il tuo intervento: {lane} ha punti residui aperti: {missing}."
+    "residualOpen": "Serve il tuo intervento: {lane} ha punti residui aperti: {missing}.",
+    "contributionBlocked": "{reason}"
   },
   "scheduleSettlement": {
     "sent": "Inviato secondo la pianificazione",

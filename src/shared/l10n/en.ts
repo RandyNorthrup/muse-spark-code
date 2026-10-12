@@ -719,7 +719,16 @@ export const EN = {
     fallbackReviewer:
       'Playbook: {actor} reviews {module} as the recorded fallback reviewer ({reason}).',
     residualOpen: 'Needs you: {lane} has open residuals: {missing}.',
+    contributionBlocked: '{reason}',
   },
+  playbookBlockedName:
+    'Playbook finding for {child}: a file whose name is withheld reads as a secret. This child’s round was counted.',
+  playbookBlockedLarge:
+    'Playbook finding for {child}: the patch is {size}, above the {bound} bound. This child’s round was counted.',
+  playbookBlockedUnreadable:
+    'Playbook finding for {child}: the contribution could not be read. This child’s round was counted.',
+  playbookBlockedMany:
+    'Playbook finding for {child}: changed-file count: {count}; bound: {bound}. This child’s round was counted.',
   // STARTUP017: a restored settlement row's words paint with chat startup;
   // the rest of the schedule English loads with the schedule surfaces.
   scheduleSettlement: {

@@ -43,6 +43,7 @@ import {
 } from '../../core/orchestration/playbook/outcomes'
 import { OrchestratorPlaybook } from '../../core/orchestration/playbook/policy'
 import {
+  bounded as boundId,
   conversationModules,
   dispatchModules,
   dispatchWork,
@@ -227,6 +228,15 @@ function isRedesignDue(records: readonly PlaybookRecord[], standing: PanelModule
 function required<T>(value: T | undefined): T {
   if (value === undefined) throw new Error(UI_TEXT.playbookUnavailable)
   return value
+}
+
+/** A readable file's module key; undefined when the file cannot name one. */
+function keyOf(file: string): string | undefined {
+  try {
+    return moduleKeyOf(file)
+  } catch {
+    return undefined
+  }
 }
 
 export class PanelGovernor {
@@ -463,6 +473,32 @@ export class PanelGovernor {
     return required(moduleStates(this.policy.getRecord()).get(moduleId)).module
   }
 
+  /**
+   * An unreviewable contribution is a finding about that child: counted
+   * against the modules its readable changes touch (under no module when
+   * none is readable), journaled once per child round. A model must not be
+   * able to stop the playbook with an awkward file. Runs after the review's
+   * own modules are declared, so a first-ever module counts its round.
+   */
+  private recordBlocked(children: readonly PanelChild[]): void {
+    for (const child of children) {
+      if (child.blocked === undefined) continue
+      const keys = new Set<string>()
+      for (const file of child.files) {
+        const key = keyOf(file)
+        if (key !== undefined) keys.add(key)
+      }
+      this.policy.recordContribution(
+        {
+          id: child.blocked.id,
+          actor: boundId(child.sessionId),
+          finding: { code: child.blocked.code, text: child.blocked.text },
+        },
+        [...keys],
+      )
+    }
+  }
+
   /** The journal-backed settings and record, as the CLI and ACP read them. */
   read(): Promise<unknown> {
     return this.surface.read()
@@ -490,11 +526,22 @@ export class PanelGovernor {
           ? [record]
           : [],
       )
-      if (rounds.length === 0) continue
+      // A finding about this child rides on its own row, even when no round
+      // names it as implementer: an unreviewable contribution is counted and
+      // named, never dropped from what the person reads.
+      const blocked = records.flatMap((record) =>
+        record.kind === 'note' &&
+        record.value.code === 'contributionBlocked' &&
+        (record.value.actor === child.sessionId || record.value.actor === boundId(child.sessionId))
+          ? [record]
+          : [],
+      )
+      if (rounds.length === 0 && blocked.length === 0) continue
       const ids = new Set(rounds.map((round) => round.value.module.id))
       const keys = new Set(rounds.map((round) => round.value.module.key))
       result[child.itemId] = [
         ...rounds,
+        ...blocked,
         ...records.filter(
           (record) =>
             (record.kind === 'design' && ids.has(record.value.module.id)) ||
@@ -538,7 +585,12 @@ export class PanelGovernor {
       files,
       children,
     )
-    if (contexts.length === 0) return { kind: 'ordinary' }
+    if (contexts.length === 0) {
+      // No reviewed file is a child's: an ordinary review, but a blocked
+      // child's finding is still journaled.
+      this.recordBlocked(children)
+      return { kind: 'ordinary' }
+    }
     const conversation = this.conversation(sessionId)
     const tickets: ReviewTicket[] = []
     const modules: PanelReviewTarget[] = []
@@ -564,6 +616,9 @@ export class PanelGovernor {
     } finally {
       conversation.context = undefined
     }
+    // The review's modules are declared now, so a first-ever module counts
+    // the blocked round it was read beside.
+    this.recordBlocked(children)
     this.reviews.set(reviewId, { sessionId, tickets })
     return { kind: 'playbook', modules }
   }

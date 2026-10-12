@@ -14,6 +14,7 @@ import {
   type PanelChild,
   type RealPath,
 } from '../../src/core/orchestration/panelLanes'
+import { moduleStates } from '../../src/core/orchestration/playbook/modules'
 import {
   PanelGovernor,
   type PanelModuleSummary,
@@ -497,6 +498,82 @@ describe('which file a path names', { timeout: GOVERNED_ROUND_TIMEOUT_MS }, () =
       }),
     ])
   })
+
+  it.each(['nameWithheld', 'patchTooLarge', 'patchUnreadable', 'tooManyFiles'] as const)(
+    'journals a %s finding once, and the clean child’s review completes beside it',
+    async (code) => {
+      const setup = governed()
+      const blocked: PanelChild = {
+        agentId: 'subagent-9',
+        sessionId: `${SESSION}:subagent-9`,
+        // Only the name-withheld child still has a readable file; the others
+        // touch no module the journal can count them against.
+        files: code === 'nameWithheld' ? [PANEL_FILES.store] : [],
+        blocked: { id: `blocked-${code}`, code, text: `Finding about subagent-9: ${code}` },
+      }
+      const clean: PanelChild = {
+        agentId: 'clean-child',
+        sessionId: `${SESSION}:clean-child`,
+        files: [PANEL_FILES.clock],
+      }
+      const reviewId = randomUUID()
+      const opening = setup.governor.openReview(
+        reviewId,
+        SESSION,
+        [PANEL_FILES.clock],
+        [blocked, clean],
+      )
+      expect(opening.kind).toBe('playbook')
+      const records = await journal(setup)
+      const notes = records.flatMap((record) =>
+        record.kind === 'note' && record.value.code === 'contributionBlocked' ? [record.value] : [],
+      )
+      expect(notes).toHaveLength(1)
+      expect(notes[0]).toMatchObject({
+        workerId: `blocked-${code}`,
+        actor: blocked.sessionId,
+        missing: [code],
+        reason: `Finding about subagent-9: ${code}`,
+        needsUser: true,
+      })
+      if (code === 'nameWithheld') {
+        expect(notes[0]).toMatchObject({ module: SCHEDULES, round: 1 })
+        const states = moduleStates(await journal(setup))
+        let count: number | undefined
+        let strikes: number | undefined
+        for (const entry of states.values()) {
+          if (entry.module.key !== SCHEDULES) continue
+          count = entry.counts.get(undefined)
+          strikes = entry.strikes
+        }
+        expect(count).toBe(1)
+        expect(strikes).toBe(1)
+      } else {
+        expect(notes[0]?.module).toBeUndefined()
+      }
+      // The clean child's review completes, and names the blocked child on its own row.
+      setup.governor.observeReview(reviewId, reviewReply('clean', coveredReview([RACE])))
+      setup.governor.observeReview(reviewId, turnEnd('clean'))
+      const progress = setup.governor.bindReview(reviewId, 'clean')
+      expect(progress.isClosed).toBe(true)
+      expect(progress.rounds.map((round) => round.round)).toEqual([code === 'nameWithheld' ? 2 : 1])
+      answerAll(setup, progress.rounds)
+      expect(
+        setup.governor.agentRecords([
+          { itemId: 'blocked-row', agentId: blocked.agentId, sessionId: blocked.sessionId },
+        ])['blocked-row'],
+      ).toContainEqual(expect.objectContaining({ kind: 'note', value: notes[0] }))
+      // Recorded once per child round: the same marker journals nothing new.
+      const later = randomUUID()
+      setup.governor.openReview(later, SESSION, [PANEL_FILES.clock], [blocked, clean])
+      const reread = await journal(setup)
+      const again = reread.filter(
+        (record) => record.kind === 'note' && record.value.code === 'contributionBlocked',
+      )
+      expect(again).toHaveLength(1)
+      setup.governor.cancelReview(later)
+    },
+  )
 
   it('knows a file that is gone by its spelling, without regard to case on Windows alone', () => {
     const setup = governed()

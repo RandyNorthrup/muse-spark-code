@@ -490,6 +490,10 @@
   "playbookAnswerFollowUp": "Követő lépés",
   "playbookNotCertified": "Kézikönyv: ezt a kört nem sikerült igazolni, ezért nem számít sikeresnek.",
   "playbookEvidenceUnreadable": "Kézikönyv: egy felülvizsgált fájlt vagy egy alügynök módosításait nem sikerült beolvasni, ezért a kézikönyv nem tudja megállapítani, hogy ez a felülvizsgálat hozzá tartozik-e. A felülvizsgálat nem lett elküldve.",
+  "playbookBlockedName": "Playbook-megállapítás ehhez: {child}: egy elrejtett nevű fájl titkos adatnak tűnik. Az alügynök köre beleszámított.",
+  "playbookBlockedLarge": "Playbook-megállapítás ehhez: {child}: a javítás mérete {size}, a korlát {bound}. Az alügynök köre beleszámított.",
+  "playbookBlockedUnreadable": "Playbook-megállapítás ehhez: {child}: a hozzájárulás nem olvasható. Az alügynök köre beleszámított.",
+  "playbookBlockedMany": "Playbook-megállapítás ehhez: {child}: módosított fájlok száma: {count}; korlát: {bound}. Az alügynök köre beleszámított.",
   "playbookRecordStale": "A kézikönyv naplóját nem sikerült beolvasni. A megjelenített adatok elavultak lehetnek.",
   "playbookMuseCodeStarts": "A Muse Code kérdés nélkül indít alügynököket. A playbook számolja a köreiket és ellenőrzi a munkájukat, de az indítást nem tudja megakadályozni.",
   "playbookStrikeBadge": {
@@ -564,7 +568,8 @@
     "briefRecorded": "Útmutató: a {module} feladatkijelölése rögzítve ({reason}).",
     "configDrift": "Döntés kell: a megosztott tárolóbeállítás megváltozott ennél: {module} ({reason}).",
     "fallbackReviewer": "Útmutató: {actor} vizsgálja felül a következőt: {module}, mint rögzített tartalék felülvizsgáló ({reason}).",
-    "residualOpen": "Döntés kell: {lane} nyitott maradványpontokat tartalmaz: {missing}."
+    "residualOpen": "Döntés kell: {lane} nyitott maradványpontokat tartalmaz: {missing}.",
+    "contributionBlocked": "{reason}"
   },
   "scheduleSettlement": {
     "sent": "Ütemezés szerint elküldve",

@@ -9,7 +9,9 @@ happened, not what was planned; superseded entries are kept.
 
 - The VS Code playbook counts Muse Code subagents from their first live row,
   states that it cannot stop their starts, matches each round to its child,
-  and closes safely when a conversation ends. Windows native replay remains
+  and closes safely when a conversation ends. A child's contribution the
+  host cannot read is a finding about that child, counted and named, while
+  every other child's review proceeds. Windows native replay remains
   lead-owned; the Model API keeps admission before dispatch.
 
 ### Pending
