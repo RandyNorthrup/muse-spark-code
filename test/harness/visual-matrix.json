@@ -44,6 +44,8 @@
     "src/webview/components/ErrorBoundary.tsx",
     "src/webview/components/ExternalLink.tsx",
     "src/webview/components/FactRows.tsx",
+    "src/webview/components/FeedbackDialog.tsx",
+    "src/webview/components/FeedbackSurface.tsx",
     "src/webview/components/GitPanel.tsx",
     "src/webview/components/GoalPanel.tsx",
     "src/webview/components/GoalParts.tsx",

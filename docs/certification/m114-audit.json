@@ -2239,6 +2239,134 @@
       "gradeSourceRevision": "LEFT017B current rendered descendants; image review recorded in int0170-combined.md"
     },
     {
+      "file": "src/webview/components/FeedbackDialog.tsx",
+      "owner": "P2",
+      "selectors": [
+        ".feedback-fields",
+        ".feedback-note",
+        ".feedback-counter",
+        ".feedback-actions",
+        ".modal"
+      ],
+      "scene": "feedback-narrow",
+      "grades": {
+        "colour": "partial",
+        "radius": "partial",
+        "elevation": "fail",
+        "motion": "not-applicable",
+        "focus": "partial",
+        "states": "partial",
+        "highContrast": "partial",
+        "accessibility": "partial",
+        "typographySpacing": "partial"
+      },
+      "roles": [
+        "colour.border",
+        "colour.disabled",
+        "colour.editor-surface",
+        "colour.focus",
+        "colour.overlay",
+        "colour.pressed",
+        "colour.shadow",
+        "colour.surface",
+        "colour.text",
+        "colour.toolbar-hover",
+        "colour.widget-border",
+        "typography.font-size",
+        "typography.font-ui"
+      ],
+      "findings": ["roles", "scale", "states", "focus", "overlay"],
+      "fix": "Give the classified note a visible keyboard focus ring and pressed/disabled submit states in all six themes; keep the block labels, the 320 px column, the counter under the note and the status line the harness waits on.",
+      "evidence": [
+        {
+          "file": "src/webview/styles.css",
+          "line": 2837,
+          "selector": ".feedback-fields",
+          "declarations": "display: flex;\n  flex-direction: column;\n  gap: var(--ms-space-8);\n  margin: 0;\n  padding: 0;\n  border: 0;"
+        },
+        {
+          "file": "src/webview/styles.css",
+          "line": 2860,
+          "selector": ".feedback-counter",
+          "declarations": "display: block;\n  margin-top: calc(var(--ms-space-12) / 2);\n  color: var(--ms-muted);\n  font-size: var(--ms-font-small);\n  text-align: right;"
+        },
+        {
+          "file": "src/webview/styles.css",
+          "line": 3323,
+          "selector": ".modal",
+          "declarations": "display: flex;\n  flex-direction: column;\n  width: min(100%, 440px);\n  max-height: 90vh;\n  border: 1px solid var(--ms-widget-border);\n  border-radius: var(--ms-radius-lg);\n  color: var(--ms-text);\n  background: var(--ms-overlay);\n  box-shadow: var(--ms-elevation-overlay);"
+        }
+      ],
+      "captureSelector": ".feedback-fields, .feedback-note, .feedback-counter, .feedback-actions, .modal",
+      "vscodeVariables": [
+        "--vscode-button-hoverBackground",
+        "--vscode-button-secondaryHoverBackground",
+        "--vscode-focusBorder",
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground"
+      ],
+      "gradeSourceRevision": "aa6e2f09d6231b1004bad9aec02335958ed1bc46"
+    },
+    {
+      "file": "src/webview/components/FeedbackSurface.tsx",
+      "owner": "P2",
+      "selectors": [".modal-backdrop", ".modal"],
+      "scene": "feedback-preview-narrow",
+      "grades": {
+        "colour": "inherited",
+        "radius": "inherited",
+        "elevation": "inherited",
+        "motion": "not-applicable",
+        "focus": "partial",
+        "states": "inherited",
+        "highContrast": "inherited",
+        "accessibility": "partial",
+        "typographySpacing": "inherited"
+      },
+      "roles": [
+        "colour.border",
+        "colour.disabled",
+        "colour.editor-surface",
+        "colour.focus",
+        "colour.overlay",
+        "colour.pressed",
+        "colour.shadow",
+        "colour.surface",
+        "colour.text",
+        "colour.toolbar-hover",
+        "colour.widget-border",
+        "typography.font-size",
+        "typography.font-ui"
+      ],
+      "findings": ["inherited", "focus", "overlay"],
+      "fix": "Keep the bridge-owned submit port and the opener refocus on close; keep the lazy chunk boundary so the dialog strings stay out of the activation bundle. Verify scrim, elevation and focus return in all six themes.",
+      "evidence": [
+        {
+          "file": "src/webview/styles.css",
+          "line": 3312,
+          "selector": ".modal-backdrop",
+          "declarations": "position: fixed;\n  inset: 0;\n  z-index: 20;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  padding: var(--ms-gap);\n  background: var(--ms-modal-scrim);"
+        },
+        {
+          "file": "src/webview/styles.css",
+          "line": 3323,
+          "selector": ".modal",
+          "declarations": "display: flex;\n  flex-direction: column;\n  width: min(100%, 440px);\n  max-height: 90vh;\n  border: 1px solid var(--ms-widget-border);\n  border-radius: var(--ms-radius-lg);\n  color: var(--ms-text);\n  background: var(--ms-overlay);\n  box-shadow: var(--ms-elevation-overlay);"
+        }
+      ],
+      "captureSelector": ".modal-backdrop, .modal",
+      "vscodeVariables": [
+        "--vscode-button-hoverBackground",
+        "--vscode-button-secondaryHoverBackground",
+        "--vscode-focusBorder",
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground"
+      ],
+      "gradeSourceRevision": "aa6e2f09d6231b1004bad9aec02335958ed1bc46"
+    },
+    {
       "file": "src/webview/components/GitPanel.tsx",
       "owner": "P2",
       "selectors": [".git-panel", ".git-hold", ".git-form", ".git-pr-title", ".git-check"],
@@ -9973,6 +10101,11 @@
       "audit": "Supporting source: inspect theme/token/lazy lifecycle behavior through its actual rendered consumers in the current component inventory."
     },
     {
+      "file": "src/webview/feedbackBridge.ts",
+      "classification": "logic-only",
+      "audit": "Supporting source: inspect theme/token/lazy lifecycle behavior through its actual rendered consumers in the current component inventory."
+    },
+    {
       "file": "src/webview/gooeyLayout.ts",
       "classification": "logic-only",
       "audit": "Supporting source: inspect theme/token/lazy lifecycle behavior through its actual rendered consumers in the current component inventory."
@@ -10366,6 +10499,9 @@
     "elicitation-narrow",
     "empty",
     "estimator-result",
+    "feedback-narrow",
+    "feedback-preview-narrow",
+    "feedback-sent-narrow",
     "git-pr-narrow",
     "goal",
     "goal-edit",
@@ -10523,7 +10659,7 @@
   "sources": [
     {
       "file": "src/webview/App.tsx",
-      "sha256": "ddad3af00bae9d84f4620fb83e61b69a9c8e8311381e47c26a51d550296c6926"
+      "sha256": "e931d6ffd4077c6f1523f3fe5ee14ae0fec65748f3441c6308a28d5516a5a0f8"
     },
     {
       "file": "src/webview/TasksApp.tsx",
@@ -10631,7 +10767,7 @@
     },
     {
       "file": "src/webview/components/EffortSlider.tsx",
-      "sha256": "3d139668085ca28f1dc9e3ccca4ea75f9865cc3b9d1e83b6573bfdc751ad8c97"
+      "sha256": "9d7443a6524fe81b3a38dd0e055821c94fcace6fb81969a0e6fb107543e6ee24"
     },
     {
       "file": "src/webview/components/ElicitationCard.tsx",
@@ -10654,6 +10790,14 @@
       "sha256": "6f1da7aa8ef9c7cac9e43101824cee29a0abd2ad52176654e7217c4867e6ca6b"
     },
     {
+      "file": "src/webview/components/FeedbackDialog.tsx",
+      "sha256": "da6414fca7701744c7f3f294e89d8c4cdeb84d066b4493034a762a20c23baabd"
+    },
+    {
+      "file": "src/webview/components/FeedbackSurface.tsx",
+      "sha256": "fc927dc6f2ceb53640d4f772e51ef8d14f2d6fd9f5dee34606dfe000964041af"
+    },
+    {
       "file": "src/webview/components/GitPanel.tsx",
       "sha256": "bba6479e14b936e1d3708ea26dfbce0f6d1652ac0829734d81bb9288771748be"
     },
@@ -10667,7 +10811,7 @@
     },
     {
       "file": "src/webview/components/GooeyMenu.tsx",
-      "sha256": "acc79a3b0b99ce5f57eaf6aac3ae789c7cdf1c3f8906267d0ea22cc1e9f873ae"
+      "sha256": "c1d380493fef8d022815f6a22c2696acd9703f08872ff8024772624cff9776f6"
     },
     {
       "file": "src/webview/components/GooeyMenuContent.tsx",
@@ -10743,7 +10887,7 @@
     },
     {
       "file": "src/webview/components/Palette.tsx",
-      "sha256": "70d2b2a99cb563a9d0201afa878e9e5a068427156f31fe114bf24d53adc98dec"
+      "sha256": "05b5198abd1c7986f32a6db3abc4972bf2fdbf706d9c9773c2eac4d2c8d20f1e"
     },
     {
       "file": "src/webview/components/PlanUi.tsx",
@@ -10871,7 +11015,7 @@
     },
     {
       "file": "src/webview/components/Transcript.tsx",
-      "sha256": "56e228c5679f24b5005c12e30e6c9e874f839ea51cd3978cf3f5ab836614bb93"
+      "sha256": "7e7bbfc98b19d337f77c3196967275f85f92d9eced0afeda1bc556d48e12a6c9"
     },
     {
       "file": "src/webview/components/UsageDialog.tsx",
@@ -11004,6 +11148,10 @@
     {
       "file": "src/webview/estimator/estimator.css",
       "sha256": "cc0e1d0f67d2a161af27e86187b3d7972020544fd9f6fdb6fcbeceeab3bb44b7"
+    },
+    {
+      "file": "src/webview/feedbackBridge.ts",
+      "sha256": "44fff8d3d096f922c85d756eb36badcfa04698292e39893053a969ee32a95518"
     },
     {
       "file": "src/webview/gooeyLayout.ts",
@@ -11443,7 +11591,7 @@
     },
     {
       "file": "src/webview/state/uiState.ts",
-      "sha256": "0dc17c546c3d74b7f5ba107f04f01f444c09d1d3b2b473ba49bd2f3ebd5e3823"
+      "sha256": "7ca682dd3b5c04b9ed374cece3764d9173a17192b981d9f941060979ef681b24"
     },
     {
       "file": "src/webview/stepSummary.ts",
@@ -11455,7 +11603,7 @@
     },
     {
       "file": "src/webview/styles.css",
-      "sha256": "e546b30b35aae47762bc1260746ac2883463f0f5d2e988f257096f248807275e"
+      "sha256": "db4221067e38750d51a59360f9845d11d14282a9dc8b04e2068c398af663ffa9"
     },
     {
       "file": "src/webview/surfaceRetry.ts",
