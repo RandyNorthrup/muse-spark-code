@@ -5,8 +5,14 @@
 
 import { describe, expect, it } from 'vitest'
 import { FORMAT_QUIRKS, PRESETS, quirksOf } from '../../src/core/providers/presets'
-import { classifyRetry, RETRY_TABLES, type RetryFormat } from '../../src/shared/retryPolicy'
+import {
+  classifyRetry,
+  rateLimitResetAt,
+  RETRY_TABLES,
+  type RetryFormat,
+} from '../../src/shared/retryPolicy'
 import { parseAnthropicError } from '../../src/core/backends/modelapi/codecs/anthropic'
+import { ACCOUNT_REMOTE_LIMIT_DEFAULT_MS } from '../../src/shared/constants'
 
 const FORMATS: readonly RetryFormat[] = ['responses', 'chat', 'anthropic', 'gemini', 'ollama']
 
@@ -111,6 +117,29 @@ describe('classifyRetry', () => {
       retry: false,
       reason: 'not-retryable',
     })
+  })
+})
+
+describe('rateLimitResetAt', () => {
+  const now = Date.parse('2026-10-06T12:00:00Z')
+  const iso = (ms: number) => new Date(ms).toISOString()
+  it('reads seconds, dates and absence like the wire parser', () => {
+    expect(rateLimitResetAt('1', now)).toBe(iso(now + 1000))
+    expect(rateLimitResetAt('0', now)).toBe(iso(now))
+    expect(rateLimitResetAt('Wed, 21 Oct 2015 07:28:00 GMT', now)).toBe(
+      iso(Date.parse('Wed, 21 Oct 2015 07:28:00 GMT')),
+    )
+    for (const missing of [null, undefined, '', ' '.repeat(3)] as const) {
+      expect(rateLimitResetAt(missing, now)).toBe(iso(now + ACCOUNT_REMOTE_LIMIT_DEFAULT_MS))
+    }
+  })
+  it('maps a negative wait to the shared default, never a date parse', () => {
+    // The wire parser maps negative seconds to "no usable wait": the reset
+    // below fails if the digits reach Date.parse instead.
+    for (const negative of ['-5', '-1', '  -30  ']) {
+      expect(rateLimitResetAt(negative, now)).toBe(iso(now + ACCOUNT_REMOTE_LIMIT_DEFAULT_MS))
+    }
+    expect(rateLimitResetAt('not a date', now)).toBe(iso(now + ACCOUNT_REMOTE_LIMIT_DEFAULT_MS))
   })
 })
 

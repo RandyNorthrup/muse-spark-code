@@ -30,6 +30,20 @@ export function activeAccountBilling(): PaidBilling | undefined {
   return context.getStore()
 }
 
+/** What a lease body settles: the known cost, or null when unknown. */
+export interface AccountLeaseSettlement {
+  readonly cost: UsdAmount | null
+  readonly usage?: { inputTokens: number; outputTokens: number } | undefined
+}
+
+/** How a lease body reports its settlement as it learns it: the release
+ * settles the last report, so a body that throws after a known cost still
+ * settles that cost instead of an unknown. */
+export type AccountLeaseReporter = (
+  cost: UsdAmount | null,
+  usage?: { inputTokens: number; outputTokens: number },
+) => void
+
 export interface AccountRequestLease {
   readonly account: string
   readonly credentialRevision?: string | undefined
@@ -64,6 +78,25 @@ export interface AccountRequestPort {
   acquire(request: AccountPoolRequest, origin: string): Promise<AccountRequestLease>
   within<T>(lease: AccountRequestLease, run: () => Promise<T>): Promise<T>
   current(kind: AccountPoolRequest['kind'], owner: string): string | undefined
+  currentWithoutNext(kind: AccountPoolRequest['kind'], owner: string): string | undefined
+  /** The only way to hold a lease: acquisition, the body and the release in
+   * a finally, in one place. The body reports its settlement as it learns
+   * it; the release settles the last report. A generator body is driven
+   * lazily and settles when it ends, is abandoned, errors or is never
+   * iterated (which acquires nothing). */
+  withLease<T>(
+    request: AccountPoolRequest,
+    origin: string,
+    run: (lease: AccountRequestLease, report: AccountLeaseReporter) => Promise<T>,
+  ): Promise<T>
+  withLease<T>(
+    request: AccountPoolRequest,
+    origin: string,
+    run: (
+      lease: AccountRequestLease,
+      report: AccountLeaseReporter,
+    ) => AsyncGenerator<T, void, unknown>,
+  ): AsyncGenerator<T, void, unknown>
 }
 
 function paidGuard(
@@ -131,6 +164,79 @@ export class AccountRequestWriter implements AccountRequestPort {
     )
   }
 
+  public withLease<T>(
+    request: AccountPoolRequest,
+    origin: string,
+    run: (lease: AccountRequestLease, report: AccountLeaseReporter) => Promise<T>,
+  ): Promise<T>
+  public withLease<T>(
+    request: AccountPoolRequest,
+    origin: string,
+    run: (
+      lease: AccountRequestLease,
+      report: AccountLeaseReporter,
+    ) => AsyncGenerator<T, void, unknown>,
+  ): AsyncGenerator<T, void, unknown>
+  public withLease(
+    request: AccountPoolRequest,
+    origin: string,
+    run: (lease: AccountRequestLease, report: AccountLeaseReporter) => unknown,
+  ): unknown {
+    // A generator body must stay lazy: acquisition happens on first next(),
+    // so a stream that is never iterated holds nothing. A promise body runs
+    // at once. Either way the lease never escapes this function.
+    if (run.constructor.name === 'AsyncGeneratorFunction') {
+      const acquire = this.acquire.bind(this)
+      const within = this.within.bind(this)
+      // Escape hatch (PLAN.md §8): the constructor-name check selects the
+      // overload at runtime; the compiler cannot narrow it, so the body
+      // shape is asserted here and a wrong shape fails loudly below.
+      const body = run as (
+        lease: AccountRequestLease,
+        report: AccountLeaseReporter,
+      ) => AsyncGenerator<unknown, void, unknown>
+      return (async function* () {
+        const lease = await acquire(request, origin)
+        let settlement: AccountLeaseSettlement = { cost: null }
+        const report: AccountLeaseReporter = (cost, usage) => {
+          settlement = { cost, usage }
+        }
+        let source: AsyncGenerator<unknown, void, unknown>
+        try {
+          source = await within(lease, () => Promise.resolve(body(lease, report)))
+          try {
+            for (;;) {
+              const event = await within(lease, () => source.next())
+              if (event.done) break
+              yield event.value
+            }
+          } finally {
+            await source.return(undefined)
+          }
+        } finally {
+          await lease.settle(settlement.cost, settlement.usage)
+        }
+      })()
+    }
+    // Escape hatch (PLAN.md §8): as above, the promise overload shape.
+    const body = run as (
+      lease: AccountRequestLease,
+      report: AccountLeaseReporter,
+    ) => Promise<unknown>
+    return (async () => {
+      const lease = await this.acquire(request, origin)
+      let settlement: AccountLeaseSettlement = { cost: null }
+      const report: AccountLeaseReporter = (cost, usage) => {
+        settlement = { cost, usage }
+      }
+      try {
+        return await this.within(lease, () => body(lease, report))
+      } finally {
+        await lease.settle(settlement.cost, settlement.usage)
+      }
+    })()
+  }
+
   /** Each extra HTTP request chooses its payer before consent, independently
    * of the main response; repairs/agent steps get their own claims. */
   public paidClient(
@@ -143,63 +249,60 @@ export class AccountRequestWriter implements AccountRequestPort {
   ): ProviderClient {
     const within = this.within.bind(this)
     const now = () => this.deps.pool.deps.now()
-    const acquire = async (estimate: AccountPoolRequest['estimate']) => {
+    // The lease request for one paid-helper send: the payer is decided per
+    // request, then the lease owns consent, every send and the settlement.
+    const leaseRequest = (estimate: AccountPoolRequest['estimate']): AccountPoolRequest => {
       const account =
         activeAccountBilling()?.account ??
         this.current(request.kind, request.owner) ??
         request.account
-      const lease = await this.acquire(
-        { ...request, owner: `${request.owner}:${paid.feature}`, retryAccount: account, estimate },
-        origin,
-      )
-      try {
-        if (
-          (await within(lease, () => allows(paid, requiresAsking))) !== true ||
-          !lease.isCurrent()
-        )
-          throw new Error(UI_TEXT.accounts.unavailable)
-        return lease
-      } catch (error: unknown) {
-        await lease.settle(Usd.from(0).toAmount())
-        throw error
+      return {
+        ...request,
+        owner: `${request.owner}:${paid.feature}`,
+        retryAccount: account,
+        estimate,
       }
     }
-    const image = async (
+    const askInLease = async (lease: AccountRequestLease): Promise<void> => {
+      if ((await within(lease, () => allows(paid, requiresAsking))) !== true || !lease.isCurrent())
+        throw new Error(UI_TEXT.accounts.unavailable)
+    }
+    const image = (
       body: CreateImageBody | EditImageBody,
       signal: AbortSignal,
       admit?: ResponseAttemptGuard,
-    ): Promise<ImagesResponse> => {
-      const lease = await acquire({
-        costUsd: parseUsd(PAID_PRICES_USD.imageGeneration),
-        inputTokens: 0,
-        outputTokens: 0,
-        requests: 1,
-      })
-      let cost: UsdAmount | null = null
-      try {
-        const client = lease.paidClient
-        if (client === undefined) throw new Error(UI_TEXT.accounts.unavailable)
-        const digest = await original.currentKeyDigest()
-        const fence = paidGuard(lease, admit, digest, now)
-        const result = await within(lease, () =>
-          'images' in body
-            ? client.editImage(body, signal, fence)
-            : client.createImage(body, signal, fence),
-        )
-        cost = Usd.from(PAID_PRICES_USD.imageGeneration).times(result.data.length).toAmount()
-        return result
-      } finally {
-        await lease.settle(cost)
-      }
-    }
-    const stream: ProviderClient['streamResponse'] = async function* (
+    ): Promise<ImagesResponse> =>
+      this.withLease(
+        leaseRequest({
+          costUsd: parseUsd(PAID_PRICES_USD.imageGeneration),
+          inputTokens: 0,
+          outputTokens: 0,
+          requests: 1,
+        }),
+        origin,
+        async (lease, report) => {
+          await askInLease(lease)
+          const client = lease.paidClient
+          if (client === undefined) throw new Error(UI_TEXT.accounts.unavailable)
+          const digest = await original.currentKeyDigest()
+          const fence = paidGuard(lease, admit, digest, now)
+          const result = await within(lease, () =>
+            'images' in body
+              ? client.editImage(body, signal, fence)
+              : client.createImage(body, signal, fence),
+          )
+          report(Usd.from(PAID_PRICES_USD.imageGeneration).times(result.data.length).toAmount())
+          return result
+        },
+      )
+    const stream: ProviderClient['streamResponse'] = (
       body,
       signal,
       onRetry,
       budget,
       admit,
       confirmed,
-    ) {
+    ) => {
       const price = modelPolicyFor(body.model).pricing
       if (price.kind !== 'priced') throw new Error(UI_TEXT.execModelUnpriced)
       const inputTokens = estimateInput(requestParts(body), undefined).inputTokens
@@ -208,73 +311,69 @@ export class AccountRequestWriter implements AccountRequestPort {
         .times(inputTokens)
         .add(Usd.from(price.card.output).times(outputTokens))
         .toAmount()
-      const lease = await acquire({
-        costUsd: parseUsd(reservation),
-        inputTokens,
-        outputTokens,
-        requests: 1,
-      })
-      let cost: UsdAmount | null = null
-      let usage: { inputTokens: number; outputTokens: number } | undefined
-      const digest = await original.currentKeyDigest()
-      const events = lease.client.streamResponse(
-        body,
-        signal,
-        onRetry,
-        budget,
-        paidGuard(lease, admit, digest, now),
-        confirmed === undefined
-          ? undefined
-          : {
-              ...confirmed,
-              keyDigest: lease.keyDigest,
-              isStillAllowed: () => confirmed.isStillAllowed() && lease.isCurrent(),
-            },
-      )
-      try {
-        for (;;) {
-          const event = await within(lease, () => events.next())
-          if (event.done) break
-          // The settlement comes from whichever terminal event carries usage:
-          // completed, incomplete or failed. Only truly unknown cost stays an
-          // upper bound.
-          if (isTerminalResponseEvent(event.value) && event.value.response.usage != null) {
-            const counted = event.value.response.usage
-            const priced = modelPricedUsage(counted)
-            if (
-              [priced.inputTokens, priced.outputTokens, priced.cachedTokens ?? 0].some(
-                (value) => !(Number.isSafeInteger(value) && value >= 0),
-              ) ||
-              (priced.cachedTokens ?? 0) > priced.inputTokens
-            )
-              throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
-            cost =
-              counted.provider_cost_usd === undefined
-                ? Usd.from(
-                    estimateCostUsd(
-                      {
-                        inputTokens: priced.inputTokens,
-                        outputTokens: priced.outputTokens,
-                        cachedTokens: priced.cachedTokens ?? 0,
-                      },
-                      body.model,
-                    ),
-                  ).toAmount()
-                : Usd.from(counted.provider_cost_usd).toAmount()
-            usage = { inputTokens: counted.input_tokens, outputTokens: counted.output_tokens }
+      return this.withLease(
+        leaseRequest({ costUsd: parseUsd(reservation), inputTokens, outputTokens, requests: 1 }),
+        origin,
+        async function* (lease, report) {
+          await askInLease(lease)
+          const digest = await original.currentKeyDigest()
+          const events = lease.client.streamResponse(
+            body,
+            signal,
+            onRetry,
+            budget,
+            paidGuard(lease, admit, digest, now),
+            confirmed === undefined
+              ? undefined
+              : {
+                  ...confirmed,
+                  keyDigest: lease.keyDigest,
+                  isStillAllowed: () => confirmed.isStillAllowed() && lease.isCurrent(),
+                },
+          )
+          try {
+            for (;;) {
+              const event = await within(lease, () => events.next())
+              if (event.done) break
+              // The settlement comes from whichever terminal event carries usage:
+              // completed, incomplete or failed. Only truly unknown cost stays an
+              // upper bound. Reported at once, so a later throw still settles it.
+              if (isTerminalResponseEvent(event.value) && event.value.response.usage != null) {
+                const counted = event.value.response.usage
+                const priced = modelPricedUsage(counted)
+                if (
+                  [priced.inputTokens, priced.outputTokens, priced.cachedTokens ?? 0].some(
+                    (value) => !(Number.isSafeInteger(value) && value >= 0),
+                  ) ||
+                  (priced.cachedTokens ?? 0) > priced.inputTokens
+                )
+                  throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+                report(
+                  counted.provider_cost_usd === undefined
+                    ? Usd.from(
+                        estimateCostUsd(
+                          {
+                            inputTokens: priced.inputTokens,
+                            outputTokens: priced.outputTokens,
+                            cachedTokens: priced.cachedTokens ?? 0,
+                          },
+                          body.model,
+                        ),
+                      ).toAmount()
+                    : Usd.from(counted.provider_cost_usd).toAmount(),
+                  { inputTokens: counted.input_tokens, outputTokens: counted.output_tokens },
+                )
+              }
+              yield event.value
+            }
+          } finally {
+            // The lease releases the underlying generator and stream on every
+            // exit, including a consumer that throws mid-stream: nothing stays
+            // suspended. Settlement still runs afterwards, in withLease.
+            await events.return(undefined)
           }
-          yield event.value
-        }
-      } finally {
-        // The lease releases the underlying generator and stream on every
-        // exit, including a consumer that throws mid-stream: nothing stays
-        // suspended. Settlement still runs afterwards.
-        try {
-          await events.return(undefined)
-        } finally {
-          await lease.settle(cost, usage)
-        }
-      }
+        },
+      )
     }
     return {
       ...original,
@@ -300,6 +399,10 @@ export class AccountRequestWriter implements AccountRequestPort {
 
   public current(kind: AccountPoolRequest['kind'], owner: string): string | undefined {
     return this.deps.pool.current(kind, owner)
+  }
+
+  public currentWithoutNext(kind: AccountPoolRequest['kind'], owner: string): string | undefined {
+    return this.deps.pool.currentWithoutNext(kind, owner)
   }
 
   public async acquire(request: AccountPoolRequest, origin: string): Promise<AccountRequestLease> {
@@ -329,6 +432,9 @@ export class AccountRequestWriter implements AccountRequestPort {
             trigger: error.trigger,
           },
           label,
+          // The sentence names the earliest recovery across every limited
+          // account, not only the named payer's own reset.
+          error.resetAt,
         )
       }
       throw error

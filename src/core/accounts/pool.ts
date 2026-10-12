@@ -74,6 +74,9 @@ export interface AccountPoolDeps {
 }
 export interface AccountPoolRequest {
   readonly retryAccount?: string | undefined
+  /** A per-send owner (the Judge) that must leave no sticky entry or
+   * persisted selection behind: admission and settlement still apply. */
+  readonly transient?: boolean | undefined
   readonly owner: string
   /** Original conversation, including children/candidates/schedules; never the chosen account. */
   readonly budgetOwner: string
@@ -365,6 +368,7 @@ export class AccountPool {
   private async admit(
     request: AccountPoolRequest,
     isEligible: (account: Account) => boolean,
+    hasSent: () => boolean = () => false,
   ): Promise<
     Awaited<ReturnType<AccountPool['select']>> & { claim: AccountPoolClaim; check: () => void }
   > {
@@ -415,7 +419,14 @@ export class AccountPool {
         }
         claim.checkSharedCaps()
         const triggers = this.triggers(account, selected.estimate, claim.journal, request)
-        if (triggers[0] !== undefined) throw new AccountThresholdExceededError(triggers[0])
+        // A retry is a continuation of this admission's own send on its
+        // reservation: the transport owns its backoff and retry budget, and
+        // the durable block still fences every new admission through select.
+        // Caps, credentials, policy and the swap fence above still refuse it.
+        const blocking = hasSent()
+          ? triggers.filter((trigger) => trigger.kind !== 'vendorLimit')
+          : triggers
+        if (blocking[0] !== undefined) throw new AccountThresholdExceededError(blocking[0])
       }
       try {
         check()
@@ -433,7 +444,7 @@ export class AccountPool {
       }
     })()
     const admitted = await operation
-    return admitted ?? (await this.admit(request, isEligible))
+    return admitted ?? (await this.admit(request, isEligible, hasSent))
   }
 
   private release(owner: string): void {
@@ -463,10 +474,10 @@ export class AccountPool {
     const owner = this.owner(request)
     if (this.active.has(owner)) throw new AccountPoolBusyError()
     this.active.add(owner)
-    const operation = this.admit(request, isEligible)
+    const sent = { value: false }
+    const operation = this.admit(request, isEligible, () => sent.value)
     try {
       const admitted = await operation
-      const sent = { value: false }
       const didSend = () => sent.value
       let isSettled = false
       return {
@@ -483,16 +494,22 @@ export class AccountPool {
             admitted.claim.started?.()
             const previous = this.sticky.get(owner)
             const wasSent = sent.value
-            if (!this.next.has(owner)) this.deps.writeSelection?.(owner, admitted.account.id)
-            this.sticky.set(owner, {
-              account: admitted.account.id,
-              decision: admitted.decision,
-              trigger: admitted.policyTrigger,
-            })
+            // A transient per-send owner (the Judge) adopts no sticky entry
+            // and persists no selection: the send still checks and settles.
+            if (request.transient !== true) {
+              if (!this.next.has(owner)) this.deps.writeSelection?.(owner, admitted.account.id)
+              this.sticky.set(owner, {
+                account: admitted.account.id,
+                decision: admitted.decision,
+                trigger: admitted.policyTrigger,
+              })
+            }
             sent.value = true
             return () => {
-              if (previous === undefined) this.sticky.delete(owner)
-              else this.sticky.set(owner, previous)
+              if (request.transient !== true) {
+                if (previous === undefined) this.sticky.delete(owner)
+                else this.sticky.set(owner, previous)
+              }
               sent.value = wasSent
             }
           }
@@ -621,6 +638,14 @@ export class AccountPool {
   public current(kind: AccountPoolRequest['kind'], owner: string): string | undefined {
     const key = JSON.stringify([kind, owner])
     return this.next.get(key) ?? this.sticky.get(key)?.account ?? this.deps.readSelection?.(key)
+  }
+
+  /** The admitted payer, ignoring a choice queued for the next request: a
+   * side request of this turn pays on this turn's payer, never on the queued
+   * switch. */
+  public currentWithoutNext(kind: AccountPoolRequest['kind'], owner: string): string | undefined {
+    const key = JSON.stringify([kind, owner])
+    return this.sticky.get(key)?.account ?? this.deps.readSelection?.(key)
   }
 }
 

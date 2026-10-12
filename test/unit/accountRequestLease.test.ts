@@ -1,19 +1,30 @@
-import { readFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { activeAccountBilling } from '../../src/core/accounts/requestWriter'
 import type { ProviderClient, ResponseAttemptGuard } from '../../src/core/backends/modelapi/client'
 import type { CreateResponseBody, StreamEvent } from '../../src/core/backends/modelapi/schemas'
 import type { FakeModelApi } from './helpers/fakeModelApi'
-import { poolRequest } from './helpers/accounts/pool'
+import { POOL_NOW, poolRequest } from './helpers/accounts/pool'
 import { paidHelperBody, writerRig } from './helpers/accounts/writer'
+import { formatDateTime } from '../../src/shared/l10n/text'
 
 const ORIGIN = 'https://provider.invalid'
 const MODEL = 'muse-spark-1.3'
 
+const rigs: { liveLeases: () => number }[] = []
 function rig(configure?: (api: FakeModelApi) => void) {
-  return writerRig(ORIGIN, configure)
+  const t = writerRig(ORIGIN, configure)
+  rigs.push(t)
+  return t
 }
+
+// A lease leaked anywhere in this suite fails here: every rig must hold
+// nothing after every test.
+afterEach(() => {
+  // Splice first: a failing assertion must not carry its rigs into the next test.
+  const pending = rigs.splice(0)
+  for (const t of pending) expect(t.liveLeases()).toBe(0)
+})
 
 const REVIEW_PAID = {
   feature: 'autoReviewer',
@@ -160,7 +171,7 @@ describe('one lease owns its paid request', () => {
   it('forwards a paid-helper 429 to the lease rate limit with its reset time', async () => {
     const t = rig((api) => {
       api.script(
-        { httpError: { status: 429, message: 'slow down', retryAfter: '1' } },
+        { httpError: { status: 429, retryAfter: '1' } },
         { text: 'recovered', usage: { input: 10, output: 2 } },
       )
     })
@@ -236,31 +247,108 @@ describe('one lease owns its paid request', () => {
     ).rejects.toThrow(/· a has no room/)
   })
 
-  it('sends every paid request on a lease and never on a bare client', () => {
-    const writerSource = readFileSync(
-      new URL('../../src/core/accounts/requestWriter.ts', import.meta.url),
-      'utf8',
-    )
-    for (const bare of ['original.streamResponse', 'original.createImage', 'original.editImage']) {
-      expect(writerSource.includes(bare), `${bare} would send a paid request outside a lease`).toBe(
-        false,
-      )
+  it("names the earliest recovery across every limited account, not the payer's own", async () => {
+    const t = rig()
+    const later = new Date(POOL_NOW + 3_600_000).toISOString()
+    const earlier = new Date(POOL_NOW + 60_000).toISOString()
+    const middle = new Date(POOL_NOW + 1_800_000).toISOString()
+    t.blocks.set('a', { blocked: { reason: 'rateLimited', resetAt: later } })
+    t.blocks.set('b', { blocked: { reason: 'rateLimited', resetAt: earlier } })
+    t.blocks.set('c', { blocked: { reason: 'rateLimited', resetAt: middle } })
+    let message = ''
+    try {
+      await t.writer.acquire(poolRequest({ owner: 'main', modelId: MODEL }), ORIGIN)
+    } catch (error: unknown) {
+      message = error instanceof Error ? error.message : String(error)
     }
-    expect(writerSource).toContain('lease.client.streamResponse')
-    expect(writerSource).toContain('lease.beforeSend()')
-    expect(writerSource).toContain('lease.rateLimit(')
-    const hostSource = readFileSync(
-      new URL('../../src/core/backends/modelapi/ModelApiHost.ts', import.meta.url),
-      'utf8',
+    // The stop names the payer but B's earlier reset: the sentence below
+    // fails with the payer's own later reset in it.
+    expect(message).toContain(formatDateTime(Date.parse(earlier)))
+    expect(message).not.toContain(formatDateTime(Date.parse(later)))
+  })
+
+  it('holds exactly one lease per paid-helper send, stream or image', async () => {
+    const t = rig((api) => {
+      api.script({ text: 'reviewed', usage: { input: 10, output: 2 } })
+      api.images.push({ count: 1 })
+    })
+    const wrapped = reviewerClient(t, 'one-lease')
+    await collectStream(wrapped)
+    await generateImage(wrapped, 'one lease')
+    expect(t.claims).toHaveLength(2)
+    expect(t.claims[0]?.actual).not.toBeNull()
+    expect(t.claims[1]?.actual).not.toBeNull()
+    expect(t.liveLeases()).toBe(0)
+  })
+
+  it('releases the lease when the key read fails after acquisition', async () => {
+    const t = rig()
+    t.client.currentKeyDigest = () => Promise.reject(new Error('signed out'))
+    const wrapped = reviewerClient(t, 'key-lost')
+    await expect(collectStream(wrapped)).rejects.toThrow('signed out')
+    expect(t.liveLeases()).toBe(0)
+    // The owner is usable again: nothing stays reserved past the failure.
+    const again = reviewerClient(t, 'key-lost')
+    t.client.currentKeyDigest = () =>
+      Promise.resolve(createHash('sha256').update('fake-only-a').digest('hex'))
+    t.api.script({ text: 'recovered', usage: { input: 10, output: 2 } })
+    await collectStream(again)
+    expect(t.claims).toHaveLength(2)
+    expect(t.liveLeases()).toBe(0)
+  })
+
+  it('holds nothing for a paid-helper stream that is never iterated', async () => {
+    const t = rig()
+    const wrapped = reviewerClient(t, 'never-run')
+    const stream = wrapped.streamResponse(
+      paidHelperBody(),
+      new AbortController().signal,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
     )
-    expect(hostSource).toContain('judgeLeasedSend')
-    expect(hostSource).toContain(
-      'await this.judgeLeasedSend(requests, body, signal, guard, turnId, keyDigest)',
+    expect(t.liveLeases()).toBe(0)
+    await stream.return(undefined)
+    expect(t.liveLeases()).toBe(0)
+    expect(t.claims).toHaveLength(0)
+  })
+
+  it('releases an abandoned paid-helper stream with no settlement left open', async () => {
+    const t = rig()
+    const wrapped = reviewerClient(t, 'abandoned')
+    const stream = wrapped.streamResponse(
+      paidHelperBody(),
+      new AbortController().signal,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
     )
-    expect(hostSource).toContain('prompt_cache_key: promptCacheKey(body)')
-    expect(hostSource).toContain('lease.client.streamResponse')
-    const askPaidUse = hostSource.slice(hostSource.indexOf('private async askPaidUse'))
-    const imageBranch = askPaidUse.slice(0, askPaidUse.indexOf('const stopNotifying'))
-    expect(imageBranch).toContain('return true')
+    const first = await stream.next()
+    expect(first.done).toBe(false)
+    await stream.return(undefined)
+    expect(t.liveLeases()).toBe(0)
+    expect(t.claims).toHaveLength(1)
+  })
+
+  it('leaves no sticky entry or persisted selection behind for transient sends', async () => {
+    const t = rig()
+    for (let index = 0; index < 100; index += 1) {
+      const account = await t.writer.withLease(
+        poolRequest({ owner: `judge:turn:${String(index)}`, transient: true }),
+        ORIGIN,
+        (lease, report) => {
+          lease.beforeSend()
+          report(null)
+          return Promise.resolve(lease.account)
+        },
+      )
+      expect(account).toBe('a')
+    }
+    expect(t.selectionWrites).toHaveLength(0)
+    expect(t.pool.current('conversation', 'judge:turn:42')).toBeUndefined()
+    expect(t.pool.currentWithoutNext('conversation', 'judge:turn:42')).toBeUndefined()
+    expect(t.liveLeases()).toBe(0)
   })
 })

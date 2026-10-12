@@ -1,14 +1,24 @@
 import { createHash } from 'node:crypto'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { activeAccountBilling } from '../../src/core/accounts/requestWriter'
 import { Usd } from '../../src/shared/usd'
 import { poolRequest } from './helpers/accounts/pool'
 import { writerRig } from './helpers/accounts/writer'
 
 const ORIGIN = 'https://provider.invalid'
+const rigs: { liveLeases: () => number }[] = []
 function rig() {
-  return writerRig(ORIGIN)
+  const t = writerRig(ORIGIN)
+  rigs.push(t)
+  return t
 }
+
+// A lease leaked anywhere in this suite fails here.
+afterEach(() => {
+  // Splice first: a failing assertion must not carry its rigs into the next test.
+  const pending = rigs.splice(0)
+  for (const t of pending) expect(t.liveLeases()).toBe(0)
+})
 
 describe('account request writer', () => {
   it('fences a released owner before any send and refunds its reservation', async () => {
