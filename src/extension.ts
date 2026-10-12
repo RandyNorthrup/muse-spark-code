@@ -129,7 +129,7 @@ import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs'
 import { homedir, hostname, userInfo } from 'node:os'
 import { availableParallelism } from 'node:os'
 import { usagePanelLoader, isUsageBudgetBundle } from './host/usage/usagePanelBundle'
-import { TeamHostBinding } from './host/teamHostBinding'
+import { TeamHostBinding, isTeamSwitchOn } from './host/teamHostBinding'
 import type { UsagePanel } from './host/usage/usagePanel'
 
 import path from 'node:path'
@@ -2564,8 +2564,9 @@ async function activateWindow(
         // flips it on (withheld public activation, PLAN.md D33/qualification).
         // An absent setting counts as off, never as on.
         isTeamOn: () =>
-          vscode.workspace.getConfiguration(SETTINGS_SECTION).get<unknown>(TEAM_SWITCH_SETTING) ===
-          true,
+          isTeamSwitchOn(
+            vscode.workspace.getConfiguration(SETTINGS_SECTION).get<unknown>(TEAM_SWITCH_SETTING),
+          ),
         isTeamWorkersOn: () => currentSettings().modelApiTeamWorkers,
         maxWorkers: () =>
           Math.min(TEAM_ENGINE_HARD_CEILING, TEAM_MAX_WORKERS_PER_CPU * availableParallelism()),

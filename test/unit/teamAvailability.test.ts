@@ -3,7 +3,7 @@
 // constructed, shown, or reachable by command; with it on each surface works.
 // One test walks the whole surface list in both directions.
 import { describe, expect, it, vi } from 'vitest'
-import { TeamHostBinding } from '../../src/host/teamHostBinding'
+import { TeamHostBinding, isTeamSwitchOn } from '../../src/host/teamHostBinding'
 import { createTeamPanelHost } from '../../src/host/models/modelsPanelEntry'
 import { UI_TEXT } from '../../src/shared/constants'
 import { TEAM_WORKSPACE_KEYS } from '../../src/shared/teamConversation'
@@ -109,6 +109,12 @@ function binding(isTeamOn: boolean) {
 }
 
 describe('the team availability switch', () => {
+  it('counts an absent setting as off: only an explicit true flips it on', () => {
+    expect(isTeamSwitchOn(undefined), 'absent setting').toBe(false)
+    expect(isTeamSwitchOn(false), 'explicit false').toBe(false)
+    expect(isTeamSwitchOn(true), 'explicit true').toBe(true)
+    expect(isTeamSwitchOn('true'), 'truthy string').toBe(false)
+  })
   it('hides every team surface while off and shows each while on', async () => {
     // The walk-back register: every surface the switch guards. Each
     // direction below names the surface it checks.
