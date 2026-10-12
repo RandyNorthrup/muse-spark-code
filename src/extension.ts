@@ -2594,20 +2594,22 @@ async function activateWindow(
             budgetScope,
             fenceIo,
           )
-          try {
-            const session = await host.startSession({
-              workspaceRoot: folder,
-              modelId,
-              approvalMode,
+          // The activation bundle inlines its worker-session open (RVCM96B2
+          // P1-14): the shared helper stays headless-only, and this
+          // promise shape stays its own so the zero-duplication gate
+          // holds (PLAN.md section 8). Semantically the try/catch twin:
+          // a failed open closes the host and rethrows.
+          const session = await host
+            .startSession({ workspaceRoot: folder, modelId, approvalMode })
+            // eslint-disable-next-line unicorn/prefer-await -- The shared helper's try/catch twin would reintroduce the exact clone the zero-duplication gate forbids; the activation budget forbids importing the helper.
+            .catch(async (error: unknown) => {
+              await host.close()
+              throw error
             })
-            return {
-              session,
-              toolNames: host.sessionToolNames(session.sessionId) ?? [],
-              close: () => host.close(),
-            }
-          } catch (error: unknown) {
-            await host.close()
-            throw error
+          return {
+            session,
+            toolNames: host.sessionToolNames(session.sessionId) ?? [],
+            close: () => host.close(),
           }
         },
         now: () => Date.now(),

@@ -1,9 +1,10 @@
 // RVCM96B2 P2-4/5/6: the durable cleanup ledger, the stale-run sweep, the
 // denied-merge hold and the conflict-marker gate, against real Git.
-import { mkdtemp, readFile, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { TeamGitError, type TeamGit } from '../../src/core/team/teamWorkspaces'
 import { EXEC_TEAM_HOLD_REF_PREFIX, EXEC_TEAM_RUN_PREFIX } from '../../src/shared/constants'
 import {
   createHoldRef,
@@ -25,6 +26,12 @@ import { cleanupTeamRoots, teamFixtureRepo, teamGitRunner, trackTeamRoot } from 
 cleanupTeamRoots()
 const git = teamGitRunner()
 const REAL_GIT_TIMEOUT_MS = 30_000
+
+/** A killed child exits 1 with no output: never absence, always failure. */
+const failingGit: TeamGit = () => Promise.reject(new TeamGitError(1, '', 'rev-parse'))
+/** `rev-parse --verify` proving the ref is gone. */
+const absentGit: TeamGit = () =>
+  Promise.reject(new TeamGitError(128, 'fatal: Needed a single revision', 'rev-parse'))
 
 const sha = async (repo: string, rev: string): Promise<string> =>
   new TextDecoder().decode(await git(['rev-parse', rev], repo)).trim()
@@ -149,6 +156,77 @@ describe('execTeamRecovery cleanup ledger', () => {
     },
     REAL_GIT_TIMEOUT_MS,
   )
+
+  it(
+    'skips a malformed ledger and still sweeps later dead runs (P2-12)',
+    async () => {
+      const tmpRoot = await mkdtemp(path.join(tmpdir(), 'm96b-sweep-'))
+      trackTeamRoot(tmpRoot)
+      const { root, head } = await teamFixtureRepo(git)
+      const broken = path.join(tmpRoot, `${EXEC_TEAM_RUN_PREFIX}aaa-broken`)
+      await mkdir(broken, { recursive: true })
+      await writeFile(path.join(broken, 'team-cleanup.json'), '{')
+      const owned = predictedAgentsRef('engineering', 't12') ?? ''
+      await git(['update-ref', owned, head], root)
+      const folder = path.join(tmpRoot, `${EXEC_TEAM_RUN_PREFIX}zzz-valid`)
+      await mkdir(folder, { recursive: true })
+      await recordCleanupOwner(folder, { pid: 1, startedAt: 1 })
+      await recordCleanupRef(folder, { repo: root, role: 'engineering', taskId: 't12', ref: owned })
+      const swept = await sweepStaleTeamRuns({ tmpRoot, git, isAlive: () => false })
+      expect(swept.sweptFolders).toEqual([folder])
+      expect(swept.sweptRefs).toEqual([`${root}:${owned}`])
+      expect(swept.skipped).toEqual(expect.arrayContaining([broken]))
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+
+  it(
+    'keeps a ref whose read failed and reports it instead of pruning (P2-8)',
+    async () => {
+      const tmpRoot = await mkdtemp(path.join(tmpdir(), 'm96b-sweep-'))
+      trackTeamRoot(tmpRoot)
+      const { root, head } = await teamFixtureRepo(git)
+      const owned = predictedAgentsRef('engineering', 't13') ?? ''
+      await git(['update-ref', owned, head], root)
+      const folder = await mkdtemp(path.join(tmpRoot, `${EXEC_TEAM_RUN_PREFIX}close-`))
+      await recordCleanupOwner(folder, currentOwner())
+      await recordCleanupRef(folder, { repo: root, role: 'engineering', taskId: 't13', ref: owned })
+      const errors: unknown[] = []
+      await expect(
+        removeStaleCleanupRefs({
+          git: failingGit,
+          folder,
+          onError: (error) => {
+            errors.push(error)
+          },
+        }),
+      ).rejects.toThrow()
+      expect(errors.length).toBeGreaterThan(0)
+      // The record survives for the next sweep; the ref is untouched.
+      const stored = JSON.parse(await readFile(path.join(folder, 'team-cleanup.json'), 'utf8')) as {
+        refs: readonly { ref: string }[]
+      }
+      expect(stored.refs.map((entry) => entry.ref)).toEqual([owned])
+      expect(
+        new TextDecoder().decode(await git(['rev-parse', '--verify', owned], root)).trim(),
+      ).toBe(head)
+      // A verified absence still prunes without error.
+      const quiet: unknown[] = []
+      await removeStaleCleanupRefs({
+        git: absentGit,
+        folder,
+        onError: (error) => {
+          quiet.push(error)
+        },
+      })
+      expect(quiet).toEqual([])
+      const pruned = JSON.parse(await readFile(path.join(folder, 'team-cleanup.json'), 'utf8')) as {
+        refs: readonly unknown[]
+      }
+      expect(pruned.refs).toEqual([])
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
 })
 
 async function createHoldRefFor(folder: string, repo: string, head: string): Promise<string> {
@@ -230,6 +308,16 @@ describe('execTeamRecovery marker gate', () => {
     },
     REAL_GIT_TIMEOUT_MS,
   )
+
+  it('passes a newly added setext heading whose ======= stands alone (P2-13)', async () => {
+    const { root } = await teamFixtureRepo(git)
+    const base = await sha(root, 'HEAD')
+    await writeFile(path.join(root, 'heading.md'), 'Heading\n=======\n')
+    const head = await commitAll(root, 'setext heading')
+    expect(await scanConflictMarkers(git, root, base, head, ['heading.md'])).toEqual({
+      status: 'clean',
+    })
+  })
 })
 
 describe('execTeamRecovery git bounds', () => {

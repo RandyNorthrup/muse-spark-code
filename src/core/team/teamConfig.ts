@@ -178,6 +178,146 @@ function isLowerableNumber(value: unknown): value is number {
 }
 
 /**
+ * A lowering number's raw spelling: at most six fraction digits and fifteen
+ * significant digits, so the double round trip keeps it exactly (P3-14).
+ */
+const TEAM_JSON_MAX_FRACTION_DIGITS = 6
+const TEAM_JSON_MAX_SIGNIFICANT_DIGITS = 15
+/** A `\uXXXX` escape: backslash-u plus four hex digits. */
+const UNICODE_ESCAPE_LEAD = 2
+const UNICODE_ESCAPE_HEX_DIGITS = 4
+
+/**
+ * Every number literal's raw spelling by path (RVCM96B2D P3-14). JSON.parse
+ * rounds 0.499999999999999999 to 0.5 before any check sees it, so exactness
+ * is judged on the text: a lowering number must be a plain decimal the
+ * double round trip keeps exactly, otherwise the file is refused.
+ */
+function rawJsonNumbers(text: string): Map<string, string> {
+  const found = new Map<string, string>()
+  const trail: string[] = []
+  let at = 0
+  const gap = (): void => {
+    while (at < text.length && /\s/.test(text.charAt(at))) at += 1
+  }
+  const word = (): string => {
+    let out = ''
+    at += 1 // the opening quote
+    while (at < text.length) {
+      const char = text.charAt(at)
+      if (char === '"') {
+        at += 1
+        return out
+      }
+      if (char !== '\\') {
+        out += char
+        at += 1
+        continue
+      }
+      const esc = text.charAt(at + 1)
+      const hex = text.slice(
+        at + UNICODE_ESCAPE_LEAD,
+        at + UNICODE_ESCAPE_LEAD + UNICODE_ESCAPE_HEX_DIGITS,
+      )
+      if (esc === 'u' && /^[0-9a-fA-F]{4}$/.test(hex)) {
+        out += String.fromCodePoint(Number.parseInt(hex, 16))
+        at += UNICODE_ESCAPE_LEAD + UNICODE_ESCAPE_HEX_DIGITS
+      } else {
+        out += esc
+        at += 2
+      }
+    }
+    return out
+  }
+  const number = (): void => {
+    const start = at
+    if (text.charAt(at) === '-') at += 1
+    while (at < text.length && /[0-9eE+.-]/.test(text.charAt(at))) at += 1
+    found.set(JSON.stringify(trail), text.slice(start, at))
+  }
+  const record = (): void => {
+    at += 1 // the opening brace
+    gap()
+    if (text.charAt(at) === '}') {
+      at += 1
+      return
+    }
+    let separator = ','
+    while (separator === ',') {
+      gap()
+      const key = word()
+      gap()
+      at += 1 // the colon
+      trail.push(key)
+      value()
+      trail.pop()
+      gap()
+      separator = text.charAt(at)
+      at += 1
+    }
+  }
+  const sequence = (): void => {
+    at += 1 // the opening bracket
+    gap()
+    if (text.charAt(at) === ']') {
+      at += 1
+      return
+    }
+    let index = 0
+    let separator = ','
+    while (separator === ',') {
+      trail.push(String(index))
+      value()
+      trail.pop()
+      index += 1
+      gap()
+      separator = text.charAt(at)
+      at += 1
+    }
+  }
+  const value = (): void => {
+    gap()
+    switch (text.charAt(at)) {
+      case '"': {
+        word()
+        break
+      }
+      case '{': {
+        record()
+        break
+      }
+      case '[': {
+        sequence()
+        break
+      }
+      default: {
+        const char = text.charAt(at)
+        if (char === '-' || (char >= '0' && char <= '9')) number()
+        // true, false, null: one lowercase word.
+        else while (at < text.length && /[a-z]/.test(text.charAt(at))) at += 1
+      }
+    }
+    gap()
+  }
+  value()
+  return found
+}
+
+/**
+ * The raw spelling must survive the double round trip exactly: a plain
+ * decimal within the digit bounds above. Anything else (a longer fraction,
+ * an exponent, an unsafe integer) is refused, so a file value never silently
+ * becomes another amount on its way to the ledger.
+ */
+function isExactNumber(raw: string | undefined): boolean {
+  if (raw === undefined) return false
+  const match = /^(\d+)(?:\.(\d+))?$/.exec(raw)
+  if (match === null || (match[2]?.length ?? 0) > TEAM_JSON_MAX_FRACTION_DIGITS) return false
+  const digits = `${match[1] ?? ''}${match[2] ?? ''}`.replace(/^0+/, '')
+  return digits.length <= TEAM_JSON_MAX_SIGNIFICANT_DIGITS
+}
+
+/**
  * `.muse/team.json`, parsed. The file lowers only: a file that adds an
  * agent, a provider, a command, a role or an entry, sets `in-place`, or
  * holds an unknown key, is refused whole. In an untrusted workspace it is
@@ -198,6 +338,9 @@ export function parseTeamJson(text: string): TeamJsonParse {
       return { ok: false, reason: `team.json holds an unknown key: ${key}` }
     }
   }
+  // RVCM96B2D P3-14: exactness is judged on the raw spellings, before
+  // JSON.parse rounds them.
+  const raw = rawJsonNumbers(text)
   const roles: Record<string, TeamJsonRole> = {}
   const rawRoles = parsed['roles']
   if (rawRoles !== undefined) {
@@ -230,7 +373,10 @@ export function parseTeamJson(text: string): TeamJsonParse {
           return { ok: false, reason: `team.json holds an invalid roles.${id}.caps` }
         }
         for (const [measure, cap] of Object.entries(caps)) {
-          if (!isLowerableNumber(cap)) {
+          if (
+            !isLowerableNumber(cap) ||
+            !isExactNumber(raw.get(JSON.stringify(['roles', id, 'caps', measure])))
+          ) {
             return { ok: false, reason: `team.json holds an invalid roles.${id}.caps.${measure}` }
           }
         }
@@ -255,7 +401,10 @@ export function parseTeamJson(text: string): TeamJsonParse {
       return { ok: false, reason: 'team.json holds an invalid budgets' }
     }
     for (const [name, budget] of Object.entries(rawBudgets)) {
-      if (!isLowerableNumber(budget)) {
+      if (
+        !isLowerableNumber(budget) ||
+        !isExactNumber(raw.get(JSON.stringify(['budgets', name])))
+      ) {
         return { ok: false, reason: `team.json holds an invalid budgets.${name}` }
       }
     }

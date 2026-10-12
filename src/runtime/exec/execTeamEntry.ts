@@ -362,8 +362,11 @@ export async function createExecTeam(
           // RVCM96B2 P2-4: a normal end removes and clears the record.
           // Reconcile first (discards prune as they go; this catches what
           // they missed), then remove the folder with its ledger. Held
-          // branches are never touched; a failed removal keeps the ledger
-          // for the next run's sweep.
+          // branches are never touched. A failed reconcile keeps the
+          // folder and its ledger for the next run's sweep (RVCM96B2D
+          // P2-8): a failed read or delete is recorded and retried, never
+          // treated as absent.
+          let isReconciled = true
           if (folder !== undefined && teamGit !== undefined) {
             try {
               await removeStaleCleanupRefs({
@@ -375,9 +378,10 @@ export async function createExecTeam(
               })
             } catch (error: unknown) {
               warnRecord(deps.log, error)
+              isReconciled = false
             }
           }
-          if (folder !== undefined) {
+          if (folder !== undefined && isReconciled) {
             try {
               await rm(folder, { recursive: true, force: true })
             } catch (error: unknown) {

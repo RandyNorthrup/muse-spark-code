@@ -50,6 +50,16 @@ import { cleanupTeamRoots, teamFixtureRepo, teamGitRunner, trackTeamRoot } from 
 
 cleanupTeamRoots()
 const git = teamGitRunner()
+
+/**
+ * No owned task ref survives the run (RVCM96B2D P3-17): the fence keeps
+ * them under refs/heads/agents/, so that prefix is what the assertion
+ * lists. The old refs/agents/ prefix matches nothing and passed while refs
+ * leaked.
+ */
+async function expectNoOwnedRefs(cwd: string): Promise<void> {
+  expect(new TextDecoder().decode(await git(['for-each-ref', 'refs/heads/agents/'], cwd))).toBe('')
+}
 const built = { dist: '' }
 beforeAll(async () => {
   // Headless teams sit behind the agent-teams availability switch: every
@@ -302,7 +312,7 @@ describe('M96b headless engine team runner', () => {
       expect(new TextDecoder().decode(await git(['diff', '--', 'tracked.txt'], f.cwd))).toContain(
         '+after',
       )
-      expect(new TextDecoder().decode(await git(['for-each-ref', 'refs/agents/'], f.cwd))).toBe('')
+      await expectNoOwnedRefs(f.cwd)
     },
     REAL_GIT_TIMEOUT_MS,
   )
@@ -342,7 +352,7 @@ describe('M96b headless engine team runner', () => {
         .flatMap((body) => z.array(z.unknown()).parse(body['input']))
         .filter((item) => toolOutputSchema.safeParse(item).success)
       expect(workerOutputs.some((item) => JSON.stringify(item).includes('check.yml'))).toBe(true)
-      expect(new TextDecoder().decode(await git(['for-each-ref', 'refs/agents/'], f.cwd))).toBe('')
+      await expectNoOwnedRefs(f.cwd)
       expect(
         new TextDecoder().decode(await git(['for-each-ref', 'refs/heads/agents-hold/'], f.cwd)),
       ).toBe('')
@@ -454,7 +464,18 @@ describe('M96b headless engine team runner', () => {
       const { result } = await running
       expect(result?.status).toBe('cancelled')
       expect(await readFile(path.join(f.cwd, 'tracked.txt'), 'utf8')).toBe('before\n')
-      expect(new TextDecoder().decode(await git(['for-each-ref', 'refs/agents/'], f.cwd))).toBe('')
+      // Close can finish behind the run on cancel (the stop grace may
+      // release it first), so the owned-ref check polls like the folder
+      // check below. The prefix stays the real one (P3-17).
+      await vi.waitFor(
+        async () => {
+          await expectNoOwnedRefs(f.cwd)
+        },
+        {
+          timeout: 20_000,
+          interval: 200,
+        },
+      )
       // The lane shares $TMPDIR with other lanes: only a folder this
       // process owned counts as a leak, never a stranger's folder. Close
       // finishes behind the run (the stop grace), so poll for it.
@@ -881,7 +902,7 @@ it(
     expect(code, f.err.chunks.join('')).toBe(0)
     expect(script.workerRequests()).toBe(3)
     expect(await readFile(path.join(f.cwd, 'tracked.txt'), 'utf8')).toBe('before\n')
-    expect(new TextDecoder().decode(await git(['for-each-ref', 'refs/agents/'], f.cwd))).toBe('')
+    await expectNoOwnedRefs(f.cwd)
   },
   REAL_GIT_TIMEOUT_MS,
 )

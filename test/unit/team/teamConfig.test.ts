@@ -175,6 +175,22 @@ describe('parseTeamJson', () => {
       reason: 'team.json holds an invalid roles.qa.caps.dayTokens',
     })
   })
+
+  it('refuses a number the double round trip cannot keep exactly (P3-14)', () => {
+    // 0.499999999999999999 parses to 0.5: the file is refused, never rounded.
+    expect(parseTeamJson('{"budgets":{"spendUsd":0.499999999999999999}}')).toEqual({
+      ok: false,
+      reason: 'team.json holds an invalid budgets.spendUsd',
+    })
+    expect(parseTeamJson('{"roles":{"engineering":{"caps":{"dayTokens":1e4}}}}')).toEqual({
+      ok: false,
+      reason: 'team.json holds an invalid roles.engineering.caps.dayTokens',
+    })
+    expect(parseTeamJson('{"budgets":{"spendUsd":0.5}}')).toMatchObject({ ok: true })
+    expect(parseTeamJson(JSON.stringify({ budgets: { dayUsd: 10 } }))).toMatchObject({
+      ok: true,
+    })
+  })
 })
 
 describe('lowerTeamWithJson', () => {
