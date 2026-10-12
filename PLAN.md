@@ -803,9 +803,13 @@ sibling's own text (`scripts/lib/bundleExports.mjs`), and a run that compared
 nothing with `dist/modelApi.js` or `dist/modelApiBoundaries.js` fails. Its
 first run found `canonicalUsd` missing from the boundaries bundle in the same
 way. The three export names take `dist/modelApi.js` from
-532,537 B to **532,827 B** (+290 B): 290 B over the pin of the
-bundle test and 4,773 B under the 525 KiB cap. The pin is re-measured in a
-commit of its own, on the owner's word. Evidence:
+532,537 B to **532,827 B** (+290 B), 4,773 B under the 525 KiB cap, which is
+unchanged. The pin of the bundle test is re-measured at that size for 0.18.1
+(owner's decision, 2026-10-12): each name is in the export map and in the
+export annotation, with its getter, and they are exports rather than copies in
+the provider bundles because the state they share lives in `transport.ts`
+once per process. The pin still ratchets down when `fix/modelapi-diet`
+merges. Evidence:
 `docs/certification/hotfix-0181-bundle-exports.md`.
 
 **Train 0.18.0, Model API pin (2026-10-11, macbook).** The pin is re-measured
