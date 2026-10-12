@@ -4,6 +4,7 @@
 // implements (PLAN.md D61), and tests replace with a Map.
 
 import { MODEL_API_KEY_PATTERN, PROVIDER_SECRET_PREFIX, SECRET_KEYS } from '../../shared/constants'
+import { wireWordForLog } from '../../core/logging'
 
 export interface SecretStore {
   get(key: string): PromiseLike<string | undefined>
@@ -95,8 +96,18 @@ export class CredentialStore {
         if (stored !== undefined && stored !== '') {
           return true
         }
-      } catch {
-        return true
+      } catch (error: unknown) {
+        // A store that cannot be read says nothing about presence, so it is
+        // not presence; the failure is warned once with its kind. Anything
+        // that is not an error keeps its kind.
+        if (!(error instanceof Error)) throw error
+        if (!this.hasReportedFailure) {
+          this.hasReportedFailure = true
+          this.warn(
+            `${this.storeName} could not be read, so no provider credential is available (${wireWordForLog(error.name)})`,
+          )
+        }
+        return false
       }
     }
     return false
