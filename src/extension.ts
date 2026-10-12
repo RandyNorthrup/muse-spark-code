@@ -4268,7 +4268,11 @@ async function activateWindow(
                 const museHost =
                   auth.backend === 'museCode' ? await backend.ensureHost() : undefined
                 const museCode = museHost === undefined ? [] : await museHost.listModels()
+                // Quota rows stamped for another account are dropped, so a
+                // replaced key stops using the old quota (RVCM963J 7).
+                const currentAccount = await modelApi.accountId()
                 const discovered = buildTeamModelOffers({
+                  currentAccountOf: () => currentAccount,
                   engine: [
                     ...models
                       .filter(
@@ -4398,18 +4402,23 @@ async function activateWindow(
           isRemote: vscode.env.remoteName !== undefined,
           setComposerModel,
           onKeyUsage: (snapshot) => {
-            usageRecording.limit({
-              backend: 'modelApi',
-              provider: 'openrouter',
-              source: 'openRouter',
-              observedAt: Date.now(),
-              windows: [],
-              account: {
-                usedUsd: snapshot.usedThisMonth,
-                period: 'month',
-                ...(snapshot.limit !== undefined && { limitUsd: snapshot.limit }),
-                ...(snapshot.remaining !== undefined && { remainingUsd: snapshot.remaining }),
-              },
+            // The stamp is resolved before recording, so the row carries the
+            // account it was observed under (RVCM963J 7).
+            void modelApi.accountId().then((observedAccount) => {
+              usageRecording.limit({
+                backend: 'modelApi',
+                provider: 'openrouter',
+                source: 'openRouter',
+                observedAt: Date.now(),
+                windows: [],
+                ...(observedAccount !== undefined && { observedAccount }),
+                account: {
+                  usedUsd: snapshot.usedThisMonth,
+                  period: 'month',
+                  ...(snapshot.limit !== undefined && { limitUsd: snapshot.limit }),
+                  ...(snapshot.remaining !== undefined && { remainingUsd: snapshot.remaining }),
+                },
+              })
             })
           },
           onWizardSaved: async (outcome) => {

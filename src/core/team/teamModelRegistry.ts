@@ -97,6 +97,13 @@ export function buildTeamModelOffers(input: {
   readonly limits: readonly UsageLimitSnapshot[]
   readonly maxWorkers: number
   readonly canRunKind: (kind: 'engine' | 'museCode' | 'external') => boolean
+  /**
+   * The credential identity spending today, by provider. When present, an
+   * observation stamped for another account is dropped, and one whose
+   * account is unknown is omitted with the limits reason (RVCM963J 7).
+   * Absent keeps the legacy newest-row selection (tests, unattributed rows).
+   */
+  readonly currentAccountOf?: (provider: string) => string | undefined
 }): { readonly offers: TeamPanelOffer[]; readonly absent: TeamDiscoveryAbsence[] } {
   const offers: TeamPanelOffer[] = []
   const absent: TeamDiscoveryAbsence[] = []
@@ -111,8 +118,12 @@ export function buildTeamModelOffers(input: {
       continue
     }
     const isLocal = model.pricing === 'local'
+    // Newest first, so a replaced key's older rows never shadow the current
+    // account's observation; rows stamped for another account are dropped.
+    const current = input.currentAccountOf?.(provider)
     const observed = input.limits
       .filter((row) => row.provider === provider)
+      .filter((row) => input.currentAccountOf === undefined || row.observedAccount === current)
       .toSorted((a, b) => b.observedAt - a.observedAt)
       .at(0)
     const observedLimits = observedTeamLimits(preset, observed?.raw)

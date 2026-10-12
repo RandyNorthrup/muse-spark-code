@@ -188,6 +188,12 @@ export const usageLimitSnapshotSchema = z
     ),
     // No arbitrary JSON: account/key responses must be normalised first.
     raw: z.optional(usageHeadersSchema),
+    // The credential identity the observation arrived under (a key digest or
+    // account name, never the secret): selection drops a row stamped for a
+    // different account, so a replaced key stops using the old quota.
+    observedAccount: z.optional(
+      z.string().check(z.minLength(1), z.maxLength(USAGE_LABEL_MAX_CHARS)),
+    ),
   })
   .check(z.refine(isWithinRecordCap))
 export type UsageLimitSnapshot = z.infer<typeof usageLimitSnapshotSchema>

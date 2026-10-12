@@ -71,6 +71,41 @@ describe('captured team discovery', () => {
     expect(result.offers).toEqual([])
     expect(result.absent).toEqual([{ provider: 'openai', reason: 'limits' }])
   })
+  it('drops a replaced key quota and omits offers unknown for the current account', () => {
+    const stamped = (observedAt: number, observedAccount: string): UsageLimitSnapshot => ({
+      ...limit(observedAt, { 'x-ratelimit-limit-requests': '10000' }),
+      observedAccount,
+    })
+    // The old account's generous headers no longer produce a ceiling once the
+    // key changes, even though they are newer than nothing: the offer is
+    // omitted with the limits reason.
+    const switched = buildTeamModelOffers({
+      ...input,
+      engine: [engine('openai')],
+      limits: [stamped(2, 'old-account')],
+      currentAccountOf: () => 'new-account',
+    })
+    expect(switched.offers).toEqual([])
+    expect(switched.absent).toEqual([{ provider: 'openai', reason: 'limits' }])
+    // An unstamped observation is not known for a keyed account either.
+    const unstamped = buildTeamModelOffers({
+      ...input,
+      engine: [engine('openai')],
+      limits: [limit(2, { 'x-ratelimit-limit-requests': '10000' })],
+      currentAccountOf: () => 'new-account',
+    })
+    expect(unstamped.offers).toEqual([])
+    expect(unstamped.absent).toEqual([{ provider: 'openai', reason: 'limits' }])
+    // The current account's own observation still yields a ceiling.
+    const current = buildTeamModelOffers({
+      ...input,
+      engine: [engine('openai')],
+      limits: [stamped(1, 'old-account'), stamped(2, 'new-account')],
+      currentAccountOf: () => 'new-account',
+    })
+    expect(current.offers).toHaveLength(1)
+    expect(current.absent).toEqual([])
+  })
   it('does not mistake daily Groq requests or router upstreams for provider RPM', () => {
     expect(
       observedTeamLimits('groq', {
