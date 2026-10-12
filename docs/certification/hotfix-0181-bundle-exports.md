@@ -466,3 +466,132 @@ SHA-256 in both builds. `dist/modelApi.js` is 532,827 B (`cae6cd7e029a…`)
 and `dist/extension.js` 563,974 B (`7cd17477a3ec…`) in both;
 `dist/headless.js` 100,078 B and `dist/whatsNew.json` 35,457 B. No cap and
 no pin moved, and no file under `src` is touched.
+
+## The candidate that ships: `hotfix/0.18.1-nopin` (2026-10-12)
+
+Pull request 150 takes `dist/modelApi.js` to 532,827 B, 290 B over its
+0.18.0 pin, and no pinned size goes up. This branch is that pull request's
+head (`87d9ab91c`) plus the Model API bundle diet. It replaces pull request
+150, which is not merged.
+
+### What was merged
+
+`c7afe3533`: `fix/modelapi-diet`, 14 commits, at `4f30cc913` (`31d525e4c` on
+the rig before the identity rewrite; the same tree, `89fd2e2f9`). No textual
+conflict. No commit message in the range carries a `users.noreply.github.com`
+address. The stricter cross-bundle check of pull request 150's review is
+unchanged and passes as it stands; no listed exception was added:
+
+```text
+ok   cross-bundle members: 2258 reads of 45 sibling bundles, each exported by the bundle read; every loaded sibling followed to its members, every export list read, 1 of 1 listed load(s) by a computed name
+```
+
+### Sizes against pull request 150, built on the same machine (Kubuntu)
+
+| File                    | `87d9ab91c` | Candidate   | Cap or pin                                     |
+| ----------------------- | ----------- | ----------- | ---------------------------------------------- |
+| `dist/modelApi.js`      | 532,827 B   | 518,954 B   | 0.18.0 pin 532,537 B; cap 537,600 B, untouched |
+| `dist/modelApiTools.js` |             | 23,433 B    | 51,200 B                                       |
+| `dist/uiText.js`        | 97,020 B    | 97,068 B    | The two new English messages                   |
+| `dist/whatsNew.json`    | 35,457 B    | 38,619 B    | 40,960 B                                       |
+| `dist/webview` (176)    | 1,586,386 B | 1,586,402 B | 136 files differ, 40 keep name and SHA-256     |
+
+`dist/modelApi.js` is 13,583 B under the 0.18.0 pin; the size test asserts
+the measured 518,954 B. Outside `dist/webview` nothing else differs in bytes:
+`dist/extension.js` is 563,974 B (2,622 of the 3,072 B activation budget) and
+`dist/headless.js` 100,078 B in both. `dist` has 268 files against 267.
+
+The browser bundles differ because the diet adds two messages to
+`src/shared/l10n/en.ts` (shown when the helpers bundle cannot load), which
+every bundle with the message table carries: 16 B in all. Pull request 150
+changed no browser bundle; this candidate does, so its frames are rendered
+by the hosted visual job, not assumed.
+
+### Three reds of the lane that its own runs did not include
+
+Each was found by the candidate's gate on Kubuntu and fixed in a commit of
+its own.
+
+1. **The packaging fake** (`191a6008c`).
+   `test/unit/resourceAcpPackaging.test.mjs`: 6 of 11 failed on the lane's
+   head, on Kubuntu and on the Mac mini (`87d9ab91c`: 11 of 11). The lane
+   moved the usage-asset closure into `scripts/lib/acpBundles.mjs`, which
+   reads the metafile by an absolute path; the fake file system answered
+   only the relative spelling, returned its default text, and `JSON.parse`
+   threw. The fake now compares resolved paths: 11 of 11.
+2. **Dead code** (`4550ebaa8`). `npm run deadcode` exit 1: two exports and
+   four exported types of `modelApiToolsEntry.ts` "in a used namespace".
+   The file is a deferred bundle's entry and was not listed in `knip.jsonc`,
+   where every sibling entry is, and it re-exported four types nobody reads
+   through it. The entry is listed and the four type re-exports are gone:
+   exit 0, and no file of `dist` changes.
+3. **Static analysis** (`08b7a7de8`). `npm run security:sast` exit 1: two
+   blocking `detect-non-literal-regexp` findings,
+   `scripts/gen-lazy-registry.mjs:103` and `scripts/lib/lazyRegistry.mjs:41`,
+   each building `\b<name>\b` from a constant's name scanned out of `src`.
+   Both now call `usesIdentifier(text, name)`, an `indexOf` search that
+   accepts a hit with no identifier character on either side; nothing is
+   suppressed. The answer differs from the old expression only beside a
+   dollar sign, which the old one took for a word boundary (`$FOO` counted
+   as a use of `FOO`, and a name holding `$` never matched). The generated
+   registry is unchanged (`gen-lazy-registry.mjs --check` exit 0).
+
+Drill for the test the third fix adds (`lazyBundleFiles.test.ts`, "reads a
+bundle-name constant only as a whole name, a dollar sign included"): with the
+check of the character after the name removed, the suite exits 1 (1 failed, 6
+passed, "expected true to be false"); restored, 7 of 7.
+
+### Runs on Kubuntu, three workers, exit codes
+
+On the tree of `8ea450f35` (the merge, the fake fix and the release text):
+`npm run build` 0 (156 size rows, none over); typecheck 0 (five projects);
+lint 0 (`lint:ps` is a reported skip off Windows); Prettier over the
+repository 0; cycles 0; duplication 0; `check:badges`, `check:tokens`,
+`check:l10n`, `check:reference`, `check:host-api`, `check:plan` and
+`check:roadmap` 0; `security:audit` 0; `security:secrets` 0 (4,988 commits);
+the packaging, bundle, report, release-text and usage suites, 77 files: 1,457
+passed, 0 failed; `test/e2e/execStdio.e2e.test.ts` 45 of 45. The suites that
+depend on the lane's sources (`vitest related`, 88 files): 4,398 passed and 1
+failed, `usageIntegration` at its 5,000 ms limit. That deadline is known and
+its cause is measured in a lane of its own (every usage read parsed the
+machine's real Muse Code trace logs again; lane USAGETRACE, `356ab216e`, not
+in this candidate); it was not run again here. `deadcode` 1 and
+`security:sast` 1 on that tree: reds 2 and 3 above.
+
+On the final code head `08b7a7de8` (tree `1263053cb`): `deadcode` 0;
+`security:sast` 0; typecheck 0; `npm run build` 0 with the line above; every
+one of the 268 files of `dist` has the SHA-256 it had on `8ea450f35`; the
+registry, bundle and packaging suites, 6 files: 275 of 275;
+`test/e2e/execStdio.e2e.test.ts` on the packed package 45 of 45.
+
+The packed agent package of that head: `muse-spark-code-acp-0.18.1.tgz`,
+2,490,546 B, 144 files, SHA-256
+`72fa54eac3730a1613c3dc01b967dc05edf5b25ca62a24a70230ec765f6493ff`.
+
+### Finding 4 of pull request 150's review: the complete gate
+
+The finding: four timeouts in an aggregate run and two files passing alone
+afterwards are not an exit-zero `npm run quality`. Agreed. Its answer was to
+be one complete local run on one quiet machine; that plan is withdrawn and the
+rule it cited is changed in this candidate (AGENTS.md, working rule 2, and
+CONTRIBUTING.md, "Before you open a pull request"): hosted CI is the gate for
+a release, every job green on the commit that merges, a red job read and its
+cause measured; local runs are for fast feedback; before a release, real
+conversations go through the packed product. The hosted full tier runs every
+gate the local aggregate runs, the visual render in six shards among them, on
+runners that carry nothing else, and its record is the run itself: the runs of
+this branch are listed at
+<https://github.com/RandyNorthrup/muse-spark-code/actions?query=branch%3Ahotfix%2F0.18.1-nopin>
+and the one that counts is the run on the pull request's final head.
+
+What the local attempts gave, as they were: one complete run was started on a
+clean checkout of `8ea450f35` on the Linux laptop at 7:38 AM PT and stopped
+at 7:49 AM PT, when red 2 changed the code head; it is recorded as stopped,
+not as passed, and none was started after it. One test fails on that laptop
+in a clean checkout of this branch,
+`test/unit/inspectNative.test.ts`, "B1 Linux kernel boundary > runs verified
+stat or refuses its unsupported thread requirement" (exit 1,
+`stat: {"confined":true,"abi":7,"excluded":0}`); the same file passes on
+Kubuntu on this tree (22 of 22), and this branch changes neither the test,
+its helpers nor the code it runs. Its cause is not measured here; a lane of
+its own has it, for `main`.
