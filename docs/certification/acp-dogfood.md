@@ -184,3 +184,125 @@ No full visual baseline comparison was completed; no visual styling changed.
 - `dist/headless.js`: 102132 bytes.
 - `dist/modelApi.js`: 533473 bytes.
 - `dist/extension.js`: 563567 bytes.
+
+## Round 2 — review RVACPDOG findings (2026-10-11, macmini lane ACPDOG)
+
+All eight findings (P1/P2/P3) fixed by class, each with a regression test
+that fails without it. No residuals. Commits `b2fbd09f5`, `a614dae4c`,
+`64ea77233`, `08131a3e9` on branch `fix/acp-dogfood`.
+
+### (a) Nothing submitted leaves through an error or a log
+
+One redactor: `respond()` in `src/acp/agent.ts` redacts every non-internal
+`RequestError` message with the request's own private text (code and data
+untouched); unexpected-error logs go through `requestFailureText` with the
+same text; all other log lines use `failureForLog`, which names only. The
+private text for `session/prompt` is `promptPrivateText`: text blocks, media
+`data`, image `uri`s, resource `uri`/`text`/`blob` bytes, and `resource_link`
+uris (the blob and link uri are new). `session/new`, `session/load` and
+`session/resume` pass the `cwd`. Path enumeration, each proved by a test:
+
+- failed-turn `RequestError(turnFailed, event.reason)` → redacted rethrow
+  (finding 1: `acpAgent.test.ts` "redacts the submitted prompt from a
+  failed turn reason"; benign reasons still pass, per "turns a failed turn
+  into an error with its reason").
+- `sendTurn` rejection echoing an embedded PNG blob → log holds no blob
+  bytes (finding 2: "keeps embedded resource bytes out of the
+  unexpected-error log", real 1x1 PNG).
+- `ModelApiError` / `RangeError` branches already redacted with the same
+  text; verified by existing suites (`acpDogfoodErrors`, `acpModelApi`).
+- `backendNotice` texts reviewed: hook result messages (the user's own
+  machine output to their own client), fixed budget/retry wording —
+  none echo the submitted prompt.
+- `redactDiagnosticEvent` covers credential patterns on the ModelApiHost
+  diagnostic path; prompt text there reaches the client only via the
+  settled failed-turn reason, which (a) covers.
+
+### (b) Usage is read once, in order
+
+`tokenUsage` no longer reads: `queueUsage` is replaced by `readUsage`, one
+bounded journal read per completed request in `promptResponse` (success and
+failure paths), never chained on the outbox. `UpdateTranslator`'s journal
+`readCost` seam is removed, so a `usage_update` cost is the turn's own
+running tally (which includes the request it describes), never the previous
+snapshot; the settled figures land in one `session_info_update` plus the
+response `_meta`. Tests: "reads the settled figures once, on completion,
+never per token event" (3 token events → 0 reads, tally cost, then exactly
+1 read with journal-exact `_meta`) and "delivers answers while a hung
+journal read is still outstanding" (chunk arrives with the journal gated).
+The obsolete during-turn snapshot test was rewritten to this contract, as
+was the `readCost` injection test in `usageRecordingAux.test.ts`.
+
+### (c) Known failures are named
+
+`respond()` maps `ResourceReadingError` to typed `unavailable`
+(`-32012`) naming the reading (`resources.settings: …unavailable…`,
+a "Label: detail" splice, no new l10n key), and reports it once through the
+deduplicated `resourceFailureReporter`. Test with the real
+`createRuntimeResourceHost` (first settings read ok, later reads failing):
+two `/resources status` prompts both return the named reason with exactly
+one warning and no error log (finding 5).
+
+### (d) Windows paths
+
+`confinedGlob` normalises root and glob with `normalWindowsPath`, exactly
+as `resolveWorkspacePath` does for plain paths, so a valid
+`\\?\C:\workspace\*.md` glob is in-workspace while another drive, UNC and
+junction escapes stay refused (finding 6: verbatim accept + search/list
+proofs). `pathRefusal` keeps the fixed shown sentence but carries the
+specific reason in `failureReason`, which the translator copies to the
+client's refusal reason; the glob guard names its glob too (finding 7:
+link-escape and verbatim-drive refusal proofs, updated
+`modelApiTools`/`modelApiHost`/`acpDogfoodPaths` expectations).
+
+### (e) Policy test vs guard
+
+PLAN (M101 P2 rows) confirms 1-hour-write settlement exists in
+`priceCard.ts`, so the code is right and the test was obsolete: it now
+expects the independently computed settlement (10 five-minute writes at
+`cacheWrite` + 10 one-hour writes at `cacheWrite1h` = `0.06`), keeping the
+reported-cost passthrough assertion (finding 8).
+
+### Round-2 red drills
+
+Each guard was broken in memory, the named test observed red at repository
+timeouts, and the file restored byte-exact (`sha256sum -c` clean, empty
+`git status`):
+
+| Finding | Broken guard                               | Named test red                                                       | Restored SHA-256                                                   |
+| ------- | ------------------------------------------ | -------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| 8       | `splitCacheWrites` oneHour → 0             | "settles one-hour writes…" (`'0.04'` vs `'0.06'`)                    | `516f2183db1ce7e61bbcf6bf1e15a51a7b1038262668f7ab9e3e1b052141b6e0` |
+| 6       | glob guard without verbatim normalisation  | "accepts a valid Windows verbatim glob…" (`'outside the workspace'`) | `cceb78676c06f6cce174d66a7e543f9eb6974b1a1acc0a269d96e8eaf9d95eb0` |
+| 7       | `pathRefusal` back to the generic sentence | "makes the file tools refuse a linked escape…" (no `through a link`) | same tools hash                                                    |
+| 7       | glob reason back to the bare sentence      | verbatim-drive refusal naming                                        | same tools hash                                                    |
+| 5       | `ResourceReadingError` branch disabled     | "reaches the client as the named reading…" (got `-32603`/generic)    | `73bf7c6f60ccc6197370cae7925a83e1cac09e2b3432d03b71c05ca1dd040109` |
+| 1       | `RequestError` rethrown as-is              | "redacts the submitted prompt…" (sentinel in message)                | same agent hash                                                    |
+| 2       | blob dropped from private text             | "keeps embedded resource bytes…" (PNG base64 in log)                 | same agent hash                                                    |
+| 3+4     | a read per token event re-added            | "reads the settled figures once…" (3 reads, not 0)                   | same agent hash                                                    |
+
+The finding 4 stall test additionally passes with the fix; the old code's
+queue-behind-read shape is gone (`readUsage`/`tokenUsage` hold no outbox
+reference), so there is nothing left to stall behind.
+
+### Round-2 verification
+
+Focused suites green at repository timeouts, `--maxWorkers=3`: modelPolicy
+14, modelApiTools 78, acpDogfoodPaths 3, acpDogfoodResources 2,
+acpDogfoodAccounting 4, acpAgent 146 (+1 pre-existing ChatGPT failure, also
+red on pristine `5121bacf1`, and 1 load-flake reviewer failure that passes
+solo), acpTranslate/usageRecordingAux/modelApiArgumentPreview/toolArgumentPreview
+green, modelApiHost 669 + the same solo-green reviewer test. All 58 test
+files importing the three changed source modules were run: every file green
+except `acpDogfoodLoopback.test.ts`, which this sandbox cannot run
+(`listen EPERM` on 127.0.0.1 — lead to run outside the sandbox). Host and
+unit typechecks clean; changed-file ESLint/Prettier clean; `check:l10n`
+0 problems (no new keys). The review appendix's remaining 261 suites do not
+import the changed modules and were not run here.
+
+Bundle bytes (fresh `npm run build`): `dist/acp.js` 259470 (unchanged),
+`dist/modelApi.js` **533619** — +146 B over the review's 533473, all of it
+this round's required guard code (verbatim normalisation, specific glob
+reason; comments strip out). The release pin 532537 and the diet gate
+530883 were already red at the base (2590 over); they stay red (+146).
+No cap was raised and no code was moved to another bundle to hide it; the
+bytes cannot come out without removing the fixes themselves.
