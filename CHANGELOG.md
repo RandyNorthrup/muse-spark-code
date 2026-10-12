@@ -25,6 +25,15 @@ happened, not what was planned; superseded entries are kept.
   preserve concurrent key rotation/removal and never rewrite a reused key.
 - Key usage clears on missing, unreadable, changed or failed observations;
   new total and weekly amounts use the existing exact-dollar boundary.
+- Terminal Connect is one locked transaction: rollback never runs after the
+  lock is released, so it cannot overwrite an independent rotation or bring
+  back a removed key; a crashed Connect is reported and cleaned on the next
+  start, and a refusing credential store still yields both the connection
+  result and the created-key removal notice.
+- Usage budgets follow the stored credential: rotated or removed keys'
+  numbers disappear from the usage page and CLI, and no wire object or string
+  can forge an exact usage amount. Malformed loopback requests are refused
+  without endangering the listener.
 
 ### Added
 
