@@ -13,7 +13,7 @@ import path from 'node:path'
 import { afterEach, expect, it } from 'vitest'
 import { LAZY_BUNDLES } from '../../src/shared/lazyBundles.generated'
 import { DEFERRED_OUTFILES } from '../../scripts/lib/deferredBundles.mjs'
-import { resolveRequest, scanRequests, usesIdentifier } from '../../scripts/lib/lazyRegistry.mjs'
+import { resolveRequest, scanRequests, hasIdentifier } from '../../scripts/lib/lazyRegistry.mjs'
 import { removeFolder } from './helpers/temporaryFolders'
 
 const root = process.cwd()
@@ -137,14 +137,14 @@ it('catches the shapes the old scan skipped (P2-2 a, b, c)', () => {
 // The 0.18.1 candidate's static-analysis red: the scan built an expression
 // from each scanned constant's name. It now searches for the name as text.
 it('reads a bundle-name constant only as a whole name, a dollar sign included', () => {
-  expect(usesIdentifier('FOO_FILE', 'FOO_FILE')).toBe(true)
-  expect(usesIdentifier('load(distDir, FOO_FILE)', 'FOO_FILE')).toBe(true)
-  expect(usesIdentifier('load(FOO_FILES, FOO_FILE)', 'FOO_FILE')).toBe(true)
-  expect(usesIdentifier('load(MY_FOO_FILE)', 'FOO_FILE')).toBe(false)
-  expect(usesIdentifier('load(FOO_FILES)', 'FOO_FILE')).toBe(false)
-  expect(usesIdentifier('load($FOO_FILE)', 'FOO_FILE')).toBe(false)
-  expect(usesIdentifier('load(FOO_FILE$)', 'FOO_FILE')).toBe(false)
-  expect(usesIdentifier('load(FOO_FILE)', '')).toBe(false)
+  expect(hasIdentifier('FOO_FILE', 'FOO_FILE')).toBe(true)
+  expect(hasIdentifier('load(distDir, FOO_FILE)', 'FOO_FILE')).toBe(true)
+  expect(hasIdentifier('load(FOO_FILES, FOO_FILE)', 'FOO_FILE')).toBe(true)
+  expect(hasIdentifier('load(MY_FOO_FILE)', 'FOO_FILE')).toBe(false)
+  expect(hasIdentifier('load(FOO_FILES)', 'FOO_FILE')).toBe(false)
+  expect(hasIdentifier('load($FOO_FILE)', 'FOO_FILE')).toBe(false)
+  expect(hasIdentifier('load(FOO_FILE$)', 'FOO_FILE')).toBe(false)
+  expect(hasIdentifier('load(FOO_FILE)', '')).toBe(false)
   const folder = fixtureTree({
     'names.ts': "export const $ROGUE_FILE = 'rogue.js'\n",
     'loader.ts':
