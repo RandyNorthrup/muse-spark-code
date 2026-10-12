@@ -1010,7 +1010,6 @@ export class RequestTransport {
       const dispatch = () => {
         admitAttempt?.check?.()
         assertScheduleAuthority()
-        init.paid?.claim.check(Usd.from(0).toAmount())
         noteConfirmedRequestStarted(confirmed, admitAttempt)
         if (init.paid !== undefined) {
           init.paid.isSent = true

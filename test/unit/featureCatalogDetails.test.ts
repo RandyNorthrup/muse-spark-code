@@ -83,7 +83,7 @@ describe('feature catalogue details merge', () => {
     expect(keys).toContain('scheduledMediaSupport')
     expect(EN.scheduledMediaSupport).toContain('unsupported in this version')
   })
-  it.each(['schedules', 'scheduleDefaultDelivery', 'scheduleAgentCreation'])(
+  it.each(['schedules', 'scheduleDefaultDelivery'])(
     'conditions %s unattended/default/grant claims on certified delivery',
     (setting) => {
       const entry = referenceModel().settings.find((row) => row.id === `museSpark.${setting}`)
@@ -93,4 +93,13 @@ describe('feature catalogue details merge', () => {
       })
     },
   )
+  it('keeps scheduleAgentCreation out of the published reference while it is held', () => {
+    // The release line publishes dormant-feature settings nowhere until their
+    // owner binds them (WB-013: agent creation has no installed setting
+    // reader). The switch restores delivery routes, not held settings.
+    const entry = referenceModel().settings.find(
+      (row) => row.id === 'museSpark.scheduleAgentCreation',
+    )
+    expect(entry).toBeUndefined()
+  })
 })

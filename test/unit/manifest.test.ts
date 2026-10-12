@@ -389,11 +389,11 @@ describe('package.json manifest', () => {
       [COMMAND_IDS.attachLatestScreenRecording]: `activeWebviewPanelId == '${CHAT_PANEL_VIEW_TYPE}' || view.${CHAT_VIEW_ID}.visible`,
       // Deletes the conversation in front of the user's uploaded media (M105).
       [COMMAND_IDS.deleteUploadedFiles]: `activeWebviewPanelId == '${CHAT_PANEL_VIEW_TYPE}' || view.${CHAT_VIEW_ID}.visible`,
-      // C-X-1: no runtime owner is bound for these yet, so the palette never
-      // lists them; each command's shim refuses when it is run another way.
-      [COMMAND_IDS.schedulePrompt]: 'false',
-      [COMMAND_IDS.showSchedules]: 'false',
-      [COMMAND_IDS.showScheduleTimeline]: 'false',
+      // Scheduled delivery restores through one certification switch, so the
+      // palette lists these only after the lead qualifies delivery.
+      [COMMAND_IDS.schedulePrompt]: CONTEXT_KEYS.scheduleDeliveryCertified,
+      [COMMAND_IDS.showSchedules]: CONTEXT_KEYS.scheduleDeliveryCertified,
+      [COMMAND_IDS.showScheduleTimeline]: CONTEXT_KEYS.scheduleDeliveryCertified,
       [COMMAND_IDS.vault]: 'false',
       [COMMAND_IDS.lockVault]: 'false',
       [COMMAND_IDS.estimate]: 'false',
