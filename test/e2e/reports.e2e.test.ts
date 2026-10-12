@@ -419,7 +419,7 @@ describe('session and usage report kinds over real journals', () => {
     expect(result.code).toBe(0)
     expect(result.stdout).toContain('E2E Primary')
     expect(result.stdout).toContain('spendUsd/day')
-    expect(result.stdout).toContain('Unavailable account details: usage, swaps, confirmations.')
+    expect(result.stdout).toContain('Unavailable account details: Usage, Swaps, Confirmations.')
   })
 
   it('reports the developer audit end to end with a locked vault', async () => {
