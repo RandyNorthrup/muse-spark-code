@@ -39,10 +39,12 @@ describe('loadToolImage (M43)', () => {
     const files = io({ '/etc/x.png': PNG, '/work/out.png': PNG }, { '/work/out.png': '/etc/x.png' })
     await expect(loadToolImage('../etc/x.png', ROOT, 'linux', files)).resolves.toEqual({
       ok: false,
+      code: 'outside_workspace',
       reason: 'path ../etc/x.png is outside the workspace',
     })
     await expect(loadToolImage('out.png', ROOT, 'linux', files)).resolves.toEqual({
       ok: false,
+      code: 'outside_workspace',
       reason: 'path out.png leads outside the workspace through a link',
     })
     expect(files.reads).toEqual([])
