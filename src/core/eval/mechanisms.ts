@@ -4,7 +4,6 @@
 // without gaining any additional arm execution permissions.
 
 import { createHash } from 'node:crypto'
-import { MissingEvalAdmissionError } from '../paid/paidConsent'
 import {
   EVAL_APPROVAL_MODE,
   MODEL_API_CONTEXT_WINDOW,
@@ -110,6 +109,27 @@ const armOptionsSchema = z.strictObject({
   ),
 })
 
+const EVAL_ADMISSION_ERROR_NAME = 'MissingEvalAdmissionError'
+
+/**
+ * The frozen evaluation arm ran without the admission its parent binds.
+ * Harness-only: the shipped bundles carry none of this marker (bundle
+ * diet pin), so the turn's driver — not the product — owns the fail-closed
+ * verdict below. The arm fails closed, never as a normal turn that proves
+ * nothing (M101 lane E R2).
+ */
+export class MissingEvalAdmissionError extends Error {
+  public constructor(message: string) {
+    super(message)
+    this.name = EVAL_ADMISSION_ERROR_NAME
+  }
+}
+
+/** The frozen arm and the driver may carry separate copies of the class. */
+export function isMissingEvalAdmissionError(error: unknown): error is MissingEvalAdmissionError {
+  return error instanceof Error && error.name === EVAL_ADMISSION_ERROR_NAME
+}
+
 /** Execute the frozen snapshot, validate the child boundary, then adapt its data. */
 export function frozenBundleChange(bundle: ArmBundle): EvalHostChange {
   const options = armOptionsSchema.parse(executeArmBundle(bundle))
@@ -130,7 +150,7 @@ export function frozenBundleChange(bundle: ArmBundle): EvalHostChange {
       // the parent's real D78 admission, never a double built here. Without
       // one the arm fails closed with its reason, instead of compacting
       // for free or running uncompacted as if that were the mechanism
-      // (the host rethrows this marker, so the turn fails).
+      // (the turn's driver records this marker, so the turn fails).
       admitAutoCompaction: (request) => {
         const parent = deps.admitAutoCompaction
         if (parent === undefined)

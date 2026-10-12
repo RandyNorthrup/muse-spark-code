@@ -5,25 +5,6 @@ export {
   isAutoCompactionNotAuthorizedError,
 } from './autoCompactionError'
 
-const EVAL_ADMISSION_MISSING = 'MissingEvalAdmissionError'
-
-/**
- * The frozen evaluation arm ran without the admission its parent binds.
- * The host rethrows this instead of continuing uncompacted: the arm fails
- * closed, never as a normal turn that proves nothing (M101 lane E R2).
- */
-export class MissingEvalAdmissionError extends Error {
-  public constructor(message: string) {
-    super(message)
-    this.name = EVAL_ADMISSION_MISSING
-  }
-}
-
-/** The frozen arm and the host may carry separate copies of the class. */
-export function isMissingEvalAdmissionError(error: unknown): error is MissingEvalAdmissionError {
-  return error instanceof Error && error.name === EVAL_ADMISSION_MISSING
-}
-
 // Asking before each paid use (M58, PLAN.md D48). The owner (2026-09-27):
 // "anything requiring extra payment should promt you with a popup that asks
 // allow once allow always in this workspace or deny".

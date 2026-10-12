@@ -39,6 +39,7 @@ import {
 } from '../../shared/constants'
 import type { ApprovalMode } from '../../shared/permissionModes'
 import { EVAL_HELD_DEPS } from './heldDeps'
+import { isMissingEvalAdmissionError } from './mechanisms'
 import type { EvalBudget } from './wire'
 
 /** A mechanism: the change it makes to the harness's dependencies. */
@@ -307,6 +308,10 @@ export async function runEvalTurn(options: EvalTurnOptions): Promise<EvalTurnOut
   const finished: TurnCompleted[] = []
   let packedTokensAvoided: number | undefined
   let wake: (() => void) | undefined
+  // The frozen arm's missing-admission marker, when the turn's admission
+  // threw it: the shipped host carries none of this marker (bundle diet
+  // pin), so the driver fails the turn closed below instead of the product.
+  let missingAdmission: Error | undefined
 
   const hostDeps: ModelApiHostDeps = {
     client: deps.client,
@@ -384,6 +389,23 @@ export async function runEvalTurn(options: EvalTurnOptions): Promise<EvalTurnOut
       ? hostDeps
       : bindEvalAdmission(hostDeps, deps.admission, deps.log, () => armedRef.current)
   armedRef.current = applyChange(withAdmission, options.change)
+  // Watch the armed admission for the frozen arm's marker: the wrapper
+  // rethrows it untouched, so the host sees the identical error, while the
+  // driver learns whether the turn ran without its parent's admission.
+  const admit = armedRef.current.admitAutoCompaction
+  if (admit !== undefined) {
+    armedRef.current = {
+      ...armedRef.current,
+      admitAutoCompaction: async (request) => {
+        try {
+          return await admit(request)
+        } catch (error: unknown) {
+          if (isMissingEvalAdmissionError(error)) missingAdmission = error
+          throw error
+        }
+      },
+    }
+  }
   const host = new ModelApiHost(armedRef.current)
   try {
     const session = await host.startSession({
@@ -449,9 +471,16 @@ export async function runEvalTurn(options: EvalTurnOptions): Promise<EvalTurnOut
       await session.cancel()
     }
     const calls = items.filter((item) => item.turnId === turnId && item.kind === 'toolCall')
+    // Fail closed: the arm ran without its parent's admission. When the
+    // turn already failed its reason stands; otherwise the driver fails it
+    // here with the marker's reason, so the run never passes as if
+    // uncompacted were the mechanism.
+    const terminal = turn?.terminal ?? EVAL_TURN_TIMED_OUT
+    const failure =
+      missingAdmission !== undefined && terminal !== 'failed' ? missingAdmission : undefined
     return {
-      terminal: turn?.terminal ?? EVAL_TURN_TIMED_OUT,
-      reason: turn?.reason,
+      terminal: failure === undefined ? terminal : 'failed',
+      reason: failure?.message ?? turn?.reason,
       tools: calls.map((item) => item.tool ?? item.kind),
       ...counts,
       // A copy: a card answered after the turn cannot change the outcome.

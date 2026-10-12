@@ -171,8 +171,9 @@ describe('the frozen auto-compaction change', () => {
     const task = EVAL_TASKS.find((candidate) => candidate.id === 'accept-long-compaction')
     expect(task).toBeDefined()
     if (task === undefined) throw new Error('the long-context task is missing')
-    // No admission bound: the host must rethrow the frozen arm's marker
-    // instead of continuing uncompacted as if that were the mechanism.
+    // No admission bound: the driver fails the turn on the frozen arm's
+    // marker instead of letting it continue uncompacted as if that were
+    // the mechanism.
     const { outcome } = await driveEvalTurn({
       replies: compactionArmReplies(task),
       files: Object.fromEntries(task.files.map((file) => [file.path, file.content])),
