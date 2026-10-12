@@ -1169,6 +1169,7 @@ describe('RVHELPREF2 runtime truth regressions', () => {
       output: 'json',
       'max-budget-usd': '1',
       'max-requests': '2',
+      'max-output-tokens': '1024',
       timeout: '10',
       'resource-governor': 'on',
       'cpu-max': '85',
@@ -1226,10 +1227,10 @@ describe('RVHELPREF2 runtime truth regressions', () => {
         const parsed = source.parseCommandLine(args)
         let expected = route
         if (isRefusedSlot || row.contract.refused === true) expected = 'invalid'
-        else if (name === 'help' && route !== 'estimate') expected = 'help'
+        else if (name === 'help') expected = 'help'
         else if (name === 'version') expected = 'version'
         expect(parsed.command, `${route}: --${name}: ${parsed.reason ?? ''}`).toBe(expected)
-        if (route === 'estimate') {
+        if (route === 'estimate' && parsed.command === 'estimate') {
           // The outer dispatcher delegates this route; its own parser validates all flags.
           expect(parsed.argv).toEqual(args.slice(1))
           expect(parseEstimateOptions(parsed.argv).kind).toBe(name === 'help' ? 'help' : 'estimate')

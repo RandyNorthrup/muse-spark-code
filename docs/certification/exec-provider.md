@@ -217,3 +217,17 @@ publication/settlement fault points. Before first publication, seed/history and
 credential/pacing awaits have no handed-out reservation; damaged legacy intents
 still fail closed. A kill after send intent cannot prove the provider saw nothing,
 so recovery preserves the full liability, even without a response receipt.
+
+## Round 2 D/F: complete terminal help routes
+
+The public command table now enumerates deep CLI invocations, including account,
+schedule background, report kinds/history, developer, vault, playbook and prompt
+commands. commandHelp walks the entire table, so a new route with no useful local
+help fails. Seven new cases failed on prior bytes (help-red.log). Prompt help's
+old sharingHelp call actually printed editor command IDs; the CLI now renders
+terminal syntax and its installed-language privacy sentence. Every route ends
+with --help. Auth help lists its own provider/account flags. The dependency
+reference test's missing --max-output-tokens sample is updated to the existing
+single-cap contract; estimate --help now follows the shared command-local help
+route in its reference oracle. Final commandHelp/cliUsage/referenceGenerator:
+173/173, default timeout, three workers. No gate or assertion is weakened.
