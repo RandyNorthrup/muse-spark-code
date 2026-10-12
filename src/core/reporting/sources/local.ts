@@ -1,6 +1,10 @@
 import type { UiText } from '../../../shared/l10n/en'
 import { createHash } from 'node:crypto'
-import { ACP_WORKSPACE_HASH_CHARS, REPORT_SOURCE_TIMEOUT_MS } from '../../../shared/constants'
+import {
+  ACP_WORKSPACE_HASH_CHARS,
+  REPORT_SOURCE_SETTLE_MS,
+  REPORT_SOURCE_TIMEOUT_MS,
+} from '../../../shared/constants'
 import { pathModule } from '../../workspaceRoot'
 import { reportSourceSchema } from '../../../shared/reportSchema'
 import type { ReportSourceRecord } from '../../../shared/reportSchema'
@@ -80,6 +84,12 @@ export function sourceReason(code: LocalFailure, reportText: UiText): string {
   return code === 'busy' ? reportText.teamHostBusy : reportText.reportSourceReasons[code]
 }
 
+/** A late settlement the bounded wait has moved past stays silent. */
+function ignoreSettlement(): void {
+  // The outcome below is owned by the bounded settle wait; a rejection that
+  // lands after it moved on must never surface as unhandled.
+}
+
 /**
  * Partial reasons are a set of sentences: a reason already present is never
  * appended again (RVCM1132C finding 5). Entries may themselves be joined
@@ -138,15 +148,24 @@ export function localSource<K extends ReportSourceKind>(
       // an abort settles the read instead of abandoning it mid-flight: after
       // an abort the signal stays aborted and no further read, write or
       // publish the source starts can succeed.
-      const budget = Math.max(
-        0,
-        (context.deadline ?? Date.now() + REPORT_SOURCE_TIMEOUT_MS) - Date.now(),
-      )
-      const timeout = AbortSignal.timeout(budget)
-      const signal = AbortSignal.any([context.signal, timeout])
+      const startedAt = Date.now()
+      const deadlineMs = context.deadline ?? startedAt + REPORT_SOURCE_TIMEOUT_MS
+      let signal: AbortSignal = context.signal
       let stopTimeout: (() => void) | undefined
+      let stopGrace: (() => void) | undefined
       try {
+        // An already-expired deadline starts nothing: this check is
+        // synchronous, never reliant on a zero-millisecond timeout aborting
+        // in time (RVREPORTJOIN P2-3).
+        context.signal.throwIfAborted()
+        if (deadlineMs <= startedAt) throw new LocalSourceError('cancelled')
+        const timeout = AbortSignal.timeout(Math.max(0, deadlineMs - Date.now()))
+        signal = AbortSignal.any([context.signal, timeout])
         signal.throwIfAborted()
+        const pending = read({ ...context, signal })
+        // A settlement that lands after the bounded wait below has moved on
+        // must never surface as an unhandled rejection.
+        void pending.then(ignoreSettlement).catch(ignoreSettlement)
         // The race is against the handed deadline only, never the abort: a
         // cancelled cooperative read still settles through its own shutdown
         // instead of being abandoned mid-flight, while a reader that ignores
@@ -163,7 +182,44 @@ export function localSource<K extends ReportSourceKind>(
             }
           }
         })
-        const result = await Promise.race([read({ ...context, signal }), expired])
+        let result: LocalObservation<ReportSourcePayloads[K]>
+        try {
+          result = await Promise.race([pending, expired])
+        } catch (error) {
+          if (!timeout.aborted) throw error
+          // The handed deadline fired while the read was in flight: the
+          // abort is already on the read's signal, so a cooperative reader
+          // settles promptly. Wait for that settlement, bounded by the
+          // settle grace, instead of returning while it still runs
+          // (RVREPORTJOIN P2-3).
+          const grace = AbortSignal.timeout(REPORT_SOURCE_SETTLE_MS)
+          const settled = new Promise<void>((resolve, reject) => {
+            const fire = (): void => {
+              reject(new LocalSourceError('cancelled'))
+            }
+            if (grace.aborted) fire()
+            else {
+              grace.addEventListener('abort', fire, { once: true })
+              stopGrace = () => {
+                grace.removeEventListener('abort', fire)
+              }
+            }
+            void pending
+              .then(function readSettled(): void {
+                resolve()
+              })
+              .catch(function readFailed(): void {
+                resolve()
+              })
+          })
+          try {
+            await settled
+          } catch {
+            // The grace expired while a wedged reader still runs: the outcome
+            // stays cancellation, and the late settlement stays silent above.
+          }
+          throw error
+        }
         signal.throwIfAborted()
         const observedAt = result.observedAt ?? context.asOf
         const freshness = sourceFreshness(context.asOf, observedAt)
@@ -200,6 +256,7 @@ export function localSource<K extends ReportSourceKind>(
         }
       } finally {
         stopTimeout?.()
+        stopGrace?.()
       }
     },
   }
