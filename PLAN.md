@@ -40287,9 +40287,22 @@ Unresolved items remain delivery/security gaps, not accepted legal conclusions:
 
 ## 10. Definition of done and release records
 
+**2026-10-11 identity rewrite (main, 11:00 PM PT, owner's order).** Two commits
+on main (`2614ed56f`, `a1103c3f0`) ended with
+`Co-Authored-By: Muse Code <noreply@users.noreply.github.com>`, a line a lane
+invented; on GitHub that address belongs to a stranger's account, which then
+appeared under Contributors. Both messages now end
+`Co-Authored-By: Muse Spark (contributor) via Muse Code`. 65 commits on main
+have new ids, 63 of them only through their parent lines; every tree is
+byte-identical, so every gate result stands. main moved from `be6eaefbe` to
+`f8435aaac` and tag `v0.18.0` moved with it; `v0.17.2` and everything before
+it are unchanged. Records written before this one cite the old ids; the
+old-to-new map is `docs/certification/identity-rewrite-2026-10-11.md`.
+
 **0.18.1 preparation (2026-10-11, release branch).** `release/0.18.1` is cut from
-the release train `int/train-1011` at `a2e014121` and carries the extension
-version 0.18.1 and the dated `CHANGELOG.md` `[0.18.1]` section: the chat
+the release train `int/train-1011` at `07f7aa69f` (`a2e014121` before the
+identity rewrite) and carries the extension version 0.18.1 and the dated
+`CHANGELOG.md` `[0.18.1]` section: the chat
 panel's landing screen shows the product's own mark instead of the Meta logo
 (`docs/certification/panelmark.md`; review RVPANELMARKC without a finding).
 One Highlight. The mark is blue in dark and light themes and takes the
@@ -40303,7 +40316,7 @@ latch; it went back to its lane. This is preparation, not publication; the
 public roadmap (M122) lists 0.18.1 as the next release until a
 `0.18.1 released (…)` record follows here.
 
-**0.18.0 released (2026-10-11, tag `v0.18.0` on main's release merge `be6eaefbe`, PR #149, release run 38206002231).**
+**0.18.0 released (2026-10-11, tag `v0.18.0` on main's release merge `f8435aaac` (`be6eaefbe` before the identity rewrite), PR #149, release run 38206002231).**
 The Release run succeeded on its first attempt and ended on 2026-10-11 at
 10:12 PM PT, when every channel was verified. Recorded by the 0.18.1
 preparation.
