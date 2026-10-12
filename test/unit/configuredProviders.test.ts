@@ -645,7 +645,15 @@ describe('configured provider production transport', () => {
           confirmed,
         ),
       ),
-    ).rejects.toThrow(UI_TEXT.modelsPanelUnavailable)
+    ).rejects.toThrow(
+      // A rotated credential invalidates the confirmation (its keyDigest is
+      // stale), so the dispatch refuses with the specific confirmation-expired
+      // refusal — preserved across clients as a trusted local refusal — rather
+      // than the generic unavailable error. No request is sent either way.
+      condition === 'credential rotation'
+        ? UI_TEXT.scheduleConfirmationExpired
+        : UI_TEXT.modelsPanelUnavailable,
+    )
     expect(send).toHaveBeenCalledTimes(['redirect', 'echoed error'].includes(condition) ? 1 : 0)
     expect(services.client.readPlanUsage?.()).toHaveLength(
       ['redirect', 'echoed error'].includes(condition) ? 1 : 0,
