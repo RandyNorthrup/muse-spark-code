@@ -99,6 +99,13 @@
       "owner": "C-M108-7 / C-M126-INT; registry absent from this branch",
       "file": "src/shared/settingsAvailability.ts",
       "optional": true
+    },
+    {
+      "id": "WB-175",
+      "kind": "text",
+      "file": "CHANGELOG.md",
+      "held": "No editor bills another\n  account interactively yet (headless `exec --account` keeps its explicit\n  paid flags and hard budget), so nothing changes until per-request account\n  selection lands. Help says so in all fourteen languages.",
+      "restored": "Native Meta VS Code and ACP bind this consent at request boundaries;\n  headless keeps its explicit paid flags and hard budget. Other-provider billing\n  joins remain pending. Help states the native Meta scope in all fourteen languages."
     }
   ]
 }

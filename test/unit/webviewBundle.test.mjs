@@ -133,12 +133,27 @@ function sizeFixture(sharedBytes) {
     }),
   )
   writeFileSync(path.join(built.fixture, 'dist/webview/models-body.js'), '')
+  writeFileSync(path.join(built.fixture, 'dist/webview/model-import.js'), '')
+  writeFileSync(path.join(built.fixture, 'dist/webview/model-accounts-loader.js'), '')
+  writeFileSync(path.join(built.fixture, 'dist/webview/model-accounts-body.js'), '')
   writeFileSync(
     path.join(built.fixture, 'dist/meta/modelsWebview.json'),
     JSON.stringify({
       outputs: {
         'dist/webview/models.js': { imports: [] },
         'dist/webview/models-body.js': { imports: [], entryPoint: 'src/webview/models/panel.tsx' },
+        'dist/webview/model-import.js': {
+          imports: [],
+          entryPoint: 'src/webview/models/ImportPane.tsx',
+        },
+        'dist/webview/model-accounts-loader.js': {
+          imports: [],
+          entryPoint: 'src/webview/models/ModelAccounts.tsx',
+        },
+        'dist/webview/model-accounts-body.js': {
+          imports: [],
+          entryPoint: 'src/webview/models/sections/accounts/AccountsSurface.tsx',
+        },
       },
     }),
   )

@@ -37,6 +37,7 @@
     "src/host/providers/accountSecrets.ts",
     "src/host/providers/editorAccounts.ts",
     "src/runtime/backends.ts",
+    "src/runtime/cliOptions.ts",
     "src/runtime/dailyBudgetSetting.ts",
     "src/runtime/exec/runExec.ts",
     "src/runtime/main.ts",
@@ -56,12 +57,15 @@
     "src/shared/modelAccountsProtocol.ts",
     "src/shared/modelAccountsRoute.ts",
     "src/shared/reference/reference.generated.ts",
+    "src/shared/reference/referenceSource.ts",
     "src/webview/hostBridge.ts",
+    "src/webview/models/ImportPane.tsx",
     "src/webview/models/ModelAccounts.tsx",
+    "src/webview/models/ProvidersSection.tsx",
     "src/webview/models/panel.tsx",
     "src/webview/models/sections/accounts/AccountsSurface.tsx"
   ],
-  "dependentSuites": 1148,
+  "dependentSuites": 319,
   "relatedRuns": [
     {
       "command": [
@@ -1665,21 +1669,10 @@
     "test/unit/writeRecorderCaps.test.ts"
   ],
   "browserOrLiveBlocked": [
-    "test/e2e/estimator.e2e.test.ts",
     "test/e2e/eval.live.e2e.test.ts",
     "test/e2e/modelApi.live.e2e.test.ts",
-    "test/e2e/reviewer.live.e2e.test.ts",
     "test/e2e/tab.live.e2e.test.ts",
-    "test/unit/accountsPanel.a11y.test.mjs",
-    "test/unit/companionBrowser.test.ts",
-    "test/unit/companionMediaBrowser.test.mjs",
-    "test/unit/m114ConversationReview.test.mjs",
-    "test/unit/resourceHarness.test.mjs",
-    "test/unit/resourceHistoryHarness.test.mjs",
-    "test/unit/teamHarness.test.mjs",
-    "test/unit/usageCompanionChunks.test.ts",
-    "test/unit/visualCapture.test.mjs",
-    "test/unit/visualStability.test.mjs"
+    "test/unit/accountsPanel.a11y.test.mjs"
   ],
   "otherRequiredNotRun": [
     "npm run check:visual",
@@ -2622,6 +2615,2562 @@
         "test/e2e/tab.live.e2e.test.ts",
         "test/unit/accountsPanel.a11y.test.mjs"
       ]
+    },
+    "dependentRuns": {
+      "machine": "macbook",
+      "config": "vitest.config.ts unchanged; maxWorkers=3; default test/hook timeouts",
+      "selection": "Vitest related, plus identifier-owning hub and changed-script suites",
+      "blocked": [
+        "test/e2e/eval.live.e2e.test.ts",
+        "test/e2e/modelApi.live.e2e.test.ts",
+        "test/e2e/tab.live.e2e.test.ts",
+        "test/unit/accountsPanel.a11y.test.mjs"
+      ],
+      "sources": [
+        "src/acp/accountText.ts",
+        "src/acp/accounts.ts",
+        "src/acp/agent.ts",
+        "src/core/accounts/pool.ts",
+        "src/core/providers/configured.ts",
+        "src/core/providers/subscriptions/registry.ts",
+        "src/extension.ts",
+        "src/host/models/modelsPanel.ts",
+        "src/host/models/modelsPanelEntry.ts",
+        "src/host/providers/editorAccounts.ts",
+        "src/runtime/cliOptions.ts",
+        "src/runtime/providers/accountRequestJournal.ts",
+        "src/runtime/providers/accountRequestOwner.ts",
+        "src/runtime/providers/accountsBundle.ts",
+        "src/runtime/providers/accountsEntry.ts",
+        "src/runtime/providers/runtimeServices.ts",
+        "src/shared/modelAccountsProtocol.ts",
+        "src/shared/modelAccountsRoute.ts",
+        "src/shared/reference/referenceSource.ts",
+        "src/webview/hostBridge.ts",
+        "src/webview/models/ImportPane.tsx",
+        "src/webview/models/ModelAccounts.tsx",
+        "src/webview/models/ProvidersSection.tsx",
+        "src/webview/models/panel.tsx",
+        "src/webview/models/sections/accounts/AccountsSurface.tsx",
+        "src/acp/paid.ts",
+        "src/core/accounts/requestWriter.ts",
+        "src/core/accounts/thresholds.ts",
+        "src/core/backends/modelapi/ModelApiHost.ts",
+        "src/core/backends/modelapi/client.ts",
+        "src/core/backends/modelapi/modelPolicy.ts",
+        "src/core/backends/modelapi/schedulesEntry.ts",
+        "src/core/backends/modelapi/sessionStore.ts",
+        "src/core/backends/modelapi/transport.ts",
+        "src/core/backends/musecode/accountHomes.ts",
+        "src/core/bestOfN/bestOfNRunner.ts",
+        "src/core/paid/accountPaidConsent.ts",
+        "src/core/paid/accountPaidRoute.ts",
+        "src/core/paid/paidConsent.ts",
+        "src/core/providers/accountCredentialRecord.ts",
+        "src/core/providers/accounts.ts",
+        "src/core/usage/accountUsageText.ts",
+        "src/host/backend/modelApiBackendManager.ts",
+        "src/host/backend/modelApiBundle.ts",
+        "src/host/backend/modelApiEntry.ts",
+        "src/host/bestOfN/bestOfNManager.ts",
+        "src/host/paid/accountPaidEntry.ts",
+        "src/host/paid/accountPaidFiles.ts",
+        "src/host/paid/paidHost.ts",
+        "src/host/providers/accountSecrets.ts",
+        "src/runtime/backends.ts",
+        "src/runtime/dailyBudgetSetting.ts",
+        "src/runtime/exec/runExec.ts",
+        "src/runtime/main.ts",
+        "src/runtime/paidGrants.ts",
+        "src/runtime/providers/providersFileStore.ts",
+        "src/runtime/runtimeAccountingEntry.ts",
+        "src/shared/accounts.ts"
+      ],
+      "hubs": [
+        "src/runtime/reference.node.generated.ts",
+        "src/shared/constants.ts",
+        "src/shared/featureCatalog.ts",
+        "src/shared/l10n/en.ts",
+        "src/shared/reference/reference.generated.ts"
+      ],
+      "batches": [
+        {
+          "files": ["test/unit/webviewBundle.test.mjs"],
+          "seconds": 68.972,
+          "results": [
+            {
+              "file": "test/unit/webviewBundle.test.mjs",
+              "state": "fail",
+              "passed": 55,
+              "failed": 2,
+              "skipped": 0,
+              "failures": [
+                {
+                  "name": "enforces the question closure cap independently of the full legacy deferred group",
+                  "errors": [
+                    "ok   dist/reporting.js: 0.0 KiB (budget 175 KiB)\nok   dist/reportingNetwork.js: 0.0 KiB (budget 75 KiB)\nok   dist/reportingDestinations.js: 0.0 KiB (budget 75 KiB)\nok   dist/reportingPanel.js: 0.0 KiB (budget 50 KiB)\nok   dist/acpQuestions.js: 0.0 KiB (budget 25 KiB)\nok   dist/acpPlaybook.js: 0.0 KiB (budget 100 KiB)\nok   dist/runtimeQuestions.js: 0.0 KiB (budget 25 KiB)\nok   dist/questionNotes.js: 0.0 KiB (budget 25 KiB)\nok   dist/extension.js: 0.0 KiB (budget 600 KiB)\nok   dist/resourceGovernor.js: 0.0 KiB (budget 125 KiB)\nok   dist/resourceProcess.js: 0.0 KiB (budget 50 KiB)\nok   dist/mcpVault.js: 0.0 KiB (budget 25 KiB)\nok   dist/accountPaid.js: 0.0 KiB (budget 50 KiB)\nok   dist/resourceAdmission.js: 0.0 KiB (budget 25 KiB)\nok   dist/resourceJournal.js: 0.0 KiB (budget 50 KiB)\nok   dist/webview/resourceSurface.js: 4.7 KiB (budget 25 KiB)\nok   dist/webview/resourceHistory.js: 10.6 KiB (budget 25 KiB)\nok   dist/webview/resourceHistory.css: 2.6 KiB (budget 25 KiB)\nok   docs/schemas/exec-event-v2.schema.json: 41.7 KiB (budget 50 KiB)\nok   dist/conversation.js: 0.0 KiB (budget 250 KiB)\nok   dist/tab.js: 0.0 KiB (budget 75 KiB)\nok   dist/prompts.js: 0.0 KiB (budget 200 KiB)\nok   dist/sharingRuntime.js: 0.0 KiB (budget 175 KiB)\nok   dist/modelApi.js: 0.0 KiB (budget 525 KiB)\nok   dist/exec.js: 0.0 KiB (budget 950 KiB)\nok   dist/modelApiCodeIntel.js: 0.0 KiB (budget 100 KiB)\nok   dist/mcpPool.js: 0.0 KiB (budget 75 KiB)\nok   dist/structuredSchema.js: 0.0 KiB (budget 50 KiB)\nok   dist/modelApiHooks.js: 0.0 KiB (budget 50 KiB)\nok   dist/modelApiMcp.js: 0.0 KiB (budget 75 KiB)\nok   dist/runtimeAccounting.js: 0.0 KiB (budget 50 KiB)\nok   dist/providerPolicy.js: 0.0 KiB (budget 25 KiB)\nok   dist/runtimeEngine.js: 0.0 KiB (budget 875 KiB)\nok   dist/modelApiBoundaries.js: 0.0 KiB (budget 50 KiB)\nok   dist/providers.js: 0.0 KiB (budget 150 KiB)\nok   dist/subscriptions.js: 0.0 KiB (budget 50 KiB)\nok   dist/configuredProviders.js: 0.0 KiB (budget 50 KiB)\nok   dist/modelsPanel.js: 0.0 KiB (budget 125 KiB)\nok   dist/usageService.js: 0.0 KiB (budget 100 KiB)\nok   dist/usageCompanion.js: 0.0 KiB (budget 50 KiB)\nok   dist/usagePanel.js: 0.0 KiB (budget 75 KiB)\nok   dist/webview/usage.js + static imports: 5.5 KiB (budget 500 KiB)\nok   dist/webview/usage.css: 14.1 KiB (budget 25 KiB)\nok   dist/webview/models.js + static imports: 1.8 KiB (budget 500 KiB)\nok   dist/schedules.js: 0.0 KiB (budget 200 KiB)\nok   dist/review.js: 0.0 KiB (budget 50 KiB)\nok   dist/sessionBoard.js: 0.0 KiB (budget 75 KiB)\nok   dist/reviewer.js: 0.0 KiB (budget 75 KiB)\nok   dist/team.js: 0.0 KiB (budget 75 KiB)\nok   dist/teamRunners.js: 0.0 KiB (budget 75 KiB)\nok   dist/teamScheduler.js: 0.0 KiB (budget 75 KiB)\nok   dist/foreignHooks.js: 0.0 KiB (budget 100 KiB)\nok   dist/hookRuntime.js: 0.0 KiB (budget 50 KiB)\nok   dist/pluginHooks.js: 0.0 KiB (budget 50 KiB)\nok   dist/planMarkdown.js: 0.0 KiB (budget 150 KiB)\nok   dist/checkpointStore.js: 0.0 KiB (budget 225 KiB)\nok   dist/media.js: 0.0 KiB (budget 25 KiB)\nok   dist/screenRecord.js: 0.0 KiB (budget 50 KiB)\nok   dist/agentImport.js: 0.0 KiB (budget 150 KiB)\nok   dist/browserCheck.js: 0.0 KiB (budget 75 KiB)\nok   dist/browserRuntime.js: 0.0 KiB (budget 50 KiB)\nok   dist/conversationGit.js: 0.0 KiB (budget 150 KiB)\nok   dist/modelApiSessions.js: 0.0 KiB (budget 50 KiB)\nok   dist/bundledSkills.js: 0.0 KiB (budget 50 KiB)\nok   dist/legalScan.js: 0.0 KiB (budget 150 KiB)\nok   dist/codeIntel.js: 0.0 KiB (budget 100 KiB)\nok   dist/voice.js: 0.0 KiB (budget 50 KiB)\nok   dist/webFetch.js: 0.0 KiB (budget 75 KiB)\nok   dist/museCodeReviewer.js: 0.0 KiB (budget 75 KiB)\nok   dist/extensionHooks.js: 0.0 KiB (budget 75 KiB)\nok   dist/vault.js: 0.0 KiB (budget 50 KiB)\nok   dist/vaultBoundaries.js: 0.0 KiB (budget 50 KiB)\nok   dist/report.js: 0.0 KiB (budget 75 KiB)\nok   dist/estimator.js: 0.0 KiB (budget 75 KiB)\nok   dist/estimateContracts.js: 0.0 KiB (budget 25 KiB)\nok   dist/recorder.js: 0.0 KiB (budget 75 KiB)\nok   dist/whatsNew.js: 0.0 KiB (budget 50 KiB)\nok   dist/whatsNew.json: 0.0 KiB (budget 40 KiB)\nok   dist/judge.js: 0.0 KiB (budget 100 KiB)\nok   dist/uiText.js: 0.0 KiB (budget 125 KiB)\nok   dist/uiTextRuntime.js: 0.0 KiB (budget 25 KiB)\nok   dist/uiTextHooks.js: 0.0 KiB (budget 25 KiB)\nok   dist/uiTextSurfaces.js: 0.0 KiB (budget 25 KiB)\nok   dist/uiTextMedia.js: 0.0 KiB (budget 25 KiB)\nok   dist/validation.js: 0.0 KiB (budget 50 KiB)\nok   dist/wire.js: 0.0 KiB (budget 75 KiB)\nok   dist/searchWorker.js: 0.0 KiB (budget 50 KiB)\nok   dist/imageResizeWorker.js: 0.0 KiB (budget 75 KiB)\nok   dist/pageWorker.js: 0.0 KiB (budget 300 KiB)\nok   dist/webview/main.js + static imports: 0.0 KiB (budget 900 KiB)\nok   dist/webview/whatsNew.js + static imports: 1.3 KiB (budget 25 KiB)\nok   dist/webview/referencePage.js: 22.6 KiB (budget 50 KiB)\nok   dist/reference.js: 0.0 KiB (budget 125 KiB)\nok   dist/acp.js: 0.0 KiB (budget 850 KiB)\nok   dist/headless.js: 0.0 KiB (budget 100 KiB)\nok   dist/fontsInstall.js: 0.0 KiB (budget 25 KiB)\nok   dist/scheduleBackground.js: 0.0 KiB (budget 50 KiB)\nok   dist/runtimeAccounts.js: 0.0 KiB (budget 300 KiB)\nok   dist/webview models body: 0.0 KiB (budget 75 KiB)\nfile:///Users/user/lanes.noindex/CM1082/scripts/lib/webviewBundles.mjs:83\n  if (body.length !== 1) throw new Error(`Missing or duplicated panel body: ${source}`)\n                               ^\n\nError: Missing or duplicated panel body: src/webview/models/ImportPane.tsx\n    at webviewPanelOutputs (file:///Users/user/lanes.noindex/CM1082/scripts/lib/webviewBundles.mjs:83:32)\n    at file:///Users/user/lanes.noindex/CM1082/scripts/check-bundle-size.mjs:373:9\n    at Array.flatMap (<anonymous>)\n    at file:///Users/user/lanes.noindex/CM1082/scripts/check-bundle-size.mjs:372:51\n    at ModuleJob.run (node:internal/modules/esm/module_job:437:25)\n    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:642:26)\n    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)\n\nNode.js v26.0.0\n: expected 1 to be +0 // Object.is equality"
+                  ]
+                },
+                {
+                  "name": "counts a shared static chunk once and leaves dynamic imports outside startup",
+                  "errors": [
+                    "ok   dist/reporting.js: 0.0 KiB (budget 175 KiB)\nok   dist/reportingNetwork.js: 0.0 KiB (budget 75 KiB)\nok   dist/reportingDestinations.js: 0.0 KiB (budget 75 KiB)\nok   dist/reportingPanel.js: 0.0 KiB (budget 50 KiB)\nok   dist/acpQuestions.js: 0.0 KiB (budget 25 KiB)\nok   dist/acpPlaybook.js: 0.0 KiB (budget 100 KiB)\nok   dist/runtimeQuestions.js: 0.0 KiB (budget 25 KiB)\nok   dist/questionNotes.js: 0.0 KiB (budget 25 KiB)\nok   dist/extension.js: 0.0 KiB (budget 600 KiB)\nok   dist/resourceGovernor.js: 0.0 KiB (budget 125 KiB)\nok   dist/resourceProcess.js: 0.0 KiB (budget 50 KiB)\nok   dist/mcpVault.js: 0.0 KiB (budget 25 KiB)\nok   dist/accountPaid.js: 0.0 KiB (budget 50 KiB)\nok   dist/resourceAdmission.js: 0.0 KiB (budget 25 KiB)\nok   dist/resourceJournal.js: 0.0 KiB (budget 50 KiB)\nok   dist/webview/resourceSurface.js: 4.7 KiB (budget 25 KiB)\nok   dist/webview/resourceHistory.js: 10.6 KiB (budget 25 KiB)\nok   dist/webview/resourceHistory.css: 2.6 KiB (budget 25 KiB)\nok   docs/schemas/exec-event-v2.schema.json: 41.7 KiB (budget 50 KiB)\nok   dist/conversation.js: 0.0 KiB (budget 250 KiB)\nok   dist/tab.js: 0.0 KiB (budget 75 KiB)\nok   dist/prompts.js: 0.0 KiB (budget 200 KiB)\nok   dist/sharingRuntime.js: 0.0 KiB (budget 175 KiB)\nok   dist/modelApi.js: 0.0 KiB (budget 525 KiB)\nok   dist/exec.js: 0.0 KiB (budget 950 KiB)\nok   dist/modelApiCodeIntel.js: 0.0 KiB (budget 100 KiB)\nok   dist/mcpPool.js: 0.0 KiB (budget 75 KiB)\nok   dist/structuredSchema.js: 0.0 KiB (budget 50 KiB)\nok   dist/modelApiHooks.js: 0.0 KiB (budget 50 KiB)\nok   dist/modelApiMcp.js: 0.0 KiB (budget 75 KiB)\nok   dist/runtimeAccounting.js: 0.0 KiB (budget 50 KiB)\nok   dist/providerPolicy.js: 0.0 KiB (budget 25 KiB)\nok   dist/runtimeEngine.js: 0.0 KiB (budget 875 KiB)\nok   dist/modelApiBoundaries.js: 0.0 KiB (budget 50 KiB)\nok   dist/providers.js: 0.0 KiB (budget 150 KiB)\nok   dist/subscriptions.js: 0.0 KiB (budget 50 KiB)\nok   dist/configuredProviders.js: 0.0 KiB (budget 50 KiB)\nok   dist/modelsPanel.js: 0.0 KiB (budget 125 KiB)\nok   dist/usageService.js: 0.0 KiB (budget 100 KiB)\nok   dist/usageCompanion.js: 0.0 KiB (budget 50 KiB)\nok   dist/usagePanel.js: 0.0 KiB (budget 75 KiB)\nok   dist/webview/usage.js + static imports: 5.5 KiB (budget 500 KiB)\nok   dist/webview/usage.css: 14.1 KiB (budget 25 KiB)\nok   dist/webview/models.js + static imports: 1.8 KiB (budget 500 KiB)\nok   dist/schedules.js: 0.0 KiB (budget 200 KiB)\nok   dist/review.js: 0.0 KiB (budget 50 KiB)\nok   dist/sessionBoard.js: 0.0 KiB (budget 75 KiB)\nok   dist/reviewer.js: 0.0 KiB (budget 75 KiB)\nok   dist/team.js: 0.0 KiB (budget 75 KiB)\nok   dist/teamRunners.js: 0.0 KiB (budget 75 KiB)\nok   dist/teamScheduler.js: 0.0 KiB (budget 75 KiB)\nok   dist/foreignHooks.js: 0.0 KiB (budget 100 KiB)\nok   dist/hookRuntime.js: 0.0 KiB (budget 50 KiB)\nok   dist/pluginHooks.js: 0.0 KiB (budget 50 KiB)\nok   dist/planMarkdown.js: 0.0 KiB (budget 150 KiB)\nok   dist/checkpointStore.js: 0.0 KiB (budget 225 KiB)\nok   dist/media.js: 0.0 KiB (budget 25 KiB)\nok   dist/screenRecord.js: 0.0 KiB (budget 50 KiB)\nok   dist/agentImport.js: 0.0 KiB (budget 150 KiB)\nok   dist/browserCheck.js: 0.0 KiB (budget 75 KiB)\nok   dist/browserRuntime.js: 0.0 KiB (budget 50 KiB)\nok   dist/conversationGit.js: 0.0 KiB (budget 150 KiB)\nok   dist/modelApiSessions.js: 0.0 KiB (budget 50 KiB)\nok   dist/bundledSkills.js: 0.0 KiB (budget 50 KiB)\nok   dist/legalScan.js: 0.0 KiB (budget 150 KiB)\nok   dist/codeIntel.js: 0.0 KiB (budget 100 KiB)\nok   dist/voice.js: 0.0 KiB (budget 50 KiB)\nok   dist/webFetch.js: 0.0 KiB (budget 75 KiB)\nok   dist/museCodeReviewer.js: 0.0 KiB (budget 75 KiB)\nok   dist/extensionHooks.js: 0.0 KiB (budget 75 KiB)\nok   dist/vault.js: 0.0 KiB (budget 50 KiB)\nok   dist/vaultBoundaries.js: 0.0 KiB (budget 50 KiB)\nok   dist/report.js: 0.0 KiB (budget 75 KiB)\nok   dist/estimator.js: 0.0 KiB (budget 75 KiB)\nok   dist/estimateContracts.js: 0.0 KiB (budget 25 KiB)\nok   dist/recorder.js: 0.0 KiB (budget 75 KiB)\nok   dist/whatsNew.js: 0.0 KiB (budget 50 KiB)\nok   dist/whatsNew.json: 0.0 KiB (budget 40 KiB)\nok   dist/judge.js: 0.0 KiB (budget 100 KiB)\nok   dist/uiText.js: 0.0 KiB (budget 125 KiB)\nok   dist/uiTextRuntime.js: 0.0 KiB (budget 25 KiB)\nok   dist/uiTextHooks.js: 0.0 KiB (budget 25 KiB)\nok   dist/uiTextSurfaces.js: 0.0 KiB (budget 25 KiB)\nok   dist/uiTextMedia.js: 0.0 KiB (budget 25 KiB)\nok   dist/validation.js: 0.0 KiB (budget 50 KiB)\nok   dist/wire.js: 0.0 KiB (budget 75 KiB)\nok   dist/searchWorker.js: 0.0 KiB (budget 50 KiB)\nok   dist/imageResizeWorker.js: 0.0 KiB (budget 75 KiB)\nok   dist/pageWorker.js: 0.0 KiB (budget 300 KiB)\nok   dist/webview/main.js + static imports: 899.0 KiB (budget 900 KiB)\nok   dist/webview/whatsNew.js + static imports: 1.3 KiB (budget 25 KiB)\nok   dist/webview/referencePage.js: 22.6 KiB (budget 50 KiB)\nok   dist/reference.js: 0.0 KiB (budget 125 KiB)\nok   dist/acp.js: 0.0 KiB (budget 850 KiB)\nok   dist/headless.js: 0.0 KiB (budget 100 KiB)\nok   dist/fontsInstall.js: 0.0 KiB (budget 25 KiB)\nok   dist/scheduleBackground.js: 0.0 KiB (budget 50 KiB)\nok   dist/runtimeAccounts.js: 0.0 KiB (budget 300 KiB)\nok   dist/webview models body: 0.0 KiB (budget 75 KiB)\nfile:///Users/user/lanes.noindex/CM1082/scripts/lib/webviewBundles.mjs:83\n  if (body.length !== 1) throw new Error(`Missing or duplicated panel body: ${source}`)\n                               ^\n\nError: Missing or duplicated panel body: src/webview/models/ImportPane.tsx\n    at webviewPanelOutputs (file:///Users/user/lanes.noindex/CM1082/scripts/lib/webviewBundles.mjs:83:32)\n    at file:///Users/user/lanes.noindex/CM1082/scripts/check-bundle-size.mjs:373:9\n    at Array.flatMap (<anonymous>)\n    at file:///Users/user/lanes.noindex/CM1082/scripts/check-bundle-size.mjs:372:51\n    at ModuleJob.run (node:internal/modules/esm/module_job:437:25)\n    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:642:26)\n    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)\n\nNode.js v26.0.0\n: expected 1 to be +0 // Object.is equality"
+                  ]
+                }
+              ],
+              "unhandled": []
+            }
+          ]
+        },
+        {
+          "files": [
+            "test/e2e/accountComposition.e2e.test.ts",
+            "test/e2e/accountRequests.e2e.test.ts",
+            "test/e2e/accounts.e2e.test.ts"
+          ],
+          "seconds": 9.28,
+          "results": [
+            {
+              "file": "test/e2e/accountComposition.e2e.test.ts",
+              "state": "pass",
+              "passed": 4,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/e2e/accountRequests.e2e.test.ts",
+              "state": "pass",
+              "passed": 10,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/e2e/accounts.e2e.test.ts",
+              "state": "pass",
+              "passed": 2,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            }
+          ]
+        },
+        {
+          "files": [
+            "test/e2e/acpStdio.e2e.test.ts",
+            "test/e2e/execTestLauncher.e2e.test.ts",
+            "test/e2e/questions.e2e.test.ts"
+          ],
+          "seconds": 72.27,
+          "results": [
+            {
+              "file": "test/e2e/acpStdio.e2e.test.ts",
+              "state": "pass",
+              "passed": 13,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/e2e/execTestLauncher.e2e.test.ts",
+              "state": "pass",
+              "passed": 6,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/e2e/questions.e2e.test.ts",
+              "state": "pass",
+              "passed": 4,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            }
+          ]
+        },
+        {
+          "files": [
+            "test/unit/accountAvailability.test.ts",
+            "test/unit/accountBoundary.test.ts",
+            "test/unit/accountFakes.test.ts"
+          ],
+          "seconds": 2.664,
+          "results": [
+            {
+              "file": "test/unit/accountAvailability.test.ts",
+              "state": "pass",
+              "passed": 1,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/accountBoundary.test.ts",
+              "state": "pass",
+              "passed": 2,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/accountFakes.test.ts",
+              "state": "pass",
+              "passed": 3,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            }
+          ]
+        },
+        {
+          "files": [
+            "test/unit/accountHomes.test.ts",
+            "test/unit/accountPaidComposition.test.ts",
+            "test/unit/accountPaidConsent.test.ts"
+          ],
+          "seconds": 5.003,
+          "results": [
+            {
+              "file": "test/unit/accountHomes.test.ts",
+              "state": "pass",
+              "passed": 51,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/accountPaidComposition.test.ts",
+              "state": "pass",
+              "passed": 1,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/accountPaidConsent.test.ts",
+              "state": "pass",
+              "passed": 35,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            }
+          ]
+        },
+        {
+          "files": [
+            "test/unit/accountPaidFiles.test.ts",
+            "test/unit/accountPaidHosts.test.ts",
+            "test/unit/accountPaidService.test.ts"
+          ],
+          "seconds": 2.678,
+          "results": [
+            {
+              "file": "test/unit/accountPaidFiles.test.ts",
+              "state": "pass",
+              "passed": 14,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/accountPaidHosts.test.ts",
+              "state": "pass",
+              "passed": 19,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/accountPaidService.test.ts",
+              "state": "pass",
+              "passed": 16,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            }
+          ]
+        },
+        {
+          "files": [
+            "test/unit/accountPolicy.test.ts",
+            "test/unit/accountRequestJournal.test.ts",
+            "test/unit/accountRequestRecovery.test.ts"
+          ],
+          "seconds": 3.989,
+          "results": [
+            {
+              "file": "test/unit/accountPolicy.test.ts",
+              "state": "pass",
+              "passed": 30,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/accountRequestJournal.test.ts",
+              "state": "pass",
+              "passed": 8,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/accountRequestRecovery.test.ts",
+              "state": "pass",
+              "passed": 1,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            }
+          ]
+        },
+        {
+          "files": [
+            "test/unit/accountRequestWriter.test.ts",
+            "test/unit/accountRestore.test.mjs",
+            "test/unit/accounts.test.ts"
+          ],
+          "seconds": 2.87,
+          "results": [
+            {
+              "file": "test/unit/accountRequestWriter.test.ts",
+              "state": "pass",
+              "passed": 5,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/accountRestore.test.mjs",
+              "state": "pass",
+              "passed": 1,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/accounts.test.ts",
+              "state": "pass",
+              "passed": 25,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            }
+          ]
+        },
+        {
+          "files": [
+            "test/unit/accountsCommand.test.ts",
+            "test/unit/accountSecrets.test.ts",
+            "test/unit/accountsPanel.test.tsx"
+          ],
+          "seconds": 14.267,
+          "results": [
+            {
+              "file": "test/unit/accountsCommand.test.ts",
+              "state": "pass",
+              "passed": 25,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/accountSecrets.test.ts",
+              "state": "pass",
+              "passed": 49,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/accountsPanel.test.tsx",
+              "state": "pass",
+              "passed": 29,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            }
+          ]
+        },
+        {
+          "files": [
+            "test/unit/accountsPanelHost.test.ts",
+            "test/unit/AccountsSection.test.tsx",
+            "test/unit/accountStore.test.ts"
+          ],
+          "seconds": 3.811,
+          "results": [
+            {
+              "file": "test/unit/accountsPanelHost.test.ts",
+              "state": "pass",
+              "passed": 21,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/AccountsSection.test.tsx",
+              "state": "pass",
+              "passed": 5,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/accountStore.test.ts",
+              "state": "pass",
+              "passed": 31,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            }
+          ]
+        },
+        {
+          "files": [
+            "test/unit/accountUsage.test.ts",
+            "test/unit/accountUsageText.test.ts",
+            "test/unit/acpAccounts.test.ts"
+          ],
+          "seconds": 2.087,
+          "results": [
+            {
+              "file": "test/unit/accountUsage.test.ts",
+              "state": "pass",
+              "passed": 16,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/accountUsageText.test.ts",
+              "state": "pass",
+              "passed": 8,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/acpAccounts.test.ts",
+              "state": "pass",
+              "passed": 38,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            }
+          ]
+        },
+        {
+          "files": [
+            "test/unit/acpAgent.test.ts",
+            "test/unit/acpEstimate.test.ts",
+            "test/unit/acpMedia.test.ts"
+          ],
+          "seconds": 19.458,
+          "results": [
+            {
+              "file": "test/unit/acpAgent.test.ts",
+              "state": "pass",
+              "passed": 144,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/acpEstimate.test.ts",
+              "state": "pass",
+              "passed": 6,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/acpMedia.test.ts",
+              "state": "pass",
+              "passed": 11,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            }
+          ]
+        },
+        {
+          "files": [
+            "test/unit/acpModelApi.test.ts",
+            "test/unit/acpPaid.test.ts",
+            "test/unit/acpQuestionDeferral.test.ts"
+          ],
+          "seconds": 25.182,
+          "results": [
+            {
+              "file": "test/unit/acpModelApi.test.ts",
+              "state": "pass",
+              "passed": 12,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/acpPaid.test.ts",
+              "state": "pass",
+              "passed": 30,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/acpQuestionDeferral.test.ts",
+              "state": "pass",
+              "passed": 80,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            }
+          ]
+        },
+        {
+          "files": [
+            "test/unit/acpReportObserver.test.ts",
+            "test/unit/acpReports.test.ts",
+            "test/unit/acpResources.test.ts"
+          ],
+          "seconds": 3.632,
+          "results": [
+            {
+              "file": "test/unit/acpReportObserver.test.ts",
+              "state": "pass",
+              "passed": 3,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/acpReports.test.ts",
+              "state": "pass",
+              "passed": 6,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/acpResources.test.ts",
+              "state": "pass",
+              "passed": 8,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            }
+          ]
+        },
+        {
+          "files": [
+            "test/unit/acpRuntime.test.ts",
+            "test/unit/acpSharing.test.ts",
+            "test/unit/acpUsage.test.ts"
+          ],
+          "seconds": 9.939,
+          "results": [
+            {
+              "file": "test/unit/acpRuntime.test.ts",
+              "state": "pass",
+              "passed": 43,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/acpSharing.test.ts",
+              "state": "pass",
+              "passed": 27,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/acpUsage.test.ts",
+              "state": "pass",
+              "passed": 7,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            }
+          ]
+        },
+        {
+          "files": [
+            "test/unit/acpVault.test.ts",
+            "test/unit/actionInputs.test.ts",
+            "test/unit/actionRunExec.test.ts"
+          ],
+          "seconds": 152.705,
+          "results": [
+            {
+              "file": "test/unit/acpVault.test.ts",
+              "state": "pass",
+              "passed": 20,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/actionInputs.test.ts",
+              "state": "pass",
+              "passed": 19,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/actionRunExec.test.ts",
+              "state": "pass",
+              "passed": 37,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            }
+          ]
+        },
+        {
+          "files": [
+            "test/unit/agentImportWorkspaceEdits.test.ts",
+            "test/unit/anthropicCodec.test.ts",
+            "test/unit/attachArgs.test.ts"
+          ],
+          "seconds": 6.857,
+          "results": [
+            {
+              "file": "test/unit/agentImportWorkspaceEdits.test.ts",
+              "state": "pass",
+              "passed": 18,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/anthropicCodec.test.ts",
+              "state": "pass",
+              "passed": 88,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/attachArgs.test.ts",
+              "state": "pass",
+              "passed": 5,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            }
+          ]
+        },
+        {
+          "files": [
+            "test/unit/authSource.test.ts",
+            "test/unit/autoCompact.test.ts",
+            "test/unit/bestOfNAttempts.test.ts"
+          ],
+          "seconds": 4.258,
+          "results": [
+            {
+              "file": "test/unit/authSource.test.ts",
+              "state": "pass",
+              "passed": 13,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/autoCompact.test.ts",
+              "state": "pass",
+              "passed": 26,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/bestOfNAttempts.test.ts",
+              "state": "pass",
+              "passed": 3,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            }
+          ]
+        },
+        {
+          "files": [
+            "test/unit/bestOfNExtensionHooks.test.ts",
+            "test/unit/bestOfNManager.test.ts",
+            "test/unit/bestOfNRunner.test.ts"
+          ],
+          "seconds": 4.036,
+          "results": [
+            {
+              "file": "test/unit/bestOfNExtensionHooks.test.ts",
+              "state": "pass",
+              "passed": 7,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/bestOfNManager.test.ts",
+              "state": "pass",
+              "passed": 4,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/bestOfNRunner.test.ts",
+              "state": "pass",
+              "passed": 46,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            }
+          ]
+        },
+        {
+          "files": [
+            "test/unit/bestOfNSnapshot.test.ts",
+            "test/unit/bridgeChecks.test.ts",
+            "test/unit/bundleSize.test.mjs"
+          ],
+          "seconds": 53.78,
+          "results": [
+            {
+              "file": "test/unit/bestOfNSnapshot.test.ts",
+              "state": "pass",
+              "passed": 12,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/bridgeChecks.test.ts",
+              "state": "pass",
+              "passed": 8,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/bundleSize.test.mjs",
+              "state": "pass",
+              "passed": 60,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            }
+          ]
+        },
+        {
+          "files": [
+            "test/unit/capabilityRecord.test.ts",
+            "test/unit/chatgptResponsesCap.test.ts",
+            "test/unit/chatGptSignIn.test.ts"
+          ],
+          "seconds": 4.073,
+          "results": [
+            {
+              "file": "test/unit/capabilityRecord.test.ts",
+              "state": "pass",
+              "passed": 34,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/chatgptResponsesCap.test.ts",
+              "state": "pass",
+              "passed": 22,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/chatGptSignIn.test.ts",
+              "state": "pass",
+              "passed": 105,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            }
+          ]
+        },
+        {
+          "files": [
+            "test/unit/chatGptVsCode.test.ts",
+            "test/unit/checkpointEnvironment.test.ts",
+            "test/unit/checkpointModelApiStop.test.ts"
+          ],
+          "seconds": 81.506,
+          "results": [
+            {
+              "file": "test/unit/chatGptVsCode.test.ts",
+              "state": "pass",
+              "passed": 26,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/checkpointEnvironment.test.ts",
+              "state": "pass",
+              "passed": 16,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/checkpointModelApiStop.test.ts",
+              "state": "pass",
+              "passed": 49,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            }
+          ]
+        },
+        {
+          "files": [
+            "test/unit/cliUsage.test.ts",
+            "test/unit/companionUpload.test.ts",
+            "test/unit/configuredProviders.test.ts"
+          ],
+          "seconds": 6.114,
+          "results": [
+            {
+              "file": "test/unit/cliUsage.test.ts",
+              "state": "pass",
+              "passed": 11,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/companionUpload.test.ts",
+              "state": "pass",
+              "passed": 50,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/configuredProviders.test.ts",
+              "state": "pass",
+              "passed": 24,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            }
+          ]
+        },
+        {
+          "files": [
+            "test/unit/confirmations.test.ts",
+            "test/unit/contextIo.test.ts",
+            "test/unit/conversationBundle.test.ts"
+          ],
+          "seconds": 3.792,
+          "results": [
+            {
+              "file": "test/unit/confirmations.test.ts",
+              "state": "pass",
+              "passed": 15,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/contextIo.test.ts",
+              "state": "pass",
+              "passed": 6,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/conversationBundle.test.ts",
+              "state": "pass",
+              "passed": 8,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            }
+          ]
+        },
+        {
+          "files": [
+            "test/unit/conversationController.test.ts",
+            "test/unit/developerContracts.test.ts",
+            "test/unit/developerLocalFiles.test.ts"
+          ],
+          "seconds": 40.674,
+          "results": [
+            {
+              "file": "test/unit/conversationController.test.ts",
+              "state": "pass",
+              "passed": 680,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/developerContracts.test.ts",
+              "state": "pass",
+              "passed": 23,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/developerLocalFiles.test.ts",
+              "state": "pass",
+              "passed": 15,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            }
+          ]
+        },
+        {
+          "files": [
+            "test/unit/developerOptions.test.ts",
+            "test/unit/developerOptionsMachineId.test.ts",
+            "test/unit/developerOptionsPage.test.tsx"
+          ],
+          "seconds": 10.491,
+          "results": [
+            {
+              "file": "test/unit/developerOptions.test.ts",
+              "state": "pass",
+              "passed": 22,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/developerOptionsMachineId.test.ts",
+              "state": "pass",
+              "passed": 26,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/developerOptionsPage.test.tsx",
+              "state": "pass",
+              "passed": 5,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            }
+          ]
+        },
+        {
+          "files": [
+            "test/unit/developerSurfaces.test.ts",
+            "test/unit/deviceAccountReceiver.test.ts",
+            "test/unit/environment.test.ts"
+          ],
+          "seconds": 3.154,
+          "results": [
+            {
+              "file": "test/unit/developerSurfaces.test.ts",
+              "state": "pass",
+              "passed": 24,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/deviceAccountReceiver.test.ts",
+              "state": "pass",
+              "passed": 25,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/environment.test.ts",
+              "state": "pass",
+              "passed": 4,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            }
+          ]
+        },
+        {
+          "files": [
+            "test/unit/estimateCommand.test.ts",
+            "test/unit/eval/evalDriver.test.ts",
+            "test/unit/eval/evalLiveSupport.test.ts"
+          ],
+          "seconds": 7.321,
+          "results": [
+            {
+              "file": "test/unit/estimateCommand.test.ts",
+              "state": "pass",
+              "passed": 18,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/eval/evalDriver.test.ts",
+              "state": "pass",
+              "passed": 8,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/eval/evalLiveSupport.test.ts",
+              "state": "pass",
+              "passed": 29,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            }
+          ]
+        },
+        {
+          "files": [
+            "test/unit/eval/evalPacking.test.ts",
+            "test/unit/eval/evalRunner.test.ts",
+            "test/unit/eval/evalWire.test.ts"
+          ],
+          "seconds": 67.163,
+          "results": [
+            {
+              "file": "test/unit/eval/evalPacking.test.ts",
+              "state": "pass",
+              "passed": 8,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/eval/evalRunner.test.ts",
+              "state": "pass",
+              "passed": 14,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/eval/evalWire.test.ts",
+              "state": "pass",
+              "passed": 33,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            }
+          ]
+        },
+        {
+          "files": [
+            "test/unit/eval/evalWorkspacePrivacy.test.ts",
+            "test/unit/execAccounts.test.ts",
+            "test/unit/execArgs.test.ts"
+          ],
+          "seconds": 3.498,
+          "results": [
+            {
+              "file": "test/unit/eval/evalWorkspacePrivacy.test.ts",
+              "state": "pass",
+              "passed": 4,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/execAccounts.test.ts",
+              "state": "pass",
+              "passed": 12,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/execArgs.test.ts",
+              "state": "pass",
+              "passed": 55,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            }
+          ]
+        },
+        {
+          "files": [
+            "test/unit/execClient.test.ts",
+            "test/unit/execFetch.test.ts",
+            "test/unit/execKeyInput.test.ts"
+          ],
+          "seconds": 6.085,
+          "results": [
+            {
+              "file": "test/unit/execClient.test.ts",
+              "state": "pass",
+              "passed": 10,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/execFetch.test.ts",
+              "state": "pass",
+              "passed": 35,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/execKeyInput.test.ts",
+              "state": "pass",
+              "passed": 12,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            }
+          ]
+        },
+        {
+          "files": [
+            "test/unit/execOutput.test.ts",
+            "test/unit/execProvider.test.ts",
+            "test/unit/execResources.test.ts"
+          ],
+          "seconds": 12.523,
+          "results": [
+            {
+              "file": "test/unit/execOutput.test.ts",
+              "state": "pass",
+              "passed": 45,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/execProvider.test.ts",
+              "state": "pass",
+              "passed": 17,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/execResources.test.ts",
+              "state": "fail",
+              "passed": 6,
+              "failed": 1,
+              "skipped": 0,
+              "failures": [
+                {
+                  "name": "runs terminal resources against the real lazy entry without any key-store or model access",
+                  "errors": [
+                    "Test timed out in 5000ms.\nIf this is a long-running test, pass a timeout value as the last argument or configure it globally with \"testTimeout\"."
+                  ]
+                }
+              ],
+              "unhandled": []
+            }
+          ]
+        },
+        {
+          "files": [
+            "test/unit/execRun.test.ts",
+            "test/unit/execVault.test.ts",
+            "test/unit/featureCatalogDetails.test.ts"
+          ],
+          "seconds": 54.255,
+          "results": [
+            {
+              "file": "test/unit/execRun.test.ts",
+              "state": "fail",
+              "passed": 93,
+              "failed": 1,
+              "skipped": 0,
+              "failures": [
+                {
+                  "name": "D29 4MiB stderr keeps bounded exit; drained=false",
+                  "errors": ["standalone command exceeded its bounded test deadline: bootstrap:0\n"]
+                }
+              ],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/execVault.test.ts",
+              "state": "pass",
+              "passed": 25,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/featureCatalogDetails.test.ts",
+              "state": "pass",
+              "passed": 4,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            }
+          ]
+        },
+        {
+          "files": [
+            "test/unit/files.test.ts",
+            "test/unit/fileScheduleStore.test.ts",
+            "test/unit/fileSessionStore.test.ts"
+          ],
+          "seconds": 9.271,
+          "results": [
+            {
+              "file": "test/unit/files.test.ts",
+              "state": "fail",
+              "passed": 15,
+              "failed": 1,
+              "skipped": 0,
+              "failures": [
+                {
+                  "name": "streams disk bytes with bracket-form expiry, progress and SHA-256; retrieves, lists and deletes",
+                  "errors": [
+                    "Test timed out in 5000ms.\nIf this is a long-running test, pass a timeout value as the last argument or configure it globally with \"testTimeout\"."
+                  ]
+                }
+              ],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/fileScheduleStore.test.ts",
+              "state": "pass",
+              "passed": 8,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/fileSessionStore.test.ts",
+              "state": "pass",
+              "passed": 22,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            }
+          ]
+        },
+        {
+          "files": [
+            "test/unit/fileSessionStoreBundle.test.ts",
+            "test/unit/fontCli.test.ts",
+            "test/unit/fontsInstall.test.ts"
+          ],
+          "seconds": 2.879,
+          "results": [
+            {
+              "file": "test/unit/fileSessionStoreBundle.test.ts",
+              "state": "pass",
+              "passed": 5,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/fontCli.test.ts",
+              "state": "pass",
+              "passed": 3,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/fontsInstall.test.ts",
+              "state": "pass",
+              "passed": 11,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            }
+          ]
+        },
+        {
+          "files": [
+            "test/unit/geminiCodec.test.ts",
+            "test/unit/hookMcpToolHandlers.test.ts",
+            "test/unit/hookModelHandlers.test.ts"
+          ],
+          "seconds": 3.101,
+          "results": [
+            {
+              "file": "test/unit/geminiCodec.test.ts",
+              "state": "pass",
+              "passed": 67,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/hookMcpToolHandlers.test.ts",
+              "state": "pass",
+              "passed": 5,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/hookModelHandlers.test.ts",
+              "state": "pass",
+              "passed": 14,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            }
+          ]
+        },
+        {
+          "files": [
+            "test/unit/hostBridge.test.ts",
+            "test/unit/ideImageTools.test.ts",
+            "test/unit/imageGenerationIo.test.ts"
+          ],
+          "seconds": 3.701,
+          "results": [
+            {
+              "file": "test/unit/hostBridge.test.ts",
+              "state": "pass",
+              "passed": 4,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/ideImageTools.test.ts",
+              "state": "pass",
+              "passed": 8,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/imageGenerationIo.test.ts",
+              "state": "pass",
+              "passed": 4,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            }
+          ]
+        },
+        {
+          "files": [
+            "test/unit/journalRecord.test.ts",
+            "test/unit/judgeActivation.test.ts",
+            "test/unit/judgeConsent.test.ts"
+          ],
+          "seconds": 2.267,
+          "results": [
+            {
+              "file": "test/unit/journalRecord.test.ts",
+              "state": "pass",
+              "passed": 12,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/judgeActivation.test.ts",
+              "state": "pass",
+              "passed": 6,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/judgeConsent.test.ts",
+              "state": "pass",
+              "passed": 10,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            }
+          ]
+        },
+        {
+          "files": [
+            "test/unit/judgeFences.test.ts",
+            "test/unit/judgeSharedBudget.test.ts",
+            "test/unit/judgeWindow.test.ts"
+          ],
+          "seconds": 4.488,
+          "results": [
+            {
+              "file": "test/unit/judgeFences.test.ts",
+              "state": "pass",
+              "passed": 18,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/judgeSharedBudget.test.ts",
+              "state": "pass",
+              "passed": 5,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/judgeWindow.test.ts",
+              "state": "pass",
+              "passed": 11,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            }
+          ]
+        },
+        {
+          "files": [
+            "test/unit/lateAnswer.test.ts",
+            "test/unit/legalArgs.test.ts",
+            "test/unit/legalExplanation.test.ts"
+          ],
+          "seconds": 3.733,
+          "results": [
+            {
+              "file": "test/unit/lateAnswer.test.ts",
+              "state": "pass",
+              "passed": 11,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/legalArgs.test.ts",
+              "state": "pass",
+              "passed": 12,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/legalExplanation.test.ts",
+              "state": "pass",
+              "passed": 10,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            }
+          ]
+        },
+        {
+          "files": [
+            "test/unit/legalScanBundle.test.ts",
+            "test/unit/localDeveloperProfiles.test.ts",
+            "test/unit/m106Wiring.test.ts"
+          ],
+          "seconds": 5.211,
+          "results": [
+            {
+              "file": "test/unit/legalScanBundle.test.ts",
+              "state": "pass",
+              "passed": 6,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/localDeveloperProfiles.test.ts",
+              "state": "pass",
+              "passed": 8,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/m106Wiring.test.ts",
+              "state": "pass",
+              "passed": 14,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            }
+          ]
+        },
+        {
+          "files": [
+            "test/unit/m95PlanMain.test.tsx",
+            "test/unit/macVaultSlot.test.ts",
+            "test/unit/mcpFunctions.test.ts"
+          ],
+          "seconds": 8.737,
+          "results": [
+            {
+              "file": "test/unit/m95PlanMain.test.tsx",
+              "state": "pass",
+              "passed": 1,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/macVaultSlot.test.ts",
+              "state": "pass",
+              "passed": 40,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            },
+            {
+              "file": "test/unit/mcpFunctions.test.ts",
+              "state": "pass",
+              "passed": 34,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            }
+          ]
+        }
+      ],
+      "reruns": [
+        {
+          "file": "test/unit/execResources.test.ts",
+          "load": "17:09  up 25 days,  8:43, 1 user, load averages: 26.66 21.94 16.79",
+          "results": [
+            {
+              "file": "test/unit/execResources.test.ts",
+              "state": "fail",
+              "passed": 6,
+              "failed": 1,
+              "skipped": 0,
+              "failures": [
+                {
+                  "name": "runs terminal resources against the real lazy entry without any key-store or model access",
+                  "errors": [
+                    "Test timed out in 5000ms.\nIf this is a long-running test, pass a timeout value as the last argument or configure it globally with \"testTimeout\"."
+                  ]
+                }
+              ],
+              "unhandled": []
+            }
+          ]
+        },
+        {
+          "file": "test/unit/files.test.ts",
+          "load": "17:10  up 25 days,  8:44, 1 user, load averages: 31.03 23.98 18.01",
+          "results": [
+            {
+              "file": "test/unit/files.test.ts",
+              "state": "pass",
+              "passed": 16,
+              "failed": 0,
+              "skipped": 0,
+              "failures": [],
+              "unhandled": []
+            }
+          ]
+        }
+      ],
+      "notRun": [
+        "test/unit/UsageEntry.test.tsx",
+        "test/unit/mcpPool.test.ts",
+        "test/unit/mediaAttach.test.ts",
+        "test/unit/mediaClient.test.ts",
+        "test/unit/metaGolden.test.ts",
+        "test/unit/metaRequestGoldens.test.ts",
+        "test/unit/modalityGate.test.ts",
+        "test/unit/modelApiArgumentPreview.test.ts",
+        "test/unit/modelApiAttemptBudget.test.ts",
+        "test/unit/modelApiAttemptFiles.test.ts",
+        "test/unit/modelApiAttemptVerify.test.ts",
+        "test/unit/modelApiAudio.test.ts",
+        "test/unit/modelApiAutoCompact.test.ts",
+        "test/unit/modelApiBackendManager.test.ts",
+        "test/unit/modelApiBundle.test.ts",
+        "test/unit/modelApiClient.test.ts",
+        "test/unit/modelApiCodeIntel.test.ts",
+        "test/unit/modelApiCutShort.test.ts",
+        "test/unit/modelApiElicitation.test.ts",
+        "test/unit/modelApiExtensionHooks.test.ts",
+        "test/unit/modelApiForeignHooks.test.ts",
+        "test/unit/modelApiGoldenRequests.test.ts",
+        "test/unit/modelApiHost.test.ts",
+        "test/unit/modelApiHostedSearch.test.ts",
+        "test/unit/modelApiImageIngress.test.ts",
+        "test/unit/modelApiLoopGuarantees.test.ts",
+        "test/unit/modelApiMedia.test.ts",
+        "test/unit/modelApiOverflow.test.ts",
+        "test/unit/modelApiPacking.test.ts",
+        "test/unit/modelApiPolicyFence.test.ts",
+        "test/unit/modelApiPrefix.test.ts",
+        "test/unit/modelApiProductionMedia.test.ts",
+        "test/unit/modelApiProviders.test.ts",
+        "test/unit/modelApiQuestionDeferral.test.ts",
+        "test/unit/modelApiReplayIdentity.test.ts",
+        "test/unit/modelApiShellDirectory.test.ts",
+        "test/unit/modelApiWireHosts.test.ts",
+        "test/unit/modelCallHooks.test.ts",
+        "test/unit/modelCapabilitiesBinding.test.ts",
+        "test/unit/modelPolicy.test.ts",
+        "test/unit/modelsApp.test.tsx",
+        "test/unit/modelsMoneyLifecycle.test.tsx",
+        "test/unit/modelsPanel.test.ts",
+        "test/unit/modelsPanelEntry.test.ts",
+        "test/unit/modelsPanelReducer.test.ts",
+        "test/unit/modelsPanelSchemas.test.ts",
+        "test/unit/modelsQuickPick.test.ts",
+        "test/unit/modelsSections.test.ts",
+        "test/unit/modelsWebviewEntry.test.tsx",
+        "test/unit/museVoice.test.ts",
+        "test/unit/ollamaCodec.test.ts",
+        "test/unit/openQuestionNotices.test.ts",
+        "test/unit/pacing.test.ts",
+        "test/unit/paidConsent.test.ts",
+        "test/unit/paidDailyBudget.test.ts",
+        "test/unit/paidHookModels.test.ts",
+        "test/unit/paidHost.test.ts",
+        "test/unit/paidMoneyStructure.test.ts",
+        "test/unit/paidPortBoundaries.test.ts",
+        "test/unit/playbookCommand.test.ts",
+        "test/unit/playbookSkill.test.ts",
+        "test/unit/playbookSurface.test.ts",
+        "test/unit/policyGate.test.ts",
+        "test/unit/pool.test.ts",
+        "test/unit/providerImportExport.test.ts",
+        "test/unit/providerPanelSeam.test.ts",
+        "test/unit/providerProvidersHost.test.ts",
+        "test/unit/providerRetry.test.ts",
+        "test/unit/providerTransport.test.ts",
+        "test/unit/providersFileStore.test.ts",
+        "test/unit/providersL10n.test.ts",
+        "test/unit/providersPolicy.test.ts",
+        "test/unit/providersX.test.ts",
+        "test/unit/providersXFix.test.ts",
+        "test/unit/questionRegistry.test.ts",
+        "test/unit/rateLimitHeaders.test.ts",
+        "test/unit/recordingReader.test.ts",
+        "test/unit/referenceEntry.test.ts",
+        "test/unit/referenceGenerator.test.mjs",
+        "test/unit/remoteAccountPool.test.ts",
+        "test/unit/replayMedia.test.ts",
+        "test/unit/reportCommand.test.ts",
+        "test/unit/reportContracts.test.ts",
+        "test/unit/reportInvariants.test.ts",
+        "test/unit/reportsCommand.test.ts",
+        "test/unit/resourceChatLoad.test.tsx",
+        "test/unit/resourceChatMount.test.tsx",
+        "test/unit/runtimeAccountStore.test.ts",
+        "test/unit/runtimeAccounting.test.ts",
+        "test/unit/runtimeAccountsBundle.test.ts",
+        "test/unit/runtimeAccountsService.test.ts",
+        "test/unit/runtimeChatGpt.test.ts",
+        "test/unit/runtimeChatGptCallback.test.ts",
+        "test/unit/runtimeChatGptLock.test.ts",
+        "test/unit/runtimeServices.test.ts",
+        "test/unit/scanSecrets.test.ts",
+        "test/unit/scheduleCommand.test.ts",
+        "test/unit/scheduleInterrupt.test.ts",
+        "test/unit/schedulePaid.test.ts",
+        "test/unit/scheduleProvenance.test.ts",
+        "test/unit/scheduleReportCli.test.ts",
+        "test/unit/scheduleV2.test.ts",
+        "test/unit/scheduledRunConfirmation.test.ts",
+        "test/unit/secWinIdentity2.test.ts",
+        "test/unit/secWinWorkerPaths.test.ts",
+        "test/unit/sessionBoardHost.test.ts",
+        "test/unit/sessionBudget.test.ts",
+        "test/unit/sessionBudgetJournal.test.ts",
+        "test/unit/sessionStore.test.ts",
+        "test/unit/sessionTransfer.test.ts",
+        "test/unit/shareCommand.test.ts",
+        "test/unit/shellEnvironmentOrigins.test.ts",
+        "test/unit/structuredSideCalls.test.ts",
+        "test/unit/subscriptionIntegration.test.ts",
+        "test/unit/tabRequest.test.ts",
+        "test/unit/teamAcpProcess.test.ts",
+        "test/unit/teamAcpWorker.test.ts",
+        "test/unit/teamDeclaration.test.ts",
+        "test/unit/teamEngineWorker.test.ts",
+        "test/unit/teamHarness.test.mjs",
+        "test/unit/teamMcpBridge.test.ts",
+        "test/unit/teamMuseCodeWorker.test.ts",
+        "test/unit/teamWorkerFence.test.ts",
+        "test/unit/teamWorkersPaid.test.ts",
+        "test/unit/thresholds.test.ts",
+        "test/unit/toolIoMedia.test.ts",
+        "test/unit/trafficHandlers.test.ts",
+        "test/unit/trafficHarness.test.tsx",
+        "test/unit/trafficView.test.tsx",
+        "test/unit/transcribeBatch.test.ts",
+        "test/unit/unattendedBackends.test.ts",
+        "test/unit/uploadLedger.test.ts",
+        "test/unit/usageIntegration.test.ts",
+        "test/unit/usageRecording.test.ts",
+        "test/unit/usageRecordingAux.test.ts",
+        "test/unit/vault/approvals.test.ts",
+        "test/unit/vault/audit.test.ts",
+        "test/unit/vault/backup.test.ts",
+        "test/unit/vault/boundaries.test.ts",
+        "test/unit/vault/boundaryScrub.test.ts",
+        "test/unit/vault/broker.test.ts",
+        "test/unit/vault/channel.test.ts",
+        "test/unit/vault/contracts.test.ts",
+        "test/unit/vault/crypto.test.ts",
+        "test/unit/vault/delegation.test.ts",
+        "test/unit/vault/execAdapters.test.ts",
+        "test/unit/vault/execBrokerLease.test.ts",
+        "test/unit/vault/execSpawn.test.ts",
+        "test/unit/vault/fakes.test.ts",
+        "test/unit/vault/feeder.test.ts",
+        "test/unit/vault/fleet.test.ts",
+        "test/unit/vault/gitHelper.test.ts",
+        "test/unit/vault/importFile.test.ts",
+        "test/unit/vault/interleavings.test.ts",
+        "test/unit/vault/limits.test.ts",
+        "test/unit/vault/peer.test.ts",
+        "test/unit/vault/policy.test.ts",
+        "test/unit/vault/redemption.test.ts",
+        "test/unit/vault/remote.test.ts",
+        "test/unit/vault/requestTaint.test.ts",
+        "test/unit/vault/reviewFixes.test.ts",
+        "test/unit/vault/reviewRound2.test.ts",
+        "test/unit/vault/reviewRound3.test.ts",
+        "test/unit/vault/reviewRound4.test.ts",
+        "test/unit/vault/reviewRound5.test.ts",
+        "test/unit/vault/sshAgent.test.ts",
+        "test/unit/vault/sshBroker.test.ts",
+        "test/unit/vault/sshConnection.test.ts",
+        "test/unit/vault/sshTransport.test.ts",
+        "test/unit/vault/sudoFeed.test.ts",
+        "test/unit/vault/taint.test.ts",
+        "test/unit/vault/totp.test.ts",
+        "test/unit/vault/useDigest.test.ts",
+        "test/unit/vault/vaultExec.test.ts",
+        "test/unit/vault/vaultNativeEditor.test.ts",
+        "test/unit/vault/vaultPanel.test.tsx",
+        "test/unit/vault/vaultPanelHost.test.ts",
+        "test/unit/vault/vaultStore.test.ts",
+        "test/unit/vault/webCsvImport.test.ts",
+        "test/unit/vault/webFill.test.ts",
+        "test/unit/vault/webPageRead.test.ts",
+        "test/unit/vault/webSessions.test.ts",
+        "test/unit/vaultCommand.test.ts",
+        "test/unit/vaultSurface.test.ts",
+        "test/unit/verifyLoop.test.ts",
+        "test/unit/windowsVaultNative.test.ts",
+        "test/unit/workspaceContext.test.ts"
+      ],
+      "manuallyRunCompleteFiles": [
+        "test/unit/accountRestore.test.mjs",
+        "test/unit/bundleSize.test.mjs",
+        "test/unit/execResources.test.ts",
+        "test/unit/modelAccountsSurface.test.tsx",
+        "test/unit/modelsImportFailure.test.tsx",
+        "test/unit/modelsPanelSections.test.tsx",
+        "test/unit/scheduleFs.test.ts",
+        "test/unit/scheduleMigrate.test.ts"
+      ]
+    },
+    "gates": [
+      {
+        "name": "typecheck",
+        "command": ["npm", "run", "typecheck"],
+        "exit": 0,
+        "seconds": 273.037055230001,
+        "log": "temp/cm1082-r3-gate-typecheck.log"
+      },
+      {
+        "name": "eslint",
+        "command": [
+          "npx",
+          "eslint",
+          "--max-warnings=0",
+          "scripts/check-bundle-size.mjs",
+          "scripts/lib/accountRestore.mjs",
+          "scripts/lib/reference.mjs",
+          "src/acp/accountText.ts",
+          "src/acp/accounts.ts",
+          "src/acp/agent.ts",
+          "src/core/accounts/pool.ts",
+          "src/core/providers/configured.ts",
+          "src/core/providers/subscriptions/registry.ts",
+          "src/extension.ts",
+          "src/host/models/modelsPanel.ts",
+          "src/host/models/modelsPanelEntry.ts",
+          "src/host/providers/editorAccounts.ts",
+          "src/runtime/cliOptions.ts",
+          "src/runtime/providers/accountRequestJournal.ts",
+          "src/runtime/providers/accountRequestOwner.ts",
+          "src/runtime/providers/accountsBundle.ts",
+          "src/runtime/providers/accountsEntry.ts",
+          "src/runtime/providers/runtimeServices.ts",
+          "src/runtime/reference.node.generated.ts",
+          "src/shared/constants.ts",
+          "src/shared/featureCatalog.ts",
+          "src/shared/l10n/en.ts",
+          "src/shared/modelAccountsProtocol.ts",
+          "src/shared/modelAccountsRoute.ts",
+          "src/shared/reference/reference.generated.ts",
+          "src/shared/reference/referenceSource.ts",
+          "src/webview/hostBridge.ts",
+          "src/webview/models/ImportPane.tsx",
+          "src/webview/models/ModelAccounts.tsx",
+          "src/webview/models/ProvidersSection.tsx",
+          "src/webview/models/panel.tsx",
+          "src/webview/models/sections/accounts/AccountsSurface.tsx",
+          "test/e2e/accountComposition.e2e.test.ts",
+          "test/e2e/accountRequests.e2e.test.ts",
+          "test/e2e/accounts.e2e.test.ts",
+          "test/unit/accountAvailability.test.ts",
+          "test/unit/accountBoundary.test.ts",
+          "test/unit/accountPaidComposition.test.ts",
+          "test/unit/accountPaidFiles.test.ts",
+          "test/unit/accountPaidHosts.test.ts",
+          "test/unit/accountRequestJournal.test.ts",
+          "test/unit/accountRequestRecovery.test.ts",
+          "test/unit/accountRequestWriter.test.ts",
+          "test/unit/accountRestore.test.mjs",
+          "test/unit/accountStore.test.ts",
+          "test/unit/bundleSize.test.mjs",
+          "test/unit/execResources.test.ts",
+          "test/unit/helpers/accountComposition.ts",
+          "test/unit/helpers/accountCrashProcess.ts",
+          "test/unit/helpers/accounts/metadata.ts",
+          "test/unit/helpers/fakeModelApi.ts",
+          "test/unit/helpers/runtimeAccounts.ts",
+          "test/unit/helpers/runtimeBackend.ts",
+          "test/unit/helpers/tempFolders.ts",
+          "test/unit/modelAccountsSurface.test.tsx",
+          "test/unit/modelsImportFailure.test.tsx",
+          "test/unit/modelsPanelSections.test.tsx",
+          "test/unit/runtimeAccountsService.test.ts",
+          "test/unit/runtimeServices.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 78.4689783800859,
+        "log": "temp/cm1082-r3-gate-eslint.log"
+      },
+      {
+        "name": "prettier",
+        "command": [
+          "npx",
+          "prettier",
+          "--check",
+          "CHANGELOG.md",
+          "PLAN.md",
+          "README.md",
+          "ROADMAP.md",
+          "docs/certification/cm1082-bundles.json",
+          "docs/certification/cm1082-drills.json",
+          "docs/certification/cm1082-restore.json",
+          "docs/certification/cm1082-restore.md",
+          "docs/certification/cm1082-verification.json",
+          "docs/certification/cm1082.md",
+          "docs/orchestration-gotchas.md",
+          "docs/reference.md",
+          "docs/roadmap/entries.json",
+          "l10n/ui.cs.json",
+          "l10n/ui.de.json",
+          "l10n/ui.es.json",
+          "l10n/ui.fr.json",
+          "l10n/ui.hu.json",
+          "l10n/ui.it.json",
+          "l10n/ui.ja.json",
+          "l10n/ui.ko.json",
+          "l10n/ui.pl.json",
+          "l10n/ui.pt-br.json",
+          "l10n/ui.ru.json",
+          "l10n/ui.tr.json",
+          "l10n/ui.zh-cn.json",
+          "l10n/ui.zh-tw.json",
+          "package.json",
+          "package.nls.cs.json",
+          "package.nls.de.json",
+          "package.nls.es.json",
+          "package.nls.fr.json",
+          "package.nls.hu.json",
+          "package.nls.it.json",
+          "package.nls.ja.json",
+          "package.nls.json",
+          "package.nls.ko.json",
+          "package.nls.pl.json",
+          "package.nls.pt-br.json",
+          "package.nls.ru.json",
+          "package.nls.tr.json",
+          "package.nls.zh-cn.json",
+          "package.nls.zh-tw.json",
+          "scripts/check-bundle-size.mjs",
+          "scripts/lib/accountRestore.mjs",
+          "scripts/lib/reference.mjs",
+          "src/acp/accountText.ts",
+          "src/acp/accounts.ts",
+          "src/acp/agent.ts",
+          "src/core/accounts/pool.ts",
+          "src/core/providers/configured.ts",
+          "src/core/providers/subscriptions/registry.ts",
+          "src/extension.ts",
+          "src/host/models/modelsPanel.ts",
+          "src/host/models/modelsPanelEntry.ts",
+          "src/host/providers/editorAccounts.ts",
+          "src/runtime/cliOptions.ts",
+          "src/runtime/providers/accountRequestJournal.ts",
+          "src/runtime/providers/accountRequestOwner.ts",
+          "src/runtime/providers/accountsBundle.ts",
+          "src/runtime/providers/accountsEntry.ts",
+          "src/runtime/providers/runtimeServices.ts",
+          "src/runtime/reference.node.generated.ts",
+          "src/shared/constants.ts",
+          "src/shared/featureCatalog.ts",
+          "src/shared/l10n/en.ts",
+          "src/shared/modelAccountsProtocol.ts",
+          "src/shared/modelAccountsRoute.ts",
+          "src/shared/reference/reference.generated.json",
+          "src/shared/reference/reference.generated.ts",
+          "src/shared/reference/referenceSource.ts",
+          "src/webview/hostBridge.ts",
+          "src/webview/models/ImportPane.tsx",
+          "src/webview/models/ModelAccounts.tsx",
+          "src/webview/models/ProvidersSection.tsx",
+          "src/webview/models/panel.tsx",
+          "src/webview/models/sections/accounts/AccountsSurface.tsx",
+          "test/e2e/accountComposition.e2e.test.ts",
+          "test/e2e/accountRequests.e2e.test.ts",
+          "test/e2e/accounts.e2e.test.ts",
+          "test/unit/accountAvailability.test.ts",
+          "test/unit/accountBoundary.test.ts",
+          "test/unit/accountPaidComposition.test.ts",
+          "test/unit/accountPaidFiles.test.ts",
+          "test/unit/accountPaidHosts.test.ts",
+          "test/unit/accountRequestJournal.test.ts",
+          "test/unit/accountRequestRecovery.test.ts",
+          "test/unit/accountRequestWriter.test.ts",
+          "test/unit/accountRestore.test.mjs",
+          "test/unit/accountStore.test.ts",
+          "test/unit/bundleSize.test.mjs",
+          "test/unit/execResources.test.ts",
+          "test/unit/helpers/accountComposition.ts",
+          "test/unit/helpers/accountCrashProcess.ts",
+          "test/unit/helpers/accounts/metadata.ts",
+          "test/unit/helpers/fakeModelApi.ts",
+          "test/unit/helpers/runtimeAccounts.ts",
+          "test/unit/helpers/runtimeBackend.ts",
+          "test/unit/helpers/tempFolders.ts",
+          "test/unit/modelAccountsSurface.test.tsx",
+          "test/unit/modelsImportFailure.test.tsx",
+          "test/unit/modelsPanelSections.test.tsx",
+          "test/unit/runtimeAccountsService.test.ts",
+          "test/unit/runtimeServices.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 40.00521732005291,
+        "log": "temp/cm1082-r3-gate-prettier.log"
+      },
+      {
+        "name": "knip",
+        "command": ["npm", "run", "deadcode"],
+        "exit": 0,
+        "seconds": 13.613999600987881,
+        "log": "temp/cm1082-r3-gate-knip.log"
+      },
+      {
+        "name": "cycles",
+        "command": ["npm", "run", "cycles"],
+        "exit": 0,
+        "seconds": 65.82832450699061,
+        "log": "temp/cm1082-r3-gate-cycles.log"
+      },
+      {
+        "name": "duplication",
+        "command": ["npm", "run", "duplication"],
+        "exit": 0,
+        "seconds": 3.622298198984936,
+        "log": "temp/cm1082-r3-gate-duplication.log"
+      },
+      {
+        "name": "l10n",
+        "command": ["npm", "run", "check:l10n"],
+        "exit": 0,
+        "seconds": 6.795356080983765,
+        "log": "temp/cm1082-r3-gate-l10n.log"
+      },
+      {
+        "name": "reference",
+        "command": ["npm", "run", "check:reference"],
+        "exit": 0,
+        "seconds": 5.783438796061091,
+        "log": "temp/cm1082-r3-gate-reference.log"
+      },
+      {
+        "name": "host-api",
+        "command": ["npm", "run", "check:host-api"],
+        "exit": 0,
+        "seconds": 60.68211337097455,
+        "log": "temp/cm1082-r3-gate-host-api.log"
+      },
+      {
+        "name": "roadmap",
+        "command": ["npm", "run", "check:roadmap"],
+        "exit": 0,
+        "seconds": 2.5172700689872727,
+        "log": "temp/cm1082-r3-gate-roadmap.log"
+      },
+      {
+        "name": "build",
+        "command": ["npm", "run", "build"],
+        "exit": 0,
+        "seconds": 36.81349682796281,
+        "log": "temp/cm1082-r3-gate-build.log"
+      }
+    ],
+    "finalIncomplete": true,
+    "finalFailures": [
+      {
+        "file": "test/unit/execResources.test.ts",
+        "state": "fail",
+        "passed": 6,
+        "failed": 1,
+        "skipped": 0,
+        "failures": [
+          {
+            "name": "runs terminal resources against the real lazy entry without any key-store or model access",
+            "errors": [
+              "Test timed out in 5000ms.\nIf this is a long-running test, pass a timeout value as the last argument or configure it globally with \"testTimeout\"."
+            ]
+          }
+        ],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/execRun.test.ts",
+        "state": "fail",
+        "passed": 93,
+        "failed": 1,
+        "skipped": 0,
+        "failures": [
+          {
+            "name": "D29 4MiB stderr keeps bounded exit; drained=false",
+            "errors": ["standalone command exceeded its bounded test deadline: bootstrap:0\n"]
+          }
+        ],
+        "unhandled": []
+      }
+    ],
+    "remainingFiles": [
+      "test/unit/UsageEntry.test.tsx",
+      "test/unit/mcpPool.test.ts",
+      "test/unit/mediaAttach.test.ts",
+      "test/unit/mediaClient.test.ts",
+      "test/unit/metaGolden.test.ts",
+      "test/unit/metaRequestGoldens.test.ts",
+      "test/unit/modalityGate.test.ts",
+      "test/unit/modelApiArgumentPreview.test.ts",
+      "test/unit/modelApiAttemptBudget.test.ts",
+      "test/unit/modelApiAttemptFiles.test.ts",
+      "test/unit/modelApiAttemptVerify.test.ts",
+      "test/unit/modelApiAudio.test.ts",
+      "test/unit/modelApiAutoCompact.test.ts",
+      "test/unit/modelApiBackendManager.test.ts",
+      "test/unit/modelApiBundle.test.ts",
+      "test/unit/modelApiClient.test.ts",
+      "test/unit/modelApiCodeIntel.test.ts",
+      "test/unit/modelApiCutShort.test.ts",
+      "test/unit/modelApiElicitation.test.ts",
+      "test/unit/modelApiExtensionHooks.test.ts",
+      "test/unit/modelApiForeignHooks.test.ts",
+      "test/unit/modelApiGoldenRequests.test.ts",
+      "test/unit/modelApiHost.test.ts",
+      "test/unit/modelApiHostedSearch.test.ts",
+      "test/unit/modelApiImageIngress.test.ts",
+      "test/unit/modelApiLoopGuarantees.test.ts",
+      "test/unit/modelApiMedia.test.ts",
+      "test/unit/modelApiOverflow.test.ts",
+      "test/unit/modelApiPacking.test.ts",
+      "test/unit/modelApiPolicyFence.test.ts",
+      "test/unit/modelApiPrefix.test.ts",
+      "test/unit/modelApiProductionMedia.test.ts",
+      "test/unit/modelApiProviders.test.ts",
+      "test/unit/modelApiQuestionDeferral.test.ts",
+      "test/unit/modelApiReplayIdentity.test.ts",
+      "test/unit/modelApiShellDirectory.test.ts",
+      "test/unit/modelApiWireHosts.test.ts",
+      "test/unit/modelCallHooks.test.ts",
+      "test/unit/modelCapabilitiesBinding.test.ts",
+      "test/unit/modelPolicy.test.ts",
+      "test/unit/modelsApp.test.tsx",
+      "test/unit/modelsMoneyLifecycle.test.tsx",
+      "test/unit/modelsPanel.test.ts",
+      "test/unit/modelsPanelEntry.test.ts",
+      "test/unit/modelsPanelReducer.test.ts",
+      "test/unit/modelsPanelSchemas.test.ts",
+      "test/unit/modelsQuickPick.test.ts",
+      "test/unit/modelsSections.test.ts",
+      "test/unit/modelsWebviewEntry.test.tsx",
+      "test/unit/museVoice.test.ts",
+      "test/unit/ollamaCodec.test.ts",
+      "test/unit/openQuestionNotices.test.ts",
+      "test/unit/pacing.test.ts",
+      "test/unit/paidConsent.test.ts",
+      "test/unit/paidDailyBudget.test.ts",
+      "test/unit/paidHookModels.test.ts",
+      "test/unit/paidHost.test.ts",
+      "test/unit/paidMoneyStructure.test.ts",
+      "test/unit/paidPortBoundaries.test.ts",
+      "test/unit/playbookCommand.test.ts",
+      "test/unit/playbookSkill.test.ts",
+      "test/unit/playbookSurface.test.ts",
+      "test/unit/policyGate.test.ts",
+      "test/unit/pool.test.ts",
+      "test/unit/providerImportExport.test.ts",
+      "test/unit/providerPanelSeam.test.ts",
+      "test/unit/providerProvidersHost.test.ts",
+      "test/unit/providerRetry.test.ts",
+      "test/unit/providerTransport.test.ts",
+      "test/unit/providersFileStore.test.ts",
+      "test/unit/providersL10n.test.ts",
+      "test/unit/providersPolicy.test.ts",
+      "test/unit/providersX.test.ts",
+      "test/unit/providersXFix.test.ts",
+      "test/unit/questionRegistry.test.ts",
+      "test/unit/rateLimitHeaders.test.ts",
+      "test/unit/recordingReader.test.ts",
+      "test/unit/referenceEntry.test.ts",
+      "test/unit/referenceGenerator.test.mjs",
+      "test/unit/remoteAccountPool.test.ts",
+      "test/unit/replayMedia.test.ts",
+      "test/unit/reportCommand.test.ts",
+      "test/unit/reportContracts.test.ts",
+      "test/unit/reportInvariants.test.ts",
+      "test/unit/reportsCommand.test.ts",
+      "test/unit/resourceChatLoad.test.tsx",
+      "test/unit/resourceChatMount.test.tsx",
+      "test/unit/runtimeAccountStore.test.ts",
+      "test/unit/runtimeAccounting.test.ts",
+      "test/unit/runtimeAccountsBundle.test.ts",
+      "test/unit/runtimeAccountsService.test.ts",
+      "test/unit/runtimeChatGpt.test.ts",
+      "test/unit/runtimeChatGptCallback.test.ts",
+      "test/unit/runtimeChatGptLock.test.ts",
+      "test/unit/runtimeServices.test.ts",
+      "test/unit/scanSecrets.test.ts",
+      "test/unit/scheduleCommand.test.ts",
+      "test/unit/scheduleInterrupt.test.ts",
+      "test/unit/schedulePaid.test.ts",
+      "test/unit/scheduleProvenance.test.ts",
+      "test/unit/scheduleReportCli.test.ts",
+      "test/unit/scheduleV2.test.ts",
+      "test/unit/scheduledRunConfirmation.test.ts",
+      "test/unit/secWinIdentity2.test.ts",
+      "test/unit/secWinWorkerPaths.test.ts",
+      "test/unit/sessionBoardHost.test.ts",
+      "test/unit/sessionBudget.test.ts",
+      "test/unit/sessionBudgetJournal.test.ts",
+      "test/unit/sessionStore.test.ts",
+      "test/unit/sessionTransfer.test.ts",
+      "test/unit/shareCommand.test.ts",
+      "test/unit/shellEnvironmentOrigins.test.ts",
+      "test/unit/structuredSideCalls.test.ts",
+      "test/unit/subscriptionIntegration.test.ts",
+      "test/unit/tabRequest.test.ts",
+      "test/unit/teamAcpProcess.test.ts",
+      "test/unit/teamAcpWorker.test.ts",
+      "test/unit/teamDeclaration.test.ts",
+      "test/unit/teamEngineWorker.test.ts",
+      "test/unit/teamHarness.test.mjs",
+      "test/unit/teamMcpBridge.test.ts",
+      "test/unit/teamMuseCodeWorker.test.ts",
+      "test/unit/teamWorkerFence.test.ts",
+      "test/unit/teamWorkersPaid.test.ts",
+      "test/unit/thresholds.test.ts",
+      "test/unit/toolIoMedia.test.ts",
+      "test/unit/trafficHandlers.test.ts",
+      "test/unit/trafficHarness.test.tsx",
+      "test/unit/trafficView.test.tsx",
+      "test/unit/transcribeBatch.test.ts",
+      "test/unit/unattendedBackends.test.ts",
+      "test/unit/uploadLedger.test.ts",
+      "test/unit/usageIntegration.test.ts",
+      "test/unit/usageRecording.test.ts",
+      "test/unit/usageRecordingAux.test.ts",
+      "test/unit/vault/approvals.test.ts",
+      "test/unit/vault/audit.test.ts",
+      "test/unit/vault/backup.test.ts",
+      "test/unit/vault/boundaries.test.ts",
+      "test/unit/vault/boundaryScrub.test.ts",
+      "test/unit/vault/broker.test.ts",
+      "test/unit/vault/channel.test.ts",
+      "test/unit/vault/contracts.test.ts",
+      "test/unit/vault/crypto.test.ts",
+      "test/unit/vault/delegation.test.ts",
+      "test/unit/vault/execAdapters.test.ts",
+      "test/unit/vault/execBrokerLease.test.ts",
+      "test/unit/vault/execSpawn.test.ts",
+      "test/unit/vault/fakes.test.ts",
+      "test/unit/vault/feeder.test.ts",
+      "test/unit/vault/fleet.test.ts",
+      "test/unit/vault/gitHelper.test.ts",
+      "test/unit/vault/importFile.test.ts",
+      "test/unit/vault/interleavings.test.ts",
+      "test/unit/vault/limits.test.ts",
+      "test/unit/vault/peer.test.ts",
+      "test/unit/vault/policy.test.ts",
+      "test/unit/vault/redemption.test.ts",
+      "test/unit/vault/remote.test.ts",
+      "test/unit/vault/requestTaint.test.ts",
+      "test/unit/vault/reviewFixes.test.ts",
+      "test/unit/vault/reviewRound2.test.ts",
+      "test/unit/vault/reviewRound3.test.ts",
+      "test/unit/vault/reviewRound4.test.ts",
+      "test/unit/vault/reviewRound5.test.ts",
+      "test/unit/vault/sshAgent.test.ts",
+      "test/unit/vault/sshBroker.test.ts",
+      "test/unit/vault/sshConnection.test.ts",
+      "test/unit/vault/sshTransport.test.ts",
+      "test/unit/vault/sudoFeed.test.ts",
+      "test/unit/vault/taint.test.ts",
+      "test/unit/vault/totp.test.ts",
+      "test/unit/vault/useDigest.test.ts",
+      "test/unit/vault/vaultExec.test.ts",
+      "test/unit/vault/vaultNativeEditor.test.ts",
+      "test/unit/vault/vaultPanel.test.tsx",
+      "test/unit/vault/vaultPanelHost.test.ts",
+      "test/unit/vault/vaultStore.test.ts",
+      "test/unit/vault/webCsvImport.test.ts",
+      "test/unit/vault/webFill.test.ts",
+      "test/unit/vault/webPageRead.test.ts",
+      "test/unit/vault/webSessions.test.ts",
+      "test/unit/vaultCommand.test.ts",
+      "test/unit/vaultSurface.test.ts",
+      "test/unit/verifyLoop.test.ts",
+      "test/unit/windowsVaultNative.test.ts",
+      "test/unit/workspaceContext.test.ts"
+    ],
+    "browserOrLiveBlocked": [
+      "test/e2e/eval.live.e2e.test.ts",
+      "test/e2e/modelApi.live.e2e.test.ts",
+      "test/e2e/tab.live.e2e.test.ts",
+      "test/unit/accountsPanel.a11y.test.mjs"
+    ],
+    "finalFixtureRun": {
+      "files": ["test/unit/webviewBundle.test.mjs", "test/unit/accountRestore.test.mjs"],
+      "passed": 58,
+      "defaultTimeout": true,
+      "log": "temp/cm1082-r3-final-fixture-tests.log"
     }
-  }
+  },
+  "remainingNormalDueToTimeBox": [
+    "test/unit/UsageEntry.test.tsx",
+    "test/unit/mcpPool.test.ts",
+    "test/unit/mediaAttach.test.ts",
+    "test/unit/mediaClient.test.ts",
+    "test/unit/metaGolden.test.ts",
+    "test/unit/metaRequestGoldens.test.ts",
+    "test/unit/modalityGate.test.ts",
+    "test/unit/modelApiArgumentPreview.test.ts",
+    "test/unit/modelApiAttemptBudget.test.ts",
+    "test/unit/modelApiAttemptFiles.test.ts",
+    "test/unit/modelApiAttemptVerify.test.ts",
+    "test/unit/modelApiAudio.test.ts",
+    "test/unit/modelApiAutoCompact.test.ts",
+    "test/unit/modelApiBackendManager.test.ts",
+    "test/unit/modelApiBundle.test.ts",
+    "test/unit/modelApiClient.test.ts",
+    "test/unit/modelApiCodeIntel.test.ts",
+    "test/unit/modelApiCutShort.test.ts",
+    "test/unit/modelApiElicitation.test.ts",
+    "test/unit/modelApiExtensionHooks.test.ts",
+    "test/unit/modelApiForeignHooks.test.ts",
+    "test/unit/modelApiGoldenRequests.test.ts",
+    "test/unit/modelApiHost.test.ts",
+    "test/unit/modelApiHostedSearch.test.ts",
+    "test/unit/modelApiImageIngress.test.ts",
+    "test/unit/modelApiLoopGuarantees.test.ts",
+    "test/unit/modelApiMedia.test.ts",
+    "test/unit/modelApiOverflow.test.ts",
+    "test/unit/modelApiPacking.test.ts",
+    "test/unit/modelApiPolicyFence.test.ts",
+    "test/unit/modelApiPrefix.test.ts",
+    "test/unit/modelApiProductionMedia.test.ts",
+    "test/unit/modelApiProviders.test.ts",
+    "test/unit/modelApiQuestionDeferral.test.ts",
+    "test/unit/modelApiReplayIdentity.test.ts",
+    "test/unit/modelApiShellDirectory.test.ts",
+    "test/unit/modelApiWireHosts.test.ts",
+    "test/unit/modelCallHooks.test.ts",
+    "test/unit/modelCapabilitiesBinding.test.ts",
+    "test/unit/modelPolicy.test.ts",
+    "test/unit/modelsApp.test.tsx",
+    "test/unit/modelsMoneyLifecycle.test.tsx",
+    "test/unit/modelsPanel.test.ts",
+    "test/unit/modelsPanelEntry.test.ts",
+    "test/unit/modelsPanelReducer.test.ts",
+    "test/unit/modelsPanelSchemas.test.ts",
+    "test/unit/modelsQuickPick.test.ts",
+    "test/unit/modelsSections.test.ts",
+    "test/unit/modelsWebviewEntry.test.tsx",
+    "test/unit/museVoice.test.ts",
+    "test/unit/ollamaCodec.test.ts",
+    "test/unit/openQuestionNotices.test.ts",
+    "test/unit/pacing.test.ts",
+    "test/unit/paidConsent.test.ts",
+    "test/unit/paidDailyBudget.test.ts",
+    "test/unit/paidHookModels.test.ts",
+    "test/unit/paidHost.test.ts",
+    "test/unit/paidMoneyStructure.test.ts",
+    "test/unit/paidPortBoundaries.test.ts",
+    "test/unit/playbookCommand.test.ts",
+    "test/unit/playbookSkill.test.ts",
+    "test/unit/playbookSurface.test.ts",
+    "test/unit/policyGate.test.ts",
+    "test/unit/pool.test.ts",
+    "test/unit/providerImportExport.test.ts",
+    "test/unit/providerPanelSeam.test.ts",
+    "test/unit/providerProvidersHost.test.ts",
+    "test/unit/providerRetry.test.ts",
+    "test/unit/providerTransport.test.ts",
+    "test/unit/providersFileStore.test.ts",
+    "test/unit/providersL10n.test.ts",
+    "test/unit/providersPolicy.test.ts",
+    "test/unit/providersX.test.ts",
+    "test/unit/providersXFix.test.ts",
+    "test/unit/questionRegistry.test.ts",
+    "test/unit/rateLimitHeaders.test.ts",
+    "test/unit/recordingReader.test.ts",
+    "test/unit/referenceEntry.test.ts",
+    "test/unit/referenceGenerator.test.mjs",
+    "test/unit/remoteAccountPool.test.ts",
+    "test/unit/replayMedia.test.ts",
+    "test/unit/reportCommand.test.ts",
+    "test/unit/reportContracts.test.ts",
+    "test/unit/reportInvariants.test.ts",
+    "test/unit/reportsCommand.test.ts",
+    "test/unit/resourceChatLoad.test.tsx",
+    "test/unit/resourceChatMount.test.tsx",
+    "test/unit/runtimeAccountStore.test.ts",
+    "test/unit/runtimeAccounting.test.ts",
+    "test/unit/runtimeAccountsBundle.test.ts",
+    "test/unit/runtimeAccountsService.test.ts",
+    "test/unit/runtimeChatGpt.test.ts",
+    "test/unit/runtimeChatGptCallback.test.ts",
+    "test/unit/runtimeChatGptLock.test.ts",
+    "test/unit/runtimeServices.test.ts",
+    "test/unit/scanSecrets.test.ts",
+    "test/unit/scheduleCommand.test.ts",
+    "test/unit/scheduleInterrupt.test.ts",
+    "test/unit/schedulePaid.test.ts",
+    "test/unit/scheduleProvenance.test.ts",
+    "test/unit/scheduleReportCli.test.ts",
+    "test/unit/scheduleV2.test.ts",
+    "test/unit/scheduledRunConfirmation.test.ts",
+    "test/unit/secWinIdentity2.test.ts",
+    "test/unit/secWinWorkerPaths.test.ts",
+    "test/unit/sessionBoardHost.test.ts",
+    "test/unit/sessionBudget.test.ts",
+    "test/unit/sessionBudgetJournal.test.ts",
+    "test/unit/sessionStore.test.ts",
+    "test/unit/sessionTransfer.test.ts",
+    "test/unit/shareCommand.test.ts",
+    "test/unit/shellEnvironmentOrigins.test.ts",
+    "test/unit/structuredSideCalls.test.ts",
+    "test/unit/subscriptionIntegration.test.ts",
+    "test/unit/tabRequest.test.ts",
+    "test/unit/teamAcpProcess.test.ts",
+    "test/unit/teamAcpWorker.test.ts",
+    "test/unit/teamDeclaration.test.ts",
+    "test/unit/teamEngineWorker.test.ts",
+    "test/unit/teamHarness.test.mjs",
+    "test/unit/teamMcpBridge.test.ts",
+    "test/unit/teamMuseCodeWorker.test.ts",
+    "test/unit/teamWorkerFence.test.ts",
+    "test/unit/teamWorkersPaid.test.ts",
+    "test/unit/thresholds.test.ts",
+    "test/unit/toolIoMedia.test.ts",
+    "test/unit/trafficHandlers.test.ts",
+    "test/unit/trafficHarness.test.tsx",
+    "test/unit/trafficView.test.tsx",
+    "test/unit/transcribeBatch.test.ts",
+    "test/unit/unattendedBackends.test.ts",
+    "test/unit/uploadLedger.test.ts",
+    "test/unit/usageIntegration.test.ts",
+    "test/unit/usageRecording.test.ts",
+    "test/unit/usageRecordingAux.test.ts",
+    "test/unit/vault/approvals.test.ts",
+    "test/unit/vault/audit.test.ts",
+    "test/unit/vault/backup.test.ts",
+    "test/unit/vault/boundaries.test.ts",
+    "test/unit/vault/boundaryScrub.test.ts",
+    "test/unit/vault/broker.test.ts",
+    "test/unit/vault/channel.test.ts",
+    "test/unit/vault/contracts.test.ts",
+    "test/unit/vault/crypto.test.ts",
+    "test/unit/vault/delegation.test.ts",
+    "test/unit/vault/execAdapters.test.ts",
+    "test/unit/vault/execBrokerLease.test.ts",
+    "test/unit/vault/execSpawn.test.ts",
+    "test/unit/vault/fakes.test.ts",
+    "test/unit/vault/feeder.test.ts",
+    "test/unit/vault/fleet.test.ts",
+    "test/unit/vault/gitHelper.test.ts",
+    "test/unit/vault/importFile.test.ts",
+    "test/unit/vault/interleavings.test.ts",
+    "test/unit/vault/limits.test.ts",
+    "test/unit/vault/peer.test.ts",
+    "test/unit/vault/policy.test.ts",
+    "test/unit/vault/redemption.test.ts",
+    "test/unit/vault/remote.test.ts",
+    "test/unit/vault/requestTaint.test.ts",
+    "test/unit/vault/reviewFixes.test.ts",
+    "test/unit/vault/reviewRound2.test.ts",
+    "test/unit/vault/reviewRound3.test.ts",
+    "test/unit/vault/reviewRound4.test.ts",
+    "test/unit/vault/reviewRound5.test.ts",
+    "test/unit/vault/sshAgent.test.ts",
+    "test/unit/vault/sshBroker.test.ts",
+    "test/unit/vault/sshConnection.test.ts",
+    "test/unit/vault/sshTransport.test.ts",
+    "test/unit/vault/sudoFeed.test.ts",
+    "test/unit/vault/taint.test.ts",
+    "test/unit/vault/totp.test.ts",
+    "test/unit/vault/useDigest.test.ts",
+    "test/unit/vault/vaultExec.test.ts",
+    "test/unit/vault/vaultNativeEditor.test.ts",
+    "test/unit/vault/vaultPanel.test.tsx",
+    "test/unit/vault/vaultPanelHost.test.ts",
+    "test/unit/vault/vaultStore.test.ts",
+    "test/unit/vault/webCsvImport.test.ts",
+    "test/unit/vault/webFill.test.ts",
+    "test/unit/vault/webPageRead.test.ts",
+    "test/unit/vault/webSessions.test.ts",
+    "test/unit/vaultCommand.test.ts",
+    "test/unit/vaultSurface.test.ts",
+    "test/unit/verifyLoop.test.ts",
+    "test/unit/windowsVaultNative.test.ts",
+    "test/unit/workspaceContext.test.ts"
+  ]
 }
