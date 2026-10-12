@@ -549,9 +549,8 @@ describe('packaging (M26)', () => {
     const ci = read('.github', 'workflows', 'build.yml')
     expect(ci).toContain('run: node scripts/release-reuse.mjs record')
     expect(ci).toContain('name: source-tree-${{ steps.source.outputs.tree }}')
-    // Four package artifacts plus M114 S's visual-shards and visual jobs,
-    // every one on the same 30-day retention.
-    expect(count(ci, /retention-days: 30/g)).toBe(6)
+    // The four package artifacts, every one on the same 30-day retention.
+    expect(count(ci, /retention-days: 30/g)).toBe(4)
   })
   it('keeps manual recovery on the shared verified staging path and never rebuilds it (RELFAST2)', () => {
     const release = read('.github', 'workflows', 'release.yml')
@@ -642,7 +641,7 @@ describe('tiered CI (CIFLOW)', () => {
       expect(job(id)).toContain('inputs.fast && \'["ubuntu-latest"]\'')
       expect(job(id)).toContain('["ubuntu-latest","windows-latest","macos-latest"]')
     }
-    // Exactly quality:gates without tests and pixels, which have required jobs: a
+    // Exactly quality:gates without the tests, which have a required job: a
     // gate added to quality:gates and not to CI fails here. The static gates run
     // in parts (CIFIX017R3): each script quality:gates reaches through run-s
     // runs in exactly one part, none twice and none dropped.
@@ -661,9 +660,9 @@ describe('tiered CI (CIFLOW)', () => {
     )
     expect(parts).toHaveLength(3)
     expect(leaves(parts.flat()).toSorted((a, b) => a.localeCompare(b))).toEqual(
-      leaves(
-        gates.slice(1).filter((gate) => gate !== 'test:unit' && gate !== 'check:visual'),
-      ).toSorted((a, b) => a.localeCompare(b)),
+      leaves(gates.slice(1).filter((gate) => gate !== 'test:unit')).toSorted((a, b) =>
+        a.localeCompare(b),
+      ),
     )
     expect(job('checks')).toContain('      - run: npx run-s ${{ matrix.part.gates }}\n')
     expect(job('unit')).toContain('npx vitest run\n')
@@ -677,8 +676,6 @@ describe('tiered CI (CIFLOW)', () => {
     ]) {
       expect(job(id)).toContain('if: ${{ !inputs.fast }}')
     }
-    // M114 S's visual gate runs on every tier, like the static checks.
-    expect(job('visual')).toContain('if: always()')
     expect(job('accessibility')).toContain('runs-on: ubuntu-latest')
     expect(job('accessibility')).toContain('run: npm run test:a11y\n')
     expect(job('accessibility')).toContain('run: npm run test:legal-a11y\n')
@@ -703,14 +700,6 @@ describe('tiered CI (CIFLOW)', () => {
     expect(read('test/harness/reporting/verify.mjs')).toContain(
       "statSync(path.join(root, 'dist/reportingPanel.js'))",
     )
-  })
-
-  it('replays visual pixels only in required shards with the recorded Git source available', () => {
-    expect(job('checks')).not.toContain('check:visual')
-    expect(job('visual-shards')).toContain('fetch-depth: 0')
-    expect(job('visual-shards')).toContain('git fetch --no-tags origin "$revision"')
-    expect(job('visual-shards')).toContain('npm run check:visual -- --shard=${{ matrix.shard }}/6')
-    expect(job('visual')).toContain('needs: visual-shards')
   })
 
   it('collects every shard per OS (eight on Windows and macOS, four on Ubuntu) and gates merged coverage with unchanged thresholds', () => {
@@ -761,7 +750,6 @@ describe('tiered CI (CIFLOW)', () => {
         .filter(Boolean),
     ).toEqual([
       'checks',
-      'visual',
       'unit',
       'coverage',
       'accessibility',
@@ -773,7 +761,7 @@ describe('tiered CI (CIFLOW)', () => {
       'sast',
     ])
     expect(job(id)).toContain('if: always()')
-    for (const key of ['CHECKS', 'VISUAL', 'UNIT', 'SECRETS', 'SAST']) {
+    for (const key of ['CHECKS', 'UNIT', 'SECRETS', 'SAST']) {
       expect(job(id)).toContain(`          test "$${key}" = success\n`)
     }
     expect(job(id)).toContain('          if [ "$FAST" != true ]; then\n')
@@ -836,7 +824,7 @@ describe('tiered CI (CIFLOW)', () => {
           ?.split(',')
           .map((value) => value.trim())
           .filter(Boolean) ?? []
-      const always = ['checks', 'visual', 'unit', 'secrets', 'sast']
+      const always = ['checks', 'unit', 'secrets', 'sast']
       const fullOnly = [
         'coverage',
         'accessibility',
