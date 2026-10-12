@@ -252,3 +252,32 @@ now assert redacted partial text and the explicit incomplete marker, retaining
 all non-success, spend, invalid-usage and no-credit checks. Final
 execOutput/execRun/runtimeAccountingInterruptions 186/186, default timeout;
 check:l10n: 14 UI and usage tables, 0 problems.
+
+## Round 2 E: invalid settings no longer hide behind the generic warning
+
+Cause, proven with full provider runs (canned fetch; loopback is sandbox-blocked
+on this rig, see below): a healthy persistent store records silently and exactly.
+When `usage-settings.json` exists but is invalid (unparsable, wrong types,
+out-of-range days), `readUsageHistorySettings` throws on every `isEnabled()`
+check, so every note fails and the run logs only "Usage history could not be
+recorded" while the run itself succeeds — the exact reported symptom. Genuine
+store failures (unwritable paths, file where a folder belongs, no permission)
+warn the same generic line, correctly; a stale rollup lock does not gate appends.
+
+Fix: the writer's `isEnabled` (src/runtime/usage/usageServiceEntry.ts) pauses
+history on invalid settings (never a guess) and reports once through a new
+optional `onInvalidSettings` (src/core/usage/recording.ts), wired in exec, ACP
+serve and the VS Code host with the repair sentence (delete usage-settings.json
+or toggle history off and on). Other read errors still throw; genuine write
+failures keep the generic warning. Ephemeral omission is unchanged.
+
+Matrix (canned-fetch full dispatch, exit 0, one request, production bundles):
+fresh green with one record; lived-in healthy green with append; corrupt settings
+specific warning and zero records; days-root/today as files and read-only dirs
+generic warning and zero records; stale lock green. Red drill: restored the old
+one-line `isEnabled`, the new writer test failed (0 reports); SHA-256 verified
+restoration before committing. Committed run-level loopback tests (persistent
+invalid settings; ephemeral with a bundle-less distDir) mirror these assertions
+for the lead's unsandboxed run. The pre-existing usageIntegration companion-page
+case (HTTP 502 vs 401 from its loopback server) fails identically with and
+without this change: sandbox-blocked loopback, named for the lead.

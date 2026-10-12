@@ -2217,3 +2217,179 @@ for (const family of providerFamilies) {
     }
   })
 }
+
+async function ollamaLoopback(isPersistent: boolean) {
+  const family = {
+    format: 'ollama',
+    native: 'qwen3:4b-instruct-2507-q4_K_M',
+    capture: 'ollama/03-plain-stream.json',
+    input: 14,
+    output: 5,
+    cached: 0,
+    cost: '0.000024',
+  } as const
+  const stream = providerCaptureStream(family.capture)
+  const dispatched: string[] = []
+  const server = createServer((request, response) => {
+    let body = ''
+    request.on('data', (part: Buffer) => {
+      body += part.toString('utf8')
+    })
+    request.on('end', () => {
+      if (request.method === 'GET') response.end(JSON.stringify({ data: [{ id: family.native }] }))
+      else {
+        dispatched.push(body)
+        response.writeHead(200, { 'Content-Type': 'application/x-ndjson' })
+        response.end(stream)
+      }
+    })
+  })
+  await new Promise<void>((resolve) => {
+    server.listen(0, '127.0.0.1', () => {
+      resolve()
+    })
+  })
+  const address = server.address()
+  if (address === null || typeof address === 'string') throw new Error('Missing loopback address')
+  const origin = `http://127.0.0.1:${String(address.port)}`
+  const h = await harness(
+    [
+      '--provider',
+      'local',
+      '--model',
+      `local/${family.native}`,
+      '--max-budget-usd',
+      '0.1',
+      '--max-requests',
+      '1',
+      '--ephemeral',
+    ],
+    [],
+    {},
+  )
+  h.deps.options = { ...h.deps.options, ephemeral: !isPersistent }
+  const yes = { state: 'yes', value: true }
+  const limits = { contextTokens: 1_000_000, outputTokens: 32_768 }
+  const capability = {
+    tools: { calling: yes },
+    reasoning: { supported: { state: 'no' }, canDisable: yes },
+    output: { acceptsLimit: yes, maxTokens: 32_768 },
+    limits: { contextTokens: 1_000_000 },
+  }
+  const price = {
+    input: 0.000001,
+    output: 0.000002,
+    cachedInput: 0.0000001,
+    cacheWrite: 0.00000125,
+  }
+  const config = providerConfigFile(h.homeDir)
+  writeFileSync(
+    config,
+    JSON.stringify({
+      v: 1,
+      defaultModel: `local/${family.native}`,
+      providers: [
+        {
+          id: 'local',
+          preset: 'custom',
+          format: family.format,
+          address: origin,
+          privateNetwork: true,
+          auth: 'apiKey',
+          models: [family.native],
+          numCtx: { [family.native]: 1_000_000 },
+          modelLimits: { [family.native]: limits },
+          modelCapabilities: { [family.native]: capability },
+          prices: { [family.native]: price },
+        },
+      ],
+    }),
+  )
+  await h.store.delete(SECRET_KEYS.modelApiKey)
+  await h.store.store(
+    'museSpark.provider.local',
+    formatStoredProviderSecret({ v: 1, auth: 'apiKey', origin }, 'synthetic-owned-key'),
+  )
+  h.deps.fetch = globalThis.fetch
+  return { h, server, dispatched, family }
+}
+
+it('EXECPROV persistent run with invalid settings pauses history with a specific warning', async () => {
+  const { h, server, dispatched, family } = await ollamaLoopback(true)
+  try {
+    writeFileSync(
+      path.join(
+        agentDataFolder({ platform: process.platform, env: {}, homeDir: h.homeDir }),
+        'usage-settings.json',
+      ),
+      '{oops',
+    )
+    const run = await h.run()
+    expect(run.code, JSON.stringify(run.result)).toBe(0)
+    expect(dispatched).toHaveLength(1)
+    expect(result(run).usageHistory).toBe(undefined)
+    const stderr = h.err.chunks.join('')
+    expect(stderr).toContain('Usage history settings are invalid')
+    expect(stderr).not.toContain('Usage history could not be recorded')
+    const root = path.join(agentDataFolder(h.deps), 'usage')
+    const files = readdirSync(root, { recursive: true }).filter(
+      (name) => typeof name === 'string' && name.endsWith('.jsonl'),
+    )
+    expect(files).toHaveLength(0)
+    expect(result(run)).toMatchObject({
+      model: `local/${family.native}`,
+      usage: {
+        requests: 1,
+        inputTokens: family.input,
+        outputTokens: family.output,
+        cachedTokens: family.cached,
+        costUsd: { settled: Usd.from(family.cost).toAmount(), uncertain: '0', reserved: '0' },
+      },
+    })
+  } finally {
+    server.closeAllConnections()
+    await new Promise<void>((resolve, reject) => {
+      server.close((error) => {
+        if (error === undefined) resolve()
+        else reject(error)
+      })
+    })
+  }
+})
+
+it('EXECPROV ephemeral run never loads the usage writer bundle', async () => {
+  // A dist folder with the backend but no usageService.js: any writer load
+  // throws, so the generic warning proves the ephemeral guard leaked.
+  const bare = folder()
+  await buildModelApiBundle(bare)
+  writeFileSync(
+    path.join(bare, 'providerCatalog.json'),
+    readFileSync('vendor/models-dev/snapshot.json'),
+  )
+  const { h, server, dispatched, family } = await ollamaLoopback(false)
+  h.deps.distDir = bare
+  try {
+    const run = await h.run()
+    expect(run.code, JSON.stringify(run.result)).toBe(0)
+    expect(dispatched).toHaveLength(1)
+    expect(result(run).usageHistory).toBe('omitted_ephemeral')
+    expect(h.err.chunks.join('')).not.toContain('Usage history could not be recorded')
+    expect(result(run)).toMatchObject({
+      model: `local/${family.native}`,
+      usage: {
+        requests: 1,
+        inputTokens: family.input,
+        outputTokens: family.output,
+      },
+    })
+  } finally {
+    server.closeAllConnections()
+    await new Promise<void>((resolve, reject) => {
+      server.close((error) => {
+        if (error === undefined) resolve()
+        else reject(error)
+      })
+    })
+    await removeFolder(bare)
+  }
+})

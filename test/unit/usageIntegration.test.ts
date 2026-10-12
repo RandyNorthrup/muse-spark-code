@@ -462,4 +462,47 @@ describe('M102 integrated surfaces', () => {
     expect(state.history.enabled).toBe(false)
     expect(await readdir(root)).toContain('usage-settings.json')
   })
+  it('pauses with one specific report on invalid settings instead of the generic write warning', async () => {
+    const root = await folder()
+    await writeFile(path.join(root, 'usage-settings.json'), '{oops')
+    const log = new FakeLogOutputChannel()
+    let invalidReports = 0
+    let writeErrors = 0
+    const writer = await createUsageWriter({
+      dataFolder: root,
+      writerId: randomUUID(),
+      now: Date.now,
+      isEnabled: () => true,
+      onWriteError: () => {
+        writeErrors += 1
+      },
+      onInvalidSettings: () => {
+        invalidReports += 1
+      },
+    })
+    const recording = createUsageRecording({
+      client: 'cli',
+      now: Date.now,
+      newId: randomUUID,
+      isEnabled: () => true,
+      writer: () => Promise.resolve(writer),
+      log,
+    })
+    const turn = {
+      backend: 'modelApi',
+      provider: 'meta',
+      model: 'muse-spark-1.3',
+      kind: 'turn',
+      startedAt: 1,
+      outcome: 'completed',
+    } as const
+    recording.note(undefined, turn)
+    recording.note(undefined, turn)
+    await recording.flush()
+    expect(invalidReports).toBe(1)
+    expect(writeErrors).toBe(0)
+    expect(log.warn).not.toHaveBeenCalledWith('Usage history could not be recorded')
+    const stored = await writer.read()
+    expect(stored.records).toEqual([])
+  })
 })

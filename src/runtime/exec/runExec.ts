@@ -315,6 +315,11 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
           now: deps.now,
           isEnabled: () => !options.ephemeral && (deps.isUsageHistoryEnabled?.() ?? true),
           onWriteError,
+          onInvalidSettings: () => {
+            log.warn(
+              'Usage history settings are invalid, so usage history is paused. Delete usage-settings.json in the agent data folder or turn usage history off and on again to record history again.',
+            )
+          },
         })
       },
     })

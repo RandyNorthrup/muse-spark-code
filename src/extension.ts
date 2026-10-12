@@ -753,6 +753,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         isEnabled: () =>
           vscode.workspace.getConfiguration(SETTINGS_SECTION).get<boolean>('usageHistory', true),
         onWriteError,
+        onInvalidSettings: () => {
+          log.warn(
+            'Usage history settings are invalid, so usage history is paused. Delete usage-settings.json in the agent data folder or turn usage history off and on again to record history again.',
+          )
+        },
       })
     },
   })

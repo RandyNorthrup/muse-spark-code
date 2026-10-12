@@ -38,6 +38,8 @@ happened, not what was planned; superseded entries are kept.
   from this build’s catalogue have a specific refusal.
 - Ephemeral exec omits durable usage history and says so in its JSON record.
 - Command `--help` stays within that command’s own usage and options.
+- An invalid usage-history settings file pauses recording with a specific repair
+  warning instead of the generic write warning on every run.
 
 - Provider and headless Meta requests reserve their actual conservative input
   and output cap instead of a full context window. Budget refusals show the
