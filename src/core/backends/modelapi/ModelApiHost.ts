@@ -14081,10 +14081,13 @@ export class ModelApiSession implements ScheduledAgentSession {
             errorKind = CHATGPT_PLAN_LIMIT_ERROR_KIND
           else errorKind = isAuthFailure(error) ? AUTH_REQUIRED_ERROR_KIND : MODEL_API_ERROR_KIND
         }
+        // Fixed words and a reason code only: the user-facing reason can
+        // carry an attachment's file name (RVM105 4), which never reaches a
+        // log. The detailed sentence still reaches the user with the turn.
         this.deps.log.warn(
           error instanceof HookStoppedError
             ? `Model API turn ${turn.turnId} stopped by a hook`
-            : `Model API turn ${turn.turnId} failed: ${reason}`,
+            : `Model API turn ${turn.turnId} failed: ${errorKind}`,
         )
         if (turn.modelFailure !== undefined && !(error instanceof ChildTaskRefusedError)) {
           const lastAssistantMessage = this.transcript.findLast(
@@ -17111,7 +17114,11 @@ export class ModelApiHost implements AgentHost {
           this.stored.set(sessionId, pending.header)
         }
       } catch (error: unknown) {
-        this.deps.log.warn(`Session ${sessionId} was not saved: ${describe(error)}`)
+        // Fixed words only: a save can fail on an upload-ownership refusal
+        // that names the attachment (RVM105 4). The waiter keeps the detail.
+        this.deps.log.warn(
+          `Session ${sessionId} was not saved: ${error instanceof Error ? error.name : 'unknown failure'}`,
+        )
         this.settleSaveWaiters(state, coveredThrough, error)
         continue
       }

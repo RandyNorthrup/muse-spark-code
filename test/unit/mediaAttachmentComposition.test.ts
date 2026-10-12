@@ -3,7 +3,7 @@
 import * as acp from '@agentclientprotocol/sdk'
 import * as vscode from 'vscode'
 import { randomUUID } from 'node:crypto'
-import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { PassThrough } from 'node:stream'
@@ -679,6 +679,129 @@ describe('M105 production existing-file composition', () => {
       expect(prepareAudioMessage).toHaveBeenCalledTimes(1)
     } finally {
       await host.close()
+    }
+  })
+  it('keeps the attachment file name out of every log line on a changed-byte refusal (RVM105 4)', async () => {
+    const root = scratch()
+    const b = boundary(root)
+    vi.mocked(confirmModal).mockResolvedValue(UI_TEXT.media.send)
+    const t = editorFixture(root, b, 'transcribe')
+    const canary = 'canary-clip.mp4'
+    try {
+      writeFileSync(path.join(root, canary), videoFixture({ soundtrack: false }))
+      const token = t.port.issue({
+        name: canary,
+        fsPath: path.join(root, canary),
+        relativePath: canary,
+      })
+      const prepared = await t.port.prepare(token, 'modelApi', MODEL)
+      if (!prepared.ok) throw new Error(prepared.reason)
+      const store = new AttachmentStore(randomUUID, undefined, prepared.attachment.store)
+      const added = store.addMedia(canary, prepared.attachment.info)
+      if (!added.ok) throw new Error(added.reason)
+      // A byte changes after attach: the replay's digest check refuses.
+      const changed = Buffer.from(videoFixture({ soundtrack: false }))
+      changed[changed.length - 1] ^= 0xff
+      writeFileSync(path.join(root, canary), changed)
+      const host = await t.manager.ensureHost()
+      const session = await host.startSession({
+        workspaceRoot: root,
+        modelId: MODEL,
+        approvalMode: 'allowAll',
+      })
+      const h = watchSessionTurns(session)
+      const done = h.turnDone()
+      await session.sendTurn([
+        { type: 'text', text: 'Describe this file.' },
+        ...store.partsFor([added.attachment.id]),
+      ])
+      await done
+      const completed = h.events.findLast((event) => event.type === 'turnCompleted')
+      expect(completed).toMatchObject({ terminal: 'failed' })
+      // The user still sees the detailed sentence with the file name.
+      expect(JSON.stringify(completed)).toContain(canary)
+      expect(b.api.responseBodies()).toEqual([])
+      expect(b.files.uploads).toEqual([])
+      const lines = [
+        ...t.log.trace.mock.calls,
+        ...t.log.debug.mock.calls,
+        ...t.log.info.mock.calls,
+        ...t.log.warn.mock.calls,
+        ...t.log.error.mock.calls,
+      ].map((call) => JSON.stringify(call))
+      // The failure was logged (fixed words and a reason code), but the name
+      // never reaches any log line.
+      expect(lines.length).toBeGreaterThan(0)
+      expect(lines.some((line) => line.includes(canary))).toBe(false)
+    } finally {
+      t.port.clear()
+      await t.manager.dispose()
+    }
+  })
+  it('keeps the attachment name out of the session-save log when ownership expired (RVM105 4)', async () => {
+    const root = scratch()
+    const b = boundary(root)
+    vi.mocked(confirmModal).mockResolvedValue(UI_TEXT.media.send)
+    const t = editorFixture(root, b, 'transcribe')
+    const canary = 'canary-save.mp4'
+    const logLines = () =>
+      [
+        ...t.log.trace.mock.calls,
+        ...t.log.debug.mock.calls,
+        ...t.log.info.mock.calls,
+        ...t.log.warn.mock.calls,
+        ...t.log.error.mock.calls,
+      ].map((call) => JSON.stringify(call))
+    try {
+      writeFileSync(path.join(root, canary), videoFixture({ soundtrack: false }))
+      const token = t.port.issue({
+        name: canary,
+        fsPath: path.join(root, canary),
+        relativePath: canary,
+      })
+      const prepared = await t.port.prepare(token, 'modelApi', MODEL)
+      if (!prepared.ok) throw new Error(prepared.reason)
+      const store = new AttachmentStore(randomUUID, undefined, prepared.attachment.store)
+      const added = store.addMedia(canary, prepared.attachment.info)
+      if (!added.ok) throw new Error(added.reason)
+      const host = await t.manager.ensureHost()
+      const session = await host.startSession({
+        workspaceRoot: root,
+        modelId: MODEL,
+        approvalMode: 'allowAll',
+      })
+      b.api.script({ text: 'Saw the clip.', usage: { input: 2800, output: 64 } })
+      let h = watchSessionTurns(session)
+      let done = h.turnDone()
+      await session.sendTurn([
+        { type: 'text', text: 'Describe this file.' },
+        ...store.partsFor([added.attachment.id]),
+      ])
+      await done
+      expect(h.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
+        terminal: 'completed',
+      })
+      // Evict the ledger: the next session save cannot claim the turn's refs.
+      rmSync(path.join(root, 'uploads'), { recursive: true, force: true })
+      b.api.script({ text: 'Noted.', usage: { input: 100, output: 10 } })
+      h = watchSessionTurns(session)
+      done = h.turnDone()
+      await session.sendTurn([{ type: 'text', text: 'Thanks.' }])
+      await done
+      // The save cannot claim the evicted refs, so the turn refuses with the
+      // detailed ownership sentence for the user.
+      const refused = h.events.findLast((event) => event.type === 'turnCompleted')
+      expect(refused).toMatchObject({ terminal: 'failed' })
+      expect(JSON.stringify(refused)).toContain(canary)
+      // Closing drains the host's save queue; the ownership refusal is logged
+      // in fixed words, never with the attachment name.
+      await host.close()
+      const lines = logLines()
+      expect(lines.some((line) => line.includes('was not saved'))).toBe(true)
+      expect(lines.some((line) => line.includes(canary))).toBe(false)
+    } finally {
+      t.port.clear()
+      await t.manager.dispose()
     }
   })
 })

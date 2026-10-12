@@ -413,7 +413,12 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
             },
           )
         } catch (error: unknown) {
-          deps.log.warn(`Upload cleanup ${name} deferred: ${describeStoreError(error)}`)
+          // Fixed words only: recovery replays the session's upload
+          // ownership, whose refusal names the attachment (RVM105 4). The
+          // next sweep retries; only its outcome is recorded here.
+          deps.log.warn(
+            `Upload cleanup ${name} deferred: ${error instanceof Error ? error.name : 'unknown failure'}`,
+          )
         }
       }
       for (const name of sorted) {
