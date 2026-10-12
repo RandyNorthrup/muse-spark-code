@@ -116,6 +116,15 @@ happened, not what was planned; superseded entries are kept.
   instead of the generic proof failure, and the last worker-reachable
   generic refusals in the Windows helper carry their own reasons. Teams
   remain unavailable pending integration.
+- Hidden M96 Windows worker file helper now judges every caller-supplied
+  path component with its own name rules before any framework path call
+  sees it, so names holding `<`, `>`, `|`, `"` or control characters refuse
+  with the typed cannot-create sentence instead of the helper-failed one; a
+  parent that is a plain file reports its own cannot-create reason instead
+  of the link sentence; and a helper binary that cannot load
+  (`FileNotFoundException`, `FileLoadException`, `BadImageFormatException`)
+  reports helper-unavailable instead of the generic proof failure. Teams
+  remain unavailable pending integration.
 - Hidden M96 engine workers reserve and settle each transport attempt separately.
   Successful retries preserve earlier uncertain liability; refused and unsent
   attempts release their claims, including admission revoked during a durable
