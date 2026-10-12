@@ -116,6 +116,7 @@ beforeAll(async () => {
       providerPolicy: 'src/host/backend/providerPolicyEntry.ts',
       modelApiHooks: 'src/core/backends/modelapi/modelApiHooksEntry.ts',
       modelApiMcp: 'src/core/backends/modelapi/modelApiMcpEntry.ts',
+      modelApiAcp: 'src/core/backends/modelapi/modelApiAcpEntry.ts',
       runtimeAccounting: 'src/runtime/runtimeAccountingEntry.ts',
       sharingRuntime: 'src/runtime/sharing/sharingEntry.ts',
       legalScan: 'src/core/legal/entry.ts',
@@ -1128,6 +1129,17 @@ describe('deferred cohort bundles', () => {
     expect(inputs('reviewer')).toContain('src/core/backends/modelapi/reviewerEntry.ts')
   })
 
+  it('keeps the settled-cost tally and refusal wording out of the session bundle (ACPDOG round 4)', () => {
+    expect(bundleText('modelApi')).toContain('./modelApiAcp.js')
+    for (const file of [
+      'src/core/backends/modelapi/modelApiAcpEntry.ts',
+      'src/core/backends/modelapi/acpAssist.ts',
+    ]) {
+      expect(inputs('modelApi')).not.toContain(file)
+      expect(inputs('modelApiAcp')).toContain(file)
+    }
+  })
+
   it('keeps the imported hooks’ adapters out of the session bundle (M91 lane W)', () => {
     expect(bundleText('modelApi')).toContain('./foreignHooks.js')
     for (const file of [
@@ -1208,6 +1220,10 @@ describe('deferred cohort bundles', () => {
     ['providerPolicy', 'src/core/backends/modelapi/codecs/chat.ts', 'in dist/providers.js'],
     ['hookRuntime', 'src/core/backends/modelapi/hookHandlers.ts', 'missing'],
     ['modelApiMcp', 'src/core/backends/modelapi/mcp/pool.ts', 'missing'],
+    ['modelApiAcp', 'src/core/backends/modelapi/modelApiAcpEntry.ts', 'missing'],
+    ['modelApiAcp', 'src/core/backends/modelapi/acpAssist.ts', 'missing'],
+    ['modelApi', 'src/core/backends/modelapi/modelApiAcpEntry.ts', 'on its first action'],
+    ['modelApi', 'src/core/backends/modelapi/acpAssist.ts', 'on its first action'],
     ['runtimeAccounting', 'src/runtime/runtimeAccountingEntry.ts', 'missing'],
     ['modelApi', 'src/core/backends/modelapi/hookHandlers.ts', 'on its first action'],
     ['modelApi', 'src/core/backends/modelapi/mcp/pool.ts', 'on its first action'],

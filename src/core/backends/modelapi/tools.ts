@@ -73,13 +73,8 @@ import {
   BROWSER_CHECK_PARAMETERS,
   BROWSER_CHECK_REQUIRED,
 } from '../../browser/browserTool'
-import {
-  confineWorkspacePath,
-  isBelow,
-  isLinkEscapeRefusal,
-  normalizeModelPath,
-  resolveWorkspacePath,
-} from '../../workspacePath'
+import { confinedGlob, pathRefusal } from './modelApiAcpEntry'
+import { confineWorkspacePath, normalizeModelPath } from '../../workspacePath'
 import { compileGlob, GLOB_LIMITS } from './globLimits'
 import type { GlobLimits } from './glob'
 import type { HookHttpResult } from './hookHandlers'
@@ -1022,84 +1017,6 @@ function failure(reason: string, visibleReason = reason): ToolOutcome {
   return { output: `Error: ${reason}`, visibleOutput: visibleReason, failureReason: visibleReason }
 }
 
-export function pathRefusal(
-  refusal: {
-    readonly reason: string
-    readonly code?: 'outside_workspace'
-  },
-  /** The path or search pattern as given, named in the translated reason. */
-  given: string,
-): ToolOutcome {
-  if (refusal.code !== 'outside_workspace') return failure(refusal.reason)
-  // What the person reads is translated text with its own keys (R6): the
-  // model-facing detail keeps the English reason. The translator copies
-  // failureReason into the client's refusal reason.
-  const reason = fill(
-    isLinkEscapeRefusal(refusal.reason)
-      ? UI_TEXT.acpRefusalLinkEscape
-      : UI_TEXT.acpRefusalOutsideWorkspace,
-    { path: given },
-  )
-  return {
-    output: JSON.stringify({
-      error: {
-        code: refusal.code,
-        message: MODEL_API_MODEL_TEXT.outsideWorkspaceRefused,
-        detail: refusal.reason,
-      },
-    }),
-    visibleOutput: UI_TEXT.acpOutsideWorkspaceRefused,
-    failureReason: reason,
-    refusalCode: refusal.code,
-  }
-}
-
-const GLOB_MAGIC = /[*?[\]{}]/u
-
-async function confinedGlob(
-  glob: string | undefined,
-  context: ToolContext,
-): Promise<
-  | { readonly ok: true; readonly glob: string | undefined }
-  | { readonly ok: false; readonly reason: string; readonly code?: 'outside_workspace' }
-> {
-  if (glob === undefined) return { ok: true, glob }
-  // The same spelling rules a plain path meets (R4, R7): verbatim prefixes,
-  // device names and escapes are judged once, in `workspacePath`.
-  const resolved = resolveWorkspacePath(context.workspaceRoot, glob, context.platform)
-  if (resolved.ok) return { ok: true, glob: resolved.relative }
-  if (resolved.code !== 'outside_workspace') return resolved
-  // An alias spelling (a Windows 8.3 short name) is inside by resolved
-  // identity: the non-magic prefix is resolved to the real folder and the
-  // pattern rewritten onto it, so it matches what the listing returns.
-  // Anything else outside stays refused. (A missing base can only resolve
-  // inside when the spelling was already inside, which never reaches this
-  // fallback: `resolve` normalises `..` first.)
-  try {
-    const p = context.platform === 'win32' ? path.win32 : path.posix
-    const parts = glob.replaceAll('\\', '/').split('/')
-    const magic = parts.findIndex((part) => GLOB_MAGIC.test(part))
-    const base = (magic === -1 ? parts : parts.slice(0, magic)).join('/')
-    const rest = magic === -1 ? '' : parts.slice(magic).join('/')
-    // An absolute base names itself; a relative one resolves against the
-    // root (splitting an absolute base and re-resolving its parts would
-    // silently re-root it under the workspace).
-    const baseAbsolute = p.isAbsolute(base)
-      ? p.normalize(base)
-      : p.resolve(context.workspaceRoot, ...base.split('/'))
-    const [realRoot, realBase] = await Promise.all([
-      context.io.realPath(context.workspaceRoot),
-      base === '' ? context.io.realPath(context.workspaceRoot) : context.io.realPath(baseAbsolute),
-    ])
-    const relative = p.relative(realRoot, realBase)
-    if (relative !== '' && !isBelow(relative, p)) return resolved
-    const rewritten = relative === '' ? rest : `${relative.split(p.sep).join('/')}/${rest}`
-    return { ok: true, glob: rewritten === '' ? undefined : rewritten }
-  } catch {
-    return resolved
-  }
-}
-
 function argumentFailure(error: z.core.$ZodError): ToolOutcome {
   return failure(`invalid arguments: ${z.prettifyError(error)}`)
 }
@@ -1962,7 +1879,9 @@ async function search(
   let candidates: readonly string[]
   try {
     const checked = await confinedGlob(args.glob, context)
-    if (!checked.ok) return pathRefusal(checked, args.glob ?? '')
+    if (!checked.ok) {
+      return pathRefusal(checked, args.glob)
+    }
     candidates = await listMatching(context, checked.glob)
   } catch (error: unknown) {
     context.signal?.throwIfAborted()
@@ -2019,7 +1938,9 @@ async function listFiles(
   let files: readonly string[]
   try {
     const checked = await confinedGlob(args.glob, context)
-    if (!checked.ok) return pathRefusal(checked, args.glob ?? '')
+    if (!checked.ok) {
+      return pathRefusal(checked, args.glob)
+    }
     files = await listMatching(context, checked.glob)
   } catch (error: unknown) {
     context.signal?.throwIfAborted()

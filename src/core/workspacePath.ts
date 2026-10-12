@@ -49,16 +49,6 @@ const PARENT_SEGMENT = '..'
 /** The fixed clause a confinement reason carries when a link escape was refused. */
 const LINK_ESCAPE_CLAUSE = 'leads outside the workspace through a link'
 
-/**
- * Whether a confinement refusal names a link/junction escape (R6): the
- * client-facing wording names the escape, while other refusals use the
- * plain outside wording. The clause is model-facing English, stable across
- * installed languages.
- */
-export function isLinkEscapeRefusal(reason: string): boolean {
-  return reason.includes(LINK_ESCAPE_CLAUSE)
-}
-
 /** Whether a `path.relative` result stays below its base. */
 export function isBelow(relative: string, p: ReturnType<typeof pathModule>): boolean {
   return (
