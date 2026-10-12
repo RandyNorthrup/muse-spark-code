@@ -283,6 +283,67 @@ export function unengagedCompactionTasks(
 }
 
 /**
+ * The selected tasks on which the strict-tools arm never proved strict
+ * schemas (M101 lane E R6): a task engages only when it sent at least
+ * one model call and every recorded request carried strict function
+ * tools. A task with no recorded request, a request without strict
+ * tools (as when a host regression drops
+ * `modelFacts.supportsStrictTools`), or an arm missing from the report
+ * counts as never engaged.
+ */
+export function unengagedStrictToolsTasks(
+  report: EvalReport,
+  armName: string,
+  tasks: readonly EvalTask[],
+): string[] {
+  const results = report.arms.find((arm) => arm.name === armName)?.results ?? []
+  return tasks
+    .filter((task) => {
+      const evidence = results.find((result) => result.taskId === task.id)?.requestEvidence ?? []
+      return evidence.length === 0 || evidence.some((request) => request.strictTools !== true)
+    })
+    .map((task) => task.id)
+}
+
+/**
+ * The report with lane E's strict-tools acceptance recorded in it
+ * (PLAN.md M101): the arm's engagement on the run's selected tasks.
+ * Unlike packing and compaction, an unengaged run is `incomplete`,
+ * never `fail` and never `pass`: without strict requests the run holds
+ * no evidence about strict tools in either direction, so a passing
+ * floor proves nothing and a failing floor keeps its own verdict.
+ * Applied before the report is printed or written, so both artifacts
+ * say what the run's acceptance decided.
+ */
+export function withStrictToolsEngagement(
+  report: EvalReport,
+  armName: string,
+  tasks: readonly EvalTask[],
+): EvalReport {
+  if (report.version !== EVAL_REPORT_VERSION) {
+    throw new Error('Strict-tools engagement is recorded only in a current-version report.')
+  }
+  const selected = tasks.map((task) => task.id)
+  const unengaged = unengagedStrictToolsTasks(report, armName, tasks)
+  // An empty list is not held: nothing ran to engage on.
+  const isHeld = selected.length > 0 && unengaged.length === 0
+  const verdict =
+    isHeld || report.verdict === 'fail' || report.verdict === 'incomplete'
+      ? report.verdict
+      : 'incomplete'
+  return {
+    ...report,
+    strictToolsEngagement: {
+      arm: armName,
+      tasks: selected,
+      unengaged,
+      held: isHeld,
+    },
+    verdict,
+  }
+}
+
+/**
  * The report with lane E's compaction acceptance recorded in it (PLAN.md
  * M101): the arm's engagement on the run's long-context tasks, and the
  * verdict `fail` when it settled no compaction on one, whatever the

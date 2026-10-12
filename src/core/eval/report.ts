@@ -40,6 +40,11 @@ const requestEvidenceSchema = z.object({
   responseTools: z.array(z.string()),
   /** Number of unknown returned names, without retaining any of their text. */
   otherTools: z.optional(z.number().check(z.int(), z.minimum(0))),
+  /**
+   * The request offered function tools with strict schemas throughout
+   * (M101 strict-tools engagement); absent in reports made before it.
+   */
+  strictTools: z.optional(z.boolean()),
 })
 
 const evalTaskFields = {
@@ -177,6 +182,23 @@ const evalCompactionEngagementSchema = z.object({
   held: z.boolean(),
 })
 
+/**
+ * Lane E's acceptance beside the floors: the strict-tools arm sent
+ * strict schemas on every request of every selected task (R6: the
+ * wire's per-request strict flag, read from the request body, not from
+ * the arm's declared mechanism). A run that holds the floors without
+ * strict requests proves nothing about strict tools: it is incomplete,
+ * never a pass. A selection with no task holds nothing the same way.
+ */
+const evalStrictToolsEngagementSchema = z.object({
+  arm: z.string(),
+  /** The tasks the run selected. */
+  tasks: z.array(z.string()),
+  /** Those with a missing or non-strict request. */
+  unengaged: z.array(z.string()),
+  held: z.boolean(),
+})
+
 export const evalReportSchema = z.discriminatedUnion('version', [
   z.object({
     ...evalReportFields,
@@ -191,6 +213,8 @@ export const evalReportSchema = z.discriminatedUnion('version', [
     packingEngagement: z.optional(evalPackingEngagementSchema),
     /** Recorded by a run with an auto-compaction arm (M101 lane E); absent otherwise. */
     compactionEngagement: z.optional(evalCompactionEngagementSchema),
+    /** Recorded by a run with a strict-tools arm (M101 lane E R6); absent otherwise. */
+    strictToolsEngagement: z.optional(evalStrictToolsEngagementSchema),
     /**
      * The run stopped before every selected task could send: the call
      * ceiling, the dollar budget or an unmeasurable reply ended it. A
@@ -377,6 +401,18 @@ export function formatEvalReportMarkdown(report: EvalReport): string {
     )
   }
   lines.push(``)
+  if (report.version === EVAL_REPORT_VERSION && report.strictToolsEngagement !== undefined) {
+    const engagement = report.strictToolsEngagement
+    const listed = (ids: readonly string[]) => (ids.length === 0 ? 'none' : ids.join(', '))
+    lines.push(
+      `## Strict tools engaged (M101)`,
+      ``,
+      `| Arm | Tasks | Never strict | Held |`,
+      `| --- | --- | --- | --- |`,
+      `| ${engagement.arm} | ${listed(engagement.tasks)} | ${listed(engagement.unengaged)} | ${engagement.held ? 'yes' : 'no'} |`,
+      ``,
+    )
+  }
   if (report.version === EVAL_REPORT_VERSION && report.packingEngagement !== undefined) {
     const engagement = report.packingEngagement
     const listed = (ids: readonly string[]) => (ids.length === 0 ? 'none' : ids.join(', '))

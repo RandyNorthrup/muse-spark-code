@@ -133,6 +133,55 @@ describe('eval wire', () => {
     expect(JSON.stringify(wire.calls)).not.toContain(privateText)
   })
 
+  it('records whether the request offered strict function tools', async () => {
+    const api = fakeModelApi()
+    api.script(
+      { text: 'a' },
+      { text: 'b' },
+      { text: 'c' },
+      { text: 'd' },
+      { text: 'e' },
+      { text: 'f' },
+    )
+    const wire = wireOn(api.fetch)
+    const toolSets: unknown[] = [
+      [
+        { type: 'function', name: 'read_file', strict: true },
+        { type: 'function', name: 'write_file', strict: true },
+      ],
+      [
+        { type: 'function', name: 'read_file', strict: true },
+        { type: 'web_search', name: 'web_search' },
+      ],
+      [
+        { type: 'function', name: 'read_file', strict: true },
+        { type: 'function', name: 'write_file', strict: false },
+      ],
+      [{ type: 'function', name: 'read_file' }],
+      [{ type: 'web_search', name: 'web_search' }],
+      [],
+    ]
+    for (const tools of toolSets) {
+      const response = await wire.fetch(RESPONSES_URL, {
+        ...modelCall(),
+        body: JSON.stringify({ model: EVAL_MODEL_ID, stream: true, input: [], tools }),
+      })
+      await response.text()
+    }
+    await wire.settle()
+    // Strict throughout, or strict function tools beside a search tool:
+    // engaged. A non-strict tool, a missing flag, no function tool, or
+    // no tools at all: never engaged.
+    expect(wire.calls.map((call) => call.requestEvidence?.strictTools)).toEqual([
+      true,
+      true,
+      false,
+      false,
+      false,
+      false,
+    ])
+  })
+
   it('counts a model call and the usage Meta returned, and charges the budget', async () => {
     const api = fakeModelApi()
     api.script({ text: 'ok', usage: { input: 1000, output: 100, cached: 400 } })

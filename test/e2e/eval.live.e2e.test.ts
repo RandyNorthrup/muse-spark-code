@@ -55,6 +55,7 @@ import {
   BASELINE_ARM,
   EVAL_ARMS,
   OBSERVATION_PACKING_ARM,
+  STRICT_TOOLS_ARM,
 } from '../../src/core/eval/mechanisms'
 import { runPairedEval } from '../../src/core/eval/runner'
 import { EVAL_TASKS } from '../../src/core/eval/tasks'
@@ -79,6 +80,7 @@ import {
   loadEvalLiveCredentials,
   withCompactionEngagement,
   withPackingEngagement,
+  withStrictToolsEngagement,
 } from './evalLiveSupport'
 
 const IS_ENABLED = process.env['MUSE_LIVE_MODEL_API'] === '1'
@@ -174,15 +176,19 @@ describe.skipIf(!IS_ENABLED)('live paired evaluation (MUSE_LIVE_MODEL_API=1)', (
       } finally {
         await removeFolder(storage)
       }
-      // Both mechanisms' acceptances go into the report before it is
-      // printed or written, so neither artifact says pass for a run whose
-      // packing arm never packed or whose auto-compaction arm never
-      // compacted.
+      // Every mechanism's acceptance goes into the report before it
+      // is printed or written, so no artifact says pass for a run whose
+      // packing arm never packed, whose auto-compaction arm never
+      // compacted, or whose strict-tools arm never sent strict schemas.
       const report = {
-        ...withCompactionEngagement(
-          withPackingEngagement(result, OBSERVATION_PACKING_ARM.name, tasks),
-          AUTO_COMPACTION_ARM.name,
-          BASELINE_ARM.name,
+        ...withStrictToolsEngagement(
+          withCompactionEngagement(
+            withPackingEngagement(result, OBSERVATION_PACKING_ARM.name, tasks),
+            AUTO_COMPACTION_ARM.name,
+            BASELINE_ARM.name,
+            tasks,
+          ),
+          STRICT_TOOLS_ARM.name,
           tasks,
         ),
         certifiedDigest,
@@ -219,6 +225,11 @@ describe.skipIf(!IS_ENABLED)('live paired evaluation (MUSE_LIVE_MODEL_API=1)', (
       ).toEqual([])
       expect(
         report.version === EVAL_REPORT_VERSION ? report.compactionEngagement?.unengaged : undefined,
+      ).toEqual([])
+      expect(
+        report.version === EVAL_REPORT_VERSION
+          ? report.strictToolsEngagement?.unengaged
+          : undefined,
       ).toEqual([])
     },
     // The selection is read inside the test, so the deadline allows the

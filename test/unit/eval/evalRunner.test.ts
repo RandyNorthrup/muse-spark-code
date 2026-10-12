@@ -25,7 +25,11 @@ import { Usd, sumUsd } from '../../../src/shared/usd'
 import { evalReportSchema, type EvalReport } from '../../../src/core/eval/report'
 import { runPairedEval, type EvalArm, type EvalRunDeps } from '../../../src/core/eval/runner'
 import plan from '../../../src/core/eval/plan.json'
-import { withPackingEngagement, withCompactionEngagement } from '../../e2e/evalLiveSupport'
+import {
+  withPackingEngagement,
+  withCompactionEngagement,
+  withStrictToolsEngagement,
+} from '../../e2e/evalLiveSupport'
 import { EVAL_TASKS, evalTasksOfSplit, type EvalTask } from '../../../src/core/eval/tasks'
 import { listWorkspaceFiles } from '../../../src/core/eval/workspace'
 import { fileContextIo } from '../../../src/host/backend/contextIo'
@@ -263,6 +267,55 @@ describe('runPairedEval', { timeout: RUNS_TIMEOUT_MS }, () => {
         expect(tools).not.toContain(`"strict":${String(!isStrict)}`)
       }
     }
+  })
+
+  it('records strict request evidence on the strict-tools fake pair, and demotes a regressed host to incomplete', async () => {
+    const { api, deps } = rig()
+    api.script(...EVAL_TASKS.flatMap((task) => [...canonical(task), ...canonical(task)]))
+    const report = await runPairedEval(EVAL_TASKS, [BASELINE, STRICT_TOOLS], deps)
+    expectIncompleteTwoArmRun(report)
+    for (const arm of report.arms) {
+      for (const result of arm.results) {
+        const evidence = result.requestEvidence ?? []
+        expect(evidence.length).toBeGreaterThan(0)
+        for (const request of evidence) {
+          expect(request.strictTools).toBe(arm.name === STRICT_TOOLS_ARM.name)
+        }
+      }
+    }
+    // The wrapper holds on the strict arm's own evidence; the narrowed
+    // pair stays incomplete for its missing arms, never a pass.
+    const engaged = withStrictToolsEngagement(report, STRICT_TOOLS_ARM.name, EVAL_TASKS)
+    expect(
+      engaged.version === EVAL_REPORT_VERSION ? engaged.strictToolsEngagement : undefined,
+    ).toEqual({
+      arm: STRICT_TOOLS_ARM.name,
+      tasks: EVAL_TASKS.map((task) => task.id),
+      unengaged: [],
+      held: true,
+    })
+    expect(engaged.verdict).toBe('incomplete')
+    // The drill: a host regression drops supportsStrictTools, so every
+    // request goes out non-strict. Floors held or not, the run is
+    // incomplete, never a pass.
+    const regressed = structuredClone(report)
+    const strictResults =
+      regressed.arms.find((arm) => arm.name === STRICT_TOOLS_ARM.name)?.results ?? []
+    for (const result of strictResults) {
+      const evidence = result.requestEvidence ?? []
+      for (const request of evidence) request.strictTools = false
+    }
+    const demoted = withStrictToolsEngagement(
+      { ...regressed, verdict: 'pass' },
+      STRICT_TOOLS_ARM.name,
+      EVAL_TASKS,
+    )
+    expect(demoted.verdict).toBe('incomplete')
+    expect(
+      demoted.version === EVAL_REPORT_VERSION
+        ? demoted.strictToolsEngagement?.unengaged
+        : undefined,
+    ).toEqual(EVAL_TASKS.map((task) => task.id))
   })
 
   it('calls a clean two-arm run incomplete, counting attempts from the trace', async () => {
