@@ -109,6 +109,8 @@ export interface ScheduleRunJournalPort {
     liabilityUsd?: ScheduleFireRecord['cost']['retainedLiabilityUsd'],
   ): Promise<boolean>
   lookupRun(workspaceKey: string, runId: string): Promise<ScheduleDeliveryState>
+  /** A target lease expiry does not prove its dispatching process died. */
+  isLiveDispatchOwnedElsewhere?(workspaceKey: string, runId: string): Promise<boolean>
   /** Bounded dispatchers select from this persisted queue, including live owners. */
   pending(workspaceKey: string): Promise<readonly ScheduleRunIntent[]>
   abandoned(workspaceKey: string): Promise<readonly ScheduleRunIntent[]>
@@ -513,6 +515,16 @@ export function createScheduleStore(
         .filter((entry) => !isScheduleProcessAlive(entry.ownerPid))
         .map((entry) => entry.intent)
         .toSorted(ordered)
+    },
+    async isLiveDispatchOwnedElsewhere(workspaceKey, runId) {
+      const current = await index(workspaceKey).read()
+      const pending = current.value.pending[runId]
+      return (
+        pending !== undefined &&
+        pending.dispatchStarted !== false &&
+        pending.ownerPid !== process.pid &&
+        isScheduleProcessAlive(pending.ownerPid)
+      )
     },
     async acknowledge(input) {
       const fire = scheduleFireRecordSchema.parse(input)

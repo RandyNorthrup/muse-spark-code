@@ -347,3 +347,23 @@ held delivery workspace without a complete supplier. The due job retains its
 next-fire time and zero fireCount, with no admission or record. Store-only
 runtime fixtures that test an enabled engine now install their explicit fake
 supplier. Runtime entry/host replay passes 15/15 at default deadlines.
+
+## Unconfirmed drills 2 and 3 — foreign turns and stalled leases
+
+The second real-process close case holds the target lease with a live, waiting
+host delivery. The foreign engine closes and exits before the owner is allowed
+to finish; it never waits for that turn. P1's removal of global close recovery
+makes the feared indefinite wait false at the repaired head.
+
+The third drill holds a real target lease, stalls its heartbeat for longer than
+the production ten-second expiry (prepared in the fixture hook), and starts a
+second real process. Before repair takeover records the live owner's dispatch
+uncertain and consumes its admission. Recovery now checks the journal's live
+foreign owner: takeover keeps that fire pending, does not send, and lets the
+original owner record ran after resuming. Dead owners still recover uncertain
+without replay, covered by the existing killed-process cases.
+
+Five additional close cuts abort/release during acknowledged, lookupRun,
+advance, initial load and final load. Each failed before the added lifetime
+rechecks; each now keeps both unhanded admissions with zero calls to deliver.
+The lease, foreign close and close-cut files passed 9/9 at default deadlines.

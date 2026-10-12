@@ -43,13 +43,14 @@ async function main() {
         run: async (_session, _schedule, _context, dispatch) => {
           await dispatch()
           process.send?.({ phase: 'sent' })
+          if (role === 'live') await resume.promise
           return { outcome: 'ran', refusedActions: [], cost: noScheduleCost() }
         },
       },
       prompt: () => 'scheduled test prompt',
     }),
   })
-  if (role === 'owner') {
+  if (role === 'owner' || role === 'live') {
     await engine.store.create(job)
     process.on('message', (input: unknown) => {
       z.literal('resume').parse(input)

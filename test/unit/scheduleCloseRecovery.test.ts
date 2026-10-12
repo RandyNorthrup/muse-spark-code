@@ -93,3 +93,62 @@ it('orderly close preserves the second admitted fire behind an in-flight deliver
   expect(await setup.store.pending(setup.first.workspaceKey)).toEqual([])
   await reload.close()
 })
+
+it.each(['acknowledged', 'lookupRun', 'advance', 'load', 'fresh'] as const)(
+  'keeps unhanded admissions when close arrives during %s',
+  async (boundary) => {
+    const setup = await fixture()
+    setup.deps.host.holds = () => !setup.closing.signal.aborted
+    const abort = () => {
+      setup.closing.abort()
+    }
+    switch (boundary) {
+      case 'load':
+      case 'fresh': {
+        const list = setup.store.list.bind(setup.store)
+        let calls = 0
+        vi.spyOn(setup.store, 'list').mockImplementation(async (workspace) => {
+          const jobs = await list(workspace)
+          calls += 1
+          if (calls === (boundary === 'load' ? 2 : 3)) abort()
+          return jobs
+        })
+
+        break
+      }
+      case 'acknowledged': {
+        const acknowledged = setup.store.acknowledged.bind(setup.store)
+        vi.spyOn(setup.store, 'acknowledged').mockImplementation(async (...args) => {
+          const result = await acknowledged(...args)
+          abort()
+          return result
+        })
+
+        break
+      }
+      case 'lookupRun': {
+        const lookup = setup.store.lookupRun.bind(setup.store)
+        vi.spyOn(setup.store, 'lookupRun').mockImplementation(async (...args) => {
+          const result = await lookup(...args)
+          abort()
+          return result
+        })
+
+        break
+      }
+      default: {
+        const advance = setup.store.advance.bind(setup.store)
+        vi.spyOn(setup.store, 'advance').mockImplementation(async (...args) => {
+          const isAdvanced = await advance(...args)
+          abort()
+          return isAdvanced
+        })
+      }
+    }
+    await setup.scheduler.poll(setup.first.workspaceKey)
+    await setup.scheduler.close()
+    expect(await setup.store.fires(setup.first.workspaceKey)).toEqual([])
+    expect(await setup.store.pending(setup.first.workspaceKey)).toHaveLength(2)
+    expect(setup.deliver).not.toHaveBeenCalled()
+  },
+)
