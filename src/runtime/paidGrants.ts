@@ -16,6 +16,7 @@ import { readFileSync, readdirSync } from 'node:fs'
 import { link, rm } from 'node:fs/promises'
 import path from 'node:path'
 import * as z from 'zod/mini'
+import type { PaidQuoteNotice } from '../shared/paid'
 import type { PaidGrantStore } from '../acp/paid'
 import { type CoreLogger, wireWordForLog } from '../core/logging'
 import { describeStoreError, storeErrorCode } from '../host/backend/storeErrors'
@@ -136,6 +137,9 @@ export function paidGrantFile(deps: PaidGrantFileDeps): PaidGrantStore {
   })
   const quotePrefix = (workspaceRoot: string, generation: string, key: string) =>
     `${grantFile(workspaceRoot, 'webSearch', generation)}.${workspaceKey(key)}.${PAID_APPROVAL_ORDER_DIRECTORY}.`
+  // The last quote-folder read failure's kind, while saved Always quotes
+  // cannot be listed. Consent carries it in the question it then asks.
+  let quoteNotice: PaidQuoteNotice | undefined
   const readQuotes = (workspaceRoot: string, generation: string) => {
     let names: string[]
     try {
@@ -143,12 +147,14 @@ export function paidGrantFile(deps: PaidGrantFileDeps): PaidGrantStore {
     } catch (error: unknown) {
       // A missing quote folder holds no quotes; an unreadable one is
       // reported with its kind and reads as no quotes, never silently.
+      // Fail-closed stays: asking again is the safe direction for money.
       if (error instanceof Error && storeErrorCode(error) === ENOENT) return []
-      deps.log.warn(
-        `Paid-use quotes could not be read (${wireWordForLog(storeErrorCode(error) ?? 'unknown')}), so no quote grant applies`,
-      )
+      const kind = wireWordForLog(storeErrorCode(error) ?? 'unknown')
+      deps.log.warn(`Paid-use quotes could not be read (${kind}), so no quote grant applies`)
+      quoteNotice = { kind }
       return []
     }
+    quoteNotice = undefined
     const prefix = `${path.basename(grantFile(workspaceRoot, 'webSearch', generation))}.`
     return names
       .filter(
@@ -168,6 +174,7 @@ export function paidGrantFile(deps: PaidGrantFileDeps): PaidGrantStore {
       })
   }
   return {
+    quoteNotice: () => quoteNotice,
     nextQuoteOrder: () =>
       nextPaidApprovalOrder(path.join(`${deps.file}.d`, PAID_APPROVAL_ORDER_DIRECTORY)),
     prepareQuoteGeneration: async () => {

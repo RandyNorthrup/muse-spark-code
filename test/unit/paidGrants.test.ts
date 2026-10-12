@@ -60,6 +60,8 @@ describe('paid grant quote folder failures', () => {
     expect(store.read(WORKSPACE)).toEqual(new Set(['webSearch']))
     expect(log.warn).toHaveBeenCalledOnce()
     expect(String(log.warn.mock.calls[0]?.[0] ?? '')).toContain('(EACCES)')
+    // The question it then asks carries the notice, so asking again is explained.
+    expect(store.quoteNotice()).toEqual({ kind: 'EACCES' })
   })
 
   it('reads a malformed generation as no grant with its reason', async () => {

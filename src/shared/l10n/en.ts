@@ -4431,6 +4431,10 @@ export const EN = {
   paidDeny: 'Deny',
   paidUseWebSearchTitle: 'Let Muse search the web for this prompt?',
   paidSearchQuote: 'Provider: {provider} · Model: {model}.',
+  paidQuoteChoicesUnreadable:
+    'Saved "always" choices could not be read ({kind}), so this use asks again.',
+  paidAlwaysNotKept:
+    '"Always" for {feature} applied this time, but it could not be saved ({kind}): you will be asked again.',
   paidUseWebSearchDetail:
     'Muse may search the web while it answers. Each search is billed to your Model API key at {price}, on top of the tokens its results add. Deny sends the prompt without web search.',
   paidUseVoiceTitle: 'Record with Muse Voice?',

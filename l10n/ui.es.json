@@ -3761,6 +3761,8 @@
   "paidDeny": "Denegar",
   "paidUseWebSearchTitle": "¿Permitir que Muse busque en la web para este prompt?",
   "paidSearchQuote": "Proveedor: {provider} · Modelo: {model}.",
+  "paidQuoteChoicesUnreadable": "No se pudieron leer las opciones «siempre» guardadas ({kind}), por lo que este uso vuelve a preguntar.",
+  "paidAlwaysNotKept": "«Siempre» para {feature} se aplica esta vez, pero no se pudo guardar ({kind}): se preguntará de nuevo.",
   "paidUseWebSearchDetail": "Muse puede buscar en la web mientras responde. Cada búsqueda se factura a su clave de Model API a {price}, además de los tokens que añaden sus resultados. “Denegar” envía el prompt sin búsqueda web.",
   "paidUseVoiceTitle": "¿Grabar con Muse Voice?",
   "paidUseVoiceDetail": "Muse Voice transcribe esta grabación, y se factura a su clave de Model API a {price}. “Denegar” deja el micrófono apagado.",

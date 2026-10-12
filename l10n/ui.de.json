@@ -3679,6 +3679,8 @@
   "paidDeny": "Verweigern",
   "paidUseWebSearchTitle": "Muse für diesen Prompt im Web suchen lassen?",
   "paidSearchQuote": "Anbieter: {provider} · Modell: {model}.",
+  "paidQuoteChoicesUnreadable": "Gespeicherte „Immer“-Auswahlen konnten nicht gelesen werden ({kind}); diese Verwendung fragt daher erneut.",
+  "paidAlwaysNotKept": "„Immer“ für {feature} gilt diesmal, konnte aber nicht gespeichert werden ({kind}): Beim nächsten Mal wird erneut gefragt.",
   "paidUseWebSearchDetail": "Muse kann beim Antworten im Web suchen. Jede Suche wird Ihrem Model-API-Schlüssel zum Preis von {price} berechnet, zusätzlich zu den Token, die ihre Ergebnisse hinzufügen. „Verweigern“ sendet den Prompt ohne Websuche.",
   "paidUseVoiceTitle": "Mit Muse Voice aufnehmen?",
   "paidUseVoiceDetail": "Muse Voice transkribiert diese Aufnahme; dies wird Ihrem Model-API-Schlüssel zum Preis von {price} berechnet. „Verweigern“ lässt das Mikrofon aus.",

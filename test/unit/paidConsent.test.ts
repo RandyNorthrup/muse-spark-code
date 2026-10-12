@@ -13,6 +13,7 @@ import {
   type PaidGrant,
 } from '../../src/core/paid/paidAuthority'
 import { UI_TEXT, type PaidFeature } from '../../src/shared/constants'
+import { fill } from '../../src/shared/l10n/text'
 
 import { FakeLogOutputChannel } from './helpers/fakes'
 
@@ -113,6 +114,29 @@ const searchRequest = (tariff: string, provider = 'meta', model = 'muse-spark-1.
   }) as const
 
 describe('PaidUseConsent (M58)', () => {
+  it('tells the search question when saved Always quotes could not be read', async () => {
+    let asked: PaidUseRequest | undefined
+    const consent = new PaidUseConsent({
+      isOn: () => true,
+      canRemember: () => true,
+      readGrants: () => new Set(),
+      writeGrants: () => Promise.resolve(),
+      ask: (request) => {
+        asked = request
+        return Promise.resolve<PaidUseAnswer>('once')
+      },
+      quoteGeneration: () => 'stored',
+      readQuoteGrant: () => undefined,
+      readQuoteNotice: () => ({ kind: 'EACCES' }),
+      log: new FakeLogOutputChannel(),
+    })
+    await consent.allows(SEARCH)
+    expect(asked).toMatchObject({ feature: 'webSearch', quoteNotice: { kind: 'EACCES' } })
+    // The surface shows the notice with the question, in the display language.
+    const question = await paidUseQuestion(asked ?? SEARCH)
+    expect(question.detail).toContain(fill(UI_TEXT.paidQuoteChoicesUnreadable, { kind: 'EACCES' }))
+  })
+
   it('R3 P2-1: Ask again invalidates model B pending Always without restoring model A', async () => {
     const pending = Promise.withResolvers<PaidUseAnswer>()
     const t = consentWith({

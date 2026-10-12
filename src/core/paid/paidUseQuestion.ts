@@ -53,6 +53,9 @@ export async function paidUseQuestion(request: PaidUseRequest): Promise<{
                   model: request.quote.model,
                 }),
               ]),
+          ...(request.quoteNotice === undefined
+            ? []
+            : [fill(UI_TEXT.paidQuoteChoicesUnreadable, { kind: request.quoteNotice.kind })]),
         ].join('\n'),
       }
     }

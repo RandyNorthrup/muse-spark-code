@@ -26,7 +26,7 @@ import {
 } from '../shared/constants'
 import type { PaidUseRequest, PaidUseDecision } from '../shared/paid'
 import { PaidAuthority, type PaidGrant } from '../core/paid/paidAuthority'
-import type { PaidQuote } from '../shared/paid'
+import type { PaidQuote, PaidQuoteNotice } from '../shared/paid'
 
 /** Where "Allow Always in This Workspace" is kept, per folder. */
 export interface PaidGrantStore {
@@ -38,6 +38,8 @@ export interface PaidGrantStore {
   readonly nextQuoteOrder?: () => number
   readonly prepareQuoteGeneration?: () => Promise<string>
   readonly quoteGeneration?: () => string
+  /** The last quote-folder read failure's kind, while saved Always quotes cannot be listed. */
+  readonly quoteNotice?: () => PaidQuoteNotice | undefined
   readonly readQuote?: (workspaceRoot: string, quote: PaidQuote) => PaidGrant | undefined
   readonly writeQuote?: (workspaceRoot: string, grant: PaidGrant) => Promise<void>
 }
@@ -160,6 +162,7 @@ export class AcpPaidUse {
         ...(this.deps.grants.quoteGeneration !== undefined && {
           quoteGeneration: this.deps.grants.quoteGeneration,
         }),
+        readQuoteNotice: () => this.deps.grants.quoteNotice?.(),
         ...(this.deps.grants.readQuote !== undefined && {
           readQuoteGrant: (quote) => this.deps.grants.readQuote?.(workspaceRoot, quote),
         }),
