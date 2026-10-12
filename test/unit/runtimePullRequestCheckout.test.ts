@@ -83,7 +83,14 @@ import { createFixtureRepositories, type FixtureRepositories } from './helpers/g
 import * as launcher from '../../src/core/resources/launcher'
 import * as admission from '../../src/core/resources/admission'
 import { fakeResourceLease } from './helpers/resources/fakes'
-import type { ResourceProcessLaunch } from '../../src/core/resources/launch'
+import {
+  type ResourceProcessLaunch,
+  ResourceUnavailableError,
+  ResourceMemoryLimitError,
+  ResourceCapRefusedError,
+  ResourcePausedError,
+  resourcePausedText,
+} from '../../src/core/resources/launch'
 import { fixtureRuntimeAdmission } from './helpers/runtimeAdmission'
 import { redactSecrets } from '../../src/core/redact'
 import { GIT_STDERR_MAX_CHARS } from '../../src/shared/constants'
@@ -2135,6 +2142,16 @@ describe('the git dispatch gate (M123 lane P)', () => {
       'utf8',
     )
     const count = (pattern: RegExp) => source.match(pattern)?.length ?? 0
+    const direct = readFileSync(
+      fileURLToPath(
+        new URL('../../src/runtime/panel/pullRequests/unconfiguredGit.ts', import.meta.url),
+      ),
+      'utf8',
+    ).replaceAll(/\/\/[^\n]*/gu, '')
+    expect(direct).toMatch(/beforeSpawn\(\)\s+execFile\(/u)
+    expect(direct).toMatch(/beforeSpawn\(\)\s+return spawn\(/u)
+    expect(count(/\bexecFile\(/gu)).toBe(0)
+    expect(count(/\bspawn\(/gu)).toBe(0)
     expect(count(/\bexecResourceFile\(/gu)).toBe(2)
     expect(count(/\bspawnResourceProcess\(/gu)).toBe(2)
     expect(count(/\bprocesses\.run\(/gu)).toBe(1)
@@ -2907,6 +2924,131 @@ describe('runtime pull request checkout on the fixture repositories (M123 lane P
 })
 
 describe('checkout profile selection and final gate', () => {
+  const availableWindow: admission.ResourceWindowHost = {
+    port: {
+      status: vi.fn(),
+      subscribe: vi.fn(),
+      resume: vi.fn(),
+      refreshStatus: vi.fn(),
+      settingsChanged: vi.fn(),
+    },
+    createStatus: vi.fn(),
+    createVsCodeItem: vi.fn(),
+  }
+
+  it.each(['run', 'start'] as const)(
+    'reports each resource refusal honestly for %s',
+    async (operation) => {
+      vi.mocked(admission.loadResourceWindow).mockResolvedValue(availableWindow)
+      for (const [error, expected] of [
+        [new ResourceCapRefusedError(1), UI_TEXT.gitMachineBusy],
+        [new ResourcePausedError(), resourcePausedText()],
+        [new ResourceMemoryLimitError('jobMemory'), UI_TEXT.gitMemoryLimit],
+        [new ResourceMemoryLimitError('processMemory'), UI_TEXT.gitMemoryLimit],
+        [new ResourceUnavailableError('launchUnavailable'), UI_TEXT.gitResourceUnavailable],
+        [new ResourceUnavailableError('admissionUnavailable'), UI_TEXT.gitResourceUnavailable],
+      ] as const) {
+        vi.spyOn(launcher, 'execResourceFile').mockRejectedValue(error)
+        vi.spyOn(launcher, 'spawnResourceProcess').mockRejectedValue(error)
+        const result = await settled(
+          Promise.resolve<unknown>(
+            nodeGitProcesses[operation]('fixture-git', ['cat-file', '--batch'], {
+              cwd: tmpdir(),
+              env: {},
+              signal: new AbortController().signal,
+              timeout: 1000,
+              maxBuffer: 10_000,
+              detached: process.platform !== 'win32',
+              beforeSpawn: () => undefined,
+            }),
+          ),
+        )
+        expect(result).toMatchObject({ message: expected })
+      }
+    },
+  )
+
+  it.each(['run', 'start'] as const)(
+    'keeps Cancel after the admission availability wait for %s',
+    async (operation) => {
+      const reached = Promise.withResolvers<undefined>()
+      const lookup = Promise.withResolvers<admission.ResourceWindowHost>()
+      vi.mocked(admission.loadResourceWindow).mockImplementation(() => {
+        reached.resolve(undefined)
+        return lookup.promise
+      })
+      const unavailable = new ResourceUnavailableError('admissionUnavailable')
+      vi.spyOn(launcher, 'execResourceFile').mockRejectedValue(unavailable)
+      vi.spyOn(launcher, 'spawnResourceProcess').mockRejectedValue(unavailable)
+      const controller = new AbortController()
+      const refusal = new DOMException('Cancelled during admission lookup', 'AbortError')
+      const running = Promise.resolve<unknown>(
+        nodeGitProcesses[operation](process.execPath, ['-v'], {
+          cwd: tmpdir(),
+          env: {},
+          signal: controller.signal,
+          timeout: 1000,
+          maxBuffer: 10_000,
+          detached: false,
+          beforeSpawn: () => undefined,
+        }),
+      )
+      const result = expect(running).rejects.toBe(refusal)
+      await reached.promise
+      controller.abort(refusal)
+      lookup.resolve(availableWindow)
+      await result
+    },
+  )
+
+  it('uses the shared Git unconfigured-admission rule for run and batch, with the final gate', async () => {
+    vi.mocked(admission.admitResource).mockResolvedValue(undefined)
+    vi.mocked(admission.loadResourceWindow).mockResolvedValue(undefined)
+    const beforeSpawn = vi.fn()
+    const options = {
+      cwd: tmpdir(),
+      env: {},
+      signal: new AbortController().signal,
+      timeout: 1000,
+      maxBuffer: 10_000,
+      detached: process.platform !== 'win32',
+      beforeSpawn,
+    }
+    expect(
+      await nodeGitProcesses.run(
+        process.execPath,
+        ['-e', "process.stdout.write('fallback')"],
+        options,
+      ),
+    ).toBe('fallback')
+    const child = await nodeGitProcesses.start(
+      process.execPath,
+      ['-e', 'process.stdin.pipe(process.stdout)'],
+      options,
+    )
+    const output: Buffer[] = []
+    child.stdout.on('data', (bytes: Buffer) => {
+      output.push(bytes)
+    })
+    child.stdin.end('batch')
+    await once(child, 'close')
+    expect(Buffer.concat(output).toString()).toBe('batch')
+    expect(beforeSpawn).toHaveBeenCalledTimes(2)
+    expect(child.outcome).toBeUndefined()
+    // Refusal remains the caller's exact error, with no process started.
+    const refusal = new ReservationLostError('fixture')
+    for (const operation of ['run', 'start'] as const) {
+      await expect(
+        nodeGitProcesses[operation](process.execPath, ['-v'], {
+          ...options,
+          beforeSpawn: () => {
+            throw refusal
+          },
+        }),
+      ).rejects.toBe(refusal)
+    }
+  })
+
   it.each([
     '',
     'fatal: unavailable',

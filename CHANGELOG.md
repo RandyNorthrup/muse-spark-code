@@ -120,7 +120,7 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
-- Pull-request checkout again shows git’s own bounded, redacted failure reason. Real-Git fixture tests now exercise its production governed route, including output collection and held batch streams.
+- Pull-request checkout again shows git’s own bounded, redacted failure reason. Real-Git fixture tests now exercise its production governed route, including output collection and held batch streams. Windows batch checkouts preserve a refused GO; resource refusals name their actual cause, and an embedding without a governor retains the shared Git runner’s gated direct route.
 
 - Restore the native Git service's final dispatch check after resource
   admission and Windows job preparation, including its Windows GO recheck.

@@ -414,3 +414,213 @@ Red drills, full suite at repository deadlines (no test filtering):
 Initial production-route replay: 79/79; extended diagnostic replay: 82/82,
 including all sixteen original fixture scenarios. Unit-project typecheck passed. All deliberate mutations were restored byte for byte before any other
 edit. No process helper, gate, deadline, dependency or cap was altered.
+
+### Round 3 — remaining four findings and class sweep
+
+`start` returns the actual piped child with its launcher outcome. Batch completion
+reads that outcome before interpreting the exit or incomplete answers, preserving
+the exact Windows GO refusal and reporting an enforced memory/process cap even
+when the root exits zero. The same typed refusal mapping covers run, start and
+settlement: busy uses existing `gitMachineBusy`, pause uses existing translated
+resource status words, missing helper uses `gitResourceUnavailable`, and memory
+uses `gitMemoryLimit`. Existing strings were inspected: the other unavailable
+sentences describe readings, dictation or other unrelated features, and no
+existing sentence describes a stopped Git tree's memory limit. The two necessary
+new sentences are translated in all fourteen languages. Both process-memory
+and job-memory cases are covered. No detection depends on error-message text.
+
+Absent resource admission takes the shared Git runner's legacy direct route.
+It does not catch a helper failure, pause, cap, ordinary error or cancellation
+into a fallback. A small `unconfiguredGit.ts` port is necessary to keep checkout's
+zero-raw-launch assertion intact; it implements only this explicit embedding
+exception, with cancellation and the caller's gate immediately before each
+raw call, bounded output/deadline, no shell and the POSIX batch group. Its three
+import/call sites are listed as bootstrap with that reason. The dispatch test
+now pins both raw counts to zero in checkout and pins the fallback's two
+synchronous final gates. The existing launcher protocol/order and checkout
+gate calls are untouched, including the same-turn and Windows READY/GO drills
+from Round 2. `src/host/git.ts`, `src/core/resources/process.ts` and
+`src/core/locks/processOwner.ts` have no diff from the reviewed head.
+
+The two processOwner sites are bootstrap exemptions, matching their direct
+liveness-probe reason. Each reason now warns that the vault lease join adds
+launches through the same call site and requires rereading the argument forms
+and call indices. A regression pins both profiles and that note. The inventory
+and its existing combined-certification mirror are regenerated together.
+
+Full-suite red drills (no test filtering or timeout override), SHA-256 verified
+after byte-exact restoration:
+
+| Drill              | Named regression(s) that failed                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Restored source SHA-256                                            |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| batch-outcome      | 5 failures: the synchronous final spawn fence (M123) preserves the batch refusal at Windows GO: trust revoked; the synchronous final spawn fence (M123) preserves the batch refusal at Windows GO: cancelled; the synchronous final spawn fence (M123) preserves the batch refusal at Windows GO: reservation lost; the synchronous final spawn fence (M123) keeps an enforced memory in batch settlement, including exit zero; the synchronous final spawn fence (M123) keeps an enforced process cap in batch settlement, including exit zero | `bfa1945d9052dfd7b6042da27306558f4b05df8ea94edcf9ff41f86b232b6283` |
+| raw-checkout       | 1 failures: the git dispatch gate (M123 lane P) starts git in exactly two places, each right after its gate                                                                                                                                                                                                                                                                                                                                                                                                                                     | `bfa1945d9052dfd7b6042da27306558f4b05df8ea94edcf9ff41f86b232b6283` |
+| refusal-reason     | 2 failures: checkout profile selection and final gate reports each resource refusal honestly for run; checkout profile selection and final gate reports each resource refusal honestly for start                                                                                                                                                                                                                                                                                                                                                | `bfa1945d9052dfd7b6042da27306558f4b05df8ea94edcf9ff41f86b232b6283` |
+| unconfigured-route | 1 failures: checkout profile selection and final gate uses the shared Git unconfigured-admission rule for run and batch, with the final gate                                                                                                                                                                                                                                                                                                                                                                                                    | `bfa1945d9052dfd7b6042da27306558f4b05df8ea94edcf9ff41f86b232b6283` |
+| unconfigured-gate  | 2 failures: the git dispatch gate (M123 lane P) starts git in exactly two places, each right after its gate; checkout profile selection and final gate uses the shared Git unconfigured-admission rule for run and batch, with the final gate                                                                                                                                                                                                                                                                                                   | `266d1d68d95da0e54da5ff4e038e098c63a00911db6ebd03ca00941ade8b9ba0` |
+| liveness-profile   | 2 failures: complete production process inventory labels direct liveness probes as bootstrap and records the vault join launches; complete production process inventory requires every source process import and launch, including aliases and embedded programs                                                                                                                                                                                                                                                                                | `f0777c575a815d4afd49bb05753bf1b92eef65015677efff1bd31c5b2381facb` |
+
+Final pre-static replay of checkout, spawnProfiles and spawnInventory: 123/123.
+Inventory: 114 sites, zero unlisted and zero stale. All seventeen M123-tagged
+files and the additional Git/launcher owners were selected; the three code
+dependents are checkout, interleavings and spawnProfiles. The other 26 files
+passed in batches of at most three, at maxWorkers=3 and repository deadlines.
+The first actual `vitest related --run` was killed with exit 137 before a
+report; it is not a test result. A one-worker replay is recorded below.
+
+Windows rig must run, at its repository defaults (no override):
+
+```sh
+npx vitest run test/unit/runtimePullRequestCheckout.test.ts test/unit/spawnProfiles.test.ts test/unit/nativeGitSpawn.test.ts --maxWorkers=3
+npx vitest run test/unit/mcpJobExecutable.test.ts test/unit/spawnRuntimeAdmission.test.ts test/unit/spawnBootstrap.test.ts --maxWorkers=3
+```
+
+The simulated Windows GO/outcome cases ran on Kubuntu; actual native Windows
+helper preparation and launch are qualified only by the Windows commands above.
+No Windows execution is claimed here. No sandbox operation was blocked or
+worked around, no installation, live/paid call, daemon, merge or push occurred.
+
+One-worker dependent replay passed the exact three selected files: 134 tests,
+no failures or skips. Together with the 26 owner files, final runtime coverage
+is 29 files, 567 passed and 8 existing platform skips.
+
+The first host typecheck exposed that ChildProcessWithoutNullStreams also
+promises a narrower stdio tuple than the launch contract verifies. GitBatchChild
+now uses the existing ResourcePipedProcess child type plus optional settlement;
+no cast, contract widening or runtime change was introduced. The host and
+webview checks passed after that type correction; the complete five-project
+result and final dependent replay follow below.
+
+Unit typing also caught the table-driven call's synchronous-or-promise return.
+The test now uses Promise.resolve<unknown> before the existing settled helper,
+with every refusal assertion retained and no cast or suppressed diagnostic.
+
+### Final classification refinement and gate receipts
+
+The typed admissionUnavailable code alone cannot prove an unconfigured
+embedding: a configured governor (or its final gate) can refuse with that code.
+Checkout now verifies that loadResourceWindow returns undefined before choosing
+the direct route, and rechecks cancellation after that wait. A defined window
+reports the existing refusal through the new translated unavailable sentence.
+No wrapper replaces the caller's gate, and no launcher hook or checkout gate
+call/order was changed. Both run and start cover configured admission refusal
+and Cancel arriving while the availability lookup waits.
+
+The first duplication gate exposed three clones: the outcome limit checks
+copied from commands.ts and two repetitions in the new Windows batch tests.
+The batch now walks its limits directly, retaining memory-before-process-cap
+priority, and both Windows cases use one checkoutBatch fixture. Shared commands
+and launch contracts remain untouched. No gate ignore or threshold changed.
+
+Refined checkout/interleaving/profile replay: 136/136 at repository defaults.
+Additional full-suite red drills (each restored byte for byte):
+
+| Drill                | Failed regressions                                                                                                                                                                                              | Restore SHA-256                                                    |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| configured-admission | 2: checkout profile selection and final gate reports each resource refusal honestly for run; checkout profile selection and final gate reports each resource refusal honestly for start                         | `7ba6c190fa6ff0fdb7d29409068b7913fd6aa58c74fb94ac61d4f0a3b4901570` |
+| availability-cancel  | 2: checkout profile selection and final gate keeps Cancel after the admission availability wait for run; checkout profile selection and final gate keeps Cancel after the admission availability wait for start | `7ba6c190fa6ff0fdb7d29409068b7913fd6aa58c74fb94ac61d4f0a3b4901570` |
+
+The initial complete scoped gate batch passed localization (14 tables, zero
+problems), reference, regenerated host API and its replay (zero problems),
+plan, roadmap, plain knip, cycles (none), host globals and notices. ESLint's
+callback rejection/type requirements and two fixture style findings were fixed
+in code; the final scoped replay follows. The host API's Node child_process
+importer count moves 30 → 31 solely for the explicit unconfigured helper.
+The two necessary inline raw-call reasons are registered in PLAN.md §8.
+
+HUB: integration run — src/shared/l10n/en.ts and all fourteen translated tables.
+Related selection excludes these hubs per the shared rule; both suites naming
+either new key (runtimePullRequestCheckout and spawnProfiles) ran in full. The
+remaining code dependents and all M123/launcher owners also ran. Aggregate
+quality and cross-platform integration remain lead-owned under this brief.
+
+The rejection lint rule did not recognize Node's ExecFileException interface
+as an Error. Two attempted adapters were abandoned: stringifying the non-native
+branch triggered no-base-to-string, and Object.assign's inferred intersection
+still triggered prefer-promise-reject-errors. The final callback retains Node's
+original object with a compiler-checked Error annotation before rejection; no
+adapter, cast, stringification or changed metadata remains. The complex iterable
+was named before its loop and the test's void resolver uses the repository's
+existing undefined-resolver form. All lint rules stay enabled.
+
+The exit-137 interruptions were superseded by a fixture-control correction:
+the simulated Windows child was constructed with Node's native, unstarted
+process handle and retained its native kill method. The new batch failure path
+called that method. Node's local internal/child_process implementation confirms
+that kill dispatches directly to that native handle, not the fixture's pid
+property. The fake now stubs kill alongside its streams/control, so simulated
+stop never acts on the OS. This is a test-double correction, not a launcher or
+sandbox change. The one-worker spawnProfiles replay passed 32/32, and the
+actual one-worker vitest related replay then passed all three selected files,
+136/136. The repeated exit-137 runs produce no test certification and are
+replaced by this final successful receipt.
+
+Current dependent and owner coverage: 29 files, 569 passed and 8 existing
+platform skips; no failing, unlisted or stale case remains. Final full
+npm run typecheck exited 0 across host, webview, unit, e2e and integration;
+subsequent host typecheck also exited 0 after the native-error annotation.
+ESLint and jscpd exited 0 on the refined code (zero clones), with a final
+post-fixture ESLint replay below. Earlier red-drill hashes describe the exact
+versions restored at the drill, before the subsequent compiler/style/fixture
+corrections; all tested behavioral guards remain in the final implementation.
+
+### Final production receipt (Kubuntu, 2026-10-11)
+
+The final actual dependent replay is 136/136; the isolated inventory is 6/6,
+with 114 entries, zero unlisted and zero stale. Post-fixture changed-file ESLint,
+host globals and third-party notices exit 0. All five repository typechecks
+exit 0; knip, cycles, reference, host API, localization, plan and roadmap passed.
+Duplication is zero. No required code-dependent file is left unrun.
+
+Final npm run build exits 1 only at the same five inherited split findings:
+modelPolicy.ts in extension.js, and priceCard.ts in extension.js/runtimeEngine.js
+(two cohorts report each priceCard edge). Those two sources have no diff from
+the reviewed head or this round. All production byte caps pass unchanged. This
+is the existing PLAN.md §7 integration hold, not a green build claim or a
+residual review finding. The lead must resolve that inherited split before
+release; no off-lane source or gate was changed to hide it.
+
+| Bundle                      | Exact bytes | Cap bytes |
+| --------------------------- | ----------: | --------: |
+| `dist/extension.js`         |      571429 |    614400 |
+| `dist/modelApi.js`          |      529180 |    537600 |
+| `dist/checkpointStore.js`   |       86644 |    230400 |
+| `dist/acp.js`               |      241039 |    870400 |
+| `dist/conversationGit.js`   |      129177 |    153600 |
+| `dist/resourceProcess.js`   |       23446 |     51200 |
+| `dist/resourceAdmission.js` |        3260 |     25600 |
+
+Production metafiles at this isolated head have no reader of checkout.ts:
+M123's native route remains off here, as PLAN.md's integration record requires.
+These are the actually shipped bundle measurements, not a projection of the
+bound M123 route. The release integration must measure that route when it is
+bound. Shared English and runtime bundle measurements from the same build:
+
+| Bundle                  | Exact bytes | Cap bytes |
+| ----------------------- | ----------: | --------: |
+| `dist/uiText.js`        |       96948 |    128000 |
+| `dist/uiTextRuntime.js` |        4746 |     25600 |
+| `dist/runtimeEngine.js` |      651172 |    896000 |
+
+Final source hashes after the compiler, style and fixture corrections:
+
+| Source                                              | SHA-256                                                            |
+| --------------------------------------------------- | ------------------------------------------------------------------ |
+| `src/runtime/panel/pullRequests/checkout.ts`        | `a67a6545f70ccd3d1d27256304ca65a7d2a55013da5e6cbbfcb29d1d9d0d3ea1` |
+| `src/runtime/panel/pullRequests/unconfiguredGit.ts` | `eeb7856f3d10a0b72bc5b1670f964d9f8e8d410a32716d806bf782b9d0885f28` |
+| `src/host/git.ts`                                   | `d392a80e653c6a8ffab9c162de1f27f693acf6f386649df6cdf23cceff58cac2` |
+| `src/core/resources/process.ts`                     | `1d3baae41bd5ad31b80bb94ec05dbcac2ef4ef2dab007ea23b93b7a7c25502f3` |
+| `src/core/locks/processOwner.ts`                    | `70338bed7eb7c7bab385b91983c6ec7099fc7a1feb512ba55e42e03c73611821` |
+
+Final Prettier check covered every file changed since 27abac965 plus the new
+helper and exited 0. After formatting PLAN.md, the roadmap was regenerated:
+plan, roadmap, current host API and localization all replayed with exit 0.
+No protected launcher/shared-Git/processOwner source was changed; hooks remain
+installed at .husky/_ and commits use the unchanged fail-closed hook.
+
+The final unit-project replay after the fake stop exposed one missing argument
+to the undefined resolver. Supplying undefined explicitly fixes its type while
+preserving the already-green runtime behavior; the final unit replay is recorded
+below. This does not change a production branch, gate or test assertion.
+
+Final unit-project replay after the explicit resolver argument: exit 0.

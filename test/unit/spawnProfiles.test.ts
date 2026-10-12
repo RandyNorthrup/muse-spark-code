@@ -19,8 +19,13 @@ import {
   isResourceHelperChanged,
 } from '../../src/host/backend/helperIntegrity'
 import { PassThrough } from 'node:stream'
-import { RESOURCE_HANDOFF_TIMEOUT_MS } from '../../src/shared/constants'
-import { nodeGitProcesses } from '../../src/runtime/panel/pullRequests/checkout'
+import { RESOURCE_HANDOFF_TIMEOUT_MS, UI_TEXT } from '../../src/shared/constants'
+import {
+  nodeGitProcesses,
+  HeldWriters,
+  runBatchChild,
+} from '../../src/runtime/panel/pullRequests/checkout'
+import { BlobAnswers } from '../../src/core/git/heldCheckoutCore'
 import { fakeResourceLease } from './helpers/resources/fakes'
 import { removeFolder } from './helpers/temporaryFolders'
 
@@ -344,6 +349,8 @@ function setup(answer: jobLaunch.JobRecord | undefined, isAutoExit = false, reco
     verify,
   })
   const child = Object.assign(new childProcess.ChildProcess(), {
+    // No native process was spawned: a fake's stop must never reach an OS handle.
+    kill: vi.fn(() => true),
     stdin: new PassThrough(),
     stdout: new PassThrough(),
     stderr: new PassThrough(),
@@ -393,6 +400,36 @@ const asWindows = async (action: () => Promise<void>) => {
   } finally {
     if (platform !== undefined) Object.defineProperty(process, 'platform', platform)
   }
+}
+
+/** The real checkout batch consumer over the attested helper fixture. */
+async function checkoutBatch(beforeSpawn: () => void = () => undefined) {
+  const child = await nodeGitProcesses.start(process.execPath, ['cat-file', '--batch'], {
+    cwd: tmpdir(),
+    env: {},
+    signal: new AbortController().signal,
+    timeout: 1000,
+    detached: false,
+    beforeSpawn,
+  })
+  const running = runBatchChild(
+    child,
+    new BlobAnswers(
+      [],
+      () => Promise.resolve(),
+      () => new Error('unreadable'),
+    ),
+    {
+      deadlineMs: 1000,
+      killGraceMs: 100,
+      drainGraceMs: 100,
+      platform: 'win32',
+      signal: new AbortController().signal,
+      writers: new HeldWriters(),
+      outcome: child.outcome,
+    },
+  )
+  return { running }
 }
 
 describe('attested Windows settlement (helper faked, any platform)', () => {
@@ -626,6 +663,44 @@ describe('the synchronous final spawn fence (M123)', () => {
       expect(order).toEqual(['prepared', 'gate', 'gate'])
     })
   })
+
+  it.each(['trust revoked', 'cancelled', 'reservation lost'])(
+    'preserves the batch refusal at Windows GO: %s',
+    async (reason) => {
+      await asWindows(async () => {
+        const { exit } = setup(record())
+        const refusal = new Error(reason)
+        let isValid = true
+        const { running } = await checkoutBatch(() => {
+          if (!isValid) throw refusal
+        })
+        const result = expect(running).rejects.toBe(refusal)
+        const launch = vi.mocked(jobLaunch.spawnAttestedJob).mock.calls.at(-1)?.[0]
+        isValid = false
+        expect(() => launch?.authorize?.()).toThrow(refusal)
+        exit(1)
+        await result
+      })
+    },
+  )
+
+  it.each([
+    ['memory', record({ limits: ['jobMemory'] })],
+    ['process cap', record({ capRefusals: 1, limits: ['activeProcess'] })],
+  ] as const)(
+    'keeps an enforced %s in batch settlement, including exit zero',
+    async (kind, answer) => {
+      await asWindows(async () => {
+        const { exit } = setup(answer)
+        const { running } = await checkoutBatch()
+        const result = expect(running).rejects.toThrow(
+          kind === 'memory' ? UI_TEXT.gitMemoryLimit : UI_TEXT.gitMachineBusy,
+        )
+        exit(0)
+        await result
+      })
+    },
+  )
 
   it('keeps the max-buffer refusal code for checkout size checks', async () => {
     await asWindows(async () => {
