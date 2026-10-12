@@ -36,7 +36,7 @@ import {
   RUNNER_HELPERS,
 } from './lib/acpNativeSources.mjs'
 import { packRuntimeArchive } from './lib/packageArchive.mjs'
-import { ACP_BUNDLES as BUNDLES } from './lib/acpBundles.mjs'
+import { ACP_BUNDLES as BUNDLES, acpUsageAssets } from './lib/acpBundles.mjs'
 
 const STAGE = path.join('dist', 'acp-package')
 const NATIVE_DEPENDENCY = '@napi-rs/keyring'
@@ -69,35 +69,7 @@ function requireBundles() {
 
 /** Ship only the usage entry's transitive assets, never chat code or maps. */
 function usageAssets() {
-  const root = path.resolve('dist', 'webview')
-  const meta = JSON.parse(readFileSync(path.join('dist', 'meta', 'usageWebview.json'), 'utf8'))
-  const pending = ['dist/webview/usage.js', 'dist/webview/usage.css']
-  const files = new Set()
-  while (pending.length > 0) {
-    const file = pending.pop()
-    if (files.has(file)) continue
-    const relative = path.relative(root, path.resolve(file))
-    if (
-      relative === '' ||
-      relative.startsWith('..') ||
-      path.isAbsolute(relative) ||
-      !['.js', '.css'].includes(path.extname(file))
-    ) {
-      throw new Error('Usage asset is outside the browser bundle')
-    }
-    const output = meta.outputs?.[file]
-    if (output === undefined || !statSync(file).isFile()) {
-      throw new Error(`${file} is missing from the usage browser build`)
-    }
-    files.add(file)
-    if (output.cssBundle !== undefined) pending.push(output.cssBundle)
-    const imports = output.imports ?? []
-    for (const imported of imports) {
-      if (imported.external) throw new Error('Usage assets must be bundled locally')
-      pending.push(imported.path)
-    }
-  }
-  return [...files]
+  return acpUsageAssets()
 }
 
 const manifest = JSON.parse(readFileSync('package.json', 'utf8'))

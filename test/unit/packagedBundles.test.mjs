@@ -3,8 +3,8 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, expect, it } from 'vitest'
 import { listFiles } from '@vscode/vsce/out/package.js'
-import { ACP_BUNDLES } from '../../scripts/lib/acpBundles.mjs'
-import { LAZY_BUNDLE_FILES } from '../../src/shared/lazyBundleFiles'
+import { ACP_BUNDLES, acpUsageAssets } from '../../scripts/lib/acpBundles.mjs'
+import { LAZY_BUNDLES } from '../../src/shared/lazyBundles.generated'
 import { buildProductionPackage } from './helpers/productionPackage'
 import { removeFolder } from './helpers/temporaryFolders'
 
@@ -94,7 +94,13 @@ beforeAll(async () => {
   cpSync(path.join(folder, 'dist'), path.join(inventory, 'dist'), { recursive: true })
   const listed = await listFiles({ cwd: inventory, dependencies: false })
   const vsix = new Set(listed.map((file) => normalized(file)))
-  const acp = new Set(ACP_BUNDLES.map((file) => `dist/${file}`))
+  // The agent carries the bundle list plus the usage page's asset closure,
+  // exactly what scripts/package-acp.mjs stages.
+  const acp = new Set(
+    [...ACP_BUNDLES, ...acpUsageAssets(folder).map((file) => file.replace(/^dist\//, ''))].map(
+      (file) => `dist/${file}`,
+    ),
+  )
   collectEmitted(path.join(folder, 'dist'))
   // VS Code also loads command/worker entries by path. The registry names
   // every filename-loaded chunk independently of either package inventory,
@@ -102,12 +108,19 @@ beforeAll(async () => {
   // Start from those roots plus every production entry the allowlist ships,
   // then follow static/dynamic imports. ACP likewise roots its packager's
   // shared list.
-  const registry = Object.values(LAZY_BUNDLE_FILES)
+  // The generated registry's sides are derived, not hand-set: a row the VS
+  // Code process loads must ship in the VSIX, one the agent loads in its
+  // package. `unreached` rows ship per the inventories below without a side.
+  const registry = LAZY_BUNDLES
   const registryVsix = new Set(
-    registry.filter((entry) => entry.vsix).map((entry) => `dist/${entry.file}`),
+    registry
+      .filter((entry) => entry.side === 'vscode' || entry.side === 'both')
+      .map((entry) => `dist/${entry.file}`),
   )
   const registryAcp = new Set(
-    registry.filter((entry) => entry.acp).map((entry) => `dist/${entry.file}`),
+    registry
+      .filter((entry) => entry.side === 'acp' || entry.side === 'both')
+      .map((entry) => `dist/${entry.file}`),
   )
   const vscodeRoots = vscodeOutputs.intersection(vsix).union(registryVsix)
   const acpRoots = new Set([

@@ -993,8 +993,10 @@ export const sharedValidation = {
 }
 
 // Keep dynamic imports dynamic: these entries run only on their first action.
+// Exported for the generated lazy registry (scripts/gen-lazy-registry.mjs):
+// the source entry each filename-loaded bundle resolves from.
 /** @type {import('esbuild').Plugin} */
-const DEFERRED_OUTFILES = new Map([
+export const DEFERRED_OUTFILES = new Map([
   [path.resolve('src/core/resources/resourceGovernorEntry.ts'), 'dist/resourceGovernor.js'],
   [path.resolve('src/core/resources/resourceProcessEntry.ts'), 'dist/resourceProcess.js'],
   [path.resolve('src/host/backend/mcpVaultEntry.ts'), 'dist/mcpVault.js'],
