@@ -5398,6 +5398,7 @@
   "teamFileRoleDenied": "A função não permite gravar neste caminho.",
   "teamFileExists": "O caminho do novo arquivo já está ocupado.",
   "teamFileChanged": "O arquivo reservado ou sua pasta superior mudou.",
+  "teamFileCannotCreate": "O arquivo {path} não pode ser criado dentro da cópia de trabalho.",
   "referenceTeamFiles": "As equipes permanecem indisponíveis até a integração e certificação. Os agentes do motor e do ACP podem criar arquivos pelo auxiliar nativo verificado, dentro de sua cópia de trabalho e dos caminhos de gravação permitidos pela função.",
   "teamFileLinked": "O caminho do arquivo contém um link ou um componente reinterpretado."
 }

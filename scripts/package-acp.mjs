@@ -77,7 +77,6 @@ const BUNDLES = [
   'media.js',
   'reviewer.js',
   'team.js',
-  'teamCreate.js',
   'teamRunners.js',
   'teamScheduler.js',
   'schedules.js',

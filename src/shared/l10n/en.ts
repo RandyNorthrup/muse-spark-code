@@ -5324,6 +5324,8 @@ export const EN = {
   teamFileRoleDenied: 'The role does not allow writing this path.',
   teamFileExists: 'The new file path is already occupied.',
   teamFileChanged: 'The reserved file or its parent changed.',
+  // {path}: the working-copy-relative path that cannot be created.
+  teamFileCannotCreate: 'The file {path} cannot be created inside the working copy.',
   referenceTeamFiles:
     'Teams remain unavailable pending integration and certification. Engine and ACP workers can create files through the verified native helper, within their working copy and role write paths.',
   // Native Ollama codec failures (M95).

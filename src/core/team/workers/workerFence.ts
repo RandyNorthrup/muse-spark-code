@@ -5,8 +5,7 @@ import type { AcpPermissionInput, AcpPermissionVerdict, AcpPreset, AcpPresetId }
 // Names locate objects; only native identities establish containment.
 import { lstat, open, realpath } from 'node:fs/promises'
 import { constants as fsFlags } from 'node:fs'
-import { execFile } from 'node:child_process'
-import { promisify } from 'node:util'
+import { execResourceFile } from '../../resources/launcher'
 import { handleIdentity } from '../../fs/fileIdentity'
 import { scrubWorkerEnv } from './workerEnv'
 import { fileIdentityKey, statIdentity } from '../../fs/fileIdentity'
@@ -20,6 +19,7 @@ import { commandShape, looseWords, type ShellDialect } from '../../backends/mode
 import {
   WORKER_ACP_MAX_PERMISSION_PATHS,
   WORKER_FILE_PATH_TIMEOUT_MS,
+  WORKER_NATIVE_REPLY_MAX_BYTES,
   UI_TEXT,
 } from '../../../shared/constants'
 import { uiLocale } from '../../../shared/l10n/text'
@@ -106,12 +106,16 @@ async function openWorkerFile(absolute: string, isWrite: boolean): Promise<Worke
       // aliases; Node exposes no public GetFinalPathNameByHandle API.
       if (process.platform === 'win32') final = await realpath(absolute)
       else if (process.platform === 'darwin') {
-        // macOS fd paths are not symlinks; lsof reads the kernel's fd name.
-        const result = await promisify(execFile)(
+        // macOS fd paths are not symlinks; lsof reads the kernel's fd name
+        // through the governed probe launcher: admitted, tree-owned, no
+        // temp root, fixed absolute path, bounded output.
+        const result = await execResourceFile(
+          'probe',
           '/usr/sbin/lsof',
           ['-a', '-p', String(process.pid), '-d', String(handle.fd), '-Fn'],
           {
             timeout: WORKER_FILE_PATH_TIMEOUT_MS,
+            maxBuffer: WORKER_NATIVE_REPLY_MAX_BYTES,
             env: {
               ...scrubWorkerEnv({ platform: process.platform, baseEnv: process.env }),
               LC_CTYPE: 'en_US.UTF-8',

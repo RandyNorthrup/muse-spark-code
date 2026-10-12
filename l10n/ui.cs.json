@@ -5551,6 +5551,7 @@
   "teamFileRoleDenied": "Role nepovoluje zápis do této cesty.",
   "teamFileExists": "Cesta nového souboru je již obsazena.",
   "teamFileChanged": "Rezervovaný soubor nebo jeho nadřazená složka se změnily.",
+  "teamFileCannotCreate": "Soubor {path} nelze vytvořit v pracovní kopii.",
   "referenceTeamFiles": "Týmy zůstávají nedostupné do dokončení integrace a certifikace. Pracovníci enginu a ACP mohou vytvářet soubory prostřednictvím ověřeného nativního pomocníka v rámci pracovní kopie a cest povolených jejich rolí.",
   "teamFileLinked": "Cesta souboru obsahuje odkaz nebo jinak interpretovanou část."
 }

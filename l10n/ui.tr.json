@@ -5245,6 +5245,7 @@
   "teamFileRoleDenied": "Rol bu yola yazmaya izin vermiyor.",
   "teamFileExists": "Yeni dosyanın yolu zaten dolu.",
   "teamFileChanged": "Ayrılan dosya veya üst klasörü değişti.",
+  "teamFileCannotCreate": "{path} dosyası çalışma kopyası içinde oluşturulamıyor.",
   "referenceTeamFiles": "Ekipler, bütünleştirme ve sertifikasyon tamamlanana kadar kullanılamaz. Motor ve ACP çalışanları, doğrulanmış yerel yardımcıyla çalışma kopyalarında ve rollerinin izin verdiği yazma yollarında dosya oluşturabilir.",
   "teamFileLinked": "Dosya yolu bir bağlantı veya farklı yorumlanan bir bileşen içeriyor."
 }

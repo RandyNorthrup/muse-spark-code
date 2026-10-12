@@ -5092,6 +5092,7 @@
   "teamFileRoleDenied": "此角色不允許寫入這個路徑。",
   "teamFileExists": "新檔案路徑已被佔用。",
   "teamFileChanged": "預留檔案或其父資料夾已變更。",
+  "teamFileCannotCreate": "無法在工作複本中建立檔案{path}。",
   "referenceTeamFiles": "團隊在完成整合與認證前仍不可用。引擎與ACP工作代理可透過經過驗證的原生輔助程式，在工作副本內及角色允許的寫入路徑中建立檔案。",
   "teamFileLinked": "檔案路徑包含連結或被重新解釋的路徑部分。"
 }
