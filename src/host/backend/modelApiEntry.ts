@@ -126,6 +126,11 @@ export async function createModelApiHost(deps: ModelApiBundleDeps): Promise<Mode
       ? undefined
       : await import('../../core/backends/modelapi/modelApiMcpEntry.js')
   mcp?.setUiText(deps.uiText, deps.uiLocale)
+  // The assist bundle's installed language (dist/modelApiAcp.js, PLAN.md D6):
+  // the bundle keeps its own language state, so the entry installs the
+  // caller's table when the backend starts.
+  const assist = await import('../../core/backends/modelapi/modelApiAcpEntry.js')
+  assist.installLanguage(deps.uiText, deps.uiLocale)
   const host = new ModelApiHost({
     ...hostDeps,
     modelFacts: hostDeps.modelFacts ?? metaModelFacts,

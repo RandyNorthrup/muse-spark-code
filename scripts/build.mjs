@@ -1210,6 +1210,11 @@ if (isWatch) {
     }),
     esbuild.context({
       ...modelApiOptions,
+      entryPoints: ['src/core/backends/modelapi/modelApiAcpEntry.ts'],
+      outfile: 'dist/modelApiAcp.js',
+    }),
+    esbuild.context({
+      ...modelApiOptions,
       entryPoints: ['src/runtime/runtimeAccountingEntry.ts'],
       outfile: 'dist/runtimeAccounting.js',
     }),
@@ -1321,6 +1326,11 @@ if (isWatch) {
       ...modelApiOptions,
       entryPoints: ['src/core/backends/modelapi/modelApiMcpEntry.ts'],
       outfile: 'dist/modelApiMcp.js',
+    }),
+    modelApiAcp: esbuild.build({
+      ...modelApiOptions,
+      entryPoints: ['src/core/backends/modelapi/modelApiAcpEntry.ts'],
+      outfile: 'dist/modelApiAcp.js',
     }),
     runtimeAccounting: esbuild.build({
       ...modelApiOptions,
