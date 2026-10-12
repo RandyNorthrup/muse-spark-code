@@ -313,9 +313,7 @@ async function requestReviewer(
                 windows: [],
                 raw: next.headers,
                 // The account that paid for this response (RVCM963J 7).
-                ...(budgetScope?.accountId !== undefined && {
-                  observedAccount: budgetScope.accountId,
-                }),
+                observedAccount: budgetScope?.accountId,
               },
               next.rateLimited === true,
             )
