@@ -15,6 +15,7 @@
 // No model text enters here. Synchronous, no `vscode`.
 
 import { createHash, randomUUID } from 'node:crypto'
+import { realpathSync } from 'node:fs'
 import path from 'node:path'
 import {
   PLAYBOOK_ID_MAX_CHARS,
@@ -81,24 +82,72 @@ function sorted(values: Iterable<string>): string[] {
   return [...new Set(values)].toSorted((a, b) => Number(a > b) - Number(a < b))
 }
 
+/** `realpath.native`; a test stands in a disk that refuses to be read. */
+export type RealPath = (absolute: string) => string
+
+/**
+ * Whether nothing can say which file a path names: the path, or the nearest
+ * ancestor of it that exists, cannot be read. A path that is merely missing
+ * names what it spells.
+ */
+function isUnreadable(absolute: string, realPath: RealPath): boolean {
+  let current = absolute
+  for (;;) {
+    try {
+      realPath(current)
+      return false
+    } catch (error) {
+      if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT')) return true
+    }
+    const parent = path.dirname(current)
+    if (parent === current) return false
+    current = parent
+  }
+}
+
+/**
+ * The real path a path names, where that can be told (`resolvedLongPath`).
+ * Windows gives a file a second, short name (`NAME~1`), and a missing name
+ * of that shape may have stood for any long one, so nothing resolves it
+ * there: undefined. Where no file system has short names, a missing name is
+ * what it spells, under its nearest ancestor that resolves.
+ */
+function identityOf(absolute: string): string | undefined {
+  const resolved = resolvedLongPath(absolute)
+  if (resolved !== undefined || process.platform === 'win32') return resolved
+  const parent = path.dirname(absolute)
+  const above = parent === absolute ? undefined : identityOf(parent)
+  return above === undefined ? undefined : path.join(above, path.basename(absolute))
+}
+
 /**
  * A path as the journal names it: the real file under the real workspace,
  * relative, with forward slashes. Links, junctions, drive spellings, 8.3
  * names and (where the file system ignores it) case are resolved first, so
- * two spellings of one file are one path here. Undefined when the path is
- * not inside the workspace or cannot be resolved.
+ * two spellings of one file are one path here. Undefined for one answer
+ * only: the path was resolved, and it is not a file of the workspace.
+ * Everything else is not known to be anything, and throws, so that whoever
+ * asked refuses instead of taking it for someone else's file: a path that
+ * cannot be read or resolved (with that reason), and a file of the
+ * workspace whose name the journal cannot hold (`modulePath`'s own refusal;
+ * it reads as a secret).
  */
-export function workspaceFile(workspaceFolder: string, file: string): string | undefined {
-  const folder = resolvedLongPath(path.resolve(workspaceFolder))
-  const resolved = resolvedLongPath(path.resolve(workspaceFolder, file))
-  if (folder === undefined || resolved === undefined) return undefined
+export function workspaceFile(
+  workspaceFolder: string,
+  file: string,
+  realPath: RealPath = realpathSync.native,
+): string | undefined {
+  const root = path.resolve(workspaceFolder)
+  const absolute = path.resolve(workspaceFolder, file)
+  const isRead = !isUnreadable(root, realPath) && !isUnreadable(absolute, realPath)
+  const folder = isRead ? identityOf(root) : undefined
+  const resolved = isRead ? identityOf(absolute) : undefined
+  if (folder === undefined || resolved === undefined)
+    throw new Error(UI_TEXT.playbookEvidenceUnreadable)
   const relative = path.relative(folder, resolved)
-  if (relative === '' || path.isAbsolute(relative)) return undefined
-  try {
-    return modulePath(relative)
-  } catch {
-    return undefined
-  }
+  const isOutside =
+    relative === '' || path.isAbsolute(relative) || relative.split(path.sep)[0] === '..'
+  return isOutside ? undefined : modulePath(relative)
 }
 
 /** What two spellings of one file share: Windows names files without regard to case. */
@@ -111,26 +160,30 @@ function fileKey(file: string): string {
  * governor alike: each reviewed file that a child of the conversation
  * changed, by resolved file identity, with the child that changed it. The
  * conversation's own session is never its child. Empty: an ordinary review,
- * for which nothing else may be read.
+ * for which nothing else may be read. With no child's file to compare, no
+ * path is resolved at all; otherwise a path that cannot be read throws
+ * (`workspaceFile`), because the review cannot then be called ordinary.
  */
 export function reviewedChanges(
   workspaceFolder: string,
   sessionId: string,
   files: readonly string[],
   children: readonly PanelChild[],
+  realPath?: RealPath,
 ): { readonly file: string; readonly child: PanelChild }[] {
+  const changes: { readonly file: string; readonly child: PanelChild }[] = []
+  const others = children.filter((child) => child.sessionId !== sessionId && child.files.length > 0)
+  if (others.length === 0) return changes
   const reviewed = new Map<string, string>()
   for (const raw of files) {
-    const file = workspaceFile(workspaceFolder, raw)
+    const file = workspaceFile(workspaceFolder, raw, realPath)
     if (file !== undefined) reviewed.set(fileKey(file), file)
   }
-  const changes: { readonly file: string; readonly child: PanelChild }[] = []
   if (reviewed.size === 0) return changes
-  for (const child of children) {
-    if (child.sessionId === sessionId) continue
+  for (const child of others) {
     const seen = new Set<string>()
     for (const raw of child.files) {
-      const changed = workspaceFile(workspaceFolder, raw)
+      const changed = workspaceFile(workspaceFolder, raw, realPath)
       const file = changed === undefined ? undefined : reviewed.get(fileKey(changed))
       if (file === undefined || seen.has(file)) continue
       seen.add(file)

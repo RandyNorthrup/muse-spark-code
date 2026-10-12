@@ -10,9 +10,12 @@
 // controller recorded and the files their own items say they changed, and a
 // best-of-N attempt the person took. No model text decides it.
 
-import type { AgentEvent, ItemSnapshot } from '../../shared/agentEvents'
+import type { AgentEvent } from '../../shared/agentEvents'
+import { agentFilesFromPatch } from '../../shared/agentReceipt'
 import type { BestOfNRun } from '../../shared/bestOfN'
 import {
+  OUTPUT_PAGE_BYTES,
+  PATCH_DOCUMENT_MAX_PAGES,
   PLAYBOOK_ID_MAX_CHARS,
   PLAYBOOK_RECORD_MAX,
   PLAYBOOK_REFUSAL_MODEL_TEXT,
@@ -21,7 +24,6 @@ import {
 } from '../../shared/constants'
 import { fill, plural, UI_TEXT } from '../../shared/l10n/text'
 import type { AgentHost, AgentSession, TurnPart } from '../../core/agent/agentBackend'
-import { agentReceiptFiles } from '../../core/agent/agentReceiptFiles'
 import type { SubagentAdmission } from '../../core/backends/modelapi/subagentTools'
 import type { PanelChild } from '../../core/orchestration/panelLanes'
 import type { PanelAnswer, PanelFinding, PanelModuleSummary } from '../../runtime/playbook/governor'
@@ -34,6 +36,8 @@ const NEW_CHILD = ':subagent'
 const BEST_OF_N = ':bestOfN'
 /** A refusal that names no module, in the model's text. */
 const UNNAMED_MODULE = 'none named'
+/** What every decision that lets a tool run starts with (MSP's own word). */
+const APPROVED = 'approved'
 
 export interface PlaybookPick {
   readonly label: string
@@ -70,8 +74,12 @@ export interface PlaybookConversationHost {
   notice(level: 'info' | 'warning' | 'error', text: string, hasAction: boolean): void
   /** The conversation's backend, for a child session's own items and stored outputs. */
   backend(): Promise<Pick<AgentHost, 'readSession' | 'readSessionOutput'>>
-  /** Whether the backend asks the host before it starts a subagent, in its mode now. */
-  asksBeforeSpawn(): boolean
+  /**
+   * Who admits a subagent a model starts, in the backend's mode now: the
+   * backend's own `host` (the Model API, in every mode); the person, `asked`
+   * by the backend first (Muse Code where it prompts); or nobody (`unasked`).
+   */
+  spawnAdmission(): 'host' | 'asked' | 'unasked'
 }
 
 /** The backend's own request to start a subagent, as its approval card would show it. */
@@ -123,17 +131,44 @@ export interface PlaybookConversation {
     decide: AgentSession['decideApproval'],
   ): Promise<PlaybookSpawnRequest | undefined>
   /**
-   * A spawn request that was put before the person came to anything but an
-   * approval: no child starts, so the round the playbook opened for it is over.
+   * An approval was resolved. Of a spawn request this playbook was asked
+   * about and that went on to the person: approved, it speaks for one
+   * child's row; anything else starts no child, so the round the playbook
+   * opened for it is over. Any other approval is nothing to it.
    */
-  spawnDeclined(sessionId: string | undefined): void
+  approvalResolved(sessionId: string | undefined, approvalId: string, decision: string): void
+  /**
+   * A child's row began that the host had not seen before. One that no
+   * approved request speaks for marks the conversation, for good, as one
+   * whose backend starts subagents unasked (an allow rule of the person's
+   * own, which no host can read).
+   */
+  childBegan(sessionId: string | undefined): void
   /** A child's row reached its end, or (no agent named) a best-of-N run did. */
   ended(sessionId: string | undefined, agentId: string | undefined): void
   /** The notice's button: what this conversation owes its playbook, in VS Code's pickers. */
   act(sessionId: string | undefined): Promise<void>
-  /** The plain line a governed conversation is owed while its mode starts subagents unasked. */
+  /**
+   * Whether a governed conversation is owed the line about subagents its
+   * backend starts unasked. Rejects when the journal cannot say.
+   */
+  hasGap(sessionId: string | undefined): Promise<boolean>
+  /** That line, for `/playbook`; the unavailable words when the journal cannot say. */
   gap(sessionId: string | undefined): Promise<string | undefined>
   dispose(): void
+}
+
+/** A conversation's spawn requests, as its playbook has seen them. */
+interface SpawnState {
+  /**
+   * Requests that went on to the person, each with the card it was given:
+   * `round` where the playbook opened a round for it (one spawn at a time),
+   * `once` where it could only limit the card, `asCame` where it is not the
+   * playbook's.
+   */
+  readonly requests: Map<string, 'round' | 'once' | 'asCame'>
+  /** Approved requests no child's row has used yet. Below zero, for good: one began unasked. */
+  owed: number
 }
 
 interface Waiter {
@@ -143,6 +178,42 @@ interface Waiter {
 
 function bounded(text: string, max: number): string {
   return text.slice(0, max)
+}
+
+/** Whether a list is longer than the journal's own bound for one. */
+function isOverBound(list: readonly unknown[]): boolean {
+  return list.length > PLAYBOOK_RECORD_MAX
+}
+
+/**
+ * The files a child's stored patch names, read whole however many pages it
+ * takes. A patch larger than any edit's, or one that does not read as a
+ * patch, leaves the files unknown: that rejects.
+ */
+async function patchFiles(
+  backend: Pick<AgentHost, 'readSessionOutput'>,
+  sessionId: string,
+  itemId: string,
+  outputRef: string,
+): Promise<NonNullable<ReturnType<typeof agentFilesFromPatch>>> {
+  let document = ''
+  let offsetBytes = 0
+  for (let page = 0; page < PATCH_DOCUMENT_MAX_PAGES; page += 1) {
+    const chunk = await backend.readSessionOutput(sessionId, {
+      itemId,
+      outputRef,
+      offsetBytes,
+      lengthBytes: OUTPUT_PAGE_BYTES,
+    })
+    document += chunk.content
+    if (chunk.eof) {
+      const files = agentFilesFromPatch(document)
+      if (files === undefined) break
+      return files
+    }
+    offsetBytes = chunk.offsetBytes + chunk.byteLen
+  }
+  throw new Error(UI_TEXT.playbookEvidenceUnreadable)
 }
 
 /** A refusal in the words the person reads; anything else as it is. */
@@ -203,7 +274,7 @@ export function playbookAdmission(window: Pick<PlaybookWindow, 'dispatch'>): Sub
 
 /** Whether a choice of an approval request lets the tool run. */
 function isApproval(choice: PlaybookSpawnRequest['availableChoices'][number]): boolean {
-  return choice.decision.startsWith('approved')
+  return choice.decision.startsWith(APPROVED)
 }
 
 function findingLabel(finding: PanelFinding): string {
@@ -235,6 +306,20 @@ export function createPlaybookConversation(
   const rounds = new Map<string, Set<Waiter>>()
   /** Conversations told once that each subagent is asked about. */
   const toldEach = new Set<string>()
+  const spawns = new Map<string, SpawnState>()
+
+  const spawnsOf = (sessionId: string): SpawnState => {
+    const state: SpawnState = spawns.get(sessionId) ?? { requests: new Map(), owed: 0 }
+    spawns.set(sessionId, state)
+    return state
+  }
+
+  /**
+   * Whether the backend asks before it starts a subagent in this conversation:
+   * its mode prompts, and no child has begun here that nobody was asked about.
+   */
+  const isAskedFirst = (sessionId: string): boolean =>
+    host.spawnAdmission() !== 'unasked' && (spawns.get(sessionId)?.owed ?? 0) >= 0
 
   const sweep = (): void => {
     for (const review of reviews) {
@@ -262,8 +347,8 @@ export function createPlaybookConversation(
         rounds: (counted) => {
           sweep()
           for (const round of counted) host.notice('info', roundText(round), true)
-          // No silent gap: a mode that starts subagents unasked is said, once per count.
-          if (!host.asksBeforeSpawn()) host.notice('info', playbookSpawnGapText(), false)
+          // No silent gap: a backend that starts subagents unasked is said, once per count.
+          if (!isAskedFirst(sessionId)) host.notice('info', playbookSpawnGapText(), false)
         },
         hookOutput: (output) => {
           host.notice('warning', output, false)
@@ -303,28 +388,45 @@ export function createPlaybookConversation(
       )
     })
 
-  /** The conversation's children that changed something, by the host's own records. */
+  /**
+   * The files a child's own items say it changed: each item's recorded
+   * files, or those its stored patch names. Rejects when either cannot be
+   * read.
+   */
+  const changedBy = async (sessionId: string): Promise<string[]> => {
+    const backend = await host.backend()
+    const { items } = await backend.readSession(sessionId)
+    const files = new Set<string>()
+    for (const item of items) {
+      const changed =
+        item.changedFiles ??
+        (item.patchRef === undefined
+          ? []
+          : await patchFiles(backend, sessionId, item.itemId, item.patchRef.id))
+      for (const file of changed) files.add(file.path)
+    }
+    return [...files]
+  }
+
+  /**
+   * The conversation's children that changed something, by the host's own
+   * records. What cannot be read is not evidence that nothing changed: a
+   * child whose session cannot be read, or a list longer than the journal's
+   * bound, refuses the review instead of leaving that child out of it.
+   */
   const evidence = async (
     request: Pick<PlaybookReviewRequest<unknown>, 'files' | 'agents' | 'bestOfN'>,
   ): Promise<PanelChild[]> => {
     if (request.files.length === 0) return []
     const children: PanelChild[] = []
-    for (const agent of request.agents.slice(0, PLAYBOOK_RECORD_MAX)) {
-      let items: readonly ItemSnapshot[] = []
+    for (const agent of request.agents) {
+      let files: string[]
       try {
-        // The child's own items, each with the files its recorded patches changed.
-        const backend = await host.backend()
-        const history = await backend.readSession(agent.sessionId)
-        items = await agentReceiptFiles(history.items, (page) =>
-          backend.readSessionOutput(agent.sessionId, page),
-        )
+        files = await changedBy(agent.sessionId)
       } catch {
-        // A child session that cannot be read is no evidence of a change.
+        throw new Error(UI_TEXT.playbookEvidenceUnreadable)
       }
-      const files = [
-        ...new Set(items.flatMap((item) => item.changedFiles?.map((file) => file.path) ?? [])),
-      ]
-      if (files.length > 0) children.push({ ...agent, files: files.slice(0, PLAYBOOK_RECORD_MAX) })
+      if (files.length > 0) children.push({ ...agent, files })
     }
     const run = request.bestOfN
     const taken = run?.runAttempts.find(
@@ -334,8 +436,17 @@ export function createPlaybookConversation(
       children.push({
         agentId: taken.attemptId,
         sessionId: taken.sessionId ?? `${run.runId}:${taken.attemptId}`,
-        files: taken.files.map((file) => file.path).slice(0, PLAYBOOK_RECORD_MAX),
+        files: taken.files.map((file) => file.path),
       })
+    // Past the journal's bound nothing is cut short to fit: a review that a
+    // child may have a part in is refused.
+    if (
+      children.length > 0 &&
+      [request.files, children, ...children.map((child) => child.files)].some((list) =>
+        isOverBound(list),
+      )
+    )
+      throw new Error(UI_TEXT.playbookUnavailable)
     return children
   }
 
@@ -466,6 +577,12 @@ export function createPlaybookConversation(
     return true
   }
 
+  const hasGap = async (sessionId: string | undefined): Promise<boolean> => {
+    if (sessionId === undefined || isAskedFirst(sessionId)) return false
+    const open = await window.standing(sessionId)
+    return open.length > 0
+  }
+
   /** The module the person means: the only open one, or the one they pick. */
   const chosen = async (
     open: readonly PanelModuleSummary[],
@@ -535,6 +652,7 @@ export function createPlaybookConversation(
       }
     },
     spawnRequest: async (sessionId, request, decide) => {
+      const { requests } = spawnsOf(sessionId)
       // One spawn at a time: the choices that would stop the asking are not offered.
       const once = {
         ...request,
@@ -542,15 +660,21 @@ export function createPlaybookConversation(
           (choice) => choice.scope === 'once' || !isApproval(choice),
         ),
       }
+      // A request said again is the one already asked about: no second round,
+      // and the card it was given the first time.
+      const known = requests.get(request.approvalId)
+      if (known !== undefined) return known === 'asCame' ? request : once
       try {
-        return (await isSpawnAdmitted(sessionId)) ? once : request
+        const isGoverned = await isSpawnAdmitted(sessionId)
+        requests.set(request.approvalId, isGoverned ? 'round' : 'asCame')
+        return isGoverned ? once : request
       } catch (error) {
         // A refusal's why-note reached the conversation as it was decided; this did not.
         if (!(error instanceof PlaybookRefusal))
           host.notice('error', UI_TEXT.playbookUnavailable, false)
         const reject = request.availableChoices.find((choice) => !isApproval(choice))
-        if (reject === undefined) return once
         try {
+          if (reject === undefined) throw new Error(UI_TEXT.playbookUnavailable, { cause: error })
           await decide({
             approvalId: request.approvalId,
             choiceId: reject.choiceId,
@@ -563,13 +687,28 @@ export function createPlaybookConversation(
           return
         } catch {
           // The refusal is in the transcript. Unsent, the request stays the person's
-          // to answer, one spawn at a time.
+          // to answer, one spawn at a time; no round was opened for it.
+          requests.set(request.approvalId, 'once')
           return once
         }
       }
     },
-    spawnDeclined: (sessionId) => {
-      if (sessionId !== undefined) settle(sessionId, NEW_CHILD)
+    approvalResolved: (sessionId, approvalId, decision) => {
+      const state = sessionId === undefined ? undefined : spawns.get(sessionId)
+      const shown = state?.requests.get(approvalId)
+      if (sessionId === undefined || state === undefined || shown === undefined) return
+      state.requests.delete(approvalId)
+      if (decision.startsWith(APPROVED)) {
+        if (state.owed >= 0) state.owed += 1
+      } else if (shown === 'round') settle(sessionId, NEW_CHILD)
+    },
+    childBegan: (sessionId) => {
+      const admission = host.spawnAdmission()
+      // The Model API's host admits each child itself: there is nothing to learn from its rows.
+      if (sessionId === undefined || admission === 'host') return
+      const state = spawnsOf(sessionId)
+      if (state.owed > 0) state.owed -= 1
+      else if (admission === 'asked') state.owed = -1
     },
     ended: (sessionId, agentId) => {
       if (sessionId === undefined) return
@@ -601,17 +740,17 @@ export function createPlaybookConversation(
         host.notice('error', UI_TEXT.playbookUnavailable, false)
       }
     },
+    hasGap,
     gap: async (sessionId) => {
-      let open: readonly PanelModuleSummary[] = []
       try {
-        if (sessionId !== undefined && !host.asksBeforeSpawn())
-          open = await window.standing(sessionId)
+        return (await hasGap(sessionId)) ? playbookSpawnGapText() : undefined
       } catch {
-        // A journal that cannot be read says nothing about a gap.
+        // The journal could not say whether the line is owed: that is said, not passed over.
+        return UI_TEXT.playbookUnavailable
       }
-      return open.length > 0 ? playbookSpawnGapText() : undefined
     },
     dispose: () => {
+      spawns.clear()
       for (const stop of followed.values()) stop()
       followed.clear()
       for (const review of reviews) {

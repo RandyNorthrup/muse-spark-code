@@ -489,6 +489,8 @@
   "playbookAnswerWhySafe": "Pourquoi c’est sûr pour l’instant",
   "playbookAnswerFollowUp": "Suivi",
   "playbookNotCertified": "Guide : ce tour n’a pas pu être certifié ; il ne compte donc pas comme réussi.",
+  "playbookEvidenceUnreadable": "Guide : un fichier en revue, ou ce qu’un sous-agent a modifié, n’a pas pu être lu ; le guide ne peut donc pas savoir si cette revue est la sienne. La revue n’a pas été envoyée.",
+  "playbookRecordStale": "Le registre du guide n’a pas pu être lu. Ce qui est affiché est peut-être obsolète.",
   "playbookSpawnEachAsked": "Guide : tant qu’un module est en revue, chaque sous-agent est approuvé un par un.",
   "playbookSpawnsNotAdmitted": "Guide : ici, Muse Code lance les sous-agents sans demander (mode {auto}, mode {bypass} ou l’une de vos règles d’autorisation) ; le guide ne les admet donc pas. Leurs modifications sont comptées à la prochaine revue.",
   "playbookStrikeBadge": {

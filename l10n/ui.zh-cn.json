@@ -489,6 +489,8 @@
   "playbookAnswerWhySafe": "目前为何安全",
   "playbookAnswerFollowUp": "后续跟进",
   "playbookNotCertified": "工作准则：本轮无法得到确认，因此不计为通过。",
+  "playbookEvidenceUnreadable": "工作准则：无法读取受审查的文件或子代理所做的更改，因此工作准则无法判断此次审查是否归它管。审查未发送。",
+  "playbookRecordStale": "无法读取工作准则记录。显示的内容可能已过时。",
   "playbookSpawnEachAsked": "工作准则：模块处于审查期间，每个子代理都需逐一批准。",
   "playbookSpawnsNotAdmitted": "工作准则：在这里 Muse Code 不经询问就启动子代理（“{auto}”模式、“{bypass}”模式，或您自己的允许规则），因此工作准则不会放行它们。它们所做的更改会在下次审查时计入。",
   "playbookStrikeBadge": {

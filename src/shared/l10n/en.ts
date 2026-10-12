@@ -633,6 +633,9 @@ export const EN = {
   playbookAnswerFollowUp: 'Follow-up',
   playbookNotCertified:
     'Playbook: this round could not be certified, so it does not count as passed.',
+  playbookEvidenceUnreadable:
+    'Playbook: a reviewed file, or what a subagent changed, could not be read, so the playbook cannot tell whether this review is its own. The review was not sent.',
+  playbookRecordStale: 'The playbook record could not be read. What is shown may be out of date.',
   playbookSpawnEachAsked:
     'Playbook: while a module is under review, each subagent is approved one at a time.',
   playbookSpawnsNotAdmitted:

@@ -307,6 +307,39 @@ function standIn(
   return { window, startWorker, threads, endJob, events, ...recorded }
 }
 
+const LOST_JOB = String.raw`Local\MuseSparkPlaybook-lost`
+
+/**
+ * A window whose first worker publishes a job and is lost, and whose later
+ * workers answer a read. `end` is what ending that job by name comes to.
+ */
+function lostJob(end: () => Promise<void>) {
+  const snapshot = { settings: defaultPlaybookSettings(PLAYBOOK_PANEL_TEAM), records: [] }
+  const endJob = vi.fn<NonNullable<PlaybookWindowDeps['endJob']>>(end)
+  const lost: { worker?: unknown } = {}
+  const setup = standIn({ endJob }, (boundary, request) => {
+    lost.worker ??= boundary
+    if (lost.worker === boundary) {
+      boundary.say({ type: 'job', names: [LOST_JOB] })
+      // The thread dies once the window has heard of the job: a message arrives a turn later.
+      setImmediate(() => {
+        boundary.crash()
+      })
+      return
+    }
+    if (typeof request === 'object' && request !== null && 'id' in request)
+      boundary.say({ type: 'result', id: Number(request.id), value: snapshot })
+  })
+  return { ...setup, endJob, snapshot }
+}
+
+/** One turn of the event loop: whatever was settling has settled. */
+function aTurn(): Promise<void> {
+  return new Promise((resolve) => {
+    setImmediate(resolve)
+  })
+}
+
 // Real rounds, each under the POSIX supervisor or the Windows job.
 describe('a window and its worker', { timeout: GOVERNED_ROUND_TIMEOUT_MS }, () => {
   it('reads and changes the journal the CLI and the ACP agent use, with no worker before it', async () => {
@@ -561,6 +594,21 @@ describe('a window that cannot believe its worker', () => {
     expect(setup.startWorker).not.toHaveBeenCalled()
   })
 
+  it('refuses a review whose files cannot be read, with the reason, and asks no worker', async () => {
+    const setup = standIn({
+      realPath: () => {
+        throw Object.assign(new Error('EACCES: a private path'), { code: 'EACCES' })
+      },
+    })
+    // Unknown is not "no child changed it": the review is not sent as an ordinary one.
+    await expect(setup.window.openReview(SESSION, [PANEL_FILES.store], [CHILD])).rejects.toThrow(
+      UI_TEXT.playbookEvidenceUnreadable,
+    )
+    expect(setup.startWorker).not.toHaveBeenCalled()
+    // The same disk is nothing to a review with no child's file to compare.
+    await expect(setup.window.openReview(SESSION, [PANEL_FILES.store], [])).resolves.toBeUndefined()
+  })
+
   it('refuses everything a crashed worker owed, and starts a fresh one for the next request', async () => {
     const setup = standIn({}, (boundary) => {
       boundary.crash()
@@ -599,6 +647,45 @@ describe('a window that cannot believe its worker', () => {
     })
     await expect(setup.window.surface.read()).rejects.toThrow(UI_TEXT.playbookUnavailable)
     expect(setup.endJob).not.toHaveBeenCalled()
+  })
+
+  it('keeps a lost worker’s job as its own until its end is seen: tried again before the next work, and as the window closes', async () => {
+    const stuck = lostJob(() => Promise.reject(new Error('the job is still there')))
+    await expect(stuck.window.surface.read()).rejects.toThrow(UI_TEXT.playbookUnavailable)
+    await aTurn()
+    expect(stuck.endJob).toHaveBeenCalledTimes(1)
+    // The next work tries first, cannot end it either, and goes on with a fresh worker.
+    await expect(stuck.window.surface.read()).resolves.toEqual(stuck.snapshot)
+    expect(stuck.endJob).toHaveBeenCalledTimes(2)
+    expect(stuck.startWorker).toHaveBeenCalledTimes(2)
+    // Closing the window is the last try, and what it could not end is said.
+    stuck.window.dispose()
+    await vi.waitFor(() => {
+      expect(stuck.lines).toContain(
+        'error: The window closed with 1 playbook job(s) whose end was not seen',
+      )
+    })
+    expect(stuck.endJob).toHaveBeenCalledTimes(3)
+    for (const call of stuck.endJob.mock.calls)
+      expect(call).toEqual([LOST_JOB, 'job.dll', String.raw`C:\Windows`])
+  })
+
+  it('lets a lost worker’s job go once a later try has seen it end', async () => {
+    let tries = 0
+    const stuck = lostJob(() => {
+      tries += 1
+      return tries === 1 ? Promise.reject(new Error('the job is still there')) : Promise.resolve()
+    })
+    await expect(stuck.window.surface.read()).rejects.toThrow(UI_TEXT.playbookUnavailable)
+    await aTurn()
+    await expect(stuck.window.surface.read()).resolves.toEqual(stuck.snapshot)
+    expect(stuck.endJob).toHaveBeenCalledTimes(2)
+    // Its end was seen: neither later work nor the window's close asks again.
+    await expect(stuck.window.surface.read()).resolves.toEqual(stuck.snapshot)
+    stuck.window.dispose()
+    await aTurn()
+    expect(stuck.endJob).toHaveBeenCalledTimes(2)
+    expect(stuck.lines.filter((line) => line.includes('whose end was not seen'))).toEqual([])
   })
 
   it('keeps believing a worker that reports each call, however long the answer takes', async () => {

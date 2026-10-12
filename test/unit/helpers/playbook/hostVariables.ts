@@ -14,9 +14,18 @@ export const EXTENSION_HOST_VARIABLES = {
   VSCODE_PID: '4242',
 } as const
 
-/** The `ELECTRON_*` and `VSCODE_*` names an environment holds, sorted. */
+/** The same nine as a Windows environment may spell them: in lower case. */
+export const LOWER_CASE_HOST_VARIABLES: Readonly<Record<string, string>> = Object.fromEntries(
+  Object.entries(EXTENSION_HOST_VARIABLES).map(([name, value]) => [name.toLowerCase(), value]),
+)
+
+/**
+ * The `ELECTRON_*` and `VSCODE_*` names an environment holds, in any letter
+ * case, sorted: a name spelled `electron_run_as_node` is the switch to a
+ * Windows child all the same.
+ */
 export function hostNames(env: NodeJS.ProcessEnv | undefined): string[] {
   return Object.keys(env ?? {})
-    .filter((name) => /^(?:ELECTRON|VSCODE)_/u.test(name))
+    .filter((name) => /^(?:ELECTRON|VSCODE)_/iu.test(name))
     .toSorted((a, b) => Number(a > b) - Number(a < b))
 }

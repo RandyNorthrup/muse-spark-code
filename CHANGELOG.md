@@ -65,8 +65,22 @@ happened, not what was planned; superseded entries are kept.
   admitted and that what they change is counted at the next review (with
   `/playbook`, with each counted round and in the Agent map). A review of
   files no child changed, and any dispatch from a conversation with nothing
-  under review, goes out exactly as it did before. Real git and fakes only;
-  no model call.
+  under review, goes out exactly as it did before. **After review RVCM1166B
+  (five P2), one rule: what could not be read, loaded or ended is a failure
+  with its own name, never "nothing".** A Windows job that a stopped worker
+  left stays the window's own until its end was seen: a failed termination
+  is tried again before the next work and as the window closes, and a window
+  that closes with one still listed says so in its log. The editor host's
+  variables are matched without regard to case on Windows, for the shell
+  tools as well as the playbook's commands (a lower-case
+  `electron_run_as_node` reached a child there). A reviewed file, or what a
+  child changed, that cannot be read refuses the review with that reason
+  instead of sending it as an ordinary one; a child's changed files are read
+  whole, however many pages its stored patch takes. When the window's
+  playbook cannot load or does not answer in time, the Agent map says the
+  playbook is unavailable and offers Retry; when its rows' records cannot be
+  read, it keeps what it showed, says it may be out of date, and reads again
+  on Retry. Real git and fakes only; no model call.
 
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
   reads and writes, and 1-hour cache writes settle at their own price.

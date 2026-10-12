@@ -327,9 +327,20 @@ export class PanelGovernor {
     return conversation
   }
 
-  /** A path as the journal names it, by resolved file identity; undefined when it is not in the workspace. */
+  /**
+   * A finding's file as the journal names it, by resolved file identity;
+   * undefined when it is not shown to be a file of the workspace. The path
+   * is the reviewer's own words. One that cannot be read, resolved or named
+   * puts its finding under no module, as one that resolves elsewhere does:
+   * it may not undo the round, or a reply's wording could keep a round from
+   * being counted. The reply itself is in the transcript either way.
+   */
   private relative(file: string): string | undefined {
-    return workspaceFile(this.options.workspaceFolder, file)
+    try {
+      return workspaceFile(this.options.workspaceFolder, file)
+    } catch {
+      return undefined
+    }
   }
 
   private summary(

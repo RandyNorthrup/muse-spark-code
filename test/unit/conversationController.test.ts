@@ -7606,52 +7606,35 @@ describe('ConversationController: permission hardening (D24)', () => {
       t.controller.dispose()
     })
 
-    it('learns from a child nobody was asked about that Muse Code does not ask here, for good', async () => {
+    it('tells the playbook how each approval was resolved, and of a child’s row the first time it begins', async () => {
       const { f, t } = await spawnAsked()
-      // One request shown and approved, then its child: the backend asked.
       await spawnAnswered(t, 'a1', 'approved')
-      const [host] = f.hosts
-      if (host === undefined) throw new Error('The playbook was not asked for')
+      expect(f.playbook.approvalResolved).toHaveBeenCalledExactlyOnceWith('s1', 'a1', 'approved')
       t.server.notify('item/started', subagentStarted('sub-1'))
       await settle()
-      expect(host.asksBeforeSpawn()).toBe(true)
-      // The same row said again is no new child.
+      expect(f.playbook.childBegan).toHaveBeenCalledExactlyOnceWith('s1')
+      // The same row said again is no new child; another child's row is.
       t.server.notify('item/started', subagentStarted('sub-1'))
-      await settle()
-      expect(host.asksBeforeSpawn()).toBe(true)
-      // A second child that no request preceded: an allow rule the host cannot read.
       t.server.notify('item/started', subagentStarted('sub-2'))
       await settle()
-      expect(host.asksBeforeSpawn()).toBe(false)
-      // Being asked again later does not undo what was seen.
-      await spawnAnswered(t, 'a2', 'approved')
-      expect(host.asksBeforeSpawn()).toBe(false)
-      expect(f.playbook.spawnDeclined).not.toHaveBeenCalled()
+      expect(f.playbook.childBegan).toHaveBeenCalledTimes(2)
+      // A request the person turns down is told the same way: what it means is the playbook's to say.
+      await spawnAnswered(t, 'a2', 'abort')
+      expect(f.playbook.approvalResolved).toHaveBeenLastCalledWith('s1', 'a2', 'abort')
       t.controller.dispose()
     })
 
-    it('ends the round of a spawn the person turned down, which speaks for no child', async () => {
+    it('counts no child of a history it loaded as one that began', async () => {
       const { f, t } = await spawnAsked()
-      await spawnAnswered(t, 'a1', 'abort')
-      // No child starts: the round the playbook opened for the request is over.
-      expect(f.playbook.spawnDeclined).toHaveBeenCalledExactlyOnceWith('s1')
-      const [host] = f.hosts
-      if (host === undefined) throw new Error('The playbook was not asked for')
-      expect(host.asksBeforeSpawn()).toBe(true)
-      // A child after it was asked about by nobody.
-      t.server.notify('item/started', subagentStarted('sub-1'))
+      // A row that ends without ever having been seen to begin: a child from before.
+      const row = subagentStarted('sub-1')
+      t.server.notify('item/completed', { ...row, item: { ...row.item, status: 'completed' } })
       await settle()
-      expect(host.asksBeforeSpawn()).toBe(false)
-      t.controller.dispose()
-    })
-
-    it('says nothing to the playbook about the end of any other approval', async () => {
-      const { f, t } = await spawnAsked()
-      requestApproval(t, 'a1')
+      expect(f.playbook.childBegan).not.toHaveBeenCalled()
+      // Its row beginning again later is no new child either.
+      t.server.notify('item/started', row)
       await settle()
-      t.server.notify('approval/resolved', resolvedBy('a1', 'abort'))
-      await settle()
-      expect(f.playbook.spawnDeclined).not.toHaveBeenCalled()
+      expect(f.playbook.childBegan).not.toHaveBeenCalled()
       t.controller.dispose()
     })
 
@@ -16906,13 +16889,14 @@ describe('the playbook’s panel channel (M116, C-M116-6)', () => {
       const controller = new ConversationController({ ...t.deps, ensureHost, playbookPanel })
       await controller.handle({ type: 'playbook', message: { type: 'playbookHello' } })
       // The message goes on exactly as it came: the bundle parses it, not the controller.
-      // With it goes what the map needs to know of the conversation: none yet, and a
-      // backend that asks before a spawn in this mode (D96.17).
+      // With it goes a way to ask this conversation's own playbook about its subagents.
       expect(playbookPanel).toHaveBeenCalledExactlyOnceWith(
         { type: 'playbookHello' },
         expect.any(Function),
-        { sessionId: undefined, asksBeforeSpawn: true },
+        expect.any(Function),
       )
+      // A host with no playbook of the conversation's has nothing to ask.
+      expect(playbookPanel.mock.calls[0]?.[2]()).toBeUndefined()
       expect(t.surface.posted.filter((message) => message.type === 'playbook')).toEqual([
         { type: 'playbook', message: { type: 'playbookHello', workspaceId: 'journal-1' } },
         { type: 'playbook', message: { type: 'playbookAgents', requestId: 1, records: {} } },
@@ -16933,15 +16917,19 @@ describe('the playbook’s panel channel (M116, C-M116-6)', () => {
     controller.dispose()
   })
 
-  it('tells the map when the conversation’s mode starts subagents unasked (D96.17)', async () => {
+  it('lets the map ask the conversation’s own playbook whether subagents start unasked here (D96.17)', async () => {
     const playbookPanel = vi.fn<NonNullable<ConversationDeps['playbookPanel']>>()
-    const t = setup({ hasApprovalUi: true, initialPermissionMode: 'auto' })
-    const controller = new ConversationController({ ...t.deps, playbookPanel })
-    await controller.handle({ type: 'playbook', message: { type: 'playbookHello' } })
-    expect(playbookPanel.mock.calls[0]?.[2]).toEqual({
-      sessionId: undefined,
-      asksBeforeSpawn: false,
+    const f = fakePlaybookConversation({ gap: 'Subagents are not admitted here.' })
+    const t = setup()
+    const controller = new ConversationController({
+      ...t.deps,
+      playbookPanel,
+      playbook: f.factory,
     })
+    await controller.handle({ type: 'playbook', message: { type: 'playbookHello' } })
+    await expect(playbookPanel.mock.calls[0]?.[2]()).resolves.toBe(true)
+    // No conversation yet: the playbook is asked for none.
+    expect(f.playbook.hasGap).toHaveBeenCalledExactlyOnceWith(undefined)
     controller.dispose()
   })
 })
@@ -17010,28 +16998,28 @@ describe('what a conversation lends its window’s playbook (M116, D96.17)', () 
   })
 
   it.each([
-    { mode: 'manual', asks: true },
-    { mode: 'acceptEdits', asks: true },
+    { mode: 'manual', admission: 'asked' },
+    { mode: 'acceptEdits', admission: 'asked' },
     // Plan starts no subagent at all.
-    { mode: 'plan', asks: true },
-    { mode: 'auto', asks: false },
-    { mode: 'bypassPermissions', asks: false },
-  ] as const)('knows whether Muse Code asks before a subagent in $mode: $asks', async (row) => {
+    { mode: 'plan', admission: 'asked' },
+    { mode: 'auto', admission: 'unasked' },
+    { mode: 'bypassPermissions', admission: 'unasked' },
+  ] as const)('says a subagent of Muse Code’s is $admission in $mode', async (row) => {
     const { t, host } = await lentPlaybook({
       initialPermissionMode: row.mode,
       isBypassAllowed: true,
     })
-    expect(host.asksBeforeSpawn()).toBe(row.asks)
+    expect(host.spawnAdmission()).toBe(row.admission)
     t.controller.dispose()
   })
 
-  it('counts the Model API as asking in every mode: the host itself admits each child there', async () => {
+  it('says the Model API’s host admits each child itself, in every mode', async () => {
     const { t, host } = await lentPlaybook({
       backendKind: 'modelApi',
       initialPermissionMode: 'bypassPermissions',
       isBypassAllowed: true,
     })
-    expect(host.asksBeforeSpawn()).toBe(true)
+    expect(host.spawnAdmission()).toBe('host')
     t.controller.dispose()
   })
 

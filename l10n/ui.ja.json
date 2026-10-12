@@ -489,6 +489,8 @@
   "playbookAnswerWhySafe": "当面安全である理由",
   "playbookAnswerFollowUp": "フォローアップ",
   "playbookNotCertified": "手引き: このラウンドは検証できなかったため、合格として数えられません。",
+  "playbookEvidenceUnreadable": "手引き: レビュー対象のファイル、またはサブエージェントの変更内容を読み取れなかったため、このレビューが手引きの対象かどうか判断できません。レビューは送信されませんでした。",
+  "playbookRecordStale": "手引きの記録を読み取れませんでした。表示内容は古い可能性があります。",
   "playbookSpawnEachAsked": "手引き: モジュールのレビュー中は、サブエージェントを 1 つずつ承認します。",
   "playbookSpawnsNotAdmitted": "手引き: ここでは Muse Code が確認なしでサブエージェントを開始するため ({auto} モード、{bypass} モード、またはご自身の許可ルール)、手引きはそれらを承認しません。変更内容は次のレビューで数えられます。",
   "playbookStrikeBadge": {

@@ -489,6 +489,8 @@
   "playbookAnswerWhySafe": "Şimdilik neden güvenli",
   "playbookAnswerFollowUp": "Takip adımı",
   "playbookNotCertified": "Kılavuz: bu tur doğrulanamadı, bu yüzden geçmiş sayılmaz.",
+  "playbookEvidenceUnreadable": "Kılavuz: incelenen bir dosya veya bir alt aracının yaptığı değişiklikler okunamadı; bu yüzden kılavuz bu incelemenin kendisine ait olup olmadığını belirleyemiyor. İnceleme gönderilmedi.",
+  "playbookRecordStale": "Kılavuz kaydı okunamadı. Gösterilenler güncel olmayabilir.",
   "playbookSpawnEachAsked": "Kılavuz: bir modül incelenirken her alt aracı tek tek onaylanır.",
   "playbookSpawnsNotAdmitted": "Kılavuz: Muse Code burada alt aracıları sormadan başlatır ({auto} modu, {bypass} modu veya kendi izin kuralınız), bu yüzden kılavuz onları kabul etmez. Yaptıkları değişiklikler bir sonraki incelemede sayılır.",
   "playbookStrikeBadge": {

@@ -489,6 +489,8 @@
   "playbookAnswerWhySafe": "Perché per ora è sicuro",
   "playbookAnswerFollowUp": "Seguito",
   "playbookNotCertified": "Guida: non è stato possibile certificare questo ciclo, quindi non conta come superato.",
+  "playbookEvidenceUnreadable": "Guida: non è stato possibile leggere un file in revisione o le modifiche di un agente secondario, quindi la guida non può stabilire se questa revisione è sua. La revisione non è stata inviata.",
+  "playbookRecordStale": "Non è stato possibile leggere il registro della guida. Quanto mostrato potrebbe non essere aggiornato.",
   "playbookSpawnEachAsked": "Guida: mentre un modulo è in revisione, ogni agente secondario viene approvato singolarmente.",
   "playbookSpawnsNotAdmitted": "Guida: qui Muse Code avvia gli agenti secondari senza chiedere (modalità {auto}, modalità {bypass} o una tua regola di autorizzazione), quindi la guida non li ammette. Le loro modifiche vengono contate alla revisione successiva.",
   "playbookStrikeBadge": {

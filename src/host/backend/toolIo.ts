@@ -327,7 +327,7 @@ export function shellEnvironment(
   const entries = Object.entries(withoutCredentials(env, passNames, platform))
   for (const [key, value] of entries) {
     // The editor host's own variables are no shell's: one list, in core/hostVariables.
-    if (!isHostOnlyVariable(key)) {
+    if (!isHostOnlyVariable(key, platform)) {
       clean[key] = value
     }
   }
