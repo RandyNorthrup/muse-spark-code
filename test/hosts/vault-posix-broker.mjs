@@ -1,7 +1,10 @@
 // Generated-only installed broker receipt. Run in an isolated unlocked Secret Service.
 import assert from 'node:assert/strict'
 import { AsyncLocalStorage } from 'node:async_hooks'
-import { expectedReceiptWarning } from '../unit/helpers/vault/receiptWarnings.mjs'
+import {
+  createWarningBudget,
+  expectedReceiptWarning,
+} from '../unit/helpers/vault/receiptWarnings.mjs'
 import { spawn } from 'node:child_process'
 import { once } from 'node:events'
 import { performance } from 'node:perf_hooks'
@@ -87,10 +90,16 @@ try {
     const sampleTree = port.sampleTree.bind(port)
     port.sampleTree = (work) => sampling.run(work, () => sampleTree(work))
   })
+  // RVCM109JD P2-2: only the exact known harmless warning is ever ignored,
+  // whole-line matched with a counted allowance (three times the last green
+  // replay's two); any other sampler output, or a storm of them, fails below.
+  const warningBudget = createWarningBudget({ 'finished-native-helper-membership-race': 6 })
+  let ignoredWarnings = 0
   const resourceError = (kind) => {
     const stack = new Error('resource receipt diagnostic').stack
     const expected = expectedReceiptWarning(kind, stack, sampling.getStore())
-    if (expected !== null) {
+    if (expected !== null && warningBudget.admit(expected)) {
+      ignoredWarnings += 1
       process.stdout.write(
         `EXPECTED resource warning: ${expected}; native helper and process group exited\n`,
       )
@@ -106,8 +115,9 @@ try {
           .join(':'),
       )
       .find((line) => line !== undefined)
+    const isOverBudget = expected !== null
     process.stderr.write(
-      `native resource receipt failed: ${kind}; ${frame ?? 'no package frame'}\n`,
+      `native resource receipt failed: ${kind}; ${isOverBudget ? 'warning allowance exceeded' : (frame ?? 'no package frame')}\n`,
     )
     process.exitCode = 1
   }
@@ -222,6 +232,7 @@ try {
   const reopened = await session.snapshot()
   assert.equal(reopened.items[0]?.id, itemId)
   await session.lock()
+  process.stdout.write(`MEASURE: ignored sampler warnings: ${ignoredWarnings} of 6 allowed\n`)
   process.stdout.write(
     'PASS: installed POSIX launch, v2 setup, native OS slot/anchor, private read, Lock and reopen; no model calls\n',
   )

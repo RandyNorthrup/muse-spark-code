@@ -562,3 +562,104 @@ and byte-exact restoration digests. Final scratch scans find **0** sockets,
 broker records, boot tokens or lock files. Process cleanup evidence and
 source hashes, commands, per-file results and exact bundle bytes are in
 `cm109jc-verification.json`; no model or paid attempt occurred.
+
+## RVCM109JD review repair — epoch contender rule and sampler cause (linuxlt, 2026-10-12)
+
+Both confirmed P2 findings are fixed, with a regression test that fails
+without each fix and a red drill (break the guard, see the named test fail,
+restore byte-exact by SHA-256) for every guard. No P1 or P3 was reported.
+The class of each finding was swept, not only the cited line.
+
+P2-1 (a killed guardian must not cost the next starter its session):
+`src/core/vault/broker/epoch.ts` writes the exclusive-writer record with the
+claimant's startup-proven identity (`{v:1, processId, startedAt}`, new
+`vaultEpochWriterSchema`/`vaultEpochWriterPath`; owner-less use keeps the
+previous empty record and fail-closed claim). New
+`src/runtime/vault/epochContender.ts` publishes under the shared kernel
+mutex and decides a contended writer by rule: the record is read while
+holding `lock-epoch.lock`; a holder proven gone by the same native identity
+evidence the broker lock lane uses (`vaultProcessIdentity` plus `startedAt`
+equality) is unlinked after owner-only checks and an exact-record re-read,
+then claimed fresh; a live, unprovable or unidentified holder is awaited
+briefly (10 rounds × 50 ms) and then refused with the fixed No-access reason,
+carrying the EEXIST as `cause`. Raw EEXIST never escapes. The broker entry
+(`vaultBrokerEntry.ts`) delegates its composed bump to `bumpVaultEpoch` with
+the channel's startup-proven `location.lock` identity; no new native call,
+no new failure mode on the uncontended path. The contender lives in its own
+side-effect-free module (not `posixNative.ts`) so test doubles of the kernel
+lock keep applying and the crash fixture can import it without running the
+broker entry's `main()`; `posixNative.ts` is unchanged.
+
+P2-2 (the warning classifier hid fatal errors):
+`src/core/resources/trees/registry.ts` exports its fixed failure words as
+`RESOURCE_MEMBERSHIP_UNPROVEN`; `src/core/resources/launchHost.ts` stamps
+every sampler failure with the fixed typed cause (`ResourceSamplerCause`:
+`unproven-membership` vs `sampler-error`) on the reported work, including the
+refused policy-stop path so a stale race cause cannot stand in. The receipt
+classifier (`test/unit/helpers/vault/receiptWarnings.mjs`) requires the exact
+cause plus the previous work-state conditions, and matches the sampler
+location as one whole anchored frame line
+(`at [async ]ResourceLaunchHost.sampleTree (file:line:col)`). The installed
+receipt (`test/hosts/vault-posix-broker.mjs`) admits each ignored warning
+against a counted allowance (6: three times the last green replay's two) and
+fails on any other sampler output or an exhausted allowance, printing the
+ignore count as a MEASURE line. This supersedes the round-3 claim that all
+unrelated warnings exit 1: that claim was false until the cause was
+preserved, and is true now.
+
+Regression tests (all at repository timeouts, no override): new
+`test/unit/vault/epochCrashPosix.test.ts` (7 tests) with the
+`test/unit/helpers/vault/epochCrashChild.ts` fixture — real publisher and
+starter processes, real mutex guardians, real native identity. The kill table
+SIGKILLs the publisher at each publication step (mutex-acquired,
+writer-claimed, epoch-read, epoch-written, writer-released) then runs two
+starters at once: both complete, values serialize with none lost or doubled,
+final epoch exact. The live-holder test holds a live writer with a free mutex
+(the reviewer scenario): the contender is refused with the fixed reason and
+never EEXIST, then publishes after the holder unwinds. `nativeReceipt`
+gains the fatal-beside-known drill (a `sampler-error` beside the known race
+fails), whole-frame anchoring cases and budget tests; `resourceLaunchHost`
+gains the sampler-cause test driving the real host with a one-time EACCES
+from `gone()` vs an unproven membership (observed through the receipt's own
+wrapper pattern; PLAN §8 records the test-only cast).
+
+Red drills, each restored byte-exact (pinned SHA-256 before and after):
+takeover forced to `wait` fails the writer-claimed table row;
+the refusal reverted to raw EEXIST fails the live-holder test with the
+review's exact `EEXIST: file already exists, open '…/lock-epoch.writer'`;
+the classifier's cause line removed fails the never-whitelists test;
+the sampler's cause stamp removed fails the launchHost cause test;
+the budget forced to admit always fails the storm test. Final digests:
+`epochContender.ts 45b45ca7…`, `receiptWarnings.mjs ee90d215…`,
+`launchHost.ts 482b2204…` (full hashes in the lane report).
+
+Dependents on this rig: epochCrashPosix 7, nativeReceipt 15,
+resourceLaunchHost 20, vaultBrokerEntry 2, channel epoch 2, brokerAdoption 5,
+resourceWindow/DiskAdmission/RelocationRoute 49, trees/Lifecycle/Actions 38,
+spawnGovernance/modelApiHost 670, treesPosix/LinuxPinned/LifecycleNative 40,
+brokerComposition 2 — all green at repository timeouts. Typecheck (all five
+projects), changed-file ESLint with zero warnings, Prettier, knip (the new
+fixture is registered beside writerCrashChild), zero duplication, l10n
+(0 problems), reference, host-api (regenerated counts only), roadmap and the
+fresh production build pass. The mock-boundary regression is recorded below:
+moving the contender out of `posixNative.ts` broke nothing else, and the
+adoption suite (which doubles the native epoch guard) caught the first
+placement before commit — the contender must call the lock across the mocked
+module boundary.
+
+NOT RUN HERE (agent sandbox blocks AF_UNIX `listen` with EPERM, proven with
+a bare socket probe; `gnome-keyring-daemon` is also absent): every
+socket-listening suite — posixBindings, brokerComposition's setup case,
+brokerProcess, brokerSession and the socket legs of channel — plus the
+installed Secret Service acceptance and the macOS native replay. Their
+failures here are `listen EPERM` at `server.listen`, never an assertion.
+The actuator cgroup case is likewise environmental (no user bus for
+`systemd-run --user` in the sandbox). The lead runs these outside the
+sandbox; no result for them is claimed here.
+
+Fresh production bundle bytes on this rig (`npm run build` exit 0, caps
+unchanged): vault 33937/51200, boundaries 39941/51200, broker
+114058/119290 (the contender, +1674 over the review receipt), bindings
+28014/32768, POSIX 19743/25600, runtime 20335/25600, store 33759/51200,
+governor 108984. No model or paid call was made, and no credential,
+keychain or user profile was read.

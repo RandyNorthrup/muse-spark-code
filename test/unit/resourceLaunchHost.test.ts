@@ -469,3 +469,37 @@ describe('J history work source', () => {
     h.host.dispose()
   })
 })
+describe('sampler failure causes for the installed receipt', () => {
+  it('stamps the membership race and unrelated sampler errors distinctly', async () => {
+    const h = setup()
+    // The installed receipt observes sampled work through its own sampleTree
+    // wrapper; this probe observes the same object the same way, so the
+    // receipt's exact-cause whitelist reads what the sampler stamped (PLAN §8).
+    const sampler = h.host as unknown as {
+      sampleTree: (sampled: { samplerCause?: unknown }) => Promise<void>
+    }
+    const seen: { samplerCause?: unknown }[] = []
+    const original = sampler.sampleTree.bind(h.host)
+    sampler.sampleTree = (sampled) => {
+      seen.push(sampled)
+      return original(sampled)
+    }
+    const lease = await h.host.admit('check')
+    lease.register({ pid: 700, profile: 'contained', group: true })
+    await h.host.refreshTrees()
+    seen.length = 0
+    lease.complete(false)
+    // RVCM109JD P2-2: a one-time fatal probe error on ended work.
+    const denied = Object.assign(new Error('EACCES: permission denied'), { code: 'EACCES' })
+    vi.mocked(h.binding.gone).mockRejectedValueOnce(denied)
+    await h.host.refreshTrees()
+    expect(h.errors).toHaveBeenCalled()
+    expect(seen.at(-1)).toMatchObject({ samplerCause: 'sampler-error' })
+    // The verified finished-tree race: membership unproven at registration.
+    vi.mocked(h.binding.gone).mockResolvedValue(false)
+    vi.mocked(h.binding.reader.contains).mockResolvedValue(false)
+    await h.host.refreshTrees()
+    expect(seen.at(-1)).toMatchObject({ samplerCause: 'unproven-membership' })
+    h.host.dispose()
+  })
+})
