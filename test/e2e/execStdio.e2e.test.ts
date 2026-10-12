@@ -932,16 +932,18 @@ describe('M80 E1-E7 built exec', { timeout: TIMEOUT }, () => {
             if (String(url).endsWith('/responses')) writeFileSync(process.env.M80D_REQUEST_MARKER, 'dispatched');
             if (mode?.startsWith('toolrounds') && String(url).endsWith('/responses')) {
               const body = JSON.parse(init.body);
-              // The golden wrap-up shape (golden 10-turn-limit-wrap-up): empty
-              // tools with tool_choice as ever, instructions byte-identical,
+              // The golden wrap-up shape (golden 10-turn-limit-wrap-up): tools
+              // and tool_choice omitted alike, instructions byte-identical,
               // the limit note as the trailing input item — never tool_choice
-              // none, never a note inside instructions.
+              // none, never a note inside instructions. An xAI-shaped
+              // provider answers 400 to a choice without tools, so the
+              // omitted shape is what lets this turn finish.
               const items = Array.isArray(body.input) ? body.input : [];
               const tail = items.length > 0 ? items[items.length - 1] : undefined;
               const tailText = tail?.type === 'message' && Array.isArray(tail.content)
                 ? tail.content.map(part => part?.text ?? '').join('')
                 : '';
-              const wrap = body.tools.length === 0 && tailText.includes('limit of 60 model calls');
+              const wrap = (body.tools ?? []).length === 0 && tailText.includes('limit of 60 model calls');
               api.script(wrap
                 ? { text: 'Done; found defects; testing remains', usage: {input:10, output:5} }
                 : { calls: [{name:'get_goal', arguments:'{}'}], usage: {input:10, output:5} });
@@ -972,7 +974,7 @@ describe('M80 E1-E7 built exec', { timeout: TIMEOUT }, () => {
           };
           process.on('exit', () => writeFileSync(process.env.M80D_REPORT, JSON.stringify({
             env: Object.fromEntries(Object.entries(process.env).map(([k,v]) => [k,hash(v ?? '')])),
-            argv: process.argv.map(hash), requests: api.requests.map(r => ({path:r.path, method:r.method, ...(mode?.startsWith('toolrounds') && r.path === '/responses' ? { toolChoice:r.body.tool_choice, tools:r.body.tools.length, instructionsHash:hash(String(r.body.instructions)), wrapNote:tailNote(r.body) } : {})})),
+            argv: process.argv.map(hash), requests: api.requests.map(r => ({path:r.path, method:r.method, ...(mode?.startsWith('toolrounds') && r.path === '/responses' ? { ...('tool_choice' in r.body ? { toolChoice:r.body.tool_choice } : {}), ...('tools' in r.body ? { tools:r.body.tools.length } : {}), instructionsHash:hash(String(r.body.instructions)), wrapNote:tailNote(r.body) } : {})})),
             provider: providerCalls
           })));
         `,
@@ -1063,9 +1065,13 @@ describe('M80 E1-E7 built exec', { timeout: TIMEOUT }, () => {
         .parse(JSON.parse(readFileSync(path.join(WORK, 'report.json'), 'utf8')))
       const requests = report.requests.filter((request) => request.path === '/responses')
       expect(requests).toHaveLength(60)
-      // The golden wrap-up shape: tools empty with the choice as ever, the
+      // The golden wrap-up shape: tools and tool_choice omitted alike, the
       // limit note as the trailing input item, instructions byte-identical.
-      expect(requests.at(-1)).toMatchObject({ toolChoice: 'auto', tools: 0, wrapNote: true })
+      // An xAI-shaped provider refuses a choice without tools, so the
+      // omission is what lets this turn finish.
+      expect(requests.at(-1)).toMatchObject({ wrapNote: true })
+      expect(requests.at(-1)).not.toHaveProperty('toolChoice')
+      expect(requests.at(-1)).not.toHaveProperty('tools')
       const tooled = requests.slice(0, -1)
       for (const request of tooled)
         expect(request).toMatchObject({ toolChoice: 'auto', wrapNote: false })

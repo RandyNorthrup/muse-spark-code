@@ -4591,12 +4591,12 @@ export class ModelApiSession implements ScheduledAgentSession {
     // wherever a request is built) is the one writer.
     const wrapUpLimit = this.compacting === undefined ? turn?.wrapUpLimit : undefined
     // The wrap-up keeps the production side-call shape (compaction, git
-    // draft): no tools declared, the choice field as ever, instructions
-    // byte-identical, the note a trailing input item. Meta's own wire
-    // carries empty tools with tool_choice auto (golden
-    // 10-turn-limit-wrap-up); the Responses codec keeps that shape, while
-    // the chat, Anthropic, Gemini and Ollama codecs omit what their
-    // long-standing shapes omit.
+    // draft): no tools declared and no choice field, instructions
+    // byte-identical, the note a trailing input item. Every wire exit
+    // omits both (see `hasDeclaredTools`): the direct Meta body in the
+    // client, the Responses codec for configured providers, while the
+    // chat, Anthropic, Gemini and Ollama codecs omit what their
+    // long-standing shapes omit. Golden 10-turn-limit-wrap-up.
     const body = this.keyed({
       model: resolved.ref,
       input:

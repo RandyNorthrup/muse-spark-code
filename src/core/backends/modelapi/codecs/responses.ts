@@ -28,6 +28,7 @@ import {
   usageSchema,
   webSearchCallItemSchema,
   withStrictTools,
+  hasDeclaredTools,
   type WebSearchToolDefinition,
 } from '../schemas'
 import { parseSse } from '../sse'
@@ -421,34 +422,33 @@ export function createResponsesCodec(
       if (mapped.length === 0) {
         throw new Error('responses codec: the request keeps no replayable input')
       }
+      // A request without tools omits tools and tool choice alike (see
+      // `hasDeclaredTools`): the side calls (wrap-up, compaction without
+      // reused tools, git drafts, reviewer and hook-model calls with no
+      // tools) all arrive here with no tools declared.
+      const hasTools = hasDeclaredTools(body.tools)
       return {
         model: body.model,
         input: isChatgpt ? body.input : mapped,
         instructions: isChatgpt ? body.instructions : cleanWireText(body.instructions),
-        // A request without tools keeps the production side-call shape:
-        // empty tools with the choice as ever. Meta's own wire carries
-        // exactly this (golden 10-turn-limit-wrap-up; M105 captures show
-        // the service echoing it), and no live capture of an omitted
-        // choice succeeding exists on this family. The tools-less side
-        // calls (git draft, compaction without reused tools) keep sending
-        // what they always sent.
-        tools: isChatgpt
-          ? [
-              {
-                type: 'namespace',
-                name: quirks.toolNamespace,
-                ...(quirks.toolNamespaceDescription !== undefined && {
-                  description: quirks.toolNamespaceDescription,
-                }),
-                tools: body.tools,
-              },
-            ]
-          : withStrictTools(
-              body.tools,
-              options?.shouldUseStrictTools !== false && effective.supportsStrictTools === true,
-            ),
-
-        tool_choice: body.tool_choice,
+        ...(hasTools && {
+          tools: isChatgpt
+            ? [
+                {
+                  type: 'namespace',
+                  name: quirks.toolNamespace,
+                  ...(quirks.toolNamespaceDescription !== undefined && {
+                    description: quirks.toolNamespaceDescription,
+                  }),
+                  tools: body.tools,
+                },
+              ]
+            : withStrictTools(
+                body.tools,
+                options?.shouldUseStrictTools !== false && effective.supportsStrictTools === true,
+              ),
+          tool_choice: body.tool_choice,
+        }),
         reasoning: body.reasoning,
         stream: body.stream,
         store: body.store,

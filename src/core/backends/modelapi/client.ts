@@ -55,6 +55,8 @@ import {
   type CreateImageBody,
   type EditImageBody,
   type CreateResponseBody,
+  hasDeclaredTools,
+  omitToolShape,
   eventTypeSchema,
   type ImagesResponse,
   imagesResponseSchema,
@@ -587,10 +589,15 @@ export class ModelApiClient implements TransportProviderClient {
         })
       }
       admitAttempt?.check?.()
+      // The Meta-direct wire exit: a tool-less request omits tools and tool
+      // choice alike (see `hasDeclaredTools`), the same omitted shape the
+      // Responses codec sends configured providers. Estimates above keep
+      // reading the canonical body; only these sent bytes change.
+      const wireBody = hasDeclaredTools(body.tools) ? body : omitToolShape(body)
       const { response, redact, redactContent, eventParsed } = await this.transport.streamRequest(
         '/responses',
         {
-          body,
+          body: wireBody,
           accept: EVENT_STREAM_MEDIA_TYPE,
           modelId: body.model,
           pacingClass: admitAttempt?.pacingClass ?? fanOutPacingClass(feature),
