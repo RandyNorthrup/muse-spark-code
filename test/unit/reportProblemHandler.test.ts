@@ -279,6 +279,28 @@ describe('reportProblemHandler', () => {
     expect(draft?.text).toContain('- 45s ago toolCallFailed TypeError')
   })
 
+  it('opens for a user who changed a dotted setting (0.18.1)', async () => {
+    const { deps, posted } = await openDialog(
+      sourceWith({
+        readFacts: () =>
+          Promise.resolve({
+            ...FACTS,
+            settingNames: [
+              'museSpark.backend',
+              'museSpark.vault.enabled',
+              'museSpark.judge.engine',
+            ],
+          }),
+      }),
+    )
+    expect(vi.mocked(deps.noticeError)).not.toHaveBeenCalled()
+    const drafts = draftsOf(posted)
+    expect(drafts).toHaveLength(1)
+    expect(drafts[0]?.text).toContain(
+      'settings (names only): museSpark.backend, museSpark.vault.enabled, museSpark.judge.engine',
+    )
+  })
+
   it('says a failed fact read plainly, logging its class only', async () => {
     const { deps, posted, log } = depsWith(
       sourceWith({ readFacts: () => Promise.reject(new Error('/home/someone/secret')) }),
