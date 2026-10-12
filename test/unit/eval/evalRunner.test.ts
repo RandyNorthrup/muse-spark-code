@@ -207,7 +207,9 @@ describe('runPairedEval', { timeout: RUNS_TIMEOUT_MS }, () => {
     const { api, deps } = rig()
     api.script(...EVAL_TASKS.flatMap((task) => [...canonical(task), ...canonical(task)]))
     const report = await runPairedEval(EVAL_TASKS, [BASELINE, STRICT_TOOLS], deps)
-    expect(report.verdict).toBe('pass')
+    // Two arms ran where the frozen set has four: incomplete, never pass.
+    expect(report.verdict).toBe('incomplete')
+    expect(report.incompleteReasons).toEqual(['arm set differs from the frozen arms'])
     expect(report.floors.every((floor) => floor.held)).toBe(true)
     for (const arm of report.arms) {
       expect(arm.summaries).toMatchObject([
@@ -228,7 +230,7 @@ describe('runPairedEval', { timeout: RUNS_TIMEOUT_MS }, () => {
     }
   })
 
-  it('passes a clean paired run, counting attempts from the trace', async () => {
+  it('calls a clean two-arm run incomplete, counting attempts from the trace', async () => {
     const { api, log, roots, deps } = rig()
     api.script(
       ...EVAL_TASKS.flatMap((task) => [
@@ -241,8 +243,14 @@ describe('runPairedEval', { timeout: RUNS_TIMEOUT_MS }, () => {
       version: EVAL_REPORT_VERSION,
       model: EVAL_MODEL_ID,
       generatedAt: '2026-09-28T00:00:00.000Z',
-      verdict: 'pass',
+      // Two arms ran where the frozen set has four, and the unfrozen
+      // mechanism has no bundle: incomplete, never pass.
+      verdict: 'incomplete',
     })
+    expect(report.incompleteReasons).toEqual([
+      'arm set differs from the frozen arms',
+      'bundle count differs from the arm count',
+    ])
     expect(report.arms.map((arm) => [arm.name, arm.mechanism])).toEqual([
       ['baseline', undefined],
       ['mechanism', 'prompt cache kept for 24 hours'],
@@ -267,12 +275,14 @@ describe('runPairedEval', { timeout: RUNS_TIMEOUT_MS }, () => {
     )
   })
 
-  it('fails the run when the mechanism loses the fixes', async () => {
+  it('fails the mechanism that loses the fixes below the floors, on a narrowed arm pair', async () => {
     const { api, deps } = rig()
     const tasks = EVAL_TASKS
     api.script(...tasks.flatMap((task) => [...canonical(task), ...canonical(task)]))
     const report = await runPairedEval(tasks, [BASELINE, DROPS_WRITES], deps)
-    expect(report.verdict).toBe('fail')
+    // The floors fell, but two arms ran where the frozen set has four: the
+    // run decided nothing, so the verdict is incomplete, never pass or fail.
+    expect(report.verdict).toBe('incomplete')
     expect(report.floors.map((floor) => [floor.arm, floor.split, floor.held])).toEqual([
       ['baseline', 'accept', true],
       ['baseline', 'heldout', true],
@@ -314,6 +324,124 @@ describe('runPairedEval', { timeout: RUNS_TIMEOUT_MS }, () => {
     expect(
       two.floors.find((floor) => floor.arm === 'mechanism' && floor.split === 'heldout'),
     ).toMatchObject({ passRate: 5 / 7, held: false })
+  })
+
+  it('holds the accept floor through two lost tasks and not through three', async () => {
+    const accept = evalTasksOfSplit('accept')
+    const runWith = async (losses: number) => {
+      const { api, deps } = rig()
+      api.script(
+        ...accept.flatMap((task, index) => {
+          const mechanism = index < losses ? IDLE : canonical(task)
+          // The arms take turns going first: odd tasks start with the mechanism.
+          return index % 2 === 0
+            ? [...canonical(task), ...mechanism]
+            : [...mechanism, ...canonical(task)]
+        }),
+      )
+      return await runPairedEval(accept, [BASELINE, RECHECK], deps)
+    }
+    const two = await runWith(2)
+    // The held-out split did not run: every floor that ran held, and that is all.
+    expect(two.verdict).toBe('incomplete')
+    expect(
+      two.floors.find((floor) => floor.arm === 'mechanism' && floor.split === 'accept'),
+    ).toMatchObject({ tasks: 9, passRate: 7 / 9, held: true })
+    const three = await runWith(3)
+    expect(three.verdict).toBe('incomplete')
+    expect(
+      three.floors.find((floor) => floor.arm === 'mechanism' && floor.split === 'accept'),
+    ).toMatchObject({ passRate: 6 / 9, held: false })
+  })
+
+  for (const missing of [
+    BASELINE_ARM,
+    OBSERVATION_PACKING_ARM,
+    AUTO_COMPACTION_ARM,
+    STRICT_TOOLS_ARM,
+  ] as const) {
+    it(`calls a run missing the ${missing.name} arm incomplete, never pass`, async () => {
+      const kept = [
+        BASELINE_ARM,
+        OBSERVATION_PACKING_ARM,
+        AUTO_COMPACTION_ARM,
+        STRICT_TOOLS_ARM,
+      ].filter((arm) => arm.name !== missing.name)
+      const [first, second, third] = kept
+      if (first === undefined || second === undefined || third === undefined || kept.length !== 3)
+        throw new Error('expected three arms')
+      const arms = [first, second, third] as const
+      const { api, deps } = rig()
+      api.script(
+        ...EVAL_TASKS.flatMap((task, index) => {
+          const order = [...arms.slice(index % arms.length), ...arms.slice(0, index % arms.length)]
+          return order.flatMap((arm) => {
+            if (task.isLongContext === true)
+              return arm.name === 'auto-compaction' ? compactionArmReplies(task) : canonical(task)
+            return task.isLongOutput === true
+              ? longTaskReplies(task, arm.name === 'packing', EVAL_LONG_EVIDENCE_RECALL_OFFSET)
+              : canonical(task)
+          })
+        }),
+      )
+      const report = await runPairedEval(EVAL_TASKS, [first, second, third], deps)
+      // Every task passed on every arm that ran, and still the run decides
+      // nothing: one frozen arm never ran.
+      expect(report.floors.every((floor) => floor.held)).toBe(true)
+      expect(report.verdict).toBe('incomplete')
+      expect(report.incompleteReasons).toEqual(['arm set differs from the frozen arms'])
+    })
+  }
+
+  it('calls a run with an extra arm incomplete, never pass', async () => {
+    const [task] = EVAL_TASKS
+    if (task === undefined) throw new Error('the task set is empty')
+    const { api, deps } = rig()
+    api.script(
+      ...canonical(task),
+      ...canonical(task),
+      ...canonical(task),
+      ...canonical(task),
+      ...canonical(task),
+    )
+    const report = await runPairedEval(
+      [task],
+      [
+        BASELINE_ARM,
+        OBSERVATION_PACKING_ARM,
+        AUTO_COMPACTION_ARM,
+        STRICT_TOOLS_ARM,
+        { name: 'extra' },
+      ],
+      deps,
+    )
+    expect(report.verdict).toBe('incomplete')
+    expect(report.incompleteReasons).toContain('arm set differs from the frozen arms')
+  })
+
+  it('calls a run whose bundle count differs from the arm count incomplete', async () => {
+    const [task] = EVAL_TASKS
+    if (task === undefined) throw new Error('the task set is empty')
+    const { api, deps } = rig()
+    api.script(...canonical(task), ...canonical(task), ...canonical(task), ...canonical(task))
+    // The frozen names all ran, but packing arrived as an unfrozen callback
+    // with no bundle: the receipt cannot cover what ran.
+    const report = await runPairedEval(
+      [task],
+      [
+        BASELINE_ARM,
+        { name: 'packing', change: (hostDeps) => ({ ...hostDeps }) },
+        AUTO_COMPACTION_ARM,
+        STRICT_TOOLS_ARM,
+      ],
+      deps,
+    )
+    expect(report.verdict).toBe('incomplete')
+    expect(report.incompleteReasons).toEqual([
+      'narrowed selection',
+      'empty split',
+      'bundle count differs from the arm count',
+    ])
   })
 
   it('lets the arms take turns going first, so no arm inherits the cache another warmed', async () => {
@@ -629,7 +757,9 @@ describe('runPairedEval', { timeout: RUNS_TIMEOUT_MS }, () => {
       }),
     )
     const report = await runPairedEval(EVAL_TASKS, [BASELINE, AUTO_COMPACTION_ARM], deps)
-    expect(report.verdict).toBe('pass')
+    // Two arms ran where the frozen set has four: incomplete, never pass.
+    expect(report.verdict).toBe('incomplete')
+    expect(report.incompleteReasons).toEqual(['arm set differs from the frozen arms'])
     expect(report.floors.every((floor) => floor.held)).toBe(true)
     for (const arm of report.arms) {
       expect(arm.results.every((result) => result.passed)).toBe(true)
@@ -972,7 +1102,10 @@ describe('runPairedEval', { timeout: RUNS_TIMEOUT_MS }, () => {
     expect(engaged.packingEngagement?.held).toBe(true)
     expect(engaged.compactionEngagement?.held).toBe(true)
     expect(engaged.verdict).toBe('incomplete')
-    expect(raw.incompleteReasons).toEqual(['narrowed selection'])
+    expect(raw.incompleteReasons).toEqual([
+      'narrowed selection',
+      'arm set differs from the frozen arms',
+    ])
   })
 
   it('records the packing ledger and the recalls of the long-output tasks (M73)', async () => {
