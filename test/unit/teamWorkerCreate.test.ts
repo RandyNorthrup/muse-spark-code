@@ -409,12 +409,22 @@ describe('verified native worker creation', () => {
       const occupiedFailure = await refusalOf(occupied)
       if (occupiedFailure !== undefined)
         expect(mapNativeError(occupiedFailure, 'src/occupied').message).toBe(UI_TEXT.teamFileExists)
-      // A changed identity is its own typed sentence.
-      const changed = runNative(proofFor('new'), 'worker-check', '0:0')
+      // A changed identity is its own typed sentence: 'occupied' exists
+      // (created above), so the bogus identity mismatches an existing file
+      // and both helpers report identity changed. Checking a never-created
+      // name would probe absence instead, which both helpers truthfully
+      // report as unavailable-or-linked (POSIX measured on Kubuntu).
+      const changed = runNative(proofFor('occupied'), 'worker-check', '0:0')
       await expect(changed).rejects.toThrow()
       const changedFailure = await refusalOf(changed)
       if (changedFailure !== undefined)
-        expect(mapNativeError(changedFailure, 'src/new').message).toBe(UI_TEXT.teamFileChanged)
+        expect(mapNativeError(changedFailure, 'src/occupied').message).toBe(UI_TEXT.teamFileChanged)
+      // An absent name is unavailable, not changed, on both helpers.
+      const absent = runNative(proofFor('absent'), 'worker-check', '0:0')
+      await expect(absent).rejects.toThrow()
+      const absentFailure = await refusalOf(absent)
+      if (absentFailure !== undefined)
+        expect(mapNativeError(absentFailure, 'src/absent').message).toBe(UI_TEXT.teamFileLinked)
     })
   })
   // The production Windows launcher runs for real here: the tool I/O below
@@ -1036,6 +1046,27 @@ describe('verified native worker creation', () => {
       expect(mapped.message).not.toBe(UI_TEXT.teamFileNativeFailed)
       expect(String(mapped.cause)).toContain('Command failed')
       expect(mapNativeError(mapped, remaining)).toBe(mapped)
+    })
+    it.each(['FileNotFoundException', 'FileLoadException', 'BadImageFormatException'])(
+      'NF a Windows assembly-load failure %s maps to helper-unavailable',
+      (kind) => {
+        const failure = Object.assign(new Error('Command failed'), {
+          stderr: `${WORKER_HELPER_FAILED_PREFIX}${kind}`,
+        })
+        const mapped = mapNativeError(failure, remaining)
+        expect(mapped.message).toBe(UI_TEXT.teamFileHelperMissing)
+        expect(mapped.message).not.toBe(UI_TEXT.teamFileNativeFailed)
+        expect(String(mapped.cause)).toContain('Command failed')
+        expect(mapNativeError(mapped, remaining)).toBe(mapped)
+      },
+    )
+    it('NF a helper ArgumentException stays helper-failed for diagnosis', () => {
+      const failure = Object.assign(new Error('Command failed'), {
+        stderr: `${WORKER_HELPER_FAILED_PREFIX}ArgumentException`,
+      })
+      expect(mapNativeError(failure, remaining).message).toBe(
+        fill(UI_TEXT.teamFileHelperFailed, { kind: 'ArgumentException' }),
+      )
     })
     it('NF a refusal wins over a helper-failed marker in the same output', () => {
       const failure = Object.assign(new Error('Command failed'), {

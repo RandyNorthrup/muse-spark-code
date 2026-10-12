@@ -86,7 +86,10 @@ export async function nativeOperation(proof: WorkerCreateProof, op: string, iden
     const job = await resourceWindowsJob()
     const systemRoot = process.env['SystemRoot'] ?? process.env['SYSTEMROOT']
     if (job === undefined || systemRoot === undefined)
-      throw new Error(UI_TEXT.teamFileHelperMissing)
+      // Already the typed sentence: on Windows no ENOENT marks the absence
+      // (PowerShell starts; the assembly load fails instead), so the mapper
+      // below must keep it, not remap it to the generic proof failure.
+      throw markTyped(new Error(UI_TEXT.teamFileHelperMissing))
     await job.verify()
     file = path.join(systemRoot, WINDOWS_POWERSHELL_RELATIVE_PATH)
     env = { SystemRoot: systemRoot }
@@ -96,7 +99,7 @@ export async function nativeOperation(proof: WorkerCreateProof, op: string, iden
     command = ['--created-directory', ...args]
   } else if (process.platform === 'linux' && ['x64', 'arm64'].includes(process.arch)) {
     file = path.join(__dirname, '..', 'native', 'linux', process.arch, 'muse-created')
-  } else throw new Error(UI_TEXT.teamFileHelperMissing)
+  } else throw markTyped(new Error(UI_TEXT.teamFileHelperMissing))
   try {
     const { stdout } = await execResourceFile('contained', file, command, {
       env: scrubWorkerEnv({ platform: process.platform, baseEnv: env }),
@@ -135,6 +138,7 @@ export const WORKER_REFUSALS: readonly {
   { reason: 'parent unavailable or linked', sentence: 'linked' },
   { reason: 'file unavailable or linked', sentence: 'linked' },
   { reason: 'file is not single-link regular', sentence: 'linked' },
+  { reason: 'parent is not a directory', sentence: 'cannotCreate' },
   { reason: 'invalid component', sentence: 'cannotCreate' },
   { reason: 'invalid filename', sentence: 'cannotCreate' },
   { reason: 'invalid request', sentence: 'cannotCreate' },
@@ -225,6 +229,24 @@ function refusalReason(text: string): string | undefined {
  */
 const HELPER_FAILURE_KIND = /^[A-Za-z_][A-Za-z0-9_.]*$/
 
+/**
+ * Assembly-load failure types: the Windows launcher's helper-failed marker
+ * carries the exception's type name, and these three mean the verified
+ * helper binary itself cannot load — FileNotFoundException (the file or one
+ * of its dependencies is missing), FileLoadException (found but refused:
+ * policy, identity or lock), BadImageFormatException (not a managed
+ * assembly: corrupt or wrong bitness). Each maps to the helper-unavailable
+ * sentence, never the helper-failed one. Any other type keeps its kind for
+ * diagnosis: Execute performs no assembly loads, so another type names a
+ * defect inside the helper, and ArgumentException in particular stays
+ * visible now that the helper validates names before its Path calls.
+ */
+const HELPER_UNAVAILABLE_KINDS: ReadonlySet<string> = new Set([
+  'FileNotFoundException',
+  'FileLoadException',
+  'BadImageFormatException',
+])
+
 /** The helper exception's type name in the output, if the helper itself failed. */
 function helperFailureKind(text: string): string | undefined {
   const index = text.indexOf(WORKER_HELPER_FAILED_PREFIX)
@@ -286,9 +308,18 @@ export function mapNativeError(error: unknown, remaining: string): Error {
   // The helper itself failed (never a refusal of the person's file): the
   // type name rides along as the kind, so the next defect of this sort shows
   // itself on the first run instead of hiding behind the generic backstop.
+  // A failed assembly load is the exception: the helper never started, so
+  // its load-failure types map to the helper-unavailable sentence instead.
   const kind = helperFailureKind(text)
   if (kind !== undefined)
-    return markTyped(new Error(fill(UI_TEXT.teamFileHelperFailed, { kind }), { cause }))
+    return markTyped(
+      new Error(
+        HELPER_UNAVAILABLE_KINDS.has(kind)
+          ? UI_TEXT.teamFileHelperMissing
+          : fill(UI_TEXT.teamFileHelperFailed, { kind }),
+        { cause },
+      ),
+    )
   const isMissing =
     cause.message === 'Governed command unavailable' ||
     (cause.cause instanceof Error && 'code' in cause.cause && cause.cause.code === 'ENOENT')
