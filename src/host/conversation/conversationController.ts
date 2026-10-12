@@ -231,7 +231,7 @@ import type { DescribedFile, EditReviewActions, ReviewNotice } from '../editor/e
 import { LegalFixPreviews, type LegalFixFileAccess, type LegalFixApplier } from '../legalFix'
 import type { ReviewCollection } from '../review/reviewCollector'
 import type { ReviewTurnFeatures } from '../review/reviewBundle'
-import { errorDetail, type Logger } from '../logger'
+import { errorDetail, logRejection, type Logger } from '../logger'
 import type { ChatSurface, ConversationMessage } from '../views/chatSurface'
 import type { TasksTabPort, TasksTabView } from '../views/tasksTabPort'
 
@@ -9101,7 +9101,9 @@ export class ConversationController {
           if (this.usageHost === watched) {
             this.usageEventRevision += 1
           }
-          void this.postUsage(watched, usage)
+          // Owned: a refresh failure goes to the log, never an unhandled
+          // rejection in the extension host.
+          void this.postUsage(watched, usage).catch(logRejection(this.deps.log, 'Usage refresh'))
         }),
       )
       const subscription = await host.readUsage()
@@ -9180,7 +9182,17 @@ export class ConversationController {
         // The recording port logs its fixed diagnostic once; live sources still render.
       }
     }
-    const insights = host.info.kind === 'museCode' ? await this.deps.usageInsights() : undefined
+    // A trace-log failure (an unreadable folder, a kept-changing log) never
+    // takes the subscription report with it: insights stay undefined and the
+    // report still posts.
+    let insights: UsageInsightsReport | undefined
+    if (host.info.kind === 'museCode') {
+      try {
+        insights = await this.deps.usageInsights()
+      } catch (error) {
+        logRejection(this.deps.log, 'Usage insights')(error)
+      }
+    }
     // An older read or a stopped host must not replace a newer observation.
     if (!this.canPostUsage(host) || this.latestUsage !== shown) {
       return

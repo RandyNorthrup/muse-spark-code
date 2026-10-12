@@ -2,12 +2,21 @@ import { USAGE_TEXT } from '../../shared/l10n/usageTable'
 import type { UsagePageState } from '../../shared/usagePage'
 import { count, dayLabel } from './display'
 
-export function AttemptsSection({ attempts }: { readonly attempts: UsagePageState['attempts'] }) {
+export function AttemptsSection({
+  attempts,
+  traceNotice,
+}: {
+  readonly attempts: UsagePageState['attempts']
+  readonly traceNotice: UsagePageState['traceNotice']
+}) {
+  let notice: string | undefined
+  if (traceNotice === 'stale') notice = USAGE_TEXT.attemptsStaleNote
+  else if (traceNotice === 'unavailable') notice = USAGE_TEXT.attemptsUnavailableNote
   if (attempts.length === 0)
     return (
       <section>
         <h2>{USAGE_TEXT.attempts}</h2>
-        <p>{USAGE_TEXT.emptyRange}</p>
+        <p>{notice ?? USAGE_TEXT.emptyRange}</p>
       </section>
     )
   const origins = {
@@ -19,6 +28,7 @@ export function AttemptsSection({ attempts }: { readonly attempts: UsagePageStat
     <section>
       <h2>{USAGE_TEXT.attempts}</h2>
       <p>{USAGE_TEXT.attemptsNote}</p>
+      {notice === undefined ? null : <p>{notice}</p>}
       <div
         className="usage-table-scroll"
         role="region"

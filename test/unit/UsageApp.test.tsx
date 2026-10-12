@@ -62,6 +62,21 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
+it('says what the trace part could not read instead of failing the page', () => {
+  const missing = usageStateFor('one-provider', NOW)
+  missing.attempts = []
+  missing.traceNotice = 'unavailable'
+  setup(missing)
+  expect(screen.getByText(USAGE_EN.attemptsUnavailableNote)).toBeInTheDocument()
+})
+
+it('says when the attempt counts may be behind', () => {
+  const behind = usageStateFor('one-provider', NOW)
+  behind.traceNotice = 'stale'
+  setup(behind)
+  expect(screen.getByText(USAGE_EN.attemptsStaleNote)).toBeInTheDocument()
+})
+
 describe('UsageApp', () => {
   it('compares the selected metric with its previous period without inventing a zero baseline', () => {
     const state = usageStateFor('one-provider', NOW)

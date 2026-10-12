@@ -166,6 +166,10 @@ export const usagePageStateSchema = /* @__PURE__ */ z.strictObject({
       attempts: usageCountSchema,
     }),
   ),
+  // The trace-log read behind `attempts`: absent when fresh. `stale`: a log
+  // kept changing while read, so the counts may be behind. `unavailable`:
+  // the trace folder could not be read at all; the journal above stands.
+  traceNotice: z.optional(z.enum(['stale', 'unavailable'])),
   savings: z.strictObject({
     cachedTokens: z.optional(usageCountSchema),
     cacheUsd: z.optional(usageUsdSchema),

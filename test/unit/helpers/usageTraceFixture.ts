@@ -1,4 +1,4 @@
-import { readTraceAttempts } from '../../../src/runtime/usage/traceLogs'
+import { readTraceAttemptSummary } from '../../../src/runtime/usage/traceLogs'
 import type { UsageAccessDeps } from '../../../src/runtime/usage/usageAdapter'
 
 /**
@@ -10,6 +10,6 @@ export function traceAttemptsLive(homeDir: string): NonNullable<UsageAccessDeps[
     readBudgets: () => Promise.resolve([]),
     readLiveLimits: () => Promise.resolve([]),
     providerConsoles: () => [],
-    readAttempts: () => readTraceAttempts({ homeDir }),
+    readAttempts: (fromDay?: string) => readTraceAttemptSummary({ homeDir }, fromDay),
   }
 }

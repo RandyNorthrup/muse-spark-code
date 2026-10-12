@@ -42,7 +42,7 @@ import {
 import { usageRange, type UsageAggregateRow } from '../../core/usage/aggregate'
 import type { UsageAccess, UsageAccessDeps, UsagePagePorts } from './usageAdapter'
 import type { UsageWriterBundle } from '../../core/usage/recording'
-import { readTraceAttempts } from './traceLogs'
+import { readTraceAttemptSummary } from './traceLogs'
 import { writeFileAtomically } from '../../host/fsAtomic'
 import { setTimeout as delay } from 'node:timers/promises'
 
@@ -185,7 +185,9 @@ export function createUsageAccess(deps: UsageAccessDeps): UsageAccess {
       countResources: () => resources.count(),
       readBudgets: deps.live?.readBudgets ?? (() => Promise.resolve([])),
       readLiveLimits: deps.live?.readLiveLimits ?? (() => Promise.resolve([])),
-      readAttempts: deps.live?.readAttempts ?? (() => readTraceAttempts({ homeDir: homedir() })),
+      readAttempts:
+        deps.live?.readAttempts ??
+        ((fromDay?: string) => readTraceAttemptSummary({ homeDir: homedir() }, fromDay)),
       providerConsoles: () => {
         const consoles = deps.live?.providerConsoles() ?? []
         return [

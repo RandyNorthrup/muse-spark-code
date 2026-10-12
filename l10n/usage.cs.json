@@ -213,6 +213,8 @@
   "paidBudgetNote": "Placená rozšíření žádají o svolení před prvním účtováním a sdílejí museSpark.paidDailyBudgetUsd. Předplatné nic z toho neplatí.",
   "attempts": "Pokusy modelů Muse Code",
   "attemptsNote": "Z místních trasovacích protokolů; pokrytí závisí na uchovávaných protokolech.",
+  "attemptsStaleNote": "Trasovací protokol se během čtení změnil, takže tyto počty mohou být zastaralé. Nejnovější stav zobrazíte obnovením.",
+  "attemptsUnavailableNote": "Složku trasovacích protokolů Muse Code se nepodařilo přečíst, takže počty pokusů modelu chybí. Ověřte, že složku lze otevřít, a pak obnovte.",
   "originTurn": "Konverzace",
   "originReminder": "Připomenutí",
   "originSubagent": "Podagent",

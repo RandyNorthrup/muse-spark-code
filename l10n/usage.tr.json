@@ -191,6 +191,8 @@
   "paidBudgetNote": "Ücretli ekstralar ilk ücretten önce izin ister ve museSpark.paidDailyBudgetUsd bütçesini paylaşır. Aboneliğiniz bunların hiçbirini ödemez.",
   "attempts": "Muse Code model denemeleri",
   "attemptsNote": "Yerel izleme günlüklerinden; kapsam tutulan günlüklere bağlıdır.",
+  "attemptsStaleNote": "Bir izleme günlüğü okunurken değişti, bu nedenle bu sayılar güncel olmayabilir. En güncel durum için yenileyin.",
+  "attemptsUnavailableNote": "Muse Code izleme klasörü okunamadı, bu nedenle model denemeleri eksik. Klasörün açılabildiğini denetleyip yenileyin.",
   "originTurn": "Konuşma",
   "originReminder": "Hatırlatıcı",
   "originSubagent": "Alt aracı",

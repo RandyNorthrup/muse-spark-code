@@ -202,6 +202,8 @@
   "paidBudgetNote": "Les extras payants demandent l’autorisation avant le premier débit et partagent museSpark.paidDailyBudgetUsd. Votre abonnement ne paie rien de tout cela.",
   "attempts": "Tentatives de modèle de Muse Code",
   "attemptsNote": "D’après les journaux de trace locaux ; la couverture dépend des journaux conservés.",
+  "attemptsStaleNote": "Un journal de trace a changé pendant sa lecture, ces chiffres sont donc peut-être en retard. Actualisez pour voir les derniers.",
+  "attemptsUnavailableNote": "Le dossier de traces de Muse Code n’a pas pu être lu, les tentatives du modèle sont donc manquantes. Vérifiez que le dossier peut être ouvert, puis actualisez.",
   "originTurn": "Conversation",
   "originReminder": "Rappel",
   "originSubagent": "Sous-agent",

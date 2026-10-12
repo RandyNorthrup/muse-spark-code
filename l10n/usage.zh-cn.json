@@ -180,6 +180,8 @@
   "paidBudgetNote": "付费附加功能在首次扣费前会征求您的同意，并共用 museSpark.paidDailyBudgetUsd。您的订阅不支付其中任何费用。",
   "attempts": "Muse Code 模型尝试",
   "attemptsNote": "来自本地跟踪日志；覆盖范围取决于保留的日志。",
+  "attemptsStaleNote": "某个跟踪日志在读取过程中发生了变化，因此这些计数可能不是最新的。请刷新以查看最新数据。",
+  "attemptsUnavailableNote": "无法读取 Muse Code 跟踪文件夹，因此缺少模型尝试次数。请确认该文件夹可以打开，然后刷新。",
   "originTurn": "对话",
   "originReminder": "提醒",
   "originSubagent": "子代理",
