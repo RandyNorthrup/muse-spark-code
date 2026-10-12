@@ -188,6 +188,8 @@
     "test/unit/helpers/vault/sessionBrokerChild.ts",
     // Built once by writerCrashPosix.test.ts; a real generated-only SIGKILL child.
     "test/unit/helpers/vault/writerCrashChild.ts",
+    // Built once by epochCrashPosix.test.ts; a real generated-only SIGKILL epoch child.
+    "test/unit/helpers/vault/epochCrashChild.ts",
     // The never-ending monitor the M92b bounded-run proof starts by path.
     "test/fixtures/never-ending-monitor.mjs",
     // M116 playbook scenes: the axe runner (an npm script knip already sees)
