@@ -5398,6 +5398,7 @@
   "teamFileRoleDenied": "Il ruolo non consente di scrivere in questo percorso.",
   "teamFileExists": "Il percorso del nuovo file è già occupato.",
   "teamFileChanged": "Il file riservato o la sua cartella superiore è cambiato.",
+  "teamFileCannotCreate": "Il file {path} non può essere creato nella copia di lavoro.",
   "referenceTeamFiles": "I team restano indisponibili in attesa di integrazione e certificazione. I worker del motore e di ACP possono creare file tramite l’assistente nativo verificato, nella propria copia di lavoro e nei percorsi di scrittura consentiti dal ruolo.",
   "teamFileLinked": "Il percorso del file contiene un collegamento o un componente reinterpretato."
 }

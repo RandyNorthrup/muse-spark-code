@@ -5398,6 +5398,7 @@
   "teamFileRoleDenied": "El rol no permite escribir en esta ruta.",
   "teamFileExists": "La ruta del archivo nuevo ya está ocupada.",
   "teamFileChanged": "El archivo reservado o su carpeta principal cambió.",
+  "teamFileCannotCreate": "El archivo {path} no se puede crear dentro de la copia de trabajo.",
   "referenceTeamFiles": "Los equipos siguen sin estar disponibles hasta completar la integración y certificación. Los trabajadores del motor y de ACP pueden crear archivos mediante el asistente nativo verificado, dentro de su copia de trabajo y de las rutas de escritura permitidas por su rol.",
   "teamFileLinked": "La ruta del archivo contiene un enlace o un componente reinterpretado."
 }

@@ -431,7 +431,14 @@ const sessionBoardOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const teamOptions = {
   ...modelApiOptions,
-  plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire, sharedModelApiBoundaries],
+  plugins: [
+    sharedUiText,
+    sharedValidation,
+    deferredCohort,
+    sharedWire,
+    sharedResourceAdmission,
+    sharedModelApiBoundaries,
+  ],
   entryPoints: [TEAM_ENTRY],
   outfile: TEAM_OUTFILE,
 }

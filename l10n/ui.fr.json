@@ -5398,6 +5398,7 @@
   "teamFileRoleDenied": "Le rôle n’autorise pas l’écriture dans ce chemin.",
   "teamFileExists": "Le chemin du nouveau fichier est déjà occupé.",
   "teamFileChanged": "Le fichier réservé ou son dossier parent a changé.",
+  "teamFileCannotCreate": "Le fichier {path} ne peut pas être créé dans la copie de travail.",
   "referenceTeamFiles": "Les équipes restent indisponibles en attendant l’intégration et la certification. Les agents du moteur et d’ACP peuvent créer des fichiers avec l’assistant natif vérifié, dans leur copie de travail et les chemins d’écriture autorisés par leur rôle.",
   "teamFileLinked": "Le chemin du fichier contient un lien ou un composant réinterprété."
 }

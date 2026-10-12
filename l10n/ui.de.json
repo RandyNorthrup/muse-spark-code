@@ -5245,6 +5245,7 @@
   "teamFileRoleDenied": "Die Rolle erlaubt keinen Schreibzugriff auf diesen Pfad.",
   "teamFileExists": "Der Pfad der neuen Datei ist bereits belegt.",
   "teamFileChanged": "Die reservierte Datei oder ihr übergeordnetes Verzeichnis wurde geändert.",
+  "teamFileCannotCreate": "Die Datei {path} kann in der Arbeitskopie nicht erstellt werden.",
   "referenceTeamFiles": "Teams bleiben bis zur Integration und Zertifizierung nicht verfügbar. Engine- und ACP-Worker können über den verifizierten nativen Helfer Dateien innerhalb ihrer Arbeitskopie und der für ihre Rolle erlaubten Schreibpfade erstellen.",
   "teamFileLinked": "Der Dateipfad enthält einen Link oder einen anders interpretierten Bestandteil."
 }

@@ -5092,6 +5092,7 @@
   "teamFileRoleDenied": "이 역할은 이 경로에 쓰기를 허용하지 않습니다.",
   "teamFileExists": "새 파일 경로가 이미 사용 중입니다.",
   "teamFileChanged": "예약된 파일 또는 상위 폴더가 변경되었습니다.",
+  "teamFileCannotCreate": "파일 {path}을(를) 작업 복사본 안에 만들 수 없습니다.",
   "referenceTeamFiles": "통합과 인증이 완료될 때까지 팀을 사용할 수 없습니다. 엔진 및 ACP 작업자는 검증된 네이티브 도우미를 통해 작업 복사본 안에서 역할이 허용한 쓰기 경로에 파일을 만들 수 있습니다.",
   "teamFileLinked": "파일 경로에 링크 또는 다르게 해석되는 구성 요소가 포함되어 있습니다."
 }

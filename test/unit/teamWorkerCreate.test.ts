@@ -1,7 +1,7 @@
 import { link, mkdir, readFile, rename, symlink, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import * as z from 'zod/mini'
-import { beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import {
@@ -21,9 +21,18 @@ import {
   nativeScratch,
   useCreatedNative,
 } from './helpers/createdNative'
+import { configureResources } from '../../src/core/resources/admission'
 import { UI_TEXT } from '../../src/shared/constants'
 
 useCreatedNative()
+const resources: { dispose: (() => void) | undefined } = { dispose: undefined }
+beforeAll(() => {
+  // The macOS fd-name probe runs through admission; other platforms ignore it.
+  resources.dispose = configureResources({ inspect: () => undefined, onError: () => undefined })
+})
+afterAll(() => {
+  resources.dispose?.()
+})
 const variants: {
   device?: Awaited<ReturnType<typeof compileCreatedVariant>>
   mount?: Awaited<ReturnType<typeof compileCreatedVariant>>

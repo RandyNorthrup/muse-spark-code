@@ -11,9 +11,10 @@ import { beforeAll, describe, expect, it } from 'vitest'
 import { resolveWorkerReport } from '../../src/core/team/workers/engineWorker'
 import {
   createEngineTeamPorts,
-  processTeamGit,
   type EngineTeamPortsDeps,
 } from '../../src/host/team/teamEnginePorts'
+import { configureResources } from '../../src/core/resources/admission'
+import { processTeamGit } from '../../src/core/team/workers/workerToolIo'
 import type {
   TeamTaskMeter,
   TeamTaskSpec,
@@ -283,11 +284,16 @@ describe('the engine worker port', () => {
   })
 
   it('runs production git with a credential-free environment', async () => {
-    const { root, head } = await setup(() => Promise.resolve())
-    const resolved = new TextDecoder().decode(
-      await processTeamGit(process.platform)(['rev-parse', 'HEAD'], root),
-    )
-    expect(resolved.trim()).toBe(head)
+    const dispose = configureResources({ inspect: () => undefined, onError: () => undefined })
+    try {
+      const { root, head } = await setup(() => Promise.resolve())
+      const resolved = new TextDecoder().decode(
+        await processTeamGit(process.platform)(['rev-parse', 'HEAD'], root),
+      )
+      expect(resolved.trim()).toBe(head)
+    } finally {
+      dispose()
+    }
   })
 })
 

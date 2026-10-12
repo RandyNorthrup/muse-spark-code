@@ -5245,6 +5245,7 @@
   "teamFileRoleDenied": "A szerepkör nem engedélyezi az írást erre az útvonalra.",
   "teamFileExists": "Az új fájl útvonala már foglalt.",
   "teamFileChanged": "A lefoglalt fájl vagy szülőkönyvtára megváltozott.",
+  "teamFileCannotCreate": "A(z) {path} fájl nem hozható létre a munkamásolatban.",
   "referenceTeamFiles": "A csapatok az integráció és tanúsítás befejezéséig nem érhetők el. A motor és az ACP dolgozói az ellenőrzött natív segéddel hozhatnak létre fájlokat munkapéldányukban, a szerepkörük által engedélyezett írási útvonalakon.",
   "teamFileLinked": "A fájlútvonal hivatkozást vagy másként értelmezett összetevőt tartalmaz."
 }

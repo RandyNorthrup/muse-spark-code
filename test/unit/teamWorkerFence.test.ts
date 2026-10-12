@@ -29,6 +29,7 @@ import { createWorkerShellRunner, runEngineWorker } from '../../src/core/team/wo
 import { spawnAcpAgent } from '../../src/host/team/acpProcess'
 import type { WorkerRolePolicy, WorkerTask } from '../../src/core/team/workers/workerTypes'
 import { FakeLogOutputChannel } from './helpers/fakes'
+import { configureResources } from '../../src/core/resources/admission'
 import { TEAM_WORKER_PROMPT } from './helpers/teamWorkerPrompt'
 import { scrubWorkerEnv } from '../../src/core/team/workers/workerEnv'
 import type { WorktreeSessionEvent } from '../../src/core/bestOfN/worktreeConversationHost'
@@ -45,7 +46,10 @@ vi.mock('node:child_process', async (importOriginal) => {
 })
 const fixtureState = { fixture: '', checkout: '', copy: '' }
 const openedHandles: WorkerFileHandle[] = []
+const resources: { dispose: (() => void) | undefined } = { dispose: undefined }
 beforeAll(async () => {
+  // The macOS fd-name probe runs through admission; other platforms ignore it.
+  resources.dispose = configureResources({ inspect: () => undefined, onError: () => undefined })
   const base = path.resolve('temp')
   await mkdir(base, { recursive: true })
   fixtureState.fixture = await mkdtemp(path.join(base, 'worker-fence-'))
@@ -59,6 +63,7 @@ beforeAll(async () => {
 afterAll(async () => {
   for (const handle of openedHandles) await handle.close()
   await rm(fixtureState.fixture, { recursive: true, force: true })
+  resources.dispose?.()
 })
 
 function input(folder = fixtureState.copy) {
