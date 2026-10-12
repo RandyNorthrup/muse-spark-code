@@ -3,7 +3,7 @@ import { mkdtempSync, writeFileSync } from 'node:fs'
 import { readFile, stat, utimes, writeFile, readdir } from 'node:fs/promises'
 import path from 'node:path'
 import { tmpdir } from 'node:os'
-import { afterAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { createScheduleStore, scheduleStorageHash } from '../../src/core/schedules/store'
 import { migrateSchedules } from '../../src/core/schedules/migrate'
 import { createNodeScheduleFs } from '../../src/runtime/schedules/nodeScheduleFs'
@@ -17,11 +17,12 @@ import { fakeV1Schedule } from './helpers/schedules/fixtures'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { removeFolder } from './helpers/temporaryFolders'
 import { MemoryScheduleFs } from './helpers/schedules/storage'
+import { FIXTURE_HOOK_TIMEOUT_MS } from './helpers/fixtureBudget'
 
 const root = mkdtempSync(path.join(tmpdir(), 'muse-m115-migration-'))
 afterAll(() => removeFolder(root))
 
-async function fixture(name: string) {
+async function prepareFixture(name: string) {
   const directory = path.join(root, name, 'v1')
   const job = {
     ...fakeV1Schedule(),
@@ -35,7 +36,37 @@ async function fixture(name: string) {
   })
   await old.create(job)
   const store = createScheduleStore(createNodeScheduleFs(path.join(root, name, 'shared')))
+  // Create the empty journal and its fsynced generation before the case's
+  // clock starts; migration, faults, edits and verification remain timed.
+  await store.list('workspace-1')
   return { directory, job, old, store, source: createFileScheduleMigrationSource(directory) }
+}
+
+const fixtures = new Map<string, Awaited<ReturnType<typeof prepareFixture>>>()
+beforeAll(async () => {
+  for (const name of [
+    'raced-copy',
+    'later-jobs',
+    'atomic-receipt',
+    'wrong-id',
+    'unsafe-receipt',
+    'copy',
+    'verify',
+    'changed',
+    'crash-0',
+    'crash-1',
+    'crash-2',
+    'authority',
+    'invalid',
+    'seal-race',
+    'sealed-cleanup',
+  ])
+    fixtures.set(name, await prepareFixture(name))
+}, FIXTURE_HOOK_TIMEOUT_MS)
+function fixture(name: string) {
+  const prepared = fixtures.get(name)
+  if (prepared === undefined) throw new Error(`Unprepared migration fixture: ${name}`)
+  return Promise.resolve(prepared)
 }
 
 describe('M115 verified M52 migration', () => {
@@ -287,8 +318,9 @@ describe('M115 verified M52 migration', () => {
       JSON.parse(await readFile(path.join(directory, `${job.id}.json`), 'utf8')),
     ).toMatchObject({ prompt: 'Changed' })
   })
-  it('carries empty, corrupt and invalid crash receipts into permanent v2 replay fences', async () => {
-    for (const [index, content] of ['', '{', '{"admittedAtMs":"invalid"}'].entries()) {
+  it.each(['', '{', '{"admittedAtMs":"invalid"}'].map((content, index) => ({ content, index })))(
+    'carries crash receipt $index into a permanent v2 replay fence',
+    async ({ content, index }) => {
       const { job, directory, store, source } = await fixture(`crash-${String(index)}`)
       const receipt = path.join(directory, `${job.id}.${String(job.nextFireAtMs)}.claim`)
       await writeFile(receipt, content)
@@ -311,8 +343,8 @@ describe('M115 verified M52 migration', () => {
       expect(await readFile(receipt, 'utf8')).toBe(content)
       const after = await stat(receipt)
       expect(after.mtimeMs).toBe(meta.mtimeMs)
-    }
-  })
+    },
+  )
   it('preserves nonzero old counters and refuses to restore stale migrated authority', async () => {
     const { job, directory, store, source } = await fixture('authority')
     const counted = { ...job, fireCount: 2 }
