@@ -19,7 +19,9 @@ import {
   type FileSessionStoreDeps,
 } from '../../src/host/backend/fileSessionStore'
 import { createSessionBudgetJournal } from '../../src/host/backend/sessionBudgetJournal'
-import { UI_TEXT } from '../../src/shared/constants'
+import { EXEC_USD_DECIMALS, UI_TEXT } from '../../src/shared/constants'
+import { formatUsd as formatExactUsd } from '../../src/shared/l10n/exactUsd'
+import { fill } from '../../src/shared/l10n/text'
 import {
   searchAllowanceUsd,
   type SessionBudgetClaim,
@@ -37,6 +39,20 @@ async function expectClosedClaim(claim: SessionBudgetClaim) {
 const ACCOUNT = 'a'.repeat(64)
 const OTHER_ACCOUNT = 'b'.repeat(64)
 const SESSION = 'session-1'
+
+/**
+ * EXECPROV round 7 (R0): the conversation-ledger refusal names the ledger
+ * and its counted spend (fileSessionStore journals have no dailyStop, so
+ * they refuse with the conversation sentence). Built with the same fill so
+ * a template change stays green here; the literal daily words are pinned
+ * in execPaidRefusal.test.ts.
+ */
+function unknownRefusal(scope: string, spentUsd: string): string {
+  return fill(UI_TEXT.sessionBudgetConversationFeesUnknown, {
+    scope,
+    spent: formatExactUsd(spentUsd, EXEC_USD_DECIMALS),
+  })
+}
 const folders: string[] = []
 
 // Keep real filesystem effects; only the specific metadata failure is injected.
@@ -587,9 +603,7 @@ describe('the real-disk session budget journal (M82)', () => {
     })
     await expect(readRaw(t.directory)).resolves.toMatchObject({ budgetSpentUsd: '4' })
     const claim = await t.budget.reserve(SESSION, ACCOUNT, Usd.from(0.1).toAmount())
-    expect(() => claim.check(Usd.from(10).toAmount())).toThrow(
-      UI_TEXT.sessionBudgetLegacyFeesUnknown,
-    )
+    expect(() => claim.check(Usd.from(10).toAmount())).toThrow(unknownRefusal(SESSION, '4.1'))
     expect(claim.check(Usd.from(0).toAmount()).hasUnknownHistoricalFees).toBe(true)
   })
 
@@ -900,18 +914,24 @@ describe('the real-disk session budget journal (M82)', () => {
     await expectStoredSpend(t.first, 0.7)
   })
 
-  it('keeps an uncapped unknown-model cost marked unknown after stale saves and future capped claims', async () => {
+  // EXECPROV round 7 (R0): the old expectation refused on ANY unknown cost,
+  // including a settled one whose full amount is counted — the same false
+  // refusal as the measured stale-hold lockout. A settled unknown cost is
+  // fact (a), bounded: the cap math still holds, so capped claims admit.
+  it('marks a settled unknown-model cost as bounded and admits future capped claims', async () => {
     const t = await setup()
     expect(await t.budget.record(SESSION, ACCOUNT, Usd.from(0.2).toAmount(), true)).toEqual({
       spentUsd: '0.2',
-      hasUnknownHistoricalFees: true,
+      hasUnknownHistoricalFees: false,
+      hasBoundedUnknownCost: true,
     })
     await t.second.save(snapshot({ budgetSpentUsd: 0 }))
     const claim = await t.otherBudget.reserve(SESSION, ACCOUNT, Usd.from(0.1).toAmount())
-    expect(() => claim.check(Usd.from(1).toAmount())).toThrow(
-      UI_TEXT.sessionBudgetLegacyFeesUnknown,
-    )
-    expect(claim.check(Usd.from(0).toAmount()).hasUnknownHistoricalFees).toBe(true)
+    expect(claim.check(Usd.from(1).toAmount())).toMatchObject({
+      hasUnknownHistoricalFees: false,
+      hasBoundedUnknownCost: true,
+    })
+    expect(claim.check(Usd.from(0).toAmount()).hasUnknownHistoricalFees).toBe(false)
     await expectStoredSpend(t.first, 0.3)
   })
 
@@ -925,14 +945,15 @@ describe('the real-disk session budget journal (M82)', () => {
       hasUnknownHistoricalFees: true,
     })
     const capped = await t.otherBudget.reserve(SESSION, ACCOUNT, Usd.from(0.1).toAmount())
-    expect(() => capped.check(Usd.from(1).toAmount())).toThrow(
-      UI_TEXT.sessionBudgetLegacyFeesUnknown,
-    )
+    expect(() => capped.check(Usd.from(1).toAmount())).toThrow(unknownRefusal(SESSION, '0.1'))
     await uncapped.settle(Usd.from(0.2).toAmount(), false)
     expect(capped.check(Usd.from(1).toAmount()).hasUnknownHistoricalFees).toBe(false)
     await expectSpent(t.otherBudget.read(SESSION, ACCOUNT), 0.3)
   })
 
+  // EXECPROV round 7 (R0): the ambiguous retry settles at its kept
+  // reservation, so it is unknown but bounded (fact (a)), never a refusal.
+  // The "permanently unknown" name still holds: bounded is still unknown.
   it('keeps ambiguous retries permanently unknown after the known tail settles', async () => {
     const t = await setup()
     const claim = await t.budget.reserve(SESSION, ACCOUNT, Usd.from(0).toAmount(), {
@@ -940,14 +961,18 @@ describe('the real-disk session budget journal (M82)', () => {
     })
     for (let attempt = 0; attempt < 2; attempt += 1) {
       await expect(claim.settle(Usd.from(0.2).toAmount(), true)).resolves.toMatchObject({
-        hasUnknownHistoricalFees: true,
+        hasUnknownHistoricalFees: false,
+        hasBoundedUnknownCost: true,
       })
     }
     await expect(claim.settle(Usd.from(0.2).toAmount(), false)).rejects.toThrow(
       UI_TEXT.sessionBudgetStoreUnavailable,
     )
     const next = await t.otherBudget.reserve(SESSION, ACCOUNT, Usd.from(0.1).toAmount())
-    expect(() => next.check(Usd.from(1).toAmount())).toThrow(UI_TEXT.sessionBudgetLegacyFeesUnknown)
+    expect(next.check(Usd.from(1).toAmount())).toMatchObject({
+      hasUnknownHistoricalFees: false,
+      hasBoundedUnknownCost: true,
+    })
   })
 
   it('clears only a proven nonsent owner’s unbounded uncertainty on its zero refund', async () => {

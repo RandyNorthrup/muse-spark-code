@@ -395,7 +395,11 @@ async function stopRecordedVoice(t: ReturnType<typeof dictationSetup>, seconds: 
 async function expectUnknownVoiceEstimate(budget: VoiceBudgetFixture, seconds: number) {
   await vi.waitFor(async () => {
     const total = await voiceBudgetTotal(budget)
-    expect(total.hasUnknownHistoricalFees).toBe(true)
+    // EXECPROV round 7 (R0): the kept estimate settles at its reservation,
+    // so it is unknown but bounded — reported as an upper bound, never a
+    // capped-run refusal. The "unknown billing" names still hold.
+    expect(total.hasUnknownHistoricalFees).toBe(false)
+    expect(total.hasBoundedUnknownCost).toBe(true)
     expect(Number(total.spentUsd)).toBeCloseTo(
       (seconds * Number(PAID_PRICES_USD.voicePerHour)) / SECONDS_PER_HOUR,
       12,
@@ -457,7 +461,11 @@ describe('MuseVoiceDictation shared budget (M82)', () => {
       budget.scope.accountId,
       Usd.from(0.01).toAmount(),
     )
-    expect(() => next.check(Usd.from(1).toAmount())).toThrow(UI_TEXT.sessionBudgetLegacyFeesUnknown)
+    // EXECPROV round 7 (R0): an OPEN unknown claim (voice still streaming)
+    // is unbounded and still refuses, with the conversation sentence.
+    expect(() => next.check(Usd.from(1).toAmount())).toThrow(/still holds charges no record bounds/)
+    expect(() => next.check(Usd.from(1).toAmount())).toThrow(/Start a new conversation/)
+    expect(() => next.check(Usd.from(1).toAmount())).toThrow(budget.scope.sessionId)
     await next.settle(Usd.from(0).toAmount(), false)
     t.dictation.dispose()
     await expectVoiceRefund(budget)

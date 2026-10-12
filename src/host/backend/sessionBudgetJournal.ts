@@ -95,6 +95,9 @@ const legacyClaimSchema = z.object({
   retainedUsd: z.optional(legacyUsdSchema),
   hasUnknownCost: z.optional(z.boolean()),
   isUnbounded: z.optional(z.boolean()),
+  // EXECPROV round 7 (R0): fact (b), money no record bounds. Absent on
+  // old records, which the totals read by the version rule instead.
+  hasUnboundedCost: z.optional(z.boolean()),
 })
 const decimalClaimSchema = z.extend(legacyClaimSchema, {
   version: z.literal(2),
@@ -125,6 +128,7 @@ type ClaimView = Omit<Claim, 'reservedUsd' | 'settledUsd' | 'retainedUsd'> & {
 const claimFlagsSchema = z.object({
   isUnbounded: z.optional(z.boolean()),
   hasUnknownCost: z.optional(z.boolean()),
+  hasUnboundedCost: z.optional(z.boolean()),
 })
 type ClaimFlags = z.infer<typeof claimFlagsSchema>
 
@@ -303,6 +307,10 @@ function totalFor(scope: Scope, isUsageView = false) {
     const seed = readSeed(scope)
     let spent = Usd.from(seed.spentUsd)
     let hasUnknownHistoricalFees = seed.hasUnknownHistoricalFees
+    // EXECPROV round 7 (R0): one flag carried two facts. Fact (b), money
+    // no record bounds, refuses a capped run. Fact (a), unknown but
+    // bounded and counted, only marks the total as an upper bound.
+    let hasBoundedUnknownCost = false
     let uncertainUsd = Usd.from(0).toAmount()
     // D1: the held sum and open count behind a refusal's numbers.
     let held = Usd.from(0)
@@ -319,17 +327,23 @@ function totalFor(scope: Scope, isUsageView = false) {
         held = held.add(Usd.from(claim.retainedUsd ?? claim.reservedUsd))
         openClaims += 1
       }
-      hasUnknownHistoricalFees ||=
-        // New daily claims retain a known bounded liability even without a receipt.
-        // Legacy unknown fees and unbounded requests still prevent capped admission.
-        (claim.hasUnknownCost === true &&
-          (claim.ownerPid === undefined || claim.isUnbounded === true)) ||
-        (claim.isUnbounded === true && claim.settledUsd === undefined)
+      // Version rule for records without `hasUnboundedCost`: settled +
+      // unknown is bounded (the full reservation is counted: an age-closed
+      // hold, a sent request whose answer was lost). Unknown + unsettled
+      // is unbounded: the final cost may still exceed every counted bound.
+      const isUnboundedUnknown =
+        claim.hasUnboundedCost === true ||
+        (claim.hasUnboundedCost !== false &&
+          claim.settledUsd === undefined &&
+          (claim.hasUnknownCost === true || claim.isUnbounded === true))
+      hasUnknownHistoricalFees ||= isUnboundedUnknown
+      hasBoundedUnknownCost ||= claim.hasUnknownCost === true && !isUnboundedUnknown
     }
     assertCost(spent.toAmount())
     return {
       spent,
       hasUnknownHistoricalFees,
+      hasBoundedUnknownCost,
       held: held.toAmount(),
       openClaims,
       ...(isUsageView && Usd.from(uncertainUsd).compare(Usd.from(0)) > 0 && { uncertainUsd }),
@@ -398,6 +412,7 @@ function projectedTotal(scope: Scope): SessionBudgetTotal {
   return {
     spentUsd: total.spent.toAmount(),
     hasUnknownHistoricalFees: total.hasUnknownHistoricalFees,
+    ...(total.hasBoundedUnknownCost && { hasBoundedUnknownCost: true as const }),
   }
 }
 
@@ -506,6 +521,8 @@ export function createSessionBudgetJournal(
       reservedUsd: Usd.from(costUsd).toString(),
       ...(flags.hasUnknownCost === true && { hasUnknownCost: true }),
       ...(flags.isUnbounded === true && { isUnbounded: true }),
+      ...(flags.hasUnboundedCost === true && { hasUnboundedCost: true }),
+      ...(flags.hasUnboundedCost === false && { hasUnboundedCost: false }),
     }
     const directory = path.join(scope.directory, CLAIMS_DIRECTORY, claim.claimId)
     let hasCreatedIntent = false
@@ -634,8 +651,24 @@ export function createSessionBudgetJournal(
           throw unavailable()
         }
         const total = totalFor(scope)
+        // EXECPROV round 7 (R0): only fact (b) refuses. Fact (a) is
+        // counted in spent, so the cap still holds; reports say upper
+        // bound. The sentence names the ledger and what clears it. A new
+        // conversation never clears a shared daily ledger, so it is
+        // offered only for a conversation ledger, where it starts fresh.
         if (Usd.from(capUsd).compare(Usd.from(0)) > 0 && total.hasUnknownHistoricalFees) {
-          throw new SessionBudgetExceededError(UI_TEXT.sessionBudgetLegacyFeesUnknown)
+          const filled = {
+            scope: scope.sessionId,
+            spent: formatExactUsd(total.spent.toAmount(), EXEC_USD_DECIMALS),
+          }
+          throw new SessionBudgetExceededError(
+            fill(
+              deps.dailyStop === undefined
+                ? UI_TEXT.sessionBudgetConversationFeesUnknown
+                : UI_TEXT.sessionBudgetLegacyFeesUnknown,
+              filled,
+            ),
+          )
         }
         if (
           Usd.from(capUsd).compare(Usd.from(0)) > 0 &&
@@ -671,6 +704,7 @@ export function createSessionBudgetJournal(
         return {
           spentUsd: total.spent.toAmount(),
           hasUnknownHistoricalFees: total.hasUnknownHistoricalFees,
+          ...(total.hasBoundedUnknownCost && { hasBoundedUnknownCost: true as const }),
         }
       },
       async settle(actualCostUsd, hasUnknownCost, isFinal = true) {
@@ -794,7 +828,11 @@ export function createSessionBudgetJournal(
         // 5b: no recorded owner, so no liveness test. Older than the
         // longest any request of this product can be in flight, it cannot
         // belong to a live request and closes like a dead owner's sent
-        // claim: settled at its reservation, unknown cost.
+        // claim: settled at its reservation, unknown cost. Round 7 (R0):
+        // settled + unknown is fact (a), bounded: the full reservation
+        // stays counted, so later capped runs are still admitted. The
+        // write is idempotent: settled rows are skipped above, so two
+        // processes closing the same hold write the same bytes.
         const ageMs = claimAgeMs(directory)
         if (ageMs === undefined || ageMs <= DAILY_BUDGET_OWNERLESS_MAX_AGE_MS) continue
         await writeFileAtomically(

@@ -8,7 +8,9 @@ import {
   type StoredSession,
 } from '../../../src/core/backends/modelapi/sessionStore'
 import type { SessionBudgetTotal } from '../../../src/core/backends/modelapi/sessionBudget'
-import { UI_TEXT } from '../../../src/shared/constants'
+import { EXEC_USD_DECIMALS, UI_TEXT } from '../../../src/shared/constants'
+import { formatUsd as formatExactUsd } from '../../../src/shared/l10n/exactUsd'
+import { fill } from '../../../src/shared/l10n/text'
 
 interface MemoryBudget {
   readonly seed: UsdAmount
@@ -19,6 +21,7 @@ interface MemoryBudget {
       readonly costUsd: UsdAmount
       readonly isUnbounded: boolean
       readonly hasUnknownCost: boolean
+      readonly hasUnboundedCost: boolean
       readonly isSettled: boolean
     }
   >
@@ -85,14 +88,24 @@ export function memorySessionStore(): MemorySessionStore {
     budgets.set(key, budget)
     return budget
   }
+  // Mirrors the journal's round-7 split: settled + unknown is bounded and
+  // counted; only unbounded unknowns refuse a capped run.
   const totalFor = (budget: MemoryBudget): SessionBudgetTotal => {
     let spentUsd = budget.seed
     let hasUnknownHistoricalFees = budget.hasUnknownHistoricalFees
+    let hasBoundedUnknownCost = false
     for (const entry of budget.entries.values()) {
       spentUsd = sumUsd(spentUsd, entry.costUsd)
-      hasUnknownHistoricalFees ||= entry.hasUnknownCost || (entry.isUnbounded && !entry.isSettled)
+      const isUnboundedUnknown =
+        entry.hasUnboundedCost || (!entry.isSettled && (entry.hasUnknownCost || entry.isUnbounded))
+      hasUnknownHistoricalFees ||= isUnboundedUnknown
+      hasBoundedUnknownCost ||= entry.hasUnknownCost && !isUnboundedUnknown
     }
-    return { spentUsd: Usd.from(spentUsd).toAmount(), hasUnknownHistoricalFees }
+    return {
+      spentUsd: Usd.from(spentUsd).toAmount(),
+      hasUnknownHistoricalFees,
+      ...(hasBoundedUnknownCost && { hasBoundedUnknownCost: true as const }),
+    }
   }
   const project = (session: StoredSession): StoredSession => {
     const budget =
@@ -117,7 +130,14 @@ export function memorySessionStore(): MemorySessionStore {
         const claimId = String(claims)
         const isUnbounded = liability?.isUnbounded === true
         const hasUnknownCost = liability?.hasUnknownCost === true
-        budget.entries.set(claimId, { costUsd, isUnbounded, hasUnknownCost, isSettled: false })
+        const hasUnboundedCost = liability?.hasUnboundedCost === true
+        budget.entries.set(claimId, {
+          costUsd,
+          isUnbounded,
+          hasUnknownCost,
+          hasUnboundedCost,
+          isSettled: false,
+        })
         let isSettled = false
         return Promise.resolve({
           claimId,
@@ -128,7 +148,13 @@ export function memorySessionStore(): MemorySessionStore {
             }
             const total = totalFor(budget)
             if (isPositiveUsd(capUsd) && total.hasUnknownHistoricalFees) {
-              throw new Error(UI_TEXT.sessionBudgetLegacyFeesUnknown)
+              // A conversation ledger: a new conversation starts fresh.
+              throw new Error(
+                fill(UI_TEXT.sessionBudgetConversationFeesUnknown, {
+                  scope: sessionId,
+                  spent: formatExactUsd(total.spentUsd, EXEC_USD_DECIMALS),
+                }),
+              )
             }
             if (isPositiveUsd(capUsd) && Usd.from(total.spentUsd).compare(Usd.from(capUsd)) > 0) {
               throw new Error(UI_TEXT.sessionBudgetStopped)
@@ -141,6 +167,7 @@ export function memorySessionStore(): MemorySessionStore {
               costUsd: actualCostUsd,
               isUnbounded,
               hasUnknownCost: isUnknown,
+              hasUnboundedCost,
               isSettled: isFinal,
             })
             return Promise.resolve(totalFor(budget))
@@ -154,6 +181,7 @@ export function memorySessionStore(): MemorySessionStore {
           costUsd,
           isUnbounded: false,
           hasUnknownCost,
+          hasUnboundedCost: false,
           isSettled: true,
         })
         return Promise.resolve(totalFor(budget))

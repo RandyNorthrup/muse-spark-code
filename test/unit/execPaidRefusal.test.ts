@@ -16,7 +16,10 @@ import {
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
-import { PaidBudgetStopError } from '../../src/core/backends/modelapi/sessionBudget'
+import {
+  PaidBudgetStopError,
+  SessionBudgetExceededError,
+} from '../../src/core/backends/modelapi/sessionBudget'
 import { isPaidStop, isUserRefusal } from '../../src/core/refusal'
 import { isPaidStop as isPaidStopOnTransport } from '../../src/host/backend/configuredProvidersEntry'
 import { createSessionBudgetJournal } from '../../src/host/backend/sessionBudgetJournal'
@@ -47,13 +50,14 @@ function journalAt(
     spent?: number
     setting?: string
     onOwnerlessClosed?: (closed: { readonly count: number; readonly totalUsd: UsdAmount }) => void
+    sleep?: (ms: number) => Promise<void>
   } = {},
 ) {
   const directory = realpathSync.native(mkdtempSync(path.join(tmpdir(), 'muse-paid-stop-')))
   folders.push(directory)
   const journal = createSessionBudgetJournal({
     directory,
-    sleep: () => Promise.resolve(),
+    sleep: options.sleep ?? (() => Promise.resolve()),
     recoverUnsent: true,
     ...(options.setting !== undefined && {
       dailyStop: { setting: options.setting, nowMs: () => new Date(2026, 9, 11, 12).getTime() },
@@ -424,6 +428,245 @@ describe('an ownerless hold is judged by age (5b)', () => {
     owner.kill('SIGKILL')
     await exited(owner)
     await live.settle(Usd.from(0).toAmount())
+  })
+})
+
+describe('bounded unknown cost admits capped runs (R0)', () => {
+  // The measured 7:19 AM lockout: four ownerless holds (4.524288 each,
+  // older than the age rule) plus one owned $0.69 claim with send-intent.
+  // Closing the holds must not refuse later capped runs: their full
+  // reservations stay counted, so the cap still holds.
+  const OLD_HOLD = '4.524288'
+  const FOUR_HOLDS = '18.097152'
+
+  async function measuredLedger(spent: number) {
+    const closed: { count: number; totalUsd: string }[] = []
+    // A shared daily ledger like the measured one: refusals use the daily
+    // sentence, where a new conversation clears nothing.
+    const { journal, directory } = journalAt({
+      spent,
+      setting: 'paidDailyBudgetUsd',
+      onOwnerlessClosed: (info) => {
+        closed.push({ count: info.count, totalUsd: info.totalUsd })
+      },
+    })
+    const opener = await journal.reserveAdmitted(
+      SESSION,
+      ACCOUNT,
+      Usd.from(1).toAmount(),
+      Usd.from(200).toAmount(),
+    )
+    const seed = seedOf(directory)
+    const holds = [0, 1, 2, 3].map(() =>
+      plantOwnerlessClaim(directory, seed, {
+        reserved: OLD_HOLD,
+        ageMs: DAILY_BUDGET_OWNERLESS_MAX_AGE_MS + 60_000,
+      }),
+    )
+    const owner = parked()
+    const pid = owner.pid ?? 0
+    expect(pid).toBeGreaterThan(0)
+    const owned = plantClaim(directory, seed, { ownerPid: pid, sent: true, reserved: '0.69' })
+    return { journal, directory, closed, opener, holds, owned, owner }
+  }
+
+  it('admits a capped run after the age rule closes stale holds, as an upper bound', async () => {
+    const t = await measuredLedger(100)
+    try {
+      const run = await t.journal.reserveAdmitted(
+        SESSION,
+        ACCOUNT,
+        Usd.from(1).toAmount(),
+        Usd.from(200).toAmount(),
+      )
+      // All four holds closed at their full reservations, unknown but bounded.
+      for (const hold of t.holds) {
+        expect(readPlanted(t.directory, hold)).toMatchObject({
+          settledUsd: OLD_HOLD,
+          hasUnknownCost: true,
+        })
+      }
+      expect(t.closed).toEqual([{ count: 4, totalUsd: FOUR_HOLDS }])
+      // The owned send-intent claim stays open: its owner still lives.
+      expect(readPlanted(t.directory, t.owned)['settledUsd']).toBe(undefined)
+      // Admitted with room: 100 + 18.097152 + 0.69 + opener 1 + run 1.
+      const total = await t.journal.read(SESSION, ACCOUNT)
+      expect(total.spentUsd).toBe('120.787152')
+      expect(total.hasUnknownHistoricalFees).toBe(false)
+      expect(total.hasBoundedUnknownCost).toBe(true)
+      // The closed holds are reported as uncertain, counted exactly once:
+      // the four holds plus the still-open owned claim.
+      await run.settle(Usd.from(0.5).toAmount())
+      await t.opener.settle(Usd.from(0).toAmount())
+      const existing = await t.journal.readExisting(SESSION, ACCOUNT)
+      expect(existing?.uncertainUsd).toBe('18.787152')
+    } finally {
+      t.owner.kill('SIGKILL')
+      await exited(t.owner)
+    }
+  })
+
+  it('refuses a truly unbounded legacy record with the true sentence', async () => {
+    const { journal, directory } = journalAt({ setting: 'paidDailyBudgetUsd' })
+    const live = await journal.reserveAdmitted(
+      SESSION,
+      ACCOUNT,
+      Usd.from(1).toAmount(),
+      Usd.from(100).toAmount(),
+    )
+    // An old record: unknown cost, never settled — its final cost may
+    // still exceed every counted bound. Young, so the age rule skips it.
+    const claimId = plantOwnerlessClaim(directory, seedOf(directory), { reserved: '4.5' })
+    const file = path.join(
+      directory,
+      'budget-journal',
+      ACCOUNT,
+      SESSION,
+      'claims',
+      claimId,
+      'claim.json',
+    )
+    const planted = JSON.parse(readFileSync(file, 'utf8')) as Record<string, unknown>
+    writeFileSync(file, JSON.stringify({ ...planted, hasUnknownCost: true }))
+    await live.settle(Usd.from(0).toAmount())
+    const caught = await catchReserve(
+      journal.reserveAdmitted(SESSION, ACCOUNT, Usd.from(1).toAmount(), Usd.from(100).toAmount()),
+    )
+    expect(caught).toBeInstanceOf(SessionBudgetExceededError)
+    // The literal sentence: the ledger, the counted spend, and remedies
+    // that work. Spent is the 4.5 hold plus the refused 1.0 reservation.
+    expect((caught as Error).message).toBe(
+      'The spend ledger for paid-stop-1 still holds charges no record bounds ' +
+        '($5.500000 counted so far). A new conversation does not clear it: wait for the ' +
+        'owning run to finish (ownerless holds close on their own), or rerun without a spend cap.',
+    )
+    expect((caught as Error).message).not.toContain('pending')
+  })
+
+  it('closes one stale hold once when two processes race it', async () => {
+    const closedA: { count: number; totalUsd: string }[] = []
+    const closedB: { count: number; totalUsd: string }[] = []
+    // One process's lock patience: real waits, so the loser still holds
+    // attempts while the winner closes inside the lock.
+    const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
+    const first = journalAt({
+      sleep,
+      onOwnerlessClosed: (info) => {
+        closedA.push({ count: info.count, totalUsd: info.totalUsd })
+      },
+    })
+    const live = await first.journal.reserveAdmitted(
+      SESSION,
+      ACCOUNT,
+      Usd.from(1).toAmount(),
+      Usd.from(100).toAmount(),
+    )
+    const hold = plantOwnerlessClaim(first.directory, seedOf(first.directory), {
+      reserved: OLD_HOLD,
+      ageMs: DAILY_BUDGET_OWNERLESS_MAX_AGE_MS + 60_000,
+    })
+    const second = createSessionBudgetJournal({
+      directory: first.directory,
+      sleep,
+      recoverUnsent: true,
+      onOwnerlessClosed: (info) => {
+        closedB.push({ count: info.count, totalUsd: info.totalUsd })
+      },
+      initialBudget: () =>
+        Promise.resolve({ spentUsd: Usd.from(0).toAmount(), hasUnknownHistoricalFees: false }),
+    })
+    const [runA, runB] = await Promise.all([
+      first.journal.reserveAdmitted(
+        SESSION,
+        ACCOUNT,
+        Usd.from(1).toAmount(),
+        Usd.from(100).toAmount(),
+      ),
+      second.reserveAdmitted(SESSION, ACCOUNT, Usd.from(1).toAmount(), Usd.from(100).toAmount()),
+    ])
+    // Both admitted; the hold settled once at its reservation.
+    expect(readPlanted(first.directory, hold)['settledUsd']).toBe(OLD_HOLD)
+    const closedTotal = Usd.from(closedA[0]?.totalUsd ?? 0)
+      .add(Usd.from(closedB[0]?.totalUsd ?? 0))
+      .toAmount()
+    expect(closedTotal).toBe(OLD_HOLD)
+    expect(closedA.length + closedB.length).toBe(1)
+    const total = await first.journal.read(SESSION, ACCOUNT)
+    expect(total.spentUsd).toBe('7.524288')
+    expect(total.hasUnknownHistoricalFees).toBe(false)
+    await live.settle(Usd.from(0).toAmount())
+    await runA.settle(Usd.from(0).toAmount())
+    await runB.settle(Usd.from(0).toAmount())
+  })
+
+  it('never closes an age-closed hold twice or counts it twice', async () => {
+    const closed: { count: number; totalUsd: string }[] = []
+    const { journal, directory } = journalAt({
+      onOwnerlessClosed: (info) => {
+        closed.push({ count: info.count, totalUsd: info.totalUsd })
+      },
+    })
+    const live = await journal.reserveAdmitted(
+      SESSION,
+      ACCOUNT,
+      Usd.from(1).toAmount(),
+      Usd.from(100).toAmount(),
+    )
+    const hold = plantOwnerlessClaim(directory, seedOf(directory), {
+      reserved: OLD_HOLD,
+      ageMs: DAILY_BUDGET_OWNERLESS_MAX_AGE_MS + 60_000,
+    })
+    const first = await journal.read(SESSION, ACCOUNT)
+    const second = await journal.read(SESSION, ACCOUNT)
+    expect(readPlanted(directory, hold)['settledUsd']).toBe(OLD_HOLD)
+    expect(closed).toEqual([{ count: 1, totalUsd: OLD_HOLD }])
+    expect(second.spentUsd).toBe(first.spentUsd)
+    expect(second.spentUsd).toBe('5.524288')
+    // Age the CLOSED hold past the bound: settled rows are still skipped,
+    // so no second close fires and the spend never moves.
+    const holdDir = path.join(directory, 'budget-journal', ACCOUNT, SESSION, 'claims', hold)
+    const old = new Date(Date.now() - DAILY_BUDGET_OWNERLESS_MAX_AGE_MS - 60_000)
+    utimesSync(path.join(holdDir, 'claim.json'), old, old)
+    utimesSync(holdDir, old, old)
+    const third = await journal.read(SESSION, ACCOUNT)
+    expect(readPlanted(directory, hold)['settledUsd']).toBe(OLD_HOLD)
+    expect(closed).toEqual([{ count: 1, totalUsd: OLD_HOLD }])
+    expect(third.spentUsd).toBe('5.524288')
+    await live.settle(Usd.from(0).toAmount())
+  })
+
+  it('admits after a restart between the age close and the admission', async () => {
+    const { journal, directory } = journalAt({})
+    const live = await journal.reserveAdmitted(
+      SESSION,
+      ACCOUNT,
+      Usd.from(1).toAmount(),
+      Usd.from(100).toAmount(),
+    )
+    plantOwnerlessClaim(directory, seedOf(directory), {
+      reserved: OLD_HOLD,
+      ageMs: DAILY_BUDGET_OWNERLESS_MAX_AGE_MS + 60_000,
+    })
+    await journal.read(SESSION, ACCOUNT)
+    await live.settle(Usd.from(0).toAmount())
+    // A fresh instance — a restarted process — admits on the closed ledger.
+    const restarted = createSessionBudgetJournal({
+      directory,
+      sleep: () => Promise.resolve(),
+      recoverUnsent: true,
+      initialBudget: () =>
+        Promise.resolve({ spentUsd: Usd.from(0).toAmount(), hasUnknownHistoricalFees: false }),
+    })
+    const run = await restarted.reserveAdmitted(
+      SESSION,
+      ACCOUNT,
+      Usd.from(1).toAmount(),
+      Usd.from(100).toAmount(),
+    )
+    const total = await restarted.read(SESSION, ACCOUNT)
+    expect(total.hasUnknownHistoricalFees).toBe(false)
+    expect(total.hasBoundedUnknownCost).toBe(true)
+    await run.settle(Usd.from(0).toAmount())
   })
 })
 
