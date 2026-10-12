@@ -1,100 +1,18 @@
 import { readFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
-import { describe, expect, it, vi } from 'vitest'
-import { AccountRequestWriter, activeAccountBilling } from '../../src/core/accounts/requestWriter'
-import { AccountStore } from '../../src/core/providers/accounts'
-import type { AccountCredentialVault } from '../../src/core/providers/accountCredentialRecord'
+import { describe, expect, it } from 'vitest'
+import { activeAccountBilling } from '../../src/core/accounts/requestWriter'
 import type { ProviderClient, ResponseAttemptGuard } from '../../src/core/backends/modelapi/client'
 import type { CreateResponseBody, StreamEvent } from '../../src/core/backends/modelapi/schemas'
-import { poolMetadata } from './helpers/accounts/metadata'
-import { poolRig, poolRequest } from './helpers/accounts/pool'
-import { fakeModelApi, fakeModelApiClient, type FakeModelApi } from './helpers/fakeModelApi'
+import type { FakeModelApi } from './helpers/fakeModelApi'
+import { poolRequest } from './helpers/accounts/pool'
+import { paidHelperBody, writerRig } from './helpers/accounts/writer'
 
 const ORIGIN = 'https://provider.invalid'
 const MODEL = 'muse-spark-1.3'
 
-function rig(configure?: (api: FakeModelApi) => void, rateLimit = vi.fn()) {
-  const t = poolRig()
-  const keys = new Map(t.rows.map((row) => [row.id, `fake-only-${row.id}`]))
-  const api = fakeModelApi({ keys: t.rows.map((row) => `fake-only-${row.id}`) })
-  configure?.(api)
-  const metadata = poolMetadata(t.rows, ORIGIN)
-  const vault: AccountCredentialVault = {
-    read: (binding) =>
-      Promise.resolve({
-        ...binding,
-        v: 1,
-        auth: 'apiKey',
-        secret: keys.get(binding.account) ?? '',
-      }),
-    readForRemoval: () => Promise.resolve(undefined),
-    write: (binding, credential) => {
-      keys.set(binding.account, credential.secret)
-      return Promise.resolve()
-    },
-    remove: (binding) => {
-      keys.delete(binding.account)
-      return Promise.resolve()
-    },
-  }
-  const store = new AccountStore(metadata, vault)
-  const client = fakeModelApiClient(api, {
-    trace: vi.fn(),
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-  })
-  // Production createClient (accountRequestOwner.ts): the lease's paid
-  // client is the account-keyed client itself.
-  const createClient = vi.fn<ConstructorParameters<typeof AccountRequestWriter>[0]['createClient']>(
-    async (_binding, apiKey, request, isCurrent) => {
-      const selected = client.withAccountKey(apiKey, isCurrent)
-      const models = await selected.listModels()
-      if (!models.includes(request.modelId)) throw new Error(`unknown model ${request.modelId}`)
-      return {
-        streamResponse: selected.streamResponse.bind(selected),
-        countInputTokens: selected.countInputTokens.bind(selected),
-        listModels: selected.listModels.bind(selected),
-        currentKeyDigest: selected.currentKeyDigest.bind(selected),
-        retryDelayMs: selected.retryDelayMs.bind(selected),
-        waitBeforeRetry: selected.waitBeforeRetry.bind(selected),
-        paidClient: selected,
-      }
-    },
-  )
-  const writer = new AccountRequestWriter({
-    store,
-    pool: t.pool,
-    refresh: () => Promise.resolve(),
-    rateLimit: (account, resetAt, identity) => {
-      rateLimit(account, resetAt, identity)
-    },
-    createClient,
-  })
-  return { ...t, api, store, client, writer, createClient, rateLimit }
-}
-
-function body(): CreateResponseBody {
-  return {
-    model: MODEL,
-    instructions: 'Test',
-    input: [
-      {
-        type: 'message',
-        role: 'user',
-        content: [{ type: 'input_text', text: 'Review this.' }],
-      },
-    ],
-    tools: [],
-    tool_choice: 'auto',
-    stream: true,
-    store: false,
-    max_output_tokens: 64,
-    reasoning: { effort: 'none' },
-    include: [],
-    prompt_cache_key: 'test-prefix',
-    prompt_cache_retention: '24h',
-  }
+function rig(configure?: (api: FakeModelApi) => void) {
+  return writerRig(ORIGIN, configure)
 }
 
 const REVIEW_PAID = {
@@ -112,6 +30,33 @@ function reviewerClient(t: ReturnType<typeof rig>, owner: string) {
     { ...REVIEW_PAID },
     false,
     () => Promise.resolve(true),
+  )
+}
+
+function collectStream(wrapped: ProviderClient) {
+  return Array.fromAsync(
+    wrapped.streamResponse(
+      paidHelperBody(),
+      new AbortController().signal,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+    ),
+  )
+}
+
+function generateImage(wrapped: ProviderClient, prompt: string) {
+  return wrapped.createImage(
+    {
+      model: 'muse-image-1.0',
+      prompt,
+      n: 1,
+      size: '1024x1024',
+      response_format: 'b64_json',
+      output_format: 'png',
+    },
+    new AbortController().signal,
   )
 }
 
@@ -148,16 +93,7 @@ describe('one lease owns its paid request', () => {
         )
       })
       const wrapped = reviewerClient(t, `term-${terminal}`)
-      const events = await Array.fromAsync(
-        wrapped.streamResponse(
-          body(),
-          new AbortController().signal,
-          undefined,
-          undefined,
-          undefined,
-          undefined,
-        ),
-      )
+      const events = await collectStream(wrapped)
       expect(events.at(-1)?.type).toBe(
         terminal === 'incomplete' ? 'response.incomplete' : 'response.failed',
       )
@@ -202,7 +138,7 @@ describe('one lease owns its paid request', () => {
     )
     const wrapped = reviewerClient(t, 'release-main')
     const stream = wrapped.streamResponse(
-      body(),
+      paidHelperBody(),
       new AbortController().signal,
       undefined,
       undefined,
@@ -229,16 +165,7 @@ describe('one lease owns its paid request', () => {
       )
     })
     const wrapped = reviewerClient(t, 'rate-main')
-    const events = await Array.fromAsync(
-      wrapped.streamResponse(
-        body(),
-        new AbortController().signal,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-      ),
-    )
+    const events = await collectStream(wrapped)
     expect(events.at(-1)?.type).toBe('response.completed')
     expect(t.rateLimit).toHaveBeenCalledOnce()
     expect(t.rateLimit.mock.calls[0]?.slice(0, 2)).toEqual([
@@ -267,17 +194,7 @@ describe('one lease owns its paid request', () => {
       false,
       () => Promise.resolve(true),
     )
-    const result = await wrapped.createImage(
-      {
-        model: 'muse-image-1.0',
-        prompt: 'a lease test',
-        n: 1,
-        size: '1024x1024',
-        response_format: 'b64_json',
-        output_format: 'png',
-      },
-      new AbortController().signal,
-    )
+    const result = await generateImage(wrapped, 'a lease test')
     expect(result.data).toHaveLength(2)
     expect(api.imageBodies()).toHaveLength(2)
     expect(t.claims).toHaveLength(1)
@@ -304,29 +221,19 @@ describe('one lease owns its paid request', () => {
         return Promise.resolve(true)
       },
     )
-    await wrapped.createImage(
-      {
-        model: 'muse-image-1.0',
-        prompt: 'a consent test',
-        n: 1,
-        size: '1024x1024',
-        response_format: 'b64_json',
-        output_format: 'png',
-      },
-      new AbortController().signal,
-    )
+    await generateImage(wrapped, 'a consent test')
     expect(seen).toEqual(['a'])
   })
 
   it('names the retry payer in a stop message while another account is queued', async () => {
     const t = rig()
-    t.rows[0]!.thresholds = { requests: { day: 0 } }
-    const holder = await t.writer.acquire(poolRequest({ owner: 'queued', modelId: MODEL }), ORIGIN)
-    t.pool.useNext('conversation', 'queued', 'b', () => true)
-    await expect(
-      t.writer.acquire(poolRequest({ owner: 'retry', retryAccount: 'a', modelId: MODEL }), ORIGIN),
-    ).rejects.toThrow(/· a has no room/)
+    const holder = await t.writer.acquire(poolRequest({ owner: 'main', modelId: MODEL }), ORIGIN)
+    t.pool.useNext('conversation', 'main', 'b', () => true)
     await holder.settle(null)
+    t.rows[0]!.thresholds = { requests: { day: 0 } }
+    await expect(
+      t.writer.acquire(poolRequest({ owner: 'main', retryAccount: 'a', modelId: MODEL }), ORIGIN),
+    ).rejects.toThrow(/· a has no room/)
   })
 
   it('sends every paid request on a lease and never on a bare client', () => {

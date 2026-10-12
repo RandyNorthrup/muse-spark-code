@@ -1,5 +1,6 @@
 import type { AccountRequestPort, AccountRequestLease } from '../../accounts/requestWriter'
 import { parseUsd as accountUsd } from '../../../shared/accountUsd'
+import { rateLimitResetAt } from '../../../shared/retryPolicy'
 import { StorageRefusalError } from '../../checkpoints/storageRefusal'
 import type { GitDraftOutputPort } from '../../git/gitText'
 import type * as CodeIntelEntry from './codeIntelEntry'
@@ -131,7 +132,6 @@ import {
   MODEL_API_LEGACY_CONTEXT_MODELS,
   MODEL_API_MAX_OUTPUT_TOKENS,
   MODEL_API_MAX_RETRIES,
-  ACCOUNT_REMOTE_LIMIT_DEFAULT_MS,
   ACCOUNT_DEFAULT_ID,
   MODEL_API_BASE_URL,
   MODEL_API_MAX_TOOL_ROUNDS,
@@ -317,7 +317,6 @@ import {
   type ResponseObservation,
   type ProviderClient,
   ModelApiError,
-  retryAfterMs,
   isModelApiError,
   type RetryBudget,
   type RetryNotice,
@@ -480,6 +479,7 @@ import {
   isFunctionCallItem,
   isMessageItem,
   isReasoningItem,
+  isTerminalResponseEvent,
   isWebSearchCallItem,
   messageText,
   type OutputItem,
@@ -2345,19 +2345,6 @@ function modelOutputPage(content: string, request: OutputPageRequest): Promise<O
     byteLen: slice.length,
     eof: end >= bytes.length,
   })
-}
-
-/** Terminal response events: whichever carries usage settles the paying lease. */
-const TERMINAL_RESPONSE_TYPES: ReadonlySet<string> = new Set([
-  'response.completed',
-  'response.incomplete',
-  'response.failed',
-])
-
-function isTerminalResponseEvent(
-  event: StreamEvent,
-): event is Extract<StreamEvent, { readonly response: ResponseObject }> {
-  return TERMINAL_RESPONSE_TYPES.has(event.type)
 }
 
 export class ModelApiSession implements ScheduledAgentSession {
@@ -4882,11 +4869,9 @@ export class ModelApiSession implements ScheduledAgentSession {
       beforeRequestStarted: () => lease?.beforeSend(),
       observe: (observation: ResponseObservation) => {
         if (lease !== undefined && observation.rateLimited === true) {
-          const reset =
-            this.deps.now() +
-            (retryAfterMs(observation.headers?.['retry-after'] ?? null, this.deps.now()) ??
-              ACCOUNT_REMOTE_LIMIT_DEFAULT_MS)
-          lease.rateLimit(new Date(reset).toISOString())
+          lease.rateLimit(
+            rateLimitResetAt(observation.headers?.['retry-after'] ?? null, this.deps.now()),
+          )
         }
         if (directBudget !== undefined || this.recordedCall === undefined) {
           return
@@ -15679,11 +15664,9 @@ export class ModelApiSession implements ScheduledAgentSession {
             },
             observe: (observation: ResponseObservation) => {
               if (observation.rateLimited === true) {
-                const reset =
-                  this.deps.now() +
-                  (retryAfterMs(observation.headers?.['retry-after'] ?? null, this.deps.now()) ??
-                    ACCOUNT_REMOTE_LIMIT_DEFAULT_MS)
-                lease.rateLimit(new Date(reset).toISOString())
+                lease.rateLimit(
+                  rateLimitResetAt(observation.headers?.['retry-after'] ?? null, this.deps.now()),
+                )
               }
               guard.observe?.(observation)
             },

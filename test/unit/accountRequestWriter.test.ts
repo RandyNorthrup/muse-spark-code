@@ -1,53 +1,13 @@
-import { poolMetadata } from './helpers/accounts/metadata'
 import { createHash } from 'node:crypto'
-import { describe, expect, it, vi } from 'vitest'
-import { AccountRequestWriter, activeAccountBilling } from '../../src/core/accounts/requestWriter'
-import { AccountStore } from '../../src/core/providers/accounts'
-import type { AccountCredentialVault } from '../../src/core/providers/accountCredentialRecord'
+import { describe, expect, it } from 'vitest'
+import { activeAccountBilling } from '../../src/core/accounts/requestWriter'
 import { Usd } from '../../src/shared/usd'
-import { poolRig, poolRequest } from './helpers/accounts/pool'
-import { fakeModelApi, fakeModelApiClient } from './helpers/fakeModelApi'
+import { poolRequest } from './helpers/accounts/pool'
+import { writerRig } from './helpers/accounts/writer'
 
 const ORIGIN = 'https://provider.invalid'
 function rig() {
-  const t = poolRig()
-  const keys = new Map(t.rows.map((row) => [row.id, `fake-only-${row.id}`]))
-  const metadata = poolMetadata(t.rows, ORIGIN)
-  const vault: AccountCredentialVault = {
-    read: (binding) =>
-      Promise.resolve({
-        ...binding,
-        v: 1,
-        auth: 'apiKey',
-        secret: keys.get(binding.account) ?? '',
-      }),
-    readForRemoval: () => Promise.resolve(undefined),
-    write: (binding, credential) => {
-      keys.set(binding.account, credential.secret)
-      return Promise.resolve()
-    },
-    remove: (binding) => {
-      keys.delete(binding.account)
-      return Promise.resolve()
-    },
-  }
-  const store = new AccountStore(metadata, vault)
-  const client = fakeModelApiClient(fakeModelApi(), {
-    trace: vi.fn(),
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-  })
-  const createClient = vi.fn<ConstructorParameters<typeof AccountRequestWriter>[0]['createClient']>(
-    (_binding, apiKey) => Promise.resolve(client.withAccountKey(apiKey)),
-  )
-  const writer = new AccountRequestWriter({
-    store,
-    pool: t.pool,
-    refresh: () => Promise.resolve(),
-    createClient,
-  })
-  return { ...t, store, writer, createClient }
+  return writerRig(ORIGIN)
 }
 
 describe('account request writer', () => {

@@ -280,6 +280,7 @@ export class AccountPool {
         coldCacheUsd: parseUsd(0),
         decision: heldDecision,
         policyTrigger: held?.trigger,
+        spread: false,
       }
     const decision = await this.deps.gate.authorize({
       policy: this.deps.policy,
@@ -290,14 +291,7 @@ export class AccountPool {
     if (decision.kind !== 'allow') return await this.stop(current, triggers, decision)
     const start = rows.indexOf(current) + 1
     const candidates = isSpread
-      ? rows.toSorted((a, b) => {
-          const left = this.deps.headroom(a, request),
-            right = this.deps.headroom(b, request)
-          if (left < parseUsd(0) || right < parseUsd(0))
-            throw new Error(UI_TEXT.accounts.invalidAccount)
-          if (left === right) return a.order - b.order
-          return left > right ? -1 : 1
-        })
+      ? this.spreadOrder(rows, request)
       : [...rows.slice(start), ...rows.slice(0, start)]
     const allTriggers = [...triggers]
     const recoveries = [this.reset(triggers)]
@@ -330,9 +324,42 @@ export class AccountPool {
           coldCacheUsd,
           decision,
           policyTrigger: triggers[0],
+          spread: isSpread,
         }
     }
     return await this.stop(current, allTriggers, undefined, recoveries)
+  }
+
+  /** A hint confirmed while holding the queue slot: same shape as selection. */
+  private confirm(
+    request: AccountPoolRequest,
+    isEligible: (account: Account) => boolean,
+    hint: Awaited<ReturnType<AccountPool['select']>>,
+  ): Awaited<ReturnType<AccountPool['select']>> | undefined {
+    const row = this.deps.policy()
+    if (row === undefined || row.pooling === 'notOffered' || !row.isCredentialHeld) return undefined
+    if (hint.decision?.isCurrent(row) === false) return undefined
+    const account = this.rows().find((entry) => entry.id === hint.account.id)
+    if (account === undefined || !isEligible(account) || !this.deps.canUseModel(account, request))
+      return undefined
+    if (this.triggers(account, hint.estimate, this.deps.journal, request).length > 0)
+      return undefined
+    // A worker that chose at equal headroom sees a concurrent reservation
+    // here and reranks instead of joining it.
+    return hint.spread && this.spreadOrder(this.rows(), request)[0]?.id !== account.id
+      ? undefined
+      : { ...hint, account }
+  }
+
+  private spreadOrder(rows: Account[], request: AccountPoolRequest): Account[] {
+    return rows.toSorted((a, b) => {
+      const left = this.deps.headroom(a, request),
+        right = this.deps.headroom(b, request)
+      if (left < parseUsd(0) || right < parseUsd(0))
+        throw new Error(UI_TEXT.accounts.invalidAccount)
+      if (left === right) return a.order - b.order
+      return left > right ? -1 : 1
+    })
   }
 
   private async admit(
@@ -341,15 +368,17 @@ export class AccountPool {
   ): Promise<
     Awaited<ReturnType<AccountPool['select']>> & { claim: AccountPoolClaim; check: () => void }
   > {
-    // The lease owns its paid request from choice to settlement: selection
-    // runs inside the reservation queue, so a second worker at equal
-    // headroom sees the first reservation and reranks instead of joining it.
-    // Policy confirmation may remain open indefinitely. Only admissions
-    // serialize; unrelated owners keep making progress once admitted.
+    // The lease owns its paid request from choice to settlement. Choice
+    // starts outside the reservation queue, so one owner's policy
+    // confirmation never blocks another owner's admission; it is confirmed
+    // inside the queue, so a second worker at equal headroom sees the first
+    // reservation and reranks instead of joining it.
+    const hint = await this.select(request, isEligible)
     const previous = this.admission
     const operation = (async () => {
       await previous
-      const selected = await this.select(request, isEligible)
+      const selected =
+        this.confirm(request, isEligible, hint) ?? (await this.select(request, isEligible))
       if (this.triggers(selected.account, selected.estimate, this.deps.journal, request).length > 0)
         return
       const claim = await this.deps.reserve(selected.account, selected.estimate, request)

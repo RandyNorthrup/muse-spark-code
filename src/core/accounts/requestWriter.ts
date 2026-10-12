@@ -17,19 +17,11 @@ import { Usd } from '../../shared/usd'
 import { estimateInput, requestParts } from '../backends/modelapi/sessionBudget'
 import { modelPolicyFor, modelPricedUsage } from '../backends/modelapi/modelPolicy'
 import { estimateCostUsd } from '../usage/insights'
-import type {
-  CreateImageBody,
-  EditImageBody,
-  ImagesResponse,
-  ResponseObject,
-  StreamEvent,
-} from '../backends/modelapi/schemas'
+import type { CreateImageBody, EditImageBody, ImagesResponse } from '../backends/modelapi/schemas'
+import { isTerminalResponseEvent } from '../backends/modelapi/schemas'
 import type { ModelClient } from '../backends/modelapi/modelPolicy'
-import {
-  ACCOUNT_REMOTE_LIMIT_DEFAULT_MS,
-  MILLISECONDS_PER_SECOND,
-  UI_TEXT,
-} from '../../shared/constants'
+import { UI_TEXT } from '../../shared/constants'
+import { rateLimitResetAt } from '../../shared/retryPolicy'
 import { parseUsd } from '../../shared/accountUsd'
 import { usdAmountSchema, type UsdAmount } from '../../shared/usd'
 
@@ -74,31 +66,6 @@ export interface AccountRequestPort {
   current(kind: AccountPoolRequest['kind'], owner: string): string | undefined
 }
 
-/** Terminal response events: whichever carries usage settles the lease. */
-const TERMINAL_RESPONSE_TYPES: ReadonlySet<string> = new Set([
-  'response.completed',
-  'response.incomplete',
-  'response.failed',
-])
-
-function isTerminalResponseEvent(
-  event: StreamEvent,
-): event is Extract<StreamEvent, { readonly response: ResponseObject }> {
-  return TERMINAL_RESPONSE_TYPES.has(event.type)
-}
-
-/** When the payer's 429 block lifts: its retry-after, an HTTP date, or the shared default. */
-function leaseResetAt(header: string | null, now: () => number): string {
-  if (header !== null && header.trim() !== '') {
-    const seconds = Number(header)
-    if (Number.isFinite(seconds) && seconds >= 0)
-      return new Date(now() + seconds * MILLISECONDS_PER_SECOND).toISOString()
-    const at = Date.parse(header)
-    if (!Number.isNaN(at)) return new Date(at).toISOString()
-  }
-  return new Date(now() + ACCOUNT_REMOTE_LIMIT_DEFAULT_MS).toISOString()
-}
-
 function paidGuard(
   lease: AccountRequestLease,
   originalGuard: ResponseAttemptGuard | undefined,
@@ -122,7 +89,7 @@ function paidGuard(
       },
       observe: (observation: ResponseObservation) => {
         if (observation.rateLimited === true) {
-          lease.rateLimit(leaseResetAt(observation.headers?.['retry-after'] ?? null, now))
+          lease.rateLimit(rateLimitResetAt(observation.headers?.['retry-after'] ?? null, now()))
         }
         originalGuard?.observe?.(observation)
       },
