@@ -1145,8 +1145,10 @@ describe('verified native worker creation', () => {
     if (!('error' in result)) throw new Error('Expected the typed create refusal')
     expect(result.error).not.toContain(copy)
     // Nothing was created: the would-be path still resolves through the file.
+    // A path below a regular file is "not a directory" on POSIX and "not
+    // found" on Windows (measured on Windows 11); either way no entry exists.
     await expect(lstat(path.join(copy, 'src', 'plain', 'new'))).rejects.toMatchObject({
-      code: 'ENOTDIR',
+      code: process.platform === 'win32' ? 'ENOENT' : 'ENOTDIR',
     })
   })
   it('NF nested helper refusals report the copy-relative path', async () => {
