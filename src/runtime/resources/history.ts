@@ -179,11 +179,19 @@ export function resourceHistoryRecorder(
     sample(status) {
       if (isSampling || !isAdmitted()) return
       isSampling = true
-      void sampleOnce(status)
+      void sampleOnce(status).catch(() => {
+        // The pump owns this reading: a foreign failure has no consumer, so
+        // the tail records it once through report() and drops it, and the
+        // pump continues with the next reading.
+        report()
+      })
     },
     event(event) {
       if (!isAdmitted()) return
-      void eventOnce(event)
+      void eventOnce(event).catch(() => {
+        // As above: a foreign event failure is recorded once and dropped.
+        report()
+      })
     },
     flush: async () => {
       // A delete or consent change since the last reading drops what is held.

@@ -654,6 +654,35 @@ describe('Saved custom provider Edit through the shared form and production stor
     host.dispose()
   })
 
+  it('records a foreign save failure with the fixed sentence and keeps the queue', async () => {
+    const foreign: unknown = 'a string failure'
+    const seen: unknown[] = []
+    const onUnhandled = (reason: unknown) => {
+      if (reason === foreign) seen.push(reason)
+    }
+    process.on('unhandledRejection', onUnhandled)
+    try {
+      const { providers, state, warnings, host } = await editSurface()
+      await changeReplyLimit()
+      vi.spyOn(providers, 'saveDraft').mockImplementationOnce(() => {
+        throw foreign
+      })
+      fireEvent.click(screen.getByRole('button', { name: UI_TEXT.saveProvider }))
+      await waitFor(() => {
+        expect(state().drafts.edits['custom']?.errors).toEqual([UI_TEXT.providerSaveWriteConflict])
+      })
+      expect(warnings.join('\n')).toContain('Models panel operation failed')
+      // The queue survives the foreign failure: saving again still works.
+      await saveEditSurface()
+      expect(state().drafts.edits['custom']).toBeUndefined()
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      expect(seen).toEqual([])
+      host.dispose()
+    } finally {
+      process.removeListener('unhandledRejection', onUnhandled)
+    }
+  })
+
   it.each(['provider', 'credential', 'panel'] as const)(
     'acknowledges the saved provider and retires the draft when the %s refresh fails',
     async (source) => {

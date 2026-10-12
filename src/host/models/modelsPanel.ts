@@ -1214,8 +1214,18 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
       publish()
     }
     const previous = operations
-    operations = (async () => {
-      await previous
+    const failedDraft =
+      message.type === 'providers/save' && message.providerId !== undefined
+        ? savingDraft
+        : undefined
+    const current = (async () => {
+      try {
+        await previous
+      } catch {
+        // A prior message owned its failure: the queue tail below recorded
+        // it on that message's draft, so this message runs instead of the
+        // failure poisoning every later message.
+      }
       if (isDisposed) {
         return
       }
@@ -1225,12 +1235,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         // A failed panel message reaches its draft through fail(); anything
         // that is not an error keeps its kind past the queue.
         if (!(error instanceof Error)) throw error
-        fail(
-          message.type === 'providers/save' && message.providerId !== undefined
-            ? savingDraft
-            : undefined,
-          error,
-        )
+        fail(failedDraft, error)
       } finally {
         if (savingDraft !== undefined) {
           savingDraft.saving = false
@@ -1238,6 +1243,14 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         }
       }
     })()
+    operations = current
+    void current.catch(() => {
+      // A foreign failure from the handler reached no draft above: record it
+      // on this message's draft with the fixed sentence. The next message
+      // observes this tail and continues, so the queue survives it and no
+      // rejection escapes the pump.
+      fail(failedDraft, new Error(UI_TEXT.actionFailed))
+    })
   }
   const subscription = panel.webview.onDidReceiveMessage((raw: unknown) => {
     const parsed = parsePanelToHostMessage(raw)
