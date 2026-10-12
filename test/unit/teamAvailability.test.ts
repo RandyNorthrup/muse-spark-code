@@ -1,11 +1,12 @@
-// Hidden means hidden (RVCM963J 1): every team surface stays behind the
-// `museSpark.team` switch. With it off (including absent) nothing of teams is
-// constructed, shown, or reachable by command; with it on each surface works.
-// One test walks the whole surface list in both directions.
+// Hidden means hidden (RVCM963JB P2-1): every team surface stays behind the
+// release latch AND the `museSpark.team` switch. With the latch closed
+// nothing of teams is constructed, shown, or reachable by command, even with
+// a true setting; with both on each surface works.
 import { describe, expect, it, vi } from 'vitest'
 import { TeamHostBinding, isTeamSwitchOn } from '../../src/host/teamHostBinding'
 import { createTeamPanelHost } from '../../src/host/models/modelsPanelEntry'
-import { UI_TEXT } from '../../src/shared/constants'
+import { OPTIONAL_RUNTIME_AVAILABILITY, UI_TEXT } from '../../src/shared/constants'
+import { isTeamAvailable } from '../../src/shared/teamConversation'
 import { TEAM_WORKSPACE_KEYS } from '../../src/shared/teamConversation'
 
 function noop(): void {
@@ -115,47 +116,80 @@ describe('the team availability switch', () => {
     expect(isTeamSwitchOn(true), 'explicit true').toBe(true)
     expect(isTeamSwitchOn('true'), 'truthy string').toBe(false)
   })
-  it('hides every team surface while off and shows each while on', async () => {
-    // The walk-back register: every surface the switch guards. Each
-    // direction below names the surface it checks.
-    const off = binding(false)
-    // Nothing is constructed: a stored runnable team loads no bundle.
-    await off.bound.open()
-    expect(off.factory, 'service construction while off').not.toHaveBeenCalled()
-    // Nothing is shown: no configuration, no Agent map.
-    expect(off.bound.canConfigure(), 'first-time configuration while off').toBe(false)
-    expect(off.bound.tree(), 'Agent map while off').toBeUndefined()
-    // Nothing is reachable by command: Roles and task commands refuse.
-    await expect(
-      off.bound.handle({ type: 'openTeamRoles', roleId: undefined }),
-      'Roles section by command while off',
-    ).rejects.toThrow(UI_TEXT.teamTaskUnknown)
-    expect(off.openRoles, 'Roles section by command while off').not.toHaveBeenCalled()
-    await expect(
-      off.bound.handle({ type: 'stopTeamTask', taskId: 'task-1' }),
-      'Agents section task command while off',
-    ).rejects.toThrow(UI_TEXT.teamTaskUnknown)
-    // The Models & Agents panel builds no Roles/Agents content while off.
-    const panelOff = createTeamPanelHost({
-      team: {
-        isEnabled: () => off.bound.canConfigure(),
-        state: { get: () => undefined, update: () => Promise.resolve() },
-        reload: noop,
-        onTreeChange: () => noopUnsubscribe,
-        tree: () => undefined,
-        handle: () => Promise.resolve(),
-      },
-      l10n: { table: UI_TEXT, locale: 'en' },
-      writeExportFile: () => Promise.resolve(undefined),
-      readImportFile: () => Promise.resolve(undefined),
-    })
-    expect(await panelOff?.load(), 'Roles/Agents panel content while off').toBeUndefined()
+  // P2-1: availability is the release latch AND the setting. A true setting
+  // with a closed latch opens nothing; the latch ships closed.
+  it('keeps everything closed while the latch is closed, even with a true setting', () => {
+    expect(OPTIONAL_RUNTIME_AVAILABILITY.team, 'shipped latch').toBe(false)
+    expect(isTeamAvailable(true), 'true setting, closed latch').toBe(false)
+    expect(isTeamAvailable(false), 'false setting, closed latch').toBe(false)
+    expect(isTeamAvailable(undefined), 'absent setting, closed latch').toBe(false)
+  })
+  it('opens with the latch and the setting together, and closes again after', () => {
+    OPTIONAL_RUNTIME_AVAILABILITY.team = true
+    try {
+      expect(isTeamAvailable(true), 'true setting, open latch').toBe(true)
+      expect(isTeamAvailable(false), 'false setting, open latch').toBe(false)
+    } finally {
+      OPTIONAL_RUNTIME_AVAILABILITY.team = false
+    }
+    expect(isTeamAvailable(true), 'restored latch').toBe(false)
+  })
+  // P2-1: a true setting with a closed latch opens nothing: no bundle for a
+  // saved runnable team, no configuration, no command, no panel content.
+  it('hides every team surface while the latch is closed, even with a true setting', async () => {
+    for (const isOn of [false, true]) {
+      const closed = binding(isOn)
+      // Nothing is constructed: a stored runnable team loads no bundle.
+      await closed.bound.open()
+      expect(closed.factory, `service construction, setting ${String(isOn)}`).not.toHaveBeenCalled()
+      // Nothing is shown: no configuration, no Agent map.
+      expect(closed.bound.canConfigure(), `configuration, setting ${String(isOn)}`).toBe(false)
+      expect(closed.bound.tree(), `Agent map, setting ${String(isOn)}`).toBeUndefined()
+      // Nothing is reachable by command: Roles and task commands refuse, so a
+      // saved team neither loads nor dispatches.
+      await expect(
+        closed.bound.handle({ type: 'openTeamRoles', roleId: undefined }),
+        `Roles section by command, setting ${String(isOn)}`,
+      ).rejects.toThrow(UI_TEXT.teamTaskUnknown)
+      expect(closed.openRoles, `Roles section, setting ${String(isOn)}`).not.toHaveBeenCalled()
+      await expect(
+        closed.bound.handle({ type: 'stopTeamTask', taskId: 'task-1' }),
+        `Agents section task command, setting ${String(isOn)}`,
+      ).rejects.toThrow(UI_TEXT.teamTaskUnknown)
+      // The Models & Agents panel builds no Roles/Agents content.
+      const panel = createTeamPanelHost({
+        team: {
+          isEnabled: () => closed.bound.canConfigure(),
+          state: { get: () => undefined, update: () => Promise.resolve() },
+          reload: noop,
+          onTreeChange: () => noopUnsubscribe,
+          tree: () => undefined,
+          handle: () => Promise.resolve(),
+        },
+        l10n: { table: UI_TEXT, locale: 'en' },
+        writeExportFile: () => Promise.resolve(undefined),
+        readImportFile: () => Promise.resolve(undefined),
+      })
+      expect(await panel?.load(), `Roles/Agents panel, setting ${String(isOn)}`).toBeUndefined()
+      await closed.bound.dispose()
+    }
+  })
+  it('shows each surface while the latch and the setting are both on', async () => {
+    OPTIONAL_RUNTIME_AVAILABILITY.team = true
+    try {
+      const on = binding(true)
+      expect(on.bound.canConfigure(), 'first-time configuration while on').toBe(true)
+      await on.bound.handle({ type: 'openTeamRoles', roleId: undefined })
+      expect(on.openRoles, 'Roles section by command while on').toHaveBeenCalledOnce()
+      await on.bound.dispose()
 
-    const on = binding(true)
-    expect(on.bound.canConfigure(), 'first-time configuration while on').toBe(true)
-    await on.bound.handle({ type: 'openTeamRoles', roleId: undefined })
-    expect(on.openRoles, 'Roles section by command while on').toHaveBeenCalledOnce()
-    await on.bound.dispose()
-    await off.bound.dispose()
+      const off = binding(false)
+      expect(off.bound.canConfigure(), 'configuration with a false setting').toBe(false)
+      await off.bound.open()
+      expect(off.factory, 'service construction with a false setting').not.toHaveBeenCalled()
+      await off.bound.dispose()
+    } finally {
+      OPTIONAL_RUNTIME_AVAILABILITY.team = false
+    }
   })
 })

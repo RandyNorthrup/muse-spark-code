@@ -7322,6 +7322,12 @@ export const TEAM_MAX_WORKERS_PER_CPU = 2
 // section (C-M96-2, lead 2026-10-10): until then it would do nothing a user
 // can see. Hidden means hidden: an absent setting counts as off.
 export const TEAM_SWITCH_SETTING = 'team'
+// Optional runtimes withheld from public activation share one release-latch
+// record (schedules and the estimator ride the release train; teams here, so
+// opening one adds its key beside `team`). Availability is the latch AND the
+// setting: a true setting with a closed latch opens nothing. The latch stays
+// false until the join passes review.
+export const OPTIONAL_RUNTIME_AVAILABILITY: { team: boolean } = { team: false }
 export const TEAM_MUSE_CODE_HOST_CEILING = 4
 export const TEAM_EXTERNAL_AGENT_CEILING = 4
 export const TEAM_EXTERNAL_AGENT_DEFAULT = 2

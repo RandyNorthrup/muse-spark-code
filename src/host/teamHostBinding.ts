@@ -7,7 +7,7 @@
 
 import { UI_TEXT } from '../shared/constants'
 import { fill } from '../shared/l10n/text'
-import { hasRunnableTeamEntry } from '../shared/teamConversation'
+import { hasRunnableTeamEntry, isTeamAvailable } from '../shared/teamConversation'
 import type { WebviewToHostMessage } from '../shared/protocol'
 import type { TeamTreeData } from '../shared/teamView'
 import type { UiText } from '../shared/l10n/en'
@@ -109,7 +109,7 @@ export class TeamHostBinding implements TeamSurfacePort {
     if (this.service !== undefined) return this.service
     if (
       this.isDisposed ||
-      !this.deps.ports.settings.isTeamOn() ||
+      !isTeamAvailable(this.deps.ports.settings.isTeamOn()) ||
       !hasRunnableTeamEntry(this.deps.ports.state, {
         orchestratorModelId: this.deps.ports.orchestrator.modelId(),
         isTeamWorkersOn: this.deps.ports.settings.isTeamWorkersOn(),
@@ -148,7 +148,7 @@ export class TeamHostBinding implements TeamSurfacePort {
   public canConfigure(): boolean {
     return (
       !this.isDisposed &&
-      this.deps.ports.settings.isTeamOn() &&
+      isTeamAvailable(this.deps.ports.settings.isTeamOn()) &&
       this.deps.ports.settings.isTrusted() &&
       this.deps.canRunKind('engine')
     )

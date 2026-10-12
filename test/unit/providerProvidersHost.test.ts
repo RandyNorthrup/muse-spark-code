@@ -2,6 +2,7 @@
 // test asks before a paid check, the private address asks once, scans and
 // removals delegate, and the stored credential tests without the webview.
 
+import { createHash } from 'node:crypto'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { window } from 'vscode'
 import type { ProviderEntry } from '../../src/host/providers/providerPorts'
@@ -26,7 +27,12 @@ describe('createProvidersHost', () => {
       deps: { usage: { read: () => Promise.resolve(snapshot) }, onKeyUsage },
     })
     await providers.openRouterUsage('synthetic-provider-credential')
-    expect(onKeyUsage).toHaveBeenCalledExactlyOnceWith(snapshot)
+    // P2-4: the identity that fetched the usage travels with it, so a
+    // rotated key never inherits the old quota.
+    expect(onKeyUsage).toHaveBeenCalledExactlyOnceWith(
+      snapshot,
+      createHash('sha256').update('synthetic-provider-credential').digest('hex'),
+    )
     snapshot.usedToday = -1
     await expect(providers.openRouterUsage('synthetic-provider-credential')).rejects.toThrow()
     expect(onKeyUsage).toHaveBeenCalledTimes(1)

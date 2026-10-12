@@ -13,6 +13,8 @@ import {
   resolveOrchestratorModel,
   validateOrchestratorSettings,
 } from '../../src/core/team/orchestratorSlot'
+import { teamSettingCapabilities } from '../../src/core/team/modelSettings'
+import { metaCapabilityRecord } from '../../src/core/providers/capabilityRecord'
 
 function memoryState(stored?: unknown): {
   get: (key: string) => unknown
@@ -197,5 +199,30 @@ describe('validateOrchestratorSettings', () => {
   })
   it('leaves an unknown family to the live session check', () => {
     expect(validateOrchestratorSettings({ effort: 'turbo' }, 'other-model')).toBeUndefined()
+  })
+  // P2-5: saved settings are validated against the model's current
+  // capability record before anything is allocated.
+  it('refuses a cap above the model maximum from its current record, never clamping', () => {
+    const caps = teamSettingCapabilities(metaCapabilityRecord('muse-spark-1.2'))
+    expect(
+      validateOrchestratorSettings({ outputCap: Number.MAX_SAFE_INTEGER }, 'muse-spark-1.2', caps),
+    ).toMatch(/outputCap.*muse-spark-1\.2/)
+    expect(
+      validateOrchestratorSettings({ outputCap: 131_072 }, 'muse-spark-1.2', caps),
+    ).toBeUndefined()
+  })
+  it('refuses a changed effort capability from the current record, qualified ids included', () => {
+    const caps = { effortTiers: ['low'] as const, maxOutputTokens: 1000 }
+    expect(validateOrchestratorSettings({ effort: 'high' }, 'openai/gpt-x', caps)).toMatch(
+      /effort.*high.*openai\/gpt-x/,
+    )
+    expect(validateOrchestratorSettings({ effort: 'low' }, 'openai/gpt-x', caps)).toBeUndefined()
+    // Unknown halves stay lenient: the session re-checks live tiers at apply.
+    expect(
+      validateOrchestratorSettings({ effort: 'turbo' }, 'openai/gpt-x', {
+        effortTiers: undefined,
+        maxOutputTokens: undefined,
+      }),
+    ).toBeUndefined()
   })
 })

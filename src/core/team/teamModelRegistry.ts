@@ -98,10 +98,12 @@ export function buildTeamModelOffers(input: {
   readonly maxWorkers: number
   readonly canRunKind: (kind: 'engine' | 'museCode' | 'external') => boolean
   /**
-   * The credential identity spending today, by provider. When present, an
-   * observation stamped for another account is dropped, and one whose
-   * account is unknown is omitted with the limits reason (RVCM963J 7).
-   * Absent keeps the legacy newest-row selection (tests, unattributed rows).
+   * The credential identity spending today, by provider. A known identity
+   * drops an observation stamped for another account, and an unstamped one
+   * is omitted with the limits reason (RVCM963J 7). An unknown identity for
+   * a provider (undefined: no apiKey record there) keeps the legacy
+   * newest-row selection for it; absent keeps it everywhere (tests,
+   * unattributed rows).
    */
   readonly currentAccountOf?: (provider: string) => string | undefined
 }): { readonly offers: TeamPanelOffer[]; readonly absent: TeamDiscoveryAbsence[] } {
@@ -123,7 +125,15 @@ export function buildTeamModelOffers(input: {
     const current = input.currentAccountOf?.(provider)
     const observed = input.limits
       .filter((row) => row.provider === provider)
-      .filter((row) => input.currentAccountOf === undefined || row.observedAccount === current)
+      // An unknown identity for this provider keeps legacy unattributed
+      // matching; a known one drops rows stamped for another account, so a
+      // rotated key's old quota gives no offer.
+      .filter(
+        (row) =>
+          input.currentAccountOf === undefined ||
+          current === undefined ||
+          row.observedAccount === current,
+      )
       .toSorted((a, b) => b.observedAt - a.observedAt)
       .at(0)
     const observedLimits = observedTeamLimits(preset, observed?.raw)

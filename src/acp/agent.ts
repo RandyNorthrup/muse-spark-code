@@ -1476,6 +1476,14 @@ class AcpSession {
   public async applyEffort(effort: EffortLevel): Promise<void> {
     const served = servedEffort(this.modelId, effort)
     this.ensureHeld()
+    // A default the model does not serve is simply not sent: the session
+    // keeps its host default. An explicit tier the model cannot serve never
+    // reaches here (setConfigOption refuses it); setReasoningEffort refuses
+    // any other explicit value at the admission boundary.
+    if (this.session.servesReasoningEffort?.(effortForThinking(served, true)) === false) {
+      this.effort = served
+      return
+    }
     await this.session.setReasoningEffort(effortForThinking(served, true))
     this.effort = served
   }

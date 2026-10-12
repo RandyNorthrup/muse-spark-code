@@ -9,7 +9,7 @@
 // the team off sends nothing for the team at any time.
 
 import * as z from 'zod/mini'
-import { TEAM_BOOTSTRAP_MODEL_TEXT, VERIFY_TOOLS } from './constants'
+import { OPTIONAL_RUNTIME_AVAILABILITY, TEAM_BOOTSTRAP_MODEL_TEXT, VERIFY_TOOLS } from './constants'
 export { TEAM_BOOTSTRAP_MODEL_TEXT } from './constants'
 
 import type { TeamDecisionSource } from '../core/team/teamSeams'
@@ -31,6 +31,16 @@ export type TeamConversationMode = 'single-model' | 'team'
 export interface TeamConversationDecision {
   readonly mode: TeamConversationMode
   readonly reason: SingleModelReason
+}
+
+/**
+ * The one availability decision (RVCM963JB P2-1): the release latch AND the
+ * raw setting. Every entry point (canConfigure, the Roles, Agents and Try
+ * bindings, loading a saved runnable team, dispatch) asks this function, so
+ * a true setting with a closed latch opens nothing.
+ */
+export function isTeamAvailable(setting: unknown): boolean {
+  return OPTIONAL_RUNTIME_AVAILABILITY.team && setting === true
 }
 
 /**

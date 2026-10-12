@@ -5,6 +5,7 @@
 // probe, the suggestions and the wizard save — composed from the
 // SecretStorage records and the injected lane-P/T seams.
 
+import { createHash } from 'node:crypto'
 import type * as vscode from 'vscode'
 import { PROVIDER_SECRET_PREFIX, UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
@@ -71,7 +72,7 @@ export interface ProvidersHostDeps {
   readonly fetcher: ModelFetcher
   readonly exchanger: CodeExchanger | undefined
   readonly usage: KeyUsageReader | undefined
-  readonly onKeyUsage?: (snapshot: KeyUsageSnapshot) => void
+  readonly onKeyUsage?: (snapshot: KeyUsageSnapshot, observedAccount?: string) => void
   readonly pkce: PkceSource
   readonly suggest: SuggestionEngine
   readonly scanStore: ScanStore
@@ -311,7 +312,9 @@ export function createProvidersHost(deps: ProvidersHostDeps): ProvidersHost {
     openRouterUsage: async (credential) => {
       if (deps.usage === undefined) return
       const snapshot = await readOpenRouterKeyUsage(deps.usage, credential)
-      deps.onKeyUsage?.(snapshot)
+      // The identity that fetched this usage travels with it: never re-read
+      // "current" after the response, or a rotated key inherits old quota.
+      deps.onKeyUsage?.(snapshot, createHash('sha256').update(credential).digest('hex'))
       return snapshot
     },
     probe: (preset) => probeLocalServers(preset.localProbes, deps.loopbackFetch),

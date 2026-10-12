@@ -10,8 +10,8 @@
 import { teamSnapshotSchema, type TeamModelSettings } from '../../shared/teamConfig'
 import { TEAM_WORKSPACE_KEYS } from '../../shared/teamConversation'
 import { UI_TEXT } from '../../shared/constants'
-import { knownEffortTiers } from '../../shared/effort'
 import { fill } from '../../shared/l10n/text'
+import { refuseUnservedSetting, type TeamSettingCapabilities } from './modelSettings'
 
 /** A workspace's orchestrator override: a model on either backend. */
 export interface OrchestratorOverride {
@@ -101,6 +101,7 @@ const CARRIED_OVERRIDE_SETTINGS = ['effort', 'outputCap'] as const
 export function validateOrchestratorSettings(
   settings: TeamModelSettings | undefined,
   modelId: string,
+  capabilities?: TeamSettingCapabilities,
 ): string | undefined {
   const entries = Object.entries(settings ?? {})
   for (const [key, value] of entries) {
@@ -111,25 +112,8 @@ export function validateOrchestratorSettings(
         model: modelId,
       })
   }
-  const effort = settings?.effort
-  if (effort !== undefined) {
-    // Only a verified family list refuses a tier: an unknown family may serve
-    // custom tiers this table never learned, and the session re-checks live
-    // tiers at apply.
-    const tiers = knownEffortTiers(modelId)
-    if (effort === '' || tiers?.every((tier) => tier !== effort) === true)
-      return fill(UI_TEXT.teamSettingUnsupported, {
-        setting: 'effort',
-        value: effort,
-        model: modelId,
-      })
-  }
-  const outputCap = settings?.outputCap
-  if (outputCap !== undefined && (!Number.isSafeInteger(outputCap) || outputCap < 1))
-    return fill(UI_TEXT.teamSettingUnsupported, {
-      setting: 'outputCap',
-      value: String(outputCap),
-      model: modelId,
-    })
-  return undefined
+  // A setting this path does not carry is refused above, never ignored; an
+  // effort the model does not serve and a cap above its maximum are refused
+  // here too, never silently changed or clamped.
+  return refuseUnservedSetting(settings, modelId, capabilities)
 }

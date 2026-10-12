@@ -5,6 +5,7 @@
 // this record). A local server without auth stores nothing. Meta's key keeps
 // its own secret and flow (`CredentialStore`).
 
+import { createHash } from 'node:crypto'
 import * as z from 'zod/mini'
 import { PROVIDER_SECRET_PREFIX } from '../../shared/constants'
 import { CredentialStore } from '../auth/credentialStore'
@@ -93,6 +94,29 @@ export async function readProviderCredential(
 /** Deletes a provider's credential record (removal after its Undo). */
 export async function deleteProviderCredential(secrets: RecordStore, id: string): Promise<void> {
   await secrets.delete(providerSecretKey(id))
+}
+
+/**
+ * Hash-only identity of a BYO apiKey record's secret (RVCM963JB P2-4): quota
+ * rows are stamped with the credential a response actually used, and offers
+ * compare against this. Undefined for anything but an apiKey record
+ * (including a damaged one, which keeps legacy unattributed matching so a
+ * broken credential cannot hide every offer). The secret itself never leaves
+ * this call: only its digest is returned, never logged or shown.
+ */
+export async function providerKeyDigest(
+  secrets: RecordStore,
+  id: string,
+): Promise<string | undefined> {
+  let record
+  try {
+    record = await readProviderCredential(secrets, id)
+  } catch {
+    return undefined
+  }
+  return record?.auth === 'apiKey'
+    ? createHash('sha256').update(record.secret).digest('hex')
+    : undefined
 }
 
 /**

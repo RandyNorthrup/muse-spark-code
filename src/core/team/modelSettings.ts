@@ -20,6 +20,37 @@ import {
 import { knownEffortTiers } from '../../shared/effort'
 import { fill } from '../../shared/l10n/text'
 import type { TeamModelSettings } from '../../shared/teamConfig'
+import type { ModelCapabilityRecord } from '../providers/capabilityRecord'
+
+/**
+ * A model's current capabilities for settings validation (RVCM963JB P2-5):
+ * the record the model serves today, qualified provider ids included. An
+ * unknown half stays unknown: only verified lists and maxima refuse.
+ */
+export interface TeamSettingCapabilities {
+  /** Effort tiers the model serves now; undefined when unknown. */
+  readonly effortTiers: readonly string[] | undefined
+  /** Maximum output tokens the model serves now; undefined when unknown. */
+  readonly maxOutputTokens: number | undefined
+}
+
+/** The validation view of a capability record: only verified evidence refuses. */
+export function teamSettingCapabilities(record: ModelCapabilityRecord): TeamSettingCapabilities {
+  const effort = record.reasoning.effortLevels
+  return {
+    effortTiers: effort.state === 'yes' ? effort.value : undefined,
+    maxOutputTokens: record.output.maxTokens,
+  }
+}
+
+/** A saved setting's refusal, naming the setting, value and model. */
+function unsupportedSetting(setting: string, value: unknown, modelId: string): string {
+  return fill(UI_TEXT.teamSettingUnsupported, {
+    setting,
+    value: String(value),
+    model: modelId,
+  })
+}
 
 /** Every setting an entry or the orchestrator slot may expose. */
 export type TeamModelSetting =
@@ -145,42 +176,52 @@ export function settingCostNote(setting: TeamModelSetting): string {
 }
 
 /**
+ * A saved effort tier or output cap against the model's current
+ * capabilities: an effort the model does not serve and a cap above the
+ * model's maximum refuse with their reason, never silently changed or
+ * clamped later. Without capabilities the fixed family table decides effort
+ * and only malformed caps refuse; the session re-checks live tiers at apply.
+ * Returns the specific translated reason, if any.
+ */
+export function refuseUnservedSetting(
+  settings: TeamModelSettings | undefined,
+  modelId: string,
+  capabilities?: TeamSettingCapabilities,
+): string | undefined {
+  const effort = settings?.effort
+  if (effort !== undefined) {
+    const tiers = capabilities?.effortTiers ?? knownEffortTiers(modelId)
+    if (effort === '' || tiers?.every((tier) => tier !== effort) === true)
+      return unsupportedSetting('effort', effort, modelId)
+  }
+  const outputCap = settings?.outputCap
+  const maximum = capabilities?.maxOutputTokens
+  return outputCap !== undefined &&
+    (!Number.isSafeInteger(outputCap) ||
+      outputCap < 1 ||
+      (maximum !== undefined && outputCap > maximum))
+    ? unsupportedSetting('outputCap', outputCap, modelId)
+    : undefined
+}
+
+/**
  * A worker's saved settings against its entry model's current capabilities,
- * before the working copy exists. Unknown keys, empty or unserved efforts and
- * malformed caps refuse with their specific reason, never silently changed or
- * clamped later. Returns the specific translated reason, if any.
+ * before the working copy exists. Unknown keys, empty or unserved efforts
+ * and malformed or above-maximum caps refuse with their specific reason,
+ * never silently changed or clamped later. Returns the specific translated
+ * reason, if any.
  */
 export function validateWorkerSettings(
   settings: TeamModelSettings | undefined,
   modelId: string,
+  capabilities?: TeamSettingCapabilities,
 ): string | undefined {
   const entries = Object.entries(settings ?? {})
   for (const [key, value] of entries) {
     if (TEAM_BOUND_SETTING_KEYS.every((bound) => bound !== key))
-      return fill(UI_TEXT.teamSettingUnsupported, {
-        setting: key,
-        value: String(value),
-        model: modelId,
-      })
+      return unsupportedSetting(key, value, modelId)
   }
-  const effort = settings?.effort
-  if (effort !== undefined) {
-    const tiers = knownEffortTiers(modelId)
-    if (effort === '' || tiers?.every((tier) => tier !== effort) === true)
-      return fill(UI_TEXT.teamSettingUnsupported, {
-        setting: 'effort',
-        value: effort,
-        model: modelId,
-      })
-  }
-  const outputCap = settings?.outputCap
-  if (outputCap !== undefined && (!Number.isSafeInteger(outputCap) || outputCap < 1))
-    return fill(UI_TEXT.teamSettingUnsupported, {
-      setting: 'outputCap',
-      value: String(outputCap),
-      model: modelId,
-    })
-  return undefined
+  return refuseUnservedSetting(settings, modelId, capabilities)
 }
 
 export type TeamEffortBase = 'low' | 'medium' | 'high'

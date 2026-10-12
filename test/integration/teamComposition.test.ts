@@ -18,7 +18,10 @@ import { metaCapabilityRecord } from '../../src/core/providers/capabilityRecord'
 import { TEAM_WORKSPACE_KEYS } from '../../src/shared/teamConversation'
 import { Usd } from '../../src/shared/usd'
 import type { UsdAmount } from '../../src/shared/usd'
-import { MODEL_API_PRICES_PER_MILLION } from '../../src/shared/constants'
+import {
+  MODEL_API_PRICES_PER_MILLION,
+  OPTIONAL_RUNTIME_AVAILABILITY,
+} from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
 import type { TeamTreeData } from '../../src/shared/teamView'
 import { workerEnvironment } from '../../src/core/team/workers/workerEnv'
@@ -50,6 +53,9 @@ suite('saved team composition in VS Code', () => {
     let consentCount = 0
     const managers: ModelApiBackendManager[] = []
     let binding: TeamHostBinding | undefined
+    // The feature's own suites run with the release latch open
+    // (teamAvailability certifies the closed latch); the latch ships closed.
+    OPTIONAL_RUNTIME_AVAILABILITY.team = true
     try {
       await git(['init', '--initial-branch=main'], repo, undefined, env)
       await writeFile(path.join(repo, 'tracked.txt'), 'before\n')
@@ -331,6 +337,7 @@ suite('saved team composition in VS Code', () => {
       assert.ok(stored, 'task claims and their settlement are persisted')
       panel.dispose()
     } finally {
+      OPTIONAL_RUNTIME_AVAILABILITY.team = false
       await binding?.dispose()
       for (const manager of managers) await manager.dispose()
       channel.dispose()

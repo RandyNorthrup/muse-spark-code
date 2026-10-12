@@ -43,6 +43,25 @@ const limit = (observedAt: number, raw: UsageLimitSnapshot['raw']): UsageLimitSn
   windows: [],
   raw,
 })
+const stamped = (
+  provider: string,
+  observedAt: number,
+  observedAccount: string,
+): UsageLimitSnapshot => ({
+  ...limit(observedAt, { 'x-ratelimit-limit-requests': '10000' }),
+  provider,
+  observedAccount,
+})
+const offersWith = (
+  current: Record<string, string | undefined>,
+  limits: readonly UsageLimitSnapshot[],
+): ReturnType<typeof buildTeamModelOffers> =>
+  buildTeamModelOffers({
+    ...input,
+    engine: [engine(), engine('openai')],
+    limits,
+    currentAccountOf: (provider: string) => current[provider],
+  })
 describe('captured team discovery', () => {
   it('uses the documented Meta tier under the machine ceiling', () => {
     expect(buildTeamModelOffers(input).offers[0]).toMatchObject({
@@ -72,17 +91,13 @@ describe('captured team discovery', () => {
     expect(result.absent).toEqual([{ provider: 'openai', reason: 'limits' }])
   })
   it('drops a replaced key quota and omits offers unknown for the current account', () => {
-    const stamped = (observedAt: number, observedAccount: string): UsageLimitSnapshot => ({
-      ...limit(observedAt, { 'x-ratelimit-limit-requests': '10000' }),
-      observedAccount,
-    })
     // The old account's generous headers no longer produce a ceiling once the
     // key changes, even though they are newer than nothing: the offer is
     // omitted with the limits reason.
     const switched = buildTeamModelOffers({
       ...input,
       engine: [engine('openai')],
-      limits: [stamped(2, 'old-account')],
+      limits: [stamped('openai', 2, 'old-account')],
       currentAccountOf: () => 'new-account',
     })
     expect(switched.offers).toEqual([])
@@ -100,11 +115,28 @@ describe('captured team discovery', () => {
     const current = buildTeamModelOffers({
       ...input,
       engine: [engine('openai')],
-      limits: [stamped(1, 'old-account'), stamped(2, 'new-account')],
+      limits: [stamped('openai', 1, 'old-account'), stamped('openai', 2, 'new-account')],
       currentAccountOf: () => 'new-account',
     })
     expect(current.offers).toHaveLength(1)
     expect(current.absent).toEqual([])
+  })
+  // P2-4: identity is per provider. Meta plus OpenAI configured, rotate only
+  // the OpenAI key: the old OpenAI quota gives no offer, Meta is untouched.
+  it('keeps each provider on its own credential identity when one key rotates', () => {
+    const rows = [stamped('meta', 1, 'meta-account'), stamped('openai', 2, 'openai-old')]
+    // Before rotation both offer.
+    const before = offersWith({ meta: 'meta-account', openai: 'openai-old' }, rows)
+    expect(before.offers.map((offer) => offer.ref)).toContain('engine:muse-spark-1.3')
+    expect(before.offers.map((offer) => offer.ref)).toContain('engine:openai/captured')
+    // After rotating only the OpenAI key the old OpenAI quota gives no offer.
+    const rotated = offersWith({ meta: 'meta-account', openai: 'openai-new' }, rows)
+    expect(rotated.offers.map((offer) => offer.ref)).toContain('engine:muse-spark-1.3')
+    expect(rotated.offers.map((offer) => offer.ref)).not.toContain('engine:openai/captured')
+    expect(rotated.absent).toContainEqual({ provider: 'openai', reason: 'limits' })
+    // A provider with no known identity keeps legacy unattributed matching.
+    const unknown = offersWith({ meta: 'meta-account' }, rows)
+    expect(unknown.offers.map((offer) => offer.ref)).toContain('engine:openai/captured')
   })
   it('does not mistake daily Groq requests or router upstreams for provider RPM', () => {
     expect(

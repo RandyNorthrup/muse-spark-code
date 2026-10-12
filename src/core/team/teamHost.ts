@@ -47,6 +47,7 @@ import type { TeamWorkerConfirmation } from '../../shared/paid'
 import {
   TEAM_WORKSPACE_KEYS,
   decideTeamConversationMode,
+  isTeamAvailable,
   readTeamWorkspaceHint,
 } from '../../shared/teamConversation'
 import { teamAgentSwitchFields, teammateIdleFields } from '../backends/modelapi/extensionHooks'
@@ -399,7 +400,7 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
     if (orchestratorModelId !== undefined) lastModel = orchestratorModelId
     const entries = customEntries()
     return {
-      teamSwitchOn: deps.settings.isTeamOn(),
+      teamSwitchOn: isTeamAvailable(deps.settings.isTeamOn()),
       soloTemplate: readTeamWorkspaceHint(deps.state).soloTemplate,
       orchestratorModelId: orchestratorModel(),
       customEntries: entries.map((entry) => ({
@@ -1869,7 +1870,11 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
       // The declared setup probes run only where the team could run: never
       // with the switch off, on Solo, for the orchestrator's own model, for an
       // agent this editor cannot run, or for a key entry while `teamWorkers` is off.
-      if (isClosed() || !deps.settings.isTeamOn() || readTeamWorkspaceHint(deps.state).soloTemplate)
+      if (
+        isClosed() ||
+        !isTeamAvailable(deps.settings.isTeamOn()) ||
+        readTeamWorkspaceHint(deps.state).soloTemplate
+      )
         return
       for (const entry of customEntries()) {
         if (

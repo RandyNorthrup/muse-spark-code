@@ -56,6 +56,7 @@ import type { PermissionSettings } from '../../src/core/permissionSettings'
 import {
   ModelApiHost,
   ModelApiSession,
+  observationAccount,
   type ModelApiHostDeps,
 } from '../../src/core/backends/modelapi/ModelApiHost'
 import { FakeLogOutputChannel } from './helpers/fakes'
@@ -4907,6 +4908,52 @@ describe('ModelApiSession: turns', () => {
     session.dispose()
     session.dispose()
     expect(t.host.sessionCount).toBe(0)
+  })
+
+  // P2-2: a default is sent only where the model serves it; only an explicit
+  // saved or requested tier the model cannot serve is refused, with a reason.
+  it('serves effort only where the model does, refusing only explicit tiers', async () => {
+    const t = setup()
+    const session = (await t.host.startSession({
+      workspaceRoot: ROOT,
+      modelId: 'muse-spark-1.2',
+      approvalMode: 'promptUnmatched',
+    })) as ModelApiSession
+    try {
+      expect(session.servesReasoningEffort('high')).toBe(true)
+      expect(session.servesReasoningEffort('none')).toBe(true)
+      expect(session.servesReasoningEffort('max')).toBe(false)
+      await session.setReasoningEffort('high')
+      await expect(session.setReasoningEffort('max')).rejects.toThrow()
+    } finally {
+      session.dispose()
+    }
+  })
+
+  // P2-4: quota observations are stamped with the identity of the credential
+  // the provider actually used for that response.
+  it('stamps quota observations with the requesting credential per provider', () => {
+    expect(
+      observationAccount({
+        modelId: 'muse-spark-1.3',
+        attemptKeyDigest: 'transport-digest',
+        reservationAccount: 'budget-account',
+      }),
+    ).toBe('budget-account')
+    expect(
+      observationAccount({
+        modelId: 'openai/gpt-5',
+        attemptKeyDigest: 'transport-digest',
+        reservationAccount: 'budget-account',
+      }),
+    ).toBe('transport-digest')
+    expect(
+      observationAccount({
+        modelId: 'openai/gpt-5',
+        attemptKeyDigest: undefined,
+        reservationAccount: 'budget-account',
+      }),
+    ).toBe('budget-account')
   })
 
   it('sends a PDF as input_file and keeps its name in durable history', async () => {
