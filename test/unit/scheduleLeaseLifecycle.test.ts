@@ -698,7 +698,7 @@ it('removes the last expired memory tail after its predecessor settles without a
 
 it('certification identifies the actual filesystem-port bytes', async () => {
   const record = await readFile('docs/certification/m113-playbook-schedules-c-m113-4.md', 'utf8')
-  const recorded = /<!-- CM1134AR7 port SHA-256: ([a-f0-9]{64}) -->/.exec(record)?.[1]
+  const recorded = /<!-- CM1134AR8 port SHA-256: ([a-f0-9]{64}) -->/.exec(record)?.[1]
   const actual = createHash('sha256').update(source.replaceAll('\r\n', '\n')).digest('hex')
   expect(recorded).toBe(actual)
 })

@@ -537,9 +537,13 @@ PYHASH
 
 <!-- CM1134AR6 port SHA-256: 0a8062bc336a7f918b2fe7e4237ef473c75fa9aea5a6af55d47c7701b6e113ff -->
 <!-- CM1134AR7 port SHA-256: 5fae331fdc1d00fd1c779c6e5c166ac2485a002815f3402c16f4b592259bea42 -->
+<!-- CM1134AR8 port SHA-256: a56001ab13cd70e96c11fe20e97ef6aa97aa47fd0c4ce7c5920e9c271b72c238 -->
 
-`nodeScheduleFs.ts`: `0a8062bc336a7f918b2fe7e4237ef473c75fa9aea5a6af55d47c7701b6e113ff`. The lifecycle suite compares this marker
-against the actual source; a stale certification fails.
+`nodeScheduleFs.ts` markers: AR6 `0a8062bc…`, AR7 `5fae331f…`, AR8
+`a56001ab13cd70e96c11fe20e97ef6aa97aa47fd0c4ce7c5920e9c271b72c238`.
+The lifecycle suite compares the AR8 marker against the actual source; a
+stale certification fails. (Correction 2026-10-12: this line named only the
+AR6 marker while the suite already compared the AR7 one.)
 
 ### Red drills — observed failure, then byte-exact restoration
 
@@ -753,15 +757,15 @@ every suite below re-ran green on the final bytes (port `5fae331f…`, the AR7
 marker). Each drill ran its complete owning file at repository timeouts with at
 most three workers.
 
-| Drill | Deliberate break                                     | Named failure                                                                                                                         | Signal                                                                      |
-| ----- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| R7-D1 | Token proof neutralized (presence claims the handle) | `a cancelled loser never releases the live winner fence`                                                                              | red in 4 ms; file 108/112 (plus the then-stale cert marker and 2 load rows) |
-| R7-D2 | Strict fencing comparison restored                   | `acquires past … under a fence header`                                                                                                | red; hint-header case still passes, file 110/112                            |
-| R7-D3 | Shared predicate renamed                             | whole lifecycle file fails to load                                                                                                    | 0 tests run; proves matrix and production share the symbol                  |
-| R7-D4 | `serialize` skips the queue lock                     | `serializes target batches…` (new fence assertion, 548 ms) + `rejects an ownership swap`                                              | 23/25                                                                       |
-| R7-D5 | Cleanup removes the fence candidate                  | `does not unlink a replacement lease…` (intact-fence check, 85 ms) + 3 fence-dependent rows (2 hit their 5 s deadline on broken code) | 10/14                                                                       |
-| R7-D6 | JSON golden id reverted to `drills`                  | `matches the playbook JSON golden…`                                                                                                   | red in 17 ms; file 20/21                                                    |
-| R7-D7 | `ui.de.json` reason keys swapped                     | temporary archive round-trip proof                                                                                                    | red; file restored SHA-verified, proof file removed                         |
+| Drill | Deliberate break                                     | Named failure                                                                                                                         | Signal                                                                                                                         |
+| ----- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| R7-D1 | Token proof neutralized (presence claims the handle) | `a cancelled loser never releases the live winner fence`                                                                              | red in 4 ms; file 108/112 (plus the then-stale cert marker and 2 load rows)                                                    |
+| R7-D2 | Strict fencing comparison restored                   | `acquires past … under a fence header`                                                                                                | red; hint-header case still passes, file 110/112                                                                               |
+| R7-D3 | Shared predicate renamed                             | whole lifecycle file fails to load                                                                                                    | 0 tests run; proves the test imports the symbol (production's use is read at `nodeScheduleFs.ts:501`, not proved by the drill) |
+| R7-D4 | `serialize` skips the queue lock                     | `serializes target batches…` (new fence assertion, 548 ms) + `rejects an ownership swap`                                              | 23/25                                                                                                                          |
+| R7-D5 | Cleanup removes the fence candidate                  | `does not unlink a replacement lease…` (intact-fence check, 85 ms) + 3 fence-dependent rows (2 hit their 5 s deadline on broken code) | 10/14                                                                                                                          |
+| R7-D6 | JSON golden id reverted to `drills`                  | `matches the playbook JSON golden…`                                                                                                   | red in 17 ms; file 20/21                                                                                                       |
+| R7-D7 | `ui.de.json` reason keys swapped                     | temporary archive round-trip proof                                                                                                    | red; file restored SHA-verified, proof file removed                                                                            |
 
 The D4 drill additionally exposed a lane regression while broken: the moved
 `journal-boundaries` store used the fixture port while the test spied on a
@@ -796,3 +800,74 @@ the lead runs these outside): `test/e2e/execStdio.e2e.test.ts`,
 `test/e2e/acpStdio.e2e.test.ts`, `test/e2e/reports.e2e.test.ts`,
 `test/e2e/schedulesStdio.e2e.test.ts` and every other `test/e2e/*` and
 `test/integration/*` file. No suite run here launches a browser.
+
+## CM1134AR8 — RVAPP-CM1134AR7 findings (2026-10-12, kubuntu)
+
+Every P2, P3-A…P3-G finding is fixed in-lane; no residuals. Siblings of each
+kind were swept (other `.released` publishers: only the fixed cleanup
+publishes schedule release markers in `src/`; other 120 s waits narrowed
+where a child process could leak; the heartbeat-race sibling got the same
+up-front cleanup).
+
+| Finding                    | Fix                                                                                                                                                                                                                                                                                 | Regression test                                                                                          | Red drill                                                                                            |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| P2-A forged fence          | `OwnedScheduleFence` is a class with a private constructor; the single `issue()` factory records handles in a module-private WeakSet; `releaseScheduleFence` (the only release-marker publisher) refuses unissued, re-released or foreign handles with `scheduleQueueOwnershipLost` | `refuses a forged, re-released or foreign fence handle…` (clone, cross-release, double release; no cast) | D-A: drop the set check → red; restored `a56001ab…`                                                  |
+| P2-B blind queue test      | workers stamp attempt/enter/leave; the holder leaves only after the release file plus a 1 s-old waiter attempt, so overlap is forced without the lock                                                                                                                               | `serializes target batches…` interval assertions (attempt-before-leave, no intersection)                 | D-B: `serialize` skips the lock → red (`start waiting start end end`); restored `a56001ab…`          |
+| P2-C timeout cleanup       | `onTestFinished` settlement registered before the first awaited pause (takeover, heartbeat-takeover, heartbeat-race, queue workers) + expected-timeout abandonment pairs                                                                                                            | `an abandoned pause…` / `abandoned queue workers…` follow-ups prove nothing runs after a timeout         | D-C1/D-C2: drop the registration → follow-up times out; restored `8e24f9cf…` / `7cc2624a…`           |
+| P2-D cold start            | win32-only PowerShell warm-up inside the fixture hook; per-test handles unchanged and warm                                                                                                                                                                                          | suites stay inside unchanged deadlines (Windows run needed)                                              | Windows-only; listed for the reviewer                                                                |
+| P3-a memory-only collision | collision runs on disk and memory rows; explicit throws replace the silent optional-guard call                                                                                                                                                                                      | `cancelled loser releases nothing (disk/memory)`                                                         | D-E: EEXIST always wins → red on the disk row only; restored `a56001ab…`                             |
+| P3-b hand-built heartbeat  | bytes captured from the base-commit port shape (`03d5d6607`: pulse is `JSON.stringify(owner)` without `fencingToken`) replayed on both ports; fence row named as the regression row                                                                                                 | `previous-version heartbeat (disk/memory)`                                                               | D-F: strict comparison → red on both fence rows, hint rows pass; restored `a56001ab…`                |
+| P3-c pre-decision asserts  | takeover assertions wait for two post-link fence re-reads (the taker's wait-loop decision)                                                                                                                                                                                          | `does not unlink a replacement lease…`                                                                   | D-M: identity always matches → taker mis-acquires, `await taker` throws; restored `a56001ab…`        |
+| P3-d dead branch           | `taskNames` parameter and its `beforeEach` branch removed (no caller passed it)                                                                                                                                                                                                     | suites + typecheck                                                                                       | n/a (deletion; `grep taskNames` shows the helper only)                                               |
+| P3-e cert honesty          | marker chain corrected above; R7-D3 cell corrected (renaming proves the test imports the symbol; production's use is read at `nodeScheduleFs.ts:501`); this record                                                                                                                  | AR8 marker test                                                                                          | n/a                                                                                                  |
+| P3-f migrate cost          | `completeMigration` returns its completion-time snapshot: verification needs no second journal read and no pending-copy rewrite (8 → 5 journal transactions per entry; file-fallback completion keeps crash retries converging); mismatch seam moved to the snapshot                | full migrate suite + numbers below                                                                       | n/a by design (behavior-preserving; the numbers are the proof)                                       |
+| P3-g hint race             | hint retired before the release, only on the completed path whose fresh heartbeat proves no successor can exist, and only when the hint's own bytes carry our token; abort paths leave the hint to expiry                                                                           | order, abort-keeps-hint and successor-keeps-hint rows on both ports                                      | D-G1 (release-first order) and D-G2 (unconditional retire) → red on both ports; restored `a56001ab…` |
+
+`store.ts` (`1e5399c9…`) and `migrate.ts` (`949d9fcf…`) were never mutated
+during drills. All nine AR8 drills ran their complete owning file at
+repository timeouts with `--maxWorkers=3` against the final bytes; every
+restoration was verified byte-exact by SHA-256 before the next drill.
+
+### P3-f numbers (kubuntu, `--maxWorkers=3`, repository timeouts)
+
+Per-entry cost before: 8 journal transactions (receipt read, list, receipt
+save, create, list, receipt re-read, pendingCopy clear, complete), ~183 ms of
+~121 port ops for one real-disk entry. After: 5 (receipt read, list, receipt
+save, create, complete with snapshot), per-test sums 4227 ms → 3108 ms
+(−26%).
+
+- Alone before: file 4448 ms (slowest: crash-receipts 920, later-jobs 856,
+  atomic-receipt 765, raced-copy 705).
+- Alone after: per-test slowest crash-receipts 609, later-jobs 753,
+  atomic-receipt 322, raced-copy 639, changed 314; file 2581 ms.
+- Beside `scheduleStore` + `scheduleFs` before: 5742 ms file, green.
+- Beside `scheduleStore` + `scheduleFs` after, three runs: 3192 / 2981 /
+  3927 ms files, 56 passed + 2 expected-fail each, rig loads ~7–8.5.
+- The 5 s red did not reproduce on this rig (max load ~8.5 here against ~22
+  in the related closure); the removed leases are the measured cost, and the
+  slowest test now stands ~35% further from the deadline.
+
+### AR8 verification (kubuntu)
+
+- `scheduleLeaseLifecycle` 122/122 (after the AR8 marker fix), `scheduleFs`
+  15 passed + 1 expected fail (16), `scheduleStore` 26 passed + 1 expected
+  fail (27), `scheduleMigrate` 15/15.
+- Dependents closure (`vitest related` over the three changed sources):
+  13 files, 350 passed + 2 expected fail; 2 failures addressed below.
+- `tsc --noEmit` clean; ESLint 0 on all eight changed files; Prettier clean;
+  knip exit 0 (2 pre-existing config hints); `npm run build` budgets hold
+  for extension 550.7/600 KiB and Model API 515.8/525 KiB.
+- The two `it.fails` abandonment pairs use named short deadlines (300 ms,
+  2000 ms) for one reason: to force the timeout-abandonment path on purpose.
+  No other deadline changed anywhere.
+- Pre-existing, out of lane scope, inputs byte-identical at the lane base:
+  `paidMoneyStructure` flags 5 money-named leaves under `src/core/usage/`
+  (untouched by this lane; fixing it would widen the diff), and
+  `dist/usagePanel.js` builds 75.1/75 KiB (no lane symbol in the bundle).
+- Load flakes observed once each, green in isolation and on rerun:
+  `removes the last expired memory tail` (1 of 6 full-file runs) and `stops
+abort behind disk.openFolder` (in one 13-file related run at high load).
+- NOT RUN HERE, for the reviewer: `test/unit/scheduleFs.test.ts` on Windows
+  (PowerShell warm-up, native handles), every `test/e2e/*` and
+  `test/integration/*` (sandbox has no loopback/ browsers/process listing).
+  No suite run here launches a browser. No model or vendor call was made.

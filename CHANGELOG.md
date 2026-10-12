@@ -9,6 +9,15 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **Schedule fence ownership is unforgeable and cleanups settle on timeout** (CM1134AR8).
+  The fence handle is issued only for a proved publication and release verifies
+  it, refusing forged, re-released or foreign handles. Cleanup retires the hint
+  before publishing the release and only on the completed path, never taking
+  another holder's hint. Takeover and queue cases register their settlement up
+  front so a timeout leaves nothing running, the queue test proves
+  non-overlapping critical sections across real processes, and migration
+  verifies from the completion snapshot with fewer journal transactions.
+
 - **A cancelled schedule contender can no longer release the winner's fence** (CM1134AR7).
   Only the exclusive-publication success path constructs the release handle, and
   an interrupted publication is claimed only when the stored bytes carry the
