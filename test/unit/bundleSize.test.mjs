@@ -6,6 +6,25 @@ vi.mock('node:fs', () => ({ existsSync: vi.fn(), readFileSync: vi.fn(), statSync
 const CONTENT_FILE = 'dist/whatsNew.json'
 const CONTENT_BUDGET_BYTES = 40 * 1024
 
+// The mandatory team surfaces every models metafile carries: the gate
+// (check-bundle-size.mjs) refuses a models metafile that misses or
+// duplicates any of them, so every fixture below includes them.
+const TEAM_SECTION_CHUNKS = [
+  ['dist/webview/chunks/models-roles.js', 'src/webview/models/sections/roles/RolesSection.tsx'],
+  ['dist/webview/chunks/models-role-editor.js', 'src/webview/models/sections/roles/RoleEditor.tsx'],
+  ['dist/webview/chunks/models-agents.js', 'src/webview/models/sections/agents/AgentsSection.tsx'],
+  ['dist/webview/chunks/models-team-validators.js', 'src/shared/teamPanelDefinition.ts'],
+]
+
+function teamSectionOutputs() {
+  return Object.fromEntries(
+    TEAM_SECTION_CHUNKS.map(([file, source]) => [
+      file,
+      { imports: [], inputs: { [source]: { bytesInOutput: 1 } } },
+    ]),
+  )
+}
+
 function mockWebviewMeta(
   meta,
   models,
@@ -13,6 +32,7 @@ function mockWebviewMeta(
   sectionChunks = [
     ['dist/webview/chunks/models-providers.js', 'src/webview/models/ProvidersSection.tsx'],
     ['dist/webview/chunks/models-models.js', 'src/webview/models/ModelsSection.tsx'],
+    ...TEAM_SECTION_CHUNKS,
   ],
   bodyInputs,
 ) {
@@ -119,11 +139,13 @@ describe('bundled What’s New content budget', () => {
     ['models models section', 13],
   ])('refuses a missing deferred %s chunk instead of an ok 0 KiB line', async (name, budget) => {
     // No output carries either section source: both groups are empty.
+    // The mandatory team surfaces stay present, so the test reaches the
+    // section MISS it asserts instead of the team gate's refusal.
     mockWebviewMeta(
       { outputs: { 'dist/webview/main.js': { imports: [] } } },
       undefined,
       undefined,
-      [],
+      [...TEAM_SECTION_CHUNKS],
     )
     await expect(import('../../scripts/check-bundle-size.mjs')).rejects.toThrow('exit 1')
     expect(console.log).toHaveBeenCalledWith(
@@ -158,7 +180,7 @@ describe('bundled What’s New content budget', () => {
           },
         },
         undefined,
-        [[otherChunk, otherSource]],
+        [[otherChunk, otherSource], ...TEAM_SECTION_CHUNKS],
         { [source]: { bytesInOutput: 1 } },
       )
       await expect(import('../../scripts/check-bundle-size.mjs')).rejects.toThrow('exit 1')
@@ -195,6 +217,7 @@ describe('bundled What’s New content budget', () => {
         'dist/webview/models.js': { imports: [] },
         'dist/webview/usage.js': { imports: [] },
         'dist/webview/whatsNew.js': { imports: [] },
+        ...panelFixtureOutputs(),
       },
     })
     statSync.mockImplementation((file) => ({ size: file.endsWith('usage.js') ? 200 * 1024 : 0 }))
@@ -278,6 +301,7 @@ describe('bundled What’s New content budget', () => {
           [other]: { imports: [] },
           'dist/webview/usage.js': { imports: [] },
           [eager]: { imports: [] },
+          ...panelFixtureOutputs(),
         },
       })
       statSync.mockImplementation((file) => ({
@@ -415,6 +439,33 @@ describe('bundled What’s New content budget', () => {
     expect(console.log).toHaveBeenCalledWith('MISS dist/whatsNew.json: not built (budget 40 KiB)')
   })
 })
+
+// A complete models/usage page pair for fixtures that inline the whole
+// metafile: the panel bodies, the deferred section closures and the
+// mandatory team surfaces, so the gate reaches the assertion the test
+// names instead of refusing an incomplete page.
+function panelFixtureOutputs(extra = {}) {
+  return {
+    'dist/webview/chunks/models-body.js': {
+      imports: [],
+      entryPoint: 'src/webview/models/panel.tsx',
+    },
+    'dist/webview/chunks/usage-body.js': {
+      imports: [],
+      entryPoint: 'src/webview/usage/UsageApp.tsx',
+    },
+    'dist/webview/chunks/models-providers.js': {
+      imports: [],
+      inputs: { 'src/webview/models/ProvidersSection.tsx': { bytesInOutput: 1 } },
+    },
+    'dist/webview/chunks/models-models.js': {
+      imports: [],
+      inputs: { 'src/webview/models/ModelsSection.tsx': { bytesInOutput: 1 } },
+    },
+    ...teamSectionOutputs(),
+    ...extra,
+  }
+}
 
 function pacingFixture(pacingBytes, deferredBytes = 0) {
   mockWebviewMeta({

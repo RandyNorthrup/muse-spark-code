@@ -218,6 +218,7 @@ beforeAll(async () => {
         teamScheduler: 'src/core/team/teamSchedulerEntry.ts',
         teamRunners: 'src/host/runners/teamRunnersEntry.ts',
         teamHost: 'src/host/team/teamHostEntry.ts',
+        teamEngine: 'src/host/team/teamEngineEntry.ts',
         teamFileIo: 'src/core/team/workers/workerToolIoEntry.ts',
         teamMerge: 'src/core/team/teamMergeFlow.ts',
       },
@@ -371,7 +372,11 @@ function runLegalGate(name: string) {
       },
       ...Object.fromEntries(
         [
+          'src/webview/models/ProvidersSection.tsx',
+          'src/webview/models/Wizard.tsx',
+          'src/webview/models/ModelsSection.tsx',
           'src/webview/models/sections/roles/RolesSection.tsx',
+          'src/webview/models/sections/roles/RoleEditor.tsx',
           'src/webview/models/sections/agents/AgentsSection.tsx',
           'src/shared/teamPanelDefinition.ts',
         ].map((source) => [
