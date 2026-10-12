@@ -17,6 +17,8 @@ import { memoryContextIo } from './helpers/fakeContextIo'
 import { noopToolIo } from './helpers/fakeToolIo'
 import { fakeManagerDeps } from './helpers/modelApiManager'
 import type { ToolIo } from '../../src/core/backends/modelapi/tools'
+import type { ProviderClient } from '../../src/core/backends/modelapi/client'
+import type { ModelApiHostDeps } from '../../src/core/backends/modelapi/ModelApiHost'
 import { ModelApiSession } from '../../src/core/backends/modelapi/ModelApiHost'
 import { VerifyLedger } from '../../src/core/backends/modelapi/verifyLedger'
 import { EditReview } from '../../src/host/editor/editReview'
@@ -88,6 +90,7 @@ function managerOn(
     Pick<
       ModelApiBackendManagerDeps,
       | 'createMcpServers'
+      | 'createProviderClient'
       | 'ideTools'
       | 'isObservationPackingOn'
       | 'newId'
@@ -709,6 +712,36 @@ it('R4-2: the worker host awaits its priced request reservation before transport
     expect(m.api.responseBodies()).toHaveLength(1)
   } finally {
     held.resolve(undefined)
+    await worker.close()
+    await m.manager.dispose()
+  }
+})
+
+it('hands the host usage kind to the provider client factory (worker for team workers)', async () => {
+  // The bundle entry threads the kind (RVCM96B2 P1-14): the always-loaded
+  // manager passes the factory through untouched.
+  const seen: unknown[] = []
+  const m = managerOn('/ws', undefined, new FakeLogOutputChannel(), undefined, {
+    createProviderClient: (meta: ProviderClient, usageKind?: ModelApiHostDeps['usageKind']) => {
+      seen.push(usageKind)
+      return Promise.resolve(meta)
+    },
+  })
+  const worker = await m.manager.buildTeamWorkerHost(
+    '/copy',
+    () => undefined,
+    () => undefined,
+    undefined,
+    (io) => io,
+  )
+  try {
+    const attempt = await m.manager.buildAttemptHost('/trial', () => undefined)
+    try {
+      expect(seen).toEqual(['worker', 'bestOfN'])
+    } finally {
+      await attempt.close()
+    }
+  } finally {
     await worker.close()
     await m.manager.dispose()
   }

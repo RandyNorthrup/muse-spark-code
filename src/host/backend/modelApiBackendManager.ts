@@ -69,10 +69,7 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly paidAuthority?: ModelApiClientDeps['paidAuthority']
   readonly reservePaidRequest?: ModelApiClientDeps['reservePaidRequest']
   readonly judge?: ModelApiHostDeps['judge']
-  readonly createProviderClient?: (
-    client: Parameters<NonNullable<ModelApiBundleDeps['createProviderClient']>>[0],
-    usageKind?: ModelApiHostDeps['usageKind'],
-  ) => ReturnType<NonNullable<ModelApiBundleDeps['createProviderClient']>>
+  readonly createProviderClient?: ModelApiBundleDeps['createProviderClient']
   readonly getProviderAccountId?: () => Promise<string | undefined>
   readonly log: Logger
   readonly getApiKey: () => Promise<string | undefined>
@@ -316,8 +313,7 @@ export class ModelApiBackendManager {
       uiText: UI_TEXT,
       uiLocale: uiLocale(),
       ...(this.deps.createProviderClient !== undefined && {
-        createProviderClient: (client) =>
-          this.deps.createProviderClient?.(client, variant.usageKind) ?? Promise.resolve(client),
+        createProviderClient: this.deps.createProviderClient,
       }),
       client: {
         ...(this.deps.paidAuthority !== undefined && { paidAuthority: this.deps.paidAuthority }),
