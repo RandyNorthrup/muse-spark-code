@@ -488,11 +488,11 @@ export interface AgentSession {
   sendTurn(parts: readonly TurnPart[], displayText?: string): Promise<TurnSubmission>
   /**
    * Bind a caller's remaining model-call allowance for the running turn;
-   * the last call is reserved for the tools-disabled wrap-up. Present on
-   * backends that count model calls per turn (Model API); absent where the
-   * backend manages its own turn bounds.
+   * the last call is reserved for the tools-disabled wrap-up. Required on
+   * every backend so the compiler lists each implementer: a backend that
+   * manages its own turn bounds keeps the member as a no-op.
    */
-  setModelCallAllowance?(remaining: (() => number) | undefined): void
+  setModelCallAllowance(remaining: (() => number) | undefined): void
   /** Formats and repairs a user-requested Git draft in this session, under its live guards. */
   readonly gitDraftOutput?: GitDraftOutputPort
   /**

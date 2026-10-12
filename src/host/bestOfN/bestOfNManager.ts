@@ -119,7 +119,7 @@ class AttemptSession implements WorktreeSession {
   }
 
   public setModelCallAllowance(remaining: (() => number) | undefined): void {
-    this.session.setModelCallAllowance?.(remaining)
+    this.session.setModelCallAllowance(remaining)
   }
 
   public onEvent(listener: (event: WorktreeSessionEvent) => void): () => void {

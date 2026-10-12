@@ -36677,6 +36677,14 @@ threshold, ignore or rule is changed.
 
 ## 8. Escape hatches register
 
+TOOLROUNDS, 2026-10-12: `// eslint-disable-next-line
+@typescript-eslint/no-empty-function` on `MuseSession.setModelCallAllowance`
+(`src/core/backends/musecode/MuseCodeHost.ts`). `AgentSession`
+requires the member so the compiler lists every implementer (round-3
+ruling P2-D/P3-6); Muse Code manages its own turn bounds over MSP, so the
+member intentionally binds nothing. Removal guard: the host typecheck,
+which fails without the member.
+
 TOOLROUNDS, 2026-10-11: `SIXTY_REQUEST_RUNTIME_TIMEOUT_MS` (30,000 ms) in
 `test/unit/execRun.test.ts` covers only sixty real runtime admissions and
 settlements writing private journals (11.413 s measured on macbook, load 10.52).

@@ -40,8 +40,9 @@ happened, not what was planned; superseded entries are kept.
   output-limit stops carry their own evidence stop reason instead of the
   money stop, and the reference names the turn behavior on the Conversation
   entry instead of the paid budget. `setModelCallAllowance` is required on
-  the attempt session surface, so best-of-N attempts and team-task ceilings
-  reserve the wrap-up through it.
+  the attempt session surface, so best-of-N attempts reserve the wrap-up
+  through it. (Team-task ceilings return with the teams wiring lane: that
+  lane binds team tasks through the same member.)
 
 ### Added
 

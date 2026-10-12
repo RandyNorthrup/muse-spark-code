@@ -563,8 +563,15 @@ describe('model-call turn limit', () => {
             Promise.resolve({
               claimId: 'paid-claim',
               reservedUsd: PortUsd.from(1).toAmount(),
-              check: () => ({ spentUsd: 0, hasUnknownHistoricalFees: false }),
-              settle: () => Promise.resolve({ spentUsd: 0, hasUnknownHistoricalFees: false }),
+              check: () => ({
+                spentUsd: PortUsd.from(0).toAmount(),
+                hasUnknownHistoricalFees: false,
+              }),
+              settle: () =>
+                Promise.resolve({
+                  spentUsd: PortUsd.from(0).toAmount(),
+                  hasUnknownHistoricalFees: false,
+                }),
             }),
         },
       })
