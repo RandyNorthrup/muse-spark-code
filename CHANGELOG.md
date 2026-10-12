@@ -321,6 +321,17 @@ happened, not what was planned; superseded entries are kept.
   mis-record a paid call. The editor shows an ACP failure as "Internal
   error: <sentence>", today's shape for every failed turn there.
 
+- The review round's findings on that refusal are fixed as a class (M105
+  lane V R5, RVCM1054D): the Copilot client raises the refusal through the
+  provider bundle seam (one helper re-exported by the providers entry) and
+  the subscriptions bundle takes the shared type from a small leaf module,
+  so the Models panel bundle is back under its unchanged size cap and the
+  split gate passes with no codec source outside the providers bundle; the
+  ACP and exec regressions now run a real Model API session (the former
+  session double and session proxy are gone — a broken session mapping
+  fails them); and the OpenAI audio capture recipes name the audio-input
+  model `gpt-realtime-2.1` from the repository catalog instead of `gpt-5.4`.
+
 ## [0.17.1] - 2026-10-10
 
 ### Highlights

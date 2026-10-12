@@ -214,33 +214,39 @@ changed (`formatUnsupported` and `videoUnknown` already in all tables).
   `reason = describe(error)` (`ModelApiHost.ts:14055`), settled before this
   range at `settle`. Nothing else throws `ChatCodecError` into a session:
   the Copilot client (the only other thrower) sits behind the subscription
-  client's catch, which yields the error event there. The rewritten
-  `acpAgent.test.ts` case drives the REAL agent with the REAL chat encoder
-  producing the sentence (no hand-built error) and a session double that
-  replays only the real session's observable contract (sendTurn resolves,
-  then failed `turnCompleted` with the sentence as reason): the prompt
-  rejects with exactly `Internal error: gpt-6-astra is not known to take
-video.` The editor therefore shows the sentence under the SDK's fixed
-  "Internal error: " prefix — today's shape for every failed turn at ACP,
-  left for the lead to rule on.
+  client's catch, which yields the error event there. The `acpAgent.test.ts`
+  case drives the REAL agent over a REAL Model API session (the
+  `queuedAnswerBackend` host, fake transport) with the REAL chat encoder
+  producing the sentence (no hand-built error): a spy raises that same
+  refusal instance at the session client's request boundary, and the real
+  error-to-reason mapping fails the turn — no session double, no
+  hand-emitted event. The prompt rejects with exactly `Internal error:
+gpt-6-astra is not known to take video.` The editor therefore shows the
+  sentence under the SDK's fixed "Internal error: " prefix — today's shape
+  for every failed turn at ACP, left for the lead to rule on. R5 red drill:
+  replacing the mapping's `describe(error)` with a fixed string fails this
+  case (the R4 double would have stayed green).
 - P3, exec (`execRun.test.ts`, in `M105 headless attachment entry`): a
   codec refusal through the real run — real `runExec`, real in-process ACP
-  agent, real runtime backend/host, real tap and ledger — with only the
-  turn's model call doubled as in the ACP case and the sentence from the
-  real encoder. The result carries the sentence in both `error.message`
-  (`Internal error: <sentence>`, kind `failed`) and `incompleteReason`,
-  `terminal: 'failed'`, exit code 4 per the exec contract, ledger
-  `usage.requests` 0, zero `/responses` dispatches (the only fetch is the
-  `/models` catalogue lookup at session setup), zero response bodies.
+  agent, a real source-registry Model API host (the production backend
+  loads from a separately required built bundle no in-process spy reaches,
+  so the run is pointed at the same `ModelApiHost` code), real tap and
+  ledger — with only the client request boundary doubled as in the ACP
+  case and the sentence from the real encoder. The result carries the
+  sentence in both `error.message` (`Internal error: <sentence>`, kind
+  `failed`) and `incompleteReason`, `terminal: 'failed'`, exit code 4 per
+  the exec contract, ledger `usage.requests` 0, zero `/responses`
+  dispatches (the only fetch is the `/models` catalogue lookup at session
+  setup), zero response bodies. Same R5 red drill fails this case too.
 - P3, zero requests: every refusal assertion now counts. Configured
   families and mistral-plan assert the counting transport sent 0; ChatGPT
   leg asserts subscription sends 0 and Meta requests 0; Copilot leg asserts
   both plus `sendRequest`/`countTokens`/usage untouched; Meta passthrough
   asserts both legs 0; the accounting case asserts `daily.reserve` never
   called, ledger requests 0, no refusal/started/settled callbacks and zero
-  Meta requests; ACP asserts one `sendTurn` and no other provider exists
-  behind the contract replay (the sentence is pure encode, no transport);
-  exec asserts ledger requests 0, no `/responses` dispatch, no bodies.
+  Meta requests; ACP asserts the prompt rejects through the real session
+  with zero response bodies; exec asserts ledger requests 0, no
+  `/responses` dispatch, no bodies.
 - P3, route matrix: the guard now compares the covered set against the
   written-out `EXPECTED_ROUTES` (19 registry routes plus both subscription
   legs), so a registry route without a row fails the equality instead of
@@ -315,6 +321,84 @@ typed codec refusal`. Restored to SHA-256
   `copilotClient.test.ts` 52 passed, `acpAgent.test.ts` codec case passed,
   `execRun.test.ts` codec case passed (repository timeout, linuxlt,
   `--maxWorkers=3`).
+
+R5 (RVCM1054D: 1 P2, 2 P3; every finding fixed as a class, no residuals).
+The lane's files only: `src/core/media/codecRefusal.ts` (new),
+`src/core/backends/modelapi/codecs/shared.ts`,
+`src/core/providers/subscriptions/registry.ts`,
+`src/host/backend/providersEntry.ts`,
+`src/host/providers/copilotClient.ts`,
+`test/unit/deferredBundles.test.ts`, `test/unit/copilotClient.test.ts`,
+`test/unit/acpAgent.test.ts`, `test/unit/execRun.test.ts`, this record, the
+changelog. No new dependency, no guard widened, no l10n key added or
+changed, no cap moved.
+
+- P2, the bundle seam (`copilotClient.ts:8`): the R4 Copilot refusal
+  imported the codec refusal directly from `codecs/shared.ts`, copying codec
+  source into the Models panel bundle: production `dist/modelsPanel.js`
+  measured 128,160 bytes, 160 over the unchanged 128,000-byte (125 KiB)
+  cap, and the split gate named the file as providers-only. The shared
+  typed refusal now lives in the leaf module `src/core/media/codecRefusal.ts`
+  (the type, its guard and one sentence constructor, no other imports),
+  which `codecs/shared.ts` re-exports; the subscriptions bundle imports the
+  leaf directly, and the Copilot client constructs across the provider seam
+  (one `refuse()` helper re-exported by the providers entry — a namespace
+  import would wrap the external bundle and cost more than the cap holds).
+  The throwing calls sit before the `try` blocks (messages/tools built
+  before any resource is acquired in `streamResponse`, prebuilt messages
+  passed into `countInput`), so both catches need no refusal guard and the
+  error identity on every path is unchanged. Production `dist/modelsPanel.js`
+  is 127,988 bytes (base 127,820; no cap move); `check-bundle-size` and
+  `check-bundle-split` both exit 0. Sibling sweep: the only other direct
+  `codecs/shared` importer was the subscription registry, fixed the same
+  way; no other `codecs/*` value import reaches these bundles.
+- P3, ACP/exec honesty: the R4 cases pinned downstream handling of a
+  supplied event (a session double / session proxy), so a broken session
+  mapping would have stayed green. Both cases now run a REAL Model API
+  session — the ACP case over the `queuedAnswerBackend` host, the exec case
+  over the same host pointed at `runExec` through the existing
+  `createRuntimeBackend` spy seam (the production backend loads from a
+  separately required built bundle no in-process spy reaches) — with only
+  the client request boundary doubled: the refusal instance is built by the
+  real encoder and raised where the session requests the turn, before any
+  transport attempt settles. Recorded honestly: injecting at the transport
+  instead (a fetch wrapper) produces the ledger's transport shape
+  (`terminal`/`incompleteReason` null with the sentence in `error.message`),
+  and a fully-real `--attach` turn never reaches an encoder in headless
+  runs (the fetch policy refuses the upload first); neither pins the codec
+  sentence path, so neither was kept.
+- P3, recipes: items 3 and 4 named `gpt-5.4` for positive audio although
+  its catalog row lists only text, image and pdf input. Both now name
+  `gpt-realtime-2.1` (text, audio, image per `vendor/models-dev/
+snapshot.json`). Every other recipe model re-read against the catalog:
+  negatives `o3-mini`, `gpt-5.4-nano`, `claude-haiku-4-5`,
+  `gemma-4-31b-it` (no audio where audio is refused) and `grok-4.5` (no
+  video), positives `gemini-flash-latest` (video) unchanged; `llama3.2` is
+  the lane's native text-only id and `<served-id>` is read at run time.
+
+R5 drills (each file restored and SHA-256 verified equal to the pre-drill
+value):
+
+- D-R5-1, `host/providers/copilotClient.ts`: the seam import replaced with
+  a direct `codecs/shared.ts` import (a local `refuse` spelling the same
+  sentences, so behaviour is unchanged and only the bundle seam breaks);
+  `deferredBundles.test.ts` went 72 failed / 49 passed — the pre-existing
+  placement assertions fire with the review's signature
+  (`dist/modelsPanel.js carries src/core/backends/modelapi/codecs/
+shared.ts`) and the new split-guard case fails on the same file. Restored
+  to SHA-256
+  `720990da7ec9e05766bb2af9ad3ba7e38a2ce62cc9c70f67ad68055321c2487f`.
+- D-R5-2, `core/backends/modelapi/ModelApiHost.ts` (production file
+  otherwise untouched by the lane): the turn-failure mapping's
+  `describe(error)` replaced with a fixed string; the full unfiltered
+  `acpAgent` + `execRun` run went 2 failed / 240 passed — exactly the
+  rewritten ACP case and the rewritten exec case on the sentence assertions
+  (the R4 double/proxy would have stayed green). Restored to SHA-256
+  `31ab261a5b449151ff9d264ae4c2e8fcd93d10181c07ea4f68c6550222f1d5c3`.
+- Post-drill runs: `deferredBundles.test.ts` 121 passed,
+  `copilotClient.test.ts` + `vendorMediaCodecs.test.ts` 100 passed,
+  `acpAgent.test.ts` 144 passed, `execRun.test.ts` 98 passed (repository
+  timeout, linuxlt, `--maxWorkers=3`).
 
 ## Corrections to the lane-V record (RVCM1054 P3-2)
 
@@ -476,10 +560,13 @@ https://generativelanguage.googleapis.com/v1beta/models/{model}:streamGenerateCo
    a file-id form, M1 and call 2; 3 management calls when M1 runs: upload,
    delete, GET-confirm). Endpoint, verified in
    `src/core/providers/configured.ts:633`:
-   `POST https://api.openai.com/v1/responses`. Model: `gpt-5.4` (catalog id
-   at time of writing; must be an audio-input model — if it refuses, record
-   the refusal and stop: that refusal shape is item 6's OpenAI row). Header
-   names: `Authorization`, `Content-Type`.
+   `POST https://api.openai.com/v1/responses`. Model: `gpt-realtime-2.1`
+   (audio input per the catalog snapshot — text, audio and image input in
+   `vendor/models-dev/snapshot.json` at time of writing; R4 named `gpt-5.4`
+   here, whose catalog row lists only text, image and pdf input, so it could
+   never establish the positive audio evidence — if the model refuses,
+   record the refusal and stop: that refusal shape is item 6's OpenAI row).
+   Header names: `Authorization`, `Content-Type`.
 
    Call 1 body, save as `/tmp/m105-openai-responses-1.json` (field names are
    the candidate shape; confirm against the live error body and record the
@@ -487,7 +574,7 @@ https://generativelanguage.googleapis.com/v1beta/models/{model}:streamGenerateCo
 
    ```json
    {
-     "model": "gpt-5.4",
+     "model": "gpt-realtime-2.1",
      "input": [
        {
          "type": "message",
@@ -531,7 +618,7 @@ https://generativelanguage.googleapis.com/v1beta/models/{model}:streamGenerateCo
 
    ```json
    {
-     "model": "gpt-5.4",
+     "model": "gpt-realtime-2.1",
      "input": [
        {
          "type": "message",
@@ -563,7 +650,12 @@ https://generativelanguage.googleapis.com/v1beta/models/{model}:streamGenerateCo
 4. OpenAI Chat Completions audio (2 model calls, no uploads). Path
    pattern, verified in `src/core/providers/configured.ts:643`
    (`modelsList.path` with `models` replaced by `chat/completions`): `POST
-https://api.openai.com/v1/chat/completions`. Model: `gpt-5.4` as in item 3.
+https://api.openai.com/v1/chat/completions`. Model: `gpt-realtime-2.1` as
+   in item 3 (re-read against the catalog in R5: every other recipe model
+   still matches its row — `o3-mini` and `gpt-5.4-nano` are audio-incapable
+   negatives, `gemini-flash-latest` takes video, `gemma-4-31b-it` and
+   `claude-haiku-4-5` take no audio, `grok-4.5` takes no video, and
+   `llama3.2` is the lane's native text-only id).
    Header names: `Authorization`, `Content-Type`.
 
    Call 1 body, save as `/tmp/m105-openai-chat-1.json` (field names are the
@@ -572,7 +664,7 @@ https://api.openai.com/v1/chat/completions`. Model: `gpt-5.4` as in item 3.
 
    ```json
    {
-     "model": "gpt-5.4",
+     "model": "gpt-realtime-2.1",
      "messages": [
        {
          "role": "user",
