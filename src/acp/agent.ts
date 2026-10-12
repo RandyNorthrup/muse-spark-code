@@ -2652,9 +2652,12 @@ class AgentState {
 function requestFailureText(error: unknown, privateText: readonly string[]): string {
   if (isMspFailure(error)) return failureForLog(error)
   if (!(error instanceof Error)) return 'an unknown failure'
-  const detail = redactSecrets(error.message, privateText).replaceAll(
-    /\b(?:authorization|[\w-]*api[-_]key|headers?)\s*[:=][^\r\n;]*/giu,
-    '[redacted]',
+  const detail = redactSecrets(
+    error.message.replaceAll(
+      /\b(?:authorization|[\w-]*api[-_]key|headers?)\s*[:=][^\r\n;]*/giu,
+      '[redacted]',
+    ),
+    privateText,
   )
   return `${failureForLog(error)}: ${detail}`
 }

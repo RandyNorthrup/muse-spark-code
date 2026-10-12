@@ -77,7 +77,7 @@ describe('ACP local usage command', () => {
           sessionId,
           prompt: [{ type: 'text', text: 'Explain /usage in this sentence' }],
         }),
-      ).rejects.toThrow('Internal error')
+      ).rejects.toThrow(UI_TEXT.actionFailed)
     })
     expect(h.usage.read).not.toHaveBeenCalled()
     expect(h.host.sessions[0]?.sendTurn).toHaveBeenCalledOnce()

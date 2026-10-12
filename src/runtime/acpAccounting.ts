@@ -20,7 +20,7 @@ const settingsSchema = z.object({
 export function createAcpAccounting(options: {
   recording: UsageRecording
   isEnabled: () => boolean
-  runtime: RuntimeBackend
+  runtime: Pick<RuntimeBackend, 'readUsageBudgets'>
   dataFolder: string
   now: () => number
   sleep: (ms: number) => Promise<void>
@@ -64,17 +64,16 @@ export function createAcpAccounting(options: {
         ),
       ]
       const snapshots = await options.runtime.readUsageBudgets()
-      for (const { budget } of snapshots) {
+      for (const { budget, exact } of snapshots) {
         if (budget.id !== sessionId || budget.kind !== 'conversation') continue
+        if (exact === undefined) throw new Error('Exact usage budget unavailable')
         budgets.push(
           acpBudget(
             'session',
-            budget.capUsd === undefined || budget.capUsd === 0
-              ? undefined
-              : Usd.from(budget.capUsd).toAmount(),
-            Usd.from(budget.spentUsd).toAmount(),
-            Usd.from(budget.uncertainUsd ?? 0).toAmount(),
-            (budget.uncertainUsd ?? 0) > 0,
+            Usd.from(exact.capUsd).compare(Usd.from(0)) === 0 ? undefined : exact.capUsd,
+            exact.spentUsd,
+            exact.uncertainUsd,
+            exact.hasUnknownCost,
           ),
         )
       }

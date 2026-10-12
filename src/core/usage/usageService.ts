@@ -1,4 +1,5 @@
 import { Usd } from '../../shared/usd'
+import type { UsdAmount } from '../../shared/usdSchema'
 // M102 / D82: the host supplies journal, live sources and user actions. No
 // editor API, filesystem path from a page, model call or fetch belongs here.
 import {
@@ -43,6 +44,13 @@ export interface UsageJournalPort {
   readonly deleteHistory: () => Promise<void>
 }
 export interface UsageBudgetRead {
+  /** Canonical ledger amounts for protocol clients; numeric page fields are display-only. */
+  readonly exact?: {
+    readonly capUsd: UsdAmount
+    readonly spentUsd: UsdAmount
+    readonly uncertainUsd: UsdAmount
+    readonly hasUnknownCost: boolean
+  }
   readonly budget: UsagePageState['budgets'][number]
   readonly firstSpendAt?: number
 }

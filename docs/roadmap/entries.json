@@ -1317,7 +1317,7 @@
     {
       "id": "ACPDOG",
       "public": false,
-      "note": "ACP and headless dogfood repairs"
+      "note": "implementation complete; dependent validation pending"
     }
   ]
 }

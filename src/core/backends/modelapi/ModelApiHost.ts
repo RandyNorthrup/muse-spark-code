@@ -16275,6 +16275,12 @@ export class ModelApiSession implements ScheduledAgentSession {
     const capUsd = this.currentBudgetCap()
     const spentUsd = total?.spentUsd ?? this.budgetSpentUsd
     return {
+      exact: {
+        capUsd,
+        spentUsd,
+        uncertainUsd: total?.uncertainUsd ?? Usd.from(0).toAmount(),
+        hasUnknownCost: total?.hasUnknownHistoricalFees ?? this.hasUnknownBudgetCost,
+      },
       budget: {
         id: this.sessionId,
         kind: 'conversation',

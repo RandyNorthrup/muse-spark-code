@@ -107,6 +107,28 @@ describe('ACPDOG exact token settlement', () => {
       expect(record.cost).toMatchObject({ upperBound: true })
     },
   )
+  it('keeps an unpriced class unknown when no positive input-side bound exists', () => {
+    expect(
+      settleUsageAmount(
+        { input: 0, output: card.output, source: 'user' },
+        {
+          inputTokens: 100,
+          cacheWriteTokens: 100,
+          outputTokens: 0,
+        },
+      ),
+    ).toBeUndefined()
+    expect(
+      settleUsageAmount(
+        { input: 0, output: card.output, cacheWrite: 0, source: 'user' },
+        {
+          inputTokens: 100,
+          cacheWriteTokens: 100,
+          outputTokens: 0,
+        },
+      ),
+    ).toBe(Usd.from(0).toAmount())
+  })
   it('retains exact settlement in the journal, including the dogfood cache-write receipt', () => {
     const record = createUsageRecord(
       {

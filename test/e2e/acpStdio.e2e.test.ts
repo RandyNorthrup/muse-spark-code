@@ -25,7 +25,7 @@ import { createRuntimeBackend } from '../../src/runtime/backends'
 import { agentDataFolder } from '../../src/runtime/dataFolder'
 import { formatAcpUsage } from '../../src/runtime/cliOptions'
 import { webReadable } from '../../src/runtime/webStreams'
-import { ACP_AGENT_NAME, SECRET_KEYS, UI_TEXT } from '../../src/shared/constants'
+import { ACP_AGENT_NAME, ACP_ERROR_CODES, SECRET_KEYS, UI_TEXT } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
 import { readUiTableFile } from '../../src/host/l10n'
 import { unpackUiTable } from '../../src/shared/l10n/packed'
@@ -261,16 +261,31 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
           sessionId,
           prompt: [{ type: 'text', text: body }],
         })
-      expect(await prompt('question-idle')).toEqual({ stopReason: 'end_turn' })
-      expect(await prompt('/questions')).toEqual({ stopReason: 'end_turn' })
+      expect(await prompt('question-idle')).toEqual({
+        stopReason: 'end_turn',
+        _meta: { 'museSpark.usage': { v: 1, available: false } },
+      })
+      expect(await prompt('/questions')).toEqual({
+        stopReason: 'end_turn',
+        _meta: { 'museSpark.usage': { v: 1, available: false } },
+      })
       expect(text(h.updates)).toContain('Colour')
-      expect(await prompt('/answer 1 Use teal')).toEqual({ stopReason: 'end_turn' })
+      expect(await prompt('/answer 1 Use teal')).toEqual({
+        stopReason: 'end_turn',
+        _meta: { 'museSpark.usage': { v: 1, available: false } },
+      })
       expect(text(h.updates)).toContain(UI_TEXT.acpQuestionAnswerQueued)
       const first = h.updates.length
-      expect(await prompt('Continue')).toEqual({ stopReason: 'end_turn' })
+      expect(await prompt('Continue')).toEqual({
+        stopReason: 'end_turn',
+        _meta: { 'museSpark.usage': { v: 1, available: false } },
+      })
       expect(text(h.updates.slice(first))).toContain('Use teal')
       const second = h.updates.length
-      expect(await prompt('Continue again')).toEqual({ stopReason: 'end_turn' })
+      expect(await prompt('Continue again')).toEqual({
+        stopReason: 'end_turn',
+        _meta: { 'museSpark.usage': { v: 1, available: false } },
+      })
       expect(text(h.updates.slice(second))).not.toContain('Use teal')
     })
   })
@@ -412,9 +427,9 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
       return [await ask('hello'), await ask('tool: echo allowed'), await ask('tool: echo deny me')]
     })
     expect([reply, allowed, denied]).toEqual([
-      { stopReason: 'end_turn' },
-      { stopReason: 'end_turn' },
-      { stopReason: 'end_turn' },
+      { stopReason: 'end_turn', _meta: { 'museSpark.usage': { v: 1, available: false } } },
+      { stopReason: 'end_turn', _meta: { 'museSpark.usage': { v: 1, available: false } } },
+      { stopReason: 'end_turn', _meta: { 'museSpark.usage': { v: 1, available: false } } },
     ])
     // A host that cannot start names its cause in the agent's log.
     expect(text(agent.updates), agent.stderr.join('')).not.toContain(
@@ -447,7 +462,10 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
       await client.notify('session/cancel', { sessionId })
       return [await running, await client.request('session/list', { cwd: workspace })]
     })
-    expect(stopped).toEqual({ stopReason: 'cancelled' })
+    expect(stopped).toEqual({
+      stopReason: 'cancelled',
+      _meta: { 'museSpark.usage': { v: 1, available: false } },
+    })
     expect(listed.sessions.length).toBeGreaterThan(0)
   })
 
@@ -461,7 +479,8 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
     // has none (a Linux runner without a Secret Service). Never a session.
     const refused = modelApi.run((client) => newSession(client))
     await expect(refused).rejects.toSatisfy(
-      (error: { code?: number }) => error.code === -32_000 || error.code === -32_603,
+      (error: { code?: number }) =>
+        error.code === -32_000 || error.code === ACP_ERROR_CODES.unavailable,
     )
     expect(modelApi.wire.join('')).not.toMatch(/LLM\|/)
   })

@@ -402,6 +402,13 @@ export function settleUsageCost(
   const write1hRate = rates.write1h ?? highest
   const read = usage.cachedTokens ?? 0
   const { standard: written5m, oneHour: written1h } = splitCacheWrites(usage)
+  if (
+    highest === 0 &&
+    ((read > 0 && rates.read === undefined) ||
+      (written5m > 0 && rates.write === undefined) ||
+      (written1h > 0 && rates.write1h === undefined))
+  )
+    return undefined
   const fresh = usage.inputTokens - read - written5m - written1h
   const usd = Usd.from(inputRate)
     .times(fresh)

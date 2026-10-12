@@ -9,7 +9,7 @@ import { questionDeferSeconds } from '../../src/shared/questionDeadline'
 import { questionCommand, questionForm } from '../../src/acp/questions'
 import { parseCommandLine } from '../../src/runtime/cliArgs'
 import { SteerRefusedError, type TurnSubmission } from '../../src/core/agent/agentBackend'
-import { UI_TEXT } from '../../src/shared/constants'
+import { ACP_ERROR_CODES, UI_TEXT } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
 import { FakeAgentHost, museCodeTestBackend } from './helpers/fakeAgent'
 import { memoryPaidGrants } from './helpers/paidGrants'
@@ -515,7 +515,10 @@ function agentHarness(
     await client.connectWith(agent, async (context) => {
       await context.request('initialize', {
         protocolVersion: acp.PROTOCOL_VERSION,
-        clientCapabilities: hasForms ? { elicitation: { form: {} } } : {},
+        clientCapabilities: {
+          session: { notices: {} },
+          ...(hasForms && { elicitation: { form: {} } }),
+        },
       })
       await context.request('session/new', { cwd: CWD, mcpServers: [] })
       await op(context)
@@ -840,7 +843,16 @@ describe('M112 through the pinned ACP SDK client', () => {
       await until(() => h.session.sendTurn.mock.calls.length === 2)
       h.finish('turn-2')
       await next
-      expect(JSON.stringify(h.updates)).toContain(UI_TEXT.announceLateAnswerSent)
+      expect(h.updates).toContainEqual({
+        sessionUpdate: 'notice',
+        severity: 'info',
+        title: UI_TEXT.announceLateAnswerSent,
+      })
+      expect(
+        JSON.stringify(
+          h.updates.filter((update) => update.sessionUpdate === 'agent_message_chunk'),
+        ),
+      ).not.toContain(UI_TEXT.announceLateAnswerSent)
       expect(h.registries[0]?.queued).toHaveLength(0)
     })
   })
@@ -964,11 +976,16 @@ describe('M112 through the pinned ACP SDK client', () => {
       const starting = Promise.withResolvers<TurnSubmission>()
       h.session.sendTurn.mockReturnValueOnce(starting.promise)
       const response = h.prompt(client, 'first')
-      const rejection = expect(response).rejects.toThrow('Internal error')
+      const rejection = expect(response).rejects.toMatchObject({
+        code: ACP_ERROR_CODES.internal,
+        message: UI_TEXT.actionFailed,
+      })
       await until(() => h.session.sendTurn.mock.calls.length === 1)
       await expect(h.prompt(client, 'concurrent')).rejects.toThrow(UI_TEXT.acpPromptBusy)
       starting.reject(new Error('send failed'))
       await rejection
+      expect(h.log.error).toHaveBeenCalledOnce()
+      expect(JSON.stringify(h.log.error.mock.calls)).toContain('send failed')
       expect(registry.releaseQueued).toHaveBeenCalledTimes(1)
       expect(registry.commitQueued).not.toHaveBeenCalled()
       const retry = h.prompt(client, 'retry')
