@@ -117,46 +117,35 @@ five-second test deadlines.
 
 ## Single certification switch and merged restore list
 
-The lead changes `SCHEDULE_EDITOR_DELIVERY_CERTIFICATION.isReady` in
-`src/shared/constants.ts` from false to true only after qualification. The
-runtime binding applies the same switch to window, ACP and CLI ports. Tests
-change it only in their fixture. `/loop` remains its existing manual flow.
+SCHEDULE_EDITOR_DELIVERY_CERTIFICATION.isReady remains false. The shared runtime
+availability, ACP discovery/hold port, composer/palette state, three native command
+contexts, command metadata, compact CLI help, generated Help routes/paid flag and
+translated affirmative details all derive from that one switch. After the lead
+qualifies it, flip that value and regenerate reference/roadmap in the same change.
+No second hard-coded false needs removal for these installed delivery routes.
 
-Restore the following current-surface statements together, including real
-translations in all 14 tables and regenerated reference/roadmap files:
+`m115-join-restoration.json` matches every WB item named in the available
+restore-CM115-1/2/3/5/6/7/9/10 notes, including their overlapping mechanisms and
+three historical release bullets. WB-029 stays reserved, as its note requires.
+WB-013 remains held: agent creation has no installed setting reader/agent-tool
+binding. WB-250 cannot be matched to source: settingsAvailability.ts from the
+other lane is absent. Neither is falsely exposed by certifying prompt delivery.
+Native wake/other-editor rows WB-020/027 remain with C-M115-6/9's installed
+receipts. The current draft-delivery description remains accurate after a flip;
+the schedules description in all 15 manifest tables requires certification.
 
-- Help `referenceSchedules`: "Scheduled prompts run unattended in VS Code,
-  with durable fire records, standing grants and explicit delivery modes.
-  Model API /loop jobs run when you choose Run now."
-- Help `referenceRuntimeSchedules`: "Run unattended Muse Code and Model API
-  prompts from ACP or the terminal, with session-owned output, durable fire
-  records and background conversation targets."
-- Help `referenceSchedulePaidConsent`: "Each Model API schedule has its own
-  payer/model/key/tariff/shared-budget consent and hard schedule/shared daily
-  caps. Allow once covers one fire; Allow always covers this schedule.
-  Changed bindings, grants or limits require renewal before another paid fire."
-  Change these three selectors from `scheduleDeliveryCertified=false` to
-  `scheduleDeliveryCertified=true` after restoring the affirmative words.
-- README schedule paragraph: "The v2 schedule editor, list and timeline manage
-  durable records. Certified window, ACP and CLI hosts deliver each fire through
-  the shared scheduler. Ambiguous dispatched fires are never sent again and
-  keep reserved spend; completed fires with unreadable cost remain delivered
-  with unknown cost." Retain the manual `/loop` paragraph and all paid opt-ins.
-- CHANGELOG Unreleased: "Scheduled prompts v2 joins certified VS Code, ACP and
-  CLI delivery with core-owned durable dispatch/settlement, session-owned output
-  and per-schedule Model API consent plus both daily caps. Uncertain dispatched
-  fires never replay; failed cost reads preserve delivered output and spend."
-  Remove the joined candidate's disabled-delivery sentence only after the switch.
-- ACP guide: replace its shared-switch disabled notice with the certified
-  `/schedule` delivery sentence and active schedule-specific consent/cap rules.
-- Roadmap M115 summary: reflect certified joined hosts and their known limits,
-  without claiming the still-separate native panels, event sources, team targets
-  or installed-editor/OS-wake receipts. Regenerate ROADMAP.md.
+Current README/ACP prose now scopes delivery to the disabled candidate, keeps
+manual /loop, and describes process-owned close, retained unhanded admissions,
+known withdrawals and uncertain dispatch accurately. The unbound estimator slash
+grammar retained during the merge is removed to preserve the release train's
+truth policy. Publish affirmative README/ACP/host-table claims only for qualified
+routes; the archive markers stay and a new release bullet announces them.
+Roadmap stays building until the complete milestone qualifies. The publication
+items in the JSON are release edits, not extra runtime feature switches.
 
-Keep OS-wake, native panel/TUI/node and extra paid-executor claims held until
-C-M115-6/9 and the corresponding executor lanes qualify. The production wake
-registration still uses its explicit authorization policy; do not describe
-Model API paid wakes as enabled merely because these delivery ports exist.
+Historical merge c52a9addf is not independently typecheckable: its scheduler
+references startDispatch and lookupRun before that merge's store defines them.
+Later db8b4ad72 supplies the journal contract. History is retained without rewrite.
 
 ## Dependent sweep and remaining certification
 
@@ -186,7 +175,8 @@ The dependency inventory expands to 1,145 suites because shared constants and
 English tables are changed. The sweep did not finish inside the 180-minute lane
 budget. It was stopped when an unrelated checkpoint/worktree group ceased
 producing results. Exact unexecuted files and failed receipts are retained in
-the dependent-suite ledger; do not report ALL DEPENDENT SUITES RUN.
+the dependent-suite ledger; the SCHEDJOIN2 sweep section at the end of this
+file supersedes the not-finished status once its runs land.
 
 The final core journal-contract replay passed **9/9** in runtimeScheduleHost and
 scheduleRestartRecovery. The host reads the durable journal after reload;
@@ -387,3 +377,134 @@ workspace no longer held each have a separate translated reason in all 14 UI
 tables. Target closure retains its own shortened, accurate sentence. Missed
 catch-up names its policy. The six real-store core-skip cases pass; replacing
 all reasons with target closed makes all six fail and restores byte-exact.
+
+## SCHEDJOIN2 production assembly limit
+
+The real Linux helper builds successfully. The shared fixture uses its existing
+createdDirectories port so source-loaded tests resolve the real binary without
+writing compiled artifacts into src. Backend/model/journal/session preparation
+now uses the named fixture hook budget; creation, consent, both caps at HTTP,
+result, send count and ledger assertions stay under the default five seconds.
+The window request now uses the real versioned envelope and standing consent
+expects scope schedule, not the nonexistent always variant.
+
+Two repair attempts remain red, and the engine-change continuation re-ran the
+file at the committed head and in the worktree: 0/3 in both. The observed end
+is `Error: Schedules are unavailable in this host. The runtime scheduler
+binding is required`, thrown from the background coordinator's reconcile during
+`ScheduleRuntime.close` (background OS entry unsupported on this rig), before
+any delivery assertion runs. The earlier "ran with exact cost" note does not
+match these runs; the file's receipts are the runs themselves. Per the shared
+common.md two-failed-fixes stop rule, no third repair or broader grant is tried.
+This blocks assembly certification. Delivery stays false.
+
+## SCHEDJOIN2 dependent sweep — ALL DEPENDENT SUITES RUN
+
+Engine-change continuation on kubuntu, worktree `/home/randy/lanes/SCHEDJOIN2`,
+`npx vitest run <up to 3 files> --maxWorkers=3` at repository default timeouts
+(no `--testTimeout` anywhere). Every one of the 748 remaining suites ran;
+per-file results live in `m115-join-dependent-suites.json` under
+`rigReplay.runs` (259 runs; one stale list entry,
+`test/unit/slashCommandsBundle.test.mjs`, names a file that exists nowhere
+and was retired, not run). Totals: 15,815 passing assertions; 21 files red,
+every one placed below. Three reds the sweep found were this branch's own
+merge fallout and are fixed with regression coverage in place:
+
+- `modelApiClient` 75/78: the train merge kept both sides' paid claim fence,
+  so the transport called `claim.check` twice per attempt. Fixed by removing
+  the join's in-dispatch duplicate (`src/core/backends/modelapi/transport.ts`);
+  the train's pre-dispatch fence plus `admitAttempt.check` and
+  `assertScheduleAuthority` at dispatch stay. Now 78/78.
+- `manifest` palette test: expected the old `'false'` rows; the one-switch
+  restore changed them to the certification context. Test updated. Green.
+- `featureCatalogDetails`: expected `museSpark.scheduleAgentCreation` in the
+  published reference, but the release line deliberately excludes it as a
+  dormant setting (WB-013 held: no installed setting reader). Test now asserts
+  the two restored settings carry conditions and the held one stays
+  unpublished. Green.
+- `vsixPackaging` 81/95: the merge kept the join side's stale locale key
+  order while the train had fixed it, and new keys were appended at the end;
+  the packaged archive restores EN order. All 14 `l10n/ui.*.json` files now
+  follow EN order top to bottom and through nested objects, values untouched.
+  Now 95/95; `check:l10n` clean.
+
+Red on the release train too (each reproduced on the unmodified `snap/train`
+in a clean worktree on this rig), left train-owned: `runtimeChatGpt`,
+`runtimeChatGptCallback`, `runtimeChatGptPackage` (loopback fetch refused,
+native-store D-Bus timeout); `providerOAuthLoopback` (same loopback family);
+`usageIntegration` (expects HTTP 401); `ideMcpServer` (12 hook timeouts);
+`mcpHttp`, `mcpPool`, `teamMcpBridge`, `teamMcpServer` (loopback/proxy fetch);
+`subscriptionIntegration` (ChatGPT sign-in needs real network);
+`museVoice` (one websocket timeout), `networkFailure` (`proxyRefused` vs
+`unreachable`), `pinnedRequest` (proxy 502): this rig sets `HTTPS_PROXY` and
+friends, and the proxy intercepts the fakes; `treesLinuxLaunchNative`
+(cgroup v1 vs v2: got `group`, want `cgroup`); `vault/channel`,
+`vault/execAdapters`, `vault/execHelpers`, `vault/peer`, `vault/sshTransport`
+(unix-socket listen `EPERM`/`No access` in this environment);
+`windowsTrustedPath` (rig `pwsh` is broken at OS level — snap-confine
+refuses — so its hook exits 1 on any tree; it passed 25/25 earlier today).
+
+Production build exits 0 with no cap moved. Schedules-related size rows,
+exact bytes from this build: `dist/schedules.js` 197770,
+`dist/reviewer.js` 61747, `dist/runtimeEngine.js` 694924,
+`dist/runtimeAccounting.js` 39249, `dist/scheduleBackground.js` 41256,
+`dist/webview/chunks/35G6VT62.js` (SchedulePanel) 1792,
+`dist/webview/chunks/D2RVE5RL.js` (schedule English) 5577, schedule surface
+41945 (`6243MGYS.js` 34303, `YVJ4HFUH.js` 1206, `TAPPDZEW.js` 3404,
+`D5DQDVRW.js` 1712, `7Y25DQPV.js` 1320). Receipt: `temp/schedjoin2/bytes.json`.
+
+Five real-process recovery cases (`test/e2e/scheduleSettlement.e2e.test.ts`:
+admitted/runOnce sends once; admitted/skip stays missed; dispatch-started
+never sends; sent-without-result never resends; acknowledged result retained),
+ten consecutive runs at default timeouts: 10/10 green on all five every run.
+Receipts: `temp/schedjoin2/rec10-01.json` through `rec10-10.json`.
+
+Seven migration cases (`test/unit/scheduleMigrate.test.ts`): slow under load,
+not the join — the base misses deadlines at the same load. Fixture creation
+and the empty-journal fsync moved to `beforeAll` under the named fixture hook
+budget; no test timeout raised. Now 17/17 (receipt `migration-fixed-007`;
+the sibling `it.each` split of the three crash receipts keeps every
+assertion). On the twin-bug question: the rig's cited hash 6c9f58dd5 is a
+different commit here; the actual twin fix is c/m113-4a's 8ae58f5ec
+(abort-aware lock chain, no late publish). This branch's
+`test/unit/helpers/schedules/storage.ts` still has the old shape (`await
+previous` with no abort race), but it is not the migration cause: the base
+fails the same cases at the same load, the prep repair makes them 17/17, and
+no migration case aborts a twin lock. Porting the lease-word redesign belongs
+to the M113 lane, not this one.
+
+SCHEDULE_EDITOR_DELIVERY_CERTIFICATION.isReady stays false.
+
+What Windows and macOS still owe (lead's rigs; `npx vitest run` with at most
+three files, `--maxWorkers=3`, repository defaults, no `--testTimeout`):
+
+- Windows 11: the native queue, path, process and journal cases, i.e.
+  `test/unit/treesWindows.test.ts`, `test/unit/windowsTrustedPath.test.ts`
+  (authoritative for the pwsh hook above),
+  `test/unit/windowsScreenRecorder.test.ts`,
+  `test/unit/windowsScreenRecorderBuild.test.ts`,
+  `test/unit/windowsScreenRecorderNative.test.ts`,
+  `test/unit/windowsVaultNative.test.ts`, `test/unit/windowsVaultSlot.test.ts`,
+  `test/unit/windowsVaultTransport.test.ts`,
+  `test/unit/resourceWindowsLaunch.test.ts`,
+  `test/unit/resourceWindowsJob.test.ts` (if present),
+  `test/unit/secWinIdentity2.test.ts`,
+  `test/unit/secWinPathAliases.test.ts`,
+  `test/unit/secWinWorkerPaths.test.ts`; the paid-cap races
+  `test/e2e/scheduleBudgetFamilies.e2e.test.ts`,
+  `test/unit/sessionBudgetJournal.test.ts`; stdio and wake checks
+  `test/e2e/schedulesStdio.e2e.test.ts`, `test/e2e/acpStdio.e2e.test.ts`,
+  `test/e2e/execStdio.e2e.test.ts`.
+- macOS: the macOS helper `test/unit/macosScreenRecording.test.ts`,
+  `test/unit/macVaultSlot.test.ts`, `test/unit/macVaultTransport.test.ts`,
+  `test/unit/treesMacNative.test.ts` (restricted here); stdio and wake
+  checks `test/e2e/schedulesStdio.e2e.test.ts`,
+  `test/e2e/acpStdio.e2e.test.ts`; the browser and visual checks
+  `npm run test:a11y`, `npm run check:visual` with a schedules scene review
+  (frames that move vs the baseline are listed, never re-baselined here).
+  Both browser gates were attempted on kubuntu and are BLOCKED by this rig's
+  sandbox: headless Chrome dies at launch (`socketpair: Operation not
+permitted`, then `SIGTRAP`; receipts `temp/schedjoin2/a11y.log`,
+  `temp/schedjoin2/visual.log`). No shim or workaround was built per the
+  standing sandbox-limits rule; no browser, server or child process of this
+  lane remains. The lead runs them outside the sandbox.
