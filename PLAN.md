@@ -786,6 +786,20 @@ transport reads it for every request's SNI. `extension.js`, `headless.js`
 and `runtimeEngine.js` are byte-identical. Evidence:
 `docs/certification/modelapi-diet.md`.
 
+**MODELAPIDIETR2 packaging closure (2026-10-11, macmini).** Ship
+`dist/modelApiTools.js` in the VSIX and exercise its native exports alongside
+its siblings. A production-build regression traverses the build's own
+metafiles, starting from shipped VS Code entries and the ACP build/package
+entries, and checks every reachable Node chunk against VSCE's own inventory
+or the ACP packager's single bundle list. It must name missing chunks;
+no test-maintained bundle inventory is permitted. Add one-line ACP membership
+repairs for any additional missing chunks and record each in certification.
+Both turn-ending helper failures read installed-language UI text from all
+14 tables; removing their fixed English saves another 108 B (516,156 B). D6's initial budget remains 50 KiB: 23,433 × 1.15 = 26,947.95 B,
+rounded up to the next 25 KiB multiple (51,200 B). Certify the removed-VSIX-line
+red drill with byte-exact restoration and run all dependent suites at the
+repository deadlines; full quality remains the integration lead's gate.
+
 **INT0170 resume (2026-10-08, kubuntu).** Merging `m107/w-history` and
 `rel017/startup2` put five budgets over unchanged caps; each is fixed at its
 root. PORTS017's cap checks in `scheduleV2.ts` imported `Usd`, carrying

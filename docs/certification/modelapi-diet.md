@@ -4,7 +4,7 @@ Worktree `/Users/randy/lanes/MODELAPIDIET`, branch `fix/modelapi-diet`,
 base `af67368a22` (release train). No cap, budget-table or gate change
 beyond the new chunk's own size row and the pin moving down. No behaviour
 change: static imports become `await import()` on paths that already
-await, with fail-closed typed refusals.
+await, with fail-closed refusals.
 
 Production `npm run build` on this rig: `dist/modelApi.js` is **530,683 B**
 (cap 537,600 B). The pin in `test/unit/deferredBundles.test.ts` reads
@@ -66,7 +66,7 @@ installs `UI_TEXT` with `uiLocale()` before use
 (`foreignHooksEntry.ts:478`, `codeIntelEntry.ts:15` precedent).
 
 Failure handling (the brief's rule: a chunk that fails to load is a
-typed refusal the user sees, never a silent fallback, never a default):
+refusal the user sees, never a silent fallback, never a default):
 
 - URL checks: fail-closed. An unchecked URL is never fetched: the call
   returns `webFetchRefusal` with the existing `kind: 'unavailable'` +
@@ -99,7 +99,7 @@ exit 0 both sides:
 | `dist/runtimeEngine.js` | 642,596 | 642,596 | 0       | 896,000 |
 
 The `modelApi.js` pin in `test/unit/deferredBundles.test.ts` moves to the
-measured 516,267 exactly. `npm run check-bundle-split` exits 0 (69 ok
+measured 516,264 exactly. `npm run check-bundle-split` exits 0 (69 ok
 lines); `npm run check-bundle-size` passes with the new 50 KiB row.
 
 ## 4. Left alone, and why
@@ -147,3 +147,74 @@ missing` fails (turn fails without the named refusal). Restored.
 - Final `sha256sum` of `src/core/backends/modelapi/ModelApiHost.ts`
   (`8b403f10…`) matches the baseline taken after the last intended edit
   and before any drill.
+
+## 6. Review repair (MODELAPIDIETR2, 2026-10-11, macmini)
+
+The missing VSIX allowlist entry is repaired in `691e09966`, which also
+replaces both English-only turn-ending errors with `UI_TEXT` values in all
+14 translated tables. The Model API bundle tests assert the installed words
+for both missing helpers and a throwing preview constructor; missing helpers
+still send zero HTTP requests. URL-check failure keeps its existing typed
+unavailable result. The packaging native export probe now exercises the
+helpers' passing HTTPS and refused loopback URL checks.
+
+`packagedBundles.test.mjs` runs the real production builder, reads every
+metafile in `dist/meta/` and `dist/meta-acp/`, normalizes Windows separators,
+and follows imports transitively. VS Code roots are the production entries
+VSCE actually lists; ACP roots include its production entries and its own
+shared package list. No test keeps chunk names. The packager and regression
+share `scripts/lib/acpBundles.mjs`; test-owned package fixtures copy that
+module, and the usage fixture takes its bundle inputs from the same list.
+VSCE inventories actual production outputs in an owned publication tree,
+without scanning copied source and test fixtures.
+
+The deliberate missing-line drill fails the assertion naming
+`dist/modelApiTools.js`. Checking the original ACP list in that same run
+also finds **`dist/pluginHooks.js` and `dist/webFetch.js`**, both repaired by
+one membership line each. Restoration is byte-exact, verified with SHA-256:
+
+- `.vscodeignore`: `36cd1e25c49abe3edceb06af5ba6c154436c3d3eb68456f2dbdc844ecd15968f`.
+- `scripts/lib/acpBundles.mjs`: `b3ab047e53b16dbb5eeb392015e33448e834c2c7caef3a9527e2a3e744dba3c5`.
+
+The restored packaging guard, deferred-bundle suite and Model API bundle
+suite pass together: 139 tests, repository deadlines, three workers. The
+first scratch production build lacked the repository's formatter config and
+refused stale generated team schemas; copying that real config fixes the
+owned fixture. No generator or freshness gate is bypassed.
+
+D6 receipt: 23,433 × 1.15 = 26,947.95 B; rounding to the next 25 KiB
+multiple gives 51,200 B (50 KiB), so the new row keeps its correct initial
+cap. The 516,267 documentation typo is corrected to 516,264. Localization
+removes 108 B of fixed English from `modelApi.js` (516,156 B); the helpers
+remain 23,433 B. This additional reduction is recorded separately from the
+original 14,419 B diet measurement; no padding or cap change is introduced.
+
+## 7. Continuation re-verification (MODELAPIDIETR2, 2026-10-11 evening, macmini, this engine)
+
+Independent re-run of the uncommitted work on the same worktree, repository
+timeouts, `--maxWorkers=3`, one command at a time: `packagedBundles` 1/1;
+red drill (line removed) fails naming exactly `dist/modelApiTools.js`;
+`.vscodeignore` restored to SHA-256
+`36cd1e25c49abe3edceb06af5ba6c154436c3d3eb68456f2dbdc844ecd15968f`
+(zero diff). Production `npm run build` exits 0: `dist/modelApi.js`
+516,156 B, `dist/modelApiTools.js` 23,433 B. Packager lister: 375 files
+with `dist/modelApiTools.js` IN — the same total as the review's 375
+without it because the two trees differ by exactly one file each way: the
+Kubuntu tree had its locally built `native/linux/x64/muse-created` (the
+production build compiles the current arch's helper), while this Mac tree
+has none of the four allowlisted binaries (`native/linux` is empty, no
+compiled `muse-dictate`) and adds the helpers chunk. Every other expected
+chunk (`modelApi.js`, `hookRuntime.js`, `pluginHooks.js`,
+`modelApiHooks.js`, `modelApiCodeIntel.js`) is present.
+`moduleExports` 88/88 including the new `modelApiTools.js` case.
+`deferredBundles` + `modelApiBundle` 138/138; `modelApiHost` 670/670;
+`vsixPackaging` 95/95; ACP suites `acpPackageFixtures`,
+`resourceAcpPackaging`, `teamRuntimePackage`, `integrationPackaging`,
+`modelApiHooks`, `modelCallHooks` all green; `usagePackaging` 12/12 with a
+clean `HOME` (the shared `~/.npm` cache has root-owned files, so `npm pack`
+fails EPERM under the normal `HOME`; two further 5 s timeouts under load
+12–15 pass alone). `npm run typecheck` exits 0; ESLint 0 warnings on all
+changed files; Prettier clean; `check:l10n` 0 problems. Full
+`package-vsix.mjs` and `package-acp.mjs` cannot run on this rig: the Linux
+`muse-created` helpers and the compiled Darwin `muse-dictate` binary are
+absent (built in CI), a pre-existing limit unrelated to this change.

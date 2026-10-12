@@ -89,9 +89,12 @@ happened, not what was planned; superseded entries are kept.
 - **Model API bundle diet (lane MODELAPIDIET).** `dist/modelApi.js` drops
   14,419 B (530,683 → 516,264 B, cap unchanged) by loading the hook call
   fields, argument previews and fetch URL checks from the deferred
-  `dist/modelApiTools.js` on first use, with fail-closed typed refusals
+  `dist/modelApiTools.js` on first use, with fail-closed refusals
   when the chunk cannot load. No behaviour change; `dist/extension.js`,
   `dist/headless.js` and `dist/runtimeEngine.js` are byte-identical.
+  Packaging now checks every imported production Node chunk against each
+  distribution's own inventory; the VSIX includes the helpers chunk, and
+  its load failures use the installed language.
 
 - What's New fits its content budget by itself: the newest release always
   ships in full. The writer checks every complete plan against both decoded
