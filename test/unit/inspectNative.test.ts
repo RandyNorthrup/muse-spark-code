@@ -15,6 +15,7 @@ import { mkdir, mkdtemp, readdir, rm } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { FIXTURE_HOOK_TIMEOUT_MS } from './helpers/fixtureBudget'
 import { fileIdentityKey, statIdentity } from '../../src/core/fs/fileIdentity'
 import { InspectRunner, type InspectExecOptions } from '../../src/core/judge/fast/inspectExec'
 import { JUDGE_FAST_B1_REFUSED_EXIT } from '../../src/shared/constants'
@@ -33,6 +34,7 @@ function native(
   cwd: string,
   ready?: () => void,
   stdio?: StdioOptions,
+  marker = '"confined":true',
 ): Promise<Receipt> {
   return new Promise((resolve, reject) => {
     const child = spawn(file, args, { cwd, env: {}, stdio: stdio ?? ['ignore', 'pipe', 'pipe'] })
@@ -44,7 +46,7 @@ function native(
     })
     child.stderr?.on('data', (chunk: Buffer) => {
       errors.push(chunk)
-      if (hasReady || !chunk.toString().includes('"confined":true')) {
+      if (hasReady || !chunk.toString().includes(marker)) {
         return
       }
 
@@ -104,51 +106,66 @@ if (process.platform === 'linux') {
     let scratch = '',
       binary = ''
     const variants = new Map<string, string>()
+    // Sixteen C compiles measured ~7 s on linuxlt at load 4.4, so the default
+    // 10 s hook flakes on a loaded runner: this hook carries the shared
+    // fixture-build budget, and every build runs under an inner timeout that
+    // fails the suite with this sentence instead of leaving the tests skipped.
     beforeAll(async () => {
-      scratch = await mkdtemp(path.join(os.tmpdir(), 'b1-native-'))
-      execFileSync(process.execPath, ['scripts/build-confine.mjs'], {
-        env: { PATH: '/usr/bin:/bin' },
-      })
-      binary = path.resolve('temp/confine/muse-confine')
-      for (const name of [
-        'Race',
-        'StatRace',
-        'StatMask',
-        'StatNoExec',
-        'StatChecks',
-        'ExecFail',
-        'Guards',
-        'Device',
-        'Budget',
-        'Trust',
-        'Time',
-        'Depth',
-        'Abi',
-        'Root',
-        'Paths',
-      ]) {
-        const variant = path.join(scratch, name)
-        execFileSync(
-          '/usr/bin/cc',
-          [
-            '-std=c11',
-            '-O2',
-            '-Wall',
-            '-Wextra',
-            '-Werror',
-            '-Wconversion',
-            '-Wshadow',
-            '-I',
-            'temp/confine',
-            `test/unit/helpers/inspect${name}.c`,
-            '-o',
-            variant,
-          ],
-          { env: { PATH: '/usr/bin:/bin' } },
+      try {
+        scratch = await mkdtemp(path.join(os.tmpdir(), 'b1-native-'))
+        execFileSync(process.execPath, ['scripts/build-confine.mjs'], {
+          env: { PATH: '/usr/bin:/bin' },
+          timeout: 100_000,
+        })
+        binary = path.resolve('temp/confine/muse-confine')
+        for (const name of [
+          'Race',
+          'StatRace',
+          'StatNlink',
+          'StatMask',
+          'StatNoExec',
+          'StatChecks',
+          'ExecFail',
+          'Guards',
+          'Device',
+          'Budget',
+          'Trust',
+          'Time',
+          'Depth',
+          'Abi',
+          'Root',
+          'Paths',
+        ]) {
+          const variant = path.join(scratch, name)
+          execFileSync(
+            '/usr/bin/cc',
+            [
+              '-std=c11',
+              '-O2',
+              '-Wall',
+              '-Wextra',
+              '-Werror',
+              '-Wconversion',
+              '-Wshadow',
+              '-I',
+              'temp/confine',
+              `test/unit/helpers/inspect${name}.c`,
+              '-o',
+              variant,
+            ],
+            { env: { PATH: '/usr/bin:/bin' }, timeout: 100_000 },
+          )
+          variants.set(name, variant)
+        }
+      } catch (error) {
+        throw new Error(
+          'B1 native test setup failed: the confine helper and variants did not build',
+          {
+            cause: error,
+          },
         )
-        variants.set(name, variant)
       }
-    })
+    }, FIXTURE_HOOK_TIMEOUT_MS)
     afterAll(async () => {
       if (scratch) await rm(scratch, { recursive: true, force: true })
     })
@@ -387,7 +404,9 @@ if (process.platform === 'linux') {
       expect(spelling.stdout.length).toBe(0)
       expect(spelling.stderr).toContain('request')
     })
-    it('stat refuses symlinked and hard-linked operands after the walk', async () => {
+    it('stat refuses symlinked and hard-linked operands at the walk', async () => {
+      // Walk-level refusals: the link dies in openat2 RESOLVE_NO_SYMLINKS and
+      // the hard link in the walk's link-count check, both before any report.
       const h = await fixture()
       symlinkSync(h.outside, path.join(h.workspace, 'link'))
       linkSync(h.outside, path.join(h.workspace, 'hardlink'))
@@ -397,6 +416,45 @@ if (process.platform === 'linux') {
         expect(result.stdout.length).toBe(0)
         expect(result.stderr).toContain('operand')
       }
+    })
+    it('the post-walk stat check refuses a link count raised after the walk', async () => {
+      // The StatNlink variant signals the parent once the walk is done; the
+      // parent adds a second hard link inside that window. The walk saw one
+      // link, so only the post-walk check_stat call in production main can
+      // refuse: removing it answers exit 0 instead (red drill in the record).
+      const h = await fixture()
+      const pending = native(
+        variant('StatNlink'),
+        h.args('stat', ['allowed.txt'], ['allowed.txt']),
+        h.root,
+        () => {
+          linkSync(h.allowed, path.join(h.workspace, 'allowed.second'))
+        },
+        undefined,
+        '{"walked":true}',
+      )
+      const result = await pending
+      expect(result.code).toBe(125)
+      expect(result.stdout.length).toBe(0)
+      expect(result.stderr).toContain('operand')
+    })
+    it('stat refuses more operands than the process may hold open with a limit reason', async () => {
+      // The helper keeps one descriptor per stat operand until the report, so
+      // a list longer than RLIMIT_NOFILE fails in openat2 with EMFILE. Under
+      // a 64-descriptor prlimit 100 repeated operands refuse with "limits";
+      // without the limit the same list answers, so the count itself is lawful.
+      const h = await fixture()
+      const operands = Array.from({ length: 100 }, () => 'allowed.txt')
+      const limited = await native(
+        '/usr/bin/prlimit',
+        ['--nofile=64:64', binary, ...h.args('stat', operands, operands)],
+        h.root,
+      )
+      expect(limited.code).toBe(125)
+      expect(limited.stdout.length).toBe(0)
+      expect(limited.stderr).toContain('limits')
+      const ample = await native(binary, h.args('stat', operands, operands), h.root)
+      expect(ample.code, ample.stderr).toBe(0)
     })
     it('the post-walk stat checks refuse hostile shapes and accept files and folders', async () => {
       const h = await fixture()
@@ -579,35 +637,72 @@ if (process.platform === 'linux') {
       }
     })
     it('stat reports the walked file when an ancestor is swapped for a link mid-report', async () => {
-      const h = await fixture()
-      mkdirSync(path.join(h.workspace, 'src'))
-      writeFileSync(path.join(h.workspace, 'src/a.txt'), 'ALLOWED_CANARY\n')
-      mkdirSync(path.join(h.root, 'foreign'))
-      writeFileSync(path.join(h.root, 'foreign/a.txt'), 'FORBIDDEN_CANARY_IS_LONGER\n')
-      const original = statSync(path.join(h.workspace, 'src/a.txt'))
-      const outside = statSync(path.join(h.root, 'foreign/a.txt'))
-      expect(outside.size).not.toBe(original.size)
-      const pending = native(
-        variant('StatRace'),
-        h.args('stat', ['src/a.txt'], ['src/a.txt']),
-        h.root,
-      )
-      // The report's statx waits 200 ms; swap inside that window, after the walk.
-      await new Promise((resolve) => setTimeout(resolve, 50))
-      renameSync(path.join(h.workspace, 'src'), path.join(h.workspace, 'src.old'))
-      symlinkSync(path.join(h.root, 'foreign'), path.join(h.workspace, 'src'))
-      const result = await pending
-      // A swap that lands before the walk is a refusal; one after it still
-      // reports the walked file. It never reports the outside file.
-      expect(result.stdout.toString()).not.toContain(`Size: ${String(outside.size)} `)
-      if (result.code === 0) {
-        expect(result.stderr).toMatch(/^\{"confined":true,/u)
-        expect(result.stdout.toString()).toContain(`Size: ${String(original.size)} `)
-        expect(result.stdout.toString()).toContain(`Inode: ${String(original.ino)} `)
-      } else {
-        expect(result.code).toBe(125)
-        expect(result.stdout.length).toBe(0)
+      // Outcome-driven rounds, not one fixed sleep: on a loaded machine the
+      // swap lands before the walk (a refusal), on a fast one inside the
+      // report's 200 ms delay (exit 0 with the walked file's bytes). The race
+      // RAN only when both outcomes were seen across the rounds; a round that
+      // never reports retries with a wider window, and a run that never
+      // refuses falls back to a pre-swapped control, which must refuse.
+      async function raceFixture() {
+        const h = await fixture()
+        mkdirSync(path.join(h.workspace, 'src'))
+        writeFileSync(path.join(h.workspace, 'src/a.txt'), 'ALLOWED_CANARY\n')
+        mkdirSync(path.join(h.root, 'foreign'))
+        writeFileSync(path.join(h.root, 'foreign/a.txt'), 'FORBIDDEN_CANARY_IS_LONGER\n')
+        const original = statSync(path.join(h.workspace, 'src/a.txt'))
+        const outside = statSync(path.join(h.root, 'foreign/a.txt'))
+        expect(outside.size).not.toBe(original.size)
+        const swap = () => {
+          renameSync(path.join(h.workspace, 'src'), path.join(h.workspace, 'src.old'))
+          symlinkSync(path.join(h.root, 'foreign'), path.join(h.workspace, 'src'))
+        }
+        return { h, original, outside, swap }
       }
+      const seen = new Set<string>()
+      for (let round = 0; round < 3 && !(seen.has('report') && seen.has('refused')); round++) {
+        for (const delay of [0, 100 + 100 * round]) {
+          const { h, original, outside, swap } = await raceFixture()
+          const pending = native(
+            variant('StatRace'),
+            h.args('stat', ['src/a.txt'], ['src/a.txt']),
+            h.root,
+          )
+          await new Promise((resolve) => setTimeout(resolve, delay))
+          swap()
+          const result = await pending
+          // It never reports the outside file, whichever side wins.
+          expect(result.stdout.toString()).not.toContain(`Size: ${String(outside.size)} `)
+          if (result.code === 0) {
+            expect(result.stderr).toMatch(/^\{"confined":true,/u)
+            expect(result.stdout.toString()).toContain(`Size: ${String(original.size)} `)
+            expect(result.stdout.toString()).toContain(`Inode: ${String(original.ino)} `)
+            seen.add('report')
+          } else {
+            expect(result.code).toBe(125)
+            expect(result.stdout.length).toBe(0)
+            seen.add('refused')
+          }
+        }
+      }
+      if (!seen.has('refused')) {
+        const { h, swap } = await raceFixture()
+        swap()
+        const control = await native(
+          variant('StatRace'),
+          h.args('stat', ['src/a.txt'], ['src/a.txt']),
+          h.root,
+        )
+        expect(control.code).toBe(125)
+        seen.add('refused')
+      }
+      expect(
+        seen.has('report'),
+        'the ancestor swap never landed after the walk in 6 timed runs',
+      ).toBe(true)
+      expect(
+        seen.has('refused'),
+        'the ancestor swap never landed before the walk in 6 timed runs',
+      ).toBe(true)
     })
     it('B1-12 refuses inserted, renamed and replacement inodes after a recursive walk', async () => {
       const h = await fixture()

@@ -354,8 +354,8 @@ static void probe(void) {
   printf("{\"abi\":%d,\"confined\":true}\n", abi);
 }
 static const char *program_path(const char *name) {
-  static const char *names[] = {"ls", "cat", "head", "tail", "wc", "stat", "du", "grep", "find", NULL};
-  static const char *paths[] = {"/bin/ls", "/bin/cat", "/usr/bin/head", "/usr/bin/tail", "/usr/bin/wc", "/usr/bin/stat", "/usr/bin/du", "/bin/grep", "/usr/bin/find"};
+  static const char *names[] = {"ls", "cat", "head", "tail", "wc", "du", "grep", "find", NULL};
+  static const char *paths[] = {"/bin/ls", "/bin/cat", "/usr/bin/head", "/usr/bin/tail", "/usr/bin/wc", "/usr/bin/du", "/bin/grep", "/usr/bin/find"};
   for (size_t i = 0; names[i]; i++) if (!strcmp(name, names[i])) return paths[i];
   refuse("program"); return NULL;
 }
@@ -491,6 +491,10 @@ int main(int argc, char **argv) {
   while (separator < argc && strcmp(argv[separator], "--")) {
     if (private_path(argv[separator])) refuse("privateOperand");
     int operand = beneath(root, argv[separator], O_PATH);
+    // More operands than the process may hold open is a limit refusal, not a
+    // hostile operand: stat keeps every walked descriptor open until the
+    // report reads it, so a long operand list exhausts RLIMIT_NOFILE first.
+    if (operand < 0 && (errno == EMFILE || errno == ENFILE)) refuse("limits");
     if (operand < 0) refuse("operand");
     visited++; walk(operand, argv[separator], recursive, 0);
     if (is_stat) held[separator - 7] = operand;

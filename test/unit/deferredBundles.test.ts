@@ -290,7 +290,7 @@ beforeAll(async () => {
     }
   }
   parsers.push(parserSchema.parse(loadSupportBundle('validation')))
-})
+}, FIXTURE_HOOK_TIMEOUT_MS)
 
 beforeAll(async () => {
   mkdirSync(path.join(fixtureRoot, 'dist'), { recursive: true })
@@ -311,7 +311,7 @@ beforeAll(async () => {
       gatePrograms.set(name, output.text)
     }),
   )
-})
+}, FIXTURE_HOOK_TIMEOUT_MS)
 
 afterAll(() => {
   for (const { bytes, meta } of fixtures.values()) {
