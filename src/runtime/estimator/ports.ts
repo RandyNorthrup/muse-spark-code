@@ -48,9 +48,9 @@ export interface RuntimeEstimatorPortsDeps extends ResourceSettingsBundleDeps {
 export interface HeadlessFleetOwners extends FleetUsageOwners {
   /** Agent data folder holding resources.json, the headless governor's file. */
   readonly machineDir: string
-  /** The runtime's account registry: ids only, never credentials. */
+  /** The runtime's account registry: identity and display labels, never credentials. */
   readonly accounts: {
-    list(provider: string): Promise<readonly { readonly id: string }[]>
+    list(provider: string): Promise<readonly { readonly id: string; readonly label?: string }[]>
   }
 }
 
@@ -110,7 +110,8 @@ export function runtimeEstimatorPorts(
         },
         readSettingsWithOrigin: readSettings,
         listAccounts: () => deps.accounts.list('meta'),
-        readLiveLimits: deps.readLiveLimits,
+        readOwnedLimits: deps.readOwnedLimits,
+        currentOwner: deps.currentOwner,
         readUsage: deps.readUsage,
       }),
     ),
@@ -130,7 +131,8 @@ function portsWith(
       ...(deps.loadResourceBundle !== undefined && { loadResourceBundle: deps.loadResourceBundle }),
       machineDir: deps.machineDir,
       accounts: deps.accounts,
-      readLiveLimits: deps.readLiveLimits,
+      readOwnedLimits: deps.readOwnedLimits,
+      currentOwner: deps.currentOwner,
       readUsage: deps.readUsage,
       ...(deps.loadBundle !== undefined && { loadBundle: deps.loadBundle }),
     })
@@ -141,16 +143,25 @@ function estimatorFor(
   deps: RuntimeEstimatorDeps & HeadlessFleetOwners,
   root: string,
   cache: Map<string, ReturnType<typeof lazyEstimator>>,
+  providerId: string,
 ): ReturnType<typeof lazyEstimator> {
-  const known = cache.get(root)
+  const key = JSON.stringify([root, providerId])
+  const known = cache.get(key)
   if (known !== undefined) return known
+  const readOwner = deps.currentOwner
   const estimator = lazyEstimator({
     bundlePath: deps.bundlePath,
     log: deps.log,
-    ports: portsWith(deps, root),
+    ports: portsWith(
+      {
+        ...deps,
+        currentOwner: readOwner === undefined ? undefined : () => ({ ...readOwner(), providerId }),
+      },
+      root,
+    ),
     ...(deps.loadBundle !== undefined && { loadBundle: deps.loadBundle }),
   })
-  cache.set(root, estimator)
+  cache.set(key, estimator)
   return estimator
 }
 
@@ -165,8 +176,8 @@ export function createRuntimeEstimate(
   // Price formatting is root-independent, but it still runs through the
   // requesting session's own estimator: nothing here reads process.cwd().
   let active: ReturnType<typeof lazyEstimator> | undefined
-  const forSession = (cwd: string): ReturnType<typeof lazyEstimator> =>
-    estimatorFor(deps, cwd, estimators)
+  const forSession = (cwd: string, providerId: string): ReturnType<typeof lazyEstimator> =>
+    estimatorFor(deps, cwd, estimators, providerId)
   const checks = new Map<string, ReturnType<typeof planCheckLoader>>()
   const checkFor = (cwd: string): ReturnType<typeof planCheckLoader> => {
     const known = checks.get(cwd)
@@ -183,9 +194,9 @@ export function createRuntimeEstimate(
     // Outside the editor there is no workspace preference: headless runs
     // optimize for cost under their budget (M80, PLAN.md D65).
     context: () => ({ asOf: new Date().toISOString(), optimize: 'cost' }),
-    runner: (cwd) => ({
+    runner: (cwd, providerId = 'meta') => ({
       estimate: (request, signal) => {
-        const estimator = forSession(cwd)
+        const estimator = forSession(cwd, providerId)
         active = estimator
         return estimator.estimate(request, signal)
       },

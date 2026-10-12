@@ -107,6 +107,7 @@ beforeAll(async () => {
       scheduleBackground: 'src/runtime/schedules/backgroundEntry.ts',
       vaultBoundaries: 'src/shared/vaultBoundariesEntry.ts',
       estimator: 'src/host/estimator/estimatorEntry.ts',
+      planSnapshot: 'src/host/estimator/planSnapshotEntry.ts',
       estimateContracts: 'src/shared/estimateContractsEntry.ts',
       media: 'src/host/media/mediaEntry.ts',
       runtimeAccounts: 'src/runtime/providers/accountsEntry.ts',

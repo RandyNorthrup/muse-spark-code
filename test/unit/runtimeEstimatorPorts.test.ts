@@ -1,3 +1,4 @@
+import { isLimitContextEvidence } from '../../src/core/estimator/limitContext'
 // M117 W, C-M117-1: the ACP agent's headless estimator bindings read plan
 // snapshots through the shared core adapter from the requesting session's
 // workspace root (one cached estimator per root, never the process working
@@ -293,9 +294,12 @@ describe('M117 headless estimator bindings', () => {
         origin: { source: 'resources.json', cpuPercent: 'configured', memoryPercent: 'default' },
       })
       expect(forty.machines[0]?.governorSlots).toBe(1)
-      expect(forty.accounts).toEqual([
-        { id: 'shop', providerId: 'meta', statedLimits: ['Unknown: limits unread for meta/shop.'] },
-      ])
+      expect(
+        forty.accounts.map((account) => ({
+          ...account,
+          statedLimits: account.statedLimits?.filter((note) => !isLimitContextEvidence(note)),
+        })),
+      ).toEqual([{ id: 'shop', providerId: 'meta', statedLimits: ['estimate-limits-unread'] }])
       writeFileSync(
         `${folder}/resources.json`,
         JSON.stringify({ 'museSpark.resourceCpuMaxPercent': 50 }),
@@ -339,11 +343,16 @@ describe('M117 headless estimator bindings', () => {
       const firstText = await estimate.run('/estimate M999 --format json', folder, signal)
       const first = sectionFleet(firstText)
       expect(first.machines[0]?.caps).toMatchObject({ cpuPercent: 40 })
-      expect(first.accounts).toEqual([
+      expect(
+        first.accounts.map((account) => ({
+          ...account,
+          statedLimits: account.statedLimits?.filter((note) => !isLimitContextEvidence(note)),
+        })),
+      ).toEqual([
         {
           id: 'studio',
           providerId: 'meta',
-          statedLimits: ['Unknown: limits unread for meta/studio.'],
+          statedLimits: ['estimate-limits-unread'],
         },
       ])
       // The owner changes the file; the next estimate follows it.

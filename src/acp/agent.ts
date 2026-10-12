@@ -1692,7 +1692,14 @@ class AcpSession {
             text =
               this.deps.estimate === undefined
                 ? fill(UI_TEXT.estimateWaiting, { dependency: 'M117-W-estimator-binding' })
-                : await this.deps.estimate.run(estimatePart.text, this.cwd, controller.signal)
+                : await this.deps.estimate.run(
+                    estimatePart.text,
+                    this.cwd,
+                    controller.signal,
+                    this.deps.backend.kind === 'museCode' || !this.modelId.includes('/')
+                      ? 'meta'
+                      : this.modelId.split('/', 1)[0],
+                  )
           if ('error' in preparing) throw preparing.error
           if (this.wasEstimateCancelled(preparing)) return 'cancelled'
           this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })

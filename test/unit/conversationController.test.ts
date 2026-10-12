@@ -17770,7 +17770,10 @@ describe('M117 estimates belong to their conversation', () => {
   it('retains the fleet refusal source and reset at the host boundary', async () => {
     const t = setup()
     const run = fakeEstimatorBinding()
-    const error = fleetFailure('fleet-account-blocked meta/work reset unknown')
+    const error = fleetFailure({
+      code: 'fleet-account-blocked',
+      parameters: { label: 'Work', reset: null },
+    })
     run.estimate.mockRejectedValue(error)
     const controller = new ConversationController({ ...t.deps, estimator: run })
     await controller.handle({

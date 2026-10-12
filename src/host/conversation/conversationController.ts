@@ -29,7 +29,7 @@ import { reportCommandArguments } from '../reporting/reportCommand'
 // (permission mode, effort, thinking) and for the images waiting to be sent.
 
 import type { EstimateSection } from '../../shared/estimate'
-import { estimateFailureText } from '../../runtime/estimator/command'
+import { estimateFailureText, presentEstimate } from '../../runtime/estimator/command'
 import path from 'node:path'
 import { Buffer } from 'node:buffer'
 import { AttachmentStore } from '../../core/attachments'
@@ -9355,7 +9355,7 @@ export class ConversationController {
           return
         this.lastEstimateInputs = section.inputs
         this.lastEstimateSection = section
-        this.post({ type: 'estimatorSection', ...correlation, section })
+        this.post({ type: 'estimatorSection', ...correlation, section: presentEstimate(section) })
       } catch (error: unknown) {
         if (pending.signal.aborted || generation !== this.sendInvalidationEpoch || this.isDisposed)
           return
@@ -10742,6 +10742,12 @@ export class ConversationController {
     capture: (session: AgentSession) => WorkspaceEditRecorder | undefined,
   ): WorkspaceEditRecorder | undefined {
     return this.isDisposed || this.session === undefined ? undefined : capture(this.session)
+  }
+
+  /** The account provider selected by this composer's validated model reference. */
+  public get estimateProviderId(): string {
+    const slash = this.modelId.indexOf('/')
+    return slash === -1 ? 'meta' : this.modelId.slice(0, slash)
   }
 
   /** Whether Ctrl+B has a running command to move here (M46): its context key. */
