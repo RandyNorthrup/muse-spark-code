@@ -9,6 +9,14 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **A cancelled schedule contender can no longer release the winner's fence** (CM1134AR7).
+  Only the exclusive-publication success path constructs the release handle, and
+  an interrupted publication is claimed only when the stored bytes carry the
+  acquisition's token; a lost publication releases nothing. Heartbeats without
+  a fencing token are previous-version pulses and stay compatible, while a
+  present contradicting token stays invalid. Playbook goldens follow the
+  `hookVerification` rename, and translated tables keep the English key order.
+
 - **Cancelled schedules reads release their writer leases** (CM1134AR6).
   Every storage step uses one stop rule, and release has its own short window
   even when the read is cancelled. A waiting deadline ends busy; a cancelled

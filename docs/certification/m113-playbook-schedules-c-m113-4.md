@@ -467,8 +467,12 @@ heartbeat drain and release are one lifecycle, reused by the in-memory twin.
 Acquisition checks deadline first, then abort; held work checks abort. Cleanup
 owns a separate `SCHEDULE_LEASE_RELEASE_TIMEOUT_MS` (1,000 ms) window, never the
 caller's signal. The outer finally exists before the first candidate fence can
-be published; it verifies that candidate's token and releases even when a link
-settles after cancellation. Temporary handles are owned before their open and
+be published. Only the exclusive-publication success path constructs the
+release handle (`OwnedScheduleFence`); a publication interrupted by a stop is
+claimed only when the stored candidate bytes carry the acquisition's unique
+token, so a cancelled loser releases nothing of the winner. (Corrected
+CM1134AR7 for RVCM1134K P2-1: the previous sentence claimed a token check the
+implementation did not perform.) Temporary handles are owned before their open and
 closed in independent cleanup scopes. Completed work drains the heartbeat
 before its final stop/ownership verdict, including an abort during that drain.
 
@@ -532,6 +536,7 @@ PYHASH
 ```
 
 <!-- CM1134AR6 port SHA-256: 0a8062bc336a7f918b2fe7e4237ef473c75fa9aea5a6af55d47c7701b6e113ff -->
+<!-- CM1134AR7 port SHA-256: 5fae331fdc1d00fd1c779c6e5c166ac2485a002815f3402c16f4b592259bea42 -->
 
 `nodeScheduleFs.ts`: `0a8062bc336a7f918b2fe7e4237ef473c75fa9aea5a6af55d47c7701b6e113ff`. The lifecycle suite compares this marker
 against the actual source; a stale certification fails.
@@ -670,3 +675,124 @@ the explicitly assigned port/twin/reader boundary. Lead integration must
 align that nested object's source order (or separately review a semantic
 comparison); no gate or test fixture is altered here to bypass the failure.
 The earlier 60 s setup timeout did not recur. No sandbox restriction occurred.
+
+## CM1134AR7 — RVCM1134K finding closure (2026-10-12, kubuntu)
+
+All five findings are owned here, plus the inherited translation-ordering
+blocker the brief assigns. No guard is widened; no new dependency; no deadline
+is changed. Production diff stays in `src/runtime/schedules/nodeScheduleFs.ts`;
+tests stay in the three writer suites and the lifecycle matrix; fixtures stay
+in `test/fixtures/reports/playbook.*.golden`; tables stay in `l10n/ui.*.json`.
+
+- **P2-1 ownership by construction** (`nodeScheduleFs.ts`, `OwnedScheduleFence`).
+  Only the exclusive-publication success path constructs the release handle; a
+  lost publication keeps no handle and loops. A publication interrupted by a
+  stop is claimed only when the stored candidate bytes carry the acquisition's
+  unique token (`parseLease(content).token === owner.token`, fail-closed on
+  unparseable bytes). Cleanup after a lost publication therefore touches
+  nothing of the winner — no release marker, no hint/pulse removal. Sibling
+  sweep: the EEXIST identity path already compares file identities, temporary
+  files are unique by construction, and hint removal already token-checks; no
+  other presence-as-ownership site remains. Regression: `a cancelled loser
+never releases the live winner fence` (A prepares candidate 0, B publishes
+  and holds it, A's publication returns false, cancellation lands before
+  wrapper settlement): no release marker, B's guard still passes, a third
+  writer stays busy behind B, and acquires after B settles. Certification
+  line 470 is corrected above: the token check it claimed did not exist.
+- **P2-2 legacy pulses** (`hasFencingContradiction`). An absent fencing token
+  is a previous-version heartbeat and stays compatible, so release and expiry
+  are judged as before; a present token that contradicts the header stays
+  invalid. Base-commit layout checked: `6c9f58dd5` already wrote fenced
+  headers, so the legacy case is exactly the unfenced pulse. Regression:
+  `acquires past an expired previous-version heartbeat under a fence/hint
+header` (aged past `SCHEDULE_LEASE_EXPIRES_MS`, acquisition succeeds with
+  fencing 1/0). The matrix contradiction rows still reject present-token
+  mismatches on both ports.
+- **P2-3 platform-aware matrix** (`canRunScheduleFsOperation`). One shared
+  predicate gates production's folder fsync and selects the matrix's disk
+  primitive rows, so Windows runs the rows that exist there and no row is
+  silently lost elsewhere. (Named `scheduleFsOperationRunsHere` during drills,
+  renamed for the boolean-name gate; behavior identical.)
+- **P3-4 writer deadlines.** Measured costs: a fixed 1,000 ms sleep in the
+  store queue test, a fixed 100 ms sleep in the Fs takeover test, and cold
+  per-test seeding (store creates/admissions, Fs native create + 63-file
+  journal fill in `beforeEach`). Removed: the queue test awaits the second
+  batch's `waiting` marker plus a fence-hold assertion (`leaseFences/<hash>/0`
+  holds exactly `0.json`); the takeover test awaits the taker's settled link
+  and verifies the replacement fence intact instead of sleeping, and registers
+  `settleAll` before the first wait so a timeout leaves nothing running;
+  store creates/admissions moved into `fixtureBudget` `beforeAll` names
+  (`journal-boundaries`, `claim-boundaries`, `settlement`, `intent`,
+  `failure-clock`, plus admissions for `admission-limit`); Fs cold
+  publication/fill moved to `beforeAll` while native handles stay in-test for
+  Windows `afterEach` safety. Slowest Fs native case fell 990 ms → 477 ms.
+  Migration needs no structural change: it has no fixed waits and its seeding
+  was already in `beforeAll`; its in-test cost is the measured migrations
+  themselves. Each suite is green three times alone at repository timeouts
+  (counts below).
+- **P3-5 playbook goldens.** Regenerated from the repository's own renderers
+  (temporary vitest file, removed after the run); the diff is only the
+  `drills` → `hookVerification` rename (`Drills` → `Hook verification` in
+  display) plus the consequent content hash
+  (`8ef5711b…` → `a150e5f7…`). All four render suites green.
+- **Translated ordering.** All 14 `l10n/ui.*.json` `reportDetailReasons`
+  objects now carry the English key order (pure 8-line moves per file;
+  `check:l10n` 0 problems, Prettier clean). Proof used the repository's own
+  archive modules (`tableLayout`/`packTable`/`readArchivedUiTable`) for every
+  shipped locale: restored tables equal the file serializations, which is the
+  `execStdio` package-guard comparison that failed 29 times in review. The
+  proof file was removed after the run. The ui proof covers every key of every
+  table, so no other nested drift remains in the UI tables; usage tables have
+  no serialized-order check and are untouched.
+
+### Red drills — observed failure, then byte-exact restoration
+
+Drills ran against the pre-lint bytes (port `d50815dd…`, restoration verified
+by SHA-256 after each); lint renames that followed are behavior-preserving and
+every suite below re-ran green on the final bytes (port `5fae331f…`, the AR7
+marker). Each drill ran its complete owning file at repository timeouts with at
+most three workers.
+
+| Drill | Deliberate break                                     | Named failure                                                                                                                         | Signal                                                                      |
+| ----- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| R7-D1 | Token proof neutralized (presence claims the handle) | `a cancelled loser never releases the live winner fence`                                                                              | red in 4 ms; file 108/112 (plus the then-stale cert marker and 2 load rows) |
+| R7-D2 | Strict fencing comparison restored                   | `acquires past … under a fence header`                                                                                                | red; hint-header case still passes, file 110/112                            |
+| R7-D3 | Shared predicate renamed                             | whole lifecycle file fails to load                                                                                                    | 0 tests run; proves matrix and production share the symbol                  |
+| R7-D4 | `serialize` skips the queue lock                     | `serializes target batches…` (new fence assertion, 548 ms) + `rejects an ownership swap`                                              | 23/25                                                                       |
+| R7-D5 | Cleanup removes the fence candidate                  | `does not unlink a replacement lease…` (intact-fence check, 85 ms) + 3 fence-dependent rows (2 hit their 5 s deadline on broken code) | 10/14                                                                       |
+| R7-D6 | JSON golden id reverted to `drills`                  | `matches the playbook JSON golden…`                                                                                                   | red in 17 ms; file 20/21                                                    |
+| R7-D7 | `ui.de.json` reason keys swapped                     | temporary archive round-trip proof                                                                                                    | red; file restored SHA-verified, proof file removed                         |
+
+The D4 drill additionally exposed a lane regression while broken: the moved
+`journal-boundaries` store used the fixture port while the test spied on a
+fresh port, so the `IndexMissing` read spy never intercepted. Fixed by building
+the test's store on the spied port (creation stays in the fixture budget).
+
+### Verification (kubuntu; rig load 10–24 across runs)
+
+- `scheduleFs` 14/14 alone: 22:47 (load ~10, pre-edit), 23:09 (16.8), 23:10
+  (16.5), 23:10 (17.4), 23:36 (15.6, final bytes).
+- `scheduleMigrate` 15/15 alone: 22:43 (10.1), 23:11 (19.1), 23:11 (24.2),
+  23:36 (14.8, final bytes).
+- `scheduleStore` 25/25 alone: 22:44 (10.1, pre-edit), 23:07 (15.1), 23:12
+  (24.3), 23:12 (22.6), 23:37 (14.9, final bytes).
+- `scheduleLeaseLifecycle` 112/112 on final bytes at 23:35 (load 14.7); the
+  rotating fast `scheduleLeaseBusy` misses from the second 100 ms acquisition
+  at loads 17–24 (105/112, 111/112, 108/112, 109/112 across runs) are the
+  documented load flake: release markers verified present first, every miss
+  green in isolation and on rerun. No per-test timeout override anywhere.
+- Render suites: json/md/html 58/58, text 35/35.
+- Dependents closure: `vitest related` over the changed port — 12 files,
+  332/332 at load 12.4.
+- Gates: all five typechecks clean (twice); ESLint 0 on the four changed
+  source/test files; Prettier clean on every changed file; `check:l10n`
+  0 problems; `check:reference` current; `check:host-api` 0 problems; knip
+  exit 0 (2 pre-existing config hints); jscpd 0 clones; `npm run build`
+  exit 0 (extension 550.7/600 KiB, Model API 515.8/525 KiB, checkpoint caps
+  unchanged).
+
+NOT RUN HERE (sandbox blocks loopback servers, browsers and process listing;
+the lead runs these outside): `test/e2e/execStdio.e2e.test.ts`,
+`test/e2e/acpStdio.e2e.test.ts`, `test/e2e/reports.e2e.test.ts`,
+`test/e2e/schedulesStdio.e2e.test.ts` and every other `test/e2e/*` and
+`test/integration/*` file. No suite run here launches a browser.
