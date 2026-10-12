@@ -52,6 +52,16 @@ happened, not what was planned; superseded entries are kept.
   history off discards buffered rows and their overflow tally, so enabling
   it later cannot publish work collected while history was off.
 
+- Runner-route relocation repairs: registering or unregistering a route
+  rebinds the relocation target on the loaded host instead of disposing
+  it, so unrelated active work is never stopped; pressure recovered after
+  the busy decision runs the ordinary runner route instead of failing a
+  labelled check Offline; a proved over-long receiver command still runs
+  locally once but keeps its reason for the source observer; an explicitly
+  null relocation target reports no route while no runner is bound. The
+  three PowerShell receiver cases skip with "PowerShell unavailable" where
+  the tool is missing and run on Windows.
+
 ### Release infrastructure
 
 - The release's Open VSX check reads the universal package at its own
