@@ -3,7 +3,11 @@ import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { lazyRuntimeResources } from '../../src/runtime/resources/load'
-import { admitBootstrap, resourceWindowsJob } from '../../src/core/resources/admission'
+import {
+  admitBootstrap,
+  loadResourceWindow,
+  resourceWindowsJob,
+} from '../../src/core/resources/admission'
 import { execResourceFile } from '../../src/core/resources/launcher'
 import { runtimeResources } from './helpers/resources/runtime'
 import { runBootstrap } from '../../src/core/bootstrapCommand'
@@ -49,6 +53,11 @@ describe('runtime global admission', () => {
         undefined,
       )
       lease.complete(true)
+      // Load the first-use process bundle before any short deadline is
+      // armed: the 100 ms below must bound admission and the run, never
+      // the lazy process-entry import (WINSPAWN2 P3). A warm-up spawn
+      // would pollute this file's shared spawn spy, so only import.
+      await import('../../src/core/resources/resourceProcessEntry.js')
       fixture.reading.memoryAvailableBytes = 1
       fixture.reading.memoryUsedPercent = 100
 
@@ -126,6 +135,10 @@ describe('runtime global admission', () => {
       .mockImplementation(() => Promise.withResolvers<never>().promise)
     const admits = vi.spyOn(fixture.host, 'admit')
     const resources = bindRuntime(fixture.host)
+    // Warm the governor host before the 100 ms deadline is armed, so the
+    // wait covers the sampler, never the first-use governor import: the
+    // same deadline-before-lazy-import class as the paused case above.
+    await loadResourceWindow()
     const signal = AbortSignal.timeout(100)
     try {
       await expect(admitBootstrap(signal)).rejects.toMatchObject({ name: 'TimeoutError' })
