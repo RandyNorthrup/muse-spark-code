@@ -457,11 +457,14 @@ export class McpOAuthClient {
                 authorize()
                 this.unusable.delete(binding.handle)
               } catch (error: unknown) {
-                // A failed or uncertain refresh quarantines the rotation,
-                // then denies: anything else keeps its kind.
-                if (!(error instanceof Error)) throw error
+                // A refresh that reached the server quarantines the rotation
+                // whatever was thrown: the server may already have rotated
+                // the token, and that is decided by what was SENT
+                // (dispatch.hasStarted), never by the type of what was
+                // thrown. The type test runs after the safety action.
                 if (dispatch.hasStarted)
                   await this.ports.vault.invalidate(binding.handle, parsed.metadata.id)
+                if (!(error instanceof Error)) throw error
                 oauthDenied()
               }
             }

@@ -434,7 +434,7 @@ describe('M109 O OAuth audience and PKCE', () => {
     ).rejects.toBe(foreign)
   })
 
-  it('denies a foreign refresh-save failure without quarantining it as uncertain', async () => {
+  it('quarantines a sent refresh whatever the save failure is, then rethrows it', async () => {
     const f = oauthFixture()
     await f.client.signIn(f.binding, f.signal)
     f.advance()
@@ -442,12 +442,16 @@ describe('M109 O OAuth audience and PKCE', () => {
     f.vault.save = vi.fn<McpOAuthVaultPort['save']>(() => {
       throw foreign
     })
-    // Fail-closed stays deny at the boundary; the foreign kind bypasses the
-    // quarantine decision, which only an Error can own.
+    // The token POST already reached the server, so the old token is
+    // quarantined whatever the save threw, and the boundary still denies
+    // instead of leaking the foreign value. The old assertion (no quarantine
+    // for a non-Error) was wrong: the server may have rotated the token
+    // regardless of what the save threw, and the quarantine is decided by
+    // what was sent, never by the type of what was thrown.
     await expect(f.client.fetch(f.binding, f.binding.resource, f.init)).rejects.toThrow(
       UI_TEXT.vault.noAccess,
     )
-    expect(f.vault.invalidate).not.toHaveBeenCalled()
+    expect(f.vault.invalidate).toHaveBeenCalledTimes(1)
   })
 
   it('lets a caller stop stay a stop instead of denying it', async () => {
