@@ -1,0 +1,110 @@
+[
+  {
+    "name": "spread-rerank",
+    "finding": "P2 concurrency (pool.ts): worker selection preceded the reservation queue",
+    "source": "src/core/accounts/pool.ts",
+    "mutation": "admit uses the outside-queue hint directly (the in-queue confirm falls back to reselect is removed: `const selected = hint`)",
+    "test": "test/unit/accountRequestLease.test.ts \u2014 ranks the second worker after the first reservation instead of joining it",
+    "command": "npx vitest run test/unit/accountRequestLease.test.ts --maxWorkers=3 -t \"ranks the second worker\"",
+    "failingAssertion": "expected [ 'a', 'a' ] to deeply equal [ 'a', 'b' ]",
+    "exit": 1,
+    "sha256": "27ae991a555329697db3a47dc117189165e2afed2aa4bce932d0a6bbac0ce021",
+    "restored": true
+  },
+  {
+    "name": "terminal-settlement",
+    "finding": "P2 failure/money (requestWriter.ts): paid-helper settlement read usage only from response.completed",
+    "source": "src/core/accounts/requestWriter.ts",
+    "mutation": "settlement condition narrowed back to `event.value.type === 'response.completed'` (isTerminalResponseEvent removed)",
+    "test": "test/unit/accountRequestLease.test.ts \u2014 settles known cost from a paid-helper incomplete/failed with usage",
+    "command": "npx vitest run test/unit/accountRequestLease.test.ts --maxWorkers=3 -t \"settles known cost\"",
+    "failingAssertion": "expected null not to be null (pool claim actual stays unknown)",
+    "exit": 1,
+    "sha256": "6efb06aa959a73d89c1280adc6920a859945a113604ed05cd35cbe0f11163e67",
+    "restored": true
+  },
+  {
+    "name": "generator-release",
+    "finding": "P2 lifecycle (requestWriter.ts): paid-helper wrapper never returned its inner generator",
+    "source": "src/core/accounts/requestWriter.ts",
+    "mutation": "wrapper finally settles without `await events.return(undefined)`",
+    "test": "test/unit/accountRequestLease.test.ts \u2014 releases the inner generator when the paid-helper consumer throws mid-stream",
+    "command": "npx vitest run test/unit/accountRequestLease.test.ts --maxWorkers=3 -t \"releases the inner generator\"",
+    "failingAssertion": "expected false to be true (inner generator finally never runs)",
+    "exit": 1,
+    "sha256": "6efb06aa959a73d89c1280adc6920a859945a113604ed05cd35cbe0f11163e67",
+    "restored": true
+  },
+  {
+    "name": "rate-limit-forward",
+    "finding": "P2 validation/money (requestWriter.ts): paid-helper guard never forwarded a 429 to its lease rateLimit",
+    "source": "src/core/accounts/requestWriter.ts",
+    "mutation": "paidGuard observe override removed (original guard spread through unchanged)",
+    "test": "test/unit/accountRequestLease.test.ts \u2014 forwards a paid-helper 429 to the lease rate limit with its reset time",
+    "command": "npx vitest run test/unit/accountRequestLease.test.ts --maxWorkers=3 -t \"forwards a paid-helper 429\"",
+    "failingAssertion": "expected \"vi.fn()\" to be called once, but got 0 times",
+    "exit": 1,
+    "sha256": "6efb06aa959a73d89c1280adc6920a859945a113604ed05cd35cbe0f11163e67",
+    "restored": true
+  },
+  {
+    "name": "same-lease-retry",
+    "finding": "P2 failure/compatibility (requestWriter.ts): image 429 retry reused the already-sent lease and hit accountRequestBoundary",
+    "source": "src/core/accounts/requestWriter.ts",
+    "mutation": "lease.beforeSend throws ownerBusy when hasSent (single-send fence restored)",
+    "test": "test/unit/accountRequestLease.test.ts \u2014 retries an image 429 as a new send on the same lease",
+    "command": "npx vitest run test/unit/accountRequestLease.test.ts --maxWorkers=3 -t \"retries an image 429\"",
+    "failingAssertion": "Error: A prompt is already running for this conversation.",
+    "exit": 1,
+    "sha256": "6efb06aa959a73d89c1280adc6920a859945a113604ed05cd35cbe0f11163e67",
+    "restored": true
+  },
+  {
+    "name": "judge-lease",
+    "finding": "P2 ownership/money (ModelApiHost.ts): same-model Judge used the original client without account admission",
+    "source": "src/core/backends/modelapi/ModelApiHost.ts",
+    "mutation": "judgeConnection transport.send uses judgeDirectSend only (leased branch removed)",
+    "test": "test/unit/accountRequestLease.test.ts \u2014 sends every paid request on a lease and never on a bare client",
+    "command": "npx vitest run test/unit/accountRequestLease.test.ts --maxWorkers=3 -t \"sends every paid request\"",
+    "failingAssertion": "expected host source to contain 'await this.judgeLeasedSend(requests, \u2026'",
+    "exit": 1,
+    "sha256": "8afd1d0f7d8cbade5d4116a4ac810442992a7ab7b9cfbf250075c19cc6b22f0b",
+    "restored": true
+  },
+  {
+    "name": "image-consent-order",
+    "finding": "P2 consent/honesty (ModelApiHost.ts): image permission asked spending consent before choosing its lease",
+    "source": "src/core/backends/modelapi/ModelApiHost.ts",
+    "mutation": "askPaidUse image branch falls through to the unleased allowsPaidUse (early `return true` removed)",
+    "test": "test/unit/accountRequestLease.test.ts \u2014 sends every paid request on a lease and never on a bare client",
+    "command": "npx vitest run test/unit/accountRequestLease.test.ts --maxWorkers=3 -t \"sends every paid request\"",
+    "failingAssertion": "expected askPaidUse image branch to contain 'return true'",
+    "exit": 1,
+    "sha256": "8afd1d0f7d8cbade5d4116a4ac810442992a7ab7b9cfbf250075c19cc6b22f0b",
+    "restored": true
+  },
+  {
+    "name": "stop-words",
+    "finding": "P2 failure/honesty (requestWriter.ts): retry stop message read current() (queued B) instead of the retry payer A",
+    "source": "src/core/accounts/requestWriter.ts",
+    "mutation": "stop account falls back to current() (request.retryAccount preference removed)",
+    "test": "test/unit/accountRequestLease.test.ts \u2014 names the retry payer in a stop message while another account is queued",
+    "command": "npx vitest run test/unit/accountRequestLease.test.ts --maxWorkers=3 -t \"names the retry payer\"",
+    "failingAssertion": "got 'anthropic \u00b7 b has no room. Resets Oct\u2026' for /\u00b7 a has no room/",
+    "exit": 1,
+    "sha256": "6efb06aa959a73d89c1280adc6920a859945a113604ed05cd35cbe0f11163e67",
+    "restored": true
+  },
+  {
+    "name": "main-failed-receipt",
+    "finding": "P2 failure/money class extension (ModelApiHost.ts): main-turn failed-with-usage never reached its lease receipt",
+    "source": "src/core/backends/modelapi/ModelApiHost.ts",
+    "mutation": "in-loop accountRequest.receipt removed from streamAttempt (failed event throws before the after-loop receipt)",
+    "test": "test/unit/accountMainFailedReceipt.test.ts \u2014 settles known cost from a failed main response carrying usage",
+    "command": "npx vitest run test/unit/accountMainFailedReceipt.test.ts --maxWorkers=3",
+    "failingAssertion": "expected null not to be null (1 response body sent, claim stays unknown)",
+    "exit": 1,
+    "sha256": "8afd1d0f7d8cbade5d4116a4ac810442992a7ab7b9cfbf250075c19cc6b22f0b",
+    "restored": true
+  }
+]
