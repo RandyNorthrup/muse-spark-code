@@ -197,7 +197,7 @@ if (process.platform === 'linux') {
         expect(stdout).toContain(`File: ${operand}\n`)
         expect(stdout).toContain(`Size: ${String(expected.size)} `)
         expect(stdout).toContain(`Inode: ${String(expected.ino)} `)
-        expect(stdout).toContain(`/${String(expected.dev)}d `)
+        expect(stdout).toContain(`Device: ${expected.dev.toString(16)}h/${String(expected.dev)}d `)
         expect(stdout).toContain(kind)
       }
     })

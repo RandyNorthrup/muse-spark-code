@@ -395,8 +395,9 @@ static void report_stat(const char *path) {
   printf("Size: %llu  Blocks: %llu  IO Block: %u  %s\n",
     (unsigned long long)data.stx_size, (unsigned long long)data.stx_blocks,
     (unsigned int)data.stx_blksize, S_ISDIR(data.stx_mode) ? "directory" : "regular file");
-  printf("Device: %xh/%llud  Inode: %llu  Links: %u\n",
-    (unsigned int)major(device), (unsigned long long)device,
+  printf("Device: %llxh/%llud  Inode: %llu  Links: %u\n",
+    (unsigned long long)makedev(data.stx_dev_major, data.stx_dev_minor),
+    (unsigned long long)makedev(data.stx_dev_major, data.stx_dev_minor),
     (unsigned long long)data.stx_ino, (unsigned int)data.stx_nlink);
   printf("Access: (%04o/%s)  Uid: (%5u/ UNKNOWN)  Gid: (%5u/ UNKNOWN)\n",
     mode, text, (unsigned int)data.stx_uid, (unsigned int)data.stx_gid);
