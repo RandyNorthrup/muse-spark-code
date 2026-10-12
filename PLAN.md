@@ -791,6 +791,40 @@ re-measured and ratcheted **down** when the media redesign
 Evidence: `docs/certification/int0170-combined.md`, Bundle regressions after
 the lane merges (INT0170).
 
+**Train 0.18.0, Model API pin (2026-10-11, macbook).** The pin is re-measured
+at **532,537 B** on `b7f9de08a6` (train `af67368a22` + argument previews
+`83f8da887`, +1,854 B of intended code), lead decision 2026-10-11 15:45 PT;
+cap unchanged; ratchets down when `fix/modelapi-diet` merges. The train alone
+measured 530,683 B after TRAINACT, the branch on its own base 529,946 B.
+Evidence: `docs/certification/m106-capability-binding.md`, the publication
+record of the train merge.
+
+**MODELAPIDIET (2026-10-11, macmini rig).** The Model API pin moves
+**530,883 → 516,264 B** (14,419 B saved, cap unchanged at 537,600 B): the
+hook call fields (`modelCallHooks.ts`), argument previews
+(`argumentPreview.ts`) and fetch URL checks (`pageUrl.ts`,
+`fetchFailure.ts`) move into the deferred **`dist/modelApiTools.js`**
+(23,433 B; new 50 KiB budget, 22.9 KiB +15% rounded up to 25 KiB), loaded
+on first use with the same loader and fail-closed refusal handling as the
+other deferred chunks. `publicAddress.ts` stays: the pinned HTTPS
+transport reads it for every request's SNI. `extension.js`, `headless.js`
+and `runtimeEngine.js` are byte-identical. Evidence:
+`docs/certification/modelapi-diet.md`.
+
+**MODELAPIDIETR2 packaging closure (2026-10-11, macmini).** Ship
+`dist/modelApiTools.js` in the VSIX and exercise its native exports alongside
+its siblings. A production-build regression traverses the build's own
+metafiles, starting from shipped VS Code entries and the ACP build/package
+entries, and checks every reachable Node chunk against VSCE's own inventory
+or the ACP packager's single bundle list. It must name missing chunks;
+no test-maintained bundle inventory is permitted. Add one-line ACP membership
+repairs for any additional missing chunks and record each in certification.
+Both turn-ending helper failures read installed-language UI text from all
+14 tables; removing their fixed English saves another 108 B (516,156 B). D6's initial budget remains 50 KiB: 23,433 × 1.15 = 26,947.95 B,
+rounded up to the next 25 KiB multiple (51,200 B). Certify the removed-VSIX-line
+red drill with byte-exact restoration and run all dependent suites at the
+repository deadlines; full quality remains the integration lead's gate.
+
 **HOTFIX0181, cross-bundle members (2026-10-12, kubuntu).** The build points
 every import of `transport.ts`, `sse.ts` and `ndjson.ts` outside
 `dist/modelApi.js` at that bundle (`deferredCohort`), which exports what
@@ -819,14 +853,6 @@ the provider bundles because the state they share lives in `transport.ts`
 once per process. The pin still ratchets down when `fix/modelapi-diet`
 merges. Evidence:
 `docs/certification/hotfix-0181-bundle-exports.md`.
-
-**Train 0.18.0, Model API pin (2026-10-11, macbook).** The pin is re-measured
-at **532,537 B** on `b7f9de08a6` (train `af67368a22` + argument previews
-`83f8da887`, +1,854 B of intended code), lead decision 2026-10-11 15:45 PT;
-cap unchanged; ratchets down when `fix/modelapi-diet` merges. The train alone
-measured 530,683 B after TRAINACT, the branch on its own base 529,946 B.
-Evidence: `docs/certification/m106-capability-binding.md`, the publication
-record of the train merge.
 
 **INT0170 resume (2026-10-08, kubuntu).** Merging `m107/w-history` and
 `rel017/startup2` put five budgets over unchanged caps; each is fixed at its
