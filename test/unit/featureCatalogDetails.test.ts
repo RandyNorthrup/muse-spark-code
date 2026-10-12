@@ -33,7 +33,9 @@ describe('feature catalogue details merge', () => {
   it('still merges the reference details in', () => {
     expect(detailKeys('chat')).toContain('referenceThinking')
     expect(detailKeys('permissions')).toContain('referencePermissionLimits')
-    expect(detailKeys('vault')).toContain('referenceVault')
+    // The train keeps the vault dormant (REFERENCE_IN_PROGRESS_FEATURES), so
+    // Help shows the in-progress summary with no feature details.
+    expect(detailKeys('vault')).toEqual([])
   })
 
   it('ships the schedules limitation in the generated reference model', () => {

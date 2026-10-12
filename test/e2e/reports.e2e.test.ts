@@ -231,7 +231,10 @@ beforeAll(async () => {
     `${JSON.stringify({ v: 1, time: 1, action: 'unlock', source: 'palette' })}\n`,
   ])
   journal.append({
-    v: 1,
+    // The writer is v2-only: the version literal and the exact decimal cost
+    // string must match usageRecordSchema, or append drops the record behind
+    // its diagnostic fence and every grouping case reads an empty journal.
+    v: 2,
     type: 'usage',
     id: 'e2e-r1',
     at: Date.parse(LIVE_AS_OF),
@@ -245,7 +248,7 @@ beforeAll(async () => {
     model: 'e2e-model',
     kind: 'turn',
     tokens: { input: 200, output: 10 },
-    cost: { usd: 0.5, certainty: 'reported' },
+    cost: { usd: '0.5', certainty: 'reported' },
     outcome: 'completed',
     startedAt: Date.parse(LIVE_AS_OF),
     session: LIVE_SESSION_ID,
