@@ -27,6 +27,8 @@ export interface LazyResolution {
   readonly bundled?: true
 }
 export function codeLines(text: string): string[]
+/** Whether the text reads the name whole: no identifier character beside it. */
+export function usesIdentifier(text: string, identifier: string): boolean
 export function scanRequests(root: string, generatedFile: string): LazyScan
 export function resolveRequest(
   root: string,
