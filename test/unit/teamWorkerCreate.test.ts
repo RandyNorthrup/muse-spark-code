@@ -680,6 +680,52 @@ describe('verified native worker creation', () => {
     await expect(readFile(target)).rejects.toMatchObject({ code: 'ENOENT' })
     expect(await readdir(path.join(copy, 'src'))).not.toContain('deep')
   })
+  it('NF a failed first write keeps a pre-existing empty folder', async () => {
+    const { copy, input, role } = await setup()
+    await mkdir(path.join(copy, 'docs'))
+    const nativeOpen = WORKER_NATIVE_IO.openFile
+    if (nativeOpen === undefined) throw new Error('native existing-file opener missing')
+    const openFile: NonNullable<WorkerFenceIo['openFile']> = async (absolute, isWrite) => {
+      const handle = await nativeOpen(absolute, isWrite)
+      return { ...handle, write: () => Promise.reject(new Error('first write lost')) }
+    }
+    const tool = fenceWorkerToolIo(base, {
+      input: { ...input, io: { ...input.io, openFile } },
+      role,
+      admit: () => undefined,
+    })
+    const target = path.join(copy, 'docs', 'a', 'b.txt')
+    await expect(tool.writeFile(target, 'lost\n')).rejects.toThrow('first write lost')
+    await expect(readFile(target)).rejects.toMatchObject({ code: 'ENOENT' })
+    await expect(readdir(path.join(copy, 'docs', 'a'))).rejects.toMatchObject({
+      code: 'ENOENT',
+    })
+    expect(await readdir(path.join(copy, 'docs'))).toEqual([])
+  })
+  it('NF cleanup removes only the folders this operation created', async () => {
+    const { copy, input, role } = await setup()
+    await mkdir(path.join(copy, 'docs'))
+    const nativeOpen = WORKER_NATIVE_IO.openFile
+    if (nativeOpen === undefined) throw new Error('native existing-file opener missing')
+    const openFile: NonNullable<WorkerFenceIo['openFile']> = async (absolute, isWrite) => {
+      const handle = await nativeOpen(absolute, isWrite)
+      return { ...handle, writeBytes: () => Promise.reject(new Error('fill lost')) }
+    }
+    const tool = fenceWorkerToolIo(base, {
+      input: { ...input, io: { ...input.io, openFile } },
+      role,
+      admit: () => undefined,
+    })
+    const target = path.join(copy, 'docs', 'a', 'b.bin')
+    // A concurrent creator makes docs/a after preflight, so the helper
+    // reports zero created folders; the failed fill must not take them.
+    const reserved = await tool.reserveFile(target, target, () =>
+      mkdir(path.join(copy, 'docs', 'a'), { recursive: true }),
+    )
+    await expect(reserved.fill(Uint8Array.of(1))).rejects.toThrow('fill lost')
+    await expect(readFile(target)).rejects.toMatchObject({ code: 'ENOENT' })
+    expect(await readdir(path.join(copy, 'docs'))).toContain('a')
+  })
   it.skipIf(process.platform === 'win32')(
     'NF the helper honors the process umask for files and folders',
     async () => {
