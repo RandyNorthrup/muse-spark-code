@@ -2724,10 +2724,10 @@
   "agentStopReasons": {
     "normal": "Fin normal",
     "budget": "Presupuesto agotado",
+    "limit": "Límite de llamadas alcanzado",
     "error": "Fallo",
     "cancelled": "Detenido por el usuario",
-    "unknown": "No disponible",
-    "limit": "Límite de llamadas alcanzado"
+    "unknown": "No disponible"
   },
   "agentContinue": "Continuar",
   "agentRetry": "Reintentar",
@@ -3598,6 +3598,12 @@
     "other": "El turno se detuvo tras {count} llamadas al modelo. Envía un mensaje para continuar.",
     "many": "El turno se detuvo tras {count} llamadas al modelo. Envía un mensaje para continuar."
   },
+  "modelApiWrapUpTruncated": {
+    "one": "El turno se detuvo tras {count} llamada al modelo, con la respuesta final truncada por el límite de salida. La respuesta parcial se conserva. Envía un mensaje para continuar.",
+    "other": "El turno se detuvo tras {count} llamadas al modelo, con la respuesta final truncada por el límite de salida. La respuesta parcial se conserva. Envía un mensaje para continuar.",
+    "many": "El turno se detuvo tras {count} llamadas al modelo, con la respuesta final truncada por el límite de salida. La respuesta parcial se conserva. Envía un mensaje para continuar."
+  },
+  "modelApiWrapUpHookBlocked": "Un hook de parada pidió más trabajo, pero el turno alcanzó su límite de llamadas al modelo, por lo que la respuesta final se mantiene.",
   "execRequestCapReached": {
     "one": "Se alcanzó el límite de {count} intento.",
     "other": "Se alcanzó el límite de {count} intentos.",
@@ -5456,11 +5462,5 @@
       "other": "{count} autorizaciones",
       "many": "{count} autorizaciones"
     }
-  },
-  "modelApiWrapUpTruncated": {
-    "one": "El turno se detuvo tras {count} llamada al modelo, con la respuesta final truncada por el límite de salida. La respuesta parcial se conserva. Envía un mensaje para continuar.",
-    "other": "El turno se detuvo tras {count} llamadas al modelo, con la respuesta final truncada por el límite de salida. La respuesta parcial se conserva. Envía un mensaje para continuar.",
-    "many": "El turno se detuvo tras {count} llamadas al modelo, con la respuesta final truncada por el límite de salida. La respuesta parcial se conserva. Envía un mensaje para continuar."
-  },
-  "modelApiWrapUpHookBlocked": "Un hook de parada pidió más trabajo, pero el turno alcanzó su límite de llamadas al modelo, por lo que la respuesta final se mantiene."
+  }
 }

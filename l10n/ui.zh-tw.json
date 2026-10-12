@@ -2612,10 +2612,10 @@
   "agentStopReasons": {
     "normal": "正常結束",
     "budget": "預算耗盡",
+    "limit": "已達到呼叫上限",
     "error": "錯誤",
     "cancelled": "使用者停止",
-    "unknown": "無法使用",
-    "limit": "已達到呼叫上限"
+    "unknown": "無法使用"
   },
   "agentContinue": "繼續",
   "agentRetry": "重試",
@@ -3448,6 +3448,10 @@
   "modelApiTurnLimit": {
     "other": "本輪在呼叫模型 {count} 次後停止。傳送訊息以繼續。"
   },
+  "modelApiWrapUpTruncated": {
+    "other": "最終回答被輸出上限截斷，本輪在呼叫模型 {count} 次後停止。部分回答已保留。傳送訊息以繼續。"
+  },
+  "modelApiWrapUpHookBlocked": "停止鉤子要求了更多工作，但本輪已達到模型呼叫上限，因此最終回答保持不變。",
   "execRequestCapReached": {
     "other": "已達到 {count} 次請求嘗試的上限。"
   },
@@ -5146,9 +5150,5 @@
     "grantsCount": {
       "other": "{count} 個授權"
     }
-  },
-  "modelApiWrapUpTruncated": {
-    "other": "最終回答被輸出上限截斷，本輪在呼叫模型 {count} 次後停止。部分回答已保留。傳送訊息以繼續。"
-  },
-  "modelApiWrapUpHookBlocked": "停止鉤子要求了更多工作，但本輪已達到模型呼叫上限，因此最終回答保持不變。"
+  }
 }

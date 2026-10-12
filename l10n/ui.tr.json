@@ -2668,10 +2668,10 @@
   "agentStopReasons": {
     "normal": "Normal bitiş",
     "budget": "Bütçe tükendi",
+    "limit": "Çağrı sınırına ulaşıldı",
     "error": "Hata",
     "cancelled": "Kullanıcı durdurdu",
-    "unknown": "Kullanılamıyor",
-    "limit": "Çağrı sınırına ulaşıldı"
+    "unknown": "Kullanılamıyor"
   },
   "agentContinue": "Devam et",
   "agentRetry": "Yeniden dene",
@@ -3523,6 +3523,11 @@
     "one": "Tur, {count} model çağrısından sonra durdu. Devam etmek için bir mesaj gönderin.",
     "other": "Tur, {count} model çağrısından sonra durdu. Devam etmek için bir mesaj gönderin."
   },
+  "modelApiWrapUpTruncated": {
+    "one": "Tur, {count} model çağrısından sonra durdu ve nihai yanıt çıktı sınırıyla kesildi. Kısmi yanıt korunur. Devam etmek için bir mesaj gönderin.",
+    "other": "Tur, {count} model çağrısından sonra durdu ve nihai yanıt çıktı sınırıyla kesildi. Kısmi yanıt korunur. Devam etmek için bir mesaj gönderin."
+  },
+  "modelApiWrapUpHookBlocked": "Bir durdurma kancası daha fazla iş istedi, ancak tur model çağrısı sınırına ulaştı, bu yüzden nihai yanıt geçerlidir.",
   "execRequestCapReached": {
     "one": "{count} denemelik istek sınırına ulaşıldı.",
     "other": "{count} denemelik istek sınırına ulaşıldı."
@@ -5301,10 +5306,5 @@
       "one": "{count} izin",
       "other": "{count} izin"
     }
-  },
-  "modelApiWrapUpTruncated": {
-    "one": "Tur, {count} model çağrısından sonra durdu ve nihai yanıt çıktı sınırıyla kesildi. Kısmi yanıt korunur. Devam etmek için bir mesaj gönderin.",
-    "other": "Tur, {count} model çağrısından sonra durdu ve nihai yanıt çıktı sınırıyla kesildi. Kısmi yanıt korunur. Devam etmek için bir mesaj gönderin."
-  },
-  "modelApiWrapUpHookBlocked": "Bir durdurma kancası daha fazla iş istedi, ancak tur model çağrısı sınırına ulaştı, bu yüzden nihai yanıt geçerlidir."
+  }
 }

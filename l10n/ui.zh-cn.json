@@ -2612,10 +2612,10 @@
   "agentStopReasons": {
     "normal": "正常结束",
     "budget": "预算耗尽",
+    "limit": "已达到调用上限",
     "error": "错误",
     "cancelled": "用户停止",
-    "unknown": "不可用",
-    "limit": "已达到调用上限"
+    "unknown": "不可用"
   },
   "agentContinue": "继续",
   "agentRetry": "重试",
@@ -3448,6 +3448,10 @@
   "modelApiTurnLimit": {
     "other": "本轮在调用模型 {count} 次后停止。发送消息以继续。"
   },
+  "modelApiWrapUpTruncated": {
+    "other": "最终回答被输出上限截断，本轮在调用模型 {count} 次后停止。部分回答已保留。发送消息以继续。"
+  },
+  "modelApiWrapUpHookBlocked": "停止钩子请求了更多工作，但本轮已达到模型调用上限，因此最终回答保持不变。",
   "execRequestCapReached": {
     "other": "已达到 {count} 次请求尝试的上限。"
   },
@@ -5146,9 +5150,5 @@
     "grantsCount": {
       "other": "{count} 个授权"
     }
-  },
-  "modelApiWrapUpTruncated": {
-    "other": "最终回答被输出上限截断，本轮在调用模型 {count} 次后停止。部分回答已保留。发送消息以继续。"
-  },
-  "modelApiWrapUpHookBlocked": "停止钩子请求了更多工作，但本轮已达到模型调用上限，因此最终回答保持不变。"
+  }
 }

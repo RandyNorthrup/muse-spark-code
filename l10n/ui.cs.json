@@ -2780,10 +2780,10 @@
   "agentStopReasons": {
     "normal": "Normální konec",
     "budget": "Rozpočet vyčerpán",
+    "limit": "Dosažen limit volání",
     "error": "Chyba",
     "cancelled": "Zastaveno uživatelem",
-    "unknown": "Nedostupné",
-    "limit": "Dosažen limit volání"
+    "unknown": "Nedostupné"
   },
   "agentContinue": "Pokračovat",
   "agentRetry": "Zkusit znovu",
@@ -3673,6 +3673,13 @@
     "few": "Tah se zastavil po {count} voláních modelu. Pokračujte odesláním zprávy.",
     "many": "Tah se zastavil po {count} voláních modelu. Pokračujte odesláním zprávy."
   },
+  "modelApiWrapUpTruncated": {
+    "one": "Tah se zastavil po {count} volání modelu, přičemž konečná odpověď byla zkrácena limitem výstupu. Částečná odpověď je zachována. Pokračujte odesláním zprávy.",
+    "few": "Tah se zastavil po {count} voláních modelu, přičemž konečná odpověď byla zkrácena limitem výstupu. Částečná odpověď je zachována. Pokračujte odesláním zprávy.",
+    "many": "Tah se zastavil po {count} voláních modelu, přičemž konečná odpověď byla zkrácena limitem výstupu. Částečná odpověď je zachována. Pokračujte odesláním zprávy.",
+    "other": "Tah se zastavil po {count} voláních modelu, přičemž konečná odpověď byla zkrácena limitem výstupu. Částečná odpověď je zachována. Pokračujte odesláním zprávy."
+  },
+  "modelApiWrapUpHookBlocked": "Hook zastavení požádal o další práci, ale tah dosáhl limitu volání modelu, takže konečná odpověď platí.",
   "execRequestCapReached": {
     "one": "Byl dosažen limit {count} pokusu.",
     "other": "Byl dosažen limit pokusů: {count}.",
@@ -5611,12 +5618,5 @@
       "few": "{count} oprávnění",
       "many": "{count} oprávnění"
     }
-  },
-  "modelApiWrapUpTruncated": {
-    "one": "Tah se zastavil po {count} volání modelu, přičemž konečná odpověď byla zkrácena limitem výstupu. Částečná odpověď je zachována. Pokračujte odesláním zprávy.",
-    "few": "Tah se zastavil po {count} voláních modelu, přičemž konečná odpověď byla zkrácena limitem výstupu. Částečná odpověď je zachována. Pokračujte odesláním zprávy.",
-    "many": "Tah se zastavil po {count} voláních modelu, přičemž konečná odpověď byla zkrácena limitem výstupu. Částečná odpověď je zachována. Pokračujte odesláním zprávy.",
-    "other": "Tah se zastavil po {count} voláních modelu, přičemž konečná odpověď byla zkrácena limitem výstupu. Částečná odpověď je zachována. Pokračujte odesláním zprávy."
-  },
-  "modelApiWrapUpHookBlocked": "Hook zastavení požádal o další práci, ale tah dosáhl limitu volání modelu, takže konečná odpověď platí."
+  }
 }

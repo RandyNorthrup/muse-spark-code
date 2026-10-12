@@ -2612,10 +2612,10 @@
   "agentStopReasons": {
     "normal": "정상 종료",
     "budget": "예산 소진",
+    "limit": "호출 한도 도달",
     "error": "오류",
     "cancelled": "사용자가 중지함",
-    "unknown": "사용 불가",
-    "limit": "호출 한도 도달"
+    "unknown": "사용 불가"
   },
   "agentContinue": "계속",
   "agentRetry": "다시 시도",
@@ -3448,6 +3448,10 @@
   "modelApiTurnLimit": {
     "other": "모델 호출이 {count}회에 도달하여 턴이 중지되었습니다. 계속하려면 메시지를 보내세요."
   },
+  "modelApiWrapUpTruncated": {
+    "other": "최종 답변이 출력 한도로 잘리면서 모델 호출이 {count}회에 도달하여 턴이 중지되었습니다. 부분 답변은 유지됩니다. 계속하려면 메시지를 보내세요."
+  },
+  "modelApiWrapUpHookBlocked": "중지 훅이 추가 작업을 요청했지만 턴이 모델 호출 한도에 도달했으므로 최종 답변이 유지됩니다.",
   "execRequestCapReached": {
     "other": "요청 시도 한도 {count}회에 도달했습니다."
   },
@@ -5146,9 +5150,5 @@
     "grantsCount": {
       "other": "{count} 개 권한"
     }
-  },
-  "modelApiWrapUpTruncated": {
-    "other": "최종 답변이 출력 한도로 잘리면서 모델 호출이 {count}회에 도달하여 턴이 중지되었습니다. 부분 답변은 유지됩니다. 계속하려면 메시지를 보내세요."
-  },
-  "modelApiWrapUpHookBlocked": "중지 훅이 추가 작업을 요청했지만 턴이 모델 호출 한도에 도달했으므로 최종 답변이 유지됩니다."
+  }
 }

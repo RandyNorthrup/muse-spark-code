@@ -2724,10 +2724,10 @@
   "agentStopReasons": {
     "normal": "Fine normale",
     "budget": "Budget esaurito",
+    "limit": "Limite di chiamate raggiunto",
     "error": "Errore",
     "cancelled": "Fermato dall’utente",
-    "unknown": "Non disponibile",
-    "limit": "Limite di chiamate raggiunto"
+    "unknown": "Non disponibile"
   },
   "agentContinue": "Continua",
   "agentRetry": "Riprova",
@@ -3598,6 +3598,12 @@
     "other": "Il turno si è fermato dopo {count} chiamate al modello. Invia un messaggio per continuare.",
     "many": "Il turno si è fermato dopo {count} chiamate al modello. Invia un messaggio per continuare."
   },
+  "modelApiWrapUpTruncated": {
+    "one": "Il turno si è fermato dopo {count} chiamata al modello, con la risposta finale troncata dal limite di output. La risposta parziale viene conservata. Invia un messaggio per continuare.",
+    "other": "Il turno si è fermato dopo {count} chiamate al modello, con la risposta finale troncata dal limite di output. La risposta parziale viene conservata. Invia un messaggio per continuare.",
+    "many": "Il turno si è fermato dopo {count} chiamate al modello, con la risposta finale troncata dal limite di output. La risposta parziale viene conservata. Invia un messaggio per continuare."
+  },
+  "modelApiWrapUpHookBlocked": "Un hook di arresto ha chiesto ulteriore lavoro, ma il turno ha raggiunto il limite di chiamate al modello, quindi la risposta finale resta valida.",
   "execRequestCapReached": {
     "one": "Raggiunto il limite di {count} tentativo.",
     "other": "Raggiunto il limite di {count} tentativi.",
@@ -5456,11 +5462,5 @@
       "other": "{count} autorizzazioni",
       "many": "{count} autorizzazioni"
     }
-  },
-  "modelApiWrapUpTruncated": {
-    "one": "Il turno si è fermato dopo {count} chiamata al modello, con la risposta finale troncata dal limite di output. La risposta parziale viene conservata. Invia un messaggio per continuare.",
-    "other": "Il turno si è fermato dopo {count} chiamate al modello, con la risposta finale troncata dal limite di output. La risposta parziale viene conservata. Invia un messaggio per continuare.",
-    "many": "Il turno si è fermato dopo {count} chiamate al modello, con la risposta finale troncata dal limite di output. La risposta parziale viene conservata. Invia un messaggio per continuare."
-  },
-  "modelApiWrapUpHookBlocked": "Un hook di arresto ha chiesto ulteriore lavoro, ma il turno ha raggiunto il limite di chiamate al modello, quindi la risposta finale resta valida."
+  }
 }
