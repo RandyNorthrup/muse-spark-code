@@ -5196,6 +5196,11 @@ The generated-only Linux native receipt runs with a private bus and keyring:
 `sh test/hosts/run-vault-posix.sh` (requires `dbus-run-session`,
 `gnome-keyring-daemon`, `setsid`, and a production build). It checks the native OS-store
 slot and installed broker without reading the desktop vault or calling a model.
+The
+receipt names `finished-native-helper-membership-race` only when the exact
+sampler work has ended and its native process group is gone; live or
+unclassified resource warnings fail acceptance. It verifies helper-tree and
+temporary-file retirement before cleanup.
 On macOS the composed broker wraps the key with the login Keychain only;
 it does not use the Secure Enclave.
 

@@ -7,6 +7,9 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Serialize the POSIX vault's shared lock epoch across session brokers with a kernel lock, keep lifecycle fixtures alive under explicit test ownership, and distinguish verified finished-helper sampler races from acceptance failures.
+
+
 - Treat orderly POSIX vault broker shutdown during discovery or connection as absence and retry a successor once across editor, CLI, ACP and headless hosts. Vault availability remains off pending the platform join.
 
 

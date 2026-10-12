@@ -1005,16 +1005,37 @@ describe.skipIf(!hasUnixPeer)('native authenticated broker channel', () => {
     })
     await expect(process.get()).rejects.toBe(failure)
   })
-  it('a child reporting ready without its authenticated discovery record is stopped', async () => {
+  it('each child reporting ready without its authenticated discovery record is stopped once', async () => {
     const directory = await mkdtemp(path.join(os.tmpdir(), 'm109-b-start-fail-'))
     directories.push(directory)
-    const stop = vi.fn(() => Promise.resolve())
+    const stops = [vi.fn(() => Promise.resolve()), vi.fn(() => Promise.resolve())]
+    let attempt = 0
+    const launch = vi.fn(() => {
+      const stop = stops[attempt++]
+      if (!stop) throw new Error('startup exceeded its successor retry')
+      return Promise.resolve({ ready: Promise.resolve(), stop })
+    })
     const process = new VaultBrokerProcess(new VaultBrokerDiscovery(directory, 'session'), {
       identity: identify,
-      launch: () => Promise.resolve({ ready: Promise.resolve(), stop }),
+      launch,
     })
     await expect(process.get()).rejects.toThrow()
+    expect(launch).toHaveBeenCalledTimes(2)
+    for (const stop of stops) expect(stop).toHaveBeenCalledOnce()
+  })
+  it('a failed owned startup cleanup runs once and stops successor retries', async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), 'm109-b-stop-fail-'))
+    directories.push(directory)
+    const failure = new Error('generated startup cleanup failure')
+    const stop = vi.fn(() => Promise.reject(failure))
+    const launch = vi.fn(() => Promise.resolve({ ready: Promise.resolve(), stop }))
+    const process = new VaultBrokerProcess(new VaultBrokerDiscovery(directory, 'session'), {
+      identity: identify,
+      launch,
+    })
+    await expect(process.get()).rejects.toBe(failure)
     expect(stop).toHaveBeenCalledOnce()
+    expect(launch).toHaveBeenCalledOnce()
   })
   it('trusted session taint cannot be cleared by a clean request frame', async () => {
     const fixture = await channelSetup()

@@ -12,6 +12,7 @@ import { VAULT_PROTOCOL_VERSION, VAULT_RESET_WORD } from '../../../src/shared/co
 import { vaultBrokerLockSchema } from '../../../src/shared/vaultProtocol'
 import type { VaultManagement } from '../../../src/core/vault/broker/management'
 import type { VaultBroker } from '../../../src/core/vault/broker/broker'
+import type * as nativeModule from '../../../src/runtime/vault/posixNative'
 import type * as brokerModule from '../../../src/core/vault/broker/broker'
 import type * as managementModule from '../../../src/core/vault/broker/management'
 import type {
@@ -57,6 +58,21 @@ vi.mock('../../../src/runtime/vault/brokerProcess', () => ({
     return { location, closed: Promise.resolve(), close: () => Promise.resolve() }
   }) satisfies Start,
 }))
+
+// This core-contract fixture doubles the process and its native epoch guard;
+// posixBindings/brokerProcess cover the real kernel lock and guardian loss.
+vi.mock('../../../src/runtime/vault/posixNative', async (importOriginal) => {
+  const mod = await importOriginal<typeof nativeModule>()
+  return {
+    ...mod,
+    holdVaultStartupLock: vi.fn(() =>
+      Promise.resolve({
+        release: () => Promise.resolve(),
+        onLost: () => undefined,
+      }),
+    ),
+  }
+})
 
 vi.mock('../../../src/core/vault/broker/broker', async (importOriginal) => {
   const mod = await importOriginal<typeof brokerModule>()

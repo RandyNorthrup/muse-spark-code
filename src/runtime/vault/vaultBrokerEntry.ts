@@ -25,7 +25,12 @@ import { KeyringVaultAnchor } from './keyringAnchor'
 import { type KeyringEntryFactory } from '../keyStore'
 import { PosixVaultSlots } from './slots/posixVaultSlots'
 import { startVaultBrokerProcess } from './brokerProcess'
-import { vaultPeerExecutable, vaultProcessIdentity, vaultSocketDescriptors } from './posixNative'
+import {
+  holdVaultStartupLock,
+  vaultPeerExecutable,
+  vaultProcessIdentity,
+  vaultSocketDescriptors,
+} from './posixNative'
 import {
   UI_TEXT,
   VAULT_LIMITS,
@@ -129,7 +134,26 @@ export async function createVaultBrokerProcess(
         unlock,
         epoch: {
           current: () => epoch.current(),
-          bump: (authorize) => epoch.bump(authorize),
+          bump: async (authorize) => {
+            // Epoch is shared across session/protocol brokers; its exclusive writer must never contend.
+            const held = await holdVaultStartupLock(
+              helper,
+              path.join(context.runDirectory, 'lock-epoch.lock'),
+              true,
+            )
+            let hasLostLock = false
+            held.onLost(() => {
+              hasLostLock = true
+            })
+            try {
+              return await epoch.bump(() => {
+                if (hasLostLock) throw new Error(UI_TEXT.vault.noAccess)
+                authorize?.()
+              })
+            } finally {
+              await held.release()
+            }
+          },
           subscribe: (listener) => {
             const unsubscribe = epoch.subscribe(listener)
             listener(initialEpoch)

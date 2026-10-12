@@ -22,9 +22,13 @@ import {
 import { VaultChannelServer } from '../../../src/core/vault/broker/channel'
 import { UnixVaultPeerVerifier } from '../../../src/core/vault/broker/peer'
 import { VaultBrokerClient } from '../../../src/core/vault/broker/client'
-import { VAULT_BROKER_MAX_CONNECTIONS, VAULT_BROKER_EMPTY_IDLE_MS } from '../../../src/shared/constants'
+import {
+  VAULT_BROKER_MAX_CONNECTIONS,
+  VAULT_BROKER_EMPTY_IDLE_MS,
+} from '../../../src/shared/constants'
 import { VaultBrokerDiscovery } from '../../../src/core/vault/broker/discovery'
 import { brokerFixture } from './brokerFixture'
+import * as launcher from '../../../src/core/resources/launcher'
 import { fakeManagement } from '../helpers/vault/fakeManagement'
 import { brokerRaceGates } from '../helpers/vault/brokerRaceGates'
 
@@ -138,7 +142,7 @@ afterEach(async () => {
     }),
   )
 })
-const native = { directory: '', helper: '', childEntry: '', suicide: '' }
+const native = { directory: '', helper: '', childEntry: '', suicide: '', interrupted: '' }
 beforeAll(async () => {
   if (process.platform === 'win32') return
   native.directory = await mkdtemp(path.join(os.tmpdir(), 'cm109-broker-'))
@@ -191,6 +195,29 @@ beforeAll(async () => {
     '-o',
     native.helper,
   ])
+  if (process.platform === 'linux') {
+    native.interrupted = path.join(native.directory, 'interrupted')
+    const nativeSource = await readFile('native/posix/vaultPeer.c', 'utf8')
+    const include = `#include ${JSON.stringify(path.resolve('src/core/vault/broker/peer.c').replaceAll('\\', '/'))}`
+    const source = nativeSource
+      .replace('#include <sys/types.h>', '#include <sys/types.h>\n#include <signal.h>')
+      .replace(
+        '  fd = openat(root, "stat", O_RDONLY | O_NOFOLLOW | O_CLOEXEC);\n  count =',
+        '  kill(pid, SIGTERM);\n  for (int attempt = 0; attempt < 1000 && kill(pid, 0) == 0; attempt++) usleep(1000);\n  fd = openat(root, "stat", O_RDONLY | O_NOFOLLOW | O_CLOEXEC);\n  count =',
+      )
+      .replace('#include "../../src/core/vault/broker/peer.c"', () => include)
+    const file = path.join(native.directory, 'interrupted.c')
+    await writeFile(file, source)
+    execFileSync('/usr/bin/cc', [
+      '-Os',
+      '-Wall',
+      '-Wextra',
+      '-Werror',
+      file,
+      '-o',
+      native.interrupted,
+    ])
+  }
   await build({
     entryPoints: ['test/unit/helpers/vault/brokerProcessChild.ts'],
     outfile: native.childEntry,
@@ -474,6 +501,66 @@ describe.skipIf(process.platform === 'win32')('POSIX vault broker lifecycle', ()
       userId: String(process.getuid?.()),
     })
     expect(await vaultProcessIdentity(native.helper, 2_147_483_647)).toBeNull()
+  })
+  it.skipIf(process.platform !== 'linux')(
+    'retries one interrupted native identity read after the real broker closes orderly',
+    async () => {
+      const f = await fixture('identity-exit', 1000)
+      const child = spawn(
+        process.execPath,
+        [native.childEntry, f.options.runDirectory, native.helper],
+        { env: {}, stdio: ['ignore', 'pipe', 'ignore'] },
+      )
+      const exited = once(child, 'exit')
+      if (child.pid === undefined) throw new Error('missing real broker identity fixture')
+      const pid = child.pid
+      await once(child.stdout, 'data')
+      const exec = launcher.execResourceFile
+      const codes: number[] = []
+      const probe = vi.spyOn(launcher, 'execResourceFile').mockImplementation(async (...args) => {
+        try {
+          return await exec(...args)
+        } catch (error: unknown) {
+          if (
+            error !== null &&
+            typeof error === 'object' &&
+            'code' in error &&
+            typeof error.code === 'number'
+          )
+            codes.push(error.code)
+          throw error
+        }
+      })
+      try {
+        await expect(vaultProcessIdentity(native.interrupted, pid)).resolves.toBeNull()
+        expect(codes).toEqual([1, 2])
+        expect(probe).toHaveBeenCalledTimes(2)
+        const discovery = new VaultBrokerDiscovery(f.options.runDirectory, f.options.userSession)
+        await expect(stat(path.join(discovery.directory, 'broker.lock'))).rejects.toMatchObject({
+          code: 'ENOENT',
+        })
+      } finally {
+        probe.mockRestore()
+        if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL')
+        await exited
+        await f.f.broker.dispose()
+      }
+    },
+  )
+  it('refuses persistent native identity failures after one retry and never retries a malformed identity', async () => {
+    const probe = vi
+      .spyOn(launcher, 'execResourceFile')
+      .mockRejectedValue(Object.assign(new Error('generated native refusal'), { code: 1 }))
+    try {
+      await expect(vaultProcessIdentity(native.helper, process.pid)).rejects.toThrow('No access')
+      expect(probe).toHaveBeenCalledTimes(2)
+      probe.mockClear()
+      probe.mockResolvedValue({ stdout: '{}', stderr: '' })
+      await expect(vaultProcessIdentity(native.helper, process.pid)).rejects.toThrow('No access')
+      expect(probe).toHaveBeenCalledOnce()
+    } finally {
+      probe.mockRestore()
+    }
   })
   it('restarts after SIGKILL without trusting stale discovery or leaking its guardian', async () => {
     const f = await fixture('crash', 1000)

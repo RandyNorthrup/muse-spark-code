@@ -1,5 +1,7 @@
 // Generated-only installed broker receipt. Run in an isolated unlocked Secret Service.
 import assert from 'node:assert/strict'
+import { AsyncLocalStorage } from 'node:async_hooks'
+import { expectedReceiptWarning } from '../unit/helpers/vault/receiptWarnings.mjs'
 import { spawn } from 'node:child_process'
 import { once } from 'node:events'
 import { performance } from 'node:perf_hooks'
@@ -33,6 +35,9 @@ let client
 let resources
 let platform
 let brokerPid
+const admission = { host: undefined }
+let stopObserving
+const sampling = new AsyncLocalStorage()
 const pressure = []
 const value = randomBytes(32)
 try {
@@ -75,8 +80,23 @@ try {
   const { createVaultBrokerBindings } = require(path.join(distDir, 'vaultRuntime.js'))
   assert.equal(typeof createVaultBrokerBindings, 'function')
   const { VaultBrokerClient, VaultManageSession, lazyRuntimeResources } = require(testClient)
+  const { onResourceWindow } = require(path.join(distDir, 'resourceAdmission.js'))
+  stopObserving = onResourceWindow(({ port }) => {
+    admission.host = port
+    // Observe the exact concurrent work whose unchanged installed sampler calls onError.
+    const sampleTree = port.sampleTree.bind(port)
+    port.sampleTree = (work) => sampling.run(work, () => sampleTree(work))
+  })
   const resourceError = (kind) => {
-    const frame = new Error('resource receipt diagnostic').stack
+    const stack = new Error('resource receipt diagnostic').stack
+    const expected = expectedReceiptWarning(kind, stack, sampling.getStore())
+    if (expected !== null) {
+      process.stdout.write(
+        `EXPECTED resource warning: ${expected}; native helper and process group exited\n`,
+      )
+      return
+    }
+    const frame = stack
       ?.split('\n')
       .map((line) =>
         line
@@ -225,12 +245,22 @@ try {
       )
     }
   } finally {
-    platform?.dispose?.()
-    for (const child of pressure) {
-      const exited = once(child, 'exit')
-      process.kill(-child.pid, 'SIGKILL')
-      await exited
+    try {
+      platform?.dispose?.()
+      for (const child of pressure) {
+        const exited = once(child, 'exit')
+        process.kill(-child.pid, 'SIGKILL')
+        await exited
+      }
+      if (admission.host !== undefined) {
+        await admission.host.refreshTrees()
+        assert.equal(admission.host.work.size, 0, 'no live or uncertain governed helper trees')
+        for (let count = 0; count < 100 && admission.host.retired.size > 0; count++) await delay(10)
+        assert.equal(admission.host.retired.size, 0, 'native helper temporary files retired')
+      }
+    } finally {
+      stopObserving?.()
+      resources?.dispose()
     }
-    resources?.dispose()
   }
 }
