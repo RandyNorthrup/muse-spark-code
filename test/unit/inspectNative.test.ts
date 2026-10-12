@@ -71,6 +71,7 @@ if (process.platform === 'linux') {
       for (const name of [
         'Race',
         'StatRace',
+        'StatMask',
         'Guards',
         'Device',
         'Budget',
@@ -202,6 +203,28 @@ if (process.platform === 'linux') {
         expect(stdout).toContain(`Device: ${expected.dev.toString(16)}h/${String(expected.dev)}d `)
         expect(stdout).toContain(kind)
       }
+    })
+    it('stat prints a dash for every field the filesystem withholds, never zero or 1970', async () => {
+      const h = await fixture()
+      const result = await native(
+        variant('StatMask'),
+        h.args('stat', ['allowed.txt'], ['allowed.txt']),
+        h.root,
+      )
+      expect(result.code, result.stderr).toBe(0)
+      const stdout = result.stdout.toString()
+      expect(stdout).toContain('Size: -  Blocks: - ')
+      expect(stdout).toContain('Uid: (-/ UNKNOWN)  Gid: (-/ UNKNOWN)')
+      expect(stdout).toContain('Access: -\n')
+      expect(stdout).toContain('Modify: -\n')
+      expect(stdout).toContain('Change: -\n')
+      expect(stdout).toContain('Birth: -\n')
+      expect(stdout).not.toContain('1970')
+      expect(stdout).not.toContain('Size: 0')
+      // The supplied fields still print.
+      const expected = statSync(h.allowed)
+      expect(stdout).toContain(`Inode: ${String(expected.ino)} `)
+      expect(stdout).toContain(`Device: ${expected.dev.toString(16)}h/${String(expected.dev)}d `)
     })
     it('stat -- name answers: the grammar drops the separator the helper would refuse', async () => {
       // Builds the helper argv exactly as InspectRunner.execute does, so the
