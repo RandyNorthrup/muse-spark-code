@@ -526,7 +526,9 @@ happened, not what was planned; superseded entries are kept.
   M123P9's logged sweep failures and translated uncertain writes). Still
   to land: the GitHub sign-in (lane A, accepted on its branch), the
   editors' leases (lane L), the panel and its strings (lane U) and each
-  editor's qualification (lane Q).
+  editor's qualification (lane Q). The pull-request checkout's own git
+  launches are not yet under the resource governor; nothing in this release
+  can start them, and the process inventory fails the day something could.
 
 ## [0.17.1] - 2026-10-10
 
