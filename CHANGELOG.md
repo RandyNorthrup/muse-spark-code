@@ -119,6 +119,11 @@ happened, not what was planned; superseded entries are kept.
   filling the original logo box and staying blue with at least 3:1 contrast
   in ordinary themes; high contrast and forced colours use the foreground.
 
+### Documentation
+
+- The README's four screenshots of the landing screen (modes, palette, slash
+  commands, voice) show the extension's own mark.
+
 ## [0.18.0] - 2026-10-11
 
 ### Highlights
