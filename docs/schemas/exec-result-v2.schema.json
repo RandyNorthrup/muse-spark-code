@@ -12,6 +12,7 @@
         "cancelled",
         "timeout",
         "budget_exceeded",
+        "unpriced",
         "request_cap",
         "denied",
         "auth_required",
@@ -329,6 +330,16 @@
       "then": {
         "properties": {
           "exitCode": { "const": 5 },
+          "signal": { "type": "null" },
+          "error": { "type": "object" }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "status": { "const": "unpriced" } } },
+      "then": {
+        "properties": {
+          "exitCode": { "const": 4 },
           "signal": { "type": "null" },
           "error": { "type": "object" }
         }

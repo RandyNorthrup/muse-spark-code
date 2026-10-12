@@ -4120,6 +4120,12 @@ export const EXEC_SCAN_TIMEOUT_MS = 30_000
 export const EXEC_SCAN_EXIT_FOUND = 10
 // Headless runs refuse smaller caps at the same floor Meta enforces.
 export const EXEC_MIN_OUTPUT_TOKENS: number = MODEL_API_MIN_OUTPUT_TOKENS
+// EXECPROV round 5 (5b): an open claim with no recorded owner cannot be
+// tested for liveness, so it is judged by age. No request of this product
+// can be in flight longer than the longest a run may live: the run timeout
+// (21,600 s) plus the window a stopped run gets to settle its claim (5 s).
+export const DAILY_BUDGET_OWNERLESS_MAX_AGE_MS =
+  EXEC_MAX_TIMEOUT_SECONDS * 1000 + EXEC_STOP_GRACE_MS
 export const EXEC_IMAGE_N = 1
 export const EXEC_STREAM_IDLE_MS = 300_000
 export const EXEC_USD_UNITS = 1_000_000

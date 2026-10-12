@@ -25,6 +25,7 @@ import {
   DAILY_BUDGET_LOCK_ATTEMPTS,
   DAILY_BUDGET_LOCK_WAIT_MS,
   DAILY_BUDGET_OWNER_START_SKEW_MS,
+  DAILY_BUDGET_OWNERLESS_MAX_AGE_MS,
   EXEC_USD_DECIMALS,
   UI_TEXT,
 } from '../../shared/constants'
@@ -133,6 +134,15 @@ export type SessionBudgetJournalDeps = {
   readonly sleep: (ms: number) => Promise<void>
   /** Daily scopes recover only new, durably nonsent claims whose PID no longer exists. */
   readonly recoverUnsent?: boolean
+  /**
+   * 5b: names the ownerless holds a recovery closed by age, so the run can
+   * log one info line with their count and total. Only fires when at least
+   * one hold was closed.
+   */
+  readonly onOwnerlessClosed?: (closed: {
+    readonly count: number
+    readonly totalUsd: UsdAmount
+  }) => void
   readonly rename?: (from: string, to: string) => Promise<void>
   /**
    * D1: daily scopes refuse with the numbers (limit, spent, held, reset,
@@ -747,6 +757,23 @@ export function createSessionBudgetJournal(
     }
   }
 
+  /**
+   * 5b: how long an ownerless open claim has been sitting. The journal
+   * records no claim timestamp, so the age comes from the claim file's
+   * modification time (the claim directory's when the file is absent).
+   * Undefined when neither can be read: the claim stays open.
+   */
+  const claimAgeMs = (directory: string): number | undefined => {
+    for (const file of [path.join(directory, CLAIM_FILE), directory]) {
+      try {
+        return Date.now() - statSync(file).mtimeMs
+      } catch (error: unknown) {
+        if (storeErrorCode(error) !== MISSING) throw unavailable(error)
+      }
+    }
+    return undefined
+  }
+
   const recoverUnsent = async (scope: Scope, seed: Seed) => {
     if (deps.recoverUnsent !== true) return
     // D2: calibrate the kernel record against this process first. A wrong
@@ -756,10 +783,29 @@ export function createSessionBudgetJournal(
     const isStartReliable =
       selfStart !== undefined &&
       Math.abs(selfStart - ownerStartMs) < DAILY_BUDGET_OWNER_START_SKEW_MS
+    let ownerlessClosed = 0
+    let ownerlessTotal = Usd.from(0)
     const claimIds = readdirSync(path.join(scope.directory, CLAIMS_DIRECTORY))
     for (const claimId of claimIds) {
       const claim = readClaim(scope, seed, claimId)
-      if (claim.ownerPid === undefined || claim.settledUsd !== undefined) continue
+      if (claim.settledUsd !== undefined) continue
+      const directory = path.join(scope.directory, CLAIMS_DIRECTORY, claimId)
+      if (claim.ownerPid === undefined) {
+        // 5b: no recorded owner, so no liveness test. Older than the
+        // longest any request of this product can be in flight, it cannot
+        // belong to a live request and closes like a dead owner's sent
+        // claim: settled at its reservation, unknown cost.
+        const ageMs = claimAgeMs(directory)
+        if (ageMs === undefined || ageMs <= DAILY_BUDGET_OWNERLESS_MAX_AGE_MS) continue
+        await writeFileAtomically(
+          path.join(directory, CLAIM_FILE),
+          JSON.stringify({ ...claim, settledUsd: claim.reservedUsd, hasUnknownCost: true }),
+          options,
+        )
+        ownerlessClosed += 1
+        ownerlessTotal = ownerlessTotal.add(Usd.from(claim.reservedUsd))
+        continue
+      }
       let isGone = false
       try {
         process.kill(claim.ownerPid, 0)
@@ -784,7 +830,6 @@ export function createSessionBudgetJournal(
           isGone = true
       }
       if (!isGone) continue
-      const directory = path.join(scope.directory, CLAIMS_DIRECTORY, claimId)
       const wasSent = await isPresent(path.join(directory, SENT_DIRECTORY))
       await writeFileAtomically(
         path.join(directory, CLAIM_FILE),
@@ -796,6 +841,8 @@ export function createSessionBudgetJournal(
         options,
       )
     }
+    if (ownerlessClosed > 0)
+      deps.onOwnerlessClosed?.({ count: ownerlessClosed, totalUsd: ownerlessTotal.toAmount() })
   }
 
   // D2: every process that reads the ledger recovers first. Best effort:

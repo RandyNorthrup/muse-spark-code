@@ -326,6 +326,7 @@
     "output": "結果形式をtext、json、jsonlから選びます。",
     "max-budget-usd": "この実行の厳格な支出上限をUSDで設定します。",
     "max-requests": "モデルへのリクエスト上限を設定します。",
+    "max-output-tokens": "実行の出力上限をトークン数で引き下げます。省略時はモデルの上限が適用され、それを超えることはありません。",
     "timeout": "実行時間の上限を秒で設定します。",
     "fail-on-denial": "権限が拒否されたら実行を停止します。",
     "ephemeral": "セッションを保存せずメモリに保持します。",
@@ -361,7 +362,7 @@
   "referenceBrowserDownload": "Chrome for Testing: ダウンロード (設定: museSpark.browserCheckRuntime).",
   "referenceRemoveSkills": "拡張機能が管理する Muse Code スキルのコピーとリンクだけを削除し、他のスキルは保持します。",
   "referenceInstallSkills": "project_setup、feature_delivery、quality_retrofit を Muse Code の設定へコピーし、スキルとしてリンクします。",
-  "referenceExecContract": "ヘッドレス実行ではワークスペースの信頼と権限の回避を許可しません。 ヘッドレス実行で許可されるのは plan または acceptEdits のみです。 ホスト型ウェブ検索には保証された上限がないため拒否します。 画像生成には acceptEdits が必要です。 プロンプトの入力元は1つだけ選んでください。 プロンプトとキーに同時に stdin は使えません。 Model API には --max-budget-usd が必要です。 modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.",
+  "referenceExecContract": "ヘッドレス実行ではワークスペースの信頼と権限の回避を許可しません。 ヘッドレス実行で許可されるのは plan または acceptEdits のみです。 ホスト型ウェブ検索には保証された上限がないため拒否します。 画像生成には acceptEdits が必要です。 プロンプトの入力元は1つだけ選んでください。 プロンプトとキーに同時に stdin は使えません。 Model API には --max-budget-usd が必要です。 modelApi: --max-budget-usd / --max-requests / --max-output-tokens / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.",
   "referenceBriefHelp": "help / --help / -h: ACP / CLI. help --all: コマンド、設定、機能の説明とドキュメント。",
   "referenceKeyStdin": "auth set: ターミナルでキーを読み取り、このコンピューターの資格情報ストアに保管します。会話はこのキーに課金されます。 exec / scan-secrets --key-stdin: キーは端末ではなくパイプから読み込んでください。 stdin → memory; prompt stdin + key stdin = プロンプトとキーに同時に stdin は使えません。",
   "referenceModalKeys": "ダイアログを閉じるか、内部のフォーカスを移動します。",
@@ -3425,6 +3426,12 @@
   "execEffortUnavailable": "このモデルではこの思考量を利用できません。",
   "execTimedOut": "実行が制限時間に達しました。",
   "execBudgetRefused": "次のリクエストが残りの予算を超えます。",
+  "execBudgetRemedyCap": "--max-budget-usd を少なくとも {admitCap} に引き上げてください。",
+  "execBudgetRemedyOutput": "または --max-output-tokens {maxTokens} で再試行してください。",
+  "execBudgetRemedyInput": "入力だけで {inputCost} かかり、残り {remaining} を上回っています。",
+  "execOutputCapExceeded": "--max-output-tokens が出力上限 {cap} トークンを超えています。",
+  "execUnpricedProvider": "このモデルの料金は不明なため、上限付きの実行では {model} の予約ができません。{file} にこのモデルの料金を追加するか、料金のあるモデルを選んでください。",
+  "execUnpricedModel": "このモデルの料金は不明なため、上限付きの実行では予約ができません。料金のあるモデルを選んでください。",
   "execPaidDailyStopped": "有料エキストラは停止中です: 日次予算 {cap} に到達しました（使用済み {spent}、{requests}による保留 {held}）。リセットは {reset} です。続けるには {setting} を引き上げてください。",
   "execPaidOpenRequests": {
     "other": "{count} 件のオープンなリクエスト"
@@ -3452,6 +3459,7 @@
     "cancelled": "キャンセル済み",
     "timeout": "タイムアウト",
     "budget_exceeded": "予算超過",
+    "unpriced": "料金不明",
     "request_cap": "リクエスト上限到達",
     "denied": "拒否",
     "auth_required": "認証が必要",
@@ -3519,6 +3527,9 @@
   "execUsage": "exec [options] <prompt> | exec [options] --prompt-file <path> | exec [options] -",
   "execScanUsage": "scan-secrets <file> [--key-stdin]",
   "execSummary": "{status}; リクエスト {requests}; 確定額 {settled}; 不確定額 {uncertain}; 画像試行 {imageAttempts}; 返却 {imagesReturned}; 不確定画像 {imagesUncertain}",
+  "execStaleHoldsClosed": {
+    "other": "失効した予約 {count} 件を解消しました（{total}）。"
+  },
   "execSummaryUpperBound": "{status}; リクエスト {requests}; 確定額 {settled}; 不確定額 {uncertain}; 画像試行 {imageAttempts}; 返却 {imagesReturned}; 不確定画像 {imagesUncertain}; 費用は上限値です。",
   "exportSessionLine": "セッション: `{id}`",
   "exportBackendLine": "バックエンド: {backend}",

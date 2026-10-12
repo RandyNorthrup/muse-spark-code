@@ -408,6 +408,8 @@ export const EN = {
     output: 'Choose the result format: text, json or jsonl.',
     'max-budget-usd': 'Set the hard spending limit in USD for this run.',
     'max-requests': 'Set the maximum number of model requests.',
+    'max-output-tokens':
+      'Lower the run’s output cap in tokens; absent is the model’s policy cap, never above it.',
     timeout: 'Set the run deadline in seconds.',
     'fail-on-denial': 'Stop the run when a permission request is denied.',
     ephemeral: 'Keep the session in memory without saving it.',
@@ -457,7 +459,7 @@ export const EN = {
   referenceInstallSkills:
     "Copy project_setup, feature_delivery and quality_retrofit into Muse Code's configuration and link them as skills.",
   referenceExecContract:
-    'Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.',
+    'Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --max-output-tokens / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.',
   referenceBriefHelp:
     'help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation.',
   referenceKeyStdin:
@@ -4210,6 +4212,26 @@ export const EN = {
   execEffortUnavailable: 'This effort is not available for this model.',
   execTimedOut: 'The run reached its deadline.',
   execBudgetRefused: 'The next request exceeds the remaining budget.',
+  // EXECPROV round 5: a budget refusal names both remedies with numbers. The
+  // cap remedy is a complete clause on its own, so ACP and the editor show
+  // the same reason through the shared scope without the terminal-only flag
+  // half. {admitCap} is the cap that admits the request, rounded up to the
+  // cent; {maxTokens} is the largest --max-output-tokens value that fits the
+  // remaining cap; {inputCost} and {remaining} feed the input-alone note.
+  execBudgetRemedyCap: 'Raise --max-budget-usd to at least {admitCap} to admit it.',
+  execBudgetRemedyOutput: 'Or retry with --max-output-tokens {maxTokens}.',
+  execBudgetRemedyInput: 'The input alone costs {inputCost}, above the {remaining} left.',
+  // A --max-output-tokens value above the policy cap is refused at parsing.
+  // {cap} is the absolute ceiling every policy cap sits at or below.
+  execOutputCapExceeded: '--max-output-tokens exceeds the output cap of {cap} tokens.',
+  // EXECPROV round 5 (5a): a missing price is not a budget stop. {model} is
+  // the requested ref; {file} is the runner's own providers file, where a
+  // price for the model is added. The second sentence is the backend without
+  // a providers file.
+  execUnpricedProvider:
+    'This model has no known tariff, so a capped run cannot reserve for {model}. Add a price for this model in {file}, or choose a priced model.',
+  execUnpricedModel:
+    'This model has no known tariff, so a capped run cannot reserve for it. Choose a priced model.',
   // D1: a daily paid stop names its numbers: the limit, what is spent, what
   // open requests still hold (and how many), when the day resets, and the
   // setting that raises it. {requests} is a pre-pluralised open-request count.
@@ -4249,6 +4271,7 @@ export const EN = {
     cancelled: 'Cancelled',
     timeout: 'Timed Out',
     budget_exceeded: 'Budget Exceeded',
+    unpriced: 'Unpriced',
     request_cap: 'Request Cap Reached',
     denied: 'Denied',
     auth_required: 'Authentication Required',
@@ -4339,6 +4362,12 @@ export const EN = {
   execScanUsage: 'scan-secrets <file> [--key-stdin]',
   execSummary:
     '{status}; requests {requests}; settled {settled}; uncertain {uncertain}; image attempts {imageAttempts}; returned {imagesReturned}; uncertain images {imagesUncertain}',
+  // EXECPROV round 5 (5b): one info line names the ownerless holds a run
+  // closed by age. {total} is their summed reservation, kept as unknown cost.
+  execStaleHoldsClosed: forms({
+    one: 'Closed {count} stale hold ({total}).',
+    other: 'Closed {count} stale holds ({total}).',
+  }),
   execSummaryUpperBound:
     '{status}; requests {requests}; settled {settled}; uncertain {uncertain}; image attempts {imageAttempts}; returned {imagesReturned}; uncertain images {imagesUncertain}; Cost is an upper bound.',
   // The exported Markdown's own words (M30); what was said and run is copied as it was.

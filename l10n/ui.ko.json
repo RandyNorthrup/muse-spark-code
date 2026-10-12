@@ -326,6 +326,7 @@
     "output": "결과 형식을 text, json 또는 jsonl로 선택합니다.",
     "max-budget-usd": "이 실행의 엄격한 지출 한도를 USD로 설정합니다.",
     "max-requests": "최대 모델 요청 수를 설정합니다.",
+    "max-output-tokens": "실행의 출력 상한을 토큰 수로 낮축니다. 생략하면 모델의 상한이 적용되며 이를 초과하지 않습니다.",
     "timeout": "실행 시간 제한을 초 단위로 설정합니다.",
     "fail-on-denial": "권한이 거부되면 실행을 중지합니다.",
     "ephemeral": "저장하지 않고 세션을 메모리에 유지합니다.",
@@ -361,7 +362,7 @@
   "referenceBrowserDownload": "Chrome for Testing: 다운로드 (설정: museSpark.browserCheckRuntime).",
   "referenceRemoveSkills": "확장 프로그램이 관리하는 Muse Code 스킬 복사본과 링크만 제거하고 다른 스킬은 유지합니다.",
   "referenceInstallSkills": "project_setup, feature_delivery, quality_retrofit을 Muse Code 설정에 복사하고 스킬로 연결합니다.",
-  "referenceExecContract": "헤드리스 실행에서는 작업 영역 신뢰와 권한 우회를 거부합니다. 헤드리스 실행에서는 plan 또는 acceptEdits만 허용합니다. 호스팅 웹 검색에는 보장된 한도가 없어 거부합니다. 이미지 생성에는 acceptEdits가 필요합니다. 프롬프트 입력 소스를 하나만 선택하세요. 프롬프트와 키가 동시에 stdin을 사용할 수 없습니다. Model API에는 --max-budget-usd가 필요합니다. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.",
+  "referenceExecContract": "헤드리스 실행에서는 작업 영역 신뢰와 권한 우회를 거부합니다. 헤드리스 실행에서는 plan 또는 acceptEdits만 허용합니다. 호스팅 웹 검색에는 보장된 한도가 없어 거부합니다. 이미지 생성에는 acceptEdits가 필요합니다. 프롬프트 입력 소스를 하나만 선택하세요. 프롬프트와 키가 동시에 stdin을 사용할 수 없습니다. Model API에는 --max-budget-usd가 필요합니다. modelApi: --max-budget-usd / --max-requests / --max-output-tokens / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.",
   "referenceBriefHelp": "help / --help / -h: ACP / CLI. help --all: 명령, 설정, 기능에 대한 설명과 문서입니다.",
   "referenceKeyStdin": "auth set: 터미널에서 키를 읽어 이 컴퓨터의 자격 증명 저장소에 보관합니다. 대화 요금은 이 키로 청구됩니다. exec / scan-secrets --key-stdin: 터미널이 아닌 파이프에서 키를 읽으세요. stdin → memory; prompt stdin + key stdin = 프롬프트와 키가 동시에 stdin을 사용할 수 없습니다.",
   "referenceModalKeys": "대화 상자를 닫거나 내부에서 초점을 이동합니다.",
@@ -3425,6 +3426,12 @@
   "execEffortUnavailable": "이 모델에서는 이 사고 수준을 사용할 수 없습니다.",
   "execTimedOut": "실행이 제한 시간에 도달했습니다.",
   "execBudgetRefused": "다음 요청이 남은 예산을 초과합니다.",
+  "execBudgetRemedyCap": "--max-budget-usd를 최소 {admitCap}까지 올리세요.",
+  "execBudgetRemedyOutput": "또는 --max-output-tokens {maxTokens}로 다시 시도하세요.",
+  "execBudgetRemedyInput": "입력만으로 {inputCost}가 들어 남은 {remaining}를 초과합니다.",
+  "execOutputCapExceeded": "--max-output-tokens가 출력 상한 {cap}개 토큰을 초과합니다.",
+  "execUnpricedProvider": "이 모델의 요금을 알 수 없어 상한이 있는 실행에서 {model}에 대해 예약할 수 없습니다. {file}에 이 모델의 요금을 추가하거나 요금이 있는 모델을 선택하세요.",
+  "execUnpricedModel": "이 모델의 요금을 알 수 없어 상한이 있는 실행에서 예약할 수 없습니다. 요금이 있는 모델을 선택하세요.",
   "execPaidDailyStopped": "유료 엑스트라가 중단됨: 일일 예산 {cap} 도달 (사용 {spent}, {requests}가 보유한 {held}); {reset}에 초기화됨. 계속하려면 {setting}을(를) 올리세요.",
   "execPaidOpenRequests": {
     "other": "열린 요청 {count}개"
@@ -3452,6 +3459,7 @@
     "cancelled": "취소됨",
     "timeout": "시간 초과",
     "budget_exceeded": "예산 초과",
+    "unpriced": "요금 없음",
     "request_cap": "요청 한도 도달",
     "denied": "거부됨",
     "auth_required": "인증 필요",
@@ -3519,6 +3527,9 @@
   "execUsage": "exec [options] <prompt> | exec [options] --prompt-file <path> | exec [options] -",
   "execScanUsage": "scan-secrets <file> [--key-stdin]",
   "execSummary": "{status}; 요청 {requests}; 확정 {settled}; 불확실 {uncertain}; 이미지 시도 {imageAttempts}; 반환 {imagesReturned}; 불확실 이미지 {imagesUncertain}",
+  "execStaleHoldsClosed": {
+    "other": "만료된 예약 {count}개를 정리했습니다({total})."
+  },
   "execSummaryUpperBound": "{status}; 요청 {requests}; 확정 {settled}; 불확실 {uncertain}; 이미지 시도 {imageAttempts}; 반환 {imagesReturned}; 불확실 이미지 {imagesUncertain}; 비용은 상한값입니다.",
   "exportSessionLine": "세션: `{id}`",
   "exportBackendLine": "백엔드: {backend}",

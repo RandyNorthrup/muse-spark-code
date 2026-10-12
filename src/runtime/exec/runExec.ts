@@ -217,6 +217,23 @@ export interface ProviderRunRequest {
 /** A test runner's provider turn on the same validated and pinned run. */
 export type ProviderExecRunner = (request: ProviderRunRequest) => Promise<number>
 
+/**
+ * A missing price is not a budget stop (5a): the sentence states the reason
+ * and the remedy. A provider run names the runner's own providers file,
+ * where a price for the model is added; anything else names a priced model.
+ */
+function unpricedMessage(
+  requestedModel: string | null | undefined,
+  file: string | undefined,
+): string {
+  return file !== undefined &&
+    requestedModel !== undefined &&
+    requestedModel !== null &&
+    requestedModel !== ''
+    ? fill(UI_TEXT.execUnpricedProvider, { model: requestedModel, file })
+    : UI_TEXT.execUnpricedModel
+}
+
 function stopMessage(cause: StopCause, maxRequests: number): string {
   switch (cause.kind) {
     case 'signal': {
@@ -235,7 +252,7 @@ function stopMessage(cause: StopCause, maxRequests: number): string {
       return UI_TEXT.execBudgetRefused
     }
     case 'unpriced': {
-      return UI_TEXT.execModelUnpriced
+      return UI_TEXT.execUnpricedModel
     }
     case 'request_shape': {
       return UI_TEXT.execRequestShape
@@ -335,8 +352,18 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
     timeoutSeconds: options.timeoutMs / MILLISECONDS_PER_SECOND,
   }
   let resolvedOutputCap: number | undefined
-  const outputCap = (policy?: ModelPolicy): number =>
-    (resolvedOutputCap ??= resolveExecOutputCap(policy ?? modelPolicyFor(model ?? '')))
+  // The run's one resolved output cap: the policy cap by default, lowered by
+  // an explicit --max-output-tokens that never exceeds it (round 5). The
+  // same closure feeds the request body (via modelOutputMaxTokens) and the
+  // run ledger's admission, so what is reserved is what the provider may
+  // produce.
+  const outputCap = (policy?: ModelPolicy): number => {
+    const policyCap = (resolvedOutputCap ??= resolveExecOutputCap(
+      policy ?? modelPolicyFor(model ?? ''),
+    ))
+    const flag = options.maxOutputTokens
+    return flag === undefined ? policyCap : Math.min(flag, policyCap)
+  }
   const ledger =
     options.backend === 'modelApi' &&
     options.budgetUsd !== undefined &&
@@ -348,6 +375,8 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         })
       : undefined
   let providerRun: AssembledProviderRun | undefined
+  /** The runner's own providers file, for the missing-price remedy (5a). */
+  let providerFilePath: string | undefined
   let memory: MemorySecretStore | undefined
   let runtime: RuntimeBackend | undefined
   let tap: SessionTap | undefined
@@ -476,13 +505,14 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
     // Past argument parsing: failures from here are the run's, not usage,
     // unless assembly says otherwise.
     setup.isUsageError = false
+    providerFilePath = providersFilePath({
+      platform: deps.platform,
+      homeDir: deps.homeDir,
+      xdgConfigHome: deps.env['XDG_CONFIG_HOME'],
+    })
     const assembled = await lifecycle.race(
       assembleProviderRun({
-        filePath: providersFilePath({
-          platform: deps.platform,
-          homeDir: deps.homeDir,
-          xdgConfigHome: deps.env['XDG_CONFIG_HOME'],
-        }),
+        filePath: providerFilePath,
         readFile: async (filePath) => {
           const bytes = await deps.readFile(filePath, EXEC_PROMPT_MAX_BYTES, lifecycle.signal)
           return new TextDecoder('utf-8', { fatal: true }).decode(bytes)
@@ -1068,7 +1098,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
             if (ledger !== undefined && providerRun === undefined) {
               if (tier === undefined) {
                 setup.isUsageError = true
-                error = UI_TEXT.execModelUnpriced
+                error = unpricedMessage(requestedModel, undefined)
                 return
               }
               // Ask the ledger's exact arithmetic for the start reservation, in a
@@ -1182,10 +1212,9 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
       totals?.requests === 0
     if (lifecycle.cause !== null) {
       status = statusForStop(lifecycle.cause)
-      if (
-        !['budget', 'unpriced'].includes(lifecycle.cause.kind) ||
-        error === UI_TEXT.execIncomplete
-      )
+      if (lifecycle.cause.kind === 'unpriced')
+        error = unpricedMessage(model ?? options.model, providerFilePath)
+      else if (lifecycle.cause.kind !== 'budget' || error === UI_TEXT.execIncomplete)
         error =
           vaultDenial !== undefined && lifecycle.cause.kind === 'denied'
             ? vaultDenial
@@ -1234,14 +1263,16 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         : tap?.releasedMessages(true).findLast((item) => item.kind === 'agentMessage')
     // D3: a budget stop keeps everything produced so far, and the final
     // message says what was reached instead of withholding the turn.
+    // A pre-first-request refusal never produced work: its final message is
+    // its own sentence (5a), never another kind's words.
     const partialText = partial?.text
-    const finalMessage =
-      status === 'budget_exceeded'
-        ? [
-            ...(partialText === undefined || partialText === '' ? [] : [partialText]),
-            plural(UI_TEXT.execBudgetProgress, totals?.requests ?? 0),
-          ].join(' ')
-        : (partialText ?? (hasCompleteResponse ? '' : UI_TEXT.execMessageWithheld))
+    const kept = partialText === undefined || partialText === '' ? [] : [partialText]
+    let finalMessage: string
+    if (status === 'budget_exceeded')
+      finalMessage = [...kept, plural(UI_TEXT.execBudgetProgress, totals?.requests ?? 0)].join(' ')
+    else if (status === 'unpriced' || cause?.kind === 'request_shape')
+      finalMessage = [...kept, error].join(' ')
+    else finalMessage = partialText ?? (hasCompleteResponse ? '' : UI_TEXT.execMessageWithheld)
     const result: ExecResult = {
       v: EXEC_PROTOCOL_VERSION,
       status,

@@ -5,7 +5,14 @@
 
 import { spawn, type ChildProcess } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
-import { mkdtempSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
+import {
+  mkdtempSync,
+  mkdirSync,
+  readFileSync,
+  realpathSync,
+  utimesSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
@@ -13,8 +20,10 @@ import { PaidBudgetStopError } from '../../src/core/backends/modelapi/sessionBud
 import { isPaidStop, isUserRefusal } from '../../src/core/refusal'
 import { isPaidStop as isPaidStopOnTransport } from '../../src/host/backend/configuredProvidersEntry'
 import { createSessionBudgetJournal } from '../../src/host/backend/sessionBudgetJournal'
-import { UI_TEXT } from '../../src/shared/constants'
-import { Usd } from '../../src/shared/usd'
+import { DAILY_BUDGET_OWNERLESS_MAX_AGE_MS, UI_TEXT } from '../../src/shared/constants'
+import { formatUsd } from '../../src/shared/l10n/exactUsd'
+import { plural } from '../../src/shared/l10n/text'
+import { Usd, type UsdAmount } from '../../src/shared/usd'
 import { removeFolder } from './helpers/temporaryFolders'
 
 const SESSION = 'paid-stop-1'
@@ -33,7 +42,13 @@ afterAll(async () => {
   await Promise.all(folders.map((folder) => removeFolder(folder)))
 })
 
-function journalAt(options: { spent?: number; setting?: string } = {}) {
+function journalAt(
+  options: {
+    spent?: number
+    setting?: string
+    onOwnerlessClosed?: (closed: { readonly count: number; readonly totalUsd: UsdAmount }) => void
+  } = {},
+) {
   const directory = realpathSync.native(mkdtempSync(path.join(tmpdir(), 'muse-paid-stop-')))
   folders.push(directory)
   const journal = createSessionBudgetJournal({
@@ -42,6 +57,9 @@ function journalAt(options: { spent?: number; setting?: string } = {}) {
     recoverUnsent: true,
     ...(options.setting !== undefined && {
       dailyStop: { setting: options.setting, nowMs: () => new Date(2026, 9, 11, 12).getTime() },
+    }),
+    ...(options.onOwnerlessClosed !== undefined && {
+      onOwnerlessClosed: options.onOwnerlessClosed,
     }),
     initialBudget: () =>
       Promise.resolve({
@@ -102,6 +120,40 @@ function plantClaim(
   }
   if (options.ownerStartMs !== undefined) claim['ownerStartMs'] = options.ownerStartMs
   writeFileSync(path.join(claims, 'claim.json'), JSON.stringify(claim))
+  return claimId
+}
+
+/**
+ * A 0.17-style hold: no ownerPid, no ownerStartMs, so only its age can judge
+ * it. `ageMs` backdates the claim file and its directory (the journal reads
+ * the file's modification time when the journal recorded none).
+ */
+function plantOwnerlessClaim(
+  directory: string,
+  seed: { scopeId: string },
+  options: { reserved?: string; ageMs?: number } = {},
+): string {
+  const claimId = randomUUID()
+  const claims = path.join(directory, 'budget-journal', ACCOUNT, SESSION, 'claims', claimId)
+  mkdirSync(claims, { recursive: true })
+  const file = path.join(claims, 'claim.json')
+  writeFileSync(
+    file,
+    JSON.stringify({
+      version: 2,
+      scopeId: seed.scopeId,
+      claimId,
+      ownerId: randomUUID(),
+      sessionId: SESSION,
+      accountId: ACCOUNT,
+      reservedUsd: options.reserved ?? '4.524288',
+    }),
+  )
+  if (options.ageMs !== undefined) {
+    const at = new Date(Date.now() - options.ageMs)
+    utimesSync(file, at, at)
+    utimesSync(claims, at, at)
+  }
   return claimId
 }
 
@@ -296,6 +348,83 @@ describe('no reservation outlives its owner (D2)', () => {
       await live.settle(Usd.from(0).toAmount())
     },
   )
+})
+
+describe('an ownerless hold is judged by age (5b)', () => {
+  it('keeps an ownerless claim younger than the longest live request', async () => {
+    const closed: unknown[] = []
+    const { journal, directory } = journalAt({
+      onOwnerlessClosed: (info) => {
+        closed.push(info)
+      },
+    })
+    const live = await journal.reserveAdmitted(
+      SESSION,
+      ACCOUNT,
+      Usd.from(1).toAmount(),
+      Usd.from(100).toAmount(),
+    )
+    const claimId = plantOwnerlessClaim(directory, seedOf(directory), { reserved: '4.524288' })
+    await journal.read(SESSION, ACCOUNT)
+    expect(readPlanted(directory, claimId)['settledUsd']).toBe(undefined)
+    expect(closed).toEqual([])
+    await live.settle(Usd.from(0).toAmount())
+  })
+
+  it('closes an older-than-the-bound ownerless claim as unknown cost and counts it', async () => {
+    const closed: { count: number; totalUsd: string }[] = []
+    const { journal, directory } = journalAt({
+      onOwnerlessClosed: (info) => {
+        closed.push({ count: info.count, totalUsd: info.totalUsd })
+      },
+    })
+    const live = await journal.reserveAdmitted(
+      SESSION,
+      ACCOUNT,
+      Usd.from(1).toAmount(),
+      Usd.from(100).toAmount(),
+    )
+    const claimId = plantOwnerlessClaim(directory, seedOf(directory), {
+      reserved: '4.524288',
+      ageMs: DAILY_BUDGET_OWNERLESS_MAX_AGE_MS + 60_000,
+    })
+    await journal.read(SESSION, ACCOUNT)
+    const claim = readPlanted(directory, claimId)
+    expect(claim['settledUsd']).toBe('4.524288')
+    expect(claim['hasUnknownCost']).toBe(true)
+    expect(closed).toEqual([{ count: 1, totalUsd: '4.524288' }])
+    await live.settle(Usd.from(0).toAmount())
+    // Fail-closed: the amount stays in today's total, readable as uncertain.
+    const total = await journal.readExisting(SESSION, ACCOUNT)
+    expect(total?.uncertainUsd).toBe('4.524288')
+    // The run's info line names the count and the total.
+    expect(plural(UI_TEXT.execStaleHoldsClosed, 1, { total: formatUsd('4.524288', 6) })).toBe(
+      'Closed 1 stale hold ($4.524288).',
+    )
+  })
+
+  it('keeps a claim with a live owner of any age on the owner test only', async () => {
+    const { journal, directory } = journalAt({})
+    const live = await journal.reserveAdmitted(
+      SESSION,
+      ACCOUNT,
+      Usd.from(1).toAmount(),
+      Usd.from(100).toAmount(),
+    )
+    const owner = parked()
+    const pid = owner.pid ?? 0
+    expect(pid).toBeGreaterThan(0)
+    const claimId = plantClaim(directory, seedOf(directory), { ownerPid: pid, sent: false })
+    // Age the hold past the ownerless bound: with an owner, age decides nothing.
+    const at = new Date(Date.now() - DAILY_BUDGET_OWNERLESS_MAX_AGE_MS - 60_000)
+    const claims = path.join(directory, 'budget-journal', ACCOUNT, SESSION, 'claims', claimId)
+    utimesSync(path.join(claims, 'claim.json'), at, at)
+    await journal.read(SESSION, ACCOUNT)
+    expect(readPlanted(directory, claimId)['settledUsd']).toBe(undefined)
+    owner.kill('SIGKILL')
+    await exited(owner)
+    await live.settle(Usd.from(0).toAmount())
+  })
 })
 
 describe('a rotated key is a recognised refusal (P3-2)', () => {

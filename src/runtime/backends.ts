@@ -71,9 +71,11 @@ import {
   PROVIDERS_FILE_NAME,
   IS_AUTO_COMPACTION_EVALUATED,
   SETTING_DEFAULTS,
+  EXEC_USD_DECIMALS,
   UI_TEXT,
 } from '../shared/constants'
-import { fill, uiLocale } from '../shared/l10n/text'
+import { formatUsd } from '../shared/l10n/exactUsd'
+import { fill, plural, uiLocale } from '../shared/l10n/text'
 import type { ServeOptions } from './cliArgs'
 import {
   agentDataFolder,
@@ -254,6 +256,14 @@ function modelApiManager(
       dataFolder: agentDataFolder(deps),
       now: () => Date.now(),
       sleep: deps.sleep,
+      // 5b: one info line names the ownerless holds this run closed by age.
+      onOwnerlessClosed: (closed) => {
+        log.info(
+          plural(UI_TEXT.execStaleHoldsClosed, closed.count, {
+            total: formatUsd(closed.totalUsd, EXEC_USD_DECIMALS),
+          }),
+        )
+      },
     }))
   }
   const isWorkspaceTrusted = () => options.trustWorkspace

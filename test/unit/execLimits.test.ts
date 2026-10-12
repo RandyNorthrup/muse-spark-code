@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { createLifecycle } from '../../src/runtime/exec/execLimits'
+import { createLifecycle, statusForStop } from '../../src/runtime/exec/execLimits'
 import type { ExecSignal } from '../../src/runtime/exec/execProtocol'
 
 function harness(start = 0, timeout = 1000) {
@@ -35,6 +35,13 @@ afterEach(() => {
   vi.useRealTimers()
 })
 describe('M80 bounded stop', () => {
+  it('EXECPROV refusal kinds keep their own statuses: unpriced is not a budget stop', () => {
+    expect(statusForStop({ kind: 'unpriced' })).toBe('unpriced')
+    expect(statusForStop({ kind: 'request_shape' })).toBe('failed')
+    expect(statusForStop({ kind: 'budget' })).toBe('budget_exceeded')
+    expect(statusForStop({ kind: 'breach' })).toBe('budget_exceeded')
+    expect(statusForStop({ kind: 'requests' })).toBe('request_cap')
+  })
   it('D9 deadline includes setup elapsed since process start; first cause wins', async () => {
     const h = harness(900)
     await vi.advanceTimersByTimeAsync(100)

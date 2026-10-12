@@ -12,6 +12,7 @@ import {
 } from '../core/backends/modelapi/client'
 import {
   metaResolvedModel,
+  minOutputTokensForPolicy,
   modelPricedUsage,
   requestImageCount,
   type ModelClient,
@@ -54,11 +55,16 @@ export function createRuntimeDailyBudget(deps: {
   readonly dataFolder: string
   readonly now: () => number
   readonly sleep: (ms: number) => Promise<void>
+  readonly onOwnerlessClosed?: (closed: {
+    readonly count: number
+    readonly totalUsd: UsdAmount
+  }) => void
 }) {
   const journal = createSessionBudgetJournal({
     directory: path.join(deps.dataFolder, PAID_DAILY_BUDGET.directory),
     sleep: deps.sleep,
     recoverUnsent: true,
+    ...(deps.onOwnerlessClosed !== undefined && { onOwnerlessClosed: deps.onOwnerlessClosed }),
     // D1: the daily refusal carries its numbers, never a generic sentence.
     dailyStop: { setting: 'paidDailyBudgetUsd', nowMs: deps.now },
     initialBudget: () =>
@@ -343,13 +349,23 @@ export function withRuntimeAccounting(
                 let message: string
                 switch (refused) {
                   case 'budget': {
-                    message = responseReservationMessage({
-                      inputTokens,
-                      inputCost,
-                      outputTokens: body.max_output_tokens,
-                      reserveUsd,
-                      totals,
-                    })
+                    message = responseReservationMessage(
+                      {
+                        inputTokens,
+                        inputCost,
+                        outputTokens: body.max_output_tokens,
+                        reserveUsd,
+                        totals,
+                      },
+                      'terminal',
+                      (outputTokens) =>
+                        model.price.reserve({
+                          inputTokens,
+                          outputTokens,
+                          images: requestImageCount(body),
+                        }),
+                      minOutputTokensForPolicy(model.policy),
+                    )
                     break
                   }
                   case 'requests': {
@@ -473,17 +489,31 @@ export function withRuntimeAccounting(
 }
 export { setUiText } from '../shared/l10n/text'
 
-/** One localized arithmetic sentence for daily/provider and headless Meta admission. */
-export function responseReservationMessage(input: {
-  readonly inputTokens: number
-  readonly inputCost: UsdAmount
-  readonly outputTokens: number
-  readonly reserveUsd: UsdAmount
-  readonly totals: LedgerTotals
-}): string {
+/** Who reads the refusal: the terminal names both remedies with numbers. */
+export type ReservationMessageScope = 'terminal' | 'shared'
+
+/**
+ * One localized arithmetic sentence for daily/provider and headless Meta
+ * admission, plus what would make the request fit. The cap remedy is a
+ * complete clause on its own: ACP and the editor read the shared scope,
+ * which never prints the terminal-only flag half. Every number comes from
+ * the same exact-decimal arithmetic as the refusal itself.
+ */
+export function responseReservationMessage(
+  input: {
+    readonly inputTokens: number
+    readonly inputCost: UsdAmount
+    readonly outputTokens: number
+    readonly reserveUsd: UsdAmount
+    readonly totals: LedgerTotals
+  },
+  scope: ReservationMessageScope = 'terminal',
+  reserveForOutput?: (outputTokens: number) => UsdAmount | undefined,
+  minimumOutputTokens?: number,
+): string {
   const cost = Usd.from(input.inputCost).ceiling(EXEC_USD_DECIMALS)
   const total = Usd.from(input.reserveUsd).ceiling(EXEC_USD_DECIMALS)
-  return fill(UI_TEXT.execBudgetQuote, {
+  const base = fill(UI_TEXT.execBudgetQuote, {
     inputTokens: plural(UI_TEXT.execTokenCount, input.inputTokens),
     inputCost: formatUsd(cost.toAmount(), EXEC_USD_DECIMALS),
     outputTokens: plural(UI_TEXT.execTokenCount, input.outputTokens),
@@ -495,6 +525,45 @@ export function responseReservationMessage(input: {
       EXEC_USD_DECIMALS,
     ),
   })
+  const committed = Usd.from(input.totals.settledUsd).add(Usd.from(input.totals.uncertainUsd))
+  const remaining = Usd.from(input.totals.capUsd).subtract(committed)
+  // The cap that admits it, rounded up to the cent: what is committed plus
+  // this request's ceilinged reservation, raised to a whole settable cent.
+  const admitCap = committed.add(total).ceiling(2)
+  const capClause = fill(UI_TEXT.execBudgetRemedyCap, {
+    admitCap: formatUsd(admitCap.toAmount(), 2),
+  })
+  if (scope === 'shared') return `${base} ${capClause}`
+  // The largest output limit that fits the remaining cap, found with the
+  // request's own reserve function and the admission's own ceiling, so
+  // running again with exactly this value is admitted. Omitted when even
+  // the input alone does not fit, which the note says instead.
+  const canFit = (outputTokens: number): boolean => {
+    if (reserveForOutput === undefined) return false
+    const estimate = reserveForOutput(outputTokens)
+    return (
+      estimate !== undefined &&
+      Usd.from(estimate).ceiling(EXEC_USD_DECIMALS).compare(remaining) <= 0
+    )
+  }
+  if (cost.compare(remaining) > 0)
+    return `${base} ${capClause} ${fill(UI_TEXT.execBudgetRemedyInput, {
+      inputCost: formatUsd(cost.toAmount(), EXEC_USD_DECIMALS),
+      remaining: formatUsd(remaining.toAmount(), EXEC_USD_DECIMALS),
+    })}`
+  const floor = minimumOutputTokens ?? 1
+  if (reserveForOutput === undefined || floor > input.outputTokens || !canFit(floor))
+    return `${base} ${capClause}`
+  let low = floor
+  let high = input.outputTokens
+  while (low < high) {
+    const mid = Math.floor((low + high + 1) / 2)
+    if (canFit(mid)) low = mid
+    else high = mid - 1
+  }
+  return `${base} ${capClause} ${fill(UI_TEXT.execBudgetRemedyOutput, {
+    maxTokens: String(low),
+  })}`
 }
 
 export { createSessionBudgetJournal } from '../host/backend/sessionBudgetJournal'
