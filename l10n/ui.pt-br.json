@@ -754,7 +754,7 @@
     },
     "messages": {
       "targetUnavailable": "O destino deste agendamento não está disponível neste host.",
-      "targetClosed": "O destino foi fechado ou esta execução pendente foi ignorada.",
+      "targetClosed": "O destino foi fechado.",
       "catchUpSkipped": "A execução perdida foi ignorada conforme a política de recuperação deste agendamento.",
       "backgroundNotice": "O agendamento {name} abriu uma conversa em segundo plano.",
       "conversationTitle": "Agendamento {name} · {date}",
@@ -796,7 +796,13 @@
       "capReached": "O limite diário do agendamento ou o compartilhado não permite esta execução paga.",
       "paidUnavailable": "Esta operação paga está indisponível ou não foi aprovada para este agendamento.",
       "dispatchUncertain": "O envio começou, mas o resultado final é desconhecido. Esta execução não será repetida; o valor reservado continua contabilizado.",
-      "costUnknown": "O prompt foi entregue, mas não foi possível ler o custo real. O valor reservado continua contabilizado."
+      "costUnknown": "O prompt foi entregue, mas não foi possível ler o custo real. O valor reservado continua contabilizado.",
+      "schedulePaused": "O agendamento foi pausado antes da entrega.",
+      "scheduleDeleted": "O agendamento foi excluído antes da entrega.",
+      "scheduleEdited": "O horário, o destino ou o modo de entrega do agendamento mudou.",
+      "scheduleEnded": "O agendamento terminou antes da entrega.",
+      "admissionLost": "Esta execução não tem mais autorização para começar.",
+      "workspaceNotHeld": "Este processo não mantém mais o espaço de trabalho."
     },
     "endAfterRuns": {
       "one": "Encerrar após {count} execução",

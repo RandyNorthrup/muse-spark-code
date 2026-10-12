@@ -755,7 +755,7 @@
     },
     "messages": {
       "targetUnavailable": "Cel tego harmonogramu jest niedostępny na tym hoście.",
-      "targetClosed": "Cel został zamknięty lub pominięto to oczekujące uruchomienie.",
+      "targetClosed": "Cel został zamknięty.",
       "catchUpSkipped": "Pominięto zaległe uruchomienie zgodnie z zasadą nadrabiania tego harmonogramu.",
       "backgroundNotice": "Harmonogram {name} otworzył rozmowę w tle.",
       "conversationTitle": "Harmonogram {name} · {date}",
@@ -797,7 +797,13 @@
       "capReached": "Dzienny limit harmonogramu lub wspólny limit nie pozwala na to płatne uruchomienie.",
       "paidUnavailable": "Ta płatna operacja jest niedostępna lub nie została zatwierdzona dla tego harmonogramu.",
       "dispatchUncertain": "Wysyłanie rozpoczęło się, ale wynik końcowy jest nieznany. To uruchomienie nie zostanie powtórzone; zarezerwowana kwota nadal jest wliczana.",
-      "costUnknown": "Prompt został dostarczony, ale nie można odczytać rzeczywistego kosztu. Zarezerwowana kwota nadal jest wliczana."
+      "costUnknown": "Prompt został dostarczony, ale nie można odczytać rzeczywistego kosztu. Zarezerwowana kwota nadal jest wliczana.",
+      "schedulePaused": "Harmonogram został wstrzymany przed dostarczeniem.",
+      "scheduleDeleted": "Harmonogram został usunięty przed dostarczeniem.",
+      "scheduleEdited": "Zmieniono czas, cel lub tryb dostarczenia harmonogramu.",
+      "scheduleEnded": "Harmonogram zakończył się przed dostarczeniem.",
+      "admissionLost": "To uruchomienie nie ma już zgody na rozpoczęcie.",
+      "workspaceNotHeld": "Ten proces nie utrzymuje już obszaru roboczego."
     },
     "endAfterRuns": {
       "one": "Zakończ po {count} uruchomieniu",

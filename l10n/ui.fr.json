@@ -754,7 +754,7 @@
     },
     "messages": {
       "targetUnavailable": "La cible de cette planification est indisponible sur cet hôte.",
-      "targetClosed": "La cible a été fermée ou cette exécution en attente a été ignorée.",
+      "targetClosed": "La cible a été fermée.",
       "catchUpSkipped": "L’exécution manquée a été ignorée selon la règle de rattrapage de cette planification.",
       "backgroundNotice": "La planification {name} a ouvert une conversation en arrière-plan.",
       "conversationTitle": "Planification {name} · {date}",
@@ -796,7 +796,13 @@
       "capReached": "Le plafond quotidien de la planification ou le plafond partagé ne permet pas cette exécution payante.",
       "paidUnavailable": "Cette opération payante est indisponible ou n’a pas été approuvée pour cette planification.",
       "dispatchUncertain": "L’envoi a commencé, mais le résultat final est inconnu. Cette exécution ne sera pas répétée ; le montant réservé reste comptabilisé.",
-      "costUnknown": "Le prompt a été livré, mais le coût réel n’a pas pu être lu. Le montant réservé reste comptabilisé."
+      "costUnknown": "Le prompt a été livré, mais le coût réel n’a pas pu être lu. Le montant réservé reste comptabilisé.",
+      "schedulePaused": "La planification a été mise en pause avant la livraison.",
+      "scheduleDeleted": "La planification a été supprimée avant la livraison.",
+      "scheduleEdited": "L’horaire, la cible ou le mode de livraison de la planification a changé.",
+      "scheduleEnded": "La planification s’est terminée avant la livraison.",
+      "admissionLost": "Cette exécution n’est plus admise.",
+      "workspaceNotHeld": "Ce processus ne détient plus l’espace de travail."
     },
     "endAfterRuns": {
       "one": "Terminer après {count} exécution",

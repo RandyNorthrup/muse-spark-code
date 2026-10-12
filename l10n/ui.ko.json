@@ -752,7 +752,7 @@
     },
     "messages": {
       "targetUnavailable": "이 일정의 대상은 이 호스트에서 사용할 수 없습니다.",
-      "targetClosed": "대상이 닫혔거나 대기 중인 실행을 건너뛰었습니다.",
+      "targetClosed": "대상이 닫혔습니다.",
       "catchUpSkipped": "이 일정의 누락된 실행 처리 정책에 따라 실행을 건너뛰었습니다.",
       "backgroundNotice": "일정 {name}이(가) 백그라운드에서 대화를 열었습니다.",
       "conversationTitle": "일정 {name} · {date}",
@@ -794,7 +794,13 @@
       "capReached": "일정 또는 공유 일일 한도로는 이 유료 실행을 허용할 수 없습니다.",
       "paidUnavailable": "이 유료 작업은 사용할 수 없거나 이 일정에서 승인되지 않았습니다.",
       "dispatchUncertain": "전송이 시작되었지만 최종 결과는 알 수 없습니다. 이 실행은 다시 전송되지 않으며 예약 금액은 사용액으로 유지됩니다.",
-      "costUnknown": "프롬프트가 전달되었지만 실제 비용을 읽을 수 없었습니다. 예약 금액은 사용액으로 유지됩니다."
+      "costUnknown": "프롬프트가 전달되었지만 실제 비용을 읽을 수 없었습니다. 예약 금액은 사용액으로 유지됩니다.",
+      "schedulePaused": "전달 전에 일정이 일시 중지되었습니다.",
+      "scheduleDeleted": "전달 전에 일정이 삭제되었습니다.",
+      "scheduleEdited": "일정의 시간, 대상 또는 전달 모드가 변경되었습니다.",
+      "scheduleEnded": "전달 전에 일정이 종료되었습니다.",
+      "admissionLost": "이 실행은 더 이상 시작이 허용되지 않습니다.",
+      "workspaceNotHeld": "이 프로세스는 더 이상 작업 영역을 유지하지 않습니다."
     },
     "endAfterRuns": {
       "other": "{count}회 실행 후 종료"

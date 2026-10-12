@@ -73,6 +73,7 @@ function unspent(
   intent: ScheduleRunIntent,
   now: number,
   outcome: 'missed' | 'skipped',
+  reason = UI_TEXT.scheduleV2.messages.catchUpSkipped,
 ): ScheduleFireRecord {
   return {
     runId: intent.runId,
@@ -83,6 +84,7 @@ function unspent(
     target: intent.schedule.target,
     delivery: intent.schedule.delivery,
     outcome,
+    reason,
     refusedActions: [],
     cost: {
       usd: Usd.from(0).toAmount(),
@@ -158,6 +160,18 @@ export function createScheduler(deps: SchedulerDeps) {
         intent.schedule.action.kind === 'report' ? Usd.from(0).toAmount() : liabilityUsd,
     },
   })
+  const skipReason = (job: ScheduleV2, previous: ScheduleV2): string | undefined => {
+    if (job.paused) return UI_TEXT.scheduleV2.messages.schedulePaused
+    if (!deps.host.holds(job.workspaceKey)) return UI_TEXT.scheduleV2.messages.workspaceNotHeld
+    if (job.end?.atMs !== undefined && deps.host.now() >= job.end.atMs)
+      return UI_TEXT.scheduleV2.messages.scheduleEnded
+    return JSON.stringify(job.trigger) !== JSON.stringify(previous.trigger) ||
+      job.zone !== previous.zone ||
+      JSON.stringify(job.target) !== JSON.stringify(previous.target) ||
+      job.delivery !== previous.delivery
+      ? UI_TEXT.scheduleV2.messages.scheduleEdited
+      : undefined
+  }
   const execute = async (intent: ScheduleRunIntent): Promise<void> => {
     // An orderly close keeps every unhanded admission for the next owner.
     if (isClosing()) return
@@ -207,22 +221,31 @@ export function createScheduler(deps: SchedulerDeps) {
     const isAdmitted = await deps.runs.advance(intent)
     if (isClosing()) return
     if (!isAdmitted) {
-      await settle(intent, unspent(intent, deps.host.now(), 'skipped'))
+      await settle(
+        intent,
+        unspent(
+          intent,
+          deps.host.now(),
+          'skipped',
+          job === undefined
+            ? UI_TEXT.scheduleV2.messages.scheduleDeleted
+            : UI_TEXT.scheduleV2.messages.admissionLost,
+        ),
+      )
       return
     }
     // A queued candidate never restores an earlier grant, mode or consent.
     // A changed trigger or target invalidates its old occurrence altogether.
-    if (
-      job === undefined ||
-      job.paused ||
-      !deps.host.holds(job.workspaceKey) ||
-      (job.end?.atMs !== undefined && deps.host.now() >= job.end.atMs) ||
-      JSON.stringify(job.trigger) !== JSON.stringify(intent.schedule.trigger) ||
-      job.zone !== intent.schedule.zone ||
-      JSON.stringify(job.target) !== JSON.stringify(intent.schedule.target) ||
-      job.delivery !== intent.schedule.delivery
-    ) {
-      await settle(intent, unspent(intent, deps.host.now(), 'skipped'))
+    if (job === undefined) {
+      await settle(
+        intent,
+        unspent(intent, deps.host.now(), 'skipped', UI_TEXT.scheduleV2.messages.scheduleDeleted),
+      )
+      return
+    }
+    const reason = skipReason(job, intent.schedule)
+    if (reason !== undefined) {
+      await settle(intent, unspent(intent, deps.host.now(), 'skipped', reason))
       return
     }
     if (intent.missed === true && job.catchUp === 'skip') {
@@ -231,20 +254,18 @@ export function createScheduler(deps: SchedulerDeps) {
     }
     const fresh = await load(job.workspaceKey, job.id)
     if (isClosing()) return
-    if (
-      fresh === undefined ||
-      fresh.paused ||
-      !deps.host.holds(job.workspaceKey) ||
-      (fresh.end?.atMs !== undefined && deps.host.now() >= fresh.end.atMs) ||
-      JSON.stringify(fresh.trigger) !== JSON.stringify(job.trigger) ||
-      fresh.zone !== job.zone ||
-      JSON.stringify(fresh.target) !== JSON.stringify(job.target) ||
-      fresh.delivery !== job.delivery
-    ) {
-      await settle(intent, unspent(intent, deps.host.now(), 'skipped'))
+    if (fresh === undefined) {
+      await settle(
+        intent,
+        unspent(intent, deps.host.now(), 'skipped', UI_TEXT.scheduleV2.messages.scheduleDeleted),
+      )
       return
     }
-    if (isClosing()) return
+    const freshReason = skipReason(fresh, job)
+    if (freshReason !== undefined) {
+      await settle(intent, unspent(intent, deps.host.now(), 'skipped', freshReason))
+      return
+    }
     const delivery = { ...intent, schedule: fresh }
     if (!(await deps.runs.startDispatch(intent, fresh.grant.paidCapUsd))) {
       const state = await deps.runs.lookupRun(intent.schedule.workspaceKey, intent.runId)

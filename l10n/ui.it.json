@@ -754,7 +754,7 @@
     },
     "messages": {
       "targetUnavailable": "La destinazione di questa pianificazione non è disponibile su questo host.",
-      "targetClosed": "La destinazione è stata chiusa o questa esecuzione in attesa è stata saltata.",
+      "targetClosed": "La destinazione è stata chiusa.",
       "catchUpSkipped": "L’esecuzione mancata è stata saltata secondo la regola di recupero di questa pianificazione.",
       "backgroundNotice": "La pianificazione {name} ha aperto una conversazione in background.",
       "conversationTitle": "Pianificazione {name} · {date}",
@@ -796,7 +796,13 @@
       "capReached": "Il limite giornaliero della pianificazione o quello condiviso non consente questa esecuzione a pagamento.",
       "paidUnavailable": "Questa operazione a pagamento non è disponibile o non è stata approvata per questa pianificazione.",
       "dispatchUncertain": "L’invio è iniziato, ma il risultato finale è sconosciuto. Questa esecuzione non verrà ripetuta; l’importo riservato resta conteggiato.",
-      "costUnknown": "Il prompt è stato consegnato, ma il costo effettivo non è leggibile. L’importo riservato resta conteggiato."
+      "costUnknown": "Il prompt è stato consegnato, ma il costo effettivo non è leggibile. L’importo riservato resta conteggiato.",
+      "schedulePaused": "La pianificazione è stata sospesa prima della consegna.",
+      "scheduleDeleted": "La pianificazione è stata eliminata prima della consegna.",
+      "scheduleEdited": "Sono cambiati l’orario, la destinazione o la modalità di consegna della pianificazione.",
+      "scheduleEnded": "La pianificazione è terminata prima della consegna.",
+      "admissionLost": "Questa esecuzione non è più ammessa.",
+      "workspaceNotHeld": "Questo processo non mantiene più l’area di lavoro."
     },
     "endAfterRuns": {
       "one": "Termina dopo {count} esecuzione",

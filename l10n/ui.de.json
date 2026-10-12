@@ -753,7 +753,7 @@
     },
     "messages": {
       "targetUnavailable": "Das Ziel dieses Zeitplans ist auf diesem Host nicht verfügbar.",
-      "targetClosed": "Das Ziel wurde geschlossen oder diese wartende Ausführung wurde übersprungen.",
+      "targetClosed": "Das Ziel wurde geschlossen.",
       "catchUpSkipped": "Die verpasste Ausführung wurde gemäß der Nachholregel dieses Zeitplans übersprungen.",
       "backgroundNotice": "Der Zeitplan {name} hat eine Unterhaltung im Hintergrund geöffnet.",
       "conversationTitle": "Zeitplan {name} · {date}",
@@ -795,7 +795,13 @@
       "capReached": "Das Tageslimit des Zeitplans oder das gemeinsame Tageslimit erlaubt diese kostenpflichtige Ausführung nicht.",
       "paidUnavailable": "Dieser kostenpflichtige Vorgang ist nicht verfügbar oder wurde für diesen Zeitplan nicht genehmigt.",
       "dispatchUncertain": "Die Übermittlung hat begonnen, aber das Endergebnis ist unbekannt. Dieser Lauf wird nicht wiederholt; der reservierte Betrag bleibt angerechnet.",
-      "costUnknown": "Der Prompt wurde zugestellt, aber die tatsächlichen Kosten konnten nicht gelesen werden. Der reservierte Betrag bleibt angerechnet."
+      "costUnknown": "Der Prompt wurde zugestellt, aber die tatsächlichen Kosten konnten nicht gelesen werden. Der reservierte Betrag bleibt angerechnet.",
+      "schedulePaused": "Der Zeitplan wurde vor der Zustellung pausiert.",
+      "scheduleDeleted": "Der Zeitplan wurde vor der Zustellung gelöscht.",
+      "scheduleEdited": "Zeitpunkt, Ziel oder Zustellungsmodus des Zeitplans wurden geändert.",
+      "scheduleEnded": "Der Zeitplan endete vor der Zustellung.",
+      "admissionLost": "Diese Ausführung ist nicht mehr zugelassen.",
+      "workspaceNotHeld": "Dieser Prozess hält den Arbeitsbereich nicht mehr."
     },
     "endAfterRuns": {
       "one": "Nach {count} Ausführung beenden",

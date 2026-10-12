@@ -752,7 +752,7 @@
     },
     "messages": {
       "targetUnavailable": "此排程的目標在目前主機上無法使用。",
-      "targetClosed": "目標已關閉，或此等待中的執行已略過。",
+      "targetClosed": "目標已關閉。",
       "catchUpSkipped": "根據此排程的補執行原則，已略過錯過的執行。",
       "backgroundNotice": "排程 {name} 已在背景開啟對話。",
       "conversationTitle": "排程 {name} · {date}",
@@ -794,7 +794,13 @@
       "capReached": "排程或共用每日上限不允許此次付費執行。",
       "paidUnavailable": "此付費操作無法使用，或未獲此排程核准。",
       "dispatchUncertain": "傳送已開始，但最終結果未知。本次執行不會再次傳送；預留金額仍計入已用金額。",
-      "costUnknown": "提示已送達，但無法讀取實際費用。預留金額仍計入已用金額。"
+      "costUnknown": "提示已送達，但無法讀取實際費用。預留金額仍計入已用金額。",
+      "schedulePaused": "排程在傳送前已暫停。",
+      "scheduleDeleted": "排程在傳送前已刪除。",
+      "scheduleEdited": "排程的時間、目標或傳送模式已變更。",
+      "scheduleEnded": "排程在傳送前已結束。",
+      "admissionLost": "此執行不再獲准啟動。",
+      "workspaceNotHeld": "此處理程序不再持有工作區。"
     },
     "endAfterRuns": {
       "other": "執行{count}次後結束"

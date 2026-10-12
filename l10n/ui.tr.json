@@ -753,7 +753,7 @@
     },
     "messages": {
       "targetUnavailable": "Bu zamanlamanın hedefi bu ana makinede kullanılamıyor.",
-      "targetClosed": "Hedef kapatıldı veya bekleyen bu çalıştırma atlandı.",
+      "targetClosed": "Hedef kapatıldı.",
       "catchUpSkipped": "Kaçırılan çalıştırma, bu zamanlamanın telafi ilkesine göre atlandı.",
       "backgroundNotice": "{name} zamanlaması arka planda bir konuşma açtı.",
       "conversationTitle": "Zamanlama {name} · {date}",
@@ -795,7 +795,13 @@
       "capReached": "Zamanlamanın günlük sınırı veya paylaşılan günlük sınır bu ücretli çalıştırmaya izin vermiyor.",
       "paidUnavailable": "Bu ücretli işlem kullanılamıyor veya bu zamanlama için onaylanmadı.",
       "dispatchUncertain": "Gönderim başladı, ancak nihai sonuç bilinmiyor. Bu çalışma tekrar gönderilmeyecek; ayrılan tutar hesaba katılmaya devam edecek.",
-      "costUnknown": "İstem iletildi, ancak gerçek maliyet okunamadı. Ayrılan tutar hesaba katılmaya devam edecek."
+      "costUnknown": "İstem iletildi, ancak gerçek maliyet okunamadı. Ayrılan tutar hesaba katılmaya devam edecek.",
+      "schedulePaused": "Zamanlama teslimden önce duraklatıldı.",
+      "scheduleDeleted": "Zamanlama teslimden önce silindi.",
+      "scheduleEdited": "Zamanlamanın saati, hedefi veya teslim modu değişti.",
+      "scheduleEnded": "Zamanlama teslimden önce sona erdi.",
+      "admissionLost": "Bu çalıştırmanın artık başlatılma izni yok.",
+      "workspaceNotHeld": "Bu işlem artık çalışma alanını tutmuyor."
     },
     "endAfterRuns": {
       "one": "{count} çalıştırmadan sonra bitir",
