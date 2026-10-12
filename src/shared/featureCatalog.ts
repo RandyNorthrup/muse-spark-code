@@ -558,7 +558,17 @@ export function featureCatalog(): readonly Feature[] {
       'agent-loop-guarantees',
       ['museCode'],
     ),
-    feature('effort', { ui: 'effortItem' }, { tip: 'effort' }, [], [], 'the-panel'),
+    feature(
+      'effort',
+      { ui: 'effortItem' },
+      { tip: 'effort' },
+      [],
+      [],
+      'the-panel',
+      ['museCode', 'modelApi'],
+      false,
+      ['vscode', 'acp'],
+    ),
     feature(
       'custom-agents',
       { ui: 'agentsCommand' },

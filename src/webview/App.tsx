@@ -46,14 +46,7 @@ import { isLegalPrompt, parseLegalPrompt } from '../shared/legalCommand'
 import type { LegalScanRequestMessage, LegalFinding } from '../shared/legal'
 import { editorContextLabel } from '../shared/editorContext'
 
-import {
-  catalogueSliderProps,
-  effortAt,
-  effortIndex,
-  effortLabel,
-  effortLevelsFor,
-  isEffortLevel,
-} from '../shared/effort'
+import { effortAt, effortIndex, effortLabel, effortLevelsFor } from '../shared/effort'
 import { parseGoalPrompt, requiresObjective } from '../shared/goalCommand'
 import { parseHandoffPrompt } from '../shared/handoff'
 import { parseLoopPrompt } from '../core/backends/modelapi/schedules'
@@ -113,8 +106,8 @@ const DiffTally = deferred(
 // announces loading and retries a failed chunk.
 const EffortSlider = deferred(
   async () => {
-    const { EffortSlider } = await import('./components/EffortSlider')
-    return { default: EffortSlider }
+    const { EffortMenuFooter } = await import('./components/EffortSlider')
+    return { default: EffortMenuFooter }
   },
   false,
   () => (
@@ -176,8 +169,6 @@ import {
 import { isChildRunning } from './workflowDetails'
 import type { QuoteIntent } from './components/QuoteMenu'
 import { reportCommandArguments } from '../shared/reportCommand'
-import type { FeedbackSubmitPort } from '../core/backends/musecode/feedback'
-import { feedbackBridge } from './feedbackBridge'
 import { deferred } from './components/DeferredSurface'
 import { Modal } from './components/Modal'
 import type { ResourceSurfaceLoader } from './resources/resourcePort'
@@ -220,8 +211,8 @@ const HistoryDialog = deferred(async () => {
 // "Send feedback" on a reply's actions menu (C-M106-3R2): the dialog and its
 // strings load here, on first open, never with first paint.
 const FeedbackDialog = deferred(async () => {
-  const module = await import('./components/FeedbackDialog')
-  return { default: module.FeedbackDialog }
+  const module = await import('./components/FeedbackSurface')
+  return { default: module.FeedbackSurface }
 }, true)
 const AgentMap = deferred(async () => {
   const module = await import('./components/AgentMap')
@@ -1449,49 +1440,32 @@ export function App({
   >(undefined)
   // A clear can come from another panel. A saved selection from its rows is inert.
   const quoteMenu = quoteMenuState?.epoch === state.attachmentEpoch ? quoteMenuState : undefined
-  // "Send feedback" on a reply's menu (C-M106-3R2): the bridge opens with
-  // the dialog and closes with it, so a closed dialog's late answer settles
-  // nothing. The dialog itself (and its strings) loads lazily on first open.
-  // The port rides in state (never a ref read in render); the ref only owns
-  // the close lifecycle.
-  const [feedback, setFeedback] = useState<{ sessionId: string; port: FeedbackSubmitPort } | null>(
-    null,
+  // The dialog owns its first-use bridge. A changed session discards the
+  // state during this render, so returning cannot revive a closed port.
+  const [feedback, setFeedback] = useState<{
+    sessionId: string
+    opener: HTMLElement | null
+  } | null>(null)
+  const openFeedback = useCallback(
+    (opener: HTMLElement | null) => {
+      const snapshot = store.getState()
+      if (snapshot.sessionId === undefined || snapshot.auth.backend !== 'museCode') return
+      setFeedback({ sessionId: snapshot.sessionId, opener })
+    },
+    [store],
   )
-  const feedbackBridgeRef = useRef<ReturnType<typeof feedbackBridge> | null>(null)
-  const openFeedback = useCallback(() => {
-    const snapshot = store.getState()
-    if (snapshot.sessionId === undefined || snapshot.auth.backend !== 'museCode') return
-    feedbackBridgeRef.current?.close()
-    const bridge = feedbackBridge(postMessage)
-    bridge.open()
-    feedbackBridgeRef.current = bridge
-    setFeedback({ sessionId: snapshot.sessionId, port: bridge.port })
-  }, [store, postMessage])
   const closeFeedback = useCallback(() => {
-    feedbackBridgeRef.current?.close()
-    feedbackBridgeRef.current = null
     setFeedback(null)
   }, [])
-  useEffect(
-    () => () => {
-      feedbackBridgeRef.current?.close()
-      feedbackBridgeRef.current = null
-    },
-    [],
-  )
-  // A session change closes the bridge at once: the hidden dialog's late
-  // answers settle nothing, and its waiters reject instead of hanging. Only
-  // the bridge closes here (no state write); the render below already hides
-  // the dialog, and the next open replaces the port. A send for the old
-  // session would be refused before dispatch anyway.
-  useEffect(() => {
-    if (feedback === null || feedback.sessionId === state.sessionId) return
-    feedbackBridgeRef.current?.close()
-    feedbackBridgeRef.current = null
-  }, [feedback, state.sessionId])
+  if (feedback !== null && feedback.sessionId !== state.sessionId) setFeedback(null)
   const feedbackDialog =
     feedback !== null && feedback.sessionId === state.sessionId ? (
-      <FeedbackDialog sessionId={feedback.sessionId} port={feedback.port} onClose={closeFeedback} />
+      <FeedbackDialog
+        sessionId={feedback.sessionId}
+        opener={feedback.opener}
+        postMessage={postMessage}
+        onClose={closeFeedback}
+      />
     ) : null
   const onDismissReference = useCallback(() => {
     dispatch({ type: 'referenceCleared' })
@@ -2763,9 +2737,8 @@ export function App({
   // takes it whenever the session runs it). A tier outside the extension's
   // vocabulary renders with its catalogue name but cannot travel the
   // EffortLevel-typed setEffort path, so only known tiers select.
-  const effortLevels =
-    state.models.find((model) => model.modelId === state.model?.modelId)?.effortLevels ??
-    effortLevelsFor(state.model?.modelId)
+  const effortModel = state.models.find((model) => model.modelId === state.model?.modelId)
+  const effortLevels = effortLevelsFor(state.model?.modelId, effortModel?.effortLevels, effortModel)
   const onStepEffort = useCallback(
     (direction: -1 | 1) => {
       if (effortLevels.length === 0) return false
@@ -2993,23 +2966,12 @@ export function App({
           align="right"
           footer={
             effortLevels.length === 0 ? undefined : (
-              <div className="effort-row">
-                <span className="effort-row-label">
-                  {UI_TEXT.effortItem} ({effortLabel(state.effort)})
-                </span>
-                <EffortSlider
-                  levels={effortLevels}
-                  current={state.effort}
-                  onSelect={onSelectEffort}
-                  model={catalogueSliderProps(
-                    state.models.find((model) => model.modelId === state.model?.modelId),
-                    state.effort,
-                    (tier) => {
-                      if (isEffortLevel(tier)) onSelectEffort(tier)
-                    },
-                  )}
-                />
-              </div>
+              <EffortSlider
+                levels={effortLevels}
+                current={state.effort}
+                onSelect={onSelectEffort}
+                catalogue={effortModel}
+              />
             )
           }
           onSelect={onSelectMode}
@@ -3152,6 +3114,7 @@ export function App({
   // map, review pane, a share file or the install confirmation is open waits for it to close, then
   // opens, so its Start is never reachable under a dialog that hides it.
   const isOtherModalOpen =
+    feedbackDialog !== null ||
     overlay === 'prompts' ||
     overlay === 'chatShare' ||
     overlay === 'help' ||
@@ -3238,7 +3201,6 @@ export function App({
   const isPlanDialogOpen = hasPlan && (isPlanModalOpen ?? true)
   const isModalOpen =
     isOtherModalOpen ||
-    feedbackDialog !== null ||
     legalReport !== null ||
     state.handoff !== undefined ||
     state.secretPrompt !== undefined ||
@@ -3280,7 +3242,6 @@ export function App({
           />
           {history}
           {board}
-          {feedbackDialog}
         </div>
         <>
           {overlay === 'help' ? (
@@ -3302,6 +3263,7 @@ export function App({
           {reviewPane}
           {bestOfN}
         </>
+        {feedbackDialog}
         {handoffDialog}
         {secretPromptDialog}
         {reportDialog}

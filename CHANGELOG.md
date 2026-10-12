@@ -146,6 +146,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Native Muse Code feedback opens outside inert page regions, keeps keyboard
+  focus within the dialog and restores its opener on close. Switching sessions
+  discards the old dialog and port. The bridge and form load only on first use.
+- Effort controls and ACP/headless admission use the served model tiers,
+  retaining empty catalogues and disabling unfamiliar tiers. Pointer, arrow
+  and palette selection share that range.
 - The Muse Code feedback dialog reports what the upload receipt actually
   says: only an uploaded receipt reads as success, and every other outcome
   (recorded, rate limited, rejected sign-in, missing credential, uncertain

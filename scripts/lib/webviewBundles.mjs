@@ -229,6 +229,13 @@ export const ADDITIONAL_WEBVIEW_BUDGETS = [
     budgetKiB: 25,
   },
   {
+    // Native feedback lifecycle is a new first-use owner (C-M106-3R4).
+    // Original startup, deferred aggregate and action-dialog caps stay fixed.
+    name: 'feedback lifecycle',
+    entries: ['src/webview/components/FeedbackSurface.tsx'],
+    budgetKiB: 25,
+  },
+  {
     name: 'action dialogs',
     entries: [
       'src/webview/components/ShareView.tsx',

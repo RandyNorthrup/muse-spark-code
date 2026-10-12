@@ -907,6 +907,54 @@ describe('the ACP agent (M63)', () => {
     expect(effort).toMatchObject({ id: 'effort', category: 'thought_level', currentValue: 'high' })
   })
 
+  it.each([true, false])('admits only served=%s efforts through ACP', async (served) => {
+    const h = harness()
+    h.host.models = [
+      {
+        ...h.host.models[0]!,
+        ...(served && { variants: ['low', 'high', 'turbo'], defaultReasoningEffort: 'high' }),
+      },
+    ]
+    await h.run(async (client) => {
+      const created = await start(client)
+      const request = (value: string) =>
+        client.request('session/set_config_option', {
+          sessionId: created.sessionId,
+          configId: 'effort',
+          value,
+        })
+      if (served) await expect(request('medium')).rejects.toMatchObject({ code: -32_602 })
+      else
+        await expect(request('medium')).resolves.toMatchObject({ configOptions: expect.any(Array) })
+      await expect(request('low')).resolves.toMatchObject({
+        configOptions: expect.arrayContaining([
+          expect.objectContaining({ id: 'effort', currentValue: 'low' }),
+        ]),
+      })
+      await expect(request('turbo')).rejects.toMatchObject({ code: -32_602 })
+    })
+  })
+
+  it.each([{ variants: [] }, { variants: ['turbo'] }, { variants: 'unknown' }] as const)(
+    'never fabricates ACP tiers from %s',
+    async ({ variants }) => {
+      const h = harness()
+      h.host.models = [{ ...h.host.models[0]!, variants }]
+      await h.run(async (client) => {
+        const created = await start(client)
+        expect(created.configOptions?.some((option) => option.id === 'effort')).toBe(false)
+        expect(h.host.sessions[0]?.setReasoningEffort).not.toHaveBeenCalled()
+        await expect(
+          client.request('session/set_config_option', {
+            sessionId: created.sessionId,
+            configId: 'effort',
+            value: 'high',
+          }),
+        ).rejects.toMatchObject({ code: -32_602 })
+      })
+    },
+  )
+
   it('starts on the catalogue default with the catalogue tier names', async () => {
     const h = harness()
     h.host.models = [

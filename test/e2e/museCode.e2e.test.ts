@@ -191,8 +191,14 @@ describe('Muse Code backend against a real child process', { timeout: TEST_TIMEO
     expect(host.info.serverName).toBe('muse')
     expect(host.info.serverVersion).toBe('0.0.0-fake serve --disable-sandbox --trust-workspace')
     expect(host.info.museHome).toBe(`/fake/home/${MSP_CLIENT_NAME}`)
-    // M46 asks for `userShell` too: the panel's `!` commands.
-    expect(host.info.grantedCapabilities).toEqual(['sessionMcp', 'sessionListStream', 'userShell'])
+    // M46 asks for userShell; C-M106-3R2's captured note-only feedback
+    // grant is documented in docs/certification/m106-native-readers.md.
+    expect(host.info.grantedCapabilities).toEqual([
+      'sessionMcp',
+      'sessionListStream',
+      'userShell',
+      'feedback',
+    ])
     expect(backend.isRunning).toBe(true)
     // The harness runs `off` (no OS sandbox), so the one warning is the
     // sandbox-off line (musecode-write-asks); a clean start warns of nothing else.

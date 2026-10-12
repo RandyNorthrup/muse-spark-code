@@ -26,39 +26,6 @@ export interface CatalogueTiers {
   readonly defaultReasoningEffort?: string | undefined
 }
 
-/**
- * The slider's catalogue path for one row (C-M106-3R3): the panel footer and
- * the palette share this, so the captured variants and default reach the
- * rendered tiers through the model list the controller sends. Undefined
- * where the row carries no catalogue, and the slider falls back to the
- * family table. A tier outside the extension's vocabulary renders with its
- * catalogue name; selecting one stays the caller's typed path.
- */
-export function catalogueSliderProps(
-  source: CatalogueTiers | undefined,
-  current: string,
-  onSelectTier: (tier: string) => void,
-):
-  | (CatalogueTiers & { readonly current: string; readonly onSelect: (tier: string) => void })
-  | undefined {
-  if (source?.variants === undefined) return undefined
-  return {
-    variants: source.variants,
-    ...(source.reasoningEffortVariants !== undefined && {
-      reasoningEffortVariants: source.reasoningEffortVariants.map((variant) =>
-        variant.description === undefined
-          ? { tier: variant.tier }
-          : { tier: variant.tier, description: variant.description },
-      ),
-    }),
-    ...(source.defaultReasoningEffort !== undefined && {
-      defaultReasoningEffort: source.defaultReasoningEffort,
-    }),
-    current,
-    onSelect: onSelectTier,
-  }
-}
-
 export function effortLabel(effort: EffortLevel): string {
   return UI_TEXT.effortLevels[effort]
 }
@@ -80,8 +47,13 @@ export function effortForThinking(effort: EffortLevel, isThinkingEnabled: boolea
 export function effortLevelsFor(
   modelId: string | undefined,
   supported?: readonly EffortLevel[],
+  catalogue?: CatalogueTiers,
 ): readonly EffortLevel[] {
-  if (modelId?.includes('/') === true) return supported ?? []
+  if (catalogue?.variants !== undefined) {
+    return catalogue.variants === 'unknown' ? [] : catalogue.variants.filter(isEffortLevel)
+  }
+  if (supported !== undefined) return supported
+  if (modelId?.includes('/') === true) return []
   if (modelId === undefined) {
     return EFFORT_LEVELS
   }

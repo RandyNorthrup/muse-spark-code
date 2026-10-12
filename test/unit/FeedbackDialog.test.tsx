@@ -137,32 +137,18 @@ describe('FeedbackDialog: the captured disclosure only', () => {
     expect(await sentRequest(submit)).toMatchObject({ classification: 'bug' })
   })
 
-  it('shows the refusal when the host cannot send', async () => {
-    const submit = vi.fn().mockRejectedValue(new Error(UI_TEXT.feedbackFailed))
-    setup({ port: { submit } })
-    fireEvent.change(noteBox(), { target: { value: 'A wrong answer' } })
-    await send()
-    await screen.findByText(UI_TEXT.feedbackFailed)
-    expect(screen.getByRole('status').textContent).toBe(UI_TEXT.feedbackFailed)
-  })
-
-  it('shows the refusal sentence, not the generic failure, when signed out', async () => {
-    const submit = vi.fn().mockRejectedValue(new Error(UI_TEXT.notSignedInReason))
-    setup({ port: { submit } })
-    fireEvent.change(noteBox(), { target: { value: 'A wrong answer' } })
-    await send()
-    await screen.findByText(UI_TEXT.notSignedInReason)
-    expect(screen.getByRole('status').textContent).toBe(UI_TEXT.notSignedInReason)
-  })
-
-  it('shows a non-upload outcome sentence as the failure, never as success', async () => {
-    const submit = vi.fn().mockRejectedValue(new Error(UI_TEXT.feedbackRateLimited))
-    setup({ port: { submit } })
-    fireEvent.change(noteBox(), { target: { value: 'A wrong answer' } })
-    await send()
-    await screen.findByText(UI_TEXT.feedbackRateLimited)
-    expect(screen.getByRole('status').textContent).toBe(UI_TEXT.feedbackRateLimited)
-  })
+  it.each(['feedbackFailed', 'notSignedInReason', 'feedbackRateLimited'] as const)(
+    'shows the actual %s refusal sentence',
+    async (key) => {
+      const reason = UI_TEXT[key]
+      const submit = vi.fn().mockRejectedValue(new Error(reason))
+      setup({ port: { submit } })
+      fireEvent.change(noteBox(), { target: { value: 'A wrong answer' } })
+      await send()
+      await screen.findByText(reason)
+      expect(screen.getByRole('status').textContent).toBe(reason)
+    },
+  )
 
   it('shows the generic failure for a refusal carrying no reason', async () => {
     const submit = vi.fn().mockRejectedValue('gone')

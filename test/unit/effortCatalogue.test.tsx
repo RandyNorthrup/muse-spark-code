@@ -1,3 +1,4 @@
+import { catalogueSliderProps } from '../../src/webview/components/EffortSlider'
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
@@ -6,7 +7,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { NATIVE_MODEL_EFFORTS } from '../../src/core/backends/musecode/modelEfforts'
 import { MuseCodeHost } from '../../src/core/backends/musecode/MuseCodeHost'
 import { toModelOption } from '../../src/host/conversation/conversationController'
-import { catalogueSliderProps, effortLevelsFor, isEffortLevel } from '../../src/shared/effort'
+import { effortLevelsFor, isEffortLevel } from '../../src/shared/effort'
 import { parseHostToWebviewMessage } from '../../src/shared/protocol'
 import { EffortSlider } from '../../src/webview/components/EffortSlider'
 import { FakeLogOutputChannel } from './helpers/fakes'

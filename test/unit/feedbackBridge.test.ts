@@ -104,6 +104,13 @@ describe('feedbackBridge: the zod round-trip', () => {
     expect(posted).toHaveLength(0)
   })
 
+  it('refuses a fresh preview on a closed port without posting', async () => {
+    const { bridge, posted } = setup()
+    bridge.close()
+    await expect(bridge.port.scrubNote?.('note')).rejects.toThrow(UI_TEXT.feedbackFailed)
+    expect(posted).toHaveLength(0)
+  })
+
   it('rejects the in-flight send when the dialog closes', async () => {
     const { bridge } = setup()
     const sent = bridge.port.submit({

@@ -285,6 +285,23 @@ describe('the production webview chunks (FIX78W)', () => {
     }
   })
 
+  it('loads the feedback lifecycle, form and receipt strings only on first use', () => {
+    const eager = [...initialOutputs()].flatMap((file) => Object.keys(built.outputs[file].inputs))
+    for (const source of [
+      'src/webview/components/FeedbackSurface.tsx',
+      'src/webview/components/FeedbackDialog.tsx',
+      'src/webview/feedbackBridge.ts',
+      'src/core/backends/musecode/feedbackRequest.ts',
+    ])
+      expect(eager).not.toContain(source)
+    const groups = webviewDeferredBudgetGroups({ outputs: built.outputs })
+    const lifecycle = groups.find((group) => group.name === 'feedback lifecycle')
+    expect(lifecycle).toBeDefined()
+    expect(
+      lifecycle.outputs.reduce((sum, file) => sum + statSync(outputFile(file)).size, 0),
+    ).toBeLessThanOrEqual(25 * 1024)
+  })
+
   it('keeps FIXDIET1 startup and original deferred bytes within their review baseline', () => {
     const bytes = [...initialOutputs()].reduce(
       (sum, output) => sum + statSync(outputFile(output)).size,

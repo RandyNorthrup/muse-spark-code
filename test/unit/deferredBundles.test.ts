@@ -97,6 +97,7 @@ beforeAll(async () => {
   const builds = await Promise.all([
     ...Object.entries({
       resourceGovernor: 'src/core/resources/resourceGovernorEntry.ts',
+      modelEfforts: 'src/core/backends/musecode/modelEffortsEntry.ts',
       resourceProcess: 'src/core/resources/resourceProcessEntry.ts',
       mcpVault: 'src/host/backend/mcpVaultEntry.ts',
       resourceJournal: 'src/runtime/resources/resourceJournalEntry.ts',
@@ -158,6 +159,10 @@ beforeAll(async () => {
       build({
         ...common,
         outfile: `dist/${name}.js`,
+        ...(name === 'headless' && {
+          target: 'node22',
+          define: { ...common.define, navigator: 'undefined' },
+        }),
         entryPoints: [entry],
         plugins: [
           sharedUiText,
@@ -1200,6 +1205,13 @@ describe('deferred cohort bundles', () => {
   })
 
   it.each([
+    ['modelEfforts', 'src/core/backends/musecode/modelEfforts.ts', 'missing'],
+    [
+      'extension',
+      'src/core/backends/musecode/modelEfforts.ts',
+      'on the first model catalogue read',
+    ],
+    ['acp', 'src/core/backends/musecode/modelEfforts.ts', 'on the first model catalogue read'],
     ['estimateContracts', 'src/shared/estimate.ts', 'missing'],
     ['modelApi', 'src/shared/estimate.ts', 'on its first action'],
     ['vaultBoundaries', 'src/shared/vault.ts', 'missing'],

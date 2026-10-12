@@ -850,7 +850,12 @@ describe('App conversation', () => {
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'setEffort', effort: 'low' })
   })
 
-  it('renders the served catalogue tiers in the Modes menu footer', () => {
+  it.each([
+    { served: true, input: 'pointer' },
+    { served: false, input: 'pointer' },
+    { served: true, input: 'keyboard' },
+    { served: false, input: 'keyboard' },
+  ])('uses one effort range: served=$served, input=$input', ({ served, input }) => {
     const postMessage = renderReady()
     deliver({
       type: 'modelList',
@@ -859,19 +864,26 @@ describe('App conversation', () => {
           modelId: 'muse-spark-1.3',
           displayLabel: 'Muse Spark 1.3',
           isDefault: true,
-          variants: ['low', 'high'],
-          reasoningEffortVariants: [{ tier: 'high', description: 'Deepest analysis' }],
-          defaultReasoningEffort: 'high',
+          ...(served && { variants: ['low', 'high', 'turbo'] }),
         },
       ],
     })
     deliver({ type: 'sessionInfo', modelId: 'muse-spark-1.3', contextLimit: 1_007_997 })
     fireEvent.click(screen.getByLabelText('Permission mode: Manual'))
-    // The catalogue replaces the family table: two dots, not six.
-    expect(screen.queryByTitle('Max')).toBeNull()
-    expect(screen.getByTitle('Deepest analysis')).toBeInTheDocument()
-    fireEvent.click(screen.getByTitle('Low'))
-    expect(postMessage).toHaveBeenLastCalledWith({ type: 'setEffort', effort: 'low' })
+    if (served) {
+      expect(screen.queryByTitle('Max')).toBeNull()
+      expect(screen.getByTitle('turbo')).toBeDisabled()
+      fireEvent.click(screen.getByTitle('turbo'))
+      expect(postMessage).not.toHaveBeenCalledWith({ type: 'setEffort', effort: 'turbo' })
+    } else {
+      expect(screen.getByTitle('Max')).toBeEnabled()
+    }
+    if (input === 'pointer') fireEvent.click(screen.getByTitle('Low'))
+    else fireEvent.keyDown(screen.getByRole('menu'), { key: 'ArrowLeft' })
+    expect(postMessage).toHaveBeenLastCalledWith({
+      type: 'setEffort',
+      effort: served || input === 'pointer' ? 'low' : 'medium',
+    })
   })
 
   it('closes the feedback bridge when the session changes', async () => {
@@ -888,12 +900,21 @@ describe('App conversation', () => {
     if (!(rowButton instanceof HTMLElement)) throw new Error('Missing assistant row menu')
     fireEvent.click(rowButton)
     fireEvent.click(await screen.findByRole('menuitem', { name: UI_TEXT.feedbackTitle }))
-    expect(await screen.findByRole('dialog')).toBeInTheDocument()
+    await screen.findByLabelText(UI_TEXT.feedbackNote)
+    const dialog = screen.getByRole('dialog')
+    expect(dialog.closest('[inert]')).toBeNull()
+    expect(document.querySelector('.header-area')).toHaveAttribute('inert')
+    expect(document.querySelector('.composer-area')).toHaveAttribute('inert')
     const removed = vi.spyOn(window, 'removeEventListener')
     try {
       deliver({ type: 'sessionInfo', modelId: 'muse-spark-1.3', sessionId: 's2' })
       expect(screen.queryByRole('dialog')).toBeNull()
       expect(removed).toHaveBeenCalledWith('message', expect.any(Function))
+      deliver({ type: 'sessionInfo', modelId: 'muse-spark-1.3', sessionId: 's1' })
+      expect(screen.queryByRole('dialog')).toBeNull()
+      fireEvent.click(rowButton)
+      fireEvent.click(await screen.findByRole('menuitem', { name: UI_TEXT.feedbackTitle }))
+      expect(await screen.findByLabelText(UI_TEXT.feedbackNote)).toBeInTheDocument()
     } finally {
       removed.mockRestore()
     }

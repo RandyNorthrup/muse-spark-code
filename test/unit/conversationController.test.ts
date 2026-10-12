@@ -1626,6 +1626,36 @@ describe('ConversationController: composer controls', () => {
     })
   })
 
+  it.each([true, false])(
+    'admits the selected served=%s range in the controller',
+    async (served) => {
+      const t = setup()
+      vi.spyOn(t.host, 'listModels').mockResolvedValue([
+        {
+          modelId: 'muse-spark-1.3',
+          displayLabel: 'Muse Spark 1.3',
+          contextLimit: 1_000_000,
+          isDefault: true,
+          isActive: true,
+          ...(served && { variants: ['low', 'high'] }),
+        },
+      ])
+      await t.send('l1', 'hi')
+      const before = t.server.requestsFor('session/setReasoningEffort').length
+      await t.controller.handle({ type: 'setEffort', effort: 'medium' })
+      if (served) {
+        expect(t.server.requestsFor('session/setReasoningEffort')).toHaveLength(before)
+        expect(notices(t)).toContainEqual(
+          expect.objectContaining({ text: UI_TEXT.execEffortUnavailable }),
+        )
+      } else {
+        expect(t.server.requestsFor('session/setReasoningEffort').at(-1)?.params).toMatchObject({
+          reasoningEffort: 'medium',
+        })
+      }
+    },
+  )
+
   it('drops the effort to the highest tier the new model serves', async () => {
     const t = setup()
     await t.send('l1', 'hi')
