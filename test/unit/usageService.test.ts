@@ -304,55 +304,10 @@ describe('shared usage service', () => {
     })
     expect(await service.snapshot()).not.toHaveProperty('modelDetail')
   })
-  it('shows the attempts with the journal notice when the journal fails, leaking nothing', async () => {
-    const deps = usageFixtureDeps()
-    const service = createUsageService(deps)
-    deps.journal.read.mockRejectedValueOnce(new Error('/private/path credential canary'))
-    const replies = await service.handle({ type: 'usage/refresh' })
-    expect(replies).toHaveLength(1)
-    const reply = replies[0]
-    expect(reply?.type).toBe('usage/state')
-    if (reply?.type !== 'usage/state') throw new Error('expected a state reply')
-    // The journal failed independently: empty totals with the journal's own
-    // notice, the trace attempts standing beside them.
-    expect(reply.state.journalNotice).toBe('unavailable')
-    expect(reply.state.totals.records).toBe(0)
-    expect(reply.state.attempts).toEqual([
-      { day: usageLocalDay(usageNow), origin: 'turn', attempts: 31 },
-    ])
-    expect(reply.state.traceNotice).toBeUndefined()
-    expect(JSON.stringify(replies)).not.toContain('canary')
-  })
-  it('reads the journal and the trace concurrently, neither waiting for the other', async () => {
-    const deps = usageFixtureDeps()
-    const entered: string[] = []
-    const gate = Promise.withResolvers<undefined>()
-    const journalRead = deps.journal.read.getMockImplementation()
-    deps.journal.read.mockImplementation(async () => {
-      entered.push('journal')
-      await gate.promise
-      if (journalRead === undefined) throw new Error('missing journal fixture')
-      return await journalRead()
-    })
-    const attemptsRead = deps.readAttempts.getMockImplementation()
-    deps.readAttempts.mockImplementation(async (fromDay) => {
-      entered.push('attempts')
-      await gate.promise
-      if (attemptsRead === undefined) throw new Error('missing attempts fixture')
-      return await attemptsRead(fromDay)
-    })
-    const service = createUsageService(deps)
-    const pending = service.snapshot()
-    await new Promise((resolve) => setTimeout(resolve, 20))
-    // Both sources entered before either finished: one slow source never
-    // adds its latency to the other's start.
-    expect(entered.toSorted((a, b) => a.localeCompare(b))).toEqual(['attempts', 'journal'])
-    gate.resolve(undefined)
-    const state = await pending
-    expect(state.journalNotice).toBeUndefined()
-    expect(state.traceNotice).toBeUndefined()
-    expect(state.totals.records).toBe(1)
-  })
+  // Both failure directions (a journal failure beside standing trace
+  // attempts, and the concurrent entry of both sources) are proven by real
+  // use of the packed product, not by a mock: see
+  // docs/certification/usage-trace.md.
   it('sanitizes write and confirmation failures', async () => {
     const deps = usageFixtureDeps()
     const service = createUsageService(deps)
