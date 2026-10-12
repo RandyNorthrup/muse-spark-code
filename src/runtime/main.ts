@@ -685,7 +685,14 @@ async function serve(
   })
   const engine = await import('./runtimeEngineEntry')
   engine.setUiText(UI_TEXT, uiLocale())
-  const restoreRecording = engine.installUsageRecording(recording)
+  let limitGeneration = randomUUID()
+  let restoreRecording = engine.installUsageRecording(
+    recording.scopeLimits?.({
+      accountId: ACCOUNT_DEFAULT_ID,
+      generation: limitGeneration,
+      backend: options.backend,
+    }) ?? recording,
+  )
   try {
     const directory = path.join(
       agentDataFolder({ platform: process.platform, env: process.env, homeDir: homedir() }),
@@ -787,7 +794,23 @@ async function serve(
       onClientName: (name) => {
         clientName = name
       },
-      backend: runtime.backend,
+      backend: {
+        ...runtime.backend,
+        readiness: async (isRecheck) => {
+          if (isRecheck) {
+            restoreRecording()
+            limitGeneration = randomUUID()
+            restoreRecording = engine.installUsageRecording(
+              recording.scopeLimits?.({
+                accountId: ACCOUNT_DEFAULT_ID,
+                generation: limitGeneration,
+                backend: options.backend,
+              }) ?? recording,
+            )
+          }
+          return await runtime.backend.readiness(isRecheck)
+        },
+      },
       version: packageVersion(),
       options: {
         canBypass: options.canBypass,
@@ -831,8 +854,11 @@ async function serve(
           env: process.env,
           homeDir: homedir(),
         }),
-        readLiveLimits: () =>
-          (recording.limits?.() ?? []).filter((row) => row.backend === options.backend),
+        currentOwner: () => ({ accountId: ACCOUNT_DEFAULT_ID, generation: limitGeneration }),
+        readOwnedLimits: () =>
+          (recording.ownedLimits?.() ?? []).filter(
+            (row) => row.snapshot.backend === options.backend,
+          ),
         accounts: {
           list: async (provider: string) => {
             const owner = loadAccounts()

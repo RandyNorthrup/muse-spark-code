@@ -60,7 +60,7 @@ function settleSuperseded(pending: PendingRun[]): { older: PendingRun; newer: Pe
 }
 
 describe('M117 estimate command', () => {
-  it('renders byte-identical terminal output across process time zones and languages', () => {
+  it('renders canonical JSON across zones and terminal dates in the user zone', () => {
     const compiled = buildSync({
       entryPoints: ['src/runtime/estimator/command.ts'],
       bundle: true,
@@ -71,7 +71,7 @@ describe('M117 estimate command', () => {
     })
     const source = compiled.outputFiles[0]?.text
     if (source === undefined) throw new Error('missing compiled command')
-    const script = `${source}\nprocess.stdout.write(module.exports.renderEstimate(${JSON.stringify(fakeEstimate())}, 'text', {price(){return 'exact'}}));`
+    const script = `${source}\nprocess.stdout.write(module.exports.renderEstimate(${JSON.stringify(fakeEstimate())}, 'json', {price(){return 'exact'}}));`
     const outputs = ['America/Los_Angeles', 'Asia/Tokyo'].map((TZ) => {
       const child = spawnSync(process.execPath, [], {
         input: script,
@@ -82,6 +82,13 @@ describe('M117 estimate command', () => {
       return child.stdout
     })
     expect(outputs[0]).toBe(outputs[1])
+    const textScript = script.replace("'json'", "'text'")
+    const local = ['America/Los_Angeles', 'Asia/Tokyo'].map(
+      (TZ) =>
+        spawnSync(process.execPath, [], { input: textScript, encoding: 'utf8', env: { TZ } })
+          .stdout,
+    )
+    expect(local[0]).not.toBe(local[1])
   })
   it('routes composer estimates to the injected local panel and leaves ordinary prompts alone', () => {
     const open = vi.fn()

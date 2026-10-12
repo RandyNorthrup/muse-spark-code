@@ -12,18 +12,18 @@ import {
 
 /** Agent imports this type only; W's lazy loader supplies the implementation. */
 export interface AcpEstimatePort {
-  run(text: string, cwd: string, signal: AbortSignal): Promise<string>
+  run(text: string, cwd: string, signal: AbortSignal, providerId?: string): Promise<string>
 }
 
 export function createAcpEstimate(deps: {
   context(cwd: string): EstimateContext
-  runner(cwd: string): EstimateRunPort
+  runner(cwd: string, providerId?: string): EstimateRunPort
   readonly money: EstimateFormatPort
   /** Every plan problem for `/estimate --check-plan`; absent refuses the check. */
   checkPlan?(cwd: string, signal: AbortSignal): Promise<readonly string[]>
 }): AcpEstimatePort {
   return {
-    async run(text, cwd, signal) {
+    async run(text, cwd, signal, providerId) {
       const args = estimateSlashArguments(text)
       const parsed = args === undefined ? undefined : parseEstimateOptions(args)
       if (parsed === undefined || parsed.kind === 'invalid') return UI_TEXT.estimateUsage
@@ -42,7 +42,7 @@ export function createAcpEstimate(deps: {
         const section = await collectEstimate(
           parsed.options,
           deps.context(cwd),
-          deps.runner(cwd),
+          deps.runner(cwd, providerId),
           signal,
         )
         return renderEstimate(section, parsed.options.format, deps.money)

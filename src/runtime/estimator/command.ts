@@ -1,4 +1,10 @@
+import { renderLimitNote } from '../../core/estimator/limitText'
 import * as z from 'zod/mini'
+import {
+  estimateDiagnosticSchema,
+  EstimateDiagnosticError,
+  type EstimateDiagnostic,
+} from '../../core/estimator/diagnostic'
 import { redactSecrets } from '../../core/redact'
 import { escapeHtml } from '../../core/htmlText'
 import { ESTIMATE_OPTIONS } from './options'
@@ -26,23 +32,55 @@ import {
 } from '../../shared/l10n/text'
 
 /** Fixed fleet diagnostics only: raw I/O paths and arbitrary errors stay private. */
-export function fleetFailure(detail: string): Error {
-  return Object.assign(new Error(estimateFailureText({ estimateDiagnostic: detail })), {
-    estimateDiagnostic: detail,
+export function fleetFailure(detail: string | EstimateDiagnostic): Error {
+  if (typeof detail !== 'string') {
+    const error = new EstimateDiagnosticError(detail)
+    error.message = estimateFailureText(error)
+    return error
+  }
+  const [code, ...words] = detail.split(' ')
+  const parsed = estimateDiagnosticSchema.safeParse({
+    code,
+    parameters: words.length === 0 ? {} : { reason: words.join(' ') },
   })
+  const error = new EstimateDiagnosticError(
+    parsed.success
+      ? parsed.data
+      : {
+          code: 'engine-refused',
+          parameters: { reason: 'estimate-unavailable' },
+        },
+  )
+  error.message = estimateFailureText(error)
+  return error
 }
 
 /** Only validated application diagnostics reach host output; raw IO errors do not. */
 export function estimateFailureText(error: unknown): string {
   if (typeof error === 'object' && error !== null && 'estimateDiagnostic' in error) {
-    const estimateDiagnosticSchema = z
+    const diagnostic = estimateDiagnosticSchema.safeParse(error.estimateDiagnostic)
+    if (diagnostic.success) {
+      const { code, parameters } = diagnostic.data
+      let detail: string
+      if (code === 'fleet-account-blocked') {
+        const reset =
+          parameters.reset === null || parameters.reset === undefined
+            ? UI_TEXT.estimateResetUnknown
+            : formatDateTime(Date.parse(parameters.reset))
+        detail = `${code} ${parameters.label ?? UI_TEXT.estimateAccounts} ${reset}`
+      } else if (code === 'schedule-refused' || code === 'engine-refused')
+        detail = parameters.reason ?? code
+      else detail = `${code}${parameters.reason === undefined ? '' : ` ${parameters.reason}`}`
+      if (redactSecrets(detail) === detail) return fill(UI_TEXT.estimateFailed, { detail })
+    }
+    const legacyDiagnosticSchema = z
       .string()
       .check(
         z.regex(
-          /^(?:fleet-(?:caps-invalid|account-invalid|ci-invalid|binding-invalid)(?: [\w-]+)*|fleet-account-blocked [\w.-]+\/[\w.-]+ (?:\d{4}-\d{2}-\d{2}T[\d:.]+Z|reset unknown)|(?:missing-associations|missing-plan|unknown-goal|unknown-prerequisite|unknown-release-member|unknown-rig|duplicate-lane|malformed-starts|missing-estimate|source-unavailable|source-incomplete|invalid-lane|plan-drift|lane-limit):?[\w .,:;-]*)$/,
+          /^(?:fleet-(?:caps-invalid|account-invalid|ci-invalid|binding-invalid)(?: [\w-]+)*|(?:missing-associations|missing-plan|unknown-goal|unknown-prerequisite|unknown-release-member|unknown-rig|duplicate-lane|malformed-starts|missing-estimate|source-unavailable|source-incomplete|invalid-lane|plan-drift|lane-limit):?[\w .,:;-]*)$/,
         ),
       )
-    const parsed = estimateDiagnosticSchema.safeParse(error.estimateDiagnostic)
+    const parsed = legacyDiagnosticSchema.safeParse(error.estimateDiagnostic)
     if (parsed.success && redactSecrets(parsed.data) === parsed.data)
       return fill(UI_TEXT.estimateFailed, {
         detail: parsed.data
@@ -225,13 +263,13 @@ export function estimateDrift(next: EstimateSection, previous: EstimateSection):
   })
 }
 
-/** UTC makes terminal/report bytes independent of the process TZ. */
+/** Dates are formatted only for the requesting surface, in the user's zone. */
 function date(value: string): string {
   const options: Intl.DateTimeFormatOptions = {
     dateStyle: 'medium',
-    timeZone: 'UTC',
   }
   if (value.includes('T')) options.timeStyle = 'short'
+  else options.timeZone = 'UTC'
   return new Intl.DateTimeFormat(uiLocale(), options).format(Date.parse(value))
 }
 function setupLabel(kind: EstimateSection['setups'][number]['kind']): string {
@@ -279,14 +317,28 @@ function escapeMarkdown(text: string): string {
   return text.replaceAll(/([\\`*_{}[\]<>#+.!|])/g, String.raw`\$1`).replaceAll('\n', ' ')
 }
 
+/** Presentation-only copy: raw forecasts and seeds remain locale/zone independent. */
+export function presentEstimate(section: EstimateSection): EstimateSection {
+  return {
+    ...section,
+    ...(section.qualifications !== undefined && {
+      qualifications: section.qualifications.map((row) => ({
+        ...row,
+        unknownLimits: row.unknownLimits.map((note) => renderLimitNote(note)),
+      })),
+    }),
+  }
+}
+
 /** Complete evidence travels in every format, not just the appealing forecast. */
 export function renderEstimate(
   input: unknown,
   format: EstimateCommandOptions['format'],
   money: EstimateFormatPort,
 ): string {
-  const section = estimateSectionSchema.parse(input)
-  if (format === 'json') return `${JSON.stringify(section, null, 2)}\n`
+  const parsed = estimateSectionSchema.parse(input)
+  if (format === 'json') return `${JSON.stringify(parsed, null, 2)}\n`
+  const section = presentEstimate(parsed)
   const paragraphs = [
     [UI_TEXT.estimateP50, date(section.p50)],
     [UI_TEXT.estimateP90, date(section.p90)],

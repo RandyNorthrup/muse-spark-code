@@ -1,3 +1,4 @@
+import type { EstimateAccountOwner } from '../../shared/estimateFacts'
 import type { UsdAmount } from '../../shared/usd'
 // R's injected seam to J's journal. No filesystem or provider requests here.
 import type { Usage } from '../backends/modelapi/schemas'
@@ -32,7 +33,18 @@ export interface UsageWriter {
   flush(): Promise<void>
 }
 
+export interface OwnedUsageLimitSnapshot {
+  readonly snapshot: UsageLimitSnapshot
+  readonly owner: EstimateAccountOwner
+}
 export interface UsageRecording {
+  readonly ownedLimits?: () => readonly OwnedUsageLimitSnapshot[]
+  readonly scopeLimits?: (scope: {
+    readonly accountId: string
+    readonly generation: string
+    readonly backend: UsageLimitSnapshot['backend']
+  }) => UsageRecording
+
   readonly limits?: () => readonly UsageLimitSnapshot[]
   note(usage: Partial<Usage> | undefined, context: RecordedCall): void
   limit(
@@ -62,6 +74,7 @@ export function createUsageRecording(options: UsageRecordingOptions): UsageRecor
   let hasLogged = false
   const lastHeaders = new Map<string, string>()
   const liveLimits = new Map<string, UsageLimitSnapshot>()
+  const ownedLimits = new Map<string, OwnedUsageLimitSnapshot>()
   const client = () => (typeof options.client === 'function' ? options.client() : options.client)
   const report = () => {
     if (hasLogged) return
@@ -84,7 +97,29 @@ export function createUsageRecording(options: UsageRecordingOptions): UsageRecor
       }
     })()
   }
-  return {
+  const recording: UsageRecording = {
+    ownedLimits: () => Array.from(ownedLimits.values(), (row) => structuredClone(row)),
+    scopeLimits: (scope) => {
+      const captured = { ...scope }
+      return {
+        ...recording,
+        limit: (context, isForced = false) => {
+          const key = `${context.provider}/${captured.accountId}/${captured.generation}/${context.source}`
+          const previous = liveLimits.get(`${context.provider}/${context.source}`)
+          recording.limit(context, isForced || !ownedLimits.has(key))
+          if (context.backend !== captured.backend) return
+          const snapshot = liveLimits.get(`${context.provider}/${context.source}`)
+          if (snapshot === undefined || snapshot === previous) return
+          const owner: EstimateAccountOwner = {
+            kind: 'account',
+            id: captured.accountId,
+            generation: captured.generation,
+            providerId: context.provider === 'museCode' ? 'meta' : context.provider,
+          }
+          ownedLimits.set(key, { snapshot: structuredClone(snapshot), owner })
+        },
+      }
+    },
     limits: () => {
       const entries: UsageLimitSnapshot[] = []
       liveLimits.forEach((entry) => {
@@ -161,6 +196,7 @@ export function createUsageRecording(options: UsageRecordingOptions): UsageRecor
       }
     },
   }
+  return recording
 }
 
 /** Bundles ship together; the factory is validated before it is invoked. */

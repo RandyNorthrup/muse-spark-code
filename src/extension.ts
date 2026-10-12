@@ -22,6 +22,7 @@ import {
   COMMAND_IDS,
   CONTEXT_KEYS,
   DEFAULT_MODEL_ID,
+  ACCOUNT_DEFAULT_ID,
   EXTENSION_NAME,
   DICTATION_HELPER_DIR,
   FIND_FILES_GLOB,
@@ -270,7 +271,11 @@ import {
 import { WindowHold, WorktreeRegistry } from './host/git/worktreeRegistry'
 import { lazyReview } from './host/review/reviewBundle'
 import { lazyEstimator } from './host/estimator/estimatorBundle'
-import { extensionFleetSources, fleetIoFromSources } from './host/estimator/fleetBinding'
+import {
+  extensionFleetSources,
+  fleetIoFromSources,
+  ownedSubscriptionUsage,
+} from './host/estimator/fleetBinding'
 import { estimatorSourcePorts } from './host/estimator/localFleet'
 import { planSnapshotLoader } from './host/estimator/planSnapshotBundle'
 import { PendingPrompts, type BoardSession } from './core/sessionBoard'
@@ -1782,6 +1787,9 @@ async function activateWindow(
   /** The CLI's own credential without a question to the CLI on macOS: META_API_KEY or its sign-in. */
   const hasCliSession = async () =>
     backend.hasEnvironmentKey() || isCliSignedIn(await cliAccount.signIn(false))
+  let estimatorProviderGeneration = 0
+  const estimatorOwnerGeneration = () =>
+    `${String(auth.admissionGeneration)}.${String(estimatorProviderGeneration)}`
   const auth = new AuthService({
     getPlanAccount: async () =>
       subscriptions === undefined &&
@@ -1862,6 +1870,16 @@ async function activateWindow(
       registry.broadcast(message)
       if (message.type !== 'authState') {
         return
+      }
+      if (message.backend !== undefined) {
+        const scoped =
+          usageRecording.scopeLimits?.({
+            accountId: ACCOUNT_DEFAULT_ID,
+            generation: estimatorOwnerGeneration(),
+            backend: message.backend,
+          }) ?? usageRecording
+        MuseCodeHost.usageRecording = scoped
+        ModelApiBackendManager.usageRecording = scoped
       }
       paidBackend = message.backend
       broadcastPaidState()
@@ -2383,14 +2401,29 @@ async function activateWindow(
         fleetIoFromSources(
           extensionFleetSources({
             inspect: (key) => vscode.workspace.getConfiguration(SETTINGS_SECTION).inspect(key),
-            readLiveLimits: () =>
-              (usageRecording.limits?.() ?? []).filter(
-                (row) => row.backend === auth.current.backend,
+            currentOwner: () => ({
+              accountId: ACCOUNT_DEFAULT_ID,
+              generation: estimatorOwnerGeneration(),
+              providerId:
+                auth.current.backend === 'museCode' || registry.active === undefined
+                  ? 'meta'
+                  : controllerFor(registry.active).estimateProviderId,
+            }),
+            readOwnedLimits: () =>
+              (usageRecording.ownedLimits?.() ?? []).filter(
+                (row) => row.snapshot.backend === auth.current.backend,
               ),
             readUsage: async () => {
               if (!backend.isRunning || auth.current.backend !== 'museCode') return
+              const scope = {
+                accountId: ACCOUNT_DEFAULT_ID,
+                generation: estimatorOwnerGeneration(),
+              }
               const host = await backend.ensureHost()
-              return await host.readUsage()
+              const usage = await host.readUsage()
+              return usage === undefined
+                ? undefined
+                : ownedSubscriptionUsage(usage, usageRecording.ownedLimits?.() ?? [], scope)
             },
           }),
         ),
@@ -4110,8 +4143,16 @@ async function activateWindow(
     return typeof raw === 'string' ? raw : ''
   }
   let modelsFeatures: ModelsPanelFeatures | undefined
+  let modelsFeaturesGeneration: string | undefined
   const ensureModelsFeatures = (): ModelsPanelFeatures => {
-    if (modelsFeatures === undefined) {
+    if (modelsFeatures === undefined || modelsFeaturesGeneration !== estimatorOwnerGeneration()) {
+      modelsFeaturesGeneration = estimatorOwnerGeneration()
+      const modelUsageRecording =
+        usageRecording.scopeLimits?.({
+          accountId: ACCOUNT_DEFAULT_ID,
+          generation: modelsFeaturesGeneration,
+          backend: 'modelApi',
+        }) ?? usageRecording
       const bundle = modelsPanelBundle()
       const seam = providersSeamBundle()
       modelsFeatures = bundle.createModelsPanelFeatures(
@@ -4129,7 +4170,7 @@ async function activateWindow(
           isRemote: vscode.env.remoteName !== undefined,
           setComposerModel,
           onKeyUsage: (snapshot) => {
-            usageRecording.limit({
+            modelUsageRecording.limit({
               backend: 'modelApi',
               provider: 'openrouter',
               source: 'openRouter',
@@ -4144,6 +4185,7 @@ async function activateWindow(
             })
           },
           onWizardSaved: async (outcome) => {
+            estimatorProviderGeneration += 1
             await auth.refresh()
             const surface = registry.active
             if (surface !== undefined) {
