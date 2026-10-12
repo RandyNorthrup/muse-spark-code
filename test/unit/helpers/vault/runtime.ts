@@ -32,6 +32,7 @@ export function commandHarness(events: readonly unknown[] = []) {
     importFile: vi.fn<VaultCommandPort['importFile']>(generatedImport),
     keepImport: vi.fn(() => Promise.resolve()),
     deleteImport: vi.fn(() => Promise.resolve()),
+    pendingReceipts: vi.fn<VaultCommandPort['pendingReceipts']>(() => Promise.resolve([])),
     resetBegin: vi.fn<VaultCommandPort['resetBegin']>(() =>
       Promise.resolve({ resetId: randomBytes(16).toString('hex'), word: 'RESET' }),
     ),

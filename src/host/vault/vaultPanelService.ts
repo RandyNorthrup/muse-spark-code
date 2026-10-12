@@ -35,6 +35,11 @@ export function vaultPanelService(
         grants: snapshot.grants,
         audit: [...audit],
         pending: snapshot.pending,
+        pendingReceipts: snapshot.pendingReceipts.map((entry) => ({
+          receipt: entry.receipt,
+          path: entry.path,
+          items: [...entry.items],
+        })),
         ambientFiles: [...ambientFiles],
       }
     },

@@ -31,6 +31,23 @@ export const vaultPanelStateSchema = z.strictObject({
   grants: z.array(vaultGrantSchema).check(z.maxLength(VAULT_LIMITS.grants)),
   audit: z.array(vaultAuditRecordSchema).check(z.maxLength(VAULT_LIMITS.items)),
   pending: z.array(vaultApprovalRequestSchema).check(z.maxLength(VAULT_LIMITS.items)),
+  // The finish sweep, passed through from the broker snapshot: kept or
+  // orphaned receipts whose source or secret still exists. Absent on
+  // stripped frames (locked, unavailable), which list nothing by name. Kept
+  // inline (not imported from vaultProtocol) so the webview bundle does not
+  // carry the broker's protocol; the sweep test parses a real snapshot
+  // through both shapes, so drift fails there.
+  pendingReceipts: z.optional(
+    z
+      .array(
+        z.strictObject({
+          receipt: z.string().check(z.regex(/^[a-f0-9-]{36}$/u)),
+          path: z.string().check(z.maxLength(VAULT_LIMITS.text)),
+          items: z.array(vaultItemMetadataSchema).check(z.maxLength(VAULT_LIMITS.items)),
+        }),
+      )
+      .check(z.maxLength(VAULT_LIMITS.items)),
+  ),
   ambientFiles: z
     .array(
       z.strictObject({

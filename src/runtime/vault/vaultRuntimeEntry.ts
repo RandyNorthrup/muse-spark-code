@@ -103,6 +103,14 @@ export function vaultCommandPort(session: VaultManageSession): VaultCommandPort 
     deleteImport: async (receipt) => {
       await session.deleteImport(receipt)
     },
+    pendingReceipts: async () => {
+      const snapshot = await session.snapshot()
+      return snapshot.pendingReceipts.map((entry) => ({
+        receipt: entry.receipt,
+        path: entry.path,
+        items: [...entry.items],
+      }))
+    },
     resetBegin: async () => await session.resetBegin(),
     resetConfirm: async (resetId, word) => {
       await session.resetConfirm(resetId, word)

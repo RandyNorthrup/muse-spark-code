@@ -268,6 +268,47 @@ describe('M109 H terminal commands', () => {
     ).toBe(1)
     expect(h.deps.printError).toHaveBeenCalledWith(UI_TEXT.vault.noAccess)
   })
+  it('RVAPP-CM1091D5 P2-2 receipts finishes kept imports from the terminal', async () => {
+    expect(parseVaultCommand(['receipts'])).toEqual({ command: 'receipts' })
+    expect(parseVaultCommand(['receipts', 'extra'])).toBeUndefined()
+    // Nothing pending: say so, exit 0.
+    const empty = commandHarness()
+    expect(await runVaultCommand({ command: 'receipts' }, empty.deps)).toBe(0)
+    expect(empty.deps.print).toHaveBeenCalledWith(UI_TEXT.vault.noPendingImports)
+    // A pending receipt offers Keep or Delete, like the panel.
+    const receipt = {
+      receipt: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+      path: '/home/user/.netrc',
+      items: [metadata()],
+    }
+    const keeping = commandHarness()
+    keeping.port.pendingReceipts.mockResolvedValue([receipt])
+    keeping.deps.choose.mockResolvedValue('keep')
+    expect(await runVaultCommand({ command: 'receipts' }, keeping.deps)).toBe(0)
+    expect(keeping.port.keepImport).toHaveBeenCalledWith(receipt.receipt)
+    expect(keeping.port.deleteImport).not.toHaveBeenCalled()
+    const deleting = commandHarness()
+    deleting.port.pendingReceipts.mockResolvedValue([receipt])
+    deleting.deps.choose.mockResolvedValue('delete')
+    expect(await runVaultCommand({ command: 'receipts' }, deleting.deps)).toBe(0)
+    expect(deleting.port.deleteImport).toHaveBeenCalledWith(receipt.receipt)
+    // A refused Delete tells the true reason and marks the run failed.
+    const refused = commandHarness()
+    refused.port.pendingReceipts.mockResolvedValue([receipt])
+    refused.deps.choose.mockResolvedValue('delete')
+    refused.port.deleteImport.mockRejectedValueOnce(new Error(UI_TEXT.vault.sourceUnreadable))
+    expect(await runVaultCommand({ command: 'receipts' }, refused.deps)).toBe(1)
+    expect(refused.deps.printError).toHaveBeenCalledWith(UI_TEXT.vault.sourceUnreadable)
+    expect(refused.deps.printError).not.toHaveBeenCalledWith(UI_TEXT.vault.noAccess)
+    // Without a terminal the list prints and nothing is chosen.
+    const headless = commandHarness()
+    headless.deps.isInteractive = false
+    headless.port.pendingReceipts.mockResolvedValue([receipt])
+    expect(await runVaultCommand({ command: 'receipts' }, headless.deps)).toBe(0)
+    expect(headless.deps.choose).not.toHaveBeenCalled()
+    expect(headless.port.keepImport).not.toHaveBeenCalled()
+    expect(headless.port.deleteImport).not.toHaveBeenCalled()
+  })
   it('RVCM1091G a Delete rejected as sourceGone finishes by clearing the leftover record', async () => {
     const h = commandHarness()
     h.deps.choose.mockResolvedValue('delete')

@@ -358,6 +358,33 @@ export class VaultPanelHost {
     if (this.disposed || generation !== this.generation) throw new Error(UI_TEXT.vault.useChanged)
   }
 
+  /**
+   * Finish the person's Delete of an imported source (RVAPP-CM1091D5 P2-2):
+   * shared by the one-time prompt after an import and by a kept or orphaned
+   * receipt's own Delete action. The source already gone finishes the Delete
+   * by clearing the leftover record instead of dropping it, so no orphan
+   * receipt waits for another Delete carrying it. A record already cleared
+   * (or still stuck) leaves the refusal below exactly as it stands.
+   */
+  private async finishDelete(
+    receipt: string,
+    authorize: () => void,
+    signal: AbortSignal,
+  ): Promise<void> {
+    try {
+      await this.deps.service.deleteImport(receipt, authorize, signal)
+    } catch (error: unknown) {
+      if (error instanceof Error && error.message === UI_TEXT.vault.sourceGone) {
+        try {
+          await this.deps.service.keepImport(receipt)
+        } catch {
+          /* The refusal below still holds: the file is gone. */
+        }
+      }
+      throw error
+    }
+  }
+
   /** One retirement path keeps Lock, revocation and disposal equivalent. */
   private retire(isBarrier: boolean): void {
     this.generation += 1
@@ -610,6 +637,17 @@ export class VaultPanelHost {
           await this.deps.copyPublicKey(item.publicKey)
           break
         }
+        // A kept or orphaned receipt's two real actions: finish the delete,
+        // or keep the file (RVAPP-CM1091D5 P2-2). A barrier aborts the
+        // in-flight call, which settles silent like Import's own.
+        case 'vaultKeepReceipt': {
+          await this.deps.service.keepImport(message.receipt)
+          break
+        }
+        case 'vaultDeleteReceipt': {
+          await this.finishDelete(message.receipt, authorize, this.importAbort.signal)
+          break
+        }
         case 'vaultImport': {
           if (
             state.ambientFiles.every(
@@ -635,23 +673,7 @@ export class VaultPanelHost {
             )
             authorizeImport()
             if (choice === 'delete') {
-              try {
-                await this.deps.service.deleteImport(report.receipt, authorizeImport, signal)
-              } catch (error: unknown) {
-                // The source is already gone: finish the person's Delete by
-                // clearing the leftover record instead of dropping it, so no
-                // orphan receipt waits for another Delete carrying it. A
-                // record already cleared (or still stuck) leaves the refusal
-                // below exactly as it stands (RVCM1091G P3).
-                if (error instanceof Error && error.message === UI_TEXT.vault.sourceGone) {
-                  try {
-                    await this.deps.service.keepImport(report.receipt)
-                  } catch {
-                    /* The refusal below still holds: the file is gone. */
-                  }
-                }
-                throw error
-              }
+              await this.finishDelete(report.receipt, authorizeImport, signal)
             } else await this.deps.service.keepImport(report.receipt)
             authorizeImport()
             await this.load(this.generation, this.beginReload())

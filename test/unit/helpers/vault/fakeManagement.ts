@@ -40,6 +40,7 @@ export function fakeManagement(status: VaultBrokerSnapshot['status']) {
         items: Object.values(Object.fromEntries(items)),
         grants: [],
         pending: [],
+        pendingReceipts: [],
       }),
     add: (item) => {
       store(item, false)

@@ -102,6 +102,10 @@ function importPort(store: VaultStore): VaultFileImportPort {
       const raw = await store.readReceipt(id)
       return raw === null ? null : decodeReceipt(raw)
     },
+    listReceipts: async () => {
+      const entries = await store.receiptEntries()
+      return entries.map((entry) => ({ id: entry.id, record: decodeReceipt(entry.record) }))
+    },
     forgetReceipt: async (id, authorize) => {
       await store.forgetReceipt(id, authorize)
     },
@@ -292,6 +296,24 @@ export class VaultManagement implements VaultManagementPort {
     this.importer = { store, importer }
     return importer
   }
+  /**
+   * The finish sweep at every unlocked snapshot: kept or orphaned receipts
+   * whose source or secret still exists are listed with their two real
+   * actions (RVAPP-CM1091D5 P2-2). A sweep a Lock overtook lists nothing
+   * this time; the receipts stay for the next snapshot.
+   */
+  private async sweepReceipts(): Promise<VaultBrokerSnapshot['pendingReceipts']> {
+    try {
+      const swept = await this.fileImporter().pending()
+      return swept.map((entry) => ({
+        receipt: entry.receipt,
+        path: entry.path,
+        items: [...entry.items],
+      }))
+    } catch {
+      return []
+    }
+  }
   noteApproval(request: VaultApprovalRequest): void {
     this.approvals.set(request.id, structuredClone(request))
     this.emit({ kind: 'approval', v: 2, request })
@@ -336,6 +358,7 @@ export class VaultManagement implements VaultManagementPort {
           items: [],
           grants: [],
           pending: [],
+          pendingReceipts: [],
         }
     }
     const hasVault = await VaultStore.exists(this.deps.files)
@@ -354,6 +377,7 @@ export class VaultManagement implements VaultManagementPort {
         items: [],
         grants: [],
         pending: [],
+        pendingReceipts: [],
       }
     }
     const now = this.deps.clock.now()
@@ -371,6 +395,7 @@ export class VaultManagement implements VaultManagementPort {
       items: [...items],
       grants: [...grants],
       pending: approvals,
+      pendingReceipts: await this.sweepReceipts(),
     }
   }
 

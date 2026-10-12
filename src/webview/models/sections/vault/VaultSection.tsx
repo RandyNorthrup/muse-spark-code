@@ -142,20 +142,25 @@ export function VaultSection({
   const [outcomeFilter, setOutcomeFilter] = useState('')
   const sectionRef = useRef<HTMLElement>(null)
   const focusInside = useRef(false)
+  const lastFocused = useRef<Element | null>(null)
   // Track whether keyboard focus lives inside the section, so a focused
   // control that unmounts (Retry after success, a removed item, a revoked
   // grant, Reset) hands focus back instead of dropping it (RVCM1091G P3).
   useEffect(() => {
     const node = sectionRef.current
     if (node === null) return
-    const entered = (): void => {
+    const entered = (event: FocusEvent): void => {
       focusInside.current = true
+      lastFocused.current = event.target instanceof Element ? event.target : null
     }
     const left = (event: FocusEvent): void => {
-      // A null target means the focused control unmounted: focus is still
-      // ours to restore. Otherwise it left only when it moved outside.
-      if (event.relatedTarget instanceof Node && !node.contains(event.relatedTarget))
-        focusInside.current = false
+      // A null target means the focused control unmounted (focus is still
+      // ours to restore) or focus fell to nowhere while the control lives
+      // (the person clicked a non-focusable spot: decided below, never
+      // pulled back in). Otherwise it left only when it moved outside.
+      if (!(event.relatedTarget instanceof Node) || node.contains(event.relatedTarget)) return
+      focusInside.current = false
+      lastFocused.current = null
     }
     node.addEventListener('focusin', entered)
     node.addEventListener('focusout', left)
@@ -167,6 +172,15 @@ export function VaultSection({
   useEffect(() => {
     const node = sectionRef.current
     if (node === null || !focusInside.current || document.activeElement !== document.body) return
+    // Restore only when the focused control is truly gone (unmounted). When
+    // it is still in the page, focus fell to nowhere by the person's own
+    // doing — pulling it back into the vault section would steal it from
+    // elsewhere (RVAPP-CM1091D5 P3-3).
+    const focused = lastFocused.current
+    if (focused !== null && document.contains(focused)) {
+      focusInside.current = false
+      return
+    }
     // The focused control is gone: prefer the first control that can act,
     // else the heading, so keyboard users are never stranded on the body.
     const fallback =
@@ -204,7 +218,9 @@ export function VaultSection({
       <h2 tabIndex={-1}>
         {UI_TEXT.vault.title} — {vaultStateHeading(state.status)}
       </h2>
-      {state.retrying === true && <p role="status">{UI_TEXT.vault.retrying}</p>}
+      {/* The retry announcement lives in the page before its text changes,
+          so the change itself is spoken (RVAPP-CM1091D5 P3-4). */}
+      <p role="status">{state.retrying === true ? UI_TEXT.vault.retrying : ''}</p>
       <div className="vault-tier" role="status">
         <p>{tierWarning(state.status)}</p>
         <VaultDetails
@@ -435,6 +451,39 @@ export function VaultSection({
           </button>
         </p>
       ))}
+      {/* Kept or orphaned receipts finish here with their two real actions:
+          finish the delete, or keep the file (RVAPP-CM1091D5 P2-2). The path
+          and names are technical detail, spliced beside the translated
+          heading and prompt. */}
+      {(state.pendingReceipts ?? []).length > 0 && (
+        <div className="vault-actions">
+          <h3>{UI_TEXT.vault.pendingImports}</h3>
+          <p>{UI_TEXT.vault.importKeepOrDelete}</p>
+          {(state.pendingReceipts ?? []).map((entry) => (
+            <p key={entry.receipt}>
+              {entry.path}: {entry.items.map((item) => `${item.name} (${item.kind})`).join(', ')}{' '}
+              <button
+                type="button"
+                disabled={!isUnlocked}
+                onClick={() => {
+                  post({ type: 'vaultKeepReceipt', receipt: entry.receipt })
+                }}
+              >
+                {UI_TEXT.vault.keepFile}
+              </button>{' '}
+              <button
+                type="button"
+                disabled={!isUnlocked}
+                onClick={() => {
+                  post({ type: 'vaultDeleteReceipt', receipt: entry.receipt })
+                }}
+              >
+                {UI_TEXT.vault.deleteFile}
+              </button>
+            </p>
+          ))}
+        </div>
+      )}
       <p>{UI_TEXT.vault.paidWarning}</p>
       <p>
         {UI_TEXT.vault.status}: {formatNumber(state.status.itemCount)}
