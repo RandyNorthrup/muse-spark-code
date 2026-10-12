@@ -9,6 +9,14 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **Cancelled schedules reads release their writer leases** (CM1134AR6).
+  Every storage step uses one stop rule, and release has its own short window
+  even when the read is cancelled. A waiting deadline ends busy; a cancelled
+  read leaves the next writer able to acquire immediately. A heartbeat that
+  contradicts any immutable lease identity reports invalid on the first
+  attempt. The real port and its in-memory twin share the same lifecycle;
+  completion drains a pending heartbeat before deciding success.
+
 - **Schedules report waits end busy and name corruption invalid** (CM1134AR5).
   A source read that is cancelled or times out stops instead of publishing late:
   the reader passes its signal and deadline to the lock acquisition, which

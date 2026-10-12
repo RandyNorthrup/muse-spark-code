@@ -266,6 +266,9 @@ and creator, recent fires with translated outcomes, refused actions and cost.
 Schedule revisions reconcile around the fire-history read; admitted one-shots,
 paused/ended schedules and occurrences at or beyond the end date stay off the
 upcoming timeline. Writer contention retries and is named as busy if it persists.
+A waiting read stops at its deadline; cancellation releases its lease so another
+writer can acquire immediately. A heartbeat that contradicts its immutable
+lease identity reports invalid without retrying.
 Each report keeps the language table captured when its request starts. Until
 delivery is registered no v2 fire exists, so the fire sections stay
 empty instead of invented. Both kinds work in VS Code, ACP and the

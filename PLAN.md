@@ -35273,6 +35273,23 @@ design, owned by a later K/collector change. This record closes the
 lane-level repair only; the whole M113 milestone stays planned until W
 integrates and the §6.0 checklist boxes are checked per milestone.
 
+**C-M113-4 lifecycle redesign RVCM1134J (2026-10-12, CM1134AR6).**
+Replace scattered lease stop checks with one operation wrapper and one shared
+lease lifecycle used by the real port and the in-memory twin. Every awaited
+storage operation checks abort and the acquisition deadline before starting
+and immediately on settlement; acquired work remains abort-bound. Establish
+release ownership before the first fence publication and give cleanup its own
+named short deadline, independent of the caller signal. Validate every immutable
+heartbeat/header identity field at once. Use one exhaustive typed queue-word
+classification table and derive its coverage from the source. Certify a
+source-derived operation matrix for both ports, cancellation recovery within
+an ordinary 100 ms writer window, held-work cancellation and tail cleanup,
+transient-fence and explicit-abort red drills, computed post-hook hashes, and
+isolated default-timeout writer suites. Investigate exec stdio setup without
+weakening packaging checks. No engine.ts or scheduler.ts edit; no dependency,
+timeout, guard or cap relaxation. All seven review findings close together;
+aggregate quality remains lead-owned under the rig/common brief.
+
 **C-M113-4 review repair RVCM1134F (2026-10-11, CM1134AR4).**
 Fix all seven findings with test-first matrices and byte-exact red drills:
 replay current settings per team for disabled-rule rows; reconcile schedule
@@ -38106,6 +38123,29 @@ lane A's first step.
 ---
 
 ## 7. Gates
+
+**CM1134AR6 scoped qualification (2026-10-12, Kubuntu).** The rig/common
+brief prohibits aggregate quality and delegates the full gate to the lead.
+Run each writer owner alone at repository deadlines, the source-derived lease
+matrix, the complete changed-source dependent closure, editor/ACP/CLI host
+suites, all five typechecks and scoped static/build checks. Exec stdio was run:
+its setup fails because `reportDetailReasons` keys have a different insertion
+order in English and all 14 source translations; values and keys match, but
+`checkPackaged` compares serialized object order. This belongs to CM1132's
+source tables/checker, outside this port/twin/reader repair's explicit boundary;
+no table, gate, fixture assertion or timeout is weakened to bypass it. Record
+its full failing setup receipt and precise correction needed for lead
+integration in `docs/certification/m113-playbook-schedules-c-m113-4.md`.
+
+**CM1134AR6 journal follow-up (2026-10-12, Kubuntu).** The dependent closure
+exposed two twin-calibrated `scheduleJournal` bounds the shared lifecycle
+broke (23/23 on the base commit): the parse bound assumed the twin's old
+zero-parse mutex, and the byte coefficient assumed three fences per fire.
+Fixed in code first (per-acquisition fence-parse cache, existence-only
+cleanup), then corrected the bounds to the measured production-faithful cost
+(`< 6` parses with the exact derivation, `run * 800` for five ~150-byte
+fences per fire) with reasons in the test comments and the certification
+record. No timeout, guard, cap or unrelated threshold changed.
 
 **CM1134AR4 scoped qualification (2026-10-11, Kubuntu).** The explicit
 rig/common brief delegates aggregate quality to the lead. This repair runs

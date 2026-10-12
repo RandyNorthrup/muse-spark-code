@@ -372,7 +372,9 @@ unchanged and enabled; post-hook committed diff is re-read before handoff.
 Both findings fixed as classes, inside the schedules kind, the schedules
 filesystem port and its in-memory twin. No timeout constant changed, no guard
 widened, no new dependency. Final file hashes (SHA-256):
-`playbookSchedulesInputs.ts e02a8ee2…`, `nodeScheduleFs.ts 62d8cc60…`,
+`playbookSchedulesInputs.ts e02a8ee2…`,
+`nodeScheduleFs.ts cdcad3f6ec7f5d85e2e32c8e096bd5ff6db5f53a08bc1511744e4f74d232a1f3`
+(corrected from the historical post-hook `6c9f58dd5` blob; RVCM1134J P3-7),
 `twin storage.ts` (post-lint; hash in commit), `journal.ts 53e85212…`.
 
 ### P2 — a cancelled or timed-out source read stops, never abandons
@@ -455,3 +457,216 @@ NOT RUN HERE: none — every named suite ran on this rig at repository
 timeouts (three per-case named timeouts with §8 reasons). The two failing
 tests are byte-identical to the base review's inherited receipts; no
 changed file overlaps them.
+
+## CM1134AR6 — RVCM1134J structural lifecycle redesign (2026-10-12, kubuntu)
+
+All seven findings are owned here. The port's acquisition, held-work completion,
+heartbeat drain and release are one lifecycle, reused by the in-memory twin.
+`AsyncLocalStorage` carries the one stop rule into nested port/primitive awaits;
+`scheduleFsOperation` checks immediately before dispatch and on settlement.
+Acquisition checks deadline first, then abort; held work checks abort. Cleanup
+owns a separate `SCHEDULE_LEASE_RELEASE_TIMEOUT_MS` (1,000 ms) window, never the
+caller's signal. The outer finally exists before the first candidate fence can
+be published; it verifies that candidate's token and releases even when a link
+settles after cancellation. Temporary handles are owned before their open and
+closed in independent cleanup scopes. Completed work drains the heartbeat
+before its final stop/ownership verdict, including an abort during that drain.
+
+The source-derived matrix enumerates every lifecycle wrapper call site on both
+ports and each acquisition primitive on its own port, including duplicate stat
+sites, transient retries and committed-link identity/readback branches. Only
+release-only directory removals are outside acquisition rows; the raw-await
+AST check still guards them. Every row injects abort/deadline at the post-await
+barrier, asserts injection, the verdict and zero subsequent caller-scope
+operations, verifies every owned release marker, and acquires again with the
+ordinary 100 ms writer deadline. Heartbeats after acquisition remain bound to
+abort alone. Pulse token, PID, process start and fencing token contradictions
+run against both stores through the real report reader: invalid, one lock call.
+Queue vocabulary is a `Record<ScheduleQueueFailure, ...>` table with `satisfies`,
+and a typed error constructor rejects an undeclared word at compilation;
+its coverage test derives both the union and every emitted queue word from the
+port's AST, including unexecuted branches. Heartbeat failure has its own row.
+
+The twin queues reuse that lifecycle, check held cancellation at completion,
+and delete an abandoned last tail when its predecessor settles. Independent
+memory port instances can share the byte store/queue, so assertions observe the
+reader without counting the holder's own heartbeat or release. The transient
+fixture now compares relative normalized paths and asserts injection; the
+explicit-abort regression releases and settles the holder before freezing all
+reader publication counts. No cast, ignore, dependency, existing deadline,
+engine.ts or scheduler.ts change.
+
+Writer assurance: isolated default-timeout runs pass scheduleFs 14/14,
+scheduleMigrate 15/15, scheduleStore 25/25, scheduleJournal 23/23, the reader
+33/33 and the lifecycle matrix 109/109 (loads 5–18; a 109/109 pass was also
+observed at load ~19). The review's loaded concurrent reds did not reproduce
+in isolation. The lifecycle matrix's second 100 ms acquisition misses its
+self-deadline under extreme rig load (15+: one to six rows per run, always raw
+`scheduleLeaseBusy` after the release marker verified present), so a red full
+file at such load is re-run alone per the rig rules and the load recorded; the
+brief's 100 ms ordinary-writer requirement is unchanged.
+`helpers/fixtureBudget.ts` now prepares cold native journal/handle fixtures,
+legacy migration files and process-race store seeds outside the unchanged test
+deadlines. Native handles are prepared only in their owning beforeEach; an
+unrelated afterEach cannot release them before the actual assertion. The final
+`vitest related` closure over both changed sources (12 files, 329 tests, rig
+load ~22) gave 320 passed with zero assertion failures: eight lifecycle 100 ms
+load rows and one 5 s migrate timeout, all green in the solo runs recorded in
+this record (migrate 15/15 solo immediately after the closure). The two
+scheduleJournal regressions the closure exposed are fixed above and green
+23/23 in that same closure run.
+
+### Executable source identity
+
+The record's hash is generated, not copied by hand. On this rig files use LF;
+Windows CRLF checkouts normalize to the committed LF for the matching test.
+Run from the worktree after lint/format (and verify after the installed hook):
+
+```sh
+python3 - <<'PYHASH'
+from pathlib import Path
+from hashlib import sha256
+p = Path('src/runtime/schedules/nodeScheduleFs.ts')
+print(sha256(p.read_bytes().replace(b'\r\n', b'\n')).hexdigest())
+PYHASH
+```
+
+<!-- CM1134AR6 port SHA-256: 0a8062bc336a7f918b2fe7e4237ef473c75fa9aea5a6af55d47c7701b6e113ff -->
+
+`nodeScheduleFs.ts`: `0a8062bc336a7f918b2fe7e4237ef473c75fa9aea5a6af55d47c7701b6e113ff`. The lifecycle suite compares this marker
+against the actual source; a stale certification fails.
+
+### Red drills — observed failure, then byte-exact restoration
+
+Every drill ran the complete owning file, at repository timeouts and at most
+three workers; no test-name filter or timeout override. Both vocabulary drills
+also ran `npm run typecheck:host` and observed the missing-word compile error.
+The paused-heartbeat regression holds the actual pulse publication, returns
+work, flushes completion microtasks, and asserts no completion read starts
+until that pulse settles; removing the drain fails on both ports. An earlier
+20 ms heartbeat fixture did not reliably catch that mutation, so it was
+replaced by this controlled barrier and drilled again. The initial hash drill
+also saw one 100 ms writer acquisition miss under real filesystem load; it
+passed on the subsequent complete-file rerun, with the deadline unchanged.
+Final restored owner run: lifecycle **109/109**, reader **33/33**.
+
+All twelve drills below ran against the final bytes (`0a8062bc…`, the marker
+above), each as a complete owning file at repository timeouts with at most
+three workers; every restoration was verified byte-exact by SHA-256. D1 removes
+the settlement check, so the stop injection never fires and every stop-matrix
+row fails its gating assertion. D5 removes the `lease.segments` wrapper call,
+so its four matrix rows vanish and the file runs 105 tests. Any port mutation
+also fails the cert-marker test, which is counted where it fired. D4 observed
+`error TS1360` and D12 observed `error TS2345` under `npm run typecheck:host`.
+Load-flake rows (the brief's 100 ms second-acquisition misses at rig load
+15–22, each with its release marker verified present first) are named
+separately from each drill's deterministic signal.
+
+| Drill                  | Deliberate break                                                         | Named failure                          | Failed / passed                          |
+| ---------------------- | ------------------------------------------------------------------------ | -------------------------------------- | ---------------------------------------- |
+| D1-stop-settlement     | Skip the post-await stop check                                           | stop matrix, injection never fires     | 95 failed, 14 passed (109)               |
+| D2-independent-release | Make cleanup call the caller stop check                                  | release/next-writer rows               | 38 failed, 71 passed (109)               |
+| D3-pulse-identity      | Misclassify contradictory pulse identity as transient ownership loss     | `immutable heartbeat` (8) + marker (1) | 12 failed, 97 passed (109); +3 load rows |
+| D4-vocabulary          | Add a union word without its classification row (also fails compilation) | `covers the source union`              | 1 failed, 32 passed (33)                 |
+| D5-raw-await           | Await the port listing outside the structural wrapper                    | `allows no raw awaited` + marker       | 4 failed, 101 passed (105); +2 load rows |
+| D6-transient-fence     | Misclassify listed-then-vanished fence as invalid                        | `heals a fence entry`                  | 1 failed, 32 passed (33)                 |
+| D7-explicit-abort      | Drop only the delegated abort signal                                     | `still reports an explicit abort`      | 1 failed, 32 passed (33)                 |
+| D8-abandoned-tail      | Resolve an abandoned tail without deleting it                            | `removes the last expired memory tail` | 1 failed, 108 passed (109)               |
+| D9-held-completion     | Omit the final held-work stop/ownership guard                            | `rejects held work`                    | 4 failed, 105 passed (109)               |
+| D10-certification      | Replace the recorded source hash with zeroes                             | `certification identifies`             | 1 failed, 108 passed (109)               |
+| D12-new-emission       | Add an unexecuted undeclared queue word (also fails compilation)         | `covers the source union`              | 1 failed, 32 passed (33)                 |
+| D11-heartbeat-drain    | Decide completion before draining its held pulse                         | `drains a paused heartbeat`            | 4 failed, 105 passed (109)               |
+
+Load-flake rows named: D3 `stops */behind disk.syncFolder`, `stops deadline behind disk.names`, `stops deadline behind disk.fileStat`; D5 `stops deadline behind disk.sync`, `stops deadline behind disk.link`. Each threw raw `scheduleLeaseBusy` from the second 100 ms acquisition after its release marker verified present: the release behavior under test held; only the self-deadline missed under extreme rig load. The D2 count moved 37 → 38 for the same reason across runs.
+
+At each restoration the script compared SHA-256 before mutation and after
+writing the original bytes. Matching restored files:
+
+- `src/runtime/schedules/nodeScheduleFs.ts`: `0a8062bc336a7f918b2fe7e4237ef473c75fa9aea5a6af55d47c7701b6e113ff`.
+- `src/runtime/reporting/playbookSchedulesInputs.ts`: `d8f6f07333e6bc926fac8a146ef7386667dda1e8e0e6191b4c4dc6ad5400b7f1`.
+- `test/unit/helpers/schedules/storage.ts`: `6447ebbb91fbd7d4d47010dcf4193bc06dfb810f6d7024bf7045bc743cbd2cf5` (never mutated this session).
+- `test/unit/scheduleLeaseLifecycle.test.ts`: `c0ea29d5709a3e5d42664a8e24adf6e873f5a6e12c9f19a5c9eeb24928ab33c9` (never mutated during drills; shared mock/heartbeat helpers only).
+- `test/unit/playbookSchedulesInputs.test.ts`: `8583e3b9f6b127b6b660d6ec9a6d5aa8a5cf7c94c66ba82468088ed080ed12eb` (never mutated during drills; shared setup helpers only).
+
+The certification document itself continues to change as receipts are added;
+no self-referential document digest is recorded. The port marker above
+identifies the final source.
+
+### Review finding closure
+
+| Finding | Class fix                                                                        | Regression                                                                             | Drill       |
+| ------- | -------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- | ----------- |
+| P2-1    | One inherited operation stop rule, every acquisition await wrapped               | Both-port lifecycle/primitive matrix; raw-await AST guard; paused heartbeat completion | D1, D5, D11 |
+| P2-2    | Finally owns a candidate before publication; release ignores caller cancellation | Both-port matrix checks every marker and next 100 ms writer                            | D2          |
+| P3-3    | Token, PID, start and fencing identity contradictions are permanent invalid      | Both-port real-reader identity cases, exactly one lock call                            | D3          |
+| P3-4    | Closed word union, typed constructor and exhaustive Record table                 | Source-derived declared/emitted words; per-word classification                         | D4, D12     |
+| P3-5    | Relative normalized transient fixture; publication freeze after holder settles   | Transient-fence healing and explicit-abort reader cases                                | D6, D7      |
+| P3-6    | Twin uses the same held lifecycle; abandoned tail deletes itself                 | Held self-abort and tail cleanup without repair read                                   | D8, D9      |
+| P3-7    | Computed source hash; corrected historical post-hook digest                      | Executable certification/source equality                                               | D10         |
+
+### Self-found regressions from the dependent closure (scheduleJournal)
+
+Running the dependents rule (`vitest related` over the two changed sources)
+failed two `scheduleJournal` tests that pass on the base commit (23/23 there):
+the shared lifecycle changed what a lock acquisition costs on the twin.
+
+- Parse budget (`lets the store reuse its validated journal across calls`):
+  10 parses against a `< 5` bound written for the twin's old zero-parse mutex.
+  Fixed in code, not by moving the bound first: one acquisition now parses each
+  distinct fence document once (a per-acquisition content-keyed cache; parsing
+  is deterministic in the content, and a changed document always parses again),
+  and cleanup checks candidate existence instead of re-parsing and re-checking
+  the token (exclusive publication plus the acquisition's unique token make a
+  present candidate ours; only an absent one releases nothing). That left a
+  deterministic floor of 5 (previous fence, own fence at first guard sighting,
+  pointer, delta, post-commit pointer), so the bound moved `< 5` to `< 6` with
+  that derivation in the test comment. All mandated validations still parse on
+  first sight; every drill above still fires.
+- Byte budget (`bounds the live journal …`): 1,053,228 against
+  `run * 512 + SCHEDULE_JOURNAL_MAX_BYTES * 2` (1,036,288). Measured cause: the
+  twin now carries the production audit trail, exactly five ~150-byte fences
+  per fire (one per lock acquisition on the admit, advance and record paths;
+  5.00/fire at 1, 10 and 100 fires), where the old bound assumed three. Fence
+  size and count per acquisition are byte-identical to the production port, so
+  the coefficient moved `512` to `800` with that derivation in the test
+  comment; release markers hold no bytes. This is a correction to
+  production-faithful behavior the brief mandates, not a relaxation: the growth
+  stays strictly linear as the test name requires.
+
+Both journal tests pass 23/23 after the fix. No store, journal or engine
+behavior changed; only the port's parse path, its cleanup check, and the two
+twin-calibrated test bounds.
+
+### Integration signatures
+
+No existing production exported function signature or journal/store interface
+changed. Added in `nodeScheduleFs.ts`:
+
+- `scheduleFsOperation<T>(operation: string, work: () => Promise<T>): Promise<T>`.
+- `createScheduleLeaseLock(fs: ScheduleFsPort): ScheduleFsPort['lock']`.
+- `ScheduleQueueFailure`, the six-word union checked by the reader's table.
+
+Added in the reader: `SCHEDULE_QUEUE_FAILURES`, the exhaustive typed table.
+Added constant: `SCHEDULE_LEASE_RELEASE_TIMEOUT_MS` (1,000 ms).
+Test-only twin constructor now accepts `shared?: MemoryScheduleFs`; its lock
+callback is annotated `ScheduleLeaseGuard`, matching the existing production
+interface. `fixtureBudget` is test-only. No `engine.ts` or `scheduler.ts` edit;
+SCHEDJOIN2 can merge these exports without an existing signature migration.
+
+### Exec setup diagnosis (scope boundary)
+
+`test/e2e/execStdio.e2e.test.ts` ran unfiltered at repository deadlines:
+**3 passed, 29 failed, 12 skipped**, plus the built-exec beforeAll failure.
+All package-guard failures originate from `checkPackaged` in
+`scripts/lib/localizationGate.mjs:550`, via `package-acp.mjs:243`.
+English orders `reportDetailReasons` as journalIncomplete,
+sessionUsageUnavailable, budgetsUnavailable, then the five session-turn/tool
+reasons; every translated source table orders those five reasons first.
+There are no missing/extra keys or differing translation values. Archive
+restoration uses English insertion order, while the checker compares
+`JSON.stringify(shipped)` and `JSON.stringify(source)`, so all 14 UI tables
+fail before exec behavior is reached. This is CM1132's table ordering, outside
+the explicitly assigned port/twin/reader boundary. Lead integration must
+align that nested object's source order (or separately review a semantic
+comparison); no gate or test fixture is altered here to bypass the failure.
+The earlier 60 s setup timeout did not recur. No sandbox restriction occurred.
