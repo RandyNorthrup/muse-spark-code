@@ -3,6 +3,7 @@ import { fill } from '../../src/shared/l10n/text'
 import { formatUsd } from '../../src/core/usage/insights'
 import { Usd } from '../../src/shared/usd'
 import { Buffer } from 'node:buffer'
+import { EventEmitter } from 'node:events'
 import { createHash } from 'node:crypto'
 import { mkdtempSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -11,7 +12,12 @@ import type { OwnedSessionBudgetScope } from '../../src/core/backends/modelapi/s
 import { createFileSessionStore } from '../../src/host/backend/fileSessionStore'
 import { removeFolder } from './helpers/temporaryFolders'
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { DictationHandle, DictationListener } from '../../src/core/voice/dictation'
+import {
+  Dictation,
+  type DictationHandle,
+  type DictationListener,
+  type HelperChild,
+} from '../../src/core/voice/dictation'
 import {
   MuseVoiceDictation,
   MuseVoiceStream,
@@ -1061,4 +1067,187 @@ it('CM352 shares real daily reservations across Muse Code windows and releases f
     first.dictation.dispose()
     second.dictation.dispose()
   }
+})
+
+/** A helper process under test control speaking the line protocol. */
+class FakeHelperChild implements HelperChild {
+  public readonly stdout = new EventEmitter()
+  public readonly stderr = new EventEmitter()
+  public readonly sent: string[] = []
+
+  public send(line: string): void {
+    this.sent.push(line)
+  }
+
+  public onExit(): void {
+    // The P1 order never kills the helper.
+  }
+
+  public kill(): void {
+    // The P1 order never kills the helper.
+  }
+
+  public emitLine(payload: unknown): void {
+    this.stdout.emit('data', Buffer.from(`${JSON.stringify(payload)}\n`))
+  }
+}
+
+function identitySetup() {
+  const children: FakeHelperChild[] = []
+  const sockets: FakeSocket[] = []
+  const texts: string[] = []
+  const errors: string[] = []
+  const statuses: string[] = []
+  const seconds: number[] = []
+  const daily = {
+    check: vi.fn(),
+    settle: vi.fn(() =>
+      Promise.resolve({ spentUsd: Usd.from(0).toAmount(), hasUnknownHistoricalFees: false }),
+    ),
+  }
+  const driver = new MuseVoiceDictation(
+    {
+      createCapture: (listener) =>
+        new Dictation({
+          invocation: { command: 'helper', args: [] },
+          spawn: () => {
+            const child = new FakeHelperChild()
+            children.push(child)
+            return child
+          },
+          listener,
+          log: new FakeLogOutputChannel(),
+        }),
+      openSocket: (_url, handlers) => {
+        const socket = new FakeSocket(handlers)
+        sockets.push(socket)
+        return socket
+      },
+      url: URL,
+      apiKey: () => Promise.resolve(KEY),
+      onSeconds: (count) => {
+        seconds.push(count)
+      },
+      reserveDaily: () => Promise.resolve(daily),
+      log: new FakeLogOutputChannel(),
+    },
+    {
+      onStatus: (status) => {
+        statuses.push(status)
+      },
+      onText: (text) => {
+        texts.push(text)
+      },
+      onError: (reason) => {
+        errors.push(reason)
+      },
+    },
+  )
+  const child = (): FakeHelperChild => {
+    const found = children[0]
+    if (found === undefined) {
+      throw new Error('no helper')
+    }
+    return found
+  }
+  return { driver, child, sockets, texts, errors, statuses, seconds }
+}
+
+async function flushVoicePrepare(): Promise<void> {
+  for (let i = 0; i < 30; i += 1) {
+    await Promise.resolve()
+  }
+}
+
+function voiceAudioLine(seconds: number): unknown {
+  return {
+    type: 'audio',
+    data: Buffer.from(pcm(seconds)).toString('base64'),
+  }
+}
+
+describe('MuseVoiceDictation recording identity (P1 restart race)', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('a stop then start keeps each recording on its own stream and cap', async () => {
+    const t = identitySetup()
+    t.driver.start()
+    await flushVoicePrepare()
+    t.child().emitLine({ type: 'ready', language: 'pcm_s16le' })
+    t.child().emitLine({ type: 'listening' })
+    t.child().emitLine(voiceAudioLine(1))
+    t.sockets[0]?.handlers.onOpen()
+    t.sockets[0]?.serverSays({ sessionId: 'a' })
+    const aFrames = t.sockets[0]?.binaries.length ?? 0
+    expect(aFrames).toBeGreaterThan(0)
+    // Stop reports nothing until the helper acknowledges it.
+    t.driver.stop()
+    expect(t.child().sent).toEqual(['start', 'stop'])
+    expect(t.statuses).not.toContain('idle')
+    // B starts before A's acknowledgement arrives: the helper hears nothing yet.
+    t.driver.start()
+    await flushVoicePrepare()
+    expect(t.sockets).toHaveLength(2)
+    expect(t.child().sent).toEqual(['start', 'stop'])
+    // A's trailing audio still belongs to A, never to B.
+    t.child().emitLine(voiceAudioLine(1))
+    expect(t.sockets[1]?.binaries).toEqual([])
+    expect(t.sockets[0]?.binaries.length).toBeGreaterThan(aFrames)
+    // A's acknowledgement finishes A and releases B, without touching B.
+    t.child().emitLine({ type: 'stopped' })
+    expect(t.child().sent).toEqual(['start', 'stop', 'start'])
+    expect(t.sockets[0]?.texts.at(-1)).toBe('{"type":"endStream"}')
+    expect(t.sockets[1]?.texts).toEqual([])
+    t.sockets[0]?.serverSays({
+      type: 'transcript',
+      transcript: 'first',
+      final: true,
+      audioProcessedMs: 2000,
+    })
+    expect(t.texts).toEqual(['first'])
+    expect(t.seconds).toEqual([2])
+    // B captures on its own acknowledgement, with its own stream.
+    t.child().emitLine({ type: 'listening' })
+    t.child().emitLine(voiceAudioLine(1))
+    t.sockets[1]?.handlers.onOpen()
+    t.sockets[1]?.serverSays({ sessionId: 'b' })
+    expect(t.sockets[1]?.binaries.length).toBeGreaterThan(0)
+    // The cap stops B at its own limit: A's timer died with A.
+    vi.advanceTimersByTime(MUSE_VOICE_MAX_SECONDS * 1000)
+    expect(t.sockets[1]?.texts.at(-1)).toBe('{"type":"endStream"}')
+    expect(t.child().sent.at(-1)).toBe('stop')
+    t.driver.dispose()
+  })
+
+  it('a late helper error ends each unfinished recording on its own stream', async () => {
+    const t = identitySetup()
+    t.driver.start()
+    await flushVoicePrepare()
+    t.child().emitLine({ type: 'ready', language: 'pcm_s16le' })
+    t.child().emitLine({ type: 'listening' })
+    t.child().emitLine(voiceAudioLine(2))
+    t.sockets[0]?.handlers.onOpen()
+    t.sockets[0]?.serverSays({ sessionId: 'a' })
+    t.driver.stop()
+    t.driver.start()
+    await flushVoicePrepare()
+    expect(t.sockets).toHaveLength(2)
+    t.child().emitLine({ type: 'error', reason: 'the helper died' })
+    expect(t.errors).toEqual(['the helper died'])
+    expect(t.texts).toEqual([])
+    // A counts what it sent; B never captured and counts nothing.
+    expect(t.seconds).toEqual([2, 0])
+    expect(t.sockets[0]?.isClosed).toBe(true)
+    expect(t.sockets[1]?.isClosed).toBe(true)
+    // The next press starts afresh on a new helper.
+    t.driver.start()
+    await flushVoicePrepare()
+    expect(t.errors).toHaveLength(1)
+    t.driver.dispose()
+  })
 })
