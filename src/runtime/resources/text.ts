@@ -80,8 +80,10 @@ export function resourceStatusText(raw: ResourceStatus): string {
     )
   for (const row of status.queued)
     lines.push(`${UI_TEXT.resourceWaiting}: ${row.kind} (${row.class}): ${formatNumber(row.count)}`)
-  if (status.relocation === 'noRoute' || status.relocation === 'noTarget')
-    lines.push(UI_TEXT.resourceRelocationNoRoute)
+  // A bound route with no approved target: the runner-route sentence appears
+  // only once the wiring binds a route, never before.
+  if (status.relocation === 'noRoute') lines.push(UI_TEXT.resourceRelocationNoRoute)
+  else if (status.relocation === 'noTarget') lines.push(UI_TEXT.resourceRelocationNoTarget)
   if (status.overrideUntilMs !== null)
     lines.push(
       fill(UI_TEXT.resourceOverrideNotice, { time: formatDateTime(status.overrideUntilMs) }),

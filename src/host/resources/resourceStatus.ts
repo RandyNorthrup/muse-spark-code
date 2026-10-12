@@ -140,9 +140,10 @@ function pauseText(status: ResourceStatus): string {
     .map((row) => `${row.kind} / ${row.class}: ${formatNumber(row.count)}`)
     .join(', ')
   const text = `${fill(UI_TEXT.resourcePauseNotice, { metric, reading, threshold })} ${UI_TEXT.resourceWaiting}: ${formatNumber(count)} ${waiting}`
-  return status.relocation === 'noRoute' || status.relocation === 'noTarget'
-    ? `${text} ${UI_TEXT.resourceRelocationNoRoute}`
-    : text
+  if (status.relocation === 'noRoute') return `${text} ${UI_TEXT.resourceRelocationNoRoute}`
+  // A bound route with no approved target: the runner-route sentence appears
+  // only once the wiring binds a route, never before.
+  return status.relocation === 'noTarget' ? `${text} ${UI_TEXT.resourceRelocationNoTarget}` : text
 }
 
 /** Called only after the first governed spawn. MHP supplies createItem for its native widget. */

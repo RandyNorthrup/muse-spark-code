@@ -58,8 +58,12 @@ import {
 import { isErrno } from '../fs/errno'
 
 export interface ResourceHostSettings {
-  /** M96c's cached approved runner routes; registering does no discovery or probing. */
-  readonly hasRelocationTarget?: (() => boolean) | undefined
+  /**
+  M96c's cached approved runner routes; registering does no discovery or
+  probing. Null declares no relocation route at all, so pressure goes
+  throttle to pause and the UI explains that relocation is unavailable.
+  */
+  readonly hasRelocationTarget?: (() => boolean) | null | undefined
   /** Runtime shares its existing machine governor's queue with process launches. */
   readonly admission?: (
     request: ResourceLaunchRequest,
@@ -276,10 +280,10 @@ export function resourceGovernorHost(
         },
         disks,
       ),
-      // No relocation route exists on this build: M100's paired-device offers and
-      // M96c/C2's attempt claim/retirement are not joined, and nothing constructs
-      // R's relocator. Pressure goes from throttle to pause and status says why.
-      hasRelocationTarget: null,
+      // R: the join switch (resourceRunnerRoutesJoin) and the M100/M96c
+      // bindings decide whether a relocation route exists; without one,
+      // pressure goes from throttle to pause and status says why.
+      hasRelocationTarget: options.hasRelocationTarget ?? null,
       onError: options.onError,
     })
   const linux = process.platform === 'linux' ? new LinuxResourceTreeReader() : undefined

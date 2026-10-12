@@ -144,9 +144,8 @@ hash verification and migrate when read.
   bounded final-answer schema. See [Agent loop guarantees](#agent-loop-guarantees)
   for capability gates and remaining native-reader qualifications.
 - **CPU and memory thresholds.** Set machine-scoped limits to throttle, then
-  pause, new background work. Active scheduler routes can move queued heavy
-  checks to approved SSH runners. Without an active route, work stays here;
-  paired-device relocation remains unavailable.
+  pause, new background work. Relocation needs a paired device or runner route
+  and is not available yet, so work stays on this machine.
 - **Disk floors.** Disk-heavy launches wait below the free-space floor and
   critical-volume writes refuse with a reason. Temporary cleanup requires
   recorded ownership and proved tree exit. See
@@ -5647,16 +5646,16 @@ editors that embed an older Node runtime.
 These settings are machine-scoped; workspace values are ignored. Settings
 names below start with `museSpark.`.
 
-| Setting                      | Default  | Range or meaning                                                                                                                                      |
-| ---------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `resourceGovernor`           | `true`   | Enable this machine's governor                                                                                                                        |
-| `resourceCpuMaxPercent`      | `null`   | 0–100%; no CPU limit until configured; sustained for 30 seconds                                                                                       |
-| `resourceMemoryMaxPercent`   | `null`   | 0–100% in use; no memory-use limit until configured                                                                                                   |
-| `resourceMemoryMinFreeGiB`   | `null`   | 0 GiB or more; no memory floor until configured; effective floor at most 15% of RAM                                                                   |
-| `resourceGpuMaxPercent`      | `null`   | 1–100%; no GPU probe until configured                                                                                                                 |
-| `resourceDiskBusyMaxPercent` | `null`   | 1–100%; no disk-busy probe until configured                                                                                                           |
-| `resourceDiskMinFreeGiB`     | `null`   | No floor until configured; a set floor of zero or more is honoured as set                                                                             |
-| `resourceRelocate`           | `paired` | `paired` uses approved SSH runners through active scheduler routes; `ask` asks first; `off` keeps work here. Paired-device relocation is unavailable. |
+| Setting                      | Default  | Range or meaning                                                                                                             |
+| ---------------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `resourceGovernor`           | `true`   | Enable this machine's governor                                                                                               |
+| `resourceCpuMaxPercent`      | `null`   | 0–100%; no CPU limit until configured; sustained for 30 seconds                                                              |
+| `resourceMemoryMaxPercent`   | `null`   | 0–100% in use; no memory-use limit until configured                                                                          |
+| `resourceMemoryMinFreeGiB`   | `null`   | 0 GiB or more; no memory floor until configured; effective floor at most 15% of RAM                                          |
+| `resourceGpuMaxPercent`      | `null`   | 1–100%; no GPU probe until configured                                                                                        |
+| `resourceDiskBusyMaxPercent` | `null`   | 1–100%; no disk-busy probe until configured                                                                                  |
+| `resourceDiskMinFreeGiB`     | `null`   | No floor until configured; a set floor of zero or more is honoured as set                                                    |
+| `resourceRelocate`           | `paired` | `paired`, `ask` or `off`; needs a paired device or runner route, not available yet. Paired-device relocation is unavailable. |
 
 Levels are **normal**, **throttle**, **relocate** and **pause**. At throttle,
 background capacity narrows to one per kind; at pause, new background work
@@ -5710,7 +5709,7 @@ In VS Code, after the window's first governed launch, a **Resources** chip
 sits beside the heartbeat (or above the composer when no turn is running).
 Its popover shows CPU, memory in use and available memory against your limits
 (GPU and disk busy when you set them), what is waiting, any **Resume Now**
-override and whether an approved runner route is active. Its buttons are
+override and that relocation is not available on this build. Its buttons are
 **Resume Now**, **Open settings** (the machine's `museSpark.resource*`
 settings) and **Show Resources**, which opens the Usage & cost page where
 resource history lives. A status bar item appears while the governor is
@@ -5741,15 +5740,16 @@ native status widget and embedded chip) and the companion page can reuse the
 same shared chip, status adapter and controls once their host bridges bind
 them (M104); none does yet. The usage page (VS Code, the companion page and
 native hosts' embedded page) mounts the usage-history section lazily from the
-usage service's validated state. An ACP conversation gets the resource notice
-when its own turn's work waits. The actuator lifecycle, M96/M96c slots and
-M100 paired-device dispatch remain explicit integration handoffs. Once those routes join, relocation will move only eligible queued
-tasks/checks, or a running check after explicit **Move to** and proven
-retirement. Pairing, offers,
-repository mapping, receiver permissions and paid consent remain required;
-headless relocation is refused. **Keep Here** cancels before receiver admission.
-The [runner binding record](docs/certification/cm1073.md) names the adapter
-contract and checks.
+usage service's validated state. The actuator lifecycle, runtime spawn
+binding, M96/M96c slots and M100 paired-device dispatch remain explicit
+integration handoffs. The runner factory consumes the scheduler's complete
+approval, ownership and task/Traffic ports; those production ports are not
+joined in an installed editor yet, so no runner route is active and queued
+checks stay on this machine. The [runner binding record](docs/certification/cm1073.md) names the
+adapter contract and checks. Moving team tasks to paired devices, or moving a
+running check after explicit **Move to** and proven retirement, remains with
+the device route. Pairing, offers, repository mapping, receiver permissions and
+paid consent remain required; headless relocation is refused.
 The [M107 integration record](docs/certification/m107.md) and
 [editor resource matrix](docs/ide-compatibility/resources.md) distinguish
 component receipts from installed-editor acceptance.
