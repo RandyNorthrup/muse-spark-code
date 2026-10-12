@@ -37,7 +37,7 @@ key to the CLI.
 The [roadmap](ROADMAP.md) shows what is in the next release, what is being
 built, what is planned and what each release shipped.
 
-**Contents:** [What's new](#whats-new-in-0180) · [Roadmap](ROADMAP.md) ·
+**Contents:** [What's new](#whats-new-in-0181) · [Roadmap](ROADMAP.md) ·
 [Highlights](#highlights) · [Screenshots](#screenshots) ·
 [Get started](#get-started) · [Backends](#backends) · [Subscriptions](#subscriptions) ·
 [Permission modes](#permission-modes) ·
@@ -57,7 +57,14 @@ built, what is planned and what each release shipped.
 Saved reports write money version 2; historical numeric reports retain their original
 hash verification and migrate when read.
 
-## What's new in 0.18.0
+## What's new in 0.18.1
+
+- **The landing screen shows the extension's own mark.** The empty chat panel
+  showed the Meta logo beside the product name; it now shows the product's
+  own squiggled "m", blue in dark and light themes and in the theme's text
+  colour in high-contrast themes.
+
+### Earlier in 0.18.0
 
 - **Several accounts per provider, in the terminal and in ACP editors.**
   `muse-spark-code-acp providers accounts` lists, adds, orders and removes a

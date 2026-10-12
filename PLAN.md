@@ -40287,6 +40287,22 @@ Unresolved items remain delivery/security gaps, not accepted legal conclusions:
 
 ## 10. Definition of done and release records
 
+**0.18.1 preparation (2026-10-11, release branch).** `release/0.18.1` is cut from
+the release train `int/train-1011` at `a2e014121` and carries the extension
+version 0.18.1 and the dated `CHANGELOG.md` `[0.18.1]` section: the chat
+panel's landing screen shows the product's own mark instead of the Meta logo
+(`docs/certification/panelmark.md`; review RVPANELMARKC without a finding).
+One Highlight. The mark is blue in dark and light themes and takes the
+theme's text colour in high contrast and under forced colours, and the notes
+say so. The fourteen panel scenes that show the landing screen move, 72
+frames each, 1,008 frames; the reviewed baseline is rendered on top of this
+commit. Left out: the packaged dogfood harness (C-X-5, `bc445b230`), which on
+the train takes activation to 3,383 B over the immutable baseline against an
+allowance of 3,072 B and whose schedule cells meet the 0.17.1 availability
+latch; it went back to its lane. This is preparation, not publication; the
+public roadmap (M122) lists 0.18.1 as the next release until a
+`0.18.1 released (…)` record follows here.
+
 **0.18.0 preparation (2026-10-11, release branch).** `release/0.18.0` is cut from
 the release train `int/train-1011` at `549c6f499` and carries the extension
 version 0.18.0 and the dated `CHANGELOG.md` `[0.18.0]` section. Announced as
