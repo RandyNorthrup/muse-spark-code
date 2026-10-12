@@ -306,3 +306,65 @@ reason; comments strip out). The release pin 532537 and the diet gate
 530883 were already red at the base (2590 over); they stay red (+146).
 No cap was raised and no code was moved to another bundle to hide it; the
 bytes cannot come out without removing the fixes themselves.
+
+## Round 2 continued — appendix sweep, one more sibling, byte verdict
+
+### All 261 appendix suites ran (2026-10-11, same rig)
+
+The review's 261 unrun files were executed in batches of at most three
+(`--maxWorkers=3`, repository timeouts). 247 unit files ran; 4 live e2e
+suites (`eval/modelApi/reviewer/tab.live`) were not attempted (no live or
+paid calls on this lane) and 2 browser suites (`resourceHarness.test.mjs`,
+`usageCompanionChunks.test.ts`) were not attempted (no browser launches
+from a lane sandbox). Every red file below was checked for imports of the
+three changed source modules (`src/acp/agent.ts`, `src/acp/translate.ts`,
+`src/core/backends/modelapi/tools.ts`): none imports any of them. One red
+(`toolImages`) was a genuine finding-7 sibling and was fixed (commit
+`0128dc944`); the rest are sandbox blocks or rig-load failures:
+
+| Red file (tests)                                                         | Signature                                              | Placement                                                                                                                                                           |
+| ------------------------------------------------------------------------ | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `acpDogfoodLoopback` (4)                                                 | `listen EPERM 127.0.0.1`                               | Sandbox blocks loopback; lead runs outside                                                                                                                          |
+| `playbookOutcomes` (4)                                                   | ENOENT pid markers; Husky allow/refuse                 | Sandbox blocks process probing (`ps` denied here too)                                                                                                               |
+| `promptHostLifecycle` (2)                                                | 5 s timeouts, Save-dialog/disposal timing              | Loaded-rig timing; no shared modules                                                                                                                                |
+| `reportEngine` (1), `reportHistory` (33), `reportNetworkBinding` (1)     | "The report could not be saved" (process locks/probes) | Sandbox process restrictions                                                                                                                                        |
+| `runtimeSharing` (2)                                                     | unexpected "prompt file is invalid"                    | Proven pre-existing: identical 2 failures on pristine `5121bacf1`                                                                                                   |
+| `scheduleMigrate` (6)                                                    | 5 s timeouts, migration receipts/crash                 | Loaded-rig timing; no shared modules                                                                                                                                |
+| `shellMonitor` (1)                                                       | `isAlive(own pid)` false                               | Sandbox blocks process probing                                                                                                                                      |
+| `spawnProfiles` (1), `subscriptionIntegration` (2), `teamMcpBridge` (43) | `listen EPERM` root cause                              | Sandbox blocks loopback                                                                                                                                             |
+| `teamNativeLifetime` (1)                                                 | `uv_os_setpriority EPERM`                              | Sandbox blocks priority changes                                                                                                                                     |
+| `vault/channel` (44), `vault/peer` (1), `vault/sshTransport` (1)         | unix-socket `listen EPERM` / listen refusal            | Sandbox blocks socket listen                                                                                                                                        |
+| `toolImages` (1)                                                         | exact `toEqual` missed round-1 `code`                  | **Fixed**: expectation now pins `code: 'outside_workspace'` + specific reason; drill (expectation without `code`) fails, restored file green, ESLint/Prettier clean |
+
+Also green in this sweep: `toolIo`/`verifyLoop`/`writeRecorder` (153),
+`shellEnvironmentOrigins`/`toolArgumentPreview` (53), all team/vault
+non-socket suites, and the eval pack suites. Earlier-noted flakes
+(`modelApiHost` reviewer test, `acpAgent` ChatGPT test) stand as recorded.
+
+### Byte verdict: the 532537 pin needs scope removal, not this round
+
+Minified attribution, measured from deterministic builds (base `tools.ts`
+rebuilds to exactly the review's 533473 on this rig):
+
+- `confinedGlob`: two `win32 ? normalWindowsPath(…) : …` ternaries plus
+  two cross-chunk calls (`(0,Yl.normalWindowsPath)(…)`, the body already
+  living in `dist/modelApiBoundaries.js`), minus a shorter `relative`
+  expression: about +136 B. The reason template adds 9 static bytes over
+  the bare sentence.
+- `pathRefusal` (`failureReason: refusal.reason`) saves about 10 B.
+- The new import adds one `require("./modelApiBoundaries.js")` binding
+  (34 → 35), about 38 B.
+- Net: +146 B → 533619. Drive-letter case needs no code (verified:
+  `path.win32.relative` already folds it both ways); comments strip to
+  zero (0 `//` lines in the bundle).
+
+There is no further honest reduction: the ~146 B is the two required
+fixes, and the only larger savings available (re-inlining the shared
+normaliser, dropping a ternary, shortening the mandated specific reason)
+each weaken finding 6/7's parity or specificity. Reaching 532537 needs
+−1082 B, i.e. removing about 1 KB of shipped milestone scope from the
+earlier lane commits (credential transport mapping, typed refusal
+results, host instructions, budget projection) — a residual the owner
+rule forbids. The pin and the 530883 diet gate were already red at the
+review base and belong to the diet lane (`MODELAPIDIET`), which exists
+for exactly this. This round's bytes are proved minimal and load-bearing.
