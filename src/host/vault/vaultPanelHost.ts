@@ -297,10 +297,15 @@ export class VaultPanelHost {
     if (this.disposed) return
     // A retirement a barrier already put on screen stays silent — including
     // a `locked` report our own barrier caused by closing its connection
-    // (RVCM1091F P3): the barrier owns the view and reloads it.
+    // (RVCM1091F P3) and a channel error from a connection our own barrier
+    // aborted mid-Import or mid-Delete (RVAPP-CM1091D5 P2-1): the barrier
+    // owns the view and reloads it. Decided from the recorded retirement
+    // (the generation) and the typed error, never from a sentence.
     if (
       generation !== this.generation &&
-      (isVeto(error) || (error instanceof Error && error.message === UI_TEXT.vault.locked))
+      (isVeto(error) ||
+        (error instanceof Error && error.message === UI_TEXT.vault.locked) ||
+        error instanceof VaultChannelError)
     )
       return
     // A `useChanged` word is only a silent retirement when an older
