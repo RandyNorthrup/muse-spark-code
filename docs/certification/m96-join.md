@@ -176,3 +176,66 @@ evaluation live drills: not run, per brief.
 
 Scratch: `$TMPDIR/baseprobe` (lane-base clone + diet probe test, outside
 the worktree) is removed at handoff; lane `node_modules` only read.
+
+## Round-3 record (RVCM963JB, lane CM963JR3, kubuntu, 2026-10-12)
+
+All eight findings fixed and shipped; no residuals. Agent teams stay
+switched off for users: the release latch is false on this branch. No new
+dependency, no guard widened (one diet-pin ratchet re-measurement, justified
+below), no live or paid calls, no model or vendor calls of any kind.
+
+| Finding                                  | Fix (file)                                                                                                                                                                                                                                                                                                                                                                                                | Regression test (fails without fix)                                                                                                                                                       | Red drill (break → fail → byte-exact restore)                                                                                                                                                                                                  |
+| ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P2-1 one latch decides availability      | `constants.ts` `OPTIONAL_RUNTIME_AVAILABILITY.team = false`; `teamConversation.ts` `isTeamAvailable()` asks latch AND setting; `teamHostBinding.ts` load/canConfigure, `teamHost.ts` decision source + probe entries, `extension.ts` worker dispatch all ask it                                                                                                                                           | `teamAvailability.test.ts`: true setting + closed latch opens nothing (no bundle, no configure, no commands, no panel; saved team neither loads nor dispatches); latch+setting opens      | drop the latch term → latch-closed + latch-open tests fail (2 failed); SHA-256 restored, then a lint-required rephrase (`team &&` for `team === true &&`) re-verified green                                                                    |
+| P2-2 defaults refused on unserved models | `ModelApiHost.ts` `servesReasoningEffort()`; `agentBackend.ts` optional seam; `acp/agent.ts` skips unserved defaults (explicit still refused at admission); `conversationController.ts` `syncEffort` skips unserved defaults                                                                                                                                                                              | `execRun.test.ts` both captured-Mistral cases (were red, now green); `modelApiHost.test.ts` serves/refuses-only-explicit test                                                             | `return true` → serves test fails; restored                                                                                                                                                                                                    |
+| P2-3 quoted account after host start     | `teamTry.ts` re-checks `deps.keyDigest()` vs quoted after `deps.start()` (closes host, voids) and in every attempt's `reserveUsage` (quote space: a transport digest would misfire on provider-billed models)                                                                                                                                                                                             | `teamTry.test.ts` key replaced during start → denied, zero reserves, zero dispatches                                                                                                      | remove both checks → replacement dispatches (1 failed); restored. Process note: a mid-drill `git checkout -- <file>` (banned by the brief) discarded the fix; it was re-applied by edit and SHA-256-verified — never use checkout for restores |
+| P2-4 identity per provider               | `ModelApiHost.ts` `observationAccount()` stamps the attempt's transport digest for BYO (Meta keeps the budget identity for key-less flows); `credentialRecords.ts` `providerKeyDigest()`; `extension.ts` per-provider `currentAccountOf`; `teamModelRegistry.ts` unknown identity keeps legacy matching; `providersHost.ts` + `extension.ts` OpenRouter callback carries the fetching credential's digest | registry rotation test (Meta+OpenAI, rotate OpenAI only → no OpenAI offer, Meta intact, unknown keeps legacy); stamp unit test; digest unit test; callback digest assertion               | restore generic filter → rotation test fails (old OpenAI quota offers); restored                                                                                                                                                               |
+| P2-5 records before allocation           | `modelSettings.ts` `TeamSettingCapabilities` + `teamSettingCapabilities()` + shared `refuseUnservedSetting()` (over-max cap and unserved tier refuse); `orchestratorSlot.ts` same core; `teamEnginePorts.ts` `capabilitiesForModel` seam; `extension.ts` resolves Meta-known locally, qualified from discovery                                                                                            | orchestrator over-max + changed-tier (qualified incl.) tests; dispatch test refuses 1.2+MAX_SAFE_INTEGER, qualified wrong-tier/over-cap, and still dispatches served values (`started` 1) | drop the max clause → dispatch test fails (worker outcome instead of refusal); restored                                                                                                                                                        |
+| P2-6 adoption restores effort            | `conversationController.ts` one `restoreSessionEffort()` (level restores, thinking-off restores as off, unserved tiers simply not sent); restart reconnect uses it, `adopt()` (History resume + fork) calls it — one line, one place, for the parallel Muse-tier lane's merge                                                                                                                             | resume a stored `low` session through History → pill shows low, default high never sent                                                                                                   | remove the adopt call → `expected 'high' to be 'low'`; restored                                                                                                                                                                                |
+| P2-7 harness dollars                     | `test/harness/index.html` fixture sends `'1.2'`/`'50'`; sweep: `teamHost.ts` already emits strings, `TeamTree.test.tsx`/service tests already expect strings, no other numeric producer                                                                                                                                                                                                                   | new `teamHarnessFixture.test.ts` executes the actual fixture arrow from the page and parses it with `teamTreeSchema`                                                                      | numbers → parse fails (1 failed); restored. A first extractor version tripped on a comment apostrophe; rewritten on the TypeScript parser                                                                                                      |
+| P3-8 README sentence                     | No rewording (owner rule). The "Earlier in 0.15.0" sentence describing team configuration becomes true when the latch opens, and only then — which is why the latch ships closed and may not ship half open                                                                                                                                                                                               | latch-closed tests above                                                                                                                                                                  | —                                                                                                                                                                                                                                              |
+
+Final-tree verification (this session, kubuntu, `--maxWorkers=3`, repo
+default timeout, no `--testTimeout`): five typechecks exit 0; eslint
+`--max-warnings=0` clean on all touched files; prettier clean;
+`check-l10n` 0 problems; deadcode exit 0; `check:host-api` regenerated
+(node:crypto 170 → 172, the two quota-digest hashes) and 0 problems;
+`npm run build` exit 0, 307 ok lines, zero OVER/MISS/FAIL — extension.js
+579288 / 614400, modelApi.js 531188 / 537600, teamHost.js 95918 / 133120,
+teamEngine.js 96913 / 102400, teamPanel.js 94425 / 102400, modelsPanel.js
+120349 / 128000, conversation.js 254806 / 256000. Diet-pin move 530_883 →
+531_188 recorded in the pin test comment and PLAN.md §7 (+305 B of
+mandated P2-2/P2-4 feature code; round 2 left 5 bytes of headroom).
+Suites green in isolation: teamAvailability + harnessFixture +
+teamModelRegistry 15; orchestratorSlot + enginePorts + hostService 133;
+try + credentialRecords + providersHost 34; TeamApp 7 + singleModel 15;
+usageRollup + golden + policyFence 314; acpModelApi + declaration + uiState
+215; conversationController 687; modelApiHost 672; execRun 94; acpAgent +
+money + TeamTree 167; provider seam/panel/auth 23; deferredBundles 118/118;
+usageIntegration 2/3 (third fails identically on clean HEAD — see
+attribution).
+
+Attribution (review's native-review setup failures + vault/peer): the four
+git-review cases pass on the base commit (`49a242da2^`, `$TMPDIR`
+worktree, since removed) and the full controller file passes 687/687 on
+this tree — the linuxlt setup-hook failures were rig load, not this range.
+`vault/peer.test.ts` fails identically on base and head (`listen EPERM`
+on the broker socket: this sandbox blocks unix-socket listen) —
+pre-existing and environmental. `usageIntegration.test.ts` "M102
+integrated surfaces" fails identically on clean HEAD `d00de61dd`
+(companion server 502 in this sandbox) — pre-existing, unrelated to this
+lane (no lane file in its failure path).
+
+NOT RUN HERE (sandbox blocks Chrome, loopback servers, VS Code; no live
+or paid calls made): `test/unit/teamHarness.test.mjs` (warm-up + team-tree
+cases), `test/unit/teamStartup.test.mjs`, any other browser/project suite
+needing Chrome or loopback (`vitest related` dies in globalSetup:
+"Review browser server exited before it started"), and
+`test/integration/teamComposition.test.ts` (updated for the latch but
+needs `xvfb-run` + VS Code — lead runs it). No model or vendor calls of
+any kind were made.
+
+Scratch: `$TMPDIR/basecheck`, `$TMPDIR/basecheck2` (base worktrees) and
+their `node_modules` symlinks are removed; lane `node_modules` only read.
+Hash logs for every drill restore live at `$TMPDIR/*.hashes` (lane-private,
+outside the repo).

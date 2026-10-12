@@ -38270,6 +38270,19 @@ lane A's first step.
 
 ## 7. Gates
 
+**CM963JR3 review-fix qualification (2026-10-12, kubuntu).** All eight
+RVCM963JB findings fixed with regressions and byte-exact red drills
+(`docs/certification/m96-join.md`, round-3 section). Scoped gates pass:
+five typechecks, changed-file eslint/prettier, deadcode, l10n, host-api
+record regenerated (node:crypto 170 → 172), production build with every
+budget held. One ratchet re-measurement, not a waiver: the Model API diet
+pin moves 530_883 → 531_188 (+305 B of review-mandated feature code,
+P2-2/P2-4 in `ModelApiHost.ts`; round 2's pin left 5 bytes of headroom, so
+no Model API fix could land without it; the loaders-stay-out mechanism is
+unchanged). No new dependency, no guard widened otherwise, no live or paid
+calls. Aggregate quality, integration, browser and live drills stay with the
+lead.
+
 **CM963JR2 qualification (2026-10-11, kubuntu).** Aggregate quality and the broad dependent-suite matrix remain lead-owned under the explicit common brief. Installed VS Code ran the new saved-team composition fixture three times. It reached a real worker branch and automatic review; the last assertion rejects the expected review-start refusal. The two-fix stop rule ended that path, so acceptance is not certified. The fixture and precise next assertion are retained for the lead; no hidden feature is enabled. Scheduler CM96C1, new-file worker CM963NF, unsupported advanced settings, external/Muse worker bindings and native editor bindings remain explicit prerequisites.
 
 **CM963J join qualification (2026-10-11, kubuntu).** The explicit rig/common
