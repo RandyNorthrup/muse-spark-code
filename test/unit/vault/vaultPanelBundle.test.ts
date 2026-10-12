@@ -32,6 +32,7 @@ function connect() {
     sshKey: vi.fn(() => Promise.reject(new Error('unused'))),
     now: () => 1000,
     publish: vi.fn(),
+    log: new FakeLogOutputChannel(),
   }
 }
 

@@ -4,6 +4,8 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { window as fakeWindow, FakeStatusBarItem } from '../mocks/vscode'
+import { FakeLogOutputChannel } from '../helpers/fakes'
+import * as vaultActions from '../../../src/host/vault/vaultActionsEntry'
 import { createModelsVaultBinding } from '../../../src/host/vault/vaultPanelEntry'
 import type { VaultPanelService } from '../../../src/host/vault/vaultPanelHost'
 import type { VaultApprovalAnswer } from '../../../src/shared/vault'
@@ -100,6 +102,10 @@ function setupBinding(): {
         published.push(message)
       },
       service,
+      log: new FakeLogOutputChannel(),
+      // The real actions module (the mocked vscode window answers its
+      // dialogs); production requires it from dist on first use.
+      loadActionsBundle: () => vaultActions,
     },
     EN,
     'en',

@@ -1,19 +1,22 @@
 import * as vscode from 'vscode'
 import { randomBytes } from 'node:crypto'
 import { homedir } from 'node:os'
-import { UI_TEXT, VAULT_LIMITS } from '../../shared/constants'
+import path from 'node:path'
+import { UI_TEXT, VAULT_ACTIONS_BUNDLE_FILE, VAULT_LIMITS } from '../../shared/constants'
 import { type VaultHostMessage } from '../../shared/hostApi/vaultMessages'
 import { type UiText } from '../../shared/l10n/en'
-import { fill, setUiText } from '../../shared/l10n/text'
+import { setUiText } from '../../shared/l10n/text'
 import { VaultBrokerClient } from '../../core/vault/broker/client'
 import { VaultManageSession } from '../../core/vault/broker/manageClient'
 import { discoverAmbientFiles } from '../../core/vault/migrate/ambient'
 import { agentDataFolder } from '../../runtime/dataFolder'
 import { vaultClientPlatform, type VaultClientPlatform } from '../../runtime/vault/clientPlatform'
+import type { Logger } from '../logger'
 import { VaultBrokerProcess } from './brokerProcess'
 import { VaultPanelHost, type VaultPanelHostDeps, type VaultPanelService } from './vaultPanelHost'
 import { vaultPanelService } from './vaultPanelService'
-import { editVaultItem, type VaultNativeInput } from './vaultNativeEditor'
+import { type VaultActionsBundle, vaultActionsLoader } from './vaultActionsBundle'
+import type { VaultNativeInput } from './vaultNativeEditor'
 
 import { VAULT_COMMANDS, type VaultWindowControls } from './vaultPanelBundle'
 
@@ -35,10 +38,17 @@ export interface VaultPanelEntryDeps extends Omit<
   readonly sshKey: VaultNativeInput['sshKey']
   /** A test's service; the window's own is the broker-backed one built here. */
   readonly service?: VaultPanelService
+  /** Names the actions bundle in the log when it cannot be loaded. */
+  readonly log: Logger
+  /** A test's actions module; the window's own is required from dist. */
+  readonly loadActionsBundle?: ((file: string) => unknown) | undefined
 }
 
 /** The broker-backed service over the platform's connection, and a probe that proves it is up. */
-function brokerService(distDir: string): {
+function brokerService(
+  distDir: string,
+  actions: () => VaultActionsBundle,
+): {
   service: VaultPanelService
   probe: () => Promise<void>
 } {
@@ -71,9 +81,12 @@ function brokerService(distDir: string): {
     )
   }
   return {
-    service: vaultPanelService(new VaultManageSession(connect), {
-      ambientFiles: () => discoverAmbientFiles(homedir()),
-    }),
+    service: vaultPanelService(
+      new VaultManageSession(connect, (material) => actions().encodeVaultMaterial(material)),
+      {
+        ambientFiles: () => discoverAmbientFiles(homedir()),
+      },
+    ),
     probe: async () => {
       const client = await connect()
       client.close()
@@ -85,82 +98,18 @@ function brokerService(distDir: string): {
 function nativeHostDeps(deps: {
   readonly now: () => number
   readonly sshKey: VaultNativeInput['sshKey']
+  /** The second lazy bundle; required only when an action needs it. */
+  readonly actions: () => VaultActionsBundle
 }): Omit<VaultPanelHostDeps, 'service' | 'publish' | 'status'> {
+  // The Reset, Setup/recovery-code, Import and Add/Edit dialogs live in the
+  // actions bundle and load on first use; each call below requires it then.
+  const dialogs = () => deps.actions().vaultActionDialogs({ now: deps.now, sshKey: deps.sshKey })
   return {
     now: deps.now,
-    importDone: async (names) => {
-      // Names and kinds only: never a value (lead decision, C-M109-1).
-      const choice = await vscode.window.showInformationMessage(
-        fill(UI_TEXT.vault.importedSummary, { names: names.join(', ') }),
-        { modal: true, detail: UI_TEXT.vault.importKeepOrDelete },
-        UI_TEXT.vault.keepFile,
-        UI_TEXT.vault.deleteFile,
-      )
-      return choice === UI_TEXT.vault.deleteFile ? 'delete' : 'keep'
-    },
-    confirmReset: async (word, signal) => {
-      // Step 1: what a reset erases, stated plainly; step 2: the typed word.
-      const proceed = await vscode.window.showWarningMessage(
-        UI_TEXT.vault.resetVault,
-        { modal: true, detail: UI_TEXT.vault.resetWarning },
-        UI_TEXT.vault.resetContinue,
-      )
-      if (proceed !== UI_TEXT.vault.resetContinue || signal.aborted) return null
-      const prompt = fill(UI_TEXT.vault.resetTypeWord, { word })
-      const typed = await vscode.window.showInputBox({
-        prompt,
-        ignoreFocusOut: true,
-        validateInput: (value) => (value === word ? null : prompt),
-      })
-      return typed ?? null
-    },
-    showRecoveryCode: async (code, signal) => {
-      // Shown once, with Copy and I Saved It, before the vault exists (lead decision 8).
-      while (!signal.aborted) {
-        const choice = await vscode.window.showWarningMessage(
-          UI_TEXT.vault.recoveryWarning,
-          { modal: true, detail: fill(UI_TEXT.vault.recoveryShownOnce, { code }) },
-          UI_TEXT.vault.copyCode,
-          UI_TEXT.vault.savedIt,
-        )
-        if (choice !== UI_TEXT.vault.copyCode) return choice === UI_TEXT.vault.savedIt
-        await vscode.env.clipboard.writeText(code)
-      }
-      return false
-    },
-    editItem: async (current, signal) => {
-      const cancellation = new vscode.CancellationTokenSource()
-      const abort = () => {
-        cancellation.cancel()
-      }
-      signal.addEventListener('abort', abort, { once: true })
-      try {
-        return await editVaultItem(
-          {
-            input: async (options) =>
-              await vscode.window.showInputBox(
-                { ...options, ignoreFocusOut: true },
-                cancellation.token,
-              ),
-            pick: async (options) => {
-              const picked = await vscode.window.showQuickPick(
-                [...options],
-                { ignoreFocusOut: true },
-                cancellation.token,
-              )
-              return picked?.id
-            },
-            sshKey: deps.sshKey,
-            now: deps.now,
-          },
-          current,
-          signal,
-        )
-      } finally {
-        signal.removeEventListener('abort', abort)
-        cancellation.dispose()
-      }
-    },
+    importDone: (names) => dialogs().importDone(names),
+    confirmReset: (word, signal) => dialogs().confirmReset(word, signal),
+    showRecoveryCode: (code, signal) => dialogs().showRecoveryCode(code, signal),
+    editItem: (current, signal) => dialogs().editItem(current, signal),
     confirmRemove: async (item) =>
       (await vscode.window.showWarningMessage(
         `${UI_TEXT.vault.remove}: ${item.label}`,
@@ -185,6 +134,10 @@ export interface ModelsVaultBindingDeps {
   readonly publish: (message: VaultHostMessage) => void
   /** A test's service; the window's own is the broker-backed one built here. */
   readonly service?: VaultPanelService
+  /** Names the actions bundle in the log when it cannot be loaded. */
+  readonly log: Logger
+  /** A test's actions module; the window's own is required from dist. */
+  readonly loadActionsBundle?: ((file: string) => unknown) | undefined
 }
 
 export interface ModelsVaultBinding {
@@ -211,6 +164,7 @@ function lockStatusItem(): vscode.StatusBarItem {
 function serviceAndStatus(deps: {
   readonly distDir: string
   readonly service?: VaultPanelService | undefined
+  readonly actions: () => VaultActionsBundle
 }): {
   service: VaultPanelService
   statusItem: vscode.StatusBarItem
@@ -218,7 +172,7 @@ function serviceAndStatus(deps: {
   /** The broker's readiness probe; trivial while a test owns the service. */
   probe: () => Promise<void>
 } {
-  const broker = deps.service === undefined ? brokerService(deps.distDir) : undefined
+  const broker = deps.service === undefined ? brokerService(deps.distDir, deps.actions) : undefined
   const service = deps.service ?? broker?.service
   if (service === undefined) throw new Error(UI_TEXT.vault.brokerBlocked)
   const statusItem = lockStatusItem()
@@ -248,9 +202,14 @@ export function createModelsVaultBinding(
   locale: string,
 ): ModelsVaultBinding {
   setUiText(table, locale)
-  const { service, statusItem, status } = serviceAndStatus(deps)
+  const actions = vaultActionsLoader({
+    bundlePath: path.join(deps.distDir, VAULT_ACTIONS_BUNDLE_FILE),
+    log: deps.log,
+    loadBundle: deps.loadActionsBundle,
+  })
+  const { service, statusItem, status } = serviceAndStatus({ ...deps, actions })
   const host = new VaultPanelHost({
-    ...nativeHostDeps(deps),
+    ...nativeHostDeps({ now: deps.now, sshKey: deps.sshKey, actions }),
     service,
     publish: deps.publish,
     status,
@@ -272,10 +231,15 @@ export function createVaultPanelHost(
   locale: string,
 ): { host: VaultPanelHost } & VaultWindowControls {
   setUiText(table, locale)
-  const { service, statusItem, status, probe } = serviceAndStatus(deps)
+  const actions = vaultActionsLoader({
+    bundlePath: path.join(deps.distDir, VAULT_ACTIONS_BUNDLE_FILE),
+    log: deps.log,
+    loadBundle: deps.loadActionsBundle,
+  })
+  const { service, statusItem, status, probe } = serviceAndStatus({ ...deps, actions })
   const host = new VaultPanelHost({
     ...deps,
-    ...nativeHostDeps(deps),
+    ...nativeHostDeps({ now: deps.now, sshKey: deps.sshKey, actions }),
     service,
     status,
   })
