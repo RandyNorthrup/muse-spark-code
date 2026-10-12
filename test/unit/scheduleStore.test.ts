@@ -25,6 +25,7 @@ import {
   SCHEDULE_MIN_INTERVAL_MS,
 } from '../../src/shared/constants'
 import { scheduleFireRecordSchema, noScheduleCost } from '../../src/shared/scheduleV2'
+import { fixtureBudget } from './helpers/fixtureBudget'
 import { fakeSchedule } from './helpers/schedules/fixtures'
 import { removeFolder } from './helpers/temporaryFolders'
 import {
@@ -92,6 +93,24 @@ async function worker(directory: string, mode: string, value: string): Promise<s
   return result.stdout
 }
 
+const processFixture = fixtureBudget(['cas', 'admission-limit'], async (name) => {
+  const directory = path.join(root, name)
+  const store = createScheduleStore(createNodeScheduleFs(directory))
+  const job = fakeSchedule(
+    name === 'cas'
+      ? {
+          grant: {
+            rules: [{ id: 'read', kind: 'tool', name: 'read_file' }],
+            destinationIds: [],
+            paidCapUsd: PortUsd.from(0).toAmount(),
+          },
+        }
+      : { end: { afterRuns: 1 } },
+  )
+  await store.create(job)
+  return { directory, store, job }
+})
+
 describe('M115 durable shared store', () => {
   it('uses the same schedules root on Windows, macOS and Linux', () => {
     expect(
@@ -125,16 +144,7 @@ describe('M115 durable shared store', () => {
     )
   })
   it('atomically compares revisions across two real processes and keeps revoked authority', async () => {
-    const directory = path.join(root, 'cas')
-    const store = createScheduleStore(createNodeScheduleFs(directory))
-    const job = fakeSchedule({
-      grant: {
-        rules: [{ id: 'read', kind: 'tool', name: 'read_file' }],
-        destinationIds: [],
-        paidCapUsd: PortUsd.from(0).toAmount(),
-      },
-    })
-    await store.create(job)
+    const { directory, store, job } = await processFixture('cas')
     const outcomes = await Promise.all([
       worker(
         directory,
@@ -483,10 +493,7 @@ describe('M115 durable shared store', () => {
     })
   })
   it('enforces after-N in two real processes and permanently refuses declined or removed runs', async () => {
-    const directory = path.join(root, 'admission-limit')
-    const store = createScheduleStore(createNodeScheduleFs(directory))
-    const job = fakeSchedule({ end: { afterRuns: 1 } })
-    await store.create(job)
+    const { directory, store, job } = await processFixture('admission-limit')
     const first = { schedule: job, runId: 'schedule-1:first', occurrenceMs: 1, advancesTime: false }
     const second = { ...first, runId: 'schedule-1:second' }
     for (const intent of [first, second]) await store.admit(intent)
