@@ -4,7 +4,15 @@
 // worker starts; suites read the result through inject(), unchanged
 // assertions and deadlines.
 
-import { cpSync, existsSync, mkdirSync, mkdtempSync } from 'node:fs'
+import {
+  appendFileSync,
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+} from 'node:fs'
 import path from 'node:path'
 import {
   BROWSER_ENGLISH,
@@ -27,6 +35,11 @@ export default async function setup(project) {
   // imports source by a relative path, which another drive's TEMP would break.
   mkdirSync('temp', { recursive: true })
   const root = mkdtempSync(path.resolve('temp', 'l10n-builds-'))
+  // Worker temp homes (test/unit/setup.ts) report here; the teardown below
+  // removes exactly this run's, so concurrent runs never touch each other.
+  const homeRegistry = path.join(root, 'unit-homes.txt')
+  appendFileSync(homeRegistry, '')
+  process.env['MUSE_UNIT_HOME_REGISTRY'] = homeRegistry
   // Vitest registers this run's selected paths before global setup. A fresh
   // glob would include unselected suites and compile for every native test.
   const testFiles = project.vitest.state.getPaths()
@@ -78,6 +91,17 @@ export default async function setup(project) {
     try {
       await browser?.close()
     } finally {
+      // Workers are terminated, never exited: their exit handlers do not
+      // run, so the registry (one line per worker home, reported at setup
+      // time) is the removal list. A crashing worker still reports before
+      // its tests; anything older than a day falls to the setup sweep.
+      try {
+        for (const home of readFileSync(homeRegistry, 'utf8').split('\n')) {
+          if (home !== '') rmSync(home, { recursive: true, force: true })
+        }
+      } catch {
+        // A missing registry (interrupted setup) leaves the day sweep.
+      }
       await removeFolder(root)
     }
   }
