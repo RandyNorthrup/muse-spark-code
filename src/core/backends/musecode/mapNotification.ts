@@ -89,6 +89,17 @@ const itemSchema = wireItemSchema
 
 const sessionScoped = { sessionId: z.string() }
 
+/**
+ * Which child the CLI's own reviewer decided for (2026-10-11,
+ * subagentRowsCapture): every field is optional, so a frame that names the
+ * child any of these ways still reads. Unknown fields strip, as elsewhere.
+ */
+const subagentOriginSchema = z.object({
+  childRunId: z.optional(z.string()),
+  childSessionId: z.optional(z.string()),
+  subagentId: z.optional(z.string()),
+})
+
 const schemas = {
   'turn/started': z.object({ ...sessionScoped, turnId: z.string() }),
   'item/started': z.object({ ...sessionScoped, item: itemSchema }),
@@ -168,6 +179,8 @@ const schemas = {
     subject: approvalSubjectSchema,
     availableChoices: z.array(approvalChoiceSchema),
     change: z.optional(z.object({ kind: z.string() })),
+    // The CLI reviewer's own frames for one child (2026-10-11, subagentRowsCapture).
+    subagentOrigin: z.optional(subagentOriginSchema),
   }),
   'approval/resolved': z.object({
     ...sessionScoped,
@@ -175,6 +188,8 @@ const schemas = {
     itemId: z.string(),
     decision: z.string(),
     resolvedBy: z.string(),
+    // The CLI reviewer's own frames for one child (2026-10-11, subagentRowsCapture).
+    subagentOrigin: z.optional(subagentOriginSchema),
   }),
   'userInput/requested': z.object({
     ...sessionScoped,
@@ -376,16 +391,23 @@ function rawNotification(notification: WireNotification): MapOutcome {
           requirementId: p.currentRequirementId,
           subject: p.subject,
           availableChoices: choicesFor(p.subject, p.availableChoices),
+          ...(p.subagentOrigin !== undefined && { subagentOrigin: p.subagentOrigin }),
         },
       }
     }
     case 'approval/resolved': {
-      const { sessionId, approvalId, itemId, decision, resolvedBy } = params as z.infer<
-        (typeof schemas)['approval/resolved']
-      >
+      const { sessionId, approvalId, itemId, decision, resolvedBy, subagentOrigin } =
+        params as z.infer<(typeof schemas)['approval/resolved']>
       return {
         sessionId,
-        event: { type: 'approvalResolved', approvalId, itemId, decision, resolvedBy },
+        event: {
+          type: 'approvalResolved',
+          approvalId,
+          itemId,
+          decision,
+          resolvedBy,
+          ...(subagentOrigin !== undefined && { subagentOrigin }),
+        },
       }
     }
     case 'userInput/requested': {

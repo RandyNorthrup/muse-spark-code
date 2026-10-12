@@ -18641,6 +18641,16 @@ repository's own working rule (AGENTS.md rule 14).
       disappear. Tests: `playbookConversation`, one row per cause with a
       clean second child; `playbookGovernor`, journaled once, counted, and
       the clean child's round after it.
+    - **The CLI reviewer's own decision (lead's ruling 2026-10-11).**
+      An approval frame with `subagentOrigin` and no request is the CLI
+      reviewer's own decision for that child, never a waiting card: the
+      mapper keeps the captured origin on the event, and the conversation
+      shows it as decided by the Muse Code reviewer for that child
+      (attributed by subagent id), leaving the wire's own word for who
+      decided out of the transcript. A frame that names an approval the
+      person was asked for still settles the person's own card. Tests:
+      `mapNotification`, the origin both frames keep; `conversationController`,
+      the decision shown and the card settled.
     - **The claim, as published:** Model API child work is admitted before
       dispatch; Muse Code subagents start without asking, their rounds are
       counted and their work reviewed, and the playbook cannot stop a start.
@@ -43707,9 +43717,10 @@ threshold, ignore or rule is changed.
 | `test/unit/transcribeBatch.test.ts`: `'NaN' as UsdAmount`                                 | Intentional malformed canonical port; constructors refuse it, so the existing runtime refusal probe bypasses the brand without a credential or paid call.                                                                       |
 | `test/unit/paidMoneyStructure.test.ts` `trackedDebt` allow-list (41 numeric money fields) | Numeric current money the 0.17 ports did not convert; each entry names milestone M121, which converts it to `UsdAmount` and empties the category. The guard fails on any unlisted money leaf, so the list cannot grow silently. |
 
-| Location                                              | Escape hatch         | Reason                                                                                                                                                                                                                                                                                                                                 |
-| ----------------------------------------------------- | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `test/unit/schedulePaid.test.ts:74` (`MALFORMED_USD`) | `'NaN' as UsdAmount` | Defense-in-depth probes inject malformed money into the estimate and durable reservation ports. `Usd.from` and the schema both reject NaN, so no valid constructor can produce this branded value; constructing it inside the probe would bypass the production refusal being tested. Test-only; both refusal assertions are retained. |
+| Location                                                            | Escape hatch                                                | Reason                                                                                                                                                                                                                                                                                                                                         |
+| ------------------------------------------------------------------- | ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/host/conversation/conversationController.ts` (`childDecision`) | `event as AgentEvent & { subagentOrigin?: SubagentOrigin }` | The Muse Code mapper keeps the captured, zod-validated origin on the mapped event, but the shared event schemas leave it off so no bundle carries it (M116, D96.17). The read names the wider wire shape at the one place that consumes it; every other event field is read from the same validated shape. Each use carries its inline reason. |
+| `test/unit/schedulePaid.test.ts:74` (`MALFORMED_USD`)               | `'NaN' as UsdAmount`                                        | Defense-in-depth probes inject malformed money into the estimate and durable reservation ports. `Usd.from` and the schema both reject NaN, so no valid constructor can produce this branded value; constructing it inside the probe would bypass the production refusal being tested. Test-only; both refusal assertions are retained.         |
 
 | SPAWN017B location          | Escape hatch                               | Reason                                                                                                                                                                   | Removal                                                                            |
 | --------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------- |

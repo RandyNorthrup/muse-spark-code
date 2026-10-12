@@ -4220,6 +4220,7 @@
   "approvalAskRuleWhy": "Vaše pravidlo příkazů se u tohoto příkazu ptá pokaždé: {why}",
   "approvalSecretNote": "Tento příkaz obsahuje nalezené tajemství, zobrazené začerněné. Vždy se ptá: žádné pravidlo jej samo neschválí.",
   "autoReviewerResolver": "Automatický kontrolor",
+  "cliReviewerDecision": "Kontrolor Muse Code pro {child}",
   "commandRuleResolver": "Pravidlo příkazů",
   "autoReviewAllowed": "Povoleno: {reason}",
   "autoReviewAsked": "Ptá se vás: {reason}",

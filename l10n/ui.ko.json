@@ -3914,6 +3914,7 @@
   "approvalAskRuleWhy": "명령 규칙에 따라 이 명령은 매번 확인합니다: {why}",
   "approvalSecretNote": "이 명령에는 감지된 비밀이 포함되어 있으며, 가려진 상태로 표시됩니다. 항상 확인하며, 어떤 규칙도 자동으로 승인하지 않습니다.",
   "autoReviewerResolver": "자동 검토자",
+  "cliReviewerDecision": "{child}에 대한 Muse Code 검토자",
   "commandRuleResolver": "명령 규칙",
   "autoReviewAllowed": "허용됨: {reason}",
   "autoReviewAsked": "확인 요청: {reason}",

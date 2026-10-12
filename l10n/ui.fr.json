@@ -4118,6 +4118,7 @@
   "approvalAskRuleWhy": "Votre règle de commande demande votre accord pour cette commande à chaque fois : {why}",
   "approvalSecretNote": "Cette commande contient un secret détecté, affiché expurgé. Elle demande toujours votre accord : aucune règle ne l’approuve d’elle-même.",
   "autoReviewerResolver": "Réviseur auto",
+  "cliReviewerDecision": "Réviseur Muse Code pour {child}",
   "commandRuleResolver": "Règle de commande",
   "autoReviewAllowed": "Autorisé : {reason}",
   "autoReviewAsked": "Vous demande : {reason}",

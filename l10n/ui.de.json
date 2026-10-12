@@ -4016,6 +4016,7 @@
   "approvalAskRuleWhy": "Ihre Befehlsregel fragt bei diesem Befehl jedes Mal nach: {why}",
   "approvalSecretNote": "Dieser Befehl enthält ein erkanntes Geheimnis, redigiert dargestellt. Er fragt immer nach: Keine Regel führt ihn von selbst aus.",
   "autoReviewerResolver": "Auto-Prüfer",
+  "cliReviewerDecision": "Muse-Code-Prüfer für {child}",
   "commandRuleResolver": "Befehlsregel",
   "autoReviewAllowed": "Zugelassen: {reason}",
   "autoReviewAsked": "Fragt Sie: {reason}",

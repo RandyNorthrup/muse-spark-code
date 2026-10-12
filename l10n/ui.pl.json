@@ -4220,6 +4220,7 @@
   "approvalAskRuleWhy": "Twoja reguła poleceń za każdym razem pyta o to polecenie: {why}",
   "approvalSecretNote": "To polecenie zawiera wykryty sekret, pokazany ocenzurowany. Zawsze pyta: żadna reguła nie zatwierdzi go samodzielnie.",
   "autoReviewerResolver": "Automatyczny oceniający",
+  "cliReviewerDecision": "Recenzent Muse Code dla {child}",
   "commandRuleResolver": "Reguła poleceń",
   "autoReviewAllowed": "Zezwolono: {reason}",
   "autoReviewAsked": "Pyta Ciebie: {reason}",

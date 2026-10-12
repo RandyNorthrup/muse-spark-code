@@ -7760,6 +7760,68 @@ describe('ConversationController: permission hardening (D24)', () => {
     })
   })
 
+  it('shows the CLI reviewer’s own decision for its child, never a waiting card', async () => {
+    const t = setup({ hasApprovalUi: true })
+    await t.send('l1', 'hi')
+    const origin = { childRunId: 'run-9', childSessionId: 'child-9', subagentId: 'subagent-9' }
+    // The reviewer's own frames arrive with no request: no card waits for the person.
+    t.server.notify('approval/updated', { ...approvalParams('a9'), subagentOrigin: origin })
+    t.server.notify('approval/resolved', {
+      sessionId: 's1',
+      approvalId: 'a9',
+      itemId: 'item-a9',
+      decision: 'denied',
+      resolvedBy: 'llmJudge',
+      subagentOrigin: origin,
+    })
+    await vi.waitFor(() => {
+      expect(
+        agentEvents(t).some(
+          (event) => event.type === 'approvalResolved' && event.approvalId === 'a9',
+        ),
+      ).toBe(true)
+    })
+    expect(agentEvents(t).some((event) => event.type === 'approvalRequested')).toBe(false)
+    expect(agentEvents(t).at(-1)).toEqual({
+      type: 'approvalResolved',
+      approvalId: 'a9',
+      itemId: 'item-a9',
+      decision: 'denied',
+      resolvedBy: fill(UI_TEXT.cliReviewerDecision, { child: 'subagent-9' }),
+      subagentOrigin: origin,
+    })
+    // The wire's own word for who decided stays out of the transcript.
+    expect(JSON.stringify(agentEvents(t))).not.toContain('llmJudge')
+  })
+
+  it('still settles the person’s own card when the CLI reviewer’s frames name it', async () => {
+    const t = setup({ hasApprovalUi: true })
+    await t.send('l1', 'hi')
+    requestApproval(t, 'a1')
+    await settle()
+    expect(agentEvents(t).some((event) => event.type === 'approvalRequested')).toBe(true)
+    t.server.notify('approval/resolved', {
+      sessionId: 's1',
+      approvalId: 'a1',
+      itemId: 'item-a1',
+      decision: 'approved',
+      resolvedBy: 'user',
+      subagentOrigin: { childRunId: 'run-9', childSessionId: 'child-9', subagentId: 'subagent-9' },
+    })
+    await vi.waitFor(() => {
+      expect(
+        agentEvents(t).some(
+          (event) => event.type === 'approvalResolved' && event.approvalId === 'a1',
+        ),
+      ).toBe(true)
+    })
+    expect(agentEvents(t).at(-1)).toMatchObject({
+      type: 'approvalResolved',
+      approvalId: 'a1',
+      resolvedBy: 'user',
+    })
+  })
+
   it('does not auto-approve a Manual Model API edit when an Edit surface joins later', async () => {
     const t = setup({ hasApprovalUi: true })
     const io = memoryToolIo({ 'a.ts': 'old' }, '/ws')

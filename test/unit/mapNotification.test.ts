@@ -388,6 +388,62 @@ describe('mapNotification', () => {
         resolvedBy: 'user',
       },
     ],
+    // The CLI reviewer's own frames for one child keep who they decided for.
+    [
+      'approval/updated',
+      {
+        sessionId,
+        approvalId: 'a1',
+        currentRequirementId: { approvalId: 'a1', sourceIndex: 1 },
+        subject,
+        availableChoices: choices,
+        change: { kind: 'stageResolved' },
+        subagentOrigin: {
+          childRunId: 'run-9',
+          childSessionId: 'child-9',
+          subagentId: 'subagent-9',
+        },
+      },
+      {
+        type: 'approvalUpdated',
+        approvalId: 'a1',
+        requirementId: { approvalId: 'a1', sourceIndex: 1 },
+        subject: mappedSubject,
+        availableChoices: choices,
+        subagentOrigin: {
+          childRunId: 'run-9',
+          childSessionId: 'child-9',
+          subagentId: 'subagent-9',
+        },
+      },
+    ],
+    [
+      'approval/resolved',
+      {
+        sessionId,
+        approvalId: 'a1',
+        itemId: 'c3',
+        decision: 'denied',
+        resolvedBy: 'llmJudge',
+        subagentOrigin: {
+          childRunId: 'run-9',
+          childSessionId: 'child-9',
+          subagentId: 'subagent-9',
+        },
+      },
+      {
+        type: 'approvalResolved',
+        approvalId: 'a1',
+        itemId: 'c3',
+        decision: 'denied',
+        resolvedBy: 'llmJudge',
+        subagentOrigin: {
+          childRunId: 'run-9',
+          childSessionId: 'child-9',
+          subagentId: 'subagent-9',
+        },
+      },
+    ],
     [
       'userInput/requested',
       {
