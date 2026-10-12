@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "counts": {
+    "acp": {
+      "SWALLOW": 22,
+      "GENERIC": 18
+    },
+    "core": {
+      "SWALLOW": 300,
+      "GENERIC": 352
+    },
+    "host": {
+      "SWALLOW": 121,
+      "GENERIC": 245
+    },
+    "root": {
+      "SWALLOW": 3,
+      "GENERIC": 6
+    },
+    "runtime": {
+      "SWALLOW": 101,
+      "GENERIC": 173
+    },
+    "shared": {
+      "SWALLOW": 6,
+      "GENERIC": 9
+    },
+    "webview": {
+      "SWALLOW": 51,
+      "GENERIC": 17
+    }
+  }
+}
