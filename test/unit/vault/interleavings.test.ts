@@ -369,7 +369,7 @@ class Model {
       kind: 'private',
       peer: this.peer,
       request: {
-        v: 1,
+        v: 2,
         kind: 'firstPartyRead',
         itemId: metadata.id,
         origin: 'https://example.test',

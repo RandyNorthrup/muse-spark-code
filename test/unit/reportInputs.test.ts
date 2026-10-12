@@ -1,21 +1,12 @@
 import { createReportingServices } from '../../src/runtime/reporting/engine'
 // M113 C-M113-2: bound session and usage inputs over real directories.
-import {
-  mkdtemp,
-  rm,
-  writeFile,
-  appendFile,
-  mkdir,
-  symlink,
-  realpath,
-  readFile,
-} from 'node:fs/promises'
-import { tmpdir } from 'node:os'
+import { writeFile, appendFile, mkdir, symlink, readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { build } from 'esbuild'
 import { createRequire } from 'node:module'
 import { reportInputsLoader } from '../../src/runtime/reporting/reportInputsLoader'
+import { tempDirTracker } from './helpers/reporting/tempDir'
 import { createUsageRecording } from '../../src/core/usage/recording'
 import {
   createLocalReportSources,
@@ -45,16 +36,12 @@ import { usageReportFixtureRecord } from './helpers/usageFixture'
 
 setUiText(EN, 'en')
 
-const roots: string[] = []
+const temps = tempDirTracker()
 afterEach(async () => {
   setUiText(EN, 'en')
-  for (const root of roots.splice(0)) await rm(root, { recursive: true, force: true })
+  await temps.cleanup()
 })
-async function dir(prefix: string): Promise<string> {
-  const root = await realpath(await mkdtemp(path.join(tmpdir(), prefix)))
-  roots.push(root)
-  return root
-}
+const dir = (prefix: string) => temps.dir(prefix)
 
 const NOW = Date.parse('2026-10-07T12:00:00Z')
 const TODAY = usageLocalDay(NOW)

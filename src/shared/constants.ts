@@ -3943,6 +3943,8 @@ export const EXTENSION_HOOKS_BUNDLE_FILE = 'extensionHooks.js'
 // The vault's window (M109 lane W, PLAN.md D6): the panel host, the native
 // editor and the broker client, loaded on the first vault command.
 export const VAULT_BUNDLE_FILE = 'vault.js'
+// C-M109-1: the CLI, ACP and headless vault (no `vscode`), lead decision 5.
+export const VAULT_RUNTIME_BUNDLE_FILE = 'vaultRuntime.js'
 // The empty folder under the extension's global storage the reviewer's side
 // session runs in: outside every workspace, so no History lists it, and
 // with no rules, skills or files of the user's to read.
@@ -7992,10 +7994,18 @@ export const DEVELOPER_MACHINE_ID_TMP_SUFFIX_BYTES = 8
 export const DEVELOPER_MACHINE_ID_DOMAIN = 'muse-spark-developer-machine/v1'
 // M109 lane 0: vault format, limits and budgets (D89).
 export const VAULT_FORMAT_VERSION = 1
-export const VAULT_PROTOCOL_VERSION = 1
+// Lead decisions 2026-10-10 (C-M109-1): protocol v2 adds the management kinds,
+// private write frames and pushed events; the store document v2 carries grants
+// in its encrypted index. No v1 vault or broker exists in the field.
+export const VAULT_PROTOCOL_VERSION = 2
+export const VAULT_STORE_FORMAT_VERSION = 2
 export const VAULT_APPROVAL_TTL_MS = 120_000
 // Lock wipes synchronously; audit and process cleanup get this bounded settlement window.
 export const VAULT_LOCK_DRAIN_MS = 1000
+// C-M109-1: pace of re-opening a `watch` stream the broker closed.
+export const VAULT_WATCH_RETRY_MS = 1000
+// RVCM1091A F7: the panel's watch backoff doubles up to this while the broker is down.
+export const VAULT_WATCH_RETRY_MAX_MS = 30_000
 export const VAULT_ASKPASS_USES = 3
 export const VAULT_ASKPASS_TTL_MS = 600_000
 export const VAULT_SESSION_MAX_DAYS = 30
@@ -8010,6 +8020,10 @@ export const VAULT_KEY_BYTES = 32
 export const VAULT_NONCE_BYTES = 12
 export const VAULT_TAG_BYTES = 16
 export const VAULT_RECOVERY_BYTES = 20
+// Reset Vault's fixed confirmation word, typed exactly (lead decision 2026-10-10).
+export const VAULT_RESET_WORD = 'RESET'
+// Random bytes in an imported item's name, so a second import never collides.
+export const VAULT_IMPORT_NAME_BYTES = 3
 export const VAULT_KDF = {
   argon2: { memoryKiB: 65_536, iterations: 3, parallelism: 4 },
   scrypt: { N: 131_072, r: 8, p: 1 },

@@ -11,6 +11,8 @@ function isBundle(value: unknown): value is Bundle {
     typeof bundle?.createSessionReportReader === 'function' &&
     typeof bundle.createUsageReportReader === 'function' &&
     typeof bundle.keybindingsManifestReader === 'function' &&
+    typeof bundle.createAccountsReportReader === 'function' &&
+    typeof bundle.createSecurityReportReader === 'function' &&
     typeof bundle.readStoredReportSession === 'function' &&
     typeof bundle.readUsageReportJournal === 'function' &&
     typeof bundle.createReportJournalReader === 'function' &&
@@ -24,7 +26,7 @@ export function reportInputsLoader(
   return lazyBundleLoader({
     ...deps,
     isBundle,
-    label: 'report session and usage inputs',
+    label: 'report session, usage, accounts and security inputs',
     unavailable: () => UI_TEXT.reportUi.generationFailed,
   })
 }

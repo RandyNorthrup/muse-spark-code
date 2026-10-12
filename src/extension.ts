@@ -2100,9 +2100,10 @@ async function activateWindow(
     browserChecks.isOffered() &&
     isIdeWebFetchOffered(vscode.workspace.isTrusted, currentSettings().sandboxNetwork)
   // The credential vault (M109, PLAN.md D89): the commands and the lazy
-  // loader only. The broker-backed service is an open handoff in
-  // docs/certification/m109.md; until it lands both commands refuse closed
-  // with the broker-blocked reason instead of opening an empty vault.
+  // loader only. dist/vault.js builds its broker-backed service itself
+  // (C-M109-1). Until the Models & Agents panel mounts the vault section,
+  // both commands refuse closed with the broker-blocked reason instead of
+  // opening an empty vault.
   context.subscriptions.push(
     vscode.commands.registerCommand(COMMAND_IDS.downloadBrowserCheckRuntime, async () => {
       await downloadBrowserRuntime(browserChecks, isIdeBrowserCheckOffered)
@@ -2113,14 +2114,10 @@ async function activateWindow(
         loadVaultControls(
           {
             bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', VAULT_BUNDLE_FILE).fsPath,
+            distDir: vscode.Uri.joinPath(context.extensionUri, 'dist').fsPath,
             log,
-            service: undefined,
           },
-          () => {
-            // Unreachable while the service is missing; the entry's live
-            // host bindings land with the service.
-            throw new Error(UI_TEXT.vault.brokerBlocked)
-          },
+          undefined,
         ),
     ),
   )

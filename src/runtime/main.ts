@@ -142,7 +142,7 @@ import type {
 import { AcpVault } from '../acp/vault'
 import { runtimeVaultLoader } from './vault/vaultRuntime'
 import { runVaultCommand, vaultUsage } from './vault/vaultCommand'
-import { chooseVaultDecision, readVaultMaterial } from './vault/vaultInput'
+import { chooseVaultDecision, readVaultLine, readVaultMaterial } from './vault/vaultInput'
 
 const EXIT_FAILED = 1
 // Keep only presence for reports, before credential variables leave the process.
@@ -599,6 +599,23 @@ function runtimeReports(
             // the CLI and the ACP agent report the same installed bindings.
             keybindings: () =>
               inputs().keybindingsManifestReader(path.join(packageRoot, 'package.json'))(),
+
+            // C-M113-3: the registry and developer audit read from the same
+            // data folder. M108's use/swaps adapters and an unlock-capable
+            // vault view bind here when their owning lanes land; until then
+            // those facets stay empty and named.
+            accounts: {
+              read: (context) =>
+                inputs()
+                  .createAccountsReportReader({ dataDir: dataFolder }, l10n.table, l10n.locale)
+                  .read(context),
+            },
+            security: {
+              read: (context) =>
+                inputs()
+                  .createSecurityReportReader({ dataDir: dataFolder }, l10n.table, l10n.locale)
+                  .read(context),
+            },
             network: {
               policy: {
                 surface: 'terminal',
@@ -1422,6 +1439,10 @@ async function main(): Promise<number> {
         return await runVaultCommand(command.options, {
           open: openVaultCommands,
           readMaterial: (signal) => readVaultMaterial(process.stdin, process.stderr, signal),
+          readLine: (prompt, signal) =>
+            readVaultLine(process.stdin, process.stderr, prompt, signal),
+          // The one-time recovery code must reach a person, never a redirected file.
+          isInteractive: process.stdin.isTTY && process.stdout.isTTY,
           choose: (title, choices, signal) =>
             chooseVaultDecision(process.stdin, process.stderr, title, choices, signal),
           print: (text) => {

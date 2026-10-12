@@ -1,5 +1,7 @@
 // Lazy input bundle owns its installed-language state, like every Node bundle.
 import {
+  createAccountsReportReader as accountsReader,
+  createSecurityReportReader as securityReader,
   createSessionReportReader as sessionReader,
   createUsageReportReader as usageReader,
 } from './reportInputs'
@@ -13,6 +15,7 @@ export {
   readStoredReportSession,
   readUsageReportJournal,
   reportTimezoneOffset,
+  type SecurityVaultSnapshot,
   type SessionHistoryInput,
 } from './reportInputs'
 export function createSessionReportReader(
@@ -30,4 +33,20 @@ export function createUsageReportReader(
 ) {
   setUiText(table, locale)
   return usageReader(input)
+}
+export function createAccountsReportReader(
+  input: Parameters<typeof accountsReader>[0],
+  table: UiText,
+  locale: string,
+) {
+  setUiText(table, locale)
+  return accountsReader(input)
+}
+export function createSecurityReportReader(
+  input: Parameters<typeof securityReader>[0],
+  table: UiText,
+  locale: string,
+) {
+  setUiText(table, locale)
+  return securityReader(input)
 }

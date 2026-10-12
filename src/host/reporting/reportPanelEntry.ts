@@ -11,10 +11,13 @@ import {
   UI_TEXT,
 } from '../../shared/constants'
 import { reportWorkspaceKey } from '../../core/reporting/sources/local'
-import type { SourceReadContext } from '../../core/reporting/sources/types'
+import type { AccountsFacts, SourceReadContext } from '../../core/reporting/sources/types'
 import type { UsageReportJournal } from '../../core/usage/reportUsage'
 import type { UsageBudgetRead } from '../../core/usage/usageService'
-import type { SessionHistoryInput } from '../../runtime/reporting/reportInputs'
+import type {
+  SecurityVaultSnapshot,
+  SessionHistoryInput,
+} from '../../runtime/reporting/reportInputs'
 import { readSettings } from '../settings'
 import * as vscode from 'vscode'
 import { ReportPanel, type ReportPanelDeps } from './reportPanel'
@@ -49,6 +52,24 @@ export interface ReportingWindowDeps extends Pick<
   readonly reportBeforeRead: () => Promise<void>
   readonly reportReadBudgets: () => Promise<readonly UsageBudgetRead[]>
   readonly reportUsageDataFolder: string
+  /**
+   * C-M113-3: M108's use and swaps adapters. Unbound until the owning lane
+   * binds them here; until then those accounts facets stay empty and named.
+   */
+  readonly reportAccountsUsage?: (
+    context: SourceReadContext,
+  ) => Promise<AccountsFacts['usage'] | null>
+  readonly reportAccountsEvents?: (
+    context: SourceReadContext,
+  ) => Promise<Pick<AccountsFacts, 'events' | 'confirmations'> | null>
+  /**
+   * C-M113-3: an unlock-capable vault view for the security kind. Unbound
+   * until the vault lane binds it here; until then the vault facets stay
+   * empty and named, and the developer audit still reports.
+   */
+  readonly reportVaultSnapshot?: (
+    context: SourceReadContext,
+  ) => Promise<SecurityVaultSnapshot | null>
 }
 
 /** Window adapters and engine acquisition live entirely inside the lazy panel bundle. */
@@ -141,6 +162,40 @@ export function createReportingWindow(
             loadInputs().keybindingsManifestReader(
               vscode.Uri.joinPath(deps.context.extensionUri, 'package.json').fsPath,
             )(),
+
+          accounts: {
+            read: (context) =>
+              loadInputs()
+                .createAccountsReportReader(
+                  {
+                    dataDir: deps.reportUsageDataFolder,
+                    ...(deps.reportAccountsUsage !== undefined && {
+                      readUsage: deps.reportAccountsUsage,
+                    }),
+                    ...(deps.reportAccountsEvents !== undefined && {
+                      readEvents: deps.reportAccountsEvents,
+                    }),
+                  },
+                  table,
+                  locale,
+                )
+                .read(context),
+          },
+          security: {
+            read: (context) =>
+              loadInputs()
+                .createSecurityReportReader(
+                  {
+                    dataDir: deps.reportUsageDataFolder,
+                    ...(deps.reportVaultSnapshot !== undefined && {
+                      readVault: deps.reportVaultSnapshot,
+                    }),
+                  },
+                  table,
+                  locale,
+                )
+                .read(context),
+          },
           workspaceKey,
           l10n: deps.context.l10n,
           log: deps.context.log,

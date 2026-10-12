@@ -177,6 +177,33 @@ describe('U approval cards', () => {
 })
 
 describe('U Vault section', () => {
+  it('offers a named, focusable Reset action only for the lost vault', () => {
+    const state = panel()
+    const post = vi.fn()
+    const view = render(<VaultSection state={state} post={post} />)
+    expect(screen.queryByRole('button', { name: UI_TEXT.vault.resetVault })).toBeNull()
+    view.rerender(
+      <VaultSection
+        state={{ ...state, status: { ...state.status, state: 'unavailable', reason: 'vaultLost' } }}
+        post={post}
+      />,
+    )
+    expect(screen.getByText(UI_TEXT.vault.vaultLost)).toHaveAttribute('role', 'status')
+    const reset = screen.getByRole('button', { name: UI_TEXT.vault.resetVault })
+    expect(reset).toBeEnabled()
+    reset.focus()
+    expect(reset).toHaveFocus()
+    fireEvent.click(reset)
+    expect(post).toHaveBeenCalledExactlyOnceWith({ type: 'vaultReset' })
+    view.rerender(
+      <VaultSection
+        state={{ ...state, status: { ...state.status, state: 'locked', reason: 'locked' } }}
+        post={post}
+      />,
+    )
+    expect(screen.queryByRole('button', { name: UI_TEXT.vault.resetVault })).toBeNull()
+  })
+
   it('V8 uses host password entry messages and offers clipboard only for public SSH keys', () => {
     const state = panel()
     state.items.push({

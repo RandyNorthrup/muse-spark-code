@@ -7,6 +7,7 @@ import {
 } from '../../../src/host/vault/vaultPanelHost'
 import { type VaultItem, type VaultItemMetadata } from '../../../src/shared/vault'
 import { panel, item, metadata, approval, grant } from '../helpers/vault/fixtures'
+import { generatedImport, generatedSetup } from '../helpers/vault/runtime'
 
 function fixture() {
   const state = panel()
@@ -45,13 +46,28 @@ function fixture() {
     }),
     revoke: vi.fn<VaultPanelService['revoke']>(() => Promise.resolve()),
     answer: vi.fn<VaultPanelService['answer']>(() => Promise.resolve()),
-    importFile: vi.fn<VaultPanelService['importFile']>((_path, authorize) => {
+    importFile: vi.fn<VaultPanelService['importFile']>(async (_path, authorize) => {
+      authorize()
+      return await generatedImport()
+    }),
+    keepImport: vi.fn<VaultPanelService['keepImport']>(() => Promise.resolve()),
+    deleteImport: vi.fn<VaultPanelService['deleteImport']>(() => Promise.resolve()),
+    resetBegin: vi.fn<VaultPanelService['resetBegin']>(() =>
+      Promise.resolve({ resetId: 'b'.repeat(32), word: 'RESET' }),
+    ),
+    resetConfirm: vi.fn<VaultPanelService['resetConfirm']>((_id, _word, authorize) => {
       authorize()
       return Promise.resolve()
     }),
+    setup: vi.fn<VaultPanelService['setup']>(generatedSetup),
+    confirmSetup: vi.fn<VaultPanelService['confirmSetup']>(() => Promise.resolve()),
+    cancelSetup: vi.fn<VaultPanelService['cancelSetup']>(() => Promise.resolve()),
   }
   const deps = {
     service,
+    showRecoveryCode: vi.fn<VaultPanelHostDeps['showRecoveryCode']>(() => Promise.resolve(true)),
+    importDone: vi.fn<VaultPanelHostDeps['importDone']>(() => Promise.resolve('keep')),
+    confirmReset: vi.fn<VaultPanelHostDeps['confirmReset']>(() => Promise.resolve('RESET')),
     now: () => 1000,
     editItem: vi.fn<VaultPanelHostDeps['editItem']>(() => Promise.resolve(null)),
     confirmRemove: vi.fn(() => Promise.resolve(true)),
@@ -122,8 +138,8 @@ describe('U authenticated panel host', () => {
       }
       f.changed.callback(
         kind === 'locked'
-          ? { kind, v: 1, lockEpoch: 1 }
-          : { kind, v: 1, requesterId: approval().requester.id, grantId: null },
+          ? { kind, v: 2, lockEpoch: 1 }
+          : { kind, v: 2, requesterId: approval().requester.id, grantId: null },
       )
       expect(signals[0]?.aborted).toBe(true)
       const entered = item()
@@ -147,8 +163,8 @@ describe('U authenticated panel host', () => {
     f.state.status.lockEpoch = 2
     await f.host.refresh()
     const count = f.deps.publish.mock.calls.length
-    f.changed.callback({ kind: 'locked', v: 1, lockEpoch: 1 })
-    f.changed.callback({ kind: 'locked', v: 1, lockEpoch: 3, value: randomBytes(32) })
+    f.changed.callback({ kind: 'locked', v: 2, lockEpoch: 1 })
+    f.changed.callback({ kind: 'locked', v: 2, lockEpoch: 3, value: randomBytes(32) })
     expect(f.deps.publish.mock.calls.length).toBe(count)
     f.host.dispose()
   })
@@ -433,7 +449,7 @@ describe('U authenticated panel host', () => {
     const request = approval()
     f.state.pending = [request]
     const before = f.deps.publish.mock.calls.length
-    f.changed.callback({ kind: 'approval', v: 1, request })
+    f.changed.callback({ kind: 'approval', v: 2, request })
     await vi.waitFor(() => {
       expect(f.deps.publish.mock.calls.length).toBeGreaterThan(before)
     })
@@ -464,5 +480,35 @@ describe('U authenticated panel host', () => {
     gate.resolve(undefined)
     await locking
     expect(f.deps.showError).not.toHaveBeenCalled()
+  })
+})
+
+describe('C-M109-1 Set Up Vault', () => {
+  it('shows the code once, confirms only on I Saved It, cancels otherwise, and erases the code', async () => {
+    const f = fixture()
+    f.state.status.state = 'uncreated'
+    const codes: Buffer[] = []
+    vi.mocked(f.service.setup).mockImplementation(() => {
+      const code = Buffer.from(randomBytes(20).toString('hex'), 'ascii')
+      codes.push(code)
+      return Promise.resolve({ setupId: 'a'.repeat(32), code })
+    })
+    await f.host.handle({ type: 'vaultSetup' })
+    expect(f.deps.showRecoveryCode).toHaveBeenCalledWith(
+      expect.stringMatching(/^[a-f0-9]{40}$/u),
+      expect.any(AbortSignal),
+    )
+    expect(f.service.confirmSetup).toHaveBeenCalledWith('a'.repeat(32), expect.any(Function))
+    f.deps.showRecoveryCode.mockResolvedValueOnce(false)
+    await f.host.handle({ type: 'vaultSetup' })
+    expect(f.service.cancelSetup).toHaveBeenCalledWith('a'.repeat(32))
+    expect(f.service.confirmSetup).toHaveBeenCalledOnce()
+    expect(codes.every((code) => code.every((byte) => byte === 0))).toBe(true)
+  })
+  it('refuses setup when a vault already exists', async () => {
+    const f = fixture()
+    await f.host.handle({ type: 'vaultSetup' })
+    expect(f.service.setup).not.toHaveBeenCalled()
+    expect(f.deps.showError).toHaveBeenCalled()
   })
 })

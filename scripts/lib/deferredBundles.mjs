@@ -187,6 +187,7 @@ export const DEFERRED = [
       'src/shared/redact.ts',
       'src/shared/vault.ts',
       'src/shared/vaultProtocol.ts',
+      'src/shared/vaultStatus.ts',
       'src/shared/vaultPanel.ts',
       'src/core/vault/taint.ts',
       'src/core/vault/exec/schema.ts',
@@ -1175,7 +1176,7 @@ export const sharedModelApiBoundaries = {
     build.onResolve(
       {
         filter:
-          /\/(?:schemas|teamConversation|paidBoundary|usd|legal|legalScanTool|pathIdentity|windowsPathSpelling|usdSchema|vault|vaultProtocol|vaultPanel|taint|schema|toolSchema|redact|estimate|estimatorProtocol|history)(?:\.[jt]s)?$/,
+          /\/(?:schemas|teamConversation|paidBoundary|usd|legal|legalScanTool|pathIdentity|windowsPathSpelling|usdSchema|vault|vaultProtocol|vaultStatus|vaultPanel|taint|schema|toolSchema|redact|estimate|estimatorProtocol|history)(?:\.[jt]s)?$/,
       },
       (args) => {
         const source = path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts'))
@@ -1199,6 +1200,7 @@ export const sharedModelApiBoundaries = {
             'src/shared/redact.ts',
             'src/shared/vault.ts',
             'src/shared/vaultProtocol.ts',
+            'src/shared/vaultStatus.ts',
             'src/shared/vaultPanel.ts',
             'src/core/vault/taint.ts',
             'src/core/vault/exec/schema.ts',
