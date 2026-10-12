@@ -12,21 +12,16 @@ import {
   SCHEDULE_FS_RETRY_ATTEMPTS,
   SCHEDULE_JOURNAL_MAX_OPS,
   SCHEDULE_LEASE_EXPIRES_MS,
-  SCHEDULE_LEASE_HEARTBEAT_MS,
 } from '../../src/shared/constants'
 import { scheduleStateFile } from './helpers/schedules/storage'
+import { accelerateLeaseHeartbeat } from './helpers/schedules/heartbeatAcceleration'
 import { fakeSchedule } from './helpers/schedules/fixtures'
+import { fixtureBudget } from './helpers/fixtureBudget'
 import { removeFolder } from './helpers/temporaryFolders'
 
 vi.mock('node:fs/promises', async (importOriginal) => {
-  const actual = await importOriginal<typeof disk>()
-  return {
-    ...actual,
-    link: vi.fn(actual.link),
-    unlink: vi.fn(actual.unlink),
-    rename: vi.fn(actual.rename),
-    readFile: vi.fn(actual.readFile),
-  }
+  const { mockedDiskModule } = await import('./helpers/schedules/mockDiskWrites')
+  return await mockedDiskModule(() => importOriginal<typeof disk>())
 })
 const root = mkdtempSync(path.join(tmpdir(), 'muse-m115-locks-'))
 const exec = promisify(execFile)
@@ -39,17 +34,7 @@ afterAll(async () => {
   await removeFolder(root)
 })
 beforeEach(() => {
-  const interval = globalThis.setInterval
-  vi.spyOn(globalThis, 'setInterval').mockImplementation((callback, ms, ...args) => {
-    if (ms !== SCHEDULE_LEASE_HEARTBEAT_MS) return interval(callback, ms, ...args)
-    // Produce one real pulse, then simulate the suspended process used by the
-    // takeover/old-pulse regressions without a two-second setup in every case.
-    const timer = interval(() => {
-      clearInterval(timer)
-      callback(...args)
-    }, 20)
-    return timer
-  })
+  accelerateLeaseHeartbeat(20)
 })
 afterEach(() => {
   vi.restoreAllMocks()
@@ -164,6 +149,35 @@ async function releaseHelpers(): Promise<void> {
   }
 }
 
+const nativeFixture = fixtureBudget(
+  ['native-pointer', 'native-retirement'],
+  async (name) => {
+    const directory = path.join(root, name)
+    const fs = createNodeScheduleFs(directory)
+    const store = createScheduleStore(fs)
+    const job = fakeSchedule()
+    await store.create(job)
+    const old = await scheduleStateFile(fs)
+    // Preserve the original handle/list/fill order, including the Windows lock.
+    const retirementRelease =
+      name === 'native-retirement'
+        ? await handle(path.join(directory, old), 'retirement')
+        : undefined
+    const [before] = await store.list(job.workspaceKey)
+    await fillJournal(directory, fs)
+    const release =
+      retirementRelease ??
+      (await handle(path.join(directory, job.workspaceKey, 'index/current.json'), 'pointer'))
+    return { directory, fs, store, job, old, before, release }
+  },
+  {
+    'native-pointer':
+      'keeps the old generation readable when a native Windows handle prevents pointer activation',
+    'native-retirement':
+      'activates a new generation while an old state handle blocks retirement and retires it on the next mutation',
+  },
+)
+
 describe('native schedule publication and leases', () => {
   it.each(['pid', 'start'] as const)(
     'refuses a token-matched heartbeat with a different %s',
@@ -183,7 +197,7 @@ describe('native schedule publication and leases', () => {
         JSON.stringify({ ...owner, [field]: owner[field] + 1 }),
       )
       await expect(fs.lock(key, () => Promise.resolve('invalid pulse acquired'))).rejects.toThrow(
-        'OwnershipLost',
+        'scheduleQueueLeaseInvalid',
       )
     },
   )
@@ -465,17 +479,7 @@ describe('native schedule publication and leases', () => {
     })
   })
   it('keeps the old generation readable when a native Windows handle prevents pointer activation', async () => {
-    const directory = path.join(root, 'native-pointer')
-    const fs = createNodeScheduleFs(directory)
-    const store = createScheduleStore(fs)
-    const job = fakeSchedule()
-    await store.create(job)
-    const [before] = await store.list(job.workspaceKey)
-    await fillJournal(directory, fs)
-    const release = await handle(
-      path.join(directory, job.workspaceKey, 'index/current.json'),
-      'pointer',
-    )
+    const { directory, store, job, before, release } = await nativeFixture('native-pointer')
     try {
       if (process.platform === 'win32') {
         await expect(store.update({ ...before!, name: 'blocked' })).rejects.toMatchObject({
@@ -492,17 +496,9 @@ describe('native schedule publication and leases', () => {
     expect(await store.update({ ...current!, name: 'activated after release' })).toBe(true)
   })
   it('activates a new generation while an old state handle blocks retirement and retires it on the next mutation', async () => {
-    const directory = path.join(root, 'native-retirement')
-    const fs = createNodeScheduleFs(directory)
-    const store = createScheduleStore(fs)
-    const job = fakeSchedule()
-    await store.create(job)
-    const old = await scheduleStateFile(fs)
-    const release = await handle(path.join(directory, old), 'retirement')
+    const { fs, store, job, old, before, release } = await nativeFixture('native-retirement')
     try {
-      const [current] = await store.list(job.workspaceKey)
-      await fillJournal(directory, fs)
-      expect(await store.update({ ...current!, name: 'changed' })).toBe(true)
+      expect(await store.update({ ...before!, name: 'changed' })).toBe(true)
       expect(await scheduleStateFile(fs)).not.toBe(old)
       if (process.platform === 'win32') expect(await fs.read(old)).toBeDefined()
     } finally {

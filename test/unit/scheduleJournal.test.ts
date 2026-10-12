@@ -133,10 +133,14 @@ describe('bounded schedule generations', () => {
     for (let index = 0; index < 10; index += 1) await store.list(job.workspaceKey)
     const parse = vi.spyOn(JSON, 'parse')
     await store.list(job.workspaceKey)
-    // The fence pointer, its new delta and the post-commit pointer: no cached delta again.
+    // The fence pointer, its new delta and the post-commit pointer (the
+    // store's three), plus the lock's two: the previous fence head and the
+    // acquisition's own fence at its first guard sighting. The lock parses
+    // each distinct fence document once per acquisition no matter how often
+    // guards re-read it; no cached delta parses again.
     const calls = parse.mock.calls.length
     parse.mockRestore()
-    expect(calls).toBeLessThan(5)
+    expect(calls).toBeLessThan(6)
   })
   it.each(['read', 'unchanged transaction'] as const)(
     'refuses an in-flight stale commit after a %s takeover acquires a journal token',
@@ -415,9 +419,13 @@ describe('bounded schedule generations', () => {
       expect(deltas.length).toBeLessThanOrEqual(SCHEDULE_JOURNAL_MAX_OPS)
       expect(journalBytes).toBeLessThanOrEqual(SCHEDULE_JOURNAL_MAX_BYTES)
       expect(fs.bytes('workspace-1/index/')).toBeLessThan(SCHEDULE_JOURNAL_MAX_BYTES * 2)
-      // Three small identity/decision/settlement fences per fire, plus the
-      // bounded current state, journal and retained 100 audit records.
-      expect(fs.bytes()).toBeLessThan(run * 512 + SCHEDULE_JOURNAL_MAX_BYTES * 2)
+      // Five small identity fences per fire (one per lock acquisition on the
+      // admit, advance and record paths), ~150 bytes each, plus the bounded
+      // current state, journal and retained 100 audit records. The lease
+      // lifecycle publishes one fence per acquisition on the production port
+      // and its in-memory twin alike, so the twin carries the same linear
+      // audit trail; release markers hold no bytes.
+      expect(fs.bytes()).toBeLessThan(run * 800 + SCHEDULE_JOURNAL_MAX_BYTES * 2)
     }
     expect(await store.fires(job.workspaceKey)).toHaveLength(SCHEDULE_AUDIT_MAX_PER_SCHEDULE)
     expect(await store.claim(`${job.id}:1`)).toBe(false)

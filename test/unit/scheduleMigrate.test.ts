@@ -16,12 +16,13 @@ import { scheduleV1ToV2 } from '../../src/shared/scheduleV2'
 import { fakeV1Schedule } from './helpers/schedules/fixtures'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { removeFolder } from './helpers/temporaryFolders'
+import { fixtureBudget } from './helpers/fixtureBudget'
 import { MemoryScheduleFs } from './helpers/schedules/storage'
 
 const root = mkdtempSync(path.join(tmpdir(), 'muse-m115-migration-'))
 afterAll(() => removeFolder(root))
 
-async function fixture(name: string) {
+async function prepareFixture(name: string) {
   const directory = path.join(root, name, 'v1')
   const job = {
     ...fakeV1Schedule(),
@@ -37,6 +38,27 @@ async function fixture(name: string) {
   const store = createScheduleStore(createNodeScheduleFs(path.join(root, name, 'shared')))
   return { directory, job, old, store, source: createFileScheduleMigrationSource(directory) }
 }
+
+const fixture = fixtureBudget(
+  [
+    'raced-copy',
+    'later-jobs',
+    'atomic-receipt',
+    'wrong-id',
+    'unsafe-receipt',
+    'copy',
+    'verify',
+    'changed',
+    'crash-0',
+    'crash-1',
+    'crash-2',
+    'authority',
+    'invalid',
+    'seal-race',
+    'sealed-cleanup',
+  ],
+  prepareFixture,
+)
 
 describe('M115 verified M52 migration', () => {
   it('resumes a pending copy whose legacy reservation lacks migration metadata', async () => {

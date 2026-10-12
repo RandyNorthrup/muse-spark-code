@@ -6,9 +6,14 @@ import { mkdir, readdir, readFile, rename, rm, stat, writeFile } from 'node:fs/p
 import path from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import { describe, expect, it, vi } from 'vitest'
+import * as ts from 'typescript'
 import { codeUnitCompare, localFailureOf } from '../../src/core/reporting/sources/local'
+import type { ScheduleFsPort } from '../../src/core/schedules/journal'
 import { createScheduleStore, scheduleStorageHash } from '../../src/core/schedules/store'
-import { createSchedulesReportReader } from '../../src/runtime/reporting/playbookSchedulesInputs'
+import {
+  createSchedulesReportReader,
+  SCHEDULE_QUEUE_FAILURES,
+} from '../../src/runtime/reporting/playbookSchedulesInputs'
 import { createNodeScheduleFs } from '../../src/runtime/schedules/nodeScheduleFs'
 import * as nodeSchedules from '../../src/runtime/schedules/nodeScheduleFs'
 import { MemoryScheduleFs } from './helpers/schedules/storage'
@@ -16,7 +21,11 @@ import { schedulesSource } from '../../src/core/reporting/sources/schedules'
 import { scheduleTimePlan } from '../../src/runtime/schedules/timePlan'
 import { UI_TEXT, SCHEDULE_FS_RETRY_ATTEMPTS } from '../../src/shared/constants'
 import { fireFixture, sectionById } from './helpers/reporting/reportKindFixtures'
-import { scheduleV2Schema, scheduleFireRecordSchema } from '../../src/shared/scheduleV2'
+import {
+  scheduleV2Schema,
+  scheduleFireRecordSchema,
+  type ScheduleV2,
+} from '../../src/shared/scheduleV2'
 import { FIXTURE_WORKSPACE_KEY, scheduleFixture } from './helpers/reporting/reportKindFixtures'
 import { REPORT_FIXTURE_AS_OF, reportOptions } from './helpers/reporting/snapshot'
 import { removeFolder, temporaryDir } from './helpers/temporaryFolders'
@@ -53,6 +62,56 @@ function readerFor(storeRoot: string) {
   return createSchedulesReportReader({ storeRoot, workspaceKey: FIXTURE_WORKSPACE_KEY })
 }
 
+async function admitFirstFire(
+  store: ReturnType<typeof createScheduleStore>,
+  schedule: ScheduleV2,
+  runId: string,
+  occurrenceMs: number,
+): Promise<void> {
+  const intent = { schedule, runId, occurrenceMs, advancesTime: false }
+  expect(await store.admit(intent)).toBe(true)
+  expect(await store.advance(intent)).toBe(true)
+}
+
+async function holdProductionLease(root: string) {
+  await seedJob(root)
+  const holderFs = createNodeScheduleFs(root)
+  const entered = Promise.withResolvers<undefined>()
+  const release = Promise.withResolvers<undefined>()
+  const held = holderFs.lock(`${FIXTURE_WORKSPACE_KEY}/index`, async () => {
+    entered.resolve(undefined)
+    await release.promise
+  })
+  await entered.promise
+  return { release, held }
+}
+
+function spyReaderPort(readerFs: ScheduleFsPort) {
+  return {
+    read: vi.spyOn(readerFs, 'read'),
+    names: vi.spyOn(readerFs, 'names'),
+    publish: vi.spyOn(readerFs, 'publish'),
+    replace: vi.spyOn(readerFs, 'replace'),
+    remove: vi.spyOn(readerFs, 'remove'),
+    lock: vi.spyOn(readerFs, 'lock'),
+  }
+}
+
+async function holdMemoryLease() {
+  const fs = new MemoryScheduleFs()
+  const store = createScheduleStore(fs)
+  const job = scheduleV2Schema.parse(scheduleFixture(FIXTURE_WORKSPACE_KEY))
+  await store.create(job)
+  const release = Promise.withResolvers<undefined>()
+  const entered = Promise.withResolvers<undefined>()
+  const held = fs.lock(`${FIXTURE_WORKSPACE_KEY}/index`, () => {
+    entered.resolve(undefined)
+    return release.promise
+  })
+  await entered.promise
+  return { fs, store, job, release, held }
+}
+
 describe('schedules report reader failures', () => {
   it('reconciles a manual one-shot fire between schedule and history reads', async () => {
     const fs = new MemoryScheduleFs()
@@ -67,18 +126,12 @@ describe('schedules report reader failures', () => {
       const result = await originalLock(key, work)
       if (isInterleave) {
         isInterleave = false
-        const intent = {
-          schedule: job,
-          runId: `${job.id}:3000`,
-          occurrenceMs: 3000,
-          advancesTime: false,
-        }
-        expect(await store.admit(intent)).toBe(true)
-        expect(await store.advance(intent)).toBe(true)
+        const runId = `${job.id}:3000`
+        await admitFirstFire(store, job, runId, 3000)
         await store.record(
           scheduleFireRecordSchema.parse(
             fireFixture({
-              runId: intent.runId,
+              runId,
               occurrenceMs: 3000,
               observedAtMs: 3000,
               outcome: 'ran',
@@ -321,6 +374,27 @@ async function stateDocument(root: string) {
   return { file, doc, value: recordOf(value, 'state value'), revision }
 }
 
+async function journalOverflowFolder(root: string) {
+  await seedJob(root)
+  const pointer = recordOf(
+    JSON.parse(
+      await readFile(path.join(root, FIXTURE_WORKSPACE_KEY, 'index', 'current.json'), 'utf8'),
+    ),
+    'index/current.json',
+  )
+  const folder = path.join(root, FIXTURE_WORKSPACE_KEY, 'index', String(pointer['generation']))
+  const { revision } = await stateDocument(root)
+  return { folder, revision }
+}
+
+async function forgeJournalOverflow(root: string, changes: unknown) {
+  const { folder, revision } = await journalOverflowFolder(root)
+  await writeFile(
+    path.join(folder, `${String(revision + 1)}.json`),
+    JSON.stringify({ revision: revision + 1, changes }),
+  )
+}
+
 describe('schedules report contention waits', () => {
   // The production 5 s source deadline must elapse while a valid holder owns
   // the lease, so this needs longer than the repository default timeout.
@@ -329,24 +403,9 @@ describe('schedules report contention waits', () => {
     { timeout: 30_000 },
     async () => {
       await withSchedulesRoot('schedules-held-lease-', async (root) => {
-        await seedJob(root)
-        const holderFs = createNodeScheduleFs(root)
-        const entered = Promise.withResolvers<undefined>()
-        const release = Promise.withResolvers<undefined>()
-        const held = holderFs.lock(`${FIXTURE_WORKSPACE_KEY}/index`, async () => {
-          entered.resolve(undefined)
-          await release.promise
-        })
-        await entered.promise
+        const { release, held } = await holdProductionLease(root)
         const readerFs = createNodeScheduleFs(root)
-        const spies = {
-          read: vi.spyOn(readerFs, 'read'),
-          names: vi.spyOn(readerFs, 'names'),
-          publish: vi.spyOn(readerFs, 'publish'),
-          replace: vi.spyOn(readerFs, 'replace'),
-          remove: vi.spyOn(readerFs, 'remove'),
-          lock: vi.spyOn(readerFs, 'lock'),
-        }
+        const spies = spyReaderPort(readerFs)
         const createFs = vi.spyOn(nodeSchedules, 'createNodeScheduleFs').mockReturnValue(readerFs)
         try {
           // A valid writer holds the lease past the source deadline: the
@@ -379,15 +438,7 @@ describe('schedules report contention waits', () => {
   // afterwards serves a fresh read. Needs five production waits back to back.
   it('ends every refresh busy without accumulating readers', { timeout: 60_000 }, async () => {
     await withSchedulesRoot('schedules-refresh-', async (root) => {
-      await seedJob(root)
-      const holderFs = createNodeScheduleFs(root)
-      const entered = Promise.withResolvers<undefined>()
-      const release = Promise.withResolvers<undefined>()
-      const held = holderFs.lock(`${FIXTURE_WORKSPACE_KEY}/index`, async () => {
-        entered.resolve(undefined)
-        await release.promise
-      })
-      await entered.promise
+      const { release, held } = await holdProductionLease(root)
       try {
         // Heartbeat pulses belong to the holder's own lease, not to a
         // reader: filter them so the comparison sees only acquisitions.
@@ -418,20 +469,9 @@ describe('schedules report contention waits', () => {
     'stops a queued memory reader on its deadline with frozen calls',
     { timeout: 30_000 },
     async () => {
-      const fs = new MemoryScheduleFs()
-      const store = createScheduleStore(fs)
-      const job = scheduleV2Schema.parse(scheduleFixture(FIXTURE_WORKSPACE_KEY))
-      await store.create(job)
-      const release = Promise.withResolvers<undefined>()
-      const held = fs.lock(`${FIXTURE_WORKSPACE_KEY}/index`, () => release.promise)
-      const spies = {
-        read: vi.spyOn(fs, 'read'),
-        names: vi.spyOn(fs, 'names'),
-        publish: vi.spyOn(fs, 'publish'),
-        replace: vi.spyOn(fs, 'replace'),
-        remove: vi.spyOn(fs, 'remove'),
-        lock: vi.spyOn(fs, 'lock'),
-      }
+      const { fs, release, held } = await holdMemoryLease()
+      const readerFs = new MemoryScheduleFs(fs)
+      const spies = spyReaderPort(readerFs)
       const baseline = {
         read: spies.read.mock.calls.length,
         names: spies.names.mock.calls.length,
@@ -440,7 +480,7 @@ describe('schedules report contention waits', () => {
         remove: spies.remove.mock.calls.length,
         lock: spies.lock.mock.calls.length,
       }
-      const createFs = vi.spyOn(nodeSchedules, 'createNodeScheduleFs').mockReturnValue(fs)
+      const createFs = vi.spyOn(nodeSchedules, 'createNodeScheduleFs').mockReturnValue(readerFs)
       try {
         expect(await codeOf(() => readerFor('memory').read(freshContext()))).toBe('busy')
         // The single lock attempt waited out its deadline; no read, listing,
@@ -453,9 +493,9 @@ describe('schedules report contention waits', () => {
         expect(spies.remove.mock.calls.length).toBe(baseline.remove)
         release.resolve(undefined)
         await held
-        // The abandoned slot resolved with its predecessor instead of
-        // stranding the chain: the store serves reads again and keeps no
-        // live waiter. Reads here, while the twin is still bound.
+        // Check the abandoned tail before a reread can repair it.
+        await delay(0)
+        expect(fs.tails.size).toBe(0)
         const reread = await readerFor('memory').read(context())
         expect(reread.schedules).toHaveLength(1)
         expect(fs.tails.size).toBe(0)
@@ -467,17 +507,13 @@ describe('schedules report contention waits', () => {
   )
 
   it('still reports an explicit abort as cancelled, never busy', async () => {
-    const fs = new MemoryScheduleFs()
-    const store = createScheduleStore(fs)
-    const job = scheduleV2Schema.parse(scheduleFixture(FIXTURE_WORKSPACE_KEY))
-    await store.create(job)
-    const release = Promise.withResolvers<undefined>()
-    const held = fs.lock(`${FIXTURE_WORKSPACE_KEY}/index`, () => release.promise)
-    const publish = vi.spyOn(fs, 'publish')
-    const replace = vi.spyOn(fs, 'replace')
+    const { fs, release, held } = await holdMemoryLease()
+    const readerFs = new MemoryScheduleFs(fs)
+    const publish = vi.spyOn(readerFs, 'publish')
+    const replace = vi.spyOn(readerFs, 'replace')
     const published = publish.mock.calls.length
     const replaced = replace.mock.calls.length
-    const createFs = vi.spyOn(nodeSchedules, 'createNodeScheduleFs').mockReturnValue(fs)
+    const createFs = vi.spyOn(nodeSchedules, 'createNodeScheduleFs').mockReturnValue(readerFs)
     try {
       const controller = new AbortController()
       const pending = sourceFor('memory').read({ ...freshContext(), signal: controller.signal })
@@ -495,7 +531,11 @@ describe('schedules report contention waits', () => {
       if (!('value' in settled)) throw new Error('Expected the source to settle its record')
       expect(settled.value.record.status).toBe('unavailable')
       expect(settled.value.record.reason).toBe(UI_TEXT.reportSourceReasons.cancelled)
-      // The stopped wait published nothing afterwards.
+      // Freeze only after releasing/settling the holder, so an abandoned
+      // reader cannot resume unseen after these assertions.
+      release.resolve(undefined)
+      await held
+      await delay(100)
       expect(publish.mock.calls.length).toBe(published)
       expect(replace.mock.calls.length).toBe(replaced)
     } finally {
@@ -559,7 +599,7 @@ describe('schedules report lease identity words', () => {
       await seedJob(root)
       const fs = createNodeScheduleFs(root)
       const header = await firstFile(root, 'leaseFences')
-      const segment = path.dirname(header).replaceAll('\\', '/')
+      const segment = path.relative(root, path.dirname(header)).replaceAll('\\', '/')
       await fs.remove(path.relative(root, header))
       const through = fs.names.bind(fs)
       const names = vi.spyOn(fs, 'names')
@@ -578,6 +618,7 @@ describe('schedules report lease identity words', () => {
         // on; the retry observes the takeover and reads successfully.
         const read = await readerFor(root).read(context())
         expect(read.schedules).toHaveLength(1)
+        expect(isStale, 'the listed-then-vanished fault was injected').toBe(false)
       } finally {
         createFs.mockRestore()
       }
@@ -589,14 +630,7 @@ async function recordFire(root: string, scheduleId: string, runId: string) {
   const store = createScheduleStore(createNodeScheduleFs(root))
   const job = scheduleV2Schema.parse(scheduleFixture(FIXTURE_WORKSPACE_KEY, { id: scheduleId }))
   await store.create(job)
-  const intent = {
-    schedule: job,
-    runId,
-    occurrenceMs: 3000,
-    advancesTime: false,
-  }
-  expect(await store.admit(intent)).toBe(true)
-  expect(await store.advance(intent)).toBe(true)
+  await admitFirstFire(store, job, runId, 3000)
   await store.record(
     scheduleFireRecordSchema.parse(
       fireFixture({ runId, scheduleId, occurrenceMs: 3000, observedAtMs: 3000, outcome: 'ran' }),
@@ -652,56 +686,16 @@ describe('schedules report stored-word classification', () => {
     [
       'scheduleIndexDeltaInvalid',
       'invalid',
-      async (root: string) => {
-        await seedJob(root)
-        const pointer = recordOf(
-          JSON.parse(
-            await readFile(path.join(root, FIXTURE_WORKSPACE_KEY, 'index', 'current.json'), 'utf8'),
-          ),
-          'index/current.json',
-        )
-        const folder = path.join(
-          root,
-          FIXTURE_WORKSPACE_KEY,
-          'index',
-          String(pointer['generation']),
-        )
-        const { revision } = await stateDocument(root)
-        await writeFile(
-          path.join(folder, `${String(revision + 1)}.json`),
-          JSON.stringify({
-            revision: revision + 1,
-            changes: [{ collection: 'no-such-collection', key: 'x', value: 1 }],
-          }),
-        )
-      },
+      (root: string) =>
+        forgeJournalOverflow(root, [{ collection: 'no-such-collection', key: 'x', value: 1 }]),
     ],
     [
       'scheduleJournalLimitExceeded',
       'invalid',
-      async (root: string) => {
-        await seedJob(root)
-        const pointer = recordOf(
-          JSON.parse(
-            await readFile(path.join(root, FIXTURE_WORKSPACE_KEY, 'index', 'current.json'), 'utf8'),
-          ),
-          'index/current.json',
-        )
-        const folder = path.join(
-          root,
-          FIXTURE_WORKSPACE_KEY,
-          'index',
-          String(pointer['generation']),
-        )
-        const { revision } = await stateDocument(root)
-        await writeFile(
-          path.join(folder, `${String(revision + 1)}.json`),
-          JSON.stringify({
-            revision: revision + 1,
-            changes: [{ collection: 'pending', key: 'pad', value: 'x'.repeat(300 * 1024) }],
-          }),
-        )
-      },
+      (root: string) =>
+        forgeJournalOverflow(root, [
+          { collection: 'pending', key: 'pad', value: 'x'.repeat(300 * 1024) },
+        ]),
     ],
     [
       '$ZodError',
@@ -739,4 +733,59 @@ describe('schedules report stored-word classification', () => {
       expect(await codeOf(() => readerFor(root).read(context()))).toBe(expected)
     })
   })
+})
+
+describe('queue vocabulary coverage', () => {
+  it('covers the source union and every emitted queue word exactly once', async () => {
+    const file = path.resolve('src/runtime/schedules/nodeScheduleFs.ts')
+    const source = await readFile(file, 'utf8')
+    const tree = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true)
+    const declared = new Set<string>()
+    const emitted = new Set<string>()
+    const visit = (node: ts.Node) => {
+      if (
+        ts.isTypeAliasDeclaration(node) &&
+        node.name.text === 'ScheduleQueueFailure' &&
+        ts.isUnionTypeNode(node.type)
+      ) {
+        for (const member of node.type.types)
+          if (ts.isLiteralTypeNode(member) && ts.isStringLiteral(member.literal))
+            declared.add(member.literal.text)
+      }
+      if (
+        (ts.isNewExpression(node) && node.expression.getText(tree) === 'Error') ||
+        (ts.isCallExpression(node) && node.expression.getText(tree) === 'scheduleQueueFailure')
+      ) {
+        const word = node.arguments?.[0]
+        if (word !== undefined && ts.isStringLiteral(word) && word.text.startsWith('schedule'))
+          emitted.add(word.text)
+      }
+      ts.forEachChild(node, visit)
+    }
+    visit(tree)
+    expect(declared.size).toBeGreaterThan(0)
+    expect([...declared].toSorted(codeUnitCompare)).toEqual(
+      Object.keys(SCHEDULE_QUEUE_FAILURES).toSorted(codeUnitCompare),
+    )
+    expect([...emitted].toSorted(codeUnitCompare)).toEqual([...declared].toSorted(codeUnitCompare))
+  })
+
+  it.each(Object.entries(SCHEDULE_QUEUE_FAILURES))(
+    'classifies %s as %s',
+    async (word, classification) => {
+      const fs = new MemoryScheduleFs()
+      const lock = vi.spyOn(fs, 'lock').mockRejectedValue(new Error(word))
+      const factory = vi.spyOn(nodeSchedules, 'createNodeScheduleFs').mockReturnValue(fs)
+      try {
+        expect(await codeOf(() => readerFor('memory').read(context()))).toBe(
+          classification === 'retry' ? 'busy' : classification,
+        )
+        expect(lock).toHaveBeenCalledTimes(
+          classification === 'retry' ? SCHEDULE_FS_RETRY_ATTEMPTS : 1,
+        )
+      } finally {
+        factory.mockRestore()
+      }
+    },
+  )
 })
