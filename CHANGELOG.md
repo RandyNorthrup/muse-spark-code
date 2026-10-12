@@ -40,6 +40,8 @@ happened, not what was planned; superseded entries are kept.
 - Command `--help` stays within that command’s own usage and options.
 - An invalid usage-history settings file pauses recording with a specific repair
   warning instead of the generic write warning on every run.
+- `estimate --help` lists its deadline and export formats from the route’s own
+  reference words instead of the shared flag placeholders.
 
 - Provider and headless Meta requests reserve their actual conservative input
   and output cap instead of a full context window. Budget refusals show the

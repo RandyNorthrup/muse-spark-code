@@ -312,7 +312,12 @@ export function formatCommandHelp(table: UiText, command: string, route: string)
   }
   if (definition !== undefined) {
     for (const [flag, option] of Object.entries(definition.options)) {
-      const key = Object.entries(CLI_OPTION_TEXT).find(([option]) => option === flag)?.[1]
+      // A route's own option words (estimate's deadline and export formats)
+      // win over the shared flag text, matching the generated reference.
+      const key =
+        ('text' in definition
+          ? Object.entries(definition.text).find(([name]) => name === flag)?.[1]
+          : undefined) ?? Object.entries(CLI_OPTION_TEXT).find(([option]) => option === flag)?.[1]
       if (key === undefined) {
         lines.push(`--${flag}`)
       } else {

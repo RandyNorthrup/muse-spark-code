@@ -809,8 +809,8 @@ JSON runs show request progress on stderr and return a redacted partial answer
 when stopped, with `finalMessageComplete: false` and the incurred or uncertain
 cost. Structured output still requires validation.
 
-Deep commands have local help, such as `providers accounts thresholds --help`,
-`schedule background status --help` and `report usage --help`. The full command,
+Deep commands have local help, such as `developer status --help`,
+`playbook status --help` and `report usage --help`. The full command,
 setting and feature catalogue is available through `help reference`.
 
 installed-editor and live provider certification are still open. MiniMax
