@@ -816,26 +816,39 @@ describe('configured provider production transport', () => {
       // RVDSTHINK finding 3: no generic unavailable error, no dispatch.
       const { services, sent } = await deepseekFixture(THINKING_LOCKED)
       const model = await services.registry.resolve(DEEPSEEK_REF)
-      for (const [effort, reason] of [
-        ['none', UI_TEXT.chatCodecThinkingOffUnsupported],
-        ['ultra', UI_TEXT.chatCodecEffortUnsupported],
-      ] as const) {
-        let failure: unknown
-        try {
-          await consume(
-            model.client.streamResponse(
-              { ...body(), model: DEEPSEEK_REF, reasoning: { effort } },
-              new AbortController().signal,
-            ),
-          )
-        } catch (error) {
-          failure = error
-        }
-        expect(failure).toBeInstanceOf(Error)
-        expect((failure as Error).name).toBe('ChatCodecError')
-        expect((failure as Error).message).toBe(`${reason} (unsupported_reasoning_effort)`)
+      let failure: unknown
+      try {
+        await consume(
+          model.client.streamResponse(
+            { ...body(), model: DEEPSEEK_REF, reasoning: { effort: 'none' } },
+            new AbortController().signal,
+          ),
+        )
+      } catch (error) {
+        failure = error
       }
+      expect(failure).toBeInstanceOf(Error)
+      expect((failure as Error).name).toBe('ChatCodecError')
+      expect((failure as Error).message).toBe(
+        `${UI_TEXT.chatCodecThinkingOffUnsupported} (unsupported_reasoning_effort)`,
+      )
       expect(sent).toHaveLength(0)
+    })
+
+    it('maps ultra to max on DeepSeek instead of refusing (DS-G01)', async () => {
+      // DeepSeek's thinking-mode effort table maps ultra to max
+      // (`guides/thinking_mode`, read 2026-10-12): the value rides as
+      // named from there, never refused.
+      const { services, sent } = await deepseekFixture()
+      const model = await services.registry.resolve(DEEPSEEK_REF)
+      await consume(
+        model.client.streamResponse(
+          { ...body(), model: DEEPSEEK_REF, reasoning: { effort: 'ultra' } },
+          new AbortController().signal,
+        ),
+      )
+      expect(sent).toHaveLength(1)
+      expect(sent[0]).toMatchObject({ reasoning_effort: 'max' })
     })
 
     it('keeps a short Haiku reply at the default effort working as before', async () => {

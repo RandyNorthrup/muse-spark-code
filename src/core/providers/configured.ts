@@ -436,15 +436,24 @@ export function createConfiguredProviderServices(
       for (const nativeModel of entry.models) {
         const ref = `${entry.id}/${nativeModel}`
         const native = catalogue.providers[preset.id.replace('-plan', '')]?.models[nativeModel]
-        const evidence =
-          native === undefined
-            ? []
-            : [
-                modelMetadata.nativeCapabilityEvidence(preset.id, native, {
-                  kind: 'catalogue',
-                  ref: options.catalogFile,
-                }),
-              ]
+        // Dated provider-documentation facts the snapshot lacks (lane
+        // REASONSHAPES): `preset`-kind evidence, shadowing the pinned
+        // catalogue where it speaks and losing to the live list, a
+        // capture and the user's overrides (capabilityRecord PRIORITY).
+        const documented = (preset.reasoningFacts ?? []).filter(
+          (fact) => fact.modelId === nativeModel,
+        )
+        const evidence: capabilities.CapabilityEvidence[] = documented.map((fact) => ({
+          source: { kind: 'preset', ref: `${fact.docUrl} (read ${fact.readOn})` },
+          fields: fact.fields,
+        }))
+        if (native !== undefined)
+          evidence.push(
+            modelMetadata.nativeCapabilityEvidence(preset.id, native, {
+              kind: 'catalogue',
+              ref: options.catalogFile,
+            }),
+          )
         const overrides = entry.modelCapabilities?.[nativeModel]
         if (overrides !== undefined)
           evidence.push({ source: { kind: 'user', ref }, fields: overrides })
@@ -492,6 +501,8 @@ export function createConfiguredProviderServices(
             ),
             canDisableReasoning: record.reasoning.canDisable.state === 'yes',
             thinkingOff: preset.quirks.thinkingOff,
+            effortAliases: preset.quirks.effortAliases,
+            ...(preset.quirks.sendUndeclaredEffort === true && { sendUndeclaredEffort: true }),
           },
           pricing,
           displayLabel: typeof native?.['name'] === 'string' ? native['name'] : nativeModel,
@@ -517,8 +528,23 @@ export function createConfiguredProviderServices(
     if (record.reasoning.effortLevels.state === 'yes')
       reasoningParam = preset.id === 'openrouter' ? 'effort-object' : 'effort-flat'
     let replayField: chat.ChatPresetQuirks['replayField'] = 'none'
-    if (preset.quirks.reasoningField === 'reasoning_details') replayField = 'details'
-    else if (preset.quirks.reasoningField === 'reasoning_content') replayField = 'content'
+    switch (preset.quirks.reasoningField) {
+      case 'reasoning_details': {
+        replayField = 'details'
+        break
+      }
+      case 'reasoning_content': {
+        replayField = 'content'
+        break
+      }
+      case 'content-list': {
+        {
+          replayField = 'chunks'
+          // No default
+        }
+        break
+      }
+    }
     const quirks: chat.ChatPresetQuirks = {
       presetId: preset.id.replace('-plan', ''),
       providerId: entry.id,
@@ -536,7 +562,23 @@ export function createConfiguredProviderServices(
             ? record.reasoning.effortLevels.value
             : undefined,
         canDisable: record.reasoning.canDisable.state === 'yes',
+        ...(preset.quirks.effortAliases !== undefined && {
+          effortAliases: preset.quirks.effortAliases,
+        }),
       }),
+      // Groq's presentation rides only where the record affirms reasoning.
+      ...(preset.quirks.reasoningFormat !== undefined &&
+        record.reasoning.supported.state === 'yes' && {
+          reasoningFormat: preset.quirks.reasoningFormat,
+        }),
+      ...(preset.quirks.sendUndeclaredEffort === true && { sendUndeclaredEffort: true }),
+      // OpenRouter's `supported_parameters` enforcement: a model the
+      // record refuses tools keeps its turn though never its tools.
+      ...(record.tools.calling.state === 'no' && { sendTools: false }),
+      ...(record.output.formats.state === 'yes' && {
+        outputFormats: record.output.formats.value,
+      }),
+      ...(preset.quirks.thinkingPreserved === true && { thinkingPreserved: true }),
       sendCacheKey: record.cache.acceptsKey,
       includeUsage: true,
       toolStream: preset.id === 'zai',

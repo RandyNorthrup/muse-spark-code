@@ -323,6 +323,47 @@ describe('normalized capability record', () => {
     expect(resolved.sources['limits.inputTokens']).toEqual({ kind: 'models-list', ref: 'list' })
     expect(capabilityEffortLevels(resolved)).toEqual(['low', 'high'])
   })
+  it('lets dated preset facts shadow the pinned catalogue, never the live list or the user', () => {
+    // Lane REASONSHAPES: documented per-model facts beat the stale
+    // snapshot; fresher evidence still wins.
+    const catalogue: CapabilityEvidence = {
+      source: { kind: 'catalogue', ref: 'snapshot' },
+      fields: { reasoning: { effortLevels: yes(['high', 'max']) } },
+    }
+    const documented: CapabilityEvidence = {
+      source: { kind: 'preset', ref: 'https://docs.z.ai/guides/capabilities/thinking' },
+      fields: {
+        reasoning: {
+          effortLevels: yes(['minimal', 'low', 'medium', 'high', 'xhigh', 'max']),
+          canDisable: yes(true),
+        },
+      },
+    }
+    const shadowed = resolveModelCapabilities(identity, [catalogue, documented])
+    expect(capabilityEffortLevels(shadowed)).toEqual([
+      'minimal',
+      'low',
+      'medium',
+      'high',
+      'xhigh',
+      'max',
+    ])
+    const live: CapabilityEvidence = {
+      source: { kind: 'models-list', ref: 'list' },
+      fields: { reasoning: { effortLevels: yes(['low', 'high']) } },
+    }
+    expect(capabilityEffortLevels(resolveModelCapabilities(identity, [live, documented]))).toEqual([
+      'low',
+      'high',
+    ])
+    const user: CapabilityEvidence = {
+      source,
+      fields: { reasoning: { effortLevels: yes(['max']) } },
+    }
+    expect(capabilityEffortLevels(resolveModelCapabilities(identity, [user, documented]))).toEqual([
+      'max',
+    ])
+  })
   it('honors explicit negative reasoning overrides across the legacy view', () => {
     const capture: CapabilityEvidence = {
       source: { kind: 'capture' },

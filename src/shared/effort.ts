@@ -76,19 +76,26 @@ export interface ReasoningControl {
    * none is declared and the codec keeps owning effort `none` exactly as
    * before this resolver, so those requests stay byte-identical.
    */
-  readonly thinkingOff: 'thinking-switch' | undefined
+  readonly thinkingOff: 'thinking-switch' | 'reasoning-enabled' | undefined
+  /**
+   * The preset's documented requested-to-canonical effort map (DeepSeek's
+   * thinking-mode table), applied before matching. Absent maps nothing.
+   */
+  readonly effortAliases?: Readonly<Record<string, string>> | undefined
 }
 
 const REFUSED: ReasoningDecision = { kind: 'refuse', code: 'unsupported_reasoning_effort' }
 
 /**
- * The one mapping from a requested setting to a model's request. With a
- * declared switch: off only where the record affirms `canDisable`, an
- * unlisted on-level moves to the nearest listed on-level (a tie takes the
- * higher), never to off; no listed on-level sends nothing. Without one, a
- * listed level rides as named and anything else is the codec's `none`.
+ * The one mapping from a requested setting to a model's request. A
+ * documented alias maps first (one hop); with a declared switch: off only
+ * where the record affirms `canDisable`, an unlisted on-level moves to the
+ * nearest listed on-level (a tie takes the higher), never to off; no listed
+ * on-level sends nothing. Without one, a listed level rides as named and
+ * anything else is the codec's `none`.
  */
-export function resolveReasoning(model: ReasoningControl, requested: string): ReasoningDecision {
+export function resolveReasoning(model: ReasoningControl, unaliased: string): ReasoningDecision {
+  const requested = model.effortAliases?.[unaliased] ?? unaliased
   const listed = model.effortLevels ?? []
   if (model.thinkingOff === undefined) {
     if (listed.includes(requested)) return { kind: 'effort', effort: requested }

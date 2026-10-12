@@ -13,6 +13,7 @@
 import { ZAI_KEY_PATTERN } from '../../shared/constants'
 import { fill, UI_TEXT } from '../../shared/l10n/text'
 import { RETRY_TABLES, type RetryTables } from '../../shared/retryPolicy'
+import type { CapabilityOverrides } from './capabilityRecord'
 import type { CustomCompat, ProviderFormat } from './providersFile'
 
 /** The panel's filter chips (D74): Cloud, On this computer, Aggregator. */
@@ -147,10 +148,39 @@ export interface FormatQuirks {
    * How the preset expresses reasoning effort `none` (Thinking off) on
    * the wire. DeepSeek's thinking-mode switch (`thinking: {type:
    * "disabled"}`, research D2 `guides/thinking_mode` and the lead's
-   * L98P2 live capture) is the only declared form. Absent keeps the
-   * preset's existing bytes.
+   * L98P2 live capture) and Together's hybrid toggle (`reasoning:
+   * {enabled: false}`, `docs/inference/chat/reasoning` read 2026-10-12)
+   * are the declared forms. Absent keeps the preset's existing bytes.
    */
-  readonly thinkingOff?: 'thinking-switch' | undefined
+  readonly thinkingOff?: 'thinking-switch' | 'reasoning-enabled' | undefined
+  /**
+   * The preset's documented requested-to-canonical effort map, applied
+   * before the shared resolver matches (DeepSeek's thinking-mode table:
+   * minimal/low, medium/high, xhigh/high, ultra/max). Absent maps nothing.
+   */
+  readonly effortAliases?: Readonly<Record<string, string>> | undefined
+  /**
+   * The preset's documented reasoning presentation parameter (Groq's
+   * `reasoning_format`, read 2026-10-12): `parsed` keeps reasoning in its
+   * dedicated field, which tool calling and JSON mode require. Absent
+   * sends nothing.
+   */
+  readonly reasoningFormat?: 'parsed' | 'raw' | 'hidden' | undefined
+  /**
+   * The preset documents its effort vocabulary for every model, routed
+   * server-side (llama.cpp's `reasoning_effort`, where `none` disables
+   * and any other value reaches the chat template). Set, the codec sends
+   * the body's effort as named even when the record declares no levels.
+   * Absent keeps unknown models silent.
+   */
+  readonly sendUndeclaredEffort?: boolean | undefined
+  /**
+   * The preset opts into preserved thinking (Z.ai's `clear_thinking:
+   * false`, `guides/capabilities/thinking-mode` read 2026-10-12): sent
+   * where the turn replays reasoning and thinking is not off. Absent
+   * keeps the default (Coding Plan on, standard endpoint off).
+   */
+  readonly thinkingPreserved?: boolean | undefined
 }
 
 /** The five formats' defaults; presets override per provider. */
@@ -252,8 +282,29 @@ export interface ProviderPreset {
   readonly keyTest: KeyTest
   readonly modelsList: ModelsListSpec
   readonly quirks: Partial<FormatQuirks>
+  /**
+   * Doc-cited per-model reasoning facts the pinned catalogue snapshot
+   * lacks, keyed by exact native model id (never a prefix): Z.ai's
+   * glm-5.2 effort names and Thinking-off toggle, Together's hybrid
+   * toggle on MiniMax M3. Each entry names the provider page and the day
+   * it was read; re-check every entry on each catalogue sync, and prefer
+   * the catalogue the moment it carries the fact. Empty everywhere else.
+   */
+  readonly reasoningFacts?: readonly PresetReasoningFacts[] | undefined
   /** The preset's own wire capture is recorded (rule 13). */
   readonly wireCapture: boolean
+}
+
+/** One documented per-model reasoning patch (see `reasoningFacts`). */
+export interface PresetReasoningFacts {
+  /** The exact native model id this patch applies to. */
+  readonly modelId: string
+  /** The provider documentation address the patch quotes. */
+  readonly docUrl: string
+  /** The day the page was read, `YYYY-MM-DD`. */
+  readonly readOn: string
+  /** The record patch, applied as `preset`-kind evidence. */
+  readonly fields: CapabilityOverrides
 }
 
 /** A preset's effective quirks: its format's defaults plus its overrides. */
@@ -479,6 +530,10 @@ const GROQ_PRESET: ProviderPreset = {
   quirks: {
     outputCapParam: 'max_completion_tokens',
     cachedUsageFields: [],
+    // `reasoning_format` (`console.groq.com/docs/reasoning`, read
+    // 2026-10-12): `parsed` keeps reasoning in its dedicated field, which
+    // tool calling and JSON mode require. Never beside `include_reasoning`.
+    reasoningFormat: 'parsed',
   },
   wireCapture: true,
 }
@@ -508,6 +563,9 @@ const DEEPSEEK_PRESET: ProviderPreset = {
     // (`vendor/models-dev/snapshot.json`): Thinking off is the documented
     // thinking-mode switch, never `reasoning_effort: "none"`.
     thinkingOff: 'thinking-switch',
+    // The thinking-mode effort table (`guides/thinking_mode`, read
+    // 2026-10-12): minimal/low, medium/high, xhigh/high, ultra/max.
+    effortAliases: { minimal: 'low', medium: 'high', xhigh: 'high', ultra: 'max' },
   },
   wireCapture: true,
 }
@@ -601,7 +659,24 @@ const TOGETHER_PRESET: ProviderPreset = {
     outputCapParam: 'max_tokens',
     sendsParallelToolCalls: false,
     cachedUsageFields: ['prompt_tokens_details.cached_tokens'],
+    // Hybrid models toggle with `reasoning: {enabled: false}`
+    // (`docs/inference/chat/reasoning`, read 2026-10-12).
+    thinkingOff: 'reasoning-enabled',
   },
+  // MiniMax M3 is a hybrid model (on by default) though the pinned
+  // catalogue carries no `toggle` for it (TO-G01).
+  reasoningFacts: [
+    {
+      modelId: 'MiniMaxAI/MiniMax-M3',
+      docUrl: 'https://docs.together.ai/docs/inference/chat/reasoning',
+      readOn: '2026-10-12',
+      fields: {
+        reasoning: {
+          canDisable: { state: 'yes', value: true },
+        },
+      },
+    },
+  ],
   wireCapture: true,
 }
 
@@ -681,7 +756,32 @@ const ZAI_PRESET: ProviderPreset = {
   quirks: {
     reasoningField: 'reasoning_content',
     cachedUsageFields: ['prompt_tokens_details.cached_tokens'],
+    // `thinking: {type: "enabled"/"disabled"}` (`guides/capabilities/thinking`,
+    // read 2026-10-12). Only GLM-5.3 refuses `disabled`; the record says
+    // which models affirm it (ZAI-G01).
+    thinkingOff: 'thinking-switch',
+    // Preserved thinking (`thinking-mode`, read 2026-10-12): our turns
+    // always replay their reasoning, so keeping it pays (ZAI-G04).
+    thinkingPreserved: true,
   },
+  // GLM-5.2's documented effort names and Thinking-off toggle, which the
+  // pinned catalogue lacks (ZAI-G01, ZAI-G02).
+  reasoningFacts: [
+    {
+      modelId: 'glm-5.2',
+      docUrl: 'https://docs.z.ai/guides/capabilities/thinking',
+      readOn: '2026-10-12',
+      fields: {
+        reasoning: {
+          effortLevels: {
+            state: 'yes',
+            value: ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'],
+          },
+          canDisable: { state: 'yes', value: true },
+        },
+      },
+    },
+  ],
   wireCapture: true,
 }
 
@@ -773,6 +873,9 @@ const LLAMACPP_PRESET: ProviderPreset = {
     sendsParallelToolCalls: false,
     reasoningField: 'reasoning_content',
     cachedUsageFields: ['prompt_tokens_details.cached_tokens'],
+    // The server documents `reasoning_effort` for every model, routed to
+    // the chat template (`tools/server/README.md`, read 2026-10-12).
+    sendUndeclaredEffort: true,
   },
   wireCapture: false,
 }
