@@ -319,3 +319,22 @@ waits at most SCHEDULE_CLOSE_RESULT_WAIT_MS (1,000 ms) for cooperative host
 withdrawal/cost facts and journals the validated result as known. A hanging host
 still ends uncertain within that bound; admitted work behind it remains untouched.
 The focused close/binding run passed 14/14 at repository case deadlines.
+
+## RVSCHEDJOIN P2 — one ledger across host families
+
+Confirmed the production directory split by reading both roots. The window's
+paid budget and Account & usage view now use agentDataFolder/paid-daily, exactly
+the runtime's root. Two real processes use the production window/runtime budget
+factories: USD 0.60 admitted by the window prevents another USD 0.60 under either
+a USD 1 schedule cap or USD 1 shared cap in the agent. Both cases pass.
+
+Before the window admits into the common ledger it carries old global-storage
+spend and held amounts under the existing cross-process reservation lock, using
+one deterministic claim identity per source/day. Repeated windows cannot double
+import it; an interrupted import remains fail closed. Old bytes stay untouched.
+Carried liability is conservative until the day resets: refunds in the retired
+source do not decrease that carry. A source's stopped-day marker remains stopped.
+The real-disk regression imports into an already-open common day and proves
+repeat reads, held amounts and admission still count once. Removing the import
+fires the regression; restoration matches SHA-256 byte for byte. The family,
+schedule-paid and journal run passed 80/80; migration/family replay passed 4/4.

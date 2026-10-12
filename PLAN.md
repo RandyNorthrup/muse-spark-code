@@ -31809,7 +31809,10 @@ Total: about 165 lane-hours: the panel's part (0, A, P1, P2, C, F, S) about
 repairs. Keep the delivery certification switch false. The 18:00 lead addendum
 authorizes RVSCHEDJOIN repairs: close settles only this process's owned fires;
 unhanded admissions survive close; known withdrawal results release liability;
-all host families share both daily ledgers. Confirm the three unrun drills,
+all host families share both daily ledgers. Carry the window's previous daily
+spend and held liability into the common journal idempotently before admission;
+preserve its stopped-day guard and leave historical source bytes untouched.
+Confirm the three unrun drills,
 strengthen the settlement matrix and cause-specific translated reasons, and
 match every walk-back item to one restoration switch. Record the broken
 historical merge without rewriting it. Qualify migration against the join base, complete the exact
