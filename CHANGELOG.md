@@ -9,6 +9,14 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **Schedules report waits end busy and name corruption invalid** (CM1134AR5).
+  A source read that is cancelled or times out stops instead of publishing late:
+  the reader passes its signal and deadline to the lock acquisition, which
+  checks them on every turn and before every write. A lease held by a valid
+  writer past the wait reports Host busy, and repeated refreshes accumulate no
+  readers. A fence header that contradicts its file name reports invalid at
+  once instead of retrying as busy.
+
 - **Playbook and schedules reports reflect current state and their request language** (CM1134AR4).
   Disabled rules replay the latest settings per team, with current actor, reason
   and date. Schedule reports reconcile revisions around fire history, omit fired
