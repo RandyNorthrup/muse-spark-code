@@ -45,6 +45,13 @@ if (mode === 'nativeProbeFailure') {
       process.exitCode = 125
       break
     }
+    case 'killedAfterJson': {
+      // A started program's own stderr line that looks like a helper verdict,
+      // then death by signal: the runner must never read it as the verdict.
+      process.stderr.write('{"refused":"operand"}\n')
+      process.kill(process.pid, 'SIGABRT')
+      break
+    }
     default: {
       process.stdout.write('ordinary output')
       process.exitCode = 1
