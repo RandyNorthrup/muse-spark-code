@@ -42,7 +42,12 @@ import type {
   EvalTaskResult,
 } from './report'
 import { EVAL_TASKS, evalWindowTokens, type EvalTask } from './tasks'
-import { freezeEvalHarness, type FrozenEvalHarness, frozenBundleChange } from './mechanisms'
+import {
+  EVAL_ARMS,
+  freezeEvalHarness,
+  type FrozenEvalHarness,
+  frozenBundleChange,
+} from './mechanisms'
 import type { ArmBundle } from './armSources'
 import {
   createEvalWire,
@@ -315,6 +320,17 @@ function floorFor(split: EvalSplit): number {
   return split === 'accept' ? EVAL_FLOOR_ACCEPT_PASS_RATE : EVAL_FLOOR_HELDOUT_PASS_RATE
 }
 
+/**
+ * The frozen full arm set, by name: a run that covered anything else (a
+ * missing arm, an extra arm) decided nothing, whatever its floors say.
+ */
+function isFrozenArmSet(arms: readonly EvalArm[]): boolean {
+  return (
+    arms.length === EVAL_ARMS.length &&
+    EVAL_ARMS.every((expected) => arms.some((arm) => arm.name === expected.name))
+  )
+}
+
 function verdictOf(
   floors: readonly EvalFloorResult[],
   incompleteReasons: readonly string[],
@@ -451,6 +467,9 @@ export async function runPairedEval(
     incompleteReasons.push('narrowed selection')
   }
   if (floors.some((floor) => floor.tasks === 0)) incompleteReasons.push('empty split')
+  if (!isFrozenArmSet(arms)) incompleteReasons.push('arm set differs from the frozen arms')
+  if (frozen.bundles.size !== arms.length)
+    incompleteReasons.push('bundle count differs from the arm count')
   return {
     version: EVAL_REPORT_VERSION,
     model: EVAL_MODEL_ID,
