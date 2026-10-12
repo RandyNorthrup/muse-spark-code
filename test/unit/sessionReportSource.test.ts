@@ -376,9 +376,13 @@ describe('session, registry and shared report adapters', () => {
     expect(first.record.freshness).toEqual({ state: 'fresh', ageMs: 1000 })
     questions.reverse()
     expect(await questionsSource(reader, scrub).read(context())).toEqual(first)
+    // RVREPORTJOIN P2-1: a repeated id keeps its first row; the later copy
+    // is a named problem beside the good rows, never a lost registry.
     questions.push(questions[0]!)
     const observed4 = await questionsSource(reader, scrub).read(context())
-    expect(observed4.record.status).toBe('unavailable')
+    expect(observed4.record.status).toBe('partial')
+    expect(observed4.data?.map((row) => row.id)).toEqual(['a', 'b'])
+    expect(observed4.record.reason).toContain(EN.reportSourceReasons.invalid)
   })
   it('computes keys consistently for Windows separators and casing', () => {
     expect(() => reportWorkspaceKey('relative', 'win32')).toThrow()

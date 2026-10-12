@@ -99,36 +99,57 @@ function parseUsage(
   agent: AgentUsageAgent,
   text: string,
   asOf: string,
-): { usage: UsageFacts; observedAt: string } {
+): { usage: UsageFacts; observedAt: string; invalidLines: number } {
   let usage = emptyUsage()
   let observedAt: string | undefined
+  let invalidLines = 0
   const messages = new Map<string, z.infer<typeof claudeUsage>>()
   const codexEvents: z.infer<typeof codexUsage>[] = []
+  // Each line parses on its own: one malformed line is counted damage
+  // beside the good rows, never a lost file (RVREPORTJOIN P2-1). Lines of
+  // another type are not usage records and stay silently skipped.
   for (const line of text.split(/\r?\n/u)) {
     if (line === '') continue
-    const raw: unknown = JSON.parse(line)
-    const type = envelope.parse(raw).type
-    if (agent === 'claudeCode' && type === 'assistant') {
-      const entry = claudeUsage.parse(raw)
-      entry.timestamp = new Date(entry.timestamp).toISOString()
-      const previous = messages.get(entry.message.id)
-      if (
-        Date.parse(entry.timestamp) <= Date.parse(asOf) &&
-        (previous === undefined ||
-          codeUnitCompare(
-            `${entry.timestamp}/${JSON.stringify(entry.message)}`,
-            `${previous.timestamp}/${JSON.stringify(previous.message)}`,
-          ) > 0)
-      )
-        messages.set(entry.message.id, entry)
-    } else if (
-      agent === 'codex' &&
-      type === 'event_msg' &&
-      tokenEvent.parse(raw).payload.type === 'token_count'
-    ) {
-      const entry = codexUsage.parse(raw)
-      entry.timestamp = new Date(entry.timestamp).toISOString()
-      if (Date.parse(entry.timestamp) <= Date.parse(asOf)) codexEvents.push(entry)
+    let raw: unknown
+    try {
+      raw = JSON.parse(line)
+    } catch {
+      invalidLines += 1
+      continue
+    }
+    let type: string
+    try {
+      type = envelope.parse(raw).type
+    } catch {
+      invalidLines += 1
+      continue
+    }
+    try {
+      if (agent === 'claudeCode' && type === 'assistant') {
+        const entry = claudeUsage.parse(raw)
+        entry.timestamp = new Date(entry.timestamp).toISOString()
+        const previous = messages.get(entry.message.id)
+        if (
+          Date.parse(entry.timestamp) <= Date.parse(asOf) &&
+          (previous === undefined ||
+            codeUnitCompare(
+              `${entry.timestamp}/${JSON.stringify(entry.message)}`,
+              `${previous.timestamp}/${JSON.stringify(previous.message)}`,
+            ) > 0)
+        )
+          messages.set(entry.message.id, entry)
+      } else if (
+        agent === 'codex' &&
+        type === 'event_msg' &&
+        tokenEvent.parse(raw).payload.type === 'token_count'
+      ) {
+        const entry = codexUsage.parse(raw)
+        entry.timestamp = new Date(entry.timestamp).toISOString()
+        if (Date.parse(entry.timestamp) <= Date.parse(asOf)) codexEvents.push(entry)
+      }
+    } catch {
+      invalidLines += 1
+      continue
     }
     if (messages.size > REPORT_MAX_ROWS || codexEvents.length > REPORT_MAX_ROWS)
       throw new LocalSourceError('limit')
@@ -212,7 +233,7 @@ function parseUsage(
     }
   }
   if (observedAt === undefined) throw new LocalSourceError('missing')
-  return { usage, observedAt }
+  return { usage, observedAt, invalidLines }
 }
 export function agentUsageSource(
   enabled: readonly AgentUsageAgent[],
@@ -246,12 +267,14 @@ export function agentUsageSource(
           await file.io.read(file.file.replaceAll('\\', '/'), signal),
           asOf,
         )
+        const scrubbed = scrubUsage(reportText, parsed.usage, scrub)
+        if (parsed.invalidLines > 0 || scrubbed.problems.length > 0) failures.push('invalid')
         rows.push({
           agent: file.agent,
           file: scrub(
             `~/${file.agent === 'codex' ? '.codex' : '.claude'}/${file.file.replaceAll('\\', '/')}`,
           ),
-          usage: scrubUsage(parsed.usage, scrub),
+          usage: scrubbed.usage,
         })
         if (observedAt === undefined || Date.parse(parsed.observedAt) < Date.parse(observedAt))
           observedAt = parsed.observedAt

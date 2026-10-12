@@ -69,10 +69,15 @@ export function createLocalReportSources(deps: LocalReportSourceDeps): LocalRepo
         throw new LocalSourceError('disabled')
       if (deps.usage === undefined) throw new LocalSourceError('unbound')
       const result = await deps.usage(context)
+      const scrubbed = scrubUsage(context.reportText, result.usage, deps.scrub)
+      const partial = [
+        ...(result.partial === undefined ? [] : [deps.scrub(result.partial)]),
+        ...scrubbed.problems.map((problem) => problem.reason),
+      ].join(' ')
       return {
-        data: scrubUsage(result.usage, deps.scrub),
+        data: scrubbed.usage,
         observedAt: result.observedAt,
-        ...(result.partial !== undefined && { partial: deps.scrub(result.partial) }),
+        ...(partial !== '' && { partial }),
       }
     }),
     agentUsage: agentUsageSource(deps.enabledAgents, deps.agentFiles, deps.scrub),
