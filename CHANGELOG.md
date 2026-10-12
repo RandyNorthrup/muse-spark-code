@@ -9,6 +9,169 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **Model API bundle diet (lane MODELAPIDIET).** `dist/modelApi.js` drops
+  14,419 B (530,683 → 516,264 B, cap unchanged) by loading the hook call
+  fields, argument previews and fetch URL checks from the deferred
+  `dist/modelApiTools.js` on first use, with fail-closed refusals
+  when the chunk cannot load. No behaviour change; `dist/extension.js`,
+  `dist/headless.js` and `dist/runtimeEngine.js` are byte-identical.
+  Packaging now checks every imported production Node chunk against each
+  distribution's own inventory; the VSIX includes the helpers chunk, and
+  its load failures use the installed language.
+
+### Fixed
+
+- Model API lazy-bundle packaging and helper-failure diagnostics
+  (MODELAPIDIETR3, review RVMODELAPIDIETB). `src/shared/lazyBundleFiles.ts`
+  is the single registry of every dist chunk loaded by file name; a new scan
+  test fails any source string naming a dist file outside it, and the
+  packaging gate roots every registry entry unconditionally and checks each
+  against the VSIX allowlist, the agent package list and the production
+  build. Both helper-unavailable catches (and the closed URL-check refusal)
+  log the failure's class with the chunk named through the scrubbed channel
+  before showing the installed sentence, and chain the cause in process.
+  The modelApi.js diet pin moves 516,264 to the measured 516,313 (+109 B
+  for the shared diagnostics line); the 537,600 B cap is untouched.
+### Pending
+
+- M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
+  reads and writes, and 1-hour cache writes settle at their own price.
+  The shared retry classifier refuses known quota codes and excessive
+  `Retry-After` waits. Provider-specific retry-table binding remains pending for non-Meta transports;
+  this does not certify endpoint quota refusal.
+  One-shot OAuth callbacks retain every parameter and destroy keep-alive
+  connections on settlement. Custom servers accept validated compatibility
+  overrides. Session saves coalesce into one in-flight write plus the latest;
+  parallel save failures are observed immediately while other sessions drain.
+  History listing validates headers without replay/transcript validation.
+
+- M101 lane P1 (BYO codecs): one bad history item no longer breaks later
+  requests. Blank text is dropped, empty tool results ride as
+  `(no tool output)`, non-JSON tool arguments ride as `{}` (Ollama keeps its
+  documented raw-text fallback), PDFs ride as Anthropic `document` blocks,
+  and images for a model without image input ride as an
+  image-omitted placeholder. Tool-call ids are mapped per target format
+  (Anthropic charset, chat length, Mistral preset 9-alphanumeric even under
+  provider aliases) with unique
+  per-response Gemini fallback ids. Responses replays send the call `id`
+  only for the same model with an `fc_` prefix. Gemini replays thought
+  signatures on text parts (empty ones included), counts omitted usage as
+  zero, sends vision-gated tool-result images inside `functionResponse.parts`
+  and full tool schemas through `parametersJsonSchema` on Gemini 3.
+  Gemini rejects proxy-null usage and explicitly rejects negative usage
+  counters instead of retaining an earlier tally. Signed blank parts replay;
+  late response ids salt fallback call ids; `$ref` siblings stay constrained
+  through `allOf`. The Anthropic decoder tolerates
+  proxy-null usage and tool payloads cut off at `max_tokens`, and thinking
+  requests `display: summarized` so newer models stream thinking text.
+  Lone surrogates are removed from every BYO encoder; parsed JSON retains
+  own `__proto__` keys as data, including Anthropic tool arguments.
+  Fakes only; no live
+  or paid model call.
+
+- Provider-specific retry-table binding remains pending for non-Meta transports;
+  the shared retry classifier does not certify endpoint quota refusal.
+
+- DEVID017B (developer machine id, review round 2): the machine id is a
+  random value created once in the machine-scoped data folder instead of a
+  hostname digest, so renames and `host` vs `host.local` keep the unlock and
+  profiles. Legacy raw-hostname and digest grants migrate on open and the
+  raw hostname leaves stored state at once; a different machine identity is
+  refused with an honest message and `developer reset` recovers.
+
+- DEVID017C (developer machine id, review round 3): the id is published by
+  staging the full value to a private temp file, fsyncing it and claiming
+  the final name with `link`, so a racing reader sees no file or the
+  complete id, never a prefix; only the exact 64-lowercase-hex format
+  loads, anything else refuses honestly. Foreign reset asks first with
+  nothing mutated before the answer, never re-binds the grant, and clears
+  without stopping through this machine's resource port; profile folders
+  stay on disk. Cancel leaves everything unchanged.
+
+- DEVID017D (developer machine id, review round 4): a published id loads
+  before any staging, so storage that refuses new files still returns the
+  existing identity, and failed staging removes its temp file. A failed
+  foreign reset never clears without recording it: the reset audit row
+  comes first, and when it cannot be written the stored state is left
+  unchanged. Foreign reset asks its own confirmation, which says exactly
+  what happens: this machine's developer state is cleared, nothing is
+  stopped, and profile folders and credentials stay as they are.
+
+- DEVID017E (developer machine id, lead review fix): foreign Reset writes a
+  distinct `resetForeign` audit row (schema stays `v: 1`, as with `migrate`),
+  so only that clear is withheld when its audit append fails. Every other
+  revocation, own-machine Reset included, is still published after an audit
+  failure, and the caller still gets the persistence error.
+
+- M123 (Git and pull requests in every editor, PLAN.md D104): lanes 0, G
+  and P are merged and switched off until the milestone is complete, so
+  nothing changes for users yet. No GitHub setting is offered, and an
+  editor built on VS Code without its Git extension (Arduino IDE 2, some
+  forks) keeps its earlier behaviour. Merged: the GitHub token-source
+  contracts with fakes of GitHub, the device flow, `gh` and Git remotes
+  (lane 0); the runtime's native Git service (status, the commit form,
+  commit, a push confirmed with every URL Git will use and the same
+  refusals as VS Code, never a force-push, commit-message drafts),
+  revalidated after every wait and serialized per repository across
+  windows by one fenced lease (LOCKLIB) that renews every third of its
+  30-second lease, is checked synchronously at each Git dispatch and is
+  never re-created once lost (lane G, with M123G4 and M123G4C); pull
+  requests in the runtime (draft, open and link, status and checks, a
+  fork onto its parent) and checkouts of other people's pull requests
+  held under the runtime data folder, whose records take that lease with
+  fenced compare-and-swap generations, so at most one window gets a
+  checkout and no folder is left without its record (lane P, with
+  M123P9's logged sweep failures and translated uncertain writes). Still
+  to land: the GitHub sign-in (lane A, accepted on its branch), the
+  editors' leases (lane L), the panel and its strings (lane U) and each
+  editor's qualification (lane Q). The pull-request checkout's own git
+  launches are not yet under the resource governor; nothing in this release
+  can start them, and the process inventory fails the day something could.
+
+## [0.18.1] - 2026-10-12
+
+### Fixed
+
+- In 0.18.0 a turn on a model provider you added yourself, on a ChatGPT
+  plan or through Copilot stopped before anything was sent, with an internal
+  error ("… is not a function"). Those turns work again, and we are sorry
+  for the broken release. Meta's own models were not affected.
+- Usage recorded by earlier versions is counted again. 0.18.0 left those
+  records out as not exact; nothing was deleted.
+- Report a Problem did nothing if you had changed certain settings (those
+  with a second dot in their name, such as `museSpark.vault.enabled`): it
+  said "That did not work" and never opened. It opens again.
+
+## [0.18.0] - 2026-10-11
+
+### Highlights
+
+- **Several accounts per provider, in the terminal and in ACP editors.**
+  Keep more than one account with a provider:
+  `muse-spark-code-acp providers accounts` lists, adds, orders and removes
+  them and sets each one's thresholds,
+  `auth set --provider <id> --account <id>` stores a key for one account, and
+  `exec --account <id>` runs on the account you name. In an ACP editor on a
+  Model API key, `/accounts` shows the list, the current account and its
+  thresholds. A vendor limit stops only the account that hit it. Changing
+  account inside a session, pooled runs and an Accounts page in the editor
+  are not available yet.
+- **See a tool call's arguments while the model writes them.** On a Model API
+  key with `muse-spark-1.3-contributor`, a tool row in the panel and in ACP
+  editors shows the file path, command, search pattern or URL as soon as it
+  is complete. File content and edits stay hidden, and nothing runs, asks or
+  calls a hook until the call itself is complete. Other models keep the
+  finished-call row until their own stream is captured; headless `exec`
+  shows finished tools only.
+- **Reviewing Git changes works without a Git filter.** On a machine or
+  repository with no Git filter configured (for example without Git LFS),
+  every native review was refused with "Git could not read the changes to
+  review" since 0.15.0. It works now.
+- **The activity-bar icon is the extension's own mark.** The squiggled "m"
+  of the Marketplace icon replaces the Meta logo silhouette.
+
+### Added
+
 - **Several accounts per provider, in the terminal and in ACP** (M108,
   CM108ACC). `providers accounts` lists, adds, removes and orders a
   provider's accounts and sets their thresholds;
@@ -21,6 +184,18 @@ happened, not what was planned; superseded entries are kept.
   only its own account and the stop names it. Still refused, and saying so:
   changing account inside a session and pooled runs. The three account
   settings keep no effect, and the editor has no Accounts page yet.
+
+- **Live tool-argument previews, in the panel and in ACP** (M106, C-M106-2).
+  On the Model API backend a tool row shows an **Argument preview** while
+  the model is still writing the call: declared top-level string fields
+  (file paths, shell commands, search patterns, fetch URLs) appear once
+  their closing quote validates, scrubbed like every other display. File
+  content, edits and nested values stay hidden, and a tool the request never
+  offered shows a byte count only. A preview never runs a tool, asks for
+  approval or calls a hook. One model's record verifies streamed arguments
+  today, `muse-spark-1.3-contributor`; every other model keeps the
+  completed-call row until its own stream is captured, and headless `exec`
+  records completed tools only.
 
 - **Judge benchmark tooling (repository only, lane JEVBENCH, D107/M125).**
   `scripts/judge-bench.mjs` judges a labelled decision set through one
@@ -86,16 +261,6 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
-- **Model API bundle diet (lane MODELAPIDIET).** `dist/modelApi.js` drops
-  14,419 B (530,683 → 516,264 B, cap unchanged) by loading the hook call
-  fields, argument previews and fetch URL checks from the deferred
-  `dist/modelApiTools.js` on first use, with fail-closed refusals
-  when the chunk cannot load. No behaviour change; `dist/extension.js`,
-  `dist/headless.js` and `dist/runtimeEngine.js` are byte-identical.
-  Packaging now checks every imported production Node chunk against each
-  distribution's own inventory; the VSIX includes the helpers chunk, and
-  its load failures use the installed language.
-
 - What's New fits its content budget by itself: the newest release always
   ships in full. The writer checks every complete plan against both decoded
   and encoded bounds, preferring older full notes, then Highlights with a
@@ -134,19 +299,88 @@ happened, not what was planned; superseded entries are kept.
   behavior, paid admission, displayed text and all bundle limits stay unchanged.
   Remove the unused internal GitHub lease-result type found by the train gate.
 
+- M106's wire certification adds counted, scrubbed Muse Code 1.4.4 effort,
+  feedback and session-lifecycle captures, plus an opt-in developer collector
+  for Meta's missing raw argument stream, status and output-cap receipts.
+  Every provider's remaining credential or local-runtime requirement is
+  recorded. Muse Code 1.4.4's removed delete method is captured as a refusal.
+
+- The Model API backend now binds the selected model's capability record in
+  production: streamed tool-argument previews render on the U9-captured
+  `muse-spark-1.3-contributor` model in VS Code and ACP, and Meta turns in
+  VS Code and interactive ACP request the documented 131,072-token output
+  cap. Headless `exec` requests at most 32,768 output tokens (or the record’s
+  smaller maximum), because its run ledger reserves each request’s worst
+  case before dispatch. Its body, schema, ledger and start reservation
+  share one resolved cap. Headless `exec` drops every `tool_call`/`tool_call_update`
+  before its sink, so it records completed tools only and never shows live
+  argument previews. Unobserved models keep today's stream and the legacy
+  32,768-token request cap. No setting changes; feature-off request bytes
+  are unchanged (`docs/certification/m106-capability-binding.md`).
+
+- Fixed headless edit reporting after argument previews: complete-argument
+  promotion carries file locations through ACP, so successful edits appear in
+  `filesChanged` even when their previews began without a path. ACP regression
+  coverage now checks workspace-relative locations on any Windows drive and
+  excludes pathless tools and paths outside the session workspace.
+
+- Fixed the Model API selected-record binding review findings: the
+  production entry resolves qualified models through the session client's
+  own resolver instead of a standalone registry, so headless `exec` keeps
+  its daily budget admission and run-ledger accounting, ChatGPT and Copilot
+  subscription models stay selectable, plan-key usage stays with the owning
+  service, and interactive ACP binds a qualified record's larger output
+  cap. Declared IDE and MCP tools render preview text from their own
+  string fields, as host tools do; unoffered tools still show a byte count
+  only. The reference lists argument previews on the VS Code and ACP
+  surfaces. Raw Meta capture receipts: the 16-frame U9 strict stream
+  proves declared-tool preview text from captured bytes, and the refused
+  1-token probe documents Meta's 16-token output minimum (the collector
+  probes it next run).
+
+- Fixed two follow-up selected-record binding findings (RVCM1062C). A
+  compaction, Git draft or summary fork sent before any prompt on a resumed
+  qualified model now builds its request after the selected record
+  resolves, so it carries the record's output maximum and reasoning effort
+  instead of the legacy 32,768-token cap and the unresolved fallback; the
+  cached maximum is dropped whenever the record or the selection changes.
+  Streamed argument-preview text now comes only from the tools the request
+  itself offered: a tool the request never offered (allowlisted out,
+  untrusted away, or never declared) renders a byte count only, never its
+  fields (`docs/certification/m106-capability-binding.md`).
+
+- Fixed both RVCM1062D binding findings. Strict tools preserve each host
+  tool's curated preview fields, so file content, edits and tools without
+  preview declarations remain hidden. Responses and token counts build
+  from one resolved model record and use it for output caps, reasoning,
+  offered tools, admission and accounting; configuration changes cannot
+  replace the client underneath an already-built body. A stale record
+  refuses before dispatch, and a switched selection rebuilds the request.
+
+- Fixed the RVCM1062E finding: every stale-record refusal now names the
+  operation the user actually ran. A lapsed record during manual
+  compaction says to compact again, during a turn to send the message
+  again, and during a model-hook call to try the action again; headless
+  runs name the run, and resolution-time refusals that know no operation
+  retry neutrally. Scheduled prompts keep their schedule guidance. The
+  new guidance is translated in all fourteen UI tables
+  (`docs/certification/m106-capability-binding.md`).
+
+- The activity-bar icon is now the extension's own mark: the squiggled "m"
+  from the Marketplace icon as a single-colour mask, replacing the Meta logo
+  silhouette. The Marketplace icon, banner and social preview already used
+  the "m"; the activity-bar icon was missed.
+
+- The visual check's What's New footer screenshots apply hover, focus and
+  pressed to the footer's own links, whatever the notes above them end with
+  (VISFOOT).
+
+- The Cost Over Time chart now scales its bars to the largest period, like
+  the token and time charts; before, a period under $1 drew a short bar
+  whatever the others were.
+
 ### Fixed
 
-- Model API lazy-bundle packaging and helper-failure diagnostics
-  (MODELAPIDIETR3, review RVMODELAPIDIETB). `src/shared/lazyBundleFiles.ts`
-  is the single registry of every dist chunk loaded by file name; a new scan
-  test fails any source string naming a dist file outside it, and the
-  packaging gate roots every registry entry unconditionally and checks each
-  against the VSIX allowlist, the agent package list and the production
-  build. Both helper-unavailable catches (and the closed URL-check refusal)
-  log the failure's class with the chunk named through the scrubbed channel
-  before showing the installed sentence, and chain the cause in process.
-  The modelApi.js diet pin moves 516,264 to the measured 516,313 (+109 B
-  for the shared diagnostics line); the 537,600 B cap is untouched.
 - Local report sources sort every tied list to a total order, so the same
   inputs produce byte-identical source facts whatever order records arrive
   in: Git commits, tags, branches and worktrees break key ties on their
@@ -310,7 +544,41 @@ happened, not what was planned; superseded entries are kept.
   small bundles stop carrying them: usagePanel.js back under its cap with
   room to spare. Recorded in `docs/certification/train-bundle-diet.md`.
 
+- A confirmed run on a ChatGPT or Copilot plan model (hook model, review,
+  scheduled prompt) no longer fails with "the model changed" before it is
+  sent. The subscription client proceeds while the confirmation is still
+  allowed and refuses with the run's own guidance only once it has lapsed,
+  like the other clients (M106, RVCM1062F).
+
+- Fixed the RVCM1062G findings on that plan-model success path. A confirmed
+  scheduled run now records its start receipt and scheduled-prompt tally,
+  and a paid-gate lapse during ChatGPT sign-in or Copilot token counting
+  still refuses before anything is sent — through the same
+  confirmed-dispatch helper the other branches use. A lapsed confirmation
+  names the hook, schedule or review instead of the generic plan retry
+  sentence, and a catalogue request id is accepted against a session
+  confirmation id (M106, RVCM1062G;
+  `docs/certification/m106-capability-binding.md`).
+
+- Fixed the RVCM1062H findings: the last two confirmed-dispatch paths that
+  decided by themselves now route through the shared helper. A still-allowed
+  scheduled or hook confirmation on a configured provider (which carries no
+  origin) dispatches instead of refusing with "Models & Agents is not
+  available in this build", and a lapsed confirmation there keeps the run's
+  own guidance instead of that sentence. An inventory test fails if any site
+  but the helper ever refuses a confirmed dispatch again (M106, RVCM1062H;
+  `docs/certification/m106-capability-binding.md`).
+
+- Reviewing Git changes now works on machines and repositories with no Git
+  filters configured (for example without Git LFS installed). Broken since
+  0.15.0, it refused every native review there with "Git could not read the
+  changes to review" (lane REVIEWEXIT).
+
 ### Documentation
+
+- The README's Resources screenshot shows the relocation sentence users
+  see ("Relocation requires a paired device or runner route."); it still
+  showed the wording 0.17.1 replaced.
 
 - PLAN.md had grown to 4,157,477 bytes, 36,827 short of the 4 MiB bound at
   which `check:plan`, `check:roadmap` and `/report` refuse it. Closed history
@@ -332,99 +600,27 @@ happened, not what was planned; superseded entries are kept.
   archive in the change that adds it; PLAN.md keeps the rule in force and
   the link (AGENTS.md, CONTRIBUTING.md).
 
-### Pending
+## [0.17.2] - 2026-10-11
 
-- M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
-  reads and writes, and 1-hour cache writes settle at their own price.
-  The shared retry classifier refuses known quota codes and excessive
-  `Retry-After` waits. Provider-specific retry-table binding remains pending for non-Meta transports;
-  this does not certify endpoint quota refusal.
-  One-shot OAuth callbacks retain every parameter and destroy keep-alive
-  connections on settlement. Custom servers accept validated compatibility
-  overrides. Session saves coalesce into one in-flight write plus the latest;
-  parallel save failures are observed immediately while other sessions drain.
-  History listing validates headers without replay/transcript validation.
+### Fixed
 
-- M101 lane P1 (BYO codecs): one bad history item no longer breaks later
-  requests. Blank text is dropped, empty tool results ride as
-  `(no tool output)`, non-JSON tool arguments ride as `{}` (Ollama keeps its
-  documented raw-text fallback), PDFs ride as Anthropic `document` blocks,
-  and images for a model without image input ride as an
-  image-omitted placeholder. Tool-call ids are mapped per target format
-  (Anthropic charset, chat length, Mistral preset 9-alphanumeric even under
-  provider aliases) with unique
-  per-response Gemini fallback ids. Responses replays send the call `id`
-  only for the same model with an `fc_` prefix. Gemini replays thought
-  signatures on text parts (empty ones included), counts omitted usage as
-  zero, sends vision-gated tool-result images inside `functionResponse.parts`
-  and full tool schemas through `parametersJsonSchema` on Gemini 3.
-  Gemini rejects proxy-null usage and explicitly rejects negative usage
-  counters instead of retaining an earlier tally. Signed blank parts replay;
-  late response ids salt fallback call ids; `$ref` siblings stay constrained
-  through `allOf`. The Anthropic decoder tolerates
-  proxy-null usage and tool payloads cut off at `max_tokens`, and thinking
-  requests `display: summarized` so newer models stream thinking text.
-  Lone surrogates are removed from every BYO encoder; parsed JSON retains
-  own `__proto__` keys as data, including Anthropic tool arguments.
-  Fakes only; no live
-  or paid model call.
+- A reply from a provider you added yourself (an Anthropic, OpenAI or
+  Mistral key, a local server and the others) or from a ChatGPT plan is no
+  longer cut off 30 seconds after the request starts. Since 0.15.0 any answer
+  that took longer, such as a long written answer or one the model thinks
+  about first, was lost, and for a provider you added the error read
+  "Models & Agents is not available in this build." A reply now has no limit
+  on its total time; one that goes silent ends after 5 minutes with nothing
+  received, and the message says so.
 
-- Provider-specific retry-table binding remains pending for non-Meta transports;
-  the shared retry classifier does not certify endpoint quota refusal.
+### Changed
 
-- DEVID017B (developer machine id, review round 2): the machine id is a
-  random value created once in the machine-scoped data folder instead of a
-  hostname digest, so renames and `host` vs `host.local` keep the unlock and
-  profiles. Legacy raw-hostname and digest grants migrate on open and the
-  raw hostname leaves stored state at once; a different machine identity is
-  refused with an honest message and `developer reset` recovers.
-
-- DEVID017C (developer machine id, review round 3): the id is published by
-  staging the full value to a private temp file, fsyncing it and claiming
-  the final name with `link`, so a racing reader sees no file or the
-  complete id, never a prefix; only the exact 64-lowercase-hex format
-  loads, anything else refuses honestly. Foreign reset asks first with
-  nothing mutated before the answer, never re-binds the grant, and clears
-  without stopping through this machine's resource port; profile folders
-  stay on disk. Cancel leaves everything unchanged.
-
-- DEVID017D (developer machine id, review round 4): a published id loads
-  before any staging, so storage that refuses new files still returns the
-  existing identity, and failed staging removes its temp file. A failed
-  foreign reset never clears without recording it: the reset audit row
-  comes first, and when it cannot be written the stored state is left
-  unchanged. Foreign reset asks its own confirmation, which says exactly
-  what happens: this machine's developer state is cleared, nothing is
-  stopped, and profile folders and credentials stay as they are.
-
-- DEVID017E (developer machine id, lead review fix): foreign Reset writes a
-  distinct `resetForeign` audit row (schema stays `v: 1`, as with `migrate`),
-  so only that clear is withheld when its audit append fails. Every other
-  revocation, own-machine Reset included, is still published after an audit
-  failure, and the caller still gets the persistence error.
-
-- M123 (Git and pull requests in every editor, PLAN.md D104): lanes 0, G
-  and P are merged and switched off until the milestone is complete, so
-  nothing changes for users yet. No GitHub setting is offered, and an
-  editor built on VS Code without its Git extension (Arduino IDE 2, some
-  forks) keeps its earlier behaviour. Merged: the GitHub token-source
-  contracts with fakes of GitHub, the device flow, `gh` and Git remotes
-  (lane 0); the runtime's native Git service (status, the commit form,
-  commit, a push confirmed with every URL Git will use and the same
-  refusals as VS Code, never a force-push, commit-message drafts),
-  revalidated after every wait and serialized per repository across
-  windows by one fenced lease (LOCKLIB) that renews every third of its
-  30-second lease, is checked synchronously at each Git dispatch and is
-  never re-created once lost (lane G, with M123G4 and M123G4C); pull
-  requests in the runtime (draft, open and link, status and checks, a
-  fork onto its parent) and checkouts of other people's pull requests
-  held under the runtime data folder, whose records take that lease with
-  fenced compare-and-swap generations, so at most one window gets a
-  checkout and no folder is left without its record (lane P, with
-  M123P9's logged sweep failures and translated uncertain writes). Still
-  to land: the GitHub sign-in (lane A, accepted on its branch), the
-  editors' leases (lane L), the panel and its strings (lane U) and each
-  editor's qualification (lane Q).
+- The visual check renders the What's New screenshots from a fixed sample
+  of release notes (`test/harness/whats-new/CHANGELOG.fixture.md`) instead
+  of this file, so a release's notes and its version no longer need new
+  reviewed screenshots. A test names any kind of Markdown the real notes
+  use and the sample lacks. The capture inputs gain the build helpers and
+  the dependency versions, and no longer include this file (VISFIX).
 
 ## [0.17.1] - 2026-10-10
 

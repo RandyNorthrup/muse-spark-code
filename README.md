@@ -37,7 +37,7 @@ key to the CLI.
 The [roadmap](ROADMAP.md) shows what is in the next release, what is being
 built, what is planned and what each release shipped.
 
-**Contents:** [What's new](#whats-new-in-0171) · [Roadmap](ROADMAP.md) ·
+**Contents:** [What's new](#whats-new-in-0181) · [Roadmap](ROADMAP.md) ·
 [Highlights](#highlights) · [Screenshots](#screenshots) ·
 [Get started](#get-started) · [Backends](#backends) · [Subscriptions](#subscriptions) ·
 [Permission modes](#permission-modes) ·
@@ -57,7 +57,43 @@ built, what is planned and what each release shipped.
 Saved reports write money version 2; historical numeric reports retain their original
 hash verification and migrate when read.
 
-## What's new in 0.17.1
+## What's new in 0.18.1
+
+- **Your own providers, a ChatGPT plan and Copilot work again.** In 0.18.0
+  a turn on any of them stopped before it was sent, with an internal error.
+  Sorry for the broken release; Meta's own models were not affected.
+- **Usage from earlier versions is counted again.** 0.18.0 left those records
+  out as not exact; nothing was deleted.
+- **Report a Problem opens again** if you had changed a setting with a second
+  dot in its name; it used to answer "That did not work".
+
+### Earlier in 0.18.0
+
+- **Several accounts per provider, in the terminal and in ACP editors.**
+  `muse-spark-code-acp providers accounts` lists, adds, orders and removes a
+  provider's accounts and sets their thresholds; `auth set --provider <id>
+--account <id>` stores a key for one account; `exec --account <id>` runs on
+  the account you name. In an ACP editor on a Model API key, `/accounts`
+  shows the list and the current account. Changing account inside a session,
+  pooled runs and an Accounts page in the editor are not available yet.
+- **See a tool call's arguments while the model writes them.** On a Model API
+  key with `muse-spark-1.3-contributor`, a tool row in the panel and in ACP
+  editors shows the file path, command, search pattern or URL as soon as it
+  is complete; content and edits stay hidden and nothing runs until the call
+  is complete. Other models keep the finished-call row for now.
+- **Reviewing Git changes works without a Git filter.** Without Git LFS or
+  another filter configured, every native review was refused since 0.15.0.
+- **The activity-bar icon is the extension's own mark**, the squiggled "m".
+
+### Earlier in 0.17.2
+
+- **Long replies from your own providers and a ChatGPT plan finish.**
+  Since 0.15.0 a reply from a provider you added in Models & Agents, or
+  from a ChatGPT plan sign-in, was cut off 30 seconds after the request
+  started. A reply now has no limit on its total time; one that goes
+  silent ends after 5 minutes, and the message says so.
+
+### Earlier in 0.17.1
 
 - **The provider picker works again.** Models & Agents lists every provider
   again, Anthropic and custom servers included; 0.16.0 and 0.17.0 showed only
@@ -2025,6 +2061,48 @@ or GitHub. Its GitHub Marketplace listing is awaiting GitHub's review.
 
 <!-- Marketplace listing (draft, pending GitHub review): https://github.com/marketplace/muse-spark-code-u
      Turn this into a link in the release that follows approval. -->
+
+<!-- reference: streamed-argument-previews -->
+
+## Streamed argument previews
+
+On the Model API backend, a selected model with verified streamed-argument
+support shows an **Argument preview** in its tool row, in the shared panel
+and in ACP. The preview shows only declared top-level string fields after
+their closing quote validates: file paths, shell commands, search patterns
+and fetch URLs. These values pass through the existing credential scrubber
+before display. File content, edits, nested values and other fields stay
+hidden. An offered IDE or MCP tool declares its own string fields the same
+way; a tool the request never offered shows a received byte count only.
+
+One model has that verified record today: `muse-spark-1.3-contributor`.
+Every other model keeps the completed-call row until its own stream is
+captured.
+
+An unfinished string never appears. Malformed JSON, duplicate keys,
+non-string values for declared fields or excessive nesting freeze the last
+safe display with **Preparing arguments…** until valid complete arguments
+arrive. Retained input and display text are bounded at 16,000 characters;
+the byte count continues after that bound. Updates coalesce every 100 ms,
+with a final safe flush before interruption. A preview does not execute a
+tool, request approval or run a hook; only the existing completed-response
+path admits execution. Previews never enter model replay.
+
+Completion, promotion and interruption clear a call's preview. Reloading
+the panel clears saved previews even while the same turn continues, because
+a turn ID cannot prove a tool is still pending. A fresh update restores an
+active preview to its original call row. Recognized credential patterns
+and registered literals are scrubbed; arbitrary unregistered secrets in a
+declared field remain outside that scrubber's contract.
+
+VS Code and interactive ACP use the selected record’s documented output
+maximum (131,072 tokens for Muse Spark), clamped by their budget. Headless
+`exec` requests at most 32,768 output tokens, or the record’s smaller maximum:
+its run ledger reserves the worst case before dispatch, so raising that cap
+would change what existing headless money budgets can run. Headless exec
+records completed tools and does not display live argument previews.
+
+<!-- /reference: streamed-argument-previews -->
 
 ## Code intelligence
 
@@ -4985,7 +5063,6 @@ schedules, workers and hooks always remain fenced.
 
 The unbound features include:
 
-- <a id="streamed-argument-previews"></a>Tool argument previews
 - <a id="estimates"></a>Capacity estimates
 - <a id="the-vault"></a>Credential vault
 
@@ -5460,6 +5537,24 @@ without rebuilding.
 - **Webview is blank after a change** — run `npm run build:dev` (F5 does this
   via the pre-launch task) and reload the window.
 
+#### M106 wire captures
+
+`node scripts/capture-m106-meta.mjs --help` explains the developer capture
+tool; `node scripts/capture-m106-meta.mjs --plan` prints its six requests
+without network access. Live collection requires an explicit paid-capture
+opt-in and a key on standard input. It runs two status GETs and four
+contributor-model POST attempts without retries, including a request with
+the recommended 131,072-token output cap. It writes counted, scrubbed
+receipts into a new directory and exits unsuccessfully if a required wire
+contract is refused or missing. The lead supplies the key and reviews the
+receipts before installing fixtures or enabling a capability.
+
+The [C-M106-1 capture record](docs/certification/m106-completion-captures.md)
+contains Muse Code 1.4.4's observed effort, feedback and lifecycle frames,
+the missing credential or local runtime for every provider, and the remaining
+live checks. The collector is a developer tool shared across Windows,
+macOS and Linux; editor bindings belong to the later completion lanes.
+
 PNG/JPEG images are resized before entering Model API replay when the selected
 model record supplies vision support and documented pixel limits. The portable
 worker preserves aspect ratio, never upscales, and bounds bytes, pixels, memory,
@@ -5618,7 +5713,8 @@ Always remains revocable. Unknown prices cannot spend under a dollar cap.
 Charges and durable claims use exact decimal USD, and uncertain dispatches
 retain liability.
 
-Structured side calls prefer a captured
+Argument previews use a separate lazy chunk and are available only with
+recorded streaming-argument support. Structured side calls prefer a captured
 schema format, allow one repair and retain the text fallback. Git commit and
 pull-request drafts apply this contract to the user's own turn, with repairs
 under the session's hooks and budget. Judge uses the selected model's captured

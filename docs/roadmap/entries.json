@@ -783,7 +783,7 @@
     {
       "id": "M106",
       "title": "Stronger agent-loop guarantees",
-      "summary": "On the Model API the agent loop uses strict tool contracts, validated side answers and concurrent read-only calls wherever the selected model supports them; live tool-argument previews are in progress.",
+      "summary": "On the Model API the agent loop uses strict tool contracts, validated side answers, concurrent read-only calls and live tool-argument previews wherever the selected model supports them; Muse Code's native effort and feedback readers are in progress.",
       "area": "agents",
       "release": "0.16.0"
     },

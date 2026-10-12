@@ -395,12 +395,18 @@ export function withStrictTools(
         if (tool.parameters['type'] !== 'object') {
           throw new Error('strict_tool_schema_unsupported')
         }
-        return {
+        const converted = {
           ...tool,
           parameters: strictToolSchema(tool.parameters),
           strict: true,
           [ORIGINAL_TOOL_PARAMETERS]: tool[ORIGINAL_TOOL_PARAMETERS] ?? tool.parameters,
         }
+        // Host tools curate even an absent field list. Spreading drops this
+        // nonenumerable descriptor and wrongly admits schema-derived fields.
+        const preview = Object.getOwnPropertyDescriptor(tool, 'previewFields')
+        return preview === undefined
+          ? converted
+          : Object.defineProperty(converted, 'previewFields', preview)
       })
     : tools
 }

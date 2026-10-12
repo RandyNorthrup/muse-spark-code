@@ -95,13 +95,7 @@ export async function metadataGit(
     names = await runGit([...GIT_METADATA_OPTIONS, ...GIT_FILTER_NAMES_ARGS], cwd)
   } catch (error: unknown) {
     // `config --get-regexp` exits 1 when no filter is configured.
-    let code: unknown
-    if (isGitExitError(error)) {
-      code = error.exitCode
-    } else if (typeof error === 'object' && error !== null && 'code' in error) {
-      code = error.code
-    }
-    if (code !== 1) {
+    if (gitExitCode(error) !== 1) {
       throw error
     }
     names = ''
@@ -322,6 +316,27 @@ export function processGitRunner(
       return result.toString('utf8')
     },
   })
+}
+
+/**
+ * A failed git call's exit code, however the runner reported it: a
+ * `GitExitError` carries it in `exitCode`, which is -1 when a signal ended
+ * git (the runner's own sentinel, never a real exit code); a Node
+ * child-process error carries a numeric `code`. Undefined when the call
+ * produced no exit at all (git missing, a timeout, a capped buffer): never a
+ * guess. A caller that acts on one specific code compares for that code and
+ * treats every other value, -1 included, as a failure.
+ */
+export function gitExitCode(error: unknown): number | undefined {
+  if (isGitExitError(error)) {
+    return error.exitCode
+  }
+  return typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    typeof error.code === 'number'
+    ? error.code
+    : undefined
 }
 
 /** git ended with a non-zero exit code: the code and what it said (capped). */

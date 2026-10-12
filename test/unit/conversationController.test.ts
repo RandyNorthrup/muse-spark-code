@@ -118,6 +118,7 @@ import type { RestoreOutcome } from '../../src/host/checkpoints/checkpointStore'
 import { createReviewCollector, type ReviewCollection } from '../../src/host/review/reviewCollector'
 import { processGitRunner } from '../../src/host/git'
 import { aliasedReviewRepositories, reviewParts } from './helpers/reviewRoots'
+import { isolatedGitConfig, type IsolatedGitConfig } from './helpers/isolatedGitConfig'
 import type {
   HostAction,
   HostToWebviewMessage,
@@ -1827,6 +1828,20 @@ describe('ConversationController: composer controls', () => {
     expect(t.server.requestsFor('session/start')).toHaveLength(2)
   })
 
+  it('shows compaction retry guidance when compaction fails on a stale record', async () => {
+    // RVCM1062E P3: the displayed compaction-failure reason names compaction,
+    // never a schedule the user never ran.
+    const t = setup()
+    t.server.handle('session/compact', () => {
+      throw new Error(UI_TEXT.requestStaleCompaction)
+    })
+    await t.controller.handle({ type: 'compact' })
+    const notice = t.surface.posted.at(-1)
+    expect(notice).toMatchObject({ type: 'notice', level: 'error' })
+    expect(notice?.type === 'notice' ? notice.text : '').toContain('Compact again')
+    expect(notice?.type === 'notice' ? notice.text : '').not.toContain('schedule')
+    t.controller.dispose()
+  })
   it('refuses skills, compaction and mentions when signed out', async () => {
     const t = setup({ status: 'signedOut' })
     await t.controller.handle({ type: 'listSkills' })
@@ -11200,12 +11215,17 @@ describe('ConversationController: review (M70)', () => {
   describe('native material admission', () => {
     let folder: string
     let roots: Awaited<ReturnType<typeof aliasedReviewRepositories>> | undefined
+    let gitConfig: IsolatedGitConfig | undefined
     beforeAll(async () => {
       folder = realpathSync.native(mkdtempSync(path.join(tmpdir(), 'm70-send-root-')))
       roots = await aliasedReviewRepositories(folder, 'admission')
+      // Never the machine's Git configuration: the native collector must
+      // read the same empty filter inventory on every machine.
+      gitConfig = isolatedGitConfig()
     })
     afterAll(async () => {
       await removeFolder(folder)
+      await gitConfig?.dispose()
     })
 
     describe.each([
@@ -11241,7 +11261,7 @@ describe('ConversationController: review (M70)', () => {
         current.collect.mockImplementationOnce(
           createReviewCollector({
             workspaceRoot: roots.alias,
-            runGit: processGitRunner(),
+            runGit: processGitRunner({ env: { ...process.env, ...gitConfig?.env } }),
             pickOne: vi.fn(),
           }),
         )

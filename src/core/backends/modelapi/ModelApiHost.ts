@@ -59,6 +59,7 @@ import type { VaultTaint } from '../../../shared/vault'
 
 import { Buffer } from 'node:buffer'
 import type { ArgumentPreview, ArgumentPreviewCapabilities } from './argumentPreview'
+import { declaredPreviewFields } from './previewFields'
 import { createHash, randomUUID } from 'node:crypto'
 import { prepareShellSidecar, removeShellSidecar } from '../../shellSidecar'
 import { homedir, tmpdir } from 'node:os'
@@ -758,7 +759,7 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDep
   readonly strictTools?: () => boolean
   readonly parallelReads?: () => boolean
   /** Lane W binds the selected M95 record's output.maxTokens; absent keeps the legacy cap. */
-  readonly modelOutputMaxTokens?: (modelId: string) => number | undefined
+  readonly modelOutputMaxTokens?: (modelId: string, resolved: ResolvedModel) => number | undefined
   /** Fixed for the session, with an explicit off arm for byte-identical requests. */
   readonly outputContinuation?: () => boolean
   /** Trusted host proof of an unchanged complete result, never an MCP annotation. */
@@ -2002,6 +2003,26 @@ function toolNameOf(definition: ToolDefinition): string {
   return definition.type === 'function' ? definition.name : definition.type
 }
 
+/**
+ * The preview fields of one tool this request offered (RVCM1062C P2). Host
+ * tools carry their curated fields; an offered external (IDE/MCP) tool
+ * declares its own through its schema. A tool carrying neither renders no
+ * text, as before.
+ */
+function previewFieldsOfOfferedTool(tool: FunctionToolDefinition): readonly string[] | undefined {
+  // `in` keeps the host-only metadata read a narrowing the compiler
+  // verifies: only a definition object carrying that key takes this
+  // branch, and only a string array is honoured from it.
+  if ('previewFields' in tool) {
+    const fields: unknown = tool.previewFields
+    return Array.isArray(fields) &&
+      fields.every((field): field is string => typeof field === 'string')
+      ? fields
+      : undefined
+  }
+  return declaredPreviewFields(tool)
+}
+
 function childStateLabel(state: SubagentState): string {
   switch (state) {
     case 'queued': {
@@ -2570,6 +2591,7 @@ export class ModelApiSession implements ScheduledAgentSession {
   private readonly parallelReads: boolean
   private readonly outputContinuation: boolean
   private outputFormat: CreateResponseBody['text']
+  private readonly outputCaps = new WeakMap<ResolvedModel, number>()
   private readonly repeatGuard = new RepeatGuard()
   /**
    * The ledger total a resumed session brought (M73), kept so a save keeps
@@ -2665,6 +2687,12 @@ export class ModelApiSession implements ScheduledAgentSession {
   private packedBaseline = 0
   private sendingModel: ResolvedModel | undefined
   private sendingImageCount = 0
+  /**
+   * The preview fields of the tools the request in flight offered, by
+   * function name (RVCM1062C P2): a streamed call for any other name
+   * renders a byte count only, never field text.
+   */
+  private offeredPreviewFields = new Map<string, readonly string[]>()
   private readonly resolvedModels = new Map<string, ResolvedModel>()
   private readonly modelKeyDigests = new Map<string, string>()
 
@@ -2899,6 +2927,22 @@ export class ModelApiSession implements ScheduledAgentSession {
     await this.teamRuntimeLoading
   }
 
+  /**
+   * A stale-record refusal that names the run the user actually started: a
+   * scheduled prompt keeps its schedule guidance, compaction names
+   * compaction, and an ordinary turn names the turn. Resolution-time callers
+   * with no run in flight fall back to neutral retry guidance.
+   */
+  private staleRecordError(isCompaction = false): Error {
+    if (isCompaction || this.compacting !== undefined)
+      return new Error(UI_TEXT.requestStaleCompaction)
+    if (this.active?.confirmedRequest !== undefined)
+      return new Error(UI_TEXT.scheduleConfirmationExpired)
+    return new Error(
+      this.active === undefined ? UI_TEXT.requestStaleRetry : UI_TEXT.requestStaleTurn,
+    )
+  }
+
   private async resolveModel(ref = this.modelId): Promise<ResolvedModel> {
     const model =
       ref.includes('/') &&
@@ -2910,7 +2954,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     }
     if (ref.includes('/')) {
       this.modelKeyDigests.set(ref, await model.client.currentKeyDigest())
-      if (!model.isCurrent()) throw new Error(UI_TEXT.scheduleConfirmationExpired)
+      if (!model.isCurrent()) throw this.staleRecordError()
     }
     this.resolvedModels.set(ref, model)
     return model
@@ -3725,7 +3769,7 @@ export class ModelApiSession implements ScheduledAgentSession {
    * reported, but their separately consented requests are not reserved
    * against the parent's cap (M82 owner decision).
    */
-  private budgeted(body: CreateResponseBody): CreateResponseBody {
+  private budgeted(body: CreateResponseBody, selected: ResolvedModel): CreateResponseBody {
     const searchBound = this.webSearchBound()
     if (
       searchBound !== undefined &&
@@ -3744,7 +3788,6 @@ export class ModelApiSession implements ScheduledAgentSession {
       body.model === this.modelId ? this.budgetBase : undefined,
     )
     const maxOutputTokens = body.max_output_tokens
-    const selected = this.selectedModel(body.model)
     const reservation =
       Usd.from(capUsd).compare(Usd.from(0)) > 0
         ? reserveRequest({
@@ -3813,9 +3856,9 @@ export class ModelApiSession implements ScheduledAgentSession {
    * The request about to be sent (M82): its model, which prices its usage,
    * and its reservation, as the log keeps it.
    */
-  private sending(body: CreateResponseBody): OpenReservation | undefined {
+  private sending(body: CreateResponseBody, resolved: ResolvedModel): OpenReservation | undefined {
     this.sendingImageCount = requestImageCount(body)
-    this.sendingModel = this.selectedModel(body.model)
+    this.sendingModel = resolved
     this.sendingModelId = body.model
     this.sendingSearchQuote = this.approvedSearchQuote
     this.sendingSearchBound = body.max_tool_calls
@@ -3824,6 +3867,15 @@ export class ModelApiSession implements ScheduledAgentSession {
     this.wasCallSent = false
     this.hasAmbiguousCallAttempt = false
     this.packedBaseline = this.packing?.savings() ?? 0
+    // Snapshot what this request offered: the streamed preview may only
+    // read field text from these tools, never the full catalogues.
+    const offered = new Map<string, readonly string[]>()
+    for (const tool of body.tools) {
+      if (tool.type !== 'function') continue
+      const fields = previewFieldsOfOfferedTool(tool)
+      if (fields !== undefined) offered.set(tool.name, fields)
+    }
+    this.offeredPreviewFields = offered
     const parentKind = this.isSideChat ? 'sideChat' : (this.deps.usageKind ?? 'turn')
     const kind = this.isSubagent ? 'subagent' : parentKind
     this.recordedCall = {
@@ -4177,7 +4229,10 @@ export class ModelApiSession implements ScheduledAgentSession {
   }
 
   /** The agent's own instructions and tools, or the Reviewer's. */
-  private promptAndTools(today: string): {
+  private promptAndTools(
+    today: string,
+    resolved: ResolvedModel,
+  ): {
     readonly instructions: string
     readonly tools: readonly ToolDefinition[]
   } {
@@ -4188,7 +4243,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         isFullyShown: false,
       },
     ]
-    const value = this.recordedPromptAndTools(inputs, today)
+    const value = this.recordedPromptAndTools(inputs, today, resolved)
     const recorded = RecordingScope.build(recordProjection, { inputs, project: () => value })
     this.instructionScope = recorded.scope
     return recorded.value
@@ -4197,6 +4252,7 @@ export class ModelApiSession implements ScheduledAgentSession {
   private recordedPromptAndTools(
     inputs: ContentRead[],
     today: string,
+    resolved: ResolvedModel,
   ): {
     readonly instructions: string
     readonly tools: readonly ToolDefinition[]
@@ -4223,7 +4279,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         operation: 'git-facts',
       })
     if (this.isReviewing()) {
-      const tools = this.reviewerTools()
+      const tools = resolved.policy.tools.calling.state === 'yes' ? this.reviewerTools() : []
       return {
         instructions: reviewerInstructionsFor({
           workspaceRoot: this.deps.workspaceRoot,
@@ -4236,7 +4292,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         tools: withStrictTools(
           tools,
           this.strictTools &&
-            this.deps.modelFacts?.(this.modelId)?.capabilities.supportsStrictTools === true,
+            this.deps.modelFacts?.(resolved.ref)?.capabilities.supportsStrictTools === true,
         ),
       }
     }
@@ -4296,9 +4352,9 @@ export class ModelApiSession implements ScheduledAgentSession {
         ...(role !== undefined && { agent: role }),
       }),
       tools: withStrictTools(
-        this.tools(hasShell, flags.hasSkills, hasMemory, this.isSubagent),
+        this.tools(hasShell, flags.hasSkills, hasMemory, this.isSubagent, resolved),
         this.strictTools &&
-          this.deps.modelFacts?.(this.modelId)?.capabilities.supportsStrictTools === true,
+          this.deps.modelFacts?.(resolved.ref)?.capabilities.supportsStrictTools === true,
       ),
     }
   }
@@ -4313,17 +4369,27 @@ export class ModelApiSession implements ScheduledAgentSession {
     )
   }
 
-  private outputCap(): number {
-    // Recomputed per request from the currently resolved record: a cached cap
-    // outlives a provider-file edit between turns (RVMINOUT P2).
-    const requested = this.deps.modelOutputMaxTokens?.(this.modelId) ?? MODEL_API_MAX_OUTPUT_TOKENS
+  private outputCap(resolved: ResolvedModel): number {
+    // Recomputed for every request (RVMINOUT P2): each request resolves its
+    // own record, so this memo spans that one request's projections (replay
+    // check, context fit, hook view, final body) and never a later turn. A
+    // provider-file edit between turns reaches the next request's record.
+    const cached = this.outputCaps.get(resolved)
+    if (cached !== undefined) return cached
+    const requested =
+      this.deps.modelOutputMaxTokens?.(resolved.ref, resolved) ??
+      (resolved.ref.includes('/') ? resolved.policy.output.maxTokens : undefined) ??
+      MODEL_API_MAX_OUTPUT_TOKENS
     if (!Number.isSafeInteger(requested)) throw new RangeError('invalid output.maxTokens')
-    const cap = outputLimitFor(this.modelPolicy(), requested)
+    // A cap below the provider's minimum refuses here with the minimum's own
+    // sentence (MINOUT), zero and negative caps included.
+    const cap = outputLimitFor(resolved.policy, requested)
     if (!Number.isSafeInteger(cap) || cap < 1) throw new RangeError('invalid output.maxTokens')
+    this.outputCaps.set(resolved, cap)
     return cap
   }
 
-  private body(shouldFormatDraft = true): CreateResponseBody {
+  private body(resolved: ResolvedModel, shouldFormatDraft = true): CreateResponseBody {
     this.active?.audioMessage?.assertCurrent()
     this.drainChildResults()
     const original = this.requestReplay().map((entry) => entry.item)
@@ -4362,20 +4428,21 @@ export class ModelApiSession implements ScheduledAgentSession {
       })
     }
     const body = this.keyed({
-      model: this.active?.audioMessage?.modelId ?? this.modelId,
+      model: resolved.ref,
       input,
       ...this.promptAndTools(
         this.getScheduledRun() === undefined ? this.promptDate : localPromptDate(this.deps.now()),
+        resolved,
       ),
       tool_choice: 'auto',
       reasoning: {
-        effort: effortForPolicy(this.modelPolicy(), this.effort),
+        effort: effortForPolicy(resolved.policy, this.effort),
         summary: 'auto',
       },
       stream: true,
       store: false,
       include: this.includes(),
-      max_output_tokens: this.outputCap(),
+      max_output_tokens: this.outputCap(resolved),
       ...(this.outputFormat !== undefined && { text: this.outputFormat }),
     })
     const draft = shouldFormatDraft ? this.active?.draft : undefined
@@ -4497,12 +4564,13 @@ export class ModelApiSession implements ScheduledAgentSession {
     hasSkills: boolean,
     hasMemory: boolean,
     isSubagent = this.isSubagent,
+    resolved?: ResolvedModel,
   ): readonly ToolDefinition[] {
     // M96 lane T: `delegate` replaces `subagent_spawn` in a team
     // conversation, `collect` replaces wait/status/read-result, and `cancel`
     // replaces cancel. A single-model conversation keeps M48's tools exactly
     // as today. The family is fixed for the conversation.
-    if (this.modelPolicy().tools.calling.state !== 'yes') return []
+    if ((resolved?.policy ?? this.modelPolicy()).tools.calling.state !== 'yes') return []
     const teamMode = this.teamModeForRequest()
     const own = toolDefinitions(this.deps.platform, {
       hasVaultShell: this.deps.io.runVaultShell !== undefined,
@@ -4761,6 +4829,7 @@ export class ModelApiSession implements ScheduledAgentSession {
   /** Final synchronous check after key retrieval, before each response POST or retry. */
   private responseAttemptGuard(
     body: CreateResponseBody,
+    resolved: ResolvedModel,
     directBudget?: DirectResponseBudget,
     isCompaction = false,
     turnId?: string,
@@ -4769,7 +4838,6 @@ export class ModelApiSession implements ScheduledAgentSession {
     const token = this.owner.token()
     const instructionMaterial = this.instructionMaterial()
     const reservation = directBudget === undefined ? this.openReservation : undefined
-    const resolved = this.selectedModel(body.model)
     const expectedKeyDigest = this.modelKeyDigests.get(body.model)
     const revision = this.modelRevision
     const guard: ResponseAttemptGuard = (keyDigest) => {
@@ -4789,7 +4857,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         !resolved.isCurrent() ||
         (expectedKeyDigest !== undefined && keyDigest !== expectedKeyDigest)
       ) {
-        throw new Error(UI_TEXT.scheduleConfirmationExpired)
+        throw this.staleRecordError(isCompaction)
       }
       if (!this.owner.matches(token)) throw new AbortedError()
       this.active?.audioMessage?.assertCurrent()
@@ -5653,13 +5721,14 @@ export class ModelApiSession implements ScheduledAgentSession {
             ourId: this.deps.newId(),
             kind: 'argumentPreview',
             call: item,
-            preview: await this.argumentPreviewAssist(
-              toolDefinitions(this.deps.platform, {
-                hasShell: true,
-                hasSkills: false,
-                hasWebFetch: true,
-              }).find((tool) => tool.name === item.name)?.previewFields,
-            ),
+            // Preview text comes only from the tools this request offered
+            // (RVCM1062C P2): host tools name their curated fields and an
+            // offered IDE or MCP tool declares its own (RVCM1062B: the
+            // captured get_weather call's city/unit render from its
+            // declaration). A tool the request never offered — allowlisted
+            // out, untrusted away, or never declared — stays textless and
+            // shows a byte count only, as the README documents.
+            preview: await this.argumentPreviewAssist(this.offeredPreviewFields.get(item.name)),
             text: '',
             summary: [],
             isCompleted: false,
@@ -5878,7 +5947,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         }
         const attempt = budget.retriesUsed
         budget.retriesUsed += 1
-        const { client } = await this.resolveModel()
+        const { client } = this.selectedModel()
         const delayMs = client.retryDelayMs(attempt)
         this.emit({
           type: 'turnRetry',
@@ -5955,13 +6024,13 @@ export class ModelApiSession implements ScheduledAgentSession {
     confirmedRequest?: ConfirmedModelRequest,
   ): Promise<StreamedCall> {
     const revision = this.modelRevision
-    const resolved = await this.resolveModel()
+    const resolved = await this.resolveModel(this.active?.audioMessage?.modelId ?? this.modelId)
     const pending = this.owner.run(turnId)
     if (pending !== undefined && this.active !== undefined && this.active.scheduleRun !== pending)
       await this.drainSteered(this.active)
     const requestId = this.deps.newId()
     const run = this.active?.scheduleRun
-    if (run !== undefined) await this.checkScheduledReplay(run, this.body())
+    if (run !== undefined) await this.checkScheduledReplay(run, this.body(resolved))
     const attempt = budget.retriesUsed + 1
     // A request that cannot fit the session budget left is never sent (M82),
     // nor shown to the hooks; the body sent is reserved afresh below, since
@@ -5972,9 +6041,16 @@ export class ModelApiSession implements ScheduledAgentSession {
       this.modelId,
       signal,
     )
-    this.assertContextFits(this.body())
+    this.assertContextFits(this.body(resolved))
     await this.refreshSearchConsent(signal)
-    await this.beforeModelCall(turnId, this.budgeted(this.body()), requestId, attempt, step, signal)
+    await this.beforeModelCall(
+      turnId,
+      this.budgeted(this.body(resolved), resolved),
+      requestId,
+      attempt,
+      step,
+      signal,
+    )
     const requiredAfterPreHook = this.requiredMcpFailure(this.deps.mcpServers?.snapshot())
     if (requiredAfterPreHook !== undefined) {
       throw requiredAfterPreHook
@@ -6001,7 +6077,11 @@ export class ModelApiSession implements ScheduledAgentSession {
     }
     await this.refreshBudgetSpend()
     await this.refreshSearchConsent(signal)
-    if (this.modelRevision !== revision || this.modelId !== resolved.ref || !resolved.isCurrent()) {
+    if (
+      this.modelRevision !== revision ||
+      (this.active?.audioMessage?.modelId ?? this.modelId) !== resolved.ref ||
+      !resolved.isCurrent()
+    ) {
       throw new AbortedError()
     }
     await this.media?.prepare(
@@ -6009,10 +6089,10 @@ export class ModelApiSession implements ScheduledAgentSession {
       this.modelId,
       signal,
     )
-    if (run !== undefined) await this.checkScheduledReplay(run, this.body())
-    const body = this.budgeted(this.body())
+    if (run !== undefined) await this.checkScheduledReplay(run, this.body(resolved))
+    const body = this.budgeted(this.body(resolved), resolved)
     this.lastJudgeBody = body
-    const reservation = this.sending(body)
+    const reservation = this.sending(body, resolved)
     if (confirmedRequest !== undefined && this.recordedCall !== undefined)
       this.recordedCall = { ...this.recordedCall, kind: 'schedule' }
     const requestReplay = this.requestReplay()
@@ -6068,6 +6148,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       if (reservation !== undefined) reservation.hasMediaAccounting = mediaAccounting !== undefined
       const admitAttempt = this.responseAttemptGuard(
         body,
+        resolved,
         undefined,
         false,
         turnId,
@@ -6664,12 +6745,12 @@ export class ModelApiSession implements ScheduledAgentSession {
     return scope?.isStillAllowed(keyDigest) ?? !isPositiveUsd(this.deps.sessionBudgetUsd())
   }
 
-  private paidModelObservers(turnId: string) {
+  private paidModelObservers(turnId: string, resolved = this.selectedModel()) {
     return {
       keyed: (request: Omit<CreateResponseBody, 'prompt_cache_key' | 'prompt_cache_retention'>) =>
         this.keyed(request),
       guard: (body: CreateResponseBody, budget: DirectResponseBudget) =>
-        this.responseAttemptGuard(body, budget),
+        this.responseAttemptGuard(body, resolved, budget),
       isCountedUsage,
       abortError: () => new AbortedError(),
       isRefused: (error: unknown) =>
@@ -6787,9 +6868,9 @@ export class ModelApiSession implements ScheduledAgentSession {
           breaker: this.reviewBreaker,
           userRequest: this.lastUserText(),
           recentCalls: this.recentCalls(turnId),
-          ...this.paidModelObservers(turnId),
+          ...this.paidModelObservers(turnId, resolved),
           keyed: (request) => this.keyed(request),
-          guard: (body, budget) => this.responseAttemptGuard(body, budget),
+          guard: (body, budget) => this.responseAttemptGuard(body, resolved, budget),
           isCountedUsage,
           abortError: () => new AbortedError(),
           isRefused: (error) =>
@@ -6812,6 +6893,7 @@ export class ModelApiSession implements ScheduledAgentSession {
           providerId: resolved.policy.identity.provider,
           origin: resolved.origin,
           keyDigest,
+          runKind: 'review',
           isStillAllowed: () => isCurrent() && this.isPaidBudgetAllowed(budgetScope, keyDigest),
           onRequestStarted: () => {
             this.notifyUsage(() => {
@@ -8684,6 +8766,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       {
         modelId,
         keyDigest,
+        runKind: 'hookModel',
         isStillAllowed: () => isCurrent() && this.isPaidBudgetAllowed(budgetScope, keyDigest),
         onRequestStarted: () => {
           // Hook runs are counted by the consenting dispatcher.
@@ -14233,7 +14316,7 @@ export class ModelApiSession implements ScheduledAgentSession {
   }
 
   private async collectText(
-    makeBody: () => CreateResponseBody,
+    makeBody: (resolved: ResolvedModel) => CreateResponseBody,
     signal: AbortSignal,
     extraAdmission?: CompactionAttemptGuard,
     settleExtra?: (
@@ -14255,13 +14338,19 @@ export class ModelApiSession implements ScheduledAgentSession {
       const attempt = budget.retriesUsed + 1
       try {
         await unlessStopped(this.refreshBudgetSpend(), signal)
+        // One record owns the hook projection and final request. A stale
+        // same-ref record is refused; a switched selection starts a whole
+        // new projection, never a new client underneath an existing body.
+        let resolved = await unlessStopped(this.resolveModel(), signal)
         await unlessStopped(
-          this.beforeModelCall(turnId, makeBody(), requestId, attempt, 0, signal),
+          this.beforeModelCall(turnId, makeBody(resolved), requestId, attempt, 0, signal),
           signal,
         )
         await unlessStopped(this.refreshBudgetSpend(), signal)
-        const body = makeBody()
-        const resolved = await this.resolveModel(body.model)
+        if (resolved.ref !== this.modelId)
+          resolved = await unlessStopped(this.resolveModel(), signal)
+        if (!resolved.isCurrent()) throw this.staleRecordError(turnId === COMPACTION_TURN_ID)
+        const body = makeBody(resolved)
         const revision = this.modelRevision
         const chargedGoalId = isGoalActive(this.goal) ? this.goal.goal_id : undefined
         let text = ''
@@ -14272,10 +14361,10 @@ export class ModelApiSession implements ScheduledAgentSession {
             isRateLimited: false,
             usage: undefined,
           }
-        const reservation = this.sending(body)
+        const reservation = this.sending(body, resolved)
         if (this.recordedCall !== undefined)
           this.recordedCall = { ...this.recordedCall, kind: 'compaction' }
-        const admitAttempt = this.responseAttemptGuard(body, undefined, true)
+        const admitAttempt = this.responseAttemptGuard(body, resolved, undefined, true)
         let settling: Promise<void> = Promise.resolve()
         const guarded: ResponseAttemptGuard = Object.assign(
           (keyDigest: string | undefined) => {
@@ -14773,13 +14862,18 @@ export class ModelApiSession implements ScheduledAgentSession {
     const wasBudgetLimited = this.goal?.status === GOAL_STATUS.budgetLimited
     let tail: readonly ReplayItem[] = []
     let snapshot = ''
-    const makeBody = (canUseTools: boolean, attempt: SideCallAttempt): CreateResponseBody => {
+    const makeBody = (
+      canUseTools: boolean,
+      attempt: SideCallAttempt,
+      resolved: ResolvedModel,
+    ): CreateResponseBody => {
       // collectText calls again after hooks and budget refresh. Capture all model
       // decisions together, with no await between this projection and reservation.
-      const modelId = this.modelId
+      const modelId = resolved.ref
       const model = this.deps.compactionModel?.(modelId)
       const windowTokens =
         model?.contextTokens ??
+        resolved.contextTokens ??
         contextModelFor(this.deps, modelId)?.contextTokens ??
         MODEL_API_CONTEXT_WINDOW
       const canReplayReasoning =
@@ -14801,9 +14895,10 @@ export class ModelApiSession implements ScheduledAgentSession {
       }
       const prefix = this.compactionPrefix
       const shouldKeepTools =
-        model === undefined
+        resolved.policy.tools.calling.state === 'yes' &&
+        (model === undefined
           ? modelId.startsWith(MODEL_API_MODEL_PREFIX)
-          : model.quirks.keepToolsWithHistory && model.capabilities.toolCalling
+          : model.quirks.keepToolsWithHistory && model.capabilities.toolCalling)
       const canReuse =
         canUseTools &&
         !isSummaryFork &&
@@ -14811,15 +14906,15 @@ export class ModelApiSession implements ScheduledAgentSession {
         (prefix === undefined ||
           prefix.body.tools.every((tool) => tool.type !== MODEL_API_WEB_SEARCH_TOOL))
       // A summary cap below the provider minimum is a rejected request:
-      // floor at what the selected provider accepts before budgeting it.
+      // floor at what this request's record accepts before budgeting it.
       const summaryBudget = Math.max(
-        minOutputTokensForPolicy(this.modelPolicy()),
+        minOutputTokensForPolicy(resolved.policy),
         Math.min(
           COMPACTION_SUMMARY_MAX_TOKENS,
           Math.floor(windowTokens * COMPACTION_SUMMARY_WINDOW_FRACTION),
         ),
       )
-      const { text: _answerFormat, ...current } = this.body(false)
+      const { text: _answerFormat, ...current } = this.body(resolved, false)
       // Compaction owns its format, including the unformatted text fallback.
       // The last POST supplies cache metadata only. Stop, fitting and hook
       // rewrites can replace replay entries; its saved input is never replayed.
@@ -14835,14 +14930,14 @@ export class ModelApiSession implements ScheduledAgentSession {
           ),
           append,
         ]),
-        tools: canReuse ? (cached?.tools ?? current.tools) : [],
+        tools: canReuse ? current.tools : [],
         include: ['reasoning.encrypted_content'],
       })
       const formatted = this.keyed(sideCallBody(body, attempt, this.deps.forceSideCallTool))
-      const reserved = this.budgeted({
-        ...formatted,
-        max_output_tokens: Math.min(formatted.max_output_tokens, summaryBudget),
-      })
+      const reserved = this.budgeted(
+        { ...formatted, max_output_tokens: Math.min(formatted.max_output_tokens, summaryBudget) },
+        resolved,
+      )
       return { ...reserved, max_output_tokens: Math.min(reserved.max_output_tokens, summaryBudget) }
     }
     const postContexts: string[] = []
@@ -14861,7 +14956,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       },
       request: async (attempt) => {
         let collected = await this.collectText(
-          () => makeBody(true, attempt),
+          (resolved) => makeBody(true, attempt, resolved),
           signal,
           extraAdmission,
           settleExtra,
@@ -14874,7 +14969,7 @@ export class ModelApiSession implements ScheduledAgentSession {
           if (!wasBudgetLimited && this.goal?.status === GOAL_STATUS.budgetLimited)
             throw new SessionBudgetExceededError(MODEL_API_MODEL_TEXT.goalBudgetReached)
           collected = await this.collectText(
-            () => makeBody(false, attempt),
+            (resolved) => makeBody(false, attempt, resolved),
             signal,
             extraAdmission,
             settleExtra,
@@ -14966,10 +15061,10 @@ export class ModelApiSession implements ScheduledAgentSession {
     )
       return { status: ACCEPTED, reason: undefined }
     // The new context size is a courtesy: the compaction stands if it cannot be counted.
-    const { stream: _stream, ...countable } = this.body()
     const countRevision = this.modelRevision
     try {
-      const resolved = await this.resolveModel(countable.model)
+      const resolved = await unlessStopped(this.resolveModel(), signal)
+      const { stream: _stream, ...countable } = this.body(resolved)
       const startedAt = this.deps.now()
       let counted: number | undefined
       try {
@@ -15355,6 +15450,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     return {
       modelId: paid.modelId,
       keyDigest: paid.accountId,
+      runKind: 'scheduled',
       isStillAllowed: () =>
         run.isActive() && run.allowsPaid('scheduledPrompts') && this.modelId === paid.modelId,
       onRequestStarted: () => {
@@ -15642,9 +15738,9 @@ export class ModelApiSession implements ScheduledAgentSession {
         const work = (async () => {
           try {
             const result = await this.collectText(
-              () => {
+              (resolved) => {
                 check()
-                const { text: _answerFormat, ...body } = this.body(false)
+                const { text: _answerFormat, ...body } = this.body(resolved, false)
                 return this.keyed(
                   sideCallBody({ ...body, tools: [] }, attempt, this.deps.forceSideCallTool),
                 )

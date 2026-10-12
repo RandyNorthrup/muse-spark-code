@@ -316,6 +316,14 @@ Surfaces: vscode:modelApi, acp:modelApi. Paid: no extra feature charge; model us
 
 Commands: —. Settings: `museSpark.modelApiParallelReads`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#agent-loop-guarantees)
 
+### Argument Preview
+
+Show validated, scrubbed tool arguments as they arrive, before the tool runs.
+
+Surfaces: vscode:modelApi, acp:modelApi. Paid: no extra feature charge; model usage still applies.
+
+Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#agent-loop-guarantees)
+
 ### The model reply was cut short. No tool calls were run; please retry.
 
 The model reply was cut short. No tool calls were run; please retry.
