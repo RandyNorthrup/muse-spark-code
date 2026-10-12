@@ -63,7 +63,12 @@ happened, not what was planned; superseded entries are kept.
   module is under review. Not in Bypass or Auto, nor under an allow rule of
   the person's own: there one plain line says that subagent spawns are not
   admitted and that what they change is counted at the next review (with
-  `/playbook`, with each counted round and in the Agent map). A review of
+  `/playbook`, with each counted round and in the Agent map). The Agent
+  map's own **Continue**, **Retry**, **Resume** and **Reopen**, and a
+  message to a child that would be new work, are admitted the same way on
+  both backends before anything is sent; whether a message is new work is
+  decided by the host from the child's own row (a note only to a child that
+  is at work), not by what the panel last drew. A review of
   files no child changed, and any dispatch from a conversation with nothing
   under review, goes out exactly as it did before. **After review RVCM1166B
   (five P2), one rule: what could not be read, loaded or ended is a failure
