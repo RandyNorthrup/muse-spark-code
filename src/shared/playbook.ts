@@ -145,6 +145,15 @@ const answer = z.discriminatedUnion('status', [
  * needed; residuals must be named. A dispute grants no exception; an override
  * names lead/owner, reason and time. The adapter maps critical/high/other known
  * severities to P1/P2/P3; absent/unknown severity stays P1 until clarified. */
+/**
+ * Why a child's contribution cannot be reviewed: the closed list (M116,
+ * D96.17). An unreviewable contribution is a finding about that child,
+ * journaled with one of these reasons, counted and named, while every other
+ * child's review proceeds normally.
+ */
+export type BlockedContributionCode =
+  'nameWithheld' | 'patchTooLarge' | 'patchUnreadable' | 'tooManyFiles'
+
 export const playbookRoundSchema = z.strictObject({
   module: playbookModuleSchema,
   ...reviewAgents.shape,
@@ -205,6 +214,7 @@ export const playbookWhyNoteSchema = z.strictObject({
     'gateSkipped',
     'permissionLaundering',
     'classifierBlocked',
+    'contributionBlocked',
     'ruleDisabled',
     'briefRecorded',
     'configDrift',

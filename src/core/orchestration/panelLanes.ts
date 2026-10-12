@@ -25,6 +25,7 @@ import {
 } from '../../shared/constants'
 import { UI_TEXT } from '../../shared/l10n/text'
 import type {
+  BlockedContributionCode,
   PlaybookBoard,
   PlaybookDesignDecision,
   PlaybookLane,
@@ -55,6 +56,19 @@ export interface PanelChild {
   readonly sessionId: string
   /** Workspace-relative files the host saw it change. */
   readonly files: readonly string[]
+  /**
+   * The contribution the host could not read (M116, PLAN.md D96.17): a
+   * finding about this child from the closed list, journaled with this id
+   * once per child round while every other child is reviewed normally. The
+   * text is secret-free: a withheld name is never named in it.
+   */
+  readonly blocked?:
+    | {
+        readonly id: string
+        readonly code: BlockedContributionCode
+        readonly text: string
+      }
+    | undefined
 }
 
 /** The lane a redesign runs on: the panel's own, named so no board lane collides. */
@@ -62,7 +76,7 @@ const REDESIGN_LANE_PREFIX = 'panel-redesign-'
 const CONTRACTS_LANE = '0'
 const REVIEWER_PREFIX = 'conversation:'
 
-function bounded(id: string): string {
+export function bounded(id: string): string {
   return id.length <= PLAYBOOK_ID_MAX_CHARS ? id : createHash('sha256').update(id).digest('hex')
 }
 

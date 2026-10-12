@@ -2,15 +2,16 @@
 // D96.16 and D96.17): what a review turn, a dispatch, a subagent the backend
 // asks about and the notice's button do, over a window and VS Code pickers
 // that the tests stand in. No worker, no git and no model is involved.
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi, type Mock } from 'vitest'
 import type { AgentEvent, ItemSnapshot } from '../../src/shared/agentEvents'
 import type { BestOfNRun } from '../../src/shared/bestOfN'
 import {
+  OUTPUT_PAGE_BYTES,
   PATCH_DOCUMENT_MAX_PAGES,
   PLAYBOOK_RECORD_MAX,
   PLAYBOOK_REFUSAL_MODEL_TEXT,
 } from '../../src/shared/constants'
-import { UI_TEXT } from '../../src/shared/l10n/text'
+import { fill, formatNumber, UI_TEXT } from '../../src/shared/l10n/text'
 import type { PlaybookWhyNote } from '../../src/shared/playbook'
 import type { OutputPageRequest, TurnPart } from '../../src/core/agent/agentBackend'
 import type { PanelModuleSummary } from '../../src/runtime/playbook/governor'
@@ -286,6 +287,37 @@ function request(submit: (parts: readonly TurnPart[]) => Promise<{ turnId: strin
   }
 }
 
+/** A review that reports one unreadable child and sends nothing else. */
+async function expectUnreadable(
+  setup: ReturnType<typeof scene>,
+  submit: Mock<() => Promise<{ turnId: string }>>,
+  calls: number,
+): Promise<void> {
+  await expect(setup.conversation.review(request(submit).review)).resolves.toEqual({
+    turnId: 'turn-1',
+  })
+  expect(setup.window.openReview).toHaveBeenCalledExactlyOnceWith(
+    SESSION,
+    [STORE],
+    [
+      expect.objectContaining({
+        agentId: AGENT,
+        files: [],
+        blocked: expect.objectContaining({ code: 'patchUnreadable' }),
+      }),
+    ],
+  )
+  expect(submit).toHaveBeenCalledTimes(calls)
+}
+
+/** A conversation whose one child’s patch does not read, reviewed once. */
+async function blockedOnce(): Promise<ReturnType<typeof scene>> {
+  const setup = scene({ child: [PATCHED], ticket: ticket() })
+  setup.readSessionOutput.mockResolvedValue(pageOf('not a patch', 0, true))
+  await setup.conversation.review(request(() => Promise.resolve({ turnId: 'turn-1' })).review)
+  return setup
+}
+
 /** Whether a promise has settled by now, without waiting for it. */
 async function isSettled(promise: Promise<unknown>): Promise<boolean> {
   const pending = Symbol('pending')
@@ -360,23 +392,16 @@ describe('a review turn', () => {
     )
   })
 
-  it('refuses the review on a stored patch that never ends, or that does not read as one', async () => {
+  it('reports a stored patch that never ends, or that does not read as one, and reviews on', async () => {
     const submit = vi.fn(() => Promise.resolve({ turnId: 'turn-1' }))
     const endless = scene({ child: [PATCHED] })
     endless.readSessionOutput.mockResolvedValue(pageOf('{"files":[', 0, false))
-    await expect(endless.conversation.review(request(submit).review)).rejects.toThrow(
-      UI_TEXT.playbookEvidenceUnreadable,
-    )
     // It stops at the bound every stored patch is read under, and reads no further.
+    await expectUnreadable(endless, submit, 1)
     expect(endless.readSessionOutput).toHaveBeenCalledTimes(PATCH_DOCUMENT_MAX_PAGES)
     const garbled = scene({ child: [PATCHED] })
     garbled.readSessionOutput.mockResolvedValueOnce(pageOf('not a patch document', 0, true))
-    await expect(garbled.conversation.review(request(submit).review)).rejects.toThrow(
-      UI_TEXT.playbookEvidenceUnreadable,
-    )
-    expect(endless.window.openReview).not.toHaveBeenCalled()
-    expect(garbled.window.openReview).not.toHaveBeenCalled()
-    expect(submit).not.toHaveBeenCalled()
+    await expectUnreadable(garbled, submit, 2)
   })
 
   it('takes a child whose own items say it changed nothing for no child at all', async () => {
@@ -387,37 +412,150 @@ describe('a review turn', () => {
     expect(setup.events.size).toBe(0)
   })
 
-  it('refuses the review when what a child changed cannot be read, and says why', async () => {
+  it('reports a child whose session cannot be read, and reviews on', async () => {
     const setup = scene({ child: [changed(STORE)] })
     setup.readSession.mockRejectedValueOnce(new Error('the session is gone'))
     const submit = vi.fn(() => Promise.resolve({ turnId: 'turn-1' }))
     // Unknown is not "changed nothing": the review is not called ordinary on it.
-    await expect(setup.conversation.review(request(submit).review)).rejects.toThrow(
-      UI_TEXT.playbookEvidenceUnreadable,
-    )
-    expect(setup.window.openReview).not.toHaveBeenCalled()
-    expect(submit).not.toHaveBeenCalled()
-    // A stored patch that cannot be read is the same: the files it changed are not known.
+    await expectUnreadable(setup, submit, 1)
+    // A stored patch that cannot be read is the same: its files are a finding, not a refusal.
     const patched = scene({ child: [PATCHED] })
     patched.readSessionOutput.mockRejectedValueOnce(new Error('the page is gone'))
-    await expect(patched.conversation.review(request(submit).review)).rejects.toThrow(
-      UI_TEXT.playbookEvidenceUnreadable,
-    )
-    expect(submit).not.toHaveBeenCalled()
+    await expectUnreadable(patched, submit, 2)
   })
 
-  it('refuses a review whose evidence is longer than the journal can hold, and cuts nothing to fit', async () => {
+  it('reports a child that changed more files than the journal can hold, and cuts nothing to fit', async () => {
     const many = Array.from(
       { length: PLAYBOOK_RECORD_MAX + 1 },
       (_, index) => `src/${String(index)}.ts`,
     )
     const setup = scene({ child: [changed(...many)] })
     const submit = vi.fn(() => Promise.resolve({ turnId: 'turn-1' }))
-    await expect(setup.conversation.review(request(submit).review)).rejects.toThrow(
-      UI_TEXT.playbookUnavailable,
+    await expect(setup.conversation.review(request(submit).review)).resolves.toEqual({
+      turnId: 'turn-1',
+    })
+    const children = vi.mocked(setup.window.openReview).mock.calls[0]?.[2]
+    expect(children).toEqual([
+      expect.objectContaining({
+        agentId: AGENT,
+        files: [],
+        blocked: expect.objectContaining({ code: 'tooManyFiles' }),
+      }),
+    ])
+    expect(setup.told.find((notice) => notice.level === 'warning')?.text).toBe(
+      fill(UI_TEXT.playbookBlockedMany, {
+        child: AGENT,
+        count: formatNumber(PLAYBOOK_RECORD_MAX + 1),
+        bound: formatNumber(PLAYBOOK_RECORD_MAX),
+      }),
     )
+  })
+
+  it('still refuses a review of more files than the journal can hold', async () => {
+    const many = Array.from(
+      { length: PLAYBOOK_RECORD_MAX + 1 },
+      (_, index) => `src/${String(index)}.ts`,
+    )
+    const setup = scene({ child: [changed(STORE)] })
+    const submit = vi.fn(() => Promise.resolve({ turnId: 'turn-1' }))
+    await expect(
+      setup.conversation.review({ ...request(submit).review, files: many }),
+    ).rejects.toThrow(UI_TEXT.playbookUnavailable)
     expect(setup.window.openReview).not.toHaveBeenCalled()
     expect(submit).not.toHaveBeenCalled()
+  })
+
+  it.each(['nameWithheld', 'patchTooLarge', 'patchUnreadable', 'tooManyFiles'] as const)(
+    'reports a %s contribution against its child and lets a clean second child proceed',
+    async (code) => {
+      const secretFile = `src/core/schedules/sk-${'x'.repeat(24)}.ts`
+      const many = Array.from(
+        { length: PLAYBOOK_RECORD_MAX + 1 },
+        (_, index) => `src/generated/${String(index)}.ts`,
+      )
+      const patchByteLen =
+        code === 'patchTooLarge' ? PATCH_DOCUMENT_MAX_PAGES * OUTPUT_PAGE_BYTES + 1 : 1
+      let bad: ItemSnapshot
+      if (code === 'nameWithheld') bad = changed(STORE, secretFile)
+      else if (code === 'tooManyFiles') bad = changed(...many)
+      else bad = { ...PATCHED, patchRef: { id: 'patch', byteLen: patchByteLen } }
+      const setup = scene({ ticket: ticket() })
+      setup.readSession.mockImplementation((sessionId: string) => {
+        const items = [sessionId === CHILD_SESSION ? bad : changed(STORE)]
+        return Promise.resolve({ mode: 'inline', name: undefined, todos: [], items })
+      })
+      if (code === 'patchUnreadable')
+        setup.readSessionOutput.mockResolvedValue(pageOf('not a patch', 0, true))
+      const submit = vi.fn(() => Promise.resolve({ turnId: 'clean-review' }))
+      const sent = request(submit)
+      const review = {
+        ...sent.review,
+        agents: [...sent.review.agents, { agentId: 'clean-child', sessionId: 'clean-session' }],
+      }
+      await expect(setup.conversation.review(review)).resolves.toEqual({ turnId: 'clean-review' })
+      const children = vi.mocked(setup.window.openReview).mock.calls[0]?.[2]
+      const [blocked] = children?.filter((child) => child.agentId === AGENT) ?? []
+      expect(blocked).toEqual({
+        agentId: AGENT,
+        sessionId: CHILD_SESSION,
+        files: code === 'nameWithheld' ? [STORE] : [],
+        blocked: expect.objectContaining({ code }),
+      })
+      // The clean child's review completes beside it.
+      expect(children).toContainEqual({
+        agentId: 'clean-child',
+        sessionId: 'clean-session',
+        files: [STORE],
+      })
+      // The person is told, with the child's label and never a withheld name.
+      const warnings = setup.told.filter((notice) => notice.level === 'warning')
+      expect(warnings).toHaveLength(1)
+      expect(warnings[0]?.text).toContain(AGENT)
+      expect(warnings[0]?.text).not.toContain(secretFile)
+      expect(warnings[0]?.text).not.toContain('x'.repeat(24))
+      if (code === 'patchTooLarge') expect(setup.readSessionOutput).not.toHaveBeenCalled()
+      // The next review does not read the same blocked contribution again as
+      // if new: the marker is re-sent with its id, and told once. The clean
+      // child is read again; the blocked one is not.
+      const blockedReads = setup.readSession.mock.calls.filter(
+        ([sessionId]) => sessionId === CHILD_SESSION,
+      ).length
+      const outputs = setup.readSessionOutput.mock.calls.length
+      await expect(setup.conversation.review(review)).resolves.toEqual({ turnId: 'clean-review' })
+      expect(
+        setup.readSession.mock.calls.filter(([sessionId]) => sessionId === CHILD_SESSION),
+      ).toHaveLength(blockedReads)
+      expect(setup.readSession).toHaveBeenCalledTimes(blockedReads + 2)
+      expect(setup.readSessionOutput).toHaveBeenCalledTimes(outputs)
+      expect(vi.mocked(setup.window.openReview).mock.calls[1]?.[2]?.[0]).toEqual(blocked)
+      expect(setup.told.filter((notice) => notice.level === 'warning')).toHaveLength(1)
+    },
+  )
+
+  it('reads a blocked contribution again after a new round for that child', async () => {
+    const setup = await blockedOnce()
+    const [first] = vi.mocked(setup.window.openReview).mock.calls[0]?.[2] ?? []
+    expect(first?.blocked?.code).toBe('patchUnreadable')
+    await setup.conversation.dispatch('delegate', SESSION, AGENT, () => Promise.resolve())
+    await setup.conversation.review(request(() => Promise.resolve({ turnId: 'turn-1' })).review)
+    expect(setup.readSession).toHaveBeenCalledTimes(2)
+    const [second] = vi.mocked(setup.window.openReview).mock.calls[1]?.[2] ?? []
+    expect(second?.blocked?.code).toBe('patchUnreadable')
+    expect(second?.blocked?.id).not.toBe(first?.blocked?.id)
+    expect(setup.told.filter((notice) => notice.level === 'warning')).toHaveLength(2)
+  })
+
+  it('reads a blocked contribution again after the child’s first live row', async () => {
+    const setup = await blockedOnce()
+    expect(setup.readSession).toHaveBeenCalledTimes(1)
+    await setup.conversation.observed(SESSION, {
+      itemId: 'item-9',
+      kind: 'subagent',
+      status: 'inProgress',
+      subagentId: AGENT,
+    })
+    await setup.conversation.review(request(() => Promise.resolve({ turnId: 'turn-1' })).review)
+    expect(setup.readSession).toHaveBeenCalledTimes(2)
   })
 
   it('counts the best-of-N attempt the person took as a child', async () => {

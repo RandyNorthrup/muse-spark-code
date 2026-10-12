@@ -8,6 +8,7 @@
       "clearItem",
       "logoutItem",
       "agentsCommand",
+      "playbookNotes.contributionBlocked",
       "referenceAccountsTitle",
       "usageCommand",
       "costCommand",

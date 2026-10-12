@@ -21,10 +21,11 @@ import {
   REVIEW_FINDING_PATH_MAX_CHARS,
   REVIEW_FINDING_TEXT_MAX_CHARS,
 } from '../../shared/constants'
-import { fill, plural, UI_TEXT } from '../../shared/l10n/text'
+import { fill, formatNumber, plural, UI_TEXT } from '../../shared/l10n/text'
 import type { AgentHost, TurnPart } from '../../core/agent/agentBackend'
 import type { SubagentAdmission } from '../../core/backends/modelapi/subagentTools'
-import type { PanelChild } from '../../core/orchestration/panelLanes'
+import { bounded as boundId, type PanelChild } from '../../core/orchestration/panelLanes'
+import { screenModulePath } from '../../core/orchestration/playbook/modules'
 import type { PanelAnswer, PanelFinding, PanelModuleSummary } from '../../runtime/playbook/governor'
 import { playbookNoteText } from '../../runtime/playbook/text'
 import { PlaybookRefusal, type PlaybookWindow, type PlaybookWindowReview } from './playbookWindow'
@@ -128,34 +129,91 @@ function isOverBound(list: readonly unknown[]): boolean {
 }
 
 /**
+ * Why a child's contribution cannot be reviewed (M116, PLAN.md D96.17): the
+ * closed list. A finding about that child, never a refusal of the
+ * conversation: its round is counted, and every other child is reviewed.
+ */
+type BlockedReading =
+  | { readonly code: 'nameWithheld' }
+  | { readonly code: 'patchTooLarge'; readonly size: number; readonly bound: number }
+  | { readonly code: 'patchUnreadable' }
+  | { readonly code: 'tooManyFiles'; readonly count: number; readonly bound: number }
+
+/** The bound every stored patch is read under, in bytes. */
+const PATCH_DOCUMENT_MAX_BYTES = PATCH_DOCUMENT_MAX_PAGES * OUTPUT_PAGE_BYTES
+
+/** The cache key for a conversation's blocked finding about one child. */
+function blockedKey(sessionId: string, agent: { readonly sessionId: string }): string {
+  return JSON.stringify([sessionId, agent.sessionId])
+}
+
+/** A blocked finding in the words the person reads; a withheld name is never named. */
+function blockedText(agentId: string, reading: BlockedReading): string {
+  switch (reading.code) {
+    case 'nameWithheld': {
+      return fill(UI_TEXT.playbookBlockedName, { child: agentId })
+    }
+    case 'patchTooLarge': {
+      return fill(UI_TEXT.playbookBlockedLarge, {
+        child: agentId,
+        size: formatNumber(reading.size),
+        bound: formatNumber(reading.bound),
+      })
+    }
+    case 'patchUnreadable': {
+      return fill(UI_TEXT.playbookBlockedUnreadable, { child: agentId })
+    }
+    case 'tooManyFiles': {
+      return fill(UI_TEXT.playbookBlockedMany, {
+        child: agentId,
+        count: formatNumber(reading.count),
+        bound: formatNumber(reading.bound),
+      })
+    }
+  }
+}
+
+/**
  * The files a child's stored patch names, read whole however many pages it
- * takes. A patch larger than any edit's, or one that does not read as a
- * patch, leaves the files unknown: that rejects.
+ * takes. What cannot be read is not evidence that nothing changed: a patch
+ * the host calls larger than any edit's, or one that does not read as a
+ * patch, comes back as the blocked finding it is.
  */
 async function patchFiles(
   backend: Pick<AgentHost, 'readSessionOutput'>,
   sessionId: string,
   itemId: string,
-  outputRef: string,
-): Promise<NonNullable<ReturnType<typeof agentFilesFromPatch>>> {
+  patchRef: { readonly id: string; readonly byteLen: number },
+): Promise<
+  | { readonly files: NonNullable<ReturnType<typeof agentFilesFromPatch>> }
+  | { readonly blocked: BlockedReading }
+> {
+  if (patchRef.byteLen > PATCH_DOCUMENT_MAX_BYTES)
+    return {
+      blocked: { code: 'patchTooLarge', size: patchRef.byteLen, bound: PATCH_DOCUMENT_MAX_BYTES },
+    }
   let document = ''
   let offsetBytes = 0
   for (let page = 0; page < PATCH_DOCUMENT_MAX_PAGES; page += 1) {
-    const chunk = await backend.readSessionOutput(sessionId, {
-      itemId,
-      outputRef,
-      offsetBytes,
-      lengthBytes: OUTPUT_PAGE_BYTES,
-    })
+    let chunk
+    try {
+      chunk = await backend.readSessionOutput(sessionId, {
+        itemId,
+        outputRef: patchRef.id,
+        offsetBytes,
+        lengthBytes: OUTPUT_PAGE_BYTES,
+      })
+    } catch {
+      return { blocked: { code: 'patchUnreadable' } }
+    }
     document += chunk.content
     if (chunk.eof) {
       const files = agentFilesFromPatch(document)
-      if (files === undefined) break
-      return files
+      return files === undefined ? { blocked: { code: 'patchUnreadable' } } : { files }
     }
     offsetBytes = chunk.offsetBytes + chunk.byteLen
   }
-  throw new Error(UI_TEXT.playbookEvidenceUnreadable)
+  return { blocked: { code: 'patchUnreadable' } }
 }
 
 /** A refusal in the words the person reads; anything else as it is. */
@@ -310,43 +368,120 @@ export function createPlaybookConversation(
 
   /**
    * The files a child's own items say it changed: each item's recorded
-   * files, or those its stored patch names. Rejects when either cannot be
-   * read.
+   * files, or those its stored patch names. A patch that cannot be read
+   * comes back blocked; a session that cannot be read rejects, and the
+   * caller reports that child as unreadable.
    */
-  const changedBy = async (sessionId: string): Promise<string[]> => {
+  const changedBy = async (
+    sessionId: string,
+  ): Promise<string[] | { readonly blocked: BlockedReading }> => {
     const backend = await host.backend()
     const { items } = await backend.readSession(sessionId)
     const files = new Set<string>()
     for (const item of items) {
-      const changed =
-        item.changedFiles ??
-        (item.patchRef === undefined
-          ? []
-          : await patchFiles(backend, sessionId, item.itemId, item.patchRef.id))
-      for (const file of changed) files.add(file.path)
+      if (item.changedFiles !== undefined) {
+        for (const file of item.changedFiles) files.add(file.path)
+        continue
+      }
+      if (item.patchRef === undefined) continue
+      const patch = await patchFiles(backend, sessionId, item.itemId, item.patchRef)
+      if ('blocked' in patch) return patch
+      for (const file of patch.files) files.add(file.path)
     }
     return [...files]
   }
 
+  /** A blocked child's finding, told once and journaled once per child round. */
+  const blockedCache = new Map<
+    string,
+    {
+      sessionId: string
+      agentId: string
+      files: string[]
+      blocked: NonNullable<PanelChild['blocked']>
+    }
+  >()
+  const blockedRounds = new Map<string, number>()
+
+  /** A new round for this child re-opens its contribution: forget the last one. */
+  const unblock = (sessionId: string, agentId: string): void => {
+    for (const [key, cached] of blockedCache) {
+      if (cached.sessionId !== sessionId || cached.agentId !== agentId) continue
+      blockedCache.delete(key)
+      blockedRounds.set(key, (blockedRounds.get(key) ?? 0) + 1)
+    }
+  }
+
+  const block = (
+    sessionId: string,
+    agent: { readonly agentId: string; readonly sessionId: string },
+    reading: BlockedReading,
+    files: string[],
+  ): PanelChild => {
+    const key = blockedKey(sessionId, agent)
+    const blocked: NonNullable<PanelChild['blocked']> = {
+      id: boundId(`${agent.sessionId}:${agent.agentId}:${String(blockedRounds.get(key) ?? 0)}`),
+      code: reading.code,
+      text: blockedText(agent.agentId, reading),
+    }
+    blockedCache.set(key, { sessionId, agentId: agent.agentId, files, blocked })
+    notice('warning', blocked.text, false)
+    return { ...agent, files, blocked }
+  }
+
+  /**
+   * One agent's evidence: the files the host saw it change, without the
+   * names the journal cannot hold. A contribution that cannot be read is a
+   * finding about that child, journaled once per child round: the next
+   * review does not read it again as if new, and every other child and any
+   * review of files no child touched proceed normally.
+   */
+  const childEvidence = async (
+    sessionId: string,
+    agent: { readonly agentId: string; readonly sessionId: string },
+  ): Promise<PanelChild | undefined> => {
+    const key = blockedKey(sessionId, agent)
+    const cached = blockedCache.get(key)
+    if (cached?.agentId === agent.agentId)
+      return { ...agent, files: cached.files, blocked: cached.blocked }
+    let read: string[]
+    try {
+      const changed = await changedBy(agent.sessionId)
+      if ('blocked' in changed) return block(sessionId, agent, changed.blocked, [])
+      read = changed
+    } catch {
+      return block(sessionId, agent, { code: 'patchUnreadable' }, [])
+    }
+    const kept: string[] = []
+    let isWithheld = false
+    for (const file of read) {
+      if (screenModulePath(file) === 'withheld') isWithheld = true
+      else kept.push(file)
+    }
+    if (kept.length > PLAYBOOK_RECORD_MAX)
+      return block(
+        sessionId,
+        agent,
+        { code: 'tooManyFiles', count: read.length, bound: PLAYBOOK_RECORD_MAX },
+        [],
+      )
+    if (isWithheld) return block(sessionId, agent, { code: 'nameWithheld' }, kept)
+    return kept.length === 0 ? undefined : { ...agent, files: kept }
+  }
+
   /**
    * The conversation's children that changed something, by the host's own
-   * records. What cannot be read is not evidence that nothing changed: a
-   * child whose session cannot be read, or a list longer than the journal's
-   * bound, refuses the review instead of leaving that child out of it.
+   * records. Past the journal's bound nothing is cut short to fit: a review
+   * of more files, or of more children, than the journal holds is refused.
    */
   const evidence = async (
-    request: Pick<PlaybookReviewRequest<unknown>, 'files' | 'agents' | 'bestOfN'>,
+    request: Pick<PlaybookReviewRequest<unknown>, 'sessionId' | 'files' | 'agents' | 'bestOfN'>,
   ): Promise<PanelChild[]> => {
     if (request.files.length === 0) return []
     const children: PanelChild[] = []
     for (const agent of request.agents) {
-      let files: string[]
-      try {
-        files = await changedBy(agent.sessionId)
-      } catch {
-        throw new Error(UI_TEXT.playbookEvidenceUnreadable)
-      }
-      if (files.length > 0) children.push({ ...agent, files })
+      const child = await childEvidence(request.sessionId, agent)
+      if (child !== undefined) children.push(child)
     }
     const run = request.bestOfN
     const taken = run?.runAttempts.find(
@@ -533,6 +668,8 @@ export function createPlaybookConversation(
     dispatch: async (kind, sessionId, targetId, effect, ended) => {
       assertOpen()
       if (sessionId === undefined) return await effect()
+      // A new round for this child re-opens its contribution.
+      if (targetId !== undefined) unblock(sessionId, targetId)
       follow(sessionId)
       try {
         return await window.dispatch(
@@ -573,6 +710,8 @@ export function createPlaybookConversation(
         if (prior === IN_PROGRESS_STATUS) settle(sessionId, item.subagentId)
       }
       if (prior !== undefined) return
+      // A first live row opens a new round for this child.
+      unblock(sessionId, item.subagentId)
       follow(sessionId)
       try {
         await window.dispatch(
@@ -629,6 +768,8 @@ export function createPlaybookConversation(
       rounds.clear()
       observed.clear()
       completed.clear()
+      blockedCache.clear()
+      blockedRounds.clear()
     },
   }
 }

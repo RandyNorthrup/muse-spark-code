@@ -490,6 +490,10 @@
   "playbookAnswerFollowUp": "Navazující krok",
   "playbookNotCertified": "Příručka: toto kolo se nepodařilo ověřit, proto se nepočítá jako úspěšné.",
   "playbookEvidenceUnreadable": "Příručka: kontrolovaný soubor nebo záznam o změnách podagenta se nepodařilo přečíst, takže příručka nedokáže určit, zda je tato kontrola její. Kontrola nebyla odeslána.",
+  "playbookBlockedName": "Zjištění playbooku pro {child}: soubor se zatajeným názvem vypadá jako tajný údaj. Kolo tohoto podagenta bylo započítáno.",
+  "playbookBlockedLarge": "Zjištění playbooku pro {child}: patch má {size}, nad limitem {bound}. Kolo tohoto podagenta bylo započítáno.",
+  "playbookBlockedUnreadable": "Zjištění playbooku pro {child}: příspěvek nelze přečíst. Kolo tohoto podagenta bylo započítáno.",
+  "playbookBlockedMany": "Zjištění playbooku pro {child}: počet změněných souborů: {count}; limit: {bound}. Kolo tohoto podagenta bylo započítáno.",
   "playbookRecordStale": "Záznam příručky se nepodařilo přečíst. Zobrazené údaje mohou být zastaralé.",
   "playbookMuseCodeStarts": "Muse Code spouští podagenty bez dotazu. Playbook počítá jejich kola a kontroluje jejich práci, ale nemůže zabránit spuštění.",
   "playbookStrikeBadge": {
@@ -566,7 +570,8 @@
     "briefRecorded": "Playbook: stručný popis pro {module} zaznamenán ({reason}).",
     "configDrift": "Je třeba vás: sdílená konfigurace úložiště se pro {module} změnila ({reason}).",
     "fallbackReviewer": "Playbook: {actor} kontroluje {module} jako zaznamenaný náhradní kontrolor ({reason}).",
-    "residualOpen": "Je třeba vás: {lane} má otevřené zbytkové problémy: {missing}."
+    "residualOpen": "Je třeba vás: {lane} má otevřené zbytkové problémy: {missing}.",
+    "contributionBlocked": "{reason}"
   },
   "scheduleSettlement": {
     "sent": "Odesláno podle plánu",

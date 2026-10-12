@@ -490,6 +490,10 @@
   "playbookAnswerFollowUp": "Folgeschritt",
   "playbookNotCertified": "Leitfaden: Diese Runde konnte nicht bestätigt werden und zählt daher nicht als bestanden.",
   "playbookEvidenceUnreadable": "Leitfaden: Eine geprüfte Datei oder die Änderungen eines Subagenten konnten nicht gelesen werden, daher kann der Leitfaden nicht feststellen, ob diese Prüfung zu ihm gehört. Die Prüfung wurde nicht gesendet.",
+  "playbookBlockedName": "Playbook-Befund für {child}: Eine Datei mit verborgenem Namen wirkt wie ein Geheimnis. Die Runde dieses Unteragenten wurde gezählt.",
+  "playbookBlockedLarge": "Playbook-Befund für {child}: Der Patch ist {size} groß und überschreitet die Grenze {bound}. Die Runde dieses Unteragenten wurde gezählt.",
+  "playbookBlockedUnreadable": "Playbook-Befund für {child}: Der Beitrag konnte nicht gelesen werden. Die Runde dieses Unteragenten wurde gezählt.",
+  "playbookBlockedMany": "Playbook-Befund für {child}: Anzahl geänderter Dateien: {count}; Grenze: {bound}. Die Runde dieses Unteragenten wurde gezählt.",
   "playbookRecordStale": "Das Protokoll des Leitfadens konnte nicht gelesen werden. Die Anzeige ist möglicherweise veraltet.",
   "playbookMuseCodeStarts": "Muse Code startet Unteragenten ohne Nachfrage. Das Playbook zählt ihre Runden und prüft ihre Arbeit, kann einen Start aber nicht verhindern.",
   "playbookStrikeBadge": {
@@ -564,7 +568,8 @@
     "briefRecorded": "Leitfaden: Auftragsbeschreibung für {module} aufgezeichnet ({reason}).",
     "configDrift": "Ihre Entscheidung ist nötig: Die gemeinsam genutzte Repository-Konfiguration hat sich für {module} geändert ({reason}).",
     "fallbackReviewer": "Leitfaden: {actor} prüft {module} als aufgezeichnete Ersatzprüfung ({reason}).",
-    "residualOpen": "Ihre Entscheidung ist nötig: {lane} hat offene Restpunkte: {missing}."
+    "residualOpen": "Ihre Entscheidung ist nötig: {lane} hat offene Restpunkte: {missing}.",
+    "contributionBlocked": "{reason}"
   },
   "scheduleSettlement": {
     "sent": "Nach Zeitplan gesendet",

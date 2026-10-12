@@ -18540,12 +18540,15 @@ repository's own working rule (AGENTS.md rule 14).
       binding. A child's changed files were read with a budget of one
       output page and a failed read counted as "changed nothing"; they are
       now read whole (a stored patch page by page up to
-      `PATCH_DOCUMENT_MAX_PAGES`), and a child whose session or patch cannot
-      be read refuses the review. Evidence longer than the journal's bound
-      was cut to fit; it refuses now, and only when a child has a part in
-      the review. A journal that cannot say whether the "subagents start
-      unasked" line is owed answers `/playbook` with the unavailable words
-      and the map's hello with `playbookFailed`, never with "no gap".
+      `PATCH_DOCUMENT_MAX_PAGES`). A contribution the host cannot read is a
+      finding about that child, never a refusal of the conversation (D96.17,
+      "An unreviewable contribution is a finding about that child"). Evidence
+      longer than the journal's bound was cut to fit; a review of more
+      files, or of more children, than the journal holds refuses, and only
+      when a child has a part in the review. A journal that cannot say
+      whether the "subagents start unasked" line is owed answers `/playbook`
+      with the unavailable words and the map's hello with `playbookFailed`,
+      never with "no gap".
 
 17. **Subagents a backend starts itself (C-M116-6, lead's ruling
     2026-10-11).** Item 16 binds the dispatches the person makes in the
@@ -18599,18 +18602,45 @@ repository's own working rule (AGENTS.md rule 14).
       and a window with no playbook sends everything as it always did.
       The gate stands in the controller, before `AgentSession`, which both
       backends implement. The Model API's host is unchanged
-      (`dist/modelApi.js` has 22 bytes to its pin). Residual, named: that
+      (`dist/modelApi.js` has 22 bytes to its pin). Residual, named and
+      measured (lane CM1166C, 2026-10-12, kubuntu production build): that
       host's own state can change a moment before its row says so, when a
       MODEL interrupts a child by tool (the state is set, the turn
       cancelled, then the row said); a person's note sent in that moment is
-      taken by the host as a task, and the playbook was not asked. Closing
-      it needs the host's own gate, when that bundle has room.
+      taken by the host as a task, and the playbook was not asked. The
+      designed gate is two parts: the controller reads the child's row again
+      where the message runs and marks the message new work when the row no
+      longer says at work (that half fits in `dist/conversation.js`), and
+      the host fail-closes the rest — a note that would start a task from
+      `interrupted` or `result_ready` refuses with a retry sentence, so the
+      person sends it again as the follow-up the playbook admits. The host
+      half costs 63 bytes in `dist/modelApi.js` (41 over the pin), so it
+      waits for the bundle diet landing separately; the scratch measurement
+      was reverted byte-exact and only the number is recorded here.
     - **A finding's file is the reviewer's own words (lead's ruling
       2026-10-11).** A finding whose file cannot be read, resolved or named
       is kept under no module, and the round is still counted: a reviewer's
       wording must never be able to stop a round from being counted. Test:
       `playbookGovernor`, "counts the round of a reply that names a file
       nobody can place, without that finding".
+    - **An unreviewable contribution is a finding about that child (review
+      RVCM1166D, finding 1; lead's ruling 2026-10-11).** One child's file
+      or patch refuses no review: the binding reports each of the four
+      causes with that child's label — a file whose name reads as a secret
+      (withheld, never named), a stored patch over
+      `PATCH_DOCUMENT_MAX_PAGES` pages of `OUTPUT_PAGE_BYTES` (with its size
+      and the bound), a patch that does not read (with no number to give),
+      more changed files than `PLAYBOOK_RECORD_MAX` (with the count and the
+      bound) — and every other child's review, and any review of files no
+      child touched, proceed normally. The governor journals the finding
+      once per child round (`contributionBlocked`, with the cause and the
+      secret-free sentence) and counts the round against the modules the
+      child's readable changes touch (under no module when none is
+      readable); the child's own map row names it. A model must not be able
+      to stop the playbook with an awkward file, nor to make its own round
+      disappear. Tests: `playbookConversation`, one row per cause with a
+      clean second child; `playbookGovernor`, journaled once, counted, and
+      the clean child's round after it.
     - **The claim, as published:** Model API child work is admitted before
       dispatch; Muse Code subagents start without asking, their rounds are
       counted and their work reviewed, and the playbook cannot stop a start.

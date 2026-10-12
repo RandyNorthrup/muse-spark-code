@@ -490,6 +490,10 @@
   "playbookAnswerFollowUp": "Dalszy krok",
   "playbookNotCertified": "Podręcznik: tej rundy nie udało się potwierdzić, więc nie liczy się jako zaliczona.",
   "playbookEvidenceUnreadable": "Podręcznik: nie udało się odczytać przeglądanego pliku albo zmian podagenta, więc podręcznik nie może ustalić, czy ten przegląd należy do niego. Przegląd nie został wysłany.",
+  "playbookBlockedName": "Ustalenie playbooka dla {child}: plik o ukrytej nazwie wygląda jak sekret. Runda tego podagenta została policzona.",
+  "playbookBlockedLarge": "Ustalenie playbooka dla {child}: poprawka ma rozmiar {size}, ponad limit {bound}. Runda tego podagenta została policzona.",
+  "playbookBlockedUnreadable": "Ustalenie playbooka dla {child}: nie udało się odczytać wkładu. Runda tego podagenta została policzona.",
+  "playbookBlockedMany": "Ustalenie playbooka dla {child}: liczba zmienionych plików: {count}; limit: {bound}. Runda tego podagenta została policzona.",
   "playbookRecordStale": "Nie udało się odczytać rejestru podręcznika. Wyświetlane dane mogą być nieaktualne.",
   "playbookMuseCodeStarts": "Muse Code uruchamia podagentów bez pytania. Playbook liczy ich rundy i sprawdza ich pracę, ale nie może zapobiec uruchomieniu.",
   "playbookStrikeBadge": {
@@ -566,7 +570,8 @@
     "briefRecorded": "Przewodnik: opis dla {module} zapisany ({reason}).",
     "configDrift": "Potrzebna Twoja decyzja: współdzielona konfiguracja repozytorium zmieniła się dla {module} ({reason}).",
     "fallbackReviewer": "Przewodnik: {actor} sprawdza {module} jako zapisany recenzent zastępczy ({reason}).",
-    "residualOpen": "Potrzebna Twoja decyzja: {lane} ma otwarte punkty szczątkowe: {missing}."
+    "residualOpen": "Potrzebna Twoja decyzja: {lane} ma otwarte punkty szczątkowe: {missing}.",
+    "contributionBlocked": "{reason}"
   },
   "scheduleSettlement": {
     "sent": "Wysłano zgodnie z harmonogramem",

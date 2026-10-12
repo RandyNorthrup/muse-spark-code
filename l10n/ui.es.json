@@ -490,6 +490,10 @@
   "playbookAnswerFollowUp": "Seguimiento",
   "playbookNotCertified": "Guía: esta ronda no se pudo certificar, así que no cuenta como aprobada.",
   "playbookEvidenceUnreadable": "Guía: no se pudo leer un archivo revisado o lo que cambió un subagente, así que la guía no puede saber si esta revisión es suya. La revisión no se envió.",
+  "playbookBlockedName": "Hallazgo del playbook para {child}: un archivo cuyo nombre se oculta parece contener un secreto. Se contó la ronda de este subagente.",
+  "playbookBlockedLarge": "Hallazgo del playbook para {child}: el parche ocupa {size}, por encima del límite de {bound}. Se contó la ronda de este subagente.",
+  "playbookBlockedUnreadable": "Hallazgo del playbook para {child}: no se pudo leer la contribución. Se contó la ronda de este subagente.",
+  "playbookBlockedMany": "Hallazgo del playbook para {child}: cantidad de archivos modificados: {count}; límite: {bound}. Se contó la ronda de este subagente.",
   "playbookRecordStale": "No se pudo leer el registro de la guía. Lo que se muestra puede estar desactualizado.",
   "playbookMuseCodeStarts": "Muse Code inicia subagentes sin preguntar. El playbook cuenta sus rondas y revisa su trabajo, pero no puede impedir un inicio.",
   "playbookStrikeBadge": {
@@ -565,7 +569,8 @@
     "briefRecorded": "Guía: informe para {module} registrado ({reason}).",
     "configDrift": "Se necesita tu decisión: la configuración compartida del repositorio cambió para {module} ({reason}).",
     "fallbackReviewer": "Guía: {actor} revisa {module} como revisor suplente registrado ({reason}).",
-    "residualOpen": "Se necesita tu decisión: {lane} tiene asuntos pendientes abiertos: {missing}."
+    "residualOpen": "Se necesita tu decisión: {lane} tiene asuntos pendientes abiertos: {missing}.",
+    "contributionBlocked": "{reason}"
   },
   "scheduleSettlement": {
     "sent": "Enviado según la programación",
