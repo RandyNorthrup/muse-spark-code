@@ -66,3 +66,151 @@ guards, respectively; both source files restore byte-exactly.
 
 - request-table: `src/runtime/reporting/engine.ts`, restoration `7769db65d9b85543f9e2d709edfb68c2ee77cca3a5fcd91e907fb4e1cb067e9c`, red log `efb0f2d6699ed47362c419c421c7a85e1bcd85ec1078c55ed0f9412eac4f4b8b`.
 - structural-table: `src/core/reporting/sources/local.ts`, restoration `f975d467d035741573429d6a2ce8dd7f7a5e5866ba57d20d27cc7e09e854ce9c`, red log `1b767647e561358a28cee6dbe8b2c16decc65e85ecba47b7264dff8e100fbedb`.
+
+## Step-1 reds, resolved on the merged tree
+
+- `sessionReportSource`: the remaining red was `cancels a reader that
+ignores the signal and enforces the per-source timeout`. Cause: guarantee
+  (e) replaced the old abort race with a pure await of the read's own
+  settlement, so a reader that never settles hangs past the 5 s timeout.
+  Fix (`d8a32f4cc`, `src/core/reporting/sources/local.ts`): `localSource`
+  races the read against the handed deadline only; a user abort still awaits
+  the cooperative read's own settlement, while a signal-ignoring reader
+  cannot outlive the per-source timeout. `sessionReportSource` (14) and
+  `reportEngineCancellation` (62) pass together; neither guarantee moved.
+- `paidMoneyStructure` (line ~1143): resolved to the train's exact-decimal
+  form; the five reviewed leaves (`journalStore.ts` `apiEquivalentUsd`,
+  `usd`; `reportingAmount.ts` `capUsd`, `spentUsd`, `uncertainUsd`) are
+  exact decimals, guarded with no allow-list.
+- `usagePanel.js`: inside its unchanged cap on the merged tree; final bytes
+  in the proof section below. No cap moved.
+- `usageIntegration.test.ts`: the case that times out at 5 s on busy
+  machines also does so on main; named in the final lane report, not fixed
+  here.
+
+## Guarantee (b): the engine owns every boundary
+
+`src/core/reporting/sources/boundary.ts` exposes `readReportField`,
+`awaitReportRead`, `readReportRows`, `readReportSource` and
+`readReportFacts`. Kind readers admit rows through `readReportRows`
+(`collectValidRows` in `reportInputs.ts` delegates with remaining
+capacity); kind sources decode facts through `readReportFacts`
+(`accounts.ts`, `security.ts`); the engine wraps every port read in
+`readReportSource`. Each kind's own partial guard is deleted; their tests
+stay and pass. RVCM1133D closes in the helpers, for every kind:
+
+- (i) `readReportRows` reads length and each index inside its own
+  protection and never touches the iterator: `[valid, throwing slot,
+valid]` keeps both valid rows with one named problem, and later facets
+  still read. Proven by `reportEngineBoundaries` (every kind ×
+  slot/iterator/length) and `reportJoinAccounts` through the real
+  accounts/security readers.
+- (ii) `localFailureOf` is total: brand, code and prototype access on a
+  caught value happen inside its guard and degrade to the generic named
+  problem. Proven with throwing brand/code/prototype getters, including an
+  `Error` carrying a throwing code getter on a rejected read.
+- (iii) Admission reserves the disclosure: `section`/`sourcedSection` admit
+  at the final-schema bound with `omittedRows` named. Proven end to end
+  (reader, source, collector, section validator, final document schema) for
+  every kind and every section by `reportEngineBounds` (15 kinds, 75
+  sections), plus the exact-cap and combined-limits cases in
+  `reportJoinAccounts`. No schema limit moves.
+- (iv) Absent-facet names come from the request table
+  (`reportText.reportLabels`), never English identifiers. Proven with the
+  Spanish table: the sentence carries `Uso, Cambios de cuenta,
+Confirmaciones`, never `usage, swaps, confirmations`.
+
+Deliberately replacing per-slot isolation with an unguarded iterator fires
+150 of 180 boundary cases. Byte-exact restoration SHA-256:
+`f6b16ba11613f115e6f45173dc32a02533a9ac2904ad6d8232a91d9b6b0c61c6`;
+drill log SHA-256:
+`0f96b215ab2a4f7d5a4de842435e8d9103d0b7a3e83ca116a8b856364acd0a82`.
+
+## Guarantee (d): exact money, source to text
+
+No amount under `src/core/reporting` or `src/runtime/reporting` is a
+JavaScript number: `UsdAmount` (branded string) from journal to rendered
+cell, sums and currency formatting included. `reportExactMoney` proves it
+twice: a type-checker inventory over every reporting file with no
+sanctioned exception, and an end-to-end decimal case
+(`9007199254740993.000000001`) through `usageReportFacts`. The five
+step-1 leaves are exact at the journal boundary, so `limitDollars`-style
+crossings cannot return. Two drills: reintroducing the historical
+`limitDollars` crossing fails the decimal case (restoration
+`a85f9e3ccdbe497ae11acd72f2a65e3fffc05a30a5b32dbee3e6867a28beda62`,
+red log
+`1cb62aae7eae9339ea8f564cd5752decf08c56d921de8ac939a9e269e588acde`);
+a numeric `spentUsd` leaf in a reporting file fails the inventory with
+`core/reporting/collect/usage.ts:spentUsd` (restoration
+`a8027c3a740ccdb2766f0304ee753aa3ff90a13fd99148b556ae42eac4b54dc2`,
+red log
+`d62545dd962917bbc50adc9c0ca962841a961ea9cb36e0a76eff3cb59f7f53f7`).
+Scope note: the inventory names declared shapes (properties, aliases,
+literal-initialized money variables); a numeric local built by a call
+expression is rejected by the typechecker at the `UsdAmount` use site,
+because the brand admits no plain number.
+
+## Guarantee (e): a cancelled or timed-out read stops
+
+The engine hands every source one `AbortSignal` and one deadline
+(`engine.ts`); `localSource` enforces the handed deadline (defaulting to
+`REPORT_SOURCE_TIMEOUT_MS` for older callers), awaits a cancelled
+cooperative read through its own settlement instead of abandoning it, and
+reports a resource held by a valid writer as `busy` (never cancelled).
+`reportEngineCancellation` enumerates all 15 kinds: no read starts past an
+abort, no resource call happens after the abort, post-abort settlement is
+awaited, held resources read busy, the handed deadline (not the default)
+is enforced, and repeated refreshes leave no waiting admission readers.
+Removing the upfront abort check fires the 15 per-kind no-start cases.
+`src/core/reporting/sources/local.ts` restoration SHA-256:
+`13c1747b91d7e45d3a936b6e1dd00b6b8c1d330f5b6e5841cc76117dc71b17e5`;
+drill log SHA-256:
+`3bb56015c84a37c8a20e0ec9e0cc90a89df54f73704addef69f2b026c89443a9`.
+
+## Step 3: availability
+
+`REPORT_WORKING_KINDS` is the switch: ten working kinds
+(`project`, `milestone`, `release`, `changes`, `quality`, `usage`,
+`session`, `keybindings`, `accounts`, `security`); five stay dormant
+(`playbook`, `issues`, `estimate`, `fleet`, `schedules`). Parsers and
+history keep accepting every kind, but no Help, picker, README or command
+mentions a dormant one; unbound kinds answer `unavailable` with
+`unsupportedKind`/`unbound` wording pinned in 15 languages. `cx1r4Truth`
+compares the flip against the register in both directions (working kinds
+present in the ACP entry, dormant kinds absent; `REPORT_WORKING_KINDS`
+exactly equals the ten). `cx1r2Truth` asserts no `/report <kind>` for the
+five dormant kinds; `reportingPanel` asserts the ten-entry picker. Left
+off: the five dormant kinds.
+
+## The one-page rule a kind's author follows
+
+1. **Language travels with the request.** Take every sentence, label and
+   reason from `context.reportText`. Never import the process-wide table
+   (`UI_TEXT`, `setUiText` reads) in a kind file: the structural test
+   lists kind files from the registry and fails the import.
+2. **Never discard good rows.** Return rows plus problems through the
+   engine helpers: `readReportRows` for arrays (length, slots and iterator
+   are guarded; a throwing slot is one named problem), `readReportField`
+   for scalars, `awaitReportRead` for awaits, `readReportFacts` for whole
+   facts. A facet with nothing valid is named unavailable in the report's
+   language (labels from `reportText.reportLabels`); never an empty
+   section, never a silent null. There is no opt-out: the source type
+   returns rows plus problems.
+3. **Rows carry identity and stop at the cap.** Admit through
+   `collectValidRows` (readers) or `section`/`sourcedSection` (collectors)
+   at `REPORT_MAX_ROWS`; limit rows admitted, limit-plus-one refused with
+   `omittedRows` named. Identity is (kind, source key); two generations
+   over the same data are byte-identical.
+4. **Money is `UsdAmount`, never `number`.** From the journal to the cell,
+   sums and formatting included. The inventory fails any numeric money
+   leaf in a reporting file; the brand plus typecheck rejects the rest.
+5. **Observe the signal and the deadline.** Do one abort-aware read per
+   source; after an abort start no further read, write or publish. A
+   resource held by a valid writer reports `busy`, not cancelled.
+6. **Land dormant.** New kinds arrive outside `REPORT_WORKING_KINDS` with
+   no Help, picker, README or command line; the register's lines return
+   only when the lead flips the switch, in all 14 tables.
+
+## Proof
+
+Bundle bytes and the dependent/typecheck/gate record follow below.
