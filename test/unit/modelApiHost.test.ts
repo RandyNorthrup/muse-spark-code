@@ -18126,7 +18126,8 @@ describe('M101 C1 compaction', () => {
     expect(guard).toHaveBeenCalledOnce()
     expect(guard.onRequestStarted).toHaveBeenCalledOnce()
     expect(t.api.responseBodies()).toHaveLength(2)
-    expect(t.api.responseBodies().at(-1)?.['tools']).toEqual([])
+    expect(t.api.responseBodies().at(-1)).not.toHaveProperty('tools')
+    expect(t.api.responseBodies().at(-1)).not.toHaveProperty('tool_choice')
     expect(JSON.stringify(session.snapshot().replay)).toBe(before)
     expect(JSON.stringify(store.saved.get(fork.session.sessionId)?.replay)).toContain(
       'fork summary',

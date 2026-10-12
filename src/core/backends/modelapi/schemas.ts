@@ -642,6 +642,32 @@ export interface JsonSchemaTextFormat {
   readonly strict: boolean
 }
 
+/**
+ * Whether a request declares tools for the wire: the ONE predicate behind
+ * every tool-less request in the product (the wrap-up, compaction without
+ * reused tools, git drafts, the reviewer and hook-model calls with no
+ * tools, any side call). A tool-less request omits tools and tool choice
+ * alike on every wire format: xAI answers 400 "A tool_choice was set on
+ * the request but no tools were specified."
+ * (`docs/certification/toolrounds-captures/xai/`), and the omitted shape
+ * is the only one all twelve captures accept.
+ */
+export function hasDeclaredTools(tools: readonly unknown[]): boolean {
+  return tools.length > 0
+}
+
+/**
+ * The wire body for a tool-less request: `tools` and `tool_choice` omitted,
+ * every other key (and its order) untouched, so the instruction prefix
+ * stays byte-identical and cacheable.
+ */
+export function omitToolShape(body: CreateResponseBody): Record<string, unknown> {
+  const wire: Record<string, unknown> = { ...body }
+  delete wire['tools']
+  delete wire['tool_choice']
+  return wire
+}
+
 export interface CreateResponseBody {
   readonly model: string
   readonly input: readonly InputItem[]

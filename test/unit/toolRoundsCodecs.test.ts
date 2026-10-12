@@ -73,7 +73,9 @@ const functionCallOutputItemSchema = z.object({
 
 /**
  * The wrap-up body the host builder actually sends, validated field by
- * field: the codecs below encode this body, never a hand-built one.
+ * field: the codecs below encode this body, never a hand-built one. Read
+ * at the wire, so a tool-less request arrives with tools and tool choice
+ * omitted alike; the canonical wrap-up (no tools declared) is rebuilt.
  */
 function parseHostWrapUp(body: unknown): CreateResponseBody {
   const envelope = z
@@ -81,8 +83,8 @@ function parseHostWrapUp(body: unknown): CreateResponseBody {
       model: z.string(),
       input: z.array(z.unknown()),
       instructions: z.string(),
-      tools: z.array(z.unknown()),
-      tool_choice: z.union([z.literal('auto'), z.literal('none')]),
+      tools: z.optional(z.array(z.unknown())),
+      tool_choice: z.optional(z.union([z.literal('auto'), z.literal('none')])),
       reasoning: z.object({
         effort: z.string(),
         summary: z.optional(z.literal('auto')),
@@ -95,7 +97,7 @@ function parseHostWrapUp(body: unknown): CreateResponseBody {
       prompt_cache_retention: z.enum(PROMPT_CACHE_RETENTIONS),
     })
     .parse(body)
-  if (envelope.tools.length > 0) throw new Error('expected the wrap-up to declare no tools')
+  if ((envelope.tools ?? []).length > 0) throw new Error('expected the wrap-up to declare no tools')
   const input: CreateResponseBody['input'] = envelope.input.map((item) => {
     const tagged = z.object({ type: z.string() }).parse(item)
     switch (tagged.type) {
@@ -120,7 +122,7 @@ function parseHostWrapUp(body: unknown): CreateResponseBody {
     input,
     instructions: envelope.instructions,
     tools: [],
-    tool_choice: envelope.tool_choice,
+    tool_choice: envelope.tool_choice ?? 'auto',
     reasoning: {
       effort: envelope.reasoning.effort,
       ...(envelope.reasoning.summary === 'auto' && { summary: 'auto' as const }),
@@ -189,7 +191,7 @@ describe('wrap-up requests across codec families', () => {
     expect(last).toMatchObject({ type: 'message', role: 'developer' })
   })
   it.each(['api', 'chatgpt'] as const)(
-    'Responses %s keeps empty tools with the choice, the captured wire shape',
+    'Responses %s omits tools and tool choice for a tool-less request',
     (profile) => {
       const codec = createResponsesCodec(
         profile === 'chatgpt'
@@ -197,20 +199,47 @@ describe('wrap-up requests across codec families', () => {
           : { sendPromptCacheKey: false, sendPromptCacheRetention: false },
       )
       const request = codec.encodeRequest(wrapBody())
-      // Deliberately kept: no live capture of an omitted choice exists on
-      // this family, while empty tools with the choice is what the wire
-      // (Meta golden, git-draft and tools-less compaction side calls) sends.
-      expect(request['tool_choice']).toBe('auto')
-      if (profile === 'chatgpt') {
-        expect(request['tools']).toEqual([
-          expect.objectContaining({ type: 'namespace', tools: [] }),
-        ])
-      } else {
-        expect(request['tools']).toEqual([])
-      }
+      // xAI answers 400 to a choice without tools
+      // (`docs/certification/toolrounds-captures/xai/`); the omitted shape
+      // is the only one all twelve captures accept.
+      expect(request).not.toHaveProperty('tools')
+      expect(request).not.toHaveProperty('tool_choice')
       expect(JSON.stringify(request)).toContain('limit of 2 model calls')
     },
   )
+  it('no codec leaves a tool choice without a declared tool, and none sends empty tools', () => {
+    const wrap = wrapBody()
+    const encoded: Record<string, unknown>[] = [
+      createResponsesCodec({
+        sendPromptCacheKey: false,
+        sendPromptCacheRetention: false,
+      }).encodeRequest(wrap),
+      createResponsesCodec({ profile: 'chatgpt', toolNamespace: 'functions' }).encodeRequest(wrap),
+      encodeChatRequest(wrap, 'review-model', { ...CHAT, toolChoice: 'auto' }).body as Record<
+        string,
+        unknown
+      >,
+      encodeAnthropicRequest(wrap, {
+        model: 'claude-sonnet-5-5',
+        maxTokens: 256,
+        effort: 'low',
+      }).body as Record<string, unknown>,
+      encodeGeminiRequest(wrap, 'gemini-3.5-flash-lite').body,
+      JSON.parse(
+        encodeOllamaRequest(wrap, {
+          model: 'qwen3:4b-instruct-2507-q4_K_M',
+          numCtx: 32_768,
+          think: false,
+        }).body,
+      ) as Record<string, unknown>,
+    ]
+    for (const request of encoded) {
+      const raw = JSON.stringify(request)
+      expect(raw).not.toContain('"tool_choice"')
+      expect(raw).not.toContain('"toolConfig"')
+      expect(raw).not.toMatch(/"tools":\s*\[\]/)
+    }
+  })
   it.each(['auto', 'omit', undefined] as const)(
     'Chat omits declarations and choice for a tool-less request (%s)',
     (toolChoice) => {

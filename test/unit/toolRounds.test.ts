@@ -143,10 +143,10 @@ describe('model-call turn limit', () => {
       const ordinary = bodies.at(-2)!
       const last = bodies.at(-1)!
       // The wrap-up keeps the production side-call shape: instructions
-      // byte-identical to the last ordinary call, no tools declared, the
-      // choice field as ever, the note a trailing input item.
-      expect(last['tools']).toEqual([])
-      expect(last['tool_choice']).toBe('auto')
+      // byte-identical to the last ordinary call, tools and tool choice
+      // omitted alike, the note a trailing input item.
+      expect(last).not.toHaveProperty('tools')
+      expect(last).not.toHaveProperty('tool_choice')
       expect(last['instructions']).toBe(ordinary['instructions'])
       expect(wrapUpNotesOf(last)).toEqual([expect.stringContaining('limit of 205 model calls')])
       expect(t.session.history().items).toContainEqual(
@@ -171,7 +171,8 @@ describe('model-call turn limit', () => {
       // the wrap-up on the last slot.
       expect(t.api.responseBodies()).toHaveLength(3)
       const last = t.api.responseBodies().at(-1)!
-      expect(last).toMatchObject({ tools: [], tool_choice: 'auto' })
+      expect(last).not.toHaveProperty('tools')
+      expect(last).not.toHaveProperty('tool_choice')
       expect(wrapUpNotesOf(last)).toEqual([expect.stringContaining('limit of 3 model calls')])
       expect(t.events.findLast((e) => e.type === 'turnCompleted')).toMatchObject({
         errorKind: 'max_turn_requests',
@@ -218,8 +219,8 @@ describe('model-call turn limit', () => {
       expect(t.io.files.has('/ws/should-not-run.txt')).toBe(false)
       const ordinary = bodies.at(-2)!
       const last = bodies.at(-1)!
-      expect(last['tools']).toEqual([])
-      expect(last['tool_choice']).toBe('auto')
+      expect(last).not.toHaveProperty('tools')
+      expect(last).not.toHaveProperty('tool_choice')
       expect(last['instructions']).toBe(ordinary['instructions'])
       expect(wrapUpNotesOf(last)).toEqual([expect.stringContaining('limit of 3 model calls')])
       expect(t.session.history().items).toContainEqual(
@@ -339,8 +340,9 @@ describe('model-call turn limit', () => {
         Record<string, unknown>,
         Record<string, unknown>,
       ]
-      // The wrap-up answers without the steer and without tools.
-      expect(wrapUp['tools']).toEqual([])
+      // The wrap-up answers without the steer and without tools or choice.
+      expect(wrapUp).not.toHaveProperty('tools')
+      expect(wrapUp).not.toHaveProperty('tool_choice')
       expect(wrapUp['instructions']).toBe(first['instructions'])
       expect(JSON.stringify(wrapUp['input'])).not.toContain('Steered follow-up')
       // The steer gets its own turn with tools, as before.
@@ -433,7 +435,8 @@ describe('model-call turn limit', () => {
       const bodies = t.api.responseBodies()
       expect(bodies).toHaveLength(2)
       const last = bodies.at(-1)!
-      expect(last['tools']).toEqual([])
+      expect(last).not.toHaveProperty('tools')
+      expect(last).not.toHaveProperty('tool_choice')
       expect(wrapUpNotesOf(last)).toEqual([expect.stringContaining('limit of 2 model calls')])
       expect(t.events.findLast((e) => e.type === 'turnCompleted')).toMatchObject({
         terminal: 'completed',
@@ -528,8 +531,9 @@ describe('model-call turn limit', () => {
         Record<string, unknown>,
       ]
       expect(first['tools']).not.toEqual([])
-      // The wrap-up never consumes the wake: no wake text, no tools.
-      expect(wrapUp['tools']).toEqual([])
+      // The wrap-up never consumes the wake: no wake text, no tools, no choice.
+      expect(wrapUp).not.toHaveProperty('tools')
+      expect(wrapUp).not.toHaveProperty('tool_choice')
       expect(JSON.stringify(wrapUp['input'])).not.toContain(MODEL_API_MODEL_TEXT.goalWake)
       // The wake arrives afterwards, on its own turn with tools.
       expect(JSON.stringify(woken['input'])).toContain(MODEL_API_MODEL_TEXT.goalWake)
@@ -606,7 +610,8 @@ describe('model-call turn limit', () => {
         Record<string, unknown>,
       ]
       expect(first['tools']).not.toEqual([])
-      expect(wrapUp['tools']).toEqual([])
+      expect(wrapUp).not.toHaveProperty('tools')
+      expect(wrapUp).not.toHaveProperty('tool_choice')
       expect(JSON.stringify(wrapUp['input'])).not.toContain('Scheduled follow-up')
       // The scheduled steer gets its own turn with tools.
       expect((scheduled['tools'] as unknown[]).length).toBeGreaterThan(0)
@@ -853,10 +858,10 @@ describe('model-call turn limit', () => {
       const bodies = t.api.responseBodies()
       const last = bodies.at(-1)!
       // Whatever failure preceded it, the last permitted call answers
-      // without tools and carries the wrap-up note; the turn ends with the
-      // wrap-up text under the typed limit.
-      expect(last['tools']).toEqual([])
-      expect(last['tool_choice']).toBe('auto')
+      // without tools or tool choice and carries the wrap-up note; the
+      // turn ends with the wrap-up text under the typed limit.
+      expect(last).not.toHaveProperty('tools')
+      expect(last).not.toHaveProperty('tool_choice')
       expect(wrapUpNotesOf(last)).toEqual([
         expect.stringContaining(`limit of ${String(cap)} model calls`),
       ])
@@ -914,7 +919,8 @@ describe('model-call turn limit', () => {
       const bodies = t.api.responseBodies()
       expect(bodies).toHaveLength(3)
       const last = bodies.at(-1)!
-      expect(last['tools']).toEqual([])
+      expect(last).not.toHaveProperty('tools')
+      expect(last).not.toHaveProperty('tool_choice')
       expect(wrapUpNotesOf(last)).toEqual([expect.stringContaining('limit of 3 model calls')])
       expect(t.events.findLast((e) => e.type === 'turnCompleted')).toMatchObject({
         terminal: 'completed',
@@ -957,7 +963,8 @@ describe('model-call turn limit', () => {
         // no retry with tools afterwards.
         expect(bodies).toHaveLength(2)
         const last = bodies.at(-1)!
-        expect(last['tools']).toEqual([])
+        expect(last).not.toHaveProperty('tools')
+        expect(last).not.toHaveProperty('tool_choice')
         expect(wrapUpNotesOf(last)).toEqual([expect.stringContaining('limit of 2 model calls')])
         expect(t.events.findLast((e) => e.type === 'turnCompleted')).toMatchObject({
           terminal: 'completed',
@@ -1023,7 +1030,8 @@ describe('model-call turn limit', () => {
         Record<string, unknown>,
         Record<string, unknown>,
       ]
-      expect(wrapUp['tools']).toEqual([])
+      expect(wrapUp).not.toHaveProperty('tools')
+      expect(wrapUp).not.toHaveProperty('tool_choice')
       expect(JSON.stringify(woken['input'])).toContain(MODEL_API_MODEL_TEXT.goalWake)
       expect((woken['tools'] as unknown[]).length).toBeGreaterThan(0)
       expect(completed[1]).toMatchObject({ terminal: 'completed' })
