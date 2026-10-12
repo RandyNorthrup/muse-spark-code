@@ -169,17 +169,24 @@ export async function withGitBounds<T>(
 const MARKER_CHUNK = 100
 const HUNK_HEADER = /^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/
 
-const isMarkerLine = (content: string): boolean =>
-  content === '=======' || content === '|||||||' || /^(<{7}|>{7})(?=\s|$)/.test(content)
+type MarkerKind = 'equals' | 'pipes' | 'edge'
+
+const markerKind = (content: string): MarkerKind | undefined => {
+  if (content === '=======') return 'equals'
+  if (content === '|||||||') return 'pipes'
+  return /^(<{7}|>{7})(?=\s|$)/.test(content) ? 'edge' : undefined
+}
 
 /**
  * The merge gate (RVCM96B2 P2-5): scan the task's own diff for unresolved
  * conflict markers. Added lines only, so markers already committed in the
  * base (a setext heading, a fixture) never refuse. Ordinary content (hard
- * breaks, trailing spaces, CRLF) passes: only an added marker line refuses,
- * naming file and line. Returns the refusal detail, or undefined when the
- * branch is clean. The cap is structural, never prose: callers carry the
- * byte count inside their translated template.
+ * breaks, trailing spaces, CRLF) passes, as does a newly added setext
+ * heading: a bare '=======' refuses only beside an opening, closing or
+ * diff3 marker in the same file. A refusal names file and line. Returns
+ * the refusal detail, or undefined when the branch is clean. The cap is
+ * structural, never prose: callers carry the byte count inside their
+ * translated template.
  */
 export type MarkerScan =
   | { readonly status: 'clean' }
@@ -209,12 +216,25 @@ export async function scanConflictMarkers(
     if (total > maxBytes) return { status: 'too-large', bytes: total }
     let file = ''
     let line = 0
+    // A bare '=======' is also an ordinary Markdown setext heading: it
+    // refuses only beside an opening, closing or diff3 marker in the same
+    // file (RVCM96B2D P2-13). The decision waits for the file's end.
+    let kinds = new Set<MarkerKind>()
+    let first = ''
+    const flushFile = (): MarkerScan | undefined =>
+      kinds.has('edge') || kinds.has('pipes') || kinds.size > 1
+        ? { status: 'markers', detail: first }
+        : undefined
     const diffLines = new TextDecoder('utf-8', { fatal: false }).decode(raw).split('\n')
     for (const rawLine of diffLines) {
       const text = rawLine.endsWith('\r') ? rawLine.slice(0, -1) : rawLine
       if (text.startsWith('+++ ')) {
+        const refused = flushFile()
+        if (refused !== undefined) return refused
         const name = text.slice('+++ '.length)
         file = name.startsWith('b/') ? name.slice(2) : name
+        kinds = new Set<MarkerKind>()
+        first = ''
         continue
       }
       const hunk = HUNK_HEADER.exec(text)
@@ -223,13 +243,18 @@ export async function scanConflictMarkers(
         continue
       }
       if (text.startsWith('+') && !text.startsWith('+++')) {
-        if (isMarkerLine(text.slice(1)))
-          return { status: 'markers', detail: `${file}:${String(line)}` }
+        const kind = markerKind(text.slice(1))
+        if (kind !== undefined) {
+          if (first === '') first = `${file}:${String(line)}`
+          kinds.add(kind)
+        }
         line += 1
       } else if (text.startsWith(' ')) {
         line += 1
       }
     }
+    const refused = flushFile()
+    if (refused !== undefined) return refused
   }
   return { status: 'clean' }
 }
@@ -282,15 +307,13 @@ export async function releaseHoldRef(
   const ref = `${EXEC_TEAM_HOLD_REF_PREFIX}${role}/${taskId}`
   try {
     await withGitBounds(git(['rev-parse', '--verify', ref], repo))
-  } catch {
+  } catch (error: unknown) {
+    // A verified absence ignores; a failed read propagates (P2-8).
+    if (!isUnknownRevision(error)) throw error
     return
   }
-  try {
-    await withGitBounds(git(['update-ref', '-d', ref], repo))
-  } catch (error: unknown) {
-    if (isTeamGitError(error) && error.exitCode === 1) return
-    throw error
-  }
+  // Deleting an absent ref succeeds, so any failure here is real (P2-8).
+  await withGitBounds(git(['update-ref', '-d', ref], repo))
 }
 
 /** Record a held branch in the run ledger beside the owned refs. */
@@ -305,10 +328,51 @@ export async function recordHoldRef(folder: string, entry: CleanupEntry): Promis
 }
 
 /**
+ * A read that proves the ref is gone (unknown revision), never a failed
+ * read (RVCM96B2D P2-8): anything else (a lock, a timeout, a killed child)
+ * keeps the record for a retry instead of pruning it as absent.
+ */
+/** `rev-parse --verify` proving the ref is gone (unknown revision). */
+const GIT_UNKNOWN_REVISION_EXIT_CODE = 128
+
+function isUnknownRevision(error: unknown): boolean {
+  return (
+    isTeamGitError(error) &&
+    error.exitCode === GIT_UNKNOWN_REVISION_EXIT_CODE &&
+    error.stderr.includes('Needed a single revision')
+  )
+}
+
+/** Failed reads and deletes are recorded and retried, never treated as absence. */
+const CLEANUP_GIT_ATTEMPTS = 3
+const CLEANUP_GIT_RETRY_MS = 100
+
+async function withCleanupRetry<T>(work: () => Promise<T>): Promise<T> {
+  let error: unknown
+  for (let attempt = 0; attempt < CLEANUP_GIT_ATTEMPTS; attempt += 1) {
+    try {
+      return await work()
+    } catch (error_: unknown) {
+      error = error_
+      if (attempt + 1 < CLEANUP_GIT_ATTEMPTS) {
+        await new Promise<void>((resolve) => {
+          setTimeout(resolve, CLEANUP_GIT_RETRY_MS)
+        })
+      }
+    }
+  }
+  throw error
+}
+
+/**
  * A normal end removes and clears the record (RVCM96B2 P2-4): after the
  * run's own discards, every owned ref the ledger still names is verified
  * gone (pruned) or removed once more, so no owned ref survives the folder.
- * Held branches are never touched. Failures go to the caller, never thrown.
+ * Held branches are never touched. A failed read or delete is a failure:
+ * the entry is kept for the next sweep and reported, never pruned as
+ * absent; every entry is attempted even when an earlier one failed. Throws
+ * when anything failed, after attempting the rest, so the caller keeps the
+ * folder and its ledger for the next run's sweep.
  */
 export async function removeStaleCleanupRefs(options: {
   readonly git: TeamGit
@@ -320,38 +384,41 @@ export async function removeStaleCleanupRefs(options: {
     ledger = await readLedger(options.folder)
   } catch (error: unknown) {
     options.onError(error)
-    return
+    throw error
   }
   if (ledger === undefined) return
+  let failures = 0
   for (const entry of ledger.refs) {
-    let isPresent = true
     try {
-      await withGitBounds(options.git(['rev-parse', '--verify', entry.ref], entry.repo))
-    } catch {
-      isPresent = false
-    }
-    if (isPresent) {
+      let isPresent = true
       try {
-        await withGitBounds(options.git(['update-ref', '-d', entry.ref], entry.repo))
+        await withCleanupRetry(() =>
+          withGitBounds(options.git(['rev-parse', '--verify', entry.ref], entry.repo)),
+        )
+      } catch (error: unknown) {
+        if (!isUnknownRevision(error)) throw error
         isPresent = false
-      } catch (error: unknown) {
-        options.onError(error)
       }
-    }
-    if (!isPresent) {
-      try {
-        await pruneCleanupRef(options.folder, entry.repo, entry.ref)
-      } catch (error: unknown) {
-        options.onError(error)
+      if (isPresent) {
+        await withCleanupRetry(() =>
+          withGitBounds(options.git(['update-ref', '-d', entry.ref], entry.repo)),
+        )
       }
+      await pruneCleanupRef(options.folder, entry.repo, entry.ref)
+    } catch (error: unknown) {
+      options.onError(error)
+      failures += 1
     }
   }
+  if (failures > 0) throw new Error(`team cleanup failures: ${String(failures)}`)
 }
 
 export interface SweepResult {
   readonly sweptFolders: readonly string[]
   readonly sweptRefs: readonly string[]
   readonly skipped: readonly string[]
+  /** Folders a failed read, delete or removal kept for the next sweep (P2-8). */
+  readonly failed: readonly string[]
 }
 
 const withoutTrailingSlashes = (value: string): string =>
@@ -368,6 +435,9 @@ const isWithin = (root: string, candidate: string): boolean => {
  * folders under the run prefix whose owner is proven gone, and only the
  * owned refs their ledgers name (verified, never by name shape). Held
  * branches stay: only an explicit discard or the retention removes them.
+ * One folder's failure never stops the rest (P2-12): a malformed ledger is
+ * skipped, and a failed read, delete or removal keeps the folder for the
+ * next sweep and records it as failed (P2-8), never as swept.
  */
 export async function sweepStaleTeamRuns(options: {
   readonly tmpRoot?: string
@@ -379,12 +449,13 @@ export async function sweepStaleTeamRuns(options: {
   const sweptFolders: string[] = []
   const sweptRefs: string[] = []
   const skipped: string[] = []
+  const failed: string[] = []
   let names: string[]
   try {
     const entries = await readdir(tmpRoot)
     names = entries.filter((name) => name.startsWith(EXEC_TEAM_RUN_PREFIX))
   } catch {
-    return { sweptFolders, sweptRefs, skipped }
+    return { sweptFolders, sweptRefs, skipped, failed }
   }
   for (const name of names) {
     const folder = path.join(tmpRoot, name)
@@ -392,7 +463,14 @@ export async function sweepStaleTeamRuns(options: {
       skipped.push(folder)
       continue
     }
-    const ledger = await readLedger(folder)
+    let ledger: CleanupLedger | undefined
+    try {
+      ledger = await readLedger(folder)
+    } catch {
+      // A torn or foreign ledger must not spare later dead runs (P2-12).
+      skipped.push(folder)
+      continue
+    }
     if (
       ledger === undefined ||
       !Number.isSafeInteger(ledger.owner.pid) ||
@@ -406,23 +484,44 @@ export async function sweepStaleTeamRuns(options: {
       skipped.push(folder)
       continue
     }
+    let hasFailed = false
     for (const entry of ledger.refs) {
       const expected = predictedAgentsRef(entry.role, entry.taskId)
       if (expected === undefined || expected !== entry.ref) continue
+      let isPresent = true
       try {
-        await withGitBounds(options.git(['rev-parse', '--verify', entry.ref], entry.repo))
-      } catch {
-        continue
+        await withCleanupRetry(() =>
+          withGitBounds(options.git(['rev-parse', '--verify', entry.ref], entry.repo)),
+        )
+      } catch (error: unknown) {
+        if (!isUnknownRevision(error)) {
+          hasFailed = true
+          continue
+        }
+        isPresent = false
       }
+      if (!isPresent) continue
       try {
-        await withGitBounds(options.git(['update-ref', '-d', entry.ref], entry.repo))
+        await withCleanupRetry(() =>
+          withGitBounds(options.git(['update-ref', '-d', entry.ref], entry.repo)),
+        )
         sweptRefs.push(`${entry.repo}:${entry.ref}`)
       } catch {
-        // A racing discard already took it; the folder sweep still runs.
+        // Recorded and retried above; the folder stays for the next sweep.
+        hasFailed = true
       }
     }
-    await rm(folder, { recursive: true, force: true })
+    if (hasFailed) {
+      failed.push(folder)
+      continue
+    }
+    try {
+      await rm(folder, { recursive: true, force: true })
+    } catch {
+      failed.push(folder)
+      continue
+    }
     sweptFolders.push(folder)
   }
-  return { sweptFolders, sweptRefs, skipped }
+  return { sweptFolders, sweptRefs, skipped, failed }
 }
