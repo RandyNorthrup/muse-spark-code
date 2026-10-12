@@ -1737,6 +1737,13 @@ export const GITHUB_DEVICE_SLOW_DOWN_STEP_S = 5
 export const GITHUB_LEASE_TTL_MS = 15 * 60_000
 // `gh auth token` for github.com only (D104 source c).
 export const GH_AUTH_TOKEN_ARGS: readonly string[] = ['auth', 'token', '--hostname', 'github.com']
+// Report adapter page sizes from the C-M113-6 captures: a tag record is tiny
+// (100 per page); a release record is 15 to 55 KB, so 30 per page stays
+// under the reader's 2 MiB bound where 100 would exceed it; a workflow run
+// is about 14 KB, so 100 per page fits the same bound.
+export const GITHUB_TAGS_PAGE_SIZE = 100
+export const GITHUB_RELEASES_PAGE_SIZE = 30
+export const GITHUB_WORKFLOW_RUNS_PAGE_SIZE = 100
 // GitHub's own limits on a pull request's title and description.
 export const PULL_REQUEST_TITLE_MAX_CHARS = 256
 export const PULL_REQUEST_BODY_MAX_CHARS = 65_536
@@ -5303,7 +5310,11 @@ export const REPORT_NEXT_STEP_LIMIT = 3
 export const REPORT_EMPTY_HASH = '0000000000000000000000000000000000000000000000000000000000000000'
 export const REPORT_GIT_MAX_COMMITS = 5000
 export const REPORT_NETWORK_MAX_BYTES = 2 * 1024 * 1024
-export const REPORT_NETWORK_MAX_PAGES = 3
+// One github source read shares this budget across pulls (1), check scopes
+// (3: head, default branch, release tag), tags (1), releases (up to 3) and
+// release-workflow runs (1): 10 covers the typical full read, and anything
+// past it refuses as `page-bound` instead of truncating silently (C-M113-6).
+export const REPORT_NETWORK_MAX_PAGES = 10
 export const REPORT_NETWORK_CACHE_ENTRIES = 100
 export const REPORT_SOURCE_TIMEOUT_MS = 5000
 export const REPORT_GITHUB_RATE_FLOOR = 10

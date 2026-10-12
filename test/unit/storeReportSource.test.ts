@@ -4,7 +4,12 @@ import {
   storesReportSource,
   type ReportStoreAdapter,
 } from '../../src/core/reporting/sources/stores'
-import { networkContext, networkRig } from './helpers/reportNetwork'
+import {
+  expectNpmPackageRequired,
+  networkContext,
+  networkRig,
+  readStoresReport,
+} from './helpers/reportNetwork'
 
 // Normalized application-port fakes, deliberately not claimed store captures.
 const fact = z.strictObject({ version: z.string(), url: z.url() })
@@ -134,7 +139,82 @@ describe('store report source', () => {
     else expect(result.data?.every((row) => row.status === status)).toBe(true)
   })
 
-  it('does not request npm for a private extension', async () => {
+  it('reports a refused adapter as its reason without dispatching', async () => {
+    // RVCM1136 P2: an invalid package name is a refused channel row, never a
+    // failed report; the transport sees nothing for that channel. Sibling
+    // channels succeed, so the refused row stays visible in the data.
+    const transport = vi.fn((request: { url: string }) =>
+      Promise.resolve(Response.json({ version: '0.14.2', url: request.url })),
+    )
+    const result = await readStoresReport({
+      transport,
+      project,
+      releaseVersion: '0.14.2',
+      adapters: [
+        ...adapters.filter((adapter) => adapter.channel !== 'npm'),
+        {
+          channel: 'npm',
+          request: { url: 'https://registry.npmjs.org/' },
+          schema: fact,
+          refused: 'npm-package-required',
+        },
+      ],
+    })
+    expectNpmPackageRequired(result, transport)
+  })
+
+  it.each(['1.2', '01.0.0', 'v1', 'latest'])(
+    'names a non-semver local version %p instead of blaming the registry',
+    async (releaseVersion) => {
+      // RVCM1136 P3: the registry document parsed; the comparison cannot
+      // run. Every channel row is unavailable, so the source reason — not a
+      // generation failure — names the manifest.
+      const rig = networkRig({
+        transport: vi.fn((request: { url: string }) =>
+          Promise.resolve(Response.json({ version: '1.0.0', url: request.url })),
+        ),
+      })
+      const result = await storesReportSource({
+        reader: rig.reader,
+        project: { name: 'fixture', private: false },
+        releaseVersion,
+        adapters,
+      }).read(networkContext())
+      expect(result.record.status).toBe('unavailable')
+      expect(result.data).toBeNull()
+      expect(result.record.reason).toContain('npm: release-version-invalid')
+      expect(result.record.reason).not.toContain('store-response-invalid')
+    },
+  )
+
+  it('still blames the document for a non-semver served version', async () => {
+    // Sibling channels succeed, so the bad-document npm row stays visible.
+    const result = await readStoresReport({
+      transport: vi.fn((request: { url: string }) =>
+        Promise.resolve(
+          Response.json({
+            version: request.url.includes('registry.npmjs.org') ? 'not-a-version' : '0.14.2',
+            url: request.url,
+          }),
+        ),
+      ),
+      project,
+      releaseVersion: '0.14.2',
+      adapters,
+    })
+    expect(result.record.status).toBe('partial')
+    expect(result.data?.find((row) => row.channel === 'npm')).toMatchObject({
+      channel: 'npm',
+      version: null,
+      status: 'unavailable',
+      reason: 'store-response-invalid',
+    })
+  })
+
+  it('refuses npm for a private extension without requesting it', async () => {
+    // C-M113-6: a private manifest publishes no npm package under its own
+    // name, so the npm row is refused with the true reason even when an
+    // adapter is bound; the manifest name is never queried.
     const { reader, transport } = healthyStores()
     const result = await storesReportSource({
       reader,
@@ -142,7 +222,14 @@ describe('store report source', () => {
       releaseVersion: '0.14.2',
       adapters,
     }).read(networkContext())
-    expect(result.data?.map((row) => row.channel)).toEqual(['Marketplace', 'Open VSX'])
+    expect(result.data?.map((row) => row.channel)).toEqual(['Marketplace', 'Open VSX', 'npm'])
+    expect(result.data?.find((row) => row.channel === 'npm')).toEqual({
+      channel: 'npm',
+      version: null,
+      url: 'https://www.npmjs.com/package/fixture',
+      status: 'unavailable',
+      reason: 'npm-private-manifest',
+    })
     expect(transport).toHaveBeenCalledTimes(2)
   })
 
@@ -216,7 +303,7 @@ describe('store report source', () => {
   })
 
   it('retains unavailable channel rows beside successful channels', async () => {
-    const rig = networkRig({
+    const result = await readStoresReport({
       transport: vi.fn((request: { url: string }) =>
         Promise.resolve(
           request.url.includes('open-vsx')
@@ -224,13 +311,10 @@ describe('store report source', () => {
             : Response.json({ version: '0.14.2', url: request.url }),
         ),
       ),
-    })
-    const result = await storesReportSource({
-      reader: rig.reader,
       project,
       releaseVersion: '0.14.2',
       adapters,
-    }).read(networkContext())
+    })
     expect(result.record.status).toBe('partial')
     expect(result.data?.find((row) => row.channel === 'Open VSX')).toMatchObject({
       status: 'unavailable',

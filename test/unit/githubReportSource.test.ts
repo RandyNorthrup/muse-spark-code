@@ -113,7 +113,7 @@ describe('GitHub report source', () => {
     const result = await readGitHub(transport)
     expect(result.record.status).toBe('partial')
     expect(result.data?.pullRequests).toEqual([])
-    expect(result.record.reason).toContain('pulls-unavailable')
+    expect(result.record.reason).toContain('pull-response-invalid')
   })
 
   it('orders releases and assets independently of the port input order', async () => {
@@ -155,7 +155,7 @@ describe('GitHub report source', () => {
     expect(first.data?.releases[1]?.assets).toEqual(['a.vsix', 'z.vsix'])
   })
 
-  it('refuses conflicting facts for the same pull request rather than choosing an arbitrary state', async () => {
+  it('names conflicting facts while preserving the first accepted pull and healthy checks', async () => {
     const transport = vi.fn((request: { url: string }) =>
       Promise.resolve(
         Response.json(
@@ -167,7 +167,10 @@ describe('GitHub report source', () => {
     )
     const result = await readGitHub(transport)
     expect(result.record.reason).toContain('github-conflicting-fact')
-    expect(result.data).toBeNull()
+    expect(result.record.status).toBe('partial')
+    expect(result.data?.pullRequests).toHaveLength(1)
+    expect(result.data?.pullRequests[0]?.state).toBe(CAPTURED_PULL_LIST[0]?.state)
+    expect(result.data?.runs.length).toBeGreaterThan(0)
   })
   it('reads the captured pull and check shapes, preserving the ref scope', async () => {
     const transport = capturedTransport()

@@ -14,6 +14,23 @@ happened, not what was planned; superseded entries are kept.
   maximum-length keys, and allocation advances without rescanning. Definitive
   release records for one version produce plan drift across heading, bold and
   status forms; preparation followed by release remains the normal lifecycle.
+- **GitHub report reads retain accepted facts across every read failure** (CM1136R6).
+  Failed body streams and invalid UTF-8 name their page without discarding
+  earlier rows. A failed endpoint stops immediately, preserving other
+  endpoints' share of the ten-request allowance. Pulls, scoped checks,
+  workflow runs, releases and adapter reasons validate independently;
+  a nameless corrupt tag keeps its own reason, and missing facets,
+  conflicting facts and row bounds leave explicit reasons; distinct run
+  identities remain distinct when tags or workflow names contain separators
+  while accepted rows remain. The isolation gate compares observed requests
+  directly with its executable fault cases.
+- **Workflow and release report reads survive any single failed request** (CM1136R5).
+  Each tag, release and workflow-run page returns its own rows or its own
+  paged refusal (`tags-page-2: http-500`) while the other pages' rows stay;
+  a corrupt tag keeps its own reason and is never blamed on the release or
+  run that named it; and a row that fails the strict fact shape is skipped
+  with its reason instead of dropping the whole section.
+
 
 - **Session and usage reports agree with their notes and show the shared daily budget everywhere** (CM1132R3).
   Session totals exclude rolled-up history and say so; budget stamps use the
@@ -30,6 +47,16 @@ happened, not what was planned; superseded entries are kept.
   version, question, risk, residual, lane, check run, tag, pull request or
   forwarded row. A repeated definitive release record is plan drift
   (`release-duplicate`); preparation beside its released record stays clean.
+- **The npm release channel reaches the registry on every production transport** (CM1136R2).
+  The report network routes `registry.npmjs.org` through the credential-free
+  public fetch under the existing network consent, while `api.github.com`
+  stays on the surface's own lane (the editor's signed fetch, the CLI/ACP `gh`
+  process); anything else stays refused. An invalid package name is a refused
+  npm row with its reason instead of a failed report; workspace identity is
+  re-read on every networked report, so a version bump or a newly declared
+  manifest shows up on the next refresh; scoped names keep the captured
+  `@scope%2Fname` form for every `@scope/name` shape; and a non-semver local
+  version names the manifest instead of the registry document.
 - **Session and usage reports preserve source honesty and identity** (CM1132R2).
   Concurrent sources share a flushed journal snapshot. Damage, newer versions,
   missing session attribution and unavailable budget snapshots produce partial
@@ -124,6 +151,28 @@ happened, not what was planned; superseded entries are kept.
   and the terminal pass their own install's manifest through the shared
   report inputs, so all three report the same numbers. Desktop and TUI
   bindings stay out for phase c (M111a, M110a0).
+- **The npm release channel reports from a captured registry shape** (M113 C-M113-6).
+  The stores source ships a default npm adapter built from M97's verbatim
+  `GET https://registry.npmjs.org/<name>/<version>` capture: it reads only the
+  `version` field of the `<name>/latest` version document, compares it against
+  the release version for channel lag (lagging channels stay first in Needs
+  you), and never sends credentials. The report engine binds it from the
+  workspace package.json (name, version, publisher, engines, private): a
+  workspace that declares no name or version keeps the previous unbound row.
+- **Store, workflow and release channels report from the lead's captures** (CM1136R3).
+  The Marketplace channel sends the captured query-form POST and reads
+  `versions[0].version` (an empty gallery answer refuses as not listed); Open
+  VSX reads `version` from the extension record (a 404 refuses as `http-404`).
+  GitHub reads release-workflow runs as release-tag CI, final releases with
+  asset names, and tag-to-commit joins (releases name no commit themselves);
+  pages are sized to the 2 MiB bound (releases 30, tags and runs 100) and
+  anything past the shared page bound refuses instead of truncating. A null
+  run conclusion, a run off any known tag, a draft or prerelease release and
+  a tagless release commit each refuse with their own reason. The npm row
+  means the workspace's own published package: a private manifest publishes
+  none under its own name, so its row refuses as `npm-private-manifest`
+  without a request (this repository's npm artifact comes from the ACP
+  agent's generated manifest, which is not in the workspace to read).
 - **Session and usage report kinds are real end to end** (M113 C-M113-2).
   `/report session` reads the current conversation in the editor, or a stored
   Model API session by id (`--session <id>` in the terminal and ACP); turns

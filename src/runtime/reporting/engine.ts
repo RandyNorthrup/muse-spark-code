@@ -42,6 +42,7 @@ import { compareReports, reportDiffNotice, reportDiffSection } from '../../core/
 import { ReportStorage, ReportHistory } from '../../core/reporting/history'
 import { CheckRunJournal } from '../../core/reporting/checkRuns'
 import { createRuntimeReportSources, reportFileIo, reportGitIo } from './sources'
+import { readStoreProject } from '../../core/reporting/sources/storeProject'
 import type { ReportingNetworkContext } from './network'
 import { reportingNetworkLoader } from './networkLoader'
 import type { Logger } from '../../host/logger'
@@ -220,14 +221,20 @@ export function createReportingServices(context: ReportingContext): ReportsServi
       latestGit = git.data
       activeNetwork =
         typeof context.network === 'function' ? await context.network() : context.network
+      // Workspace identity is read on every networked report, never latched:
+      // a version bump or a newly declared manifest shows up on the next
+      // refresh of the long-lived editor engine (RVCM1136 P2). The response
+      // cache stays shared by storage root; only the binding is rebuilt.
       if (
         root !== undefined &&
         activeNetwork !== undefined &&
-        boundNetwork === undefined &&
         context.networkSources === undefined &&
         activeNetwork.policy.mode !== 'off' &&
         (activeNetwork.policy.surface === 'editor' || options.network)
       ) {
+        const storeProject = await readStoreProject(() =>
+          reportFileIo(root, process.platform).read('package.json', readContext.signal),
+        )
         const policy = activeNetwork.policy
         boundNetwork = reportingNetworkLoader(
           context.log ?? {
@@ -262,6 +269,7 @@ export function createReportingServices(context: ReportingContext): ReportsServi
             }),
           },
           () => latestGit,
+          storeProject,
         )
       }
       const network =
