@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { type vaultClientMessageSchema } from '../../../../shared/hostApi/vaultMessages'
 import { type VaultPanelState } from '../../../../shared/modelsPanel'
 import { UI_TEXT } from '../../../../shared/constants'
@@ -140,6 +140,40 @@ export function VaultSection({
   const [requesterFilter, setRequesterFilter] = useState('')
   const [kindFilter, setKindFilter] = useState('')
   const [outcomeFilter, setOutcomeFilter] = useState('')
+  const sectionRef = useRef<HTMLElement>(null)
+  const focusInside = useRef(false)
+  // Track whether keyboard focus lives inside the section, so a focused
+  // control that unmounts (Retry after success, a removed item, a revoked
+  // grant, Reset) hands focus back instead of dropping it (RVCM1091G P3).
+  useEffect(() => {
+    const node = sectionRef.current
+    if (node === null) return
+    const entered = (): void => {
+      focusInside.current = true
+    }
+    const left = (event: FocusEvent): void => {
+      // A null target means the focused control unmounted: focus is still
+      // ours to restore. Otherwise it left only when it moved outside.
+      if (event.relatedTarget instanceof Node && !node.contains(event.relatedTarget))
+        focusInside.current = false
+    }
+    node.addEventListener('focusin', entered)
+    node.addEventListener('focusout', left)
+    return () => {
+      node.removeEventListener('focusin', entered)
+      node.removeEventListener('focusout', left)
+    }
+  }, [])
+  useEffect(() => {
+    const node = sectionRef.current
+    if (node === null || !focusInside.current || document.activeElement !== document.body) return
+    // The focused control is gone: prefer the first control that can act,
+    // else the heading, so keyboard users are never stranded on the body.
+    const fallback =
+      node.querySelector<HTMLElement>(':scope .vault-actions button:not([disabled])') ??
+      node.querySelector<HTMLElement>(':scope h2')
+    fallback?.focus()
+  })
   const isUnlocked = state.status.state === 'unlocked'
   // Set Up Vault (lead decision 8): the host shows the one-time code natively.
   const isUncreated = state.status.state === 'uncreated'
@@ -161,10 +195,16 @@ export function VaultSection({
       (outcomeFilter === '' || row.outcome === outcomeFilter),
   )
   return (
-    <section className="vault-section" aria-label={UI_TEXT.vault.title}>
-      <h2>
+    <section
+      className="vault-section"
+      aria-label={UI_TEXT.vault.title}
+      aria-busy={state.retrying === true}
+      ref={sectionRef}
+    >
+      <h2 tabIndex={-1}>
         {UI_TEXT.vault.title} — {vaultStateHeading(state.status)}
       </h2>
+      {state.retrying === true && <p role="status">{UI_TEXT.vault.retrying}</p>}
       <div className="vault-tier" role="status">
         <p>{tierWarning(state.status)}</p>
         <VaultDetails

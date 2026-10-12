@@ -191,6 +191,23 @@ happened, not what was planned; superseded entries are kept.
   is already gone but whose import record stuck says the file is gone, with
   nothing to retry, and the record is cleared at the next Delete.
 
+- Review repairs (RVCM1091G, CM1091DR5): every approval reload carries its
+  own sequence inside the view state machine, so two overlapping approval
+  reloads settle newest-wins in both landing orders instead of an older
+  reply overwriting a newer one. A Delete whose source cannot be read says
+  so and keeps the import record; pre-unlink store refusals keep the source
+  and the record with the broker's own reason. A dead or corrupted broker
+  channel names itself and says the operation failed, never Locked beside
+  an unlocked section. The source-gone sentence no longer claims the record
+  could not be cleared. A Delete rejected as source-gone finishes by
+  clearing the leftover record in the panel and the CLI. A kept view with
+  a retry scheduled or in flight says it is retrying with aria-busy, and a
+  focused control that disappears hands focus to the first control that can
+  act (else the section heading). The mounted harness scenes cover the
+  redesigned unreachable/Retry path and the transient busy, timeout and
+  watch-lost cases. The host bundle still exceeds its 50 KiB cap (lead
+  decision pending); the vault stays off for users.
+
 - On macOS 26, a process that `ps` lists with an unknown state (`?`) while
   it changes no longer voids every resource tree's membership read, which
   could refuse Stop/kill for a tree while any process on the Mac was mid-transition.

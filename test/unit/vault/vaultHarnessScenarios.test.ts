@@ -17,6 +17,9 @@ describe('RVCM1091D mounted vault scenes', () => {
       'mounted-setup-pending',
       'mounted-unavailable',
       'mounted-unreachable',
+      'mounted-busy',
+      'mounted-transient-timeout',
+      'mounted-watch-lost',
       'mounted-first-party-only',
     ])
     for (const scenario of VAULT_MOUNTED_SCENARIOS) {
@@ -51,14 +54,29 @@ describe('RVCM1091D mounted vault scenes', () => {
       state: 'unavailable',
       reason: 'vaultLost',
     })
-    // RVCM1091E: the host's no-snapshot state is unavailable with the
-    // broker-blocked sentence, never Reset, and no item labels.
+    // RVCM1091G: the host's no-snapshot state is unavailable with the
+    // operation-failed sentence and the person's own Retry, never the
+    // repair message, never Reset, and no item labels.
     expect(vaultScenarioState('mounted-unreachable', 1000)?.status).toMatchObject({
       state: 'unavailable',
-      reason: 'brokerBlocked',
+      reason: 'unreachable',
       tier: null,
       provider: null,
       itemCount: 0,
+    })
+    // RVCM1091G: the transient scenes carry their own true reason, each
+    // with the person's own Retry.
+    expect(vaultScenarioState('mounted-busy', 1000)?.status).toMatchObject({
+      state: 'unavailable',
+      reason: 'busy',
+    })
+    expect(vaultScenarioState('mounted-transient-timeout', 1000)?.status).toMatchObject({
+      state: 'unavailable',
+      reason: 'timeout',
+    })
+    expect(vaultScenarioState('mounted-watch-lost', 1000)?.status).toMatchObject({
+      state: 'unavailable',
+      reason: 'watchLost',
     })
     expect(vaultScenarioState('mounted-first-party-only', 1000)?.status).toMatchObject({
       state: 'firstPartyOnly',
@@ -69,6 +87,9 @@ describe('RVCM1091D mounted vault scenes', () => {
       'mounted-setup-pending',
       'mounted-unavailable',
       'mounted-unreachable',
+      'mounted-busy',
+      'mounted-transient-timeout',
+      'mounted-watch-lost',
       'mounted-first-party-only',
     ] as const) {
       expect(vaultScenarioState(scenario, 1000)?.items).toEqual([])

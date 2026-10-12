@@ -17,6 +17,10 @@ export const vaultPanelChangeSchema = z.union([
 
 export const vaultPanelStateSchema = z.strictObject({
   status: vaultStatusSchema,
+  // RVCM1091G P3: true while the host keeps this view with a bounded retry
+  // scheduled or in flight. The section shows retry text with aria-busy, so
+  // a kept view never poses as a fresh one.
+  retrying: z.optional(z.boolean()),
   // P/X supply observed platform/fence facts, never values or diagnostic exception text.
   notices: z.optional(
     z
