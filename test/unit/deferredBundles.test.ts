@@ -3,13 +3,14 @@
 import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { appendFile, cp, mkdtemp, readFile, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { createRequire } from 'node:module'
 import vm from 'node:vm'
 import { build } from 'esbuild'
 import { compressedModelText } from '../../scripts/lib/compressedModelText.mjs'
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, onTestFinished, vi } from 'vitest'
 
 import * as z from 'zod/mini'
 import { isEstimatorBundle } from '../../src/host/estimator/estimatorBundle'
@@ -36,6 +37,17 @@ import {
   sharedModelApiBoundaries,
   englishZodLocales,
 } from '../../scripts/lib/deferredBundles.mjs'
+import {
+  COMPUTED_LOADS,
+  CROSS_BUNDLE_TARGETS,
+  crossBundleFailures,
+  siblingExportProblems,
+} from '../../scripts/lib/bundleExports.mjs'
+import { FIXTURE_HOOK_TIMEOUT_MS } from './helpers/fixtureBudget'
+import { FakeLogOutputChannel } from './helpers/fakes'
+import type { parseScheduleStoredJson } from '../../src/core/schedules/journal'
+import { USAGE_JOURNAL_ROOT } from '../../src/core/usage/journalStore'
+import { createUsageAccess } from '../../src/runtime/usage/usageServiceEntry'
 import type * as validation from '../../src/shared/validationEntry'
 import type * as resourceGovernor from '../../src/core/resources/resourceGovernorEntry'
 import type * as runtimeResources from '../../src/runtime/resources/entry'
@@ -116,6 +128,7 @@ beforeAll(async () => {
       providerPolicy: 'src/host/backend/providerPolicyEntry.ts',
       modelApiHooks: 'src/core/backends/modelapi/modelApiHooksEntry.ts',
       modelApiMcp: 'src/core/backends/modelapi/modelApiMcpEntry.ts',
+      modelApiTools: 'src/core/backends/modelapi/modelApiToolsEntry.ts',
       runtimeAccounting: 'src/runtime/runtimeAccountingEntry.ts',
       sharingRuntime: 'src/runtime/sharing/sharingEntry.ts',
       legalScan: 'src/core/legal/entry.ts',
@@ -171,7 +184,7 @@ beforeAll(async () => {
           nodeReferenceData,
           englishZodLocales,
           // Match the shipped prompt archive before checking real production caps.
-          ...(['modelApi', 'reference', 'codeIntel', 'hookRuntime'].includes(name)
+          ...(['modelApi', 'reference', 'codeIntel', 'hookRuntime', 'modelApiTools'].includes(name)
             ? [compressedModelText(true)]
             : []),
         ],
@@ -441,6 +454,230 @@ function inputs(name: string): string[] {
     ).meta.inputs,
   ).map((file) => file.split(path.sep).join('/'))
 }
+
+/** Built bundles by the file name their siblings load them under. */
+function built(...names: string[]) {
+  return new Map(names.map((name) => [`${name}.js`, bundleText(name)] as const))
+}
+
+// HOTFIX0181: 0.18.0's provider bundles called three names the Model API
+// bundle did not export. The source tests cannot see it (the import is typed
+// against transport.ts); these read the built text, as the split gate does.
+describe('cross-bundle members of the built bundles', () => {
+  let report: ReturnType<typeof siblingExportProblems>
+
+  beforeAll(() => {
+    report = siblingExportProblems(built(...bundleTexts.keys()))
+  }, FIXTURE_HOOK_TIMEOUT_MS)
+
+  it('exports every member a built bundle reads from a sibling bundle', () => {
+    expect(report.problems).toEqual([])
+  })
+
+  it('follows every loaded sibling to its members and reads every export list', () => {
+    // A use the check cannot follow, or a list it cannot read, would let a
+    // missing export pass unseen; the gate fails on either.
+    expect(report.unfollowed).toEqual([])
+    expect(report.unverified).toEqual([])
+    // The gate's own lists: both targets compared, and the one load by a
+    // computed name (the provider catalog, data) the only one there is.
+    expect(crossBundleFailures(report, CROSS_BUNDLE_TARGETS, COMPUTED_LOADS)).toEqual([])
+    expect(report.computed.map(({ reader }) => reader)).toEqual(['configuredProviders.js'])
+    expect(crossBundleFailures(report, CROSS_BUNDLE_TARGETS)).toHaveLength(1)
+    // Checked means members compared: no sibling is recorded with none.
+    for (const [sibling, count] of report.verified) expect(count, sibling).toBeGreaterThan(0)
+    expect(report.verified.get('modelApiBoundaries.js')).toBeGreaterThan(0)
+  })
+
+  it('names a member read through a cached dynamic import (the accounting bundle)', () => {
+    // src/runtime/backends.ts keeps `import('./runtimeAccountingEntry.js')` in
+    // a variable by ??= and reads createRuntimeDailyBudget from the awaited
+    // value later. A check that followed only a direct await passed without it.
+    const text = bundleText('runtimeAccounting')
+    const at = text.lastIndexOf('0&&(module.exports={')
+    const annotation = text.slice(at)
+    expect(annotation).toMatch(/\bcreateRuntimeDailyBudget\b/)
+    const without = annotation.replace(
+      /,createRuntimeDailyBudget\b|\bcreateRuntimeDailyBudget,/,
+      '',
+    )
+    expect(without).not.toMatch(/\bcreateRuntimeDailyBudget\b/)
+    const broken = siblingExportProblems(
+      new Map([...built('runtimeEngine'), ['runtimeAccounting.js', text.slice(0, at) + without]]),
+    )
+    expect(broken.problems).toEqual([
+      'runtimeEngine.js reads createRuntimeDailyBudget from runtimeAccounting.js, which does not export it',
+    ])
+    expect(broken.unfollowed).toEqual([])
+  })
+
+  it('checks the provider bundles against the Model API bundle', () => {
+    // A check that compared nothing with the Model API bundle would pass.
+    expect(report.verified.get('modelApi.js')).toBeGreaterThan(0)
+    for (const name of ['configuredProviders', 'subscriptions'])
+      for (const member of ['assertConfirmedAllowed', 'isStaleConfirmedError'])
+        expect(bundleText(name), `${name} ${member}`).toContain(`.${member})`)
+  })
+
+  it('names the reader and the member when the Model API bundle stops exporting one', () => {
+    const text = bundleText('modelApi')
+    const at = text.lastIndexOf('0&&(module.exports={')
+    const annotation = text.slice(at)
+    expect(annotation).toMatch(/\bisStaleConfirmedError\b/)
+    const without = annotation.replace(/,isStaleConfirmedError\b|\bisStaleConfirmedError,/, '')
+    expect(without).not.toMatch(/\bisStaleConfirmedError\b/)
+    const broken = siblingExportProblems(
+      new Map([
+        ...built('configuredProviders', 'subscriptions'),
+        ['modelApi.js', text.slice(0, at) + without],
+      ]),
+    )
+    expect(broken.problems).toEqual([
+      'configuredProviders.js reads isStaleConfirmedError from modelApi.js, which does not export it',
+      'subscriptions.js reads isStaleConfirmedError from modelApi.js, which does not export it',
+    ])
+  })
+})
+
+/** A private copy of the journal 0.17.0 wrote, dollars as JSON numbers. */
+async function journalCopy(): Promise<string> {
+  const root = await realpath(await mkdtemp(path.join(tmpdir(), 'muse-built-usage-')))
+  onTestFinished(async () => {
+    await rm(root, { recursive: true, force: true })
+  })
+  await cp(path.resolve('test/fixtures/m121/usage-v1'), root, { recursive: true })
+  return root
+}
+
+function accessDeps(dataFolder: string) {
+  return {
+    dataFolder,
+    packageRoot: process.cwd(),
+    host: 'HOTFIX0181',
+    locale: 'en',
+    uiText: EN,
+    log: new FakeLogOutputChannel(),
+  }
+}
+
+// HOTFIX0181, the second instance, which the cross-bundle check found on its
+// first run. exactJson.ts proves a version 1 dollar exact with `canonicalUsd`,
+// and every Node bundle reads that from dist/modelApiBoundaries.js. 0.18.0's
+// bundle did not export it: the built readers judged every such number
+// inexact, while the source tests, which import the real module, passed.
+// These run the built code against the built sibling.
+describe('version 1 money through the built bundles', () => {
+  const usageBundleSchema = z.object({
+    createUsageAccess: z.custom<typeof createUsageAccess>((value) => typeof value === 'function'),
+  })
+  const scheduleProbeSchema = z.object({
+    parseScheduleStoredJson: z.custom<typeof parseScheduleStoredJson>(
+      (value) => typeof value === 'function',
+    ),
+  })
+  const QUERY = { range: '30d', groupBy: 'provider', metric: 'cost' } as const
+  const RAW_DAY = `${USAGE_JOURNAL_ROOT}/days/2026-10-04/w017.jsonl`
+  let scheduleProbe = ''
+
+  function builtAccess(dataFolder: string) {
+    return usageBundleSchema
+      .parse(loadSupportBundle('usageService'))
+      .createUsageAccess(accessDeps(dataFolder))
+  }
+
+  beforeAll(async () => {
+    // The stored-schedule reader as a bundle of its own, built the way the
+    // shipped ones are: its money check runs through the built sibling.
+    const built = await build({
+      write: false,
+      bundle: true,
+      minify: true,
+      platform: 'node',
+      format: 'cjs',
+      target: 'node20.18',
+      logLevel: 'silent',
+      outfile: 'dist/storedScheduleProbe.js',
+      stdin: {
+        contents: "export { parseScheduleStoredJson } from './src/core/schedules/journal'",
+        resolveDir: process.cwd(),
+        loader: 'ts',
+      },
+      plugins: [
+        sharedUiText,
+        sharedValidation,
+        deferredCohort,
+        sharedWire,
+        sharedResourceAdmission,
+        sharedStructuredSchema,
+        deferredTeamView,
+        sharedModelApiBoundaries,
+        nodeReferenceData,
+        englishZodLocales,
+      ],
+      external: ['vscode', '@napi-rs/keyring'],
+    })
+    scheduleProbe = built.outputFiles[0]?.text ?? ''
+  }, FIXTURE_HOOK_TIMEOUT_MS)
+
+  it('counts a 0.17 usage journal through the built usage service as the source does', async () => {
+    const built = builtAccess(await journalCopy())
+    const state = await built.read(QUERY)
+    expect(state.history.inexactRecords).toBe(0)
+    const source = createUsageAccess(accessDeps(await journalCopy()))
+    const expected = await source.read(QUERY)
+    setUiText(EN, 'en')
+    expect(expected.history.inexactRecords).toBe(0)
+    expect(state.history).toEqual(expected.history)
+    expect(built.usageText(state, 'plain', 'summary')).toMatch(/\$\d/)
+  })
+
+  it('still refuses, in the built usage service, a dollar a number cannot carry', async () => {
+    const root = await journalCopy()
+    const day = path.join(root, RAW_DAY)
+    const written = await readFile(day, 'utf8')
+    const line = written.split('\n').find((item) => item.includes('"id":"r20"'))
+    if (line === undefined) throw new Error('The fixture lost record r20')
+    // Digits past a double: a rounded read would be a different amount.
+    await appendFile(
+      day,
+      `${line.replace('"id":"r20"', '"id":"r99"').replace('"usd":0.123456789', '"usd":0.123456789012345678901')}\n`,
+    )
+    const state = await builtAccess(root).read(QUERY)
+    expect(state.history.inexactRecords).toBe(1)
+  })
+
+  it('parses a stored schedule with dollar numbers through the built boundaries bundle', () => {
+    expect(scheduleProbe).toContain('require("./modelApiBoundaries.js")')
+    expect(scheduleProbe).toContain('.canonicalUsd)')
+    const module: { exports: unknown } = { exports: {} }
+    const entry = bundleFile('storedScheduleProbe')
+    const run = vm.compileFunction(
+      scheduleProbe,
+      ['require', 'module', 'exports', '__dirname', '__filename'],
+      { filename: entry },
+    )
+    Reflect.apply(run, undefined, [
+      (name: string): unknown =>
+        name.startsWith('./') && bundleTexts.has(path.basename(name, '.js'))
+          ? loadSupportBundle(path.basename(name, '.js'))
+          : createRequire(entry)(name),
+      module,
+      module.exports,
+      path.dirname(entry),
+      entry,
+    ])
+    const { parseScheduleStoredJson: parse } = scheduleProbeSchema.parse(module.exports)
+    expect(parse('{"v":1,"maxBudgetUsd":0.25,"dailyCapUsd":1.5,"usd":0.1}')).toEqual({
+      v: 1,
+      maxBudgetUsd: 0.25,
+      dailyCapUsd: 1.5,
+      usd: 0.1,
+    })
+    expect(() => parse('{"v":1,"usd":0.123456789012345678901}')).toThrow(
+      'scheduleStoredJsonInvalid',
+    )
+  })
+})
 
 describe('deferred cohort bundles', () => {
   it('keeps governor execution in its lazy bundle and shares the admission shim', () => {
@@ -847,12 +1084,49 @@ describe('deferred cohort bundles', () => {
     // workspacePath) and its MODEL_TEXT keys that activation reads +221.
     // Re-measured and ratcheted down when m105/media-w2 moves media to the
     // deferred dist/productionMedia.js.
+    // MODELAPIDIET (this rig, production build): the hook call fields,
+    // argument previews and fetch URL checks move to dist/modelApiTools.js
+    // (11,114 B of inputs plus the WEB_FETCH_MODEL_TEXT block they owned):
+    // 530,683 -> 516,264, a 14,419 B saving. The pin moves to the measured
+    // value exactly.
+    // MODELAPIDIETR3 (this rig, test build): the RVMODELAPIDIETB P3
+    // diagnostics log each helpers failure's class with the chunk named
+    // through the scrubbed channel (one shared line read by every helpers
+    // catch, including the closed URL-check refusal): 516,264 -> 516,373,
+    // +109 B. The pin moves to the measured value exactly; D6's 537,600 B
+    // production cap is untouched.
     // Train 0.18.0 (lead decision 2026-10-11 15:45 PT): re-measured at
     // 532,537 B on b7f9de08a6 (train af67368a22 + argument previews
     // 83f8da887, +1,854 B of intended code: the production capability
     // binding and the one confirmed-dispatch gate). D6's 525 KiB cap is
     // unchanged; the pin ratchets down when fix/modelapi-diet merges.
-    expect(Buffer.byteLength(bundleText('modelApi'))).toBeLessThanOrEqual(532_537)
+    // HOTFIX0181 (0.18.1, owner's decision 2026-10-12; Kubuntu): re-measured
+    // at 532,827 B, +290 B over 532,537. The entry now exports the three
+    // confirmed-dispatch names the provider bundles read from this bundle
+    // (assertConfirmedAllowed, isStaleConfirmedError,
+    // noteConfirmedRequestStarted): each name twice, in the export map and in
+    // the export annotation, with its getter. They are exports and not copies
+    // in the provider bundles because the state they share lives in
+    // transport.ts once per process. No other byte changed; D6's cap is
+    // unchanged and the pin still ratchets down with fix/modelapi-diet.
+    // MODELAPIDIETR4 (this rig, test build): the diet above rebases onto
+    // the 0.18.1 hotfix base and measures 518,954 B, 13,873 B under the
+    // 532,827 B hotfix pin and 9,777 B under the round-4 target of
+    // 528,731 B (+461 B over the merge for the P3-2 log-kind line and its
+    // import). The pin moves to the measured value exactly. Within that lane
+    // it rose three times as code was added (+109 B in MODELAPIDIETR3,
+    // +2,120 B on the rebase onto the hotfix base, +461 B here): it did not
+    // "only ever move down", as this comment said until the 0.18.1 candidate.
+    // 0.18.1 candidate (owner's rule of 2026-10-12: an exact-size pin moves
+    // with the measured number and its reason; Kubuntu, production build):
+    // 519,354 B, +400 B over 518,954. +68 B: a host other than the extension
+    // says its own reinstall sentence when the helpers cannot load (review
+    // RVDIET0181 P3). +332 B: the helpers are loaded once per session and
+    // handed the language once per table instead of on every call, which cost
+    // 4 ms a call (one helper, also used for the code-intelligence and
+    // schedules bundles). 13,183 B under 0.18.0's 532,537; D6's cap is
+    // unchanged.
+    expect(Buffer.byteLength(bundleText('modelApi'))).toBeLessThanOrEqual(519_354)
     const schedules = new Set(inputs('schedules'))
     for (const file of [
       'src/core/backends/modelapi/schedulesEntry.ts',
@@ -863,6 +1137,25 @@ describe('deferred cohort bundles', () => {
       expect(inputs('modelApi')).not.toContain(file)
     }
     expect(bundleText('modelApi')).toContain('./schedules.js')
+  })
+
+  it('MODELAPIDIET: the deferred per-call helpers load with dist/modelApiTools.js', () => {
+    const tools = new Set(inputs('modelApiTools'))
+    for (const file of [
+      'src/core/backends/modelapi/modelApiToolsEntry.ts',
+      'src/core/backends/modelapi/modelCallHooks.ts',
+      'src/core/backends/modelapi/argumentPreview.ts',
+      'src/core/web/pageUrl.ts',
+      'src/core/web/fetchFailure.ts',
+    ]) {
+      expect(tools.has(file)).toBe(true)
+      for (const parent of ['extension', 'modelApi', 'acp'])
+        expect(inputs(parent)).not.toContain(file)
+    }
+    // publicAddress.ts stays in dist/modelApi.js: the pinned HTTPS transport
+    // reads addressFamily for every request's SNI.
+    expect(inputs('modelApi')).toContain('src/core/web/publicAddress.ts')
+    expect(bundleText('modelApi')).toContain('./modelApiTools.js')
   })
 
   it('M115W: the lazy schedules chunk carries the v2 runtime binding beside v1', () => {

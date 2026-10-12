@@ -1478,6 +1478,8 @@
   "manualHookFailed": "Hook {name} nie powiódł się: {reason}",
   "manualHookSlashDetail": "Uruchom hook Manual z pliku spark-hooks.json",
   "extensionHooksUnavailable": "Nie udało się wczytać hooków rozszerzenia, więc żaden hook nie został uruchomiony; zainstaluj ponownie rozszerzenie i przeładuj okno. Szczegóły są w dzienniku.",
+  "modelApiToolsUnavailable": "Nie udało się wczytać pomocników wywołań modelu, więc pola wywołań hooków są niedostępne; zainstaluj ponownie rozszerzenie i przeładuj okno. Szczegóły są w dzienniku.",
+  "modelApiToolsPreviewUnavailable": "Nie udało się wczytać pomocników wywołań modelu, więc podglądy argumentów są niedostępne; zainstaluj ponownie rozszerzenie i przeładuj okno. Szczegóły są w dzienniku.",
   "shellDirectory": "W folderze {path}",
   "shellDirectoryReset": "Powłoka wróciła do katalogu głównego obszaru roboczego: {path} jest poza obszarem roboczym.",
   "elicitationTitle": "{server} prosi o informacje",

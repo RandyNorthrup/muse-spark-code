@@ -37,7 +37,7 @@ key to the CLI.
 The [roadmap](ROADMAP.md) shows what is in the next release, what is being
 built, what is planned and what each release shipped.
 
-**Contents:** [What's new](#whats-new-in-0180) · [Roadmap](ROADMAP.md) ·
+**Contents:** [What's new](#whats-new-in-0181) · [Roadmap](ROADMAP.md) ·
 [Highlights](#highlights) · [Screenshots](#screenshots) ·
 [Get started](#get-started) · [Backends](#backends) · [Subscriptions](#subscriptions) ·
 [Permission modes](#permission-modes) ·
@@ -57,7 +57,17 @@ built, what is planned and what each release shipped.
 Saved reports write money version 2; historical numeric reports retain their original
 hash verification and migrate when read.
 
-## What's new in 0.18.0
+## What's new in 0.18.1
+
+- **Your own providers, a ChatGPT plan and Copilot work again.** In 0.18.0
+  a turn on any of them stopped before it was sent, with an internal error.
+  Sorry for the broken release; Meta's own models were not affected.
+- **Usage from earlier versions is counted again.** 0.18.0 left those records
+  out as not exact; nothing was deleted.
+- **Report a Problem opens again** if you had changed a setting with a second
+  dot in its name; it used to answer "That did not work".
+
+### Earlier in 0.18.0
 
 - **Several accounts per provider, in the terminal and in ACP editors.**
   `muse-spark-code-acp providers accounts` lists, adds, orders and removes a
@@ -5424,6 +5434,18 @@ bundle declarations and callable split guard in
 `scripts/lib/deferredBundles.mjs`; every injected split violation must be
 rejected, then restored byte-exact and accepted. See the
 [timing and gate-fire record](docs/certification/deflake4.md).
+
+**Lazy-bundle registry.** `src/shared/lazyBundles.generated.ts` names every
+dist bundle loaded by file name, the function or constant that names it,
+which process loads it and which package carries it.
+`npm run lazy-registry:generate` writes it from the production build;
+`node scripts/gen-lazy-registry.mjs --check` runs in `npm run build` and
+fails when the file is stale, when a source loads a file the build does not
+emit, when a package lacks a bundle its side can load, when a load's file
+name is worked out at run time and is not listed with its reason
+(`scripts/lib/lazyRegistry.mjs`), and when the build's metafiles are
+missing. The command is tested as a child process over a real production
+build (`test/unit/packagedBundles.test.mjs`).
 
 **Project structure.**
 
