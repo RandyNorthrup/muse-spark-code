@@ -3,7 +3,8 @@ import { tryTeam, teamTryConfirmation } from '../../src/core/team/teamTry'
 import { ModelApiBackendManager } from '../../src/host/backend/modelApiBackendManager'
 import * as entry from '../../src/host/backend/modelApiEntry'
 import { fakeManagerDeps } from './helpers/modelApiManager'
-import { fakeModelApi, type ScriptedReply } from './helpers/fakeModelApi'
+import { fakeModelApi, FAKE_MODEL_API_ACCOUNT_ID, type ScriptedReply } from './helpers/fakeModelApi'
+import type { UsageRecording } from '../../src/core/usage/recording'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { memoryToolIo } from './helpers/fakeToolIo'
 import { Usd } from '../../src/shared/usd'
@@ -21,7 +22,10 @@ beforeAll(async () => {
 })
 const document: TeamEditorDocument = { roles: [], intensity: 'balanced', template: 'custom' }
 const workspaceRoot = '/workspace'
-function rig(replies: ScriptedReply[] = []) {
+function rig(
+  replies: ScriptedReply[] = [],
+  options: { readonly usageRecording?: UsageRecording } = {},
+) {
   const api = fakeModelApi()
   api.script(...replies)
   const io = memoryToolIo({ 'tracked.txt': 'before' }, workspaceRoot)
@@ -31,13 +35,16 @@ function rig(replies: ScriptedReply[] = []) {
       bundlePath: 'unused',
       loadBundle: () => entry,
       io,
+      ...(options.usageRecording !== undefined && { usageRecording: options.usageRecording }),
     }),
   )
   let isAllowed = true
   const settlements: { actual: string; uncertain?: boolean | undefined }[] = []
   const maxima: string[] = []
   const consent = vi.fn(() => Promise.resolve(true))
-  let accountId: string | undefined = 'key-a'
+  // The quote names the transport credential's digest, as production does:
+  // the fake key's digest is what final admission compares.
+  let accountId: string | undefined = FAKE_MODEL_API_ACCOUNT_ID
   const keyDigest = vi.fn(() => Promise.resolve(accountId))
   const deps = {
     isAllowed: () => isAllowed,
@@ -226,6 +233,108 @@ describe('paid team planning preview', () => {
       expect(t.maxima).toEqual([])
       expect(t.api.requests.filter((row) => row.path.endsWith('/responses'))).toEqual([])
       expect(t.deps.noteDispatched).not.toHaveBeenCalled()
+    } finally {
+      await t.manager.dispose()
+    }
+  })
+  // P3-3: the post-start check pinned on its own. The key reads its
+  // replacement only for that check: without it the same run reserves and
+  // sends, so only it explains the denial.
+  it('denies at the post-start check alone when the key changes only while starting', async () => {
+    const t = rig([{ text: 'Plan engineering.', usage: { input: 12, output: 3 } }])
+    let reads = 0
+    t.keyDigest.mockImplementation(() => {
+      reads += 1
+      // Quote, post-consent and pre-start read the quoted account; only the
+      // post-start check sees the replacement.
+      return Promise.resolve(reads === 4 ? 'key-b' : FAKE_MODEL_API_ACCOUNT_ID)
+    })
+    try {
+      await expect(
+        tryTeam(t.deps, document, 'feature-tests', new AbortController().signal),
+      ).rejects.toThrow(UI_TEXT.teamTryDenied)
+      expect(t.maxima).toEqual([])
+      expect(t.api.requests.filter((row) => row.path.endsWith('/responses'))).toEqual([])
+    } finally {
+      await t.manager.dispose()
+    }
+  })
+  // P3-3: the per-attempt check pinned on its own. The replacement lands
+  // when the session starts, after every pre-session check passed for the
+  // quoted account: the attempt's quote-space re-read denies before any
+  // reserve, and the failure returns as the tally (it never throws).
+  it('denies at the per-attempt check alone when the key changes between start and attempt', async () => {
+    const t = rig([{ text: 'Plan engineering.', usage: { input: 12, output: 3 } }])
+    const realStart = t.deps.start
+    t.deps.start = async (guard) => {
+      const host = await realStart(guard)
+      const realStartSession = host.startSession.bind(host)
+      host.startSession = async (...args: Parameters<typeof realStartSession>) => {
+        t.replaceKey('key-b')
+        return await realStartSession(...args)
+      }
+      return host
+    }
+    try {
+      const result = await tryTeam(t.deps, document, 'feature-tests', new AbortController().signal)
+      expect(result).toContain(UI_TEXT.teamTryDenied)
+      expect(t.maxima).toEqual([])
+      expect(t.api.requests.filter((row) => row.path.endsWith('/responses'))).toEqual([])
+      expect(t.deps.noteDispatched).not.toHaveBeenCalled()
+    } finally {
+      await t.manager.dispose()
+    }
+  })
+  // P3-3: the final-admission digest comparison pinned on its own. Every
+  // quote-space check reads the same quoted account, but the transport
+  // admits with another credential: the reserve is reached, then only the
+  // guard's comparison denies, and the failure returns as the tally.
+  it('denies at final admission alone when the transport admits another credential', async () => {
+    const t = rig([{ text: 'Plan engineering.', usage: { input: 12, output: 3 } }])
+    // The quote names an account the transport never uses: quote-space
+    // checks all pass, the admitted digest does not match.
+    t.replaceKey('quote-a')
+    try {
+      const result = await tryTeam(t.deps, document, 'feature-tests', new AbortController().signal)
+      expect(result).toContain(UI_TEXT.teamTryDenied)
+      // The reserve was reached before admission compared digests.
+      expect(t.maxima).toHaveLength(1)
+      expect(t.api.requests.filter((row) => row.path.endsWith('/responses'))).toEqual([])
+      expect(t.deps.noteDispatched).not.toHaveBeenCalled()
+    } finally {
+      await t.manager.dispose()
+    }
+  })
+  // P3-4: the stamped observation reaches usage recording through the real
+  // host. Meta keeps the reservation's budget identity (none on this host).
+  it('records the stamper fallback on quota observations through the preview host', async () => {
+    const limited: { observedAccount: string | undefined }[] = []
+    const recording: UsageRecording = {
+      limits: () => [],
+      note: () => undefined,
+      limit: (context) => {
+        limited.push({ observedAccount: context.observedAccount })
+      },
+      today: () => Promise.resolve([]),
+      flush: () => Promise.resolve(),
+    }
+    const t = rig(
+      [
+        {
+          text: 'Plan engineering.',
+          usage: { input: 12, output: 3 },
+          responseHeaders: { 'x-ratelimit-remaining-requests': '99' },
+        },
+      ],
+      { usageRecording: recording },
+    )
+    try {
+      const result = await tryTeam(t.deps, document, 'feature-tests', new AbortController().signal)
+      expect(result).toContain('Plan engineering')
+      await vi.waitFor(() => {
+        expect(limited).not.toHaveLength(0)
+      })
+      expect(limited.map((row) => row.observedAccount)).toEqual([undefined])
     } finally {
       await t.manager.dispose()
     }

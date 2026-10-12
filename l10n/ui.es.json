@@ -5464,5 +5464,6 @@
     "topP": "Probabilidad Top-p"
   },
   "teamTryTally": "Vista previa de pago: {attempts}; cobrado {charged}; responsabilidad retenida {retained}.",
-  "teamTryDenied": "Vista previa del plan de pago denegada. No se cobró nada."
+  "teamTryDenied": "Vista previa del plan de pago denegada. No se cobró nada.",
+  "teamNotReleased": "Los equipos de agentes no están disponibles en esta compilación."
 }

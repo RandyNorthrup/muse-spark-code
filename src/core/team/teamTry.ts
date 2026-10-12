@@ -48,17 +48,27 @@ export async function tryTeam(
   const frozen = teamEditorDocumentSchema.parse(document)
   const lifetime = AbortSignal.any([signal, AbortSignal.timeout(TEAM_TRY_TIMEOUT_MS)])
   let openClaim: { readonly check: () => void } | undefined
-  const check = () => {
+  // The account the quote bills, pinned across consent (P2-A: the paying
+  // provider credential for a bring-your-own model, not the generic Meta
+  // account). The credential the latest transport attempt actually used,
+  // carried from final admission: the quota stamper attributes observations
+  // to it, never re-read after the response.
+  const quote: { digest: string | undefined } = { digest: undefined }
+  const check = (attemptDigest?: string) => {
     if (lifetime.aborted || !deps.isAllowed()) throw new Error(UI_TEXT.teamBudgetUnavailable)
     openClaim?.check()
+    // Final transport admission compares the request's own digest against
+    // the quote: a credential replaced after consent sends nothing further.
+    if (attemptDigest !== undefined && quote.digest !== undefined && attemptDigest !== quote.digest)
+      throw new Error(UI_TEXT.teamTryDenied)
   }
   check()
   // The quote names this account when it is shown: a stored-key replacement
   // while the consent is open voids the approval, and nothing is sent.
-  const quotedAccount = await deps.keyDigest()
-  if (quotedAccount === undefined) throw new Error(UI_TEXT.teamTryDenied)
+  quote.digest = await deps.keyDigest()
+  if (quote.digest === undefined) throw new Error(UI_TEXT.teamTryDenied)
   if (!(await deps.consent())) throw new Error(UI_TEXT.teamTryDenied)
-  if ((await deps.keyDigest()) !== quotedAccount) throw new Error(UI_TEXT.teamTryDenied)
+  if ((await deps.keyDigest()) !== quote.digest) throw new Error(UI_TEXT.teamTryDenied)
   check()
   let attempts = 0
   let charged = Usd.from(0).toAmount()
@@ -71,10 +81,10 @@ export async function tryTeam(
     }) => {
       check()
       // The quoted account travels with the request into final transport
-      // admission: every attempt re-admits the paying identity, in quote
-      // space (a transport key digest would misfire on provider-billed
-      // models). A credential replaced after consent sends nothing further.
-      if ((await deps.keyDigest()) !== quotedAccount) throw new Error(UI_TEXT.teamTryDenied)
+      // admission: every attempt re-admits the paying identity in quote
+      // space, and the transport's own digest is compared by the guard.
+      // A credential replaced after consent sends nothing further.
+      if ((await deps.keyDigest()) !== quote.digest) throw new Error(UI_TEXT.teamTryDenied)
       if (
         attempts >= TEAM_TRY_MAX_REQUESTS ||
         maximum.costUsd === undefined ||
@@ -107,12 +117,12 @@ export async function tryTeam(
   })
   // Revalidated before the preview host is created: the consent answered
   // for the quoted account never starts a billed host for another one.
-  if ((await deps.keyDigest()) !== quotedAccount) throw new Error(UI_TEXT.teamTryDenied)
+  if ((await deps.keyDigest()) !== quote.digest) throw new Error(UI_TEXT.teamTryDenied)
   const host = await deps.start(guard)
   // The host initialised asynchronously: a credential replaced while it
   // started voids the approval before any session exists, so nothing is
   // reserved or sent under the earlier approval.
-  if ((await deps.keyDigest()) !== quotedAccount) {
+  if ((await deps.keyDigest()) !== quote.digest) {
     await host.close()
     throw new Error(UI_TEXT.teamTryDenied)
   }

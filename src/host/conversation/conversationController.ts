@@ -4215,13 +4215,14 @@ export class ConversationController {
       this.importedSessionIds.add(loaded.session.sessionId)
     }
     this.activeTurnId = loaded.activeTurnId
-    // A resumed conversation keeps its stored effort and cap: the composer
-    // takes the session's own settings before attach, so the attach sync
-    // does not overwrite them with the default (the cap rides the session
-    // snapshot).
-    this.restoreSessionEffort(loaded.session)
+    // A resumed conversation keeps its stored effort, Thinking switch and
+    // provider tier: the composer takes the session's own settings before
+    // attach, so the attach sync does not overwrite them with the default
+    // (the cap rides the session snapshot).
+    const restoredTier = this.restoreSessionEffort(loaded.session)
     await this.attach(host, loaded.session, 'continued after a restart')
     this.requireCurrentOpening(generation)
+    await this.applyRestoredTier(loaded.session, restoredTier)
     try {
       await loaded.session.setApprovalMode(
         approvalModeFor(this.permissionMode, this.deps.hasApprovalUi),
@@ -4760,23 +4761,49 @@ export class ConversationController {
    * composer settings are applied to it.
    */
   /**
-   * The session's own effort becomes the composer's before attach, on every
-   * adoption path (restart reconnect, History resume, fork): the attach sync
-   * then carries the stored value instead of overwriting it with the panel
-   * default. Thinking off restores as off; a tier the model does not serve
-   * is simply not sent, and the session keeps what it holds. One function,
-   * called by every path that adopts a stored session.
+   * The session's own effort, Thinking switch and provider tier become the
+   * composer's before attach, on every path that adopts a stored session
+   * (restart reconnect, History resume, fork): the attach sync then carries
+   * the stored values instead of overwriting them with the panel default.
+   * Thinking off restores as off, and a stored level brings Thinking back
+   * on: restoring it while Thinking stays off would send `none` at attach
+   * and lose the level. A provider tier the slider never offers cannot ride
+   * the composer, so it is returned pending: the caller re-applies it to
+   * the session after attach. A tier the model does not serve is simply not
+   * sent, and the session keeps what it holds. One function, called by
+   * every path that adopts a stored session.
    */
-  private restoreSessionEffort(session: AgentSession): void {
+  private restoreSessionEffort(session: AgentSession): string | undefined {
     const resumedEffort = session.currentEffort
+    if (resumedEffort === undefined || resumedEffort === '') return undefined
     if (resumedEffort === THINKING_OFF_EFFORT) {
       this.isThinkingEnabled = false
       this.postComposerState()
-      return
+      return undefined
     }
-    if (resumedEffort === undefined || !isEffortLevel(resumedEffort)) return
-    this.effort = resumedEffort
+    this.isThinkingEnabled = true
+    if (isEffortLevel(resumedEffort)) {
+      this.effort = resumedEffort
+      this.postComposerState()
+      return undefined
+    }
     this.postComposerState()
+    return resumedEffort
+  }
+
+  /**
+   * Re-apply a restored provider tier after attach: the attach sync carries
+   * the composer's level, so the stored tier goes back on the session last.
+   * A refusal warns like any unapplied effort instead of failing the
+   * adoption: the session keeps what the sync carried.
+   */
+  private async applyRestoredTier(session: AgentSession, tier: string | undefined): Promise<void> {
+    if (tier === undefined) return
+    try {
+      await session.setReasoningEffort(tier)
+    } catch (error: unknown) {
+      this.say('warning', `${UI_TEXT.effortNotApplied}: ${describe(error)}`)
+    }
   }
 
   private async adopt(
@@ -4871,13 +4898,16 @@ export class ConversationController {
     }
     // Before attaching: the events held for this surface may end that turn (D26).
     this.activeTurnId = loaded.activeTurnId
-    // History resume and fork restore the session's own effort before attach,
-    // the same restoration a restart reconnect uses.
-    this.restoreSessionEffort(loaded.session)
+    // History resume and fork restore the session's own effort, Thinking
+    // switch and provider tier before attach, the same restoration a
+    // restart reconnect uses. An imported file never sets the effort: the
+    // panel default stays, as before the restoration (P3-5).
+    const restoredTier = isImported ? undefined : this.restoreSessionEffort(loaded.session)
     await this.attach(host, loaded.session, origin)
     if (generation !== this.sendInvalidationEpoch) {
       return false
     }
+    await this.applyRestoredTier(loaded.session, restoredTier)
     const target = approvalModeFor(this.permissionMode, this.deps.hasApprovalUi)
     try {
       await loaded.session.setApprovalMode(target)

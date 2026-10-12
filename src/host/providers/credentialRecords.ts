@@ -120,6 +120,47 @@ export async function providerKeyDigest(
 }
 
 /**
+ * The credential identity spending today, by provider (P2-4): Meta keeps
+ * the generic account; a BYO apiKey record contributes its secret digest;
+ * anything else keeps legacy unattributed matching (no entry here). The
+ * secrets themselves never leave these calls.
+ */
+export async function providerIdentities(
+  secrets: RecordStore,
+  providers: Iterable<string>,
+  metaAccount: string | undefined,
+): Promise<Map<string, string>> {
+  const identities = new Map<string, string>()
+  if (metaAccount !== undefined) identities.set('meta', metaAccount)
+  for (const provider of providers) {
+    if (provider === 'meta') continue
+    const digest = await providerKeyDigest(secrets, provider)
+    if (digest !== undefined) identities.set(provider, digest)
+  }
+  return identities
+}
+
+/**
+ * Hash-only identity of the account a model bills (P2-A): a
+ * bring-your-own model's own provider credential, Meta's account otherwise.
+ * The preview's quote, its per-attempt admission and its final transport
+ * admission compare this one value, so replacing the provider key during
+ * consent or startup voids the approval instead of spending the new key.
+ * The secret itself never leaves this call.
+ */
+export async function payingKeyDigest(
+  secrets: RecordStore,
+  modelId: string,
+  metaAccount: () => Promise<string | undefined>,
+): Promise<string | undefined> {
+  const slash = modelId.indexOf('/')
+  const provider = slash === -1 ? 'meta' : modelId.slice(0, slash)
+  return await (provider === '' || provider === 'meta'
+    ? metaAccount()
+    : providerKeyDigest(secrets, provider))
+}
+
+/**
  * Whether `requestOrigin` is the origin the record was entered for. Origins,
  * not hosts: `http` and `https` on one host, or two ports on one host, are
  * different origins, and either difference refuses the request (M95

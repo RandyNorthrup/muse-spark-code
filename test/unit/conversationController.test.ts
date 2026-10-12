@@ -1,4 +1,5 @@
 import { FakeAgentHost } from './helpers/fakeAgent'
+import { watchSessionTurns } from './helpers/sessionTurns'
 import type { EstimateRequest } from '../../src/shared/estimate'
 import { fakeEstimate } from './helpers/estimator/fixtures'
 import { questionAnswerText } from './helpers/questions/registry'
@@ -39,6 +40,7 @@ import { build } from 'esbuild'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import type {
   AgentHost,
+  AgentSession,
   ModelSummary,
   QueuedMessageRef,
   SessionEventListener,
@@ -4102,6 +4104,253 @@ describe('ConversationController: team server and orchestrator slot (M96 lane T)
     expect(t.surface.posted.findLast((message) => message.type === 'composerState')).toMatchObject({
       effort: 'low',
     })
+  })
+  // P2-B: restoring a level while Thinking stays off would send `none` at
+  // attach and lose the level, so the level brings Thinking back on.
+  it('turns Thinking back on when History resume restores a stored level', async () => {
+    const t = setup()
+    let nextId = 0
+    const { host, controller } = modelApiController(t, {
+      store: memorySessionStore(),
+      newId: () => `id${String((nextId += 1))}`,
+    })
+    const slow = await host.startSession({
+      workspaceRoot: '/ws',
+      modelId: 'muse-spark-1.3',
+      approvalMode: 'promptUnmatched',
+    })
+    await slow.setReasoningEffort('low')
+    const other = await host.startSession({
+      workspaceRoot: '/ws',
+      modelId: 'muse-spark-1.3',
+      approvalMode: 'promptUnmatched',
+    })
+    await controller.handle({ type: 'resumeSession', sessionId: other.sessionId })
+    await controller.handle({ type: 'setThinking', enabled: false })
+    expect(t.surface.posted.findLast((message) => message.type === 'composerState')).toMatchObject({
+      isThinkingEnabled: false,
+    })
+    await controller.handle({ type: 'resumeSession', sessionId: slow.sessionId })
+    expect(t.surface.posted.findLast((message) => message.type === 'composerState')).toMatchObject({
+      effort: 'low',
+      isThinkingEnabled: true,
+    })
+  })
+  // P2-B: a session that holds Thinking-off restores as off.
+  it('restores Thinking-off on History resume instead of the panel switch', async () => {
+    const t = setup()
+    let nextId = 0
+    const { host, controller } = modelApiController(t, {
+      store: memorySessionStore(),
+      newId: () => `id${String((nextId += 1))}`,
+    })
+    const off = await host.startSession({
+      workspaceRoot: '/ws',
+      modelId: 'muse-spark-1.3',
+      approvalMode: 'promptUnmatched',
+    })
+    await off.setReasoningEffort('none')
+    const other = await host.startSession({
+      workspaceRoot: '/ws',
+      modelId: 'muse-spark-1.3',
+      approvalMode: 'promptUnmatched',
+    })
+    await controller.handle({ type: 'resumeSession', sessionId: other.sessionId })
+    await controller.handle({ type: 'resumeSession', sessionId: off.sessionId })
+    expect(t.surface.posted.findLast((message) => message.type === 'composerState')).toMatchObject({
+      isThinkingEnabled: false,
+    })
+  })
+  // P2-C: a provider tier the slider never offers survives History resume:
+  // Thinking comes back on and the stored tier goes back on the session.
+  it('restores a provider tier on History resume instead of the panel default', async () => {
+    const t = setup()
+    const { host, controller } = modelApiController(t, { store: memorySessionStore() })
+    const byo = await host.startSession({
+      workspaceRoot: '/ws',
+      modelId: 'openai/gpt-5',
+      approvalMode: 'promptUnmatched',
+    })
+    // Unknown tiers pass: the session holds the exotic tier.
+    await byo.setReasoningEffort('turbo')
+    const resumed: AgentSession[] = []
+    const realResumeSession = host.resumeSession.bind(host)
+    host.resumeSession = async (...args: Parameters<typeof realResumeSession>) => {
+      const loaded = await realResumeSession(...args)
+      resumed.push(loaded.session)
+      return loaded
+    }
+    await controller.handle({ type: 'resumeSession', sessionId: byo.sessionId })
+    // The composer keeps its level but Thinking is back on; the session
+    // holds the stored tier again after the attach sync carried the level.
+    expect(t.surface.posted.findLast((message) => message.type === 'composerState')).toMatchObject({
+      effort: 'high',
+      isThinkingEnabled: true,
+    })
+    expect(resumed).toHaveLength(1)
+    expect(resumed[0]?.currentEffort).toBe('turbo')
+  })
+  // P3-5: an imported file never sets the effort: the panel default stays,
+  // as before the restoration, even when the file holds another tier.
+  it('keeps the panel effort when resuming an imported file', async () => {
+    const t = setup()
+    const { host, controller } = modelApiController(t, { store: memorySessionStore() })
+    const started = await host.startSession({
+      workspaceRoot: '/ws',
+      modelId: 'muse-spark-1.3',
+      approvalMode: 'promptUnmatched',
+    })
+    await started.setReasoningEffort('low')
+    const resumed: AgentSession[] = []
+    const realResumeSession = host.resumeSession.bind(host)
+    host.resumeSession = async (...args: Parameters<typeof realResumeSession>) => {
+      const loaded = await realResumeSession(...args)
+      resumed.push(loaded.session)
+      return { ...loaded, record: { ...loaded.record, imported: true } }
+    }
+    await controller.handle({ type: 'resumeSession', sessionId: started.sessionId })
+    // The file chose low, not the person: the panel default stays and the
+    // attach sync carries it.
+    expect(t.surface.posted.findLast((message) => message.type === 'composerState')).toMatchObject({
+      effort: 'high',
+      isThinkingEnabled: true,
+    })
+    expect(resumed[0]?.currentEffort).toBe('high')
+  })
+  // P2-B/C: forking adopts the forked session through the same restoration.
+  // The fork below holds high while the composer shows low: only the fork
+  // path restoring it explains the pill.
+  it('restores the forked effort on fork instead of the panel effort', async () => {
+    const t = setup()
+    let nextId = 0
+    const { api, host, controller } = modelApiController(t, {
+      store: memorySessionStore(),
+      newId: () => `id${String((nextId += 1))}`,
+    })
+    const started = await host.startSession({
+      workspaceRoot: '/ws',
+      modelId: 'muse-spark-1.3',
+      approvalMode: 'promptUnmatched',
+    })
+    await started.setReasoningEffort('low')
+    const current: AgentSession[] = []
+    const realResumeSession = host.resumeSession.bind(host)
+    host.resumeSession = async (...args: Parameters<typeof realResumeSession>) => {
+      const loaded = await realResumeSession(...args)
+      current.push(loaded.session)
+      return loaded
+    }
+    const forked: AgentSession[] = []
+    const realForkSession = host.forkSession.bind(host)
+    host.forkSession = async (...args: Parameters<typeof realForkSession>) => {
+      const loaded = await realForkSession(...args)
+      forked.push(loaded.session)
+      return loaded
+    }
+    await controller.handle({ type: 'resumeSession', sessionId: started.sessionId })
+    const source = current[0]
+    if (source === undefined) throw new Error('Expected a resumed session')
+    // Diverge the session behind the composer's back, then fork it: the
+    // fork carries the diverged effort, not the composer's.
+    await source.setReasoningEffort('high')
+    api.script({ text: 'ok' })
+    const watching = watchSessionTurns(source)
+    await source.sendTurn([{ type: 'text', text: 'hi' }])
+    await watching.turnDone()
+    await controller.handle({ type: 'forkSession' })
+    expect(t.surface.posted.findLast((message) => message.type === 'composerState')).toMatchObject({
+      effort: 'high',
+      isThinkingEnabled: true,
+    })
+    expect(forked).toHaveLength(1)
+    expect(forked[0]?.currentEffort).toBe('high')
+  })
+  // P2-B: a forked session that holds Thinking-off restores as off.
+  it('restores Thinking-off on fork instead of the panel switch', async () => {
+    const t = setup()
+    let nextId = 0
+    const { api, host, controller } = modelApiController(t, {
+      store: memorySessionStore(),
+      newId: () => `id${String((nextId += 1))}`,
+    })
+    const started = await host.startSession({
+      workspaceRoot: '/ws',
+      modelId: 'muse-spark-1.3',
+      approvalMode: 'promptUnmatched',
+    })
+    await started.setReasoningEffort('low')
+    const current: AgentSession[] = []
+    const realResumeSession = host.resumeSession.bind(host)
+    host.resumeSession = async (...args: Parameters<typeof realResumeSession>) => {
+      const loaded = await realResumeSession(...args)
+      current.push(loaded.session)
+      return loaded
+    }
+    await controller.handle({ type: 'resumeSession', sessionId: started.sessionId })
+    const source = current[0]
+    if (source === undefined) throw new Error('Expected a resumed session')
+    await source.setReasoningEffort('none')
+    api.script({ text: 'ok' })
+    const watching = watchSessionTurns(source)
+    await source.sendTurn([{ type: 'text', text: 'hi' }])
+    await watching.turnDone()
+    await controller.handle({ type: 'forkSession' })
+    expect(t.surface.posted.findLast((message) => message.type === 'composerState')).toMatchObject({
+      effort: 'low',
+      isThinkingEnabled: false,
+    })
+  })
+  // P2-C: a fork lands on the catalogue model, so a provider tier it cannot
+  // serve warns instead of failing the fork: the session keeps the sync value.
+  it('warns instead of failing a fork whose tier the forked model cannot serve', async () => {
+    const t = setup()
+    let nextId = 0
+    const { api, host, controller } = modelApiController(t, {
+      store: memorySessionStore(),
+      newId: () => `id${String((nextId += 1))}`,
+    })
+    const byo = await host.startSession({
+      workspaceRoot: '/ws',
+      modelId: 'openai/gpt-5',
+      approvalMode: 'promptUnmatched',
+    })
+    await byo.setReasoningEffort('turbo')
+    const current: AgentSession[] = []
+    const realResumeSession = host.resumeSession.bind(host)
+    host.resumeSession = async (...args: Parameters<typeof realResumeSession>) => {
+      const loaded = await realResumeSession(...args)
+      current.push(loaded.session)
+      return loaded
+    }
+    const forked: AgentSession[] = []
+    const realForkSession = host.forkSession.bind(host)
+    host.forkSession = async (...args: Parameters<typeof realForkSession>) => {
+      const loaded = await realForkSession(...args)
+      forked.push(loaded.session)
+      return loaded
+    }
+    await controller.handle({ type: 'resumeSession', sessionId: byo.sessionId })
+    const source = current[0]
+    if (source === undefined) throw new Error('Expected a resumed session')
+    expect(source.currentEffort).toBe('turbo')
+    api.script({ text: 'ok' })
+    const watching = watchSessionTurns(source)
+    await source.sendTurn([{ type: 'text', text: 'hi' }])
+    await watching.turnDone()
+    await controller.handle({ type: 'forkSession' })
+    // The fork runs on the catalogue model, which refuses turbo: the fork
+    // still lands, Thinking is on, and the refusal is said.
+    expect(t.surface.posted.findLast((message) => message.type === 'composerState')).toMatchObject({
+      effort: 'high',
+      isThinkingEnabled: true,
+    })
+    expect(forked).toHaveLength(1)
+    expect(forked[0]?.currentEffort).toBe('high')
+    expect(
+      t.surface.posted.some((message) =>
+        JSON.stringify(message).includes(UI_TEXT.effortNotApplied),
+      ),
+    ).toBe(true)
   })
   it('refuses a conversation whose override the selected model cannot serve', async () => {
     const target = new FakeAgentHost([

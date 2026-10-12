@@ -5158,5 +5158,6 @@
     "topP": "Top-p 샘플링 확률"
   },
   "teamTryTally": "유료 미리보기: {attempts}, 청구 {charged}, 보류된 부담액 {retained}.",
-  "teamTryDenied": "유료 계획 미리보기가 거부되었습니다. 요금이 청구되지 않았습니다."
+  "teamTryDenied": "유료 계획 미리보기가 거부되었습니다. 요금이 청구되지 않았습니다.",
+  "teamNotReleased": "에이전트 팀은 이 빌드에서 사용할 수 없습니다."
 }

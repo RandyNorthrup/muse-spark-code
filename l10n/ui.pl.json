@@ -5617,5 +5617,6 @@
     "topP": "Prawdopodobieństwo Top-p"
   },
   "teamTryTally": "Płatny podgląd: {attempts}; naliczono {charged}; zatrzymane zobowiązanie {retained}.",
-  "teamTryDenied": "Odmówiono płatnego podglądu planu. Nie naliczono opłaty."
+  "teamTryDenied": "Odmówiono płatnego podglądu planu. Nie naliczono opłaty.",
+  "teamNotReleased": "Zespoły agentów nie są dostępne w tej kompilacji."
 }

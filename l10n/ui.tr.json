@@ -5311,5 +5311,6 @@
     "topP": "Top-p olasılığı"
   },
   "teamTryTally": "Ücretli önizleme: {attempts}; ücret {charged}; tutulan yükümlülük {retained}.",
-  "teamTryDenied": "Ücretli plan önizlemesi reddedildi. Ücret alınmadı."
+  "teamTryDenied": "Ücretli plan önizlemesi reddedildi. Ücret alınmadı.",
+  "teamNotReleased": "Ajan ekipleri bu derlemede kullanılamıyor."
 }

@@ -91,6 +91,8 @@ export interface ScriptedReply {
   readonly networkErrorCode?: string
   /** A keep-alive with empty data mid-stream and the OpenAI-style `data: [DONE]` at the end. */
   readonly doneSentinel?: boolean
+  /** Response headers on the streamed reply (usage observations read the rate-limit ones). */
+  readonly responseHeaders?: Record<string, string>
 }
 
 export interface RecordedRequest {
@@ -628,7 +630,7 @@ export function fakeModelApi(): FakeModelApi {
       }
       const response = new Response(bodyStream(text, reply, signal), {
         status: 200,
-        headers: { 'content-type': 'text/event-stream' },
+        headers: { 'content-type': 'text/event-stream', ...reply.responseHeaders },
       })
       return reply.hold === undefined
         ? Promise.resolve(response)

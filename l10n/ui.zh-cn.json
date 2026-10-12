@@ -5158,5 +5158,6 @@
     "topP": "Top-p 采样概率"
   },
   "teamTryTally": "付费预览：{attempts}；已收费 {charged}；保留责任金额 {retained}。",
-  "teamTryDenied": "已拒绝付费计划预览。未产生费用。"
+  "teamTryDenied": "已拒绝付费计划预览。未产生费用。",
+  "teamNotReleased": "智能体团队在此构建中不可用。"
 }

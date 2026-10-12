@@ -5158,5 +5158,6 @@
     "topP": "Top-p サンプリング確率"
   },
   "teamTryTally": "有料プレビュー：{attempts}、請求額 {charged}、保留中の負担額 {retained}。",
-  "teamTryDenied": "有料計画プレビューを拒否しました。課金はありません。"
+  "teamTryDenied": "有料計画プレビューを拒否しました。課金はありません。",
+  "teamNotReleased": "エージェントチームはこのビルドでは利用できません。"
 }

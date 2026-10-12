@@ -2349,23 +2349,6 @@ function settingUnsupported(modelId: string, setting: string, value: string): st
   return fill(UI_TEXT.teamSettingUnsupported, { setting, value, model: modelId })
 }
 
-/**
- * The quota identity stamped on an observation (RVCM963JB P2-4): the
- * credential the provider actually used for a BYO request, carried from the
- * request itself. Meta keeps the reservation's budget identity, which also
- * covers key-less subscription flows whose transport digest the offer side
- * cannot see.
- */
-export function observationAccount(options: {
-  readonly modelId: string
-  readonly attemptKeyDigest: string | undefined
-  readonly reservationAccount: string | undefined
-}): string | undefined {
-  return options.modelId.includes('/')
-    ? (options.attemptKeyDigest ?? options.reservationAccount)
-    : options.reservationAccount
-}
-
 export class ModelApiSession implements ScheduledAgentSession {
   private lastJudgeBody: CreateResponseBody | undefined
   private readonly listeners = new Set<SessionEventListener>()
@@ -4761,11 +4744,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     const resolved = this.selectedModel(body.model)
     const expectedKeyDigest = this.modelKeyDigests.get(body.model)
     const revision = this.modelRevision
-    // The credential this request actually uses, for quota stamping below:
-    // carried from the request's admission, never re-read after the response.
-    let attemptKeyDigest: string | undefined
     const guard: ResponseAttemptGuard = (keyDigest) => {
-      attemptKeyDigest = keyDigest
       this.isSendingCompaction = isCompaction
       // Compaction must remain reachable even when ordinary turns no longer fit (D49).
       this.sendingContextModel =
@@ -4920,13 +4899,12 @@ export class ModelApiSession implements ScheduledAgentSession {
               observedAt: this.deps.now(),
               windows: [],
               raw: observation.headers,
-              // The account that paid for this response: a replaced key
-              // stops using its quota (RVCM963J 7, RVCM963JB P2-4).
-              observedAccount: observationAccount({
-                modelId: body.model,
-                attemptKeyDigest,
-                reservationAccount: reservation?.accountId,
-              }),
+              // The account that paid for this response: the reservation's
+              // budget identity (RVCM963J 7). A team host's recorder wrapper
+              // re-stamps a bring-your-own model's rows with the credential
+              // the attempt used, so a replaced key stops using its quota;
+              // this bundle carries none of that (CM963JR4 veto).
+              observedAccount: reservation?.accountId,
             },
             observation.rateLimited === true,
           )
@@ -15842,18 +15820,6 @@ export class ModelApiSession implements ScheduledAgentSession {
   /** What a resumed conversation holds, so attach keeps it instead of the default. */
   public get currentEffort(): string {
     return this.effort
-  }
-
-  /**
-   * Whether this model serves the tier: a default is sent only here, and is
-   * otherwise simply not sent (ordinary sessions on models without that
-   * control keep the host default). Only an explicit saved or requested
-   * setting the model cannot serve is refused, by setReasoningEffort.
-   */
-  public servesReasoningEffort(reasoningEffort: string): boolean {
-    if (reasoningEffort === THINKING_OFF_EFFORT) return true
-    const levels = this.modelPolicy().reasoning.effortLevels
-    return levels.state !== 'yes' || levels.value.includes(reasoningEffort)
   }
 
   public setReasoningEffort(reasoningEffort: string): Promise<void> {

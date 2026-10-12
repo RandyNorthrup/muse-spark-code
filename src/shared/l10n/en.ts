@@ -5510,6 +5510,7 @@ export const EN = {
   // {cost}: the labelled cost of one orchestrator turn.
   teamTryTally: 'Paid preview: {attempts}; charged {charged}; retained liability {retained}.',
   teamTryDenied: 'Paid planning preview denied. No charge was made.',
+  teamNotReleased: 'Agent teams are not available in this build.',
   teamTryWithOrchestrator: 'Try with the orchestrator ({cost})',
   teamImportDraft: 'Opened as a draft: entries you lack show as missing.',
   teamEntryMissing: 'Missing: map it to one of your agents or remove it.',

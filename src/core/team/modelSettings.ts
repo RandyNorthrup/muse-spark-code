@@ -43,6 +43,26 @@ export function teamSettingCapabilities(record: ModelCapabilityRecord): TeamSett
   }
 }
 
+/**
+ * An entry model's capability record for pre-dispatch and new-conversation
+ * validation (P2-5), qualified provider ids included: Meta's known families
+ * resolve from the catalogue record, anything else from today's discovery
+ * match. Unknown stays unknown (legacy leniency; the session re-checks live
+ * tiers at apply).
+ */
+export function capabilitiesForModelId(options: {
+  readonly modelId: string
+  readonly discoveryMatch: ModelCapabilityRecord | undefined
+  readonly isKnownMetaFamily: boolean
+  readonly metaRecord: () => ModelCapabilityRecord
+}): TeamSettingCapabilities | undefined {
+  if (options.modelId.includes('/'))
+    return options.discoveryMatch === undefined
+      ? undefined
+      : teamSettingCapabilities(options.discoveryMatch)
+  return options.isKnownMetaFamily ? teamSettingCapabilities(options.metaRecord()) : undefined
+}
+
 /** A saved setting's refusal, naming the setting, value and model. */
 function unsupportedSetting(setting: string, value: unknown, modelId: string): string {
   return fill(UI_TEXT.teamSettingUnsupported, {

@@ -42,6 +42,7 @@ import type { BrowserCheckHost } from '../../core/browser/browserTool'
 import type { SubagentUsage } from '../../shared/paid'
 import type { TeamHostSeams } from '../../core/team/teamHostService'
 import { BestOfNError } from '../../core/bestOfN/bestOfNError'
+import { restampTeamQuota, teamQuotaStash } from '../../core/usage/quotaStamp'
 import { WorkspaceEdits, type WorkspaceEditRecorder } from '../../core/verify/workspaceEdits'
 import type { AgentSession } from '../../core/agent/agentBackend'
 import type { EditedFile } from '../../core/verify/diagnosticsReport'
@@ -217,6 +218,7 @@ interface HostVariant {
   readonly io: ToolIo
   readonly budgetScope?: OwnedSessionBudgetScope | undefined
   readonly admitResponseAttempt?: ResponseAttemptGuard | undefined
+  readonly usageRecording?: UsageRecording | undefined
   readonly noteResponseUsage?: ((modelId: string, usage: SubagentUsage) => void) | undefined
   readonly usageKind?: ModelApiHostDeps['usageKind']
   readonly workspaceRoot: string
@@ -378,7 +380,10 @@ export class ModelApiBackendManager {
         },
         admitResponseAttempt: variant.admitResponseAttempt,
         noteResponseUsage: variant.noteResponseUsage,
-        usageRecording: this.deps.usageRecording ?? ModelApiBackendManager.usageRecording,
+        usageRecording:
+          variant.usageRecording ??
+          this.deps.usageRecording ??
+          ModelApiBackendManager.usageRecording,
         hasExternalPaidRecording: this.deps.hasExternalPaidRecording,
         usageKind: variant.usageKind,
         hasMetaCredential: this.deps.hasMetaCredential,
@@ -509,6 +514,8 @@ export class ModelApiBackendManager {
     kind: {
       readonly outputCap?: number | undefined
       readonly isIndependentPreview?: boolean
+      /** Re-stamp this host's rows with the credential the attempt used (P2-4, teams only). */
+      readonly restampQuota?: boolean | undefined
       readonly toolAllowlist?: readonly string[] | undefined
       readonly usageKind: 'bestOfN' | 'worker'
       readonly paidFeature: 'bestOfN' | 'teamWorkers'
@@ -530,6 +537,12 @@ export class ModelApiBackendManager {
     }
     const generation = this.generation
     const attemptVerify = this.deps.createAttemptVerify?.(worktreeRoot)
+    // The credential the attempts use, carried from final admission (P2-4):
+    // the recorder wrapper below re-stamps a bring-your-own model's rows
+    // with it, never re-read after the response. One session per host, so
+    // one stash per host is exact.
+    const quota = teamQuotaStash()
+    const attemptRecording = this.deps.usageRecording ?? ModelApiBackendManager.usageRecording
     const verify =
       attemptVerify === undefined ? undefined : { ...attemptVerify, checkCommands: () => [] }
     try {
@@ -555,8 +568,11 @@ export class ModelApiBackendManager {
         noteResponseUsage: (modelId, usage) => {
           if (generation === this.generation) noteUsage?.(modelId, usage)
         },
+        usageRecording:
+          kind.restampQuota === true ? restampTeamQuota(attemptRecording, quota) : attemptRecording,
         admitResponseAttempt: Object.assign(
           (keyDigest: string | undefined) => {
+            quota.noteAttempt(keyDigest)
             if (
               generation !== this.generation ||
               (budgetScope === undefined &&
@@ -678,6 +694,7 @@ export class ModelApiBackendManager {
       readyMessage: 'Model API team worker host ready in its working copy',
       fenceIo,
       outputCap,
+      restampQuota: true,
     })
   }
 
@@ -691,6 +708,7 @@ export class ModelApiBackendManager {
       budgetUnavailable: () => UI_TEXT.teamBudgetUnavailable,
       shellRefusal: MODEL_TEXT.shellTeamWorker,
       readyMessage: 'Model API team planning preview ready',
+      restampQuota: true,
     })
   }
 
