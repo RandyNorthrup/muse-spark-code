@@ -7,7 +7,7 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
-- **Headless engine teams** (M96b): `exec --team` runs with the Model API backend, `acceptEdits` and a hard run budget. Every worker request and retry reserves against that budget; configured local engines need no key. Worker approval questions deny, ordinary merges enter the run working tree after local Git checks, and protected merges deny. The CI key stays in the engine process. The run owns and removes its board, copies and task refs. Team dispatch loads lazily; the headless preflight budget stays 100 KiB.
+- **Headless engine teams** (M96b, behind the agent-teams availability switch, off until certified): `exec --team` runs with the Model API backend, `acceptEdits` and a hard run budget. Every worker request and retry reserves against that budget; configured local engines need no key. Worker approval questions deny, ordinary merges enter the run working tree after a conflict-marker scan, and protected or unreviewed merges are held under a named ref instead of discarded. The CI key stays in the engine process. The run records its board, copies and task refs in a cleanup ledger, removes them on a normal end, and sweeps what dead runs left. Team dispatch loads lazily; the headless preflight budget stays 100 KiB.
 
 ### Added
 

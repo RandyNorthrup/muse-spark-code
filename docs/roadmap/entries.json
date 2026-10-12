@@ -706,7 +706,7 @@
     {
       "id": "M96b",
       "title": "Teams in other editors and headless runs",
-      "summary": "Headless exec runs engine teams with hard-budget reservations, keyless local workers, denied questions and checked working-tree merges, while ACP bindings, parity certification, editor receipts and hosted CI follow in their named slices.",
+      "summary": "Headless exec runs engine teams behind the availability switch (off until certified): hard budgets, keyless local workers, denied questions and checked merges; bindings, parity, receipts and CI follow in their slices.",
       "area": "agents"
     },
     {
