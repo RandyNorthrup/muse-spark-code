@@ -239,3 +239,79 @@ Scratch: `$TMPDIR/basecheck`, `$TMPDIR/basecheck2` (base worktrees) and
 their `node_modules` symlinks are removed; lane `node_modules` only read.
 Hash logs for every drill restore live at `$TMPDIR/*.hashes` (lane-private,
 outside the repo).
+
+## Round-4 record (RVAPP-CM963JR3, lane CM963JR4, kubuntu, 2026-10-12)
+
+All ten findings fixed and shipped (0 P1, 3 P2, 7 P3); no residuals.
+Agent teams stay switched off for users: the release latch is false on this
+branch. No new dependency, no guard widened, no live/paid/model/vendor calls
+of any kind. ONE veto-collateral behavior fix (below): round 3's
+`servesReasoningEffort` turned out to be load-bearing for production
+headless BYO, so its refusal tolerance moved into the ACP caller instead of
+being dropped with the method.
+
+| Finding                                | Fix (file)                                                                                                                                                                                                                                                                              | Regression test (fails without fix)                                                                                                              | Red drill (break → fail → byte-exact restore)                                                                                                         |
+| -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| VETO pin + bytes                       | `deferredBundles.test.ts` pin back to 530_883; `ModelApiHost.ts` round-3 hunks removed (`observationAccount`, per-request digest capture, `servesReasoningEffort`); team re-stamp lives in `core/usage/quotaStamp.ts` + `modelApiBackendManager.ts` (`restampQuota` on team hosts only) | pin test; seam test (`'servesReasoningEffort' in session` false); `teamQuotaStamp.test.ts` (new, 12)                                             | pin 530_877 → 1 failed/117 passed; re-add method → seam test fails; drop stamper branch → 2 stamp tests fail; all restored byte-exact (`diff` clean)  |
+| P2-A paying identity                   | `credentialRecords.ts` `payingKeyDigest()` quoted at consent (`extension.ts` dryRun), compared per attempt + final admission, carried end to end (`teamTry.ts` quote cell)                                                                                                              | `providerCredentialRecords.test.ts` paying-credential test; `teamTry.test.ts` per-attempt/per-check tests                                        | quote Meta always → paying test fails; drop per-attempt check → exactly 1 fails (pins each check on its own); restored                                |
+| P2-B/C restore all settings            | `conversationController.ts` one `restoreSessionEffort()` (effort + Thinking + pending tier via `applyRestoredTier()`); History resume, fork, restart all call it                                                                                                                        | resume tests (effort, Thinking-on, Thinking-off, tier) + fork tests (effort, Thinking-off, tier-refusal-warns)                                   | Thinking left off → resume test fails; `applyRestoredTier` no-op → fork-tier test fails; restored                                                     |
+| P3-1 latch refusal                     | `teamConversation.ts` `teamLatchRefusal()` (undefined when open) + `UI_TEXT.teamNotReleased` (en + 14 tables); dispatch + preview name the latch first                                                                                                                                  | `teamAvailability.test.ts` latch-names test                                                                                                      | always-undefined → latch test fails; restored                                                                                                         |
+| P3-2 ACP honesty                       | `acp/agent.ts` `reportedEffort()` (session-held tier when panel-named, else standing); comment corrected                                                                                                                                                                                | session-held test (unserved default reports held, never sent)                                                                                    | return standing always → session-held test fails (first drill attempt hit the wrong test and passed — re-ran against the session-held test); restored |
+| P3-4 wiring                            | `modelSettings.ts` `capabilitiesForModelId()`, re-exported via `teamPanelEntry.ts`, used by `teamCapabilitiesForModel`                                                                                                                                                                  | `teamModelSettings.test.ts` BYO/meta/unknown cases                                                                                               | resolve BYO from catalogue → 2 BYO tests fail; restored                                                                                               |
+| P3-5 import revert                     | import resume skips restore (`isImported ? undefined : …`); NO changelog entry — behavior reverted to announced, nothing user-visible changed                                                                                                                                           | `conversationController.test.ts` imported-file-keeps-panel-effort test                                                                           | restore on import → test fails; restored                                                                                                              |
+| P3-6 unknown identity                  | `teamModelRegistry.ts` filter drops stamped rows when identity unknown; unstamped keep legacy newest-row                                                                                                                                                                                | unknown-identity test (removed key brings back nothing)                                                                                          | drop filter → unknown-identity test fails; restored                                                                                                   |
+| Veto collateral: absent-method refusal | `acp/agent.ts` `applyEffort()` tolerates refusal when the session carries no per-model check (keeps standing, silent — the `=== false` end state); checked sessions and protocol (`RequestError`) failures still throw                                                                  | NEW `acpAgent.test.ts` absent-method test (plain refusal keeps standing; `RequestError` rejects) + `execRun.test.ts` both captured-Mistral cases | new test fails without the catch (verified); Mistral pair failed on the vetoed tree pre-fix (exit 8, zero dispatches) and passes post-fix; restored   |
+
+Bytes (this rig, production build): modelApi.js **530878** (pin 530_883, 5
+under; round-3 value on base was 531_188: +310 measured for its three hunks,
++305 claimed). Team bytes live outside it: extension.js 580441 / 614400,
+teamHost.js 95918 / 133120, teamEngine.js 96913 / 102400, teamPanel.js 94747
+/ 102400, modelsPanel.js 120349 / 128000, conversation.js 255133 / 256000.
+`check-bundle-size` 165 ok lines, `check-bundle-split` exit 0.
+
+Why the collateral was needed: round-3's P2-2 record shows the Mistral pair
+was red before `servesReasoningEffort` and green after — the method guards
+production headless BYO, not only teams. Deleting it made ACP `applyEffort`
+push the standing default (`medium`) at a model whose discovered policy
+serves a narrower set; `setReasoningEffort` refused; `matchAdvertised`
+threw; setup died with exit 8 (`no_completion`, zero requests). The
+interface contract (`agentBackend.ts`: "Absent keeps today's send")
+already designs for this: the caller absorbs a plain refusal and keeps the
+standing choice. `setReasoningEffort` rejects before mutating, so the
+fallback is state-safe. The conversation controller's `syncEffort` needed
+no change: it already catches, warns and continues (never fails adoption —
+the established behavior for method-less sessions), and all 694 controller
+tests pass unmodified.
+
+CHANGELOG: no entry (P3-5 reverted to announced behavior; the Unreleased
+section never promised import-sets-effort).
+
+Verification (kubuntu, direct runs, `--maxWorkers=3`, repo default timeout,
+never `--testTimeout`): host + test typechecks exit 0; webview typecheck
+exit 0; eslint clean on all touched files; prettier clean repo-wide;
+`check-l10n` 0 problems; `check-plan` 0 drift; roadmap/reference/host-api
+current, 0 problems; tokens/badges clean; `npm run build` exit 0.
+Suites: deferredBundles 118; teamTry+quotaStamp+enginePorts 62;
+providerCredentialRecords+registry+settings 38; acpAgent+teamAvailability+
+deferredBundles 267 (143 + 6 + 118, before the new test); acpAgent 144 final
+(143 + 1 new); modelApiHost 672; conversationController 694 (1366 with
+modelApiHost in the pair run);
+execRun+execResources+execVault 125 (incl. both Mistral); execProvider/
+manager/reviewerBundle 46; judgeFences/sameMuseCode/sharedBudget 32;
+judgeWindow/hookModels/reviewer 57. `FakeAgentSession.currentEffort`
+tracking only affects suites reading `currentEffort` (acpAgent,
+conversationController — both fully green); other helper consumers are
+behavior-identical, sampled above.
+
+NOT RUN HERE (sandbox blocks loopback/browsers/process listing; no live or
+paid calls): `test:unit` full-with-coverage; `test:integration`
+(`vscode-test` needs VS Code + loopback); `test/e2e` live drills (bill the
+owner's key, per brief); `check:visual`/`test:a11y` browser halves;
+`security:*` scans; e2e/integration typechecks. Loopback/socket suites
+(`vault/peer`, companion-server paths) fail in this sandbox independent of
+lane code, as round-3 records. Full `npm run lint` was still running at
+handoff — see final message for its result.
+
+Scratch: `$TMPDIR/base` (clean-base worktree + `node_modules` symlink for
+the Mistral attribution probe) and `$TMPDIR/drill-*`/`keep-*` backups are
+lane-private; the base worktree is removed at handoff.
