@@ -86,7 +86,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
-- The empty panel now shows the extension's own mark instead of Meta's logo.
+- The empty panel now shows the extension's own mark instead of Meta's logo,
+  filling the original logo box and staying blue with at least 3:1 contrast
+  in ordinary themes; high contrast and forced colours use the foreground.
 
 - What's New fits its content budget by itself: the newest release always
   ships in full. The writer checks every complete plan against both decoded

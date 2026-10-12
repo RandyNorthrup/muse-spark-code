@@ -12,6 +12,8 @@
   );
   --ms-text: #e4e7ed;
   --ms-muted: #aeb6c4;
+  --ms-brand-mark: #3d8bff;
+  --ms-brand-mark-light: #0a5cff;
   --ms-accent: #0a5cff;
   --ms-on-accent: #fff;
   --ms-focus: #7fb2ff;
@@ -142,6 +144,8 @@
   );
   --ms-text: #252932;
   --ms-muted: #575d68;
+  --ms-brand-mark: var(--ms-brand-mark-light);
+  --ms-brand-mark-light: #0a5cff;
   --ms-accent: #0a5cff;
   --ms-on-accent: #fff;
   --ms-focus: #0a5cff;
@@ -272,6 +276,8 @@
   );
   --ms-text: #000;
   --ms-muted: #292929;
+  --ms-brand-mark: var(--ms-text);
+  --ms-brand-mark-light: var(--ms-text);
   --ms-accent: #000;
   --ms-on-accent: #fff;
   --ms-focus: #000;
@@ -398,6 +404,8 @@
   );
   --ms-text: #fff;
   --ms-muted: #fff;
+  --ms-brand-mark: var(--ms-text);
+  --ms-brand-mark-light: var(--ms-text);
   --ms-accent: #fff;
   --ms-on-accent: #000;
   --ms-focus: #fff;
