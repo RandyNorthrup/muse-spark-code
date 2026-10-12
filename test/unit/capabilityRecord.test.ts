@@ -442,6 +442,14 @@ describe('normalized capability record', () => {
   })
   it('Meta constants preserve legacy policy', () => {
     const meta = metaCapabilityRecord('muse-spark-1.3')
+    // Lead live capture 2026-10-12: anything but tool_choice "auto" is a
+    // 400 (toolrounds-captures/meta/3-wrap-up-tools-kept-choice-none.json).
+    expect(meta.tools.choiceModes).toMatchObject({ state: 'yes', value: ['auto'] })
+    expect(capabilitiesOf({ capabilityRecord: meta }).toolChoiceModes).toEqual(['auto'])
+    // Unknown means auto only: no record lists a choice for this model.
+    expect(
+      capabilitiesOf({ capabilityRecord: resolveModelCapabilities(identity) }).toolChoiceModes,
+    ).toBeUndefined()
     expect(meta.limits.contextTokens).toBe(1_048_576)
     expect(meta.output.maxTokens).toBe(131_072)
     // Lead live capture 2026-10-10: max_output_tokens below 16 is a 400.

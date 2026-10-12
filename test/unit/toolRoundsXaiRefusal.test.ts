@@ -127,6 +127,29 @@ describe('tool-less side calls on a provider that refuses them (xAI)', () => {
     expect(served.status).toBe(200)
   })
 
+  it('passes a refusal of a tooled request through in the providers words', async () => {
+    const t = await xaiHost()
+    try {
+      // A refusal the omitted shape cannot prevent (tools declared) keeps
+      // the provider's reason verbatim: no rewrite, no Internal error. The
+      // refusal sentence itself belongs to the provider-refusals lane.
+      t.api.script({
+        httpError: {
+          status: 400,
+          body: { error: { message: XAI_MESSAGE, type: 'invalid_request_error' } },
+        },
+      })
+      await t.session.sendTurn([{ type: 'text', text: 'Review within the limit' }])
+      await t.turnDone()
+      const completed = t.events.findLast((e) => e.type === 'turnCompleted')
+      expect(completed).toMatchObject({ terminal: 'failed' })
+      expect(JSON.stringify(completed)).toContain('no tools were specified')
+      expect(JSON.stringify(t.events)).not.toContain('Internal error')
+    } finally {
+      await t.host.close()
+    }
+  })
+
   it('keeps the wrap-up summary instead of ending on the refusal', async () => {
     const t = await xaiHost()
     try {
