@@ -13,6 +13,7 @@ import { plural, setUiText } from '../../src/shared/l10n/text'
 import { USAGE_TEXT, setUsageText } from '../../src/shared/l10n/usageTable'
 import { USAGE_EN } from '../../src/shared/l10n/usageEn'
 import { FakeLogOutputChannel } from './helpers/fakes'
+import { traceAttemptsLive } from './helpers/usageTraceFixture'
 
 // M121: the usage journal moves from version 1 (JSON-number dollars) to
 // version 2 (exact decimal text). The fixture is a real journal written by
@@ -38,6 +39,7 @@ function accessFor(root: string, locale = 'en') {
     locale,
     uiText: EN,
     log: new FakeLogOutputChannel(),
+    live: traceAttemptsLive(root),
   })
 }
 

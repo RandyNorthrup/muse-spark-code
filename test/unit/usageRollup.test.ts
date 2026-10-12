@@ -12,6 +12,7 @@ import { aggregateUsage } from '../../src/core/usage/aggregate'
 import { createUsageAccess } from '../../src/runtime/usage/usageServiceEntry'
 import { EN } from '../../src/shared/l10n/en'
 import { FakeLogOutputChannel } from './helpers/fakes'
+import { traceAttemptsLive } from './helpers/usageTraceFixture'
 import { createUsageRecord } from '../../src/core/usage/journalRecord'
 import { USAGE_CERTAINTIES, type UsageRecord } from '../../src/shared/usageJournal'
 import type { UsagePageState, UsageTotals } from '../../src/shared/usagePage'
@@ -74,6 +75,7 @@ function access(root: string) {
     locale: 'en',
     uiText: EN,
     log: new FakeLogOutputChannel(),
+    live: traceAttemptsLive(root),
   })
 }
 // Encounter order can change across day files; compare every total by its category identity.

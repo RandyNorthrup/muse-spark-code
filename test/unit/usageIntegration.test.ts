@@ -31,6 +31,7 @@ import { fakeMspHost, fakeInitializeResult, settle } from './helpers/fakeMsp'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { watchSessionTurns } from './helpers/sessionTurns'
 import { removeFolder } from './helpers/temporaryFolders'
+import { traceAttemptsLive } from './helpers/usageTraceFixture'
 import { call, headers, login } from './helpers/companion'
 
 const folders: string[] = []
@@ -67,6 +68,7 @@ function accessDeps(root: string) {
     locale: 'en',
     uiText: EN,
     log: new FakeLogOutputChannel(),
+    live: traceAttemptsLive(root),
   }
 }
 
@@ -191,6 +193,7 @@ async function prepareRecordedUsage() {
     locale: 'en',
     uiText: EN,
     log,
+    live: traceAttemptsLive(root),
   })
   const state = await access.read(query)
   return { root, log, journal, access, state }

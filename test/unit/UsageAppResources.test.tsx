@@ -15,6 +15,7 @@ import type { UsagePageState } from '../../src/shared/usagePage'
 import type { HostBridge } from '../../src/webview/hostBridge'
 import { UsageApp } from '../../src/webview/usage/UsageApp'
 import { FakeLogOutputChannel } from './helpers/fakes'
+import { traceAttemptsLive } from './helpers/usageTraceFixture'
 import { removeFolder } from './helpers/temporaryFolders'
 
 const folders: string[] = []
@@ -65,6 +66,7 @@ async function productionState(folder: string): Promise<UsagePageState> {
     locale: 'en',
     uiText: EN,
     log: new FakeLogOutputChannel(),
+    live: traceAttemptsLive(folder),
   })
   return await usage.read({ range: 'today', groupBy: 'provider', metric: 'cost' })
 }
