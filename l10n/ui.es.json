@@ -5394,6 +5394,7 @@
   },
   "teamFileHelperMissing": "El asistente nativo verificado para archivos de trabajadores no está disponible.",
   "teamFileNativeFailed": "Falló la comprobación nativa del archivo del trabajador; no se escribió contenido en ningún archivo.",
+  "teamFileHelperFailed": "El propio ayudante nativo del archivo del trabajador falló ({kind}); no se escribió contenido en ningún archivo.",
   "teamFileOutside": "El archivo está fuera de la copia de trabajo autorizada.",
   "teamFileRoleDenied": "El rol no permite escribir en esta ruta.",
   "teamFileExists": "La ruta del archivo nuevo ya está ocupada.",

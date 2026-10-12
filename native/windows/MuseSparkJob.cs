@@ -616,7 +616,11 @@ public static class MuseSparkCreated {
   // mapper types (src/core/team/workers/workerOps.ts WORKER_REFUSALS): the
   // reason is a short code, never a sentence and never a path.
   static void RefuseReason(string reason) { throw new IOException("worker file helper refused: " + reason); }
-  static Info Sample(SafeFileHandle h) { Info s; if (!GetFileInformationByHandle(h, out s)) Refuse(); return s; }
+  static Info Sample(SafeFileHandle h) { return Sample(h, null); }
+  // Worker paths name their own reason (one literal per site); the null
+  // reason keeps the directory protocol's bare refusal for the other
+  // operations, which their own lane types.
+  static Info Sample(SafeFileHandle h, string reason) { Info s; if (!GetFileInformationByHandle(h, out s)) { if (reason == null) Refuse(); else RefuseReason(reason); } return s; }
   static ulong Id(Info s) { return ((ulong)s.IndexHigh << 32) | s.IndexLow; }
   static string Key(Info s) { return s.Volume.ToString() + ":" + Id(s).ToString(); }
   static void Match(Info s, string expected) { if (Id(s) == 0 || Key(s) != expected) Refuse(); }
@@ -668,7 +672,7 @@ public static class MuseSparkCreated {
         // An elevated token's default owner can be Administrators. Our own new
         // objects must still belong to the user whose ownership Private proves.
         using (WindowsIdentity current = WindowsIdentity.GetCurrent()) {
-          if (current.User == null) Refuse();
+          if (current.User == null) RefuseReason("owner unavailable");
           var descriptor = new System.Security.AccessControl.RawSecurityDescriptor("O:" + current.User.Value);
           byte[] bytes = new byte[descriptor.BinaryLength]; descriptor.GetBinaryForm(bytes, 0);
           security = GCHandle.Alloc(bytes, GCHandleType.Pinned);
@@ -764,11 +768,10 @@ public static class MuseSparkCreated {
     if (result.StartsWith(@"\\?\UNC\", StringComparison.OrdinalIgnoreCase)) return @"\\" + result.Substring(8);
     return result.StartsWith(@"\\?\", StringComparison.Ordinal) ? result.Substring(4) : result;
   }
-  static void WorkerDirectory(SafeFileHandle file) {
-    WorkerDirectory(file, null);
-  }
+  // The null reason keeps the directory protocol's bare refusal for any
+  // future non-worker caller; every current caller names its own reason.
   static void WorkerDirectory(SafeFileHandle file, string reason) {
-    if ((Sample(file).Attributes & (DIRECTORY | REPARSE)) != DIRECTORY) { if (reason == null) Refuse(); else RefuseReason(reason); }
+    if ((Sample(file, reason).Attributes & (DIRECTORY | REPARSE)) != DIRECTORY) { if (reason == null) Refuse(); else RefuseReason(reason); }
   }
   static SafeFileHandle WorkerWalk(SafeFileHandle start, string relative, bool create,
     List<SafeFileHandle> held, ref int made) {
@@ -782,7 +785,7 @@ public static class MuseSparkCreated {
         next = Open(current, part, true, true, false, true); ++made;
       }
       held.Add(next); WorkerDirectory(next, "parent unavailable or linked");
-      if (Sample(next).Volume != Sample(start).Volume) RefuseReason("different device");
+      if (Sample(next, "directory unavailable").Volume != Sample(start, "directory unavailable").Volume) RefuseReason("different device");
       current = next;
     }
     return current;
@@ -799,11 +802,11 @@ public static class MuseSparkCreated {
     try {
       SafeFileHandle root = CreateFileW(args[1], 0x100081, 3, IntPtr.Zero, 3,
         0x02000000 | FILE_FLAG_OPEN_REPARSE_POINT, IntPtr.Zero);
-      held.Add(root); if (root.IsInvalid) RefuseReason("root unavailable"); WorkerDirectory(root, "root unavailable"); Match(Sample(root), args[2], "identity changed");
+      held.Add(root); if (root.IsInvalid) RefuseReason("root unavailable"); WorkerDirectory(root, "root unavailable"); Match(Sample(root, "root unavailable"), args[2], "identity changed");
       if (!String.Equals(WorkerFinal(root), args[1], StringComparison.OrdinalIgnoreCase)) RefuseReason("root moved");
       int made = 0;
       SafeFileHandle ancestor = WorkerWalk(root, args[3], false, held, ref made);
-      Match(Sample(ancestor), args[4], "identity changed");
+      Match(Sample(ancestor, "ancestor unavailable"), args[4], "identity changed");
       int slash = args[5].LastIndexOf('/');
       string parents = slash < 0 ? "" : args[5].Substring(0, slash);
       string name = slash < 0 ? args[5] : args[5].Substring(slash + 1);
@@ -812,9 +815,9 @@ public static class MuseSparkCreated {
       string expectedParent = Path.Combine(args[1], args[3].Replace('/', '\\'), parents.Replace('/', '\\'));
       if (!String.Equals(WorkerFinal(parent), expectedParent, StringComparison.OrdinalIgnoreCase)) RefuseReason("parent moved");
       if (op == "worker-prepare")
-        return "{\"identity\":\"" + Key(Sample(parent)) + "\",\"createdFolders\":" + made + "}";
+        return "{\"identity\":\"" + Key(Sample(parent, "parent unavailable")) + "\",\"createdFolders\":" + made + "}";
       SafeFileHandle file = Open(parent, name, false, op == "worker-create", false, true);
-      held.Add(file); Info sample = Sample(file);
+      held.Add(file); Info sample = Sample(file, "file unavailable");
       if ((sample.Attributes & (DIRECTORY | REPARSE)) != 0 || sample.Links != 1) RefuseReason("file is not single-link regular");
       if (op != "worker-create") Match(sample, args[6], "identity changed");
       string expectedFile = Path.Combine(expectedParent, name);

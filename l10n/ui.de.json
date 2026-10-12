@@ -5241,6 +5241,7 @@
   },
   "teamFileHelperMissing": "Der verifizierte native Helfer für Worker-Dateien ist nicht verfügbar.",
   "teamFileNativeFailed": "Die native Prüfung der Worker-Datei ist fehlgeschlagen; es wurden keine Dateiinhalte geschrieben.",
+  "teamFileHelperFailed": "Der native Helfer für Worker-Dateien ist selbst fehlgeschlagen ({kind}); es wurden keine Dateiinhalte geschrieben.",
   "teamFileOutside": "Die Datei liegt außerhalb der zugelassenen Arbeitskopie.",
   "teamFileRoleDenied": "Die Rolle erlaubt keinen Schreibzugriff auf diesen Pfad.",
   "teamFileExists": "Der Pfad der neuen Datei ist bereits belegt.",

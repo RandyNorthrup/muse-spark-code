@@ -5088,6 +5088,7 @@
   },
   "teamFileHelperMissing": "検証済みのワーカーファイル用ネイティブヘルパーを利用できません。",
   "teamFileNativeFailed": "ワーカーファイルのネイティブ検証に失敗しました。ファイルの内容は書き込まれていません。",
+  "teamFileHelperFailed": "ワーカーファイルのネイティブヘルパー自体が失敗しました（{kind}）。ファイルの内容は書き込まれていません。",
   "teamFileOutside": "ファイルは承認された作業コピーの外にあります。",
   "teamFileRoleDenied": "このロールでは、このパスへの書き込みは許可されていません。",
   "teamFileExists": "新しいファイルのパスはすでに使用されています。",

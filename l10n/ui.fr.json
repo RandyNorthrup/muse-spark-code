@@ -5394,6 +5394,7 @@
   },
   "teamFileHelperMissing": "L’assistant natif vérifié pour les fichiers des agents n’est pas disponible.",
   "teamFileNativeFailed": "La vérification native du fichier de l’agent a échoué ; aucun contenu de fichier n’a été écrit.",
+  "teamFileHelperFailed": "L’assistant natif du fichier de l’agent a lui-même échoué ({kind}) ; aucun contenu de fichier n’a été écrit.",
   "teamFileOutside": "Le fichier est en dehors de la copie de travail autorisée.",
   "teamFileRoleDenied": "Le rôle n’autorise pas l’écriture dans ce chemin.",
   "teamFileExists": "Le chemin du nouveau fichier est déjà occupé.",

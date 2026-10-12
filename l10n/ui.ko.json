@@ -5088,6 +5088,7 @@
   },
   "teamFileHelperMissing": "검증된 작업자 파일용 네이티브 도우미를 사용할 수 없습니다.",
   "teamFileNativeFailed": "작업자 파일의 네이티브 검증에 실패했습니다. 파일 내용은 기록되지 않았습니다.",
+  "teamFileHelperFailed": "작업자 파일의 네이티브 헬퍼 자체가 실패했습니다({kind}). 파일 내용은 기록되지 않았습니다.",
   "teamFileOutside": "파일이 승인된 작업 복사본 밖에 있습니다.",
   "teamFileRoleDenied": "이 역할은 이 경로에 쓰기를 허용하지 않습니다.",
   "teamFileExists": "새 파일 경로가 이미 사용 중입니다.",

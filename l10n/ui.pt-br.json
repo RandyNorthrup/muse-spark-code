@@ -5394,6 +5394,7 @@
   },
   "teamFileHelperMissing": "O auxiliar nativo verificado para arquivos de agentes não está disponível.",
   "teamFileNativeFailed": "A verificação nativa do arquivo do agente falhou; nenhum conteúdo de arquivo foi gravado.",
+  "teamFileHelperFailed": "O próprio ajudante nativo do arquivo do agente falhou ({kind}); nenhum conteúdo de arquivo foi gravado.",
   "teamFileOutside": "O arquivo está fora da cópia de trabalho autorizada.",
   "teamFileRoleDenied": "A função não permite gravar neste caminho.",
   "teamFileExists": "O caminho do novo arquivo já está ocupado.",

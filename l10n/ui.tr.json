@@ -5241,6 +5241,7 @@
   },
   "teamFileHelperMissing": "Doğrulanmış yerel çalışan dosyası yardımcısı kullanılamıyor.",
   "teamFileNativeFailed": "Çalışan dosyasının yerel doğrulaması başarısız oldu; dosya içeriği yazılmadı.",
+  "teamFileHelperFailed": "Çalışan dosyasının yerel yardımcısının kendisi başarısız oldu ({kind}); dosya içeriği yazılmadı.",
   "teamFileOutside": "Dosya izin verilen çalışma kopyasının dışında.",
   "teamFileRoleDenied": "Rol bu yola yazmaya izin vermiyor.",
   "teamFileExists": "Yeni dosyanın yolu zaten dolu.",

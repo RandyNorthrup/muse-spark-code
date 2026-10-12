@@ -5394,6 +5394,7 @@
   },
   "teamFileHelperMissing": "L’assistente nativo verificato per i file dei worker non è disponibile.",
   "teamFileNativeFailed": "La verifica nativa del file del worker non è riuscita; non è stato scritto alcun contenuto nei file.",
+  "teamFileHelperFailed": "L’helper nativo del file del worker ha fallito ({kind}); non è stato scritto alcun contenuto nei file.",
   "teamFileOutside": "Il file è fuori dalla copia di lavoro autorizzata.",
   "teamFileRoleDenied": "Il ruolo non consente di scrivere in questo percorso.",
   "teamFileExists": "Il percorso del nuovo file è già occupato.",

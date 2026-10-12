@@ -13,7 +13,6 @@ import { powerShellQuoted } from '../../shellQuote'
 import {
   BYTES_PER_MIB,
   UI_TEXT,
-  WINDOWS_POWERSHELL_COMMAND_ARGS,
   WINDOWS_POWERSHELL_RELATIVE_PATH,
   WORKER_FILE_PATH_TIMEOUT_MS,
   WORKER_NATIVE_REPLY_MAX_BYTES,
@@ -155,17 +154,33 @@ export const WORKER_REFUSALS: readonly {
   { reason: 'ancestor unavailable', sentence: 'changed' },
   { reason: 'handle path unavailable', sentence: 'changed' },
   { reason: 'directory unavailable', sentence: 'changed' },
+  { reason: 'file unavailable', sentence: 'changed' },
   { reason: 'release failed', sentence: 'changed' },
   { reason: 'outside root', sentence: 'outside' },
   { reason: 'unknown operation', sentence: 'nativeFailed' },
+  { reason: 'owner unavailable', sentence: 'nativeFailed' },
 ]
 
 /**
- * The Windows launch of the worker helper. The operation arguments reach the
- * helper as $args: no file name is quoted into the script text, only the
- * assembly path (our own file). Every refusal in the shared table is
- * forwarded on stderr, so Windows refusals arrive typed exactly as on POSIX;
- * anything else still exits 1 without output and takes the native backstop.
+ * The helper's fixed unexpected-failure line, emitted by the Windows
+ * launcher below when the helper throws anything but a listed refusal: the
+ * marker plus the exception's type name only (fixed vocabulary, never message
+ * text and never a path). Anything else on the line is not this marker.
+ */
+export const WORKER_HELPER_FAILED_PREFIX = 'worker file helper failed: '
+
+/**
+ * The Windows launch of the worker helper. Windows PowerShell joins every
+ * argument after a `-Command` string onto the command text (leaving `$args`
+ * empty), so no value may follow the script: the operation arguments are
+ * built into the script itself, each as one single-quoted PowerShell literal
+ * through powerShellQuoted. The whole script goes as ONE `-EncodedCommand`
+ * blob (UTF-16LE Base64, the SSH runner's pattern), which removes the
+ * process command line's quoting layer as well: the Base64 alphabet holds no
+ * PowerShell metacharacter, so a hostile name cannot become command text.
+ * Every refusal in the shared table is forwarded on stderr, so Windows
+ * refusals arrive typed exactly as on POSIX; any other exception writes the
+ * fixed helper-failed marker with its type name only, and still exits 1.
  */
 export function workerWindowsCommand(
   assemblyPath: string,
@@ -174,10 +189,21 @@ export function workerWindowsCommand(
   const forwarded = WORKER_REFUSALS.map(
     (row) => `$m -eq ${powerShellQuoted(`${WORKER_REFUSAL_PREFIX}${row.reason}`)}`,
   ).join(' -or ')
+  const script =
+    `$ErrorActionPreference='Stop'; ` +
+    `try { [void][Reflection.Assembly]::LoadFrom(${powerShellQuoted(assemblyPath)}); ` +
+    `[MuseSparkCreated]::Execute([string[]]@(${args.map((arg) => powerShellQuoted(arg)).join(',')})) } catch { ` +
+    `$m = $_.Exception.GetBaseException().Message; ` +
+    `if (${forwarded}) { [Console]::Error.WriteLine($m) } ` +
+    `else { [Console]::Error.WriteLine(${powerShellQuoted(WORKER_HELPER_FAILED_PREFIX)} + $_.Exception.GetBaseException().GetType().Name) }; ` +
+    `exit 1 }`
   return [
-    ...WINDOWS_POWERSHELL_COMMAND_ARGS,
-    `$ErrorActionPreference='Stop'; try { [void][Reflection.Assembly]::LoadFrom(${powerShellQuoted(assemblyPath)}); [MuseSparkCreated]::Execute($args) } catch { $m = $_.Exception.GetBaseException().Message; if (${forwarded}) { [Console]::Error.WriteLine($m) }; exit 1 }`,
-    ...args,
+    '-NoProfile',
+    '-NonInteractive',
+    '-ExecutionPolicy',
+    'Bypass',
+    '-EncodedCommand',
+    Buffer.from(script, 'utf16le').toString('base64'),
   ]
 }
 
@@ -190,6 +216,24 @@ function refusalReason(text: string): string | undefined {
         .slice(index + WORKER_REFUSAL_PREFIX.length)
         .split('\n', 1)[0]
         ?.trim()
+}
+
+/**
+ * A .NET exception type name is fixed vocabulary (letters, digits,
+ * underscore, dots): anything else after the helper-failed marker is not a
+ * kind this mapper trusts, so it falls through to the generic backstop.
+ */
+const HELPER_FAILURE_KIND = /^[A-Za-z_][A-Za-z0-9_.]*$/
+
+/** The helper exception's type name in the output, if the helper itself failed. */
+function helperFailureKind(text: string): string | undefined {
+  const index = text.indexOf(WORKER_HELPER_FAILED_PREFIX)
+  if (index === -1) return undefined
+  const kind = text
+    .slice(index + WORKER_HELPER_FAILED_PREFIX.length)
+    .split('\n', 1)[0]
+    ?.trim()
+  return kind !== undefined && kind !== '' && HELPER_FAILURE_KIND.test(kind) ? kind : undefined
 }
 
 /** One table row as the typed sentence, resolved in the installed language. */
@@ -239,6 +283,12 @@ export function mapNativeError(error: unknown, remaining: string): Error {
       }),
     )
   }
+  // The helper itself failed (never a refusal of the person's file): the
+  // type name rides along as the kind, so the next defect of this sort shows
+  // itself on the first run instead of hiding behind the generic backstop.
+  const kind = helperFailureKind(text)
+  if (kind !== undefined)
+    return markTyped(new Error(fill(UI_TEXT.teamFileHelperFailed, { kind }), { cause }))
   const isMissing =
     cause.message === 'Governed command unavailable' ||
     (cause.cause instanceof Error && 'code' in cause.cause && cause.cause.code === 'ENOENT')

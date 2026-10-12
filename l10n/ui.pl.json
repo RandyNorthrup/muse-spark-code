@@ -5547,6 +5547,7 @@
   },
   "teamFileHelperMissing": "Zweryfikowany natywny pomocnik plików pracowników jest niedostępny.",
   "teamFileNativeFailed": "Natywna weryfikacja pliku pracownika nie powiodła się; nie zapisano zawartości pliku.",
+  "teamFileHelperFailed": "Sam natywny pomocnik pliku pracownika uległ awarii ({kind}); nie zapisano zawartości pliku.",
   "teamFileOutside": "Plik znajduje się poza zatwierdzoną kopią roboczą.",
   "teamFileRoleDenied": "Rola nie zezwala na zapis w tej ścieżce.",
   "teamFileExists": "Ścieżka nowego pliku jest już zajęta.",
