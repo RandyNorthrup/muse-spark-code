@@ -1,0 +1,4333 @@
+{
+  "version": 2,
+  "model": "muse-spark-1.3-contributor",
+  "generatedAt": "2026-10-12T14:43:02.075Z",
+  "harnessDigest": "8699c398e736b1b8d4ff5ee28ca5a953da76c5c60be226e2d3d951f65bb97590",
+  "arms": [
+    {
+      "name": "baseline",
+      "results": [
+        {
+          "taskId": "accept-long-compaction",
+          "title": "Recover a build number from a long log and record it",
+          "split": "accept",
+          "passed": false,
+          "terminal": "failed",
+          "failures": [
+            "the turn ended failed: Context window full: /compact or /handoff",
+            "the verifier failed: node:internal/modules/esm/resolve:272\n    throw new ERR_MODULE_NOT_FOUND(\n          ^\nError [ERR_MODULE_NOT_FOUND]: Cannot find module '<task>\\workspace\\answer.js' imported from <task>\\verify-m1aaRe\\verify.mjs\n  code: 'ERR_MODULE_NOT_FOUND',\n  url: '<task>/workspace/answer.js'\n}\nNode.js v24.20.0"
+          ],
+          "attempts": 1,
+          "requests": 1,
+          "inputTokens": 23717,
+          "cachedTokens": 0,
+          "outputTokens": 835,
+          "costUsd": "0.0025387",
+          "toolCalls": 1,
+          "approvals": 0,
+          "questions": 0,
+          "paidRefusals": 0,
+          "order": 1,
+          "recalls": 0,
+          "compactionsSettled": 0,
+          "compactionsApplied": 0,
+          "callBudget": 14,
+          "overBudget": false,
+          "compactionsAttempted": 0,
+          "compactionLedger": {
+            "reservedUsd": "0",
+            "settledUsd": "0",
+            "outstandingUsd": "0",
+            "retainedUsd": "0"
+          },
+          "requestEvidence": [
+            {
+              "sha256": "b346bde8152cd5a793d46708720157f0fb5f17a1ffa6bd5d7fd4b441bb7cff30",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["todo_write"],
+              "otherTools": 0,
+              "strictTools": false
+            }
+          ]
+        },
+        {
+          "taskId": "heldout-long-compaction",
+          "title": "Apply a rule from a long log to a transform",
+          "split": "heldout",
+          "passed": false,
+          "terminal": "failed",
+          "failures": [
+            "the turn ended failed: Context window full: /compact or /handoff",
+            "the verifier failed: node:internal/modules/esm/resolve:272\n    throw new ERR_MODULE_NOT_FOUND(\n          ^\nError [ERR_MODULE_NOT_FOUND]: Cannot find module '<task>\\workspace\\transform.js' imported from <task>\\verify-5PGQzR\\verify.mjs\n  code: 'ERR_MODULE_NOT_FOUND',\n  url: '<task>/workspace/transform.js'\n}\nNode.js v24.20.0"
+          ],
+          "attempts": 1,
+          "requests": 1,
+          "inputTokens": 23727,
+          "cachedTokens": 0,
+          "outputTokens": 996,
+          "costUsd": "0.0025719",
+          "toolCalls": 1,
+          "approvals": 0,
+          "questions": 0,
+          "paidRefusals": 0,
+          "order": 4,
+          "recalls": 0,
+          "compactionsSettled": 0,
+          "compactionsApplied": 0,
+          "callBudget": 14,
+          "overBudget": false,
+          "compactionsAttempted": 0,
+          "compactionLedger": {
+            "reservedUsd": "0",
+            "settledUsd": "0",
+            "outstandingUsd": "0",
+            "retainedUsd": "0"
+          },
+          "requestEvidence": [
+            {
+              "sha256": "e0510cad492206bd6d2abdd0aed6f0124fded304acfc0462005be6950ff83d3d",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["todo_write"],
+              "otherTools": 0,
+              "strictTools": false
+            }
+          ]
+        },
+        {
+          "taskId": "accept-long-middle-value",
+          "title": "Recover a value from the middle of a long tool output",
+          "split": "accept",
+          "passed": true,
+          "terminal": "completed",
+          "failures": [],
+          "attempts": 8,
+          "requests": 8,
+          "inputTokens": 73814,
+          "cachedTokens": 52518,
+          "outputTokens": 2744,
+          "costUsd": "0.002783436",
+          "toolCalls": 7,
+          "approvals": 0,
+          "questions": 0,
+          "paidRefusals": 0,
+          "order": 3,
+          "recalls": 0,
+          "compactionsSettled": 0,
+          "compactionsApplied": 0,
+          "callBudget": 14,
+          "overBudget": false,
+          "compactionsAttempted": 0,
+          "compactionLedger": {
+            "reservedUsd": "0",
+            "settledUsd": "0",
+            "outstandingUsd": "0",
+            "retainedUsd": "0"
+          },
+          "requestEvidence": [
+            {
+              "sha256": "0d0233c86ba4ce92b9bce5f7460aed046c24b84c05f8bcf9a64b406070ccead8",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "ad26145b2c654ab4ede26bc9ab6fc4bfe78e470a742caf2065642abafa5814d1",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "fcdf9fa51540172a8ed6982bc59858d4b02659396544abd84435a2543f8694cc",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "0905d240304cf4b32cf7418209b05550c5862ae63f4442f1d58ee4de15c7b9c0",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "c71a620b1d9239d305598a9ec75a25795d0efde20974ef643254f18d77864f53",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["list_files"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "8068795cd56141fe3281fc24a1e5d97b60385598672867c912bdd5d7adf60db4",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "789eda196dafe2d1c82a3e0899b02df3280dc94dde4fd65c53b38cd46d9dd04a",
+              "packageTypeModuleVisible": true,
+              "responseTools": ["write_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "c62eccc3f43b639b07e224f7675861da778d58151beb279bcf51cf36a7ae647b",
+              "packageTypeModuleVisible": true,
+              "responseTools": [],
+              "otherTools": 0,
+              "strictTools": false
+            }
+          ]
+        },
+        {
+          "taskId": "heldout-long-middle-rule",
+          "title": "Apply a rule from the middle of a long tool output",
+          "split": "heldout",
+          "passed": true,
+          "terminal": "completed",
+          "failures": [],
+          "attempts": 9,
+          "requests": 9,
+          "inputTokens": 74522,
+          "cachedTokens": 50342,
+          "outputTokens": 2141,
+          "costUsd": "0.002946884",
+          "toolCalls": 8,
+          "approvals": 1,
+          "questions": 0,
+          "paidRefusals": 0,
+          "order": 2,
+          "recalls": 0,
+          "compactionsSettled": 0,
+          "compactionsApplied": 0,
+          "callBudget": 12,
+          "overBudget": false,
+          "compactionsAttempted": 0,
+          "compactionLedger": {
+            "reservedUsd": "0",
+            "settledUsd": "0",
+            "outstandingUsd": "0",
+            "retainedUsd": "0"
+          },
+          "requestEvidence": [
+            {
+              "sha256": "21ffa4457777a8251eab614fdeaf4bd3a71d8c806bee51092c008cd08b391a07",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["list_files"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "3cc45a9f735133dbb6c9bfccfb5f947521d954692ac0d41cc2a7b7d4775bfb01",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "dbb444ecf097a0655b3c8c6c21bcb02b1c0e9a336a99d638e9dd430b954125e4",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "6d123dc0fc58007ff989f8977e287074226b27059508499d4b7f7e5550eb0d60",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "74d358312cd4d3f6782983f16e3d88ab31dcac71369ce6725b7b2482aa9817c7",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "49928bc012fdfc659f3b7e0e39c10a69904759f50037197ce0f48d9a6e722ce7",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "3b81da02a68b931c311daa51a44825aa9eaba313d335ce3e9ea44fd997427750",
+              "packageTypeModuleVisible": true,
+              "responseTools": ["write_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "1b45248b24aad1321f96361a6c92614b2736e7b8a0794b6a0bcd03b664d89b15",
+              "packageTypeModuleVisible": true,
+              "responseTools": ["powershell"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "b4ada70feccbd18235130966b0b474591ac7857ac845970f955cab85d1776370",
+              "packageTypeModuleVisible": true,
+              "responseTools": [],
+              "otherTools": 0,
+              "strictTools": false
+            }
+          ]
+        },
+        {
+          "taskId": "accept-off-by-one",
+          "title": "Fix the loop bound that reads past the end",
+          "split": "accept",
+          "passed": true,
+          "terminal": "completed",
+          "failures": [],
+          "attempts": 4,
+          "requests": 4,
+          "inputTokens": 11490,
+          "cachedTokens": 8147,
+          "outputTokens": 317,
+          "costUsd": "0.000413994",
+          "toolCalls": 3,
+          "approvals": 0,
+          "questions": 0,
+          "paidRefusals": 0,
+          "order": 1,
+          "recalls": 0,
+          "compactionsSettled": 0,
+          "compactionsApplied": 0,
+          "callBudget": 6,
+          "overBudget": false,
+          "compactionsAttempted": 0,
+          "compactionLedger": {
+            "reservedUsd": "0",
+            "settledUsd": "0",
+            "outstandingUsd": "0",
+            "retainedUsd": "0"
+          },
+          "requestEvidence": [
+            {
+              "sha256": "40ad9c7966edf1d152a45c33fdd39e0768ea111462ceeaa0ebc6729b890d49ea",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["list_files"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "d2b996855a23444113f010512facca59cd106e13a7fb7fec8e60b754fa1dd68f",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "f7831110f62044404802483777ae689e6fbb7ba95015e2145bd12836041240bc",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["edit_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "d0c9749de29fb86e78677835aab25926317ebd7a545f67f8cbdbbe2c3fdacd30",
+              "packageTypeModuleVisible": false,
+              "responseTools": [],
+              "otherTools": 0,
+              "strictTools": false
+            }
+          ]
+        },
+        {
+          "taskId": "accept-null-guard",
+          "title": "Greet a friend when the name is missing",
+          "split": "accept",
+          "passed": true,
+          "terminal": "completed",
+          "failures": [],
+          "attempts": 4,
+          "requests": 4,
+          "inputTokens": 11513,
+          "cachedTokens": 8147,
+          "outputTokens": 400,
+          "costUsd": "0.000432894",
+          "toolCalls": 3,
+          "approvals": 0,
+          "questions": 0,
+          "paidRefusals": 0,
+          "order": 4,
+          "recalls": 0,
+          "compactionsSettled": 0,
+          "compactionsApplied": 0,
+          "callBudget": 8,
+          "overBudget": false,
+          "compactionsAttempted": 0,
+          "compactionLedger": {
+            "reservedUsd": "0",
+            "settledUsd": "0",
+            "outstandingUsd": "0",
+            "retainedUsd": "0"
+          },
+          "requestEvidence": [
+            {
+              "sha256": "1ef256225467a2d4d98a81c458a8d530dd1240fdd6710399ed1244b51c014369",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["list_files"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "7d415a0e64c1ddcef8e4c9e3d60121f0fd2f8987995bf14cd8e0f25834a1517a",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "51c03d788b417eb0ac98bd57030ccc25231a1ec5d1bbb63351140033f3a1bb21",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["edit_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "9caabf1d5ea259b1512edc9317052096fe58e0fbfb872ccee99b16188a969200",
+              "packageTypeModuleVisible": false,
+              "responseTools": [],
+              "otherTools": 0,
+              "strictTools": false
+            }
+          ]
+        },
+        {
+          "taskId": "accept-await-read",
+          "title": "Await the file read before parsing",
+          "split": "accept",
+          "passed": true,
+          "terminal": "completed",
+          "failures": [],
+          "attempts": 4,
+          "requests": 4,
+          "inputTokens": 11459,
+          "cachedTokens": 8147,
+          "outputTokens": 319,
+          "costUsd": "0.000411294",
+          "toolCalls": 3,
+          "approvals": 0,
+          "questions": 0,
+          "paidRefusals": 0,
+          "order": 3,
+          "recalls": 0,
+          "compactionsSettled": 0,
+          "compactionsApplied": 0,
+          "callBudget": 12,
+          "overBudget": false,
+          "compactionsAttempted": 0,
+          "compactionLedger": {
+            "reservedUsd": "0",
+            "settledUsd": "0",
+            "outstandingUsd": "0",
+            "retainedUsd": "0"
+          },
+          "requestEvidence": [
+            {
+              "sha256": "5c6f7e070260d9b54abcf85c332901534ff5b97895596ca0791eef8934564869",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["list_files"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "32568798e5fe8207fd5086d4ff0953267bacdd8772f79552264ed984a1163f30",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "9f1473ff36488e4af595fb490695d6d496178b235be69b1da6dc2548ca1bfea0",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["edit_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "f04e24586b19397e08fd0e360343f8f8fe8047aa46d217f67ff19edd0f691137",
+              "packageTypeModuleVisible": false,
+              "responseTools": [],
+              "otherTools": 0,
+              "strictTools": false
+            }
+          ]
+        },
+        {
+          "taskId": "accept-import-path",
+          "title": "Point the import at the file that exists",
+          "split": "accept",
+          "passed": true,
+          "terminal": "completed",
+          "failures": [],
+          "attempts": 3,
+          "requests": 3,
+          "inputTokens": 8526,
+          "cachedTokens": 5474,
+          "outputTokens": 274,
+          "costUsd": "0.000370948",
+          "toolCalls": 2,
+          "approvals": 0,
+          "questions": 0,
+          "paidRefusals": 0,
+          "order": 2,
+          "recalls": 0,
+          "compactionsSettled": 0,
+          "compactionsApplied": 0,
+          "callBudget": 6,
+          "overBudget": false,
+          "compactionsAttempted": 0,
+          "compactionLedger": {
+            "reservedUsd": "0",
+            "settledUsd": "0",
+            "outstandingUsd": "0",
+            "retainedUsd": "0"
+          },
+          "requestEvidence": [
+            {
+              "sha256": "850d28070d2e314ad2091d5d35a1e67b0930d0bba3129f3d456438d09ed6a046",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "4aeab760e4dc89303e3baf318ce5ddf4884d300e5b9da69b66ab820f95d187a0",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["edit_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "2f16febea16abfd9600a0780a383af9ed102b3c537424b70e7e23b57d1495ddf",
+              "packageTypeModuleVisible": false,
+              "responseTools": [],
+              "otherTools": 0,
+              "strictTools": false
+            }
+          ]
+        },
+        {
+          "taskId": "accept-no-secret",
+          "title": "Read the API key from the environment",
+          "split": "accept",
+          "passed": true,
+          "terminal": "completed",
+          "failures": [],
+          "attempts": 4,
+          "requests": 4,
+          "inputTokens": 11430,
+          "cachedTokens": 8147,
+          "outputTokens": 315,
+          "costUsd": "0.000407594",
+          "toolCalls": 3,
+          "approvals": 0,
+          "questions": 0,
+          "paidRefusals": 0,
+          "order": 1,
+          "recalls": 0,
+          "compactionsSettled": 0,
+          "compactionsApplied": 0,
+          "callBudget": 6,
+          "overBudget": false,
+          "compactionsAttempted": 0,
+          "compactionLedger": {
+            "reservedUsd": "0",
+            "settledUsd": "0",
+            "outstandingUsd": "0",
+            "retainedUsd": "0"
+          },
+          "requestEvidence": [
+            {
+              "sha256": "bbbb62c6e647656d2ecb69958cd0bd1e8d15564c2c28edc50460961bcef43f1a",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["list_files"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "a7a18e31762f3105308e5b3b858bc6f8e337a5cec80467f2f5c9161099ceb7c1",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "2e5584d9b0619b108548b67af71190f758f7a8160ea446c63e7a68fe29157277",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["edit_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "0c62357ffc8546e4d77b1e3581edd6b96e2847bc97d5d1d7983593d1f19c862a",
+              "packageTypeModuleVisible": false,
+              "responseTools": [],
+              "otherTools": 0,
+              "strictTools": false
+            }
+          ]
+        },
+        {
+          "taskId": "accept-empty-average",
+          "title": "Return 0 for the average of nothing",
+          "split": "accept",
+          "passed": true,
+          "terminal": "completed",
+          "failures": [],
+          "attempts": 3,
+          "requests": 3,
+          "inputTokens": 8530,
+          "cachedTokens": 5474,
+          "outputTokens": 335,
+          "costUsd": "0.000383548",
+          "toolCalls": 2,
+          "approvals": 0,
+          "questions": 0,
+          "paidRefusals": 0,
+          "order": 4,
+          "recalls": 0,
+          "compactionsSettled": 0,
+          "compactionsApplied": 0,
+          "callBudget": 6,
+          "overBudget": false,
+          "compactionsAttempted": 0,
+          "compactionLedger": {
+            "reservedUsd": "0",
+            "settledUsd": "0",
+            "outstandingUsd": "0",
+            "retainedUsd": "0"
+          },
+          "requestEvidence": [
+            {
+              "sha256": "6e23cc887f9210f9b5b868e830e7fd013848ff4bd9ab91b15c6b1cb4a9754b38",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "73bf04e3f9b22d5e63a774050f0ffa687a83dccf915edc88d9a2445fb76b5bd6",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["edit_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "d628d28bd5ed19df115a991bd8aac8805d564082e5c659629e4d3ed1e7c3768a",
+              "packageTypeModuleVisible": false,
+              "responseTools": [],
+              "otherTools": 0,
+              "strictTools": false
+            }
+          ]
+        },
+        {
+          "taskId": "heldout-strict-equal",
+          "title": "Compare the role with strict equality",
+          "split": "heldout",
+          "passed": true,
+          "terminal": "completed",
+          "failures": [],
+          "attempts": 4,
+          "requests": 4,
+          "inputTokens": 11402,
+          "cachedTokens": 8147,
+          "outputTokens": 277,
+          "costUsd": "0.000397194",
+          "toolCalls": 3,
+          "approvals": 0,
+          "questions": 0,
+          "paidRefusals": 0,
+          "order": 3,
+          "recalls": 0,
+          "compactionsSettled": 0,
+          "compactionsApplied": 0,
+          "callBudget": 6,
+          "overBudget": false,
+          "compactionsAttempted": 0,
+          "compactionLedger": {
+            "reservedUsd": "0",
+            "settledUsd": "0",
+            "outstandingUsd": "0",
+            "retainedUsd": "0"
+          },
+          "requestEvidence": [
+            {
+              "sha256": "b57cdc3daa9f4eee60adf8c02e66e54ba5d6fd09a6e27115a4dd9dfc8f5d5808",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["list_files"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "79da63b8e73c86b00b8443b66280513dcef81e86315c4e2e8814f1efb5e50d94",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "f7c9fbb9e2bd1cb51c4f20e30f5a8d911708cdda65257a74314fe1793204853a",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["edit_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "c7f531e330ee4244ac84a5888c09049ed5a25f25269c23a17ed9d77c1ff2df4b",
+              "packageTypeModuleVisible": false,
+              "responseTools": [],
+              "otherTools": 0,
+              "strictTools": false
+            }
+          ]
+        },
+        {
+          "taskId": "heldout-clear-timer",
+          "title": "Stop polling once the status is ready",
+          "split": "heldout",
+          "passed": true,
+          "terminal": "completed",
+          "failures": [],
+          "attempts": 4,
+          "requests": 4,
+          "inputTokens": 11643,
+          "cachedTokens": 8403,
+          "outputTokens": 377,
+          "costUsd": "0.000416206",
+          "toolCalls": 3,
+          "approvals": 0,
+          "questions": 0,
+          "paidRefusals": 0,
+          "order": 2,
+          "recalls": 0,
+          "compactionsSettled": 0,
+          "compactionsApplied": 0,
+          "callBudget": 9,
+          "overBudget": false,
+          "compactionsAttempted": 0,
+          "compactionLedger": {
+            "reservedUsd": "0",
+            "settledUsd": "0",
+            "outstandingUsd": "0",
+            "retainedUsd": "0"
+          },
+          "requestEvidence": [
+            {
+              "sha256": "7dbdb13c4dc55732b8c7b6896dabbc404a6b1ad3597dd7c543f2b854343d889d",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["list_files"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "d0d93415087835bfed894124bb347547f989f467686981b19bd3f07a2932825a",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "a5c90adfecf2fa003f3bc19be77fa06f7c4b411ebe038ba3f2e036672f8bf505",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["edit_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "d6ce7aca37835ae6c02cd08e5b6946098a64f090c967a71345ce5c99d140adc0",
+              "packageTypeModuleVisible": false,
+              "responseTools": [],
+              "otherTools": 0,
+              "strictTools": false
+            }
+          ]
+        },
+        {
+          "taskId": "heldout-sort-numbers",
+          "title": "Sort numbers by value, smallest first",
+          "split": "heldout",
+          "passed": true,
+          "terminal": "completed",
+          "failures": [],
+          "attempts": 3,
+          "requests": 3,
+          "inputTokens": 8511,
+          "cachedTokens": 5474,
+          "outputTokens": 327,
+          "costUsd": "0.000380048",
+          "toolCalls": 2,
+          "approvals": 0,
+          "questions": 0,
+          "paidRefusals": 0,
+          "order": 1,
+          "recalls": 0,
+          "compactionsSettled": 0,
+          "compactionsApplied": 0,
+          "callBudget": 8,
+          "overBudget": false,
+          "compactionsAttempted": 0,
+          "compactionLedger": {
+            "reservedUsd": "0",
+            "settledUsd": "0",
+            "outstandingUsd": "0",
+            "retainedUsd": "0"
+          },
+          "requestEvidence": [
+            {
+              "sha256": "4000e47955ed5801af0c0b74c063c87dd8c1fbfe3acaae0a5dd10865e5fbb48a",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "eb9ec9a73ed1a8799b0b5ad94a76f1e6e5c445dd084fffab37af9dbe6a446c3d",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["edit_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "3e5622d049d6ace37cac5c16e1e5b0ea3bffee0d5dc758e99daa2f77a8d5be54",
+              "packageTypeModuleVisible": false,
+              "responseTools": [],
+              "otherTools": 0,
+              "strictTools": false
+            }
+          ]
+        },
+        {
+          "taskId": "heldout-await-write",
+          "title": "Await the settings write",
+          "split": "heldout",
+          "passed": true,
+          "terminal": "completed",
+          "failures": [],
+          "attempts": 5,
+          "requests": 5,
+          "inputTokens": 15011,
+          "cachedTokens": 11460,
+          "outputTokens": 490,
+          "costUsd": "0.00047602",
+          "toolCalls": 5,
+          "approvals": 0,
+          "questions": 0,
+          "paidRefusals": 0,
+          "order": 4,
+          "recalls": 0,
+          "compactionsSettled": 0,
+          "compactionsApplied": 0,
+          "callBudget": 14,
+          "overBudget": false,
+          "compactionsAttempted": 0,
+          "compactionLedger": {
+            "reservedUsd": "0",
+            "settledUsd": "0",
+            "outstandingUsd": "0",
+            "retainedUsd": "0"
+          },
+          "requestEvidence": [
+            {
+              "sha256": "07a53c2e667b42ba0293e663e625b2bcc93d711bea08178a61d7a0c0140fbe41",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["list_files"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "fb921d2a6639251eca1587c5d56fe0f568ba45dd2de0b3da8b9578bf775b1e07",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file", "read_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "486116ee4b9044e1fc3c0f5ba03ce72edd7c3969241fad6bc3aed509de0f4eab",
+              "packageTypeModuleVisible": true,
+              "responseTools": ["edit_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "fa24788d423fd80999511e036b0e419221301bdfda8ab83e45f75db25f62970b",
+              "packageTypeModuleVisible": true,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "28dbf336fa3e3909d4fc7821c2e6c39f7bf2aa46779eb3a2f1a7789ff2062f4e",
+              "packageTypeModuleVisible": true,
+              "responseTools": [],
+              "otherTools": 0,
+              "strictTools": false
+            }
+          ]
+        },
+        {
+          "taskId": "accept-multi-edit",
+          "title": "Fix the case of two helpers in one file",
+          "split": "accept",
+          "passed": true,
+          "terminal": "completed",
+          "failures": [],
+          "attempts": 4,
+          "requests": 4,
+          "inputTokens": 11493,
+          "cachedTokens": 8147,
+          "outputTokens": 344,
+          "costUsd": "0.000419694",
+          "toolCalls": 3,
+          "approvals": 0,
+          "questions": 0,
+          "paidRefusals": 0,
+          "order": 3,
+          "recalls": 0,
+          "compactionsSettled": 0,
+          "compactionsApplied": 0,
+          "callBudget": 6,
+          "overBudget": false,
+          "compactionsAttempted": 0,
+          "compactionLedger": {
+            "reservedUsd": "0",
+            "settledUsd": "0",
+            "outstandingUsd": "0",
+            "retainedUsd": "0"
+          },
+          "requestEvidence": [
+            {
+              "sha256": "f3d2b382adfcf421ab9e0b769f5dcecdb3bce304ebf32418bd0974ef75256a78",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["list_files"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "7a66240e20a935a748b9e3a178635bceb5c41f0bf3409dc582c751d4f4494628",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "f04577971c087cebb789259fee84dd7193d07db9912ac14c2bc11468d04a885c",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["edit_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "0e999c200bf212a230e049eb9a27ef526f82891ad14a997ca5fff7697e2efc2c",
+              "packageTypeModuleVisible": false,
+              "responseTools": [],
+              "otherTools": 0,
+              "strictTools": false
+            }
+          ]
+        },
+        {
+          "taskId": "heldout-multi-edit",
+          "title": "Clamp both bounds without overshooting",
+          "split": "heldout",
+          "passed": true,
+          "terminal": "completed",
+          "failures": [],
+          "attempts": 4,
+          "requests": 4,
+          "inputTokens": 11519,
+          "cachedTokens": 5602,
+          "outputTokens": 341,
+          "costUsd": "0.000671104",
+          "toolCalls": 3,
+          "approvals": 0,
+          "questions": 0,
+          "paidRefusals": 0,
+          "order": 2,
+          "recalls": 0,
+          "compactionsSettled": 0,
+          "compactionsApplied": 0,
+          "callBudget": 6,
+          "overBudget": false,
+          "compactionsAttempted": 0,
+          "compactionLedger": {
+            "reservedUsd": "0",
+            "settledUsd": "0",
+            "outstandingUsd": "0",
+            "retainedUsd": "0"
+          },
+          "requestEvidence": [
+            {
+              "sha256": "44b5441bdd27b9caab27ac1aa2432449c8338cd928761a39b2968706743c82a5",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["list_files"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "c75e3fba99688dec651d88165457826dc92a6311c5dd77193354259ae839267d",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "16ae124cf4120ccbffc217b2c9198ae41f431645c2d21e78e6218fbb0ebc6663",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["edit_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "cf475cdc6e2cdb600c2b6130c878f2d0c5ef6b3c197117e4589d23733c5fa3e6",
+              "packageTypeModuleVisible": false,
+              "responseTools": [],
+              "otherTools": 0,
+              "strictTools": false
+            }
+          ]
+        }
+      ],
+      "summaries": [
+        {
+          "split": "accept",
+          "tasks": 9,
+          "passed": 8,
+          "passRate": 0.8888888888888888,
+          "attempts": 35,
+          "requests": 35,
+          "inputTokens": 171972,
+          "cachedTokens": 104201,
+          "outputTokens": 5883,
+          "costUsd": "0.008162102"
+        },
+        {
+          "split": "heldout",
+          "tasks": 7,
+          "passed": 6,
+          "passRate": 0.8571428571428571,
+          "attempts": 30,
+          "requests": 30,
+          "inputTokens": 156335,
+          "cachedTokens": 89428,
+          "outputTokens": 4949,
+          "costUsd": "0.007859356"
+        }
+      ],
+      "compactionLedger": {
+        "reservedUsd": "0",
+        "settledUsd": "0",
+        "outstandingUsd": "0",
+        "retainedUsd": "0"
+      }
+    },
+    {
+      "name": "packing",
+      "mechanism": "observation packing (M73): a tool result over 8000 characters rides whole for 2 requests, then as a placeholder with its id, size and first and last lines; recall_output pages the original back",
+      "results": [
+        {
+          "taskId": "accept-long-compaction",
+          "title": "Recover a build number from a long log and record it",
+          "split": "accept",
+          "passed": false,
+          "terminal": "failed",
+          "failures": [
+            "the turn ended failed: Context window full: /compact or /handoff",
+            "the verifier failed: node:internal/modules/esm/resolve:272\n    throw new ERR_MODULE_NOT_FOUND(\n          ^\nError [ERR_MODULE_NOT_FOUND]: Cannot find module '<task>\\workspace\\answer.js' imported from <task>\\verify-kficEk\\verify.mjs\n  code: 'ERR_MODULE_NOT_FOUND',\n  url: '<task>/workspace/answer.js'\n}\nNode.js v24.20.0"
+          ],
+          "attempts": 1,
+          "requests": 1,
+          "inputTokens": 23897,
+          "cachedTokens": 0,
+          "outputTokens": 1445,
+          "costUsd": "0.0026787",
+          "toolCalls": 1,
+          "approvals": 0,
+          "questions": 0,
+          "paidRefusals": 0,
+          "order": 2,
+          "packedTokensAvoided": 0,
+          "recalls": 0,
+          "compactionsSettled": 0,
+          "compactionsApplied": 0,
+          "callBudget": 14,
+          "overBudget": false,
+          "compactionsAttempted": 0,
+          "compactionLedger": {
+            "reservedUsd": "0",
+            "settledUsd": "0",
+            "outstandingUsd": "0",
+            "retainedUsd": "0"
+          },
+          "requestEvidence": [
+            {
+              "sha256": "a12232a50828430b233e9f66100668ff00456e0256d8c2e90359d6ca6270cad8",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["todo_write"],
+              "otherTools": 0,
+              "strictTools": false
+            }
+          ]
+        },
+        {
+          "taskId": "heldout-long-compaction",
+          "title": "Apply a rule from a long log to a transform",
+          "split": "heldout",
+          "passed": false,
+          "terminal": "failed",
+          "failures": [
+            "the turn ended failed: Context window full: /compact or /handoff",
+            "the verifier failed: node:internal/modules/esm/resolve:272\n    throw new ERR_MODULE_NOT_FOUND(\n          ^\nError [ERR_MODULE_NOT_FOUND]: Cannot find module '<task>\\workspace\\transform.js' imported from <task>\\verify-e4nxqU\\verify.mjs\n  code: 'ERR_MODULE_NOT_FOUND',\n  url: '<task>/workspace/transform.js'\n}\nNode.js v24.20.0"
+          ],
+          "attempts": 1,
+          "requests": 1,
+          "inputTokens": 23909,
+          "cachedTokens": 0,
+          "outputTokens": 1525,
+          "costUsd": "0.0026959",
+          "toolCalls": 1,
+          "approvals": 0,
+          "questions": 0,
+          "paidRefusals": 0,
+          "order": 1,
+          "packedTokensAvoided": 0,
+          "recalls": 0,
+          "compactionsSettled": 0,
+          "compactionsApplied": 0,
+          "callBudget": 14,
+          "overBudget": false,
+          "compactionsAttempted": 0,
+          "compactionLedger": {
+            "reservedUsd": "0",
+            "settledUsd": "0",
+            "outstandingUsd": "0",
+            "retainedUsd": "0"
+          },
+          "requestEvidence": [
+            {
+              "sha256": "447058eb49c5928f246d81cbec6b153ae6dc367deba652375f3094dbda215b38",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["todo_write"],
+              "otherTools": 0,
+              "strictTools": false
+            }
+          ]
+        },
+        {
+          "taskId": "accept-long-middle-value",
+          "title": "Recover a value from the middle of a long tool output",
+          "split": "accept",
+          "passed": true,
+          "terminal": "completed",
+          "failures": [],
+          "attempts": 9,
+          "requests": 9,
+          "inputTokens": 52447,
+          "cachedTokens": 37271,
+          "outputTokens": 1924,
+          "costUsd": "0.001976942",
+          "toolCalls": 8,
+          "approvals": 1,
+          "questions": 0,
+          "paidRefusals": 0,
+          "order": 4,
+          "packedTokensAvoided": 51684,
+          "recalls": 1,
+          "compactionsSettled": 0,
+          "compactionsApplied": 0,
+          "callBudget": 14,
+          "overBudget": false,
+          "compactionsAttempted": 0,
+          "compactionLedger": {
+            "reservedUsd": "0",
+            "settledUsd": "0",
+            "outstandingUsd": "0",
+            "retainedUsd": "0"
+          },
+          "requestEvidence": [
+            {
+              "sha256": "7a0fb1132f1425b7b515e52dc92ff0875dfc10630fa407039cf832dce127774b",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "7e3a1acdedec08701787e302d432d325c72a1c31c562186000ee3f768707bd99",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "918bfee4e9fc95b0a8d11f41c5e7588252f8722aa42ba961281ce3b91e7f2190",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "515d1f326b86652e0c5f9db17430629c06c29558cbf1fd5fe32a7307b41d34a0",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["recall_output"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "6ffda8ed2f916faf705e5be8b6ac6289c3152fe8fdb3a7ed325cf3512cc40886",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["list_files"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "ae77640ba825c41f70941e0b58c7b16bb956669e4aeaad837c4babf59421411e",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "fc0ef090fe4c1c69367f9944d27ef7c50ea906cc68a3badc9561cab2a9af4b59",
+              "packageTypeModuleVisible": true,
+              "responseTools": ["write_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "ec4905a4bc507c62786c51f4a6f81c75a146eea1cb2bd07d906e652a9c5e5200",
+              "packageTypeModuleVisible": true,
+              "responseTools": ["powershell"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "354ecd939688db6f9ada2cb7961612df497eb149b50a38a8de6dbfc155542225",
+              "packageTypeModuleVisible": true,
+              "responseTools": [],
+              "otherTools": 0,
+              "strictTools": false
+            }
+          ]
+        },
+        {
+          "taskId": "heldout-long-middle-rule",
+          "title": "Apply a rule from the middle of a long tool output",
+          "split": "heldout",
+          "passed": true,
+          "terminal": "completed",
+          "failures": [],
+          "attempts": 9,
+          "requests": 9,
+          "inputTokens": 53169,
+          "cachedTokens": 37271,
+          "outputTokens": 2094,
+          "costUsd": "0.002083142",
+          "toolCalls": 8,
+          "approvals": 1,
+          "questions": 0,
+          "paidRefusals": 0,
+          "order": 3,
+          "packedTokensAvoided": 51684,
+          "recalls": 1,
+          "compactionsSettled": 0,
+          "compactionsApplied": 0,
+          "callBudget": 12,
+          "overBudget": false,
+          "compactionsAttempted": 0,
+          "compactionLedger": {
+            "reservedUsd": "0",
+            "settledUsd": "0",
+            "outstandingUsd": "0",
+            "retainedUsd": "0"
+          },
+          "requestEvidence": [
+            {
+              "sha256": "863c1544d5bddf9b324e129520dd3e14019497076b793bc02cc1c09ee8d4ff7c",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "0329205e2cf3e336dcda153c8922e4ccf5bcb056ba7631682219f33f4bebc3ad",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "5f9dd3d24f8786744c6c90ec8e2f60f84e42e399033fd26e77e515df707922d7",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "5bc111288840898ba9e7d76fccfd997b7e5fb0d3b9b07a22e85d30cd2a1fe7c2",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["recall_output"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "364f2b19967662d9da2451118482b69932b31a40c761ac510d40b4faaebe81e5",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["list_files"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "7d352cfd9ceb3c46fb1c065728b1836a8b70391ed81eeb271c2ee5957de7ff1e",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "21e205bff29c58b4b6cd12bcdf98004a5214e73e0e5350f8f44d3f7067dc77cb",
+              "packageTypeModuleVisible": true,
+              "responseTools": ["write_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "c6416fc893f12cc360be0c4e6d084bdfce0f931f67f9ae03d9c44251c8c83e57",
+              "packageTypeModuleVisible": true,
+              "responseTools": ["powershell"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "1eb0ffd3cb7d6f4779ca5c5eaeab6701a821b2421d7b34bfb55f111daab5fefd",
+              "packageTypeModuleVisible": true,
+              "responseTools": [],
+              "otherTools": 0,
+              "strictTools": false
+            }
+          ]
+        },
+        {
+          "taskId": "accept-off-by-one",
+          "title": "Fix the loop bound that reads past the end",
+          "split": "accept",
+          "passed": true,
+          "terminal": "completed",
+          "failures": [],
+          "attempts": 3,
+          "requests": 3,
+          "inputTokens": 9098,
+          "cachedTokens": 2929,
+          "outputTokens": 259,
+          "costUsd": "0.000674558",
+          "toolCalls": 2,
+          "approvals": 0,
+          "questions": 0,
+          "paidRefusals": 0,
+          "order": 2,
+          "packedTokensAvoided": 0,
+          "recalls": 0,
+          "compactionsSettled": 0,
+          "compactionsApplied": 0,
+          "callBudget": 6,
+          "overBudget": false,
+          "compactionsAttempted": 0,
+          "compactionLedger": {
+            "reservedUsd": "0",
+            "settledUsd": "0",
+            "outstandingUsd": "0",
+            "retainedUsd": "0"
+          },
+          "requestEvidence": [
+            {
+              "sha256": "8d94754c5b2158ffcd2d5125f28c42842cdca01768d35bf78f48bb3ee5685d64",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "db552a9c4bac22133602cf2157f0d3bec1fa525a6a74e7a42fe6adae4fb5cb46",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["edit_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "fea16ca7fcfe80668a1eae3f8813ac44e261dc512333f6227487087c1f928b87",
+              "packageTypeModuleVisible": false,
+              "responseTools": [],
+              "otherTools": 0,
+              "strictTools": false
+            }
+          ]
+        },
+        {
+          "taskId": "accept-null-guard",
+          "title": "Greet a friend when the name is missing",
+          "split": "accept",
+          "passed": true,
+          "terminal": "completed",
+          "failures": [],
+          "attempts": 4,
+          "requests": 4,
+          "inputTokens": 12608,
+          "cachedTokens": 8915,
+          "outputTokens": 542,
+          "costUsd": "0.00049553",
+          "toolCalls": 3,
+          "approvals": 0,
+          "questions": 0,
+          "paidRefusals": 0,
+          "order": 1,
+          "packedTokensAvoided": 0,
+          "recalls": 0,
+          "compactionsSettled": 0,
+          "compactionsApplied": 0,
+          "callBudget": 8,
+          "overBudget": false,
+          "compactionsAttempted": 0,
+          "compactionLedger": {
+            "reservedUsd": "0",
+            "settledUsd": "0",
+            "outstandingUsd": "0",
+            "retainedUsd": "0"
+          },
+          "requestEvidence": [
+            {
+              "sha256": "873e9fc884ce65aab3830b0acec8c5e7e480d1d1fe33d1efe0d83d140417fb8d",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "a3ba54cea45ada76badec96aacd429c9be56eebdd51235127ae686197da230f1",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["edit_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "7912da7cf0d5628064c19996e3bb07fdf09b980ecdeb13e14d2cd4d65d903ca3",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["edit_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "e6efcdee7ed641b3c19609792956e1fad677b6963afb7ea1274c21247114ab63",
+              "packageTypeModuleVisible": false,
+              "responseTools": [],
+              "otherTools": 0,
+              "strictTools": false
+            }
+          ]
+        },
+        {
+          "taskId": "accept-await-read",
+          "title": "Await the file read before parsing",
+          "split": "accept",
+          "passed": true,
+          "terminal": "completed",
+          "failures": [],
+          "attempts": 3,
+          "requests": 3,
+          "inputTokens": 9066,
+          "cachedTokens": 5730,
+          "outputTokens": 311,
+          "costUsd": "0.00040726",
+          "toolCalls": 2,
+          "approvals": 0,
+          "questions": 0,
+          "paidRefusals": 0,
+          "order": 4,
+          "packedTokensAvoided": 0,
+          "recalls": 0,
+          "compactionsSettled": 0,
+          "compactionsApplied": 0,
+          "callBudget": 12,
+          "overBudget": false,
+          "compactionsAttempted": 0,
+          "compactionLedger": {
+            "reservedUsd": "0",
+            "settledUsd": "0",
+            "outstandingUsd": "0",
+            "retainedUsd": "0"
+          },
+          "requestEvidence": [
+            {
+              "sha256": "d18ce8bf3e15d3b04ded7ac523d05803293af07178ca9b8f5ecece77dd47fc10",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "0a8cdb81ee569c93bd3de0c23f187ff1ab71aa177f40b1364859706fe0c51a15",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["edit_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "6066305d331e5f6f2008f1bf698db3b78caad0a9f7287eef1f13533930bddd77",
+              "packageTypeModuleVisible": false,
+              "responseTools": [],
+              "otherTools": 0,
+              "strictTools": false
+            }
+          ]
+        },
+        {
+          "taskId": "accept-import-path",
+          "title": "Point the import at the file that exists",
+          "split": "accept",
+          "passed": true,
+          "terminal": "completed",
+          "failures": [],
+          "attempts": 4,
+          "requests": 4,
+          "inputTokens": 12127,
+          "cachedTokens": 8787,
+          "outputTokens": 280,
+          "costUsd": "0.000407574",
+          "toolCalls": 3,
+          "approvals": 0,
+          "questions": 0,
+          "paidRefusals": 0,
+          "order": 3,
+          "packedTokensAvoided": 0,
+          "recalls": 0,
+          "compactionsSettled": 0,
+          "compactionsApplied": 0,
+          "callBudget": 6,
+          "overBudget": false,
+          "compactionsAttempted": 0,
+          "compactionLedger": {
+            "reservedUsd": "0",
+            "settledUsd": "0",
+            "outstandingUsd": "0",
+            "retainedUsd": "0"
+          },
+          "requestEvidence": [
+            {
+              "sha256": "96ed319120f5d8774333e0ccb54153048b4b872fca38b03d9bfc956b403c6db9",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["list_files"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "4b5c21f59c8e6a51d8eeabe49dab5750cda2b20e1c5f3a04c7fd0c402d65beb3",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "efd9e1f4dee802916055523be6564e5ab9cb7e6730ce2f477756454fc2308798",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["edit_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "1d537bbebb0ea41b857fc9286753573dbbcec50344aae95357f6d18469dc8a1e",
+              "packageTypeModuleVisible": false,
+              "responseTools": [],
+              "otherTools": 0,
+              "strictTools": false
+            }
+          ]
+        },
+        {
+          "taskId": "accept-no-secret",
+          "title": "Read the API key from the environment",
+          "split": "accept",
+          "passed": true,
+          "terminal": "completed",
+          "failures": [],
+          "attempts": 4,
+          "requests": 4,
+          "inputTokens": 12232,
+          "cachedTokens": 8787,
+          "outputTokens": 384,
+          "costUsd": "0.000438874",
+          "toolCalls": 3,
+          "approvals": 0,
+          "questions": 0,
+          "paidRefusals": 0,
+          "order": 2,
+          "packedTokensAvoided": 0,
+          "recalls": 0,
+          "compactionsSettled": 0,
+          "compactionsApplied": 0,
+          "callBudget": 6,
+          "overBudget": false,
+          "compactionsAttempted": 0,
+          "compactionLedger": {
+            "reservedUsd": "0",
+            "settledUsd": "0",
+            "outstandingUsd": "0",
+            "retainedUsd": "0"
+          },
+          "requestEvidence": [
+            {
+              "sha256": "a7ffaf447a71605d996be9f703ba5f488006c67260aa2c113e99e6bd80bb4b1a",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["list_files"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "30c8c9663b160fb2ced5b1c7de88d875d96953d9df3569f91161a0abd227d262",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "d4eaaf7719b6d99b2a52c09a1a40903a0ed17acdea243451b5f6757740a47d8a",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["edit_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "68da4a1ac5e22ded828094f6b0abddc525e25de9d2ea34ebe47156d0ef699993",
+              "packageTypeModuleVisible": false,
+              "responseTools": [],
+              "otherTools": 0,
+              "strictTools": false
+            }
+          ]
+        },
+        {
+          "taskId": "accept-empty-average",
+          "title": "Return 0 for the average of nothing",
+          "split": "accept",
+          "passed": true,
+          "terminal": "completed",
+          "failures": [],
+          "attempts": 3,
+          "requests": 3,
+          "inputTokens": 9095,
+          "cachedTokens": 5730,
+          "outputTokens": 309,
+          "costUsd": "0.00040976",
+          "toolCalls": 2,
+          "approvals": 0,
+          "questions": 0,
+          "paidRefusals": 0,
+          "order": 1,
+          "packedTokensAvoided": 0,
+          "recalls": 0,
+          "compactionsSettled": 0,
+          "compactionsApplied": 0,
+          "callBudget": 6,
+          "overBudget": false,
+          "compactionsAttempted": 0,
+          "compactionLedger": {
+            "reservedUsd": "0",
+            "settledUsd": "0",
+            "outstandingUsd": "0",
+            "retainedUsd": "0"
+          },
+          "requestEvidence": [
+            {
+              "sha256": "7c7746ba50c4b2e1b3b89473947175ca9236b6985149a1b77f49bbc26dc8f6e7",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "a7346822c4a6acef5cdca293989ec7d540f1dbb5a3b3c3d17ca8439ed0c575ce",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["edit_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "5bad629d4a39517f54a18921c4ea944957b7ca1c684fef1da20d723815a27215",
+              "packageTypeModuleVisible": false,
+              "responseTools": [],
+              "otherTools": 0,
+              "strictTools": false
+            }
+          ]
+        },
+        {
+          "taskId": "heldout-strict-equal",
+          "title": "Compare the role with strict equality",
+          "split": "heldout",
+          "passed": true,
+          "terminal": "completed",
+          "failures": [],
+          "attempts": 4,
+          "requests": 4,
+          "inputTokens": 12180,
+          "cachedTokens": 8787,
+          "outputTokens": 316,
+          "costUsd": "0.000420074",
+          "toolCalls": 3,
+          "approvals": 0,
+          "questions": 0,
+          "paidRefusals": 0,
+          "order": 4,
+          "packedTokensAvoided": 0,
+          "recalls": 0,
+          "compactionsSettled": 0,
+          "compactionsApplied": 0,
+          "callBudget": 6,
+          "overBudget": false,
+          "compactionsAttempted": 0,
+          "compactionLedger": {
+            "reservedUsd": "0",
+            "settledUsd": "0",
+            "outstandingUsd": "0",
+            "retainedUsd": "0"
+          },
+          "requestEvidence": [
+            {
+              "sha256": "13e9f07e02b1b07a68e0f8f0c5d06dd32c8b1863cdb92fbdcfdaf162f02c5bb3",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["list_files"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "947f2ab45f83947a0642591b8d3c91ad99dae2c5c367ea9ee15475153c1523a2",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "024d277b2ee5644babaf1580b7abc45c9e4d85ace471da5645490b254cdb180f",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["edit_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "be51aad9ca90cfcd752d03f65006cd91f0d49305278b47358ed61c4ffb13c005",
+              "packageTypeModuleVisible": false,
+              "responseTools": [],
+              "otherTools": 0,
+              "strictTools": false
+            }
+          ]
+        },
+        {
+          "taskId": "heldout-clear-timer",
+          "title": "Stop polling once the status is ready",
+          "split": "heldout",
+          "passed": true,
+          "terminal": "completed",
+          "failures": [],
+          "attempts": 4,
+          "requests": 4,
+          "inputTokens": 12310,
+          "cachedTokens": 8787,
+          "outputTokens": 366,
+          "costUsd": "0.000443074",
+          "toolCalls": 3,
+          "approvals": 0,
+          "questions": 0,
+          "paidRefusals": 0,
+          "order": 3,
+          "packedTokensAvoided": 0,
+          "recalls": 0,
+          "compactionsSettled": 0,
+          "compactionsApplied": 0,
+          "callBudget": 9,
+          "overBudget": false,
+          "compactionsAttempted": 0,
+          "compactionLedger": {
+            "reservedUsd": "0",
+            "settledUsd": "0",
+            "outstandingUsd": "0",
+            "retainedUsd": "0"
+          },
+          "requestEvidence": [
+            {
+              "sha256": "afda3ead266f97b2888f79fb61bea684fdb65679ca47901339bbdd78f018179c",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["list_files"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "ef466c4e9a2bfafccc50e70a7224af4bdbee49fb419f39eefdb8654a3bd8660e",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "4b691f54b7491af119cb15b17eefd126ca4a0af9abdb169e3586d6340bef15d9",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["edit_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "8bd9a9f54eaaaa4ddeadad50dc80bc1973ac123e4ac1712a75b2fba460fe41ba",
+              "packageTypeModuleVisible": false,
+              "responseTools": [],
+              "otherTools": 0,
+              "strictTools": false
+            }
+          ]
+        },
+        {
+          "taskId": "heldout-sort-numbers",
+          "title": "Sort numbers by value, smallest first",
+          "split": "heldout",
+          "passed": true,
+          "terminal": "completed",
+          "failures": [],
+          "attempts": 5,
+          "requests": 5,
+          "inputTokens": 15754,
+          "cachedTokens": 11972,
+          "outputTokens": 596,
+          "costUsd": "0.000521344",
+          "toolCalls": 4,
+          "approvals": 1,
+          "questions": 0,
+          "paidRefusals": 0,
+          "order": 2,
+          "packedTokensAvoided": 0,
+          "recalls": 0,
+          "compactionsSettled": 0,
+          "compactionsApplied": 0,
+          "callBudget": 8,
+          "overBudget": false,
+          "compactionsAttempted": 0,
+          "compactionLedger": {
+            "reservedUsd": "0",
+            "settledUsd": "0",
+            "outstandingUsd": "0",
+            "retainedUsd": "0"
+          },
+          "requestEvidence": [
+            {
+              "sha256": "ef30e263445885baa416c05003c7fe2a3e7c1e05ba2b8182da7fbd6f4ce8ed30",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["list_files"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "492c5b3a49c940fe0a2903bab8ac81c79bbbe795dbb3fa0f7fa35cd4250b1526",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "8ba81f2f9186ebaacd6877d9fdcaba8d66645c32e9fb6fff11b415784a22fb24",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["edit_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "8da37dc2d9765d475fd97c2d94a0e05bed8eaa6a2c1bc24412d83513a6213a8b",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["powershell"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "dbbd8b563e41784aa0ba3e060394322fe758f63d6bc928339b67ea8d3a89c1f2",
+              "packageTypeModuleVisible": false,
+              "responseTools": [],
+              "otherTools": 0,
+              "strictTools": false
+            }
+          ]
+        },
+        {
+          "taskId": "heldout-await-write",
+          "title": "Await the settings write",
+          "split": "heldout",
+          "passed": true,
+          "terminal": "completed",
+          "failures": [],
+          "attempts": 4,
+          "requests": 4,
+          "inputTokens": 12476,
+          "cachedTokens": 8915,
+          "outputTokens": 384,
+          "costUsd": "0.00045073",
+          "toolCalls": 3,
+          "approvals": 0,
+          "questions": 0,
+          "paidRefusals": 0,
+          "order": 1,
+          "packedTokensAvoided": 0,
+          "recalls": 0,
+          "compactionsSettled": 0,
+          "compactionsApplied": 0,
+          "callBudget": 14,
+          "overBudget": false,
+          "compactionsAttempted": 0,
+          "compactionLedger": {
+            "reservedUsd": "0",
+            "settledUsd": "0",
+            "outstandingUsd": "0",
+            "retainedUsd": "0"
+          },
+          "requestEvidence": [
+            {
+              "sha256": "34c2d766ec9a4bf8626551c5ee31f730b83a537cec2cad13cd6a64a4870239c8",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "f3edfebc451c7c63a2fb96251b9253f23eae1f25c709185bc0e04af86a3d9942",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["edit_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "26ea6beb828b07023db3ad9c6e9508ca794d39568dd18b9305a32b6b24b1140c",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "e1b604f791625d588cea584d1d19e55d0e16c571917a30a9ada2118b74dc4cec",
+              "packageTypeModuleVisible": false,
+              "responseTools": [],
+              "otherTools": 0,
+              "strictTools": false
+            }
+          ]
+        },
+        {
+          "taskId": "accept-multi-edit",
+          "title": "Fix the case of two helpers in one file",
+          "split": "accept",
+          "passed": true,
+          "terminal": "completed",
+          "failures": [],
+          "attempts": 3,
+          "requests": 3,
+          "inputTokens": 9118,
+          "cachedTokens": 2929,
+          "outputTokens": 301,
+          "costUsd": "0.000684958",
+          "toolCalls": 2,
+          "approvals": 0,
+          "questions": 0,
+          "paidRefusals": 0,
+          "order": 4,
+          "packedTokensAvoided": 0,
+          "recalls": 0,
+          "compactionsSettled": 0,
+          "compactionsApplied": 0,
+          "callBudget": 6,
+          "overBudget": false,
+          "compactionsAttempted": 0,
+          "compactionLedger": {
+            "reservedUsd": "0",
+            "settledUsd": "0",
+            "outstandingUsd": "0",
+            "retainedUsd": "0"
+          },
+          "requestEvidence": [
+            {
+              "sha256": "0562df527780f1f744e63ca730527bab241a6bc5fd6acbd44c654fb767acfb6f",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "8f43336dd5e837acf48144c99d1cc29e5b8b910d58ba7b24c2c1e31f1929720b",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["edit_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "b5d482486171af433c6f1bc6fb6f0e59b06dd46d24b0024e254b8701cd580902",
+              "packageTypeModuleVisible": false,
+              "responseTools": [],
+              "otherTools": 0,
+              "strictTools": false
+            }
+          ]
+        },
+        {
+          "taskId": "heldout-multi-edit",
+          "title": "Clamp both bounds without overshooting",
+          "split": "heldout",
+          "passed": true,
+          "terminal": "completed",
+          "failures": [],
+          "attempts": 4,
+          "requests": 4,
+          "inputTokens": 12264,
+          "cachedTokens": 5986,
+          "outputTokens": 359,
+          "costUsd": "0.000711572",
+          "toolCalls": 3,
+          "approvals": 0,
+          "questions": 0,
+          "paidRefusals": 0,
+          "order": 3,
+          "packedTokensAvoided": 0,
+          "recalls": 0,
+          "compactionsSettled": 0,
+          "compactionsApplied": 0,
+          "callBudget": 6,
+          "overBudget": false,
+          "compactionsAttempted": 0,
+          "compactionLedger": {
+            "reservedUsd": "0",
+            "settledUsd": "0",
+            "outstandingUsd": "0",
+            "retainedUsd": "0"
+          },
+          "requestEvidence": [
+            {
+              "sha256": "66bbe8eff7840077cc4162ab07402a3d36e8f098a46050e5d75b90f740a9ad83",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["list_files"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "6197138661628855da9420ae1246e3e8543f919b01a22ac2f29b9d78b2457a32",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "8ad75daf78d33fc3d40225ef97259e73b93b94c042446ebd95fff49b7cca2b97",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["edit_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "0cbcb26ba46625e6363bfc81007fa99715c5040e5298f09d0e0c3d0ba1c3a9d1",
+              "packageTypeModuleVisible": false,
+              "responseTools": [],
+              "otherTools": 0,
+              "strictTools": false
+            }
+          ]
+        }
+      ],
+      "summaries": [
+        {
+          "split": "accept",
+          "tasks": 9,
+          "passed": 8,
+          "passRate": 0.8888888888888888,
+          "attempts": 34,
+          "requests": 34,
+          "inputTokens": 149688,
+          "cachedTokens": 81078,
+          "outputTokens": 5755,
+          "costUsd": "0.008174156"
+        },
+        {
+          "split": "heldout",
+          "tasks": 7,
+          "passed": 6,
+          "passRate": 0.8571428571428571,
+          "attempts": 31,
+          "requests": 31,
+          "inputTokens": 142062,
+          "cachedTokens": 81718,
+          "outputTokens": 5640,
+          "costUsd": "0.007325836"
+        }
+      ],
+      "compactionLedger": {
+        "reservedUsd": "0",
+        "settledUsd": "0",
+        "outstandingUsd": "0",
+        "retainedUsd": "0"
+      }
+    },
+    {
+      "name": "auto-compaction",
+      "mechanism": "automatic compaction (M74): the eval host compacts at a settled tool boundary as evaluated, with an evaluation admission that reserves every extra attempt against the run budget and settles it there",
+      "results": [
+        {
+          "taskId": "accept-long-compaction",
+          "title": "Recover a build number from a long log and record it",
+          "split": "accept",
+          "passed": true,
+          "terminal": "completed",
+          "failures": [],
+          "attempts": 10,
+          "requests": 11,
+          "inputTokens": 82683,
+          "cachedTokens": 50056,
+          "outputTokens": 3498,
+          "costUsd": "0.004062412",
+          "toolCalls": 10,
+          "approvals": 2,
+          "questions": 1,
+          "paidRefusals": 0,
+          "order": 3,
+          "recalls": 0,
+          "compactionsSettled": 1,
+          "compactionsApplied": 1,
+          "callBudget": 14,
+          "overBudget": false,
+          "compactionsAttempted": 1,
+          "compactionLedger": {
+            "reservedUsd": "0.0131378",
+            "settledUsd": "0.00032983",
+            "outstandingUsd": "0",
+            "retainedUsd": "0"
+          },
+          "requestEvidence": [
+            {
+              "sha256": "b2c39ad87d9982dcaf95ea14f5e1680136a8a14a7022728eccf90a320a6c5a3b",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["todo_write"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "843c7abf10acc4b94be9c1f7edb72224f5b084fd6118e47cdbdf25f16e9268a3",
+              "packageTypeModuleVisible": false,
+              "responseTools": [],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "ae756455517364987173b5136f119b5408654ad60718a7ae7167782d309ea3b2",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["list_files"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "871200d365b4d6d31dfcdf718e44a8e3cffb907dad872ae0f3e1627c211fd035",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file", "search", "search"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "b3ef35fffd4cb7a4e0022215a50b230def78bcf72ed7c5771a07575af7e7f432",
+              "packageTypeModuleVisible": true,
+              "responseTools": ["powershell"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "34208c5c724391fcff796f3235f13124b6600df822d8cca2db58780e5265b5b8",
+              "packageTypeModuleVisible": true,
+              "responseTools": ["ask_user"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "734efcae44e5df357e67ed722fde9727c5ba065041224457b981c02f1c466ac8",
+              "packageTypeModuleVisible": true,
+              "responseTools": ["todo_write"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "9b7020fbf022c218c8e4d4045142a0b6ef1eefad24ac62b2d0bda23d507b959c",
+              "packageTypeModuleVisible": true,
+              "responseTools": ["write_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "c4938435eaec6ae1fa5e910b9fafec7e6bbeb1506c2b1ef1d2066b5ebf2f0b28",
+              "packageTypeModuleVisible": true,
+              "responseTools": ["todo_write"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "bde848e74978cb3593a74af65ce5571ee34fbfa3dc7dc3bc0529bbb57e5a16cb",
+              "packageTypeModuleVisible": true,
+              "responseTools": [],
+              "otherTools": 0,
+              "strictTools": false
+            }
+          ]
+        },
+        {
+          "taskId": "heldout-long-compaction",
+          "title": "Apply a rule from a long log to a transform",
+          "split": "heldout",
+          "passed": true,
+          "terminal": "completed",
+          "failures": [],
+          "attempts": 10,
+          "requests": 11,
+          "inputTokens": 86248,
+          "cachedTokens": 57081,
+          "outputTokens": 4502,
+          "costUsd": "0.003931262",
+          "toolCalls": 10,
+          "approvals": 2,
+          "questions": 1,
+          "paidRefusals": 0,
+          "order": 2,
+          "recalls": 0,
+          "compactionsSettled": 1,
+          "compactionsApplied": 1,
+          "callBudget": 14,
+          "overBudget": false,
+          "compactionsAttempted": 1,
+          "compactionLedger": {
+            "reservedUsd": "0.0131391",
+            "settledUsd": "0.00038803",
+            "outstandingUsd": "0",
+            "retainedUsd": "0"
+          },
+          "requestEvidence": [
+            {
+              "sha256": "3e2314a150367b1b09fa4caaad63b1f6956f519ed32bc1c63166c4a0ccbc2a3d",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["todo_write"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "2c12a42a1a7e97446bee7315634b41350bf1d59aba717124649bed6050e6e723",
+              "packageTypeModuleVisible": false,
+              "responseTools": [],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "95753d80abf6a2001715ca27c26c6eee2220b71a0adf96da95e47da4151b6040",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["list_files"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "08e0e268d85f9babbcf0f00678e3ea5aed804be07463f92c2d1fb0c7ccb8b639",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["search", "read_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "c0c2811dd9f90e8617f6e72dffc4cd078d8572d3fbf5ad00799aabfc37821e2e",
+              "packageTypeModuleVisible": true,
+              "responseTools": ["search", "powershell"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "a09b20219eb8170e7b2ee2ca57dce2e9dd23778ce0387526c5c57a9a0f02f25e",
+              "packageTypeModuleVisible": true,
+              "responseTools": ["ask_user"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "17c82f1be63fbdea9f896768485e547d4cf552ab0cbdad9a816000d19ce66135",
+              "packageTypeModuleVisible": true,
+              "responseTools": ["todo_write"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "90bb506c52508edbe4dfccdc10f00485c36538874d1acc21b5b88130c52fa382",
+              "packageTypeModuleVisible": true,
+              "responseTools": ["write_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "1f8f46e7bc76693f775e56e154a5ef28dc52feaf175c762a00531d601eed0cea",
+              "packageTypeModuleVisible": true,
+              "responseTools": ["todo_write"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "6de8728ba4641d863a24d405f4c9fb7165295f78d66ea482402c5c9757a16c57",
+              "packageTypeModuleVisible": true,
+              "responseTools": [],
+              "otherTools": 0,
+              "strictTools": false
+            }
+          ]
+        },
+        {
+          "taskId": "accept-long-middle-value",
+          "title": "Recover a value from the middle of a long tool output",
+          "split": "accept",
+          "passed": true,
+          "terminal": "completed",
+          "failures": [],
+          "attempts": 9,
+          "requests": 9,
+          "inputTokens": 81864,
+          "cachedTokens": 70280,
+          "outputTokens": 2289,
+          "costUsd": "0.00175676",
+          "toolCalls": 8,
+          "approvals": 1,
+          "questions": 0,
+          "paidRefusals": 0,
+          "order": 1,
+          "recalls": 0,
+          "compactionsSettled": 0,
+          "compactionsApplied": 0,
+          "callBudget": 14,
+          "overBudget": false,
+          "compactionsAttempted": 0,
+          "compactionLedger": {
+            "reservedUsd": "0",
+            "settledUsd": "0",
+            "outstandingUsd": "0",
+            "retainedUsd": "0"
+          },
+          "requestEvidence": [
+            {
+              "sha256": "ae7798794da1bea7879cb9c01c6db66a2cdfb8206ccbb91a51fc5e56373719a8",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "82ffd6df1a58db2e6cd53ea81d85506a1f1b9308eebd3c4485b9f237387e1890",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "86d9f5a33c3cfaa43a086b6bf0c61a386c716895f3b6ed32a65027cb2d89ab2c",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "66b11c7b10dba11d6d4ba8a417ac0aa6b7a29bdbbc2e6332e5e6814cd75ff857",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "6768731bc4ce32111fa21f0c97f891e3dafae4ac73482952151d0159f37cf5a8",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["list_files"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "c1f727ccbd5d4ff0abd391d47c40cf928dc2cd31ab9eac78bad606402acbea56",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "373370b29d47c13b0d21ef7ed1a3abd268d6149cdf9748a2d2d3dab68336ceb3",
+              "packageTypeModuleVisible": true,
+              "responseTools": ["write_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "e697cf0820694e99fdef25811ffa6cd4c55bb1bfeb52a337c64c7b7a9a547592",
+              "packageTypeModuleVisible": true,
+              "responseTools": ["powershell"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "5dabfd2b0b22d95c66854e2ac9f8f6581f24128ac8dce6f72fe5dd7efc9d8744",
+              "packageTypeModuleVisible": true,
+              "responseTools": [],
+              "otherTools": 0,
+              "strictTools": false
+            }
+          ]
+        },
+        {
+          "taskId": "heldout-long-middle-rule",
+          "title": "Apply a rule from the middle of a long tool output",
+          "split": "heldout",
+          "passed": true,
+          "terminal": "completed",
+          "failures": [],
+          "attempts": 8,
+          "requests": 8,
+          "inputTokens": 72546,
+          "cachedTokens": 50598,
+          "outputTokens": 2530,
+          "costUsd": "0.002801996",
+          "toolCalls": 7,
+          "approvals": 1,
+          "questions": 0,
+          "paidRefusals": 0,
+          "order": 4,
+          "recalls": 0,
+          "compactionsSettled": 0,
+          "compactionsApplied": 0,
+          "callBudget": 12,
+          "overBudget": false,
+          "compactionsAttempted": 0,
+          "compactionLedger": {
+            "reservedUsd": "0",
+            "settledUsd": "0",
+            "outstandingUsd": "0",
+            "retainedUsd": "0"
+          },
+          "requestEvidence": [
+            {
+              "sha256": "d545cf17bfd21740f8f572f1dadb44d03aa5e88cbf505f9e44d2490f684234d6",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "f05b69561a7116425f961a115b8667e97402b8baa5e40ef8ef19783512b97649",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "0ad60c599393095b1f92389e9314ab549a5eed4af1d1beb4b00598fd50f3d230",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "6e260339ba97e279d6dbbad0c608cead8061e773d88f9822bd5b6bb408e3c586",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "3a34cdf0cec061b9235a7a27878f390c13fc318eb5525e3b96d842aa32d7ed5f",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["list_files"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "815f7437719d62044c37e56d471d5a7bd782baf0ef587658ac9d716c549b1cbc",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "eb1a05447f50f7f3fad2d9ec3595e4865f191d6d30d4a70d0d0353e9fa80cf86",
+              "packageTypeModuleVisible": true,
+              "responseTools": ["write_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "5ef9eb4d3141f6e5f3536a8055eb4c01171285ac4c0ab41919048e536386d933",
+              "packageTypeModuleVisible": true,
+              "responseTools": [],
+              "otherTools": 0,
+              "strictTools": false
+            }
+          ]
+        },
+        {
+          "taskId": "accept-off-by-one",
+          "title": "Fix the loop bound that reads past the end",
+          "split": "accept",
+          "passed": true,
+          "terminal": "completed",
+          "failures": [],
+          "attempts": 3,
+          "requests": 3,
+          "inputTokens": 8547,
+          "cachedTokens": 5474,
+          "outputTokens": 252,
+          "costUsd": "0.000368648",
+          "toolCalls": 2,
+          "approvals": 0,
+          "questions": 0,
+          "paidRefusals": 0,
+          "order": 3,
+          "recalls": 0,
+          "compactionsSettled": 0,
+          "compactionsApplied": 0,
+          "callBudget": 6,
+          "overBudget": false,
+          "compactionsAttempted": 0,
+          "compactionLedger": {
+            "reservedUsd": "0",
+            "settledUsd": "0",
+            "outstandingUsd": "0",
+            "retainedUsd": "0"
+          },
+          "requestEvidence": [
+            {
+              "sha256": "bd3e5d3f719ec99128e1c97446b03e1fd950f092b958e5f1b61c6393d51b7e2e",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "c3e33373d1055dcc110eb707a303b57bd1ad8a198e95cc036725c07faf023bd0",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["edit_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "56da1c1585e51eaf62402d375e83baf7bf70579324e9cbf6b1706bb180f8f81c",
+              "packageTypeModuleVisible": false,
+              "responseTools": [],
+              "otherTools": 0,
+              "strictTools": false
+            }
+          ]
+        },
+        {
+          "taskId": "accept-null-guard",
+          "title": "Greet a friend when the name is missing",
+          "split": "accept",
+          "passed": true,
+          "terminal": "completed",
+          "failures": [],
+          "attempts": 3,
+          "requests": 3,
+          "inputTokens": 8591,
+          "cachedTokens": 5474,
+          "outputTokens": 359,
+          "costUsd": "0.000394448",
+          "toolCalls": 2,
+          "approvals": 0,
+          "questions": 0,
+          "paidRefusals": 0,
+          "order": 2,
+          "recalls": 0,
+          "compactionsSettled": 0,
+          "compactionsApplied": 0,
+          "callBudget": 8,
+          "overBudget": false,
+          "compactionsAttempted": 0,
+          "compactionLedger": {
+            "reservedUsd": "0",
+            "settledUsd": "0",
+            "outstandingUsd": "0",
+            "retainedUsd": "0"
+          },
+          "requestEvidence": [
+            {
+              "sha256": "cbff4804490dfbf46a625c7ecaad9dffc3bab2b3e63952526c71a9bdc25730dd",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "87378ab5a240a2698ee43bf52e6cfbbf4b6666e297881e69e63fca4504746e7c",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["edit_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "d4c47bd871d0cebc4458264df82804bb9b12cacda56e365b322b9f386a4554c9",
+              "packageTypeModuleVisible": false,
+              "responseTools": [],
+              "otherTools": 0,
+              "strictTools": false
+            }
+          ]
+        },
+        {
+          "taskId": "accept-await-read",
+          "title": "Await the file read before parsing",
+          "split": "accept",
+          "passed": true,
+          "terminal": "completed",
+          "failures": [],
+          "attempts": 3,
+          "requests": 3,
+          "inputTokens": 8486,
+          "cachedTokens": 5474,
+          "outputTokens": 243,
+          "costUsd": "0.000360748",
+          "toolCalls": 2,
+          "approvals": 0,
+          "questions": 0,
+          "paidRefusals": 0,
+          "order": 1,
+          "recalls": 0,
+          "compactionsSettled": 0,
+          "compactionsApplied": 0,
+          "callBudget": 12,
+          "overBudget": false,
+          "compactionsAttempted": 0,
+          "compactionLedger": {
+            "reservedUsd": "0",
+            "settledUsd": "0",
+            "outstandingUsd": "0",
+            "retainedUsd": "0"
+          },
+          "requestEvidence": [
+            {
+              "sha256": "5cbbaaa1e255aff222d179707213a1db174230d0262b64d97213ff17bfaf69bb",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "2ac33adeaf9665d84d324011543d65ab4f56c8d73cd103efb161a2d58131b04e",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["edit_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "ccf950b9e5425905b37216f11740b424fcae098190ad297e405aa56f8d6f5f13",
+              "packageTypeModuleVisible": false,
+              "responseTools": [],
+              "otherTools": 0,
+              "strictTools": false
+            }
+          ]
+        },
+        {
+          "taskId": "accept-import-path",
+          "title": "Point the import at the file that exists",
+          "split": "accept",
+          "passed": true,
+          "terminal": "completed",
+          "failures": [],
+          "attempts": 4,
+          "requests": 4,
+          "inputTokens": 11406,
+          "cachedTokens": 8147,
+          "outputTokens": 259,
+          "costUsd": "0.000393994",
+          "toolCalls": 3,
+          "approvals": 0,
+          "questions": 0,
+          "paidRefusals": 0,
+          "order": 4,
+          "recalls": 0,
+          "compactionsSettled": 0,
+          "compactionsApplied": 0,
+          "callBudget": 6,
+          "overBudget": false,
+          "compactionsAttempted": 0,
+          "compactionLedger": {
+            "reservedUsd": "0",
+            "settledUsd": "0",
+            "outstandingUsd": "0",
+            "retainedUsd": "0"
+          },
+          "requestEvidence": [
+            {
+              "sha256": "e0eeeb0adc781d95580c6d65c6570beaf674c14c0ce30bf4d5fc5e2a3ca1f647",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["list_files"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "a7366a49d625b23f8e501f49303a0e8029067fc158c799a07ceae665a0e5daf8",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "9f336e7b176de9f36286088d4e3e152ff9204069078c9d69f2f4578812154ccc",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["edit_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "2121d9bc506379d3f07579be662a7b859d0138872070d3927f98851c6a4bdc6d",
+              "packageTypeModuleVisible": false,
+              "responseTools": [],
+              "otherTools": 0,
+              "strictTools": false
+            }
+          ]
+        },
+        {
+          "taskId": "accept-no-secret",
+          "title": "Read the API key from the environment",
+          "split": "accept",
+          "passed": true,
+          "terminal": "completed",
+          "failures": [],
+          "attempts": 5,
+          "requests": 5,
+          "inputTokens": 14615,
+          "cachedTokens": 11076,
+          "outputTokens": 427,
+          "costUsd": "0.000461452",
+          "toolCalls": 4,
+          "approvals": 0,
+          "questions": 0,
+          "paidRefusals": 0,
+          "order": 3,
+          "recalls": 0,
+          "compactionsSettled": 0,
+          "compactionsApplied": 0,
+          "callBudget": 6,
+          "overBudget": false,
+          "compactionsAttempted": 0,
+          "compactionLedger": {
+            "reservedUsd": "0",
+            "settledUsd": "0",
+            "outstandingUsd": "0",
+            "retainedUsd": "0"
+          },
+          "requestEvidence": [
+            {
+              "sha256": "b73c2942b21665321c0717b9575cb5f33e7891cc1e4baddc82b71055cf7c6a60",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["list_files"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "ac6e37df7471c312001dcd58b1af12ad5d276764e85a12d551e92c18f26b7aff",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "522bacdad9fce0c37bf04f3e640560063db2c5f8caf3eb5c26013a0adf24386f",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "031c3fb1b0b2a087e90b051c30607731355a1b2938d1e0d6836d8d307fa9be44",
+              "packageTypeModuleVisible": true,
+              "responseTools": ["edit_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "d25c2a5b41c08c80271dc321b988baa81e3d62992e2f0d44677c4fb3b5ebd414",
+              "packageTypeModuleVisible": true,
+              "responseTools": [],
+              "otherTools": 0,
+              "strictTools": false
+            }
+          ]
+        },
+        {
+          "taskId": "accept-empty-average",
+          "title": "Return 0 for the average of nothing",
+          "split": "accept",
+          "passed": true,
+          "terminal": "completed",
+          "failures": [],
+          "attempts": 3,
+          "requests": 3,
+          "inputTokens": 8521,
+          "cachedTokens": 5474,
+          "outputTokens": 281,
+          "costUsd": "0.000371848",
+          "toolCalls": 2,
+          "approvals": 0,
+          "questions": 0,
+          "paidRefusals": 0,
+          "order": 2,
+          "recalls": 0,
+          "compactionsSettled": 0,
+          "compactionsApplied": 0,
+          "callBudget": 6,
+          "overBudget": false,
+          "compactionsAttempted": 0,
+          "compactionLedger": {
+            "reservedUsd": "0",
+            "settledUsd": "0",
+            "outstandingUsd": "0",
+            "retainedUsd": "0"
+          },
+          "requestEvidence": [
+            {
+              "sha256": "f4a17237f46391d03fcb2606b0497b18139bd4dca728c7af62345bf6be4dad56",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "475b3c8bbe8ab6d0a5c3b42220323929b1296a3866f38f3117d706a82b67b486",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["edit_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "de70f00ef7a413900ae56b38b11a62d7e71585428076508c7c81127df228279b",
+              "packageTypeModuleVisible": false,
+              "responseTools": [],
+              "otherTools": 0,
+              "strictTools": false
+            }
+          ]
+        },
+        {
+          "taskId": "heldout-strict-equal",
+          "title": "Compare the role with strict equality",
+          "split": "heldout",
+          "passed": true,
+          "terminal": "completed",
+          "failures": [],
+          "attempts": 3,
+          "requests": 3,
+          "inputTokens": 8436,
+          "cachedTokens": 5474,
+          "outputTokens": 237,
+          "costUsd": "0.000354548",
+          "toolCalls": 2,
+          "approvals": 0,
+          "questions": 0,
+          "paidRefusals": 0,
+          "order": 1,
+          "recalls": 0,
+          "compactionsSettled": 0,
+          "compactionsApplied": 0,
+          "callBudget": 6,
+          "overBudget": false,
+          "compactionsAttempted": 0,
+          "compactionLedger": {
+            "reservedUsd": "0",
+            "settledUsd": "0",
+            "outstandingUsd": "0",
+            "retainedUsd": "0"
+          },
+          "requestEvidence": [
+            {
+              "sha256": "7e27d9b9f2a46c8a2e2d1c2fb3e0f762aa91d813ce2e062ab578aef19036b205",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "39d8a05c85897fd939d20809e5ab525e0460567fa1985b8e1d23405df495d49a",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["edit_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "7b2dfb0cfa7f1b5c728b3ceb7a15eebe269b8c9f664ac825fc25131d925b9a93",
+              "packageTypeModuleVisible": false,
+              "responseTools": [],
+              "otherTools": 0,
+              "strictTools": false
+            }
+          ]
+        },
+        {
+          "taskId": "heldout-clear-timer",
+          "title": "Stop polling once the status is ready",
+          "split": "heldout",
+          "passed": true,
+          "terminal": "completed",
+          "failures": [],
+          "attempts": 4,
+          "requests": 4,
+          "inputTokens": 11553,
+          "cachedTokens": 8275,
+          "outputTokens": 330,
+          "costUsd": "0.00041035",
+          "toolCalls": 3,
+          "approvals": 0,
+          "questions": 0,
+          "paidRefusals": 0,
+          "order": 4,
+          "recalls": 0,
+          "compactionsSettled": 0,
+          "compactionsApplied": 0,
+          "callBudget": 9,
+          "overBudget": false,
+          "compactionsAttempted": 0,
+          "compactionLedger": {
+            "reservedUsd": "0",
+            "settledUsd": "0",
+            "outstandingUsd": "0",
+            "retainedUsd": "0"
+          },
+          "requestEvidence": [
+            {
+              "sha256": "f672f10914210ed77049e0b34c0b4bf3183fff0dd3ba13f634d735dcfc8f8108",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["list_files"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "04799bc60a374aba363fd6dd2b90b667c2ae8fd709a361134a7ffc67f1e4cc87",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "b5926a07a94f2a480013183e74dc4583ca152e6498b35780f6f7fee14a0540c5",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["edit_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "070ed7e2d3134707472fdb5cd5e62e4dfe87f718e095b6eba02d32a66c714ea8",
+              "packageTypeModuleVisible": false,
+              "responseTools": [],
+              "otherTools": 0,
+              "strictTools": false
+            }
+          ]
+        },
+        {
+          "taskId": "heldout-sort-numbers",
+          "title": "Sort numbers by value, smallest first",
+          "split": "heldout",
+          "passed": true,
+          "terminal": "completed",
+          "failures": [],
+          "attempts": 4,
+          "requests": 4,
+          "inputTokens": 11377,
+          "cachedTokens": 8147,
+          "outputTokens": 309,
+          "costUsd": "0.000401094",
+          "toolCalls": 3,
+          "approvals": 0,
+          "questions": 0,
+          "paidRefusals": 0,
+          "order": 3,
+          "recalls": 0,
+          "compactionsSettled": 0,
+          "compactionsApplied": 0,
+          "callBudget": 8,
+          "overBudget": false,
+          "compactionsAttempted": 0,
+          "compactionLedger": {
+            "reservedUsd": "0",
+            "settledUsd": "0",
+            "outstandingUsd": "0",
+            "retainedUsd": "0"
+          },
+          "requestEvidence": [
+            {
+              "sha256": "75872565976bae5d09896609c175368799674a7942daef7d137b3daaeb05fc39",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["list_files"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "6dfc2c2e223d756eb5b0adf63ef90f0c6f270e62e59e12128a1a6fdaaa3f6e1b",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "bb1da20334de93dc520edeeb9b4ba36025afe995f745d36ff5cbae82a7d33121",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["edit_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "ec1c6064f5e39805709169201fecd4e81da68319492205642f240b3be7469834",
+              "packageTypeModuleVisible": false,
+              "responseTools": [],
+              "otherTools": 0,
+              "strictTools": false
+            }
+          ]
+        },
+        {
+          "taskId": "heldout-await-write",
+          "title": "Await the settings write",
+          "split": "heldout",
+          "passed": true,
+          "terminal": "completed",
+          "failures": [],
+          "attempts": 7,
+          "requests": 7,
+          "inputTokens": 21661,
+          "cachedTokens": 17830,
+          "outputTokens": 635,
+          "costUsd": "0.00054576",
+          "toolCalls": 6,
+          "approvals": 0,
+          "questions": 0,
+          "paidRefusals": 0,
+          "order": 2,
+          "recalls": 0,
+          "compactionsSettled": 0,
+          "compactionsApplied": 0,
+          "callBudget": 14,
+          "overBudget": false,
+          "compactionsAttempted": 0,
+          "compactionLedger": {
+            "reservedUsd": "0",
+            "settledUsd": "0",
+            "outstandingUsd": "0",
+            "retainedUsd": "0"
+          },
+          "requestEvidence": [
+            {
+              "sha256": "077c3ea5bcb2e6257e759fb72160fca71e8f46cdfbab2dc8fcd1962a6eb9d09c",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["list_files"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "1e267fd90d228aad735ea65e01a8924f358c4d33c75f0a86010940a2eaec1369",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "7dc3289c357f95898dab39b854589b03d49f334ab8ff5d7fce2f6f5048b54511",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["list_files"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "b87f5ca6a2d1f4304aa15d29329b416484dd9c8cf89d974a5c1481f8f0a10d78",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "2e2f017abe9592231ecbd7785564bf451432bc8001ca6d2832723dc133345d9a",
+              "packageTypeModuleVisible": true,
+              "responseTools": ["edit_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "d12b416c358601a2e13298c6b2dc50c5a5ec0bdf7c8edc606637e74f91cacdee",
+              "packageTypeModuleVisible": true,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "6a6f35cfc9e3497e800f99ac4d8689f4f77af79bd03ea1bc37dca5c1b39df10d",
+              "packageTypeModuleVisible": true,
+              "responseTools": [],
+              "otherTools": 0,
+              "strictTools": false
+            }
+          ]
+        },
+        {
+          "taskId": "accept-multi-edit",
+          "title": "Fix the case of two helpers in one file",
+          "split": "accept",
+          "passed": true,
+          "terminal": "completed",
+          "failures": [],
+          "attempts": 3,
+          "requests": 3,
+          "inputTokens": 8548,
+          "cachedTokens": 5474,
+          "outputTokens": 273,
+          "costUsd": "0.000372948",
+          "toolCalls": 2,
+          "approvals": 0,
+          "questions": 0,
+          "paidRefusals": 0,
+          "order": 1,
+          "recalls": 0,
+          "compactionsSettled": 0,
+          "compactionsApplied": 0,
+          "callBudget": 6,
+          "overBudget": false,
+          "compactionsAttempted": 0,
+          "compactionLedger": {
+            "reservedUsd": "0",
+            "settledUsd": "0",
+            "outstandingUsd": "0",
+            "retainedUsd": "0"
+          },
+          "requestEvidence": [
+            {
+              "sha256": "cc5af7d5752031a9efd83893639465962d0e31ad387476e529955d4921cda44e",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "a54fc7917a2ebebd8a1fab9297a3112b6b75d489b23e06a9beeff52755ff9d18",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["edit_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "d6cf59a9311399387f0781cf815562c9355c4b4469fa2875eeec9431ddb37e94",
+              "packageTypeModuleVisible": false,
+              "responseTools": [],
+              "otherTools": 0,
+              "strictTools": false
+            }
+          ]
+        },
+        {
+          "taskId": "heldout-multi-edit",
+          "title": "Clamp both bounds without overshooting",
+          "split": "heldout",
+          "passed": true,
+          "terminal": "completed",
+          "failures": [],
+          "attempts": 3,
+          "requests": 3,
+          "inputTokens": 8557,
+          "cachedTokens": 5474,
+          "outputTokens": 289,
+          "costUsd": "0.000377048",
+          "toolCalls": 2,
+          "approvals": 0,
+          "questions": 0,
+          "paidRefusals": 0,
+          "order": 4,
+          "recalls": 0,
+          "compactionsSettled": 0,
+          "compactionsApplied": 0,
+          "callBudget": 6,
+          "overBudget": false,
+          "compactionsAttempted": 0,
+          "compactionLedger": {
+            "reservedUsd": "0",
+            "settledUsd": "0",
+            "outstandingUsd": "0",
+            "retainedUsd": "0"
+          },
+          "requestEvidence": [
+            {
+              "sha256": "a96beb3086e5594e91b426f034bef9e15f683a555b6094ab0dcde95db7f4c919",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "6dc7741bd20d5ebf65f1466d7df4e6e6a5ebb86a7c51a5b21bbff68c2f5859bc",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["edit_file"],
+              "otherTools": 0,
+              "strictTools": false
+            },
+            {
+              "sha256": "eac59e7bcc30f8c9098ef7a06ed9c265e9f139da6de36f51dcb73516b3d1bb95",
+              "packageTypeModuleVisible": false,
+              "responseTools": [],
+              "otherTools": 0,
+              "strictTools": false
+            }
+          ]
+        }
+      ],
+      "summaries": [
+        {
+          "split": "accept",
+          "tasks": 9,
+          "passed": 9,
+          "passRate": 1,
+          "attempts": 43,
+          "requests": 44,
+          "inputTokens": 233261,
+          "cachedTokens": 166929,
+          "outputTokens": 7881,
+          "costUsd": "0.008543258"
+        },
+        {
+          "split": "heldout",
+          "tasks": 7,
+          "passed": 7,
+          "passRate": 1,
+          "attempts": 39,
+          "requests": 40,
+          "inputTokens": 220378,
+          "cachedTokens": 152879,
+          "outputTokens": 8832,
+          "costUsd": "0.008822058"
+        }
+      ],
+      "compactionLedger": {
+        "reservedUsd": "0.0262769",
+        "settledUsd": "0.00071786",
+        "outstandingUsd": "0",
+        "retainedUsd": "0"
+      }
+    },
+    {
+      "name": "strict-tools",
+      "mechanism": "M101 strict-subset schemas for a capable selected model",
+      "results": [
+        {
+          "taskId": "accept-long-compaction",
+          "title": "Recover a build number from a long log and record it",
+          "split": "accept",
+          "passed": false,
+          "terminal": "failed",
+          "failures": [
+            "the turn ended failed: Context window full: /compact or /handoff",
+            "the verifier failed: node:internal/modules/esm/resolve:272\n    throw new ERR_MODULE_NOT_FOUND(\n          ^\nError [ERR_MODULE_NOT_FOUND]: Cannot find module '<task>\\workspace\\answer.js' imported from <task>\\verify-N3wBmo\\verify.mjs\n  code: 'ERR_MODULE_NOT_FOUND',\n  url: '<task>/workspace/answer.js'\n}\nNode.js v24.20.0"
+          ],
+          "attempts": 1,
+          "requests": 1,
+          "inputTokens": 23863,
+          "cachedTokens": 0,
+          "outputTokens": 578,
+          "costUsd": "0.0025019",
+          "toolCalls": 1,
+          "approvals": 0,
+          "questions": 0,
+          "paidRefusals": 0,
+          "order": 4,
+          "recalls": 0,
+          "compactionsSettled": 0,
+          "compactionsApplied": 0,
+          "callBudget": 14,
+          "overBudget": false,
+          "compactionsAttempted": 0,
+          "compactionLedger": {
+            "reservedUsd": "0",
+            "settledUsd": "0",
+            "outstandingUsd": "0",
+            "retainedUsd": "0"
+          },
+          "requestEvidence": [
+            {
+              "sha256": "83c4bdae8dfe7d3bae8f959ab835dbaac30e6a205480aa6939d816b89ab9246a",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["todo_write"],
+              "otherTools": 0,
+              "strictTools": true
+            }
+          ]
+        },
+        {
+          "taskId": "heldout-long-compaction",
+          "title": "Apply a rule from a long log to a transform",
+          "split": "heldout",
+          "passed": false,
+          "terminal": "failed",
+          "failures": [
+            "the turn ended failed: Context window full: /compact or /handoff",
+            "the verifier failed: node:internal/modules/esm/resolve:272\n    throw new ERR_MODULE_NOT_FOUND(\n          ^\nError [ERR_MODULE_NOT_FOUND]: Cannot find module '<task>\\workspace\\transform.js' imported from <task>\\verify-773zki\\verify.mjs\n  code: 'ERR_MODULE_NOT_FOUND',\n  url: '<task>/workspace/transform.js'\n}\nNode.js v24.20.0"
+          ],
+          "attempts": 1,
+          "requests": 1,
+          "inputTokens": 23874,
+          "cachedTokens": 0,
+          "outputTokens": 771,
+          "costUsd": "0.0025416",
+          "toolCalls": 1,
+          "approvals": 0,
+          "questions": 0,
+          "paidRefusals": 0,
+          "order": 3,
+          "recalls": 0,
+          "compactionsSettled": 0,
+          "compactionsApplied": 0,
+          "callBudget": 14,
+          "overBudget": false,
+          "compactionsAttempted": 0,
+          "compactionLedger": {
+            "reservedUsd": "0",
+            "settledUsd": "0",
+            "outstandingUsd": "0",
+            "retainedUsd": "0"
+          },
+          "requestEvidence": [
+            {
+              "sha256": "3629e92c67a57bc48ef268d7bb85cc0916a010906d229c331ebfd5ec27aec3e5",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["todo_write"],
+              "otherTools": 0,
+              "strictTools": true
+            }
+          ]
+        },
+        {
+          "taskId": "accept-long-middle-value",
+          "title": "Recover a value from the middle of a long tool output",
+          "split": "accept",
+          "passed": true,
+          "terminal": "completed",
+          "failures": [],
+          "attempts": 9,
+          "requests": 9,
+          "inputTokens": 82541,
+          "cachedTokens": 71048,
+          "outputTokens": 2116,
+          "costUsd": "0.001714596",
+          "toolCalls": 8,
+          "approvals": 1,
+          "questions": 0,
+          "paidRefusals": 0,
+          "order": 2,
+          "recalls": 0,
+          "compactionsSettled": 0,
+          "compactionsApplied": 0,
+          "callBudget": 14,
+          "overBudget": false,
+          "compactionsAttempted": 0,
+          "compactionLedger": {
+            "reservedUsd": "0",
+            "settledUsd": "0",
+            "outstandingUsd": "0",
+            "retainedUsd": "0"
+          },
+          "requestEvidence": [
+            {
+              "sha256": "2d930bf63699af0e231fd0741f8ba21b8a45797906c4a456666a8d250392ff78",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": true
+            },
+            {
+              "sha256": "225913018e264dfb773fc0db81ed53b41e7e348c5e3f461e9f757fc58f38e09e",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": true
+            },
+            {
+              "sha256": "2a1a5848822041f7735a48b03907cac37cd7ae48f9ccda617ed324a5b5021287",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": true
+            },
+            {
+              "sha256": "7cc9b48c969570b5385757cec65c398283a8a31bbde3e28e5cce8b42446fa142",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": true
+            },
+            {
+              "sha256": "60cc5ea4e67ab960afe733ec0ff0f4babd7f622cf61507a83381925af0e8caae",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["list_files"],
+              "otherTools": 0,
+              "strictTools": true
+            },
+            {
+              "sha256": "a112d9d95579c09b56ffbe4a395474d257486adb1a8ade3b7845751178e9fd8a",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": true
+            },
+            {
+              "sha256": "cf1a6412dc814174768d242e235bd512c31e1c810d7180c87d279e783bff9161",
+              "packageTypeModuleVisible": true,
+              "responseTools": ["write_file"],
+              "otherTools": 0,
+              "strictTools": true
+            },
+            {
+              "sha256": "d8b8622e825b452ec2db00fbb1b89458094ff50edf4cecc5d008e85677d554ac",
+              "packageTypeModuleVisible": true,
+              "responseTools": ["powershell"],
+              "otherTools": 0,
+              "strictTools": true
+            },
+            {
+              "sha256": "99fc2f33699969ca70de3312036a6b492923ed9d3d3545356443ca76b0749013",
+              "packageTypeModuleVisible": true,
+              "responseTools": [],
+              "otherTools": 0,
+              "strictTools": true
+            }
+          ]
+        },
+        {
+          "taskId": "heldout-long-middle-rule",
+          "title": "Apply a rule from the middle of a long tool output",
+          "split": "heldout",
+          "passed": true,
+          "terminal": "completed",
+          "failures": [],
+          "attempts": 8,
+          "requests": 8,
+          "inputTokens": 71348,
+          "cachedTokens": 60183,
+          "outputTokens": 2101,
+          "costUsd": "0.001657066",
+          "toolCalls": 7,
+          "approvals": 1,
+          "questions": 0,
+          "paidRefusals": 0,
+          "order": 1,
+          "recalls": 0,
+          "compactionsSettled": 0,
+          "compactionsApplied": 0,
+          "callBudget": 12,
+          "overBudget": false,
+          "compactionsAttempted": 0,
+          "compactionLedger": {
+            "reservedUsd": "0",
+            "settledUsd": "0",
+            "outstandingUsd": "0",
+            "retainedUsd": "0"
+          },
+          "requestEvidence": [
+            {
+              "sha256": "66b3bca4d4cd4a21741b8793a93ead79a3541c29e335a7ea93970b4c5a110a6d",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": true
+            },
+            {
+              "sha256": "469e2dfe345462ad88874fdd6596ae6b43d5a4326cbf9d9e90e87f9a986b23fb",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": true
+            },
+            {
+              "sha256": "88d7d48796cf689f347f5cd0ab4b79a34ee770b58de2be4abe7cd28842832653",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": true
+            },
+            {
+              "sha256": "7a31db049826df2e88d50333a2f33dacb1aed2381e6a1b8f5e69828ebe669064",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": true
+            },
+            {
+              "sha256": "136a2d5c1a13bec7cf32cd2462c6d6f8673492930708e0a963447e1514b84f3d",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["list_files"],
+              "otherTools": 0,
+              "strictTools": true
+            },
+            {
+              "sha256": "0f706cb4688f90ce272f294f1832477bea89b357afd8659742e3b39d83da16dd",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": true
+            },
+            {
+              "sha256": "8b558829fd0ed3e2570f22d597460d84be377bfb1418a2417e05f7e2579dc07b",
+              "packageTypeModuleVisible": true,
+              "responseTools": ["write_file"],
+              "otherTools": 0,
+              "strictTools": true
+            },
+            {
+              "sha256": "ed8ffcd4ead9468d27d28db7e9362fd299cc866969b50b9bce9b7dd271ff4b0f",
+              "packageTypeModuleVisible": true,
+              "responseTools": [],
+              "otherTools": 0,
+              "strictTools": true
+            }
+          ]
+        },
+        {
+          "taskId": "accept-off-by-one",
+          "title": "Fix the loop bound that reads past the end",
+          "split": "accept",
+          "passed": true,
+          "terminal": "completed",
+          "failures": [],
+          "attempts": 3,
+          "requests": 3,
+          "inputTokens": 9052,
+          "cachedTokens": 5730,
+          "outputTokens": 290,
+          "costUsd": "0.00040166",
+          "toolCalls": 2,
+          "approvals": 0,
+          "questions": 0,
+          "paidRefusals": 0,
+          "order": 4,
+          "recalls": 0,
+          "compactionsSettled": 0,
+          "compactionsApplied": 0,
+          "callBudget": 6,
+          "overBudget": false,
+          "compactionsAttempted": 0,
+          "compactionLedger": {
+            "reservedUsd": "0",
+            "settledUsd": "0",
+            "outstandingUsd": "0",
+            "retainedUsd": "0"
+          },
+          "requestEvidence": [
+            {
+              "sha256": "3816b274964a0b0d7a891b402e87b3c111cf7a62c199646e378dcf67b24ea691",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": true
+            },
+            {
+              "sha256": "6ec003cbfcbcbbb751f13507bcdccd71a4f1ab9268cc17324ff902c4df948287",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["edit_file"],
+              "otherTools": 0,
+              "strictTools": true
+            },
+            {
+              "sha256": "0523b9e4128d264b47b7f90bf899feaa18b293c786b58f27f1b3f483a0ab4865",
+              "packageTypeModuleVisible": false,
+              "responseTools": [],
+              "otherTools": 0,
+              "strictTools": true
+            }
+          ]
+        },
+        {
+          "taskId": "accept-null-guard",
+          "title": "Greet a friend when the name is missing",
+          "split": "accept",
+          "passed": true,
+          "terminal": "completed",
+          "failures": [],
+          "attempts": 3,
+          "requests": 3,
+          "inputTokens": 9010,
+          "cachedTokens": 5730,
+          "outputTokens": 329,
+          "costUsd": "0.00040526",
+          "toolCalls": 2,
+          "approvals": 0,
+          "questions": 0,
+          "paidRefusals": 0,
+          "order": 3,
+          "recalls": 0,
+          "compactionsSettled": 0,
+          "compactionsApplied": 0,
+          "callBudget": 8,
+          "overBudget": false,
+          "compactionsAttempted": 0,
+          "compactionLedger": {
+            "reservedUsd": "0",
+            "settledUsd": "0",
+            "outstandingUsd": "0",
+            "retainedUsd": "0"
+          },
+          "requestEvidence": [
+            {
+              "sha256": "bb5565c95dc085fb54d8d2b8dddd5cba8a67d4f927c12d2e921c44d451c8abfc",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": true
+            },
+            {
+              "sha256": "6d61c14b151805f74173ee68bee5013eb17d02d02fa01421cce4fa6dbbb7d220",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["edit_file"],
+              "otherTools": 0,
+              "strictTools": true
+            },
+            {
+              "sha256": "144f4b12fdbe9cae551a80b02d6047de284e8e9254b8d27c9fdce131cd22b72f",
+              "packageTypeModuleVisible": false,
+              "responseTools": [],
+              "otherTools": 0,
+              "strictTools": true
+            }
+          ]
+        },
+        {
+          "taskId": "accept-await-read",
+          "title": "Await the file read before parsing",
+          "split": "accept",
+          "passed": true,
+          "terminal": "completed",
+          "failures": [],
+          "attempts": 4,
+          "requests": 4,
+          "inputTokens": 12146,
+          "cachedTokens": 8787,
+          "outputTokens": 377,
+          "costUsd": "0.000428874",
+          "toolCalls": 3,
+          "approvals": 0,
+          "questions": 0,
+          "paidRefusals": 0,
+          "order": 2,
+          "recalls": 0,
+          "compactionsSettled": 0,
+          "compactionsApplied": 0,
+          "callBudget": 12,
+          "overBudget": false,
+          "compactionsAttempted": 0,
+          "compactionLedger": {
+            "reservedUsd": "0",
+            "settledUsd": "0",
+            "outstandingUsd": "0",
+            "retainedUsd": "0"
+          },
+          "requestEvidence": [
+            {
+              "sha256": "ec39ed50bdc4eb87df10e9b19e0cc65b8ce07f25176647ff2cf9b101423daabf",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["list_files"],
+              "otherTools": 0,
+              "strictTools": true
+            },
+            {
+              "sha256": "7f3a377e3fa050a44a6cd64358e53c276c9917d6d446d84c450c55992ebad595",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": true
+            },
+            {
+              "sha256": "279fc2647848bac7960e2ba63a108380af3d1d50c9302ec91f076c6f905c0e4f",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["edit_file"],
+              "otherTools": 0,
+              "strictTools": true
+            },
+            {
+              "sha256": "dbcadc056464f3033dfd5c88f1db7be910643b9cb38b8853f53940e59b3ba6ce",
+              "packageTypeModuleVisible": false,
+              "responseTools": [],
+              "otherTools": 0,
+              "strictTools": true
+            }
+          ]
+        },
+        {
+          "taskId": "accept-import-path",
+          "title": "Point the import at the file that exists",
+          "split": "accept",
+          "passed": true,
+          "terminal": "completed",
+          "failures": [],
+          "attempts": 4,
+          "requests": 4,
+          "inputTokens": 12010,
+          "cachedTokens": 8659,
+          "outputTokens": 268,
+          "costUsd": "0.000406018",
+          "toolCalls": 3,
+          "approvals": 0,
+          "questions": 0,
+          "paidRefusals": 0,
+          "order": 1,
+          "recalls": 0,
+          "compactionsSettled": 0,
+          "compactionsApplied": 0,
+          "callBudget": 6,
+          "overBudget": false,
+          "compactionsAttempted": 0,
+          "compactionLedger": {
+            "reservedUsd": "0",
+            "settledUsd": "0",
+            "outstandingUsd": "0",
+            "retainedUsd": "0"
+          },
+          "requestEvidence": [
+            {
+              "sha256": "8d28d6363be05115ddb0a4cbdd042f198b0edae82b87dd9398e0fe3dff5cbc21",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["list_files"],
+              "otherTools": 0,
+              "strictTools": true
+            },
+            {
+              "sha256": "84d985c2ea2cf6828d0adf2400fc98a848a32691ce324edc3cfb7525bdf21516",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": true
+            },
+            {
+              "sha256": "2dae10256e0cfbf5c520e51af54309f0cea03d1d3c54f97bd48f54e63a0455e0",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["edit_file"],
+              "otherTools": 0,
+              "strictTools": true
+            },
+            {
+              "sha256": "7692959a667269836dc67d4ab4903b7e7ad540e7db634303decc797edd8834c1",
+              "packageTypeModuleVisible": false,
+              "responseTools": [],
+              "otherTools": 0,
+              "strictTools": true
+            }
+          ]
+        },
+        {
+          "taskId": "accept-no-secret",
+          "title": "Read the API key from the environment",
+          "split": "accept",
+          "passed": true,
+          "terminal": "completed",
+          "failures": [],
+          "attempts": 4,
+          "requests": 4,
+          "inputTokens": 12086,
+          "cachedTokens": 8787,
+          "outputTokens": 369,
+          "costUsd": "0.000421274",
+          "toolCalls": 3,
+          "approvals": 0,
+          "questions": 0,
+          "paidRefusals": 0,
+          "order": 4,
+          "recalls": 0,
+          "compactionsSettled": 0,
+          "compactionsApplied": 0,
+          "callBudget": 6,
+          "overBudget": false,
+          "compactionsAttempted": 0,
+          "compactionLedger": {
+            "reservedUsd": "0",
+            "settledUsd": "0",
+            "outstandingUsd": "0",
+            "retainedUsd": "0"
+          },
+          "requestEvidence": [
+            {
+              "sha256": "0e31957f3802135c9b062697cb44470261b9f9b203ebe2fc65bbc081f375564a",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["list_files"],
+              "otherTools": 0,
+              "strictTools": true
+            },
+            {
+              "sha256": "309ef23fc677732f998a54e7929e7cc4973ce66e481b5889bd104fd8ded6efd4",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": true
+            },
+            {
+              "sha256": "b4961721bc9c1f23248eaf4a8646b4735053e0a5024fdbd663d273086607b5b9",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["edit_file"],
+              "otherTools": 0,
+              "strictTools": true
+            },
+            {
+              "sha256": "2ff158b12f2e6afad8dad9990159e1673d379e92e2fc3a7c192cf45f1606f6a3",
+              "packageTypeModuleVisible": false,
+              "responseTools": [],
+              "otherTools": 0,
+              "strictTools": true
+            }
+          ]
+        },
+        {
+          "taskId": "accept-empty-average",
+          "title": "Return 0 for the average of nothing",
+          "split": "accept",
+          "passed": true,
+          "terminal": "completed",
+          "failures": [],
+          "attempts": 3,
+          "requests": 3,
+          "inputTokens": 8965,
+          "cachedTokens": 5730,
+          "outputTokens": 309,
+          "costUsd": "0.00039676",
+          "toolCalls": 2,
+          "approvals": 0,
+          "questions": 0,
+          "paidRefusals": 0,
+          "order": 3,
+          "recalls": 0,
+          "compactionsSettled": 0,
+          "compactionsApplied": 0,
+          "callBudget": 6,
+          "overBudget": false,
+          "compactionsAttempted": 0,
+          "compactionLedger": {
+            "reservedUsd": "0",
+            "settledUsd": "0",
+            "outstandingUsd": "0",
+            "retainedUsd": "0"
+          },
+          "requestEvidence": [
+            {
+              "sha256": "a1b731ff91600c73424180cb2a8f6b09259aa76f476c83c64e6d5d47d72800d5",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": true
+            },
+            {
+              "sha256": "fcc1ea4ed70640a77117c1e753bda7d42e7e5bc1aa7917087b771dffab40a95d",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["edit_file"],
+              "otherTools": 0,
+              "strictTools": true
+            },
+            {
+              "sha256": "deaa9edf6a5ccb920106cf0007f389718a4091b00b59214d8ec7e3f3487dfde8",
+              "packageTypeModuleVisible": false,
+              "responseTools": [],
+              "otherTools": 0,
+              "strictTools": true
+            }
+          ]
+        },
+        {
+          "taskId": "heldout-strict-equal",
+          "title": "Compare the role with strict equality",
+          "split": "heldout",
+          "passed": true,
+          "terminal": "completed",
+          "failures": [],
+          "attempts": 4,
+          "requests": 4,
+          "inputTokens": 12109,
+          "cachedTokens": 8787,
+          "outputTokens": 342,
+          "costUsd": "0.000418174",
+          "toolCalls": 3,
+          "approvals": 0,
+          "questions": 0,
+          "paidRefusals": 0,
+          "order": 2,
+          "recalls": 0,
+          "compactionsSettled": 0,
+          "compactionsApplied": 0,
+          "callBudget": 6,
+          "overBudget": false,
+          "compactionsAttempted": 0,
+          "compactionLedger": {
+            "reservedUsd": "0",
+            "settledUsd": "0",
+            "outstandingUsd": "0",
+            "retainedUsd": "0"
+          },
+          "requestEvidence": [
+            {
+              "sha256": "96efdd49756c783284b036f3db88c4e0976d78c9095201d53b8ce9a788f66674",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["list_files"],
+              "otherTools": 0,
+              "strictTools": true
+            },
+            {
+              "sha256": "bed90470a60d55dde3cd80b58874a7003832ff113c5e13b3c70fee30e6b173b9",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": true
+            },
+            {
+              "sha256": "9377cb70681f195f0d1f6105a0b13b214592ab2c1bf566cd626cd54337b9bc98",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["edit_file"],
+              "otherTools": 0,
+              "strictTools": true
+            },
+            {
+              "sha256": "7de6c03421ef8b6d8feb7fd9bbf91ab003886bffe8cf7fef09bee8d1ddc27e6a",
+              "packageTypeModuleVisible": false,
+              "responseTools": [],
+              "otherTools": 0,
+              "strictTools": true
+            }
+          ]
+        },
+        {
+          "taskId": "heldout-clear-timer",
+          "title": "Stop polling once the status is ready",
+          "split": "heldout",
+          "passed": true,
+          "terminal": "completed",
+          "failures": [],
+          "attempts": 3,
+          "requests": 3,
+          "inputTokens": 9112,
+          "cachedTokens": 2929,
+          "outputTokens": 314,
+          "costUsd": "0.000686958",
+          "toolCalls": 2,
+          "approvals": 0,
+          "questions": 0,
+          "paidRefusals": 0,
+          "order": 1,
+          "recalls": 0,
+          "compactionsSettled": 0,
+          "compactionsApplied": 0,
+          "callBudget": 9,
+          "overBudget": false,
+          "compactionsAttempted": 0,
+          "compactionLedger": {
+            "reservedUsd": "0",
+            "settledUsd": "0",
+            "outstandingUsd": "0",
+            "retainedUsd": "0"
+          },
+          "requestEvidence": [
+            {
+              "sha256": "029e26a92f87409d6d958068ece057dddc581c5ede841fbc793e93cb661ad2b3",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": true
+            },
+            {
+              "sha256": "669df084a62e91ed7a5f580d88ac17b7fce6a1f58bc2adc8bd2ea40251b21b16",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["edit_file"],
+              "otherTools": 0,
+              "strictTools": true
+            },
+            {
+              "sha256": "fe8ee6abc2715326dcffe73ca5b199ea85f6cb3f83b641dd8ac60a54c97792cf",
+              "packageTypeModuleVisible": false,
+              "responseTools": [],
+              "otherTools": 0,
+              "strictTools": true
+            }
+          ]
+        },
+        {
+          "taskId": "heldout-sort-numbers",
+          "title": "Sort numbers by value, smallest first",
+          "split": "heldout",
+          "passed": true,
+          "terminal": "completed",
+          "failures": [],
+          "attempts": 4,
+          "requests": 4,
+          "inputTokens": 12067,
+          "cachedTokens": 8787,
+          "outputTokens": 339,
+          "costUsd": "0.000413374",
+          "toolCalls": 3,
+          "approvals": 0,
+          "questions": 0,
+          "paidRefusals": 0,
+          "order": 4,
+          "recalls": 0,
+          "compactionsSettled": 0,
+          "compactionsApplied": 0,
+          "callBudget": 8,
+          "overBudget": false,
+          "compactionsAttempted": 0,
+          "compactionLedger": {
+            "reservedUsd": "0",
+            "settledUsd": "0",
+            "outstandingUsd": "0",
+            "retainedUsd": "0"
+          },
+          "requestEvidence": [
+            {
+              "sha256": "57fa7944b240fed6cebb5233bc6b6c1c3ad4e8ae11655943de12103236ba747e",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["list_files"],
+              "otherTools": 0,
+              "strictTools": true
+            },
+            {
+              "sha256": "a3cb47d55783978a1775faec1797956827ba33178f7669013c8e12ed9736361e",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": true
+            },
+            {
+              "sha256": "bf5ec487776db355f186c4d487449fd7da276fe6ea65244c86e271e94e2df47a",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["edit_file"],
+              "otherTools": 0,
+              "strictTools": true
+            },
+            {
+              "sha256": "dc7cedde16e2268e6994f9a1b4854f0bd9be43f44ef3cfd81fc46eb742dc7006",
+              "packageTypeModuleVisible": false,
+              "responseTools": [],
+              "otherTools": 0,
+              "strictTools": true
+            }
+          ]
+        },
+        {
+          "taskId": "heldout-await-write",
+          "title": "Await the settings write",
+          "split": "heldout",
+          "passed": true,
+          "terminal": "completed",
+          "failures": [],
+          "attempts": 4,
+          "requests": 4,
+          "inputTokens": 12423,
+          "cachedTokens": 5986,
+          "outputTokens": 415,
+          "costUsd": "0.000738672",
+          "toolCalls": 3,
+          "approvals": 0,
+          "questions": 0,
+          "paidRefusals": 0,
+          "order": 3,
+          "recalls": 0,
+          "compactionsSettled": 0,
+          "compactionsApplied": 0,
+          "callBudget": 14,
+          "overBudget": false,
+          "compactionsAttempted": 0,
+          "compactionLedger": {
+            "reservedUsd": "0",
+            "settledUsd": "0",
+            "outstandingUsd": "0",
+            "retainedUsd": "0"
+          },
+          "requestEvidence": [
+            {
+              "sha256": "255f12dcc032df318446da5779353a3538d902a6be6e2387a27e46dfca1a255f",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": true
+            },
+            {
+              "sha256": "41695fd3b56076b28a74be7258c4c12437baa24af78ec3d4cbaa4e8ad374386a",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["edit_file"],
+              "otherTools": 0,
+              "strictTools": true
+            },
+            {
+              "sha256": "578625e1e1c442e9eabb66f57e43752d56ad2e88c9baee3fef34ba6b2469e29d",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": true
+            },
+            {
+              "sha256": "b316ba60792a0ee761d8757eb43e05bf5e26d087f61b82b46238635ce03ab6f7",
+              "packageTypeModuleVisible": false,
+              "responseTools": [],
+              "otherTools": 0,
+              "strictTools": true
+            }
+          ]
+        },
+        {
+          "taskId": "accept-multi-edit",
+          "title": "Fix the case of two helpers in one file",
+          "split": "accept",
+          "passed": true,
+          "terminal": "completed",
+          "failures": [],
+          "attempts": 3,
+          "requests": 3,
+          "inputTokens": 9003,
+          "cachedTokens": 5730,
+          "outputTokens": 300,
+          "costUsd": "0.00039876",
+          "toolCalls": 2,
+          "approvals": 0,
+          "questions": 0,
+          "paidRefusals": 0,
+          "order": 2,
+          "recalls": 0,
+          "compactionsSettled": 0,
+          "compactionsApplied": 0,
+          "callBudget": 6,
+          "overBudget": false,
+          "compactionsAttempted": 0,
+          "compactionLedger": {
+            "reservedUsd": "0",
+            "settledUsd": "0",
+            "outstandingUsd": "0",
+            "retainedUsd": "0"
+          },
+          "requestEvidence": [
+            {
+              "sha256": "07d702c140898eca6970f4ddd31e3404497d4d23a61fa8b46b06647860d829c4",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": true
+            },
+            {
+              "sha256": "abb4250f84fe97d1c63a97e422a75e42c8174752d1cc3c666dc2303a090c7d99",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["edit_file"],
+              "otherTools": 0,
+              "strictTools": true
+            },
+            {
+              "sha256": "62c38862542764c2a81ca2861faad1fafd67c77264042c218ad02c91cd26ea10",
+              "packageTypeModuleVisible": false,
+              "responseTools": [],
+              "otherTools": 0,
+              "strictTools": true
+            }
+          ]
+        },
+        {
+          "taskId": "heldout-multi-edit",
+          "title": "Clamp both bounds without overshooting",
+          "split": "heldout",
+          "passed": true,
+          "terminal": "completed",
+          "failures": [],
+          "attempts": 4,
+          "requests": 4,
+          "inputTokens": 12189,
+          "cachedTokens": 8787,
+          "outputTokens": 363,
+          "costUsd": "0.000430374",
+          "toolCalls": 3,
+          "approvals": 0,
+          "questions": 0,
+          "paidRefusals": 0,
+          "order": 1,
+          "recalls": 0,
+          "compactionsSettled": 0,
+          "compactionsApplied": 0,
+          "callBudget": 6,
+          "overBudget": false,
+          "compactionsAttempted": 0,
+          "compactionLedger": {
+            "reservedUsd": "0",
+            "settledUsd": "0",
+            "outstandingUsd": "0",
+            "retainedUsd": "0"
+          },
+          "requestEvidence": [
+            {
+              "sha256": "6f0d20af814d5272f13ab2162eccc9b1cd831d4dac6744b5dad5c7da157e21d7",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["list_files"],
+              "otherTools": 0,
+              "strictTools": true
+            },
+            {
+              "sha256": "f02462d1acd41fca3898e6bf9bc378b1d40898b593684e054d9854477a764e8b",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["read_file"],
+              "otherTools": 0,
+              "strictTools": true
+            },
+            {
+              "sha256": "f88adea224239dfc82fe0ec45bd3e688a68b3b403056606193495be103fe0e68",
+              "packageTypeModuleVisible": false,
+              "responseTools": ["edit_file"],
+              "otherTools": 0,
+              "strictTools": true
+            },
+            {
+              "sha256": "f4992b765deab09323c7127a4c16ea6968f210342e47b7e13d007a59ea04e070",
+              "packageTypeModuleVisible": false,
+              "responseTools": [],
+              "otherTools": 0,
+              "strictTools": true
+            }
+          ]
+        }
+      ],
+      "summaries": [
+        {
+          "split": "accept",
+          "tasks": 9,
+          "passed": 8,
+          "passRate": 0.8888888888888888,
+          "attempts": 34,
+          "requests": 34,
+          "inputTokens": 178676,
+          "cachedTokens": 120201,
+          "outputTokens": 4936,
+          "costUsd": "0.007075102"
+        },
+        {
+          "split": "heldout",
+          "tasks": 7,
+          "passed": 6,
+          "passRate": 0.8571428571428571,
+          "attempts": 28,
+          "requests": 28,
+          "inputTokens": 153122,
+          "cachedTokens": 95459,
+          "outputTokens": 4645,
+          "costUsd": "0.006886218"
+        }
+      ],
+      "compactionLedger": {
+        "reservedUsd": "0",
+        "settledUsd": "0",
+        "outstandingUsd": "0",
+        "retainedUsd": "0"
+      }
+    }
+  ],
+  "compactionLedger": {
+    "reservedUsd": "0.0262769",
+    "settledUsd": "0.00071786",
+    "outstandingUsd": "0",
+    "retainedUsd": "0"
+  },
+  "floors": [
+    {
+      "arm": "baseline",
+      "split": "accept",
+      "tasks": 9,
+      "passRate": 0.8888888888888888,
+      "floor": 0.75,
+      "held": true
+    },
+    {
+      "arm": "baseline",
+      "split": "heldout",
+      "tasks": 7,
+      "passRate": 0.8571428571428571,
+      "floor": 0.75,
+      "held": true
+    },
+    {
+      "arm": "packing",
+      "split": "accept",
+      "tasks": 9,
+      "passRate": 0.8888888888888888,
+      "floor": 0.75,
+      "held": true
+    },
+    {
+      "arm": "packing",
+      "split": "heldout",
+      "tasks": 7,
+      "passRate": 0.8571428571428571,
+      "floor": 0.75,
+      "held": true
+    },
+    {
+      "arm": "auto-compaction",
+      "split": "accept",
+      "tasks": 9,
+      "passRate": 1,
+      "floor": 0.75,
+      "held": true
+    },
+    {
+      "arm": "auto-compaction",
+      "split": "heldout",
+      "tasks": 7,
+      "passRate": 1,
+      "floor": 0.75,
+      "held": true
+    },
+    {
+      "arm": "strict-tools",
+      "split": "accept",
+      "tasks": 9,
+      "passRate": 0.8888888888888888,
+      "floor": 0.75,
+      "held": true
+    },
+    {
+      "arm": "strict-tools",
+      "split": "heldout",
+      "tasks": 7,
+      "passRate": 0.8571428571428571,
+      "floor": 0.75,
+      "held": true
+    }
+  ],
+  "verdict": "pass",
+  "packingEngagement": {
+    "arm": "packing",
+    "longOutputTasks": ["accept-long-middle-value", "heldout-long-middle-rule"],
+    "unengaged": [],
+    "held": true
+  },
+  "compactionEngagement": {
+    "arm": "auto-compaction",
+    "longContextTasks": ["accept-long-compaction", "heldout-long-compaction"],
+    "unengaged": [],
+    "held": true
+  },
+  "strictToolsEngagement": {
+    "arm": "strict-tools",
+    "tasks": [
+      "accept-long-compaction",
+      "heldout-long-compaction",
+      "accept-long-middle-value",
+      "heldout-long-middle-rule",
+      "accept-off-by-one",
+      "accept-null-guard",
+      "accept-await-read",
+      "accept-import-path",
+      "accept-no-secret",
+      "accept-empty-average",
+      "heldout-strict-equal",
+      "heldout-clear-timer",
+      "heldout-sort-numbers",
+      "heldout-await-write",
+      "accept-multi-edit",
+      "heldout-multi-edit"
+    ],
+    "unengaged": [],
+    "held": true
+  },
+  "certifiedDigest": "8699c398e736b1b8d4ff5ee28ca5a953da76c5c60be226e2d3d951f65bb97590",
+  "computedDigest": "8699c398e736b1b8d4ff5ee28ca5a953da76c5c60be226e2d3d951f65bb97590"
+}
