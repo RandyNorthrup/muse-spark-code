@@ -1431,7 +1431,7 @@ describe('the ACP agent (M63)', () => {
     expect(h.host.sessions[0]?.cancel).not.toHaveBeenCalled()
   })
 
-  it('turns a failed turn into an error with its reason', async () => {
+  it('turns a failed turn into a generic error, never echoing its reason (R1)', async () => {
     const h = harness()
     await expect(
       h.run(async (client) => {
@@ -1444,7 +1444,11 @@ describe('the ACP agent (M63)', () => {
         })
         return await response
       }),
-    ).rejects.toThrow(/model overloaded/)
+    ).rejects.toMatchObject({
+      code: ACP_ERROR_CODES.turnFailed,
+      message: UI_TEXT.actionFailed,
+      data: { kind: 'turn_failed' },
+    })
   })
 
   it('redacts the submitted prompt from a failed turn reason (finding 1)', async () => {
@@ -2409,7 +2413,7 @@ describe('the ACP agent (M63)', () => {
     })
   })
 
-  it('fails the running prompt when the backend stops', async () => {
+  it('fails the running prompt when the backend stops, without repeating its words (R1)', async () => {
     const h = harness()
     await expect(
       h.run(async (client) => {
@@ -2417,7 +2421,10 @@ describe('the ACP agent (M63)', () => {
         h.host.exit('killed by signal 9')
         return await response
       }),
-    ).rejects.toThrow(/killed by signal 9/)
+    ).rejects.toMatchObject({
+      code: ACP_ERROR_CODES.unavailable,
+      message: UI_TEXT.actionFailed,
+    })
     expect(h.log.warn).toHaveBeenCalledWith('The museCode backend stopped: killed by signal 9')
   })
 })

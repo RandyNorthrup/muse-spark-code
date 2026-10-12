@@ -3504,6 +3504,8 @@
   "acpKeyAbsent": "Nessuna chiave Meta Model API salvata.",
   "acpKeyCleared": "La chiave Meta Model API è stata rimossa dall’archivio delle credenziali di questo computer.",
   "acpOutsideWorkspaceRefused": "Fuori dall’area di lavoro; nulla è stato letto o scritto. L’approvazione non può ampliare l’accesso all’area di lavoro.",
+  "acpRefusalOutsideWorkspace": "Il percorso {path} è fuori dall’area di lavoro; nulla è stato letto o scritto.",
+  "acpRefusalLinkEscape": "Il percorso {path} porta fuori dall’area di lavoro tramite un collegamento; nulla è stato letto o scritto.",
   "acpCredentialStoreNoAnswer": "L’archivio delle credenziali non ha risposto. Questa richiesta non è stata inviata; riprova.",
   "acpStoreUnavailable": "Impossibile usare l’archivio delle credenziali di questo computer ({reason}). Su Linux l’agente richiede un Secret Service avviato e sbloccato, come GNOME Keyring o KWallet.",
   "acpStoreNames": {

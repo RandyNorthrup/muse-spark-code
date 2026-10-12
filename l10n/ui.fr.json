@@ -3504,6 +3504,8 @@
   "acpKeyAbsent": "Aucune clé Meta Model API n’est enregistrée.",
   "acpKeyCleared": "La clé Meta Model API a été supprimée du magasin d’identifiants de cet ordinateur.",
   "acpOutsideWorkspaceRefused": "Hors de l’espace de travail ; rien n’a été lu ni écrit. Une approbation ne peut pas élargir l’accès à l’espace de travail.",
+  "acpRefusalOutsideWorkspace": "Le chemin {path} est hors de l’espace de travail ; rien n’a été lu ni écrit.",
+  "acpRefusalLinkEscape": "Le chemin {path} mène hors de l’espace de travail via un lien ; rien n’a été lu ni écrit.",
   "acpCredentialStoreNoAnswer": "Le magasin d’identifiants n’a pas répondu. Cette requête n’a pas été envoyée ; réessayez.",
   "acpStoreUnavailable": "Le magasin d’identifiants de cet ordinateur est inutilisable ({reason}). Sous Linux, l’agent a besoin d’un Secret Service lancé et déverrouillé, comme GNOME Keyring ou KWallet.",
   "acpStoreNames": {

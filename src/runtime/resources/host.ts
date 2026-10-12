@@ -164,15 +164,21 @@ export async function createRuntimeResourceHost(
     },
     async history() {
       ensureOpen()
-      if (options.history === undefined) throw new Error(UI_TEXT.resourceUnavailable)
-      const history = await options.history.read()
+      const historyPort = options.history
+      if (historyPort === undefined) throw new Error(UI_TEXT.resourceUnavailable)
+      // A rejected read reaches `respond` as the named branded reading (R3),
+      // never a plain error: every /resources command reports it typed.
+      const history = await readResource('resources.history', () => historyPort.read())
       ensureOpen()
       // A strict copy: private fields or out-of-range dates never reach a surface.
       return resourceHistorySchema.parse(history)
     },
     async resume() {
       ensureOpen()
-      await options.machine.writeResumeUntil(options.clock.now() + RESOURCE_OVERRIDE_MS)
+      // A rejected persistence write reports as the named branded reading too.
+      await readResource('resources.resume', () =>
+        options.machine.writeResumeUntil(options.clock.now() + RESOURCE_OVERRIDE_MS),
+      )
       await sync()
       return snapshot()
     },

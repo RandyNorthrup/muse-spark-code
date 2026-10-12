@@ -8,6 +8,7 @@ import { nonnegativeUsdSchema } from './usdSchema'
 
 import * as z from 'zod/mini'
 import { agentEvidenceSchema, agentFileSchema } from './agentEvidence'
+import { USAGE_CERTAINTIES } from './usageJournal'
 
 import { scheduleViewSchema } from './schedule'
 import {
@@ -438,6 +439,16 @@ const agentEventSchema = z.discriminatedUnion('type', [
     modelId: optionalString,
     packedTokensAvoided: optionalNumber,
     hookTokensAdded: z.optional(z.int().check(z.nonnegative())),
+    // The settled cost of the requests behind these totals (R5, Model API
+    // only): each request priced at the model actually billed, with its
+    // certainty. Absent while any of it is unpriced, so readers never show
+    // a partial tally as the answer's cost.
+    cost: z.optional(
+      z.object({
+        usd: numberSchema,
+        certainty: z.enum(USAGE_CERTAINTIES),
+      }),
+    ),
   }),
   z.object({
     type: z.literal('contextUsage'),

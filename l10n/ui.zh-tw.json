@@ -3358,6 +3358,8 @@
   "acpKeyAbsent": "尚未儲存 Meta Model API 金鑰。",
   "acpKeyCleared": "已從這台電腦的認證儲存區移除 Meta Model API 金鑰。",
   "acpOutsideWorkspaceRefused": "位於工作區之外；未讀取或寫入任何內容。核准無法擴大工作區存取範圍。",
+  "acpRefusalOutsideWorkspace": "路徑 {path} 位於工作區之外；未讀取或寫入任何內容。",
+  "acpRefusalLinkEscape": "路徑 {path} 透過連結指向工作區之外；未讀取或寫入任何內容。",
   "acpCredentialStoreNoAnswer": "認證資料儲存區未回應。此請求未送出，請重試。",
   "acpStoreUnavailable": "無法使用這台電腦的認證儲存區（{reason}）。在 Linux 上，代理程式需要一個執行中且已解鎖的 Secret Service，例如 GNOME Keyring 或 KWallet。",
   "acpStoreNames": {

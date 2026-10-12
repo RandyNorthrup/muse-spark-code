@@ -3,7 +3,6 @@ import * as acp from '@agentclientprotocol/sdk'
 import * as z from 'zod/mini'
 import { describe, expect, it, vi } from 'vitest'
 import { createAcpAgent } from '../../src/acp/agent'
-import { estimateCostUsd } from '../../src/core/usage/insights'
 import { createUsageRecord } from '../../src/core/usage/journalRecord'
 import type { UsageRecord } from '../../src/shared/usageJournal'
 import { UI_TEXT, CREDENTIAL_STORE_ERROR_KIND } from '../../src/shared/constants'
@@ -103,7 +102,8 @@ describe('ACPDOG ACP accounting extensions', () => {
       })
       const session = h.host.sessions[0]!
       // Token events never touch the journal (finding 4): three samples and
-      // no read.
+      // no read. Each sample carries the settled cost of its own requests
+      // (R5): the translator shows what the event carried, computing nothing.
       for (let sample = 0; sample < 3; sample++) {
         session.emit({
           type: 'tokenUsage',
@@ -111,6 +111,7 @@ describe('ACPDOG ACP accounting extensions', () => {
           inputTokens: 200,
           outputTokens: 20,
           cachedTokens: 40,
+          cost: { usd: 0.00125 * (sample + 1), certainty: 'computed' },
         })
       }
       h.records.push(record(sessionId, 'turn-1', 'current'))
@@ -128,12 +129,7 @@ describe('ACPDOG ACP accounting extensions', () => {
         used: 100,
         size: 1000,
         cost: {
-          amount: Number(
-            estimateCostUsd(
-              { inputTokens: 200, outputTokens: 20, cachedTokens: 40 },
-              'muse-spark-1.3',
-            ),
-          ),
+          amount: 0.00375,
           currency: 'USD',
         },
       })

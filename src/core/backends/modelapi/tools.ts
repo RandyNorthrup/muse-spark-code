@@ -73,8 +73,13 @@ import {
   BROWSER_CHECK_PARAMETERS,
   BROWSER_CHECK_REQUIRED,
 } from '../../browser/browserTool'
-import { confineWorkspacePath, normalizeModelPath } from '../../workspacePath'
-import { normalWindowsPath } from '../../windowsPathSpelling'
+import {
+  confineWorkspacePath,
+  isBelow,
+  isLinkEscapeRefusal,
+  normalizeModelPath,
+  resolveWorkspacePath,
+} from '../../workspacePath'
 import { compileGlob, GLOB_LIMITS } from './globLimits'
 import type { GlobLimits } from './glob'
 import type { HookHttpResult } from './hookHandlers'
@@ -1017,14 +1022,24 @@ function failure(reason: string, visibleReason = reason): ToolOutcome {
   return { output: `Error: ${reason}`, visibleOutput: visibleReason, failureReason: visibleReason }
 }
 
-export function pathRefusal(refusal: {
-  readonly reason: string
-  readonly code?: 'outside_workspace'
-}): ToolOutcome {
+export function pathRefusal(
+  refusal: {
+    readonly reason: string
+    readonly code?: 'outside_workspace'
+  },
+  /** The path or search pattern as given, named in the translated reason. */
+  given: string,
+): ToolOutcome {
   if (refusal.code !== 'outside_workspace') return failure(refusal.reason)
-  // The client reads the specific reason (a link escape names its path
-  // through the link); the shown sentence stays the fixed refusal. The
-  // translator copies failureReason into the client's refusal reason.
+  // What the person reads is translated text with its own keys (R6): the
+  // model-facing detail keeps the English reason. The translator copies
+  // failureReason into the client's refusal reason.
+  const reason = fill(
+    isLinkEscapeRefusal(refusal.reason)
+      ? UI_TEXT.acpRefusalLinkEscape
+      : UI_TEXT.acpRefusalOutsideWorkspace,
+    { path: given },
+  )
   return {
     output: JSON.stringify({
       error: {
@@ -1034,31 +1049,55 @@ export function pathRefusal(refusal: {
       },
     }),
     visibleOutput: UI_TEXT.acpOutsideWorkspaceRefused,
-    failureReason: refusal.reason,
+    failureReason: reason,
     refusalCode: refusal.code,
   }
 }
 
-function confinedGlob(
+const GLOB_MAGIC = /[*?[\]{}]/u
+
+async function confinedGlob(
   glob: string | undefined,
   context: ToolContext,
-):
+): Promise<
   | { readonly ok: true; readonly glob: string | undefined }
-  | { readonly ok: false; readonly reason: string; readonly code?: 'outside_workspace' } {
+  | { readonly ok: false; readonly reason: string; readonly code?: 'outside_workspace' }
+> {
   if (glob === undefined) return { ok: true, glob }
-  const normalized = normalizeModelPath(glob, context.platform)
-  if (!normalized.ok) return normalized
-  // The same normalisation `resolveWorkspacePath` applies to a plain path:
-  // the verbatim `\\?\X:\` prefix names the same file as `X:\`, so root and
-  // glob are compared in that form (a valid verbatim glob is in-workspace).
-  const p = context.platform === 'win32' ? path.win32 : path.posix
-  const root =
-    context.platform === 'win32' ? normalWindowsPath(context.workspaceRoot) : context.workspaceRoot
-  const given = context.platform === 'win32' ? normalWindowsPath(normalized.path) : normalized.path
-  const relative = p.relative(root, p.resolve(root, given))
-  return relative === '..' || relative.startsWith(`..${p.sep}`) || p.isAbsolute(relative)
-    ? { ok: false, code: 'outside_workspace', reason: `glob ${glob} is outside the workspace` }
-    : { ok: true, glob: relative.split(p.sep).join('/') }
+  // The same spelling rules a plain path meets (R4, R7): verbatim prefixes,
+  // device names and escapes are judged once, in `workspacePath`.
+  const resolved = resolveWorkspacePath(context.workspaceRoot, glob, context.platform)
+  if (resolved.ok) return { ok: true, glob: resolved.relative }
+  if (resolved.code !== 'outside_workspace') return resolved
+  // An alias spelling (a Windows 8.3 short name) is inside by resolved
+  // identity: the non-magic prefix is resolved to the real folder and the
+  // pattern rewritten onto it, so it matches what the listing returns.
+  // Anything else outside stays refused. (A missing base can only resolve
+  // inside when the spelling was already inside, which never reaches this
+  // fallback: `resolve` normalises `..` first.)
+  try {
+    const p = context.platform === 'win32' ? path.win32 : path.posix
+    const parts = glob.replaceAll('\\', '/').split('/')
+    const magic = parts.findIndex((part) => GLOB_MAGIC.test(part))
+    const base = (magic === -1 ? parts : parts.slice(0, magic)).join('/')
+    const rest = magic === -1 ? '' : parts.slice(magic).join('/')
+    // An absolute base names itself; a relative one resolves against the
+    // root (splitting an absolute base and re-resolving its parts would
+    // silently re-root it under the workspace).
+    const baseAbsolute = p.isAbsolute(base)
+      ? p.normalize(base)
+      : p.resolve(context.workspaceRoot, ...base.split('/'))
+    const [realRoot, realBase] = await Promise.all([
+      context.io.realPath(context.workspaceRoot),
+      base === '' ? context.io.realPath(context.workspaceRoot) : context.io.realPath(baseAbsolute),
+    ])
+    const relative = p.relative(realRoot, realBase)
+    if (relative !== '' && !isBelow(relative, p)) return resolved
+    const rewritten = relative === '' ? rest : `${relative.split(p.sep).join('/')}/${rest}`
+    return { ok: true, glob: rewritten === '' ? undefined : rewritten }
+  } catch {
+    return resolved
+  }
 }
 
 function argumentFailure(error: z.core.$ZodError): ToolOutcome {
@@ -1462,7 +1501,7 @@ async function readFile(
   const resolved = await readablePath(args.path, context)
   context.signal?.throwIfAborted()
   if (!resolved.ok) {
-    return pathRefusal(resolved)
+    return pathRefusal(resolved, args.path)
   }
   if (isDenied(resolved, context)) {
     return failure(`${resolved.relative} ${MODEL_API_MODEL_TEXT.pathDeniedByPolicy}`)
@@ -1558,7 +1597,7 @@ async function located(
     context.io,
   )
   if (!resolved.ok) {
-    return { ok: false, outcome: pathRefusal(resolved) }
+    return { ok: false, outcome: pathRefusal(resolved, given) }
   }
   if (isDenied(resolved, context)) {
     return {
@@ -1922,8 +1961,8 @@ async function search(
   const p = context.platform === 'win32' ? path.win32 : path.posix
   let candidates: readonly string[]
   try {
-    const checked = confinedGlob(args.glob, context)
-    if (!checked.ok) return pathRefusal(checked)
+    const checked = await confinedGlob(args.glob, context)
+    if (!checked.ok) return pathRefusal(checked, args.glob ?? '')
     candidates = await listMatching(context, checked.glob)
   } catch (error: unknown) {
     context.signal?.throwIfAborted()
@@ -1979,8 +2018,8 @@ async function listFiles(
   const limit = Math.max(args.limit ?? LIST_FILES_DEFAULT_LIMIT, 1)
   let files: readonly string[]
   try {
-    const checked = confinedGlob(args.glob, context)
-    if (!checked.ok) return pathRefusal(checked)
+    const checked = await confinedGlob(args.glob, context)
+    if (!checked.ok) return pathRefusal(checked, args.glob ?? '')
     files = await listMatching(context, checked.glob)
   } catch (error: unknown) {
     context.signal?.throwIfAborted()

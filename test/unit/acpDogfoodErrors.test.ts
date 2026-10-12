@@ -42,11 +42,15 @@ function scene() {
 async function start(client: acp.ClientContext) {
   return await dogfoodSession(client, cwd)
 }
-function expectCause(log: ReturnType<typeof scene>['log'], cause: string) {
+function expectCause(log: ReturnType<typeof scene>['log'], method: string) {
+  // R1: the log line is built from the one outbound shape (code, kind and a
+  // fixed sentence), never from the thrown failure, so neither the stage's
+  // detail nor any submitted text appears in it.
   expect(log.error).toHaveBeenCalledOnce()
   const text = JSON.stringify(log.error.mock.calls)
-  expect(text).toContain('Error')
-  expect(text).toContain(cause)
+  expect(text).toContain(`ACP ${method} failed`)
+  expect(text).toContain(String(-32_603))
+  expect(text).toContain(UI_TEXT.actionFailed)
   expect(text).not.toContain('synthetic-header')
   expect(text).not.toContain(prompt)
 }
@@ -83,7 +87,7 @@ describe('ACPDOG ACP request failure boundaries', () => {
         code: -32_603,
         message: UI_TEXT.actionFailed,
       })
-      expectCause(h.log, stage)
+      expectCause(h.log, 'session/new')
     },
   )
   it('withholds headers even when a short prompt overlaps a header name', async () => {

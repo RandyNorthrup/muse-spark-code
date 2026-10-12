@@ -58,8 +58,12 @@ import { editAutomaticallyChoice } from '../core/agent/approvalRules'
 import { isMspFailure, failureForLog } from '../core/backends/musecode/logText'
 import { DeadlineError, withDeadline, unlessAborted } from '../core/timeouts'
 import { isMissingApiKeyError, isModelApiError } from '../core/backends/modelapi/transport'
-import { redactSecrets } from '../core/redact'
-import { readAcpUsage, type AcpAccounting, type AcpUsageSnapshot } from './accounting'
+import {
+  acpUsageSnapshotSchema,
+  readAcpUsage,
+  type AcpAccounting,
+  type AcpUsageSnapshot,
+} from './accounting'
 import type { CoreLogger } from '../core/logging'
 import { type PaidUseAnswer, paidUseQuestion } from '../core/paid/paidConsent'
 import type { AgentEvent } from '../shared/agentEvents'
@@ -68,6 +72,7 @@ import {
   ACP_ERROR_CODES,
   ACP_USAGE_READ_TIMEOUT_MS,
   CREDENTIAL_STORE_ERROR_KIND,
+  JSON_RPC_ERRORS,
   ACP_AGENT_TITLE,
   ACP_COMPACT_COMMAND,
   ACP_CONFIG_IDS,
@@ -101,7 +106,12 @@ import {
 import { type AcpPaidUse, paidUseAnswer, paidUseOptions } from './paid'
 import { acpResourceCommand, acpResourceUpdates, resourceCommands } from './resources'
 import type { RuntimeResources } from '../runtime/resources/port'
-import { ResourceReadingError, resourceFailureReporter } from '../runtime/resources/text'
+import {
+  isResourceReadingError,
+  isResourceReadingName,
+  resourceFailureReporter,
+  type ResourceReading,
+} from '../runtime/resources/text'
 import type {
   AcpQuestionDeferral,
   AcpQuestionRegistry,
@@ -2642,50 +2652,343 @@ class AgentState {
   }
 }
 
-/** Every string of the request the client submitted: text, media bytes, embedded resource text and bytes, and resource paths. */
-function promptPrivateText(blocks: readonly ContentBlock[]): string[] {
-  return blocks.flatMap((block) => {
-    switch (block.type) {
-      case 'text': {
-        return [block.text]
-      }
-      case 'resource_link': {
-        return [block.uri]
-      }
-      case 'image':
-      case 'audio': {
-        return [
-          block.data,
-          ...(block.type === 'image' && typeof block.uri === 'string' ? [block.uri] : []),
-        ]
-      }
-      case 'resource': {
-        const resource = block.resource
-        return [
-          ...(typeof resource.uri === 'string' ? [resource.uri] : []),
-          ...('text' in resource && typeof resource.text === 'string' ? [resource.text] : []),
-          ...('blob' in resource && typeof resource.blob === 'string' ? [resource.blob] : []),
-        ]
-      }
-      default: {
-        return []
-      }
+/**
+ * The one outbound error shape (R1): every error that leaves `respond` is
+ * built by `outboundError` from a code in the allow-list below, a sentence
+ * from fixed or translated text, and a data object whose fields are
+ * enumerated and whose values come from fixed vocabularies. Nothing from a
+ * thrown error's message, data, kind, code or cause is ever copied through;
+ * an unknown kind maps to the generic member of the vocabulary. The same
+ * built value feeds the log line, so logs cannot carry request content
+ * either. There is no redaction step because there is nothing left to
+ * redact: no submitted text, blob or key reaches this point.
+ */
+const OUTBOUND_ERROR_KINDS = [
+  'resource_reading',
+  'credential_store_unavailable',
+  'authRequired',
+  'deadline',
+  'turn_failed',
+  'model_api_error',
+  'invalid_params',
+  'invalid_request',
+  'not_found',
+  'cancelled',
+  'unavailable',
+  'internal',
+] as const
+type OutboundErrorKind = (typeof OUTBOUND_ERROR_KINDS)[number]
+
+/** ACP codes without a shared name: cancellation, auth, not-found. */
+const REQUEST_CANCELLED_CODE = -32_800
+const AUTH_REQUIRED_CODE = -32_000
+const RESOURCE_NOT_FOUND_CODE = -32_002
+
+/** Numeric codes an outbound error may carry; anything else is internal. */
+const OUTBOUND_ERROR_CODES: ReadonlySet<number> = new Set([
+  ACP_ERROR_CODES.internal,
+  ACP_ERROR_CODES.credentialStore,
+  ACP_ERROR_CODES.turnFailed,
+  ACP_ERROR_CODES.unavailable,
+  ACP_ERROR_CODES.refused,
+  JSON_RPC_ERRORS.invalidRequest,
+  JSON_RPC_ERRORS.methodNotFound,
+  JSON_RPC_ERRORS.invalidParams,
+  REQUEST_CANCELLED_CODE,
+  AUTH_REQUIRED_CODE,
+  RESOURCE_NOT_FOUND_CODE,
+])
+
+interface OutboundErrorData {
+  readonly kind: OutboundErrorKind
+  readonly reading?: ResourceReading
+  readonly requestSent?: boolean
+  /**
+   * The session's own settled usage snapshot, attached by `promptResponse`
+   * when a turn fails after spending (R1: the one non-vocabulary field, and
+   * only when it validates — anything else in `_meta` is dropped).
+   */
+  readonly _meta?: { readonly 'museSpark.usage': AcpUsageSnapshot }
+}
+
+/** Our own settled usage snapshot when it validates, never anything else. */
+function outboundUsageMeta(data: unknown): OutboundErrorData['_meta'] {
+  if (typeof data !== 'object' || data === null || !('_meta' in data)) return undefined
+  const meta = (data as { readonly _meta?: unknown })._meta
+  if (typeof meta !== 'object' || meta === null || !('museSpark.usage' in meta)) return undefined
+  const parsed = acpUsageSnapshotSchema.safeParse(
+    (meta as { readonly 'museSpark.usage'?: unknown })['museSpark.usage'],
+  )
+  return parsed.success ? { 'museSpark.usage': parsed.data } : undefined
+}
+
+interface OutboundFailure {
+  readonly code: number
+  readonly message: string
+  readonly data: OutboundErrorData
+}
+
+/**
+ * Every sentence a typed error may carry out, read from the installed table
+ * at use time (never at module load): fixed or translated text only. A
+ * sentence not in this set — an echoed mode, path, session id, backend
+ * message or any other thrown text — leaves as the generic failure.
+ */
+function outboundSentences(): ReadonlySet<string> {
+  return new Set([
+    UI_TEXT.actionFailed,
+    UI_TEXT.acpPromptBusy,
+    UI_TEXT.acpNoModels,
+    UI_TEXT.acpCredentialStoreNoAnswer,
+    UI_TEXT.vault.noAccess,
+    UI_TEXT.vault.brokerBlocked,
+    UI_TEXT.accounts.unavailable,
+    UI_TEXT.accounts.invalidAccount,
+    UI_TEXT.media.uploadStorageUnknown,
+    UI_TEXT.media.recordingUserOnly,
+    UI_TEXT.media.attachHeadless,
+    UI_TEXT.attachmentLimit,
+    UI_TEXT.attachmentUnreadable,
+    UI_TEXT.attachmentUnsupported,
+    UI_TEXT.attachmentTooLarge,
+    UI_TEXT.answerNotAccepted,
+    UI_TEXT.media.durationUnknown,
+    UI_TEXT.referenceAgentOutcomes,
+    UI_TEXT.agentContinueUnavailable,
+    UI_TEXT.promptFileInvalid,
+    UI_TEXT.legalScanUnavailable,
+    UI_TEXT.questionQueueCommitFailed,
+    UI_TEXT.resourceGovernorDescription,
+    'Invalid params',
+    'Invalid request',
+    'Authentication required',
+    'Request cancelled',
+    'Internal error',
+    'Resource not found',
+    'Method not found',
+    'Parse error',
+  ])
+}
+
+/** A typed error even when another bundle built it (R2): never by `instanceof`. */
+function isOutboundRequestError(error: unknown): error is RequestError {
+  return (
+    error instanceof RequestError ||
+    (typeof error === 'object' &&
+      error !== null &&
+      (error as { readonly name?: unknown }).name === 'RequestError' &&
+      'code' in error &&
+      typeof error.code === 'number' &&
+      'message' in error &&
+      typeof error.message === 'string')
+  )
+}
+
+function kindForCode(code: number): OutboundErrorKind {
+  switch (code) {
+    case JSON_RPC_ERRORS.invalidParams: {
+      return 'invalid_params'
     }
+    case JSON_RPC_ERRORS.invalidRequest: {
+      return 'invalid_request'
+    }
+    case RESOURCE_NOT_FOUND_CODE: {
+      return 'not_found'
+    }
+    case REQUEST_CANCELLED_CODE: {
+      return 'cancelled'
+    }
+    case AUTH_REQUIRED_CODE: {
+      return 'authRequired'
+    }
+    case ACP_ERROR_CODES.credentialStore: {
+      return 'credential_store_unavailable'
+    }
+    case ACP_ERROR_CODES.turnFailed: {
+      return 'turn_failed'
+    }
+    case ACP_ERROR_CODES.unavailable: {
+      return 'unavailable'
+    }
+    default: {
+      return 'internal'
+    }
+  }
+}
+
+/** Rebuild outbound data from the allow-list: enumerated fields, vocabulary values. */
+function outboundData(code: number, data: unknown): OutboundErrorData {
+  let kind: OutboundErrorKind = kindForCode(code)
+  let reading: ResourceReading | undefined
+  let requestSent: boolean | undefined
+  if (typeof data === 'object' && data !== null) {
+    if (
+      'kind' in data &&
+      typeof data.kind === 'string' &&
+      (OUTBOUND_ERROR_KINDS as readonly string[]).includes(data.kind)
+    ) {
+      kind = data.kind as OutboundErrorKind
+    }
+    if ('reading' in data && isResourceReadingName(data.reading)) reading = data.reading
+    if ('requestSent' in data && typeof data.requestSent === 'boolean')
+      requestSent = data.requestSent
+  }
+  const meta = outboundUsageMeta(data)
+  return {
+    kind,
+    ...(reading !== undefined && { reading }),
+    ...(requestSent !== undefined && { requestSent }),
+    ...(meta !== undefined && { _meta: meta }),
+  }
+}
+
+/**
+ * The SDK's own fixed prefixes (`RequestError.invalidRequest` sends
+ * `Invalid request: …`). A prefix is protocol wording; what follows it must
+ * still be an allow-listed sentence before the message may leave.
+ */
+const SDK_MESSAGE_PREFIXES = [
+  'Parse error: ',
+  'Invalid request: ',
+  '"Method not found": ',
+  'Invalid params: ',
+  'Internal error: ',
+  'Request cancelled: ',
+  'Authentication required: ',
+  'Resource not found: ',
+]
+
+/** The allow-listed sentence a message carries, past the SDK's own prefix. */
+function outboundSentence(message: string): string | undefined {
+  if (outboundSentences().has(message)) return message
+  for (const prefix of SDK_MESSAGE_PREFIXES) {
+    if (message.startsWith(prefix) && outboundSentences().has(message.slice(prefix.length)))
+      return message
+  }
+  return undefined
+}
+
+/** The single constructor for every error that leaves `respond`. */
+function outboundError(failure: OutboundFailure): RequestError {
+  const code = OUTBOUND_ERROR_CODES.has(failure.code) ? failure.code : ACP_ERROR_CODES.internal
+  // The named reading sentence is fixed vocabulary too: the reading names
+  // the failed port, never request content (R2's reporter uses the same).
+  const isNamedReading =
+    failure.data.kind === 'resource_reading' &&
+    isResourceReadingName(failure.data.reading) &&
+    failure.message === `${failure.data.reading}: ${UI_TEXT.resourceUnavailable}`
+  const sentence = isNamedReading ? failure.message : outboundSentence(failure.message)
+  const message = sentence !== undefined && code === failure.code ? sentence : UI_TEXT.actionFailed
+  const kind = (OUTBOUND_ERROR_KINDS as readonly string[]).includes(failure.data.kind)
+    ? failure.data.kind
+    : 'internal'
+  return new RequestError(code, message, {
+    kind,
+    ...(failure.data.reading !== undefined &&
+      isResourceReadingName(failure.data.reading) && { reading: failure.data.reading }),
+    ...(typeof failure.data.requestSent === 'boolean' && { requestSent: failure.data.requestSent }),
+    ...(failure.data._meta !== undefined &&
+      outboundUsageMeta({ _meta: failure.data._meta }) !== undefined && {
+        _meta: failure.data._meta,
+      }),
   })
 }
 
-/** Unknown failures retain only redacted diagnostics, never request content or headers. */
-function requestFailureText(error: unknown, privateText: readonly string[]): string {
-  if (isMspFailure(error)) return failureForLog(error)
-  if (!(error instanceof Error)) return 'an unknown failure'
-  const detail = redactSecrets(
-    error.message.replaceAll(
-      /\b(?:authorization|[\w-]*api[-_]key|headers?)\s*[:=][^\r\n;]*/giu,
-      '[redacted]',
-    ),
-    privateText,
-  )
-  return `${failureForLog(error)}: ${detail}`
+/** Classify a caught failure into the one outbound shape, copying nothing it carried. */
+function toOutbound(error: unknown): { readonly failure: OutboundFailure; readonly log: boolean } {
+  if (isResourceReadingError(error)) {
+    const reading = error.reading
+    return {
+      failure: {
+        code: ACP_ERROR_CODES.unavailable,
+        message: `${reading}: ${UI_TEXT.resourceUnavailable}`,
+        data: { kind: 'resource_reading', reading },
+      },
+      log: false,
+    }
+  }
+  if (isOutboundRequestError(error)) {
+    return {
+      failure: {
+        code: error.code,
+        message: error.message,
+        data: outboundData(error.code, error.data),
+      },
+      log: false,
+    }
+  }
+  if (error instanceof Error && error.name === 'StoreUnavailableError') {
+    return {
+      failure: {
+        code: ACP_ERROR_CODES.credentialStore,
+        message: UI_TEXT.acpCredentialStoreNoAnswer,
+        data: { kind: 'credential_store_unavailable', requestSent: false },
+      },
+      log: false,
+    }
+  }
+  if (isMissingApiKeyError(error))
+    return {
+      failure: {
+        code: AUTH_REQUIRED_CODE,
+        message: 'Authentication required',
+        data: { kind: 'authRequired' },
+      },
+      log: false,
+    }
+  if (error instanceof DeadlineError || (error instanceof Error && error.name === 'DeadlineError'))
+    return {
+      failure: {
+        code: ACP_ERROR_CODES.unavailable,
+        message: UI_TEXT.actionFailed,
+        data: { kind: 'deadline' },
+      },
+      log: false,
+    }
+  if (isMspFailure(error))
+    return {
+      failure: {
+        code: ACP_ERROR_CODES.turnFailed,
+        message: UI_TEXT.actionFailed,
+        data: { kind: 'turn_failed' },
+      },
+      log: false,
+    }
+  if (isModelApiError(error))
+    return {
+      failure: {
+        code: ACP_ERROR_CODES.turnFailed,
+        message: UI_TEXT.actionFailed,
+        data: { kind: 'model_api_error' },
+      },
+      log: false,
+    }
+  if (error instanceof RangeError)
+    return {
+      failure: {
+        code: JSON_RPC_ERRORS.invalidParams,
+        message: UI_TEXT.actionFailed,
+        data: { kind: 'invalid_params' },
+      },
+      log: false,
+    }
+  if (error instanceof Error && error.name === 'AbortError')
+    return {
+      failure: {
+        code: REQUEST_CANCELLED_CODE,
+        message: 'Request cancelled',
+        data: { kind: 'cancelled' },
+      },
+      log: false,
+    }
+  return {
+    failure: {
+      code: ACP_ERROR_CODES.internal,
+      message: UI_TEXT.actionFailed,
+      data: { kind: 'internal' },
+    },
+    log: true,
+  }
 }
 
 /** The agent: register it on a stream with `connect`. */
@@ -2693,57 +2996,20 @@ export function createAcpAgent(deps: AcpAgentDeps): AgentApp {
   const state = new AgentState(deps)
   // Every known reading failure is logged once under its own name.
   const reportResource = resourceFailureReporter(deps.log)
-  const respond = async <T>(
-    method: string,
-    work: () => T | Promise<T>,
-    privateText: readonly string[] = [],
-  ): Promise<T> => {
+  const respond = async <T>(method: string, work: () => T | Promise<T>): Promise<T> => {
     try {
       return await work()
     } catch (error: unknown) {
-      if (error instanceof ResourceReadingError) {
-        reportResource(error)
-        throw new RequestError(
-          ACP_ERROR_CODES.unavailable,
-          `${error.reading}: ${UI_TEXT.resourceUnavailable}`,
-          { kind: 'resource_reading', reading: error.reading },
+      const { failure, log } = toOutbound(error)
+      if (failure.data.kind === 'resource_reading') reportResource(error)
+      const built = outboundError(failure)
+      if (log) {
+        deps.log.error(
+          `ACP ${method} failed: ${String(built.code)} ${failure.data.kind} ${built.message}`,
         )
+        observeError(deps, 'requestFailed')
       }
-      // A typed reply never carries the request back out: a failed turn's
-      // reason can echo the submitted prompt, so it is redacted with the
-      // request's own private text (finding 1). Code and data are untouched.
-      if (error instanceof RequestError && error.code !== ACP_ERROR_CODES.internal)
-        throw new RequestError(error.code, redactSecrets(error.message, privateText), error.data)
-      if (error instanceof Error && error.name === 'StoreUnavailableError')
-        throw new RequestError(
-          ACP_ERROR_CODES.credentialStore,
-          UI_TEXT.acpCredentialStoreNoAnswer,
-          { kind: CREDENTIAL_STORE_ERROR_KIND, requestSent: false },
-        )
-      if (isMissingApiKeyError(error)) throw RequestError.authRequired(undefined, error.message)
-      if (
-        error instanceof DeadlineError ||
-        (error instanceof Error && error.name === 'DeadlineError')
-      )
-        throw new RequestError(ACP_ERROR_CODES.unavailable, error.message, { kind: 'deadline' })
-      if (isMspFailure(error))
-        throw new RequestError(ACP_ERROR_CODES.turnFailed, UI_TEXT.actionFailed, {
-          kind: error.kind,
-          backendCode: error.code,
-        })
-      if (isModelApiError(error))
-        throw new RequestError(
-          ACP_ERROR_CODES.turnFailed,
-          redactSecrets(error.message, privateText),
-          { kind: error.code ?? error.kind ?? 'model_api_error', httpStatus: error.status },
-        )
-      if (error instanceof RangeError)
-        throw RequestError.invalidParams(undefined, redactSecrets(error.message, privateText))
-      if (error instanceof Error && error.name === 'AbortError')
-        throw RequestError.requestCancelled()
-      deps.log.error(`ACP ${method} failed: ${requestFailureText(error, privateText)}`)
-      observeError(deps, 'requestFailed')
-      throw new RequestError(ACP_ERROR_CODES.internal, UI_TEXT.actionFailed)
+      throw built
     }
   }
   deps.vault?.attach((sessionId, request) => state.askVaultUse(sessionId, request))
@@ -2761,31 +3027,21 @@ export function createAcpAgent(deps: AcpAgentDeps): AgentApp {
       respond('authenticate', () => state.authenticate(context.params.methodId)),
     )
     .onRequest('session/new', (context) =>
-      respond(
-        'session/new',
-        () => state.newSession(context.params.cwd, context.params.mcpServers, context.client),
-        [context.params.cwd],
+      respond('session/new', () =>
+        state.newSession(context.params.cwd, context.params.mcpServers, context.client),
       ),
     )
     .onRequest('session/load', (context) =>
-      respond(
-        'session/load',
-        () => {
-          const { sessionId, cwd, mcpServers } = context.params
-          return state.loadSession(sessionId, cwd, mcpServers, context.client, true)
-        },
-        [context.params.cwd],
-      ),
+      respond('session/load', () => {
+        const { sessionId, cwd, mcpServers } = context.params
+        return state.loadSession(sessionId, cwd, mcpServers, context.client, true)
+      }),
     )
     .onRequest('session/resume', (context) =>
-      respond(
-        'session/resume',
-        () => {
-          const { sessionId, cwd, mcpServers } = context.params
-          return state.loadSession(sessionId, cwd, mcpServers ?? undefined, context.client, false)
-        },
-        [context.params.cwd],
-      ),
+      respond('session/resume', () => {
+        const { sessionId, cwd, mcpServers } = context.params
+        return state.loadSession(sessionId, cwd, mcpServers ?? undefined, context.client, false)
+      }),
     )
     .onRequest('session/list', (context) =>
       respond('session/list', () =>
@@ -2812,10 +3068,8 @@ export function createAcpAgent(deps: AcpAgentDeps): AgentApp {
       }),
     )
     .onRequest('session/prompt', (context) =>
-      respond(
-        'session/prompt',
-        () => state.session(context.params.sessionId).promptResponse(context.params.prompt),
-        promptPrivateText(context.params.prompt),
+      respond('session/prompt', () =>
+        state.session(context.params.sessionId).promptResponse(context.params.prompt),
       ),
     )
     .onNotification('session/cancel', (context) =>

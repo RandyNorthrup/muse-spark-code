@@ -1,6 +1,12 @@
+import { execFileSync } from 'node:child_process'
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
+import { realpath } from 'node:fs/promises'
 import * as z from 'zod/mini'
 import { describe, expect, it, vi } from 'vitest'
 import { executeTool, type ToolContext } from '../../src/core/backends/modelapi/tools'
+import { confineWorkspacePath } from '../../src/core/workspacePath'
 import { ModelApiHost } from '../../src/core/backends/modelapi/ModelApiHost'
 import { UpdateTranslator } from '../../src/acp/translate'
 import { UI_TEXT } from '../../src/shared/constants'
@@ -113,4 +119,123 @@ describe('ACPDOG explicit workspace refusals', () => {
       await host.close()
     }
   })
+})
+
+describe('ACPDOG resolved-identity containment (R4)', () => {
+  // Containment compares resolved identity, not spelling: an alias of the
+  // workspace is inside it, while link and junction escapes stay refused.
+  it('reads through an alias spelling of the workspace by identity', async () => {
+    const long = '/ws/workspaceLongName'
+    const base = memoryToolIo({ 'notes.md': 'workspace notes' }, long)
+    const io = {
+      ...base,
+      realPath: (absolutePath: string) =>
+        base.realPath(absolutePath.split('/ws/WORKSP~1').join(long)),
+    }
+    const context: ToolContext = {
+      workspaceRoot: long,
+      platform: 'linux',
+      io,
+      seen: new Map(),
+      provisionalSeen: new Map(),
+    }
+    const read = await executeTool(
+      'read_file',
+      JSON.stringify({ path: '/ws/WORKSP~1/notes.md' }),
+      context,
+    )
+    expect(read.failureReason).toBeUndefined()
+    expect(read.output).toContain('workspace notes')
+    const listed = await executeTool(
+      'list_files',
+      JSON.stringify({ glob: '/ws/WORKSP~1/*.md' }),
+      context,
+    )
+    expect(listed.failureReason).toBeUndefined()
+    expect(listed.output).toBe('notes.md')
+    // A sibling the alias does not name stays outside.
+    const outside = await executeTool(
+      'read_file',
+      JSON.stringify({ path: '/ws/other/notes.md' }),
+      context,
+    )
+    expect(outside).toMatchObject({ refusalCode: 'outside_workspace' })
+  })
+
+  it.skipIf(process.platform === 'win32')(
+    'accepts a symbolic-link alias of the root (POSIX)',
+    async () => {
+      const dir = mkdtempSync(path.join(realpathSync(tmpdir()), 'acp-alias-'))
+      try {
+        const real = path.join(dir, 'workspace')
+        mkdirSync(real)
+        writeFileSync(path.join(real, 'notes.md'), 'real notes')
+        const alias = path.join(dir, 'link-workspace')
+        symlinkSync(real, alias)
+        const io = { realPath: (absolutePath: string) => realpath(absolutePath) }
+        const confined = await confineWorkspacePath(
+          real,
+          path.join(alias, 'notes.md'),
+          process.platform,
+          io,
+        )
+        expect(confined).toMatchObject({ ok: true })
+        // A link inside the workspace that leads outside stays refused.
+        const outsideDir = path.join(dir, 'outside')
+        mkdirSync(outsideDir)
+        writeFileSync(path.join(outsideDir, 'x.md'), 'outside')
+        const escape = path.join(real, 'escape')
+        symlinkSync(outsideDir, escape)
+        const refused = await confineWorkspacePath(
+          real,
+          path.join(escape, 'x.md'),
+          process.platform,
+          io,
+        )
+        expect(refused).toMatchObject({
+          ok: false,
+          code: 'outside_workspace',
+          reason: expect.stringContaining('through a link'),
+        })
+      } finally {
+        rmSync(dir, { recursive: true, force: true })
+      }
+    },
+  )
+
+  it.runIf(process.platform === 'win32')(
+    'accepts a Windows 8.3 short-name alias of the workspace',
+    async (context) => {
+      const dir = mkdtempSync(path.join(realpathSync(tmpdir()), 'acp-short-'))
+      try {
+        const long = path.join(dir, 'workspaceLongName')
+        mkdirSync(long)
+        writeFileSync(path.join(long, 'notes.md'), 'short-name notes')
+        let short: string | null = null
+        try {
+          const out = execFileSync(
+            'powershell.exe',
+            [
+              '-NoProfile',
+              '-Command',
+              `(New-Object -ComObject Scripting.FileSystemObject).GetFolder(${JSON.stringify(long)}).ShortPath`,
+            ],
+            { encoding: 'utf8', timeout: 30_000 },
+          ).trim()
+          if (out !== '' && out.toLowerCase() !== long.toLowerCase()) short = out
+        } catch {
+          short = null
+        }
+        if (short === null) {
+          context.skip('this volume provides no 8.3 short name for the workspace')
+          return
+        }
+        const io = { realPath: (absolutePath: string) => realpath(absolutePath) }
+        const confined = await confineWorkspacePath(long, path.join(short, 'notes.md'), 'win32', io)
+        expect(confined).toMatchObject({ ok: true })
+      } finally {
+        rmSync(dir, { recursive: true, force: true })
+      }
+    },
+  )
 })

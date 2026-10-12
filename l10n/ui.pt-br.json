@@ -3504,6 +3504,8 @@
   "acpKeyAbsent": "Nenhuma chave da Meta Model API está guardada.",
   "acpKeyCleared": "A chave da Meta Model API foi removida do armazenamento de credenciais deste computador.",
   "acpOutsideWorkspaceRefused": "Fora do espaço de trabalho; nada foi lido ou escrito. A aprovação não pode ampliar o acesso ao espaço de trabalho.",
+  "acpRefusalOutsideWorkspace": "O caminho {path} está fora do espaço de trabalho; nada foi lido ou escrito.",
+  "acpRefusalLinkEscape": "O caminho {path} leva para fora do espaço de trabalho através de um link; nada foi lido ou escrito.",
   "acpCredentialStoreNoAnswer": "O armazenamento de credenciais não respondeu. Esta solicitação não foi enviada; tente novamente.",
   "acpStoreUnavailable": "Não é possível usar o armazenamento de credenciais deste computador ({reason}). No Linux, o agente precisa de um Secret Service em execução e desbloqueado, como o GNOME Keyring ou o KWallet.",
   "acpStoreNames": {
