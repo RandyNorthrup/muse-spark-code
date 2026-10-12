@@ -422,3 +422,73 @@ narrowed gate), `dist/modelApiHooks.js` 28520 → 28520,
 
 Release-train integration and cross-platform/browser certification follow the
 completed lane. No live or paid provider call is authorized here.
+
+## Round 4 — the typed limit reaches every consumer (TOOLROUNDSR4)
+
+The one exit's typed outcome (completed + `max_turn_requests`, stop reason
+`limit`) is the only ceiling signal, and every consumer below reads it. The
+two `bestOfNAttempts` contract tests stand unchanged and pass: a capped
+attempt is `failed` with `ceilingReached: true`, the exact paid count and
+the wrap-up text, and an HTTP retry counts before it runs while the next
+paid request is blocked.
+
+| Consumer                                                              | What it read before round 2                                                                                                                                                       | What it reads now                                                                                                                                                                                                                                                            | The test (really ends by the limit)                                                                                                                                                                                                                                                                   |
+| --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Best-of-N manager + attempt record (`bestOfNRunner`, `AttemptDriver`) | The synchronous admission-guard count, plus the worktree host's `session.cancel()` at the ceiling; the completion path ignored the typed outcome and recorded an ordinary success | A `completed` event carrying `ceilingReached` settles the attempt as `failed` with the typed reason, the exact paid count and the wrap-up text; `take()` only takes `completed`, so a capped attempt can never win; the admission guard stays as the pre-dispatch block only | `bestOfNAttempts`: both contract tests (5 requests against a ceiling of 5, 4 HTTP retries + 1 success); `bestOfNManager`: `fails a turn that ends at the limit and never takes it as the winner`; `bestOfNExtensionHooks`: capped settles failed with no keep-working (contract updated, intent kept) |
+| Worktree conversation host                                            | Counted `modelRequestCompleted` against the ceiling, then `session.cancel()`                                                                                                      | Binds the ceiling through the required `setModelCallAllowance` port and reads `errorKind === 'max_turn_requests'` on `turnCompleted`; the count path stays for progress/admission tallies only                                                                               | `worktreeConversationHost`: `binds the ceiling through the allowance port and marks a limit stop` (5 requests at a ceiling of 5, then the typed outcome; asserts no cancel)                                                                                                                           |
+| Unattended / headless runs (exec)                                     | `errorKind` on `turnCompleted` → `limit`/`requests` event and `request_cap` exit 5                                                                                                | Same, plus the wrap-up answer is kept as the final message                                                                                                                                                                                                                   | `execRun`: D7 (2 requests at `--max-requests 2`), the single-call pair (answer exit 0 / tool-call cap exit 5), the 60-request wrap-up run (all 60 admitted, last body tools-disabled)                                                                                                                 |
+| Terminal agent                                                        | Round-2 contract: `--max-requests 1` answer exits 0, tool-call exits 5 at the cap, plainly                                                                                        | Verified unchanged (same rows as exec above)                                                                                                                                                                                                                                 | Same single-call pair                                                                                                                                                                                                                                                                                 |
+| Scheduled runs                                                        | The background target tracked idle only; the delivery contract forbids inferring success from `turnCompleted`; settlement comes from the injected `runs.run`                      | Unchanged; pinned that a completed turn carrying the typed outcome settles the slot without any success/failure judgment                                                                                                                                                     | New `scheduleBackgroundTarget`: `releases the target when the scheduled turn ends at the model-call limit`; `delivery`/`scheduleInterrupt` suites unchanged                                                                                                                                           |
+| Sub-agents                                                            | The parent read the child's typed `outcomeStopReason` (`limit`) and the forwarded `errorKind`                                                                                     | Same                                                                                                                                                                                                                                                                         | `modelApiHost`: `records a child call-limit stop with its own stop reason, not a money stop` (child really ends by the limit on the shared allowance of 2; evidence `stopReason: 'limit'`, never `budget`)                                                                                            |
+| Team tasks (ACP / Muse Code workers)                                  | The wire/peer `stopReason` through `reportForStop` → `capped`                                                                                                                     | Same                                                                                                                                                                                                                                                                         | `teamAcpProcess` RVM96W2C-N6 (`max_turn_requests` → `capped`) and the `teamMuseCodeWorker` stop mapping                                                                                                                                                                                               |
+| Team tasks (engine worker)                                            | Nothing: `runEngineWorker` ignored `outcome.ceilingReached` when resolving the report (no production caller on this branch)                                                       | A `ceilingReached` outcome resolves through `reportForStop(text, 'max_turn_requests')` → `capped`, keeping the wrap-up text                                                                                                                                                  | New `teamEngineWorker`: `reports a worker that ends at its ceiling as capped with the wrap-up text` (5 requests at a ceiling of 5)                                                                                                                                                                    |
+| Reviewer (Auto reviewer + hook models)                                | The terminal only: a completed turn carrying the typed outcome would decide with a truncated reply                                                                                | Completed turns carrying `max_turn_requests` are recorded and their replies treated as unusable: the review fails to the user (side session survives) and the hook gets no answer                                                                                            | New `museCodeReviewer` wire-true test (captured reply streams, `turn/completed` carries `error: { kind: 'max_turn_requests' }` through the real host mapping; next review reuses the session) and new `museCodeHookModels` discard test                                                               |
+| ACP                                                                   | `settle` resolves the typed outcome to the `max_turn_requests` stop for the client                                                                                                | Same; the client sees `stopReason: 'max_turn_requests'` with the wrap-up text delivered as the final agent message                                                                                                                                                           | `acpModelApi`: `delivers the real Model API wrap-up before returning max_turn_requests` (allowance 3, 3 requests, last body tools-disabled)                                                                                                                                                           |
+
+### Round-4 drills ledger
+
+| Drill | Break                                                                                     | Named test fails                                                      | Restore                                           |
+| ----- | ----------------------------------------------------------------------------------------- | --------------------------------------------------------------------- | ------------------------------------------------- |
+| D11   | Runner capped branch `event.ceilingReached` → `&& requestsMade > 9000`                    | `bestOfNManager`: `fails a turn that ends at the limit…`              | Byte-exact (SHA-256 `e89b1eae…` before and after) |
+| D12   | Reviewer `limited` check removed from the `until` clause                                  | `museCodeReviewer`: `…ends at the model-call limit`                   | Byte-exact (`6ba8e82c…`)                          |
+| D13   | Hook-model `!isLimited` removed from `look`                                               | `museCodeHookModels`: `discards a reply cut at the model-call limit…` | Byte-exact (`5d8b8d57…`)                          |
+| D14   | Engine-worker capped branch `outcome.ceilingReached` → `&& lastMessage === 'unreachable'` | `teamEngineWorker`: `reports a worker that ends at its ceiling…`      | Byte-exact (`3d5413f3…`)                          |
+
+The `bestOfNExtensionHooks` keep-working test pinned the pre-ruling
+contract (a `ceilingReached` completion recorded as `completed`); it now
+asserts the ruling contract (failed with the ceiling flag, hook never
+asked). Its intent — no continuation past the ceiling — is unchanged.
+
+### Round-4 verification
+
+Ran on macbook at repo default timeouts, `--maxWorkers=3`, one command at
+a time: `bestOfNAttempts` (3), `bestOfNManager` (6), `bestOfNRunner` (46),
+`bestOfNExtensionHooks` (7), `worktreeConversationHost` (9),
+`toolRounds` (19), `modelApiLoopGuarantees` (45), `teamEngineWorker`
+(23), `teamWorkerFence` (54), `museCodeReviewer` (44),
+`museCodeHookModels` (4), `scheduleBackgroundTarget` (38), `execRun`
+(98), `acpModelApi` (13), plus the cited `modelApiHost` child-limit test
+(1 selected) and two `vitest related` sweeps over the five changed source
+files (770 + 1003 passed; the only failure, `teamMcpBridge`, is
+environmental — see below). Five typechecks pass; ESLint and prettier
+clean on every changed file; knip shows only its two pre-existing config
+hints. `npm run build` exits 0; no cap or pin moves.
+
+Bundle rows in exact bytes (frozen base `9d2d49893` built in temp space
+against the shared modules, vs this lane): `dist/sessionBoard.js` 48443
+→ 48636 (+193: the runner's capped-attempt branch);
+`dist/museCodeReviewer.js` 23159 → 23406 (+247: the reviewer's
+limited-turn set and the hook-model limit flag). Everything else is
+byte-identical, including `dist/extension.js` (564075 of 614400),
+`dist/modelApi.js` (536119 of 537600), `dist/modelApiHooks.js` (28520)
+and `dist/modelApiSessions.js` (37318): the engine-worker capped-report
+branch ships no bytes today because `runEngineWorker` still has no
+production caller (the tests pin it for the teams wiring lane), and the
+worktree-host edit is a comment.
+
+- NOT RUN HERE: `test/unit/teamMcpBridge.test.ts` (43 tests). The file
+  binds `127.0.0.1` listeners and this sandbox denies it (`EPERM`,
+  `syscall: 'listen'`, observed directly), so every test fails before any
+  lane logic runs. Untouched by this lane (no MCP, socket or worker-shell
+  code in the diff). The lead runs it outside the sandbox.
+- Browser suites were never selected (MacBook rule).
