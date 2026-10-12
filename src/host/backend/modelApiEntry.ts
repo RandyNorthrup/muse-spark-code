@@ -120,7 +120,10 @@ export async function createModelApiHost(deps: ModelApiBundleDeps): Promise<Mode
     }
   }
   const meta = new ModelApiClient(deps.client)
-  const client = (await deps.createProviderClient?.(meta)) ?? meta
+  // The host's own usage kind (worker for team workers) travels with the
+  // request accounting, threaded here rather than through the always-loaded
+  // backend manager so headless-only bytes stay out of the activation bundle.
+  const client = (await deps.createProviderClient?.(meta, hostDeps.usageKind)) ?? meta
   const mcp =
     deps.createMcpServers === undefined
       ? undefined

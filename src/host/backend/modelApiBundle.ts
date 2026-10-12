@@ -37,7 +37,10 @@ export interface ModelApiBundleDeps {
   readonly uiLocale: string
   readonly client: ModelApiClientDeps
   readonly createProviders?: (() => Promise<ModelResolver>) | undefined
-  readonly createProviderClient?: (meta: ProviderClient) => Promise<ProviderClient>
+  readonly createProviderClient?: (
+    meta: ProviderClient,
+    usageKind?: ModelApiHostDeps['usageKind'],
+  ) => Promise<ProviderClient>
   /** The host's, but for what the bundle makes itself: the client, the hooks and the MCP pool. */
   readonly host: Omit<ModelApiHostDeps, 'client' | 'loadHooks' | 'mcpServers'>
   /** Muse Code's settings file, read for hooks while `host.isHooksEnabled` says so (M51). */

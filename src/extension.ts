@@ -2594,8 +2594,21 @@ async function activateWindow(
             budgetScope,
             fenceIo,
           )
-          const { openTeamWorkerSession } = await import('./host/backend/teamWorkerSession')
-          return await openTeamWorkerSession(host, { folder, modelId, approvalMode })
+          try {
+            const session = await host.startSession({
+              workspaceRoot: folder,
+              modelId,
+              approvalMode,
+            })
+            return {
+              session,
+              toolNames: host.sessionToolNames(session.sessionId) ?? [],
+              close: () => host.close(),
+            }
+          } catch (error: unknown) {
+            await host.close()
+            throw error
+          }
         },
         now: () => Date.now(),
         log,
