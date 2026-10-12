@@ -146,3 +146,74 @@ asserts the exact key set and no paths). Shown errors go through
   (C-M105-6, per brief).
 - `deleteAllOurs` keeps referenced uploads (by design; the dialog's
   Delete-all button stays disabled for them with the in-use title).
+
+## Round 2 — RVCM1058 findings (2026-10-11, macmini lane CM1058R2)
+
+Branch `c/m105-8` at `98eb03aaa` plus round-2 commits below. Every P1/P2/P3
+finding is fixed with a regression test that fails without it; each guard
+was broken on purpose (red drill), seen to fail its named test, and
+restored byte-exact (SHA-256 checked). All runs at the repository default
+timeout, `npx vitest run <files> --maxWorkers=3`, at most 3 files per run.
+
+**Correction of the round-1 judgment call (ruling 5):** PLAN D85.2 wins.
+A file is deleted at the provider when its LAST session reference is
+released or purged, however young. The age sweep stays only for orphans
+no release ever saw (a crash, another install). The young-orphan age gate
+is removed from the release path (`UploadLedger.cleanup` takes a
+`'release' | 'sweep'` scope); the round-1 drill bullets above describe the
+superseded behavior.
+
+| Finding             | Fix (file)                                                                                                                                                             | Regression test (fails without)                                                                                                  | Red drill (break → failure → restore)                                                                                                  |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| 1 (P2) diet +75 B   | `modelApiEntry.ts` expiry hunk replaced by diet-safe `productionMediaEntry.ts` lazy replay; no guard moves                                                             | `deferredBundles` diet guard (review-confirmed red pre-fix: 523,704 vs 523,629)                                                  | review's base+lane measurement; post-fix bundle 523,388                                                                                |
+| 2 (P2) types        | typed fixtures (`UploadedFilesLedger` Pick, `filesClient`, `StoredSession`); no casts                                                                                  | unit project `tsc --noEmit` (review-confirmed exit 2 pre-fix; exit 0 now, all five typechecks)                                   | review's five-error run; green re-run                                                                                                  |
+| 3 (P2) cancel       | preparing signal into `runUploadsCommand` + VS Code command + port + ledger; checked before every destructive dispatch                                                 | `acpUploads` cancel trio + agent busy-gate/log proof; `uploadedFilesBinding` per-await test; controller/ledger/port signal tests | removed both delete-path checks → cancel-during-read resolves `handled` instead of rejecting; restored                                 |
+| 4 (P2) headless     | `runExec` forwards `runtime.uploads` as serve does                                                                                                                     | `execRun` lane-F run (exit 8 without it)                                                                                         | spread to `undefined` → `expected [] to have a length of 1`; restored                                                                  |
+| 5 (P2) release      | `cleanup(state, isCurrent, 'release')` deletes unreferenced at once; sweep keeps the age gate for unseen orphans                                                       | `uploadLedger` release-vs-sweep tests; composition purge expectations updated                                                    | scope to `'sweep'` → `expected [] to have a length of 1`; restored                                                                     |
+| 6 (P2) expiry       | setting read per upload (`productionMedia.ts`, `sessionUploads.ts`)                                                                                                    | composition `reads the expiry setting on every upload` ([604800] then [86400])                                                   | frozen callback → second body keeps `604800` instead of `86400`; restored                                                              |
+| 7 (P2) key removal  | `createUploadedFilesPort` retains the last ledger; reads stay read-only, deletes refuse via the ledger                                                                 | port retained read-only test; binding real-ledger key-removal test; composition keyed end-to-end (live → retained → refused)     | retention to plain `ledger` → deep-equal fail on the retained read; restored                                                           |
+| 8 (P2) stale report | controller drops on account+generation (both paths); message carries `accountId`+`generation` (`protocol.ts`); reducer drops older generations; authState still clears | controller generation + account-change tests; `uiState` drop + clear tests                                                       | generation clause out → `post` called once; account equality out → account-change posts; reducer gate out → stale paints; all restored |
+| 9 (P2) ACP listing  | rows show `n. name (id, …)`; delete accepts id or 1-based number                                                                                                       | `deletes by listed number` test                                                                                                  | index resolution out → number delete rejects; restored                                                                                 |
+| 10 (P2) 404         | single-file delete goes through `removeEntry` (the one normalising path)                                                                                               | ledger 404-as-gone test                                                                                                          | direct `files.delete` → rejects `Not found`, row stays; restored                                                                       |
+| 11 (P2) ACP foreign | `confirmForeign` permission request (`session/request_permission`, same question as the VS Code dialog); deny/failure/cancel keeps                                     | command allow test; agent allow + cannot-answer tests                                                                            | ask removed → both allow tests fail, Kept sent; restored                                                                               |
+| 12 (P3) assembly    | real `createRuntimeBackend` property tests (Model API serves the port, Muse Code none, ephemeral keyless); runExec e2e                                                 | fail when `backends.ts` property removed (`expected 'undefined' to be 'function'`)                                               | drilled both; serve line drilled gap (below)                                                                                           |
+| 13 (P3) docs        | scope fixed to the account's files (`en.ts` + 14 `ui.*.json` + regen reference + README lifecycle)                                                                     | `check:reference` stale error when source reverts without regen; `check:l10n` 0 problems                                         | reverted phrase → `Stale reference` error; restored                                                                                    |
+| 14 (P3) casts       | no `as never`/`as any` remains in lane tests/sources (typed fakes from round 1); nothing to justify, no PLAN §8 row needed                                             | `grep` + unit typecheck exit 0                                                                                                   | none needed (no guard to break)                                                                                                        |
+
+Round-2 suites (all green): `uploadLedger` 16, `uploadedFiles` 6,
+`uploadedFilesBinding` 8, `acpUploads` 16, `uploadedFilesComposition` 11,
+`conversationController` 692, `uiState` 185, `execRun` 98,
+`deferredBundles` + `modelApiProductionMedia` 135. Typechecks host, unit,
+webview, e2e, integration all exit 0. `check:l10n` 0 problems (14 UI, 14
+usage, 253 manifest, 1544 sources). `check:reference` current.
+`check:host-api` 0 problems. Production `npm run build` exit 0:
+`modelApi.js` 523,388 (diet 523,629, general 537,600), `extension.js`
+566,772 (614,400), `acp.js` 241,528 (870,400), `media.js` 20,992,
+`productionMedia.js` 68,885. No guard or cap moves; no new dependency.
+
+**Known concurrent work in this worktree:** a second hand edited this
+lane's files mid-session (deterministic cancel detector via the agent
+cancel log, `voiceAccountId` account half, stamped posts, keyed
+composition test, protocol/reducer identity). Kept where right, finished
+where half-done (four `DRILL` remnants restored byte-exact, two
+typecheck errors fixed, lint clean). Mysterious scratch files appeared
+and vanished (`zzprobe`, `zzCopy`); none remain.
+
+**Lead-owned residuals (true blockers, flagged per brief):**
+
+- NOT RUN HERE (sandbox blocks loopback): five `files.test.ts` wire
+  cases and four review-admission suites (`conversationController`
+  Host/Plan admission), same as the review. First line of the final
+  message names them.
+- Serve's last-mile forwarding (`src/runtime/main.ts:795`): removing it
+  leaves all 26 uploads/ACP/composition tests green (drilled). Serve
+  boots a loopback listener the sandbox blocks; needs a hosted serve
+  receipt (lead).
+- Extension activation wiring (`src/extension.ts:3591` binding): needs
+  the VS Code host; needs the integration run (still required overall).
+- HUB files touched: `src/shared/protocol.ts` (optional
+  `accountId`/`generation` on `uploadedFilesReport`), `src/shared/l10n/en.ts`,
+  generated reference files. `vitest related` over the full changed set
+  selects ~588 files (review-counted); the lane ran the owning suites
+  plus every suite naming a changed identifier, the five typechecks and
+  the production build instead. Full integration run still required.
