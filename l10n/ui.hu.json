@@ -4403,6 +4403,7 @@
   "teamCapabilityWarnImages": "Ez a modell nem fogad képbemenetet, amellyel a(z) {role} szerep jobban működik.",
   "teamCapabilityWarnReasoning": "Ennek a modellnek nincs érvelési szintje, amellyel a(z) {role} szerep jobban működik.",
   "teamCapabilityUnknown": "{model} képességei ismeretlenek; a(z) {role} szerepre nem lett ellenőrizve.",
+  "teamSettingUnsupported": "A mentett {setting} ({value}) csapatbeállítás nem támogatott ennél: {model}.",
   "teamRoleFileRefused": "{file}: {detail}",
   "teamRoleResolutionUnknown": "A szerep feloldása elutasítva, mert egy bemenet hiányzik, olvashatatlan, hibás vagy nem egyértelmű.",
   "teamRoleGlobUnproven": "Az írási útvonalak tartalmazása nem bizonyítható.",

@@ -11,6 +11,7 @@ import {
   resetOrchestratorSlot,
   resolveDefaultModel,
   resolveOrchestratorModel,
+  validateOrchestratorSettings,
 } from '../../src/core/team/orchestratorSlot'
 
 function memoryState(stored?: unknown): {
@@ -170,5 +171,31 @@ describe('requiresBackendSwitch', () => {
   it('says so only across backends', () => {
     expect(requiresBackendSwitch('musecode', 'modelApi')).toBe(true)
     expect(requiresBackendSwitch('modelApi', 'modelApi')).toBe(false)
+  })
+})
+
+describe('validateOrchestratorSettings', () => {
+  it('accepts a served effort and cap', () => {
+    expect(
+      validateOrchestratorSettings({ effort: 'low', outputCap: 128 }, 'muse-spark-1.3'),
+    ).toBeUndefined()
+  })
+  it('refuses a setting no conversation path applies, with its reason', () => {
+    expect(validateOrchestratorSettings({ temperature: 0.5 }, 'muse-spark-1.3')).toMatch(
+      /temperature.*0\.5.*muse-spark-1\.3/,
+    )
+  })
+  it('refuses an effort the model family does not serve, never remapping it', () => {
+    // muse-spark-1.2 serves up to xhigh: max refuses instead of becoming none.
+    expect(validateOrchestratorSettings({ effort: 'max' }, 'muse-spark-1.2')).toMatch(
+      /effort.*max.*muse-spark-1\.2/,
+    )
+  })
+  it('refuses an empty effort and a malformed cap', () => {
+    expect(validateOrchestratorSettings({ effort: '' }, 'muse-spark-1.3')).toMatch(/effort/)
+    expect(validateOrchestratorSettings({ outputCap: 0 }, 'muse-spark-1.3')).toMatch(/outputCap/)
+  })
+  it('leaves an unknown family to the live session check', () => {
+    expect(validateOrchestratorSettings({ effort: 'turbo' }, 'other-model')).toBeUndefined()
   })
 })

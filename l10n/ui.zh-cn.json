@@ -4286,6 +4286,7 @@
   "teamCapabilityWarnImages": "此模型不支持图像输入，而 {role} 角色在有图像输入时表现更好。",
   "teamCapabilityWarnReasoning": "此模型没有推理层级，而 {role} 角色在有推理层级时表现更好。",
   "teamCapabilityUnknown": "{model} 的功能未知；尚未针对 {role} 角色进行检查。",
+  "teamSettingUnsupported": "已保存的团队设置 {setting}（{value}）不受 {model} 支持。",
   "teamRoleFileRefused": "{file}：{detail}",
   "teamRoleResolutionUnknown": "角色解析被拒绝，因为某项输入缺失、不可读、格式错误或含义不明确。",
   "teamRoleGlobUnproven": "无法证明写入路径的包含关系。",

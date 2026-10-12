@@ -10,7 +10,7 @@ export function createTeamPanel(table: UiText, locale: string, deps: TeamPanelDe
 
 export { readTeamRoleRecords } from './teamTaskState'
 
-export { readOrchestratorOverride } from './orchestratorSlot'
+export { readOrchestratorOverride, validateOrchestratorSettings } from './orchestratorSlot'
 
 export { tryTeam, teamTryConfirmation } from './teamTry'
 

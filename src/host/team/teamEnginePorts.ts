@@ -12,7 +12,6 @@ import {
   BYTES_PER_MIB,
   UI_TEXT,
   PERMISSION_MODES,
-  TEAM_BOUND_SETTING_KEYS,
   TEAM_MODEL_TEXT,
   TEAM_ROLE_TOOLSETS,
   TEAM_TASK_MAX_REQUESTS_DEFAULT,
@@ -29,6 +28,7 @@ import type { AgentSession } from '../../core/agent/agentBackend'
 import type { CoreLogger } from '../../core/logging'
 import { AgentWorktreeSession } from '../../core/bestOfN/agentWorktreeSession'
 import { builtinRoles } from '../../core/team/builtInRoles'
+import { validateWorkerSettings } from '../../core/team/modelSettings'
 import { buildTeamCharter } from '../../core/team/charter'
 import { isSameTeamModel } from '../../core/team/sameModel'
 import { resolveTeamToolset } from '../../core/team/toolsets'
@@ -214,10 +214,11 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
   const runTask = async (spec: TeamTaskSpec, signal: AbortSignal): Promise<TeamWorkerOutcome> => {
     signal.throwIfAborted()
     if (!deps.isTrusted()) throw new Error(TEAM_MODEL_TEXT.hostUntrusted)
-    if (
-      Object.keys(spec.entry.settings ?? {}).some((key) => !TEAM_BOUND_SETTING_KEYS.includes(key))
-    )
-      throw new Error(UI_TEXT.teamEditor.invalid)
+    // The complete saved settings are checked against the entry model's
+    // current capabilities before the working copy exists: an unsupported
+    // value refuses with its reason, never silently changed or clamped later.
+    const unsupported = validateWorkerSettings(spec.entry.settings, spec.entry.agent.model)
+    if (unsupported !== undefined) throw new Error(unsupported)
     const repositoryRoot = repository()
     const builtin = builtinRoles().find((role) => role.id === spec.role.role)
     if (

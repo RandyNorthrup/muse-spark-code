@@ -4520,6 +4520,7 @@
   "teamCapabilityWarnImages": "Este modelo não aceita imagens como entrada, com as quais a função {role} funciona melhor.",
   "teamCapabilityWarnReasoning": "Este modelo não tem nível de raciocínio, com o qual a função {role} funciona melhor.",
   "teamCapabilityUnknown": "Os recursos de {model} são desconhecidos; ele não foi verificado para a função {role}.",
+  "teamSettingUnsupported": "A configuração de equipe salva {setting} ({value}) não é compatível com {model}.",
   "teamRoleFileRefused": "{file}: {detail}",
   "teamRoleResolutionUnknown": "A resolução da função foi recusada porque uma entrada está ausente, ilegível, malformada ou ambígua.",
   "teamRoleGlobUnproven": "Não é possível comprovar a inclusão dos caminhos de escrita.",

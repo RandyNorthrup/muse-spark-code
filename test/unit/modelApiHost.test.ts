@@ -1066,6 +1066,51 @@ describe('ModelApiHost: catalogue and sessions', () => {
     expect(t.host.sessionCount).toBe(0)
   })
 
+  it('carries the explicit output cap by model across snapshot, resume, fork and copy', async () => {
+    const store = memorySessionStore()
+    const t = setup({ store })
+    const { session, turnDone } = await startSession(t)
+    await session.setOutputCap(128)
+    await answerFirst(t, session, turnDone)
+    await t.host.flush()
+    // Persisted in the snapshot, with its model identity.
+    expect(store.saved.get(session.sessionId)?.outputCaps).toEqual({ 'muse-spark-1.3': 128 })
+    // Resume adopts it: the revived session requests under the saved cap.
+    session.dispose()
+    const resumedHost = setup({ store })
+    await resumedHost.host.load()
+    const resumed = await resumedHost.host.resumeSession(session.sessionId, 'muse-spark-1.3')
+    const resumedTurns = watchSessionTurns(resumed.session)
+    resumedHost.api.script({ text: 'resumed reply' })
+    await resumed.session.sendTurn([{ type: 'text', text: 'again' }])
+    await resumedTurns.turnDone()
+    const resumedRequest = resumedHost.api.requests.findLast((row) =>
+      row.path.endsWith('/responses'),
+    )?.body
+    expect(resumedRequest).toMatchObject({ max_output_tokens: 128 })
+    // Fork copies it.
+    const fork = await resumedHost.host.forkSession(session.sessionId, 'muse-spark-1.3')
+    const forkTurns = watchSessionTurns(fork.session)
+    resumedHost.api.script({ text: 'forked reply' })
+    await fork.session.sendTurn([{ type: 'text', text: 'fork again' }])
+    await forkTurns.turnDone()
+    const forkRequest = resumedHost.api.requests.findLast((row) =>
+      row.path.endsWith('/responses'),
+    )?.body
+    expect(forkRequest).toMatchObject({ max_output_tokens: 128 })
+    // A direct copy carries it too.
+    const copied = await startSession(resumedHost)
+    if (
+      !(resumed.session instanceof ModelApiSession) ||
+      !(copied.session instanceof ModelApiSession)
+    )
+      throw new Error('expected Model API sessions')
+    resumed.session.copyInto(copied.session, undefined)
+    expect(copied.session.snapshot().outputCaps).toEqual({ 'muse-spark-1.3': 128 })
+    await t.host.close()
+    await resumedHost.host.close()
+  })
+
   it('restores sent image bytes and forks only completed turns while another reply runs (M53)', async () => {
     const t = setup()
     const { session, turnDone } = await startSession(t)

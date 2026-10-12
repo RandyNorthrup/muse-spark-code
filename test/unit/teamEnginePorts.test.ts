@@ -162,6 +162,14 @@ const ENGINEERING: TeamRoleConfig = {
   // An editing worker says so explicitly; the untouched selector reads as Plan.
   permissionMode: 'bypassPermissions',
 }
+
+function taskFor(model: string, settings: TeamPoolEntry['settings']): TeamTaskSpec {
+  const task = spec(ENGINEERING)
+  return {
+    ...task,
+    entry: { ...task.entry, agent: { ...task.entry.agent, model }, settings },
+  }
+}
 const RESEARCH: TeamRoleConfig = { role: 'research', pool: [ENTRY] }
 
 async function changedTask() {
@@ -217,6 +225,29 @@ describe('the engine worker port', () => {
       await fixture.ports.workers.run(task, new AbortController().signal)
       expect(fixture.started.at(-1)?.approvalMode).toBe(approvalMode)
     }
+  })
+  it('refuses unsupported setting values before creating a copy, with their reasons', async () => {
+    const fixture = await setup(() => Promise.resolve())
+    // muse-spark-1.2 serves up to xhigh: max refuses instead of becoming none.
+    await expect(
+      fixture.ports.workers.run(
+        taskFor('muse-spark-1.2', { effort: 'max' }),
+        new AbortController().signal,
+      ),
+    ).rejects.toThrow(/effort.*max.*muse-spark-1\.2/)
+    await expect(
+      fixture.ports.workers.run(
+        taskFor('other-model', { effort: '' }),
+        new AbortController().signal,
+      ),
+    ).rejects.toThrow(/effort/)
+    await expect(
+      fixture.ports.workers.run(
+        taskFor('other-model', { outputCap: 0 }),
+        new AbortController().signal,
+      ),
+    ).rejects.toThrow(/outputCap/)
+    expect(fixture.started).toEqual([])
   })
   it('refuses an unsavable permission mode before creating a copy', async () => {
     const fixture = await setup(() => Promise.resolve())

@@ -175,6 +175,7 @@ import {
   TOOL_OUTPUT_MAX_CHARS,
   TOOL_ARGUMENT_PREVIEW_INTERVAL_MS,
   TOOL_STATUS_INTERRUPTED,
+  THINKING_OFF_EFFORT,
   UI_TEXT,
   USER_SHELL_ITEM_KIND,
   USER_SHELL_TIMEOUT_MS,
@@ -15795,13 +15796,49 @@ export class ModelApiSession implements ScheduledAgentSession {
   public setOutputCap(cap: number): Promise<void> {
     if (!Number.isSafeInteger(cap) || cap < 1)
       return Promise.reject(new RangeError('invalid output.maxTokens'))
+    // A cap the model cannot serve is refused, never silently clamped.
+    const maximum = this.modelPolicy().output.maxTokens
+    if (maximum !== undefined && cap > maximum)
+      return Promise.reject(
+        new RangeError(
+          fill(UI_TEXT.teamSettingUnsupported, {
+            setting: 'outputCap',
+            value: String(cap),
+            model: this.modelId,
+          }),
+        ),
+      )
     this.outputCaps.set(this.modelId, outputLimitFor(this.modelPolicy(), cap))
     return Promise.resolve()
+  }
+
+  /** What a resumed conversation holds, so attach keeps it instead of the default. */
+  public get currentEffort(): string {
+    return this.effort
   }
 
   public setReasoningEffort(reasoningEffort: string): Promise<void> {
     if (reasoningEffort === '') {
       return Promise.reject(new Error('reasoning effort must not be empty'))
+    }
+    // An effort the model does not serve is refused, never silently remapped
+    // to none at request time. Switching thinking off ('none') and models
+    // with unknown tiers still pass.
+    const levels = this.modelPolicy().reasoning.effortLevels
+    if (
+      reasoningEffort !== THINKING_OFF_EFFORT &&
+      levels.state === 'yes' &&
+      !levels.value.includes(reasoningEffort)
+    ) {
+      return Promise.reject(
+        new Error(
+          fill(UI_TEXT.teamSettingUnsupported, {
+            setting: 'effort',
+            value: reasoningEffort,
+            model: this.modelId,
+          }),
+        ),
+      )
     }
     this.effort = reasoningEffort
     this.touch()
@@ -16407,6 +16444,9 @@ export class ModelApiSession implements ScheduledAgentSession {
       modelId: this.modelId,
       approvalMode: this.permissions.currentMode,
       effort: this.effort,
+      // The session's explicit caps, with their model identity, so a resume
+      // or fork keeps them instead of falling back to the default.
+      ...(this.outputCaps.size > 0 && { outputCaps: Object.fromEntries(this.outputCaps) }),
       // A custom agent's narrowed run, so a resume or fork keeps it (M76
       // review). Optional fields stay absent, never undefined.
       ...(this.agent !== undefined && {
@@ -16534,6 +16574,10 @@ export class ModelApiSession implements ScheduledAgentSession {
       this.outputs.set(ref, content)
     }
     this.effort = stored.effort
+    const storedCaps = Object.entries(stored.outputCaps ?? {})
+    for (const [model, cap] of storedCaps) {
+      this.outputCaps.set(model, cap)
+    }
     this.name = stored.name
     this.todos = [...stored.todos]
     this.autoCompact.noteTodos(this.todos)
@@ -16701,6 +16745,10 @@ export class ModelApiSession implements ScheduledAgentSession {
     // A fork carries the imported history, so it asks as its source does (M84).
     target.imported = this.imported
     target.effort = this.effort
+    // The fork keeps the session's explicit caps, with their model identity.
+    for (const [model, cap] of this.outputCaps) {
+      target.outputCaps.set(model, cap)
+    }
     // The goal as it stands goes with the fork (M45): a goal has no history
     // to cut, so a fork from an earlier turn gets today's goal too.
     target.goal = target.isSideChat ? undefined : this.goal

@@ -3511,11 +3511,18 @@ async function activateWindow(
           orchestratorSlot: {
             resolveForNewConversation: async (_pickerModelId, host) => {
               if (!teamHost.canConfigure()) return
-              const { readOrchestratorOverride } = await import('./core/team/teamPanelEntry')
+              const { readOrchestratorOverride, validateOrchestratorSettings } =
+                await import('./core/team/teamPanelEntry')
               const override = readOrchestratorOverride({
                 get: (key) => context.workspaceState.get(key),
               })
               if (override === undefined) return
+              // The complete saved settings are checked against the resolved
+              // model's current capabilities before any session exists: an
+              // unsupported value refuses with its reason, never silently
+              // changed or left unapplied.
+              const unsupported = validateOrchestratorSettings(override.settings, override.modelId)
+              if (unsupported !== undefined) throw new Error(unsupported)
               const kind = override.backend === 'modelApi' ? 'modelApi' : 'museCode'
               if (
                 host.info.kind !== kind &&

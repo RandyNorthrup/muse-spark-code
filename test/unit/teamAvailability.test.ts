@@ -40,7 +40,12 @@ function storedTeam(): Map<string, unknown> {
 
 function ports(isTeamOn: boolean) {
   const values = storedTeam()
-  const log = { info: () => undefined, warn: () => undefined }
+  const log = {
+    trace: () => undefined,
+    info: () => undefined,
+    warn: () => undefined,
+    error: () => undefined,
+  }
   return {
     ports: {
       hooks: undefined,

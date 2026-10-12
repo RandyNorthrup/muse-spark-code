@@ -4403,6 +4403,7 @@
   "teamCapabilityWarnImages": "Dieses Modell verarbeitet keine Bildeingaben, mit denen die Rolle {role} besser arbeitet.",
   "teamCapabilityWarnReasoning": "Dieses Modell hat keine Reasoning-Stufe, mit der die Rolle {role} besser arbeitet.",
   "teamCapabilityUnknown": "Die Fähigkeiten von {model} sind unbekannt; es wurde für die Rolle {role} nicht geprüft.",
+  "teamSettingUnsupported": "Die gespeicherte Teameinstellung {setting} ({value}) wird von {model} nicht unterstützt.",
   "teamRoleFileRefused": "{file}: {detail}",
   "teamRoleResolutionUnknown": "Die Rollenauflösung wurde abgelehnt, weil eine Eingabe fehlt, unlesbar, fehlerhaft oder mehrdeutig ist.",
   "teamRoleGlobUnproven": "Die Einbeziehung der Schreibpfade kann nicht nachgewiesen werden.",

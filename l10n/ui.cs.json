@@ -4637,6 +4637,7 @@
   "teamCapabilityWarnImages": "Tento model nepřijímá obrázky na vstupu, se kterými role {role} funguje lépe.",
   "teamCapabilityWarnReasoning": "Tento model nemá úroveň uvažování, se kterou role {role} funguje lépe.",
   "teamCapabilityUnknown": "Schopnosti {model} nejsou známy; pro roli {role} nebyl zkontrolován.",
+  "teamSettingUnsupported": "Uložené týmové nastavení {setting} ({value}) model {model} nepodporuje.",
   "teamRoleFileRefused": "{file}: {detail}",
   "teamRoleResolutionUnknown": "Rozlišení role bylo odmítnuto, protože některý vstup chybí, je nečitelný, chybný nebo nejednoznačný.",
   "teamRoleGlobUnproven": "Nelze prokázat zahrnutí cest pro zápis.",

@@ -4520,6 +4520,7 @@
   "teamCapabilityWarnImages": "Questo modello non accetta immagini in input, con cui il ruolo {role} funziona meglio.",
   "teamCapabilityWarnReasoning": "Questo modello non ha un livello di ragionamento, con cui il ruolo {role} funziona meglio.",
   "teamCapabilityUnknown": "Le capacità di {model} sono sconosciute; non è stato verificato per il ruolo {role}.",
+  "teamSettingUnsupported": "L’impostazione team salvata {setting} ({value}) non è supportata da {model}.",
   "teamRoleFileRefused": "{file}: {detail}",
   "teamRoleResolutionUnknown": "La risoluzione del ruolo è stata rifiutata perché un dato manca, è illeggibile, non valido o ambiguo.",
   "teamRoleGlobUnproven": "Non è possibile dimostrare l’inclusione dei percorsi di scrittura.",

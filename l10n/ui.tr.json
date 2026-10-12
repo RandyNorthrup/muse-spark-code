@@ -4403,6 +4403,7 @@
   "teamCapabilityWarnImages": "Bu model görüntü girdisi almaz; {role} rolü görüntü girdisiyle daha iyi çalışır.",
   "teamCapabilityWarnReasoning": "Bu modelin akıl yürütme katmanı yoktur; {role} rolü akıl yürütme katmanıyla daha iyi çalışır.",
   "teamCapabilityUnknown": "{model} modelinin yetenekleri bilinmiyor; {role} rolü için denetlenmedi.",
+  "teamSettingUnsupported": "Kaydedilen ekip ayarı {setting} ({value}), {model} tarafından desteklenmiyor.",
   "teamRoleFileRefused": "{file}: {detail}",
   "teamRoleResolutionUnknown": "Bir girdi eksik, okunamaz, hatalı veya belirsiz olduğu için rol çözümlemesi reddedildi.",
   "teamRoleGlobUnproven": "Yazma yollarının kapsandığı kanıtlanamıyor.",

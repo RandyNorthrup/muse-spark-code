@@ -232,6 +232,7 @@ import { errorDetail, type Logger } from '../logger'
 import type { ChatSurface, ConversationMessage } from '../views/chatSurface'
 import type { TeamSurfacePort } from '../teamHostBinding'
 import type { TeamCardItem } from '../../core/team/teamHostService'
+import { validateOrchestratorSettings } from '../../core/team/orchestratorSlot'
 import type { TeamTreeData } from '../../shared/teamView'
 import type { TasksTabPort, TasksTabView } from '../views/tasksTabPort'
 
@@ -4051,6 +4052,14 @@ export class ConversationController {
     const mcpServers = await this.mcpServersFor(host)
     this.requireCurrentOpening(generation)
     this.requireNonConfidentialModel(modelId)
+    // The complete saved settings are checked against the selected model's
+    // current capabilities before the session exists: unsupported values
+    // refuse with their reason instead of starting a session that silently
+    // changes or ignores them.
+    if (resolved?.modelId === modelId) {
+      const unsupported = validateOrchestratorSettings(resolved.settings, modelId)
+      if (unsupported !== undefined) throw new Error(unsupported)
+    }
     const session = await host.startSession({
       workspaceRoot,
       modelId,
@@ -4058,13 +4067,13 @@ export class ConversationController {
       ...(this.isSideChat && { sideChat: true }),
       ...(mcpServers !== undefined && { mcpServers }),
     })
-    if (resolved?.modelId === modelId) {
-      if (resolved.settings?.effort !== undefined)
-        await session.setReasoningEffort(resolved.settings.effort)
-      if (resolved.settings?.outputCap !== undefined) {
-        if (session.setOutputCap === undefined) throw new Error(UI_TEXT.teamEditor.invalid)
-        await session.setOutputCap(resolved.settings.outputCap)
-      }
+    // A saved setting is applied last and stays: a valid saved effort becomes
+    // the composer's before attach, so the attach sync carries the saved value
+    // instead of overwriting it with the default, and the pill shows it.
+    const savedEffort = resolved?.modelId === modelId ? resolved.settings?.effort : undefined
+    if (savedEffort !== undefined && isEffortLevel(savedEffort)) {
+      this.effort = savedEffort
+      this.postComposerState()
     }
     if (mcpServers !== undefined) {
       this.ideSessions.add(session)
@@ -4096,6 +4105,22 @@ export class ConversationController {
     } else {
       this.noteShellSandbox()
       void this.offerBundledSkills()
+    }
+    if (resolved?.modelId === modelId) {
+      try {
+        // What the composer sync does not carry is applied last: an exotic
+        // provider tier, and the session's output cap. A failure after the
+        // session exists disposes it instead of leaking it to the host.
+        if (savedEffort !== undefined && !isEffortLevel(savedEffort))
+          await session.setReasoningEffort(savedEffort)
+        if (resolved.settings?.outputCap !== undefined) {
+          if (session.setOutputCap === undefined) throw new Error(UI_TEXT.teamEditor.invalid)
+          await session.setOutputCap(resolved.settings.outputCap)
+        }
+      } catch (error: unknown) {
+        session.dispose()
+        throw error
+      }
     }
     return session
   }
@@ -4184,6 +4209,14 @@ export class ConversationController {
       this.importedSessionIds.add(loaded.session.sessionId)
     }
     this.activeTurnId = loaded.activeTurnId
+    // A resumed conversation keeps its stored effort and cap: the composer
+    // takes a stored level before attach, so the attach sync does not
+    // overwrite it with the default (the cap rides the session snapshot).
+    const resumedEffort = loaded.session.currentEffort
+    if (resumedEffort !== undefined && isEffortLevel(resumedEffort)) {
+      this.effort = resumedEffort
+      this.postComposerState()
+    }
     await this.attach(host, loaded.session, 'continued after a restart')
     this.requireCurrentOpening(generation)
     try {

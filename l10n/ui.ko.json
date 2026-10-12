@@ -4286,6 +4286,7 @@
   "teamCapabilityWarnImages": "이 모델은 이미지 입력을 받지 않으며, {role} 역할은 이미지 입력이 있을 때 더 잘 동작합니다.",
   "teamCapabilityWarnReasoning": "이 모델에는 추론 티어가 없으며, {role} 역할은 추론 티어가 있을 때 더 잘 동작합니다.",
   "teamCapabilityUnknown": "{model}의 기능을 알 수 없습니다. {role} 역할에 대해 확인되지 않았습니다.",
+  "teamSettingUnsupported": "저장된 팀 설정 {setting}({value})은(는) {model}에서 지원되지 않습니다.",
   "teamRoleFileRefused": "{file}: {detail}",
   "teamRoleResolutionUnknown": "입력이 누락되었거나 읽을 수 없거나 형식이 잘못되었거나 모호하여 역할 확인이 거부되었습니다.",
   "teamRoleGlobUnproven": "쓰기 경로의 포함 관계를 증명할 수 없습니다.",
