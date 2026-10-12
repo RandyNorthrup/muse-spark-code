@@ -46963,6 +46963,21 @@ Unresolved items remain delivery/security gaps, not accepted legal conclusions:
 
 ## 10. Definition of done and release records
 
+**0.17.2 preparation (2026-10-11, release branch).** `release/0.17.2` carries
+the extension version 0.17.2 and the dated `CHANGELOG.md` `[0.17.2]` section:
+the reply-stream fix for providers the user added and for the ChatGPT plan
+sign-in (since 0.15.0 the 30 s deadline of a bounded call also cut off every
+whole reply; `docs/certification/provider-stream-timeout.md`) and the What's
+New screenshot fixture (VISFIX; `docs/certification/visfix.md`) with the one
+reviewed baseline render it needs (`docs/certification/rel0172.md`). A fixes
+only patch, so without Highlights. This is preparation, not publication; the
+public roadmap (M122) lists 0.17.2 as the next release until a
+`0.17.2 released (…)` record follows here.
+
+**0.17.1 released (2026-10-11, tag `v0.17.1` on main's release merge `4d28a4f84`, PR #147, release run 38179212900).**
+The Release run succeeded and the GitHub release was published on
+2026-10-11 at 3:10 PM PT. Recorded by the 0.17.2 preparation.
+
 **0.17.1 preparation (2026-10-10, release branch).** `release/0.17.1` carries
 the extension version 0.17.1 and the dated `CHANGELOG.md` `[0.17.1]` section:
 the provider picker fix and provider save redesign (PROVCAT, PROVWIZ2–10,
