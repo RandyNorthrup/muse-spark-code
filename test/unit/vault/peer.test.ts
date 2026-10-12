@@ -1,7 +1,7 @@
 import { socketDescriptors } from './brokerFixture'
 import { describe, expect, it, vi, type TestContext } from 'vitest'
 import { mkdtemp, chmod, rm } from 'node:fs/promises'
-import { execFile, execFileSync } from 'node:child_process'
+import { execFile, execFileSync, spawnSync } from 'node:child_process'
 import { createServer } from 'node:net'
 import path from 'node:path'
 import os from 'node:os'
@@ -13,10 +13,20 @@ import { VAULT_APPROVAL_TTL_MS } from '../../../src/shared/constants'
 // (channel.test.ts covers that seam), so this suite has no Windows half.
 describe.skipIf(process.platform === 'win32')('native Unix foreign-user rejection', () => {
   it('owner-only socket denies another user and OS uid still refuses on a deliberately relaxed test socket', async (context: TestContext) => {
-    try {
-      execFileSync('/usr/bin/sudo', ['-n', 'true'], { env: {}, stdio: 'ignore' })
-    } catch {
-      context.skip('needs passwordless sudo to run as another user')
+    // The probe names its command by absolute path: with an empty environment
+    // there is no PATH, and `sudo -n true` then fails with "command not
+    // found" on a machine whose sudo needs no password. Only sudo asking for a
+    // password is the expected reason to skip; any other probe failure is a
+    // broken probe and fails the case.
+    const probe = spawnSync('/usr/bin/sudo', ['-n', '/usr/bin/true'], {
+      env: { LC_ALL: 'C' },
+      encoding: 'utf8',
+    })
+    if (probe.status !== 0) {
+      if (probe.stderr.includes('password is required')) {
+        context.skip('needs passwordless sudo to run as another user')
+      }
+      throw new Error(`the sudo probe failed with status ${String(probe.status)}`)
     }
     const directory = await mkdtemp(
       path.join(process.platform === 'darwin' ? '/private/tmp' : os.tmpdir(), 'm109-b-peer-uid-'),
