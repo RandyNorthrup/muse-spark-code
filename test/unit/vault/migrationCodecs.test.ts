@@ -1107,7 +1107,9 @@ describe('C-M109-4 R3 vault item names', () => {
       f.advanceRelease()
       await expect(f.service.retire(f.credential.key)).rejects.toMatchObject({ code: 'invalid' })
     }
-    // Unreadable bytes: same refusal shape as another shape.
+    // Unreadable bytes: same refusal shape as another shape, including
+    // the retire cell the table claims: refused inside the window with
+    // `false`, and with `invalid` after it, writing nothing either way.
     {
       const f = await behindActive(async (fixture) => {
         await fixture.secrets.store(fixture.credential.key, 'not JSON at all')
@@ -1115,6 +1117,12 @@ describe('C-M109-4 R3 vault item names', () => {
       expect(await f.service.migrate(f.credential.key)).toBe('diverged')
       await expect(f.service.undo(f.credential.key)).rejects.toMatchObject({ code: 'invalid' })
       expect(f.entries.get(f.credential.key)).toBe('not JSON at all')
+      expect(await f.service.retire(f.credential.key)).toBe(false)
+      f.advanceRelease()
+      f.advanceRelease()
+      await expect(f.service.retire(f.credential.key)).rejects.toMatchObject({ code: 'invalid' })
+      expect(f.entries.get(f.credential.key)).toBe('not JSON at all')
+      expect(f.journal.get(f.credential.key)?.phase).toBe('active')
     }
   })
 
@@ -1339,14 +1347,20 @@ describe('C-M109-4 R3 vault item names', () => {
 
   it.skip('vault join (lane W): a key set after its slot is active goes through the vault', async () => {
     // Owed by the vault join: once `migrate` reports `active`, a key set
-    // through the installed writer (`activateApiKey`, `auth set` and
-    // `providers add` all land on `saveProviderCredential`) must reach the
-    // vault — the join routes the write through `store` — so the vault
-    // carries the rotated value, the legacy mirror matches, and `migrate`
-    // reports `active` rather than `diverged`. This goes through the real
-    // writer, never the service directly. RED today: nothing routes the
-    // installed writer, so the vault keeps the first key and `migrate`
-    // reports `diverged`. Un-skip when the join lands.
+    // through the host wizard's writer must reach the vault — the join
+    // routes the write through `store` — so the vault carries the rotated
+    // value, the legacy mirror matches, and `migrate` reports `active`
+    // rather than `diverged`. This goes through the real installed writer
+    // (`saveProviderCredential`), never the service directly; its only
+    // caller chain is the host wizard (`setProviderCredential` at
+    // credentialRecords.ts:45 from wizardSave.ts:101 and :118). The other
+    // writers land elsewhere today: `activateApiKey` writes the model key
+    // through `credentials.setApiKey` (authService.ts:858), `auth set`
+    // calls `deps.secrets.store` directly (authCommands.ts:56 and :128),
+    // and `providers add` does the same (providersCommands.ts:208), so the
+    // join owes acceptance cases for those routes too. RED today: nothing
+    // routes the installed writer, so the vault keeps the first key and
+    // `migrate` reports `diverged`. Un-skip when the join lands.
     const f = providerFixture()
     await saveProviderCredential(f.secrets, 'openai', {
       v: 1,
