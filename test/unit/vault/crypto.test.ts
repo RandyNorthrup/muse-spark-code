@@ -258,6 +258,32 @@ describe('vault crypto', () => {
     const copy = ownedBytes(original.material.value)
     expect(copy.buffer.byteLength).toBe(copy.length)
   })
+  it('wipes already-copied fields when a later allocation fails', () => {
+    const encoded = encodeVaultMaterial({
+      kind: 'webLogin',
+      origins: ['https://example.com'],
+      username: randomVaultBytes(),
+      password: randomVaultBytes(),
+      totpSeed: randomVaultBytes(),
+    })
+    const copies: Buffer[] = []
+    const originalAlloc = Buffer.alloc
+    let calls = 0
+    Buffer.alloc = ((size: number) => {
+      calls += 1
+      if (calls === 2) throw new RangeError('synthetic allocation failure')
+      const copy: Buffer = originalAlloc(size)
+      copies.push(copy)
+      return copy
+    }) as typeof Buffer.alloc
+    try {
+      expect(() => decodeVaultMaterial(encoded)).toThrow(RangeError)
+    } finally {
+      Buffer.alloc = originalAlloc
+    }
+    expect(copies).toHaveLength(1)
+    for (const copy of copies) expect(copy.every((byte) => byte === 0)).toBe(true)
+  })
   it('refuses malformed descriptors, duplicate byte references and trailing data', () => {
     const raw = encodeVaultMaterial({
       kind: 'password',
