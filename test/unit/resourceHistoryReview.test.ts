@@ -140,6 +140,41 @@ describe('RVM107W2 P2: consent, delete boundary, retries, disposal and read boun
     expect(history.minutes).toEqual([])
   })
 
+  it('reports an unreadable history choice instead of mistaking it for a refusal', async () => {
+    const folder = await temporary()
+    await writeFile(path.join(folder, USAGE_SETTINGS_FILE), '{oops')
+    const onError = vi.fn()
+    const recorder = resourceHistoryRecorder(
+      { dataFolder: folder, isEnabled: () => true },
+      { read: () => Promise.resolve([]) },
+      onError,
+    )
+    recorder.sample(historyStatus(Date.now()))
+    expect(onError).toHaveBeenCalledTimes(1)
+    // A readable refusal reports nothing: corrupt is not a refusal.
+    await writeFile(path.join(folder, USAGE_SETTINGS_FILE), '{"enabled":false,"days":365}')
+    recorder.sample(historyStatus(Date.now()))
+    expect(onError).toHaveBeenCalledTimes(1)
+  })
+
+  it('reports a failing sample once instead of replacing it with an invented reading', async () => {
+    const folder = await temporary()
+    const onError = vi.fn()
+    const recorder = resourceHistoryRecorder(
+      { dataFolder: folder, isEnabled: () => true },
+      {
+        read: () => {
+          throw new Error('synthetic settled failure')
+        },
+      },
+      onError,
+    )
+    recorder.sample(historyStatus(Date.now()))
+    await waitUntil(() => Promise.resolve(onError.mock.calls.length === 1), 3000)
+    recorder.sample(historyStatus(Date.now()))
+    await waitUntil(() => Promise.resolve(onError.mock.calls.length === 1), 3000)
+  })
+
   it('drops a collector open minute when Delete history completes through the usage page', async () => {
     const folder = await temporary()
     const recorder = windowRecorder(folder)

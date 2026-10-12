@@ -110,8 +110,12 @@ export function resourceHistoryRecorder(
     if (!binding.isEnabled()) return false
     try {
       return readUsageHistorySettings(binding.dataFolder).enabled
-    } catch {
-      // An unreadable choice is not consent.
+    } catch (error: unknown) {
+      // A missing choice is the default; an unreadable one is not consent,
+      // and is reported once rather than mistaken for a refusal. Anything
+      // that is not an error keeps its kind.
+      if (!(error instanceof Error)) throw error
+      report()
       return false
     }
   }
@@ -151,7 +155,10 @@ export function resourceHistoryRecorder(
         liveAt = now
         await store.writeLive(current)
       }
-    } catch {
+    } catch (error: unknown) {
+      // A failed sample is reported once, never replaced by an invented
+      // reading. Anything that is not an error keeps its kind.
+      if (!(error instanceof Error)) throw error
       report()
     } finally {
       isSampling = false
@@ -160,7 +167,10 @@ export function resourceHistoryRecorder(
   const eventOnce = async (event: ResourceEvent) => {
     try {
       await records.event(event)
-    } catch {
+    } catch (error: unknown) {
+      // A failed event is reported once and dropped. Anything that is not
+      // an error keeps its kind.
+      if (!(error instanceof Error)) throw error
       report()
     }
   }
