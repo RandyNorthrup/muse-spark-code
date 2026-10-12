@@ -109,7 +109,7 @@ export async function nativeOperation(proof: WorkerCreateProof, op: string, iden
     })
     return receipt.parse(JSON.parse(stdout))
   } catch (error: unknown) {
-    throw mapNativeError(error, proof.remaining)
+    throw mapNativeError(error, proof.relative)
   }
 }
 
@@ -259,7 +259,7 @@ function helperFailureKind(text: string): string | undefined {
 }
 
 /** One table row as the typed sentence, resolved in the installed language. */
-function refusalError(sentence: WorkerRefusalSentence, remaining: string, cause: Error): Error {
+function refusalError(sentence: WorkerRefusalSentence, display: string, cause: Error): Error {
   switch (sentence) {
     case 'exists': {
       return new Error(UI_TEXT.teamFileExists, { cause })
@@ -274,7 +274,7 @@ function refusalError(sentence: WorkerRefusalSentence, remaining: string, cause:
       return new Error(UI_TEXT.teamFileChanged, { cause })
     }
     case 'cannotCreate': {
-      return new Error(fill(UI_TEXT.teamFileCannotCreate, { path: remaining }), { cause })
+      return new Error(fill(UI_TEXT.teamFileCannotCreate, { path: display }), { cause })
     }
     case 'nativeFailed': {
       return new Error(UI_TEXT.teamFileNativeFailed, { cause })
@@ -282,8 +282,12 @@ function refusalError(sentence: WorkerRefusalSentence, remaining: string, cause:
   }
 }
 
-/** Every helper or launcher failure as the typed sentence the worker reports. */
-export function mapNativeError(error: unknown, remaining: string): Error {
+/**
+ * Every helper or launcher failure as the typed sentence the worker reports.
+ * The display path is always relative to the working copy as asked, never an
+ * ancestor-relative suffix: every caller passes the copy-relative path.
+ */
+export function mapNativeError(error: unknown, display: string): Error {
   if (isTyped(error)) return error
   const cause = error instanceof Error ? error : new Error(UI_TEXT.teamFileNativeFailed)
   // Production carries the helper's words on stderr; the test fixture embeds
@@ -296,7 +300,7 @@ export function mapNativeError(error: unknown, remaining: string): Error {
   const reason = refusalReason(text)
   if (reason !== undefined) {
     const row = WORKER_REFUSALS.find((entry) => entry.reason === reason)
-    if (row !== undefined) return markTyped(refusalError(row.sentence, remaining, cause))
+    if (row !== undefined) return markTyped(refusalError(row.sentence, display, cause))
     // An unknown refusal still maps to the named backstop, with its code
     // kept in the cause chain for the log.
     return markTyped(
@@ -374,13 +378,18 @@ export function typedCreateError(error: unknown, relative: string): Error {
   return error instanceof Error ? error : new Error(UI_TEXT.teamFileNativeFailed, { cause: error })
 }
 
-/** Counts below-ancestor folder components that do not exist, without creating anything. */
+/**
+ * Counts below-ancestor folder components that do not exist, without creating
+ * anything. `remaining` walks below the ancestor; `display` is the
+ * copy-relative path the sentence prints when a probe itself fails.
+ */
 export async function countMissingFolders(
   p: PlatformPath,
   ancestorAbsolute: string,
-  relative: string,
+  remaining: string,
+  display: string,
 ): Promise<number> {
-  const parts = relative.split('/')
+  const parts = remaining.split('/')
   parts.pop()
   let dir = ancestorAbsolute
   let missing = 0
@@ -398,7 +407,7 @@ export async function countMissingFolders(
       if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
         missing += 1
         hasSeenMissing = true
-      } else throw typedCreateError(error, relative)
+      } else throw typedCreateError(error, display)
     }
   }
   return missing
@@ -544,6 +553,7 @@ export async function sweepAbandonedReservations(
           ancestor: p.relative(root, ancestorAbsolute).split(p.sep).join('/'),
           ancestorIdentity: await io.pathIdentity(ancestorAbsolute),
           remaining: parts.at(-1) ?? '',
+          relative: entry.relative,
         }
         await run(proof, 'worker-release', entry.identity)
       } catch (error: unknown) {
