@@ -94,6 +94,8 @@ export async function runWindowsAclScript(
   ).toString('base64')
   const script = `$inputPath = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${payload}')) | ConvertFrom-Json
 ${body}`
+  // Inline `-EncodedCommand`, no script file: the execution policy does not
+  // gate it, so this probe does not use the shared Bypass list.
   const stdout = await runProgram(
     executable.file,
     [

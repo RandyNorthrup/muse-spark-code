@@ -69,8 +69,10 @@ try {
 /**
 Spawn the guarded helper: the packaged guard script through the absolute
 system PowerShell, without inheriting credentials, a shell, or a visible
-console window. Shared by the slot exchanges and the pipe relay, which
-launch the same binary the same way.
+console window. Inline `-EncodedCommand`, no script file: the execution
+policy does not gate it, so this launch does not use the shared Bypass
+list. Shared by the slot exchanges and the pipe relay, which launch the
+same binary the same way.
 */
 export async function spawnGuardedVaultHelper(
   helper: WindowsVaultExecutable,

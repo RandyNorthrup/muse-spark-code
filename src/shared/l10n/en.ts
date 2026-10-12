@@ -3788,6 +3788,7 @@ export const EN = {
     testFailed: 'Runner self-test failed',
     commandTooLong:
       'The Windows runner command exceeds the process command-line limit. Shorten the setup command or check.',
+    executionPolicy: "This machine's policy does not allow scripts to run; nothing was started.",
     hostKeyNotice:
       'Connect once from your own terminal to verify and trust this host key: {fingerprint}.',
     inputHangNotice:

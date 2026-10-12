@@ -47,6 +47,7 @@ import {
   type TERMINAL_ENV_KEYS,
   TOOL_FILE_MAX_BYTES,
   TOOL_FILE_MAX_MIB,
+  WINDOWS_POWERSHELL_COMMAND_ARGS,
   WINDOWS_POWERSHELL_RELATIVE_PATH,
   WINDOWS_POWERSHELL_UTF8_PREAMBLE,
 } from '../../shared/constants'
@@ -383,12 +384,11 @@ export function shellArguments(
   isFenced = false,
 ): readonly string[] {
   if (platform === 'win32')
+    // The shared argument list: one way to start Windows PowerShell. The
+    // command is inline (`-Command`, no script file), so the process-scope
+    // `-ExecutionPolicy Bypass` it carries changes nothing on the machine.
     return [
-      '-NoProfile',
-      '-NonInteractive',
-      '-ExecutionPolicy',
-      'Bypass',
-      '-Command',
+      ...WINDOWS_POWERSHELL_COMMAND_ARGS,
       `${job === undefined ? '' : joinStatement(job, isGoverned)}${WINDOWS_POWERSHELL_UTF8_PREAMBLE}${command}`,
     ]
   return isFenced ? ['--noprofile', '--norc', '-c', command] : ['-lc', command]

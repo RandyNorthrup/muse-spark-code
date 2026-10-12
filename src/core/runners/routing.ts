@@ -75,6 +75,24 @@ export interface CheckResult {
   readonly output: string
   readonly location: string
 }
+/** Why a receiver proved it admitted nothing: the same reason travels the dispatch, the refusal port and the notice. */
+export type RunnerRefusalReason = 'commandTooLong' | 'executionPolicy'
+
+/** A receiver that forbids scripts by policy answered and said so: the run reports the policy sentence, never offline. */
+export class RunnerPolicyRefusedError extends Error {
+  public constructor() {
+    super(UI_TEXT.teamRunners.executionPolicy)
+  }
+}
+
+/** The source observer's sentence for a proved receiver refusal, else the busy sentence. */
+function refusalSentence(reason: RunnerRefusalReason | undefined): string {
+  if (reason === 'commandTooLong') return UI_TEXT.teamRunners.commandTooLong
+  return reason === 'executionPolicy'
+    ? UI_TEXT.teamRunners.executionPolicy
+    : UI_TEXT.teamRunners.busy
+}
+
 export type RunnerDispatch =
   | { readonly kind: 'finished'; readonly result: CheckResult }
   | {
@@ -84,7 +102,7 @@ export type RunnerDispatch =
       a bare busy: the source can say why the receiver refused. The check
       still runs locally once.
       */
-      readonly reason?: 'commandTooLong'
+      readonly reason?: RunnerRefusalReason
     }
   | { readonly kind: 'offline' | 'uncertain' }
 
@@ -102,7 +120,7 @@ export interface CheckRoutingDeps {
   for the source observer. Called at most once per item, only when every
   runner is exhausted and the check falls back to local.
   */
-  readonly onRefusal?: ((reason: 'commandTooLong') => void) | undefined
+  readonly onRefusal?: ((reason: RunnerRefusalReason) => void) | undefined
 }
 
 export interface ResourceRunnerRouteOptions {
@@ -237,6 +255,8 @@ export class ResourceRunnerRouter {
       isClaimRefused: boolean
       /** A target proved busy (receiver refusal or no headroom); the check stays. */
       sawBusy: boolean
+      /** The proved refusal reason when one said why; the hand-over reports its sentence. */
+      refusedReason?: RunnerRefusalReason
       /** The busy reason already reached the source observer. */
       reportedBusy: boolean
     } = {
@@ -270,7 +290,20 @@ export class ResourceRunnerRouter {
           this.options.isHeavy(job) &&
           this.options.isApproved(runner, job),
         resource: async () => {
-          const parsed = runnerHealthSchema.safeParse(await deps.sample(runner))
+          let health: RunnerHealth | undefined
+          try {
+            health = await deps.sample(runner)
+          } catch (error: unknown) {
+            // A proved policy refusal is a busy target that said why, not an
+            // unreachable one: the check stays on the source with its sentence.
+            if (error instanceof RunnerPolicyRefusedError) {
+              state.sawBusy = true
+              state.refusedReason ??= 'executionPolicy'
+              return { level: 'pause' as const, headroom: 'none' as const }
+            }
+            throw error
+          }
+          const parsed = runnerHealthSchema.safeParse(health)
           if (!parsed.success) throw new Error(UI_TEXT.teamRunners.offline)
           const isReady =
             parsed.data.inputReady &&
@@ -342,7 +375,7 @@ export class ResourceRunnerRouter {
     job: CheckJob,
     deps: CheckRoutingDeps,
     decided: Pick<ResourceStatus, 'level' | 'settings'>,
-    state: { sawBusy: boolean; reportedBusy: boolean },
+    state: { sawBusy: boolean; refusedReason?: RunnerRefusalReason; reportedBusy: boolean },
   ): typeof DECLINED | undefined {
     const current = this.options.port.status()
     if (
@@ -353,7 +386,7 @@ export class ResourceRunnerRouter {
       return DECLINED
     if (state.sawBusy) {
       if (!state.reportedBusy) {
-        this.options.onError(new Error(UI_TEXT.teamRunners.busy))
+        this.options.onError(new Error(refusalSentence(state.refusedReason)))
         state.reportedBusy = true
       }
       // Local admission cannot take labels that live only on a runner, and
@@ -428,13 +461,7 @@ export class ResourceRunnerRouter {
       // receiver, a busy cache) reports the busy sentence itself.
       if (answer.kind === 'busy') {
         state.sawBusy = true
-        this.options.onError(
-          new Error(
-            answer.reason === 'commandTooLong'
-              ? UI_TEXT.teamRunners.commandTooLong
-              : UI_TEXT.teamRunners.busy,
-          ),
-        )
+        this.options.onError(new Error(refusalSentence(answer.reason)))
         state.reportedBusy = true
       }
       return answer
@@ -534,10 +561,21 @@ export async function routeChecks(
   // Ordinary M96c runner routing, unchanged by the relocation binding: a
   // declined relocation runs exactly this, never straight to local.
   const ordinary = async () => {
-    let refusedReason: 'commandTooLong' | undefined
+    let refusedReason: RunnerRefusalReason | undefined
     for (const runner of candidates) {
       admit()
-      const health = await deps.sample(runner)
+      let health: RunnerHealth | undefined
+      try {
+        health = await deps.sample(runner)
+      } catch (error: unknown) {
+        // A proved policy refusal keeps its reason while the loop moves on;
+        // it is reported only when every runner is exhausted (below).
+        if (error instanceof RunnerPolicyRefusedError) {
+          refusedReason ??= 'executionPolicy'
+          continue
+        }
+        throw error
+      }
       admit()
       if (
         health === undefined ||
