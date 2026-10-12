@@ -877,3 +877,86 @@ scope (with nearest ids), and 4 when a requested `--fail-on` condition holds.
 Conditions are `unavailable`, `drift`, `blocked`, `channelLag` and `ciFailing`.
 History-save revocation or cancellation fails explicitly. Equal observation
 times preserve the newest saved sequence when selecting the previous report.
+
+## Turn accounting
+
+The agent sends `session_info_update` notifications during a turn and includes
+`_meta["museSpark.usage"]` on `session/prompt` responses. These are ACP 1.7.0
+extensions: clients may ignore the metadata and still read `stopReason`.
+The final notification also precedes a failed prompt's typed refusal; that
+refusal carries the same metadata in `data._meta`.
+
+Counts and cost come from settled usage-journal entries, including recorded
+child calls. USD amounts are decimal strings. `settledUsd` excludes upper
+bounds and retained uncertain liability; those have separate fields.
+`missingTokenCounters` names counters the provider did not report. Session
+totals cover retained journal entries; history can age out or be deleted.
+Unavailable or disabled history returns `{ "v": 1, "available": false }`,
+never a claim of free usage. Budget remaining amounts include the ledger's
+liabilities. A `null` cap/remaining amount means no session cap is configured.
+
+A first completed turn with a $1 daily cap can return:
+
+```json
+{
+  "stopReason": "end_turn",
+  "_meta": {
+    "museSpark.usage": {
+      "v": 1,
+      "available": true,
+      "turn": {
+        "requests": 1,
+        "tokens": {
+          "input": 100,
+          "cached": 20,
+          "cacheWrite": 30,
+          "cacheWrite5m": 20,
+          "cacheWrite1h": 10,
+          "output": 10,
+          "reasoning": 2
+        },
+        "missingTokenCounters": [],
+        "settledUsd": "0.000548",
+        "upperBoundUsd": "0",
+        "retainedLiabilityUsd": "0",
+        "unknownRequests": 0,
+        "planRequests": 0,
+        "legacyNumericCosts": false
+      },
+      "session": {
+        "requests": 1,
+        "tokens": {
+          "input": 100,
+          "cached": 20,
+          "cacheWrite": 30,
+          "cacheWrite5m": 20,
+          "cacheWrite1h": 10,
+          "output": 10,
+          "reasoning": 2
+        },
+        "missingTokenCounters": [],
+        "settledUsd": "0.000548",
+        "upperBoundUsd": "0",
+        "retainedLiabilityUsd": "0",
+        "unknownRequests": 0,
+        "planRequests": 0,
+        "legacyNumericCosts": false
+      },
+      "budgets": [
+        {
+          "scope": "daily",
+          "capUsd": "1",
+          "spentUsd": "0.000548",
+          "remainingUsd": "0.999452",
+          "uncertainUsd": "0",
+          "hasUnknownCost": false
+        }
+      ]
+    }
+  }
+}
+```
+
+Backend advisories use ACP's `notice` channel only when
+`clientCapabilities.session.notices` is advertised, once per advisory per
+session. They do not enter model answer text.

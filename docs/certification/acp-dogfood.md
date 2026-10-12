@@ -59,3 +59,32 @@ class plus redacted message once; MSP messages remain suppressed per AGENTS.
 Prompt text, embedded resources/media and authorization headers are withheld.
 Red: all 16 failure-injection cases failed before the boundary;
 `temp/acpdog-2-red.log`. Green: 16/16, plus the existing 145 ACP cases.
+
+## Item 3 — protocol accounting
+
+ACP prompt responses and session-info metadata carry journal-exact request,
+token-class and decimal USD figures, with session totals and daily/session
+remaining budget views. Reads never reserve and are bounded at 1 s.
+Internal journal records now correlate session/turn and parent session/turn;
+no provider wire field changed. Upper bounds, missing counters, uncertain
+liability, legacy numeric costs and unavailable history remain explicit.
+Strict ACP SDK validation accepts the metadata; a strict client can ignore
+its unknown keys. Red: all three protocol cases failed without the binding;
+`temp/acpdog-3-red.log`. Green: accounting + ACP agent + usage recording:
+3 files / 174 tests, at repository deadlines.
+
+## Item 8 — useful failure logs
+
+Exec stderr prints the turn's typed kind and redacted reason. Resource errors
+name their fixed port (`resources.settings`, `.resume`, `.sample`, `.history`,
+`.status` or `.admission`), discard native diagnostic text and report each
+reading once per connected process. Red: verbose exec lacked the typed cause
+(1 failed / 94 passed); `temp/acpdog-8-red.log`. Green: exec run + named
+resource errors + runtime resources: 3 files / 116 tests at default deadlines.
+
+Real stack: ACP SDK → real ModelApiHost → HTTP on loopback → fake provider,
+with in-process fake OS-store entries: busy, never answering, absent and
+unavailable after two settled calls. Four complete cases pass at default
+5 s test deadlines. Failed requests do not reach HTTP and the next prompt
+succeeds. Receipts and metadata share the journal's exact $0.000548 per
+request. All servers and keep-alive sockets close in finally.

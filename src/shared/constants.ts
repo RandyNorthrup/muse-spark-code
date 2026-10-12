@@ -2267,6 +2267,7 @@ export const CREDENTIAL_STORE_READ_ATTEMPTS = 3
 export const CREDENTIAL_STORE_READ_TIMEOUT_MS = 1000
 export const CREDENTIAL_STORE_READ_BACKOFF_MS = 100
 export const CREDENTIAL_STORE_ERROR_KIND = 'credential_store_unavailable'
+export const ACP_USAGE_READ_TIMEOUT_MS = 1000
 export const ACP_ERROR_CODES = {
   internal: -32_603,
   credentialStore: -32_010,

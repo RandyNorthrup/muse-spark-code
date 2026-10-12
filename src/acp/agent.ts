@@ -33,6 +33,7 @@ import {
   type ContentBlock,
   type CreateElicitationRequest,
   type InitializeResponse,
+  type PromptResponse,
   type ListSessionsResponse,
   type McpServer,
   PROTOCOL_VERSION,
@@ -55,15 +56,17 @@ import {
 } from '../core/agent/agentBackend'
 import { editAutomaticallyChoice } from '../core/agent/approvalRules'
 import { isMspFailure, failureForLog } from '../core/backends/musecode/logText'
-import { DeadlineError, unlessAborted } from '../core/timeouts'
-import { isModelApiError } from '../core/backends/modelapi/transport'
+import { DeadlineError, withDeadline, unlessAborted } from '../core/timeouts'
+import { isMissingApiKeyError, isModelApiError } from '../core/backends/modelapi/transport'
 import { redactSecrets } from '../core/redact'
+import { readAcpUsage, type AcpAccounting, type AcpUsageSnapshot } from './accounting'
 import type { CoreLogger } from '../core/logging'
 import { type PaidUseAnswer, paidUseQuestion } from '../core/paid/paidConsent'
 import type { AgentEvent } from '../shared/agentEvents'
 import {
   ACP_AGENT_NAME,
   ACP_ERROR_CODES,
+  ACP_USAGE_READ_TIMEOUT_MS,
   CREDENTIAL_STORE_ERROR_KIND,
   ACP_AGENT_TITLE,
   ACP_COMPACT_COMMAND,
@@ -176,6 +179,8 @@ export interface SignInMethod {
 }
 
 export interface AcpAgentDeps {
+  readonly accounting?: AcpAccounting
+
   readonly legalScan?:
     | ((
         cwd: string,
@@ -258,7 +263,12 @@ type QuestionRequest = Extract<AgentEvent, { type: 'questionRequested' }>
 type ElicitationRequest = Extract<AgentEvent, { type: 'elicitationRequested' }>
 type TurnCompleted = Extract<AgentEvent, { type: 'turnCompleted' }>
 
+interface PromptAccounting {
+  turnId: string | undefined
+}
+
 interface PendingPrompt {
+  readonly accounting?: PromptAccounting | undefined
   readonly resolve: (reason: StopReason) => void
   readonly reject: (error: unknown) => void
   turnId: string | undefined
@@ -330,6 +340,8 @@ class AcpSession {
   private readonly earlyFinishes = new Map<string, TurnCompleted>()
   private outbox: Promise<void> = Promise.resolve()
   private pending: PendingPrompt | undefined
+  private lastUsage: AcpUsageSnapshot | undefined
+  private hasLoggedUsageFailure = false
   /**
    * A prompt before its turn starts, while the session's skills are first
    * announced: the session is busy, and a cancel ends the prompt there.
@@ -381,7 +393,14 @@ class AcpSession {
     this.translator = new UpdateTranslator(
       cwd,
       false,
-      undefined,
+      deps.accounting === undefined
+        ? undefined
+        : () =>
+            this.lastUsage === undefined ||
+            this.lastUsage.session.unknownRequests > 0 ||
+            this.lastUsage.session.upperBoundUsd !== '0'
+              ? undefined
+              : { certainty: 'computed', usd: Number(this.lastUsage.session.settledUsd) },
       deps.backend.kind,
       clientCapabilities.session?.notices != null,
     )
@@ -736,9 +755,16 @@ class AcpSession {
       case 'turnStarted': {
         this.activeTurnId = event.turnId
         const pending = this.pending
+        if (pending?.accounting !== undefined) pending.accounting.turnId = event.turnId
         if (pending?.turnId === event.turnId && pending.userMessageId === undefined) {
           this.commitAnswers(pending)
         }
+        return
+      }
+      case 'tokenUsage': {
+        if (this.deps.accounting !== undefined)
+          void this.queueUsage(this.pending?.accounting?.turnId ?? this.activeTurnId)
+        for (const update of this.translator.updates(event)) this.send(update)
         return
       }
       case 'messageAdmitted': {
@@ -826,6 +852,7 @@ class AcpSession {
       return
     }
     pending.turnId = turnId
+    if (pending.accounting !== undefined) pending.accounting.turnId = turnId
     const early = this.earlyFinishes.get(turnId)
     if (early === undefined) {
       if (disposition === 'started') this.activeTurnId = turnId
@@ -1305,6 +1332,42 @@ class AcpSession {
     return true
   }
 
+  /** Journal reads are bounded and never turn unavailable accounting into zero spend. */
+  private queueUsage(
+    turnId: string | undefined,
+  ): Promise<AcpUsageSnapshot | { v: 1; available: false } | undefined> {
+    const accounting = this.deps.accounting
+    if (accounting === undefined) return Promise.resolve(undefined)
+    const prior = this.outbox
+    const work = (async () => {
+      await prior
+      let usage: AcpUsageSnapshot | { v: 1; available: false }
+      try {
+        usage = await withDeadline(
+          readAcpUsage(accounting, this.sessionId, turnId),
+          ACP_USAGE_READ_TIMEOUT_MS,
+          UI_TEXT.actionFailed,
+        )
+        this.lastUsage = usage
+      } catch {
+        usage = { v: 1, available: false }
+        if (!this.hasLoggedUsageFailure) {
+          this.hasLoggedUsageFailure = true
+          this.deps.log.warn('ACP usage accounting is unavailable')
+        }
+      }
+      await this.deliver(Promise.resolve(), {
+        sessionUpdate: 'session_info_update',
+        _meta: { 'museSpark.usage': usage },
+      })
+      return usage
+    })()
+    this.outbox = (async () => {
+      await work
+    })()
+    return work
+  }
+
   public async askPaidUse(request: PaidUseRequest, canRemember: boolean): Promise<PaidUseAnswer> {
     const pending = this.pending
     const preparing = this.preparing
@@ -1591,7 +1654,10 @@ class AcpSession {
     })
   }
 
-  public async prompt(blocks: readonly ContentBlock[]): Promise<StopReason> {
+  public async prompt(
+    blocks: readonly ContentBlock[],
+    accounting?: PromptAccounting,
+  ): Promise<StopReason> {
     this.ensureHeld()
     if (this.deps.resources !== undefined) {
       const update = await acpResourceCommand(blocks, this.deps.resources)
@@ -1913,6 +1979,7 @@ class AcpSession {
     let pending!: PendingPrompt
     const finished = new Promise<PromptOutcome>((resolve) => {
       pending = {
+        accounting,
         resolve: (reason) => {
           resolve({ reason })
         },
@@ -2001,6 +2068,27 @@ class AcpSession {
     }
     await this.outbox
     return outcome.reason
+  }
+
+  public async promptResponse(blocks: readonly ContentBlock[]): Promise<PromptResponse> {
+    const accounting: PromptAccounting = { turnId: undefined }
+    try {
+      const stopReason = await this.prompt(blocks, accounting)
+      const usage = await this.queueUsage(accounting.turnId)
+      return { stopReason, ...(usage !== undefined && { _meta: { 'museSpark.usage': usage } }) }
+    } catch (error: unknown) {
+      const usage = await this.queueUsage(accounting.turnId)
+      if (usage !== undefined && error instanceof RequestError) {
+        const data = error.data
+        error.data = {
+          ...(typeof data === 'object' && data !== null && !Array.isArray(data)
+            ? data
+            : { cause: data }),
+          _meta: { 'museSpark.usage': usage },
+        }
+      }
+      throw error
+    }
   }
 
   public async cancel(): Promise<void> {
@@ -2566,7 +2654,11 @@ export function createAcpAgent(deps: AcpAgentDeps): AgentApp {
           UI_TEXT.acpCredentialStoreNoAnswer,
           { kind: CREDENTIAL_STORE_ERROR_KIND, requestSent: false },
         )
-      if (error instanceof DeadlineError)
+      if (isMissingApiKeyError(error)) throw RequestError.authRequired(undefined, error.message)
+      if (
+        error instanceof DeadlineError ||
+        (error instanceof Error && error.name === 'DeadlineError')
+      )
         throw new RequestError(ACP_ERROR_CODES.unavailable, error.message, { kind: 'deadline' })
       if (isMspFailure(error))
         throw new RequestError(ACP_ERROR_CODES.turnFailed, UI_TEXT.actionFailed, {
@@ -2646,9 +2738,7 @@ export function createAcpAgent(deps: AcpAgentDeps): AgentApp {
     .onRequest('session/prompt', (context) =>
       respond(
         'session/prompt',
-        async () => ({
-          stopReason: await state.session(context.params.sessionId).prompt(context.params.prompt),
-        }),
+        () => state.session(context.params.sessionId).promptResponse(context.params.prompt),
         context.params.prompt.flatMap((block) => {
           if (block.type === 'text') return [block.text]
           if (block.type === 'image' || block.type === 'audio') return [block.data]

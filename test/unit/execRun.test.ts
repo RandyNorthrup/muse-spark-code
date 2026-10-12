@@ -350,6 +350,18 @@ async function schemaSwapHarness(
   return { h, opener, reads }
 }
 
+describe('ACPDOG failed-turn diagnostics', () => {
+  it('prints the typed provider cause with verbose output', async () => {
+    const h = await harness(
+      ['--verbose'],
+      [{ failed: { code: 'synthetic_failure', message: 'provider refused this turn' } }],
+    )
+    const result = await h.run()
+    expect(result.code).not.toBe(0)
+    expect(h.err.chunks.join('')).toMatch(/modelApi:.*provider refused this turn/u)
+  })
+})
+
 describe('M106 output schema runtime binding', () => {
   it('refuses a final symlink swapped immediately before open without reading the outside file', async () => {
     const { h, opener, reads } = await schemaSwapHarness((fixture, file) => {

@@ -160,6 +160,9 @@ export const usageRecordSchema = z
     rateLimited: z.optional(z.boolean()),
     retryDelayMs: z.optional(usageAmountSchema),
     session: z.optional(usageIdSchema),
+    turn: z.optional(usageIdSchema),
+    parentSession: z.optional(usageIdSchema),
+    parentTurn: z.optional(usageIdSchema),
     packedAvoided: z.optional(usageCountSchema),
     headers: z.optional(usageHeadersSchema),
   })

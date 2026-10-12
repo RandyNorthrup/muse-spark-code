@@ -23,7 +23,7 @@ import type {
   RuntimeResourceNotice,
   RuntimeResources,
 } from './port'
-import { resourceNoticeText, resourceStatusText } from './text'
+import { readResource, ResourceReadingError, resourceNoticeText, resourceStatusText } from './text'
 
 export interface RuntimeResourceHostOptions {
   clock: ResourceClock
@@ -44,7 +44,7 @@ export async function createRuntimeResourceHost(
   options: RuntimeResourceHostOptions,
 ): Promise<RuntimeResources> {
   let settings = resourceSettingsSchema.parse({
-    ...(await options.machine.readSettings()),
+    ...(await readResource('resources.settings', () => options.machine.readSettings())),
     ...options.overrides,
   })
   const events = new ResourceEvents(options.onError)
@@ -64,11 +64,13 @@ export async function createRuntimeResourceHost(
       ),
   }
   const sync = async () => {
-    const next = resourceSettingsSchema.parse({
-      ...(await options.machine.readSettings()),
-      ...options.overrides,
-    })
-    const until = await options.machine.readResumeUntil()
+    const next = await readResource('resources.settings', async () =>
+      resourceSettingsSchema.parse({
+        ...(await options.machine.readSettings()),
+        ...options.overrides,
+      }),
+    )
+    const until = await readResource('resources.resume', () => options.machine.readResumeUntil())
     if (isDisposed) throw new Error(UI_TEXT.resourceUnavailable)
     if (JSON.stringify(next) !== JSON.stringify(settings)) {
       settings = next
@@ -76,7 +78,7 @@ export async function createRuntimeResourceHost(
     }
     const now = options.clock.now()
     if (until !== null && until > now + RESOURCE_OVERRIDE_MS)
-      throw new Error(UI_TEXT.resourceUnavailable)
+      throw new ResourceReadingError('resources.resume')
     if (until === null || until === appliedUntil || !settings.enabled || until <= now) return
 
     appliedUntil = until
@@ -93,7 +95,7 @@ export async function createRuntimeResourceHost(
     sampler: {
       async sample() {
         await sync()
-        return await options.sampler.sample()
+        return await readResource('resources.sample', () => options.sampler.sample())
       },
     },
     settings,
