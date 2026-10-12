@@ -394,6 +394,26 @@ describe('D89.14 credential migration', () => {
     expect(f.deps.onRetired).toHaveBeenCalledExactlyOnceWith(f.credential.key)
     expect(await opened.migrate(second.key)).toBe('diverged')
   })
+  it('resume reports a changed legacy copy instead of throwing', async () => {
+    // RVCM1094E finding 1: `resume` must not throw for an active row whose
+    // legacy copy changed after the intent — it clears the stale intent and
+    // reports the row's state, so the join's per-key sequence goes on to the
+    // other rows. The engine deletes nobody else's bytes.
+    const f = await readyToRetire()
+    const remove = f.deps.legacy.remove
+    f.deps.legacy.remove = vi.fn(() => Promise.reject(new Error('crash before the legacy delete')))
+    await expect(f.service.retire(f.credential.key)).rejects.toMatchObject({ code: 'storage' })
+    f.deps.legacy.remove = remove
+    expect(f.journal.get(f.credential.key)?.retireIntent).toBe(true)
+    // Behind the vault, the legacy copy is overwritten after the intent.
+    const changed = generatedKey()
+    f.legacy.set(f.credential.key, changed)
+    await f.service.resume(f.credential.key)
+    expect(f.journal.get(f.credential.key)?.phase).toBe('active')
+    expect(f.journal.get(f.credential.key)?.retireIntent).toBeUndefined()
+    expect(f.legacy.get(f.credential.key)).toEqual(changed)
+    expect(await f.service.migrate(f.credential.key)).toBe('diverged')
+  })
   it('keeps the two last-copy confirmations apart', async () => {
     // RVCM1094E finding 1: `destroyLastCopyConfirmed` is the ordinary delete
     // (a plain sign-out may pass it) and never answers `legacyDeleted`; the
