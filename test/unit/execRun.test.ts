@@ -1227,7 +1227,8 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
     const r = await h.run()
     expect(r.code).toBe(5)
     expect(h.api.responseBodies()).toHaveLength(0)
-    expect(result(r).error?.message).toContain('output cap')
+    // The preflight refusal names the exact minimum reservation with numbers.
+    expect(result(r).error?.message).toContain('requires at least $')
     expect(result(r).usage.requests).toBe(0)
   })
   it('D3 a budget stop keeps the first request work and says what was reached', async () => {
