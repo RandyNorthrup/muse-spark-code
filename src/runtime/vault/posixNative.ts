@@ -49,19 +49,25 @@ export async function vaultProcessIdentity(
   pid: number,
 ): Promise<VaultProcessIdentity | null> {
   z.number().check(z.int(), z.positive()).parse(pid)
-  try {
-    const result = await execResourceFile('probe', helper, ['identity', String(pid)], {
-      env: {},
-      timeout: VAULT_BROKER_NATIVE_TIMEOUT_MS,
-      maxBuffer: VAULT_LIMITS.text,
-    })
-    const parsed = processSchema.parse(JSON.parse(result.stdout))
-    if (parsed.processId !== pid) throw new Error(UI_TEXT.vault.noAccess)
-    return parsed
-  } catch (error: unknown) {
-    // Exit 2 is the helper's captured missing/zombie process result, not a parse or permission failure.
-    if (error !== null && typeof error === 'object' && 'code' in error && error.code === 2)
-      return null
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const result = await execResourceFile('probe', helper, ['identity', String(pid)], {
+        env: {},
+        timeout: VAULT_BROKER_NATIVE_TIMEOUT_MS,
+        maxBuffer: VAULT_LIMITS.text,
+      })
+      const parsed = processSchema.parse(JSON.parse(result.stdout))
+      if (parsed.processId !== pid) throw new Error(UI_TEXT.vault.noAccess)
+      return parsed
+    } catch (error: unknown) {
+      if (error !== null && typeof error === 'object' && 'code' in error) {
+        // Exit 2 proves absence. Exit 1 can be a process vanishing between native reads;
+        // one fresh probe must prove absence or a valid identity, never a guessed death.
+        if (error.code === 2) return null
+        if (attempt === 0 && error.code === 1) continue
+      }
+      break
+    }
   }
   // Discard native diagnostics; only the fixed failure escapes.
   throw new Error(UI_TEXT.vault.noAccess)

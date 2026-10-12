@@ -24,16 +24,18 @@ export class VaultBrokerProcess {
       const existing = await this.discovery.discover((pid) => this.process.identity(pid))
       if (existing) return existing
       const child = await this.process.launch()
+      let location: VaultBrokerLocation | null
       try {
         await child.ready
-        const location = await this.discovery.discover((pid) => this.process.identity(pid))
-        if (location) return location
-        await child.stop?.()
-        // A broker can finish orderly shutdown after readiness; retry its successor once.
+        location = await this.discovery.discover((pid) => this.process.identity(pid))
       } catch (error: unknown) {
         await child.stop?.()
         throw error
       }
+      if (location) return location
+      // Retire each failed owned startup exactly once; failed cleanup stops the retry.
+      await child.stop?.()
+      // A broker can finish orderly shutdown after readiness; retry its successor once.
     }
     throw new Error(UI_TEXT.vault.brokerBlocked)
   }

@@ -6,6 +6,7 @@ import { createVaultBrokerBindings } from '../../../../src/runtime/vault/brokerB
 import { memoryKeyring } from '../keyring'
 import { readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
+import process from 'node:process'
 import * as z from 'zod/mini'
 import { createConnection } from 'node:net'
 import { once } from 'node:events'
@@ -33,9 +34,11 @@ void runVaultBrokerEntry(async () => {
   // Test ownership, including delayed authentication: only the test's signal ends this fixture.
   const keepAlive = createConnection(handle.location.lock.socket)
   await once(keepAlive, 'connect')
-  void handle.closed.finally(() => keepAlive.destroy()).catch(() => {
-    process.exitCode = 1
-  })
+  void handle.closed
+    .finally(() => keepAlive.destroy())
+    .catch(() => {
+      process.exitCode = 1
+    })
   process.send?.({ ready: true })
   // This intentionally writes through inherited pipes too; closed readers must be harmless.
   process.stderr.write('vault-audit-refused\n')

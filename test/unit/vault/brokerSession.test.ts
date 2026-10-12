@@ -106,7 +106,9 @@ async function status(child: ChildProcess) {
   expect(messages[0]).toMatchObject({ kind: 'status' })
 }
 async function cleaned(directory: string) {
-  const lock = vaultBrokerLockSchema.parse(JSON.parse(await readFile(path.join(directory, 'broker.lock'), 'utf8')))
+  const lock = vaultBrokerLockSchema.parse(
+    JSON.parse(await readFile(path.join(directory, 'broker.lock'), 'utf8')),
+  )
   process.kill(lock.processId, 'SIGTERM')
   for (let count = 0; count < 100; count++) {
     const files = await readdir(directory)
@@ -191,6 +193,8 @@ describe.skipIf(process.platform === 'win32')('session-owned POSIX broker', () =
     )
     children.add(child)
     if (child.pid !== undefined) brokers.add(child.pid)
+    if (child.stdout === null || child.stderr === null)
+      throw new Error('missing fixture diagnostic pipes')
     child.stdout.destroy()
     child.stderr.destroy()
     const ready = await once(child, 'message')

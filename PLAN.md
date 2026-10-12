@@ -19200,13 +19200,14 @@ in-tree junctions below it, drive-letter spelling) and
 
 ## 3. Open questions (need the owner)
 
-**CM109JOINB native resource receipt (2026-10-11, Kubuntu).** The lead/resource
-owner must identify why the installed governor's registered-tree sampler enters
-its refusal catch during the generated-only vault receipt. Two runs complete
-setup/private read/Lock/reopen and cleanup but emit admission warnings and exit
-1; the native error reason is intentionally discarded. No warning is suppressed
-and no resource sampler outside this lane is changed; replay the same receipt
-before claiming installed acceptance.
+**CM109JOINB native resource receipt resolved (2026-10-11, Kubuntu).**
+An exploratory copy identified `Resource root membership not proven` only for
+already-ended native helper groups proven gone by the kernel. Installed
+acceptance now observes the exact concurrent sampler work, names only this
+`finished-native-helper-membership-race`, and keeps live/unclassified warnings
+fatal. Both native receipts and final helper-tree/temp-file retirement checks
+exit 0; the installed product bundles are not patched by acceptance. This
+replaces the round-2 sampler deferral; no production resource guard changes.
 
 **C-M109-1b integration receipt (2026-10-10).** Part (a) must provide the
 installed `vaultRuntime.js` broker-binding factory (audit, identity/launch
@@ -33271,7 +33272,9 @@ The split:
 **CM109JOINB round 3 repair (2026-10-11, Kubuntu; RVCM109JC).** Treat
 orderly broker disappearance at discovery, readiness, authentication and the
 post-launch recheck as absence or one bounded successor retry across editor,
-CLI, ACP and headless connections. Enumerate each filesystem/native/socket
+CLI, ACP and headless connections. Native identity exit 1 gets one fresh
+probe, requiring validated identity or code-2 absence; a real broker closes
+between the native reads in its regression. Enumerate each filesystem/native/socket
 transition and close real brokers between steps in regressions. Make the
 real-process fixture follow explicit test ownership, retaining the production
 30-second idle policy with an injected-clock test. Reproduce and resolve the
@@ -38322,14 +38325,15 @@ lane A's first step.
 rig brief delegates aggregate quality and hub integration to the lead. All five
 type projects and scoped lint/format, plain knip, zero duplication, l10n,
 reference, host API, plan, roadmap and production budgets pass unchanged.
-The installed private-Secret-Service receipt completes its vault assertions
-and cleans up, but exits 1 on the existing registered-tree sampler's warnings
-(`resourceGovernor.js:3:51102`, the `sampleTree` refusal catch), on two runs.
-Full governed launch under two CPU workers measures 1,042 ms then 570 ms,
-both below the five-second comparison window; this does not certify a total
-launch bound. Defer the warning cause and a clean installed acceptance receipt
-to the resource owner/lead (section 3), rather than suppressing it or widening
-this POSIX lane into resource accounting. Availability stays off. The 17 writer
+Round 2's installed warning deferral is resolved by RVCM109JC qualification:
+the exact finished-native-helper registration race is named only after its
+process group is proven gone; live/unclassified sampling failures still fail
+acceptance. Both native receipts and retirement checks exit 0. The shared
+epoch writer's legitimate cross-session contention is serialized by the
+POSIX kernel lock, with guardian-loss and contention regressions. Full
+launch measurements are observations under two CPU workers, not a total
+launch guarantee. No production resource accounting guard is changed.
+Availability stays off. The 17 writer
 crash cases remain skipped for CM109LEASE/join; the store/shared lock helpers
 are unchanged. No hook, assertion, budget or timeout is weakened.
 

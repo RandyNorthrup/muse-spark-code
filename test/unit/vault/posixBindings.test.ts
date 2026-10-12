@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { execFileSync } from 'node:child_process'
 import { mkdtemp, mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises'
+import * as fsPromises from 'node:fs/promises'
 import path from 'node:path'
 import os from 'node:os'
 import process from 'node:process'
@@ -34,7 +35,11 @@ vi.mock(
   async () => await import('../helpers/vault/brokerChildLauncher'),
 )
 vi.mock('../../../src/runtime/vault/posixNative', { spy: true })
-const seen: { broker?: VaultBroker } = {}
+vi.mock('node:fs/promises', { spy: true })
+const seen: {
+  broker?: VaultBroker
+  epoch?: ConstructorParameters<typeof VaultBroker>[0]['epoch']
+} = {}
 vi.mock('../../../src/core/vault/broker/broker', async (original) => {
   const module = await original<typeof BrokerModule>()
   return {
@@ -43,6 +48,7 @@ vi.mock('../../../src/core/vault/broker/broker', async (original) => {
       constructor(...args: ConstructorParameters<typeof VaultBroker>) {
         super(...args)
         seen.broker = this
+        seen.epoch = args[0].epoch
       }
     },
   }
@@ -508,13 +514,140 @@ describe.skipIf(process.platform === 'win32')('installed POSIX binding compositi
       f.platform.dispose?.()
     }
   })
+  it.each(['one broker', 'different user sessions'] as const)(
+    'serializes shared epoch writers on %s',
+    async (scope) => {
+      const f = await composition()
+      const first = seen.epoch
+      if (!first) throw new Error('missing first broker')
+      const secondHandle = await createVaultBrokerProcess(
+        { ...f.context, userSession: f.context.userSession + ':other' },
+        f.base,
+      )
+      const second = scope === 'one broker' ? first : seen.epoch
+      if (!second) throw new Error('missing second broker')
+      const files = new UnixVaultPrivateFiles()
+      const claim = files.claim.bind(files)
+      const entered = Promise.withResolvers<undefined>()
+      const resume = Promise.withResolvers<undefined>()
+      let writers = 0
+      const probe = vi
+        .spyOn(UnixVaultPrivateFiles.prototype, 'claim')
+        .mockImplementation(async (file, bytes) => {
+          const release = await claim(file, bytes)
+          if (path.basename(file) === 'lock-epoch.writer') {
+            writers += 1
+            if (writers === 1) {
+              entered.resolve(undefined)
+              await resume.promise
+            }
+          }
+          return release
+        })
+      const hold = vi.spyOn(nativeModule, 'holdVaultStartupLock')
+      const firstResult = (async () => {
+        try {
+          await first.bump()
+          return null
+        } catch (error: unknown) {
+          return error
+        }
+      })()
+      let secondResult: Promise<unknown> | undefined
+      let collision: unknown
+      try {
+        await entered.promise
+        secondResult = (async () => {
+          try {
+            await second.bump()
+            return null
+          } catch (error: unknown) {
+            collision = error
+            return error
+          }
+        })()
+        // The second broker must reach the kernel wait without claiming the occupied writer.
+        await vi.waitFor(() => {
+          expect(collision).not.toMatchObject({ code: 'EEXIST' })
+          expect(
+            hold.mock.calls.filter(([, file]) => path.basename(file) === 'lock-epoch.lock'),
+          ).toHaveLength(2)
+        })
+        expect(writers).toBe(1)
+        resume.resolve(undefined)
+        expect(await firstResult).toBeNull()
+        expect(await secondResult).toBeNull()
+        expect(writers).toBe(2)
+        const epoch = JSON.parse(
+          await readFile(path.join(f.context.runDirectory, 'lock-epoch.v1'), 'utf8'),
+        )
+        expect(epoch).toEqual({ v: 1, epoch: 2 })
+        await expect(
+          stat(path.join(f.context.runDirectory, 'lock-epoch.writer')),
+        ).rejects.toMatchObject({ code: 'ENOENT' })
+      } finally {
+        resume.resolve(undefined)
+        await firstResult
+        await secondResult
+        hold.mockRestore()
+        probe.mockRestore()
+        const cleanup = await Promise.allSettled([secondHandle.close(), f.handle.close()])
+        // A foreign epoch cancels a concurrent snapshot; close still owns all cleanup in finally.
+        for (const result of cleanup)
+          if (result.status === 'rejected')
+            expect(result.reason).toMatchObject({ message: UI_TEXT.vault.noAccess })
+        await expect(stat(secondHandle.location.lock.socket)).rejects.toMatchObject({
+          code: 'ENOENT',
+        })
+        await expect(stat(f.handle.location.lock.socket)).rejects.toMatchObject({ code: 'ENOENT' })
+        f.platform.dispose?.()
+      }
+    },
+  )
+  it('refuses an epoch commit after its kernel guardian is lost', async () => {
+    const f = await composition()
+    const epoch = seen.epoch
+    if (!epoch) throw new Error('missing composed epoch port')
+    const { holdVaultStartupLock: hold } = await vi.importActual<typeof nativeModule>(
+      '../../../src/runtime/vault/posixNative',
+    )
+    const probe = vi
+      .spyOn(nativeModule, 'holdVaultStartupLock')
+      .mockImplementation(async (...args) => {
+        const held = await hold(...args)
+        return {
+          ...held,
+          onLost: (listener) => {
+            held.onLost(listener)
+            listener()
+          },
+        }
+      })
+    try {
+      await expect(epoch.bump()).rejects.toThrow(UI_TEXT.vault.noAccess)
+      await expect(stat(path.join(f.context.runDirectory, 'lock-epoch.v1'))).rejects.toMatchObject({
+        code: 'ENOENT',
+      })
+      await expect(
+        stat(path.join(f.context.runDirectory, 'lock-epoch.writer')),
+      ).rejects.toMatchObject({ code: 'ENOENT' })
+    } finally {
+      probe.mockRestore()
+      await f.handle.close()
+      f.platform.dispose?.()
+    }
+  })
   it.each([
     'directory',
     'record-open',
     'record-read',
+    'record-stat',
+    'record-bytes',
     'identity',
     'token-open',
     'token-read',
+    'token-stat',
+    'token-bytes',
     'readiness',
     'recheck-record',
     'recheck-identity',
@@ -534,6 +667,20 @@ describe.skipIf(process.platform === 'win32')('installed POSIX binding compositi
       didClose = true
       await f.handle.close()
     }
+    const { open } = await vi.importActual<typeof fsPromises>('node:fs/promises')
+    const opens = vi.spyOn(fsPromises, 'open').mockImplementation(async (...args) => {
+      const handle = await open(...args)
+      const name = typeof args[0] === 'string' ? path.basename(args[0]) : ''
+      const prefix = name === 'broker.lock' ? 'record' : 'token'
+      const isDiscoveryFile = name === 'broker.lock' || name === 'boot-token'
+      if (isDiscoveryFile && stage === `${prefix}-stat`) await close()
+      else if (isDiscoveryFile && stage === `${prefix}-bytes`) {
+        const sample = await handle.stat()
+        await close()
+        vi.spyOn(handle, 'stat').mockResolvedValueOnce(sample)
+      }
+      return handle
+    })
     const reads = vi
       .spyOn(UnixVaultPrivateFiles.prototype, 'read')
       .mockImplementation(async (file, max) => {
@@ -591,6 +738,7 @@ describe.skipIf(process.platform === 'win32')('installed POSIX binding compositi
       identitiesProbe.mockRestore()
       directories.mockRestore()
       reads.mockRestore()
+      opens.mockRestore()
       await f.handle.close()
       f.platform.dispose?.()
     }

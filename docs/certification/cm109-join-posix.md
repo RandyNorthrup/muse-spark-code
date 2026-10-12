@@ -414,18 +414,18 @@ The editor, CLI, ACP and headless factories all use this connection. A refused
 connection to the same live broker is never retried. Operations run only after
 authentication, so the retry repeats no vault operation.
 
-| Transition inventory                                                            | Orderly disappearance / retained descriptor behavior                                                                                                    | Regression                                          |
-| ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
-| Discovery directory mkdir/lstat                                                 | Shutdown retains the owner-only directory; no record means absent                                                                                       | `directory`                                         |
-| Record open, descriptor stat/read/overflow/close                                | ENOENT before open means absent; an unlinked descriptor can fail its single-link check or finish its old read, then recovery/readiness observes absence | `record-open`, `record-read`                        |
-| Native discovery identity (including helper exit 2)                             | Proven death/birth change is absent; shutdown after a live identity proceeds to missing token/record recovery                                           | `identity`; existing dead-owner lifecycle tests     |
-| Token open, descriptor stat/read/overflow/close                                 | Missing token enters recheck; retained bytes never establish readiness alone                                                                            | `token-open`, `token-read`                          |
-| Readiness socket connect/error                                                  | Missing/refused socket rechecks ownership; absent record means successor; same live startup uses the existing bounded readiness retry                   | `readiness`                                         |
-| Recovery record open/stat/read/close and native identity                        | Missing record is absent; disappearance after a read/native call is observed on the next bounded retry                                                  | `recheck-record`, `recheck-identity`                |
-| Client socket connect, native descriptor/peer probe, process identity and hello | Failed pre-operation connection rechecks discovery and retries one successor; same live broker refusal remains an error                                 | `connect`, `peer`, `hello`; live-refusal regression |
-| Launch lock open/fstat/lstat, guardian readiness and second lstat               | Orderly shutdown never removes persistent kernel-lock files; contention waits on the kernel and rechecks discovery before spawning                      | Existing kernel-lock/start-race tests               |
-| Startup stale-record read/native identity, stale-file lstat/unlink              | Missing files are ignored under the kernel lock; proven-live identity still refuses cleanup                                                             | Existing stale/live-owner recovery tests            |
-| Launch readiness followed by final discovery                                    | Absence launches one successor; a second absence reports the named broker-blocked refusal                                                               | Final-discovery retry regression                    |
+| Transition inventory                                                            | Orderly disappearance / retained descriptor behavior                                                                                                    | Regression                                                  |
+| ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| Discovery directory mkdir/lstat                                                 | Shutdown retains the owner-only directory; no record means absent                                                                                       | `directory`                                                 |
+| Record open, descriptor stat/read/overflow/close                                | ENOENT before open means absent; an unlinked descriptor can fail its single-link check or finish its old read, then recovery/readiness observes absence | `record-open`, `record-read`, `record-stat`, `record-bytes` |
+| Native discovery identity (including helper exit 2)                             | Proven death/birth change is absent; shutdown after a live identity proceeds to missing token/record recovery                                           | `identity`; existing dead-owner lifecycle tests             |
+| Token open, descriptor stat/read/overflow/close                                 | Missing token enters recheck; retained bytes never establish readiness alone                                                                            | `token-open`, `token-read`, `token-stat`, `token-bytes`     |
+| Readiness socket connect/error                                                  | Missing/refused socket rechecks ownership; absent record means successor; same live startup uses the existing bounded readiness retry                   | `readiness`                                                 |
+| Recovery record open/stat/read/close and native identity                        | Missing record is absent; disappearance after a read/native call is observed on the next bounded retry                                                  | `recheck-record`, `recheck-identity`                        |
+| Client socket connect, native descriptor/peer probe, process identity and hello | Failed pre-operation connection rechecks discovery and retries one successor; same live broker refusal remains an error                                 | `connect`, `peer`, `hello`; live-refusal regression         |
+| Launch lock open/fstat/lstat, guardian readiness and second lstat               | Orderly shutdown never removes persistent kernel-lock files; contention waits on the kernel and rechecks discovery before spawning                      | Existing kernel-lock/start-race tests                       |
+| Startup stale-record read/native identity, stale-file lstat/unlink              | Missing files are ignored under the kernel lock; proven-live identity still refuses cleanup                                                             | Existing stale/live-owner recovery tests                    |
+| Launch readiness followed by final discovery                                    | Absence launches one successor; a second absence reports the named broker-blocked refusal                                                               | Final-discovery retry regression                            |
 
 Real broker handles are closed between each listed discovery/connection
 boundary. The complete `posixBindings.test.ts` passes 25/25 at the repository
@@ -437,3 +437,128 @@ remains part of the next repair, not an accepted residual. Test injection initia
 auto-spy's own wrapper (recursion) and then its absent mock implementation;
 that approach was stopped and replaced by the real `vi.importActual` native
 function. No production workaround or timeout change was introduced.
+
+## RVCM109JC round 3 — fixture, epoch and installed receipt
+
+P3's broker fixture holds a real connection until the test explicitly sends
+SIGTERM; the client always waits 300 ms between discovery and authentication.
+The lifecycle, four-client startup, launcher-death and closed-pipe cases pass.
+The production 30,000 ms idle setting is unchanged; a fake-clock regression
+proves no Lock at 29,999 ms and Lock/cleanup at 30,000 ms. Rolling the fixture
+back to its 200 ms timer fails the first three complete-file cases. Halving
+the production default fails its injected-clock regression.
+
+The epoch observation is now reproduced, attributed and fixed. Brokers for
+different user sessions (and protocol versions) have separate startup locks
+but share `lock-epoch.writer` under the common run directory. Its atomic
+exclusive claim intentionally refuses contention. Holding one real writer
+while another binding bumps, or closing two brokers concurrently, produces
+exactly `EEXIST` on that path (`temp/cm109jc-epoch-red.json`). The POSIX
+composition now waits on a shared kernel `lock-epoch.lock` before calling
+the unchanged epoch port. It releases the kernel guard in finally and
+rechecks guardian loss and the reducer's authorization before commit. The
+regressions use both one broker's adapter and adapters from different user
+sessions. Each holds the real first claim, verifies the next bump waits
+without claiming, then sees two durable increments and no writer remnant.
+The guardian-loss regression refuses the write and leaves no epoch/writer
+file. Store, epoch implementation and shared lock helpers are unchanged.
+A foreign epoch can cancel a concurrent snapshot with the existing fixed
+No-access refusal; test teardown checks that both broker sockets still close.
+
+Installed sampler diagnosis used an exploratory copied bundle only, retaining
+its original error callback and exit 1. A fixed whitelist showed four
+`Resource root membership not proven` warnings: two contained peer helpers
+and two probe helpers, each already ended and with its process group gone.
+There was no process/socket/file leak; all vault assertions passed. The
+production bundle bytes were untouched. Acceptance now wraps only its
+sampler observation in AsyncLocalStorage, identifying the exact concurrent
+work responsible for each callback. The sole accepted name is
+`finished-native-helper-membership-race`, with a warning from sampleTree,
+unknown/unregistered work, a completed contained/probe process, matching
+native root PID and a kernel-proven absent process group. All live,
+registered, invalid, unrelated or unclassified warnings still exit 1. The
+fixture-only classifier has one regression per condition and a real process
+group liveness/exit test. Admission, accounting, budgets and resource guards
+are unchanged. Acceptance additionally waits for an empty governed-work set
+and no pending native-helper temporary-file retirement.
+
+The first unchanged-product installed replay exits 0 for both the isolated
+OS-store receipt and the installed broker receipt, measuring 499 ms under
+two CPU workers, with two explicitly named expected warnings and successful
+retirement checks. Final current-build replays, dependent suites and scoped
+gates are recorded below and in the round-3 verification JSON. No model call
+or paid call was made, and no user's credential store was opened.
+
+Commit `5c5dc1e33` was intended as P2 first, but four unstaged P3 fixture
+edits made while lint-staged's backup was active landed in that commit too.
+The complete committed diff was re-read. The hook's original five-code-file
+list did not lint those four files, so final typecheck/lint/format and complete
+fixture suites explicitly cover them. G95 records the stable-worktree rule;
+no hook or Git configuration was altered, and no history was rewritten.
+
+Each new guard is removed separately in `cm109jc-drills.json`, using complete
+files at default test deadlines. The named regression must fail, and the
+source must regain the identical SHA-256 digest before the next drill.
+Prior exploratory test-injection failures were corrected without a production
+workaround: an epoch assertion's original cleanup rejection hid its primary
+result, so cleanup now collects both real closes and asserts their fixed
+foreign-epoch refusals plus socket removal. The final contention regression
+passes with the kernel guard. One unchanged guardian-death test failed under
+three-file scheduling load, then its full file passed unchanged on retry.
+
+Round 2's resource warning deferral is superseded by this named diagnosis
+and passing acceptance. macOS native replay and the shared writer lease
+remain assigned to their existing platform owners; neither is a new residual
+from RVCM109JC. Vault availability remains off.
+
+The fresh build exposed one further orderly-exit boundary during the receipt's
+final identity poll. The native helper can retain `/proc/<pid>` through its
+first stat/image read, then lose its second stat when the real broker exits;
+its established failure code is 1, followed by code 2 on a fresh probe. A
+generated copy of the actual helper now sends SIGTERM to the real broker
+between those reads, waits for its exit, and captures exactly `[1, 2]`. The
+portable POSIX identity binding retries exit 1 once, requiring a validated
+identity or proven code-2 absence. Persistent failures and malformed JSON
+still refuse; parse/permission failures are never guessed to be death. This
+protects discovery's recheck, authenticated peer identity, stale startup and
+receipt cleanup alike. Native helper source and wire schemas are unchanged.
+The response timeout still applies to each attempt; there is no total-launch
+guarantee. Its removed-retry drill runs the complete brokerProcess file and
+restores the identical source digest.
+
+Final dependency review strengthened the owned-startup seam: each of the two
+bounded attempts gets its own stop spy and must retire exactly once. An
+owned child's failed stop is outside the readiness catch, so it cannot be
+called a second time or start another successor. The new cleanup-failure
+regression fails when duplicate cleanup is restored; source bytes match after
+its red drill. The initial dependent failure was the old one-attempt
+expectation, not a weakened authentication or cleanup requirement.
+
+Final RVCM109JC qualification on Kubuntu: **33 complete files, 509 passed,
+0 failed, 1 skipped** (the existing Windows-only audit case). All **11**
+dependents of the **six** changed source modules ran with `vitest related
+--run` in four shards selecting at most three files each; 22 further complete
+editor/runtime/ACP/headless/native/management files ran in sequential batches
+of at most three. No CLI timeout override, filtered test, gate weakening or
+new dependency was used. The core-only adoption fixture now doubles the
+native epoch guard alongside its already doubled broker process; actual
+kernel behavior and guardian loss stay covered in the native socket suites.
+Its typecheck, lint, format and the zero-duplication gate pass.
+
+All five type projects passed; host and unit were repeated after the final
+owned-startup change, and unit again after the adoption fixture update.
+Scoped lint/format, plain knip, zero duplication, l10n (0 problems), reference,
+host API, plan, roadmap, production size/split/global/notices checks pass.
+Aggregate `npm run quality` remains lead-owned under the explicit rig/common
+rule. No shared store, epoch implementation, file/lock helper, native helper
+source, availability switch, timeout or cap was changed. There are no hub
+changes in this repair.
+
+The final current-build native receipts both exit 0, with launches of
+**998 ms** and **558 ms** under two CPU workers. Every accepted warning is
+listed by its sole verified name; all live/unclassified failures remain red.
+The stored **21** complete-file red drills retain failed regression names
+and byte-exact restoration digests. Final scratch scans find **0** sockets,
+broker records, boot tokens or lock files. Process cleanup evidence and
+source hashes, commands, per-file results and exact bundle bytes are in
+`cm109jc-verification.json`; no model or paid attempt occurred.
