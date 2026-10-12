@@ -186,7 +186,7 @@ import {
   CODEC_IMAGE_WITHOUT_VISION,
   TEAM_TOOL_NAMES,
 } from '../../../shared/constants'
-import { fill, formatNumber, plural, uiLocale } from '../../../shared/l10n/text'
+import { fill, formatNumber, numberFormat, plural, uiLocale } from '../../../shared/l10n/text'
 import type { UnattendedRun, ScheduledAgentSession } from '../../schedules/unattended'
 import { SessionOwner, type SessionToken } from '../../schedules/sessionOwner'
 import {
@@ -698,6 +698,13 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDep
   /** Epoch milliseconds. */
   readonly now: () => number
   readonly log: CoreLogger
+  /**
+   * What a host other than the extension says when the per-call helpers
+   * (dist/modelApiTools.js) cannot load: its own reinstall sentence, since
+   * "reinstall the extension and reload the window" names the wrong product
+   * to someone on the agent's package. Unset in VS Code.
+   */
+  readonly helpersUnavailable?: (() => string) | undefined
   /** Muse Code's personal skill root (PLAN.md D13); undefined without a home. */
   readonly personalSkillsRoot: string | undefined
   /** The skills that ship with the extension (M89, PLAN.md D68); undefined where none ship. */
@@ -1664,6 +1671,34 @@ function helpersFailure(log: CoreLogger, bundleFile: string, error: unknown): vo
   log.warn(`${bundleFile} failed (${helpersFailureKind(error)})`)
 }
 
+// A Node bundle keeps its own copy of the language table, so a deferred
+// bundle is handed the installed one before it is used: once per table, not
+// once per call. An install rewrites every entry of the table and rebuilds
+// the language's formatters; done before each model call it cost every turn
+// that work again (docs/certification/hotfix-0181-bundle-exports.md).
+// The number format is cached per installed table and dropped by every
+// install (shared/l10n/text.ts), so a new one means a new table. Keyed by
+// the bundle's name: a loaded bundle is one module for the life of the
+// process, and the module itself is never handed on (the cross-bundle check
+// follows every use of a sibling to a member it exports).
+const SHARES_TABLE = 'shared'
+const bundleTables = new Map<string, Intl.NumberFormat | typeof SHARES_TABLE>()
+const installedTable = (): Intl.NumberFormat => numberFormat('number', {})
+
+function installLanguageOnce(
+  bundle: string,
+  install: (table: typeof UI_TEXT, locale: string) => void,
+): void {
+  const received = bundleTables.get(bundle)
+  const table = installedTable()
+  if (received === SHARES_TABLE || received === table) return
+  install(UI_TEXT, uiLocale())
+  // Modules that share this table (source modules, not built bundles) drop
+  // the format by installing: they read the installed table as it is and
+  // never need another install.
+  bundleTables.set(bundle, installedTable() === table ? table : SHARES_TABLE)
+}
+
 function isAuthFailure(error: unknown): boolean {
   return (
     error instanceof MissingApiKeyError ||
@@ -2581,6 +2616,7 @@ export class ModelApiSession implements ScheduledAgentSession {
   private readonly hookRenamePlans = new WeakMap<FunctionCallItem, Promise<RenamePlanResult>>()
   /** The imported hooks' adapters, loaded on first use (M91 lane W). */
   private foreignAdapter: Promise<ForeignHookAdapter | undefined> | undefined
+  private assistLoad: Promise<typeof ModelApiTools> | undefined
   /** A SubagentStop hook's documented replacement of this child's reply, by turn (M91). */
   private readonly hookReplies = new Map<string, string>()
   /** FileChanged's per-path quiet window and per-minute cap (M91 lane E). */
@@ -3130,7 +3166,9 @@ export class ModelApiSession implements ScheduledAgentSession {
    */
   private async codeIntelligence(): Promise<typeof CodeIntelEntry> {
     const entry = await import('./codeIntelEntry.js')
-    entry.installLanguage(UI_TEXT, uiLocale())
+    installLanguageOnce('modelApiCodeIntel', (table, locale) => {
+      entry.installLanguage(table, locale)
+    })
     return entry
   }
 
@@ -3141,10 +3179,23 @@ export class ModelApiSession implements ScheduledAgentSession {
    * a hook field or preview load failure ends the turn with the chunk
    * named, a URL-check failure refuses the fetch, never an unchecked
    * fetch and never a default value.
+   *
+   * Loaded once for the session: every model call, streamed tool call and
+   * URL check asks for it. A load that failed is not kept, so the next
+   * request tries again.
    */
   private async toolAssist(): Promise<typeof ModelApiTools> {
-    const assist = await import('./modelApiToolsEntry.js')
-    assist.setUiText(UI_TEXT, uiLocale())
+    this.assistLoad ??= import('./modelApiToolsEntry.js')
+    let assist: typeof ModelApiTools
+    try {
+      assist = await this.assistLoad
+    } catch (error) {
+      this.assistLoad = undefined
+      throw error
+    }
+    installLanguageOnce('modelApiTools', (table, locale) => {
+      assist.setUiText(table, locale)
+    })
     return assist
   }
 
@@ -3157,7 +3208,9 @@ export class ModelApiSession implements ScheduledAgentSession {
       return await this.toolAssist()
     } catch (error) {
       helpersFailure(this.deps.log, 'modelApiTools.js', error)
-      throw new Error(UI_TEXT.modelApiToolsUnavailable, { cause: error })
+      throw new Error(this.deps.helpersUnavailable?.() ?? UI_TEXT.modelApiToolsUnavailable, {
+        cause: error,
+      })
     }
   }
 
@@ -3173,7 +3226,9 @@ export class ModelApiSession implements ScheduledAgentSession {
       return new assist.ArgumentPreview(previewFields)
     } catch (error) {
       helpersFailure(this.deps.log, 'modelApiTools.js', error)
-      throw new Error(UI_TEXT.modelApiToolsPreviewUnavailable, { cause: error })
+      throw new Error(this.deps.helpersUnavailable?.() ?? UI_TEXT.modelApiToolsPreviewUnavailable, {
+        cause: error,
+      })
     }
   }
 
@@ -13417,7 +13472,9 @@ export class ModelApiSession implements ScheduledAgentSession {
     }
     if (!this.ledger.needsRoundVerification()) return undefined
     const entry = await import('./schedulesEntry.js')
-    entry.installLanguage(UI_TEXT, uiLocale())
+    installLanguageOnce('schedules', (table, locale) => {
+      entry.installLanguage(table, locale)
+    })
     return await entry.verifyRound(
       {
         getScheduledRun: () => this.getScheduledRun(),
@@ -15178,7 +15235,9 @@ export class ModelApiSession implements ScheduledAgentSession {
 
   private async createSchedules(): Promise<ModelApiSchedules> {
     const entry = await import('./schedulesEntry.js')
-    entry.installLanguage(UI_TEXT, uiLocale())
+    installLanguageOnce('schedules', (table, locale) => {
+      entry.installLanguage(table, locale)
+    })
     return new entry.ModelApiSchedules({
       deps: {
         ...this.deps,

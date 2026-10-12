@@ -1088,7 +1088,7 @@ describe('deferred cohort bundles', () => {
     // argument previews and fetch URL checks move to dist/modelApiTools.js
     // (11,114 B of inputs plus the WEB_FETCH_MODEL_TEXT block they owned):
     // 530,683 -> 516,264, a 14,419 B saving. The pin moves to the measured
-    // value exactly and only ever moves down in this lane.
+    // value exactly.
     // MODELAPIDIETR3 (this rig, test build): the RVMODELAPIDIETB P3
     // diagnostics log each helpers failure's class with the chunk named
     // through the scrubbed channel (one shared line read by every helpers
@@ -1113,9 +1113,20 @@ describe('deferred cohort bundles', () => {
     // the 0.18.1 hotfix base and measures 518,954 B, 13,873 B under the
     // 532,827 B hotfix pin and 9,777 B under the round-4 target of
     // 528,731 B (+461 B over the merge for the P3-2 log-kind line and its
-    // import). The pin moves to the measured value exactly and only ever
-    // moves down in this lane.
-    expect(Buffer.byteLength(bundleText('modelApi'))).toBeLessThanOrEqual(518_954)
+    // import). The pin moves to the measured value exactly. Within that lane
+    // it rose three times as code was added (+109 B in MODELAPIDIETR3,
+    // +2,120 B on the rebase onto the hotfix base, +461 B here): it did not
+    // "only ever move down", as this comment said until the 0.18.1 candidate.
+    // 0.18.1 candidate (owner's rule of 2026-10-12: an exact-size pin moves
+    // with the measured number and its reason; Kubuntu, production build):
+    // 519,354 B, +400 B over 518,954. +68 B: a host other than the extension
+    // says its own reinstall sentence when the helpers cannot load (review
+    // RVDIET0181 P3). +332 B: the helpers are loaded once per session and
+    // handed the language once per table instead of on every call, which cost
+    // 4 ms a call (one helper, also used for the code-intelligence and
+    // schedules bundles). 13,183 B under 0.18.0's 532,537; D6's cap is
+    // unchanged.
+    expect(Buffer.byteLength(bundleText('modelApi'))).toBeLessThanOrEqual(519_354)
     const schedules = new Set(inputs('schedules'))
     for (const file of [
       'src/core/backends/modelapi/schedulesEntry.ts',

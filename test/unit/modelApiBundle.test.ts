@@ -344,6 +344,91 @@ describe('the Model API bundle (M57)', () => {
     await manager.dispose()
   })
 
+  it('says the agent’s own reinstall sentence where the host set one (RVDIET0181 P3)', async () => {
+    // The terminal and ACP agent hand the manager their sentence for a
+    // damaged backend (src/runtime/backends.ts): "reinstall the extension and
+    // reload the window" names the wrong product to someone on the package.
+    const agent = { bundleUnavailable: () => UI_TEXT.acpModelApiBundleUnavailable }
+    expect(UI_TEXT.acpModelApiBundleUnavailable).toContain('muse-spark-code-acp')
+    const missing = await sendBackendTurn(scratchBackend('missing'), {
+      deps: agent,
+      scripts: [{ text: 'Never sent' }],
+      text: 'Say hello',
+    })
+    expect(missing.events).toContainEqual(
+      expect.objectContaining({
+        type: 'turnCompleted',
+        terminal: 'failed',
+        reason: UI_TEXT.acpModelApiBundleUnavailable,
+      }),
+    )
+    expect(missing.api.responseBodies()).toHaveLength(0)
+    await missing.manager.dispose()
+    const preview = await sendBackendTurn(
+      scratchBackend({
+        body: `module.exports = { ...require(${JSON.stringify(path.join(built.folder, 'modelApiToolsEntry.js'))}), ArgumentPreview: class { constructor() { throw new Error('sabotaged preview') } } };`,
+      }),
+      {
+        deps: {
+          ...agent,
+          argumentPreviewCapabilities: () => ({
+            tools: { streamingArguments: { state: 'yes', value: true } },
+          }),
+        },
+        scripts: [
+          { calls: [{ name: 'web_fetch', arguments: '{"url":"https://example.com/page"}' }] },
+        ],
+        text: 'Fetch that page',
+      },
+    )
+    expect(preview.events).toContainEqual(
+      expect.objectContaining({
+        type: 'turnCompleted',
+        terminal: 'failed',
+        reason: UI_TEXT.acpModelApiBundleUnavailable,
+      }),
+    )
+    await preview.manager.dispose()
+  })
+
+  it('hands the helpers the language once per table, not once per call', async () => {
+    // The diet installed the whole table into the helpers before every model
+    // call, streamed tool call and URL check: 3,469 installs of 4 ms each
+    // while test/unit/modelApiHost.test.ts ran (the 0.18.1 certification).
+    const counter = `museHelperInstalls${String(folders.length)}`
+    const counts = globalThis as Record<string, unknown>
+    const real = JSON.stringify(path.join(built.folder, 'modelApiToolsEntry.js'))
+    const file = scratchBackend({
+      // `{ ...require(file) }` and no local in between: Node reads a CommonJS
+      // module's export names from this text before it runs.
+      body: `globalThis.${counter} = 0; module.exports = { ...require(${real}), setUiText: (table, locale) => { globalThis.${counter} += 1; require(${real}).setUiText(table, locale) } };`,
+    })
+    const t = managerFor(file)
+    const session = await startSession(t.manager)
+    const watched = watchSessionTurns(session)
+    t.api.script(
+      { calls: [{ name: 'read_file', arguments: '{"path":"missing.txt"}' }] },
+      { text: 'Done.' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'Read it' }])
+    await watched.turnDone()
+    // Two model calls, each asking for the helpers before and after.
+    expect(t.api.responseBodies()).toHaveLength(2)
+    expect(counts[counter]).toBe(1)
+    // A table installed in the bundle since: the helpers receive it once more.
+    const bundle = createRequire(file)(file) as {
+      setUiText: (table: typeof EN, locale: string) => void
+    }
+    bundle.setUiText({ ...EN }, 'en')
+    t.api.script({ text: 'Again.' })
+    await session.sendTurn([{ type: 'text', text: 'Again' }])
+    await watched.turnDone()
+    expect(t.api.responseBodies()).toHaveLength(3)
+    expect(counts[counter]).toBe(2)
+    Reflect.deleteProperty(counts, counter)
+    await t.manager.dispose()
+  })
+
   it('logs the unreadable kind when the helpers chunk cannot be read (MODELAPIDIETR4)', async () => {
     // P3-2: a load refusal (an EACCES at require time here) logs unreadable
     // with the chunk named, never the loader's text.

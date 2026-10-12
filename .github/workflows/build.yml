@@ -2,7 +2,7 @@
 # once the merge queue is on) runs the Ubuntu static gates, the production
 # build and every unit/process-e2e test; the full tier (merge groups, manual
 # runs, release.yml) runs every gate on three platforms, coverage shards (four
-# on Ubuntu and macOS, six on Windows) merged per OS before the unchanged
+# on Ubuntu, eight on Windows and macOS) merged per OS before the unchanged
 # thresholds apply, the accessibility and integration runs, the macOS helper
 # and the universal packages. The required check names come from the
 # `required` aggregate below on both tiers.
@@ -213,8 +213,12 @@ jobs:
         # 16-17 min (952 s of tests; modelApiHost alone 207 s) and crossed the
         # 20-minute limit in run 38027675949, as hosted Windows varies ~60%
         # between runs (PLAN.md §8). macOS also runs files one at a time
-        # (vitest.config.ts) over six; Ubuntu keeps four.
-        exclude: ${{ fromJSON(inputs.fast && '[]' || '[{"os":"ubuntu-latest","shard":5},{"os":"ubuntu-latest","shard":6},{"os":"ubuntu-latest","shard":7},{"os":"ubuntu-latest","shard":8},{"os":"macos-latest","shard":7},{"os":"macos-latest","shard":8}]') }}
+        # (vitest.config.ts) and takes eight too: over six it had no margin
+        # even green (run 38225260540: shard 4 took 19 of the 20 minutes,
+        # shard 1 took 16), and run 38270466443 lost shard 1 to the limit
+        # while it was still running normally. The limit stays 20 minutes;
+        # Ubuntu keeps four.
+        exclude: ${{ fromJSON(inputs.fast && '[]' || '[{"os":"ubuntu-latest","shard":5},{"os":"ubuntu-latest","shard":6},{"os":"ubuntu-latest","shard":7},{"os":"ubuntu-latest","shard":8}]') }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -233,7 +237,7 @@ jobs:
         env:
           FAST: ${{ inputs.fast }}
           SHARD: ${{ matrix.shard }}
-          SHARDS: ${{ matrix.os == 'ubuntu-latest' && 4 || matrix.os == 'macos-latest' && 6 || 8 }}
+          SHARDS: ${{ matrix.os == 'ubuntu-latest' && 4 || 8 }}
         run: |
           if [ "$FAST" = true ]; then
             npx vitest run
@@ -274,7 +278,7 @@ jobs:
       - name: every shard and the original coverage thresholds are required
         shell: bash
         env:
-          SHARDS: ${{ matrix.os == 'ubuntu-latest' && 4 || matrix.os == 'macos-latest' && 6 || 8 }}
+          SHARDS: ${{ matrix.os == 'ubuntu-latest' && 4 || 8 }}
         run: |
           for shard in $(seq 1 "$SHARDS"); do
             test -s "blob-reports/shard-$shard.json"
