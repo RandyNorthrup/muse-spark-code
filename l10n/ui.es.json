@@ -4520,6 +4520,7 @@
   "teamCapabilityWarnImages": "Este modelo no acepta imágenes como entrada, con las que el rol {role} funciona mejor.",
   "teamCapabilityWarnReasoning": "Este modelo no tiene nivel de razonamiento, con el que el rol {role} funciona mejor.",
   "teamCapabilityUnknown": "Las capacidades de {model} se desconocen; no se comprobó para el rol {role}.",
+  "teamSettingUnsupported": "El ajuste de equipo guardado {setting} ({value}) no es compatible con {model}.",
   "teamRoleFileRefused": "{file}: {detail}",
   "teamRoleResolutionUnknown": "Se rechazó la resolución del rol porque falta una entrada o es ilegible, incorrecta o ambigua.",
   "teamRoleGlobUnproven": "No se puede demostrar la inclusión de las rutas de escritura.",

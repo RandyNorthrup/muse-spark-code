@@ -11,11 +11,15 @@
 
 import {
   UI_TEXT,
+  TEAM_BOUND_SETTING_KEYS,
   TEAM_EFFORT_LADDER,
   TEAM_ROLE_IDS,
   TEAM_ROLE_BASE_EFFORT,
   TEAM_DEFAULT_ROLE_EFFORT,
 } from '../../shared/constants'
+import { knownEffortTiers } from '../../shared/effort'
+import { fill } from '../../shared/l10n/text'
+import type { TeamModelSettings } from '../../shared/teamConfig'
 
 /** Every setting an entry or the orchestrator slot may expose. */
 export type TeamModelSetting =
@@ -138,6 +142,45 @@ export function settingCostNote(setting: TeamModelSetting): string {
       return UI_TEXT.teamSettingCostContextCap
     }
   }
+}
+
+/**
+ * A worker's saved settings against its entry model's current capabilities,
+ * before the working copy exists. Unknown keys, empty or unserved efforts and
+ * malformed caps refuse with their specific reason, never silently changed or
+ * clamped later. Returns the specific translated reason, if any.
+ */
+export function validateWorkerSettings(
+  settings: TeamModelSettings | undefined,
+  modelId: string,
+): string | undefined {
+  const entries = Object.entries(settings ?? {})
+  for (const [key, value] of entries) {
+    if (TEAM_BOUND_SETTING_KEYS.every((bound) => bound !== key))
+      return fill(UI_TEXT.teamSettingUnsupported, {
+        setting: key,
+        value: String(value),
+        model: modelId,
+      })
+  }
+  const effort = settings?.effort
+  if (effort !== undefined) {
+    const tiers = knownEffortTiers(modelId)
+    if (effort === '' || tiers?.every((tier) => tier !== effort) === true)
+      return fill(UI_TEXT.teamSettingUnsupported, {
+        setting: 'effort',
+        value: effort,
+        model: modelId,
+      })
+  }
+  const outputCap = settings?.outputCap
+  if (outputCap !== undefined && (!Number.isSafeInteger(outputCap) || outputCap < 1))
+    return fill(UI_TEXT.teamSettingUnsupported, {
+      setting: 'outputCap',
+      value: String(outputCap),
+      model: modelId,
+    })
+  return undefined
 }
 
 export type TeamEffortBase = 'low' | 'medium' | 'high'

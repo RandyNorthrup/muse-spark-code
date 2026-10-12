@@ -4058,7 +4058,7 @@ describe('ConversationController: team server and orchestrator slot (M96 lane T)
     })
   })
 
-  it('applies saved orchestrator effort before the first turn', async () => {
+  it('keeps a saved non-default orchestrator effort past the attach sync', async () => {
     const target = new FakeAgentHost([
       {
         modelId: 'saved-model',
@@ -4072,11 +4072,47 @@ describe('ConversationController: team server and orchestrator slot (M96 lane T)
     const t = setup({
       orchestratorSlot: {
         resolveForNewConversation: () =>
-          Promise.resolve({ host: target, modelId: 'saved-model', settings: { effort: 'high' } }),
+          Promise.resolve({ host: target, modelId: 'saved-model', settings: { effort: 'low' } }),
       },
     })
     await t.send('configured', 'hello')
-    expect(target.sessions[0]?.setReasoningEffort).toHaveBeenCalledWith('high')
+    // The saved value differs from the composer's default: the last setter
+    // call still carries it, and the pill shows it.
+    const calls = target.sessions[0]?.setReasoningEffort.mock.calls.map(([value]) => value) ?? []
+    expect(calls.at(-1)).toBe('low')
+    expect(t.surface.posted.findLast((message) => message.type === 'composerState')).toMatchObject({
+      effort: 'low',
+    })
+  })
+  it('refuses a conversation whose override the selected model cannot serve', async () => {
+    const target = new FakeAgentHost([
+      {
+        modelId: 'saved-model',
+        displayLabel: 'Saved',
+        contextLimit: undefined,
+        isDefault: true,
+        isActive: false,
+      },
+    ])
+    target.info = { ...target.info, kind: 'modelApi' }
+    const { validateOrchestratorSettings } = await import('../../src/core/team/orchestratorSlot')
+    // Temperature rides the saved settings but no conversation path applies
+    // it: validation refuses it with its reason before any session exists.
+    expect(validateOrchestratorSettings({ temperature: 0.5 }, 'saved-model')).toMatch(
+      /temperature.*saved-model/,
+    )
+    const t = setup({
+      orchestratorSlot: {
+        resolveForNewConversation: () =>
+          Promise.resolve({
+            host: target,
+            modelId: 'saved-model',
+            settings: { effort: 'low', temperature: 0.5 },
+          }),
+      },
+    })
+    await t.send('configured', 'hello')
+    expect(target.startSession).not.toHaveBeenCalled()
   })
   it('does not open a conversation after an override resolution outlives its surface', async () => {
     const gate = Promise.withResolvers<{ host: AgentHost; modelId: string } | undefined>()

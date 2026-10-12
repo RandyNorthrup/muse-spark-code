@@ -4286,6 +4286,7 @@
   "teamCapabilityWarnImages": "このモデルは画像入力に対応しておらず、{role}ロールは画像入力があるとより良く動作します。",
   "teamCapabilityWarnReasoning": "このモデルには推論ティアがなく、{role}ロールは推論ティアがあるとより良く動作します。",
   "teamCapabilityUnknown": "{model}の機能は不明です。{role}ロール向けの確認は行われていません。",
+  "teamSettingUnsupported": "保存されたチーム設定 {setting}（{value}）は{model}でサポートされていません。",
   "teamRoleFileRefused": "{file}：{detail}",
   "teamRoleResolutionUnknown": "入力が欠落している、読み取れない、不正な形式である、または曖昧であるため、ロールの解決を拒否しました。",
   "teamRoleGlobUnproven": "書き込みパスの包含関係を証明できません。",

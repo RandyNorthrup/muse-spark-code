@@ -5344,6 +5344,9 @@ export const EN = {
   // {model}: the model id; {role}: the role id.
   teamCapabilityUnknown:
     'The capabilities of {model} are unknown; it was not checked for the {role} role.',
+  // A saved team setting the selected model does not take. {setting} and
+  // {value} are the saved technical key and value; {model}: the model id.
+  teamSettingUnsupported: 'The saved team setting {setting} ({value}) is not supported by {model}.',
   // A role or team.json file refused whole. {file}: the file; {detail}: the technical reason.
   teamRoleFileRefused: '{file}: {detail}',
   teamRoleResolutionUnknown:

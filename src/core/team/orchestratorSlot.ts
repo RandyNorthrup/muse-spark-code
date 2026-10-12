@@ -9,6 +9,9 @@
 
 import { teamSnapshotSchema, type TeamModelSettings } from '../../shared/teamConfig'
 import { TEAM_WORKSPACE_KEYS } from '../../shared/teamConversation'
+import { UI_TEXT } from '../../shared/constants'
+import { knownEffortTiers } from '../../shared/effort'
+import { fill } from '../../shared/l10n/text'
 
 /** A workspace's orchestrator override: a model on either backend. */
 export interface OrchestratorOverride {
@@ -83,4 +86,50 @@ export function requiresBackendSwitch(
   resolved: OrchestratorOverride['backend'],
 ): boolean {
   return current !== resolved
+}
+
+/** The override settings a new conversation actually carries (effort, output cap). */
+const CARRIED_OVERRIDE_SETTINGS = ['effort', 'outputCap'] as const
+
+/**
+ * The complete saved settings against the resolved model's current
+ * capabilities, before any session exists. A setting this path does not
+ * carry (temperature and friends) is refused, never ignored; an effort the
+ * model does not serve and a malformed cap are refused, never silently
+ * changed or clamped. Returns the specific translated reason, if any.
+ */
+export function validateOrchestratorSettings(
+  settings: TeamModelSettings | undefined,
+  modelId: string,
+): string | undefined {
+  const entries = Object.entries(settings ?? {})
+  for (const [key, value] of entries) {
+    if (CARRIED_OVERRIDE_SETTINGS.every((carried) => carried !== key))
+      return fill(UI_TEXT.teamSettingUnsupported, {
+        setting: key,
+        value: String(value),
+        model: modelId,
+      })
+  }
+  const effort = settings?.effort
+  if (effort !== undefined) {
+    // Only a verified family list refuses a tier: an unknown family may serve
+    // custom tiers this table never learned, and the session re-checks live
+    // tiers at apply.
+    const tiers = knownEffortTiers(modelId)
+    if (effort === '' || tiers?.every((tier) => tier !== effort) === true)
+      return fill(UI_TEXT.teamSettingUnsupported, {
+        setting: 'effort',
+        value: effort,
+        model: modelId,
+      })
+  }
+  const outputCap = settings?.outputCap
+  if (outputCap !== undefined && (!Number.isSafeInteger(outputCap) || outputCap < 1))
+    return fill(UI_TEXT.teamSettingUnsupported, {
+      setting: 'outputCap',
+      value: String(outputCap),
+      model: modelId,
+    })
+  return undefined
 }

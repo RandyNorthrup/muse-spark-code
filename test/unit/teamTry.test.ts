@@ -105,6 +105,26 @@ describe('paid team planning preview', () => {
       await t.manager.dispose()
     }
   })
+  it('refuses an unserved effort and an above-maximum cap instead of adjusting them', async () => {
+    const t = rig()
+    try {
+      const host = await t.manager.ensureHost()
+      const session = await host.startSession({
+        workspaceRoot,
+        modelId: 'muse-spark-1.2',
+        approvalMode: 'denyUnmatched',
+      })
+      // muse-spark-1.2 serves up to xhigh: max refuses instead of becoming none.
+      await expect(session.setReasoningEffort('max')).rejects.toThrow(
+        /effort.*max.*muse-spark-1\.2/,
+      )
+      await session.setReasoningEffort('none')
+      if (session.setOutputCap === undefined) throw new Error('Missing Model API output cap')
+      await expect(session.setOutputCap(Number.MAX_SAFE_INTEGER)).rejects.toThrow(/outputCap/)
+    } finally {
+      await t.manager.dispose()
+    }
+  })
   it('refuses input beyond the quoted token ceiling before billed dispatch', async () => {
     const t = rig([{ text: 'unaffordable', usage: { input: 12, output: 3 } }])
     const oversized: TeamEditorDocument = {

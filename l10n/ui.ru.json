@@ -4637,6 +4637,7 @@
   "teamCapabilityWarnImages": "Эта модель не принимает изображения на вход, с которыми роль {role} работает лучше.",
   "teamCapabilityWarnReasoning": "У этой модели нет уровня рассуждений, с которым роль {role} работает лучше.",
   "teamCapabilityUnknown": "Возможности {model} неизвестны; для роли {role} проверка не выполнялась.",
+  "teamSettingUnsupported": "Сохранённый параметр команды {setting} ({value}) не поддерживается {model}.",
   "teamRoleFileRefused": "{file}: {detail}",
   "teamRoleResolutionUnknown": "Определение роли отклонено: входные данные отсутствуют, нечитаемы, некорректны или неоднозначны.",
   "teamRoleGlobUnproven": "Невозможно доказать включение путей записи.",
