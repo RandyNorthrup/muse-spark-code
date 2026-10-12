@@ -28,6 +28,7 @@
 !dist/teamHost.js
 !dist/teamFileIo.js
 !dist/teamCreate.js
+!dist/teamWorkerOps.js
 !dist/teamMerge.js
 !dist/teamScheduler.js
 !dist/schedules.js

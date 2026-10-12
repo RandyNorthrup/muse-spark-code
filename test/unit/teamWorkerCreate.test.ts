@@ -1,4 +1,16 @@
-import { link, mkdir, readFile, rename, symlink, writeFile } from 'node:fs/promises'
+import {
+  link,
+  lstat,
+  mkdir,
+  mkdtemp,
+  readdir,
+  readFile,
+  rename,
+  stat,
+  symlink,
+  writeFile,
+} from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import path from 'node:path'
 import * as z from 'zod/mini'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
@@ -15,6 +27,7 @@ import type { WorkerRolePolicy } from '../../src/core/team/workers/workerTypes'
 import { fenceWorkerToolIo } from '../../src/core/team/workers/workerToolIo'
 import { acpFsWrite } from '../../src/core/team/workers/acpWorker'
 import type { ToolIo } from '../../src/core/backends/modelapi/tools'
+import { pathModule } from '../../src/core/workspaceRoot'
 import {
   compileCreatedVariant,
   nativeCreated,
@@ -22,6 +35,19 @@ import {
   useCreatedNative,
 } from './helpers/createdNative'
 import { configureResources } from '../../src/core/resources/admission'
+import { immediateResourceSettings } from './helpers/resources/fixtureAdmission'
+import {
+  CREATE_ERRNOS,
+  recordCreated,
+  sweepAbandonedReservations,
+  typedCreateError,
+} from '../../src/core/team/workers/workerOps'
+import { fill } from '../../src/shared/l10n/text'
+import { shellJobAssembly } from '../../src/host/backend/shellJob'
+import { runProgram } from '../../src/host/processTree'
+import { readJobSource } from './helpers/jobSource'
+import { fixtureJobLifecycle } from './helpers/mcpFixtures'
+import { removeFolder } from './helpers/temporaryFolders'
 import { UI_TEXT } from '../../src/shared/constants'
 
 useCreatedNative()
@@ -83,6 +109,99 @@ async function runNative(proof: WorkerCreateProof, op: string, id = '') {
 }
 
 const state = { ordinal: 0 }
+
+// A file link needs a privilege the account may lack on Windows; the link
+// setup below skips with its reason printed instead of failing there.
+function shouldSkipLinkWithoutPrivilege(error: unknown, skip: (note?: string) => void): boolean {
+  if (
+    process.platform === 'win32' &&
+    error instanceof Error &&
+    'code' in error &&
+    error.code === 'EPERM'
+  ) {
+    console.warn('teamWorkerCreate: file links need the create-link privilege; skipping')
+    skip('file links need the create-link privilege on this account')
+    return true
+  }
+  return false
+}
+async function compileWorkerShellAssembly(): Promise<{ folder: string; assembly: string }> {
+  const folder = await mkdtemp(path.join(tmpdir(), 'm96-create-shell-'))
+  const assembly = await shellJobAssembly({
+    storageDir: folder,
+    systemRoot: process.env['SystemRoot']!,
+    readJobSource,
+    run: runProgram,
+    log: () => undefined,
+  })()
+  if (assembly === undefined) throw new Error('Native shell helper unavailable')
+  return { folder, assembly }
+}
+type SweepRun = NonNullable<WorkerFenceIo['workerNativeOperation']>
+
+async function seedReservation(
+  relative: string,
+  identity: string,
+): Promise<{ folder: string; root: string }> {
+  const folder = await mkdtemp(path.join(nativeScratch(), 'sweep-'))
+  const root = path.join(folder, 'copy')
+  await mkdir(path.join(root, 'src'), { recursive: true })
+  await recordCreated(folder, relative, identity)
+  return { folder, root }
+}
+
+async function sweepOnce(folder: string, root: string, run: SweepRun): Promise<void> {
+  await sweepAbandonedReservations(
+    folder,
+    root,
+    '1:1',
+    pathModule(process.platform),
+    {
+      pathIdentity: () => Promise.resolve('2:2'),
+    },
+    run,
+  )
+}
+
+async function expectRecordDrained(folder: string, root: string, identity: string): Promise<void> {
+  const again = vi.fn(() => Promise.resolve({ identity, createdFolders: 0 }))
+  await sweepOnce(folder, root, again)
+  expect(again).not.toHaveBeenCalled()
+}
+async function refusesLink(kind: 'parent' | 'file', skip: (note?: string) => void): Promise<void> {
+  const { copy } = await setup()
+  const src = path.join(copy, 'src')
+  const proof = {
+    root: copy,
+    rootIdentity: await workerPathIdentity(copy),
+    ancestor: kind === 'parent' ? 'alias' : 'src',
+    ancestorIdentity: await workerPathIdentity(src),
+    remaining: 'new',
+  }
+  try {
+    if (kind === 'parent')
+      await symlink(
+        src,
+        path.join(copy, 'alias'),
+        process.platform === 'win32' ? 'junction' : 'dir',
+      )
+    else {
+      await writeFile(path.join(src, 'owner'), 'owner')
+      await symlink(path.join(src, 'owner'), path.join(src, 'new'), 'file')
+    }
+  } catch (error: unknown) {
+    if (shouldSkipLinkWithoutPrivilege(error, skip)) return
+    throw error
+  }
+  const refusal = runNative(
+    proof,
+    kind === 'parent' ? 'worker-create' : 'worker-check',
+    kind === 'parent' ? '' : await workerPathIdentity(path.join(src, 'owner')),
+  )
+  const reason = kind === 'parent' ? 'parent unavailable or linked' : 'file unavailable or linked'
+  await expect(refusal).rejects.toThrow(process.platform === 'win32' ? undefined : reason)
+  if (kind === 'file') expect(await readFile(path.join(src, 'owner'), 'utf8')).toBe('owner')
+}
 async function setup(role = WRITER, admit: () => void = () => undefined) {
   const fixture = path.join(nativeScratch(), `worker-${String(++state.ordinal)}`)
   const copy = path.join(fixture, 'copy')
@@ -153,35 +272,124 @@ describe('verified native worker creation', () => {
       expect(await readFile(target, 'utf8')).toBe(kind === 'hard-link' ? '' : 'owner')
     },
   )
-  it.each(['parent', 'file'])('NF native no-follow refuses a %s link directly', async (kind) => {
-    const { copy } = await setup()
-    const src = path.join(copy, 'src')
-    const proof = {
-      root: copy,
-      rootIdentity: await workerPathIdentity(copy),
-      ancestor: kind === 'parent' ? 'alias' : 'src',
-      ancestorIdentity: await workerPathIdentity(src),
-      remaining: 'new',
-    }
-    if (kind === 'parent')
-      await symlink(
-        src,
-        path.join(copy, 'alias'),
-        process.platform === 'win32' ? 'junction' : 'dir',
-      )
-    else {
-      await writeFile(path.join(src, 'owner'), 'owner')
-      await symlink(path.join(src, 'owner'), path.join(src, 'new'), 'file')
-    }
-    const refusal = runNative(
-      proof,
-      kind === 'parent' ? 'worker-create' : 'worker-check',
-      kind === 'parent' ? '' : await workerPathIdentity(path.join(src, 'owner')),
-    )
-    const reason = kind === 'parent' ? 'parent unavailable or linked' : 'file unavailable or linked'
-    await expect(refusal).rejects.toThrow(process.platform === 'win32' ? undefined : reason)
-    if (kind === 'file') expect(await readFile(path.join(src, 'owner'), 'utf8')).toBe('owner')
+  it('NF native no-follow refuses a parent link directly', async (context) => {
+    await refusesLink('parent', (note) => context.skip(note))
   })
+  it('NF native no-follow refuses a file link directly', async (context) => {
+    await refusesLink('file', (note) => context.skip(note))
+  })
+  // The Windows helper refuses these names itself, in addition to the
+  // TypeScript spelling fence. runNative reaches the real C# on Windows, so
+  // each case proves the helper's own refusal there; POSIX treats these as
+  // ordinary names, so the block runs on Windows only.
+  describe.runIf(process.platform === 'win32')('windows helper name refusals', () => {
+    it.each([
+      'NUL',
+      'CON',
+      'PRN',
+      'AUX',
+      'COM1',
+      'COM9',
+      'LPT1',
+      'LPT9',
+      'nul',
+      'com1',
+      'NUL.txt',
+      'COM1.log',
+      'aux.c',
+      'LPT9.dat',
+      'trailing.',
+      'trailing ',
+      'stream:ads',
+      'star*.ts',
+      'query?.ts',
+      'less<.ts',
+      'greater>.ts',
+      'pipe|.ts',
+      'quote".ts',
+      'bell\u{7}.ts',
+      'line\nbreak.ts',
+    ])('NF windows helper refuses %s', async (name) => {
+      const { copy } = await setup()
+      const proof = {
+        root: copy,
+        rootIdentity: await workerPathIdentity(copy),
+        ancestor: 'src',
+        ancestorIdentity: await workerPathIdentity(path.join(copy, 'src')),
+        remaining: name,
+      }
+      await expect(runNative(proof, 'worker-create')).rejects.toThrow()
+      expect(await readdir(path.join(copy, 'src'))).not.toContain(name)
+    })
+  })
+  // The production Windows launcher runs for real here: the tool I/O below
+  // keeps no fixture override, so the create falls back to the packaged
+  // nativeOperation (PowerShell plus the sealed job assembly through the
+  // governed contained profile). verify is a resolved stub; the attested
+  // verify path is covered by jobBuild and resourceWindowsLaunch.
+  describe.runIf(process.platform === 'win32')(
+    'windows production launcher',
+    { timeout: 60_000 }, // One C# compile plus a cold PowerShell start is genuinely long.
+    () => {
+      const shell: { folder: string; assembly: string | undefined } = {
+        folder: '',
+        assembly: undefined,
+      }
+      const job = fixtureJobLifecycle()
+      beforeAll(async () => {
+        await job.setup()
+        const compiled = await compileWorkerShellAssembly()
+        shell.folder = compiled.folder
+        shell.assembly = compiled.assembly
+      }, 60_000) // Compiling the C# job assembly once is a genuinely long operation.
+      afterAll(async () => {
+        await job.dispose()
+        if (shell.folder !== '') await removeFolder(shell.folder)
+      })
+      it('NF windows production launcher creates through PowerShell and the job assembly', async () => {
+        const assembly = shell.assembly
+        const executable = job.path
+        if (assembly === undefined || executable === undefined)
+          throw new Error('Native launch unavailable')
+        const { copy, input, role } = await setup()
+        resources.dispose = configureResources(
+          immediateResourceSettings({
+            inspect: () => undefined,
+            onError: () => undefined,
+            windowsJob: () =>
+              Promise.resolve({
+                assemblyPath: assembly,
+                executablePath: executable,
+                verify: () => Promise.resolve(),
+              }),
+          }),
+        )
+        try {
+          // No fixture override: the create falls back to the packaged
+          // production launcher under test here.
+          const productionIo: WorkerFenceIo = {
+            realPath: input.io.realPath,
+            pathIdentity: input.io.pathIdentity,
+            ...(input.io.openFile !== undefined && { openFile: input.io.openFile }),
+          }
+          const tool = fenceWorkerToolIo(base, {
+            input: { ...input, io: productionIo },
+            role,
+            admit: () => undefined,
+          })
+          const target = path.join(copy, 'src', 'launched.ts')
+          await tool.writeFile(target, 'launched\n')
+          expect(await readFile(target, 'utf8')).toBe('launched\n')
+        } finally {
+          resources.dispose()
+          resources.dispose = configureResources({
+            inspect: () => undefined,
+            onError: () => undefined,
+          })
+        }
+      })
+    },
+  )
   it.each(['../new', '..'])('NF native rejects dot components in %s', async (remaining) => {
     const { copy } = await setup()
     const proof = {
@@ -436,6 +644,123 @@ describe('verified native worker creation', () => {
     await expect(tool.writeFile(path.join(copy, 'src', 'new'), 'attack')).rejects.toThrow()
     expect(openFile).not.toHaveBeenCalled()
     await expect(readFile(path.join(copy, 'src', 'new'))).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+  it('NF a refused write guard creates no folders', async () => {
+    const { copy, native, tool } = await setup()
+    const target = path.join(copy, 'src', 'deep', 'a', 'new.ts')
+    await expect(
+      tool.writeFile(target, 'guarded\n', undefined, () => {
+        throw new Error('guard says no')
+      }),
+    ).rejects.toThrow('guard says no')
+    expect(native).not.toHaveBeenCalled()
+    await expect(readFile(target)).rejects.toMatchObject({ code: 'ENOENT' })
+    expect(await readdir(path.join(copy, 'src'))).not.toContain('deep')
+  })
+  it('NF a failed reopen removes the empty file and its new folders', async () => {
+    const { copy, input, role } = await setup()
+    const tool = fenceWorkerToolIo(base, {
+      input: {
+        ...input,
+        io: {
+          ...input.io,
+          openFile: () =>
+            Promise.reject(
+              Object.assign(new Error(`EIO: i/o error, open '${target}'`), { code: 'EIO' }),
+            ),
+        },
+      },
+      role,
+      admit: () => undefined,
+    })
+    const target = path.join(copy, 'src', 'deep', 'b', 'new.ts')
+    await expect(tool.writeFile(target, 'lost\n')).rejects.toThrow(
+      'cannot be created inside the working copy',
+    )
+    await expect(readFile(target)).rejects.toMatchObject({ code: 'ENOENT' })
+    expect(await readdir(path.join(copy, 'src'))).not.toContain('deep')
+  })
+  it.skipIf(process.platform === 'win32')(
+    'NF the helper honors the process umask for files and folders',
+    async () => {
+      const { copy } = await setup()
+      const proof = {
+        root: copy,
+        rootIdentity: await workerPathIdentity(copy),
+        ancestor: 'src',
+        ancestorIdentity: await workerPathIdentity(path.join(copy, 'src')),
+        remaining: 'permdir/permfile',
+      }
+      const previous = process.umask(0o022)
+      try {
+        await runNative(proof, 'worker-create')
+      } finally {
+        process.umask(previous)
+      }
+      const file = await stat(path.join(copy, 'src', 'permdir', 'permfile'))
+      const dir = await stat(path.join(copy, 'src', 'permdir'))
+      expect(file.mode & 0o777).toBe(0o644)
+      expect(dir.mode & 0o777).toBe(0o755)
+    },
+  )
+  it('NF every create errno is the typed copy-relative sentence', () => {
+    const absolute = `${path.sep}host${path.sep}absolute${path.sep}copy${path.sep}src${path.sep}plain`
+    const expected = fill(UI_TEXT.teamFileCannotCreate, { path: 'src/plain/new' })
+    expect(CREATE_ERRNOS.has('ENOTDIR')).toBe(true)
+    expect(CREATE_ERRNOS.has('ENAMETOOLONG')).toBe(true)
+    for (const code of CREATE_ERRNOS) {
+      const failure = Object.assign(new Error(`${code}: not a directory, lstat '${absolute}'`), {
+        code,
+      })
+      const typed = typedCreateError(failure, 'src/plain/new')
+      expect(typed.message).toBe(expected)
+      expect(typed.message).not.toContain(absolute)
+    }
+    const occupied = Object.assign(new Error(`EEXIST: file exists, open '${absolute}'`), {
+      code: 'EEXIST',
+    })
+    expect(typedCreateError(occupied, 'src/plain/new').message).toBe(UI_TEXT.teamFileExists)
+    const exotic = Object.assign(new Error(`ESTALE: stale handle, open '${absolute}'`), {
+      code: 'ESTALE',
+    })
+    const backstop = typedCreateError(exotic, 'src/plain/new')
+    expect(backstop.message).toBe(expected)
+    expect(backstop.message).not.toContain(absolute)
+    expect(typedCreateError('gone', 'src/plain/new').message).toBe(UI_TEXT.teamFileNativeFailed)
+  })
+  it('NF a file parent reaches ACP as the typed copy-relative sentence', async () => {
+    const { copy, input, role } = await setup()
+    const parent = path.join(copy, 'src', 'plain')
+    await writeFile(parent, 'owner')
+    const result = await acpFsWrite({ ...input, role }, 'src/plain/new', 'blocked\n')
+    expect(result).toEqual({
+      error: fill(UI_TEXT.teamFileCannotCreate, { path: 'src/plain/new' }),
+    })
+    if (!('error' in result)) throw new Error('Expected the typed create refusal')
+    expect(result.error).not.toContain(copy)
+    // Nothing was created: the would-be path still resolves through the file.
+    await expect(lstat(path.join(copy, 'src', 'plain', 'new'))).rejects.toMatchObject({
+      code: 'ENOTDIR',
+    })
+  })
+  it('NF an abandoned reservation is released at the next start', async () => {
+    const { folder, root } = await seedReservation('src/stale', '7:7')
+    const run = vi.fn(() => Promise.resolve({ identity: '7:7', createdFolders: 0 }))
+    await sweepOnce(folder, root, run)
+    expect(run).toHaveBeenCalledExactlyOnceWith(expect.anything(), 'worker-release', '7:7')
+    await expectRecordDrained(folder, root, '7:7')
+  })
+  it('NF a changed reservation drops its record but keeps its bytes', async () => {
+    const { folder, root } = await seedReservation('src/changed', '9:9')
+    await writeFile(path.join(root, 'src', 'changed'), 'owner bytes')
+    const refusal = Object.assign(new Error('worker file helper refused: changed'), {
+      stderr: 'worker file helper refused: changed',
+    })
+    const run = vi.fn(() => Promise.reject(refusal))
+    await sweepOnce(folder, root, run)
+    expect(run).toHaveBeenCalledExactlyOnceWith(expect.anything(), 'worker-release', '9:9')
+    expect(await readFile(path.join(root, 'src', 'changed'), 'utf8')).toBe('owner bytes')
+    await expectRecordDrained(folder, root, '9:9')
   })
   it.each(['root', 'parent', 'file'])(
     'NF native %s identity is exact, not a pathname assertion',

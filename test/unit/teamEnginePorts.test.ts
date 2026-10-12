@@ -14,7 +14,8 @@ import {
   type EngineTeamPortsDeps,
 } from '../../src/host/team/teamEnginePorts'
 import { configureResources } from '../../src/core/resources/admission'
-import { processTeamGit } from '../../src/core/team/workers/workerToolIo'
+import { immediateResourceSettings } from './helpers/resources/fixtureAdmission'
+import { processTeamGit } from '../../src/core/team/workers/workerOps'
 import type {
   TeamTaskMeter,
   TeamTaskSpec,
@@ -284,7 +285,11 @@ describe('the engine worker port', () => {
   })
 
   it('runs production git with a credential-free environment', async () => {
-    const dispose = configureResources({ inspect: () => undefined, onError: () => undefined })
+    // Immediate grant and plain roots: the subject is git's environment,
+    // not queueing or root proofs.
+    const dispose = configureResources(
+      immediateResourceSettings({ inspect: () => undefined, onError: () => undefined }),
+    )
     try {
       const { root, head } = await setup(() => Promise.resolve())
       const resolved = new TextDecoder().decode(

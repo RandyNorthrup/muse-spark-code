@@ -627,8 +627,29 @@ public static class MuseSparkCreated {
       if (current.User == null || new SecurityIdentifier(owner).Value != current.User.Value) Refuse();
     }} finally { LocalFree(descriptor); }
   }
+  // Win32-forbidden file characters: never valid in a name, refused before NtCreateFile.
+  static readonly char[] WorkerForbidden = new char[] {'*', '?', '<', '>', '|', '"'};
+  // Reserved device stems, with or without an extension: NTFS names them, Win32 cannot open them.
+  static bool WorkerReserved(string name) {
+    int dot = name.IndexOf('.');
+    string stem = (dot < 0 ? name : name.Substring(0, dot)).ToUpperInvariant();
+    if (stem == "CON" || stem == "PRN" || stem == "AUX" || stem == "NUL") return true;
+    return stem.Length == 4 && stem[3] >= '1' && stem[3] <= '9' &&
+      (stem.StartsWith("COM") || stem.StartsWith("LPT"));
+  }
+  static void WorkerName(string name) {
+    if (name.Length == 0 || name[name.Length - 1] == '.' || name[name.Length - 1] == ' ' ||
+        name.IndexOfAny(WorkerForbidden) >= 0 || WorkerReserved(name)) Refuse();
+    // Win32 names never carry control characters; NtCreateFile would keep
+    // them as real names Win32 tools cannot address. Streams (':') are
+    // refused with the separators in Open above.
+    foreach (char c in name) if (c < ' ') Refuse();
+  }
   static SafeFileHandle Open(SafeFileHandle parent, string name, bool directory, bool create, bool allowMissing = false, bool worker = false) {
     if (String.IsNullOrEmpty(name) || name.IndexOfAny(new char[] {'/', '\\', ':'}) >= 0 || name == "." || name == "..") Refuse();
+    // The worker path refuses reserved devices, trailing dots/spaces, streams
+    // (above) and forbidden characters here as well, never only in TypeScript.
+    if (worker) WorkerName(name);
     IntPtr chars = Marshal.StringToHGlobalUni(name), unicode = Marshal.AllocHGlobal(Marshal.SizeOf(typeof(Unicode)));
     GCHandle security = new GCHandle();
     try {

@@ -68,7 +68,8 @@ static int worker_walk(int root, const char *relative, int create, int *made) {
     if (!leaf(part)) worker_refuse("invalid component");
     int next = openat(current, part, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
     if (next < 0 && errno == ENOENT && create) {
-      if (mkdirat(current, part, 0700)) worker_refuse("directory create failed");
+      // Editor-like folders: the process umask applies to 0777.
+      if (mkdirat(current, part, 0777)) worker_refuse("directory create failed");
       ++*made;
       next = openat(current, part, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
     }
@@ -119,8 +120,9 @@ static int worker_file(int argc, char **argv) {
   }
   if (strcmp(op, "worker-create") && strcmp(op, "worker-check") && strcmp(op, "worker-release"))
     worker_refuse("unknown operation");
+  // Editor-like files: the process umask applies to 0666.
   int fd = openat(parent, name, O_RDWR | O_NOFOLLOW | O_CLOEXEC | O_NONBLOCK |
-    (!strcmp(op, "worker-create") ? O_CREAT | O_EXCL : 0), 0600);
+    (!strcmp(op, "worker-create") ? O_CREAT | O_EXCL : 0), 0666);
   if (fd < 0) worker_refuse(errno == EEXIST ? "target exists" : "file unavailable or linked");
   if (!strcmp(op, "worker-create")) {
     worker_created_parent = parent; worker_created_file = fd; worker_created_name = name;

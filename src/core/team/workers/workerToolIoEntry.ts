@@ -1,2 +1,2 @@
 // First-use worker file adapter. Grant authority remains in teamHost.js.
-export { fenceWorkerToolIo, processTeamGit } from './workerToolIo'
+export { fenceWorkerToolIo } from './workerToolIo'
