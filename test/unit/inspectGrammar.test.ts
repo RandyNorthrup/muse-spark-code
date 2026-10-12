@@ -10,6 +10,7 @@ describe('B1 positive command grammar', () => {
     ['tail -c 100 src/a.ts', 'tail', false],
     ['wc -lwcm src/a.ts', 'wc', false],
     ['stat src/a.ts', 'stat', false],
+    ['stat -- src/a.ts', 'stat', false],
     ['du -sh --max-depth=2 .', 'du', true],
     ["grep -rni -e 'url.*' '--include=*.ts' .", 'grep', true],
     ["find src -name '*.ts' -type f -a -size +1 -print", 'find', true],
@@ -94,6 +95,12 @@ describe('B1 positive command grammar', () => {
         }
       }
     }
+  })
+  it('drops the stat operand separator so tool arguments mirror operands', () => {
+    expect(parseInspectCommand('stat -- src/a.ts', 'linux')).toMatchObject({
+      args: ['src/a.ts'],
+      operands: ['src/a.ts'],
+    })
   })
   it('uses canonical operands in grant and tool argv without changing patterns or relaxing the floor', () => {
     expect(parseInspectCommand("grep -r -e './pattern' .github/.", 'linux')).toMatchObject({
