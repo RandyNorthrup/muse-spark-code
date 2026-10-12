@@ -40303,6 +40303,11 @@ latch; it went back to its lane. This is preparation, not publication; the
 public roadmap (M122) lists 0.18.1 as the next release until a
 `0.18.1 released (…)` record follows here.
 
+**0.18.0 released (2026-10-11, tag `v0.18.0` on main's release merge `be6eaefbe`, PR #149, release run 38206002231).**
+The Release run succeeded on its first attempt and ended on 2026-10-11 at
+10:12 PM PT, when every channel was verified. Recorded by the 0.18.1
+preparation.
+
 **0.18.0 preparation (2026-10-11, release branch).** `release/0.18.0` is cut from
 the release train `int/train-1011` at `549c6f499` and carries the extension
 version 0.18.0 and the dated `CHANGELOG.md` `[0.18.0]` section. Announced as
@@ -40318,6 +40323,11 @@ release can start (`docs/certification/int0170-combined.md`). The reviewed
 baseline is rendered on top of this commit, because the version is a capture
 input. This is preparation, not publication; the public roadmap (M122) lists
 0.18.0 as the next release until a `0.18.0 released (…)` record follows here.
+
+**0.17.2 released (2026-10-11, tag `v0.17.2` on main's release merge `59309b490`, PR #148, release run 38191365289).**
+The npm step was cancelled and rerun twice; the third attempt of the same
+run published, and the Release run ended in success on 2026-10-11 at
+6:53 PM PT. Recorded by the 0.18.1 preparation.
 
 **0.17.2 preparation (2026-10-11, release branch).** `release/0.17.2` carries
 the extension version 0.17.2 and the dated `CHANGELOG.md` `[0.17.2]` section:
