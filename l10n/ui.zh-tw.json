@@ -4062,6 +4062,8 @@
   "providerImportPreviewTitle": "匯入預覽",
   "importNeedsKey": "需要金鑰",
   "importNeedsKeyLabel": "需要金鑰",
+  "providerConnectReplaceKey": "已儲存 OpenRouter 金鑰。要取代嗎？輸入 yes 以繼續。",
+  "providerCreatedKeyDiscarded": "OpenRouter 已建立名為 {label} 的金鑰。此處未保留該金鑰。請在 {url} 刪除它。",
   "providerConnectFailed": "OpenRouter 連線失敗。請重新連線。",
   "providerUsageFailed": "無法讀取 OpenRouter 金鑰用量。請重試。",
   "providerPasteCode": "貼上 OpenRouter 顯示的授權碼。",

@@ -4601,11 +4601,11 @@ describe('ConversationController: account & usage (M8)', () => {
             outputTokens: 99,
             keyUsage: {
               totalUsd: Usd.from(1).toAmount(),
-              todayUsd: 0.2,
+              todayUsd: Usd.from(0.2).toAmount(),
               weekUsd: Usd.from(0.5).toAmount(),
-              monthUsd: 1,
-              limitUsd: 2,
-              remainingUsd: 1,
+              monthUsd: Usd.from(1).toAmount(),
+              limitUsd: Usd.from(2).toAmount(),
+              remainingUsd: Usd.from(1).toAmount(),
             },
           },
         ]),
@@ -4633,7 +4633,11 @@ describe('ConversationController: account & usage (M8)', () => {
           pricing: 'priced',
           inputTokens: 0,
           outputTokens: 0,
-          keyUsage: { totalUsd: Usd.from(1).toAmount(), limitUsd: 2, remainingUsd: 1 },
+          keyUsage: {
+            totalUsd: Usd.from(1).toAmount(),
+            limitUsd: Usd.from(2).toAmount(),
+            remainingUsd: Usd.from(1).toAmount(),
+          },
         },
       ],
     })

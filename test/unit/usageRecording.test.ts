@@ -79,6 +79,33 @@ async function hostRun(
 }
 
 describe('recording taps', () => {
+  it('keeps key observations in credential slots and never appends the same observation twice', async () => {
+    const journal = writer()
+    const port = createUsageRecording({
+      writer: () => Promise.resolve(journal),
+      log: new FakeLogOutputChannel(),
+      isEnabled: () => true,
+      newId: () => 'record',
+      client: 'cli',
+      now: () => 100,
+    })
+    const context = {
+      backend: 'modelApi' as const,
+      provider: 'router',
+      source: 'openRouter' as const,
+      observedAt: 100,
+      windows: [],
+      credentialId: 'a'.repeat(64),
+      observationId: 'first',
+    }
+    port.limit(context)
+    port.limit(context)
+    port.limit({ ...context, credentialId: 'b'.repeat(64), observationId: 'second' })
+    await port.flush()
+    expect(journal.append).toHaveBeenCalledTimes(2)
+    expect(port.limits?.().map((row) => row.credentialId)).toEqual(['a'.repeat(64), 'b'.repeat(64)])
+  })
+
   it('rejects a missing writer factory and accepts only a callable injected factory', () => {
     for (const value of [null, undefined, 0, {}, { createUsageWriter: 1 }])
       expect(isUsageWriterBundle(value)).toBe(false)

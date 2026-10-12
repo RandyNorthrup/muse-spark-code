@@ -4172,6 +4172,8 @@
   "providerImportPreviewTitle": "İçe aktarma önizlemesi",
   "importNeedsKey": "anahtar gerekli",
   "importNeedsKeyLabel": "anahtar gerekli",
+  "providerConnectReplaceKey": "Bir OpenRouter anahtarı zaten kayıtlı. Değiştirilsin mi? Devam etmek için yes yazın.",
+  "providerCreatedKeyDiscarded": "OpenRouter, {label} adlı bir anahtar oluşturdu. Burada tutulmadı. {url} adresinden silin.",
   "providerConnectFailed": "OpenRouter bağlantısı başarısız oldu. Yeniden bağlanmayı deneyin.",
   "providerUsageFailed": "OpenRouter anahtar kullanımı okunamadı. Yeniden deneyin.",
   "providerPasteCode": "OpenRouter tarafından gösterilen yetkilendirme kodunu yapıştırın.",

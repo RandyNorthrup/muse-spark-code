@@ -288,13 +288,17 @@ export function LimitsSection({
                   <>
                     <Meter
                       percent={
-                        account.limitUsd === 0 ? 100 : (account.usedUsd / account.limitUsd) * 100
+                        Number(account.limitUsd) === 0
+                          ? 100
+                          : (Number(account.usedUsd) / Number(account.limitUsd)) * 100
                       }
                       description={description}
                     />
                     <Warning
                       percent={
-                        account.limitUsd === 0 ? 100 : (account.usedUsd / account.limitUsd) * 100
+                        Number(account.limitUsd) === 0
+                          ? 100
+                          : (Number(account.usedUsd) / Number(account.limitUsd)) * 100
                       }
                     />
                   </>

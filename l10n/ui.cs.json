@@ -4392,6 +4392,8 @@
   "providerImportPreviewTitle": "Náhled importu",
   "importNeedsKey": "potřebuje klíč",
   "importNeedsKeyLabel": "potřebuje klíč",
+  "providerConnectReplaceKey": "Klíč OpenRouter je již uložen. Nahradit ho? Pro pokračování napište yes.",
+  "providerCreatedKeyDiscarded": "OpenRouter vytvořil klíč s názvem {label}. Zde nebyl ponechán. Odstraňte ho na {url}.",
   "providerConnectFailed": "Připojení k OpenRouteru se nezdařilo. Zkuste se připojit znovu.",
   "providerUsageFailed": "Využití klíče OpenRouter se nepodařilo načíst. Zkuste to znovu.",
   "providerPasteCode": "Vložte autorizační kód zobrazený OpenRouterem.",

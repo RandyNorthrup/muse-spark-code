@@ -4062,6 +4062,8 @@
   "providerImportPreviewTitle": "インポートのプレビュー",
   "importNeedsKey": "キーが必要です",
   "importNeedsKeyLabel": "キーが必要です",
+  "providerConnectReplaceKey": "OpenRouter のキーは既に保存されています。置き換えますか？続行するには yes と入力してください。",
+  "providerCreatedKeyDiscarded": "OpenRouter が {label} というキーを作成しました。ここには保持されていません。{url} で削除してください。",
   "providerConnectFailed": "OpenRouterへの接続に失敗しました。もう一度接続してください。",
   "providerUsageFailed": "OpenRouterキーの使用量を読み取れませんでした。再試行してください。",
   "providerPasteCode": "OpenRouterに表示された認証コードを貼り付けてください。",

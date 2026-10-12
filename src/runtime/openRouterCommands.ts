@@ -8,11 +8,18 @@ import {
   parseStoredProviderSecret,
   providerSecretAccount,
 } from './keyStore'
-import { connectOpenRouterAccount, OPENROUTER_ORIGIN, pkce } from '../host/backend/providersEntry'
+import {
+  connectOpenRouterAccount,
+  OPENROUTER_ORIGIN,
+  openRouterDiscardedKeyNotice,
+  pkce,
+} from '../host/backend/providersEntry'
 import type { createConfiguredProviderServices } from '../core/providers/configured'
 import { ACP_AGENT_NAME, CREDENTIAL_RECORD_VERSION, UI_TEXT } from '../shared/constants'
 import { fill } from '../shared/l10n/text'
-import { formatUsd } from '../core/usage/insights'
+import { formatUsdAtPrecision } from '../shared/l10n/exactUsd'
+import { Usd } from '../shared/usd'
+import { unlessAborted } from '../core/timeouts'
 
 type OpenRouterApi = Pick<
   ReturnType<typeof createConfiguredProviderServices>,
@@ -45,10 +52,19 @@ export async function runOpenRouterConnect(
   }
   process.once('SIGINT', abort)
   process.once('SIGTERM', abort)
+  let wasDiscarded = false
+  const notifyDiscard = () => {
+    if (wasDiscarded) return
+    wasDiscarded = true
+    deps.printError(openRouterDiscardedKeyNotice())
+  }
+  let wasMinted = false
+  const account = providerSecretAccount('openrouter')
+  let previous: string | undefined
+  let written: string | undefined
   try {
     signal.throwIfAborted()
     const target = await keyTargetFor(deps.readUserFile, 'openrouter')
-    const account = providerSecretAccount('openrouter')
     if (
       account === undefined ||
       !target.ok ||
@@ -56,7 +72,13 @@ export async function runOpenRouterConnect(
       target.origin !== OPENROUTER_ORIGIN
     )
       throw new Error(UI_TEXT.providerConnectFailed)
-    const previous = await deps.secrets.get(account)
+    previous = await deps.secrets.get(account)
+    signal.throwIfAborted()
+    if (previous !== undefined) {
+      const answer = await unlessAborted(deps.readSecret(UI_TEXT.providerConnectReplaceKey), signal)
+      signal.throwIfAborted()
+      if (answer?.trim().toLowerCase() !== 'yes') return 1
+    }
     const connection = await connectOpenRouterAccount({
       pkce: { create: pkce.createPkcePair, newState: () => pkce.createPkcePair().state },
       exchange: {
@@ -64,6 +86,7 @@ export async function runOpenRouterConnect(
           api.openRouterExchange(request.code, request.verifier, request.signal),
       },
       signal,
+      onDiscardedKey: notifyDiscard,
       // A terminal/remote editor displays the documented headless URL; the
       // user pastes only its single-use code through the non-echoing reader.
       isRemote: true,
@@ -75,6 +98,7 @@ export async function runOpenRouterConnect(
       promptForPastedCode: () => deps.readSecret(UI_TEXT.providerPasteCode),
     })
     if (connection === undefined) return 1
+    wasMinted = true
     const store = async () => {
       signal.throwIfAborted()
       const current = await keyTargetFor(deps.readUserFile, 'openrouter')
@@ -86,7 +110,7 @@ export async function runOpenRouterConnect(
       )
         throw new Error(UI_TEXT.providerEditConflict)
       signal.throwIfAborted()
-      const written = formatStoredProviderSecret(
+      written = formatStoredProviderSecret(
         {
           v: CREDENTIAL_RECORD_VERSION,
           auth: 'apiKey',
@@ -94,22 +118,52 @@ export async function runOpenRouterConnect(
         },
         connection.key,
       )
+      // Verify the new record in a private OS-store slot before the atomic
+      // replacement. The existing record remains intact throughout preparation.
+      const staging = `${account}.connect`
+      let isReplacing = false
       try {
+        await deps.secrets.store(staging, written)
+        signal.throwIfAborted()
+        if ((await deps.secrets.get(staging)) !== written)
+          throw new Error(UI_TEXT.providerConnectFailed)
+        signal.throwIfAborted()
+        if ((await deps.secrets.get(account)) !== previous)
+          throw new Error(UI_TEXT.providerEditConflict)
+        signal.throwIfAborted()
+        isReplacing = true
         await deps.secrets.store(account, written)
-      } finally {
-        if (signal.aborted && (await deps.secrets.get(account)) === written) {
-          // A previous record may have been independently removed during
-          // this write. Discard our cancelled grant; never revive that record.
-          await deps.secrets.delete(account)
+        signal.throwIfAborted()
+        if ((await deps.secrets.get(account)) !== written)
+          throw new Error(UI_TEXT.providerEditConflict)
+        signal.throwIfAborted()
+        await deps.secrets.delete(staging)
+        signal.throwIfAborted()
+      } catch (error) {
+        if (isReplacing && (await deps.secrets.get(account)) === written) {
+          if (previous === undefined) await deps.secrets.delete(account)
+          else await deps.secrets.store(account, previous)
         }
+        await deps.secrets.delete(staging)
+        throw error
       }
       signal.throwIfAborted()
       return 0
     }
     await (deps.withUserFileLock === undefined ? store() : deps.withUserFileLock(store))
+    signal.throwIfAborted()
     deps.print(fill(UI_TEXT.keyStoredNote, { origin: OPENROUTER_ORIGIN }))
     return 0
   } catch {
+    if (
+      account !== undefined &&
+      written !== undefined &&
+      (await deps.secrets.get(account)) === written
+    ) {
+      if (previous === undefined) await deps.secrets.delete(account)
+      else await deps.secrets.store(account, previous)
+    }
+    if (wasMinted) notifyDiscard()
     deps.printError(UI_TEXT.providerConnectFailed)
     return 1
   } finally {
@@ -143,7 +197,7 @@ export async function runOpenRouterUsage(
       parsed.key,
     )
     if ((await deps.secrets.get(account)) !== stored) throw new Error(UI_TEXT.providerUsageFailed)
-    const rows: readonly (readonly [string, number | undefined])[] = [
+    const rows: readonly (readonly [string, number | string | undefined])[] = [
       [UI_TEXT.usageKeyTotal, usage.usedTotal],
       [UI_TEXT.usageToday, usage.usedToday],
       [UI_TEXT.usageWeekly, usage.usedThisWeek],
@@ -152,7 +206,10 @@ export async function runOpenRouterUsage(
       [UI_TEXT.usageRemaining, usage.remaining],
     ]
     for (const [label, amount] of rows) {
-      if (amount !== undefined) deps.print(`${label}: ${formatUsd(amount)}`)
+      if (amount !== undefined)
+        deps.print(
+          `${label}: ${formatUsdAtPrecision(Usd.from(amount), Math.max(2, Usd.from(amount).toString().split('.', 2)[1]?.length ?? 0))}`,
+        )
       else if (label === UI_TEXT.usageLimit && usage.unlimited)
         deps.print(`${label}: ${UI_TEXT.usageUnlimited}`)
     }

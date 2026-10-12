@@ -33,8 +33,8 @@ export interface OAuthLoopback {
   /** The redirect URI to register (`http://127.0.0.1:<port>/callback`). */
   readonly redirectUri: string
   /**
-   * The provider's callback, once. Rejects on a wrong `state`, a provider
-   * refusal, the ten-minute end, or `close`. The server is closed however
+   * The provider's callback, once. Ignores unrelated requests; rejects on a provider
+   * refusal with the right state, the ten-minute end, or `close`. The server is closed however
    * this settles.
    */
   waitForCode(): Promise<OAuthCallback>
@@ -132,20 +132,22 @@ export async function startOAuthLoopback(
       response.end()
       return
     }
-    if (['state', 'code', 'error'].some((name) => url.searchParams.getAll(name).length > 1)) {
-      settleOnceAnswered({ error: new Error('The callback carried duplicate parameters') })
+    const names = new Set<string>()
+    for (const [name] of url.searchParams) {
+      if (names.has(name)) {
+        answer(response, HTTP_STATUS.badRequest, UI_TEXT.oauthCallbackDone)
+        return
+      }
+      names.add(name)
+    }
+    if (url.searchParams.get('state') !== state) {
       answer(response, HTTP_STATUS.badRequest, UI_TEXT.oauthCallbackDone)
       return
     }
     const refused = url.searchParams.get('error')
     if (refused !== null) {
-      answer(response, HTTP_STATUS.badRequest, UI_TEXT.oauthCallbackDone)
       settleOnceAnswered({ error: new Error('The provider refused the connection') })
-      return
-    }
-    if (url.searchParams.get('state') !== state) {
       answer(response, HTTP_STATUS.badRequest, UI_TEXT.oauthCallbackDone)
-      settleOnceAnswered({ error: new Error('The callback carried the wrong state') })
       return
     }
     const code = url.searchParams.get('code')

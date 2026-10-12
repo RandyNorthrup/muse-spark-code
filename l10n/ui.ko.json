@@ -4062,6 +4062,8 @@
   "providerImportPreviewTitle": "가져오기 미리 보기",
   "importNeedsKey": "키 필요",
   "importNeedsKeyLabel": "키 필요",
+  "providerConnectReplaceKey": "OpenRouter 키가 이미 저장되어 있습니다. 교체하시겠습니까? 계속하려면 yes를 입력하세요.",
+  "providerCreatedKeyDiscarded": "OpenRouter가 {label} 키를 만들었습니다. 여기에는 보관되지 않았습니다. {url}에서 삭제하세요.",
   "providerConnectFailed": "OpenRouter 연결에 실패했습니다. 다시 연결해 주세요.",
   "providerUsageFailed": "OpenRouter 키 사용량을 읽을 수 없습니다. 다시 시도해 주세요.",
   "providerPasteCode": "OpenRouter에 표시된 인증 코드를 붙여넣으세요.",

@@ -127,6 +127,19 @@ describe('both localization families', () => {
     expect(result.output).not.toContain('differs from source')
   })
 
+  it('rejects nested key order drift with packaging plural normalization', () => {
+    const file = 'l10n/ui.de.json'
+    const table = JSON.parse(readFileSync(path.join(fixture.root, file), 'utf8'))
+    const entries = Object.entries(table.referenceCliOptions)
+    table.referenceCliOptions = Object.fromEntries([...entries.slice(1), entries[0]])
+    writeJson(file, table)
+    const result = runGate()
+    expect(result.code).toBe(1)
+    expect(result.output).toContain(
+      `${file}: key order differs from English at referenceCliOptions`,
+    )
+  })
+
   it('rejects a missing usage file, an unknown locale and invalid plural categories', () => {
     rmSync(path.join(fixture.root, 'l10n/usage.de.json'))
     writeJson('l10n/usage.unknown.json', {})

@@ -94,7 +94,10 @@ const costSchema = z.object({
   cache_write: z.optional(z.number().check(z.nonnegative())),
 })
 // GET /api/v1/key: m95-captures/openrouter/02-key-usage.json (2026-10-04).
-const keyDollars = z.number().check(z.nonnegative())
+const keyDollars = z.pipe(
+  z.object({ decimal: z.string().check(z.regex(/^(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$/)) }),
+  z.transform(({ decimal }) => Usd.from(decimal).toAmount()),
+)
 const openRouterUsageSchema = z.object({
   data: z.object({
     usage: keyDollars,
@@ -384,6 +387,7 @@ export function createConfiguredProviderServices(
     supplied: string | undefined,
     signal: AbortSignal,
     keyTestOrigin?: string,
+    isExact = false,
   ) => {
     const preset = presetFor(entry)
     const bound = transportFor(entry, supplied, keyTestOrigin)
@@ -411,6 +415,22 @@ export function createConfiguredProviderServices(
       { method: 'GET', accept: 'application/json', headers, retries: 'rateLimitOnly' },
       signal,
     )
+    if (isExact) {
+      // Tokenize strings and numbers together: digits in labels or escaped
+      // strings are untouched. JSON validates syntax; zod validates the capture.
+      const text = await readBoundedText(result.response)
+      const exact = text.replaceAll(
+        /"(?:[^"\\]|\\.)*"|-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?/g,
+        (token) => {
+          if (token.startsWith('"')) return token
+          return Math.abs(Number(token.split(/[eE]/, 2)[1] ?? 0)) > 100
+            ? fail()
+            : JSON.stringify({ decimal: token })
+        },
+      )
+      const value: unknown = JSON.parse(exact)
+      return value
+    }
     return await parseJsonResponse(result, (json) => z.json().parse(json))
   }
   const scan = async (
@@ -879,7 +899,8 @@ export function createConfiguredProviderServices(
           return fail()
         }
         const value: unknown = JSON.parse(await readBoundedText(response))
-        signal.throwIfAborted()
+        // A complete successful exchange has minted a key even if cancellation
+        // arrived while its body was read. The Connect owner must report disposal.
         const key = openRouterExchangeSchema.parse(value).key
         return presets.isKeyShape(presets.presetById('openrouter')?.keyShape ?? fail(), key)
           ? key
@@ -911,6 +932,8 @@ export function createConfiguredProviderServices(
             ...(callerSignal === undefined ? [] : [callerSignal]),
             AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
           ]),
+          undefined,
+          true,
         )
         callerSignal?.throwIfAborted()
         const { data } = openRouterUsageSchema.parse(value)

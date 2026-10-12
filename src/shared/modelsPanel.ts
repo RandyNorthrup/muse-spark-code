@@ -114,10 +114,10 @@ export const providerKeyUsageSchema = z.strictObject({
   totalUsd: z.optional(legacyUsdSchema),
   unlimited: z.optional(z.boolean()),
   weekUsd: z.optional(legacyUsdSchema),
-  dayUsd: z.optional(z.number().check(z.nonnegative())),
-  monthUsd: z.optional(z.number().check(z.nonnegative())),
-  limitUsd: z.optional(z.number().check(z.nonnegative())),
-  remainingUsd: z.optional(z.number().check(z.nonnegative())),
+  dayUsd: z.optional(legacyUsdSchema),
+  monthUsd: z.optional(legacyUsdSchema),
+  limitUsd: z.optional(legacyUsdSchema),
+  remainingUsd: z.optional(legacyUsdSchema),
 })
 export type ProviderKeyUsage = z.infer<typeof providerKeyUsageSchema>
 

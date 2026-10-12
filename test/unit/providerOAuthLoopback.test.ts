@@ -52,20 +52,37 @@ describe('the OAuth loopback server', () => {
       loopback.close()
     }
   })
-  it('refuses duplicate callback parameters', async () => {
-    const loopback = await startOAuthLoopback(STATE, 1000)
-    const rejection = expect(loopback.waitForCode()).rejects.toThrow('duplicate')
-    await callback(loopback, `?code=a&code=b&state=${STATE}`)
-    await rejection
-  })
-  it('does not echo a provider refusal or account detail', async () => {
-    const loopback = await startOAuthLoopback(STATE, 1000)
-    const rejection = expect(loopback.waitForCode()).rejects.toThrow(
-      /^The provider refused the connection$/,
-    )
-    await callback(loopback, '?error=synthetic-secret&error_description=synthetic-account')
-    await rejection
-  })
+  it.each([
+    '?code=a&code=b&state=test-state-value',
+    '?code=a&state=test-state-value&scope=a&scope=b',
+    '?error=synthetic-secret&error_description=synthetic-account',
+    '?code=auth-code&state=forged',
+    '?error=access_denied&state=forged',
+  ])(
+    'ignores an unrelated or duplicate callback and still accepts the right one: %s',
+    async (query) => {
+      const loopback = await startOAuthLoopback(STATE, 1000)
+      try {
+        const waited = loopback.waitForCode()
+        let isSettled = false
+        void waited
+          .then(() => {
+            isSettled = true
+          })
+          .catch(() => {
+            isSettled = true
+          })
+        const invalid = await callback(loopback, query)
+        expect(invalid.status).toBe(400)
+        expect(await invalid.text()).not.toContain('synthetic-secret')
+        expect(isSettled).toBe(false)
+        await callback(loopback, `?code=right&state=${STATE}`)
+        await expect(waited).resolves.toMatchObject({ code: 'right' })
+      } finally {
+        loopback.close()
+      }
+    },
+  )
   it('serves localized callback text as plain text, including HTML metacharacters', async () => {
     const text = '<script>alert("synthetic")</script> & "done"'
     setUiText({ ...EN, oauthCallbackDone: text }, 'en')
@@ -103,15 +120,6 @@ describe('the OAuth loopback server', () => {
     await expect(fetch(loopback.redirectUri)).rejects.toThrow()
   })
 
-  it('rejects a callback with the wrong state', async () => {
-    const loopback = await startOAuthLoopback(STATE, 1000)
-    const waited = loopback.waitForCode()
-    const rejected = expect(waited).rejects.toThrow('state')
-    const response = await callback(loopback, '?code=auth-code&state=forged')
-    expect(response.status).toBe(400)
-    await rejected
-  })
-
   it('rejects a callback with no code', async () => {
     const loopback = await startOAuthLoopback(STATE, 1000)
     const waited = loopback.waitForCode()
@@ -124,7 +132,7 @@ describe('the OAuth loopback server', () => {
     const loopback = await startOAuthLoopback(STATE, 1000)
     const waited = loopback.waitForCode()
     const rejected = expect(waited).rejects.toThrow('refused')
-    await callback(loopback, '?error=access_denied&error_description=nope')
+    await callback(loopback, `?error=access_denied&error_description=nope&state=${STATE}`)
     await rejected
   })
 
