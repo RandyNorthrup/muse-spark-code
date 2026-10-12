@@ -7,6 +7,13 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Closing a schedules runtime settles only its own delivered fires; another
+  window or CLI invocation cannot consume a due Once admission. Delivery remains
+  behind certification.
+
+- Schedule migration checks prepare their real source and empty journal before
+  assertions begin; each crash-receipt shape has its own default-deadline case.
+
 ### Added
 
 - **Several accounts per provider, in the terminal and in ACP** (M108,

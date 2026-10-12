@@ -470,9 +470,6 @@ export function createScheduleEngine(options: ScheduleEngineOptions) {
       await coreScheduler.close()
       await Promise.allSettled(activeDispatches)
       await Promise.allSettled(activeTicks)
-      // Core retries durable acknowledgement/record after every host has drained.
-      const workspaces = new Set([...controls.keys(), ...(await registry.list())])
-      for (const workspace of workspaces) await coreScheduler.recover(workspace)
       controls.clear()
     },
     verifyWake: options.verifyWake ?? (() => Promise.resolve({ scheduledPrompts: false })),

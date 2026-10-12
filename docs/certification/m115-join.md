@@ -268,3 +268,38 @@ The grouped Windows-path fixture hook hit 10 seconds at Linux load 25.48;
 the file alone passed 25/25 unchanged at load 29.42. Both receipts are retained.
 The merge's initial unit typecheck caught duplicate imports; those imports were
 removed. Final five-project typechecks belong to the qualification replay.
+
+## SCHEDJOIN2 migration qualification
+
+Isolated comparison at repository deadlines: join base `e43fba893` passed
+15/15; merged `3f61ee62a` passed 12/15 at load 22.83, with three five-second
+failures. These are elapsed real journal/fsync operations, not a stranded
+in-memory waiter: all three memory-only cases finished in 28–39 ms. The
+actual queued-waiter repair is in `8ae58f5ec` (parent of the brief's
+`6c9f58dd5`); this branch's simple lock has no abort/deadline waiter path,
+and resolves its successor in finally. That bug is absent here.
+
+The prior join's claimed seven timeouts do not have seven named receipts in
+its ledger: its earlier detailed run names four expensive cases, and the final
+entry reports only a count. This Linux run reproduces three of those four;
+atomic receipt reconciliation passed at 4,851 ms. Exact per-case base/head
+timings and all actual failures are retained in the ledger.
+
+Fixture creation and empty journal generation (including fsync) now run in
+beforeAll using the repository's existing FIXTURE_HOOK_TIMEOUT_MS. Migration,
+fault injection, late receipts, edits, byte verification and replay assertions
+remain under the normal five-second case budget. The three invalid/empty receipt
+shapes are independent cases with every original assertion retained. The
+restored complete file passed 17/17 without a case timeout override. This is a
+fixture/timing repair; production migration and scheduler settlement are unchanged.
+
+## RVSCHEDJOIN P1 — close ownership
+
+The real-process regression parks the owning engine after admitting a due Once
+fire and before the target queue callback. A second engine on the same registered
+workspace closes. Before repair its close writes skipped and the owner sends zero;
+after repair the second process leaves the admission untouched and the owner sends
+once with one ran record. `scheduleCloseOwnership.e2e`, `scheduleRestartRecovery`
+and `scheduleOutbox` pass 43/43 at default deadlines. Close retries only terminal
+facts remembered by this scheduler, never the shared registry's pending targets.
+The red and restored receipts are `temp/schedjoin2/p1-{red,green}.log`.
