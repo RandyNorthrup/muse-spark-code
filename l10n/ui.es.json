@@ -340,7 +340,8 @@
     "estimate-by": "--by <date>: Fecha límite",
     "fleet": "--fleet current|minimum|optimum: Flota actual / Configuración mínima / Configuración óptima",
     "estimate-format": "--format md|html|json|text: Formato de salida",
-    "seed": "--seed <seed>: Semilla de simulación"
+    "seed": "--seed <seed>: Semilla de simulación",
+    "max-output-tokens": "--max-output-tokens <tokens>: límite de salida por solicitud de Model API (16–32768; predeterminado 1024)."
   },
   "referenceScanSecrets": "Busca secretos en un archivo de parche UTF-8 y falla si los detecta. --key-stdin también busca la clave exacta de Model API mantenida en memoria; no se almacena ninguna clave.",
   "referenceVault": "En curso.",
@@ -5430,5 +5431,11 @@
       "other": "{count} autorizaciones",
       "many": "{count} autorizaciones"
     }
+  },
+  "execBudgetQuote": "Entrada de {inputTokens} ({inputCost}) + límite de salida de {outputTokens} ({outputCost}) = {estimate}; presupuesto de ejecución {cap}, {spent} gastados. Solicitud no enviada.",
+  "execTokenCount": {
+    "one": "como máximo {count} token",
+    "other": "como máximo {count} tokens",
+    "many": "como máximo {count} tokens"
   }
 }

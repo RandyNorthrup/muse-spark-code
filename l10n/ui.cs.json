@@ -340,7 +340,8 @@
     "estimate-by": "--by <date>: Termín",
     "fleet": "--fleet current|minimum|optimum: Aktuální flotila / Minimální sestava / Optimální sestava",
     "estimate-format": "--format md|html|json|text: Výstupní formát",
-    "seed": "--seed <seed>: Počáteční hodnota simulace"
+    "seed": "--seed <seed>: Počáteční hodnota simulace",
+    "max-output-tokens": "--max-output-tokens <tokens>: limit výstupu na požadavek Model API (16–32768; výchozí 1024)."
   },
   "referenceScanSecrets": "Prohledejte soubor opravy v UTF-8 na tajné údaje; při nálezu skončí příkaz chybou. --key-stdin také hledá přesný klíč Model API držený v paměti; klíč se neukládá.",
   "referenceVault": "Probíhá.",
@@ -5584,5 +5585,12 @@
       "few": "{count} oprávnění",
       "many": "{count} oprávnění"
     }
+  },
+  "execBudgetQuote": "Vstup {inputTokens} ({inputCost}) + limit výstupu {outputTokens} ({outputCost}) = {estimate}; limit běhu {cap}, využito {spent}. Požadavek nebyl odeslán.",
+  "execTokenCount": {
+    "one": "nejvýše {count} token",
+    "other": "nejvýše {count} tokenů",
+    "few": "nejvýše {count} tokeny",
+    "many": "nejvýše {count} tokenu"
   }
 }

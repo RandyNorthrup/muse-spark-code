@@ -340,7 +340,8 @@
     "estimate-by": "--by <date>: Срок",
     "fleet": "--fleet current|minimum|optimum: Текущий парк машин / Минимальная конфигурация / Оптимальная конфигурация",
     "estimate-format": "--format md|html|json|text: Формат вывода",
-    "seed": "--seed <seed>: Начальное значение симуляции"
+    "seed": "--seed <seed>: Начальное значение симуляции",
+    "max-output-tokens": "--max-output-tokens <tokens>: лимит вывода на запрос Model API (16–32768; по умолчанию 1024)."
   },
   "referenceScanSecrets": "Ищет секреты в файле патча UTF-8 и завершается с ошибкой при обнаружении. --key-stdin также проверяет точное значение ключа Model API в памяти; ключ не сохраняется.",
   "referenceVault": "В работе.",
@@ -5584,5 +5585,12 @@
       "few": "{count} разрешения",
       "many": "{count} разрешений"
     }
+  },
+  "execBudgetQuote": "Ввод: {inputTokens} ({inputCost}) + лимит вывода: {outputTokens} ({outputCost}) = {estimate}; бюджет запуска {cap}, использовано {spent}. Запрос не отправлен.",
+  "execTokenCount": {
+    "one": "максимум {count} токен",
+    "other": "максимум {count} токена",
+    "few": "максимум {count} токена",
+    "many": "максимум {count} токенов"
   }
 }

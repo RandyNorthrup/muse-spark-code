@@ -558,7 +558,7 @@
     {
       "id": "M80",
       "title": "Headless runs and a GitHub Action",
-      "summary": "Run a bounded agent turn through exec or a GitHub Action, with unsent daily and run reservations refunded; these paths can be tried but are not certified or supported yet.",
+      "summary": "Try bounded headless runs and a GitHub proposal Action, with a 1024-token output default and refunds for unsent reservations, while certification and support remain pending.",
       "area": "platform",
       "release": "0.12.0"
     },

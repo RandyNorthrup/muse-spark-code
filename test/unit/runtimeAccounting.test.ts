@@ -83,14 +83,37 @@ describe('standalone daily admission', () => {
       )
       await Array.fromAsync(client.streamResponse(body, new AbortController().signal))
       expect(api.responseBodies()).toHaveLength(1)
-      const next = daily.reserve(Usd.from(4.99).toAmount(), new AbortController().signal)
+      const next = daily.reserve(Usd.from(4.9999).toAmount(), new AbortController().signal)
       if (omitUsage) await expect(next).rejects.toThrow()
       else
         await expect(next).resolves.toEqual(
-          expect.objectContaining({ reservedUsd: Usd.from(4.99).toAmount() }),
+          expect.objectContaining({ reservedUsd: Usd.from(4.9999).toAmount() }),
         )
     },
   )
+  it('quotes this captured request instead of the whole context window', async () => {
+    const api = fakeModelApi()
+    api.script({ text: 'done' })
+    const ledger = createRunLedger({ capUsd: Usd.from(0.01).toAmount(), maxRequests: 1 })
+    const client = withRuntimeAccounting(
+      fakeModelApiClient(api, new FakeLogOutputChannel()),
+      dailyBudgetAt(folder()),
+      {
+        ledger,
+        refuse: vi.fn(),
+        started: vi.fn(),
+        settled: vi.fn(),
+      },
+    )
+    await Array.fromAsync(client.streamResponse(body, new AbortController().signal))
+    expect(api.responseBodies()).toHaveLength(1)
+    expect(ledger.totals()).toMatchObject({
+      requests: 1,
+      settledUsd: Usd.from(0.000034).toAmount(),
+      reservedUsd: Usd.from(0).toAmount(),
+      uncertainUsd: Usd.from(0).toAmount(),
+    })
+  })
   it('rechecks a reduced cap and a changed local day at dispatch', async () => {
     const root = folder()
     let now = new Date(2026, 9, 6, 12).getTime()

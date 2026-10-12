@@ -560,7 +560,7 @@ export function featureCatalog(): readonly Feature[] {
       [],
       [],
       'headless-runs',
-      // M80/M95: unsent provider admission withdraws both daily and run claims.
+      // M80/M95: one output cap and request-sized admission; unsent claims withdraw.
       ['modelApi'],
       false,
       ['acp'],

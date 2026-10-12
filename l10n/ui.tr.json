@@ -340,7 +340,8 @@
     "estimate-by": "--by <date>: Son tarih",
     "fleet": "--fleet current|minimum|optimum: Mevcut makine grubu / Asgari kurulum / En uygun kurulum",
     "estimate-format": "--format md|html|json|text: Çıktı biçimi",
-    "seed": "--seed <seed>: Simülasyon tohumu"
+    "seed": "--seed <seed>: Simülasyon tohumu",
+    "max-output-tokens": "--max-output-tokens <tokens>: Model API isteği başına çıktı sınırı (16–32768; varsayılan 1024)."
   },
   "referenceScanSecrets": "UTF-8 yama dosyasında gizli bilgileri arar ve bulursa başarısız olur. --key-stdin bellekteki Model API anahtarının tam değerini de arar; anahtar saklanmaz.",
   "referenceVault": "Devam ediyor.",
@@ -5276,5 +5277,10 @@
       "one": "{count} izin",
       "other": "{count} izin"
     }
+  },
+  "execBudgetQuote": "Girdi {inputTokens} ({inputCost}) + çıktı sınırı {outputTokens} ({outputCost}) = {estimate}; çalıştırma bütçesi {cap}, kullanılan {spent}. İstek gönderilmedi.",
+  "execTokenCount": {
+    "one": "en fazla {count} belirteç",
+    "other": "en fazla {count} belirteç"
   }
 }

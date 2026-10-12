@@ -81,6 +81,7 @@ const secretSchema = z.object({
   secret: z.string().check(z.minLength(1)),
 })
 const catalogSchema = z.object({
+  fetchedAt: z.optional(z.string()),
   providers: z.record(
     z.string(),
     z.object({ models: z.record(z.string(), modelMetadata.nativeModelMetadataSchema) }),
@@ -91,6 +92,17 @@ const costSchema = z.object({
   output: z.number().check(z.nonnegative()),
   cache_read: z.optional(z.number().check(z.nonnegative())),
   cache_write: z.optional(z.number().check(z.nonnegative())),
+  tiers: z.optional(
+    z.array(
+      z.object({
+        input: z.number().check(z.nonnegative()),
+        output: z.number().check(z.nonnegative()),
+        cache_read: z.optional(z.number().check(z.nonnegative())),
+        cache_write: z.optional(z.number().check(z.nonnegative())),
+        tier: z.object({ type: z.literal('context'), size: z.int().check(z.minimum(1)) }),
+      }),
+    ),
+  ),
 })
 const digest = (value: string) => createHash('sha256').update(value).digest('hex')
 const fail = (): never => {
@@ -444,6 +456,7 @@ export function createConfiguredProviderServices(
         const four = capabilities.capabilitiesOf({ capabilityRecord: record })
         const entered = entry.prices?.[nativeModel]
         const cost = costSchema.safeParse(native?.['cost'])
+        const tier = cost.success ? cost.data.tiers?.[0] : undefined
         const card = priceCard.resolvePriceCard([
           ...(cost.success
             ? [
@@ -454,6 +467,26 @@ export function createConfiguredProviderServices(
                     cost.data.cache_read === undefined
                       ? undefined
                       : cost.data.cache_read / TOKENS_PER_MILLION,
+                  cacheWrite:
+                    cost.data.cache_write === undefined
+                      ? undefined
+                      : cost.data.cache_write / TOKENS_PER_MILLION,
+                  fetchedAt: catalogue.fetchedAt,
+                  ...(tier !== undefined && {
+                    longContextTier: {
+                      fromTokens: tier.tier.size,
+                      input: tier.input / TOKENS_PER_MILLION,
+                      output: tier.output / TOKENS_PER_MILLION,
+                      cachedInput:
+                        tier.cache_read === undefined
+                          ? undefined
+                          : tier.cache_read / TOKENS_PER_MILLION,
+                      cacheWrite:
+                        tier.cache_write === undefined
+                          ? undefined
+                          : tier.cache_write / TOKENS_PER_MILLION,
+                    },
+                  }),
                   source: 'catalogue' as const,
                 },
               ]

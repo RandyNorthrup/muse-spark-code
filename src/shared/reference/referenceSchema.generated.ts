@@ -294,6 +294,7 @@ export const textKeys = [
   'account-pool',
   'output',
   'max-budget-usd',
+  'max-output-tokens',
   'max-requests',
   'timeout',
   'fail-on-denial',
@@ -379,6 +380,7 @@ const plainTextSchema = z.union([
       textKeys[306],
       textKeys[307],
       textKeys[308],
+      textKeys[309],
     ]),
   }),
   z.object({

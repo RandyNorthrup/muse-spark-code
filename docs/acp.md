@@ -192,10 +192,17 @@ captured plan-key preset is marked **plan**, links its limits, and records
 request/token tallies outside USD caps. No Meta key is needed for its
 inference. General `providers list|add|test|remove` commands and
 `auth set|status|clear --provider <id>` use the same origin-bound records.
-Free probes use the shared request transport. `exec --provider` validates its
-configuration and key, but refuses before dispatch: its production runner
-still needs provider-aware budget admission and settlement. No supported
-headless provider inference is claimed.
+Free probes use the shared request transport. `exec --provider` dispatches through
+that same configured client, reserving each request's conservative input and
+capped output at its model's price before sending, then settling its usage.
+Unknown prices refuse without sending. Unsent daily and run claims are refunded.
+Output defaults to 1024 tokens per request; `--max-output-tokens <16–32768>`
+sets the run's cap for its body, schema and ledger. For a configured Anthropic key:
+
+```sh
+muse-spark-code-acp exec --backend modelApi --provider anthropic --model anthropic/claude-opus-5-5 --max-budget-usd 0.10 --max-requests 1 --ephemeral --output json "Reply with the single word: ready"
+```
+
 The npm package includes the shared catalogue and lazy provider bundles.
 Installed-editor and live provider certification remain open.
 

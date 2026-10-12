@@ -8,6 +8,7 @@ import {
   EXEC_ENDPOINTS,
   EXEC_IMAGE_N,
   EXEC_MIN_OUTPUT_TOKENS,
+  EXEC_USD_DECIMALS,
   EXEC_OBSERVER_HIGH_WATER_BYTES,
   EXEC_RESPONSE_MAX_BYTES,
   EXEC_SSE_FRAME_MAX_BYTES,
@@ -15,11 +16,17 @@ import {
   MODEL_API_IMAGE_MODEL,
   MODEL_API_MAX_OUTPUT_TOKENS,
   MODEL_API_PRICES_PER_MILLION,
+  TOKENS_PER_MILLION,
   UI_TEXT,
 } from '../../shared/constants'
 import type { ExecEventBody, LastResponse, Refusal } from './execProtocol'
 import type { Lifecycle, StopCause } from './execLimits'
-import type { ImageSettlement, ResponseSettlement, RunLedger } from './runLedger'
+import {
+  responseReservationMessage,
+  type ImageSettlement,
+  type ResponseSettlement,
+  type RunLedger,
+} from './runLedger'
 
 export interface ExecTransport {
   readonly fetch: typeof fetch
@@ -60,13 +67,18 @@ export function execFetch(input: {
   fetch: typeof fetch
   ledger: RunLedger
   selectedModel: string
+  readonly maxOutputTokens?: number
   imageGeneration: boolean
   lifecycle: Lifecycle
-  onLatch: (cause: StopCause) => void
+  onLatch: (cause: StopCause, message?: string) => void
   emit: (event: ExecEventBody) => void
   onResponseStart: (n: number) => void
   onResponseSettled: (outcome: LastResponse) => void
 }): ExecTransport {
+  const outputCap = input.maxOutputTokens ?? MODEL_API_MAX_OUTPUT_TOKENS
+  const responseSchema = z.extend(requestSchema, {
+    max_output_tokens: requestSchema.shape.max_output_tokens.check(z.lte(outputCap)),
+  })
   let barrier = Promise.resolve()
   let stopActive: (() => void) | undefined
   let isClosed = false
@@ -81,7 +93,7 @@ export function execFetch(input: {
         usd: Usd.from(0).toAmount(),
         reason,
       })
-    if (reason !== 'closed') input.onLatch({ kind: reason })
+    if (reason !== 'closed') input.onLatch({ kind: reason }, message)
     throw new Error(message)
   }
   const transport: typeof fetch = async (url, init) => {
@@ -131,7 +143,7 @@ export function execFetch(input: {
     } catch {
       return refuse('request_shape')
     }
-    const responseShape = requestSchema.safeParse(data)
+    const responseShape = responseSchema.safeParse(data)
     if (
       isResponse &&
       (!responseShape.success ||
@@ -173,17 +185,40 @@ export function execFetch(input: {
       release.run?.()
       return refuse('closed')
     }
+    const inputTokens = Buffer.byteLength(body)
+    const price = tier === undefined ? undefined : MODEL_API_PRICES_PER_MILLION[tier]
+    const inputCost = Usd.from(price?.input ?? 0)
+      .times(inputTokens)
+      .divide(TOKENS_PER_MILLION)
+    const outputCost = Usd.from(price?.output ?? 0)
+      .times(responseShape.success ? responseShape.data.max_output_tokens : 0)
+      .divide(TOKENS_PER_MILLION)
+    const reserveUsd = inputCost.add(outputCost).ceiling(EXEC_USD_DECIMALS).toAmount()
     const ticket =
       isResponse && tier !== undefined && responseShape.success
         ? input.ledger.admitResponse({
             model: input.selectedModel,
             maxOutputTokens: responseShape.data.max_output_tokens,
             price: MODEL_API_PRICES_PER_MILLION[tier],
+            ...(input.maxOutputTokens !== undefined && { reserveUsd }),
           })
         : input.ledger.admitImage(endpoint)
     if ('refused' in ticket) {
       release.run?.()
-      return refuse(ticket.refused, isImage)
+      const totals = input.ledger.totals()
+      return refuse(
+        ticket.refused,
+        isImage,
+        ticket.refused === 'budget' && input.maxOutputTokens !== undefined
+          ? responseReservationMessage({
+              inputTokens,
+              inputCost: inputCost.toAmount(),
+              outputTokens: responseShape.success ? responseShape.data.max_output_tokens : 0,
+              reserveUsd,
+              totals,
+            })
+          : UI_TEXT.execRequestShape,
+      )
     }
     const controller = new AbortController()
     const signal = AbortSignal.any([

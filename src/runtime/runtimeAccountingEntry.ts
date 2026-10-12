@@ -12,7 +12,12 @@ import {
   type ModelClient,
   type ResolvedModel,
 } from '../core/backends/modelapi/modelPolicy'
-import type { SessionBudgetClaim } from '../core/backends/modelapi/sessionBudget'
+import {
+  estimateInput,
+  requestParts,
+  type SessionBudgetClaim,
+} from '../core/backends/modelapi/sessionBudget'
+import { UserRefusalError } from '../core/refusal'
 import type { ResponseObject } from '../core/backends/modelapi/schemas'
 import {
   EXEC_USD_DECIMALS,
@@ -23,7 +28,12 @@ import {
   UI_TEXT,
 } from '../shared/constants'
 import { storeErrorCode } from '../host/backend/storeErrors'
-import type { RunLedger, ResponseTicket } from './exec/runLedger'
+import {
+  responseReservationMessage,
+  type RunLedger,
+  type ResponseTicket,
+  type SettlementResult,
+} from './exec/runLedger'
 import type { LastResponse, Refusal } from './exec/execProtocol'
 
 const settingsSchema = z.strictObject({
@@ -94,9 +104,13 @@ export function createRuntimeDailyBudget(deps: {
 
 export interface RuntimeResponseAccounting {
   readonly ledger: RunLedger
-  readonly refuse: (reason: Refusal | 'breach' | 'accounting_invalid') => void
-  readonly started: (n: number) => void
-  readonly settled: (outcome: LastResponse) => void
+  readonly refuse: (reason: Refusal | 'breach' | 'accounting_invalid', message?: string) => void
+  readonly started: (n: number, ticket: ResponseTicket) => void
+  readonly settled: (
+    outcome: LastResponse,
+    ticket: ResponseTicket,
+    result: SettlementResult,
+  ) => void
 }
 
 /** Preserve all native clients and codecs; attach admission to their shared transport guard. */
@@ -121,12 +135,24 @@ export function withRuntimeAccounting(
           contextTokens < body.max_output_tokens
         )
           throw new Error(UI_TEXT.execModelUnpriced)
+        const inputTokens =
+          guard?.mediaAccounting?.inputTokens ??
+          estimateInput(requestParts(body), undefined).inputTokens
+        const inputCost = model.price.reserve({
+          inputTokens,
+          outputTokens: 0,
+          images: requestImageCount(body),
+        })
         const reserveUsd = model.price.reserve({
-          inputTokens: contextTokens - body.max_output_tokens,
+          inputTokens,
           outputTokens: body.max_output_tokens,
           images: requestImageCount(body),
         })
-        if (reserveUsd === undefined || Usd.from(reserveUsd).compare(Usd.from(0)) < 0)
+        if (
+          inputCost === undefined ||
+          reserveUsd === undefined ||
+          Usd.from(reserveUsd).compare(Usd.from(0)) < 0
+        )
           throw new Error(UI_TEXT.execModelUnpriced)
         let claim: SessionBudgetClaim | undefined
         let ticket: ResponseTicket | undefined
@@ -164,9 +190,9 @@ export function withRuntimeAccounting(
               },
               { costUsd: cost },
             )
-            ticket = undefined
             const last = accounting.ledger.lastResponse
-            if (last !== null) accounting.settled(last)
+            if (last !== null) accounting.settled(last, ticket, result)
+            ticket = undefined
             if (result.latch !== undefined) accounting.refuse(result.latch)
           }
           wasSent = false
@@ -223,14 +249,25 @@ export function withRuntimeAccounting(
               }
               if ('refused' in admission) {
                 await settle()
-                accounting.refuse(admission.refused)
-                throw new Error(UI_TEXT.execBudgetRefused)
+                const totals = accounting.ledger.totals()
+                const message =
+                  admission.refused === 'budget'
+                    ? responseReservationMessage({
+                        inputTokens,
+                        inputCost,
+                        outputTokens: body.max_output_tokens,
+                        reserveUsd,
+                        totals,
+                      })
+                    : UI_TEXT.execBudgetRefused
+                accounting.refuse(admission.refused, message)
+                throw new UserRefusalError(message)
               }
               ticket = admission
             },
             onRequestStarted: () => {
               claim?.markSent?.()
-              if (ticket !== undefined) accounting?.started(ticket.n)
+              if (ticket !== undefined) accounting?.started(ticket.n, ticket)
               guard?.onRequestStarted?.()
               wasSent = true
             },
@@ -256,12 +293,18 @@ export function withRuntimeAccounting(
     }
     return { ...model, client: bounded }
   }
-  const resolve = async (ref: string) =>
-    wrap(
+  const resolve = async (ref: string) => {
+    const model =
       client.models === undefined
         ? metaResolvedModel(ref, client)
-        : await client.models.resolve(ref),
-    )
+        : await client.models.resolve(ref)
+    if (model.policy.pricing.kind === 'unpriced') {
+      accounting?.ledger.reject('unpriced')
+      accounting?.refuse('unpriced')
+      throw new UserRefusalError(UI_TEXT.execModelUnpriced)
+    }
+    return wrap(model)
+  }
   return {
     currentKeyDigest: client.currentKeyDigest.bind(client),
     countInputTokens: client.countInputTokens.bind(client),

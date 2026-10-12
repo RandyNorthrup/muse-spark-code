@@ -23,7 +23,6 @@ import { isValidModelApiKey, type SecretStore } from '../../host/auth/credential
 import type { Logger } from '../../host/logger'
 import type { AgentEvent } from '../../shared/agentEvents'
 import { uiLocale, fill, plural } from '../../shared/l10n/text'
-import { formatUsd } from '../../shared/l10n/exactUsd'
 import {
   ACP_AGENT_NAME,
   ACP_COMPACT_COMMAND,
@@ -34,7 +33,7 @@ import {
   EXEC_PROMPT_MAX_BYTES,
   EXEC_MODEL_TEXT,
   EXEC_PROTOCOL_VERSION,
-  EXEC_MAX_BUDGET_USD,
+  EXEC_DEFAULT_MAX_OUTPUT_TOKENS,
   EXEC_STOP_GRACE_MS,
   EXEC_STREAM_IDLE_MS,
   EXEC_USD_DECIMALS,
@@ -42,9 +41,7 @@ import {
   HTTP_UNAUTHORIZED,
   JSON_RPC_ERRORS,
   MILLISECONDS_PER_SECOND,
-  MODEL_API_MAX_OUTPUT_TOKENS,
   NO_COMPACTABLE_HISTORY,
-  MODEL_API_PRICES_PER_MILLION,
   PAID_PRICES_USD,
   MODEL_API_IMAGE_MODEL,
   SECRET_KEYS,
@@ -254,7 +251,6 @@ function stopMessage(cause: StopCause, maxRequests: number): string {
     }
   }
 }
-const ZERO_MICRO_USD = 0n
 
 function microUsd(value: UsdAmount): bigint {
   return Usd.from(value).units(EXEC_USD_DECIMALS)
@@ -329,6 +325,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
     maxRequests: options.maxRequests ?? null,
     timeoutSeconds: options.timeoutMs / MILLISECONDS_PER_SECOND,
   }
+  const maxOutputTokens = options.maxOutputTokens ?? EXEC_DEFAULT_MAX_OUTPUT_TOKENS
   const ledger =
     options.backend === 'modelApi' &&
     options.budgetUsd !== undefined &&
@@ -336,6 +333,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
       ? createRunLedger({
           capUsd: options.budgetUsd,
           maxRequests: options.maxRequests,
+          maxOutputTokens,
         })
       : undefined
   let providerRun: AssembledProviderRun | undefined
@@ -653,12 +651,16 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
             return response
           },
           ledger,
+          maxOutputTokens,
           get selectedModel() {
             return model ?? ''
           },
           imageGeneration: options.paidFeatures.includes('imageGeneration'),
           lifecycle,
-          onLatch: latch,
+          onLatch: (cause, message) => {
+            if (message !== undefined) error = message
+            latch(cause)
+          },
           emit: (event) => {
             if (event.type === 'paid_use' && event.n !== null) {
               if (event.phase === 'admitted') imageStarts.set(event.n, deps.now())
@@ -712,19 +714,41 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         usageRecording,
         exec: {
           isEphemeral: options.ephemeral,
+          maxOutputTokens,
           ...(providerRun !== undefined && { providerRun }),
           ...(providerRun !== undefined &&
             ledger !== undefined && {
               responseAccounting: {
                 ledger,
-                refuse: (reason) => {
+                refuse: (reason, message) => {
+                  if (message !== undefined) error = message
                   if (reason === 'closed') latch({ kind: 'internal' })
                   else latch({ kind: reason })
                 },
-                started: (n) => {
+                started: (n, ticket) => {
                   tap?.beginResponse(n)
+                  sink.emit({
+                    type: 'attempt',
+                    n,
+                    endpoint: 'responses',
+                    phase: 'admitted',
+                    maxOutputTokens: ticket.maxOutputTokens,
+                    reservedUsd: ticket.reserveUsd,
+                    totals: ledger.totals(),
+                  })
                 },
-                settled: (outcome) => {
+                settled: (outcome, ticket, settlement) => {
+                  sink.emit({
+                    type: 'attempt',
+                    n: ticket.n,
+                    endpoint: 'responses',
+                    phase: 'settled',
+                    reservedUsd: ticket.reserveUsd,
+                    outcome: outcome.settlement,
+                    chargedUsd: settlement.chargedUsd,
+                    terminal: outcome.terminal,
+                    totals: ledger.totals(),
+                  })
                   tap?.settleResponse(outcome)
                   if (!isFinishing) drain(sink)
                 },
@@ -970,35 +994,10 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
                 )
               setup.isUsageError = false
             }
-            if (ledger !== undefined && providerRun === undefined) {
-              if (tier === undefined) {
-                setup.isUsageError = true
-                error = UI_TEXT.execModelUnpriced
-                return
-              }
-              // Ask the ledger's exact arithmetic for the start reservation, in a
-              // separate un-dispatched ledger. No request belongs to this run yet.
-              const preview = createRunLedger({
-                capUsd: Usd.from(EXEC_MAX_BUDGET_USD).toAmount(),
-                maxRequests: 1,
-              }).admitResponse({
-                model: model ?? '',
-                maxOutputTokens: MODEL_API_MAX_OUTPUT_TOKENS,
-                price: MODEL_API_PRICES_PER_MILLION[tier],
-              })
-              if ('refused' in preview) throw new Error(UI_TEXT.execModelUnpriced)
-              const minimum =
-                microUsd(preview.reserveUsd) +
-                (options.paidFeatures.includes('imageGeneration')
-                  ? microUsd(Usd.from(PAID_PRICES_USD.imageGeneration).toAmount())
-                  : ZERO_MICRO_USD)
-              if (microUsd(options.budgetUsd ?? Usd.from(0).toAmount()) < minimum) {
-                error = fill(UI_TEXT.execBudgetMinimum, {
-                  minimum: formatUsd(Usd.fromUnits(minimum, EXEC_USD_DECIMALS), EXEC_USD_DECIMALS),
-                })
-                latch({ kind: 'budget' })
-                return
-              }
+            if (ledger !== undefined && providerRun === undefined && tier === undefined) {
+              setup.isUsageError = true
+              error = UI_TEXT.execModelUnpriced
+              return
             }
             tap?.beginResponse(1)
             unsubscribe = tap?.subscribe(created.sessionId, observe)
@@ -1183,7 +1182,10 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
             },
       limits,
       durationMs: Math.max(0, deps.now() - (lifecycle.deadlineMs - options.timeoutMs)),
-      error: status === 'completed' ? null : { kind: status, message: error },
+      error:
+        status === 'completed'
+          ? null
+          : { kind: cause?.kind === 'unpriced' ? 'unpriced' : status, message: error },
     }
     return result
   }
