@@ -4680,6 +4680,17 @@ describe('ConversationController: account & usage (M8)', () => {
     expect(port.deleteAllOurs).toHaveBeenCalledWith(undefined)
   })
 
+  it('carries the delete signal into the listing after the delete (P2-4)', async () => {
+    // Round 4, P2-4: the usage-dialog refresh after a delete runs under
+    // the same cancel, so its cleanup deletes nothing more.
+    const port = fakeUploadedFilesLedger(uploadedFilesReportFixture())
+    const t = setup({ uploadedFiles: port })
+    const signal = new AbortController().signal
+    await t.controller.deleteUploadedFiles('file-one', signal)
+    expect(port.deleteFile).toHaveBeenCalledWith('file-one', expect.any(Function), signal)
+    expect(port.readStamped).toHaveBeenLastCalledWith(signal)
+  })
+
   it('deletes nothing when the delete signal is already aborted', async () => {
     const port = fakeUploadedFilesLedger(uploadedFilesReportFixture())
     const t = setup({ uploadedFiles: port })

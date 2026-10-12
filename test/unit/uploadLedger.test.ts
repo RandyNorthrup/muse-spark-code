@@ -30,8 +30,9 @@ const ref = {
 }
 const foreign = { ...receipt, id: 'file-other', filename: 'other.pdf', bytes: 12 }
 
-function setup(now: () => number = () => 1_001_000) {
+function setup(baseNow = 1_001_000) {
   let saved: unknown
+  let clock = baseNow
   let current: string | undefined = accountId
   let serial = 0
   let isMissing = false
@@ -95,7 +96,7 @@ function setup(now: () => number = () => 1_001_000) {
     provider: 'meta',
     poolBytes: 100 * 1024 ** 3,
     currentAccountId: () => Promise.resolve(current),
-    now,
+    now: () => clock,
   })
   const source: UploadSource = {
     name: ref.name,
@@ -106,12 +107,38 @@ function setup(now: () => number = () => 1_001_000) {
       yield content
     },
   }
+  const deleteCalls = () => requestFile.mock.calls.filter((call) => call[1] === 'DELETE')
+  async function refusesCarriedFile() {
+    await expect(ledger.deleteFile(ref.fileId, () => Promise.resolve(true))).rejects.toThrow(
+      'in use by a running request',
+    )
+    expect(deleteCalls()).toEqual([])
+  }
+  function expectDeletedOnce() {
+    expect(deleteCalls()).toHaveLength(1)
+    expect(saved).toMatchObject({ entries: [], pinned: [] })
+  }
   return {
     ledger,
     storage,
     requestFile,
     files,
     source,
+    refusesCarriedFile,
+    expectDeletedOnce,
+    failProviderDeletes: (
+      makeError: (method: string) => Error | undefined = (method) =>
+        method === 'DELETE' ? new Error('Offline') : undefined,
+    ) => {
+      const real = requestFile.getMockImplementation()!
+      const gate = { shouldFail: true }
+      requestFile.mockImplementation(async (...args) => {
+        const error = gate.shouldFail ? makeError(args[1]) : undefined
+        if (error !== undefined) throw error
+        return await real(...args)
+      })
+      return gate
+    },
     raw: () => saved,
     setRaw: (value: unknown) => {
       saved = value
@@ -122,12 +149,15 @@ function setup(now: () => number = () => 1_001_000) {
     missing: () => {
       isMissing = true
     },
+    advance: (ms: number) => {
+      clock += ms
+    },
   }
 }
 
 describe('upload ownership ledger', () => {
   it('retrieves a locally expired upload under clock skew without reopening a discarded source', async () => {
-    const t = setup(() => 8_200_000)
+    const t = setup(8_200_000)
     const signal = new AbortController().signal
     const first = await t.ledger.ensure('s1', sha256, t.source, signal)
     const open = vi.fn(() => {
@@ -162,15 +192,16 @@ describe('upload ownership ledger', () => {
   it('keeps a failed provider deletion durable and retries cleanup on the next account read', async () => {
     const t = setup()
     await t.ledger.ensure('s1', sha256, t.source, new AbortController().signal)
-    const real = t.requestFile.getMockImplementation()!
-    let shouldFail = true
-    t.requestFile.mockImplementation(async (...args) => {
-      if (shouldFail && args[1] === 'DELETE') throw new Error('Offline')
-      return await real(...args)
-    })
+    const gate = t.failProviderDeletes()
+    // The release reports the failure honestly; the row and its intent stay
+    // durable for the next account read.
     await expect(t.ledger.releaseSession('s1')).rejects.toThrow('Offline')
     expect(t.raw()).toMatchObject({ entries: [{ sessions: [] }] })
-    shouldFail = false
+    // The backoff holds the immediate retry; past it the next read deletes.
+    await t.ledger.accountReport()
+    expect(t.raw()).toMatchObject({ entries: [{ sessions: [] }] })
+    gate.shouldFail = false
+    t.advance(60_000)
     await t.ledger.accountReport()
     expect(t.raw()).toMatchObject({ entries: [] })
   })
@@ -291,7 +322,7 @@ describe('upload ownership ledger', () => {
   it('deletes a young upload on its last release, while the read sweep spares unseen young orphans until expiry', async () => {
     // Clocks are honest here: now is milliseconds (4,000 s), the provider
     // expiry seconds (4,600 s) — one unit everywhere.
-    const t = setup(() => 4_000_000)
+    const t = setup(4_000_000)
     const signal = new AbortController().signal
     await t.ledger.ensure('s1', sha256, t.source, signal)
     await t.ledger.releaseSession('s1')
@@ -314,7 +345,7 @@ describe('upload ownership ledger', () => {
   it('sweeps an unseen expired orphan on the account read, in seconds against a millisecond clock', async () => {
     // 8,200 s past a 4,600 s provider expiry: the sweep is the only thing
     // that deletes orphans, and only once expired.
-    const t = setup(() => 8_200_000)
+    const t = setup(8_200_000)
     t.setRaw({
       version: 1,
       accountId,
@@ -327,7 +358,7 @@ describe('upload ownership ledger', () => {
   })
 
   it('leaves an unseen orphan alone when an unrelated session syncs', async () => {
-    const t = setup(() => 8_200_000)
+    const t = setup(8_200_000)
     t.setRaw({
       version: 1,
       accountId,
@@ -340,7 +371,7 @@ describe('upload ownership ledger', () => {
   })
 
   it('never deletes a pinned file, however stale the window that released it', async () => {
-    const t = setup(() => 4_000_000)
+    const t = setup(4_000_000)
     const signal = new AbortController().signal
     await t.ledger.ensure('s1', sha256, t.source, signal)
     // The active request's bracket pins what it carries.
@@ -348,21 +379,21 @@ describe('upload ownership ledger', () => {
     // A stale window's save releases the session reference underneath it.
     await t.ledger.releaseSession('s1')
     expect(t.requestFile.mock.calls.filter((call) => call[1] === 'DELETE')).toEqual([])
-    expect(t.raw()).toMatchObject({ entries: [{ sessions: [] }], pinned: [ref.fileId] })
-    // An explicit delete refuses the file in use too, with the same words.
-    await expect(t.ledger.deleteFile(ref.fileId, () => Promise.resolve(true))).rejects.toThrow(
-      'Remove this file',
-    )
-    expect(t.requestFile.mock.calls.filter((call) => call[1] === 'DELETE')).toEqual([])
-    // Once the request settles, the next release deletes at once.
+    expect(t.raw()).toMatchObject({
+      entries: [{ sessions: [] }],
+      pinned: [{ fileId: ref.fileId, owner: expect.any(String) }],
+    })
+    // An explicit delete refuses the file in use too, naming the running
+    // request rather than sessions (round 4, P3-3).
+    await t.refusesCarriedFile()
+    // Once the request settles, an explicit delete goes at once.
     await t.ledger.unpinFiles([ref.fileId])
     await t.ledger.deleteAllOurs()
-    expect(t.requestFile.mock.calls.filter((call) => call[1] === 'DELETE')).toHaveLength(1)
-    expect(t.raw()).toMatchObject({ entries: [], pinned: [] })
+    t.expectDeletedOnce()
   })
 
   it('retries a failed confirmed foreign-file delete on the next account read', async () => {
-    const t = setup(() => 4_000_000)
+    const t = setup(4_000_000)
     t.setRaw({
       version: 1,
       accountId,
@@ -371,21 +402,16 @@ describe('upload ownership ledger', () => {
         { fileId: foreign.id, name: foreign.filename, bytes: foreign.bytes, expiresAt: 4600 },
       ],
     })
-    const real = t.requestFile.getMockImplementation()!
-    let shouldFail = true
-    t.requestFile.mockImplementation(async (...args) => {
-      if (shouldFail && args[1] === 'DELETE') throw new Error('Offline')
-      return await real(...args)
-    })
+    const gate = t.failProviderDeletes()
     await expect(t.ledger.deleteFile(foreign.id, () => Promise.resolve(true))).rejects.toThrow(
       'Offline',
     )
     // The row and its intent stay durable; reopening the ledger retries.
     expect(t.raw()).toMatchObject({
       cachedFiles: [{ fileId: foreign.id }],
-      pendingDeletes: [foreign.id],
+      pendingDeletes: [{ fileId: foreign.id, useGen: 0 }],
     })
-    shouldFail = false
+    gate.shouldFail = false
     const reopened = new UploadLedger({
       files: t.files,
       storage: t.storage,
@@ -393,7 +419,8 @@ describe('upload ownership ledger', () => {
       provider: 'meta',
       poolBytes: 100 * 1024 ** 3,
       currentAccountId: () => Promise.resolve(accountId),
-      now: () => 4_000_000,
+      // Past the failed delete's backoff, so the next read retries it.
+      now: () => 4_000_000 + 60_000,
     })
     await reopened.accountReport()
     expect(t.requestFile.mock.calls.filter((call) => call[1] === 'DELETE')).toHaveLength(2)
@@ -403,7 +430,7 @@ describe('upload ownership ledger', () => {
   })
 
   it('deletes nothing when the listing signal aborts during the storage read', async () => {
-    const t = setup(() => 8_200_000)
+    const t = setup(8_200_000)
     t.setRaw({
       version: 1,
       accountId,
@@ -422,7 +449,7 @@ describe('upload ownership ledger', () => {
   })
 
   it('never deletes an upload another session still references, even past provider expiry', async () => {
-    const t = setup(() => 8_200_000)
+    const t = setup(8_200_000)
     const signal = new AbortController().signal
     await t.ledger.ensure('a', sha256, t.source, signal)
     await t.ledger.syncSession('b', [ref])
@@ -432,7 +459,7 @@ describe('upload ownership ledger', () => {
   })
 
   it('removes an unseen young orphan early through explicit deletion', async () => {
-    const t = setup(() => 4_000_000)
+    const t = setup(4_000_000)
     t.setRaw({
       version: 1,
       accountId,
@@ -445,7 +472,7 @@ describe('upload ownership ledger', () => {
   })
 
   it('deletes nothing when the delete signal is already aborted', async () => {
-    const t = setup(() => 4_000_000)
+    const t = setup(4_000_000)
     t.setRaw({
       version: 1,
       accountId,
@@ -463,7 +490,7 @@ describe('upload ownership ledger', () => {
   })
 
   it('records a provider-removed single file as gone instead of failing the delete', async () => {
-    const t = setup(() => 4_000_000)
+    const t = setup(4_000_000)
     t.setRaw({
       version: 1,
       accountId,
@@ -482,7 +509,7 @@ describe('upload ownership ledger', () => {
   })
 
   it('records a provider-removed upload as gone instead of failing the cleanup', async () => {
-    const t = setup(() => 8_200_000)
+    const t = setup(8_200_000)
     await t.ledger.ensure('s1', sha256, t.source, new AbortController().signal)
     const real = t.requestFile.getMockImplementation()!
     t.requestFile.mockImplementation(async (...args) => {
@@ -541,5 +568,116 @@ describe('upload ownership ledger', () => {
     await expect(
       t.ledger.ensure('s1', sha256, unavailable, new AbortController().signal),
     ).rejects.toThrow('upload expired')
+  })
+
+  it('voids a failed delete intent once a session uses the file again (USE BEATS INTENT)', async () => {
+    // Round 4, P1-1: the delete fails while released; the same bytes attach
+    // in another session; the next listing must not delete the reused file.
+    for (const reuse of ['ensure', 'sync'] as const) {
+      const t = setup()
+      const signal = new AbortController().signal
+      await t.ledger.ensure('s1', sha256, t.source, signal)
+      const gate = t.failProviderDeletes()
+      await expect(t.ledger.releaseSession('s1')).rejects.toThrow('Offline')
+      if (reuse === 'ensure') await t.ledger.ensure('s2', sha256, t.source, signal)
+      else await t.ledger.syncSession('s2', [ref])
+      gate.shouldFail = false
+      t.advance(60_000)
+      await t.ledger.accountReport()
+      // Only the failed dispatch ran; the reused file was never deleted.
+      expect(t.requestFile.mock.calls.filter((call) => call[1] === 'DELETE')).toHaveLength(1)
+      expect(t.raw()).toMatchObject({ entries: [{ sessions: ['s2'] }], pendingDeletes: [] })
+    }
+  })
+
+  it('counts pins per owner, so one request never unpins another (COUNTED REFERENCES)', async () => {
+    // Round 4, P2-2: two requests carry the same file; the first end leaves
+    // the second request's reference held.
+    const t = setup()
+    const signal = new AbortController().signal
+    await t.ledger.ensure('s1', sha256, t.source, signal)
+    await t.ledger.pinFiles([ref.fileId], 'owner-a')
+    await t.ledger.pinFiles([ref.fileId], 'owner-b')
+    // A stale window's save releases the session reference underneath both.
+    await t.ledger.releaseSession('s1')
+    expect(t.requestFile.mock.calls.filter((call) => call[1] === 'DELETE')).toEqual([])
+    await t.ledger.unpinFiles([ref.fileId], 'owner-a')
+    await t.refusesCarriedFile()
+    await t.ledger.unpinFiles([ref.fileId], 'owner-b')
+    await t.ledger.deleteFile(ref.fileId, () => Promise.resolve(true))
+    t.expectDeletedOnce()
+  })
+
+  it('drops a delete intent cancelled before dispatch, so no later listing runs it', async () => {
+    // Round 4, P2-5: the cancel lands after the intent write but before the
+    // provider dispatch; the next listing must not execute the cancelled delete.
+    const t = setup()
+    // A released but not yet cleaned entry: deletable, no intent yet.
+    t.setRaw({
+      version: 1,
+      accountId,
+      entries: [{ file: { ...ref }, sessions: [], useGen: 1 }],
+      cachedFiles: [],
+    })
+    const controller = new AbortController()
+    const inner = vi.mocked(t.storage.write).getMockImplementation()!
+    let writes = 0
+    vi.mocked(t.storage.write).mockImplementation(async (state) => {
+      writes += 1
+      if (writes === 1) controller.abort()
+      await inner(state)
+    })
+    await expect(
+      t.ledger.deleteFile(ref.fileId, () => Promise.resolve(true), controller.signal),
+    ).rejects.toThrow('abort')
+    expect(controller.signal.aborted).toBe(true)
+    t.advance(60_000)
+    await t.ledger.accountReport()
+    // The dispatch never ran and the intent is gone: nothing was deleted.
+    expect(t.requestFile.mock.calls.filter((call) => call[1] === 'DELETE')).toEqual([])
+    expect(t.raw()).toMatchObject({ entries: [{ sessions: [] }], pendingDeletes: [] })
+  })
+
+  it('isolates one persistently failing delete with backoff and never breaks the listing', async () => {
+    // Round 4, P2-6: the provider refuses the foreign file permanently; the
+    // listing still succeeds and retries only after the backoff.
+    const t = setup()
+    t.setRaw({
+      version: 1,
+      accountId,
+      entries: [],
+      cachedFiles: [
+        { fileId: foreign.id, name: foreign.filename, bytes: foreign.bytes, expiresAt: 4600 },
+      ],
+    })
+    t.failProviderDeletes((method) =>
+      method === 'DELETE' ? new ModelApiError('Refused', 403, undefined, undefined) : undefined,
+    )
+    await expect(t.ledger.deleteFile(foreign.id, () => Promise.resolve(true))).rejects.toThrow(
+      'Refused',
+    )
+    const deletes = () => t.requestFile.mock.calls.filter((call) => call[1] === 'DELETE').length
+    expect(deletes()).toBe(1)
+    // The listing succeeds despite the stuck entry, and does not hammer it.
+    const report = await t.ledger.accountReport()
+    expect(deletes()).toBe(1)
+    expect(
+      report.files.map((file) => file.fileId).toSorted((a, b) => a.localeCompare(b, 'en')),
+    ).toEqual(['file-other', 'file-ours'])
+    expect(t.raw()).toMatchObject({
+      pendingDeletes: [{ fileId: foreign.id, useGen: 0 }],
+    })
+    const attempts = (t.raw() as { pendingAttempts: Record<string, { fails: number }> })
+      .pendingAttempts
+    expect(attempts[foreign.id]?.fails).toBe(1)
+    // Past the backoff it retries on its own — and backs off again.
+    t.advance(60_000)
+    await t.ledger.accountReport()
+    expect(deletes()).toBe(2)
+    expect(
+      (t.raw() as { pendingAttempts: Record<string, { fails: number }> }).pendingAttempts[
+        foreign.id
+      ]?.fails,
+    ).toBe(2)
   })
 })

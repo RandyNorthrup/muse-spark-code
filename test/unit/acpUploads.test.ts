@@ -87,15 +87,37 @@ describe('runUploadsCommand', () => {
       ).rejects.toThrow()
     }
     expect(files.deleteFile).not.toHaveBeenCalled()
-    // Zero is not a listed number: the usage sentence, not a delete.
+    // Zero is not a listed number: the not-found sentence, not the usage
+    // line and not a delete (round 4, P3-2).
     await expect(
       runUploadsCommand('/uploads delete 0', { files, send: () => undefined }),
-    ).rejects.toThrow(UI_TEXT.media.uploadsUsage)
+    ).rejects.toThrow('No uploaded file 0 is listed.')
     // A well-formed number past the list names what is missing.
     await expect(
       runUploadsCommand('/uploads delete 9', { files, send: () => undefined }),
     ).rejects.toThrow('9')
     expect(files.deleteFile).not.toHaveBeenCalled()
+  })
+
+  it('refuses a leading-zero selector even when its number is listed', async () => {
+    // Round 4, P3-1: the listing prints `7`, never `007`.
+    const files = fakePort()
+    files.read.mockResolvedValue({
+      ...report,
+      files: Array.from({ length: 7 }, (_, index) => ({
+        ...report.files[0]!,
+        fileId: `file-${String(index + 1)}`,
+        name: `clip-${String(index + 1)}.mp4`,
+      })),
+    })
+    await expect(
+      runUploadsCommand('/uploads delete 007', { files, send: () => undefined }),
+    ).rejects.toThrow('No uploaded file 007 is listed.')
+    expect(files.deleteFile).not.toHaveBeenCalled()
+    expect(await runUploadsCommand('/uploads delete 7', { files, send: () => undefined })).toBe(
+      'handled',
+    )
+    expect(files.deleteFile).toHaveBeenCalledWith('file-7', expect.any(Function), undefined)
   })
 
   it('keeps a foreign file with its reason and deletes nothing', async () => {
@@ -240,6 +262,21 @@ describe('runUploadsCommand cancellation', () => {
       signal: controller.signal,
     })
     expect(files.deleteAllOurs).toHaveBeenCalledWith(controller.signal)
+  })
+
+  it('carries the signal into the listing after the delete (P2-4)', async () => {
+    // Round 4, P2-4: the post-delete listing's own retry and sweep run
+    // under the same cancel, so a cancel then deletes nothing more.
+    const files = fakePort()
+    const controller = new AbortController()
+    await runUploadsCommand('/uploads delete file-one', {
+      files,
+      send: () => undefined,
+      signal: controller.signal,
+    })
+    const reads = files.read.mock.calls.map((call) => call[0])
+    expect(reads.length).toBeGreaterThanOrEqual(2)
+    expect(reads.at(-1)).toBe(controller.signal)
   })
 })
 

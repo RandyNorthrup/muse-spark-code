@@ -59,6 +59,7 @@ import {
   type ModelApiHostDeps,
 } from '../../src/core/backends/modelapi/ModelApiHost'
 import { FakeLogOutputChannel } from './helpers/fakes'
+import type { MediaReplayPort } from '../../src/core/media/replayMedia'
 import { estimateCostUsd, formatUsd } from '../../src/core/usage/insights'
 import { EN } from '../../src/shared/l10n/en'
 import {
@@ -440,6 +441,8 @@ function setup(
     /** `museSpark.modelApiReplyUsage` (M82); off unless a test says so. */
     showReplyUsage?: boolean
     mediaBudgetMaxEncodedChars?: number
+    /** The session's media bracket (round 4, P2-8: the running-turn test). */
+    createMediaReplay?: ModelApiHostDeps['createMediaReplay']
     scheduleStore?: ScheduleStore
     getAccountId?: () => Promise<string | undefined>
     newId?: () => string
@@ -595,6 +598,9 @@ function setup(
     showReplyUsage: () => options.showReplyUsage ?? false,
     ...(options.mediaBudgetMaxEncodedChars !== undefined && {
       mediaBudgetMaxEncodedChars: options.mediaBudgetMaxEncodedChars,
+    }),
+    ...(options.createMediaReplay !== undefined && {
+      createMediaReplay: options.createMediaReplay,
     }),
     mcpServers: options.mcpServers,
     ideTools: options.ideTools,
@@ -18812,5 +18818,81 @@ describe('the browser check on the Model API backend (M81)', () => {
     await turnDone()
     expect(signals[0]?.aborted).toBe(true)
     expect(checkRows(events)[0]).toMatchObject({ status: 'cancelled' })
+  })
+})
+
+function bracketMedia() {
+  const begins: number[] = []
+  let ends = 0
+  const port: MediaReplayPort = {
+    budgetParts: () => [],
+    reserveRequest: () => Promise.resolve(undefined),
+    beginRequest: (input) => {
+      begins.push(input.length)
+      return Promise.resolve()
+    },
+    endRequest: () => {
+      ends += 1
+      return Promise.resolve()
+    },
+    pending: () => [],
+    assertPendingFits: () => undefined,
+    adopt: () => ({ type: 'input_text', text: 'adopted' }),
+    upload: () => Promise.reject(new Error('the bracket test never uploads')),
+    content: (_part, inline) => inline,
+    restore: () => undefined,
+    prepare: () => Promise.resolve(),
+    admitInline: () => undefined,
+    project: (input) => input,
+    retain: (original) => original,
+    delivered: () => undefined,
+    isUploaded: () => false,
+    transcriptMetadata: () => [],
+    snapshot: (entries) => [...entries],
+    references: () => [],
+    summaryInput: (input) => input,
+    tail: () => [],
+    recover: () => Promise.resolve(false),
+  }
+  return { port, begins, ends: () => ends }
+}
+
+describe('ModelApiSession: the media bracket around a running turn (round 4, P2-8)', () => {
+  it('opens and drains the media bracket around a running turn', async () => {
+    // Removing the beginRequest call or the finally's endRequest leaves
+    // the bracket open: this test runs a real turn through the real host.
+    const media = bracketMedia()
+    const t = setup({ createMediaReplay: () => media.port })
+    const { session, events, turnDone } = await startSession(t)
+    t.api.script({ text: 'done' })
+    await session.sendTurn([{ type: 'text', text: 'go' }])
+    await turnDone()
+    expect(events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
+      terminal: 'completed',
+    })
+    expect(media.begins.length).toBeGreaterThanOrEqual(1)
+    expect(media.ends()).toBeGreaterThanOrEqual(1)
+  })
+
+  it('drains the media bracket when a running turn is cancelled', async () => {
+    // The bracket drains however the turn settled: a cancel mid-response
+    // still runs the finally's endRequest.
+    const media = bracketMedia()
+    const t = setup({ createMediaReplay: () => media.port })
+    const { session, events, turnDone } = await startSession(t)
+    let release: (value: unknown) => void = () => undefined
+    t.api.script({ text: 'late', hold: new Promise((resolve) => (release = resolve)) })
+    await session.sendTurn([{ type: 'text', text: 'go' }])
+    await vi.waitFor(() => {
+      expect(t.api.responseBodies().length).toBeGreaterThanOrEqual(1)
+    })
+    await session.cancel()
+    release(undefined)
+    await turnDone()
+    expect(events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
+      terminal: 'cancelled',
+    })
+    expect(media.begins.length).toBeGreaterThanOrEqual(1)
+    expect(media.ends()).toBeGreaterThanOrEqual(1)
   })
 })
