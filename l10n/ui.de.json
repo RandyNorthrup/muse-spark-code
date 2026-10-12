@@ -3528,6 +3528,16 @@
     "other": "Der Durchgang wurde nach {count} Modellaufrufen angehalten, wobei die endgültige Antwort durch das Ausgabelimit abgeschnitten wurde. Die Teilantwort bleibt erhalten. Senden Sie eine Nachricht, um fortzufahren."
   },
   "modelApiWrapUpHookBlocked": "Ein Stopp-Hook hat um weitere Arbeit gebeten, aber der Durchgang hat sein Modellaufruf-Limit erreicht, daher bleibt die endgültige Antwort bestehen.",
+  "modelApiWrapUpFailed": {
+    "one": "Der Durchgang wurde nach {count} Modellaufruf gestoppt, aber die endgültige Zusammenfassung konnte nicht erstellt werden ({reason}).",
+    "other": "Der Durchgang wurde nach {count} Modellaufrufen gestoppt, aber die endgültige Zusammenfassung konnte nicht erstellt werden ({reason})."
+  },
+  "modelApiWrapUpFailedReason": {
+    "rateLimited": "Ratenlimit",
+    "modelError": "Modellfehler",
+    "budget": "Budgetstopp",
+    "stopped": "gestoppt"
+  },
   "execRequestCapReached": {
     "one": "Das Anfragenlimit von {count} Versuch wurde erreicht.",
     "other": "Das Anfragenlimit von {count} Versuchen wurde erreicht."

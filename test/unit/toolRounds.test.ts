@@ -1,6 +1,16 @@
 import { describe, expect, it } from 'vitest'
-import { ModelApiHost } from '../../src/core/backends/modelapi/ModelApiHost'
-import { ModelCallLimitError } from '../../src/core/backends/modelapi/sessionBudget'
+import {
+  ChildTaskRefusedError,
+  ContextOverflowError,
+  HookCancelledError,
+  ModelApiHost,
+  wrapUpFailedKindFor,
+} from '../../src/core/backends/modelapi/ModelApiHost'
+import {
+  ModelCallLimitError,
+  SessionBudgetExceededError,
+  wrapUpFailedLimit,
+} from '../../src/core/backends/modelapi/sessionBudget'
 import { MODEL_API_MAX_TOOL_ROUNDS, UI_TEXT } from '../../src/shared/constants'
 import { mspApprovalMode } from '../../src/shared/permissionModes'
 import { plural } from '../../src/shared/l10n/text'
@@ -11,6 +21,7 @@ import { memoryToolIo } from './helpers/fakeToolIo'
 import { fakeModelApiHostDeps } from './helpers/modelApiHostDeps'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { startWatchedSession } from './helpers/sessionTurns'
+import type { MediaReplayPort } from '../../src/core/media/replayMedia'
 
 function remainingCalls(cap: number | (() => number) | undefined): (() => number) | undefined {
   if (typeof cap === 'function') return cap
@@ -657,6 +668,28 @@ describe('model-call turn limit', () => {
     }
   })
 
+  it('names the fixed kind of every wrap-up-request failure', () => {
+    expect(wrapUpFailedKindFor(new SessionBudgetExceededError('budget'))).toBe('budget')
+    expect(wrapUpFailedKindFor(new HookCancelledError('halt'))).toBe('stopped')
+    expect(wrapUpFailedKindFor(new Error('boom'))).toBe('modelError')
+    // An already-named limit, the overflow's typed path, a child's refusal
+    // and a non-error keep their own shape.
+    expect(wrapUpFailedKindFor(new ModelCallLimitError(2))).toBeUndefined()
+    expect(
+      wrapUpFailedKindFor(new ContextOverflowError('error', 'model', undefined)),
+    ).toBeUndefined()
+    expect(wrapUpFailedKindFor(new ChildTaskRefusedError('requestLimit'))).toBeUndefined()
+    expect(wrapUpFailedKindFor('nope')).toBeUndefined()
+    const failed = wrapUpFailedLimit(2, 'rateLimited')
+    expect(failed).toBeInstanceOf(ModelCallLimitError)
+    expect(failed.wrapUpFailed).toBe('rateLimited')
+    expect(failed.message).toBe(
+      plural(UI_TEXT.modelApiWrapUpFailed, 2, {
+        reason: UI_TEXT.modelApiWrapUpFailedReason.rateLimited,
+      }),
+    )
+  })
+
   it('renders the wrap-up note in the singular for a limit of 1', async () => {
     // A limit of 1 never reaches the wire (the first call is always
     // ordinary, and a wrap-up needs a call already out), but the template
@@ -669,5 +702,321 @@ describe('model-call turn limit', () => {
     expect(fill(MODEL_API_MODEL_TEXT.turnWrapUp, { limit: 2, calls: 'model calls' })).toContain(
       'limit of 2 model calls.',
     )
+  })
+
+  it.each([
+    {
+      path: 'first attempt',
+      cap: 4,
+      script: () => [...toolCallReplies(3), { text: 'Wrap-up answer' }],
+    },
+    {
+      path: 'first attempt',
+      cap: 2,
+      script: () => [...toolCallReplies(1), { text: 'Wrap-up answer' }],
+    },
+    {
+      path: 'HTTP 429 retry',
+      cap: 4,
+      script: () => [
+        ...toolCallReplies(1),
+        { httpError: { status: 429 } },
+        ...toolCallReplies(1),
+        { text: 'Wrap-up answer' },
+      ],
+    },
+    {
+      path: 'HTTP 429 retry',
+      cap: 3,
+      script: () => [
+        ...toolCallReplies(1),
+        { httpError: { status: 429 } },
+        { text: 'Wrap-up answer' },
+      ],
+    },
+    {
+      path: 'HTTP 5xx retry',
+      cap: 4,
+      script: () => [
+        ...toolCallReplies(1),
+        { httpError: { status: 500 } },
+        ...toolCallReplies(1),
+        { text: 'Wrap-up answer' },
+      ],
+    },
+    {
+      path: 'HTTP 5xx retry',
+      cap: 3,
+      script: () => [
+        ...toolCallReplies(1),
+        { httpError: { status: 500 } },
+        { text: 'Wrap-up answer' },
+      ],
+    },
+    {
+      path: 'whole-stream retry',
+      cap: 4,
+      script: () => [
+        ...toolCallReplies(1),
+        { text: 'partial', streamError: { code: 'server_shutting_down', message: 'draining' } },
+        ...toolCallReplies(1),
+        { text: 'Wrap-up answer' },
+      ],
+    },
+    {
+      path: 'whole-stream retry',
+      cap: 3,
+      script: () => [
+        ...toolCallReplies(1),
+        { text: 'partial', streamError: { code: 'server_shutting_down', message: 'draining' } },
+        { text: 'Wrap-up answer' },
+      ],
+    },
+  ])('sends the last permitted call as the wrap-up after a $path', async ({ cap, script }) => {
+    const t = await setup(cap)
+    try {
+      t.api.script(...script())
+      await t.session.sendTurn([{ type: 'text', text: 'Review' }])
+      await t.turnDone()
+      const bodies = t.api.responseBodies()
+      const last = bodies.at(-1)!
+      // Whatever failure preceded it, the last permitted call answers
+      // without tools and carries the wrap-up note; the turn ends with the
+      // wrap-up text under the typed limit.
+      expect(last['tools']).toEqual([])
+      expect(last['tool_choice']).toBe('auto')
+      expect(wrapUpNotesOf(last)).toEqual([
+        expect.stringContaining(`limit of ${String(cap)} model calls`),
+      ])
+      expect(t.events.findLast((e) => e.type === 'turnCompleted')).toMatchObject({
+        terminal: 'completed',
+        errorKind: 'max_turn_requests',
+      })
+      expect(t.session.history().items).toContainEqual(
+        expect.objectContaining({ kind: 'agentMessage', text: 'Wrap-up answer' }),
+      )
+      expect(JSON.stringify(t.events)).not.toContain('Internal error')
+    } finally {
+      await t.host.close()
+    }
+  })
+
+  it('sends the last permitted call as the wrap-up after media recovery', async () => {
+    const api = fakeModelApi()
+    const log = new FakeLogOutputChannel()
+    const client = fakeModelApiClient(api, log)
+    const io = memoryToolIo({}, '/ws')
+    const host = new ModelApiHost({
+      ...fakeModelApiHostDeps({ client, io, log, workspaceRoot: '/ws' }),
+      remainingModelCalls: () => 3,
+      // The seam `createMediaReplay` owns: recover once, then stay out. Every
+      // other port method is an undefined-returning no-op, which the host's
+      // `??` fallbacks absorb for a turn carrying no media.
+      createMediaReplay: () => {
+        const methods: Record<string, (() => unknown) | undefined> = {
+          recover: () => Promise.resolve(true),
+        }
+        // The cast below is the test-only media stub (a Proxy cannot carry
+        // the port's method types). Reason recorded in PLAN.md §8.
+        return new Proxy(methods, {
+          get: (target, prop) =>
+            typeof prop === 'string' ? (target[prop] ?? (() => undefined)) : undefined,
+        }) as unknown as MediaReplayPort
+      },
+    })
+    const t = {
+      api,
+      host,
+      ...(await startWatchedSession(host, '/ws', mspApprovalMode('acceptEdits'))),
+    }
+    try {
+      // A non-retryable stream failure recovered by the media port rebuilds
+      // through the same request builder, so the last slot is the wrap-up.
+      t.api.script(
+        { calls: [{ name: 'get_goal', arguments: '{}' }] },
+        { text: 'partial', streamError: { code: 'bad_request', message: 'invalid' } },
+        { text: 'Wrap-up answer' },
+      )
+      await t.session.sendTurn([{ type: 'text', text: 'Review' }])
+      await t.turnDone()
+      const bodies = t.api.responseBodies()
+      expect(bodies).toHaveLength(3)
+      const last = bodies.at(-1)!
+      expect(last['tools']).toEqual([])
+      expect(wrapUpNotesOf(last)).toEqual([expect.stringContaining('limit of 3 model calls')])
+      expect(t.events.findLast((e) => e.type === 'turnCompleted')).toMatchObject({
+        terminal: 'completed',
+        errorKind: 'max_turn_requests',
+      })
+      expect(t.session.history().items).toContainEqual(
+        expect.objectContaining({ kind: 'agentMessage', text: 'Wrap-up answer' }),
+      )
+    } finally {
+      await host.close()
+    }
+  })
+
+  it.each([
+    {
+      kind: 'rate limit',
+      script: () => [{ httpError: { status: 429 } }] as const,
+      reason: 'rateLimited' as const,
+    },
+    {
+      kind: 'model error',
+      script: () => [{ httpError: { status: 400 } }] as const,
+      reason: 'modelError' as const,
+    },
+    {
+      kind: 'repeated model error',
+      script: () => [{ httpError: { status: 500 } }] as const,
+      reason: 'modelError' as const,
+    },
+  ])(
+    'ends a wrap-up lost to a $kind with the typed limit saying the summary failed',
+    async ({ script, reason }) => {
+      const t = await setup(2)
+      try {
+        t.api.script({ calls: [{ name: 'get_goal', arguments: '{}' }] }, ...script())
+        await t.session.sendTurn([{ type: 'text', text: 'Review' }])
+        await t.turnDone()
+        const bodies = t.api.responseBodies()
+        // The failed request is the wrap-up itself: no tools, the note, and
+        // no retry with tools afterwards.
+        expect(bodies).toHaveLength(2)
+        const last = bodies.at(-1)!
+        expect(last['tools']).toEqual([])
+        expect(wrapUpNotesOf(last)).toEqual([expect.stringContaining('limit of 2 model calls')])
+        expect(t.events.findLast((e) => e.type === 'turnCompleted')).toMatchObject({
+          terminal: 'completed',
+          errorKind: 'max_turn_requests',
+          reason: plural(UI_TEXT.modelApiWrapUpFailed, 2, {
+            reason: UI_TEXT.modelApiWrapUpFailedReason[reason],
+          }),
+        })
+        expect(t.events).toContainEqual({
+          type: 'backendNotice',
+          level: 'warning',
+          text: plural(UI_TEXT.modelApiWrapUpFailed, 2, {
+            reason: UI_TEXT.modelApiWrapUpFailedReason[reason],
+          }),
+        })
+      } finally {
+        await t.host.close()
+      }
+    },
+  )
+
+  it('re-queues a goal wake held across a failed wrap-up for its own turn', async () => {
+    const { MODEL_API_MODEL_TEXT } = await import('../../src/shared/constants')
+    const t = await setup(2)
+    try {
+      const held = Promise.withResolvers<undefined>()
+      const requested = Promise.withResolvers<undefined>()
+      t.api.script(
+        {
+          calls: [{ name: 'get_goal', arguments: '{}' }],
+          hold: held.promise,
+          onRequest() {
+            requested.resolve(undefined)
+          },
+        },
+        { httpError: { status: 400 } },
+        { text: 'Goal follow-up' },
+      )
+      const send = t.session.sendTurn([{ type: 'text', text: 'Review' }])
+      await requested.promise
+      // A goal accepted while the first request streams waits out the
+      // wrap-up; the wrap-up request then fails outright.
+      await t.session.controlGoal({ verb: 'set', objective: 'Ship it' })
+      held.resolve(undefined)
+      await send
+      await t.turnDone()
+      await t.turnDone()
+      const bodies = t.api.responseBodies()
+      expect(bodies).toHaveLength(3)
+      const completed = t.events.filter((e) => e.type === 'turnCompleted')
+      expect(completed).toHaveLength(2)
+      // The first turn ends at its limit saying the summary failed...
+      expect(completed[0]).toMatchObject({
+        terminal: 'completed',
+        errorKind: 'max_turn_requests',
+        reason: plural(UI_TEXT.modelApiWrapUpFailed, 2, {
+          reason: UI_TEXT.modelApiWrapUpFailedReason.modelError,
+        }),
+      })
+      // ...and the held wake still gets its own turn with tools.
+      const [, wrapUp, woken] = bodies as [
+        Record<string, unknown>,
+        Record<string, unknown>,
+        Record<string, unknown>,
+      ]
+      expect(wrapUp['tools']).toEqual([])
+      expect(JSON.stringify(woken['input'])).toContain(MODEL_API_MODEL_TEXT.goalWake)
+      expect((woken['tools'] as unknown[]).length).toBeGreaterThan(0)
+      expect(completed[1]).toMatchObject({ terminal: 'completed' })
+      expect(completed[1]).not.toHaveProperty('errorKind')
+      expect(t.session.history().items).toContainEqual(
+        expect.objectContaining({ kind: 'agentMessage', text: 'Goal follow-up' }),
+      )
+    } finally {
+      await t.host.close()
+    }
+  })
+
+  it('refuses an image on a caller allowance the old gate could not see', async () => {
+    const api = fakeModelApi()
+    const log = new FakeLogOutputChannel()
+    const client = fakeModelApiClient(api, log)
+    const io = memoryToolIo({}, '/ws')
+    const host = new ModelApiHost({
+      ...fakeModelApiHostDeps({ client, io, log, workspaceRoot: '/ws' }),
+      // Past the feature switch and paid consent so the call reaches the
+      // reserved-slot gate.
+      isPaidFeatureOn: (feature) => feature === 'imageGeneration',
+      allowsPaidUse: () => Promise.resolve(true),
+    })
+    // Production ACP-style: no remainingModelCalls dep, the allowance bound
+    // by hand. The old gate read only the dep and would have let this
+    // through; the reserved-slot check refuses it.
+    const t = {
+      api,
+      host,
+      // allowAll so the image call reaches execution (and its slot gate)
+      // instead of stopping at approval.
+      ...(await startWatchedSession(host, '/ws', 'allowAll')),
+    }
+    t.session.setModelCallAllowance(() => 1)
+    const approvals: Promise<void>[] = []
+    t.session.onEvent((event) => {
+      if (event.type !== 'approvalRequested' || event.isReplayed === true) return
+      approvals.push(
+        t.session.decideApproval({
+          approvalId: event.approvalId,
+          requirementId: event.requirementId,
+          choiceId: 'allow_once',
+        }),
+      )
+    })
+    try {
+      t.api.script({
+        calls: [
+          {
+            name: 'generate_image',
+            arguments: '{"path":"logo.png","prompt":"a logo"}',
+          },
+        ],
+      })
+      await t.session.sendTurn([{ type: 'text', text: 'Draw the logo' }])
+      await t.turnDone()
+      await Promise.all(approvals)
+      expect(JSON.stringify(t.session.history().items)).toContain(UI_TEXT.modelApiWrapUpReserved)
+      expect(t.events.findLast((e) => e.type === 'turnCompleted')).toMatchObject({
+        terminal: 'completed',
+        errorKind: 'max_turn_requests',
+      })
+    } finally {
+      await host.close()
+    }
   })
 })

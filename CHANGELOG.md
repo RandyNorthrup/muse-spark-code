@@ -48,6 +48,15 @@ happened, not what was planned; superseded entries are kept.
   the attempt session surface, so best-of-N attempts reserve the wrap-up
   through it. (Team-task ceilings return with the teams wiring lane: that
   lane binds team tasks through the same member.)
+- The wrap-up phase is now decided where every request is built, so a
+  whole-stream retry, media recovery, or overflow recovery on the last
+  permitted call still sends the wrap-up (no tools, the note appended) and
+  the turn ends with its text. A wrap-up request that itself cannot be
+  completed (rate limit, model error, money stop, hook stop) still ends
+  with the typed request-limit stop, now saying in one translated sentence
+  that the summary could not be produced and why. A goal wake held across
+  a failed wrap-up keeps its own turn with tools. Image generation refuses
+  on the same reserved slot as every other caller-ledger side call.
 
 ### Added
 

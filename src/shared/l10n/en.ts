@@ -4245,6 +4245,17 @@ export const EN = {
   }),
   modelApiWrapUpHookBlocked:
     'A stop hook asked for more work, but the turn reached its model-call limit, so the final answer stands.',
+  modelApiWrapUpFailed: forms({
+    one: 'The turn stopped after {count} model call, but the final summary could not be produced ({reason}).',
+    other:
+      'The turn stopped after {count} model calls, but the final summary could not be produced ({reason}).',
+  }),
+  modelApiWrapUpFailedReason: {
+    rateLimited: 'rate limited',
+    modelError: 'model error',
+    budget: 'budget stop',
+    stopped: 'stopped',
+  },
   execRequestCapReached: forms({
     one: 'The request cap of {count} attempt was reached.',
     other: 'The request cap of {count} attempts was reached.',

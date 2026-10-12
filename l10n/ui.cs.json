@@ -3680,6 +3680,18 @@
     "other": "Tah se zastavil po {count} voláních modelu, přičemž konečná odpověď byla zkrácena limitem výstupu. Částečná odpověď je zachována. Pokračujte odesláním zprávy."
   },
   "modelApiWrapUpHookBlocked": "Hook zastavení požádal o další práci, ale tah dosáhl limitu volání modelu, takže konečná odpověď platí.",
+  "modelApiWrapUpFailed": {
+    "one": "Tah se zastavil po {count} volání modelu, ale závěrečné shrnutí se nepodařilo vytvořit ({reason}).",
+    "other": "Tah se zastavil po {count} voláních modelu, ale závěrečné shrnutí se nepodařilo vytvořit ({reason}).",
+    "few": "Tah se zastavil po {count} voláních modelu, ale závěrečné shrnutí se nepodařilo vytvořit ({reason}).",
+    "many": "Tah se zastavil po {count} voláních modelu, ale závěrečné shrnutí se nepodařilo vytvořit ({reason})."
+  },
+  "modelApiWrapUpFailedReason": {
+    "rateLimited": "limit rychlosti",
+    "modelError": "chyba modelu",
+    "budget": "rozpočtový limit",
+    "stopped": "zastaveno"
+  },
   "execRequestCapReached": {
     "one": "Byl dosažen limit {count} pokusu.",
     "other": "Byl dosažen limit pokusů: {count}.",

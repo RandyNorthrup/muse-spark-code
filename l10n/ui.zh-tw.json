@@ -3452,6 +3452,15 @@
     "other": "最終回答被輸出上限截斷，本輪在呼叫模型 {count} 次後停止。部分回答已保留。傳送訊息以繼續。"
   },
   "modelApiWrapUpHookBlocked": "停止鉤子要求了更多工作，但本輪已達到模型呼叫上限，因此最終回答保持不變。",
+  "modelApiWrapUpFailed": {
+    "other": "本輪在 {count} 次模型呼叫後停止，但未能產生最終摘要（{reason}）。"
+  },
+  "modelApiWrapUpFailedReason": {
+    "rateLimited": "速率受限",
+    "modelError": "模型錯誤",
+    "budget": "預算停止",
+    "stopped": "已停止"
+  },
   "execRequestCapReached": {
     "other": "已達到 {count} 次請求嘗試的上限。"
   },

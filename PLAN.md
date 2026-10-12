@@ -37052,6 +37052,10 @@ before a repaired one loads (2026-09-30).
 | ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
 | `src/shared/constants.ts` (5 lines), `src/shared/browserCheckConstants.ts` (1 line) | `eslint-disable-next-line unicorn/prefer-string-raw` on plain-string Windows paths and one git regexp | `String.raw` is a call and pins the whole initialiser into every bundle importing the module; the plain strings are byte-identical (verified with node) and drop when unused. `test/unit/bundleDiet.test.ts` fails on any new non-droppable initialiser. | 2026-10-11 |
 
+| TOOLROUNDS round-7 location                         | Escape hatch                                    | Reason                                                                                                                                                                                                                                      | Date       |
+| --------------------------------------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `test/unit/toolRounds.test.ts` (media-recovery row) | `as unknown as MediaReplayPort` on a Proxy stub | A Proxy cannot carry the port's method types; the stub implements `recover` (the exercised seam) and undefined-returning no-ops the host's `??` fallbacks absorb for a text-only turn. Test-only; the row asserts the rebuilt last request. | 2026-10-12 |
+
 ## 9. Security assumptions and accepted residual risk
 
 - **M107-D100-native-birth-enforcement (FIXM107W; qualification blocker).**

@@ -3604,6 +3604,17 @@
     "many": "El turno se detuvo tras {count} llamadas al modelo, con la respuesta final truncada por el límite de salida. La respuesta parcial se conserva. Envía un mensaje para continuar."
   },
   "modelApiWrapUpHookBlocked": "Un hook de parada pidió más trabajo, pero el turno alcanzó su límite de llamadas al modelo, por lo que la respuesta final se mantiene.",
+  "modelApiWrapUpFailed": {
+    "one": "El turno se detuvo tras {count} llamada al modelo, pero no se pudo producir el resumen final ({reason}).",
+    "other": "El turno se detuvo tras {count} llamadas al modelo, pero no se pudo producir el resumen final ({reason}).",
+    "many": "El turno se detuvo tras {count} llamadas al modelo, pero no se pudo producir el resumen final ({reason})."
+  },
+  "modelApiWrapUpFailedReason": {
+    "rateLimited": "límite de frecuencia",
+    "modelError": "error del modelo",
+    "budget": "límite de presupuesto",
+    "stopped": "detenido"
+  },
   "execRequestCapReached": {
     "one": "Se alcanzó el límite de {count} intento.",
     "other": "Se alcanzó el límite de {count} intentos.",

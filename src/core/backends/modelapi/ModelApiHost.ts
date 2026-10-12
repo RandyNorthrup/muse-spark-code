@@ -371,6 +371,8 @@ import {
   type SessionBudgetClaim,
   SessionBudgetExceededError,
   ModelCallLimitError,
+  type WrapUpFailedKind,
+  wrapUpFailedLimit,
 } from './sessionBudget'
 
 import { formatUsd } from '../../usage/insights'
@@ -1155,6 +1157,13 @@ export interface ActiveTurn {
   modelFailure?: unknown
   /** A goal accepted after the current model request began needs another round. */
   goalWakePending: boolean
+  /**
+   * Whether the current request's last transport retry notice was a rate
+   * limit (HTTP 429 or pacing): names the kind when the wrap-up request
+   * itself cannot be completed. Reset on every request build, written only
+   * by the request's own retry notices.
+   */
+  lastRetryRateLimited?: boolean | undefined
   /** The prompt's answer to the web search popup (M58); false until it is asked. */
   isWebSearchAllowed: boolean
   /** Run as the Reviewer (M70): its prompt, and only the tools that read. */
@@ -1595,7 +1604,7 @@ class RetryableStreamError extends Error {
   }
 }
 
-class ContextOverflowError extends Error {
+export class ContextOverflowError extends Error {
   public constructor(
     public readonly kind: ContextOverflowKind,
     public readonly modelId: string,
@@ -1604,6 +1613,24 @@ class ContextOverflowError extends Error {
     super(UI_TEXT.contextWindowFull)
     this.name = 'ContextOverflowError'
   }
+}
+
+/**
+ * The fixed kind a wrap-up request's failure names in the limit sentence, or
+ * undefined when the error keeps its own shape: an ordinary (already named)
+ * limit, the overflow's typed path, a child's refusal, or a non-error. Pure
+ * so the mapping is pinned without staging a whole turn.
+ */
+export function wrapUpFailedKindFor(error: unknown): WrapUpFailedKind | undefined {
+  if (
+    error instanceof ModelCallLimitError ||
+    error instanceof ContextOverflowError ||
+    error instanceof ChildTaskRefusedError ||
+    !(error instanceof Error)
+  )
+    return undefined
+  if (error instanceof HookCancelledError) return 'stopped'
+  return error instanceof SessionBudgetExceededError ? 'budget' : 'modelError'
 }
 
 /** No Meta fallback for a BYO model with an unknown or invalid window. */
@@ -1644,7 +1671,7 @@ class HookStoppedError extends Error {
  * on Muse Code 1.4.2 (M91 capture run 5), so Interrupt fires for it. Other
  * hook stops still fail the turn.
  */
-class HookCancelledError extends Error {
+export class HookCancelledError extends Error {
   public constructor(public readonly reason: string) {
     super(reason)
     this.name = 'HookCancelledError'
@@ -1989,7 +2016,7 @@ function refusedOutcome(
   }
 }
 
-class ChildTaskRefusedError extends Error {
+export class ChildTaskRefusedError extends Error {
   public readonly visible: string
 
   public constructor(public readonly kind: ChildTaskRefusal) {
@@ -4397,8 +4424,8 @@ export class ModelApiSession implements ScheduledAgentSession {
       resolved,
     )
     const turn = this.active
-    // The request builder only reads the phase: `enterWrapUpPhase` (loop top
-    // and the last-slot retry) is the one writer.
+    // The request builder only reads the phase: `enterWrapUpPhase` (called
+    // wherever a request is built) is the one writer.
     const wrapUpLimit = this.compacting === undefined ? turn?.wrapUpLimit : undefined
     // The wrap-up keeps the production side-call shape (compaction, git
     // draft): no tools declared, the choice field as ever, instructions
@@ -5000,10 +5027,23 @@ export class ModelApiSession implements ScheduledAgentSession {
         const turn = this.active
         if (isCompaction || directBudget !== undefined || turn === undefined) return
         const left = this.modelCallsLeft(turn)
-        if (left <= 0) throw new ModelCallLimitError(turn.modelCalls)
+        // A retry with no call left ends the turn at its limit. On the
+        // wrap-up request itself that stop says the summary could not be
+        // produced, and why: the last retry notice named a rate limit, or
+        // the failure was the model's own.
+        if (left <= 0) {
+          if (turn.wrapUpLimit !== undefined) {
+            throw wrapUpFailedLimit(
+              turn.modelCalls,
+              turn.lastRetryRateLimited === true ? 'rateLimited' : 'modelError',
+            )
+          }
+          throw new ModelCallLimitError(turn.modelCalls)
+        }
         // A retry spending the last slot rebuilds as the wrap-up, once a
         // call went out; the first call always retries ordinary. The phase
-        // is read everywhere else, written only here and at the loop top.
+        // itself is decided where every request is built (`streamAttempt`);
+        // this only observes that a rebuild is required.
         if (left !== 1) {
           return
         }
@@ -6062,6 +6102,16 @@ export class ModelApiSession implements ScheduledAgentSession {
     step: number,
     confirmedRequest?: ConfirmedModelRequest,
   ): Promise<StreamedCall> {
+    // The phase is decided where every request is built: first attempts,
+    // HTTP-retry rebuilds, whole-stream retries, media recovery and overflow
+    // recovery all enter here, so the last permitted call is always the
+    // wrap-up whatever failure preceded it. The retry-kind flag is reset
+    // with it, so a stale notice never names a later failure.
+    const turn = this.active
+    if (turn !== undefined) {
+      this.enterWrapUpPhase(turn)
+      turn.lastRetryRateLimited = undefined
+    }
     const revision = this.modelRevision
     const resolved = await this.resolveModel(this.active?.audioMessage?.modelId ?? this.modelId)
     const pending = this.owner.run(turnId)
@@ -6107,6 +6157,14 @@ export class ModelApiSession implements ScheduledAgentSession {
     const goalCommandRevision = this.goalCommandRevision
     // A retried request is announced in the transcript, as Muse Code's are (D25).
     const onRetry = (notice: RetryNotice) => {
+      // Names the kind if the wrap-up request itself cannot be completed: a
+      // rate limit (HTTP 429 or pacing) versus any other transport failure.
+      const active = this.active?.turnId === turnId ? this.active : undefined
+      if (active !== undefined) {
+        active.lastRetryRateLimited =
+          notice.phase === 'pacing' ||
+          notice.reason.startsWith(`HTTP ${String(HTTP_TOO_MANY_REQUESTS)}:`)
+      }
       if (notice.phase === 'pacing') {
         this.emit({ type: 'backendNotice', level: 'info', text: notice.reason })
         return
@@ -7926,8 +7984,9 @@ export class ModelApiSession implements ScheduledAgentSession {
     signal: AbortSignal,
     admission: Admission,
   ): Promise<ToolOutcome> {
-    const remaining = this.deps.remainingModelCalls?.()
-    if (remaining !== undefined && remaining <= 1)
+    // Images answer over the caller's ledger, like every other side call: the
+    // same reserved-slot check keeps the turn's last request for the wrap-up.
+    if (this.isWrapUpSlotReserved())
       return toolFailure(MODEL_API_MODEL_TEXT.wrapUpReserved, UI_TEXT.modelApiWrapUpReserved)
     const revision = this.modelRevision
     const selected = this.selectedModel()
@@ -13599,9 +13658,17 @@ export class ModelApiSession implements ScheduledAgentSession {
   }
 
   /**
-   * The one transition into the wrap-up phase. Once a call went out and one
-   * remains, the next request answers without tools. The first call is
-   * always ordinary, even when it is also the last one allowed.
+   * The one transition into the wrap-up phase, and the one writer of
+   * `wrapUpLimit`: every other site reads it. Given the calls already
+   * counted and every allowance that applies — the turn's own limit (bound
+   * at turn start from the caller's allowance), the live caller allowance,
+   * and the default cap folded together by `modelCallsLeft` — once a call
+   * went out and one remains, the next request answers without tools. The
+   * first call is always ordinary, even when it is also the last one
+   * allowed. Called wherever a request is built (`streamAttempt`, so first
+   * attempts, HTTP retries, whole-stream retries, media recovery and
+   * overflow recovery all pass through it); the loop top and `beforeRetry`
+   * only observe its consequence. `body()` reads the phase, never writes it.
    */
   private enterWrapUpPhase(turn: ActiveTurn): void {
     if (turn.wrapUpLimit === undefined && turn.modelCalls >= 1 && this.modelCallsLeft(turn) <= 1) {
@@ -13641,16 +13708,47 @@ export class ModelApiSession implements ScheduledAgentSession {
         text: UI_TEXT.modelApiWrapUpHookBlocked,
       })
     }
-    // Input held out of the wrap-up keeps its own turn with tools: steered
-    // messages belonged to this turn, so they run before separately queued
-    // messages; a goal cue follows them.
+    // Input held out of the wrap-up keeps its own turn with tools.
+    this.requeueHeldInput(turn)
+    // A call limit is not a money stop: it carries its own stop reason.
+    this.outcomeStopReason = 'limit'
+    throw limitError ?? new ModelCallLimitError(turn.modelCalls)
+  }
+
+  /**
+   * Input held out of the wrap-up keeps its own turn with tools: steered
+   * messages belonged to this turn, so they run before separately queued
+   * messages; a goal cue follows them. Runs on the wrap-up's success exit
+   * and when the wrap-up request itself fails, so a held goal wake is never
+   * dropped with the failed summary.
+   */
+  private requeueHeldInput(turn: ActiveTurn): void {
     if (turn.goalWakePending && isGoalActive(this.goal)) {
       this.queuedTurns.unshift(this.queuedGoalWake())
     }
     this.promoteSteered(turn)
-    // A call limit is not a money stop: it carries its own stop reason.
-    this.outcomeStopReason = 'limit'
-    throw limitError ?? new ModelCallLimitError(turn.modelCalls)
+  }
+
+  /**
+   * A wrap-up request that itself could not be completed ends the turn at
+   * its limit all the same: the typed limit stop whose sentence says the
+   * summary could not be produced, and why. Rate limits name themselves; a
+   * money stop, a hook stopping the request, and any other model failure
+   * name their own fixed kind. Anything that is not the wrap-up's own
+   * failure (no wrap-up active, the user stopping the turn, the overflow's
+   * own typed path, a child's refusal) keeps its shape: undefined.
+   */
+  private wrapUpRequestFailed(
+    turn: ActiveTurn,
+    signal: AbortSignal,
+    error: unknown,
+  ): ModelCallLimitError | undefined {
+    if (turn.wrapUpLimit === undefined || isAbortRequested(signal)) return undefined
+    if (error instanceof ModelCallLimitError) return error
+    const kind = wrapUpFailedKindFor(error)
+    if (kind === undefined) return undefined
+    this.requeueHeldInput(turn)
+    return wrapUpFailedLimit(turn.modelCalls, kind)
   }
 
   private async loop(turn: ActiveTurn): Promise<void> {
@@ -13670,10 +13768,10 @@ export class ModelApiSession implements ScheduledAgentSession {
       if (requiredBeforeRound !== undefined) {
         throw requiredBeforeRound
       }
-      // The phase is decided here, once per round: the next request is the
-      // wrap-up once a call went out and one remains. Steering and goal
-      // wakes arriving before it are not consumed by it, but keep their own
-      // turn with tools; the one exit re-queues them.
+      // The phase is observed here, once per round, for the drain gate below:
+      // it is decided where every request is built (`streamAttempt`). Steering
+      // and goal wakes arriving before the wrap-up are not consumed by it,
+      // but keep their own turn with tools; the one exit re-queues them.
       this.enterWrapUpPhase(turn)
       if (turn.wrapUpLimit === undefined) {
         await this.drainSteered(turn)
@@ -13713,10 +13811,16 @@ export class ModelApiSession implements ScheduledAgentSession {
               kind: error.kind,
               contextTokens: error.contextTokens,
             })
-            streamed = await this.streamOnce(turn.turnId, signal, round, turn.confirmedRequest)
+            // The recovery rebuilds through `streamAttempt`, so a last-slot
+            // retry is the wrap-up; its own failure converts the same way.
+            try {
+              streamed = await this.streamOnce(turn.turnId, signal, round, turn.confirmedRequest)
+            } catch (recoveryError: unknown) {
+              throw this.wrapUpRequestFailed(turn, signal, recoveryError) ?? recoveryError
+            }
           } else throw error
         } else {
-          throw error
+          throw this.wrapUpRequestFailed(turn, signal, error) ?? error
         }
       }
       const { calls, goalCommandRevision, postContexts } = streamed

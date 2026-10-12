@@ -3528,6 +3528,16 @@
     "other": "A kör {count} modellhívás után leállt, a végső választ pedig a kimeneti korlát vágta le. A részleges válasz megmarad. A folytatáshoz küldjön üzenetet."
   },
   "modelApiWrapUpHookBlocked": "Egy leállítási hook további munkát kért, de a kör elérte a modellhívási korlátot, így a végső válasz érvényben marad.",
+  "modelApiWrapUpFailed": {
+    "one": "A kör {count} modellhívás után leállt, de a végső összefoglalót nem sikerült elkészíteni ({reason}).",
+    "other": "A kör {count} modellhívás után leállt, de a végső összefoglalót nem sikerült elkészíteni ({reason})."
+  },
+  "modelApiWrapUpFailedReason": {
+    "rateLimited": "sebességkorlát",
+    "modelError": "modellhiba",
+    "budget": "költségkeret-leállítás",
+    "stopped": "leállítva"
+  },
   "execRequestCapReached": {
     "one": "A kérések elérték a(z) {count} próbás korlátot.",
     "other": "A kérések elérték a(z) {count} próbás korlátot."

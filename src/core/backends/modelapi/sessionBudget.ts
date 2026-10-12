@@ -157,15 +157,33 @@ export class SessionBudgetExceededError extends Error {
   }
 }
 
+/**
+ * Why a wrap-up request itself could not be completed: the fixed kind the
+ * limit sentence names. Absent for an ordinary limit (the summary was kept).
+ */
+export type WrapUpFailedKind = 'rateLimited' | 'modelError' | 'budget' | 'stopped'
+
 /** A normal, resumable model-call limit; carries the actual permitted count. */
 export class ModelCallLimitError extends SessionBudgetExceededError {
   public constructor(
     public readonly limit: number,
     message = plural(UI_TEXT.modelApiTurnLimit, limit),
+    public readonly wrapUpFailed?: WrapUpFailedKind | undefined,
   ) {
     super(message)
     this.name = 'ModelCallLimitError'
   }
+}
+
+/** The typed limit stop when the wrap-up request itself failed: the limit sentence says the summary could not be produced, and why. */
+export function wrapUpFailedLimit(limit: number, kind: WrapUpFailedKind): ModelCallLimitError {
+  return new ModelCallLimitError(
+    limit,
+    plural(UI_TEXT.modelApiWrapUpFailed, limit, {
+      reason: UI_TEXT.modelApiWrapUpFailedReason[kind],
+    }),
+    kind,
+  )
 }
 
 /** What in a request body Meta counts as input: the instructions, the tools, and each input item. */
