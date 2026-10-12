@@ -30,7 +30,7 @@ import { pinnedHttpsRequest, pinnedPostRequest } from '../../host/backend/modelA
 import type { PinnedResponse, PinnedTarget } from '../web/webFetch'
 import type { ProviderClient } from '../backends/modelapi/client'
 import type { StreamEvent, Usage } from '../backends/modelapi/schemas'
-import type { ProviderEntry } from './providersFile'
+import type { ProviderEntry, ProviderFormat } from './providersFile'
 import type { RegistryModel } from './providerRegistry'
 import type { ModelCapabilityRecord } from './capabilityRecord'
 import type { NativeModelMetadata } from './modelMetadata'
@@ -44,7 +44,14 @@ import {
   ModelApiError,
   assertConfirmedAllowed,
   isStaleConfirmedError,
+  isModelApiError,
 } from '../backends/modelapi/transport'
+import {
+  openAiEnvelope,
+  parseRefusalError,
+  refusalOf,
+  refusalSentence,
+} from '../backends/modelapi/providerRefusal'
 import { withDeadline } from '../timeouts'
 import { Usd } from '../../shared/usd'
 import { fill } from '../../shared/l10n/text'
@@ -53,7 +60,6 @@ import {
   ANTHROPIC_MAX_ARGUMENT_BYTES,
   ANTHROPIC_MAX_FRAME_BYTES,
   ANTHROPIC_MAX_ITEMS,
-  MILLISECONDS_PER_SECOND,
   MODEL_API_REQUEST_TIMEOUT_MS,
   MODEL_API_STREAM_IDLE_MS,
   PROVIDER_SECRET_PREFIX,
@@ -102,8 +108,56 @@ const costSchema = z.object({
   cache_write: z.optional(z.number().check(z.nonnegative())),
 })
 const digest = (value: string) => createHash('sha256').update(value).digest('hex')
-const fail = (): never => {
-  throw new Error(UI_TEXT.modelsPanelUnavailable)
+/**
+ * A provider entry the services cannot use: the technical reason, for its own
+ * sentence. Typed, with no HTTP status, so the `streamResponse` catch below
+ * keeps its words instead of the generic error, and the ledger (which only
+ * releases answered refusals) leaves it uncertain.
+ */
+const invalidEntry = (entry: ProviderEntry, detail: string): ModelApiError =>
+  new ModelApiError(
+    fill(UI_TEXT.configuredProviderInvalid, { entry: entry.id, detail }),
+    0,
+    undefined,
+    undefined,
+  )
+/** The name a refusal sentence shows: the provider's own label, or the entry
+ * id for a user's own server. */
+const providerDisplayName = (
+  entry: ProviderEntry,
+  preset: { readonly label: string; readonly category: string },
+): string => (preset.category === 'custom' || preset.category === 'local' ? entry.id : preset.label)
+/** Chat Completions, Responses, every chat-format quirk and the
+ * ChatGPT-plan and Copilot routes share the OpenAI-style envelope; anything
+ * else in it is `unrecognised`, never a product sentence. */
+const openAiRefusal = (status: number, value: unknown): ModelApiError => {
+  const refusal = parseRefusalError(status, value, openAiEnvelope)
+  return new ModelApiError(refusal.message, status, refusal.kind, refusal.code)
+}
+/** Every wire format's HTTP error parser, keyed by the closed format. */
+const parseByFormat: Record<ProviderFormat, (status: number, value: unknown) => ModelApiError> = {
+  anthropic: (status, value) => anthropic.parseAnthropicError(status, value),
+  gemini: (status, value) => gemini.parseGeminiError(status, value),
+  ollama: (status, value) => ollama.parseOllamaError(status, value, ''),
+  chat: (status, value) => openAiRefusal(status, value),
+  responses: (status, value) => openAiRefusal(status, value),
+}
+/** An answered refusal with the sentence the person reads, keeping its
+ * status, kind, code, request id and wait for the ledger and the log. */
+const refusalError = (
+  entry: ProviderEntry,
+  preset: { readonly label: string; readonly category: string },
+  error: ModelApiError,
+): ModelApiError => {
+  const out = new ModelApiError(
+    refusalSentence(refusalOf(error), providerDisplayName(entry, preset)),
+    error.status,
+    error.kind,
+    error.code,
+  )
+  out.requestId = error.requestId
+  out.retryAfterMs = error.retryAfterMs
+  return out
 }
 
 function ignoreTransportLog(): void {
@@ -115,7 +169,7 @@ function ignoreProviderCache(): void {
   // Provider requests do not maintain a page cache.
 }
 
-async function* chunks(response: PinnedResponse, idleMs: number) {
+async function* chunks(response: PinnedResponse, idleMs: number, provider: string) {
   let size = 0
   const iterator = response.body[Symbol.asyncIterator]()
   try {
@@ -124,7 +178,13 @@ async function* chunks(response: PinnedResponse, idleMs: number) {
       if (part.done) return
       const bytes = z.instanceof(Uint8Array).parse(part.value)
       size += bytes.byteLength
-      if (size > SUBSCRIPTION_STREAM_MAX_BYTES) return fail()
+      if (size > SUBSCRIPTION_STREAM_MAX_BYTES)
+        throw new ModelApiError(
+          fill(UI_TEXT.providerStreamTooLarge, { provider }),
+          0,
+          undefined,
+          undefined,
+        )
       yield bytes
     }
   } finally {
@@ -137,11 +197,9 @@ export function createConfiguredProviderServices(
   options: ConfiguredProviderOptions,
 ) {
   // The only time limit on an inference stream: silence, of headers or
-  // frames. The transport ends such a stream with this sentence (read when
-  // it is compared: the language can change while the services live).
+  // frames. The transport ends such a stream with its stalled sentence,
+  // which passes through the `streamResponse` catch below untouched.
   const idleMs = options.streamIdleMs ?? MODEL_API_STREAM_IDLE_MS
-  const stalled = () =>
-    fill(UI_TEXT.modelApiStalled, { seconds: Math.round(idleMs / MILLISECONDS_PER_SECOND) })
   const readCatalog = async () => {
     try {
       return catalogSchema.parse(JSON.parse(await readFile(options.catalogFile, 'utf8')))
@@ -153,7 +211,11 @@ export function createConfiguredProviderServices(
       return z.object({ default: catalogSchema }).parse(packed).default
     }
   }
-  const delegate = () => meta ?? fail()
+  const delegate = (): ProviderClient => {
+    if (meta === undefined)
+      throw new ModelApiError(UI_TEXT.mainServiceUnavailable, 0, undefined, undefined)
+    return meta
+  }
   const base: ProviderClient = {
     hasPaidDailyBudget: meta?.hasPaidDailyBudget ?? false,
     currentKeyDigest: () => delegate().currentKeyDigest(),
@@ -177,34 +239,66 @@ export function createConfiguredProviderServices(
     if (!result.ok) {
       if (result.reason === 'missing') return providersFile.emptyProvidersFile()
       if (result.reason === 'invalid') throw new RangeError(result.detail)
-      return fail()
+      throw new ModelApiError(UI_TEXT.actionFailed, 0, undefined, undefined)
     }
     revision = digest(JSON.stringify(result.file))
     return result.file
   }
-  const presetFor = (entry: ProviderEntry) =>
-    presets.planKeyPresetById(entry.preset) ?? presets.presetById(entry.preset) ?? fail()
+  const presetFor = (entry: ProviderEntry) => {
+    const preset = presets.planKeyPresetById(entry.preset) ?? presets.presetById(entry.preset)
+    if (preset === undefined) throw invalidEntry(entry, `unknown preset ${entry.preset}`)
+    return preset
+  }
   const credential = async (entry: ProviderEntry, supplied?: string) => {
     if (entry.auth === 'none') return
-    if (entry.auth !== 'apiKey') return fail()
+    if (entry.auth !== 'apiKey') throw invalidEntry(entry, `unsupported auth ${entry.auth}`)
     if (supplied !== undefined) return supplied
     const stored = await options.secrets.get(`${PROVIDER_SECRET_PREFIX}${entry.id}`)
-    if (stored === undefined) return fail()
+    if (stored === undefined)
+      throw new ModelApiError(
+        fill(UI_TEXT.providerKeyAbsent, { provider: entry.id }),
+        0,
+        undefined,
+        undefined,
+      )
     let value: unknown
     try {
       value = JSON.parse(stored)
     } catch {
-      return fail()
+      throw new ModelApiError(
+        fill(UI_TEXT.providerSecretUnreadable, { provider: entry.id }),
+        0,
+        undefined,
+        undefined,
+      )
     }
     const parsed = secretSchema.safeParse(value)
-    return !parsed.success ||
+    if (!parsed.success)
+      throw new ModelApiError(
+        fill(UI_TEXT.providerSecretUnreadable, { provider: entry.id }),
+        0,
+        undefined,
+        undefined,
+      )
+    if (
       endpointPolicy.originOf(parsed.data.origin) !== endpointPolicy.originOf(entry.address ?? '')
-      ? fail()
-      : parsed.data.secret
+    )
+      throw new ModelApiError(
+        fill(UI_TEXT.providerOriginMismatch, {
+          provider: entry.id,
+          stored: parsed.data.origin,
+          current: entry.address ?? '',
+        }),
+        0,
+        undefined,
+        undefined,
+      )
+    return parsed.data.secret
   }
   const transportFor = (entry: ProviderEntry, supplied?: string, keyTestOrigin?: string) => {
     const preset = presetFor(entry)
-    const configuredUrl = new URL(entry.address ?? fail())
+    if (entry.address === undefined) throw invalidEntry(entry, 'missing address')
+    const configuredUrl = new URL(entry.address)
     const base = new URL(keyTestOrigin ?? configuredUrl.href)
     if (
       (!preset.wireCapture && entry.preset !== 'custom' && entry.auth !== 'none') ||
@@ -212,7 +306,10 @@ export function createConfiguredProviderServices(
       (keyTestOrigin !== undefined &&
         (preset.keyTest.kind !== 'provider-key' || preset.keyTest.origin !== keyTestOrigin))
     )
-      return fail()
+      throw invalidEntry(
+        entry,
+        `address ${configuredUrl.origin} does not match preset ${entry.preset}`,
+      )
     const auth =
       entry.auth === 'none'
         ? new NoAuthSource(base.origin)
@@ -247,7 +344,8 @@ export function createConfiguredProviderServices(
           if (typeof url === 'string') requestUrl = url
           else if (url instanceof URL) requestUrl = url.href
           else requestUrl = url.url
-          if (target?.url.href !== requestUrl || init?.redirect !== 'error') return fail()
+          if (target?.url.href !== requestUrl || init?.redirect !== 'error')
+            throw invalidEntry(entry, `unexpected request ${requestUrl}`)
           const signal = init.signal ?? AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS)
           const headers = Object.fromEntries(
             Object.entries(z.record(z.string(), z.string()).parse(init.headers)).map(
@@ -289,12 +387,25 @@ export function createConfiguredProviderServices(
                 target.url.protocol !== 'http:',
               )
             }
-          } catch {
-            // A pinned send can have reached the provider; retain its liability
-            // and refuse an ambiguous retry, with no echoed diagnostic text.
-            throw new ModelApiError(UI_TEXT.modelsPanelUnavailable, 0, undefined, undefined)
+          } catch (error: unknown) {
+            // A typed failure keeps its kind; a native send failure produced
+            // no answer, so before anything was written the provider could
+            // not be reached. The status stays 0 so any liability after a
+            // write is retained as uncertain; telling a mid-write failure
+            // apart belongs to the transmission work, not this branch.
+            if (isModelApiError(error)) throw error
+            throw new ModelApiError(
+              fill(UI_TEXT.providerUnreachable, {
+                provider: providerDisplayName(entry, preset),
+              }),
+              0,
+              undefined,
+              undefined,
+            )
           }
-          const iterator = chunks(response, idleMs)[Symbol.asyncIterator]()
+          const iterator = chunks(response, idleMs, providerDisplayName(entry, preset))[
+            Symbol.asyncIterator
+          ]()
           return new Response(
             new ReadableStream<Uint8Array>({
               async pull(controller) {
@@ -324,12 +435,13 @@ export function createConfiguredProviderServices(
       },
       verifyEndpoint: async (url: string) => {
         const parsed = new URL(url)
-        if (parsed.origin !== base.origin) return fail()
+        if (parsed.origin !== base.origin)
+          throw invalidEntry(entry, `request origin ${parsed.origin} is outside ${base.origin}`)
         if (
           keyTestOrigin !== undefined &&
           (preset.keyTest.kind !== 'provider-key' || parsed.pathname !== preset.keyTest.path)
         )
-          return fail()
+          throw invalidEntry(entry, `key check path ${parsed.pathname} is outside ${keyTestOrigin}`)
         const host = parsed.hostname.replaceAll(/^\[|\]$/g, '')
         const answers =
           isIP(host) === 0
@@ -347,15 +459,16 @@ export function createConfiguredProviderServices(
           (verdict.kind === 'confirm-private' &&
             (keyTestOrigin !== undefined || entry.privateNetwork !== true))
         )
-          return fail()
-        const address = answers[0] ?? fail()
+          throw invalidEntry(entry, `endpoint ${base.href} is not allowed here`)
+        const address = answers[0]
+        if (address === undefined) throw invalidEntry(entry, `no address for ${host}`)
         if (supplied === undefined) {
           const file = await read()
           if (
             JSON.stringify(file.providers.find((row) => row.id === entry.id)) !==
             JSON.stringify(entry)
           )
-            return fail()
+            throw invalidEntry(entry, 'changed while the request was prepared')
         }
         target = {
           url: parsed,
@@ -368,7 +481,8 @@ export function createConfiguredProviderServices(
     }
   }
   const baseAndPath = (entry: ProviderEntry, path: string) => {
-    const url = new URL(entry.address ?? fail())
+    if (entry.address === undefined) throw invalidEntry(entry, 'missing address')
+    const url = new URL(entry.address)
     const prefix = url.pathname.replace(/\/$/, '')
     return { baseUrl: url.origin, path: prefix + path }
   }
@@ -409,22 +523,25 @@ export function createConfiguredProviderServices(
     supplied?: string,
     signal = AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
   ): Promise<readonly NativeModelMetadata[]> => {
-    try {
-      const format = entry.format ?? presetFor(entry).format
-      const value = await getJson(entry, presetFor(entry).modelsList.path, supplied, signal)
-      if (format === 'anthropic')
-        return anthropic.parseAnthropicModelsList(value).map((row) => row.native ?? fail())
-      if (format === 'gemini')
-        return gemini.parseGeminiModelsList(value).map((row) => ({
-          ...(row.native ?? fail()),
-          id: row.id,
-        }))
-      return format === 'ollama'
-        ? ollama.parseOllamaModelsList(value)
-        : modelMetadata.parseNativeModelsList(value)
-    } catch {
-      return fail()
-    }
+    // A scan failure keeps its own text: the key test names it
+    // `providerProbeUnparseable`, and the panel shows what the list said.
+    const format = entry.format ?? presetFor(entry).format
+    const value = await getJson(entry, presetFor(entry).modelsList.path, supplied, signal)
+    if (format === 'anthropic')
+      return anthropic.parseAnthropicModelsList(value).map((row) => {
+        if (row.native === undefined)
+          throw invalidEntry(entry, `models list entry ${row.id} has no usable data`)
+        return row.native
+      })
+    if (format === 'gemini')
+      return gemini.parseGeminiModelsList(value).map((row) => {
+        if (row.native === undefined)
+          throw invalidEntry(entry, `models list entry ${row.id} has no usable data`)
+        return { ...row.native, id: row.id }
+      })
+    return format === 'ollama'
+      ? ollama.parseOllamaModelsList(value)
+      : modelMetadata.parseNativeModelsList(value)
   }
   const models = async (): Promise<RegistryModel[]> => {
     const file = await read()
@@ -476,9 +593,11 @@ export function createConfiguredProviderServices(
         if (presets.planKeyPresetById(entry.preset) !== undefined) pricing = { kind: 'plan' }
         else if (entry.auth === 'none') pricing = { kind: 'local' }
         else if (card !== undefined) pricing = { kind: 'priced', card }
+        const origin = endpointPolicy.originOf(entry.address ?? '')
+        if (origin === undefined) throw invalidEntry(entry, 'missing address')
         const model: RegistryModel = {
           ref,
-          origin: endpointPolicy.originOf(entry.address ?? '') ?? fail(),
+          origin,
           evidence: {
             capabilities: four,
             effortLevels: capabilities.capabilityEffortLevels(record),
@@ -509,10 +628,12 @@ export function createConfiguredProviderServices(
     return rows
   }
   const boundClient = (ref: string): ProviderClient => {
-    const bound = records.get(ref) ?? fail()
+    const bound = records.get(ref)
+    if (bound === undefined) throw new ModelApiError(UI_TEXT.actionFailed, 0, undefined, undefined)
     const { entry, record } = bound
     const preset = presetFor(entry)
-    const native = modelRef.parseModelRef(ref)?.modelId ?? fail()
+    const native = modelRef.parseModelRef(ref)?.modelId
+    if (native === undefined) throw new ModelApiError(UI_TEXT.actionFailed, 0, undefined, undefined)
     let reasoningParam: chat.ChatPresetQuirks['reasoningParam'] = 'none'
     if (record.reasoning.effortLevels.state === 'yes')
       reasoningParam = preset.id === 'openrouter' ? 'effort-object' : 'effort-flat'
@@ -624,21 +745,18 @@ export function createConfiguredProviderServices(
             maxOutputTokens: record.output.maxTokens ?? 0,
           })),
       },
+      // Every wire format parses its own envelope: the table is keyed by
+      // the closed ProviderFormat, so there is no `default:` branch that
+      // could invent a product sentence, and a new member fails to typecheck
+      // until it gets its own parser.
       parseError: (status, value) => {
-        switch (format) {
-          case 'anthropic': {
-            return anthropic.parseAnthropicError(status, value)
-          }
-          case 'gemini': {
-            return gemini.parseGeminiError(status, value)
-          }
-          case 'ollama': {
-            return ollama.parseOllamaError(status, value, '')
-          }
-          default: {
-            return new ModelApiError(UI_TEXT.modelsPanelUnavailable, status, undefined, undefined)
-          }
-        }
+        const parse = parseByFormat[format]
+        // The table is total over the closed ProviderFormat, so the throw
+        // below is unreachable; the index type still carries undefined for
+        // tsc under `noUncheckedIndexedAccess`.
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- tsc's index access says possibly undefined
+        if (parse === undefined) throw new Error(UI_TEXT.actionFailed)
+        return parse(status, value)
       },
       encode: (body) => {
         let path = '/v1/responses'
@@ -675,10 +793,13 @@ export function createConfiguredProviderServices(
             break
           }
           case 'ollama': {
+            const numCtx = entry.numCtx?.[native] ?? record.limits.contextTokens
+            if (numCtx === undefined)
+              throw invalidEntry(entry, `model ${native} needs its context window set`)
             wire = JSON.parse(
               ollama.encodeOllamaRequest(body, {
                 model: native,
-                numCtx: entry.numCtx?.[native] ?? record.limits.contextTokens ?? fail(),
+                numCtx,
                 ...(record.reasoning.supported.state === 'yes' && {
                   think: ollama.thinkForEffort(body.reasoning.effort),
                 }),
@@ -701,10 +822,23 @@ export function createConfiguredProviderServices(
         return { path: baseAndPath(entry, path).path, body: wire, headers: extras }
       },
       decode: async function* (response) {
-        if (response.body === null) return fail()
+        if (response.body === null)
+          throw new ModelApiError(UI_TEXT.actionFailed, response.status, undefined, undefined)
         for await (const event of decode(response.body, response.status)) {
-          if (event.type === 'error' || ('response' in event && event.response.error != null))
-            return fail()
+          let failure: { message: string; code: string | undefined } | undefined
+          if (event.type === 'error')
+            failure = { message: event.message, code: event.code ?? undefined }
+          else if ('response' in event && event.response.error != null)
+            failure = {
+              message: event.response.error.message,
+              code: event.response.error.code ?? undefined,
+            }
+          if (failure !== undefined) {
+            // A refusal inside the stream: the provider's words at the
+            // answer's own status. The sentence is built once, by the
+            // `streamResponse` catch below, after the credential scrub.
+            throw new ModelApiError(failure.message, response.status, undefined, failure.code)
+          }
           yield 'response' in event
             ? { ...event, response: { ...event.response, model: ref } }
             : event
@@ -767,7 +901,8 @@ export function createConfiguredProviderServices(
           // lapsed or mismatched confirmation refuses with the run's own
           // guidance before the provider's unavailable text.
           assertConfirmedAllowed(body.model, confirmed)
-          if (body.model !== ref) return fail()
+          if (body.model !== ref)
+            throw new ModelApiError(UI_TEXT.actionFailed, 0, undefined, undefined)
           // No limit on the stream's total time: it ends when it finishes,
           // on the caller's signal, on a budget or request cap, or after
           // `idleMs` of silence (the transport bounds the wait for headers
@@ -787,17 +922,20 @@ export function createConfiguredProviderServices(
         } catch (error: unknown) {
           // A typed codec refusal (an unsupported reasoning effort and its
           // localized reason) and the output-cap minimum refusal (MINOUT)
-          // reach the caller; genuinely unknown errors keep the generic
-          // unavailable error (lane FIXDSTHINK2 finding 3).
+          // reach the caller; genuinely unknown errors keep a generic
+          // error (lane FIXDSTHINK2 finding 3).
           if (chat.isChatCodecError(error)) throw error
           if (error instanceof RangeError) throw error
           // A lapsed confirmation keeps the run's own guidance instead of
-          // the provider's unavailable text.
+          // the provider's sentence.
           if (isStaleConfirmedError(error)) throw error
-          // The idle limit ended the stream: the user is told so, in the
-          // sentence the Meta Model API path uses.
-          if (error instanceof ModelApiError && error.message === stalled()) throw error
-          return fail()
+          // An answered refusal keeps its status and kind, with the
+          // sentence the person reads (lane PROVERR). Anything local — a
+          // cancellation, the stall limit, an unreachable send — keeps its
+          // own text, so the ledger still sees what happened.
+          if (isModelApiError(error) && error.status !== 0) throw refusalError(entry, preset, error)
+          if (isModelApiError(error)) throw error
+          throw new ModelApiError(UI_TEXT.actionFailed, 0, undefined, undefined)
         } finally {
           if (presets.planKeyPresetById(entry.preset) !== undefined)
             for (let index = 0; index < dispatch.attempts; index++)
@@ -855,15 +993,16 @@ export function createConfiguredProviderServices(
       const file = await read()
       for (const entry of file.providers) {
         if (entry.auth === 'subscription') continue
-        if (
-          entry.auth === 'none' ||
-          (await options.secrets.get(`${PROVIDER_SECRET_PREFIX}${entry.id}`)) !== undefined
-        )
-          return digest(
-            entry.auth === 'none'
-              ? (endpointPolicy.originOf(entry.address ?? '') ?? fail())
-              : ((await credential(entry)) ?? fail()),
-          )
+        if (entry.auth === 'none') {
+          const origin = endpointPolicy.originOf(entry.address ?? '')
+          if (origin === undefined) throw invalidEntry(entry, 'missing address')
+          return digest(origin)
+        }
+        if ((await options.secrets.get(`${PROVIDER_SECRET_PREFIX}${entry.id}`)) === undefined)
+          continue
+        const key = await credential(entry)
+        if (key === undefined) throw invalidEntry(entry, 'stored key is missing')
+        return digest(key)
       }
       return
     },
@@ -872,11 +1011,12 @@ export function createConfiguredProviderServices(
       const preset = presetFor(entry)
       const scanned = await scan(entry, key, signal)
       return scanned.map((native) => {
+        if (entry.address === undefined) throw invalidEntry(entry, 'missing address')
         const id = z
           .string()
           .check(z.minLength(1))
           .parse(native['id'] ?? native['name'])
-        const source = { kind: 'models-list' as const, ref: entry.address ?? fail() }
+        const source = { kind: 'models-list' as const, ref: entry.address }
         const known = catalogue.providers[preset.id.replace('-plan', '')]?.models[id]
         const record = capabilities.resolveModelCapabilities(
           { provider: entry.id, nativeModel: id, format: entry.format ?? preset.format },
@@ -964,9 +1104,11 @@ export function createConfiguredProviderServices(
       })
     },
     test: async (entry: ProviderEntry, key: string) => {
+      if (entry.address === undefined) throw invalidEntry(entry, 'missing address')
+      const address: string = entry.address
       const outcome = await presets.runProviderKeyTest(
         presetFor(entry).keyTest,
-        new URL(entry.address ?? fail()).origin,
+        new URL(address).origin,
         async (origin, path) => {
           try {
             await getJson(
@@ -974,7 +1116,7 @@ export function createConfiguredProviderServices(
               path,
               key,
               AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
-              origin === new URL(entry.address ?? fail()).origin ? undefined : origin,
+              origin === new URL(address).origin ? undefined : origin,
             )
             return { ok: true, modelCount: undefined }
           } catch {
@@ -991,11 +1133,16 @@ export function createConfiguredProviderServices(
         },
       )
       if (outcome.ok) return { kind: 'ok' as const, models: outcome.modelCount ?? 0 }
-      // No captured paid-token request is installed; never dispatch one here.
-      return {
-        kind: 'failed' as const,
-        detail: outcome.paid ? UI_TEXT.modelsPanelUnavailable : outcome.reason,
-      }
+      // No free check exists for this preset: testing would spend money, so
+      // no request is dispatched here. The panel asks the price first.
+      if (outcome.paid)
+        return {
+          kind: 'failed' as const,
+          detail: fill(UI_TEXT.providerPaidTest, {
+            provider: providerDisplayName(entry, presetFor(entry)),
+          }),
+        }
+      return { kind: 'failed' as const, detail: outcome.reason }
     },
   }
 }

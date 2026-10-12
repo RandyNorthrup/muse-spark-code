@@ -1084,7 +1084,9 @@ describe('parseGeminiError', () => {
   })
 
   it('falls back to the HTTP status when the body is no envelope', () => {
-    expect(parseGeminiError(503, '<html>down</html>').message).toBe('HTTP 503')
+    // Lane PROVERR: `unrecognised` with the status and the first bounded
+    // line of the body.
+    expect(parseGeminiError(503, '<html>down</html>').message).toBe('HTTP 503: <html>down</html>')
   })
 })
 

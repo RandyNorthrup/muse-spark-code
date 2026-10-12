@@ -176,7 +176,7 @@ export async function createModelApiHost(deps: ModelApiBundleDeps): Promise<Mode
         }
   let providers: ReturnType<NonNullable<typeof deps.createProviders>> | undefined
   const resolveProviders = async () => {
-    if (deps.createProviders === undefined) throw new Error(UI_TEXT.modelsPanelUnavailable)
+    if (deps.createProviders === undefined) throw new Error(UI_TEXT.modelApiProvidersMissing)
     providers ??= deps.createProviders()
     try {
       return await providers
@@ -239,7 +239,7 @@ export async function createModelApiHost(deps: ModelApiBundleDeps): Promise<Mode
           list: async () => {
             if (clientModels?.list !== undefined) return await clientModels.list()
             const { list } = await resolveProviders()
-            if (list === undefined) throw new Error(UI_TEXT.modelsPanelUnavailable)
+            if (list === undefined) throw new Error(UI_TEXT.modelApiProvidersMissing)
             return await list()
           },
         }),

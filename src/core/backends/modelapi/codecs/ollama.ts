@@ -40,6 +40,12 @@ import {
 } from '../../../../shared/constants'
 import { UI_TEXT, fill } from '../../../../shared/l10n/text'
 import { ModelApiError } from '../transport'
+import {
+  boundProviderMessage,
+  firstBodyLine,
+  ollamaEnvelope,
+  parseRefusalError,
+} from '../providerRefusal'
 import { cleanJsonStrings, cleanWireText, isBlankWireText } from './shared'
 import type {
   CreateResponseBody,
@@ -751,16 +757,22 @@ export function parseOllamaError(status: number, body: unknown, statusText: stri
     return new ModelApiError(
       status === HTTP_TOO_MANY_REQUESTS
         ? `HTTP ${String(status)}: ${serverMessage}`
-        : serverMessage,
+        : boundProviderMessage(serverMessage),
       status,
       status === HTTP_TOO_MANY_REQUESTS ? 'rate_limit_error' : undefined,
       undefined,
     )
   }
-  return new ModelApiError(
-    `HTTP ${String(status)} ${statusText}`.trim(),
-    status,
-    undefined,
-    undefined,
-  )
+  // No envelope: `unrecognised` with the status and the first bounded line of
+  // the body (lane PROVERR).
+  const refusal = parseRefusalError(status, body, ollamaEnvelope)
+  let message = refusal.message
+  if (statusText !== '') {
+    const first = firstBodyLine(body)
+    message =
+      first === ''
+        ? `HTTP ${String(status)} ${statusText}`
+        : `HTTP ${String(status)} ${statusText}: ${first}`
+  }
+  return new ModelApiError(message, status, refusal.kind, refusal.code)
 }
