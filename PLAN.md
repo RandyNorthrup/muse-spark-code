@@ -5249,12 +5249,16 @@ policy decisions apply. Hosted search, voice, subagents and schedules stay off;
 the subscription pays none of these Model API calls. D48/D62's interactive
 popup policy remains in force for interactive sessions.
 
-Admission reserves the documented context-window liability for each attempt,
-including retries, using integer micro-USD and upward rounding (F1).
-Contributor minimum is $0.108135 ($0.118135 with images); standard minimum is
-$1.409024 ($1.419024 with images). Lost or unverified receipts keep their full
-reservation. The conditional billing theorem and provider assumptions are in
-[docs/ci.md](docs/ci.md); no M82 prerequisite or token-count estimator exists.
+Admission reserves conservative request input and the resolved output cap for
+each attempt, including retries, with integer micro-USD upward rounding (EXECPROV,
+2026-10-11). There is no fixed full-context startup minimum. Headless output
+now defaults to 1024, adjustable with `--max-output-tokens`; the same value feeds
+the body, request schema, ledger shape check and first real reservation. Lost
+receipts keep their request reservation. Configured price cards include their
+captured cache-write premiums and long-context tier. VS Code's session admission
+already uses `estimateInput` / `reserveRequest`; the standalone daily wrapper now
+uses that same input estimator. See `docs/certification/exec-provider.md`; full
+aggregate quality and installed/live certification remain lead-owned.
 
 Proposals, secret-free tests and reviewer-approved push run in separate jobs.
 Text patches publish only after exact staged-byte scanning. Any binary/image

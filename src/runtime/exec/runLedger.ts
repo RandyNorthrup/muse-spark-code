@@ -1,5 +1,7 @@
 import { Usd, type UsdAmount } from '../../shared/usd'
 import * as z from 'zod/mini'
+import { fill, plural } from '../../shared/l10n/text'
+import { formatUsd } from '../../shared/l10n/exactUsd'
 import {
   EXEC_MAX_BUDGET_USD,
   EXEC_MAX_REQUESTS,
@@ -69,6 +71,8 @@ export interface RunLedger {
     readonly reserveUsd?: UsdAmount | undefined
   }): ResponseTicket | { refused: Refusal }
   admitImage(endpoint: 'images.generations' | 'images.edits'): ImageTicket | { refused: Refusal }
+  /** A preflight refusal has no attempt to settle but remains typed in the record. */
+  reject(reason: Refusal): void
   /** Withdraw a ticket that never reached dispatch, including its request count. */
   releaseResponse(ticket: ResponseTicket): void
   settleResponse(
@@ -116,7 +120,11 @@ function charge(price: TierPrice, input: number, output: number, cached = 0): bi
   )
 }
 
-export function createRunLedger(input: { capUsd: UsdAmount; maxRequests: number }): RunLedger {
+export function createRunLedger(input: {
+  capUsd: UsdAmount
+  maxRequests: number
+  maxOutputTokens?: number
+}): RunLedger {
   const cap = units(input.capUsd)
   if (
     cap <= ZERO ||
@@ -187,7 +195,11 @@ export function createRunLedger(input: { capUsd: UsdAmount; maxRequests: number 
   return {
     admitResponse(request) {
       const { maxOutputTokens: m, price } = request
-      if (!Number.isSafeInteger(m) || m < EXEC_MIN_OUTPUT_TOKENS || m > MODEL_API_MAX_OUTPUT_TOKENS)
+      if (
+        !Number.isSafeInteger(m) ||
+        m < EXEC_MIN_OUTPUT_TOKENS ||
+        m > (input.maxOutputTokens ?? MODEL_API_MAX_OUTPUT_TOKENS)
+      )
         return refuse('request_shape')
       let amount: bigint
       try {
@@ -228,6 +240,9 @@ export function createRunLedger(input: { capUsd: UsdAmount; maxRequests: number 
         reserveUsd: usd(amount),
       })
       return active
+    },
+    reject(reason) {
+      refuse(reason)
     },
     releaseResponse(ticket) {
       take(ticket)
@@ -344,4 +359,28 @@ export function createRunLedger(input: { capUsd: UsdAmount; maxRequests: number 
       }
     },
   }
+}
+
+/** One localized arithmetic sentence for daily/provider and headless Meta admission. */
+export function responseReservationMessage(input: {
+  readonly inputTokens: number
+  readonly inputCost: UsdAmount
+  readonly outputTokens: number
+  readonly reserveUsd: UsdAmount
+  readonly totals: LedgerTotals
+}): string {
+  const cost = Usd.from(input.inputCost).ceiling(EXEC_USD_DECIMALS)
+  const total = Usd.from(input.reserveUsd).ceiling(EXEC_USD_DECIMALS)
+  return fill(UI_TEXT.execBudgetQuote, {
+    inputTokens: plural(UI_TEXT.execTokenCount, input.inputTokens),
+    inputCost: formatUsd(cost.toAmount(), EXEC_USD_DECIMALS),
+    outputTokens: plural(UI_TEXT.execTokenCount, input.outputTokens),
+    outputCost: formatUsd(total.subtract(cost).toAmount(), EXEC_USD_DECIMALS),
+    estimate: formatUsd(total.toAmount(), EXEC_USD_DECIMALS),
+    cap: formatUsd(input.totals.capUsd, EXEC_USD_DECIMALS),
+    spent: formatUsd(
+      Usd.from(input.totals.settledUsd).add(Usd.from(input.totals.uncertainUsd)).toAmount(),
+      EXEC_USD_DECIMALS,
+    ),
+  })
 }

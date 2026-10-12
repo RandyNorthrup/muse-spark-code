@@ -340,7 +340,8 @@
     "estimate-by": "--by <date>: Termin",
     "fleet": "--fleet current|minimum|optimum: Obecna flota / Minimalna konfiguracja / Optymalna konfiguracja",
     "estimate-format": "--format md|html|json|text: Format wyjściowy",
-    "seed": "--seed <seed>: Ziarno symulacji"
+    "seed": "--seed <seed>: Ziarno symulacji",
+    "max-output-tokens": "--max-output-tokens <tokens>: limit wyjścia na żądanie Model API (16–32768; domyślnie 1024)."
   },
   "referenceScanSecrets": "Skanuje plik poprawki UTF-8 w poszukiwaniu sekretów i kończy się błędem po wykryciu. --key-stdin sprawdza także dokładny klucz Model API w pamięci; żaden klucz nie jest zapisywany.",
   "referenceVault": "W toku.",
@@ -5584,5 +5585,12 @@
       "few": "{count} uprawnienia",
       "many": "{count} uprawnień"
     }
+  },
+  "execBudgetQuote": "Wejście: {inputTokens} ({inputCost}) + limit wyjścia: {outputTokens} ({outputCost}) = {estimate}; budżet uruchomienia {cap}, wykorzystano {spent}. Żądanie nie zostało wysłane.",
+  "execTokenCount": {
+    "one": "maksymalnie {count} token",
+    "other": "maksymalnie {count} tokena",
+    "few": "maksymalnie {count} tokeny",
+    "many": "maksymalnie {count} tokenów"
   }
 }

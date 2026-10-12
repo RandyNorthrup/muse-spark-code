@@ -340,7 +340,8 @@
     "estimate-by": "--by <date>: Scadenza",
     "fleet": "--fleet current|minimum|optimum: Parco macchine attuale / Configurazione minima / Configurazione ottimale",
     "estimate-format": "--format md|html|json|text: Formato di uscita",
-    "seed": "--seed <seed>: Seme della simulazione"
+    "seed": "--seed <seed>: Seme della simulazione",
+    "max-output-tokens": "--max-output-tokens <tokens>: limite di uscita per richiesta Model API (16–32768; predefinito 1024)."
   },
   "referenceScanSecrets": "Analizza un file patch UTF-8 alla ricerca di segreti e termina con errore se li rileva. --key-stdin cerca anche la chiave Model API esatta in memoria; nessuna chiave viene salvata.",
   "referenceVault": "In corso.",
@@ -5430,5 +5431,11 @@
       "other": "{count} autorizzazioni",
       "many": "{count} autorizzazioni"
     }
+  },
+  "execBudgetQuote": "Ingresso di {inputTokens} ({inputCost}) + limite di uscita di {outputTokens} ({outputCost}) = {estimate}; budget della sessione {cap}, {spent} utilizzati. Richiesta non inviata.",
+  "execTokenCount": {
+    "one": "al massimo {count} token",
+    "other": "al massimo {count} token",
+    "many": "al massimo {count} token"
   }
 }

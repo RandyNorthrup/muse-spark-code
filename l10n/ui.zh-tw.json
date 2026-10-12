@@ -340,7 +340,8 @@
     "estimate-by": "--by <date>: 截止日期",
     "fleet": "--fleet current|minimum|optimum: 目前設備群 / 最小組態 / 最佳組態",
     "estimate-format": "--format md|html|json|text: 輸出格式",
-    "seed": "--seed <seed>: 模擬種子"
+    "seed": "--seed <seed>: 模擬種子",
+    "max-output-tokens": "--max-output-tokens <tokens>：每次 Model API 請求的輸出上限（16–32768；預設 1024）。"
   },
   "referenceScanSecrets": "掃描 UTF-8 修補檔案中的秘密資訊，偵測到時以失敗結束。--key-stdin 也會檢查記憶體中的 Model API 金鑰原值；不儲存金鑰。",
   "referenceVault": "進行中.",
@@ -5122,5 +5123,9 @@
     "grantsCount": {
       "other": "{count} 個授權"
     }
+  },
+  "execBudgetQuote": "輸入 {inputTokens}（{inputCost}）+ 輸出上限 {outputTokens}（{outputCost}）= {estimate}；執行預算 {cap}，已用 {spent}。請求未傳送。",
+  "execTokenCount": {
+    "other": "最多 {count} 個權杖"
   }
 }

@@ -14,6 +14,8 @@ import {
 } from 'node:fs'
 import { open, readFile, realpath } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
+import { createServer } from 'node:http'
+import { createRuntimeDailyBudget } from '../../src/runtime/runtimeAccountingEntry'
 import path from 'node:path'
 import { PassThrough } from 'node:stream'
 import childProcess from 'node:child_process'
@@ -264,6 +266,22 @@ async function harness(
     }
   }
   return { api, deps, cwd, homeDir, out, err, life, store, run, clock }
+}
+
+function responseReservationTotal(
+  run: { readonly events: readonly ResourceExecEvent[] },
+  attempts?: readonly number[],
+) {
+  let total = Usd.from(0)
+  for (const event of run.events)
+    if (
+      event.type === 'attempt' &&
+      event.phase === 'admitted' &&
+      event.endpoint === 'responses' &&
+      (attempts === undefined || attempts.includes(event.n))
+    )
+      total = total.add(Usd.from(event.reservedUsd))
+  return total.toAmount()
 }
 
 function recordBodies(deps: ExecDeps): string[] {
@@ -1189,12 +1207,13 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
     expect(result(r).status).toBe('request_cap')
     expect(h.api.responseBodies()).toHaveLength(2)
   })
-  it('D8/L9 too-small start budget names rounded minimum before billable dispatch', async () => {
-    const h = await harness(['--max-budget-usd', '0.108134'])
+  it('D8/L9 too-small budget shows the actual request arithmetic before dispatch', async () => {
+    const h = await harness(['--max-budget-usd', '0.000001'])
     const r = await h.run()
     expect(r.code).toBe(5)
     expect(h.api.responseBodies()).toHaveLength(0)
-    expect(result(r).error?.message).toContain('0.108135')
+    expect(result(r).error?.message).toContain('output cap')
+    expect(result(r).usage.requests).toBe(0)
   })
   it('D9 held response hits process deadline and retains full R', async () => {
     // The deadline lands on the held response, not on a wall clock that a slow
@@ -1220,7 +1239,7 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
     const r = await running
     expect(r.code).toBe(6)
     expect(result(r).usage.costUsd).toMatchObject({
-      uncertain: Usd.from(0.108135).toAmount(),
+      uncertain: responseReservationTotal(r),
       isUpperBound: true,
     })
     expect(result(r).finalMessage).toBe(UI_TEXT.execMessageWithheld)
@@ -1245,7 +1264,7 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
     const h = await harness([], [{ httpError: { status } }])
     const r = await h.run()
     expect(r.code).toBe(3)
-    expect(result(r).usage.costUsd?.uncertain).toBe(Usd.from(0.108135).toAmount())
+    expect(result(r).usage.costUsd?.uncertain).toBe(responseReservationTotal(r))
   })
   it('D13 catalogue authentication failure is auth/3 before any billable request', async () => {
     const h = await harness()
@@ -1280,7 +1299,7 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
     const r = await h.run()
     expect(r.code).toBe(4)
     expect(result(r).usage.requests).toBe(5)
-    expect(result(r).usage.costUsd?.uncertain).toBe(Usd.from(0.540675).toAmount())
+    expect(result(r).usage.costUsd?.uncertain).toBe(responseReservationTotal(r))
   })
   it('D15 reply/key-shaped stderr are redacted; missing terminal prefix withheld whole', async () => {
     const h = await harness([], [{ text: `reply ${FAKE_MODEL_API_KEY}` }])
@@ -1418,7 +1437,7 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
     expect(result(r).finalMessage).toBe(UI_TEXT.execMessageWithheld)
     expect(result(r).usage.costUsd).toMatchObject({
       settled: Usd.from(0.000002).toAmount(),
-      uncertain: Usd.from(0.540675).toAmount(),
+      uncertain: responseReservationTotal(r, [2, 3, 4, 5, 6]),
     })
   })
   it.each([
@@ -1443,7 +1462,7 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
       expect(r.code).toBe(code)
       expect(result(r).finalMessage).toBe('final')
       expect(result(r).usage.costUsd?.uncertain).toBe(
-        Usd.from((Number(earlyMissing) + Number(lateMissing)) * 0.108135).toAmount(),
+        responseReservationTotal(r, [...(earlyMissing ? [1] : []), ...(lateMissing ? [2] : [])]),
       )
     },
   )
@@ -1516,7 +1535,7 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
     )
     const bad = await invalid.run()
     expect(bad.code).toBe(9)
-    expect(result(bad).usage.costUsd?.uncertain).toBe(Usd.from(0.108135).toAmount())
+    expect(result(bad).usage.costUsd?.uncertain).toBe(responseReservationTotal(bad))
     expect(result(bad).finalMessage).toBe(UI_TEXT.execMessageWithheld)
     const imageRun = await imageHarness('image.png', 'must not run')
     imageRun.api.images.push({ count: 2 })
@@ -1908,3 +1927,212 @@ describe('M108 account runtime composition', () => {
     expect(h.err.chunks.join('')).toContain(UI_TEXT.accounts.invalidAccount)
   })
 })
+
+const providerFamilies = [
+  {
+    format: 'responses',
+    native: 'gpt-5.6-luna',
+    capture: 'openai/03-tool-result-stream.json',
+    input: 1497,
+    output: 12,
+    cached: 1444,
+    cost: '0.000234',
+  },
+  {
+    format: 'chat',
+    native: 'ministral-3b-latest',
+    capture: 'mistral/03-tool-result-stream.json',
+    input: 1602,
+    output: 41,
+    cached: 1536,
+    cost: '0.000302',
+  },
+  {
+    format: 'anthropic',
+    native: 'claude-opus-5-5',
+    capture: 'anthropic-opus-thinking/02-tool-result-stream.json',
+    input: 2243,
+    output: 27,
+    cached: 0,
+    cost: '0.009512',
+  },
+  {
+    format: 'gemini',
+    native: 'gemini-3.5-flash-lite',
+    capture: 'gemini/03-tool-result-stream.json',
+    input: 1632,
+    output: 37,
+    cached: 0,
+    cost: '0.001706',
+  },
+  {
+    format: 'ollama',
+    native: 'qwen3:4b-instruct-2507-q4_K_M',
+    capture: 'ollama/03-plain-stream.json',
+    input: 14,
+    output: 5,
+    cached: 0,
+    cost: '0.000024',
+  },
+] as const
+function providerCaptureStream(file: string) {
+  const response = z
+    .object({
+      response: z.object({
+        body: z.optional(z.string()),
+        events: z.optional(z.array(z.object({ event: z.optional(z.string()), data: z.json() }))),
+      }),
+    })
+    .parse(
+      JSON.parse(readFileSync(path.join('docs/certification/m95-captures', file), 'utf8')),
+    ).response
+  if (response.body !== undefined) return response.body
+  if (response.events === undefined) throw new Error('Missing stream capture')
+  return response.events
+    .map(
+      (event) =>
+        (event.event === undefined ? '' : `event: ${event.event}\n`) +
+        `data: ${typeof event.data === 'string' ? event.data : JSON.stringify(event.data)}\n\n`,
+    )
+    .join('')
+}
+for (const family of providerFamilies) {
+  it.each(['success', 'budget', 'unpriced', 'default'])(
+    `EXECPROV real loopback ${family.format}: %s`,
+    async (mode) => {
+      const stream = providerCaptureStream(family.capture)
+      const dispatched: string[] = []
+      const server = createServer((request, response) => {
+        let body = ''
+        request.on('data', (part: Buffer) => {
+          body += part.toString('utf8')
+        })
+        request.on('end', () => {
+          if (request.method === 'GET')
+            response.end(JSON.stringify({ data: [{ id: family.native }] }))
+          else {
+            dispatched.push(body)
+            response.writeHead(200, {
+              'Content-Type':
+                family.format === 'ollama' ? 'application/x-ndjson' : 'text/event-stream',
+            })
+            response.end(stream)
+          }
+        })
+      })
+      await new Promise<void>((resolve) => {
+        server.listen(0, '127.0.0.1', () => {
+          resolve()
+        })
+      })
+      const address = server.address()
+      if (address === null || typeof address === 'string')
+        throw new Error('Missing loopback address')
+      const origin = `http://127.0.0.1:${String(address.port)}`
+      const h = await harness(
+        [
+          '--provider',
+          'local',
+          '--model',
+          family.native,
+          '--max-budget-usd',
+          mode === 'budget' ? '0.000001' : '0.1',
+          '--max-requests',
+          '1',
+          '--ephemeral',
+        ],
+        [],
+        { usageRecording: journalTap() },
+      )
+      if (mode === 'default') h.deps.options = { ...h.deps.options, model: undefined }
+      const yes = { state: 'yes', value: true }
+      const limits = { contextTokens: 1_000_000, outputTokens: 32_768 }
+      const capability = {
+        tools: { calling: yes },
+        reasoning: { supported: { state: 'no' }, canDisable: yes },
+        output: { acceptsLimit: yes, maxTokens: 32_768 },
+        limits: { contextTokens: 1_000_000 },
+      }
+      const price = {
+        input: family.format === 'anthropic' ? 0.000004 : 0.000001,
+        output: family.format === 'anthropic' ? 0.00002 : 0.000002,
+        cachedInput: family.format === 'anthropic' ? 0.0000002 : 0.0000001,
+        cacheWrite: family.format === 'anthropic' ? 0.000005 : 0.00000125,
+      }
+      const config = providersCommands.providersFilePath({
+        platform: process.platform,
+        homeDir: h.homeDir,
+        xdgConfigHome: undefined,
+      })
+      mkdirSync(path.dirname(config), { recursive: true })
+      writeFileSync(
+        config,
+        JSON.stringify({
+          v: 1,
+          defaultModel: `local/${family.native}`,
+          providers: [
+            {
+              id: 'local',
+              preset: 'custom',
+              format: family.format,
+              address: origin,
+              privateNetwork: true,
+              auth: 'apiKey',
+              models: ['expensive', family.native],
+              numCtx: { expensive: 1_000_000, [family.native]: 1_000_000 },
+              modelLimits: { expensive: limits, [family.native]: limits },
+              modelCapabilities: { expensive: capability, [family.native]: capability },
+              prices: { expensive: price, ...(mode !== 'unpriced' && { [family.native]: price }) },
+            },
+          ],
+        }),
+      )
+      await h.store.delete(SECRET_KEYS.modelApiKey)
+      await h.store.store(
+        'museSpark.provider.local',
+        formatStoredProviderSecret({ v: 1, auth: 'apiKey', origin }, 'synthetic-owned-key'),
+      )
+      h.deps.fetch = globalThis.fetch
+      try {
+        const run = await h.run()
+        if (mode === 'budget' || mode === 'unpriced') {
+          expect(run.code, JSON.stringify(run.result)).toBe(EXEC_EXIT.limit)
+          expect(dispatched).toHaveLength(0)
+          expect(result(run).usage.requests).toBe(0)
+          const daily = createRuntimeDailyBudget({
+            dataFolder: agentDataFolder({
+              platform: process.platform,
+              env: {},
+              homeDir: h.homeDir,
+            }),
+            now: Date.now,
+            sleep: () => Promise.resolve(),
+          })
+          const claim = await daily.reserve(Usd.from(5).toAmount(), new AbortController().signal)
+          await claim.settle(Usd.from(0).toAmount())
+        } else {
+          expect(run.code, JSON.stringify(run.result)).toBe(0)
+          expect(dispatched).toHaveLength(1)
+          expect(result(run)).toMatchObject({
+            model: `local/${family.native}`,
+            usage: {
+              requests: 1,
+              inputTokens: family.input,
+              outputTokens: family.output,
+              cachedTokens: family.cached,
+              costUsd: { settled: Usd.from(family.cost).toAmount(), uncertain: '0', reserved: '0' },
+            },
+          })
+        }
+      } finally {
+        server.closeAllConnections()
+        await new Promise<void>((resolve, reject) => {
+          server.close((error) => {
+            if (error === undefined) resolve()
+            else reject(error)
+          })
+        })
+      }
+    },
+  )
+}

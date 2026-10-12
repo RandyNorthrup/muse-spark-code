@@ -405,6 +405,8 @@ export const EN = {
     effort: 'Choose how much effort Muse puts into each reply.',
     output: 'Choose the result format: text, json or jsonl.',
     'max-budget-usd': 'Set the hard spending limit in USD for this run.',
+    'max-output-tokens':
+      '--max-output-tokens <tokens>: output cap per Model API request (16–32768; default 1024).',
     'max-requests': 'Set the maximum number of model requests.',
     timeout: 'Set the run deadline in seconds.',
     'fail-on-denial': 'Stop the run when a permission request is denied.',
@@ -4158,6 +4160,9 @@ export const EN = {
     '  --no-events          Leave the recent events out',
   ].join('\n'),
   // M80 (PLAN.md D65): the headless exec and scan-secrets commands.
+  execTokenCount: forms({ one: 'at most {count} token', other: 'at most {count} tokens' }),
+  execBudgetQuote:
+    'Input {inputTokens} ({inputCost}) + output cap {outputTokens} ({outputCost}) = {estimate}; run cap {cap}, {spent} used. Request not sent.',
   execBudgetRequired: 'Model API requires --max-budget-usd.',
   execNumberInvalid: 'Invalid number or limit; the USD budget accepts at most six decimal places.',
   execTrustRefused: 'Headless runs refuse workspace trust and bypass permissions.',

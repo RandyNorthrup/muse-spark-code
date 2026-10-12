@@ -340,7 +340,8 @@
     "estimate-by": "--by <date>: Határidő",
     "fleet": "--fleet current|minimum|optimum: Jelenlegi géppark / Minimális összeállítás / Optimális összeállítás",
     "estimate-format": "--format md|html|json|text: Kimeneti formátum",
-    "seed": "--seed <seed>: Szimulációs kezdőérték"
+    "seed": "--seed <seed>: Szimulációs kezdőérték",
+    "max-output-tokens": "--max-output-tokens <tokens>: kimeneti korlát Model API-kérésenként (16–32768; alapérték: 1024)."
   },
   "referenceScanSecrets": "Titkokat keres egy UTF-8 javításfájlban, és találat esetén hibával kilép. A --key-stdin a memóriában lévő pontos Model API-kulcsot is keresi; nem tárol kulcsot.",
   "referenceVault": "Folyamatban.",
@@ -5276,5 +5277,10 @@
       "one": "{count} engedély",
       "other": "{count} engedély"
     }
+  },
+  "execBudgetQuote": "Bemenet: {inputTokens} ({inputCost}) + kimeneti korlát: {outputTokens} ({outputCost}) = {estimate}; futási keret: {cap}, felhasználva: {spent}. A kérés nem lett elküldve.",
+  "execTokenCount": {
+    "one": "legfeljebb {count} token",
+    "other": "legfeljebb {count} token"
   }
 }

@@ -792,8 +792,15 @@ user-level `providers.json`, using its own OS credential store. The terminal
 offers `providers list`, `providers add`, `providers test`, `providers remove`
 and `auth set|status|clear --provider <id>`. Free checks use the shared
 transport; keys are entered through stdin and stored with their origin.
-Headless `exec --provider` validates configuration, credentials and endpoints,
-then refuses before dispatch until its provider-aware accounting runner exists;
+Headless `exec --provider` runs through that same client with model-specific
+request admission, settlement, and refunds for unsent reservations. Output defaults
+to 1024 tokens per request (`--max-output-tokens <16–32768>`); unknown prices refuse.
+For a configured Anthropic key:
+
+```sh
+muse-spark-code-acp exec --backend modelApi --provider anthropic --model anthropic/claude-opus-5-5 --max-budget-usd 0.10 --max-requests 1 --ephemeral --output json "Reply with the single word: ready"
+```
+
 installed-editor and live provider certification are still open. MiniMax
 and Alibaba plan presets await captures, and Hugging Face OAuth awaits
 application registration.

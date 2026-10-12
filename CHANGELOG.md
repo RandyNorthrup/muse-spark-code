@@ -7,7 +7,17 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- Headless Model API runs accept `--max-output-tokens` with a 1024-token default,
+  shared by the request body, validation and budget ledger.
+
 ### Fixed
+
+- Provider and headless Meta requests reserve their actual conservative input
+  and output cap instead of a full context window. Budget refusals show the
+  arithmetic, and configured provider JSONL records show admission and settlement.
+- Catalogue price cards retain cache-write premiums and long-context rates.
 
 - Configured providers keep budget, consent, model, codec and stale-confirmation
   refusals visible instead of reporting that Models & Agents is unavailable.

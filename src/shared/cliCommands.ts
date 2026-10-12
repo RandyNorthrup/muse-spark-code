@@ -83,7 +83,7 @@ export function cliCommands() {
     },
     {
       route: 'exec',
-      name: 'exec',
+      name: 'exec [--max-output-tokens <tokens>]',
       description: UI_TEXT.referenceExecContract,
       text: { ui: 'referenceExecContract' },
     },

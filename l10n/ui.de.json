@@ -340,7 +340,8 @@
     "estimate-by": "--by <date>: Frist",
     "fleet": "--fleet current|minimum|optimum: Aktueller Gerätebestand / Minimale Ausstattung / Optimale Ausstattung",
     "estimate-format": "--format md|html|json|text: Ausgabeformat",
-    "seed": "--seed <seed>: Startwert der Simulation"
+    "seed": "--seed <seed>: Startwert der Simulation",
+    "max-output-tokens": "--max-output-tokens <tokens>: Ausgabelimit pro Model-API-Anfrage (16–32768; Standard 1024)."
   },
   "referenceScanSecrets": "Prüft eine UTF-8-Patchdatei auf Geheimnisse und schlägt bei einem Fund fehl. --key-stdin prüft auch auf den exakten Model-API-Schlüssel im Speicher; kein Schlüssel wird gespeichert.",
   "referenceVault": "In Arbeit.",
@@ -5276,5 +5277,10 @@
       "one": "{count} Freigabe",
       "other": "{count} Freigaben"
     }
+  },
+  "execBudgetQuote": "Eingabe {inputTokens} ({inputCost}) + Ausgabelimit {outputTokens} ({outputCost}) = {estimate}; Laufbudget {cap}, {spent} verbraucht. Anfrage nicht gesendet.",
+  "execTokenCount": {
+    "one": "höchstens {count} Token",
+    "other": "höchstens {count} Tokens"
   }
 }

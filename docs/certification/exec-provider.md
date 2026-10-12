@@ -44,3 +44,36 @@ Additional A3 suites: mediaCost/mediaAccounting/geminiCodec 103/103;
 subscriptionIntegration/copilotClient/modelApiClient 132/132; host typecheck 0.
 Red drill: predicate forced false, six table cases failed; SHA-256 byte-exact
 restoration `c95b0ccdf96d2115084c25e53c3c96ce8dda42e46ef10473cacc7789de76edec`.
+
+## A2 / A4: actual request quotes and provider turns
+
+One resolved headless output cap (default 1024, optional --max-output-tokens) feeds
+the body, request schema, ledger shape check and first real reservation. Startup
+no longer rejects a small prompt against the one-million-token context. The
+standalone daily wrapper shares estimateInput/requestParts with session admission;
+the selected model's card bounds cold writes and captured context tiers. Meta's
+wire body bytes conservatively bound its run quote. Refusal arithmetic is rendered
+once, with Intl amounts and plural token units in all 14 languages, before the
+stop latch can replace it.
+
+Real runtime → ACP → manager → configured client → loopback HTTP: Responses,
+Chat, Anthropic, Gemini and Ollama all run and settle exactly at the ledger's
+micro-USD precision. Each family also proves budget refusal, default selection
+and unknown-price refusal with zero sends and no daily claim left behind.
+Captures: openai/03-tool-result-stream, mistral/03-tool-result-stream,
+anthropic-opus-thinking/02-tool-result-stream, gemini/03-tool-result-stream,
+ollama/03-plain-stream under docs/certification/m95-captures (their original
+workspace/attempt receipts stay beside them in calls.json). This lane's temporary
+workspaces are m80b-* under TMPDIR; zero live model attempts. The Opus card's
+4/20 USD per million and 5 USD cold-write premium run under a 0.10 USD cap.
+
+Green: execRun 114/114, including all five loopback families;
+runtimeAccounting/execArgs/execFetch 108/108 before added event checks.
+The obsolete context-sized reservation assertions were replaced by the admitted
+request's retained liability; missing/invalid usage, cancellation and retries
+still hold the full admitted amount. Documentation now says provider exec runs.
+
+A2 red drill: restoring full-context input caused the small-request quote test to
+fail; SHA-256 byte-exact restoration
+`1364d18157c8313ee03ff8069ad9f3743e30f97ce5eb7d980d16f1d796b95fa7`.
+Final execRun remains 114/114 after admission/settlement events were added.

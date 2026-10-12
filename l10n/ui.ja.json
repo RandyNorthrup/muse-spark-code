@@ -340,7 +340,8 @@
     "estimate-by": "--by <date>: 期限",
     "fleet": "--fleet current|minimum|optimum: 現在のマシン群 / 最小構成 / 最適構成",
     "estimate-format": "--format md|html|json|text: 出力形式",
-    "seed": "--seed <seed>: シミュレーションのシード"
+    "seed": "--seed <seed>: シミュレーションのシード",
+    "max-output-tokens": "--max-output-tokens <tokens>: Model API リクエストごとの出力上限（16–32768、既定値 1024）。"
   },
   "referenceScanSecrets": "UTF-8 のパッチファイルから秘密情報を検出し、見つかった場合は失敗終了します。--key-stdin はメモリ内の Model API キーそのものも検索します。キーは保存されません。",
   "referenceVault": "進行中.",
@@ -5122,5 +5123,9 @@
     "grantsCount": {
       "other": "{count} 件の許可"
     }
+  },
+  "execBudgetQuote": "入力 {inputTokens}（{inputCost}）+ 出力上限 {outputTokens}（{outputCost}）= {estimate}。実行予算 {cap}、使用済み {spent}。リクエストは送信されていません。",
+  "execTokenCount": {
+    "other": "最大 {count} トークン"
   }
 }

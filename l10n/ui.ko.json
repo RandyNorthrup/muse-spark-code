@@ -340,7 +340,8 @@
     "estimate-by": "--by <date>: 마감일",
     "fleet": "--fleet current|minimum|optimum: 현재 장비 구성 / 최소 구성 / 최적 구성",
     "estimate-format": "--format md|html|json|text: 출력 형식",
-    "seed": "--seed <seed>: 시뮬레이션 시드"
+    "seed": "--seed <seed>: 시뮬레이션 시드",
+    "max-output-tokens": "--max-output-tokens <tokens>: Model API 요청별 출력 한도(16–32768, 기본값 1024)."
   },
   "referenceScanSecrets": "UTF-8 패치 파일에서 비밀 정보를 검색하고 발견하면 실패로 종료합니다. --key-stdin은 메모리에 있는 정확한 Model API 키도 검색하며 키를 저장하지 않습니다.",
   "referenceVault": "진행 중.",
@@ -5122,5 +5123,9 @@
     "grantsCount": {
       "other": "{count} 개 권한"
     }
+  },
+  "execBudgetQuote": "입력 {inputTokens}({inputCost}) + 출력 한도 {outputTokens}({outputCost}) = {estimate}; 실행 예산 {cap}, 사용액 {spent}. 요청을 보내지 않았습니다.",
+  "execTokenCount": {
+    "other": "최대 {count} 토큰"
   }
 }
