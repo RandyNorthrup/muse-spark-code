@@ -26,6 +26,7 @@
 #include <sys/resource.h>
 #include <sys/socket.h>
 #include <sys/syscall.h>
+#include <sys/sysmacros.h>
 #include <sys/wait.h>
 #include <time.h>
 
@@ -358,6 +359,55 @@ static const char *program_path(const char *name) {
   for (size_t i = 0; names[i]; i++) if (!strcmp(name, names[i])) return paths[i];
   refuse("program"); return NULL;
 }
+// stat is reported from the walked operands themselves, with the statx call
+// and the fields below, so the result cannot depend on which implementation
+// a distribution ships: no program is verified or executed for it, and no
+// grant beyond the walked operands is needed. The grammar admits stat with
+// no options, so every report below is the default one. Owners stay numeric
+// and times UTC, as for every confined program: no user database is granted.
+// A post-walk replacement that still meets the walked predicates reports the
+// replacement's metadata; names and metadata of workspace paths are outside
+// the Linux guarantee by design, and no byte of any content is read here.
+static void report_time(const char *label, struct statx_timestamp when) {
+  time_t sec = (time_t)when.tv_sec;
+  struct tm fields;
+  if (gmtime_r(&sec, &fields) != &fields) refuse("clock");
+  printf("%s: %04d-%02d-%02d %02d:%02d:%02d.%09u +0000\n", label,
+    fields.tm_year + 1900, fields.tm_mon + 1, fields.tm_mday,
+    fields.tm_hour, fields.tm_min, fields.tm_sec, (unsigned int)when.tv_nsec);
+}
+static void report_stat(const char *path) {
+  struct statx data;
+  if (statx(AT_FDCWD, path, AT_SYMLINK_NOFOLLOW, STATX_BASIC_STATS | STATX_BTIME, &data)) refuse("operand");
+  if (S_ISLNK(data.stx_mode)) refuse("operand");
+  if (makedev(data.stx_dev_major, data.stx_dev_minor) != device) refuse("operand");
+  if (!S_ISDIR(data.stx_mode) && (!S_ISREG(data.stx_mode) || data.stx_nlink != 1)) refuse("operand");
+  unsigned int mode = (unsigned int)(data.stx_mode & 07777u);
+  char text[11];
+  text[0] = S_ISDIR(data.stx_mode) ? 'd' : '-';
+  static const char bits[] = "rwxrwxrwx";
+  for (int i = 0; i < 9; i++) text[1 + i] = (mode & (1u << (unsigned int)(8 - i))) ? bits[i] : '-';
+  if (mode & 04000u) text[3] = (mode & 0100u) ? 's' : 'S';
+  if (mode & 02000u) text[6] = (mode & 0010u) ? 's' : 'S';
+  if (mode & 01000u) text[9] = (mode & 0001u) ? 't' : 'T';
+  text[10] = 0;
+  printf("File: %s\n", path);
+  printf("Size: %llu  Blocks: %llu  IO Block: %u  %s\n",
+    (unsigned long long)data.stx_size, (unsigned long long)data.stx_blocks,
+    (unsigned int)data.stx_blksize, S_ISDIR(data.stx_mode) ? "directory" : "regular file");
+  printf("Device: %xh/%llud  Inode: %llu  Links: %u\n",
+    (unsigned int)major(device), (unsigned long long)device,
+    (unsigned long long)data.stx_ino, (unsigned int)data.stx_nlink);
+  printf("Access: (%04o/%s)  Uid: (%5u/ UNKNOWN)  Gid: (%5u/ UNKNOWN)\n",
+    mode, text, (unsigned int)data.stx_uid, (unsigned int)data.stx_gid);
+  report_time("Access", data.stx_atime);
+  report_time("Modify", data.stx_mtime);
+  report_time("Change", data.stx_ctime);
+  if ((data.stx_mask & STATX_BTIME) && (data.stx_btime.tv_sec || data.stx_btime.tv_nsec))
+    report_time("Birth", data.stx_btime);
+  else
+    printf("Birth: -\n");
+}
 int main(int argc, char **argv) {
   if (!getuid() || !geteuid()) refuse("root");
   if (argc == 2 && !strcmp(argv[1], "probe")) { probe(); return 0; }
@@ -382,12 +432,16 @@ int main(int argc, char **argv) {
   closedir(empty);
   int recursive = !strcmp(argv[5], "recursive");
   if (!recursive && strcmp(argv[5], "single")) refuse("request");
-  char resolved[PATH_MAX];
-  int program = system_file(program_path(argv[6]), resolved, 1); close(program);
-  system_elf(resolved, 1);
-  char cache[PATH_MAX];
-  int cache_fd = system_file("/etc/ld.so.cache", cache, 0);
-  grant(cache_fd, LANDLOCK_ACCESS_FS_READ_FILE); close(cache_fd);
+  char resolved[PATH_MAX]; resolved[0] = 0;
+  int is_stat = !strcmp(argv[6], "stat");
+  if (is_stat && recursive) refuse("request");
+  if (!is_stat) {
+    int program = system_file(program_path(argv[6]), resolved, 1); close(program);
+    system_elf(resolved, 1);
+    char cache[PATH_MAX];
+    int cache_fd = system_file("/etc/ld.so.cache", cache, 0);
+    grant(cache_fd, LANDLOCK_ACCESS_FS_READ_FILE); close(cache_fd);
+  }
   if (clock_gettime(CLOCK_MONOTONIC, &started)) refuse("clock");
   int separator = 7;
   while (separator < argc && strcmp(argv[separator], "--")) {
@@ -397,6 +451,13 @@ int main(int argc, char **argv) {
     visited++; walk(operand, argv[separator], recursive, 0); close(operand); separator++;
   }
   if (separator == 7 || separator >= argc) refuse("request");
+  if (is_stat) {
+    // The tool arguments must mirror the walked operands: the grammar emits
+    // the operands there, and the reports below cover the walked operands.
+    if (argc - separator - 1 != separator - 7) refuse("request");
+    for (int i = 0; i < separator - 7; i++)
+      if (strcmp(argv[7 + i], argv[separator + 1 + i])) refuse("request");
+  }
   budget();
   if (fchdir(root)) refuse("workspace");
   close(root);
@@ -418,6 +479,11 @@ int main(int argc, char **argv) {
   if (syscall(SYS_close_range, 3U, ~0U, 0)) refuse("descriptors");
   fprintf(stderr, "{\"confined\":true,\"abi\":%d,\"excluded\":%zu}\n", abi, excluded);
   if (fflush(stderr)) refuse("protocol");
+  if (is_stat) {
+    for (int i = 7; i < separator; i++) report_stat(argv[i]);
+    if (fflush(stdout)) refuse("protocol");
+    return 0;
+  }
   execve(resolved, tool, environment);
   refuse("exec");
   return JUDGE_FAST_B1_REFUSED_EXIT;

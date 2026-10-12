@@ -183,6 +183,24 @@ if (process.platform === 'linux') {
       if (program === 'ls')
         expect(result.stdout.toString()).toContain(String(statSync(h.allowed).uid))
     })
+    it('reports stat fields from the walked operands without the system stat binary', async () => {
+      const h = await fixture()
+      for (const [operand, kind] of [
+        ['allowed.txt', 'regular file'],
+        ['.', 'directory'],
+      ] as const) {
+        const result = await native(binary, h.args('stat', [operand], [operand]), h.root)
+        expect(result.code, operand).toBe(0)
+        expect(result.stderr).toMatch(/^\{"confined":true,/u)
+        const expected = statSync(path.join(h.workspace, operand))
+        const stdout = result.stdout.toString()
+        expect(stdout).toContain(`File: ${operand}\n`)
+        expect(stdout).toContain(`Size: ${String(expected.size)} `)
+        expect(stdout).toContain(`Inode: ${String(expected.ino)} `)
+        expect(stdout).toContain(`/${String(expected.dev)}d `)
+        expect(stdout).toContain(kind)
+      }
+    })
     it('B1-3/4/5/6/7 excludes protected/private descendants, links, devices, hard links and foreign device ids', async () => {
       const h = await fixture()
       for (const name of [
