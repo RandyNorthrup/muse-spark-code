@@ -1,7 +1,12 @@
 // Real exec/engine/team/merge against captured fake Model API frames and real Git.
 import '../../src/host/team/teamHostEntry'
-import { createExecTeam } from '../../src/runtime/exec/execTeamEntry'
+import {
+  createExecTeam,
+  heldMergeError,
+  needsMergeHold,
+} from '../../src/runtime/exec/execTeamEntry'
 import { mkdtemp, mkdir, readFile, writeFile, readdir, realpath, copyFile } from 'node:fs/promises'
+import { execFile } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { PassThrough } from 'node:stream'
@@ -20,10 +25,17 @@ import { agentDataFolder, workspaceKey } from '../../src/runtime/dataFolder'
 import {
   ACP_SESSIONS_SUBFOLDER,
   SECRET_KEYS,
+  EXEC_TEAM_CLEANUP_FILE,
+  EXEC_TEAM_RUN_PREFIX,
   EXEC_TEAM_STATE_FILE,
   UI_TEXT,
   TEAM_MODEL_TEXT,
 } from '../../src/shared/constants'
+import {
+  predictedAgentsRef,
+  recordCleanupOwner,
+  recordCleanupRef,
+} from '../../src/runtime/exec/execTeamRecovery'
 import { type TeamSnapshot } from '../../src/shared/team'
 import {
   fakeModelApi,
@@ -84,16 +96,6 @@ const call = (name: string, args: unknown): ScriptedCall => ({
   name,
   arguments: JSON.stringify(args),
 })
-const delegation = {
-  tasks: [
-    {
-      role: 'engineering',
-      brief: 'Change tracked.txt',
-      files: ['tracked.txt'],
-      reason: { code: 'different_model', detail: 'Use writer model' },
-    },
-  ],
-}
 const bodySchema = z.object({ model: z.string(), input: z.array(z.unknown()) })
 const toolOutputSchema = z.object({ type: z.literal('function_call_output'), output: z.string() })
 const taskOutputSchema = z.object({
@@ -214,6 +216,7 @@ function scriptTeam(
     call('write_file', { path: 'tracked.txt', content: 'after\n' }),
   ],
   shouldMerge = true,
+  delegatedFiles: readonly string[] = ['tracked.txt'],
 ) {
   let parentCalls = 0
   let workerRequests = 0
@@ -237,7 +240,21 @@ function scriptTeam(
       } else {
         parentCalls += 1
         const task = lastTask(body.input)
-        if (parentCalls === 1) reply = { calls: [call('delegate', delegation)] }
+        if (parentCalls === 1)
+          reply = {
+            calls: [
+              call('delegate', {
+                tasks: [
+                  {
+                    role: 'engineering',
+                    brief: 'Change the delegated files',
+                    files: [...delegatedFiles],
+                    reason: { code: 'different_model', detail: 'Use writer model' },
+                  },
+                ],
+              }),
+            ],
+          }
         else if (!hasMerged && task?.state === 'done') {
           hasMerged = true
           reply = shouldMerge
@@ -302,7 +319,7 @@ describe('M96b headless engine team runner', () => {
     REAL_GIT_TIMEOUT_MS,
   )
   it(
-    'denies protected worker writes and never merges them',
+    'refuses protected worker writes at the tool and never merges them',
     async () => {
       const f = await fixture()
       await mkdir(path.join(f.cwd, '.github', 'workflows'), { recursive: true })
@@ -317,8 +334,203 @@ describe('M96b headless engine team runner', () => {
       expect(await readFile(path.join(f.cwd, '.github', 'workflows', 'check.yml'), 'utf8')).toBe(
         'original\n',
       )
-      const workerInputs = f.api.responseBodies().filter((body) => body['model'] === WORKER)
-      expect(JSON.stringify(workerInputs)).toMatch(/denied|refused|protected/i)
+      // The worker fence refuses the write first: only its tool result can
+      // echo the protected path back (standing instructions never name it).
+      const workerOutputs = f.api
+        .responseBodies()
+        .filter((body) => body['model'] === WORKER)
+        .flatMap((body) => z.array(z.unknown()).parse(body['input']))
+        .filter((item) => toolOutputSchema.safeParse(item).success)
+      expect(workerOutputs.some((item) => JSON.stringify(item).includes('check.yml'))).toBe(true)
+      expect(new TextDecoder().decode(await git(['for-each-ref', 'refs/agents/'], f.cwd))).toBe('')
+      expect(
+        new TextDecoder().decode(await git(['for-each-ref', 'refs/heads/agents-hold/'], f.cwd)),
+      ).toBe('')
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+  it(
+    'holds the branch while a required review is outstanding',
+    async () => {
+      // The code-review pool has no room (lifetime tasks cap 0), so the
+      // required review stays not-reviewed and the merge is held, not lost.
+      const reviewed: TeamSnapshot = {
+        ...team,
+        roles: [
+          ...team.roles,
+          {
+            role: 'code-review',
+            exhausted: 'ask',
+            pool: [
+              {
+                id: 'reviewer',
+                concurrent: 1,
+                caps: [{ measure: 'tasks', window: 'lifetime', amount: 0 }],
+                agent: { kind: 'engine', agentId: 'reviewer', model: WORKER, pays: 'key' },
+              },
+            ],
+          },
+        ],
+      }
+      const f = await fixture(reviewed)
+      await mkdir(path.join(f.cwd, '.muse'), { recursive: true })
+      await writeFile(
+        path.join(f.cwd, '.muse', 'team.json'),
+        JSON.stringify({ roles: { engineering: { reviewer: 'code-review' } } }),
+      )
+      scriptTeam(f)
+      const { code } = await f.run()
+      expect(code, f.err.chunks.join('')).toBe(0)
+      expect(await readFile(path.join(f.cwd, 'tracked.txt'), 'utf8')).toBe('before\n')
+      const holds = new TextDecoder()
+        .decode(
+          await git(['for-each-ref', '--format=%(refname)', 'refs/heads/agents-hold/'], f.cwd),
+        )
+        .trim()
+      expect(holds).toMatch(/^refs\/heads\/agents-hold\/engineering\/[0-9a-f-]+$/)
+      expect(JSON.stringify(f.api.responseBodies())).toContain(holds)
+      expect(JSON.stringify(f.api.responseBodies())).toContain('required review is not complete')
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+  it(
+    'refuses conflict markers and merges trailing spaces and CRLF',
+    async () => {
+      const marked = await fixture()
+      scriptTeam(marked, [
+        call('write_file', { path: 'tracked.txt', content: 'a\n<<<<<<< ours\nb\n' }),
+      ])
+      const refused = await marked.run()
+      expect(refused.code, marked.err.chunks.join('')).toBe(0)
+      expect(await readFile(path.join(marked.cwd, 'tracked.txt'), 'utf8')).toBe('before\n')
+      expect(JSON.stringify(marked.api.responseBodies())).toContain('conflict markers')
+      expect(JSON.stringify(marked.api.responseBodies())).toContain('tracked.txt:2')
+      expect(
+        new TextDecoder().decode(
+          await git(['for-each-ref', '--format=%(refname)', 'refs/heads/agents-hold/'], marked.cwd),
+        ),
+      ).toBe('')
+      const spaced = await fixture()
+      scriptTeam(spaced, [
+        call('write_file', { path: 'tracked.txt', content: 'hard break  \nplain\n' }),
+      ])
+      const { code } = await spaced.run()
+      expect(code, spaced.err.chunks.join('')).toBe(0)
+      expect(await readFile(path.join(spaced.cwd, 'tracked.txt'), 'utf8')).toBe(
+        'hard break  \nplain\n',
+      )
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+  it('holds a card-denied merge and reports the hold ref in translated keys', () => {
+    // POSIX workers cannot produce a backslash spelling (the tool fence
+    // refuses protected writes first, on every platform), so the
+    // normalization branch below is covered here, not through a worker.
+    expect(needsMergeHold('review', [])).toBe('review')
+    expect(needsMergeHold('protected', [])).toBe('protected')
+    expect(needsMergeHold(undefined, ['tracked.txt'])).toBe(undefined)
+    expect(needsMergeHold(undefined, [])).toBe(undefined)
+    expect(needsMergeHold(undefined, ['.github/workflows/check.yml'])).toBe('protected')
+    expect(needsMergeHold(undefined, [String.raw`.github\workflows\check.yml`])).toBe('protected')
+    expect(needsMergeHold(undefined, [String.raw`docs\notes.md`])).toBe(undefined)
+    const ref = 'refs/heads/agents-hold/engineering/task-1'
+    expect(heldMergeError('protected', ref).message).toBe(
+      `Protected paths need approval, so the branch is held at ${ref}. Approve them and merge again, or remove ${ref} to discard the work.`,
+    )
+    expect(heldMergeError('review', ref).message).toBe(
+      `The required review is not complete, so the branch is held at ${ref}. Collect the review and merge again, or remove ${ref} to discard the work.`,
+    )
+  })
+  it(
+    'cancels mid-run and leaves no folder or owned ref behind',
+    async () => {
+      const beforeEntries = await readdir(tmpdir())
+      const before = new Set(beforeEntries.filter((name) => name.startsWith(EXEC_TEAM_RUN_PREFIX)))
+      const f = await fixture()
+      const script = scriptTeam(f)
+      const running = f.run()
+      while (script.workerRequests() === 0) await delay(25)
+      f.life.latch({ kind: 'signal', signal: 'SIGINT' })
+      const { result } = await running
+      expect(result?.status).toBe('cancelled')
+      expect(await readFile(path.join(f.cwd, 'tracked.txt'), 'utf8')).toBe('before\n')
+      expect(new TextDecoder().decode(await git(['for-each-ref', 'refs/agents/'], f.cwd))).toBe('')
+      // The lane shares $TMPDIR with other lanes: only a folder this
+      // process owned counts as a leak, never a stranger's folder. Close
+      // finishes behind the run (the stop grace), so poll for it.
+      const ownedFolders = async (): Promise<string[]> => {
+        const entries = await readdir(tmpdir())
+        const after = entries.filter((name) => name.startsWith(EXEC_TEAM_RUN_PREFIX))
+        const added = after.filter((entry) => !before.has(entry))
+        const mine: string[] = []
+        for (const name of added) {
+          try {
+            const ledger: unknown = JSON.parse(
+              await readFile(path.join(tmpdir(), name, EXEC_TEAM_CLEANUP_FILE), 'utf8'),
+            )
+            const owner =
+              typeof ledger === 'object' && ledger !== null && 'owner' in ledger
+                ? ledger.owner
+                : undefined
+            const pid =
+              typeof owner === 'object' &&
+              owner !== null &&
+              'pid' in owner &&
+              typeof owner.pid === 'number'
+                ? owner.pid
+                : undefined
+            if (pid === process.pid) mine.push(name)
+          } catch {
+            // No readable ledger: not this run's folder.
+          }
+        }
+        return mine
+      }
+      await vi.waitFor(
+        async () => {
+          expect(await ownedFolders()).toEqual([])
+        },
+        {
+          timeout: 20_000,
+          interval: 200,
+        },
+      )
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+  it(
+    'sweeps a dead previous run when a new run starts',
+    async () => {
+      // A kill -9 leaves exactly this: a ledger whose owner is gone.
+      const { root, head } = await teamFixtureRepo(git)
+      const owned = predictedAgentsRef('engineering', 'sweepme') ?? ''
+      expect(owned).not.toBe('')
+      await git(['update-ref', owned, head], root)
+      const dead = await mkdtemp(path.join(tmpdir(), `${EXEC_TEAM_RUN_PREFIX}dead-`))
+      trackTeamRoot(dead)
+      const probe = execFile(process.execPath, ['--version'])
+      const pid = await new Promise<number>((resolve, reject) => {
+        probe.on('error', (error) => {
+          reject(error)
+        })
+        probe.on('exit', () => {
+          if (probe.pid === undefined) reject(new Error('probe child has no pid'))
+          else resolve(probe.pid)
+        })
+      })
+      await recordCleanupOwner(dead, { pid, startedAt: Date.now() })
+      await recordCleanupRef(dead, {
+        repo: root,
+        role: 'engineering',
+        taskId: 'sweepme',
+        ref: owned,
+      })
+      const f = await fixture()
+      scriptTeam(f)
+      const { code } = await f.run()
+      expect(code, f.err.chunks.join('')).toBe(0)
+      await expect(git(['rev-parse', '--verify', owned], root)).rejects.toThrow()
+      await expect(readFile(path.join(dead, EXEC_TEAM_CLEANUP_FILE))).rejects.toThrow()
     },
     REAL_GIT_TIMEOUT_MS,
   )
@@ -613,7 +825,48 @@ it('refuses repository cap increases before model dispatch', async () => {
   const { code } = await f.run()
   expect(code).not.toBe(0)
   expect(f.api.responseBodies()).toHaveLength(0)
-  expect(f.err.chunks.join('')).toContain('raises')
+  expect(f.err.chunks.join('')).toContain('roles.engineering.caps.concurrent')
+  expect(f.err.chunks.join('')).toContain('can only lower existing limits')
+})
+it('refuses team configuration in translated keys, never raw dumps', async () => {
+  const notJson = await fixture()
+  await mkdir(path.join(notJson.cwd, '.muse'), { recursive: true })
+  await writeFile(path.join(notJson.cwd, '.muse', 'team.json'), '{oops')
+  const notJsonResult = await notJson.run()
+  expect(notJsonResult.code).not.toBe(0)
+  expect(notJson.api.responseBodies()).toHaveLength(0)
+  expect(notJson.err.chunks.join('')).toContain('team.json is not JSON.')
+  const unknown = await fixture()
+  await mkdir(path.join(unknown.cwd, '.muse'), { recursive: true })
+  await writeFile(
+    path.join(unknown.cwd, '.muse', 'team.json'),
+    JSON.stringify({ roles: { engineering: { workspace: 'in-place' } } }),
+  )
+  const unknownResult = await unknown.run()
+  expect(unknownResult.code).not.toBe(0)
+  expect(unknown.api.responseBodies()).toHaveLength(0)
+  expect(unknown.err.chunks.join('')).toContain('roles.engineering.workspace')
+  const decimal = await fixture(team, '2')
+  await mkdir(path.join(decimal.cwd, '.muse'), { recursive: true })
+  await writeFile(
+    path.join(decimal.cwd, '.muse', 'team.json'),
+    JSON.stringify({ budgets: { spendUsd: 0.1234567 } }),
+  )
+  const decimalResult = await decimal.run()
+  expect(decimalResult.code).not.toBe(0)
+  expect(decimal.api.responseBodies()).toHaveLength(0)
+  expect(decimal.err.chunks.join('')).toContain('budgets.spendUsd')
+  const stored = await fixture()
+  const folder = path.join(
+    agentDataFolder(stored.deps),
+    ACP_SESSIONS_SUBFOLDER,
+    workspaceKey(stored.cwd),
+  )
+  await writeFile(path.join(folder, EXEC_TEAM_STATE_FILE), '{"roles":')
+  const storedResult = await stored.run()
+  expect(storedResult.code).not.toBe(0)
+  expect(stored.api.responseBodies()).toHaveLength(0)
+  expect(stored.err.chunks.join('')).toContain('cannot be read')
 })
 it(
   'removes an unmerged worker copy and its owned ref when the run ends',

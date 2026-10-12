@@ -266,7 +266,9 @@ export function parseTeamJson(text: string): TeamJsonParse {
     )
   }
   const sharedFiles = teamSharedFilesConfigShape.sharedFiles.safeParse(parsed['sharedFiles'])
-  if (!sharedFiles.success) return { ok: false, reason: sharedFiles.error.message }
+  // RVCM96B2 P3-9: a stable entry path, never a raw zod dump: the headless
+  // runner maps it to its translated table key with the entry spliced.
+  if (!sharedFiles.success) return { ok: false, reason: 'team.json holds an invalid sharedFiles' }
   return {
     ok: true,
     file: {
