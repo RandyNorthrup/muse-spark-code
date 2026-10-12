@@ -1,4 +1,4 @@
-import type { UsageRecording } from '../../usage/recording'
+import type { UsageRecording, UsageScopeReader } from '../../usage/recording'
 // One `muse serve` process and the MSP sessions multiplexed over it.
 //
 // Built on the SDK's raw `Connection` rather than its `MuseClient` facade:
@@ -1944,6 +1944,13 @@ export class MuseSession implements ScheduledAgentSession {
 export class MuseCodeHost implements AgentHost {
   /** Injected once by the editor/runtime before hosts are constructed. */
   public static usageRecording: UsageRecording | undefined
+  /**
+   * Where this host reads its current owner for every usage observation: a
+   * reauthentication retires the old generation, and surviving hosts publish
+   * under the new one instead of the retired one. Undefined publishes
+   * nothing; an observation without an owner cannot exist.
+   */
+  public static usageScope: UsageScopeReader | undefined
   private readonly observedUsage = new Set<number>()
   private readonly sessions = new Map<string, MuseSession>()
   private readonly exitListeners = new Set<(exit: HostExit) => void>()
@@ -2214,7 +2221,15 @@ export class MuseCodeHost implements AgentHost {
         const usage = parsed.data
         if (!this.observedUsage.has(usage.observedAtMs)) {
           this.observedUsage.add(usage.observedAtMs)
-          this.usageRecording?.limit({
+          // The owner is bound per observation through the live scope, so a
+          // host that survives a reauthentication publishes under the new
+          // generation, never the retired one.
+          const scope = MuseCodeHost.usageScope?.()
+          const producer =
+            scope === undefined
+              ? undefined
+              : this.usageRecording?.scopeLimits?.({ ...scope, backend: 'museCode' })
+          producer?.limit({
             backend: 'museCode',
             provider: 'museCode',
             source: 'museCode',

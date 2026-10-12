@@ -31,7 +31,7 @@ import { notify } from '../../events/notify'
 import { isParallelRead, scheduleTools } from './toolScheduler'
 import { RepeatGuard, toolRepeatKey } from './repeatGuard'
 import { recordPaidUse } from '../../paid/paidFeatures'
-import type { RecordedCall, UsageRecording } from '../../usage/recording'
+import type { RecordedCall, UsageRecording, UsageScopeReader } from '../../usage/recording'
 import type { UsageBudgetRead } from '../../usage/usageService'
 import type { PlanUsageRow, SubscriptionUsage } from '../../../shared/usage'
 import { finishedAgentEvidence } from '../../agent/agentEvidence'
@@ -560,6 +560,12 @@ import {
 /** Paid state and usage are injected by the host, never read from workspace settings. */
 export interface ModelApiPaidHooks {
   readonly usageRecording?: UsageRecording | undefined
+  /**
+   * Where header observations read their current owner for every observation:
+   * a host that survives a credential change publishes under the new
+   * generation, never the retired one. Undefined publishes nothing.
+   */
+  readonly usageScope?: UsageScopeReader | undefined
   readonly usageKind?: RecordedCall['kind'] | undefined
   /** Headless records paid attempts through its transport settlement tap. */
   readonly hasExternalPaidRecording?: boolean | undefined
@@ -4823,7 +4829,15 @@ export class ModelApiSession implements ScheduledAgentSession {
           observation.headers !== undefined &&
           (Object.keys(observation.headers).length > 0 || observation.rateLimited === true)
         ) {
-          this.deps.usageRecording?.limit(
+          // The owner is bound per observation through the live scope, so a
+          // host that survives a credential change publishes under the new
+          // generation, never the retired one.
+          const scope = this.deps.usageScope?.()
+          const producer =
+            scope === undefined
+              ? undefined
+              : this.deps.usageRecording?.scopeLimits?.({ ...scope, backend: 'modelApi' })
+          producer?.limit(
             {
               backend: 'modelApi',
               provider: this.recordedCall.provider,

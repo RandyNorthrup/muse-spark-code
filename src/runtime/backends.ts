@@ -36,7 +36,7 @@ import { MemoryStore } from '../core/memory/memoryStore'
 import { WorkspaceEdits } from '../core/verify/workspaceEdits'
 import { redactSecrets } from '../core/redact'
 import { recordPaidUse } from '../core/paid/paidFeatures'
-import type { UsageRecording } from '../core/usage/recording'
+import type { UsageRecording, UsageScopeReader } from '../core/usage/recording'
 import type { UsageBudgetRead } from '../core/usage/usageService'
 import { fileContextIo } from '../host/backend/contextIo'
 import { describeEnvironment } from '../host/backend/environment'
@@ -97,6 +97,7 @@ export interface ExecRuntimeOptions {
 
 export interface RuntimeBackendDeps {
   readonly usageRecording?: UsageRecording | undefined
+  readonly usageScope?: UsageScopeReader | undefined
   readonly questions?: { remove(sessionId: string): Promise<void> }
   readonly exec?: ExecRuntimeOptions
   readonly options: ServeOptions
@@ -337,6 +338,7 @@ function modelApiManager(
   return new ModelApiBackendManager({
     log,
     usageRecording: deps.usageRecording,
+    usageScope: deps.usageScope,
     hasExternalPaidRecording: deps.exec !== undefined,
     getApiKey: () => credentials.getApiKey(),
     workspaceRoot,

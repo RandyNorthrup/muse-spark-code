@@ -33,7 +33,7 @@ The VS Code adapter: 48 files. Everything else reaches VS Code only through them
 
 | File                                         | VS Code APIs used |
 | -------------------------------------------- | ----------------- |
-| `src/extension.ts`                           | 184               |
+| `src/extension.ts`                           | 185               |
 | `src/host/agentImportHost.ts`                | 28                |
 | `src/host/browser/browserCheckConfirm.ts`    | 5                 |
 | `src/host/browser/runtimeCommand.ts`         | 9                 |
@@ -101,7 +101,7 @@ These never reach `vscode` through their imports, type-only ones included; the g
 - `src/host/conversation/conversationController.ts`
 - `src/host/ide/ideMcpServer.ts`
 
-## VS Code API used at run time (375)
+## VS Code API used at run time (376)
 
 Functions, variables, classes, enums and members declared in `@types/vscode`; the members of a VS Code interface the code implements (a provider, an options object); and the members of a VS Code object handed to code that takes it by shape.
 
@@ -284,6 +284,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `SaveDialogOptions.saveLabel`                                                        | `src/host/models/modelsPanelEntry.ts`, `src/host/reporting/reportPanel.ts`, `src/host/usage/usagePanel.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | `SecretStorage.delete`                                                               | `src/extension.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | `SecretStorage.get`                                                                  | `src/extension.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `SecretStorage.onDidChange`                                                          | `src/extension.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | `SecretStorage.store`                                                                | `src/extension.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | `Selection`                                                                          | `src/extension.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | `Selection.active`                                                                   | `src/extension.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
@@ -490,7 +491,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `node:async_hooks`       | 2     |
 | `node:buffer`            | 62    |
 | `node:child_process`     | 28    |
-| `node:crypto`            | 169   |
+| `node:crypto`            | 170   |
 | `node:dgram`             | 1     |
 | `node:dns`               | 1     |
 | `node:dns/promises`      | 6     |

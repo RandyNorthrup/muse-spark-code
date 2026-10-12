@@ -48,7 +48,7 @@ export interface ModelsPanelDeps {
   readonly writeExportFile: (text: string) => Promise<void>
   readonly readImportFile: () => Promise<string | undefined>
   readonly confirmImport: (preview: ImportPreview) => Promise<boolean>
-  readonly onWizardSaved: (outcome: WizardSaveOutcome) => void
+  readonly onWizardSaved: (outcome: WizardSaveOutcome) => void | Promise<void>
 }
 export interface ModelsPanelNavigate {
   readonly section?: string | undefined
@@ -623,8 +623,23 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
             Object.entries(state.drafts.edits).filter(([id]) => id !== message.providerId),
           )
         }
-        if (outcome.composerSet) {
-          deps.onWizardSaved(outcome)
+        // Every saved credential retires the estimator's ownership
+        // generation, whether or not the composer adopts it now: facts read
+        // under the replaced credential must never admit again.
+        await deps.onWizardSaved(outcome)
+        // A saved OpenRouter credential publishes a fresh owned balance
+        // observation at once: the estimator's production balance producer.
+        // A failed usage read never fails the save; the next save retries.
+        if (entry.preset === 'openrouter') {
+          try {
+            const credential = await providers.storedCredential({
+              ...entry,
+              privateNetwork: verdict.kind === 'private',
+            })
+            if (credential !== undefined) await providers.openRouterUsage(credential)
+          } catch {
+            log.warn('OpenRouter usage refresh failed')
+          }
         }
         break
       }

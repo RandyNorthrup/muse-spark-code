@@ -85,6 +85,60 @@ function known(quantity: Quantity, detail: string): number {
   return quantity.value
 }
 
+/**
+ * Exact decimal arithmetic for money admission: binary numbers get a
+ * boundary wrong (`0.1 * 3 = 0.30000000000000004` refuses against `0.3`),
+ * so usd demand and allowance compare on their canonical decimal spellings
+ * with BigInt, never as doubles.
+ */
+interface ExactDecimal {
+  readonly coefficient: bigint
+  readonly places: number
+}
+/** The decimal base and zero as BigInts; the linter takes no BigInt literals inline. */
+const DECIMAL_BASE = 10n
+const DECIMAL_ZERO = 0n
+function exactDecimal(value: number | string): ExactDecimal {
+  const match = /^(-?\d+)(?:\.(\d+))?(?:[eE]([+-]?\d+))?$/.exec(String(value).trim())
+  if (match === null) refuse(`invalid-decimal:${String(value)}`)
+  const whole = match[1] ?? '0'
+  const fraction = match[2] ?? ''
+  const places = fraction.length - Number(match[3] ?? 0)
+  const digits = `${whole.startsWith('-') ? '-' : ''}${whole.replace('-', '')}${fraction}`
+  const coefficient = digits === '' || digits === '-' ? DECIMAL_ZERO : BigInt(digits)
+  return places < 0
+    ? { coefficient: coefficient * DECIMAL_BASE ** BigInt(-places), places: 0 }
+    : { coefficient, places }
+}
+function addExact(first: ExactDecimal, second: ExactDecimal): ExactDecimal {
+  const places = Math.max(first.places, second.places)
+  const align = (value: ExactDecimal): bigint =>
+    value.coefficient * DECIMAL_BASE ** BigInt(places - value.places)
+  return { coefficient: align(first) + align(second), places }
+}
+function multiplyExact(first: ExactDecimal, second: ExactDecimal): ExactDecimal {
+  return {
+    coefficient: first.coefficient * second.coefficient,
+    places: first.places + second.places,
+  }
+}
+/** Positive when the accumulated usd demand exceeds the stated allowance. */
+function compareExactDemand(demand: ExactDecimal, allowance: ExactDecimal): number {
+  const places = Math.max(demand.places, allowance.places)
+  const difference =
+    demand.coefficient * DECIMAL_BASE ** BigInt(places - demand.places) -
+    allowance.coefficient * DECIMAL_BASE ** BigInt(places - allowance.places)
+  if (difference === DECIMAL_ZERO) return 0
+  return difference < DECIMAL_ZERO ? -1 : 1
+}
+/** This lane's usd spend on one account: rate x slot share x hours, exactly. */
+function usdSpend(ratePerHour: number, share: number, hours: number): ExactDecimal {
+  return multiplyExact(
+    multiplyExact(exactDecimal(ratePerHour), exactDecimal(share)),
+    exactDecimal(hours),
+  )
+}
+
 export function canEstimateMachineRun(lane: EstimateLane, machine: Machine): boolean {
   const affinity = lane.affinity
   return (
@@ -570,6 +624,23 @@ export function prepareEstimateSchedule(
           )
             continue
           const unit = fact.unit
+          if (unit === 'usd') {
+            // Money admits on exact decimals, never doubles: a three-hour
+            // lane at USD 0.1/hour with USD 0.3 remaining is admitted.
+            const allowance = exactDecimal(fact.remaining)
+            let demand: ExactDecimal = { coefficient: DECIMAL_ZERO, places: 0 }
+            for (const entry of users)
+              demand = addExact(
+                demand,
+                usdSpend(
+                  laneRate(entry.lane, unit),
+                  accountShare(entry, account.id),
+                  entry.end - entry.start,
+                ),
+              )
+            if (compareExactDemand(demand, allowance) > 0) return false
+            continue
+          }
           const total = users.reduce(
             (sum, entry) =>
               sum +
@@ -578,7 +649,8 @@ export function prepareEstimateSchedule(
                 (entry.end - entry.start),
             0,
           )
-          if (total > fact.remaining) return false
+          if (typeof fact.remaining === 'number' && total > fact.remaining) return false
+          if (typeof fact.remaining === 'string' && total > Number(fact.remaining)) return false
         }
         const windows = windowsByAccount.get(account) ?? []
         if (windows.length === 0) continue

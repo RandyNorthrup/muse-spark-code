@@ -56,7 +56,10 @@ export interface HeadlessFleetOwners extends FleetUsageOwners {
 
 /** The milestone bindings; board, broker and catalog refuse until they merge. */
 export function runtimeEstimatorPorts(
-  deps: RuntimeEstimatorPortsDeps & { readonly root: string } & HeadlessFleetOwners,
+  deps: RuntimeEstimatorPortsDeps & { readonly root: string } & HeadlessFleetOwners & {
+      /** The requesting session's provider: unknown limits keep its identity, never Meta's. */
+      readonly providerId?: string | undefined
+    },
 ): EstimatorSourcePorts {
   // The estimate's settings reader is the headless governor's own
   // resourceMachineStore over the same resources.json: a missing file carries
@@ -109,7 +112,7 @@ export function runtimeEstimatorPorts(
           return result.settings
         },
         readSettingsWithOrigin: readSettings,
-        listAccounts: () => deps.accounts.list('meta'),
+        listAccounts: () => deps.accounts.list(deps.providerId ?? 'meta'),
         readOwnedLimits: deps.readOwnedLimits,
         currentOwner: deps.currentOwner,
         readUsage: deps.readUsage,
@@ -122,6 +125,7 @@ export function runtimeEstimatorPorts(
 function portsWith(
   deps: RuntimeEstimatorDeps & HeadlessFleetOwners,
   root: string,
+  providerId?: string,
 ): () => EstimatorSourcePorts {
   return () =>
     runtimeEstimatorPorts({
@@ -134,6 +138,7 @@ function portsWith(
       readOwnedLimits: deps.readOwnedLimits,
       currentOwner: deps.currentOwner,
       readUsage: deps.readUsage,
+      ...(providerId !== undefined && { providerId }),
       ...(deps.loadBundle !== undefined && { loadBundle: deps.loadBundle }),
     })
 }
@@ -158,6 +163,7 @@ function estimatorFor(
         currentOwner: readOwner === undefined ? undefined : () => ({ ...readOwner(), providerId }),
       },
       root,
+      providerId,
     ),
     ...(deps.loadBundle !== undefined && { loadBundle: deps.loadBundle }),
   })
