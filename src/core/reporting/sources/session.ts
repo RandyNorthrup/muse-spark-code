@@ -137,12 +137,31 @@ export function scrubUsage(usage: unknown, scrub: SourceScrub): ReportSourcePayl
         (a, b) =>
           codeUnitCompare(a.key, b.key) || codeUnitCompare(JSON.stringify(a), JSON.stringify(b)),
       )
-      .map((entry) => ({
-        key: entry.key,
-        used: entry.used,
-        limit: entry.limit,
-        resetsAt: entry.resetsAt,
-        ...(entry.unit !== undefined && { unit: entry.unit }),
-      })),
+      // Normalize explicit undefined back to an absent unit (exactOptional
+      // types), keeping each branch's amount type with its own unit.
+      .map((entry) => {
+        if (entry.unit === 'usd')
+          return {
+            key: entry.key,
+            used: entry.used,
+            limit: entry.limit,
+            resetsAt: entry.resetsAt,
+            unit: 'usd' as const,
+          }
+        if (entry.unit === undefined)
+          return {
+            key: entry.key,
+            used: entry.used,
+            limit: entry.limit,
+            resetsAt: entry.resetsAt,
+          }
+        return {
+          key: entry.key,
+          used: entry.used,
+          limit: entry.limit,
+          resetsAt: entry.resetsAt,
+          unit: entry.unit,
+        }
+      }),
   }
 }
