@@ -1,223 +1,319 @@
-# CATCHMONEY record — money, consent and credential handlers (2026-10-12)
+# CATCHMONEY record — round 3: a failure is never a different fact (2026-10-12)
 
-Lane: fix/catch-money, from the catch-audit lane head `91046ebb4`.
-Scope: every handler under "Money and consent" and "Credentials" in
-`docs/certification/catch-inventory.md`, EXCEPT `src/host/models/sessionBudget.ts`
-(start-race lane) and `src/runtime/exec/runLedger.ts` (budget-holds lane),
-which this lane did not touch. For every file touched, every SWALLOW and
-GENERIC handler in that file is fixed: each file below leaves with zero.
+Rounds 1 and 2 rewrote 32 catch handlers one by one; the round-2 review
+(RVAPP-CATCHMONEY2) found the same shape seven more times: a "could not
+read" or "could not save" becomes a DIFFERENT fact (absent; allowed once;
+nothing wrong) or reaches only a log line. Round 3 changes the shape so the
+wrong outcome cannot be written.
 
-Counts from `npm run check:catches` (baseline regenerated in the same commits):
+## The shape
 
-| Directory | SWALLOW before → after | GENERIC before → after |
-| --------- | ---------------------- | ---------------------- |
-| core      | 190 → 184              | 352 → 343              |
-| host      | 67 → 65                | 245 → 236              |
-| runtime   | 51 → 49                | 173 → 169              |
+1. Every read that guards money, consent or a credential returns a
+   three-valued result: the value, known absent, or could-not-read with a
+   closed kind. The collapsing booleans `hasProviderCredential()` and
+   `hasModelApiCredential()` are deleted; the guards fail closed on
+   could-not-read and tell the person once per kind.
+2. The switches are exhaustive by the compiler (`assertExhaustive`: a fourth
+   state or a forgotten arm does not compile). The guard test
+   (`test/unit/credentialReadGuard.test.ts`) parses the money, consent and
+   credential modules and fails on any `catch` returning `false`,
+   `undefined`, `[]` or `{}` unless the absence is proven under a named
+   condition on the failure or documented with a `read-state: cert TBL-nn`
+   marker whose row is in the table below.
+3. A safety action runs whatever was thrown: decided by what was SENT, never
+   by the type of what was thrown.
+4. A notice goes to the session that asked: bound when the question is asked
+   and carried with the pending write, never looked up when the failure
+   happens.
 
-32 handlers fixed (31 NARROW, 1 REPORTED); one already-REPORTED handler
-(modelsPanel refresh) additionally narrowed. No new kind was added to any
-fixed vocabulary: kinds are `error.name` through `wireWordForLog`, store
-codes (`ENOENT`, `EACCES`), and the existing fixed codes and sentences.
-No new language-table key was added (`check:l10n` untouched): the one new
-person-visible sentence reuses `providerSaveSecretFailed`.
+## Three-state table (12 rows)
 
-Rule applied per handler: NARROW (tests the one expected condition by type,
-code or abort state; everything else keeps its kind) or REPORTED (the
-failure reaches the caller carrying its cause, or is recorded with a fixed
-code). Absent and unreadable stay different facts; fail-closed stays
-fail-closed with a true reason; no message text, path, account name, key
-or prompt reaches a sentence or a log line.
+Every read, its callers, what each does on could-not-read, and the sentence
+the person is told. All sentences are UI text in 14 languages; kind words
+are closed translated phrases, never errnos or internal names.
 
-## Handler table
+TBL-01 — `readModelApiCredential()` (`src/host/auth/credentialStore.ts`):
+found / absent / unreadable with kind crypto, locked, no-service, denied,
+timeout, other (mapped from the throw's code or name only). The one adapter
+file is `src/host/auth/credentialRead.ts`, so the KEYSTORE lane merges by
+replacing it. Callers fail closed through one exhaustive switch
+(`storedKeyMayExist`, plus a kind-level switch in `reasonTextForKind`):
 
-File and line are current at this commit.
+| Caller                           | On could-not-read                                                           | Person told             |
+| -------------------------------- | --------------------------------------------------------------------------- | ----------------------- |
+| `choose` (backend selection)     | counts as present: never offers sign-in as if no key existed                | notice once per kind    |
+| `confirmCliSignIn`               | counts as present: a sign-in never lifts the logout hold                    | notice once per kind    |
+| sign-out terminal clear          | counts as present: the hold is never released while a credential may remain | hold kept + notice      |
+| `refreshLogoutHold`              | counts as present: hold never released                                      | notice once per kind    |
+| `releaseLogoutHold`              | counts as present: hold goes back on                                        | notice once per kind    |
+| `signIn` recovery                | counts as present: "can recover" is never true                              | notice once per kind    |
+| `ensureSelectedHost` (extension) | counts as present: host choice never proceeds as if no key existed          | warning once per window |
 
-| File:line                                  | What it hid                                                                                       | Expected condition                                                                                           | What it does now                                                                                                                                          | Test                                                                                                                                       | Drill                                                                                                                                                             |
-| ------------------------------------------ | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| paidConsent.ts:375 `remember()`            | Store message text reached the log (`... allowed once: <message>`).                               | An `Error` from the grant store; non-errors are foreign.                                                     | Rethrows non-errors; logs only the kind (`(Error)`). Use still allowed once; an account decision under a revoked epoch is still refused by its fence.     | `paidConsent.test.ts` "names only the failure kind …" asserts kind shown, message absent, string rejection propagates                      | Old log line restored → test fails; restored byte-exact (`4177b50d`)                                                                                              |
-| paidConsent.ts:405 order path              | Same raw-message log via `warnQuoteNotKept`.                                                      | An `Error` from the order store.                                                                             | Same kind-only log; helper removed, both sites inline it.                                                                                                 | `paidConsent.test.ts` it.each pair + "logs only the kind …"                                                                                | Old line restored → 2 tests fail; restored byte-exact                                                                                                             |
-| paidConsent.ts:584 save path               | Same raw-message log; an unsaved grant looked like a kept one.                                    | An `Error` from the grant store.                                                                             | Same kind-only log; approved use still goes ahead once.                                                                                                   | Same as above (write-failure case)                                                                                                         | Old line restored → test fails; restored byte-exact                                                                                                               |
-| paidConsent.ts:897 `quoteGrantEpoch()`     | A corrupt generation parsed as epoch-less, silently treated as fresh.                             | Malformed text (`SyntaxError`); parsed-but-unversioned answers `undefined` above.                            | Corrupt generation is invalid, never an epoch; keep-path refuses via `invalidAccount`. Old≡new on real inputs (`JSON.parse` throws only `SyntaxError`).   | `accountPaidConsent.test.ts` "ignores a malformed quote generation …": asks again, saved order restarts (2, not the stored 99)             | Old `catch { return undefined }` restored → suite passes (proves no behavior change); restored byte-exact                                                         |
-| paidGrants.ts:60 grant JSON                | Any parse failure read invalid, hiding kind.                                                      | Malformed JSON (`SyntaxError`).                                                                              | Same fixed refusal, now carrying its syntax `cause` (a grant record holds no secret).                                                                     | `paidGrants.test.ts` "malformed generation …" warns `not valid JSON`, reads empty                                                          | Old `catch { throw … }` restored → suite passes (old≡new; cause is additive); restored byte-exact                                                                 |
-| paidGrants.ts:139 `readQuotes()`           | Unreadable folder read as no quotes: stored "always" grants silently ignored, person asked again. | Missing folder (`ENOENT` code) is absent; anything else is unreadable.                                       | Absent → `[]` silently; unreadable → warned once with its store code, still reads as no quotes (file convention: warn-and-ignore for non-changing reads). | `paidGrants.test.ts` "reports an unreadable quote folder …" (`(EACCES)`, grant file still honored)                                         | Old `catch { return [] }` restored → warn assertion fails; restored byte-exact (`3021d6a4`)                                                                       |
-| prices.ts:80 `isPublicUrl()`               | Any `URL` failure read as not-public.                                                             | Malformed URL (`TypeError`).                                                                                 | Same `false`, non-errors propagate.                                                                                                                       | Covered by `estimatorPrices.test.ts` URL cases                                                                                             | Guard removal reverts class; behavior pinned by existing cases                                                                                                    |
-| prices.ts:130 cache read                   | Store failure only set a flag; a foreign throw degraded silently.                                 | An `Error` from the port (production port returns `undefined` when absent).                                  | Throw → `unavailable` reason; `undefined` → absent path; non-error propagates.                                                                            | `estimatorPrices.test.ts` "reads an unreadable cache …": `unavailable` vs `networkOff`, no store text leaks, string rejection propagates   | Old catch restored → non-error assertion fails; restored byte-exact (`6427cd21`)                                                                                  |
-| history.ts:113 `isConsented()`             | Corrupt settings read as refusal, indistinguishable from one.                                     | An `Error` from the settings read (missing answers the default).                                             | Corrupt → still not consent, but reported once through `onError`; refusal reports nothing.                                                                | `resourceHistoryReview.test.ts` "reports an unreadable history choice …"                                                                   | Old `catch { return false }` restored → report assertion fails; restored byte-exact (`725e690b`)                                                                  |
-| history.ts:158/170 sample/event            | Unbound catches reported without naming the failure.                                              | An `Error` from the recorder (a `void` pump must not turn a foreign throw into an unhandled rejection).      | Same once-only `report()`; non-`Error` propagates.                                                                                                        | "reports a failing sample once …" (occurrence, once)                                                                                       | Old `catch { report() }` restored → suite passes (behavior kept for `Error` inputs); restored byte-exact                                                          |
-| schedules/consent.ts:22                    | Corrupt vs hostile file shared one code; a foreign read failure wore it too.                      | An `Error` reading/parsing (absent answers `undefined`); non-errors keep kind.                               | Same fixed `scheduleStoredJsonInvalid`, shared with the six sibling stores; refusal carries no cause (a store message can name the file path).            | `scheduleRuntime.test.ts` "background consent store reads": missing → `undefined`, corrupt/hostile → fixed code, string failure propagates | Old catch restored → passthrough test fails; restored byte-exact (`6ba1b8b1`)                                                                                     |
-| accountHost.ts:83 `requestAccount()`       | Any host failure read as `undefined` (no answer).                                                 | An `Error` from the host/deadline; schema mismatch already answers `undefined` via `safeParse`.              | Same `undefined` (downstream reads it as "could not say": probe → `unknown`, device poll continues, logout → `unconfirmed`); non-errors propagate.        | `accountHost.test.ts` "lets a non-error failure keep its kind …"                                                                           | Revert passes for `Error` inputs (callers already treat `undefined` honestly)                                                                                     |
-| accountHost.ts:110 start fallback          | Fallback taken for anything, log line unshaped.                                                   | An `Error` starting the host.                                                                                | Same fallback; log kind shaped through `wireWordForLog` (existing probe tests asserting `: Error` unchanged).                                             | Existing `: Error` assertions + new passthrough case                                                                                       | — (message preserved; test asserts it)                                                                                                                            |
-| credentialStore.ts:99 presence             | Store failure returned `true`: presence assumed exactly when the store could not say.             | An `Error` from the secret store.                                                                            | Store failure → `false` (matches `getApiKey`'s existing convention) warned once with its kind; damaged (unparseable) records still count as present.      | `credentialStore.test.ts` "reads an unreadable secret store …" (`false`, one kind-only warning, no path text) + passthrough case           | — (new behavior; old `true` fails the new assertion by construction)                                                                                              |
-| credentialRecords.ts:92 stored JSON        | Any parse failure read invalid, hiding kind.                                                      | Malformed JSON (`SyntaxError`).                                                                              | Same fixed sentence via a `never` refusal helper; carries no cause (a syntax message quotes the secret).                                                  | Existing "refuses a stored value …" cases                                                                                                  | Guard removal reverts class; behavior pinned                                                                                                                      |
-| credentialRecords.ts:121 `isOriginBound()` | Any URL failure refused, hiding which side was malformed.                                         | Malformed URL (`TypeError`); stored records passed the URL schema, so only the request origin can fail here. | Same `false` (fail-closed); non-`TypeError` propagates.                                                                                                   | Existing origin-mismatch cases                                                                                                             | — (same; comment states the side)                                                                                                                                 |
-| accountSecrets.ts:46 stored JSON           | Corrupt vs wrong-shape shared `invalidCredential` silently.                                       | Malformed stored text (`SyntaxError`); wrong shape answers below.                                            | Same `invalidCredential` (the fitting fixed vocabulary for both); non-errors propagate.                                                                   | Existing "rejects malformed records …" + new write/remove passthrough test                                                                 | Revert passes for real inputs (`JSON.parse` throws only `SyntaxError`)                                                                                            |
-| accountSecrets.ts:152/172 write/remove     | Any store failure read unavailable, hiding kind.                                                  | An `Error` from the vault.                                                                                   | Same `unavailable`; non-errors propagate.                                                                                                                 | New "lets a non-error vault failure …"                                                                                                     | — (new passthrough assertions)                                                                                                                                    |
-| discovery.ts:88 `oauthJson()`              | Any fetch/bound/parse failure denied, hiding kind.                                                | An `Error` anywhere in the fetch path.                                                                       | Same deny (fail-closed); non-errors keep kind past the boundary.                                                                                          | Existing deny cases                                                                                                                        | Revert passes for real inputs (ports throw `Error`s)                                                                                                              |
-| discovery.ts:132/155 metadata parses       | Malformed vs foreign parse failure shared the deny.                                               | An `Error` parsing.                                                                                          | Same deny; non-errors propagate. The `finally` wipe is untouched.                                                                                         | Existing invalid-metadata deny cases                                                                                                       | — (same)                                                                                                                                                          |
-| client.ts:155 `run()` tail                 | A caller stop read as `denied` (`vault.noAccess`).                                                | The caller's own `signal.aborted`; timeouts and operation failures still deny.                               | Abort propagates the stop reason; everything else denies as before.                                                                                       | New "lets a caller stop stay a stop …" (contains the stop reason, not `noAccess`)                                                          | Old `catch { oauthDenied() }` restored → stop reads as deny, test fails; restored byte-exact (`e44e019c`)                                                         |
-| client.ts:458 refresh                      | Refresh/save failure quarantined and denied without naming the failure.                           | An `Error` refreshing or saving.                                                                             | Same quarantine-then-deny; non-errors propagate.                                                                                                          | Existing refresh-failure cases                                                                                                             | — (same)                                                                                                                                                          |
-| crypto.ts:170 `aesGcmOpen()`               | Corrupt data vs wrong key shared `authentication` silently.                                       | An `Error` from the cipher (AEAD cannot distinguish the two by design).                                      | Same `authentication` code, now naming the indistinguishability in the comment; non-errors propagate.                                                     | New "reads a wrong key and corrupt data alike as authentication …" (both pin `.code`)                                                      | Old catch restored → code assertions still pass (code kept); guard names the condition                                                                            |
-| crypto.ts:301 `decodeVaultMaterial()`      | Any decode failure read `invalid`, hiding kind; wipe ran regardless.                              | `VaultError` or `SyntaxError` (malformed encoding).                                                          | Same `invalid` with the same field wipe; anything else propagates.                                                                                        | Existing invalid-encoding cases                                                                                                            | — (same)                                                                                                                                                          |
-| credentialFile.ts:99 verdict               | Unparseable file read `unrecognized` for any reason.                                              | Malformed text (`SyntaxError`); unknown shape answers below.                                                 | Same `unrecognized` → the CLI is still asked (fail-closed: `unknown` counts as possibly signed in).                                                       | Existing malformed/unknown-shape cases                                                                                                     | — (same; `JSON.parse` throws only `SyntaxError`)                                                                                                                  |
-| accountCredentialRecord.ts:20 binding      | Any origin failure failed the binding.                                                            | Malformed origin (`TypeError`, the only thing `new URL` throws).                                             | Same `false` (unbound); anything else propagates out of the refinement.                                                                                   | Covered by `accountSecrets` malformed-record cases                                                                                         | — (same)                                                                                                                                                          |
-| modelsPanel.ts:241 edit snapshot           | Any snapshot failure read as `importNeedsKey`: a store outage asked for a key.                    | An `Error` from the snapshot store.                                                                          | Store failure → row says `providerSaveSecretFailed` (reused key, no new translations) + kind-only log line; origin mismatch still says `importNeedsKey`.  | New "says the store failed instead of asking for a key …" (sentence, kind log, no leaked key text)                                         | Not reverted (credential handler; brief drills money/consent only): old code yields `importNeedsKey`, so the new sentence assertion discriminates by construction |
-| modelsPanel.ts:969 save pump               | Any save failure reached the draft without naming the failure.                                    | An `Error` from the save.                                                                                    | Same `fail()` path; non-errors keep kind past the queue.                                                                                                  | Existing save-failure cases                                                                                                                | — (same path)                                                                                                                                                     |
-| modelsPanel.ts:988 refresh                 | Fixed log line without the kind.                                                                  | An `Error` refreshing.                                                                                       | Same notice; log now carries only the kind. REPORTED → NARROW.                                                                                            | Existing refresh-failure cases (already assert no key text leaks)                                                                          | — (same notice)                                                                                                                                                   |
-| modelsPanel.ts:1224 queue pump             | Any handler failure reached the draft without naming the failure.                                 | An `Error` from the handler.                                                                                 | Same `fail()` path; non-errors propagate (no longer swallowed by the queue).                                                                              | Existing queue-failure cases                                                                                                               | — (same path)                                                                                                                                                     |
+Sentence: `credentialStoreUnreadable` ("Saved credentials could not be
+read: {reason}. The safe state is kept: nothing was signed out or released.
+Check keychain access and try again.") with `credentialStoreReason*` kind
+words. Tests: `test/unit/credentialStore.test.ts` (three states, scan finds
+a working provider past an unreadable entry and still records it,
+non-Errors keep their kind),
+`test/unit/providerCredentialStore.test.ts`,
+`test/unit/authService.test.ts` ("with an unreadable credential store":
+hold kept, no lift, never signed-out-as-if-none, told once per kind).
 
-## Notes for the lead
+TBL-02 — `getApiKey()` operational collapse (`credentialStore.ts`):
+undefined for non-guard backend key reads only, warned once with the kind
+word; guards must use TBL-01.
 
-- `preserve-caught-error` (core ESLint, error level) fires on `throw new
-Error(...)` inside a bound catch. Three sites needed structural answers,
-  not `cause` attachments: `paidGrants.ts:63` attaches `{ cause: error }`
-  (a grant record holds no secret); `credentialRecords.ts:92` refuses
-  through a documented `never` helper and `schedules/consent.ts:22`
-  defers the throw past the catch, because a syntax message quotes the
-  stored secret and a store message can name the file path. No
-  `eslint-disable` was added anywhere (`src` still has zero).
-- `getApiKey`'s store-failure warning (`credentialStore.ts:48`,
-  already REPORTED) still logs the redacted store message, not a bare
-  kind. Left as-is: changing it would alter the existing warn-once
-  contract and its tests; flagging for a follow-up if the lead wants
-  kinds there too.
-- Drills: every money/consent handler was reverted in memory and its
-  suite re-run (see Drill column). Where old≡new on every real input
-  (`quoteGrantEpoch`, JSON-only throws), the revert passes and the
-  record says so; the new tests pin the observable contract (ordering
-  restarts, absent/unreadable split, report-once). All restores verified
-  byte-exact by sha256 before committing.
-- Contract change (surfaced decision): `resourceJournal.test.ts` asserted
-  that a corrupt usage-history choice reports nothing. The brief ranks
-  that silence as the defect, and no code shape satisfies both the old
-  assertion and the required report (the recorder's only channels are its
-  boolean answer, which stays fail-closed `false`, and the once-only
-  host record). The test now asserts corrupt → still refused + reported
-  once. Related-suite triage found one more real signal (this one) and
-  otherwise only pre-existing environmental failures, verified identical
-  on a clean base worktree: sandbox-blocked sockets (`EPERM` on loopback
-  listen, process spawn and unix-socket paths), load timeouts on the
-  randomized rollup trials (pass on re-run), and browser/OS-dependent
-  subscription, voice, media and lifetime suites.
-- Commits: `fcfe634d5` (core paid), `65e6037a0` (core shapes),
-  `0e253450a` (runtime), `3e30829af` (host auth), `5bf5f018a` (panel).
-  Baseline regeneration is committed separately below with this record.
+TBL-03 — `readAccountState` (`accountHost.ts`): "cannot say" reads as
+unsigned-in; the sign-in gate re-asks rather than releasing anything on it.
 
-## Round 2 — review RVCATCHMONEY findings (2026-10-12)
+TBL-04 — `setLogoutHold` write failure (`authService.ts`): `false` is "not
+saved", never "not held"; every caller keeps the hold and says
+`signOutHoldFailed`.
 
-Lane: fix/catch-money. All ten findings (1 P1, 7 P2, 2 P3) fixed and
-shipped; no residuals. Each fix sweeps the lane for siblings of the same
-kind. Each fix has a regression test that fails without it and a red drill
-(break the guard, see the named test fail, restore byte-exact, sha256
-verified, `git status` clean before committing).
+TBL-05 — `stopBackend` failure: `false` is "still running", never "nothing
+to stop"; the sign-out keeps its hold with `signOutStopFailed`.
 
-Counts: `scripts/catch-baseline.json` is byte-identical (SWALLOW/GENERIC
-unchanged; `npm run check:catches` exits 0). New handlers since round 1:
-three NARROW `readFileSync`/`writeFileSync`/`JSON.parse` catches in
-`history.ts` (F6), one NARROW JSON catch in `schedules/consent.ts` (F8),
-four CLEANUP pump-tail handlers with reason comments (F4: two `.catch(`
-in `history.ts`, one `.catch(` plus one `catch {}` in `modelsPanel.ts`;
-CLEANUP is outside the baseline). `check:l10n` passes: two new keys
-(`paidQuoteChoicesUnreadable`, `paidAlwaysNotKept`) in EN and all 14
-translated tables; translations are contributor best-effort, flagged for
-native review.
+TBL-06 — `runInTerminal` failure: `false` is "not attempted", never "logged
+out"; the sign-out falls back to the next logout path.
 
-| Finding                                        | Fix                                                                                                                                                                                                                                                                                       | Regression test                                                                                                                                                                                                                                           | Red drill (old handler back → named test fails, restored byte-exact)                                                                                                                                                                                                                                                                                            |
-| ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1 (P1) unreadable provider hides a working one | `credentialStore.ts` presence scan records each unreadable entry (provider id, kind, once each) and continues; `return true` only for local-model providers (stopping is right: no credential needed, answer cannot change). `ProviderCredentialStore` inherits the fix (no second scan). | `credentialStore.test.ts` "finds a working provider past an unreadable entry" in both orders `[broken, openrouter]`, `[openrouter, broken]` (+ warning names provider, kind only)                                                                         | `return false` in the catch → both order cases fail; restored byte-exact                                                                                                                                                                                                                                                                                        |
-| 2 (P2) cancel check tests the weather          | `client.ts` `run()` rethrows only when the caught error IS the caller's abort reason (`signal.aborted && error === signal.reason`); timeouts and raced failures still deny                                                                                                                | `mcpOAuth.test.ts` "denies a store failure racing a caller stop instead of leaking it" (private text fails during abort → `noAccess`, no leak); existing stop test still passes (reason identity through `AbortSignal.any` verified)                      | `if (signal.aborted) throw error` → probe fails; restored byte-exact. Sweep: the only `signal.aborted`-in-catch in the lane's files                                                                                                                                                                                                                             |
-| 3 (P2) erase before you leave                  | `decodeVaultMaterial` wipes in a `finally` keyed to a completion flag (success owns its fields; every failure abandons zeroes)                                                                                                                                                            | `crypto.test.ts` "wipes already-copied fields when a later allocation fails" (2nd `Buffer.alloc` throws, 1st copy zeroed)                                                                                                                                 | Old order (wipe after rethrow) → test fails; restored byte-exact. Sweep: every other lane wipe sits in a `finally` or before its throw (client signIn/fetch, discovery, seal/open blocks, `randomVaultBytes`, paidGrants temp)                                                                                                                                  |
-| 4 (P2) fire-and-forget rethrows                | History sampler/event tails and the panel queue tail record a foreign failure with the fixed sentence (`report()` / `fail(failedDraft, new Error(actionFailed))`) and continue; the queue's `await previous` is guarded so one failure cannot poison later messages                       | `resourceHistoryReview.test.ts` "records a foreign pump failure with no unhandled rejection" (record + silent hook); `modelsPanelEdit.test.tsx` "records a foreign save failure … and keeps the queue" (fixed sentence + second save works + silent hook) | Bare `void`/bare chain → both tests fail (report never fires / draft never fails); restored byte-exact. Call-site audit: every other lane-changed thrower is awaited by its caller (client run, consent keep paths, grants, discovery, prices, accountHost, crypto, credentialStore) or sync-propagates to an owning try (panel save/snapshot inside the queue) |
-| 5 (P2) unreadable Always                       | Fail-closed stays; `paidGrantFile` keeps the quote-folder failure kind, `PaidUseConsent` carries it in the ask request, the shared `paidUseQuestion` formatter shows it with the question on both surfaces; 14 translations                                                               | `paidGrants.test.ts` notice assertion; `paidConsent.test.ts` "tells the search question when saved Always quotes could not be read" (ask request carries notice + rendered sentence)                                                                      | Each link reverted separately (store assignment, ask spread, formatter line) → the surface test fails each time; restored byte-exact                                                                                                                                                                                                                            |
-| 6 (P2) once across windows/restarts            | Announcement keyed to the damaged file's `size:sha256`, recorded durably in `<settings>.reported` beside the journal state; per-instance set plus marker (missing/damaged marker announces; unwritten marker only repeats)                                                                | `resourceHistoryReview.test.ts` "reports one corrupt history choice once across windows and a restart, until it changes" (two instances + restart silent, changed file announces)                                                                         | Shared `report()` in the choice catch → second-window case fails; restored byte-exact                                                                                                                                                                                                                                                                           |
-| 7 (P2) unsaved Always is said                  | `PaidUseConsentDeps.onNotKept` port; editor → `showWarningMessage`, ACP → session `agent_message_chunk` via `attachNotify`, terminal runtime → operator console (`log.warn` backstop; served sessions upgrade via the agent); one sentence, 14 translations                               | Unit: remember/order/save sites assert the typed notice; per host: editor warning text, ACP `attachNotify` capture, terminal `notify` capture, full-agent session chunk                                                                                   | Each port/wire removed → its host test fails (editor, ACP ×2, agent); restored byte-exact                                                                                                                                                                                                                                                                       |
-| 8 (P2) schedule consent classifies             | Read failure: `ENOENT` → missing, errno → `scheduleStoredUnreadable:<code>`, codeless → rethrown; malformed JSON (`SyntaxError`) or wrong shape (`safeParse`) → `scheduleStoredJsonInvalid`; throws deferred past the catches (no `cause`: a store message can name the file path)        | `scheduleRuntime.test.ts` errno cases (`EACCES`, `EIO`) + "passes on a codeless read failure" (same `TypeError` object back)                                                                                                                              | Old `isInvalid` catch-all → all three fail; restored byte-exact                                                                                                                                                                                                                                                                                                 |
-| 9 (P3) drills that pass are not drills         | Below: every handler names its failing test, or plainly why none exists                                                                                                                                                                                                                   | New discriminating tests (grant-JSON cause, discovery passthrough, refresh quarantine bypass, refresh-log kind, connect fallback)                                                                                                                         | All rerun; failing test per handler below                                                                                                                                                                                                                                                                                                                       |
-| 10 (P3) changelog                              | Entry moved from dated `0.18.0` `Fixed` to `[Unreleased]` `Pending`, rewritten to what round 2 implements (no blanket "true reasons"/"kept kinds" claim)                                                                                                                                  | —                                                                                                                                                                                                                                                         | —                                                                                                                                                                                                                                                                                                                                                               |
+TBL-07 — `remember()` write failure (`paidConsent.ts`): `false` is "not
+kept, allowed once, person told" (`onNotKept` fired above the return), never
+"not allowed".
 
-### F9 drill disposition per handler (32)
+TBL-08 — `searchApprovalOrder()` failure: `undefined` is "no order, allowed
+once, person told", never "no quote".
 
-Each revert was restored byte-exact (sha256 + clean `git status`) before
-the next. "Fails" = the named test fails with the old handler back.
+TBL-09 — grant record read failure (`paidGrants.ts`): warns with its kind
+and reads as no record, so the use asks again (fail closed for money).
 
-Fires, money/consent/credential order: `remember()` → "tells the person
-at once when Always could not be kept"; order/save paths → "lets the
-approved use go ahead once when the order is refused / the order store
-throws / the save fails, and asks again" (3 cases); grant JSON →
-"carries the syntax failure as the cause when a generation must be
-captured"; quote folder → "reports an unreadable quote folder …" (warn
-and notice assertions); prices cache → "reads an unreadable cache …"
-(non-error case); history choice → "reports one corrupt history choice
-once across windows and a restart, until it changes"; history pumps →
-"records a foreign pump failure with no unhandled rejection"; schedule
-consent → errno cases + "passes on a codeless read failure";
-`requestAccount` → "lets a non-error failure keep its kind instead of
-reading as no answer"; connect fallback → "… instead of answering with
-the fallback"; credential presence → "finds a working provider past an
-unreadable entry" (both orders); vault write/remove → "lets a non-error
-vault failure …"; discovery fetch → "lets a foreign fetch failure keep
-its kind past discovery …"; client run → "denies a store failure racing
-a caller stop …"; refresh save → "denies a foreign refresh-save failure
-without quarantining …"; vault decode → "wipes already-copied fields
-when a later allocation fails"; panel snapshot → "says the store failed
-instead of asking for a key …"; panel queue → "records a foreign save
-failure … and keeps the queue"; panel refresh → provider-refresh cases
-(kind assertion on all three sources; the save acknowledgement's outer
-refresh catch and the host-notify catch carried no kind either and now
-log kind-only with foreign passthrough to the queue tail); search-question
-notice → "tells the search question
-when saved Always quotes could not be read" (store/ask/formatter links
-drilled separately); not-kept notices → editor/ACP/terminal/agent host
-tests above.
+TBL-10 — quote folder listing failure: `[]` is "cannot list, ask again"
+with the kind warned and carried in the next question, never "no quotes".
+The warning is once per damage through the shared noter.
 
-No revert-failing test exists, and why (old≡new on every reachable
-input; the guard names the expected condition for robustness):
-`quoteGrantEpoch` and grant/credential/account-secret/credential-file
-JSON (`JSON.parse` on strings throws only `SyntaxError`); `isPublicUrl`,
-`isOriginBound`, account-credential binding (`new URL` on strings throws
-only `TypeError`; `isPublicUrl` is not exported, so no seam);
-discovery metadata parses (the `try` holds only a zod `parse`, which
-throws `Error`s); `aesGcmOpen` (the cipher throws `Error`s only; AEAD
-indistinguishability is documented, not diagnosed).
+TBL-11 — damage marker read (`damageNotice.ts`): a missing or damaged
+marker reads as no marker, and no marker announces; the marker only ever
+suppresses a DUPLICATE announcement, so its absence can never hide damage.
 
-### F8 sweep: every lane catch testing only `instanceof Error`
+TBL-12 — usage-history choice read (`history.ts`): `false` is "no consent
+without a readable choice", announced once per damage, never "refused".
 
-Fixed: `schedules/consent.ts` (errno split), `credentialStore.ts`
-(continue + record, F1), paid-consent keep paths (kind now reaches the
-person, F7). Stopping is right: prices cache (absent arrives as
-`undefined`, every `Error` is `unavailable`), client refresh (quarantine
-then deny is the action for every `Error`; foreign bypasses it, F9
-drill), discovery fetch/parse (deny is the action; foreign passes past
-the boundary, F9 drill), history choice (missing handled in the reader;
-corrupt and unreadable announce identically), history pumps (record
-identically; foreign handled at the tail, F4), accountHost
-request/connect (both already answer honestly: `undefined`/fallback +
-kind log; foreign propagates, F9 drills), modelsPanel snapshot/refresh
-(kind log + fixed sentence; foreign handled at the queue tail, F4/F9
-drills), panel save (draft diagnostics are message-based by existing
-contract, out of this finding; foreign takes the F4 fixed path),
-vault `aesGcmOpen` (AEAD-indistinct by design) and decode (F3),
-account-vault write/remove (every store failure is `unavailable`; the
-`cause` stays out because a store message can echo the value being
-written — `register()` runs first for the same reason), paidGrants
-`read()` (already splits `ENOENT`), grant JSON (now carries its
-`cause`, F9 drill).
+## Safety actions (run whatever was thrown)
 
-### Round-1 shapes that were wrong (for the data-loss lane)
+- OAuth refresh quarantine (P2-2, `src/core/mcp/oauth/client.ts`): the
+  token POST may already have rotated the refresh token server-side, so
+  `vault.invalidate` runs before the type test, decided by
+  `dispatch.hasStarted` (what was SENT). The rewritten test
+  (`test/unit/vault/mcpOAuth.test.ts`, "quarantines a sent refresh whatever
+  the save failure is, then rethrows it") asserts invalidate ran AND the
+  boundary still denies instead of leaking the foreign value. The old
+  assertion (no quarantine for a non-Error) was wrong because a non-Error
+  save failure does not un-send the rotation.
+- Secret-material wipes stay in `finally` (client wipe, parsed/item wipe):
+  decided by scope exit, never by the failure's type.
+- Non-`Error` throws keep their kind everywhere: every rewritten handler
+  rethrows them before any type test.
 
-- `if (signal.aborted) throw error` lets any raced failure out raw; test
-  the error's identity (`error === signal.reason`), not the weather.
-- `return false` / `throw` inside a scan iteration hides later entries;
-  record (who, kind) and continue unless the answer is already decided.
-- A rethrow placed before an inline cleanup skips the wipe for foreign
-  values; every exit goes through a `finally`.
-- A function changed to rethrow needs an owner at every `void` call
-  site: record with the fixed code there and state stop/continue.
-- Fail-closed without telling is half a fix: unreadable-saved and
-  unsaved choices travel to the person in the question/notice.
-- A local once-flag reports again per window/restart; key the report to
-  the damaged content, durably.
-- `instanceof Error` alone merges unreadable with invalid and faults
-  with malformed; split by errno/syntax/schema, pass the rest on.
-- A drill that passes on revert proves nothing; each handler needs a
-  named test that fails with the old handler back, or a stated why-not.
+## Notice rules (one place: `DamageNoter`)
+
+Once per distinct damage, again when the damage changes, again when it
+recurs after the file was healthy; never on every sample. The marker is
+written atomically (temporary file plus rename) and cleared on a healthy
+read. One sentence per damaged thing, saying what is damaged, what the
+product does, and what to do:
+
+| Damage                            | Sentence key                                        | Shown                                         |
+| --------------------------------- | --------------------------------------------------- | --------------------------------------------- |
+| history choice unreadable         | `resourceHistoryChoiceUnreadable`                   | editor notice, stderr once, ACP error channel |
+| history choice invalid            | `resourceHistoryChoiceInvalid`                      | same                                          |
+| credential store unreadable       | `credentialStoreUnreadable` + kind                  | editor notice / panel warning                 |
+| quote folder unreadable           | warn kind + `PaidQuoteNotice` in the question       | log once + next paid question                 |
+| schedule consent unreadable       | `scheduleConsentUnreadable` + errno kind            | refused reason in the panel                   |
+| panel foreign failure             | `actionFailed` ("That did not work…")               | draft errors, never a write conflict          |
+| media refusal / stop / permission | host reason / cleared / `recordingPermissionDenied` | media controls                                |
+| paid choice not kept              | feature + kind sentence at once                     | asking session (P2-3)                         |
+
+The asking session's id travels with the pending paid write
+(`notifySession` through `allows`/`decide`/`allowSearch`/`remember` into
+`PaidNotKeptNotice.sessionId`): with two sessions sharing one folder, A's
+failing save tells A even when B asked meanwhile
+(`test/unit/acpPaid.test.ts`, "tells the asking session…").
+
+Follow-up (not this round): the ACP agent has no session-notification
+transport in reach of the resource entry, so a damaged choice there falls
+back to the agent's existing resource-error channel with the true sentence;
+a dedicated `session/notification` needs the agent's sender threaded
+through.
+
+## Review finding closures (P2-1 … P2-7, P3-1 … P3-7)
+
+| Finding                                    | Commit                           | Test                                                                                                |
+| ------------------------------------------ | -------------------------------- | --------------------------------------------------------------------------------------------------- |
+| P2-1 three-valued credential reads         | P2-1/P3-5 commit                 | `credentialStore`, `providerCredentialStore`, `authService` unreadable-store, `credentialReadGuard` |
+| P2-2 quarantine before the type test       | P2-2 commit                      | `mcpOAuth` "quarantines a sent refresh…"                                                            |
+| P2-3 notice bound at ask time              | P2-3/guard commit                | `acpPaid` "tells the asking session…"                                                               |
+| P2-4 unreadable announced every sample     | P2-4/5/6 commit                  | `resourceHistoryReview` "reports an unreadable history choice once…"                                |
+| P2-5 three hosts, three wrong sentences    | P2-4/5/6 commit                  | `resourceHistoryReview` "tells the damaged choice…"                                                 |
+| P2-6 once-marker never cleared             | P2-4/5/6 commit                  | `resourceHistoryReview` "reports the same damage again…"                                            |
+| P2-7 media refusals and stop               | Part 3 batch commit              | `companionMedia` refusal / stop / permission / generic                                              |
+| P3-1 panel queue foreign failure           | Part 3 batch commit              | `modelsPanelEdit` "records a foreign save failure…" (rewritten)                                     |
+| P3-2 no internal words                     | adapter + sentence keys          | `reasonTextForKind`, kind-word keys in 14 languages                                                 |
+| P3-3 stale quote notice, unbounded warning | Part 3 batch commit (paidGrants) | `paidGrants` stale-notice + warn-once                                                               |
+| P3-4 consent errno reaches the sentence    | Part 3 batch commit (schedules)  | `scheduleRuntime` kind-word tests                                                                   |
+| P3-5 classifier blesses `String(error)`    | P2-1/P3-5 commit                 | `catchInventory` suite + named site fixed + `credentialStore` log test                              |
+| P3-6 test that cannot fail                 | Part 3 batch commit (paidGrants) | `paidGrants` missing-folder test (reaches the branch)                                               |
+| P3-7 stale line numbers, rule 18 wording   | records commit                   | table below regenerated from the code; AGENTS.md rule 18 matches the classifier                     |
+
+Rounds 1–2 history: 32 handlers rewritten with per-handler drills (see git
+history `fix/catch-money` before this round's merge); the round-2 review
+drove this round's redesign instead of a third handler-by-handler pass.
+
+## Red drills (each construction fires)
+
+- A boolean reintroduced: adding `hasModelApiCredential()` back to the
+  store fails the guard with `src/host/auth/credentialStore.ts:96:
+collapsing boolean hasModelApiCredential reintroduced: use
+readModelApiCredential`. Restored byte-exact (sha256 da6b3dac…).
+- A non-exhaustive switch: deleting the `absent` arm fails the compiler
+  with `src/host/auth/authService.ts(848,33): error TS2345: Argument of
+type '{ readonly outcome: "absent"; }' is not assignable to parameter of
+type 'never'`. Restored byte-exact (sha256 50ccb162…).
+- The quarantine after the type test: the old order fails the rewritten
+  `mcpOAuth` test (invalidate never called). Restored byte-exact (sha256
+  fccab8cf…).
+- The notice looked up late: the old `notifySessions`-only lookup fails the
+  two-session test (B told, A never). Restored byte-exact (sha256
+  205bee64…).
+- P2-4/P2-6/P3-6/P3-1 drills: the new tests fail on the old code (history
+  d21cbc87…, paidGrants c74209b8…, modelsPanel d858ffaa…), each restored
+  byte-exact.
+
+## Catch baseline (classifier change, P3-5)
+
+`mark` in `scripts/lib/catch-inventory.mjs` now records an identifier
+inside a non-redacting call as a leak, with a verified-safe set
+(`storeErrorCode`, `describeStoreError` via `redactSecrets`, `errorKind`,
+`errorName`, `codeOf`; a bare `describe` stays a leak because the same name
+is wrapped in one module and raw in three others). The stricter classifier
+reclassifies 94 handlers from REPORTED to GENERIC across acp/core/host/root/
+runtime — all raw-error logs the old classifier blessed (e.g.
+`${String(error)}`, message-bearing `describe()`). The named ones in this
+lane's files are fixed (`credentialStore.ts` warn,
+`acp/paid.ts` forget warn, panel/media/consent sentences); the rest are
+grandfathered by regenerating the baseline with the documented
+`--write-baseline` after this intentional fix, recorded here for follow-up
+(the full list was diffed old-vs-new classifier output; counts per area are
+in `scripts/catch-baseline.json`). The gate still fails on any new rise.
+
+## Guarded-modules handler table (P3-7, generated from the code)
+
+Regenerated with the repository's own scanner; do not hand-edit. Command:
+
+`node --input-type=module -e "import('./scripts/lib/catch-inventory.mjs').then(m =>
+console.log(JSON.stringify(m.scanCatches(process.cwd()))))"` filtered to
+the guarded paths (`src/host/auth`, `src/core/paid`, `src/acp/paid.ts`,
+`src/runtime/paidGrants.ts`, `src/runtime/damageNotice.ts`,
+`src/runtime/schedules`, `src/runtime/resources`), 98 handlers at this
+round's head. Every absence return in these modules is either proven under
+a named condition or carries a `read-state: cert TBL-nn` marker from the
+table above; the guard test enforces both.
+
+| File:line                                     | Class    | Handler                                                                          |
+| --------------------------------------------- | -------- | -------------------------------------------------------------------------------- |
+| src/acp/paid.ts:143                           | REPORTED | { this.deps.log.warn( `Paid use of ${request.feature}: the editor could not be a |
+| src/acp/paid.ts:286                           | REPORTED | { // The log carries only the failure's kind, never the store message. this.deps |
+| src/core/paid/paidAuthority.ts:470            | NARROW   | { if (!(error instanceof Error) // !('code' in error) // error.code !== 'EEXIST' |
+| src/core/paid/paidConsent.ts:267              | REPORTED | { await settle(Usd.from(0).toAmount()) throw error }                             |
+| src/core/paid/paidConsent.ts:399              | NARROW   | { // A store that cannot be written leaves this use allowed once (an // account  |
+| src/core/paid/paidConsent.ts:439              | NARROW   | { // A quote order the store cannot hand out leaves the approved use // allowed  |
+| src/core/paid/paidConsent.ts:645              | NARROW   | { // A quote grant the store cannot keep leaves the approved use // allowed once |
+| src/core/paid/paidConsent.ts:972              | NARROW   | { // Only malformed text fails here; a parsed but unversioned generation // answ |
+| src/core/paid/paidConsent.ts:1034             | CLEANUP  | { // A failed prior owner must not block this mutation; its caller received the  |
+| src/core/paid/paidConsent.ts:1161             | REPORTED | { this.askEpochs.delete(request.feature) throw error }                           |
+| src/core/paid/paidConsent.ts:1208             | NARROW   | { // Another instance revoked first: re-read and advance past it. // Any other f |
+| src/core/paid/paidConsent.ts:1219             | NARROW   | { // A concurrent revoke advanced further meanwhile: its clear owns // the grant |
+| src/host/auth/accountHost.ts:83               | NARROW   | { // The host failed or did not answer in time: it said nothing, which is // not |
+| src/host/auth/accountHost.ts:115              | NARROW   | { // A host that cannot start answers with the fallback. Anything that is // not |
+| src/host/auth/accountHost.ts:127              | REPORTED | { log.warn(`The Muse Code account host did not close cleanly: ${errorName(error) |
+| src/host/auth/accountHost.ts:272              | REPORTED | { await handshake.close() throw error }                                          |
+| src/host/auth/authService.ts:279              | GENERIC  | { // read-state: cert TBL-04. A hold write that fails returns false, and // ever |
+| src/host/auth/authService.ts:324              | GENERIC  | { // read-state: cert TBL-05. "Could not stop" returns false and the // sign-out |
+| src/host/auth/authService.ts:373              | GENERIC  | { this.deps.log.warn('The running backend could not stop before switching backen |
+| src/host/auth/authService.ts:599              | GENERIC  | { this.deps.log.warn( `In-panel sign-in failed: ${error instanceof Error ? error |
+| src/host/auth/authService.ts:645              | REPORTED | { if (this.publishedTicket !== published) { this.deps.log.warn('The backend did  |
+| src/host/auth/authService.ts:789              | GENERIC  | { this.deps.log.warn( `Muse Code installer terminal failed: ${error instanceof E |
+| src/host/auth/authService.ts:890              | REPORTED | { this.deps.log.warn('Plan account identity could not be read') }                |
+| src/host/auth/authService.ts:968              | GENERIC  | { // read-state: cert TBL-06. "Terminal would not open" returns false and // the |
+| src/host/auth/authService.ts:1010             | REPORTED | { isKeyClearFailed = true this.deps.log.warn('Stored Model API key could not be  |
+| src/host/auth/authService.ts:1024             | REPORTED | { isProviderClearFailed = true this.deps.log.warn( 'Stored model provider creden |
+| src/host/auth/cliAccount.ts:58                | GENERIC  | { return MISSING_CODES.has(errorCode(error)) ? undefined : { signature: UNREADAB |
+| src/host/auth/cliAccount.ts:69                | GENERIC  | { return { signature, verdict: 'unrecognized' } }                                |
+| src/host/auth/credentialStore.ts:60           | NARROW   | { // read-state: cert TBL-02 (see the method note): this collapse is by // desig |
+| src/host/auth/credentialStore.ts:103          | NARROW   | { // An unreadable key says nothing about presence. Anything that is not // an e |
+| src/host/auth/credentialStore.ts:123          | NARROW   | { // A provider list that cannot be read cannot prove no provider holds // a cre |
+| src/host/auth/credentialStore.ts:154          | NARROW   | { // An entry that cannot be read says nothing about presence, so the // scan co |
+| src/host/auth/deviceSignIn.ts:227             | REPORTED | { if (isAborted()) { return 'cancelled' } throw error }                          |
+| src/host/auth/deviceSignIn.ts:323             | REPORTED | { deps.log.warn('Muse Code did not confirm the sign-in cancel; closing its host' |
+| src/runtime/damageNotice.ts:103               | CLEANUP  | { // A missing or damaged marker announces, never hides. return }                |
+| src/runtime/damageNotice.ts:112               | CLEANUP  | { // Best effort: an unwritten marker only repeats the announcement. }           |
+| src/runtime/damageNotice.ts:119               | CLEANUP  | { // Best effort: a leftover marker only repeats an announcement. }              |
+| src/runtime/paidGrants.ts:62                  | NARROW   | { // Only malformed JSON reads invalid here: anything else keeps its // kind. Th |
+| src/runtime/paidGrants.ts:74                  | REPORTED | { if (storeErrorCode(error) === ENOENT) { return undefined } // read-state: cert |
+| src/runtime/paidGrants.ts:113                 | REPORTED | { if (storeErrorCode(error) !== EEXIST) { throw error } const winner = read(file |
+| src/runtime/paidGrants.ts:159                 | NARROW   | { // A missing quote folder holds no quotes; an unreadable one is // reported wi |
+| src/runtime/resources/entry.ts:129            | SWALLOW  | { options.onError(new Error(UI_TEXT.resourceHistoryInvalid)) }                   |
+| src/runtime/resources/history.ts:133          | GENERIC  | { return 'unknown' }                                                             |
+| src/runtime/resources/history.ts:172          | NARROW   | { // A missing choice is the default (answered inside the reader); an // unreada |
+| src/runtime/resources/history.ts:220          | NARROW   | { // A failed sample is reported once, never replaced by an invented // reading. |
+| src/runtime/resources/history.ts:232          | NARROW   | { // A failed event is reported once and dropped. Anything that is not // an err |
+| src/runtime/resources/history.ts:244          | CLEANUP  | { // The pump owns this reading: a foreign failure has no consumer, so // the ta |
+| src/runtime/resources/history.ts:253          | CLEANUP  | { // As above: a foreign event failure is recorded once and dropped. report() }  |
+| src/runtime/resources/host.ts:116             | GENERIC  | { options.onError(error) }                                                       |
+| src/runtime/resources/host.ts:137             | GENERIC  | { options.onError(error) }                                                       |
+| src/runtime/resources/host.ts:211             | REPORTED | { work.delete(id) throw error }                                                  |
+| src/runtime/resources/host.ts:217             | REPORTED | { work.delete(id) throw error }                                                  |
+| src/runtime/resources/load.ts:59              | REPORTED | { for (const unsubscribe of bound.values()) unsubscribe() bound.clear() loaded = |
+| src/runtime/resources/load.ts:98              | REPORTED | { if (jobs === current) jobs = undefined throw error }                           |
+| src/runtime/resources/load.ts:104             | REPORTED | { if (jobs === current) jobs = undefined throw error }                           |
+| src/runtime/resources/settings.ts:29          | REPORTED | { if (storeErrorCode(error) === 'ENOENT') return undefined throw new Error(UI_TE |
+| src/runtime/schedules/args.ts:182             | GENERIC  | { // A malformed option must never echo a prompt or unknown credential argument. |
+| src/runtime/schedules/authorityStore.ts:24    | GENERIC  | { throw new Error('scheduleStoredJsonInvalid') }                                 |
+| src/runtime/schedules/authorityStore.ts:44    | NARROW   | { if (error instanceof Error && error.message === 'scheduleIdentifierAlreadyIssu |
+| src/runtime/schedules/binding.ts:55           | REPORTED | { binding = undefined throw error }                                              |
+| src/runtime/schedules/command.ts:172          | GENERIC  | { return failure(options, UI_TEXT.scheduleV2.runtime.invalidRequest) }           |
+| src/runtime/schedules/command.ts:183          | GENERIC  | { return failure(options, UI_TEXT.scheduleV2.runtime.unavailable) }              |
+| src/runtime/schedules/consent.ts:26           | NARROW   | { // A missing file is no consent; a file the store cannot read is // neither ab |
+| src/runtime/schedules/consent.ts:40           | NARROW   | { // Only malformed text reads invalid here; anything else keeps its kind. if (! |
+| src/runtime/schedules/engine.ts:207           | GENERIC  | { throw new Error('scheduleStoredJsonInvalid') }                                 |
+| src/runtime/schedules/engine.ts:215           | GENERIC  | { onError(error) return }                                                        |
+| src/runtime/schedules/engine.ts:234           | SWALLOW  | { remaining.push(deferred) }                                                     |
+| src/runtime/schedules/engine.ts:290           | GENERIC  | { onError(error) }                                                               |
+| src/runtime/schedules/engine.ts:290           | GENERIC  | { onError(error) }                                                               |
+| src/runtime/schedules/engine.ts:302           | GENERIC  | { onError(error) }                                                               |
+| src/runtime/schedules/nativeBackground.ts:372 | REPORTED | { if (this.deps.platform === 'linux') { // Refused reconciliation must not leave |
+| src/runtime/schedules/nodeBackgroundIo.ts:85  | REPORTED | { if (storeErrorCode(error) === 'ENOENT') return throw error }                   |
+| src/runtime/schedules/nodeBackgroundIo.ts:184 | GENERIC  | { if (storeErrorCode(error) === 'ENOENT') continue throw unsafeScheduleLauncher( |
+| src/runtime/schedules/nodeBackgroundIo.ts:313 | NARROW   | { if ( typeof error === 'object' && error !== null && 'code' in error && typeof  |
+| src/runtime/schedules/nodeBackgroundIo.ts:335 | REPORTED | { if (storeErrorCode(error) === 'ENOENT') return throw error }                   |
+| src/runtime/schedules/nodeBackgroundIo.ts:375 | GENERIC  | { if (storeErrorCode(error) !== 'ENOENT') throw unsafeScheduleLauncher(directory |
+| src/runtime/schedules/nodeBackgroundIo.ts:391 | GENERIC  | { if (storeErrorCode(error) === 'ENOENT') return throw unsafeScheduleLauncher(fi |
+| src/runtime/schedules/nodeScheduleFs.ts:49    | REPORTED | { if ( attempt + 1 >= SCHEDULE_FS_RETRY_ATTEMPTS // ['EPERM', 'EBUSY', 'EACCES'] |
+| src/runtime/schedules/nodeScheduleFs.ts:97    | REPORTED | { if (!hasCode(error, 'EEXIST')) throw error }                                   |
+| src/runtime/schedules/nodeScheduleFs.ts:111   | GENERIC  | { if (hasCode(error, 'ENOENT')) cleanup.delete(file) else cleanup.add(file) }    |
+| src/runtime/schedules/nodeScheduleFs.ts:128   | REPORTED | { if (!hasCode(error, 'ENOENT')) throw error }                                   |
+| src/runtime/schedules/nodeScheduleFs.ts:146   | REPORTED | { // Our unique temporary bytes identify a publication already committed. if (is |
+| src/runtime/schedules/nodeScheduleFs.ts:155   | REPORTED | { // A competing lease release may remove the destination between // EEXIST and  |
+| src/runtime/schedules/nodeScheduleFs.ts:191   | REPORTED | { if (hasCode(error, 'ENOENT')) return throw error }                             |
+| src/runtime/schedules/nodeScheduleFs.ts:201   | REPORTED | { if (hasCode(error, 'ENOENT')) return [] throw error }                          |
+| src/runtime/schedules/nodeScheduleFs.ts:225   | REPORTED | { if (!hasCode(error, 'ENOENT')) throw error }                                   |
+| src/runtime/schedules/nodeScheduleFs.ts:315   | CLEANUP  | { // Hint publication is cleanup debt, not acquisition authority. await guard()  |
+| src/runtime/schedules/nodeScheduleFs.ts:331   | GENERIC  | { heartbeatError = error instanceof Error ? error : new Error('scheduleLeaseHear |
+| src/runtime/schedules/nodeScheduleFs.ts:362   | CLEANUP  | { /* Expiry owns release recovery. */ }                                          |
+| src/runtime/schedules/registry.ts:12          | GENERIC  | { throw new Error('scheduleStoredJsonInvalid') }                                 |
+| src/runtime/schedules/runtime.ts:80           | GENERIC  | { failures.push(error) }                                                         |
+| src/runtime/schedules/runtime.ts:107          | GENERIC  | { const reason = UI_TEXT.scheduleV2.runtime.wakeBarrierTimeout return { exitCode |
+| src/runtime/schedules/runtime.ts:116          | GENERIC  | { const reason = scheduleLauncherReason(error) ?? UI_TEXT.scheduleV2.runtime.inv |
+| src/runtime/schedules/runtime.ts:154          | REPORTED | { unhold() throw error }                                                         |
+| src/runtime/schedules/settle.ts:37            | GENERIC  | { if (result !== undefined) { const reason = scheduleLauncherReason(error) resul |
+| src/runtime/schedules/surface.ts:124          | GENERIC  | { try { this.deps.notice( scheduleLauncherReason(error) ?? UI_TEXT.scheduleV2.ru |
+| src/runtime/schedules/surface.ts:129          | GENERIC  | { // Creation already committed: notifier failure cannot invite a duplicate retr |
+| src/runtime/schedules/surface.ts:141          | GENERIC  | { return { kind: 'refused', // An unreadable consent file names its errno's kind |

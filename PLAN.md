@@ -14295,6 +14295,16 @@ cost and caution, never speed.
   reviewer on B1 and B2, never the only one and never an allow by itself.
   Everywhere else both stand unchanged.
 
+### D108 — Reads that guard money, consent or credentials are three-valued (2026-10-12)
+
+A read that guards money, consent or a credential answers found, absent,
+or could-not-read with a closed kind — never a boolean that collapses the
+third state into absence. Guards fail closed on could-not-read (a billing
+hold is never released, a sign-in never lifts one, "can recover" is never
+true, no key is asked for as if none existed) and tell the person once per
+distinct damage through a notice, not only the log. Full record:
+`docs/certification/catch-money.md` (round 3).
+
 ## 3. Open questions (need the owner)
 
 **Q-VIS0171-RELEASE-NOTES resolved by lead (2026-10-10, linuxlt).** Round 2
@@ -36714,6 +36724,24 @@ knip, duplication, localization, host API and production build here; record
 actual receipts in `docs/certification/m101-p2.md`. The lead must run the
 aggregate quality/coverage/platform matrix before integration/release. No
 threshold, ignore or rule is changed.
+
+**CATCHMONEY round 3 scoped qualification (2026-10-12, macmini).** The rig
+brief forbids rig-test.sh/rig-gate.sh on a rig and the whole suite here:
+run `npx vitest` over the changed sources (at most three files per run) at
+the repository's timeouts, all five typecheck projects, ESLint and Prettier
+on changed files, `check:l10n`, deadcode, cycles, duplication, production
+build, and the packed exec/ACP stdio e2e suites. Receipts:
+`docs/certification/catch-money.md`. Three measured notes: the round-3
+classifier fix reclassifies 94 raw-error logs from REPORTED to GENERIC, so
+the baseline is regenerated with the documented `--write-baseline` after
+that intentional fix (the named sites in this lane's files are fixed; the
+rest are recorded for follow-up and the gate still fails on any new rise);
+`test/unit/acpAgent.test.ts` "exposes all three ChatGPT actions" fails
+identically on the untouched base (isolated clone at d38908d0c), so it is
+not this change; the ACP agent's damaged-choice sentence falls back to its
+existing resource-error channel until a `session/notification` transport is
+threaded through. No threshold, ignore, timeout or rule is changed. The
+lead must run the aggregate suite before integration.
 
 ## 8. Escape hatches register
 
