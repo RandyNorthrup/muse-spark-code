@@ -71,3 +71,35 @@ ruling. This limitation must be stated, never claimed as certified joint spendin
 The proof record below will name tests, real command exits, measurements and
 all review findings. Unrun platform semantics and any incomplete invariant
 remain marked UNMEASURED; no live or paid model request is authorized.
+
+## Part 1 proof (in progress)
+
+The primary mechanism is `src/core/paid/spendLedger.ts`: four states, atomic
+admission, complete snapshots, durable queued settlements and process-identity
+recovery. A settlement inbox is flushed before waiting for the lock; snapshots
+name the consumed inbox event until its removal is durable. Readers retry when
+the snapshot generation changes. Process birth probes run before acquisition,
+so Windows probes do not occupy the critical section. The adapter contains only
+captured v1/v2 migration and session projection; every new write is v3.
+
+Initial core run: 12 tests passed. Intentional admission-comparison reversal:
+`npx vitest run test/unit/spendLedger.test.ts --maxWorkers=3` exited 1,
+7 failed / 4 passed; restored SHA-256 byte for byte. Migration/projection suite:
+6 passed, including executing `87d9ab91c`’s old reader against 556 generated
+v1 rows and 556 v2 rows, checking old files byte for byte after new writes.
+Initial caller batch: 54 passed (core, migration, editor daily); terminal daily
+23 passed separately. These are intermediate results; final-tree results follow.
+
+The first process proof (before the durable inbox enhancement) passed eight
+feasible k-of-n groups at 500 rounds each and 200 start-while-running rounds.
+It measured admission maxima 3.294 / 5.201 / 3.938 ms at 10 / 1,000 / 10,000
+closed claims. Its 4,461.255 ms recovery lock hold exposed identity probes under
+the lock; those probes were moved outside. These numbers do not certify the
+final tree. The requested n=2, k=3 case cannot admit three of only two requests;
+the final harness checks that both fit when the capacity is three, explicitly.
+
+Part 1 final module certification: 15 core cases and 6 migration/projection cases
+passed with repository defaults (21 total); the authority reducer adds 15 passing
+cases. ESLint/Prettier pass for the module, unit file, constants and English table;
+localization reports 14 UI tables, 14 usage tables, 0 problems. Full caller and
+packed-product qualification remains Part 2/3 work, not a Part 1 pass claim.

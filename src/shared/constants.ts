@@ -774,12 +774,13 @@ export const PAID_DAILY_BUDGET = {
   stopDirectory: 'stopped',
 } as const
 export const RUNTIME_SETTINGS_FILE = 'settings.json'
+export const SPEND_LEDGER_VERSION = 3
+export const SPEND_LEDGER_LOCK_TIMEOUT_MS = 2000
+export const SPEND_LEDGER_HOLD_BOUND_MS = 100
+export const SPEND_LEDGER_ESTIMATE_MARGIN_PERCENT = 25
 export const DAILY_BUDGET_LOCK_ATTEMPTS = 100
-export const DAILY_BUDGET_LOCK_WAIT_MS = 10
-// D2: a kernel-record start within a minute of the claim's owner start still
-// names the same process (tick and boot-time granularity); anything older is
-// a reused pid and provably gone.
 export const DAILY_BUDGET_OWNER_START_SKEW_MS = 60_000
+export const DAILY_BUDGET_LOCK_WAIT_MS = 10
 export const ARCHIVE_DAY_CHOICES = [1, 2, 7, 14, 0] as const
 // Settings a repository's `.vscode/settings.json` must never set (PLAN.md
 // D15): they choose what executes, what is billed and how much is approved,
