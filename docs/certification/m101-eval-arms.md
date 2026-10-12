@@ -1054,6 +1054,8 @@ its frozen change, as before). Every previously hashed byte is still
 hashed; no arm, task, fixture, window, allowance or wrapper changed. The
 binding receipt stays the certification of that run: it records the
 pre-flip tree it ran on (certified equals computed equals `8699c398…`).
-A future live run on this tree certifies the new pin instead;
+The second counted run on the flipped head (`28686235d`, 2026-10-12)
+certified the new pin instead (certified equals computed equals
+`a59c8448…`; `docs/certification/m101-cm1013r10.md`);
 `--live-m75` refuses any tree whose computed digest differs from it
 before any credential or call.

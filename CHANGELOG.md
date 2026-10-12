@@ -9,11 +9,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
-- **Evaluated automatic compaction** (M101 CM1013R9). The binding run
-  passed on 2026-10-12: verdict `pass` on the full frozen set (sixteen
-  tasks across all four arms, 274 of 588 ceiling calls, $0.06285), every
-  arm above both 0.75 floors, packing engaged on both long-output tasks
-  and a settled D78 admission on both long-context tasks (receipts in
+- **Evaluated automatic compaction** (M101 CM1013R9, certified by the
+  second counted run in CM1013R10). The first binding run passed on
+  2026-10-12: verdict `pass` on the full frozen set (sixteen tasks across
+  all four arms, 274 of 588 ceiling calls, $0.06285), every arm above both
+  0.75 floors, packing engaged on both long-output tasks and a settled
+  D78 admission on both long-context tasks (receipts in
   `docs/certification/m101-binding-report.json` and
   `docs/certification/m101-binding-report.md`).
   `IS_AUTO_COMPACTION_EVALUATED` is now `true`: automatic compaction is on
@@ -21,7 +22,17 @@ happened, not what was planned; superseded entries are kept.
   published in Help, the ACP/CLI usage and the generated reference; its
   first charge still asks once in the paid-use popup naming the price and
   daily budget. `modelApiStrictTools` stays on: its arm held both floors in
-  the same run. <!-- try: setting museSpark.modelApiAutoCompaction -->
+  the same run. The second counted run on the flipped head passed too
+  (267 calls, $0.059742, all eight floors held; receipts in
+  `docs/certification/m101-binding-report-2026-10-12-28686235d.json`/`.md`
+  and the run log beside them), so the shipped digest `a59c8448…` is
+  certified: certified equals computed equals the frozen pin. In that run
+  the auto-compaction arm reached 7 of 9 on accept (one long-context task
+  completed after compaction but wrote no answer file) and 7 of 7 on
+  heldout. Every automatic attempt reserves its projected cost from the
+  daily ledger before dispatch, rechecks the claim at send, and settles
+  once per attempt at its exact cost; a refused or missing ledger sends
+  nothing. <!-- try: setting museSpark.modelApiAutoCompaction -->
 
 - **Execution-bound M75 freeze and private tool evidence** (CM1013R4,
   RVCM1013C findings 2–3). The freeze binds the actual runner configuration,
@@ -58,8 +69,8 @@ happened, not what was planned; superseded entries are kept.
   prompt-filled window compacts at the first settled boundary and one
   two-defect multi-edit task. A SHA-256 digest pins the frozen bytes for the
   counted run; fake baseline/mechanism pairs hold both 0.75 floors.
-  Production automatic compaction stays off, awaiting lane E's live
-  evaluation.
+  (The live evaluation has since passed twice; see the
+  evaluated-automatic-compaction entry above.)
 - **Repaired M75 evaluation freeze** (M101 CM1012R2, review RVCM1012).
   Each arm now differs from its pair in one mechanism only: the context
   window is harness condition shared by both arms (per task, resolved by the
@@ -126,8 +137,9 @@ happened, not what was planned; superseded entries are kept.
   against the run's own hard budget instead of a test double, and the
   counted-run launcher prints its call plan (206 planned, 300 hard
   ceiling) before anything sends. All four frozen arms run behind the
-  live switch with both mechanism engagements recorded. The counted live
-  run is still ahead; production automatic compaction stays off.
+  live switch with both mechanism engagements recorded. (The counted
+  live runs have since passed; see the evaluated-automatic-compaction
+  entry above.)
 - **M75 evaluation review repairs** (M101 CM1013AR2, review RVCM1013A, no
   user-facing change). "Compaction engaged" now means the D78 admission
   settled a summary: the report records the settled-admission count per
@@ -213,20 +225,15 @@ happened, not what was planned; superseded entries are kept.
     most) with a 1-based range. Neither payload is sent anywhere by the
     extension; hook processes never get the Model API key.
 
-- **Production admission for automatic compaction** (M101 C-M101-1, dormant).
+- **Production admission for automatic compaction** (M101 C-M101-1).
   The panel backend manager and the runtime backend manager (ACP, exec) now
   bind the one shared D78 gate and ledger for automatic compaction
   (`admitAutoCompaction`) and the Meta catalogue model reader
   (`autoCompactModel`), so every host that offers automatic compaction
-  admits the same way. Every automatic attempt reserves its projected cost
-  from the daily ledger before dispatch, rechecks the claim synchronously
-  at send, and settles once per attempt at its exact cost (known nonsends
-  refunded, uncertain attempts retain their liability); a refused or
-  missing ledger sends nothing. Near-window and overflow protection are
-  never blocked by economics. Nothing changes for users yet: the feature
-  stays off behind the unevaluated latch (`IS_AUTO_COMPACTION_EVALUATED`)
-  and reports "awaiting evaluation", and requests sent while it is off are
-  byte-identical.
+  admits the same way. Near-window and overflow protection are never
+  blocked by economics. The feature is on by default since CM1013R9 (see
+  the evaluated-automatic-compaction entry above); requests sent while it
+  is off are byte-identical.
 
 ### Changed
 
