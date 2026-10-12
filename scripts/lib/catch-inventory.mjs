@@ -10,7 +10,9 @@
 //   through a redacting formatter (failureForLog and friends), the error sent
 //   through a record-bound channel (the webview's webviewErrorReport), a
 //   fixed-message log on a path that returns nothing to the person, or a
-//   fixed-vocabulary code (observeError and friends).
+//   fixed-vocabulary code (observeError and friends, `deps.failed()`). A fixed
+//   throw or fallback counts as REPORTED when the same handler also records
+//   the kind: the person gets a typed failure and the record keeps the cause.
 // - SWALLOW: the handler neither uses the error nor rethrows nor reports.
 // - GENERIC: the handler replaces whatever was thrown with one fixed sentence
 //   or generic error for every cause. A fixed-string log without the error
@@ -139,6 +141,22 @@ function isRedactedCall(node, binding) {
 
 function isCodeRecordCall(node) {
   return ts.isCallExpression(node) && CODE_RECORD_FNS.has(calleeName(node.expression) ?? '')
+}
+
+/**
+ * A `deps.failed()` marker: the dependencies' documented fixed diagnostic
+ * (the question stack funnels it to a fixed-vocabulary code). Scoped to
+ * `deps` receivers so an unrelated `failed()` cannot bless a handler.
+ */
+function isDepsFailedCall(node) {
+  if (!ts.isCallExpression(node) || node.arguments.length > 0) return false
+  const target = unparen(node.expression)
+  if (!ts.isPropertyAccessExpression(target) || target.name.text !== 'failed') return false
+  const receiver = unparen(target.expression)
+  return (
+    (ts.isIdentifier(receiver) && receiver.text === 'deps') ||
+    (ts.isPropertyAccessExpression(receiver) && receiver.name.text === 'deps')
+  )
 }
 
 /** A logger call (`log.warn(...)`, never `console.*`). */
@@ -336,7 +354,7 @@ export function classifyHandler(body, options) {
     }
     if (binding !== undefined && isRedactedCall(node, binding)) isRedacted = true
     if (isErrorSinkCall(node, binding)) isSink = true
-    if (isCodeRecordCall(node)) isCodeRecorded = true
+    if (isCodeRecordCall(node) || isDepsFailedCall(node)) isCodeRecorded = true
     if (!isLogCall(node)) {
       return
     }
@@ -355,9 +373,10 @@ export function classifyHandler(body, options) {
   const reported = isRedacted || isSink
   if (!hasRawLog && namedTest && (isThrown || reported)) return 'NARROW'
   if (!hasRawLog && isThrown) {
-    // A rethrow (or a throw carrying the cause) reports everything; a fixed
-    // throw without the cause replaces it.
-    return isThrownCarried || isBareRethrow ? 'REPORTED' : 'GENERIC'
+    // A rethrow (or a throw carrying the cause) reports everything. A fixed
+    // throw counts too when the handler records the kind beside it; a fixed
+    // throw with no record replaces the cause.
+    return isThrownCarried || isBareRethrow || reported || isCodeRecorded ? 'REPORTED' : 'GENERIC'
   }
   if (!hasRawLog && isReturnedCarried) return 'REPORTED'
   if (!hasRawLog && reported) return 'REPORTED'

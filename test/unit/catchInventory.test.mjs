@@ -96,6 +96,24 @@ describe('catch-inventory classifier', () => {
         setError('failed')
       }`),
     ).toEqual(['REPORTED'])
+    expect(
+      classesOf(`try { a() } catch (error: unknown) {
+        log.warn('ask failed: ' + failureForLog(error))
+        throw new Error('unavailable')
+      }`),
+    ).toEqual(['REPORTED'])
+    expect(
+      classesOf(`try { a() } catch {
+        this.deps.failed()
+        return 'uncertain'
+      }`),
+    ).toEqual(['REPORTED'])
+    expect(
+      classesOf(`try { a() } catch {
+        log.warn('ask failed')
+        throw new Error('unavailable')
+      }`),
+    ).toEqual(['GENERIC'])
   })
 
   it('names SWALLOW when the handler neither uses the error nor reports', () => {
