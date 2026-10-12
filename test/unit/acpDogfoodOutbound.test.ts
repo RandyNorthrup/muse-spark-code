@@ -213,6 +213,50 @@ describe('ACPDOG one outbound error shape (R1)', () => {
     expectClean(JSON.stringify(rejection), h.log)
   })
 
+  it('keeps the fixed send-failure advice a ModelApiError carries', async () => {
+    const { h, failure } = await promptFailure(
+      new ModelApiError(
+        `${UI_TEXT.acpNetworkUnreachable} (fetch failed: connect ECONNREFUSED (ECONNREFUSED))`,
+        0,
+        undefined,
+        undefined,
+      ),
+    )
+    expect(failure).toMatchObject({
+      code: ACP_ERROR_CODES.turnFailed,
+      message: UI_TEXT.acpNetworkUnreachable,
+      data: { kind: 'model_api_error' },
+    })
+    expectClean(failure, h.log)
+    expect(h.log.error).not.toHaveBeenCalled()
+  })
+
+  it('keeps the fixed send-failure advice a failed turn wraps, detail dropped', async () => {
+    const wrapped = new RequestError(
+      ACP_ERROR_CODES.turnFailed,
+      `${UI_TEXT.acpNetworkUnreachable} (${SENTINEL_KEY} ${SENTINEL_BLOB})`,
+      { kind: 'turn_failed' },
+    )
+    const { h, failure } = await promptFailure(wrapped)
+    expect(failure).toMatchObject({
+      code: ACP_ERROR_CODES.turnFailed,
+      message: UI_TEXT.acpNetworkUnreachable,
+      data: { kind: 'turn_failed' },
+    })
+    expectClean(failure, h.log)
+    expect(h.log.error).not.toHaveBeenCalled()
+  })
+
+  it('keeps the unknown command-word template with its word', async () => {
+    const filled = `${UI_TEXT.acpUnknownArgument.split('{argument}', 2)[0] ?? ''}/share`
+    const { h, failure } = await promptFailure(RequestError.invalidRequest(undefined, filled))
+    // The SDK factory prefixes its own wording; the template value passes.
+    const message = failure instanceof Error ? failure.message : String(failure)
+    expect(message).toContain(filled)
+    expectClean(failure, h.log)
+    expect(h.log.error).not.toHaveBeenCalled()
+  })
+
   it('keeps fixed sentences and vocabulary data for the remaining classes', async () => {
     for (const [error, expected] of [
       [new ResourceReadingError('resources.settings'), { code: ACP_ERROR_CODES.unavailable }],

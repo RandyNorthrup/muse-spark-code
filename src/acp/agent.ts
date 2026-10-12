@@ -2658,10 +2658,14 @@ class AgentState {
  * from fixed or translated text, and a data object whose fields are
  * enumerated and whose values come from fixed vocabularies. Nothing from a
  * thrown error's message, data, kind, code or cause is ever copied through;
- * an unknown kind maps to the generic member of the vocabulary. The same
- * built value feeds the log line, so logs cannot carry request content
- * either. There is no redaction step because there is nothing left to
- * redact: no submitted text, blob or key reaches this point.
+ * an unknown kind maps to the generic member of the vocabulary. Two narrow
+ * template shapes pass with their value: the transport's send-failure advice
+ * (the detail is dropped, only the fixed sentence stays) and the unknown
+ * command-word error (the word is the user's own command, echoed in an error
+ * about that word). The same built value feeds the log line, so logs cannot
+ * carry request content either. There is no redaction step because there is
+ * nothing left to redact: no submitted prompt, blob or key reaches this
+ * point.
  */
 const OUTBOUND_ERROR_KINDS = [
   'resource_reading',
@@ -2759,6 +2763,9 @@ function outboundSentences(): ReadonlySet<string> {
     UI_TEXT.legalScanUnavailable,
     UI_TEXT.questionQueueCommitFailed,
     UI_TEXT.resourceGovernorDescription,
+    UI_TEXT.acpNetworkUnreachable,
+    UI_TEXT.acpNetworkProxyCredentials,
+    UI_TEXT.acpNetworkUntrustedCertificate,
     'Invalid params',
     'Invalid request',
     'Authentication required',
@@ -2858,14 +2865,58 @@ const SDK_MESSAGE_PREFIXES = [
   'Resource not found: ',
 ]
 
+/**
+ * Templates whose filled sentence may leave: the slot echoes the user's own
+ * command word in an error about that word (`Unknown argument: /share`).
+ * The template is fixed translated text read from the installed table at use
+ * time; the value travels only as the command word, never prompt, blob or
+ * key content. A raw planted secret carries no template prefix and stays
+ * generic.
+ */
+function outboundTemplates(): readonly { readonly prefix: string; readonly suffix: string }[] {
+  const [prefix = '', suffix = ''] = UI_TEXT.acpUnknownArgument.split('{argument}', 2)
+  return prefix.length > 0 ? [{ prefix, suffix }] : []
+}
+
 /** The allow-listed sentence a message carries, past the SDK's own prefix. */
 function outboundSentence(message: string): string | undefined {
   if (outboundSentences().has(message)) return message
+  // The SDK factories prefix their own wording (`Invalid request: …`); the
+  // allow-list matches past it, and the built error keeps the prefix.
+  let unprefixed = message
   for (const prefix of SDK_MESSAGE_PREFIXES) {
-    if (message.startsWith(prefix) && outboundSentences().has(message.slice(prefix.length)))
+    if (unprefixed.startsWith(prefix)) unprefixed = unprefixed.slice(prefix.length)
+  }
+  if (outboundSentences().has(unprefixed)) return message
+  for (const { prefix, suffix } of outboundTemplates()) {
+    if (
+      unprefixed.startsWith(prefix) &&
+      unprefixed.endsWith(suffix) &&
+      unprefixed.length >= prefix.length + suffix.length
+    )
       return message
   }
   return undefined
+}
+
+/**
+ * The transport's send-failure advice when a request never reached the
+ * server: fixed advice text plus a parenthesised technical detail. A message
+ * that begins with one of the fixed agent-advice sentences keeps exactly
+ * that sentence (re-read from the installed table, detail dropped); anything
+ * else — a server echo, `cancelled`, the shared proxy-refusal template with
+ * its status slot — is left for the generic failure. The output is always a
+ * fixed string, so a planted secret in the message cannot change it. The
+ * advice also arrives wrapped in the failed turn's own `RequestError`, whose
+ * reason is the transport message, so both branches below consult this.
+ */
+function networkAdviceSentence(message: string): string | undefined {
+  const candidates = [
+    UI_TEXT.acpNetworkUnreachable,
+    UI_TEXT.acpNetworkProxyCredentials,
+    UI_TEXT.acpNetworkUntrustedCertificate,
+  ]
+  return candidates.find((sentence) => message.startsWith(sentence))
 }
 
 /** The single constructor for every error that leaves `respond`. */
@@ -2911,7 +2962,12 @@ function toOutbound(error: unknown): { readonly failure: OutboundFailure; readon
     return {
       failure: {
         code: error.code,
-        message: error.message,
+        // A failed turn wraps the transport's message as its reason: recover
+        // the fixed advice sentence when it carries one, never its detail.
+        message:
+          error.code === ACP_ERROR_CODES.turnFailed
+            ? (networkAdviceSentence(error.message) ?? error.message)
+            : error.message,
         data: outboundData(error.code, error.data),
       },
       log: false,
@@ -2958,7 +3014,7 @@ function toOutbound(error: unknown): { readonly failure: OutboundFailure; readon
     return {
       failure: {
         code: ACP_ERROR_CODES.turnFailed,
-        message: UI_TEXT.actionFailed,
+        message: networkAdviceSentence(error.message) ?? UI_TEXT.actionFailed,
         data: { kind: 'model_api_error' },
       },
       log: false,
