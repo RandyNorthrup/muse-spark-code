@@ -754,7 +754,7 @@
     },
     "messages": {
       "targetUnavailable": "El destino de esta programación no está disponible en este anfitrión.",
-      "targetClosed": "El destino se cerró o se omitió esta ejecución pendiente.",
+      "targetClosed": "El destino se cerró.",
       "catchUpSkipped": "Se omitió la ejecución perdida según la política de recuperación de esta programación.",
       "backgroundNotice": "La programación {name} abrió una conversación en segundo plano.",
       "conversationTitle": "Programación {name} · {date}",
@@ -796,7 +796,13 @@
       "capReached": "El límite diario de la programación o el compartido no permite esta ejecución de pago.",
       "paidUnavailable": "Esta operación de pago no está disponible o no fue aprobada para esta programación.",
       "dispatchUncertain": "El envío comenzó, pero se desconoce el resultado final. Esta ejecución no se repetirá; el importe reservado sigue contabilizado.",
-      "costUnknown": "El prompt se entregó, pero no se pudo leer el coste real. El importe reservado sigue contabilizado."
+      "costUnknown": "El prompt se entregó, pero no se pudo leer el coste real. El importe reservado sigue contabilizado.",
+      "schedulePaused": "La programación se pausó antes de la entrega.",
+      "scheduleDeleted": "La programación se eliminó antes de la entrega.",
+      "scheduleEdited": "Cambió el horario, el destino o el modo de entrega de la programación.",
+      "scheduleEnded": "La programación terminó antes de la entrega.",
+      "admissionLost": "Esta ejecución ya no tiene autorización para iniciarse.",
+      "workspaceNotHeld": "Este proceso ya no mantiene el espacio de trabajo."
     },
     "endAfterRuns": {
       "one": "Finalizar tras {count} ejecución",

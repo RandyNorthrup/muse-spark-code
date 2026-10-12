@@ -755,7 +755,7 @@
     },
     "messages": {
       "targetUnavailable": "Cíl tohoto plánu není v tomto hostiteli dostupný.",
-      "targetClosed": "Cíl se zavřel nebo bylo toto čekající spuštění přeskočeno.",
+      "targetClosed": "Cíl byl zavřen.",
       "catchUpSkipped": "Zmeškané spuštění bylo přeskočeno podle pravidel tohoto plánu.",
       "backgroundNotice": "Plán {name} otevřel konverzaci na pozadí.",
       "conversationTitle": "Plán {name} · {date}",
@@ -797,7 +797,13 @@
       "capReached": "Denní limit plánu nebo sdílený denní limit toto placené spuštění neumožňuje.",
       "paidUnavailable": "Tato placená operace není dostupná nebo nebyla pro tento plán schválena.",
       "dispatchUncertain": "Odesílání začalo, ale konečný výsledek není znám. Tento běh se nebude opakovat; rezervovaná částka zůstává započtena.",
-      "costUnknown": "Výzva byla doručena, ale skutečné náklady nelze přečíst. Rezervovaná částka zůstává započtena."
+      "costUnknown": "Výzva byla doručena, ale skutečné náklady nelze přečíst. Rezervovaná částka zůstává započtena.",
+      "schedulePaused": "Plán byl před doručením pozastaven.",
+      "scheduleDeleted": "Plán byl před doručením odstraněn.",
+      "scheduleEdited": "Změnil se čas, cíl nebo režim doručení plánu.",
+      "scheduleEnded": "Plán skončil před doručením.",
+      "admissionLost": "Toto spuštění již nemá povolení k zahájení.",
+      "workspaceNotHeld": "Tento proces již nedrží pracovní prostor."
     },
     "endAfterRuns": {
       "one": "Ukončit po {count} spuštění",

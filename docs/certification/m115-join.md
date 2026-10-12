@@ -379,3 +379,11 @@ have different results. Every row checks the second fire: no pre-reload send on
 close, exactly one post-reload send, ran outcome and empty outbox afterward.
 It passes 73/73 including liability-snapshot recovery. Disabling close guards
 makes 40 assertions fail; the scheduler is restored byte-exact by SHA-256.
+
+## RVSCHEDJOIN P3 — cause-specific skipped records
+
+Paused, deleted, edited timing/target/delivery, end reached, lost admission and
+workspace no longer held each have a separate translated reason in all 14 UI
+tables. Target closure retains its own shortened, accurate sentence. Missed
+catch-up names its policy. The six real-store core-skip cases pass; replacing
+all reasons with target closed makes all six fail and restores byte-exact.

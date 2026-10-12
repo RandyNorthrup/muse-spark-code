@@ -753,7 +753,7 @@
     },
     "messages": {
       "targetUnavailable": "Az ütemezés célja nem érhető el ezen a gazdagépen.",
-      "targetClosed": "A cél bezárult, vagy ezt a várakozó futtatást kihagyták.",
+      "targetClosed": "A cél bezárult.",
       "catchUpSkipped": "Az elmulasztott futtatás kimaradt az ütemezés pótlási szabálya szerint.",
       "backgroundNotice": "A(z) {name} ütemezés megnyitott egy beszélgetést a háttérben.",
       "conversationTitle": "Ütemezés: {name} · {date}",
@@ -795,7 +795,13 @@
       "capReached": "Az ütemezés napi korlátja vagy a közös napi korlát nem engedi ezt a fizetős futtatást.",
       "paidUnavailable": "Ez a fizetős művelet nem érhető el, vagy nem hagyták jóvá ehhez az ütemezéshez.",
       "dispatchUncertain": "A küldés elkezdődött, de a végső eredmény ismeretlen. Ez a futás nem ismétlődik meg; a lefoglalt összeg továbbra is beleszámít.",
-      "costUnknown": "A prompt kézbesítve lett, de a tényleges költség nem olvasható. A lefoglalt összeg továbbra is beleszámít."
+      "costUnknown": "A prompt kézbesítve lett, de a tényleges költség nem olvasható. A lefoglalt összeg továbbra is beleszámít.",
+      "schedulePaused": "Az ütemezést a kézbesítés előtt szüneteltették.",
+      "scheduleDeleted": "Az ütemezést a kézbesítés előtt törölték.",
+      "scheduleEdited": "Az ütemezés időzítése, célja vagy kézbesítési módja megváltozott.",
+      "scheduleEnded": "Az ütemezés a kézbesítés előtt véget ért.",
+      "admissionLost": "Ez a futás már nem rendelkezik indítási engedéllyel.",
+      "workspaceNotHeld": "Ez a folyamat már nem tartja fenn a munkaterületet."
     },
     "endAfterRuns": {
       "one": "Befejezés {count} futás után",

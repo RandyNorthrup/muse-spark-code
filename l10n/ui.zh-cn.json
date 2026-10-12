@@ -752,7 +752,7 @@
     },
     "messages": {
       "targetUnavailable": "此计划的目标在当前主机上不可用。",
-      "targetClosed": "目标已关闭，或此等待中的执行已跳过。",
+      "targetClosed": "目标已关闭。",
       "catchUpSkipped": "根据此计划的补执行策略，已跳过错过的执行。",
       "backgroundNotice": "计划 {name} 已在后台打开对话。",
       "conversationTitle": "计划 {name} · {date}",
@@ -794,7 +794,13 @@
       "capReached": "计划或共享每日上限不允许此次付费执行。",
       "paidUnavailable": "此付费操作不可用，或未获此计划批准。",
       "dispatchUncertain": "发送已开始，但最终结果未知。本次运行不会再次发送；预留金额仍计入已用金额。",
-      "costUnknown": "提示已送达，但无法读取实际费用。预留金额仍计入已用金额。"
+      "costUnknown": "提示已送达，但无法读取实际费用。预留金额仍计入已用金额。",
+      "schedulePaused": "计划在发送前已暂停。",
+      "scheduleDeleted": "计划在发送前已删除。",
+      "scheduleEdited": "计划的时间、目标或发送模式已更改。",
+      "scheduleEnded": "计划在发送前已结束。",
+      "admissionLost": "此执行不再获准启动。",
+      "workspaceNotHeld": "此进程不再持有工作区。"
     },
     "endAfterRuns": {
       "other": "执行{count}次后结束"
