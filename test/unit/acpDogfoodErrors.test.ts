@@ -86,6 +86,23 @@ describe('ACPDOG ACP request failure boundaries', () => {
       expectCause(h.log, stage)
     },
   )
+  it('withholds headers even when a short prompt overlaps a header name', async () => {
+    const h = scene()
+    h.session.sendTurn.mockRejectedValueOnce(
+      new Error('send failed; Authorization: Bearer SYNTHETIC-TOKEN'),
+    )
+    await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      await expect(
+        client.request('session/prompt', {
+          sessionId,
+          prompt: [{ type: 'text', text: 'a' }],
+        }),
+      ).rejects.toMatchObject({ code: ACP_ERROR_CODES.internal })
+    })
+    expect(h.log.error).toHaveBeenCalledOnce()
+    expect(JSON.stringify(h.log.error.mock.calls)).not.toContain('SYNTHETIC-TOKEN')
+  })
   it('logs initialize callback failure once', async () => {
     const h = scene()
     h.onClientName.mockImplementation(() => {

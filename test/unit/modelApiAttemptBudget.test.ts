@@ -135,6 +135,12 @@ describe('production best-of-N parent budget binding (M77/M82)', () => {
       const state = await t.manager.readUsageBudgets()
       expect(state).toEqual([
         {
+          exact: {
+            capUsd: Usd.from(0.1).toAmount(),
+            spentUsd: Usd.from(0.02).toAmount(),
+            uncertainUsd: Usd.from(0.02).toAmount(),
+            hasUnknownCost: false,
+          },
           budget: {
             id: t.parentSession.sessionId,
             kind: 'conversation',

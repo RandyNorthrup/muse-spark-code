@@ -20321,7 +20321,9 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ### ACPDOG — ACP and headless dogfood repairs (2026-10-11)
 
-**Status 2026-10-11: building.** Repair release 0.17.1's advisory
+**Status 2026-10-11: building.** Implementation complete; dependent validation
+remains pending in `docs/certification/acp-dogfood-not-run.txt`, with aggregate
+quality and integration held for the lead. Repair release 0.17.1's advisory
 answer pollution, OS-store transients, settlement token pricing, ACP error
 causes and accounting metadata, workspace tool refusals, host facts and logs.
 D89 requires per-request first-party credential reads and request-local

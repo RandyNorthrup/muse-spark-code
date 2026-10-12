@@ -892,8 +892,8 @@ bounds and retained uncertain liability; those have separate fields.
 `missingTokenCounters` names counters the provider did not report. Session
 totals cover retained journal entries; history can age out or be deleted.
 Unavailable or disabled history returns `{ "v": 1, "available": false }`,
-never a claim of free usage. Budget remaining amounts include the ledger's
-liabilities. A `null` cap/remaining amount means no session cap is configured.
+never a claim of free usage. Daily and session budgets use the ledger's canonical decimal amounts,
+including its liabilities, without converting the numeric display fields. A `null` cap/remaining amount means no session cap is configured.
 
 A first completed turn with a $1 daily cap can return:
 

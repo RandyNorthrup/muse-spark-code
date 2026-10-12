@@ -4612,8 +4612,9 @@ describe('ModelApiSession: turns', () => {
         event.type === 'itemCompleted' && event.item.kind === 'toolCall',
     )
     expect(row?.item).toMatchObject({
-      status: 'failed',
-      failureReason: 'path ../x is outside the workspace',
+      status: 'rejected',
+      failureReason: UI_TEXT.acpOutsideWorkspaceRefused,
+      refusalCode: 'outside_workspace',
     })
   })
 
@@ -16069,9 +16070,22 @@ describe('ModelApiSession: permission profiles (M78, PLAN.md D49)', () => {
     expect(toolOutput(t, 'r2')).toBe(
       `Error: /docs/secrets/token ${MODEL_API_MODEL_TEXT.pathDeniedByPolicy}`,
     )
-    expect(toolOutput(t, 'r3')).toBe('Error: path /elsewhere/x.md is outside the workspace')
-    // An extra root is for reading: nothing is written there.
-    expect(toolOutput(t, 'w1')).toBe('Error: path /docs/new.md is outside the workspace')
+    // The extra root permits reading; an outside write is still refused with its typed cause.
+    const refusals = [
+      ['r3', '/elsewhere/x.md'],
+      ['w1', '/docs/new.md'],
+    ] as const
+    for (const [callId, given] of refusals) {
+      expect(toolOutput(t, callId)).toBe(
+        JSON.stringify({
+          error: {
+            code: 'outside_workspace',
+            message: MODEL_API_MODEL_TEXT.outsideWorkspaceRefused,
+            detail: `path ${given} is outside the workspace`,
+          },
+        }),
+      )
+    }
     expect(t.files.has('/docs/new.md')).toBe(false)
   })
 

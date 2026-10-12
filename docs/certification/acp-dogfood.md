@@ -131,3 +131,56 @@ Mutation receipts: `temp/acpdog-drill-{0,1,2}.{log,json}`.
 | 3    | turn record selection           | `8ccd86e60132ba952a96719942657b40c7e6eb04766e8f6680db5366afcec1d2` |
 | 8    | named reading deduplication     | `049ce444049097b5c8e6e41807f4dc9ed55575dde7242b9f1c01f111b9ccaa2f` |
 | 8    | exec typed cause log            | `dece600b6ab7b8940268fca61d60a6813f3be97bcf26fa8016f58c77e931a66a` |
+
+## Final verification and remaining integration
+
+All eight implementation items are present. The final read-only session budget
+projection preserves canonical cap, spend and liability amounts instead of
+round-tripping page numbers. Its $0.100000000000000001 precision regression
+and unavailable exact-reader case pass. A cache class with no positive known
+input-side bound stays unknown; an explicitly quoted zero still settles as zero.
+Both follow-up guards fired deliberately and restored their byte hashes:
+
+- `src/runtime/acpAccounting.ts`: `3ccad17eefbbd83934501f1ff28d31b0a10e0101f2e346a756de466650f7a990`.
+- `src/core/providers/priceCard.ts`: `6cab161e1fc0157cf0f05b946babf07b2cbe46665507337ef2650e9de8f8e0f1`.
+
+The final ACP fixture updates assert the new response metadata, typed refusals
+and notice channel. Full suites: pricing/budget/attempt budgets 28 tests;
+ACP Model API/questions/usage 99; ModelApiHost 670; ACP stdio 13, all passing
+at repository deadlines. The earlier broad run's five failing suites had stale
+expectations; each complete suite was corrected and rerun, without relaxing
+assertions or gates. Exec stdio and the fake Action launcher passed unchanged.
+
+The related selection covers all 28 changed non-hub source modules. The union
+with explicitly named/owned suites contains 636 files. 112 were invoked;
+524 remain in [acp-dogfood-not-run.txt](acp-dogfood-not-run.txt). The 150-minute
+time box prevents completing that set here. The milestone stays building
+until the lead completes those, aggregate quality and VS Code integration.
+The broad run's receipts are `temp/dependent-*.{json,log}`; repeated transforms
+used Vitest's file cache, with no test timeout overrides and at most three
+files/three workers per invocation. Its opt-in live suite was skipped; no
+live or paid model calls ran.
+
+HUB: integration run required for constants, English/translated tables,
+featureCatalog and the generated reference. The sibling dependency remains
+item 1's configured-provider typed-error preservation and reservation release.
+This lane changed only cache-write rate projection and settlement, never the
+reservation functions or the configured catch-all.
+
+Header stripping precedes prompt redaction, so a one-letter prompt cannot
+change a header name and let its value reach an internal-error log. The guard
+fired deliberately, restored SHA-256 `3c61640e469367ac402c8629398bcae4c90666b05c12d4657b34ce0e4b28da56`,
+and the full failure/accounting/budget suites passed 22 tests afterward.
+
+Final checks: all five typechecks passed; changed-file ESLint passed (the one
+remaining budget-fixture style error was fixed and checked separately);
+duplication zero; localization 14 languages / zero problems; reference and
+host API current; production build, size/split/globals/notices gates passed.
+Knip and cycle checks passed earlier in the lane, before the final read-only
+budget projection; their final repeat remains lead-owned with aggregate quality.
+No full visual baseline comparison was completed; no visual styling changed.
+
+- `dist/acp.js`: 259470 bytes.
+- `dist/headless.js`: 102132 bytes.
+- `dist/modelApi.js`: 533473 bytes.
+- `dist/extension.js`: 563567 bytes.
