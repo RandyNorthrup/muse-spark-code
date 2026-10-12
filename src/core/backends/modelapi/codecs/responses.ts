@@ -425,28 +425,30 @@ export function createResponsesCodec(
         model: body.model,
         input: isChatgpt ? body.input : mapped,
         instructions: isChatgpt ? body.instructions : cleanWireText(body.instructions),
-        // A request without tools carries no tool_choice: Meta takes auto
-        // only, and no live capture of a choice without tools exists.
-        tools:
-          body.tools.length === 0
-            ? []
-            : isChatgpt
-              ? [
-                  {
-                    type: 'namespace',
-                    name: quirks.toolNamespace,
-                    ...(quirks.toolNamespaceDescription !== undefined && {
-                      description: quirks.toolNamespaceDescription,
-                    }),
-                    tools: body.tools,
-                  },
-                ]
-              : withStrictTools(
-                  body.tools,
-                  options?.shouldUseStrictTools !== false && effective.supportsStrictTools === true,
-                ),
+        // A request without tools keeps the production side-call shape:
+        // empty tools with the choice as ever. Meta's own wire carries
+        // exactly this (golden 10-turn-limit-wrap-up; M105 captures show
+        // the service echoing it), and no live capture of an omitted
+        // choice succeeding exists on this family. The tools-less side
+        // calls (git draft, compaction without reused tools) keep sending
+        // what they always sent.
+        tools: isChatgpt
+          ? [
+              {
+                type: 'namespace',
+                name: quirks.toolNamespace,
+                ...(quirks.toolNamespaceDescription !== undefined && {
+                  description: quirks.toolNamespaceDescription,
+                }),
+                tools: body.tools,
+              },
+            ]
+          : withStrictTools(
+              body.tools,
+              options?.shouldUseStrictTools !== false && effective.supportsStrictTools === true,
+            ),
 
-        ...(body.tools.length > 0 && { tool_choice: body.tool_choice }),
+        tool_choice: body.tool_choice,
         reasoning: body.reasoning,
         stream: body.stream,
         store: body.store,

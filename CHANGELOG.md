@@ -17,13 +17,26 @@ happened, not what was planned; superseded entries are kept.
   including `exec --max-requests` above 200. Money caps remain enforced.
 - The wrap-up sends the production side-call shape (no tools declared, the
   choice field as ever, instructions byte-identical, the note a trailing
-  input item); no `tool_choice` goes on the wire without tools, in any codec.
+  input item). On Meta's wire that is empty tools with `tool_choice: auto`
+  (golden `10-turn-limit-wrap-up`, unchanged); the Responses codec for configured OpenAI/xAI providers and
+  the ChatGPT route keeps that shape deliberately, because no live capture
+  of an omitted choice exists on that family — so the git-draft side call
+  and compaction without reused tools send what they always sent. The chat,
+  Anthropic, Gemini and Ollama codecs omit what their long-standing shapes
+  omit.
   The turn's first model call always runs with tools, even when it is also
   the last one allowed: an answer completes the turn (exec exit 0), while a
-  tool request ends it at the request cap. Stop hooks still run on a wrap-up
-  turn; a hook asking for more work is answered with a notice. Steering and
-  goal wakes arriving before the wrap-up keep their own turn with tools, and
-  compaction after a limit stop reuses the last ordinary body. Call-limit and
+  tool request ends it at the request cap. A wrap-up answer always completes
+  with `max_turn_requests` (exec `request_cap`, exit 5), whatever ended the
+  wrap-up: a plain or truncated answer, a Stop hook blocking or answering
+  `continue: false`, or a hook cancelling the turn. Stop hooks still run on
+  a wrap-up turn; a hook asking for more work is answered with a notice.
+  Steering, scheduled-prompt steers and goal wakes arriving before the
+  wrap-up keep their own turn with tools, and never feed the wrap-up; the
+  wrap-up is never measured as the turn body, and compaction after a limit
+  stop reuses the last ordinary body. A hook-model call that would take the
+  turn's last call fails instead, before any paid popup or tally, so the
+  hook's own on-failure rule decides. Call-limit and
   output-limit stops carry their own evidence stop reason instead of the
   money stop, and the reference names the turn behavior on the Conversation
   entry instead of the paid budget. `setModelCallAllowance` is required on
