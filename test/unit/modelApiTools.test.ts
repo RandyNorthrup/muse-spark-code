@@ -1092,8 +1092,8 @@ describe('executeTool: patches a Revert can trust (D27)', () => {
   })
 })
 
-describe('executeTool: a flood of shell output (D27)', () => {
-  it('keeps each stream’s beginning and end and always the exit line', async () => {
+describe('executeTool: a flood of shell output (D27, TOOLCAP)', () => {
+  it('keeps the whole runner output with the exit line; the host bound cuts it', async () => {
     const huge = `${'start '.repeat(10)}${'x'.repeat(200_000)} the end`
     const io = memoryToolIo({}, ROOT, () => ({
       stdout: huge,
@@ -1113,14 +1113,16 @@ describe('executeTool: a flood of shell output (D27)', () => {
         provisionalSeen: new Map(),
       },
     )
+    // TOOLCAP: the middle is no longer dropped here; the host's one bound
+    // cuts it with counts and a spill (covered through the host). The exit
+    // line still ends the outcome, and the row still shows the elided text.
     expect(outcome.output.startsWith('start start')).toBe(true)
     expect(outcome.output).toContain(' the end')
     expect(outcome.output).toContain(' last error')
+    expect(outcome.output).toContain('x'.repeat(1000))
     expect(outcome.output.endsWith('[exit code 3]')).toBe(true)
-    expect(outcome.output).toContain(TOOL_OUTPUT_ELIDED_MARKER)
-    expect(outcome.output.length).toBeLessThan(
-      TOOL_OUTPUT_MAX_CHARS + TOOL_OUTPUT_ELIDED_MARKER.length,
-    )
+    expect(outcome.output).not.toContain(TOOL_OUTPUT_ELIDED_MARKER)
+    expect(outcome.visibleOutput).toContain(TOOL_OUTPUT_ELIDED_MARKER)
   })
 })
 
@@ -1364,7 +1366,7 @@ describe('shell output kept whole for packing (M101 item 15)', () => {
     expect(whole.visibleOutput).toBe(clipped.output)
   })
 
-  it('keeps the shell tool result whole through executeTool while packing', async () => {
+  it('keeps the shell tool result whole through executeTool; the host bound cuts it', async () => {
     const io = memoryToolIo({}, ROOT, () => bigResult(100_000))
     const ctx: ToolContext = {
       workspaceRoot: ROOT,
@@ -1372,7 +1374,6 @@ describe('shell output kept whole for packing (M101 item 15)', () => {
       io,
       seen: new Map(),
       provisionalSeen: new Map(),
-      wholeShellOutput: true,
     }
     const outcome = await executeTool(
       'bash',

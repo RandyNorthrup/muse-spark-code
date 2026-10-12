@@ -93,9 +93,114 @@ function newMarker(): string {
   return randomBytes(OBS_PACK_MARKER_BYTES).toString('hex')
 }
 
+interface ParsedRecall {
+  readonly id: string
+  readonly offset: number
+  readonly search: string | undefined
+}
+
+/**
+ * The recall arguments, validated exactly as offered. Undefined when the
+ * arguments are not JSON; an `outcome` when they parse but are invalid.
+ */
+function parseRecallArgs(
+  argsJson: string,
+): ParsedRecall | { readonly outcome: RecallOutcome } | undefined {
+  let raw: unknown
+  try {
+    raw = JSON.parse(argsJson)
+  } catch {
+    return undefined
+  }
+  const parsed = recallOutputArgs.safeParse(raw)
+  if (!parsed.success) {
+    return {
+      outcome: failure(
+        fill(MODEL_API_MODEL_TEXT.packInvalidArguments, { detail: z.prettifyError(parsed.error) }),
+        UI_TEXT.packRecallInvalid,
+      ),
+    }
+  }
+  return { id: parsed.data.id, offset: parsed.data.offset ?? 0, search: parsed.data.search }
+}
+
+/**
+ * TOOLCAP: one character page of a full result, framed exactly as a packed
+ * page. The host serves spill files through this when the pack store holds
+ * only the cut text (or nothing): every bounded piece stays reachable,
+ * including inside megabyte lines that line-paged file reads cannot reach.
+ */
+export function pageRecalledText(
+  text: string,
+  tool: string | undefined,
+  id: string,
+  offset: number,
+  search: string | undefined,
+): RecallOutcome {
+  const last = text.length - 1
+  if (
+    !Number.isSafeInteger(offset) ||
+    offset < 0 ||
+    offset > last ||
+    packBoundary(text, offset) !== offset
+  ) {
+    return failure(
+      fill(MODEL_API_MODEL_TEXT.packBadOffset, { id, last: String(last) }),
+      fill(UI_TEXT.packRecallBadOffset, { id, last }),
+    )
+  }
+  const found = search === undefined ? offset : text.indexOf(search, offset)
+  if (found === -1) {
+    return failure(
+      fill(MODEL_API_MODEL_TEXT.packSearchNotFound, { id, offset: String(offset) }),
+      fill(UI_TEXT.packRecallNotFound, { id, offset }),
+    )
+  }
+  const start = packBoundary(text, found)
+  const total = text.length
+  const end = packBoundary(text, Math.min(start + OBS_PACK_PAGE_CHARS, total))
+  // The slice exactly as the tool returned it, never altered: the frame
+  // around it is the store's own, its markers fresh for this page.
+  const page = text.slice(start, end)
+  const pageFacts = {
+    id,
+    source:
+      tool === undefined
+        ? MODEL_API_MODEL_TEXT.packSourceUnknown
+        : fill(MODEL_API_MODEL_TEXT.packSourceTool, { tool }),
+    start: String(start),
+    end: String(end),
+    total: String(total),
+  }
+  const lead =
+    end >= total
+      ? fill(MODEL_API_MODEL_TEXT.packPageLast, pageFacts)
+      : fill(MODEL_API_MODEL_TEXT.packPage, { ...pageFacts, next: String(end) })
+  const marker = newMarker()
+  return {
+    output: [
+      lead,
+      MODEL_API_MODEL_TEXT.packRecalledUntrusted,
+      fill(MODEL_API_MODEL_TEXT.packRecalledOpen, { marker }),
+      page,
+      fill(MODEL_API_MODEL_TEXT.packRecalledClose, { marker }),
+    ].join('\n'),
+    visibleOutput: `${fill(UI_TEXT.packRecalled, { id, start, end, total })}\n${page}`,
+  }
+}
+
 /** Estimated tokens for `chars` characters (the ledger's rule of thumb). */
 export function estimatePackTokens(chars: number): number {
   return Math.ceil(chars / OBS_PACK_CHARS_PER_TOKEN)
+}
+
+/**
+ * TOOLCAP: a background completion note's recall id for its text. The host
+ * registers cut notes under this id too, so their spills page back under
+ * the same id the placeholder names.
+ */
+export function backgroundNoteId(text: string): string {
+  return `background-${createHash('sha256').update(text).digest('hex')}`
 }
 
 /** The text's lines, a trailing line break not counting as a line. */
@@ -246,7 +351,7 @@ export class ObservationPack {
           part.text.startsWith(MODEL_API_MODEL_TEXT.backgroundEndedLead) &&
           part.text.length > OBS_PACK_THRESHOLD_CHARS
         ) {
-          const id = `background-${createHash('sha256').update(part.text).digest('hex')}`
+          const id = backgroundNoteId(part.text)
           const entry = this.register(id, part.text, undefined)
           if (entry.isPacked || entry.text.length > SHELL_PACKED_MAX_CHARS) {
             const packed = this.placeholder(id, entry, {
@@ -359,21 +464,12 @@ export class ObservationPack {
 
   /** Pages a packed original back; the host reports the outcome as the call's result. */
   public recall(argsJson: string): RecallOutcome {
-    let raw: unknown
-    try {
-      raw = JSON.parse(argsJson)
-    } catch {
+    const parsed = parseRecallArgs(argsJson)
+    if (parsed === undefined) {
       return failure(MODEL_API_MODEL_TEXT.packInvalidJson, UI_TEXT.packRecallInvalid)
     }
-    const parsed = recallOutputArgs.safeParse(raw)
-    if (!parsed.success) {
-      return failure(
-        fill(MODEL_API_MODEL_TEXT.packInvalidArguments, { detail: z.prettifyError(parsed.error) }),
-        UI_TEXT.packRecallInvalid,
-      )
-    }
-    const { id } = parsed.data
-    const entry = this.outputs.get(id)
+    if ('outcome' in parsed) return parsed.outcome
+    const entry = this.outputs.get(parsed.id)
     if (entry === undefined) {
       let known = this.ids.slice(-OBS_PACK_RECALL_ID_LIMIT).join(', ')
       const omitted = this.ids.length - OBS_PACK_RECALL_ID_LIMIT
@@ -381,61 +477,13 @@ export class ObservationPack {
         known = fill(MODEL_API_MODEL_TEXT.packKnownIdsMore, { known, count: String(omitted) })
       }
       return failure(
-        fill(MODEL_API_MODEL_TEXT.packUnknownId, { id, known: known === '' ? 'none' : known }),
-        fill(UI_TEXT.packRecallUnknownId, { id }),
+        fill(MODEL_API_MODEL_TEXT.packUnknownId, {
+          id: parsed.id,
+          known: known === '' ? 'none' : known,
+        }),
+        fill(UI_TEXT.packRecallUnknownId, { id: parsed.id }),
       )
     }
-    const offset = parsed.data.offset ?? 0
-    const last = entry.text.length - 1
-    if (
-      !Number.isSafeInteger(offset) ||
-      offset < 0 ||
-      offset > last ||
-      packBoundary(entry.text, offset) !== offset
-    ) {
-      return failure(
-        fill(MODEL_API_MODEL_TEXT.packBadOffset, { id, last: String(last) }),
-        fill(UI_TEXT.packRecallBadOffset, { id, last }),
-      )
-    }
-    const found =
-      parsed.data.search === undefined ? offset : entry.text.indexOf(parsed.data.search, offset)
-    if (found === -1) {
-      return failure(
-        fill(MODEL_API_MODEL_TEXT.packSearchNotFound, { id, offset: String(offset) }),
-        fill(UI_TEXT.packRecallNotFound, { id, offset }),
-      )
-    }
-    const start = packBoundary(entry.text, found)
-    const total = entry.text.length
-    const end = packBoundary(entry.text, Math.min(start + OBS_PACK_PAGE_CHARS, total))
-    // The slice exactly as the tool returned it, never altered: the frame
-    // around it is the store's own, its markers fresh for this page.
-    const page = entry.text.slice(start, end)
-    const pageFacts = {
-      id,
-      source:
-        entry.tool === undefined
-          ? MODEL_API_MODEL_TEXT.packSourceUnknown
-          : fill(MODEL_API_MODEL_TEXT.packSourceTool, { tool: entry.tool }),
-      start: String(start),
-      end: String(end),
-      total: String(total),
-    }
-    const lead =
-      end >= total
-        ? fill(MODEL_API_MODEL_TEXT.packPageLast, pageFacts)
-        : fill(MODEL_API_MODEL_TEXT.packPage, { ...pageFacts, next: String(end) })
-    const marker = newMarker()
-    return {
-      output: [
-        lead,
-        MODEL_API_MODEL_TEXT.packRecalledUntrusted,
-        fill(MODEL_API_MODEL_TEXT.packRecalledOpen, { marker }),
-        page,
-        fill(MODEL_API_MODEL_TEXT.packRecalledClose, { marker }),
-      ].join('\n'),
-      visibleOutput: `${fill(UI_TEXT.packRecalled, { id, start, end, total })}\n${page}`,
-    }
+    return pageRecalledText(entry.text, entry.tool, parsed.id, parsed.offset, parsed.search)
   }
 }
