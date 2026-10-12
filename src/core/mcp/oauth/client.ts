@@ -153,9 +153,10 @@ export class McpOAuthClient {
     try {
       return await next
     } catch (error: unknown) {
-      // The caller's own stop stays a stop; a timeout or any other failure
-      // of the operation denies.
-      if (signal.aborted) throw error
+      // Only the caller's own stop stays a stop: the caught error is the
+      // signal's own abort reason. Any other failure, even one racing a
+      // stop, denies with the fixed reason.
+      if (signal.aborted && error === signal.reason) throw error
       oauthDenied()
     } finally {
       this.active.delete(controller)
