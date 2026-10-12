@@ -191,13 +191,18 @@ usage, 253 manifest, 1544 sources). `check:reference` current.
 566,772 (614,400), `acp.js` 241,528 (870,400), `media.js` 20,992,
 `productionMedia.js` 68,885. No guard or cap moves; no new dependency.
 
-**Known concurrent work in this worktree:** a second hand edited this
-lane's files mid-session (deterministic cancel detector via the agent
-cancel log, `voiceAccountId` account half, stamped posts, keyed
-composition test, protocol/reducer identity). Kept where right, finished
-where half-done (four `DRILL` remnants restored byte-exact, two
-typecheck errors fixed, lint clean). Mysterious scratch files appeared
-and vanished (`zzprobe`, `zzCopy`); none remain.
+**Two implementers in this worktree:** this round ran as two sessions
+sharing one checkout (one per half of the findings, roughly). The
+designs were reconciled, not duplicated: the core port owns retention
+(binding/runtime fallbacks removed as redundant), the controller guard
+checks generation and account, the reducer gates on the stamped
+generation. All drill breaks were restored byte-exact (SHA-256 checked
+per file); `grep` shows no `DRILL` remnant and no scratch file remains.
+One drill taught something: the ACP cancel-during-read test still
+passes with the post-read check removed, because a second pre-delete
+check (post-confirm) guards the same await; both out → the command
+resolves `handled` after cancel instead of rejecting. Either check
+alone still guards the behavior.
 
 **Lead-owned residuals (true blockers, flagged per brief):**
 
@@ -213,7 +218,14 @@ and vanished (`zzprobe`, `zzCopy`); none remain.
   the VS Code host; needs the integration run (still required overall).
 - HUB files touched: `src/shared/protocol.ts` (optional
   `accountId`/`generation` on `uploadedFilesReport`), `src/shared/l10n/en.ts`,
-  generated reference files. `vitest related` over the full changed set
-  selects ~588 files (review-counted); the lane ran the owning suites
-  plus every suite naming a changed identifier, the five typechecks and
-  the production build instead. Full integration run still required.
+  generated reference files. `vitest related` over the ten changed
+  non-hub sources selected 107 files: 102 passed (3,075 tests),
+  4 failed with 46 failures, every one triaged as
+  pre-existing/environmental — `chatGptVsCode` (15, loopback `EPERM`),
+  `runtimeChatGpt` (29, native OS store/grant lock),
+  `subscriptionIntegration` (2, loopback `EPERM` in the log),
+  `acpAgent` ChatGPT-actions (1, fails identically on the clean base
+  `98eb03aaa`: the adapter reports unavailable without loopback/store).
+  `configuredProviders` (loopback `EPERM`) and `files.test.ts` (loopback
+  proxy) were excluded up front as NOT RUN HERE. Full integration run
+  still required.
