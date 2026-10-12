@@ -4171,7 +4171,22 @@ export const EN = {
   execTeamNeedsEdits: '--team needs --permission-mode acceptEdits.',
   execTeamWorkerUnsupported: 'Headless teams run only engine workers; {kind} cannot run in CI.',
   execTeamConfigInvalid: 'Headless team configuration is invalid: {reason}.',
-  execTeamProtectedDenied: 'Headless team merge denied: protected paths require approval.',
+  execTeamConfigNotJson: 'team.json is not JSON.',
+  execTeamConfigNotObject: 'team.json must hold a single object.',
+  execTeamConfigLowersOnly:
+    'team.json entry {entry} is not allowed: the workspace file can only lower existing limits.',
+  execTeamConfigBadEntry: 'team.json entry {entry} is not valid.',
+  execTeamStateUnreadable:
+    'The stored headless team cannot be read; check the workspace team file.',
+  execTeamReviewerUnsupported:
+    'team.json requires reviewer {entry}; this runner offers only code review.',
+  execTeamMergeMarkers:
+    'The branch still shows conflict markers at {detail}; resolve them and merge again.',
+  execTeamMergeHeldProtected:
+    'Protected paths need approval, so the branch is held at {ref}. Approve them and merge again, or remove {ref} to discard the work.',
+  execTeamMergeHeldReview:
+    'The required review is not complete, so the branch is held at {ref}. Collect the review and merge again, or remove {ref} to discard the work.',
+  execTeamMergeBlocked: 'The merge cannot proceed for task {entry}: {detail}.',
 
   execMuseCodeOnly: 'These options require the Muse Code backend.',
   execModelUnpriced: 'This model has no known tariff.',

@@ -5091,5 +5091,14 @@
   },
   "execTeamWorkerUnsupported": "ヘッドレスチームはエンジンワーカーのみ実行します。{kind} は CI で実行できません。",
   "execTeamConfigInvalid": "ヘッドレスチームの設定が無効です: {reason}。",
-  "execTeamProtectedDenied": "ヘッドレスチームのマージを拒否しました。保護されたパスには承認が必要です。"
+  "execTeamConfigNotJson": "team.json は JSON ではありません。",
+  "execTeamConfigNotObject": "team.json は単一のオブジェクトでなければなりません。",
+  "execTeamConfigLowersOnly": "team.json のエントリ {entry} は許可されていません。ワークスペースファイルでは既存の制限を下げることしかできません。",
+  "execTeamConfigBadEntry": "team.json のエントリ {entry} は無効です。",
+  "execTeamStateUnreadable": "保存されたヘッドレスチームを読み取れません。ワークスペースのチームファイルを確認してください。",
+  "execTeamReviewerUnsupported": "team.json はレビュアー {entry} を要求しています。このランナーが提供するのはコードレビューのみです。",
+  "execTeamMergeMarkers": "ブランチに競合マーカーが残っています ({detail})。解消してから再度マージしてください。",
+  "execTeamMergeHeldProtected": "保護されたパスには承認が必要なため、ブランチは {ref} に保持されています。承認してから再度マージするか、作業を破棄するには {ref} を削除してください。",
+  "execTeamMergeHeldReview": "必要なレビューが完了していないため、ブランチは {ref} に保持されています。レビューを収集してから再度マージするか、作業を破棄するには {ref} を削除してください。",
+  "execTeamMergeBlocked": "タスク {entry} のマージを続行できません: {detail}。"
 }

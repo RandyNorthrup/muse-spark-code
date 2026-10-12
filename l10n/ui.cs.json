@@ -5550,5 +5550,14 @@
   },
   "execTeamWorkerUnsupported": "Týmy bez rozhraní spouštějí pouze pracovníky jádra; {kind} nelze spustit v CI.",
   "execTeamConfigInvalid": "Neplatná konfigurace týmu bez rozhraní: {reason}.",
-  "execTeamProtectedDenied": "Sloučení týmu bez rozhraní odmítnuto: chráněné cesty vyžadují schválení."
+  "execTeamConfigNotJson": "team.json není JSON.",
+  "execTeamConfigNotObject": "team.json musí obsahovat jediný objekt.",
+  "execTeamConfigLowersOnly": "Položka {entry} v team.json není povolena: soubor pracovního prostoru může pouze snižovat stávající limity.",
+  "execTeamConfigBadEntry": "Položka {entry} v team.json je neplatná.",
+  "execTeamStateUnreadable": "Uložený headless tým nelze přečíst; zkontrolujte týmový soubor pracovního prostoru.",
+  "execTeamReviewerUnsupported": "team.json vyžaduje recenzenta {entry}; tento runner nabízí pouze revizi kódu.",
+  "execTeamMergeMarkers": "Větev stále obsahuje značky konfliktů v {detail}; vyřešte je a sloučte znovu.",
+  "execTeamMergeHeldProtected": "Chráněné cesty vyžadují schválení, proto je větev podržena v {ref}. Schvalte je a sloučte znovu, nebo odeberte {ref} a práci zahoďte.",
+  "execTeamMergeHeldReview": "Požadovaná revize není dokončena, proto je větev podržena v {ref}. Shromážděte revizi a sloučte znovu, nebo odeberte {ref} a práci zahoďte.",
+  "execTeamMergeBlocked": "Sloučení pro úlohu {entry} nemůže pokračovat: {detail}."
 }

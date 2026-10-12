@@ -5397,5 +5397,14 @@
   },
   "execTeamWorkerUnsupported": "Equipes sem interface executam apenas workers do mecanismo; {kind} não pode ser executado em CI.",
   "execTeamConfigInvalid": "Configuração da equipe sem interface inválida: {reason}.",
-  "execTeamProtectedDenied": "Mesclagem da equipe sem interface negada: caminhos protegidos exigem aprovação."
+  "execTeamConfigNotJson": "team.json não é JSON.",
+  "execTeamConfigNotObject": "team.json deve conter um único objeto.",
+  "execTeamConfigLowersOnly": "A entrada {entry} de team.json não é permitida: o arquivo do espaço de trabalho só pode reduzir os limites existentes.",
+  "execTeamConfigBadEntry": "A entrada {entry} de team.json não é válida.",
+  "execTeamStateUnreadable": "Não foi possível ler a equipe headless armazenada; verifique o arquivo de equipe do espaço de trabalho.",
+  "execTeamReviewerUnsupported": "team.json exige o revisor {entry}; este executor oferece apenas revisão de código.",
+  "execTeamMergeMarkers": "O ramo ainda mostra marcadores de conflito em {detail}; resolva-os e mescle novamente.",
+  "execTeamMergeHeldProtected": "Caminhos protegidos precisam de aprovação, por isso o ramo fica retido em {ref}. Aprove-os e mescle novamente, ou remova {ref} para descartar o trabalho.",
+  "execTeamMergeHeldReview": "A revisão exigida não está completa, por isso o ramo fica retido em {ref}. Recolha a revisão e mescle novamente, ou remova {ref} para descartar o trabalho.",
+  "execTeamMergeBlocked": "A fusão não pode continuar para a tarefa {entry}: {detail}."
 }

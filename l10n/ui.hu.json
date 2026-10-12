@@ -5244,5 +5244,14 @@
   },
   "execTeamWorkerUnsupported": "A felület nélküli csapatok csak a motor dolgozóit futtatják; {kind} nem futtatható CI-ben.",
   "execTeamConfigInvalid": "Érvénytelen felület nélküli csapatbeállítás: {reason}.",
-  "execTeamProtectedDenied": "A felület nélküli csapat egyesítése elutasítva: a védett útvonalak jóváhagyást igényelnek."
+  "execTeamConfigNotJson": "A team.json nem JSON.",
+  "execTeamConfigNotObject": "A team.json egyetlen objektumot kell tartalmazzon.",
+  "execTeamConfigLowersOnly": "A(z) {entry} team.json-bejegyzés nem engedélyezett: a munkaterület-fájl csak a meglévő korlátokat csökkentheti.",
+  "execTeamConfigBadEntry": "A(z) {entry} team.json-bejegyzés érvénytelen.",
+  "execTeamStateUnreadable": "A tárolt headless csapat nem olvasható; ellenőrizze a munkaterület csapatfájlját.",
+  "execTeamReviewerUnsupported": "A team.json {entry} lektort igényel; ez a futtató csak kódlektort kínál.",
+  "execTeamMergeMarkers": "Az ágban még ütközésjelölők vannak itt: {detail}; oldja fel őket, és egyesítse újra.",
+  "execTeamMergeHeldProtected": "A védett útvonalak jóváhagyást igényelnek, ezért az ág itt várakozik: {ref}. Hagyja jóvá őket, és egyesítse újra, vagy a munka elvetéséhez távolítsa el a(z) {ref} elemet.",
+  "execTeamMergeHeldReview": "A szükséges lektorálás nincs kész, ezért az ág itt várakozik: {ref}. Gyűjtse be a lektorálást, és egyesítse újra, vagy a munka elvetéséhez távolítsa el a(z) {ref} elemet.",
+  "execTeamMergeBlocked": "Az egyesítés nem folytatható a(z) {entry} feladathoz: {detail}."
 }

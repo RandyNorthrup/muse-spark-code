@@ -5550,5 +5550,14 @@
   },
   "execTeamWorkerUnsupported": "Команды без интерфейса запускают только исполнителей движка; {kind} нельзя запустить в CI.",
   "execTeamConfigInvalid": "Недопустимая конфигурация команды без интерфейса: {reason}.",
-  "execTeamProtectedDenied": "Слияние команды без интерфейса отклонено: защищённые пути требуют разрешения."
+  "execTeamConfigNotJson": "team.json — не JSON.",
+  "execTeamConfigNotObject": "team.json должен содержать один объект.",
+  "execTeamConfigLowersOnly": "Запись {entry} в team.json запрещена: файл рабочей области может только снижать существующие лимиты.",
+  "execTeamConfigBadEntry": "Запись {entry} в team.json недопустима.",
+  "execTeamStateUnreadable": "Не удаётся прочитать сохранённую headless-команду; проверьте файл команды рабочей области.",
+  "execTeamReviewerUnsupported": "team.json требует рецензента {entry}; этот runner предлагает только ревью кода.",
+  "execTeamMergeMarkers": "В ветке остались маркеры конфликта в {detail}; разрешите их и выполните слияние снова.",
+  "execTeamMergeHeldProtected": "Защищённые пути требуют одобрения, поэтому ветка удерживается в {ref}. Одобрите их и выполните слияние снова или удалите {ref}, чтобы отбросить работу.",
+  "execTeamMergeHeldReview": "Требуемое ревью не завершено, поэтому ветка удерживается в {ref}. Соберите ревью и выполните слияние снова или удалите {ref}, чтобы отбросить работу.",
+  "execTeamMergeBlocked": "Слияние для задачи {entry} не может продолжаться: {detail}."
 }
