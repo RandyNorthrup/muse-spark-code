@@ -273,6 +273,16 @@ describe('M109 H ACP vault', () => {
     expect(asker).not.toHaveBeenCalled()
     expect(decisionOf(await vault.ask('session', request))).toBe('deny')
   })
+  it('CATCHAUDIT broker deny stays fail-closed for errors but lets a foreign failure through', async () => {
+    const h = commandHarness()
+    const vault = new AcpVault(h.deps.open)
+    const request = requestFor('session')
+    vault.attach(() => Promise.reject(new Error('broker-private-failure')))
+    expect(decisionOf(await vault.ask('session', request))).toBe('deny')
+    const brokerBoom: unknown = 'vault-broker-boom'
+    vault.attach(vi.fn().mockRejectedValue(brokerBoom))
+    await expect(vault.ask('session', request)).rejects.toBe('vault-broker-boom')
+  })
   it.each(['status', 'list', 'lock', 'audit'] as const)(
     'H32 /vault %s is local and never sent to model',
     async (command) => {

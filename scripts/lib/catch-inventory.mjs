@@ -431,7 +431,7 @@ function leadingOf(source, body) {
   // The span holds only trivia (whitespace and comments): statements start
   // after it, and strings cannot appear before the first statement.
   const innerEnd =
-    body.statements.length > 0 ? body.statements[0].getFullStart() : body.getEnd() - 1
+    body.statements.length > 0 ? body.statements[0].getStart(source) : body.getEnd() - 1
   return source.text.slice(body.getStart(source) + 1, innerEnd)
 }
 

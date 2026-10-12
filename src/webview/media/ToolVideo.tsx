@@ -33,8 +33,13 @@ export default function ToolVideo({
         }
         setResult({ path, url: resolved, hasFailed: false })
       })
-      .catch(() => {
-        if (!controller.signal.aborted) setResult({ path, hasFailed: true })
+      .catch((error: unknown) => {
+        // A cancelled resolve stays silent (an abort throws past Error): an
+        // unresolvable clip reads failed, and only a non-error keeps its
+        // kind past the row.
+        if (controller.signal.aborted) return
+        if (!(error instanceof Error)) throw error
+        setResult({ path, hasFailed: true })
       })
     return () => {
       controller.abort()

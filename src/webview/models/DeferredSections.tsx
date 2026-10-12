@@ -33,7 +33,9 @@ function heightsOf(host: HostBridge | undefined): Record<string, number> {
   try {
     const saved = heightSchema.safeParse(host?.savedState())
     return saved.success ? saved.data.snapshot.modelsSectionHeights : {}
-  } catch {
+  } catch (error: unknown) {
+    // An unreadable store measures nothing: anything else keeps its kind.
+    if (!(error instanceof Error)) throw error
     return {}
   }
 }

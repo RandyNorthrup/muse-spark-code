@@ -21,7 +21,9 @@ export function usePaidFeaturePrice(
   }
   try {
     return api.paidFeaturePrice(feature)
-  } catch {
+  } catch (error: unknown) {
+    // An unpriced feature reads undefined: anything else keeps its kind.
+    if (!(error instanceof Error)) throw error
     return
   }
 }
@@ -37,7 +39,9 @@ export function usePaidFeaturePrices(
   }
   try {
     return new Map(features.map((feature) => [feature, api.paidFeaturePrice(feature)] as const))
-  } catch {
+  } catch (error: unknown) {
+    // Unpriced features read undefined: anything else keeps its kind.
+    if (!(error instanceof Error)) throw error
     return
   }
 }

@@ -84,11 +84,15 @@ export function companionUsagePort(): HttpUsagePort {
       reader.releaseLock()
     }
   }
-  void stream().catch(() => {
-    const error = new Error('EPANEL_CLOSED')
-    streamReady.reject(error)
-    for (const request of waiting.values()) request.reject(error)
+  void stream().catch((error: unknown) => {
+    // A broken stream closes the panel for its waiters, carrying the cause.
+    // The waiters settle first; a non-error then keeps its own kind past the
+    // companion to the failure record.
+    const closed = new Error('EPANEL_CLOSED', { cause: error })
+    streamReady.reject(closed)
+    for (const request of waiting.values()) request.reject(closed)
     waiting.clear()
+    if (!(error instanceof Error)) throw error
   })
   void streamReady.promise.catch(() => {
     // Requests consume this failure; an unused page has no request to reject.

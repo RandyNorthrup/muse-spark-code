@@ -28,8 +28,13 @@ export function ServiceStatusRow({
         const parsed = serviceStatusRowSchema.safeParse(value)
         if (!stop.signal.aborted)
           setAnswer({ reader: read, status: parsed.success ? parsed.data : undefined })
-      } catch {
-        if (!stop.signal.aborted) setAnswer({ reader: read, status: undefined })
+      } catch (error: unknown) {
+        // A cancelled read stays silent (an abort throws past Error): a
+        // failed read leaves the row unavailable, and only a non-error keeps
+        // its kind past the row.
+        if (stop.signal.aborted) return
+        if (!(error instanceof Error)) throw error
+        setAnswer({ reader: read, status: undefined })
       }
     }
     void readStatus()

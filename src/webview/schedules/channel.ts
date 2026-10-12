@@ -74,9 +74,12 @@ export function scheduleChannel(
         pending.set(requestId, { resolve, reject, timer })
         try {
           post(parsed.message)
-        } catch {
+        } catch (error: unknown) {
+          // An unposted request settles load-failed: only a non-error keeps
+          // its kind past the channel.
           clearTimeout(timer)
           pending.delete(requestId)
+          if (!(error instanceof Error)) throw error
           reject(new Error(UI_TEXT.scheduleV2.editor.loadFailed))
         }
       }),

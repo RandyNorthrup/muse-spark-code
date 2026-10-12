@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import type { WorkflowChild, WorkflowEntry } from '../../src/webview/state/uiState'
 import {
   childName,
@@ -142,5 +142,28 @@ describe('the words of a workflow run (M47)', () => {
     expect(workflowTriggerText('sometimes')).toBe(
       `Muse Code’s workflow setting is sometimes. ${howTo} in the Muse Code settings file to change it; the extension never edits that file.`,
     )
+  })
+})
+
+describe('CATCHAUDIT named-condition catches', () => {
+  it('lets a foreign JSON failure through instead of an unlaunched run', () => {
+    expect(workflowLaunch('not json', 'not json')).toEqual({
+      script: undefined,
+      isLaunched: false,
+      scriptPath: undefined,
+    })
+    const realParse = JSON.parse
+    const jsonBoom: unknown = 'json-boom'
+    vi.stubGlobal('JSON', {
+      ...JSON,
+      parse: () => {
+        throw jsonBoom
+      },
+    })
+    try {
+      expect(() => workflowLaunch('{}', '{}')).toThrow('json-boom')
+    } finally {
+      vi.stubGlobal('JSON', realParse)
+    }
   })
 })

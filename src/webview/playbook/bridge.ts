@@ -97,9 +97,12 @@ export function createPlaybookBridge(
               : { type: 'playbookChange', ...lifetime, requestId: id, change },
           ),
         )
-      } catch {
+      } catch (error: unknown) {
+        // An unposted request settles unavailable: only a non-error keeps
+        // its kind past the bridge.
         clearTimeout(timer)
         pending.delete(id)
+        if (!(error instanceof Error)) throw error
         fail()
       }
     })

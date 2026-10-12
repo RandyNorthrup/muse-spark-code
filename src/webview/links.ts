@@ -30,8 +30,10 @@ const SUFFIX_LINES = /:(\d+)(?:-(\d+))?$/
 function decoded(text: string): string {
   try {
     return decodeURIComponent(text)
-  } catch {
-    // A stray `%` is part of the name, not an escape.
+  } catch (error: unknown) {
+    // A stray `%` is part of the name, not an escape: anything else keeps
+    // its kind.
+    if (!(error instanceof URIError)) throw error
     return text
   }
 }
@@ -85,7 +87,9 @@ export function linkLabel(title: string | undefined, url: string): string {
   }
   try {
     return new URL(url).host || url
-  } catch {
+  } catch (error: unknown) {
+    // A relative link has no host: anything else keeps its kind.
+    if (!(error instanceof TypeError)) throw error
     return url
   }
 }

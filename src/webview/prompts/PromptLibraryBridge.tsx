@@ -45,7 +45,10 @@ export function PromptLibraryBridge({
     void rpc
       .ask(action, payload)
       .then(refresh)
-      .catch(() => {
+      .catch((error: unknown) => {
+        // A failed action reads invalid: only a non-error keeps its kind
+        // past the bridge.
+        if (!(error instanceof Error)) throw error
         setError(UI_TEXT.promptFileInvalid)
       })
   }
@@ -56,7 +59,10 @@ export function PromptLibraryBridge({
       .then((value) => {
         setRows(rowsSchema.parse(value))
       })
-      .catch(() => {
+      .catch((error: unknown) => {
+        // An unreadable store reads damaged: only a non-error keeps its kind
+        // past the bridge.
+        if (!(error instanceof Error)) throw error
         setError(UI_TEXT.promptStoreDamaged)
       })
     return () => {
@@ -87,7 +93,10 @@ export function PromptLibraryBridge({
         .then((value) => {
           if (value !== undefined) setSharePreview(previewSchema.parse(value))
         })
-        .catch(() => {
+        .catch((error: unknown) => {
+          // An unshared prompt reads confidential: only a non-error keeps
+          // its kind past the bridge.
+          if (!(error instanceof Error)) throw error
           setError(UI_TEXT.shareConfidential)
         })
     },
@@ -97,7 +106,10 @@ export function PromptLibraryBridge({
         .then((value) => {
           if (value !== undefined) setImportPreview(importSchema.parse(value))
         })
-        .catch(() => {
+        .catch((error: unknown) => {
+          // An unreadable import reads invalid: only a non-error keeps its
+          // kind past the bridge.
+          if (!(error instanceof Error)) throw error
           setError(UI_TEXT.promptFileInvalid)
         })
     },

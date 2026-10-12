@@ -88,7 +88,10 @@ export function ThresholdEditor({
       if (!parsed.success) throw new Error(UI_TEXT.accounts.invalidAccount)
       setError(false)
       onSave(parsed.data)
-    } catch {
+    } catch (error: unknown) {
+      // An unsaved edit reads failed: only a non-error keeps its kind past
+      // the editor.
+      if (!(error instanceof Error)) throw error
       setError(true)
     }
   }

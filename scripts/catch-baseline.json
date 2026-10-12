@@ -6,11 +6,11 @@
       "GENERIC": 0
     },
     "core": {
-      "SWALLOW": 212,
+      "SWALLOW": 190,
       "GENERIC": 352
     },
     "host": {
-      "SWALLOW": 74,
+      "SWALLOW": 67,
       "GENERIC": 245
     },
     "root": {
@@ -18,7 +18,7 @@
       "GENERIC": 6
     },
     "runtime": {
-      "SWALLOW": 58,
+      "SWALLOW": 51,
       "GENERIC": 173
     },
     "shared": {
@@ -26,8 +26,8 @@
       "GENERIC": 9
     },
     "webview": {
-      "SWALLOW": 42,
-      "GENERIC": 17
+      "SWALLOW": 0,
+      "GENERIC": 0
     }
   }
 }

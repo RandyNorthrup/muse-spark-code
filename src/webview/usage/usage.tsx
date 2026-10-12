@@ -93,7 +93,9 @@ if (tableElement !== null) {
       !parsed.ok ||
       parsed.message.type !== 'usage/table' ||
       installUsageTable(parsed.message) !== undefined
-  } catch {
+  } catch (error: unknown) {
+    // An unreadable table reads unavailable: anything else keeps its kind.
+    if (!(error instanceof Error)) throw error
     isInvalidTable = true
   }
 }
@@ -120,6 +122,8 @@ try {
       )}
     </UsageBoundary>,
   )
-} catch {
+} catch (error: unknown) {
+  // An unstartable page reads unavailable: anything else keeps its kind.
+  if (!(error instanceof Error)) throw error
   root.render(<Unavailable />)
 }

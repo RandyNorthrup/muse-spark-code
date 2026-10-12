@@ -114,8 +114,11 @@ function MediaControls({
       onAttached(companionMediaUploadSchema.parse(result))
       setStatus('')
       if (isScreenRecording) discard()
-    } catch (error) {
-      if (isLive()) setStatus(error instanceof Error ? error.message : UI_TEXT.attachmentUnreadable)
+    } catch (error: unknown) {
+      // An unreadable upload never shows its cause: only a non-error keeps
+      // its kind past the controls.
+      if (!(error instanceof Error)) throw error
+      if (isLive()) setStatus(UI_TEXT.attachmentUnreadable)
     } finally {
       upload.current = undefined
       if (isLive()) setBusy(false)
@@ -179,9 +182,11 @@ function MediaControls({
       currentPreview.current = ready
       setPreview(ready)
       setStatus('')
-    } catch (error) {
-      if (isLive())
-        setStatus(error instanceof Error ? error.message : UI_TEXT.media.recordingPermissionDenied)
+    } catch (error: unknown) {
+      // A failed recording never shows its cause: only a non-error keeps
+      // its kind past the controls.
+      if (!(error instanceof Error)) throw error
+      if (isLive()) setStatus(UI_TEXT.media.recordingFailed)
     } finally {
       recordingIntent.current = false
       run.current = undefined

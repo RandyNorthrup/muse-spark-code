@@ -87,7 +87,10 @@ export function AccountsSection({
       port.accept(next.data)
       setEditor(null)
       setRemovalId(null)
-    } catch {
+    } catch (error: unknown) {
+      // A failed change reads failed: only a non-error keeps its kind past
+      // the section.
+      if (!(error instanceof Error)) throw error
       if (generation.current === owner.generation)
         setError({ value, message: UI_TEXT.actionFailed })
     } finally {

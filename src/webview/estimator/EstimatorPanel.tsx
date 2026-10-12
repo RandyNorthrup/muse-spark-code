@@ -212,11 +212,13 @@ export default function EstimatorPanel({
           : (next.setups[0]?.kind ?? 'current'),
       )
     } catch (error: unknown) {
-      if (
-        !controller.signal.aborted &&
-        !(error instanceof DOMException && error.name === 'AbortError')
-      )
-        setError(fill(UI_TEXT.estimateFailed, { detail: 'estimate-unavailable' }))
+      // A cancelled run stays silent (an abort throws past Error): a
+      // stillborn run reads failed, and a non-error keeps its kind past the
+      // panel.
+      if (controller.signal.aborted) return
+      if (error instanceof DOMException && error.name === 'AbortError') return
+      if (!(error instanceof Error)) throw error
+      setError(fill(UI_TEXT.estimateFailed, { detail: 'estimate-unavailable' }))
     } finally {
       if (pending.current === controller && !controller.signal.aborted) setBusy(false)
     }
@@ -240,7 +242,10 @@ export default function EstimatorPanel({
       if (setup.provisioning === 'existing' && port.startExisting !== undefined)
         await port.startExisting(section, setup)
       else if (port.provision.state === 'ready') await port.provision.spinUp(section, setup)
-    } catch {
+    } catch (error: unknown) {
+      // An unstarted run reads failed: only a non-error keeps its kind past
+      // the panel.
+      if (!(error instanceof Error)) throw error
       if (cycle === spinCycle.current)
         setError(fill(UI_TEXT.estimateFailed, { detail: 'start-unavailable' }))
     } finally {

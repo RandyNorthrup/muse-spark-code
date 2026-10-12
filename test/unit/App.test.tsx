@@ -4256,7 +4256,10 @@ function editorOpens(postMessage: Awaited<ReturnType<typeof renderCold>>): numbe
 // composer with an honest warning, and a command whose surface, session or
 // conversation ended before the mapping arrived posts and stashes nothing.
 describe('/schedule mapping on first use', () => {
-  const promptChunk = { gate: Promise.withResolvers<undefined>(), shouldFail: false }
+  const promptChunk: { gate: PromiseWithResolvers<undefined>; shouldFail: boolean } = {
+    gate: Promise.withResolvers<undefined>(),
+    shouldFail: false,
+  }
   const command = '/schedule add Keep this exact prompt'
 
   beforeEach(() => {
@@ -4318,6 +4321,41 @@ describe('/schedule mapping on first use', () => {
     expect(await screen.findAllByText(UI_TEXT.scheduleCommandFailed)).not.toHaveLength(0)
     expect(textarea()).toHaveValue('A newer draft')
     expect(editorOpens(postMessage)).toBe(0)
+  })
+
+  it('CATCHAUDIT: warns a fixed sentence when the schedule channel fails', async () => {
+    const postMessage = await renderCold()
+    openSurface()
+    postMessage.mockImplementation((message) => {
+      if (message.type === 'schedulesRequest') throw new Error('post-boom-secret')
+    })
+    send('/schedule remove test-id')
+    await release()
+    expect(await screen.findAllByText(UI_TEXT.scheduleCommandFailed)).not.toHaveLength(0)
+    expect(screen.queryByText(/post-boom-secret/)).toBeNull()
+  })
+
+  it('CATCHAUDIT: lets a foreign channel failure through instead of an honest warning', async () => {
+    const hostile: unknown = 'post-boom-string'
+    const unhandled: unknown[] = []
+    const onUnhandled = (reason: unknown): void => {
+      unhandled.push(reason)
+    }
+    process.on('unhandledRejection', onUnhandled)
+    try {
+      const postMessage = await renderCold()
+      openSurface()
+      postMessage.mockImplementation((message) => {
+        if (message.type === 'schedulesRequest') throw hostile
+      })
+      send('/schedule remove test-id')
+      await release()
+      await vi.waitFor(() => {
+        expect(unhandled).toContain(hostile)
+      })
+    } finally {
+      process.off('unhandledRejection', onUnhandled)
+    }
   })
 
   it('posts and stashes nothing once its surface is cancelled before the mapping arrives', async () => {
