@@ -3,6 +3,7 @@ import { mkdir, mkdtemp } from 'node:fs/promises'
 import path from 'node:path'
 import { afterAll, beforeAll } from 'vitest'
 import { powerShellQuoted } from '../../../src/core/shellQuote'
+import { workerWindowsCommand } from '../../../src/core/team/workers/workerOps'
 import { shellJobAssembly } from '../../../src/host/backend/shellJob'
 import { loadJobAssembly, runProgram } from '../../../src/host/processTree'
 import { readJobSource } from './jobSource'
@@ -51,14 +52,25 @@ export function useCreatedNative(): void {
         throw new Error(`Native test helper unavailable: ${errors.join('\n')}`)
       const prefix = ['-NoProfile', '-NonInteractive', '-Command']
       const prepared = new Set<string>()
+      const env = { SystemRoot: systemRoot, TMP: scratch, TEMP: scratch }
+      // Worker operations go through the PRODUCT's launcher, so a refusal
+      // reaches the test exactly as it reaches production: one raw reason
+      // line. A second hand-written launch here printed PowerShell's own
+      // error record instead, which wraps the exception message in double
+      // quotes; the reason then arrived as `invalid filename"` and the
+      // product's mapper rightly did not recognise it (measured on Windows).
+      // The publish and tree operations keep this fixture's launch: they
+      // still need the fixture paths owned by the test's user first.
       const call = (assemblyPath: string, args: readonly string[]) =>
         run(
           powershell,
-          [
-            ...prefix,
-            `$ErrorActionPreference='Stop'; ${prepareFixtureOwner(args, prepared)} ${loadJobAssembly(assemblyPath)}; [MuseSparkCreated]::Execute([string[]]@(${args.map((arg) => powerShellQuoted(arg)).join(',')}))`,
-          ],
-          { SystemRoot: systemRoot, TMP: scratch, TEMP: scratch },
+          args[0]?.startsWith('worker-') === true
+            ? workerWindowsCommand(assemblyPath, args)
+            : [
+                ...prefix,
+                `$ErrorActionPreference='Stop'; ${prepareFixtureOwner(args, prepared)} ${loadJobAssembly(assemblyPath)}; [MuseSparkCreated]::Execute([string[]]@(${args.map((arg) => powerShellQuoted(arg)).join(',')}))`,
+              ],
+          env,
         )
       state.windows = call
       state.call = (args) => call(assembly, args)
