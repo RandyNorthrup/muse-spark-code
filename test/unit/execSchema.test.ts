@@ -100,6 +100,7 @@ const statuses: [ExecStatus, number][] = [
   ['backend_unavailable', 3],
   ['failed', 4],
   ['budget_exceeded', 5],
+  ['unpriced', 4],
   ['request_cap', 5],
   ['timeout', 6],
   ['denied', 7],

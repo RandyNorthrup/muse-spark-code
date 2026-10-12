@@ -15,7 +15,10 @@ import {
 import { open, readFile, realpath } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { createServer } from 'node:http'
-import { createRuntimeDailyBudget } from '../../src/runtime/runtimeAccountingEntry'
+import {
+  createRuntimeDailyBudget,
+  responseReservationMessage,
+} from '../../src/runtime/runtimeAccountingEntry'
 import path from 'node:path'
 import { PassThrough } from 'node:stream'
 import childProcess from 'node:child_process'
@@ -35,6 +38,7 @@ import { createLifecycle } from '../../src/runtime/exec/execLimits'
 import {
   validateResult,
   type ExecEvent,
+  type LedgerTotals,
   type ResourceExecEvent,
   type ExecResult,
 } from '../../src/runtime/exec/execProtocol'
@@ -1521,6 +1525,77 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
       finalMessageComplete: false,
     })
   })
+  describe('EXECPROV refusal remedies', () => {
+    const totalsFor = (capUsd: string): LedgerTotals => ({
+      capUsd: Usd.from(capUsd).toAmount(),
+      settledUsd: Usd.from(0).toAmount(),
+      uncertainUsd: Usd.from(0).toAmount(),
+      reservedUsd: Usd.from(0).toAmount(),
+      remainingUsd: Usd.from(capUsd).toAmount(),
+      requests: 0,
+      tokens: { inputTokens: 0, outputTokens: 0, cachedTokens: 0, reasoningTokens: 0 },
+      paid: {
+        imageAttempts: 0,
+        imagesReturned: 0,
+        imagesRefunded: 0,
+        imagesUncertain: 0,
+        settledUsd: Usd.from(0).toAmount(),
+        uncertainUsd: Usd.from(0).toAmount(),
+      },
+      breach: false,
+      refusal: 'budget',
+      lastResponse: null,
+    })
+    // The ten-cent anthropic case in exact micro-units: $5/M input,
+    // $20/M output, no float anywhere.
+    const reserveFor = (outputTokens: number) =>
+      Usd.fromUnits(39_125n + 20n * BigInt(outputTokens), 6).toAmount()
+    const tenCent = {
+      inputTokens: 7825,
+      inputCost: Usd.fromUnits(39_125n, 6).toAmount(),
+      outputTokens: 32_768,
+      reserveUsd: Usd.fromUnits(694_485n, 6).toAmount(),
+      totals: totalsFor('0.1'),
+    }
+    it('names the cent-rounded cap and the largest fitting output limit', () => {
+      expect(responseReservationMessage(tenCent, 'terminal', reserveFor, 1)).toBe(
+        'Input at most 7,825 tokens ($0.039125) + output cap at most 32,768 tokens ($0.655360) = $0.694485; run cap $0.100000, $0.000000 used. Request not sent. Raise --max-budget-usd to at least $0.70 to admit it. Or retry with --max-output-tokens 3043.',
+      )
+    })
+    it('shared scope names the budget remedy only, never the terminal flag', () => {
+      const message = responseReservationMessage(tenCent, 'shared', reserveFor, 1)
+      expect(message).toContain('Raise --max-budget-usd to at least $0.70 to admit it.')
+      expect(message).not.toContain('--max-output-tokens')
+    })
+    it('says instead when even the input alone does not fit', () => {
+      const tiny = { ...tenCent, totals: totalsFor('0.000001') }
+      const message = responseReservationMessage(tiny, 'terminal', reserveFor, 1)
+      expect(message).toContain('The input alone costs $0.039125, above the $0.0000010 left.')
+      expect(message).not.toContain('--max-output-tokens')
+    })
+  })
+  // Note: on the Meta path the preflight minimum (context-window worst
+  // case) fires before admission, so the suggest-and-rerun behaviour is
+  // covered by the loopback run above (provider path, no preflight) and the
+  // exact-arithmetic unit tests: there is no reachable Meta admission
+  // refusal to drive it through the fake.
+  it('EXECPROV lowered limit reaches the request and the stop names it', async () => {
+    const h = await harness(
+      ['--max-budget-usd', '1', '--max-output-tokens', '100'],
+      [{ text: 'short', incomplete: { reason: 'max_output_tokens' } }],
+    )
+    const r = await h.run()
+    expect(r.code).toBe(8)
+    // The flag, not the policy cap, is what the provider may produce, on
+    // the first request and any continuation of the truncated answer.
+    expect(h.api.responseBodies().length).toBeGreaterThanOrEqual(1)
+    for (const body of h.api.responseBodies()) expect(body['max_output_tokens']).toBe(100)
+    // The provider stopping at the lowered limit says so by its stop reason.
+    expect(result(r)).toMatchObject({
+      terminal: 'incomplete',
+      incompleteReason: 'max_output_tokens',
+    })
+  })
   it('D27 valid earlier tool response cannot authorize latest HTTP failure', async () => {
     const h = await harness(
       [],
@@ -2141,6 +2216,8 @@ for (const family of providerFamilies) {
     const address = server.address()
     if (address === null || typeof address === 'string') throw new Error('Missing loopback address')
     const origin = `http://127.0.0.1:${String(address.port)}`
+    // A ten-cent run on the expensive anthropic model only fits with an
+    // explicit lowering limit; the refusal and unpriced modes keep no flag.
     const h = await harness(
       [
         '--provider',
@@ -2151,6 +2228,9 @@ for (const family of providerFamilies) {
         mode === 'budget' ? '0.000001' : '0.1',
         '--max-requests',
         '1',
+        ...(family.format === 'anthropic' && !['budget', 'unpriced'].includes(mode)
+          ? ['--max-output-tokens', '2000']
+          : []),
         '--ephemeral',
       ],
       [],
@@ -2233,10 +2313,16 @@ for (const family of providerFamilies) {
     h.deps.fetch = globalThis.fetch
     try {
       const run = await h.run()
-      if (mode === 'budget' || mode === 'unpriced') {
+      if (mode === 'budget') {
         expect(run.code, JSON.stringify(run.result)).toBe(EXEC_EXIT.limit)
         expect(dispatched).toHaveLength(0)
         expect(result(run).usage.requests).toBe(0)
+        // The refusal names the admitting cap; the input alone does not fit,
+        // so there is no flag half.
+        const message = result(run).error?.message ?? ''
+        expect(message).toContain('Raise --max-budget-usd to at least')
+        expect(message).toContain('The input alone costs')
+        expect(message).not.toContain('--max-output-tokens')
         const daily = createRuntimeDailyBudget({
           dataFolder: agentDataFolder({
             platform: process.platform,
@@ -2248,6 +2334,21 @@ for (const family of providerFamilies) {
         })
         const claim = await daily.reserve(Usd.from(5).toAmount(), new AbortController().signal)
         await claim.settle(Usd.from(0).toAmount())
+      } else if (mode === 'unpriced') {
+        // A missing price is not a budget stop: its own status, exit, and
+        // sentence naming the model and the providers file.
+        expect(run.code, JSON.stringify(run.result)).toBe(EXEC_EXIT.failed)
+        expect(dispatched).toHaveLength(0)
+        expect(result(run)).toMatchObject({ status: 'unpriced', usage: { requests: 0 } })
+        const message = result(run).error?.message ?? ''
+        expect(result(run).error?.kind).toBe('unpriced')
+        expect(result(run).ledger?.refusal).toBe('unpriced')
+        expect(message).toContain('This model has no known tariff')
+        expect(message).toContain(`local/${family.native}`)
+        expect(message).toContain(providerConfigFile(h.homeDir))
+        expect(result(run).finalMessage).toBe(message)
+        expect(h.err.chunks.join('')).toContain('Unpriced; requests 0')
+        expect(h.err.chunks.join('')).not.toContain('Budget Exceeded')
       } else {
         expect(run.code, JSON.stringify(run.result)).toBe(0)
         expect(dispatched).toHaveLength(1)
@@ -2301,6 +2402,137 @@ for (const family of providerFamilies) {
     }
   })
 }
+
+/** One anthropic loopback turn with the given extra flags (round 5). */
+async function anthropicLoopbackRun(extraFlags: readonly string[]) {
+  const family = providerFamilies.find((candidate) => candidate.format === 'anthropic')
+  if (family === undefined) throw new Error('Missing anthropic family')
+  const stream = providerCaptureStream(family.capture)
+  const dispatched: string[] = []
+  const server = createServer((request, response) => {
+    let body = ''
+    request.on('data', (part: Buffer) => {
+      body += part.toString('utf8')
+    })
+    request.on('end', () => {
+      if (request.method === 'GET') response.end(JSON.stringify({ data: [{ id: family.native }] }))
+      else {
+        dispatched.push(body)
+        response.writeHead(200, { 'Content-Type': 'text/event-stream' })
+        response.end(stream)
+      }
+    })
+  })
+  await new Promise<void>((resolve) => {
+    server.listen(0, '127.0.0.1', () => {
+      resolve()
+    })
+  })
+  const address = server.address()
+  if (address === null || typeof address === 'string') throw new Error('Missing loopback address')
+  const origin = `http://127.0.0.1:${String(address.port)}`
+  const h = await harness(
+    [
+      '--provider',
+      'local',
+      '--model',
+      family.native,
+      '--max-budget-usd',
+      '0.1',
+      '--max-requests',
+      '1',
+      ...extraFlags,
+      '--ephemeral',
+    ],
+    [],
+    {},
+  )
+  const yes = { state: 'yes', value: true }
+  const limits = { contextTokens: 1_000_000, outputTokens: 32_768 }
+  const capability = {
+    tools: { calling: yes },
+    reasoning: { supported: { state: 'no' }, canDisable: yes },
+    output: { acceptsLimit: yes, maxTokens: 32_768 },
+    limits: { contextTokens: 1_000_000 },
+  }
+  const price = {
+    input: 0.000004,
+    output: 0.00002,
+    cachedInput: 0.0000002,
+    cacheWrite: 0.000005,
+  }
+  const config = providerConfigFile(h.homeDir)
+  writeFileSync(
+    config,
+    JSON.stringify({
+      v: 1,
+      defaultModel: `local/${family.native}`,
+      providers: [
+        {
+          id: 'local',
+          preset: 'custom',
+          format: family.format,
+          address: origin,
+          privateNetwork: true,
+          auth: 'apiKey',
+          models: ['expensive', family.native],
+          numCtx: { expensive: 1_000_000, [family.native]: 1_000_000 },
+          modelLimits: { expensive: limits, [family.native]: limits },
+          modelCapabilities: { expensive: capability, [family.native]: capability },
+          prices: {
+            expensive: price,
+            [family.native]: price,
+          },
+        },
+      ],
+    }),
+  )
+  await h.store.delete(SECRET_KEYS.modelApiKey)
+  await h.store.store(
+    'museSpark.provider.local',
+    formatStoredProviderSecret({ v: 1, auth: 'apiKey', origin }, 'synthetic-owned-key'),
+  )
+  h.deps.fetch = globalThis.fetch
+  try {
+    return { run: await h.run(), dispatched, family }
+  } finally {
+    server.closeAllConnections()
+    await new Promise<void>((resolve, reject) => {
+      server.close((error) => {
+        if (error === undefined) resolve()
+        else reject(error)
+      })
+    })
+  }
+}
+
+it('EXECPROV ten-cent anthropic run without the flag refuses with both remedies', async () => {
+  const refused = await anthropicLoopbackRun([])
+  expect(refused.run.code, JSON.stringify(refused.run.result)).toBe(EXEC_EXIT.limit)
+  expect(refused.dispatched).toHaveLength(0)
+  expect(result(refused.run).usage.requests).toBe(0)
+  const message = result(refused.run).error?.message ?? ''
+  // The exact refusal sentence for the ten-cent case: the worst case, the
+  // cap that admits it (rounded up to the cent), and the largest output
+  // limit that fits the remaining cap.
+  expect(message).toContain(
+    'Input at most 7,825 tokens ($0.039125) + output cap at most 32,768 tokens ($0.655360) = $0.694485; run cap $0.100000, $0.000000 used. Request not sent.',
+  )
+  expect(message).toContain('Raise --max-budget-usd to at least $0.70 to admit it.')
+  const suggested = /--max-output-tokens (\d+)/.exec(message)?.[1]
+  if (suggested === undefined) throw new Error(`No suggested output limit in: ${message}`)
+  expect(message).toContain(`Or retry with --max-output-tokens ${suggested}.`)
+  // The remedy numbers are right: exactly the suggested limit is admitted,
+  // one more token is refused.
+  const admitted = await anthropicLoopbackRun(['--max-output-tokens', suggested])
+  expect(admitted.run.code, JSON.stringify(admitted.run.result)).toBe(0)
+  expect(admitted.dispatched).toHaveLength(1)
+  const wire = JSON.parse(admitted.dispatched[0] ?? '{}') as Record<string, unknown>
+  expect(wire['max_tokens']).toBe(Number(suggested))
+  const over = await anthropicLoopbackRun(['--max-output-tokens', String(Number(suggested) + 1)])
+  expect(over.run.code, JSON.stringify(over.run.result)).toBe(EXEC_EXIT.limit)
+  expect(over.dispatched).toHaveLength(0)
+})
 
 async function ollamaLoopback(isPersistent: boolean) {
   const family = {
@@ -2401,6 +2633,11 @@ async function ollamaLoopback(isPersistent: boolean) {
 it('EXECPROV persistent run with invalid settings pauses history with a specific warning', async () => {
   const { h, server, dispatched, family } = await ollamaLoopback(true)
   try {
+    // The product creates the data folder on writer start; the test writes
+    // the settings file before the run, so it creates the folder first.
+    mkdirSync(agentDataFolder({ platform: process.platform, env: {}, homeDir: h.homeDir }), {
+      recursive: true,
+    })
     writeFileSync(
       path.join(
         agentDataFolder({ platform: process.platform, env: {}, homeDir: h.homeDir }),

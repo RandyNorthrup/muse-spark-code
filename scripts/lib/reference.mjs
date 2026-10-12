@@ -853,6 +853,11 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
       minimum: 1,
       maximum: source.EXEC_MAX_REQUESTS,
     },
+    'max-output-tokens': {
+      minimum: source.EXEC_MIN_OUTPUT_TOKENS,
+      maximum: source.MODEL_API_MAX_OUTPUT_TOKENS,
+      unit: 'tokens',
+    },
     timeout: {
       default: source.EXEC_DEFAULT_TIMEOUT_SECONDS,
       minimum: source.EXEC_MIN_TIMEOUT_SECONDS,

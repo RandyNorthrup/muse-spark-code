@@ -2,6 +2,7 @@ import { Usd } from '../../src/shared/usd'
 import { describe, expect, it } from 'vitest'
 import { parseExec, serveOptionsFor } from '../../src/runtime/exec/execArgs'
 import { parseCommandLine } from '../../src/runtime/cliArgs'
+import { fill } from '../../src/shared/l10n/text'
 import { UI_TEXT } from '../../src/shared/constants'
 
 describe('M80 args (A1–A10, F1)', () => {
@@ -143,6 +144,37 @@ describe('M80 args (A1–A10, F1)', () => {
     { 'untrusted-file': ['x', 1] },
   ])('A4–A7 refuse unsafe/conflicting/unknown options %j', (values) => {
     expect(parseExec(values, ['hi']).ok).toBe(false)
+  })
+  it('keeps the policy cap without the flag and refuses a value above it at parsing', () => {
+    const base = { backend: 'modelApi', 'max-budget-usd': '1' }
+    const plain = parseExec(base, ['hi'])
+    if (!plain.ok) throw new Error(plain.reason)
+    expect(plain.options.maxOutputTokens).toBeUndefined()
+    const lowered = parseExec({ ...base, 'max-output-tokens': '2000' }, ['hi'])
+    expect(lowered.ok && lowered.options.maxOutputTokens).toBe(2000)
+    expect(parseExec({ ...base, 'max-output-tokens': '32768' }, ['hi']).ok).toBe(true)
+    expect(parseExec({ ...base, 'max-output-tokens': '32769' }, ['hi'])).toEqual({
+      ok: false,
+      reason: fill(UI_TEXT.execOutputCapExceeded, { cap: '32768' }),
+    })
+    for (const bad of ['0', '15', '1.5', 'many'])
+      expect(parseExec({ ...base, 'max-output-tokens': bad }, ['hi']).ok).toBe(false)
+    expect(parseExec({ backend: 'museCode', 'max-output-tokens': '2000' }, ['hi'])).toEqual({
+      ok: false,
+      reason: UI_TEXT.execModelApiOnly,
+    })
+    expect(
+      parseCommandLine([
+        'exec',
+        '--backend',
+        'modelApi',
+        '--max-budget-usd',
+        '1',
+        '--max-output-tokens',
+        '2000',
+        'hi',
+      ]),
+    ).toMatchObject({ command: 'exec', options: { maxOutputTokens: 2000 } })
   })
   it('accepts full bounded Model API options and the two alternate prompt sources', () => {
     const values = {

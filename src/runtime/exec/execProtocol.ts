@@ -30,6 +30,7 @@ export type ExecStatus =
   | 'cancelled'
   | 'timeout'
   | 'budget_exceeded'
+  | 'unpriced'
   | 'request_cap'
   | 'denied'
   | 'auth_required'
@@ -213,6 +214,7 @@ const STATUSES = [
   'cancelled',
   'timeout',
   'budget_exceeded',
+  'unpriced',
   'request_cap',
   'denied',
   'auth_required',
@@ -441,6 +443,9 @@ export function exitCodeFor(
     case 'budget_exceeded':
     case 'request_cap': {
       return EXEC_EXIT.limit
+    }
+    case 'unpriced': {
+      return EXEC_EXIT.failed
     }
     case 'timeout': {
       return EXEC_EXIT.timeout

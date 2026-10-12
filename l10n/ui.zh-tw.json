@@ -326,6 +326,7 @@
     "output": "選擇結果格式：text、json或jsonl。",
     "max-budget-usd": "以USD設定本次執行的硬性支出上限。",
     "max-requests": "設定模型請求次數上限。",
+    "max-output-tokens": "降低本次執行的輸出上限（token 数）；缺省時採用模型的上限，且不會更高。",
     "timeout": "以秒設定執行時間上限。",
     "fail-on-denial": "權限遭拒時停止執行。",
     "ephemeral": "將工作階段保留在記憶體中，不儲存。",
@@ -361,7 +362,7 @@
   "referenceBrowserDownload": "Chrome for Testing: 下載 (設定: museSpark.browserCheckRuntime).",
   "referenceRemoveSkills": "僅刪除由擴充功能管理的 Muse Code 技能副本及其連結，保留其他技能。",
   "referenceInstallSkills": "將 project_setup、feature_delivery 和 quality_retrofit 複製到 Muse Code 設定中，並連結為技能。",
-  "referenceExecContract": "無介面執行不允許信任工作區或略過權限。 無介面執行僅允許 plan 或 acceptEdits。 託管網頁搜尋沒有可保證的費用上限，因此拒絕使用。 圖片生成需要 acceptEdits。 請選擇且僅選擇一個提示來源。 提示和金鑰不能同時使用 stdin。 Model API 需要 --max-budget-usd。 modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.",
+  "referenceExecContract": "無介面執行不允許信任工作區或略過權限。 無介面執行僅允許 plan 或 acceptEdits。 託管網頁搜尋沒有可保證的費用上限，因此拒絕使用。 圖片生成需要 acceptEdits。 請選擇且僅選擇一個提示來源。 提示和金鑰不能同時使用 stdin。 Model API 需要 --max-budget-usd。 modelApi: --max-budget-usd / --max-requests / --max-output-tokens / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.",
   "referenceBriefHelp": "help / --help / -h: ACP / CLI. help --all: 命令、設定和功能，附有說明和文件。",
   "referenceKeyStdin": "auth set: 在終端機中讀取你的金鑰，並保存在這台電腦的認證儲存區中。對話費用會計入該金鑰。 exec / scan-secrets --key-stdin: 請從管線讀取金鑰，而非終端機。 stdin → memory; prompt stdin + key stdin = 提示和金鑰不能同時使用 stdin。",
   "referenceModalKeys": "關閉對話框或在其中移動焦點。",
@@ -3425,6 +3426,12 @@
   "execEffortUnavailable": "此模型不支援該推理強度。",
   "execTimedOut": "執行已達到時限。",
   "execBudgetRefused": "下一次請求將超過剩餘預算。",
+  "execBudgetRemedyCap": "將 --max-budget-usd 提高到至少 {admitCap}。",
+  "execBudgetRemedyOutput": "或使用 --max-output-tokens {maxTokens} 重試。",
+  "execBudgetRemedyInput": "僅輸入就花費 {inputCost}，超過剩餘的 {remaining}。",
+  "execOutputCapExceeded": "--max-output-tokens 超出 {cap} 個 token 的輸出上限。",
+  "execUnpricedProvider": "此模型沒有已知費率，因此限額執行無法為 {model} 預留費用。請在 {file} 中為此模型新增價格，或選擇有價格的模型。",
+  "execUnpricedModel": "此模型沒有已知費率，因此限額執行無涅法預留費用。請選擇有價格的模型。",
   "execPaidDailyStopped": "付費附加功能已停止：已達每日預算 {cap}（已用 {spent}，{requests}佔用 {held}）；{reset} 重設。請調高 {setting} 後繼續。",
   "execPaidOpenRequests": {
     "other": "{count} 個未完成的請求"
@@ -3452,6 +3459,7 @@
     "cancelled": "已取消",
     "timeout": "逾時",
     "budget_exceeded": "預算超限",
+    "unpriced": "無費率",
     "request_cap": "已達請求上限",
     "denied": "已拒絕",
     "auth_required": "需要驗證身分",
@@ -3519,6 +3527,9 @@
   "execUsage": "exec [options] <prompt> | exec [options] --prompt-file <path> | exec [options] -",
   "execScanUsage": "scan-secrets <file> [--key-stdin]",
   "execSummary": "{status}；請求 {requests}；已結算 {settled}；不確定 {uncertain}；圖片嘗試 {imageAttempts}；已傳回 {imagesReturned}；不確定圖片 {imagesUncertain}",
+  "execStaleHoldsClosed": {
+    "other": "已關閉 {count} 個過期預留（{total}）。"
+  },
   "execSummaryUpperBound": "{status}；請求 {requests}；已結算 {settled}；不確定 {uncertain}；圖片嘗試 {imageAttempts}；已傳回 {imagesReturned}；不確定圖片 {imagesUncertain}; 費用為上限值。",
   "exportSessionLine": "工作階段：`{id}`",
   "exportBackendLine": "後端：{backend}",
