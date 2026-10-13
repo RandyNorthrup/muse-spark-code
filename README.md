@@ -2926,7 +2926,10 @@ integration owners; editor font settings continue to decide inside editors.
   refused before any PDF check.
   Images and PDFs also paste and drop. A dismissible banner gives the specific
   size, media, backend, text or private-file refusal; unknown file reasons
-  keep generic unsupported-type guidance. Muse Code's MSP 1.3.0 cannot take a PDF part, so a PDF attachment
+  keep generic unsupported-type guidance. On providers other than Meta the
+  documented image rules apply instead: on xAI, for example, only PNG and
+  JPEG images up to 20 MiB are sent, and anything else is refused before
+  sending. Muse Code's MSP 1.3.0 cannot take a PDF part, so a PDF attachment
   there names the Model API backend instead. The Model API agent can read a
   workspace PDF or image through `read_file`; other workspace files use its
   existing UTF-8 text reader. Excluded text files share only a path mention,

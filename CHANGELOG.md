@@ -9,6 +9,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- Attachments follow each provider's documented rules: on xAI models only
+  PNG and JPEG images up to 20 MiB are sent, and anything else is refused
+  with a reason before sending. The groundwork for upload-once file
+  references on OpenAI, xAI and Anthropic is in place (the request builders
+  and the per-provider upload dialects), but uploads stay off until live
+  provider answers confirm every shape.
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
   reads and writes, and 1-hour cache writes settle at their own price.
   The shared retry classifier refuses known quota codes and excessive
