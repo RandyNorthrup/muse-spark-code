@@ -9,6 +9,18 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- Provider refusals read as the provider's refusal (lane PROVERR): when a
+  configured provider answers with an error — out of credit, a rejected key,
+  rate-limited, overloaded, an invalid request and the rest — the turn ends
+  with a sentence naming the provider, saying what to do, and quoting the
+  provider's own words, in every host and language. "Models & Agents is not
+  available in this build" is now said only when a part of the build is
+  really missing. A refusal answered before any processing (HTTP 400, 401,
+  402, 403, 404, 413, 422, 429) releases its cost reservation in full, so
+  settled and uncertain stay 0; anything else keeps its uncertain liability.
+  Refusals that asking again cannot fix are never retried. Record:
+  `docs/certification/provider-refusals.md`.
+
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
   reads and writes, and 1-hour cache writes settle at their own price.
   The shared retry classifier refuses known quota codes and excessive
