@@ -26,6 +26,15 @@ vi.mock('node:crypto', async (importOriginal) => {
   return { ...original, randomFillSync: vi.fn(original.randomFillSync) }
 })
 
+/** A sealed block with fresh key, context and plaintext for tamper tests. */
+function sealedBlock() {
+  const key = randomVaultBytes()
+  const context = { vaultId: 'a'.repeat(32), id: 'b'.repeat(32), kind: 'secret', generation: 1 }
+  const plaintext = randomVaultBytes()
+  const block = sealVaultBlock(key, context, plaintext)
+  return { key, context, plaintext, block }
+}
+
 describe('vault crypto', () => {
   it('canonicalizes nested JSON keys and numeric spellings while retaining array order', () => {
     const left = encodeVaultJson({ z: [{ b: -0, a: 1e2 }], a: { z: 2, a: 1 } })
@@ -135,10 +144,7 @@ describe('vault crypto', () => {
     ).toThrow()
   })
   it('reads a wrong key and corrupt data alike as authentication, never as invalid', () => {
-    const key = randomVaultBytes()
-    const context = { vaultId: 'a'.repeat(32), id: 'b'.repeat(32), kind: 'secret', generation: 1 }
-    const plaintext = randomVaultBytes()
-    const block = sealVaultBlock(key, context, plaintext)
+    const { key, context, block } = sealedBlock()
     // A wrong key and a flipped bit are indistinguishable to the cipher, and
     // both stay the fixed authentication code.
     expect(() => openVaultBlock(randomVaultBytes(), context, block)).toThrow(
@@ -151,10 +157,7 @@ describe('vault crypto', () => {
     )
   })
   it('binds every context field and rejects tampering before material is returned', () => {
-    const key = randomVaultBytes()
-    const context = { vaultId: 'a'.repeat(32), id: 'b'.repeat(32), kind: 'secret', generation: 1 }
-    const plaintext = randomVaultBytes()
-    const block = sealVaultBlock(key, context, plaintext)
+    const { key, context, plaintext, block } = sealedBlock()
     expect(openVaultBlock(key, context, block)).toEqual(plaintext)
     expect(
       openVaultBlock(

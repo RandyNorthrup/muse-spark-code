@@ -45,6 +45,26 @@ function consentWith(
   return { consent, ask, on, writes, grants: () => grants }
 }
 
+/** A consent whose grant store cannot be written: every keep fails with `writeError`. */
+function unsavableConsent(
+  writeError: unknown,
+  onNotKept?: (notice: PaidNotKeptNotice) => void,
+): { consent: PaidUseConsent; log: FakeLogOutputChannel } {
+  const log = new FakeLogOutputChannel()
+  const consent = new PaidUseConsent({
+    isOn: () => true,
+    canRemember: () => true,
+    readGrants: () => new Set(),
+    writeGrants: () => {
+      throw writeError
+    },
+    ask: () => Promise.resolve('always'),
+    ...(onNotKept !== undefined && { onNotKept }),
+    log,
+  })
+  return { consent, log }
+}
+
 /** A search consent over an in-memory quote store whose order or save step can be broken. */
 function quoteConsentWith(store: {
   nextQuoteOrder?: () => number | Promise<number>
@@ -203,15 +223,7 @@ describe('PaidUseConsent (M58)', () => {
   )
 
   it('lets an "always" it cannot keep go ahead once, and says so', async () => {
-    const log = new FakeLogOutputChannel()
-    const consent = new PaidUseConsent({
-      isOn: () => true,
-      canRemember: () => true,
-      readGrants: () => new Set(),
-      writeGrants: () => Promise.reject(new Error('storage is full')),
-      ask: () => Promise.resolve('always'),
-      log,
-    })
+    const { consent, log } = unsavableConsent(new Error('storage is full'))
     await expect(consent.allows(SEARCH)).resolves.toMatchObject({
       feature: 'webSearch',
       tariffUsd: Usd.from('0.0025').toAmount(),
@@ -223,47 +235,22 @@ describe('PaidUseConsent (M58)', () => {
   })
 
   it('names only the failure kind when "always" cannot be kept, and lets a non-error through', async () => {
-    const log = new FakeLogOutputChannel()
     const message = 'disk full at /private/user/grants.json'
-    const consent = new PaidUseConsent({
-      isOn: () => true,
-      canRemember: () => true,
-      readGrants: () => new Set(),
-      writeGrants: () => Promise.reject(new Error(message)),
-      ask: () => Promise.resolve('always'),
-      log,
-    })
+    const { consent, log } = unsavableConsent(new Error(message))
     await expect(consent.allows(VOICE)).resolves.toBe(true)
     expect(log.warn).toHaveBeenCalledOnce()
     const said = String(log.warn.mock.calls[0]?.[0] ?? '')
     expect(said).toContain('(Error)')
     expect(said).not.toContain(message)
     const foreign: unknown = 'a string failure'
-    const failing = new PaidUseConsent({
-      isOn: () => true,
-      canRemember: () => true,
-      readGrants: () => new Set(),
-      writeGrants: () => {
-        throw foreign
-      },
-      ask: () => Promise.resolve('always'),
-      log,
-    })
+    const { consent: failing } = unsavableConsent(foreign)
     await expect(failing.allows(VOICE)).rejects.toBe('a string failure')
   })
 
   it('tells the person at once when Always could not be kept', async () => {
     const notices: PaidNotKeptNotice[] = []
-    const consent = new PaidUseConsent({
-      isOn: () => true,
-      canRemember: () => true,
-      readGrants: () => new Set(),
-      writeGrants: () => Promise.reject(new Error('storage is full')),
-      ask: () => Promise.resolve('always'),
-      onNotKept: (notice) => {
-        notices.push(notice)
-      },
-      log: new FakeLogOutputChannel(),
+    const { consent } = unsavableConsent(new Error('storage is full'), (notice) => {
+      notices.push(notice)
     })
     // The use is allowed once and charged; the sentence arrives when it happens.
     await expect(consent.allows(VOICE)).resolves.toBe(true)
