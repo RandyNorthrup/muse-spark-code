@@ -1,3 +1,5 @@
+import { isPaidStop } from '../refusal'
+import { isSpendLedgerError } from '../paid/spendLedgerError'
 import { Usd, usdAmountSchema, type UsdAmount } from '../../shared/usd'
 // The judge's admission (M98, PLAN.md D77): every paid judge call is
 // reserved worst-case before dispatch, settled at its known cost, refunded
@@ -461,8 +463,14 @@ export async function admitJudgeCall(request: JudgeAdmissionRequest): Promise<Ju
   let reserved: JudgeLedgerClaim
   try {
     reserved = await ledger.reserve(reservedUsd)
-  } catch {
-    return { admitted: false, refusal: 'ledger-unavailable' }
+  } catch (error: unknown) {
+    return {
+      admitted: false,
+      refusal:
+        isPaidStop(error) || (isSpendLedgerError(error) && error.kind === 'budget')
+          ? 'over-budget'
+          : 'ledger-unavailable',
+    }
   }
   let refusal = bindingRefusal()
   if (refusal === undefined) {

@@ -408,3 +408,36 @@ commits (241.24 MB); it printed only the summary. The installed staged scans
 passed. Their cause and commit locations are UNMEASURED; no credential text was
 printed and history was not rewritten. The original complete SAST scan remains
 unqualified until the final-tree command finishes.
+
+Current ACP packaging command exited 1: `Required Darwin created-path helper
+is missing: native/darwin/muse-dictate`. The required
+`native/linux/{x64,arm64}/muse-created` binaries are absent too; the repository's
+Linux helper builder only builds on Linux. No substituted binary or alternate
+launcher was used. Re-run `bash native/darwin/build.sh`, obtain both trusted
+Linux CI helper artifacts, then `NPM_CONFIG_CACHE="$TMPDIR/npm-cache" npm run
+package:acp` on a complete packaging checkout. Packed-product execution and
+the 14-table packed order diagnostic remain NOT RUN HERE.
+
+Actual built CLI (dist/acp.js), isolated XDG config/data and no credential
+variables: main help and exec help exited 0; invalid $21 cap and 15-token output
+cap each exited 2 with number/limit validation. The real keyless closed-port
+profile was confirmed ECONNREFUSED by the OS (errno 61), but the product exited
+2 before connecting: `Model ollama/ledger-local is not available on this
+backend. Available models: .` Therefore no transport-refund claim is made for
+that run; configured local model availability is an additional open product
+observation, with cause UNMEASURED. No OS credential entry was read.
+
+All ten owning pure/real-filesystem suites ran in batches of at most three with
+maxWorkers=2. Account money had one stale generic-message assertion, corrected
+to the typed failure. The judge's observation wrapper expected a loser refund
+from publish-then-check; it is removed. Two real journal adapters now prove one
+winner, no losing claim and no closed refund history; atomic cap refusal maps
+to over-budget rather than ledger-unavailable. Their rerun passed 18 tests.
+Other batch outcomes are in `temp/ledger/own-batches.json`; final checks run
+after the last commit, with default timeouts.
+
+Final static receipts are `temp/ledger/final-gates.json` and the individually
+named `final-*.log` files; final SAST is `temp/ledger/final-sast.log`. A missing
+or interrupted command is unqualified, never clean. Static duplication still
+needs review: the owner forbids repairing the inherited stand-in suites; no
+threshold or ignore is changed. This record is not a release approval.

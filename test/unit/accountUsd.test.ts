@@ -1,7 +1,7 @@
 import { SpendLedgerError } from '../../src/core/paid/spendLedgerError'
 import { beforeEach, expect, it } from 'vitest'
 import { EN } from '../../src/shared/l10n/en'
-import { setUiText, UI_TEXT } from '../../src/shared/l10n/text'
+import { setUiText } from '../../src/shared/l10n/text'
 import {
   compareUsd,
   formatUsd,
@@ -57,7 +57,7 @@ it('refuses malformed, unbounded and negative amounts and invalid divisors', () 
   expect(() => multiplyUsd(parseUsd(1), 1n, 0n)).toThrow(SpendLedgerError)
   expect(() => usdNumber(-1n)).toThrow(SpendLedgerError)
   expect(() => usdNumber(sumUsd([parseUsd(Number.MAX_SAFE_INTEGER), parseUsd(1)]))).toThrow(
-    UI_TEXT.sessionBudgetStoreUnavailable,
+    SpendLedgerError,
   )
   expect(() => formatUsd(-1n)).toThrow(SpendLedgerError)
   for (const digits of [-1, 0.5, 10])
