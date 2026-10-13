@@ -276,6 +276,14 @@ Release: a comment-only placeholder reserves the `check:claims` step
 (branch feat/claims-gate) ahead of publishing — no stub, nothing that
 pretends to pass.
 
+`package` in the gate, measured: `npm run build` is green (budgets,
+split, lazy-registry current, notices). `npm run package` stops in
+`package-vsix.mjs` at `Required Linux created-path helper excluded
+from VSIX: arm64` — only `native/linux/x64` exists on this laptop;
+arm64 comes from CI's linux-native-build job. Pre-existing and
+environmental (no lane file touches natives or staging); CI's packages
+job stages both arches first. Not fixed here.
+
 Pull-request minutes, computed from the job list (E = estimated from
 cited hosted records, not measured here): full tier (queue off) ≈ 15 —
 checks macOS slowest ~11 (CIFIX017R3), unit Windows shard ~6–10E (was
