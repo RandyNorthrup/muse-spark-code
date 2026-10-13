@@ -1,0 +1,1483 @@
+{
+  "artefact": {
+    "name": "muse-spark-code-acp-0.18.2.tgz",
+    "sha256": "0ffd42d4a5fac87f172b0b50a326281b67d69ccc0f214544cca565b05ed096ea",
+    "package": "muse-spark-code-acp",
+    "version": "0.18.2"
+  },
+  "os": "Windows_NT 10.0.26200 x64",
+  "node": "v24.20.0",
+  "startedAt": "2026-10-13T00:41:37.375Z",
+  "endedAt": "2026-10-13T00:43:57.187Z",
+  "caps": {
+    "requests": 64,
+    "usd": "0.660000"
+  },
+  "totals": {
+    "passed": 25,
+    "failed": 7,
+    "notRun": 0,
+    "requests": 48,
+    "usd": "0.080806",
+    "productUsage": {
+      "requests": 34,
+      "usd": "0.058543"
+    }
+  },
+  "routes": [
+    {
+      "id": "anthropic",
+      "wire": "Anthropic Messages",
+      "model": "claude-haiku-4-5",
+      "state": "added as rl-anthropic; Key works · 13 models."
+    },
+    {
+      "id": "openai",
+      "wire": "OpenAI Responses",
+      "model": "gpt-5.6-luna",
+      "state": "added as rl-openai; Key works · 1 model."
+    }
+  ],
+  "results": [
+    {
+      "scenario": "add-provider",
+      "claims": [
+        "ref/cli/providersAdd/providers-add---preset-preset---as-id---address-url---model-model---privacy-policy---private-ok---key-stdin",
+        "ref/cli/providersTest/providers-test-id",
+        "ref/feature/providers"
+      ],
+      "route": "provider",
+      "model": "claude-haiku-4-5 (Anthropic Messages)",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw providers add takes the key and ends with exit code 0: Provider: anthropic Code goes to: https://api.anthropic.com Models: claude-haiku-4-5 Default model: suggested Added rl-anthropic; code goes to https://api.anthropic.com. | saw providers test says the key works: Key works · 13 models.",
+      "requests": 0,
+      "usd": "0.000000",
+      "seconds": 1.6124621000000006,
+      "title": "A provider is added with its key, and the key is checked",
+      "vendor": "anthropic",
+      "seen": [
+        {
+          "what": "providers add takes the key and ends with exit code 0",
+          "ok": true,
+          "saw": "Provider: anthropic Code goes to: https://api.anthropic.com Models: claude-haiku-4-5 Default model: suggested Added rl-anthropic; code goes to https://api.anthropic.com."
+        },
+        {
+          "what": "providers test says the key works",
+          "ok": true,
+          "saw": "Key works · 13 models."
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 0,
+        "usd": "0.000000"
+      }
+    },
+    {
+      "scenario": "plain-turn",
+      "claims": [
+        "ref/cli/exec/exec",
+        "ref/cli/exec/exec---model-value",
+        "ref/cli/exec/exec---output-value"
+      ],
+      "route": "provider",
+      "model": "claude-haiku-4-5 (Anthropic Messages)",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the answer carries the word that was asked for: RL-0B21AA06 | saw the result names the model the person chose: rl-anthropic/claude-haiku-4-5 | saw one request was made and it cost more than nothing: 1 request(s), $0.002663 | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.002663",
+      "seconds": 1.6325999000000002,
+      "title": "A plain turn completes",
+      "vendor": "anthropic",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the answer carries the word that was asked for",
+          "ok": true,
+          "saw": "RL-0B21AA06"
+        },
+        {
+          "what": "the result names the model the person chose",
+          "ok": true,
+          "saw": "rl-anthropic/claude-haiku-4-5"
+        },
+        {
+          "what": "one request was made and it cost more than nothing",
+          "ok": true,
+          "saw": "1 request(s), $0.002663"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 0,
+        "usd": "0.000000"
+      }
+    },
+    {
+      "scenario": "plain-turn",
+      "claims": ["ref/feature/acp", "ref/feature/chat"],
+      "route": "provider",
+      "model": "claude-haiku-4-5 (Anthropic Messages)",
+      "surface": "acp",
+      "outcome": "pass",
+      "observed": "saw the turn ends as a finished turn: end_turn | saw the answer carries the word that was asked for: Automatic compaction is awaiting evaluation and is inactive. RL-DE3482B2 | saw the session runs on the model the person chose: rl-anthropic/claude-haiku-4-5 | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.002664",
+      "seconds": 1.6113028999999988,
+      "title": "A plain turn completes",
+      "vendor": "anthropic",
+      "seen": [
+        {
+          "what": "the turn ends as a finished turn",
+          "ok": true,
+          "saw": "end_turn"
+        },
+        {
+          "what": "the answer carries the word that was asked for",
+          "ok": true,
+          "saw": "Automatic compaction is awaiting evaluation and is inactive. RL-DE3482B2"
+        },
+        {
+          "what": "the session runs on the model the person chose",
+          "ok": true,
+          "saw": "rl-anthropic/claude-haiku-4-5"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 1,
+        "usd": "0.002664"
+      }
+    },
+    {
+      "scenario": "cancel",
+      "claims": ["ref/feature/acp"],
+      "route": "provider",
+      "model": "claude-haiku-4-5 (Anthropic Messages)",
+      "surface": "acp",
+      "outcome": "fail",
+      "observed": "saw the turn ends as cancelled: cancelled | saw the answer stopped before its end: 62 characters arrived | saw the conversation takes the next message and answers it: end_turn: I'll create a file with numbers 1 to 300 in words, one per line.OK | MISSING it made no more requests than it said it may: 3 of at most 2",
+      "requests": 3,
+      "usd": "0.014995",
+      "seconds": 13.1088923,
+      "title": "A turn is cancelled in the middle",
+      "vendor": "anthropic",
+      "seen": [
+        {
+          "what": "the turn ends as cancelled",
+          "ok": true,
+          "saw": "cancelled"
+        },
+        {
+          "what": "the answer stopped before its end",
+          "ok": true,
+          "saw": "62 characters arrived"
+        },
+        {
+          "what": "the conversation takes the next message and answers it",
+          "ok": true,
+          "saw": "end_turn: I'll create a file with numbers 1 to 300 in words, one per line.OK"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": false,
+          "saw": "3 of at most 2"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 3,
+        "usd": "0.014995"
+      },
+      "log": [
+        "[info] Display language en-us: the panel is in English",
+        "[info] muse-spark-code-acp 0.18.2 serving ACP on stdio (modelApi)",
+        "[info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay)"
+      ]
+    },
+    {
+      "scenario": "capped-run",
+      "claims": ["ref/cli/exec/exec---max-requests-value", "ref/feature/budget"],
+      "route": "provider",
+      "model": "claude-haiku-4-5 (Anthropic Messages)",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw exactly one model request was made: 1 request(s) | saw the result says the request cap stopped it: status request_cap | saw the command ends with exit code 5: exit 5 | saw the person is told the cap was reached: The request cap of 1 attempt was reached. [info] Display language en-us: the panel is in English [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay) [warn] Usage history could not be recorded [info] Request Cap Reached; requests 1; settled $0.003345; uncertain $0.000000; imag… | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.003345",
+      "seconds": 2.5416780999999973,
+      "title": "A capped run stops at its cap and says so",
+      "vendor": "anthropic",
+      "seen": [
+        {
+          "what": "exactly one model request was made",
+          "ok": true,
+          "saw": "1 request(s)"
+        },
+        {
+          "what": "the result says the request cap stopped it",
+          "ok": true,
+          "saw": "status request_cap"
+        },
+        {
+          "what": "the command ends with exit code 5",
+          "ok": true,
+          "saw": "exit 5"
+        },
+        {
+          "what": "the person is told the cap was reached",
+          "ok": true,
+          "saw": "The request cap of 1 attempt was reached. [info] Display language en-us: the panel is in English [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay) [warn] Usage history could not be recorded [info] Request Cap Reached; requests 1; settled $0.003345; uncertain $0.000000; imag…"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 0,
+        "usd": "0.000000"
+      }
+    },
+    {
+      "scenario": "compact",
+      "claims": ["ref/slash/compact"],
+      "route": "provider",
+      "model": "claude-haiku-4-5 (Anthropic Messages)",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw no model request was made: 0 request(s) | saw the result says there was nothing to compact: exit 8, status incomplete, no_compactable_history | saw it made no more requests than it said it may: 0 of at most 0",
+      "requests": 0,
+      "usd": "0.000000",
+      "seconds": 0.7228552999999993,
+      "title": "/compact works",
+      "vendor": "anthropic",
+      "seen": [
+        {
+          "what": "no model request was made",
+          "ok": true,
+          "saw": "0 request(s)"
+        },
+        {
+          "what": "the result says there was nothing to compact",
+          "ok": true,
+          "saw": "exit 8, status incomplete, no_compactable_history"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "0 of at most 0"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 0,
+        "usd": "0.000000"
+      }
+    },
+    {
+      "scenario": "compact",
+      "claims": ["ref/slash/compact", "ref/feature/compaction"],
+      "route": "provider",
+      "model": "claude-haiku-4-5 (Anthropic Messages)",
+      "surface": "acp",
+      "outcome": "fail",
+      "observed": "saw the first turn completed: end_turn | saw the second turn completed: end_turn | saw /compact ends as a finished turn: end_turn | MISSING the person is told what /compact did: nothing was shown | saw the conversation goes on after it: end_turn | saw and still knows what was said before: RL-D5F8593A | saw it made no more requests than it said it may: 6 of at most 8",
+      "requests": 6,
+      "usd": "0.015250",
+      "seconds": 10.8698547,
+      "title": "/compact works",
+      "vendor": "anthropic",
+      "seen": [
+        {
+          "what": "the first turn completed",
+          "ok": true,
+          "saw": "end_turn"
+        },
+        {
+          "what": "the second turn completed",
+          "ok": true,
+          "saw": "end_turn"
+        },
+        {
+          "what": "/compact ends as a finished turn",
+          "ok": true,
+          "saw": "end_turn"
+        },
+        {
+          "what": "the person is told what /compact did",
+          "ok": false,
+          "saw": "nothing was shown"
+        },
+        {
+          "what": "the conversation goes on after it",
+          "ok": true,
+          "saw": "end_turn"
+        },
+        {
+          "what": "and still knows what was said before",
+          "ok": true,
+          "saw": "RL-D5F8593A"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "6 of at most 8"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 6,
+        "usd": "0.015250"
+      },
+      "log": [
+        "[info] Display language en-us: the panel is in English",
+        "[info] muse-spark-code-acp 0.18.2 serving ACP on stdio (modelApi)",
+        "[info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay)"
+      ]
+    },
+    {
+      "scenario": "exec-help",
+      "claims": ["ref/cli/exec/exec---help---h"],
+      "route": "provider",
+      "model": "claude-haiku-4-5 (Anthropic Messages)",
+      "surface": "exec",
+      "outcome": "fail",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw it names --max-requests: 158621 characters of help | saw it names --max-budget-usd: 158621 characters of help | saw it names --permission-mode: 158621 characters of help | saw it names --output: 158621 characters of help | MISSING it is short enough to read at a terminal (at most 80 lines): 1375 lines | saw it made no more requests than it said it may: 0 of at most 0",
+      "requests": 0,
+      "usd": "0.000000",
+      "seconds": 0.39310949999999867,
+      "title": "exec --help says how exec is used",
+      "vendor": "anthropic",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "it names --max-requests",
+          "ok": true,
+          "saw": "158621 characters of help"
+        },
+        {
+          "what": "it names --max-budget-usd",
+          "ok": true,
+          "saw": "158621 characters of help"
+        },
+        {
+          "what": "it names --permission-mode",
+          "ok": true,
+          "saw": "158621 characters of help"
+        },
+        {
+          "what": "it names --output",
+          "ok": true,
+          "saw": "158621 characters of help"
+        },
+        {
+          "what": "it is short enough to read at a terminal (at most 80 lines)",
+          "ok": false,
+          "saw": "1375 lines"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "0 of at most 0"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 0,
+        "usd": "0.000000"
+      },
+      "log": []
+    },
+    {
+      "scenario": "model-switch",
+      "claims": ["ref/slash/model", "ref/feature/providers", "ref/feature/acp"],
+      "route": "provider",
+      "model": "claude-haiku-4-5 (Anthropic Messages)",
+      "surface": "acp",
+      "outcome": "pass",
+      "observed": "saw the list offers the model of this route: rl-anthropic/claude-haiku-4-5 | saw the session moves to the model the person picks: rl-anthropic/claude-haiku-4-5 | saw a turn completes on it: Automatic compaction is awaiting evaluation and is inactive. RL-CB59719B | saw the usage names that model for the turn: rl-anthropic/claude-haiku-4-5 | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.002658",
+      "seconds": 1.9581229999999996,
+      "title": "The model list and a model switch",
+      "vendor": "anthropic",
+      "seen": [
+        {
+          "what": "the list offers the model of this route",
+          "ok": true,
+          "saw": "rl-anthropic/claude-haiku-4-5"
+        },
+        {
+          "what": "the session moves to the model the person picks",
+          "ok": true,
+          "saw": "rl-anthropic/claude-haiku-4-5"
+        },
+        {
+          "what": "a turn completes on it",
+          "ok": true,
+          "saw": "Automatic compaction is awaiting evaluation and is inactive. RL-CB59719B"
+        },
+        {
+          "what": "the usage names that model for the turn",
+          "ok": true,
+          "saw": "rl-anthropic/claude-haiku-4-5"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 1,
+        "usd": "0.002658"
+      }
+    },
+    {
+      "scenario": "refused-approval",
+      "claims": ["ref/cli/exec/exec---permission-mode-value"],
+      "route": "provider",
+      "model": "claude-haiku-4-5 (Anthropic Messages)",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw no file was written: no file | saw the result lists no changed file: [] | saw the command ends with a result: exit 0, status completed | saw it made no more requests than it said it may: 2 of at most 3",
+      "requests": 2,
+      "usd": "0.006043",
+      "seconds": 3.298203099999999,
+      "title": "A refused approval changes nothing",
+      "vendor": "anthropic",
+      "seen": [
+        {
+          "what": "no file was written",
+          "ok": true,
+          "saw": "no file"
+        },
+        {
+          "what": "the result lists no changed file",
+          "ok": true,
+          "saw": "[]"
+        },
+        {
+          "what": "the command ends with a result",
+          "ok": true,
+          "saw": "exit 0, status completed"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "2 of at most 3"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 0,
+        "usd": "0.000000"
+      }
+    },
+    {
+      "scenario": "refused-approval",
+      "claims": ["ref/feature/permissions", "ref/feature/acp"],
+      "route": "provider",
+      "model": "claude-haiku-4-5 (Anthropic Messages)",
+      "surface": "acp",
+      "outcome": "pass",
+      "observed": "saw the agent asked before it wrote: Write: real-life-refused.txt | saw no file was written: no file | saw the turn still ends: end_turn: Automatic compaction is awaiting evaluation and is inactive. The write_file action was refused by the user. I cannot create this file without their approval. | saw it made no more requests than it said it may: 2 of at most 3",
+      "requests": 2,
+      "usd": "0.005922",
+      "seconds": 3.0601213000000063,
+      "title": "A refused approval changes nothing",
+      "vendor": "anthropic",
+      "seen": [
+        {
+          "what": "the agent asked before it wrote",
+          "ok": true,
+          "saw": "Write: real-life-refused.txt"
+        },
+        {
+          "what": "no file was written",
+          "ok": true,
+          "saw": "no file"
+        },
+        {
+          "what": "the turn still ends",
+          "ok": true,
+          "saw": "end_turn: Automatic compaction is awaiting evaluation and is inactive. The write_file action was refused by the user. I cannot create this file without their approval."
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "2 of at most 3"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 2,
+        "usd": "0.005922"
+      }
+    },
+    {
+      "scenario": "session-continues",
+      "claims": ["ref/feature/history", "ref/feature/acp"],
+      "route": "provider",
+      "model": "claude-haiku-4-5 (Anthropic Messages)",
+      "surface": "acp",
+      "outcome": "pass",
+      "observed": "saw the first turn completed: end_turn | saw the agent ends when the editor closes it: exit 0 | saw the new process lists the conversation: 1 listed | saw loading it shows what was said before: 2 updates replayed | saw the conversation goes on: end_turn | saw and knows what was said before the process ended: Automatic compaction is awaiting evaluation and is inactive. RL-796BCFA6 | saw it made no more requests than it said it may: 2 of at most 2",
+      "requests": 2,
+      "usd": "0.005332",
+      "seconds": 2.9931601000000008,
+      "title": "A session is saved, the process ends, the session loads and continues",
+      "vendor": "anthropic",
+      "seen": [
+        {
+          "what": "the first turn completed",
+          "ok": true,
+          "saw": "end_turn"
+        },
+        {
+          "what": "the agent ends when the editor closes it",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the new process lists the conversation",
+          "ok": true,
+          "saw": "1 listed"
+        },
+        {
+          "what": "loading it shows what was said before",
+          "ok": true,
+          "saw": "2 updates replayed"
+        },
+        {
+          "what": "the conversation goes on",
+          "ok": true,
+          "saw": "end_turn"
+        },
+        {
+          "what": "and knows what was said before the process ended",
+          "ok": true,
+          "saw": "Automatic compaction is awaiting evaluation and is inactive. RL-796BCFA6"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "2 of at most 2"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 2,
+        "usd": "0.005332"
+      }
+    },
+    {
+      "scenario": "tool-write",
+      "claims": ["ref/cli/exec/exec---permission-mode-value", "ref/cli/exec/exec"],
+      "route": "provider",
+      "model": "claude-haiku-4-5 (Anthropic Messages)",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the file is on disk with the content asked for: RL-ABE74ACB | saw the result lists the file as changed: [\"real-life-note.txt\"] | saw it made no more requests than it said it may: 2 of at most 4",
+      "requests": 2,
+      "usd": "0.005815",
+      "seconds": 2.8554109000000025,
+      "title": "A tool turn writes a file after an approval",
+      "vendor": "anthropic",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the file is on disk with the content asked for",
+          "ok": true,
+          "saw": "RL-ABE74ACB"
+        },
+        {
+          "what": "the result lists the file as changed",
+          "ok": true,
+          "saw": "[\"real-life-note.txt\"]"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "2 of at most 4"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 0,
+        "usd": "0.000000"
+      }
+    },
+    {
+      "scenario": "tool-write",
+      "claims": ["ref/feature/permissions", "ref/feature/acp"],
+      "route": "provider",
+      "model": "claude-haiku-4-5 (Anthropic Messages)",
+      "surface": "acp",
+      "outcome": "pass",
+      "observed": "saw the agent asked before it wrote: Write: real-life-note.txt | saw the turn ends as a finished turn: end_turn | saw the file is on disk with the content asked for: RL-A3FFD426 | saw it made no more requests than it said it may: 2 of at most 4",
+      "requests": 2,
+      "usd": "0.005817",
+      "seconds": 2.7858619000000036,
+      "title": "A tool turn writes a file after an approval",
+      "vendor": "anthropic",
+      "seen": [
+        {
+          "what": "the agent asked before it wrote",
+          "ok": true,
+          "saw": "Write: real-life-note.txt"
+        },
+        {
+          "what": "the turn ends as a finished turn",
+          "ok": true,
+          "saw": "end_turn"
+        },
+        {
+          "what": "the file is on disk with the content asked for",
+          "ok": true,
+          "saw": "RL-A3FFD426"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "2 of at most 4"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 2,
+        "usd": "0.005817"
+      }
+    },
+    {
+      "scenario": "usage",
+      "claims": [
+        "ref/cli/usage/usage---json",
+        "ref/cli/usage/usage-summarydailymodelslimitsexportopenserve-options----usage---json",
+        "ref/feature/usage"
+      ],
+      "route": "provider",
+      "model": "claude-haiku-4-5 (Anthropic Messages)",
+      "surface": "exec",
+      "outcome": "fail",
+      "observed": "saw the turn completed: exit 0 | MISSING the usage lists the request of that turn: 0 of 17 recorded request(s) belong to the turn | MISSING that request has a cost above zero: $undefined for it in the usage | MISSING the text a person reads counts one request more than before the turn: 17 request(s) before, 17 after | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.002649",
+      "seconds": 2.6870137999999932,
+      "title": "/usage shows the requests and what they cost",
+      "vendor": "anthropic",
+      "seen": [
+        {
+          "what": "the turn completed",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the usage lists the request of that turn",
+          "ok": false,
+          "saw": "0 of 17 recorded request(s) belong to the turn"
+        },
+        {
+          "what": "that request has a cost above zero",
+          "ok": false,
+          "saw": "$undefined for it in the usage"
+        },
+        {
+          "what": "the text a person reads counts one request more than before the turn",
+          "ok": false,
+          "saw": "17 request(s) before, 17 after"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 0,
+        "usd": "0.000000"
+      },
+      "log": [
+        "[info] Display language en-us: the panel is in English",
+        "[info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay)",
+        "[warn] Usage history could not be recorded",
+        "[info] Completed; requests 1; settled $0.002649; uncertain $0.000000; image attempts 0; returned 0; uncertain images 0"
+      ]
+    },
+    {
+      "scenario": "usage",
+      "claims": ["ref/slash/usage", "ref/feature/usage"],
+      "route": "provider",
+      "model": "claude-haiku-4-5 (Anthropic Messages)",
+      "surface": "acp",
+      "outcome": "pass",
+      "observed": "saw the turn completed: end_turn | saw the answer counts at least one request: - Requests: 18 requests | saw the answer shows a cost above zero: - Total Cost: $0.06 | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.002668",
+      "seconds": 1.5904008999999932,
+      "title": "/usage shows the requests and what they cost",
+      "vendor": "anthropic",
+      "seen": [
+        {
+          "what": "the turn completed",
+          "ok": true,
+          "saw": "end_turn"
+        },
+        {
+          "what": "the answer counts at least one request",
+          "ok": true,
+          "saw": "- Requests: 18 requests"
+        },
+        {
+          "what": "the answer shows a cost above zero",
+          "ok": true,
+          "saw": "- Total Cost: $0.06"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 1,
+        "usd": "0.002668"
+      }
+    },
+    {
+      "scenario": "add-provider",
+      "claims": [
+        "ref/cli/providersAdd/providers-add---preset-preset---as-id---address-url---model-model---privacy-policy---private-ok---key-stdin",
+        "ref/cli/providersTest/providers-test-id",
+        "ref/feature/providers"
+      ],
+      "route": "provider",
+      "model": "gpt-5.6-luna (OpenAI Responses)",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw providers add takes the key and ends with exit code 0: Provider: openai Code goes to: https://api.openai.com Models: gpt-5.6-luna Default model: suggested Added rl-openai; code goes to https://api.openai.com. | saw providers test says the key works: Key works · 1 model.",
+      "requests": 0,
+      "usd": "0.000000",
+      "seconds": 1.9883280999999988,
+      "title": "A provider is added with its key, and the key is checked",
+      "vendor": "openai",
+      "seen": [
+        {
+          "what": "providers add takes the key and ends with exit code 0",
+          "ok": true,
+          "saw": "Provider: openai Code goes to: https://api.openai.com Models: gpt-5.6-luna Default model: suggested Added rl-openai; code goes to https://api.openai.com."
+        },
+        {
+          "what": "providers test says the key works",
+          "ok": true,
+          "saw": "Key works · 1 model."
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 0,
+        "usd": "0.000000"
+      }
+    },
+    {
+      "scenario": "plain-turn",
+      "claims": [
+        "ref/cli/exec/exec",
+        "ref/cli/exec/exec---model-value",
+        "ref/cli/exec/exec---output-value"
+      ],
+      "route": "provider",
+      "model": "gpt-5.6-luna (OpenAI Responses)",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the answer carries the word that was asked for: RL-EE79BE0F | saw the result names the model the person chose: rl-openai/gpt-5.6-luna | saw one request was made and it cost more than nothing: 1 request(s), $0.000266 | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.000266",
+      "seconds": 2.6379666,
+      "title": "A plain turn completes",
+      "vendor": "openai",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the answer carries the word that was asked for",
+          "ok": true,
+          "saw": "RL-EE79BE0F"
+        },
+        {
+          "what": "the result names the model the person chose",
+          "ok": true,
+          "saw": "rl-openai/gpt-5.6-luna"
+        },
+        {
+          "what": "one request was made and it cost more than nothing",
+          "ok": true,
+          "saw": "1 request(s), $0.000266"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 0,
+        "usd": "0.000000"
+      }
+    },
+    {
+      "scenario": "plain-turn",
+      "claims": ["ref/feature/acp", "ref/feature/chat"],
+      "route": "provider",
+      "model": "gpt-5.6-luna (OpenAI Responses)",
+      "surface": "acp",
+      "outcome": "pass",
+      "observed": "saw the turn ends as a finished turn: end_turn | saw the answer carries the word that was asked for: Automatic compaction is awaiting evaluation and is inactive. RL-158F53AB | saw the session runs on the model the person chose: rl-openai/gpt-5.6-luna | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.000263",
+      "seconds": 2.922361199999999,
+      "title": "A plain turn completes",
+      "vendor": "openai",
+      "seen": [
+        {
+          "what": "the turn ends as a finished turn",
+          "ok": true,
+          "saw": "end_turn"
+        },
+        {
+          "what": "the answer carries the word that was asked for",
+          "ok": true,
+          "saw": "Automatic compaction is awaiting evaluation and is inactive. RL-158F53AB"
+        },
+        {
+          "what": "the session runs on the model the person chose",
+          "ok": true,
+          "saw": "rl-openai/gpt-5.6-luna"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 1,
+        "usd": "0.000263"
+      }
+    },
+    {
+      "scenario": "cancel",
+      "claims": ["ref/feature/acp"],
+      "route": "provider",
+      "model": "gpt-5.6-luna (OpenAI Responses)",
+      "surface": "acp",
+      "outcome": "pass",
+      "observed": "saw the turn ends as cancelled: cancelled | saw the answer stopped before its end: 62 characters arrived | saw the conversation takes the next message and answers it: end_turn: OK | saw it made no more requests than it said it may: 2 of at most 2",
+      "requests": 2,
+      "usd": "0.000299",
+      "seconds": 2.7140464999999967,
+      "title": "A turn is cancelled in the middle",
+      "vendor": "openai",
+      "seen": [
+        {
+          "what": "the turn ends as cancelled",
+          "ok": true,
+          "saw": "cancelled"
+        },
+        {
+          "what": "the answer stopped before its end",
+          "ok": true,
+          "saw": "62 characters arrived"
+        },
+        {
+          "what": "the conversation takes the next message and answers it",
+          "ok": true,
+          "saw": "end_turn: OK"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "2 of at most 2"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 2,
+        "usd": "0.000299"
+      }
+    },
+    {
+      "scenario": "capped-run",
+      "claims": ["ref/cli/exec/exec---max-requests-value", "ref/feature/budget"],
+      "route": "provider",
+      "model": "gpt-5.6-luna (OpenAI Responses)",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw exactly one model request was made: 1 request(s) | saw the result says the request cap stopped it: status request_cap | saw the command ends with exit code 5: exit 5 | saw the person is told the cap was reached: The request cap of 1 attempt was reached. [info] Display language en-us: the panel is in English [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay) [warn] Usage history could not be recorded [info] Request Cap Reached; requests 1; settled $0.000338; uncertain $0.000000; imag… | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.000338",
+      "seconds": 3.5423119000000005,
+      "title": "A capped run stops at its cap and says so",
+      "vendor": "openai",
+      "seen": [
+        {
+          "what": "exactly one model request was made",
+          "ok": true,
+          "saw": "1 request(s)"
+        },
+        {
+          "what": "the result says the request cap stopped it",
+          "ok": true,
+          "saw": "status request_cap"
+        },
+        {
+          "what": "the command ends with exit code 5",
+          "ok": true,
+          "saw": "exit 5"
+        },
+        {
+          "what": "the person is told the cap was reached",
+          "ok": true,
+          "saw": "The request cap of 1 attempt was reached. [info] Display language en-us: the panel is in English [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay) [warn] Usage history could not be recorded [info] Request Cap Reached; requests 1; settled $0.000338; uncertain $0.000000; imag…"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 0,
+        "usd": "0.000000"
+      }
+    },
+    {
+      "scenario": "compact",
+      "claims": ["ref/slash/compact"],
+      "route": "provider",
+      "model": "gpt-5.6-luna (OpenAI Responses)",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw no model request was made: 0 request(s) | saw the result says there was nothing to compact: exit 8, status incomplete, no_compactable_history | saw it made no more requests than it said it may: 0 of at most 0",
+      "requests": 0,
+      "usd": "0.000000",
+      "seconds": 0.7762884999999952,
+      "title": "/compact works",
+      "vendor": "openai",
+      "seen": [
+        {
+          "what": "no model request was made",
+          "ok": true,
+          "saw": "0 request(s)"
+        },
+        {
+          "what": "the result says there was nothing to compact",
+          "ok": true,
+          "saw": "exit 8, status incomplete, no_compactable_history"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "0 of at most 0"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 0,
+        "usd": "0.000000"
+      }
+    },
+    {
+      "scenario": "compact",
+      "claims": ["ref/slash/compact", "ref/feature/compaction"],
+      "route": "provider",
+      "model": "gpt-5.6-luna (OpenAI Responses)",
+      "surface": "acp",
+      "outcome": "fail",
+      "observed": "saw the first turn completed: end_turn | saw the second turn completed: end_turn | saw /compact ends as a finished turn: end_turn | MISSING the person is told what /compact did: nothing was shown | saw the conversation goes on after it: end_turn | saw and still knows what was said before: RL-817C01D9 | saw it made no more requests than it said it may: 5 of at most 8",
+      "requests": 5,
+      "usd": "0.001014",
+      "seconds": 10.415759999999995,
+      "title": "/compact works",
+      "vendor": "openai",
+      "seen": [
+        {
+          "what": "the first turn completed",
+          "ok": true,
+          "saw": "end_turn"
+        },
+        {
+          "what": "the second turn completed",
+          "ok": true,
+          "saw": "end_turn"
+        },
+        {
+          "what": "/compact ends as a finished turn",
+          "ok": true,
+          "saw": "end_turn"
+        },
+        {
+          "what": "the person is told what /compact did",
+          "ok": false,
+          "saw": "nothing was shown"
+        },
+        {
+          "what": "the conversation goes on after it",
+          "ok": true,
+          "saw": "end_turn"
+        },
+        {
+          "what": "and still knows what was said before",
+          "ok": true,
+          "saw": "RL-817C01D9"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "5 of at most 8"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 5,
+        "usd": "0.001014"
+      },
+      "log": [
+        "[info] Display language en-us: the panel is in English",
+        "[info] muse-spark-code-acp 0.18.2 serving ACP on stdio (modelApi)",
+        "[info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay)"
+      ]
+    },
+    {
+      "scenario": "exec-help",
+      "claims": ["ref/cli/exec/exec---help---h"],
+      "route": "provider",
+      "model": "gpt-5.6-luna (OpenAI Responses)",
+      "surface": "exec",
+      "outcome": "fail",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw it names --max-requests: 158621 characters of help | saw it names --max-budget-usd: 158621 characters of help | saw it names --permission-mode: 158621 characters of help | saw it names --output: 158621 characters of help | MISSING it is short enough to read at a terminal (at most 80 lines): 1375 lines | saw it made no more requests than it said it may: 0 of at most 0",
+      "requests": 0,
+      "usd": "0.000000",
+      "seconds": 0.31992690000000584,
+      "title": "exec --help says how exec is used",
+      "vendor": "openai",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "it names --max-requests",
+          "ok": true,
+          "saw": "158621 characters of help"
+        },
+        {
+          "what": "it names --max-budget-usd",
+          "ok": true,
+          "saw": "158621 characters of help"
+        },
+        {
+          "what": "it names --permission-mode",
+          "ok": true,
+          "saw": "158621 characters of help"
+        },
+        {
+          "what": "it names --output",
+          "ok": true,
+          "saw": "158621 characters of help"
+        },
+        {
+          "what": "it is short enough to read at a terminal (at most 80 lines)",
+          "ok": false,
+          "saw": "1375 lines"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "0 of at most 0"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 0,
+        "usd": "0.000000"
+      },
+      "log": []
+    },
+    {
+      "scenario": "model-switch",
+      "claims": ["ref/slash/model", "ref/feature/providers", "ref/feature/acp"],
+      "route": "provider",
+      "model": "gpt-5.6-luna (OpenAI Responses)",
+      "surface": "acp",
+      "outcome": "pass",
+      "observed": "saw the list offers the model of this route: rl-anthropic/claude-haiku-4-5, rl-openai/gpt-5.6-luna | saw the session moves to another listed model: rl-anthropic/claude-haiku-4-5 | saw the session moves to the model the person picks: rl-openai/gpt-5.6-luna | saw a turn completes on it: Automatic compaction is awaiting evaluation and is inactive. RL-C04F08B0 | saw the usage names that model for the turn: rl-openai/gpt-5.6-luna | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.000265",
+      "seconds": 2.3910683000000135,
+      "title": "The model list and a model switch",
+      "vendor": "openai",
+      "seen": [
+        {
+          "what": "the list offers the model of this route",
+          "ok": true,
+          "saw": "rl-anthropic/claude-haiku-4-5, rl-openai/gpt-5.6-luna"
+        },
+        {
+          "what": "the session moves to another listed model",
+          "ok": true,
+          "saw": "rl-anthropic/claude-haiku-4-5"
+        },
+        {
+          "what": "the session moves to the model the person picks",
+          "ok": true,
+          "saw": "rl-openai/gpt-5.6-luna"
+        },
+        {
+          "what": "a turn completes on it",
+          "ok": true,
+          "saw": "Automatic compaction is awaiting evaluation and is inactive. RL-C04F08B0"
+        },
+        {
+          "what": "the usage names that model for the turn",
+          "ok": true,
+          "saw": "rl-openai/gpt-5.6-luna"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 1,
+        "usd": "0.000265"
+      }
+    },
+    {
+      "scenario": "refused-approval",
+      "claims": ["ref/cli/exec/exec---permission-mode-value"],
+      "route": "provider",
+      "model": "gpt-5.6-luna (OpenAI Responses)",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw no file was written: no file | saw the result lists no changed file: [] | saw the command ends with a result: exit 0, status completed | saw it made no more requests than it said it may: 2 of at most 3",
+      "requests": 2,
+      "usd": "0.000490",
+      "seconds": 5.470380400000009,
+      "title": "A refused approval changes nothing",
+      "vendor": "openai",
+      "seen": [
+        {
+          "what": "no file was written",
+          "ok": true,
+          "saw": "no file"
+        },
+        {
+          "what": "the result lists no changed file",
+          "ok": true,
+          "saw": "[]"
+        },
+        {
+          "what": "the command ends with a result",
+          "ok": true,
+          "saw": "exit 0, status completed"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "2 of at most 3"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 0,
+        "usd": "0.000000"
+      }
+    },
+    {
+      "scenario": "refused-approval",
+      "claims": ["ref/feature/permissions", "ref/feature/acp"],
+      "route": "provider",
+      "model": "gpt-5.6-luna (OpenAI Responses)",
+      "surface": "acp",
+      "outcome": "pass",
+      "observed": "saw the agent asked before it wrote: Write: real-life-refused.txt | saw no file was written: no file | saw the turn still ends: end_turn: Automatic compaction is awaiting evaluation and is inactive. I couldn’t create `real-life-refused.txt` because the file operation was rejected by the user. | saw it made no more requests than it said it may: 2 of at most 3",
+      "requests": 2,
+      "usd": "0.000439",
+      "seconds": 5.316784799999994,
+      "title": "A refused approval changes nothing",
+      "vendor": "openai",
+      "seen": [
+        {
+          "what": "the agent asked before it wrote",
+          "ok": true,
+          "saw": "Write: real-life-refused.txt"
+        },
+        {
+          "what": "no file was written",
+          "ok": true,
+          "saw": "no file"
+        },
+        {
+          "what": "the turn still ends",
+          "ok": true,
+          "saw": "end_turn: Automatic compaction is awaiting evaluation and is inactive. I couldn’t create `real-life-refused.txt` because the file operation was rejected by the user."
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "2 of at most 3"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 2,
+        "usd": "0.000439"
+      }
+    },
+    {
+      "scenario": "session-continues",
+      "claims": ["ref/feature/history", "ref/feature/acp"],
+      "route": "provider",
+      "model": "gpt-5.6-luna (OpenAI Responses)",
+      "surface": "acp",
+      "outcome": "pass",
+      "observed": "saw the first turn completed: end_turn | saw the agent ends when the editor closes it: exit 0 | saw the new process lists the conversation: 1 listed | saw loading it shows what was said before: 2 updates replayed | saw the conversation goes on: end_turn | saw and knows what was said before the process ended: Automatic compaction is awaiting evaluation and is inactive. RL-FCE3E10E | saw it made no more requests than it said it may: 2 of at most 2",
+      "requests": 2,
+      "usd": "0.000319",
+      "seconds": 3.9087379999999974,
+      "title": "A session is saved, the process ends, the session loads and continues",
+      "vendor": "openai",
+      "seen": [
+        {
+          "what": "the first turn completed",
+          "ok": true,
+          "saw": "end_turn"
+        },
+        {
+          "what": "the agent ends when the editor closes it",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the new process lists the conversation",
+          "ok": true,
+          "saw": "1 listed"
+        },
+        {
+          "what": "loading it shows what was said before",
+          "ok": true,
+          "saw": "2 updates replayed"
+        },
+        {
+          "what": "the conversation goes on",
+          "ok": true,
+          "saw": "end_turn"
+        },
+        {
+          "what": "and knows what was said before the process ended",
+          "ok": true,
+          "saw": "Automatic compaction is awaiting evaluation and is inactive. RL-FCE3E10E"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "2 of at most 2"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 2,
+        "usd": "0.000319"
+      }
+    },
+    {
+      "scenario": "tool-write",
+      "claims": ["ref/cli/exec/exec---permission-mode-value", "ref/cli/exec/exec"],
+      "route": "provider",
+      "model": "gpt-5.6-luna (OpenAI Responses)",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the file is on disk with the content asked for: RL-11647F34 | saw the result lists the file as changed: [\"real-life-note.txt\"] | saw it made no more requests than it said it may: 2 of at most 4",
+      "requests": 2,
+      "usd": "0.000388",
+      "seconds": 4.720348700000002,
+      "title": "A tool turn writes a file after an approval",
+      "vendor": "openai",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the file is on disk with the content asked for",
+          "ok": true,
+          "saw": "RL-11647F34"
+        },
+        {
+          "what": "the result lists the file as changed",
+          "ok": true,
+          "saw": "[\"real-life-note.txt\"]"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "2 of at most 4"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 0,
+        "usd": "0.000000"
+      }
+    },
+    {
+      "scenario": "tool-write",
+      "claims": ["ref/feature/permissions", "ref/feature/acp"],
+      "route": "provider",
+      "model": "gpt-5.6-luna (OpenAI Responses)",
+      "surface": "acp",
+      "outcome": "pass",
+      "observed": "saw the agent asked before it wrote: Write: real-life-note.txt | saw the turn ends as a finished turn: end_turn | saw the file is on disk with the content asked for: RL-EAD6AC47 | saw it made no more requests than it said it may: 2 of at most 4",
+      "requests": 2,
+      "usd": "0.000375",
+      "seconds": 4.182955400000006,
+      "title": "A tool turn writes a file after an approval",
+      "vendor": "openai",
+      "seen": [
+        {
+          "what": "the agent asked before it wrote",
+          "ok": true,
+          "saw": "Write: real-life-note.txt"
+        },
+        {
+          "what": "the turn ends as a finished turn",
+          "ok": true,
+          "saw": "end_turn"
+        },
+        {
+          "what": "the file is on disk with the content asked for",
+          "ok": true,
+          "saw": "RL-EAD6AC47"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "2 of at most 4"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 2,
+        "usd": "0.000375"
+      }
+    },
+    {
+      "scenario": "usage",
+      "claims": [
+        "ref/cli/usage/usage---json",
+        "ref/cli/usage/usage-summarydailymodelslimitsexportopenserve-options----usage---json",
+        "ref/feature/usage"
+      ],
+      "route": "provider",
+      "model": "gpt-5.6-luna (OpenAI Responses)",
+      "surface": "exec",
+      "outcome": "fail",
+      "observed": "saw the turn completed: exit 0 | MISSING the usage lists the request of that turn: 0 of 33 recorded request(s) belong to the turn | MISSING that request has a cost above zero: $undefined for it in the usage | MISSING the text a person reads counts one request more than before the turn: 33 request(s) before, 33 after | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.000266",
+      "seconds": 3.004165799999988,
+      "title": "/usage shows the requests and what they cost",
+      "vendor": "openai",
+      "seen": [
+        {
+          "what": "the turn completed",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the usage lists the request of that turn",
+          "ok": false,
+          "saw": "0 of 33 recorded request(s) belong to the turn"
+        },
+        {
+          "what": "that request has a cost above zero",
+          "ok": false,
+          "saw": "$undefined for it in the usage"
+        },
+        {
+          "what": "the text a person reads counts one request more than before the turn",
+          "ok": false,
+          "saw": "33 request(s) before, 33 after"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 0,
+        "usd": "0.000000"
+      },
+      "log": [
+        "[info] Display language en-us: the panel is in English",
+        "[info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay)",
+        "[warn] Usage history could not be recorded",
+        "[info] Completed; requests 1; settled $0.000266; uncertain $0.000000; image attempts 0; returned 0; uncertain images 0"
+      ]
+    },
+    {
+      "scenario": "usage",
+      "claims": ["ref/slash/usage", "ref/feature/usage"],
+      "route": "provider",
+      "model": "gpt-5.6-luna (OpenAI Responses)",
+      "surface": "acp",
+      "outcome": "pass",
+      "observed": "saw the turn completed: end_turn | saw the answer counts at least one request: - Requests: 34 requests | saw the answer shows a cost above zero: - Total Cost: $0.06 | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.000263",
+      "seconds": 1.9084867000000085,
+      "title": "/usage shows the requests and what they cost",
+      "vendor": "openai",
+      "seen": [
+        {
+          "what": "the turn completed",
+          "ok": true,
+          "saw": "end_turn"
+        },
+        {
+          "what": "the answer counts at least one request",
+          "ok": true,
+          "saw": "- Requests: 34 requests"
+        },
+        {
+          "what": "the answer shows a cost above zero",
+          "ok": true,
+          "saw": "- Total Cost: $0.06"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 1,
+        "usd": "0.000263"
+      }
+    }
+  ],
+  "notRun": [],
+  "keysLeftInTheCredentialStore": []
+}

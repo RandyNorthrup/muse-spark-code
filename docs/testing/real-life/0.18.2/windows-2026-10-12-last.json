@@ -1,0 +1,464 @@
+{
+  "artefact": {
+    "name": "muse-spark-code-acp-0.18.2.tgz",
+    "sha256": "0ffd42d4a5fac87f172b0b50a326281b67d69ccc0f214544cca565b05ed096ea",
+    "package": "muse-spark-code-acp",
+    "version": "0.18.2"
+  },
+  "os": "Windows_NT 10.0.26200 x64",
+  "node": "v24.20.0",
+  "startedAt": "2026-10-13T00:50:16.471Z",
+  "endedAt": "2026-10-13T00:50:42.288Z",
+  "caps": {
+    "requests": 10,
+    "usd": "0.480000"
+  },
+  "totals": {
+    "passed": 4,
+    "failed": 6,
+    "notRun": 0,
+    "requests": 2,
+    "usd": "0.659025",
+    "productUsage": {
+      "requests": 1,
+      "usd": "0.327953"
+    }
+  },
+  "routes": [
+    {
+      "id": "anthropic",
+      "wire": "Anthropic Messages",
+      "model": "claude-haiku-4-5",
+      "state": "added as rl-anthropic; Key works · 13 models."
+    },
+    {
+      "id": "openai",
+      "wire": "OpenAI Responses",
+      "model": "gpt-5.6-luna",
+      "state": "added as rl-openai; Key works · 1 model."
+    },
+    {
+      "id": "meta",
+      "wire": "Meta Model API",
+      "model": "muse-spark-1.3-contributor",
+      "state": "the key goes to each terminal command on standard input; stored with auth set for the editor sessions, removed afterwards"
+    },
+    {
+      "id": "xai",
+      "wire": "OpenAI Responses (xAI)",
+      "model": "grok-4.3",
+      "state": "added as rl-xai; Key works · 14 models."
+    },
+    {
+      "id": "anthropic-no-credit",
+      "wire": "Anthropic Messages",
+      "model": "claude-haiku-4-5",
+      "state": "added as rl-anthropic-no-credit; Key works · 14 models."
+    }
+  ],
+  "results": [
+    {
+      "scenario": "add-provider",
+      "claims": [
+        "ref/cli/providersAdd/providers-add---preset-preset---as-id---address-url---model-model---privacy-policy---private-ok---key-stdin",
+        "ref/cli/providersTest/providers-test-id",
+        "ref/feature/providers"
+      ],
+      "route": "provider",
+      "model": "claude-haiku-4-5 (Anthropic Messages)",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw providers add takes the key and ends with exit code 0: Provider: anthropic Code goes to: https://api.anthropic.com Models: claude-haiku-4-5 Default model: suggested Added rl-anthropic; code goes to https://api.anthropic.com. | saw providers test says the key works: Key works · 13 models.",
+      "requests": 0,
+      "usd": "0.000000",
+      "seconds": 1.6425760999999999,
+      "title": "A provider is added with its key, and the key is checked",
+      "vendor": "anthropic",
+      "seen": [
+        {
+          "what": "providers add takes the key and ends with exit code 0",
+          "ok": true,
+          "saw": "Provider: anthropic Code goes to: https://api.anthropic.com Models: claude-haiku-4-5 Default model: suggested Added rl-anthropic; code goes to https://api.anthropic.com."
+        },
+        {
+          "what": "providers test says the key works",
+          "ok": true,
+          "saw": "Key works · 13 models."
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 0,
+        "usd": "0.000000"
+      }
+    },
+    {
+      "scenario": "unknown-model",
+      "claims": ["ref/cli/exec/exec---model-value"],
+      "route": "provider",
+      "model": "claude-haiku-4-5 (Anthropic Messages)",
+      "surface": "exec",
+      "outcome": "fail",
+      "observed": "saw the command does not end with exit code 0: exit 2 | saw no model request was made: 0 request(s) | MISSING the refusal names the model that was asked for: [info] Display language en-us: the panel is in English [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay) [error] This model is not available for this run. | saw it made no more requests than it said it may: 0 of at most 0",
+      "requests": 0,
+      "usd": "0.000000",
+      "seconds": 0.6185031999999997,
+      "title": "An unknown model is refused with its reason",
+      "vendor": "anthropic",
+      "seen": [
+        {
+          "what": "the command does not end with exit code 0",
+          "ok": true,
+          "saw": "exit 2"
+        },
+        {
+          "what": "no model request was made",
+          "ok": true,
+          "saw": "0 request(s)"
+        },
+        {
+          "what": "the refusal names the model that was asked for",
+          "ok": false,
+          "saw": "[info] Display language en-us: the panel is in English [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay) [error] This model is not available for this run."
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "0 of at most 0"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 0,
+        "usd": "0.000000"
+      },
+      "log": [
+        "[info] Display language en-us: the panel is in English",
+        "[info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay)",
+        "[error] This model is not available for this run."
+      ]
+    },
+    {
+      "scenario": "add-provider",
+      "claims": [
+        "ref/cli/providersAdd/providers-add---preset-preset---as-id---address-url---model-model---privacy-policy---private-ok---key-stdin",
+        "ref/cli/providersTest/providers-test-id",
+        "ref/feature/providers"
+      ],
+      "route": "provider",
+      "model": "gpt-5.6-luna (OpenAI Responses)",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw providers add takes the key and ends with exit code 0: Provider: openai Code goes to: https://api.openai.com Models: gpt-5.6-luna Default model: suggested Added rl-openai; code goes to https://api.openai.com. | saw providers test says the key works: Key works · 1 model.",
+      "requests": 0,
+      "usd": "0.000000",
+      "seconds": 3.110058399999999,
+      "title": "A provider is added with its key, and the key is checked",
+      "vendor": "openai",
+      "seen": [
+        {
+          "what": "providers add takes the key and ends with exit code 0",
+          "ok": true,
+          "saw": "Provider: openai Code goes to: https://api.openai.com Models: gpt-5.6-luna Default model: suggested Added rl-openai; code goes to https://api.openai.com."
+        },
+        {
+          "what": "providers test says the key works",
+          "ok": true,
+          "saw": "Key works · 1 model."
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 0,
+        "usd": "0.000000"
+      }
+    },
+    {
+      "scenario": "unknown-model",
+      "claims": ["ref/cli/exec/exec---model-value"],
+      "route": "provider",
+      "model": "gpt-5.6-luna (OpenAI Responses)",
+      "surface": "exec",
+      "outcome": "fail",
+      "observed": "saw the command does not end with exit code 0: exit 2 | saw no model request was made: 0 request(s) | MISSING the refusal names the model that was asked for: [info] Display language en-us: the panel is in English [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay) [error] This model is not available for this run. | saw it made no more requests than it said it may: 0 of at most 0",
+      "requests": 0,
+      "usd": "0.000000",
+      "seconds": 0.5596133000000009,
+      "title": "An unknown model is refused with its reason",
+      "vendor": "openai",
+      "seen": [
+        {
+          "what": "the command does not end with exit code 0",
+          "ok": true,
+          "saw": "exit 2"
+        },
+        {
+          "what": "no model request was made",
+          "ok": true,
+          "saw": "0 request(s)"
+        },
+        {
+          "what": "the refusal names the model that was asked for",
+          "ok": false,
+          "saw": "[info] Display language en-us: the panel is in English [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay) [error] This model is not available for this run."
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "0 of at most 0"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 0,
+        "usd": "0.000000"
+      },
+      "log": [
+        "[info] Display language en-us: the panel is in English",
+        "[info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay)",
+        "[error] This model is not available for this run."
+      ]
+    },
+    {
+      "scenario": "unknown-model",
+      "claims": ["ref/cli/exec/exec---model-value"],
+      "route": "modelapi",
+      "model": "muse-spark-1.3-contributor (Meta Model API)",
+      "surface": "exec",
+      "outcome": "fail",
+      "observed": "saw the command does not end with exit code 0: exit 2 | saw no model request was made: 0 request(s) | MISSING the refusal names the model that was asked for: [info] Display language en-us: the panel is in English [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay) [error] This model is not available for this run. | saw it made no more requests than it said it may: 0 of at most 0",
+      "requests": 0,
+      "usd": "0.000000",
+      "seconds": 0.8465853999999999,
+      "title": "An unknown model is refused with its reason",
+      "vendor": "meta",
+      "seen": [
+        {
+          "what": "the command does not end with exit code 0",
+          "ok": true,
+          "saw": "exit 2"
+        },
+        {
+          "what": "no model request was made",
+          "ok": true,
+          "saw": "0 request(s)"
+        },
+        {
+          "what": "the refusal names the model that was asked for",
+          "ok": false,
+          "saw": "[info] Display language en-us: the panel is in English [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay) [error] This model is not available for this run."
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "0 of at most 0"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 0,
+        "usd": "0.000000"
+      },
+      "log": [
+        "[info] Display language en-us: the panel is in English",
+        "[info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay)",
+        "[error] This model is not available for this run."
+      ]
+    },
+    {
+      "scenario": "add-provider",
+      "claims": [
+        "ref/cli/providersAdd/providers-add---preset-preset---as-id---address-url---model-model---privacy-policy---private-ok---key-stdin",
+        "ref/cli/providersTest/providers-test-id",
+        "ref/feature/providers"
+      ],
+      "route": "provider",
+      "model": "grok-4.3 (OpenAI Responses (xAI))",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw providers add takes the key and ends with exit code 0: Provider: xai Code goes to: https://api.x.ai Models: grok-4.3 Default model: suggested Added rl-xai; code goes to https://api.x.ai. | saw providers test says the key works: Key works · 14 models.",
+      "requests": 0,
+      "usd": "0.000000",
+      "seconds": 1.5154636999999984,
+      "title": "A provider is added with its key, and the key is checked",
+      "vendor": "xai",
+      "seen": [
+        {
+          "what": "providers add takes the key and ends with exit code 0",
+          "ok": true,
+          "saw": "Provider: xai Code goes to: https://api.x.ai Models: grok-4.3 Default model: suggested Added rl-xai; code goes to https://api.x.ai."
+        },
+        {
+          "what": "providers test says the key works",
+          "ok": true,
+          "saw": "Key works · 14 models."
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 0,
+        "usd": "0.000000"
+      }
+    },
+    {
+      "scenario": "unknown-model",
+      "claims": ["ref/cli/exec/exec---model-value"],
+      "route": "provider",
+      "model": "grok-4.3 (OpenAI Responses (xAI))",
+      "surface": "exec",
+      "outcome": "fail",
+      "observed": "saw the command does not end with exit code 0: exit 2 | saw no model request was made: 0 request(s) | MISSING the refusal names the model that was asked for: [info] Display language en-us: the panel is in English [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay) [error] This model is not available for this run. | saw it made no more requests than it said it may: 0 of at most 0",
+      "requests": 0,
+      "usd": "0.000000",
+      "seconds": 0.5806054999999997,
+      "title": "An unknown model is refused with its reason",
+      "vendor": "xai",
+      "seen": [
+        {
+          "what": "the command does not end with exit code 0",
+          "ok": true,
+          "saw": "exit 2"
+        },
+        {
+          "what": "no model request was made",
+          "ok": true,
+          "saw": "0 request(s)"
+        },
+        {
+          "what": "the refusal names the model that was asked for",
+          "ok": false,
+          "saw": "[info] Display language en-us: the panel is in English [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay) [error] This model is not available for this run."
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "0 of at most 0"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 0,
+        "usd": "0.000000"
+      },
+      "log": [
+        "[info] Display language en-us: the panel is in English",
+        "[info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay)",
+        "[error] This model is not available for this run."
+      ]
+    },
+    {
+      "scenario": "add-provider",
+      "claims": [
+        "ref/cli/providersAdd/providers-add---preset-preset---as-id---address-url---model-model---privacy-policy---private-ok---key-stdin",
+        "ref/cli/providersTest/providers-test-id",
+        "ref/feature/providers"
+      ],
+      "route": "provider",
+      "model": "claude-haiku-4-5 (Anthropic Messages)",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw providers add takes the key and ends with exit code 0: Provider: anthropic Code goes to: https://api.anthropic.com Models: claude-haiku-4-5 Default model: suggested Added rl-anthropic-no-credit; code goes to https://api.anthropic.com. | saw providers test says the key works: Key works · 14 models.",
+      "requests": 0,
+      "usd": "0.000000",
+      "seconds": 1.5314493999999976,
+      "title": "A provider is added with its key, and the key is checked",
+      "vendor": "anthropic-no-credit",
+      "seen": [
+        {
+          "what": "providers add takes the key and ends with exit code 0",
+          "ok": true,
+          "saw": "Provider: anthropic Code goes to: https://api.anthropic.com Models: claude-haiku-4-5 Default model: suggested Added rl-anthropic-no-credit; code goes to https://api.anthropic.com."
+        },
+        {
+          "what": "providers test says the key works",
+          "ok": true,
+          "saw": "Key works · 14 models."
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 0,
+        "usd": "0.000000"
+      }
+    },
+    {
+      "scenario": "no-credit",
+      "claims": ["ref/feature/providers", "ref/cli/exec/exec---provider-value"],
+      "route": "provider",
+      "model": "claude-haiku-4-5 (Anthropic Messages)",
+      "surface": "exec",
+      "outcome": "fail",
+      "observed": "saw the command does not end with exit code 0: exit 4 | MISSING the person is shown the provider’s reason: Internal error: Models & Agents is not available in this build. message withheld: the response did not complete [info] Display language en-us: the panel is in English [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay) [warn] Session budget: a response ended without its usage… | saw nothing was charged: $0 settled | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.331072",
+      "seconds": 1.2789374000000024,
+      "title": "An account with no credit shows the provider’s own reason",
+      "vendor": "anthropic-no-credit",
+      "seen": [
+        {
+          "what": "the command does not end with exit code 0",
+          "ok": true,
+          "saw": "exit 4"
+        },
+        {
+          "what": "the person is shown the provider’s reason",
+          "ok": false,
+          "saw": "Internal error: Models & Agents is not available in this build. message withheld: the response did not complete [info] Display language en-us: the panel is in English [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay) [warn] Session budget: a response ended without its usage…"
+        },
+        {
+          "what": "nothing was charged",
+          "ok": true,
+          "saw": "$0 settled"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 0,
+        "usd": "0.000000"
+      },
+      "log": [
+        "[info] Display language en-us: the panel is in English",
+        "[info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay)",
+        "[warn] Session budget: a response ended without its usage; its remaining reservation of 0.171793 USD counts as spent",
+        "[warn] Usage history could not be recorded",
+        "[warn] Model API turn 3d12ad36-2684-4167-9b0d-c79c72661d25 failed: Models & Agents is not available in this build.",
+        "[info] Failed; requests 1; settled $0.000000; uncertain $0.331072; image attempts 0; returned 0; uncertain images 0; Cost is an upper bound."
+      ]
+    },
+    {
+      "scenario": "no-credit",
+      "claims": ["ref/feature/providers", "ref/feature/acp"],
+      "route": "provider",
+      "model": "claude-haiku-4-5 (Anthropic Messages)",
+      "surface": "acp",
+      "outcome": "fail",
+      "observed": "MISSING the person is shown the provider’s reason: Internal error: Models & Agents is not available in this build. {\"code\":-32603,\"message\":\"Internal error: Models & Agents is not available in this build.\"} | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.327953",
+      "seconds": 1.6206031999999977,
+      "title": "An account with no credit shows the provider’s own reason",
+      "vendor": "anthropic-no-credit",
+      "seen": [
+        {
+          "what": "the person is shown the provider’s reason",
+          "ok": false,
+          "saw": "Internal error: Models & Agents is not available in this build. {\"code\":-32603,\"message\":\"Internal error: Models & Agents is not available in this build.\"}"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 1,
+        "usd": "0.327953"
+      },
+      "log": [
+        "[info] Display language en-us: the panel is in English",
+        "[info] muse-spark-code-acp 0.18.2 serving ACP on stdio (modelApi)",
+        "[info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay)",
+        "[warn] Session budget: a response ended without its usage; its remaining reservation of 0.327953 USD counts as spent",
+        "[warn] Model API turn 01729872-91c6-4f2f-805c-7c4cde48c7fd failed: Models & Agents is not available in this build."
+      ]
+    }
+  ],
+  "notRun": [],
+  "keysLeftInTheCredentialStore": []
+}

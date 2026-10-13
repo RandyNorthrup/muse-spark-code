@@ -1,0 +1,86 @@
+Real-life run of muse-spark-code-acp-0.18.2.tgz (muse-spark-code-acp 0.18.2)
+SHA-256 0ffd42d4a5fac87f172b0b50a326281b67d69ccc0f214544cca565b05ed096ea
+Windows_NT 10.0.26200 x64, Node v24.20.0; 2026-10-13T00:50:16.471Z to 2026-10-13T00:50:42.288Z
+Caps: 10 requests, $0.480000. Made: 2 requests, $0.659025 by the product's own count.
+The product's own usage for this home afterwards: 1 requests, $0.327953.
+Scenario runs: 4 passed, 6 failed, 0 not run.
+
+Route anthropic (Anthropic Messages, claude-haiku-4-5): added as rl-anthropic; Key works · 13 models.
+Route openai (OpenAI Responses, gpt-5.6-luna): added as rl-openai; Key works · 1 model.
+Route meta (Meta Model API, muse-spark-1.3-contributor): the key goes to each terminal command on standard input; stored with auth set for the editor sessions, removed afterwards
+Route xai (OpenAI Responses (xAI), grok-4.3): added as rl-xai; Key works · 14 models.
+Route anthropic-no-credit (Anthropic Messages, claude-haiku-4-5): added as rl-anthropic-no-credit; Key works · 14 models.
+
+PASS  add-provider · anthropic · exec · 0 req · $0.000000 · 1.6 s
+      A provider is added with its key, and the key is checked [ref/cli/providersAdd/providers-add---preset-preset---as-id---address-url---model-model---privacy-policy---private-ok---key-stdin, ref/cli/providersTest/providers-test-id, ref/feature/providers]
+      saw     providers add takes the key and ends with exit code 0: Provider: anthropic Code goes to: https://api.anthropic.com Models: claude-haiku-4-5 Default model: suggested Added rl-anthropic; code goes to https://api.anthropic.com.
+      saw     providers test says the key works: Key works · 13 models.
+FAIL  unknown-model · anthropic · exec · 0 req · $0.000000 · 0.6 s
+      An unknown model is refused with its reason [ref/cli/exec/exec---model-value]
+      saw     the command does not end with exit code 0: exit 2
+      saw     no model request was made: 0 request(s)
+      MISSING the refusal names the model that was asked for: [info] Display language en-us: the panel is in English [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay) [error] This model is not available for this run.
+      saw     it made no more requests than it said it may: 0 of at most 0
+      | [info] Display language en-us: the panel is in English
+      | [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay)
+      | [error] This model is not available for this run.
+PASS  add-provider · openai · exec · 0 req · $0.000000 · 3.1 s
+      A provider is added with its key, and the key is checked [ref/cli/providersAdd/providers-add---preset-preset---as-id---address-url---model-model---privacy-policy---private-ok---key-stdin, ref/cli/providersTest/providers-test-id, ref/feature/providers]
+      saw     providers add takes the key and ends with exit code 0: Provider: openai Code goes to: https://api.openai.com Models: gpt-5.6-luna Default model: suggested Added rl-openai; code goes to https://api.openai.com.
+      saw     providers test says the key works: Key works · 1 model.
+FAIL  unknown-model · openai · exec · 0 req · $0.000000 · 0.6 s
+      An unknown model is refused with its reason [ref/cli/exec/exec---model-value]
+      saw     the command does not end with exit code 0: exit 2
+      saw     no model request was made: 0 request(s)
+      MISSING the refusal names the model that was asked for: [info] Display language en-us: the panel is in English [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay) [error] This model is not available for this run.
+      saw     it made no more requests than it said it may: 0 of at most 0
+      | [info] Display language en-us: the panel is in English
+      | [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay)
+      | [error] This model is not available for this run.
+FAIL  unknown-model · meta · exec · 0 req · $0.000000 · 0.8 s
+      An unknown model is refused with its reason [ref/cli/exec/exec---model-value]
+      saw     the command does not end with exit code 0: exit 2
+      saw     no model request was made: 0 request(s)
+      MISSING the refusal names the model that was asked for: [info] Display language en-us: the panel is in English [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay) [error] This model is not available for this run.
+      saw     it made no more requests than it said it may: 0 of at most 0
+      | [info] Display language en-us: the panel is in English
+      | [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay)
+      | [error] This model is not available for this run.
+PASS  add-provider · xai · exec · 0 req · $0.000000 · 1.5 s
+      A provider is added with its key, and the key is checked [ref/cli/providersAdd/providers-add---preset-preset---as-id---address-url---model-model---privacy-policy---private-ok---key-stdin, ref/cli/providersTest/providers-test-id, ref/feature/providers]
+      saw     providers add takes the key and ends with exit code 0: Provider: xai Code goes to: https://api.x.ai Models: grok-4.3 Default model: suggested Added rl-xai; code goes to https://api.x.ai.
+      saw     providers test says the key works: Key works · 14 models.
+FAIL  unknown-model · xai · exec · 0 req · $0.000000 · 0.6 s
+      An unknown model is refused with its reason [ref/cli/exec/exec---model-value]
+      saw     the command does not end with exit code 0: exit 2
+      saw     no model request was made: 0 request(s)
+      MISSING the refusal names the model that was asked for: [info] Display language en-us: the panel is in English [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay) [error] This model is not available for this run.
+      saw     it made no more requests than it said it may: 0 of at most 0
+      | [info] Display language en-us: the panel is in English
+      | [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay)
+      | [error] This model is not available for this run.
+PASS  add-provider · anthropic-no-credit · exec · 0 req · $0.000000 · 1.5 s
+      A provider is added with its key, and the key is checked [ref/cli/providersAdd/providers-add---preset-preset---as-id---address-url---model-model---privacy-policy---private-ok---key-stdin, ref/cli/providersTest/providers-test-id, ref/feature/providers]
+      saw     providers add takes the key and ends with exit code 0: Provider: anthropic Code goes to: https://api.anthropic.com Models: claude-haiku-4-5 Default model: suggested Added rl-anthropic-no-credit; code goes to https://api.anthropic.com.
+      saw     providers test says the key works: Key works · 14 models.
+FAIL  no-credit · anthropic-no-credit · exec · 1 req · $0.331072 · 1.3 s
+      An account with no credit shows the provider’s own reason [ref/feature/providers, ref/cli/exec/exec---provider-value]
+      saw     the command does not end with exit code 0: exit 4
+      MISSING the person is shown the provider’s reason: Internal error: Models & Agents is not available in this build. message withheld: the response did not complete [info] Display language en-us: the panel is in English [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay) [warn] Session budget: a response ended without its usage…
+      saw     nothing was charged: $0 settled
+      saw     it made no more requests than it said it may: 1 of at most 1
+      | [info] Display language en-us: the panel is in English
+      | [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay)
+      | [warn] Session budget: a response ended without its usage; its remaining reservation of 0.171793 USD counts as spent
+      | [warn] Usage history could not be recorded
+      | [warn] Model API turn 3d12ad36-2684-4167-9b0d-c79c72661d25 failed: Models & Agents is not available in this build.
+      | [info] Failed; requests 1; settled $0.000000; uncertain $0.331072; image attempts 0; returned 0; uncertain images 0; Cost is an upper bound.
+FAIL  no-credit · anthropic-no-credit · acp · 1 req · $0.327953 · 1.6 s
+      An account with no credit shows the provider’s own reason [ref/feature/providers, ref/feature/acp]
+      MISSING the person is shown the provider’s reason: Internal error: Models & Agents is not available in this build. {"code":-32603,"message":"Internal error: Models & Agents is not available in this build."}
+      saw     it made no more requests than it said it may: 1 of at most 1
+      | [info] Display language en-us: the panel is in English
+      | [info] muse-spark-code-acp 0.18.2 serving ACP on stdio (modelApi)
+      | [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay)
+      | [warn] Session budget: a response ended without its usage; its remaining reservation of 0.327953 USD counts as spent
+      | [warn] Model API turn 01729872-91c6-4f2f-805c-7c4cde48c7fd failed: Models & Agents is not available in this build.
