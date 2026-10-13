@@ -1,0 +1,71 @@
+{
+  "id": "OR-UNSUP",
+  "provider": "openrouter",
+  "sentAt": "2026-10-13T01:38:44.500Z",
+  "method": "POST",
+  "url": "https://openrouter.ai/api/v1/chat/completions",
+  "requestHeaders": {},
+  "requestBody": {
+    "model": "amazon/nova-micro-v1",
+    "stream": false,
+    "max_tokens": 50,
+    "reasoning": {
+      "effort": "high"
+    },
+    "messages": [
+      {
+        "role": "user",
+        "content": "Say hi in five words."
+      }
+    ]
+  },
+  "lookFor": "a model whose supported_parameters has no reasoning: ignored, normalized or rejected",
+  "status": 200,
+  "responseHeaders": {},
+  "response": {
+    "id": "gen-1791855525-LaLLB2RU0X3J3DopFOXl",
+    "object": "chat.completion",
+    "created": 1791855525,
+    "model": "amazon/nova-micro-v1",
+    "provider": "Amazon Bedrock",
+    "system_fingerprint": null,
+    "service_tier": null,
+    "choices": [
+      {
+        "index": 0,
+        "logprobs": null,
+        "finish_reason": "stop",
+        "native_finish_reason": "end_turn",
+        "message": {
+          "role": "assistant",
+          "content": "Hello, there!",
+          "refusal": null,
+          "reasoning": null
+        }
+      }
+    ],
+    "usage": {
+      "prompt_tokens": 6,
+      "completion_tokens": 5,
+      "total_tokens": 11,
+      "cost": 9.1e-7,
+      "is_byok": false,
+      "prompt_tokens_details": {
+        "cached_tokens": 0,
+        "cache_write_tokens": 0,
+        "audio_tokens": 0,
+        "video_tokens": 0
+      },
+      "cost_details": {
+        "upstream_inference_cost": 9.1e-7,
+        "upstream_inference_prompt_cost": 2.1e-7,
+        "upstream_inference_completions_cost": 7e-7
+      },
+      "completion_tokens_details": {
+        "reasoning_tokens": 0,
+        "image_tokens": 0,
+        "audio_tokens": 0
+      }
+    }
+  }
+}

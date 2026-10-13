@@ -1,0 +1,14 @@
+{
+  "id": "DS-BETA-MODELS",
+  "provider": "deepseek",
+  "sentAt": "2026-10-13T01:37:28.539Z",
+  "method": "GET",
+  "url": "https://api.deepseek.com/beta/models",
+  "requestHeaders": {},
+  "lookFor": "Route existence VERIFIED keyless 2026-10-13 (401, not 404). Still needed: the list shape with a key, and whether entries validate against it.",
+  "status": 404,
+  "responseHeaders": {
+    "x-cache": "Error from cloudfront"
+  },
+  "response": ""
+}

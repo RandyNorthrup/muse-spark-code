@@ -1,0 +1,54 @@
+{
+  "id": "ZAI-MEDIUM",
+  "provider": "zai",
+  "sentAt": "2026-10-13T01:37:45.103Z",
+  "method": "POST",
+  "url": "https://api.z.ai/api/paas/v4/chat/completions",
+  "requestHeaders": {},
+  "requestBody": {
+    "messages": [
+      {
+        "content": "Say hi in five words.",
+        "role": "user"
+      }
+    ],
+    "model": "glm-5.2",
+    "reasoning_effort": "medium",
+    "stream": false,
+    "max_tokens": 200
+  },
+  "lookFor": "Status; accepted as named (docs map it to high server-side).",
+  "status": 200,
+  "responseHeaders": {
+    "x-request-id": "92c4b2dd-12f3-4f70-9bfb-7313d7a7fe8d"
+  },
+  "response": {
+    "choices": [
+      {
+        "finish_reason": "length",
+        "index": 0,
+        "message": {
+          "content": "Hi there, how",
+          "reasoning_content": "1.  **Analyze the Request:**\n    *   Task: Say hi.\n    *   Constraint: Exactly five words.\n\n2.  **Generate options (5 words):**\n    *   \"Hi, how are you today?\" (5 words)\n    *   \"Hello there, nice to meet.\" (5 words - a bit awkward)\n    *   \"Hi, I hope you're well.\" (5 words)\n    *   \"Hello, it is nice meeting.\" (5 words - awkward)\n    *   \"Hi, I am saying hello.\" (5 words)\n    *   \"Hi there, how are you?\" (5 words)\n    *   \"Hello! I hope you're well.\" (5 words)\n\n3.  **Select the best option:**\n    *   \"Hi there, how are you?\" -> 1. Hi 2. there, 3. how 4. are 5. you?",
+          "role": "assistant"
+        }
+      }
+    ],
+    "created": 1791855468,
+    "id": "20261013093745388cf550f6d54d11",
+    "model": "glm-5.2",
+    "object": "chat.completion",
+    "request_id": "20261013093745388cf550f6d54d11",
+    "usage": {
+      "completion_tokens": 200,
+      "completion_tokens_details": {
+        "reasoning_tokens": 196
+      },
+      "prompt_tokens": 18,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      },
+      "total_tokens": 218
+    }
+  }
+}

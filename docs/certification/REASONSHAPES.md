@@ -232,13 +232,92 @@ and send. Observe the turn completes instead of failing.
 ## Left red on purpose (owning lanes, named)
 
 - `test/unit/copilotClient.test.ts` › refuses unsupported search-history
-  instead of dropping it — pins CP-G04's old throw.
+  instead of dropping it — pins CP-G04's old throw. Round 2 owns it
+  (this lane changed the behaviour): rewritten to the drop, below.
 - `test/unit/museCodeSdk142.test.ts` › carries the effort reader's
   complete ordered variants — pins the old `listModels` shape without
-  `effortLevels`/`defaultEffort`.
+  `effortLevels`/`defaultEffort`. Round 2 owns it: rewritten below.
 - `test/unit/configuredProviders.test.ts` loopback/stream cases fail here
   with `listen EPERM` (this rig's sandbox blocks loopback sockets); the
-  lead runs them outside the sandbox.
+  lead runs them outside the sandbox. Round 2 deletes the cases that
+  answer for a provider with hand-written text, per the owner's
+  2026-10-12 testing rules; pure-logic request-builder cases stay.
+
+## Round 2 answers (lead's real requests, 2026-10-12 6:38–6:41 PM PT)
+
+Recorded verbatim under `test/fixtures/provider-reasoning/<provider>/<ID>.json`
+(byte-identical copies of `~/lanes/_captures/reasonshapes-2026-10-12/`).
+Each file carries `status`, `responseHeaders` and `response`; no key.
+Verdicts are read from the file itself.
+
+- DS-ULTRA — 200, `reasoning_effort: "ultra"` accepted as named, thinking
+  in `message.reasoning_content`. REFUTES the round-1 alias
+  (`ultra` → `max`): the name rides as named; the mapping is deleted.
+- DS-XHIGH — 200, `reasoning_effort: "xhigh"` accepted as named, thinking
+  in `message.reasoning_content`. REFUTES the round-1 alias
+  (`xhigh` → `high`): deleted with `ultra`'s.
+- DS-STRICT — 200 on the beta address with `strict: true`, one correct
+  tool call. DS-STRICT-PROD — 200 on the production address with
+  `strict: true`, one correct tool call. REFUTES "production never sees
+  strict". Whether production ENFORCES strict cannot be read from these
+  two answers (both answered 200 with a correct call either way): the
+  product sends `strict` where the record says the model takes it, on
+  the address the entry has.
+- DS-BETA-MODELS — 404 with a real key. REFUTES "the beta /models route
+  exists, verified keyless by its 401": a keyless 401 proves nothing
+  about a route. Every claim and code path resting on it is removed.
+- GQ-EFFORT — 200, thinking in `message.reasoning` for gpt-oss-120b.
+  VERIFIED.
+- GQ-FORMAT — 200, thinking in `message.reasoning` with
+  `reasoning_format: "parsed"`; no visible difference against GQ-EFFORT
+  on this model. VERIFIED for the field's acceptance; the format is sent
+  because tool calls may ride any turn and parsed is the presentation
+  the docs require beside tools.
+- GQ-INCLUDE — 200, `include_reasoning: false` removes the field (98
+  reasoning tokens still used). VERIFIED.
+- MI-CHUNKS — 200 stream; `delta.content` is an array
+  (`[{type:"thinking", thinking:[{type:"text", text}], closed?: true}]`;
+  36 of 40 events carry `closed: true`, one does not) and every event
+  after the first carries top-level padding key `p`. The recording is
+  cut at 12,000 characters before the answer's own text and the stream
+  end. VERIFIED for the thinking chunks; the answer-text chunk and the
+  final event are NOT in the recording and are not claimed.
+- MI-REPLAY-CHUNKS — 200: a prior assistant turn is accepted as the
+  chunk list. VERIFIED.
+- MI-REPLAY-PLAIN — 200: a prior assistant turn is accepted as a plain
+  string; a non-streamed reply's `content` is an array
+  (`[{type:"thinking", …, closed:true}, {type:"text", text}]`).
+  VERIFIED.
+- OR-PARAMS — 200: the list has 459 models, 331 with `reasoning` in
+  `supported_parameters`, 128 without. Recorded as the count it is.
+- OR-UNSUP — 200: `amazon/nova-micro-v1` (without `reasoning` in its
+  list) answers 200 to `reasoning: {effort: "high"}`. OpenRouter does
+  not refuse the setting on an unlisted model. That answer's usage
+  carries OpenRouter's own `cost`.
+- TO-EFFORT — 200, thinking in `message.reasoning` (not
+  `reasoning_content`) for gpt-oss-120b at Together. VERIFIED.
+- TO-TOGGLE — 403
+  `{"error":{"message":"This model requires third-party data sharing to
+be enabled for your organization.","code":
+"third_party_data_sharing_blocked"}}`. NOT VERIFIED: the account
+  refuses this model. The hybrid toggle stays UNVERIFIED, not a fact.
+- ZAI-OFF52 — 200, `thinking: {type: "disabled"}` gives 0 reasoning
+  tokens and a direct answer. VERIFIED.
+- ZAI-MINIMAL — 200 with 196 reasoning tokens for
+  `reasoning_effort: "minimal"`. REFUTES "minimal stops thinking" on
+  glm-5.2. "Thinking off" on Z.ai is the switch, never an effort name.
+- ZAI-XHIGH, ZAI-MEDIUM — 200 both, accepted as named; their effect
+  cannot be read under a 200-token cap. Accepted as named; what they
+  change stays UNVERIFIED.
+- ZAI-CLEAR — 200 with
+  `thinking: {clear_thinking: false, type: "enabled"}`. Accepted; what
+  it changes in a following turn was not asked: UNVERIFIED.
+- ZAI-JSON — 200 with thinking on: 198 of 200 tokens went to thinking,
+  content empty. ZAI-JSON-NOTHINK — 200 with thinking off: the bare
+  object `{"hi":true}`. JSON mode VERIFIED with thinking off; with
+  thinking on it is unverified and can starve the answer — the product
+  raises the output cap by the thinking headroom when both are on (see
+  round-2 code), and says so in the person's steps below.
 
 ## Static gates on the final tree
 

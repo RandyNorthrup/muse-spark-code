@@ -1,0 +1,68 @@
+{
+  "id": "GQ-FORMAT",
+  "provider": "groq",
+  "sentAt": "2026-10-13T01:37:30.332Z",
+  "method": "POST",
+  "url": "https://api.groq.com/openai/v1/chat/completions",
+  "requestHeaders": {},
+  "requestBody": {
+    "max_tokens": 100,
+    "messages": [
+      {
+        "content": "Say hi in five words.",
+        "role": "user"
+      }
+    ],
+    "model": "openai/gpt-oss-120b",
+    "reasoning_format": "parsed",
+    "stream": false
+  },
+  "lookFor": "Status; shape of reasoning in the reply (dedicated message.reasoning field vs <think> tags in content).",
+  "status": 200,
+  "responseHeaders": {
+    "x-ratelimit-limit-requests": "1000",
+    "x-ratelimit-limit-tokens": "8000",
+    "x-ratelimit-remaining-requests": "998",
+    "x-ratelimit-remaining-tokens": "7710",
+    "x-ratelimit-reset-requests": "2m52.8s",
+    "x-ratelimit-reset-tokens": "2.175s",
+    "x-request-id": "req_01m4segpvvekb86wwspqjxe2fj"
+  },
+  "response": {
+    "id": "chatcmpl-34fda12e-ca28-45ab-9f1d-72a8a96e5e71",
+    "object": "chat.completion",
+    "created": 1791855451,
+    "model": "openai/gpt-oss-120b",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "",
+          "reasoning": "User: \"Say hi in five words.\" So they want a greeting consisting of five words. Probably \"Hello, how are you today?\" that's five words? Count: Hello (1), how (2), are (3), you (4), today? (5). That's five words. Could also be \"Hi there, nice to meet\". Count: Hi(1) there,(2) nice(3) to(4) meet(5). That works.\n\nWe should"
+        },
+        "logprobs": null,
+        "finish_reason": "length"
+      }
+    ],
+    "usage": {
+      "queue_time": 0.172257488,
+      "prompt_tokens": 77,
+      "prompt_time": 0.003248569,
+      "completion_tokens": 100,
+      "completion_time": 0.210378147,
+      "total_tokens": 177,
+      "total_time": 0.213626716,
+      "completion_tokens_details": {
+        "reasoning_tokens": 98
+      }
+    },
+    "usage_breakdown": null,
+    "system_fingerprint": "fp_64b2f1c926",
+    "x_groq": {
+      "id": "req_01m4segpvvekb86wwspqjxe2fj",
+      "seed": 1764807866
+    },
+    "service_tier": "on_demand"
+  }
+}

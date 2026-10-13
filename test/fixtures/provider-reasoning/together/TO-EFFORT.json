@@ -1,0 +1,57 @@
+{
+  "id": "TO-EFFORT",
+  "provider": "together",
+  "sentAt": "2026-10-13T01:37:33.241Z",
+  "method": "POST",
+  "url": "https://api.together.ai/v1/chat/completions",
+  "requestHeaders": {},
+  "requestBody": {
+    "messages": [
+      {
+        "content": "Say hi in five words.",
+        "role": "user"
+      }
+    ],
+    "model": "openai/gpt-oss-120b",
+    "reasoning_effort": "medium",
+    "stream": false,
+    "max_tokens": 200
+  },
+  "lookFor": "Status and where thinking appears (reasoning vs reasoning_content field).",
+  "status": 200,
+  "responseHeaders": {
+    "x-request-id": "p518aJU-z1gNr-a49a9eabca0f3023"
+  },
+  "response": {
+    "id": "p518aJU-z1gNr-a49a9eabca0f3023",
+    "object": "chat.completion",
+    "created": 1791855455,
+    "model": "openai/gpt-oss-120b",
+    "system_fingerprint": "default",
+    "prompt": [],
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "Hello there, nice to meet!",
+          "tool_calls": [],
+          "reasoning": "User says: \"Say hi in five words.\" We must respond with a greeting consisting of five words. Likely \"Hello there, nice to meet!\" That's 6? Let's count: \"Hello\" (1), \"there,\" (2), \"nice\" (3), \"to\" (4), \"meet!\" (5). That's five words. So we can output \"Hello there, nice to meet!\" That's okay. Just respond that."
+        },
+        "finish_reason": "stop",
+        "seed": null
+      }
+    ],
+    "usage": {
+      "prompt_tokens": 75,
+      "completion_tokens": 108,
+      "total_tokens": 183,
+      "prompt_tokens_details": {
+        "cached_tokens": 64
+      },
+      "completion_tokens_details": {
+        "reasoning_tokens": 92
+      }
+    }
+  }
+}
