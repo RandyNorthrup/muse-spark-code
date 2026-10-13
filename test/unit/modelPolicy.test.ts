@@ -131,6 +131,8 @@ describe('resolved model policy', () => {
     expect(outputLimitFor(policy, MODEL_API_MAX_OUTPUT_TOKENS)).toBe(MODEL_API_MAX_OUTPUT_TOKENS)
     expect(effortForPolicy(policy, 'none')).toBe('minimal')
     expect(effortForPolicy(policy, 'max')).toBe('max')
+    // Lane REASONSHAPES: the Model API has no `ultra`; it rides as `max`.
+    expect(effortForPolicy(policy, 'ultra')).toBe('max')
     expect(policy.hosted.webSearch.state).toBe('yes')
   })
 

@@ -316,7 +316,8 @@ describe('parseStoredSession', () => {
     const parsed = parseStoredSession(structuredClone(full))
     expect(parsed).toEqual({ ok: true, session: full })
     expect(parsed.ok && 'agent' in parsed.session).toBe(false)
-    expect(parseStoredSession({ ...full, agent: { ...agent, effort: 'ultra' } })).toMatchObject({
+    // Lane REASONSHAPES: `ultra` is a UI tier now; `turbo` is still rejected.
+    expect(parseStoredSession({ ...full, agent: { ...agent, effort: 'turbo' } })).toMatchObject({
       ok: false,
     })
     expect(

@@ -106,7 +106,7 @@ describe('parseWebviewToHostMessage', () => {
     ['unknown sign-in method', { type: 'signIn', method: 'telepathy' }],
     ['sendMessage without localId', { type: 'sendMessage', text: 'hi', attachmentIds: [] }],
     ['sendMessage without attachmentIds', { type: 'sendMessage', localId: 'l', text: 'hi' }],
-    ['effort outside the UI tiers', { type: 'setEffort', effort: 'ultra' }],
+    ['effort outside the UI tiers', { type: 'setEffort', effort: 'turbo' }],
     ['unknown permission mode', { type: 'setPermissionMode', mode: 'yolo' }],
     ['unknown host action', { type: 'hostAction', action: 'formatDisk' }],
     ['unknown goal verb', { type: 'goalCommand', requestId: 'g3', verb: 'complete' }],
@@ -379,7 +379,7 @@ describe('parseHostToWebviewMessage', () => {
       'promoted steer event without its user id',
       { type: 'agentEvent', event: { type: 'userMessageTurnChanged', turnId: 't2' } },
     ],
-    ['composerState with a bad effort', { type: 'composerState', effort: 'ultra' }],
+    ['composerState with a bad effort', { type: 'composerState', effort: 'turbo' }],
     ['notice with an unknown level', { type: 'notice', level: 'panic', text: 'x' }],
     ['goal result without acceptance', { type: 'goalCommandResult', requestId: 'g1' }],
     [

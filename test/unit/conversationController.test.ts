@@ -1711,7 +1711,9 @@ describe('ConversationController: composer controls', () => {
     })
     t.server.notify('skill/changed', { sessionId: 's1' })
     await settle()
-    expect(t.surface.posted).toContainEqual({ ...composerState, effort: 'low' })
+    // Lane REASONSHAPES: `ultra` is a UI tier now, so the host-driven
+    // change is followed instead of ignored.
+    expect(t.surface.posted).toContainEqual({ ...composerState, effort: 'ultra' })
     expect(t.server.requestsFor('skill/list')).toHaveLength(2)
     expect(t.surface.posted.filter((m) => m.type === 'skillList')).toHaveLength(1)
   })

@@ -13,7 +13,12 @@ import type {
   SessionGoal,
   TodoItem,
 } from '../../shared/agentEvents'
-import type { GoalCommandVerb, ModelPricing, SubagentAction } from '../../shared/constants'
+import type {
+  EffortLevel,
+  GoalCommandVerb,
+  ModelPricing,
+  SubagentAction,
+} from '../../shared/constants'
 import type { PlanUsageRow, SubscriptionUsage } from '../../shared/usage'
 export type { QuestionDeferralPort } from '../../shared/questions'
 import type {
@@ -272,6 +277,13 @@ export interface ModelSummary {
   readonly isPinned?: boolean | undefined
   readonly trainsOnContent?: boolean | undefined
   readonly planLimitsUrl?: string | undefined
+  /**
+   * Muse Code's per-model effort tiers (lane REASONSHAPES, META-G05): the
+   * tiers the model serves and its default, normalized to the UI range.
+   * Absent where the host reports none (the static family table applies).
+   */
+  readonly effortLevels?: readonly EffortLevel[] | undefined
+  readonly defaultEffort?: EffortLevel | undefined
 }
 
 export interface SkillSummary {

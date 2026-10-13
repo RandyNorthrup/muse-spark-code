@@ -21,7 +21,7 @@
   },
   "groq": {
     "lines": 40,
-    "sha256": "6b205fa45528d79f2dea0c44b3ddd93673d4c2b485b8a434be8ebe7e0398f77e"
+    "sha256": "1314215bcb2bf6a9cb97186c653c469374c2f3748c0157fe5fceedbfb36e2d83"
   },
   "huggingface": {
     "lines": 360,
@@ -29,7 +29,7 @@
   },
   "llamacpp": {
     "lines": 8,
-    "sha256": "8602e152a064ef4bb33f4ccbe93e8433ec69aa0c0d35c66f7ed415c4fa34474a"
+    "sha256": "aa3f41f102d7a06e2222d9010a3ff425d4ab8be7ae028b0d84a28dc41bd678ea"
   },
   "lmstudio": {
     "lines": 8,
@@ -57,7 +57,7 @@
   },
   "together": {
     "lines": 160,
-    "sha256": "1cda2fd93084472326bf0dc3368899813dceecf22021ffd986470792d39a320d"
+    "sha256": "531d895b43913a744ff0728f585de21739103f3157be578178e443c621d32381"
   },
   "vllm": {
     "lines": 8,
@@ -69,6 +69,6 @@
   },
   "zai": {
     "lines": 64,
-    "sha256": "4f4f419c1010a18406385af2cd12469312f815c78e972e393f9917cb23356fcd"
+    "sha256": "0f2f8ec81adc03e80c240f4645747daa9808800c887714d3f1608b85a9e893a0"
   }
 }

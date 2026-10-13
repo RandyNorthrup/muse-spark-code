@@ -663,11 +663,21 @@ const TOGETHER_PRESET: ProviderPreset = {
     // (`docs/inference/chat/reasoning`, read 2026-10-12).
     thinkingOff: 'reasoning-enabled',
   },
-  // MiniMax M3 is a hybrid model (on by default) though the pinned
-  // catalogue carries no `toggle` for it (TO-G01).
+  // MiniMax M3 and Kimi K3 are hybrid models (on by default) though the
+  // pinned catalogue carries no `toggle` for them (TO-G01).
   reasoningFacts: [
     {
       modelId: 'MiniMaxAI/MiniMax-M3',
+      docUrl: 'https://docs.together.ai/docs/inference/chat/reasoning',
+      readOn: '2026-10-12',
+      fields: {
+        reasoning: {
+          canDisable: { state: 'yes', value: true },
+        },
+      },
+    },
+    {
+      modelId: 'moonshotai/Kimi-K3',
       docUrl: 'https://docs.together.ai/docs/inference/chat/reasoning',
       readOn: '2026-10-12',
       fields: {

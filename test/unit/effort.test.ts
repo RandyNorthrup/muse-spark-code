@@ -19,7 +19,7 @@ describe('effort helpers', () => {
 
   it('recognises the UI tiers and rejects the rest of the wire vocabulary', () => {
     expect(isEffortLevel('xhigh')).toBe(true)
-    expect(isEffortLevel('ultra')).toBe(false)
+    expect(isEffortLevel('ultra')).toBe(true)
     expect(isEffortLevel('none')).toBe(false)
   })
 
@@ -34,7 +34,9 @@ describe('effort helpers', () => {
   })
 
   it('lists the verified tiers per model family and the full range otherwise', () => {
-    const verified = ['minimal', 'low', 'medium', 'high', 'xhigh', 'max']
+    // Lane REASONSHAPES: `ultra` is Muse Code's client-side top tier,
+    // mapped to the highest served tier at send time.
+    const verified = ['minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra']
     expect(effortLevelsFor('muse-spark-1.3')).toEqual(verified)
     expect(effortLevelsFor('muse-spark-1.3-contributor')).toEqual(verified)
     expect(effortLevelsFor('muse-spark-1.2')).toEqual(['minimal', 'low', 'medium', 'high', 'xhigh'])
@@ -49,7 +51,7 @@ describe('effort helpers', () => {
     expect(effortIndex(['low', 'high'], 'medium')).toBe(-1)
     expect(effortAt(levels, -1)).toBe('minimal')
     expect(effortAt(levels, 3)).toBe('high')
-    expect(effortAt(levels, 99)).toBe('max')
+    expect(effortAt(levels, 99)).toBe('ultra')
     expect(effortAt(['medium', 'high'], 1)).toBe('high')
   })
 
@@ -74,7 +76,10 @@ describe('effort helpers', () => {
       canDisable: true,
       thinkingOff: 'thinking-switch',
     }
-    expect(resolveReasoning(unmapped, 'ultra')).toEqual({
+    // Without the table, ultra falls to the nearest listed level while a
+    // name outside the UI range still refuses.
+    expect(resolveReasoning(unmapped, 'ultra')).toEqual({ kind: 'effort', effort: 'max' })
+    expect(resolveReasoning(unmapped, 'turbo')).toEqual({
       kind: 'refuse',
       code: 'unsupported_reasoning_effort',
     })
