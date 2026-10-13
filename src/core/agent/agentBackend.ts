@@ -385,6 +385,11 @@ export type WithdrawOutcome =
 export interface CompactOutcome {
   readonly status: string
   readonly reason: string | undefined
+  /** Turns folded into the summary; present when the backend counted them. */
+  readonly turns?: number
+  /** Replay entries before and after; present when the backend measured them. */
+  readonly beforeEntries?: number
+  readonly afterEntries?: number
 }
 
 export interface ApprovalDecision {

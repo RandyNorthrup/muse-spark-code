@@ -19,6 +19,7 @@ import { buildAgentReceipt } from '../shared/agentReceipt'
 import { recoveryStamp } from '../shared/agentRecovery'
 import { agentStateText } from '../shared/agentOutcome'
 import { compactReference } from '../shared/cliCommands'
+import { compactResultText } from '../core/compactResult'
 import type { AcpSchedulePort } from './schedules'
 import path from 'node:path'
 import { type AcpPlaybookBundle, acpPlaybook } from './playbook'
@@ -700,7 +701,15 @@ class AcpSession {
         error instanceof Error ? error.message : UI_TEXT.attachmentUnreadable,
       )
     }
-    if (attachment === undefined) return true
+    if (attachment === undefined) {
+      // A dismissed recording is still an answer: the person reads that
+      // nothing was attached. Only /record returns undefined.
+      this.send({
+        sessionUpdate: 'agent_message_chunk',
+        content: { type: 'text', text: UI_TEXT.media.recordingDiscarded },
+      })
+      return true
+    }
     if (signal.aborted || this.isDisposed) {
       await attachment.dispose?.()
       signal.throwIfAborted()
@@ -1923,7 +1932,12 @@ class AcpSession {
         // The same AgentSession core serves interactive ACP and runExec. A
         // compact starts synchronously, so cancellation need not wait for it.
         // No answer lease is peeked for a compact: a queued answer stays queued.
+        // A command turn never ends silently: the person reads what happened.
         const outcome = await this.session.compact()
+        this.send({
+          sessionUpdate: 'agent_message_chunk',
+          content: { type: 'text', text: compactResultText(outcome) },
+        })
         this.finishCompaction(outcome.status)
       } else {
         const mediaQueued = [...this.attachments]

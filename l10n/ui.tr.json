@@ -856,6 +856,7 @@
     "poolUsage": "{pool} içinden {used} depolandı",
     "replayOmitted": "{name} ({duration}) çıkarıldı: {model}, {kind} kabul etmiyor.",
     "attachRecording": "Ekran kaydı ekle…",
+    "recordingDiscarded": "Kayıt atıldı; hiçbir şey eklenmedi.",
     "attachLatestRecording": "En son ekran kaydını ekle",
     "recordingCountdown": "Kayıt: {remaining} kaldı",
     "recordingMicrophone": "Mikrofon",
@@ -2550,6 +2551,10 @@
   "modelApiBackendNotice": "Bu konuşma, uzantının kendi araçlarıyla (okuma, düzenleme, yazma, arama, listeleme, kabuk) Meta Model API üzerinde çalışır. Oturumları bu çalışma alanının uzantı depolama alanında tutulur.",
   "installOrKeyDetail": "Bu uzantının konuşmalarını Muse Code CLI barındırır; o olmadan da bir Meta Model API anahtarı kullanabilirsiniz.",
   "compactionDone": "Bağlam sıkıştırıldı",
+  "compactionDoneDetail": {
+    "one": "{count} tur özet hâline getirildi (önce {before} kayıt, sonra {after}).",
+    "other": "{count} tur özet hâline getirildi (önce {before} kayıt, sonra {after})."
+  },
   "referenceManualCompaction": "Konuşmayı /compact ile özetleyin ve son mesajları değiştirmeden koruyun.",
   "autoCompactionName": "Otomatik sıkıştırma",
   "paidConfirmAutoCompaction": "Otomatik sıkıştırma, seçilen modeli {price} fiyatıyla kullanır. Abonelik bu ücreti karşılamaz.",

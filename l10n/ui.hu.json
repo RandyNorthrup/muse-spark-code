@@ -856,6 +856,7 @@
     "poolUsage": "{used} tárolva a(z) {pool} keretből",
     "replayOmitted": "A(z) {name} ({duration}) kimaradt: a(z) {model} nem fogad ilyen médiát: {kind}.",
     "attachRecording": "Képernyőfelvétel csatolása…",
+    "recordingDiscarded": "A felvétel elvetve; semmi sincs csatolva.",
     "attachLatestRecording": "A legutóbbi képernyőfelvétel csatolása",
     "recordingCountdown": "Felvétel: {remaining} van hátra",
     "recordingMicrophone": "Mikrofon",
@@ -2550,6 +2551,10 @@
   "modelApiBackendNotice": "Ez a beszélgetés a Meta Model API-n fut a kiegészítő saját eszközeivel (olvasás, szerkesztés, írás, keresés, listázás, shell). A munkamenetei ennek a munkaterületnek a kiegészítő-tárolójában maradnak.",
   "installOrKeyDetail": "A Muse Code CLI szolgálja ki a kiegészítő beszélgetéseit; nélküle is használhat Meta Model API-kulcsot.",
   "compactionDone": "Kontextus tömörítve",
+  "compactionDoneDetail": {
+    "one": "{count} forduló összegzésbe tömörítve ({before} bejegyzés előtte, {after} utána).",
+    "other": "{count} forduló összegzésbe tömörítve ({before} bejegyzés előtte, {after} utána)."
+  },
   "referenceManualCompaction": "Foglalja össze a beszélgetést a /compact paranccsal, és őrizze meg a legutóbbi fordulókat változatlanul.",
   "autoCompactionName": "Automatikus tömörítés",
   "paidConfirmAutoCompaction": "Az automatikus tömörítés a kiválasztott modellt használja {price} áron. Az előfizetés ezt nem fedezi.",

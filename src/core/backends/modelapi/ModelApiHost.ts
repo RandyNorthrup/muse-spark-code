@@ -16076,9 +16076,27 @@ export class ModelApiSession implements ScheduledAgentSession {
     if (this.active !== undefined || this.compacting !== undefined) {
       throw new Error(TURN_RUNNING)
     }
+    // What /compact reports: the turns and replay entries it folded away.
+    const size = (): { turns: number; entries: number } => ({
+      turns: new Set(
+        this.replay
+          .filter((entry) => entry.turnId !== COMPACTION_TURN_ID)
+          .map((entry) => entry.turnId),
+      ).size,
+      entries: this.replay.length,
+    })
+    const before = size()
     const compacting = this.compactNow(summaryForkSource)
     this.track(compacting, true)
-    return await compacting
+    const outcome = await compacting
+    if (outcome.status !== ACCEPTED) return outcome
+    const after = size()
+    return {
+      ...outcome,
+      turns: before.turns - after.turns,
+      beforeEntries: before.entries,
+      afterEntries: after.entries,
+    }
   }
 
   /** Resolves after turns, compactions, Interrupt work and children's work end. */

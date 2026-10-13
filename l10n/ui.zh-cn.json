@@ -852,6 +852,7 @@
     "poolUsage": "已存储 {used}，容量 {pool}",
     "replayOmitted": "已略去 {name}（{duration}）：{model} 不支持 {kind}。",
     "attachRecording": "附加屏幕录制…",
+    "recordingDiscarded": "已舍弃录制，未附加任何内容。",
     "attachLatestRecording": "附加最新的屏幕录制",
     "recordingCountdown": "正在录制：剩余 {remaining}",
     "recordingMicrophone": "麦克风",
@@ -2496,6 +2497,9 @@
   "modelApiBackendNotice": "此对话在 Meta Model API 上运行，使用扩展自带的工具（读取、编辑、写入、搜索、列出、shell）。其会话保存在此工作区的扩展存储中。",
   "installOrKeyDetail": "Muse Code CLI 为此扩展托管对话；没有它，你仍可以使用 Meta Model API 密钥。",
   "compactionDone": "上下文已压缩",
+  "compactionDoneDetail": {
+    "other": "已将 {count} 轮对话压缩为摘要（{before} 条记录变为 {after} 条）。"
+  },
   "referenceManualCompaction": "使用 /compact 总结对话，并原样保留最近的轮次。",
   "autoCompactionName": "自动压缩",
   "paidConfirmAutoCompaction": "自动压缩以 {price} 的费率使用所选模型。订阅不承担此费用。",
