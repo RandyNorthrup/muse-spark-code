@@ -21,15 +21,14 @@ happened, not what was planned; superseded entries are kept.
   The default is now 200 calls; an existing caller request allowance wins,
   including `exec --max-requests` above 200 (production ACP binds none).
   Money caps remain enforced.
-- The wrap-up sends the production side-call shape (no tools declared, the
-  choice field as ever, instructions byte-identical, the note a trailing
-  input item). On Meta's wire that is empty tools with `tool_choice: auto`
-  (golden `10-turn-limit-wrap-up`, unchanged); the Responses codec for configured OpenAI/xAI providers and
-  the ChatGPT route keeps that shape deliberately, because no live capture
-  of an omitted choice exists on that family — so the git-draft side call
-  and compaction without reused tools send what they always sent. The chat,
-  Anthropic, Gemini and Ollama codecs omit what their long-standing shapes
-  omit.
+- A request that declares no tools (the wrap-up, compaction without
+  reused tools, the Git drafts, the reviewer and hook-model calls with no
+  tools) omits both the tools list and the tool choice on every wire
+  format. That omitted shape is the only one every provider accepts:
+  xAI answers 400 to a tool choice with no tools, which broke `/compact`,
+  automatic compaction, the Git drafts and the wrap-up on xAI — a person
+  on xAI can compact again. The instructions stay byte-identical
+  (golden `10-turn-limit-wrap-up`, re-recorded for the omitted shape).
   The turn's first model call always runs with tools, even when it is also
   the last one allowed: an answer completes the turn (exec exit 0), while a
   tool request ends it at the request cap. A wrap-up answer always completes
@@ -63,7 +62,10 @@ happened, not what was planned; superseded entries are kept.
   completed (rate limit, model error, money stop, hook stop) still ends
   with the typed request-limit stop, now saying in one translated sentence
   that the summary could not be produced and why. A goal wake held across
-  a failed wrap-up keeps its own turn with tools. Image generation refuses
+  a failed wrap-up keeps its own turn with tools. When the wrap-up itself
+  overflows the context window, the turn ends failed saying
+  "Context window full: /compact or /handoff" instead, and anything the
+  turn was holding is still re-queued for its own turn. Image generation refuses
   on the same reserved slot as every other caller-ledger side call.
 
 ### Added

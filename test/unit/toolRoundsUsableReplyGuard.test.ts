@@ -15,7 +15,9 @@ function run(args: readonly string[], cwd = REPO): { status: number; output: str
 }
 
 describe('usable-reply guard', () => {
-  it('passes on the shipped source', () => {
+  // A whole-tree static scan as a child process takes seconds on a loaded
+  // rig; the ceiling stays named and small.
+  it('passes on the shipped source', { timeout: 20_000 }, () => {
     const result = run([path.join(REPO, 'src')])
     expect(result.status).toBe(0)
     expect(result.output).toContain('no raw completed-terminal reads')
@@ -44,7 +46,7 @@ describe('usable-reply guard', () => {
     })
   })
 
-  it('passes through a symlinked directory', () => {
+  it('passes through a symlinked directory', { timeout: 20_000 }, () => {
     const output = execGuardViaSymlinkedScripts(
       REPO,
       'check-usable-reply.mjs',
