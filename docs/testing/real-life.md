@@ -132,10 +132,14 @@ and both are the product's own behaviour, recorded as such:
 - `exec` holds a request's worst case against its hard cap before it sends
   (a full context window at the model's price), so every `exec` is given a
   cap of $3.00. What it spends is what the result says.
-- The product books a request the provider refused at the whole remaining
-  reservation ($0.03 to $0.52 a request on 0.18.1). The scenarios that
-  expect a refusal therefore run last, and a route whose plain turn fails
-  is not asked for anything else that costs a request.
+- The product books a request that ended without a usage report at the
+  whole remaining reservation: a request the provider refused ($0.03 to
+  $0.52 a request on 0.18.1), and a request the person stopped in the
+  middle of its answer ($0.33 on `claude-haiku-4-5` for 177 characters
+  received, on the 0.18.2 candidate). The scenarios that expect a refusal
+  therefore run last, in a pass of their own
+  (`--scenarios unknown-model,no-credit`), and a route whose plain turn
+  fails is not asked for anything else that costs a request.
 
 Keep a whole run under 150 requests and $1.00; say so first when a run
 needs more.
