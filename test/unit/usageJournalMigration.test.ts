@@ -3,6 +3,7 @@ import path from 'node:path'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest'
+import { toEpochMs } from '../../src/shared/epochMs'
 import { USAGE_JOURNAL_ROOT, UsageJournalStore } from '../../src/core/usage/journalStore'
 import { NodeUsageFs } from '../../src/runtime/usage/nodeUsageFs'
 import { withholdReviverSource } from './helpers/withholdReviverSource'
@@ -20,7 +21,7 @@ import { FakeLogOutputChannel } from './helpers/fakes'
 // into rollups/2026-08.json (micro-dollar rounded, as 0.17 stored it), and
 // 2026-08-25 and 2026-10-04 are raw day files.
 const FIXTURE = fileURLToPath(new URL('../fixtures/m121/usage-v1', import.meta.url))
-const NOW = new Date(2026, 9, 5, 12).getTime()
+const NOW = toEpochMs(new Date(2026, 9, 5, 12).getTime())
 const RAW_DAY = `${USAGE_JOURNAL_ROOT}/days/2026-10-04/w017.jsonl`
 const OLD_DAY = `${USAGE_JOURNAL_ROOT}/days/2026-08-25/w017.jsonl`
 const ROLLUP = `${USAGE_JOURNAL_ROOT}/rollups/2026-08.json`

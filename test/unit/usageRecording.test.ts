@@ -1,3 +1,4 @@
+import { toEpochMs } from '../../src/shared/epochMs'
 import { Usd } from '../../src/shared/usd'
 import { readFileSync } from 'node:fs'
 import { runInNewContext } from 'node:vm'
@@ -25,7 +26,7 @@ const call: RecordedCall = {
   provider: 'meta',
   model: 'muse-spark-1.3',
   kind: 'turn',
-  startedAt: 1,
+  startedAt: toEpochMs(1),
   outcome: 'completed',
 }
 function recording() {
@@ -90,7 +91,7 @@ describe('recording taps', () => {
     const log = new FakeLogOutputChannel()
     const port = createUsageRecording({
       client: 'cli',
-      now: () => 100,
+      now: () => toEpochMs(100),
       newId: () => 'record',
       isEnabled: () => true,
       writer: () => Promise.resolve(journal),
@@ -98,7 +99,9 @@ describe('recording taps', () => {
     })
     await expect(port.today()).rejects.toThrow('Usage history unavailable')
     await expect(port.today()).rejects.toThrow('Usage history unavailable')
-    expect(log.warn).toHaveBeenCalledExactlyOnceWith('Usage history could not be recorded')
+    expect(log.warn).toHaveBeenCalledExactlyOnceWith(
+      'Usage for this run was not recorded (read failed).',
+    )
   })
   it('never waits for a writer and logs failed writes once without their content', async () => {
     const log = new FakeLogOutputChannel()
@@ -106,7 +109,7 @@ describe('recording taps', () => {
     const held = Promise.withResolvers<UsageWriter>()
     const port = createUsageRecording({
       client: 'Zed',
-      now: () => 100,
+      now: () => toEpochMs(100),
       newId: () => 'record',
       isEnabled: () => true,
       writer: () => held.promise,
@@ -140,7 +143,7 @@ describe('recording taps', () => {
     const journal = writer()
     const port = createUsageRecording({
       client: 'cli',
-      now: () => 100,
+      now: () => toEpochMs(100),
       newId: () => 'record',
       isEnabled: () => true,
       writer: () => held.promise,
@@ -158,7 +161,9 @@ describe('recording taps', () => {
       await vi.advanceTimersByTimeAsync(1)
       await flushed
       expect(hasFlushed).toBe(true)
-      expect(log.warn).toHaveBeenCalledExactlyOnceWith('Usage history could not be recorded')
+      expect(log.warn).toHaveBeenCalledExactlyOnceWith(
+        'Usage for this run was not recorded (write timed out).',
+      )
       held.resolve(journal)
       await port.flush()
       expect(journal.noteUsage).toHaveBeenCalledOnce()
@@ -180,7 +185,7 @@ describe('recording taps', () => {
       })
       const port = createUsageRecording({
         client: 'VS Code',
-        now: () => 100,
+        now: () => toEpochMs(100),
         newId: () => 'record',
         isEnabled: () => true,
         writer: () => Promise.resolve(journal),
@@ -261,7 +266,7 @@ describe('recording taps', () => {
     const load = vi.fn().mockResolvedValue(writer())
     const port = createUsageRecording({
       client: 'cli',
-      now: () => 100,
+      now: () => toEpochMs(100),
       newId: () => 'record',
       isEnabled: () => false,
       writer: load,
@@ -272,7 +277,7 @@ describe('recording taps', () => {
       backend: 'museCode',
       provider: 'museCode',
       source: 'museCode',
-      observedAt: 100,
+      observedAt: toEpochMs(100),
       windows: [],
     })
     const account = {
@@ -285,7 +290,7 @@ describe('recording taps', () => {
       backend: 'modelApi',
       provider: 'openrouter',
       source: 'openRouter',
-      observedAt: 100,
+      observedAt: toEpochMs(100),
       windows: [],
       account,
     })
@@ -306,10 +311,10 @@ describe('recording taps', () => {
     const held = Promise.withResolvers<UsageWriter>()
     const journal = writer()
     const log = new FakeLogOutputChannel()
-    let onWriteError: () => void = () => undefined
+    let onWriteError: (code: string, reason: string) => void = () => undefined
     const port = createUsageRecording({
       client: 'cli',
-      now: () => 100,
+      now: () => toEpochMs(100),
       newId: () => 'id',
       isEnabled: () => isEnabled,
       log,
@@ -324,8 +329,8 @@ describe('recording taps', () => {
     held.resolve(journal)
     await port.flush()
     expect(journal.noteUsage).not.toHaveBeenCalled()
-    onWriteError()
-    onWriteError()
+    onWriteError('usageWriteFailed', 'test')
+    onWriteError('usageWriteFailed', 'test')
     expect(log.warn).toHaveBeenCalledOnce()
   })
   it('reads today from the journal and keeps old days out of the modal', async () => {
@@ -335,7 +340,7 @@ describe('recording taps', () => {
       type: 'usage',
       id: 'today',
       at: 100,
-      startedAt: 1,
+      startedAt: toEpochMs(1),
       day: '2026-10-05',
       timezoneOffsetMins: 0,
       client: 'cli',
@@ -352,7 +357,7 @@ describe('recording taps', () => {
     })
     const port = createUsageRecording({
       client: 'VSCodium',
-      now: () => new Date(2026, 9, 5).getTime(),
+      now: () => toEpochMs(new Date(2026, 9, 5).getTime()),
       newId: () => 'record',
       isEnabled: () => true,
       writer: () => Promise.resolve(journal),
@@ -364,7 +369,7 @@ describe('recording taps', () => {
     const journal = writer()
     const port = createUsageRecording({
       client: 'cli',
-      now: () => 100,
+      now: () => toEpochMs(100),
       newId: () => 'record',
       isEnabled: () => true,
       writer: () => Promise.resolve(journal),
@@ -374,7 +379,7 @@ describe('recording taps', () => {
       backend: 'modelApi',
       provider: 'openai',
       source: 'headers',
-      observedAt: 100,
+      observedAt: toEpochMs(100),
       windows: [],
       raw: { 'retry-after': '2' },
     }

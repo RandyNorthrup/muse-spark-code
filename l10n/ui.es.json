@@ -3152,6 +3152,7 @@
   "usageInsightUnavailable": "No disponible en este back-end: Model API no tiene registros de seguimiento locales.",
   "usageInsightNoLogs": "Aún no se encontraron registros de seguimiento de Muse Code en esta máquina.",
   "usageInsightTotals": "{attempts} en {sessions}",
+  "usageNotRecorded": "El uso de esta ejecución no se registró ({reason}).",
   "modelAttemptsCount": {
     "one": "{count} intento del modelo",
     "other": "{count} intentos del modelo",

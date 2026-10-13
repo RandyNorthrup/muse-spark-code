@@ -3026,6 +3026,7 @@
   "usageInsightUnavailable": "이 백엔드에서는 사용할 수 없습니다. Model API에는 로컬 추적 로그가 없습니다.",
   "usageInsightNoLogs": "이 컴퓨터에서 아직 Muse Code 추적 로그를 찾을 수 없습니다.",
   "usageInsightTotals": "{sessions}에서 {attempts}",
+  "usageNotRecorded": "이번 실행의 사용량이 기록되지 않았습니다 ({reason}).",
   "modelAttemptsCount": {
     "other": "모델 시도 {count}회"
   },

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { toEpochMs } from '../../src/shared/epochMs'
 import { Usd } from '../../src/shared/usd'
 import { createUsageRecord } from '../../src/core/usage/journalRecord'
 import { rollupUsageRecords, type UsageJournalRead } from '../../src/core/usage/journalStore'
@@ -12,7 +13,7 @@ import { usagePageStateSchema } from '../../src/shared/usagePage'
 import type { UsageRecord } from '../../src/shared/usageJournal'
 import { usageState } from './helpers/usageAdapters'
 
-const at = new Date(2026, 9, 5, 12).getTime()
+const at = toEpochMs(new Date(2026, 9, 5, 12).getTime())
 function record(id: string, model = 'model'): UsageRecord {
   return createUsageRecord(
     { input_tokens: 10, output_tokens: 2 },

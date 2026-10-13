@@ -3089,6 +3089,7 @@
   "usageInsightUnavailable": "Ezen a háttérrendszeren nem érhető el: a Model API-nak nincsenek helyi nyomkövetési naplói.",
   "usageInsightNoLogs": "Ezen a gépen még nem találhatók Muse Code nyomkövetési naplók.",
   "usageInsightTotals": "{attempts}, {sessions} során",
+  "usageNotRecorded": "A futtatás használata nem lett rögzítve ({reason}).",
   "modelAttemptsCount": {
     "one": "{count} modellkísérlet",
     "other": "{count} modellkísérlet"

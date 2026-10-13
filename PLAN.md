@@ -37075,6 +37075,10 @@ before a repaired one loads (2026-09-30).
 | ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
 | `src/shared/constants.ts` (5 lines), `src/shared/browserCheckConstants.ts` (1 line) | `eslint-disable-next-line unicorn/prefer-string-raw` on plain-string Windows paths and one git regexp | `String.raw` is a call and pins the whole initialiser into every bundle importing the module; the plain strings are byte-identical (verified with node) and drop when unused. `test/unit/bundleDiet.test.ts` fails on any new non-droppable initialiser. | 2026-10-11 |
 
+| EXECUSAGE location                   | Escape hatch                   | Reason                                                                                                                                                                                                |
+| ------------------------------------ | ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/shared/epochMs.ts`, `toEpochMs` | `Math.round(value) as EpochMs` | The single brand constructor: `Math.round` guarantees a whole number the compiler cannot verify, so the brand is attached here and nowhere else; every other site receives `EpochMs` without casting. |
+
 ## 9. Security assumptions and accepted residual risk
 
 - **M107-D100-native-birth-enforcement (FIXM107W; qualification blocker).**

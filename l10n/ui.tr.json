@@ -3089,6 +3089,7 @@
   "usageInsightUnavailable": "Bu arka uçta kullanılamaz: Model API için yerel izleme günlükleri yoktur.",
   "usageInsightNoLogs": "Bu makinede henüz Muse Code izleme günlüğü bulunamadı.",
   "usageInsightTotals": "{sessions} genelinde {attempts}",
+  "usageNotRecorded": "Bu çalıştırmanın kullanımı kaydedilmedi ({reason}).",
   "modelAttemptsCount": {
     "one": "{count} model denemesi",
     "other": "{count} model denemesi"

@@ -7,6 +7,14 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- The terminal agent's requests were missing from usage history since 0.12.0:
+  every headless turn stamped its usage record with a fractional clock, the
+  journal refused the record, and one warning was all that was left. Stored
+  times are now whole milliseconds by construction, and a record that fails
+  validation says which field failed and why instead of failing silently.
+
 ### Pending
 
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached

@@ -4563,6 +4563,8 @@ export const USAGE_LINE_FEED_BYTE = 0x0a
 export const USAGE_LABEL_MAX_CHARS = 256
 export const USAGE_ID_MAX_CHARS = 128
 export const USAGE_HEADER_MAX_CHARS = 64
+// A usage-write diagnostic names at most this many failing fields.
+export const USAGE_WRITE_REASON_FIELDS = 3
 export const USAGE_WARNING_PERCENTS = [75, 90, 100] as const
 export const USAGE_PACE_BAND_POINTS = 5
 export const USAGE_BURN_MIN_MS = 30 * 60 * 1000

@@ -12,6 +12,7 @@ import { aggregateUsage } from '../../src/core/usage/aggregate'
 import { createUsageAccess } from '../../src/runtime/usage/usageServiceEntry'
 import { EN } from '../../src/shared/l10n/en'
 import { FakeLogOutputChannel } from './helpers/fakes'
+import { toEpochMs } from '../../src/shared/epochMs'
 import { createUsageRecord } from '../../src/core/usage/journalRecord'
 import { USAGE_CERTAINTIES, type UsageRecord } from '../../src/shared/usageJournal'
 import type { UsagePageState, UsageTotals } from '../../src/shared/usagePage'
@@ -20,13 +21,13 @@ import { Usd } from '../../src/shared/usd'
 import { USAGE_HISTOGRAM_EDGES_MS, USAGE_ROLLUP_LOCK_STALE_MS } from '../../src/shared/constants'
 
 function record(day: string, id = day) {
-  const at = new Date(`${day}T12:00:00`).getTime()
+  const at = toEpochMs(new Date(`${day}T12:00:00`).getTime())
   return createUsageRecord(
     { input_tokens: 100, output_tokens: 20 },
     {
       id,
       at,
-      startedAt: at - 50,
+      startedAt: toEpochMs(at - 50),
       client: 'Zed',
       backend: 'modelApi',
       provider: 'ollama',
@@ -48,7 +49,7 @@ async function rig() {
   const fs = new NodeUsageFs(root)
   const store = new UsageJournalStore(fs, {
     writerId: 'rollup',
-    now: () => new Date(2026, 9, 5, 12).getTime(),
+    now: () => toEpochMs(new Date(2026, 9, 5, 12).getTime()),
     isEnabled: () => true,
     onWriteError: vi.fn(),
   })
@@ -265,7 +266,7 @@ describe('usage rollup and retention', () => {
     const readerFs = new NodeUsageFs(root, () => clock)
     const options = {
       writerId: 'reader',
-      now: () => new Date(2026, 9, 5, 12).getTime(),
+      now: () => toEpochMs(new Date(2026, 9, 5, 12).getTime()),
       isEnabled: () => true,
       onWriteError: vi.fn(),
     }

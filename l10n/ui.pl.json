@@ -3215,6 +3215,7 @@
   "usageInsightUnavailable": "Niedostępne w tym backendzie: Model API nie ma lokalnych dzienników śledzenia.",
   "usageInsightNoLogs": "Na tej maszynie nie znaleziono jeszcze dzienników śledzenia Muse Code.",
   "usageInsightTotals": "{sessions}: {attempts}",
+  "usageNotRecorded": "Użycie w tym przebiegu nie zostało zapisane ({reason}).",
   "modelAttemptsCount": {
     "one": "{count} próba modelu",
     "other": "{count} próby modelu",

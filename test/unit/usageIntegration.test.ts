@@ -12,6 +12,7 @@ import {
   settleUsageAmount,
   type PriceCard,
 } from '../../src/core/providers/priceCard'
+import { epochNow } from '../../src/shared/epochMs'
 import { createUsageRecording } from '../../src/core/usage/recording'
 import {
   createUsageAccess,
@@ -76,7 +77,7 @@ async function prepareRecordedUsage() {
   const writer = await createUsageWriter({
     dataFolder: root,
     writerId: randomUUID(),
-    now: Date.now,
+    now: epochNow,
     isEnabled: () => true,
     onWriteError: () => {
       throw new Error('journal write failed')
@@ -84,7 +85,7 @@ async function prepareRecordedUsage() {
   })
   const recording = createUsageRecording({
     client: 'Zed',
-    now: Date.now,
+    now: epochNow,
     newId: randomUUID,
     isEnabled: () => true,
     writer: () => Promise.resolve(writer),
@@ -437,7 +438,7 @@ describe('M102 integrated surfaces', () => {
     const writer = await createUsageWriter({
       dataFolder: root,
       writerId: randomUUID(),
-      now: Date.now,
+      now: epochNow,
       isEnabled: () => true,
       onWriteError: () => undefined,
     })
@@ -445,9 +446,9 @@ describe('M102 integrated surfaces', () => {
       { input_tokens: 10 },
       {
         id: randomUUID(),
-        at: Date.now(),
+        at: epochNow(),
         client: 'cli',
-        startedAt: Date.now(),
+        startedAt: epochNow(),
         backend: 'modelApi',
         provider: 'meta',
         model: 'muse-spark-1.3',

@@ -8,7 +8,7 @@ import {
 } from '../../core/usage/usageService'
 import { usageText, type UsageTextFormat } from '../../core/usage/usageText'
 import type { UiText } from '../../shared/l10n/en'
-import { setUiText } from '../../shared/l10n/text'
+import { fill, setUiText, UI_TEXT } from '../../shared/l10n/text'
 import { setUsageText } from '../../shared/l10n/usageTable'
 import {
   usageServiceToPageMessageSchema,
@@ -42,6 +42,7 @@ import {
 import { usageRange, type UsageAggregateRow } from '../../core/usage/aggregate'
 import type { UsageAccess, UsageAccessDeps, UsagePagePorts } from './usageAdapter'
 import type { UsageWriterBundle } from '../../core/usage/recording'
+import { epochNow } from '../../shared/epochMs'
 import { readTraceAttempts } from './traceLogs'
 import { writeFileAtomically } from '../../host/fsAtomic'
 import { setTimeout as delay } from 'node:timers/promises'
@@ -109,10 +110,10 @@ export function createUsageAccess(deps: UsageAccessDeps): UsageAccess {
   }
   const store = new UsageJournalStore(new NodeUsageFs(deps.dataFolder), {
     writerId: randomUUID(),
-    now: Date.now,
+    now: epochNow,
     isEnabled: () => settings().enabled,
-    onWriteError: () => {
-      deps.log.warn('Usage history could not be recorded')
+    onWriteError: (_code, reason) => {
+      deps.log.warn(fill(UI_TEXT.usageNotRecorded, { reason }))
     },
   })
   // M107 J: the same machine journal the governors record; read-only here.

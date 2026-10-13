@@ -3026,6 +3026,7 @@
   "usageInsightUnavailable": "このバックエンドでは利用できません: Model API にはローカルのトレース ログがありません。",
   "usageInsightNoLogs": "このマシンではまだ Muse Code のトレース ログが見つかりません。",
   "usageInsightTotals": "{sessions}で {attempts}",
+  "usageNotRecorded": "今回の実行の使用量は記録されませんでした ({reason})。",
   "modelAttemptsCount": {
     "other": "{count} 回のモデル試行"
   },

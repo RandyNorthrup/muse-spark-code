@@ -16,6 +16,7 @@ import {
   USAGE_ROLLUP_LOCK_STALE_MS,
   USAGE_HISTOGRAM_EDGES_MS,
   USAGE_WINDOW_DAY_MS,
+  USAGE_WRITE_REASON_FIELDS,
 } from '../../shared/constants'
 import { legacyUsdSchema } from '../../shared/usdSchema'
 import { parseJsonWithExactNumbers } from '../../shared/exactJson'
@@ -38,6 +39,7 @@ import {
   type UsageRecord,
   type UsageLimitSnapshot,
 } from '../../shared/usageJournal'
+import type { EpochMs } from '../../shared/epochMs'
 import { createUsageRecord, usageLocalDay, type UsageRecordContext } from './journalRecord'
 import type { Usage } from '../backends/modelapi/schemas'
 import { emptyUsageMeasurements } from './aggregate'
@@ -250,9 +252,57 @@ export interface UsageJournalRead {
 export interface UsageJournalOptions {
   readonly writerId: string
   readonly isEnabled: () => boolean
-  readonly now: () => number
-  /** A fixed diagnostic code, never error text, paths or record content. */
-  readonly onWriteError: (code: 'usageWriteFailed') => void
+  readonly now: () => EpochMs
+  /**
+   * A fixed diagnostic code plus the true reason: which field failed and
+   * what shape it had, never error text, values, paths or record content.
+   */
+  readonly onWriteError: (code: 'usageWriteFailed', reason: string) => void
+}
+
+interface UsageIssueShape {
+  readonly path: readonly (string | number)[]
+  readonly code: string
+  readonly expected?: unknown
+}
+
+function isUsageIssue(value: unknown): value is UsageIssueShape {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'code' in value &&
+    typeof value.code === 'string' &&
+    'path' in value &&
+    Array.isArray(value.path) &&
+    value.path.every((part: unknown) => typeof part === 'string' || typeof part === 'number')
+  )
+}
+
+function isIssueList(value: unknown): value is readonly UsageIssueShape[] {
+  return Array.isArray(value) && value.every(isUsageIssue)
+}
+
+/**
+ * A defect's address, not its content: the first failing fields and the
+ * shape each one wanted. Values, paths and record content never leave here.
+ */
+function usageWriteReason(error: unknown): string {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'issues' in error &&
+    isIssueList(error.issues)
+  ) {
+    const fields = error.issues.slice(0, USAGE_WRITE_REASON_FIELDS).map((issue) => {
+      const field = issue.path.length === 0 ? 'record' : issue.path.join('.')
+      const expected = typeof issue.expected === 'string' ? `, expected ${issue.expected}` : ''
+      return `${field} (${issue.code}${expected})`
+    })
+    if (fields.length > 0) return `record rejected: ${fields.join('; ')}`
+  }
+  return error instanceof Error && error.message === 'invalidUsage'
+    ? 'usage counters invalid'
+    : 'record rejected'
 }
 function isNewer(value: unknown): boolean {
   const version = versionSchema.safeParse(value)
@@ -379,11 +429,11 @@ export class UsageJournalStore {
   ) {
     usageIdSchema.parse(options.writerId)
   }
-  private logWriteError(): void {
+  private logWriteError(reason: string): void {
     if (writeDiagnosticState.hasLogged) return
     writeDiagnosticState.hasLogged = true
     try {
-      this.options.onWriteError('usageWriteFailed')
+      this.options.onWriteError('usageWriteFailed', reason)
     } catch {
       /* Diagnostics cannot fail a model call. */
     }
@@ -393,7 +443,7 @@ export class UsageJournalStore {
       await previous
       if (this.options.isEnabled()) await this.fs.append(file, line)
     } catch {
-      this.logWriteError()
+      this.logWriteError('journal append failed')
     }
   }
   private async readFile(file: string): Promise<FileCache> {
@@ -570,8 +620,8 @@ export class UsageJournalStore {
     try {
       if (!this.options.isEnabled()) return
       this.append(createUsageRecord(usage, context))
-    } catch {
-      this.logWriteError()
+    } catch (error: unknown) {
+      this.logWriteError(usageWriteReason(error))
     }
   }
   /** Fire-and-forget at the model boundary. flush() is for shutdown/tests. */
@@ -582,8 +632,8 @@ export class UsageJournalStore {
       const file = `${DAYS_ROOT}/${entry.day}/${this.options.writerId}.jsonl`
       const line = `${JSON.stringify(entry)}\n`
       this.queue = this.write(this.queue, file, line)
-    } catch {
-      this.logWriteError()
+    } catch (error: unknown) {
+      this.logWriteError(usageWriteReason(error))
     }
   }
   public async flush(): Promise<void> {

@@ -1,4 +1,5 @@
 import type { UsageRecording } from '../../usage/recording'
+import { toEpochMs } from '../../../shared/epochMs'
 // One `muse serve` process and the MSP sessions multiplexed over it.
 //
 // Built on the SDK's raw `Connection` rather than its `MuseClient` facade:
@@ -907,7 +908,7 @@ export class MuseUsageDeltas {
     const output = next.outputTokens - prior.outputTokens
     if (input === 0 && output === 0) return
     const at = this.now()
-    const startedAt = this.startedAt ?? at
+    const startedAt = toEpochMs(this.startedAt ?? at)
     this.recording.note(
       { input_tokens: input, output_tokens: output },
       {
@@ -2219,7 +2220,7 @@ export class MuseCodeHost implements AgentHost {
             backend: 'museCode',
             provider: 'museCode',
             source: 'museCode',
-            observedAt: usage.observedAtMs,
+            observedAt: toEpochMs(usage.observedAtMs),
             windows: [
               {
                 id: 'window',

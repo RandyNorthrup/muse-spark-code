@@ -3215,6 +3215,7 @@
   "usageInsightUnavailable": "Na tomto back-endu není k dispozici: Model API nemá žádné místní protokoly trasování.",
   "usageInsightNoLogs": "Na tomto počítači zatím nebyly nalezeny žádné protokoly trasování Muse Code.",
   "usageInsightTotals": "{attempts} ({sessions})",
+  "usageNotRecorded": "Využití pro tento běh nebylo zaznamenáno ({reason}).",
   "modelAttemptsCount": {
     "one": "{count} pokus modelu",
     "other": "{count} pokusů modelu",
