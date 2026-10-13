@@ -367,11 +367,15 @@ import {
 } from './observationPack'
 import {
   boundToolResultText,
+  callOutputItem,
   capRefusalReason,
   cutNotice,
+  fixedHarnessText,
+  canRecoverOverflow,
   parsePromptTooLong,
-  spillName,
+  toolNoteItem,
   validateToolResultCap,
+  withCutNotice,
   type BoundToolResult,
   type ToolResultCut,
   type ToolResultLimits,
@@ -479,6 +483,7 @@ import type { SessionExport } from '../../export/sessionTransfer'
 import {
   headerOf,
   recordOf,
+  spillName,
   type SessionStore,
   type StoredPendingChildResult,
   type StoredReplayItem,
@@ -486,6 +491,7 @@ import {
   type StoredSessionHeader,
 } from './sessionStore'
 import {
+  type BoundedToolText,
   type Citation,
   citationsOf,
   type CreateResponseBody,
@@ -1019,7 +1025,7 @@ function sentImageOf(part: ImagePart): SentImage {
 }
 
 interface PendingNote {
-  readonly text: string
+  readonly text: BoundedToolText
   readonly backgroundTaskId?: string
 }
 
@@ -1816,11 +1822,6 @@ function withoutRunning(entries: readonly TranscriptItem[]): readonly Transcript
       ? { ...entry, item: { ...entry.item, status: TOOL_STATUS_INTERRUPTED } }
       : entry,
   )
-}
-
-/** A user message the model reads before its next request (M46). */
-function noteItem(text: string): InputItem {
-  return { type: 'message', role: 'user', content: [{ type: 'input_text', text }] }
 }
 
 /** What the model is told a question card settled with. */
@@ -3149,7 +3150,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       // TOOLCAP: hook context enters through the bound like every tool
       // result; a cut hook note keeps its spill, paged the same way.
       const bounded = boundToolResultText(context, this.toolResultLimits())
-      let text = context
+      let text: BoundedToolText = bounded.text
       if (bounded.cut !== undefined) {
         const key = `hook-${turnId}-${String(this.hookTokensAdded)}`
         text = await this.boundHookNote(key, context, bounded)
@@ -3157,11 +3158,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       this.hookTokensAdded += estimatePackTokens(text.length)
       this.replay.push({
         turnId,
-        item: {
-          type: 'message',
-          role: 'user',
-          content: [{ type: 'input_text', text }],
-        },
+        item: toolNoteItem(text),
       })
     }
     if (contexts.length > 0) this.emitUsage()
@@ -3229,13 +3226,13 @@ export class ModelApiSession implements ScheduledAgentSession {
     text: string,
   ): Promise<
     | {
-        readonly output: string
+        readonly requestOutput: BoundedToolText
         readonly visibleOutput: string
         readonly cut: undefined
         readonly spill: undefined
       }
     | {
-        readonly output: string
+        readonly requestOutput: BoundedToolText
         readonly visibleOutput: string
         readonly cut: ToolResultCut
         readonly spill: string
@@ -3243,12 +3240,17 @@ export class ModelApiSession implements ScheduledAgentSession {
   > {
     const bounded = boundToolResultText(text, this.toolResultLimits())
     if (bounded.cut === undefined) {
-      return { output: text, visibleOutput: text, cut: undefined, spill: undefined }
+      return {
+        requestOutput: bounded.text,
+        visibleOutput: text,
+        cut: undefined,
+        spill: undefined,
+      }
     }
     const relative = await this.writeSpill(callId, text)
     this.cutToolOutputs.add(callId)
     return {
-      output: `${bounded.text}\n${cutNotice(bounded.cut, relative, callId)}`,
+      requestOutput: withCutNotice(bounded.text, cutNotice(bounded.cut, relative, callId)),
       visibleOutput: `${bounded.text}\n${this.cutPreview(bounded.cut, relative)}`,
       cut: bounded.cut,
       spill: relative,
@@ -3263,11 +3265,11 @@ export class ModelApiSession implements ScheduledAgentSession {
     callId: string,
     text: string,
     bounded: BoundToolResult,
-  ): Promise<string> {
-    if (bounded.cut === undefined) return text
+  ): Promise<BoundedToolText> {
+    if (bounded.cut === undefined) return bounded.text
     const relative = await this.writeSpill(callId, text)
     this.cutToolOutputs.add(callId)
-    return `${bounded.text}\n${cutNotice(bounded.cut, relative, callId)}`
+    return withCutNotice(bounded.text, cutNotice(bounded.cut, relative, callId))
   }
 
   /**
@@ -3276,20 +3278,35 @@ export class ModelApiSession implements ScheduledAgentSession {
    * the person's preview. Outcomes already under every cap pass through
    * untouched, so requests without an oversized result stay byte-identical.
    */
-  private async boundOutcome(callId: string, outcome: ToolOutcome): Promise<ToolOutcome> {
+  private async boundOutcome(
+    callId: string,
+    outcome: ToolOutcome,
+  ): Promise<{
+    readonly outcome: ToolOutcome
+    readonly requestOutput: BoundedToolText | readonly FunctionOutputPart[]
+  }> {
     const bounded = await this.boundToolOutput(callId, outcome.output)
-    if (bounded.cut === undefined) return outcome
+    if (bounded.cut === undefined) {
+      return { outcome, requestOutput: outcome.outputParts ?? bounded.requestOutput }
+    }
     // The row keeps its own text (line-numbered reads, per-stream clips)
-    // with the plain-words preview appended.
+    // with the plain-words preview appended; the request carries the branded
+    // text (or the parts with the branded text), never a bare string.
+    const requestText = bounded.requestOutput
+    const requestParts =
+      outcome.outputParts === undefined
+        ? undefined
+        : outcome.outputParts.map((part) =>
+            part.type === 'input_text' ? { ...part, text: requestText } : part,
+          )
     return {
-      ...outcome,
-      output: bounded.output,
-      visibleOutput: `${outcome.visibleOutput}\n${this.cutPreview(bounded.cut, bounded.spill)}`,
-      ...(outcome.outputParts !== undefined && {
-        outputParts: outcome.outputParts.map((part) =>
-          part.type === 'input_text' ? { ...part, text: bounded.output } : part,
-        ),
-      }),
+      outcome: {
+        ...outcome,
+        output: requestText,
+        visibleOutput: `${outcome.visibleOutput}\n${this.cutPreview(bounded.cut, bounded.spill)}`,
+        ...(requestParts !== undefined && { outputParts: requestParts }),
+      },
+      requestOutput: requestParts ?? requestText,
     }
   }
 
@@ -3351,7 +3368,7 @@ export class ModelApiSession implements ScheduledAgentSession {
    * window; the spill path is deterministic and registered before the write
    * it names, which lands before the next send. Failures are said out loud.
    */
-  private noteChildCut(childId: string, text: string): string {
+  private noteChildCut(childId: string, text: string): BoundedToolText {
     return this.noteSyncCut(`child-${childId}`, childId, text)
   }
 
@@ -3361,9 +3378,9 @@ export class ModelApiSession implements ScheduledAgentSession {
    * names; the write lands before the next send. The bound is idempotent,
    * so already-cut text passes through untouched.
    */
-  private noteSyncCut(key: string, noticeId: string, text: string): string {
+  private noteSyncCut(key: string, noticeId: string, text: string): BoundedToolText {
     const bounded = boundToolResultText(text, this.toolResultLimits())
-    if (bounded.cut === undefined) return text
+    if (bounded.cut === undefined) return bounded.text
     const relative = this.spillRelative(key)
     this.spillById.set(key, relative)
     this.spillById.set(noticeId, relative)
@@ -3371,7 +3388,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       this.deps.log.warn(`Tool-result spill failed: ${describe(error)}`)
     })
     this.cutToolOutputs.add(key)
-    return `${bounded.text}\n${cutNotice(bounded.cut, relative, noticeId)}`
+    return withCutNotice(bounded.text, cutNotice(bounded.cut, relative, noticeId))
   }
 
   /**
@@ -3394,7 +3411,7 @@ export class ModelApiSession implements ScheduledAgentSession {
           ...entry,
           item: {
             ...item,
-            output: `${bounded.text}\n${cutNotice(bounded.cut, relative, item.call_id)}`,
+            output: withCutNotice(bounded.text, cutNotice(bounded.cut, relative, item.call_id)),
           },
         }
         this.cutToolOutputs.add(item.call_id)
@@ -3425,7 +3442,7 @@ export class ModelApiSession implements ScheduledAgentSession {
           content: [
             {
               type: 'input_text',
-              text: `${bounded.text}\n${cutNotice(bounded.cut, relative, key)}`,
+              text: withCutNotice(bounded.text, cutNotice(bounded.cut, relative, key)),
             },
           ],
         },
@@ -6844,15 +6861,23 @@ export class ModelApiSession implements ScheduledAgentSession {
           }
           this.recordTranscript(turnId, started)
           this.emit({ type: 'itemStarted', item: started })
+          // TOOLCAP: a call that never ran carries fixed harness words, never
+          // tool text, so the fixed-words brand applies.
+          const incomplete = toolFailure(
+            MODEL_API_MODEL_TEXT.incompleteCallNotRun,
+            UI_TEXT.incompleteToolCallsNotRun,
+          )
           this.finishCall(
             turnId,
             started,
             item,
-            toolFailure(
-              MODEL_API_MODEL_TEXT.incompleteCallNotRun,
-              UI_TEXT.incompleteToolCallsNotRun,
-            ),
+            incomplete,
             FAILED,
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            fixedHarnessText(incomplete.output),
           )
         } else {
           calls.push(item)
@@ -12800,10 +12825,14 @@ export class ModelApiSession implements ScheduledAgentSession {
     call: FunctionCallItem,
     outcome: ToolOutcome,
     status: string,
-    provisionalSeen?: ReadonlyMap<string, string>,
-    run?: UnattendedRun,
-    decisionId?: string,
-    scope?: RecordingScope,
+    provisionalSeen: ReadonlyMap<string, string> | undefined,
+    run: UnattendedRun | undefined,
+    decisionId: string | undefined,
+    scope: RecordingScope | undefined,
+    // TOOLCAP: the request-bound output for the replay item: the bound's own
+    // text for finished calls, fixed harness words for calls that never ran.
+    // The type keeps an unbounded string from ever reaching a request.
+    requestOutput: BoundedToolText | readonly FunctionOutputPart[],
   ): ReplayItem {
     const { itemId } = started
     const outputRef = outcome.patch === undefined ? undefined : `${OUTPUT_REF_PREFIX}${itemId}`
@@ -12835,11 +12864,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     const replay: ReplayItem = {
       turnId,
       provenance: this.vaultTaint.derived(taintSource),
-      item: {
-        type: 'function_call_output',
-        call_id: call.call_id,
-        output: outcome.outputParts ?? outcome.output,
-      },
+      item: callOutputItem(call.call_id, requestOutput),
     }
     this.replay.push(replay)
     // No await or observer callback splits publication from its write proof.
@@ -12961,9 +12986,16 @@ export class ModelApiSession implements ScheduledAgentSession {
       return
     }
     this.supersedeReplayOutput(replay, outcome)
+    // TOOLCAP: the hook's replacement is model-visible tool text, so it
+    // enters through the bound under the call's own spill (overwriting the
+    // original spill, so recall returns the bytes the model saw).
+    const replacement = typeof value === 'string' ? value : JSON.stringify(value)
     this.replay.splice(index, 0, {
       ...replay,
-      item: { ...replay.item, output: typeof value === 'string' ? value : JSON.stringify(value) },
+      item: {
+        ...replay.item,
+        output: this.noteSyncCut(replay.item.call_id, replay.item.call_id, replacement),
+      },
     })
     this.emit({ type: 'backendNotice', level: 'info', text: UI_TEXT.hookOutputReplaced })
   }
@@ -13280,12 +13312,20 @@ export class ModelApiSession implements ScheduledAgentSession {
       (signal.aborted && (isNativeRead || executed.value.isParallelExecution))
     ) {
       prepared.provisionalSeen.clear()
+      // TOOLCAP: a stopped call carries fixed harness words (see the
+      // incomplete-call site above for why the brand applies).
+      const stopped = toolFailure(MODEL_API_MODEL_TEXT.toolCancelledByStop)
       this.finishCall(
         turnId,
         started,
         effectiveCall,
-        toolFailure(MODEL_API_MODEL_TEXT.toolCancelledByStop),
+        stopped,
         CANCELLED,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        fixedHarnessText(stopped.output),
       )
       throw new AbortedError()
     }
@@ -13296,12 +13336,20 @@ export class ModelApiSession implements ScheduledAgentSession {
       if (isCommitted || !signal.aborted || (!isNativeRead && !executed.value.isParallelExecution))
         return
       prepared.provisionalSeen.clear()
+      // TOOLCAP: a stopped call carries fixed harness words (see the
+      // incomplete-call site above for why the brand applies).
+      const stoppedAfterRun = toolFailure(MODEL_API_MODEL_TEXT.toolCancelledByStop)
       this.finishCall(
         turnId,
         started,
         effectiveCall,
-        toolFailure(MODEL_API_MODEL_TEXT.toolCancelledByStop),
+        stoppedAfterRun,
         CANCELLED,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        fixedHarnessText(stoppedAfterRun.output),
       )
       throw new AbortedError()
     }
@@ -13342,7 +13390,8 @@ export class ModelApiSession implements ScheduledAgentSession {
       }
       // TOOLCAP: every finished call's output enters the conversation through
       // the one bound: cut with its spill and notices, or byte-identical.
-      outcome = await this.boundOutcome(effectiveCall.call_id, outcome)
+      const boundedResult = await this.boundOutcome(effectiveCall.call_id, outcome)
+      outcome = boundedResult.outcome
       let status = COMPLETED
       if (outcome.failureReason !== undefined) {
         status = isRejected ? REJECTED : FAILED
@@ -13359,6 +13408,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         prepared.originRun,
         slot.scheduleDecision,
         executed.value.reads,
+        boundedResult.requestOutput,
       )
       prepared.provisionalSeen.clear()
       isCommitted = true
@@ -13524,7 +13574,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     const bounded = await this.boundOutcome(call.call_id, outcome)
     this.replay.push({
       turnId,
-      item: { type: 'function_call_output', call_id: call.call_id, output: bounded.output },
+      item: callOutputItem(call.call_id, bounded.requestOutput),
     })
     void running
       .catch((error: unknown) => toolFailure(describe(error)))
@@ -13575,13 +13625,13 @@ export class ModelApiSession implements ScheduledAgentSession {
    */
   private async noteForModel(text: string, backgroundTaskId?: string): Promise<void> {
     const bounded = boundToolResultText(text, this.toolResultLimits())
-    let finalText = text
+    let finalText: BoundedToolText = bounded.text
     if (bounded.cut !== undefined) {
       // The spill key names the note; the packer's later placeholder will
       // name the background hash of the final text, so register both.
       const spillKey = backgroundTaskId ?? `note-${this.latestTurnId()}`
       const relative = await this.writeSpill(spillKey, text)
-      finalText = `${bounded.text}\n${cutNotice(bounded.cut, relative, spillKey)}`
+      finalText = withCutNotice(bounded.text, cutNotice(bounded.cut, relative, spillKey))
       this.spillById.set(backgroundNoteId(finalText), relative)
     }
     const note: PendingNote = {
@@ -13594,7 +13644,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     }
     this.replay.push({
       turnId: this.latestTurnId(),
-      item: noteItem(finalText),
+      item: toolNoteItem(finalText),
       ...(backgroundTaskId !== undefined && { backgroundTaskId }),
     })
     this.touch()
@@ -13606,7 +13656,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     for (const note of notes) {
       this.replay.push({
         turnId,
-        item: noteItem(note.text),
+        item: toolNoteItem(note.text),
         ...(note.backgroundTaskId !== undefined && { backgroundTaskId: note.backgroundTaskId }),
       })
     }
@@ -13701,13 +13751,11 @@ export class ModelApiSession implements ScheduledAgentSession {
     reason: string = MODEL_API_MODEL_TEXT.toolCancelledByStop,
   ): void {
     for (const call of calls) {
+      // TOOLCAP: the skip reason is harness words (a fixed sentence or a wire
+      // enum token), never tool text, so the fixed-words brand applies.
       this.replay.push({
         turnId,
-        item: {
-          type: 'function_call_output',
-          call_id: call.call_id,
-          output: `Error: ${reason}`,
-        },
+        item: callOutputItem(call.call_id, fixedHarnessText(`Error: ${reason}`)),
       })
     }
   }
@@ -14016,6 +14064,12 @@ export class ModelApiSession implements ScheduledAgentSession {
           // through the existing entry when available, then send again;
           // (c) otherwise the turn ends with the true sentence below.
           // Never loops: each step runs once per turn, counted by the flags.
+          // The resend steps run only for a proven overflow (counts, or the
+          // recorded refusal with its numbers): an unrecorded wire shape
+          // ends here with the short sentence, never a resend.
+          if (!canRecoverOverflow(error.kind, error.promptTokens, error.promptMaximum)) {
+            throw error
+          }
           if (error.kind === 'error' && !turn.didTrimOverflow) {
             turn.didTrimOverflow = true
             if ((await this.trimLargestToolOutputs()) > 0) {
@@ -14075,9 +14129,10 @@ export class ModelApiSession implements ScheduledAgentSession {
         ) {
           outputContinuations += 1
           this.emit({ type: 'backendNotice', level: 'info', text: UI_TEXT.modelApiContinuing })
+          // TOOLCAP: the continuation prompt is fixed harness words.
           this.replay.push({
             turnId: turn.turnId,
-            item: noteItem(MODEL_API_MODEL_TEXT.continuationPrompt),
+            item: toolNoteItem(fixedHarnessText(MODEL_API_MODEL_TEXT.continuationPrompt)),
           })
           continue
         }
@@ -14227,12 +14282,20 @@ export class ModelApiSession implements ScheduledAgentSession {
             if (prepared === undefined) this.skipCalls(turn.turnId, [call], skipReason)
             else {
               prepared.provisionalSeen.clear()
+              // TOOLCAP: the skip reason is harness words, never tool text
+              // (see skipCalls for why the brand applies).
+              const skipped = toolFailure(skipReason)
               this.finishCall(
                 turn.turnId,
                 prepared.started,
                 prepared.effectiveCall,
-                toolFailure(skipReason),
+                skipped,
                 CANCELLED,
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                fixedHarnessText(skipped.output),
               )
             }
           },
@@ -17238,10 +17301,14 @@ export class ModelApiSession implements ScheduledAgentSession {
     // runs on, hears that it ended and its output was lost.
     for (const { item } of stored.transcript) {
       if (item.status === IN_PROGRESS && item.background === true) {
+        // TOOLCAP: the lost-background note is fixed harness words plus the
+        // user's own command, never tool output.
         this.replay.push({
           turnId: this.latestTurnId(),
-          item: noteItem(
-            `${MODEL_API_MODEL_TEXT.backgroundLostLead}\n$ ${commandOf(item.args ?? '')}`,
+          item: toolNoteItem(
+            fixedHarnessText(
+              `${MODEL_API_MODEL_TEXT.backgroundLostLead}\n$ ${commandOf(item.args ?? '')}`,
+            ),
           ),
           backgroundTaskId: item.itemId,
         })
@@ -17380,7 +17447,9 @@ export class ModelApiSession implements ScheduledAgentSession {
     const boundedCopied = copied.map((entry) => {
       if (entry.item.type === 'function_call_output' && typeof entry.item.output === 'string') {
         const cut = target.noteSyncCut(entry.item.call_id, entry.item.call_id, entry.item.output)
-        if (cut !== entry.item.output) return { ...entry, item: { ...entry.item, output: cut } }
+        if (cut !== entry.item.output) {
+          return { ...entry, item: callOutputItem(entry.item.call_id, cut) }
+        }
       }
       return entry
     })
@@ -17424,7 +17493,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         // through the bound; recorded and pending notes are already bound.
         item:
           recorded?.item ??
-          noteItem(
+          toolNoteItem(
             pending?.text ?? target.noteSyncCut(`copy-${item.itemId}`, item.itemId, fallback),
           ),
         backgroundTaskId: item.itemId,

@@ -3863,8 +3863,16 @@ export const TOOL_RESULT_WINDOW_SHARE = 1 / 4
 export const TOOL_RESULT_MIN_BYTES = 1024
 /* A cut result's full text is kept in a spill file under this directory in
  * the workspace root, so the existing file tools can page through it. The
- * directory is created with a `.gitignore` that ignores its contents. */
+ * directory is created with a `.gitignore` that ignores its contents. Spills
+ * are plain workspace files: whoever can read the workspace can read them
+ * (POSIX file modes from the process umask; Windows ACLs inherited from the
+ * workspace folder). A command's output can hold secrets the command
+ * printed. A session's spills are removed when the session is deleted, and
+ * a spill older than TOOL_RESULT_SPILL_MAX_AGE_DAYS is pruned. */
 export const TOOL_RESULT_SPILL_DIR = '.muse-spark/tool-results'
+/* A spill file's life: pruned past this many days, whatever session it
+ * belonged to. The setting description states the rule in plain words. */
+export const TOOL_RESULT_SPILL_MAX_AGE_DAYS = 30
 /* Context-overflow recovery sends at most: the first attempt, one resend
  * after trimming the largest tool results, one resend after compaction. */
 export const OVERFLOW_MAX_REQUEST_SENDS = 3
@@ -6576,7 +6584,7 @@ export const MODEL_API_MODEL_TEXT = {
   // more (the spill file, paged with read_file). Never silent: every cut
   // ends with this line.
   toolResultCut:
-    'Tool result cut: {totalChars} characters ({totalTokens} tokens) in {totalLines} lines, kept {keptChars} as the first {headLines} and last {tailLines} lines ({omittedChars} characters omitted in the middle){longest}. Full result in {spill}: page it back with recall_output id "{id}" (offset in characters) or read_file with offset and limit.',
+    'Tool result cut: {totalChars} characters ({totalTokens} tokens) in {totalLines} lines, kept {keptChars} as the first {headLines} and last {tailLines} lines ({omittedChars} characters omitted in the middle){longest}. Full result in {spill}: page it back with recall_output id "{id}" (offset in characters) or read_file with offset and limit. The spill file is removed with the session.',
   toolResultCutLongest: '; longest line {longestLine} characters, cut to {lineCap}',
   // PLAN.md D27: what the Model API's file tools say when they will not write.
   fileChangedSinceRead:

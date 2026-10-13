@@ -2557,7 +2557,7 @@
   "autoCompactionAwaitingEvaluation": "Az automatikus tömörítés értékelésre vár, és inaktív.",
   "autoCompactionFailed": "Az automatikus tömörítés sikertelen; folytatás az eredeti kontextussal.",
   "contextWindowFull": "A kontextusablak megtelt: /compact vagy /handoff",
-  "toolResultCutPreview": "Eszközkimenet levágva: {total} megmaradt az első {head} és az utolsó {tail} sorban ({omitted} kihagyva). A teljes kimenet itt van: {spill}; nyissa meg read_file-lel.",
+  "toolResultCutPreview": "Eszközkimenet levágva: {total} megmaradt az első {head} és az utolsó {tail} sorban ({omitted} kihagyva). A teljes kimenet itt van: {spill}; nyissa meg read_file-lel. A munkamenettel együtt törlődik.",
   "contextWindowTooLong": "A beszélgetés ({tokens} token) {over} tokennel nagyobb e modell ablakánál ({maximum} token). /compact segítségével tömörítse a beszélgetést, váltson nagyobb ablakú modellre, vagy kezdjen új beszélgetést; semmi sem lett törölve.",
   "toolResultCapRefused": "A(z) {source} eszközkimeneti korlát ({value}) elutasítva ({reason}); az alapértelmezett {fallback} lesz használva.",
   "toolResultCapBelowFloor": "az olvasható {floor} bájtos alsó határ alatt",

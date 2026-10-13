@@ -27,7 +27,7 @@ import {
   TOOL_RESULT_MIN_BYTES,
   UI_TEXT,
 } from '../../shared/constants'
-import { fill, plural } from '../../shared/l10n/text'
+import { fill, formatNumber, plural } from '../../shared/l10n/text'
 import { modelRef } from '../../host/backend/providerPolicyEntry'
 const { isProviderId, parseModelRef } = modelRef
 import type { ServeOptions } from '../cliArgs'
@@ -245,6 +245,21 @@ export function parseExec(
     Number.MAX_SAFE_INTEGER,
   )
   const budgetUsd = budgetUnits(values['max-budget-usd'])
+  // TOOLCAP: a present-but-below-floor guard is refused with its translated
+  // sentence (the same words capRefusalReason renders where the window is
+  // known; rendered here because the bound loads lazily with the backend and
+  // must not ride in dist/acp.js). Anything else unparseable keeps the
+  // generic number refusal below.
+  const maxToolOutputBytesRaw = values['max-tool-output-bytes']
+  if (
+    maxToolOutputBytes === undefined &&
+    typeof maxToolOutputBytesRaw === 'string' &&
+    Number.isSafeInteger(Number(maxToolOutputBytesRaw)) &&
+    Number(maxToolOutputBytesRaw) < TOOL_RESULT_MIN_BYTES
+  )
+    return invalid(
+      fill(UI_TEXT.toolResultCapBelowFloor, { floor: formatNumber(TOOL_RESULT_MIN_BYTES) }),
+    )
   if (
     timeout === undefined ||
     maxRequests === undefined ||

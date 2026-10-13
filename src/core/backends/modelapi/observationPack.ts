@@ -22,7 +22,6 @@ import * as z from 'zod/mini'
 import {
   MODEL_API_MODEL_TEXT,
   MODEL_API_TOOLS,
-  OBS_PACK_CHARS_PER_TOKEN,
   OBS_PACK_HEAD_LINES,
   OBS_PACK_MARKER_BYTES,
   OBS_PACK_PAGE_CHARS,
@@ -32,10 +31,17 @@ import {
   OBS_PACK_THRESHOLD_CHARS,
   OBS_PACK_WHOLE_SENDS,
   SHELL_PACKED_MAX_CHARS,
+  TOOL_OUTPUT_MAX_CHARS,
+  TOOL_RESULT_MAX_LINE_CHARS,
+  TOOL_RESULT_MAX_TOKENS,
   UI_TEXT,
 } from '../../../shared/constants'
 import { fill } from '../../../shared/l10n/text'
 import type { FunctionToolDefinition, InputItem } from './schemas'
+import { boundToolResultText, estimatePackTokens } from './toolResultBound'
+import { restoredToolText } from './schemas'
+
+export { estimatePackTokens } from './toolResultBound'
 
 const recallOutputArgs = z.object({
   id: z.string(),
@@ -189,10 +195,7 @@ export function pageRecalledText(
   }
 }
 
-/** Estimated tokens for `chars` characters (the ledger's rule of thumb). */
-export function estimatePackTokens(chars: number): number {
-  return Math.ceil(chars / OBS_PACK_CHARS_PER_TOKEN)
-}
+/** Estimated tokens for `chars` characters (the ledger's rule of thumb; lives in toolResultBound.ts, beside the bound). */
 
 /**
  * TOOLCAP: a background completion note's recall id for its text. The host
@@ -304,7 +307,20 @@ export class ObservationPack {
     if (text.length > OBS_PACK_THRESHOLD_CHARS || text.length * 2 > entry.text.length) {
       return original
     }
-    const item: InputItem = { type: 'function_call_output', call_id: callId, output: text }
+    // TOOLCAP: the placeholder carries at most OBS_PACK_THRESHOLD_CHARS
+    // characters of lines the bound already cut to
+    // TOOL_RESULT_MAX_LINE_CHARS, so under the default caps it passes the
+    // bound uncut. When a smaller configured guard would cut it, the current
+    // text rides instead: it already passed the bound on entry, and the
+    // send-time recovery still cuts whatever exceeds the bound on refusal.
+    const branded = boundToolResultText(text, {
+      maxTokens: TOOL_RESULT_MAX_TOKENS,
+      maxLineChars: TOOL_RESULT_MAX_LINE_CHARS,
+      maxBytes: TOOL_OUTPUT_MAX_CHARS,
+      windowTokens: undefined,
+    })
+    if (branded.cut !== undefined) return original
+    const item: InputItem = { type: 'function_call_output', call_id: callId, output: branded.text }
     this.placeholders.set(item, entry)
     return item
   }
@@ -354,10 +370,13 @@ export class ObservationPack {
           const id = backgroundNoteId(part.text)
           const entry = this.register(id, part.text, undefined)
           if (entry.isPacked || entry.text.length > SHELL_PACKED_MAX_CHARS) {
+            // TOOLCAP: this note entered the replay through the session bound
+            // (noteForModel binds every background note), so the brand only
+            // restates what the choke measured (PLAN.md §8: TOOLCAP brand).
             const packed = this.placeholder(id, entry, {
               type: 'function_call_output',
               call_id: id,
-              output: part.text,
+              output: restoredToolText(part.text),
             })
             if (
               packed.type === 'function_call_output' &&

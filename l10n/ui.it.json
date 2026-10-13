@@ -2611,7 +2611,7 @@
   "autoCompactionAwaitingEvaluation": "La compattazione automatica è in attesa di valutazione e rimane inattiva.",
   "autoCompactionFailed": "La compattazione automatica non è riuscita; si continua con il contesto originale.",
   "contextWindowFull": "Finestra di contesto piena: /compact o /handoff",
-  "toolResultCutPreview": "Risultato dello strumento tagliato: {total} conservato come prime {head} e ultime {tail} righe ({omitted} omesse). Il risultato completo è in {spill}; aprilo con read_file.",
+  "toolResultCutPreview": "Risultato dello strumento tagliato: {total} conservato come prime {head} e ultime {tail} righe ({omitted} omesse). Il risultato completo è in {spill}; aprilo con read_file. Viene rimosso con la sessione.",
   "contextWindowTooLong": "La conversazione ({tokens} token) supera la finestra di questo modello ({maximum} token) di {over} token. /compact la conversazione, passa a un modello con una finestra più grande o avvia una nuova conversazione; nulla è stato eliminato.",
   "toolResultCapRefused": "Il limite {source} di output dello strumento di {value} è rifiutato ({reason}); viene usato il valore predefinito di {fallback}.",
   "toolResultCapBelowFloor": "sotto la soglia leggibile di {floor} byte",

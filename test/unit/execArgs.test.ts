@@ -2,6 +2,7 @@ import { Usd } from '../../src/shared/usd'
 import { describe, expect, it } from 'vitest'
 import { parseExec, serveOptionsFor } from '../../src/runtime/exec/execArgs'
 import { parseCommandLine } from '../../src/runtime/cliArgs'
+import { capRefusalReason } from '../../src/core/backends/modelapi/toolResultBound'
 import { UI_TEXT } from '../../src/shared/constants'
 
 describe('M80 args (A1–A10, F1)', () => {
@@ -178,6 +179,20 @@ describe('M80 args (A1–A10, F1)', () => {
       budgetUsd: Usd.from('2').toAmount(),
     })
     expect(parseExec({}, ['-'])).toMatchObject({ ok: true, options: { prompt: { kind: 'stdin' } } })
+  })
+  it('TOOLCAP refuses a below-floor tool-output guard with its translated sentence', () => {
+    const values = { backend: 'modelApi', 'max-budget-usd': '1' }
+    expect(parseExec({ ...values, 'max-tool-output-bytes': '10' }, ['hi'])).toEqual({
+      ok: false,
+      reason: capRefusalReason({ kind: 'below-floor' }),
+    })
+    expect(parseExec({ ...values, 'max-tool-output-bytes': 'abc' }, ['hi'])).toEqual({
+      ok: false,
+      reason: UI_TEXT.execNumberInvalid,
+    })
+    const floor = parseExec({ ...values, 'max-tool-output-bytes': '1024' }, ['hi'])
+    if (!floor.ok) throw new Error(floor.reason)
+    expect(floor.options.maxToolOutputBytes).toBe(1024)
   })
   it('A8 refuses duplicate, missing and shared stdin sources', () => {
     for (const positions of [[], [''], ['a', 'b']]) expect(parseExec({}, positions).ok).toBe(false)

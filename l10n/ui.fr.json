@@ -2611,7 +2611,7 @@
   "autoCompactionAwaitingEvaluation": "La compaction automatique attend son évaluation et reste inactive.",
   "autoCompactionFailed": "La compaction automatique a échoué ; poursuite avec le contexte initial.",
   "contextWindowFull": "Fenêtre de contexte pleine : /compact ou /handoff",
-  "toolResultCutPreview": "Résultat d’outil tronqué : {total} conservé comme les {head} premières et {tail} dernières lignes ({omitted} omises). Le résultat complet est dans {spill} ; ouvrez-le avec read_file.",
+  "toolResultCutPreview": "Résultat d’outil tronqué : {total} conservé comme les {head} premières et {tail} dernières lignes ({omitted} omises). Le résultat complet est dans {spill} ; ouvrez-le avec read_file. Il est supprimé avec la session.",
   "contextWindowTooLong": "La conversation ({tokens} jetons) dépasse la fenêtre de ce modèle ({maximum} jetons) de {over} jetons. /compact la conversation, passez à un modèle avec une fenêtre plus grande ou commencez une nouvelle conversation ; rien n’a été supprimé.",
   "toolResultCapRefused": "Le plafond {source} de sortie d’outil de {value} est refusé ({reason}) ; utilisation de la valeur par défaut de {fallback}.",
   "toolResultCapBelowFloor": "sous le plancher lisible de {floor} octets",

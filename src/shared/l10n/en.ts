@@ -3087,7 +3087,7 @@ export const EN = {
   // TOOLCAP: the person's preview of a cut tool result says the same as the
   // model's one-line notice, in plain words, with the spill file to open.
   toolResultCutPreview:
-    'Tool result cut: {total} kept as the first {head} and last {tail} lines ({omitted} left out). The full result is in {spill}; open it with read_file.',
+    'Tool result cut: {total} kept as the first {head} and last {tail} lines ({omitted} left out). The full result is in {spill}; open it with read_file. It is removed with the session.',
   // TOOLCAP: the turn's last word when trimming and compaction could not fit
   // the conversation into the model's window. True by construction: the
   // numbers come from the provider's own refusal, and nothing was deleted.

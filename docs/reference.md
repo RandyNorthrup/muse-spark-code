@@ -160,7 +160,7 @@ Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/m
 
 ### museSpark.modelApiMaxToolOutputBytes
 
-conversationStart: The per-tool-result byte guard, 64000 by default. A result past it is cut to a head and tail with counts, and the full text is kept in .muse-spark/tool-results for paging. Below 1024 or past the model's window is refused with the reason. Raise for one headless run with exec --max-tool-output-bytes.
+conversationStart: The per-tool-result byte guard, 64000 by default. A result past it is cut to a head and tail with counts, and the full text is kept in .muse-spark/tool-results for paging. Below 1024 or past the model's window is refused with the reason. Raise for one headless run with exec --max-tool-output-bytes. Spill files are plain workspace files (whoever can read the workspace can read them), removed when the session is deleted; files older than 30 days are pruned.
 
 Surfaces: vscode:modelApi, acp:modelApi. Paid: no extra feature charge; model usage still applies.
 
@@ -2463,7 +2463,7 @@ Type: `"boolean"`. Default: `true`. Scope: `machine`.
 
 ### museSpark.modelApiMaxToolOutputBytes
 
-conversationStart: The per-tool-result byte guard, 64000 by default. A result past it is cut to a head and tail with counts, and the full text is kept in .muse-spark/tool-results for paging. Below 1024 or past the model's window is refused with the reason. Raise for one headless run with exec --max-tool-output-bytes.
+conversationStart: The per-tool-result byte guard, 64000 by default. A result past it is cut to a head and tail with counts, and the full text is kept in .muse-spark/tool-results for paging. Below 1024 or past the model's window is refused with the reason. Raise for one headless run with exec --max-tool-output-bytes. Spill files are plain workspace files (whoever can read the workspace can read them), removed when the session is deleted; files older than 30 days are pruned.
 
 Type: `"integer"`. Default: `64000`. Scope: `machine`.
 

@@ -2611,7 +2611,7 @@
   "autoCompactionAwaitingEvaluation": "A compactação automática aguarda avaliação e está inativa.",
   "autoCompactionFailed": "A compactação automática falhou; continuando com o contexto original.",
   "contextWindowFull": "Janela de contexto cheia: /compact ou /handoff",
-  "toolResultCutPreview": "Resultado da ferramenta cortado: {total} mantido como as primeiras {head} e as últimas {tail} linhas ({omitted} omitidas). O resultado completo está em {spill}; abra com read_file.",
+  "toolResultCutPreview": "Resultado da ferramenta cortado: {total} mantido como as primeiras {head} e as últimas {tail} linhas ({omitted} omitidas). O resultado completo está em {spill}; abra com read_file. Ele é removido com a sessão.",
   "contextWindowTooLong": "A conversa ({tokens} tokens) é maior que a janela deste modelo ({maximum} tokens) em {over} tokens. /compact a conversa, mude para um modelo com janela maior ou inicie uma nova conversa; nada foi excluído.",
   "toolResultCapRefused": "O limite {source} de saída da ferramenta de {value} foi recusado ({reason}); usando o padrão de {fallback}.",
   "toolResultCapBelowFloor": "abaixo do mínimo legível de {floor} bytes",
