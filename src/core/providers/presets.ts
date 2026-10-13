@@ -29,8 +29,8 @@ export type AuthHeader = 'bearer' | 'x-api-key' | 'x-goog-api-key' | 'api-key'
 
 /**
  * What a pasted key looks like: nothing per provider. The provider judges
- * a key through the free key test, never its looks (PLAN.md D-providers:
- * a working key is never refused for its shape), so every preset carries
+ * a key through the free key test, never its looks (PLAN.md D108: a
+ * working key is never refused for its shape), so every preset carries
  * the same open shape. `isKeyShape` stays as the surfaces' gate name.
  */
 export interface KeyShape {
@@ -47,69 +47,11 @@ export function isKeyShape(_shape: KeyShape, key: string): boolean {
   return key.trim() !== ''
 }
 
-/**
- * Why a pasted value is worth a question before it is sent. Each notice
- * is true for every provider and protects against pasting the wrong
- * thing; each is answered ("use it anyway?"), never a dead end.
- */
-export type ProviderKeyNotice = 'whitespace' | 'url' | 'path' | 'placeholder'
-
-/** A pasted key: fine, blank, or carrying one question for the person. */
-export type ProviderKeyInspection = 'ok' | 'empty' | ProviderKeyNotice
-
-const KEY_PATH_PATTERN = /^(?:[/\\~]|\.{1,2}[\\/]|[A-Za-z]:[\\/]|\\\\)/
-// Obvious non-keys: the field's own placeholder words, masked stars, and
-// angle-bracket slots (`YOUR_API_KEY`, `xxx`, `***`, `<api-key>`,
-// `paste-key-here`). Matched whole-value and case-insensitively; a real
-// key carrying one of these words among other characters still passes.
-const KEY_PLACEHOLDER_PATTERN =
-  /^(?:your[_\s-]*api[_\s-]*key|your[_\s-]*key|my[_\s-]*key|test[_\s-]*key|example(?:[_\s-]*key)?|sample(?:[_\s-]*key)?|demo(?:[_\s-]*key)?|placeholder|changeme|paste[_\s-]*key[_\s-]*here|insert[_\s-]*key[_\s-]*here|enter[_\s-]*key[_\s-]*here|your[_\s-]*key[_\s-]*here|x{3,}|\*{2,}|<[^<>]+>)$/i
-
-/**
- * The three universal checks on a pasted provider key (pure): blank is
- * refused (nothing can be sent); inner whitespace, a URL, a file path
- * or placeholder text each raises a question the person answers. No
- * per-provider prefix or length is consulted: those froze (notably
- * Gemini's `AIza`, which a working `AQ.` key failed) and the provider's
- * own answer to the free key test decides instead.
- */
-export function inspectProviderKey(candidate: string): ProviderKeyInspection {
-  const trimmed = candidate.trim()
-  if (trimmed === '') {
-    return 'empty'
-  }
-  if (/\s/.test(trimmed)) {
-    return 'whitespace'
-  }
-  if (trimmed.includes('://')) {
-    return 'url'
-  }
-  if (KEY_PATH_PATTERN.test(trimmed)) {
-    return 'path'
-  }
-  return KEY_PLACEHOLDER_PATTERN.test(trimmed) ? 'placeholder' : 'ok'
-}
-
-/**
- * The question for one inspection notice ("use it anyway?"), read at use
- * time so the installed language is the one shown.
- */
-export function providerKeyNoticeText(notice: ProviderKeyNotice): string {
-  switch (notice) {
-    case 'whitespace': {
-      return UI_TEXT.providerKeyNoticeWhitespace
-    }
-    case 'url': {
-      return UI_TEXT.providerKeyNoticeUrl
-    }
-    case 'path': {
-      return UI_TEXT.providerKeyNoticePath
-    }
-    case 'placeholder': {
-      return UI_TEXT.providerKeyNoticePlaceholder
-    }
-  }
-}
+// The three universal checks live beside the presets' data in
+// `./keyInspection` (small, so the panel bundle reads it with the
+// password box); re-exported here for the runtime and the tests.
+export type { ProviderKeyInspection, ProviderKeyNotice } from './keyInspection'
+export { inspectProviderKey, providerKeyNoticeText } from './keyInspection'
 
 /** The free check that proves a key works (nothing billed). */
 export type KeyTest =

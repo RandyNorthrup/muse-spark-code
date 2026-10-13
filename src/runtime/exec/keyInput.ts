@@ -106,32 +106,45 @@ function readBytes(
   })
 }
 
-/** One bounded, wiped UTF-8 line, with the caller's key-shape validator. */
-async function readValidatedKeyLine(
+/**
+ * One bounded, wiped UTF-8 line from stdin. One CRLF line ending is
+ * accepted; any other white space or CR stays part of the value.
+ */
+async function readRawKeyLine(
   input: Readable,
   signal: AbortSignal,
-  isValid: (key: string) => boolean,
-): Promise<
-  { ok: true; key: string } | { ok: false; reason: 'tty' | 'empty' | 'invalid' | 'tooLong' }
-> {
+): Promise<{ ok: true; line: string } | { ok: false; reason: 'tty' | 'invalid' | 'tooLong' }> {
   if ('isTTY' in input && input.isTTY === true) {
     input.destroy()
     return { ok: false, reason: 'tty' }
   }
   const bytes = await readBytes(input, EXEC_KEY_MAX_BYTES, signal, true)
   if (bytes === undefined) return { ok: false, reason: 'tooLong' }
-  let key: string
   try {
-    // One CRLF line ending is accepted; any other white space or CR is part
-    // of the value and fails validation, as the Action's intake refuses it.
     const line = new TextDecoder('utf-8', { fatal: true }).decode(bytes)
-    key = line.endsWith('\r') ? line.slice(0, -1) : line
+    return { ok: true, line: line.endsWith('\r') ? line.slice(0, -1) : line }
   } catch {
     return { ok: false, reason: 'invalid' }
   } finally {
     bytes.fill(0)
   }
+}
+
+/** A stdin key line: the key, or why none can be used. */
+export type KeyLineResult =
+  { ok: true; key: string } | { ok: false; reason: 'tty' | 'empty' | 'invalid' | 'tooLong' }
+
+/** One bounded stdin line, with the caller's key validator. */
+async function readValidatedKeyLine(
+  input: Readable,
+  signal: AbortSignal,
+  isValid: (key: string) => boolean,
+): Promise<KeyLineResult> {
+  const raw = await readRawKeyLine(input, signal)
+  if (!raw.ok) return raw
+  const key = raw.line
   if (key === '') return { ok: false, reason: 'empty' }
+  // Padded input fails validation, as the Action's intake refuses it.
   return key === key.trim() && isValid(key) ? { ok: true, key } : { ok: false, reason: 'invalid' }
 }
 
@@ -151,25 +164,10 @@ export async function readKeyLine(
 export async function readProviderKeyLine(
   input: Readable,
   signal: AbortSignal,
-): Promise<
-  { ok: true; key: string } | { ok: false; reason: 'tty' | 'empty' | 'invalid' | 'tooLong' }
-> {
-  if ('isTTY' in input && input.isTTY === true) {
-    input.destroy()
-    return { ok: false, reason: 'tty' }
-  }
-  const bytes = await readBytes(input, EXEC_KEY_MAX_BYTES, signal, true)
-  if (bytes === undefined) return { ok: false, reason: 'tooLong' }
-  let key: string
-  try {
-    const line = new TextDecoder('utf-8', { fatal: true }).decode(bytes)
-    key = line.endsWith('\r') ? line.slice(0, -1) : line
-  } catch {
-    return { ok: false, reason: 'invalid' }
-  } finally {
-    bytes.fill(0)
-  }
-  const trimmed = key.trim()
+): Promise<KeyLineResult> {
+  const raw = await readRawKeyLine(input, signal)
+  if (!raw.ok) return raw
+  const trimmed = raw.line.trim()
   return trimmed === '' ? { ok: false, reason: 'empty' } : { ok: true, key: trimmed }
 }
 

@@ -14295,6 +14295,31 @@ cost and caution, never speed.
   reviewer on B1 and B2, never the only one and never an allow by itself.
   Everywhere else both stand unchanged.
 
+### D108 — The provider judges a key; no key is refused for its shape (lane PROVKEYS, 2026-10-12)
+
+A released defect: a working Google Gemini key (beginning `AQ.`) was
+refused before anything was sent because the product held a frozen idea
+of each provider's key shape (`AIza…` for Gemini, `sk-ant-…`,
+`sk-or-…`, `gsk_…`, `fw_…`, `hf_…`, `xai-…`, `sk-…` elsewhere). The
+panel, `providers add`, the editor protocol's auth methods, `auth set
+--provider` and stdin all refused such keys with "not shaped like"
+errors, so the route could not be configured at all.
+
+**Decision.** No key is ever refused for its looks, on any surface.
+What decides is the provider's own answer to the first authenticated
+request the product already makes (the free model-list key test); a
+refusal shows the provider's reason. The only checks before sending are
+the ones that protect the person and hold for every provider — the
+value is not empty, has no whitespace or line break inside, and is not
+obviously the wrong thing (a URL, a file path, placeholder text) — each
+asked as a "use it anyway?" question, never a dead end. This supersedes
+M95 lane K's "password box with the preset's live shape check" (the
+milestone scope rows): the box now accepts any non-blank key, and every
+preset carries the open `{ kind: 'any' }` shape with a hint naming where
+the key comes from. The endpoint policy, log redaction and the
+product's own Meta-key format are unchanged. Full record:
+`docs/certification/provider-key-shapes.md`.
+
 ## 3. Open questions (need the owner)
 
 **Q-VIS0171-RELEASE-NOTES resolved by lead (2026-10-10, linuxlt).** Round 2
