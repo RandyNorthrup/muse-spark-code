@@ -72,8 +72,6 @@ export interface SchedulePaidIdentity {
   readonly sharedDailyBudgetUsd: UsdAmount
 }
 
-export type ScheduleConsent = NonNullable<ScheduleV2['paidConsent']>
-
 export function isScheduleConsentCurrent(
   schedule: ScheduleV2,
   identity: SchedulePaidIdentity,

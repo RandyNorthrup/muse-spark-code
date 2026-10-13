@@ -388,3 +388,23 @@ completion rather than receipt of any response frame. Reviewer and hook calls
 now retain liability after any frame; only an initial refusal refunds. Both
 compaction callback bindings also recognize typed no-send errors. Those helper
 provider interactions remain assigned to the lead's real-use scenarios.
+
+Final verification found the installed hook's ESLint fix and Prettier rewrite
+disagree on nested ternaries. Those five expressions now use explicit branches,
+without gate suppression; the unused ScheduleConsent type is removed. The
+host API inventory is regenerated from actual imports. A partial search receipt
+keeps at least its original bound until final settlement; it cannot shrink an
+active reservation.
+
+Dependency selection found 390 suites for non-hub changes. The rig brief's
+`only the files you touched` constraint and the final no-stand-in rule prohibit
+a broad dependent run here; the selection manifest stays in
+`temp/ledger/related-selected.json` for integration. No stand-in suite was
+repaired. HUB integration: constants.ts, en.ts, usageEn.ts, usagePage.ts,
+featureCatalog.ts and generated reference files.
+
+The full-history redacted gitleaks command exited 1: two findings among 4,731
+commits (241.24 MB); it printed only the summary. The installed staged scans
+passed. Their cause and commit locations are UNMEASURED; no credential text was
+printed and history was not rewritten. The original complete SAST scan remains
+unqualified until the final-tree command finishes.

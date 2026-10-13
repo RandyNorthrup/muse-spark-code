@@ -164,13 +164,13 @@ export async function explainLegal(
           }
     if (tokens !== undefined) deps.usage.addLegalExplanationUsage(modelId, tokens)
     const unreportedCost = dispatch.isSent ? claim.reservedUsd : Usd.from(0).toAmount()
-    await claim.settle(
-      tokens === undefined ? unreportedCost : estimateCostUsd(tokens, modelId),
-      tokens === undefined && dispatch.isSent
-        ? 'uncertain'
-        : dispatch.isSent
-          ? 'settled'
-          : 'released',
-    )
+    if (dispatch.isSent) {
+      await claim.settle(
+        tokens === undefined ? unreportedCost : estimateCostUsd(tokens, modelId),
+        tokens === undefined ? 'uncertain' : 'settled',
+      )
+    } else {
+      await claim.settle(Usd.from(0).toAmount(), 'released')
+    }
   }
 }

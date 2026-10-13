@@ -356,14 +356,12 @@ export function withRuntimeAccounting(
         const isExactFailed = counted === undefined && detailed !== undefined
         const byteBound = Buffer.byteLength(JSON.stringify(body))
         const countedBound =
-          counted === undefined
-            ? undefined
-            : counted.accuracy === 'estimate'
-              ? Math.min(
-                  byteBound,
-                  Math.ceil((counted.tokens * (100 + SPEND_LEDGER_ESTIMATE_MARGIN_PERCENT)) / 100),
-                )
-              : counted.tokens
+          counted?.accuracy === 'estimate'
+            ? Math.min(
+                byteBound,
+                Math.ceil((counted.tokens * (100 + SPEND_LEDGER_ESTIMATE_MARGIN_PERCENT)) / 100),
+              )
+            : counted?.tokens
         const inputTokens = mediaTokens ?? countedBound ?? byteBound
         const countCostUsd = counted?.costUsd
         const inputCost = model.price.reserve({
