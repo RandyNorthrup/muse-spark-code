@@ -2981,9 +2981,9 @@ integration owners; editor font settings continue to decide inside editors.
 
 - A path with a space, `#` or `"` is written in quotes,
   `@"my notes/a b.md"#5-10`, and the menu searches what you type after `@"`.
-- The model pill reads `model effort` (effort tiers Minimal to Max, each
-  verified per model); the mode button opens the Modes menu; the microphone
-  dictates.
+- The model pill reads `model effort` (effort tiers Minimal to Ultra, each
+  model offering the tiers it serves); the mode button opens the Modes menu;
+  the microphone dictates.
 - The **context meter** is a ring beside the mode button that fills
   clockwise with the share of the context window used, the whole percent
   inside it: rounded down, "<1" under one percent, "100" once the window is

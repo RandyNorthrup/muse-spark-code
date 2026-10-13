@@ -9,6 +9,21 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- Lane REASONSHAPES (provider reasoning gaps, all shapes UNVERIFIED until
+  the 26-request capture plan answers): DeepSeek `ultra` now rides as
+  `reasoning_effort: "max"` per its thinking-mode table instead of
+  refusing. Groq sends `reasoning_format: "parsed"` where the model
+  reasons. Together sends the hybrid toggle `reasoning: {enabled: false}`
+  for Thinking off. Z.ai sends the `thinking` switch (off only where the
+  model affirms it), preserved thinking where a turn replays reasoning,
+  and main-turn JSON mode where affirmed. llama.cpp sends
+  `reasoning_effort` as named (`none` disables). Mistral reads chunk-list
+  thinking and replays it as a thinking chunk. Ollama sends `think: "max"`.
+  OpenRouter drops tools for models that refuse them. The effort slider
+  offers each Muse Code model's own tiers (including Ultra where served)
+  and falls back to its default. Copilot drops past search calls instead
+  of failing the turn.
+
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
   reads and writes, and 1-hour cache writes settle at their own price.
   The shared retry classifier refuses known quota codes and excessive
