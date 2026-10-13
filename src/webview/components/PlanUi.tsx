@@ -7,13 +7,22 @@ import {
   CHATGPT_PLAN_NOTICE_STORAGE_KEY,
   CHATGPT_PLAN_LIMIT_ERROR_KIND,
   CHATGPT_PLAN_LIMIT_MESSAGE,
+  MILLISECONDS_PER_SECOND,
+  MINUTES_PER_HOUR,
+  SECONDS_PER_MINUTE,
   UI_TEXT,
 } from '../../shared/constants'
 import type { UiState } from '../state/uiState'
 import type { UiStore } from '../state/store'
 import { webviewErrorReport } from '../errorReport'
 import type { WebviewToHostMessage } from '../../shared/protocol'
-import { fill, formatNumber, plural } from '../../shared/l10n/text'
+import {
+  fill,
+  formatNumber,
+  formatPercent,
+  formatRelativeTime,
+  plural,
+} from '../../shared/l10n/text'
 import type { PlanUsageRow } from '../../shared/usage'
 import type { ModelOption } from '../../shared/protocol'
 import { Modal } from './Modal'
@@ -213,15 +222,59 @@ function PlanDialog({
   )
 }
 
+type PlanLimitWindow = NonNullable<NonNullable<PlanUsageRow['limits']>['primary']>
+
+/** One reported limit window; a window the plan did not report is not rendered. */
+function PlanLimitWindow({
+  label,
+  window,
+  observedAt,
+  nowMs,
+}: {
+  readonly label: string
+  readonly window: PlanLimitWindow | undefined
+  readonly observedAt: number
+  readonly nowMs: number
+}) {
+  if (window === undefined) return null
+  const parts = [
+    fill(UI_TEXT.planUi.planLimitUsed, { percent: formatPercent(window.usedPercent, 1) }),
+  ]
+  if (window.windowMins !== undefined)
+    parts.push(fill(UI_TEXT.planUi.planLimitWindow, { minutes: formatNumber(window.windowMins) }))
+  if (window.resetAfterSecs !== undefined) {
+    const seconds = window.resetAfterSecs
+    if (observedAt + seconds * MILLISECONDS_PER_SECOND > nowMs) {
+      const minutes = seconds / SECONDS_PER_MINUTE
+      const when =
+        minutes < 2
+          ? formatRelativeTime(seconds, 'second')
+          : minutes < MINUTES_PER_HOUR
+            ? formatRelativeTime(Math.round(minutes), 'minute')
+            : formatRelativeTime(Math.round(minutes / MINUTES_PER_HOUR), 'hour')
+      parts.push(fill(UI_TEXT.planUi.planLimitResets, { when }))
+    }
+  }
+  return (
+    <Fragment>
+      <dt>{label}</dt>
+      <dd>{parts.join(' · ')}</dd>
+    </Fragment>
+  )
+}
+
 export function PlanUsageSection({
   rows,
   models,
   onOpenExternal,
+  now = Date.now,
 }: {
   readonly rows: readonly PlanUsageRow[]
   readonly models: readonly ModelOption[]
   readonly onOpenExternal: (url: string) => void
+  readonly now?: () => number
 }) {
+  const nowMs = now()
   return (
     <section aria-label={UI_TEXT.planUi.usageHeading}>
       <h3 className="usage-heading">{UI_TEXT.planUi.usageHeading}</h3>
@@ -261,6 +314,22 @@ export function PlanUsageSection({
                   <dt>{UI_TEXT.planUi.unknownTokens}</dt>
                   <dd>{plural(UI_TEXT.bestOfNRequests, unknown)}</dd>
                 </>
+              )}
+              {row.limits === undefined ? null : (
+                <Fragment>
+                  <PlanLimitWindow
+                    label={UI_TEXT.planUi.planPrimaryWindow}
+                    window={row.limits.primary}
+                    observedAt={row.limits.observedAt}
+                    nowMs={nowMs}
+                  />
+                  <PlanLimitWindow
+                    label={UI_TEXT.planUi.planSecondaryWindow}
+                    window={row.limits.secondary}
+                    observedAt={row.limits.observedAt}
+                    nowMs={nowMs}
+                  />
+                </Fragment>
               )}
             </dl>
             {url === undefined ? null : (

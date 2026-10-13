@@ -21,6 +21,7 @@ import type { ModelPricing, PricedUsage } from '../../providers/priceCard'
 
 import { outputTokenMinimumMessage } from '../../../shared/providerRouting'
 import { effortLevelsFor, resolveReasoning } from '../../../shared/effort'
+import { chatGptPlanFactsFor } from '../../providers/subscriptions/chatgptPlanFacts'
 import { modelApiPaidTier } from '../../../shared/paid'
 
 /** The configured provider and exact model that produced opaque reasoning. */
@@ -201,9 +202,27 @@ export function modelPricedUsage(usage: Usage): ModelPricedUsage {
 
 export function metaResolvedModel(ref: string, client: ProviderClient): ResolvedModel {
   const isPlan = client.isPlanModel?.(ref) === true
+  const producer = replayProducer(ref)
+  const native = producer.model.includes('/')
+    ? producer.model.slice(producer.model.indexOf('/') + 1)
+    : producer.model
+  // OPENAI-G26: a ChatGPT plan model's numbers come from its own record.
+  // Unknown slugs stay unknown; Meta's window never stands in. Copilot
+  // models keep their adapter's numbers on their own path.
+  const planFacts =
+    isPlan && producer.provider === 'chatgpt' ? chatGptPlanFactsFor(native) : undefined
   const policy = modelPolicyFor(
     ref,
-    isPlan ? { capabilities: { toolCalling: true }, pricing: { kind: 'plan' } } : {},
+    isPlan
+      ? {
+          capabilities: { toolCalling: true },
+          pricing: { kind: 'plan' },
+          ...(planFacts?.effortLevels !== undefined && { effortLevels: planFacts.effortLevels }),
+          ...(planFacts?.maxOutputTokens !== undefined && {
+            maxOutputTokens: planFacts.maxOutputTokens,
+          }),
+        }
+      : {},
   )
   const estimate = (usage: PricedUsage) => {
     if (isPlan) return Usd.from(0).toAmount()
@@ -213,7 +232,10 @@ export function metaResolvedModel(ref: string, client: ProviderClient): Resolved
   }
   return {
     ref,
-    contextTokens: MODEL_API_CONTEXT_WINDOW,
+    contextTokens:
+      isPlan && producer.provider === 'chatgpt'
+        ? planFacts?.contextTokens
+        : MODEL_API_CONTEXT_WINDOW,
     client,
     origin: client.provider?.origin ?? new URL(MODEL_API_BASE_URL).origin,
     policy,

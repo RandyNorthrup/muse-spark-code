@@ -78,14 +78,36 @@ export class ResponsesDecodeError extends Error {
 
 const CHATGPT_PLAN_LIMIT_CODE = 'subscription_sharing_usage_limit_exceeded'
 
-/** The plan endpoint reports this in an HTTP 200 SSE stream (M95b capture). */
-export class ChatgptPlanLimitError extends Error {
-  public readonly code = CHATGPT_PLAN_LIMIT_CODE
-
-  public constructor(message: string) {
+/**
+ * A documented plan refusal inside the stream (OPENAI-G27: the provider's
+ * error table, not only the usage-limit code the M95b capture recorded).
+ */
+export class ChatgptPlanRefusalError extends Error {
+  public constructor(
+    public readonly code: string,
+    message: string,
+  ) {
     super(message)
+    this.name = 'ChatgptPlanRefusalError'
+  }
+}
+
+/** The plan endpoint reports this in an HTTP 200 SSE stream (M95b capture). */
+export class ChatgptPlanLimitError extends ChatgptPlanRefusalError {
+  public constructor(message: string) {
+    super(CHATGPT_PLAN_LIMIT_CODE, message)
     this.name = 'ChatgptPlanLimitError'
   }
+}
+
+/** The documented refusal families; anything else passes through as an event. */
+const PLAN_REFUSAL_PREFIXES = ['subscription_sharing_', 'chatpass_v2_']
+
+function planRefusalFor(code: string, message: string): ChatgptPlanRefusalError | undefined {
+  if (PLAN_REFUSAL_PREFIXES.every((prefix) => !code.startsWith(prefix))) return undefined
+  return code === CHATGPT_PLAN_LIMIT_CODE
+    ? new ChatgptPlanLimitError(message)
+    : new ChatgptPlanRefusalError(code, message)
 }
 
 /** Cancellation is local; no output-cap parameter is sent to the plan endpoint. */
@@ -507,12 +529,11 @@ export function createResponsesCodec(
           if (!parsed.success) {
             throw new ResponsesDecodeError('invalid response', frame.data.length)
           }
-          if (
-            quirks.profile === 'chatgpt' &&
-            known.data.type === 'response.failed' &&
-            parsed.data.response.error?.code === CHATGPT_PLAN_LIMIT_CODE
-          ) {
-            throw new ChatgptPlanLimitError(parsed.data.response.error.message)
+          if (quirks.profile === 'chatgpt' && known.data.type === 'response.failed') {
+            const failure = parsed.data.response.error
+            const refusal =
+              failure?.code == null ? undefined : planRefusalFor(failure.code, failure.message)
+            if (refusal !== undefined) throw refusal
           }
           if (!hasReportedCost && TERMINAL_WITH_USAGE.has(known.data.type)) {
             const costUsd = settledCostOf(parsed.data.response.usage)
@@ -529,12 +550,12 @@ export function createResponsesCodec(
           }
           yield withinOutputCap({ ...known.data, item: parsed.data.item }, outputCap)
         } else {
-          if (
-            quirks.profile === 'chatgpt' &&
-            known.data.type === 'error' &&
-            known.data.code === CHATGPT_PLAN_LIMIT_CODE
-          ) {
-            throw new ChatgptPlanLimitError(known.data.message)
+          if (quirks.profile === 'chatgpt' && known.data.type === 'error') {
+            const refusal =
+              known.data.code == null
+                ? undefined
+                : planRefusalFor(known.data.code, known.data.message)
+            if (refusal !== undefined) throw refusal
           }
           yield withinOutputCap(known.data, outputCap)
         }

@@ -7137,6 +7137,8 @@ export const CHATGPT_PLAN_NOTICE_STORAGE_KEY = 'museSpark.chatGptPlanNotice.v1'
 // Owner capture M95B-FINDINGS.md, 2026-10-05: SSE error inside HTTP 200.
 export const CHATGPT_PLAN_LIMIT_MESSAGE = 'Subscription Sharing usage limit'
 export const CHATGPT_PLAN_LIMIT_ERROR_KIND = 'subscription_sharing_usage_limit_exceeded'
+// OPENAI-G27: provider refusal text is shown as sent, never pasted whole.
+export const PLAN_REFUSAL_TEXT_MAX_CHARS = 500
 export const SUBSCRIPTION_STREAM_MAX_BYTES = 16 * 1024 * 1024
 // A credential record's version (`{v, auth, origin, …}`, bound to the exact
 // origin it was obtained for).
