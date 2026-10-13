@@ -340,3 +340,25 @@ table above; the guard test enforces both.
   files under load) and `catchInventory` "holds src/acp and src/webview at
   zero SWALLOW and GENERIC" (full-tree scan exceeds the 5 s test timeout
   under load; 13/13 alone).
+- `vitest related --run` over the round's 17 changed sources, sharded in
+  six runs: the failures triage to three kinds. (1) One real lane catch:
+  `modelsPanel` "returns through Test…" asserted the same false
+  write-conflict sentence P3-1 removed; rewritten to `actionFailed`
+  (27/27). (2) Pre-existing on the untouched base worktree at d38908d0c:
+  `acpAgent` "exposes all three ChatGPT actions…" and `runtimeChatGpt`
+  "classifies native store unavailability…" (all four cases fail
+  identically on base). (3) Sandbox blocks, stopped per the rig rule and
+  left for the lead outside the sandbox: loopback `listen EPERM`
+  (`chatGptVsCode`, `subscriptionIntegration`, `usageIntegration`),
+  Unix-socket `listen EPERM` (`vault/channel`), Chrome `kill EPERM`
+  (`companionMediaBrowser`), `spawn EPERM`. Everything else was
+  load timeouts, each green on a quiet re-run: `acpModelApi` 12/12,
+  `acpRuntime` 44/44, `execRun` 94/94, `scheduleEvents.local` 12/12,
+  `resourceHistoryWiring` (1 s default `vi.waitFor` vs a starved sampler;
+  also passes on base), the history trio 61/62 then green.
+- Packed e2e: `execStdio` 46/46 and `acpStdio` 13/13 green. They fail
+  first without `npm_config_cache` pointed at a private folder: the
+  shared `~/.npm/_cacache` holds root-owned files on this rig
+  (`npm error code EPERM`), before any lane code runs. The lead rerun is
+  `npm_config_cache="$TMPDIR/npm-cache" npx vitest run
+test/e2e/execStdio.e2e.test.ts test/e2e/acpStdio.e2e.test.ts`.
