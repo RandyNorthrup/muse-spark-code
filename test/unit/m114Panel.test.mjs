@@ -2,7 +2,10 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { build } from 'esbuild'
 import { chromium } from 'playwright-core'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { execFileSync } from 'node:child_process'
+import os from 'node:os'
+import { performance } from 'node:perf_hooks'
 import { findChrome } from '../../scripts/lib/chrome.mjs'
 import { contrastRatio } from '../../scripts/check-tokens.mjs'
 import { serveRepo } from '../../scripts/lib/harnessServer.mjs'
@@ -10,6 +13,62 @@ import { serveRepo } from '../../scripts/lib/harnessServer.mjs'
 const themes = ['light', 'dark', 'hc-dark', 'hc-light', 'one-dark-pro', 'dracula']
 const cssFiles = ['src/webview/styles.css', 'src/webview/whatsNew/whatsNew.css']
 const runtime = {}
+// PROBE: one clock for the hooks, every page a case opens and the cases.
+const probeStart = performance.now()
+const probeLines = []
+const PROBE_CASES = 4
+const probe = { cases: 0, opens: 0 }
+const mark = (label) => {
+  if (probe.cases > PROBE_CASES) return
+  probeLines.push(`${String(Math.round(performance.now() - probeStart)).padStart(6)} ms ${label}`)
+}
+function busiestProcesses() {
+  try {
+    return execFileSync('ps', ['-A', '-o', '%cpu=', '-o', 'comm='], { encoding: 'utf8' })
+      .split('\n')
+      .map((line) => line.trim())
+      .filter((line) => line !== '')
+      .map((line) => [
+        Number(line.split(/\s+/, 1)[0]),
+        line
+          .replace(/^\S+\s+/, '')
+          .split('/')
+          .at(-1),
+      ])
+      .toSorted((left, right) => right[0] - left[0])
+      .slice(0, 5)
+      .map(([cpu, name]) => `${name} ${String(cpu)}%`)
+      .join(', ')
+  } catch {
+    return 'ps failed'
+  }
+}
+function chromeProcesses() {
+  try {
+    return String(
+      execFileSync('pgrep', ['-f', 'Chrome'], { encoding: 'utf8' }).trim().split('\n').length,
+    )
+  } catch (error) {
+    return error.status === 1 ? '0' : 'pgrep failed'
+  }
+}
+const machine = (label) => {
+  const load = os
+    .loadavg()
+    .map((value) => value.toFixed(2))
+    .join(' ')
+  mark(
+    `MACHINE ${label}: load ${load}; cores ${String(os.cpus().length)}; Chrome processes ${chromeProcesses()}; busiest: ${busiestProcesses()}`,
+  )
+}
+beforeEach((context) => {
+  probe.cases += 1
+  if (probe.cases <= PROBE_CASES) machine(`before case ${String(probe.cases)}`)
+  mark(`CASE ${String(probe.cases)} START: ${context.task.name}`)
+})
+afterEach((context) => {
+  mark(`CASE ${String(probe.cases)} END (${String(context.task.result?.state)})`)
+})
 // Style fixtures use the real body; lazy-wrapper admission is covered by harness scenes.
 const fixture = [
   "import React from 'react';",
@@ -41,6 +100,7 @@ const markup = `<main>
 </main>`
 
 beforeAll(async () => {
+  machine('first hook starts')
   runtime.css = []
   for (const entry of cssFiles) {
     const result = await build({ entryPoints: [entry], bundle: true, write: false })
@@ -57,6 +117,7 @@ beforeAll(async () => {
     define: { 'process.env.NODE_ENV': '"production"' },
   })
   runtime.js = js.outputFiles[0].text
+  mark('hook: css and fixture built')
   const harness = await build({
     entryPoints: ['src/webview/main.tsx'],
     bundle: true,
@@ -75,21 +136,26 @@ beforeAll(async () => {
       file.text,
     ]),
   )
+  mark('hook: harness bundle built')
   runtime.host = await serveRepo(process.cwd())
   const chrome = findChrome()
   if (!chrome) throw new Error('Chrome is required for panel polish verification')
   runtime.browser = await chromium.launch(
     path.isAbsolute(chrome) ? { executablePath: chrome } : { channel: 'chrome' },
   )
+  mark(`hook: browser launched (${runtime.browser.version()})`)
 })
 // Only this file's first case ever timed out on hosted macOS (six 0.17 runs):
 // the browser's first pages, not the contract. Pay that once here, in a hook
 // with its own limit, so every case keeps its five seconds.
 beforeAll(async () => {
+  mark('warm-up hook starts')
   const page = await open('dark')
   await page.close()
+  mark('warm-up hook: page closed')
 })
 afterAll(async () => {
+  console.warn(`PROBE M114 TIMELINE\n${probeLines.join('\n')}\nPROBE M114 END`)
   await runtime.browser?.close()
   if (runtime.host) await new Promise((resolve) => runtime.host.server.close(resolve))
 })
@@ -120,10 +186,14 @@ async function playScene(page, scene) {
 }
 
 async function openHarness(theme, scene) {
+  probe.opens += 1
+  const tag = `harness page ${String(probe.opens)} (${theme}, ${scene})`
+  mark(`${tag}: start`)
   const page = await runtime.browser.newPage({
     viewport: { width: 320, height: 760 },
     reducedMotion: 'reduce',
   })
+  mark(`${tag}: newPage done`)
   await page.route('**/*', (route) => {
     const url = new URL(route.request().url())
     if (url.hostname !== '127.0.0.1') return route.abort()
@@ -139,6 +209,7 @@ async function openHarness(theme, scene) {
   await page.goto(
     `http://127.0.0.1:${runtime.host.port}/test/harness/index.html?scenario=${scene}&theme=${theme}`,
   )
+  mark(`${tag}: goto done`)
   await page.evaluate(() => {
     globalThis.document.documentElement.style.width = '100%'
     globalThis.document.body.style.width = '100%'
@@ -146,20 +217,27 @@ async function openHarness(theme, scene) {
   await page.waitForSelector('textarea,.gate,.todo-surface,.schedule-v2-surface,[role=alert]', {
     state: 'attached',
   })
+  mark(`${tag}: first element attached`)
   await playScene(page, scene)
   if (scene === 'history-archived') await page.locator('.history-archive').first().waitFor()
+  mark(`${tag}: scene played`)
   return page
 }
 
 async function open(theme, width = 320, isWhatsNew = false, motion = 'reduce', scene = 'panel') {
+  probe.opens += 1
+  const tag = `page ${String(probe.opens)} (${theme}, ${scene})`
+  mark(`${tag}: start`)
   const page = await runtime.browser.newPage({
     viewport: { width, height: 760 },
     reducedMotion: motion,
   })
+  mark(`${tag}: newPage done`)
   await page.route('**/*', (route) => route.abort())
   await page.setContent(
     `<style>${runtime.css[isWhatsNew ? 1 : 0]}</style>${isWhatsNew ? '<main><h1>What’s New</h1><h2>Release</h2><pre tabindex="0"><code>const x = 1;</code></pre><button>Try It</button><a href="#">Reference</a><label><input type="checkbox">Show on update</label></main>' : markup}`,
   )
+  mark(`${tag}: setContent done`)
   const host = JSON.parse(readFileSync(`test/harness/themes/${theme}.json`, 'utf8'))
   await page.evaluate((host) => {
     const root = globalThis.document.documentElement
@@ -175,11 +253,14 @@ async function open(theme, width = 320, isWhatsNew = false, motion = 'reduce', s
     await page.evaluate((scene) => {
       Object.defineProperty(globalThis, 'panelScenario', { value: scene, configurable: true })
     }, scene)
+    mark(`${tag}: theme and scenario set`)
     await page.addScriptTag({ content: runtime.js })
+    mark(`${tag}: script tag added (${String(runtime.js.length)} characters)`)
     // Wait for the real lazy menu before another control can take its focus.
     await page.waitForSelector(scene === 'secret' ? '#actual .modal' : '.gooey-menu-pill', {
       state: 'attached',
     })
+    mark(`${tag}: awaited element attached`)
   }
   return page
 }
