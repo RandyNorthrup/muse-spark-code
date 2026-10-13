@@ -6,7 +6,7 @@ No model call and no request to any model provider was made from this
 lane. Every fact below that rests on provider or protocol documentation
 is marked UNVERIFIED until a real editor confirms it; the exact requests
 the lead must send are in
-[`ACPGAPS-capture-plan.json`](ACPGAPS-capture-plan.json) (13 requests).
+[`ACPGAPS-capture-plan.json`](ACPGAPS-capture-plan.json) (12 requests).
 
 SDK source cited throughout:
 `node_modules/@agentclientprotocol/sdk/dist/` (pinned 1.7.0).
@@ -177,6 +177,23 @@ how the capability is withdrawn mid-turn; and what the panel and the
 terminal agent get at the same time (owner: all editors equal). Note:
 the team bridge already advertises `fs` read/write as a client; whether
 foreign agents may call them on it is untested (capture plan G12b).
+
+## Live probe of the built product (no provider, no model call)
+
+`node dist/acp.js` on stdio, driven by the pinned SDK's own
+`ClientSideConnection` (probe script kept outside the repo: it is a
+manual run, not a test). Observed 2026-10-12 on `linuxlt`:
+
+- `initialize` answers, on both backends,
+  `sessionCapabilities: {list, delete, additionalDirectories, resume,
+close}` and `auth: {logout}` — the advertised surface is real.
+- `logout` with nothing held answers `{}` on the Muse Code backend.
+- `session/delete` of an unknown id could NOT be exercised here: on
+  the Muse Code backend the CLI host does not start in this sandbox
+  (Internal error), on Model API there is no Secret Service
+  (`store-unavailable`). Both are measured environment blocks, not
+  code verdicts; the silent-success claim stays UNVERIFIED for the
+  capture run, as do the CLI's unknown-id report and Zed's affordances.
 
 ## Static proof and tests
 
