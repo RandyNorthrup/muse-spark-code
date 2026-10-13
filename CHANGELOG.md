@@ -20,6 +20,18 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Initial provider rejections release their holds; incomplete responses with final
+  usage settle at the reported cost. Unresolved liability is shown separately
+  from spend, and terminal startup prices each real request instead of the
+  whole context window. Output-cap remedies are accepted by the parser.
+
+- Session, editor daily and terminal daily spend admission uses one atomic
+  versioned ledger. Refused requests publish no hold; dead locks recover by
+  process identity, and each ambiguous attempt retains its full reservation.
+- Anthropic token estimates reserve a 25% margin; Gemini uses the size bound
+  until its complete count shape is verified. Overages are recorded before
+  another request, and refusal remedies stay within accepted flag limits.
+
 - A headless budget refusal names both remedies with numbers: the run cap
   that admits the request (rounded up to the cent) and the largest
   `--max-output-tokens` value that fits the remaining cap (or that even the

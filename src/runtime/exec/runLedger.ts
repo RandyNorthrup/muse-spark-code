@@ -1,3 +1,4 @@
+import { UserRefusalError } from '../../core/refusal'
 import { Usd, type UsdAmount } from '../../shared/usd'
 import * as z from 'zod/mini'
 import type { ModelPolicy } from '../../core/backends/modelapi/modelPolicy'
@@ -10,6 +11,7 @@ import {
   MODEL_API_CONTEXT_WINDOW,
   MODEL_API_MAX_OUTPUT_TOKENS,
   PAID_PRICES_USD,
+  NON_BILLABLE_HTTP_REJECTIONS,
   UI_TEXT,
 } from '../../shared/constants'
 import type { LastResponse, LedgerTotals, Refusal, TokenTotals } from './execProtocol'
@@ -25,7 +27,7 @@ export interface TierPrice {
  * after an exact count was tried and failed. Absent is the legacy path, which
  * never tried an exact count.
  */
-export type ResponseInputBound = 'exact' | 'bytes-after-failure'
+export type ResponseInputBound = 'exact' | 'estimate' | 'bytes-after-failure'
 export interface ResponseTicket {
   readonly contextTokens?: number | undefined
   readonly n: number
@@ -115,7 +117,7 @@ export function previewResponseReservation(
     maxRequests: 1,
     outputCap: () => ledger.outputCap,
   }).admitResponse({ model, maxOutputTokens: ledger.outputCap, price })
-  if ('refused' in preview) throw new Error(UI_TEXT.execModelUnpriced)
+  if ('refused' in preview) throw new UserRefusalError(UI_TEXT.execModelUnpriced, 'unpriced')
   return preview
 }
 
@@ -136,7 +138,7 @@ const usageSchema = z.object({
 function units(amount: UsdAmount): bigint {
   const value = Usd.from(amount).units(EXEC_USD_DECIMALS)
   if (value < ZERO || value > BigInt(Number.MAX_SAFE_INTEGER))
-    throw new Error(UI_TEXT.execNumberInvalid)
+    throw new UserRefusalError(UI_TEXT.execNumberInvalid, 'accounting_invalid')
   return value
 }
 function usd(value: bigint): UsdAmount {
@@ -167,7 +169,7 @@ export function createRunLedger(input: {
     input.maxRequests < 1 ||
     input.maxRequests > EXEC_MAX_REQUESTS
   )
-    throw new Error(UI_TEXT.execNumberInvalid)
+    throw new UserRefusalError(UI_TEXT.execNumberInvalid, 'accounting_invalid')
   let requests = 0
   let settled = ZERO
   let uncertain = ZERO
@@ -195,7 +197,7 @@ export function createRunLedger(input: {
   }
   const admit = (amount: bigint): { refused: Refusal } | undefined => {
     if (isClosed) return refuse('closed')
-    if (active !== undefined) throw new Error(UI_TEXT.execRequestShape)
+    if (active !== undefined) throw new UserRefusalError(UI_TEXT.execRequestShape, 'request_shape')
     if (requests >= input.maxRequests) return refuse('requests')
     if (settled + uncertain + amount > cap) return refuse('budget')
     reserve = amount
@@ -203,7 +205,7 @@ export function createRunLedger(input: {
     return undefined
   }
   const take = (ticket: ResponseTicket | ImageTicket): bigint => {
-    if (active !== ticket) throw new Error(UI_TEXT.execRequestShape)
+    if (active !== ticket) throw new UserRefusalError(UI_TEXT.execRequestShape, 'request_shape')
     const amount = reserve
     active = undefined
     reserve = ZERO
@@ -314,12 +316,20 @@ export function createRunLedger(input: {
               (ticket.contextTokens ?? MODEL_API_CONTEXT_WINDOW) - ticket.maxOutputTokens ||
             u.output_tokens > ticket.maxOutputTokens ||
             (cost !== undefined && cost > amount)
-          )
+          ) {
             latch = 'breach'
-          else if (terminal === 'completed' && outcome.kind === 'eof' && !outcome.parseInvalid)
+            if (cost !== undefined) priced = cost
+          } else if (
+            terminal !== null &&
+            terminal !== 'in_progress' &&
+            terminal !== 'queued' &&
+            (outcome.kind !== 'eof' || !outcome.parseInvalid)
+          )
             priced = cost
         }
       }
+      if (outcome.kind === 'http' && NON_BILLABLE_HTTP_REJECTIONS.has(outcome.status))
+        priced = pricing?.costUsd === undefined ? ZERO : units(pricing.costUsd)
       if (outcome.kind === 'eof' && outcome.parseInvalid) validity = 'invalid'
       if (validity === 'invalid' && latch === undefined) latch = 'accounting_invalid'
       if (validity === 'valid' && latch === undefined) {
@@ -355,11 +365,13 @@ export function createRunLedger(input: {
         outcome.count >= 0
       ) {
         if (outcome.count > ticket.units) latch = 'breach'
-        else {
-          imagesReturned += outcome.count
-          imagesRefunded += ticket.units - outcome.count
-          priced = amount * BigInt(outcome.count)
-        }
+        imagesReturned += outcome.count
+        imagesRefunded += Math.max(0, ticket.units - outcome.count)
+        priced = amount * BigInt(outcome.count)
+      }
+      if (outcome.kind === 'http' && NON_BILLABLE_HTTP_REJECTIONS.has(outcome.status)) {
+        priced = ZERO
+        imagesRefunded += ticket.units
       }
       if (priced === undefined) {
         imagesUncertain += ticket.units
@@ -379,7 +391,9 @@ export function createRunLedger(input: {
         settledUsd: usd(settled),
         uncertainUsd: usd(uncertain),
         reservedUsd: usd(reserve),
-        remainingUsd: usd(cap - settled - uncertain - reserve),
+        remainingUsd: usd(
+          cap > settled + uncertain + reserve ? cap - settled - uncertain - reserve : ZERO,
+        ),
         requests,
         tokens: { ...tokens },
         paid: {

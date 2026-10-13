@@ -426,7 +426,19 @@ export function pinProviderFetch(
       throw new UserRefusalError(UI_TEXT.providerProbeRebinding, 'not_sent')
     init?.signal?.throwIfAborted()
     onDispatch?.()
-    return await fetch(url, { ...init, redirect: 'error' })
+    try {
+      return await fetch(url, { ...init, redirect: 'error' })
+    } catch (error: unknown) {
+      const cause = error instanceof Error ? error.cause : undefined
+      if (
+        typeof cause === 'object' &&
+        cause !== null &&
+        'code' in cause &&
+        cause.code === 'ECONNREFUSED'
+      )
+        throw new UserRefusalError(UI_TEXT.providerProbeUnreachable, 'not_sent', error)
+      throw error
+    }
   }
 }
 
@@ -545,7 +557,8 @@ export async function assembleProviderRun(
     return usage(UI_TEXT.execUnknownModel)
   }
   let key: string | undefined
-  let memory: MemorySecretStore | undefined
+  let memory: MemorySecretStore | undefined =
+    provider.preset.auth === 'none' ? memorySecretStoreFor({}) : undefined
   if (provider.preset.auth === 'apiKey') {
     const account = providerSecretAccount(provider.entry.id)
     if (account === undefined) {

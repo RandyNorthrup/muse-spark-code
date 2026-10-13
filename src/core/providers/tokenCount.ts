@@ -81,34 +81,11 @@ export function buildExactCountRequest(
         body: without(body, ['max_tokens', 'stream', 'metadata']),
       }
     }
-    case 'gemini-count-tokens': {
-      // `POST models/{model}:countTokens` takes the whole native request
-      // without the output cap (m95-research §1.6 [G-tk]); the output cap
-      // cannot change the input tokens. The stream query (`?alt=sse`) is
-      // the stream's own and never rides the count.
-      const bare = encoded.path.split('?', 2)[0] ?? ''
-      const streamSuffix = ':streamGenerateContent'
-      if (!bare.endsWith(streamSuffix)) return undefined
-      const body = asRecord(encoded.body)
-      if (body === undefined) return undefined
-      const generation = asRecord(body['generationConfig'])
-      return {
-        path: `${bare.slice(0, -streamSuffix.length)}:countTokens`,
-        body:
-          generation === undefined
-            ? body
-            : { ...body, generationConfig: without(generation, ['maxOutputTokens']) },
-      }
-    }
   }
 }
 
 const tokenCountSchema = z.object({
   input_tokens: z.number().check(z.int(), z.gte(0), z.lte(COUNT_SCHEMA_LIMIT)),
-})
-
-const geminiCountSchema = z.object({
-  totalTokens: z.number().check(z.int(), z.gte(0), z.lte(COUNT_SCHEMA_LIMIT)),
 })
 
 /**
@@ -123,9 +100,6 @@ export function parseExactCountResponse(kind: ExactCountKind, json: unknown): nu
       case 'responses-input-tokens':
       case 'anthropic-count-tokens': {
         return tokenCountSchema.parse(json).input_tokens
-      }
-      case 'gemini-count-tokens': {
-        return geminiCountSchema.parse(json).totalTokens
       }
     }
   } catch {

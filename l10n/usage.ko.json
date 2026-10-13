@@ -100,6 +100,7 @@
   "certaintyReported": "보고됨",
   "certaintyComputed": "계산됨",
   "certaintyUncertain": "불확실",
+  "reservedLabel": "예약됨",
   "certaintyPlan": "요금제",
   "certaintyLocal": "로컬",
   "certaintyUnpriced": "가격 없음",

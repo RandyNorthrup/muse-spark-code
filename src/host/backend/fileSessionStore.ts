@@ -1,3 +1,4 @@
+import { SpendLedgerError } from '../../core/paid/spendLedgerError'
 import { Usd } from '../../shared/usd'
 // The Model API session store on disk (PLAN.md D14): one JSON file per
 // session under the workspace storage directory VS Code gives the
@@ -27,7 +28,6 @@ import {
   ATOMIC_TEMPORARY_SUFFIX,
   MILLISECONDS_PER_DAY,
   SESSION_FILE_STALE_TEMPORARY_MS,
-  UI_TEXT,
   MEDIA_SHA256_PATTERN,
 } from '../../shared/constants'
 import type { QuestionStore } from '../../shared/questions'
@@ -100,7 +100,7 @@ async function withSessionWriter<T>(
     return await writer.limiter.run(
       async () => await operation(() => writer.generation === generation),
       () => true,
-      () => new Error(UI_TEXT.sessionBudgetStoreUnavailable),
+      () => new SpendLedgerError('integrity', { scope: 'session', file: 'fileSessionStore' }),
     )
   } finally {
     writer.pending -= 1
@@ -155,7 +155,18 @@ async function hasSessionFile(file: string): Promise<boolean> {
     if (storeErrorCode(error) === ENOENT) {
       return false
     }
-    throw new Error(UI_TEXT.sessionBudgetStoreUnavailable, { cause: error })
+    throw new SpendLedgerError(
+      'unreadable',
+      {
+        scope: 'session',
+        file: 'fileSessionStore',
+        errno:
+          typeof error === 'object' && error !== null && 'code' in error
+            ? String(error.code)
+            : undefined,
+      },
+      error,
+    )
   }
 }
 
@@ -221,11 +232,11 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
     }
     const ownership = storedSessionOwnershipShape.parse(raw)
     if ((ownership.fileRefs?.length ?? 0) > 0)
-      throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+      throw new SpendLedgerError('integrity', { scope: 'session', file: 'fileSessionStore' })
     if ((ownership.children?.length ?? 0) > 0) {
       const parsed = parseStoredSession(raw)
       if (!parsed.ok || fileRefsOf(parsed.session).length > 0)
-        throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+        throw new SpendLedgerError('integrity', { scope: 'session', file: 'fileSessionStore' })
     }
     return {
       sessionId: header.sessionId,
@@ -248,7 +259,18 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
       return uploadIntentSchema.parse(JSON.parse(await readFile(intentFor(sessionId), 'utf8')))
     } catch (error: unknown) {
       if (storeErrorCode(error) === ENOENT) return undefined
-      throw new Error(UI_TEXT.sessionBudgetStoreUnavailable, { cause: error })
+      throw new SpendLedgerError(
+        'unreadable',
+        {
+          scope: 'session',
+          file: 'fileSessionStore',
+          errno:
+            typeof error === 'object' && error !== null && 'code' in error
+              ? String(error.code)
+              : undefined,
+        },
+        error,
+      )
     }
   }
   const writeIntent = async (
@@ -286,7 +308,7 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
           (session) => session !== undefined && fileRefsOf(session).length > 0,
         )
       if (requiresUploads && (accountId === undefined || deps.uploads === undefined))
-        throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+        throw new SpendLedgerError('integrity', { scope: 'session', file: 'fileSessionStore' })
       const lifecycle = accountId === undefined ? undefined : await deps.uploads?.(accountId)
       const run = async (uploads?: SessionUploadOwnership) => {
         const fresh =
@@ -296,7 +318,7 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
           (fresh !== undefined && fresh.accountId !== accountId) ||
           (currentIntent !== undefined && currentIntent.accountId !== accountId)
         )
-          throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+          throw new SpendLedgerError('integrity', { scope: 'session', file: 'fileSessionStore' })
         return await operation(fresh, uploads, currentIntent, isCurrent)
       }
       return lifecycle === undefined ? await run() : await lifecycle.withLock(run)
@@ -326,7 +348,7 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
       await removeSession(sessionId, intent.accountId, uploads)
     } else {
       if (session === undefined && (await hasSessionFile(fileFor(sessionId))))
-        throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+        throw new SpendLedgerError('integrity', { scope: 'session', file: 'fileSessionStore' })
       await uploads?.syncSession(
         sessionId,
         session === undefined ? [] : fileRefsOf(session),
@@ -426,7 +448,7 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
         }
         if (deps.uploads === undefined) {
           if ((await readIntent(name.slice(0, -FILE_EXTENSION.length))) !== undefined)
-            throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+            throw new SpendLedgerError('integrity', { scope: 'session', file: 'fileSessionStore' })
           const header = await readHeader(name)
           if (header !== undefined && !(await isExpired(header))) headers.push(header)
           continue
@@ -482,7 +504,7 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
             (hasFile && previous === undefined) ||
             (previous !== undefined && previous.accountId !== session.accountId)
           ) {
-            throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+            throw new SpendLedgerError('integrity', { scope: 'session', file: 'fileSessionStore' })
           }
           // Seed from the fresh file before a stale DTO can discard historical
           // paid rows or nested children. The raw loader avoids projection recursion.
@@ -508,7 +530,7 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
             projected.budgetSpentUsd !== undefined &&
             Usd.from(projected.budgetSpentUsd).compare(Usd.from(0)) < 0
           ) {
-            throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+            throw new SpendLedgerError('integrity', { scope: 'session', file: 'fileSessionStore' })
           }
           if (!isCurrent()) return
           if (uploads !== undefined && projected.accountId !== undefined)

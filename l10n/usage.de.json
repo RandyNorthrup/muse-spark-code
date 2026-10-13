@@ -109,6 +109,7 @@
   "certaintyReported": "Gemeldet",
   "certaintyComputed": "Berechnet",
   "certaintyUncertain": "Unsicher",
+  "reservedLabel": "Reserviert",
   "certaintyPlan": "Tarif",
   "certaintyLocal": "Lokal",
   "certaintyUnpriced": "Ohne Preis",

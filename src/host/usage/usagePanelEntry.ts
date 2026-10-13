@@ -97,7 +97,9 @@ export async function createUsagePanel(deps: UsagePanelHostDeps): Promise<UsageP
                   kind: 'tabDaily' as const,
                   // The setting is a JSON number; it reads as its exact decimal.
                   capUsd: Usd.from(capUsd).toAmount(),
-                  spentUsd: total.totalUsd,
+                  spentUsd: Usd.from(total.totalUsd)
+                    .subtract(Usd.from(total.uncertainUsd ?? 0))
+                    .toAmount(),
                   stopped: Usd.from(total.totalUsd).compare(Usd.from(capUsd)) >= 0,
                   resetsAt: resets.getTime(),
                   ...(total.uncertainUsd !== undefined && { uncertainUsd: total.uncertainUsd }),

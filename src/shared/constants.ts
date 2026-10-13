@@ -776,10 +776,8 @@ export const PAID_DAILY_BUDGET = {
 export const RUNTIME_SETTINGS_FILE = 'settings.json'
 export const SPEND_LEDGER_VERSION = 3
 export const SPEND_LEDGER_LOCK_TIMEOUT_MS = 2000
-export const SPEND_LEDGER_HOLD_BOUND_MS = 100
+export const SPEND_LEDGER_ADMISSION_BOUND_MS = 100
 export const SPEND_LEDGER_ESTIMATE_MARGIN_PERCENT = 25
-export const DAILY_BUDGET_LOCK_ATTEMPTS = 100
-export const DAILY_BUDGET_OWNER_START_SKEW_MS = 60_000
 export const DAILY_BUDGET_LOCK_WAIT_MS = 10
 export const ARCHIVE_DAY_CHOICES = [1, 2, 7, 14, 0] as const
 // Settings a repository's `.vscode/settings.json` must never set (PLAN.md
@@ -4125,8 +4123,6 @@ export const EXEC_MIN_OUTPUT_TOKENS: number = MODEL_API_MIN_OUTPUT_TOKENS
 // tested for liveness, so it is judged by age. No request of this product
 // can be in flight longer than the longest a run may live: the run timeout
 // (21,600 s) plus the window a stopped run gets to settle its claim (5 s).
-export const DAILY_BUDGET_OWNERLESS_MAX_AGE_MS =
-  EXEC_MAX_TIMEOUT_SECONDS * 1000 + EXEC_STOP_GRACE_MS
 export const EXEC_IMAGE_N = 1
 export const EXEC_STREAM_IDLE_MS = 300_000
 export const EXEC_USD_UNITS = 1_000_000
@@ -5070,6 +5066,13 @@ export const HTTP_STATUS = {
   methodNotAllowed: 405,
   internalServerError: 500,
 } as const
+
+// Initial HTTP validation/auth/quota refusals precede generation. Timeout and
+// client-closed statuses do not prove zero cost (LEDGER billing research).
+export const NON_BILLABLE_HTTP_REJECTIONS: ReadonlySet<number> = new Set([
+  400, 401, 402, 403, 404, 405, 406, 409, 410, 411, 412, 413, 414, 415, 416, 417, 422, 425, 426,
+  428, 429, 431,
+])
 
 // Link schemes the transcript opens; anything else is refused with a notice.
 export const ALLOWED_LINK_SCHEMES: ReadonlySet<string> = new Set(['http:', 'https:', 'mailto:'])

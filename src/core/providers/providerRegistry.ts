@@ -78,7 +78,7 @@ export function createProviderRegistry(deps: ProviderRegistryDeps): ModelResolve
       const models = await deps.models()
       const model = models.find((model) => model.ref === ref)
       if (model === undefined || parsed === undefined || parsed.providerId === 'meta') {
-        throw new Error(UI_TEXT.execUnknownModel)
+        throw new UserRefusalError(UI_TEXT.execUnknownModel, 'unknown_model')
       }
       if (model.catalogueMissing === true)
         throw new UserRefusalError(

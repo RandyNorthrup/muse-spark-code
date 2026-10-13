@@ -18,16 +18,17 @@ import {
   type ModelClient,
   type ResolvedModel,
 } from '../core/backends/modelapi/modelPolicy'
-import {
-  estimateInput,
-  requestParts,
-  type SessionBudgetClaim,
-} from '../core/backends/modelapi/sessionBudget'
-import { UserRefusalError, isPaidStop } from '../core/refusal'
+import { type SessionBudgetClaim } from '../core/backends/modelapi/sessionBudget'
+import { assertConfirmedAllowed } from '../core/backends/modelapi/transport'
+import { SpendLedgerError, isSpendLedgerError } from '../core/paid/spendLedgerError'
+import { UserRefusalError, isPaidStop, isRequestNotSent } from '../core/refusal'
 import type { ResponseObject } from '../core/backends/modelapi/schemas'
 import {
   EXEC_USD_DECIMALS,
-  HTTP_STATUS,
+  EXEC_MAX_BUDGET_USD,
+  EXEC_MIN_OUTPUT_TOKENS,
+  SPEND_LEDGER_ESTIMATE_MARGIN_PERCENT,
+  NON_BILLABLE_HTTP_REJECTIONS,
   HTTP_TOO_MANY_REQUESTS,
   MODEL_API_REQUEST_TIMEOUT_MS,
   PAID_DAILY_BUDGET,
@@ -69,24 +70,16 @@ async function countExactInput(
   detailed: NonNullable<ModelClient['countInputTokensDetailed']>,
   body: Parameters<NonNullable<ModelClient['countInputTokensDetailed']>>[0],
   signal: AbortSignal,
-): Promise<{ tokens: number; costUsd: UsdAmount | undefined }> {
+): Promise<{ tokens: number; costUsd: UsdAmount | undefined; accuracy?: 'exact' | 'estimate' }> {
+  signal.throwIfAborted()
   const deadline = AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS)
-  const counted = await detailed(
-    body,
-    signal.aborted ? deadline : AbortSignal.any([signal, deadline]),
-  )
-  let isValidCost = true
-  if (counted.costUsd !== undefined) {
-    try {
-      Usd.from(counted.costUsd)
-    } catch {
-      isValidCost = false
-    }
-  }
-  if (!isValidCost || !Number.isSafeInteger(counted.tokens) || counted.tokens < 0)
-    throw new Error(UI_TEXT.execRequestShape)
+  const counted = await detailed(body, AbortSignal.any([signal, deadline]))
+  if (counted.costUsd !== undefined) Usd.from(counted.costUsd)
+  if (!Number.isSafeInteger(counted.tokens) || counted.tokens < 0)
+    throw new UserRefusalError(UI_TEXT.execRequestShape, 'request_shape')
   return {
     tokens: counted.tokens,
+    ...(counted.accuracy !== undefined && { accuracy: counted.accuracy }),
     costUsd:
       counted.costUsd === undefined
         ? undefined
@@ -98,16 +91,10 @@ export function createRuntimeDailyBudget(deps: {
   readonly dataFolder: string
   readonly now: () => number
   readonly sleep: (ms: number) => Promise<void>
-  readonly onOwnerlessClosed?: (closed: {
-    readonly count: number
-    readonly totalUsd: UsdAmount
-  }) => void
 }) {
   const journal = createSessionBudgetJournal({
     directory: path.join(deps.dataFolder, PAID_DAILY_BUDGET.directory),
     sleep: deps.sleep,
-    recoverUnsent: true,
-    ...(deps.onOwnerlessClosed !== undefined && { onOwnerlessClosed: deps.onOwnerlessClosed }),
     // D1: the daily refusal carries its numbers, never a generic sentence.
     dailyStop: { setting: 'paidDailyBudgetUsd', nowMs: deps.now },
     initialBudget: () =>
@@ -126,7 +113,12 @@ export function createRuntimeDailyBudget(deps: {
       )
     } catch (error: unknown) {
       if (storeErrorCode(error) === 'ENOENT') return SETTING_DEFAULTS.paidDailyBudgetUsd
-      throw new Error(UI_TEXT.paidDailyLedgerUnavailable, { cause: error })
+      if (isSpendLedgerError(error)) throw error
+      throw new SpendLedgerError(
+        storeErrorCode(error) === undefined ? 'damaged' : 'unreadable',
+        { scope: 'daily', file: 'settings', errno: storeErrorCode(error) },
+        error,
+      )
     }
   }
   const dailyCapUsd = (scope: string) => {
@@ -135,11 +127,16 @@ export function createRuntimeDailyBudget(deps: {
     try {
       statSync(path.join(directory, PAID_DAILY_BUDGET.stopDirectory))
     } catch (error: unknown) {
-      if (storeErrorCode(error) !== 'ENOENT')
-        throw new Error(UI_TEXT.paidDailyLedgerUnavailable, { cause: error })
+      if (storeErrorCode(error) !== 'ENOENT') {
+        throw new SpendLedgerError(
+          storeErrorCode(error) === undefined ? 'damaged' : 'unreadable',
+          { scope: 'daily', file: 'settings', errno: storeErrorCode(error) },
+          error,
+        )
+      }
       isStopped = false
     }
-    if (isStopped) throw new Error(UI_TEXT.paidDailyStopped)
+    if (isStopped) throw new UserRefusalError(UI_TEXT.paidDailyStopped, 'daily_stopped')
     let limit: z.infer<typeof dailyLimitSchema>
     try {
       limit = dailyLimitSchema.parse(
@@ -147,18 +144,37 @@ export function createRuntimeDailyBudget(deps: {
       )
     } catch (error: unknown) {
       if (storeErrorCode(error) === 'ENOENT') return Usd.from(capUsd()).toAmount()
-      throw new Error(UI_TEXT.paidDailyLedgerUnavailable, { cause: error })
+      if (isSpendLedgerError(error)) throw error
+      throw new SpendLedgerError(
+        storeErrorCode(error) === undefined ? 'damaged' : 'unreadable',
+        { scope: 'daily', file: 'settings', errno: storeErrorCode(error) },
+        error,
+      )
     }
-    if (limit.stopped) throw new Error(UI_TEXT.paidDailyStopped)
+    if (limit.stopped) throw new UserRefusalError(UI_TEXT.paidDailyStopped, 'daily_stopped')
     const amount = Usd.from(limit.limitUsd)
     if (
       amount.compare(Usd.from(PAID_DAILY_BUDGET.minimumUsd)) < 0 ||
       amount.compare(Usd.from(PAID_DAILY_BUDGET.maximumUsd)) > 0
     )
-      throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
+      throw new SpendLedgerError('damaged', { scope: 'daily', file: 'settings' })
     return amount.toAmount()
   }
   return {
+    async precheck(signal: AbortSignal, minimumBound: UsdAmount = Usd.from(0).toAmount()) {
+      signal.throwIfAborted()
+      const scope = day()
+      const cap = dailyCapUsd(scope)
+      const total = await journal.readExisting(scope, PAID_DAILY_BUDGET.accountId)
+      if (total?.hasUnknownHistoricalFees === true)
+        throw new SpendLedgerError('legacy', { scope, total: total.spentUsd })
+      if (
+        total !== undefined &&
+        Usd.from(total.spentUsd).add(Usd.from(minimumBound)).compare(Usd.from(cap)) > 0
+      )
+        throw await journal.describeStop(scope, PAID_DAILY_BUDGET.accountId, cap)
+      signal.throwIfAborted()
+    },
     capUsd: () => dailyCapUsd(day()),
     async reserve(costUsd: UsdAmount, signal: AbortSignal): Promise<SessionBudgetClaim> {
       signal.throwIfAborted()
@@ -171,29 +187,21 @@ export function createRuntimeDailyBudget(deps: {
       )
       try {
         signal.throwIfAborted()
-        if (scope !== day()) throw new Error(UI_TEXT.paidDailyStopped)
+        if (scope !== day()) throw new UserRefusalError(UI_TEXT.spendLedgerMidnight, 'midnight')
       } catch (error: unknown) {
-        await claim.settle(Usd.from(0).toAmount())
-        // D1: a day rollover between reserve and check still names its
-        // numbers; a dead process's hold never refuses (recovered above).
-        if (error instanceof Error && error.message === UI_TEXT.paidDailyStopped) {
-          try {
-            throw await journal.describeStop(
-              scope,
-              PAID_DAILY_BUDGET.accountId,
-              Usd.from(capUsd()).toAmount(),
-            )
-          } catch {
-            throw error
-          }
+        try {
+          await claim.settle(Usd.from(0).toAmount())
+        } catch {
+          /* The ledger retains the queued refund and retries at its next operation. */
         }
+
         throw error
       }
       return {
         ...claim,
         check: () => {
           signal.throwIfAborted()
-          if (scope !== day()) throw new Error(UI_TEXT.paidDailyStopped)
+          if (scope !== day()) throw new UserRefusalError(UI_TEXT.spendLedgerMidnight, 'midnight')
           return claim.check(dailyCapUsd(scope))
         },
       }
@@ -207,6 +215,15 @@ export interface RuntimeResponseAccounting {
     reason: Refusal | 'breach' | 'accounting_invalid',
     message?: string,
     details?: ExecBudgetRefusal,
+  ) => void
+  readonly localRefusal?: (
+    kind: string,
+    message: string,
+    facts?: {
+      readonly scope: string
+      readonly file?: string | undefined
+      readonly errno?: string | undefined
+    },
   ) => void
   readonly started: (n: number, ticket: ResponseTicket) => void
   readonly settled: (
@@ -224,6 +241,46 @@ export function withRuntimeAccounting(
   dispatch?: { onRequestStarted?: () => void },
   outputCap?: (policy: ResolvedModel['policy']) => number,
 ): ProviderClient {
+  const forwardRefusal = (caught: unknown) => {
+    const error =
+      isRequestNotSent(caught) &&
+      caught.cause instanceof Error &&
+      (isSpendLedgerError(caught.cause) ||
+        isPaidStop(caught.cause) ||
+        caught.cause.name === 'UserRefusalError')
+        ? caught.cause
+        : caught
+    if (isSpendLedgerError(error))
+      accounting?.localRefusal?.(`ledger_${error.kind}`, error.message, error.facts)
+    else if (isPaidStop(error) && error instanceof Error) {
+      accounting?.localRefusal?.('daily_budget', error.message)
+      accounting?.refuse('budget', error.message)
+    } else if (
+      error instanceof Error &&
+      error.name === 'UserRefusalError' &&
+      'code' in error &&
+      typeof error.code === 'string'
+    ) {
+      accounting?.localRefusal?.(error.code, error.message)
+      switch (error.code) {
+        case 'unpriced': {
+          accounting?.refuse('unpriced', error.message)
+          break
+        }
+        case 'context_limit': {
+          accounting?.refuse('request_shape', error.message)
+          break
+        }
+        case 'midnight': {
+          {
+            accounting?.refuse('budget', error.message)
+            // No default
+          }
+          break
+        }
+      }
+    }
+  }
   const wrap = (model: ResolvedModel): ResolvedModel => {
     outputCap?.(model.policy)
     const original = model.client
@@ -238,40 +295,76 @@ export function withRuntimeAccounting(
       waitBeforeRetry: original.waitBeforeRetry.bind(original),
       async *streamResponse(body, signal, onRetry, retryBudget, guard, confirmed) {
         const contextTokens = model.contextTokens
-        if (
-          contextTokens === undefined ||
-          !Number.isSafeInteger(contextTokens) ||
-          contextTokens < body.max_output_tokens
-        )
-          throw new Error(UI_TEXT.execModelUnpriced)
-        // EXECPROV round 7: where the client documents an exact same-body
-        // count, the input side reserves that count at the uncached price —
-        // once per request, bounded, sending the request's own body. Only
-        // run-ledger runs count: interactive runs keep exactly today's byte
-        // bound and send no extra request. Media carries its own calibrated
-        // bound, and any failure (or a count the client does not offer)
-        // keeps exactly today's byte bound. A count larger than the byte
-        // bound is a lying count and falls back the same way: a count can
-        // only shrink the reservation, never grow it past the bytes.
+        const outputOnly = model.price.reserve({
+          inputTokens: 0,
+          outputTokens: body.max_output_tokens,
+        })
+        try {
+          if (
+            contextTokens === undefined ||
+            !Number.isSafeInteger(contextTokens) ||
+            contextTokens <= body.max_output_tokens
+          )
+            throw new UserRefusalError(UI_TEXT.execContextLimit, 'context_limit')
+          signal.throwIfAborted()
+          if (!model.isCurrent()) throw new UserRefusalError(UI_TEXT.requestStaleRun, 'stale_run')
+          assertConfirmedAllowed(body.model, confirmed)
+          await daily.precheck(signal, outputOnly ?? Usd.from(0).toAmount())
+          signal.throwIfAborted()
+          if (!model.isCurrent()) throw new UserRefusalError(UI_TEXT.requestStaleRun, 'stale_run')
+          assertConfirmedAllowed(body.model, confirmed)
+          await guard?.prepare?.()
+          await daily.precheck(signal, outputOnly ?? Usd.from(0).toAmount())
+          signal.throwIfAborted()
+          if (!model.isCurrent()) throw new UserRefusalError(UI_TEXT.requestStaleRun, 'stale_run')
+          // EXECPROV round 7: where the client documents an exact same-body
+          // count, the input side reserves that count at the uncached price —
+          // once per request, bounded, sending the request's own body. Only
+          // run-ledger runs count: interactive runs keep exactly today's byte
+          // bound and send no extra request. Media carries its own calibrated
+          // bound, and any failure (or a count the client does not offer)
+          // keeps exactly today's byte bound. A count larger than the byte
+          // bound is a lying count and falls back the same way: a count can
+          // only shrink the reservation, never grow it past the bytes.
+        } catch (error: unknown) {
+          forwardRefusal(error)
+          throw error
+        }
         const mediaTokens = guard?.mediaAccounting?.inputTokens
+        const canCount =
+          accounting === undefined ||
+          outputOnly === undefined ||
+          Usd.from(outputOnly).compare(Usd.from(accounting.ledger.totals().remainingUsd)) <= 0
         const detailed =
-          accounting === undefined || mediaTokens !== undefined
+          accounting === undefined || mediaTokens !== undefined || !canCount
             ? undefined
             : original.countInputTokensDetailed
-        let counted: { tokens: number; costUsd: UsdAmount | undefined } | undefined
+        let counted:
+          | { tokens: number; costUsd: UsdAmount | undefined; accuracy?: 'exact' | 'estimate' }
+          | undefined
         try {
           counted =
             detailed === undefined ? undefined : await countExactInput(detailed, body, signal)
         } catch {
+          signal.throwIfAborted()
           counted = undefined
         }
         if (counted !== undefined) {
-          const byteTokens = estimateInput(requestParts(body), undefined).inputTokens
+          const byteTokens = Buffer.byteLength(JSON.stringify(body))
           if (counted.tokens > byteTokens) counted = undefined
         }
         const isExactFailed = counted === undefined && detailed !== undefined
-        const inputTokens =
-          mediaTokens ?? counted?.tokens ?? estimateInput(requestParts(body), undefined).inputTokens
+        const byteBound = Buffer.byteLength(JSON.stringify(body))
+        const countedBound =
+          counted === undefined
+            ? undefined
+            : counted.accuracy === 'estimate'
+              ? Math.min(
+                  byteBound,
+                  Math.ceil((counted.tokens * (100 + SPEND_LEDGER_ESTIMATE_MARGIN_PERCENT)) / 100),
+                )
+              : counted.tokens
+        const inputTokens = mediaTokens ?? countedBound ?? byteBound
         const countCostUsd = counted?.costUsd
         const inputCost = model.price.reserve({
           inputTokens,
@@ -292,28 +385,44 @@ export function withRuntimeAccounting(
           reserveUsd === undefined ||
           Usd.from(reserveUsd).compare(Usd.from(0)) < 0
         )
-          throw new Error(UI_TEXT.execModelUnpriced)
+          throw new UserRefusalError(UI_TEXT.execModelUnpriced, 'unpriced')
+        const dailyInputTokens =
+          mediaTokens === undefined
+            ? byteBound
+            : Math.max(0, contextTokens - body.max_output_tokens)
+        const dailyAmount = model.price.reserve({
+          inputTokens: dailyInputTokens,
+          outputTokens: body.max_output_tokens,
+          images: requestImageCount(body),
+        })
+        if (dailyAmount === undefined)
+          throw new UserRefusalError(UI_TEXT.execModelUnpriced, 'unpriced')
+        const dailyReserveUsd =
+          countCostUsd === undefined
+            ? dailyAmount
+            : Usd.from(dailyAmount).add(Usd.from(countCostUsd)).toAmount()
         let claim: SessionBudgetClaim | undefined
         let ticket: ResponseTicket | undefined
         let wasSent = false
         let response: ResponseObject | undefined
         let httpStatus: number | undefined
         let hasEof = false
-        let isRateLimited = false
+        let hasTerminalUsage = false
+        let hasResponseFrame = false
         const settle = async () => {
           if (claim === undefined) return
           const owned = claim
           const actual =
-            hasEof && response?.status === 'completed' && response.usage != null
+            hasTerminalUsage && response?.usage != null
               ? model.price.settle(modelPricedUsage(response.usage), {
                   cost: response.usage.provider_cost_usd,
                 })
               : undefined
           let cost = actual === undefined ? undefined : ceilUsd(actual)
           if (
-            isRateLimited ||
-            httpStatus === HTTP_TOO_MANY_REQUESTS ||
-            httpStatus === HTTP_STATUS.badRequest
+            httpStatus !== undefined &&
+            !hasResponseFrame &&
+            NON_BILLABLE_HTTP_REJECTIONS.has(httpStatus)
           )
             cost = Usd.from(0).toAmount()
           // A billed count is a separate completed call: it stays settled
@@ -330,11 +439,14 @@ export function withRuntimeAccounting(
             const result = accounting.ledger.settleResponse(
               ticket,
               {
-                ...(httpStatus === undefined
+                ...(httpStatus === undefined || hasResponseFrame
                   ? {
                       ...(hasEof
                         ? ({ kind: 'eof', parseInvalid: false } as const)
-                        : ({ kind: 'transport', why: 'error' } as const)),
+                        : ({
+                            kind: 'transport',
+                            why: signal.aborted ? 'aborted' : 'error',
+                          } as const)),
                       terminal: response?.status ?? null,
                       incompleteReason: response?.incomplete_details?.reason ?? null,
                       usage: response?.usage,
@@ -349,20 +461,26 @@ export function withRuntimeAccounting(
             if (last !== null) accounting.settled(last, settledTicket, result)
             if (result.latch !== undefined) accounting.refuse(result.latch)
           }
-          // A sent request without a verified price keeps its original durable reservation.
-          if (!wasSent || cost !== undefined) {
-            try {
-              await owned.settle(wasSent ? (cost ?? owned.reservedUsd) : Usd.from(0).toAmount())
-            } catch (error: unknown) {
-              throw new Error(UI_TEXT.sessionBudgetStoreUnavailable, { cause: error })
-            }
-          }
+          const isUncertainEstimate =
+            wasSent && cost === undefined && counted?.accuracy === 'estimate'
+          await owned.settle(
+            wasSent ? (cost ?? owned.reservedUsd) : Usd.from(0).toAmount(),
+            wasSent ? (cost === undefined ? 'uncertain' : 'settled') : 'released',
+          )
           claim = undefined
           wasSent = false
           response = undefined
           hasEof = false
+          hasTerminalUsage = false
+          hasResponseFrame = false
           httpStatus = undefined
-          isRateLimited = false
+          if (!isUncertainEstimate || signal.aborted) {
+            return
+          }
+
+          accounting?.localRefusal?.('estimate_uncertain', UI_TEXT.execAccountingInvalid)
+          accounting?.refuse('accounting_invalid', UI_TEXT.execAccountingInvalid)
+          throw new UserRefusalError(UI_TEXT.execAccountingInvalid, 'estimate_uncertain')
         }
         const started = () => {
           claim?.check(Usd.from(0).toAmount())
@@ -370,9 +488,10 @@ export function withRuntimeAccounting(
           claim?.markSent?.()
           wasSent = true
         }
+        let isFirstPreparation = true
         const attempt: ResponseAttemptGuard = Object.assign(
           (digest: string | undefined) => {
-            if (!model.isCurrent()) throw new Error(UI_TEXT.requestStaleRun)
+            if (!model.isCurrent()) throw new UserRefusalError(UI_TEXT.requestStaleRun, 'stale_run')
             claim?.check(Usd.from(0).toAmount())
             guard?.(digest)
           },
@@ -384,13 +503,12 @@ export function withRuntimeAccounting(
             },
             prepare: async () => {
               await settle()
-              await guard?.prepare?.()
+              if (isFirstPreparation) isFirstPreparation = false
+              else await guard?.prepare?.()
               try {
-                claim = await daily.reserve(reserveUsd, signal)
+                claim = await daily.reserve(dailyReserveUsd, signal)
               } catch (error: unknown) {
-                // D1: the refusal keeps its own numbers sentence into the result.
-                if (isPaidStop(error) && error instanceof Error)
-                  accounting?.refuse('budget', error.message)
+                forwardRefusal(error)
                 throw error
               }
               if (accounting === undefined) return
@@ -411,7 +529,8 @@ export function withRuntimeAccounting(
                     }
               let admission: ReturnType<RunLedger['admitResponse']>
               let inputBound: ResponseInputBound | undefined
-              if (counted !== undefined) inputBound = 'exact'
+              if (counted !== undefined)
+                inputBound = counted.accuracy === 'estimate' ? 'estimate' : 'exact'
               else if (isExactFailed) inputBound = 'bytes-after-failure'
               try {
                 signal.throwIfAborted()
@@ -501,37 +620,29 @@ export function withRuntimeAccounting(
         const responseStream = original.streamResponse(
           body,
           signal,
-          (notice) => {
-            if (notice.phase !== 'pacing')
-              isRateLimited = notice.reason.startsWith(`HTTP ${String(HTTP_TOO_MANY_REQUESTS)}:`)
-            onRetry?.(notice)
-          },
+          onRetry,
           retryBudget,
           attempt,
           confirmed,
         )
         try {
           for await (const event of responseStream) {
+            hasResponseFrame = true
             if ('response' in event) response = event.response
+            if (
+              ['response.completed', 'response.incomplete', 'response.failed'].includes(event.type)
+            )
+              hasTerminalUsage = true
             yield event
           }
           hasEof = true
         } catch (error: unknown) {
+          forwardRefusal(error)
           if (isModelApiError(error) && error.status > 0) httpStatus = error.status
-          isRateLimited ||= isModelApiError(error) && error.status === HTTP_TOO_MANY_REQUESTS
-          if (
-            error instanceof Error &&
-            error.name === 'UserRefusalError' &&
-            'code' in error &&
-            error.code === 'not_sent'
-          ) {
+          if (isRequestNotSent(error)) {
             wasSent = false
             claim?.markUnsent?.()
           }
-          // D1: a dispatch-time paid stop latches the budget with its own
-          // numbers sentence, so the turn ends as a budget stop (exit 5).
-          if (isPaidStop(error) && error instanceof Error)
-            accounting?.refuse('budget', error.message)
           throw error
         } finally {
           if (dispatch?.onRequestStarted === started) delete dispatch.onRequestStarted
@@ -634,35 +745,29 @@ export function budgetRefusalDetails(
       Usd.from(estimate).ceiling(EXEC_USD_DECIMALS).compare(remaining) <= 0
     )
   }
-  if (cost.compare(remaining) > 0)
-    return {
-      remainingUsd,
-      admitCapUsd: admitCap.toAmount(),
-      maxOutputTokens: null,
-      inputAloneExceeds: true,
-      inputCostUsd: cost.toAmount(),
+  const isInputAloneExceeds = cost.compare(remaining) > 0
+  const floor = Math.max(EXEC_MIN_OUTPUT_TOKENS, minimumOutputTokens ?? 1)
+  let maxOutputTokens: number | null = null
+  if (
+    !isInputAloneExceeds &&
+    reserveForOutput !== undefined &&
+    floor <= input.outputTokens &&
+    canFit(floor)
+  ) {
+    let low = floor
+    let high = input.outputTokens
+    while (low < high) {
+      const mid = Math.floor((low + high + 1) / 2)
+      if (canFit(mid)) low = mid
+      else high = mid - 1
     }
-  const floor = minimumOutputTokens ?? 1
-  if (reserveForOutput === undefined || floor > input.outputTokens || !canFit(floor))
-    return {
-      remainingUsd,
-      admitCapUsd: admitCap.toAmount(),
-      maxOutputTokens: null,
-      inputAloneExceeds: false,
-      inputCostUsd: cost.toAmount(),
-    }
-  let low = floor
-  let high = input.outputTokens
-  while (low < high) {
-    const mid = Math.floor((low + high + 1) / 2)
-    if (canFit(mid)) low = mid
-    else high = mid - 1
+    maxOutputTokens = low
   }
   return {
     remainingUsd,
-    admitCapUsd: admitCap.toAmount(),
-    maxOutputTokens: low,
-    inputAloneExceeds: false,
+    admitCapUsd: admitCap.compare(Usd.from(EXEC_MAX_BUDGET_USD)) > 0 ? null : admitCap.toAmount(),
+    maxOutputTokens,
+    inputAloneExceeds: isInputAloneExceeds,
     inputCostUsd: cost.toAmount(),
   }
 }
@@ -696,9 +801,12 @@ export function responseReservationMessage(
   // the shared scope, which never prints the terminal-only flag half. The
   // numbers come from the same helper the typed refusal carries.
   const details = budgetRefusalDetails(input, reserveForOutput, minimumOutputTokens)
-  const capClause = fill(UI_TEXT.execBudgetRemedyCap, {
-    admitCap: formatUsd(details.admitCapUsd, 2),
-  })
+  const capClause =
+    details.admitCapUsd === null
+      ? UI_TEXT.execBudgetImpossible
+      : fill(UI_TEXT.execBudgetRemedyCap, {
+          admitCap: formatUsd(details.admitCapUsd, 2),
+        })
   if (scope === 'shared') return `${base} ${capClause}`
   // The largest output limit that fits the remaining cap, found with the
   // request's own reserve function and the admission's own ceiling, so

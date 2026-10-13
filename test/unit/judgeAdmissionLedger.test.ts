@@ -8,6 +8,7 @@ import { Usd, type UsdAmount } from '../../src/shared/usd'
 // recorded as gaps in docs/certification/m98-a.md, not patched around here.
 
 import { mkdtempSync, writeFileSync } from 'node:fs'
+import { setTimeout as delay } from 'node:timers/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
@@ -66,7 +67,12 @@ function ledgerFor(journal: Journal, capUsd: UsdAmount | (() => UsdAmount)): Jud
       return Usd.from(currentCap()).subtract(Usd.from(total.spentUsd)).toAmount()
     },
     async reserve(costUsd: UsdAmount): Promise<JudgeLedgerClaim> {
-      const claim = await journal.reserve(SESSION, ACCOUNT, Usd.from(costUsd).toAmount())
+      const claim = await journal.reserve(
+        SESSION,
+        ACCOUNT,
+        Usd.from(costUsd).toAmount(),
+        currentCap(),
+      )
       return {
         claimId: claim.claimId,
         reservedUsd: Usd.from(claim.reservedUsd).toAmount(),
@@ -85,7 +91,7 @@ function journalAt(directory: string): Journal {
   return createSessionBudgetJournal({
     directory,
     loadSession: () => Promise.resolve(snapshot()),
-    sleep: () => Promise.resolve(undefined),
+    sleep: delay,
   })
 }
 
@@ -170,7 +176,10 @@ describe('admission over the real journal', () => {
     if (!admission.admitted) {
       throw new Error('expected admission')
     }
-    writeFileSync(path.join(directory, 'budget-journal', ACCOUNT, SESSION, 'seed.json'), '{corrupt')
+    writeFileSync(
+      path.join(directory, 'spend-ledger-v3', ACCOUNT, SESSION, 'state.json'),
+      '{corrupt',
+    )
     const ledger = ledgerFor(journalAt(directory), Usd.from(1).toAmount())
     const retry = await admitJudgeCall({
       binding: binding(),

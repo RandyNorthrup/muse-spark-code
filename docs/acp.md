@@ -37,6 +37,17 @@ not apply to this process.
 
 ACP and headless Model API/BYO requests share a hard local-day budget in the agent data folder. Its `settings.json` accepts `{"paidDailyBudgetUsd":5}` (USD; default $5, range $0.50–$500), corresponding to the extension’s `museSpark.paidDailyBudgetUsd`. Reservations use an exclusive cross-process lock before dispatch and settle from verified usage; an interrupted or unpriced request retains its liability. Headless also requires `--max-budget-usd`, and BYO attempts use the same usage journal as interactive turns. Image generation still requires its flag and consent (or the headless flag plus hard run budget). Hosted search is unavailable in this runtime while the hard daily budget is active because its returned fees have no dispatch bound.
 
+The spend cap admits a request only when its full reservation fits. Verified exact
+counts reserve the exact input; Anthropic reserves its estimate plus 25%, limited
+by the UTF-8 byte upper bound; unverified count shapes (including Gemini) reserve
+that size bound. Only the last request can exceed the cap when a provider estimate
+is too low: its full actual cost is recorded, and another request is refused.
+Each retry reserves separately; a sent attempt with no outcome keeps its entire
+reservation permanently. Only a provably dead owner’s unsent claim is released.
+The v3 ledger imports old history once without modifying it. Simultaneous spending
+from an old build is outside the new shared-cap guarantee; upgrade both hosts
+before relying on one cap across versions.
+
 The configuration below names the command and its arguments. Where each
 editor keeps its agent settings is in that editor's documentation, linked
 from [the compatibility plan](https://github.com/RandyNorthrup/muse-spark-code/blob/main/docs/ide-compatibility.md#32-ides-and-editors-reached-through-a-shared-acp-agent);
@@ -221,7 +232,7 @@ and before sending, including older stored values. The same translated message
 names the minimum; Meta requires 16 tokens. Custom provider entries declare a
 minimum with `modelCapabilities.<model>.output.minTokens`; their capability cap
 and custom output limit must meet it. ACP config options and CLI/exec flags
-currently expose no separate output-token cap.
+expose `exec --max-output-tokens <n>` (minimum 16); ACP retains the model policy cap.
 
 The key is never read from an environment variable, a settings file or an
 argument, and never passed to Muse Code. On Linux without a running,
@@ -915,3 +926,12 @@ scope (with nearest ids), and 4 when a requested `--fail-on` condition holds.
 Conditions are `unavailable`, `drift`, `blocked`, `channelLag` and `ciFailing`.
 History-save revocation or cancellation fails explicitly. Equal observation
 times preserve the newest saved sequence when selecting the previous report.
+
+Initial HTTP validation, sign-in, permission and quota refusals before any output
+settle at zero. Interrupted processing (including HTTP 408/499), server errors
+and stream loss keep unresolved liability separately from money spent. Final
+provider usage settles even when the response is incomplete. Stopping a stream
+without final usage cannot prove a smaller bill: a provider can charge unseen
+generated tokens after disconnect. The retained amount is a possible charge,
+never a confirmed spend. `--max-output-tokens` lowers the actual request cap;
+startup no longer prices the model's full context window before building it.

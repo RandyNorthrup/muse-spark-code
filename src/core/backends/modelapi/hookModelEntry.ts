@@ -1,3 +1,4 @@
+import { isRequestNotSent } from '../../refusal'
 import { Usd, isPositiveUsd } from '../../../shared/usd'
 // A prompt/agent hook's own model call (M91, PLAN.md D70, lane H): loaded
 // only after the paid-use popup allows it. No transport retry, hooks off,
@@ -15,8 +16,6 @@ import { isFunctionCallItem } from './schemas'
 import type { FunctionCallItem, InputItem, StreamEvent, ToolDefinition, Usage } from './schemas'
 import {
   helperRequestSettlement,
-  estimateInput,
-  requestParts,
   reserveRequest,
   type OwnedSessionBudgetScope,
   type SessionBudgetClaim,
@@ -31,6 +30,7 @@ import {
   HOOK_MODEL_TIMEOUT_MS,
   MODEL_API_EFFORT_OFF,
   MODEL_API_MAX_RETRIES,
+  NON_BILLABLE_HTTP_REJECTIONS,
 } from '../../../shared/constants'
 import { hookDecisionSchema } from '../../../shared/sideCallSchemas'
 import { setUiText } from '../../../shared/l10n/text'
@@ -299,7 +299,7 @@ async function requestHookStep(
     if (budgetScope !== undefined) {
       const total = await budgetScope.journal.read(budgetScope.sessionId, budgetScope.accountId)
       const capUsd = budgetScope.capUsd()
-      const estimated = estimateInput(requestParts(body), undefined).inputTokens
+      const estimated = Buffer.byteLength(JSON.stringify(body), 'utf8')
       if (isPositiveUsd(capUsd)) {
         const reservation = reserveRequest({
           capUsd,
@@ -321,10 +321,10 @@ async function requestHookStep(
         budgetScope.sessionId,
         budgetScope.accountId,
         reservedUsd,
-        { isUnbounded: !isPositiveUsd(capUsd) },
+        capUsd,
       )
     }
-    const estimatedInputTokens = estimateInput(requestParts(body), undefined).inputTokens
+    const estimatedInputTokens = Buffer.byteLength(JSON.stringify(body), 'utf8')
     const reservationUsd = estimateCostUsd(
       { inputTokens: estimatedInputTokens, outputTokens: body.max_output_tokens, cachedTokens: 0 },
       modelId,
@@ -347,6 +347,7 @@ async function requestHookStep(
       {
         onRequestStarted: () => {
           dailyClaim?.check()
+          dailyClaim?.markSent?.()
           required.onRequestStarted?.()
           confirmed.onRequestStarted()
         },
@@ -390,7 +391,15 @@ async function requestHookStep(
     if (!hasCompleted && attempt.mode !== 'text')
       throw new Error('the structured hook has no completed response')
   } catch (error: unknown) {
-    wasRefused = context.isRefused(error)
+    wasRefused =
+      isRequestNotSent(error) ||
+      (directBudget?.isSent !== true && context.isRefused(error)) ||
+      (!hasCompleted &&
+        usage == null &&
+        error instanceof Error &&
+        'status' in error &&
+        typeof error.status === 'number' &&
+        NON_BILLABLE_HTTP_REJECTIONS.has(error.status))
     if (signal.aborted) {
       throw context.abortError()
     }
@@ -406,9 +415,9 @@ async function requestHookStep(
       reservedUsd,
     )
     try {
-      await claim?.settle(settlement.costUsd, settlement.isUnknown)
+      await claim?.settle(settlement.costUsd, settlement.isUnknown ? 'uncertain' : 'settled')
     } finally {
-      await dailyClaim?.settle(settlement.costUsd, settlement.isUnknown)
+      await dailyClaim?.settle(settlement.costUsd, settlement.isUnknown ? 'uncertain' : 'settled')
     }
   }
   return calls

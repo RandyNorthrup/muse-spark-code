@@ -1,3 +1,4 @@
+import { SpendLedgerError } from '../../core/paid/spendLedgerError'
 import { legacyUsdSchema } from '../../shared/usd'
 // The team ledger (M96 lane A, PLAN.md D75): the durable record behind the
 // Agent map's live and history views. Every delegation is one row, kept per
@@ -34,7 +35,6 @@ import {
   TEAM_LEDGER_FILE_SUFFIX,
   TEAM_LEDGER_LINE_MAX_BYTES,
   TEAM_LEDGER_RETRY_MAX_MS,
-  UI_TEXT,
 } from '../../shared/constants'
 
 /** A task's live state (D75): active until one of the inactive states. */
@@ -358,7 +358,7 @@ export class TeamLedger {
       parsed.data.workspaceId !== this.deps.workspaceId ||
       (parsed.data.kind === 'task' && parsed.data.lease.holder !== this.deps.windowId)
     ) {
-      throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+      throw new SpendLedgerError('integrity', { scope: 'account', file: 'teamLedger' })
     }
     let line = toLedgerLine(parsed.data)
     if (parsed.data.kind === 'reset') {

@@ -127,6 +127,7 @@
   "certaintyReported": "Zgłoszony",
   "certaintyComputed": "Obliczony",
   "certaintyUncertain": "Niepewny",
+  "reservedLabel": "Zarezerwowane",
   "certaintyPlan": "Plan",
   "certaintyLocal": "Lokalny",
   "certaintyUnpriced": "Bez ceny",

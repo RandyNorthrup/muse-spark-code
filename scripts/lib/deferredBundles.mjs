@@ -1105,25 +1105,30 @@ export const sharedWire = {
 // Admission's state and the lazy launch shims (launcher.ts) ship once, in
 // dist/resourceAdmission.js (admissionEntry.ts re-exports both).
 const RESOURCE_ADMISSION_SOURCES = new Set(
-  ['src/core/resources/admission.ts', 'src/core/resources/launcher.ts'].map((file) =>
-    path.resolve(file),
-  ),
+  [
+    'src/core/resources/admission.ts',
+    'src/core/resources/launcher.ts',
+    'src/core/locks/processOwner.ts',
+  ].map((file) => path.resolve(file)),
 )
 export const sharedResourceAdmission = {
   name: 'shared-resource-admission',
   setup(build) {
-    build.onResolve({ filter: /(?:^|\/)(?:admission|launcher)(?:\.[jt]s)?$/ }, (args) => {
-      if (
-        args.kind === 'entry-point' ||
-        path.resolve(build.initialOptions.outfile ?? '') ===
-          path.resolve('dist/resourceAdmission.js')
-      )
-        return
-      const source = path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts'))
-      return RESOURCE_ADMISSION_SOURCES.has(source)
-        ? { path: './resourceAdmission.js', external: true }
-        : undefined
-    })
+    build.onResolve(
+      { filter: /(?:^|\/)(?:admission|launcher|processOwner)(?:\.[jt]s)?$/ },
+      (args) => {
+        if (
+          args.kind === 'entry-point' ||
+          path.resolve(build.initialOptions.outfile ?? '') ===
+            path.resolve('dist/resourceAdmission.js')
+        )
+          return
+        const source = path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts'))
+        return RESOURCE_ADMISSION_SOURCES.has(source)
+          ? { path: './resourceAdmission.js', external: true }
+          : undefined
+      },
+    )
   },
 }
 

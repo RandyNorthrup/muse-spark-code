@@ -1,3 +1,4 @@
+import { SpendLedgerError } from './core/paid/spendLedgerError'
 import { createSchedulesBridge, registerScheduleCommands } from './host/schedules/schedulesBridge'
 import { notify } from './core/events/notify'
 import {
@@ -2752,11 +2753,12 @@ async function activateWindow(
       }
       return {
         reservedUsd: claim.reservedUsd,
+        ...(claim.markSent !== undefined && { markSent: claim.markSent }),
         check: () => {
           signal.throwIfAborted()
           claim.check()
         },
-        settle: (actual, hasUnknownCost) => claim.settle(actual, hasUnknownCost, true),
+        settle: (actual, state) => claim.settle(actual, state),
       }
     },
     showReplyUsage: () => currentSettings().modelApiReplyUsage,
@@ -3596,7 +3598,7 @@ async function activateWindow(
           voiceAccountId: () => modelApi.accountId(),
           ownedVoiceBudgetScope: async (sessionId) => {
             if (auth.current.backend !== 'modelApi') {
-              throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+              throw new SpendLedgerError('integrity', { scope: 'session', file: 'extension' })
             }
             const host = await modelApi.ensureHost()
             return await host.getOwnedBudgetScope(sessionId)

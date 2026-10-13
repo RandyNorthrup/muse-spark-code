@@ -26,8 +26,8 @@ read once per process. Only a provably dead owner note is removed by its exact
 unique name; then `rmdir` removes the empty lock. A crashed remover leaves an
 empty lock, which is safe to remove: a holder does no work after removing its
 note. Neither a stale remover nor a loser can remove a new owner's nonempty
-lock. No live owner is evicted by elapsed time. The monotonic wait is 2 s
-(eight times the measured hold maximum rounded up to 250 ms); polling is only lock contention.
+lock. No live owner is evicted by elapsed time. The monotonic wait remains 2 s. The earlier Linux hold margin does not certify
+the current macOS measurements; polling is only lock contention.
 Windows identity probes can take seconds; own identity is cached, foreign
 identity is probed once per observed owner. No claim is refused after admission
 because another fitting claim appeared.
@@ -121,80 +121,41 @@ busy/I/O refusals are distinct and cannot be represented as capacity refusals.
 The two reviewed branches were read; `snap/exec-start-race` was not merged.
 Rows below identify the implemented remedy; final proof exits are recorded separately.
 
-| EXECPROV7 | Disposition and owning proof                                                                                                                                                                                                                                                         |
-| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| P1-1      | Fixed: each ambiguous retry closes its first claim as uncertain at the full bound and admits a new claim. `modelApiHost`, `runLedger`, `spendLedger`.                                                                                                                                |
-| P1-2      | Fixed: Anthropic +25% estimate, capped by canonical-body UTF-8 bytes; Gemini counting disabled until a full captured shape is verified; actual overage saved and run stopped. `execExactCount`, `tokenCount`, `runLedger`. Editor/helper text reservations use canonical-body bytes. |
-| P1-3      | Fixed: complete renamed snapshots, generation retry and funded-claim checks. Real process start/stop harness.                                                                                                                                                                        |
-| P2-1      | Fixed: nullable cap remedy above $20; output floor is max(parser minimum, provider minimum); binary-search largest fitting output. `execExactCount`, `execRun`.                                                                                                                      |
-| P2-2      | Fixed: typed `context_limit`, separate from tariff. `execPaidRefusal`, packed provider row.                                                                                                                                                                                          |
-| P2-3      | Fixed: settings/legacy/corruption/integrity refuse by kind; no false reached sentence. `paidDailyBudget`, `runtimeAccounting`.                                                                                                                                                       |
-| P2-4      | Fixed: portable typed ledger error, scoped file/errno facts. `spendLedger`, packed refusal rows.                                                                                                                                                                                     |
-| P3-1      | Fixed: Meta startup quote separates input from total reservation. `execRun`.                                                                                                                                                                                                         |
-| P3-2      | Fixed: cancellation, confirmation, stale and daily precheck run before count; canceled signal is never discarded. `execExactCount`.                                                                                                                                                  |
-| P3-3      | Fixed isolation and old-reader parse safety: new folder, captured v1/v2 import, 556 rows of each, old reader executed. Shared simultaneous old/new spending cannot be certified under R9; explicit limitation above.                                                                 |
-| P3-4      | Fixed for new records: full OS process birth identity and boot, cached once. Unverifiable identities remain counted. Windows/macOS probes and takeover remain UNMEASURED here.                                                                                                       |
-| P3-5      | Fixed: no age close. Incurred receipt drains before dead-owner recovery. Live late settlement cannot be closed by a clock or sleep. `spendLedger`.                                                                                                                                   |
-| P3-6      | Fixed: typed names/kinds cross bundles; no budget template comparison. `modelApiHost`, `execPaidRefusal`, packed product.                                                                                                                                                            |
-| P3-7      | Fixed: output flag documented; price comes from provider registry; real child processes replace same-process race proof. Machine-dependent byte test derives arithmetic from this checkout's request. Paths in system context are intentional workspace facts and consume tokens.    |
+| EXECPROV7 | Disposition / evidence                                                                                                                                                                                                     |
+| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P1-1      | Separate attempt claims; uncertain first attempt survives a successful retry. Core/runLedger proofs; real-provider retry remains UNMEASURED.                                                                               |
+| P1-2      | Anthropic estimate +25% for terminal admission; shared daily uses bytes/context. Gemini guessed count code removed. Actual excess recorded and stops. execExactCount/tokenCount/runLedger; live count behavior UNMEASURED. |
+| P1-3      | Complete snapshot publication; no directory-per-claim publication. Process proof below; full final macOS matrix not yet certified.                                                                                         |
+| P2-1      | Largest fitting output remedy uses parser/provider floor and accepted $20 maximum. Pure execExactCount proof.                                                                                                              |
+| P2-2      | Typed context_limit distinct from tariff; execPaidRefusal proof; real provider row UNMEASURED.                                                                                                                             |
+| P2-3      | Typed settings/history/damage/ownership causes retained. Caller review; real editor prompts UNMEASURED.                                                                                                                    |
+| P2-4      | Portable SpendLedgerError carries scope, file kind and errno. Real core filesystem proofs.                                                                                                                                 |
+| P3-1      | Removed Meta full-context startup refusal; actual request admits canonical body with sent output cap. Packed CLI and lead scenario below.                                                                                  |
+| P3-2      | Count follows cancellation, confirmation, stale and cheap daily precheck. Source review; live count sequencing UNMEASURED.                                                                                                 |
+| P3-3      | 556 v1 and 556 v2 rows migrated; old reader executed and original files unchanged. Joint old/new cap impossible under isolated R9 folders, documented above.                                                               |
+| P3-4      | Reuses cached processOwner port. Real macOS absent-pid/crash proof; Windows takeover UNMEASURED. Port fallback birth verification is not improved in this lane.                                                            |
+| P3-5      | No age close; durable outcomes drain before identity recovery. Real core retention/receipt proofs.                                                                                                                         |
+| P3-6      | Typed refusal names/kinds across bundles; no template-message comparisons. execPaidRefusal and packed CLI.                                                                                                                 |
+| P3-7      | Output flag documented and arithmetic uses real price/parser/encoder. Workspace body bytes derive from this checkout; process proof uses Node children.                                                                    |
 
-| EXECRACE3 | Disposition and owning proof                                                                                                                                                                                                                                            |
-| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| P1-1      | Fixed: typed local refusal propagates through transport and lazy bundles. Packed product checks historic false sentences absent.                                                                                                                                        |
-| P1-2      | Fixed: unique complete owner note, provable-death takeover and empty-lock cleanup, no live eviction. Crash harness.                                                                                                                                                     |
-| P1-3      | Fixed: no partial visible claim directory; capacity check and publication under one lock. Nine k-of-n groups (n=2,k=3 means two fit).                                                                                                                                   |
-| P2-1      | Fixed: session, editor daily and runtime daily all call core admit with their cap; scheduled shared consent uses the lower cap at admission too. `paidDailyBudget`, `schedulePaid`, `modelApiHost`.                                                                     |
-| P2-2      | Fixed: durable inbox precedes wait, process queue retained on write failure; readers count pending liability; next operation drains exactly once. Busy and crash tests.                                                                                                 |
-| P2-3      | Fixed: daily errors carry daily scope, not session label. `paidDailyBudget`.                                                                                                                                                                                            |
-| P2-4      | Fixed: rejected unsent claim queues zero release, cleanup failure preserves original refusal; `runtimeAccounting` injects ENOSPC as an explicit fake errno (not a measured rig disk failure).                                                                           |
-| P2-5      | Fixed separately: all notes added under Unreleased; no released block copied from the reviewed branch.                                                                                                                                                                  |
-| P2-6      | Fixed by design: O(open claims), closed audit never scanned on normal admission; 2-second monotonic wait, identity probes outside lock. Benchmark below.                                                                                                                |
-| P2-7      | Fixed: real-process capacity mutation red drill; exact-k assertions fail on the first overadmission, not only at settlement.                                                                                                                                            |
-| P3-1      | Fixed: daily admission formats `PaidBudgetStopError` with daily cap/used/held/reset.                                                                                                                                                                                    |
-| P3-2      | Fixed: reached reserved for true cap refusals; unavailable text translated as unavailable.                                                                                                                                                                              |
-| P3-3      | Fixed: invalid thresholds are account integrity; voice reports typed actual cause; missing store is unreadable/NOT_CONFIGURED. `usageWriterLoadKindOf` is absent from this base (reviewed branch not merged), so its proposed misclassification is not applicable here. |
-| P3-4      | Not applicable to the absent `execStartRace`/`execUsageRace` files; old journal comments and attempt lock were deleted. New harness uses 12 real processes.                                                                                                             |
-| P3-5      | Not applicable: those cast rows/helpers are absent from this base; no reviewed-branch §8 rows were imported. New ledger and adapter need no unsafe casts.                                                                                                               |
-| P3-6      | Fixed: typed midnight refusal says restart with today's budget. `execPaidRefusal`, packed row.                                                                                                                                                                          |
-
-Editor overages stop the current turn before its next automatic request; a
-new explicit user turn can spend a remaining cap. The recorded actual amount
-always stays counted. A failed earlier write cannot suppress a later incurred
-charge: the host's next journal operation retries the core's retained receipts.
-Reviewer/hook post-send errors are uncertain unless a 429 proves a zero bill;
-the general user-refusal classifier alone is not evidence of a noncharge.
-
-The next production build found the browser surface-English closure 0.2 KiB
-above its existing 25 KiB cap. Its static text walk followed shared/paid's
-UserRefusalError import into the complete host classifier. The plain refusal
-class now has a dependency-free leaf; browser pricing imports that leaf. Ledger
-classifiers stay portable, and browser pricing does not import host ledger prose.
-No budget was moved or raised.
-
-The 2-second deadline bounds lock polling, not the existing operating-system
-identity query. On Windows/macOS, one foreign-owner birth query can run past
-that deadline by at most the processOwner port's 10-second timeout; recovery
-also probes open foreign owners before acquiring the lock. Own identity uses
-the existing process cache and own-pid shortcut. Total admission latency on
-those platforms is UNMEASURED; the actual lock-contention wall bound is at most
-12 seconds plus filesystem operations, not a claimed universal two seconds.
-Changing the OS query port is outside R4's ruling; no live owner is stolen.
-
-Final compiled-core process proof exited 0: nine groups × 500 rounds (4,500),
-200 real start/stop rounds with a finite $10 cap, and 28 SIGKILL boundaries.
-Admission maxima at 10 / 1,000 / 10,000 closed claims: 2.878 / 4.316 / 2.389 ms;
-means 2.346 / 2.933 / 2.313 ms. Maximum lock hold across parent and real workers:
-242.086 ms. The initial proposed 100 ms hold bound was not met; the independent
-100 ms admission benchmark passed. The 2 s wait stays unchanged: eight times
-the observed hold rounded up to 250 ms. These are measured Linux wall times,
-not a bound on arbitrary OS suspension or filesystem stalls.
-
-R5/R7 combined rule: an ambiguous attempt priced from an estimate ends the run
-before any retry. Its margin is not a verified upper bound; retrying it could
-make two unseen estimation errors exceed the cap. Byte/exact-bound attempts can
-retry with independent reservations. Estimated 429/400 zero bills and verified
-actual settlements retain their existing retry rules. This is necessary for the
-published “only the last request's estimate error” guarantee.
+| EXECRACE3 | Disposition / evidence                                                                                                                                                            |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P1-1      | Configured transport preserves typed refusal before connect; runtime unwraps original cause. Packed closed-port and typed pure proof.                                             |
+| P1-2      | Unique complete process-owner lock notes; dead-owner/empty-lock recovery. Real core/process proof; Windows semantics UNMEASURED.                                                  |
+| P1-3      | Capacity comparison and complete publication in one lock. Process proof below; finite busy refusal cannot promise exactly k under arbitrary scheduling.                           |
+| P2-1      | Session/editor daily/runtime daily pass cap to the same core admit; schedule uses lower cap. Source review; real editor/schedule paths UNMEASURED.                                |
+| P2-2      | Outcome is queued before snapshot read or lock wait; durable inbox and local queue count it. Real corrupted-snapshot/repair and busy proofs.                                      |
+| P2-3      | Daily scope has own typed sentence. execPaidRefusal; live editor damage prompt UNMEASURED.                                                                                        |
+| P2-4      | Cleanup retains original logical cause; zero release remains queued on IO failure. No fabricated ENOSPC test retained. Actual disk-full cleanup UNMEASURED.                       |
+| P2-5      | Changes are under Unreleased; released text not moved.                                                                                                                            |
+| P2-6      | O(open claims) normal admission; closed history not scanned. 100 ms threshold unchanged and currently FAILS on macOS; full measurements below. No larger timeout hides it.        |
+| P2-7      | Real process exact-k assertion and capacity reversal drill. No fake runtime/store race retained.                                                                                  |
+| P3-1      | Daily cap refusal carries daily scope, amount and reset. Pure typed refusal proof.                                                                                                |
+| P3-2      | Unavailable/damaged/settings text does not say reached. Translated tables and localization gate.                                                                                  |
+| P3-3      | Account thresholds use integrity; voice keeps actual typed cause; missing store uses unreadable/NOT_CONFIGURED. usageWriterLoadKindOf absent on this base. Real hosts UNMEASURED. |
+| P3-4      | Old adapter comments removed with implementation; inherited untouched fake race files belong to TESTCUT, not repaired.                                                            |
+| P3-5      | Existing PLAN cast rows point at test/unit/helpers/execRace.ts. No new unverified cast.                                                                                           |
+| P3-6      | Explicit midnight refusal; real temporary daily folder and calendar data proof.                                                                                                   |
 
 ## Continuation decisions (macmini, 2026-10-12)
 
@@ -292,3 +253,132 @@ several concurrent processes with low estimates could accumulate more than one
 unknown input error against the daily cap. Media uses the model context limit
 for the shared daily reservation while its terminal estimate remains explicit.
 Session and paid helper requests already reserve canonical-body bytes.
+
+## macOS final qualification and remaining gate failures
+
+The owner's latest testing rules supersede the brief's fake packed-provider
+cases and full quality invocation. No visual/a11y/browser/paid-provider run is
+authorized here. Provider outcomes are real-use scenarios for the lead; no
+stand-in response is presented as product evidence.
+
+The post-correction default-timeout core run passed 15 and failed 2: `admits
+every fitting request and no extra request` at 5.184 s, and `each state counts
+its sole amount` at 6.842 s. These are unresolved timing failures, not a
+diagnosis of machine load. Two attempted structural corrections did not make
+those cases pass; no timeout or assertion was weakened. The earlier Linux
+passes and interrupted 500-round macOS group do not certify this final tree.
+
+R10 alternatives remain explicit: received-output cancellation cannot bound
+provider billing; isolated old/new versions cannot share a hard cap; finite
+lock wait cannot guarantee exactly k under an arbitrarily stalled live owner;
+n=2 cannot admit k=3 requests. Busy is a separate no-send result.
+
+History-size benchmark fixture option: `--benchmark-only --history-fixture`
+expands the real writer's complete immutable transaction shape into 10 / 1,000 /
+10,000 closed history entries, with consistent audit generations and a snapshot
+total verified by the real reader. It measures history-size admission cost; it
+does not claim that 10,000 calls were admitted or dispatched. The default
+benchmark still creates every claim through the real writer.
+
+## Lead real-use scenarios (no provider stand-ins)
+
+Use the locally packed CLI, an existing user-configured provider and a throwaway
+workspace. The lead supplies its own credentials through the normal credential
+store; no key appears in a command or fixture. The provider/model names below
+refer to an existing configuration; adjust only those identifiers.
+
+- Refusal: run `muse-spark-code-acp exec --backend modelApi --provider anthropic
+--model anthropic/claude-haiku-4-5 --max-budget-usd 1 --max-output-tokens 128
+--max-requests 1 --ephemeral --output json "Reply ready"` against a real
+  provider account that returns an initial auth/validation/rate-limit refusal.
+  Record the actual HTTP status and whether any response frame arrived. Initial
+  listed 4xx codes settle zero; 408/499/5xx or a stream cut retain liability.
+  Observe the attempt fields and separate possibly-charged summary/usage row.
+  Repeat for OpenAI, xAI, Google, Meta and the configured compatible provider;
+  compatible billing remains conditional on that provider's policy.
+- Stop: the same real Anthropic model, prompt `Write a long story`, output cap
+  4096, cap $1, one request. Stop after 177 visible characters (record timing
+  and text length). If final usage is delivered, confirmed spend uses it. If
+  absent, confirmed spend excludes the full reservation, and its own
+  possibly-charged line keeps that liability. The requested smaller true bound
+  is not claimed. Repeat via the editor Stop action and Account & usage.
+- Expensive output: configured OpenRouter `openrouter/openai/gpt-5.5-pro`, cap
+  $1, one request. Without a smaller output cap, refusal suggests only accepted
+  flags (no cap above $20; no output below the model/parser floor). Repeat with
+  the suggested `--max-output-tokens`; provider-side request tracing must show
+  that exact smaller cap. Confirm the reservation prices that field, not the
+  catalogue limit. Pure arithmetic covers this locally without buying a call.
+- Helpers: give explicit paid consent, trigger hosted search, image generation,
+  compaction and reviewer calls. Inspect v3 receipts after each. A returned image
+  remains charged when saving fails or data is unusable; extra returned images
+  record actual unit overage and stop. A sent helper with no known outcome stays
+  uncertain; an initial definite refusal refunds. Compare editor and terminal
+  daily totals, and the conversation's separate reserved/uncertain rows.
+- Concurrent windows: with only one request bound left, start paid calls in two
+  editor windows and one terminal using the same new-version storage. Exactly
+  one capacity grant is sent; losers have no claim and their typed refusal names
+  the right budget. No guarantee covers an old binary spending in its isolated
+  v1/v2 folder at the same time.
+- Midnight/repair: start a real run near local midnight; the next send refuses
+  with midnight text and refunds an unsent hold. In a throwaway profile damage
+  `state.json`; admission must name damaged state and send nothing. Restore the
+  exact bytes and retry; a queued known outcome is written once. For real disk
+  full/permission failures, retain original logical refusal and queued outcome.
+- UI: one local editor look by the lead at Account & usage and conversation
+  budget, with a pending request and an unresolved cancelled one. Confirm spend,
+  reserved and possibly charged are separate, remaining includes all three, and
+  keyboard/screen-reader text gives the same amounts. No screenshot gate.
+
+Windows PowerShell platform proof, from this checkout: `node
+ test/unit/spendLedger.process.mjs --quick --proof-only`; then `node
+ test/unit/spendLedger.process.mjs --proof-only` for the 500-round groups and
+200 start rounds, and `node test/unit/spendLedger.process.mjs --benchmark-only`
+for actual 10,000 writer-created claims. On macOS run those identical commands.
+The `--history-fixture` benchmark is explicitly the indexed-data measurement,
+not a substitute for the full writer-created benchmark. Run `npx vitest run
+ test/unit/spendLedger.test.ts test/unit/sessionBudgetJournal.test.ts
+ --maxWorkers=2` with repository default timeouts on both platforms.
+
+Current macOS history-fixture command exited 1 (unchanged 100 ms assertions):
+
+| Closed entries | Admission max ms | Admission mean ms | Samples |
+| -------------- | ---------------: | ----------------: | ------: |
+| 10             |          782.652 |           219.490 |      10 |
+| 1,000          |          440.347 |           172.339 |      10 |
+| 10,000         |          380.090 |           167.169 |      10 |
+
+Maximum observed lock hold: 856.212 ms. These observations establish neither
+a cause for the latency nor a universal timing bound. The 2-second wait no
+longer has a certified eightfold margin on this measurement; R3/R4 timing
+qualification stays open. The default writer-created 10,000-claim benchmark
+and full final matrix remain unrun. Log: `temp/ledger/benchmark-fixture2.log`.
+
+Current real-process smoke command (`--quick --proof-only`) exited 0:
+all nine groups n=2/6/12, k=1/2/3 passed two rounds each (18 rounds);
+start-while-running passed two rounds; all 32 kill/recovery boundaries passed
+without loss or double counting. n=2/k=3 explicitly expects two admissions.
+Maximum observed hold was 2,409.727 ms, including deliberate crash pauses and
+recovery; it does not certify the normal admission timing margin. Full
+500-round groups and 200-start final run remain UNMEASURED.
+
+Default-timeout current core/migration/typed-refusal batch: 35 passed, exit 0.
+The earlier two deadline failures did not recur in this run; their cause is
+UNMEASURED, and the earlier receipts remain above. Pure run-cap/remedy/usage
+batch: 48 passed.
+
+Red drills, actual commands with no stand-in behavior:
+
+- Image returned-unit settlement reverted to one unit: runLedger command exited
+  1, 2 failed / 41 passed; extra returned images and empty returns are caught.
+- Initial rejection policy reverted to 429 only, and final non-completed usage
+  discarded: runLedger command exited 1, 11 failed / 32 passed.
+- Core capacity comparison reversed: real-process quick command exited 1 on
+  round 0, `2 !== 1` (two of two admitted with room for one).
+- Receipt identity reverted to claim id: core unit command exited 1, one failed
+  / 17 passed; retained reservation never became closed uncertain.
+
+Each source file was restored with matching SHA-256 bytes before continuation.
+Logs: `temp/ledger/runLedger-red.log`, `refusal-terminal-red.log`,
+`process-cap-red.log`, `receipt-red.log`. The first SAST scan was stopped as a
+whole verified process group (exit 143) before the final source was settled;
+it is not a clean scan. Final static/packed receipts will be recorded below.

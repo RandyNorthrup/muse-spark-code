@@ -1,3 +1,4 @@
+import { isRequestNotSent } from '../../refusal'
 import { Usd, isPositiveUsd } from '../../../shared/usd'
 import type { ResponseObservation, ConfirmedModelRequest, ResponseAttemptGuard } from './client'
 // Paid Auto review execution: loaded only after the paid-use popup allows it.
@@ -19,8 +20,6 @@ import {
 } from './schemas'
 
 import {
-  estimateInput,
-  requestParts,
   reserveRequest,
   type OwnedSessionBudgetScope,
   type SessionBudgetClaim,
@@ -41,6 +40,7 @@ import {
   AUTO_REVIEWER_TIMEOUT_MS,
   MODEL_API_EFFORT_OFF,
   MODEL_API_MAX_RETRIES,
+  NON_BILLABLE_HTTP_REJECTIONS,
   UI_TEXT,
 } from '../../../shared/constants'
 import { fill, setUiText } from '../../../shared/l10n/text'
@@ -260,7 +260,7 @@ async function requestReviewer(
     if (budgetScope !== undefined) {
       const total = await budgetScope.journal.read(budgetScope.sessionId, budgetScope.accountId)
       const capUsd = budgetScope.capUsd()
-      const input = estimateInput(requestParts(body), undefined).inputTokens
+      const input = Buffer.byteLength(JSON.stringify(body), 'utf8')
       if (isPositiveUsd(capUsd)) {
         const reservation = reserveRequest({
           capUsd,
@@ -286,7 +286,8 @@ async function requestReviewer(
         budgetScope.sessionId,
         budgetScope.accountId,
         reservedUsd,
-        { isUnbounded: !isPositiveUsd(capUsd) },
+        capUsd,
+        context.resolved.policy.pricing.kind === 'unpriced' ? 'unknown' : 'known',
       )
     }
     directBudget = { scope: budgetScope, claim, isSent: false }
@@ -373,7 +374,15 @@ async function requestReviewer(
     outcome = 'completed'
   } catch (error: unknown) {
     if (signal.aborted) outcome = 'cancelled'
-    wasRefused = context.isRefused(error)
+    wasRefused =
+      isRequestNotSent(error) ||
+      (directBudget?.isSent !== true && context.isRefused(error)) ||
+      (!hasCompleted &&
+        usage == null &&
+        error instanceof Error &&
+        'status' in error &&
+        typeof error.status === 'number' &&
+        NON_BILLABLE_HTTP_REJECTIONS.has(error.status))
     if (signal.aborted) {
       throw context.abortError()
     }
@@ -430,7 +439,7 @@ async function requestReviewer(
         reservedUsd,
         context.resolved.price,
       )
-      await claim.settle(settlement.costUsd, settlement.isUnknown)
+      await claim.settle(settlement.costUsd, settlement.isUnknown ? 'uncertain' : 'settled')
     }
   }
   return text

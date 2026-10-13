@@ -116,7 +116,11 @@ export interface HookModelDailyBudget {
     signal: AbortSignal,
   ) => Promise<{
     readonly check: () => void
-    readonly settle: (costUsd: UsdAmount, isUnknown: boolean) => Promise<void>
+    readonly markSent?: () => void
+    readonly settle: (
+      costUsd: UsdAmount,
+      state: 'settled' | 'uncertain' | 'released',
+    ) => Promise<void>
   }>
 }
 

@@ -86,6 +86,7 @@ export const usageBudgetSchema = /* @__PURE__ */ z.strictObject({
   spentUsd: usageUsdSchema,
   capUsd: z.optional(usageUsdSchema),
   uncertainUsd: z.optional(usageUsdSchema),
+  reservedUsd: z.optional(usageUsdSchema),
   stopped: z.boolean(),
   raisedToday: z.optional(z.boolean()),
   projectedUsd: z.optional(usageUsdSchema),

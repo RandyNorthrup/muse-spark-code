@@ -3,3 +3,6 @@
 // (sharedResourceAdmission), so neither is ever copied.
 export * from './admission'
 export * from './launcher'
+
+// Process identities belong to this process-wide admission boundary too.
+export { currentProcessOwner, isProcessOwnerGone, processOwnerSchema } from '../locks/processOwner'

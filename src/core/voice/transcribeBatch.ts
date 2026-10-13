@@ -1,3 +1,4 @@
+import { UserRefusalError } from '../refusal'
 // M105-A / D85.5. Portable sound routing; the captured batch HTTP adapter,
 // M1's confined converter and M2's media encoder are injected at integration.
 import * as z from 'zod/mini'
@@ -203,7 +204,7 @@ export interface PreparedAudioAttachment {
  * hourly money and the shared daily budget; no microphone starts. */
 export function batchTranscriptionQuestion(name: string, dailyBudgetUsd: UsdAmount) {
   if (!nonnegativeUsdSchema.safeParse(dailyBudgetUsd).success)
-    throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
+    throw new UserRefusalError(UI_TEXT.paidDailyLedgerUnavailable, 'ledger_integrity')
   const price = fill(UI_TEXT.paidVoicePrice, { price: formatUsd(PAID_PRICES_USD.voicePerHour, 2) })
   return {
     title: fill(UI_TEXT.media.transcript, { name }),

@@ -571,7 +571,7 @@ export function featureCatalog(): readonly Feature[] {
       [],
       'headless-runs',
       // JSON progress uses stderr; stopped runs retain redacted incomplete answers.
-      // M80/M95: configured defaults and native slash IDs, one output cap, request-sized admission and explicit ephemeral history.
+      // M80/M95: one atomic spend admission; estimates include a margin and each ambiguous attempt retains its reservation.
       ['modelApi'],
       false,
       ['acp'],
@@ -1009,7 +1009,7 @@ export function featureCatalog(): readonly Feature[] {
       { setting: 'paidDailyBudgetUsd' },
       { setting: 'paidDailyBudgetUsd' },
       [],
-      ['paidDailyBudgetUsd'],
+      ['paidDailyBudgetUsd', 'modelApiSessionBudgetUsd'],
       'paid-features',
       ['modelApi'],
       false,
