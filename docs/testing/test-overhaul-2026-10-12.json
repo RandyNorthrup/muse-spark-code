@@ -3,9 +3,9 @@
   "root": "test/",
   "rules": "lane TESTCUT brief rules 1+4; parser-based (typescript), transitive test-helper imports",
   "counts": {
-    "STAY": 755,
-    "GO": 881,
-    "LIST": 22
+    "STAY": 754,
+    "GO": 872,
+    "LIST": 32
   },
   "goByConstruct": {
     "helper name \"fake-agent.mjs\"": 1,
@@ -14,9 +14,10 @@
     "vi.stubEnv(...)": 9,
     "const fake": 10,
     "import \"../unit/helpers/estimator/fakes\"": 1,
-    "process e2e against a stand-in backend (rule 4)": 4,
+    "string-bundled fake path (\"helpers/fake\")": 3,
+    "process e2e against a stand-in backend (rule 4)": 3,
     "path \"test/e2e/fake-muse/serve.mjs\"": 1,
-    "helper name \"fakeGitHub.ts\"": 2,
+    "helper name \"fakeGitHub.ts\"": 1,
     "helper name \"fakeMuse.ts\"": 1,
     "import \"./fakeGitHub\"": 1,
     "helper name \"fake-gh.mjs\"": 1,
@@ -81,16 +82,14 @@
     "import \"./helpers/fakeGitHub\"": 3,
     "import \"./helpers/github/fakes\"": 3,
     "function fakeAccountHome": 1,
-    "helper name \"fakes.ts\"": 6,
-    "const FAKE_AGENT": 2,
+    "helper name \"fakes.ts\"": 5,
+    "const FAKE_AGENT": 1,
     "class FakeAgentHost implements ...": 1,
     "function fakeDisclosures": 1,
     "helper name \"fakeAgent.ts\"": 1,
     "helper name \"fakeChatGptServer.ts\"": 1,
-    "helper name \"fakeContextIo.ts\"": 1,
     "helper name \"fakeCopilotPort.ts\"": 1,
     "helper name \"fakeFolders.ts\"": 1,
-    "helper name \"fakeGit.ts\"": 1,
     "helper name \"fakeLanguageService.ts\"": 1,
     "helper name \"fakeMcpBinary.mjs\"": 1,
     "helper name \"fakeMcpHttpServer.ts\"": 1,
@@ -101,21 +100,16 @@
     "helper name \"fakeMcpSource.ts\"": 1,
     "helper name \"fakeMcpStartMarker.mjs\"": 1,
     "helper name \"fakeMemoryIo.ts\"": 1,
-    "helper name \"fakeModelApi.ts\"": 1,
     "helper name \"fakeMsp.ts\"": 1,
-    "helper name \"fakePaidFeatures.ts\"": 1,
     "helper name \"fakePlanFiles.ts\"": 1,
     "helper name \"fakeScheduleWake.mjs\"": 1,
     "helper name \"fakeSessionStore.ts\"": 1,
     "helper name \"fakeTeamAcpAgent.mjs\"": 1,
-    "helper name \"fakeToolIo.ts\"": 1,
     "helper name \"fakeVoiceServer.ts\"": 1,
     "function mockJudgePaidConfiguration": 1,
     "server.listen(...)": 1,
-    "const FAKE_MCP_SERVER": 1,
     "helper name \"fakeFilesServer.ts\"": 1,
     "function fakeModelApiHostDeps": 1,
-    "function fakeManagerDeps": 1,
     "function fakeMuseCodeManager": 1,
     "class FakeQuestionAcpClient": 1,
     "class FakeAcpQuestionRegistry implements ...": 1,
@@ -161,7 +155,6 @@
     "import \"./helpers/media/fakeFilesServer\"": 1,
     "import \"./helpers/fakeMemoryIo\"": 4,
     "class FakeQuickPick implements ...": 1,
-    "path \"test/unit/mocks/vscode.ts\"": 1,
     "import \"./helpers/fakeSessionStore\"": 4,
     "class LifecycleText implements ...": 1,
     "const mock": 1,
@@ -287,7 +280,7 @@
     {
       "file": "test/e2e/execStdio.e2e.test.ts",
       "verdict": "GO",
-      "decidedBy": "process e2e against a stand-in backend (rule 4)"
+      "decidedBy": "string-bundled fake path (\"helpers/fake\")"
     },
     {
       "file": "test/e2e/execTestLauncher.e2e.test.ts",
@@ -2751,8 +2744,8 @@
     },
     {
       "file": "test/unit/helpers/fakeContextIo.ts",
-      "verdict": "GO",
-      "decidedBy": "helper name \"fakeContextIo.ts\""
+      "verdict": "LIST",
+      "decidedBy": "kept with LIST suite (test/integration/extension.test.ts)"
     },
     {
       "file": "test/unit/helpers/fakeCopilotPort.ts",
@@ -2766,13 +2759,13 @@
     },
     {
       "file": "test/unit/helpers/fakeGit.ts",
-      "verdict": "GO",
-      "decidedBy": "helper name \"fakeGit.ts\""
+      "verdict": "LIST",
+      "decidedBy": "kept with LIST suite (test/e2e/modelApi.live.e2e.test.ts)"
     },
     {
       "file": "test/unit/helpers/fakeGitHub.ts",
-      "verdict": "GO",
-      "decidedBy": "helper name \"fakeGitHub.ts\""
+      "verdict": "LIST",
+      "decidedBy": "kept with LIST suite (test/e2e/modelApi.live.e2e.test.ts)"
     },
     {
       "file": "test/unit/helpers/fakeLanguageService.ts",
@@ -2826,8 +2819,8 @@
     },
     {
       "file": "test/unit/helpers/fakeModelApi.ts",
-      "verdict": "GO",
-      "decidedBy": "helper name \"fakeModelApi.ts\""
+      "verdict": "LIST",
+      "decidedBy": "kept with LIST suite (test/integration/extension.test.ts)"
     },
     {
       "file": "test/unit/helpers/fakeMsp.ts",
@@ -2836,8 +2829,8 @@
     },
     {
       "file": "test/unit/helpers/fakePaidFeatures.ts",
-      "verdict": "GO",
-      "decidedBy": "helper name \"fakePaidFeatures.ts\""
+      "verdict": "LIST",
+      "decidedBy": "kept with LIST suite (test/integration/extension.test.ts)"
     },
     {
       "file": "test/unit/helpers/fakePlanFiles.ts",
@@ -2846,8 +2839,8 @@
     },
     {
       "file": "test/unit/helpers/fakes.ts",
-      "verdict": "GO",
-      "decidedBy": "helper name \"fakes.ts\""
+      "verdict": "LIST",
+      "decidedBy": "kept with LIST suite (test/e2e/eval.live.e2e.test.ts, test/e2e/live.e2e.test.ts, test/e2e/modelApi.live.e2e.test.ts, test/e2e/reviewer.live.e2e.test.ts, test/integration/tab.test.ts)"
     },
     {
       "file": "test/unit/helpers/fakeScheduleWake.mjs",
@@ -2866,8 +2859,8 @@
     },
     {
       "file": "test/unit/helpers/fakeToolIo.ts",
-      "verdict": "GO",
-      "decidedBy": "helper name \"fakeToolIo.ts\""
+      "verdict": "LIST",
+      "decidedBy": "kept with LIST suite (test/integration/extension.test.ts)"
     },
     {
       "file": "test/unit/helpers/fakeVoiceServer.ts",
@@ -3066,8 +3059,8 @@
     },
     {
       "file": "test/unit/helpers/mcpFixtures.ts",
-      "verdict": "GO",
-      "decidedBy": "const FAKE_MCP_SERVER"
+      "verdict": "LIST",
+      "decidedBy": "kept with LIST suite (test/e2e/modelApi.live.e2e.test.ts)"
     },
     {
       "file": "test/unit/helpers/media/companionBrowser.tsx",
@@ -3126,8 +3119,8 @@
     },
     {
       "file": "test/unit/helpers/modelApiManager.ts",
-      "verdict": "GO",
-      "decidedBy": "function fakeManagerDeps"
+      "verdict": "LIST",
+      "decidedBy": "kept with LIST suite (test/integration/extension.test.ts)"
     },
     {
       "file": "test/unit/helpers/modelApiRateCapture.ts",
@@ -4576,8 +4569,8 @@
     },
     {
       "file": "test/unit/mocks/vscode.ts",
-      "verdict": "GO",
-      "decidedBy": "path \"test/unit/mocks/vscode.ts\""
+      "verdict": "LIST",
+      "decidedBy": "kept with LIST suite (test/e2e/eval.live.e2e.test.ts, test/e2e/live.e2e.test.ts, test/e2e/modelApi.live.e2e.test.ts, test/e2e/reviewer.live.e2e.test.ts, test/integration/tab.test.ts)"
     },
     {
       "file": "test/unit/Modal.test.tsx",
@@ -4771,8 +4764,8 @@
     },
     {
       "file": "test/unit/modelApiSaveRejection.test.ts",
-      "verdict": "STAY",
-      "decidedBy": "real code only by the parser"
+      "verdict": "GO",
+      "decidedBy": "string-bundled fake path (\"helpers/fake\")"
     },
     {
       "file": "test/unit/modelApiSchemas.test.ts",
@@ -7052,7 +7045,7 @@
     {
       "file": "test/unit/teamAcpProcess.test.ts",
       "verdict": "GO",
-      "decidedBy": "const FAKE_AGENT"
+      "decidedBy": "string-bundled fake path (\"helpers/fake\")"
     },
     {
       "file": "test/unit/teamAcpWorker.test.ts",
