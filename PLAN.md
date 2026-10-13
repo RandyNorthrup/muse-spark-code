@@ -24615,6 +24615,10 @@ release acceptance are still pending.
   - [ ] Acceptance 1–10 with tests and drills (`docs/certification/m95b.md`).
   - [x] README, PRIVACY, CHANGELOG and this record updated.
 
+**Status 2026-10-13 (lane PLANROUTE, branch fix/chatgpt-plan-route): building.**
+
+Gap rows OPENAI-G26, G27, G28 closed in code, capture-pending. Plan codex models resolve from their own documented record (gpt-5.3/5.2-codex: 400,000-token window, 272,000 input cap, 128,000 output cap, low/medium/high/xhigh effort; codex-mini-latest: 200,000/100,000; unknown slugs stay unknown), and a listed effort level is sent as that level. Every documented plan refusal maps to its own sentence; unknown refusals and `{"detail":...}` bodies show the provider's text. Reported `x-codex-*` limit windows are tallied and shown in Plan Usage. Per-model facts and header presence are UNVERIFIED until the lead runs `docs/certification/PLANROUTE-capture-plan.json` (C1–C6); records in `docs/certification/PLANROUTE.md`.
+
 **Status 2026-10-04: planned.**
 
 - **Gates.** As M95's; the sign-in code in `dist/modelsPanel.js` and the

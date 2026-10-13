@@ -22,6 +22,9 @@ import { USAGE_HEADER_ALLOW_LIST } from '../../../shared/usageJournal'
 import { chatGptPlanFactsFor } from './chatgptPlanFacts'
 import { parsePlanLimitHeaders, type PlanLimits } from './planUsage'
 import { planHttpRefusal, planRefusalMessage } from './planRefusals'
+
+/** Response header names the plan route may keep, as a set for lookup. */
+const PLAN_HEADER_NAMES: ReadonlySet<string> = new Set<string>(USAGE_HEADER_ALLOW_LIST)
 import {
   MILLISECONDS_PER_SECOND,
   MODEL_API_REQUEST_TIMEOUT_MS,
@@ -340,7 +343,7 @@ export function createSubscriptionClient(
         // x-codex-* windows out of them.
         const reported: Record<string, string> = {}
         response.headers.forEach((value, name) => {
-          if ((USAGE_HEADER_ALLOW_LIST as readonly string[]).includes(name)) reported[name] = value
+          if (PLAN_HEADER_NAMES.has(name)) reported[name] = value
         })
         limits = parsePlanLimitHeaders(reported, Date.now()) ?? limits
         // The captured endpoint streams SSE without Content-Type. Never branch on that header.
