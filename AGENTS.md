@@ -28,7 +28,14 @@ history from PLAN.md").
    code comments.
 2. **Gates are not optional.** Hosted CI is the gate for a release: every job
    green on the commit that merges, and a red job is read and its cause
-   measured, never rerun into green. Local runs are for fast feedback: format,
+   measured, never rerun into green. Nothing is started again on the same
+   commit, whatever the cause: a runner fault is answered like any red, by a
+   new commit that names the run and the job, and its run decides. Two doors
+   hold this (`scripts/rule2-gate.mjs`, `docs/certification/rule2-gate.md`):
+   CI's required names fail on every attempt after the first and unless every
+   other workflow run on the head is green on its first attempt, and the
+   release workflow refuses a tag unless every run on the tagged commit and
+   on its pull request's head is. Local runs are for fast feedback: format,
    lint, typecheck, the suites you touched and the packed-product file
    (`test/e2e/execStdio.e2e.test.ts`). Before a release, real conversations go
    through the packed product (CONTRIBUTING.md, "Before you open a pull

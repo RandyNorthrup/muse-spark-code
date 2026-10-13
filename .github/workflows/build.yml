@@ -270,8 +270,48 @@ jobs:
         if: runner.os == 'Windows'
         run: npm run test:integration
 
+  # AGENTS.md rule 2 at the merge door (docs/certification/rule2-gate.md): no
+  # attempt after the first passes, and every other workflow run on the same
+  # head (Hosts, Action check, a second CI run) must be complete and green on
+  # its first attempt; one still in progress is waited for. It needs every
+  # job, so starting any of them again starts this one again, and it names
+  # the job and step of the first attempt that was not green.
+  first-attempt:
+    name: first attempt, every run green (rule 2)
+    if: always()
+    needs:
+      [
+        checks,
+        unit,
+        coverage,
+        accessibility,
+        integration,
+        native-build,
+        linux-native-build,
+        packages,
+        secrets,
+        sast,
+      ]
+    runs-on: ubuntu-latest
+    # The wait for a run still in progress is bounded at 60 minutes.
+    timeout-minutes: 75
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: nothing was started again, and every other run on this head is green
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RULE2_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: node scripts/rule2-gate.mjs run
+
   # The matrix emits the five existing non-security required names on BOTH
-  # events. Every name rejects a failed/cancelled/missing selected-tier job.
+  # events. Every name rejects a failed/cancelled/missing selected-tier job
+  # and every attempt after the first (rule 2: these are the names the main
+  # ruleset requires, so a run that was started again cannot merge).
   required:
     name: ${{ matrix.check }}
     if: always()
@@ -287,6 +327,7 @@ jobs:
         packages,
         secrets,
         sast,
+        first-attempt,
       ]
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -304,6 +345,7 @@ jobs:
         shell: bash
         env:
           FAST: ${{ inputs.fast }}
+          ATTEMPT: ${{ github.run_attempt }}
           CHECKS: ${{ needs.checks.result }}
           UNIT: ${{ needs.unit.result }}
           COVERAGE: ${{ needs.coverage.result }}
@@ -314,11 +356,17 @@ jobs:
           PACKAGES: ${{ needs.packages.result }}
           SECRETS: ${{ needs.secrets.result }}
           SAST: ${{ needs.sast.result }}
+          FIRST_ATTEMPT: ${{ needs.first-attempt.result }}
         run: |
+          if [ "$ATTEMPT" != 1 ]; then
+            echo "::error::Attempt $ATTEMPT of this run: nothing is started again on the same commit (AGENTS.md rule 2). Push a new commit that says what happened; its run decides." >&2
+            exit 1
+          fi
           test "$CHECKS" = success
           test "$UNIT" = success
           test "$SECRETS" = success
           test "$SAST" = success
+          test "$FIRST_ATTEMPT" = success
           if [ "$FAST" != true ]; then
             test "$COVERAGE" = success
             test "$ACCESSIBILITY" = success
