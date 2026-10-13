@@ -16,8 +16,12 @@ import {
   type Usage,
 } from '../../backends/modelapi/schemas'
 import { responses, modelRef, recordPlanUsage } from '../../../host/backend/providersEntry'
-const { ChatgptPlanLimitError, createResponsesCodec, ResponsesOutputCapError } = responses
+const { ChatgptPlanRefusalError, createResponsesCodec, ResponsesOutputCapError } = responses
 const { parseModelRef } = modelRef
+import { USAGE_HEADER_ALLOW_LIST } from '../../../shared/usageJournal'
+import { chatGptPlanFactsFor } from './chatgptPlanFacts'
+import { parsePlanLimitHeaders, type PlanLimits } from './planUsage'
+import { planHttpRefusal, planRefusalMessage } from './planRefusals'
 import {
   MILLISECONDS_PER_SECOND,
   MODEL_API_REQUEST_TIMEOUT_MS,
@@ -165,6 +169,8 @@ export function createSubscriptionClient(
     isPlanModel,
     modelContextLimit: (model) => {
       const ref = parseModelRef(model)
+      // OPENAI-G26: a plan model's input cap is its own documented number.
+      if (ref?.providerId === 'chatgpt') return chatGptPlanFactsFor(ref.modelId)?.maxInputTokens
       return ref?.providerId === 'copilot'
         ? deps.copilot?.().get(ref.modelId)?.model?.maxInputTokens
         : undefined
@@ -224,6 +230,7 @@ export function createSubscriptionClient(
       const ref = await configured(body.model)
       let isDispatched = false
       let usage: Usage | undefined
+      let limits: PlanLimits | undefined
       const note = (event: StreamEvent) => {
         if ('response' in event && event.response.usage != null) usage = event.response.usage
       }
@@ -312,7 +319,30 @@ export function createSubscriptionClient(
           }),
         )
         lastEventAt = Date.now()
-        if (!response.ok || response.body === null) throw new Error(UI_TEXT.acpChatGpt.failure)
+        // OPENAI-G27: a refused plan request maps to its documented
+        // sentence; anything unrecognised keeps the generic retry.
+        if (!response.ok) {
+          let refusal
+          try {
+            refusal = planHttpRefusal(response.status, await response.text())
+          } catch {
+            refusal = undefined
+          }
+          if (refusal !== undefined) {
+            yield { type: 'error', code: refusal.code, message: refusal.message }
+            return
+          }
+          throw new Error(UI_TEXT.acpChatGpt.failure)
+        }
+        if (response.body === null) throw new Error(UI_TEXT.acpChatGpt.failure)
+        // OPENAI-G28: the plan's limit headers ride on the inference
+        // response. Only allow-listed names are kept; the parser reads the
+        // x-codex-* windows out of them.
+        const reported: Record<string, string> = {}
+        response.headers.forEach((value, name) => {
+          if ((USAGE_HEADER_ALLOW_LIST as readonly string[]).includes(name)) reported[name] = value
+        })
+        limits = parsePlanLimitHeaders(reported, Date.now()) ?? limits
         // The captured endpoint streams SSE without Content-Type. Never branch on that header.
         const reader = response.body.getReader()
         async function* bytes() {
@@ -352,8 +382,12 @@ export function createSubscriptionClient(
             yield event
           }
         } catch (error) {
-          if (error instanceof ChatgptPlanLimitError) {
-            yield { type: 'error', code: error.code, message: UI_TEXT.planUi.limitDetail }
+          if (error instanceof ChatgptPlanRefusalError) {
+            yield {
+              type: 'error',
+              code: error.code,
+              message: planRefusalMessage(error.code, error.message) ?? error.message,
+            }
           } else if (error instanceof ResponsesOutputCapError) {
             usage = error.usage
             yield {
@@ -407,6 +441,7 @@ export function createSubscriptionClient(
                 source: ref.providerId === 'copilot' ? 'estimated' : 'reported',
               },
             }),
+            ...(limits !== undefined && { limits }),
           })
           deps.saveUsage?.(tallies)
         }

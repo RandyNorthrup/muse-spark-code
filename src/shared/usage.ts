@@ -88,6 +88,13 @@ const planTokens = z.object({
   outputTokens: planCount,
   requests: planCount,
 })
+// OPENAI-G28: the plan's reported limit windows, mirroring the core tally
+// row. Every field is optional: a header the plan stops sending is absent.
+const planLimitWindow = z.object({
+  usedPercent: z.number().check(z.gte(0)),
+  windowMins: z.optional(z.number().check(z.gte(0))),
+  resetAfterSecs: z.optional(z.int().check(z.gte(0))),
+})
 const planRow = z
   .object({
     requests: planCount,
@@ -97,6 +104,13 @@ const planRow = z
     ),
     estimated: planTokens,
     reported: planTokens,
+    limits: z.optional(
+      z.object({
+        observedAt: planCount,
+        primary: z.optional(planLimitWindow),
+        secondary: z.optional(planLimitWindow),
+      }),
+    ),
   })
   .check(z.refine((row) => row.estimated.requests + row.reported.requests <= row.requests))
 export const planUsageReportSchema = z

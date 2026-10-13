@@ -4,6 +4,21 @@ import * as z from 'zod/mini'
 import { isProviderId } from '../modelRef'
 
 const count = z.int().check(z.gte(0))
+// OPENAI-G28: the plan's reported limit windows. Every field is optional: a
+// header the plan stops sending is absent, never zero. Percentages are
+// stored as reported, unclamped.
+const planLimitWindowSchema = z.object({
+  usedPercent: z.number().check(z.gte(0)),
+  windowMins: z.optional(z.number().check(z.gte(0))),
+  resetAfterSecs: z.optional(z.int().check(z.gte(0))),
+})
+export type PlanLimitWindow = z.infer<typeof planLimitWindowSchema>
+const planLimitsSchema = z.object({
+  observedAt: count,
+  primary: z.optional(planLimitWindowSchema),
+  secondary: z.optional(planLimitWindowSchema),
+})
+export type PlanLimits = z.infer<typeof planLimitsSchema>
 const providerId = z.string().check(z.refine(isProviderId))
 const totalsSchema = z.object({ requests: count, inputTokens: count, outputTokens: count })
 const rowSchema = z
@@ -12,6 +27,7 @@ const rowSchema = z
     requests: count,
     reported: totalsSchema,
     estimated: totalsSchema,
+    limits: z.optional(planLimitsSchema),
   })
   .check(z.refine((row) => row.reported.requests + row.estimated.requests <= row.requests))
 
@@ -30,8 +46,51 @@ const attemptSchema = z.object({
       source: z.enum(['reported', 'estimated']),
     }),
   ),
+  limits: z.optional(planLimitsSchema),
 })
 export type PlanUsageAttempt = z.infer<typeof attemptSchema>
+
+/**
+ * Read one plan limit window out of allow-listed response headers. Header
+ * names are matched case-insensitively; a missing or non-numeric header
+ * leaves its field absent, never zero.
+ */
+export function parsePlanLimitHeaders(
+  headers: Readonly<Record<string, string>>,
+  observedAt: number,
+): PlanLimits | undefined {
+  const lowered: Record<string, string> = {}
+  for (const [name, value] of Object.entries(headers)) lowered[name.toLowerCase()] = value
+  const number = (name: string): number | undefined => {
+    const value = Number(lowered[name])
+    return Number.isFinite(value) && value >= 0 ? value : undefined
+  }
+  const integer = (name: string): number | undefined => {
+    const value = number(name)
+    return value === undefined ? undefined : Math.floor(value)
+  }
+  const window = (prefix: string): PlanLimitWindow | undefined => {
+    const usedPercent = number(`${prefix}-used-percent`)
+    if (usedPercent === undefined) return undefined
+    return {
+      usedPercent,
+      ...(number(`${prefix}-window-minutes`) !== undefined && {
+        windowMins: number(`${prefix}-window-minutes`),
+      }),
+      ...(integer(`${prefix}-reset-after-seconds`) !== undefined && {
+        resetAfterSecs: integer(`${prefix}-reset-after-seconds`),
+      }),
+    }
+  }
+  const primary = window('x-codex-primary')
+  const secondary = window('x-codex-secondary')
+  if (primary === undefined && secondary === undefined) return undefined
+  return {
+    observedAt,
+    ...(primary !== undefined && { primary }),
+    ...(secondary !== undefined && { secondary }),
+  }
+}
 
 /** Return new tallies after one dispatch; missing usage remains unknown. */
 export function recordPlanUsage(
@@ -41,15 +100,18 @@ export function recordPlanUsage(
   const checked = planUsageSchema.safeParse(rows)
   const parsedAttempt = attemptSchema.safeParse(attempt)
   if (!checked.success || !parsedAttempt.success) throw new Error('plan-usage.invalid-tally')
-  const { providerId: id, tokens } = parsedAttempt.data
+  const { providerId: id, tokens, limits } = parsedAttempt.data
   const existing = checked.data.find((row) => row.providerId === id)
-  const updated = existing ?? {
+  const updated: PlanUsageRow = existing ?? {
     providerId: id,
     requests: 0,
     reported: { requests: 0, inputTokens: 0, outputTokens: 0 },
     estimated: { requests: 0, inputTokens: 0, outputTokens: 0 },
   }
   updated.requests += 1
+  // The latest successful response's windows replace the stored ones; an
+  // attempt with no headers (a refusal, a failed stream) keeps them.
+  if (limits !== undefined) updated.limits = limits
   if (tokens !== undefined) {
     const tally = updated[tokens.source]
     tally.requests += 1
