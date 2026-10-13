@@ -1084,8 +1084,8 @@ describe('parseGeminiError', () => {
   })
 
   it('falls back to the HTTP status when the body is no envelope', () => {
-    // Lane PROVERR: `unrecognised` with the status and the first bounded
-    // line of the body.
+    // Lane PROVERR round 2: `parsed: false` with the status and the first
+    // bounded line of the body; the kind stays unset for the classifier.
     expect(parseGeminiError(503, '<html>down</html>').message).toBe('HTTP 503: <html>down</html>')
   })
 })

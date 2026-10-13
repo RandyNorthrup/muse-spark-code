@@ -1,518 +1,308 @@
-// Lane PROVERR Part 1: a provider's refusal at the HTTP boundary.
+// Lane PROVERR round 2: every recorded provider answer in, the true kind,
+// the sentence, the retry decision and the stored form out.
 //
-// A loopback server answers with nine recorded shapes; the product's real
-// configured-provider client, codec, session and ledger run. No stand-in for
-// our own code: the pinned transport posts to the loopback listener itself.
-import { mkdtemp, rm } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
+// Each fixture is a byte-identical copy of a real answer the lead recorded
+// on 2026-10-12 (~6:27-6:28 PM PT; no model ran; the account ids in the xAI
+// and OpenRouter answers were replaced with zeros by the lead):
+// `test/fixtures/provider-refusals/<provider>/bad-key.json` (the product's
+// own model-list path asked with a made-up key) and `unknown-model.json`
+// (the product's own request path asked for `no-such-model-real-life` with
+// the real key). No server, no fake, no mock: file bytes in through the real
+// extractor and classifier, facts out.
+//
+// A case whose body is not a recorded answer is a documented shape the lane
+// could not record (a 429, a 529, a filter block): each names the
+// documentation's address and the date it was read, and stays UNVERIFIED in
+// `docs/certification/proverr-round2.md` until a real answer is recorded.
+import { readFile } from 'node:fs/promises'
 import path from 'node:path'
-import { createServer, type Server } from 'node:http'
-import { afterEach, describe, expect, it } from 'vitest'
-import { createConfiguredProviderServices } from '../../src/core/providers/configured'
+import { describe, expect, it } from 'vitest'
 import {
-  providerEntrySchema,
-  writeProvidersFileAtomic,
-} from '../../src/core/providers/providersFile'
-import { formatStoredProviderSecret } from '../../src/runtime/keyStore'
-import { ModelApiHost } from '../../src/core/backends/modelapi/ModelApiHost'
-import { isModelApiError } from '../../src/core/backends/modelapi/transport'
-import {
-  openAiEnvelope,
+  isRefusalRetryable,
   parseRefusalError,
   refusalOf,
+  refusalSentence,
+  scrubRefusalLeak,
+  type ProviderRefusalKind,
+  type RefusalCarrier,
 } from '../../src/core/backends/modelapi/providerRefusal'
 import { parseAnthropicError } from '../../src/core/backends/modelapi/codecs/anthropic'
-import { parseGeminiError } from '../../src/core/backends/modelapi/codecs/gemini'
-import { parseOllamaError } from '../../src/core/backends/modelapi/codecs/ollama'
-import type { CreateResponseBody } from '../../src/core/backends/modelapi/schemas'
-import type { RecordedCall, UsageRecording } from '../../src/core/usage/recording'
-import { createFileSessionStore } from '../../src/host/backend/fileSessionStore'
-import { Usd } from '../../src/shared/usd'
-import { PROVIDER_SECRET_PREFIX, UI_TEXT } from '../../src/shared/constants'
-import { FAKE_MODEL_API_ACCOUNT_ID } from './helpers/fakeModelApi'
-import { fakeModelApiHostDeps } from './helpers/modelApiHostDeps'
-import { memoryToolIo } from './helpers/fakeToolIo'
-import { FakeLogOutputChannel, memorySecrets } from './helpers/fakes'
-import { watchSessionTurns } from './helpers/sessionTurns'
+import { presetById, quirksOf } from '../../src/core/providers/presets'
 
-const roots: string[] = []
-afterEach(async () => {
-  await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })))
-})
+const FIXTURES = path.resolve('test/fixtures/provider-refusals')
 
-const ENTRY_ID = 'case'
-const NATIVE = 'probe-model'
-const REF = `${ENTRY_ID}/${NATIVE}`
-const FAKE_KEY = 'test-owned-key'
-
-const CREDIT_BODY =
-  '{"type":"error","error":{"type":"invalid_request_error","message":"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits."}}'
-
-interface Answer {
+interface RecordedAnswer {
   readonly status: number
-  readonly headers?: Readonly<Record<string, string>>
-  readonly body?: string
-  readonly close?: true
+  readonly responseHeaders: Record<string, string>
+  readonly response: unknown
 }
 
-/** The nine answers Part 1 names, with the exact bytes of the measured one. */
-const ANSWERS = {
-  credit: {
-    status: 400,
-    headers: { 'content-type': 'application/json', 'request-id': 'req-credit-1' },
-    body: CREDIT_BODY,
-  },
-  authentication: {
-    status: 401,
-    headers: { 'content-type': 'application/json', 'request-id': 'req-auth-1' },
-    body: '{"type":"error","error":{"type":"authentication_error","message":"invalid x-api-key"}}',
-  },
-  rateLimited: {
-    status: 429,
-    headers: { 'content-type': 'application/json', 'retry-after': '1' },
-    body: '{"type":"error","error":{"type":"rate_limit_error","message":"Rate limit reached; try again in a minute."}}',
-  },
-  overloaded: {
-    status: 529,
-    headers: { 'content-type': 'application/json' },
-    body: '{"type":"error","error":{"type":"overloaded_error","message":"Overloaded; try again shortly."}}',
-  },
-  invalidRequest: {
-    status: 400,
-    headers: { 'content-type': 'application/json' },
-    body: '{"type":"error","error":{"type":"invalid_request_error","message":"max_tokens 200000 exceeds the maximum for this model."}}',
-  },
-  notFound: {
-    status: 404,
-    headers: { 'content-type': 'application/json' },
-    body: '{"type":"error","error":{"type":"not_found_error","message":"model: unknown-model-9"}}',
-  },
-  tooLarge: {
-    status: 413,
-    headers: { 'content-type': 'application/json' },
-    body: '{"type":"error","error":{"type":"request_too_large","message":"Request is larger than 32 MB."}}',
-  },
-  proxyHtml: {
-    status: 502,
-    headers: { 'content-type': 'text/html' },
-    body: '<html><body>Bad Gateway</body></html>',
-  },
-  closed: { status: 0, close: true as const },
-} satisfies Record<string, Answer>
-
-async function fixture() {
-  const root = await mkdtemp(path.join(tmpdir(), 'proverr-'))
-  roots.push(root)
-  const secrets = memorySecrets()
-  const configFile = path.join(root, 'providers.json')
-  return { root, secrets, configFile, catalogFile: path.resolve('vendor/models-dev/snapshot.json') }
-}
-
-async function loopbackProvider(answer: Answer, hasPrices = false) {
-  const f = await fixture()
-  let requests = 0
-  const server: Server = createServer((request, res) => {
-    requests += 1
-    if (answer.close === true) {
-      request.socket.destroy()
-      return
-    }
-    res.writeHead(answer.status, answer.headers ?? { 'content-type': 'application/json' })
-    res.end(answer.body ?? '')
-  })
-  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
-  const address = server.address()
-  if (address === null || typeof address === 'string') throw new Error('Missing test listener')
-  const entry = providerEntrySchema.parse({
-    id: ENTRY_ID,
-    preset: 'custom',
-    address: `http://127.0.0.1:${String(address.port)}`,
-    format: 'anthropic',
-    auth: 'apiKey',
-    models: [NATIVE],
-    modelLimits: { [NATIVE]: { contextTokens: 128_000, outputTokens: 1024 } },
-    ...(hasPrices && { prices: { [NATIVE]: { input: 0.000003, output: 0.000015 } } }),
-  })
-  await writeProvidersFileAtomic(f.configFile, { v: 1, providers: [entry], defaultModel: REF })
-  await f.secrets.store(
-    `${PROVIDER_SECRET_PREFIX}${entry.id}`,
-    formatStoredProviderSecret(
-      { v: 1, auth: 'apiKey', origin: new URL(entry.address ?? '').origin },
-      FAKE_KEY,
-    ),
-  )
-  const services = createConfiguredProviderServices(undefined, {
-    ...f,
-    secrets: f.secrets,
-  })
-  const model = await services.registry.resolve(REF)
-  const close = async () => {
-    server.closeAllConnections()
-    await new Promise<void>((resolve) =>
-      server.close(() => {
-        resolve()
-      }),
-    )
+async function recorded(provider: string, name: string): Promise<RecordedAnswer> {
+  const raw = await readFile(path.join(FIXTURES, provider, `${name}.json`), 'utf8')
+  const parsed = JSON.parse(raw) as {
+    status: number
+    responseHeaders: Record<string, string>
+    response: unknown
   }
-  return { services, model, close, requests: () => requests, root: f.root }
+  return {
+    status: parsed.status,
+    responseHeaders: parsed.responseHeaders,
+    response: parsed.response,
+  }
 }
 
-const body = (): CreateResponseBody => ({
-  model: REF,
-  instructions: 'Test',
-  input: [
+/** The request id the transport attaches (mirrors `describeFailure`). */
+function requestIdOf(headers: Record<string, string>): string | undefined {
+  const found = headers['request-id'] ?? headers['x-request-id']
+  return found === undefined || found.trim() === '' ? undefined : found.trim()
+}
+
+/** Everything the extractor found, as the refusal paths carry it. */
+function carrier(
+  status: number,
+  parsed: Pick<RefusalCarrier, 'message' | 'kind' | 'code' | 'reason' | 'errorCode'>,
+  requestId?: string,
+): RefusalCarrier {
+  return {
+    status,
+    kind: parsed.kind,
+    code: parsed.code,
+    message: parsed.message,
+    ...(parsed.reason !== undefined && { reason: parsed.reason }),
+    ...(parsed.errorCode !== undefined && { errorCode: parsed.errorCode }),
+    ...(requestId !== undefined && { requestId }),
+  }
+}
+
+// Every recorded error answer with the kind that is true (the lane brief's
+// table: bad key = authentication at all eleven, unknown model = notFound at
+// all twelve) and the fragment of the sentence the person reads.
+const RECORDED: readonly {
+  readonly provider: string
+  readonly name: string
+  readonly kind: ProviderRefusalKind
+  readonly fragment: string
+}[] = [
+  { provider: 'openai', name: 'bad-key', kind: 'authentication', fragment: 'was rejected' },
+  { provider: 'openai', name: 'unknown-model', kind: 'notFound', fragment: 'no such model' },
+  { provider: 'groq', name: 'bad-key', kind: 'authentication', fragment: 'was rejected' },
+  { provider: 'groq', name: 'unknown-model', kind: 'notFound', fragment: 'no such model' },
+  { provider: 'deepseek', name: 'bad-key', kind: 'authentication', fragment: 'was rejected' },
+  { provider: 'deepseek', name: 'unknown-model', kind: 'notFound', fragment: 'no such model' },
+  { provider: 'anthropic', name: 'bad-key', kind: 'authentication', fragment: 'was rejected' },
+  { provider: 'anthropic', name: 'unknown-model', kind: 'notFound', fragment: 'no such model' },
+  { provider: 'fireworks', name: 'bad-key', kind: 'authentication', fragment: 'was rejected' },
+  { provider: 'fireworks', name: 'unknown-model', kind: 'notFound', fragment: 'no such model' },
+  { provider: 'together', name: 'bad-key', kind: 'authentication', fragment: 'was rejected' },
+  { provider: 'together', name: 'unknown-model', kind: 'notFound', fragment: 'no such model' },
+  { provider: 'openrouter', name: 'bad-key', kind: 'authentication', fragment: 'was rejected' },
+  { provider: 'openrouter', name: 'unknown-model', kind: 'notFound', fragment: 'no such model' },
+  { provider: 'xai', name: 'bad-key', kind: 'authentication', fragment: 'was rejected' },
+  { provider: 'xai', name: 'unknown-model', kind: 'notFound', fragment: 'no such model' },
+  { provider: 'gemini', name: 'bad-key', kind: 'authentication', fragment: 'was rejected' },
+  { provider: 'gemini', name: 'unknown-model', kind: 'notFound', fragment: 'no such model' },
+  { provider: 'mistral', name: 'bad-key', kind: 'authentication', fragment: 'was rejected' },
+  { provider: 'mistral', name: 'unknown-model', kind: 'notFound', fragment: 'no such model' },
+  { provider: 'zai', name: 'bad-key', kind: 'authentication', fragment: 'was rejected' },
+  { provider: 'zai', name: 'unknown-model', kind: 'notFound', fragment: 'no such model' },
+  { provider: 'huggingface', name: 'unknown-model', kind: 'notFound', fragment: 'no such model' },
+  // Hugging Face's model list answers 200 to any key (the key check is on
+  // another host), so its bad-key fixture is no refusal and is not listed.
+]
+
+describe('recorded provider answers classify to the true kind', () => {
+  it.each(RECORDED)('$provider/$name is $kind', async ({ provider, name, kind, fragment }) => {
+    const answer = await recorded(provider, name)
+    const parsed = parseRefusalError(answer.status, answer.response)
+    // Every recorded answer parses: none stays unrecognised.
+    expect(parsed.parsed).toBe(true)
+    const requestId = requestIdOf(answer.responseHeaders)
+    const refusal = refusalOf(carrier(answer.status, parsed, requestId))
+    expect(refusal.kind).toBe(kind)
+    expect(refusal.status).toBe(answer.status)
+    if (requestId !== undefined) expect(refusal.requestId).toBe(requestId)
+    const sentence = refusalSentence(refusal, provider)
+    expect(sentence).toContain(fragment)
+    expect(sentence).toContain(parsed.message)
+    // Authentication and not-found refusals are never retried.
+    expect(isRefusalRetryable(carrier(answer.status, parsed), undefined)).toBe(false)
+  })
+})
+
+// The measured Anthropic out-of-credit bytes the lead's drill replays
+// (recorded in round 1): a 400 about credit is `credit`, not `invalidRequest.
+const CREDIT_BODY = {
+  type: 'error',
+  error: {
+    type: 'invalid_request_error',
+    message:
+      'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.',
+  },
+}
+
+describe('recorded credit refusal', () => {
+  it('is credit, never retried, with the request id the provider sent', () => {
+    const parsed = parseRefusalError(400, CREDIT_BODY)
+    const refusal = refusalOf(carrier(400, parsed, 'req-credit-1'))
+    expect(refusal.kind).toBe('credit')
+    expect(refusal.requestId).toBe('req-credit-1')
+    expect(refusalSentence(refusal, 'anthropic')).toContain('out of credit')
+    expect(isRefusalRetryable(carrier(400, parsed), undefined)).toBe(false)
+  })
+})
+
+describe('the stored form carries no key remnant or account id', () => {
+  it.each([
     {
-      type: 'message',
-      role: 'user',
-      content: [{ type: 'input_text', text: 'Hi.' }],
+      provider: 'openai',
+      name: 'bad-key',
+      scrubbed:
+        'Incorrect API key provided: [key] You can find your API key at https://platform.openai.com/account/api-keys.',
     },
-  ],
-  tools: [],
-  tool_choice: 'auto',
-  stream: true,
-  store: false,
-  max_output_tokens: 64,
-  reasoning: { effort: 'none' },
-  include: [],
-  prompt_cache_key: 'test-prefix',
-  prompt_cache_retention: '24h',
+    {
+      provider: 'deepseek',
+      name: 'bad-key',
+      scrubbed:
+        'Authentication Fails, Your api key: [key] is invalid (request_id: 2370f52c-74d2-43b5-8c72-ce2b00322e0b)',
+    },
+    {
+      provider: 'xai',
+      name: 'unknown-model',
+      scrubbed:
+        'The model no-such-model-real-life does not exist or your team [account] does not have access to it. If you believe this is a mistake, please contact support and quote your team ID and the model name.',
+    },
+  ])('$provider/$name scrubs to the stored form', async ({ provider, name, scrubbed }) => {
+    const answer = await recorded(provider, name)
+    const parsed = parseRefusalError(answer.status, answer.response)
+    expect(parsed.parsed).toBe(true)
+    // The request id is the provider support handle and is kept.
+    expect(scrubRefusalLeak(parsed.message)).toBe(scrubbed)
+    expect(scrubRefusalLeak(parsed.message)).not.toMatch(/\*{2,}/)
+  })
 })
 
-/** Drain the client stream, capturing the rejection with its stack. */
-async function clientError(
-  t: Awaited<ReturnType<typeof loopbackProvider>>,
-  budget?: { retriesUsed: number },
-): Promise<unknown> {
-  try {
-    await Array.fromAsync(
-      t.model.client.streamResponse(
-        body(),
-        new AbortController().signal,
+describe('documented shapes the lane could not record (UNVERIFIED)', () => {
+  it('tells an OpenAI quota 429 from a bare one (OPENAI-G20)', () => {
+    // OpenAI documents insufficient_quota as "won't restore API access" on
+    // retry (https://developers.openai.com/api/docs/guides/error-codes, read
+    // 2026-10-13). A 429 with no kind or code retries; the same 429 with the
+    // quota code does not.
+    const bare = parseRefusalError(429, {
+      error: { message: 'Rate limit reached for gpt-5.', type: 'rate_limit_error' },
+    })
+    expect(refusalOf(carrier(429, bare)).kind).toBe('rateLimited')
+    expect(isRefusalRetryable(carrier(429, bare), undefined)).toBe(true)
+    const quota = parseRefusalError(429, {
+      error: {
+        message: 'You exceeded your current quota, please check your plan and billing details.',
+        type: 'insufficient_quota',
+        code: 'insufficient_quota',
+      },
+    })
+    expect(refusalOf(carrier(429, quota)).kind).toBe('credit')
+    expect(isRefusalRetryable(carrier(429, quota), undefined)).toBe(false)
+  })
+
+  it('reads the preset retry override (OPENAI-G20)', () => {
+    // OpenAI documents `server_error` as retryable past the format statuses
+    // (the `quirks.retry` override in src/core/providers/presets.ts); the
+    // transport and the stream client both decide by it.
+    const preset = presetById('openai')
+    if (preset === undefined) throw new Error('expected the openai preset')
+    const table = quirksOf(preset).retry
+    expect(
+      isRefusalRetryable(
+        { status: 500, kind: 'server_error', code: 'server_error', message: 'Server error.' },
         undefined,
-        budget,
-        undefined,
+        table,
       ),
-    )
-  } catch (error: unknown) {
-    return error
-  }
-  throw new Error('expected the provider answer to refuse the turn')
-}
-
-const SINGLE = { retriesUsed: 4 }
-
-describe('provider refusals at the HTTP boundary', () => {
-  it('names the raise site for the measured credit refusal', async () => {
-    const t = await loopbackProvider(ANSWERS.credit)
-    try {
-      const error = await clientError(t, SINGLE)
-      expect(isModelApiError(error)).toBe(true)
-      if (!isModelApiError(error)) throw new Error('expected a ModelApiError')
-      // The closed kind and the request id the provider sent survive the
-      // sentence; the parser-level test below pins the provider's own words.
-      expect(refusalOf(error).kind).toBe('credit')
-      expect(error.status).toBe(400)
-      expect(error.requestId).toBe('req-credit-1')
-      // The person reads the provider's refusal, not a missing feature.
-      expect(error.message).toBe(
-        'case refused the request: its account is out of credit. Add credit at case; nothing reached a model and nothing was charged for this request. case said: Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.',
-      )
-      expect(error.message).not.toContain(UI_TEXT.modelsPanelUnavailable)
-      expect(error.message).not.toContain(FAKE_KEY)
-      expect(error.stack).toContain('configured')
-      // Answered once and refused before processing: never retried.
-      expect(t.requests()).toBe(1)
-    } finally {
-      await t.close()
-    }
-  })
-
-  it.each([
-    ['authentication', ANSWERS.authentication, 'authentication', 'the stored key was rejected'],
-    [
-      'permission',
-      {
-        status: 403,
-        headers: { 'content-type': 'application/json' },
-        body: '{"type":"error","error":{"type":"permission_error","message":"This key cannot use this model."}}',
-      },
-      'permission',
-      'the key has no permission',
-    ],
-    ['notFound', ANSWERS.notFound, 'notFound', 'it has no such model'],
-    ['invalidRequest', ANSWERS.invalidRequest, 'invalidRequest', 'the request was invalid'],
-    ['tooLarge', ANSWERS.tooLarge, 'tooLarge', 'it was too large'],
-    ['overloaded', ANSWERS.overloaded, 'overloaded', 'it is overloaded'],
-    ['rateLimited', ANSWERS.rateLimited, 'rateLimited', 'too many requests'],
-    [
-      'serverError',
-      {
-        status: 500,
-        headers: { 'content-type': 'application/json' },
-        body: '{"type":"error","error":{"type":"api_error","message":"Internal server error."}}',
-      },
-      'serverError',
-      'a server error on its side',
-    ],
-    ['unrecognised', ANSWERS.proxyHtml, 'unrecognised', 'does not recognise'],
-  ] as const)('tells the truth about a %s answer', async (_name, answer, kind, fragment) => {
-    const t = await loopbackProvider(answer)
-    try {
-      const error = await clientError(t, SINGLE)
-      expect(isModelApiError(error)).toBe(true)
-      if (!isModelApiError(error)) throw new Error('expected a ModelApiError')
-      expect(refusalOf(error).kind).toBe(kind)
-      expect(error.message).toContain(fragment)
-      expect(error.message).toContain('case')
-      expect(error.message).not.toContain(UI_TEXT.modelsPanelUnavailable)
-      expect(error.message).not.toContain(FAKE_KEY)
-    } finally {
-      await t.close()
-    }
-  })
-
-  it('says the provider could not be reached when the connection closes first', async () => {
-    const t = await loopbackProvider(ANSWERS.closed)
-    try {
-      const error = await clientError(t, SINGLE)
-      expect(isModelApiError(error)).toBe(true)
-      if (!isModelApiError(error)) throw new Error('expected a ModelApiError')
-      expect(error.status).toBe(0)
-      expect(error.message).toBe(
-        'Could not reach case. Check the network and the provider address; nothing was sent.',
-      )
-      expect(t.requests()).toBe(1)
-    } finally {
-      await t.close()
-    }
-  })
-})
-
-describe('refusal retry per kind', () => {
-  const FULL = { retriesUsed: 0 }
-  it.each([
-    ['credit', ANSWERS.credit],
-    ['authentication', ANSWERS.authentication],
-    [
-      'permission',
-      {
-        status: 403,
-        headers: { 'content-type': 'application/json' },
-        body: '{"type":"error","error":{"type":"permission_error","message":"This key cannot use this model."}}',
-      },
-    ],
-    ['notFound', ANSWERS.notFound],
-    ['invalidRequest', ANSWERS.invalidRequest],
-    ['tooLarge', ANSWERS.tooLarge],
-  ] as const)('never retries a %s refusal', async (_name, answer) => {
-    const t = await loopbackProvider(answer)
-    try {
-      const retries: unknown[] = []
-      try {
-        await Array.fromAsync(
-          t.model.client.streamResponse(
-            body(),
-            new AbortController().signal,
-            (notice) => {
-              retries.push(notice)
-            },
-            { ...FULL },
-            undefined,
-          ),
-        )
-        throw new Error('expected the provider answer to refuse the turn')
-      } catch (error: unknown) {
-        expect(isModelApiError(error)).toBe(true)
-      }
-      expect(retries).toHaveLength(0)
-      expect(t.requests()).toBe(1)
-    } finally {
-      await t.close()
-    }
-  })
-
-  it('retries a rate-limited answer within the table that exists', async () => {
-    const answer: Answer = {
-      status: 429,
-      headers: { 'content-type': 'application/json', 'retry-after': '0' },
-      body: '{"type":"error","error":{"type":"rate_limit_error","message":"Rate limit reached."}}',
-    }
-    const t = await loopbackProvider(answer)
-    try {
-      const retries: unknown[] = []
-      const error = await (async () => {
-        try {
-          await Array.fromAsync(
-            t.model.client.streamResponse(
-              body(),
-              new AbortController().signal,
-              (notice) => {
-                retries.push(notice)
-              },
-              { retriesUsed: 3 },
-              undefined,
-            ),
-          )
-        } catch (error_: unknown) {
-          return error_
-        }
-        throw new Error('expected the provider answer to refuse the turn')
-      })()
-      expect(isModelApiError(error)).toBe(true)
-      // One retry inside the attempt budget, then the refusal.
-      expect(retries).toHaveLength(1)
-      expect(t.requests()).toBe(2)
-    } finally {
-      await t.close()
-    }
-  })
-
-  it('does not retry an overloaded answer the table does not list', async () => {
-    const t = await loopbackProvider(ANSWERS.overloaded)
-    try {
-      const error = await clientError(t, { retriesUsed: 0 })
-      expect(isModelApiError(error)).toBe(true)
-      if (!isModelApiError(error)) throw new Error('expected a ModelApiError')
-      expect(refusalOf(error).kind).toBe('overloaded')
-      expect(t.requests()).toBe(1)
-    } finally {
-      await t.close()
-    }
-  })
-})
-
-describe('the typed refusal per wire format', () => {
-  it('reads the Anthropic credit envelope', () => {
-    const error = parseAnthropicError(400, JSON.parse(CREDIT_BODY) as unknown)
-    expect(refusalOf(error)).toEqual({
-      status: 400,
-      kind: 'credit',
-      providerMessage:
-        'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.',
-    })
-  })
-
-  it('reads an unparsable Anthropic body as unrecognised with its first line', () => {
-    const error = parseAnthropicError(502, '<html><body>Bad Gateway</body></html>')
-    expect(refusalOf(error)).toEqual({
-      status: 502,
-      kind: 'unrecognised',
-      providerMessage: 'HTTP 502: <html><body>Bad Gateway</body></html>',
-    })
-  })
-
-  it('reads the OpenAI-style envelope for chat, Responses and their quirks', () => {
-    const parsed = parseRefusalError(
-      401,
-      {
-        error: {
-          message: 'Incorrect API key provided.',
-          type: 'invalid_api_key',
-          code: 'invalid_api_key',
+    ).toBe(true)
+    expect(
+      isRefusalRetryable(
+        {
+          status: 429,
+          kind: 'insufficient_quota',
+          code: 'insufficient_quota',
+          message: 'You exceeded your current quota.',
         },
+        undefined,
+        table,
+      ),
+    ).toBe(false)
+  })
+
+  it('reads the Anthropic spend-cap error code instead of retrying it (GAPANTH-G20)', () => {
+    // A tier spend-cap 429 carries `enforced_spend_limit_reached` in
+    // `error.details.error_code` while `type` stays `rate_limit_error`
+    // (https://platform.claude.com/docs/en/api/rate-limits#reaching-your-spend-cap,
+    // read 2026-10-13); retrying it keeps failing, so it is credit.
+    const error = parseAnthropicError(429, {
+      type: 'error',
+      error: {
+        type: 'rate_limit_error',
+        message: 'Number of tokens used in the last minute exceeds the limit.',
+        details: { error_code: 'enforced_spend_limit_reached' },
       },
-      openAiEnvelope,
-    )
-    expect(refusalOf({ status: 401, ...parsed })).toEqual({
-      status: 401,
-      kind: 'authentication',
-      providerMessage: 'Incorrect API key provided.',
     })
+    // The documented error code rides as the failure code, so the shared
+    // classifier — not a prose match — decides.
+    expect(error.code).toBe('enforced_spend_limit_reached')
+    const refusal = refusalOf(error)
+    expect(refusal.kind).toBe('credit')
+    expect(refusalSentence(refusal, 'anthropic')).toContain('out of credit')
+    expect(isRefusalRetryable(error, undefined)).toBe(false)
   })
 
-  it('reads the Gemini envelope', () => {
-    const error = parseGeminiError(400, {
-      error: { code: 400, message: 'Invalid value at data.contents.', status: 'INVALID_ARGUMENT' },
+  it('maps an Azure content-filter block to its own sentence (AZURE-G06)', () => {
+    // A filtered prompt answers HTTP 400 with `error.code: "content_filter"`
+    // (https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/content-filter,
+    // read 2026-10-13; the Azure route itself is another lane's branch).
+    const parsed = parseRefusalError(400, {
+      error: {
+        message:
+          'The response was filtered due to the prompt triggering Azure content management policy.',
+        code: 'content_filter',
+      },
     })
-    expect(refusalOf(error)).toEqual({
-      status: 400,
-      kind: 'invalidRequest',
-      providerMessage: 'Invalid value at data.contents.',
-    })
+    const refusal = refusalOf(carrier(400, parsed))
+    expect(refusal.kind).toBe('contentFilter')
+    expect(refusalSentence(refusal, 'azure')).toContain('content filter blocked')
+    expect(isRefusalRetryable(carrier(400, parsed), undefined)).toBe(false)
   })
 
-  it('reads the Ollama envelope and bounds a long message', () => {
-    const error = parseOllamaError(500, { error: 'model exploded' }, '')
-    expect(refusalOf(error)).toEqual({
-      status: 500,
-      kind: 'serverError',
-      providerMessage: 'model exploded',
+  it('ends an unsupported-parameter answer as invalid, never retried', () => {
+    // Measured through the product on 2026-10-12 (lane brief: xAI answers
+    // `reasoning.effort` on `grok-build-0.1` with this 400); no fixture was
+    // saved, so this stays UNVERIFIED until a real answer is recorded.
+    const parsed = parseRefusalError(400, {
+      code: 'invalid-argument',
+      error: 'Model grok-build-0.1 does not support parameter reasoningEffort.',
     })
-    const long = parseRefusalError(400, { error: { message: 'x'.repeat(600) } }, openAiEnvelope)
-    expect(long.message).toHaveLength(501)
+    const refusal = refusalOf(carrier(400, parsed))
+    expect(refusal.kind).toBe('invalidRequest')
+    expect(isRefusalRetryable(carrier(400, parsed), undefined)).toBe(false)
   })
 })
 
-describe('a refused turn through the session', () => {
-  it('ends the turn with the refusal sentence and releases the reservation', async () => {
-    const t = await loopbackProvider(ANSWERS.credit, true)
-    const log = new FakeLogOutputChannel()
-    const store = createFileSessionStore({
-      directory: t.root,
-      log,
-      retentionDays: () => 0,
-      now: () => 0,
-      sleep: () => Promise.resolve(undefined),
+describe('answers no parser reads', () => {
+  it('classifies an unparsable body by its status, apart from the kind', () => {
+    const parsed = parseRefusalError(502, '<html><body>Bad Gateway</body></html>')
+    // "The body could not be read" travels beside the kind, never as one.
+    expect(parsed.parsed).toBe(false)
+    expect(parsed.kind).toBeUndefined()
+    expect(refusalOf(carrier(502, parsed)).kind).toBe('serverError')
+  })
+
+  it('keeps a stream error its own kind at the answer status', () => {
+    const refusal = refusalOf({
+      status: 200,
+      kind: 'streamError',
+      code: 'content_filter',
+      message: 'The generation was filtered.',
     })
-    if (store.budget === undefined) throw new Error('expected a budget journal')
-    const reserved: unknown[] = []
-    const reserve = store.budget.reserve.bind(store.budget)
-    store.budget.reserve = async (...args) => {
-      reserved.push(args[2])
-      return await reserve(...args)
-    }
-    const notes: { usage: unknown; context: RecordedCall }[] = []
-    const usageRecording: UsageRecording = {
-      note: (usage, context) => {
-        notes.push({ usage, context })
-      },
-      limit: () => undefined,
-      today: () => Promise.resolve([]),
-      flush: () => Promise.resolve(),
-    }
-    const host = new ModelApiHost({
-      ...fakeModelApiHostDeps({
-        client: t.services.client,
-        io: memoryToolIo({}, '/workspace'),
-        log,
-        workspaceRoot: '/workspace',
-      }),
-      models: t.services.client.models,
-      sessionBudgetUsd: () => Usd.from(1).toAmount(),
-      store,
-      usageRecording,
-    })
-    try {
-      const session = await host.startSession({
-        modelId: REF,
-        approvalMode: 'allowAll',
-        workspaceRoot: '/workspace',
-      })
-      const watch = watchSessionTurns(session)
-      const done = watch.turnDone()
-      await session.sendTurn([{ type: 'text', text: 'Hi.' }])
-      await done
-      const completed = watch.events.find((event) => event.type === 'turnCompleted')
-      expect(completed).toMatchObject({
-        terminal: 'failed',
-        reason:
-          'case refused the request: its account is out of credit. Add credit at case; nothing reached a model and nothing was charged for this request. case said: Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.',
-      })
-      expect(t.requests()).toBe(1)
-      // The reservation was taken, then released in full: nothing spent,
-      // nothing uncertain, and no "ended without its usage" warning.
-      expect(reserved.length).toBeGreaterThan(0)
-      expect(Usd.from(reserved[0] as string).compare(Usd.from(0))).toBeGreaterThan(0)
-      const totals = await store.budget.read(session.sessionId, FAKE_MODEL_API_ACCOUNT_ID)
-      expect(totals.spentUsd).toBe(Usd.from(0).toAmount())
-      expect(
-        log.warn.mock.calls.some((call) => String(call[0]).includes('ended without its usage')),
-      ).toBe(false)
-      const recorded = notes.find((note) => note.context.outcome === 'refused')
-      expect(recorded?.context.uncertain).toBe(false)
-    } finally {
-      await host.close()
-      await t.close()
-    }
+    // A streamed filter block consumed output, so it never reads as the
+    // uncharged 400 content-filter sentence; liability stays uncertain.
+    expect(refusal.kind).toBe('streamError')
+    expect(refusalSentence(refusal, 'azure')).toContain('stopped answering')
   })
 })

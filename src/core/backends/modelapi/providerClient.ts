@@ -146,9 +146,11 @@ export class CodecClient implements ProviderClient {
       parseError: (status, body, headers) => deps.codec.parseError(status, body, headers),
       isTerminalError: (failure) => isZai && (failure.code === '1113' || failure.code === '1308'),
       // Lane PROVERR: a credit, authentication, permission, not-found,
-      // invalid-request or too-large refusal is never retried; anything
-      // else follows the retry table that exists.
-      isRetryableFailure: (failure, retryAfterMs) => isRefusalRetryable(failure, retryAfterMs),
+      // content-filter, invalid-request or too-large refusal is never
+      // retried; anything else follows the preset's own retry table
+      // (OPENAI-G20), defaulting to the Responses table.
+      isRetryableFailure: (failure, retryAfterMs) =>
+        isRefusalRetryable(failure, retryAfterMs, deps.transport.retryTable),
     })
     this.currentKeyDigest = this.transport.currentKeyDigest.bind(this.transport)
     this.retryDelayMs = this.transport.backoffMs.bind(this.transport)

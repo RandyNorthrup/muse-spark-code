@@ -36,7 +36,7 @@ interface PaidRequestClaim {
 }
 import type { MediaRequestAccounting } from '../../media/mediaCost'
 import { fill } from '../../../shared/l10n/text'
-import { classifyRetry, RETRY_TABLES } from '../../../shared/retryPolicy'
+import { classifyRetry, RETRY_TABLES, type RetryTables } from '../../../shared/retryPolicy'
 import type { CoreLogger } from '../../logging'
 import {
   describeNetworkFailure,
@@ -79,6 +79,8 @@ export interface TransportDeps {
   readonly verifyEndpoint?: (url: string) => Promise<void>
   readonly parseError?: (status: number, body: unknown, headers: Headers) => ModelApiError
   readonly isTerminalError?: (error: ModelApiError) => boolean
+  /** The preset's own retry table (OPENAI-G20); defaults to the Responses table. */
+  readonly retryTable?: RetryTables
   readonly sleep: (ms: number) => Promise<void>
   readonly now: () => number
   readonly random: () => number
@@ -1120,7 +1122,12 @@ export class RequestTransport {
         init.paid.isSent = false
       }
       const waitMs = retryAfterMs(response.headers.get(RETRY_AFTER_HEADER), this.deps.now())
-      const decision = classifyRetry(RETRY_TABLES.responses, {
+      // OPENAI-G20: the preset's own retry table decides, so its override
+      // (e.g. OpenAI's documented retryable `server_error`) is read, not
+      // skipped. The envelope kind/code the parsers carry is what lets a
+      // quota 429 refuse while a bare one retries.
+      const retryTable = this.deps.retryTable ?? RETRY_TABLES.responses
+      const decision = classifyRetry(retryTable, {
         status: response.status,
         kind: failure.kind,
         code: failure.code,
@@ -1131,7 +1138,7 @@ export class RequestTransport {
         throw new ModelApiError(
           fill(UI_TEXT.modelApiRetryAfterTooLong, {
             wait: Math.ceil((waitMs ?? 0) / MILLISECONDS_PER_SECOND),
-            cap: RETRY_TABLES.responses.retryAfterCapMs / MILLISECONDS_PER_SECOND,
+            cap: retryTable.retryAfterCapMs / MILLISECONDS_PER_SECOND,
           }),
           response.status,
           failure.kind,

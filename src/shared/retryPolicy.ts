@@ -29,10 +29,19 @@ const HTTP_PAYMENT_REQUIRED = PROVIDER_RETRY_HTTP_STATUS.paymentRequired
 /** The research's cap: a `Retry-After` over 60 s fails at once. */
 const RETRY_AFTER_CAP_MS = PROVIDER_RETRY_AFTER_CAP_MS
 
-/** Normalized quota/spend-cap codes emitted by the existing provider parsers. */
+/**
+ * Normalized quota/spend-cap codes emitted by the existing provider parsers.
+ * The OpenAI rows are its documented 429 codes (read 2026-10-13,
+ * https://developers.openai.com/api/docs/guides/error-codes): "Retrying
+ * billing, spend, or quota errors won't restore API access."
+ */
 const QUOTA_ERROR_KINDS: readonly string[] = [
   'insufficient_quota',
   'quota_exceeded',
+  'credit_balance_exhausted',
+  'organization_spend_limit_exceeded',
+  'project_spend_limit_exceeded',
+  'organization_usage_limit_exceeded',
   'enforced_spend_limit_reached',
 ]
 
