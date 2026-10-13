@@ -146,22 +146,22 @@ through.
 
 ## Review finding closures (P2-1 … P2-7, P3-1 … P3-7)
 
-| Finding                                    | Commit                           | Test                                                                                                |
-| ------------------------------------------ | -------------------------------- | --------------------------------------------------------------------------------------------------- |
-| P2-1 three-valued credential reads         | P2-1/P3-5 commit                 | `credentialStore`, `providerCredentialStore`, `authService` unreadable-store, `credentialReadGuard` |
-| P2-2 quarantine before the type test       | P2-2 commit                      | `mcpOAuth` "quarantines a sent refresh…"                                                            |
-| P2-3 notice bound at ask time              | P2-3/guard commit                | `acpPaid` "tells the asking session…"                                                               |
-| P2-4 unreadable announced every sample     | P2-4/5/6 commit                  | `resourceHistoryReview` "reports an unreadable history choice once…"                                |
-| P2-5 three hosts, three wrong sentences    | P2-4/5/6 commit                  | `resourceHistoryReview` "tells the damaged choice…"                                                 |
-| P2-6 once-marker never cleared             | P2-4/5/6 commit                  | `resourceHistoryReview` "reports the same damage again…"                                            |
-| P2-7 media refusals and stop               | Part 3 batch commit              | `companionMedia` refusal / stop / permission / generic                                              |
-| P3-1 panel queue foreign failure           | Part 3 batch commit              | `modelsPanelEdit` "records a foreign save failure…" (rewritten)                                     |
-| P3-2 no internal words                     | adapter + sentence keys          | `reasonTextForKind`, kind-word keys in 14 languages                                                 |
-| P3-3 stale quote notice, unbounded warning | Part 3 batch commit (paidGrants) | `paidGrants` stale-notice + warn-once                                                               |
-| P3-4 consent errno reaches the sentence    | Part 3 batch commit (schedules)  | `scheduleRuntime` kind-word tests                                                                   |
-| P3-5 classifier blesses `String(error)`    | P2-1/P3-5 commit                 | `catchInventory` suite + named site fixed + `credentialStore` log test                              |
-| P3-6 test that cannot fail                 | Part 3 batch commit (paidGrants) | `paidGrants` missing-folder test (reaches the branch)                                               |
-| P3-7 stale line numbers, rule 18 wording   | records commit                   | table below regenerated from the code; AGENTS.md rule 18 matches the classifier                     |
+| Finding                                    | Commit                           | Test                                                                                                                                                                                                   |
+| ------------------------------------------ | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| P2-1 three-valued credential reads         | P2-1/P3-5 commit                 | `credentialStore`, `providerCredentialStore`, `authService` unreadable-store, `credentialReadGuard`                                                                                                    |
+| P2-2 quarantine before the type test       | P2-2 commit                      | `mcpOAuth` "quarantines a sent refresh…"                                                                                                                                                               |
+| P2-3 notice bound at ask time              | P2-3/guard commit                | `acpPaid` "tells the asking session…"                                                                                                                                                                  |
+| P2-4 unreadable announced every sample     | P2-4/5/6 commit                  | `resourceHistoryReview` "reports an unreadable history choice once…"                                                                                                                                   |
+| P2-5 three hosts, three wrong sentences    | P2-4/5/6 commit                  | `resourceHistoryReview` "tells the damaged choice…"                                                                                                                                                    |
+| P2-6 once-marker never cleared             | P2-4/5/6 commit                  | `resourceHistoryReview` "reports the same damage again…"                                                                                                                                               |
+| P2-7 media refusals and stop               | Part 3 batch commit              | `companionMedia` refusal / stop / permission / generic                                                                                                                                                 |
+| P3-1 panel queue foreign failure           | Part 3 batch + P3-1 rewrite      | `modelsPanelEdit` "records a foreign save failure…" (rewritten), plus `modelsPanel` "returns through Test…" (rewritten: it asserted the same false conflict for a save that never reached `saveDraft`) |
+| P3-2 no internal words                     | adapter + sentence keys          | `reasonTextForKind`, kind-word keys in 14 languages                                                                                                                                                    |
+| P3-3 stale quote notice, unbounded warning | Part 3 batch commit (paidGrants) | `paidGrants` stale-notice + warn-once                                                                                                                                                                  |
+| P3-4 consent errno reaches the sentence    | Part 3 batch commit (schedules)  | `scheduleRuntime` kind-word tests                                                                                                                                                                      |
+| P3-5 classifier blesses `String(error)`    | P2-1/P3-5 commit                 | `catchInventory` suite + named site fixed + `credentialStore` log test                                                                                                                                 |
+| P3-6 test that cannot fail                 | Part 3 batch commit (paidGrants) | `paidGrants` missing-folder test (reaches the branch)                                                                                                                                                  |
+| P3-7 stale line numbers, rule 18 wording   | records commit                   | table below regenerated from the code; AGENTS.md rule 18 matches the classifier                                                                                                                        |
 
 Rounds 1–2 history: 32 handlers rewritten with per-handler drills (see git
 history `fix/catch-money` before this round's merge); the round-2 review
