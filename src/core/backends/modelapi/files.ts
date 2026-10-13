@@ -39,25 +39,21 @@ const anthropicFileId = z.string().check(z.regex(/^file_[A-Za-z0-9_-]+$/u))
 function fileIdFor(wire: FilesWire) {
   return wire === 'anthropic-files' ? anthropicFileId : metaFileId
 }
+const fileBase = {
+  id: metaFileId,
+  object: z.literal('file'),
+  bytes: z.int().check(z.gte(0)),
+  created_at: z.int().check(z.gt(0)),
+  filename: z.string(),
+  purpose: z.string(),
+}
 // Account listings also contain inline media saved by the server without expiry (round 2).
 const fileSchema = z.object({
-  id: metaFileId,
-  object: z.literal('file'),
-  bytes: z.int().check(z.gte(0)),
-  created_at: z.int().check(z.gt(0)),
+  ...fileBase,
   expires_at: z.optional(z.int().check(z.gt(0))),
-  filename: z.string(),
-  purpose: z.string(),
   status: z.string(),
 })
-const openAiFileSchema = z.object({
-  id: metaFileId,
-  object: z.literal('file'),
-  bytes: z.int().check(z.gte(0)),
-  created_at: z.int().check(z.gt(0)),
-  filename: z.string(),
-  purpose: z.string(),
-})
+const openAiFileSchema = z.object({ ...fileBase })
 const anthropicFileSchema = z.object({
   id: anthropicFileId,
   type: z.literal('file'),
