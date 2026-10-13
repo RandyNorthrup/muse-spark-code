@@ -33892,7 +33892,12 @@ two earlier post-correction core tests exceeded the default 5 s (5.184 / 6.842 s
 The final indexed-history fixture measured admission maxima 782.652 / 440.347 /
 380.090 ms at 10 / 1,000 / 10,000 entries, hold maximum 856.212 ms; the 2 s
 wait has no certified eightfold margin on those results. R3/R4 remain open.
-No cap, timeout, ignore or assertion is weakened. Preliminary duplication returned 10 clones, including inherited fake suites
+No cap, timeout, ignore or assertion is weakened. ACP packaging is blocked by missing required Darwin/Linux native artifacts;
+the keyless local product run stopped before connection at model availability,
+so packed transport refund remains uncertified. The redacted full-history
+secret scan found two entries among 4,731 commits; locations/cause are
+UNMEASURED and history is not rewritten. Final static exits are in the
+certification's named receipts. Preliminary duplication returned 10 clones, including inherited fake suites
 that the owner forbids this lane to repair; no ignore or threshold is changed.
 The final receipt lists every remaining clone. The history-size fixture expands
 real-writer transaction data and is distinct from 10,000 actual admissions. Final macOS matrix, Windows

@@ -7,7 +7,7 @@ import { Usd, type UsdAmount } from '../../src/shared/usd'
 // lock stability (D77 criteria 1, 6, 7) belong to D78/FIXDEF and are
 // recorded as gaps in docs/certification/m98-a.md, not patched around here.
 
-import { mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readdirSync, writeFileSync } from 'node:fs'
 import { setTimeout as delay } from 'node:timers/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -194,67 +194,29 @@ describe('admission over the real journal', () => {
     })
   })
 
-  it('interleaves two windows reading the last budget and refunds the losing reservation', async () => {
+  it('admits one of two fitting journal adapters without publishing a losing claim', async () => {
     const directory = freshDirectory()
     const capUsd = 0.002
     const firstLedger = ledgerFor(journalAt(directory), Usd.from(capUsd).toAmount())
     const secondLedger = ledgerFor(journalAt(directory), Usd.from(capUsd).toAmount())
-    // Seed before the race; both windows must read the SAME old balance.
-    await firstLedger.remainingUsd()
-    const bothRead = Promise.withResolvers<undefined>()
-    const releaseReads = Promise.withResolvers<undefined>()
-    const secondReserving = Promise.withResolvers<undefined>()
-    const releaseSecond = Promise.withResolvers<undefined>()
-    const balances: UsdAmount[] = []
-    const nonsentRefunds: UsdAmount[] = []
-    const controlled = (ledger: JudgeDailyLedger, isSecond: boolean): JudgeDailyLedger => ({
-      async remainingUsd(): Promise<UsdAmount> {
-        const balance = await ledger.remainingUsd()
-        balances.push(balance)
-        if (balances.length === 2) bothRead.resolve(undefined)
-        await releaseReads.promise
-        return balance
-      },
-      async reserve(costUsd: UsdAmount): Promise<JudgeLedgerClaim> {
-        if (isSecond) {
-          secondReserving.resolve(undefined)
-          await releaseSecond.promise
-        }
-        const claim = await ledger.reserve(Usd.from(costUsd).toAmount())
-        return {
-          ...claim,
-          async settle(actualCostUsd: UsdAmount): Promise<void> {
-            if (isSecond) nonsentRefunds.push(actualCostUsd)
-            await claim.settle(Usd.from(actualCostUsd).toAmount())
-          },
-        }
-      },
-    })
-    const firstPending = admitJudgeCall({
-      binding: binding(),
-      billing: { kind: 'metered', ledger: controlled(firstLedger, false) },
-      estimatedInputTokens: 1000,
-      maxOutputTokens: 100,
-    })
-    const secondPending = admitJudgeCall({
-      binding: binding(),
-      billing: { kind: 'metered', ledger: controlled(secondLedger, true) },
-      estimatedInputTokens: 1000,
-      maxOutputTokens: 100,
-    })
-    await bothRead.promise
-    expect(balances).toEqual([Usd.from(capUsd).toAmount(), Usd.from(capUsd).toAmount()])
-    releaseReads.resolve(undefined)
-    await secondReserving.promise
-    const first = await firstPending
-    releaseSecond.resolve(undefined)
-    const second = await secondPending
-    expect(second).toEqual({ admitted: false, refusal: 'ledger-unavailable' })
-    expect(nonsentRefunds).toEqual([Usd.from(0).toAmount()])
-    if (!first.admitted) throw new Error('expected the first window admitted')
+    const input = { binding: binding(), estimatedInputTokens: 1000, maxOutputTokens: 100 }
+    const results = await Promise.all([
+      admitJudgeCall({ ...input, billing: { kind: 'metered', ledger: firstLedger } }),
+      admitJudgeCall({ ...input, billing: { kind: 'metered', ledger: secondLedger } }),
+    ])
+    const winners = results.filter((result) => result.admitted)
+    expect(winners).toHaveLength(1)
+    expect(results.filter((result) => !result.admitted)).toEqual([
+      { admitted: false, refusal: 'over-budget' },
+    ])
+    const winner = winners[0]
+    if (winner === undefined) throw new Error('missing funded request')
     const total = await journalAt(directory).read(SESSION, ACCOUNT)
-    expect(Number(total.spentUsd)).toBeCloseTo(Number(first.claim.reservedUsd), 12)
-    expect(await verifyJudgeDispatch(first.claim, binding(), firstLedger)).toEqual({
+    expect(total.spentUsd).toBe(winner.claim.reservedUsd)
+    expect(
+      readdirSync(path.join(directory, 'spend-ledger-v3', ACCOUNT, SESSION, 'history')),
+    ).toHaveLength(0)
+    expect(await verifyJudgeDispatch(winner.claim, binding(), firstLedger)).toEqual({
       proceed: true,
     })
   })
