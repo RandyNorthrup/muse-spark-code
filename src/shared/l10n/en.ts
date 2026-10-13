@@ -1031,6 +1031,7 @@ export const EN = {
     poolUsage: '{used} of {pool} stored',
     replayOmitted: '{name} ({duration}) was left out: {model} does not take {kind}.',
     attachRecording: 'Attach Screen Recording…',
+    recordingDiscarded: 'The recording was discarded; nothing was attached.',
     attachLatestRecording: 'Attach Latest Screen Recording',
     recordingCountdown: 'Recording: {remaining} remaining',
     recordingMicrophone: 'Microphone',
@@ -3075,6 +3076,10 @@ export const EN = {
   installOrKeyDetail:
     'The Muse Code CLI hosts conversations for this extension; without it you can still use a Meta Model API key.',
   compactionDone: 'Context compacted',
+  compactionDoneDetail: forms({
+    one: 'Compacted {count} turn into a summary ({before} entries before, {after} after).',
+    other: 'Compacted {count} turns into a summary ({before} entries before, {after} after).',
+  }),
   referenceManualCompaction:
     'Summarize the conversation with /compact and keep recent turns verbatim.',
   autoCompactionName: 'Automatic compaction',

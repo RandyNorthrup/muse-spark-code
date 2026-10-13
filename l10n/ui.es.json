@@ -860,6 +860,7 @@
     "poolUsage": "{used} de {pool} almacenados",
     "replayOmitted": "Se ha omitido {name} ({duration}): {model} no admite {kind}.",
     "attachRecording": "Adjuntar grabación de pantalla…",
+    "recordingDiscarded": "La grabación se descartó; no se adjuntó nada.",
     "attachLatestRecording": "Adjuntar la última grabación de pantalla",
     "recordingCountdown": "Grabando: quedan {remaining}",
     "recordingMicrophone": "Micrófono",
@@ -2604,6 +2605,11 @@
   "modelApiBackendNotice": "Esta conversación se ejecuta en Meta Model API con las herramientas propias de la extensión (leer, editar, escribir, buscar, listar, shell). Sus sesiones se guardan en el almacenamiento de la extensión de esta área de trabajo.",
   "installOrKeyDetail": "La CLI de Muse Code aloja las conversaciones de esta extensión; sin ella, puede usar igualmente una clave de Meta Model API.",
   "compactionDone": "Contexto compactado",
+  "compactionDoneDetail": {
+    "one": "{count} turno compactado en un resumen ({before} entradas antes, {after} después).",
+    "other": "{count} turnos compactados en un resumen ({before} entradas antes, {after} después).",
+    "many": "{count} turnos compactados en un resumen ({before} entradas antes, {after} después)."
+  },
   "referenceManualCompaction": "Resume la conversación con /compact y conserva los turnos recientes sin cambios.",
   "autoCompactionName": "Compactación automática",
   "paidConfirmAutoCompaction": "La compactación automática utiliza el modelo seleccionado a {price}. La suscripción no cubre este coste.",

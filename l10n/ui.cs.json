@@ -864,6 +864,7 @@
     "poolUsage": "Uloženo {used} z {pool}",
     "replayOmitted": "{name} ({duration}) byl vynechán: {model} nepodporuje {kind}.",
     "attachRecording": "Přiložit záznam obrazovky…",
+    "recordingDiscarded": "Nahrávka byla zahozena; nic nebylo přiloženo.",
     "attachLatestRecording": "Přiložit poslední záznam obrazovky",
     "recordingCountdown": "Nahrávání: zbývá {remaining}",
     "recordingMicrophone": "Mikrofon",
@@ -2658,6 +2659,12 @@
   "modelApiBackendNotice": "Tato konverzace běží na Meta Model API s vlastními nástroji rozšíření (čtení, úprava, zápis, hledání, výpis, shell). Její relace jsou uloženy v úložišti rozšíření tohoto pracovního prostoru.",
   "installOrKeyDetail": "Konverzace pro toto rozšíření hostuje Muse Code CLI; bez něj můžete stále použít klíč Meta Model API.",
   "compactionDone": "Kontext zkomprimován",
+  "compactionDoneDetail": {
+    "one": "{count} tah hovoru shrnut do souhrnu (předtím {before} záznamů, potom {after}).",
+    "other": "{count} tahů hovoru shrnuto do souhrnu (předtím {before} záznamů, potom {after}).",
+    "few": "{count} tahy hovoru shrnuty do souhrnu (předtím {before} záznamy, potom {after}).",
+    "many": "{count} tahů hovoru shrnuto do souhrnu (předtím {before} záznamů, potom {after})."
+  },
   "referenceManualCompaction": "Shrňte konverzaci pomocí /compact a zachovejte poslední výměny beze změny.",
   "autoCompactionName": "Automatická kompakce",
   "paidConfirmAutoCompaction": "Automatické zhuštění používá vybraný model za {price}. Předplatné tuto službu nehradí.",

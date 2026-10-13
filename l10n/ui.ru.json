@@ -864,6 +864,7 @@
     "poolUsage": "Сохранено {used} из {pool}",
     "replayOmitted": "{name} ({duration}) пропущен: {model} не поддерживает {kind}.",
     "attachRecording": "Прикрепить запись экрана…",
+    "recordingDiscarded": "Запись отброшена; ничего не прикреплено.",
     "attachLatestRecording": "Прикрепить последнюю запись экрана",
     "recordingCountdown": "Запись: осталось {remaining}",
     "recordingMicrophone": "Микрофон",
@@ -2658,6 +2659,12 @@
   "modelApiBackendNotice": "Эта беседа работает через Meta Model API с собственными инструментами расширения (чтение, правка, запись, поиск, список, оболочка). Ее сеансы хранятся в хранилище расширения для этой рабочей области.",
   "installOrKeyDetail": "CLI Muse Code размещает беседы для этого расширения; без него вы все равно можете использовать ключ Meta Model API.",
   "compactionDone": "Контекст сжат",
+  "compactionDoneDetail": {
+    "one": "{count} ход диалога сжат в сводку (было записей: {before}, стало: {after}).",
+    "other": "{count} хода диалога сжаты в сводку (было записей: {before}, стало: {after}).",
+    "few": "{count} хода диалога сжаты в сводку (было записей: {before}, стало: {after}).",
+    "many": "{count} ходов диалога сжато в сводку (было записей: {before}, стало: {after})."
+  },
   "referenceManualCompaction": "Сократите разговор с помощью /compact, сохранив последние сообщения без изменений.",
   "autoCompactionName": "Автоматическое сжатие",
   "paidConfirmAutoCompaction": "Автоматическое сжатие использует выбранную модель по тарифу {price}. Подписка не покрывает эти расходы.",

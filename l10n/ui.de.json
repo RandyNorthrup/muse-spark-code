@@ -856,6 +856,7 @@
     "poolUsage": "{used} von {pool} gespeichert",
     "replayOmitted": "{name} ({duration}) wurde ausgelassen: {model} unterstützt {kind} nicht.",
     "attachRecording": "Bildschirmaufnahme anhängen…",
+    "recordingDiscarded": "Die Aufnahme wurde verworfen; nichts wurde angehängt.",
     "attachLatestRecording": "Neueste Bildschirmaufnahme anhängen",
     "recordingCountdown": "Aufnahme: noch {remaining}",
     "recordingMicrophone": "Mikrofon",
@@ -2550,6 +2551,10 @@
   "modelApiBackendNotice": "Diese Unterhaltung läuft über die Meta Model API mit den eigenen Tools der Erweiterung (Lesen, Bearbeiten, Schreiben, Suchen, Auflisten, Shell). Ihre Sitzungen werden im Erweiterungsspeicher dieses Arbeitsbereichs aufbewahrt.",
   "installOrKeyDetail": "Die Muse Code-CLI hostet die Unterhaltungen für diese Erweiterung; ohne sie können Sie weiterhin einen Schlüssel für die Meta Model API verwenden.",
   "compactionDone": "Kontext komprimiert",
+  "compactionDoneDetail": {
+    "one": "{count} Turn zu einer Zusammenfassung verdichtet ({before} Einträge vorher, {after} nachher).",
+    "other": "{count} Turns zu einer Zusammenfassung verdichtet ({before} Einträge vorher, {after} nachher)."
+  },
   "referenceManualCompaction": "Fassen Sie das Gespräch mit /compact zusammen und behalten Sie die letzten Beiträge unverändert bei.",
   "autoCompactionName": "Automatische Komprimierung",
   "paidConfirmAutoCompaction": "Die automatische Komprimierung verwendet das gewählte Modell für {price}. Das Abonnement übernimmt diese Kosten nicht.",
