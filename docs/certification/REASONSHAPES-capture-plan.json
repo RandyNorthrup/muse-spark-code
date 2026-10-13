@@ -6,7 +6,12 @@
     {
       "body": {
         "max_tokens": 50,
-        "messages": [{ "content": "Say hi in five words.", "role": "user" }],
+        "messages": [
+          {
+            "content": "Say hi in five words.",
+            "role": "user"
+          }
+        ],
         "model": "deepseek-flash",
         "reasoning_effort": "ultra",
         "stream": false
@@ -21,7 +26,12 @@
     {
       "body": {
         "max_tokens": 50,
-        "messages": [{ "content": "Say hi in five words.", "role": "user" }],
+        "messages": [
+          {
+            "content": "Say hi in five words.",
+            "role": "user"
+          }
+        ],
         "model": "deepseek-flash",
         "reasoning_effort": "xhigh",
         "stream": false
@@ -36,7 +46,12 @@
     {
       "body": {
         "max_tokens": 200,
-        "messages": [{ "content": "What is 12*13? Reply with one tool call.", "role": "user" }],
+        "messages": [
+          {
+            "content": "What is 12*13? Reply with one tool call.",
+            "role": "user"
+          }
+        ],
         "model": "deepseek-flash",
         "stream": false,
         "tools": [
@@ -46,7 +61,14 @@
               "name": "mul",
               "parameters": {
                 "additionalProperties": false,
-                "properties": { "a": { "type": "number" }, "b": { "type": "number" } },
+                "properties": {
+                  "a": {
+                    "type": "number"
+                  },
+                  "b": {
+                    "type": "number"
+                  }
+                },
                 "required": ["a", "b"],
                 "type": "object"
               },
@@ -67,7 +89,12 @@
     {
       "body": {
         "max_tokens": 100,
-        "messages": [{ "content": "Say hi in five words.", "role": "user" }],
+        "messages": [
+          {
+            "content": "Say hi in five words.",
+            "role": "user"
+          }
+        ],
         "model": "openai/gpt-oss-120b",
         "reasoning_effort": "medium",
         "stream": false
@@ -82,7 +109,12 @@
     {
       "body": {
         "max_tokens": 100,
-        "messages": [{ "content": "Say hi in five words.", "role": "user" }],
+        "messages": [
+          {
+            "content": "Say hi in five words.",
+            "role": "user"
+          }
+        ],
         "model": "openai/gpt-oss-120b",
         "reasoning_format": "parsed",
         "stream": false
@@ -98,7 +130,12 @@
       "body": {
         "include_reasoning": false,
         "max_tokens": 100,
-        "messages": [{ "content": "Say hi in five words.", "role": "user" }],
+        "messages": [
+          {
+            "content": "Say hi in five words.",
+            "role": "user"
+          }
+        ],
         "model": "openai/gpt-oss-120b",
         "stream": false
       },
@@ -111,7 +148,12 @@
     },
     {
       "body": {
-        "messages": [{ "content": "Say hi in five words.", "role": "user" }],
+        "messages": [
+          {
+            "content": "Say hi in five words.",
+            "role": "user"
+          }
+        ],
         "model": "MODEL_WITH_THINKING",
         "stream": false,
         "think": "max"
@@ -125,7 +167,12 @@
     },
     {
       "body": {
-        "messages": [{ "content": "Say hi in five words.", "role": "user" }],
+        "messages": [
+          {
+            "content": "Say hi in five words.",
+            "role": "user"
+          }
+        ],
         "model": "LOADED_MODEL",
         "reasoning_effort": "high",
         "stream": true
@@ -139,7 +186,12 @@
     },
     {
       "body": {
-        "messages": [{ "content": "Say hi in five words.", "role": "user" }],
+        "messages": [
+          {
+            "content": "Say hi in five words.",
+            "role": "user"
+          }
+        ],
         "model": "LOADED_MODEL",
         "reasoning_effort": "none",
         "stream": false
@@ -153,7 +205,12 @@
     },
     {
       "body": {
-        "messages": [{ "content": "Say hi in five words.", "role": "user" }],
+        "messages": [
+          {
+            "content": "Say hi in five words.",
+            "role": "user"
+          }
+        ],
         "model": "LOADED_MODEL",
         "reasoning_format": "deepseek",
         "stream": false
@@ -169,7 +226,10 @@
       "body": {
         "max_tokens": 300,
         "messages": [
-          { "content": "Think step by step: what is 12*13? Answer in five words.", "role": "user" }
+          {
+            "content": "Think step by step: what is 12*13? Answer in five words.",
+            "role": "user"
+          }
         ],
         "model": "mistral-small-latest",
         "reasoning_effort": "high",
@@ -213,9 +273,16 @@
     },
     {
       "body": {
-        "messages": [{ "content": "Say hi in five words.", "role": "user" }],
+        "messages": [
+          {
+            "content": "Say hi in five words.",
+            "role": "user"
+          }
+        ],
         "model": "MODEL_WITHOUT_REASONING_PARAM",
-        "reasoning": { "effort": "high" },
+        "reasoning": {
+          "effort": "high"
+        },
         "stream": false
       },
       "gap": "OR-G02",
@@ -227,7 +294,12 @@
     },
     {
       "body": {
-        "messages": [{ "content": "Say hi in five words.", "role": "user" }],
+        "messages": [
+          {
+            "content": "Say hi in five words.",
+            "role": "user"
+          }
+        ],
         "model": "openai/gpt-oss-120b",
         "reasoning_effort": "medium",
         "stream": false
@@ -241,9 +313,16 @@
     },
     {
       "body": {
-        "messages": [{ "content": "Say hi in five words.", "role": "user" }],
+        "messages": [
+          {
+            "content": "Say hi in five words.",
+            "role": "user"
+          }
+        ],
         "model": "Qwen/Qwen3.6-Plus",
-        "reasoning": { "enabled": false },
+        "reasoning": {
+          "enabled": false
+        },
         "stream": false
       },
       "gap": "TO-G01",
@@ -255,10 +334,17 @@
     },
     {
       "body": {
-        "messages": [{ "content": "Say hi in five words.", "role": "user" }],
+        "messages": [
+          {
+            "content": "Say hi in five words.",
+            "role": "user"
+          }
+        ],
         "model": "glm-5.2",
         "stream": false,
-        "thinking": { "type": "disabled" }
+        "thinking": {
+          "type": "disabled"
+        }
       },
       "gap": "ZAI-G01",
       "id": "ZAI-OFF52",
@@ -269,7 +355,12 @@
     },
     {
       "body": {
-        "messages": [{ "content": "Say hi in five words.", "role": "user" }],
+        "messages": [
+          {
+            "content": "Say hi in five words.",
+            "role": "user"
+          }
+        ],
         "model": "glm-5.2",
         "reasoning_effort": "xhigh",
         "stream": false
@@ -283,7 +374,12 @@
     },
     {
       "body": {
-        "messages": [{ "content": "Say hi in five words.", "role": "user" }],
+        "messages": [
+          {
+            "content": "Say hi in five words.",
+            "role": "user"
+          }
+        ],
         "model": "glm-5.2",
         "reasoning_effort": "minimal",
         "stream": false
@@ -297,7 +393,12 @@
     },
     {
       "body": {
-        "messages": [{ "content": "Say hi in five words.", "role": "user" }],
+        "messages": [
+          {
+            "content": "Say hi in five words.",
+            "role": "user"
+          }
+        ],
         "model": "glm-5.2",
         "reasoning_effort": "medium",
         "stream": false
@@ -311,10 +412,18 @@
     },
     {
       "body": {
-        "messages": [{ "content": "Say hi in five words.", "role": "user" }],
+        "messages": [
+          {
+            "content": "Say hi in five words.",
+            "role": "user"
+          }
+        ],
         "model": "glm-5.2",
         "stream": false,
-        "thinking": { "clear_thinking": false, "type": "enabled" }
+        "thinking": {
+          "clear_thinking": false,
+          "type": "enabled"
+        }
       },
       "gap": "ZAI-G04",
       "id": "ZAI-CLEAR",
@@ -325,9 +434,16 @@
     },
     {
       "body": {
-        "messages": [{ "content": "Reply with exactly: {\"hi\": true}.", "role": "user" }],
+        "messages": [
+          {
+            "content": "Reply with exactly: {\"hi\": true}.",
+            "role": "user"
+          }
+        ],
         "model": "glm-5.2",
-        "response_format": { "type": "json_object" },
+        "response_format": {
+          "type": "json_object"
+        },
         "stream": false
       },
       "gap": "ZAI-G07",
@@ -352,6 +468,57 @@
       "method": "documentation read (no request possible without guessing keys)",
       "path": "n/a",
       "provider": "copilot (vscode.lm API)"
+    },
+    {
+      "id": "DS-BETA-MODELS",
+      "provider": "deepseek",
+      "gap": "DS-G02",
+      "method": "GET",
+      "path": "https://api.deepseek.com/beta/models",
+      "body": null,
+      "lookFor": "Whether the beta base serves a models list (needed to point an entry at it), and its shape."
+    },
+    {
+      "id": "DS-STRICT-PROD",
+      "provider": "deepseek",
+      "gap": "DS-G02",
+      "method": "POST",
+      "path": "https://api.deepseek.com/chat/completions",
+      "body": {
+        "model": "deepseek-flash",
+        "max_tokens": 200,
+        "messages": [
+          {
+            "role": "user",
+            "content": "What is 12*13? Reply with one tool call."
+          }
+        ],
+        "tools": [
+          {
+            "type": "function",
+            "function": {
+              "name": "mul",
+              "description": "Multiply.",
+              "parameters": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "a": {
+                    "type": "number"
+                  },
+                  "b": {
+                    "type": "number"
+                  }
+                },
+                "required": ["a", "b"]
+              },
+              "strict": true
+            }
+          }
+        ],
+        "stream": false
+      },
+      "lookFor": "Whether strict:true tool schemas are accepted on the production base or rejected (compare with DS-STRICT on /beta)."
     }
   ]
 }

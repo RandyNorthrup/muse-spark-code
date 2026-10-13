@@ -790,7 +790,9 @@ describe('chat codec request goldens', () => {
   })
 
   it('refuses an unknown effort and Thinking off where the model forbids it', () => {
-    const unknown = tinyBody({ reasoning: { effort: 'ultra', summary: 'auto' } })
+    // Lane REASONSHAPES: `ultra` is a UI tier now (nearest listed answers);
+    // `turbo` names nothing and still refuses.
+    const unknown = tinyBody({ reasoning: { effort: 'turbo', summary: 'auto' } })
     expect(() => encodeChatRequest(unknown, 'deepseek-flash', DEEPSEEK_DECLARED)).toThrow(
       `${UI_TEXT.chatCodecEffortUnsupported} (unsupported_reasoning_effort)`,
     )
@@ -807,7 +809,10 @@ describe('chat codec request goldens', () => {
       expect((error as Error).name).toBe('ChatCodecError')
     }
     // A preset without the switch keeps the base behaviour for any effort.
-    expect(encodeChatRequest(unknown, 'm', OPENROUTER).body.reasoning).toEqual({ effort: 'ultra' })
+    const passthrough = tinyBody({ reasoning: { effort: 'ultra', summary: 'auto' } })
+    expect(encodeChatRequest(passthrough, 'm', OPENROUTER).body.reasoning).toEqual({
+      effort: 'ultra',
+    })
   })
 
   it('keeps presets without the switch byte-identical with Thinking off', () => {
@@ -2261,6 +2266,20 @@ it('lets the selected chat model capability override a strict-capable preset', (
   }
 })
 
+function schemaBody(): CreateResponseBody {
+  return tinyBody({
+    reasoning: { effort: 'high', summary: 'auto' },
+    text: {
+      format: {
+        type: 'json_schema',
+        name: 'answer',
+        schema: { type: 'object' },
+        strict: false,
+      },
+    },
+  })
+}
+
 describe('chat codec reasoning controls (lane REASONSHAPES)', () => {
   // Production mirrors: DeepSeek's documented effort table, Together's
   // hybrid toggle, Groq's presentation, Z.ai's switch plus preserved
@@ -2389,37 +2408,12 @@ describe('chat codec reasoning controls (lane REASONSHAPES)', () => {
   })
 
   it('sends the main-turn JSON mode only where the record affirms json_object', () => {
-    const affirmed = encodeChatRequest(
-      tinyBody({
-        reasoning: { effort: 'high', summary: 'auto' },
-        text: {
-          format: {
-            type: 'json_schema',
-            name: 'answer',
-            schema: { type: 'object' },
-            strict: false,
-          },
-        },
-      }),
-      'glm-5.2',
-      ZAI_DECLARED,
-    )
+    const affirmed = encodeChatRequest(schemaBody(), 'glm-5.2', ZAI_DECLARED)
     expect(affirmed.body.response_format).toEqual({ type: 'json_object' })
-    const unaffirmed = encodeChatRequest(
-      tinyBody({
-        reasoning: { effort: 'high', summary: 'auto' },
-        text: {
-          format: {
-            type: 'json_schema',
-            name: 'answer',
-            schema: { type: 'object' },
-            strict: false,
-          },
-        },
-      }),
-      'glm-5.2',
-      { ...ZAI_DECLARED, outputFormats: ['text'] },
-    )
+    const unaffirmed = encodeChatRequest(schemaBody(), 'glm-5.2', {
+      ...ZAI_DECLARED,
+      outputFormats: ['text'],
+    })
     expect(unaffirmed.body).not.toHaveProperty('response_format')
   })
 

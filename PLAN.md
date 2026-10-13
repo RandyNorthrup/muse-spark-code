@@ -2082,7 +2082,11 @@ model served were learned by running a turn per tier. Since 1.4.1,
 `model/list` carries optional `reasoningEffortVariants` and
 `defaultReasoningEffort` (with `variants` added in 1.4.0). The extension
 still uses its verified family table; consuming catalog effort metadata
-is separate feature work. The original probe
+is separate feature work. Lane REASONSHAPES (2026-10-12) consumes the
+`model/list` rows: the host reads each row's tiers and default through
+the `modelEfforts` port, the controller posts them per model, and the
+slider offers the model's own steps (UNVERIFIED row shape until a 1.4.x
+live capture lands). The original probe
 (`scratchpad/live-effort.ts`, one "Reply with OK" turn per tier per Standard
 model, contributor tiers skipped) is recorded in `docs/certification/m3.md`.
 Outcome: `muse-spark-1.3` completes turns at every wire tier (`none` …
@@ -23830,6 +23834,23 @@ exactly, proven by a table over every preset model × every setting
 against a golden generated on 01ee6233b. Open for the owner: on a model
 without a switch an unlisted on-level still goes as `none`, kept for
 byte identity. Evidence: `docs/certification/m95-h.md`.
+
+**Lane REASONSHAPES (2026-10-12, macmini).** Fills the provider reasoning
+gaps (DS-G01, GQ-G02, TO-G01, LO-G03/G04/G05, MI-G03, OR-G02,
+ZAI-G01/G02/G04/G07, META-G05, CP-G02/CP-G04; DS-G02 waits on beta-base
+captures): one record-driven mechanism — documented effort aliases
+(DeepSeek's table, ultra rides as max), the Thinking-off switch on
+DeepSeek, Z.ai and Together's hybrid toggle (only where the record
+affirms reasoning), Groq's `reasoning_format: "parsed"`, llama.cpp's
+server-routed `reasoning_effort`, Mistral's chunk-list decode and replay,
+Z.ai's preserved thinking and main-turn JSON mode, OpenRouter tool
+refusal enforcement, Muse Code per-model tiers lighting the slider
+(D10's deferred work), and Copilot search-call drops. Dated per-model
+doc facts shadow the snapshot (preset beats catalogue; live list,
+capture and user still win). Every request shape is provider-doc-quoted
+and UNVERIFIED until the 26-request capture plan
+(`docs/certification/REASONSHAPES-capture-plan.json`) answers. Evidence:
+`docs/certification/REASONSHAPES.md`.
 
 | Finding                                                                                                                                                                                                                                                                                                                                                                   | Owner                                                             |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
