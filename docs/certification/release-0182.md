@@ -302,12 +302,12 @@ The pull request that carries this record (155) met a runner fault on its
 first head (`ce6d5d307`, run 38331067480, job 115080677787): the Windows
 test shard 7 was cancelled at its 20-minute limit with its checkout step
 still running; no step of ours had run and no log exists. That job was
-started again (green) before the rule was read. The lead's ruling since: a
-job that ended with no step of ours executed and no log has a measured cause
-outside the code and may be started again once, with the run and the job
-named in the record; a job in which any step of ours ran and failed is never
-started again on the same commit. Pull request 155 itself merges on a head
-whose run is green on its first attempt.
+started again once (green). A ruling that would have allowed one such
+restart was given afterwards and the lead has since withdrawn it. The rule
+now has no exception: nothing is started again on the same commit, whatever
+the cause. A runner fault is answered by a new commit that says
+why, with the run and the job, which starts a fresh full run. Pull request
+155 merges only on a head whose runs are all green on their first attempt.
 
 Every other hosted run of the two releases was green on its first attempt.
 0.18.1: pull request 151's CI 38293068319, Hosts 38293067597 and Action
