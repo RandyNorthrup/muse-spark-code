@@ -9,6 +9,15 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- Lane PROVKEYS: a working Google Gemini key was refused for how it
+  looked (it did not begin with the frozen `AIza…` prefix), so the route
+  could not be set up at all. No provider key is refused for its looks
+  any more, on any surface: any non-blank key is sent to the provider's
+  own free key test, and a refusal shows the provider's reason. Values
+  that look like the wrong thing (a web address, a file path,
+  placeholder text, a key with a space in it) ask a "use it anyway?"
+  question instead of dead-ending.
+
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
   reads and writes, and 1-hour cache writes settle at their own price.
   The shared retry classifier refuses known quota codes and excessive

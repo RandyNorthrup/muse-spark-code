@@ -876,6 +876,9 @@ user-level `providers.json`, using its own OS credential store. The terminal
 offers `providers list`, `providers add`, `providers test`, `providers remove`
 and `auth set|status|clear --provider <id>`. Free checks use the shared
 transport; keys are entered through stdin and stored with their origin.
+A provider key is never refused for how it looks: any non-blank key is
+sent to the provider's own free key test, and a refusal shows the
+provider's reason.
 Headless `exec --provider` validates configuration, credentials and endpoints,
 then refuses before dispatch until its provider-aware accounting runner exists;
 installed-editor and live provider certification are still open. MiniMax
