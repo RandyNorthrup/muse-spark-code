@@ -14295,6 +14295,38 @@ cost and caution, never speed.
   reviewer on B1 and B2, never the only one and never an allow by itself.
   Everywhere else both stand unchanged.
 
+### D108 — A provider's refusal reads as the provider's refusal (lane PROVERR, 2026-10-12)
+
+**Rule in force.** A provider's answered refusal is one typed value
+(`ProviderRefusal`: HTTP status, closed kind, the provider's bounded words,
+its request id and its wait), parsed per wire format, never replaced by a
+product sentence. The person reads one sentence built from the kind in every
+host and language, naming the provider with its own words after it.
+`modelsPanelUnavailable` is raised only where a part of the build is truly
+missing (the models-panel bundle loader). A refusal answered with a 4xx
+status before processing (`isDefiniteRefusal`: 400, 401, 402, 403, 404, 413,
+422, 429) releases its reservation in full — settled 0, uncertain 0;
+anything else (5xx, 408/409, unanswered) keeps its uncertain liability.
+Never retried: credit, authentication, permission, notFound, invalidRequest,
+tooLarge; rateLimited and overloaded follow the retry tables that exist.
+A failure before anything was written is "could not reach \<provider\>";
+after a write belongs to the transmission branch
+(`fix/stream-limits-class-r5`). The ledger branch (`fix/spend-ledger`) owns
+everything past the definite-refusal decision. Full record:
+`docs/certification/provider-refusals.md`.
+
+**Cause.** On 2026-10-12 an Anthropic account ran out of credit; Anthropic
+answered HTTP 400 with `invalid_request_error` "Your credit balance is too
+low …", and the product ended the turn with "Internal error: Models &
+Agents is not available in this build", requests 1, settled 0, uncertain
+2.262144. The raise site was `src/core/providers/configured.ts`
+`streamResponse`'s catch (`return fail()`, base `:106`, called at base
+`:800`), measured by stack on base. The fix replaces the catch's tail with
+the refusal sentence, keeps status/kind/code/request id/wait, and releases
+definite 4xx reservations. Nine answers, the raise-site table, the
+providers' documentation quotes for "not billed" (with what they do not say
+marked), and five red drills are in the certification record.
+
 ## 3. Open questions (need the owner)
 
 **Q-VIS0171-RELEASE-NOTES resolved by lead (2026-10-10, linuxlt).** Round 2
