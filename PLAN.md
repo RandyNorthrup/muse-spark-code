@@ -33895,6 +33895,12 @@ lane A's first step.
 
 ## 7. Gates
 
+**M114PANEL cold start on hosted macOS (2026-10-12, deferred to the test
+overhaul).** `test/unit/m114Panel.test.mjs` opens its file's first two
+browser pages inside its first case's 5,000 ms: 2,635 ms on a green hosted
+macOS run, over the limit once (run 38311021688, first attempt). No limit is
+raised. Record: `docs/certification/release-0182.md`.
+
 **TRAINACT scoped qualification.** The explicit rig/common brief reserves
 aggregate `npm run quality` for the lead and forbids it in this lane.
 Run production build and all unchanged caps/split checks; complete owning
@@ -40355,13 +40361,17 @@ empty screen shows the product's own mark instead of Meta's logo
 (`docs/certification/panelmark.md`), and the eight pictures that showed the
 old logo or an older panel were taken again. By the owner's order no
 screenshot comparison runs in CI or in `quality:gates` any more; a change to
-the interface is looked at locally. No test was added. Hosted CI on the head:
-72 of 72 checks, one macOS test shard on its second attempt. Real runs through
-the packed product, which is the published file byte for byte: three routes
-before the merge (12 requests, $0.018245) and after publication (11 requests,
-$0.018101), keys removed. Not in 0.18.2: the spend ledger and the false error
-sentences (0.18.3), the contributor-price fix (0.18.4), and what the 0.18.1
-record below leaves to "the next release" and "the follow-up". Record:
+the interface is looked at locally. No test was added. Hosted CI on the head
+was not green on a first attempt: one macOS test shard was red (a cold browser
+start inside one case's limit, measured), was run again on the same commit and
+passed, and the merge went in on that, against `AGENTS.md` rule 2; the Hosts
+run on the merged commit (38329749606) is red in "VSCodium latest", one case,
+cause not yet measured. Real runs through the packed product, which is the
+published file byte for byte: three routes before the merge (12 requests,
+$0.018245) and after publication (11 requests, $0.018101), keys removed. Not
+in 0.18.2: the spend ledger and the false error sentences (0.18.3), the
+contributor-price fix (0.18.4), and what the 0.18.1 record below leaves to
+"the next release" and "the follow-up". Record:
 `docs/certification/release-0182.md`.
 
 **0.18.1 released (2026-10-12, tag `v0.18.1` on main's release merge `38ef148f1`, PR #151, release run 38298298094).**
