@@ -2611,7 +2611,7 @@
   "autoCompactionAwaitingEvaluation": "La compactación automática está pendiente de evaluación y permanece inactiva.",
   "autoCompactionFailed": "La compactación automática falló; se continúa con el contexto original.",
   "contextWindowFull": "Ventana de contexto llena: /compact o /handoff",
-  "toolResultCutPreview": "Resultado de herramienta recortado: {total} conservado como las primeras {head} y las últimas {tail} líneas ({omitted} omitidas). El resultado completo está en {spill}; ábrelo con read_file.",
+  "toolResultCutPreview": "Resultado de herramienta recortado: {total} conservado como las primeras {head} y las últimas {tail} líneas ({omitted} omitidas). El resultado completo está en {spill}; ábrelo con read_file. Se elimina con la sesión.",
   "contextWindowTooLong": "La conversación ({tokens} tokens) supera la ventana de este modelo ({maximum} tokens) por {over} tokens. /compact la conversación, cambia a un modelo con una ventana mayor o inicia una nueva conversación; no se eliminó nada.",
   "toolResultCapRefused": "El límite {source} de salida de herramienta de {value} se rechaza ({reason}); se usa el valor predeterminado de {fallback}.",
   "toolResultCapBelowFloor": "por debajo del mínimo legible de {floor} bytes",

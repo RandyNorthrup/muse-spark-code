@@ -3159,7 +3159,7 @@
       },
       "id": "museSpark.modelApiMaxToolOutputBytes",
       "name": "museSpark.modelApiMaxToolOutputBytes",
-      "description": "The per-tool-result byte guard, 64000 by default. A result past it is cut to a head and tail with counts, and the full text is kept in .muse-spark/tool-results for paging. Below 1024 or past the model's window is refused with the reason. Raise for one headless run with exec --max-tool-output-bytes.",
+      "description": "The per-tool-result byte guard, 64000 by default. A result past it is cut to a head and tail with counts, and the full text is kept in .muse-spark/tool-results for paging. Below 1024 or past the model's window is refused with the reason. Raise for one headless run with exec --max-tool-output-bytes. Spill files are plain workspace files (whoever can read the workspace can read them), removed when the session is deleted; files older than 30 days are pruned.",
       "descriptionKey": "config.modelApiMaxToolOutputBytes.description",
       "type": "integer",
       "default": 64000,

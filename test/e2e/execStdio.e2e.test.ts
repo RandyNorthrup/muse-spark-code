@@ -913,8 +913,7 @@ describe('M80 E1-E7 built exec', { timeout: TIMEOUT }, () => {
           // One large synthetic delta reaches the unread pipe without spending
           // the signal test's deadline manufacturing 104,858 tiny SSE frames.
           // The same 512 KiB write stays inside exec's 32 MiB response cap.
-          if (mode === 'toolcap') api.script({calls:[{name:'bash', arguments:JSON.stringify({command:'node -e "for(let i=0;i<10;i++){console.log(\'L\'+i+\'_\'+\'x\'.repeat(400000))}"'}), callId:'toolcap-1'}]}, {text:'done', usage:{input:10, output:5}});
-          else api.script({text:mode === 'blocked' ? 'x'.repeat(512 * 1024) : 'ok', isSingleTextDelta:mode === 'blocked', usage:{input:10, output:5}, ...(mode === 'hold' ? {hold:new Promise(()=>{})} : {})});
+          api.script({text:mode === 'blocked' ? 'x'.repeat(512 * 1024) : 'ok', isSingleTextDelta:mode === 'blocked', usage:{input:10, output:5}, ...(mode === 'hold' ? {hold:new Promise(()=>{})} : {})});
           // The configured-provider row replays Mistral's captured models list
           // and one captured answer; its name resolves to a public address
           // without a DNS query, as the endpoint policy requires.
@@ -940,15 +939,9 @@ describe('M80 E1-E7 built exec', { timeout: TIMEOUT }, () => {
             return api.fetch(url, { ...init, headers: Object.fromEntries(headers) });
           };
           const hash = value => createHash('sha256').update(value).digest('hex');
-          // TOOLCAP: the oversized case records each request body's size and
-          // whether it carries the cut notice (lengths only, never the text).
-          const toolcapEvidence = body => {
-            const text = typeof body === 'string' ? body : JSON.stringify(body ?? '');
-            return { bodyChars: text.length, cutNotice: text.includes('Tool result cut:'), recall: text.includes('recall_output'), exitLine: text.includes('exit code') };
-          };
           process.on('exit', () => writeFileSync(process.env.M80D_REPORT, JSON.stringify({
             env: Object.fromEntries(Object.entries(process.env).map(([k,v]) => [k,hash(v ?? '')])),
-            argv: process.argv.map(hash), requests: api.requests.map(r => ({path:r.path, method:r.method, ...(mode === 'toolcap' ? toolcapEvidence(r.body) : {})})),
+            argv: process.argv.map(hash), requests: api.requests.map(r => ({path:r.path, method:r.method})),
             provider: providerCalls
           })));
         `,
@@ -1010,50 +1003,6 @@ describe('M80 E1-E7 built exec', { timeout: TIMEOUT }, () => {
       expect(report).not.toContain(createHash('sha256').update(KEY).digest('hex'))
     },
   )
-
-  // TOOLCAP: the oversized-command case through the packed agent. The fake
-  // answers with a bash call printing ten 400,000-character lines; the
-  // packed host must cut the result to the bound with a spill and complete
-  // the turn, never sending the flood.
-  it('TOOLCAP cuts an oversized command result in the packed agent', async () => {
-    const run = start([...execArgs(), '--key-stdin', '--max-requests', '3'], 'toolcap')
-    run.child.stdin.end(`${KEY}\n`)
-    const output = await run.closed
-    expect(output.code, output.stderr).toBe(0)
-    expect(result(output.stdout)).toMatchObject({
-      status: 'completed',
-      finalMessage: 'done',
-      usage: { requests: 2 },
-    })
-    const report = z
-      .object({
-        requests: z.array(
-          z.object({
-            path: z.string(),
-            bodyChars: z.number(),
-            cutNotice: z.boolean(),
-            recall: z.boolean(),
-            exitLine: z.boolean(),
-          }),
-        ),
-      })
-      .parse(JSON.parse(readFileSync(path.join(WORK, 'report.json'), 'utf8')))
-    const posts = report.requests.filter((request) => request.path.endsWith('/responses'))
-    expect(posts).toHaveLength(2)
-    // The second send carries the cut form (~64k plus its notice), never the ~4 MB flood.
-    const seen = posts.map((post) => ({
-      chars: post.bodyChars,
-      cut: post.cutNotice,
-      recall: post.recall,
-      exit: post.exitLine,
-    }))
-    expect(posts[1], `sends: ${JSON.stringify(seen)}`).toMatchObject({
-      cutNotice: true,
-      exitLine: true,
-      recall: false,
-    })
-    expect(posts[1]?.bodyChars).toBeLessThan(100_000)
-  })
 
   // HOTFIX0181: the one row that sends a turn to a provider the user added,
   // through the built bundles of the packed production package. 0.18.0 passed

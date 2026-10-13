@@ -3,17 +3,33 @@
 // recogniser on the recorded provider answer. No stand-ins: values in,
 // values out.
 import { describe, expect, it } from 'vitest'
-import { OBS_PACK_CHARS_PER_TOKEN } from '../../src/shared/constants'
+import {
+  MODEL_API_MODEL_TEXT,
+  OBS_PACK_CHARS_PER_TOKEN,
+  TOOL_RESULT_SPILL_MAX_AGE_DAYS,
+  UI_TEXT,
+} from '../../src/shared/constants'
 import {
   boundToolResultText,
+  callOutputItem,
   capRefusalReason,
   cutNotice,
+  fixedHarnessText,
+  canRecoverOverflow,
   parsePromptTooLong,
-  spillName,
+  toolNoteItem,
   utf8Length,
   validateToolResultCap,
   windowShareBytes,
+  withCutNotice,
 } from '../../src/core/backends/modelapi/toolResultBound'
+import { restoredToolText } from '../../src/core/backends/modelapi/schemas'
+import {
+  isSpillFile,
+  spillName,
+  spillPrefix,
+  isSpillStale,
+} from '../../src/core/backends/modelapi/sessionStore'
 
 const LIMITS = { maxTokens: 16_000, maxLineChars: 8000, maxBytes: 64_000, windowTokens: undefined }
 
@@ -226,5 +242,66 @@ describe('windowShareBytes, utf8Length and spillName', () => {
 
   it('names deterministic, separator-free spill files', () => {
     expect(spillName('sess/1', 'call:2')).toBe('sess_1-call_2.txt')
+  })
+
+  it('a session prefix names exactly its spills', () => {
+    expect(spillPrefix('sess/1')).toBe('sess_1-')
+    expect(spillName('sess/1', 'call:2').startsWith(spillPrefix('sess/1'))).toBe(true)
+  })
+
+  it('the age sweep only recognises spill-shaped files', () => {
+    expect(isSpillFile('sess_1-call_2.txt')).toBe(true)
+    expect(isSpillFile('notes.txt')).toBe(false)
+    expect(isSpillFile('.gitignore')).toBe(false)
+    expect(isSpillFile('sess_1-call_2.md')).toBe(false)
+  })
+
+  it('a spill past the age rule is stale; an unreadable clock is kept', () => {
+    const day = 24 * 60 * 60 * 1000
+    expect(TOOL_RESULT_SPILL_MAX_AGE_DAYS).toBe(30)
+    expect(isSpillStale(0, TOOL_RESULT_SPILL_MAX_AGE_DAYS * day)).toBe(true)
+    expect(isSpillStale(0, TOOL_RESULT_SPILL_MAX_AGE_DAYS * day - 1)).toBe(false)
+    expect(isSpillStale(NaN, 1000)).toBe(false)
+    expect(isSpillStale(1000, NaN)).toBe(false)
+  })
+})
+
+describe('canRecoverOverflow', () => {
+  it('recovers count-based kinds without any wire words', () => {
+    expect(canRecoverOverflow('preflight', undefined, undefined)).toBe(true)
+    expect(canRecoverOverflow('input-above-window', undefined, undefined)).toBe(true)
+    expect(canRecoverOverflow('empty-near-window', undefined, undefined)).toBe(true)
+  })
+
+  it('recovers the recorded refusal with its numbers, and nothing else phrased', () => {
+    expect(canRecoverOverflow('error', 1_002_881, 1_000_000)).toBe(true)
+    expect(canRecoverOverflow('error', undefined, undefined)).toBe(false)
+    expect(canRecoverOverflow('error', 1_002_881, undefined)).toBe(false)
+  })
+})
+
+describe('the brand constructors', () => {
+  it('builds request items only from bounded text', () => {
+    const bounded = boundToolResultText('small', LIMITS)
+    if (bounded.cut !== undefined) throw new Error('expected no cut')
+    const noticed = withCutNotice(bounded.text, 'a notice')
+    expect(noticed).toBe('small\na notice')
+    expect(callOutputItem('c1', noticed)).toEqual({
+      type: 'function_call_output',
+      call_id: 'c1',
+      output: noticed,
+    })
+    expect(toolNoteItem(noticed)).toEqual({
+      type: 'message',
+      role: 'user',
+      content: [{ type: 'input_text', text: noticed }],
+    })
+    expect(fixedHarnessText('Error: stopped')).toBe('Error: stopped')
+    expect(restoredToolText('stored')).toBe('stored')
+  })
+
+  it('the cut notices say the spill file is removed with the session', () => {
+    expect(MODEL_API_MODEL_TEXT.toolResultCut).toContain('removed with the session')
+    expect(UI_TEXT.toolResultCutPreview).toContain('removed with the session')
   })
 })

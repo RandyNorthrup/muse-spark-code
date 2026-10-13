@@ -2503,7 +2503,7 @@
   "autoCompactionAwaitingEvaluation": "自動壓縮正在等待評估，目前未啟用。",
   "autoCompactionFailed": "自動壓縮失敗；繼續使用原始上下文。",
   "contextWindowFull": "上下文視窗已滿：/compact 或 /handoff",
-  "toolResultCutPreview": "工具結果已截斷：{total}保留為前{head}行和後{tail}行（省略{omitted}）。完整結果在{spill}中，請用read_file開啟。",
+  "toolResultCutPreview": "工具結果已截斷：{total}保留為前{head}行和後{tail}行（省略{omitted}）。完整結果在{spill}中，請用read_file開啟。 它會隨階段一起刪除。",
   "contextWindowTooLong": "對話（{tokens}個詞元）比此模型的視窗（{maximum}個詞元）大{over}個詞元。請/compact壓縮對話、切換到視窗更大的模型或開始新對話；沒有任何內容被刪除。",
   "toolResultCapRefused": "{source}工具輸出上限{value}被拒絕（{reason}）；改用預設值{fallback}。",
   "toolResultCapBelowFloor": "低於可讀下限 {floor} 位元組",

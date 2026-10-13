@@ -24,7 +24,13 @@ import {
 } from '../../../shared/constants'
 import { Buffer } from 'node:buffer'
 import { fill, formatNumber } from '../../../shared/l10n/text'
-import { estimatePackTokens } from './observationPack'
+import type { ContextOverflowKind } from '../../context/overflow'
+import type {
+  BoundedToolText,
+  FunctionCallOutputItem,
+  FunctionOutputPart,
+  InputItem,
+} from './schemas'
 
 /** What was cut, for the notice and the tests. Absent when uncut. */
 export interface ToolResultCut {
@@ -50,9 +56,42 @@ export interface ToolResultCut {
 }
 
 export interface BoundToolResult {
-  /** The kept head and tail; the caller appends `cutNotice(cut, spill)`. */
-  readonly text: string
+  /** The kept head and tail, already allowed into a request; the caller appends the notice with `withCutNotice`. */
+  readonly text: BoundedToolText
   readonly cut: ToolResultCut | undefined
+}
+
+/**
+ * Bounded text with its cut notice appended: still allowed into a request.
+ * The only string-to-brand construction beside the bound itself and fixed
+ * harness words (one mechanism: the brand is produced here or not at all).
+ */
+export function withCutNotice(bounded: BoundedToolText, notice: string): BoundedToolText {
+  // Brand: the kept text already passed the bound; the notice is harness words (PLAN.md §8: TOOLCAP brand).
+  return `${bounded}\n${notice}` as BoundedToolText
+}
+
+/**
+ * Fixed harness words with no tool text in them (a cancellation, a refusal):
+ * safe to send as-is. Never a wrapper for tool text: tool text goes through
+ * `boundToolResultText`, and a misuse here reads as one at the call site.
+ */
+export function fixedHarnessText(text: string): BoundedToolText {
+  // Brand: the caller names fixed harness words with no tool text; misuse reads as one (PLAN.md §8: TOOLCAP brand).
+  return text as BoundedToolText
+}
+
+/** A `function_call_output` carrying bounded text: the only way to build one. */
+export function callOutputItem(
+  callId: string,
+  output: BoundedToolText | readonly FunctionOutputPart[],
+): FunctionCallOutputItem {
+  return { type: 'function_call_output', call_id: callId, output }
+}
+
+/** A user message carrying bounded tool text: the only way to note one. */
+export function toolNoteItem(text: BoundedToolText): InputItem {
+  return { type: 'message', role: 'user', content: [{ type: 'input_text', text }] }
 }
 
 export interface ToolResultLimits {
@@ -70,7 +109,6 @@ const LINE_MARK = '…'
 const HALVES = 2
 // A code point past the Basic Multilingual Plane starts at `index - 1`.
 const LAST_BMP_CODE_POINT = 0xff_ff
-const SPILL_NAME_MAX = 80
 
 /** `index` moved back off a split surrogate pair, as the shell clip does. */
 function boundary(text: string, index: number): number {
@@ -86,6 +124,11 @@ function splitLines(text: string): string[] {
 /** The length of a text in UTF-8 bytes (a token is at least one byte). */
 export function utf8Length(text: string): number {
   return Buffer.byteLength(text, 'utf8')
+}
+
+/** The product's own token estimate for a character count (4 chars per token). */
+export function estimatePackTokens(chars: number): number {
+  return Math.ceil(chars / OBS_PACK_CHARS_PER_TOKEN)
 }
 
 /**
@@ -159,16 +202,6 @@ export function cutNotice(cut: ToolResultCut, spill: string, id: string): string
   })
 }
 
-/** One spill path segment: safe on every platform, bounded in length. */
-function spillSafePart(part: string): string {
-  return part.replaceAll(/[^A-Za-z0-9_-]/g, '_').slice(0, SPILL_NAME_MAX) || 'output'
-}
-
-/** `TOOL_RESULT_SPILL_DIR`-relative spill path; safe on every platform. */
-export function spillName(sessionId: string, callId: string): string {
-  return `${spillSafePart(sessionId)}-${spillSafePart(callId)}.txt`
-}
-
 export function boundToolResultText(text: string, limits: ToolResultLimits): BoundToolResult {
   const totalChars = text.length
   const totalBytes = utf8Length(text)
@@ -190,7 +223,8 @@ export function boundToolResultText(text: string, limits: ToolResultLimits): Bou
     totalChars <= estimateCapChars &&
     totalBytes <= hardCapBytes
   ) {
-    return { text, cut: undefined }
+    // Brand: the bound measured this text under every cap, so it may enter a request (PLAN.md §8: TOOLCAP brand).
+    return { text: text as BoundedToolText, cut: undefined }
   }
   let capped = lines
   let wasLineCut = false
@@ -234,7 +268,8 @@ export function boundToolResultText(text: string, limits: ToolResultLimits): Bou
   }
   const keptBytes = utf8Length(joined)
   return {
-    text: joined,
+    // Brand: the cut kept at most the estimate characters and at most the guaranteed bytes (PLAN.md §8: TOOLCAP brand).
+    text: joined as BoundedToolText,
     cut: {
       totalChars,
       totalBytes,
@@ -267,4 +302,23 @@ export function parsePromptTooLong(message: string): PromptTooLong | undefined {
   return Number.isSafeInteger(tokens) && Number.isSafeInteger(maximum)
     ? { tokens, maximum }
     : undefined
+}
+
+/**
+ * Whether a classified overflow may drive the trim-and-resend recovery.
+ * Count-based kinds (preflight, input-above-window, empty-near-window) rest
+ * on usage counts, not phrases. The phrase-based `error` kind recovers only
+ * on the proven shape — the recorded `prompt is too long: N tokens >
+ * M maximum` answer, with its numbers — so an unrecorded wire shape never
+ * triggers a resend: the turn ends with the short sentence instead, until an
+ * answer is recorded for its format. (TOOLCAP needs `ProviderRefusal`'s
+ * `tooLarge` kind with the wire's own numbers when it lands; until then this
+ * gate is the provenance record.)
+ */
+export function canRecoverOverflow(
+  kind: ContextOverflowKind,
+  tokens: number | undefined,
+  maximum: number | undefined,
+): boolean {
+  return kind !== 'error' || (tokens !== undefined && maximum !== undefined)
 }

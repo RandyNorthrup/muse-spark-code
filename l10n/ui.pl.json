@@ -2665,7 +2665,7 @@
   "autoCompactionAwaitingEvaluation": "Automatyczna kompakcja oczekuje na ocenę i jest nieaktywna.",
   "autoCompactionFailed": "Automatyczna kompakcja nie powiodła się; kontynuowanie z pierwotnym kontekstem.",
   "contextWindowFull": "Okno kontekstu jest pełne: /compact lub /handoff",
-  "toolResultCutPreview": "Wynik narzędzia przycięty: zachowano {total} jako pierwsze {head} i ostatnie {tail} wierszy (pominięto {omitted}). Pełny wynik jest w {spill}; otwórz przez read_file.",
+  "toolResultCutPreview": "Wynik narzędzia przycięty: zachowano {total} jako pierwsze {head} i ostatnie {tail} wierszy (pominięto {omitted}). Pełny wynik jest w {spill}; otwórz przez read_file. Jest usuwany wraz z sesją.",
   "contextWindowTooLong": "Rozmowa ({tokens} tokenów) jest większa od okna tego modelu ({maximum} tokenów) o {over} tokenów. /compact rozmowę, przełącz się na model z większym oknem lub rozpocznij nową rozmowę; nic nie usunięto.",
   "toolResultCapRefused": "Limit {source} danych wyjściowych narzędzia wynoszący {value} został odrzucony ({reason}); używana jest wartość domyślna {fallback}.",
   "toolResultCapBelowFloor": "poniżej czytelnego minimum {floor} bajtów",

@@ -2557,7 +2557,7 @@
   "autoCompactionAwaitingEvaluation": "Otomatik sıkıştırma değerlendirme bekliyor ve etkin değil.",
   "autoCompactionFailed": "Otomatik sıkıştırma başarısız oldu; özgün bağlamla devam ediliyor.",
   "contextWindowFull": "Bağlam penceresi dolu: /compact veya /handoff",
-  "toolResultCutPreview": "Araç sonucu kısaltıldı: ilk {head} ve son {tail} satır olarak {total} korundu ({omitted} atlandı). Tam sonuç {spill} içinde; read_file ile açın.",
+  "toolResultCutPreview": "Araç sonucu kısaltıldı: ilk {head} ve son {tail} satır olarak {total} korundu ({omitted} atlandı). Tam sonuç {spill} içinde; read_file ile açın. Oturumla birlikte kaldırılır.",
   "contextWindowTooLong": "Sohbet ({tokens} jeton), bu modelin penceresinden ({maximum} jeton) {over} jeton daha büyük. Sohbeti /compact ile sıkıştırın, penceresi daha büyük bir modele geçin veya yeni bir sohbet başlatın; hiçbir şey silinmedi.",
   "toolResultCapRefused": "{source} araç çıktısı üst sınırı ({value}) reddedildi ({reason}); varsayılan {fallback} kullanılıyor.",
   "toolResultCapBelowFloor": "okunabilir {floor} bayt alt sınırının altında",

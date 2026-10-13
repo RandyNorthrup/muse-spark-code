@@ -2665,7 +2665,7 @@
   "autoCompactionAwaitingEvaluation": "Automatické zhuštění čeká na vyhodnocení a není aktivní.",
   "autoCompactionFailed": "Automatické zhuštění selhalo; pokračuje se s původním kontextem.",
   "contextWindowFull": "Kontextové okno je plné: /compact nebo /handoff",
-  "toolResultCutPreview": "Výstup nástroje zkrácen: {total} ponecháno jako prvních {head} a posledních {tail} řádků ({omitted} vynecháno). Úplný výstup je v {spill}; otevřete přes read_file.",
+  "toolResultCutPreview": "Výstup nástroje zkrácen: {total} ponecháno jako prvních {head} a posledních {tail} řádků ({omitted} vynecháno). Úplný výstup je v {spill}; otevřete přes read_file. Odstraní se s relací.",
   "contextWindowTooLong": "Konverzace ({tokens} tokenů) je o {over} tokenů větší než okno tohoto modelu ({maximum} tokenů). /compact konverzaci, přejděte na model s větším oknem nebo začněte novou konverzaci; nic nebylo smazáno.",
   "toolResultCapRefused": "Limit {source} výstupu nástroje {value} je odmítnut ({reason}); používá se výchozí {fallback}.",
   "toolResultCapBelowFloor": "pod čitelnou hranicí {floor} bajtů",
