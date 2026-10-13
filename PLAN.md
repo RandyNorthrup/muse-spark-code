@@ -14272,6 +14272,8 @@ cost and caution, never speed.
 
 ## 3. Open questions (need the owner)
 
+**LEDGER cancellation billing (2026-10-12).** The requested received-output cancellation bound is not provable: Anthropic explicitly bills client disconnects, and OpenAI counts non-visible generated tokens. Keep the full unresolved reservation as liability, never display it as spend; settle a provider-reported final usage even on an incomplete/cancelled response. A received-output estimate must not release unknown provider liability. Billing research and real-use steps: `docs/certification/spend-ledger.md`.
+
 **Q-VIS0171-RELEASE-NOTES resolved by lead (2026-10-10, linuxlt).** Round 2
 explicitly approves the 116 Title Case scenes, `models-errors` with the
 provider-picker repair, and the three What's New scenes as class (b'):
@@ -15347,7 +15349,7 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
-**LEDGER (2026-10-12, Kubuntu; M80/M82/M95 repair).** Replace directory-per-claim budgeting with one versioned spend ledger and atomic admission for session, editor daily and terminal daily scopes; retain every sent attempt at its full liability, recover only from process identity evidence, and certify real-process races, crashes, migration and packed-product refusals. Design and ruling R9 compatibility limits: `docs/certification/spend-ledger.md`. No provider calls, cap changes, merges or pushes.
+**LEDGER (2026-10-12, Kubuntu and macmini; M80/M82/M95 repair).** Replace directory-per-claim budgeting with one versioned spend ledger and atomic admission for session, editor daily and terminal daily scopes; retain every sent attempt at its full liability, recover only from process identity evidence, and certify real-process races, crashes, migration and packed-product refusals. Design and ruling R9 compatibility limits: `docs/certification/spend-ledger.md`. No provider calls, cap changes, merges or pushes.
 
 ### PROVWIZ10 — Re-entry credential comparison and retry receipts (2026-10-09)
 
