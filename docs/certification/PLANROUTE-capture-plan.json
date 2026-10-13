@@ -1,0 +1,159 @@
+{
+  "capture_for": "Lane PLANROUTE (fix/chatgpt-plan-route): ChatGPT plan route gaps OPENAI-G26, OPENAI-G27, OPENAI-G28",
+  "doc_quotes": [
+    {
+      "address": "https://developers.openai.com/api/docs/models/gpt-5.3-codex.md",
+      "date_read": "2026-10-13",
+      "quote": "GPT-5.3-Codex supports `low`, `medium`, `high`, and `xhigh` reasoning effort settings. / 400,000 context window / Maximum input tokens: 272,000 / 128,000 max output tokens."
+    },
+    {
+      "address": "https://developers.openai.com/api/docs/guides/reasoning.md",
+      "date_read": "2026-10-13",
+      "quote": "Supported values are model-dependent and can include `none`, `minimal`, `low`, `medium`, `high`, `xhigh`, and `max`."
+    },
+    {
+      "address": "https://developers.openai.com/siwc/token-sharing-open-source/models-and-inference.md",
+      "date_read": "2026-10-13",
+      "quote": "request the selected ChatGPT account's model catalog with the same access token you will use for inference: curl ... https://api.openai.com/v1/models ... [.models[] | select(.visibility == \"list\") | {slug, display_name}]. / Set `store` to `false` and `stream` to `true` on each HTTP inference request in this flow."
+    },
+    {
+      "address": "https://developers.openai.com/siwc/token-sharing-open-source/errors-and-recovery",
+      "date_read": "2026-10-13",
+      "quote": "Structured Responses errors: subscription_sharing_user_not_eligible (403), subscription_sharing_usage_limit_exceeded (429), subscription_sharing_usage_unavailable (503), subscription_sharing_unsupported_capability (400, inspect error.param), subscription_sharing_route_not_supported (403), subscription_sharing_invalid_user (401), chatpass_v2_scope_not_authorized or chatpass_v2_invalid_authorization_context (403), subscription_sharing_user_unavailable (503). Direct-route admission can return a body such as {\"detail\":\"...\"}."
+    }
+  ],
+  "note": "NO key is stored here. The lead runs each request with the owner's ChatGPT plan sign-in (OAuth access token as Bearer) and saves the verbatim answers (headers + body, secrets redacted) as docs/certification/PLANROUTE-captures/<n>-*.json. Do NOT force errors: run requests 1-6 once each; if any returns a non-2xx status, save it verbatim and stop that request (that answer settles the error-shape questions by itself).",
+  "requests": [
+    {
+      "id": "PLANROUTE-C1",
+      "settles": ["OPENAI-G26 catalogue fields", "OPENAI-G28 header names (models response)"],
+      "provider": "openai-chatgpt-plan",
+      "method": "GET",
+      "path": "https://api.openai.com/v1/models",
+      "headers": { "Authorization": "Bearer <owner ChatGPT OAuth access token>" },
+      "body": null,
+      "look_for": [
+        "The full JSON: every field inside each models[] entry (besides slug, display_name, visibility, supported_in_api: is there anything like effort levels, context window, limits, defaults?).",
+        "The exact slug list for this account (is gpt-5.3-codex present? which codex slugs?).",
+        "Any response headers (x-codex-*, x-ratelimit-*, retry-after?)."
+      ]
+    },
+    {
+      "id": "PLANROUTE-C2",
+      "settles": [
+        "OPENAI-G26 effort honored?",
+        "OPENAI-G28 response headers on inference",
+        "usage object shape"
+      ],
+      "provider": "openai-chatgpt-plan",
+      "method": "POST",
+      "path": "https://api.openai.com/v1/responses",
+      "headers": {
+        "Authorization": "Bearer <owner ChatGPT OAuth access token>",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "model": "<one codex slug from C1, e.g. gpt-5.3-codex>",
+        "input": [{ "role": "user", "content": "Say exactly: Hello, world!" }],
+        "store": false,
+        "stream": true
+      },
+      "look_for": [
+        "All response headers verbatim (are x-codex-primary-used-percent / -window-minutes / -reset-after-seconds and the secondary trio present? any x-ratelimit-*?).",
+        "The terminal SSE event: response.completed usage object (input_tokens, output_tokens, reasoning tokens? details?).",
+        "Whether the reply text is exactly 'Hello, world!' (no reasoning effort sent)."
+      ]
+    },
+    {
+      "id": "PLANROUTE-C3",
+      "settles": ["OPENAI-G26 effort levels sent as levels"],
+      "provider": "openai-chatgpt-plan",
+      "method": "POST",
+      "path": "https://api.openai.com/v1/responses",
+      "headers": {
+        "Authorization": "Bearer <owner ChatGPT OAuth access token>",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "model": "<same slug as C2>",
+        "input": [{ "role": "user", "content": "Say exactly: Hello, world!" }],
+        "reasoning": { "effort": "low" },
+        "store": false,
+        "stream": true
+      },
+      "look_for": [
+        "Accepted (2xx + completed) or rejected (exact status + body)?",
+        "If accepted: does the echoed response object report reasoning.effort, and is usage different from C2?",
+        "Response headers again (same x-codex-* set?)."
+      ]
+    },
+    {
+      "id": "PLANROUTE-C4",
+      "settles": ["OPENAI-G26 top effort level"],
+      "provider": "openai-chatgpt-plan",
+      "method": "POST",
+      "path": "https://api.openai.com/v1/responses",
+      "headers": {
+        "Authorization": "Bearer <owner ChatGPT OAuth access token>",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "model": "<same slug as C2>",
+        "input": [{ "role": "user", "content": "Say exactly: Hello, world!" }],
+        "reasoning": { "effort": "xhigh" },
+        "store": false,
+        "stream": true
+      },
+      "look_for": [
+        "Accepted or rejected (exact status + body if rejected)? xhigh is documented for gpt-5.3-codex on the API-key route; this checks the plan route honors it."
+      ]
+    },
+    {
+      "id": "PLANROUTE-C5",
+      "settles": ["OPENAI-G26 what the product sends today"],
+      "provider": "openai-chatgpt-plan",
+      "method": "POST",
+      "path": "https://api.openai.com/v1/responses",
+      "headers": {
+        "Authorization": "Bearer <owner ChatGPT OAuth access token>",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "model": "<same slug as C2>",
+        "input": [{ "role": "user", "content": "Say exactly: Hello, world!" }],
+        "reasoning": { "effort": "none" },
+        "store": false,
+        "stream": true
+      },
+      "look_for": [
+        "Accepted or rejected (exact status + body if rejected)? The product currently sends effort 'none' for every requested level on plan models; this records what the service does with it."
+      ]
+    },
+    {
+      "id": "PLANROUTE-C6",
+      "settles": ["OPENAI-G26 output limit on the plan route"],
+      "provider": "openai-chatgpt-plan",
+      "method": "POST",
+      "path": "https://api.openai.com/v1/responses",
+      "headers": {
+        "Authorization": "Bearer <owner ChatGPT OAuth access token>",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "model": "<same slug as C2>",
+        "input": [{ "role": "user", "content": "Say exactly: Hello, world!" }],
+        "max_output_tokens": 128000,
+        "store": false,
+        "stream": true
+      },
+      "look_for": [
+        "Accepted or rejected (exact status + body if rejected)? The product never sends max_output_tokens on the plan route; this checks whether the documented 128,000 max output is sendable there."
+      ]
+    }
+  ],
+  "unverified_until_capture": [
+    "Per-model plan facts used in code (context window, max input/output, effort levels): documented on the public model pages (VERIFIED quotes above) but not yet confirmed on the plan route for the account's catalogue set.",
+    "Whether the plan endpoint sends x-codex-* limit headers on GET /v1/models or POST /v1/responses (header names are allow-listed from the scan; presence is UNVERIFIED).",
+    "Whether reasoning.effort levels and max_output_tokens are honored on the plan route (C3-C6)."
+  ]
+}
