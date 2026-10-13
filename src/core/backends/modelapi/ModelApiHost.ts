@@ -6776,7 +6776,8 @@ export class ModelApiSession implements ScheduledAgentSession {
       isCountedUsage,
       abortError: () => new AbortedError(),
       isRefused: (error: unknown) =>
-        isModelApiError(error) && NON_BILLABLE_HTTP_REJECTIONS.has(error.status),
+        isRequestNotSent(error) ||
+        (isModelApiError(error) && NON_BILLABLE_HTTP_REJECTIONS.has(error.status)),
       emit: (event: AgentEvent) => {
         this.emit(event)
       },
@@ -6895,7 +6896,8 @@ export class ModelApiSession implements ScheduledAgentSession {
           isCountedUsage,
           abortError: () => new AbortedError(),
           isRefused: (error) =>
-            isModelApiError(error) && NON_BILLABLE_HTTP_REJECTIONS.has(error.status),
+            isRequestNotSent(error) ||
+            (isModelApiError(error) && NON_BILLABLE_HTTP_REJECTIONS.has(error.status)),
           emit: (event) => {
             this.emit(event)
           },

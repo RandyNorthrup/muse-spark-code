@@ -382,3 +382,9 @@ Logs: `temp/ledger/runLedger-red.log`, `refusal-terminal-red.log`,
 `process-cap-red.log`, `receipt-red.log`. The first SAST scan was stopped as a
 whole verified process group (exit 143) before the final source was settled;
 it is not a clean scan. Final static/packed receipts will be recorded below.
+
+Committed-source inspection found helper refund classification still checked
+completion rather than receipt of any response frame. Reviewer and hook calls
+now retain liability after any frame; only an initial refusal refunds. Both
+compaction callback bindings also recognize typed no-send errors. Those helper
+provider interactions remain assigned to the lead's real-use scenarios.
