@@ -337,6 +337,9 @@ function contentOfParts(
   const blocks: (ChatTextPart | ChatImagePart)[] = []
   for (const part of parts) {
     if (part.type === 'input_image') {
+      // A file reference has no URL to send on the chat wire; it is refused
+      // like any other file part, never sent blind (OPENAI-G15, GAPANTH-G16).
+      if (!('image_url' in part)) throw new Error(UI_TEXT.execUnknownModel)
       blocks.push(
         vision
           ? { type: 'image_url', image_url: { url: part.image_url, detail: part.detail } }

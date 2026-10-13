@@ -192,7 +192,11 @@ class CopilotClient implements ProviderClient {
     for (const part of parts) {
       if (part.type === 'input_text' || part.type === 'output_text')
         message.content.push(this.api.text(part.text))
-      else if (part.type === 'input_image' && this.deps.images?.supports(this.model) === true)
+      else if (
+        part.type === 'input_image' &&
+        'image_url' in part &&
+        this.deps.images?.supports(this.model) === true
+      )
         this.deps.images.append(message, part.image_url)
       else throw this.fail('unsupported-content')
     }

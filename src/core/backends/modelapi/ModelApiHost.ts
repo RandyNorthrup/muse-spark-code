@@ -16463,7 +16463,9 @@ export class ModelApiSession implements ScheduledAgentSession {
     }
     return entry.item.content.flatMap((part) => {
       if (this.media?.isUploaded(part) === true) return []
-      const parsed = part.type === 'input_image' ? DATA_URL.exec(part.image_url) : null
+      // A file reference carries no bytes to re-read: it is referenced, never resent.
+      const parsed =
+        part.type === 'input_image' && 'image_url' in part ? DATA_URL.exec(part.image_url) : null
       const [, mediaType, base64Data] = parsed ?? []
       return mediaType === undefined || base64Data === undefined ? [] : [{ mediaType, base64Data }]
     })

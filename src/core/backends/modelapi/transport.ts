@@ -610,7 +610,7 @@ export class RequestTransport {
     multipart?: { readonly body: ReadableStream<Uint8Array>; readonly contentType: string },
     expectedAccountId?: string,
   ): Promise<Response> {
-    if (!/^\/files(?:\?after=file-[A-Za-z0-9_-]+|\/file-[A-Za-z0-9_-]+)?$/u.test(route))
+    if (!/^\/files(?:\?after=file-[A-Za-z0-9_-]+|\/file[-_][A-Za-z0-9_-]+)?$/u.test(route))
       throw new Error('Invalid Files route')
     const credentials = await this.headers(this.deps.baseUrl)
     signal.throwIfAborted()

@@ -436,15 +436,17 @@ export function createConfiguredProviderServices(
       for (const nativeModel of entry.models) {
         const ref = `${entry.id}/${nativeModel}`
         const native = catalogue.providers[preset.id.replace('-plan', '')]?.models[nativeModel]
-        const evidence =
-          native === undefined
+        const evidence = [
+          ...modelMetadata.presetFilesEvidence(preset.id),
+          ...(native === undefined
             ? []
             : [
                 modelMetadata.nativeCapabilityEvidence(preset.id, native, {
                   kind: 'catalogue',
                   ref: options.catalogFile,
                 }),
-              ]
+              ]),
+        ]
         const overrides = entry.modelCapabilities?.[nativeModel]
         if (overrides !== undefined)
           evidence.push({ source: { kind: 'user', ref }, fields: overrides })
@@ -881,6 +883,7 @@ export function createConfiguredProviderServices(
         const record = capabilities.resolveModelCapabilities(
           { provider: entry.id, nativeModel: id, format: entry.format ?? preset.format },
           [
+            ...modelMetadata.presetFilesEvidence(preset.id),
             ...(known === undefined
               ? []
               : [

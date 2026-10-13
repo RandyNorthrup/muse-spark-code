@@ -587,7 +587,9 @@ describe('media replay and metadata persistence', () => {
     const file = uploaded(media)
     for (const invalid of [
       { ...media, base64Data: 'BYTE_CANARY' },
-      { ...media, file: { ...file, expiresAt: undefined } },
+      // A file that lives until deleted carries no expiry (OPENAI-G15,
+      // GAPANTH-G16); a non-positive one is still invalid.
+      { ...media, file: { ...file, expiresAt: 0 } },
       { ...media, file: { ...file, sha256: 'b'.repeat(64) } },
       { ...media, file: { ...file, bytes: file.bytes + 1 } },
       { ...media, file: { ...file, mime: 'audio/wav' } },
@@ -600,6 +602,10 @@ describe('media replay and metadata persistence', () => {
       { ...media, sourcePath: String.raw`C:\private\clip.mp4` },
     ])
       expect(storedMediaPartSchema.safeParse(invalid).success).toBe(false)
+    expect(
+      storedMediaPartSchema.safeParse({ ...media, file: { ...file, expiresAt: undefined } })
+        .success,
+    ).toBe(true)
   })
 
   it('requires paid/Contributor/sound admission and refuses missing or changed approved sources before ensure', async () => {

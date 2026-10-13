@@ -28,6 +28,7 @@ import type { ModelCapabilityRecord } from '../../providers/capabilityRecord'
 import type {
   FunctionOutputPart,
   InputContentPart,
+  InputFileDataPart,
   InputFilePart,
   InputItem,
   InputMessageItem,
@@ -41,7 +42,7 @@ function isUserMessage(item: InputItem): item is InputMessageItem {
 }
 
 /** What a PDF weighs from its own bytes: its page images, the full budget when uncounted. */
-function pdfWeight(part: InputFilePart): number {
+function pdfWeight(part: InputFileDataPart): number {
   const payload = part.file_data.slice(part.file_data.indexOf(DATA_URL_SEPARATOR) + 1)
   const pages = pdfPageCount(Buffer.from(payload, 'base64'))
   return Math.min(pages ?? MODEL_API_PDF_PAGE_IMAGES, MODEL_API_PDF_PAGE_IMAGES)
@@ -57,9 +58,16 @@ function leftOut(part: InputContentPart, reason: OmissionReason) {
   }
   let text: string
   if (reason === 'budget') {
+    // A file reference may carry no filename; its technical id still names it.
+    const name =
+      part.type === 'input_file'
+        ? 'file_data' in part
+          ? part.filename
+          : (part.filename ?? part.file_id)
+        : ''
     text =
       part.type === 'input_file'
-        ? fill(MODEL_API_MODEL_TEXT.pdfLeftOut, { name: part.filename })
+        ? fill(MODEL_API_MODEL_TEXT.pdfLeftOut, { name })
         : MODEL_API_MODEL_TEXT.imageLeftOut
   } else {
     text = fill(MODEL_API_MODEL_TEXT.mediaLeftOut, { reason: reasons[reason] })
@@ -81,10 +89,11 @@ export class MediaBudget {
     if (known !== undefined) return known
     switch (part.type) {
       case 'input_image': {
-        return part.image_url.length
+        return 'image_url' in part ? part.image_url.length : 0
       }
       case 'input_file': {
-        return part.file_data.length
+        // A file reference carries an id, never bytes (OPENAI-G15, GAPANTH-G16).
+        return 'file_data' in part ? part.file_data.length : 0
       }
       default: {
         return 0
@@ -101,6 +110,11 @@ export class MediaBudget {
     if (part.type !== 'input_file') {
       return 0
     }
+    // A file reference has no bytes to weigh: the managed path notes the
+    // real weight from the attachment, and an unnoted reference weighs the
+    // full budget, erring toward leaving it out, never toward a refused
+    // request (OPENAI-G15, GAPANTH-G16).
+    if (!('file_data' in part)) return MODEL_API_PDF_PAGE_IMAGES
     const weight = pdfWeight(part)
     this.weights.set(part, weight)
     return weight
@@ -184,6 +198,20 @@ export class MediaBudget {
         const isImage = part.type === 'input_image'
         const policy = isImage ? record.modalities.image : record.modalities.pdf
         if (policy.state !== 'yes') return 'support'
+        // A file reference carries no bytes to re-check: the provider's own
+        // attach and upload gates admitted this exact file before anything
+        // was sent. It still counts against a documented per-request image
+        // bound below (OPENAI-G15, GAPANTH-G16, XAI-G11).
+        if ('file_id' in part) {
+          if (isImage) {
+            const image = record.modalities.image
+            if (image.state === 'yes' && image.value.maxCount !== undefined) {
+              if (imageCount + 1 > image.value.maxCount) return 'budget'
+              imageCount++
+            }
+          }
+          return undefined
+        }
         let dataUrl = ''
         if (part.type === 'input_image') dataUrl = part.image_url
         else if (part.type === 'input_file') dataUrl = part.file_data
