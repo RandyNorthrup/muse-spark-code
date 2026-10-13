@@ -758,6 +758,11 @@ quality`) and as a CI job.
 
 ### D5 — Testing strategy
 
+**Superseded 2026-10-12 by D105** (owner's test-overhaul ruling) for the
+fake-transport unit pattern, the `vscode` mock in unit tests, and the
+coverage-threshold gate. What stays: unit tests over `src/**`, webview
+component tests, and the real-editor integration run.
+
 - **Unit (vitest, node env)**: everything in `src/core/**` (protocol types,
   backends with fake transports, the host ⇄ webview protocol, settings
   mapping, path guards). The `vscode` module is aliased to
@@ -14294,6 +14299,42 @@ cost and caution, never speed.
   (2026-10-10), so the judge becomes one of two gates for skipping the
   reviewer on B1 and B2, never the only one and never an allow by itself.
   Everywhere else both stand unchanged.
+
+### D105 — Test overhaul: no stand-ins, a short gate, the real-life run (owner, 2026-10-12)
+
+The owner, verbatim: "get the useless tests get it streamlined and
+meaningful with nothing testing fake code no exceptions. no more ci
+screenshot runs. if we change the ui is gets a small local verification
+and thats it." A thousand-test suite kept shipping broken code as
+"completed", so the suite is overhauled, not extended.
+
+- **A test stays only if it runs real code** (no `vi.mock`, fake timers,
+  stand-ins for our modules, providers, the CLI, GitHub, MCP, the editor
+  or stores, no hand-answering servers), checks behaviour a person or a
+  caller depends on, and is not an end-to-end run against a stand-in.
+  Live-provider `*.live.e2e.test.ts` files move under the real-life run.
+- **No screenshot runs in CI.** The pixel pipeline (`check:visual`, the
+  goldens, the visual matrix and audit, the visual workflow jobs) is
+  deleted. A UI change gets one small local look: `npm run ui:look --
+<scene> [--theme light|dark]`, pictures to `temp/ui-look/`, no
+  baseline, no comparison.
+- **No coverage gate.** `test:unit` runs without `--coverage`; the
+  thresholds and the merge job are gone.
+- **The short gate** (`quality:gates`): format, lint, typecheck, badges,
+  tokens, l10n, reference, host-api, plan, roadmap, deadcode, cycles,
+  duplication, the unit run, build and pack, audit. Accessibility runs
+  on merge groups, manual runs and releases, never on pull requests.
+- **The product's test is the real-life run**: the packed product used
+  for real against real providers on the cheapest models. The release
+  workflow reserves the `check:claims` step for it (branch
+  feat/claims-gate).
+- **This supersedes** D5's fake-transport unit pattern, its `vscode`
+  mock in unit tests and its coverage gate, and the M114 visual-CI jobs.
+  D32's accessibility gate stands, relocated. The golden request bytes,
+  the SoL-Pi invariants and the money-arithmetic suites stay: they run
+  real code over recorded data.
+- Record: `docs/testing/test-overhaul-2026-10-12.md` (before/after
+  1,321 → 524 files, 27,650 → 8,988 tests, ~26 → ~5.5 wall minutes).
 
 ## 3. Open questions (need the owner)
 

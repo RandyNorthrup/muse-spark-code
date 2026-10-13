@@ -8,17 +8,31 @@ packed product's real-life run is the product's test.
 
 ## Before and after
 
-Measured on rig `kubuntu` (10 cores), same flags both times
-(`npx vitest run --maxWorkers=3`, repository default timeouts, no coverage;
-a full run exceeds one foreground call, so five sequential foreground chunks
-of ~264 files; wall is the sum of chunk walls):
+Measured with the same flags both times (`npx vitest run --maxWorkers=3`,
+repository default timeouts, no coverage; a full run exceeds one foreground
+call, so sequential foreground chunks and wall is the sum of chunk walls).
+Before: rig `kubuntu` (10 cores), five chunks of ~264 files. After: this
+lane's Linux laptop (8 cores shared with three other lanes), four chunks of
+~131 files. Different machines, so the wall comparison is approximate; the
+file and test counts are exact.
 
-| Measure                                       | Before                                         | After        |
-| --------------------------------------------- | ---------------------------------------------- | ------------ |
-| Unit test files                               | 1,321                                          | TBD (PASS 2) |
-| Unit tests                                    | 27,650 (27,437 passed, 33 failed, 180 skipped) | TBD          |
-| Unit wall minutes                             | ~26 (179+194+508+360+312 s chunks)             | TBD          |
-| Pull-request workflow minutes (from job list) | TBD (PASS 5)                                   | TBD (PASS 5) |
+| Measure                                       | Before                                         | After                                                                                                 |
+| --------------------------------------------- | ---------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Unit test files                               | 1,321                                          | 524 (1,321 − 797 deleted: 786 PASS 2a + 1 PASS 1 fix + 2 PASS 3a + 8 PASS 4; reconciled file by file) |
+| Unit tests                                    | 27,650 (27,437 passed, 33 failed, 180 skipped) | 8,988 (8,911 passed, 26 failed, 51 skipped, after-fix basis)                                          |
+| Unit wall minutes                             | ~26 (179+194+508+360+312 s chunks)             | ~5.5 (92+55+113+69 s chunks)                                                                          |
+| Pull-request workflow minutes (from job list) | ~25 (audit §D estimate)                        | ~15–17 full tier (queue off), ~6–8 fast tier (queue on): see PASS 5                                   |
+
+After-failures (26): 18 `inspectNative` (exit 125, sandbox refuses the
+native helper — the before run names the same 18 on the untouched base);
+5 `treesLinuxLaunchNative` (cgroup layout: `expected 'group' to be
+'cgroup'` — same 5 as before, environment probing, no lane change near
+it); 2 packaging (`runtimeChatGptPackage`, `usagePackaging`: npm refuses
+its cache directory in the sandbox — both pass 2/2 and 12/12 with
+`NPM_CONFIG_CACHE="$TMPDIR/npm-cache"`, measured); 1 `spawnInventory`
+(listed for the lead below, not environmental). The `acpPackageFixtures`
+failure found mid-measure (it named the deleted execStdio e2e) is fixed
+in-lane and green 3/3.
 
 Before-failures (all on the untouched base, so measured, not labelled):
 24 in sandbox-refused native suites (`inspectNative` 18,
@@ -262,10 +276,108 @@ Release: a comment-only placeholder reserves the `check:claims` step
 (branch feat/claims-gate) ahead of publishing — no stub, nothing that
 pretends to pass.
 
-## Lists for the lead (TBD)
+Pull-request minutes, computed from the job list (E = estimated from
+cited hosted records, not measured here): full tier (queue off) ≈ 15 —
+checks macOS slowest ~11 (CIFIX017R3), unit Windows shard ~6–10E (was
+16 with the old suite; a third of the tests remain, hosted variance
+±60%), integration capped at its 15-minute timeout, accessibility
+skipped. Fast tier (queue on) ≈ 6–8 — Ubuntu checks, one unsharded unit
+run (~5.5 rig-measured in chunks), build. Before: the audit's ~25 for
+the same tier with coverage shards, visual shards and the old suite.
 
-### Golden request suite and SoL-Pi invariants
+## The lead's added hook defect (2026-10-12 evening)
 
-### Money arithmetic and budget decisions
+`test/unit/nativeGitPipeline.test.ts` (the busy-wait `pre-push` hook) was
+already deleted in PASS 2a as GO (`vi.useFakeTimers`); its hook died with
+it — nothing to fix there. Survey of every surviving test and helper that
+writes a script or hook (`#!/bin/sh` carriers in `zipExtract`,
+`runtimeStore`, `pluginDispatch`, `agentImport`, `teamWorkerEnv`,
+`teamLanding`, `teamRepository`, `github/repositories`, plus the
+`pre-commit` fixture and every `hooks/` writer): all are one-shot
+(echo/exit/guard/refuse), none loops, none waits. The only waiter,
+`until` in `test/unit/helpers/acpWaits.ts`, polls with a 5 ms sleep under
+a 2 s deadline and throws — the correct pattern. No fix needed anywhere.
 
-### test/integration per file
+## Lists for the lead
+
+### Golden request suite and SoL-Pi invariants (kept, not deleted)
+
+All pass rule 1 today (classifier STAY; hand-verified zero banned
+constructs and zero fake/helper imports): the real encoders run over
+constructed bodies and the bytes are compared with checked-in recorded
+bytes. Owner-ruled invariants; the integrator owns their future.
+
+- `anthropicCodec.test.ts` (+ `anthropicCodecGoldens/`: first-turn,
+  thinking tool loop, compaction, goal-progress, growing-history, image,
+  packed-output) — `encodeAnthropicRequest` vs recorded bytes; decode
+  paths run recorded SSE captures (with capture dates in-file).
+- `ollamaCodec.test.ts`, `chatgptResponsesCodec.test.ts`,
+  `modelapiChatCodec.test.ts`, `responsesCodec.test.ts`,
+  `codecShared.test.ts` — same shape per provider codec.
+- `modelApiPrefixGoldens/recall-tool.json` + its reader suite — the
+  immutable-prefix invariant (cache billing).
+- SoL-Pi names: `then_run` sites (`bridgeChecks`, `instructions`,
+  `verifyRows` — all STAY), `ObservationPack`
+  (`src/core/backends/modelapi/observationPack.ts`, exercised by STAY
+  suites), `modelsPanelReducer.test.ts` (STAY), `autoCompact.test.ts`
+  (STAY), the judge family (`judge.test`, `judgeBench`,
+  `judgeSameModelApi`, `judgeContract`, `judgeMath` and 8 more STAY;
+  `judgeActivation`, `judgeConsent`, `judgeFences` went GO with their
+  fakes), `eval/evalReport.test.ts` (STAY).
+- Proposed stay-real rule if one ever fails rule 1: keep the recorded
+  bytes/dates as data fixtures and run the real module — never a
+  hand-answering stand-in.
+
+### Money arithmetic and budget decisions (all pass rule 1; none listed as failing)
+
+21 STAY money files, all pure functions over data or real journals —
+spot-checked `usd`, `accountUsd`, `tabSpend`, `sessionBudget`
+(`guard.mockImplementation` is a bare-`vi.fn()` seam callback asserted
+on, the PASS 1 observer pattern), `paidMoneyStructure`,
+`teamCapValidation`, `accountUsage`, `usage`. Nothing to list: no money
+file fails rule 1. The 22 GO money files were fake-driven and deleted
+with the rest.
+
+### test/integration per file (listed, not deleted)
+
+Real editor throughout (Extension Development Host); model backend last.
+
+- `codeIntel` — real editor + real TypeScript service over the fixture
+  workspace. No model backend. Compliant; keep.
+- `extension` — real editor BUT `fakeModelApi` backend. Fails rule 1;
+  the integrator replaces the backend with a real-provider run.
+- `legal` — installed package's real lazy scanner, but adapters use
+  fake transports. Fails rule 1; list.
+- `pageWorker` — shipped `dist/pageWorker.js` in a real worker thread,
+  converts a page. No model backend. Compliant; keep.
+- `questions` — real renderer but a test-only injected host, no model
+  call. Strictly a stand-in host; list.
+- `tab` — real host, but the provider runs against a local fake Model
+  API. Fails rule 1; the integrator replaces it.
+- `verifyEditor` — real TypeScript/JSON language services (diagnostics,
+  formatter). No model backend. Compliant; keep.
+- `webFetch` — real editor proxy support; a loopback proxy stands in
+  for the user's (tunnel target is the PINNED address). Borderline
+  stand-in for outside world, not a provider; list for the call.
+
+### Listed, not fixed (survivor red after the deletions)
+
+- `spawnInventory.test.mjs` → `requires every source process import
+and launch`: `proveTestOnly` reports `exercised: false` for
+  `nodeGitProcesses` (the checkout git port's default) and
+  `openWorkerFile` (the worker fence's file opener) — the only tests
+  that called them by name were GO deletions (the nativeGit suites).
+  Both symbols are still live-wired production defaults
+  (`options.processes ?? nodeGitProcesses`; `openFile:
+openWorkerFile`), so they are not dead code and were not removed.
+  Option for the lead: re-profile the two sites, restore converted
+  real-process cover, or leave the failure documented here. Never
+  skipped.
+- `readme-shots` `deterministic-report` shot: needs the deleted
+  reporting verifier's `--prepare` output (`temp/m113-v/scenes.json`,
+  built from deleted `reportRenderFixtures`). The spawn fails closed
+  (`Report screenshot preparation failed`); the README picture is now
+  un-regenerable until its fixture pipeline is rebuilt. Lead call.
+- Report-page axe cover lapsed with the verifier (PASS 3b);
+  `m113-w-a11y.json` is the last receipt. Lead call (fold the
+  reporting scenes into `scripts/a11y.mjs` or accept the gap).

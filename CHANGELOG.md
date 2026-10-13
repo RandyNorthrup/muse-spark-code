@@ -9,6 +9,14 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- Test overhaul (not a user feature): the unit suite now runs real code
+  only — about 800 fake-driven test files deleted, the screenshot
+  comparison system removed (a UI change gets one small local look,
+  `npm run ui:look -- <scene>`), the coverage gate dropped, and the
+  accessibility check moved off the pull-request path. The packed
+  product's real-life run is the product's test.
+  (docs/testing/test-overhaul-2026-10-12.md).
+
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
   reads and writes, and 1-hour cache writes settle at their own price.
   The shared retry classifier refuses known quota codes and excessive
