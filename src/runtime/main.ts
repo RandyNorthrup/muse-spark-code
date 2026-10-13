@@ -114,6 +114,7 @@ import {
   isUsageWriterBundle,
   type UsageRecording,
 } from '../core/usage/recording'
+import { epochNow } from '../shared/epochMs'
 import { requireFile } from '../host/lazyBundle'
 import { extensionHooksBundle } from '../host/extensionHooksBundle'
 import { fileContextIo } from '../host/backend/contextIo'
@@ -668,7 +669,7 @@ async function serve(
   let clientName = 'ACP'
   const recording = createUsageRecording({
     client: () => clientName,
-    now: Date.now,
+    now: epochNow,
     newId: randomUUID,
     isEnabled: () => options.usageHistory ?? true,
     log,
@@ -682,7 +683,7 @@ async function serve(
           homeDir: homedir(),
         }),
         writerId: randomUUID(),
-        now: Date.now,
+        now: epochNow,
         isEnabled: () => options.usageHistory ?? true,
         onWriteError,
       })
@@ -971,13 +972,16 @@ async function main(): Promise<number> {
     }
     const stdout = createFdWriter(process.stdout.fd, closed)
     const stderr = createFdWriter(process.stderr.fd, closed)
-    const now = () => performance.timeOrigin + performance.now()
+    // The headless clock is the epoch wall clock in stored shape: whole
+    // milliseconds, so usage stamps pass the journal's integer schema. The
+    // lifecycle only measures spans against processStartMs, on the same base.
+    const now = epochNow
     const headlessTimeoutMs =
       command.command === 'exec'
         ? command.options.timeoutMs
         : HEADLESS_FIXED_TIMEOUT_MS[command.command]
     const lifecycle = createLifecycle({
-      processStartMs: performance.timeOrigin,
+      processStartMs: Date.now(),
       timeoutMs: headlessTimeoutMs,
       now,
       setTimer: (ms, callback) => {

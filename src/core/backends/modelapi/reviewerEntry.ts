@@ -1,4 +1,5 @@
 import { Usd, isPositiveUsd } from '../../../shared/usd'
+import { toEpochMs } from '../../../shared/epochMs'
 import type { ResponseObservation, ConfirmedModelRequest, ResponseAttemptGuard } from './client'
 // Paid Auto review execution: loaded only after the paid-use popup allows it.
 // Session-owned fences and journal observers are passed through unchanged.
@@ -252,7 +253,7 @@ async function requestReviewer(
   let directBudget: DirectResponseBudget | undefined
   let reservedUsd = Usd.from(0).toAmount()
   let wasRefused = false
-  const startedAt = context.deps.now()
+  const startedAt = toEpochMs(context.deps.now())
   let observation: ResponseObservation = {}
   let outcome: 'completed' | 'incomplete' | 'failed' | 'cancelled' = 'failed'
   let served: string | undefined
@@ -311,7 +312,7 @@ async function requestReviewer(
                 backend: 'modelApi',
                 provider: context.resolved.policy.identity.provider,
                 source: 'headers',
-                observedAt: context.deps.now(),
+                observedAt: toEpochMs(context.deps.now()),
                 windows: [],
                 raw: next.headers,
               },

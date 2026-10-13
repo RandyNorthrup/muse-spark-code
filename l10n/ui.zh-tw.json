@@ -3026,6 +3026,7 @@
   "usageInsightUnavailable": "此後端無法使用：Model API 沒有本機追蹤記錄。",
   "usageInsightNoLogs": "此電腦上尚未找到 Muse Code 追蹤記錄。",
   "usageInsightTotals": "{attempts}，來自 {sessions}",
+  "usageNotRecorded": "本次執行的使用情況未被記錄 ({reason})。",
   "modelAttemptsCount": {
     "other": "{count} 次模型嘗試"
   },

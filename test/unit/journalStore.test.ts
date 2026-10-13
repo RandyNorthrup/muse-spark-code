@@ -20,6 +20,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 import { UsageJournalStore, USAGE_JOURNAL_ROOT } from '../../src/core/usage/journalStore'
 import { createUsageRecord } from '../../src/core/usage/journalRecord'
 import { NodeUsageFs } from '../../src/runtime/usage/nodeUsageFs'
+import { epochNow, toEpochMs } from '../../src/shared/epochMs'
 import { USAGE_ROLLUP_LOCK_STALE_MS } from '../../src/shared/constants'
 import { fastestAwaitedRun } from './helpers/fastestRun'
 
@@ -47,13 +48,13 @@ async function rig() {
   roots.push(root)
   const fs = new NodeUsageFs(root)
   const error = vi.fn()
-  const now = new Date(2026, 9, 5, 12).getTime()
+  const now = toEpochMs(new Date(2026, 9, 5, 12).getTime())
   const record = createUsageRecord(
     { input_tokens: 100, output_tokens: 20 },
     {
       id: 'test',
       at: now,
-      startedAt: now - 50,
+      startedAt: toEpochMs(now - 50),
       client: 'cli',
       backend: 'modelApi',
       provider: 'test',
@@ -181,7 +182,7 @@ describe('usage journal store and Node filesystem', () => {
       store.append(record)
     }).not.toThrow()
     await expect(store.flush()).resolves.toBeUndefined()
-    expect(error).toHaveBeenCalledExactlyOnceWith('usageWriteFailed')
+    expect(error).toHaveBeenCalledExactlyOnceWith('usageWriteFailed', expect.any(String))
     const secondError = vi.fn()
     const second = new UsageJournalStore(fs, {
       writerId: 'second',
@@ -209,7 +210,7 @@ describe('usage journal store and Node filesystem', () => {
       () =>
         new UsageJournalStore(fs, {
           writerId: '../escape',
-          now: Date.now,
+          now: epochNow,
           isEnabled: () => true,
           onWriteError: vi.fn(),
         }),
@@ -217,15 +218,20 @@ describe('usage journal store and Node filesystem', () => {
   })
   it('contains normalisation and context failures so a settled model call cannot fail', async () => {
     const { store, record } = await rig()
+    const context = {
+      ...record,
+      at: toEpochMs(record.at),
+      startedAt: toEpochMs(record.startedAt),
+    }
     expect(() => {
-      store.noteUsage({ input_tokens: -1 }, record)
+      store.noteUsage({ input_tokens: -1 }, context)
     }).not.toThrow()
     expect(() => {
-      store.noteUsage({ input_tokens: 100, output_tokens: 20 }, { ...record, model: '' })
+      store.noteUsage({ input_tokens: 100, output_tokens: 20 }, { ...context, model: '' })
     }).not.toThrow()
     await store.flush()
     expect(await store.read()).toMatchObject({ records: [], recordCount: 0 })
-    store.noteUsage({ input_tokens: 100, output_tokens: 20 }, record)
+    store.noteUsage({ input_tokens: 100, output_tokens: 20 }, context)
     await store.flush()
     expect(await store.read()).toMatchObject({ records: [{ id: record.id }], recordCount: 1 })
   })
@@ -420,7 +426,7 @@ describe('usage journal store and Node filesystem', () => {
       const successorFs = new NodeUsageFs(root, () => clock)
       const resetter = new UsageJournalStore(successorFs, {
         writerId: 'resetter',
-        now: Date.now,
+        now: epochNow,
         isEnabled: () => true,
         onWriteError: vi.fn(),
       })
@@ -562,7 +568,7 @@ describe('usage journal store and Node filesystem', () => {
       )
       const store = new UsageJournalStore(new NodeUsageFs(root), {
         writerId: 'reader',
-        now: Date.now,
+        now: epochNow,
         isEnabled: () => true,
         onWriteError: vi.fn(),
       })

@@ -5,12 +5,16 @@ import type { ModelPricing } from '../providers/priceCard'
 import type { CoreLogger } from '../logging'
 import type { UsageJournalEntry, UsageRecord, UsageLimitSnapshot } from '../../shared/usageJournal'
 import { MODEL_API_CLOSE_SETTLE_MS, USAGE_JOURNAL_VERSION } from '../../shared/constants'
+import { fill, UI_TEXT } from '../../shared/l10n/text'
+import type { EpochMs } from '../../shared/epochMs'
 import { usageLocalDay as localUsageDay } from './localDay'
 
 export type RecordedCall = Omit<
   UsageRecord,
   'v' | 'id' | 'type' | 'at' | 'day' | 'timezoneOffsetMins' | 'client' | 'tokens' | 'cost'
 > & {
+  /** A stored time is whole milliseconds since the epoch, never a bare clock reading. */
+  readonly startedAt: EpochMs
   readonly pricing?: ModelPricing | undefined
   readonly providerCostUsd?: UsdAmount | undefined
   readonly uncertain?: boolean | undefined
@@ -23,7 +27,7 @@ export interface UsageWriter {
     usage: Partial<Usage> | undefined,
     context: RecordedCall & {
       readonly id: string
-      readonly at: number
+      readonly at: EpochMs
       readonly client: string
     },
   ): void
@@ -39,7 +43,9 @@ export interface UsageRecording {
     context: Omit<
       UsageLimitSnapshot,
       'v' | 'id' | 'at' | 'day' | 'timezoneOffsetMins' | 'client' | 'type'
-    >,
+    > & {
+      readonly observedAt: EpochMs
+    },
     isForced?: boolean,
   ): void
   today(): Promise<readonly UsageRecord[]>
@@ -48,10 +54,11 @@ export interface UsageRecording {
 
 export interface UsageRecordingOptions {
   readonly client: string | (() => string)
-  readonly now: () => number
+  /** The epoch clock: a monotonic reading does not satisfy this type. */
+  readonly now: () => EpochMs
   readonly newId: () => string
   readonly isEnabled: () => boolean
-  readonly writer: (onWriteError: () => void) => Promise<UsageWriter>
+  readonly writer: (onWriteError: (code: string, reason: string) => void) => Promise<UsageWriter>
   readonly log: CoreLogger
 }
 
@@ -63,10 +70,10 @@ export function createUsageRecording(options: UsageRecordingOptions): UsageRecor
   const lastHeaders = new Map<string, string>()
   const liveLimits = new Map<string, UsageLimitSnapshot>()
   const client = () => (typeof options.client === 'function' ? options.client() : options.client)
-  const report = () => {
+  const report = (_code: string, reason: string) => {
     if (hasLogged) return
     hasLogged = true
-    options.log.warn('Usage history could not be recorded')
+    options.log.warn(fill(UI_TEXT.usageNotRecorded, { reason }))
   }
   const getWriter = () => (writer ??= options.writer(report))
   const queue = (write: (journal: UsageWriter) => void) => {
@@ -80,7 +87,7 @@ export function createUsageRecording(options: UsageRecordingOptions): UsageRecor
           if (options.isEnabled()) write(journal)
         }
       } catch {
-        report()
+        report('usageWriteFailed', 'writer unavailable')
       }
     })()
   }
@@ -130,7 +137,7 @@ export function createUsageRecording(options: UsageRecordingOptions): UsageRecor
         const day = localUsageDay(options.now())
         return records.filter((record) => record.day === day)
       } catch {
-        report()
+        report('usageWriteFailed', 'read failed')
         throw new Error('Usage history unavailable')
       }
     },
@@ -145,13 +152,13 @@ export function createUsageRecording(options: UsageRecordingOptions): UsageRecor
                 const journal = await writer
                 await journal.flush()
               } catch {
-                report()
+                report('usageWriteFailed', 'write failed')
               }
             }
           })(),
           new Promise<void>((resolve) => {
             timer = setTimeout(() => {
-              report()
+              report('usageWriteFailed', 'write timed out')
               resolve()
             }, MODEL_API_CLOSE_SETTLE_MS)
           }),
@@ -169,8 +176,8 @@ export interface UsageWriterBundle {
     readonly dataFolder: string
     readonly writerId: string
     readonly isEnabled: () => boolean
-    readonly now: () => number
-    readonly onWriteError: () => void
+    readonly now: () => EpochMs
+    readonly onWriteError: (code: string, reason: string) => void
   }): Promise<UsageWriter>
 }
 export function isUsageWriterBundle(value: unknown): value is UsageWriterBundle {

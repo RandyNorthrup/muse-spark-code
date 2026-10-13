@@ -3667,6 +3667,7 @@ export const EN = {
   usageInsightUnavailable: 'Not available on this backend: the Model API has no local trace logs.',
   usageInsightNoLogs: 'No Muse Code trace logs were found on this machine yet.',
   usageInsightTotals: '{attempts} across {sessions}',
+  usageNotRecorded: 'Usage for this run was not recorded ({reason}).',
   modelAttemptsCount: forms({
     one: '{count} model attempt',
     other: '{count} model attempts',

@@ -3215,6 +3215,7 @@
   "usageInsightUnavailable": "Недоступно для этого бэкенда: у Model API нет локальных журналов трассировки.",
   "usageInsightNoLogs": "На этом компьютере пока не найдено журналов трассировки Muse Code.",
   "usageInsightTotals": "{attempts} за {sessions}",
+  "usageNotRecorded": "Использование за этот запуск не записано ({reason}).",
   "modelAttemptsCount": {
     "one": "{count} попытка модели",
     "other": "{count} попытки модели",

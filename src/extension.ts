@@ -99,6 +99,7 @@ import {
 } from './shared/constants'
 import { PaidAuthority } from './core/paid/paidAuthority'
 import { Usd } from './shared/usd'
+import { epochNow } from './shared/epochMs'
 import {
   createUsageRecording,
   isUsageWriterBundle,
@@ -738,7 +739,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   })
   const usageRecording = createUsageRecording({
     client: vscode.env.appName,
-    now: Date.now,
+    now: epochNow,
     newId: () => crypto.randomUUID(),
     isEnabled: () =>
       vscode.workspace.getConfiguration(SETTINGS_SECTION).get<boolean>('usageHistory', true),
@@ -753,7 +754,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
           homeDir: homedir(),
         }),
         writerId: crypto.randomUUID(),
-        now: Date.now,
+        now: epochNow,
         isEnabled: () =>
           vscode.workspace.getConfiguration(SETTINGS_SECTION).get<boolean>('usageHistory', true),
         onWriteError,
@@ -4115,7 +4116,7 @@ async function activateWindow(
               backend: 'modelApi',
               provider: 'openrouter',
               source: 'openRouter',
-              observedAt: Date.now(),
+              observedAt: epochNow(),
               windows: [],
               // OpenRouter's `/key` numbers become exact decimals here (M121).
               account: {

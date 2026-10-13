@@ -6,14 +6,16 @@ import { describe, expect, it } from 'vitest'
 import { createUsageRecording } from '../../src/core/usage/recording'
 import { UsageJournalStore } from '../../src/core/usage/journalStore'
 import { NodeUsageFs } from '../../src/runtime/usage/nodeUsageFs'
+import { epochNow, toEpochMs, type EpochMs } from '../../src/shared/epochMs'
 import type { CoreLogger } from '../../src/core/logging'
 
 /**
- * The headless path's clock (src/runtime/main.ts): the epoch plus a
- * monotonic fraction, so every stamp carries a fraction of a millisecond.
- * The journal schema wants whole milliseconds since the epoch.
+ * The headless path's old clock (src/runtime/main.ts before the fix): the
+ * epoch plus a monotonic fraction. The usage boundary rounds it once, here,
+ * through the single clock constructor, so the journal keeps whole
+ * milliseconds.
  */
-const headlessNow = (): number => performance.timeOrigin + performance.now()
+const headlessNow = (): EpochMs => toEpochMs(performance.timeOrigin + performance.now())
 
 function ignoreLog(_message: string): void {
   /* Only warnings matter to this reproduction. */
@@ -30,7 +32,7 @@ function collectingLog(into: string[]): CoreLogger {
   }
 }
 
-async function recordOneTurn(dataFolder: string, now: () => number, warnings: string[]) {
+async function recordOneTurn(dataFolder: string, now: () => EpochMs, warnings: string[]) {
   const recording = createUsageRecording({
     client: 'cli',
     now,
@@ -63,6 +65,12 @@ async function recordOneTurn(dataFolder: string, now: () => number, warnings: st
 }
 
 describe('exec usage clock', () => {
+  it('rounds a fractional input once, at the constructor', () => {
+    expect(toEpochMs(1_791_839_174_122.7842)).toBe(1_791_839_174_123)
+    expect(toEpochMs(1_791_839_174_108)).toBe(1_791_839_174_108)
+    expect(Number.isSafeInteger(epochNow())).toBe(true)
+  })
+
   it('records a headless turn stamped with the headless clock', async () => {
     const dataFolder = mkdtempSync(path.join(tmpdir(), 'exec-usage-red-'))
     const warnings: string[] = []
@@ -74,8 +82,39 @@ describe('exec usage clock', () => {
   it('records a turn stamped with whole milliseconds', async () => {
     const dataFolder = mkdtempSync(path.join(tmpdir(), 'exec-usage-red-'))
     const warnings: string[] = []
-    const records = await recordOneTurn(dataFolder, Date.now, warnings)
+    const records = await recordOneTurn(dataFolder, epochNow, warnings)
     expect(warnings).toEqual([])
     expect(records).toHaveLength(1)
+  })
+
+  it('names the failing field when a record is rejected', async () => {
+    const dataFolder = mkdtempSync(path.join(tmpdir(), 'exec-usage-red-'))
+    const errors: { code: string; reason: string }[] = []
+    const store = new UsageJournalStore(new NodeUsageFs(dataFolder, epochNow), {
+      writerId: 'redtest-writer',
+      now: epochNow,
+      isEnabled: () => true,
+      onWriteError: (code, reason) => {
+        errors.push({ code, reason })
+      },
+    })
+    store.noteUsage(
+      { input_tokens: 10, output_tokens: 5 },
+      {
+        id: '',
+        at: epochNow(),
+        startedAt: epochNow(),
+        client: 'cli',
+        backend: 'modelApi',
+        provider: 'redtest',
+        model: 'redtest',
+        kind: 'turn',
+        outcome: 'completed',
+      },
+    )
+    await store.flush()
+    expect(errors).toHaveLength(1)
+    expect(errors[0]?.code).toBe('usageWriteFailed')
+    expect(errors[0]?.reason).toContain('id')
   })
 })

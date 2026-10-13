@@ -3152,6 +3152,7 @@
   "usageInsightUnavailable": "Non disponibile su questo back-end: la Model API non ha log di traccia locali.",
   "usageInsightNoLogs": "Non è stato ancora trovato alcun log di traccia di Muse Code su questo computer.",
   "usageInsightTotals": "{attempts} in {sessions}",
+  "usageNotRecorded": "L’utilizzo per questa esecuzione non è stato registrato ({reason}).",
   "modelAttemptsCount": {
     "one": "{count} tentativo del modello",
     "other": "{count} tentativi del modello",
