@@ -223,7 +223,6 @@
     "test/fixtures/github/fake-gh.mjs",
     "test/fixtures/inspect-helper.mjs",
     "test/fixtures/tabHooks/completion.mjs",
-    "test/harness/goldens/integrated.tsx",
     "test/harness/playbook.mjs",
     "test/harness/schedules.mjs",
     "test/harness/reporting/verify.mjs",

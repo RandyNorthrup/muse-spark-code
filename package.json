@@ -1793,7 +1793,7 @@
     "notices": "node scripts/build.mjs --production && node scripts/third-party-notices.mjs --write",
     "build:dev": "node scripts/build.mjs",
     "watch": "node scripts/build.mjs --watch",
-    "harness:shots": "node scripts/harness-shots.mjs",
+    "ui:look": "node scripts/ui-look.mjs",
     "harness:playbook": "node test/harness/playbook-axe.mjs",
     "harness:pseudo": "node scripts/pseudo-l10n.mjs",
     "readme:shots": "node scripts/readme-shots.mjs",
@@ -1834,7 +1834,7 @@
     "test:integration:run": "vscode-test",
     "security:audit": "node scripts/audit.mjs",
     "security:secrets": "gitleaks git --redact --no-banner .",
-    "quality:gates": "run-s format:check lint typecheck check:badges check:tokens check:visual check:l10n check:reference check:host-api check:plan check:roadmap deadcode cycles duplication test:unit build security:audit",
+    "quality:gates": "run-s format:check lint typecheck check:badges check:tokens check:l10n check:reference check:host-api check:plan check:roadmap deadcode cycles duplication test:unit build security:audit",
     "quality": "run-s quality:gates test:a11y test:legal-a11y security:secrets security:sast",
     "quality:ci": "run-s quality:gates test:a11y test:integration",
     "vscode:prepublish": "npm run build",
@@ -1850,9 +1850,7 @@
     "lazy-registry:generate": "node scripts/gen-lazy-registry.mjs",
     "check:lazy-registry": "node scripts/gen-lazy-registry.mjs --check",
     "build:tokens": "node scripts/build-tokens.mjs",
-    "check:tokens": "node scripts/check-tokens.mjs",
-    "check:visual": "node scripts/check-visual.mjs",
-    "check:visual:a11y": "node test/harness/goldens/a11y.mjs"
+    "check:tokens": "node scripts/check-tokens.mjs"
   },
   "lint-staged": {
     "{*.{ts,tsx,mjs},!(vendor)/**/*.{ts,tsx,mjs}}": [

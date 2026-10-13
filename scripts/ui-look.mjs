@@ -1,20 +1,18 @@
 #!/usr/bin/env node
-// Renders the webview bundle in headless Chrome behind the scripted fake host
-// in test/harness/index.html and writes one screenshot per scenario. This is
-// the visual check behind the certification records, not a gate: it needs a
+// Renders one webview scene from the built bundle in headless Chrome behind
+// the scripted host in test/harness/index.html, for a person to LOOK at
+// after a UI change. No baseline, no comparison, no CI: the pictures land in
+// temp/ui-look/ (gitignored) and are never uploaded anywhere. It needs a
 // Chrome install and a dev bundle (`npm run build:dev`).
 //
-//   node scripts/harness-shots.mjs            all scenarios → harness-shots/
-//   node scripts/harness-shots.mjs palette    one scenario
-//   node scripts/harness-shots.mjs chat-menu --theme=dark  captured theme
-//   node scripts/harness-shots.mjs chat-menu-narrow --theme=light  320 px
-//   node scripts/harness-shots.mjs column-wide --theme=dark   1400 px (SIZED_SCENARIOS)
-//   node scripts/harness-shots.mjs --lang=de  in l10n/ui.de.json → harness-shots/de/
-//   node scripts/harness-shots.mjs --lang=pseudo   in the pseudo-locale table
-//   CHROME_PATH=/path/to/chrome node scripts/harness-shots.mjs
+//   npm run ui:look -- palette                    one scene, light and dark
+//   npm run ui:look -- chat-menu --theme=dark     one scene, one theme
+//   npm run ui:look -- chat-menu-narrow --theme=light  320 px scene
+//   npm run ui:look -- palette --lang=de          in l10n/ui.de.json
+//   CHROME_PATH=/path/to/chrome npm run ui:look -- palette
 
 import { existsSync } from 'node:fs'
-import { mkdir, mkdtemp, readFile, rm } from 'node:fs/promises'
+import { mkdir, mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
@@ -31,20 +29,18 @@ import {
   withSizedPage,
 } from './lib/harnessServer.mjs'
 
-const OUT_DIR = 'harness-shots'
+const OUT_DIR = path.join('temp', 'ui-look')
 const BUNDLE_PATH = 'dist/webview/main.js'
 const MODELS_BUNDLE_PATH = 'dist/webview/models.js'
 const SHOT_WIDTH = 690
 const SHOT_HEIGHT = 760
 const repoRoot = process.cwd()
-const THEMES = new Set(
-  JSON.parse(await readFile(new URL('../test/harness/visual-matrix.json', import.meta.url), 'utf8'))
-    .themes,
-)
+// A look covers the two editor themes; --theme picks one of them.
+const THEMES = new Set(['light', 'dark'])
 
 async function shoot(chrome, port, scenario, lang, theme, outDir, profileDir) {
-  const file = path.join(outDir, `${scenario}.png`)
-  const url = `http://${LOOPBACK}:${String(port)}/${HARNESS_PATH}?scenario=${scenario}&bundle=${bundleFor(scenario)}${langQuery(lang)}${theme === undefined ? '' : `&theme=${theme}`}`
+  const file = path.join(outDir, `${scenario}.${theme}.png`)
+  const url = `http://${LOOPBACK}:${String(port)}/${HARNESS_PATH}?scenario=${scenario}&bundle=${bundleFor(scenario)}${langQuery(lang)}&theme=${theme}`
   const sized = SIZED_SCENARIOS[scenario]
   if (sized !== undefined) {
     await withSizedPage(chrome, profileDir, url, sized, async (page) => {
@@ -73,33 +69,35 @@ async function main() {
   const args = process.argv.slice(2)
   const theme = args.find((arg) => arg.startsWith('--theme='))?.slice('--theme='.length)
   if (theme !== undefined && !THEMES.has(theme)) {
-    throw new Error(`Unknown theme: ${theme}`)
+    throw new Error(`Unknown theme: ${theme}. Known: ${[...THEMES].join(', ')}`)
   }
   const { lang, scenarios: requested } = harnessArgs(
     args.filter((arg) => !arg.startsWith('--theme=')),
   )
-  if (
-    (requested.length === 0 || requested.some((name) => bundleFor(name) === 'models')) &&
-    !existsSync(path.join(repoRoot, MODELS_BUNDLE_PATH))
-  ) {
+  if (requested.length !== 1 || requested[0] === undefined) {
+    throw new Error(
+      `Name exactly one scene: npm run ui:look -- <scene> [--theme light|dark]. Known: ${SCENARIOS.join(', ')}`,
+    )
+  }
+  const scenario = requested[0]
+  if (!SCENARIOS.includes(scenario)) {
+    throw new Error(`Unknown scenario: ${scenario}. Known: ${SCENARIOS.join(', ')}`)
+  }
+  if (bundleFor(scenario) === 'models' && !existsSync(path.join(repoRoot, MODELS_BUNDLE_PATH))) {
     throw new Error(`${MODELS_BUNDLE_PATH} is missing; run npm run build:dev first`)
   }
-  const unknown = requested.filter((name) => !SCENARIOS.includes(name))
-  if (unknown.length > 0) {
-    throw new Error(`Unknown scenario(s): ${unknown.join(', ')}. Known: ${SCENARIOS.join(', ')}`)
-  }
   await prepareLang(repoRoot, lang)
-  const scenarios = requested.length > 0 ? requested : SCENARIOS
-  const outDir = path.join(repoRoot, OUT_DIR, lang ?? '', theme ?? '')
+  const themes = theme === undefined ? [...THEMES] : [theme]
+  const outDir = path.join(repoRoot, OUT_DIR, lang ?? '')
   await mkdir(outDir, { recursive: true })
   // Chrome's profile lives in a temporary directory for the run, not beside
   // the screenshots, and goes when the run ends.
-  const profileDir = await mkdtemp(path.join(tmpdir(), 'muse-harness-'))
+  const profileDir = await mkdtemp(path.join(tmpdir(), 'muse-ui-look-'))
   const { server, port } = await serveRepo(repoRoot)
   try {
-    for (const scenario of scenarios) {
-      const file = await shoot(chrome, port, scenario, lang, theme, outDir, profileDir)
-      console.log(`${scenario}: ${path.relative(repoRoot, file)}`)
+    for (const each of themes) {
+      const file = await shoot(chrome, port, scenario, lang, each, outDir, profileDir)
+      console.log(`${scenario} ${each}: ${path.relative(repoRoot, file)}`)
     }
   } finally {
     server.close()
