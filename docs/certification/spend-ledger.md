@@ -7,7 +7,7 @@ commits the reservation before returning it. Exactly k of n equal requests
 fit when k reservations fit, including across processes. A zero cap means
 accounting without a cap, never accounting without a reservation.
 
-**Disk.** `spend-ledger-v3/<session>/<account>/state.json` contains a generation,
+**Disk.** `spend-ledger-v3/<account>/<session>/state.json` contains a generation,
 exact decimal settled and uncertain totals, unknown legacy history and only
 open claims. Closed history is immutable audit records indexed by claim id;
 admission never scans it. A single write-ahead transaction is flushed before
@@ -245,3 +245,50 @@ does not list `model_max_output_tokens`; an older undocumented knob is not
 evidence that the current CLI sends it. [Aider model settings](https://aider.chat/docs/config/adv-model-settings.html)
 pass explicit `extra_params.max_tokens`. Retain Muse's stronger request
 admission with a cap sent on the wire, and honest estimate/unknown accounting.
+
+Inherited test changes using providers, stores, fake clocks or replacement spies
+were removed from 22 suites; `execExactCount` was rewritten as real price/parser/
+encoder arithmetic. The fake session helper's parallel money core was deleted
+(the remaining old session fixtures belong to TESTCUT). The inherited
+`execStdio` fake-provider additions were restored byte-for-byte to HEAD and are
+not run. The real core-process proof is `test/unit/spendLedger.process.mjs`, not
+a provider or application e2e stand-in.
+
+macOS default-timeout receipts so far: spendLedger 17 passed; runLedger and
+execPaidRefusal 54 passed; migration and remedy files 10 passed. The first
+three-file run failed 7 cases (old accounting expectations and two slow migration
+fixtures plus a filesystem-failure setup); standalone migration reproduced a
+6.872 s case. Fixture generation and the old-reader baseline moved into shared
+setup, without widening a timeout. Final-tree receipts supersede these below.
+
+The Meta startup minimum still priced the entire context window on inspection.
+It was removed: its start line now states the size-bound rule and sent output
+cap, with each actual request admitted by the same runtime accounting. Configured
+decoders deliver a failed terminal's final usage before raising its error.
+
+## Measured macOS durability cost and implementation correction
+
+The full matrix first passed n=2/k=1, 500 rounds, then was stopped with its
+entire verified process group (exit 143) to measure admission early. The real
+10-claim benchmark exited 1 at 1,106.692 ms, above the unchanged 100 ms gate.
+Direct real-filesystem measurements found file fsync 42.415–99.289 ms,
+fdatasync 60.670–113.189 ms, and directory fsync 19.725–89.384 ms. Those are
+observations here, not a diagnosis of the rig or a universal scheduling bound.
+
+Correction: each committed transaction is one flushed immutable inode. Its
+complete contents also contain the current-state fields. Atomic hard-link
+publication gives the snapshot and immutable audit/history indices that same
+inode, avoiding repeated writes and flushes of identical data. Directory
+metadata is synced before removing the durable settlement inbox or returning
+an admission. A process-unique immutable owner note is flushed once per scope
+and linked into each staged lock; a dead owner can never acquire again, and
+another process has a different note name. No durability step is removed and
+no wait, test timeout or 100 ms gate is widened. Windows hard-link and rename
+semantics still require the named platform command.
+
+The terminal reservation may use Anthropic's estimate plus its margin; the
+shared daily reservation uses the complete body byte bound instead. Otherwise
+several concurrent processes with low estimates could accumulate more than one
+unknown input error against the daily cap. Media uses the model context limit
+for the shared daily reservation while its terminal estimate remains explicit.
+Session and paid helper requests already reserve canonical-body bytes.
