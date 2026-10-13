@@ -37,28 +37,31 @@ through the record.
   The Model API backend maps `ultra` to `max` (the API has no `ultra`);
   the CLI maps it per model itself.
 
-## DS-G01 — done
+## DS-G01 — done, corrected in round 2
 
-DeepSeek's thinking-mode table maps minimal/low, medium/high, xhigh/high,
-ultra/max (`https://api-docs.deepseek.com/guides/thinking_mode`, read
-2026-10-12). The preset carries that table as `effortAliases`; `ultra`
-rides as `reasoning_effort: "max"` instead of refusing. UNVERIFIED until
-DS-ULTRA and DS-XHIGH answer.
+DeepSeek's thinking-mode table takes minimal, low, medium, high, xhigh,
+max and ultra as requested names and maps server-side
+(`https://api-docs.deepseek.com/guides/thinking_mode`, read 2026-10-13).
+Round 1 remapped client-side (`ultra` → `max`); DS-ULTRA and DS-XHIGH
+(200 both, thinking returned) refute the need, so every name rides as
+named and the preset declares no aliases. The dated record carries the
+full vocabulary for the four native models (deepseek-flash VERIFIED;
+the other three UNVERIFIED until captured).
 
 Person's steps: add a DeepSeek entry, pick a DeepSeek model, set effort to
 Max, send a turn. Observe the turn goes with `reasoning_effort: "max"`.
 
-## DS-G02 — done (acceptance UNVERIFIED)
+## DS-G02 — done, corrected in round 2
 
-Strict tool schemas need the beta base (`https://api.deepseek.com/beta`)
-plus `strict: true` on every function
-(`https://api-docs.deepseek.com/guides/tool_calls`, read 2026-10-12).
-The preset declares the beta base; entries pointed at it send strict
-(strict-conformant schemas via the shared rewriter), while production
-entries never see `strict: true`. The beta `/models` route exists (keyless
-probe 2026-10-13 answers 401, not 404), so beta entries list models.
-UNVERIFIED until DS-STRICT and DS-STRICT-PROD answer (the strict
-acceptance itself).
+Strict tool schemas are `strict: true` on every function
+(`https://api-docs.deepseek.com/guides/tool_calls`, read 2026-10-13;
+the page also names the beta base for beta features). Round 1 gated
+strict to beta entries and claimed the beta `/models` route exists from
+a keyless 401; DS-BETA-MODELS (404 with a real key) refutes the route,
+and DS-STRICT plus DS-STRICT-PROD (200 with a correct call on both
+addresses) refute the gate. The preset declares strict and it rides on
+the address the entry has; whether production enforces strict is
+UNVERIFIED.
 
 Person's steps: point a DeepSeek entry at `https://api.deepseek.com/beta`,
 attach a tool and send. Observe the turn goes with `strict: true` on
@@ -74,8 +77,12 @@ calling and JSON mode requiring parsed or hidden
 sends `reasoning_format: "parsed"` where the record affirms reasoning
 (tool calls may ride any turn, so the required presentation is the
 default); `reasoning_effort` already rode via the record;
-`include_reasoning` keeps its default. UNVERIFIED until GQ-EFFORT,
-GQ-FORMAT and GQ-INCLUDE answer.
+`include_reasoning` keeps its default. GQ-EFFORT, GQ-FORMAT and
+GQ-INCLUDE (200 all, thinking in `message.reasoning` for
+gpt-oss-120b) VERIFY the send: `reasoning_format` made no visible
+difference on this model and is sent because tool calls may ride any
+turn; `include_reasoning: false` removes the field while reasoning
+tokens are still billed.
 
 Person's steps: add a Groq entry, pick `openai/gpt-oss-120b`, send a turn
 with tools. Observe reasoning arrives in its dedicated field and the turn
@@ -115,8 +122,12 @@ including the thinking chunk
 (`https://docs.mistral.ai/capabilities/reasoning`, read 2026-10-12). The
 chat decoder routes streamed thinking chunks to reasoning and text chunks
 to the answer, and replays the trace as a thinking chunk beside the
-answer text. UNVERIFIED until MI-CHUNKS and MI-REPLAY answer; the exact
-fragment shapes rest on the docs prose, not a capture.
+answer text. MI-CHUNKS VERIFIES the thinking-chunk decode (36 of 40
+events with `closed: true`, one without — the loose chunk schema
+reads both; top-level `p` padding is stripped, never read);
+MI-REPLAY-CHUNKS and MI-REPLAY-PLAIN VERIFY both replay
+shapes. The answer-text chunk and the final event are not in the
+recording and are not claimed.
 
 Person's steps: add a Mistral entry, pick `mistral-small-latest`, set
 effort to High, send a turn, then send a follow-up. Observe the first
@@ -129,7 +140,11 @@ OpenRouter documents per-model `supported_parameters`
 2026-10-12); the record already parsed them into `tools.calling`. A model
 the record refuses tools now keeps its turn but never its tools, tool
 choice or parallelism flag. Reasoning was already gated by declared
-levels. UNVERIFIED until OR-PARAMS and OR-UNSUP answer.
+levels. OR-PARAMS records the list as counted (459 models, 331 with
+`reasoning` in `supported_parameters`); OR-UNSUP shows OpenRouter
+answers 200 to the setting on an unlisted model rather than refusing.
+The product still sends only what the record declares, and reads the
+answer's own `cost` into usage.
 
 Person's steps: add an OpenRouter entry, pick a model the catalogue marks
 tool-less, attach a tool and send. Observe a plain answer and no error.
@@ -143,11 +158,16 @@ high/max with server-side normalization
 2026-10-12). The preset declares the hybrid toggle; effort rides via the
 record; MiniMax M3 and Kimi K3 (documented hybrid, catalogue silent) are
 record facts. Models the catalogue leaves silent stay silent.
-UNVERIFIED until TO-EFFORT and TO-TOGGLE answer.
+TO-EFFORT (200, thinking in `message.reasoning`) VERIFIES the effort
+send for gpt-oss-120b. TO-TOGGLE (403, the account refuses the model)
+does NOT verify the hybrid toggle: it stays UNVERIFIED, offered as a
+documented switch, never as a fact.
 
 Person's steps: add a Together entry, pick a hybrid model, send one turn
 with Thinking off and one at High. Observe a direct answer first and
-thinking second.
+thinking second. The toggle itself is documented but unverified live
+(TO-TOGGLE answered 403): if the off turn still thinks, the account
+or the model refused the switch, not the product.
 
 ## ZAI-G01 / ZAI-G02 — done
 
@@ -156,8 +176,13 @@ Z.ai documents `thinking: {type: "enabled"/"disabled"}` and, for GLM-5.2,
 (`https://docs.z.ai/guides/capabilities/thinking`, read 2026-10-12), with
 only GLM-5.3 refusing `disabled`. The preset declares the switch; GLM-5.2
 is a record fact (full names plus the toggle), so values ride as named
-and the provider maps server-side; off sends the switch. UNVERIFIED until
-ZAI-OFF52, ZAI-XHIGH, ZAI-MINIMAL and ZAI-MEDIUM answer.
+and the provider maps server-side; off sends the switch. ZAI-OFF52
+(200, 0 reasoning tokens) VERIFIES the switch; ZAI-XHIGH and
+ZAI-MEDIUM (200 both) are accepted as named, their effect UNVERIFIED
+under the 200-token cap; ZAI-MINIMAL (200, 196 reasoning tokens)
+REFUTES "minimal stops thinking" — Thinking off is the switch, never
+an effort name, and the product offers `minimal` as a level that
+thinks.
 
 Person's steps: add a Z.ai entry, pick `glm-5.2`, send one turn with
 Thinking off and one at Medium. Observe a direct answer first and a
@@ -170,8 +195,9 @@ verbatim with the returned `reasoning_content` on the next call),
 defaulting on for Coding Plan and off for the standard endpoint
 (`https://docs.z.ai/guides/capabilities/thinking-mode`, read 2026-10-12).
 The preset opts in: turns that replay reasoning send `thinking: {type:
-"enabled", clear_thinking: false}` beside the effort. UNVERIFIED until
-ZAI-CLEAR answers.
+"enabled", clear_thinking: false}` beside the effort. ZAI-CLEAR (200
+with the flags) accepts the send; what it changes in a following turn
+was not asked and stays UNVERIFIED.
 
 Person's steps: on a Z.ai model, send two turns in a row. Observe the
 second turn stays coherent with the first turn's thinking.
@@ -181,11 +207,18 @@ second turn stays coherent with the first turn's thinking.
 Z.ai documents main-turn JSON mode as `response_format: {type:
 "json_object"}` (`https://docs.z.ai/guides/capabilities/struct-output`,
 read 2026-10-12). The chat codec sends it where the body asks for a JSON
-schema and the record affirms `json_object`. UNVERIFIED until ZAI-JSON
-answers.
+schema and the record affirms `json_object`. ZAI-JSON-NOTHINK (200,
+the bare object) VERIFIES JSON mode with thinking off; ZAI-JSON (200,
+thinking ate 198 of 200 tokens, content empty) shows thinking on can
+starve the answer — the product sends the run's cap unchanged, so the
+steps turn Thinking off for JSON answers.
 
-Person's steps: on a Z.ai model, ask for a JSON-shaped answer through the
-structured-answer flow. Observe a bare JSON object.
+Person's steps: on a Z.ai model, turn Thinking off and ask for a
+JSON-shaped answer through the structured-answer flow. Observe a bare
+JSON object (ZAI-JSON-NOTHINK). With thinking on the thinking can eat
+the whole output cap and the content comes back empty (ZAI-JSON): the
+product sends both as asked with the run's cap unchanged, so turn
+Thinking off for a JSON-shaped answer.
 
 ## META-G05 — done (row shape UNVERIFIED)
 
@@ -229,19 +262,24 @@ asserts the old behavior and is left red for its owning lane, named below.
 Person's steps: with hosted search in history, switch to a Copilot model
 and send. Observe the turn completes instead of failing.
 
-## Left red on purpose (owning lanes, named)
+## Round-2 test resolutions (lead review findings 1–3)
 
-- `test/unit/copilotClient.test.ts` › refuses unsupported search-history
-  instead of dropping it — pins CP-G04's old throw. Round 2 owns it
-  (this lane changed the behaviour): rewritten to the drop, below.
-- `test/unit/museCodeSdk142.test.ts` › carries the effort reader's
-  complete ordered variants — pins the old `listModels` shape without
-  `effortLevels`/`defaultEffort`. Round 2 owns it: rewritten below.
-- `test/unit/configuredProviders.test.ts` loopback/stream cases fail here
-  with `listen EPERM` (this rig's sandbox blocks loopback sockets); the
-  lead runs them outside the sandbox. Round 2 deletes the cases that
-  answer for a provider with hand-written text, per the owner's
-  2026-10-12 testing rules; pure-logic request-builder cases stay.
+- CP-G04's old throw is gone: `copilotClient.test.ts` now pins the drop
+  through the real client (a completed `web_search_call` in history
+  leaves the turn completing), and `search-history` is out of the
+  refusal table.
+- META-G05's old `listModels` shape is gone: the stand-in-server case is
+  deleted from `museCodeSdk142.test.ts`; the new shape is read through
+  the real module in `museCodeEfforts.test.ts` (pure data in, data
+  out), with the row shape UNVERIFIED until META-LIST answers.
+- The six loopback cases in `configuredProviders.test.ts` were reviewed,
+  not deleted: none answers for a provider with hand-written text —
+  five replay the recorded m95 Mistral capture (whole, sliced, framed,
+  first-frame) and one sends nothing at all (transport timing only).
+  They cannot run on this rig (the sandbox refuses loopback `listen`
+  with EPERM): NOT RUN HERE, the lead runs them outside the sandbox.
+  The DeepSeek request-builder cases beside them assert exact bytes
+  through the real modules with recorded answers.
 
 ## Round 2 answers (lead's real requests, 2026-10-12 6:38–6:41 PM PT)
 
@@ -315,9 +353,10 @@ be enabled for your organization.","code":
 - ZAI-JSON — 200 with thinking on: 198 of 200 tokens went to thinking,
   content empty. ZAI-JSON-NOTHINK — 200 with thinking off: the bare
   object `{"hi":true}`. JSON mode VERIFIED with thinking off; with
-  thinking on it is unverified and can starve the answer — the product
-  raises the output cap by the thinking headroom when both are on (see
-  round-2 code), and says so in the person's steps below.
+  thinking on it is unverified and can starve the answer. The product
+  sends the run's output cap unchanged — thinking and answer share it
+  — so for a JSON-shaped answer the person turns Thinking off (the
+  ZAI-G07 steps say so).
 
 ## Static gates on the final tree
 

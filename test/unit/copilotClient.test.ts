@@ -574,59 +574,72 @@ describe('Copilot VS Code client', () => {
     expect(append).toHaveBeenCalledWith(expect.anything(), 'data:image/png;base64,c3ludGhldGlj')
   })
 
-  it.each([
-    'files',
-    'hosted-tool',
-    'search-history',
-    'invalid-tool-call',
-    'invalid-tool-input',
-    'unknown-response',
-  ])('refuses unsupported %s instead of dropping it', async (kind) => {
-    const tester = rig(kind === 'unknown-response' ? [{ type: 'synthetic-unknown' }] : undefined)
-    let request = body()
-    switch (kind) {
-      case 'files': {
-        request = {
-          ...request,
-          input: [
-            {
-              type: 'message',
-              role: 'user',
-              content: [{ type: 'input_file', filename: 'a.pdf', file_data: 'synthetic' }],
-            },
-          ],
-        }
-        break
-      }
-      case 'hosted-tool': {
-        request = { ...request, tools: [{ type: 'web_search' }] }
-        break
-      }
-      case 'search-history': {
-        request = { ...request, input: [{ type: 'web_search_call', status: 'completed' }] }
-        break
-      }
-      case 'invalid-tool-call':
-      case 'invalid-tool-input': {
-        {
+  it('drops a completed hosted-search call from history instead of failing (CP-G04)', async () => {
+    // Round 2 owns this behaviour: like every other codec, the Copilot
+    // path drops the call and keeps the turn; the API has no thinking
+    // part to replay into.
+    const tester = rig()
+    const request = {
+      ...body(),
+      input: [...body().input, { type: 'web_search_call', status: 'completed' }],
+    }
+    const events = await run(tester, request)
+    expect(tester.model.sendRequest).toHaveBeenCalledWith(
+      [message(1, 'stable instructions'), message(1, 'hello')],
+      {
+        tools: [{ name: 'read_file', description: 'read', inputSchema: { type: 'object' } }],
+        justification: tester.deps.justification(),
+      },
+      expect.anything(),
+    )
+    expect(events.at(-1)).toMatchObject({ type: 'response.completed' })
+  })
+
+  it.each(['files', 'hosted-tool', 'invalid-tool-call', 'invalid-tool-input', 'unknown-response'])(
+    'refuses unsupported %s instead of dropping it',
+    async (kind) => {
+      const tester = rig(kind === 'unknown-response' ? [{ type: 'synthetic-unknown' }] : undefined)
+      let request = body()
+      switch (kind) {
+        case 'files': {
           request = {
             ...request,
             input: [
               {
-                type: 'function_call',
-                name: 'read_file',
-                call_id: 'id',
-                arguments: kind === 'invalid-tool-call' ? '{broken' : '[]',
+                type: 'message',
+                role: 'user',
+                content: [{ type: 'input_file', filename: 'a.pdf', file_data: 'synthetic' }],
               },
             ],
           }
-          // No default
+          break
         }
-        break
+        case 'hosted-tool': {
+          request = { ...request, tools: [{ type: 'web_search' }] }
+          break
+        }
+        case 'invalid-tool-call':
+        case 'invalid-tool-input': {
+          {
+            request = {
+              ...request,
+              input: [
+                {
+                  type: 'function_call',
+                  name: 'read_file',
+                  call_id: 'id',
+                  arguments: kind === 'invalid-tool-call' ? '{broken' : '[]',
+                },
+              ],
+            }
+            // No default
+          }
+          break
+        }
       }
-    }
-    await expect(run(tester, request)).rejects.toThrow('translated.unsupported-content')
-  })
+      await expect(run(tester, request)).rejects.toThrow('translated.unsupported-content')
+    },
+  )
 
   it.each([-1, 0.5, NaN, Infinity])('refuses invalid token counts %s', async (count) => {
     const tester = rig()

@@ -12,7 +12,7 @@ import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import * as z from 'zod/mini'
-import { customQuirksFor } from '../../src/core/providers/presets'
+import { customQuirksFor, presetById } from '../../src/core/providers/presets'
 import { mcpFunctionDefinition } from '../../src/core/backends/modelapi/mcp/functions'
 import { toolDefinitions } from '../../src/core/backends/modelapi/tools'
 import { EN } from '../../src/shared/l10n/en'
@@ -2284,9 +2284,12 @@ describe('chat codec reasoning controls (lane REASONSHAPES)', () => {
   // Production mirrors: DeepSeek's documented effort table, Together's
   // hybrid toggle, Groq's presentation, Z.ai's switch plus preserved
   // thinking, llama.cpp's server-routed effort, Mistral's chunk list.
-  const DEEPSEEK_ALIASED: ChatPresetQuirks = {
+  // Round 2: the DeepSeek preset declares no aliases and its dated
+  // record carries the full documented vocabulary, so every name rides
+  // as named (DS-XHIGH/DS-ULTRA answer 200 to the names).
+  const DEEPSEEK_NAMED: ChatPresetQuirks = {
     ...DEEPSEEK_DECLARED,
-    effortAliases: { minimal: 'low', medium: 'high', xhigh: 'high', ultra: 'max' },
+    effortLevels: ['minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
   }
   const TOGETHER_TOGGLED: ChatPresetQuirks = {
     ...TOGETHER,
@@ -2312,25 +2315,24 @@ describe('chat codec reasoning controls (lane REASONSHAPES)', () => {
   }
   const MISTRAL_CHUNKS: ChatPresetQuirks = { ...MISTRAL, replayField: 'chunks' }
 
-  it('maps DeepSeek ultra and xhigh through the documented table, not refusal or max', () => {
-    for (const [requested, sent] of [
-      ['ultra', 'max'],
-      ['xhigh', 'high'],
-      ['minimal', 'low'],
-      ['medium', 'high'],
-    ] as const) {
+  it('sends every DeepSeek effort as named, never a neighbour', () => {
+    // Round 2 (DS-ULTRA, DS-XHIGH): the provider takes the names, so
+    // no client remap. The real preset declares no aliases; assert
+    // that through the real module, then the bytes.
+    expect(presetById('deepseek')?.quirks.effortAliases).toBeUndefined()
+    for (const effort of ['minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra'] as const) {
       const encoded = encodeChatRequest(
-        tinyBody({ reasoning: { effort: requested, summary: 'auto' } }),
+        tinyBody({ reasoning: { effort, summary: 'auto' } }),
         'deepseek-flash',
-        DEEPSEEK_ALIASED,
+        DEEPSEEK_NAMED,
       )
-      expect(encoded.body.reasoning_effort).toBe(sent)
+      expect(encoded.body.reasoning_effort).toBe(effort)
       expect(encoded.body).not.toHaveProperty('thinking')
     }
     const encoded = encodeChatRequest(
       tinyBody({ reasoning: { effort: 'ultra', summary: 'auto' } }),
       'deepseek-flash',
-      DEEPSEEK_ALIASED,
+      DEEPSEEK_NAMED,
     )
     expect(Object.keys(encoded.body)).toEqual([
       'model',
@@ -2342,15 +2344,18 @@ describe('chat codec reasoning controls (lane REASONSHAPES)', () => {
     ])
   })
 
-  it('sends strict tool schemas where the entry targets the beta base (DS-G02)', () => {
-    // DeepSeek strict mode is a beta-base feature: the production base
-    // never sees `strict: true`.
-    const beta: ChatPresetQuirks = { ...DEEPSEEK_ALIASED, supportsStrictTools: true }
+  it('sends strict tool schemas where the preset declares them, on any address (DS-G02)', () => {
+    // Round 2 (DS-STRICT, DS-STRICT-PROD): the beta and the production
+    // address both answer 200 with `strict: true`. The real preset
+    // declares strict; the address gate is gone, so declared strict
+    // rides and undeclared stays off.
+    expect(presetById('deepseek')?.quirks.supportsStrictTools).toBe(true)
+    const declared: ChatPresetQuirks = { ...DEEPSEEK_NAMED, supportsStrictTools: true }
     const body = { ...tinyBody({ reasoning: { effort: 'high', summary: 'auto' } }) }
     const strict = encodeChatRequest(
       { ...body, tools: toolDefinitions('linux') },
       'deepseek-flash',
-      beta,
+      declared,
     )
     expect(Object.keys(strict.body)).toEqual([
       'model',
@@ -2364,12 +2369,12 @@ describe('chat codec reasoning controls (lane REASONSHAPES)', () => {
     ])
     expect(strict.body.reasoning_effort).toBe('high')
     expect(strict.body.tools?.every((tool) => tool.function.strict === true)).toBe(true)
-    const prod = encodeChatRequest(
+    const plain = encodeChatRequest(
       { ...body, tools: toolDefinitions('linux') },
       'deepseek-flash',
-      DEEPSEEK_ALIASED,
+      DEEPSEEK_NAMED,
     )
-    expect(prod.body.tools?.every((tool) => !('strict' in tool.function))).toBe(true)
+    expect(plain.body.tools?.every((tool) => !('strict' in tool.function))).toBe(true)
   })
 
   it('sends Together thinking off as the hybrid toggle, never an effort value', () => {

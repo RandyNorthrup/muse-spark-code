@@ -155,8 +155,9 @@ export interface FormatQuirks {
   readonly thinkingOff?: 'thinking-switch' | 'reasoning-enabled' | undefined
   /**
    * The preset's documented requested-to-canonical effort map, applied
-   * before the shared resolver matches (DeepSeek's thinking-mode table:
-   * minimal/low, medium/high, xhigh/high, ultra/max). Absent maps nothing.
+   * before the shared resolver matches. A name the provider takes as
+   * named is never listed here (DeepSeek's table maps server-side, so
+   * the preset carries no aliases). Absent maps nothing.
    */
   readonly effortAliases?: Readonly<Record<string, string>> | undefined
   /**
@@ -181,26 +182,6 @@ export interface FormatQuirks {
    * keeps the default (Coding Plan on, standard endpoint off).
    */
   readonly thinkingPreserved?: boolean | undefined
-  /**
-   * The documented beta base where strict tool schemas are valid
-   * (DeepSeek's `https://api.deepseek.com/beta`, `guides/tool_calls`
-   * read 2026-10-12; the beta `/models` list answers 401 keyless, so the
-   * route exists). Only entries pointed at this base send strict.
-   * Absent never sends strict.
-   */
-  readonly betaStrictBase?: string | undefined
-}
-
-/**
- * Whether an entry address targets a documented base URL: same origin
- * and path, ignoring a trailing slash. Pure string comparison; fetches
- * nothing.
- */
-export function isEntryAtBase(address: string | undefined, base: string): boolean {
-  if (address === undefined) return false
-  const cleanAddress = address.endsWith('/') ? address.slice(0, -1) : address
-  const cleanBase = base.endsWith('/') ? base.slice(0, -1) : base
-  return cleanAddress === cleanBase
 }
 
 /** The five formats' defaults; presets override per provider. */
@@ -583,13 +564,81 @@ const DEEPSEEK_PRESET: ProviderPreset = {
     // (`vendor/models-dev/snapshot.json`): Thinking off is the documented
     // thinking-mode switch, never `reasoning_effort: "none"`.
     thinkingOff: 'thinking-switch',
-    // The thinking-mode effort table (`guides/thinking_mode`, read
-    // 2026-10-12): minimal/low, medium/high, xhigh/high, ultra/max.
-    effortAliases: { minimal: 'low', medium: 'high', xhigh: 'high', ultra: 'max' },
-    // Strict tool schemas are a beta-base feature (`guides/tool_calls`,
-    // read 2026-10-12): only beta entries send them (DS-G02).
-    betaStrictBase: 'https://api.deepseek.com/beta',
+    // Every requested effort name rides as named: the thinking-mode
+    // table (`guides/thinking_mode`, read 2026-10-13) takes minimal,
+    // low, medium, high, xhigh, max and ultra and maps server-side,
+    // and the lead's real answers (DS-XHIGH, DS-ULTRA, 200 both with
+    // thinking) show `xhigh` and `ultra` taken as named. No client
+    // remap: the record below carries the full vocabulary so the
+    // resolver never substitutes a neighbour.
+    // Strict tool schemas (`guides/tool_calls`, read 2026-10-13):
+    // `strict: true` on every function, answered 200 with a correct
+    // call on the beta and the production address alike (DS-STRICT,
+    // DS-STRICT-PROD). Whether production enforces strict is
+    // UNVERIFIED; strict rides on the address the entry has.
+    supportsStrictTools: true,
   },
+  // The thinking-mode page documents one requested-effort vocabulary
+  // for the DeepSeek models; the pinned catalogue lists only
+  // `[low, high, max]`. Until it carries the fact, the record takes
+  // the documented names here (deepseek-flash VERIFIED as named by
+  // DS-XHIGH/DS-ULTRA; the other three UNVERIFIED until captured).
+  // Re-check on each catalogue sync; prefer the catalogue the moment
+  // it carries the fact.
+  reasoningFacts: [
+    {
+      modelId: 'deepseek-flash',
+      docUrl: 'https://api-docs.deepseek.com/guides/thinking_mode',
+      readOn: '2026-10-13',
+      fields: {
+        reasoning: {
+          effortLevels: {
+            state: 'yes',
+            value: ['minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
+          },
+        },
+      },
+    },
+    {
+      modelId: 'deepseek-v4-flash',
+      docUrl: 'https://api-docs.deepseek.com/guides/thinking_mode',
+      readOn: '2026-10-13',
+      fields: {
+        reasoning: {
+          effortLevels: {
+            state: 'yes',
+            value: ['minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
+          },
+        },
+      },
+    },
+    {
+      modelId: 'deepseek-v4-pro',
+      docUrl: 'https://api-docs.deepseek.com/guides/thinking_mode',
+      readOn: '2026-10-13',
+      fields: {
+        reasoning: {
+          effortLevels: {
+            state: 'yes',
+            value: ['minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
+          },
+        },
+      },
+    },
+    {
+      modelId: 'deepseek-v4-flash-vision-exp',
+      docUrl: 'https://api-docs.deepseek.com/guides/thinking_mode',
+      readOn: '2026-10-13',
+      fields: {
+        reasoning: {
+          effortLevels: {
+            state: 'yes',
+            value: ['minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
+          },
+        },
+      },
+    },
+  ],
   wireCapture: true,
 }
 

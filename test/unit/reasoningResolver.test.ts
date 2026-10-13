@@ -105,8 +105,7 @@ describe('resolveReasoning', () => {
     [SWITCH, 'minimal', { kind: 'effort', effort: 'low' }],
     [SWITCH, 'medium', { kind: 'effort', effort: 'high' }],
     [SWITCH, 'xhigh', { kind: 'effort', effort: 'max' }],
-    // Lane REASONSHAPES: `ultra` is a UI tier now, so the nearest listed
-    // level answers (DeepSeek's alias table maps it to high instead).
+    // `ultra` is unlisted here, so the nearest listed level answers.
     [SWITCH, 'ultra', { kind: 'effort', effort: 'max' }],
     [
       { ...SWITCH, canDisable: false },
