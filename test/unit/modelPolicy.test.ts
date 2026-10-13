@@ -2,6 +2,7 @@ import { Usd } from '../../src/shared/usd'
 import { describe, expect, it } from 'vitest'
 import {
   effortForPolicy,
+  hasUsableEffortLevels,
   minOutputTokensForPolicy,
   modelPolicyFor,
   modelPricedUsage,
@@ -49,14 +50,18 @@ describe('resolved model policy', () => {
     expect(modelPolicyFor(ref, { webSearch: true }).hosted.webSearch.state).toBe('unknown')
     expect(policy.output.maxTokens).toBeUndefined()
     expect(policy.pricing.kind).toBe('unpriced')
-    expect(effortForPolicy(policy, 'high')).toBe('none')
+    // Round 2: an unlisted level resolves to the provider default, never
+    // to off (GAPANTH-G10).
+    expect(effortForPolicy(policy, 'high')).toBe('default')
   })
 
   it('uses the selected model output ceiling and native effort tiers', () => {
     const policy = modelPolicyFor(ref, { maxOutputTokens: 100, effortLevels: ['low', 'high'] })
     expect(outputLimitFor(policy, MODEL_API_MAX_OUTPUT_TOKENS)).toBe(100)
     expect(effortForPolicy(policy, 'high')).toBe('high')
-    expect(effortForPolicy(policy, 'xhigh')).toBe('none')
+    // Round 2: `xhigh` is unlisted here, so the provider default answers
+    // (GAPANTH-G10), not off and not a neighbour.
+    expect(effortForPolicy(policy, 'xhigh')).toBe('default')
     expect(modelPolicyFor(ref, { capabilities: { toolCalling: false } }).tools.calling.state).toBe(
       'no',
     )
@@ -93,7 +98,9 @@ describe('resolved model policy', () => {
     const named = modelPolicyFor('deepseek/deepseek-flash', {
       effortLevels: ['low', 'high', 'max'],
     })
-    expect(effortForPolicy(named, 'medium')).toBe('none')
+    // Round 2: unlisted `medium` resolves to the provider default
+    // (GAPANTH-G10), never to off.
+    expect(effortForPolicy(named, 'medium')).toBe('default')
     expect(named.reasoning).not.toHaveProperty('thinkingOff')
     const openai = modelPolicyFor('openai/gpt-5-nano', {
       effortLevels: ['minimal', 'low', 'medium', 'high'],
@@ -102,6 +109,85 @@ describe('resolved model policy', () => {
     expect(
       modelPolicyFor('muse-spark-1.3', { thinkingOff: 'thinking-switch' }).reasoning,
     ).not.toHaveProperty('thinkingOff')
+  })
+
+  it('refuses Thinking off the record does not affirm, and passes affirmed off through', () => {
+    // Lane REASONSHAPESR2 (OPENAI-G02, XAI-G02): gpt-6-astra lists
+    // low/medium/high/xhigh/max and no switch, so `none` refuses before
+    // dispatch (the provider answers 400); a listed `none` rides.
+    const astra = modelPolicyFor('openai/gpt-6-astra', {
+      effortLevels: ['low', 'medium', 'high', 'xhigh', 'max'],
+    })
+    expect(effortForPolicy(astra, 'high')).toBe('high')
+    expect(() => effortForPolicy(astra, 'none')).toThrow('unsupported_reasoning_effort')
+    const grok = modelPolicyFor('xai/grok-4.5', {
+      effortLevels: ['low', 'medium', 'high'],
+    })
+    expect(() => effortForPolicy(grok, 'none')).toThrow('unsupported_reasoning_effort')
+    // Unlisted `xhigh` on grok-4.5 is the provider default until the
+    // catalogue carries the documented fact (XAI-G01).
+    expect(effortForPolicy(grok, 'xhigh')).toBe('default')
+    const qwen = modelPolicyFor('groq/qwen', {
+      effortLevels: ['none', 'low', 'medium', 'high'],
+    })
+    expect(effortForPolicy(qwen, 'none')).toBe('none')
+    // A model with no usable levels takes the plain turn: off is already
+    // satisfied, and no reasoning field is sent (the xAI-first defect).
+    const build = modelPolicyFor('xai/grok-build-0.1', { effortLevels: [] })
+    expect(hasUsableEffortLevels(build.reasoning.effortLevels)).toBe(false)
+    expect(effortForPolicy(build, 'none')).toBe('none')
+    expect(effortForPolicy(build, 'high')).toBe('default')
+    expect(hasUsableEffortLevels(astra.reasoning.effortLevels)).toBe(true)
+    // An affirmed off switch rides through even where `disabled` is
+    // refused (Claude Sonnet 5.5's `between_tools`, GAPANTH-G02).
+    const sonnet55 = modelPolicyFor('anthropic/claude-sonnet-5-5', {
+      effortLevels: ['low', 'medium', 'high', 'xhigh', 'max'],
+      canDisableReasoning: false,
+      offSwitch: 'between_tools',
+    })
+    expect(effortForPolicy(sonnet55, 'none')).toBe('none')
+  })
+
+  it('posts the record levels and default for the picker slider (round 2)', async () => {
+    // Lane REASONSHAPESR2 (OPENAI-G01, XAI-G01): a configured-provider
+    // id contains `/`, so the static table serves nothing and only the
+    // row's own levels light the slider; the list's default rides where
+    // it names a served tier.
+    const listed = createProviderRegistry({
+      models: () =>
+        Promise.resolve([
+          {
+            ref: 'xai/grok-4.3',
+            origin: 'https://api.x.ai',
+            pricing: { kind: 'unpriced' },
+            evidence: {
+              capabilities: { toolCalling: true },
+              effortLevels: ['none', 'low', 'medium', 'high', 'xhigh'],
+              defaultEffort: 'low',
+            },
+          },
+          {
+            ref: 'xai/grok-build-0.1',
+            origin: 'https://api.x.ai',
+            pricing: { kind: 'unpriced' },
+            evidence: { capabilities: { toolCalling: true }, effortLevels: [] },
+          },
+        ]),
+      createClient: () =>
+        Promise.resolve(fakeModelApiClient(fakeModelApi(), new FakeLogOutputChannel())),
+      isCurrent: () => true,
+    })
+    const listModels = listed.list
+    if (listModels === undefined) throw new Error('expected the registry to list models')
+    const rows = await listModels()
+    // `none` is the Thinking toggle's value, not a slider tier.
+    expect(rows.find((row) => row.modelId === 'xai/grok-4.3')).toMatchObject({
+      effortLevels: ['low', 'medium', 'high', 'xhigh'],
+      defaultEffort: 'low',
+    })
+    const build = rows.find((row) => row.modelId === 'xai/grok-build-0.1')
+    expect(build).not.toHaveProperty('effortLevels')
+    expect(build).not.toHaveProperty('defaultEffort')
   })
 
   it('maps documented effort aliases and passes server-routed efforts through', () => {

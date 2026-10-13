@@ -581,7 +581,7 @@ describe('Copilot VS Code client', () => {
     const tester = rig()
     const request = {
       ...body(),
-      input: [...body().input, { type: 'web_search_call', status: 'completed' }],
+      input: [...body().input, { type: 'web_search_call', status: 'completed' } as const],
     }
     const events = await run(tester, request)
     expect(tester.model.sendRequest).toHaveBeenCalledWith(

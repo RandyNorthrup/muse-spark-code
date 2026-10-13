@@ -651,7 +651,23 @@ export interface CreateResponseBody {
   // Optional: Tab asks for no reasoning summary (M94, PLAN.md D73), so it
   // omits the key. Every existing request still sends `summary: 'auto'`,
   // whose bytes are unchanged.
-  readonly reasoning: { readonly effort: string; readonly summary?: 'auto' }
+  readonly reasoning: {
+    readonly effort: string
+    readonly summary?: 'auto'
+    /**
+     * OpenAI's `pro` execution mode (lane REASONSHAPESR2, OPENAI-G08):
+     * GPT-5.6 and GPT-6 models take `standard` (default) and `pro`.
+     * No product surface sets it yet; UNVERIFIED until OPENAI-PRO answers.
+     */
+    readonly mode?: 'standard' | 'pro'
+    /**
+     * Which reasoning the model may render (lane REASONSHAPESR2,
+     * OPENAI-G07): `auto` is the model's default (`all_turns` on GPT-5.6
+     * and later). No product surface sets it yet; UNVERIFIED until
+     * OPENAI-CONTEXT answers.
+     */
+    readonly context?: 'auto' | 'current_turn' | 'all_turns'
+  }
   readonly stream: true
   readonly store: false
   readonly include: readonly IncludeField[]

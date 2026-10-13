@@ -26,6 +26,7 @@ import * as z from 'zod/mini'
 import {
   CODEC_EMPTY_TOOL_OUTPUT,
   CODEC_IMAGE_WITHOUT_VISION,
+  EFFORT_PROVIDER_DEFAULT,
   THINKING_OFF_EFFORT,
   UI_TEXT,
 } from '../../../../shared/constants'
@@ -752,6 +753,16 @@ function nativeReasoning(
     if (requested === 'default') return {}
   } else if (quirks.reasoningParam === 'none') {
     return {}
+  }
+  // `default` (a level the record does not list) takes the provider
+  // default: no reasoning field is sent, never the neighbour and never
+  // off (lane REASONSHAPESR2, GAPANTH-G10).
+  if (requested === EFFORT_PROVIDER_DEFAULT) {
+    return {
+      ...preservedThinking(body, quirks),
+      ...(quirks.reasoningFormat !== undefined && { reasoning_format: quirks.reasoningFormat }),
+      ...jsonResponseFormat(body, quirks),
+    }
   }
   const effort = quirks.effortMap?.[requested] ?? requested
   if (quirks.reasoningParam === 'none') {

@@ -22,6 +22,10 @@ import {
 } from '../../src/core/backends/modelapi/schemas'
 import type { SseEvent } from '../../src/core/backends/modelapi/sse'
 import {
+  resolveModelCapabilities,
+  type CapabilityOverrides,
+} from '../../src/core/providers/capabilityRecord'
+import {
   ANTHROPIC_MAX_ARGUMENT_BYTES,
   ANTHROPIC_MAX_FRAME_BYTES,
   ANTHROPIC_MAX_FRAMES,
@@ -182,6 +186,13 @@ function userOnly(instructions: string) {
     instructions,
     input: [{ type: 'message', role: 'user', content: [{ type: 'input_text', text: 'hi' }] }],
   })
+}
+
+function recordFor(fields: CapabilityOverrides['reasoning']) {
+  return resolveModelCapabilities(
+    { provider: 'anthropic', nativeModel: 'test-model', format: 'anthropic' },
+    [{ source: { kind: 'user', ref: 'test' }, fields: { reasoning: fields } }],
+  )
 }
 
 function streamOf(
@@ -815,12 +826,22 @@ describe('breakpoints and effort', () => {
     ])
   })
 
-  it('maps minimal to low and leaves thinking off for none', () => {
-    const low = encodeAnthropicRequest(userOnly('Remember this.'), {
+  it('omits the effort for a known tier the API has no level for, never a neighbour', () => {
+    // Lane REASONSHAPESR2 (GAPANTH-G10): `minimal` is not an Anthropic
+    // level, so no `output_config.effort` is sent; thinking stays on at
+    // the default. ANTH-MINIMAL settles whether the provider 400s it.
+    for (const effort of ['minimal', 'ultra', 'default'] as const) {
+      const native = encodeAnthropicRequest(userOnly('Remember this.'), {
+        ...BASE_OPTIONS,
+        effort,
+      })
+      expect(native.body.output_config).toBeUndefined()
+    }
+    const ultra = encodeAnthropicRequest(userOnly('Remember this.'), {
       ...BASE_OPTIONS,
-      effort: 'minimal',
+      effort: 'ultra',
     })
-    expect(low.body.output_config).toEqual({ effort: 'low' })
+    expect(ultra.body.thinking).toMatchObject({ type: 'adaptive' })
     const off = encodeAnthropicRequest(userOnly('Remember this.'), {
       ...BASE_OPTIONS,
       effort: 'none',
@@ -829,9 +850,66 @@ describe('breakpoints and effort', () => {
     expect(off.body.output_config).toBeUndefined()
   })
 
+  it('sends the affirmed Thinking-off switch, and refuses where none is affirmed', () => {
+    // Lane REASONSHAPESR2 (GAPANTH-G02): the thinking table answers 400
+    // to `disabled` on Opus 5.5, Sonnet 5.5, Fable 5.1 and Fable 5, while
+    // Sonnet 5.5 takes `between_tools` and Opus 5 takes `disabled`.
+    const offAffirmed = recordFor({
+      modes: { state: 'yes', value: ['adaptive'] },
+      canDisable: { state: 'yes', value: true },
+    })
+    expect(
+      encodeAnthropicRequest(userOnly('Remember this.'), {
+        ...BASE_OPTIONS,
+        effort: 'none',
+        capabilityRecord: offAffirmed,
+      }).body.thinking,
+    ).toEqual({ type: 'disabled' })
+    const sonnet55 = recordFor({
+      modes: { state: 'yes', value: ['adaptive'] },
+      canDisable: { state: 'no' },
+      offSwitch: 'between_tools',
+    })
+    expect(
+      encodeAnthropicRequest(userOnly('Remember this.'), {
+        ...BASE_OPTIONS,
+        effort: 'none',
+        capabilityRecord: sonnet55,
+      }).body.thinking,
+    ).toEqual({ type: 'between_tools' })
+    const locked = recordFor({
+      modes: { state: 'yes', value: ['adaptive'] },
+      canDisable: { state: 'no' },
+    })
+    expect(() =>
+      encodeAnthropicRequest(userOnly('Remember this.'), {
+        ...BASE_OPTIONS,
+        effort: 'none',
+        capabilityRecord: locked,
+      }),
+    ).toThrow(/thinking_cannot_disable/)
+  })
+
+  it('sends the interleaved-thinking beta header in manual mode', () => {
+    // Lane REASONSHAPESR2 (GAPANTH-G17): Opus 4.5 needs the header to
+    // think between tool calls; the API ignores it where unsupported.
+    const manual = encodeAnthropicRequest(userOnly('Remember this.'), {
+      ...BASE_OPTIONS,
+      model: 'claude-haiku-4-5-20251001',
+      effort: 'high',
+      maxTokens: 16_384,
+    })
+    expect(manual.headers['anthropic-beta']).toContain('interleaved-thinking-2025-05-14')
+    expect(manual.body.thinking).toMatchObject({ type: 'enabled', budget_tokens: 1024 })
+    const adaptive = encodeAnthropicRequest(userOnly('Remember this.'), BASE_OPTIONS)
+    expect(adaptive.headers['anthropic-beta'] ?? '').not.toContain(
+      'interleaved-thinking-2025-05-14',
+    )
+  })
+
   it('refuses an unknown effort', () => {
     expect(() =>
-      encodeAnthropicRequest(userOnly('Remember this.'), { ...BASE_OPTIONS, effort: 'ultra' }),
+      encodeAnthropicRequest(userOnly('Remember this.'), { ...BASE_OPTIONS, effort: 'turbo' }),
     ).toThrow(/unsupported_reasoning_effort/)
   })
 })

@@ -17,6 +17,7 @@ import {
 import {
   effortForPolicy,
   modelPolicyFor,
+  routedEffortForPolicy,
   type ModelPolicy,
 } from '../../src/core/backends/modelapi/modelPolicy'
 import type * as providerRegistry from '../../src/core/providers/providerRegistry'
@@ -83,13 +84,46 @@ const OTHER_PRESETS = [...PRESETS, ...PLAN_KEY_PRESETS]
 // Lane REASONSHAPES: `ultra` rides in EFFORT_LEVELS now (no explicit tail).
 const SETTINGS = ['none', ...EFFORT_LEVELS] as const
 
-/** `effortForPolicy` exactly as rel017/dsthink's base 01ee6233b shipped it. */
+/**
+ * The expected dispatch effort (lane REASONSHAPESR2): a listed level rides
+ * as named; an unlisted on-level resolves to the provider default (the
+ * wire omits the field); off rides as `none` where the record affirms
+ * disabling and refuses before dispatch anywhere else the record speaks.
+ * Re-recorded from the 01ee6233b pins by lane REASONSHAPES (groq,
+ * together, zai, llamacpp) and again here, after a line-by-line review of
+ * the new bytes (docs/certification/REASONSHAPESR2.md).
+ */
 function baseEffortForPolicy(policy: ModelPolicy, requested: string): string {
-  if (policy.identity.provider === 'meta') {
-    return requested === 'none' ? 'minimal' : requested
+  const routed = routedEffortForPolicy(policy, requested)
+  if (routed !== undefined) {
+    return routed
   }
-  const levels = policy.reasoning.effortLevels
-  return levels.state === 'yes' && levels.value.includes(requested) ? requested : 'none'
+  const { effortLevels, canDisable, offSwitch, thinkingOff } = policy.reasoning
+  if (thinkingOff !== undefined) {
+    return requested === 'none' ? 'none' : requested
+  }
+  if (
+    requested !== 'none' &&
+    requested !== 'default' &&
+    policy.reasoning.manualOnly === true &&
+    !(effortLevels.state === 'yes' && effortLevels.value.includes(requested))
+  ) {
+    return requested
+  }
+  if (requested === 'none') {
+    if (
+      offSwitch !== undefined ||
+      (effortLevels.state === 'yes' && effortLevels.value.includes('none')) ||
+      canDisable.state === 'yes' ||
+      !(effortLevels.state === 'yes' && effortLevels.value.some((level) => level !== 'none'))
+    ) {
+      return 'none'
+    }
+    throw new Error('unsupported_reasoning_effort')
+  }
+  return effortLevels.state === 'yes' && effortLevels.value.includes(requested)
+    ? requested
+    : 'default'
 }
 
 describe('resolveReasoning', () => {
@@ -276,6 +310,24 @@ describe('every preset model × every setting against base 01ee6233b', () => {
     )
   })
 
+  // Round 2 refuses off before dispatch where the record speaks
+  // against it, so both sides report the outcome, not just the value;
+  // refusal wording is normalized to the typed code.
+  const outcome = (
+    run: (policy: ModelPolicy, setting: string) => string,
+    policy: ModelPolicy,
+    setting: string,
+  ) => {
+    try {
+      return `sent:${run(policy, setting)}`
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      return message.includes('unsupported_reasoning_effort')
+        ? 'refused:unsupported_reasoning_effort'
+        : `refused:${message}`
+    }
+  }
+
   it('sends every other preset model the base effort for every setting', () => {
     let compared = 0
     for (const [ref, policy] of policies) {
@@ -284,10 +336,10 @@ describe('every preset model × every setting against base 01ee6233b', () => {
       // every model, so declared tiers ride as named instead of the base.
       if (ref.startsWith('llamacpp/')) continue
       for (const setting of SETTINGS) {
-        expect([ref, setting, effortForPolicy(policy, setting)]).toEqual([
+        expect([ref, setting, outcome(effortForPolicy, policy, setting)]).toEqual([
           ref,
           setting,
-          baseEffortForPolicy(policy, setting),
+          outcome(baseEffortForPolicy, policy, setting),
         ])
         compared += 1
       }

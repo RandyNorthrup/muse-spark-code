@@ -2377,6 +2377,24 @@ describe('chat codec reasoning controls (lane REASONSHAPES)', () => {
     expect(plain.body.tools?.every((tool) => !('strict' in tool.function))).toBe(true)
   })
 
+  it('omits the reasoning field for the provider default, never a neighbour or off', () => {
+    // Lane REASONSHAPESR2 (GAPANTH-G10): `default` (a level the record
+    // does not list) takes the provider default on a switch-less preset.
+    const GROQ_LEVELS: ChatPresetQuirks = {
+      ...GROQ_PARSED,
+      effortLevels: ['low', 'medium', 'high'],
+    }
+    const encoded = encodeChatRequest(
+      tinyBody({ reasoning: { effort: 'default', summary: 'auto' } }),
+      'openai/gpt-oss-120b',
+      GROQ_LEVELS,
+    )
+    expect(encoded.body).not.toHaveProperty('reasoning_effort')
+    expect(encoded.body).not.toHaveProperty('reasoning')
+    expect(encoded.body).not.toHaveProperty('thinking')
+    expect(encoded.body.reasoning_format).toBe('parsed')
+  })
+
   it('sends Together thinking off as the hybrid toggle, never an effort value', () => {
     const off = encodeChatRequest(
       tinyBody({ reasoning: { effort: 'none', summary: 'auto' } }),

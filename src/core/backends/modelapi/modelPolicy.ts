@@ -7,6 +7,7 @@ import type { ModelSummary } from '../../agent/agentBackend'
 import type { CreateResponseBody, Usage } from './schemas'
 import { estimateCostUsd } from '../../usage/insights'
 import {
+  EFFORT_PROVIDER_DEFAULT,
   MODEL_API_BASE_URL,
   MODEL_API_MIN_OUTPUT_TOKENS,
   MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS,
@@ -15,12 +16,13 @@ import {
   MODEL_API_CONTEXT_WINDOW,
   THINKING_OFF_EFFORT,
   TOKENS_PER_MILLION,
+  UI_TEXT,
 } from '../../../shared/constants'
 import type { ModelCapabilities } from '../../providers/capabilities'
 import type { ModelPricing, PricedUsage } from '../../providers/priceCard'
 
 import { outputTokenMinimumMessage } from '../../../shared/providerRouting'
-import { effortLevelsFor, resolveReasoning } from '../../../shared/effort'
+import { effortLevelsFor, resolveReasoning, type ReasoningControl } from '../../../shared/effort'
 import { modelApiPaidTier } from '../../../shared/paid'
 
 /** The configured provider and exact model that produced opaque reasoning. */
@@ -40,20 +42,50 @@ export type Known<T> =
   | { readonly state: 'no' }
   | { readonly state: 'unknown' }
 
-/** Evidence supplied by the registry, without inventing missing model facts. */
-export interface ModelPolicyEvidence {
-  readonly capabilities?: Partial<ModelCapabilities> | undefined
-  readonly maxOutputTokens?: number | undefined
-  /** A captured provider minimum for max_output_tokens; unknown keeps 1. */
-  readonly minOutputTokens?: number | undefined
-  readonly effortLevels?: readonly string[] | undefined
-  readonly canDisableReasoning?: boolean | undefined
+/**
+ * The record-sourced optional reasoning facts (lane REASONSHAPESR2):
+ * the affirmed Thinking-off value, the list's default effort,
+ * manual-only thinking, the preset's Thinking-off switch, the
+ * documented effort map and the full-vocabulary flag. Evidence and
+ * policy share them; the policy adds the resolved level list and
+ * disable flag.
+ */
+export interface ReasoningPolicyFields {
+  /**
+   * The Thinking-off value the record affirms instead of `disabled`
+   * (Claude Sonnet 5.5's `between_tools`, lane REASONSHAPESR2): Thinking
+   * off rides to the codec on a model whose `disabled` is refused.
+   */
+  readonly offSwitch?: 'disabled' | 'between_tools' | undefined
+  /**
+   * The list's own default effort where it names one (lane REASONSHAPESR2,
+   * XAI-G01). The picker falls back to the highest served tier without it.
+   */
+  readonly defaultEffort?: string | undefined
+  /**
+   * Manual-only thinking (lane REASONSHAPESR2, GAPANTH-G10/G17): manual
+   * mode carries no effort level, so an on-level request the record does
+   * not list rides through unnamed (the tier sizes the budget) instead
+   * of resolving to the provider default — otherwise a model that
+   * supports extended thinking could never think.
+   */
+  readonly manualOnly?: boolean | undefined
   /** The preset's documented Thinking-off switch (lane DSTHINK3). */
   readonly thinkingOff?: 'thinking-switch' | 'reasoning-enabled' | undefined
   /** The preset's documented requested-to-canonical effort map. */
   readonly effortAliases?: Readonly<Record<string, string>> | undefined
   /** The preset documents its effort vocabulary for every model. */
   readonly sendUndeclaredEffort?: boolean | undefined
+}
+
+/** Evidence supplied by the registry, without inventing missing model facts. */
+export interface ModelPolicyEvidence extends ReasoningPolicyFields {
+  readonly capabilities?: Partial<ModelCapabilities> | undefined
+  readonly maxOutputTokens?: number | undefined
+  /** A captured provider minimum for max_output_tokens; unknown keeps 1. */
+  readonly minOutputTokens?: number | undefined
+  readonly effortLevels?: readonly string[] | undefined
+  readonly canDisableReasoning?: boolean | undefined
   readonly webSearch?: boolean | undefined
   readonly pricing?: ModelPricing | undefined
 }
@@ -61,12 +93,9 @@ export interface ModelPolicyEvidence {
 export interface ModelPolicy {
   readonly identity: { readonly provider: string; readonly nativeModel: string }
   readonly tools: { readonly calling: Known<true>; readonly parallel: Known<true> }
-  readonly reasoning: {
+  readonly reasoning: ReasoningPolicyFields & {
     readonly effortLevels: Known<readonly string[]>
     readonly canDisable: Known<true>
-    readonly thinkingOff?: 'thinking-switch' | 'reasoning-enabled' | undefined
-    readonly effortAliases?: Readonly<Record<string, string>> | undefined
-    readonly sendUndeclaredEffort?: boolean | undefined
   }
   readonly output: {
     readonly maxTokens?: number | undefined
@@ -124,6 +153,9 @@ export function modelPolicyFor(model: string, evidence: ModelPolicyEvidence = {}
     reasoning: {
       effortLevels: levels === undefined ? { state: 'unknown' } : { state: 'yes', value: levels },
       canDisable: knownFlag(isMeta || evidence.canDisableReasoning),
+      ...(evidence.offSwitch !== undefined && { offSwitch: evidence.offSwitch }),
+      ...(evidence.defaultEffort !== undefined && { defaultEffort: evidence.defaultEffort }),
+      ...(evidence.manualOnly !== undefined && { manualOnly: evidence.manualOnly }),
       ...(!isMeta && evidence.thinkingOff !== undefined && { thinkingOff: evidence.thinkingOff }),
       ...(!isMeta &&
         evidence.effortAliases !== undefined && {
@@ -159,39 +191,122 @@ export function minOutputTokensForPolicy(policy: Pick<ModelPolicy, 'output'>): n
 }
 
 /**
- * The selected model's request effort, from the one resolver (lane
- * DSTHINK3). Off sends `none`; without a declared switch so does anything
- * unlisted, exactly as before. With one, a default or refused setting rides
- * unchanged to the model's codec, which resolves it again from the same
- * record: nothing is sent, or the typed refusal is raised before dispatch.
+ * Whether the record affirms the model takes an effort value (lane
+ * REASONSHAPESR2): declared levels with at least one level besides
+ * `none`. A model without usable levels gets no reasoning field in any
+ * request: the parameter itself is what providers such as xAI refuse.
  */
-export function effortForPolicy(policy: ModelPolicy, requested: string): string {
-  if (policy.identity.provider === 'meta') {
-    // `ultra` is an alias, not a tier of its own: the 1.4.x live probe
-    // (`docs/certification/m3.md`, one turn per tier) shows the CLI
-    // forwards `ultra` to the API as `max` (the 1.2 400 for `ultra`
-    // names `'max'`), and the SDK types `ultra` in the client-side
-    // `ReasoningEffort` vocabulary (`@muse-code/sdk` `dist/src/msp.d.ts:1258`).
-    // `none` rides as `minimal` the same way.
-    if (requested === 'ultra') return 'max'
-    return requested === 'none' ? 'minimal' : requested
+export function hasUsableEffortLevels(levels: Known<readonly string[]>): boolean {
+  return levels.state === 'yes' && levels.value.some((level) => level !== THINKING_OFF_EFFORT)
+}
+
+/**
+ * The selected model's request effort, from the one resolver (lane
+ * DSTHINK3). Without a declared switch a listed level rides as named; an
+ * unlisted on-level resolves to `default` (the provider default: codecs
+ * omit the field), never to a neighbour and never to off. Off rides as
+ * `none` where the record affirms disabling (a listed `none`, an affirmed
+ * `canDisable`, or an affirmed off switch); anywhere else the record
+ * speaks, the typed refusal is raised before dispatch instead of sending
+ * a value the model does not take (lane REASONSHAPESR2). With a declared
+ * switch, a default or refused setting rides unchanged to the model's
+ * codec, which resolves it again from the same record.
+ */
+/**
+ * The resolver input for a policy (lane REASONSHAPESR2): unwraps the
+ * record's `Known<>` facts into the shared control. The resolver and
+ * its test mirror build it here, so the mirror checks decisions, not
+ * plumbing.
+ */
+export function reasoningControlForPolicy(
+  policy: Pick<ModelPolicy, 'reasoning'>,
+): ReasoningControl {
+  const { effortLevels, canDisable, thinkingOff, effortAliases } = policy.reasoning
+  return {
+    effortLevels: effortLevels.state === 'yes' ? effortLevels.value : undefined,
+    canDisable: canDisable.state === 'yes',
+    thinkingOff,
+    ...(effortAliases !== undefined && { effortAliases }),
   }
-  const { effortLevels, canDisable, thinkingOff, effortAliases, sendUndeclaredEffort } =
+}
+
+/**
+ * Meta's client-side tiers (lane REASONSHAPES): `ultra` is an alias, not
+ * a tier of its own: the 1.4.x live probe (`docs/certification/m3.md`,
+ * one turn per tier) shows the CLI forwards `ultra` to the API as `max`
+ * (the 1.2 400 for `ultra` names `'max'`), and the SDK types `ultra` in
+ * the client-side `ReasoningEffort` vocabulary (`@muse-code/sdk`
+ * `dist/src/msp.d.ts:1258`). `none` rides as `minimal` the same way.
+ * Other providers get `undefined`: the record decides for them.
+ */
+export function metaRequestedEffort(
+  policy: Pick<ModelPolicy, 'identity'>,
+  requested: string,
+): string | undefined {
+  if (policy.identity.provider !== 'meta') return undefined
+  if (requested === 'ultra') return 'max'
+  return requested === 'none' ? 'minimal' : requested
+}
+
+/**
+ * Routing preamble shared by the resolver and its test mirror (lane
+ * REASONSHAPESR2): the Meta mapping and the full-vocabulary passthrough
+ * are stable round-1 routing, so both sides call it and the mirror keeps
+ * only the decision branches it checks. Returns the effort where routing
+ * decides it, else `undefined`.
+ */
+export function routedEffortForPolicy(policy: ModelPolicy, requested: string): string | undefined {
+  const meta = metaRequestedEffort(policy, requested)
+  if (meta !== undefined) {
+    return meta
+  }
+  const { thinkingOff, sendUndeclaredEffort } = policy.reasoning
+  return thinkingOff === undefined && sendUndeclaredEffort === true && requested !== 'default'
+    ? requested
+    : undefined
+}
+
+export function effortForPolicy(policy: ModelPolicy, requested: string): string {
+  const routed = routedEffortForPolicy(policy, requested)
+  if (routed !== undefined) {
+    return routed
+  }
+  const { effortLevels, canDisable, offSwitch, thinkingOff, sendUndeclaredEffort } =
     policy.reasoning
   if (thinkingOff === undefined && sendUndeclaredEffort === true && requested !== 'default') {
     return requested
   }
-  const decision = resolveReasoning(
-    {
-      effortLevels: effortLevels.state === 'yes' ? effortLevels.value : undefined,
-      canDisable: canDisable.state === 'yes',
-      thinkingOff,
-      ...(effortAliases !== undefined && { effortAliases }),
-    },
-    requested,
-  )
+  const decision = resolveReasoning(reasoningControlForPolicy(policy), requested)
   if (decision.kind === 'effort') return decision.effort
-  return thinkingOff === undefined || decision.kind === 'off' ? THINKING_OFF_EFFORT : requested
+  if (thinkingOff !== undefined) {
+    return decision.kind === 'off' ? THINKING_OFF_EFFORT : requested
+  }
+  if (requested !== 'none' && decision.kind === 'default' && policy.reasoning.manualOnly === true) {
+    // Manual-only thinking carries no level to list: the tier rides
+    // through unnamed and sizes the budget (GAPANTH-G10/G17). `none`
+    // still resolves below; genuinely requested `default` omits.
+    return requested
+  }
+  if (decision.kind === 'off') {
+    // Off is affirmed by a listed `none`, an affirmed `canDisable`, or an
+    // affirmed off switch (Claude Sonnet 5.5's `between_tools`); a model
+    // with no usable levels takes the plain turn. Anything else the record
+    // speaks about refuses here: gpt-6-astra answers 400 to `none`
+    // (`developers.openai.com/api/docs/guides/reasoning`, read
+    // 2026-10-13), and xAI documents no `none` at all
+    // (`docs.x.ai/developers/model-capabilities/text/reasoning`, read
+    // 2026-10-13).
+    if (
+      offSwitch !== undefined ||
+      (effortLevels.state === 'yes' && effortLevels.value.includes(THINKING_OFF_EFFORT)) ||
+      canDisable.state === 'yes' ||
+      !hasUsableEffortLevels(effortLevels)
+    ) {
+      return THINKING_OFF_EFFORT
+    }
+    throw new Error(`${UI_TEXT.providerCapabilityUnsupported} (unsupported_reasoning_effort)`)
+  }
+  return EFFORT_PROVIDER_DEFAULT
 }
 
 /** Price-card operations run in the lazy provider bundle. Unpriced is never zero. */

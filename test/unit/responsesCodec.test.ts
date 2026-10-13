@@ -171,6 +171,25 @@ function golden(name: string): string {
 }
 
 describe('responsesCodec encodeRequest', () => {
+  it('omits the reasoning field where the record has no effort levels, and passes mode and context through', () => {
+    // Lane REASONSHAPESR2: grok-build-0.1 answers 400 to the `reasoning`
+    // parameter itself, so the wire omits it (the xAI-first defect);
+    // OPENAI-G08/G07 byte paths ride `mode` and `context` through
+    // (UNVERIFIED until OPENAI-PRO and OPENAI-CONTEXT answer).
+    const codec = createResponsesCodec(withRetention)
+    const omitted = codec.encodeRequest({ ...firstTurnBody(), reasoning: undefined })
+    expect(omitted).not.toHaveProperty('reasoning')
+    const sent = codec.encodeRequest(firstTurnBody())
+    expect(sent).toMatchObject({ reasoning: { effort: 'medium', summary: 'auto' } })
+    const pro = codec.encodeRequest({
+      ...firstTurnBody(),
+      reasoning: { effort: 'low', summary: 'auto', mode: 'pro', context: 'all_turns' },
+    })
+    expect(pro).toMatchObject({
+      reasoning: { effort: 'low', summary: 'auto', mode: 'pro', context: 'all_turns' },
+    })
+  })
+
   it('emits the captured U9 strict declaration without changing its schema (M106)', () => {
     const captured = z
       .object({

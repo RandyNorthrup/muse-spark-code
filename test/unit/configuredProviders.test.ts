@@ -103,6 +103,30 @@ async function deepseekStream() {
     .join('')
   return Buffer.from(`${text}data: [DONE]\n\n`)
 }
+async function captureStream(provider: 'xai' | 'anthropic') {
+  const parsed = z
+    .object({
+      response: z.object({ events: z.array(z.object({ event: z.string(), data: z.json() })) }),
+    })
+    .parse(
+      JSON.parse(
+        await readFile(
+          path.join('docs/certification/m95-captures', provider, '04-tool-result-stream.json'),
+          'utf8',
+        ),
+      ),
+    )
+  return Buffer.from(
+    parsed.response.events
+      .map((event) => `event: ${event.event}\ndata: ${JSON.stringify(event.data)}\n\n`)
+      .join(''),
+  )
+}
+async function xaiStream() {
+  // xAI's own recorded Responses stream (grok-4.3, 2026-10-04): the
+  // request bytes are the assertion; the reply only completes the turn.
+  return await captureStream('xai')
+}
 function expectDisabledSwitch(wire: Record<string, unknown>) {
   expect(wire).toMatchObject({ model: 'deepseek-flash', thinking: { type: 'disabled' } })
   expect(wire).not.toHaveProperty('reasoning_effort')
@@ -116,23 +140,7 @@ const response = (bytes: Uint8Array, status = 200) => ({
   close: vi.fn(),
 })
 async function anthropicStream() {
-  const parsed = z
-    .object({
-      response: z.object({ events: z.array(z.object({ event: z.string(), data: z.json() })) }),
-    })
-    .parse(
-      JSON.parse(
-        await readFile(
-          path.join('docs/certification/m95-captures/anthropic', '04-tool-result-stream.json'),
-          'utf8',
-        ),
-      ),
-    )
-  return Buffer.from(
-    parsed.response.events
-      .map((event) => `event: ${event.event}\ndata: ${JSON.stringify(event.data)}\n\n`)
-      .join(''),
-  )
+  return await captureStream('anthropic')
 }
 
 async function providerFixture(entry: ProviderEntry, payload: () => Promise<Buffer>) {
@@ -842,6 +850,50 @@ describe('configured provider production transport', () => {
       expect(sent).toHaveLength(0)
     })
 
+    const XAI_ENTRY = providerEntrySchema.parse({
+      id: 'xai',
+      preset: 'xai',
+      address: 'https://api.x.ai',
+      format: 'responses',
+      auth: 'apiKey',
+      models: ['grok-build-0.1', 'grok-4.5'],
+    })
+    const BUILD_REF = 'xai/grok-build-0.1'
+    const GROK45_REF = 'xai/grok-4.5'
+    const xaiFixture = () => providerFixture(XAI_ENTRY, xaiStream)
+
+    it('sends no reasoning field where the record has no effort levels (xAI-first defect)', async () => {
+      // grok-build-0.1 answers 400 to the `reasoning` parameter itself
+      // with `reasoning: {effort: "high"}`, and 200 without it (lead's
+      // direct requests): the catalogue's empty options list means the
+      // wire omits the field at any effort and the provider default
+      // applies. grok-4.5 keeps its affirmed level as the control.
+      const { services, sent } = await xaiFixture()
+      const build = await services.registry.resolve(BUILD_REF)
+      expect(build.policy.reasoning.effortLevels).toEqual({ state: 'yes', value: [] })
+      expect(await hostTurn(services, BUILD_REF, 'high')).toContainEqual(completed)
+      expect(sent).toHaveLength(1)
+      expect(sent[0]).toMatchObject({ model: 'grok-build-0.1' })
+      expect(sent[0]).not.toHaveProperty('reasoning')
+      expect(await hostTurn(services, GROK45_REF, 'high')).toContainEqual(completed)
+      expect(sent[1]).toMatchObject({
+        model: 'grok-4.5',
+        reasoning: { effort: 'high' },
+      })
+    })
+
+    it('refuses Thinking off where the record lists no none (XAI-G02)', async () => {
+      // grok-4.5 lists low/medium/high and documents no `none`: off
+      // refuses before dispatch instead of sending a 400 onto the wire.
+      const { services, sent } = await xaiFixture()
+      const events = await hostTurn(services, GROK45_REF, 'none')
+      expect(sent).toHaveLength(0)
+      expect(JSON.stringify(events)).toContain(
+        `${UI_TEXT.providerCapabilityUnsupported} (unsupported_reasoning_effort)`,
+      )
+      expect(events).not.toContainEqual(completed)
+    })
+
     it('sends ultra as named on DeepSeek instead of remapping (DS-G01)', async () => {
       // Round 2: DS-ULTRA answers 200 to `reasoning_effort: "ultra"`,
       // so the name rides as named, never as `max`.
@@ -857,15 +909,37 @@ describe('configured provider production transport', () => {
       expect(sent[0]).toMatchObject({ reasoning_effort: 'ultra' })
     })
 
-    it('keeps a short Haiku reply at the default effort working as before', async () => {
-      // RVDSTHINK2 finding 1: no thinking budget is added above the 512 cap.
+    it('thinks with a tier-sized budget on manual models, and refuses loudly when the cap cannot fit it', async () => {
+      // GAPANTH-G10/G17: High on Haiku 4.5 (manual-only, no levels to
+      // list) rides through unnamed instead of collapsing to off, and
+      // the tier sizes the budget. A 512 cap cannot fit the 1,024
+      // minimum, so the turn refuses before dispatch instead of silently
+      // going plain; a fitting cap thinks.
       const { services, sent } = await providerFixture(HAIKU_ENTRY, anthropicStream)
       const model = await services.registry.resolve(HAIKU_REF)
-      expect(effortForPolicy(model.policy, 'high')).toBe('none')
-      expect(await hostTurn(services, HAIKU_REF, 'high')).toContainEqual(completed)
+      expect(model.policy.reasoning.manualOnly).toBe(true)
+      expect(effortForPolicy(model.policy, 'high')).toBe('high')
+      const refused = await hostTurn(services, HAIKU_REF, 'high')
+      expect(sent).toHaveLength(0)
+      expect(JSON.stringify(refused)).toContain('invalid_thinking_budget')
+      expect(refused).not.toContainEqual(completed)
+      await consume(
+        model.client.streamResponse(
+          {
+            ...body(),
+            model: HAIKU_REF,
+            reasoning: { effort: 'high' },
+            max_output_tokens: 16_384,
+          },
+          new AbortController().signal,
+        ),
+      )
       expect(sent).toHaveLength(1)
-      expect(sent[0]).toMatchObject({ model: 'claude-haiku-4-5', max_tokens: 512 })
-      expect(sent[0]).not.toHaveProperty('thinking')
+      expect(sent[0]).toMatchObject({
+        model: 'claude-haiku-4-5',
+        max_tokens: 16_384,
+        thinking: { type: 'enabled', budget_tokens: 4096 },
+      })
     })
   })
 
