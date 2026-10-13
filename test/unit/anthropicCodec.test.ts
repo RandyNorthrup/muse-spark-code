@@ -1190,7 +1190,9 @@ describe('M101 lane P1 history hardening (BYO items 1, 3, 8, 13)', () => {
     if (terminal?.type !== 'response.incomplete') {
       throw new Error('expected an incomplete response')
     }
-    expect(terminal.response.incomplete_details).toEqual({ reason: 'max_tokens' })
+    // GAPANTH-G11: the codec maps the provider word to the host's own
+    // output-limit word, so the host's continuation rule fires.
+    expect(terminal.response.incomplete_details).toEqual({ reason: 'max_output_tokens' })
     const call = terminal.response.output.find((item) => item.type === 'function_call')
     expect(call).toMatchObject({ call_id: 'toolu_01cut', arguments: '{"timezone":' })
   })
@@ -1307,7 +1309,7 @@ describe('decode edges', () => {
       ['end_turn', 'response.completed', undefined],
       ['tool_use', 'response.completed', undefined],
       ['stop_sequence', 'response.completed', undefined],
-      ['max_tokens', 'response.incomplete', 'max_tokens'],
+      ['max_tokens', 'response.incomplete', 'max_output_tokens'],
       ['refusal', 'response.incomplete', 'refusal'],
       ['pause_turn', 'response.incomplete', 'pause_turn'],
       ['something_new', 'response.incomplete', 'something_new'],
@@ -1509,9 +1511,17 @@ describe('error envelope and models list', () => {
   })
 
   it('marks the spend cap so the transport never retries it', () => {
+    // GAPANTH-G20: the documented body carries the spend cap in
+    // `error.details.error_code` while `type` stays `rate_limit_error`
+    // (https://platform.claude.com/docs/en/api/rate-limits#reaching-your-spend-cap,
+    // read 2026-10-13); UNVERIFIED until a real answer is recorded.
     const capped = parseAnthropicError(429, {
       type: 'error',
-      error: { type: 'rate_limit_error', message: 'Overloaded, enforced_spend_limit_reached here' },
+      error: {
+        type: 'rate_limit_error',
+        message: 'Number of tokens used in the last minute exceeds the limit.',
+        details: { error_code: 'enforced_spend_limit_reached' },
+      },
     })
     expect(capped.code).toBe('enforced_spend_limit_reached')
     const plain = parseAnthropicError(429, {

@@ -42,6 +42,19 @@ export {
 } from '../../core/backends/modelapi/transport'
 export { parseSse, boundedChunks, streamLimitError } from '../../core/backends/modelapi/sse'
 export { parseNdjson } from '../../core/backends/modelapi/ndjson'
+// Lane PROVERR: the typed refusal other bundles require from this bundle
+// (deferredCohort), so a name they import exists here or it is `undefined`
+// in the built product (HOTFIX0181).
+export {
+  boundProviderMessage,
+  firstBodyLine,
+  isDefiniteRefusal,
+  isRefusalRetryable,
+  parseRefusalError,
+  refusalOf,
+  refusalSentence,
+  scrubRefusalLeak,
+} from '../../core/backends/modelapi/providerRefusal'
 export { streamEventSchema, usageSchema } from '../../core/backends/modelapi/schemas'
 export { pinnedHttpsRequest, pinnedPostRequest } from '../web/pinnedRequest'
 import type { ExtensionHookDefinition } from '../../core/backends/modelapi/extensionHooks'
