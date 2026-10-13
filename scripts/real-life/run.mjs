@@ -371,11 +371,7 @@ try {
   if (!installed.ok) throw new Error(installed.reason)
   artefact.package = installed.name
   artefact.version = installed.version
-  product = {
-    node: process.execPath,
-    agent: installed.agent,
-    env: productEnvironment(folders.home),
-  }
+  product = { agent: installed.agent, env: productEnvironment(folders.home) }
   console.log(`Installed ${installed.name} ${installed.version} (SHA-256 ${artefact.sha256}).`)
   const say = (done) => {
     const word = { passed: 'PASS', failed: 'FAIL', notRun: 'not run' }[done.outcome]
