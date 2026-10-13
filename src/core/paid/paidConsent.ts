@@ -439,12 +439,11 @@ export class PaidUseConsent {
    * next one asks again.
    */
   /**
-   * A quote write the store cannot keep leaves the approved use allowed
-   * once, and the person is told at once; anything that is not an error
-   * keeps its kind.
+   * Logs a quote write the store cannot keep and tells the person at once.
+   * The caller keeps the type test and rethrow inline: a rejection that is
+   * not an error keeps its kind past this call (P2-2).
    */
-  private quoteNotKept(error: unknown, notifySession?: string): void {
-    if (!(error instanceof Error)) throw error
+  private quoteNotKept(error: Error, notifySession?: string): void {
     const kind = this.quoteNotKeptKind(error)
     this.deps.log.warn(`Paid search quote could not be kept (${kind})`)
     this.deps.onNotKept?.(this.notKeptNotice('webSearch', kind, notifySession))
@@ -459,9 +458,11 @@ export class PaidUseConsent {
       return await (this.deps.nextQuoteOrder?.() ?? this.authority.nextOrder(quote, prior))
     } catch (error: unknown) {
       // A quote order the store cannot hand out leaves the approved use
-      // allowed once, and the person is told at once.
+      // allowed once, and the person is told at once; anything that is not
+      // an error keeps its kind.
       // read-state: cert TBL-08. `undefined` here is "no order, allowed
       // once, person told" (onNotKept fired above the return), never "no quote".
+      if (!(error instanceof Error)) throw error
       this.quoteNotKept(error, notifySession)
       return undefined
     }
@@ -657,7 +658,9 @@ export class PaidUseConsent {
         }
       } catch (error: unknown) {
         // A quote grant the store cannot keep leaves the approved use
-        // allowed once, and the person is told at once.
+        // allowed once, and the person is told at once; anything that is
+        // not an error keeps its kind.
+        if (!(error instanceof Error)) throw error
         this.quoteNotKept(error, notifySession)
       }
       if (!isCurrent()) return undefined
