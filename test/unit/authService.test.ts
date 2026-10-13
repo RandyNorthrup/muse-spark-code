@@ -1768,16 +1768,11 @@ describe('AuthService.signOut and host reports', () => {
 /** A harness whose secret store cannot be read: every read throws. */
 function unreadableHarness(): { h: Harness; warnings: string[] } {
   const warnings: string[] = []
-  const credentials = new CredentialStore(
-    {
-      get: () => Promise.reject(new Error('locked')),
-      store: () => Promise.resolve(),
-      delete: () => Promise.resolve(),
-    },
-    (message) => {
-      warnings.push(message)
-    },
-  )
+  const secrets = memorySecrets()
+  vi.spyOn(secrets, 'get').mockRejectedValue(new Error('locked'))
+  const credentials = new CredentialStore(secrets, (message) => {
+    warnings.push(message)
+  })
   return { h: harness({ credentials }), warnings }
 }
 

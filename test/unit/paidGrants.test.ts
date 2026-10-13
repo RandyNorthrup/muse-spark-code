@@ -8,6 +8,7 @@ import path from 'node:path'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { afterAll, describe, expect, it, vi } from 'vitest'
 import { paidGrantFile } from '../../src/runtime/paidGrants'
+import { testPaidLogger } from './helpers/paidGrants'
 import { quotedSearch } from './helpers/paidQuote'
 
 const folders: string[] = []
@@ -33,17 +34,13 @@ vi.mock('node:fs', async (importActual) => {
   }
 })
 
-function logger() {
-  return { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
-}
-
 function grantsFile(): string {
   const folder = mkdtempSync(path.join(tmpdir(), 'paid-grants-'))
   folders.push(folder)
   return path.join(folder, 'paid-uses.json')
 }
 
-function fileStore(file: string, log = logger()) {
+function fileStore(file: string, log = testPaidLogger()) {
   const store = paidGrantFile({
     file,
     log,

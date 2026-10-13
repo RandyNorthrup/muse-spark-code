@@ -92,6 +92,15 @@ interface Harness {
   run<T>(op: (client: acp.ClientContext) => Promise<T>): Promise<T>
 }
 
+/** The session's text chunks, in order, for sentence assertions. */
+function textMessages(updates: readonly acp.SessionUpdate[]): string[] {
+  return updates.flatMap((update) =>
+    update.sessionUpdate === 'agent_message_chunk' && update.content.type === 'text'
+      ? [update.content.text]
+      : [],
+  )
+}
+
 interface HarnessOptions {
   readonly legalScan?: AcpAgentDeps['legalScan']
 
@@ -717,13 +726,7 @@ describe('the ACP agent (M63)', () => {
     expect(h.permissions).toHaveLength(2)
     expect(h.host.sessions[0]?.controlSubagent).toHaveBeenCalledWith('child', 'continue')
     expect(h.host.sessions[0]?.controlSubagent).toHaveBeenCalledWith('child', 'retry')
-    const messages = h.updates
-      .flatMap((update) =>
-        update.sessionUpdate === 'agent_message_chunk' && update.content.type === 'text'
-          ? [update.content.text]
-          : [],
-      )
-      .join('\n')
+    const messages = textMessages(h.updates).join('\n')
     expect(messages).toContain('Inactive · Incomplete')
     expect(messages).toContain('Final message')
   })
@@ -752,13 +755,7 @@ describe('the ACP agent (M63)', () => {
       h.host.sessions[0]?.controlSubagent.mockRejectedValueOnce(new Error('CONTROL-CANARY'))
       await prompt(client, sessionId, '/agents continue child')
     })
-    const messages = h.updates
-      .flatMap((update) =>
-        update.sessionUpdate === 'agent_message_chunk' && update.content.type === 'text'
-          ? [update.content.text]
-          : [],
-      )
-      .join('\n')
+    const messages = textMessages(h.updates).join('\n')
     expect(messages).toContain(UI_TEXT.agentContinueUnavailable)
     const logged = h.log.warn.mock.calls.map((call) => String(call[0])).join('\n')
     expect(logged).toContain('subagent continue failed')
@@ -2453,11 +2450,7 @@ describe('paid features in the agent (M63c, M58)', () => {
     })
     // The use is allowed once; the sentence arrives in the session itself.
     expect(Boolean(decision)).toBe(true)
-    const said = h.updates.flatMap((update) =>
-      update.sessionUpdate === 'agent_message_chunk' && update.content.type === 'text'
-        ? [update.content.text]
-        : [],
-    )
+    const said = textMessages(h.updates)
     expect(said).toContain(
       fill(UI_TEXT.paidAlwaysNotKept, { feature: paidFeatureName('webSearch'), kind: 'Error' }),
     )

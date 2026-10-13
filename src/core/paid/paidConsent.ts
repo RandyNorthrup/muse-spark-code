@@ -390,6 +390,19 @@ export class PaidUseConsent {
    * logged and leaves this use allowed once, so the next one asks again
    * instead of this one failing.
    */
+  /** The not-kept notice for a failed write, carrying the asking session (P2-3). */
+  private notKeptNotice(
+    feature: PaidFeature,
+    kind: string,
+    notifySession: string | undefined,
+  ): PaidNotKeptNotice {
+    return {
+      feature,
+      kind,
+      ...(notifySession !== undefined && { sessionId: notifySession }),
+    }
+  }
+
   private async remember(feature: PaidFeature, notifySession?: string): Promise<boolean> {
     try {
       if (this.deps.rememberGrant === undefined)
@@ -409,11 +422,7 @@ export class PaidUseConsent {
       this.deps.log.warn(
         `Paid use of ${feature}: "always" could not be kept, so it is allowed once (${kind})`,
       )
-      this.deps.onNotKept?.({
-        feature,
-        kind,
-        ...(notifySession !== undefined && { sessionId: notifySession }),
-      })
+      this.deps.onNotKept?.(this.notKeptNotice(feature, kind, notifySession))
       return false
     }
   }
@@ -429,6 +438,18 @@ export class PaidUseConsent {
    * the grant: none is returned, so the approved use goes ahead once and the
    * next one asks again.
    */
+  /**
+   * A quote write the store cannot keep leaves the approved use allowed
+   * once, and the person is told at once; anything that is not an error
+   * keeps its kind.
+   */
+  private quoteNotKept(error: unknown, notifySession?: string): void {
+    if (!(error instanceof Error)) throw error
+    const kind = this.quoteNotKeptKind(error)
+    this.deps.log.warn(`Paid search quote could not be kept (${kind})`)
+    this.deps.onNotKept?.(this.notKeptNotice('webSearch', kind, notifySession))
+  }
+
   private async searchApprovalOrder(
     quote: PaidQuote,
     prior: PaidGrant | undefined,
@@ -438,18 +459,10 @@ export class PaidUseConsent {
       return await (this.deps.nextQuoteOrder?.() ?? this.authority.nextOrder(quote, prior))
     } catch (error: unknown) {
       // A quote order the store cannot hand out leaves the approved use
-      // allowed once, and the person is told at once; anything that is not
-      // an error keeps its kind.
+      // allowed once, and the person is told at once.
       // read-state: cert TBL-08. `undefined` here is "no order, allowed
       // once, person told" (onNotKept fired above the return), never "no quote".
-      if (!(error instanceof Error)) throw error
-      const kind = this.quoteNotKeptKind(error)
-      this.deps.log.warn(`Paid search quote could not be kept (${kind})`)
-      this.deps.onNotKept?.({
-        feature: 'webSearch',
-        kind,
-        ...(notifySession !== undefined && { sessionId: notifySession }),
-      })
+      this.quoteNotKept(error, notifySession)
       return undefined
     }
   }
@@ -644,16 +657,8 @@ export class PaidUseConsent {
         }
       } catch (error: unknown) {
         // A quote grant the store cannot keep leaves the approved use
-        // allowed once, and the person is told at once; anything that is
-        // not an error keeps its kind.
-        if (!(error instanceof Error)) throw error
-        const kind = this.quoteNotKeptKind(error)
-        this.deps.log.warn(`Paid search quote could not be kept (${kind})`)
-        this.deps.onNotKept?.({
-          feature: 'webSearch',
-          kind,
-          ...(notifySession !== undefined && { sessionId: notifySession }),
-        })
+        // allowed once, and the person is told at once.
+        this.quoteNotKept(error, notifySession)
       }
       if (!isCurrent()) return undefined
       this.authority.dispatch({ type: 'saved', grant: effect.grant, ok: isOk })

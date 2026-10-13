@@ -65,20 +65,6 @@ export class DamageNoter {
   }
 }
 
-/** A no-op marker store: dedupes within the process only. */
-export function memoryDamageMarkers(): DamageMarkerStore {
-  let marker: string | undefined
-  return {
-    readMarker: () => marker,
-    writeMarker: (identity) => {
-      marker = identity
-    },
-    clearMarker: () => {
-      marker = undefined
-    },
-  }
-}
-
 /**
  * A file-backed marker store: `<file>.reported` holds `{ identity }`,
  * written through a temporary file and rename so a crash cannot leave a

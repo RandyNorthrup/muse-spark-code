@@ -12,7 +12,11 @@ import * as machineSampler from '../../src/core/resources/sampler/system'
 import type { UsageFs } from '../../src/core/usage/journalStore'
 import { RESOURCE_JOURNAL_ROOT, ResourceJournal } from '../../src/core/usage/resourceJournal'
 import { ResourceRecords } from '../../src/core/usage/resourceRecords'
-import { resourceHistoryReader, resourceHistoryRecorder } from '../../src/runtime/resources/history'
+import {
+  type DamagedChoiceNotice,
+  resourceHistoryReader,
+  resourceHistoryRecorder,
+} from '../../src/runtime/resources/history'
 import { NodeUsageFs } from '../../src/runtime/usage/nodeUsageFs'
 import { readResourceReset, writeResourceReset } from '../../src/runtime/usage/resourceResetFile'
 import { createUsageAccess } from '../../src/runtime/usage/usageServiceEntry'
@@ -78,11 +82,19 @@ async function swapScene() {
   return { data, other, journal, swap }
 }
 /** The production recorder on its own data folder, recording with the host's consent on. */
-function windowRecorder(folder: string) {
+function windowRecorder(
+  folder: string,
+  onError: () => void = vi.fn(),
+  onDamagedChoice?: (notice: DamagedChoiceNotice) => void,
+) {
   return resourceHistoryRecorder(
-    { dataFolder: folder, isEnabled: () => true },
+    {
+      dataFolder: folder,
+      isEnabled: () => true,
+      ...(onDamagedChoice !== undefined && { onDamagedChoice }),
+    },
     { read: () => Promise.resolve([]) },
-    vi.fn(),
+    onError,
   )
 }
 
@@ -190,20 +202,14 @@ describe('RVM107W2 P2: consent, delete boundary, retries, disposal and read boun
     // can be taken, and the old code announced on every sample. Each step is
     // a fresh recorder (one window), so every step takes the consent read.
     await mkdir(path.join(folder, USAGE_SETTINGS_FILE))
-    const window = (onError: () => void) =>
-      resourceHistoryRecorder(
-        { dataFolder: folder, isEnabled: () => true },
-        { read: () => Promise.resolve([]) },
-        onError,
-      )
     const first = vi.fn()
-    window(first).sample(historyStatus(Date.now()))
+    windowRecorder(folder, first).sample(historyStatus(Date.now()))
     expect(first).toHaveBeenCalledTimes(1)
     const second = vi.fn()
-    window(second).sample(historyStatus(Date.now()))
+    windowRecorder(folder, second).sample(historyStatus(Date.now()))
     expect(second).not.toHaveBeenCalled()
     const third = vi.fn()
-    window(third).sample(historyStatus(Date.now()))
+    windowRecorder(folder, third).sample(historyStatus(Date.now()))
     expect(third).not.toHaveBeenCalled()
   })
 
@@ -211,24 +217,18 @@ describe('RVM107W2 P2: consent, delete boundary, retries, disposal and read boun
     const folder = await temporary()
     const file = path.join(folder, USAGE_SETTINGS_FILE)
     await writeFile(file, '{oops')
-    const window = (onError: () => void) =>
-      resourceHistoryRecorder(
-        { dataFolder: folder, isEnabled: () => true },
-        { read: () => Promise.resolve([]) },
-        onError,
-      )
     const first = vi.fn()
-    window(first).sample(historyStatus(Date.now()))
+    windowRecorder(folder, first).sample(historyStatus(Date.now()))
     expect(first).toHaveBeenCalledTimes(1)
     // The person repairs the file: the healthy read clears the marker.
     await writeFile(file, '{"enabled":false,"days":365}')
     const healthy = vi.fn()
-    window(healthy).sample(historyStatus(Date.now()))
+    windowRecorder(folder, healthy).sample(historyStatus(Date.now()))
     expect(healthy).not.toHaveBeenCalled()
     // Weeks later the same truncation recurs: it announces again.
     await writeFile(file, '{oops')
     const recurred = vi.fn()
-    window(recurred).sample(historyStatus(Date.now()))
+    windowRecorder(folder, recurred).sample(historyStatus(Date.now()))
     expect(recurred).toHaveBeenCalledTimes(1)
   })
 
@@ -237,29 +237,21 @@ describe('RVM107W2 P2: consent, delete boundary, retries, disposal and read boun
     const file = path.join(folder, USAGE_SETTINGS_FILE)
     await writeFile(file, '{oops')
     const notices: { damage: string; text: string }[] = []
-    const window = () =>
-      resourceHistoryRecorder(
-        {
-          dataFolder: folder,
-          isEnabled: () => true,
-          onDamagedChoice: (notice) => {
-            notices.push({ damage: notice.damage, text: notice.text })
-          },
-        },
-        { read: () => Promise.resolve([]) },
-        vi.fn(),
-      )
-    window().sample(historyStatus(Date.now()))
+    const observe = () =>
+      windowRecorder(folder, vi.fn(), (notice) => {
+        notices.push({ damage: notice.damage, text: notice.text })
+      })
+    observe().sample(historyStatus(Date.now()))
     expect(notices).toHaveLength(1)
     expect(notices[0]?.damage).toBe('invalid')
     expect(notices[0]?.text).toBe(EN.resourceHistoryChoiceInvalid)
     await writeFile(file, '{"enabled":true,"days":365}')
-    window().sample(historyStatus(Date.now()))
+    observe().sample(historyStatus(Date.now()))
     expect(notices).toHaveLength(1)
     // An unreadable file names its own sentence.
     await rm(file)
     await mkdir(file)
-    window().sample(historyStatus(Date.now()))
+    observe().sample(historyStatus(Date.now()))
     expect(notices).toHaveLength(2)
     expect(notices[1]?.damage).toBe('unreadable')
     expect(notices[1]?.text).toBe(EN.resourceHistoryChoiceUnreadable)

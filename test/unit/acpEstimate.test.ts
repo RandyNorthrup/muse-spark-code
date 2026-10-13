@@ -49,6 +49,14 @@ function harness(estimate?: AcpEstimatePort) {
 function prompt(client: acp.ClientContext, sessionId: string, text: string) {
   return client.request('session/prompt', { sessionId, prompt: [{ type: 'text', text }] })
 }
+/** Prompts '/estimate M117' and expects the turn to end (both tests assert the sentence after). */
+async function runEstimate(h: ReturnType<typeof harness>): Promise<void> {
+  await h.run(async (client, sessionId) => {
+    expect(await prompt(client, sessionId, '/estimate M117')).toMatchObject({
+      stopReason: 'end_turn',
+    })
+  })
+}
 function messages(updates: acp.SessionUpdate[]): string {
   let text = ''
   for (const update of updates)
@@ -83,11 +91,7 @@ describe('M117 ACP estimate', () => {
 
   it('reports the unbound loader honestly instead of forwarding to a model', async () => {
     const h = harness()
-    await h.run(async (client, sessionId) => {
-      expect(await prompt(client, sessionId, '/estimate M117')).toMatchObject({
-        stopReason: 'end_turn',
-      })
-    })
+    await runEstimate(h)
     // C-X-1: an unbound estimator answers with the plain runtime reason.
     expect(messages(h.updates)).toContain(UI_TEXT.estimateRuntimeUnavailable)
     expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
@@ -167,11 +171,7 @@ describe('M117 ACP estimate', () => {
   it('CATCHAUDIT: keeps the fixed sentence for a foreign adapter failure', async () => {
     const adapterBoom: unknown = 'estimate-boom-string'
     const h = harness({ run: vi.fn().mockRejectedValue(adapterBoom) })
-    await h.run(async (client, sessionId) => {
-      expect(await prompt(client, sessionId, '/estimate M117')).toMatchObject({
-        stopReason: 'end_turn',
-      })
-    })
+    await runEstimate(h)
     expect(messages(h.updates)).toContain('estimate-unavailable')
     expect(messages(h.updates)).not.toContain('estimate-boom-string')
   })

@@ -11,7 +11,7 @@ import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vites
 import { AcpPaidUse, paidUseAnswer, paidUseOptions, type PaidGrantStore } from '../../src/acp/paid'
 import { paidGrantFile } from '../../src/runtime/paidGrants'
 import { workspaceKey } from '../../src/runtime/dataFolder'
-import { memoryPaidGrants } from './helpers/paidGrants'
+import { memoryPaidGrants, testPaidLogger } from './helpers/paidGrants'
 import { removeFolder } from './helpers/temporaryFolders'
 import { readFileSync as readDocumentation } from 'node:fs'
 import { CLI_OPTION_REGISTRY, formatAcpUsage } from '../../src/runtime/cliOptions'
@@ -46,7 +46,7 @@ it('tells the session person at once when Always could not be saved', async () =
     autoCompactionEvaluated: () => true,
     canRemember: () => true,
     grants: unsavableGrants(),
-    log: logger(),
+    log: testPaidLogger(),
   })
   paid.attach(() => Promise.resolve('always' as const))
   paid.attachNotify((sessionId, text) => {
@@ -78,7 +78,7 @@ it('tells the asking session when its save fails, not a later session (P2-3)', a
     flagged: ['imageGeneration'],
     canRemember: () => true,
     grants,
-    log: logger(),
+    log: testPaidLogger(),
   })
   paid.attach(() => Promise.resolve('always' as const))
   const told: [string, string][] = []
@@ -109,7 +109,7 @@ it('tells the terminal operator at once when Always could not be saved', async (
     autoCompactionEvaluated: () => true,
     canRemember: () => true,
     grants: unsavableGrants(),
-    log: logger(),
+    log: testPaidLogger(),
     // As the runtime wires it: the operator's console hears the sentence.
     notify: (text) => {
       warned.push(text)
@@ -133,7 +133,7 @@ it('ACP automatic compaction asks once after its explicit flag and refuses witho
     autoCompactionEvaluated: () => true,
     canRemember: () => true,
     grants: memoryPaidGrants(),
-    log: logger(),
+    log: testPaidLogger(),
   })
   const ask = vi.fn(() => Promise.resolve('once' as const))
   paid.attach(ask)
@@ -146,7 +146,7 @@ it('ACP automatic compaction asks once after its explicit flag and refuses witho
     flagged: ['autoCompaction'],
     canRemember: () => true,
     grants: memoryPaidGrants(),
-    log: logger(),
+    log: testPaidLogger(),
   })
   dormant.attach(ask)
   expect(await dormant.allows('/ws', 'session', request, false)).toBe(false)
@@ -155,7 +155,7 @@ it('ACP automatic compaction asks once after its explicit flag and refuses witho
     flagged: [],
     canRemember: () => true,
     grants: memoryPaidGrants(),
-    log: logger(),
+    log: testPaidLogger(),
   })
   off.attach(ask)
   expect(await off.allows('/ws', 'session', request, false)).toBe(false)
@@ -237,7 +237,7 @@ describe('M80 structural headless paid policy', () => {
       flagged: ['imageGeneration'],
       canRemember: () => true,
       grants,
-      log: logger(),
+      log: testPaidLogger(),
       headless: policy,
     })
     const ask = vi.fn(() => Promise.resolve('always' as const))
@@ -266,7 +266,7 @@ describe('M80 structural headless paid policy', () => {
       flagged: [],
       canRemember: () => true,
       grants,
-      log: logger(),
+      log: testPaidLogger(),
       headless: policy,
     })
     expect(await paid.allows('/ws', 's', WEB_SEARCH, false)).toBeFalsy()
@@ -309,10 +309,6 @@ afterAll(async () => {
   await Promise.all(folders.map((folder) => removeFolder(folder)))
 })
 
-function logger() {
-  return { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
-}
-
 function grantsFile(): string {
   // Existing atomic-write targets use their real path, including macOS's
   // /private/var and Windows junctions and 8.3 names. The native API expands
@@ -332,7 +328,7 @@ function selected(optionId: string) {
  * Defender can hold a fresh temporary file past five attempts with no wait
  * (the host's full gate failed once that way). A wait happens only on a retry.
  */
-function fileStore(file: string, log = logger()) {
+function fileStore(file: string, log = testPaidLogger()) {
   return paidGrantFile({
     file,
     log,
@@ -393,7 +389,7 @@ describe('AcpPaidUse', () => {
       flagged: ['webSearch'],
       canRemember: () => true,
       grants: fileStore(file),
-      log: logger(),
+      log: testPaidLogger(),
     })
     first.attach(() => Promise.resolve('always'))
     await first.allows(FOLDER, 'old-session', WEB_SEARCH, false)
@@ -401,7 +397,7 @@ describe('AcpPaidUse', () => {
       flagged: ['webSearch'],
       canRemember: () => true,
       grants: fileStore(file),
-      log: logger(),
+      log: testPaidLogger(),
     })
     const ask = vi.fn(() => Promise.resolve('once' as const))
     second.attach(ask)
@@ -425,7 +421,7 @@ describe('AcpPaidUse', () => {
   })
 
   it('denies every use until the agent attaches its way to ask', async () => {
-    const log = logger()
+    const log = testPaidLogger()
     const paid = new AcpPaidUse({
       flagged: ['webSearch'],
       canRemember: () => true,
@@ -452,7 +448,7 @@ describe('AcpPaidUse', () => {
       flagged: ['webSearch'],
       canRemember: () => isTrusted,
       grants,
-      log: logger(),
+      log: testPaidLogger(),
     })
     const asker = vi.fn(() => Promise.resolve('always' as const))
     paid.attach(asker)
@@ -476,7 +472,7 @@ describe('AcpPaidUse', () => {
       flagged: ['imageGeneration'],
       canRemember: () => true,
       grants,
-      log: logger(),
+      log: testPaidLogger(),
     })
     expect(paid.isRemembered(FOLDER, 'webSearch')).toBe(false)
     await paid.forgetUnflagged()
@@ -488,7 +484,7 @@ describe('AcpPaidUse', () => {
     const grants = memoryPaidGrants()
     grants.byFolder.set(FOLDER, new Set(['webSearch']))
     vi.spyOn(grants, 'forget').mockRejectedValue(new Error('read-only data folder'))
-    const log = logger()
+    const log = testPaidLogger()
     const paid = new AcpPaidUse({ flagged: [], canRemember: () => true, grants, log })
     await paid.forgetUnflagged()
     // The log carries only the failure's kind, never the store message.
@@ -501,7 +497,7 @@ describe('AcpPaidUse', () => {
   it('lets an "always" it cannot keep go ahead once, and asks again next time', async () => {
     const grants = memoryPaidGrants()
     vi.spyOn(grants, 'writeQuote').mockRejectedValue(new Error('read-only data folder'))
-    const log = logger()
+    const log = testPaidLogger()
     const paid = new AcpPaidUse({ flagged: ['webSearch'], canRemember: () => true, grants, log })
     const asker = vi.fn(() => Promise.resolve('always' as const))
     paid.attach(asker)
@@ -519,14 +515,14 @@ describe('AcpPaidUse', () => {
       flagged: ['autoCompaction', 'webSearch', 'imageGeneration'],
       canRemember: () => true,
       grants,
-      log: logger(),
+      log: testPaidLogger(),
     })
     await paid.forgetUnflagged()
     expect(forget).not.toHaveBeenCalled()
   })
 
   it('tallies billed uses in the log', () => {
-    const log = logger()
+    const log = testPaidLogger()
     const paid = new AcpPaidUse({
       flagged: ['imageGeneration'],
       canRemember: () => false,
@@ -617,7 +613,7 @@ describe('the grants file (runtime/paidGrants.ts)', () => {
 
   it('fails a change on a file it cannot read, rather than writing over it, and reads it as none', async () => {
     const file = grantsFile()
-    const log = logger()
+    const log = testPaidLogger()
     const store = fileStore(file, log)
     // A folder where the generation should be: there, and unreadable as a file.
     mkdirSync(generationPath(file), { recursive: true })
@@ -652,7 +648,7 @@ describe('the grants file (runtime/paidGrants.ts)', () => {
 
   it('ignores legacy grants and fails closed for damaged or missing records', async () => {
     const file = grantsFile()
-    const log = logger()
+    const log = testPaidLogger()
     const store = fileStore(file, log)
     mkdirSync(path.dirname(file), { recursive: true })
     writeFileSync(file, JSON.stringify({ [workspaceKey(FOLDER)]: ['webSearch', 'everything'] }))
@@ -795,7 +791,7 @@ describe('R3 ACP generation-owned quote records', () => {
       flagged: ['webSearch'],
       canRemember: () => true,
       grants: store,
-      log: logger(),
+      log: testPaidLogger(),
     })
     const pending = Promise.withResolvers<PaidUseAnswer>()
     const opened = Promise.withResolvers<undefined>()
@@ -827,7 +823,7 @@ describe('R3 ACP generation-owned quote records', () => {
         flagged: ['webSearch'],
         canRemember: () => true,
         grants: store,
-        log: logger(),
+        log: testPaidLogger(),
       })
       first.attach(() => Promise.resolve('once'))
       for (const id of ['once-a', 'once-b', 'once-c'])
@@ -844,7 +840,7 @@ describe('R3 ACP generation-owned quote records', () => {
         flagged: ['webSearch'],
         canRemember: () => true,
         grants: nextStore,
-        log: logger(),
+        log: testPaidLogger(),
       })
       next.attach(() => Promise.resolve('always'))
       await next.allows(FOLDER, 'new', quotedSearch('0.0025'), false)
@@ -885,7 +881,7 @@ it('R4 P2-3: profile authority preserves workspace-scoped remembered search', as
     flagged: ['webSearch'],
     canRemember: () => true,
     grants: fileStore(grantsFile()),
-    log: logger(),
+    log: testPaidLogger(),
   })
   paid.attach(() => Promise.resolve('always'))
   await paid.allows(FOLDER, 'first', quotedSearch('0.0025', 'model-a', 'first'), false)
