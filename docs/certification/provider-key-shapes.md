@@ -189,5 +189,11 @@ tests are never repaired by a lane):
 - `npm run security:sast` cannot run in this sandbox: semgrep dies
   with `PermissionError: [Errno 1] Operation not permitted:
 '/Users/randy/.semgrep/semgrep.log'`. No workaround attempted.
-- `test/e2e/execStdio.e2e.test.ts`: attempted on the final tree;
-  result recorded in the lane's final message.
+- `test/e2e/execStdio.e2e.test.ts` on the final tree: 14 passed,
+  32 skipped; the `M80 D package guards` block never runs here — its
+  `beforeAll` (tarball staging via `package-acp.mjs`) exceeds the 60 s
+  hook timeout on this loaded rig. Measured on the untouched base
+  `e763f4938` in the same conditions (base worktree
+  `$TMPDIR/provkeys-main`): identical — same 60 s hook timeout, same
+  14 passed / 32 skipped. Fails on base too; pre-existing and
+  unrelated (this lane adds no packaged file or bundle entry).
