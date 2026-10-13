@@ -892,7 +892,7 @@ export function createConfiguredProviderServices(
                     ref: options.catalogFile,
                   }),
                 ]),
-            modelMetadata.nativeCapabilityEvidence(preset.id, native, source),
+            modelMetadata.nativeCapabilityEvidence(preset.id, native, source, entry.upstream),
           ],
         )
         const four = capabilities.capabilitiesOf({ capabilityRecord: record })
