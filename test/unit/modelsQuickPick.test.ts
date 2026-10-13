@@ -193,7 +193,6 @@ describe('runAddProviderQuickPick', () => {
       auth: 'apiKey' as const,
       keyHint: 'The key the server expects',
       keyPage: '',
-      isKeyShape: () => true,
       freeTest: 'modelsList' as const,
       localProbes: [],
     }
