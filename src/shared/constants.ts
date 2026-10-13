@@ -1277,9 +1277,9 @@ export const COMPOSER_MAX_ROWS = 10
 // The tiers the UI exposes, lowest first: the Model API's documented
 // `reasoning_effort` range (minimal … max), each verified live through Muse
 // Code with one turn per tier (docs/certification/m3.md, "Effort tiers per
-// model"), plus Muse Code's client-side `ultra` (lane REASONSHAPES): the
-// CLI maps it to each model's highest served tier, and the Model API
-// backend maps it to `max` (the API has no `ultra`). `none` stays absent:
+// model"), plus Muse Code's client-side `ultra` (the SDK's
+// `ReasoningEffort` vocabulary, `dist/src/msp.d.ts:1258`): the CLI forwards it as
+// `max` (m3.md: the 1.2 400 for `ultra` names `'max'`). `none` stays absent:
 // it is what the Thinking toggle sends when it is off.
 export const EFFORT_LEVELS = ['minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra'] as const
 export type EffortLevel = (typeof EFFORT_LEVELS)[number]

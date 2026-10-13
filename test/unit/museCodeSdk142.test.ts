@@ -131,20 +131,11 @@ describe('Muse Code 1.4.2 feature ports', () => {
     ])
   })
 
-  it('carries the effort reader’s complete ordered variants, descriptions and default', async () => {
-    const info = {
-      variants: ['none', 'high', 'ultra'],
-      defaultReasoningEffort: 'high',
-      reasoningEffortVariants: [{ tier: 'ultra', description: 'Deepest reasoning' }],
-    }
-    const parseModel = vi.fn(() => info)
-    const { host, server } = setup({ modelEfforts: { parseModel } })
-    server.handle('model/list', () => ({ models: [{ ...model, opaque: 'reader input' }] }))
-    expect(await host.listModels()).toEqual([
-      { ...model, contextLimit: undefined, isActive: false, ...info },
-    ])
-    expect(parseModel).toHaveBeenCalledExactlyOnceWith({ ...model, opaque: 'reader input' })
-  })
+  // Round 2 (META-G05) deleted the case pinning the old `listModels`
+  // shape: it answered through a stand-in server and a stubbed reader.
+  // The new shape (each row's own tiers and default) is read through
+  // the real module in `museCodeEfforts.test.ts`; the row shape itself
+  // stays UNVERIFIED until META-LIST answers.
 
   it('refuses feedback before sending when the captured reader or grant is absent', async () => {
     const parseOutcome = vi.fn(() => 'uploaded')

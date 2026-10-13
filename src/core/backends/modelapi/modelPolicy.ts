@@ -167,8 +167,12 @@ export function minOutputTokensForPolicy(policy: Pick<ModelPolicy, 'output'>): n
  */
 export function effortForPolicy(policy: ModelPolicy, requested: string): string {
   if (policy.identity.provider === 'meta') {
-    // The Model API has no `ultra` (lane REASONSHAPES): it rides as the
-    // highest API tier, like `none` rides as `minimal`.
+    // `ultra` is an alias, not a tier of its own: the 1.4.x live probe
+    // (`docs/certification/m3.md`, one turn per tier) shows the CLI
+    // forwards `ultra` to the API as `max` (the 1.2 400 for `ultra`
+    // names `'max'`), and the SDK types `ultra` in the client-side
+    // `ReasoningEffort` vocabulary (`@muse-code/sdk` `dist/src/msp.d.ts:1258`).
+    // `none` rides as `minimal` the same way.
     if (requested === 'ultra') return 'max'
     return requested === 'none' ? 'minimal' : requested
   }

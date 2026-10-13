@@ -6,7 +6,6 @@ import {
   azureOrigin,
   buildOpenRouterAuthUrl,
   customQuirksFor,
-  isEntryAtBase,
   listedPresets,
   OPENROUTER_ATTRIBUTION,
   OPENROUTER_PRIVACY_CHOICES,
@@ -32,14 +31,19 @@ function preset(id: string): ProviderPreset {
 }
 
 describe('the preset table', () => {
-  it('matches an entry address to a documented base, slash aside (DS-G02)', () => {
-    const beta = 'https://api.deepseek.com/beta'
-    expect(isEntryAtBase('https://api.deepseek.com/beta', beta)).toBe(true)
-    expect(isEntryAtBase('https://api.deepseek.com/beta/', beta)).toBe(true)
-    expect(isEntryAtBase('https://api.deepseek.com', beta)).toBe(false)
-    expect(isEntryAtBase('https://api.deepseek.com/v1', beta)).toBe(false)
-    expect(isEntryAtBase('https://example.com/beta', beta)).toBe(false)
-    expect(isEntryAtBase(undefined, beta)).toBe(false)
+  it('declares DeepSeek strict tools and the full effort vocabulary (DS-G02, DS-G01 round 2)', () => {
+    // DS-STRICT and DS-STRICT-PROD answer 200 with `strict: true` on
+    // either address, so strict is declared, never address-gated.
+    // DS-XHIGH and DS-ULTRA answer 200 to the names, so the dated
+    // record carries the full vocabulary and no aliases are declared.
+    expect(preset('deepseek').quirks.supportsStrictTools).toBe(true)
+    expect(preset('deepseek').quirks.effortAliases).toBeUndefined()
+    const facts = preset('deepseek').reasoningFacts ?? []
+    const flash = facts.find((fact) => fact.modelId === 'deepseek-flash')
+    expect(flash?.fields.reasoning?.effortLevels).toEqual({
+      state: 'yes',
+      value: ['minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
+    })
   })
 
   it('holds eighteen presets with unique, valid ids', () => {
@@ -196,6 +200,7 @@ describe('the preset table', () => {
   it('gates strict tool schemas per capable server (M101 item 24)', () => {
     expect(quirksOf(preset('openai')).supportsStrictTools).toBe(true)
     expect(quirksOf(preset('azure')).supportsStrictTools).toBe(true)
+    expect(quirksOf(preset('deepseek')).supportsStrictTools).toBe(true)
     for (const id of ['xai', 'anthropic', 'gemini', 'openrouter', 'ollama', 'llamacpp', 'custom']) {
       expect(quirksOf(preset(id)).supportsStrictTools).toBe(false)
     }

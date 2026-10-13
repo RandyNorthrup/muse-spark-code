@@ -78,8 +78,8 @@ export interface ReasoningControl {
    */
   readonly thinkingOff: 'thinking-switch' | 'reasoning-enabled' | undefined
   /**
-   * The preset's documented requested-to-canonical effort map (DeepSeek's
-   * thinking-mode table), applied before matching. Absent maps nothing.
+   * The preset's documented requested-to-canonical effort map, applied
+   * before matching. Absent maps nothing.
    */
   readonly effortAliases?: Readonly<Record<string, string>> | undefined
 }

@@ -768,13 +768,20 @@ describe('configured provider production transport', () => {
 
     const completed = expect.objectContaining({ type: 'turnCompleted', terminal: 'completed' })
 
-    it('maps an unlisted Thinking-on effort to the nearest listed level, never to off', async () => {
-      // RVDSTHINK finding 1: catalogue DeepSeek `[low, high, max]` at `medium`.
+    it('sends every documented DeepSeek effort as named, never a neighbour', async () => {
+      // Round 2: the preset's dated record carries the thinking-mode
+      // page's full vocabulary (DS-XHIGH/DS-ULTRA show `xhigh` and
+      // `ultra` taken as named), so the resolver never substitutes.
       const { services, sent } = await deepseekFixture()
-      expect(await hostTurn(services, DEEPSEEK_REF, 'medium')).toContainEqual(completed)
-      expect(sent).toHaveLength(1)
-      expect(sent[0]).toMatchObject({ model: 'deepseek-flash', reasoning_effort: 'high' })
-      expect(sent[0]).not.toHaveProperty('thinking')
+      for (const effort of ['minimal', 'medium', 'xhigh', 'ultra'] as const) {
+        expect(await hostTurn(services, DEEPSEEK_REF, effort)).toContainEqual(completed)
+      }
+      expect(sent).toHaveLength(4)
+      expect(sent[0]).toMatchObject({ model: 'deepseek-flash', reasoning_effort: 'minimal' })
+      expect(sent[1]).toMatchObject({ model: 'deepseek-flash', reasoning_effort: 'medium' })
+      expect(sent[2]).toMatchObject({ model: 'deepseek-flash', reasoning_effort: 'xhigh' })
+      expect(sent[3]).toMatchObject({ model: 'deepseek-flash', reasoning_effort: 'ultra' })
+      for (const body of sent) expect(body).not.toHaveProperty('thinking')
     })
 
     it('sends Thinking off as the switch and a listed level as named', async () => {
@@ -835,10 +842,9 @@ describe('configured provider production transport', () => {
       expect(sent).toHaveLength(0)
     })
 
-    it('maps ultra to max on DeepSeek instead of refusing (DS-G01)', async () => {
-      // DeepSeek's thinking-mode effort table maps ultra to max
-      // (`guides/thinking_mode`, read 2026-10-12): the value rides as
-      // named from there, never refused.
+    it('sends ultra as named on DeepSeek instead of remapping (DS-G01)', async () => {
+      // Round 2: DS-ULTRA answers 200 to `reasoning_effort: "ultra"`,
+      // so the name rides as named, never as `max`.
       const { services, sent } = await deepseekFixture()
       const model = await services.registry.resolve(DEEPSEEK_REF)
       await consume(
@@ -848,7 +854,7 @@ describe('configured provider production transport', () => {
         ),
       )
       expect(sent).toHaveLength(1)
-      expect(sent[0]).toMatchObject({ reasoning_effort: 'max' })
+      expect(sent[0]).toMatchObject({ reasoning_effort: 'ultra' })
     })
 
     it('keeps a short Haiku reply at the default effort working as before', async () => {
