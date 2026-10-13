@@ -1327,6 +1327,11 @@ export const PIXELS_PER_MEGAPIXEL = 1_000_000
 // Documented Anthropic image limit: 10 MB, not the product's 10 MiB default
 // (docs/certification/m95-research.md §1.5, A-vi).
 export const ANTHROPIC_MAX_IMAGE_BYTES = 10_000_000
+// Documented xAI image-understanding bounds: jpg/jpeg or png only, 20 MiB
+// (docs.x.ai image-understanding, "Image input general limits", read
+// 2026-10-13; XAI-G11). Anything else is refused before sending.
+export const XAI_IMAGE_MEDIA_TYPES = ['image/png', 'image/jpeg'] as const
+export const XAI_MAX_IMAGE_BYTES = 20 * 1024 * 1024
 // Images and PDFs together (M54).
 export const MAX_ATTACHMENTS_PER_MESSAGE = 20
 
