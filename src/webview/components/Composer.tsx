@@ -68,7 +68,12 @@ import { rankSlashCommands } from '../../shared/slashRank'
 import { blobToBase64, parseUriList } from '../base64'
 import { type DictationPress, pressAction, releaseAction } from '../dictationGesture'
 import { scrollRowIntoView, wrapIndex } from '../listNavigation'
-import { type DictationUiState, type MentionResults, userShellCommandOf } from '../state/uiState'
+import {
+  type DictationUiState,
+  type MentionResults,
+  shouldLandFocusRequest,
+  userShellCommandOf,
+} from '../state/uiState'
 import { AttachmentChips } from './AttachmentChips'
 import { ContextMeter, type ContextMeterProps } from './ContextMeter'
 import {
@@ -576,8 +581,13 @@ export function Composer(props: ComposerProps) {
     }
   }, [isSlashMenuOpen, onSlashMenuOpen])
 
+  // The one place a recorded focus request lands (`shouldLandFocusRequest`):
+  // only while this surface already holds the keyboard. A request that
+  // arrives after the person moved on — a load finishing behind a freshly
+  // opened file, a `focusInput` delivered late — is dropped here, so the
+  // chat never takes the keyboard from a file the person just opened.
   useEffect(() => {
-    if (focusRequests === 0) {
+    if (focusRequests === 0 || !shouldLandFocusRequest(document.hasFocus())) {
       return
     }
     textareaRef.current?.focus()

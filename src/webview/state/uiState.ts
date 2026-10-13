@@ -331,7 +331,12 @@ export interface UiState {
         readonly isConfirming: boolean
       }
     | undefined
-  /** Incremented per host `focusInput`; the composer focuses when it changes. */
+  /**
+   * Recorded focus requests (host `focusInput`, `init`, inserts, restores and
+   * the composer's own actions). Recording is not landing: the composer
+   * focuses only through `shouldLandFocusRequest` while this surface holds
+   * the keyboard, so a request that arrives late is dropped, never taken.
+   */
   readonly focusRequests: number
   /** Incremented per host `openUsage`; Account & usage opens when it changes (M94). */
   readonly usageRequests: number
@@ -2791,7 +2796,10 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
         composerPlaceholder: message.composerPlaceholder,
         settings: message.settings,
         permissionMode: message.settings.initialPermissionMode,
-        // Opening the panel puts the caret in the composer, like Claude Code.
+        // Opening the panel asks for the caret in the composer, like Claude
+        // Code; the request lands only while this surface holds the keyboard
+        // (`shouldLandFocusRequest`), so a load that finishes after the person
+        // opened a file is dropped instead of stealing it.
         focusRequests: state.focusRequests + 1,
       }
     }
@@ -3665,6 +3673,20 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
       }
     }
   }
+}
+
+/**
+ * The panel-focus ownership rule: a recorded focus request may land only
+ * while this surface already holds the keyboard (`document.hasFocus()` in the
+ * composer). The host owns the decision to ask — every `focusInput` it posts
+ * is the direct effect of something the person just did — and the webview
+ * confirms ownership here at delivery: a request aimed at a surface the
+ * person has since left is dropped, so a late `focusInput` or a load that
+ * finishes after a file was opened can never take the keyboard. There is one
+ * call site (the composer's focus effect), never a check per sender.
+ */
+export function shouldLandFocusRequest(hasSurfaceFocus: boolean): boolean {
+  return hasSurfaceFocus
 }
 
 export function uiReducer(state: UiState, action: UiAction): UiState {
