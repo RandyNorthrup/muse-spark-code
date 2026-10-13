@@ -21,6 +21,17 @@ happened, not what was planned; superseded entries are kept.
   Refusals that asking again cannot fix are never retried. Record:
   `docs/certification/provider-refusals.md`.
 
+- Provider refusals read by shape and retried by code (lanes PROVERR round
+  2 and PROVERRR2): a wrong key reads as a rejected key and an unknown
+  model as no such model at every recorded provider, whatever the envelope
+  shape; a quota or spend-cap refusal is never retried while a bare rate
+  limit still is; an Anthropic reply cut at its output limit continues
+  instead of ending the turn; an Azure content-filter block has its own
+  sentence. Masked-key remnants and account ids in a provider's words no
+  longer reach the log file or report bundles. Records:
+  `docs/certification/proverr-round2.md`,
+  `docs/certification/proverrr2.md`.
+
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
   reads and writes, and 1-hour cache writes settle at their own price.
   The shared retry classifier refuses known quota codes and excessive

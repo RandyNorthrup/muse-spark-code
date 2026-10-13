@@ -130,7 +130,7 @@ describe('recorded provider answers classify to the true kind', () => {
 })
 
 // The measured Anthropic out-of-credit bytes the lead's drill replays
-// (recorded in round 1): a 400 about credit is `credit`, not `invalidRequest.
+// (recorded in round 1): a 400 about credit is `credit`, not `invalidRequest`.
 const CREDIT_BODY = {
   type: 'error',
   error: {

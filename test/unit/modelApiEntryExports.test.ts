@@ -1,6 +1,7 @@
 // HOTFIX0181, the fast signal on source. The build points every import of
-// transport.ts, sse.ts and ndjson.ts outside dist/modelApi.js at that bundle
-// (deferredCohort, scripts/lib/deferredBundles.mjs), which exports what
+// transport.ts, sse.ts, ndjson.ts and providerRefusal.ts outside
+// dist/modelApi.js at that bundle (deferredCohort,
+// scripts/lib/deferredBundles.mjs), which exports what
 // src/host/backend/modelApiEntry.ts exports and nothing else. TypeScript
 // checks those imports against the source modules, so a name the entry lacks
 // compiles, passes every source test and is `undefined` in the built product:
@@ -17,6 +18,9 @@ const REDIRECTED = new Set([
   'src/core/backends/modelapi/transport.ts',
   'src/core/backends/modelapi/sse.ts',
   'src/core/backends/modelapi/ndjson.ts',
+  // Lane PROVERR: the typed refusal, required from dist/modelApi.js by the
+  // providers, configured-providers and report bundles.
+  'src/core/backends/modelapi/providerRefusal.ts',
 ])
 // The split gate keeps these in dist/modelApi.js alone (its LAZY_ONLY list),
 // where the import is the real module.
@@ -80,7 +84,7 @@ interface ValueImport {
 /** The values `file` takes from the redirected modules, static and dynamic. */
 function redirectedImports(file: string): ValueImport[] {
   const text = readFileSync(path.join(ROOT, file), 'utf8')
-  if (!/transport|sse|ndjson/.test(text)) return []
+  if (!/transport|sse|ndjson|providerRefusal/.test(text)) return []
   const found: ValueImport[] = []
   const add = (from: string, name: string) => {
     found.push({ file, from: path.posix.basename(from), name })
@@ -157,7 +161,7 @@ describe('the Model API bundle exports what other bundles import from its shared
   )
   const imports = readers.flatMap((file) => redirectedImports(file))
 
-  it('exports every value imported from transport, sse and ndjson outside the bundle', () => {
+  it('exports every value imported from transport, sse, ndjson and providerRefusal outside the bundle', () => {
     expect(
       imports
         .filter(({ name }) => !exported.has(name))
@@ -179,6 +183,9 @@ describe('the Model API bundle exports what other bundles import from its shared
       'assertConfirmedAllowed',
       'isStaleConfirmedError',
       'noteConfirmedRequestStarted',
+      'parseRefusalError',
+      'refusalSentence',
+      'scrubRefusalLeak',
     ])
       expect(names.has(name), name).toBe(true)
     // The three places 0.18.0 broke, and the one dynamic import.
@@ -189,6 +196,7 @@ describe('the Model API bundle exports what other bundles import from its shared
         'src/core/providers/subscriptions/registry.ts',
         'src/host/providers/copilotClient.ts',
         'src/runtime/exec/execFetch.ts',
+        'src/core/support/problemReport.ts',
       ]),
     )
   })

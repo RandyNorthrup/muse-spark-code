@@ -366,6 +366,8 @@ export interface RefusalEnvelope {
 }
 
 const recordOf = (value: unknown): Record<string, unknown> | undefined =>
+  // The three checks rule out every non-record JSON shape, but the compiler
+  // cannot narrow `unknown` to a record from them (PLAN.md §8).
   typeof value === 'object' && value !== null && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : undefined
