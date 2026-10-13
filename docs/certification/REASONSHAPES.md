@@ -48,15 +48,21 @@ DS-ULTRA and DS-XHIGH answer.
 Person's steps: add a DeepSeek entry, pick a DeepSeek model, set effort to
 Max, send a turn. Observe the turn goes with `reasoning_effort: "max"`.
 
-## DS-G02 — not started (capture requested)
+## DS-G02 — done (acceptance UNVERIFIED)
 
 Strict tool schemas need the beta base (`https://api.deepseek.com/beta`)
 plus `strict: true` on every function
 (`https://api-docs.deepseek.com/guides/tool_calls`, read 2026-10-12).
-Wiring a beta base needs the beta `/models` shape and the production
-base's answer to `strict: true`; both are capture requests now
-(DS-BETA-MODELS, DS-STRICT-PROD, DS-STRICT). No preset offers strict until
-those land, so nothing is sent.
+The preset declares the beta base; entries pointed at it send strict
+(strict-conformant schemas via the shared rewriter), while production
+entries never see `strict: true`. The beta `/models` route exists (keyless
+probe 2026-10-13 answers 401, not 404), so beta entries list models.
+UNVERIFIED until DS-STRICT and DS-STRICT-PROD answer (the strict
+acceptance itself).
+
+Person's steps: point a DeepSeek entry at `https://api.deepseek.com/beta`,
+attach a tool and send. Observe the turn goes with `strict: true` on
+every function.
 
 ## GQ-G02 — done
 

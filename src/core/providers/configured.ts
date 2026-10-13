@@ -585,6 +585,13 @@ export function createConfiguredProviderServices(
         outputFormats: record.output.formats.value,
       }),
       ...(preset.quirks.thinkingPreserved === true && { thinkingPreserved: true }),
+      // Strict tool schemas ride only where the preset declares a beta
+      // base for them and the entry targets it (DeepSeek's `/beta`,
+      // DS-G02): the production base never sees `strict: true`.
+      ...(preset.quirks.betaStrictBase !== undefined &&
+        presets.isEntryAtBase(entry.address, preset.quirks.betaStrictBase) && {
+          supportsStrictTools: true,
+        }),
       sendCacheKey: record.cache.acceptsKey,
       includeUsage: true,
       toolStream: preset.id === 'zai',

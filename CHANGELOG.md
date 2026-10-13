@@ -12,7 +12,7 @@ happened, not what was planned; superseded entries are kept.
 - Lane REASONSHAPES (provider reasoning gaps, all shapes UNVERIFIED until
   the 26-request capture plan answers): DeepSeek `ultra` now rides as
   `reasoning_effort: "max"` per its thinking-mode table instead of
-  refusing. Groq sends `reasoning_format: "parsed"` where the model
+  refusing, and beta-base entries send strict tool schemas. Groq sends `reasoning_format: "parsed"` where the model
   reasons. Together sends the hybrid toggle `reasoning: {enabled: false}`
   for Thinking off. Z.ai sends the `thinking` switch (off only where the
   model affirms it), preserved thinking where a turn replays reasoning,
