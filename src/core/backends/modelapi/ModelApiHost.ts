@@ -319,7 +319,7 @@ import {
   type RetryNotice,
   type ResponseAttemptGuard,
 } from './client'
-import { isDefiniteRefusal } from './providerRefusal'
+import { isDefiniteRefusal, scrubRefusalLeak } from './providerRefusal'
 import {
   applyGoalCommand,
   type GoalContext,
@@ -4219,8 +4219,12 @@ export class ModelApiSession implements ScheduledAgentSession {
       await work
     } catch (error: unknown) {
       // A turn reports its own failures, so one that reaches here is a fault.
+      // The words can carry a masked-key remnant or an account id (round 2,
+      // finding 5): the log file keeps the scrubbed form only.
       if (!isFailureCallers) {
-        this.deps.log.error(`A Model API turn failed unexpectedly: ${describe(error)}`)
+        this.deps.log.error(
+          `A Model API turn failed unexpectedly: ${scrubRefusalLeak(describe(error))}`,
+        )
       }
     } finally {
       this.unsettled.delete(id)

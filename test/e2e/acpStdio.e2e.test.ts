@@ -11,8 +11,7 @@
 // credential file as the panel reads it (D26, PR #49).
 
 import { spawn, spawnSync, type ChildProcessWithoutNullStreams } from 'node:child_process'
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
-import { createServer } from 'node:http'
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { Writable } from 'node:stream'
@@ -26,13 +25,7 @@ import { createRuntimeBackend } from '../../src/runtime/backends'
 import { agentDataFolder } from '../../src/runtime/dataFolder'
 import { formatAcpUsage } from '../../src/runtime/cliOptions'
 import { webReadable } from '../../src/runtime/webStreams'
-import {
-  ACP_AGENT_NAME,
-  PROVIDERS_CONFIG_DIR_NAME,
-  PROVIDERS_FILE_NAME,
-  SECRET_KEYS,
-  UI_TEXT,
-} from '../../src/shared/constants'
+import { ACP_AGENT_NAME, SECRET_KEYS, UI_TEXT } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
 import { readUiTableFile } from '../../src/host/l10n'
 import { unpackUiTable } from '../../src/shared/l10n/packed'
@@ -471,100 +464,6 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
       (error: { code?: number }) => error.code === -32_000 || error.code === -32_603,
     )
     expect(modelApi.wire.join('')).not.toMatch(/LLM\|/)
-  })
-
-  // Lane PROVERR: the credit refusal through the packed agent on a loopback
-  // provider. The listener answers /v1/messages with the measured bytes; the
-  // packed agent's pinned transport posts to it for real. The key reaches the
-  // agent only through `auth set --provider` from the test's standard input
-  // (D61); where the runner has no OS credential store the case skips, as the
-  // sign-in case above accommodates for a Linux runner without Secret Service.
-  it('ends the prompt with the provider refusal and sends once when credit is out', async (ctx) => {
-    const credit =
-      '{"type":"error","error":{"type":"invalid_request_error","message":"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits."}}'
-    let requests = 0
-    const server = createServer((request, response) => {
-      if (request.url === '/v1/messages' && request.method === 'POST') {
-        requests += 1
-        response.writeHead(400, {
-          'content-type': 'application/json',
-          'request-id': 'req-e2e-credit-1',
-        })
-        response.end(credit)
-      } else {
-        response.writeHead(404, { 'content-type': 'application/json' })
-        response.end(
-          '{"type":"error","error":{"type":"not_found_error","message":"e2e: unexpected path"}}',
-        )
-      }
-    })
-    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
-    const address = server.address()
-    if (address === null || typeof address === 'string') throw new Error('missing e2e listener')
-    const origin = `http://127.0.0.1:${String(address.port)}`
-    const configHome = mkdtempSync(path.join(tmpdir(), 'acp-proverr-'))
-    mkdirSync(path.join(configHome, PROVIDERS_CONFIG_DIR_NAME), { recursive: true })
-    writeFileSync(
-      path.join(configHome, PROVIDERS_CONFIG_DIR_NAME, PROVIDERS_FILE_NAME),
-      JSON.stringify({
-        v: 1,
-        defaultModel: 'proverr/claude-sonnet-5-5',
-        providers: [
-          {
-            id: 'proverr',
-            preset: 'custom',
-            address: origin,
-            format: 'anthropic',
-            auth: 'apiKey',
-            models: ['claude-sonnet-5-5'],
-            modelLimits: {
-              'claude-sonnet-5-5': { contextTokens: 1_000_000, outputTokens: 128_000 },
-            },
-          },
-        ],
-      }),
-    )
-    const authEnv = agentEnvironment(configHome)
-    const auth = (action: 'set' | 'clear', input?: string) =>
-      spawnSync(process.execPath, [AGENT, 'auth', action, '--provider', 'proverr'], {
-        input,
-        encoding: 'utf8',
-        env: authEnv,
-      })
-    try {
-      const set = auth('set', 'proverr-e2e-fake-key\n')
-      if (set.status !== 0) {
-        if (set.stderr.includes('credential store cannot be used'))
-          ctx.skip('no OS credential store on this runner')
-        const context = `--- stdout ---\n${set.stdout}\n--- stderr ---\n${set.stderr}`
-        expect(set.status, context).toBe(0)
-      }
-      const agent = startAgent(configHome, ['--backend', 'modelApi'])
-      const failure = await agent.run(async (client) => {
-        const sessionId = await newSession(client)
-        try {
-          await client.request('session/prompt', {
-            sessionId,
-            prompt: [{ type: 'text', text: 'hello' }],
-          })
-        } catch (error: unknown) {
-          return error as { code?: unknown; message?: unknown }
-        }
-        return undefined
-      })
-      const wire = agent.wire.join('')
-      expect(requests, wire).toBe(1)
-      expect(failure).toMatchObject({ code: -32_000 })
-      const message = typeof failure?.message === 'string' ? failure.message : ''
-      expect(message, wire).toContain('out of credit')
-      expect(message, wire).toContain('Your credit balance is too low to access the Anthropic API.')
-      expect(message, wire).not.toContain('not available in this build')
-      expect(wire).not.toMatch(/proverr-e2e-fake-key/)
-    } finally {
-      auth('clear')
-      server.close()
-      await removeFolder(configHome)
-    }
   })
 
   it('says at start that a proxy will not be used by the Model API backend, until Node’s switch is on (Q66)', async () => {

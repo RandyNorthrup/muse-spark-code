@@ -288,8 +288,8 @@ describe('configured provider production transport', () => {
         send: () => Promise.resolve(response(Buffer.from(''))),
       })
       const model = await services.registry.resolve('openai/gpt-5.6-luna')
-      // Lane PROVERR: a refusal inside the stream keeps the provider's
-      // (scrubbed) words with an `unrecognised` kind at the answer's status.
+      // Lane PROVERR round 2: a refusal inside the stream is its own kind
+      // with the provider's (scrubbed) words at the answer's status.
       let failure = 'the stream answered instead of refusing'
       try {
         await consume(
@@ -301,7 +301,7 @@ describe('configured provider production transport', () => {
       } catch (error: unknown) {
         failure = error instanceof Error ? error.message : String(error)
       }
-      expect(failure).toContain('does not recognise')
+      expect(failure).toContain('stopped answering')
       expect(failure).not.toContain('test-owned-key')
     },
   )
@@ -678,7 +678,7 @@ describe('configured provider production transport', () => {
             'config during DNS': 'changed while the request was prepared',
             'echoed error': 'Could not reach',
             redirect: 'does not recognise',
-          }[condition] ?? 'is not allowed here'),
+          }[condition] ?? 'cannot be used here'),
     )
     expect(send).toHaveBeenCalledTimes(['redirect', 'echoed error'].includes(condition) ? 1 : 0)
     expect(services.client.readPlanUsage?.()).toHaveLength(
@@ -696,8 +696,8 @@ describe('configured provider production transport', () => {
     })
     await expect(
       services.scan({ ...ENTRY, address: 'https://example.com' }, 'test-owned-key'),
-      // Lane PROVERR: the changed origin keeps its own sentence.
-    ).rejects.toThrow('does not match preset')
+      // Lane PROVERR round 2: the changed origin keeps its own sentence.
+    ).rejects.toThrow('cannot be used here')
     expect(send).not.toHaveBeenCalled()
   })
 

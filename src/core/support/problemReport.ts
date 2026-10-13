@@ -43,6 +43,7 @@ import {
 import { reportWebviewErrorSchema } from '../../shared/protocol'
 import { redactSecrets } from '../redact'
 import type { SecretScrubPort } from '../../shared/redact'
+import { scrubRefusalLeak } from '../backends/modelapi/providerRefusal'
 
 const YES = 'yes'
 const NO = 'no'
@@ -344,7 +345,10 @@ function replaceReportRoot(text: string, root: string, mark: string): string {
  * The second scrub, over the entire final draft (D72): workspace roots, then
  * home, then other absolute user paths, URL queries and fragments, emails and
  * IP addresses, then every shared secret pattern (URL credentials among
- * them) with the host's user/machine names as exact literals.
+ * them) with the host's user/machine names as exact literals, and finally
+ * the refusal-leak scrub (round 2, finding 5): a pasted provider sentence
+ * can carry a masked-key remnant or an account id that whole-secret patterns
+ * never match.
  */
 export function scrubFinalDraft(draft: string, context: ReportScrubContext): string {
   let text = draft
@@ -364,7 +368,7 @@ export function scrubFinalDraft(draft: string, context: ReportScrubContext): str
   text = text.replaceAll(IPV6_PATTERN, (match) => (isIpv6Like(match) ? REDACTED_MARK : match))
   text = text.replaceAll(IPV4_PATTERN, () => REDACTED_MARK)
   const literals = context.extraLiterals.filter((name) => name.length >= EXTRA_LITERAL_MIN_CHARS)
-  return redactSecrets(text, literals)
+  return scrubRefusalLeak(redactSecrets(text, literals))
 }
 
 const MS_PER_HOUR = MILLISECONDS_PER_DAY / HOURS_PER_DAY

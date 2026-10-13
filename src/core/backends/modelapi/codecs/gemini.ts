@@ -23,7 +23,7 @@ import { PROVIDER_MANUAL_THINKING_BUDGET } from '../../../../shared/constants'
 import { UI_TEXT } from '../../../../shared/l10n/text'
 
 import { ModelApiError } from '../transport'
-import { geminiEnvelope, parseRefusalError } from '../providerRefusal'
+import { parseRefusalError } from '../providerRefusal'
 import { CODEC_EMPTY_TOOL_OUTPUT, CODEC_IMAGE_WITHOUT_VISION } from '../../../../shared/constants'
 import { cleanJsonStrings, cleanWireText, isBlankWireText } from './shared'
 import type {
@@ -1099,8 +1099,11 @@ export async function* decodeGeminiStream(
  * message keep the host's `HTTP 429:` retry legible.
  */
 export function parseGeminiError(status: number, body: unknown): ModelApiError {
-  const refusal = parseRefusalError(status, body, geminiEnvelope)
-  return new ModelApiError(refusal.message, status, refusal.kind, refusal.code)
+  const refusal = parseRefusalError(status, body)
+  // Google's documented `details[].reason` (e.g. `API_KEY_INVALID`) decides
+  // over the numeric echo `code`: without it a refused key reads as a bad
+  // request instead of authentication.
+  return new ModelApiError(refusal.message, status, refusal.kind, refusal.reason ?? refusal.code)
 }
 
 /** One `models.list` entry the preset keeps: the id with its window, when listed. */

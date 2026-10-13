@@ -4285,6 +4285,8 @@ export const EN = {
     '{provider} refused the request: the key has no permission for this. Check the key’s permissions at {provider}; nothing was sent and nothing was charged. {provider} said: {detail}',
   providerRefusalNotFound:
     '{provider} refused the request: it has no such model. Pick a model {provider} lists; nothing was sent and nothing was charged. {provider} said: {detail}',
+  providerRefusalContentFilter:
+    '{provider} refused the request: its content filter blocked it. Rephrase without the flagged content and try again; nothing reached a model and nothing was charged for this request. {provider} said: {detail}',
   providerRefusalRateLimited:
     '{provider} refused the request for now: too many requests{wait}. Try again shortly; nothing was charged for this refusal. {provider} said: {detail}',
   providerRefusalOverloaded:
@@ -4295,16 +4297,46 @@ export const EN = {
     '{provider} refused the request: it was too large. Shorten the conversation or attachments and try again; nothing was charged. {provider} said: {detail}',
   providerRefusalServerError:
     '{provider} failed to answer: a server error on its side. Try again shortly. {provider} said: {detail}',
+  providerRefusalStreamError:
+    '{provider} stopped answering with an error. Try again; the request may have been charged — check usage at {provider}. {provider} said: {detail}',
   providerRefusalUnrecognised:
     '{provider} answered with an error this build does not recognise (HTTP {status}). Try again; the request may have been charged — check usage at {provider}. The answer began: {detail}',
   // {seconds}: the wait the provider named, in seconds.
   providerRefusalWait: ' (retry after {seconds})',
   // {provider}: the provider's display name.
+  // Round 2, finding 7: the connection failed, and whether the request
+  // arrived is unknown — never "nothing was sent".
   providerUnreachable:
-    'Could not reach {provider}. Check the network and the provider address; nothing was sent.',
-  // {entry}: the provider entry id; {detail}: the technical reason.
-  configuredProviderInvalid:
-    'The {entry} provider entry cannot be used ({detail}). Fix it in Models & Agents.',
+    'Could not reach {provider}. The connection failed, so whether the request arrived is unknown; check the network and the provider address.',
+  // Round 2, finding 6: each cause a person can meet has its own sentence;
+  // slots carry technical values only (ids, origins, paths), never prose.
+  // {entry}: the provider entry id; {preset}: the preset id as typed.
+  configuredProviderUnknownPreset:
+    'The {entry} provider entry names the preset {preset}, which does not exist. Pick a preset in Models & Agents.',
+  // {entry}: the provider entry id; {auth}: the auth kind as stored.
+  configuredProviderUnsupportedAuth:
+    'The {entry} provider entry uses {auth}, which this build does not support. Set an API key in Models & Agents.',
+  // {entry}: the provider entry id.
+  configuredProviderMissingAddress:
+    'The {entry} provider entry has no address. Enter the provider address in Models & Agents.',
+  // {entry}: the provider entry id.
+  configuredProviderStoredKeyMissing:
+    'The {entry} provider entry has no stored key. Store the key in Models & Agents.',
+  // {entry}: the provider entry id; {model}: the model id as listed.
+  configuredProviderUnusableModelsEntry:
+    'The {entry} provider entry lists the model {model} with no usable data. Scan again in Models & Agents.',
+  // {model}: the model id as entered.
+  configuredProviderContextWindowUnset:
+    'The {model} model needs its context window set. Set it in Models & Agents.',
+  // {entry}: the provider entry id; {address}: the offending origin or path.
+  configuredProviderAddress:
+    'The {entry} provider entry points at {address}, which cannot be used here. Check the address in Models & Agents.',
+  // {entry}: the provider entry id.
+  configuredProviderChangedDuringRequest:
+    'The {entry} provider entry changed while the request was prepared. Try again in Models & Agents.',
+  // {entry}: the provider entry id; {detail}: the technical invariant.
+  configuredProviderDefect:
+    'The {entry} provider entry cannot be used because of a product defect ({detail}). Report it with Models & Agents.',
   mainServiceUnavailable:
     'The main Muse Spark service is not set up in this run, so that model cannot be answered here.',
   // {provider}: the provider's display name.

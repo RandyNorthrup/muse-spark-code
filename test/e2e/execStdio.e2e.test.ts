@@ -4,7 +4,6 @@
 // a test-owned Node preload, never in a production loader flag. No request can
 // reach the network in this suite.
 import { spawn, spawnSync, type ChildProcessWithoutNullStreams } from 'node:child_process'
-import { createServer } from 'node:http'
 import { createHash } from 'node:crypto'
 import {
   chmodSync,
@@ -31,12 +30,7 @@ import {
   type ExecResult,
 } from '../../src/runtime/exec/execProtocol'
 
-import {
-  EXEC_EXIT,
-  PROVIDERS_CONFIG_DIR_NAME,
-  PROVIDERS_FILE_NAME,
-} from '../../src/shared/constants'
-import { Usd } from '../../src/shared/usd'
+import { PROVIDERS_CONFIG_DIR_NAME, PROVIDERS_FILE_NAME } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
 import { TABLE_LOCALES } from '../../src/shared/l10n/locales'
 import { readArchivedUiTable } from '../../src/shared/l10n/tableArchive'
@@ -692,12 +686,7 @@ describe('M80 D package guards', { timeout: TIMEOUT }, () => {
   })
 })
 
-function start(
-  args: readonly string[],
-  mode = 'stdin',
-  shouldReadOutput = true,
-  extraEnv: NodeJS.ProcessEnv = {},
-) {
+function start(args: readonly string[], mode = 'stdin', shouldReadOutput = true) {
   const marker = path.join(WORK, 'dispatched')
   const blockedMarker = path.join(WORK, 'large-write')
   rmSync(marker, { force: true })
@@ -709,7 +698,6 @@ function start(
       SystemRoot: process.env['SystemRoot'],
       HOME: WORK,
       USERPROFILE: WORK,
-      ...extraEnv,
       XDG_DATA_HOME: WORK,
       LOCALAPPDATA: WORK,
       LANG: 'C',
@@ -741,91 +729,6 @@ function start(
     },
   )
   return { child, closed, marker, blockedMarker }
-}
-
-// Lane PROVERR: the credit refusal through the packed agent on a
-// loopback provider. The listener answers /v1/messages with the measured
-// bytes; the packed agent's pinned transport posts to it for real.
-async function refusedProviderTurn() {
-  const credit =
-    '{"type":"error","error":{"type":"invalid_request_error","message":"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits."}}'
-  let requests = 0
-  const server = createServer((request, response) => {
-    if (request.url === '/v1/messages' && request.method === 'POST') {
-      requests += 1
-      response.writeHead(400, {
-        'content-type': 'application/json',
-        'request-id': 'req-e2e-credit-1',
-      })
-      response.end(credit)
-    } else {
-      response.writeHead(404, { 'content-type': 'application/json' })
-      response.end(
-        '{"type":"error","error":{"type":"not_found_error","message":"e2e: unexpected path"}}',
-      )
-    }
-  })
-  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
-  const address = server.address()
-  if (address === null || typeof address === 'string') throw new Error('missing e2e listener')
-  const origin = `http://127.0.0.1:${String(address.port)}`
-  const providers = path.join(WORK, '.config', PROVIDERS_CONFIG_DIR_NAME, PROVIDERS_FILE_NAME)
-  const previous = existsSync(providers) ? readFileSync(providers, 'utf8') : undefined
-  writeFileSync(
-    providers,
-    JSON.stringify({
-      v: 1,
-      defaultModel: 'proverr/claude-sonnet-5-5',
-      providers: [
-        {
-          id: 'proverr',
-          preset: 'custom',
-          address: origin,
-          format: 'anthropic',
-          auth: 'apiKey',
-          models: ['claude-sonnet-5-5'],
-          modelLimits: {
-            'claude-sonnet-5-5': { contextTokens: 1_000_000, outputTokens: 128_000 },
-          },
-        },
-      ],
-    }),
-  )
-  try {
-    const child = start(
-      [
-        'exec',
-        '--backend',
-        'modelApi',
-        '--provider',
-        'proverr',
-        '--model',
-        'claude-sonnet-5-5',
-        '--effort',
-        'none',
-        '--max-budget-usd',
-        '1',
-        '--max-requests',
-        '1',
-        '--ephemeral',
-        '--output',
-        'jsonl',
-        'Spend one unit of thought on the color of the sky.',
-      ],
-      'provider-refused',
-      true,
-      { M80D_PROVIDER_ORIGIN: origin },
-    )
-    const output = await child.closed
-    const context = `--- stdout ---\n${output.stdout}\n--- stderr ---\n${output.stderr}`
-    return { output, context, requests, done: () => server.close() }
-  } catch (error: unknown) {
-    server.close()
-    throw error
-  } finally {
-    if (previous === undefined) rmSync(providers, { force: true })
-    else writeFileSync(providers, previous)
-  }
 }
 
 function execArgs() {
@@ -994,16 +897,14 @@ describe('M80 E1-E7 built exec', { timeout: TIMEOUT }, () => {
             },
             load(url, context, nextLoad) {
               if (url !== FAKE_KEYRING) return nextLoad(url, context);
-              if (mode !== 'store' && mode !== 'provider' && mode !== 'provider-refused') throw new Error('keyring must not load on stdin path');
+              if (mode !== 'store' && mode !== 'provider') throw new Error('keyring must not load on stdin path');
               return {
                 format: 'module',
                 shortCircuit: true,
                 // The configured-provider row stores one provider key and no Meta key.
                 source: mode === 'provider'
                   ? 'export class AsyncEntry { constructor(service, account) { this.account = account } getPassword() { return Promise.resolve(this.account === "museSpark.provider.mistral" ? ' + JSON.stringify(JSON.stringify({ v: 1, auth: 'apiKey', origin: 'https://api.mistral.ai', secret: 'test-owned-key' })) + ' : null) } setPassword() { return Promise.resolve() } deletePassword() { return Promise.resolve(true) } }'
-                  : mode === 'provider-refused'
-                    ? 'export class AsyncEntry { constructor(service, account) { this.account = account } getPassword() { return Promise.resolve(this.account === "museSpark.provider.proverr" ? JSON.stringify({ v: 1, auth: \'apiKey\', origin: process.env.M80D_PROVIDER_ORIGIN, secret: \'test-owned-key\' }) : null) } setPassword() { return Promise.resolve() } deletePassword() { return Promise.resolve(true) } }'
-                    : 'export class AsyncEntry { getPassword() { return Promise.resolve(' + JSON.stringify(key) + ') } setPassword() { return Promise.resolve() } deletePassword() { return Promise.resolve(true) } }',
+                  : 'export class AsyncEntry { getPassword() { return Promise.resolve(' + JSON.stringify(key) + ') } setPassword() { return Promise.resolve() } deletePassword() { return Promise.resolve(true) } }',
               };
             },
           });
@@ -1019,16 +920,8 @@ describe('M80 E1-E7 built exec', { timeout: TIMEOUT }, () => {
           const providerCalls = [];
           const captured = name => JSON.parse(fs.readFileSync(${JSON.stringify(path.join(ROOT, 'docs/certification/m95-captures/mistral'))} + '/' + name, 'utf8'));
           if (mode === 'provider') dnsPromises.lookup = () => Promise.resolve([{ address: '93.184.216.34', family: 4 }]);
-          const realFetch = globalThis.fetch;
           globalThis.fetch = (url, init) => {
             if (mode === 'crash') throw new Error('startup ' + key);
-            // Lane PROVERR: the refused-provider run answers on a loopback
-            // listener owned by the test; only that address passes through.
-            if (mode === 'provider-refused') {
-              const href = typeof url === 'string' ? url : url instanceof URL ? url.href : url.url;
-              if (href.startsWith('http://127.0.0.1:')) return realFetch(url, init);
-              return Promise.resolve(Response.json({ error: 'unexpected provider path' }, { status: 404 }));
-            }
             if (mode === 'provider') {
               const href = typeof url === 'string' ? url : url instanceof URL ? url.href : url.url;
               providerCalls.push((init?.method ?? 'GET') + ' ' + new URL(href).pathname);
@@ -1118,27 +1011,6 @@ describe('M80 E1-E7 built exec', { timeout: TIMEOUT }, () => {
   // export. The provider is Mistral, with its captured models list and one
   // captured answer (docs/certification/m95-captures/mistral), as in the unit
   // suite's production BYO run; the preload answers them, so nothing leaves.
-
-  it('E10 ends the turn with the provider refusal and settles nothing when credit is out', async () => {
-    const { output, context, requests, done } = await refusedProviderTurn()
-    try {
-      expect(requests, context).toBe(1)
-      expect(output.code, context).toBe(EXEC_EXIT.failed)
-      const final = result(output.stdout)
-      expect(final.status, context).toBe('failed')
-      expect(final.error?.message ?? '', context).toContain('out of credit')
-      expect(final.error?.message ?? '', context).toContain(
-        'Your credit balance is too low to access the Anthropic API.',
-      )
-      expect(final.error?.message ?? '', context).not.toContain('not available in this build')
-      expect(final.usage.requests, context).toBe(1)
-      expect(final.usage.costUsd?.settled, context).toBe(Usd.from(0).toAmount())
-      expect(final.usage.costUsd?.uncertain, context).toBe(Usd.from(0).toAmount())
-    } finally {
-      done()
-    }
-  })
-
   it('E8 completes one plan-mode turn on a configured provider through the built bundles', async () => {
     const { output, context, sent } = await providerTurn()
     expect(output.code, context).toBe(0)

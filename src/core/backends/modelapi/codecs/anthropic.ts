@@ -55,13 +55,12 @@ import {
   ANTHROPIC_MAX_STREAM_BYTES,
   CODEC_EMPTY_TOOL_OUTPUT,
   CODEC_IMAGE_WITHOUT_VISION,
-  HTTP_TOO_MANY_REQUESTS,
   THINKING_OFF_EFFORT,
   PROVIDER_MANUAL_THINKING_BUDGET,
 } from '../../../../shared/constants'
 import { UI_TEXT } from '../../../../shared/l10n/text'
 import { ModelApiError } from '../transport'
-import { anthropicEnvelope, parseRefusalError } from '../providerRefusal'
+import { parseRefusalError } from '../providerRefusal'
 import { cleanJsonStrings, cleanWireText, isBlankWireText, isRecord, nativeCallId } from './shared'
 import {
   type CreateResponseBody,
@@ -85,7 +84,6 @@ const ANTHROPIC_PATH = '/v1/messages'
 const ANTHROPIC_EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'] as const
 type AnthropicEffort = (typeof ANTHROPIC_EFFORTS)[number]
 const IMAGE_MEDIA_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'] as const
-const SPEND_CAP_REASON = 'enforced_spend_limit_reached'
 
 class AnthropicCodecError extends Error {
   override readonly name = 'AnthropicCodecError'
@@ -824,7 +822,14 @@ function stopOutcome(stopReason: string | null | undefined): StopOutcome {
     case 'stop_sequence': {
       return { status: 'completed' }
     }
-    case 'max_tokens':
+    // The host continues only on its own output-limit word, which every
+    // provider's limit stop maps to (GAPANTH-G11): the chat codec maps
+    // `length`, Gemini maps `MAX_TOKENS`, Anthropic maps `max_tokens` here.
+    // `refusal`, `pause_turn` and any other stop keep the provider's word:
+    // the turn must not blindly continue a refused or paused turn.
+    case 'max_tokens': {
+      return { status: 'incomplete', reason: 'max_output_tokens' }
+    }
     case 'refusal':
     case 'pause_turn': {
       return { status: 'incomplete', reason: stopReason }
@@ -1281,22 +1286,20 @@ function emptyResponse(
 
 /**
  * Map a non-2xx Messages answer to `ModelApiError`: the envelope's message,
- * its `error.type` as the kind, and — for a 429 whose prose names the spend
- * cap (research §1.5, [A-rl]) — that reason as the code, so the transport
- * never retries what no wait would fix. Anything unenveloped is
- * `unrecognised` with the status and the first bounded line of the body
- * (lane PROVERR): still the provider's refusal, never a product sentence.
+ * its `error.type` as the kind, and the documented
+ * `error.details.error_code` as the code (GAPANTH-G20:
+ * https://platform.claude.com/docs/en/api/rate-limits#reaching-your-spend-cap,
+ * read 2026-10-13 — a tier spend-cap 429 carries
+ * `enforced_spend_limit_reached` there while its `type` stays
+ * `rate_limit_error`, and retrying it keeps failing). The prose match this
+ * replaces could never fire: the documented message never contains the code
+ * word. Anything unenveloped carries `parsed: false` with the status and the
+ * first bounded line of the body (lane PROVERR): still the provider's
+ * refusal, never a product sentence.
  */
 export function parseAnthropicError(status: number, body: unknown): ModelApiError {
-  const refusal = parseRefusalError(status, body, anthropicEnvelope)
-  const rawMessage = anthropicEnvelope(body)?.message ?? ''
-  const isSpendCapped = status === HTTP_TOO_MANY_REQUESTS && rawMessage.includes(SPEND_CAP_REASON)
-  return new ModelApiError(
-    refusal.message,
-    status,
-    refusal.kind,
-    isSpendCapped ? SPEND_CAP_REASON : refusal.code,
-  )
+  const refusal = parseRefusalError(status, body)
+  return new ModelApiError(refusal.message, status, refusal.kind, refusal.errorCode ?? refusal.code)
 }
 
 // --- models list: `GET /v1/models` (capture 01; the scan lives in lane P) ---
