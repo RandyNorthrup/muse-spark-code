@@ -193,6 +193,7 @@ export function modelPricedUsage(usage: Usage): ModelPricedUsage {
   return {
     inputTokens: usage.input_tokens,
     outputTokens: usage.output_tokens,
+    reasoningTokens: usage.output_tokens_details?.reasoning_tokens,
     cachedTokens: usage.input_tokens_details?.cached_tokens ?? 0,
     cacheWriteTokens: usage.input_tokens_details?.cache_write_tokens ?? 0,
     cacheWriteTokens1h: usage.input_tokens_details?.cache_write_tokens_1h,

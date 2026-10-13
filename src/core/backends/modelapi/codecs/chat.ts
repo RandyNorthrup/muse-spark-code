@@ -91,6 +91,20 @@ export interface ChatPresetQuirks {
   readonly canDisable?: boolean | undefined
   /** Send `prompt_cache_key` (Mistral, Fireworks in the captures). */
   readonly sendCacheKey: boolean
+  /**
+   * Also send `prompt_cache_isolation_key` with the same stable key, where
+   * the API documents it (Fireworks' chat-completions reference, read
+   * 2026-10-12: "Isolation key for prompt caching to separate cache
+   * entries"). Gated on the same capability record as `sendCacheKey`.
+   */
+  readonly sendCacheIsolationKey?: boolean | undefined
+  /**
+   * Append the Hugging Face router's documented model-id suffix
+   * (`model:upstream`, `:cheapest`, `:fastest`, `:preferred`;
+   * huggingface.co/docs/inference-providers, read 2026-10-12). Absent sends
+   * the bare model id exactly as before.
+   */
+  readonly upstreamSuffix?: string | undefined
   /** Send `stream_options: {include_usage: true}` (every capture). */
   readonly includeUsage: boolean
   /** Send Z.ai's `tool_stream: true`, which fragments tool arguments. */
@@ -202,7 +216,8 @@ export interface ChatFunctionTool {
 /**
  * The native request body, built in this fixed key order: model, messages,
  * tools, tool_choice, parallel_tool_calls, stream, stream_options, the
- * output cap, provider, reasoning, thinking, prompt_cache_key, tool_stream.
+ * output cap, provider, reasoning, thinking, prompt_cache_key,
+ * prompt_cache_isolation_key, tool_stream.
  */
 export interface ChatCompletionRequest {
   readonly model: string
@@ -215,6 +230,7 @@ export interface ChatCompletionRequest {
   readonly max_tokens?: number | undefined
   readonly max_completion_tokens?: number | undefined
   readonly prompt_cache_key?: string | undefined
+  readonly prompt_cache_isolation_key?: string | undefined
   readonly tool_stream?: true | undefined
   readonly provider?:
     | {
@@ -549,7 +565,7 @@ export function encodeChatRequest(
   // rolling marker belongs to the preceding historical native message.
   const suffix = body.input.at(-1)
   const request: ChatCompletionRequest = {
-    model,
+    model: quirks.upstreamSuffix === undefined ? model : `${model}:${quirks.upstreamSuffix}`,
     messages: markBreakpoints(
       messages,
       options?.cacheBreakpoints ?? 'none',
@@ -570,6 +586,10 @@ export function encodeChatRequest(
     ...(quirks.routing !== undefined && { provider: nativeRouting(quirks.routing) }),
     ...nativeReasoning(body, quirks),
     ...(quirks.sendCacheKey && { prompt_cache_key: body.prompt_cache_key }),
+    ...(quirks.sendCacheKey &&
+      quirks.sendCacheIsolationKey === true && {
+        prompt_cache_isolation_key: body.prompt_cache_key,
+      }),
     ...(quirks.toolStream && { tool_stream: true as const }),
   }
   return { headers: quirks.extraHeaders ?? [], body: request }

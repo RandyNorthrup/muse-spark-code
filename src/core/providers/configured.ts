@@ -100,6 +100,7 @@ const costSchema = z.object({
   output: z.number().check(z.nonnegative()),
   cache_read: z.optional(z.number().check(z.nonnegative())),
   cache_write: z.optional(z.number().check(z.nonnegative())),
+  reasoning: z.optional(z.number().check(z.nonnegative())),
 })
 const digest = (value: string) => createHash('sha256').update(value).digest('hex')
 const fail = (): never => {
@@ -440,10 +441,15 @@ export function createConfiguredProviderServices(
           native === undefined
             ? []
             : [
-                modelMetadata.nativeCapabilityEvidence(preset.id, native, {
-                  kind: 'catalogue',
-                  ref: options.catalogFile,
-                }),
+                modelMetadata.nativeCapabilityEvidence(
+                  preset.id,
+                  native,
+                  {
+                    kind: 'catalogue',
+                    ref: options.catalogFile,
+                  },
+                  entry.upstream,
+                ),
               ]
         const overrides = entry.modelCapabilities?.[nativeModel]
         if (overrides !== undefined)
@@ -455,19 +461,14 @@ export function createConfiguredProviderServices(
         const four = capabilities.capabilitiesOf({ capabilityRecord: record })
         const entered = entry.prices?.[nativeModel]
         const cost = costSchema.safeParse(native?.['cost'])
+        // The catalogue card carries tiers, reasoning and cache-write rates
+        // (priceCard.cataloguePriceCard); the spend ledger is untouched.
+        const catalogued = cost.success
+          ? priceCard.cataloguePriceCard(preset.id.replace('-plan', ''), native?.['cost'])
+          : undefined
         const card = priceCard.resolvePriceCard([
-          ...(cost.success
-            ? [
-                {
-                  input: cost.data.input / TOKENS_PER_MILLION,
-                  output: cost.data.output / TOKENS_PER_MILLION,
-                  cachedInput:
-                    cost.data.cache_read === undefined
-                      ? undefined
-                      : cost.data.cache_read / TOKENS_PER_MILLION,
-                  source: 'catalogue' as const,
-                },
-              ]
+          ...(catalogued !== undefined && priceCard.isValidPriceCard(catalogued)
+            ? [catalogued]
             : []),
           ...(entered === undefined ? [] : [{ ...entered, source: 'user' as const }]),
         ])
@@ -538,6 +539,14 @@ export function createConfiguredProviderServices(
         canDisable: record.reasoning.canDisable.state === 'yes',
       }),
       sendCacheKey: record.cache.acceptsKey,
+      // Fireworks documents `prompt_cache_isolation_key` beside the cache
+      // key; it rides only where the record accepts a key (FW-G01).
+      ...(preset.id === 'fireworks' &&
+        record.cache.acceptsKey && { sendCacheIsolationKey: true as const }),
+      // Hugging Face's router suffix pins the upstream (HF-G04); absent, the
+      // bare model id travels exactly as before.
+      ...(preset.id === 'huggingface' &&
+        entry.upstream !== undefined && { upstreamSuffix: entry.upstream }),
       includeUsage: true,
       toolStream: preset.id === 'zai',
       parallelToolCalls: record.tools.parallel.state === 'yes' || undefined,
@@ -894,7 +903,19 @@ export function createConfiguredProviderServices(
         )
         const four = capabilities.capabilitiesOf({ capabilityRecord: record })
         const listed = priceCard.listedPriceCard(preset.id, native)
-        const card = listed !== undefined && priceCard.isValidPriceCard(listed) ? listed : undefined
+        const listedCard =
+          listed !== undefined && priceCard.isValidPriceCard(listed) ? listed : undefined
+        // Hugging Face's router prices per upstream: an explicitly chosen
+        // upstream shows its own card; otherwise the dearest list card
+        // bounds the bill (the reply names the routed upstream in the model
+        // id suffix). Anything unlisted keeps the worst case, never a guess.
+        const hfUpstreams =
+          preset.id === 'huggingface' ? priceCard.huggingFaceUpstreamCards(native) : []
+        const selectedUpstream =
+          preset.id === 'huggingface' && entry.upstream !== undefined
+            ? hfUpstreams.find((row) => row.upstream === entry.upstream)
+            : undefined
+        const card = selectedUpstream?.card ?? listedCard
         const isPlan = presets.planKeyPresetById(entry.preset) !== undefined
         const isLocal = entry.auth === 'none'
         const isFree =
@@ -905,6 +926,7 @@ export function createConfiguredProviderServices(
                 card.input,
                 card.output,
                 card.cachedInput,
+                card.reasoning,
                 card.cacheWrite,
                 card.cacheWrite1h,
                 card.request,
@@ -912,6 +934,7 @@ export function createConfiguredProviderServices(
                 card.longContextTier?.input,
                 card.longContextTier?.output,
                 card.longContextTier?.cachedInput,
+                card.longContextTier?.cacheWrite,
               ].every((rate) => (rate ?? 0) === 0)))
         let priceFingerprint = 'unpriced'
         if (isPlan) priceFingerprint = 'plan'
@@ -921,17 +944,22 @@ export function createConfiguredProviderServices(
             .array(
               z.object({
                 provider: z.string(),
+                status: z.optional(z.string()),
+                context_length: z.optional(z.number().check(z.nonnegative())),
                 pricing: z.optional(
                   z.object({
                     input: z.number().check(z.nonnegative()),
                     output: z.number().check(z.nonnegative()),
                   }),
                 ),
+                supports_tools: z.optional(z.boolean()),
+                supports_structured_output: z.optional(z.boolean()),
               }),
             )
             .safeParse(native['providers'])
           priceFingerprint = JSON.stringify({
             card,
+            ...(selectedUpstream !== undefined && { upstream: selectedUpstream.upstream }),
             upstreams: upstreams.success
               ? upstreams.data.toSorted((left, right) =>
                   left.provider.localeCompare(right.provider),
@@ -964,12 +992,16 @@ export function createConfiguredProviderServices(
       })
     },
     test: async (entry: ProviderEntry, key: string) => {
+      // OpenRouter's key check answers the credit balance too (`GET
+      // /api/v1/key`: `limit`, `limit_remaining`, `usage*`; the host parses
+      // it into Account & usage). The body rides along untouched.
+      let keyBody: unknown
       const outcome = await presets.runProviderKeyTest(
         presetFor(entry).keyTest,
         new URL(entry.address ?? fail()).origin,
         async (origin, path) => {
           try {
-            await getJson(
+            keyBody = await getJson(
               entry,
               path,
               key,
@@ -990,7 +1022,12 @@ export function createConfiguredProviderServices(
           }
         },
       )
-      if (outcome.ok) return { kind: 'ok' as const, models: outcome.modelCount ?? 0 }
+      if (outcome.ok)
+        return {
+          kind: 'ok' as const,
+          models: outcome.modelCount ?? 0,
+          ...(keyBody !== undefined && { keyBody }),
+        }
       // No captured paid-token request is installed; never dispatch one here.
       return {
         kind: 'failed' as const,

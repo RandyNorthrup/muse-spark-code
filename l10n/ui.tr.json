@@ -4322,7 +4322,8 @@
       "modelRef": "Model başvurusu",
       "outputCap": "Çıktı sınırı bağlam penceresini aşıyor",
       "customLimits": "Özel modeller için bağlam pencereleri ve çıktı sınırları gereklidir",
-      "compat": "Uyumluluk seçenekleri yalnızca özel bir sunucu için geçerlidir"
+      "compat": "Uyumluluk seçenekleri yalnızca özel bir sunucu için geçerlidir",
+      "upstream": "Upstream yönlendirme yalnızca bir Hugging Face girdisi için geçerlidir"
     },
     "descriptions": {
       "openai": "GPT modelleriyle OpenAI Responses API",
