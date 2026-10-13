@@ -2342,6 +2342,36 @@ describe('chat codec reasoning controls (lane REASONSHAPES)', () => {
     ])
   })
 
+  it('sends strict tool schemas where the entry targets the beta base (DS-G02)', () => {
+    // DeepSeek strict mode is a beta-base feature: the production base
+    // never sees `strict: true`.
+    const beta: ChatPresetQuirks = { ...DEEPSEEK_ALIASED, supportsStrictTools: true }
+    const body = { ...tinyBody({ reasoning: { effort: 'high', summary: 'auto' } }) }
+    const strict = encodeChatRequest(
+      { ...body, tools: toolDefinitions('linux') },
+      'deepseek-flash',
+      beta,
+    )
+    expect(Object.keys(strict.body)).toEqual([
+      'model',
+      'messages',
+      'tools',
+      'tool_choice',
+      'stream',
+      'stream_options',
+      'max_tokens',
+      'reasoning_effort',
+    ])
+    expect(strict.body.reasoning_effort).toBe('high')
+    expect(strict.body.tools?.every((tool) => tool.function.strict === true)).toBe(true)
+    const prod = encodeChatRequest(
+      { ...body, tools: toolDefinitions('linux') },
+      'deepseek-flash',
+      DEEPSEEK_ALIASED,
+    )
+    expect(prod.body.tools?.every((tool) => !('strict' in tool.function))).toBe(true)
+  })
+
   it('sends Together thinking off as the hybrid toggle, never an effort value', () => {
     const off = encodeChatRequest(
       tinyBody({ reasoning: { effort: 'none', summary: 'auto' } }),

@@ -476,7 +476,7 @@
       "method": "GET",
       "path": "https://api.deepseek.com/beta/models",
       "body": null,
-      "lookFor": "Whether the beta base serves a models list (needed to point an entry at it), and its shape."
+      "lookFor": "Route existence VERIFIED keyless 2026-10-13 (401, not 404). Still needed: the list shape with a key, and whether entries validate against it."
     },
     {
       "id": "DS-STRICT-PROD",

@@ -181,6 +181,26 @@ export interface FormatQuirks {
    * keeps the default (Coding Plan on, standard endpoint off).
    */
   readonly thinkingPreserved?: boolean | undefined
+  /**
+   * The documented beta base where strict tool schemas are valid
+   * (DeepSeek's `https://api.deepseek.com/beta`, `guides/tool_calls`
+   * read 2026-10-12; the beta `/models` list answers 401 keyless, so the
+   * route exists). Only entries pointed at this base send strict.
+   * Absent never sends strict.
+   */
+  readonly betaStrictBase?: string | undefined
+}
+
+/**
+ * Whether an entry address targets a documented base URL: same origin
+ * and path, ignoring a trailing slash. Pure string comparison; fetches
+ * nothing.
+ */
+export function isEntryAtBase(address: string | undefined, base: string): boolean {
+  if (address === undefined) return false
+  const cleanAddress = address.endsWith('/') ? address.slice(0, -1) : address
+  const cleanBase = base.endsWith('/') ? base.slice(0, -1) : base
+  return cleanAddress === cleanBase
 }
 
 /** The five formats' defaults; presets override per provider. */
@@ -566,6 +586,9 @@ const DEEPSEEK_PRESET: ProviderPreset = {
     // The thinking-mode effort table (`guides/thinking_mode`, read
     // 2026-10-12): minimal/low, medium/high, xhigh/high, ultra/max.
     effortAliases: { minimal: 'low', medium: 'high', xhigh: 'high', ultra: 'max' },
+    // Strict tool schemas are a beta-base feature (`guides/tool_calls`,
+    // read 2026-10-12): only beta entries send them (DS-G02).
+    betaStrictBase: 'https://api.deepseek.com/beta',
   },
   wireCapture: true,
 }

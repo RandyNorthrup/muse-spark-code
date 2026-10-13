@@ -6,6 +6,7 @@ import {
   azureOrigin,
   buildOpenRouterAuthUrl,
   customQuirksFor,
+  isEntryAtBase,
   listedPresets,
   OPENROUTER_ATTRIBUTION,
   OPENROUTER_PRIVACY_CHOICES,
@@ -31,6 +32,16 @@ function preset(id: string): ProviderPreset {
 }
 
 describe('the preset table', () => {
+  it('matches an entry address to a documented base, slash aside (DS-G02)', () => {
+    const beta = 'https://api.deepseek.com/beta'
+    expect(isEntryAtBase('https://api.deepseek.com/beta', beta)).toBe(true)
+    expect(isEntryAtBase('https://api.deepseek.com/beta/', beta)).toBe(true)
+    expect(isEntryAtBase('https://api.deepseek.com', beta)).toBe(false)
+    expect(isEntryAtBase('https://api.deepseek.com/v1', beta)).toBe(false)
+    expect(isEntryAtBase('https://example.com/beta', beta)).toBe(false)
+    expect(isEntryAtBase(undefined, beta)).toBe(false)
+  })
+
   it('holds eighteen presets with unique, valid ids', () => {
     expect(PRESETS.length).toBe(18)
     const ids = PRESETS.map((candidate) => candidate.id)

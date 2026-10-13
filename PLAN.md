@@ -23835,11 +23835,11 @@ against a golden generated on 01ee6233b. Open for the owner: on a model
 without a switch an unlisted on-level still goes as `none`, kept for
 byte identity. Evidence: `docs/certification/m95-h.md`.
 
-**Lane REASONSHAPES (2026-10-12, macmini).** Fills the provider reasoning
-gaps (DS-G01, GQ-G02, TO-G01, LO-G03/G04/G05, MI-G03, OR-G02,
-ZAI-G01/G02/G04/G07, META-G05, CP-G02/CP-G04; DS-G02 waits on beta-base
-captures): one record-driven mechanism — documented effort aliases
-(DeepSeek's table, ultra rides as max), the Thinking-off switch on
+**Lane REASONSHAPES (2026-10-12/13, macmini).** Fills the provider reasoning
+gaps (DS-G01, DS-G02, GQ-G02, TO-G01, LO-G03/G04/G05, MI-G03, OR-G02,
+ZAI-G01/G02/G04/G07, META-G05, CP-G02/CP-G04): one record-driven mechanism — documented effort aliases
+(DeepSeek's table, ultra rides as max), beta-gated strict tool schemas
+(DeepSeek entries pointed at `/beta` only), the Thinking-off switch on
 DeepSeek, Z.ai and Together's hybrid toggle (only where the record
 affirms reasoning), Groq's `reasoning_format: "parsed"`, llama.cpp's
 server-routed `reasoning_effort`, Mistral's chunk-list decode and replay,
