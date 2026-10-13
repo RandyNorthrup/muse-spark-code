@@ -195,6 +195,37 @@ close}` and `auth: {logout}` — the advertised surface is real.
   code verdicts; the silent-success claim stays UNVERIFIED for the
   capture run, as do the CLI's unknown-id report and Zed's affordances.
 
+## ACP-G07/G08 — needs SDK 1.8.0, NOT started (note for the SDK lane)
+
+Not this lane's gaps to close (the 7-day rule allows the SDK 1.8.0 bump
+on 2026-10-16; this lane stays pinned at 1.7.0 and does not bump).
+
+- **ACP-G07** (scan: "No session notice updates, stable 2026-10-09"):
+  the agent never sends a `notice` session update. What the pinned SDK
+  already carries: the `notice` update shape and the
+  `ClientSessionCapabilities.notices` gate
+  (`node_modules/@agentclientprotocol/sdk/dist/schema/types.gen.d.ts:3375`,
+  `:4590` — "Agents MUST only send notices when the Client advertised"
+  it, `:3925`). What 1.8.0 must settle: the stabilized notice kinds
+  and severities the scan's protocol page names, and whether the SDK
+  gains typed send helpers (`dist/acp.js` in 1.7.0 has none for
+  notices). Decision points: which of our turns merit a wire notice at
+  all (today they go out as ungrouped one-shot text, see G10), and how
+  the team bridge forwards one.
+- **ACP-G08** (scan: "/compact stays local; no compaction wire updates,
+  stable 2026-10-06"): `/compact` summarises without telling the
+  editor. What the pinned SDK already carries: the
+  `compaction_update` and `compaction_summary_chunk` update shapes
+  (`types.gen.d.ts:3377`, `:3379`). What 1.8.0 must settle: the
+  stabilized compaction lifecycle the scan's protocol page names, and
+  typed helpers if any. Decision points: whether a local `/compact`
+  emits wire updates mid-run or only a final summary, and what the
+  panel/terminal twins show at the same time (owner: all editors
+  equal).
+
+Both UNVERIFIED until the SDK lane lands 1.8.0 and a real editor
+confirms; no code here anticipates shapes beyond the 1.7.0 schema.
+
 ## Static proof and tests
 
 - `npx tsc --noEmit -p tsconfig.json`: clean.
