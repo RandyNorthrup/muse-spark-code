@@ -247,6 +247,7 @@ async function requestReviewer(
   const modelId = confirmed.modelId
   let text = ''
   let hasCompleted = false
+  let hasResponseFrame = false
   let usage: Usage | null | undefined
   let claim: SessionBudgetClaim | undefined
   let directBudget: DirectResponseBudget | undefined
@@ -345,6 +346,7 @@ async function requestReviewer(
       },
     )
     for await (const event of events) {
+      hasResponseFrame = true
       if (event.type === 'response.completed') hasCompleted = true
       if (
         attempt.mode === 'forced_tool' &&
@@ -376,8 +378,8 @@ async function requestReviewer(
     if (signal.aborted) outcome = 'cancelled'
     wasRefused =
       isRequestNotSent(error) ||
-      (directBudget?.isSent !== true && context.isRefused(error)) ||
-      (!hasCompleted &&
+      (!hasResponseFrame && directBudget?.isSent !== true && context.isRefused(error)) ||
+      (!hasResponseFrame &&
         usage == null &&
         error instanceof Error &&
         'status' in error &&

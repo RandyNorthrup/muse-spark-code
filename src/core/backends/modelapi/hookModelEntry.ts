@@ -295,6 +295,7 @@ async function requestHookStep(
     | undefined
   const calls: FunctionCallItem[] = []
   let hasCompleted = false
+  let hasResponseFrame = false
   try {
     if (budgetScope !== undefined) {
       const total = await budgetScope.journal.read(budgetScope.sessionId, budgetScope.accountId)
@@ -368,6 +369,7 @@ async function requestHookStep(
       },
     )
     for await (const event of events) {
+      hasResponseFrame = true
       if (event.type === 'response.completed') hasCompleted = true
       const part = hookPart(event)
       onPart(part.text, part.usage)
@@ -393,8 +395,8 @@ async function requestHookStep(
   } catch (error: unknown) {
     wasRefused =
       isRequestNotSent(error) ||
-      (directBudget?.isSent !== true && context.isRefused(error)) ||
-      (!hasCompleted &&
+      (!hasResponseFrame && directBudget?.isSent !== true && context.isRefused(error)) ||
+      (!hasResponseFrame &&
         usage == null &&
         error instanceof Error &&
         'status' in error &&
