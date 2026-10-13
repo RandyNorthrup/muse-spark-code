@@ -66,7 +66,7 @@ describe('wizardFlow', () => {
     let state = selectOpenai(startWizard())
     state = applyWizardEvent(state, { type: 'next' })
     expect(state.step).toBe('credential')
-    state = applyWizardEvent(state, { type: 'submit-key', shapeOk: true })
+    state = applyWizardEvent(state, { type: 'submit-key' })
     state = applyWizardEvent(state, { type: 'next' })
     expect(state.step).toBe('test')
     state = applyWizardEvent(state, { type: 'test-complete', result: { ok: true, modelCount: 1 } })
@@ -118,9 +118,10 @@ describe('wizardFlow', () => {
     const noKey = applyWizardEvent(state, { type: 'next' })
     expect(noKey.step).toBe('credential')
     expect(noKey.error).toContain('key')
-    const badShape = applyWizardEvent(state, { type: 'submit-key', shapeOk: false })
-    expect(badShape.draft.keyPresent).toBe(false)
-    const keyed = applyWizardEvent(state, { type: 'submit-key', shapeOk: true })
+    // Lane PROVKEYS: no key is refused for its shape — submitting keeps
+    // the key and the provider's test decides.
+    const keyed = applyWizardEvent(state, { type: 'submit-key' })
+    expect(keyed.draft.keyPresent).toBe(true)
     const untested = applyWizardEvent(applyWizardEvent(keyed, { type: 'next' }), { type: 'next' })
     expect(untested.step).toBe('test')
     expect(untested.error).toContain('test')
@@ -143,7 +144,7 @@ describe('wizardFlow', () => {
       fields: { address: 'https://x.openai.azure.com/openai/v1' },
     })
     state = applyWizardEvent(state, { type: 'next' })
-    state = applyWizardEvent(state, { type: 'submit-key', shapeOk: true })
+    state = applyWizardEvent(state, { type: 'submit-key' })
     state = applyWizardEvent(state, { type: 'next' })
     const unaccepted = applyWizardEvent(state, {
       type: 'test-complete',
