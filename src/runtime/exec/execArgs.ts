@@ -27,6 +27,7 @@ import {
   UI_TEXT,
 } from '../../shared/constants'
 import { fill, plural } from '../../shared/l10n/text'
+import { listModelsRemedy, unknownProviderModelText } from '../../core/unknownModel'
 import { modelRef } from '../../host/backend/providerPolicyEntry'
 const { isProviderId, parseModelRef } = modelRef
 import type { ServeOptions } from '../cliArgs'
@@ -295,8 +296,10 @@ export function parseExec(
   }
   const rawModel = stringValue('model')
   const model = qualifyProviderModel(provider, rawModel)
-  if (rawModel !== undefined && model === undefined) {
-    return invalid(UI_TEXT.execUnknownModel)
+  if (provider !== undefined && rawModel !== undefined && model === undefined) {
+    // --model names no model on --provider: unparsable, or naming another
+    // provider. The sentence names both, and the command listing the entry.
+    return invalid(unknownProviderModelText(rawModel, provider, listModelsRemedy()))
   }
   return {
     ok: true,

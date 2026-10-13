@@ -118,7 +118,9 @@ export class AcpMedia implements AcpMediaPort {
     if (input.name === '' || input.name.length > MEDIA_NAME_MAX_CHARS) throw unknown(info.mediaType)
     if (this.deps.backend !== 'modelApi') throw new Error(UI_TEXT.media.museCodeRefusal)
     const model = this.deps.model()
-    if (model.modelId !== this.deps.modelId()) throw new Error(UI_TEXT.execUnknownModel)
+    // The session moved to another model while the attach was prepared:
+    // stale, not unknown. The sentence says so and asks for another try.
+    if (model.modelId !== this.deps.modelId()) throw new Error(UI_TEXT.requestStaleRetry)
     const gate = modalityGate(info, model)
     if (!gate.ok) throw new Error(gate.reason)
     if (info.kind === 'video' || info.kind === 'audio') {
