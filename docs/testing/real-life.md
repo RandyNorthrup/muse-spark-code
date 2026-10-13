@@ -184,8 +184,12 @@ all. It never removes a Meta key on the strength of the note, because you
 may have stored your own since: it says, on its first line and in its
 record, that a key is stored and that an earlier run left one, and how to
 remove it (`auth clear`); when no key is stored any more, it clears the
-note. A provider entry left the same way is the run's own name
-(`rl-<route>`), and the next run that uses the route removes it.
+note. A provider key left the same way is under a name of the run's own
+(`rl-<route>`) or of its diagnostic (`rlq-<route>`). When it starts, a run
+asks the product about every such name, says on its first lines and in its
+record which ones it found, removes those of its own routes before it adds
+them, and names the command that removes any other
+(`auth clear --provider <name>`).
 
 ## What it costs
 
@@ -257,6 +261,19 @@ Keep a whole run under 150 requests and $1.00; say so first when a run
 needs more.
 
 ## The record
+
+What the records of 0.18.2 say, in short (2026-10-12; the tarball that was
+released). The twelve scenarios on four routes: 54 of 73 scenario runs
+pass, and nothing that passed on 0.18.1 fails. The model matrix on the
+direct keys: both turns pass on 38 of 47 models. Of the nine that fail,
+three xAI models refuse the reasoning setting the product sends them, five
+Mistral models answer and the product cannot read their thinking parts, and
+one Mistral model answers in full and the run still ends as over budget.
+Every such failure is shown as "the response did not complete" and booked
+at the whole reservation, and a run turned away for its budget holds its
+reservation against the day. The causes as they were read, with the
+providers' own answers, the numbers and how to replay them, are in
+`docs/testing/real-life/0.18.2/causes-2026-10-12.json`.
 
 `--record <file>` writes `<file>.json` and `<file>.txt`. The JSON is what
 the claims gate reads; the text is the same for a person.
