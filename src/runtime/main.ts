@@ -822,6 +822,14 @@ async function serve(
       },
       signIn: signInMethod(options),
       providerSignIns: providerCommands.signIns,
+      // `logout` on the Model API backend removes the stored key, the same
+      // entry `auth clear` deletes. The Muse Code CLI's sign-in is the
+      // user's to end, so that backend offers no credential removal.
+      ...(options.backend === 'modelApi' && {
+        signOut: async (): Promise<void> => {
+          await secrets.delete(SECRET_KEYS.modelApiKey)
+        },
+      }),
       defaultCwd: process.cwd(),
       sharing: {
         commands: acpSharingCommands,

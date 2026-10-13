@@ -39,6 +39,7 @@ import {
   RequestError,
   type RequestPermissionRequest,
   type RequestPermissionResponse,
+  type SessionCapabilities,
   type SessionConfigOption,
   type SessionModeState,
   type SessionUpdate,
@@ -202,6 +203,12 @@ export interface AcpAgentDeps {
   readonly options: AcpAgentOptions
   readonly signIn: SignInMethod
   readonly providerSignIns?: readonly SignInMethod[]
+  /**
+   * Ends what `logout` can besides held sessions: removing the credential
+   * the agent itself keeps. Absent where that credential is not the
+   * agent's to remove (the Muse Code CLI's sign-in).
+   */
+  readonly signOut?: () => Promise<void>
   /** The folder a `session/list` without one lists (the agent's own). */
   readonly defaultCwd: string
   /** The flagged paid features; the agent asks before each use (M63c, M58). */
@@ -320,6 +327,60 @@ function servedEffort(modelId: string, wanted: EffortLevel): EffortLevel {
   return levels.includes(wanted) ? wanted : (levels.at(-1) ?? DEFAULT_EFFORT)
 }
 
+/**
+ * The session methods every backend answers (ACP-G02/G09): both hosts
+ * remove stored sessions, and both take further workspace roots on
+ * new/load/resume, so each editor is told `delete` and
+ * `additionalDirectories` up front instead of finding out by failure.
+ */
+export function sessionCapabilities(): SessionCapabilities {
+  return { list: {}, delete: {}, additionalDirectories: {}, resume: {}, close: {} }
+}
+
+/**
+ * A backend delete report that says the session survived: Muse Code's
+ * lifecycle event carries `outcome: 'failed'` then (a busy writer keeps
+ * the session). Anything else — completed, or a backend with no report —
+ * counts as gone.
+ */
+export function isFailedDeletionReport(report: unknown): boolean {
+  return (
+    typeof report === 'object' &&
+    report !== null &&
+    'outcome' in report &&
+    report.outcome === 'failed'
+  )
+}
+
+/** The client renders boolean options only with this capability (stable 2026-07-06). */
+export function hasBooleanOptions(client: ClientCapabilities | undefined): boolean {
+  const flag = client?.session?.configOptions?.boolean
+  return flag !== undefined && flag !== null
+}
+
+/**
+ * Further workspace roots from a session request: every entry is an
+ * absolute path, kept as sent. Anything else is a bad request, never a
+ * session scoped somewhere the editor did not ask for.
+ */
+export function parseAdditionalDirectories(value: unknown): string[] {
+  if (value === undefined) return []
+  if (!Array.isArray(value)) throw RequestError.invalidParams()
+  const roots: string[] = []
+  for (const entry of value) {
+    if (typeof entry !== 'string' || !isAbsoluteRoot(entry)) {
+      throw RequestError.invalidParams()
+    }
+    roots.push(entry)
+  }
+  return roots
+}
+
+/** Absolute on this machine or written with Windows separators (an editor on one). */
+function isAbsoluteRoot(entry: string): boolean {
+  return path.isAbsolute(entry) || path.win32.isAbsolute(entry)
+}
+
 /** One ACP session over one AgentSession. */
 class AcpSession {
   private readonly questionRegistry: AcpQuestionRegistry | undefined
@@ -353,6 +414,15 @@ class AcpSession {
   private readonly vaultRequests = new Set<AbortController>()
   /** A turn being started (`sendTurn` not yet answered): a release waits for it, then stops it. */
   private starting: Promise<unknown> | undefined
+  /**
+   * The turn's own stop: aborting it sends `$/cancel_request` for the
+   * client's requests still waiting (permission, elicitation), the
+   * cascade the cancellation page shows. Fresh per turn; spent by
+   * cancel, release or a host exit.
+   */
+  private clientStop: AbortController | undefined
+  /** Whether paid uses may offer "Allow always" here (a boolean option, G06). */
+  private rememberPaid = true
   public readonly sessionId: string
 
   public constructor(
@@ -928,11 +998,15 @@ class AcpSession {
           return
         }
         response = permissionResponse(
-          await this.client.request('session/request_permission', {
-            sessionId: this.sessionId,
-            toolCall: approvalToolCall(event, this.cwd),
-            options: permissionOptions(event.availableChoices),
-          }),
+          await this.client.request(
+            'session/request_permission',
+            {
+              sessionId: this.sessionId,
+              toolCall: approvalToolCall(event, this.cwd),
+              options: permissionOptions(event.availableChoices),
+            },
+            this.clientRequestOptions(),
+          ),
         )
       } catch (error: unknown) {
         this.deps.log.warn(
@@ -995,7 +1069,11 @@ class AcpSession {
           message,
           requestedSchema: elicitationSchema(event.fields),
         }
-        const response = await this.client.request('elicitation/create', request)
+        const response = await this.client.request(
+          'elicitation/create',
+          request,
+          this.clientRequestOptions(),
+        )
         if (!this.isCurrentPrompt(pending)) {
           return
         }
@@ -1068,7 +1146,12 @@ class AcpSession {
   }
 
   private questionNotice(text: string): void {
-    this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
+    // Its own message, named so the client never folds it into a turn's.
+    this.send({
+      sessionUpdate: 'agent_message_chunk',
+      content: { type: 'text', text },
+      messageId: randomUUID(),
+    })
   }
 
   private isCurrentReport(preparing: PreparingPrompt): boolean {
@@ -1121,21 +1204,25 @@ class AcpSession {
       const text = await scan(this.cwd, stop.signal, isRegistryOn, async (hosts) => {
         const response = permissionResponse(
           await unlessAborted(
-            this.client.request('session/request_permission', {
-              sessionId: this.sessionId,
-              toolCall: {
-                toolCallId: 'legal-registry-notice',
-                title: fill(UI_TEXT.legalRegistryNotice, { hosts: hosts.join(', ') }),
-                kind: 'other',
-                status: 'pending',
-                content: [],
-                locations: [],
+            this.client.request(
+              'session/request_permission',
+              {
+                sessionId: this.sessionId,
+                toolCall: {
+                  toolCallId: 'legal-registry-notice',
+                  title: fill(UI_TEXT.legalRegistryNotice, { hosts: hosts.join(', ') }),
+                  kind: 'other',
+                  status: 'pending',
+                  content: [],
+                  locations: [],
+                },
+                options: [
+                  { optionId: 'legal-registry-allow', name: UI_TEXT.allowOnce, kind: 'allow_once' },
+                  { optionId: 'legal-registry-deny', name: UI_TEXT.paidDeny, kind: 'reject_once' },
+                ],
               },
-              options: [
-                { optionId: 'legal-registry-allow', name: UI_TEXT.allowOnce, kind: 'allow_once' },
-                { optionId: 'legal-registry-deny', name: UI_TEXT.paidDeny, kind: 'reject_once' },
-              ],
-            }),
+              { cancellationSignal: stop.signal },
+            ),
             stop.signal,
           ),
         )
@@ -1198,6 +1285,16 @@ class AcpSession {
   }
 
   /**
+   * The turn's stop as request options: the SDK sends `$/cancel_request`
+   * for the request when it aborts (G04). Outside a turn there is nothing
+   * to stop, so no options.
+   */
+  private clientRequestOptions(): { cancellationSignal: AbortSignal } | undefined {
+    const stop = this.clientStop
+    return stop === undefined ? undefined : { cancellationSignal: stop.signal }
+  }
+
+  /**
    * The question before a paid use (M58, PLAN.md D48): a row naming what is
    * about to be billed and its price, and a permission prompt on it with the
    * popup's answers. Anything but Allow once or Allow always is Deny.
@@ -1242,22 +1339,26 @@ class AcpSession {
     }
     const title = action === 'continue' ? UI_TEXT.agentContinue : UI_TEXT.agentRetry
     const response = permissionResponse(
-      await this.client.request('session/request_permission', {
-        sessionId: this.sessionId,
-        toolCall: {
-          toolCallId: randomUUID(),
-          title: fill(UI_TEXT.agentRecoveryConfirm, {
-            action: title,
-            objective: agent.objective ?? id,
-          }),
-          kind: 'other',
-          status: 'pending',
+      await this.client.request(
+        'session/request_permission',
+        {
+          sessionId: this.sessionId,
+          toolCall: {
+            toolCallId: randomUUID(),
+            title: fill(UI_TEXT.agentRecoveryConfirm, {
+              action: title,
+              objective: agent.objective ?? id,
+            }),
+            kind: 'other',
+            status: 'pending',
+          },
+          options: [
+            { optionId: 'recover', name: title, kind: 'allow_once' },
+            { optionId: 'deny', name: UI_TEXT.paidDeny, kind: 'reject_once' },
+          ],
         },
-        options: [
-          { optionId: 'recover', name: title, kind: 'allow_once' },
-          { optionId: 'deny', name: UI_TEXT.paidDeny, kind: 'reject_once' },
-        ],
-      }),
+        this.clientRequestOptions(),
+      ),
     )
     this.ensureHeld()
     if (
@@ -1307,11 +1408,15 @@ class AcpSession {
       sessionUpdate: 'tool_call',
       toolCallId,
       title,
+      name: request.feature,
       kind: 'other',
       status: 'pending',
       content,
     })
     let answer: PaidUseAnswer = 'deny'
+    // The session's boolean option can take "Allow always" off the table:
+    // offering it would cost a stored grant the session refused to keep.
+    const canOfferAlways = canRemember && this.rememberPaid
     try {
       await this.outbox
       if (!this.isCurrentPaidPrompt(pending, preparing)) {
@@ -1319,13 +1424,17 @@ class AcpSession {
       }
       const params: RequestPermissionRequest = {
         sessionId: this.sessionId,
-        toolCall: { toolCallId, title, status: 'pending', content },
-        options: paidUseOptions(canRemember),
+        toolCall: { toolCallId, title, name: request.feature, status: 'pending', content },
+        options: paidUseOptions(canOfferAlways),
       }
-      const response = await this.client.request('session/request_permission', params)
+      const response = await this.client.request(
+        'session/request_permission',
+        params,
+        this.clientRequestOptions(),
+      )
       // A session let go while the editor was asked is billed for nothing.
       answer = this.isCurrentPaidPrompt(pending, preparing)
-        ? paidUseAnswer(permissionResponse(response), canRemember)
+        ? paidUseAnswer(permissionResponse(response), canOfferAlways)
         : 'deny'
     } catch (error: unknown) {
       this.deps.log.warn(
@@ -1383,6 +1492,7 @@ class AcpSession {
       sessionUpdate: 'tool_call',
       toolCallId,
       title: UI_TEXT.vault.title,
+      name: 'vault',
       kind: 'other',
       status: 'pending',
       content,
@@ -1414,7 +1524,13 @@ class AcpSession {
             'session/request_permission',
             {
               sessionId: this.sessionId,
-              toolCall: { toolCallId, title: UI_TEXT.vault.title, status: 'pending', content },
+              toolCall: {
+                toolCallId,
+                title: UI_TEXT.vault.title,
+                name: 'vault',
+                status: 'pending',
+                content,
+              },
               options: vaultPermissionOptions(request),
             },
             { cancellationSignal: controller.signal },
@@ -1450,6 +1566,16 @@ class AcpSession {
   }
 
   public configOptions(): SessionConfigOption[] {
+    // Annotated so `type` stays the `'boolean'` literal the option union
+    // discriminates on; an inline conditional spread would widen it.
+    const paidAlways: SessionConfigOption | undefined = hasBooleanOptions(this.clientCapabilities)
+      ? {
+          id: ACP_CONFIG_IDS.paidAllowAlways,
+          name: UI_TEXT.paidAllowAlways,
+          type: 'boolean',
+          currentValue: this.rememberPaid,
+        }
+      : undefined
     return [
       ...(this.accounts?.option() ?? []),
       {
@@ -1471,6 +1597,25 @@ class AcpSession {
           name: effortLabel(level),
         })),
       },
+      // The same modes `session/set_mode` takes, as the category the
+      // protocol prefers (G05): editors on config options stop needing
+      // the dedicated method before it is removed.
+      {
+        id: ACP_CONFIG_IDS.mode,
+        name: UI_TEXT.modesTitle,
+        category: 'mode',
+        type: 'select',
+        currentValue: this.mode,
+        options: availablePermissionModes(this.deps.options.canBypass).map((mode) => ({
+          value: mode,
+          name: UI_TEXT.permissionModes[mode],
+          description: permissionModeDetail(mode, this.deps.backend.kind),
+        })),
+      },
+      // The only boolean: offering "Allow always" costs a stored grant,
+      // so a session can refuse to offer it (G06). Sent only where the
+      // client says it renders booleans.
+      ...(paidAlways === undefined ? [] : [paidAlways]),
     ]
   }
 
@@ -1517,9 +1662,25 @@ class AcpSession {
     this.ensureHeld()
     await this.session.setApprovalMode(approvalModeFor(mode, true))
     this.mode = mode
+    // The editor's mode control follows, whichever method changed it.
+    this.send({ sessionUpdate: 'current_mode_update', currentModeId: mode })
   }
 
   public async setConfigOption(configId: string, value: unknown): Promise<void> {
+    if (configId === ACP_CONFIG_IDS.paidAllowAlways) {
+      if (typeof value !== 'boolean') {
+        throw RequestError.invalidParams(undefined, configId)
+      }
+      this.rememberPaid = value
+      return
+    }
+    if (configId === ACP_CONFIG_IDS.mode) {
+      if (typeof value !== 'string') {
+        throw RequestError.invalidParams(undefined, configId)
+      }
+      await this.setMode(value)
+      return
+    }
     if (typeof value !== 'string') {
       throw RequestError.invalidParams(undefined, configId)
     }
@@ -1918,6 +2079,8 @@ class AcpSession {
       }
     })
     this.pending = pending
+    // From here a cancel also stops the client's own waiting requests.
+    this.clientStop = new AbortController()
     try {
       if (isCompact) {
         // The same AgentSession core serves interactive ACP and runExec. A
@@ -1986,6 +2149,7 @@ class AcpSession {
       this.starting = undefined
     }
     const outcome = await finished
+    this.clientStop = undefined
     await pending.answerCommit
     if ('error' in outcome) {
       throw outcome.error
@@ -1996,6 +2160,7 @@ class AcpSession {
 
   public async cancel(): Promise<void> {
     this.legalStop?.abort()
+    this.clientStop?.abort()
     this.cancelVaultRequests()
     if (this.cancelPreparing()) {
       this.deps.log.info(`ACP session ${this.sessionId}: cancelled before its turn started`)
@@ -2032,6 +2197,8 @@ class AcpSession {
     this.pending?.reject(error)
     void this.releaseAnswers()
     this.pending = undefined
+    this.clientStop?.abort()
+    this.clientStop = undefined
     void this.endQuestions(false).catch(() => {
       this.questionStateNotSaved()
     })
@@ -2073,6 +2240,8 @@ class AcpSession {
     }
     this.isDisposed = true
     this.legalStop?.abort()
+    this.clientStop?.abort()
+    this.clientStop = undefined
     const releasingAnswers = this.releaseAnswers()
     this.questions?.dispose()
     if (this.questions === undefined) this.questionRegistry?.dispose()
@@ -2136,6 +2305,8 @@ class AgentState {
   /** Sessions being set up (`adopt`), by id: a newer load or a close lets them go too. */
   private readonly adopting = new Map<string, AcpSession>()
   private readonly claims = new Map<string, SessionClaim>()
+  /** Further workspace roots each session was opened with (G09), by id. */
+  private readonly additionalRoots = new Map<string, readonly string[]>()
   /** Remains visible even when the session is no longer available for requests. */
   private readonly releasing = new Map<string, Promise<unknown>>()
   private readonly watchedHosts = new WeakSet<AgentHost>()
@@ -2284,6 +2455,7 @@ class AgentState {
     )
     this.sessions.delete(sessionId)
     this.adopting.delete(sessionId)
+    this.additionalRoots.delete(sessionId)
     const previous = this.releasing.get(sessionId)
     if (previous === undefined && found.length === 0) {
       return false
@@ -2363,7 +2535,11 @@ class AgentState {
         promptCapabilities: { image: true, audio: true, embeddedContext: true },
         // Stdio servers every agent takes; HTTP ones Muse Code runs too (M63c).
         mcpCapabilities: { http: this.deps.backend.kind === 'museCode', sse: false },
-        sessionCapabilities: { list: {}, resume: {}, close: {} },
+        sessionCapabilities: sessionCapabilities(),
+        // The agent ends its authenticated state on `logout` (G03): held
+        // sessions stop, and where it owns the credential (Model API) the
+        // stored key goes too. The CLI's own sign-in is the user's to end.
+        auth: { logout: {} },
       },
       authMethods: [this.deps.signIn, ...(this.deps.providerSignIns ?? [])].map((method) =>
         this.authMethod(method),
@@ -2389,7 +2565,9 @@ class AgentState {
     cwd: string,
     requestedMcp: readonly McpServer[] | undefined,
     client: AgentContext,
+    additionalDirectories?: readonly string[],
   ) {
+    const roots = parseAdditionalDirectories(additionalDirectories)
     const { host, models } = await this.openHost(cwd)
     const modelId = startingModel(models)
     const mcpServers = this.forwardedMcp(host, requestedMcp)
@@ -2404,6 +2582,7 @@ class AgentState {
     const acp = await this.adopt(host, session, cwd, client, models, claim, (started) =>
       started.applyEffort(DEFAULT_EFFORT),
     )
+    this.additionalRoots.set(session.sessionId, [...roots])
     return { sessionId: session.sessionId, modes: acp.modes(), configOptions: acp.configOptions() }
   }
 
@@ -2413,10 +2592,14 @@ class AgentState {
     requestedMcp: readonly McpServer[] | undefined,
     client: AgentContext,
     isReplayed: boolean,
+    additionalDirectories?: readonly string[],
   ) {
     // Claimed before backend I/O: a slow older resume cannot replace a
     // newer request, and a close can invalidate one still loading.
     const claim = this.claimSession(sessionId)
+    // A non-empty list replaces the session's whole extra-root list, as the
+    // protocol says; omitted or empty keeps it rootless.
+    const roots = parseAdditionalDirectories(additionalDirectories)
     try {
       const { host, models } = await this.openHost(cwd)
       this.ensureClaim(claim, host)
@@ -2448,6 +2631,7 @@ class AgentState {
         loaded.record.imported === true,
         loaded.activeTurnId,
       )
+      this.additionalRoots.set(sessionId, [...roots])
       return { modes: acp.modes(), configOptions: acp.configOptions() }
     } catch (error: unknown) {
       if (this.claims.get(sessionId) === claim) {
@@ -2469,12 +2653,18 @@ class AgentState {
       ...(cursor !== undefined && { cursor }),
     })
     return {
-      sessions: page.sessions.map((record) => ({
-        sessionId: record.sessionId,
-        cwd: record.workspaceRoot ?? folder,
-        title: record.name ?? record.title ?? record.firstUserPrompt ?? null,
-        updatedAt: record.lastActivityAt ?? record.updatedAt,
-      })),
+      sessions: page.sessions.map((record) => {
+        const roots = this.additionalRoots.get(record.sessionId)
+        return {
+          sessionId: record.sessionId,
+          cwd: record.workspaceRoot ?? folder,
+          title: record.name ?? record.title ?? record.firstUserPrompt ?? null,
+          updatedAt: record.lastActivityAt ?? record.updatedAt,
+          // What this agent opened the session with; stored sessions from
+          // before report nothing, and omitted means none either way.
+          ...(roots !== undefined && roots.length > 0 && { additionalDirectories: [...roots] }),
+        }
+      }),
       nextCursor: page.nextCursor ?? null,
     }
   }
@@ -2499,6 +2689,40 @@ class AgentState {
     if (!wasClaimed && !wasReleased) {
       throw RequestError.resourceNotFound(sessionId)
     }
+  }
+
+  /**
+   * The editor deletes a session from history (ACP-G02, stable 2026-06-05):
+   * a held one stops first, then the backend removes the stored session.
+   * An unknown id succeeds silently, as the protocol says; a backend that
+   * reports the session survived fails instead.
+   */
+  public async deleteSession(sessionId: string): Promise<void> {
+    this.claims.delete(sessionId)
+    await this.releaseAll(sessionId)
+    const { host } = await this.openHost(this.deps.defaultCwd)
+    if (host.deleteSession === undefined) {
+      throw RequestError.internalError(undefined, UI_TEXT.actionFailed)
+    }
+    const report = await host.deleteSession(sessionId)
+    if (isFailedDeletionReport(report)) {
+      throw RequestError.internalError(undefined, UI_TEXT.actionFailed)
+    }
+  }
+
+  /**
+   * The editor signs out (ACP-G03, stable 2026-05-22): every held session
+   * stops, and the credential the agent itself keeps (the Model API key)
+   * is removed, so the next turn asks to sign in again. The Muse Code
+   * CLI's own sign-in stays the user's to end, as its sign-in stays the
+   * user's to run.
+   */
+  public async logout(): Promise<void> {
+    this.claims.clear()
+    for (const sessionId of [...this.sessions.keys(), ...this.adopting.keys()]) {
+      await this.releaseAll(sessionId)
+    }
+    await this.deps.signOut?.()
   }
 
   /** A paid use asked in the session it is for; one the agent does not hold is denied (M58). */
@@ -2541,22 +2765,49 @@ export function createAcpAgent(deps: AcpAgentDeps): AgentApp {
       return state.initialize(context.params.clientCapabilities)
     })
     .onRequest('authenticate', (context) => state.authenticate(context.params.methodId))
+    .onRequest('logout', async () => {
+      await state.logout()
+      return {}
+    })
     .onRequest('session/new', (context) =>
-      state.newSession(context.params.cwd, context.params.mcpServers, context.client),
+      state.newSession(
+        context.params.cwd,
+        context.params.mcpServers,
+        context.client,
+        context.params.additionalDirectories ?? undefined,
+      ),
     )
     .onRequest('session/load', (context) => {
       const { sessionId, cwd, mcpServers } = context.params
-      return state.loadSession(sessionId, cwd, mcpServers, context.client, true)
+      return state.loadSession(
+        sessionId,
+        cwd,
+        mcpServers,
+        context.client,
+        true,
+        context.params.additionalDirectories ?? undefined,
+      )
     })
     .onRequest('session/resume', (context) => {
       const { sessionId, cwd, mcpServers } = context.params
-      return state.loadSession(sessionId, cwd, mcpServers ?? undefined, context.client, false)
+      return state.loadSession(
+        sessionId,
+        cwd,
+        mcpServers ?? undefined,
+        context.client,
+        false,
+        context.params.additionalDirectories ?? undefined,
+      )
     })
     .onRequest('session/list', (context) =>
       state.listSessions(context.params.cwd ?? undefined, context.params.cursor ?? undefined),
     )
     .onRequest('session/close', async (context) => {
       await state.closeSession(context.params.sessionId)
+      return {}
+    })
+    .onRequest('session/delete', async (context) => {
+      await state.deleteSession(context.params.sessionId)
       return {}
     })
     .onRequest('session/set_mode', async (context) => {
@@ -2568,9 +2819,26 @@ export function createAcpAgent(deps: AcpAgentDeps): AgentApp {
       await session.setConfigOption(context.params.configId, context.params.value)
       return { configOptions: session.configOptions() }
     })
-    .onRequest('session/prompt', async (context) => ({
-      stopReason: await state.session(context.params.sessionId).prompt(context.params.prompt),
-    }))
+    .onRequest('session/prompt', async (context) => {
+      const session = state.session(context.params.sessionId)
+      // `$/cancel_request` aborts this request's signal in the SDK's
+      // JSON-RPC layer (G04): end the turn the way `session/cancel` does
+      // and answer with the cancellation marker the protocol allows.
+      const stop = context.signal
+      if (stop.aborted) {
+        await session.cancel()
+        return { stopReason: 'cancelled' }
+      }
+      const onStop = (): void => {
+        void session.cancel()
+      }
+      stop.addEventListener('abort', onStop, { once: true })
+      try {
+        return { stopReason: await session.prompt(context.params.prompt) }
+      } finally {
+        stop.removeEventListener('abort', onStop)
+      }
+    })
     .onNotification('session/cancel', async (context) => {
       // A notification has no answer: a cancel for a session already
       // closed, still being set up, or never held stops nothing.
