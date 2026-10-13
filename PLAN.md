@@ -3188,8 +3188,12 @@ capped at the model's own output limit (0.18.0 policy cap, kept at the merge
 2026-10-12); the cap feeds the body, request schema, ledger shape check and
 first real reservation. Lost receipts keep their request reservation. Configured
 price cards include their captured cache-write premiums and long-context tier.
-VS Code's session admission already uses `estimateInput` / `reserveRequest`; the
-standalone daily wrapper now uses that same input estimator. See
+Request admission uses the canonical-body UTF-8 bound where no verified exact
+count is available; Anthropic reserves its estimate plus 25%, capped by that
+size bound. Only the final estimate error can exceed the cap: the full actual
+cost is retained and another request stops (LEDGER, 2026-10-12). Initial HTTP
+refusals before generation settle at zero; cancellation without final usage
+retains unresolved liability separately from confirmed spend. See
 `docs/certification/exec-provider.md`; full aggregate quality and installed/live
 certification remain lead-owned.
 Configured defaults are authoritative in exec and ACP; no missing default selects
@@ -15349,7 +15353,7 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
-**LEDGER (2026-10-12, Kubuntu and macmini; M80/M82/M95 repair).** Replace directory-per-claim budgeting with one versioned spend ledger and atomic admission for session, editor daily and terminal daily scopes; retain every sent attempt at its full liability, recover only from process identity evidence, and certify real-process races, crashes, migration and packed-product refusals. Design and ruling R9 compatibility limits: `docs/certification/spend-ledger.md`. No provider calls, cap changes, merges or pushes.
+**LEDGER (2026-10-12, Kubuntu and macmini; M80/M82/M95 repair).** Replace directory-per-claim budgeting with one versioned spend ledger and atomic admission for session, editor daily and terminal daily scopes; retain every sent attempt at its full liability, recover only from process identity evidence, and certify real-process races, crashes, migration and packed-product refusals. Design and ruling R9 compatibility limits: `docs/certification/spend-ledger.md`. Shared daily input reserves the byte/context bound even when terminal admission uses a provider estimate. One flushed transaction inode supplies atomic snapshot and audit/history aliases; process owner notes are cached per scope. No provider calls, cap changes, merges or pushes.
 
 ### PROVWIZ10 — Re-entry credential comparison and retry receipts (2026-10-09)
 
