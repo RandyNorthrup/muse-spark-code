@@ -18,8 +18,8 @@ const read = (file: string): string => readFileSync(path.join(root, file), 'utf8
 const HELPER = 'test/unit/helpers/acpPackageSources.ts'
 const SELF = 'test/unit/acpPackageFixtures.test.ts'
 // The suites that pack a test-owned tree today; the scan below must find each.
+// test/e2e/execStdio.e2e.test.ts packed one too until the e2e deletions.
 const KNOWN_FIXTURES = [
-  'test/e2e/execStdio.e2e.test.ts',
   'test/unit/runtimeChatGptPackage.test.ts',
   'test/unit/usagePackaging.test.mjs',
 ]
