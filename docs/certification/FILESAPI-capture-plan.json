@@ -1,0 +1,300 @@
+{
+  "lane": "FILESAPI",
+  "readDates": {
+    "anthropicFiles": "2026-10-13",
+    "openaiFileInputs": "2026-10-13",
+    "openaiFileSearch": "2026-10-13",
+    "xaiChatWithFiles": "2026-10-13",
+    "xaiImageUnderstanding": "2026-10-13"
+  },
+  "unverifiedNote": "Every request shape below comes from the provider's own documentation quoted in docs/certification/FILESAPI.md. No shape is VERIFIED until a real request below confirms it; the lane sent no live request.",
+  "requests": [
+    {
+      "id": "A1",
+      "gap": "GAPANTH-G16",
+      "provider": "anthropic",
+      "model": "a current vision-capable Claude model (the docs example uses claude-opus-5-5)",
+      "method": "POST",
+      "path": "https://api.anthropic.com/v1/files",
+      "headers": ["x-api-key: $ANTHROPIC_API_KEY", "anthropic-version: 2023-06-01"],
+      "body": {
+        "kind": "multipart/form-data",
+        "fields": { "file": "@small.pdf (binary)" },
+        "note": "No beta header: the Files API is GA per https://platform.claude.com/docs/en/build-with-claude/files. Optionally repeat once with expires_in_seconds=3600."
+      },
+      "lookFor": [
+        "response id starts with file_",
+        "fields type, filename, mime_type, size_bytes, created_at (RFC3339), downloadable=false, expires_at",
+        "whether the upload works with NO anthropic-beta header at all"
+      ]
+    },
+    {
+      "id": "A2",
+      "gap": "GAPANTH-G16",
+      "provider": "anthropic",
+      "model": "same as A1",
+      "method": "POST",
+      "path": "https://api.anthropic.com/v1/messages",
+      "headers": [
+        "x-api-key: $ANTHROPIC_API_KEY",
+        "anthropic-version: 2023-06-01",
+        "content-type: application/json"
+      ],
+      "body": {
+        "model": "<same>",
+        "max_tokens": 1024,
+        "messages": [
+          {
+            "role": "user",
+            "content": [
+              { "type": "text", "text": "Please summarize this document for me." },
+              { "type": "document", "source": { "type": "file", "file_id": "<id from A1>" } }
+            ]
+          }
+        ]
+      },
+      "lookFor": ["200 with a summary (no re-upload of bytes)", "no beta header required"]
+    },
+    {
+      "id": "A3",
+      "gap": "GAPANTH-G16",
+      "provider": "anthropic",
+      "model": "same as A1",
+      "method": "POST",
+      "path": "https://api.anthropic.com/v1/files then /v1/messages",
+      "headers": ["x-api-key: $ANTHROPIC_API_KEY", "anthropic-version: 2023-06-01"],
+      "body": {
+        "upload": { "kind": "multipart/form-data", "fields": { "file": "@small.png (binary)" } },
+        "message": {
+          "model": "<same>",
+          "max_tokens": 1024,
+          "messages": [
+            {
+              "role": "user",
+              "content": [
+                { "type": "text", "text": "What is in this image?" },
+                { "type": "image", "source": { "type": "file", "file_id": "<uploaded image id>" } }
+              ]
+            }
+          ]
+        }
+      },
+      "lookFor": [
+        "image block with source type file is accepted",
+        "upload response mime_type for the png"
+      ]
+    },
+    {
+      "id": "A4",
+      "gap": "GAPANTH-G16",
+      "provider": "anthropic",
+      "model": "none (management)",
+      "method": "GET then DELETE",
+      "path": "https://api.anthropic.com/v1/files/<id> and https://api.anthropic.com/v1/files and https://api.anthropic.com/v1/files/<id>",
+      "headers": ["x-api-key: $ANTHROPIC_API_KEY", "anthropic-version: 2023-06-01"],
+      "body": { "note": "retrieve one, list all, delete the two uploads from A1/A3" },
+      "lookFor": [
+        "retrieve/list field names and id format",
+        "delete response shape",
+        "deleted file metadata readable with past expires_at vs gone at once"
+      ]
+    },
+    {
+      "id": "O1",
+      "gap": "OPENAI-G15",
+      "provider": "openai",
+      "model": "none (management)",
+      "method": "POST",
+      "path": "https://api.openai.com/v1/files",
+      "headers": ["Authorization: Bearer $OPENAI_API_KEY"],
+      "body": {
+        "kind": "multipart/form-data",
+        "fields": {
+          "file": "@small.pdf (binary)",
+          "purpose": "<try user_data first, then assistants if refused>"
+        },
+        "note": "Record which purpose values the endpoint accepts for a file later sent as Responses input_file file_id."
+      },
+      "lookFor": [
+        "response id prefix (file-), bytes, created_at epoch, filename, purpose echo, any expires_at",
+        "exact purpose values accepted vs refused"
+      ]
+    },
+    {
+      "id": "O2",
+      "gap": "OPENAI-G15",
+      "provider": "openai",
+      "model": "gpt-4.1 (per the file-inputs guide)",
+      "method": "POST",
+      "path": "https://api.openai.com/v1/responses",
+      "headers": ["Authorization: Bearer $OPENAI_API_KEY", "Content-Type: application/json"],
+      "body": {
+        "model": "gpt-4.1",
+        "input": [
+          {
+            "role": "user",
+            "content": [
+              { "type": "input_file", "filename": "small.pdf", "file_id": "<id from O1>" },
+              { "type": "input_text", "text": "Summarize this document." }
+            ]
+          }
+        ]
+      },
+      "lookFor": [
+        "200 with a summary: file_id reference works without resending bytes",
+        "whether filename must accompany file_id"
+      ]
+    },
+    {
+      "id": "O3",
+      "gap": "OPENAI-G15",
+      "provider": "openai",
+      "model": "gpt-4.1",
+      "method": "POST",
+      "path": "https://api.openai.com/v1/files then /v1/responses",
+      "headers": ["Authorization: Bearer $OPENAI_API_KEY"],
+      "body": {
+        "upload": {
+          "kind": "multipart/form-data",
+          "fields": { "file": "@small.png (binary)", "purpose": "<accepted purpose from O1>" }
+        },
+        "message": {
+          "model": "gpt-4.1",
+          "input": [
+            {
+              "role": "user",
+              "content": [
+                { "type": "input_file", "file_id": "<uploaded image id>" },
+                { "type": "input_text", "text": "What is in this image?" }
+              ]
+            }
+          ]
+        }
+      },
+      "lookFor": [
+        "whether an image file_id is accepted as input_file (docs list image input_file file_id as supported)"
+      ]
+    },
+    {
+      "id": "O4",
+      "gap": "OPENAI-G15",
+      "provider": "openai",
+      "model": "none (management)",
+      "method": "GET then DELETE",
+      "path": "https://api.openai.com/v1/files/<id> and https://api.openai.com/v1/files and https://api.openai.com/v1/files/<id>",
+      "headers": ["Authorization: Bearer $OPENAI_API_KEY"],
+      "body": { "note": "retrieve one, list all, delete the uploads from O1/O3" },
+      "lookFor": [
+        "retrieve/list/delete shapes",
+        "whether files expire on their own or persist until deleted"
+      ]
+    },
+    {
+      "id": "X1",
+      "gap": "OPENAI-G15/XAI-G11",
+      "provider": "xai",
+      "model": "none (management)",
+      "method": "POST",
+      "path": "https://api.x.ai/v1/files",
+      "headers": ["Authorization: Bearer $XAI_API_KEY"],
+      "body": {
+        "kind": "multipart/form-data",
+        "fields": { "file": "@small.pdf (binary)", "purpose": "assistants" }
+      },
+      "lookFor": [
+        "response id prefix, size and purpose fields",
+        "which purpose values are accepted"
+      ]
+    },
+    {
+      "id": "X2",
+      "gap": "OPENAI-G15",
+      "provider": "xai",
+      "model": "grok-4.7 (per the chat-with-files guide)",
+      "method": "POST",
+      "path": "https://api.x.ai/v1/responses",
+      "headers": ["Authorization: Bearer $XAI_API_KEY", "Content-Type: application/json"],
+      "body": {
+        "model": "grok-4.7",
+        "input": [
+          {
+            "role": "user",
+            "content": [
+              { "type": "input_text", "text": "What was the total revenue in this report?" },
+              { "type": "input_file", "file_id": "<id from X1>" }
+            ]
+          }
+        ]
+      },
+      "lookFor": [
+        "200: file_id reference works (docs say the request becomes an agentic document-search workflow)",
+        "exact accepted member: file_id vs fileId"
+      ]
+    },
+    {
+      "id": "X3",
+      "gap": "XAI-G11",
+      "provider": "xai",
+      "model": "grok-4.7",
+      "method": "POST",
+      "path": "https://api.x.ai/v1/responses",
+      "headers": ["Authorization: Bearer $XAI_API_KEY", "Content-Type: application/json"],
+      "body": {
+        "model": "grok-4.7",
+        "input": [
+          {
+            "role": "user",
+            "content": [
+              { "type": "input_image", "image_url": "data:image/gif;base64,<tiny 1-frame gif>" },
+              { "type": "input_text", "text": "What is in this image?" }
+            ]
+          }
+        ]
+      },
+      "lookFor": [
+        "accepted or refused, exact status and error text (docs list only jpg/jpeg and png) Same probe once with webp if gif is refused."
+      ]
+    },
+    {
+      "id": "X4",
+      "gap": "XAI-G11",
+      "provider": "xai",
+      "model": "grok-4.7",
+      "method": "POST",
+      "path": "https://api.x.ai/v1/responses",
+      "headers": ["Authorization: Bearer $XAI_API_KEY", "Content-Type: application/json"],
+      "body": {
+        "model": "grok-4.7",
+        "input": [
+          {
+            "role": "user",
+            "content": [
+              {
+                "type": "input_image",
+                "image_url": "data:image/png;base64,<a png between 10 and 20 MiB>"
+              },
+              { "type": "input_text", "text": "What is in this image?" }
+            ]
+          }
+        ]
+      },
+      "lookFor": [
+        "accepted or refused, exact status and error text (docs allow up to 20MiB; our current cap is 10MiB)"
+      ]
+    },
+    {
+      "id": "X5",
+      "gap": "OPENAI-G15",
+      "provider": "xai",
+      "model": "none (management)",
+      "method": "GET then DELETE",
+      "path": "https://api.x.ai/v1/files/<id> and https://api.x.ai/v1/files and https://api.x.ai/v1/files/<id>",
+      "headers": ["Authorization: Bearer $XAI_API_KEY"],
+      "body": { "note": "retrieve one, list all, delete the upload from X1" },
+      "lookFor": [
+        "retrieve/list/delete shapes and id format",
+        "whether files expire on their own or persist until deleted"
+      ]
+    }
+  ]
+}
