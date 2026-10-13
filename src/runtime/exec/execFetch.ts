@@ -1,3 +1,5 @@
+import { fill } from '../../shared/l10n/text'
+import { formatUsd } from '../../shared/l10n/exactUsd'
 import { outputTokenMinimumMessage } from '../../shared/providerRouting'
 import { Usd } from '../../shared/usd'
 import * as z from 'zod/mini'
@@ -6,6 +8,7 @@ import { readImageInfo } from '../../core/imageDimensions'
 import { modelApiPaidTier } from '../../shared/paid'
 import {
   EXEC_ENDPOINTS,
+  EXEC_USD_DECIMALS,
   EXEC_IMAGE_N,
   EXEC_MIN_OUTPUT_TOKENS,
   EXEC_OBSERVER_HIGH_WATER_BYTES,
@@ -237,7 +240,7 @@ export function execFetch(input: {
           feature: 'imageGeneration',
           n: ticket.n,
           phase,
-          units: 1,
+          units: phase === 'returned' ? count : 1,
           usd: result.chargedUsd,
         })
       }
@@ -252,7 +255,22 @@ export function execFetch(input: {
         ...(ticket.kind === 'responses' && { terminal }),
         totals: input.ledger.totals(),
       })
-      if (result.latch !== undefined) input.onLatch({ kind: result.latch })
+      if (result.latch !== undefined)
+        input.onLatch(
+          { kind: result.latch },
+          result.latch === 'breach' &&
+            Usd.from(result.chargedUsd).compare(Usd.from(ticket.reserveUsd)) > 0
+            ? fill(UI_TEXT.execBudgetOverage, {
+                overage: formatUsd(
+                  Usd.from(result.chargedUsd).subtract(Usd.from(ticket.reserveUsd)),
+                  EXEC_USD_DECIMALS,
+                ),
+                cost: formatUsd(result.chargedUsd, EXEC_USD_DECIMALS),
+                reserved: formatUsd(ticket.reserveUsd, EXEC_USD_DECIMALS),
+              })
+            : undefined,
+        )
+
       stopActive = undefined
       release.run?.()
     }

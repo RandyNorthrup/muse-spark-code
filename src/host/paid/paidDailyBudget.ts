@@ -1,6 +1,6 @@
-import { randomUUID } from 'node:crypto'
+import { SpendLedgerError } from '../../core/paid/spendLedgerError'
 import { PaidAuthority } from '../../core/paid/paidAuthority'
-import { isPaidStop } from '../../core/refusal'
+import { UserRefusalError, isUserRefusal, isPaidStop } from '../../core/refusal'
 import { Usd, legacyUsdSchema, usdInputSchema, type UsdAmount } from '../../shared/usd'
 // D78: daily interactive extras share M82's durable claims across windows.
 import { mkdirSync, readFileSync, renameSync, statSync } from 'node:fs'
@@ -12,6 +12,7 @@ import type { ModelApiClientDeps } from '../../core/backends/modelapi/client'
 import type {
   AccountBudgetAdmission,
   SessionBudgetClaim,
+  SpendState,
 } from '../../core/backends/modelapi/sessionBudget'
 import { fingerprint } from '../../core/verify/fingerprint'
 import { estimateCostUsd } from '../../core/usage/insights'
@@ -55,7 +56,6 @@ export function createPaidDailyBudget(deps: {
   const journal = createSessionBudgetJournal({
     directory: deps.directory,
     sleep: deps.sleep,
-    recoverUnsent: true,
     l10n: { table: UI_TEXT, locale: uiLocale() },
     // D1: the daily refusal carries its numbers, never a generic sentence.
     dailyStop: { setting: 'paidDailyBudgetUsd', nowMs: deps.now },
@@ -72,26 +72,38 @@ export function createPaidDailyBudget(deps: {
       statSync(stopPath(scope))
       isStopped = true
     } catch (error: unknown) {
-      if (storeErrorCode(error) !== 'ENOENT')
-        throw new Error(UI_TEXT.paidDailyLedgerUnavailable, { cause: error })
+      if (storeErrorCode(error) !== 'ENOENT') {
+        throw new SpendLedgerError(
+          storeErrorCode(error) === undefined ? 'damaged' : 'unreadable',
+          { scope, file: 'daily settings', errno: storeErrorCode(error) },
+          error,
+        )
+      }
     }
-    if (isStopped && !isDisplay) throw new Error(UI_TEXT.paidDailyStopped)
+    if (isStopped && !isDisplay)
+      throw new UserRefusalError(UI_TEXT.paidDailyStopped, 'daily_stopped')
     let limit: z.infer<typeof limitSchema>
     try {
       limit = limitSchema.parse(JSON.parse(readFileSync(limitPath(scope), 'utf8')))
     } catch (error: unknown) {
-      if (storeErrorCode(error) !== 'ENOENT')
-        throw new Error(UI_TEXT.paidDailyLedgerUnavailable, { cause: error })
+      if (storeErrorCode(error) !== 'ENOENT') {
+        throw new SpendLedgerError(
+          storeErrorCode(error) === undefined ? 'damaged' : 'unreadable',
+          { scope, file: 'daily settings', errno: storeErrorCode(error) },
+          error,
+        )
+      }
       limit = { limitUsd: deps.capUsd(), stopped: false }
     }
-    if (!isDisplay && limit.stopped) throw new Error(UI_TEXT.paidDailyStopped)
+    if (!isDisplay && limit.stopped)
+      throw new UserRefusalError(UI_TEXT.paidDailyStopped, 'daily_stopped')
     return limit.limitUsd
   }
   const capUsd = () => readLimit(day())
   const raise = async (scope: string, neededUsd: UsdAmount, signal: AbortSignal): Promise<void> => {
     const assertActive = () => {
       signal.throwIfAborted()
-      if (scope !== day()) throw new Error(UI_TEXT.paidDailyStopped)
+      if (scope !== day()) throw new UserRefusalError(UI_TEXT.spendLedgerMidnight, 'midnight')
       readLimit(scope)
     }
     const stop = (): never => {
@@ -99,7 +111,7 @@ export function createPaidDailyBudget(deps: {
       // Synchronous publication owns cancellation; this marker is never
       // removed or overwritten by a raise, even one already in rename().
       mkdirSync(stopPath(scope), { recursive: true })
-      throw new Error(UI_TEXT.paidDailyStopped)
+      throw new UserRefusalError(UI_TEXT.paidDailyStopped, 'daily_stopped')
     }
     assertActive()
     const raiseTitle = UI_TEXT.paidDailyRaise
@@ -187,18 +199,12 @@ export function createPaidDailyBudget(deps: {
         authority.dispatch({ type: 'day', day: scope, capUsd, spentUsd: total.spentUsd })
         return total
       },
-      settle: async (amount: UsdAmount, hasUnknownCost = false, isFinal = true) => {
-        const key = JSON.stringify([amount, hasUnknownCost, isFinal])
-        const effects = authority.dispatch({
-          type: 'moneySettle',
-          claimId,
-          amount,
-          hasUnknownCost,
-          isFinal,
-        })
+      settle: async (amount: UsdAmount, state: SpendState = 'settled') => {
+        const key = JSON.stringify([amount, state])
+        const effects = authority.dispatch({ type: 'moneySettle', claimId, amount, state })
         for (const effect of effects) {
           if (effect.type !== 'persistMoney') continue
-          const writing = claim.settle(effect.amount, effect.hasUnknownCost, effect.isFinal)
+          const writing = claim.settle(effect.amount, effect.state)
           pending.set(key, writing)
           try {
             const total = await writing
@@ -219,18 +225,36 @@ export function createPaidDailyBudget(deps: {
           }
         }
         const writing = pending.get(key)
-        if (writing === undefined) throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
+        if (writing === undefined)
+          throw new SpendLedgerError('integrity', { scope: 'daily', file: 'paid admission' })
         return await writing
       },
     }
   }
-  const reserveClaim = async (scope: string, amount: UsdAmount) => {
-    const claimId = randomUUID()
-    const effects = authority.dispatch({ type: 'moneyReserve', claimId, reservedUsd: amount })
-    const effect = effects.find((candidate) => candidate.type === 'persistReserve')
-    if (effect?.type !== 'persistReserve') throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
-    const claim = await journal.reserve(scope, PAID_DAILY_BUDGET.accountId, effect.amount)
-    return ownClaim(scope, effect.claimId, claim)
+  const reserveClaim = async (
+    scope: string,
+    amount: UsdAmount,
+    signal?: AbortSignal,
+    cap?: UsdAmount,
+  ) => {
+    const admit = () =>
+      journal.reserve(scope, PAID_DAILY_BUDGET.accountId, amount, cap ?? readLimit(scope))
+    let claim: SessionBudgetClaim
+    try {
+      claim = await admit()
+    } catch (error: unknown) {
+      if (signal === undefined || error instanceof UserRefusalError || !isPaidStop(error))
+        throw error
+      const total = await journal.read(scope, PAID_DAILY_BUDGET.accountId)
+      const needed = Usd.from(total.spentUsd).add(Usd.from(amount)).toAmount()
+      if (Usd.from(needed).compare(Usd.from(PAID_DAILY_BUDGET.maximumUsd)) > 0)
+        throw new UserRefusalError(UI_TEXT.execBudgetImpossible, 'budget')
+      await unlessAborted(raise(scope, needed, signal), signal)
+      signal.throwIfAborted()
+      claim = await admit()
+    }
+    authority.dispatch({ type: 'moneyReserve', claimId: claim.claimId, reservedUsd: amount })
+    return ownClaim(scope, claim.claimId, claim)
   }
   const reserve: NonNullable<ModelApiClientDeps['reservePaidRequest']> = async (
     body,
@@ -244,7 +268,7 @@ export function createPaidDailyBudget(deps: {
       feature === 'webSearch' ||
       ('tools' in body && body.tools.some((tool) => tool.type === 'web_search'))
     )
-      throw new Error(UI_TEXT.sessionBudgetSearchUnavailable)
+      throw new UserRefusalError(UI_TEXT.sessionBudgetSearchUnavailable, 'search_unbounded')
     const scope = day()
     let claim: ReturnType<typeof ownClaim>
     try {
@@ -252,29 +276,33 @@ export function createPaidDailyBudget(deps: {
       let costUsd = Usd.from(PAID_PRICES_USD.imageGeneration).toAmount()
       if ('input' in body) {
         if (modelApiPaidTier(body.model) === undefined)
-          throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
-        if (estimatedInputTokens === undefined) throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
+          throw new UserRefusalError(UI_TEXT.execModelUnpriced, 'unpriced')
+        if (estimatedInputTokens === undefined)
+          throw new SpendLedgerError('integrity', { scope: 'daily', file: 'paid admission' })
         if (
           !Number.isSafeInteger(estimatedInputTokens) ||
           estimatedInputTokens < 0 ||
           !Number.isSafeInteger(body.max_output_tokens) ||
           body.max_output_tokens < 0
         )
-          throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
+          throw new SpendLedgerError('integrity', { scope: 'daily', file: 'paid admission' })
         costUsd = estimateCostUsd(
           {
-            inputTokens: estimatedInputTokens,
+            inputTokens: Math.max(
+              estimatedInputTokens,
+              Buffer.byteLength(JSON.stringify(body), 'utf8'),
+            ),
             outputTokens: body.max_output_tokens,
             cachedTokens: 0,
           },
           body.model,
         )
       }
-      claim = await reserveClaim(scope, costUsd)
+      claim = await reserveClaim(scope, costUsd, signal)
     } catch (error: unknown) {
       signal.throwIfAborted()
       // D1: a stop marker refuses with the numbers, never a bare sentence.
-      if (error instanceof Error && error.message === UI_TEXT.paidDailyStopped) {
+      if (error instanceof Error && 'code' in error && error.code === 'daily_stopped') {
         try {
           throw await journal.describeStop(
             scope,
@@ -285,7 +313,12 @@ export function createPaidDailyBudget(deps: {
           throw error
         }
       }
-      throw new Error(UI_TEXT.paidDailyLedgerUnavailable, { cause: error })
+      if (isUserRefusal(error)) throw error
+      throw new SpendLedgerError(
+        storeErrorCode(error) === undefined ? 'damaged' : 'unreadable',
+        { scope, file: 'daily settings', errno: storeErrorCode(error) },
+        error,
+      )
     }
     try {
       signal.throwIfAborted()
@@ -295,25 +328,30 @@ export function createPaidDailyBudget(deps: {
         ...claim,
         check: () => {
           signal.throwIfAborted()
-          if (scope !== day()) throw new Error(UI_TEXT.paidDailyStopped)
+          if (scope !== day()) throw new UserRefusalError(UI_TEXT.spendLedgerMidnight, 'midnight')
           checkAccount?.()
           try {
             return claim.check(readLimit(scope))
           } catch (error: unknown) {
             // D1: a paid stop reaches the person as its own sentence.
             if (isPaidStop(error)) throw error
-            throw new Error(UI_TEXT.paidDailyLedgerUnavailable, { cause: error })
+            if (isUserRefusal(error)) throw error
+            throw new SpendLedgerError(
+              storeErrorCode(error) === undefined ? 'damaged' : 'unreadable',
+              { scope, file: 'daily settings', errno: storeErrorCode(error) },
+              error,
+            )
           }
         },
       }
-      const total = await journal.read(scope, PAID_DAILY_BUDGET.accountId)
-      signal.throwIfAborted()
-      if (Usd.from(total.spentUsd).compare(Usd.from(readLimit(scope))) > 0)
-        await unlessAborted(raise(scope, total.spentUsd, signal), signal)
       signal.throwIfAborted()
       return admittedClaim
     } catch (error: unknown) {
-      await claim.settle(Usd.from(0).toAmount())
+      try {
+        await claim.settle(Usd.from(0).toAmount())
+      } catch {
+        /* The ledger retains the queued refund and retries at its next operation. */
+      }
       throw error
     }
   }
@@ -325,7 +363,8 @@ export function createPaidDailyBudget(deps: {
     try {
       cap = readLimit(scope)
     } catch (error: unknown) {
-      if (!(error instanceof Error) || error.message !== UI_TEXT.paidDailyStopped) throw error
+      if (!(error instanceof Error) || !('code' in error) || error.code !== 'daily_stopped')
+        throw error
       isStopped = true
       cap = readLimit(scope, true)
     }
@@ -337,8 +376,12 @@ export function createPaidDailyBudget(deps: {
         budget: {
           id: scope,
           kind: 'paidDaily',
-          spentUsd: Usd.from(total?.spentUsd ?? 0).toAmount(),
+          spentUsd: Usd.from(total?.spentUsd ?? 0)
+            .subtract(Usd.from(total?.uncertainUsd ?? 0))
+            .subtract(Usd.from(total?.heldUsd ?? 0))
+            .toAmount(),
           ...(total?.uncertainUsd !== undefined && { uncertainUsd: total.uncertainUsd }),
+          ...(total?.heldUsd !== undefined && { reservedUsd: total.heldUsd }),
           capUsd: cap,
           stopped: isStopped,
           raisedToday: Usd.from(cap).compare(Usd.from(deps.capUsd())) > 0,
@@ -351,8 +394,9 @@ export function createPaidDailyBudget(deps: {
     const scope = day()
     readLimit(scope)
     const total = await journal.read(scope, PAID_DAILY_BUDGET.accountId)
-    if (scope !== day()) throw new Error(UI_TEXT.paidDailyStopped)
-    if (total.hasUnknownHistoricalFees) throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
+    if (scope !== day()) throw new UserRefusalError(UI_TEXT.spendLedgerMidnight, 'midnight')
+    if (total.hasUnknownHistoricalFees)
+      throw new SpendLedgerError('legacy', { scope: 'daily', total: total.spentUsd })
     authority.dispatch({
       type: 'day',
       day: scope,
@@ -367,7 +411,7 @@ export function createPaidDailyBudget(deps: {
       readLimit(scope)
     } catch (error: unknown) {
       // D1: a stop marker refuses with the numbers, never a bare sentence.
-      if (error instanceof Error && error.message === UI_TEXT.paidDailyStopped) {
+      if (error instanceof Error && 'code' in error && error.code === 'daily_stopped') {
         try {
           throw await journal.describeStop(
             scope,
@@ -383,7 +427,7 @@ export function createPaidDailyBudget(deps: {
     const claim = await reserveClaim(scope, costUsd)
     let checkAccount: (() => void) | undefined
     const check = () => {
-      if (scope !== day()) throw new Error(UI_TEXT.paidDailyStopped)
+      if (scope !== day()) throw new UserRefusalError(UI_TEXT.spendLedgerMidnight, 'midnight')
       checkAccount?.()
       claim.check(readLimit(scope))
     }
@@ -391,7 +435,11 @@ export function createPaidDailyBudget(deps: {
       checkAccount = deps.accountAdmission?.(claim)
       check()
     } catch (error: unknown) {
-      await claim.settle(Usd.from(0).toAmount())
+      try {
+        await claim.settle(Usd.from(0).toAmount())
+      } catch {
+        /* The ledger retains the queued refund and retries at its next operation. */
+      }
       throw error
     }
     return { ...claim, check }
@@ -411,7 +459,7 @@ export function createPaidDailyBudget(deps: {
       Usd.from(costUsd).compare(zero) <= 0 ||
       schedule.action.kind !== 'prompt'
     )
-      throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
+      throw new SpendLedgerError('integrity', { scope: 'daily', file: 'paid admission' })
     // The schedule record keeps its validated numeric caps; they enter exact money here once.
     let ownCap = Usd.from(consent.dailyCapUsd)
     for (const amount of [schedule.paidCapUsd, schedule.grant.paidCapUsd]) {
@@ -420,19 +468,25 @@ export function createPaidDailyBudget(deps: {
     }
     const sharedBudget = Usd.from(consent.sharedDailyBudgetUsd)
     if (ownCap.compare(zero) <= 0 || sharedBudget.compare(zero) <= 0)
-      throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
+      throw new SpendLedgerError('integrity', { scope: 'daily', file: 'paid admission' })
     const scope = day()
     const ownScope = `${scope}-schedule-${fingerprint(schedule.id)}`
-    const shared = await reserveClaim(scope, costUsd)
+    const currentLimit = Usd.from(readLimit(scope))
+    const shared = await reserveClaim(
+      scope,
+      costUsd,
+      undefined,
+      (currentLimit.compare(sharedBudget) < 0 ? currentLimit : sharedBudget).toAmount(),
+    )
     let own: Awaited<ReturnType<typeof journal.reserve>> | undefined
     try {
       signal.throwIfAborted()
       const checkAccount = deps.accountAdmission?.(shared)
-      own = await journal.reserve(ownScope, PAID_DAILY_BUDGET.accountId, costUsd)
+      own = await journal.reserve(ownScope, PAID_DAILY_BUDGET.accountId, costUsd, ownCap.toAmount())
       const scheduleClaim = own
       const check = () => {
         signal.throwIfAborted()
-        if (scope !== day()) throw new Error(UI_TEXT.paidDailyStopped)
+        if (scope !== day()) throw new UserRefusalError(UI_TEXT.spendLedgerMidnight, 'midnight')
         checkAccount?.()
         const limit = Usd.from(readLimit(scope))
         const total = shared.check(
@@ -446,20 +500,14 @@ export function createPaidDailyBudget(deps: {
         claimId: scheduleClaim.claimId,
         reservedUsd: scheduleClaim.reservedUsd,
         check,
-        settle: async (actualCostUsd: UsdAmount, hasUnknownCost = false) => {
-          await scheduleClaim.settle(actualCostUsd, hasUnknownCost)
-          return await shared.settle(actualCostUsd, hasUnknownCost)
+        settle: async (actualCostUsd: UsdAmount, state: SpendState = 'settled') => {
+          await scheduleClaim.settle(actualCostUsd, state)
+          return await shared.settle(actualCostUsd, state)
         },
       }
     } catch (error: unknown) {
       // Both nonsent liabilities are released even if one refund fails.
-      const refunds = await Promise.allSettled([
-        shared.settle(zero.toAmount()),
-        own?.settle(zero.toAmount()),
-      ])
-      const failed = refunds.find((refund) => refund.status === 'rejected')
-      if (failed?.status === 'rejected')
-        throw new Error(UI_TEXT.paidDailyLedgerUnavailable, { cause: error })
+      await Promise.allSettled([shared.settle(zero.toAmount()), own?.settle(zero.toAmount())])
       throw error
     }
   }
@@ -475,6 +523,8 @@ export function createPaidDailyBudget(deps: {
         claimId: claim.claimId,
         reservedUsd: claim.reservedUsd,
         check: claim.check,
+        ...(claim.markSent !== undefined && { markSent: claim.markSent }),
+        ...(claim.markUnsent !== undefined && { markUnsent: claim.markUnsent }),
         settle: async (actualCostUsd) => {
           await claim.settle(actualCostUsd)
         },

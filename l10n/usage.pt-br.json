@@ -118,6 +118,7 @@
   "certaintyReported": "Informado",
   "certaintyComputed": "Calculado",
   "certaintyUncertain": "Incerto",
+  "reservedLabel": "Reservado",
   "certaintyPlan": "Plano",
   "certaintyLocal": "Local",
   "certaintyUnpriced": "Sem preço",

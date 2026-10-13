@@ -127,6 +127,7 @@
   "certaintyReported": "Nahlášeno",
   "certaintyComputed": "Vypočteno",
   "certaintyUncertain": "Nejisté",
+  "reservedLabel": "Rezervováno",
   "certaintyPlan": "Plán",
   "certaintyLocal": "Místní",
   "certaintyUnpriced": "Bez ceny",

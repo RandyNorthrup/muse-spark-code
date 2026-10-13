@@ -109,6 +109,7 @@
   "certaintyReported": "Bildirilen",
   "certaintyComputed": "Hesaplanan",
   "certaintyUncertain": "Belirsiz",
+  "reservedLabel": "Ayrılmış",
   "certaintyPlan": "Plan",
   "certaintyLocal": "Yerel",
   "certaintyUnpriced": "Fiyatsız",

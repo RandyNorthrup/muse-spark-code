@@ -1,3 +1,4 @@
+import { UserRefusalError } from '../../refusal'
 import { notify } from '../../events/notify'
 import type { PaidAuthority } from '../../paid/paidAuthority'
 import type { PaidQuote, SearchSettlement } from '../../../shared/paid'
@@ -15,6 +16,7 @@ import {
   MODEL_API_MAX_RETRIES,
   HTTP_TOO_MANY_REQUESTS,
   HTTP_STATUS,
+  NON_BILLABLE_HTTP_REJECTIONS,
   PROVIDER_RETRY_HTTP_STATUS,
   MODEL_API_RETRY_BASE_MS,
   MODEL_API_RETRY_JITTER_MS,
@@ -30,9 +32,10 @@ import { createHash } from 'node:crypto'
 
 interface PaidRequestClaim {
   readonly markSent?: () => void
+  readonly markUnsent?: () => void
   readonly reservedUsd: UsdAmount
   check(capUsd: UsdAmount): void
-  settle(actualCostUsd: UsdAmount, hasUnknownCost?: boolean): Promise<unknown>
+  settle(actualCostUsd: UsdAmount, state?: 'settled' | 'uncertain' | 'released'): Promise<unknown>
 }
 import type { MediaRequestAccounting } from '../../media/mediaCost'
 import { fill } from '../../../shared/l10n/text'
@@ -369,10 +372,11 @@ export interface ConfirmedModelRequest {
  * keep the schedule guidance, model-hook runs name the hook call.
  */
 export function staleConfirmedError(confirmed: ConfirmedModelRequest): Error {
-  return new Error(
+  return new UserRefusalError(
     confirmed.runKind === 'hookModel'
       ? UI_TEXT.requestStaleHookModel
       : UI_TEXT.scheduleConfirmationExpired,
+    'confirmation_stale',
   )
 }
 
@@ -897,7 +901,9 @@ export class RequestTransport {
       ) {
         // P3-2: a changed key is a rotation, not a changed mind; only a
         // moved origin or a withdrawn confirmation keeps the run's own guidance.
-        if (credentials.keyDigest !== confirmed.keyDigest) throw new Error(UI_TEXT.execKeyRotated)
+        assertConfirmedAllowed(init.modelId ?? '', confirmed)
+        if (credentials.keyDigest !== confirmed.keyDigest)
+          throw new UserRefusalError(UI_TEXT.execKeyRotated, 'key_rotated')
         throw staleConfirmedError(confirmed)
       }
       // A scheduled fire's authority is live: checked before pacing and again
@@ -910,7 +916,7 @@ export class RequestTransport {
           (run !== init.paid?.run && (run !== undefined || init.paid?.run !== undefined)) ||
           (run !== undefined && (!run.isActive() || credentials.keyDigest !== run.paid?.accountId))
         )
-          throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
+          throw new UserRefusalError(UI_TEXT.paidDailyLedgerUnavailable, 'daily_ledger')
       }
       assertScheduleAuthority()
       const account = `${provider.identity.provider}:${this.deps.baseUrl}:${credentials.keyDigest}`
@@ -952,7 +958,7 @@ export class RequestTransport {
       admitAttempt?.check?.()
       if (init.paid !== undefined) {
         if (init.paid.isSent) {
-          throw new Error(UI_TEXT.sessionBudgetRetryUnavailable)
+          throw new UserRefusalError(UI_TEXT.sessionBudgetRetryUnavailable, 'retry_unbounded')
         }
         init.paid.claim.check(Usd.from(0).toAmount())
       }
@@ -961,7 +967,7 @@ export class RequestTransport {
         this.deps.paidAuthority !== undefined &&
         !this.deps.paidAuthority.canSpend(admitAttempt.searchQuote)
       )
-        throw new Error(UI_TEXT.sessionBudgetSearchUnavailable)
+        throw new UserRefusalError(UI_TEXT.sessionBudgetSearchUnavailable, 'search_unbounded')
       admitAttempt?.mediaAccounting?.check()
       admitAttempt?.(credentials.keyDigest)
       if (isAborted(signal)) {
@@ -1024,14 +1030,24 @@ export class RequestTransport {
           error.name === 'UserRefusalError' &&
           'code' in error &&
           error.code === 'not_sent'
-        )
+        ) {
+          if (init.paid !== undefined) {
+            init.paid.isSent = false
+            try {
+              init.paid.claim.markUnsent?.()
+            } catch {
+              /* The client's queued zero-cost settlement preserves the refund. */
+            }
+          }
+          admitAttempt?.mediaAccounting?.refused()
           throw error
+        }
         // P2-3/D1: a dispatch-time paid stop (the daily claim's check runs
         // inside the pinned fetch) is never a send failure: no log line, no
         // retry, and never a network-failure replacement. The classifier
         // rides the lazy provider bundle, keeping this bundle on its pin.
-        const { isPaidStop } = await import('../../refusal')
-        if (isPaidStop(error)) throw error
+        const { isUserRefusal } = await import('../../refusal')
+        if (isUserRefusal(error) && !(error instanceof ModelApiError)) throw error
         if (error instanceof ModelApiError || signal?.aborted === true) {
           throw error instanceof ModelApiError
             ? redactModelApiError(error, credentials.redact, NETWORK_FAILURE_STATUS)
@@ -1093,12 +1109,9 @@ export class RequestTransport {
         }
       }
       const failure = await describeFailure(response, this.deps.parseError, credentials.redact)
-      if (response.status === HTTP_TOO_MANY_REQUESTS || response.status === HTTP_STATUS.badRequest)
+      if (NON_BILLABLE_HTTP_REJECTIONS.has(response.status))
         admitAttempt?.mediaAccounting?.refused()
-      if (
-        init.paid !== undefined &&
-        (response.status === HTTP_TOO_MANY_REQUESTS || response.status === HTTP_STATUS.badRequest)
-      ) {
+      if (init.paid !== undefined && NON_BILLABLE_HTTP_REJECTIONS.has(response.status)) {
         init.paid.isSent = false
       }
       const waitMs = retryAfterMs(response.headers.get(RETRY_AFTER_HEADER), this.deps.now())

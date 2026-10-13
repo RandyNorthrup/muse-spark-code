@@ -1,3 +1,4 @@
+import { UserRefusalError } from '../../refusal'
 import { PaidAuthority } from '../../paid/paidAuthority'
 // A thin, schema-validated Model API client (PLAN.md D2, M34, D86.6):
 // models, token counts, streamed responses, generated/edited images and
@@ -74,9 +75,10 @@ import { Usd, sumUsd, multiplyUsd, usdAmountSchema, type UsdAmount } from '../..
 /** The client needs admission and settlement, not the ledger's internal totals. */
 interface PaidRequestClaim {
   readonly markSent?: () => void
+  readonly markUnsent?: () => void
   readonly reservedUsd: UsdAmount
   check(capUsd: UsdAmount): void
-  settle(actualCostUsd: UsdAmount, hasUnknownCost?: boolean): Promise<unknown>
+  settle(actualCostUsd: UsdAmount, state?: 'settled' | 'uncertain' | 'released'): Promise<unknown>
 }
 
 import { redactSecrets } from '../../redact'
@@ -219,7 +221,7 @@ export class ModelApiClient implements TransportProviderClient {
   ) {
     const run = this.scheduledRun?.()
     if (run === undefined && this.scheduledRun !== undefined)
-      throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
+      throw new UserRefusalError(UI_TEXT.paidDailyLedgerUnavailable, 'daily_ledger')
     const reserve =
       run === undefined
         ? (guard?.reservePaidRequest ?? this.deps.reservePaidRequest)
@@ -230,7 +232,7 @@ export class ModelApiClient implements TransportProviderClient {
         ? undefined
         : await reserve?.(body, feature, estimatedInputTokens, signal, reservationUsd)
     if (run !== undefined && claim === undefined)
-      throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
+      throw new UserRefusalError(UI_TEXT.paidDailyLedgerUnavailable, 'daily_ledger')
     return claim === undefined ? undefined : { claim, isSent: false, run }
   }
 
@@ -244,6 +246,7 @@ export class ModelApiClient implements TransportProviderClient {
     const active = AbortSignal.any([signal, AbortSignal.timeout(IMAGE_REQUEST_TIMEOUT_MS)])
     const paid = await this.paidReservation(body, 'imageGeneration', active, admitAttempt)
     const claim = paid?.claim
+    let hasOutcome = false
     try {
       const result = await this.transport.request(
         path,
@@ -261,14 +264,17 @@ export class ModelApiClient implements TransportProviderClient {
         admitAttempt,
       )
       const parsed = await parseJsonResponse(result, (json) => imagesResponseSchema.parse(json))
-      // The request asks for one image; ambiguous results retain their flat fee.
+      // Each returned image has the published flat fee, including an unexpected extra image.
       if (claim !== undefined) {
-        await claim.settle(Usd.from(parsed.data.length === 0 ? 0 : claim.reservedUsd).toAmount())
+        await claim.settle(Usd.from(claim.reservedUsd).times(parsed.data.length).toAmount())
       }
+      hasOutcome = true
       return parsed
     } finally {
       if (paid?.isSent === false) {
         await paid.claim.settle(Usd.from(0).toAmount())
+      } else if (paid !== undefined && !hasOutcome) {
+        await paid.claim.settle(paid.claim.reservedUsd, 'uncertain')
       }
     }
   }
@@ -289,7 +295,7 @@ export class ModelApiClient implements TransportProviderClient {
       !usdAmountSchema.safeParse(cost).success ||
       Usd.from(cost).compare(Usd.from(0)) < 0
     ) {
-      throw new Error(
+      throw new UserRefusalError(
         unknownChargeUsd === undefined
           ? fill(UI_TEXT.sessionBudgetUnpriced, { model: modelId })
           : fill(UI_TEXT.sessionBudgetUnknownCharge, { amount: formatUsd(unknownChargeUsd) }),
@@ -539,7 +545,7 @@ export class ModelApiClient implements TransportProviderClient {
       // A scheduled fire always reserves against its own finite ledger.
       if (hasSearch && (this.hasPaidDailyBudget || this.scheduledRun !== undefined)) {
         if (body.max_tool_calls === undefined)
-          throw new Error(UI_TEXT.sessionBudgetSearchUnavailable)
+          throw new UserRefusalError(UI_TEXT.sessionBudgetSearchUnavailable, 'search_unbounded')
         const inputTokens =
           admitAttempt?.paidEstimatedInputTokens ??
           estimateInput(requestParts(body), undefined).inputTokens
@@ -562,19 +568,20 @@ export class ModelApiClient implements TransportProviderClient {
             reservationUsd,
             media.inputTokens,
           )
-          if (paid === undefined) throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
+          if (paid === undefined)
+            throw new UserRefusalError(UI_TEXT.paidDailyLedgerUnavailable, 'daily_ledger')
           const claim = paid.claim
           return {
             check: () => {
               claim.check(Usd.from(0).toAmount())
             },
-            settle: (costUsd, hasUnknownCost) => {
+            settle: (costUsd, state) => {
               let amount = sumUsd(costUsd, returnedFees())
-              if (hasUnknownCost === true)
+              if (state === 'uncertain')
                 amount = hasSearch
                   ? returnedLiability(claim.reservedUsd, !hasTerminalSearchCount)
                   : costUsd
-              return claim.settle(amount, hasUnknownCost)
+              return claim.settle(amount, state)
             },
           }
         })
@@ -588,7 +595,7 @@ export class ModelApiClient implements TransportProviderClient {
           authority.dispatch({ type: 'quote', ...grant, ask: true })
           authority.dispatch({ type: 'answer', grant, answer: 'once' })
         } else if (!authority.canSpend(searchQuote))
-          throw new Error(UI_TEXT.sessionBudgetSearchUnavailable)
+          throw new UserRefusalError(UI_TEXT.sessionBudgetSearchUnavailable, 'search_unbounded')
         authority.dispatch({
           type: 'reserve',
           claimId,
@@ -772,7 +779,7 @@ export class ModelApiClient implements TransportProviderClient {
         ) {
           await paid.claim.settle(
             returnedLiability(paid.claim.reservedUsd, !hasTerminalSearchCount),
-            !hasTerminalSearchCount,
+            hasTerminalSearchCount ? 'settled' : 'uncertain',
           )
         }
       } finally {

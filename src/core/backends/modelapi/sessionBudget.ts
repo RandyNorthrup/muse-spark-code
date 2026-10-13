@@ -1,3 +1,4 @@
+import { SpendLedgerError } from '../../paid/spendLedgerError'
 // The Model API session budget (M82, PLAN.md M82): a dollar cap per
 // conversation, kept by reservation, since a request's cost is incurred
 // once it is sent.
@@ -73,6 +74,8 @@ export interface BudgetReservation {
 /** Authoritative shared spend, including requests whose result is still unknown. */
 export interface SessionBudgetTotal {
   readonly spentUsd: UsdAmount
+  readonly heldUsd?: UsdAmount
+  readonly uncertainUsd?: UsdAmount
   /**
    * EXECPROV round 7 (R0): money may have been spent that no record bounds
    * (history written without fees; an open claim whose final cost is still
@@ -92,6 +95,8 @@ export interface SessionBudgetTotal {
 }
 
 /** One request owns its liability until its verified actual cost or a nonsent refund. */
+export type SpendState = 'reserved' | 'settled' | 'uncertain' | 'released'
+
 export interface SessionBudgetClaim {
   readonly claimId: string
   readonly reservedUsd: UsdAmount
@@ -101,35 +106,13 @@ export interface SessionBudgetClaim {
   /** Synchronous final admission after key retrieval; refuses an incomplete or over-cap ledger. */
   check(capUsd: UsdAmount): SessionBudgetTotal
   /** Only this claim's owner settles it. Entries remain visible, including a zero refund. */
-  settle(
-    actualCostUsd: UsdAmount,
-    hasUnknownCost?: boolean,
-    /** False atomically retains an updated liability on this row without closing it. */
-    isFinal?: boolean,
-  ): Promise<SessionBudgetTotal>
+  settle(actualCostUsd: UsdAmount, state?: SpendState): Promise<SessionBudgetTotal>
 }
 
 /** P binds the selected account and M102's owned-claim exclusion once.
  * The returned guard rereads thresholds/limits synchronously at every send.
  * The caller refunds this claim when initial admission throws. */
 export type AccountBudgetAdmission = (claim: SessionBudgetClaim) => () => void
-
-/** Account admission supplements the existing conversation/daily cap. */
-export function withAccountBudgetAdmission(
-  claim: SessionBudgetClaim,
-  admission: AccountBudgetAdmission | undefined,
-): SessionBudgetClaim {
-  if (admission === undefined) return claim
-  const checkAccount = admission(claim)
-  checkAccount()
-  return {
-    ...claim,
-    check(capUsd) {
-      checkAccount()
-      return claim.check(capUsd)
-    },
-  }
-}
 
 /** The session store's scoped spend journal; all callers share the same account-owned history. */
 export interface SessionBudgetJournal {
@@ -143,24 +126,14 @@ export interface SessionBudgetJournal {
     sessionId: string,
     accountId: string,
     costUsd: UsdAmount,
-    liability?: {
-      readonly isUnbounded?: boolean
-      readonly hasUnknownCost?: boolean
-      /**
-       * EXECPROV round 7 (R0): the claim's final cost may exceed every
-       * counted bound. No current writer holds such money on a claim (the
-       * seed's legacy flag and old open unknown claims are the sources);
-       * the totals derive old records without this field by the version
-       * rule (unknown + unsettled = unbounded).
-       */
-      readonly hasUnboundedCost?: boolean
-    },
+    capUsd?: UsdAmount,
+    tariff?: 'known' | 'unknown',
   ): Promise<SessionBudgetClaim>
   record(
     sessionId: string,
     accountId: string,
     costUsd: UsdAmount,
-    hasUnknownCost?: boolean,
+    state?: Exclude<SpendState, 'reserved'>,
   ): Promise<SessionBudgetTotal>
 }
 
@@ -177,7 +150,11 @@ export interface OwnedSessionBudgetScope {
 
 /** A request the budget refused: it is not sent, and the turn stops with this reason. */
 export class SessionBudgetExceededError extends Error {
-  public constructor(message: string) {
+  public readonly code = 'budget'
+  public constructor(
+    message: string,
+    public readonly budget: 'session' | 'daily' = 'session',
+  ) {
     super(message)
     this.name = 'SessionBudgetExceededError'
   }
@@ -207,7 +184,7 @@ export class PaidBudgetStopError extends SessionBudgetExceededError {
     message: string,
     public readonly details: PaidStopDetails,
   ) {
-    super(message)
+    super(message, 'daily')
     this.name = 'SessionBudgetExceededError'
   }
 }
@@ -234,7 +211,7 @@ export function estimateInput(
 ): InputEstimate {
   const baseTokens = base?.inputTokens ?? 0
   if (!Number.isSafeInteger(baseTokens) || baseTokens < 0)
-    throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+    throw new SpendLedgerError('integrity', { scope: 'session', file: 'claim or amount' })
   const own = new Map<string, number>()
   const unmatched = new Map(base?.parts)
   let addedBytes = ZERO_TOKENS
@@ -267,7 +244,7 @@ export function estimateInput(
     (addedBytes + bytesPerToken - ONE_TOKEN) / bytesPerToken +
     BigInt(mediaTokens)
   if (inputTokens > BigInt(Number.MAX_SAFE_INTEGER))
-    throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+    throw new SpendLedgerError('integrity', { scope: 'session', file: 'claim or amount' })
   return {
     inputTokens: Number(inputTokens),
     parts: own,
@@ -307,7 +284,7 @@ export function reserveRequest(request: {
     )
   }
   if (!Number.isSafeInteger(request.estimatedInputTokens) || request.estimatedInputTokens < 0)
-    throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+    throw new SpendLedgerError('integrity', { scope: 'session', file: 'claim or amount' })
   const prices = MODEL_API_PRICES_PER_MILLION[tier]
   const inputCost = Usd.from(prices.input)
     .times(request.estimatedInputTokens)
@@ -382,7 +359,7 @@ export function helperRequestSettlement(
     hasKnownCost = price === undefined || settled !== undefined
     // An unpriced model's spend cannot be settled: the ledger fails closed.
     if (price === undefined && modelApiPaidTier(modelId) === undefined)
-      throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+      throw new SpendLedgerError('integrity', { scope: 'session', file: 'claim or amount' })
     costUsd =
       price === undefined
         ? estimateCostUsd(

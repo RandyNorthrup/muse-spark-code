@@ -1,3 +1,4 @@
+import { UserRefusalError } from '../shared/refusal'
 import { resolveExecOutputCap } from './exec/runLedger'
 import type { ModelPolicy } from '../core/backends/modelapi/modelPolicy'
 import type * as RuntimeAccountingEntry from './runtimeAccountingEntry'
@@ -71,11 +72,9 @@ import {
   PROVIDERS_FILE_NAME,
   IS_AUTO_COMPACTION_EVALUATED,
   SETTING_DEFAULTS,
-  EXEC_USD_DECIMALS,
   UI_TEXT,
 } from '../shared/constants'
-import { formatUsd } from '../shared/l10n/exactUsd'
-import { fill, plural, uiLocale } from '../shared/l10n/text'
+import { fill, uiLocale } from '../shared/l10n/text'
 import type { ServeOptions } from './cliArgs'
 import {
   agentDataFolder,
@@ -256,14 +255,6 @@ function modelApiManager(
       dataFolder: agentDataFolder(deps),
       now: () => Date.now(),
       sleep: deps.sleep,
-      // 5b: one info line names the ownerless holds this run closed by age.
-      onOwnerlessClosed: (closed) => {
-        log.info(
-          plural(UI_TEXT.execStaleHoldsClosed, closed.count, {
-            total: formatUsd(closed.totalUsd, EXEC_USD_DECIMALS),
-          }),
-        )
-      },
     }))
   }
   const isWorkspaceTrusted = () => options.trustWorkspace
@@ -460,7 +451,8 @@ function modelApiManager(
     }),
     ...(deps.exec?.providerRun !== undefined && {
       getProviderAccountId: async () => {
-        if (headlessProviders === undefined) throw new Error(UI_TEXT.execModelUnpriced)
+        if (headlessProviders === undefined)
+          throw new UserRefusalError(UI_TEXT.execModelUnpriced, 'unpriced')
         return await headlessProviders.accountId()
       },
     }),
@@ -648,6 +640,7 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
   }
 
   const modelApiReadiness = async (): Promise<BackendReadiness> => {
+    if (deps.exec?.providerRun !== undefined) return { state: 'ready' }
     let key: string | undefined
     try {
       key = await deps.secrets.get(SECRET_KEYS.modelApiKey)
@@ -662,7 +655,6 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
         message: fill(UI_TEXT.acpStoreUnavailable, { reason: describe(error) }),
       }
     }
-    if (deps.exec?.providerRun !== undefined) return { state: 'ready' }
     if (deps.exec === undefined && (key === undefined || key === '')) {
       try {
         if ((await deps.secrets.get(`${PROVIDER_SECRET_PREFIX}chatgpt`)) !== undefined)

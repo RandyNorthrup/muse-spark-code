@@ -148,6 +148,8 @@ export interface JudgeLedgerClaim {
   readonly reservedUsd: UsdAmount
   /** D78's synchronous guard: current cap/day/stop/cancellation and claim validity. */
   check(): void
+  readonly markSent?: () => void
+  readonly markUnsent?: () => void
   settle(actualCostUsd: UsdAmount): Promise<void>
 }
 
@@ -218,6 +220,7 @@ export interface JudgeAdmissionClaim {
   status(): 'open' | 'settling' | 'settled' | 'refunded'
   /** Synchronous final guard; call again if the sender waits after verification. */
   check(): void
+  readonly markSent?: () => void
   /** The reservation while open, the settled cost once closed. */
   outstandingUsd(): UsdAmount
   settleKnown(usage: JudgeKnownUsage): Promise<UsdAmount>
@@ -346,6 +349,7 @@ function createClaim(args: {
       }
       args.ledger?.check()
     },
+    markSent: () => args.ledger?.markSent?.(),
     outstandingUsd: () => state.settledUsd ?? args.reservedUsd,
     settleKnown: async (usage: JudgeKnownUsage): Promise<UsdAmount> => {
       assertUsableCount(usage.inputTokens, 'settled input tokens')
@@ -587,5 +591,6 @@ export async function verifyJudgeDispatch(
   } catch {
     return { proceed: false, reason: 'ledger-unavailable' }
   }
+  claim.markSent?.()
   return { proceed: true }
 }

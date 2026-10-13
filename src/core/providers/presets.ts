@@ -181,8 +181,6 @@ export type ExactCountKind =
   | 'responses-input-tokens'
   /** `POST {request-path}/count_tokens` without `max_tokens`, `{input_tokens}`. */
   | 'anthropic-count-tokens'
-  /** `POST models/{model}:countTokens` without the output cap, `{totalTokens}`. */
-  | 'gemini-count-tokens'
 
 /** The five formats' defaults; presets override per provider. */
 export const FORMAT_QUIRKS: Record<ProviderFormat, FormatQuirks> = {
@@ -256,7 +254,8 @@ export const FORMAT_QUIRKS: Record<ProviderFormat, FormatQuirks> = {
     supportsStrictTools: false,
     // `:countTokens` takes the whole native request (§1.6 [G-tk]); the
     // count drops the output cap, which cannot change the input tokens.
-    exactCount: 'gemini-count-tokens',
+    // Its full count request shape has no verified capture; reserve the byte bound.
+    exactCount: undefined,
   },
   ollama: {
     outputCapParam: 'num_predict',

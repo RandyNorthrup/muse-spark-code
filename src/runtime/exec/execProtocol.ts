@@ -96,7 +96,7 @@ export interface LedgerTotals {
 export interface ExecBudgetRefusal {
   neededUsd: UsdAmount
   remainingUsd: UsdAmount
-  admitCapUsd: UsdAmount
+  admitCapUsd: UsdAmount | null
   maxOutputTokens: number | null
   inputAloneExceeds: boolean
   inputCostUsd: UsdAmount
@@ -159,7 +159,11 @@ export interface ExecResult {
   budget?: ExecBudgetRefusal | undefined
   limits: ExecLimits
   durationMs: number
-  error: { kind: string; message: string } | null
+  error: {
+    kind: string
+    message: string
+    facts?: { scope: string; file?: string | undefined; errno?: string | undefined } | undefined
+  } | null
 }
 export type ExecEventBody =
   | {
@@ -339,7 +343,7 @@ const ledgerSchema = z.strictObject({
 const budgetSchema = z.strictObject({
   neededUsd: amount,
   remainingUsd: amount,
-  admitCapUsd: amount,
+  admitCapUsd: z.nullable(amount),
   maxOutputTokens: z.nullable(counter),
   inputAloneExceeds: z.boolean(),
   inputCostUsd: amount,
@@ -359,14 +363,12 @@ const totalsSchema = z
     lastResponse: z.nullable(lastResponseSchema),
   })
   .check(
-    z.refine((value) =>
-      isSumEqual(value.capUsd, [
-        value.settledUsd,
-        value.uncertainUsd,
-        value.reservedUsd,
-        value.remainingUsd,
-      ]),
-    ),
+    z.refine((value) => {
+      const used = sumUsd(value.settledUsd, value.uncertainUsd, value.reservedUsd)
+      return Usd.from(used).compare(Usd.from(value.capUsd)) > 0
+        ? value.breach && value.remainingUsd === '0'
+        : isSumEqual(value.capUsd, [used, value.remainingUsd])
+    }),
   )
 
 /** Fixed-unit boundaries refuse a decimal that cannot be represented exactly. */
@@ -441,7 +443,7 @@ function isBackendAccountingValid(value: ExecResult): boolean {
     cap !== undefined &&
     total !== undefined &&
     cap === microUsd(value.limits.budgetUsd) &&
-    total <= cap
+    (total <= cap || (ledger.breach && value.status === 'budget_exceeded'))
   )
 }
 
@@ -541,7 +543,19 @@ export const execResultSchema: z.ZodMiniType<ExecResult> = z
     budget: z.optional(budgetSchema),
     limits: limitsSchema,
     durationMs: z.number().check(z.gte(0)),
-    error: z.nullable(z.strictObject({ kind: z.string(), message: z.string() })),
+    error: z.nullable(
+      z.strictObject({
+        kind: z.string(),
+        message: z.string(),
+        facts: z.optional(
+          z.strictObject({
+            scope: z.string(),
+            file: z.optional(z.string()),
+            errno: z.optional(z.string()),
+          }),
+        ),
+      }),
+    ),
   })
   .check(
     z.refine(

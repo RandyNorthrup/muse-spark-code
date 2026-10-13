@@ -1071,7 +1071,7 @@ export const EN = {
   paidDailyBudgetLine:
     'Shared daily budget for interactive paid extras: {budget}. Tab has its own separate budget.',
   paidDailyLedgerUnavailable:
-    'Daily paid budget reached: its ledger is unreadable, incomplete, or cannot admit this request. No paid request was sent.',
+    'The daily paid spend ledger is unavailable. Repair it before another paid request.',
   paidDailyStopped: 'Paid extras are stopped until tomorrow.',
   paidDailyReached: 'Daily paid budget reached',
   paidDailyReachedDetail:
@@ -3085,16 +3085,18 @@ export const EN = {
   // sent, and the turn's cost is shown against the cap afterwards.
   sessionBudgetStopped:
     'Stopped: the next request (about {estimate}) would pass the session budget of {cap} ({spent} used). It was not sent.',
+  spendLedgerBudget:
+    'The {scope} budget would be exceeded: {total} committed plus {bound} for this request exceeds {cap}. Nothing was sent; raise the limit or reduce the request.',
   spendLedgerBusy:
     'Another Muse Spark Code process holds the {scope} spend ledger. Nothing was sent; retry when it finishes.',
   spendLedgerDamaged:
-    'The {scope} spend ledger is damaged ({file}). Nothing was sent; restore or repair this ledger.',
+    'The {scope} spend ledger is damaged ({file}). No new request can be sent; restore or repair this ledger.',
   spendLedgerUnreadable:
-    'The {scope} spend ledger cannot be read or saved ({file}: {errno}). Nothing was sent; correct the file access or storage problem.',
+    'The {scope} spend ledger cannot be read or saved ({file}: {errno}). No new request can be sent; correct the file access or storage problem.',
   spendLedgerIntegrity:
-    'The {scope} spend ledger has conflicting ownership or amounts ({file}). Nothing was sent; repair this ledger.',
+    'The {scope} spend ledger has conflicting ownership or amounts ({file}). No new request can be sent; repair this ledger.',
   spendLedgerRecovery:
-    'The {scope} spend ledger is recovering. Nothing was sent; retry after recovery finishes.',
+    'The {scope} spend ledger is recovering. No new request can be sent; retry after recovery finishes.',
   spendLedgerMidnight:
     'Local midnight passed. Nothing was sent; restart with today’s daily budget.',
   execContextLimit:
@@ -3107,7 +3109,7 @@ export const EN = {
     'The session spend ledger could not be read or saved. No new request can be sent until it is available.',
   // EXECPROV round 7 (R0): only fact (b) refuses — money no record
   // bounds. {scope} is the day or conversation ledger, {spent} what it
-  // counts so far. The remedy names what actually clears it: the age rule
+  // counts so far. The remedy requires evidence; age alone never clears a hold.
   // closes ownerless holds on its own, the owning run settles its own, and
   // no cap always admits. A new conversation is never offered: it does not
   // clear a shared ledger.
@@ -4301,6 +4303,8 @@ export const EN = {
   execModelAvailable:
     'Model {model} is not available on this backend. Available models: {available}.',
   execBudgetMinimum: 'This run requires at least {minimum}.',
+  execBudgetOverage:
+    'The last request exceeded its reservation by {overage} ({cost} charged, {reserved} reserved). The run stopped before another request.',
   execBudgetBreach: 'Observed accounting exceeded its reservation.',
   execIncomplete: 'The response did not complete.',
   execDeniedStop: 'An approval denial stopped this run.',

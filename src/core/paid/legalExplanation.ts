@@ -166,7 +166,11 @@ export async function explainLegal(
     const unreportedCost = dispatch.isSent ? claim.reservedUsd : Usd.from(0).toAmount()
     await claim.settle(
       tokens === undefined ? unreportedCost : estimateCostUsd(tokens, modelId),
-      dispatch.isSent && tokens === undefined,
+      tokens === undefined && dispatch.isSent
+        ? 'uncertain'
+        : dispatch.isSent
+          ? 'settled'
+          : 'released',
     )
   }
 }

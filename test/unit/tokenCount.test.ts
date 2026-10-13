@@ -27,7 +27,7 @@ describe('exact-count capability in data', () => {
 
   it('defaults per format where the wire documents one', () => {
     expect(exactCountKindFor({}, preset('anthropic'))).toBe('anthropic-count-tokens')
-    expect(exactCountKindFor({}, preset('gemini'))).toBe('gemini-count-tokens')
+    expect(exactCountKindFor({}, preset('gemini'))).toBeUndefined()
     expect(exactCountKindFor({}, preset('custom'))).toBeUndefined()
     expect(exactCountKindFor({}, preset('ollama'))).toBeUndefined()
   })
@@ -84,34 +84,12 @@ describe('exact-count request build', () => {
       buildExactCountRequest('anthropic-count-tokens', { path: '/v1/messages', body: null }),
     ).toBeUndefined()
   })
-
-  it('drops the output cap and the stream query from the gemini request', () => {
-    const built = buildExactCountRequest('gemini-count-tokens', {
-      path: '/v1beta/models/gemini-x:streamGenerateContent?alt=sse',
-      body: {
-        contents: [{ parts: [{ text: 'hello' }] }],
-        generationConfig: { maxOutputTokens: 64, thinkingConfig: { thinkingLevel: 'low' } },
-      },
-    })
-    expect(built?.path).toBe('/v1beta/models/gemini-x:countTokens')
-    expect(built?.body).toEqual({
-      contents: [{ parts: [{ text: 'hello' }] }],
-      generationConfig: { thinkingConfig: { thinkingLevel: 'low' } },
-    })
-    expect(
-      buildExactCountRequest('gemini-count-tokens', {
-        path: '/v1beta/models/gemini-x:generateContent',
-        body: {},
-      }),
-    ).toBeUndefined()
-  })
 })
 
 describe('exact-count answer parse', () => {
   it('reads each wire’s documented count field', () => {
     expect(parseExactCountResponse('responses-input-tokens', { input_tokens: 7 })).toBe(7)
     expect(parseExactCountResponse('anthropic-count-tokens', { input_tokens: 7 })).toBe(7)
-    expect(parseExactCountResponse('gemini-count-tokens', { totalTokens: 7 })).toBe(7)
   })
 
   it('rejects every non-count body without throwing', () => {
@@ -119,7 +97,5 @@ describe('exact-count answer parse', () => {
     expect(parseExactCountResponse('anthropic-count-tokens', { input_tokens: -1 })).toBeUndefined()
     expect(parseExactCountResponse('anthropic-count-tokens', { input_tokens: 1.5 })).toBeUndefined()
     expect(parseExactCountResponse('anthropic-count-tokens', { totalTokens: 1 })).toBeUndefined()
-    expect(parseExactCountResponse('gemini-count-tokens', { input_tokens: 1 })).toBeUndefined()
-    expect(parseExactCountResponse('gemini-count-tokens', null)).toBeUndefined()
   })
 })

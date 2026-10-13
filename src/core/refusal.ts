@@ -1,3 +1,4 @@
+import { isSpendLedgerError } from './paid/spendLedgerError'
 import { UI_TEXT } from '../shared/constants'
 
 /**
@@ -8,25 +9,18 @@ import { UI_TEXT } from '../shared/constants'
 export function isPaidStop(error: unknown): boolean {
   return (
     error instanceof Error &&
-    (error.name === 'SessionBudgetExceededError' || error.message === UI_TEXT.paidDailyStopped)
+    ((isSpendLedgerError(error) && error.kind === 'budget') ||
+      error.name === 'SessionBudgetExceededError' ||
+      (error.name === 'UserRefusalError' && 'code' in error && error.code === 'daily_stopped'))
   )
 }
 
-/** A local, intentional refusal; its message is already safe for the user. */
-export class UserRefusalError extends Error {
-  public constructor(
-    message: string,
-    public readonly code?: string,
-  ) {
-    super(message)
-    this.name = 'UserRefusalError'
-  }
-}
+export { UserRefusalError } from '../shared/refusal'
 
 /** Local refusals keep their identity across lazy bundles and every provider wrapper. */
 export function isUserRefusal(error: unknown): error is Error {
   if (!(error instanceof Error)) return false
-  if (error instanceof RangeError) return true
+  if (isSpendLedgerError(error) || error instanceof RangeError) return true
   const names = [
     'UserRefusalError',
     'ModelApiError',
@@ -50,19 +44,18 @@ export function isUserRefusal(error: unknown): error is Error {
   // arbitrary provider prose or substring matches as a trusted refusal.
   return [
     UI_TEXT.scheduleConfirmationExpired,
-    UI_TEXT.execBudgetRefused,
-    UI_TEXT.execModelUnpriced,
-    UI_TEXT.execUnknownModel,
-    UI_TEXT.sessionBudgetStoreUnavailable,
-    UI_TEXT.sessionBudgetRetryUnavailable,
-    UI_TEXT.sessionBudgetSearchUnavailable,
-    UI_TEXT.sessionBudgetLegacyFeesUnknown,
-    UI_TEXT.paidDailyLedgerUnavailable,
-    UI_TEXT.paidDailyStopped,
     UI_TEXT.execKeyRotated,
     UI_TEXT.notSignedInReason,
-    UI_TEXT.contextWindowFull,
     UI_TEXT.media.filesReadOnly,
-    UI_TEXT.media.cappedRateUnknown,
   ].includes(error.message)
+}
+
+/** Dispatcher evidence, independent of provider error prose or bundle copies. */
+export function isRequestNotSent(error: unknown): error is Error {
+  return (
+    error instanceof Error &&
+    error.name === 'UserRefusalError' &&
+    'code' in error &&
+    error.code === 'not_sent'
+  )
 }

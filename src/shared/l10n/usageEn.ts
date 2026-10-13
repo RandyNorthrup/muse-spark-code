@@ -117,6 +117,7 @@ export const USAGE_EN = {
   certaintyReported: 'Reported',
   certaintyComputed: 'Computed',
   certaintyUncertain: 'Uncertain',
+  reservedLabel: 'Reserved',
   certaintyPlan: 'Plan',
   certaintyLocal: 'Local',
   certaintyUnpriced: 'Unpriced',

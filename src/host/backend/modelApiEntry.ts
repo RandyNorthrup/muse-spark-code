@@ -1,3 +1,4 @@
+import { SpendLedgerError } from '../../core/paid/spendLedgerError'
 import {
   IS_AUTO_COMPACTION_EVALUATED,
   MODEL_API_MAX_RETRIES,
@@ -137,7 +138,10 @@ function autoCompactionAdmission(
           : {
               reserveCompaction: async (amount, signal) => {
                 if (config.reserveAutoCompaction === undefined)
-                  throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+                  throw new SpendLedgerError('integrity', {
+                    scope: 'session',
+                    file: 'modelApiEntry',
+                  })
                 return await config.reserveAutoCompaction(amount, signal)
               },
             },
@@ -152,7 +156,6 @@ function autoCompactionAdmission(
         (() => Usd.from(SETTING_DEFAULTS.paidDailyBudgetUsd).toAmount()),
       notePaidUse: host.notePaidUse,
       log: host.log,
-      storeUnavailable: UI_TEXT.sessionBudgetStoreUnavailable,
     })(request)
   }
 }

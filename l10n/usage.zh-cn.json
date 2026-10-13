@@ -100,6 +100,7 @@
   "certaintyReported": "已上报",
   "certaintyComputed": "已计算",
   "certaintyUncertain": "不确定",
+  "reservedLabel": "已预留",
   "certaintyPlan": "方案",
   "certaintyLocal": "本地",
   "certaintyUnpriced": "未定价",

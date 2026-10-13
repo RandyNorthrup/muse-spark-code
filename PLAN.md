@@ -15353,7 +15353,7 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
-**LEDGER (2026-10-12, Kubuntu and macmini; M80/M82/M95 repair).** Replace directory-per-claim budgeting with one versioned spend ledger and atomic admission for session, editor daily and terminal daily scopes; retain every sent attempt at its full liability, recover only from process identity evidence, and certify real-process races, crashes, migration and packed-product refusals. Design and ruling R9 compatibility limits: `docs/certification/spend-ledger.md`. Shared daily input reserves the byte/context bound even when terminal admission uses a provider estimate. One flushed transaction inode supplies atomic snapshot and audit/history aliases; process owner notes are cached per scope. No provider calls, cap changes, merges or pushes.
+**LEDGER (2026-10-12, Kubuntu and macmini; M80/M82/M95 repair).** Replace directory-per-claim budgeting with one versioned spend ledger and atomic admission for session, editor daily and terminal daily scopes; retain every sent attempt at its full liability, recover only from process identity evidence, and certify real-process races, crashes, migration and packed-product refusals. Design and ruling R9 compatibility limits: `docs/certification/spend-ledger.md`. Shared daily input reserves the byte/context bound even when terminal admission uses a provider estimate. One flushed transaction inode supplies atomic snapshot and audit/history aliases; process owner notes are cached per scope. Portable ledger errors stay in each caller's language state. Runtime settlement uses typed HTTP observations, never retry-message text, and only refunds initial rejections before response frames. Removing inherited stand-in suites also removes their unused production-only exports (unbound account-home factory, account admission wrapper and schedule paid-scope factories); their live interfaces remain. Provider endpoint/path utilities move to a leaf module to break the measured configured-bundle command cycle. Keyless configured runs bind an empty in-memory secret store and skip Meta readiness lookup; a real ECONNREFUSED before connection releases the hold. No provider calls, cap changes, merges or pushes.
 
 ### PROVWIZ10 — Re-entry credential comparison and retry receipts (2026-10-09)
 
@@ -33882,6 +33882,23 @@ lane A's first step.
 ---
 
 ## 7. Gates
+
+**LEDGER local qualification deferral (2026-10-12).** The owner's latest
+no-stand-in/no-screenshot testing rule replaces full `quality` and fake provider
+proofs for this lane. Static gates and real core/packed commands are recorded in
+`docs/certification/spend-ledger.md`. The unchanged 100 ms admission bound failed
+on macOS at 10 closed claims (1,106.692 ms before the single-inode correction);
+two earlier post-correction core tests exceeded the default 5 s (5.184 / 6.842 s); the current core/migration/typed-refusal batch passed all 35 without changing a timeout. Their earlier cause is UNMEASURED.
+The final indexed-history fixture measured admission maxima 782.652 / 440.347 /
+380.090 ms at 10 / 1,000 / 10,000 entries, hold maximum 856.212 ms; the 2 s
+wait has no certified eightfold margin on those results. R3/R4 remain open.
+No cap, timeout, ignore or assertion is weakened. Preliminary duplication returned 10 clones, including inherited fake suites
+that the owner forbids this lane to repair; no ignore or threshold is changed.
+The final receipt lists every remaining clone. The history-size fixture expands
+real-writer transaction data and is distinct from 10,000 actual admissions. Final macOS matrix, Windows
+rename/hard-link takeover, editor interactions and provider billing outcomes
+remain uncertified until their named real-use/platform runs. This is not a
+release certification and the change must not be described as fully green.
 
 **EXECPROV round 4 scoped qualification (2026-10-12, kubuntu).** The
 explicit lane brief reserves aggregate `npm run quality` for the lead.

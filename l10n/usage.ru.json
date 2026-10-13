@@ -127,6 +127,7 @@
   "certaintyReported": "Сообщена",
   "certaintyComputed": "Вычислена",
   "certaintyUncertain": "Неопределённая",
+  "reservedLabel": "Зарезервировано",
   "certaintyPlan": "План",
   "certaintyLocal": "Локальная",
   "certaintyUnpriced": "Без цены",

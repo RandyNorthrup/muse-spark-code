@@ -1,3 +1,4 @@
+import { SpendLedgerError } from '../paid/spendLedgerError'
 // M105 C / D85.6–7. Metadata and billed usage only; never encoded media or
 // input_tokens media counts. The caller injects evidence, tariffs and stores.
 import * as z from 'zod/mini'
@@ -206,7 +207,8 @@ export class MediaCostEstimator {
 /** Metadata, selected-model tariff and both existing ledgers are injected. */
 export interface MediaCostClaim {
   check(): void
-  settle(costUsd: UsdAmount, hasUnknownCost?: boolean): Promise<unknown>
+  readonly markSent?: () => void
+  settle(costUsd: UsdAmount, state?: 'settled' | 'uncertain' | 'released'): Promise<unknown>
 }
 export interface MediaCostLedger {
   reserve(costUsd: UsdAmount): Promise<MediaCostClaim>
@@ -256,7 +258,7 @@ export async function reserveMediaRequest(request: {
   tokens.parse(request.maxOutputTokens)
   for (const price of Object.values(request.prices))
     if (!usdAmountSchema.safeParse(price).success || Usd.from(price).compare(Usd.from(0)) < 0)
-      throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+      throw new SpendLedgerError('integrity', { scope: 'account', file: 'mediaCost' })
   let inputTokens = request.textInputTokens
   for (const item of request.items) {
     const estimate = request.estimator.estimate(request.provider, request.modelId, item, true)
@@ -290,7 +292,8 @@ export async function reserveMediaRequest(request: {
   const closed = new Set<MediaCostClaim>()
   // Selecting the terminal outcome is synchronous. Every settle/finish caller
   // then shares its write; a failed ledger write retries only unclosed claims.
-  let settled: { costUsd: UsdAmount; hasUnknownCost: boolean; usage?: Usage } | undefined
+  let settled:
+    { costUsd: UsdAmount; state: 'settled' | 'uncertain' | 'released'; usage?: Usage } | undefined
   let completion: Promise<void> | undefined
   const complete = () => {
     if (completion !== undefined) return completion
@@ -304,7 +307,7 @@ export async function reserveMediaRequest(request: {
           [session, ...(daily === undefined ? [] : [daily])]
             .filter((claim) => !closed.has(claim))
             .map(async (claim) => {
-              await claim.settle(bill.costUsd, bill.hasUnknownCost)
+              await claim.settle(bill.costUsd, bill.state)
               closed.add(claim)
             }),
         )
@@ -345,7 +348,7 @@ export async function reserveMediaRequest(request: {
         isRebinding ||
         (daily !== undefined && closed.has(daily))
       )
-        throw new Error(UI_TEXT.sessionBudgetRetryUnavailable)
+        throw new UserRefusalError(UI_TEXT.sessionBudgetRetryUnavailable, 'retry_unbounded')
       isRebinding = true
       try {
         const replacement = await reserve()
@@ -369,7 +372,7 @@ export async function reserveMediaRequest(request: {
         isRebinding ||
         (daily !== undefined && closed.has(daily))
       )
-        throw new Error(UI_TEXT.sessionBudgetRetryUnavailable)
+        throw new UserRefusalError(UI_TEXT.sessionBudgetRetryUnavailable, 'retry_unbounded')
       session.check()
       daily?.check()
     },
@@ -380,11 +383,14 @@ export async function reserveMediaRequest(request: {
         isRebinding ||
         (daily !== undefined && closed.has(daily))
       )
-        throw new Error(UI_TEXT.sessionBudgetRetryUnavailable)
+        throw new UserRefusalError(UI_TEXT.sessionBudgetRetryUnavailable, 'retry_unbounded')
+      session.markSent?.()
+      daily?.markSent?.()
       wasSent = true
     },
     refused() {
-      if (settled !== undefined) throw new Error(UI_TEXT.sessionBudgetRetryUnavailable)
+      if (settled !== undefined)
+        throw new UserRefusalError(UI_TEXT.sessionBudgetRetryUnavailable, 'retry_unbounded')
       wasSent = false
     },
     async settle(usage) {
@@ -404,16 +410,13 @@ export async function reserveMediaRequest(request: {
         .add(prices.output.times(output))
         .divide(TOKENS_PER_MILLION)
         .toAmount()
-      // D85.6 admits the worst case; D95.3 never posts unadmitted scheduled spend.
-      if (Usd.from(costUsd).compare(Usd.from(reservedUsd)) > 0)
-        throw new Error(UI_TEXT.sessionBudgetRetryUnavailable)
-      settled = { costUsd, hasUnknownCost: false, usage: reported }
+      settled = { costUsd, state: 'settled', usage: reported }
       await complete()
     },
     async finish() {
       settled ??= {
         costUsd: wasSent ? reservedUsd : Usd.from(0).toAmount(),
-        hasUnknownCost: wasSent,
+        state: wasSent ? 'uncertain' : 'released',
       }
       await complete()
     },

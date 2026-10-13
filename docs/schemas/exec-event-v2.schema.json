@@ -630,8 +630,10 @@
                   "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$"
                 },
                 "admitCapUsd": {
-                  "type": "string",
-                  "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$"
+                  "anyOf": [
+                    { "type": "string", "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$" },
+                    { "type": "null" }
+                  ]
                 },
                 "maxOutputTokens": {
                   "anyOf": [
@@ -677,7 +679,20 @@
               "anyOf": [
                 {
                   "type": "object",
-                  "properties": { "kind": { "type": "string" }, "message": { "type": "string" } },
+                  "properties": {
+                    "kind": { "type": "string" },
+                    "message": { "type": "string" },
+                    "facts": {
+                      "type": "object",
+                      "properties": {
+                        "scope": { "type": "string" },
+                        "file": { "type": "string" },
+                        "errno": { "type": "string" }
+                      },
+                      "required": ["scope"],
+                      "additionalProperties": false
+                    }
+                  },
                   "required": ["kind", "message"],
                   "additionalProperties": false
                 },

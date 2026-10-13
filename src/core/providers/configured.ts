@@ -46,7 +46,7 @@ import {
   assertConfirmedAllowed,
   isStaleConfirmedError,
 } from '../backends/modelapi/transport'
-import { isPaidStop, isUserRefusal } from '../refusal'
+import { isPaidStop, isUserRefusal, UserRefusalError } from '../refusal'
 import { withDeadline } from '../timeouts'
 import { Usd, type UsdAmount } from '../../shared/usd'
 import { fill } from '../../shared/l10n/text'
@@ -126,10 +126,6 @@ const fail = (): never => {
 function ignoreTransportLog(): void {
   // This adapter reports fixed failures through its caller, without retaining
   // per-request diagnostics or forwarding arbitrary provider text to a log.
-}
-
-function ignoreProviderCache(): void {
-  // Provider requests do not maintain a page cache.
 }
 
 async function* chunks(response: PinnedResponse, idleMs: number) {
@@ -278,6 +274,10 @@ export function createConfiguredProviderServices(
           )
           const body = typeof init.body === 'string' ? init.body : undefined
           let response: PinnedResponse
+          const connection = { isConnected: false }
+          const connected = () => {
+            connection.isConnected = true
+          }
           try {
             if (options.send !== undefined)
               response = await options.send(target, body, headers, signal)
@@ -285,7 +285,7 @@ export function createConfiguredProviderServices(
               response = await pinnedHttpsRequest(
                 target,
                 signal,
-                ignoreProviderCache,
+                connected,
                 (requestOptions, callback) => {
                   const request = target?.url.protocol === 'http:' ? httpRequest : httpsGet
                   return request(
@@ -301,12 +301,18 @@ export function createConfiguredProviderServices(
                 body,
                 headers,
                 signal,
-                ignoreProviderCache,
+                connected,
                 target.url.protocol === 'http:' ? httpRequest : undefined,
                 target.url.protocol !== 'http:',
               )
             }
           } catch (error: unknown) {
+            if (!connection.isConnected)
+              throw new UserRefusalError(
+                isUserRefusal(error) ? error.message : UI_TEXT.providerProbeUnreachable,
+                'not_sent',
+                error,
+              )
             if (isUserRefusal(error) || signal.aborted) throw error
             // A pinned send can have reached the provider; retain its liability
             // and refuse an ambiguous retry, with no echoed diagnostic text.
@@ -749,11 +755,13 @@ export function createConfiguredProviderServices(
       decode: async function* (response) {
         if (response.body === null) return fail()
         for await (const event of decode(response.body, response.status)) {
-          if (event.type === 'error' || ('response' in event && event.response.error != null))
-            return fail()
+          if (event.type === 'error') return fail()
           yield 'response' in event
             ? { ...event, response: { ...event.response, model: ref } }
             : event
+          // A failed terminal can still carry final billed usage. Deliver that
+          // receipt before surfacing its error so accounting never loses it.
+          if ('response' in event && event.response.error != null) return fail()
         }
       },
     }
@@ -806,7 +814,12 @@ export function createConfiguredProviderServices(
         : async (
             body: CreateResponseBody,
             signal?: AbortSignal,
-          ): Promise<{ readonly tokens: number; readonly costUsd?: UsdAmount | undefined }> => {
+          ): Promise<{
+            readonly tokens: number
+            readonly costUsd?: UsdAmount | undefined
+            readonly accuracy: 'exact' | 'estimate'
+          }> => {
+            signal?.throwIfAborted()
             const encoded = codec.encode(body, providerModel())
             // Built from the request path the request itself takes — never
             // a fixed string — so a custom prefix or model still addresses
@@ -833,14 +846,18 @@ export function createConfiguredProviderServices(
                 accept: 'application/json',
                 retries: 'rateLimitOnly',
               },
-              signal === undefined || signal.aborted
-                ? deadline
-                : AbortSignal.any([signal, deadline]),
+              signal === undefined ? deadline : AbortSignal.any([signal, deadline]),
             )
             const tokens = await parseJsonResponse(result, (json) =>
               tokenCount.parseExactCountResponse(exactCountKind, json),
             )
-            return tokens === undefined ? fail() : { tokens, costUsd: undefined }
+            return tokens === undefined
+              ? fail()
+              : {
+                  tokens,
+                  costUsd: undefined,
+                  accuracy: exactCountKind === 'anthropic-count-tokens' ? 'estimate' : 'exact',
+                }
           }
     return {
       ...base,

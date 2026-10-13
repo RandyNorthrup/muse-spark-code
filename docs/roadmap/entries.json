@@ -558,7 +558,7 @@
     {
       "id": "M80",
       "title": "Headless runs and a GitHub Action",
-      "summary": "Try bounded headless runs and a GitHub proposal Action, with request progress, redacted partial answers and recovery of interrupted daily claims, while certification and support remain pending.",
+      "summary": "Headless runs use atomic reservations, show unresolved liability separately from spend, and stop after recorded overages while certification and GitHub Action support remain pending.",
       "area": "platform",
       "release": "0.12.0"
     },
@@ -572,7 +572,7 @@
     {
       "id": "M82",
       "title": "Awareness and budgets",
-      "summary": "A notification tells you when a long turn ends or waits while the window is unfocused, replies can show their token and dollar estimate, and a per-conversation budget caps Model API spend, though child tasks you approve separately can take it past the cap.",
+      "summary": "Conversation and daily budgets share atomic admission, separate unresolved liability from spend, and recover unsent holds by process identity, alongside completion notifications and token and dollar estimates.",
       "area": "usage-billing",
       "release": "0.12.0"
     },

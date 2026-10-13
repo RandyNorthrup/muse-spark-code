@@ -100,6 +100,7 @@
   "certaintyReported": "報告値",
   "certaintyComputed": "計算値",
   "certaintyUncertain": "不確実",
+  "reservedLabel": "予約済み",
   "certaintyPlan": "プラン",
   "certaintyLocal": "ローカル",
   "certaintyUnpriced": "価格未設定",

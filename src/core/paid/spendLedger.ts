@@ -1,9 +1,10 @@
 // One atomic admission and one liability state machine for every durable budget.
-import { randomUUID } from 'node:crypto'
+import { randomUUID, createHash } from 'node:crypto'
 import {
   closeSync,
   fsyncSync,
   mkdirSync,
+  linkSync,
   openSync,
   readFileSync,
   readdirSync,
@@ -20,10 +21,7 @@ import {
   SPEND_LEDGER_LOCK_TIMEOUT_MS,
   SPEND_LEDGER_VERSION,
   DAILY_BUDGET_LOCK_WAIT_MS,
-  UI_TEXT,
 } from '../../shared/constants'
-import { formatUsd } from '../../shared/l10n/exactUsd'
-import { fill } from '../../shared/l10n/text'
 import { Usd, type UsdAmount } from '../../shared/usd'
 import {
   currentProcessOwner,
@@ -34,16 +32,26 @@ import {
 
 const MONEY = z.string().check(z.regex(/^\d+(?:\.\d+)?$/u))
 const ID = z.string().check(z.regex(/^[a-f0-9-]+$/u))
-const entrySchema = z.object({
-  id: ID,
-  owner: z.optional(processOwnerSchema),
-  bound: MONEY,
-  state: z.enum(['reserved', 'settled', 'uncertain', 'released']),
-  amount: MONEY,
-  tariff: z.optional(z.enum(['known', 'unknown'])),
-})
+const entrySchema = z
+  .object({
+    id: ID,
+    owner: z.optional(processOwnerSchema),
+    bound: MONEY,
+    state: z.enum(['reserved', 'settled', 'uncertain', 'released']),
+    amount: MONEY,
+    tariff: z.optional(z.enum(['known', 'unknown'])),
+  })
+  .check(
+    z.refine(
+      (entry) =>
+        entry.state === 'settled' ||
+        (entry.state === 'released'
+          ? entry.amount === '0'
+          : Usd.from(entry.amount).compare(Usd.from(entry.bound)) === 0),
+    ),
+  )
 export type LedgerEntry = z.infer<typeof entrySchema>
-const stateSchema = z.object({
+const stateShape = {
   version: z.literal(SPEND_LEDGER_VERSION),
   key: z.string(),
   generation: z.number().check(z.int(), z.nonnegative()),
@@ -52,73 +60,43 @@ const stateSchema = z.object({
   unknownHistory: z.boolean(),
   open: z.array(entrySchema),
   appliedInbox: z.optional(ID),
-})
-type State = z.infer<typeof stateSchema>
-const transactionSchema = z.object({
-  before: z.number(),
-  next: stateSchema,
-  entry: z.optional(entrySchema),
-})
-const noteSchema = z.object({ id: ID, owner: processOwnerSchema })
-export type LedgerFailureKind =
-  'budget' | 'busy' | 'damaged' | 'unreadable' | 'recovery' | 'integrity' | 'legacy'
-export class SpendLedgerError extends Error {
-  public constructor(
-    public readonly kind: LedgerFailureKind,
-    public readonly facts: {
-      readonly scope: string
-      readonly file?: string
-      readonly errno?: string | undefined
-      readonly bound?: UsdAmount
-      readonly total?: UsdAmount
-      readonly cap?: UsdAmount
-    },
-    cause?: unknown,
-  ) {
-    let sentence: string
-    switch (kind) {
-      case 'busy': {
-        sentence = UI_TEXT.spendLedgerBusy
-        break
-      }
-      case 'damaged': {
-        sentence = UI_TEXT.spendLedgerDamaged
-        break
-      }
-      case 'unreadable': {
-        sentence = UI_TEXT.spendLedgerUnreadable
-        break
-      }
-      case 'legacy': {
-        sentence = fill(UI_TEXT.sessionBudgetLegacyFeesUnknown, {
-          scope: facts.scope,
-          spent: formatUsd(facts.total ?? 0),
-        })
-        break
-      }
-      case 'recovery': {
-        sentence = UI_TEXT.spendLedgerRecovery
-        break
-      }
-      default: {
-        sentence = UI_TEXT.spendLedgerIntegrity
-      }
-    }
-    super(
-      fill(sentence, { scope: facts.scope, file: facts.file ?? '', errno: facts.errno ?? '' }),
-      { cause },
-    )
-    this.name = 'SpendLedgerError'
-  }
 }
-export function isSpendLedgerError(error: unknown): error is SpendLedgerError {
-  return (
-    error instanceof Error &&
-    error.name === 'SpendLedgerError' &&
-    'kind' in error &&
-    'facts' in error
+const stateSchema = z
+  .object(stateShape)
+  .check(
+    z.refine(
+      (state) =>
+        new Set(state.open.map((entry) => entry.id)).size === state.open.length &&
+        state.open.every((entry) => entry.state === 'reserved'),
+    ),
   )
-}
+type State = z.infer<typeof stateSchema>
+const transactionSchema = z
+  .pipe(
+    z.object({
+      ...stateShape,
+      change: z.object({
+        before: z.number().check(z.int(), z.nonnegative()),
+        entry: z.optional(entrySchema),
+      }),
+    }),
+    z.transform((value) => ({
+      before: value.change.before,
+      next: stateSchema.parse(value),
+      ...(value.change.entry !== undefined && { entry: value.change.entry }),
+    })),
+  )
+  .check(z.refine((txn) => txn.next.generation === txn.before + 1))
+const historySchema = z.pipe(
+  z.pipe(
+    transactionSchema,
+    z.transform((txn) => txn.entry),
+  ),
+  entrySchema,
+)
+const noteSchema = z.object({ id: ID, owner: processOwnerSchema })
+export { SpendLedgerError, isSpendLedgerError } from './spendLedgerError'
+import { SpendLedgerError, isSpendLedgerError, type LedgerFailureKind } from './spendLedgerError'
 function codeOf(error: unknown): string | undefined {
   return typeof error === 'object' && error !== null && 'code' in error
     ? String(error.code)
@@ -153,12 +131,18 @@ export interface SpendLedgerDeps {
     readonly unknownHistory: boolean
     readonly open?: readonly LedgerEntry[]
   }>
-  readonly owner?: () => Promise<ProcessOwner>
-  readonly isGone?: (owner: ProcessOwner) => Promise<boolean>
   /** Test-only crash injection at durable boundaries; production leaves it absent. */
   readonly step?: (step: string) => Promise<void>
-  readonly rename?: (from: string, to: string) => void
   readonly onHold?: (ms: number) => void
+}
+function syncDirectory(directory: string): void {
+  if (process.platform === 'win32') return
+  const fd = openSync(directory, 'r')
+  try {
+    fsyncSync(fd)
+  } finally {
+    closeSync(fd)
+  }
 }
 function total(state: State): LedgerTotal {
   let held = Usd.from(0)
@@ -166,10 +150,13 @@ function total(state: State): LedgerTotal {
   return {
     spentUsd: Usd.from(state.settled).add(Usd.from(state.uncertain)).add(held).toAmount(),
     heldUsd: held.toAmount(),
-    uncertainUsd: Usd.from(state.uncertain).add(held).toAmount(),
+    uncertainUsd: Usd.from(state.uncertain).toAmount(),
     openClaims: state.open.length,
     unknownHistory: state.unknownHistory || state.open.some((claim) => claim.tariff === 'unknown'),
   }
+}
+function receiptId(entry: LedgerEntry): string {
+  return createHash('sha256').update(JSON.stringify(entry)).digest('hex')
 }
 function withEntry(state: State, entry: LedgerEntry): State {
   const next = { ...state, open: state.open.filter((claim) => claim.id !== entry.id) }
@@ -195,9 +182,10 @@ function withEntry(state: State, entry: LedgerEntry): State {
 }
 /** A complete immutable owner note publishes the lock; no holder ever owns an empty lock. */
 export function createSpendLedger(deps: SpendLedgerDeps) {
-  const own = (deps.owner ?? currentProcessOwner)()
-  const gone = deps.isGone ?? isProcessOwnerGone
+  const own = currentProcessOwner()
+  const gone = isProcessOwnerGone
   const pending = new Map<string, { scope: LedgerScope; entry: LedgerEntry }>()
+  const ownerNotes = new Map<string, Promise<string>>()
   const fail = (
     scope: LedgerScope,
     kind: LedgerFailureKind,
@@ -233,16 +221,26 @@ export function createSpendLedger(deps: SpendLedgerDeps) {
     const stage = `${target}.${randomUUID()}.tmp`
     try {
       writeFileSync(stage, JSON.stringify(data), { flag: 'wx', flush: true })
-      ;(deps.rename ?? renameSync)(stage, target)
+      renameSync(stage, target)
       // POSIX directory sync makes the rename durable; Windows does not expose directory fsync.
-      if (process.platform !== 'win32') {
-        const fd = openSync(path.dirname(target), 'r')
-        try {
-          fsyncSync(fd)
-        } finally {
-          closeSync(fd)
-        }
+      syncDirectory(path.dirname(target))
+    } catch (error: unknown) {
+      fail(scope, 'unreadable', name, error)
+    } finally {
+      try {
+        unlinkSync(stage)
+      } catch (error: unknown) {
+        if (codeOf(error) !== 'ENOENT') fail(scope, 'unreadable', name, error)
       }
+    }
+  }
+  const link = (scope: LedgerScope, source: string, name: string) => {
+    const target = path.join(scope.directory, name)
+    const stage = `${target}.${randomUUID()}.tmp`
+    try {
+      linkSync(path.join(scope.directory, source), stage)
+      renameSync(stage, target)
+      syncDirectory(path.dirname(target))
     } catch (error: unknown) {
       fail(scope, 'unreadable', name, error)
     } finally {
@@ -260,16 +258,17 @@ export function createSpendLedger(deps: SpendLedgerDeps) {
   const finish = (scope: LedgerScope, txn: z.infer<typeof transactionSchema>) => {
     if (txn.entry !== undefined && txn.entry.state !== 'reserved') {
       const file = `history/${txn.entry.id}.json`
-      const previous = read(scope, file, entrySchema)
-      if (previous === undefined) publish(scope, file, txn.entry)
+      const previous = read(scope, file, historySchema)
+      if (previous === undefined) link(scope, 'transaction.json', file)
       else if (JSON.stringify(previous) !== JSON.stringify(txn.entry))
         fail(scope, 'damaged', 'history')
     }
     const file = `audit/${String(txn.next.generation)}.json`
     const previous = read(scope, file, transactionSchema)
-    if (previous === undefined) publish(scope, file, txn)
+    if (previous === undefined) link(scope, 'transaction.json', file)
     else if (JSON.stringify(previous) !== JSON.stringify(txn)) fail(scope, 'damaged', 'audit')
     unlinkSync(path.join(scope.directory, 'transaction.json'))
+    syncDirectory(scope.directory)
   }
   const commit = async (scope: LedgerScope, before: State, next: State, entry?: LedgerEntry) => {
     const txn = {
@@ -277,9 +276,12 @@ export function createSpendLedger(deps: SpendLedgerDeps) {
       next: { ...next, generation: before.generation + 1 },
       ...(entry !== undefined && { entry }),
     }
-    publish(scope, 'transaction.json', txn)
+    publish(scope, 'transaction.json', {
+      ...txn.next,
+      change: { before: txn.before, ...(entry !== undefined && { entry }) },
+    })
     await deps.step?.('transaction')
-    publish(scope, 'state.json', txn.next)
+    link(scope, 'transaction.json', 'state.json')
     await deps.step?.('state')
     finish(scope, txn)
     await deps.step?.('audit')
@@ -292,7 +294,7 @@ export function createSpendLedger(deps: SpendLedgerDeps) {
   ): Promise<State> => {
     const existing = state.open.find((claim) => claim.id === entry.id)
     if (existing === undefined) {
-      const closed = read(scope, `history/${entry.id}.json`, entrySchema)
+      const closed = read(scope, `history/${entry.id}.json`, historySchema)
       if (closed !== undefined) {
         if (JSON.stringify(closed) !== JSON.stringify(entry)) fail(scope, 'integrity', 'history')
         return state
@@ -301,14 +303,18 @@ export function createSpendLedger(deps: SpendLedgerDeps) {
       if (entry.state === 'released') fail(scope, 'integrity', 'claim')
     } else if (
       JSON.stringify(existing.owner) !== JSON.stringify(entry.owner) ||
-      (existing.bound !== entry.bound &&
-        !(
-          entry.state === 'reserved' && Usd.from(entry.bound).compare(Usd.from(existing.bound)) >= 0
-        ))
+      Usd.from(entry.bound).compare(Usd.from(existing.bound)) < 0
     )
       fail(scope, 'integrity', 'claim')
-    const next = { ...withEntry(state, entry), appliedInbox: entry.id }
+    const next = { ...withEntry(state, entry), appliedInbox: receiptId(entry) }
     return await commit(scope, state, next, entry)
+  }
+  const list = (scope: LedgerScope, folder: string): string[] => {
+    try {
+      return readdirSync(path.join(scope.directory, folder))
+    } catch (error: unknown) {
+      return fail(scope, 'unreadable', folder, error)
+    }
   }
   const recover = async (scope: LedgerScope, deadOwners: ReadonlySet<string>): Promise<State> => {
     const txn = read(scope, 'transaction.json', transactionSchema)
@@ -325,14 +331,13 @@ export function createSpendLedger(deps: SpendLedgerDeps) {
       )
         fail(scope, 'damaged', 'transaction.json')
       if (state === undefined || state.generation === txn.before)
-        publish(scope, 'state.json', txn.next)
+        link(scope, 'transaction.json', 'state.json')
       finish(scope, txn)
       state = txn.next
       await deps.step?.('recovery-transaction')
     }
     if (state === undefined) {
-      if (readdirSync(path.join(scope.directory, 'audit')).length > 0)
-        fail(scope, 'damaged', 'state.json')
+      if (list(scope, 'audit').length > 0) fail(scope, 'damaged', 'state.json')
       const initial = await deps.initial(scope)
       state = {
         version: SPEND_LEDGER_VERSION,
@@ -345,20 +350,14 @@ export function createSpendLedger(deps: SpendLedgerDeps) {
       }
       publish(scope, 'state.json', state)
     }
-    const inboxNames = readdirSync(path.join(scope.directory, 'inbox'))
+    const inboxNames = list(scope, 'inbox')
     for (const name of inboxNames) {
       if (!name.endsWith('.json')) continue
       const entry = read(scope, `inbox/${name}`, entrySchema) ?? fail(scope, 'damaged', 'inbox')
-      if (state.appliedInbox !== entry.id) state = await transition(scope, state, entry)
+      if (name !== `${entry.id}.json`) fail(scope, 'damaged', 'inbox')
+      if (state.appliedInbox !== receiptId(entry)) state = await transition(scope, state, entry)
       unlinkSync(path.join(scope.directory, 'inbox', name))
-      if (process.platform !== 'win32') {
-        const fd = openSync(path.join(scope.directory, 'inbox'), 'r')
-        try {
-          fsyncSync(fd)
-        } finally {
-          closeSync(fd)
-        }
-      }
+      syncDirectory(path.join(scope.directory, 'inbox'))
       pending.delete(`${scope.directory}/${entry.id}`)
       await deps.step?.('inbox-consumed')
     }
@@ -377,11 +376,11 @@ export function createSpendLedger(deps: SpendLedgerDeps) {
     }
     return state
   }
-  const locked = async <T>(
+  const lockOperation = async <T>(
     scope: LedgerScope,
     operation: (state: State) => Promise<T>,
   ): Promise<T> => {
-    for (const folder of ['', 'audit', 'history', 'sent', 'inbox'])
+    for (const folder of ['', 'audit', 'history', 'sent', 'inbox', 'owners'])
       mkdirSync(path.join(scope.directory, folder), { recursive: true })
     for (const item of pending.values()) {
       if (!isSamePath(item.scope.directory, scope.directory, process.platform)) continue
@@ -404,11 +403,24 @@ export function createSpendLedger(deps: SpendLedgerDeps) {
     }
     for (const [identity, owner] of owners) if (await gone(owner)) deadOwners.add(identity)
     const lock = path.join(scope.directory, 'lock')
-    const id = randomUUID()
-    const staging = path.join(scope.directory, `.lock-${id}`)
-    const note = { id, owner: await own }
+    let note = ownerNotes.get(scope.directory)
+    if (note === undefined) {
+      note = (async () => {
+        const id = randomUUID()
+        try {
+          publish(scope, `owners/${id}`, { id, owner: await own })
+          return id
+        } catch (error: unknown) {
+          ownerNotes.delete(scope.directory)
+          throw error
+        }
+      })()
+      ownerNotes.set(scope.directory, note)
+    }
+    const id = await note
+    const staging = path.join(scope.directory, `.lock-${randomUUID()}`)
     mkdirSync(staging)
-    writeFileSync(path.join(staging, id), JSON.stringify(note), { flag: 'wx', flush: true })
+    linkSync(path.join(scope.directory, 'owners', id), path.join(staging, id))
     const deadline = performance.now() + SPEND_LEDGER_LOCK_TIMEOUT_MS
     const judged = new Map<string, boolean>()
     let isAcquired = false
@@ -496,6 +508,17 @@ export function createSpendLedger(deps: SpendLedgerDeps) {
       }
     }
   }
+  const locked = async <T>(
+    scope: LedgerScope,
+    operation: (state: State) => Promise<T>,
+  ): Promise<T> => {
+    try {
+      return await lockOperation(scope, operation)
+    } catch (error: unknown) {
+      if (isSpendLedgerError(error)) throw error
+      return fail(scope, 'unreadable', 'lock or recovery', error)
+    }
+  }
   const validateAmount = (scope: LedgerScope, amount: string) => {
     try {
       if (Usd.from(amount).compare(Usd.from(0)) < 0) fail(scope, 'integrity', 'amount')
@@ -508,24 +531,39 @@ export function createSpendLedger(deps: SpendLedgerDeps) {
     for (;;) {
       const snapshot = current(scope)
       let state = snapshot
-      const names = readdirSync(path.join(scope.directory, 'inbox'))
+      const names = list(scope, 'inbox')
       for (const name of names) {
         if (!name.endsWith('.json')) continue
         const entry = read(scope, `inbox/${name}`, entrySchema)
-        if (entry === undefined || snapshot.appliedInbox === entry.id) continue
-        if (read(scope, `history/${entry.id}.json`, entrySchema) === undefined)
+        if (entry === undefined) continue
+        if (name !== `${entry.id}.json`) fail(scope, 'damaged', 'inbox')
+        if (snapshot.appliedInbox === receiptId(entry)) continue
+        if (read(scope, `history/${entry.id}.json`, historySchema) === undefined)
           state = withEntry(state, entry)
+      }
+      // A failed publication remains a liability in this process before its next write.
+      for (const item of pending.values()) {
+        if (
+          !isSamePath(item.scope.directory, scope.directory, process.platform) ||
+          snapshot.appliedInbox === receiptId(item.entry) ||
+          read(scope, `inbox/${item.entry.id}.json`, entrySchema) !== undefined ||
+          read(scope, `history/${item.entry.id}.json`, historySchema) !== undefined
+        )
+          continue
+        state = withEntry(state, item.entry)
       }
       if (current(scope).generation === snapshot.generation) return total(state)
     }
   }
   const claimFor = (scope: LedgerScope, created: LedgerEntry): LedgerClaim => {
+    let latest = created
     const owned = (): LedgerEntry => {
       const state = current(scope)
       const entry =
+        pending.get(`${scope.directory}/${created.id}`)?.entry ??
         read(scope, `inbox/${created.id}.json`, entrySchema) ??
         state.open.find((claim) => claim.id === created.id) ??
-        read(scope, `history/${created.id}.json`, entrySchema)
+        read(scope, `history/${created.id}.json`, historySchema)
       return entry === undefined ||
         JSON.stringify(entry.owner) !== JSON.stringify(created.owner) ||
         Usd.from(entry.bound).compare(Usd.from(created.bound)) < 0
@@ -534,12 +572,15 @@ export function createSpendLedger(deps: SpendLedgerDeps) {
     }
     const save = async (entry: LedgerEntry) => {
       validateAmount(scope, entry.amount)
-      const previous = owned()
+      const previous = latest
       if (previous.state !== 'reserved' && JSON.stringify(previous) !== JSON.stringify(entry))
         return fail(scope, 'integrity', 'claim')
       const key = `${scope.directory}/${created.id}`
       pending.set(key, { scope, entry })
+      latest = entry
+      await deps.step?.('settlement-queued')
       publish(scope, `inbox/${entry.id}.json`, entry)
+      await deps.step?.('receipt')
       try {
         return await locked(scope, (state) => Promise.resolve(total(state)))
       } catch (error: unknown) {
@@ -563,7 +604,7 @@ export function createSpendLedger(deps: SpendLedgerDeps) {
         publish(scope, `sent/${created.id}.json`, { sent: false })
       },
       settle: async (status, amount) => {
-        const previous = owned()
+        const previous = latest
         if (status === 'released' && Usd.from(amount).compare(Usd.from(0)) !== 0)
           fail(scope, 'integrity', 'claim')
         return await save({
@@ -573,7 +614,7 @@ export function createSpendLedger(deps: SpendLedgerDeps) {
         })
       },
       retain: async (amount) => {
-        const previous = owned()
+        const previous = latest
         if (
           previous.state !== 'reserved' ||
           Usd.from(amount).compare(Usd.from(previous.amount)) < 0
@@ -654,21 +695,29 @@ export function createSpendLedger(deps: SpendLedgerDeps) {
     lookup(scope: LedgerScope, id: string): LedgerEntry {
       return ID.safeParse(id).success
         ? (current(scope).open.find((entry) => entry.id === id) ??
-            read(scope, `history/${id}.json`, entrySchema) ??
+            read(scope, `history/${id}.json`, historySchema) ??
             fail(scope, 'damaged', 'claim'))
         : fail(scope, 'integrity', 'claim id')
     },
-    async record(scope: LedgerScope, amount: UsdAmount, isUncertain = false): Promise<LedgerTotal> {
+    async record(
+      scope: LedgerScope,
+      amount: UsdAmount,
+      state: 'settled' | 'uncertain' | 'released' = 'settled',
+    ): Promise<LedgerTotal> {
       validateAmount(scope, amount)
       const entry: LedgerEntry = {
         id: randomUUID(),
         owner: await own,
         bound: amount,
-        state: isUncertain ? 'uncertain' : 'settled',
+        state,
         amount,
       }
-      mkdirSync(path.join(scope.directory, 'inbox'), { recursive: true })
       pending.set(`${scope.directory}/${entry.id}`, { scope, entry })
+      try {
+        mkdirSync(path.join(scope.directory, 'inbox'), { recursive: true })
+      } catch (error: unknown) {
+        fail(scope, 'unreadable', 'inbox', error)
+      }
       publish(scope, `inbox/${entry.id}.json`, entry)
       try {
         return await locked(scope, (state) => Promise.resolve(total(state)))

@@ -1,3 +1,4 @@
+import { SpendLedgerError } from '../../paid/spendLedgerError'
 // C-M101-1: paid consent and per-attempt daily claims shared by editor and runtime.
 import { Usd, type UsdAmount } from '../../../shared/usd'
 import { MODEL_API_PRICES_PER_MILLION, TOKENS_PER_MILLION } from '../../../shared/constants'
@@ -39,9 +40,10 @@ export function resolveAutoCompactModel(modelId: string): AutoCompactModel | und
 /** The D78 daily claim behind one automatic compaction, in either manager. */
 export interface AutoCompactionLedgerClaim {
   readonly reservedUsd: UsdAmount
+  readonly markSent?: () => void
   /** Synchronous final admission; refuses an over-cap or stopped ledger. */
   check(): void
-  settle(actualCostUsd: UsdAmount, hasUnknownCost: boolean): Promise<unknown>
+  settle(actualCostUsd: UsdAmount, state: 'settled' | 'uncertain' | 'released'): Promise<unknown>
 }
 
 /** Amount-based daily reserve; a refusal (over cap, stopped, unreadable) throws. */
@@ -72,8 +74,6 @@ export interface AutoCompactionAdmissionDeps {
   readonly dailyBudgetUsd: () => UsdAmount | Promise<UsdAmount>
   readonly notePaidUse: ModelApiHostDeps['notePaidUse']
   readonly log: CoreLogger
-  /** `UI_TEXT.sessionBudgetStoreUnavailable` in the installed language. */
-  readonly storeUnavailable: string
 }
 
 type AdmitAutoCompaction = NonNullable<ModelApiHostDeps['admitAutoCompaction']>
@@ -97,7 +97,7 @@ function reserveAmountUsd(
   try {
     return Usd.from(
       pricing.reserveRequestAmount(model.pricing.card, {
-        inputTokens,
+        inputTokens: Buffer.byteLength(JSON.stringify(body), 'utf8'),
         outputTokens: body.max_output_tokens,
       }),
     )
@@ -112,12 +112,12 @@ function reserveAmountUsd(
 function settleAmount(
   modelId: string,
   usage: Usage | undefined,
-  outcome: 'returned' | 'uncertain' | 'rate-limited',
+  outcome: 'returned' | 'uncertain' | 'refused',
   reservedUsd: UsdAmount,
-): { readonly amount: UsdAmount; readonly hasUnknownCost: boolean } {
-  // A rate-limited attempt was refused before doing billed work: a known nonsend.
-  if (outcome === 'rate-limited') return { amount: Usd.from(0).toAmount(), hasUnknownCost: false }
-  if (usage === undefined) return { amount: reservedUsd, hasUnknownCost: true }
+): { readonly amount: UsdAmount; readonly state: 'settled' | 'uncertain' | 'released' } {
+  // An initial provider refusal did no billed work: known zero cost.
+  if (outcome === 'refused') return { amount: Usd.from(0).toAmount(), state: 'settled' }
+  if (usage === undefined) return { amount: reservedUsd, state: 'uncertain' }
   try {
     return {
       amount: estimateCostUsd(
@@ -128,10 +128,10 @@ function settleAmount(
         },
         modelId,
       ),
-      hasUnknownCost: false,
+      state: 'settled',
     }
   } catch {
-    return { amount: reservedUsd, hasUnknownCost: true }
+    return { amount: reservedUsd, state: 'uncertain' }
   }
 }
 
@@ -168,23 +168,23 @@ export function createAutoCompactionAdmission(
     const settle = (
       sentModelId: string,
       usage: Usage | undefined,
-      outcome: 'returned' | 'uncertain' | 'rate-limited',
+      outcome: 'returned' | 'uncertain' | 'refused',
     ): Promise<void> => {
       const owned = claim
       claim = undefined
       const wasSent = didSend
       didSend = false
       if (owned === undefined) return pending
-      const { amount, hasUnknownCost } = wasSent
+      const { amount, state } = wasSent
         ? settleAmount(sentModelId, usage, outcome, owned.reservedUsd)
-        : { amount: Usd.from(0).toAmount(), hasUnknownCost: false }
+        : { amount: Usd.from(0).toAmount(), state: 'released' as const }
       pending = (async () => {
         try {
-          await owned.settle(amount, hasUnknownCost)
+          await owned.settle(amount, state)
         } catch (error: unknown) {
           hasFailed = true
           deps.log.warn('Automatic compaction could not settle its ledger claim')
-          throw new Error(deps.storeUnavailable, { cause: error })
+          throw error
         }
       })()
       // Cleanup/retry awaits the same write; observe rejections even when Stop wins.
@@ -196,23 +196,42 @@ export function createAutoCompactionAdmission(
     const guard = Object.assign(
       () => {
         checkAuthorization()
-        if (hasFailed) throw new Error(deps.storeUnavailable)
+        if (hasFailed)
+          throw new SpendLedgerError('integrity', {
+            scope: 'session',
+            file: 'compaction admission',
+          })
         if (claim === undefined && deps.accounting !== 'transport')
-          throw new Error(deps.storeUnavailable)
+          throw new SpendLedgerError('integrity', {
+            scope: 'session',
+            file: 'compaction admission',
+          })
         claim?.check()
       },
       {
         prepareRequest: async (body: CreateResponseBody, inputTokens: number) => {
           await settle(modelId, undefined, 'uncertain')
           checkAuthorization()
-          if (hasFailed || body.model !== modelId) throw new Error(deps.storeUnavailable)
+          if (hasFailed || body.model !== modelId)
+            throw new SpendLedgerError('integrity', {
+              scope: 'session',
+              file: 'compaction admission',
+            })
           const pricing = await deps.loadPricing?.()
           checkAuthorization()
           const reserveUsd = reserveAmountUsd(model, body, inputTokens, pricing)
-          if (reserveUsd === undefined) throw new Error(deps.storeUnavailable)
+          if (reserveUsd === undefined)
+            throw new SpendLedgerError('integrity', {
+              scope: 'session',
+              file: 'compaction admission',
+            })
           if (deps.accounting === 'transport') return
           claim = await deps.accounting.reserveCompaction(reserveUsd, signal)
-          if (claim === undefined) throw new Error(deps.storeUnavailable)
+          if (claim === undefined)
+            throw new SpendLedgerError('integrity', {
+              scope: 'session',
+              file: 'compaction admission',
+            })
           try {
             checkAuthorization()
           } catch (error: unknown) {
@@ -221,6 +240,7 @@ export function createAutoCompactionAdmission(
           }
         },
         onRequestStarted: () => {
+          claim?.markSent?.()
           didSend = true
           deps.notePaidUse('autoCompaction', 1)
         },

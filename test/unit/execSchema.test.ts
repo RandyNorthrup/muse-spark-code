@@ -308,6 +308,25 @@ describe('M80 schemas (A15/A16/F1)', () => {
     ]
     for (const value of faults) expect(execResultSchema.safeParse(value).success).toBe(false)
   })
+  it('permits an exact overage only with a stopped breach', () => {
+    const result = resultRecord()
+    result.usage.costUsd = {
+      settled: Usd.from(2).toAmount(),
+      uncertain: Usd.from(0).toAmount(),
+      reserved: Usd.from(0).toAmount(),
+      total: Usd.from(2).toAmount(),
+      isUpperBound: false,
+    }
+    expect(execResultSchema.safeParse(result).success).toBe(false)
+    result.status = 'budget_exceeded'
+    result.exitCode = 5
+    result.error = { kind: 'breach', message: 'overage recorded' }
+    if (result.ledger === null) throw new Error('fixture ledger missing')
+    result.ledger.breach = true
+    expect(execResultSchema.safeParse(result).success).toBe(true)
+    result.ledger.breach = false
+    expect(execResultSchema.safeParse(result).success).toBe(false)
+  })
   it('enforces event required fields, envelope enums and integer ledger identity', () => {
     const totals = {
       capUsd: Usd.from(1).toAmount(),

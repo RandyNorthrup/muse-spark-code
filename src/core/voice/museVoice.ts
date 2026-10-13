@@ -1,3 +1,4 @@
+import { isSpendLedgerError } from '../paid/spendLedgerError'
 import { Usd } from '../../shared/usd'
 // Muse Voice (M35, PLAN.md D30): the paid, opt-in dictation engine. The
 // microphone's audio comes from a capture helper (the same resident-helper
@@ -425,10 +426,16 @@ export class MuseVoiceDictation implements DictationHandle {
             .divideIntegerCeiling(SECONDS_PER_HOUR * MUSE_VOICE_BYTES_PER_SECOND)
             .toAmount()
         : Usd.from(0).toAmount()
-      await state.claim.settle(estimateUsd, state.hasAuthorizationStarted)
-    } catch {
+      if (state.hasAuthorizationStarted) await state.claim.settle(estimateUsd, 'reserved')
+      await state.claim.settle(
+        estimateUsd,
+        state.hasAuthorizationStarted ? 'uncertain' : 'released',
+      )
+    } catch (error: unknown) {
       this.deps.log.warn('Muse Voice spend was not saved')
-      this.listener.onError(UI_TEXT.sessionBudgetStoreUnavailable)
+      this.listener.onError(
+        isSpendLedgerError(error) ? error.message : UI_TEXT.sessionBudgetStoreUnavailable,
+      )
     }
   }
 
@@ -452,7 +459,8 @@ export class MuseVoiceDictation implements DictationHandle {
           state.scope.sessionId,
           state.scope.accountId,
           Usd.from(0).toAmount(),
-          { isUnbounded: true },
+          Usd.from(0).toAmount(),
+          'unknown',
         )
       }
       if (!this.isStreamOpen(stream)) {
@@ -473,6 +481,7 @@ export class MuseVoiceDictation implements DictationHandle {
       state.keyDigest = createHash('sha256').update(sendingKey).digest('hex')
       consentFence?.(state.keyDigest, true)
       this.admitBudgetSend(state)
+      state.claim?.markSent?.()
       stream.start(sendingKey)
     } catch (error: unknown) {
       stream.fail(error instanceof Error ? error.message : String(error))

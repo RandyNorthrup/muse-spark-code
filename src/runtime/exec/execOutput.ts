@@ -1,3 +1,4 @@
+import { Usd } from '../../shared/usd'
 import { isInvalidProvidersFileError } from '../../acp/accountText'
 import { redactSecrets } from '../../core/redact'
 import type { Logger } from '../../host/logger'
@@ -269,6 +270,12 @@ export function createExecSink(input: {
       },
     )
     input.summary(redactWhole(summary, input.literals()))
+    if (cost !== null && Usd.from(cost.uncertain).compare(Usd.from(0)) > 0)
+      input.summary(
+        fill(UI_TEXT.sessionBudgetUnknownCharge, {
+          amount: formatUsd(cost.uncertain, EXEC_USD_DECIMALS),
+        }),
+      )
     if (schema !== undefined && input.outputValidation?.() === 'local')
       input.summary(UI_TEXT.outputSchemaLocalValidation)
   }

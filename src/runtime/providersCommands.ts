@@ -7,9 +7,7 @@
 // secret are committed once the machine reaches `done`. Reported failures
 // compensate the secret change; crash/rollback limits are recorded in PLAN §9.
 
-import { lookup } from 'node:dns/promises'
 import { mkdir, rmdir } from 'node:fs/promises'
-import { isIP } from 'node:net'
 import * as z from 'zod/mini'
 import path from 'node:path'
 import {
@@ -36,8 +34,6 @@ import {
   HTTP_STATUS,
   PROVIDER_PROBE_MODEL_IDS_MAX,
   PROVIDER_PROBE_TIMEOUT_MS,
-  PROVIDERS_CONFIG_DIR_NAME,
-  PROVIDERS_FILE_NAME,
   UI_TEXT,
 } from '../shared/constants'
 import { fill, plural, uiLocale } from '../shared/l10n/text'
@@ -62,33 +58,7 @@ import {
 const EXIT_OK = 0
 const EXIT_FAILED = 1
 
-/** Where the runner's own user file lives (D74: beside, never inside, Muse Code's config folder). */
-export function providersFilePath(input: {
-  readonly platform: NodeJS.Platform
-  readonly homeDir: string
-  readonly xdgConfigHome: string | undefined
-}): string {
-  const base = path.join(
-    input.xdgConfigHome ?? path.join(input.homeDir, '.config'),
-    PROVIDERS_CONFIG_DIR_NAME,
-  )
-  // Windows joins with `\`; join keeps one dialect per platform, as the
-  // skill and memory roots do.
-  return path.join(base, PROVIDERS_FILE_NAME)
-}
-
-/** DNS answers for an endpoint name; an IP literal is its own answer. */
-export async function resolveEndpointHost(hostname: string): Promise<readonly string[]> {
-  if (isIP(hostname) !== 0) {
-    return [hostname]
-  }
-  try {
-    const answers = await lookup(hostname, { all: true })
-    return answers.map((answer) => answer.address)
-  } catch {
-    return []
-  }
-}
+export { providersFilePath, resolveEndpointHost } from './providerPaths'
 
 export interface ProvidersDeps {
   /** The runner's own user file (never a repository file). */

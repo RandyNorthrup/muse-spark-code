@@ -252,7 +252,11 @@ export type ModelClient = Pick<
   readonly countInputTokensDetailed?: (
     body: CreateResponseBody,
     signal?: AbortSignal,
-  ) => Promise<{ readonly tokens: number; readonly costUsd?: UsdAmount | undefined }>
+  ) => Promise<{
+    readonly tokens: number
+    readonly costUsd?: UsdAmount | undefined
+    readonly accuracy?: 'exact' | 'estimate'
+  }>
 }
 
 export interface ResolvedModel {

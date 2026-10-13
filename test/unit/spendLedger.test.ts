@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import { afterAll, describe, expect, it } from 'vitest'
+import * as z from 'zod/mini'
 import { createSpendLedger, type LedgerScope } from '../../src/core/paid/spendLedger'
 import { currentProcessOwner } from '../../src/core/locks/processOwner'
 import { Usd } from '../../src/shared/usd'
@@ -94,13 +95,13 @@ describe('one spend ledger', () => {
   it('recovers a complete transaction before the next admission exactly once', async () => {
     const { scope, ledger } = setup()
     await ledger.read(scope)
-    const before = JSON.parse(readFileSync(path.join(scope.directory, 'state.json'), 'utf8')) as {
-      generation: number
-    }
+    const before = z
+      .looseObject({ generation: z.number() })
+      .parse(JSON.parse(readFileSync(path.join(scope.directory, 'state.json'), 'utf8')))
     const next = { ...before, generation: 1, settled: '0.7' }
     writeFileSync(
       path.join(scope.directory, 'transaction.json'),
-      JSON.stringify({ before: 0, next }),
+      JSON.stringify({ ...next, change: { before: 0 } }),
     )
     const readTotal3 = await ledger.read(scope)
     expect(readTotal3.spentUsd).toBe('0.7')
@@ -112,9 +113,16 @@ describe('one spend ledger', () => {
     const unsent = await ledger.admit(scope, usd(1), usd(10))
     const sent = await ledger.admit(scope, usd(2), usd(10))
     sent.markSent()
+    const stateFile = path.join(scope.directory, 'state.json')
+    const snapshot = z
+      .looseObject({
+        open: z.array(z.looseObject({ owner: z.looseObject({ pid: z.number() }) })),
+      })
+      .parse(JSON.parse(readFileSync(stateFile, 'utf8')))
+    for (const entry of snapshot.open) entry.owner.pid = 2_147_483_647
+    writeFileSync(stateFile, JSON.stringify(snapshot))
     const recovering = createSpendLedger({
       sleep: delay,
-      isGone: () => Promise.resolve(true),
       initial: () => Promise.resolve({ settled: usd(0), unknownHistory: false }),
     })
     expect(await recovering.read(scope)).toMatchObject({
@@ -130,7 +138,6 @@ describe('one spend ledger', () => {
     await ledger.admit(scope, usd(1), usd(2))
     const recovering = createSpendLedger({
       sleep: delay,
-      isGone: () => Promise.resolve(false),
       initial: () => Promise.resolve({ settled: usd(0), unknownHistory: false }),
     })
     expect(await recovering.read(scope)).toMatchObject({
@@ -179,7 +186,10 @@ describe('one spend ledger', () => {
     expect(await claim.settle('uncertain', usd('0.2'))).toMatchObject({
       spentUsd: '2',
       uncertainUsd: '2',
+      heldUsd: '0',
+      openClaims: 0,
     })
+    expect(ledger.lookup(scope, claim.id).state).toBe('uncertain')
   })
   it('an unsent unpriced reservation cannot permanently poison a later cap', async () => {
     const { scope, ledger } = setup()
@@ -194,6 +204,56 @@ describe('one spend ledger', () => {
     sent.markSent()
     await sent.settle('uncertain', usd(0))
     await expect(ledger.admit(scope, usd(1), usd(1))).rejects.toMatchObject({ kind: 'legacy' })
+  })
+  it('counts a failed overage publication locally and retries it without duplication', async () => {
+    const { scope } = setup()
+    let receiptToBlock: string | undefined
+    const ledger = createSpendLedger({
+      sleep: delay,
+      initial: () => Promise.resolve({ settled: usd(0), unknownHistory: false }),
+      step: (step) => {
+        if (step === 'settlement-queued' && receiptToBlock !== undefined) mkdirSync(receiptToBlock)
+        return Promise.resolve()
+      },
+    })
+    const billed = await ledger.admit(scope, usd(1), usd(2))
+    const fitting = await ledger.admit(scope, usd('0.5'), usd(2))
+    billed.markSent()
+    const receipt = path.join(scope.directory, 'inbox', `${billed.id}.json`)
+    receiptToBlock = receipt
+    await expect(billed.settle('settled', usd('1.4'))).rejects.toMatchObject({ kind: 'unreadable' })
+    rmSync(receipt, { recursive: true })
+    receiptToBlock = undefined
+    expect(fitting.check().spentUsd).toBe('1.9')
+    expect(await ledger.read(scope)).toMatchObject({ spentUsd: '1.9' })
+    expect(await ledger.read(scope)).toMatchObject({ spentUsd: '1.9' })
+  })
+  it('retains an incurred record when its directory cannot be created, then retries it', async () => {
+    const { scope, ledger } = setup()
+    const blocked = { ...scope, directory: path.join(scope.directory, 'blocked') }
+    writeFileSync(blocked.directory, 'file in place of directory')
+    await expect(ledger.record(blocked, usd('0.3'))).rejects.toMatchObject({
+      name: 'SpendLedgerError',
+      kind: 'unreadable',
+      facts: { file: 'inbox' },
+    })
+    rmSync(blocked.directory)
+    const total = await ledger.read(blocked)
+    expect(total.spentUsd).toBe('0.3')
+    const repeated = await ledger.read(blocked)
+    expect(repeated.spentUsd).toBe('0.3')
+  })
+  it('keeps the final charge when a snapshot read fails, then records it after repair', async () => {
+    const { scope, ledger } = setup()
+    const claim = await ledger.admit(scope, usd(1), usd(2))
+    claim.markSent()
+    const file = path.join(scope.directory, 'state.json')
+    const before = readFileSync(file)
+    writeFileSync(file, '{')
+    await expect(claim.settle('settled', usd('1.4'))).rejects.toMatchObject({ kind: 'damaged' })
+    writeFileSync(file, before)
+    expect(await ledger.read(scope)).toMatchObject({ spentUsd: '1.4', heldUsd: '0' })
+    expect(await ledger.read(scope)).toMatchObject({ spentUsd: '1.4' })
   })
   it('takes over a complete dead lock and a remover killed after removing the note', async () => {
     const { scope, ledger } = setup()

@@ -22,7 +22,7 @@ import type { AcpMediaFactory } from '../../acp/media'
 import { isValidModelApiKey, type SecretStore } from '../../host/auth/credentialStore'
 import type { Logger } from '../../host/logger'
 import type { AgentEvent } from '../../shared/agentEvents'
-import { uiLocale, fill, formatNumber, plural } from '../../shared/l10n/text'
+import { uiLocale, fill, formatNumber, formatPercent, plural } from '../../shared/l10n/text'
 import {
   ACP_AGENT_NAME,
   ACP_COMPACT_COMMAND,
@@ -36,12 +36,12 @@ import {
   EXEC_STOP_GRACE_MS,
   EXEC_STREAM_IDLE_MS,
   EXEC_USD_DECIMALS,
+  SPEND_LEDGER_ESTIMATE_MARGIN_PERCENT,
   HTTP_STATUS,
   HTTP_UNAUTHORIZED,
   JSON_RPC_ERRORS,
   MILLISECONDS_PER_SECOND,
   NO_COMPACTABLE_HISTORY,
-  MODEL_API_PRICES_PER_MILLION,
   PAID_PRICES_USD,
   MODEL_API_IMAGE_MODEL,
   SECRET_KEYS,
@@ -80,7 +80,7 @@ import {
 } from './keyInput'
 import type { AssembledProviderRun } from './providerExec'
 
-import { createRunLedger, resolveExecOutputCap, previewResponseReservation } from './runLedger'
+import { createRunLedger, resolveExecOutputCap } from './runLedger'
 import type { ExecBudgetRefusal } from './execProtocol'
 import { modelPolicyFor, type ModelPolicy } from '../../core/backends/modelapi/modelPolicy'
 import { observeBackend, type SessionTap } from './sessionTap'
@@ -143,9 +143,9 @@ export function budgetFinalMessage(input: {
   const remedies: string[] = []
   if (input.details !== undefined) {
     remedies.push(
-      fill(UI_TEXT.execBudgetRemedyCap, {
-        admitCap: formatUsd(input.details.admitCapUsd, 2),
-      }),
+      input.details.admitCapUsd === null
+        ? UI_TEXT.execBudgetImpossible
+        : fill(UI_TEXT.execBudgetRemedyCap, { admitCap: formatUsd(input.details.admitCapUsd, 2) }),
     )
     if (input.details.maxOutputTokens !== null)
       remedies.push(
@@ -315,8 +315,6 @@ function stopMessage(cause: StopCause, maxRequests: number): string {
   }
 }
 
-const ZERO_MICRO_USD = 0n
-
 function microUsd(value: UsdAmount): bigint {
   return Usd.from(value).units(EXEC_USD_DECIMALS)
 }
@@ -443,6 +441,9 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
   let error = UI_TEXT.execIncomplete
   /** The latest run-cap budget refusal in typed numbers, for the final sentence and JSON. */
   let budgetRefusal: ExecBudgetRefusal | undefined
+  let localRefusalKind: string | undefined
+  let localRefusalFacts:
+    { scope: string; file?: string | undefined; errno?: string | undefined } | undefined
   let questionsDeclined = 0
   let inputs: ExecInputRecord[] = []
   const filesChanged = new Set<string>()
@@ -785,7 +786,10 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
           imageGeneration: options.paidFeatures.includes('imageGeneration'),
           lifecycle,
           onLatch: (cause, message) => {
-            if (message !== undefined) error = message
+            if (message !== undefined) {
+              error = message
+              if (cause.kind === 'breach') localRefusalKind = 'breach'
+            }
             latch(cause)
           },
           emit: (event) => {
@@ -857,11 +861,23 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
                 if (reason === 'closed') latch({ kind: 'internal' })
                 else latch({ kind: reason })
               },
+              localRefusal: (kind, message, facts) => {
+                localRefusalFacts = facts
+                localRefusalKind = kind
+                error = message
+                if (kind.startsWith('ledger_')) latch({ kind: 'internal' })
+              },
               started: (n, ticket) => {
                 tap?.beginResponse(n)
                 // EXECPROV round 6: a byte bound after a failed exact count
                 // says so on the info line, with the fixed reason.
-                if (ticket.inputBound === 'bytes-after-failure')
+                if (ticket.inputBound === 'estimate')
+                  log.info(
+                    fill(UI_TEXT.execEstimateBound, {
+                      margin: formatPercent(SPEND_LEDGER_ESTIMATE_MARGIN_PERCENT),
+                    }),
+                  )
+                else if (ticket.inputBound === 'bytes-after-failure')
                   log.info(UI_TEXT.execCountBytesFallback)
                 sink.emit({
                   type: 'attempt',
@@ -874,6 +890,20 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
                 })
               },
               settled: (outcome, ticket, settlement) => {
+                if (
+                  settlement.latch === 'breach' &&
+                  Usd.from(settlement.chargedUsd).compare(Usd.from(ticket.reserveUsd)) > 0
+                ) {
+                  localRefusalKind = 'breach'
+                  error = fill(UI_TEXT.execBudgetOverage, {
+                    overage: formatUsd(
+                      Usd.from(settlement.chargedUsd).subtract(Usd.from(ticket.reserveUsd)),
+                      EXEC_USD_DECIMALS,
+                    ),
+                    cost: formatUsd(settlement.chargedUsd, EXEC_USD_DECIMALS),
+                    reserved: formatUsd(ticket.reserveUsd, EXEC_USD_DECIMALS),
+                  })
+                }
                 sink.emit({
                   type: 'attempt',
                   n: ticket.n,
@@ -1159,51 +1189,15 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
                   error = unpricedMessage(requestedModel, undefined)
                   return
                 }
-                // Ask the ledger's exact arithmetic for the start reservation, in a
-                // separate un-dispatched ledger. No request belongs to this run yet.
-                const preview = previewResponseReservation(
-                  ledger,
-                  model ?? '',
-                  MODEL_API_PRICES_PER_MILLION[tier],
-                )
-                const minimum =
-                  microUsd(preview.reserveUsd) +
-                  (options.paidFeatures.includes('imageGeneration')
-                    ? microUsd(Usd.from(PAID_PRICES_USD.imageGeneration).toAmount())
-                    : ZERO_MICRO_USD)
-                // EXECPROV round 6: a capped run states its next reservation
-                // and what is left before it spends anything.
+                // The actual body is not available yet. Admission prices that body,
+                // including the output cap it sends, before any provider request.
                 log.info(
-                  fill(UI_TEXT.execBudgetStartExact, {
+                  fill(UI_TEXT.execBudgetStartBytes, {
                     cap: formatUsd(totals.capUsd, EXEC_USD_DECIMALS),
                     remaining: formatUsd(totals.remainingUsd, EXEC_USD_DECIMALS),
-                    reservation: formatUsd(
-                      Usd.fromUnits(minimum, EXEC_USD_DECIMALS).toAmount(),
-                      EXEC_USD_DECIMALS,
-                    ),
+                    output: formatNumber(outputCap()),
                   }),
                 )
-                if (microUsd(options.budgetUsd ?? Usd.from(0).toAmount()) < minimum) {
-                  error = fill(UI_TEXT.execBudgetMinimum, {
-                    minimum: formatUsd(
-                      Usd.fromUnits(minimum, EXEC_USD_DECIMALS),
-                      EXEC_USD_DECIMALS,
-                    ),
-                  })
-                  // A run that will not fit says so before it spends, on the
-                  // info line as well as in the result.
-                  log.info(error)
-                  budgetRefusal = {
-                    neededUsd: Usd.fromUnits(minimum, EXEC_USD_DECIMALS).toAmount(),
-                    remainingUsd: totals.remainingUsd,
-                    admitCapUsd: Usd.fromUnits(minimum, EXEC_USD_DECIMALS).ceiling(2).toAmount(),
-                    maxOutputTokens: null,
-                    inputAloneExceeds: false,
-                    inputCostUsd: Usd.fromUnits(minimum, EXEC_USD_DECIMALS).toAmount(),
-                  }
-                  latch({ kind: 'budget' })
-                  return
-                }
               } else {
                 // A provider run's first body is not built yet, so the start
                 // line states the reservation rule with the numbers known: the
@@ -1213,14 +1207,15 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
                 // Through the externalized providers entry (never a static
                 // edge: the split gate forbids carrying provider modules).
                 const { tokenCount } = await import('../../host/backend/providersEntry')
-                const hasExactCountOffer =
-                  tokenCount.exactCountKindFor(
-                    providerRun.provider.entry,
-                    providerRun.provider.preset,
-                  ) !== undefined
+                const inputCountKind = tokenCount.exactCountKindFor(
+                  providerRun.provider.entry,
+                  providerRun.provider.preset,
+                )
                 log.info(
                   fill(
-                    hasExactCountOffer ? UI_TEXT.execBudgetStartRule : UI_TEXT.execBudgetStartBytes,
+                    inputCountKind === 'responses-input-tokens'
+                      ? UI_TEXT.execBudgetStartRule
+                      : UI_TEXT.execBudgetStartBytes,
                     {
                       cap: formatUsd(totals.capUsd, EXEC_USD_DECIMALS),
                       remaining: formatUsd(totals.remainingUsd, EXEC_USD_DECIMALS),
@@ -1228,6 +1223,12 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
                     },
                   ),
                 )
+                if (inputCountKind === 'anthropic-count-tokens')
+                  log.info(
+                    fill(UI_TEXT.execEstimateBound, {
+                      margin: formatPercent(SPEND_LEDGER_ESTIMATE_MARGIN_PERCENT),
+                    }),
+                  )
               }
             }
             tap?.beginResponse(1)
@@ -1323,7 +1324,10 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
       status = statusForStop(lifecycle.cause)
       if (lifecycle.cause.kind === 'unpriced')
         error = unpricedMessage(model ?? options.model, providerFilePath)
-      else if (lifecycle.cause.kind !== 'budget' || error === UI_TEXT.execIncomplete)
+      else if (
+        localRefusalKind === undefined &&
+        (lifecycle.cause.kind !== 'budget' || error === UI_TEXT.execIncomplete)
+      )
         error =
           vaultDenial !== undefined && lifecycle.cause.kind === 'denied'
             ? vaultDenial
@@ -1380,7 +1384,16 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
     if (status === 'budget_exceeded' && cause?.kind !== 'budget') {
       // A breach stops as budget_exceeded without a refused request: its
       // final message stays the kept-work sentence it has always been.
-      finalMessage = [...kept, plural(UI_TEXT.execBudgetProgress, totals?.requests ?? 0)].join(' ')
+      finalMessage = [
+        ...kept,
+        error,
+        plural(UI_TEXT.execBudgetProgress, totals?.requests ?? 0),
+      ].join(' ')
+    } else if (
+      status === 'budget_exceeded' &&
+      (localRefusalKind === 'daily_budget' || localRefusalKind === 'midnight')
+    ) {
+      finalMessage = [...kept, error].join(' ')
     } else if (status === 'budget_exceeded') {
       finalMessage = budgetFinalMessage({
         kept,
@@ -1467,7 +1480,11 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
       error:
         status === 'completed'
           ? null
-          : { kind: cause?.kind === 'unpriced' ? 'unpriced' : status, message: error },
+          : {
+              kind: localRefusalKind ?? (cause?.kind === 'unpriced' ? 'unpriced' : status),
+              message: error,
+              ...(localRefusalFacts !== undefined && { facts: localRefusalFacts }),
+            },
     }
     return result
   }
