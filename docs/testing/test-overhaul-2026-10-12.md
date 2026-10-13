@@ -159,7 +159,68 @@ PASS 6 (before 27,650 unit tests on the untouched base).
 
 ## PASS 3 — screenshot system removal (TBD)
 
-## PASS 4 — rule 3 decisions (one line each; TBD)
+## PASS 4 — rule 3 decisions (one line each)
+
+Decision rule: a file goes only if everything it asserts is also enforced
+by a pipeline gate on real inputs (`npm run build`'s size/split gates,
+a `check:*` gate, CI fail-closed wiring), so no person-visible breakage
+slips through its deletion. Snapshots: no `toMatchSnapshot` family user
+survives (the audit's 7 snapshot-kind files were GO and deleted in PASS 2).
+
+Deleted (8 test files; the roadmap wiring pin moves, everything else has
+a gate doing the same job on real inputs):
+
+- `webviewBundle.test.mjs` — ran the size/split gates over mock dist
+  trees; the build runs the same gates over the real tree.
+- `webviewBundles.test.mjs` — unit-tested the checker's grouping on
+  hand-built metafiles; the build runs it on the production metafiles.
+- `reportingBundles.test.mjs` — M113 boundary bytes and membership the
+  size gate (budgets) and split gate both enforce; the 51,157-byte
+  baseline fails with no person hurt.
+- `playbookBundles.test.mjs` — playbook-out-of-startup plus the 25 KiB
+  closure, both build-enforced; bytes backstop any placement slip.
+- `resourceHistoryBundle.test.mjs` — ResourcesSection placement (the
+  build runs `checkResourceWebview`) plus 25 KiB/900 KiB build caps.
+- `vsixBudget.test.mjs` — the vsix cap the packages job
+  (`node scripts/check-vsix-size.mjs ./*.vsix`) and `package-vsix.mjs`
+  already enforce.
+- `teamActivationGraph.test.ts` — the exact team/runners regex the
+  split gate carries for activation, Model API and ACP bundles.
+- `genRoadmap.test.mjs` — generator rules re-verified by
+  `check:roadmap` on the real PLAN on every gate run; its "wired into
+  quality:gates" pin moves to manifest.test.ts's CIFLOW suite (the
+  leaves comparison drops both sides together, so it could not hold
+  the pin alone).
+
+Stayed (what a person loses if deleted):
+
+- `manifest.test.ts` release-workflow half (RELFAST/RELFAST2/M80 LA) —
+  the only fail-closed wiring check on release reuse, cancellation
+  blocks and the owner-only live-Action gate; workflows execute their
+  own text, so nothing else catches a miswire.
+- `uiTextRegions.test.mjs` — the generated Node fallback's runtime
+  (lazy install, per-language state, vault round-trip); `check:l10n`
+  is static parity and never executes it.
+- `legalDeps×8` — per-ecosystem license gap handling ("never a silent
+  zero"); same shape, eight different scanners, legal risk.
+- `tabConstants`/`teamConstants`/`teamCapValidation`/money suites —
+  decided spending-cap values with no gate behind them; a silent change
+  bills a person.
+- `teamStartup` — tests 2–3 (constants tree-shaking, parsing without
+  team.js, every deferred payload validates) cover behavior no gate
+  runs; test 1's membership/bytes duplicate the build, noted.
+- `teamRuntimePackage`, `developerOptionsPage`, `modelApiEntryExports`
+  (pins the B1 missing-export regression), `planReader`,
+  `legalFixProduction`, `lazyBundleFiles`, `releaseIntegrity`,
+  `packagedBundles`, `releasePublish`, `estimatorLocalization`
+  (unfinished commands must not reach the palette), `noticesInput`,
+  `scheduleProvenance`, `sideCallSchemas`, `supportReport`,
+  `reportProblemDialog`, `teamRefFence`, `spawnInventory` (new spawn
+  sites fail first), `themeInventory` (traversal refusal),
+  `confirmedDispatchInventory` (only the helper refuses billed
+  requests), `featureCatalogDetails` (MONEY017E help regression),
+  `cx1r2Truth`/`cx1r4Truth` (shipped claims match the product) —
+  behavior or claim-truth a caller or reader depends on.
 
 ## PASS 5 — gate and workflows (TBD)
 
