@@ -1358,6 +1358,9 @@ export const MEDIA_CONVERTER_INSTALL_PATHS = {
 } as const
 export const MEDIA_FILE_EXPIRY_MIN_S = 3600
 export const MEDIA_FILE_EXPIRY_MAX_S = 2_592_000
+// Anthropic documents 3600 to 7776000 seconds for `expires_in_seconds`
+// (platform.claude.com file guide, read 2026-10-13; GAPANTH-G16).
+export const ANTHROPIC_FILE_EXPIRY_MAX_S = 7_776_000
 export const MEDIA_FILE_EXPIRY_DEFAULT_S = 604_800
 export const MEDIA_MAX_UPLOAD_DEFAULT_MIB = 200
 export const MEDIA_CONVERSION_DEFAULT_OUTPUT_BYTES = MEDIA_MAX_UPLOAD_DEFAULT_MIB * 1024 * 1024
@@ -6561,6 +6564,8 @@ export const MODEL_API_MODEL_TEXT = {
   pdfLeftOut:
     '[The PDF {name}, attached earlier, is left out of this request because newer media fill the request limit.]',
   mediaLeftOut: '[Media is left out of this request because {reason}.]',
+  mediaSourceUnavailable:
+    '[The attachment {name} is unavailable in this request; attach the file again to use it.]',
   mediaSupportRefused: 'the selected model does not have established support for this media',
   mediaMimeRefused: 'the selected model does not support this image MIME type',
   mediaLimitExceeded: 'the media exceeds the selected model media limits',

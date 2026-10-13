@@ -52,11 +52,16 @@ export const mediaInfoSchema = z.discriminatedUnion('kind', [
 ])
 export type MediaInfo = z.infer<typeof mediaInfoSchema>
 
-/** Provider-local upload metadata. Expiry is required; no source bytes survive. */
+/**
+ * Provider-local upload metadata. Expiry rides along only when the
+ * provider's Files API sets one (Meta, Anthropic with an expiry); a file
+ * that lives until deleted carries none, and the ledger deletes it
+ * explicitly (OPENAI-G15, GAPANTH-G16). No source bytes survive.
+ */
 export const uploadedMediaRefSchema = z.strictObject({
   fileId: id,
   provider: id,
-  expiresAt: positiveCount,
+  expiresAt: z.optional(positiveCount),
   sha256: z.string().check(z.regex(MEDIA_SHA256_PATTERN)),
   bytes: count,
   name,

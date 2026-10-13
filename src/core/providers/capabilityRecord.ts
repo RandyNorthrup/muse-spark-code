@@ -102,6 +102,21 @@ const modalitiesSchema = z.strictObject({
   pdf: known(z.strictObject({ maxPages: z.optional(count), maxBytes: z.optional(count) })),
   audio: flag,
 })
+// Whether the provider's Files API takes an upload once and a file id per
+// request (OPENAI-G15, GAPANTH-G16): which upload/receipt dialect to speak,
+// the documented per-file bound, and whether files expire on their own or
+// live until deleted. Unknown stays off: nothing uploads without evidence.
+const filesSchema = z.strictObject({
+  upload: known(
+    z.strictObject({
+      wire: z.enum(['meta-files', 'openai-files', 'anthropic-files']),
+      maxBytes: z.optional(count),
+      // How long a file lives when the provider documents it; absent stays
+      // unknown and the uploader deletes explicitly (OPENAI-G15, GAPANTH-G16).
+      retention: z.optional(z.enum(['until-deleted', 'expiring'])),
+    }),
+  ),
+})
 const logprobsSchema = known(
   z.strictObject({
     kind: z.enum(['top1', 'topk']),
@@ -125,6 +140,7 @@ const groups = {
   output: outputSchema,
   limits: limitsSchema,
   modalities: modalitiesSchema,
+  files: filesSchema,
   sampling: samplingSchema,
   hosted: hostedSchema,
 }
@@ -153,6 +169,7 @@ export const capabilityOverridesSchema = z
     output: z.optional(z.partial(outputSchema)),
     limits: z.optional(z.partial(limitsSchema)),
     modalities: z.optional(z.partial(modalitiesSchema)),
+    files: z.optional(z.partial(filesSchema)),
     sampling: z.optional(z.partial(samplingSchema)),
     hosted: z.optional(z.partial(hostedSchema)),
     logprobs: z.optional(logprobsSchema),
@@ -255,6 +272,7 @@ export function resolveModelCapabilities(
     output: { formats: unknown, acceptsLimit: unknown },
     limits: {},
     modalities: { image: unknown, pdf: unknown, audio: unknown },
+    files: { upload: unknown },
     logprobs: unknown,
     sampling: { temperature: unknown, topP: unknown, nativeCandidates: unknown },
     completion: unknown,
@@ -320,6 +338,12 @@ export function metaCapabilityRecord(nativeModel: string): ModelCapabilityRecord
             maxCount: MODEL_API_MEDIA_PER_REQUEST,
           }),
           pdf: yes({ maxPages: MODEL_API_PDF_PAGE_IMAGES, maxBytes: MAX_DOCUMENT_BYTES }),
+        },
+        // Meta's Files API speaks the meta dialect and always expires
+        // (expires_after rides every upload); the record carries no per-file
+        // bound the provider did not document.
+        files: {
+          upload: yes({ wire: 'meta-files', retention: 'expiring' }),
         },
         cache: { mode: 'implicit', acceptsKey: true, retention: [...PROMPT_CACHE_RETENTIONS] },
       },

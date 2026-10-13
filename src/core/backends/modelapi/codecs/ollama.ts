@@ -264,8 +264,13 @@ function toolOutputText(
 
 function imagesOf(parts: readonly InputContentPart[]): readonly string[] {
   return parts.flatMap((part) =>
-    part.type === 'input_image' ? [imagePayload(part.image_url)] : [],
+    part.type === 'input_image' && 'image_url' in part ? [imagePayload(part.image_url)] : [],
   )
+}
+
+/** A file reference rides no bytes: the local wire cannot take it (GAPANTH-G16). */
+function hasFileReference(parts: readonly InputContentPart[]): boolean {
+  return parts.some((part) => 'file_id' in part)
 }
 
 /**
@@ -318,9 +323,14 @@ export function encodeOllamaRequest(
     }
     const images = imagesOf(item.content)
     // M101 lane P1 (BYO item 1): images for a model without image input
-    // ride as the image-omitted placeholder, keeping the turn's shape.
+    // ride as the image-omitted placeholder, keeping the turn's shape. A
+    // file reference rides the same placeholder: it carries no bytes for
+    // the local wire, and is never dropped silently.
     const text = textOf(item.content)
-    const content = vision === false && images.length > 0 ? placeholderAppended(text) : text
+    const content =
+      (vision === false && images.length > 0) || hasFileReference(item.content)
+        ? placeholderAppended(text)
+        : text
     messages.push({
       role: item.role === 'developer' ? 'system' : item.role,
       content,

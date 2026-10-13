@@ -255,7 +255,7 @@ export class UploadLedger implements SessionUploadLifecycle {
               fileId: file.fileId,
               name: file.name,
               bytes: file.bytes,
-              expiresAt: file.expiresAt,
+              ...(file.expiresAt !== undefined && { expiresAt: file.expiresAt }),
             })
         }
       }

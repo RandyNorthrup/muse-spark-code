@@ -293,14 +293,40 @@ export interface InputMessageItem {
  * the bytes as a base64 data URL, never uploaded, with the name the model
  * sees.
  */
-export interface InputFilePart {
+export interface InputFileDataPart {
   readonly type: 'input_file'
   readonly filename: string
   readonly file_data: string
 }
 
+/**
+ * A file uploaded once and referenced by id (OPENAI-G15, GAPANTH-G16):
+ * no bytes ride the request. The reference is only ever emitted for a file
+ * the provider's own Files API minted (UNVERIFIED until the capture plan's
+ * requests confirm each wire); every other path sends bytes or refuses.
+ */
+export interface InputFileIdPart {
+  readonly type: 'input_file'
+  readonly file_id: string
+  readonly filename?: string | undefined
+}
+
+export type InputFilePart = InputFileDataPart | InputFileIdPart
+
+/**
+ * An image referenced by an uploaded file id (GAPANTH-G16): the Anthropic
+ * `image` block takes a file source, so the kind stays on the discriminator
+ * instead of being guessed from a name.
+ */
+export interface InputImageIdPart {
+  readonly type: 'input_image'
+  readonly file_id: string
+  readonly detail: 'auto'
+}
+
 export type InputContentPart =
   | InputFilePart
+  | InputImageIdPart
   | { readonly type: 'input_text'; readonly text: string }
   | { readonly type: 'input_image'; readonly image_url: string; readonly detail: 'auto' }
   | {

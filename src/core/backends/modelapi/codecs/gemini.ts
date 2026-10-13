@@ -385,12 +385,17 @@ interface GeminiContent {
 
 const DATA_URL_PATTERN = /^data:([^;,]+)?(;base64)?,(.*)$/s
 
-/** The data URL of an `input_image` or `input_file` part. */
+/**
+ * The data URL of an `input_image` or `input_file` part. A file reference
+ * has no bytes here: Gemini takes it through no file-id path in this
+ * product, so it reaches the data-URL error below and is refused loudly,
+ * never sent blind (OPENAI-G15, GAPANTH-G16).
+ */
 function inlineDataUrl(part: InputContentPart): string {
   if (part.type === 'input_image') {
-    return part.image_url
+    return 'image_url' in part ? part.image_url : ''
   }
-  return part.type === 'input_file' ? part.file_data : ''
+  return part.type === 'input_file' && 'file_data' in part ? part.file_data : ''
 }
 
 /** An `input_image` or `input_file` data URL as Gemini's `inlineData`. */
