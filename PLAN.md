@@ -40365,8 +40365,9 @@ the interface is looked at locally. No test was added. Hosted CI on the head
 was not green on a first attempt: one macOS test shard was red (a cold browser
 start inside one case's limit, measured), was run again on the same commit and
 passed, and the merge went in on that, against `AGENTS.md` rule 2; the Hosts
-run on the merged commit (38329749606) is red in "VSCodium latest", one case,
-cause not yet measured. Real runs through the packed product, which is the
+run on the merged commit (38329749606) is red in "VSCodium latest", one case:
+a loading chat panel takes the focus from the file just opened (the product's
+defect since 2026-09-21, measured afterwards). Real runs through the packed product, which is the
 published file byte for byte: three routes before the merge (12 requests,
 $0.018245) and after publication (11 requests, $0.018101), keys removed. Not
 in 0.18.2: the spend ledger and the false error sentences (0.18.3), the
