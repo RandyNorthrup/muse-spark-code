@@ -37,6 +37,7 @@ import {
 import type { SecretStore } from '../../host/auth/credentialStore'
 import { CREDENTIAL_RECORD_VERSION, UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
+import { listModelsRemedy, unknownProviderModelText } from '../../core/unknownModel'
 import {
   formatStoredProviderSecret,
   parseStoredProviderSecret,
@@ -463,14 +464,19 @@ export async function assembleProviderRun(
   const modelRef = input.model ?? model
   if (modelRef === undefined) {
     // A default that names another provider is the file's choice, not this
-    // run's model; only a run with no model anywhere needs --model spelled out.
+    // run's model: the sentence names that default and the entry it cannot
+    // run on. Only a run with no model anywhere needs --model spelled out.
     return usage(
-      fallback === undefined ? UI_TEXT.execProviderModelRequired : UI_TEXT.execUnknownModel,
+      fallback === undefined
+        ? UI_TEXT.execProviderModelRequired
+        : unknownProviderModelText(fallback, provider.entry.id, UI_TEXT.execProviderModelRequired),
     )
   }
   const parsedRef = parseModelRef(modelRef)
   if (parsedRef?.providerId !== provider.entry.id) {
-    return usage(UI_TEXT.execUnknownModel)
+    // --model names another entry (or nothing parsable): the sentence names
+    // the id as typed, this entry, and the command listing what it offers.
+    return usage(unknownProviderModelText(modelRef, provider.entry.id, listModelsRemedy()))
   }
   let key: string | undefined
   let memory: MemorySecretStore | undefined

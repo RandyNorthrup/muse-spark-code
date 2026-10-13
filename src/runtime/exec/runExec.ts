@@ -49,6 +49,7 @@ import {
   UI_TEXT,
 } from '../../shared/constants'
 import { effortLevelsFor } from '../../shared/effort'
+import { effortNotForModelText } from '../../core/unknownModel'
 import { formatUsd as exactUsd, parseUsd } from '../../shared/accountUsd'
 import { modelApiPaidTier } from '../../shared/paid'
 import type { RuntimeBackend, RuntimeBackendDeps } from '../backends'
@@ -910,8 +911,10 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
                   (entry) => !('value' in entry && entry.value === options.model),
                 )
               ) {
+                // The session does not offer this id: the sentence names
+                // the id as typed. No request was sent.
                 setup.isUsageError = true
-                error = UI_TEXT.execUnknownModel
+                error = fill(UI_TEXT.modelNotInSession, { model: options.model })
                 return
               }
               await lifecycle.race(
@@ -929,9 +932,15 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
               )
               effort = typeof config?.currentValue === 'string' ? config.currentValue : null
             } else {
+              // The effort is not on this model: the sentence names both
+              // and the levels that are.
               if (!effortLevelsFor(model ?? undefined).includes(options.effort)) {
                 setup.isUsageError = true
-                error = UI_TEXT.execEffortUnavailable
+                error = effortNotForModelText(
+                  options.effort,
+                  model ?? '',
+                  effortLevelsFor(model ?? undefined),
+                )
                 return
               }
               await lifecycle.race(

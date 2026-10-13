@@ -471,7 +471,16 @@ export class UpdateTranslator {
             ]
       }
       case 'backendNotice': {
-        return [agentText(`${event.text}${PART_SEPARATOR}`)]
+        // A status of the product is never model text: the protocol's own
+        // notice channel (`Notice` in the pinned SDK 1.7.0,
+        // node_modules/@agentclientprotocol/sdk/dist/v2/schema/types.gen.d.ts:4441-4481:
+        // no client capability is required, and clients may ignore
+        // notices). Notices are live events, never session history, so
+        // they carry no separator. An empty notice has no title and is
+        // dropped, never sent as blank model text.
+        return event.text === ''
+          ? []
+          : [{ sessionUpdate: 'notice', severity: event.level, title: event.text }]
       }
       case 'messageAdmitted': {
         // Nothing to send (M87): an ACP prompt is never queued behind

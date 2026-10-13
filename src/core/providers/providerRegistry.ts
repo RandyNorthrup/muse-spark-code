@@ -12,6 +12,7 @@ import {
 import { TOKENS_PER_MILLION, UI_TEXT } from '../../shared/constants'
 import { parseModelRef, sanitizeModelLabel } from './modelRef'
 import { reserveRequestAmount, settleUsageAmount, type ModelPricing } from './priceCard'
+import { unknownModelRefText } from '../unknownModel'
 
 export interface RegistryModel {
   readonly ref: string
@@ -70,7 +71,10 @@ export function createProviderRegistry(deps: ProviderRegistryDeps): ModelResolve
       const models = await deps.models()
       const model = models.find((model) => model.ref === ref)
       if (model === undefined || parsed === undefined || parsed.providerId === 'meta') {
-        throw new Error(UI_TEXT.execUnknownModel)
+        // No configured provider offers this id (bare Meta ids never
+        // resolve here): the sentence names the id as typed, the entry
+        // that was asked, and what the person can do.
+        throw new Error(unknownModelRefText(ref))
       }
       const client = await deps.createClient(model)
       if (!deps.isCurrent(model)) {

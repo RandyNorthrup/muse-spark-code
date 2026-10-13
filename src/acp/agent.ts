@@ -20,6 +20,7 @@ import { recoveryStamp } from '../shared/agentRecovery'
 import { agentStateText } from '../shared/agentOutcome'
 import { compactReference } from '../shared/cliCommands'
 import { compactResultText } from '../core/compactResult'
+import { effortNotForModelText } from '../core/unknownModel'
 import type { AcpSchedulePort } from './schedules'
 import path from 'node:path'
 import { type AcpPlaybookBundle, acpPlaybook } from './playbook'
@@ -1549,7 +1550,12 @@ class AcpSession {
     }
     if (configId === ACP_CONFIG_IDS.model) {
       if (this.models.every((model) => model.modelId !== value)) {
-        throw RequestError.invalidParams(undefined, value)
+        // The session does not offer this id: the refusal names the id
+        // as typed. No request was sent.
+        throw RequestError.invalidParams(
+          undefined,
+          fill(UI_TEXT.modelNotInSession, { model: value }),
+        )
       }
       this.ensureHeld()
       await this.session.setModel(value)
@@ -1561,7 +1567,12 @@ class AcpSession {
       throw RequestError.invalidParams(undefined, configId)
     }
     if (!isEffortLevel(value) || !effortLevelsFor(this.modelId).includes(value)) {
-      throw RequestError.invalidParams(undefined, value)
+      // The effort is not on this model: the refusal names the effort,
+      // the model, and the levels that are.
+      throw RequestError.invalidParams(
+        undefined,
+        effortNotForModelText(value, this.modelId, effortLevelsFor(this.modelId)),
+      )
     }
     await this.applyEffort(value)
   }
@@ -1833,8 +1844,10 @@ class AcpSession {
           throw accountRequestError(error)
         }
         if (preparing.isCancelled || this.isDisposed) return 'cancelled'
-        if (text !== undefined)
-          this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
+        // A command turn never ends silently: no sentence is a refusal.
+        if (text === undefined)
+          throw RequestError.invalidParams(undefined, UI_TEXT.accounts.invalidAccount)
+        this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
         await this.outbox
         return 'end_turn'
       }
@@ -1905,8 +1918,12 @@ class AcpSession {
       return 'end_turn'
     }
     if (isUsage) {
+      // A usage turn stopped before its first sentence ends stopped, not
+      // silent: only a finished usage ends the turn. The shared preparing
+      // flag is read through the reply gate (cancelPreparing mutates it
+      // through the shared reference, past the type checker's narrowing).
       await this.outbox
-      return 'end_turn'
+      return this.canReplyUsage(preparing) ? 'end_turn' : 'cancelled'
     }
     // Outcomes are values: a host exit before turn/start answers must not
     // reject a promise that the prompt has not yet reached (Node would exit).

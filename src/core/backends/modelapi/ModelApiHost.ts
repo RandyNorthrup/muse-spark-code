@@ -187,6 +187,7 @@ import {
   TEAM_TOOL_NAMES,
 } from '../../../shared/constants'
 import { fill, formatNumber, numberFormat, plural, uiLocale } from '../../../shared/l10n/text'
+import { unknownModelRefText } from '../../unknownModel'
 import type { UnattendedRun, ScheduledAgentSession } from '../../schedules/unattended'
 import { SessionOwner, type SessionToken } from '../../schedules/sessionOwner'
 import {
@@ -3005,7 +3006,9 @@ export class ModelApiSession implements ScheduledAgentSession {
         ? await this.deps.models?.resolve(ref)
         : metaResolvedModel(ref, this.deps.client)
     if (model?.ref !== ref || !model.isCurrent()) {
-      throw new Error(UI_TEXT.execUnknownModel)
+      // Unknown or stale: the sentence names the id as typed, the entry
+      // that was asked, and what the person can do. No request was sent.
+      throw new Error(unknownModelRefText(ref))
     }
     if (ref.includes('/')) {
       this.modelKeyDigests.set(ref, await model.client.currentKeyDigest())
@@ -3019,7 +3022,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     const found = this.resolvedModels.get(ref)
     if (found !== undefined) return found
     if (ref.includes('/') && this.deps.client.isPlanModel?.(ref) !== true)
-      throw new Error(UI_TEXT.execUnknownModel)
+      throw new Error(unknownModelRefText(ref))
     return metaResolvedModel(ref, this.deps.client)
   }
 

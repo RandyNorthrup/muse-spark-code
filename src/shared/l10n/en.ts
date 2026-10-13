@@ -4206,8 +4206,14 @@ export const EN = {
   execFileTooLarge: 'The input exceeds the byte limit.',
   execFileEmpty: 'The input file is empty.',
   execTooManyChunks: 'The input exceeds the chunk limit.',
-  execUnknownModel: 'This model is not available for this run.',
-  execEffortUnavailable: 'This effort is not available for this model.',
+  modelNotOnProvider: 'Model "{model}" is not offered by provider "{provider}". {remedy}.',
+  modelNotInSession:
+    'Model "{model}" is not offered in this session. Choose one of the models offered instead.',
+  unknownModelListModels: 'Run "{command}" to see the models it offers.',
+  unknownModelPickOffered: 'Choose one of the models offered instead.',
+  chatPartNotSupported: 'The "{kind}" part cannot be sent to this model.',
+  effortNotForModel:
+    'Effort "{effort}" is not available for model "{model}". Use one of: {levels}.',
   execTimedOut: 'The run reached its deadline.',
   execBudgetRefused: 'The next request exceeds the remaining budget.',
   execBudgetMinimum: 'This run requires at least {minimum}.',

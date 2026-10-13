@@ -30,6 +30,7 @@ import {
   UI_TEXT,
 } from '../../../../shared/constants'
 import { resolveReasoning } from '../../../../shared/effort'
+import { fill } from '../../../../shared/l10n/text'
 import { cleanWireText, isBlankWireText, nativeCallId, type CallIdFormat } from './shared'
 export { parseNativeModelsList as parseChatModelsList } from '../../../providers/modelMetadata'
 import type {
@@ -317,7 +318,8 @@ function textOfParts(parts: readonly InputContentPart[]): string {
       if (part.type === 'input_text' || part.type === 'output_text') {
         return isBlankWireText(part.text) ? [] : [cleanWireText(part.text)]
       }
-      throw new Error(UI_TEXT.execUnknownModel)
+      // A part the chat route cannot carry names its kind, never a model id.
+      throw new Error(fill(UI_TEXT.chatPartNotSupported, { kind: part.type }))
     })
     .join('')
 }
@@ -330,7 +332,9 @@ function contentOfParts(
     return textOfParts(parts)
   }
   if (vision === undefined) {
-    throw new Error(UI_TEXT.execUnknownModel)
+    // Images with no vision answer from the model entry: the turn cannot
+    // say whether the model takes them, so it names the part, not a model.
+    throw new Error(fill(UI_TEXT.chatPartNotSupported, { kind: 'input_image' }))
   }
   // M101 lane P1 (BYO item 1): media rides as the image-omitted placeholder
   // where the model takes no images, so the turn keeps its shape.
@@ -347,7 +351,7 @@ function contentOfParts(
         blocks.push({ type: 'text', text: cleanWireText(part.text) })
       }
     } else {
-      throw new Error(UI_TEXT.execUnknownModel)
+      throw new Error(fill(UI_TEXT.chatPartNotSupported, { kind: part.type }))
     }
   }
   return blocks
