@@ -103,6 +103,19 @@ happened, not what was planned; superseded entries are kept.
   launches are not yet under the resource governor; nothing in this release
   can start them, and the process inventory fails the day something could.
 
+### Added
+
+- The terminal agent documents itself per command. `<command> --help` and
+  `muse-spark-code-acp help <command>` print that command's own usage, its
+  options with defaults and bounds, and two examples that run; the full
+  Help & Reference stays behind `help --all`. A wrong option or value exits
+  2, names the option and the accepted values, and suggests the nearest
+  valid option when the name is close. `providers models <entry>`
+  lists an entry's models (and which of the provider's models the entry
+  does not offer) and changes the list with `--add`/`--remove`; a model the
+  provider does not list needs `--force '<reason>'`, and the reason is kept
+  on the entry. All of this reads in the installed language.
+
 ## [0.18.1] - 2026-10-12
 
 ### Fixed

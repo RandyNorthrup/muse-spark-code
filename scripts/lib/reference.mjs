@@ -129,7 +129,7 @@ export async function referenceSources(root) {
   const result = await esbuild.build({
     stdin: {
       contents:
-        "export * from './src/shared/reference/referenceSource'; export { readSettings } from './src/host/settings'; export { readResourceSettings, resourceSettingsSchema } from './src/shared/resources'; export { parseCommandLine } from './src/runtime/cliArgs'; export { parseLoopPrompt } from './src/core/backends/modelapi/schedules'; export { locateDictationHelper, locateCaptureHelper } from './src/core/voice/helperLocation'",
+        "export * from './src/shared/reference/referenceSource'; export { readSettings } from './src/host/settings'; export { readResourceSettings, resourceSettingsSchema } from './src/shared/resources'; export { parseCommandLine } from './src/runtime/cliArgs'; export { parseLoopPrompt } from './src/core/backends/modelapi/schedules'; export { locateDictationHelper, locateCaptureHelper } from './src/core/voice/helperLocation'; export { CLI_HELP_TOPICS } from './src/runtime/cliHelp'",
       resolveDir: root,
       sourcefile: 'reference-tooling.ts',
     },
@@ -1111,6 +1111,26 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
   const names = new Set(cli.map((c) => c.route))
   for (const name of runtimeNames) {
     if (name !== 'invalid' && !names.has(name)) errors.push(`CLI command lacks entry: ${name}`)
+  }
+  // The terminal help table (D108) is the parser's own inventory: every
+  // topic's routes come from the option registry, and the README's terminal
+  // section names the route plus every topic it documents.
+  const helpTopics = source.CLI_HELP_TOPICS.map((topic) => topic.name)
+  const helpRoutes = new Set(source.CLI_HELP_TOPICS.flatMap((topic) => topic.routes))
+  for (const route of Object.keys(source.CLI_OPTION_REGISTRY)) {
+    if (route !== 'estimate' && !helpRoutes.has(route))
+      errors.push(`CLI help lacks route: ${route}`)
+  }
+  for (const topic of source.CLI_HELP_TOPICS) {
+    for (const route of topic.routes) {
+      if (source.CLI_OPTION_REGISTRY[route] === undefined)
+        errors.push(`CLI help route is not parsed: ${String(route)}`)
+    }
+  }
+  if (!readme.includes('help <command>'))
+    errors.push('README terminal section lacks help <command>')
+  for (const name of helpTopics) {
+    if (!readme.includes(name)) errors.push(`README terminal section lacks ${name}`)
   }
   for (const row of slash.values())
     row.syntax = source.SLASH_REFERENCE[row.name]?.syntax ?? [`/${row.name}`]

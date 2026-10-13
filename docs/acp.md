@@ -190,7 +190,8 @@ pinned request factory as VS Code, reading the user-level `providers.json`
 and origin-bound records from this agent's OS credential store. Mistral's
 captured plan-key preset is marked **plan**, links its limits, and records
 request/token tallies outside USD caps. No Meta key is needed for its
-inference. General `providers list|add|test|remove` commands and
+inference. General `providers list|add|test|remove` commands,
+`providers models <entry> [--add <model>] [--remove <model>]` and
 `auth set|status|clear --provider <id>` use the same origin-bound records.
 Free probes use the shared request transport. `exec --provider` validates its
 configuration and key, but refuses before dispatch: its production runner

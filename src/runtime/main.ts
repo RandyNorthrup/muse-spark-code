@@ -75,6 +75,7 @@ import { acpSharingCommands } from '../acp/sharing'
 import { boundedAcpStream } from '../shared/acpStream'
 import type { PlaybookCommand, PlaybookSurfacePort } from './playbook/command'
 import { formatAcpUsage } from './cliOptions'
+import { helpTopicNamed, renderTopHelp, renderTopicHelp } from './cliHelp'
 import { referenceLoader } from '../host/referenceLoader'
 import { createRuntimeEstimate, runRuntimeEstimateCommand } from './estimator/ports'
 import { isProcessAlive } from '../host/checkpoints/windowPresence'
@@ -1415,6 +1416,10 @@ async function main(): Promise<number> {
       const { providersAdd } = await import('./providersCommands')
       return await providersAdd(await providersDeps(), command.options)
     }
+    case 'providersModels': {
+      const { providersModels } = await import('./providersModelsCommand')
+      return await providersModels(await providersDeps(), command.options)
+    }
     case 'providersTest': {
       const { providersTest } = await import('./providersCommands')
       return await providersTest(await providersDeps(), command.provider)
@@ -1563,8 +1568,23 @@ async function main(): Promise<number> {
         const nls: unknown = JSON.parse(await readUiTableFile(packageRoot, [file]))
         writeLine(process.stdout, reference.all(nls))
       } else {
-        writeLine(process.stdout, formatAcpUsage(UI_TEXT, ACP_AGENT_NAME))
+        writeLine(process.stdout, renderTopHelp(UI_TEXT, ACP_AGENT_NAME))
       }
+      return 0
+    }
+    case 'helpTopic': {
+      const topic = helpTopicNamed(command.topic)
+      if (topic === undefined) {
+        writeLine(
+          process.stderr,
+          fill(UI_TEXT.cliHelp.unknownTopic, {
+            topic: command.topic,
+            command: ACP_AGENT_NAME,
+          }),
+        )
+        return 2
+      }
+      writeLine(process.stdout, renderTopicHelp(UI_TEXT, ACP_AGENT_NAME, topic))
       return 0
     }
     case 'invalid': {
