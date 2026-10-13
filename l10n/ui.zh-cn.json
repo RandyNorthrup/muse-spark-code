@@ -326,6 +326,7 @@
     "output": "选择结果格式：text、json或jsonl。",
     "max-budget-usd": "以USD设置本次运行的硬性支出上限。",
     "max-requests": "设置模型请求次数上限。",
+    "max-tool-output-bytes": "提高本次运行的单个工具结果字节上限。",
     "timeout": "以秒设置运行时间上限。",
     "fail-on-denial": "权限被拒绝时停止运行。",
     "ephemeral": "将会话保留在内存中，不保存。",

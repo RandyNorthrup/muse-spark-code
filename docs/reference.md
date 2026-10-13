@@ -158,6 +158,14 @@ Surfaces: vscode:modelApi, acp:modelApi. Paid: no extra feature charge; model us
 
 Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#observation-packing-model-api)
 
+### museSpark.modelApiMaxToolOutputBytes
+
+conversationStart: The per-tool-result byte guard, 64000 by default. A result past it is cut to a head and tail with counts, and the full text is kept in .muse-spark/tool-results for paging. Below 1024 or past the model's window is refused with the reason. Raise for one headless run with exec --max-tool-output-bytes.
+
+Surfaces: vscode:modelApi, acp:modelApi. Paid: no extra feature charge; model usage still applies.
+
+Commands: —. Settings: `museSpark.modelApiMaxToolOutputBytes`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#limits)
+
 ### Share Chat…
 
 Review the exact preview for private text before confirming. Known and registered secrets are removed; other private text may remain.
@@ -2453,6 +2461,19 @@ Type: `"boolean"`. Default: `true`. Scope: `machine`.
 }
 ```
 
+### museSpark.modelApiMaxToolOutputBytes
+
+conversationStart: The per-tool-result byte guard, 64000 by default. A result past it is cut to a head and tail with counts, and the full text is kept in .muse-spark/tool-results for paging. Below 1024 or past the model's window is refused with the reason. Raise for one headless run with exec --max-tool-output-bytes.
+
+Type: `"integer"`. Default: `64000`. Scope: `machine`.
+
+```json
+{
+  "type": "integer",
+  "default": 64000
+}
+```
+
 ### museSpark.turnCheckpoints
 
 On by default: keeps the model’s own file, image, workspace memory and symbol-rename tool writes for Restore files and Redo in a connected Model API session, while files still hold exactly what the model left. Never undoes changes by commands, hooks, MCP tools, you or other windows; copies stay in extension storage, outside the workspace’s .git. Needs git on PATH and a trusted workspace.
@@ -3615,6 +3636,7 @@ These are defaults; editor customizations take precedence.
 - `exec: --output <value>`: Choose the result format: text, json or jsonl. `{"type":"string","repeatable":false,"enum":["text","json","jsonl"],"default":"text","purpose":"output"}`
 - `exec: --max-budget-usd <value>`: Set the hard spending limit in USD for this run. `{"type":"string","repeatable":false,"exclusiveMinimum":0,"maximum":20,"decimals":6,"required":"modelApi","unit":"USD","purpose":"max-budget-usd"}`
 - `exec: --max-requests <value>`: Set the maximum number of model requests. `{"type":"string","repeatable":false,"default":30,"minimum":1,"maximum":500,"purpose":"maxRequests"}`
+- `exec: --max-tool-output-bytes <value>`: Raise the per-tool-result byte guard for this run. `{"type":"string","repeatable":false,"purpose":"max-tool-output-bytes"}`
 - `exec: --timeout <value>`: Set the run deadline in seconds. `{"type":"string","repeatable":false,"default":1800,"minimum":10,"maximum":21600,"unit":"seconds","purpose":"timeoutMs"}`
 - `exec: --muse-binary <value>`: --muse-binary &lt;path&gt; The Muse Code CLI to run `{"type":"string","repeatable":false,"purpose":"muse-binary"}`
 - `exec: --shell-sandbox <value>`: --shell-sandbox auto|muse|off Muse Code’s shell sandbox `{"type":"string","repeatable":false,"enum":["auto","muse","off"],"default":"auto","purpose":"shell-sandbox"}`

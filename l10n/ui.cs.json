@@ -326,6 +326,7 @@
     "output": "Vybrat formát výsledku: text, json nebo jsonl.",
     "max-budget-usd": "Nastavit pevný limit výdajů v USD pro tento běh.",
     "max-requests": "Nastavit nejvyšší počet požadavků modelu.",
+    "max-tool-output-bytes": "Zvýšit limit bajtů na výsledek nástroje pro tento běh.",
     "timeout": "Nastavit dobu běhu v sekundách.",
     "fail-on-denial": "Zastavit běh při zamítnutí oprávnění.",
     "ephemeral": "Uchovat relaci v paměti bez uložení.",

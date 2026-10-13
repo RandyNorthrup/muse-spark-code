@@ -36715,6 +36715,24 @@ actual receipts in `docs/certification/m101-p2.md`. The lead must run the
 aggregate quality/coverage/platform matrix before integration/release. No
 threshold, ignore or rule is changed.
 
+**TOOLCAP lane verification (2026-10-13, macmini).** One tool result can
+never end a conversation: every tool result passes one choke
+(`boundToolResultText`: 16,000 estimated tokens per result, 8,000 chars per
+line, at most 1/4 of the remaining window), cuts keep a spill file under
+`.muse-spark/tool-results/` with a one-line notice to the model and the
+person, and a provider `prompt is too long` refusal trims largest results,
+compacts once, then ends the turn with the true sentence (at most 3 sends).
+The lane's own base measurement (fake provider, ten 400,000-char lines:
+32,014 chars reach the request packing-off, a 1,024-char placeholder
+packing-on) and the per-kind bound survey are in
+`docs/certification/tool-result-bound.md`; the exact entry path of the
+lead's 2026-10-12 940k-token session is recorded there as undetermined, with
+the two consistent mechanisms named. The rig brief forbids the full
+`npm run quality` wrapper and the whole suite here (at most three files per
+run, repository timeouts); the lead runs the aggregate gate and the
+loopback/socket suites this sandbox blocks (EPERM) before release. No
+threshold, ignore or timeout is weakened.
+
 ## 8. Escape hatches register
 
 | Location                                            | Residual / follow-up                                | Lead decision (2026-10-09)                                                                                                                                                                                                                            |

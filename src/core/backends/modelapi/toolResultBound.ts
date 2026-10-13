@@ -12,6 +12,7 @@
 import {
   MODEL_API_MODEL_TEXT,
   OBS_PACK_CHARS_PER_TOKEN,
+  TOOL_RESULT_MIN_BYTES,
   TOOL_RESULT_WINDOW_SHARE,
 } from '../../../shared/constants'
 import { fill } from '../../../shared/l10n/text'
@@ -69,9 +70,6 @@ function splitLines(text: string): string[] {
 export function windowShareChars(windowTokens: number): number {
   return Math.max(0, Math.floor(windowTokens * TOOL_RESULT_WINDOW_SHARE) * OBS_PACK_CHARS_PER_TOKEN)
 }
-
-/** The floor under the byte guard: below this the kept head, tail and notice stop being readable (Muse Code's flag likewise refuses below its floor; 0 does not disable this bound). */
-export const TOOL_RESULT_MIN_BYTES = 1024
 
 /**
  * The configured byte guard, validated. Unknown or absent keeps the default

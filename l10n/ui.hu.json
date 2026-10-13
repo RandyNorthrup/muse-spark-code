@@ -326,6 +326,7 @@
     "output": "Az eredmény formátumának kiválasztása: text, json vagy jsonl.",
     "max-budget-usd": "A futtatás szigorú kiadási korlátjának megadása USD-ben.",
     "max-requests": "A modellkérések maximális számának beállítása.",
+    "max-tool-output-bytes": "Eszközkimenetenkénti bájt-korlát megemelése erre a futásra.",
     "timeout": "A futtatás határidejének beállítása másodpercben.",
     "fail-on-denial": "A futtatás leállítása elutasított engedélynél.",
     "ephemeral": "A munkamenet megőrzése memóriában mentés nélkül.",
