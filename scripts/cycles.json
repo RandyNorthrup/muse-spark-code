@@ -225,7 +225,6 @@
     "test/fixtures/tabHooks/completion.mjs",
     "test/harness/playbook.mjs",
     "test/harness/schedules.mjs",
-    "test/harness/reporting/verify.mjs",
     "test/harness/vault/main.tsx",
     "test/harness/vault/run.mjs",
     "test/unit/helpers/questions/queuedTurnCrash.ts"
