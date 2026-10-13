@@ -9,6 +9,7 @@ import {
   Usd,
   type UsdAmount,
   sumUsd,
+  maxUsd,
   multiplyUsd,
   negateUsd,
   isPositiveUsd,
@@ -3991,7 +3992,7 @@ export class ModelApiSession implements ScheduledAgentSession {
               isUncertain ? 'uncertain' : 'settled',
             )
           : await claim.settle(
-              costUsd,
+              isFinal ? costUsd : maxUsd(costUsd, claim.reservedUsd),
               isFinal ? (isUncertain ? 'uncertain' : 'settled') : 'reserved',
             )
       if (
@@ -8035,12 +8036,10 @@ export class ModelApiSession implements ScheduledAgentSession {
         (isModelApiError(error) && NON_BILLABLE_HTTP_REJECTIONS.has(error.status))
       throw error
     } finally {
-      const charged =
-        imageState.billedCount > 0
-          ? Usd.from(price).times(imageState.billedCount).toAmount()
-          : !hasReturned && !isRefused && imageState.isSent
-            ? price
-            : Usd.from(0).toAmount()
+      let charged = Usd.from(0).toAmount()
+      if (imageState.billedCount > 0)
+        charged = Usd.from(price).times(imageState.billedCount).toAmount()
+      else if (!hasReturned && !isRefused && imageState.isSent) charged = price
       if (
         startedAt !== undefined &&
         this.deps.hasExternalPaidRecording !== true &&

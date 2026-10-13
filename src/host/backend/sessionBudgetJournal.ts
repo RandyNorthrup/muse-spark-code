@@ -209,13 +209,16 @@ export function createSessionBudgetJournal(deps: SessionBudgetJournalDeps) {
           }
         } catch (error: unknown) {
           if (isSpendLedgerError(error)) throw error
+          const errno = storeErrorCode(error)
+          if (errno === 'ENOENT')
+            throw new SpendLedgerError(
+              'recovery',
+              { scope: scope.id, file: 'legacy journal', errno },
+              error,
+            )
           throw new SpendLedgerError(
-            storeErrorCode(error) === 'ENOENT'
-              ? 'recovery'
-              : storeErrorCode(error) === undefined
-                ? 'damaged'
-                : 'unreadable',
-            { scope: scope.id, file: 'legacy journal', errno: storeErrorCode(error) },
+            errno === undefined ? 'damaged' : 'unreadable',
+            { scope: scope.id, file: 'legacy journal', errno },
             error,
           )
         }

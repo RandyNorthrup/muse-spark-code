@@ -144,7 +144,7 @@ try {
   // One continuing process completes paid requests while new processes start/stop around it.
   const scope = path.join(root, 'start-running')
   const running = pool[0]
-  const startRounds = isBenchmarkOnly ? 0 : process.argv.includes('--quick') ? 2 : 200
+  const startRounds = isBenchmarkOnly ? 0 : Math.min(200, rounds)
   for (let round = 0; round < startRounds; round++) {
     const around = [await start(), await start(), await start()]
     const answers = await Promise.all([
