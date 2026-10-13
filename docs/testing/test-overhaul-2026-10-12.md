@@ -222,7 +222,45 @@ Stayed (what a person loses if deleted):
   `cx1r2Truth`/`cx1r4Truth` (shipped claims match the product) —
   behavior or claim-truth a caller or reader depends on.
 
-## PASS 5 — gate and workflows (TBD)
+## PASS 5 — gate and workflows
+
+`test:unit` is `vitest run` with no `--coverage`; the thresholds and the
+merge job are gone (the number measured fake-driven tests). `quality:gates`
+is format, lint, typecheck, badges, tokens, l10n, reference, host-api, plan,
+roadmap, deadcode, cycles, duplication, `test:unit`, `build`, `package`,
+`security:audit`; `quality` adds `test:a11y`, `test:legal-a11y`,
+`security:secrets`, `security:sast` as before. The checks matrix `build`
+part runs the same list (the CIFLOW leaves test holds it).
+
+Hosted CI: the fast PR tier is Ubuntu static gates plus one unsharded unit
+run; the full tier keeps the unit os×shard matrix (4 Ubuntu, 8 Windows, 8
+macOS — the 20-minute hosted limits still bind there) with no coverage
+shards, no process-test shards, no visual shards, no coverage merge job.
+System-specific survivors are selected the way they always were: per-file
+`runIf`/`skipIf` on `process.platform` (e.g. `it.skipIf(!isWindows)`,
+`it.runIf(process.platform === 'linux')`), so a Windows-only file runs its
+cases on Windows and skips elsewhere; the matrix is unchanged and the record
+states the cost plainly: win/mac full-tier jobs run the whole suite and
+rely on those guards, there is no maintained path list to drift.
+
+Accessibility (`test:a11y`, `test:legal-a11y`) is out of the pull-request
+path: the job runs only when the caller event is not `pull_request`
+(merge groups, manual runs, releases), and the required aggregate accepts
+`skipped` there and demands `success` elsewhere — proven by the reworked
+bash-cases mirror (24 subshell cases, including full-PR-skipped-passes and
+full-PR-checks-failed-fails). What it renders, for the lead's rule-1 call:
+`scripts/a11y.mjs` opens every harness scenario in headless Chrome
+(Playwright) in four captured VS Code themes, served from the built webview
+bundle behind the scripted host, and runs axe-core WCAG 2.0–2.2 A/AA with a
+§8 exemption list; `test:legal-a11y` adds keyboard/zoom checks plus
+per-language runs. No mocks in the tool — but the pages are scripted
+harness scenes, not the product in an editor. The report-page axe cover
+lapsed with the reporting verifier (PASS 3b); `m113-w-a11y.json` is its
+last receipt.
+
+Release: a comment-only placeholder reserves the `check:claims` step
+(branch feat/claims-gate) ahead of publishing — no stub, nothing that
+pretends to pass.
 
 ## Lists for the lead (TBD)
 
