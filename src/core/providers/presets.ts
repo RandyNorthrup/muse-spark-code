@@ -426,6 +426,26 @@ const XAI_PRESET: ProviderPreset = {
     reasoningField: 'encrypted',
     cachedUsageFields: ['input_tokens_details.cached_tokens'],
   },
+  // grok-4.5 takes `xhigh` (requests with it are treated as `high`) though
+  // the pinned catalogue lists only low/medium/high (lane REASONSHAPESR2,
+  // XAI-G01: `docs.x.ai/developers/model-capabilities/text/reasoning`,
+  // read 2026-10-13). The live list wins where it speaks; XAI-LIST
+  // settles the dated catalogue against it.
+  reasoningFacts: [
+    {
+      modelId: 'grok-4.5',
+      docUrl: 'https://docs.x.ai/developers/model-capabilities/text/reasoning',
+      readOn: '2026-10-13',
+      fields: {
+        reasoning: {
+          effortLevels: {
+            state: 'yes',
+            value: ['low', 'medium', 'high', 'xhigh'],
+          },
+        },
+      },
+    },
+  ],
   wireCapture: true,
 }
 
@@ -453,6 +473,106 @@ const ANTHROPIC_PRESET: ProviderPreset = {
   keyTest: { kind: 'models-list' },
   modelsList: { path: '/v1/models', windowField: 'max_input_tokens', priceSource: 'catalogue' },
   quirks: {},
+  // Thinking-off facts from the thinking table
+  // (`platform.claude.com/docs/en/build-with-claude/thinking`, read
+  // 2026-10-13; GAPANTH-G02): the four models below answer 400 to
+  // `thinking: {type: "disabled"}` (Sonnet 5.5 takes `between_tools`
+  // instead), while Opus 5 and Haiku 5.5 take `disabled` at high effort
+  // or below. The pinned catalogue carries no toggle for these rows, so
+  // without the facts Thinking off would send nothing and thinking
+  // would stay on, billed. Re-check on each catalogue sync; the live
+  // list wins where it speaks.
+  reasoningFacts: [
+    {
+      modelId: 'claude-opus-5',
+      docUrl: 'https://platform.claude.com/docs/en/build-with-claude/thinking',
+      readOn: '2026-10-13',
+      fields: {
+        reasoning: {
+          canDisable: { state: 'yes', value: true },
+        },
+      },
+    },
+    {
+      modelId: 'claude-haiku-5-5',
+      docUrl: 'https://platform.claude.com/docs/en/build-with-claude/thinking',
+      readOn: '2026-10-13',
+      fields: {
+        reasoning: {
+          effortLevels: {
+            state: 'yes',
+            value: ['low', 'medium', 'high', 'xhigh', 'max'],
+          },
+          canDisable: { state: 'yes', value: true },
+        },
+      },
+    },
+    {
+      modelId: 'claude-opus-5-5',
+      docUrl: 'https://platform.claude.com/docs/en/build-with-claude/thinking',
+      readOn: '2026-10-13',
+      fields: {
+        reasoning: {
+          canDisable: { state: 'no' },
+        },
+      },
+    },
+    {
+      modelId: 'claude-sonnet-5-5',
+      docUrl: 'https://platform.claude.com/docs/en/build-with-claude/thinking',
+      readOn: '2026-10-13',
+      fields: {
+        reasoning: {
+          canDisable: { state: 'no' },
+          offSwitch: 'between_tools',
+        },
+      },
+    },
+    {
+      modelId: 'claude-fable-5',
+      docUrl: 'https://platform.claude.com/docs/en/build-with-claude/thinking',
+      readOn: '2026-10-13',
+      fields: {
+        reasoning: {
+          canDisable: { state: 'no' },
+        },
+      },
+    },
+    {
+      modelId: 'claude-fable-5-1',
+      docUrl: 'https://platform.claude.com/docs/en/build-with-claude/thinking',
+      readOn: '2026-10-13',
+      fields: {
+        reasoning: {
+          canDisable: { state: 'no' },
+        },
+      },
+    },
+    // Every 4.x row of the same table ends in "Thinking off": `disabled`
+    // is accepted at any effort there, so Thinking off rides instead of
+    // refusing (the catalogue carries no toggle for these rows).
+    ...[
+      'claude-haiku-4-5',
+      'claude-haiku-4-5-20251001',
+      'claude-opus-4-5',
+      'claude-opus-4-5-20251101',
+      'claude-sonnet-4-5',
+      'claude-sonnet-4-5-20250929',
+      'claude-opus-4-6',
+      'claude-sonnet-4-6',
+      'claude-opus-4-7',
+      'claude-opus-4-8',
+    ].map((modelId): PresetReasoningFacts => ({
+      modelId,
+      docUrl: 'https://platform.claude.com/docs/en/build-with-claude/thinking',
+      readOn: '2026-10-13',
+      fields: {
+        reasoning: {
+          canDisable: { state: 'yes', value: true as const },
+        },
+      },
+    })),
+  ],
   wireCapture: true,
 }
 
@@ -586,59 +706,23 @@ const DEEPSEEK_PRESET: ProviderPreset = {
   // Re-check on each catalogue sync; prefer the catalogue the moment
   // it carries the fact.
   reasoningFacts: [
-    {
-      modelId: 'deepseek-flash',
-      docUrl: 'https://api-docs.deepseek.com/guides/thinking_mode',
-      readOn: '2026-10-13',
-      fields: {
-        reasoning: {
-          effortLevels: {
-            state: 'yes',
-            value: ['minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
-          },
+    'deepseek-flash',
+    'deepseek-v4-flash',
+    'deepseek-v4-pro',
+    'deepseek-v4-flash-vision-exp',
+  ].map((modelId): PresetReasoningFacts => ({
+    modelId,
+    docUrl: 'https://api-docs.deepseek.com/guides/thinking_mode',
+    readOn: '2026-10-13',
+    fields: {
+      reasoning: {
+        effortLevels: {
+          state: 'yes',
+          value: ['minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
         },
       },
     },
-    {
-      modelId: 'deepseek-v4-flash',
-      docUrl: 'https://api-docs.deepseek.com/guides/thinking_mode',
-      readOn: '2026-10-13',
-      fields: {
-        reasoning: {
-          effortLevels: {
-            state: 'yes',
-            value: ['minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
-          },
-        },
-      },
-    },
-    {
-      modelId: 'deepseek-v4-pro',
-      docUrl: 'https://api-docs.deepseek.com/guides/thinking_mode',
-      readOn: '2026-10-13',
-      fields: {
-        reasoning: {
-          effortLevels: {
-            state: 'yes',
-            value: ['minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
-          },
-        },
-      },
-    },
-    {
-      modelId: 'deepseek-v4-flash-vision-exp',
-      docUrl: 'https://api-docs.deepseek.com/guides/thinking_mode',
-      readOn: '2026-10-13',
-      fields: {
-        reasoning: {
-          effortLevels: {
-            state: 'yes',
-            value: ['minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
-          },
-        },
-      },
-    },
-  ],
+  })),
   wireCapture: true,
 }
 

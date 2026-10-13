@@ -55,10 +55,12 @@ import {
   ANTHROPIC_MAX_STREAM_BYTES,
   CODEC_EMPTY_TOOL_OUTPUT,
   CODEC_IMAGE_WITHOUT_VISION,
+  EFFORT_PROVIDER_DEFAULT,
   HTTP_TOO_MANY_REQUESTS,
   THINKING_OFF_EFFORT,
   PROVIDER_MANUAL_THINKING_BUDGET,
 } from '../../../../shared/constants'
+import { isEffortLevel } from '../../../../shared/effort'
 import { UI_TEXT } from '../../../../shared/l10n/text'
 import { ModelApiError } from '../transport'
 import { cleanJsonStrings, cleanWireText, isBlankWireText, isRecord, nativeCallId } from './shared'
@@ -80,6 +82,7 @@ export const ANTHROPIC_FORMAT = 'anthropic' as const
 
 const ANTHROPIC_VERSION = '2023-06-01'
 const ANTHROPIC_BETA_DROP_BLOCK = 'thinking-binding-controls-2026-08-01'
+const ANTHROPIC_BETA_INTERLEAVED_THINKING = 'interleaved-thinking-2025-05-14'
 const ANTHROPIC_PATH = '/v1/messages'
 const ANTHROPIC_EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'] as const
 type AnthropicEffort = (typeof ANTHROPIC_EFFORTS)[number]
@@ -88,6 +91,15 @@ const SPEND_CAP_REASON = 'enforced_spend_limit_reached'
 
 class AnthropicCodecError extends Error {
   override readonly name = 'AnthropicCodecError'
+}
+
+/**
+ * The configured client rethrows these instead of its generic unavailable
+ * error, so the typed refusal and its localized reason reach the caller.
+ * Matched by name so a second copy of this module cannot mask it.
+ */
+export function isAnthropicCodecError(error: unknown): boolean {
+  return error instanceof Error && error.name === 'AnthropicCodecError'
 }
 
 /** Local errors read the installed language at the call, with stable technical codes. */
@@ -103,8 +115,9 @@ export interface AnthropicEncodeOptions {
   /** The preset's output cap for this model. */
   readonly maxTokens: number
   /**
-   * The canonical effort: `none` disables thinking, `minimal` maps to
-   * Anthropic's lowest tier `low`, the other five map to themselves.
+   * The canonical effort: `none` disables thinking, `default` takes the
+   * provider default (no thinking or effort field is sent). Any other
+   * level rides to `output_config.effort` where the record affirms it.
    */
   readonly effort: string
   /** Cache TTL for the breakpoint; `5m` unless the preset says `1h`. */
@@ -231,7 +244,7 @@ export interface AnthropicRequestBody {
   readonly tool_choice?: { readonly type: 'auto' }
   readonly stream: true
   readonly thinking?: {
-    readonly type: 'adaptive' | 'enabled'
+    readonly type: 'adaptive' | 'enabled' | 'disabled' | 'between_tools'
     readonly budget_tokens?: number
     readonly display?: 'summarized'
     readonly block_binding?: { readonly prefix_mismatch_behavior: 'drop_block' }
@@ -291,16 +304,22 @@ function replayableEnvelope(item: InputItem, model: string): ThinkingEnvelope | 
 
 // --- encode ---
 
-/** Canonical effort to Anthropic's `output_config.effort`; undefined while thinking is off. */
+/**
+ * Canonical effort to Anthropic's `output_config.effort`; undefined while
+ * thinking is off, at the provider default, or for a known tier the API
+ * has no level for (lane REASONSHAPESR2: `minimal` is omitted, never
+ * remapped to its neighbour; ANTH-MINIMAL settles whether it 400s).
+ * Unknown names still refuse.
+ */
 function anthropicEffort(effort: string): AnthropicEffort | undefined {
-  if (effort === THINKING_OFF_EFFORT) {
+  if (effort === THINKING_OFF_EFFORT || effort === EFFORT_PROVIDER_DEFAULT) {
     return undefined
-  }
-  if (effort === 'minimal') {
-    return 'low'
   }
   if ((ANTHROPIC_EFFORTS as readonly string[]).includes(effort)) {
     return effort as AnthropicEffort
+  }
+  if (isEffortLevel(effort)) {
+    return undefined
   }
   throw codecError('unsupported_reasoning_effort', UI_TEXT.anthropicCodecEffortUnsupported)
 }
@@ -435,16 +454,35 @@ export function encodeAnthropicRequest(
 ): AnthropicNativeRequest {
   const record = options.capabilityRecord ?? capturedCapabilities('anthropic', options.model)
   const modes = record.reasoning.modes.state === 'yes' ? record.reasoning.modes.value : []
-  const isThinking = options.effort !== THINKING_OFF_EFFORT
+  // `default` takes the provider default: no thinking or effort field is
+  // sent, so an unlisted level is never silently replaced (GAPANTH-G10).
+  // Only an explicit off sends the switch or refuses; `default` omits.
+  // (Manual-only models never see `default` for an on-level request: the
+  // resolver passes the tier through and the budget sizes it, GAPANTH-G17.)
+  const isOff = options.effort === THINKING_OFF_EFFORT
+  const isThinking = !isOff && options.effort !== EFFORT_PROVIDER_DEFAULT
   if (isThinking && record.reasoning.supported.state === 'no')
     throw codecError('reasoning_unsupported')
+  // Thinking off sends the affirmed switch (lane REASONSHAPESR2,
+  // GAPANTH-G02): `disabled` where the record affirms it, Sonnet 5.5's
+  // `between_tools` where the record affirms that instead
+  // (`platform.claude.com/docs/en/build-with-claude/thinking`, read
+  // 2026-10-13). Refusal needs no switch; silence keeps today's bytes
+  // (4.x defaults off; 5.x stays on its adaptive default).
+  if (isOff && record.reasoning.forced.state === 'yes') throw codecError('thinking_cannot_disable')
   if (
-    !isThinking &&
-    (record.reasoning.forced.state === 'yes' || record.reasoning.canDisable.state === 'no')
+    isOff &&
+    record.reasoning.offSwitch === undefined &&
+    record.reasoning.canDisable.state === 'no'
   )
     throw codecError('thinking_cannot_disable')
   if (isThinking && !modes.includes('manual') && !modes.includes('adaptive'))
     throw codecError('unsupported_thinking_mode')
+  const offSwitch = record.reasoning.offSwitch
+  const offThinking =
+    isOff && (offSwitch !== undefined || record.reasoning.canDisable.state === 'yes')
+      ? { type: offSwitch ?? ('disabled' as const) }
+      : undefined
   const isManual = isThinking && modes.includes('manual') && !modes.includes('adaptive')
   const selectedEffort = isThinking && !isManual ? anthropicEffort(options.effort) : undefined
   const effort =
@@ -653,11 +691,22 @@ export function encodeAnthropicRequest(
     }
   }
 
+  // Manual interleaved thinking needs its beta header on Opus 4.5,
+  // Sonnet 4.5 and earlier Claude 4 models; the API accepts it on any
+  // model and ignores it where unsupported, so manual mode always sends
+  // it (lane REASONSHAPESR2, GAPANTH-G17:
+  // `platform.claude.com/docs/en/build-with-claude/extended-thinking`,
+  // read 2026-10-13). Betas comma-join
+  // (`platform.claude.com/docs/en/api/beta-headers`, read 2026-10-13).
+  const betas = [
+    ...(shouldBindThinking ? [ANTHROPIC_BETA_DROP_BLOCK] : []),
+    ...(isManual ? [ANTHROPIC_BETA_INTERLEAVED_THINKING] : []),
+  ]
   return {
     path: ANTHROPIC_PATH,
     headers: {
       'anthropic-version': ANTHROPIC_VERSION,
-      ...(shouldBindThinking && { 'anthropic-beta': ANTHROPIC_BETA_DROP_BLOCK }),
+      ...(betas.length > 0 && { 'anthropic-beta': betas.join(',') }),
     },
     body: {
       model: options.model,
@@ -678,6 +727,7 @@ export function encodeAnthropicRequest(
         },
         ...(effort !== undefined && { output_config: { effort } }),
       }),
+      ...(!isThinking && offThinking !== undefined && { thinking: offThinking }),
     },
   }
 }

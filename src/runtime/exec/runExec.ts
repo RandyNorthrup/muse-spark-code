@@ -46,6 +46,7 @@ import {
   PAID_PRICES_USD,
   MODEL_API_IMAGE_MODEL,
   SECRET_KEYS,
+  THINKING_OFF_EFFORT,
   UI_TEXT,
 } from '../../shared/constants'
 import { effortLevelsFor } from '../../shared/effort'
@@ -929,7 +930,16 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
               )
               effort = typeof config?.currentValue === 'string' ? config.currentValue : null
             } else {
-              if (!effortLevelsFor(model ?? undefined).includes(options.effort)) {
+              // A configured-provider id carries no static tiers (lane
+              // REASONSHAPESR2, XAI-G01): the record governs, so the value
+              // rides and the wire omits or refuses from the record. The
+              // static table still guards bare (Meta) ids, where `none`
+              // is not a tier either.
+              if (
+                !(model ?? '').includes('/') &&
+                (options.effort === THINKING_OFF_EFFORT ||
+                  !effortLevelsFor(model ?? undefined).includes(options.effort))
+              ) {
                 setup.isUsageError = true
                 error = UI_TEXT.execEffortUnavailable
                 return

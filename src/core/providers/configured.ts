@@ -53,14 +53,19 @@ import {
   ANTHROPIC_MAX_ARGUMENT_BYTES,
   ANTHROPIC_MAX_FRAME_BYTES,
   ANTHROPIC_MAX_ITEMS,
+  EFFORT_PROVIDER_DEFAULT,
+  MANUAL_THINKING_BUDGET_BY_EFFORT,
   MILLISECONDS_PER_SECOND,
   MODEL_API_REQUEST_TIMEOUT_MS,
   MODEL_API_STREAM_IDLE_MS,
+  PROVIDER_MANUAL_THINKING_BUDGET,
   PROVIDER_SECRET_PREFIX,
   SUBSCRIPTION_STREAM_MAX_BYTES,
   TOKENS_PER_MILLION,
   UI_TEXT,
 } from '../../shared/constants'
+import { isEffortLevel } from '../../shared/effort'
+import { hasUsableEffortLevels } from '../backends/modelapi/modelPolicy'
 
 export interface ConfiguredProviderOptions {
   readonly configFile: string
@@ -500,6 +505,25 @@ export function createConfiguredProviderServices(
               entry.format ?? preset.format,
             ),
             canDisableReasoning: record.reasoning.canDisable.state === 'yes',
+            // Sonnet 5.5's `between_tools` off switch rides the policy so
+            // Thinking off is not refused where `disabled` is (GAPANTH-G02).
+            ...(record.reasoning.offSwitch !== undefined && {
+              offSwitch: record.reasoning.offSwitch,
+            }),
+            // The list's own default effort lights the picker's default
+            // (XAI-G01); the controller falls back without it.
+            ...(record.reasoning.defaultEffort !== undefined && {
+              defaultEffort: record.reasoning.defaultEffort,
+            }),
+            // Manual-only thinking rides unlisted tiers through unnamed
+            // (GAPANTH-G10/G17).
+            ...(() => {
+              const modes =
+                record.reasoning.modes.state === 'yes' ? record.reasoning.modes.value : []
+              return modes.includes('manual') && !modes.includes('adaptive')
+                ? { manualOnly: true as const }
+                : {}
+            })(),
             // The switch rides the policy only where the record affirms
             // reasoning (see the codec quirks above).
             thinkingOff:
@@ -640,7 +664,11 @@ export function createConfiguredProviderServices(
           })()
         }
         case 'anthropic': {
-          return anthropic.decodeAnthropicStream(parseSse(bytes), { model: ref })
+          // The replay envelope binds thinking to the native model id
+          // (lane REASONSHAPESR2, GAPANTH-G01): stamping the qualified
+          // `ref` here while the encoder compares the bare `native` id
+          // dropped every thinking block between tool turns.
+          return anthropic.decodeAnthropicStream(parseSse(bytes), { model: native })
         }
         case 'gemini': {
           return gemini.decodeGeminiStream(bytes, ref)
@@ -712,11 +740,32 @@ export function createConfiguredProviderServices(
             break
           }
           case 'anthropic': {
+            // Manual thinking carries no effort level, so the chosen tier
+            // sizes the budget instead (lane REASONSHAPESR2, GAPANTH-G17);
+            // adaptive models take the effort and no budget. The budget
+            // stays below the run's cap, keeping room for the answer.
+            const anthropicModes =
+              record.reasoning.modes.state === 'yes' ? record.reasoning.modes.value : []
+            const isManualOnly =
+              anthropicModes.includes('manual') && !anthropicModes.includes('adaptive')
+            const budgetStep = isEffortLevel(body.reasoning.effort)
+              ? MANUAL_THINKING_BUDGET_BY_EFFORT[body.reasoning.effort]
+              : undefined
             const request = anthropic.encodeAnthropicRequest(body, {
               model: native,
               maxTokens: body.max_output_tokens,
               effort: body.reasoning.effort,
               capabilityRecord: record,
+              ...(isManualOnly &&
+                budgetStep !== undefined && {
+                  thinkingBudget: Math.min(
+                    budgetStep,
+                    Math.max(
+                      PROVIDER_MANUAL_THINKING_BUDGET,
+                      body.max_output_tokens - PROVIDER_MANUAL_THINKING_BUDGET,
+                    ),
+                  ),
+                }),
             })
             wire = request.body
             extras = request.headers
@@ -745,12 +794,26 @@ export function createConfiguredProviderServices(
             break
           }
           default: {
+            // A model whose record has no effort levels gets no reasoning
+            // field in any request (lane REASONSHAPESR2): the parameter
+            // itself is what xAI refuses (`api.x.ai/v1/responses` answers
+            // 400 to `reasoning` on grok-build-0.1), and the provider
+            // default applies. Per model, from the record, never per
+            // vendor. `default` (an unlisted level) omits the same way.
+            const shouldOmitReasoning =
+              body.reasoning.effort === EFFORT_PROVIDER_DEFAULT ||
+              record.reasoning.supported.state === 'no' ||
+              !hasUsableEffortLevels(record.reasoning.effortLevels)
             wire = responses
               .createResponsesCodec({
                 sendPromptCacheKey: record.cache.acceptsKey,
                 sendPromptCacheRetention: record.cache.retention.length > 0,
               })
-              .encodeRequest({ ...body, model: native })
+              .encodeRequest({
+                ...body,
+                model: native,
+                ...(shouldOmitReasoning && { reasoning: undefined }),
+              })
           }
         }
 
@@ -846,6 +909,7 @@ export function createConfiguredProviderServices(
           // reach the caller; genuinely unknown errors keep the generic
           // unavailable error (lane FIXDSTHINK2 finding 3).
           if (chat.isChatCodecError(error)) throw error
+          if (anthropic.isAnthropicCodecError(error)) throw error
           if (error instanceof RangeError) throw error
           // A lapsed confirmation keeps the run's own guidance instead of
           // the provider's unavailable text.
