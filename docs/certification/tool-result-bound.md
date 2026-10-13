@@ -236,6 +236,15 @@ helper is missing: native/darwin/muse-dictate`, unbuilt); the packed proof
   translated); `1024` passes parse and proceeds (fails only on
   authentication, $0 spent); `--help` and `docs/reference.md` name the option
   and the setting (reference regenerated in this change).
+- Above-window packed attempt (this lane, built `dist/`):
+  `exec --backend modelApi --max-budget-usd 0.01 --max-tool-output-bytes 2000000 "hello"`
+  with a dummy stdin key prints the language line, `message withheld: the
+response did not complete`, and `[info] Authentication Required; requests
+0; settled $0.000000` (exit 3). The value passes parse; the run stops at
+  auth before any session exists. The window-fit refusal fires inside a live
+  session when the first result is bound (`toolResultLimits`), after auth, so
+  showing it packed needs a real key and a provider turn: lead-run (§8). No
+  provider request was made here (requests 0).
 - Official Muse Code `--max-tool-output-bytes` default: unpublished on the
   pages read; the lane uses 64,000 (today's behaviour).
 - HUB files touched: `src/shared/constants.ts` (spill lifetime + age
