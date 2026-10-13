@@ -23852,6 +23852,28 @@ and UNVERIFIED until the 26-request capture plan
 (`docs/certification/REASONSHAPES-capture-plan.json`) answers. Evidence:
 `docs/certification/REASONSHAPES.md`.
 
+**Lane REASONSHAPESR2 (2026-10-13, macmini).** Closes the eleven round-2
+reasoning gaps (GAPANTH-G01/G02/G10/G17, OPENAI-G01/G02/G07/G08,
+XAI-G01/G02/G14) plus the xAI-first defect the lead measured on 0.18.2
+(`grok-build-0.1` turns failed: the product sent `reasoning` where the
+provider answers 400): one rank-1 rule — what Thinking off and each
+effort name send is decided by the model's record, and a value the
+model does not take is never sent and never silently replaced. Listed
+levels ride as named; unlisted on-levels resolve to `default` (omit);
+off rides as `none` only where the record affirms disabling, else the
+typed refusal fires before dispatch; models with no usable levels send
+no reasoning field on any route. Thinking blocks replay by native model
+id; Thinking off sends each model's affirmed switch (`disabled`,
+Sonnet 5.5's `between_tools`); manual-only models ride tiers unnamed
+with tier-sized budgets and Opus 4.5 sends the interleaved-thinking
+header; the composer offers each configured model's own levels and
+default; OpenAI turns carry pro mode and reasoning context at the wire
+(no surface sets them yet: OPENAI-G07/G08 partly);
+`exec --effort` accepts `none`. Every shape is provider-doc-quoted and
+UNVERIFIED until the 27-request capture plan
+(`docs/certification/REASONSHAPESR2-capture-plan.json`) answers.
+Evidence: `docs/certification/REASONSHAPESR2.md`.
+
 | Finding                                                                                                                                                                                                                                                                                                                                                                   | Owner                                                             |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
 | Record shape, resolver, parsers keeping native records, custom overrides (F12); reasoning modes per model incl. Haiku 4.5 manual thinking in the Anthropic encoder and Gemini level/budget mapping (F3); effort levels from the catalogue's `reasoning_options` (research BYO 10); image/PDF limits into the record and the media budget (F4 media part; research BYO 15) | **M95 lane N (CAPREC)**                                           |
