@@ -3565,7 +3565,7 @@
   "execFileTooLarge": "La entrada supera el límite de bytes.",
   "execFileEmpty": "El archivo de entrada está vacío.",
   "execTooManyChunks": "La entrada supera el límite de bloques.",
-  "modelNotOnProvider": "El modelo \"{model}\" no lo ofrece el proveedor \"{provider}\". {remedy}.",
+  "modelNotOnProvider": "El modelo \"{model}\" no lo ofrece el proveedor \"{provider}\". {remedy}",
   "modelNotInSession": "El modelo \"{model}\" no se ofrece en esta sesión. Elija en su lugar uno de los modelos ofrecidos.",
   "unknownModelListModels": "Ejecute \"{command}\" para ver los modelos que ofrece.",
   "unknownModelPickOffered": "Elija en su lugar uno de los modelos ofrecidos.",

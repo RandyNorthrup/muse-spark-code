@@ -7,6 +7,20 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- `/compact` in an editor session now answers instead of ending in
+  silence: it says how many turns it folded (and the size before and
+  after), or why nothing was done. The terminal and the panel say the
+  same thing in their own form.
+- Product notices (such as the automatic-compaction status) no longer
+  open the model's answer in editor sessions; they arrive on the
+  protocol's own notice channel instead.
+- A model or effort the run does not offer is refused with its name:
+  the message names the id as typed, the provider or session that does
+  not offer it, and what to do (for a provider entry, the command that
+  lists its models; in a session, picking an offered model or effort).
+
 ### Pending
 
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached

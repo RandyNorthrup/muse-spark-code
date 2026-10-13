@@ -445,7 +445,7 @@ export async function assembleProviderRun(
     return usage(
       read.reason === 'missing'
         ? fill(UI_TEXT.providerUnknown, { provider: input.providerId })
-        : fill(UI_TEXT.providerTestFailed, { reason: read.detail }),
+        : fill(UI_TEXT.providerTestFailed, { detail: read.detail }),
     )
   }
   const resolved = await resolveProvider(read.file, input.providerId, presetById, input.resolveHost)
@@ -476,6 +476,11 @@ export async function assembleProviderRun(
   if (parsedRef?.providerId !== provider.entry.id) {
     // --model names another entry (or nothing parsable): the sentence names
     // the id as typed, this entry, and the command listing what it offers.
+    return usage(unknownProviderModelText(modelRef, provider.entry.id, listModelsRemedy()))
+  }
+  if (provider.entry.models.length > 0 && !provider.entry.models.includes(parsedRef.modelId)) {
+    // The entry does not offer this id: refuse before any request is sent.
+    // An empty list judges nothing (unprobed entry); a listed one does.
     return usage(unknownProviderModelText(modelRef, provider.entry.id, listModelsRemedy()))
   }
   let key: string | undefined

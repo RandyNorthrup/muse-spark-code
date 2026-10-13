@@ -3491,7 +3491,7 @@
   "execFileTooLarge": "Die Eingabe überschreitet die Byte-Grenze.",
   "execFileEmpty": "Die Eingabedatei ist leer.",
   "execTooManyChunks": "Die Eingabe überschreitet die Abschnittsgrenze.",
-  "modelNotOnProvider": "Modell \"{model}\" wird von Provider \"{provider}\" nicht angeboten. {remedy}.",
+  "modelNotOnProvider": "Modell \"{model}\" wird von Provider \"{provider}\" nicht angeboten. {remedy}",
   "modelNotInSession": "Modell \"{model}\" wird in dieser Sitzung nicht angeboten. Wählen Sie stattdessen eines der angebotenen Modelle.",
   "unknownModelListModels": "Führen Sie \"{command}\" aus, um zu sehen, welche Modelle er anbietet.",
   "unknownModelPickOffered": "Wählen Sie stattdessen eines der angebotenen Modelle.",

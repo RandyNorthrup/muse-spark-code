@@ -3491,7 +3491,7 @@
   "execFileTooLarge": "A bemenet túllépi a bájtkorlátot.",
   "execFileEmpty": "A bemeneti fájl üres.",
   "execTooManyChunks": "A bemenet túllépi a blokkok korlátját.",
-  "modelNotOnProvider": "A(z) \"{model}\" modellt a(z) \"{provider}\" szolgáltató nem kínálja. {remedy}.",
+  "modelNotOnProvider": "A(z) \"{model}\" modellt a(z) \"{provider}\" szolgáltató nem kínálja. {remedy}",
   "modelNotInSession": "A(z) \"{model}\" modell ebben a munkamenetben nem érhető el. Válasszon inkább a kínált modellek közül.",
   "unknownModelListModels": "Futtassa a következőt: \"{command}\", hogy lássa a kínált modelleket.",
   "unknownModelPickOffered": "Válasszon inkább a kínált modellek közül.",

@@ -3417,7 +3417,7 @@
   "execFileTooLarge": "入力がバイト上限を超えています。",
   "execFileEmpty": "入力ファイルは空です。",
   "execTooManyChunks": "入力がチャンク数の上限を超えています。",
-  "modelNotOnProvider": "モデル\"{model}\"はプロバイダー\"{provider}\"では提供されていません。{remedy}。",
+  "modelNotOnProvider": "モデル\"{model}\"はプロバイダー\"{provider}\"では提供されていません。{remedy}",
   "modelNotInSession": "モデル\"{model}\"はこのセッションでは提供されていません。代わりに提供されているモデルのいずれかを選択してください。",
   "unknownModelListModels": "提供されているモデルを確認するには、\"{command}\"を実行してください。",
   "unknownModelPickOffered": "代わりに提供されているモデルのいずれかを選択してください。",

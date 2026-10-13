@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest'
 import {
   effortNotForModelText,
   listModelsRemedy,
+  refEntryName,
   unknownModelRefText,
   unknownProviderModelText,
 } from '../../src/core/unknownModel'
+import { createProviderRegistry } from '../../src/core/providers/providerRegistry'
 
 // A refusal names what was refused and why: the model id as typed, the
 // entry that does not offer it, and what the person can do.
@@ -43,6 +45,29 @@ describe('unknownModelRefText', () => {
     expect(unknownModelRefText('openai/nope-9')).not.toBe(
       'This model is not available for this run.',
     )
+  })
+})
+
+describe('refEntryName', () => {
+  it('sends bare ids to the reserved lane and slashed ids to their entry', () => {
+    expect(refEntryName('muse-spark-1.3')).toBe('meta')
+    expect(refEntryName('openai/nope-9')).toBe('openai')
+    expect(refEntryName('openrouter/author/slug')).toBe('openrouter')
+  })
+})
+
+// The registry's own refusal, through the real module with data-only deps:
+// the failure path never builds a client.
+describe('providerRegistry.resolve', () => {
+  const deps = {
+    models: () => Promise.resolve([]),
+    createClient: () => Promise.reject(new Error('never called')),
+    isCurrent: () => true,
+  }
+  it('names the typed id and the entry that does not offer it', async () => {
+    const registry = createProviderRegistry(deps)
+    await expect(registry.resolve('openai/nope-9')).rejects.toThrow('openai/nope-9')
+    await expect(registry.resolve('openai/nope-9')).rejects.toThrow('openai')
   })
 })
 

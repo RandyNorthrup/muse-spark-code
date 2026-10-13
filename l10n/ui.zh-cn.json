@@ -3417,7 +3417,7 @@
   "execFileTooLarge": "输入超过字节限制。",
   "execFileEmpty": "输入文件为空。",
   "execTooManyChunks": "输入超过分块数量限制。",
-  "modelNotOnProvider": "提供方\"{provider}\"不提供模型\"{model}\"。{remedy}。",
+  "modelNotOnProvider": "提供方\"{provider}\"不提供模型\"{model}\"。{remedy}",
   "modelNotInSession": "本次会话不提供模型\"{model}\"。请改用所提供的模型之一。",
   "unknownModelListModels": "运行\"{command}\"以查看其提供的模型。",
   "unknownModelPickOffered": "请改用所提供的模型之一。",

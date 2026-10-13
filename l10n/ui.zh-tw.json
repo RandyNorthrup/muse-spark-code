@@ -3417,7 +3417,7 @@
   "execFileTooLarge": "輸入超過位元組限制。",
   "execFileEmpty": "輸入檔案為空。",
   "execTooManyChunks": "輸入超過區塊數量限制。",
-  "modelNotOnProvider": "提供者\"{provider}\"未提供模型\"{model}\"。{remedy}。",
+  "modelNotOnProvider": "提供者\"{provider}\"未提供模型\"{model}\"。{remedy}",
   "modelNotInSession": "此工作階段未提供模型\"{model}\"。請改用所提供的模型之一。",
   "unknownModelListModels": "執行\"{command}\"以查看其提供的模型。",
   "unknownModelPickOffered": "請改用所提供的模型之一。",

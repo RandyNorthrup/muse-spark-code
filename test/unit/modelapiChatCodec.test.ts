@@ -16,7 +16,7 @@ import { customQuirksFor } from '../../src/core/providers/presets'
 import { mcpFunctionDefinition } from '../../src/core/backends/modelapi/mcp/functions'
 import { toolDefinitions } from '../../src/core/backends/modelapi/tools'
 import { EN } from '../../src/shared/l10n/en'
-import { setUiText, UI_TEXT } from '../../src/shared/l10n/text'
+import { fill, setUiText, UI_TEXT } from '../../src/shared/l10n/text'
 import {
   CHAT_CODEC_FORMAT,
   ChatStreamDecoder,
@@ -1781,12 +1781,18 @@ describe('chat codec guards', () => {
   })
 
   it('refuses images with unknown vision and stands in without it (BYO item 1)', () => {
-    const modelUnavailable = 'Dieses Modell ist für diesen Lauf nicht verfügbar.'
-    setUiText({ ...EN, execUnknownModel: modelUnavailable }, 'de')
+    const partUnsupported = 'Der Teil "input_image" kann nicht an dieses Modell gesendet werden.'
+    setUiText(
+      {
+        ...EN,
+        chatPartNotSupported: 'Der Teil "{kind}" kann nicht an dieses Modell gesendet werden.',
+      },
+      'de',
+    )
     try {
-      expect(UI_TEXT.execUnknownModel).toBe(modelUnavailable)
+      expect(fill(UI_TEXT.chatPartNotSupported, { kind: 'input_image' })).toBe(partUnsupported)
       for (const body of [imageBody(false), imageBody(true)]) {
-        expect(() => encodeChatRequest(body, 'm', GROQ, undefined)).toThrow(modelUnavailable)
+        expect(() => encodeChatRequest(body, 'm', GROQ, undefined)).toThrow(partUnsupported)
         const stoodIn = encodeChatRequest(body, 'm', GROQ, { capabilities: { vision: false } })
         expect(JSON.stringify(stoodIn.body.messages)).toContain(
           '[image omitted: this model takes no images]',
@@ -2219,7 +2225,9 @@ describe('M101 lane P1 history hardening (BYO items 1, 3, 13)', () => {
     expect(JSON.stringify(without.body.messages)).toContain(
       '[image omitted: this model takes no images]',
     )
-    expect(() => encodeChatRequest(body, 'm', OPENROUTER)).toThrow(UI_TEXT.execUnknownModel)
+    expect(() => encodeChatRequest(body, 'm', OPENROUTER)).toThrow(
+      fill(UI_TEXT.chatPartNotSupported, { kind: 'input_image' }),
+    )
   })
 
   it('removes lone surrogates from text crossing the wire (BYO item 13)', () => {
