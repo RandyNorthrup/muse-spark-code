@@ -253,7 +253,7 @@ export function referenceFacts(source) {
       clientRequests: [
         ...new Set(
           source.evidence['src/acp/agent.ts']
-            .matchAll(/\.client\.request\('([^']+)'/g)
+            .matchAll(/\.client\.request\(\s*'([^']+)'/g)
             .map((match) => match[1]),
         ),
       ],

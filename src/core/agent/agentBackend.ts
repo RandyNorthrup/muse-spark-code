@@ -638,6 +638,13 @@ export interface AgentHost {
     lastTurnId?: string,
     options?: { readonly sideChat?: boolean },
   ): Promise<LoadedSession>
+  /**
+   * Permanently remove a stored session so `listSessions` no longer returns
+   * it (ACP `session/delete`, stabilized 2026-06-05). Unknown ids succeed
+   * silently. The backend reports its own terminal shape (Muse Code's
+   * lifecycle event); absent where the backend keeps no deletable store.
+   */
+  deleteSession?(sessionId: string): Promise<unknown>
   onSessionListEvent(listener: (event: SessionListEvent) => void): () => void
   /**
    * The subscription usage the host last observed (M8); undefined when there

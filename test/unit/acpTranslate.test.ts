@@ -51,6 +51,7 @@ describe('UpdateTranslator', () => {
         sessionUpdate: 'tool_call',
         toolCallId: 't1',
         title: 'PowerShell: Run the tests',
+        name: 'powershell',
         kind: 'execute',
         status: 'in_progress',
         locations: [],
@@ -200,7 +201,13 @@ describe('UpdateTranslator', () => {
     })
     expect(
       translator.updates({ type: 'textDelta', itemId: 'r2', field: 'text', delta: 'raw' }),
-    ).toEqual([{ sessionUpdate: 'agent_thought_chunk', content: { type: 'text', text: 'raw' } }])
+    ).toEqual([
+      {
+        sessionUpdate: 'agent_thought_chunk',
+        content: { type: 'text', text: 'raw' },
+        messageId: 'r2',
+      },
+    ])
   })
 
   it('ignores deltas of items it does not stream and fields it does not know', () => {
@@ -242,7 +249,13 @@ describe('UpdateTranslator', () => {
         },
         true,
       ),
-    ).toEqual([{ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'Done.' } }])
+    ).toEqual([
+      {
+        sessionUpdate: 'agent_message_chunk',
+        content: { type: 'text', text: 'Done.' },
+        messageId: 'm1',
+      },
+    ])
   })
 
   it('replays the user’s messages only from a loaded history', () => {
@@ -254,7 +267,11 @@ describe('UpdateTranslator', () => {
     }
     expect(new UpdateTranslator(CWD, false).itemUpdates(user, true)).toEqual([])
     expect(new UpdateTranslator(CWD, true).itemUpdates(user, true)).toEqual([
-      { sessionUpdate: 'user_message_chunk', content: { type: 'text', text: 'Hi' } },
+      {
+        sessionUpdate: 'user_message_chunk',
+        content: { type: 'text', text: 'Hi' },
+        messageId: 'u1',
+      },
     ])
   })
 

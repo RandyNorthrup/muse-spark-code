@@ -974,9 +974,21 @@ describe('the ACP agent (M63)', () => {
     expect(response).toEqual({ stopReason: 'end_turn' })
     expect(h.updates).toEqual([
       expectedQuestionCommandsUpdate(),
-      { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'Hel' } },
-      { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'lo' } },
-      { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: '!' } },
+      {
+        sessionUpdate: 'agent_message_chunk',
+        content: { type: 'text', text: 'Hel' },
+        messageId: 'm1',
+      },
+      {
+        sessionUpdate: 'agent_message_chunk',
+        content: { type: 'text', text: 'lo' },
+        messageId: 'm1',
+      },
+      {
+        sessionUpdate: 'agent_message_chunk',
+        content: { type: 'text', text: '!' },
+        messageId: 'm1',
+      },
       {
         sessionUpdate: 'plan',
         entries: [{ content: 'Write tests', priority: 'medium', status: 'in_progress' }],
@@ -1584,10 +1596,13 @@ describe('the ACP agent (M63)', () => {
         })
       })
     }
-    expect(withoutForms.updates).toContainEqual({
-      sessionUpdate: 'agent_message_chunk',
-      content: { type: 'text', text: `${UI_TEXT.acpOpenQuestionAsked}\nProceed?\n- Yes` },
-    })
+    expect(withoutForms.updates).toContainEqual(
+      expect.objectContaining({
+        sessionUpdate: 'agent_message_chunk',
+        content: { type: 'text', text: `${UI_TEXT.acpOpenQuestionAsked}\nProceed?\n- Yes` },
+        messageId: expect.any(String),
+      }),
+    )
   })
 
   it('declines a form whose answer is not one of the options it offered', async () => {
@@ -1810,8 +1825,16 @@ describe('the ACP agent (M63)', () => {
     expect(h.host.sessions[1]?.dispose).toHaveBeenCalledTimes(1)
     expect(h.host.sessions[2]?.dispose).not.toHaveBeenCalled()
     expect(h.updates).toEqual([
-      { sessionUpdate: 'user_message_chunk', content: { type: 'text', text: 'Fix the bug' } },
-      { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'Done.' } },
+      {
+        sessionUpdate: 'user_message_chunk',
+        content: { type: 'text', text: 'Fix the bug' },
+        messageId: 'u1',
+      },
+      {
+        sessionUpdate: 'agent_message_chunk',
+        content: { type: 'text', text: 'Done.' },
+        messageId: 'a1',
+      },
       {
         sessionUpdate: 'plan',
         entries: [{ content: 'Fix the bug', priority: 'medium', status: 'completed' }],

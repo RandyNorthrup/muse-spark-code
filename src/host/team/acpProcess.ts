@@ -415,6 +415,8 @@ export function connectAcpAgent(input: {
   const sessionMessages = new Map<string, { id: string | null | undefined; text: string }[]>()
   const sessionModes = new Map<string, string>()
   const promptSettled = new Map<string, Promise<void>>()
+  /** Aborts the in-flight `session/prompt` request per session, sending `$/cancel_request`. */
+  const promptStops = new Map<string, AbortController>()
   const sessionConfigurations = new Map<string, readonly unknown[]>()
   const sessionGrants = new Map<string, WorkerRootGrant>()
   const grantOf = (sessionId: string): WorkerRootGrant => {
@@ -658,12 +660,18 @@ export function connectAcpAgent(input: {
     },
     prompt: async (sessionId, text) => {
       messagesOf(sessionId).length = 0
+      const stop = new AbortController()
+      promptStops.set(sessionId, stop)
       const work = requesting(
         'session/prompt',
-        agent.request('session/prompt', {
-          sessionId,
-          prompt: [{ type: 'text', text }],
-        }),
+        agent.request(
+          'session/prompt',
+          {
+            sessionId,
+            prompt: [{ type: 'text', text }],
+          },
+          { cancellationSignal: stop.signal },
+        ),
       )
       promptSettled.set(
         sessionId,
@@ -675,12 +683,16 @@ export function connectAcpAgent(input: {
           }
         })(),
       )
-      const response = await work
-      promptSettled.delete(sessionId)
-      const messages = messagesOf(sessionId).at(-1)?.text ?? ''
-      return {
-        stopReason: promptResponse.parse(response).stopReason,
-        lastMessage: messages === '' ? undefined : messages,
+      try {
+        const response = await work
+        const messages = messagesOf(sessionId).at(-1)?.text ?? ''
+        return {
+          stopReason: promptResponse.parse(response).stopReason,
+          lastMessage: messages === '' ? undefined : messages,
+        }
+      } finally {
+        promptSettled.delete(sessionId)
+        if (promptStops.get(sessionId) === stop) promptStops.delete(sessionId)
       }
     },
     cancel: async (sessionId) => {
@@ -688,6 +700,10 @@ export function connectAcpAgent(input: {
         answer(undefined)
       }
       pendingPermissions.clear()
+      // The request id goes with it: the SDK sends `$/cancel_request` for
+      // the prompt, beside the per-feature `session/cancel` below.
+      promptStops.get(sessionId)?.abort()
+      promptStops.delete(sessionId)
       try {
         let timer: ReturnType<typeof setTimeout> | undefined
         try {
@@ -715,6 +731,7 @@ export function connectAcpAgent(input: {
       pendingPermissions.clear()
       sessionModes.clear()
       promptSettled.clear()
+      promptStops.clear()
       sessionConfigurations.clear()
       sessionGrants.clear()
       sessionMessages.clear()

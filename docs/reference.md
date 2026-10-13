@@ -506,11 +506,13 @@ Installed skills add dynamic slash commands. This static reference does not list
   "operations": [
     "initialize",
     "authenticate",
+    "logout",
     "session/new",
     "session/load",
     "session/resume",
     "session/list",
     "session/close",
+    "session/delete",
     "session/set_mode",
     "session/set_config_option",
     "session/prompt",
@@ -520,7 +522,9 @@ Installed skills add dynamic slash commands. This static reference does not list
   "configOptions": {
     "model": "model",
     "effort": "effort",
-    "account": "account"
+    "account": "account",
+    "mode": "mode",
+    "paidAllowAlways": "paidAllowAlways"
   },
   "permissionModes": ["manual", "acceptEdits", "plan", "auto", "bypassPermissions"],
   "bypassFlag": "--allow-dangerously-skip-permissions",

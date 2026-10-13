@@ -294,19 +294,19 @@ export class UpdateTranslator {
       const index = Number(summary[1])
       const isNewPart = this.summaryParts.has(itemId) && this.summaryParts.get(itemId) !== index
       this.summaryParts.set(itemId, index)
-      return [thoughtText(isNewPart ? `${PART_SEPARATOR}${delta}` : delta)]
+      return [thoughtText(itemId, isNewPart ? `${PART_SEPARATOR}${delta}` : delta)]
     }
     if (field !== TEXT_FIELD || (kind !== 'reasoning' && kind !== 'agentMessage')) {
       return []
     }
     this.sentText.set(itemId, (this.sentText.get(itemId) ?? 0) + delta.length)
-    return [kind === 'reasoning' ? thoughtText(delta) : agentText(delta)]
+    return [kind === 'reasoning' ? thoughtText(itemId, delta) : agentText(itemId, delta)]
   }
 
   private remainingText(
     itemId: string,
     text: string | undefined,
-    wrap: (text: string) => SessionUpdate,
+    wrap: (itemId: string, text: string) => SessionUpdate,
   ): SessionUpdate[] {
     if (text === undefined || this.summaryParts.has(itemId)) {
       return []
@@ -316,7 +316,7 @@ export class UpdateTranslator {
       return []
     }
     this.sentText.set(itemId, text.length)
-    return [wrap(text.slice(sent))]
+    return [wrap(itemId, text.slice(sent))]
   }
 
   private toolUpdates(item: ItemSnapshot, isCompleted: boolean): SessionUpdate[] {
@@ -358,6 +358,9 @@ export class UpdateTranslator {
         sessionUpdate: 'tool_call',
         toolCallId: item.itemId,
         title,
+        // The programmatic name beside the human title (ACP-G11, stable
+        // 2026-09-17): the backend's tool, `shell` for a `!` command.
+        name: tool,
         kind: item.kind === 'subagent' ? 'other' : toolKind(tool),
         status,
         locations: toolLocations(args, this.cwd),
@@ -471,7 +474,14 @@ export class UpdateTranslator {
             ]
       }
       case 'backendNotice': {
-        return [agentText(`${event.text}${PART_SEPARATOR}`)]
+        // A notice is its own message, but it carries no item to name it
+        // by; it goes out ungrouped, as before.
+        return [
+          {
+            sessionUpdate: 'agent_message_chunk',
+            content: { type: 'text', text: `${event.text}${PART_SEPARATOR}` },
+          },
+        ]
       }
       case 'messageAdmitted': {
         // Nothing to send (M87): an ACP prompt is never queued behind
@@ -510,16 +520,21 @@ export class UpdateTranslator {
   }
 }
 
-function agentText(text: string): SessionUpdate {
-  return { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } }
+/**
+ * One streamed message part: every chunk of an item carries the item's id
+ * as its `messageId` (ACP-G10, stable 2026-06-05), so the client groups a
+ * message's deltas and starts a new message where the item changes.
+ */
+function agentText(messageId: string, text: string): SessionUpdate {
+  return { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text }, messageId }
 }
 
-function thoughtText(text: string): SessionUpdate {
-  return { sessionUpdate: 'agent_thought_chunk', content: { type: 'text', text } }
+function thoughtText(messageId: string, text: string): SessionUpdate {
+  return { sessionUpdate: 'agent_thought_chunk', content: { type: 'text', text }, messageId }
 }
 
-function userText(text: string): SessionUpdate {
-  return { sessionUpdate: 'user_message_chunk', content: { type: 'text', text } }
+function userText(messageId: string, text: string): SessionUpdate {
+  return { sessionUpdate: 'user_message_chunk', content: { type: 'text', text }, messageId }
 }
 
 // --- approvals ---------------------------------------------------------------
@@ -602,6 +617,7 @@ export function approvalToolCall(
     // A paid call never gets an approval (M58, PLAN.md D48): its price is in
     // the paid-use question (paid.ts) and on its row.
     title: detail === undefined ? toolTitle(event.toolName, args) : `${name}: ${detail}`,
+    name: event.toolName,
     kind: toolKind(event.toolName),
     status: 'pending',
     locations: toolLocations(args, cwd),
