@@ -1277,11 +1277,11 @@ export const COMPOSER_MAX_ROWS = 10
 // The tiers the UI exposes, lowest first: the Model API's documented
 // `reasoning_effort` range (minimal … max), each verified live through Muse
 // Code with one turn per tier (docs/certification/m3.md, "Effort tiers per
-// model"). Two wire tiers are deliberately absent: `none` is what the
-// Thinking toggle sends when it is off, and `ultra` is forwarded to the API
-// as `max` (the API's rejection of `ultra` on muse-spark-1.2 names `max`),
-// so it would be a second dot for the same tier.
-export const EFFORT_LEVELS = ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'] as const
+// model"), plus Muse Code's client-side `ultra` (lane REASONSHAPES): the
+// CLI maps it to each model's highest served tier, and the Model API
+// backend maps it to `max` (the API has no `ultra`). `none` stays absent:
+// it is what the Thinking toggle sends when it is off.
+export const EFFORT_LEVELS = ['minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra'] as const
 export type EffortLevel = (typeof EFFORT_LEVELS)[number]
 // The tiers each model family actually serves, keyed by model-id prefix
 // (verified live 2026-09-21, Muse Code 1.3.0: muse-spark-1.2 rejects `max`

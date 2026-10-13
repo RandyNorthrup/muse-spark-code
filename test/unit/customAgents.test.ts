@@ -111,7 +111,7 @@ describe('parseAgentFile', () => {
       ok: false,
       reason: 'front matter has an invalid description',
     })
-    expect(parseAgentFile(agentFile('x', 'd', 'effort: ultra\npermission-mode: super\n'))).toEqual({
+    expect(parseAgentFile(agentFile('x', 'd', 'effort: turbo\npermission-mode: super\n'))).toEqual({
       ok: false,
       reason: 'front matter has an invalid effort, permission-mode',
     })

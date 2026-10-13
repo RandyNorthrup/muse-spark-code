@@ -500,7 +500,10 @@ export function createConfiguredProviderServices(
               entry.format ?? preset.format,
             ),
             canDisableReasoning: record.reasoning.canDisable.state === 'yes',
-            thinkingOff: preset.quirks.thinkingOff,
+            // The switch rides the policy only where the record affirms
+            // reasoning (see the codec quirks above).
+            thinkingOff:
+              record.reasoning.supported.state === 'yes' ? preset.quirks.thinkingOff : undefined,
             effortAliases: preset.quirks.effortAliases,
             ...(preset.quirks.sendUndeclaredEffort === true && { sendUndeclaredEffort: true }),
           },
@@ -554,18 +557,21 @@ export function createConfiguredProviderServices(
           : 'max_tokens',
       reasoningParam,
       // A preset's declared Thinking-off switch (presets.ts) hands the codec
-      // the record facts the shared resolver maps every effort with.
-      ...(preset.quirks.thinkingOff !== undefined && {
-        thinkingOff: preset.quirks.thinkingOff,
-        effortLevels:
-          record.reasoning.effortLevels.state === 'yes'
-            ? record.reasoning.effortLevels.value
-            : undefined,
-        canDisable: record.reasoning.canDisable.state === 'yes',
-        ...(preset.quirks.effortAliases !== undefined && {
-          effortAliases: preset.quirks.effortAliases,
+      // the record facts the shared resolver maps every effort with. Only
+      // where the record affirms reasoning: on a model that cannot think,
+      // Thinking off is already satisfied and the turn goes plain.
+      ...(preset.quirks.thinkingOff !== undefined &&
+        record.reasoning.supported.state === 'yes' && {
+          thinkingOff: preset.quirks.thinkingOff,
+          effortLevels:
+            record.reasoning.effortLevels.state === 'yes'
+              ? record.reasoning.effortLevels.value
+              : undefined,
+          canDisable: record.reasoning.canDisable.state === 'yes',
+          ...(preset.quirks.effortAliases !== undefined && {
+            effortAliases: preset.quirks.effortAliases,
+          }),
         }),
-      }),
       // Groq's presentation rides only where the record affirms reasoning.
       ...(preset.quirks.reasoningFormat !== undefined &&
         record.reasoning.supported.state === 'yes' && {

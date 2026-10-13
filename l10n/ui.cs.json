@@ -3263,7 +3263,8 @@
     "medium": "Střední",
     "high": "Vysoké",
     "xhigh": "Velmi vysoké",
-    "max": "Maximální"
+    "max": "Maximální",
+    "ultra": "Ultra"
   },
   "toolLabels": {
     "judge": "Posuzovatel",

@@ -3743,6 +3743,16 @@ export class ConversationController {
       ...(model.isPinned === true && { isPinned: model.isPinned }),
       ...(model.planLimitsUrl !== undefined && { planLimitsUrl: model.planLimitsUrl }),
       ...(model.trainsOnContent === true && { trainsOnContent: model.trainsOnContent }),
+      // Muse Code's per-model tiers light the slider (META-G05); the
+      // static family table applies where the host reports none. Only a
+      // non-empty known list is posted, so the slider never hides behind
+      // an unusable row.
+      ...(model.effortLevels !== undefined &&
+        model.effortLevels.some((level) => isEffortLevel(level)) && {
+          effortLevels: model.effortLevels.filter((level) => isEffortLevel(level)),
+        }),
+      ...(model.defaultEffort !== undefined &&
+        isEffortLevel(model.defaultEffort) && { defaultEffort: model.defaultEffort }),
     }))
     this.post({ type: 'modelList', models: [...this.models] })
   }
@@ -8229,10 +8239,15 @@ export class ConversationController {
     }
     this.postSessionInfo(modelId)
     // A tier the new model does not serve would fail its turns with a 400
-    // (muse-spark-1.2 has no `max`); drop to the highest tier it does serve.
-    const levels = effortLevelsFor(modelId)
+    // (muse-spark-1.2 has no `max`); drop to the model's own default, else
+    // the highest tier it does serve.
+    const listed = this.models?.find((model) => model.modelId === modelId)
+    const levels = listed?.effortLevels ?? effortLevelsFor(modelId)
     if (!levels.includes(this.effort)) {
-      await this.updateEffort(levels.at(-1) ?? DEFAULT_EFFORT, this.isThinkingEnabled)
+      await this.updateEffort(
+        listed?.defaultEffort ?? levels.at(-1) ?? DEFAULT_EFFORT,
+        this.isThinkingEnabled,
+      )
     }
   }
 
@@ -8247,7 +8262,10 @@ export class ConversationController {
     if (
       kept !== undefined &&
       this.session === session &&
-      effortLevelsFor(this.modelId).includes(kept.effort)
+      (
+        this.models?.find((model) => model.modelId === this.modelId)?.effortLevels ??
+        effortLevelsFor(this.modelId)
+      ).includes(kept.effort)
     ) {
       this.effort = kept.effort
       this.isThinkingEnabled = kept.isThinkingEnabled
