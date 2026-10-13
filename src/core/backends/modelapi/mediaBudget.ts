@@ -58,17 +58,14 @@ function leftOut(part: InputContentPart, reason: OmissionReason) {
   }
   let text: string
   if (reason === 'budget') {
-    // A file reference may carry no filename; its technical id still names it.
-    const name =
-      part.type === 'input_file'
-        ? 'file_data' in part
-          ? part.filename
-          : (part.filename ?? part.file_id)
-        : ''
-    text =
-      part.type === 'input_file'
-        ? fill(MODEL_API_MODEL_TEXT.pdfLeftOut, { name })
-        : MODEL_API_MODEL_TEXT.imageLeftOut
+    if (part.type !== 'input_file') {
+      text = MODEL_API_MODEL_TEXT.imageLeftOut
+    } else if ('file_data' in part) {
+      text = fill(MODEL_API_MODEL_TEXT.pdfLeftOut, { name: part.filename })
+    } else {
+      // A file reference may carry no filename; its technical id still names it.
+      text = fill(MODEL_API_MODEL_TEXT.pdfLeftOut, { name: part.filename ?? part.file_id })
+    }
   } else {
     text = fill(MODEL_API_MODEL_TEXT.mediaLeftOut, { reason: reasons[reason] })
   }
