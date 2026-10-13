@@ -15374,8 +15374,8 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ### USAGEFIELDS — Every usage and price field a provider reports (2026-10-12)
 
-**Status 2026-10-12: built, UNVERIFIED wire shapes.** On branch
-`feat/provider-usage-fields`. Closes GQ-G01, DS-G03, GEM-G01, HF-G01,
+**Status 2026-10-12: built.** On branch `feat/provider-usage-fields` with
+wire shapes still UNVERIFIED (see below). Closes GQ-G01, DS-G03, GEM-G01, HF-G01,
 HF-G02, HF-G03, HF-G04, OR-G04, FW-G01. Money shown is what the provider
 reported for that request: cached tokens, reasoning-token prices, tier
 boundaries, the routed upstream and the credit balance flow through the
