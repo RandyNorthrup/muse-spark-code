@@ -226,7 +226,6 @@
     "test/harness/playbook.mjs",
     "test/harness/schedules.mjs",
     "test/harness/vault/main.tsx",
-    "test/harness/vault/run.mjs",
-    "test/unit/helpers/questions/queuedTurnCrash.ts"
+    "test/harness/vault/run.mjs"
   ]
 }
