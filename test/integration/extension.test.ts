@@ -49,6 +49,13 @@ async function waitForTab(isMatch: (tab: vscode.Tab) => boolean): Promise<vscode
   )
 }
 
+// Read fresh on every poll: an earlier assert's narrowing of the editor
+// chain does not survive the awaits between polls, so the read lives in its
+// own function where the optional chain is genuinely needed.
+function activeTextEditorFsPath(): string | undefined {
+  return vscode.window.activeTextEditor?.document.uri.fsPath
+}
+
 suite('activation', () => {
   test('the extension is installed and activates', async () => {
     const extension = vscode.extensions.getExtension(EXTENSION_QUALIFIED_ID)
@@ -118,8 +125,76 @@ suite('activation', () => {
           vscode.window.activeTextEditor?.document.uri.fsPath === target.fsPath,
       )
       assert.equal(vscode.window.activeTextEditor?.document.uri.fsPath, target.fsPath)
+      // A chat panel finishing loading behind the new file must not take the
+      // keyboard back: the measured steal landed 0.4 to 0.8 s after
+      // showTextDocument resolved, so AGENTS.md stays the active editor and
+      // the active tab for 3 s of polling.
+      const watchUntil = Date.now() + 3000
+      while (Date.now() < watchUntil) {
+        assert.equal(
+          activeTextEditorFsPath(),
+          target.fsPath,
+          'the chat panel took the keyboard from the file just opened',
+        )
+        const activeTab = vscode.window.tabGroups.activeTabGroup.activeTab
+        assert.ok(
+          activeTab.input instanceof vscode.TabInputText &&
+            activeTab.input.uri.fsPath === target.fsPath,
+          'the chat panel took the active tab from the file just opened',
+        )
+        await new Promise((resolve) => setTimeout(resolve, TAB_POLL_INTERVAL_MS))
+      }
     } finally {
       await vscode.commands.executeCommand('workbench.action.closeActiveEditor')
+      await vscode.workspace.fs.delete(target)
+    }
+  })
+
+  test('Focus Input from a file brings the chat panel forward (panel-focus)', async () => {
+    const folder = vscode.workspace.workspaceFolders?.[0]
+    assert.ok(folder, 'no workspace folder')
+    const target = vscode.Uri.joinPath(folder.uri, 'AGENTS.md')
+    const isChatTab = (tab: vscode.Tab | undefined) =>
+      tab?.input instanceof vscode.TabInputWebview &&
+      tab.input.viewType.includes(CHAT_PANEL_VIEW_TYPE)
+    try {
+      // This case owns its panel, so an earlier case's cleanup cannot leave
+      // Focus Input with no surface and no tab to bring forward.
+      await vscode.commands.executeCommand(COMMAND_IDS.openInNewTab)
+      await waitForTab(isChatTab)
+      await vscode.commands.executeCommand(COMMAND_IDS.createRulesFile)
+      await waitForTab(
+        (tab) =>
+          tab.input instanceof vscode.TabInputText &&
+          tab.input.uri.fsPath === target.fsPath &&
+          vscode.window.activeTextEditor?.document.uri.fsPath === target.fsPath,
+      )
+      // The person acting on the chat: Focus Input moves the keyboard there,
+      // and the composer's owned request lands because the panel is active.
+      await vscode.commands.executeCommand(COMMAND_IDS.focusInput)
+      const deadline = Date.now() + TAB_WAIT_TIMEOUT_MS
+      while (Date.now() < deadline) {
+        if (isChatTab(vscode.window.tabGroups.activeTabGroup.activeTab)) {
+          break
+        }
+        await new Promise((resolve) => setTimeout(resolve, TAB_POLL_INTERVAL_MS))
+      }
+      assert.ok(
+        isChatTab(vscode.window.tabGroups.activeTabGroup.activeTab),
+        'Focus Input did not bring the chat panel forward',
+      )
+    } finally {
+      // Close the file tab wherever it is; the chat panels stay for the
+      // later cases that count them.
+      const textTab = vscode.window.tabGroups.all
+        .flatMap((group) => group.tabs)
+        .find(
+          (tab) =>
+            tab.input instanceof vscode.TabInputText && tab.input.uri.fsPath === target.fsPath,
+        )
+      if (textTab !== undefined) {
+        await vscode.window.tabGroups.close(textTab)
+      }
       await vscode.workspace.fs.delete(target)
     }
   })
