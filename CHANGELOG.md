@@ -21,6 +21,16 @@ happened, not what was planned; superseded entries are kept.
   headless run. One oversized result can no longer fill the model's window
   and end the conversation.
 
+- Tool-result bound, round 2: the window share is now measured in bytes, so
+  dense text (pasted hex, minified JSON, CJK) cannot slip several times its
+  token cap past a character count; the type system holds the rule instead of
+  a source-scanning test (a bare string no longer compiles into a request).
+  Cut notices count exactly what was kept and omitted. Spill files are plain
+  workspace files, removed when their session is deleted and pruned past 30
+  days. A refusal the lane has not recorded for its format no longer triggers
+  a resend: the turn ends with the short sentence instead. A too-small
+  `--max-tool-output-bytes` is refused with its translated reason.
+
 
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
   reads and writes, and 1-hour cache writes settle at their own price.
