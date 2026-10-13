@@ -1069,3 +1069,202 @@ test/e2e/execStdio.e2e.test.ts --maxWorkers=3` — 50 passed.
    on the integrated tree.
 3. Nothing else is outstanding: every other Prove item ran here with
    the receipts above.
+
+## Round 8 — the tool-less request xAI rejects (released defect), and RVAPP-TOOLROUNDS7
+
+Released 0.18.1 ends a job at 50 tool rounds on xAI: `/compact`,
+automatic compaction, the Git drafts and the wrap-up send a tool choice
+with no tools on Responses-format providers, and xAI answers 400 "A
+tool_choice was set on the request but no tools were specified." A real
+xAI job was ended 13 times by it on 2026-10-12. The lead ran the live
+sweep below on 2026-10-12 12:55 to 12:58 PM (real APIs; one real tool
+call, then the wrap-up; the files, without any key, are committed under
+`docs/certification/toolrounds-captures/` as recorded).
+
+### The captures: one shape every vendor accepts
+
+Each vendor got the wrap-up three ways after one real tool call. Tools
+and tool choice both OMITTED is the only shape all twelve accept.
+
+| Vendor, model                                               | tools + choice OMITTED                                | tools `[]`, choice `auto`                                                     | tools kept, choice `none`                                                                                                                                         |
+| ----------------------------------------------------------- | ----------------------------------------------------- | ----------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Meta Responses, muse-spark-1.3-contributor                  | 200 (`meta/2-wrap-up-tools-omitted.json`)             | 200 (`meta/1-wrap-up-tools-empty-choice-auto.json`)                           | 400: only "auto" is supported (`meta/3-wrap-up-tools-kept-choice-none.json`)                                                                                      |
+| xAI Responses, grok-4.3                                     | 200 (`xai/2-wrap-up-tools-omitted.json`)              | 400: tool_choice with no tools (`xai/1-wrap-up-tools-empty-choice-auto.json`) | 200 (`xai/3-wrap-up-tools-kept-choice-none.json`)                                                                                                                 |
+| OpenAI Responses, gpt-5.6-luna                              | 200 (`openai/2-wrap-up-tools-omitted.json`)           | 200 (`openai/1-wrap-up-tools-empty-choice-auto.json`)                         | 200 (`openai/3-wrap-up-tools-kept-choice-none.json`)                                                                                                              |
+| Anthropic, claude-haiku-5-5                                 | 200 (`anthropic/1-wrap-up-tools-omitted.json`)        | 200 (`anthropic/2-wrap-up-tools-empty-list.json`)                             | 200 (`anthropic/3-wrap-up-tools-kept-choice-none.json`)                                                                                                           |
+| Anthropic, claude-sonnet-5-5                                | 200 (`anthropic-sonnet/1-wrap-up-tools-omitted.json`) | 200 (`anthropic-sonnet/2-wrap-up-tools-empty-list.json`)                      | 200 (`anthropic-sonnet/3-wrap-up-tools-kept-choice-none.json`)                                                                                                    |
+| Gemini, gemini-3.8-flash                                    | 200 (`gemini/1-wrap-up-tools-omitted.json`)           | not sent                                                                      | 200, mode NONE (`gemini/2-wrap-up-tools-kept-mode-none.json`); 200 with the thought signature stripped (`gemini/3-wrap-up-tools-omitted-signature-stripped.json`) |
+| Groq, DeepSeek, Mistral, Fireworks, Z.ai, OpenRouter (chat) | 200 each (`<vendor>/1-wrap-up-tools-omitted.json`)    | not sent                                                                      | 200 each (`<vendor>/2-wrap-up-tools-kept-choice-none.json`)                                                                                                       |
+
+First calls with tools (`<vendor>/0-first-call-with-tools.json`, plus
+`0b-first-call-choice-auto.json` where sent) anchor each row. No row
+says UNVERIFIED: every omitted wrap-up above carried the real tool
+history (xAI: `function_call`/`function_call_output`; Anthropic:
+`tool_use`/`tool_result`; Gemini: `functionCall`/`functionResponse`
+with no declarations), which answers RVAPP-TOOLROUNDS7 P2-1 by
+measurement — the reviewer's feared 400 never came.
+
+Also measured for the tables: Claude Sonnet 5.5 refuses a FORCED tool
+choice (`any` or `tool`, 400); DeepSeek in thinking mode refuses
+`tool_choice: required`; Meta accepts only `"auto"`;
+`gemini-2.5-flash` answers 404 "no longer available to new users … use
+models/gemini-3.8-flash". With tools declared, xAI accepts `required`
+(`xai/0-first-call-with-tools.json` sends it, 200): the refusal is only
+a choice with NO tools.
+
+### The one builder (Part 1 item 2)
+
+`hasDeclaredTools` / `omitToolShape`
+(`src/core/backends/modelapi/schemas.ts`, commit `08e989508`) decide
+every tool-less request in the product — the wrap-up, compaction
+without reused tools, the Git drafts, the reviewer and hook-model calls
+with no tools, any side call. No tools declared means `tools` and
+`tool_choice` are both omitted on every wire format: the Meta-direct
+client strips both (`client.ts`), the Responses codec omits both
+(`codecs/responses.ts`), the chat codec sends no choice, the Anthropic
+codec sends no `tool_choice`, the Gemini codec sends no `tools` and no
+`toolConfig`, Ollama has no choice to send. Meta golden
+`10-turn-limit-wrap-up` is re-recorded for the omitted shape; the
+instructions are byte-identical and the note stays the trailing input
+item. No new guard test pins the shape: the owner's 2026-10-12 testing
+rules forbid reflex guard tests, so the builder stands on the captures
+above and the golden.
+
+### Forced tool choice inventory (Part 1 item 3)
+
+Every canonical body in the product sets `tool_choice: 'auto'`
+(`ModelApiHost.ts:4643`, `hookModelEntry.ts:277`,
+`reviewerEntry.ts:233`, `tabRequest.ts:93`,
+`legalExplanation.ts:112`, `modelApiSameJudge.ts:98`); the type allows
+`'none'` but nothing assigns it. The Responses codec sends only a
+choice the model's capability record lists, unknown meaning `auto`
+only; the Meta record now lists `['auto']` (commit `364046d32`). The
+Anthropic codec sends only `{ type: 'auto' }`, the chat codec `'auto'`
+or nothing, Gemini `AUTO` only with declarations. Against the three
+measured refusals: Sonnet 5.5 forced-choice refusal is unreachable (the
+product never forces on the Anthropic wire); DeepSeek thinking
+`required` is unreachable (the product never sends `required`); Meta
+non-`auto` is now ungeneratable (record + codec gate). The
+`forced_tool` structured-output mode has no wire codec and falls back
+to text (`structuredOutput.ts:64-66`; no `forceSideCallTool`
+implementation exists in `src/`), so it never reaches a wire. One test
+per provider answer: `test/unit/capabilityRecord.test.ts` (Meta record
+is `auto`-only) and `test/unit/responsesCodec.test.ts` (unlisted choice
+sends `auto`). No other place in `src/` sends `required`, `any`, a
+named tool or `none` to a provider.
+
+### What the person sees when a side call is refused (Part 1 item 4)
+
+Our paths do not reword provider errors: `/compact` shows
+`compactionFailed` with `describe(error)`
+(`conversationController.ts`), and every side-call failure surfaces the
+provider's message the same way. The typed refusal sentence itself
+belongs to the provider-refusals lane (branch
+`fix/provider-refusals`); our paths pass the error through unchanged
+to it. Reservation accounting already distinguishes refusals on this
+branch: the single request path marks 400/429 via `noteRequestRefusal`
+(`ModelApiHost.ts:4290`) and the settlement excludes refused
+reservations from "counts as spent" (`:4247`). Any remaining change to
+refusal wording or reservation release belongs to that lane and the
+ledger lane; this lane restructures neither.
+
+### RVAPP-TOOLROUNDS7 findings, each closed
+
+- P2-1 (capture table): answered above; every row names its file.
+- P2-2 (held goal wake dropped on 429/5xx): one exit —
+  `wrapUpRequestFailed` re-queues every kind of held input first for
+  whatever ended the wrap-up, and the overflow throws route through it
+  too (commit `2f7332830`). The loss table holds a goal wake in every
+  cell (rate limit, model error, repeated model error, context
+  overflow, hook stop; `test/unit/toolRounds.test.ts`). Money has no
+  cell: it needs a durable journal the unit harness has no knob for —
+  kind-mapped and named for the ledger lane.
+- P2-3 (hook agent spends the wrap-up slot): a hook agent reserves
+  `HOOK_AGENT_MAX_STEPS` up front, so the caller's last call can only
+  be spent by the wrap-up builder; a 3-step agent on an exec ledger of
+  3 never starts and the wrap-up still runs (commit `54d08fe19`,
+  `test/unit/toolRounds.test.ts`).
+- P2-4 (duplication gate): measured, not parametrised. Main
+  `38ef148f19` scans 0 pairs; this branch scans 42 (`npx jscpd
+--reporters json`; main measured on a `$TMPDIR` scratch worktree,
+  since removed). Every pair sits inside fake-harness suites — 29
+  self-pairs in `toolRounds.test.ts`, 3 with `toolRoundsCodecs.test.ts`,
+  1 with `modelApiAutoCompact.test.ts`, 1 with
+  `toolRoundsXaiRefusal.test.ts`, 2 in `modelApiHost.test.ts`, 2 in
+  `scheduleBackgroundTarget.test.ts`, 1 each in
+  `bestOfNManager`/`museCodeHookModels`/`museCodeReviewer`, 1 self-pair
+  in `toolRoundsCodecs.test.ts` — and every one of those files imports
+  fake helpers or mocks. No pair touches `src/` or `scripts/`. The
+  review's parametrisation (one table, shared stub, inherited pairs) is
+  not done here on purpose: the owner's 2026-10-12 rules forbid
+  touching those suites, and the TESTCUT lane owns their deletion; the
+  PLAN.md §7 record is rewritten with these numbers instead of removed.
+  The gate turns green when TESTCUT lands; the lead owns merge until
+  then.
+- P3-1 (guard parses, allow-list names functions): the guard blanks
+  comments and non-`completed` strings, then matches a completed value
+  on either side of a comparison (any operand name, `'completed'` or a
+  `*COMPLETED*` constant), a `switch` on a terminal, and comparisons
+  split over lines; attribution walks brace depth to the nearest named
+  function, skipping keywords, signature noise, return annotations and
+  stale call parkings (`scripts/lib/usableReplyGuard.mjs`). The
+  allow-list names `file:function` with the reason read at the site; a
+  new reader in an allow-listed file still fails. Corrected claim: a
+  future consumer compiles fine — `turnCompleted` still exposes
+  `terminal` and `errorKind` publicly; the union exists only as the
+  accessor's return type, so the guard (not the compiler) is the
+  enforcement.
+- P3-2 (slot release): `takeSideSlotToken` returns a token;
+  `giveSideSlot`/`releaseSideSlotToken` releases exactly it; a
+  ledger-free take returns a zero token that releases nothing (commit
+  `54d08fe19`).
+- P3-3 (unretried 429): `wrapUpFailedKindFor` names a 429 that reaches
+  the loop `rateLimited` (commit `2f7332830`). Grounded in
+  `src/shared/retryPolicy.ts`, whose per-format tables refuse retries
+  with `quota`, `retry-after-cap` and `not-retryable` — a non-retryable
+  429 exists.
+- P3-4 (overflow wrap-up): README and CHANGELOG say what the person
+  gets — the turn ends failed with "Context window full: /compact or
+  /handoff" (`UI_TEXT.contextWindowFull`), and held input is re-queued
+  through the one exit first (`wrapUpRequestFailed` runs before the
+  `?? error` re-throw; finalization maps it to
+  failed/`context_overflow`).
+- P3-5 (race wiring; recovery row): the race pins the exported pure
+  decision — `takeSideSlotToken`/`releaseSideSlotToken` with two
+  parallel racers, token release and the zero-token case
+  (`test/unit/toolRounds.test.ts`); the private methods add only the
+  ledger-free branch. Overflow recovery success has its row in
+  `test/unit/modelApiAutoCompact.test.ts` (`recovers one classified
+overflow inside the turn`). No new process test was added: the
+  owner's 2026-10-12 rules forbid it.
+- P3-6 (allow-list reasons): `turnFailures`
+  (`src/core/eval/runner.ts:78`) reads the eval driver's own outcome
+  contract — `EvalTurnOutcome` carries no reply and no errorKind
+  (`driver.ts:253` carries only terminal and reason), so `usableReply`
+  cannot apply; a finished turn counts finished by design of the
+  measurement. `endedMessage` (`turnNotifications.ts:34`) renders the
+  wire terminal verbatim per D36: a capped turn — typed `completed` on
+  the wire — notifies "Muse finished responding"; the limit detail is
+  the in-chat notice, and the turn did end.
+
+### Round-8 drill ledger
+
+Red drills for the committed fixes live in the suites the prior session
+added (all fake-harness suites, left for the TESTCUT lane; named, not
+extended): the omitted-shape wrap-up and the xAI 400 in
+`test/unit/toolRoundsXaiRefusal.test.ts`, the loss table and slot
+tokens in `test/unit/toolRounds.test.ts`, the Meta record and codec
+gate in `test/unit/capabilityRecord.test.ts` and
+`test/unit/responsesCodec.test.ts`. The guard drills that run here are
+the guard suite's own: the planted `terminal === "completed"` consumer
+fails naming `consumer.ts:2`, and missing/empty input fails
+(`test/unit/toolRoundsUsableReplyGuard.test.ts` — a real child process
+of our own script over a real temporary folder, the allowed kind).
+P3-1 red drill (this lane, `$TMPDIR/guard-drill`, real script runs, no
+repo file touched): three fixtures for the shapes round 7's guard
+missed — `ending === COMPLETED` (any name), `switch (terminal)`, and a
+comparison split over lines — plus a control file whose message text
+mentions "completed". The committed (old) lib exits 0 on the dir; the
+rewritten lib exits 1 naming `any-name.ts:4 (verdict)`,
+`split-lines.ts:3 (verdict2)` and `switch-terminal.ts:2 (word)`, with
+the control clean.

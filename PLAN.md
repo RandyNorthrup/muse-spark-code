@@ -36732,23 +36732,30 @@ actual receipts in `docs/certification/m101-p2.md`. The lead must run the
 aggregate quality/coverage/platform matrix before integration/release. No
 threshold, ignore or rule is changed.
 
-**TOOLROUNDS round-7 duplication deferral (2026-10-12, macbook).** The
-zero-clone jscpd gate already fails on the round-6 head `04e82a18c`
-(26 pairs, exit 1; measured on a scratch worktree), so this lane cannot
-turn it green. This lane fixed the 5 pairs it introduced that had an
-honest shared home: the two guard-drill harnesses now share
-`test/unit/helpers/guardProcess.ts` (`runGuardProcess`,
-`execGuardViaSymlinkedScripts`, `withGuardScratch`), and the two Git
-drafts share `replyIfUsable` from `src/core/turns/usableReply.ts`
-(43 pairs before the fix, 38 after). The remaining 12 new pairs are
-proof-skeleton repetition inside `test/unit/toolRounds.test.ts`
-(the send-path × calls-left × failure-kind table the review mandates:
-each cell repeats the script/turn/assert shape so the cell stays a
-complete proof) plus one 8-line admission-stub pair with
-`modelApiAutoCompact.test.ts`. Collapsing the table cells would thin
-the per-cell proof the review demanded; no gate file, threshold or
-ignore is changed. The lead's aggregate run owns the green-or-accepted
-decision; receipts are in `docs/certification/toolrounds.md` (Round 7).
+**TOOLROUNDS duplication record (2026-10-12 round 7; re-measured
+2026-10-13, macmini).** The zero-clone jscpd gate fails on this branch
+with 42 pairs and passes on main `38ef148f19` with 0 pairs (both
+measured with `npx jscpd --reporters json` on a scratch worktree under
+`$TMPDIR`, since removed): every pair on this branch sits inside
+fake-harness unit suites — 29 self-pairs in
+`test/unit/toolRounds.test.ts`, 3 with `test/unit/toolRoundsCodecs.test.ts`,
+1 with `test/unit/modelApiAutoCompact.test.ts`, 1 with
+`test/unit/toolRoundsXaiRefusal.test.ts`, 2 in
+`test/unit/modelApiHost.test.ts`, 2 in
+`test/unit/scheduleBackgroundTarget.test.ts`, 1 each in
+`bestOfNManager`/`museCodeHookModels`/`museCodeReviewer`, 1 self-pair
+in `toolRoundsCodecs.test.ts`. No pair touches `src/` or `scripts/`:
+the product code this lane ships is clone-free. The pairs are not
+fixed here because the owner's 2026-10-12 testing rules forbid adding
+to, repairing or extending fake-harness suites, and the TESTCUT lane
+(branch `chore/test-overhaul`) owns their deletion; refactoring them
+into parametrised tables here would both break that rule and collide
+with that lane. The round-7 shared-home fixes stand (guard-drill
+harnesses share `test/unit/helpers/guardProcess.ts`; the two Git
+drafts share `replyIfUsable`). No gate file, threshold or ignore is
+changed. The gate turns green when TESTCUT's deletion lands; until
+then the lead owns the green-or-accepted decision. Receipts are in
+`docs/certification/toolrounds.md` (Round 8, P2-4).
 
 ## 8. Escape hatches register
 

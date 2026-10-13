@@ -3993,7 +3993,10 @@ draft or landing. The answer stays in the chat;
 a translated notice explains that sending a message continues it. If the wrap-up
 request itself cannot be completed (rate limit, model error, money stop, hook
 stop), the turn still ends at the limit but says the summary could not be
-produced and why. ACP returns
+produced and why. If the wrap-up itself overflows the window, the turn ends
+failed with "Context window full: /compact or /handoff" instead, and anything
+the turn was holding (a goal wake, steered input) is re-queued for its own
+turn. ACP returns
 `max_turn_requests`; headless exec reports `request_cap` (exit 5) with the answer.
 The default is 200 model calls per turn. Existing caller request allowances
 replace that default with what remains: `exec --max-requests` (default 30,
