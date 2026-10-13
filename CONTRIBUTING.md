@@ -80,15 +80,21 @@ Use this order for a candidate branch:
    lint, typecheck, the suites you touched and the packed-product file
    (`npx vitest run test/e2e/execStdio.e2e.test.ts`). Hosted CI is the gate
    for a release: every job green on the commit that merges. Its full tier
-   runs the static gates and the tests on three systems and the visual
-   render and the accessibility gate on Ubuntu, so no complete local
+   runs the static gates and the tests on three systems and the
+   accessibility gate on Ubuntu, so no complete local
    `npm run quality` is owed before a push, and the maintainer's Mac mini,
    Kubuntu VM and Windows 11 VM serve targeted runs and reproductions only
    (the affected real filesystem, process and packaging paths,
    temporary-directory aliases and Windows short names). Record the tree
    hash, OS and tool versions, commands and process exit codes of any such
    run. A red hosted job is read and its cause measured; it is never rerun
-   into green.
+   into green. Nothing is started again on the same commit, whatever the
+   cause: not one job, not the whole run, not a second run by closing and
+   reopening the pull request. A runner fault (a job cancelled before any
+   step ran, a lost runner) is answered like any red: push a new commit, an
+   empty one if nothing changes, whose message names the run and the job,
+   and let its run decide. CI enforces this itself ("CI tiers and required
+   checks" below).
 3. Have an independent agent review the staged diff and acceptance evidence.
    Scan the staged changes for secrets too: local `security:secrets` scans
    committed history, so it cannot see the index before commit. Fix findings,
@@ -243,17 +249,13 @@ the repository variable `CI_MERGE_QUEUE` is `on`. That tier runs formatting,
 ESLint/stylelint, all five compiler projects, localization, host API, knip,
 cycles, duplication, token checks, the production build and its size/split/host-global/
 notices checks, audit, and every unit/process-e2e test on Ubuntu (no
-coverage). Gitleaks and semgrep also run. Both tiers require the six-theme visual job:
-its validated manifest supplies the reviewed Git revision, fetched explicitly
-if absent from the full checkout history. It rebuilds baseline PNGs in the
-runner's Chrome/font environment under the 512 MiB limit, compares every
-scene/state/width, and uploads only the receipt. A failed, cancelled or skipped
-visual job fails the required aggregate. Visual replay adds a bounded browser job (45-minute deadline); hosted wall time awaits measurement.
+coverage). Gitleaks and semgrep also run. No tier renders or compares
+screenshots (removed with 0.18.2; "Design tokens and visual changes" above).
 
 Everything else selects the full tier: `merge_group`, manual dispatch, the
 release workflow's fallback build, and every PR while `CI_MERGE_QUEUE` is not
-`on`. Static gates run on all three OSes. Ubuntu and macOS run four Vitest
-shards, Windows six (its files stay serial within a shard); each uploads blob
+`on`. Static gates run on all three OSes. Ubuntu runs four Vitest shards,
+Windows and macOS eight (their files stay serial within a shard); each uploads blob
 reports, checks that every shard arrived, then merges them and enforces the unchanged coverage
 thresholds once per OS. The 448-page a11y harness runs once on Ubuntu against
 the production webview from the static gate; its pages, themes and scenarios
@@ -272,6 +274,30 @@ aggregate job that fails unless every job of the selected tier succeeded
 mean the fast tier passed; in the queue, the full tier. Artifact names and
 contents stay unchanged. Hosts and Action check are not required by the main
 ruleset and keep their existing triggers.
+
+**No attempt after the first passes (`AGENTS.md` rule 2).** GitHub shows a
+job's latest attempt, so a red job that is started again and passes looks
+green; 0.18.2 merged that way. Two things in `build.yml` close it, and since
+they sit behind the five aggregate names the main ruleset already requires,
+no repository setting changes:
+
+- The aggregate's own step fails when `github.run_attempt` is not 1,
+  whichever jobs the later attempt ran.
+- The job `first attempt, every run green (rule 2)` needs every other job, so
+  starting any of them again starts it again. It runs
+  `node scripts/rule2-gate.mjs run`: on a later attempt it names the job and
+  step of attempt 1 that was not green; on the first attempt it reads every
+  other workflow run on the same head commit (Hosts, Action check, Browser
+  check, Forks, a second CI run) and fails unless each is complete and green
+  on its own first attempt. A run still in progress is waited for, up to 60
+  minutes. A second CI run on the same head (closing and reopening the pull
+  request, a manual dispatch) does not turn a red into green either: the
+  second run reads the first.
+
+What is left to do with a red, a cancelled job or a runner fault is a new
+commit. The release workflow's first job holds the same rule for a tag
+(`docs/RELEASING.md`, "Choosing the release build"). Both were seen to fire
+on hosted runners: [`docs/certification/rule2-gate.md`](docs/certification/rule2-gate.md).
 
 Maintainer rollout, in this order: land the workflows (their PR runs the full
 tier); add the merge-queue rule to the main ruleset (merge commits, one PR

@@ -527,7 +527,7 @@ describe('packaging (M26)', () => {
     const publish = release.split('\n  release:\n', 2)[1]!.split('\n  publish:\n', 1)[0]!
     expect(reuse).toContain('needs: verify')
     expect(reuse).toContain('actions: read')
-    expect(count(release, /^ {6}actions: read$/gm)).toBe(5)
+    expect(count(release, /^ {6}actions: read$/gm)).toBe(7)
     expect(reuse).toContain('FORCE_REBUILD: ${{ vars.RELEASE_FORCE_REBUILD }}')
     expect(count(reuse, /run-id: \$\{\{ steps.lookup.outputs.run-id \}\}/g)).toBe(4)
     expect(count(reuse, /github-token: \$\{\{ github.token \}\}/g)).toBe(4)
@@ -759,9 +759,10 @@ describe('tiered CI (CIFLOW)', () => {
       'packages',
       'secrets',
       'sast',
+      'first-attempt',
     ])
     expect(job(id)).toContain('if: always()')
-    for (const key of ['CHECKS', 'UNIT', 'SECRETS', 'SAST']) {
+    for (const key of ['CHECKS', 'UNIT', 'SECRETS', 'SAST', 'FIRST_ATTEMPT']) {
       expect(job(id)).toContain(`          test "$${key}" = success\n`)
     }
     expect(job(id)).toContain('          if [ "$FAST" != true ]; then\n')
@@ -812,7 +813,7 @@ describe('tiered CI (CIFLOW)', () => {
     () => {
       const required = job('required')
       // Each step variable and the expression it reads: FAST from the input,
-      // the rest from one needed job's result.
+      // ATTEMPT from the run, the rest from one needed job's result.
       const pairs = Array.from(
         required.matchAll(/^ {10}([A-Z_]+): \$\{\{ (\S+) \}\}$/gm),
         (match) => [match[2] ?? '', match[1] ?? ''] as const,
@@ -824,7 +825,7 @@ describe('tiered CI (CIFLOW)', () => {
           ?.split(',')
           .map((value) => value.trim())
           .filter(Boolean) ?? []
-      const always = ['checks', 'unit', 'secrets', 'sast']
+      const always = ['checks', 'unit', 'secrets', 'sast', 'first-attempt']
       const fullOnly = [
         'coverage',
         'accessibility',
@@ -835,7 +836,9 @@ describe('tiered CI (CIFLOW)', () => {
       ]
       expect(ids.toSorted(byText)).toEqual([...always, ...fullOnly].toSorted(byText))
       expect(pairs.map(([expression]) => expression).toSorted(byText)).toEqual(
-        ['inputs.fast', ...ids.map((id) => `needs.${id}.result`)].toSorted(byText),
+        ['inputs.fast', 'github.run_attempt', ...ids.map((id) => `needs.${id}.result`)].toSorted(
+          byText,
+        ),
       )
       const key = (id: string) => env.get(`needs.${id}.result`) ?? ''
       const lines = required.split('\n')
@@ -847,6 +850,7 @@ describe('tiered CI (CIFLOW)', () => {
       }
       const results = (isFast: boolean, overrides: Readonly<Record<string, string>> = {}) => ({
         [env.get('inputs.fast') ?? '']: String(isFast),
+        [env.get('github.run_attempt') ?? '']: '1',
         ...Object.fromEntries(
           ids.map((id) => [key(id), isFast && fullOnly.includes(id) ? 'skipped' : 'success']),
         ),

@@ -74,6 +74,40 @@ under _Shipped_. Without a §10 record a changelog version counts as shipped.
 Every §10 record change, released or not, changes the roadmap's source
 fingerprint, so `check:roadmap` fails until it is regenerated.
 
+## The hosted result a tag needs
+
+After the tag, manifest, `main` ancestry and browser-pin checks, the
+workflow's first job runs `node scripts/rule2-gate.mjs release` (`AGENTS.md`
+rule 2). It reads every workflow run on the tagged commit (the Hosts run a
+merge to `main` starts, and any scheduled or manual run that landed on it)
+and on the head of the pull request that merged as that commit (CI, Hosts,
+Action check), and goes on only when each is complete and green on its first
+attempt. A run still in progress is waited for, up to 60 minutes. A red run,
+a cancelled one or one that was started again stops the release before
+anything is built or published, with the run, the job and the step named; so
+does a commit with no hosted run at all. Only runs of this repository's own
+workflow files count; GitHub's own runs on a commit (Dependabot's updates)
+say nothing about the tree. 0.18.2 would have been stopped
+twice: its pull request's CI run was on its second attempt, and the Hosts run
+on the released commit was red (`docs/certification/rule2-gate.md`).
+
+A tag does not move, so a tag this step refuses is a version number spent:
+the answer is a new commit and the next version. Read the runs before pushing
+the tag; the same reading, changing nothing, is
+
+```sh
+GITHUB_REPOSITORY=RandyNorthrup/muse-spark-code node scripts/rule2-gate.mjs release --sha <the merge commit>
+```
+
+A later merge to `main` does not cancel an earlier commit's Hosts run: each
+push to `main` has a concurrency group of its own commit in `hosts.yml`.
+
+The release workflow's own runs on the tag are not counted, so the recovery
+below still works: starting a failed publication job again, or a
+`workflow_dispatch` recovery, builds and tests nothing (the recovery run
+passes this step like the first run did). A job of the release's own fallback
+build is a gate job: the aggregate refuses a second attempt of it as CI does.
+
 ## Choosing the release build
 
 Tag/manifest and `main` ancestry checks still run first. The lookup considers
@@ -97,8 +131,10 @@ No eligible run, expired/missing artifacts, API/download failure, a malformed
 receipt, or a tree/hash/version mismatch produces a named fallback in the job
 summary and runs today's full three-platform build and gates before publication.
 To force that path, the owner sets repository Actions variable
-`RELEASE_FORCE_REBUILD` to `true` before running/rerunning the tag workflow,
-then removes it afterward. Do not rebuild once any channel has published:
+`RELEASE_FORCE_REBUILD` to `true` before the tag is pushed, then removes it
+afterward. It cannot be forced by running the tag workflow again: the build's
+aggregate refuses every attempt after the first (above). Do not rebuild once
+any channel has published:
 follow the recovery instructions below to preserve the original bytes.
 
 The merge queue's temporary branch and head commit are not matching keys.

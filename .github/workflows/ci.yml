@@ -19,7 +19,13 @@ concurrency:
 jobs:
   build:
     # Same-repository reusable workflow: GITHUB_TOKEN reaches it on its own;
-    # no other secret is passed (least privilege).
+    # no other secret is passed (least privilege). `actions: read` is for
+    # build.yml's `first-attempt` job, which reads this run's attempts and the
+    # other workflow runs on the same head (AGENTS.md rule 2); a called
+    # workflow can ask for no more than its caller grants.
+    permissions:
+      contents: read
+      actions: read
     uses: ./.github/workflows/build.yml
     with:
       # The fast PR tier is safe only while the merge queue runs the full one
