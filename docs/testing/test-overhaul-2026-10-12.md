@@ -8,15 +8,26 @@ packed product's real-life run is the product's test.
 
 ## Before and after
 
-Measured on rig `kubuntu` (10 cores), same command both times
-(`npx vitest run --maxWorkers=3`, repository default timeouts, no coverage):
+Measured on rig `kubuntu` (10 cores), same flags both times
+(`npx vitest run --maxWorkers=3`, repository default timeouts, no coverage;
+a full run exceeds one foreground call, so five sequential foreground chunks
+of ~264 files; wall is the sum of chunk walls):
 
 | Measure                                       | Before                                         | After        |
 | --------------------------------------------- | ---------------------------------------------- | ------------ |
 | Unit test files                               | 1,321                                          | TBD (PASS 2) |
-| Unit tests                                    | TBD (run in progress, `temp/before-unit.json`) | TBD          |
-| Unit wall minutes                             | TBD                                            | TBD          |
+| Unit tests                                    | 27,650 (27,437 passed, 33 failed, 180 skipped) | TBD          |
+| Unit wall minutes                             | ~26 (179+194+508+360+312 s chunks)             | TBD          |
 | Pull-request workflow minutes (from job list) | TBD (PASS 5)                                   | TBD (PASS 5) |
+
+Before-failures (all on the untouched base, so measured, not labelled):
+24 in sandbox-refused native suites (`inspectNative` 18,
+`treesLinuxLaunchNative` 5 — the audit names both; `vault/peer` 1 is GO
+and deleted); 3 in npm-cache-refused packaging suites
+(`vsixCompression`, `usagePackaging`, `runtimeChatGptPackage` — the audit
+proves the pattern passes with `NPM_CONFIG_CACHE`); 6 in GO files
+(`usageIntegration`, `usageRollup` ×3, `reportHistory`,
+`resourceHistoryReview`) that this lane deletes, so they are moot after.
 
 Audit reference (lane TESTAUDIT, different rig): 1,319 files, 27,619 tests,
 16 min 52 s wall. Our file count matches (1,321 unit test files here).
@@ -52,18 +63,48 @@ transitively: a test reaching a fake through any helper is GO. Output:
 `docs/testing/test-overhaul-2026-10-12.json` (file, verdict, first
 construct or import that decided it) plus counts.
 
-Counts: 1,658 files under `test/` — 755 STAY, 881 GO, 22 LIST.
+Counts: 1,658 files under `test/` — 754 STAY, 872 GO, 32 LIST.
 Test files: unit 1,321 (535 STAY / 786 GO), e2e 16 (11 GO / 5 LIST: the
 4 `*.live.e2e.test.ts` files plus `live.e2e.test.ts`, the real-CLI drill),
-integration 8 (all LIST for the integrator). Top GO deciders: `vi.mock`
+integration 8 (all LIST for the integrator); 10 more LIST are helper/mock
+files kept with a named LIST suite (below). Top GO deciders: `vi.mock`
 146, `./helpers/fakes` 115, `vi.useFakeTimers` 58, `./helpers/fakeToolIo`
 30, reporting-snapshot fake 28, `vscode` import 26, `vi.stubGlobal` 20,
 browser/scene rendering 11, visual-audit reads 2.
 
-Two fixes landed after the first hand check, both re-verified by re-run:
+Three fixes landed after the first hand check, all re-verified by re-run
+(diffed row by row against the previous record: only the intended rows move):
 `test/e2e/live.e2e.test.ts` is LIST (real CLI drill; its only fake import
 is the log sink), and tests that launch Chromium or render scripted
 harness scenes are GO (process tests; the short gate is pure logic only).
+`test/unit/modelApiSaveRejection.test.ts` is GO: it bundles child code as an
+esbuild `contents` string that runs against `fakeModelApi`/`memoryToolIo`/
+`memoryContextIo`, which static imports cannot see, so the classifier now
+also flags fake-helper paths inside string literals (`bundledFake`); the
+re-run moved exactly that one row STAY→GO (two already-GO rows only changed
+their deciding note). The file is deleted with the other GO tests.
+
+Fourth fix: helpers kept only by LIST suites are LIST, not GO. Ten
+non-test files (`helpers/fakeContextIo`, `fakeGit`, `fakeGitHub`,
+`fakeModelApi`, `fakePaidFeatures`, `fakeToolIo`, `fakes`, `mcpFixtures`,
+`modelApiManager`, `mocks/vscode`) are GO by own construct but no STAY
+test reaches any of them; every importing test is a LIST suite
+(`test/e2e/*.live.e2e.test.ts`, `test/e2e/live.e2e.test.ts`,
+`test/integration/*.test.ts` — the JSON names the suite per file). The
+classifier's second phase walks the reverse import graph and re-verdicts
+such helpers LIST ("kept with LIST suite (…)"); the re-run moved exactly
+those ten rows GO→LIST and nothing else. They stay until the integrator
+replaces the LIST suites with real-provider runs, so the tree typechecks
+meanwhile. Four of them (`fakeGitHub`, `fakeContextIo`, `fakeToolIo`,
+`fakePaidFeatures`) were deleted before this rule existed and are
+restored in PASS 2; the lesson is recorded: the first orphan grep matched
+only `helpers/<name>` path strings and missed same-directory relative
+imports (`./fakeGitHub`), while the resolver-based check (every survivor
+import resolved against the deleted set) finds all eight dangling edges,
+including two genuinely orphaned fixtures (`playbookPolicyFixture.ts`,
+`reportRenderFixtures.ts`, deleted) and two harness scenes whose deleted
+imports PASS 3 decides (`test/harness/estimator/scene.tsx`,
+`test/harness/goldens/integrated.tsx`).
 Borderlines re-read: `whatsNewFixture` (STAY — pins the What's New
 fixture, not pixels), `chatColumn` (STAY — asserts real stylesheet
 geometry), `teamResources` (STAY — "playwright" is a command string, not
@@ -95,7 +136,26 @@ borderline files checked line by line: `judgeUse.test.ts` (GO —
 genuine observers. Script fixed where the check found the gap; no
 allow-list added.
 
-## PASS 2 — deletions (TBD)
+## PASS 2 — deletions
+
+All 872 GO files deleted (`git rm`): 787 unit test files, 67 unit
+helper/mock/fixture files, 14 e2e files, 2 `test/action` fakes, 1
+`test/fixtures` fake, 1 harness verifier — every one for a rule-1 or
+rule-4 construct the JSON names. No deleted test file has any other
+verdict (checked: every deleted `*.test.*` path is GO in the record).
+89 STAY support files nothing imports any more deleted with them (78
+swept after the GO deletions, 11 found by the resolver check below,
+including 2 fixtures that dangled on deleted fakes). 10 helpers stay as
+LIST with their named suite (fourth fix above). Kept LIST suites:
+5 live-provider e2e, 8 integration files, `test/hosts/*`.
+Two harness scenes (`test/harness/estimator/scene.tsx`,
+`test/harness/goldens/integrated.tsx`) import deleted fixture helpers;
+nothing typechecks or runs them today, and PASS 3 decides them.
+Verification: every surviving file's imports resolved against the
+deleted set (8 dangling edges: 4 LIST-chain helpers restored, 2 orphan
+fixtures deleted, 2 scenes deferred to PASS 3); `npm run typecheck`
+green on all five projects afterwards. Exact test-count delta in
+PASS 6 (before 27,650 unit tests on the untouched base).
 
 ## PASS 3 — screenshot system removal (TBD)
 

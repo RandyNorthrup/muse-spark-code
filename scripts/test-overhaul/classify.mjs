@@ -148,6 +148,7 @@ function newEvidence() {
     stubGlobal: null,
     fakeTimers: null,
     setSystemTime: null,
+    bundledFake: null,
     spyOn: null,
     mockReplacement: null,
     implementsClause: null,
@@ -234,6 +235,39 @@ function visitClass(found, node) {
   if (!found.fakeDefinition && FAKE_NAME.test(name)) found.fakeDefinition = `class ${name}`
 }
 
+// A fake-helper path inside a string literal: the file bundles child code
+// (e.g. esbuild `contents`) that runs against our stand-ins, which static
+// imports cannot see (lane TESTCUT hand check: modelApiSaveRejection).
+const BUNDLED_FAKE_PATH = /helpers\/(fake|fakes|mock|stub)|mocks\/vscode/
+
+function isSpecifierLiteral(node) {
+  const parent = node.parent
+  return (
+    ((ts.isImportDeclaration(parent) || ts.isExportDeclaration(parent)) &&
+      parent.moduleSpecifier === node) ||
+    (ts.isImportEqualsDeclaration(parent) &&
+      ts.isExternalModuleReference(parent.moduleReference) &&
+      parent.moduleReference.expression === node)
+  )
+}
+
+function isRequireArg(node) {
+  const parent = node.parent
+  if (!parent || !ts.isCallExpression(parent) || parent.arguments[0] !== node) return false
+  const chain = calleeChain(parent.expression)
+  return chain.length === 1 && (chain[0] === 'require' || chain[0] === 'import')
+}
+
+function isStringBundlePart(node) {
+  return (
+    ts.isStringLiteral(node) ||
+    ts.isNoSubstitutionTemplateLiteral(node) ||
+    node.kind === ts.SyntaxKind.TemplateHead ||
+    node.kind === ts.SyntaxKind.TemplateMiddle ||
+    node.kind === ts.SyntaxKind.TemplateTail
+  )
+}
+
 // Scan one file's own AST. Returns the evidence found in the file itself.
 function scanSelf(source) {
   const found = newEvidence()
@@ -270,6 +304,14 @@ function scanSelf(source) {
       !found.fakeDefinition
     ) {
       found.fakeDefinition = `${ts.isFunctionDeclaration(node) ? 'function' : 'const'} ${node.name.text}`
+    } else if (
+      isStringBundlePart(node) &&
+      !isSpecifierLiteral(node) &&
+      !isRequireArg(node) &&
+      !found.bundledFake
+    ) {
+      const match = BUNDLED_FAKE_PATH.exec(node.text)
+      if (match) found.bundledFake = `string-bundled fake path ("${match[0]}")`
     }
     ts.forEachChild(node, visit)
   }
@@ -364,6 +406,31 @@ function firstFakeReachable(fromFull) {
   return null
 }
 
+// Reverse import graph (within test/): which files import each file.
+function buildReverseGraph() {
+  const reverse = new Map()
+  for (const full of files) {
+    const evidence = evidenceByFile.get(full)
+    if (!evidence || !evidence.imports) continue
+    for (const spec of evidence.imports) {
+      const target = resolveRelative(full, spec)
+      if (!target) continue
+      if (!reverse.has(target)) reverse.set(target, [])
+      reverse.get(target).push(full)
+    }
+  }
+  return reverse
+}
+
+const reverseGraph = buildReverseGraph()
+
+// A non-test GO file whose every importing test is LIST (its GO-test
+// users are deleted with the other GO files) is kept with that suite:
+// the integrator replaces the LIST suites with real-provider runs, and
+// until then the tree must typecheck. A helper any STAY test reaches
+// stays GO (the forward rule would have marked that test GO instead);
+// the two-phase decide() below implements this.
+
 function ownBannedConstruct(evidence, full) {
   return (
     evidence.viMock ||
@@ -374,6 +441,7 @@ function ownBannedConstruct(evidence, full) {
     evidence.viStubEnv ||
     evidence.fakeTimers ||
     evidence.setSystemTime ||
+    evidence.bundledFake ||
     (evidence.spyOn && evidence.mockReplacement
       ? `${evidence.spyOn} with ${evidence.mockReplacement}`
       : null) ||
@@ -389,7 +457,7 @@ function ownBannedConstruct(evidence, full) {
   )
 }
 
-function decide(full) {
+function decideForward(full) {
   const evidence = evidenceByFile.get(full)
   if (evidence.parseError)
     return { verdict: 'GO', decidedBy: `parse error: ${evidence.parseError}` }
@@ -444,6 +512,57 @@ function decide(full) {
   }
 
   return { verdict: 'STAY', decidedBy: 'real code only by the parser' }
+}
+
+// Phase 1: forward verdicts for every file.
+const forwardByFile = new Map()
+for (const full of files) {
+  forwardByFile.set(full, decideForward(full))
+}
+
+// Phase 2: a GO non-test file kept only by LIST suites becomes LIST.
+function isStayTestFile(full) {
+  return /\.test\.[cm]?[tj]sx?$/.test(full) && forwardByFile.get(full).verdict === 'STAY'
+}
+
+function isListTestFile(full) {
+  return /\.test\.[cm]?[tj]sx?$/.test(full) && forwardByFile.get(full).verdict === 'LIST'
+}
+
+function listKeepRoots(full) {
+  const seen = new Set([full])
+  const queue = [full]
+  const listRoots = new Set()
+  while (queue.length > 0) {
+    const current = queue.shift()
+    const importers = reverseGraph.get(current) ?? []
+    for (const importer of importers) {
+      if (seen.has(importer)) continue
+      seen.add(importer)
+      if (isStayTestFile(importer)) return null
+      if (isListTestFile(importer)) {
+        listRoots.add(path.relative(root, importer).replaceAll(path.sep, '/'))
+      } else {
+        queue.push(importer)
+      }
+    }
+  }
+  return listRoots.size > 0 ? [...listRoots].toSorted((a, b) => a.localeCompare(b)) : null
+}
+
+function decide(full) {
+  const forward = forwardByFile.get(full)
+  const isTest = /\.test\.[cm]?[tj]sx?$/.test(full)
+  if (!isTest && forward.verdict === 'GO') {
+    const roots = listKeepRoots(full)
+    if (roots !== null) {
+      return {
+        verdict: 'LIST',
+        decidedBy: `kept with LIST suite (${roots.join(', ')})`,
+      }
+    }
+  }
+  return forward
 }
 
 const rows = files.map((full) => {
