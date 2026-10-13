@@ -1179,6 +1179,9 @@ describe('RVHELPREF2 runtime truth regressions', () => {
       account: 'work',
       fleet: 'current',
       seed: '17',
+      add: 'model-b',
+      remove: 'model-a',
+      force: 'beta access',
     }
     const rows = build().cli
     for (const [route, definition] of Object.entries(source.CLI_OPTION_REGISTRY)) {
@@ -1200,11 +1203,13 @@ describe('RVHELPREF2 runtime truth regressions', () => {
         else if (route.startsWith('auth'))
           command = ['auth', { authSet: 'set', authStatus: 'status', authClear: 'clear' }[route]]
         else if (route === 'fontsInstall') command = ['fonts', 'install']
+        else if (route === 'providersModels') command = ['providers', 'models', 'entry']
         let args = [...command]
         if (route === 'usage' && name === 'stdio') args.push('serve')
         if (route === 'usage' && name === 'from') args.push('--to', samples.to)
         if (route === 'usage' && name === 'to') args.push('--from', samples.from)
         if (route === 'providersAdd' && name === 'format') flag[1] = 'chat'
+        if (route === 'providersModels' && name === 'force') args.push('--add', 'model-b')
         if (route === 'estimate' && name === 'by') flag[1] = '2026-10-09'
         if (route === 'estimate' && name === 'format') flag[1] = 'json'
         if (['serve', 'login', 'setup', 'authSet', 'authStatus', 'authClear'].includes(route)) {
@@ -1226,7 +1231,10 @@ describe('RVHELPREF2 runtime truth regressions', () => {
         const parsed = source.parseCommandLine(args)
         let expected = route
         if (isRefusedSlot || row.contract.refused === true) expected = 'invalid'
-        else if (name === 'help' && route !== 'estimate') expected = 'help'
+        // Each command documents itself: --help answers the command's own
+        // topic, except serve, whose bare flags keep the top-level help.
+        else if (name === 'help' && route !== 'estimate')
+          expected = route === 'serve' ? 'help' : 'helpTopic'
         else if (name === 'version') expected = 'version'
         expect(parsed.command, `${route}: --${name}: ${parsed.reason ?? ''}`).toBe(expected)
         if (route === 'estimate') {

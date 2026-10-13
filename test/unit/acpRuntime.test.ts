@@ -77,8 +77,10 @@ describe('M80 command and process boundaries', () => {
     })
   })
   it('A10 preserves serve usage/1 and parses exec/scanner separately', () => {
-    expect(parseCommandLine(['--output', 'json'])).toMatchObject({ command: 'invalid' })
-    expect(parseCommandLine(['--output', 'json'])).not.toHaveProperty('exitCode')
+    expect(parseCommandLine(['--output', 'json'])).toMatchObject({
+      command: 'invalid',
+      exitCode: 2,
+    })
     expect(parseCommandLine(['exec', 'hi'])).toMatchObject({
       command: 'exec',
       options: { mode: 'plan', output: 'text' },
@@ -270,10 +272,12 @@ describe('parseCommandLine', () => {
     expect(parseCommandLine(['--web-search'])).toEqual({
       command: 'invalid',
       reason: '--web-search needs --backend modelApi: paid features bill a Model API key.',
+      exitCode: 2,
     })
     expect(parseCommandLine(['--backend', 'museCode', '--image-generation'])).toEqual({
       command: 'invalid',
       reason: '--image-generation needs --backend modelApi: paid features bill a Model API key.',
+      exitCode: 2,
     })
   })
 
@@ -306,6 +310,7 @@ describe('parseCommandLine', () => {
     expect(parseCommandLine(['--backend', 'auto'])).toEqual({
       command: 'invalid',
       reason: 'Unknown argument: --backend auto',
+      exitCode: 2,
     })
   })
 })
