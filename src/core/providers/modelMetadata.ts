@@ -26,6 +26,7 @@ export function nativeCapabilityEvidence(
   preset: string,
   input: unknown,
   source: CapabilitySource,
+  selectedUpstream?: string,
 ): CapabilityEvidence {
   const native = nativeModelMetadataSchema.parse(input)
   const read = <T>(schema: z.ZodMiniType<T>, ...path: string[]): T | undefined => {
@@ -137,6 +138,51 @@ export function nativeCapabilityEvidence(
   const structuredOutput = read(z.boolean(), 'structured_output')
   if (structuredOutput !== undefined)
     output.formats = yes(structuredOutput ? ['text', 'json_schema'] : ['text'])
+  if (preset === 'huggingface') {
+    // The router's `/v1/models` row prices and bounds per live upstream
+    // (router.huggingface.co, read 2026-10-12): each states `context_length`
+    // and its `supports_tools` / `supports_structured_output` flags. An
+    // explicitly chosen upstream decides; otherwise the context promises no
+    // more than the smallest live window, and tools/structured stay at the
+    // catalogue's answer unless every stating upstream agrees.
+    const routerUpstreams = z
+      .array(
+        z.object({
+          provider: z.string(),
+          status: z.string(),
+          context_length: z.optional(z.number()),
+          supports_tools: z.optional(z.boolean()),
+          supports_structured_output: z.optional(z.boolean()),
+        }),
+      )
+      .safeParse(native['providers'])
+    if (routerUpstreams.success) {
+      const live = routerUpstreams.data.filter((row) => row.status === 'live')
+      const scoped =
+        selectedUpstream === undefined
+          ? live
+          : live.filter((row) => row.provider === selectedUpstream)
+      const windows = scoped.flatMap((row) =>
+        row.context_length !== undefined &&
+        Number.isFinite(row.context_length) &&
+        row.context_length > 0
+          ? [row.context_length]
+          : [],
+      )
+      if (windows.length > 0) limits.contextTokens = Math.min(...windows)
+      const toolFlags = scoped.flatMap((row) =>
+        row.supports_tools === undefined ? [] : [row.supports_tools],
+      )
+      if (toolFlags.length > 0 && toolFlags.every(Boolean)) tools.calling = yes(true)
+      else if (toolFlags.length > 0 && toolFlags.every((supported) => !supported))
+        tools.calling = { state: 'no', source }
+      const structuredFlags = scoped.flatMap((row) =>
+        row.supports_structured_output === undefined ? [] : [row.supports_structured_output],
+      )
+      if (structuredOutput === undefined && structuredFlags.length > 0)
+        output.formats = yes(structuredFlags.every(Boolean) ? ['text', 'json_schema'] : ['text'])
+    }
+  }
   if (samplingParameters !== undefined) {
     sampling.temperature = flag(samplingParameters.includes('temperature'))
     sampling.topP = flag(samplingParameters.includes('top_p'))

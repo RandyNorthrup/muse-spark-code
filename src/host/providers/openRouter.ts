@@ -121,6 +121,56 @@ function isValidUsage(value: number): boolean {
 }
 
 /**
+ * The credit balance from OpenRouter's `GET /api/v1/key` body (the key test
+ * already fetches it; openrouter.ai/openapi.json `getCurrentKey` example,
+ * read 2026-10-12: `data.usage` with daily/weekly/monthly parts,
+ * `data.limit`, `data.limit_remaining`, and the newer
+ * `data.effective_budget.{limit_usd, remaining_usd}`). Legacy fields win
+ * where both are present; anything invalid or absent is no snapshot, never
+ * a guess. The key's own numbers until the capture (OR-C1) confirms them
+ * against a real reply.
+ */
+export function parseOpenRouterKeyUsageBody(value: unknown): KeyUsageSnapshot | undefined {
+  if (typeof value !== 'object' || value === null) return undefined
+  const data: unknown =
+    'data' in value && typeof value.data === 'object' && value.data !== null ? value.data : value
+  if (typeof data !== 'object' || data === null) return undefined
+  const read = (record: Record<string, unknown>, key: string): number | undefined => {
+    const found: unknown = record[key]
+    return typeof found === 'number' && isValidUsage(found) ? found : undefined
+  }
+  const record = data as Record<string, unknown>
+  const budget: unknown = record['effective_budget']
+  const budgetRecord: Record<string, unknown> =
+    typeof budget === 'object' && budget !== null ? (budget as Record<string, unknown>) : {}
+  const usage = read(record, 'usage')
+  const usedToday = read(record, 'usage_daily') ?? usage
+  const usedThisWeek = read(record, 'usage_weekly') ?? usage
+  const usedThisMonth = read(record, 'usage_monthly') ?? usage
+  if (usedToday === undefined || usedThisWeek === undefined || usedThisMonth === undefined)
+    return undefined
+  const limit = read(record, 'limit') ?? read(budgetRecord, 'limit_usd')
+  const remaining = read(record, 'limit_remaining') ?? read(budgetRecord, 'remaining_usd')
+  // A present-but-invalid number poisons the snapshot (`null` means no
+  // limit and stays absent): invalid usage never reaches a budget or tally.
+  const hasInvalidNumber = (key: string): boolean => {
+    const found: unknown = record[key]
+    return (
+      found !== undefined && found !== null && !(typeof found === 'number' && isValidUsage(found))
+    )
+  }
+  if (hasInvalidNumber('limit') || hasInvalidNumber('limit_remaining') || hasInvalidNumber('usage'))
+    return undefined
+  return {
+    usedToday,
+    usedThisWeek,
+    usedThisMonth,
+    limit,
+    remaining,
+  }
+}
+
+/**
  * The key's usage and limit for Account & usage (D74). Throws on numbers
  * that are not finite and non-negative: invalid usage never reaches a
  * budget or a tally.

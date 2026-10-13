@@ -196,6 +196,9 @@ export function createProvidersHost(deps: ProvidersHostDeps): ProvidersHost {
   // the paid state, so the panel can offer the test again.
   const runTest = async (entry: ProviderEntry, credential: string): Promise<KeyTestResult> => {
     const first = await deps.tester.test(entry, credential, false)
+    // A tested OpenRouter key carries its credit balance: Account & usage
+    // shows it at once instead of waiting for the next stream cost.
+    if (first.kind === 'ok' && first.keyUsage !== undefined) deps.onKeyUsage?.(first.keyUsage)
     if (first.kind !== 'paid') {
       return first
     }

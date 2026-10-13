@@ -478,7 +478,10 @@ const GROQ_PRESET: ProviderPreset = {
   modelsList: { path: '/openai/v1/models', windowField: 'context_window', priceSource: 'list' },
   quirks: {
     outputCapParam: 'max_completion_tokens',
-    cachedUsageFields: [],
+    // Groq reports `cached_tokens` in usage (console.groq.com/docs/
+    // prompt-caching, read 2026-10-12); the chat codec reads the
+    // OpenAI-compatible `prompt_tokens_details.cached_tokens` path.
+    cachedUsageFields: ['prompt_tokens_details.cached_tokens'],
   },
   wireCapture: true,
 }
