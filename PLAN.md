@@ -14632,6 +14632,27 @@ INT0170B integration question (2026-10-07), narrowed by LEFT017 (2026-10-08): th
 | Q66 | **Resolved 2026-09-27: loud, not re-routed.** The ACP agent's own requests (the Model API backend) use Node's `fetch`, which ignores `HTTPS_PROXY` unless `NODE_USE_ENV_PROXY=1` (Node 22.21+ or 24+; measured on seven releases). The owner: the agent does not re-route by itself or add undici. It warns once at start, in its log, when a proxy variable is set for the Model API backend and Node's switch is off or missing (`src/runtime/proxyWarning.ts`), and a request that never reaches Meta gets advice naming the agent's environment variables instead of VS Code's `http.*` settings (M56's classifier, told by the runtime which host it serves: `networkAdvice: 'agent'`).                                                                                                     | Closed; `docs/acp.md` "Networks and proxies", `docs/certification/pr32-integration.md`. |
 | Q12 | Should a shell tool session rule ("Always allow in this session" for a shell command) lapse when the model edits a file the command names or that decides what it runs, as the verify loop's rules do since M68? Today the shell tool keeps its pre-M68 behaviour: its rules are keyed on the exact command line and answer whatever the model edited. The verify loop's grants are kept apart from it (PR #54).                                                                                                                                                                                                                                                                                                                                                                                 | The shell tool's rules keep answering; only the verify loop's lapse.                    |
 
+### D108 — A chat surface takes the keyboard only while it holds it (panel-focus, 2026-10-12)
+
+**Decision.** Focus is taken only as the direct effect of something the
+person just did on that surface, and only if that surface still holds the
+keyboard when the focus would land. A webview never focuses its composer
+merely because it finished loading; a focus request that cannot land at
+once is recorded and dropped at delivery when its surface is no longer
+active. The host owns the ask (every `focusInput` it posts answers a
+person's command); the webview confirms ownership with
+`document.hasFocus()` at the single landing effect
+(`shouldLandFocusRequest` in `src/webview/state/uiState.ts`, called only
+from the composer's focus effect) and never overrides the host. Measured
+release defect: a panel loading behind a just-opened file took the keyboard
+0.4–0.8 s later in 14 of 20 hosted runs
+(`docs/certification/panel-focus.md`). The watching integration case
+(`creates AGENTS.md in the workspace root and opens it (D15)`) polls 3 s
+after `showTextDocument`; the mirror case proves Focus Input from a file
+still brings the chat forward. Same rule in the sidebar view and the panel,
+same extension code on every editor; no per-editor branch was read in any
+focus path.
+
 ### D89.5 — Credential variables stay out of model-run processes (ENVFENCE, 2026-10-05)
 
 The VS Code Model API shell inherited credential variables from the extension

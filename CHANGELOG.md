@@ -9,6 +9,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- The chat no longer takes the keyboard from a file you just opened: a chat
+  panel that finishes loading (or a focus request delivered late) now drops
+  the request instead of pulling the keyboard into its input. Acting on the
+  chat yourself — clicking into the panel, Focus Input, sending — focuses
+  the input as before.
+
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
   reads and writes, and 1-hour cache writes settle at their own price.
   The shared retry classifier refuses known quota codes and excessive

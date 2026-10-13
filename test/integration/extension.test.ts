@@ -56,6 +56,13 @@ function activeTextEditorFsPath(): string | undefined {
   return vscode.window.activeTextEditor?.document.uri.fsPath
 }
 
+// The active tab's file, when the active tab is a text file: same fresh-read
+// reason as above, for the tab group instead of the editor.
+function activeTextTabFsPath(): string | undefined {
+  const activeTab = vscode.window.tabGroups.activeTabGroup.activeTab
+  return activeTab?.input instanceof vscode.TabInputText ? activeTab.input.uri.fsPath : undefined
+}
+
 suite('activation', () => {
   test('the extension is installed and activates', async () => {
     const extension = vscode.extensions.getExtension(EXTENSION_QUALIFIED_ID)
@@ -136,10 +143,9 @@ suite('activation', () => {
           target.fsPath,
           'the chat panel took the keyboard from the file just opened',
         )
-        const activeTab = vscode.window.tabGroups.activeTabGroup.activeTab
-        assert.ok(
-          activeTab.input instanceof vscode.TabInputText &&
-            activeTab.input.uri.fsPath === target.fsPath,
+        assert.equal(
+          activeTextTabFsPath(),
+          target.fsPath,
           'the chat panel took the active tab from the file just opened',
         )
         await new Promise((resolve) => setTimeout(resolve, TAB_POLL_INTERVAL_MS))
