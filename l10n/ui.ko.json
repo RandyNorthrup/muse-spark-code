@@ -3417,7 +3417,7 @@
   "execFileTooLarge": "입력이 바이트 한도를 초과합니다.",
   "execFileEmpty": "입력 파일이 비어 있습니다.",
   "execTooManyChunks": "입력이 청크 수 한도를 초과합니다.",
-  "modelNotOnProvider": "모델 \"{model}\"은(는) 제공자 \"{provider}\"에서 제공되지 않습니다. {remedy}.",
+  "modelNotOnProvider": "모델 \"{model}\"은(는) 제공자 \"{provider}\"에서 제공되지 않습니다. {remedy}",
   "modelNotInSession": "모델 \"{model}\"은(는) 이 세션에서 제공되지 않습니다. 대신 제공되는 모델 중 하나를 선택하세요.",
   "unknownModelListModels": "제공되는 모델을 보려면 \"{command}\"을(를) 실행하세요.",
   "unknownModelPickOffered": "대신 제공되는 모델 중 하나를 선택하세요.",

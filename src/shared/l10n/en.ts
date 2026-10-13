@@ -4206,7 +4206,7 @@ export const EN = {
   execFileTooLarge: 'The input exceeds the byte limit.',
   execFileEmpty: 'The input file is empty.',
   execTooManyChunks: 'The input exceeds the chunk limit.',
-  modelNotOnProvider: 'Model "{model}" is not offered by provider "{provider}". {remedy}.',
+  modelNotOnProvider: 'Model "{model}" is not offered by provider "{provider}". {remedy}',
   modelNotInSession:
     'Model "{model}" is not offered in this session. Choose one of the models offered instead.',
   unknownModelListModels: 'Run "{command}" to see the models it offers.',

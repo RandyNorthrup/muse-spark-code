@@ -275,7 +275,7 @@ describe('UpdateTranslator', () => {
       [],
     )
     expect(translator.updates({ type: 'backendNotice', level: 'warning', text: 'Slow' })).toEqual([
-      { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'Slow\n\n' } },
+      { sessionUpdate: 'notice', severity: 'warning', title: 'Slow' },
     ])
     expect(
       translator.updates({

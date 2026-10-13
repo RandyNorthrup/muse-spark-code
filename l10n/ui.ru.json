@@ -3639,7 +3639,7 @@
   "execFileTooLarge": "Ввод превышает ограничение в байтах.",
   "execFileEmpty": "Входной файл пуст.",
   "execTooManyChunks": "Ввод превышает ограничение числа блоков.",
-  "modelNotOnProvider": "Модель \"{model}\" не предлагается провайдером \"{provider}\". {remedy}.",
+  "modelNotOnProvider": "Модель \"{model}\" не предлагается провайдером \"{provider}\". {remedy}",
   "modelNotInSession": "Модель \"{model}\" не предлагается в этой сессии. Выберите вместо этого одну из предлагаемых моделей.",
   "unknownModelListModels": "Выполните \"{command}\", чтобы увидеть предлагаемые им модели.",
   "unknownModelPickOffered": "Выберите вместо этого одну из предлагаемых моделей.",

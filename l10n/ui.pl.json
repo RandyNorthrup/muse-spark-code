@@ -3639,7 +3639,7 @@
   "execFileTooLarge": "Wejście przekracza limit bajtów.",
   "execFileEmpty": "Plik wejściowy jest pusty.",
   "execTooManyChunks": "Wejście przekracza limit bloków.",
-  "modelNotOnProvider": "Model \"{model}\" nie jest oferowany przez dostawcę \"{provider}\". {remedy}.",
+  "modelNotOnProvider": "Model \"{model}\" nie jest oferowany przez dostawcę \"{provider}\". {remedy}",
   "modelNotInSession": "Model \"{model}\" nie jest oferowany w tej sesji. Wybierz zamiast tego jeden z oferowanych modeli.",
   "unknownModelListModels": "Uruchom \"{command}\", aby zobaczyć oferowane przez niego modele.",
   "unknownModelPickOffered": "Wybierz zamiast tego jeden z oferowanych modeli.",

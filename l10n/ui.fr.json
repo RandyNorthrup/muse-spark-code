@@ -3565,7 +3565,7 @@
   "execFileTooLarge": "L’entrée dépasse la limite d’octets.",
   "execFileEmpty": "Le fichier d’entrée est vide.",
   "execTooManyChunks": "L’entrée dépasse la limite de blocs.",
-  "modelNotOnProvider": "Le modèle « {model} » n’est pas proposé par le fournisseur « {provider} ». {remedy}.",
+  "modelNotOnProvider": "Le modèle « {model} » n’est pas proposé par le fournisseur « {provider} ». {remedy}",
   "modelNotInSession": "Le modèle « {model} » n’est pas proposé dans cette session. Choisissez plutôt l’un des modèles proposés.",
   "unknownModelListModels": "Exécutez « {command} » pour voir les modèles qu’il propose.",
   "unknownModelPickOffered": "Choisissez plutôt l’un des modèles proposés.",

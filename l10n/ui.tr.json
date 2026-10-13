@@ -3491,7 +3491,7 @@
   "execFileTooLarge": "Girdi bayt sınırını aşıyor.",
   "execFileEmpty": "Girdi dosyası boş.",
   "execTooManyChunks": "Girdi parça sınırını aşıyor.",
-  "modelNotOnProvider": "\"{model}\" modeli \"{provider}\" sağlayıcısı tarafından sunulmuyor. {remedy}.",
+  "modelNotOnProvider": "\"{model}\" modeli \"{provider}\" sağlayıcısı tarafından sunulmuyor. {remedy}",
   "modelNotInSession": "\"{model}\" modeli bu oturumda sunulmuyor. Bunun yerine sunulan modellerden birini seçin.",
   "unknownModelListModels": "Sunduğu modelleri görmek için \"{command}\" komutunu çalıştırın.",
   "unknownModelPickOffered": "Bunun yerine sunulan modellerden birini seçin.",
