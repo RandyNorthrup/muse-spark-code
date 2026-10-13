@@ -381,3 +381,29 @@ openWorkerFile`), so they are not dead code and were not removed.
 - Report-page axe cover lapsed with the verifier (PASS 3b);
   `m113-w-a11y.json` is the last receipt. Lead call (fold the
   reporting scenes into `scripts/a11y.mjs` or accept the gap).
+
+### Listed, not fixed (deadcode exposes test-only-reached src islands)
+
+`npm run deadcode` (knip) is red on this lane: 112 unused files, all in
+`src/`, plus 210 unused exports of the same origin. Mechanism, proven
+per file: on the base tree each island was imported only by tests this
+lane deleted (e.g. vault/store ← vaultStore.test.ts, schedules/time/loop
+← scheduleTime.test.ts, devices/deviceReceiver ←
+deviceAccountReceiver.test.ts); no production file imports them, and no
+surviving test does either. They cluster in unlanded feature areas —
+vault/* (M109 broker service lands later), host/team + core/team,
+webview models accounts sections (M108), media recorder (M105), theme
+bridges (M114), schedules time/events, MCP oauth, estimator
+calibration — other lanes' foundations. Deleting them would destroy
+other milestones' work; ignoring them in knip would weaken the gate.
+The full inventory is `docs/testing/test-overhaul-unused-src.txt`.
+Lead call per subgraph: land/wire it, or delete it.
+
+Fixed in-lane alongside: 11 orphaned test-support files nothing
+imports (6 unit helpers, the e2e helper fixture, 5 driverless harness
+check/entry pages whose GO drivers are gone), 15 stale knip entries
+pointing at deleted files, the stale cycles.json exclusion, and the
+`test/hosts/schedule-os-win11.mjs` dangling fixture — which exposed a
+PASS 2b error: `fakeScheduleWake.mjs` was still used by that LIST
+hosts script (by path string, which the import sweep cannot see), so it
+is restored with a knip entry rather than left dangling.
