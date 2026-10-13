@@ -1325,6 +1325,11 @@
       "id": "VSIXDIET2",
       "public": false,
       "note": "package size budget"
+    },
+    {
+      "id": "USAGEFIELDS",
+      "public": false,
+      "note": "provider usage and price fields (cached, reasoning, tiers, upstreams, credit balance)"
     }
   ]
 }
