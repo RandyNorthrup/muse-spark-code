@@ -14,15 +14,20 @@ export default {
         session.models().includes(wanted),
         session.models().join(', '),
       )
+      // On a route to Meta's own models the run never selects another model:
+      // every other one the session lists is another Muse model.
+      const elsewhere = 'the session moves to another listed model'
       const other = session.models().find((model) => model !== wanted)
-      if (other !== undefined) {
+      if (person.route.kind !== 'provider') {
+        person.skip(elsewhere, 'not run on a Meta route: the run never selects another Muse model')
+      } else if (other !== undefined) {
         const moved = await session.setModel(other)
-        see('the session moves to another listed model', moved === other, String(moved))
+        see(elsewhere, moved === other, String(moved))
       }
       const back = await session.setModel(wanted)
       see('the session moves to the model the person picks', back === wanted, String(back))
       const marker = person.marker()
-      const turn = await session.prompt(`Reply with exactly this and nothing else: ${marker}`)
+      const turn = await session.prompt(person.connectionCheck(marker))
       see(
         'a turn completes on it',
         turn.stopReason === 'end_turn' && turn.said.includes(marker),

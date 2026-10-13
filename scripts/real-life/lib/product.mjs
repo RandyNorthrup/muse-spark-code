@@ -25,35 +25,44 @@ function closedPipe() {
  * @property {NodeJS.ProcessEnv} env its environment (the new home)
  */
 
+// Every process of the product the run has started and that has not ended:
+// a run that is cut short ends them before it cleans up.
+const live = new Set()
+
+function started(child) {
+  live.add(child)
+  child.on('close', () => live.delete(child))
+  return child
+}
+
+/** Ends every process of the product that is still running. */
+export function endAll() {
+  for (const child of live) child.kill()
+}
+
 /**
  * One command, run to its end.
  * @param {Product} product
  * @param {readonly string[]} args
- * @param {{ cwd: string, stdin?: string, timeoutMs?: number, interruptWhen?: (seen: { stdout: string, stderr: string }) => boolean }} options
+ * @param {{ cwd: string, stdin?: string, timeoutMs?: number }} options
  */
 export function runCommand(product, args, options) {
-  const started = performance.now()
-  const child = spawn(process.execPath, [product.agent, ...args], {
-    cwd: options.cwd,
-    env: product.env,
-    stdio: 'pipe',
-    windowsHide: true,
-  })
+  const clock = performance.now()
+  const child = started(
+    spawn(process.execPath, [product.agent, ...args], {
+      cwd: options.cwd,
+      env: product.env,
+      stdio: 'pipe',
+      windowsHide: true,
+    }),
+  )
   const seen = { stdout: '', stderr: '' }
   let isTimedOut = false
-  let isInterrupted = false
-  const interrupt = () => {
-    if (isInterrupted || options.interruptWhen?.(seen) !== true) return
-    isInterrupted = true
-    child.kill('SIGINT')
-  }
   child.stdout.on('data', (chunk) => {
     seen.stdout += String(chunk)
-    interrupt()
   })
   child.stderr.on('data', (chunk) => {
     seen.stderr += String(chunk)
-    interrupt()
   })
   // The key, or the prompt: written once, then the pipe is closed.
   child.stdin.on('error', closedPipe)
@@ -72,8 +81,7 @@ export function runCommand(product, args, options) {
         stdout: seen.stdout,
         stderr: seen.stderr,
         isTimedOut,
-        isInterrupted,
-        seconds: (performance.now() - started) / 1000,
+        seconds: (performance.now() - clock) / 1000,
       })
     })
   })
@@ -104,12 +112,14 @@ export function jsonLines(text) {
  * @param {{ cwd: string }} options
  */
 export function startEditor(product, args, options) {
-  const child = spawn(process.execPath, [product.agent, ...args], {
-    cwd: options.cwd,
-    env: product.env,
-    stdio: 'pipe',
-    windowsHide: true,
-  })
+  const child = started(
+    spawn(process.execPath, [product.agent, ...args], {
+      cwd: options.cwd,
+      env: product.env,
+      stdio: 'pipe',
+      windowsHide: true,
+    }),
+  )
   const waiting = new Map()
   const updates = []
   const permissions = []

@@ -50,37 +50,102 @@ node scripts/real-life/run.mjs \
 `--list` prints the routes and the scenarios and makes no request.
 `--scenarios 'plain-*,usage'` picks scenarios by file name, several
 separated by commas. `--surfaces exec` runs the terminal agent only.
-`--model openai=<model>` runs a route on another model. `--keep` leaves the
+`--model openai=<model>` runs a provider's route on another model. `--keep` leaves the
 install, the home and the workspaces in place to look at.
 
 The run exits 0 when every scenario it ran passed, 1 when one failed or a
 key of the run is still in the credential store, and 2 for a wrong command
 line.
 
+### A model matrix
+
+```text
+node scripts/real-life/run.mjs \
+  --artefact dist/muse-spark-code-acp-<version>.tgz \
+  --matrix models.json \
+  --max-requests 240 --max-usd 1.00 \
+  --keys env \
+  --record docs/testing/real-life/<version>/<system>-<date>-matrix
+```
+
+`--matrix` takes the place of `--routes`: a JSON file of route to model ids,
+as the provider lists them.
+
+```json
+{
+  "anthropic": ["claude-haiku-4-5", "claude-sonnet-4-6"],
+  "openrouter": [{ "id": "some/model:free", "free": true }]
+}
+```
+
+Each provider is added once with all its models ticked. Every model then
+gets one plain turn and one tool turn (a file written) by the terminal
+agent, and one result each in the record, with the model in `model`.
+`free` says the model's listed price is zero, so its turn is expected to
+cost nothing.
+
+Four brakes keep a matrix from spending on what cannot work: a model whose
+plain turn fails gets no tool turn; a route whose first three models all
+fail with no usage reported is stopped (an account or a key, not a model:
+its other models are listed as never asked); three plain turns in a row
+that send nothing stop the run (the product has stopped sending); and once
+a scenario does not fit under `--max-requests`, nothing later is started.
+
+A matrix sets one setting of the product, in its own new home and nowhere
+else: `paidDailyBudgetUsd` to 500 in the data folder's `settings.json`, the
+way the product's README says a person sets the daily budget of the
+terminal agent. The product's daily ledger keeps the reservation of every
+request that ends with no usage; at its default of $5 a day it stops a
+matrix after a few of them, and a model whose single reservation is above
+$5 could not be asked at all. The record's first lines name the setting.
+
+The product has no command that prints the models a key lists (`providers
+test` prints their number), so the list comes from the provider's own
+listing, and from what a session then offers once they are ticked: the
+product offers the models its catalogue prices and hides the rest.
+
 ### Routes
 
 | Route                 | Wire format                       | Model                        | Key name            |
 | --------------------- | --------------------------------- | ---------------------------- | ------------------- |
-| `anthropic`           | Anthropic Messages                | `claude-haiku-4-5`           | `anthropic-fleet-1` |
-| `openai`              | OpenAI Responses                  | `gpt-5-nano`                 | `openai`            |
+| `anthropic`           | Anthropic Messages                | `claude-haiku-4-5-20251001`  | `anthropic-fleet-1` |
+| `openai`              | OpenAI Responses                  | `gpt-5.6-luna`               | `openai`            |
 | `xai`                 | OpenAI Responses, xAI             | `grok-build-0.1`             | `xai`               |
 | `gemini`              | Gemini                            | `gemini-3.8-flash`           | `gemini`            |
 | `zai`                 | chat completions, Z.ai            | `glm-5.3-flash`              | `zai`               |
-| `anthropic-no-credit` | Anthropic Messages, no credit     | `claude-haiku-4-5`           | `anthropic-fleet-2` |
+| `deepseek`            | chat completions, DeepSeek        | `deepseek-flash`             | `deepseek`          |
+| `mistral`             | chat completions, Mistral         | `ministral-3b-latest`        | `mistral`           |
+| `groq`                | chat completions, Groq            | `openai/gpt-oss-20b`         | `groq`              |
+| `together`            | chat completions, Together        | a DeepSeek V4 Flash          | `together`          |
+| `fireworks`           | chat completions, Fireworks       | a Nemotron Lightning         | `fireworks`         |
+| `huggingface`         | chat completions, Hugging Face    | `google/gemma-3-4b-it`       | `huggingface`       |
+| `openrouter`          | chat completions, OpenRouter      | `mistralai/mistral-nemo`     | `openrouter`        |
+| `anthropic-no-credit` | Anthropic Messages, no credit     | `claude-haiku-4-5-20251001`  | `anthropic-fleet-2` |
 | `meta`                | Meta Model API                    | `muse-spark-1.3-contributor` | `modelapi-key`      |
 | `musecode`            | Muse Code (the machine's sign-in) | `muse-spark-1.3-contributor` | none                |
 
 Each model is the cheapest the route offers that the product's own
-catalogue knows. The product hides a model its catalogue does not know, so a
-route cannot run on one; and a key may list fewer models than its provider
-has (`--model` picks one it does list).
+catalogue knows (`--list` prints the exact ids). The product hides a model
+its catalogue does not know, so a route cannot run on one; and a key may
+list fewer models than its provider has (`--model` picks one it does list).
 
-On the Meta routes the model is always the contributor model, named. A
-prompt is sent only while the session sits on the route's model: a session
-on any other model is not used, and the scenario fails with nothing sent.
+A model of Meta's is asked on a Meta route, on the contributor model the
+route names, and nowhere else. One rule in `lib/routes.mjs` decides it for
+`--model` and for every model of a matrix: a Meta route takes no other
+model (not another Muse model, not another contributor model), and a
+provider's route takes no model of Meta's, whatever a reseller calls it.
+In an editor session a prompt is sent only while the session sits on the
+route's model, and a session of a Meta route is never set to any other
+(the model-switch scenario leaves that step out there, and the record says
+so). At the terminal every turn on a Meta route is first asked with a
+budget of one millionth of a dollar, under which nothing is sent, and the
+turn itself is sent only when the product names the route's model.
 
-The Muse Code route needs the Muse Code CLI signed in on the machine. It
-does not run on Windows.
+The Muse Code route is named and is not run, on any system. A request on
+the Muse Code subscription is allowed only on a Muse Code CLI version known
+to bill the contributor tier, and the product does not say which CLI
+version it is about to start (its `report` prints "cli: found"), so the run
+cannot check it. `--routes musecode` ends with that reason.
 
 ### Keys
 
@@ -108,18 +173,58 @@ so the run stores it with `auth set` only when no Meta key is stored, and
 removes it afterwards. While another key is there, the Meta editor
 scenarios are not run.
 
+What a route stored is removed when that route ends, when the run ends,
+when it is interrupted (Ctrl+C, Ctrl+Break, a closing terminal, a
+termination signal) and when it fails with an error nobody caught. A
+process that is ended outright runs nothing. For that case the run writes a
+note before it stores Meta's key (`real-life-run/meta-key-stored.json` in
+the system's temporary folder: when, and by which run; never the key), and
+clears it once the key is removed. The next run reads the note first of
+all. It never removes a Meta key on the strength of the note, because you
+may have stored your own since: it says, on its first line and in its
+record, that a key is stored and that an earlier run left one, and how to
+remove it (`auth clear`); when no key is stored any more, it clears the
+note. A provider entry left the same way is the run's own name
+(`rl-<route>`), and the next run that uses the route removes it.
+
 ## What it costs
 
 Before the first request the run prints the most requests it may make and
-its dollar cap. It starts a scenario only while the scenario's own most
-still fits under `--max-requests`, and starts nothing more once
-`--max-usd` is reached. Afterwards it prints the requests made and the
-dollars, and beside them what the product's own `usage` holds for that
-home.
+its dollar stops. It starts a scenario only while the scenario's own most
+still fits under `--max-requests`, and starts nothing more once a stop is
+reached or one scenario did not fit. A stop ends what is started next: a
+scenario that is running when the stop is passed runs to its end, so a run
+can end above its stop by what one scenario costs. Afterwards it prints the
+requests made and the dollars, and beside them what the product's own
+`usage` holds for that home.
 
 Requests and dollars are the product's own count: a terminal run by its
 result, an editor session by the usage the product recorded for it. A
 scenario that makes more requests than it said it may fails for that alone.
+
+The product keeps kinds of dollars apart, and so does the run, in every
+scenario's result, in the totals and in the first and last lines it prints:
+
+- **settled** (`usd`): usage a provider reported, at the model's price.
+  This is what `--max-usd` counts, because it is the money that was spent.
+- **uncertain** (`uncertainUsd`): what the product booked for a request
+  that was sent and came back with no usage report. It is the request's
+  whole reservation, not a price; but the request reached the provider, so
+  some of it may be real money (a provider that accepted the request and
+  was cut off has charged for what it generated). It never counts as spend,
+  and it has a stop of its own: `--max-uncertain-usd` (5 unless said).
+- **held by the daily ledger** (`ledgerUnsettled`, in the totals): what
+  the product's ledger of the local day holds with no settlement. It keeps
+  a whole reservation for every request that came back with no usage (more
+  than it books for a request an editor session stopped), and on a
+  provider's route for a run it turned away for its budget before anything
+  was sent. The run reads it once, at its end, from the ledger's files in
+  its own home (`lib/ledger.mjs`). `turnedAwayUnsentRuns` counts the
+  refusals the run itself asked for (a Meta turn's read-back).
+
+An amount the product printed that the run cannot read is not zero: the
+scenario fails with the text it could not read, and the run starts nothing
+more.
 
 A full matrix on one route is at most 32 requests. Measured on 2026-10-12
 on the published 0.18.1, both surfaces: 24 requests on Anthropic
@@ -130,8 +235,15 @@ Two things make the product's count larger than what a provider charges,
 and both are the product's own behaviour, recorded as such:
 
 - `exec` holds a request's worst case against its hard cap before it sends
-  (a full context window at the model's price), so every `exec` is given a
-  cap of $3.00. What it spends is what the result says.
+  (the model's whole output limit at the model's price), has no option
+  that lowers it, and turns a smaller cap away with nothing sent and
+  without saying how much it needs. Outside a matrix every `exec` is given
+  a cap of $3.00. A matrix gives every turn $20, the most `exec` accepts
+  (`lib/admission.mjs`), and does not feel for a model's cap with refusals:
+  on 0.18.2 a run that is turned away for its cap leaves its reservation in
+  the product's daily ledger for the rest of the day, and two refusals of a
+  dear model stop every later run. What a run spends is what its result
+  says.
 - The product books a request that ended without a usage report at the
   whole remaining reservation: a request the provider refused ($0.03 to
   $0.52 a request on 0.18.1), and a request the person stopped in the
@@ -173,14 +285,19 @@ the claims gate reads; the text is the same for a person.
 ```
 
 `route` is the claims table's name for it (`provider`, `modelapi`,
-`musecode`); the vendor is in `model` and in `vendor`. Beside the gate's
-fields each result keeps its observations one by one (`seen`), what the
-product itself recorded for it (`recordedByProduct`) and, when it failed,
-the last lines of the product's own log. `notRun` lists what was not
+`musecode`); the vendor is in `model` and in `vendor`. `usd` is the settled
+dollars. Beside the gate's fields each result keeps what the product booked
+with no usage (`uncertainUsd`), its observations one by one (`seen`), what
+the product's usage history recorded for it (`recordedByProduct`, outside a
+matrix) and, when it failed, the last lines of the product's own log. `notRun` lists what was not
 started and why. `keysLeftInTheCredentialStore` is empty unless the
 clean-up failed.
 
-A release's records live under `docs/testing/real-life/<version>/`.
+A release's records live under `docs/testing/real-life/<version>/`. Beside
+them a folder may keep what was read to explain a failure: the providers'
+own answers (`provider-answers/`), the scripts that read them
+(`diagnostics/`, which are not part of the run and which no scenario
+loads), and the causes as data (`causes-<date>.json`).
 
 ## Add a scenario
 

@@ -24,7 +24,7 @@ export default {
         return numberAfter(printed.stdout, 'Requests')
       }
       const before = await counted()
-      const turn = await person.exec(`Reply with exactly this and nothing else: ${person.marker()}`)
+      const turn = await person.exec(person.connectionCheck(person.marker()))
       see('the turn completed', turn.code === 0, `exit ${String(turn.code)}`)
       const records = await person.usage()
       const mine = records.filter((record) => record.session === turn.result?.sessionId)
@@ -52,9 +52,7 @@ export default {
     async run(person, see) {
       const editor = await person.openEditor()
       const session = await editor.newSession()
-      const turn = await session.prompt(
-        `Reply with exactly this and nothing else: ${person.marker()}`,
-      )
+      const turn = await session.prompt(person.connectionCheck(person.marker()))
       see('the turn completed', turn.stopReason === 'end_turn', turn.stopReason)
       const usage = await session.prompt('/usage')
       see(

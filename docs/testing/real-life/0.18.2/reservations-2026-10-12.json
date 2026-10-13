@@ -1,0 +1,3481 @@
+[
+  {
+    "route": "anthropic",
+    "wire": "Anthropic Messages",
+    "model": "claude-sonnet-5-5",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "2.262144"
+  },
+  {
+    "route": "anthropic",
+    "wire": "Anthropic Messages",
+    "model": "claude-opus-5-5",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "4.524288"
+  },
+  {
+    "route": "anthropic",
+    "wire": "Anthropic Messages",
+    "model": "claude-fable-5-1",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "11.31072"
+  },
+  {
+    "route": "anthropic",
+    "wire": "Anthropic Messages",
+    "model": "claude-opus-5",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "5.65536"
+  },
+  {
+    "route": "anthropic",
+    "wire": "Anthropic Messages",
+    "model": "claude-sonnet-5",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "2.262144"
+  },
+  {
+    "route": "anthropic",
+    "wire": "Anthropic Messages",
+    "model": "claude-fable-5",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "11.31072"
+  },
+  {
+    "route": "anthropic",
+    "wire": "Anthropic Messages",
+    "model": "claude-opus-4-8",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "5.65536"
+  },
+  {
+    "route": "anthropic",
+    "wire": "Anthropic Messages",
+    "model": "claude-opus-4-7",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "5.65536"
+  },
+  {
+    "route": "anthropic",
+    "wire": "Anthropic Messages",
+    "model": "claude-sonnet-4-6",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "3.393216"
+  },
+  {
+    "route": "anthropic",
+    "wire": "Anthropic Messages",
+    "model": "claude-opus-4-6",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "5.65536"
+  },
+  {
+    "route": "anthropic",
+    "wire": "Anthropic Messages",
+    "model": "claude-opus-4-5-20251101",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "1.65536"
+  },
+  {
+    "route": "anthropic",
+    "wire": "Anthropic Messages",
+    "model": "claude-haiku-4-5-20251001",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.331072"
+  },
+  {
+    "route": "openai",
+    "wire": "OpenAI Responses",
+    "model": "gpt-5.6-luna",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.242769"
+  },
+  {
+    "route": "xai",
+    "wire": "OpenAI Responses (xAI)",
+    "model": "grok-4.20-0309-non-reasoning",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "1.2875"
+  },
+  {
+    "route": "xai",
+    "wire": "OpenAI Responses (xAI)",
+    "model": "grok-4.20-0309-reasoning",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "1.2875"
+  },
+  {
+    "route": "xai",
+    "wire": "OpenAI Responses (xAI)",
+    "model": "grok-4.3",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "1.2875"
+  },
+  {
+    "route": "xai",
+    "wire": "OpenAI Responses (xAI)",
+    "model": "grok-4.5",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "1.131072"
+  },
+  {
+    "route": "xai",
+    "wire": "OpenAI Responses (xAI)",
+    "model": "grok-4.6",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "1.131072"
+  },
+  {
+    "route": "xai",
+    "wire": "OpenAI Responses (xAI)",
+    "model": "grok-4.7",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "1.131072"
+  },
+  {
+    "route": "xai",
+    "wire": "OpenAI Responses (xAI)",
+    "model": "grok-build-0.1",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.288768"
+  },
+  {
+    "route": "zai",
+    "wire": "chat completions (Z.ai)",
+    "model": "glm-4.5",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.131072"
+  },
+  {
+    "route": "zai",
+    "wire": "chat completions (Z.ai)",
+    "model": "glm-4.5-air",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.055706"
+  },
+  {
+    "route": "zai",
+    "wire": "chat completions (Z.ai)",
+    "model": "glm-4.6",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.175309"
+  },
+  {
+    "route": "zai",
+    "wire": "chat completions (Z.ai)",
+    "model": "glm-4.7",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.175309"
+  },
+  {
+    "route": "zai",
+    "wire": "chat completions (Z.ai)",
+    "model": "glm-5",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.27689"
+  },
+  {
+    "route": "zai",
+    "wire": "chat completions (Z.ai)",
+    "model": "glm-5-turbo",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.331751"
+  },
+  {
+    "route": "zai",
+    "wire": "chat completions (Z.ai)",
+    "model": "glm-5.1",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.378304"
+  },
+  {
+    "route": "zai",
+    "wire": "chat completions (Z.ai)",
+    "model": "glm-5.2",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "1.498304"
+  },
+  {
+    "route": "zai",
+    "wire": "chat completions (Z.ai)",
+    "model": "glm-5.3",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "1.498304"
+  },
+  {
+    "route": "zai",
+    "wire": "chat completions (Z.ai)",
+    "model": "glm-5.3-flash",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.161469"
+  },
+  {
+    "route": "zai",
+    "wire": "chat completions (Z.ai)",
+    "model": "glm-5.3-flashx",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.398836"
+  },
+  {
+    "route": "deepseek",
+    "wire": "chat completions (DeepSeek)",
+    "model": "deepseek-flash",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.164746"
+  },
+  {
+    "route": "deepseek",
+    "wire": "chat completions (DeepSeek)",
+    "model": "deepseek-v4-pro",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.703254"
+  },
+  {
+    "route": "mistral",
+    "wire": "chat completions (Mistral)",
+    "model": "codestral-latest",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.079258"
+  },
+  {
+    "route": "mistral",
+    "wire": "chat completions (Mistral)",
+    "model": "zai-glm-5-2",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "1.498304"
+  },
+  {
+    "route": "mistral",
+    "wire": "chat completions (Mistral)",
+    "model": "zai-glm-5-3",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "1.498304"
+  },
+  {
+    "route": "mistral",
+    "wire": "chat completions (Mistral)",
+    "model": "ministral-3b-latest",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.00512"
+  },
+  {
+    "route": "mistral",
+    "wire": "chat completions (Mistral)",
+    "model": "ministral-8b-latest",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.012801"
+  },
+  {
+    "route": "mistral",
+    "wire": "chat completions (Mistral)",
+    "model": "mistral-large-2512",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.16384"
+  },
+  {
+    "route": "mistral",
+    "wire": "chat completions (Mistral)",
+    "model": "mistral-large-latest",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.16384"
+  },
+  {
+    "route": "mistral",
+    "wire": "chat completions (Mistral)",
+    "model": "mistral-medium-latest",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.589824"
+  },
+  {
+    "route": "mistral",
+    "wire": "chat completions (Mistral)",
+    "model": "mistral-medium-2604",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.589824"
+  },
+  {
+    "route": "mistral",
+    "wire": "chat completions (Mistral)",
+    "model": "magistral-medium-latest",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.305152"
+  },
+  {
+    "route": "mistral",
+    "wire": "chat completions (Mistral)",
+    "model": "mistral-small-2603",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.053146"
+  },
+  {
+    "route": "mistral",
+    "wire": "chat completions (Mistral)",
+    "model": "mistral-small-latest",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.053146"
+  },
+  {
+    "route": "mistral",
+    "wire": "chat completions (Mistral)",
+    "model": "voxtral-small-latest",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.0096"
+  },
+  {
+    "route": "meta",
+    "wire": "Meta Model API",
+    "model": "muse-spark-1.3-contributor",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true
+  },
+  {
+    "route": "groq",
+    "wire": "chat completions (Groq)",
+    "model": "openai/gpt-oss-20b",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.017204"
+  },
+  {
+    "route": "groq",
+    "wire": "chat completions (Groq)",
+    "model": "qwen/qwen3.8-27b",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.157263"
+  },
+  {
+    "route": "groq",
+    "wire": "chat completions (Groq)",
+    "model": "openai/gpt-oss-120b",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.034407"
+  },
+  {
+    "route": "groq",
+    "wire": "chat completions (Groq)",
+    "model": "openai/gpt-oss-safeguard-20b",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.017204"
+  },
+  {
+    "route": "together",
+    "wire": "chat completions (Together)",
+    "model": "deepseek-ai/DeepSeek-V4.1-Flash",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.344064"
+  },
+  {
+    "route": "together",
+    "wire": "chat completions (Together)",
+    "model": "zai-org/GLM-5.3",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "1.566311"
+  },
+  {
+    "route": "together",
+    "wire": "chat completions (Together)",
+    "model": "zai-org/GLM-5.3-Flash",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.168756"
+  },
+  {
+    "route": "together",
+    "wire": "chat completions (Together)",
+    "model": "zai-org/GLM-5.2",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "1.566309"
+  },
+  {
+    "route": "together",
+    "wire": "chat completions (Together)",
+    "model": "deepseek-ai/DeepSeek-V4-Pro-0813",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "1.470628"
+  },
+  {
+    "route": "together",
+    "wire": "chat completions (Together)",
+    "model": "deepseek-ai/DeepSeek-V4-Flash-0731",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.151389"
+  },
+  {
+    "route": "together",
+    "wire": "chat completions (Together)",
+    "model": "thinkingmachines/Inkling",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.624231"
+  },
+  {
+    "route": "together",
+    "wire": "chat completions (Together)",
+    "model": "MiniMaxAI/MiniMax-M3",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.186778"
+  },
+  {
+    "route": "together",
+    "wire": "chat completions (Together)",
+    "model": "Qwen/Qwen3.7-Max",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "1.33192"
+  },
+  {
+    "route": "together",
+    "wire": "chat completions (Together)",
+    "model": "openai/gpt-oss-120b",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.034407"
+  },
+  {
+    "route": "together",
+    "wire": "chat completions (Together)",
+    "model": "Qwen/Qwen3.5-9B",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.047186"
+  },
+  {
+    "route": "together",
+    "wire": "chat completions (Together)",
+    "model": "meta-llama/Llama-3.3-70B-Instruct-Turbo",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.136315"
+  },
+  {
+    "route": "together",
+    "wire": "chat completions (Together)",
+    "model": "Qwen/Qwen3.6-Plus",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.58192"
+  },
+  {
+    "route": "together",
+    "wire": "chat completions (Together)",
+    "model": "Qwen/Qwen2.5-7B-Instruct-Turbo",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.009831"
+  },
+  {
+    "route": "together",
+    "wire": "chat completions (Together)",
+    "model": "Qwen/Qwen3-Coder-480B-A35B-Instruct-FP8",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.524288"
+  },
+  {
+    "route": "together",
+    "wire": "chat completions (Together)",
+    "model": "Qwen/Qwen3-Coder-Next-FP8",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.15401"
+  },
+  {
+    "route": "together",
+    "wire": "chat completions (Together)",
+    "model": "zai-org/GLM-5",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.274842"
+  },
+  {
+    "route": "together",
+    "wire": "chat completions (Together)",
+    "model": "Qwen/Qwen3.5-397B-A17B",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.255591"
+  },
+  {
+    "route": "together",
+    "wire": "chat completions (Together)",
+    "model": "zai-org/GLM-5.1",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.382157"
+  },
+  {
+    "route": "together",
+    "wire": "chat completions (Together)",
+    "model": "MiniMaxAI/MiniMax-M2.7",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.088474"
+  },
+  {
+    "route": "together",
+    "wire": "chat completions (Together)",
+    "model": "nvidia/nemotron-3-ultra-550b-a55b",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.405685"
+  },
+  {
+    "route": "fireworks",
+    "wire": "chat completions (Fireworks)",
+    "model": "accounts/fireworks/models/minimax-m3",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.183092"
+  },
+  {
+    "route": "fireworks",
+    "wire": "chat completions (Fireworks)",
+    "model": "accounts/fireworks/models/gpt-oss-120b",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.034407"
+  },
+  {
+    "route": "fireworks",
+    "wire": "chat completions (Fireworks)",
+    "model": "accounts/fireworks/models/nemotron-3-ultra-nvfp4",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.216269"
+  },
+  {
+    "route": "fireworks",
+    "wire": "chat completions (Fireworks)",
+    "model": "accounts/fireworks/models/glm-5p3",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "1.566307"
+  },
+  {
+    "route": "fireworks",
+    "wire": "chat completions (Fireworks)",
+    "model": "accounts/fireworks/models/glm-5p3-flash",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.168755"
+  },
+  {
+    "route": "fireworks",
+    "wire": "chat completions (Fireworks)",
+    "model": "accounts/fireworks/models/deepseek-v4p1-flash",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.329492"
+  },
+  {
+    "route": "fireworks",
+    "wire": "chat completions (Fireworks)",
+    "model": "accounts/fireworks/models/nemotron-lightning-3p5-30b-a3b",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.018023"
+  },
+  {
+    "route": "fireworks",
+    "wire": "chat completions (Fireworks)",
+    "model": "accounts/fireworks/models/inkling",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "1.148519"
+  },
+  {
+    "route": "huggingface",
+    "wire": "chat completions (Hugging Face)",
+    "model": "Qwen/Qwen3.8-27B",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.190055"
+  },
+  {
+    "route": "huggingface",
+    "wire": "chat completions (Hugging Face)",
+    "model": "deepseek-ai/DeepSeek-V4.1-Flash",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.344064"
+  },
+  {
+    "route": "huggingface",
+    "wire": "chat completions (Hugging Face)",
+    "model": "zai-org/GLM-5.3-Flash",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.168756"
+  },
+  {
+    "route": "huggingface",
+    "wire": "chat completions (Hugging Face)",
+    "model": "zai-org/GLM-5.3",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "1.566311"
+  },
+  {
+    "route": "huggingface",
+    "wire": "chat completions (Hugging Face)",
+    "model": "meta-llama/Llama-3.1-8B-Instruct",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.007865"
+  },
+  {
+    "route": "huggingface",
+    "wire": "chat completions (Hugging Face)",
+    "model": "google/gemma-4-31B-it",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.04522"
+  },
+  {
+    "route": "huggingface",
+    "wire": "chat completions (Hugging Face)",
+    "model": "Qwen/Qwen3.5-9B",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.047186"
+  },
+  {
+    "route": "huggingface",
+    "wire": "chat completions (Hugging Face)",
+    "model": "deepseek-ai/DeepSeek-R1",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.103783"
+  },
+  {
+    "route": "huggingface",
+    "wire": "chat completions (Hugging Face)",
+    "model": "Qwen/Qwen3.6-35B-A3B",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.065536"
+  },
+  {
+    "route": "huggingface",
+    "wire": "chat completions (Hugging Face)",
+    "model": "google/gemma-4-26B-A4B-it",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.042927"
+  },
+  {
+    "route": "huggingface",
+    "wire": "chat completions (Hugging Face)",
+    "model": "openai/gpt-oss-20b",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.026215"
+  },
+  {
+    "route": "huggingface",
+    "wire": "chat completions (Hugging Face)",
+    "model": "deepseek-ai/DeepSeek-V4-Pro-0813",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "1.406508"
+  },
+  {
+    "route": "huggingface",
+    "wire": "chat completions (Hugging Face)",
+    "model": "deepseek-ai/DeepSeek-V4-Pro",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.470385"
+  },
+  {
+    "route": "huggingface",
+    "wire": "chat completions (Hugging Face)",
+    "model": "openai/gpt-oss-120b",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.047186"
+  },
+  {
+    "route": "huggingface",
+    "wire": "chat completions (Hugging Face)",
+    "model": "deepseek-ai/DeepSeek-V3",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.032973"
+  },
+  {
+    "route": "huggingface",
+    "wire": "chat completions (Hugging Face)",
+    "model": "zai-org/GLM-5.2",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.465306"
+  },
+  {
+    "route": "huggingface",
+    "wire": "chat completions (Hugging Face)",
+    "model": "deepseek-ai/DeepSeek-V3-0324",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.07209"
+  },
+  {
+    "route": "huggingface",
+    "wire": "chat completions (Hugging Face)",
+    "model": "google/gemma-3-4b-it",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.008193"
+  },
+  {
+    "route": "huggingface",
+    "wire": "chat completions (Hugging Face)",
+    "model": "meta-llama/Llama-3.3-70B-Instruct",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.078152"
+  },
+  {
+    "route": "huggingface",
+    "wire": "chat completions (Hugging Face)",
+    "model": "MiniMaxAI/MiniMax-M3",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.186778"
+  },
+  {
+    "route": "huggingface",
+    "wire": "chat completions (Hugging Face)",
+    "model": "deepseek-ai/DeepSeek-V3.1",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.04137"
+  },
+  {
+    "route": "huggingface",
+    "wire": "chat completions (Hugging Face)",
+    "model": "Qwen/Qwen3.6-27B",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.212337"
+  },
+  {
+    "route": "huggingface",
+    "wire": "chat completions (Hugging Face)",
+    "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.024576"
+  },
+  {
+    "route": "huggingface",
+    "wire": "chat completions (Hugging Face)",
+    "model": "MiniMaxAI/MiniMax-M2.5",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.090932"
+  },
+  {
+    "route": "huggingface",
+    "wire": "chat completions (Hugging Face)",
+    "model": "deepseek-ai/DeepSeek-V4-Flash-Vision-Exp",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.49021"
+  },
+  {
+    "route": "huggingface",
+    "wire": "chat completions (Hugging Face)",
+    "model": "Qwen/Qwen3.5-122B-A10B",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.196609"
+  },
+  {
+    "route": "huggingface",
+    "wire": "chat completions (Hugging Face)",
+    "model": "Qwen/Qwen3-30B-A3B",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.011142"
+  },
+  {
+    "route": "huggingface",
+    "wire": "chat completions (Hugging Face)",
+    "model": "zai-org/GLM-5",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.274842"
+  },
+  {
+    "route": "huggingface",
+    "wire": "chat completions (Hugging Face)",
+    "model": "Qwen/Qwen3.5-27B",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.147456"
+  },
+  {
+    "route": "huggingface",
+    "wire": "chat completions (Hugging Face)",
+    "model": "thinkingmachines/Inkling",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "1.148519"
+  },
+  {
+    "route": "huggingface",
+    "wire": "chat completions (Hugging Face)",
+    "model": "deepseek-ai/DeepSeek-V4-Flash-0731",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.151389"
+  },
+  {
+    "route": "huggingface",
+    "wire": "chat completions (Hugging Face)",
+    "model": "moonshotai/Kimi-K2.7-Code",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.34898"
+  },
+  {
+    "route": "huggingface",
+    "wire": "chat completions (Hugging Face)",
+    "model": "Qwen/Qwen3-32B",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.042927"
+  },
+  {
+    "route": "huggingface",
+    "wire": "chat completions (Hugging Face)",
+    "model": "moonshotai/Kimi-K2-Instruct",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.16384"
+  },
+  {
+    "route": "huggingface",
+    "wire": "chat completions (Hugging Face)",
+    "model": "Qwen/Qwen3.5-35B-A3B",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.12288"
+  },
+  {
+    "route": "huggingface",
+    "wire": "chat completions (Hugging Face)",
+    "model": "MiniMaxAI/MiniMax-M2.7",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.090932"
+  },
+  {
+    "route": "huggingface",
+    "wire": "chat completions (Hugging Face)",
+    "model": "zai-org/GLM-4.7",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.175309"
+  },
+  {
+    "route": "huggingface",
+    "wire": "chat completions (Hugging Face)",
+    "model": "moonshotai/Kimi-K2.6",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.34898"
+  },
+  {
+    "route": "huggingface",
+    "wire": "chat completions (Hugging Face)",
+    "model": "Qwen/Qwen3-Next-80B-A3B-Instruct",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.090112"
+  },
+  {
+    "route": "huggingface",
+    "wire": "chat completions (Hugging Face)",
+    "model": "tencent/Hy3",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.051119"
+  },
+  {
+    "route": "huggingface",
+    "wire": "chat completions (Hugging Face)",
+    "model": "google/gemma-3-12b-it",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.009831"
+  },
+  {
+    "route": "huggingface",
+    "wire": "chat completions (Hugging Face)",
+    "model": "moonshotai/Kimi-K2.5",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.23593"
+  },
+  {
+    "route": "huggingface",
+    "wire": "chat completions (Hugging Face)",
+    "model": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.167117"
+  },
+  {
+    "route": "huggingface",
+    "wire": "chat completions (Hugging Face)",
+    "model": "zai-org/GLM-5.1",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.274842"
+  },
+  {
+    "route": "huggingface",
+    "wire": "chat completions (Hugging Face)",
+    "model": "Qwen/Qwen3.5-397B-A17B",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.255591"
+  },
+  {
+    "route": "huggingface",
+    "wire": "chat completions (Hugging Face)",
+    "model": "Qwen/Qwen3-VL-235B-A22B-Instruct",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.078644"
+  },
+  {
+    "route": "huggingface",
+    "wire": "chat completions (Hugging Face)",
+    "model": "Qwen/Qwen3-235B-A22B",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.018023"
+  },
+  {
+    "route": "huggingface",
+    "wire": "chat completions (Hugging Face)",
+    "model": "XiaomiMiMo/MiMo-V2.5-Pro",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "1.114112"
+  },
+  {
+    "route": "huggingface",
+    "wire": "chat completions (Hugging Face)",
+    "model": "tencent/Hy4-preview",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.888625"
+  },
+  {
+    "route": "huggingface",
+    "wire": "chat completions (Hugging Face)",
+    "model": "Qwen/Qwen3-235B-A22B-Instruct-2507",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.25215"
+  },
+  {
+    "route": "huggingface",
+    "wire": "chat completions (Hugging Face)",
+    "model": "stepfun-ai/Step-3.7-Flash",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.083559"
+  },
+  {
+    "route": "huggingface",
+    "wire": "chat completions (Hugging Face)",
+    "model": "zai-org/GLM-4.5-Air",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.040633"
+  },
+  {
+    "route": "huggingface",
+    "wire": "chat completions (Hugging Face)",
+    "model": "zai-org/GLM-4.6V-Flash",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.058983"
+  },
+  {
+    "route": "huggingface",
+    "wire": "chat completions (Hugging Face)",
+    "model": "zai-org/GLM-4.6",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.166708"
+  },
+  {
+    "route": "huggingface",
+    "wire": "chat completions (Hugging Face)",
+    "model": "deepseek-ai/DeepSeek-V3.2",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.049808"
+  },
+  {
+    "route": "huggingface",
+    "wire": "chat completions (Hugging Face)",
+    "model": "stepfun-ai/Step-3.5-Flash",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.032769"
+  },
+  {
+    "route": "huggingface",
+    "wire": "chat completions (Hugging Face)",
+    "model": "thinkingmachines/Inkling-Small",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.285082"
+  },
+  {
+    "route": "huggingface",
+    "wire": "chat completions (Hugging Face)",
+    "model": "moonshotai/Kimi-K2-Instruct-0905",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.294912"
+  },
+  {
+    "route": "huggingface",
+    "wire": "chat completions (Hugging Face)",
+    "model": "XiaomiMiMo/MiMo-V2.5",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.157287"
+  },
+  {
+    "route": "huggingface",
+    "wire": "chat completions (Hugging Face)",
+    "model": "zai-org/GLM-4.5V",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.058983"
+  },
+  {
+    "route": "huggingface",
+    "wire": "chat completions (Hugging Face)",
+    "model": "google/gemma-3-27b-it",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.013108"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "unbiased/pareto-26.10-preview",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.917505"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "perceptron/perceptron-mk1.5",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.016589"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "aion-labs/aion-3.5-mini",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.206439"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "upstage/solar-mini4",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.03113"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "cohere/command-a-plus",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.096922"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "openai/gpt-6-luna-pro",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.118108"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "openai/gpt-6-luna",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.118108"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "xiaomi/mimo-v2.6-flash",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.151588"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "xiaomi/mimo-v2.6-pro",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.471005"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "qwen/qwen3.8-omni-flash",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.160486"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "prism-ml/ternary-bonsai-2-27b",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.033588"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "z-ai/glm-5.3-flashx",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.416809"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "~deepseek/deepseek-pro-latest",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.330731"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "~deepseek/deepseek-flash-latest",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.081691"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "~openai/gpt-luna-latest",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.118108"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "inclusionai/ling-3.0-flash-vl",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.006836"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "deepseek/deepseek-v4.1-flash",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.344064"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "inception/mercury-2.5",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.014005"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "nex-agi/nex-n2.5-pro",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.025396"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "google/gemini-3.8-flash",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.884736"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "ibm-granite/granite-4.2-8b",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.014091"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "tencent/hy4-preview",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.929137"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "inclusionai/ling-3.0-flash-fin",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.013671"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "~z-ai/glm-flash-latest",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.052141"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "qwen/qwen3.8-flash",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.160486"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "z-ai/glm-5.3-flash",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.168756"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "deepseek/deepseek-v4-flash-vision-exp",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.240203"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "~z-ai/glm-latest",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.423691"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "z-ai/glm-5.3",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.280167"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "qwen/qwen3.8-27b",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.494632"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "google/gemini-3.7-flash",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.884736"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "bytedance-seed/seed-2-1-turbo",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.196608"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "bytedance-seed/seed-2.0-code",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.212992"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "deepseek/deepseek-v4-pro-0813",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.570164"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "nvidia/nemotron-3.5-lightning",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.019006"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "sakana/sakana-namazu",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.34898"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "upstage/solar-pro4",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.056034"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "~deepseek/deepseek-v4-flash-latest",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.057384"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "deepseek/deepseek-v4-flash-0731",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.057384"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "thinkingmachines/inkling-small",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.260506"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "qwen/qwen3.7-flash",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.033277"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "inclusionai/ling-3.0-flash",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.006882"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "poolside/laguna-s-2.1",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.097321"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "google/gemini-3.6-flash",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.884736"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "google/gemini-3.5-flash-lite",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.386663"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "meituan/longcat-2.0",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.344118"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "thinkingmachines/inkling",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.599655"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "moonshotai/kimi-k3",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "1.139344"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "openai/gpt-5.6-luna-pro",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.242769"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "openai/gpt-5.6-luna",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.242769"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "aion-labs/aion-3.0-mini",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.114688"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "tencent/hy3",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.04758"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "poolside/laguna-xs-2.1",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.017695"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "z-ai/glm-5.2",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.547043"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "moonshotai/kimi-k2.7-code",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.26373"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "nvidia/nemotron-3-ultra-550b-a55b",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.158925"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "qwen/qwen3.7-plus",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.351458"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "minimax/minimax-m3",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.344064"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "stepfun/step-3.7-flash",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.083559"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "qwen/qwen3.7-max",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "1.571666"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "x-ai/grok-build-0.1",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.288768"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "google/gemini-3.5-flash",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "1.818624"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "google/gemini-3.1-flash-lite",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.303104"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "x-ai/grok-4.3",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "1.29096"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "mistralai/mistral-medium-3-5",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.589824"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "~anthropic/claude-haiku-latest",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.331072"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "~openai/gpt-mini-latest",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.42288"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "~moonshotai/kimi-latest",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.960103"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "~google/gemini-flash-latest",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.884736"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "qwen/qwen3.5-plus-20260420",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.349153"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "qwen/qwen3.6-flash",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.21822"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "qwen/qwen3.6-35b-a3b",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.067175"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "qwen/qwen3.6-27b",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.179897"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "deepseek/deepseek-v4-pro",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.225785"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "deepseek/deepseek-v4-flash",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.072418"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "tencent/hy3-preview",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.060949"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "xiaomi/mimo-v2.5-pro",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.471005"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "xiaomi/mimo-v2.5",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.151588"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "moonshotai/kimi-k2.6",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.34898"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "z-ai/glm-5.1",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.385024"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "google/gemma-4-26b-a4b-it",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.030475"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "google/gemma-4-31b-it",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.027689"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "qwen/qwen3.6-plus",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.378248"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "z-ai/glm-5v-turbo",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.335053"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "arcee-ai/trinity-large-thinking",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.083559"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "x-ai/grok-4.20",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "2.54096"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "rekaai/reka-edge",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.001639"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "minimax/minimax-m2.7",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.063652"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "openai/gpt-5.4-nano",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.114407"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "openai/gpt-5.4-mini",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.42288"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "mistralai/mistral-small-2603",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.054068"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "z-ai/glm-5-turbo",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.335053"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "nvidia/nemotron-3-super-120b-a12b",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.033096"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "bytedance-seed/seed-2.0-lite",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.12288"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "qwen/qwen3.5-9b",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.027853"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "inception/mercury-2",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.048384"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "google/gemini-3.1-flash-lite-preview",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.303104"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "bytedance-seed/seed-2.0-mini",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.036045"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "qwen/qwen3.5-35b-a3b",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.067175"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "qwen/qwen3.5-27b",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.095847"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "qwen/qwen3.5-122b-a10b",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.127796"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "qwen/qwen3.5-flash-02-23",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.07139"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "aion-labs/aion-2.0",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.131073"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "qwen/qwen3.5-plus-02-15",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.302599"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "qwen/qwen3.5-397b-a17b",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.240845"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "minimax/minimax-m2.5",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.081839"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "z-ai/glm-5",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.166134"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "qwen/qwen3-coder-next",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.05374"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "stepfun/step-3.5-flash",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.032769"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "moonshotai/kimi-k2.5",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.176948"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "upstage/solar-pro-3",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.034407"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "openai/gpt-audio-mini",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.106292"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "z-ai/glm-4.7-flash",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.023225"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "bytedance-seed/seed-1.6-flash",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.027034"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "bytedance-seed/seed-1.6",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.12288"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "minimax/minimax-m2.1",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.090932"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "z-ai/glm-4.7",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.175309"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "google/gemini-3-flash-preview",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.606208"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "nvidia/nemotron-3-nano-30b-a3b",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.018023"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "mistralai/devstral-2512",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.157287"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "relace/relace-search",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.321536"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "z-ai/glm-4.6v",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.058983"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "openai/gpt-5.1-codex-max",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.78672"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "amazon/nova-2-lite-v1",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.37209"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "mistralai/ministral-14b-2512",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.052429"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "mistralai/ministral-8b-2512",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.039322"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "mistralai/ministral-3b-2512",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.013108"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "mistralai/mistral-large-2512",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.16384"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "deepseek/deepseek-v3.2",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.050463"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "openai/gpt-5.1",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.78672"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "openai/gpt-5.1-codex",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.78672"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "openai/gpt-5.1-codex-mini",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.157344"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "moonshotai/kimi-k2-thinking",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.219546"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "mistralai/voxtral-small-24b-2507",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.00852"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "openai/gpt-oss-safeguard-20b",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.017204"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "minimax/minimax-m2",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.090932"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "anthropic/claude-haiku-4.5",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.331072"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "qwen/qwen3-vl-8b-instruct",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.041747"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "qwen/qwen3-vl-30b-a3b-thinking",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.124519"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "qwen/qwen3-vl-30b-a3b-instruct",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.046695"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "z-ai/glm-4.6",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.109691"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "deepseek/deepseek-v3.2-exp",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.048825"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "qwen/qwen3-vl-235b-a22b-instruct",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.110429"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "deepseek/deepseek-v3.1-terminus",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.068158"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "qwen/qwen3-coder-flash",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.22056"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "qwen/qwen3-next-80b-a3b-thinking",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.073728"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "qwen/qwen3-next-80b-a3b-instruct",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.058983"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "moonshotai/kimi-k2-0905",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.219546"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "deepseek/deepseek-chat-v3.1",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.063898"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "mistralai/mistral-medium-3.1",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.104858"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "z-ai/glm-4.5v",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.058983"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "openai/gpt-5",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.78672"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "openai/gpt-5-mini",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.157344"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "openai/gpt-5-nano",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.031469"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "openai/gpt-oss-120b",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.009208"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "openai/gpt-oss-20b",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.004719"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "mistralai/codestral-2508",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.096461"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "qwen/qwen3-coder-30b-a3b-instruct",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.025232"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "qwen/qwen3-30b-a3b-instruct-2507",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.01726"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "z-ai/glm-4.5",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.131072"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "z-ai/glm-4.5-air",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.040633"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "qwen/qwen3-235b-a22b-thinking-2507",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.097977"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "qwen/qwen3-coder",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.101581"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "google/gemini-2.5-flash-lite",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.114689"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "qwen/qwen3-235b-a22b-2507",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.03154"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "moonshotai/kimi-k2",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.1314"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "mistralai/mistral-small-3.2-24b-instruct",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.02656"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "minimax/minimax-m1",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.604068"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "google/gemini-2.5-flash",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.386663"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "google/gemini-2.5-pro",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "1.59744"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "google/gemini-2.5-pro-preview",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "1.59744"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "deepseek/deepseek-r1-0528",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.135988"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "mistralai/mistral-medium-3",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.104858"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "qwen/qwen3-30b-a3b",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.021955"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "qwen/qwen3-14b",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.017695"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "qwen/qwen3-32b",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.013763"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "openai/o4-mini-high",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.328135"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "openai/o4-mini",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.328135"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "openai/gpt-4.1-mini",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.458353"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "openai/gpt-4.1-nano",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.114589"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "meta-llama/llama-4-maverick",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.204227"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "meta-llama/llama-4-scout",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.134349"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "deepseek/deepseek-chat-v3-0324",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.075367"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "mistralai/mistral-small-3.1-24b-instruct",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.051613"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "google/gemma-3-12b-it",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.008193"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "google/gemma-3-27b-it",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.02261"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "mistralai/mistral-saba",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.01704"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "openai/o3-mini-high",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.328135"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "qwen/qwen-plus",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.27704"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "openai/o3-mini",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.328135"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "deepseek/deepseek-r1",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.0736"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "deepseek/deepseek-chat",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.054514"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "meta-llama/llama-3.3-70b-instruct",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.016712"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "amazon/nova-lite-v1",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.018922"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "amazon/nova-micro-v1",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.005018"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "amazon/nova-pro-v1",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.252289"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "qwen/qwen-2.5-7b-instruct",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.006226"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "qwen/qwen-2.5-72b-instruct",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.012452"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "cohere/command-r-08-2024",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.021"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "sao10k/l3.1-euryale-70b",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.111412"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "meta-llama/llama-3.1-70b-instruct",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.052429"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "meta-llama/llama-3.1-8b-instruct",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.007537"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "mistralai/mistral-nemo",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.002671"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "openai/gpt-4o-mini",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.026573"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "openai/gpt-4o-mini-2024-07-18",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.026573"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "openai/gpt-3.5-turbo-0613",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.00778"
+  },
+  {
+    "route": "openrouter",
+    "wire": "chat completions (OpenRouter)",
+    "model": "openai/gpt-3.5-turbo",
+    "exit": 5,
+    "status": "budget_exceeded",
+    "requests": 0,
+    "unsent": true,
+    "reservedUsd": "0.012289"
+  }
+]

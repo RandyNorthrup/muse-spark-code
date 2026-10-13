@@ -7,6 +7,9 @@ export default {
   // Among the last: the product books a refused request at its whole
   // reservation, and a run's dollars are counted by the product.
   order: 90,
+  // Not on a route to Meta's own models: there the run names the route's
+  // contributor model and never any other, not even one that does not exist.
+  only: (route) => route.kind === 'provider' && route.note === undefined,
   exec: {
     claims: ['ref/cli/exec/exec---model-value'],
     requests: 0,

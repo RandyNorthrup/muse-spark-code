@@ -17,14 +17,14 @@ export const ROUTES = Object.freeze({
   anthropic: {
     kind: 'provider',
     preset: 'anthropic',
-    model: 'claude-haiku-4-5',
+    model: 'claude-haiku-4-5-20251001',
     stored: 'anthropic-fleet-1',
     wire: 'Anthropic Messages',
   },
   openai: {
     kind: 'provider',
     preset: 'openai',
-    model: 'gpt-5-nano',
+    model: 'gpt-5.6-luna',
     stored: 'openai',
     wire: 'OpenAI Responses',
   },
@@ -49,12 +49,62 @@ export const ROUTES = Object.freeze({
     stored: 'zai',
     wire: 'chat completions (Z.ai)',
   },
+  deepseek: {
+    kind: 'provider',
+    preset: 'deepseek',
+    model: 'deepseek-flash',
+    stored: 'deepseek',
+    wire: 'chat completions (DeepSeek)',
+  },
+  mistral: {
+    kind: 'provider',
+    preset: 'mistral',
+    model: 'ministral-3b-latest',
+    stored: 'mistral',
+    wire: 'chat completions (Mistral)',
+  },
+  // The resellers: one key, many makers' models.
+  groq: {
+    kind: 'provider',
+    preset: 'groq',
+    model: 'openai/gpt-oss-20b',
+    stored: 'groq',
+    wire: 'chat completions (Groq)',
+  },
+  together: {
+    kind: 'provider',
+    preset: 'together',
+    model: 'deepseek-ai/DeepSeek-V4-Flash-0731',
+    stored: 'together',
+    wire: 'chat completions (Together)',
+  },
+  fireworks: {
+    kind: 'provider',
+    preset: 'fireworks',
+    model: 'accounts/fireworks/models/nemotron-lightning-3p5-30b-a3b',
+    stored: 'fireworks',
+    wire: 'chat completions (Fireworks)',
+  },
+  huggingface: {
+    kind: 'provider',
+    preset: 'huggingface',
+    model: 'google/gemma-3-4b-it',
+    stored: 'huggingface',
+    wire: 'chat completions (Hugging Face)',
+  },
+  openrouter: {
+    kind: 'provider',
+    preset: 'openrouter',
+    model: 'mistralai/mistral-nemo',
+    stored: 'openrouter',
+    wire: 'chat completions (OpenRouter)',
+  },
   // An account with no credit: every request is refused by the provider,
   // which costs nothing and must be said in the provider's own words.
   'anthropic-no-credit': {
     kind: 'provider',
     preset: 'anthropic',
-    model: 'claude-haiku-4-5',
+    model: 'claude-haiku-4-5-20251001',
     stored: 'anthropic-fleet-2',
     wire: 'Anthropic Messages',
     note: 'no credit',
@@ -68,12 +118,53 @@ export const ROUTES = Object.freeze({
     wire: 'Meta Model API',
   },
   // The Muse Code subscription, through the Muse Code CLI the machine has
-  // signed in (no key of the run's own).
+  // signed in (no key of the run's own). Named here, and not run: see
+  // MUSE_CODE_NOT_RUN.
   musecode: { kind: 'museCode', model: 'muse-spark-1.3-contributor', wire: 'Muse Code' },
 })
 
+// A request on the Muse Code subscription is allowed only on a Muse Code CLI
+// version known to bill the contributor tier. The run would have to read
+// which CLI the product is about to start and compare its version with one
+// the operator names. The product does not say: its `report` prints "cli:
+// found" and nothing of a path or a version (0.18.2). Until it does, the
+// route is refused, on every system.
+const MUSE_CODE_NOT_RUN =
+  'the route musecode is not run: the product does not say which Muse Code CLI version it will start (its report prints only "cli: found"), so the run cannot check it against a version known to bill the contributor tier'
+
 /** The name a route's provider is added under. */
 export const providerIdOf = (routeId) => `rl-${routeId}`
+
+// Meta's own model families, under whatever name a reseller lists them.
+const META_FAMILY = /muse|wonder/iu
+
+/**
+ * Why a route may not run on a model; nothing when it may. This is the one
+ * place that decides it, for a model named on the command line and for
+ * every model of a matrix.
+ *
+ * A model of Meta's is asked on a Meta route's contributor model and nowhere
+ * else: a Meta route runs on the model it names and on no other (not
+ * another Muse model, not another contributor model), and a configured
+ * provider's route takes any model but one of Meta's.
+ * @param {string} id the route
+ * @param {string | undefined} model the model asked for (the route's own when none is)
+ * @returns {string | undefined}
+ */
+export function routeRefusal(id, model) {
+  const route = ROUTES[id]
+  if (route === undefined) return `not a route: ${id} (--list prints them)`
+  if (route.kind === 'museCode') return MUSE_CODE_NOT_RUN
+  const asked = model ?? route.model
+  if (route.kind !== 'provider') {
+    return asked === route.model
+      ? undefined
+      : `the route ${id} runs on ${route.model} only, and ${asked} is not it`
+  }
+  return META_FAMILY.test(asked)
+    ? `${asked} is a model of Meta's: the run asks those on the route meta only, on its contributor model`
+    : undefined
+}
 
 /**
  * The route as the run uses it: its model (an override wins) and how the
@@ -83,6 +174,8 @@ export const providerIdOf = (routeId) => `rl-${routeId}`
  */
 export function routeFor(id, models = new Map()) {
   const route = ROUTES[id]
+  const refusal = route === undefined ? undefined : routeRefusal(id, models.get(id))
+  if (refusal !== undefined) throw new Error(refusal)
   const model = models.get(id) ?? route?.model
   const provider = route?.kind === 'provider' ? providerIdOf(id) : undefined
   return route === undefined

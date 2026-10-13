@@ -4,6 +4,7 @@
 import { randomBytes } from 'node:crypto'
 import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
+import { READ_BACK_USD, isTurnedAwayUnsent, modelNamed } from './admission.mjs'
 import { microUsd } from './budget.mjs'
 import { jsonLines, runCommand, saidIn, startEditor } from './product.mjs'
 import { editorArguments, routeArguments } from './routes.mjs'
@@ -23,7 +24,9 @@ export function personFor(cell) {
   const { product, route, workspace } = cell
   const editors = []
   const logs = []
-  const made = { requests: 0, micro: 0 }
+  const made = { requests: 0, micro: 0, uncertain: 0, turnedAway: 0, unread: [] }
+  const notes = []
+  const skipped = []
 
   async function command(args, options = {}) {
     const run = await runCommand(product, args, { cwd: workspace, ...options })
@@ -31,8 +34,8 @@ export function personFor(cell) {
     return run
   }
 
-  /** One headless turn: `exec` with the route's arguments, its result read from the JSONL it prints. */
-  async function exec(prompt, options = {}) {
+  /** One `exec` with the route's arguments and one budget, its result read from the JSONL it prints. */
+  async function execOnce(prompt, options, budget) {
     const isKeyOnPipe = route.kind === 'meta'
     const args = [
       'exec',
@@ -42,23 +45,77 @@ export function personFor(cell) {
       '--max-requests',
       String(options.maxRequests ?? 1),
       '--max-budget-usd',
-      cell.admitUsd,
+      budget,
       '--output',
       'jsonl',
       ...(isKeyOnPipe ? ['--key-stdin'] : []),
       ...(options.args ?? []),
       prompt,
     ]
-    const run = await command(args, {
-      stdin: isKeyOnPipe ? `${cell.key ?? ''}\n` : '',
-      ...(options.interruptWhen !== undefined && { interruptWhen: options.interruptWhen }),
-    })
+    const run = await command(args, { stdin: isKeyOnPipe ? `${cell.key ?? ''}\n` : '' })
     const events = jsonLines(run.stdout)
     const result = events.findLast((event) => event.type === 'result')?.result
+    // What the product's own ledger says of it: usage a provider reported
+    // (settled), and what it booked with no usage report (uncertain).
+    const cost = result?.usage?.costUsd
     made.requests += result?.usage?.requests ?? 0
-    const micro = microUsd(result?.usage?.costUsd?.total ?? '0')
-    made.micro += Number.isNaN(micro) ? 0 : micro
+    made.micro += readUsd(cost?.settled, 'settled')
+    made.uncertain += readUsd(cost?.uncertain, 'uncertain')
     return { ...run, events, result }
+  }
+
+  /**
+   * An amount the product printed, in millionths of a dollar. One it did not
+   * print is nothing; one the run cannot read is spend nobody knows, and is
+   * kept as the text it was (`made.unread`).
+   */
+  function readUsd(text, what) {
+    if (text === undefined || text === null) return 0
+    const micro = microUsd(text)
+    if (!Number.isNaN(micro)) return micro
+    made.unread.push(`${what}: ${String(text)}`)
+    return 0
+  }
+
+  /**
+   * A turn on a route to Meta's own models: first what the product would
+   * run, asked with a budget under which nothing can be sent; the turn
+   * itself only when that is the route's model (lib/admission.mjs).
+   */
+  async function execReadBack(prompt, options) {
+    const asked = await execOnce(prompt, options, READ_BACK_USD)
+    if (!isTurnedAwayUnsent(asked)) {
+      // The product ended the run for a reason of its own before a budget
+      // mattered (nothing to compact, say): that was the turn. Had it sent
+      // anything under such a budget, the turn says so.
+      const sent = asked.result?.usage?.requests ?? 0
+      if (sent > 0) {
+        notes.push({
+          what: 'nothing is sent under a budget of one millionth of a dollar',
+          ok: false,
+          saw: `${String(sent)} request(s)`,
+        })
+      }
+      return asked
+    }
+    made.turnedAway += 1
+    const named = modelNamed(asked.events)
+    notes.push({
+      what: 'before anything is sent the product names the model of the route',
+      ok: named === route.modelId,
+      saw: named ?? 'it named no model',
+    })
+    return named === route.modelId ? await execOnce(prompt, options, cell.admitUsd) : asked
+  }
+
+  /** One headless turn. */
+  async function exec(prompt, options = {}) {
+    if (route.kind === 'provider') return await execOnce(prompt, options, cell.admitUsd)
+    // A route to Meta's own models: the route's model, read back, and no other.
+    if (options.model !== undefined) {
+      throw new Error(`a turn on the route ${route.id} is never asked on another model`)
+    }
+    return await execReadBack(prompt, options)
   }
 
   function sessionOf(editor, sessionId, opened) {
@@ -71,6 +128,13 @@ export function personFor(cell) {
       models: () => (modelOption()?.options ?? []).map((option) => option.value),
       currentModel: () => modelOption()?.currentValue,
       async setModel(value) {
+        // A session of a route to Meta's own models is never put on any
+        // model but the route's: no scenario can ask for another.
+        if (route.kind !== 'provider' && value !== route.modelId) {
+          throw new Error(
+            `a session of the route ${route.id} is never set to ${String(value)}: only to ${route.modelId}`,
+          )
+        }
         const set = await editor.request('session/set_config_option', {
           sessionId,
           configId: MODEL_OPTION,
@@ -162,6 +226,14 @@ export function personFor(cell) {
     workspace,
     /** A word no model would say by itself: the prompt asks for it, the scenario looks for it. */
     marker: () => `RL-${randomBytes(4).toString('hex').toUpperCase()}`,
+    /**
+     * An ordinary request no model has a reason to refuse, whose answer
+     * still proves it came from this turn: the reference code comes back.
+     * (A bare "reply with exactly this" was refused by one model as an
+     * order to print a token.)
+     */
+    connectionCheck: (code) =>
+      `This is a connection check. Please confirm that you received this message by quoting its reference code back to me. The reference code is ${code}.`,
     command,
     exec,
     openEditor,
@@ -181,6 +253,13 @@ export function personFor(cell) {
     },
     /** What the exec commands of this cell made, by the product's own ledger. */
     made,
+    /** What was seen on the way to a turn (the model the product named), as observations. */
+    notes,
+    /** A step the scenario leaves out on this route, and why: the record says so. */
+    skip(what, why) {
+      skipped.push({ what, why })
+    },
+    skipped,
     /** The product's own log lines of this cell. */
     logText: () => logs.join('\n'),
     /** Ends every agent the scenario left running. */
