@@ -108,6 +108,27 @@ async function runFlood(harness: Harness, callId = 'flood-1'): Promise<void> {
   await harness.turnDone()
 }
 
+/** One scripted provider refusal carrying the message (kept in one place: the recovery tests script it five times between them). */
+function refusalEntry(message: string): {
+  readonly httpError: {
+    readonly status: number
+    readonly body: { readonly error: { readonly message: string; readonly type: string } }
+  }
+} {
+  return {
+    httpError: { status: 400, body: { error: { message, type: 'invalid_request_error' } } },
+  }
+}
+
+async function runBig(harness: Harness): Promise<void> {
+  harness.api.script(
+    { calls: [{ name: 'bash', arguments: '{"command":"big"}', callId: 'big-1' }] },
+    { text: 'first done' },
+  )
+  await harness.session.sendTurn([{ type: 'text', text: 'run big' }])
+  await harness.turnDone()
+}
+
 function requestOutput(harness: Harness, index: number, callId: string): string {
   const output = responseOutputsByCall(harness.api, index).get(callId)
   if (output === undefined) throw new Error(`request ${String(index)} carries no ${callId}`)
@@ -386,25 +407,12 @@ describe('TOOLCAP recovery: the refusal is answered trim, then compact, then tru
     // Under the 1M window the medium result rides whole (no cut, no spill yet).
     const h = await setupWindowed(window)
     const api = h.api
-    api.script(
-      { calls: [{ name: 'bash', arguments: '{"command":"big"}', callId: 'big-1' }] },
-      { text: 'first done' },
-    )
-    await h.session.sendTurn([{ type: 'text', text: 'run big' }])
-    await h.turnDone()
+    await runBig(h)
     expect(requestOutput(h, 1, 'big-1')).not.toContain('Tool result cut:')
     // The window shrinks (a smaller model): the next send is refused, the
     // trim cuts the riding result to the new share, one resend succeeds.
     window.current = 100_000
-    api.script(
-      {
-        httpError: {
-          status: 400,
-          body: { error: { message: REFUSAL, type: 'invalid_request_error' } },
-        },
-      },
-      { text: 'second done' },
-    )
+    api.script(refusalEntry(REFUSAL), { text: 'second done' })
     await h.session.sendTurn([{ type: 'text', text: 'continue' }])
     await h.turnDone()
     expect(api.responseBodies()).toHaveLength(4)
@@ -418,20 +426,7 @@ describe('TOOLCAP recovery: the refusal is answered trim, then compact, then tru
 
   it('ends the turn with the true sentence after the bounded sends, conversation intact', async () => {
     const h = await startHost({ shell: () => 'short output' })
-    h.api.script(
-      {
-        httpError: {
-          status: 400,
-          body: { error: { message: REFUSAL, type: 'invalid_request_error' } },
-        },
-      },
-      {
-        httpError: {
-          status: 400,
-          body: { error: { message: REFUSAL, type: 'invalid_request_error' } },
-        },
-      },
-    )
+    h.api.script(refusalEntry(REFUSAL), refusalEntry(REFUSAL))
     await h.session.sendTurn([{ type: 'text', text: 'hello' }])
     await h.turnDone()
     // Trim found nothing to cut and compaction is inactive here: under the
@@ -455,33 +450,34 @@ describe('TOOLCAP recovery: the refusal is answered trim, then compact, then tru
     await h.host.close()
   })
 
+  it('without the provider numbers the end sentence falls back to the short form', async () => {
+    const h = await startHost({ shell: () => 'short output' })
+    h.api.script({
+      httpError: {
+        status: 400,
+        body: { error: { code: 'context_length_exceeded', message: 'This model has no room' } },
+      },
+    })
+    await h.session.sendTurn([{ type: 'text', text: 'hello' }])
+    await h.turnDone()
+    const done = h.events.find((event) => event.type === 'turnCompleted')
+    expect(done).toMatchObject({ terminal: 'failed', errorKind: 'context_overflow' })
+    // No numbers were proven, so no cause is stated: the short sentence.
+    expect((done as { readonly reason?: unknown } | undefined)?.reason).toBe(
+      'Context window full: /compact or /handoff',
+    )
+    await h.host.close()
+  })
+
   it('never resends more than the stated bound while trimming', async () => {
     const window = { current: 1_048_576 }
     const h = await setupWindowed(window)
-    h.api.script(
-      { calls: [{ name: 'bash', arguments: '{"command":"big"}', callId: 'big-1' }] },
-      { text: 'first done' },
-    )
-    await h.session.sendTurn([{ type: 'text', text: 'run big' }])
-    await h.turnDone()
+    await runBig(h)
     window.current = 100_000
     // The trimmed resend is refused too; compaction is inactive: the turn
     // fails after exactly two sends for this turn, never more.
     const before = h.api.responseBodies().length
-    h.api.script(
-      {
-        httpError: {
-          status: 400,
-          body: { error: { message: REFUSAL, type: 'invalid_request_error' } },
-        },
-      },
-      {
-        httpError: {
-          status: 400,
-          body: { error: { message: REFUSAL, type: 'invalid_request_error' } },
-        },
-      },
-    )
+    h.api.script(refusalEntry(REFUSAL), refusalEntry(REFUSAL))
     await h.session.sendTurn([{ type: 'text', text: 'continue' }])
     await h.turnDone()
     expect(h.api.responseBodies().length - before).toBe(2)

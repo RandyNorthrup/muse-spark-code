@@ -666,6 +666,10 @@ export const SETTING_DEFAULTS = {
   // M73 (PLAN.md D49): observation packing on the Model API backend. Its M75
   // run held the capability floors (docs/certification/m73.md); D78 enables it.
   modelApiObservationPacking: true,
+  // TOOLCAP: the per-result byte guard, 64_000 like TOOL_OUTPUT_MAX_CHARS
+  // (a literal: this table loads before that constant). Raise for one run
+  // with the exec flag. Validated where used.
+  modelApiMaxToolOutputBytes: 64_000,
   modelApiAutoCompaction: true,
   modelApiStrictTools: true,
   modelApiParallelReads: true,
@@ -813,6 +817,7 @@ export const MACHINE_SCOPED_SETTINGS = [
   'formatOnEdit',
   'modelApiRepoMap',
   'modelApiObservationPacking',
+  'modelApiMaxToolOutputBytes',
   'modelApiAutoCompaction',
   'modelApiStrictTools',
   'modelApiParallelReads',
@@ -3852,6 +3857,10 @@ export const TOOL_OUTPUT_CLIP_MARKER = '\n[output clipped]'
 export const TOOL_RESULT_MAX_TOKENS = 16_000
 export const TOOL_RESULT_MAX_LINE_CHARS = 8000
 export const TOOL_RESULT_WINDOW_SHARE = 1 / 4
+/* The floor under the byte guard: below this the kept head, tail and notice
+ * stop being readable (Muse Code's flag likewise refuses below its floor;
+ * 0 does not disable this bound). */
+export const TOOL_RESULT_MIN_BYTES = 1024
 /* A cut result's full text is kept in a spill file under this directory in
  * the workspace root, so the existing file tools can page through it. The
  * directory is created with a `.gitignore` that ignores its contents. */

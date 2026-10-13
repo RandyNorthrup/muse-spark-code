@@ -326,6 +326,7 @@
     "output": "Choisir le format du résultat : text, json ou jsonl.",
     "max-budget-usd": "Fixer la limite stricte de dépenses en USD pour cette exécution.",
     "max-requests": "Fixer le nombre maximal de requêtes au modèle.",
+    "max-tool-output-bytes": "Relever le plafond d’octets par résultat d’outil pour cette exécution.",
     "timeout": "Fixer la durée maximale de l’exécution en secondes.",
     "fail-on-denial": "Arrêter l’exécution si une autorisation est refusée.",
     "ephemeral": "Conserver la session en mémoire sans la sauvegarder.",

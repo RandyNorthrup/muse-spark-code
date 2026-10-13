@@ -326,6 +326,7 @@
     "output": "결과 형식을 text, json 또는 jsonl로 선택합니다.",
     "max-budget-usd": "이 실행의 엄격한 지출 한도를 USD로 설정합니다.",
     "max-requests": "최대 모델 요청 수를 설정합니다.",
+    "max-tool-output-bytes": "이번 실행의 도구 결과당 바이트 상한을 높입니다.",
     "timeout": "실행 시간 제한을 초 단위로 설정합니다.",
     "fail-on-denial": "권한이 거부되면 실행을 중지합니다.",
     "ephemeral": "저장하지 않고 세션을 메모리에 유지합니다.",

@@ -326,6 +326,7 @@
     "output": "結果形式をtext、json、jsonlから選びます。",
     "max-budget-usd": "この実行の厳格な支出上限をUSDで設定します。",
     "max-requests": "モデルへのリクエスト上限を設定します。",
+    "max-tool-output-bytes": "この実行のツール結果あたりのバイト上限を引き上げる。",
     "timeout": "実行時間の上限を秒で設定します。",
     "fail-on-denial": "権限が拒否されたら実行を停止します。",
     "ephemeral": "セッションを保存せずメモリに保持します。",

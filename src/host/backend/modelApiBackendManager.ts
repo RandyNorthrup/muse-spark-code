@@ -168,6 +168,8 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly paidUseFence?: (feature: PaidFeature, sessionId: string) => () => boolean
   /** `museSpark.modelApiObservationPacking`, read when a conversation starts or resumes (M73). */
   readonly isObservationPackingOn?: (() => boolean) | undefined
+  /** `museSpark.modelApiMaxToolOutputBytes`, read on every bound (TOOLCAP). */
+  readonly maxToolOutputBytes?: (() => number | undefined) | undefined
   /** `museSpark.modelApiShellKeepsDirectory`, read per shell call (M91 lane S). */
   readonly isShellKeepsDirectoryOn?: (() => boolean) | undefined
   /** Muse Code's memory, shared with the Memory view (M49, PLAN.md D41). */
@@ -429,6 +431,7 @@ export class ModelApiBackendManager {
         codeIntel: variant.codeIntel,
         isRepoMapInPrompt: variant.isRepoMapInPrompt,
         observationPacking: this.deps.isObservationPackingOn,
+        maxToolOutputBytes: this.deps.maxToolOutputBytes,
         autoCompaction: this.deps.isAutoCompactionOn,
         autoCompactionEvaluated: this.deps.autoCompactionEvaluated,
         shellKeepsDirectory: this.deps.isShellKeepsDirectoryOn,

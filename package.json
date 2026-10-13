@@ -1028,6 +1028,12 @@
           "description": "%config.modelApiObservationPacking.description%",
           "scope": "machine"
         },
+        "museSpark.modelApiMaxToolOutputBytes": {
+          "type": "integer",
+          "default": 64000,
+          "description": "%config.modelApiMaxToolOutputBytes.description%",
+          "scope": "machine"
+        },
         "museSpark.turnCheckpoints": {
           "type": "boolean",
           "default": true,

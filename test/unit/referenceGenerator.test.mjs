@@ -1169,6 +1169,7 @@ describe('RVHELPREF2 runtime truth regressions', () => {
       output: 'json',
       'max-budget-usd': '1',
       'max-requests': '2',
+      'max-tool-output-bytes': '128000',
       timeout: '10',
       'resource-governor': 'on',
       'cpu-max': '85',

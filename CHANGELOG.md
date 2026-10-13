@@ -9,6 +9,19 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- Tool results are bounded before they reach the model (Model API): one
+  choke point cuts any result past 16,000 estimated tokens, any line past
+  8,000 characters, or any result past a quarter of the remaining window.
+  A cut keeps the full text in `.muse-spark/tool-results/` for paging and
+  tells the model and the person what was cut and how to read more. A
+  provider "prompt is too long" refusal trims the largest results, compacts
+  once when available, then ends the turn with what to do next, in at most
+  three sends. The cap is `museSpark.modelApiMaxToolOutputBytes` (64,000
+  bytes by default); `exec --max-tool-output-bytes` raises it for one
+  headless run. One oversized result can no longer fill the model's window
+  and end the conversation.
+
+
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
   reads and writes, and 1-hour cache writes settle at their own price.
   The shared retry classifier refuses known quota codes and excessive
