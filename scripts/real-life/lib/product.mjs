@@ -5,6 +5,7 @@
 // product is imported, replaced or reached into: only its process.
 import { spawn } from 'node:child_process'
 import { performance } from 'node:perf_hooks'
+import process from 'node:process'
 import { clearTimeout, setTimeout } from 'node:timers'
 
 const COMMAND_TIMEOUT_MS = 180_000
@@ -17,8 +18,9 @@ function closedPipe() {
 }
 
 /**
+ * The installed agent. It runs under the Node that runs this run, started
+ * with no shell: the script and its arguments go as they are.
  * @typedef {object} Product
- * @property {string} node the Node that runs it
  * @property {string} agent the installed agent script
  * @property {NodeJS.ProcessEnv} env its environment (the new home)
  */
@@ -31,7 +33,7 @@ function closedPipe() {
  */
 export function runCommand(product, args, options) {
   const started = performance.now()
-  const child = spawn(product.node, [product.agent, ...args], {
+  const child = spawn(process.execPath, [product.agent, ...args], {
     cwd: options.cwd,
     env: product.env,
     stdio: 'pipe',
@@ -102,7 +104,7 @@ export function jsonLines(text) {
  * @param {{ cwd: string }} options
  */
 export function startEditor(product, args, options) {
-  const child = spawn(product.node, [product.agent, ...args], {
+  const child = spawn(process.execPath, [product.agent, ...args], {
     cwd: options.cwd,
     env: product.env,
     stdio: 'pipe',
