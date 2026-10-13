@@ -367,6 +367,7 @@ import {
 } from './observationPack'
 import {
   boundToolResultText,
+  capRefusalReason,
   cutNotice,
   parsePromptTooLong,
   spillName,
@@ -3181,14 +3182,15 @@ export class ModelApiSession implements ScheduledAgentSession {
     if ('refused' in validated) {
       if (!this.capRefusedSaid) {
         this.capRefusedSaid = true
-        this.deps.log.warn(`Tool-output cap refused: ${validated.refused}`)
+        const reason = capRefusalReason(validated.refused)
+        this.deps.log.warn(`Tool-output cap refused: ${reason}`)
         this.emit({
           type: 'backendNotice',
           level: 'warning',
           text: fill(UI_TEXT.toolResultCapRefused, {
             source: 'setting',
             value: formatNumber(this.deps.maxToolOutputBytes?.() ?? 0),
-            reason: validated.refused,
+            reason,
             fallback: formatNumber(validated.fallback),
           }),
         })

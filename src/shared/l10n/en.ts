@@ -3097,6 +3097,10 @@ export const EN = {
   // here, with the reason, and the default is used instead.
   toolResultCapRefused:
     'The {source} tool-output cap of {value} is refused ({reason}); using the default of {fallback}.',
+  // TOOLCAP: the two reasons a configured tool-output cap is refused, each
+  // its own translated sentence for the person reading the refusal above.
+  toolResultCapBelowFloor: 'below the readable floor of {floor} bytes',
+  toolResultCapAboveWindow: 'larger than the model’s window of about {window} tokens',
   // The Model API session budget (M82): a request that cannot fit is not
   // sent, and the turn's cost is shown against the cap afterwards.
   sessionBudgetStopped:

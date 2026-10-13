@@ -2560,6 +2560,8 @@
   "toolResultCutPreview": "Tool-Ergebnis gekürzt: {total} als erste {head} und letzte {tail} Zeilen behalten ({omitted} ausgelassen). Das vollständige Ergebnis steht in {spill}; mit read_file öffnen.",
   "contextWindowTooLong": "Die Unterhaltung ({tokens} Token) ist um {over} Token größer als das Fenster dieses Modells ({maximum} Token). /compact ausführen, zu einem Modell mit größerem Fenster wechseln oder eine neue Unterhaltung beginnen; nichts wurde gelöscht.",
   "toolResultCapRefused": "Die {source}-Obergrenze für Tool-Ausgaben von {value} ist abgelehnt ({reason}); Standard von {fallback} wird verwendet.",
+  "toolResultCapBelowFloor": "unter der lesbaren Untergrenze von {floor} Byte",
+  "toolResultCapAboveWindow": "größer als das Fenster des Modells von etwa {window} Token",
   "sessionBudgetStopped": "Angehalten: Die nächste Anfrage (ca. {estimate}) würde das Sitzungsbudget von {cap} überschreiten ({spent} verbraucht). Sie wurde nicht gesendet.",
   "sessionBudgetStoreUnavailable": "Das Ausgabenprotokoll der Sitzung konnte nicht gelesen oder gespeichert werden. Bis es verfügbar ist, kann keine neue Anfrage gesendet werden.",
   "sessionBudgetLegacyFeesUnknown": "Die Ausgaben der Unterhaltung sind nicht vollständig bestätigt. Warten Sie auf ausstehende Anfragen oder starten Sie eine neue Unterhaltung, um ein Ausgabenlimit zu verwenden.",

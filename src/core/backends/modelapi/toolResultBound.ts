@@ -1,31 +1,48 @@
 // TOOLCAP: the one bound every tool result passes through on its way into
 // the conversation. `boundToolResultText` enforces, in order: a cap per line
 // (the measured failure was megabyte lines, not line count), a cap per
-// result in estimated tokens (the unit the provider counts; bytes only as a
-// first cheap guard), and a cap relative to what is left of the model's
-// window (a result may never take more than TOOL_RESULT_WINDOW_SHARE of the
-// remaining room). A result under every cap returns byte-identical: no
-// notice, no spill. A cut result's text ends with `cutNotice`, one line
-// naming how much there was, which head and tail it kept with the omitted
-// middle counted, the longest line when lines were cut, and the spill file
-// holding the full text. Pure: the caller writes the spill file.
+// result, and a cap relative to what is left of the model's window (a result
+// may never take more than TOOL_RESULT_WINDOW_SHARE of the remaining room).
+// Two of these numbers are estimates and one is a guarantee, and the code
+// keeps them apart: the per-result cap is measured in characters at the
+// product's own 4-characters-per-token rule (friendlier, but text denser
+// than the estimate — hex, base64, minified JSON, CJK — carries more tokens
+// per character), while the window share is measured in UTF-8 BYTES against
+// tokens (a token is at least one byte, so a result of at most N bytes is at
+// most N tokens: a true upper bound). A result under every cap returns
+// byte-identical: no notice, no spill. A cut result's text ends with
+// `cutNotice`, one line naming how much there was, which head and tail it
+// kept with the omitted middle counted, the longest line when lines were
+// cut, and the spill file holding the full text. Pure: the caller writes
+// the spill file.
 import {
   MODEL_API_MODEL_TEXT,
   OBS_PACK_CHARS_PER_TOKEN,
   TOOL_RESULT_MIN_BYTES,
   TOOL_RESULT_WINDOW_SHARE,
+  UI_TEXT,
 } from '../../../shared/constants'
-import { fill } from '../../../shared/l10n/text'
+import { Buffer } from 'node:buffer'
+import { fill, formatNumber } from '../../../shared/l10n/text'
 import { estimatePackTokens } from './observationPack'
 
 /** What was cut, for the notice and the tests. Absent when uncut. */
 export interface ToolResultCut {
   readonly totalChars: number
+  readonly totalBytes: number
   readonly totalTokens: number
   readonly totalLines: number
   readonly keptChars: number
+  readonly keptBytes: number
+  /** Lines actually kept in the head part (all of them when no middle was cut). */
   readonly headLines: number
+  /** Lines actually kept in the tail part (0 when no middle was cut). */
   readonly tailLines: number
+  /**
+   * Original characters not carried in the kept text: exactly
+   * `totalChars - keptChars`, net of the line-cut markers, so the kept and
+   * the omitted always add up to the total.
+   */
   readonly omittedChars: number
   /** The longest original line; 0 when no line was cut. */
   readonly longestLine: number
@@ -66,41 +83,58 @@ function splitLines(text: string): string[] {
   return lines
 }
 
-/** The result's share of the remaining window, in characters. */
-export function windowShareChars(windowTokens: number): number {
-  return Math.max(0, Math.floor(windowTokens * TOOL_RESULT_WINDOW_SHARE) * OBS_PACK_CHARS_PER_TOKEN)
+/** The length of a text in UTF-8 bytes (a token is at least one byte). */
+export function utf8Length(text: string): number {
+  return Buffer.byteLength(text, 'utf8')
 }
+
+/**
+ * The result's guaranteed share of the remaining window, in BYTES against
+ * tokens: a result of at most this many bytes is at most this many tokens,
+ * whatever the text's density. This is the bound's true upper bound; the
+ * per-result character cap beside it is only the friendlier estimate.
+ */
+export function windowShareBytes(windowTokens: number): number {
+  return Math.max(0, Math.floor(windowTokens * TOOL_RESULT_WINDOW_SHARE))
+}
+
+/** Why a configured byte guard cannot be honoured; the caller says it. */
+export type ToolResultCapRefusal =
+  | { readonly kind: 'below-floor' }
+  | { readonly kind: 'above-window'; readonly windowTokens: number }
 
 /**
  * The configured byte guard, validated. Unknown or absent keeps the default
  * (today's behaviour); below the floor or larger than the model's whole
  * window is refused with the reason, and the caller falls back to the
- * default. Pure so the setting, the exec flag and the host share it.
+ * default. Pure so the setting, the exec flag and the host share it. Where
+ * the window is unknown the window fit cannot be checked, so the bound is
+ * then the per-result caps alone — said in the certification, not guessed.
  */
 export function validateToolResultCap(
   value: number | undefined,
   windowTokens: number | undefined,
   fallbackBytes: number,
-): { readonly bytes: number } | { readonly refused: string; readonly fallback: number } {
+):
+  | { readonly bytes: number }
+  | { readonly refused: ToolResultCapRefusal; readonly fallback: number } {
   if (value === undefined) return { bytes: fallbackBytes }
   if (!Number.isSafeInteger(value) || value < TOOL_RESULT_MIN_BYTES) {
-    return {
-      refused: `below the readable floor of ${String(TOOL_RESULT_MIN_BYTES)} bytes`,
-      fallback: fallbackBytes,
-    }
+    return { refused: { kind: 'below-floor' }, fallback: fallbackBytes }
   }
-  if (
-    windowTokens !== undefined &&
+  return windowTokens !== undefined &&
     Number.isSafeInteger(windowTokens) &&
     windowTokens > 0 &&
     value > windowTokens * OBS_PACK_CHARS_PER_TOKEN
-  ) {
-    return {
-      refused: `larger than the model's window of about ${String(windowTokens)} tokens`,
-      fallback: fallbackBytes,
-    }
-  }
-  return { bytes: value }
+    ? { refused: { kind: 'above-window', windowTokens }, fallback: fallbackBytes }
+    : { bytes: value }
+}
+
+/** The refusal reason the person reads, each kind its own translated sentence. */
+export function capRefusalReason(refused: ToolResultCapRefusal): string {
+  return refused.kind === 'below-floor'
+    ? fill(UI_TEXT.toolResultCapBelowFloor, { floor: formatNumber(TOOL_RESULT_MIN_BYTES) })
+    : fill(UI_TEXT.toolResultCapAboveWindow, { window: formatNumber(refused.windowTokens) })
 }
 
 /** The one line a cut result carries; the spill holds the full text. */
@@ -137,20 +171,27 @@ export function spillName(sessionId: string, callId: string): string {
 
 export function boundToolResultText(text: string, limits: ToolResultLimits): BoundToolResult {
   const totalChars = text.length
+  const totalBytes = utf8Length(text)
   const lines = splitLines(text)
   let longestLine = 0
   for (const line of lines) longestLine = Math.max(longestLine, line.length)
-  const cap = Math.min(
-    limits.maxTokens * OBS_PACK_CHARS_PER_TOKEN,
+  // The friendlier estimate: the per-result token cap in characters.
+  const estimateCapChars = limits.maxTokens * OBS_PACK_CHARS_PER_TOKEN
+  // The true upper bound: the configured byte guard, and the window's share
+  // in bytes against tokens. A kept text within it is within its tokens.
+  const hardCapBytes = Math.min(
     limits.maxBytes,
     limits.windowTokens === undefined
       ? Number.MAX_SAFE_INTEGER
-      : windowShareChars(limits.windowTokens),
+      : windowShareBytes(limits.windowTokens),
   )
-  if (longestLine <= limits.maxLineChars && totalChars <= cap) {
+  if (
+    longestLine <= limits.maxLineChars &&
+    totalChars <= estimateCapChars &&
+    totalBytes <= hardCapBytes
+  ) {
     return { text, cut: undefined }
   }
-  let omittedChars = 0
   let capped = lines
   let wasLineCut = false
   if (longestLine > limits.maxLineChars) {
@@ -159,30 +200,51 @@ export function boundToolResultText(text: string, limits: ToolResultLimits): Bou
     const head = Math.ceil(keep / HALVES)
     const tail = Math.floor(keep / HALVES)
     capped = lines.map((line) => {
-      if (line.length <= limits.maxLineChars) return line
-      omittedChars += line.length - keep
-      return `${line.slice(0, boundary(line, head))}${LINE_MARK}${line.slice(boundary(line, line.length - tail))}`
+      return line.length <= limits.maxLineChars
+        ? line
+        : `${line.slice(0, boundary(line, head))}${LINE_MARK}${line.slice(boundary(line, line.length - tail))}`
     })
   }
   let joined = capped.join('\n')
-  if (joined.length > cap) {
-    const headEnd = boundary(joined, Math.ceil(cap / HALVES))
-    const tailStart = boundary(joined, joined.length - Math.floor(cap / HALVES))
-    omittedChars += joined.length - cap
-    joined = `${joined.slice(0, headEnd)}${joined.slice(tailStart)}`
+  let headLines: number
+  let tailLines: number
+  if (joined.length > estimateCapChars || utf8Length(joined) > hardCapBytes) {
+    // The most kept characters that fit BOTH the estimate and the byte
+    // guarantee (binary search: byte length falls as kept characters fall).
+    const fit = (kept: number): { readonly head: string; readonly tail: string } => ({
+      head: joined.slice(0, boundary(joined, Math.ceil(kept / HALVES))),
+      tail: joined.slice(boundary(joined, joined.length - Math.floor(kept / HALVES))),
+    })
+    let low = 0
+    let high = Math.min(estimateCapChars, joined.length)
+    while (low < high) {
+      const mid = Math.ceil((low + high) / HALVES)
+      const parts = fit(mid)
+      if (utf8Length(parts.head) + utf8Length(parts.tail) <= hardCapBytes) low = mid
+      else high = mid - 1
+    }
+    const parts = fit(low)
+    headLines = parts.head === '' ? 0 : splitLines(parts.head).length
+    tailLines = parts.tail === '' ? 0 : splitLines(parts.tail).length
+    joined = `${parts.head}${parts.tail}`
+  } else {
+    // Lines were cut but no middle was: every line is kept, shortened.
+    headLines = splitLines(joined).length
+    tailLines = 0
   }
-  const keptLines = splitLines(joined)
-  const headLines = Math.ceil(keptLines.length / HALVES)
+  const keptBytes = utf8Length(joined)
   return {
     text: joined,
     cut: {
       totalChars,
+      totalBytes,
       totalTokens: estimatePackTokens(totalChars),
       totalLines: lines.length,
       keptChars: joined.length,
+      keptBytes,
       headLines,
-      tailLines: keptLines.length - headLines,
-      omittedChars,
+      tailLines,
+      omittedChars: totalChars - joined.length,
       longestLine: wasLineCut ? longestLine : 0,
       lineCap: limits.maxLineChars,
     },

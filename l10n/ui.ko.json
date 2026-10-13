@@ -2506,6 +2506,8 @@
   "toolResultCutPreview": "도구 결과가 잘렸습니다: 처음 {head}줄과 마지막 {tail}줄로 {total}을 유지했습니다({omitted} 생략). 전체 결과는 {spill}에 있습니다. read_file로 여세요.",
   "contextWindowTooLong": "대화({tokens} 토큰)가 이 모델의 창({maximum} 토큰)보다 {over} 토큰 큽니다. /compact로 대화를 압축하거나, 창이 더 큰 모델로 바꾸거나, 새 대화를 시작하세요. 삭제된 것은 없습니다.",
   "toolResultCapRefused": "{source} 도구 출력 상한 {value}이(가) 거부되었습니다({reason}). 기본값 {fallback}을(를) 사용합니다.",
+  "toolResultCapBelowFloor": "읽을 수 있는 하한 {floor}바이트 미만",
+  "toolResultCapAboveWindow": "모델 창인 약 {window}개 토큰 초과",
   "sessionBudgetStopped": "중지됨: 다음 요청(약 {estimate})이 세션 예산 {cap}을(를) 초과합니다(사용 {spent}). 전송되지 않았습니다.",
   "sessionBudgetStoreUnavailable": "세션 지출 기록을 읽거나 저장할 수 없습니다. 기록을 사용할 수 있을 때까지 새 요청을 전송할 수 없습니다.",
   "sessionBudgetLegacyFeesUnknown": "대화의 지출이 완전히 검증되지 않았습니다. 대기 중인 요청이 끝날 때까지 기다리거나 지출 한도를 사용하려면 새 대화를 시작하세요.",
