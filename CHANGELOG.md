@@ -24,6 +24,21 @@ happened, not what was planned; superseded entries are kept.
   and falls back to its default. Copilot drops past search calls instead
   of failing the turn.
 
+- Lane REASONSHAPESR2 (Anthropic/OpenAI/xAI reasoning gaps, all shapes
+  UNVERIFIED until the 27-request capture plan answers): Thinking off
+  and each effort name now follow the model's own record — a value the
+  model does not take is refused before dispatch instead of sent, and an
+  unlisted level falls back to the provider default instead of a
+  neighbour. Thinking blocks replay between tool turns; Thinking off
+  sends each model's affirmed switch (`disabled`, Sonnet 5.5's
+  `between_tools`); manual-only models think with a tier-sized budget
+  and Opus 4.5 sends the interleaved-thinking header. Models with no
+  effort evidence (xAI's `grok-build-0.1` and the 4.20 pair) send no
+  reasoning field at all, so their turns go through. The composer
+  offers each configured model's own levels and default, and OpenAI
+  turns carry pro mode and reasoning context at the wire (no switch for
+  them yet). `exec --effort` accepts `none`.
+
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
   reads and writes, and 1-hour cache writes settle at their own price.
   The shared retry classifier refuses known quota codes and excessive

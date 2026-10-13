@@ -394,6 +394,132 @@
       "method": "POST",
       "path": "https://api.z.ai/api/paas/v4/chat/completions",
       "provider": "zai"
+    },
+    {
+      "body": {
+        "contents": [
+          {
+            "parts": [
+              {
+                "text": "Say hi in five words."
+              }
+            ],
+            "role": "user"
+          }
+        ],
+        "generationConfig": {
+          "maxOutputTokens": 100,
+          "thinkingConfig": {
+            "includeThoughts": true,
+            "thinkingBudget": 0
+          }
+        }
+      },
+      "gap": "thinking-off-record",
+      "id": "GEMINI-NONE-FLASH",
+      "lookFor": "HTTP 200 with no thought content (Thinking off works through budget 0: the product keeps sending it) or HTTP 400 (the product must refuse Thinking off before dispatch on this model). The catalogue lists low/medium/high with no none; round 1 sent budget 0 unverified.",
+      "method": "POST",
+      "path": "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent",
+      "provider": "gemini"
+    },
+    {
+      "body": {
+        "contents": [
+          {
+            "parts": [
+              {
+                "text": "Say hi in five words."
+              }
+            ],
+            "role": "user"
+          }
+        ],
+        "generationConfig": {
+          "maxOutputTokens": 100,
+          "thinkingConfig": {
+            "includeThoughts": true,
+            "thinkingBudget": 0
+          }
+        }
+      },
+      "gap": "thinking-off-record",
+      "id": "GEMINI-NONE-LITE",
+      "lookFor": "Same as GEMINI-NONE-FLASH, on gemini-flash-lite-latest (whose thinking minimum may be above 0).",
+      "method": "POST",
+      "path": "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent",
+      "provider": "gemini"
+    },
+    {
+      "body": {
+        "max_tokens": 100,
+        "messages": [
+          {
+            "content": "Say hi in five words.",
+            "role": "user"
+          }
+        ],
+        "model": "claude-opus-5",
+        "output_config": {
+          "effort": "high"
+        },
+        "thinking": {
+          "type": "disabled"
+        }
+      },
+      "gap": "GAPANTH-G02",
+      "id": "ANTH-DISABLE-OPUS5",
+      "lookFor": "HTTP 200 with a direct answer and 0 thinking (the table accepts disabled at high or below on Opus 5). Confirms the product's Thinking-off send for this model.",
+      "method": "POST",
+      "path": "https://api.anthropic.com/v1/messages",
+      "provider": "anthropic"
+    },
+    {
+      "body": {
+        "max_tokens": 100,
+        "messages": [
+          {
+            "content": "Say hi in five words.",
+            "role": "user"
+          }
+        ],
+        "model": "claude-opus-4-5",
+        "output_config": {
+          "effort": "high"
+        },
+        "thinking": {
+          "type": "disabled"
+        }
+      },
+      "gap": "GAPANTH-G02",
+      "id": "ANTH-DISABLE-OPUS45",
+      "lookFor": "HTTP 200 (every 4.x row of the thinking table ends in Thinking off: disabled is accepted at any effort there). Confirms the product's Thinking-off send for the 4.x models.",
+      "method": "POST",
+      "path": "https://api.anthropic.com/v1/messages",
+      "provider": "anthropic"
+    },
+    {
+      "body": {
+        "max_tokens": 100,
+        "messages": [
+          {
+            "content": "Say hi in five words.",
+            "role": "user"
+          }
+        ],
+        "model": "claude-fable-5",
+        "output_config": {
+          "effort": "high"
+        },
+        "thinking": {
+          "type": "disabled"
+        }
+      },
+      "gap": "GAPANTH-G02",
+      "id": "ANTH-DISABLE-FABLE5",
+      "lookFor": "HTTP 400 (the thinking table rejects disabled on Fable 5). Confirms the product must refuse Thinking off before dispatch on this model.",
+      "method": "POST",
+      "path": "https://api.anthropic.com/v1/messages",
+      "provider": "anthropic"
     }
   ]
 }
