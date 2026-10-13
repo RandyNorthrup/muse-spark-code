@@ -1,0 +1,59 @@
+{
+  "route": "anthropic-no-credit",
+  "model": "claude-haiku-4-5-20251001",
+  "product": "muse-spark-code-acp 0.18.2",
+  "exec": {
+    "exit": 4,
+    "status": "failed",
+    "requests": 1,
+    "costUsd": {
+      "settled": "0",
+      "uncertain": "0.331072",
+      "reserved": "0",
+      "total": "0.331072",
+      "isUpperBound": true
+    },
+    "error": {
+      "kind": "failed",
+      "message": "Internal error: Models & Agents is not available in this build."
+    }
+  },
+  "fetches": [
+    {
+      "url": "https://api.anthropic.com/v1/messages",
+      "query": [],
+      "method": "POST",
+      "requestHeaders": {
+        "anthropic-version": "2023-06-01",
+        "authorization": "<credential>",
+        "content-type": "application/json",
+        "accept": "text/event-stream"
+      },
+      "requestBody": "{\"model\":\"claude-haiku-4-5-20251001\",\"max_tokens\":32768,\"system\":[{\"type\":\"text\",\"text\":\"You are rlq-anthropic-no-credit/claude-haiku-4-5-20251001, served by rlq-anthropic-no-credit, a coding agent working inside Visual Studio Code through the Muse Spark Code (Unofficial) extension.\\n\\nThe workspace root is <run>\\\\workspace on win32. Every path you give a tool is relative to it (or absolute inside it); paths outside the workspace are refused.\\n\\nUse the tools for everything that touches the workspace: read_file before editing a file, edit_file for changes inside a file (find must match exactly once), write_file to create or replace a file, search and list_files to look around.\\n\\nThere is no shell tool: the workspace is in VS Code's Restricted Mode, so commands cannot run until the user trusts it. Some actions need the user's approval; a refused action comes back as a tool error, so move on instead of retrying it.\\n\\nUse ask_user when you need a decision from the user; when you offer the user a choice between options, ask through ask_user instead of listing the options in prose. Use todo_write to keep a short task list while working on several steps.\\n\\nNever invent file contents or command output; report what the tools returned. Answer in GitHub-flavoured Markdown, briefly, with code in fenced blocks.\\n\\n# Environment\\n\\n- Today's date: 2026-10-12\\n- Git: not a repository, or git could not answer.\\n\\n# How to work\\n\\n- Read a file before editing it, and prefer edit_file over write_file for a file that exists. write_file replaces an existing file only after you have read it, and only if it has not changed since.\\n- Stay within what the user asked for: no extra features, refactors or files.\\n- Never create commits, branches or pushes unless the user asks for them.\\n- Refer to code as path:line so the user can open it.\\n- Keep answers short: lead with the outcome, then what changed and what is next.\\n- When something could not be verified, say so instead of guessing.\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"5m\"}}],\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"This is a connection check. Please confirm that you received this message by quoting its reference code back to me. The reference code is RL-PROBE01.\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"5m\"}}]}],\"tools\":[{\"name\":\"read_file\",\"description\":\"Read a file from the workspace. A text file comes back numbered by line (use offset and limit for long files); a PDF or an image (PNG, JPEG, GIF, WebP) comes back whole, for you to see.\",\"input_schema\":{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\",\"description\":\"Workspace-relative path\"},\"offset\":{\"type\":\"integer\",\"description\":\"1-based first line to return\"},\"limit\":{\"type\":\"integer\",\"description\":\"Maximum lines to return\"}},\"required\":[\"path\"],\"additionalProperties\":false}},{\"name\":\"edit_file\",\"description\":\"Replace one exact occurrence of `find` with `replace` in a file. `find` must match exactly once; include enough surrounding lines to make it unique. Pass `edits` (a list of `find`/`replace` pairs) instead for several replacements in one call: every entry must match exactly once, entries must not overlap, and either all of them are applied or none is.\",\"input_schema\":{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\",\"description\":\"Workspace-relative path\"},\"find\":{\"type\":\"string\",\"description\":\"The exact text to replace\"},\"replace\":{\"type\":\"string\",\"description\":\"The replacement text\"},\"edits\":{\"type\":\"array\",\"description\":\"Several replacements, applied together or not at all\",\"items\":{\"type\":\"object\",\"properties\":{\"find\":{\"type\":\"string\",\"description\":\"The exact text to replace\"},\"replace\":{\"type\":\"string\",\"description\":\"The replacement text\"}},\"required\":[\"find\",\"replace\"]}}},\"required\":[\"path\"],\"additionalProperties\":false}},{\"name\":\"write_file\",\"description\":\"Create or overwrite a file with the given content.\",\"input_schema\":{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\",\"description\":\"Workspace-relative path\"},\"content\":{\"type\":\"string\"}},\"required\":[\"path\",\"content\"],\"additionalProperties\":false}},{\"name\":\"search\",\"description\":\"Search file contents with a regular expression, optionally within files matching a glob.\",\"input_schema\":{\"type\":\"object\",\"properties\":{\"pattern\":{\"type\":\"string\",\"description\":\"JavaScript regular expression\"},\"glob\":{\"type\":\"string\",\"description\":\"Only files matching this glob, e.g. src/**/*.ts\"},\"output_mode\":{\"type\":\"string\",\"enum\":[\"content\",\"files_with_matches\",\"count\"],\"description\":\"content (default): matching lines; files_with_matches: paths; count: matches per file\"},\"max_results\":{\"type\":\"integer\"}},\"required\":[\"pattern\"],\"additionalProperties\":false}},{\"name\":\"list_files\",\"description\":\"List workspace files, optionally those matching a glob.\",\"input_schema\":{\"type\":\"object\",\"properties\":{\"glob\":{\"type\":\"string\"},\"limit\":{\"type\":\"integer\"}},\"required\":[],\"additionalProperties\":false}},{\"name\":\"ask_user\",\"description\":\"Ask the user one or more questions and wait for the answers. Use it for decisions only the user can make.\",\"input_schema\":{\"type\":\"object\",\"properties\":{\"questions\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"id\":{\"type\":\"string\"},\"header\":{\"type\":\"string\",\"description\":\"Short label (a few words)\"},\"question\":{\"type\":\"string\"},\"selection\":{\"type\":\"object\",\"properties\":{\"mode\":{\"type\":\"string\",\"enum\":[\"single\",\"multiple\"]}},\"required\":[\"mode\"]},\"options\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"label\":{\"type\":\"string\"},\"description\":{\"type\":\"string\"}},\"required\":[\"label\"]}}},\"required\":[\"id\",\"header\",\"question\",\"selection\",\"options\"]}}},\"required\":[\"questions\"],\"additionalProperties\":false}},{\"name\":\"todo_write\",\"description\":\"Replace your task list, shown to the user while you work.\",\"input_schema\":{\"type\":\"object\",\"properties\":{\"items\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"text\":{\"type\":\"string\"},\"status\":{\"type\":\"string\",\"enum\":[\"pending\",\"inProgress\",\"completed\"]},\"activeForm\":{\"type\":\"string\",\"description\":\"Present-tense form shown while in progress\"}},\"required\":[\"text\",\"status\"]}}},\"required\":[\"items\"],\"additionalProperties\":false}},{\"name\":\"create_goal\",\"description\":\"Start a session goal only when requested. Fails if this session already has an unfinished goal; the failure message names the way out.\",\"input_schema\":{\"type\":\"object\",\"properties\":{\"objective\":{\"type\":\"string\",\"description\":\"What the goal is done by, in a sentence\"},\"token_budget\":{\"type\":\"integer\",\"description\":\"Optional: the tokens the goal may use before it stops\"}},\"required\":[\"objective\"],\"additionalProperties\":false}},{\"name\":\"get_goal\",\"description\":\"Read the active session goal and progress. Returns {\\\"goal\\\": null} when no goal is set. Do not call to orient yourself, to check whether a goal exists, or on a greeting; only call when you are already working on an explicit goal and need its current state.\",\"input_schema\":{\"type\":\"object\",\"properties\":{},\"required\":[],\"additionalProperties\":false}},{\"name\":\"update_goal\",\"description\":\"Mark the active goal complete or blocked. Use complete only when no required work remains.\",\"input_schema\":{\"type\":\"object\",\"properties\":{\"status\":{\"type\":\"string\",\"enum\":[\"complete\",\"blocked\"],\"description\":\"The terminal goal status to set\"}},\"required\":[\"status\"],\"additionalProperties\":false}},{\"name\":\"report_progress\",\"description\":\"Report active goal progress. percent_complete=100 is equivalent to update_goal(status=\\\"complete\\\").\",\"input_schema\":{\"type\":\"object\",\"properties\":{\"current_work\":{\"type\":\"string\",\"description\":\"What you are doing now\"},\"next_work\":{\"type\":\"string\",\"description\":\"What comes next\"},\"percent_complete\":{\"type\":\"integer\",\"description\":\"From 0 to 100\"}},\"required\":[\"current_work\",\"next_work\",\"percent_complete\"],\"additionalProperties\":false}}],\"tool_choice\":{\"type\":\"auto\"},\"stream\":true}",
+      "status": 400,
+      "statusText": "Bad Request",
+      "responseHeaders": {
+        "anthropic-organization-id": "00000000-0000-0000-0000-000000000000",
+        "anthropic-workspace-id": "000000_000000000000000000000000",
+        "cf-cache-status": "DYNAMIC",
+        "cf-ray": "a49ab0582803cf22-SJC",
+        "connection": "keep-alive",
+        "content-encoding": "br",
+        "content-security-policy": "default-src 'none'; frame-ancestors 'none'",
+        "content-type": "application/json",
+        "date": "Tue, 13 Oct 2026 01:49:38 GMT",
+        "request-id": "req_011CfyPx1K3JEeNxdbTHYFrc",
+        "server": "cloudflare",
+        "strict-transport-security": "max-age=31536000; includeSubDomains; preload",
+        "traceresponse": "00-9f93c13c2c929fabf2504ab09cba69fc-a8b3de46f4cbec5f-01",
+        "transfer-encoding": "chunked",
+        "vary": "Accept-Encoding",
+        "x-robots-tag": "none",
+        "x-should-retry": "false"
+      },
+      "responseBody": "{\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CfyPx1K3JEeNxdbTHYFrc\"}",
+      "responseBytes": 234,
+      "responseEnd": "the stream ended"
+    }
+  ]
+}

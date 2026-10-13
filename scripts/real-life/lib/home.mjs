@@ -4,7 +4,7 @@
 // new home cannot replace (it belongs to the signed-in user), so the run
 // stores its keys there under names of its own and removes them afterwards
 // (lib/routes.mjs).
-import { mkdirSync, mkdtempSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 
@@ -58,10 +58,13 @@ export function productEnvironment(home, from = process.env) {
     mkdirSync(roaming, { recursive: true })
     mkdirSync(local, { recursive: true })
   }
+  // Windows also names the home in two parts (`C:` and the rest).
+  const drive = path.parse(home).root.replace(/[\\/]+$/u, '')
   return {
     ...env,
     HOME: home,
     USERPROFILE: home,
+    ...(process.platform === 'win32' && { HOMEDRIVE: drive, HOMEPATH: home.slice(drive.length) }),
     APPDATA: roaming,
     LOCALAPPDATA: local,
     XDG_CONFIG_HOME: path.join(home, '.config'),
@@ -73,4 +76,32 @@ export function productEnvironment(home, from = process.env) {
     TMPDIR: temp,
     NO_COLOR: '1',
   }
+}
+
+/**
+ * Where the product keeps its own data in a home, as its README names the
+ * folder for each system.
+ * @param {string} home
+ */
+export function dataFolderOf(home) {
+  if (process.platform === 'win32') return path.join(home, 'AppData', 'Local', 'Muse Spark Code')
+  return process.platform === 'darwin'
+    ? path.join(home, 'Library', 'Application Support', 'Muse Spark Code')
+    : path.join(home, '.local', 'share', 'muse-spark-code')
+}
+
+/**
+ * Sets the product's own daily budget in a new home, the way its README
+ * says a person sets it for the terminal agent: `paidDailyBudgetUsd` in the
+ * data folder's `settings.json` ($0.50 to $500; $5 when nothing is set).
+ * @param {string} home a home the run made, with no settings yet
+ * @param {number} usd
+ */
+export function setDailyBudget(home, usd) {
+  const folder = dataFolderOf(home)
+  mkdirSync(folder, { recursive: true })
+  writeFileSync(
+    path.join(folder, 'settings.json'),
+    `${JSON.stringify({ paidDailyBudgetUsd: usd })}\n`,
+  )
 }

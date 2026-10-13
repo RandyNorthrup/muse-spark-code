@@ -2,16 +2,23 @@
 import path from 'node:path'
 
 export const USAGE = `node scripts/real-life/run.mjs --artefact <agent tarball> --routes <list> --max-requests <n> --max-usd <x> --record <file>
-    [--vsix <file>] [--scenarios <glob>] [--surfaces exec,acp] [--keys dpapi:<folder>|env]
-    [--model <route>=<model>] [--work <folder>] [--keep] [--list]
+    [--scenarios <glob>] [--surfaces exec,acp] [--keys dpapi:<folder>|env]
+    [--model <route>=<model>] [--max-uncertain-usd <x>] [--work <folder>] [--keep] [--list]
+node scripts/real-life/run.mjs --artefact <agent tarball> --matrix <file> --max-requests <n> --max-usd <x> --record <file>
 
   --artefact      the packed agent (npm pack's .tgz), installed into a new empty folder
   --routes        which providers to use, by name (--list prints them)
+  --matrix        a model matrix instead of --routes: a JSON file of route to model ids;
+                  every model gets one plain turn and one tool turn by the terminal agent
   --scenarios     which scenarios, by file name, several separated by commas; * stands
                   for any characters (default: all)
   --surfaces      exec (the terminal agent), acp (the editor protocol), or both (default)
   --max-requests  the run makes no more model requests than this
-  --max-usd       the run stops once it has spent this much
+  --max-usd       the run starts nothing more once it has spent this much (usage the
+                  providers reported; what the product booked with no usage is listed apart)
+  --max-uncertain-usd  the run starts nothing more once the product has booked this much
+                  for requests that were sent and came back with no usage report: that
+                  may be real money (default: 5)
   --record        where the record is written (<file>.json and <file>.txt)
   --keys          where the keys come from (default: env, REAL_LIFE_KEY_<NAME>)
   --model         another model for one route (repeat for more routes)
@@ -21,12 +28,13 @@ export const USAGE = `node scripts/real-life/run.mjs --artefact <agent tarball> 
 
 const VALUED = new Set([
   'artefact',
-  'vsix',
   'routes',
+  'matrix',
   'scenarios',
   'surfaces',
   'max-requests',
   'max-usd',
+  'max-uncertain-usd',
   'record',
   'keys',
   'model',
@@ -34,6 +42,10 @@ const VALUED = new Set([
 ])
 const FLAGS = new Set(['keep', 'list', 'help'])
 const SURFACES = ['exec', 'acp']
+// A request that was sent and came back with no usage report may have been
+// charged by its provider: the run stops for good once the product has
+// booked this many dollars for such requests, unless the operator says more.
+const DEFAULT_MAX_UNCERTAIN_USD = 5
 
 const listOf = (text) =>
   text
@@ -68,15 +80,26 @@ export function parseArguments(argv) {
   const isList = given.has('list')
   const maxRequests = Number(one('max-requests'))
   const maxUsd = Number(one('max-usd'))
+  const maxUncertainUsd = Number(one('max-uncertain-usd') ?? DEFAULT_MAX_UNCERTAIN_USD)
   if (!isList) {
-    for (const name of ['artefact', 'routes', 'max-requests', 'max-usd', 'record']) {
+    for (const name of ['artefact', 'max-requests', 'max-usd', 'record']) {
       if (one(name) === undefined) return { ok: false, reason: `--${name} is required` }
+    }
+    if ((one('routes') === undefined) === (one('matrix') === undefined)) {
+      return { ok: false, reason: 'one of --routes and --matrix is required, and not both' }
+    }
+    const withRoutesOnly = ['scenarios', 'surfaces', 'model'].find((name) => given.has(name))
+    if (withRoutesOnly !== undefined && one('matrix') !== undefined) {
+      return { ok: false, reason: `--${withRoutesOnly} does not go with --matrix` }
     }
     if (!Number.isSafeInteger(maxRequests) || maxRequests < 1) {
       return { ok: false, reason: '--max-requests takes a whole number of at least 1' }
     }
     if (!Number.isFinite(maxUsd) || maxUsd <= 0) {
       return { ok: false, reason: '--max-usd takes an amount above 0' }
+    }
+    if (!Number.isFinite(maxUncertainUsd) || maxUncertainUsd <= 0) {
+      return { ok: false, reason: '--max-uncertain-usd takes an amount above 0' }
     }
   }
   const surfaces = listOf(one('surfaces') ?? SURFACES.join(','))
@@ -96,12 +119,13 @@ export function parseArguments(argv) {
     options: {
       isList,
       artefact: one('artefact') === undefined ? undefined : path.resolve(one('artefact')),
-      vsix: one('vsix') === undefined ? undefined : path.resolve(one('vsix')),
       routes: listOf(one('routes') ?? ''),
+      matrix: one('matrix') === undefined ? undefined : path.resolve(one('matrix')),
       scenarios: one('scenarios') ?? '*',
       surfaces,
       maxRequests,
       maxUsd,
+      maxUncertainUsd,
       record: one('record') === undefined ? undefined : path.resolve(one('record')),
       keys: one('keys') ?? 'env',
       models,

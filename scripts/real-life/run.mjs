@@ -18,21 +18,29 @@ import path from 'node:path'
 import { performance } from 'node:perf_hooks'
 import { clearTimeout, setTimeout } from 'node:timers'
 import { pathToFileURL } from 'node:url'
+import { MATRIX_ADMIT_USD, MATRIX_DAILY_BUDGET_USD } from './lib/admission.mjs'
 import { USAGE, matchesAny, parseArguments } from './lib/args.mjs'
 import { allowance, microUsd, usdText } from './lib/budget.mjs'
-import { newRunFolders, productEnvironment } from './lib/home.mjs'
+import { newRunFolders, productEnvironment, setDailyBudget } from './lib/home.mjs'
 import { installArtefact, sha256Of } from './lib/install.mjs'
 import { keySource, readKey } from './lib/keys.mjs'
+import { heldUnsettled } from './lib/ledger.mjs'
 import {
+  BARREN_MODELS,
   CELL_TIMEOUT_MS,
   DEFAULT_ORDER,
   EXEC_ADMIT_USD,
   EXIT_FAILED,
   EXIT_USAGE,
   FIRST_TURN,
+  MATRIX_SCENARIOS,
+  MATRIX_SURFACE,
+  UNSENT_IN_A_ROW,
 } from './lib/limits.mjs'
+import { clearMarker, readMarker, writeMarker } from './lib/marker.mjs'
+import { readMatrix } from './lib/matrix.mjs'
 import { personFor } from './lib/person.mjs'
-import { runCommand } from './lib/product.mjs'
+import { endAll, runCommand } from './lib/product.mjs'
 import {
   clip,
   logExcerpt,
@@ -42,7 +50,7 @@ import {
   totalsOf,
   writeRecord,
 } from './lib/record.mjs'
-import { ROUTES, routeFor } from './lib/routes.mjs'
+import { ROUTES, routeFor, routeRefusal } from './lib/routes.mjs'
 
 const parsed = parseArguments(process.argv.slice(2))
 if (!parsed.ok) {
@@ -53,6 +61,9 @@ if (!parsed.ok) {
 const { options } = parsed
 
 const SCENARIO_FOLDER = path.join(import.meta.dirname, 'scenarios')
+// How the product's usage journal marks dollars a provider's own usage
+// stands behind; every other mark is something the product booked itself.
+const SETTLED = new Set(['reported', 'computed'])
 
 async function loadScenarios(pattern) {
   const names = readdirSync(SCENARIO_FOLDER)
@@ -69,7 +80,8 @@ async function loadScenarios(pattern) {
   return loaded.toSorted((a, b) => a.order - b.order || a.id.localeCompare(b.id, 'en'))
 }
 
-const scenarios = await loadScenarios(options.scenarios)
+const isMatrix = options.matrix !== undefined
+const scenarios = await loadScenarios(isMatrix ? MATRIX_SCENARIOS.join(',') : options.scenarios)
 if (options.isList) {
   console.log('Routes:')
   for (const [id, route] of Object.entries(ROUTES)) {
@@ -86,42 +98,82 @@ if (options.isList) {
   process.exit(0)
 }
 
-const routes = []
-for (const id of options.routes) {
-  const route = routeFor(id, options.models)
-  if (route === undefined) {
-    console.error(`not a route: ${id} (--list prints them)`)
-    process.exit(EXIT_USAGE)
-  }
-  routes.push(route)
-}
-const keys = keySource(options.keys)
-if (keys.kind === 'invalid') {
-  console.error(keys.reason)
+const stopForUsage = (reason) => {
+  console.error(reason)
   process.exit(EXIT_USAGE)
 }
 
-/** Every cell of the plan: one scenario on one route by one surface. */
-const plan = []
-for (const route of routes) {
+// A matrix is run by the terminal agent only.
+const surfaces = isMatrix ? [MATRIX_SURFACE] : options.surfaces
+const namedModels = (ids) => (ids.length === 1 ? ids[0] : `${String(ids.length)} models`)
+
+/** The cells of one route on one model: each scenario by each surface it has. */
+function cellsFor(route) {
+  const cells = []
   for (const scenario of scenarios) {
     // A route with a note (an account with no credit) is for the scenarios
     // that ask for it, and for no other.
     const isWanted = scenario.only === undefined ? route.note === undefined : scenario.only(route)
     if (!isWanted) continue
-    for (const surface of options.surfaces) {
+    for (const surface of surfaces) {
       const steps = scenario[surface]
-      if (steps !== undefined) plan.push({ scenario, route, surface, steps })
+      if (steps !== undefined) cells.push({ scenario, route, surface, steps })
     }
   }
+  return cells
 }
+
+/**
+ * The plan: per route what is set up once (the provider with its models),
+ * and per model the cells that run on it. Outside a matrix a route has one
+ * model.
+ */
+const groups = []
+if (isMatrix) {
+  const matrix = readMatrix(options.matrix)
+  if (!matrix.ok) stopForUsage(matrix.reason)
+  for (const { routeId, models } of matrix.groups) {
+    groups.push({
+      // What is set up once stands for all the route's models.
+      route: { ...routeFor(routeId), model: namedModels(models.map((model) => model.id)) },
+      models: models.map((model) => model.id),
+      units: models.map((model) => {
+        const route = { ...routeFor(routeId, new Map([[routeId, model.id]])), isFree: model.free }
+        return { route, cells: cellsFor(route) }
+      }),
+    })
+  }
+} else {
+  for (const id of options.routes) {
+    const refusal = routeRefusal(id, options.models.get(id))
+    if (refusal !== undefined) stopForUsage(refusal)
+    const route = routeFor(id, options.models)
+    groups.push({
+      route,
+      models: [route.model],
+      units: [{ route, cells: cellsFor(route) }],
+    })
+  }
+}
+const keys = keySource(options.keys)
+if (keys.kind === 'invalid') stopForUsage(keys.reason)
+
+const plan = groups.flatMap((group) => group.units.flatMap((unit) => unit.cells))
 const mostRequests = plan.reduce((sum, cell) => sum + cell.steps.requests, 0)
-const budget = allowance(options.maxRequests, options.maxUsd)
+const budget = allowance(options.maxRequests, options.maxUsd, options.maxUncertainUsd)
+const modelsOf = (group) => namedModels(group.models)
+// First of all: what an earlier run that was ended outright may have left.
+const noteOfEarlierRun = readMarker()
+if (noteOfEarlierRun !== undefined) {
+  console.error(
+    `AN EARLIER RUN NOTED AT ${noteOfEarlierRun.storedAt} THAT IT STORED A META KEY IN THE CREDENTIAL STORE, AND DID NOT REMOVE IT. This run looks once the product is installed and says what it finds.`,
+  )
+}
 console.log(
-  `Real-life run: ${String(plan.length)} scenario runs on ${String(routes.length)} route(s) (${routes.map((route) => `${route.id}: ${route.model}`).join('; ')}).`,
+  `Real-life run: ${String(plan.length)} scenario runs on ${String(groups.length)} route(s) (${groups.map((group) => `${group.route.id}: ${modelsOf(group)}`).join('; ')}).`,
 )
 console.log(
-  `It may make up to ${String(Math.min(mostRequests, options.maxRequests))} model requests (the plan's most: ${String(mostRequests)}; the cap: ${String(options.maxRequests)}) and stops at $${usdText(budget.cap.micro)}.`,
+  `It may make up to ${String(Math.min(mostRequests, options.maxRequests))} model requests (the plan's most: ${String(mostRequests)}; the cap: ${String(options.maxRequests)}) and starts nothing more once $${usdText(budget.cap.micro)} of reported usage (settled) is spent, or once the product has booked $${usdText(budget.cap.uncertain)} for requests that were sent and came back with no usage.`,
 )
 
 const started = new Date()
@@ -169,14 +221,18 @@ const said = (run) => clip(`${run.stdout} ${run.stderr}`)
  */
 async function setUpMeta(key) {
   const onPipe = 'the key goes to each terminal command on standard input'
-  if (!options.surfaces.includes('acp')) return { ok: true, key, state: onPipe }
+  if (!surfaces.includes('acp')) return { ok: true, key, state: onPipe }
   const status = await terminal(['auth', 'status'])
   if (status.code === 0) {
     const held = 'a Meta key is already in the credential store, and the run does not replace it'
     return { ok: true, key, noEditor: held, state: `${onPipe}; ${held}` }
   }
+  // Noted before it is stored, outside the run's folder, and never the key:
+  // a run that is ended outright leaves the note for the next one.
+  writeMarker({ storedAt: new Date().toISOString(), run: `the run of ${artefact.name}` })
   const stored = await terminal(['auth', 'set'], `${key}\n`)
   if (stored.code !== 0) {
+    clearMarker()
     const refused = `auth set did not store the key: ${said(stored)}`
     return { ok: true, key, noEditor: refused, state: `${onPipe}; ${refused}` }
   }
@@ -193,7 +249,7 @@ async function setUpMeta(key) {
  * and checks the key: what a person does first, so it is a scenario of its
  * own in the record (`seen`), with the product's own words.
  */
-async function setUp(route) {
+async function setUp(route, models) {
   if (route.kind === 'museCode')
     return { ok: true, state: 'uses the Muse Code sign-in of this machine' }
   const read = readKey(keys, route.stored)
@@ -212,8 +268,8 @@ async function setUp(route) {
       route.preset,
       '--as',
       route.provider,
-      '--model',
-      route.model,
+      // Every model the run will use is ticked, as a person ticks them.
+      ...models.flatMap((model) => ['--model', model]),
       '--key-stdin',
     ],
     `${read.key}\n`,
@@ -261,26 +317,83 @@ const setUpCell = (route, state) => ({
   observed: state.seen,
   requests: 0,
   usd: usdText(0),
-  recordedByProduct: { requests: 0, usd: usdText(0) },
+  uncertainUsd: usdText(0),
   seconds: state.seconds,
 })
 
-/** Removes what the run added, through the product's own command, and checks it is gone. */
+// What a clean-up could not remove.
+const left = []
+
+/**
+ * Removes what the run has stored and not yet removed, through the
+ * product's own commands, and checks that it is gone. It runs after every
+ * route, at the end, and when the run is cut short; a second call finds
+ * nothing left to do.
+ */
 async function cleanUp() {
-  const left = []
-  for (const route of configured) {
+  while (configured.length > 0) {
+    const route = configured.pop()
     await terminal(['providers', 'remove', route.provider])
     const after = await terminal(['auth', 'status', '--provider', route.provider])
     if (after.code === 0) left.push(route.provider)
   }
-  if (stores.isMetaStored) {
-    await terminal(['auth', 'clear'])
-    const after = await terminal(['auth', 'status'])
-    if (after.code === 0) left.push('the Meta Model API key')
-  }
-  return left
+  if (!stores.isMetaStored) return
+  stores.isMetaStored = false
+  await terminal(['auth', 'clear'])
+  const after = await terminal(['auth', 'status'])
+  if (after.code === 0) left.push('the Meta Model API key')
+  else clearMarker()
 }
 
+/**
+ * The run is being ended from outside (a key press, a closing terminal, a
+ * signal) or by an error nobody caught: the product's processes are ended
+ * and what the run stored is removed before it exits.
+ */
+const cut = { why: undefined }
+async function cutShort(why) {
+  if (cut.why !== undefined) return
+  cut.why = why
+  console.error(`The run is cut short (${why}): removing what it stored.`)
+  budget.end(`the run was cut short (${why})`)
+  endAll()
+  try {
+    if (product !== undefined) await cleanUp()
+  } finally {
+    if (left.length > 0) console.error(`STILL IN THE CREDENTIAL STORE: ${left.join(', ')}`)
+    process.exit(EXIT_FAILED)
+  }
+}
+for (const signal of ['SIGINT', 'SIGTERM', 'SIGBREAK', 'SIGHUP']) {
+  process.on(signal, () => cutShort(signal))
+}
+process.on('uncaughtException', (error) => cutShort(`an error nobody caught: ${error.message}`))
+process.on('unhandledRejection', (reason) =>
+  cutShort(`a failure nobody handled: ${String(reason)}`),
+)
+
+/**
+ * What the product's usage journal holds of some records: the settled
+ * dollars and the rest. An amount it holds that the run cannot read is
+ * spend nobody knows, and is kept as the text it was (`unread`).
+ */
+function journalOf(records) {
+  const held = { requests: records.length, micro: 0, uncertain: 0, unread: [] }
+  for (const record of records) {
+    const printed = record.cost?.usd
+    if (printed === undefined || printed === null) continue
+    const micro = microUsd(printed)
+    if (Number.isNaN(micro)) held.unread.push(`usage record cost: ${String(printed)}`)
+    else if (SETTLED.has(record.cost.certainty)) held.micro += micro
+    else held.uncertain += micro
+  }
+  return held
+}
+
+/**
+ * @param {object} cell one scenario on one route by one surface
+ * @param {string | undefined} key the route's key
+ */
 async function runCell(cell, key) {
   const { scenario, route, surface, steps } = cell
   const workspace = path.join(
@@ -288,12 +401,16 @@ async function runCell(cell, key) {
     `${String(cells.length + 1)}-${scenario.id}-${surface}`,
   )
   mkdirSync(workspace)
-  const person = personFor({ product, route, workspace, admitUsd: EXEC_ADMIT_USD, key })
+  const admitUsd = isMatrix ? MATRIX_ADMIT_USD : EXEC_ADMIT_USD
+  const person = personFor({ product, route, workspace, admitUsd, key })
   const observed = []
   const see = (what, ok, saw) => {
     observed.push({ what, ok: ok === true, saw: clip(saw) })
   }
-  const earlier = await usageRecords()
+  // A matrix turn is a terminal run, counted by its own result: the journal
+  // is not read for it (two more commands for each of hundreds of turns).
+  const isJournalRead = !isMatrix
+  const earlier = isJournalRead ? await usageRecords() : []
   const before = new Set(earlier.map((record) => record.id))
   const clock = performance.now()
   let timer
@@ -317,21 +434,26 @@ async function runCell(cell, key) {
     await person.end()
   }
   const seconds = (performance.now() - clock) / 1000
-  const later = await usageRecords()
-  const recorded = later.filter((record) => !before.has(record.id))
-  const journal = {
-    requests: recorded.length,
-    micro: recorded.reduce((sum, record) => sum + (microUsd(record.cost?.usd ?? '0') || 0), 0),
-  }
+  for (const note of person.notes) see(note.what, note.ok, note.saw)
+  const later = isJournalRead ? await usageRecords() : []
+  const journal = journalOf(later.filter((record) => !before.has(record.id)))
   // A terminal run is counted by its own result; an editor session by the
   // usage the product recorded for it.
   const used = surface === 'exec' ? person.made : journal
-  budget.spend(used.requests, used.micro)
+  budget.spend(used.requests, used.micro, used.uncertain, person.made.turnedAway)
   see(
     'it made no more requests than it said it may',
     used.requests <= steps.requests,
     `${String(used.requests)} of at most ${String(steps.requests)}`,
   )
+  // Money the run cannot read is not zero: it is unknown, and the run ends.
+  const unread = [...person.made.unread, ...journal.unread]
+  if (unread.length > 0) {
+    see('every amount the product printed could be read', false, unread.join('; '))
+    budget.end(
+      `an amount the product printed could not be read (${unread[0]}): what was spent is unknown`,
+    )
+  }
   const isPassed = observed.length > 0 && observed.every((seen) => seen.ok)
   return {
     scenario: scenario.id,
@@ -343,8 +465,15 @@ async function runCell(cell, key) {
     observed,
     requests: used.requests,
     usd: usdText(used.micro),
-    recordedByProduct: { requests: journal.requests, usd: usdText(journal.micro) },
+    uncertainUsd: usdText(used.uncertain),
+    ...(isJournalRead && {
+      recordedByProduct: {
+        requests: journal.requests,
+        usd: usdText(journal.micro + journal.uncertain),
+      },
+    }),
     seconds,
+    ...(person.skipped.length > 0 && { stepsNotRun: person.skipped }),
     ...(!isPassed && { log: logExcerpt(person.logText()) }),
   }
 }
@@ -360,12 +489,86 @@ const notRun = (cell, reason) => ({
   reason: `not run: ${reason}`,
   requests: 0,
   usd: usdText(0),
-  recordedByProduct: { requests: 0, usd: usdText(0) },
+  uncertainUsd: usdText(0),
   seconds: 0,
 })
 
-let left = []
+/** A model's first turn that failed and for which no provider reported any usage. */
+const isBarren = (cell, done) =>
+  cell.scenario.id === FIRST_TURN && done.outcome === 'failed' && microUsd(done.usd) === 0
+
+// A matrix's plain turns in a row that sent nothing at all: the product has
+// stopped sending (its own stop, whatever it calls it), and the run with it.
+const unsent = { inARow: 0 }
+
+/**
+ * The cells of one model on a route that is set up. A plain turn that fails
+ * ends what costs a request on that surface for this model.
+ * @returns {Promise<boolean>} whether the model's first turn failed with no usage reported
+ */
+async function runUnit(unit, state, stopped, say) {
+  // The surfaces on which this model could not answer a plain turn.
+  const silent = new Set()
+  let isUnitBarren = false
+  for (const cell of unit.cells) {
+    let refusal = state.ok ? stopped : 'the route could not be set up'
+    refusal ??= budget.refusal(cell.steps.requests)
+    if (refusal === undefined && cell.surface === 'acp' && state.noEditor !== undefined) {
+      refusal = state.noEditor
+    }
+    if (refusal === undefined && cell.steps.requests > 0 && silent.has(cell.surface)) {
+      refusal = `the plain turn failed on this ${isMatrix ? 'model' : 'route'}, so nothing else that costs a request was tried`
+    }
+    const done = refusal === undefined ? await runCell(cell, state.key) : notRun(cell, refusal)
+    if (cell.scenario.id === FIRST_TURN && done.outcome === 'failed') silent.add(cell.surface)
+    isUnitBarren ||= isBarren(cell, done)
+    if (isMatrix && cell.scenario.id === FIRST_TURN && done.outcome !== 'notRun') {
+      unsent.inARow = done.requests === 0 ? unsent.inARow + 1 : 0
+      if (unsent.inARow === UNSENT_IN_A_ROW) {
+        budget.end(
+          `${String(UNSENT_IN_A_ROW)} plain turns in a row sent nothing: the product has stopped sending`,
+        )
+      }
+    }
+    cells.push(done)
+    say(done)
+  }
+  return isUnitBarren
+}
+
 let productUsage = { requests: 0, usd: usdText(0) }
+let unsettled = { claims: 0, micro: 0, unread: [] }
+
+/**
+ * A run that was ended outright may have left Meta's key in the credential
+ * store; it left a note (lib/marker.mjs). This run never removes a key on
+ * the strength of that note, since the person may have stored their own
+ * since: it says what it found and what it did.
+ */
+async function earlierRunLeft(note) {
+  const status = await terminal(['auth', 'status'])
+  if (status.code !== 0) {
+    clearMarker()
+    return { ...note, stillStored: false, did: 'cleared the note: no Meta key is stored' }
+  }
+  return {
+    ...note,
+    stillStored: true,
+    did: 'removed nothing: it cannot tell that key from one stored since. If the key is not yours, remove it with the product (`auth clear`); the Meta editor scenarios are not run while it is there',
+  }
+}
+let earlierRun
+// What the run set in the product's own settings, in its own new home.
+const settings = isMatrix
+  ? [
+      {
+        setting: 'paidDailyBudgetUsd',
+        value: MATRIX_DAILY_BUDGET_USD,
+        where: "settings.json of the data folder in the run's own new home",
+        why: "the product's daily ledger keeps the reservation of every request that ends with no usage; at its default of $5 a day it stops a matrix after a few of them",
+      },
+    ]
+  : []
 try {
   const installed = installArtefact(options.artefact, folders.install)
   if (!installed.ok) throw new Error(installed.reason)
@@ -373,6 +576,18 @@ try {
   artefact.version = installed.version
   product = { agent: installed.agent, env: productEnvironment(folders.home) }
   console.log(`Installed ${installed.name} ${installed.version} (SHA-256 ${artefact.sha256}).`)
+  if (isMatrix) {
+    setDailyBudget(folders.home, MATRIX_DAILY_BUDGET_USD)
+    console.log(
+      `In this run's own new home the product's daily budget is set to $${String(MATRIX_DAILY_BUDGET_USD)} (${settings[0].setting}): ${settings[0].why}.`,
+    )
+  }
+  if (noteOfEarlierRun !== undefined) {
+    earlierRun = await earlierRunLeft(noteOfEarlierRun)
+    console.error(
+      `The run that noted a Meta key at ${earlierRun.storedAt}: a Meta key is ${earlierRun.stillStored ? 'STILL IN THE CREDENTIAL STORE' : 'no longer stored'}. This run ${earlierRun.did}.`,
+    )
+  }
   const say = (done) => {
     const word = { passed: 'PASS', failed: 'FAIL', notRun: 'not run' }[done.outcome]
     const missing = done.observed
@@ -380,61 +595,62 @@ try {
       .map((seen) => `${seen.what} (${seen.saw})`)
       .join('; ')
     const why = done.outcome === 'failed' ? `: ${missing}` : ''
+    const booked =
+      microUsd(done.uncertainUsd) > 0 ? ` (+$${done.uncertainUsd} booked with no usage)` : ''
+    const model = isMatrix ? ` · ${done.route.model}` : ''
     console.log(
       scrub()(
-        `  ${word} ${done.scenario} · ${done.surface} · ${String(done.requests)} req · $${done.usd} · ${done.seconds.toFixed(1)} s${why}${done.reason ? `: ${done.reason}` : ''}`,
+        `  ${word} ${done.scenario}${model} · ${done.surface} · ${String(done.requests)} req · $${done.usd}${booked} · ${done.seconds.toFixed(1)} s${why}${done.reason ? `: ${done.reason}` : ''}`,
       ),
     )
   }
-  for (const route of routes) {
-    const state = await setUp(route)
-    routeStates.push({ id: route.id, wire: route.wire, model: route.model, state: state.state })
+  for (const group of groups) {
+    const { route } = group
+    const state = await setUp(route, group.models)
+    routeStates.push({ id: route.id, wire: route.wire, model: modelsOf(group), state: state.state })
     console.log(`Route ${route.id}: ${scrub()(state.state)}`)
     if (state.seen !== undefined) {
       cells.push(setUpCell(route, state))
       say(cells.at(-1))
     }
-    // The surfaces on which this route could not answer a plain turn.
-    const silent = new Set()
-    const ofRoute = plan.filter((one) => one.route === route)
-    for (const cell of ofRoute) {
-      let refusal = state.ok ? budget.refusal(cell.steps.requests) : 'the route could not be set up'
-      if (refusal === undefined && cell.surface === 'acp' && state.noEditor !== undefined) {
-        refusal = state.noEditor
+    // The models from the first on whose first turn failed with no usage reported.
+    let barren = 0
+    let stopped
+    for (const [index, unit] of group.units.entries()) {
+      const isUnitBarren = await runUnit(unit, state, stopped, say)
+      if (isUnitBarren && barren === index) barren += 1
+      if (isMatrix && barren === BARREN_MODELS && index === BARREN_MODELS - 1) {
+        stopped = `the first ${String(BARREN_MODELS)} models of this route failed with no usage reported: an account or a key that does not work, not a model`
       }
-      if (refusal === undefined && cell.steps.requests > 0 && silent.has(cell.surface)) {
-        refusal =
-          'the plain turn failed on this route, so nothing else that costs a request was tried'
-      }
-      const done = refusal === undefined ? await runCell(cell, state.key) : notRun(cell, refusal)
-      if (cell.scenario.id === FIRST_TURN && done.outcome === 'failed') silent.add(cell.surface)
-      cells.push(done)
-      say(done)
     }
+    // What this route stored is removed before the next one starts: a run
+    // that is ended outright leaves at most one route's entry behind.
+    await cleanUp()
   }
   const records = await usageRecords()
-  productUsage = {
-    requests: records.length,
-    usd: usdText(
-      records.reduce((sum, record) => sum + (microUsd(record.cost?.usd ?? '0') || 0), 0),
-    ),
-  }
+  const held = journalOf(records)
+  productUsage = { requests: held.requests, usd: usdText(held.micro + held.uncertain) }
+  unsettled = heldUnsettled(folders.home)
 } catch (error) {
   console.error(
     `The run stopped: ${scrub()(error instanceof Error ? error.message : String(error))}`,
   )
   process.exitCode = EXIT_FAILED
 } finally {
-  if (product !== undefined) left = await cleanUp()
+  if (product !== undefined) await cleanUp()
   if (!options.shouldKeep) rmSync(folders.root, { recursive: true, force: true, maxRetries: 5 })
 }
+
+/** The model of a result: its id, the wire, and that its listed price is zero when it is. */
+const modelText = (route) =>
+  `${route.model} (${route.wire}${route.isFree === true ? ', listed free' : ''})`
 
 /** A scenario run as the record keeps it: the gate's fields, then what a person reads. */
 const resultOf = (cell) => ({
   scenario: cell.scenario,
   claims: cell.claims,
   route: tableRoute(cell.route),
-  model: `${cell.route.model} (${cell.route.wire})`,
+  model: modelText(cell.route),
   surface: cell.surface,
   outcome: cell.outcome === 'passed' ? 'pass' : 'fail',
   observed: observedText(cell.observed),
@@ -443,8 +659,10 @@ const resultOf = (cell) => ({
   seconds: cell.seconds,
   title: cell.title,
   vendor: cell.route.id,
+  uncertainUsd: cell.uncertainUsd,
   seen: cell.observed,
-  recordedByProduct: cell.recordedByProduct,
+  ...(cell.stepsNotRun !== undefined && { stepsNotRun: cell.stepsNotRun }),
+  ...(cell.recordedByProduct !== undefined && { recordedByProduct: cell.recordedByProduct }),
   ...(cell.log !== undefined && { log: cell.log }),
 })
 const results = cells.filter((cell) => cell.outcome !== 'notRun').map((cell) => resultOf(cell))
@@ -454,6 +672,7 @@ const skipped = cells
     scenario: cell.scenario,
     claims: cell.claims,
     route: tableRoute(cell.route),
+    model: modelText(cell.route),
     vendor: cell.route.id,
     surface: cell.surface,
     reason: cell.reason,
@@ -464,8 +683,14 @@ const record = {
   node: process.version,
   startedAt: started.toISOString(),
   endedAt: new Date().toISOString(),
-  caps: { requests: options.maxRequests, usd: usdText(budget.cap.micro) },
-  totals: totalsOf(results, skipped, budget.spent, productUsage),
+  caps: {
+    requests: options.maxRequests,
+    usd: usdText(budget.cap.micro),
+    uncertainUsd: usdText(budget.cap.uncertain),
+  },
+  settings,
+  ...(earlierRun !== undefined && { earlierRun }),
+  totals: totalsOf(results, skipped, budget.spent, productUsage, unsettled),
   routes: routeStates,
   results,
   notRun: skipped,
@@ -473,7 +698,7 @@ const record = {
 }
 const written = writeRecord(options.record, record, scrub())
 console.log(
-  `Made ${String(budget.spent.requests)} model requests, $${usdText(budget.spent.micro)} (the product's own usage for this home: ${String(productUsage.requests)} requests, $${productUsage.usd}).`,
+  `Made ${String(budget.spent.requests)} model requests, $${record.totals.usd} of reported usage (settled). Booked by the product for requests that were sent and came back with no usage report: $${record.totals.uncertainUsd}; its daily ledger holds $${record.totals.ledgerUnsettled.usd} with no settlement. The product's own usage for this home: ${String(productUsage.requests)} requests, $${productUsage.usd}.`,
 )
 console.log(
   `${String(record.totals.passed)} passed, ${String(record.totals.failed)} failed, ${String(record.totals.notRun)} not run. Record: ${written.json} and ${written.text}`,

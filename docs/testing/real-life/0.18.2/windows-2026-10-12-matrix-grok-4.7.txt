@@ -1,0 +1,30 @@
+Real-life run of muse-spark-code-acp-0.18.2.tgz (muse-spark-code-acp 0.18.2)
+SHA-256 0ffd42d4a5fac87f172b0b50a326281b67d69ccc0f214544cca565b05ed096ea
+Windows_NT 10.0.26200 x64, Node v24.20.0; 2026-10-13T01:43:27.590Z to 2026-10-13T01:43:39.838Z
+Caps: 5 requests, $0.100000 of reported usage. Made: 3 requests, $0.012170 of usage the providers reported (settled).
+Booked by the product for requests that were sent and came back with no usage report: $0.000000 (may be real money). Its daily ledger holds $0.000000 in 0 claim(s) with no settlement (a whole reservation each). Runs the product turned away before anything was sent, at the run's own asking: 0.
+The product's own usage for this home afterwards: 0 requests, $0.000000.
+Set by the run in settings.json of the data folder in the run's own new home: paidDailyBudgetUsd = 500; the product's daily ledger keeps the reservation of every request that ends with no usage; at its default of $5 a day it stops a matrix after a few of them.
+Scenario runs: 3 passed, 0 failed, 0 not run.
+
+Route xai (OpenAI Responses (xAI), grok-4.7): added as rl-xai; Key works · 14 models.
+
+PASS  add-provider · xai · grok-4.7 (OpenAI Responses (xAI)) · exec · 0 req · $0.000000 · 1.6 s
+      A provider is added with its key, and the key is checked [ref/cli/providersAdd/providers-add---preset-preset---as-id---address-url---model-model---privacy-policy---private-ok---key-stdin, ref/cli/providersTest/providers-test-id, ref/feature/providers]
+      saw     providers add takes the key and ends with exit code 0: Provider: xai Code goes to: https://api.x.ai Models: grok-4.7 Default model: suggested Added rl-xai; code goes to https://api.x.ai.
+      saw     providers test says the key works: Key works · 14 models.
+PASS  plain-turn · xai · grok-4.7 (OpenAI Responses (xAI)) · exec · 1 req · $0.005098 · 3.4 s
+      A plain turn completes [ref/cli/exec/exec, ref/cli/exec/exec---model-value, ref/cli/exec/exec---output-value]
+      saw     the command ends with exit code 0: exit 0
+      saw     the answer carries the word that was asked for: Reference code received: **RL-842E3D98**.
+      saw     the result names the model the person chose: rl-xai/grok-4.7
+      saw     one request was made and it cost more than nothing: 1 request(s), $0.005098 of reported usage, $0 booked with no usage
+      saw     it made no more requests than it said it may: 1 of at most 1
+PASS  tool-write · xai · grok-4.7 (OpenAI Responses (xAI)) · exec · 2 req · $0.007072 · 3.3 s
+      A tool turn writes a file after an approval [ref/cli/exec/exec---permission-mode-value, ref/cli/exec/exec]
+      saw     the command ends with exit code 0: exit 0
+      saw     the file is on disk with the content asked for: RL-373AE08F
+      saw     the result lists the file as changed: ["real-life-note.txt"]
+      saw     it made no more requests than it said it may: 2 of at most 4
+
+Correction: totals restated after the run: it had written heldUnsentUsd 0.000000 as "turned away before sending", a sum derived from the daily ledger's unsettled claims ($0.000000 in 0 claim(s)). Those claims are whole reservations of requests that were sent and came back with no usage. The run itself asked for 0 refusal(s) before sending (a Meta turn's read-back, which writes no claim).

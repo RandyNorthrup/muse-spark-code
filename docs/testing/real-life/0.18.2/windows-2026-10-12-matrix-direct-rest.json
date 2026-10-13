@@ -1,0 +1,457 @@
+{
+  "artefact": {
+    "name": "muse-spark-code-acp-0.18.2.tgz",
+    "sha256": "0ffd42d4a5fac87f172b0b50a326281b67d69ccc0f214544cca565b05ed096ea",
+    "package": "muse-spark-code-acp",
+    "version": "0.18.2"
+  },
+  "os": "Windows_NT 10.0.26200 x64",
+  "node": "v24.20.0",
+  "startedAt": "2026-10-13T01:38:06.559Z",
+  "endedAt": "2026-10-13T01:38:39.134Z",
+  "caps": {
+    "uncertainUsd": "3.000000",
+    "requests": 118,
+    "usd": "0.460000"
+  },
+  "settings": [
+    {
+      "setting": "paidDailyBudgetUsd",
+      "value": 500,
+      "where": "settings.json of the data folder in the run's own new home",
+      "why": "the product's daily ledger keeps the reservation of every request that ends with no usage; at its default of $5 a day it stops a matrix after a few of them"
+    }
+  ],
+  "totals": {
+    "passed": 5,
+    "failed": 3,
+    "notRun": 3,
+    "requests": 9,
+    "usd": "0.013473",
+    "uncertainUsd": "0.115892",
+    "productUsage": {
+      "requests": 0,
+      "usd": "0.000000"
+    },
+    "turnedAwayUnsentRuns": 2,
+    "ledgerUnsettled": {
+      "claims": 2,
+      "usd": "0.106292"
+    }
+  },
+  "routes": [
+    {
+      "id": "mistral",
+      "wire": "chat completions (Mistral)",
+      "model": "4 models",
+      "state": "added as rl-mistral; Key works · 55 models."
+    },
+    {
+      "id": "meta",
+      "wire": "Meta Model API",
+      "model": "muse-spark-1.3-contributor",
+      "state": "the key goes to each terminal command on standard input"
+    }
+  ],
+  "results": [
+    {
+      "scenario": "add-provider",
+      "claims": [
+        "ref/cli/providersAdd/providers-add---preset-preset---as-id---address-url---model-model---privacy-policy---private-ok---key-stdin",
+        "ref/cli/providersTest/providers-test-id",
+        "ref/feature/providers"
+      ],
+      "route": "provider",
+      "model": "4 models (chat completions (Mistral))",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw providers add takes the key and ends with exit code 0: Provider: mistral Code goes to: https://api.mistral.ai Models: magistral-medium-latest, mistral-small-2603, mistral-small-latest, voxtral-small-latest Default model: suggested Added rl-mistral; code goes to https://api.mistral.ai. | saw providers test says the key works: Key works · 55 models.",
+      "requests": 0,
+      "usd": "0.000000",
+      "seconds": 2.2698162999999996,
+      "title": "A provider is added with its key, and the key is checked",
+      "vendor": "mistral",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "providers add takes the key and ends with exit code 0",
+          "ok": true,
+          "saw": "Provider: mistral Code goes to: https://api.mistral.ai Models: magistral-medium-latest, mistral-small-2603, mistral-small-latest, voxtral-small-latest Default model: suggested Added rl-mistral; code goes to https://api.mistral.ai."
+        },
+        {
+          "what": "providers test says the key works",
+          "ok": true,
+          "saw": "Key works · 55 models."
+        }
+      ]
+    },
+    {
+      "scenario": "plain-turn",
+      "claims": [
+        "ref/cli/exec/exec",
+        "ref/cli/exec/exec---model-value",
+        "ref/cli/exec/exec---output-value"
+      ],
+      "route": "provider",
+      "model": "magistral-medium-latest (chat completions (Mistral))",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the answer carries the word that was asked for: RL-15940B0E | saw the result names the model the person chose: rl-mistral/magistral-medium-latest | saw one request was made and it cost more than nothing: 1 request(s), $0.004227 of reported usage, $0 booked with no usage | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.004227",
+      "seconds": 2.4322191,
+      "title": "A plain turn completes",
+      "vendor": "mistral",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the answer carries the word that was asked for",
+          "ok": true,
+          "saw": "RL-15940B0E"
+        },
+        {
+          "what": "the result names the model the person chose",
+          "ok": true,
+          "saw": "rl-mistral/magistral-medium-latest"
+        },
+        {
+          "what": "one request was made and it cost more than nothing",
+          "ok": true,
+          "saw": "1 request(s), $0.004227 of reported usage, $0 booked with no usage"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ]
+    },
+    {
+      "scenario": "tool-write",
+      "claims": ["ref/cli/exec/exec---permission-mode-value", "ref/cli/exec/exec"],
+      "route": "provider",
+      "model": "magistral-medium-latest (chat completions (Mistral))",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the file is on disk with the content asked for: RL-34A092BD | saw the result lists the file as changed: [\"real-life-note.txt\"] | saw it made no more requests than it said it may: 2 of at most 4",
+      "requests": 2,
+      "usd": "0.008588",
+      "seconds": 3.4332505,
+      "title": "A tool turn writes a file after an approval",
+      "vendor": "mistral",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the file is on disk with the content asked for",
+          "ok": true,
+          "saw": "RL-34A092BD"
+        },
+        {
+          "what": "the result lists the file as changed",
+          "ok": true,
+          "saw": "[\"real-life-note.txt\"]"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "2 of at most 4"
+        }
+      ]
+    },
+    {
+      "scenario": "plain-turn",
+      "claims": [
+        "ref/cli/exec/exec",
+        "ref/cli/exec/exec---model-value",
+        "ref/cli/exec/exec---output-value"
+      ],
+      "route": "provider",
+      "model": "mistral-small-2603 (chat completions (Mistral))",
+      "surface": "exec",
+      "outcome": "fail",
+      "observed": "MISSING the command ends with exit code 0: exit 4 | MISSING the answer carries the word that was asked for: message withheld: the response did not complete | saw the result names the model the person chose: rl-mistral/mistral-small-2603 | MISSING one request was made and it cost more than nothing: 1 request(s), $0 of reported usage, $0.053146 booked with no usage | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.000000",
+      "seconds": 2.1016435,
+      "title": "A plain turn completes",
+      "vendor": "mistral",
+      "uncertainUsd": "0.053146",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": false,
+          "saw": "exit 4"
+        },
+        {
+          "what": "the answer carries the word that was asked for",
+          "ok": false,
+          "saw": "message withheld: the response did not complete"
+        },
+        {
+          "what": "the result names the model the person chose",
+          "ok": true,
+          "saw": "rl-mistral/mistral-small-2603"
+        },
+        {
+          "what": "one request was made and it cost more than nothing",
+          "ok": false,
+          "saw": "1 request(s), $0 of reported usage, $0.053146 booked with no usage"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ],
+      "log": [
+        "[info] Display language en-us: the panel is in English",
+        "[info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay)",
+        "[warn] Session budget: a response ended without its usage; its remaining reservation of 0.02086905 USD counts as spent",
+        "[warn] Usage history could not be recorded",
+        "[warn] Model API turn 58fb684b-ffe8-4f37-b939-be5c2fb7cc74 failed: Models & Agents is not available in this build.",
+        "[info] Failed; requests 1; settled $0.000000; uncertain $0.053146; image attempts 0; returned 0; uncertain images 0; Cost is an upper bound."
+      ]
+    },
+    {
+      "scenario": "plain-turn",
+      "claims": [
+        "ref/cli/exec/exec",
+        "ref/cli/exec/exec---model-value",
+        "ref/cli/exec/exec---output-value"
+      ],
+      "route": "provider",
+      "model": "mistral-small-latest (chat completions (Mistral))",
+      "surface": "exec",
+      "outcome": "fail",
+      "observed": "MISSING the command ends with exit code 0: exit 4 | MISSING the answer carries the word that was asked for: message withheld: the response did not complete | saw the result names the model the person chose: rl-mistral/mistral-small-latest | MISSING one request was made and it cost more than nothing: 1 request(s), $0 of reported usage, $0.053146 booked with no usage | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.000000",
+      "seconds": 1.7935202999999984,
+      "title": "A plain turn completes",
+      "vendor": "mistral",
+      "uncertainUsd": "0.053146",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": false,
+          "saw": "exit 4"
+        },
+        {
+          "what": "the answer carries the word that was asked for",
+          "ok": false,
+          "saw": "message withheld: the response did not complete"
+        },
+        {
+          "what": "the result names the model the person chose",
+          "ok": true,
+          "saw": "rl-mistral/mistral-small-latest"
+        },
+        {
+          "what": "one request was made and it cost more than nothing",
+          "ok": false,
+          "saw": "1 request(s), $0 of reported usage, $0.053146 booked with no usage"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ],
+      "log": [
+        "[info] Display language en-us: the panel is in English",
+        "[info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay)",
+        "[warn] Session budget: a response ended without its usage; its remaining reservation of 0.02086935 USD counts as spent",
+        "[warn] Usage history could not be recorded",
+        "[warn] Model API turn 93235f4d-7d3e-48cc-8d11-bbb2625f0328 failed: Models & Agents is not available in this build.",
+        "[info] Failed; requests 1; settled $0.000000; uncertain $0.053146; image attempts 0; returned 0; uncertain images 0; Cost is an upper bound."
+      ]
+    },
+    {
+      "scenario": "plain-turn",
+      "claims": [
+        "ref/cli/exec/exec",
+        "ref/cli/exec/exec---model-value",
+        "ref/cli/exec/exec---output-value"
+      ],
+      "route": "provider",
+      "model": "voxtral-small-latest (chat completions (Mistral))",
+      "surface": "exec",
+      "outcome": "fail",
+      "observed": "MISSING the command ends with exit code 0: exit 5 | saw the answer carries the word that was asked for: I received the message with the reference code RL-77C030B3. | saw the result names the model the person chose: rl-mistral/voxtral-small-latest | MISSING one request was made and it cost more than nothing: 1 request(s), $0 of reported usage, $0.0096 booked with no usage | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.000000",
+      "seconds": 1.6315272000000005,
+      "title": "A plain turn completes",
+      "vendor": "mistral",
+      "uncertainUsd": "0.009600",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": false,
+          "saw": "exit 5"
+        },
+        {
+          "what": "the answer carries the word that was asked for",
+          "ok": true,
+          "saw": "I received the message with the reference code RL-77C030B3."
+        },
+        {
+          "what": "the result names the model the person chose",
+          "ok": true,
+          "saw": "rl-mistral/voxtral-small-latest"
+        },
+        {
+          "what": "one request was made and it cost more than nothing",
+          "ok": false,
+          "saw": "1 request(s), $0 of reported usage, $0.0096 booked with no usage"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ],
+      "log": [
+        "[info] Display language en-us: the panel is in English",
+        "[info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay)",
+        "[info] Budget Exceeded; requests 1; settled $0.000000; uncertain $0.009600; image attempts 0; returned 0; uncertain images 0; Cost is an upper bound."
+      ]
+    },
+    {
+      "scenario": "plain-turn",
+      "claims": [
+        "ref/cli/exec/exec",
+        "ref/cli/exec/exec---model-value",
+        "ref/cli/exec/exec---output-value"
+      ],
+      "route": "modelapi",
+      "model": "muse-spark-1.3-contributor (Meta Model API)",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the answer carries the word that was asked for: Received — reference code `RL-6FF20730`. | saw the result names the model the person chose: muse-spark-1.3-contributor | saw one request was made and it cost more than nothing: 1 request(s), $0.000299 of reported usage, $0 booked with no usage | saw before anything is sent the product names the model of the route: muse-spark-1.3-contributor | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.000299",
+      "seconds": 4.225801099999997,
+      "title": "A plain turn completes",
+      "vendor": "meta",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the answer carries the word that was asked for",
+          "ok": true,
+          "saw": "Received — reference code `RL-6FF20730`."
+        },
+        {
+          "what": "the result names the model the person chose",
+          "ok": true,
+          "saw": "muse-spark-1.3-contributor"
+        },
+        {
+          "what": "one request was made and it cost more than nothing",
+          "ok": true,
+          "saw": "1 request(s), $0.000299 of reported usage, $0 booked with no usage"
+        },
+        {
+          "what": "before anything is sent the product names the model of the route",
+          "ok": true,
+          "saw": "muse-spark-1.3-contributor"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ]
+    },
+    {
+      "scenario": "tool-write",
+      "claims": ["ref/cli/exec/exec---permission-mode-value", "ref/cli/exec/exec"],
+      "route": "modelapi",
+      "model": "muse-spark-1.3-contributor (Meta Model API)",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the file is on disk with the content asked for: RL-B9B01AAC | saw the result lists the file as changed: [\"real-life-note.txt\"] | saw before anything is sent the product names the model of the route: muse-spark-1.3-contributor | saw it made no more requests than it said it may: 2 of at most 4",
+      "requests": 2,
+      "usd": "0.000359",
+      "seconds": 8.4481033,
+      "title": "A tool turn writes a file after an approval",
+      "vendor": "meta",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the file is on disk with the content asked for",
+          "ok": true,
+          "saw": "RL-B9B01AAC"
+        },
+        {
+          "what": "the result lists the file as changed",
+          "ok": true,
+          "saw": "[\"real-life-note.txt\"]"
+        },
+        {
+          "what": "before anything is sent the product names the model of the route",
+          "ok": true,
+          "saw": "muse-spark-1.3-contributor"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "2 of at most 4"
+        }
+      ]
+    }
+  ],
+  "notRun": [
+    {
+      "scenario": "tool-write",
+      "claims": ["ref/cli/exec/exec---permission-mode-value", "ref/cli/exec/exec"],
+      "route": "provider",
+      "model": "mistral-small-2603 (chat completions (Mistral))",
+      "vendor": "mistral",
+      "surface": "exec",
+      "reason": "not run: the plain turn failed on this model, so nothing else that costs a request was tried"
+    },
+    {
+      "scenario": "tool-write",
+      "claims": ["ref/cli/exec/exec---permission-mode-value", "ref/cli/exec/exec"],
+      "route": "provider",
+      "model": "mistral-small-latest (chat completions (Mistral))",
+      "vendor": "mistral",
+      "surface": "exec",
+      "reason": "not run: the plain turn failed on this model, so nothing else that costs a request was tried"
+    },
+    {
+      "scenario": "tool-write",
+      "claims": ["ref/cli/exec/exec---permission-mode-value", "ref/cli/exec/exec"],
+      "route": "provider",
+      "model": "voxtral-small-latest (chat completions (Mistral))",
+      "vendor": "mistral",
+      "surface": "exec",
+      "reason": "not run: the plain turn failed on this model, so nothing else that costs a request was tried"
+    }
+  ],
+  "keysLeftInTheCredentialStore": [],
+  "corrections": [
+    "totals restated after the run: it had written heldUnsentUsd 0.000000 as \"turned away before sending\", a sum derived from the daily ledger's unsettled claims ($0.106292 in 2 claim(s)). Those claims are whole reservations of requests that were sent and came back with no usage. The run itself asked for 2 refusal(s) before sending (a Meta turn's read-back, which writes no claim)."
+  ]
+}

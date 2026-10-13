@@ -4,6 +4,8 @@
 // `os`, `startedAt`, `endedAt` and `results`, each result with `scenario`,
 // `claims`, `route`, `model`, `surface`, `outcome`, `observed`, `requests`,
 // `usd` and `seconds`); what the run adds for a person stands beside those.
+// `usd` is usage a provider reported, at the model's price; `uncertainUsd`
+// is what the product booked for a request that ended with no usage report.
 // No key, no home folder and no user name is in it: everything written
 // passes through one scrub.
 import { writeFileSync } from 'node:fs'
@@ -59,8 +61,10 @@ export const tableRoute = (route) => {
   return route.kind === 'meta' ? 'modelapi' : 'musecode'
 }
 
+const isBooked = (usd) => /[1-9]/u.test(usd ?? '')
+
 const line = (result) =>
-  `${result.outcome === 'pass' ? 'PASS' : 'FAIL'}  ${result.scenario} · ${result.vendor} · ${result.surface} · ${String(result.requests)} req · $${result.usd} · ${result.seconds.toFixed(1)} s`
+  `${result.outcome === 'pass' ? 'PASS' : 'FAIL'}  ${result.scenario} · ${result.vendor} · ${result.model} · ${result.surface} · ${String(result.requests)} req · $${result.usd}${isBooked(result.uncertainUsd) ? ` (+$${result.uncertainUsd} booked with no usage)` : ''} · ${result.seconds.toFixed(1)} s`
 
 /** The plain-text summary of a record. */
 export function summaryOf(record) {
@@ -68,8 +72,17 @@ export function summaryOf(record) {
     `Real-life run of ${record.artefact.name} (${record.artefact.package} ${record.artefact.version})`,
     `SHA-256 ${record.artefact.sha256}`,
     `${record.os}, Node ${record.node}; ${record.startedAt} to ${record.endedAt}`,
-    `Caps: ${String(record.caps.requests)} requests, $${record.caps.usd}. Made: ${String(record.totals.requests)} requests, $${record.totals.usd} by the product's own count.`,
+    `Caps: ${String(record.caps.requests)} requests, $${record.caps.usd} of reported usage. Made: ${String(record.totals.requests)} requests, $${record.totals.usd} of usage the providers reported (settled).`,
+    `Booked by the product for requests that were sent and came back with no usage report: $${record.totals.uncertainUsd} (may be real money). Its daily ledger holds $${record.totals.ledgerUnsettled.usd} in ${String(record.totals.ledgerUnsettled.claims)} claim(s) with no settlement (a whole reservation each). Runs the product turned away before anything was sent, at the run's own asking: ${String(record.totals.turnedAwayUnsentRuns)}.`,
     `The product's own usage for this home afterwards: ${String(record.totals.productUsage.requests)} requests, $${record.totals.productUsage.usd}.`,
+    ...record.settings.map(
+      (one) => `Set by the run in ${one.where}: ${one.setting} = ${String(one.value)}; ${one.why}.`,
+    ),
+    ...(record.earlierRun === undefined
+      ? []
+      : [
+          `AN EARLIER RUN noted at ${record.earlierRun.storedAt} that it stored a Meta key and did not remove it. A Meta key is ${record.earlierRun.stillStored ? 'STILL IN THE CREDENTIAL STORE' : 'no longer stored'}. This run ${record.earlierRun.did}.`,
+        ]),
     `Scenario runs: ${String(record.totals.passed)} passed, ${String(record.totals.failed)} failed, ${String(record.totals.notRun)} not run.`,
     '',
   ]
@@ -82,13 +95,15 @@ export function summaryOf(record) {
     for (const seen of result.seen) {
       lines.push(`      ${seen.ok ? 'saw    ' : 'MISSING'} ${seen.what}: ${seen.saw}`)
     }
+    const left = result.stepsNotRun ?? []
+    for (const step of left) lines.push(`      not run ${step.what}: ${step.why}`)
     const logged = result.log ?? []
     for (const text of logged) lines.push(`      | ${text}`)
   }
   if (record.notRun.length > 0) lines.push('', 'Not run:')
   for (const skipped of record.notRun) {
     lines.push(
-      `      ${skipped.scenario} · ${skipped.vendor} · ${skipped.surface}: ${skipped.reason}`,
+      `      ${skipped.scenario} · ${skipped.vendor} · ${skipped.model} · ${skipped.surface}: ${skipped.reason}`,
     )
   }
   if (record.keysLeftInTheCredentialStore.length > 0) {
@@ -100,14 +115,30 @@ export function summaryOf(record) {
   return `${lines.join('\n')}\n`
 }
 
-/** The totals of a run. */
-export function totalsOf(results, notRun, spent, productUsage) {
+/**
+ * The totals of a run. `usd` is settled (usage the providers reported).
+ * `uncertainUsd` is what the product booked for requests that were sent
+ * and came back with no usage. `ledgerUnsettled` is what its daily ledger
+ * holds with no settlement: a whole reservation for each such request (more
+ * than it booked for a request an editor session stopped), and for a run
+ * turned away for its budget on a provider's route. `turnedAwayUnsentRuns`
+ * counts the refusals the run itself asked for (lib/admission.mjs).
+ * @param {{ claims: number, micro: number, unread: string[] }} unsettled lib/ledger.mjs
+ */
+export function totalsOf(results, notRun, spent, productUsage, unsettled) {
   return {
     passed: results.filter((result) => result.outcome === 'pass').length,
     failed: results.filter((result) => result.outcome === 'fail').length,
     notRun: notRun.length,
     requests: spent.requests,
     usd: usdText(spent.micro),
+    uncertainUsd: usdText(spent.uncertain),
+    turnedAwayUnsentRuns: spent.turnedAway,
+    ledgerUnsettled: {
+      claims: unsettled.claims,
+      usd: usdText(unsettled.micro),
+      ...(unsettled.unread.length > 0 && { unread: unsettled.unread }),
+    },
     productUsage,
   }
 }
