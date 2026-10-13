@@ -343,12 +343,24 @@ export function huggingFaceUpstreamCards(native: unknown): HuggingFaceUpstream[]
     .toSorted((left, right) => left.card.input - right.card.input)
 }
 
-const catalogueTierSchema = z.object({
+const catalogueRateShape = {
   input: z.number().check(z.nonnegative()),
   output: z.number().check(z.nonnegative()),
   cache_read: z.optional(z.number().check(z.nonnegative())),
   cache_write: z.optional(z.number().check(z.nonnegative())),
+}
+
+const catalogueTierSchema = z.object({
+  ...catalogueRateShape,
   tier: z.object({ type: z.string(), size: z.number().check(z.positive()) }),
+})
+
+/** A catalogue `cost` block, per 1M tokens, as the snapshot carries it. */
+export const catalogueCostSchema = z.object({
+  ...catalogueRateShape,
+  reasoning: z.optional(z.number().check(z.nonnegative())),
+  context_over_200k: z.optional(z.object({ ...catalogueRateShape })),
+  tiers: z.optional(z.array(catalogueTierSchema)),
 })
 
 /**
@@ -362,25 +374,7 @@ const catalogueTierSchema = z.object({
  * tokens", read 2026-10-12). Anything the block does not give stays absent.
  */
 export function cataloguePriceCard(preset: string, cost: unknown): PriceCard | undefined {
-  const rate = z.number().check(z.nonnegative())
-  const parsed = z
-    .object({
-      input: rate,
-      output: rate,
-      cache_read: z.optional(rate),
-      cache_write: z.optional(rate),
-      reasoning: z.optional(rate),
-      context_over_200k: z.optional(
-        z.object({
-          input: rate,
-          output: rate,
-          cache_read: z.optional(rate),
-          cache_write: z.optional(rate),
-        }),
-      ),
-      tiers: z.optional(z.array(catalogueTierSchema)),
-    })
-    .safeParse(cost)
+  const parsed = catalogueCostSchema.safeParse(cost)
   if (!parsed.success) return undefined
   const data = parsed.data
   const contextTier = data.tiers?.find((row) => row.tier.type === 'context')
