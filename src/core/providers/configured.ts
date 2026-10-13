@@ -95,13 +95,7 @@ const catalogSchema = z.object({
     z.object({ models: z.record(z.string(), modelMetadata.nativeModelMetadataSchema) }),
   ),
 })
-const costSchema = z.object({
-  input: z.number().check(z.nonnegative()),
-  output: z.number().check(z.nonnegative()),
-  cache_read: z.optional(z.number().check(z.nonnegative())),
-  cache_write: z.optional(z.number().check(z.nonnegative())),
-  reasoning: z.optional(z.number().check(z.nonnegative())),
-})
+const costSchema = priceCard.catalogueCostSchema
 const digest = (value: string) => createHash('sha256').update(value).digest('hex')
 const fail = (): never => {
   throw new Error(UI_TEXT.modelsPanelUnavailable)

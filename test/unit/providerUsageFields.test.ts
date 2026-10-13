@@ -32,20 +32,26 @@ const CHAT_BASE: ChatPresetQuirks = {
   replayField: 'content',
 }
 
-function tinyBody(): CreateResponseBody {
+function chatBody(): CreateResponseBody {
   return {
-    model: 'test-model',
-    input: [{ type: 'message', role: 'user', content: [{ type: 'input_text', text: 'hi' }] }],
-    instructions: 'be brief',
+    model: 'usagefields-model',
+    instructions: 'answer briefly',
+    input: [
+      {
+        type: 'message',
+        role: 'user',
+        content: [{ type: 'input_text', text: 'carrier ping' }],
+      },
+    ],
+    max_output_tokens: 64,
+    reasoning: { effort: 'minimal', summary: 'auto' },
+    prompt_cache_key: 'usagefields-key',
+    prompt_cache_retention: '1h',
     tools: [],
     tool_choice: 'auto',
-    reasoning: { effort: 'low', summary: 'auto' },
     stream: true,
     store: false,
-    include: ['reasoning.encrypted_content'],
-    max_output_tokens: 100,
-    prompt_cache_key: 'stable-key',
-    prompt_cache_retention: '24h',
+    include: [],
   }
 }
 
@@ -345,11 +351,11 @@ describe('HF-G04: the upstream choice is stored, validated and sent', () => {
 
   it('sends the documented model:upstream suffix only when chosen', () => {
     const plain: ChatPresetQuirks = { ...CHAT_BASE, presetId: 'huggingface', sendCacheKey: false }
-    expect(encodeChatRequest(tinyBody(), 'Qwen/Qwen3.8-27B', plain).body.model).toBe(
+    expect(encodeChatRequest(chatBody(), 'Qwen/Qwen3.8-27B', plain).body.model).toBe(
       'Qwen/Qwen3.8-27B',
     )
     const pinned: ChatPresetQuirks = { ...plain, upstreamSuffix: 'novita' }
-    expect(encodeChatRequest(tinyBody(), 'Qwen/Qwen3.8-27B', pinned).body.model).toBe(
+    expect(encodeChatRequest(chatBody(), 'Qwen/Qwen3.8-27B', pinned).body.model).toBe(
       'Qwen/Qwen3.8-27B:novita',
     )
   })
@@ -357,12 +363,12 @@ describe('HF-G04: the upstream choice is stored, validated and sent', () => {
 
 describe('FW-G01: the isolation key rides with the cache key', () => {
   it('sends prompt_cache_isolation_key beside prompt_cache_key', () => {
-    const encoded = encodeChatRequest(tinyBody(), 'm', {
+    const encoded = encodeChatRequest(chatBody(), 'm', {
       ...CHAT_BASE,
       sendCacheIsolationKey: true,
     })
-    expect(encoded.body.prompt_cache_key).toBe('stable-key')
-    expect(encoded.body.prompt_cache_isolation_key).toBe('stable-key')
+    expect(encoded.body.prompt_cache_key).toBe('usagefields-key')
+    expect(encoded.body.prompt_cache_isolation_key).toBe('usagefields-key')
     expect(Object.keys(encoded.body)).toEqual([
       'model',
       'messages',
@@ -376,7 +382,7 @@ describe('FW-G01: the isolation key rides with the cache key', () => {
   })
 
   it('sends neither key where the record accepts no key', () => {
-    const encoded = encodeChatRequest(tinyBody(), 'm', { ...CHAT_BASE, sendCacheKey: false })
+    const encoded = encodeChatRequest(chatBody(), 'm', { ...CHAT_BASE, sendCacheKey: false })
     expect(encoded.body).not.toHaveProperty('prompt_cache_key')
     expect(encoded.body).not.toHaveProperty('prompt_cache_isolation_key')
   })

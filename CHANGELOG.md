@@ -103,6 +103,20 @@ happened, not what was planned; superseded entries are kept.
   launches are not yet under the resource governor; nothing in this release
   can start them, and the process inventory fails the day something could.
 
+- Provider usage and price gaps (lane USAGEFIELDS, branch
+  feat/provider-usage-fields): cached tokens on Groq settle at the documented
+  half price instead of the full input price; DeepSeek's catalogue
+  reasoning-token price reaches the price card and settlement; catalogue
+  long-context tiers (Gemini 2.5 Pro past 200k prompts) apply to every
+  tiered model; the Hugging Face router shows per-upstream prices, honours
+  per-upstream context and tool/structured flags, and takes an `upstream`
+  choice on the provider entry (sent as the documented `model:upstream`
+  suffix); a tested OpenRouter key's credit balance reaches Account &
+  usage; Fireworks requests carry `prompt_cache_isolation_key` beside the
+  cache key. Catalogue `cache_write` prices now apply too. Every new wire
+  shape is documentation-quoted and UNVERIFIED until the lead's real-request
+  capture (`docs/certification/usagefields-capture-plan.json`) confirms it.
+
 ## [0.18.1] - 2026-10-12
 
 ### Fixed
