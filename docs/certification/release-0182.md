@@ -249,14 +249,24 @@ seconds is that it became the window's active text editor, with two chat
 panels open from the cases before it. The same VSCodium passed that case on
 the same tree in pull request 153's Hosts run at 2:30 PM, and the Hosts runs
 of the seven earlier pushes to main are green. The release agent did not
-read this run before the tag was pushed; the lead found it. **Its cause is
-not yet measured.** The job's log holds the test output only and the run
-kept no extension log. Read so far in the product: the case before it runs
-Focus Input, which reveals the chat panel and asks its composer to take
-focus, and nothing waits for that to finish; the `focusView` setting that
-case flips changes how the transcript is drawn and moves no focus. Whether a
-person who runs Create AGENTS.md can see focus go back to the chat is being
-measured on a probe branch; the result goes into the next release's record.
+read this run before the tag was pushed; the lead found it. **Its cause,
+measured afterwards** on a probe branch that is never merged
+(`probe/vscodium-focus`, head `703d5d58f`; Hosts runs 38335980951,
+38336295689 and 38336506352, ten "VSCodium latest" jobs each, with the
+product's focus calls and the window's active editor on one clock): a chat
+panel whose webview finishes loading focuses its own composer, and that makes
+the chat panel the active editor and takes the keyboard from a document
+opened in the meantime. In 14 of the 20 jobs of the two runs that kept
+recording after the check, the chat panel left open in the other editor group
+became the active editor 0.4 to 0.8 seconds after `showTextDocument` had
+resolved and the active text editor went to none, in five AGENTS.md stayed
+active, and in one AGENTS.md was not the active text editor in the 20 seconds
+the probe watched, which is the red above (the first run stopped recording at
+the check, so its ten greens show nothing). It is a defect of the product
+that a person can see (open a file within half a second of a chat panel
+loading and the typing goes into the chat), there since 2026-09-21
+(`fb1166ec6f`) and in none of the files 0.18.2 changed; its fix is the next
+release's work.
 
 **Red on the pull request's head.** The CI run of pull request 153, below.
 
