@@ -83,6 +83,11 @@ export function summaryOf(record) {
       : [
           `AN EARLIER RUN noted at ${record.earlierRun.storedAt} that it stored a Meta key and did not remove it. A Meta key is ${record.earlierRun.stillStored ? 'STILL IN THE CREDENTIAL STORE' : 'no longer stored'}. This run ${record.earlierRun.did}.`,
         ]),
+    ...(record.entriesFoundAtStart === undefined
+      ? []
+      : [
+          `LEFT IN THE CREDENTIAL STORE by an earlier run or diagnostic, found when this run started: ${record.entriesFoundAtStart.join(', ')}. A route of this run removed its own; any other is removed with \`auth clear --provider <name>\`.`,
+        ]),
     `Scenario runs: ${String(record.totals.passed)} passed, ${String(record.totals.failed)} failed, ${String(record.totals.notRun)} not run.`,
     '',
   ]

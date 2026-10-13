@@ -134,6 +134,9 @@ const MUSE_CODE_NOT_RUN =
 
 /** The name a route's provider is added under. */
 export const providerIdOf = (routeId) => `rl-${routeId}`
+// The names a diagnostic adds its provider under (`rlq-<route>`): the run
+// looks for both when it starts, since either can be left by a killed process.
+export const DIAGNOSTIC_PREFIX = 'rlq-'
 
 // Meta's own model families, under whatever name a reseller lists them.
 const META_FAMILY = /muse|wonder/iu

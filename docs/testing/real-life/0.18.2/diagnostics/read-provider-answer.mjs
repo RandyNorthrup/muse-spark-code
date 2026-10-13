@@ -25,9 +25,9 @@ import { pathToFileURL } from 'node:url'
 import { productEnvironment } from '../../../../../scripts/real-life/lib/home.mjs'
 import { installArtefact } from '../../../../../scripts/real-life/lib/install.mjs'
 import { keySource, readKey } from '../../../../../scripts/real-life/lib/keys.mjs'
-import { jsonLines, runCommand } from '../../../../../scripts/real-life/lib/product.mjs'
+import { endAll, jsonLines, runCommand } from '../../../../../scripts/real-life/lib/product.mjs'
 import { scrubber } from '../../../../../scripts/real-life/lib/record.mjs'
-import { ROUTES } from '../../../../../scripts/real-life/lib/routes.mjs'
+import { DIAGNOSTIC_PREFIX, ROUTES } from '../../../../../scripts/real-life/lib/routes.mjs'
 
 const PLAIN =
   'This is a connection check. Please confirm that you received this message by quoting its reference code back to me. The reference code is RL-PROBE01.'
@@ -75,9 +75,58 @@ function scrubbed(value) {
     : value
 }
 const tapFile = path.join(root, 'tap.jsonl')
-const provider = `rlq-${routeId}`
-const state = { isAdded: false }
+const provider = `${DIAGNOSTIC_PREFIX}${routeId}`
+const state = { mayBeStored: false, isCut: false, cleaning: Promise.resolve() }
 let plain
+
+/**
+ * Removes the key this diagnostic stored, through the product's own
+ * command, and checks that it is gone. The key counts as stored until that
+ * check is made, so a clean-up that is itself cut short is taken up again.
+ * Its commands are not ended by a cut.
+ */
+async function removeStored(earlier) {
+  await earlier
+  if (!state.mayBeStored) return
+  const options = { cwd: workspace, isCleanUp: true }
+  await runCommand(plain, ['auth', 'clear', '--provider', provider], options)
+  const left = await runCommand(plain, ['auth', 'status', '--provider', provider], options)
+  if (left.code === 0) console.error(`STILL IN THE CREDENTIAL STORE: ${provider}`)
+  state.mayBeStored = false
+}
+
+/**
+ * The clean-up: the key, then the folders. It runs at the end, and when the
+ * diagnostic is interrupted or fails with an error nobody caught; one at a
+ * time, and a second call finds nothing left to do. (A process that is
+ * ended outright runs nothing: the real-life run names an `rlq-` entry it
+ * finds when it starts.)
+ */
+async function cleanUp() {
+  state.cleaning = removeStored(state.cleaning)
+  await state.cleaning
+  rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 300 })
+}
+
+async function cutShort(why) {
+  if (state.isCut) return
+  state.isCut = true
+  console.error(`The diagnostic is cut short (${why}): removing what it stored.`)
+  endAll()
+  try {
+    await cleanUp()
+  } finally {
+    process.exit(1)
+  }
+}
+for (const signal of ['SIGINT', 'SIGTERM', 'SIGBREAK', 'SIGHUP']) {
+  process.on(signal, () => cutShort(signal))
+}
+process.on('uncaughtException', (error) => cutShort(`an error nobody caught: ${error.message}`))
+process.on('unhandledRejection', (reason) =>
+  cutShort(`a failure nobody handled: ${String(reason)}`),
+)
+
 try {
   const installed = installArtefact(tarball, folders.install)
   if (!installed.ok) throw new Error(installed.reason)
@@ -92,6 +141,9 @@ try {
       RL_TAP_POSTS: isTool ? '2' : '1',
     },
   }
+  // Counted as stored before the command runs: a diagnostic that is cut
+  // short while it runs removes what it may have stored.
+  state.mayBeStored = true
   const added = await runCommand(
     plain,
     [
@@ -107,8 +159,7 @@ try {
     ],
     { cwd: workspace, stdin: `${read.key}\n` },
   )
-  state.isAdded = added.code === 0
-  if (!state.isAdded) throw new Error(scrub(`providers add: ${added.stdout} ${added.stderr}`))
+  if (added.code !== 0) throw new Error(scrub(`providers add: ${added.stdout} ${added.stderr}`))
   // The tap is proved first on the free model listing: when it records
   // nothing there, no model request is made at all.
   await runCommand(tapped, ['providers', 'test', provider], { cwd: workspace })
@@ -165,6 +216,5 @@ try {
   console.error(scrub(error instanceof Error ? error.message : String(error)))
   process.exitCode = 1
 } finally {
-  if (state.isAdded) await runCommand(plain, ['providers', 'remove', provider], { cwd: workspace })
-  rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 300 })
+  await cleanUp()
 }

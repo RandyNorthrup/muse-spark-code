@@ -50,7 +50,7 @@ import {
   totalsOf,
   writeRecord,
 } from './lib/record.mjs'
-import { ROUTES, routeFor, routeRefusal } from './lib/routes.mjs'
+import { DIAGNOSTIC_PREFIX, ROUTES, providerIdOf, routeFor, routeRefusal } from './lib/routes.mjs'
 
 const parsed = parseArguments(process.argv.slice(2))
 if (!parsed.ok) {
@@ -195,10 +195,15 @@ const cells = []
 const routeStates = []
 const configured = []
 const stores = { isMetaStored: false }
+// Why the run is being cut short, once it is (a signal, an error nobody caught).
+const cut = { why: undefined }
 let product
 
-/** A terminal command outside any scenario (set-up, usage, clean-up). */
+/** A terminal command outside any scenario (set-up, usage). */
 const terminal = (args, stdin = '') => runCommand(product, args, { cwd: folders.workspaces, stdin })
+
+/** A command of the clean-up: a run that is cut short ends every other process and lets these finish. */
+const cleaner = (args) => runCommand(product, args, { cwd: folders.workspaces, isCleanUp: true })
 
 /** The product's own usage records for this home. */
 async function usageRecords() {
@@ -228,15 +233,18 @@ async function setUpMeta(key) {
     return { ok: true, key, noEditor: held, state: `${onPipe}; ${held}` }
   }
   // Noted before it is stored, outside the run's folder, and never the key:
-  // a run that is ended outright leaves the note for the next one.
+  // a run that is ended outright leaves the note for the next one. And
+  // counted as stored before the command runs: a run that is cut short
+  // while it runs removes what it may have stored.
   writeMarker({ storedAt: new Date().toISOString(), run: `the run of ${artefact.name}` })
+  stores.isMetaStored = true
   const stored = await terminal(['auth', 'set'], `${key}\n`)
-  if (stored.code !== 0) {
+  if (stored.code !== 0 && cut.why === undefined) {
+    stores.isMetaStored = false
     clearMarker()
     const refused = `auth set did not store the key: ${said(stored)}`
     return { ok: true, key, noEditor: refused, state: `${onPipe}; ${refused}` }
   }
-  stores.isMetaStored = true
   return {
     ok: true,
     key,
@@ -256,10 +264,15 @@ async function setUp(route, models) {
   if (read.key === undefined) return { ok: false, state: `not run: ${read.reason}` }
   secrets.set(read.key, '<key>')
   if (route.kind === 'meta') return await setUpMeta(read.key)
-  // A name left by a run that was cut short: the run's own, so it removes it.
+  // A key left under this name by a run that was ended outright: the name is
+  // the run's own, so it removes it. From a new home only `auth clear` does
+  // (`providers remove` knows the providers of its own home).
   const before = await terminal(['auth', 'status', '--provider', route.provider])
-  if (before.code === 0) await terminal(['providers', 'remove', route.provider])
+  if (before.code === 0) await terminal(['auth', 'clear', '--provider', route.provider])
   const clock = performance.now()
+  // Listed for the clean-up before the command runs: a run that is cut short
+  // while it runs removes what it may have stored.
+  configured.push(route)
   const added = await terminal(
     [
       'providers',
@@ -282,7 +295,6 @@ async function setUp(route, models) {
     },
   ]
   if (added.code === 0) {
-    configured.push(route)
     const tested = await terminal(['providers', 'test', route.provider])
     seen.push({
       what: 'providers test says the key works',
@@ -326,23 +338,49 @@ const left = []
 
 /**
  * Removes what the run has stored and not yet removed, through the
- * product's own commands, and checks that it is gone. It runs after every
- * route, at the end, and when the run is cut short; a second call finds
- * nothing left to do.
+ * product's own commands, and checks that it is gone. An entry leaves the
+ * list only once that check is made, so a clean-up that is itself cut short
+ * is taken up again where it stopped.
  */
-async function cleanUp() {
+async function removeStored() {
   while (configured.length > 0) {
-    const route = configured.pop()
-    await terminal(['providers', 'remove', route.provider])
-    const after = await terminal(['auth', 'status', '--provider', route.provider])
+    const route = configured.at(-1)
+    // `providers remove` takes the provider out of this home and its key out
+    // of the store; `auth clear` takes the key out when the provider was
+    // never written (an add that was cut short).
+    await cleaner(['providers', 'remove', route.provider])
+    await cleaner(['auth', 'clear', '--provider', route.provider])
+    const after = await cleaner(['auth', 'status', '--provider', route.provider])
     if (after.code === 0) left.push(route.provider)
+    configured.pop()
   }
   if (!stores.isMetaStored) return
-  stores.isMetaStored = false
-  await terminal(['auth', 'clear'])
-  const after = await terminal(['auth', 'status'])
+  await cleaner(['auth', 'clear'])
+  const after = await cleaner(['auth', 'status'])
   if (after.code === 0) left.push('the Meta Model API key')
   else clearMarker()
+  stores.isMetaStored = false
+}
+
+// One clean-up at a time: the one a cut asks for waits for the one in flight.
+const cleaning = { last: Promise.resolve() }
+
+async function removeAfter(earlier) {
+  try {
+    await earlier
+  } catch {
+    // What an earlier clean-up could not do is tried again by this one.
+  }
+  await removeStored()
+}
+
+/**
+ * The clean-up. It runs after every route, at the end, and when the run is
+ * cut short; a second call finds nothing left to do.
+ */
+function cleanUp() {
+  cleaning.last = removeAfter(cleaning.last)
+  return cleaning.last
 }
 
 /**
@@ -350,7 +388,6 @@ async function cleanUp() {
  * signal) or by an error nobody caught: the product's processes are ended
  * and what the run stored is removed before it exits.
  */
-const cut = { why: undefined }
 async function cutShort(why) {
   if (cut.why !== undefined) return
   cut.why = why
@@ -558,6 +595,25 @@ async function earlierRunLeft(note) {
   }
 }
 let earlierRun
+
+/**
+ * The provider keys in the credential store under a name of the run's own
+ * (`rl-<route>`) or of its diagnostic (`rlq-<route>`): what a run or a
+ * diagnostic that was ended outright left behind. The product itself is
+ * asked, name by name; nothing is removed here.
+ */
+async function entriesLeft() {
+  const names = Object.entries(ROUTES)
+    .filter(([, route]) => route.kind === 'provider')
+    .flatMap(([id]) => [providerIdOf(id), `${DIAGNOSTIC_PREFIX}${id}`])
+  const found = []
+  for (const name of names) {
+    const status = await terminal(['auth', 'status', '--provider', name])
+    if (status.code === 0) found.push(name)
+  }
+  return found
+}
+let foundAtStart = []
 // What the run set in the product's own settings, in its own new home.
 const settings = isMatrix
   ? [
@@ -588,6 +644,12 @@ try {
       `The run that noted a Meta key at ${earlierRun.storedAt}: a Meta key is ${earlierRun.stillStored ? 'STILL IN THE CREDENTIAL STORE' : 'no longer stored'}. This run ${earlierRun.did}.`,
     )
   }
+  foundAtStart = await entriesLeft()
+  if (foundAtStart.length > 0) {
+    console.error(
+      `LEFT IN THE CREDENTIAL STORE BY AN EARLIER RUN OR DIAGNOSTIC: ${foundAtStart.join(', ')}. A route of this run removes its own before it starts; remove any other with the product: auth clear --provider <name>.`,
+    )
+  }
   const say = (done) => {
     const word = { passed: 'PASS', failed: 'FAIL', notRun: 'not run' }[done.outcome]
     const missing = done.observed
@@ -605,6 +667,8 @@ try {
     )
   }
   for (const group of groups) {
+    // A run that is being cut short sets nothing more up.
+    if (cut.why !== undefined) break
     const { route } = group
     const state = await setUp(route, group.models)
     routeStates.push({ id: route.id, wire: route.wire, model: modelsOf(group), state: state.state })
@@ -690,6 +754,7 @@ const record = {
   },
   settings,
   ...(earlierRun !== undefined && { earlierRun }),
+  ...(foundAtStart.length > 0 && { entriesFoundAtStart: foundAtStart }),
   totals: totalsOf(results, skipped, budget.spent, productUsage, unsettled),
   routes: routeStates,
   results,

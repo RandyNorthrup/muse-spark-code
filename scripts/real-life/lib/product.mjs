@@ -44,18 +44,17 @@ export function endAll() {
  * One command, run to its end.
  * @param {Product} product
  * @param {readonly string[]} args
- * @param {{ cwd: string, stdin?: string, timeoutMs?: number }} options
+ * @param {{ cwd: string, stdin?: string, timeoutMs?: number, isCleanUp?: boolean }} options `isCleanUp`: a command that removes what the run stored; a run that is cut short ends every other process and lets this one finish
  */
 export function runCommand(product, args, options) {
   const clock = performance.now()
-  const child = started(
-    spawn(process.execPath, [product.agent, ...args], {
-      cwd: options.cwd,
-      env: product.env,
-      stdio: 'pipe',
-      windowsHide: true,
-    }),
-  )
+  const spawned = spawn(process.execPath, [product.agent, ...args], {
+    cwd: options.cwd,
+    env: product.env,
+    stdio: 'pipe',
+    windowsHide: true,
+  })
+  const child = options.isCleanUp === true ? spawned : started(spawned)
   const seen = { stdout: '', stderr: '' }
   let isTimedOut = false
   child.stdout.on('data', (chunk) => {
