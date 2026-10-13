@@ -2668,6 +2668,8 @@
   "toolResultCutPreview": "Výstup nástroje zkrácen: {total} ponecháno jako prvních {head} a posledních {tail} řádků ({omitted} vynecháno). Úplný výstup je v {spill}; otevřete přes read_file.",
   "contextWindowTooLong": "Konverzace ({tokens} tokenů) je o {over} tokenů větší než okno tohoto modelu ({maximum} tokenů). /compact konverzaci, přejděte na model s větším oknem nebo začněte novou konverzaci; nic nebylo smazáno.",
   "toolResultCapRefused": "Limit {source} výstupu nástroje {value} je odmítnut ({reason}); používá se výchozí {fallback}.",
+  "toolResultCapBelowFloor": "pod čitelnou hranicí {floor} bajtů",
+  "toolResultCapAboveWindow": "větší než okno modelu circa {window} tokenů",
   "sessionBudgetStopped": "Zastaveno: další požadavek (asi {estimate}) by překročil rozpočet relace {cap} (využito {spent}). Nebyl odeslán.",
   "sessionBudgetStoreUnavailable": "Záznam výdajů relace nelze přečíst nebo uložit. Dokud nebude dostupný, nelze odeslat nový požadavek.",
   "sessionBudgetLegacyFeesUnknown": "Výdaje konverzace nejsou plně ověřeny. Počkejte na dokončení čekajících požadavků, nebo začněte novou konverzaci pro použití limitu výdajů.",

@@ -2614,6 +2614,8 @@
   "toolResultCutPreview": "Resultado de herramienta recortado: {total} conservado como las primeras {head} y las últimas {tail} líneas ({omitted} omitidas). El resultado completo está en {spill}; ábrelo con read_file.",
   "contextWindowTooLong": "La conversación ({tokens} tokens) supera la ventana de este modelo ({maximum} tokens) por {over} tokens. /compact la conversación, cambia a un modelo con una ventana mayor o inicia una nueva conversación; no se eliminó nada.",
   "toolResultCapRefused": "El límite {source} de salida de herramienta de {value} se rechaza ({reason}); se usa el valor predeterminado de {fallback}.",
+  "toolResultCapBelowFloor": "por debajo del mínimo legible de {floor} bytes",
+  "toolResultCapAboveWindow": "mayor que la ventana del modelo de unos {window} tokens",
   "sessionBudgetStopped": "Detenido: la próxima solicitud (unas {estimate}) superaría el presupuesto de sesión de {cap} ({spent} usados). No se envió.",
   "sessionBudgetStoreUnavailable": "No se pudo leer ni guardar el registro de gastos de la sesión. No se puede enviar una solicitud nueva hasta que esté disponible.",
   "sessionBudgetLegacyFeesUnknown": "El gasto de la conversación no está totalmente verificado. Espera a que terminen las solicitudes pendientes o inicia una conversación nueva para usar un límite de gasto.",

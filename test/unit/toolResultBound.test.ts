@@ -1,16 +1,34 @@
-// TOOLCAP: unit tests for the one bound every tool result passes through.
+// TOOLCAP: pure-logic tests through the real bound module: the byte
+// guarantee, the true notice arithmetic, the cap validation, and the
+// recogniser on the recorded provider answer. No stand-ins: values in,
+// values out.
 import { describe, expect, it } from 'vitest'
 import { OBS_PACK_CHARS_PER_TOKEN } from '../../src/shared/constants'
 import {
   boundToolResultText,
+  capRefusalReason,
   cutNotice,
   parsePromptTooLong,
   spillName,
+  utf8Length,
   validateToolResultCap,
-  windowShareChars,
+  windowShareBytes,
 } from '../../src/core/backends/modelapi/toolResultBound'
 
 const LIMITS = { maxTokens: 16_000, maxLineChars: 8000, maxBytes: 64_000, windowTokens: undefined }
+
+/** Every cut's kept and omitted add up to the total. */
+function expectSums(
+  text: string,
+  limits: typeof LIMITS,
+): Exclude<ReturnType<typeof boundToolResultText>['cut'], undefined> {
+  const bounded = boundToolResultText(text, limits)
+  if (bounded.cut === undefined) throw new Error('expected a cut')
+  expect(bounded.cut.keptChars).toBe(bounded.text.length)
+  expect(bounded.cut.keptChars + bounded.cut.omittedChars).toBe(text.length)
+  expect(bounded.cut.keptBytes).toBe(utf8Length(bounded.text))
+  return bounded.cut
+}
 
 describe('boundToolResultText', () => {
   it('returns small results byte-identical, with no cut', () => {
@@ -34,12 +52,49 @@ describe('boundToolResultText', () => {
     expect(bounded.text).not.toContain('h'.repeat(40_000))
   })
 
+  it('kept and omitted sum to the total for one enormous line', () => {
+    const cut = expectSums('x'.repeat(200_000), LIMITS)
+    expect(cut.totalLines).toBe(1)
+    expect(cut.headLines).toBe(1)
+    expect(cut.tailLines).toBe(0)
+    expect(cut.longestLine).toBe(200_000)
+  })
+
+  it('kept and omitted sum to the total for many short lines', () => {
+    const text = Array.from({ length: 20_000 }, (_, index) => `line ${String(index)}`).join('\n')
+    const cut = expectSums(text, LIMITS)
+    expect(cut.totalLines).toBe(20_000)
+    // The head and tail parts hold real lines: every kept line is counted.
+    expect(cut.headLines).toBeGreaterThan(0)
+    expect(cut.tailLines).toBeGreaterThan(0)
+    expect(cut.longestLine).toBe(0)
+  })
+
+  it('kept and omitted sum to the total for a cut inside a surrogate pair', () => {
+    const text = `${'😀'.repeat(20_000)}\n${'😀'.repeat(20_000)}`
+    const bounded = boundToolResultText(text, LIMITS)
+    if (bounded.cut === undefined) throw new Error('expected a cut')
+    expect(bounded.cut.keptChars + bounded.cut.omittedChars).toBe(text.length)
+    expect(() => encodeURIComponent(bounded.text)).not.toThrow()
+    expect(bounded.text).not.toMatch(/�/)
+  })
+
+  it('kept and omitted sum to the total for CRLF text', () => {
+    const text = `${'h'.repeat(40_000)}\r\n${'t'.repeat(40_000)}\r\n`
+    const cut = expectSums(text, LIMITS)
+    expect(cut.totalLines).toBe(2)
+    expect(hasNoCarriageReturn(text, LIMITS)).toBe(true)
+  })
+
   it('cuts long lines even when the total fits, naming the longest', () => {
     const text = ['a'.repeat(20_000), 'short', 'b'.repeat(9000)].join('\n')
     const bounded = boundToolResultText(text, LIMITS)
     if (bounded.cut === undefined) throw new Error('expected a cut')
     expect(bounded.cut.longestLine).toBe(20_000)
     expect(bounded.cut.lineCap).toBe(8000)
+    expect(bounded.cut.keptChars + bounded.cut.omittedChars).toBe(text.length)
+    expect(bounded.cut.headLines).toBe(3)
+    expect(bounded.cut.tailLines).toBe(0)
     for (const line of bounded.text.split('\n')) {
       expect(line.length).toBeLessThanOrEqual(8000)
     }
@@ -54,22 +109,39 @@ describe('boundToolResultText', () => {
     expect(bounded.text).not.toMatch(/�/)
   })
 
-  it('applies the window share: the same text is cut for a small room', () => {
-    // 62,061 characters: under the token cap, over a 60k window's share.
-    const text = Array.from({ length: 62 }, () => 'm'.repeat(1000)).join('\n')
-    expect(boundToolResultText(text, LIMITS).cut).toBeUndefined()
-    const small = boundToolResultText(text, { ...LIMITS, windowTokens: 60_000 })
+  it('the window share is a guarantee in bytes, not an estimate in characters', () => {
+    // 62,061 ASCII characters: under the 16k-token estimate cap, over a 60k
+    // window's byte share (15,000 bytes). Dense text must be cut the same.
+    const thin = Array.from({ length: 62 }, () => 'm'.repeat(1000)).join('\n')
+    expect(boundToolResultText(thin, LIMITS).cut).toBeUndefined()
+    const small = boundToolResultText(thin, { ...LIMITS, windowTokens: 60_000 })
     if (small.cut === undefined) throw new Error('expected a cut')
-    // A quarter of 60k tokens at four characters each.
-    expect(small.text.length).toBeLessThanOrEqual(60_000)
+    expect(utf8Length(small.text)).toBeLessThanOrEqual(windowShareBytes(60_000))
+    expect(windowShareBytes(60_000)).toBe(15_000)
+    // CJK text: 20,000 characters are 60,000 bytes, three tokens per char
+    // under no honest rule — the character estimate alone would keep it.
+    const dense = 'あ'.repeat(20_000)
+    expect(dense.length).toBeLessThanOrEqual(16_000 * OBS_PACK_CHARS_PER_TOKEN)
+    const denseCut = boundToolResultText(dense, { ...LIMITS, windowTokens: 60_000 })
+    if (denseCut.cut === undefined) throw new Error('expected a cut')
+    expect(utf8Length(denseCut.text)).toBeLessThanOrEqual(windowShareBytes(60_000))
   })
 
   it('a result that cannot fit at all becomes the notice with an empty keep', () => {
     const bounded = boundToolResultText('0123456789'.repeat(100), { ...LIMITS, windowTokens: 0 })
     if (bounded.cut === undefined) throw new Error('expected a cut')
     expect(bounded.cut.omittedChars).toBe(1000)
+    expect(bounded.text).toBe('')
+    expect(bounded.cut.headLines).toBe(0)
+    expect(bounded.cut.tailLines).toBe(0)
   })
 })
+
+/** A CRLF cut keeps no carriage return the notice did not count. */
+function hasNoCarriageReturn(text: string, limits: typeof LIMITS): boolean {
+  const bounded = boundToolResultText(text, limits)
+  return !bounded.text.includes('\r')
+}
 
 describe('cutNotice', () => {
   it('says how much, which head and tail, the longest line, and how to read more', () => {
@@ -83,6 +155,16 @@ describe('cutNotice', () => {
     expect(notice).toContain('.muse-spark/tool-results/s-c1.txt')
     expect(notice).toContain('recall_output id "c1"')
     expect(notice).toContain('read_file')
+  })
+
+  it('names the head and tail the cut actually kept', () => {
+    const text = Array.from({ length: 20_000 }, (_, index) => `line ${String(index)}`).join('\n')
+    const bounded = boundToolResultText(text, LIMITS)
+    if (bounded.cut === undefined) throw new Error('expected a cut')
+    const notice = cutNotice(bounded.cut, 'spill.txt', 'c9')
+    expect(notice).toContain(
+      `kept ${String(bounded.cut.keptChars)} as the first ${String(bounded.cut.headLines)} and last ${String(bounded.cut.tailLines)} lines`,
+    )
   })
 })
 
@@ -106,24 +188,40 @@ describe('validateToolResultCap', () => {
     expect(validateToolResultCap(undefined, 1_000_000, 64_000)).toEqual({ bytes: 64_000 })
   })
 
-  it('refuses below the readable floor', () => {
+  it('refuses below the readable floor with its own translated sentence', () => {
     const refused = validateToolResultCap(10, 1_000_000, 64_000)
-    expect('refused' in refused && refused.fallback).toBe(64_000)
+    if (!('refused' in refused)) throw new Error('expected a refusal')
+    expect(refused.fallback).toBe(64_000)
+    expect(refused.refused).toEqual({ kind: 'below-floor' })
+    expect(capRefusalReason(refused.refused)).toContain('1,024')
   })
 
-  it('refuses a cap that could not fit the model window', () => {
+  it('refuses a cap that could not fit the model window, naming the window', () => {
     const refused = validateToolResultCap(10_000_000, 100_000, 64_000)
-    expect('refused' in refused).toBe(true)
+    if (!('refused' in refused)) throw new Error('expected a refusal')
+    expect(refused.refused).toEqual({ kind: 'above-window', windowTokens: 100_000 })
+    expect(capRefusalReason(refused.refused)).toContain('100')
   })
 
   it('accepts a raised cap that fits', () => {
     expect(validateToolResultCap(128_000, 1_000_000, 64_000)).toEqual({ bytes: 128_000 })
   })
+
+  it('without a known window the bound is the per-result caps alone', () => {
+    expect(validateToolResultCap(10_000_000, undefined, 64_000)).toEqual({ bytes: 10_000_000 })
+  })
 })
 
-describe('windowShareChars and spillName', () => {
-  it('shares a quarter of the room in characters', () => {
-    expect(windowShareChars(100_000)).toBe(100_000)
+describe('windowShareBytes, utf8Length and spillName', () => {
+  it('shares a quarter of the room in bytes: at most N bytes is at most N tokens', () => {
+    expect(windowShareBytes(100_000)).toBe(25_000)
+    expect(windowShareBytes(0)).toBe(0)
+  })
+
+  it('counts UTF-8 bytes, not characters', () => {
+    expect(utf8Length('abc')).toBe(3)
+    expect(utf8Length('あ')).toBe(3)
+    expect(utf8Length('😀')).toBe(4)
   })
 
   it('names deterministic, separator-free spill files', () => {
