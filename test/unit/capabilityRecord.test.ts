@@ -501,6 +501,8 @@ describe('normalized capability record', () => {
       value: { maxBytes: 10 * 1024 * 1024, maxCount: 50 },
     })
     expect(meta.modalities.pdf).toMatchObject({ value: { maxBytes: 32_000_000, maxPages: 50 } })
+    // Lane REASONSHAPES: `ultra` is Muse Code's client-side top tier,
+    // mapped to the highest served tier at send time.
     expect(capabilityEffortLevels(meta)).toEqual([
       'minimal',
       'low',
@@ -508,6 +510,7 @@ describe('normalized capability record', () => {
       'high',
       'xhigh',
       'max',
+      'ultra',
     ])
   })
 })
