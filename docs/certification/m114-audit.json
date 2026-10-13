@@ -10702,7 +10702,7 @@
     },
     {
       "file": "src/webview/components/EmptyState.tsx",
-      "sha256": "a036749422972835445e1b722c78e18e957aa14bef7f6a23c86994be9f02c055"
+      "sha256": "991ecbf9aed7cc5732f3398bf57ea8a90bd84fc8b250d2248190a46a0f9bbd88"
     },
     {
       "file": "src/webview/components/ErrorBoundary.tsx",
@@ -10966,7 +10966,7 @@
     },
     {
       "file": "src/webview/components/icons.tsx",
-      "sha256": "856b21853e79552b999192c14ab4ffcf5f185d799e096886d873b6522507eb99"
+      "sha256": "10da7e3ac9237dccbd3c43cf479c506a26b51caa0442c271326756a62a27e971"
     },
     {
       "file": "src/webview/components/menuIds.ts",
@@ -11526,7 +11526,7 @@
     },
     {
       "file": "src/webview/styles.css",
-      "sha256": "7f0d86220b046ebf80c6177ee6b6478e6017f7aeaf28b56771b6c05899dbb53a"
+      "sha256": "271fc4774d655c30a8debc83c33f53807a0405ac4e3c3896185496b624be5652"
     },
     {
       "file": "src/webview/surfaceRetry.ts",
@@ -11534,7 +11534,7 @@
     },
     {
       "file": "src/webview/tokens.css",
-      "sha256": "ed4696f386a8ea0fb1328e69e32fbc62ee1d4236a5922632aafd37e5164a2397"
+      "sha256": "dfaed5e9c1429033b5703e856ea10c727ede3daf3bcdca2f52baf92dc1f44e6b"
     },
     {
       "file": "src/webview/toolDetails.ts",
