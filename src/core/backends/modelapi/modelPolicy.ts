@@ -167,6 +167,9 @@ export function minOutputTokensForPolicy(policy: Pick<ModelPolicy, 'output'>): n
  */
 export function effortForPolicy(policy: ModelPolicy, requested: string): string {
   if (policy.identity.provider === 'meta') {
+    // The Model API has no `ultra` (lane REASONSHAPES): it rides as the
+    // highest API tier, like `none` rides as `minimal`.
+    if (requested === 'ultra') return 'max'
     return requested === 'none' ? 'minimal' : requested
   }
   const { effortLevels, canDisable, thinkingOff, effortAliases, sendUndeclaredEffort } =
