@@ -36731,7 +36731,7 @@ run `npx vitest` over the changed sources (at most three files per run) at
 the repository's timeouts, all five typecheck projects, ESLint and Prettier
 on changed files, `check:l10n`, deadcode, cycles, duplication, production
 build, and the packed exec/ACP stdio e2e suites. Receipts:
-`docs/certification/catch-money.md`. Three measured notes: the round-3
+`docs/certification/catch-money.md`. Four measured notes: the round-3
 classifier fix reclassifies 94 raw-error logs from REPORTED to GENERIC, so
 the baseline is regenerated with the documented `--write-baseline` after
 that intentional fix (the named sites in this lane's files are fixed; the
@@ -36740,7 +36740,15 @@ rest are recorded for follow-up and the gate still fails on any new rise);
 identically on the untouched base (isolated clone at d38908d0c), so it is
 not this change; the ACP agent's damaged-choice sentence falls back to its
 existing resource-error channel until a `session/notification` transport is
-threaded through. No threshold, ignore, timeout or rule is changed. The
+threaded through; `dist/modelsPanel.js` measures 125.2 KiB against its
+125 KiB budget (base d38908d0c builds 124.2 KiB in an isolated worktree):
+the +1,036 bytes are the required P2-1 three-valued read (`credentialRead.ts`
+adapter +566, `credentialStore.ts` +483, per-bundle metafiles), while the P3-1
+panel hunk itself shrinks the bundle by 13 bytes, and the round's new
+sentences ride the shared UI-text chunk, not this bundle. No trim reaches the
+217-byte gap without contorting reviewed code, so per rule 2 this is a
+justified deferral, not a fix. The lead rebases the budget or directs a
+trim at integration. No threshold, ignore, timeout or rule is changed. The
 lead must run the aggregate suite before integration.
 
 ## 8. Escape hatches register

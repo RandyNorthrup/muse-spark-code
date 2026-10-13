@@ -29,8 +29,9 @@ happened, not what was planned; superseded entries are kept.
   its kind. A stopped OAuth flow stays a stop only for the caller's own
   stop; any other failure racing it denies. A corrupt history choice is
   announced once per damaged file across windows and restarts. A schedule
-  consent file that cannot be read reports its errno instead of reading as
-  corrupt, and a failure with no errno keeps its kind. A failed panel
+  consent file that cannot be read says what kind of problem stopped it
+  instead of reading as corrupt, and a failure with no known kind keeps
+  its kind. A failed panel
   message reaches its draft with the fixed sentence and the queue keeps
   going; a foreign sampler failure is recorded and dropped. Vault decoding
   wipes copied fields on every exit, including an unexpected mid-decode

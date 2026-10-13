@@ -317,3 +317,26 @@ table above; the guard test enforces both.
 | src/runtime/schedules/surface.ts:124          | GENERIC  | { try { this.deps.notice( scheduleLauncherReason(error) ?? UI_TEXT.scheduleV2.ru |
 | src/runtime/schedules/surface.ts:129          | GENERIC  | { // Creation already committed: notifier failure cannot invite a duplicate retr |
 | src/runtime/schedules/surface.ts:141          | GENERIC  | { return { kind: 'refused', // An unreadable consent file names its errno's kind |
+
+## Prove notes (2026-10-12, macmini rig)
+
+- `npm run build` stays red on one budget: `dist/modelsPanel.js` is
+  125.2 KiB against its 125 KiB budget. The isolated base worktree at
+  d38908d0c builds 124.2 KiB; per-bundle metafiles attribute the +1,036
+  bytes to the required P2-1 three-valued read (`credentialRead.ts`
+  adapter +566, `credentialStore.ts` +483), while the P3-1 panel hunk
+  itself shrinks the bundle by 13 bytes and the round's new sentences ride
+  the shared UI-text chunk, never this bundle. No trim reaches the
+  217-byte gap without contorting reviewed code: recorded as a justified
+  deferral in PLAN.md §7 (rule 2), no threshold changed, the lead rebases
+  the budget or directs a trim at integration.
+- `test/unit/acpAgent.test.ts` "exposes all three ChatGPT actions…" fails
+  identically on the untouched base (isolated clone at d38908d0c): not
+  this change.
+- Two load-flakes, each green on a quiet re-run at the repository's
+  timeouts: `acpAgent` "never remembers a paid answer arriving after the
+  prompt cancelled" (`until()` has a hard two-second deadline in the
+  untouched `test/unit/helpers/acpWaits.ts`; fails with pristine HEAD
+  files under load) and `catchInventory` "holds src/acp and src/webview at
+  zero SWALLOW and GENERIC" (full-tree scan exceeds the 5 s test timeout
+  under load; 13/13 alone).
