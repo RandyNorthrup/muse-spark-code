@@ -3,9 +3,10 @@
 Release branch `release/0.18.2`, 2026-10-12, prepared on the owner's PC
 (edits, Prettier, ESLint on changed files, git) with the Kubuntu rig and the
 Mac mini for builds and tests. Hooks stayed on for every commit. No cap, pin,
-threshold or deadline moved. Hosted CI on the pull request is the gate; its
-results and the real conversations through the packed candidate are in the
-release record in `PLAN.md` section 10.
+threshold or deadline moved. Hosted CI on the pull request was the gate; its
+results, the real conversations through the packed product and the
+publication are at the end of this file, and `PLAN.md` section 10 has the
+short record.
 
 The owner asked on 2026-10-12 at 1:17 PM PT why Meta's logo was still in the
 screenshots, and at 1:21 PM how that could happen "if we are looking at over
@@ -137,7 +138,7 @@ After `npm run build` on the rig, all 364 files under `dist/` were searched:
 
 The mark's own class is in `dist/webview/main.css` and in one webview chunk.
 This search was done once, by hand, for this release; it is not a test. The
-same search over the packed candidate is in the release record.
+same search over the packed candidate is further down.
 
 ## What the screenshot comparison checked, and what it could not
 
@@ -206,7 +207,8 @@ the other two add 6.2 KB to that, so about 2 KB smaller in all. The first
 two pictures add 2.3 KB, the notes 0.6 KB; What's New's content is 10.7 KB smaller, because its window of two
 releases now holds 0.18.2 and 0.18.1 and no longer 0.18.0's long notes
 (they stay one link away, in the changelog). The hosted package job
-measures the real file.
+measured the real file: 3,766,521 B, 13,011 B smaller than 0.18.1's and
+22,279 B under the cap.
 
 ## Gates
 
@@ -230,3 +232,105 @@ in `PLAN.md` now says what a reader of the plan needs and the branch's
 history is in this file. `PLAN.md` is at its archive threshold: closed
 history has to move to `docs/plan-archive/` by the procedure in
 `CONTRIBUTING.md` before much more is added.
+
+## The hosted runs
+
+Times are Pacific, 2026-10-12.
+
+| Run                                | Head        | Result                                                                                                       |
+| ---------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------ |
+| CI 38308581634, 2:06 PM            | `e34587544` | Red: `check:plan`, the plan's size (above). Cancelled by the next push                                       |
+| CI 38309090365, 2:11 PM            | `2e2b48e90` | 29 jobs green, none red, when the next push cancelled it (the walkthrough's other two pictures)              |
+| CI 38311021688, 2:30 PM, attempt 1 | `d243e0771` | 37 jobs green, one red: `tests (macos-latest, shard 6)`; the five aggregate names red with it                |
+| The same run, attempt 2, 5:35 PM   | `d243e0771` | The one failed job run again on the same commit: green at 5:48 PM; the run green at 5:56 PM. 72 of 72 checks |
+| Hosts 38311021363                  | `d243e0771` | 15 of 15                                                                                                     |
+| Action check 38311021286           | `d243e0771` | 11 of 11                                                                                                     |
+
+The red shard, measured from the logs: `test/unit/m114Panel.test.mjs`, its
+first case, "loads the real lazy menu independently of the secret modal focus
+owner", ran into its 5,000 ms limit. The same case took 946 ms on Ubuntu and
+608 ms on Windows in that run (1,066 ms and 452 ms on pull request 151's
+green run), so the change did not slow it. On hosted macOS it had taken
+2,635 ms on the green run. It is the first case of its file and opens the
+file's first two browser pages; in the red attempt the file's first three
+cases took about twice as long as on the green run (over 5,007, then 3,270
+and 1,915 ms against 2,635, 1,948 and 998), the other 68 the same, and the
+file 71.7 s against 75.5 s. That is a cold browser start on a hosted macOS
+runner inside one case's limit. No limit was raised and nothing was changed
+in the test; the weakness (a browser suite whose first case opens its first
+page) is left to the test overhaul by the lead's decision.
+
+Without the screenshot jobs the run had 44 jobs and 285 minutes of runner
+time. The last run with them (pull request 151, 38293068319) had 53 jobs and
+368 minutes, 88 of them in the seven screenshot jobs: 83 minutes and nine
+jobs less. The wall time was longer that afternoon, 64 min 33 s against
+32 min 49 s, because the macOS jobs waited for runners (shard 6 started 43
+minutes after the run began).
+
+## The candidate, and the real runs
+
+The hosted packages job of run 38311021688 built the candidate:
+`muse-spark-code-acp-0.18.2.tgz`, 2,936,084 B, SHA-256
+`0ffd42d4a5fac87f172b0b50a326281b67d69ccc0f214544cca565b05ed096ea`, and
+`muse-spark-code-0.18.2.vsix`, 3,766,521 B, SHA-256
+`352e840acf8a4ac8a3265aadc2466f399bbbe8173dca568f27983e113a961244`.
+
+The packed extension, looked at once (374 entries, 172 files of the
+webview): the old drawing's three path starts and the names `MetaLogo`,
+`meta-logo` and `--ms-meta-` are in no file, in the webview and in the
+whole package; the mark's own class is in one webview chunk and in
+`main.css`; the four walkthrough pictures in it are the ones taken again
+(their hashes match).
+
+Three routes through an install of that tarball on the owner's PC, 5:36:40
+to 5:37:24 PM. Stated before: 11 requests and one free model listing, at
+most 6 requests a run, $3 a run on Anthropic and $0.25 a run on Meta.
+
+| Route                                                            | What ran                                                                              | Requests | Cost      |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------------------------- | -------- | --------- |
+| A configured provider (Anthropic Sonnet) through `exec`          | A plain turn, a tool turn with the file written, a long answer                        | 4        | $0.014512 |
+| The editor protocol on that provider                             | A plain turn, a tool turn with one approval (file written), `/usage` showing 3        | 3        | $0.003229 |
+| The Meta contributor model, by its explicit name, through `exec` | A plain turn, a tool turn with the file written (3 requests this time), a long answer | 5        | $0.000504 |
+
+12 requests and $0.018245, nothing uncertain, every exit 0. The keys went in
+over standard input and the agent's own files into a private folder;
+afterwards the agent reported no stored key and no provider, and the
+credential store listed no entry of the product.
+
+The real-life run (`scripts/real-life/run.mjs`, pull request 154) on the
+same tarball, by its own lane, 5:52 PM: 73 scenario runs, 54 passed, 19
+failed, 94 requests, on Anthropic, OpenAI, Meta's contributor model and xAI
+through the terminal agent and the editor protocol. Nothing that passed on
+0.18.1 fails on 0.18.2. The 19 are findings already known on 0.18.1 (among
+them a provider's low-credit answer shown as "Models & Agents is not
+available in this build"), a known compaction defect on one xAI model, and
+one bound of the run's own scenario. Its records are in
+`docs/testing/real-life/0.18.2/` on that pull request.
+
+## Publication
+
+Pull request 153 merged without a bypass at 5:56:56 PM as
+`898a26c5e304426f2fb374910ec700b51b5260d1`, whose tree is the head's tree.
+The annotated tag `v0.18.2` was pushed at 5:57 PM. Release run 38329786779
+succeeded on its first attempt: tag checks 5:58:01, the verified CI
+artifacts 5:58:38 (no second build), the GitHub Release 5:59:12, the
+Marketplace 5:59:47, npm 6:01:19, Open VSX 6:03:12, the channel summary
+6:03:39, the badge refresh 6:06:12. `verify-release.sh 0.18.2` at 6:06 PM:
+"ALL CHANNELS PUBLISHED 0.18.2" (the GitHub Release holds the vsix, the tgz
+and `SHA256SUMS`; the Marketplace shows 0.18.2; Open VSX shows 0.18.2; npm
+has 0.18.2 and its `latest` is 0.18.2).
+
+The published files are the candidate: npm's tarball and the GitHub
+Release's `SHA256SUMS` line carry the SHA-256 above, and the Release's vsix
+is the candidate's. Installed from the npm registry into an empty folder,
+the same three routes ran again from 6:07:45 to 6:08:43 PM: Anthropic Sonnet
+through `exec` 4 requests, $0.014118; the editor protocol 3 requests,
+$0.003228; the Meta contributor model 4 requests, $0.000755. 11 requests and
+$0.018101, nothing uncertain; the keys removed, and that verified.
+
+The README's four version badges: the badge service's own copies had been
+fetched at 5:39 PM, before publication, and live for an hour, so they still
+read 0.18.1 at 6:11 PM, while the service already answers 0.18.2 when asked
+afresh. GitHub's copies of the README's badges (13 images) are purged once
+that hour is over; until then the README on GitHub shows 0.18.1 on those
+four badges and nothing else is affected.

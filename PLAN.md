@@ -40344,21 +40344,25 @@ Unresolved items remain delivery/security gaps, not accepted legal conclusions:
 
 ## 10. Definition of done and release records
 
-**0.18.2 preparation (2026-10-12, release branch).** `release/0.18.2` is
-cut from `int/train-0182` at `5bc38fbe0` and merges main at `e763f4938`
-(0.18.1 as released). One change for a person: the chat panel's empty screen
-shows the product's own mark instead of Meta's logo
-(`docs/certification/panelmark.md`; review RVPANELMARKC without a finding).
-Six pictures that showed the old logo were taken again, two of them shipped
-in the extension's walkthrough. By the owner's order of 1:30 PM PT no
+**0.18.2 released (2026-10-12, tag `v0.18.2` on main's release merge `898a26c5e`, PR #153, release run 38329786779).**
+Pull request 153 (`release/0.18.2`, head `d243e0771`, cut from
+`int/train-0182` at `5bc38fbe0` and merged with main at `e763f4938`) merged at
+5:56 PM PT as `898a26c5e`; the annotated tag was pushed at 5:57 PM PT. The
+Release run succeeded on its first attempt and ended at 6:06 PM PT, from the
+verified CI artifacts without a second build; `verify-release.sh 0.18.2` ended
+"ALL CHANNELS PUBLISHED 0.18.2". One change for a person: the chat panel's
+empty screen shows the product's own mark instead of Meta's logo
+(`docs/certification/panelmark.md`), and the eight pictures that showed the
+old logo or an older panel were taken again. By the owner's order no
 screenshot comparison runs in CI or in `quality:gates` any more; a change to
-the interface is looked at locally. No test was added. Record:
-`docs/certification/release-0182.md`. Not in 0.18.2: the spend ledger and
-the false error sentences (0.18.3), the contributor-price fix (0.18.4), and
-what the 0.18.1 record below leaves to "the next release" and "the
-follow-up". This is preparation, not publication; the public roadmap (M122)
-lists 0.18.2 as the next release until a `0.18.2 released (…)` record
-follows here.
+the interface is looked at locally. No test was added. Hosted CI on the head:
+72 of 72 checks, one macOS test shard on its second attempt. Real runs through
+the packed product, which is the published file byte for byte: three routes
+before the merge (12 requests, $0.018245) and after publication (11 requests,
+$0.018101), keys removed. Not in 0.18.2: the spend ledger and the false error
+sentences (0.18.3), the contributor-price fix (0.18.4), and what the 0.18.1
+record below leaves to "the next release" and "the follow-up". Record:
+`docs/certification/release-0182.md`.
 
 **0.18.1 released (2026-10-12, tag `v0.18.1` on main's release merge `38ef148f1`, PR #151, release run 38298298094).**
 Pull request 151 (`hotfix/0.18.1-nopin`, head `e90f0140c`) merged at 12:29 PM
