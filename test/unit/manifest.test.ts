@@ -688,6 +688,10 @@ describe('tiered CI (CIFLOW)', () => {
     expect(job('packages')).toContain('name: muse-spark-code-vsix')
     expect(job('packages')).toContain('name: muse-spark-code-acp')
     expect(job('packages')).toContain('name: muse-spark-code-sboms')
+    // The roadmap gate stays wired: genRoadmap's own suite went with the
+    // gate-mirror deletions, and this is the tripwire that keeps check:roadmap
+    // in the gate (the leaves comparison above drops both sides together).
+    expect(gates).toContain('check:roadmap')
   })
 
   it('carries the whole production dist, not a hand list, to the accessibility job', () => {
