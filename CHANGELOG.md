@@ -9,6 +9,19 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- ChatGPT plan route gaps (OPENAI-G26, G27, G28): plan codex models run
+  with their own documented numbers (gpt-5.3/5.2-codex: 400,000-token
+  window, 272,000 input cap, 128,000 output cap, low/medium/high/xhigh
+  effort; codex-mini-latest: 200,000/100,000), never Meta's window, and a
+  requested documented effort level is sent as that level. Every
+  documented plan refusal now says what to do (ineligible account,
+  usage-limit, both 503s, unsupported capability, unsupported route,
+  unconfirmed account, grant refusals); anything else shows the provider's
+  own text. Reported `x-codex-*` limit windows appear in Plan Usage under
+  Account & usage; unreported windows stay absent. Per-model facts and
+  header presence await the lead's live capture
+  (`docs/certification/PLANROUTE-capture-plan.json`).
+
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
   reads and writes, and 1-hour cache writes settle at their own price.
   The shared retry classifier refuses known quota codes and excessive

@@ -48,9 +48,9 @@ describe('plan limit headers', () => {
     }
     const tallied = recordPlanUsage([], { providerId: 'chatgpt', limits })
     expect(tallied).toHaveLength(1)
-    expect(tallied[0].limits).toEqual(limits)
+    expect(tallied[0]?.limits).toEqual(limits)
     const again = recordPlanUsage(tallied, { providerId: 'chatgpt' })
-    expect(again[0].requests).toBe(2)
-    expect(again[0].limits).toEqual(limits)
+    expect(again[0]?.requests).toBe(2)
+    expect(again[0]?.limits).toEqual(limits)
   })
 })

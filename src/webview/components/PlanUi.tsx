@@ -23,7 +23,7 @@ import {
   formatRelativeTime,
   plural,
 } from '../../shared/l10n/text'
-import type { PlanUsageRow } from '../../shared/usage'
+import type { PlanLimitWindow, PlanUsageRow } from '../../shared/usage'
 import type { ModelOption } from '../../shared/protocol'
 import { Modal } from './Modal'
 
@@ -222,8 +222,6 @@ function PlanDialog({
   )
 }
 
-type PlanLimitWindow = NonNullable<NonNullable<PlanUsageRow['limits']>['primary']>
-
 /** One reported limit window; a window the plan did not report is not rendered. */
 function PlanLimitWindow({
   label,
@@ -246,12 +244,9 @@ function PlanLimitWindow({
     const seconds = window.resetAfterSecs
     if (observedAt + seconds * MILLISECONDS_PER_SECOND > nowMs) {
       const minutes = seconds / SECONDS_PER_MINUTE
-      const when =
-        minutes < 2
-          ? formatRelativeTime(seconds, 'second')
-          : minutes < MINUTES_PER_HOUR
-            ? formatRelativeTime(Math.round(minutes), 'minute')
-            : formatRelativeTime(Math.round(minutes / MINUTES_PER_HOUR), 'hour')
+      let when = formatRelativeTime(Math.round(minutes / MINUTES_PER_HOUR), 'hour')
+      if (minutes < 2) when = formatRelativeTime(seconds, 'second')
+      else if (minutes < MINUTES_PER_HOUR) when = formatRelativeTime(Math.round(minutes), 'minute')
       parts.push(fill(UI_TEXT.planUi.planLimitResets, { when }))
     }
   }

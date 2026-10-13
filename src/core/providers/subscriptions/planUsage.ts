@@ -2,17 +2,12 @@
 // including a refused/failed stream; no price or dollar reservation is invented.
 import * as z from 'zod/mini'
 import { isProviderId } from '../modelRef'
+import { planLimitWindowSchema, type PlanLimitWindow } from '../../../shared/usage'
 
 const count = z.int().check(z.gte(0))
-// OPENAI-G28: the plan's reported limit windows. Every field is optional: a
-// header the plan stops sending is absent, never zero. Percentages are
-// stored as reported, unclamped.
-const planLimitWindowSchema = z.object({
-  usedPercent: z.number().check(z.gte(0)),
-  windowMins: z.optional(z.number().check(z.gte(0))),
-  resetAfterSecs: z.optional(z.int().check(z.gte(0))),
-})
-export type PlanLimitWindow = z.infer<typeof planLimitWindowSchema>
+// OPENAI-G28: the plan's reported limit windows live in the shared row so
+// the tally and the protocol carry the same shape. Percentages are stored
+// as reported, unclamped.
 const planLimitsSchema = z.object({
   observedAt: count,
   primary: z.optional(planLimitWindowSchema),
