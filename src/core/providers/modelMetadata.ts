@@ -5,6 +5,8 @@ import {
   ANTHROPIC_MAX_IMAGE_BYTES,
   IMAGE_MEDIA_TYPES,
   MAX_IMAGE_BYTES,
+  XAI_IMAGE_MEDIA_TYPES,
+  XAI_MAX_IMAGE_BYTES,
 } from '../../shared/constants'
 import type { CapabilityEvidence, CapabilityOverrides, CapabilitySource } from './capabilityRecord'
 
@@ -20,6 +22,15 @@ const reasoningOptionsSchema = z.array(
     max: z.optional(numeric),
   }),
 )
+
+/** Documented per-provider image bounds; anything else keeps the conservative default. */
+function imagePolicyForPreset(preset: string): { mimes: string[]; maxBytes: number } {
+  if (preset === 'anthropic')
+    return { mimes: [...IMAGE_MEDIA_TYPES], maxBytes: ANTHROPIC_MAX_IMAGE_BYTES }
+  return preset === 'xai'
+    ? { mimes: [...XAI_IMAGE_MEDIA_TYPES], maxBytes: XAI_MAX_IMAGE_BYTES }
+    : { mimes: [...IMAGE_MEDIA_TYPES], maxBytes: MAX_IMAGE_BYTES }
+}
 
 /** Native records are JSON-validated before interpretation or persistence. */
 export function nativeCapabilityEvidence(
@@ -47,12 +58,10 @@ export function nativeCapabilityEvidence(
   const limits: NonNullable<CapabilityOverrides['limits']> = {}
   const modalities: NonNullable<CapabilityOverrides['modalities']> = {}
   const sampling: NonNullable<CapabilityOverrides['sampling']> = {}
-  // Native support is required. Research supplies Anthropic's provider bound;
+  // Native support is required. Research supplies the provider bounds;
   // other providers retain the product's existing conservative image bound.
-  const imagePolicy = {
-    mimes: [...IMAGE_MEDIA_TYPES],
-    maxBytes: preset === 'anthropic' ? ANTHROPIC_MAX_IMAGE_BYTES : MAX_IMAGE_BYTES,
-  }
+  // xAI documents jpg/jpeg and png up to 20 MiB (XAI-G11).
+  const imagePolicy = imagePolicyForPreset(preset)
   const context =
     read(numeric, 'limit', 'context') ??
     read(numeric, 'context_length') ??

@@ -7,8 +7,16 @@
 import { Buffer } from 'node:buffer'
 import { randomUUID } from 'node:crypto'
 import { lstat, open, type FileHandle } from 'node:fs/promises'
-import { BYTES_PER_MIB, MAX_DOCUMENT_BYTES, MAX_IMAGE_BYTES, UI_TEXT } from '../../shared/constants'
+import {
+  BYTES_PER_MIB,
+  MAX_DOCUMENT_BYTES,
+  MAX_IMAGE_BYTES,
+  UI_TEXT,
+  XAI_IMAGE_MEDIA_TYPES,
+  XAI_MAX_IMAGE_BYTES,
+} from '../../shared/constants'
 import type { MediaModelCapabilities } from '../../core/media/modalityGate'
+import { parseModelRef } from '../../core/providers/modelRef'
 import type { MediaLimits } from '../../core/media/limits'
 import { isProtectedPath } from '../../core/protectedPaths'
 import { isPrivateFileName } from '../../shared/privateFiles'
@@ -33,10 +41,13 @@ const INLINE_DOCUMENT_FORMATS = ['application/pdf']
 
 /**
  * Project the selected model from established behavior, never a guess: image
- * and document formats are what the request builder encodes today; video and
- * audio stay unknown until lane V verifies them against live captures.
+ * and document formats are what the request builder encodes today, narrowed
+ * to the provider's documented image bounds where research names them (xAI:
+ * jpg/jpeg and png up to 20 MiB, XAI-G11); video and audio stay unknown
+ * until lane V verifies them against live captures.
  */
 export function projectMediaCapabilities(modelId: string): MediaModelCapabilities {
+  const isXai = parseModelRef(modelId)?.providerId === 'xai'
   return {
     modelId,
     modelName: modelId,
@@ -44,8 +55,8 @@ export function projectMediaCapabilities(modelId: string): MediaModelCapabilitie
     modalities: {
       image: {
         support: 'yes',
-        formats: INLINE_IMAGE_FORMATS,
-        inlineMaxBytes: MAX_IMAGE_BYTES,
+        formats: isXai ? [...XAI_IMAGE_MEDIA_TYPES] : INLINE_IMAGE_FORMATS,
+        inlineMaxBytes: isXai ? XAI_MAX_IMAGE_BYTES : MAX_IMAGE_BYTES,
       },
       document: {
         support: 'yes',
