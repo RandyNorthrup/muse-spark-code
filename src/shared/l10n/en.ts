@@ -5230,6 +5230,9 @@ export const EN = {
       'This computer’s credential store is unavailable. Sign in from an interactive desktop session with an unlocked credential store; on Linux, start Secret Service first.',
     // {reason}: the operating system's own code for the failure.
     lockUnavailable: 'The local sign-in lock could not be opened ({reason}). Try again.',
+    // {reason}: OpenAI's own error code for refusing the authorize request.
+    authorizeRefused:
+      'OpenAI refused the ChatGPT sign-in request ({reason}). Try again or remove it and sign in again.',
   },
   execProviderNotConfigured: 'Provider {id} is not configured.',
   // M95 providers: evaluated through UI_TEXT at use time.

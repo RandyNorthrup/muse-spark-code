@@ -185,6 +185,9 @@ export function chatGptCommandText(): ChatGptCommandText {
         case 'lock-unavailable': {
           return fill(UI_TEXT.acpChatGpt.lockUnavailable, { reason: reason ?? code })
         }
+        case 'authorize-refused': {
+          return fill(UI_TEXT.acpChatGpt.authorizeRefused, { reason: reason ?? code })
+        }
         case 'expired': {
           return UI_TEXT.planUi.expired
         }

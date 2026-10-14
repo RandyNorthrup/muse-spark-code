@@ -4170,7 +4170,8 @@
     "callback": "ChatGPT 로그인이 완료되었습니다. 편집기 또는 터미널로 돌아가세요.",
     "failure": "ChatGPT 로그인을 완료할 수 없습니다. 다시 시도하거나 제거한 뒤 다시 로그인하세요.",
     "storeUnavailable": "이 컴퓨터의 자격 증명 저장소를 사용할 수 없습니다. 저장소가 잠금 해제된 대화형 데스크톱 세션에서 로그인하세요. Linux에서는 먼저 Secret Service를 시작하세요.",
-    "lockUnavailable": "로컬 로그인 잠금을 열 수 없습니다({reason}). 다시 시도하세요."
+    "lockUnavailable": "로컬 로그인 잠금을 열 수 없습니다({reason}). 다시 시도하세요.",
+    "authorizeRefused": "OpenAI가 ChatGPT 로그인 요청을 거부했습니다({reason}). 다시 시도하거나 제거한 뒤 다시 로그인하세요."
   },
   "execProviderNotConfigured": "공급자 {id}가 구성되지 않았습니다.",
   "providerText": {

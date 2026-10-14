@@ -3,12 +3,11 @@
 import {
   ChatGptSignInError,
   chatGptRecordSchema,
+  resolveChatGptHostId,
   type ChatGptHostPort,
 } from '../core/providers/subscriptions/chatgpt'
-import { pkce } from '../host/backend/providersEntry'
-const { isPkceState, pkceRandom } = pkce
 import type { SecretStore } from '../host/auth/credentialStore'
-import { PKCE_STATE_BYTES, PROVIDER_SECRET_PREFIX } from '../shared/constants'
+import { PROVIDER_SECRET_PREFIX } from '../shared/constants'
 import { startChatGptCallback } from './chatGptCallback'
 import { withChatGptRefreshLock, type ChatGptLockOptions } from './chatGptRefreshLock'
 import { storeOperation } from './keyStore'
@@ -33,15 +32,13 @@ export async function createRuntimeChatGptHost(
   try {
     const hostId = await withChatGptRefreshLock(async () => {
       const stored = await storeOperation(async () => await options.secrets.get(HOST_ACCOUNT))
-      if (stored !== undefined) {
-        if (!isPkceState(stored)) throw new ChatGptSignInError('invalid-token')
-        return stored
+      const resolved = resolveChatGptHostId(stored)
+      if (resolved.persist) {
+        await storeOperation(async () => {
+          await options.secrets.store(HOST_ACCOUNT, resolved.hostId)
+        })
       }
-      const created = pkceRandom(PKCE_STATE_BYTES)
-      await storeOperation(async () => {
-        await options.secrets.store(HOST_ACCOUNT, created)
-      })
-      return created
+      return resolved.hostId
     }, lock)
     return {
       hostId,

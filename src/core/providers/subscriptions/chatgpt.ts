@@ -1,8 +1,9 @@
 // M95b S: shared sign-in core. Hosts supply the browser, callback, secret
 // store and an inter-process lock; no editor API or other app's store is read.
-import { createHash, createPublicKey, verify } from 'node:crypto'
+import { createHash, createPublicKey, randomUUID, verify } from 'node:crypto'
 import * as z from 'zod/mini'
 import {
+  CHATGPT_HOST_ID_URN_PREFIX,
   CREDENTIAL_RECORD_VERSION,
   HTTP_STATUS,
   MILLISECONDS_PER_SECOND,
@@ -71,6 +72,7 @@ export class ChatGptSignInError extends Error {
     public readonly code:
       | 'invalid-discovery'
       | 'invalid-callback'
+      | 'authorize-refused'
       | 'invalid-state'
       | 'invalid-token'
       | 'invalid-id-token'
@@ -83,8 +85,9 @@ export class ChatGptSignInError extends Error {
       | 'request-failed',
     /**
      * The operating system's own code for a `lock-unavailable` failure
-     * (for example `EACCES`); hosts show it beside the lock sentence.
-     * Undefined for every other code.
+     * (for example `EACCES`), or OpenAI's own error code for an
+     * `authorize-refused` failure (for example `access_denied`); hosts
+     * show it beside the sentence. Undefined for every other code.
      */
     public readonly reason?: string,
   ) {
@@ -123,6 +126,46 @@ function callbackUrl(value: string): URL {
   return url
 }
 
+/**
+ * The documented host id: `urn:uuid:` plus one generated UUIDv4, persisted
+ * per host. Our host has no key pair, so the JWK-thumbprint form (an
+ * identifier only, unverified by OpenAI) would add key management for
+ * nothing; the UUID form is the documented supported alternative.
+ */
+const HOST_ID_PATTERN = /^urn:uuid:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu
+
+/** Whether the value is a documented `ext_agent_host_id`, never a bare random string. */
+export function isChatGptHostId(value: string): boolean {
+  return HOST_ID_PATTERN.test(value)
+}
+
+/** One host's stable `ext_agent_host_id`, generated once and persisted by the caller. */
+export function createChatGptHostId(): string {
+  return `${CHATGPT_HOST_ID_URN_PREFIX}${randomUUID()}`
+}
+
+/**
+ * The host id for `stored`: a documented id is kept, a previous bare-random
+ * id migrates in place to a fresh documented one (or the first one is
+ * created when nothing is stored). Anything else is rejected, never
+ * repaired. An issued client id stays valid across the migration: it is
+ * bound to the user and workspace and spans hosts, so no re-authorization
+ * is required.
+ */
+export function resolveChatGptHostId(stored: string | undefined): {
+  readonly hostId: string
+  readonly persist: boolean
+} {
+  if (stored !== undefined) {
+    if (isChatGptHostId(stored)) return { hostId: stored, persist: false }
+    if (!isPkceState(stored)) throw new ChatGptSignInError('invalid-token')
+  }
+  return { hostId: createChatGptHostId(), persist: true }
+}
+
+/** OpenAI's own `error` code on the callback: an opaque token, never free text. */
+const AUTHORIZE_ERROR_PATTERN = /^[A-Za-z0-9_.-]{1,64}$/
+
 /** Dynamic registration, PKCE S256 and a persistent opaque installation id. */
 export function buildChatGptAuthorizeUrl(options: {
   readonly redirectUri: string
@@ -135,7 +178,9 @@ export function buildChatGptAuthorizeUrl(options: {
   if (
     redirect.search !== '' ||
     !isPkceVerifier(options.verifier) ||
-    [options.state, options.nonce, options.hostId].some((value) => !isPkceState(value))
+    !isPkceState(options.state) ||
+    !isPkceState(options.nonce) ||
+    !isChatGptHostId(options.hostId)
   ) {
     throw new ChatGptSignInError('invalid-callback')
   }
@@ -168,8 +213,19 @@ export function parseChatGptCallback(
   readonly scope: string
 } {
   const url = callbackUrl(value)
-  if (url.origin !== callbackUrl(redirectUri).origin || url.searchParams.has('error')) {
+  if (url.origin !== callbackUrl(redirectUri).origin) {
     throw new ChatGptSignInError('invalid-callback')
+  }
+  if (url.searchParams.has('error')) {
+    // OpenAI refused the authorize request. The attempt stops without
+    // exchanging a code; the person's sentence carries OpenAI's own error
+    // code, never "temporarily unavailable".
+    if (!isPkceState(state) || url.searchParams.get('state') !== state) {
+      throw new ChatGptSignInError('invalid-state')
+    }
+    const refusal = url.searchParams.get('error') ?? ''
+    if (!AUTHORIZE_ERROR_PATTERN.test(refusal)) throw new ChatGptSignInError('invalid-callback')
+    throw new ChatGptSignInError('authorize-refused', refusal)
   }
   for (const field of ['code', 'client_id', 'scope', 'state']) {
     if (url.searchParams.getAll(field).length !== 1) {
@@ -291,7 +347,10 @@ export function verifyChatGptIdToken(options: {
 }
 
 export interface ChatGptHostPort {
-  /** Persist an opaque random id in host storage; never an account identifier. */
+  /**
+   * The host's stable documented id (`urn:uuid:` plus one UUIDv4),
+   * persisted in host storage; never an account identifier.
+   */
   readonly hostId: string
   readonly fetch: typeof fetch
   readonly now: () => number
