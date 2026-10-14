@@ -664,7 +664,6 @@ const ZAI_PRESET: ProviderPreset = {
   origin: { kind: 'fixed', origin: 'https://api.z.ai' },
   auth: 'apiKey',
   authHeader: 'bearer',
-  // Captured shape: `<32 hex>.<16>`.
   keyShape: { kind: 'any' },
   get keyHint() {
     return fill(UI_TEXT.providerText.hints.site, { site: 'Z.ai' })

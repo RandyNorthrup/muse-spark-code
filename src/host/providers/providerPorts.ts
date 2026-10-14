@@ -118,7 +118,7 @@ export interface LocalProbeTarget {
 
 /**
  * What the panel prefills from a preset (D74): address, wire format, auth
- * mode, the key's shape as a hint, the docs and data-use links, the privacy
+ * mode, where the key comes from as a hint, the docs and data-use links, the privacy
  * note, Get a key, the free key test, and the local probe targets.
  */
 export interface PresetInfo {
