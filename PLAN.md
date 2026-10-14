@@ -14656,6 +14656,22 @@ still brings the chat forward. Same rule in the sidebar view and the panel,
 same extension code on every editor; no per-editor branch was read in any
 focus path.
 
+**Follow-up 2026-10-14 (the review's F3): a request that cannot land at
+once is dropped, not held.** The pending hold above had no bound: a stale
+request landed on whatever later focus the surface got. Now the host owns
+each request — the single gate in `surface.post`
+(`src/host/views/webviewSetup.ts`, decided by `shouldDeliverFocusInput` in
+`src/host/views/focusGate.ts`) mints a `token`/`issuedAt` and drops the
+ask when its panel is not the active one (`panel.active`, the sidebar's
+`visible`) and no fresh reveal armed it. The webview records only a
+tokened ask delivered within `FOCUS_REQUEST_WINDOW_MS` (1000 ms, covering
+the slowest measured 766 ms arrival) and lands it only while its surface
+holds the keyboard within that window; afterwards it is gone. Every sender
+(Focus Input, the deferred mention flush, mention inserts, the report
+attach, draft restore, load-time `init`) passes the same gate; acting on
+the chat still focuses the input exactly as before
+(`docs/certification/panel-focus.md`).
+
 ### D89.5 — Credential variables stay out of model-run processes (ENVFENCE, 2026-10-05)
 
 The VS Code Model API shell inherited credential variables from the extension
