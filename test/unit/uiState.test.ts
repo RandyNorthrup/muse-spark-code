@@ -141,7 +141,7 @@ describe('uiReducer: shell', () => {
     const state = reduceAll([
       host(init),
       host({ type: 'settingsChanged', settings: { ...testSettings, focusView: true } }),
-      host({ type: 'focusInput' }),
+      host({ type: 'focusInput', token: 'host-1', issuedAt: NOW }),
       host({ type: 'insertText', text: '@a ' }),
       host({ type: 'insertText', text: '@b ' }),
     ])

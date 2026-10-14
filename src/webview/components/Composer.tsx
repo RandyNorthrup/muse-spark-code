@@ -451,8 +451,13 @@ export function Composer(props: ComposerProps) {
     onSlashMenuOpen,
   } = props
   const textareaRef = useRef<HTMLTextAreaElement>(null)
-  /** Focus requests already landed; a pending one waits for this surface's focus. */
+  /** Focus requests already landed. */
   const landedFocusRequests = useRef(0)
+  /** When `focusRequests` last grew: a request lands only within the delivery
+  window after that (panel-focus F3); afterwards it is gone, so an hour-old
+  ask never throws the caret here on a much later click. */
+  const latestFocusRequestAt = useRef(0)
+  const seenFocusRequests = useRef(0)
   /** Admission stays reserved until the host echoes acceptance or a refusal. */
   const pendingFiles = useRef<PendingMediaReservation[]>([])
   const currentAttachments = useRef(attachments)
@@ -584,18 +589,25 @@ export function Composer(props: ComposerProps) {
   }, [isSlashMenuOpen, onSlashMenuOpen])
 
   // The one place a recorded focus request lands (`landFocusRequest`):
-  // only while this surface already holds the keyboard. A request checked
-  // while unowned — a load finishing behind a freshly opened file — is not
-  // spent: it lands only if this surface itself gains focus (the `reveal()`
-  // a host command just issued, the person clicking this panel), so a
-  // `focusInput` delivered a moment before its reveal's focus still works,
-  // and the chat never takes the keyboard from a file a person just opened.
+  // only while this surface already holds the keyboard, and only within the
+  // delivery window after the ask. A request checked while unowned — a load
+  // finishing behind a freshly opened file — lands only if this surface
+  // itself gains focus in time (the `reveal()` a host command just issued),
+  // so a `focusInput` delivered a moment before its reveal's focus still
+  // works; anything older is dropped, and the chat never takes the keyboard
+  // from a file a person just opened.
   useEffect(() => {
+    if (focusRequests > seenFocusRequests.current) {
+      seenFocusRequests.current = focusRequests
+      latestFocusRequestAt.current = Date.now()
+    }
     const landPending = () => {
       const landed = landFocusRequest(
         focusRequests,
         landedFocusRequests.current,
         document.hasFocus(),
+        Date.now(),
+        latestFocusRequestAt.current,
       )
       if (landed === landedFocusRequests.current) {
         return
