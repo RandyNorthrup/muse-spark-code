@@ -18,6 +18,7 @@ import {
   presets,
   wizardFlow,
   providersFile,
+  setUiText as setProvidersUiText,
 } from '../host/backend/providersEntry'
 import type { SecretStore } from '../host/auth/credentialStore'
 const { isCredentialBound } = credentialRecord
@@ -626,6 +627,9 @@ export async function providersAdd(
     // Any non-blank key goes to the free key test: the provider judges
     // it, never its shape. A value that looks like the wrong thing is
     // named, and stdin cannot answer, so the run continues to the test.
+    // The notice is formatted in the providers bundle, which keeps its
+    // own installed language: install this command's table before reading it.
+    setProvidersUiText(UI_TEXT, uiLocale())
     const inspection = inspectProviderKey(key)
     if (inspection !== 'ok' && inspection !== 'empty') {
       deps.printError(providerKeyNoticeText(inspection))

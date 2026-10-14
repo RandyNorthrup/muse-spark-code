@@ -12,7 +12,7 @@ import {
   SECRET_KEYS,
   UI_TEXT,
 } from '../shared/constants'
-import { fill } from '../shared/l10n/text'
+import { fill, uiLocale } from '../shared/l10n/text'
 import { providerKeyFailureText } from './exec/keyInput'
 import { isNonTextStdin } from './hiddenInput'
 import {
@@ -138,10 +138,12 @@ export async function authSetProvider(
     deps.printError(providerKeyFailureText('empty'))
     return EXIT_FAILED
   }
-  const { presets } = await import('../host/backend/providersEntry')
+  const { presets, setUiText } = await import('../host/backend/providersEntry')
   // Any non-blank key is stored for the provider to judge; a value that
   // looks like the wrong thing is named, and stdin cannot answer, so the
-  // run continues.
+  // run continues. The notice is formatted in the providers bundle, which
+  // keeps its own installed language: install this command's table first.
+  setUiText(UI_TEXT, uiLocale())
   const inspection = presets.inspectProviderKey(candidate)
   if (inspection !== 'ok' && inspection !== 'empty') {
     deps.printError(presets.providerKeyNoticeText(inspection))
