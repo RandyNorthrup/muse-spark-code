@@ -16,7 +16,6 @@ import {
   EVAL_LONG_EVIDENCE_MIDDLE_LINE,
   EVAL_LONG_EVIDENCE_RECALL_OFFSET,
   EVAL_SPLITS,
-  type EvalSplit,
 } from '../../shared/constants'
 
 export const evalFileSchema = z.object({
@@ -351,8 +350,3 @@ export const EVAL_TASKS: readonly EvalTask[] = [
     isLongOutput: true,
   },
 ]
-
-/** The task set's slice for one split, in task-set order. */
-export function evalTasksOfSplit(split: EvalSplit): readonly EvalTask[] {
-  return EVAL_TASKS.filter((task) => task.split === split)
-}
