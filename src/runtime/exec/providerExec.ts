@@ -42,7 +42,12 @@ import {
   parseStoredProviderSecret,
   providerSecretAccount,
 } from '../keyStore'
-import { memorySecretStoreFor, providerKeyFailureText, type MemorySecretStore } from './keyInput'
+import {
+  memorySecretStoreFor,
+  providerKeyFailureText,
+  type KeyLineResult,
+  type MemorySecretStore,
+} from './keyInput'
 /** Where a request path came from (AGENTS.md rule 13). */
 export type PathSource = 'capture' | 'research'
 
@@ -398,9 +403,7 @@ export interface ProviderRunInput {
   readonly secrets: SecretStore
   readonly resolveHost: (hostname: string) => Promise<readonly string[]>
   /** A provider key from standard input: any non-blank value, judged by the provider. */
-  readonly readKey: () => Promise<
-    { readonly ok: true; readonly key: string } | { readonly ok: false; readonly reason: string }
-  >
+  readonly readKey: () => Promise<KeyLineResult>
   readonly providerId: string
   /** The qualified model ref (`parseExec` qualifies a bare id). */
   readonly model: string | undefined
