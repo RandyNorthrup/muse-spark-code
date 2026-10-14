@@ -972,16 +972,18 @@ async function main(): Promise<number> {
     }
     const stdout = createFdWriter(process.stdout.fd, closed)
     const stderr = createFdWriter(process.stderr.fd, closed)
-    // The headless clock is the epoch wall clock in stored shape: whole
-    // milliseconds, so usage stamps pass the journal's integer schema. The
-    // lifecycle only measures spans against processStartMs, on the same base.
-    const now = epochNow
+    // The headless clock measures spans on a monotonic base anchored at
+    // the epoch, so the timeout counts from the process start and a wall
+    // clock step cannot move a deadline. Stored times derive from it
+    // through the EpochMs boundary where a record is written (runExec);
+    // this clock itself stays fractional and span-typed.
+    const now = () => performance.timeOrigin + performance.now()
     const headlessTimeoutMs =
       command.command === 'exec'
         ? command.options.timeoutMs
         : HEADLESS_FIXED_TIMEOUT_MS[command.command]
     const lifecycle = createLifecycle({
-      processStartMs: Date.now(),
+      processStartMs: performance.timeOrigin,
       timeoutMs: headlessTimeoutMs,
       now,
       setTimer: (ms, callback) => {
