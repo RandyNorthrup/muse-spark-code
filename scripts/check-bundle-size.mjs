@@ -90,6 +90,10 @@ const BUDGETS = [
   { path: 'dist/subscriptions.js', budgetKiB: 50 },
   { path: 'dist/configuredProviders.js', budgetKiB: 50 },
   { path: 'dist/modelsPanel.js', budgetKiB: 125 },
+  // PANELBUDGET: the subscriptions half (sign-in flows), split out of the
+  // panel bundle; 22,917 B measured +15%, rounded up to the next 25 KiB
+  // multiple (PLAN.md D6).
+  { path: 'dist/modelsSubscriptions.js', budgetKiB: 50 },
   // M102: independent lazy entries; measured + 15%, rounded up to 25 KiB.
   { path: 'dist/usageService.js', budgetKiB: 100 },
   { path: 'dist/usageCompanion.js', budgetKiB: 50 },

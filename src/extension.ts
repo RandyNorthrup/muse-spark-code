@@ -47,6 +47,7 @@ import {
   BROWSER_RUNTIME_BUNDLE_FILE,
   CODE_INTEL_BUNDLE_FILE,
   MODELS_PANEL_BUNDLE_FILE,
+  MODELS_SUBSCRIPTIONS_BUNDLE_FILE,
   LEGAL_SCAN_BUNDLE_FILE,
   EXTENSION_SKILLS_DIR,
   WEB_FETCH_BUNDLE_FILE,
@@ -349,6 +350,7 @@ import {
   providerCredentials,
   recoverProviderRemovals,
 } from './host/models/modelsPanelBundle'
+import { modelsSubscriptionsLoader } from './host/models/modelsSubscriptionsBundle'
 import type { ModelsPanelFeatures } from './host/models/modelsPanelEntry'
 import type { createPaidDailyBudget } from './host/paid/paidDailyBudget'
 
@@ -1047,6 +1049,11 @@ async function activateWindow(
     bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', MODELS_PANEL_BUNDLE_FILE).fsPath,
     log,
   })
+  const modelsSubscriptionsBundle = modelsSubscriptionsLoader({
+    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', MODELS_SUBSCRIPTIONS_BUNDLE_FILE)
+      .fsPath,
+    log,
+  })
   const providerConfigFile = path.join(
     process.env['XDG_CONFIG_HOME'] ?? path.join(homedir(), '.config'),
     PROVIDERS_CONFIG_DIR_NAME,
@@ -1054,9 +1061,10 @@ async function activateWindow(
   )
   let isSubscriptionConnecting = false
   let subscriptions:
-    ReturnType<ReturnType<typeof modelsPanelBundle>['createSubscriptionFeatures']> | undefined
+    | ReturnType<ReturnType<typeof modelsSubscriptionsBundle>['createSubscriptionFeatures']>
+    | undefined
   const subscriptionFeatures = () =>
-    (subscriptions ??= modelsPanelBundle().createSubscriptionFeatures({
+    (subscriptions ??= modelsSubscriptionsBundle().createSubscriptionFeatures({
       log,
       secrets: context.secrets,
       globalStorageUri: context.globalStorageUri,

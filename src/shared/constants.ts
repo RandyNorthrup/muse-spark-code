@@ -281,6 +281,7 @@ export const COMMAND_IDS = {
 // the command registrations and the loader.
 export const MODELS_PANEL_VIEW_TYPE = 'museSpark.modelsPanel'
 export const MODELS_PANEL_BUNDLE_FILE = 'modelsPanel.js'
+export const MODELS_SUBSCRIPTIONS_BUNDLE_FILE = 'modelsSubscriptions.js'
 export const MODELS_WEBVIEW_SCRIPT_FILE = 'models.js'
 export const MODELS_WEBVIEW_STYLE_FILE = 'models.css'
 
