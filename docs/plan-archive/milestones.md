@@ -13719,3 +13719,481 @@ calls or aggregate quality. Full aggregate quality remains with the lead under
 the shared lane rules (§7). Receipts: `docs/certification/sec-win-path-aliases.md`.
 
 <!-- plan-archive:end id="milestones-898a26c5e-16699" -->
+
+## M91 — Hooks from every popular agent (D70)
+
+<!-- plan-archive:begin id="milestones-a07e4a8e2-22840" lines="22840-22879" at="a07e4a8e2" bytes="2632" sha256="f5837aca2b2896c41a34c878ebd8360ee5faad76787bdd463959827b170791f8" -->
+
+- The step 1 captures are recorded (`docs/certification/m91.md`,
+  `docs/certification/m91-captures/`).
+- Lane 0 is built: 88 strings in all 14 tables, and the hook region's four
+  constants.
+- Every lane is merged on the branch: G, R, P, I, S, X, H, M and E, with
+  the fix rounds of R (RVM91R), P (RVM91P3) and I (FIXM91I3). Lane H's
+  branch brought main with it. Lane W's wiring is built
+  (`docs/certification/m91.md`, "Lane W"):
+  - imported hooks on Muse Code's events run through lane P's adapters;
+  - the Hooks picker lists both files per scope;
+  - the panel marks a MessageDisplay rewrite.
+- **M91b** (below) is merged: Amp and OpenCode plugin dispatch
+  (`m91/w-plugins` at `797e31fc`), in the same 0.14.0 batch. Imported hooks
+  on extension events stay planned there; the importer refuses them.
+- **Main 0.13.0** (`928a9200`) is merged. Lane G's golden hooks-off fixtures
+  were regenerated on main itself, with M91's test, and M91 matches them
+  byte for byte (`m91.md`, "After main and M91b").
+- **Size (D6).** M91 took `dist/modelApi.js` to 486.1 KiB of its 475. Lanes
+  E, H and M's runtime moved into `dist/hookRuntime.js` and the imported
+  records' reader into `dist/foreignHooks.js`, both loaded on first use, and
+  the cap held: 467.6 KiB with main and M91b. `dist/extension.js` is
+  596.9 KiB of 600 and the webview 896.3 of 900.
+- **Integration fixes:** semgrep's prototype-pollution finding in lane P's
+  engine (own keys only, prototype segments refused); a duplicate-key check
+  in `check-l10n`; lane S's unused setting-name constant is gone. knip is
+  still blind to `constants.ts` for a reason not yet found (`m91.md`, drill
+  W22).
+- **Lane I round 3 (FIXM91I3, RVM91I2):** repair all eleven findings
+  within the importer: unknown source switches refuse hooks; Cline executable
+  references are rechecked after awaits and during planning, quoted as
+  literal paths and retain their source 30-second bound; strict Copilot inline blocks refuse together; nonexact
+  matcher translations refuse; Gemini lifecycle filters stay exact and
+  sequential policy spans merged settings; Cursor records match adapter
+  source-event selection at `d8e609aa` and require version 1. Each finding
+  gets a regression and a SHA-256-restored red drill in `m91-i.md`.
+  The lane also removes its six duplication-gate clones using existing
+  scanner/converter functions and replaces the heavy Model API name-builder
+  import with bounded canonical-name checks against the pinned 20/64 contract,
+  verified by tests against the real builder; the import bundle keeps its
+  existing 125 KiB cap. No new layer or dependency.
+
+<!-- plan-archive:end id="milestones-a07e4a8e2-22840" -->
+
+<!-- plan-archive:begin id="milestones-a07e4a8e2-22881" lines="22881-22891" at="a07e4a8e2" bytes="852" sha256="c84548d3d488c20c9b895c9122dca7d095c50075f5bd3b0510c7a8eb59125cc8" -->
+
+**Lane P review corrections (RVM91P3, 2026-10-04).** Keep the declarative
+contracts and public entry points. Translate Gemini tool inputs only where the
+saved captures or examples establish the fields; an unsupported blocking call
+returns `refused` with `blockOperation: true`, which the dispatcher must enforce
+before execution. Preserve tool whitelists while refusing forced selection,
+validate captured model request/response shapes, merge argument patches against
+the original execution input, retain advisory observations beside ignored
+controls, and carry Notification details. Replay the vendor's own data-dependent
+scripts and narrow certification claims to the checks actually performed.
+Each finding gets a failing regression and a byte-exact restored red drill in
+`docs/certification/m91-p.md`. No live call or new dependency is authorized.
+
+<!-- plan-archive:end id="milestones-a07e4a8e2-22881" -->
+
+<!-- plan-archive:begin id="milestones-a07e4a8e2-22893" lines="22893-22894" at="a07e4a8e2" bytes="84" sha256="40c287ff40688e52da80716f9e994ad55f5e12b95d1df7e1abcf80ef473e34f8" -->
+
+The early protected-paths fix is its own pull request,
+`fix/protect-agent-folders`.
+
+<!-- plan-archive:end id="milestones-a07e4a8e2-22893" -->
+
+<!-- plan-archive:begin id="milestones-a07e4a8e2-22935" lines="22935-22947" at="a07e4a8e2" bytes="768" sha256="e20e7490ba00ea757a04010e75a294d84b0fa3154d395d2d0d9c4ce707301841" -->
+
+- **Internal helper turns.** Today the Model API runtime fires hooks for a
+  call it makes for itself only where M51 documents it.
+  - Compaction's summary request runs PreLLMCall and PostLLMCall, between
+    PreCompact and PostCompact.
+  - These run no hooks at all: the Auto reviewer's calls (M78), side chats
+    (M51), and Best-of-N attempt hosts (M77: `isHooksEnabled` is off in
+    `modelApiBackendManager.ts`).
+
+  M91 keeps it so. A `prompt` or `agent` handler's own model call fires no
+  hook, so a hook cannot recurse. Neither do M74's hidden follow-up and
+  memory flush, once built (SoL-Pi rule 5). So TeammateIdle for a Best-of-N
+  attempt fires from the parent session's snapshot in the coordinator, never
+  inside the attempt, which still runs no hooks.
+
+<!-- plan-archive:end id="milestones-a07e4a8e2-22935" -->
+
+<!-- plan-archive:begin id="milestones-a07e4a8e2-22949" lines="22949-22977" at="a07e4a8e2" bytes="8172" sha256="f2459b89297e046834995924999b795095de08ef8005c7b6da3082e219e744aa" -->
+
+- **Event behaviour.** The Muse Code events first, then the 21 extension
+  events.
+
+  | Event                                  | Fires at                                                                                       | Behaviour                                                                                                                              | Backends                      |
+  | -------------------------------------- | ---------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------- |
+  | Interrupt                              | A running turn or compaction is cancelled: Stop, a UserPromptSubmit block, the session closing | Async only; observation; never when an idle session closes (captured)                                                                  | Both                          |
+  | SessionFork                            | Accepted, not run: 1.4.2 never runs it (captured)                                              | Sync only. When a capture shows it running: before forkSession copies anything; a refusal ends the fork; side chats still run no hooks | Both                          |
+  | PostToolUseFailure with `updatedInput` | A failed tool call                                                                             | The same tool only, as a new call through PreToolUse, policy, path confinement and approval; bounded by `HOOK_ON_FAILURE_MAX_DEPTH`    | Model API (Muse runs its own) |
+  | InstructionsLoaded                     | Rules or a skill read into the context (`instructionsFor`, the touched path's rules)           | Observation; a workspace-relative path and a reason, never content                                                                     | Model API                     |
+  | UserPromptExpansion                    | A slash command or a skill expands                                                             | Can refuse, with a visible reason                                                                                                      | Model API                     |
+  | PermissionDenied                       | The Auto reviewer, a refusal or a mode refuses a call                                          | Observation; no `retry`                                                                                                                | Model API                     |
+  | PreModelSwitch                         | `setModel`                                                                                     | Can refuse only; model ids only                                                                                                        | Model API                     |
+  | PostModelSwitch                        | After `setModel`                                                                               | Observation                                                                                                                            | Model API                     |
+  | TaskCreated                            | `todo_write` adds an item                                                                      | Can refuse, with a visible reason; counts toward `HOOK_MAX_STOP_CONTINUATIONS`; the subject and description bounded                    | Model API                     |
+  | TaskCompleted                          | `todo_write` completes an item                                                                 | As TaskCreated; runs before M74's compaction check                                                                                     | Model API                     |
+  | FileChanged                            | A file changed outside the agent (`noteExternalEdit`, the watcher)                             | Observation; matcher required; debounced per path; capped per minute; never starts a model request; path and reason only               | Both                          |
+  | ConfigChange                           | A settings or hook file changes                                                                | Observation                                                                                                                            | Both                          |
+  | WorktreeCreate                         | After Best-of-N creates its worktree                                                           | A non-zero exit fails that attempt; cannot choose a path                                                                               | Model API                     |
+  | WorktreeRemove                         | Before Best-of-N removes it                                                                    | Observation                                                                                                                            | Model API                     |
+  | Setup                                  | **Run Setup Hooks**; the ACP agent's `setup` (`--maintenance` for that matcher)                | Observation; matcher `init` or `maintenance`                                                                                           | Both                          |
+  | DirectoryAdded                         | A trusted workspace activates; a folder is added to the window                                 | Observation                                                                                                                            | Both                          |
+  | CwdChanged                             | The kept shell directory changes                                                               | Observation; old and new directory, workspace-relative                                                                                 | Model API                     |
+  | Elicitation                            | An MCP server sends `elicitation/create`                                                       | A project hook may decline or cancel; a user hook may answer, validated against the server's schema                                    | Model API                     |
+  | ElicitationResult                      | The user answered                                                                              | Observation; a project hook sees field names and the action only                                                                       | Model API                     |
+  | TeammateIdle                           | A Best-of-N attempt or a background subagent is about to stop while siblings run               | A block keeps it working inside its consented run; counts toward `HOOK_MAX_STOP_CONTINUATIONS` and the budget                          | Model API                     |
+  | MessageDisplay                         | An assistant message is about to show                                                          | A display-only rewrite with a marker the hook cannot remove and a one-click original                                                   | Both                          |
+  | BeforeToolSelection                    | Before each model request                                                                      | Narrow only, enforced at call admission; the declared tool list never changes                                                          | Model API                     |
+  | AfterAgentThought                      | A reasoning block finished                                                                     | Observation; bounded; through the M54 preview scrubber                                                                                 | Model API                     |
+  | Manual                                 | **Run Hook…** or `/hook run <name>`                                                            | The user starts it; observation; output shown                                                                                          | Both                          |
+
+<!-- plan-archive:end id="milestones-a07e4a8e2-22949" -->
+
+<!-- plan-archive:begin id="milestones-a07e4a8e2-23018" lines="23018-23177" at="a07e4a8e2" bytes="20164" sha256="ca2b316c4cad8f6243e8f6cbe46bf52a30213a21e62dba28eea6a5433fab28f3" -->
+
+- **Steps.**
+  1. **Capture first: done 2026-10-04** (`docs/certification/m91.md`). The
+     echo provider, empty folders, an isolated home, 0 model calls. The
+     findings are in D70. Nothing uncaptured is wired: SessionFork's veto
+     waits for a release that runs it.
+  2. **Lane R.**
+     - Interrupt is async only. It fires when a running turn or compaction
+       is cancelled: by Stop, by a UserPromptSubmit block, or by the session
+       closing while the turn runs. That is when Muse Code fires it
+       (captured). It never fires when an idle session closes.
+     - SessionFork must be sync and is accepted. It runs nothing until
+       upstream #84 is answered and a capture shows it running.
+     - The PostToolUseFailure `updatedInput` correction takes the same tool
+       only, as a new call through PreToolUse, policy, path confinement and
+       approval, bounded by `HOOK_ON_FAILURE_MAX_DEPTH`.
+  3. **Lane E.**
+     - spark-hooks.json loads together with Muse Code's sources: in the same
+       per-session snapshot, behind the same trust gate and
+       `museSpark.modelApiHooks` opt-in.
+     - The 21 events fire at their operations, with the behaviour in the
+       table above.
+     - BeforeToolSelection narrows at admission and leaves the declared tool
+       list as it was.
+  4. **Lane S.** The shell keeps its directory between calls.
+     - The shell tool's declared description and schema stay byte-stable
+       (SoL-Pi rule 1). The kept directory is reported at the tail of a
+       result whose directory is not the root, and in the tool row.
+     - A machine-scoped setting turns it off; M75 records it.
+     - `then_run` and `run_checks` still run at the root.
+  5. **Lane M.** MCP elicitation's form mode on the Model API backend's
+     client.
+     - The form shows in the panel, and in the ACP agent through its form
+       path.
+     - The answer is accept, decline or cancel, validated against the
+       requested schema.
+     - Elicitation and ElicitationResult follow the event table.
+  6. **Lane P.** One adapter per format, translating stdin and mapping each
+     answer onto `HookAnswer`.
+     - Each source's fail-closed rules are kept: Cursor's invalid JSON on
+       permission hooks and its `failClosed`; Copilot's preToolUse errors.
+     - An adapter parse failure counts as a failure, never as allow.
+     - A foreign `allow` never skips an approval card.
+  7. **Lane I.** Readers and converters, per the research's importer table.
+     - Codex hooks go into Muse Code's files (TOML read with smol-toml).
+     - The other formats go into spark-hooks.json with their format tag.
+     - Concepts this milestone adopts are no longer refused.
+     - A source event that can block where ours cannot is still refused, so
+       an imported guard is never weaker: Claude's WorktreeCreate (it
+       chooses the path) and ConfigChange (it can block), and Cursor's
+       subagentStart.
+     - Every refusal is listed with its reason; the preview shows metadata
+       only.
+     - M83's rules apply: unsaved edits that the user saves, D64 exposure,
+       project sources only when trusted.
+  8. **Lane H.** The four handler types, as D70 says. A `prompt` or `agent`
+     handler is a paid use on the Model API, and a side-session turn on Muse
+     Code. None of them widens.
+     Lane H's receipt is `docs/certification/m91-h.md`. The shared daily
+     budget setting is absent in this lane's base; its owner must wire
+     `ModelApiPaidHooks.hookModelDailyBudget` (reserve/check/settle) and the
+     popup cap. Lane R must consume the Muse Code helper factory. Until
+     those integrations are proved, handler acceptance 11 stays open.
+  9. **Lane X.** The plugin child and its shims for Amp and OpenCode, and
+     Cline's scripts through the `cline` adapter. The plugins' events map
+     onto the event list above, and lane X records the mapping in this plan
+     before its code.
+- **Lane X event mapping (recorded 2026-10-05, before lane X code).**
+  Sources are the saved research under `hooks-parity/` (cited per row);
+  nothing here is captured live. A plugin answer can only refuse, narrow or
+  add context — never grant; a crash or timeout follows the event's
+  fail-closed rule; the child is killed with the session and bounded in
+  memory and time. The shim offers no shell helper, no client and no model
+  access: a call to one fails that hook.
+  - **Amp** (in-process `amp.on` plugins; `hooks-parity/raw/amp_plugin-api.md`).
+    Runtimes: the user's system `node` ≥ 22.18, plain JS or TS through
+    Node's built-in type stripping; never the extension host's Node.
+
+    | Amp event                                    | Muse event       | Answer mapping                                                                                                                                                                                                                                                                        |
+    | -------------------------------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+    | `session.start` (`amp_plugin-api.md:1929`)   | SessionStart     | Observation; the thread id only                                                                                                                                                                                                                                                       |
+    | `tool.call` (`:1953`, results `:1962`)       | PreToolUse       | `allow` → completed; `reject-and-continue{message}` → blocked with the message; `modify{input}` → completed with `updatedInput` (same tool only); `synthesize{result}` → completed with a tool-result replacement; `error{message}` → failed (blocked where the event is fail-closed) |
+    | `tool.result` (`:2044`, replacement `:2052`) | PostToolUse      | `void` → completed; a returned `{status, output?, error?}` → completed with a tool-result replacement                                                                                                                                                                                 |
+    | `agent.start` (`:2074`, result `:2097`)      | UserPromptSubmit | `void` → completed; `{message:{content}}` → completed with context                                                                                                                                                                                                                    |
+    | `agent.end` (`:2109`, result `:2130`)        | Stop             | `void` → completed; `{action:'continue', userMessage}` → blocked with the user message as the reason (the turn continues); `maxContinuations` is capped by `HOOK_MAX_STOP_CONTINUATIONS`                                                                                              |
+    | `changes.prompt` (`:2148`)                   | Refused          | No Ship/Push workflow here; refused with a reason                                                                                                                                                                                                                                     |
+    | (no `session.end`; `:29`)                    | SessionEnd       | Refused: Amp has no matching event                                                                                                                                                                                                                                                    |
+
+  - **OpenCode typed hooks** (`hooks-parity/raw/oc_plugin_index.ts`; the docs
+    list at `hooks-parity/raw/oc_plugins.mdx`). OpenCode is Bun-native, so
+    its plugins run under the user's installed `bun`; when `bun` is absent
+    the hook is refused with a reason. Handler order across plugins is
+    undefined upstream (`raw-kiro-amp-opencode-continue.md:29`); each
+    registered handler runs in load order and one's block ends the chain.
+
+    | OpenCode hook (`oc_plugin_index.ts`)                                                                                      | Muse event          | Answer mapping                                                                                           |
+    | ------------------------------------------------------------------------------------------------------------------------- | ------------------- | -------------------------------------------------------------------------------------------------------- |
+    | `tool.execute.before` (`:266`, throw blocks, mutate `output.args`)                                                        | PreToolUse          | Throw → blocked with the thrown message; mutated `args` → completed with `updatedInput` (same tool only) |
+    | `tool.execute.after` (`:274`, mutate `output.output`)                                                                     | PostToolUse         | Throw → failed; mutated `output` → completed with a tool-result replacement                              |
+    | `permission.ask` (`:261`, `output.status`)                                                                                | PermissionRequest   | `deny` → deny; `ask` → ask; `allow` is never applied (completed without a grant)                         |
+    | `command.execute.before` (`:262`)                                                                                         | UserPromptExpansion | Throw → blocked with the reason; otherwise completed                                                     |
+    | `chat.message` (`:234`)                                                                                                   | UserPromptSubmit    | Observation only; a mutated message is not applied                                                       |
+    | `experimental.session.compacting` (`:305`, `context`/`prompt`)                                                            | PreCompact          | `context` entries → context; a full `prompt` replacement is not applied (the prefix stays byte-stable)   |
+    | `chat.params` (`:242`), `chat.headers` (`:258`), `experimental.provider.small_model` (`:297`), `tool.definition` (`:332`) | Refused             | They choose a model, headers, params or the tool list; refused with a reason                             |
+    | `experimental.chat.messages.transform` (`:282`), `experimental.chat.system.transform` (`:291`)                            | Refused             | They rewrite earlier request bytes (SoL-Pi rule 1); refused with a reason                                |
+    | `experimental.compaction.autocontinue` (`:316`), `experimental.text.complete` (`:327`)                                    | Refused             | No equivalent operation (auto-continue control, display rewrite); refused with a reason                  |
+    | `shell.env` (`:270`)                                                                                                      | Refused             | Environment edits are a secret risk (as Copilot `env`); refused with a reason                            |
+    | `config`, `tool`, `auth`, `provider`, `dispose` (`:223`)                                                                  | Refused             | Registration, not hook points; refused with a reason                                                     |
+
+  - **OpenCode event-bus subset** (bus list `raw-kiro-amp-opencode-continue.md:36;
+the `event`hook at`oc_plugin_index.ts:224`). The `event`handler
+returns`void`, so every bus mapping is observation only; a throw fails
+    the hook, never blocks it.
+
+    | Bus event                                                                                                                                                                                               | Muse event                                                                          |
+    | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+    | `session.created`                                                                                                                                                                                       | SessionStart (observation)                                                          |
+    | `session.deleted`                                                                                                                                                                                       | SessionEnd (observation)                                                            |
+    | `session.compacted`                                                                                                                                                                                     | PostCompact (observation)                                                           |
+    | `todo.updated`                                                                                                                                                                                          | TaskCreated/TaskCompleted (by the item's status; observation, refusals not applied) |
+    | `permission.asked`                                                                                                                                                                                      | PermissionRequest (observation only)                                                |
+    | `permission.replied` denied                                                                                                                                                                             | PermissionDenied (observation only)                                                 |
+    | `file.watcher.updated`                                                                                                                                                                                  | FileChanged (observation; path only)                                                |
+    | `file.edited`                                                                                                                                                                                           | PostToolUse for Edit\|Write (observation)                                           |
+    | `message.updated`                                                                                                                                                                                       | MessageDisplay (observation; a rewrite is not applied)                              |
+    | `session.error`                                                                                                                                                                                         | StopFailure (observation)                                                           |
+    | `tool.execute.before` / `tool.execute.after` on the bus                                                                                                                                                 | As the typed hooks above (a plugin subscribed to both fires twice, as upstream)     |
+    | `tui.*`, `lsp.*`, `server.connected`, `installation.updated`, `message.part.*`, `message.removed`, `session.diff`, `session.status`, `session.updated`, `command.executed`, `session.idle`, `shell.env` | Refused: TUI/display internals, no equivalent operation, or covered by a typed hook |
+
+  - **Cline v1 scripts** (per-event scripts in `.clinerules/hooks/` and
+    `~/Documents/Cline/Hooks/`; `hooks-parity/raw-copilot-cline.md:13-15,24-26`;
+    the full `cline-hooks-901d1b5c97.mdx` and `cline/src_*` copies named there
+    are not on this rig, so field shapes below stay conservative and every
+    gap is labelled). They run as command hooks through the `cline` contract
+    table, interpreted by the shared engine; no hand-written per-event
+    translator. The newer SDK/CLI file-hook contract
+    (`raw-copilot-cline.md:26`: `tool_call`/`tool_result`/`agent_start` with
+    `cancel`/`review`/`overrideInput`) is a different contract and is
+    refused with a reason. Discovery follows the source platform rules:
+    Windows runs `<HookName>.ps1` only, Unix runs the extensionless
+    `<HookName>` only and it must be executable; anything else is ignored,
+    never converted. Timeout 30 s; a `contextModification` over 50,000 chars
+    is capped; a non-zero exit without JSON does not block
+    (`raw-copilot-cline.md:25`).
+
+    | Cline script                                                                  | Muse event       | Notes                                                                                                                                                     |
+    | ----------------------------------------------------------------------------- | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+    | TaskStart                                                                     | SessionStart     | `cancel` → blocked; `contextModification` → context (see #13554, `raw-copilot-cline.md:27`: upstream may drop it for non-cancelling hooks; ours keeps it) |
+    | TaskResume                                                                    | SessionStart     | As TaskStart (a resumed task starts the session)                                                                                                          |
+    | TaskCancel                                                                    | SessionEnd       | Observation; `cancel` has nothing left to block                                                                                                           |
+    | TaskComplete                                                                  | Stop             | `cancel` → blocked with the reason (the turn continues); context kept                                                                                     |
+    | PreToolUse                                                                    | PreToolUse       | JSON `cancel` → blocked; a non-zero exit without JSON does not block (`raw-copilot-cline.md:25`)                                                          |
+    | PostToolUse                                                                   | PostToolUse      | Observation; context kept                                                                                                                                 |
+    | UserPromptSubmit                                                              | UserPromptSubmit | As TaskStart                                                                                                                                              |
+    | PreCompact                                                                    | PreCompact       | `cancel` → blocked (the optional compaction stops; the hard-limit compaction still runs)                                                                  |
+    | Notification (in `VALID_HOOK_TYPES`, `raw-copilot-cline.md:24`, undocumented) | Notification     | Observation; context kept                                                                                                                                 |
+  10. **Lane W.**
+      - The Hooks picker lists both files per scope and says which backend
+        runs each.
+      - The MessageDisplay marker and the original.
+      - Then the docs, the certification and the full gate.
+
+<!-- plan-archive:end id="milestones-a07e4a8e2-23018" -->
+
+<!-- plan-archive:begin id="milestones-a07e4a8e2-23179" lines="23179-23364" at="a07e4a8e2" bytes="9738" sha256="753bc188b0decdf3c9a98cfbd6f132db5ac134ca43dc265ee5b723b6c9f8ea9e" -->
+
+- **Acceptance.**
+  1. **Interrupt and SessionFork.** One `.muse/hooks.json` with Interrupt
+     and SessionFork behaves the same on both backends:
+     - Interrupt fires on Stop during a turn or a compaction, on a
+       UserPromptSubmit block, and on a close with a turn running. It never
+       fires on an idle close.
+     - A sync Interrupt is refused.
+     - SessionFork is accepted only as sync, and runs nothing, as on Muse
+       Code 1.4.2.
+  2. **The correction.** The PostToolUseFailure correction re-runs the same
+     tool once per chain step, through the full path. A correction to
+     another tool, to a path outside the workspace, or past the depth bound
+     is refused.
+  3. **Extension events.** Each extension event fires once at its
+     operation, with its documented fields, and never when the operation did
+     not happen. Blocking events refuse with a visible reason; observation
+     events cannot block.
+  4. **The two files.** A Muse Code name in spark-hooks.json is refused with
+     a warning. An extension name in `.muse/hooks.json` is skipped with Muse
+     Code's warning.
+  5. **Import.** Each source imports per the research's importer table, as
+     amended by D70. Every refusal is listed, and nothing is written until
+     the user saves.
+  6. **Guards.** For each format, a PreToolUse-type guard that denies,
+     returns an invalid answer or crashes blocks exactly when its source
+     agent would.
+  7. **Protected folders.** Writes to other agents' configuration folders
+     ask in every mode except Bypass. This ships early, in
+     `fix/protect-agent-folders`.
+  8. **The Hooks picker** lists both files for each scope, and the backend
+     that runs each.
+  9. **The kept shell directory.**
+     - It survives between shell calls and is shown in the tool row.
+     - It resets to the root, with a note to the model, when it would leave
+       the workspace or follow a link out of it.
+     - CwdChanged fires once per change.
+     - `then_run` and `run_checks` run at the root.
+  10. **Elicitation.**
+      - A server's elicitation shows as a form.
+      - Accept, decline and cancel reach the server, and an answer outside
+        the requested schema is refused.
+      - A project hook can only decline or cancel; a user hook can answer.
+      - ElicitationResult never gives a project hook what the user typed.
+  11. **Handler types.**
+      - `http` reaches only allowlisted hosts over HTTPS, follows no
+        redirect, and is refused in project files.
+      - `mcp_tool` goes through the tool's own approval.
+      - `prompt` and `agent` are refused while their paid feature is off.
+        When it is on, they ask in the paid-use popup, are tallied on their
+        own line and stop at the budget. On Muse Code they run in a side
+        session.
+      - None of them widens.
+  12. **Plugins.**
+      - Amp's and OpenCode's plugins run in the plugin child, never in the
+        extension host, under the hook limits.
+      - A shim call they are not offered fails that hook.
+      - Cline's scripts run through the `cline` adapter.
+  13. **The ten new operations.**
+      - Setup, DirectoryAdded and Manual fire only at their operations.
+      - TeammateIdle keeps an attempt working within its bound.
+      - MessageDisplay's marker cannot be removed, and the history, copy and
+        export keep the original.
+      - BeforeToolSelection can only narrow: a call to a removed tool is
+        refused.
+      - AfterAgentThought sends bounded, scrubbed text.
+  14. **The SoL-Pi rules hold** (D70):
+      - a. With hooks active, request N+1 begins with request N's whole
+        bytes, and the `prompt_cache_key` does not change.
+      - b. A packed output after a hook's rewrite recalls exactly the bytes
+        the model saw, and a hook's stdin holds only the bounded preview.
+      - c. `prompt` and `agent` handlers never bypass the paid gate or the
+        hard budget, and are tallied apart from the reducer.
+      - d. An imported shell guard blocks a `then_run` command.
+      - e. M74's compaction cases, once M74's automatic compaction lands.
+      - f. The M75 evaluation records the hook set or runs with hooks off,
+        and the ledger keeps "added by hooks" separate.
+      - g. With hooks off, the request bytes and tool list equal the
+        pre-M91 fixture.
+  15. **Cursor's Tab hooks.** They import and are listed as waiting for
+      inline completions, until M94's lane K gives them their operation
+      (§3, resolved 2026-10-04).
+- **Tests.** Every one must be able to fail, with a red drill recorded in
+  `m91.md`.
+  - Interrupt fires on cancel, on a UserPromptSubmit block and on a close
+    with a turn running, and not on an idle close. Drill: fire it from an
+    idle dispose.
+  - A sync Interrupt is refused. Drill: remove the async check.
+  - An async SessionFork is refused, and a sync one runs nothing. Drill:
+    remove the sync check.
+  - A correction to another tool is refused. Drill: remove the same-tool
+    check.
+  - The correction depth bound holds. Drill: raise it.
+  - One test per extension event, on fake I/O.
+  - A Muse Code name in spark-hooks.json is refused. Drill: remove the
+    check; the hook runs twice.
+  - The FileChanged debounce and per-minute cap hold. Drill: remove the
+    debounce.
+  - FileChanged never queues a turn.
+  - An untrusted workspace, or the opt-in off, loads nothing.
+  - Format adapters:
+    - recorded stdin and stdout pairs;
+    - the fail-closed cases (drill: make Cursor's invalid JSON fail open);
+    - a foreign `allow` still shows the card.
+  - Importer:
+    - each mapping row and each refusal reason;
+    - TOML `[hooks]`; Gemini ms → s; Copilot camelCase and PascalCase;
+      Windsurf powershell; Kiro v1;
+    - the preview carries no command text.
+  - Shell directory:
+    - it is kept;
+    - it resets outside the workspace (drill: drop the confinement);
+    - CwdChanged fires once per change;
+    - `then_run` runs at the root after a `cd`.
+  - Elicitation:
+    - an answer outside the schema is refused (drill: skip the
+      validation);
+    - a project hook's answer is refused;
+    - ElicitationResult's project payload has no values.
+  - Handlers:
+    - `http` off-list host, plain HTTP and redirect refused (drill: allow
+      redirects);
+    - `prompt` refused with the paid feature off (drill: skip the gate).
+  - Plugins: a plugin's shell or client call fails its hook, and the
+    plugin's process is not the extension host's.
+  - The ten new operations, one test each. BeforeToolSelection's drill:
+    filter the declared list instead, and SoL-Pi test (a) fails.
+  - SoL-Pi tests:
+    - (a) the byte-prefix comparison across a turn with SessionStart,
+      UserPromptSubmit and PostToolUse context and a BeforeToolSelection
+      narrowing (drill: put the context into the instructions);
+    - (b) a pack after a hook rewrite (drill: archive the pre-hook output);
+    - (c) the paid gate and the separate tally;
+    - (d) a `then_run` command blocked by an imported Cursor
+      beforeShellExecution guard (drill: skip the adapter for `then_run`);
+    - (f) the evaluation's hook record and the ledger line;
+    - (g) the golden request comparison against a fixture recorded on main
+      before M91 (drill: change one byte of the tool list with hooks off).
+  - Protected paths: one test per folder. Drill: remove a segment.
+  - One live check on the contributor model, in an empty workspace. State
+    the expected number of model calls first, and count them from the trace
+    afterwards.
+    - A Codex PreToolUse deny guard and a Cursor one each stop one bash
+      call.
+    - On Muse Code, one turn with a tool call captures PostToolBatch.
+- **Gates.**
+  - The full quality gate.
+  - The Model API bundle within its D6 budget: the adapters and the plugin
+    host load lazily if needed, and X moves to M91b if they cannot fit.
+  - check-l10n.
+  - host-API.
+- **Security.**
+  - **Trust** as in M51: a trusted workspace, the `museSpark.modelApiHooks`
+    opt-in, a per-session snapshot, and nothing in Restricted Mode.
+  - **Environment and limits** as in M51:
+    - an allowlisted environment (`HOOK_FORBIDDEN_ENV_NAMES`);
+    - 256 KiB stdin, and 16 KiB stdout and stderr;
+    - a 600 s timeout cap;
+    - four running commands at most;
+    - cancel kills the process tree;
+    - a closed output schema per event.
+
+    The plugin child, `http` and `mcp_tool` take the same caps.
+
+  - **Payload privacy** as in M51 and M54: bounded previews, and no media
+    bytes or credentials.
+    - FileChanged, InstructionsLoaded, CwdChanged and DirectoryAdded send a
+      workspace-relative path and a reason, never content.
+    - PreModelSwitch sends model ids only.
+    - TaskCreated sends the subject and description, bounded.
+    - ElicitationResult sends values to user hooks only.
+  - **No new power.** Adapters keep each source's fail-closed rules and none
+    of its grants.
+    - `http` is user scope only, HTTPS to allowlisted hosts.
+    - `prompt` and `agent` are paid uses under D30 and D48.
+    - MessageDisplay cannot touch a card, a tool row or a notice.
+- **Certification checklist.**
+  - [x] Step 1 captures recorded (2026-10-04, 0 model calls).
+  - [x] Lane 0's keys in all 14 tables, and its constants (2026-10-04,
+        `check-l10n` 0 problems).
+  - [ ] Acceptance 1–14, each with its test and drill; 14e waits on Q-M74.
+  - [ ] SessionFork's veto: waits on meta-models/muse-code-sdk#84 (Meta-blocked).
+  - [x] Acceptance 15: the owner's answer (2026-10-04: M94 builds Tab
+        completions; the hooks wait for its lane K).
+  - [ ] Live check and its call count.
+  - [ ] Docs: README, PRIVACY, CHANGELOG, AGENTS.md, CONTRIBUTING, PLAN,
+        m91.md.
+
+<!-- plan-archive:end id="milestones-a07e4a8e2-23179" -->

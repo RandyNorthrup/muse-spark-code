@@ -3331,3 +3331,425 @@ reuse/recovery/fallback and CIFLOW integration remain required. Evidence:
 `docs/certification/relfast.md` and `docs/certification/relfast2-drills.json`.
 
 <!-- plan-archive:end id="gates-c54550e6d-36208" -->
+
+## M116 playbook review lanes (2026-10-06)
+
+<!-- plan-archive:begin id="gates-a07e4a8e2-34039" lines="34039-34056" at="a07e4a8e2" bytes="1304" sha256="af5882550ef1e32adc420707e99cd7e32fa022c410be780011183dc948c6ed2f" -->
+
+**REDM116P outcome redesign (2026-10-06).** The rig brief again prohibits
+aggregate quality, pushes and unlisted merges. The lane runs all owning tests
+at default timeout, scoped lint/format, all five typecheck projects, deadcode,
+duplication, localization, host API, the new help-reference check and production
+budgets directly on macmini. It removes the shell-quote dependency handoff,
+refreshes the generated Node import inventory, and records deliberate
+receipt/generation/merge and round-2 mutation failures with byte-exact restores
+in `docs/certification/m116-p.md`. Full joined-tree quality and trusted
+editor/planner bindings remain the lead/I/U/W integration work; no gate is
+weakened and no round-2 finding is accepted as a residual.
+**M116-U repair certification (RVM116U/RVM116U2).** The rig brief reserves the full
+quality run for the lead and requires scoped local checks with default test
+timeouts. U does not change the inherited failing bundle/knip registration
+gates: W must register the three lazy playbook entries and the two harness
+entrypoints before integration can go green. This is the existing named
+integration deferral, not a cap, ignore or rule change. Repair regressions,
+disk-mutated red drills and their byte-exact restores are recorded in
+`docs/certification/m116-u.md`.
+
+<!-- plan-archive:end id="gates-a07e4a8e2-34039" -->
+
+## M105 multimodal review-fix lanes (2026-10-05 – 2026-10-07)
+
+<!-- plan-archive:begin id="gates-a07e4a8e2-34107" lines="34107-34263" at="a07e4a8e2" bytes="10563" sha256="0db666a2bb62418d363f0e425eb7cbed5e0495c0a814a8ce6dcd9d4c36770d14" -->
+
+**FIXM105E3 gate scope (Kubuntu, 2026-10-07).** The rig brief/common rules
+forbid aggregate quality and full unit commands; run owning files in batches of
+at most three, followed by the five typecheck projects, lint, changed-file
+formatting, plain knip, duplication, unchanged-cap production build, reference
+and localization. Run final verification from a fresh clone of the committed
+repair with npm ci and CI=true. Hooks remain active; no external network except
+npm ci.
+
+**M105 W final gate scope (linuxlt, 2026-10-07).** The rig brief overrides
+bounded lane test scope with all configured files in batches of at most three,
+repository timeouts and three workers. Shared rules still forbid the aggregate
+quality command and external network. Run requested static/build/test/browser
+gates separately and serially. Local VSIX/ACP packaging uses the badge gate's
+existing named network deferral, only in those commands (never in hooks):
+`BADGE_CHECK_SKIP_NETWORK='M105W lane forbids external network; badge fetch
+remains lead-owned' npm run package` (and `npm run package:acp`). Validate
+staged text/version/l10n/listing and size; do not claim HTTP badge verification.
+Fresh audit, Semgrep auto-registry, downloaded VS Code integration, native
+OS, universal macOS-artifact packaging and hosted coverage remain lead-owned.
+Browser gates are attempted unchanged, with exact failures recorded if this
+rig cannot launch Chrome. No cap, threshold, hook or test is weakened.
+
+**M105-M1 second follow-up gate scope (RVM105M12, 2026-10-06).** The
+same rig override applies to these two P2 corrections: direct focused suites
+at default timeouts, no full quality/full unit run or branch merge. The eight
+resource/structure red drills restore source byte-exact. W's existing host
+record, browser-size and split-classification failures remain enforced and
+are reported in the lane certification; the lead owns the integrated gates.
+
+**M105-E1 bounded-lane gate scope (2026-10-06).** The rig brief forbids a
+full quality/full unit run and reserves manifest, generated reference/host
+records and bundle registration for W. Run owning files at the repository's
+default timeout, scoped lint/format, typecheck, dead-code, duplication,
+localization and production build directly on linuxlt. Keep inherited size
+and split gates enforced. Hook-on commits remain unmerged lane work; full
+quality is required on the integrated tree. Record receipts and handoffs in
+`docs/certification/m105-e1-vs-code-(a).md`. E1 also leaves a measured
+59-byte browser-startup excess (900.1/900 KiB) for W's lazy build integration
+after two failed local reductions, and the new preview's generated host-API
+inventory update. These are failures, not gate exemptions; the integrated
+quality gate must pass before proposing a product commit.
+
+**M105-E2 gate scope (2026-10-06).** The rig brief forbids aggregate quality
+and full-unit runs, merges and browser runs on this Chrome-free MacBook.
+E2 runs complete focused files with the repository default timeout, plus
+typecheck, scoped lint/format, localization, deadcode, duplication, host API
+and production build checks. W retains the enforced inherited bundle/split
+and generated importer-record failures and the full integrated gate. No cap,
+ignore, timeout or rule is weakened. Receipts and required bindings are in
+[E2 certification](<docs/certification/m105-e2-acp,-headless-and-`read_file`-(a).md>).
+The broader IO batch on Node 26 additionally exposed the unchanged reservation
+handle left open by the existing retargeted-fill test. Lead/IO-write owner
+must close that path and rerun the complete file; E2 does not edit reservation
+regions outside its media-read ownership. Production compilation succeeds:
+ACP 844.8/850 KiB, Model API 454.9/475 KiB; deferred browser stays 51.1/50 KiB.
+
+**M105-E3 gate scope (2026-10-06).** The rig brief forbids full quality
+and full unit runs, and reserves integration for the lead. Run focused tests
+with repository-default timeouts and all named lane checks directly on linuxlt.
+Keep inherited W-owned bundle/split/host-record failures enforced; add no cap,
+ignore or weakened rule. New lazy browser/runtime entries await W binding.
+Scoped E3 and existing regressions pass (113 + 143 tests); 63 guards have
+named red failures and byte-exact restoration. Production compilation passes,
+but the deferred-browser gate remains 51.1/50 KiB, `files.ts` and
+`codecs/responses.ts` still lack split classifications, and the generated host
+importer/style inventory is stale. E3's standalone split media graph measures
+194.5 KiB including shared dependencies; W must bind its own companion-page
+budget and include R3, without raising a cap. Full quality and installed-editor,
+Windows private-ACL and real browser-capture receipts remain lead handoffs.
+Receipts and doc/reference handoffs:
+`docs/certification/m105-e3-companion,-native-plugins,-muse-code-(a,-d).md`.
+
+**M105-M2 follow-up gate scope (RVM105M2, 2026-10-06).** The rig brief
+reserves full quality/full-unit and integrated cross-platform certification
+for the lead. Scoped regression files, typecheck, lint/format, dead-code,
+duplication, cycles, localization and production compilation run directly on
+Kubuntu. The enforced W handoffs remain red: deferred browser JS 51.1/50 KiB;
+`files.ts` and `codecs/responses.ts` missing from the backend split lists; and
+the generated host importer inventory (buffer 39→45, crypto 46→49, plus the
+inherited child_process/fs/fs-promises/os/path drift). W must repair them
+before integration. No cap, ignore, timeout or rule is weakened. The Model
+API bundle is 453.9/475 KiB. All three review findings are fixed; §9 records
+the named integration handoffs and why the unbound ports remain safe.
+Receipts: `docs/certification/m105-m2-wire,-gate-and-replay-(a).md`.
+
+**M105-M1 follow-up gate scope (RVM105M1, 2026-10-06).** The rig brief
+requires direct focused suites and forbids full quality/full unit runs and
+merging another branch. Full quality and cross-platform gates remain the
+lead's integrated-tree responsibility. Keep the existing W-owned host-record,
+deferred-browser-size and `files.ts` split blockers enforced; this lane fixes
+the three media-core findings with regressions and red drills, without
+changing a gate or cap. Results and exact commands are in
+`docs/certification/m105-m1-media-core-(a).md`.
+
+**M105-F gate deferral (RVM105F corrections, 2026-10-05).** The lane brief
+reserves full quality and integration for the lead. Required local checks are
+recorded in `docs/certification/m105-f.md`; the unchanged lane W blockers
+remain red: deferred browser JS 51.1/50 KiB, Files backend classification in
+the bundle-split check, and the generated Node crypto importer count 46 → 48.
+No gate, ignore or budget is changed. W must close these before integration;
+§9 records the named residuals and why this unmerged lane remains safe.
+
+**FIXM105C rig lane (2026-10-06).** The fix brief/common rules reserve the
+full quality/coverage/accessibility run for the lead; this lane runs all
+five typecheck projects, changed-file lint/format checks, owned whole-file
+tests at default timeouts, localization/host-API/deadcode/duplication and a
+production build. The pre-existing W-owned deferred-webview size and
+unlisted lazy chip split failures remain explicit integration deferrals;
+no cap, check, ignore or timeout is weakened. Exact money also introduces
+the shared USD helper used by M106H/M108T. The final production build reports
+903.1/900 KiB browser startup and 50.6/50 KiB deferred JS; the helper adds
+about 3.8 KiB to startup on this pre-diet base. W's existing diet and lazy
+surface registration are required before release. Final sizes, gate results and red
+drills are in `docs/certification/m105-c-cost-(b).md`.
+
+**FIXM105R1 gate ownership (2026-10-06).** The rig brief/common rules
+reserve full `npm run quality`, coverage and integration/package certification
+for the integrating lead and prohibit running that aggregate in this lane.
+R1 runs the five typecheck projects, changed-file lint/format, its entire
+owned unit file at the repository timeout, native permission-free suites,
+localization, deadcode, duplication, host API and the production build.
+The pre-existing generated host API record drift from R1's four Node imports
+remains W-owned; refresh it at integration, without weakening the gate.
+See `docs/certification/m105-r1-macos-recorder-(c).md` for exact receipts.
+
+**M105 R2 review-fix gate delegation (2026-10-06).** The lane brief and
+shared common rules prohibit aggregate `npm run quality` on this shared rig.
+Run the complete owned test files at the repository timeout, changed-file
+lint/format, typecheck, localization, deadcode, duplication, host API and
+production build directly on Win11. The lead owes full quality/coverage and
+the hosted matrix before integration; no gate or cap is weakened.
+The unchanged W-owned host API record still fails its previously recorded
+`node:path` importer count (84 → 85); portable-boundary checks pass. W must
+regenerate/review that record with the integrated recorder factory.
+
+**FIXM105R3 bounded repair certification (2026-10-06).** The rig brief and
+shared lane rules prohibit aggregate `npm run quality` and the full test
+suite. The repair runs all four owned test files with the default timeout,
+the 11 byte-exact restored red drills, all-project typecheck, changed-file
+lint/format, dead-code, duplication, localization and production build here.
+The lead retains integrated full quality/coverage/native/editor gates.
+No gate, threshold, test filter, timeout or hook is changed.
+
+**FIXM105R3B final repair certification (2026-10-06).** The same bounded
+gate scope applies. The remaining encoder-exit P2 has regressions for
+spontaneous, Stop and duration-limit exits, including failed automatic Stop,
+and two byte-exact restored red drills. Existing genuine cancellation
+assertions now check the exact reason. The existing failure message is used
+at runtime and retains its translations in all 14 tables. No review finding
+is deferred; the two named integration/gate residuals below remain.
+
+**M105-R3-host-api-count deferral.** `npm run check:host-api` exits 1 on
+the same pre-existing generated count as the original R3 receipt:
+`node:path` importers 84 → 85. The repair adds no imports or host API calls.
+W owns `docs/ide-compatibility/host-api.md`, outside the repair's scope, and
+must regenerate/review that row on the integrated source. The check is not
+weakened or claimed green; see §9 and the R3 certification.
+
+<!-- plan-archive:end id="gates-a07e4a8e2-34107" -->
+
+## M106 review lanes (2026-10-05 – 2026-10-06)
+
+<!-- plan-archive:begin id="gates-a07e4a8e2-34265" lines="34265-34272" at="a07e4a8e2" bytes="529" sha256="7670fa43086fa1ef084b396e723ec94ba7813fd65de4087ea71c7c8c46481486" -->
+
+**FIXM106S scoped review certification (2026-10-06).** The rig repair
+brief requires all three RVM106S P2 findings fixed, no residuals, default
+test timeouts, and three-file/three-worker batches. The shared rules
+explicitly prohibit aggregate `npm run quality`; the lead retains that
+integrated gate. Local scoped regressions, byte-exact red drills, static
+checks and a production build precede hook-on commits. No timeout,
+threshold, rule, ignore, cap or hook is changed. Evidence is recorded in
+`docs/certification/m106-s.md`.
+
+<!-- plan-archive:end id="gates-a07e4a8e2-34265" -->
+
+<!-- plan-archive:begin id="gates-a07e4a8e2-34276" lines="34276-34286" at="a07e4a8e2" bytes="784" sha256="3792416d1acb19d93907bf40baa9fcd53bd13e53237cd03e2268ba08c276d359" -->
+
+**M106T-MODELAPI-BUDGET (2026-10-05, Kubuntu; lane W binding).** The
+required merge baseline `33ef31aa2`, before T's changes, builds
+`dist/modelApi.js` at 486,485 bytes, 85 bytes above the unchanged 475 KiB
+(486,400-byte) cap. T's final bundle is 486,935 bytes: 450 bytes added and 535 bytes over the
+cap. The failing gate is recorded in `docs/certification/m106-t.md`.
+Baseline comparison restored all four owned source files byte-exact. No
+threshold is raised and no full build/quality pass is claimed. W owns the
+bundle layout and must reduce/split it before integration is certified.
+The base also lacks the feature catalog/reference generator and the
+`check:reference` script; **M106T-HELP-REFERENCE** records the integration
+entry instead of claiming a nonexistent gate passed.
+
+<!-- plan-archive:end id="gates-a07e4a8e2-34276" -->
+
+## M108 account review lanes (2026-10-06)
+
+<!-- plan-archive:begin id="gates-a07e4a8e2-34288" lines="34288-34355" at="a07e4a8e2" bytes="4636" sha256="53e2c49085edf712e00ce934c5e6cc2f4b1a8220181580dc81397723029047b7" -->
+
+**FIXM108U bounded-lane certification (2026-10-06).** The explicit rig brief
+and shared rules prohibit aggregate quality/full unit runs, merges and
+network calls. Run complete owning files with repository timeouts and at
+most three workers/files, scoped static/build checks and hook-on commits.
+The lead retains integrated quality, coverage and installed editor/live
+certification. No gate is weakened; receipts are in
+`docs/certification/m108-u-panel-and-vs-code.md`.
+The FIXM108U2 continuation's final scoped tests pass 690/690 (U 256, K 434),
+including 32 browser axe scenes; direct static, localization and production
+build gates pass. `check:host-api` still requires
+W's generated record update: `node:crypto` imports 46 → 48 and Accounts CSS
+in the theme-source list. The API/theme totals are unchanged. Keep that
+named integration handoff rather than editing W's owned file in this lane.
+
+**FIXM108H bounded-lane certification (2026-10-06).** The explicit rig
+brief and shared lane rules prohibit the full quality run and merges here;
+W/the lead runs the full gate before integration. H runs the named complete
+owned test files with repository-default timeouts, typecheck, changed-file
+lint/format, deadcode, duplication, l10n, host-API and build checks directly
+on Kubuntu. Per-finding regressions and deliberate mutations are recorded in
+`docs/certification/m108-h-runtime,-acp,-headless,-companion.md`.
+
+**M108-X bounded-lane certification.** The rig brief prohibits aggregate
+quality/full-unit runs, merges and network calls. Complete owning test files
+run directly on Kubuntu with repository timeouts and at most three files and
+workers. Scoped static/build checks and normal hooks certify local commits;
+W retains full integrated quality, coverage, installed editor and packaging
+checks. No threshold or gate is weakened.
+
+**FIXM108P / FIXM108P2 bounded-lane certification (2026-10-06).** The rig brief and
+shared rules prohibit aggregate quality/full unit runs, merges and network
+calls. Run complete owning test files with repository timeouts and at most
+three workers/files, scoped static/build checks and hook-on local commits.
+The lead retains integrated quality, coverage and installed editor/live gates;
+no gate is weakened. Receipts: `docs/certification/m108-p-pool-and-policy.md`.
+Existing `P-W-HOST-API-RECORD` deferral: the generated Node crypto import
+count is 46 rather than 47, from P's earlier confirmation digest; W owns
+regenerating that record and rerunning the host API gate during integration.
+FIXM108P2 adds no host API and leaves this generated file with its owner.
+
+**FIXM108T bounded-lane certification (2026-10-06).** The rig brief and
+shared rules prohibit full quality/full unit runs, merges and network calls.
+Run complete owning test files with the default timeout, at most three files
+and workers per run, plus scoped static/build gates and hook-on commits.
+The lead retains integrated quality, coverage and editor/live certification.
+No gate is weakened; receipts are in `docs/certification/m108-t-thresholds.md`.
+
+**FIXM108K bounded-lane certification.** The explicit rig brief and shared
+rules prohibit aggregate quality/full test runs, merges and network calls.
+Hook-on local commits use complete owning test files, mutation/restoration
+drills and scoped static/build checks. The lead retains integrated quality,
+coverage and editor/live certification; no gate is weakened.
+**FIXM109C2 review repair (2026-10-06, Mac mini).** The remaining RVM109C2
+P2 is fixed: exact-anchor backups repair damaged/unreadable destination
+documents without authenticating them, retaining owner-only diagnostic
+ciphertext before atomic replacement. Backup authentication, complete-state
+history admission, destination identity and single-advance pending recovery
+remain enforced. All five owned suites pass 71 tests, including the existing
+RFC/NIST KATs; focused coverage meets unchanged thresholds. Eight distinct
+red mutations fail their named regressions and restore the source byte-exact.
+All 79 prior drill receipts remain, with eight appended in the C record.
+Test-only fixture consolidation fixes two new duplication-gate findings;
+the zero-clone threshold stays unchanged. Records: `docs/certification/m109-c.md`
+and `m109-c-drills.json`. Aggregate quality stays lead-owned under the rig
+brief; the existing W-owned generated host-API count deferral is unchanged
+(crypto 46 → 50, fs 33 → 34, fs/promises 47 → 48, path 84 → 85). The mandatory
+native quarantine/diagnostic integration binding is named in §9. No review
+finding, gate threshold or file-security guard is deferred or weakened.
+
+<!-- plan-archive:end id="gates-a07e4a8e2-34288" -->
+
+## M96 team review lanes (2026-10-05)
+
+<!-- plan-archive:begin id="gates-a07e4a8e2-35501" lines="35501-35512" at="a07e4a8e2" bytes="821" sha256="b0a1888ccd70a1f7149dc59063aff54ee4a3a05d044e4aba7f641274cde67f53" -->
+
+**FIXM96B (2026-10-05, macmini).** RVM96A findings 9–11 and 23–26 are
+fixed with full-file regression runs and byte-exact red drills. All five
+TypeScript projects, focused lint/format, localization (0 problems), knip,
+duplication (0 clones), dpdm and the production build pass; 96 relevant
+tests pass. The host API record gate fails identically on the starting
+`006edd40` source and the fixed source: its recorded Node import counts
+omit lane B's existing bridge/loopback imports. Justified scope deferral
+`M96B-HOST-API-RECORD` (§9): the lead regenerates the shared record after
+parallel integration. Full quality remains the lead's gate under the
+explicit lane prohibition. No gate, ignore, threshold or deadline changes.
+See `docs/certification/m96-b.md` for exact evidence and the late-answer
+liveness residual.
+
+<!-- plan-archive:end id="gates-a07e4a8e2-35501" -->
+
+<!-- plan-archive:begin id="gates-a07e4a8e2-35770" lines="35770-35823" at="a07e4a8e2" bytes="3833" sha256="eca6baaacca0751284bea2812b495533771dae8614944467507895f21d1b624d" -->
+
+**M96CINT round-1 partial merged-source proof (historical, 2026-10-05).** Macmini passes all
+239 S/Q/T2/V tests plus 29 shared schema/text tests, in 21 complete files
+and invocations of at most three files. All five compiler projects, the
+harness compiler, full lint/Prettier, deadcode, duplication (0 clones),
+localization (0 problems), production and merged-team cycle checks, build,
+and all 17 unchanged bundle caps pass. A cumulative-admission mutation fails
+three real-repository cases, including interaction; SHA-256-exact restoration
+passes all four. The Mac fixture correction retains every assertion.
+See `docs/certification/m96c-int.md` and `m96c-int-drills.json`.
+The extra host API check fails on the X2-owned generated inventory's five
+Node import counts and Traffic stylesheet source; its regeneration remains
+with X2 under the brief's explicit docs/wiring exclusion. Full quality,
+native/editor/live acceptance, C/O and X2 remain with the lead. These scoped
+receipts certify this partial integration, not production team wiring.
+
+**FIXM96CT2 scoped proof (2026-10-05).** Both `RVM96CT2` findings are
+fixed within T2. Kubuntu passes all five compiler projects, 21 focused tests,
+changed-file ESLint/Prettier, localization, host API, deadcode, duplication
+(0 clones), and production build with unchanged budgets. Four guard mutations
+fail their named regressions and restore SHA-256-exact source bytes; see
+`docs/certification/m96c-t2.md`. The rig/shared rules prohibit this lane from
+running full quality, merging, rebasing or pushing. Full quality and the
+existing runtime/integration/live handoff remain the lead's work; no gate was
+weakened and neither reviewed finding remains as a residual.
+
+**FIXM96CC lane gate scope (2026-10-05).** The owner's rig brief explicitly
+forbids a full `npm run quality`, merges, rebases and pushes in this lane.
+Focused Vitest, all compiler projects, changed-file lint/format, dead-code,
+duplication, localization, host API and production-build checks run directly
+on macmini. Hooked local commits are checkpoints for the lead; full quality
+and assembled S/K/Q/T2/X2 certification remain the lead's required gates.
+Review-repair receipts are in `docs/certification/m96c-c.md`. Final focused
+checks pass on macmini: 52/52 owned cases (including real Git under the
+unchanged default deadline), all listed static/build gates, and 25 distinct
+byte-exact restored guard drills. No RVM96CC finding is deferred.
+
+**FIXM96CO rig validation (2026-10-05).** The lane brief forbids full
+`quality` and full test suites on the shared rig; the lead runs those after
+integration. Owned files are checked directly on macmini in batches of at
+most three Vitest files, plus typecheck, lint, formatting, knip, duplication,
+localization and build gates. The host API record still fails only on the
+six base Node import-count changes already assigned to X2 (buffer 27→28,
+crypto 32→34, fs 24→25, fs/promises 34→36, path 65→68, zlib 1→2).
+Its gate is unchanged; X2 must regenerate and review its owned record before
+full quality. Native Windows parser/runtime certification is explicitly
+pending in §9 and `docs/certification/m96c-o.md`.
+**M97 integration gate blockers (earlier 2026-10-05, lane I; superseded by M97FIN receipts).** Full quality did not
+exit 0. Source coverage and every production cap pass, but the 456-page a11y
+run was stopped within the lane time box after very slow Chrome progress.
+Gitleaks reports five historical `authSource.test.ts` findings; only redacted
+metadata was inspected. SAST reports five non-literal RegExp findings in the
+legal ecosystem readers and rule timeouts. No history, ignore, threshold or
+rule was changed. These are release blockers, not waivers; exact receipts are
+in `docs/certification/m97.md`. Installed-host certification remains pending.
+
+<!-- plan-archive:end id="gates-a07e4a8e2-35770" -->
+
+## M101 upstream-sync lanes (2026-10-05 – 2026-10-06)
+
+<!-- plan-archive:begin id="gates-a07e4a8e2-35491" lines="35491-35499" at="a07e4a8e2" bytes="689" sha256="37d059f28e2c9599a3018081742465c74247cfb9f45ac1d6949e181d7c014087" -->
+
+**M101INT aggregate receipt (2026-10-06).** The brief authorizes exactly one
+`VITEST_MAX_WORKERS=3 npm run quality`. It exits 1 at unit tests: 541 passing
+files, 9 failing, 7 pre-existing opt-in skipped; 12,014 passing tests, 32 failing,
+72 skipped. Formatting, lint, all five compiler projects, l10n, host API,
+deadcode, cycles and duplication pass before that failure. Repairs are verified
+by whole owning files and remaining gates separately. This records a justified
+local review-commit deferral under rule 2, not an aggregate pass or release
+certification; the lead must rerun full quality/coverage on the final integrated
+tree. No rule, threshold, test filter or timeout is relaxed.
+
+<!-- plan-archive:end id="gates-a07e4a8e2-35491" -->
+
+<!-- plan-archive:begin id="gates-a07e4a8e2-35863" lines="35863-35890" at="a07e4a8e2" bytes="1878" sha256="f22d40e1549d240e7d6f72bb00de470d08723d1f6d227a7ea96c5a1c3458c9a6" -->
+
+**FIXM101C2 current check scope (2026-10-05, kubuntu).** The five inherited
+test repairs from `3e04f6f5` are carried unchanged after their failures are
+reproduced here. Their old C2 baseline deferral below is historical, superseded
+by this repair lane's complete-file receipts in `docs/certification/m101-c2.md`.
+The shared rig common rules expressly prohibit `npm run quality` and the full
+test wrapper here; run the required scoped static/build gates and complete
+owning suites, with the integrator responsible for full quality and the
+platform matrix before release. No threshold, ignore or timeout is weakened.
+
+**FIXM101P1 lane verification (2026-10-05).** The rig brief expressly
+forbids the full `npm run quality` wrapper and full unit suite because the
+rig is shared; the lead runs the combined four-machine quality gate.
+This lane runs focused complete test files (at most three per invocation),
+all project typechecks, changed-file lint/format, deadcode, duplication,
+localization, host API and production build directly on Kubuntu. The final
+receipts and twelve red drills are in `docs/certification/m101-p1.md`: 330
+focused tests and all listed lane checks pass, including the unchanged
+production bundle-split gate. This defers only the full-tree/full-platform
+quality receipt; no gate is weakened.
+
+**FIXM101P2 aggregate gate deferral (2026-10-05).** The explicit lane brief
+and its shared `codex/common.md` forbid the full `npm run quality` wrapper
+on this shared rig. Run the required scoped suites (at most three files per
+run), all five TypeScript projects, lint/format over the complete P2 range,
+knip, duplication, localization, host API and production build here; record
+actual receipts in `docs/certification/m101-p2.md`. The lead must run the
+aggregate quality/coverage/platform matrix before integration/release. No
+threshold, ignore or rule is changed.
+
+<!-- plan-archive:end id="gates-a07e4a8e2-35863" -->
