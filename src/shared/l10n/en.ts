@@ -4214,6 +4214,8 @@ export const EN = {
   chatPartNotSupported: 'The "{kind}" part cannot be sent to this model.',
   effortNotForModel:
     'Effort "{effort}" is not available for model "{model}". Use one of: {levels}.',
+  effortNoneForModel:
+    'Effort "{effort}" is not available for model "{model}": it offers no effort levels.',
   execTimedOut: 'The run reached its deadline.',
   execBudgetRefused: 'The next request exceeds the remaining budget.',
   execBudgetMinimum: 'This run requires at least {minimum}.',

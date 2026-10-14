@@ -3497,6 +3497,7 @@
   "unknownModelPickOffered": "Bunun yerine sunulan modellerden birini seçin.",
   "chatPartNotSupported": "\"{kind}\" parçası bu modele gönderilemez.",
   "effortNotForModel": "\"{effort}\" çabası \"{model}\" modeli için kullanılamaz. Şunlardan birini kullanın: {levels}.",
+  "effortNoneForModel": "\"{effort}\" çabası \"{model}\" modeli için kullanılamaz: model çaba düzeyi sunmaz.",
   "execTimedOut": "Çalıştırma süre sınırına ulaştı.",
   "execBudgetRefused": "Sonraki istek kalan bütçeyi aşıyor.",
   "execBudgetMinimum": "Bu çalıştırma için en az {minimum} gerekir.",

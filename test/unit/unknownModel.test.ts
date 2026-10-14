@@ -79,4 +79,14 @@ describe('effortNotForModelText', () => {
     expect(text).toContain('low')
     expect(text).toContain('high')
   })
+
+  it('says the model offers no levels instead of listing none', () => {
+    // A BYO model serves no known effort levels (effortLevelsFor returns
+    // [] for a slashed ref): "Use one of: ." names no remedy.
+    const text = effortNotForModelText('high', 'openai/gpt-5', [])
+    expect(text).toContain('high')
+    expect(text).toContain('openai/gpt-5')
+    expect(text).toContain('no effort levels')
+    expect(text).not.toContain('Use one of: .')
+  })
 })

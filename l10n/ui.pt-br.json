@@ -3571,6 +3571,7 @@
   "unknownModelPickOffered": "Escolha, em vez disso, um dos modelos oferecidos.",
   "chatPartNotSupported": "A parte \"{kind}\" não pode ser enviada para este modelo.",
   "effortNotForModel": "O esforço \"{effort}\" não está disponível para o modelo \"{model}\". Use um de: {levels}.",
+  "effortNoneForModel": "O esforço \"{effort}\" não está disponível para o modelo \"{model}\": ele não oferece níveis de esforço.",
   "execTimedOut": "A execução atingiu seu prazo.",
   "execBudgetRefused": "A próxima solicitação excede o orçamento restante.",
   "execBudgetMinimum": "Esta execução exige pelo menos {minimum}.",

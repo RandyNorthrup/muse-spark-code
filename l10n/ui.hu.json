@@ -3497,6 +3497,7 @@
   "unknownModelPickOffered": "Válasszon inkább a kínált modellek közül.",
   "chatPartNotSupported": "A(z) \"{kind}\" rész nem küldhető el ennek a modellnek.",
   "effortNotForModel": "A(z) \"{effort}\" erőfeszítés nem érhető el a(z) \"{model}\" modellhez. Használja az alábbiak egyikét: {levels}.",
+  "effortNoneForModel": "A(z) \"{effort}\" erőfeszítés nem érhető el a(z) \"{model}\" modellhez: nem kínál erőfeszítési szinteket.",
   "execTimedOut": "A futás elérte az időkorlátot.",
   "execBudgetRefused": "A következő kérés túllépi a fennmaradó keretet.",
   "execBudgetMinimum": "Ehhez a futáshoz legalább {minimum} szükséges.",
