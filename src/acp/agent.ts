@@ -320,6 +320,38 @@ function servedEffort(modelId: string, wanted: EffortLevel): EffortLevel {
   return levels.includes(wanted) ? wanted : (levels.at(-1) ?? DEFAULT_EFFORT)
 }
 
+/**
+ * One announced command per skill. The CLI lists a plugin's lone skill
+ * twice (the bare plugin name and the self-qualified `name:name` selector
+ * with the same text), and may repeat a selector. Collapse exact repeats
+ * and an identically-reading self-qualified pair, keeping the first form;
+ * anything that reads differently stays listed.
+ */
+export function dedupeSkillSelectors(skills: readonly SkillSummary[]): readonly SkillSummary[] {
+  const kept: SkillSummary[] = []
+  const seen = new Set<string>()
+  for (const skill of skills) {
+    const key = `${skill.selector}\n${skill.description}\n${skill.argumentHint ?? ''}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    kept.push(skill)
+  }
+  return kept.filter((skill) => {
+    const separator = skill.selector.indexOf(':')
+    if (separator === -1) return true
+    const plugin = skill.selector.slice(0, separator)
+    if (skill.selector.slice(separator + 1) !== plugin) return true
+    // A self-qualified pair reads once when its bare form reads the same.
+    return kept.every(
+      (other) =>
+        other === skill ||
+        other.selector !== plugin ||
+        other.description !== skill.description ||
+        (other.argumentHint ?? '') !== (skill.argumentHint ?? ''),
+    )
+  })
+}
+
 /** One ACP session over one AgentSession. */
 class AcpSession {
   private readonly questionRegistry: AcpQuestionRegistry | undefined
@@ -614,7 +646,7 @@ class AcpSession {
               input: { hint: UI_TEXT.estimateUsage },
             },
           ]),
-      ...this.skills
+      ...dedupeSkillSelectors(this.skills)
         .filter(
           (skill) =>
             skill.selector !== SLASH_COMMAND_NAMES.help &&
