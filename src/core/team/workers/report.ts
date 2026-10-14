@@ -45,6 +45,20 @@ function hasVisibleText(text: string): boolean {
   return text.replaceAll(/[\s\p{Cf}]/gu, '').length > 0
 }
 
+const STOP_OUTCOMES: ReadonlyMap<string, 'capped' | 'refused' | 'cancelled'> = new Map([
+  ['max_turn_requests', 'capped'],
+  ['max_tokens', 'capped'],
+  ['refusal', 'refused'],
+  ['cancelled', 'cancelled'],
+])
+
+/** Only a completed turn may substantiate a structured report. Unknown stops fail closed. */
+export function reportForStop(text: string, stopReason: string): WorkerReportOutcome {
+  if (stopReason === 'end_turn') return extractTeamReport(text)
+  const status = STOP_OUTCOMES.get(stopReason) ?? 'failed'
+  return { ok: false, status, stopReason, summary: clipReportSummary(text) }
+}
+
 /** The summary an `unstructured` outcome keeps. */
 export function clipReportSummary(text: string): string {
   const trimmed = text.trim()
