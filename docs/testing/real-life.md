@@ -7,8 +7,9 @@ observes is what a person would observe: an answer, a file on disk, an exit
 code, a sentence on the screen, a cost above zero, a conversation that
 loads again.
 
-It is the gate for a release and the proof behind every claim the product
-makes (`docs/testing/claims-*.json`, read by `scripts/check-claims.mjs`).
+It is the record behind a release: what the packed product did, read by a
+person. No gate reads it yet (there is no `scripts/check-claims.mjs` and no
+`docs/testing/claims-*.json`), so it proves no product claim by itself.
 The owner's rule, 2026-10-12: the tests are the app used in real life;
 nothing is tested against fake code.
 
@@ -275,8 +276,8 @@ reservation against the day. The causes as they were read, with the
 providers' own answers, the numbers and how to replay them, are in
 `docs/testing/real-life/0.18.2/causes-2026-10-12.json`.
 
-`--record <file>` writes `<file>.json` and `<file>.txt`. The JSON is what
-the claims gate reads; the text is the same for a person.
+`--record <file>` writes `<file>.json` and `<file>.txt`. The JSON is the
+release's record; the text is the same for a person.
 
 ```json
 {

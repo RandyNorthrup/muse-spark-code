@@ -1,9 +1,10 @@
 // The record of a run: what was used, on what, and per scenario and route
 // what was observed, with the requests, the dollars and the seconds. It is
-// the file the claims gate reads (scripts/check-claims.mjs: `artefact`,
-// `os`, `startedAt`, `endedAt` and `results`, each result with `scenario`,
-// `claims`, `route`, `model`, `surface`, `outcome`, `observed`, `requests`,
-// `usd` and `seconds`); what the run adds for a person stands beside those.
+// the release's record, read by a person: no gate reads it (there is no
+// scripts/check-claims.mjs). Its fields are `artefact`, `os`, `startedAt`,
+// `endedAt` and `results`, each result with `scenario`, `claims`, `route`,
+// `model`, `surface`, `outcome`, `observed`, `requests`, `usd` and
+// `seconds`; what the run adds for a person stands beside those.
 // `usd` is usage a provider reported, at the model's price; `uncertainUsd`
 // is what the product booked for a request that ended with no usage report.
 // No key, no home folder and no user name is in it: everything written
