@@ -13977,7 +13977,11 @@ export class ModelApiSession implements ScheduledAgentSession {
    * dropped with the failed summary.
    */
   private requeueHeldInput(turn: ActiveTurn): void {
-    if (turn.goalWakePending && isGoalActive(this.goal)) {
+    // Idempotent: the wrap-up exits and turn finalization both land here,
+    // and a held wake must be queued exactly once. A user stop still
+    // cancels outright: no fresh goal turn is queued behind it.
+    if (turn.goalWakePending && isGoalActive(this.goal) && !isAbortRequested(turn.abort.signal)) {
+      turn.goalWakePending = false
       this.queuedTurns.unshift(this.queuedGoalWake())
     }
     this.promoteSteered(turn)
@@ -14758,7 +14762,11 @@ export class ModelApiSession implements ScheduledAgentSession {
     }
     // Every exit preserves input the last request did not admit, including
     // incomplete replies and steering accepted while finalization awaited.
-    this.promoteSteered(turn)
+    // Held goal wakes re-queue here too: several loop exits (an incomplete
+    // reply, a required-MCP failure, a Stop hook throwing out of the
+    // wrap-up exit) never pass the wrap-up's own re-queue, and finalization
+    // is the one path every turn ending takes.
+    this.requeueHeldInput(turn)
     this.active = undefined
     const pendingRun = this.owner.run(turn.turnId)
     if (pendingRun !== undefined && turn.scheduleRun === undefined) {
