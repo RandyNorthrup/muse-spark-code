@@ -55,6 +55,7 @@ import {
 } from '../core/agent/agentBackend'
 import { editAutomaticallyChoice } from '../core/agent/approvalRules'
 import { failureForLog } from '../core/backends/musecode/logText'
+import { wireWordForLog } from '../core/logging'
 import { unlessAborted } from '../core/timeouts'
 import type { CoreLogger } from '../core/logging'
 import { type PaidUseAnswer, paidUseQuestion } from '../core/paid/paidConsent'
@@ -811,7 +812,7 @@ class AcpSession {
         // The CLI changed the mode itself (a ceiling or managed policy): the
         // editor keeps showing the mode it set, and the log keeps the fact.
         this.deps.log.warn(
-          `ACP session ${this.sessionId}: Muse Code now runs approval mode ${event.mode}`,
+          `ACP session ${this.sessionId}: Muse Code now runs approval mode ${wireWordForLog(event.mode)}`,
         )
         return
       }

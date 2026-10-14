@@ -130,6 +130,11 @@ describe('adoptedMode', () => {
   it('still opens untrusted content in an asking mode', () => {
     expect(adoptedMode(undefined, 'auto', true)).toBe('manual')
   })
+
+  it('re-asks untrusted content even after an explicit mode change', () => {
+    expect(adoptedMode('bypassPermissions', 'auto', true)).toBe('manual')
+    expect(adoptedMode('manual', 'auto', true)).toBe('manual')
+  })
 })
 
 describe('Muse Code mode descriptions (F13)', () => {

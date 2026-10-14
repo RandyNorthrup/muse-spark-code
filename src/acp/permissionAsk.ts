@@ -56,19 +56,18 @@ export function answerChoice(
 }
 
 /**
- * The mode a loaded or resumed session runs under: the one the client set
- * before (`session/set_mode` survives a later load), else the initial mode,
- * still opening untrusted content in an asking mode.
+ * The mode a loaded or resumed session runs under. An ordinary session keeps
+ * the mode the client set before (`session/set_mode` survives a later load),
+ * else it starts in the initial mode. Untrusted content always re-opens in
+ * an asking mode (D49, M84): only the current asking mode survives, and a
+ * user's own later `set_mode` relaxes that load alone.
  */
 export function adoptedMode(
   remembered: PermissionMode | undefined,
   initial: PermissionMode,
   isImported: boolean,
 ): PermissionMode {
-  if (remembered !== undefined) {
-    return remembered
-  }
-  return isImported ? untrustedStartMode(initial, initial) : initial
+  return isImported ? untrustedStartMode(remembered ?? initial, initial) : (remembered ?? initial)
 }
 
 /** What the client already answered, so a repeated request is never sent again. */
