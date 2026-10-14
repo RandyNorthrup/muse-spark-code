@@ -6,7 +6,6 @@
 import * as z from 'zod/mini'
 import { ESTIMATE_STALE_BASE_DAYS, MILLISECONDS_PER_DAY } from '../../shared/constants'
 import { historyRecordSchema, type EstimateLane, type HistoryRecord } from '../../shared/estimate'
-import { UI_TEXT, fill } from '../../shared/l10n/text'
 import { calibrationFailure } from './calibration/records'
 
 export interface StaleBaseLane {
@@ -44,13 +43,6 @@ export function baseRisks(
   return lanes
     .filter((lane) => ids.has(lane.id))
     .map((lane) => ({ laneId: lane.id, kind: 'staleBase' as const }))
-}
-
-/** Read at render time so changing the installed language changes the label. */
-export function staleBaseText(lanes: readonly { laneId: string }[]): string {
-  return fill(UI_TEXT.estimateStaleBase, {
-    lanes: lanes.map((lane) => lane.laneId).join(', '),
-  })
 }
 
 /**

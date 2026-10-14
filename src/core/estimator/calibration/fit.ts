@@ -6,7 +6,6 @@ import {
   type EstimateSection,
   type HistoryRecord,
 } from '../../../shared/estimate'
-import { UI_TEXT } from '../../../shared/l10n/text'
 import { calibrationFailure, canonicalHistory } from './records'
 import { calibrationPrior } from './prior'
 import { engineFindingRate } from '../baseRisk'
@@ -205,27 +204,4 @@ export function fitCalibration(
             ),
     },
   }
-}
-
-/** Read at render time so changing the installed language changes the label. */
-export function calibrationLabel(fit: CalibrationFit): string {
-  return fit.calibration.basis === 'fitted' ? UI_TEXT.estimateFitted : UI_TEXT.estimatePrior
-}
-
-/** Risk applies only to currently unresolved families with two strikes; unknown is not zero. */
-export function laneRedesignRisk(fit: CalibrationFit, value: EstimateLane['review']): Quantity {
-  const parsed = historyRecordSchema.shape.review.safeParse(value)
-  if (!parsed.success) throw calibrationFailure('invalidReviewState')
-  if (parsed.data.status === 'unknown')
-    return {
-      status: 'unknown',
-      value: null,
-      basis: 'unknown',
-      samples: 0,
-      uncertainty: { kind: 'unknown' },
-    }
-  const families = parsed.data.modules.filter((module) => module.strikes >= 2).length
-  return families === 0
-    ? { ...known(0, 'assumption', 0), uncertainty: { kind: 'interval', lower: 0, upper: 0 } }
-    : { ...fit.evidence.redesignRisk, value: 1 - (1 - fit.calibration.redesignRisk) ** families }
 }
