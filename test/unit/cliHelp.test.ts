@@ -111,9 +111,7 @@ describe('per-command help', () => {
 
 describe('wrong options and values', () => {
   it('exits 2 naming the option, the accepted options and the nearest match', () => {
-    const parsed = parseCommandLine(['exec', '--max-budgut', '1', 'hi'])
-    expect(parsed).toMatchObject({ command: 'invalid', exitCode: 2 })
-    const reason = parsed.command === 'invalid' ? parsed.reason : ''
+    const reason = refusalFor(['exec', '--max-budgut', '1', 'hi'])
     expect(reason).toContain('--max-budgut')
     expect(reason).toContain('--max-budget-usd')
     expect(reason).toContain('--max-requests')
@@ -130,17 +128,12 @@ describe('wrong options and values', () => {
       ['usage', '--bogus'],
       ['legal', '--bogus'],
     ]) {
-      const parsed = parseCommandLine(argv)
-      expect(parsed, argv.join(' ')).toMatchObject({ command: 'invalid', exitCode: 2 })
-      const reason = parsed.command === 'invalid' ? parsed.reason : ''
-      expect(reason, argv.join(' ')).toContain('--bogus')
+      expect(refusalFor(argv), argv.join(' ')).toContain('--bogus')
     }
   })
 
   it('exits 2 for a wrong value, naming what was typed', () => {
-    const parsed = parseCommandLine(['--backend', 'auto'])
-    expect(parsed).toMatchObject({ command: 'invalid', exitCode: 2 })
-    expect(parsed.command === 'invalid' ? parsed.reason : '').toContain('--backend auto')
+    expect(refusalFor(['--backend', 'auto'])).toContain('--backend auto')
   })
 
   it('names the exec option a wrong value belongs to, never the budget sentence', () => {
@@ -151,14 +144,11 @@ describe('wrong options and values', () => {
       [['exec', '--timeout', '1', 'hi'], '--timeout'],
       [['exec', '--max-requests', '0', 'hi'], '--max-requests'],
     ] as const) {
-      const parsed = parseCommandLine([...argv])
-      expect(parsed, argv.join(' ')).toMatchObject({ command: 'invalid', exitCode: 2 })
-      const reason = parsed.command === 'invalid' ? parsed.reason : ''
+      const reason = refusalFor([...argv])
       expect(reason, argv.join(' ')).toContain(`Invalid value for ${option}`)
       expect(reason, argv.join(' ')).not.toContain('six decimal')
     }
-    const budget = parseCommandLine(['exec', '--max-budget-usd', 'abc', 'hi'])
-    expect(budget.command === 'invalid' ? budget.reason : '').toContain('six decimal')
+    expect(refusalFor(['exec', '--max-budget-usd', 'abc', 'hi'])).toContain('six decimal')
   })
 
   it('refuses a secret-looking option without repeating its name', () => {
@@ -183,17 +173,12 @@ describe('wrong options and values', () => {
       [['--auth-key', 'x'], 'auth-key'],
       [['exec', '--bearer', 'x', 'hi'], 'bearer'],
     ] as const) {
-      const parsed = parseCommandLine([...argv])
-      expect(parsed, argv.join(' ')).toMatchObject({ command: 'invalid', exitCode: 2 })
-      const reason = parsed.command === 'invalid' ? parsed.reason : ''
-      expect(reason, argv.join(' ')).not.toContain(hidden)
+      expect(refusalFor([...argv]), argv.join(' ')).not.toContain(hidden)
     }
   })
 
   it('names serve accepted options for a wrong serve option', () => {
-    const parsed = parseCommandLine(['--max-budgut', '1'])
-    expect(parsed).toMatchObject({ command: 'invalid', exitCode: 2 })
-    const reason = parsed.command === 'invalid' ? parsed.reason : ''
+    const reason = refusalFor(['--max-budgut', '1'])
     expect(reason).toContain('--max-budgut')
     expect(reason).toContain('--max-budget-usd')
     expect(reason).toContain('--trust-workspace')
@@ -252,6 +237,13 @@ describe('one table drives parsing and help', () => {
     expect(parsed).toMatchObject({ command: 'invalid', exitCode: 2 })
   })
 })
+
+/** The exit-2 refusal one argv earns: asserts the refusal, returns its reason. */
+function refusalFor(argv: readonly string[]): string {
+  const parsed = parseCommandLine([...argv])
+  expect(parsed, argv.join(' ')).toMatchObject({ command: 'invalid', exitCode: 2 })
+  return parsed.command === 'invalid' ? parsed.reason : ''
+}
 
 /** One probe per shown option: a string option takes a dummy value. */
 function probeArgv(topic: string, name: string): string[] | undefined {
