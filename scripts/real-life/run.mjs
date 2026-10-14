@@ -162,6 +162,19 @@ const plan = groups.flatMap((group) => group.units.flatMap((unit) => unit.cells)
 const mostRequests = plan.reduce((sum, cell) => sum + cell.steps.requests, 0)
 const budget = allowance(options.maxRequests, options.maxUsd, options.maxUncertainUsd)
 const modelsOf = (group) => namedModels(group.models)
+// A selection that matches nothing (a misspelled pattern, no route, no
+// surface) must not certify the artefact with zero scenario runs: the run
+// stops here, before anything is installed, let alone sent.
+if (plan.length === 0) {
+  const where =
+    groups.length === 0
+      ? 'no route'
+      : groups.map((group) => `${group.route.id} (${modelsOf(group)})`).join(', ')
+  const pattern = isMatrix ? MATRIX_SCENARIOS.join(',') : options.scenarios
+  stopForUsage(
+    `the plan has no scenario runs: no scenario of '${pattern}' on ${where} by ${surfaces.join(', ') || 'no surface'}`,
+  )
+}
 // First of all: what an earlier run that was ended outright may have left.
 const noteOfEarlierRun = readMarker()
 if (noteOfEarlierRun !== undefined) {
