@@ -40,6 +40,8 @@ A UI change gets one small local look: `npm run ui:look -- <scene>`
 renders that scene from the built webview into `temp/ui-look/`, in the
 light and dark themes unless `--theme` names one. No baseline, no
 comparison, no CI. There are no screenshot runs anywhere in the pipeline.
+Look at both pictures yourself and put them into the change's
+certification record: a green CI says nothing about how a screen looks.
 
 README media comes only from the existing curated `scripts/readme-shots.mjs`
 list (2 MiB total budget, banner included).

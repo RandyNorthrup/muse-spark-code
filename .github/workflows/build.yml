@@ -105,7 +105,7 @@ jobs:
           Import-Module PSScriptAnalyzer -RequiredVersion $version -ErrorAction Stop
           Write-Host "PSScriptAnalyzer $version installed from the checked package"
       # Same static/build/audit gates as quality:gates, across the parts; tests
-      # have required jobs.
+      # have their own required job.
       - run: npx run-s ${{ matrix.part.gates }}
         env:
           # check:badges lists public main through the GitHub API; the job token
