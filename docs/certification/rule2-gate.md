@@ -1,0 +1,101 @@
+# Rule 2 gate: nothing is started again on the same commit
+
+AGENTS.md rule 2: hosted CI is the gate for a release, every job green on the
+commit that merges, and a red job is read and its cause measured, never rerun
+into green. Until this change nothing mechanical held it. GitHub shows a job's
+latest attempt, so a pull request whose CI run was red on attempt 1 and green on
+attempt 2 looked green and could merge. Also, the 0.18.2 tag was published
+while the Hosts run on the released commit was red
+(`docs/certification/release-0182.md`).
+
+`scripts/rule2-gate.mjs` holds the rule at its two doors:
+
+- **Merge** (`build.yml`, job "first attempt, every run green (rule 2)"). The
+  job needs every other job, so starting any of them again starts it again. It
+  refuses an attempt after the run's first execution and names the jobs and
+  steps of the earlier attempt that were not green. It also refuses unless
+  every other run of this repository's workflows on the same head is complete
+  and green on its own first execution. A run still in progress is waited for.
+  The five required names fail unless that job succeeded and judged this very
+  attempt. A job re-run on its own reuses the earlier attempt's result of the
+  gate job, and that result names the earlier attempt.
+- **Release** (`release.yml`, first job). It reads every run on the tagged
+  commit and on the head of the pull request that merged as it. It stops the
+  release unless each is complete and green on its first execution.
+
+## What happened before the gate
+
+These pull requests merged on a head whose CI run was green only on a later
+attempt, after a red job in attempt 1. The source is a read of all 885 workflow
+runs of this repository on 2026-10-12.
+
+| PR  | what                        | head      | CI run      | red in attempt 1                                                         |
+| --- | --------------------------- | --------- | ----------- | ------------------------------------------------------------------------ |
+| 153 | Release 0.18.2              | d243e0771 | 38311021688 | tests (macos-latest, shard 6)                                            |
+| 149 | Release 0.18.0              | c4397d603 | 38202980645 | tests (ubuntu-latest, shard 1)                                           |
+| 147 | Release 0.17.1              | 741bc3393 | 38175569846 | tests (windows-latest, shard 3); tests (macos-latest, shard 1) cancelled |
+| 140 | Release 0.16.0              | c2e0932aa | 37732929826 | tests (windows-latest, shard 4)                                          |
+| 137 | docs, gotchas G30-G46       | 0e937811c | 37687889200 | tests (windows-latest, shard 4)                                          |
+| 130 | docs, gotchas register      | 5fcb5e060 | 37550864380 | tests (windows-latest, shard 3)                                          |
+| 122 | Release 0.14.0              | 6baacdb77 | 37388689074 | tests (macos-latest, shard 2)                                            |
+| 115 | accessibility gate          | d6823cfc8 | 37257904865 | tests (windows-latest, shard 4)                                          |
+| 110 | CI: sharded gate            | badcb8f50 | 37232319487 | tests (ubuntu-latest, shard 2)                                           |
+| 105 | Dependabot, production deps | fce298cfb | 37241136040 | tests (macos-latest, shard 2)                                            |
+| 99  | record of 0.11.0            | e616ff38f | 37183337020 | quality (macos-latest), `npm run quality:gates`                          |
+| 84  | M74 follow-ups              | 7eb2ef68c | 37145436781 | quality (macos-latest), same step                                        |
+| 83  | audit exception (braces)    | 110d84a3c | 37089032539 | quality (macos-latest), same step                                        |
+| 81  | M73 follow-ups              | 92d987e79 | 37103214701 | quality (macos-latest), same step                                        |
+| 66  | npm publish path            | 93554066d | 36952688827 | quality (macos-latest), same step; three attempts                        |
+| 64  | html-encoding-sniffer 7     | 1d32b0828 | 37057226651 | quality (ubuntu-latest), same step                                       |
+| 44  | M56 enterprise network      | d8dd7b473 | 36350220096 | quality (windows-latest), same step                                      |
+| 43  | M55 install and sign-in     | e489ed88f | 36348351793 | quality (windows-latest), same step                                      |
+
+Two more runs had a later attempt and no red test:
+
+- PR 51 (an outside contributor): attempt 1 was the wait for a maintainer's
+  approval and ran no job.
+- PR 93: one job was cancelled before any step ran, and its CI run was green on
+  attempt 1.
+
+## One thing that is not an attempt
+
+Measured 2026-10-14 with GitHub's API: run 36670394002 (PR 51, from
+Piangpi1997's fork) is on attempt 2. Its attempt 1 ended `action_required` and
+has 0 jobs, created and updated at the same second. The maintainer's approval
+ran the workflow as attempt 2. An outside contributor's first run therefore
+always executes as attempt 2. The gate treats an earlier attempt that ended
+`action_required` with no job as no attempt; any other earlier attempt refuses.
+
+## Proof that both doors fire
+
+On 2026-10-14 at 9:20 AM PT, `scripts/rule2-gate.mjs` of this branch was run
+against real runs of this repository, with read-only API calls and
+`RULE2_WAIT_MINUTES=0`:
+
+| drill | input                                                             | expected | exit |
+| ----- | ----------------------------------------------------------------- | -------- | ---- |
+| A     | `run`: run 36670394002, attempt 2 after the approval wait (PR 51) | pass     | 0    |
+| B     | `run`: run 38311021688, attempt 2 after a red attempt 1 (PR 153)  | refuse   | 1    |
+| C     | `run`: run 38337283005, attempt 1 green, head of PR 155           | pass     | 0    |
+| D     | `release --sha 898a26c5e` (the 0.18.2 commit)                     | refuse   | 1    |
+
+What each drill printed:
+
+- **B** named `build / tests (macos-latest, shard 6)`, step 5 "unit and process
+  e2e tests" (failure), from attempt 1.
+- **D** refused three runs:
+  - Hosts run 38340629307 (workflow_dispatch, cancelled).
+  - Hosts run 38329749606 (push, failure: "VSCodium latest", step 6).
+  - CI run 38311021688 (on attempt 2 after a red attempt 1).
+
+  It passed Release 38329786779, Hosts 38311021363 and Action check 38311021286.
+
+The 0.18.2 tag would have stopped at this door.
+
+Break on purpose: removing `JUDGED_ATTEMPT` from the required aggregate in
+`build.yml` turned `test/unit/manifest.test.ts` red ("passes a required name
+only when its whole tier succeeded", exit 1). Restoring it turned it green
+(exit 0).
+
+Hosted: this pull request's own run is the first hosted execution of the merge
+door. Its result is recorded below when it ends.
