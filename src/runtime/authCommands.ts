@@ -88,9 +88,10 @@ export async function authClear(deps: AuthCommandDeps): Promise<number> {
 
 /**
  * `auth set --provider <id>`: the key comes from standard input only (the
- * reader hides terminal typing and takes a pipe's first line), is checked
- * against the preset's shape, and is stored bound to the exact origin it
- * was entered for. Never an argument, a setting, a file or the environment.
+ * reader hides terminal typing and takes a pipe's first line), is never
+ * refused for its shape (the provider judges it), and is stored bound to
+ * the exact origin it was entered for. Never an argument, a setting, a
+ * file or the environment.
  */
 export async function authSetProvider(
   deps: AuthCommandDeps,

@@ -1,7 +1,7 @@
 // The ACP agent's provider commands (M95, PLAN.md D74): `providers
 // list|add|test|remove` and the key target `auth … --provider <id>` uses.
 // The terminal runs the same checks as the panel's wizard: the preset, the
-// endpoint policy, the key's shape, the free key test and the ticked
+// endpoint policy, the free key test (never the key's shape) and the ticked
 // models, driven through lane P's pure `wizardFlow` state machine, so the
 // rules cannot drift. The draft lives in memory only; the file and the
 // secret are committed once the machine reaches `done`. Reported failures
