@@ -218,6 +218,15 @@ describe('providers models add and remove', () => {
     expect(f.errors).toEqual([])
   })
 
+  it('adds a repeated --add once, never twice in the file', async () => {
+    const f = deps()
+    await writeInitial(f.filePath, fileWith(['model-a']))
+    expect(await runModels(f, ['model-c', 'model-c'], [], 'beta access')).toBe(0)
+    const saved = await readEntry(f.filePath)
+    expect(saved.models).toEqual(['model-a', 'model-c'])
+    expect(f.printed.join('\n')).toContain('Added model-c to openrouter.')
+  })
+
   it('refuses a blank model name and writes nothing', async () => {
     const f = deps()
     await writeInitial(f.filePath, fileWith(['model-a']))
