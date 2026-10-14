@@ -9,9 +9,14 @@ import {
   type ResponsesDecodeSink,
 } from '../../src/core/backends/modelapi/codecs/responses'
 import type { CreateResponseBody } from '../../src/core/backends/modelapi/schemas'
+import { CHATGPT_TOOL_NAMESPACE_DESCRIPTION } from '../../src/shared/constants'
 
 const encoder = new TextEncoder()
-const codec = createResponsesCodec({ profile: 'chatgpt', toolNamespace: 'functions' })
+const codec = createResponsesCodec({
+  profile: 'chatgpt',
+  toolNamespace: 'functions',
+  toolNamespaceDescription: CHATGPT_TOOL_NAMESPACE_DESCRIPTION,
+})
 // The error/created fixtures produce no output tokens.
 const sink: ResponsesDecodeSink = {
   outputCap: { maxOutputTokens: 512, countOutputTokens: () => 0, abort: () => undefined },
@@ -116,6 +121,21 @@ function failed(error: unknown = limitError) {
 }
 
 describe('chatgpt Responses request profile', () => {
+  it('always sends the namespace description the plan endpoint requires', () => {
+    // The plan endpoint answers HTTP 400
+    // (`missing_required_parameter: tools[0].description`, measured
+    // 2026-10-14) when the namespace tool carries no description.
+    expect(codec.encodeRequest(body())['tools']).toEqual([
+      {
+        type: 'namespace',
+        name: 'functions',
+        description: CHATGPT_TOOL_NAMESPACE_DESCRIPTION,
+        tools: expect.any(Array),
+      },
+    ])
+    expect(CHATGPT_TOOL_NAMESPACE_DESCRIPTION.length).toBeGreaterThan(0)
+  })
+
   it('matches the preview-rule namespace golden without changing the canonical body', () => {
     const original = body()
     const before = JSON.stringify(original)
@@ -204,7 +224,12 @@ describe('chatgpt Responses request profile', () => {
     const before = JSON.stringify(history)
     expect(codec.encodeRequest(history)['input']).toEqual(history.input)
     expect(codec.encodeRequest(history)['tools']).toEqual([
-      { type: 'namespace', name: 'functions', tools: original.tools },
+      {
+        type: 'namespace',
+        name: 'functions',
+        description: CHATGPT_TOOL_NAMESPACE_DESCRIPTION,
+        tools: original.tools,
+      },
     ])
     expect(JSON.stringify(history)).toBe(before)
     const growing: CreateResponseBody = {

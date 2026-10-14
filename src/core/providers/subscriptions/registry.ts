@@ -19,6 +19,7 @@ import { responses, modelRef, recordPlanUsage } from '../../../host/backend/prov
 const { ChatgptPlanLimitError, createResponsesCodec, ResponsesOutputCapError } = responses
 const { parseModelRef } = modelRef
 import {
+  CHATGPT_TOOL_NAMESPACE_DESCRIPTION,
   MILLISECONDS_PER_SECOND,
   MODEL_API_REQUEST_TIMEOUT_MS,
   MODEL_API_STREAM_IDLE_MS,
@@ -292,7 +293,11 @@ export function createSubscriptionClient(
             throw error
           }
         }
-        const codec = createResponsesCodec({ profile: 'chatgpt', toolNamespace: 'functions' })
+        const codec = createResponsesCodec({
+          profile: 'chatgpt',
+          toolNamespace: 'functions',
+          toolNamespaceDescription: CHATGPT_TOOL_NAMESPACE_DESCRIPTION,
+        })
         const request = codec.encodeRequest({ ...body, model: ref.modelId })
         admitAttempt?.(await deps.accountId())
         if (signal.aborted) throw signal.reason
