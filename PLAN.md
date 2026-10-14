@@ -791,6 +791,20 @@ quality`) and as a CI job.
 
 ### D6 — Bundle budgets (Phase 6)
 
+**PANELBUDGET (2026-10-14, wslpc).** The Models & Agents panel bundle had
+1,645 B of headroom (126,355 B against the 128,000 B cap) with the money and
+key-text lanes plus two mode switches landing in it. The subscriptions half
+(`subscriptionFeatures.ts` with the ChatGPT and Copilot sign-in flows,
+`chatgptSignIn.ts` and `copilotClient.ts`) now loads as
+**`dist/modelsSubscriptions.js`** (22,917 B; new 50 KiB budget: 22,917 ×
+1.15 = 26,354.55 B, rounded up to the next 25 KiB multiple), required by
+activation on the first subscription action through
+`modelsSubscriptionsLoader`; the panel never loads it. `dist/modelsPanel.js`
+is 109,327 B (106.8 KiB), 18,673 B under its unchanged 125 KiB cap. The
+split check fails an activation or panel bundle that carries any of the four
+moved modules again. No existing cap changes. Evidence:
+`docs/certification/models-panel-budget.md`.
+
 **INT0170 (2026-10-08, kubuntu).** Three lane merges broke the Node bundles
 under unchanged caps; each is fixed at the root and held by the split check.
 Activation took classic zod through `paidConsent.ts` (1,033,339 B, two
@@ -2031,6 +2045,8 @@ Reports share the existing 50 KiB mini-parser; every runtime API read is guarded
 **`dist/voice.js` budget rationale.** (2026-10-03: both voice engines' drivers, loaded on the first recording; measured 34.5 KiB plus 15%, rounded up to 25 KiB)
 
 **`dist/museCodeReviewer.js` budget rationale.** (M90: the Auto reviewer on Muse Code, its side session and approvals with M78's reviewer core, loaded on the first review; measured 45.4 KiB plus 15%, rounded up to 25 KiB)
+
+**`dist/modelsSubscriptions.js` budget rationale.** (PANELBUDGET: the subscriptions half of the Models panel host, the ChatGPT and Copilot sign-in flows, loaded on the first subscription action; measured 22,917 B plus 15%, rounded up to the next 25 KiB multiple = 50 KiB)
 
 ### D7 — Permission modes map onto MSP approval modes; prompting modes wait for M4
 
