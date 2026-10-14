@@ -758,7 +758,7 @@ quality`) and as a CI job.
 
 ### D5 — Testing strategy
 
-**Superseded 2026-10-12 by D105** (owner's test-overhaul ruling) for the
+**Superseded 2026-10-12 by D108** (owner's test-overhaul ruling) for the
 fake-transport unit pattern, the `vscode` mock in unit tests, and the
 coverage-threshold gate. What stays: unit tests over `src/**`, webview
 component tests, and the real-editor integration run.
@@ -14300,7 +14300,7 @@ cost and caution, never speed.
   reviewer on B1 and B2, never the only one and never an allow by itself.
   Everywhere else both stand unchanged.
 
-### D105 — Test overhaul: no stand-ins, a short gate, the real-life run (owner, 2026-10-12)
+### D108 — Test overhaul: no stand-ins, a short gate, the real-life run (owner, 2026-10-12)
 
 The owner, verbatim: "get the useless tests get it streamlined and
 meaningful with nothing testing fake code no exceptions. no more ci

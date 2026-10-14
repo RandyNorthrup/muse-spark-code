@@ -181,7 +181,7 @@ tests (`visualMatrix`, `visualSource`) and the orphaned audit-capture
 helper — 19 files — and trims the capture pins out of
 `whatsNewFixture`. What stays: the harness scenes, `readme-shots`, and
 one small local command for a person to look at a changed screen,
-`npm run ui:look -- <scene> [--theme light|dark]`, rendering into
+`npm run ui:look -- <scene> [--theme=light|dark]`, rendering into
 `temp/ui-look/` with no baseline, no comparison and no CI. PASS 3b
 drops the `visual-shards` and `visual` jobs and every `needs:` edge
 from `build.yml`, mirrors the workflow in `manifest.test.ts`, and
@@ -450,3 +450,11 @@ is restored with a knip entry rather than left dangling.
   `fakeScheduleWake.mjs` had its knip entry but no cycles root. Added.
 - `package` left `quality:gates` and the checks matrix (PASS 5 above):
   only the packages job stages the Linux natives it requires.
+- PASS 2c deleted `test/e2e/fake-muse/serve.mjs`, but the LIST host
+  checks still copy it (`test/hosts/fake-muse.sh:14`, a path string the
+  import sweep cannot see — the `fakeScheduleWake` class again): every
+  `run-*.sh` host check failed at that `cp`. Restored byte-exact from
+  the pre-deletion tree (its cycles root never left); `stub.cs`, whose
+  only compiler (`fakeMuse.ts`) was a GO deletion, is deleted.
+- The decision entry was numbered D105, already TRUSTROOT's (2026-10-09);
+  renumbered D108 (D106 is reserved, D107 is the Judge).
