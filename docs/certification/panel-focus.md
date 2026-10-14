@@ -113,8 +113,25 @@ the workspace root and opens it (D15)`, now polls `activeTextEditor` and
 
 `test/integration/extension.test.ts` on the branch (Hosts workflow):
 the D15 case (expect green ten times in ten here; red ~7/10 on the base)
-and the new Focus Input mirror. Nothing else needs an editor.
-No picture changes: not a visual change.
+and the strengthened Focus Input mirror (the panel comes forward, then the
+toggle hands the keyboard back to the file — the composer's landing effect
+is what makes the second half pass). Nothing else needs an editor.
+
+## Looked at in light and dark (2026-10-14, this lane)
+
+D108 changes the interface's focus behavior, so the changed surfaces were
+inspected on the built product in both themes with the repository's own
+local screenshot tool (`node scripts/harness-shots.mjs`, headless Chrome,
+`dist/webview/main.js` from `npm run build`): the chat transcript with its
+composer, and an arriving approval card docked above the composer. Both
+themes show the composer, the docked card with its Allow once / Always
+allow / Reject controls, and the transcript unchanged — no pixels moved,
+only who may take the keyboard. Files (690 px):
+
+- `docs/certification/panel-focus-transcript-light-690.png`
+- `docs/certification/panel-focus-transcript-dark-690.png`
+- `docs/certification/panel-focus-approval-light-690.png`
+- `docs/certification/panel-focus-approval-dark-690.png`
 
 ## Follow-up: a request that cannot land at once is dropped, not held (F3, 2026-10-14)
 
