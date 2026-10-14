@@ -341,6 +341,7 @@ describe('the legal report (M97 lane W)', () => {
       type: 'composerState',
       effort: 'xhigh',
       isThinkingEnabled: false,
+      isFastEnabled: false,
       permissionMode: 'plan',
     })
     deliver({ type: 'legalScanReport', requestId: 'r1', result: RESULT })

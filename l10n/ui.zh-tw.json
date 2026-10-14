@@ -342,7 +342,8 @@
     "estimate-by": "--by <date>: 截止日期",
     "fleet": "--fleet current|minimum|optimum: 目前設備群 / 最小組態 / 最佳組態",
     "estimate-format": "--format md|html|json|text: 輸出格式",
-    "seed": "--seed <seed>: 模擬種子"
+    "seed": "--seed <seed>: 模擬種子",
+    "fast": "--fast: 使用方案目錄的 Fast 層級（2 倍速度，用量增加）。預設為關閉：會消耗更多的方案額度。"
   },
   "referenceScanSecrets": "掃描 UTF-8 修補檔案中的秘密資訊，偵測到時以失敗結束。--key-stdin 也會檢查記憶體中的 Model API 金鑰原值；不儲存金鑰。",
   "referenceVault": "進行中.",
@@ -916,7 +917,8 @@
     "tokenCounts": "輸入 {input} · 輸出 {output} · 請求數：{requests}",
     "reduced": "功能受限",
     "aiContent": "AI 產生的內容可能不準確。Copilot 會加入自己的規則並使用你的 AI 點數；未回報用量時，權杖數為估算值。",
-    "reportContent": "檢舉有害內容"
+    "reportContent": "檢舉有害內容",
+    "fastDetail": "{description}。預設為關閉：會消耗更多的方案額度。"
   },
   "untitledConversation": "未命名",
   "crashTitle": "面板發生錯誤",
@@ -3415,6 +3417,7 @@
   "execTooManyChunks": "輸入超過區塊數量限制。",
   "execUnknownModel": "本次執行無法使用此模型。",
   "execEffortUnavailable": "此模型不支援該推理強度。",
+  "execFastUnavailable": "此模型不支援 Fast。",
   "execTimedOut": "執行已達到時限。",
   "execBudgetRefused": "下一次請求將超過剩餘預算。",
   "execBudgetMinimum": "本次執行至少需要 {minimum}。",

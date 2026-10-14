@@ -136,6 +136,15 @@ describe('chatgpt Responses request profile', () => {
     expect(CHATGPT_TOOL_NAMESPACE_DESCRIPTION.length).toBeGreaterThan(0)
   })
 
+  it('sends the Fast tier only while the switch is on', () => {
+    // The conversation's Fast switch rides as `service_tier: "priority"`;
+    // off the switch the field stays out of the request entirely.
+    const on = codec.encodeRequest({ ...body(), service_tier: 'priority' })
+    expect(on['service_tier']).toBe('priority')
+    const off = codec.encodeRequest(body())
+    expect('service_tier' in off).toBe(false)
+  })
+
   it('matches the preview-rule namespace golden without changing the canonical body', () => {
     const original = body()
     const before = JSON.stringify(original)

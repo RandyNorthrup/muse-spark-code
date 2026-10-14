@@ -352,6 +352,14 @@ Surfaces: acp:modelApi. Paid: no extra feature charge; model usage still applies
 
 Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#headless-runs)
 
+### --fast: Use the plan catalogue’s Fast tier (2x speed, increased usage). Off by default: it uses more of your plan allowance.
+
+--fast: Use the plan catalogue’s Fast tier (2x speed, increased usage). Off by default: it uses more of your plan allowance.
+
+Surfaces: vscode:modelApi, acp:modelApi. Paid: no extra feature charge; model usage still applies.
+
+Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#headless-runs)
+
 ### Meta API Status
 
 Open Service Status
@@ -520,6 +528,7 @@ Installed skills add dynamic slash commands. This static reference does not list
   "configOptions": {
     "model": "model",
     "effort": "effort",
+    "fast": "fast",
     "account": "account"
   },
   "permissionModes": ["manual", "acceptEdits", "plan", "auto", "bypassPermissions"],

@@ -429,6 +429,7 @@ export const EN = {
     fleet: '--fleet current|minimum|optimum: Current / Minimum / Optimum',
     'estimate-format': '--format md|html|json|text: Output format',
     seed: '--seed <seed>: Simulation seed',
+    fast: '--fast: Use the plan catalogue’s Fast tier (2x speed, increased usage). Off by default: it uses more of your plan allowance.',
   },
   referenceScanSecrets:
     'Scan a UTF-8 patch file for secrets and fail on detection. --key-stdin also checks for the exact in-memory Model API key; no key is stored.',
@@ -1115,6 +1116,8 @@ export const EN = {
     aiContent:
       'AI content can be inaccurate. Copilot adds rules and uses AI credits. Unreported token usage is estimated.',
     reportContent: 'Report Harmful Content',
+    // {description}: the catalogue's own words for the priority tier.
+    fastDetail: '{description}. Off by default: it uses more of your plan allowance.',
   },
   untitledConversation: 'Untitled',
   crashTitle: 'The Panel Hit an Error',
@@ -4203,6 +4206,7 @@ export const EN = {
   execTooManyChunks: 'The input exceeds the chunk limit.',
   execUnknownModel: 'This model is not available for this run.',
   execEffortUnavailable: 'This effort is not available for this model.',
+  execFastUnavailable: 'Fast is not available for this model.',
   execTimedOut: 'The run reached its deadline.',
   execBudgetRefused: 'The next request exceeds the remaining budget.',
   execBudgetMinimum: 'This run requires at least {minimum}.',

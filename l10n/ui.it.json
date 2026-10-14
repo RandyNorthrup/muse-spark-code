@@ -342,7 +342,8 @@
     "estimate-by": "--by <date>: Scadenza",
     "fleet": "--fleet current|minimum|optimum: Parco macchine attuale / Configurazione minima / Configurazione ottimale",
     "estimate-format": "--format md|html|json|text: Formato di uscita",
-    "seed": "--seed <seed>: Seme della simulazione"
+    "seed": "--seed <seed>: Seme della simulazione",
+    "fast": "--fast: Usa il livello Fast del catalogo del piano (velocità 2x, utilizzo maggiore). Disattivato per impostazione predefinita: usa più quota del tuo piano."
   },
   "referenceScanSecrets": "Analizza un file patch UTF-8 alla ricerca di segreti e termina con errore se li rileva. --key-stdin cerca anche la chiave Model API esatta in memoria; nessuna chiave viene salvata.",
   "referenceVault": "In corso.",
@@ -924,7 +925,8 @@
     "tokenCounts": "{input} in ingresso · {output} in uscita · richieste: {requests}",
     "reduced": "Funzionalità ridotte",
     "aiContent": "I contenuti generati dall’IA possono essere inesatti. Copilot aggiunge le proprie regole e usa i tuoi crediti IA; i conteggi dei token sono stime quando l’utilizzo non viene riportato.",
-    "reportContent": "Segnala contenuti dannosi"
+    "reportContent": "Segnala contenuti dannosi",
+    "fastDetail": "{description}. Disattivato per impostazione predefinita: usa più quota del tuo piano."
   },
   "untitledConversation": "Senza titolo",
   "crashTitle": "Si è verificato un errore nel pannello",
@@ -3561,6 +3563,7 @@
   "execTooManyChunks": "L’input supera il limite di blocchi.",
   "execUnknownModel": "Questo modello non è disponibile per questa esecuzione.",
   "execEffortUnavailable": "Questo impegno non è disponibile per questo modello.",
+  "execFastUnavailable": "Fast non è disponibile per questo modello.",
   "execTimedOut": "L’esecuzione ha raggiunto il termine.",
   "execBudgetRefused": "La prossima richiesta supera il budget rimanente.",
   "execBudgetMinimum": "Questa esecuzione richiede almeno {minimum}.",

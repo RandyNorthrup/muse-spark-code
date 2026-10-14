@@ -342,7 +342,8 @@
     "estimate-by": "--by <date>: Határidő",
     "fleet": "--fleet current|minimum|optimum: Jelenlegi géppark / Minimális összeállítás / Optimális összeállítás",
     "estimate-format": "--format md|html|json|text: Kimeneti formátum",
-    "seed": "--seed <seed>: Szimulációs kezdőérték"
+    "seed": "--seed <seed>: Szimulációs kezdőérték",
+    "fast": "--fast: A csomagkatalógus Fast szintjének használata (2x sebesség, megnövelt használat). Alapértelmezés szerint kikapcsolva: többet fogyaszt a csomagkeretből."
   },
   "referenceScanSecrets": "Titkokat keres egy UTF-8 javításfájlban, és találat esetén hibával kilép. A --key-stdin a memóriában lévő pontos Model API-kulcsot is keresi; nem tárol kulcsot.",
   "referenceVault": "Folyamatban.",
@@ -920,7 +921,8 @@
     "tokenCounts": "{input} bemeneti · {output} kimeneti · kérések: {requests}",
     "reduced": "Korlátozott képességek",
     "aiContent": "Az AI által létrehozott tartalom pontatlan lehet. A Copilot saját szabályokat ad hozzá és az Ön AI-kreditjeit használja; a tokenszámok becslések, ha a használat nincs jelentve.",
-    "reportContent": "Káros tartalom jelentése"
+    "reportContent": "Káros tartalom jelentése",
+    "fastDetail": "{description}. Alapértelmezés szerint kikapcsolva: többet fogyaszt a csomagkeretből."
   },
   "untitledConversation": "Névtelen",
   "crashTitle": "Hiba történt a panelen",
@@ -3488,6 +3490,7 @@
   "execTooManyChunks": "A bemenet túllépi a blokkok korlátját.",
   "execUnknownModel": "Ez a modell nem érhető el ehhez a futáshoz.",
   "execEffortUnavailable": "Ez az erőfeszítés nem érhető el ehhez a modellhez.",
+  "execFastUnavailable": "A Fast nem érhető el ehhez a modellhez.",
   "execTimedOut": "A futás elérte az időkorlátot.",
   "execBudgetRefused": "A következő kérés túllépi a fennmaradó keretet.",
   "execBudgetMinimum": "Ehhez a futáshoz legalább {minimum} szükséges.",

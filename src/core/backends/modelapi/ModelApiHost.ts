@@ -2681,6 +2681,8 @@ export class ModelApiSession implements ScheduledAgentSession {
   /** The compaction in flight (D26): it holds the session like a turn. */
   private compacting: AbortController | undefined
   private effort: string = DEFAULT_EFFORT
+  /** The conversation's Fast tier id while the switch is on; off by default. */
+  private serviceTier: string | undefined
   private todos: readonly TodoItem[] = []
   private todoTurnId: string | undefined
   private outcomeStopReason: AgentEvidence['stopReason']
@@ -4529,6 +4531,10 @@ export class ModelApiSession implements ScheduledAgentSession {
           summary: 'auto' as const,
         }),
       },
+      // The Fast switch rides as the catalogue's priority tier, on the
+      // plan route only; off by default.
+      ...(this.serviceTier !== undefined &&
+        resolved.policy.identity.provider === 'chatgpt' && { service_tier: this.serviceTier }),
       stream: true,
       store: false,
       include: this.includes(),
@@ -16046,6 +16052,13 @@ export class ModelApiSession implements ScheduledAgentSession {
       return Promise.reject(new Error('reasoning effort must not be empty'))
     }
     this.effort = reasoningEffort
+    this.touch()
+    return Promise.resolve()
+  }
+
+  /** The conversation's Fast tier (off by default); rides on plan turns only. */
+  public setServiceTier(serviceTier: string | undefined): Promise<void> {
+    this.serviceTier = serviceTier === '' ? undefined : serviceTier
     this.touch()
     return Promise.resolve()
   }

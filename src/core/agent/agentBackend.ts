@@ -520,6 +520,12 @@ export interface AgentSession {
   setModel(modelId: string): Promise<void>
   /** The session's standing reasoning-effort default (wire vocabulary). */
   setReasoningEffort(reasoningEffort: string): Promise<void>
+  /**
+   * The conversation's Fast tier: the plan catalogue's priority tier id
+   * while on, undefined while off. Plan sessions only; sessions without it
+   * never offer the switch.
+   */
+  setServiceTier?: (serviceTier: string | undefined) => Promise<void>
   /** One of the four MSP approval modes (shared/permissionModes.ts). */
   setApprovalMode(mode: string): Promise<void>
   compact(): Promise<CompactOutcome>

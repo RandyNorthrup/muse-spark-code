@@ -1219,6 +1219,8 @@ export class ConversationController {
   private readonly importedSessionIds = new Set<string>()
   private effort: EffortLevel = DEFAULT_EFFORT
   private isThinkingEnabled = true
+  /** The conversation's Fast switch; off by default, reset on model change. */
+  private fast = false
   private activeTurnId: string | undefined
   /**
    * Child sessions this surface has rows for. Their turns reach the parent
@@ -1880,6 +1882,7 @@ export class ConversationController {
       type: 'composerState',
       effort: this.effort,
       isThinkingEnabled: this.isThinkingEnabled,
+      isFastEnabled: this.fast,
       permissionMode: this.permissionMode,
     })
   }
@@ -3971,6 +3974,7 @@ export class ConversationController {
       effort: this.effort,
       isThinkingEnabled: this.isThinkingEnabled,
     })
+    if (this.fast) await this.updateFast(true)
     if (this.session !== session || this.attachmentGeneration !== generation || this.isDisposed) {
       return
     }
@@ -8244,6 +8248,9 @@ export class ConversationController {
     if (!levels.includes(this.effort)) {
       await this.updateEffort(this.modelDefaultEffort(modelId, levels), this.isThinkingEnabled)
     }
+    // Fast never survives a model change: it is off by default, and the
+    // new model may list no priority tier at all.
+    if (this.fast) await this.updateFast(false)
   }
 
   /** The tiers a model serves: its own list where the backend knows it. */
@@ -8278,6 +8285,27 @@ export class ConversationController {
     ) {
       this.effort = kept.effort
       this.isThinkingEnabled = kept.isThinkingEnabled
+    }
+    this.postComposerState()
+  }
+
+  /** The conversation's Fast switch; refused where the model lists no priority tier. */
+  private async updateFast(isEnabled: boolean): Promise<void> {
+    const tier = this.models?.find((model) => model.modelId === this.modelId)?.fastTier
+    if (tier === undefined) {
+      this.fast = false
+      this.postComposerState()
+      return
+    }
+    this.fast = isEnabled
+    const { session } = this
+    if (session?.setServiceTier !== undefined) {
+      try {
+        await session.setServiceTier(isEnabled ? tier.id : undefined)
+      } catch (error: unknown) {
+        this.fast = false
+        this.say('warning', `${UI_TEXT.effortNotApplied}: ${describe(error)}`)
+      }
     }
     this.postComposerState()
   }
@@ -10216,6 +10244,10 @@ export class ConversationController {
       }
       case 'setThinking': {
         await this.updateEffort(this.effort, message.enabled)
+        break
+      }
+      case 'setFast': {
+        await this.updateFast(message.enabled)
         break
       }
       case 'setPermissionMode': {

@@ -342,7 +342,8 @@
     "estimate-by": "--by <date>: Son tarih",
     "fleet": "--fleet current|minimum|optimum: Mevcut makine grubu / Asgari kurulum / En uygun kurulum",
     "estimate-format": "--format md|html|json|text: Çıktı biçimi",
-    "seed": "--seed <seed>: Simülasyon tohumu"
+    "seed": "--seed <seed>: Simülasyon tohumu",
+    "fast": "--fast: Plan kataloğunun Fast katmanını kullan (2 kat hız, artırılmış kullanım). Varsayılan olarak kapalı: plan kotanızdan daha fazla kullanır."
   },
   "referenceScanSecrets": "UTF-8 yama dosyasında gizli bilgileri arar ve bulursa başarısız olur. --key-stdin bellekteki Model API anahtarının tam değerini de arar; anahtar saklanmaz.",
   "referenceVault": "Devam ediyor.",
@@ -920,7 +921,8 @@
     "tokenCounts": "{input} girdi · {output} çıktı · istekler: {requests}",
     "reduced": "Sınırlı özellikler",
     "aiContent": "Yapay zeka tarafından üretilen içerik hatalı olabilir. Copilot kendi kurallarını ekler ve yapay zeka kredilerinizi kullanır; kullanım bildirilmediğinde token sayıları tahminidir.",
-    "reportContent": "Zararlı içeriği bildir"
+    "reportContent": "Zararlı içeriği bildir",
+    "fastDetail": "{description}. Varsayılan olarak kapalı: plan kotanızdan daha fazla kullanır."
   },
   "untitledConversation": "Adsız",
   "crashTitle": "Panelde bir hata oluştu",
@@ -3488,6 +3490,7 @@
   "execTooManyChunks": "Girdi parça sınırını aşıyor.",
   "execUnknownModel": "Bu model bu çalıştırma için kullanılamıyor.",
   "execEffortUnavailable": "Bu düşünme düzeyi bu modelde kullanılamıyor.",
+  "execFastUnavailable": "Fast bu model için kullanılamıyor.",
   "execTimedOut": "Çalıştırma süre sınırına ulaştı.",
   "execBudgetRefused": "Sonraki istek kalan bütçeyi aşıyor.",
   "execBudgetMinimum": "Bu çalıştırma için en az {minimum} gerekir.",
