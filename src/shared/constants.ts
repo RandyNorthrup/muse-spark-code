@@ -4082,6 +4082,17 @@ export const ACP_AGENT_TITLE = 'Muse Spark Code (Unofficial)'
 // The OS credential store's entry for the Model API key (D61); the account
 // is the name the extension's SecretStorage uses (SECRET_KEYS.modelApiKey).
 export const KEYRING_SERVICE = 'Muse Spark Code (Unofficial)'
+// Windows Credential Manager keeps at most 2,560 bytes of UTF-16 per entry:
+// 1,280 characters (measured 2026-10-14 through @napi-rs/keyring: "Value of
+// 'password encoded as UTF-16' is longer than the platform limit of 2560
+// chars"). A longer secret (a ChatGPT plan record holds two tokens) is kept
+// as parts of at most this many characters plus a short header entry.
+export const KEYRING_PART_CHARS = 1200
+// The header entry's value: this tag, the part count and the whole value's
+// SHA-256 (hex), so a reader reassembles and verifies the parts.
+export const KEYRING_PARTS_TAG = 'muse-spark-parts:v1:'
+// How many hex characters of that hash name one generation of parts.
+export const KEYRING_PARTS_ID_CHARS = 12
 // Which account pays is chosen at launch, never guessed (D62).
 export const ACP_BACKENDS = ['museCode', 'modelApi'] as const
 export type AcpBackendKind = (typeof ACP_BACKENDS)[number]

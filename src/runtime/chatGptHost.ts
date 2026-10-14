@@ -15,6 +15,20 @@ import { storeOperation } from './keyStore'
 const RECORD_ACCOUNT = `${PROVIDER_SECRET_PREFIX}chatgpt`
 const HOST_ACCOUNT = `${RECORD_ACCOUNT}.host-id`
 
+/**
+ * The grant's OS-store calls. A refusal is the credential store's and is
+ * said as such: the sign-in core's guard would otherwise report any foreign
+ * error as a temporary ChatGPT failure (findings F14 and F78: a Windows
+ * Credential Manager size refusal read "ChatGPT is temporarily unavailable").
+ */
+async function grantStore<T>(work: () => Promise<T>): Promise<T> {
+  try {
+    return await storeOperation(work)
+  } catch {
+    throw new ChatGptSignInError('store-unavailable')
+  }
+}
+
 export interface RuntimeChatGptOptions {
   readonly secrets: SecretStore
   readonly fetch: typeof fetch
@@ -31,10 +45,10 @@ export async function createRuntimeChatGptHost(
   const lock = { ...options.lock, ...(options.signal !== undefined && { signal: options.signal }) }
   try {
     const hostId = await withChatGptRefreshLock(async () => {
-      const stored = await storeOperation(async () => await options.secrets.get(HOST_ACCOUNT))
+      const stored = await grantStore(async () => await options.secrets.get(HOST_ACCOUNT))
       const resolved = resolveChatGptHostId(stored)
       if (resolved.persist) {
-        await storeOperation(async () => {
+        await grantStore(async () => {
           await options.secrets.store(HOST_ACCOUNT, resolved.hostId)
         })
       }
@@ -57,7 +71,7 @@ export async function createRuntimeChatGptHost(
       startCallback: (state, timeoutMs) =>
         startChatGptCallback(state, timeoutMs, options.callbackText, options.signal),
       readRecord: async () => {
-        const stored = await storeOperation(async () => await options.secrets.get(RECORD_ACCOUNT))
+        const stored = await grantStore(async () => await options.secrets.get(RECORD_ACCOUNT))
         if (stored === undefined) return
         try {
           const value: unknown = JSON.parse(stored)
@@ -71,12 +85,12 @@ export async function createRuntimeChatGptHost(
       writeRecord: async (record) => {
         const parsed = chatGptRecordSchema.safeParse(record)
         if (!parsed.success) throw new ChatGptSignInError('invalid-token')
-        await storeOperation(async () => {
+        await grantStore(async () => {
           await options.secrets.store(RECORD_ACCOUNT, JSON.stringify(parsed.data))
         })
       },
       deleteRecord: async () => {
-        await storeOperation(async () => {
+        await grantStore(async () => {
           await options.secrets.delete(RECORD_ACCOUNT)
         })
       },

@@ -25,6 +25,16 @@ happened, not what was planned; superseded entries are kept.
   working. When OpenAI refuses a sign-in request, the message now says
   what OpenAI answered instead of a generic failure.
 
+- ChatGPT plan sign-in on Windows: after you approved the sign-in in the
+  browser, the terminal agent still said "ChatGPT is temporarily
+  unavailable" and kept nothing. Windows Credential Manager holds at most
+  1,280 characters per entry, and the sign-in record (two tokens) is
+  longer. The agent now keeps any secret longer than that as several
+  entries behind a short header, checks them when it reads them back, and
+  removes the old ones when it replaces or deletes the secret. A
+  credential store that refuses a ChatGPT record now says it is the
+  credential store, not ChatGPT.
+
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
   reads and writes, and 1-hour cache writes settle at their own price.
   The shared retry classifier refuses known quota codes and excessive

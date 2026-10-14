@@ -385,3 +385,58 @@ chatgpt` migrates the stored value in place and signs in with the
 3. A refused authorize request (e.g. declined consent) ends with
    `OpenAI refused the ChatGPT sign-in request (access_denied). …` —
    never "temporarily unavailable".
+
+## F78: the record did not fit Windows Credential Manager (lead, Windows, 2026-10-14)
+
+Found by using the build of this branch for real on Windows (this PC), with
+the owner approving the sign-in in the browser three times (12:30 to
+12:33 PM PT):
+
+- Every attempt ended with "ChatGPT is temporarily unavailable. Try again."
+  and `providers status chatgpt` then said "ChatGPT is not signed in."
+- Node's own request log (`NODE_DEBUG=undici`, addresses and statuses only)
+  showed the discovery document, the token exchange and the signing keys
+  all answering HTTP 200, and no request after them.
+- A value-blind diagnostic preloaded with `node --import` (it printed only
+  field names and yes/no comparisons) showed the ID token passes every
+  check: issuer, audience contains the client id sent, nonce equals the
+  sign-in address's, expiry an hour away, RS256 key found in the JWKS.
+- The printed sentence is `planUi.retry`, the text of `request-failed`, not
+  the ID-token failure's. The next step after the check is saving the
+  record.
+- Measured with throwaway values through `@napi-rs/keyring` (the agent's
+  binding): Windows Credential Manager accepts 1,280 characters and refuses
+  1,281 with "Value of 'password encoded as UTF-16' is longer than the
+  platform limit of 2560 chars". `storeOperation` turned that into
+  `StoreUnavailableError`, and the sign-in core's guard reported any
+  foreign error as `request-failed` (finding F14).
+
+Fix:
+
+- `keyringSecretStore` (the one place the agent opens the OS store) keeps a
+  value longer than `KEYRING_PART_CHARS` (1,200), or one that starts with
+  the parts tag, as parts written first under names carrying the value's
+  hash, then a header (`muse-spark-parts:v1:<count>:<sha256>`) written
+  last; reading reassembles and verifies the hash; replacing or deleting
+  removes the parts it replaces. Short values are stored and read exactly
+  as before.
+- `createRuntimeChatGptHost` maps a store refusal to `store-unavailable`
+  (its own sentence), never the generic retry.
+
+Proof:
+
+- `test/unit/keyringParts.test.ts`: 7/7 on Windows, including one case
+  through the real Windows Credential Manager with a 3,000-character
+  throwaway value. The other cases use a stand-in for the operating system
+  that refuses what Windows refuses, word for word.
+- Red drill: with `src/runtime/keyStore.ts` put back to the previous
+  commit, 5 of the 7 fail (the real-store case among them); restored
+  byte-exact (SHA-256 prefix compared).
+- On this tree: `typecheck:unit` 0, ESLint 0 and Prettier 0 on the changed
+  files, `build` 0, `deadcode` 0, `cycles` 0, `duplication` 0,
+  `check:reference` 0, `check:host-api` 0 after regenerating its import
+  counts (this branch's new files had changed them).
+- `test/unit/runtimeChatGpt.test.ts` keeps its 2 Windows-only failures
+  measured before this change ("The local sign-in lock could not be opened
+  (unknown)"); the real `providers status chatgpt` from this build opens
+  the lock on the same PC. The test overhaul deletes that file.
