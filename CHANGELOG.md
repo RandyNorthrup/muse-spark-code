@@ -9,6 +9,14 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- ChatGPT plan sign-in: on some Windows PCs the sign-in failed every time
+  with "temporarily unavailable" because the app held its sign-in lock by
+  listening on a fixed local port (49953) that Windows had reserved for its
+  own use. The lock no longer uses a port at all (a named pipe on Windows,
+  a socket in a private folder on macOS and Linux), and a lock that cannot
+  be opened for a local reason now says so with the operating system's code
+  instead of "temporarily unavailable".
+
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
   reads and writes, and 1-hour cache writes settle at their own price.
   The shared retry classifier refuses known quota codes and excessive
