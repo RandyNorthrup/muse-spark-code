@@ -498,6 +498,9 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
       error = assembled.failure.reason
       return await finish()
     }
+    // A piped key that looks like the wrong thing is named, as on the
+    // terminal surfaces; stdin cannot answer, so the run continues.
+    if (assembled.notice !== undefined) log.warn(assembled.notice)
     memory = assembled.run.memory
     for (const literal of assembled.run.literals) {
       literals.push(literal)

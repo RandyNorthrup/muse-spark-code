@@ -20,7 +20,7 @@ const { isCredentialBound } = credentialRecord
 const { checkEndpointUrl, originOf, verifyRequestAnswers } = endpointPolicy
 const { isProviderId, parseModelRef } = modelRef
 import type { ProviderPreset } from '../../core/providers/presets'
-const { azureOrigin, presetById } = presets
+const { azureOrigin, inspectProviderKey, presetById, providerKeyNoticeText } = presets
 import type {
   ProviderEntry,
   ProviderFormat,
@@ -33,10 +33,11 @@ import {
   modelRef,
   presets,
   providersFile,
+  setUiText as setProvidersUiText,
 } from '../../host/backend/providersEntry'
 import type { SecretStore } from '../../host/auth/credentialStore'
 import { CREDENTIAL_RECORD_VERSION, UI_TEXT } from '../../shared/constants'
-import { fill } from '../../shared/l10n/text'
+import { fill, uiLocale } from '../../shared/l10n/text'
 import {
   formatStoredProviderSecret,
   parseStoredProviderSecret,
@@ -422,10 +423,13 @@ export type ProviderAssemblyFailure =
  * caller's mistake; auth failures need a key. The turn itself is lane T/I's
  * `ProviderExecRunner` seam (`runExec.ts`); this function never sends one.
  */
-export async function assembleProviderRun(
-  input: ProviderRunInput,
-): Promise<
-  | { readonly ok: true; readonly run: AssembledProviderRun }
+export async function assembleProviderRun(input: ProviderRunInput): Promise<
+  | {
+      readonly ok: true
+      readonly run: AssembledProviderRun
+      /** A wrong-looking stdin key's question, printed before the run starts. */
+      readonly notice: string | undefined
+    }
   | { readonly ok: false; readonly failure: ProviderAssemblyFailure }
 > {
   const usage = (
@@ -475,6 +479,7 @@ export async function assembleProviderRun(
   }
   let key: string | undefined
   let memory: MemorySecretStore | undefined
+  let notice: string | undefined
   if (provider.preset.auth === 'apiKey') {
     const account = providerSecretAccount(provider.entry.id)
     if (account === undefined) {
@@ -482,12 +487,22 @@ export async function assembleProviderRun(
     }
     if (input.keyFromStdin) {
       // Any non-blank stdin key is used: the provider judges it, never
-      // its shape. Headless input cannot answer a wrong-thing question.
+      // its shape. Headless input cannot answer a wrong-thing question,
+      // so a value that looks like the wrong thing is named and the run
+      // continues.
       const typed = await input.readKey()
       if (!typed.ok) {
         return auth(providerKeyFailureText(typed.reason))
       }
       key = typed.key
+      // The notice is formatted in the providers bundle, which keeps its
+      // own installed language: install this run's table before reading it.
+      setProvidersUiText(UI_TEXT, uiLocale())
+      const inspection = inspectProviderKey(key)
+      notice =
+        inspection === 'ok' || inspection === 'empty'
+          ? undefined
+          : providerKeyNoticeText(inspection)
       memory = memorySecretStoreFor({
         [account]: formatStoredProviderSecret(
           { v: CREDENTIAL_RECORD_VERSION, auth: 'apiKey', origin: provider.origin },
@@ -537,5 +552,6 @@ export async function assembleProviderRun(
       literals: key === undefined ? [] : [key],
       memory,
     },
+    notice,
   }
 }
