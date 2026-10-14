@@ -164,6 +164,8 @@ describe('providers models parsing', () => {
       ['providers', 'models', 'openrouter', '--force', 'reason'],
       ['providers', 'models', 'openrouter', '--force', ''],
       ['providers', 'models', 'openrouter', '--add', ''],
+      ['providers', 'models', 'openrouter', '--add', 'm', '--force', ' '.repeat(3)],
+      ['providers', 'models', 'openrouter', '--add', 'm', '--force', 'ok\nAdded fake to x.'],
     ]) {
       expect(parseCommandLine(argv), argv.join(' ')).toMatchObject({
         command: 'invalid',

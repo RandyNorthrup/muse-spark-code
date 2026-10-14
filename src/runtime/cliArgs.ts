@@ -580,6 +580,19 @@ function parseProvidersModels(argv: readonly string[]): RuntimeCommand {
   }
 }
 
+/** ASCII control range ends: the first printable code and DEL. */
+const FIRST_PRINTABLE_CODE = 32
+const DELETE_CODE = 127
+
+/** A stored-and-reprinted reason must not smuggle in its own lines. */
+function hasControlCharacter(text: string): boolean {
+  for (let index = 0; index < text.length; index += 1) {
+    const code = text.codePointAt(index) ?? 0
+    if (code === DELETE_CODE || code < FIRST_PRINTABLE_CODE) return true
+  }
+  return false
+}
+
 function finishProvidersModels(
   values: ProvidersModelsFlags,
   positionals: readonly string[],
@@ -609,7 +622,16 @@ function finishProvidersModels(
     }
   }
   const force = values.force
-  return force !== undefined && (force === '' || add.length === 0)
+  // The reason is stored on the entry and printed back by later lists, so
+  // it stays one honest line: no blank reason, no control characters.
+  if (force !== undefined && (force.trim() === '' || hasControlCharacter(force))) {
+    return {
+      command: 'invalid',
+      reason: fill(UI_TEXT.cliHelp.modelsUsage, { command: ACP_AGENT_NAME }),
+      exitCode: 2,
+    }
+  }
+  return force !== undefined && add.length === 0
     ? { command: 'invalid', reason: UI_TEXT.cliHelp.modelsForceNeedsAdd, exitCode: 2 }
     : { command: 'providersModels', options: { entry, add, remove, force } }
 }
