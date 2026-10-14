@@ -3730,6 +3730,15 @@ export class ConversationController {
       modelId: model.modelId,
       displayLabel: model.displayLabel,
       ...(model.contextLimit !== undefined && { contextLimit: model.contextLimit }),
+      ...(model.effortLevels !== undefined && { effortLevels: [...model.effortLevels] }),
+      ...(model.defaultEffort !== undefined && { defaultEffort: model.defaultEffort }),
+      ...(model.fastTier !== undefined && {
+        fastTier: {
+          id: model.fastTier.id,
+          name: model.fastTier.name,
+          description: model.fastTier.description,
+        },
+      }),
       isDefault: model.isDefault,
       ...(model.providerId !== undefined && { providerId: model.providerId }),
       ...(model.providerLabel !== undefined && { providerLabel: model.providerLabel }),
@@ -8229,11 +8238,29 @@ export class ConversationController {
     }
     this.postSessionInfo(modelId)
     // A tier the new model does not serve would fail its turns with a 400
-    // (muse-spark-1.2 has no `max`); drop to the highest tier it does serve.
-    const levels = effortLevelsFor(modelId)
+    // (muse-spark-1.2 has no `max`); drop to the model's own default where
+    // the backend knows it, else the highest tier it does serve.
+    const levels = this.modelEffortLevels(modelId)
     if (!levels.includes(this.effort)) {
-      await this.updateEffort(levels.at(-1) ?? DEFAULT_EFFORT, this.isThinkingEnabled)
+      await this.updateEffort(this.modelDefaultEffort(modelId, levels), this.isThinkingEnabled)
     }
+  }
+
+  /** The tiers a model serves: its own list where the backend knows it. */
+  private modelEffortLevels(modelId: string): readonly EffortLevel[] {
+    return effortLevelsFor(
+      modelId,
+      this.models?.find((model) => model.modelId === modelId)?.effortLevels,
+    )
+  }
+
+  /** The level a switched model selects: its own default where known. */
+  private modelDefaultEffort(modelId: string, levels: readonly EffortLevel[]): EffortLevel {
+    const fallback = this.models?.find((model) => model.modelId === modelId)?.defaultEffort
+    return (
+      (fallback !== undefined && levels.includes(fallback) ? fallback : levels.at(-1)) ??
+      DEFAULT_EFFORT
+    )
   }
 
   private async updateEffort(effort: EffortLevel, isThinkingEnabled: boolean): Promise<void> {
@@ -8247,7 +8274,7 @@ export class ConversationController {
     if (
       kept !== undefined &&
       this.session === session &&
-      effortLevelsFor(this.modelId).includes(kept.effort)
+      this.modelEffortLevels(this.modelId).includes(kept.effort)
     ) {
       this.effort = kept.effort
       this.isThinkingEnabled = kept.isThinkingEnabled

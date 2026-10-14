@@ -923,13 +923,19 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
               )
               model = options.model
             }
+            // A plan model offers its catalogue levels through the
+            // option; the shared range only covers agents without one.
+            const config = created.configOptions?.find(
+              (option) => option.id === ACP_CONFIG_IDS.effort,
+            )
             if (options.effort === undefined) {
-              const config = created.configOptions?.find(
-                (option) => option.id === ACP_CONFIG_IDS.effort,
-              )
               effort = typeof config?.currentValue === 'string' ? config.currentValue : null
             } else {
-              if (!effortLevelsFor(model ?? undefined).includes(options.effort)) {
+              const offered =
+                config?.type === 'select'
+                  ? config.options.flatMap((entry) => ('value' in entry ? [entry.value] : []))
+                  : undefined
+              if (!(offered ?? effortLevelsFor(model ?? undefined)).includes(options.effort)) {
                 setup.isUsageError = true
                 error = UI_TEXT.execEffortUnavailable
                 return

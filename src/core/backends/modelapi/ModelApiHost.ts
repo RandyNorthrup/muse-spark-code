@@ -343,6 +343,11 @@ import type {
 } from './hooks'
 import { toolMatcherNames } from './hookNames'
 import {
+  planDefaultEffort,
+  planFastTier,
+  planOfferedLevels,
+} from '../../providers/subscriptions/chatgptPlanFacts'
+import {
   replayProducer,
   type ReplayProducer,
   effortForPolicy,
@@ -17729,13 +17734,20 @@ export class ModelApiHost implements AgentHost {
     const ids = this.deps.hasMetaCredential?.() === false ? [] : await this.deps.client.listModels()
     const providers = (await this.deps.models?.list?.()) ?? []
     const active = sessionId === undefined ? undefined : this.sessions.get(sessionId)?.modelId
-    return [
-      ...ids
-        .filter(
-          (id) =>
-            id.startsWith(MODEL_API_MODEL_PREFIX) || this.deps.client.isPlanModel?.(id) === true,
-        )
-        .map((id) => ({
+    const direct = ids.filter(
+      (id) => id.startsWith(MODEL_API_MODEL_PREFIX) || this.deps.client.isPlanModel?.(id) === true,
+    )
+    // A plan model carries its catalogue facts (effort levels, default,
+    // Fast tier) so every picker offers what the model serves.
+    const summaries = await Promise.all(
+      direct.map(async (id): Promise<ModelSummary> => {
+        const facts =
+          this.deps.client.isPlanModel?.(id) === true
+            ? await this.deps.client.planModelFacts?.(id)
+            : undefined
+        const fast = facts === undefined ? undefined : planFastTier(facts)
+        const fallback = facts === undefined ? undefined : planDefaultEffort(facts)
+        return {
           modelId: id,
           displayLabel: id,
           contextLimit:
@@ -17747,9 +17759,20 @@ export class ModelApiHost implements AgentHost {
             providerId: replayProducer(id).provider,
             trainsOnContent: id.startsWith('copilot/'),
           }),
+          ...(facts !== undefined && {
+            effortLevels: planOfferedLevels(facts),
+            ...(fallback !== undefined && { defaultEffort: fallback }),
+          }),
+          ...(fast !== undefined && {
+            fastTier: { id: fast.id, name: fast.name, description: fast.description },
+          }),
           isDefault: id === DEFAULT_MODEL_ID,
           isActive: id === active,
-        })),
+        }
+      }),
+    )
+    return [
+      ...summaries,
       ...providers.map((model) => ({ ...model, isActive: model.modelId === active })),
     ]
   }
