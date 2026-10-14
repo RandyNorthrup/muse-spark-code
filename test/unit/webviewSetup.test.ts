@@ -20,7 +20,7 @@ function documentIdOf(html: string): string {
   return id
 }
 
-function setup(context = fakeHostContext(), restoredSessionId?: string) {
+function setup(context = fakeHostContext(), restoredSessionId?: string, isActive?: () => boolean) {
   const webview = new FakeWebview()
   const reveal = vi.fn<() => void>()
   const markUnread = vi.fn<() => void>()
@@ -30,6 +30,7 @@ function setup(context = fakeHostContext(), restoredSessionId?: string) {
     id: 'test',
     restoredSessionId,
     reveal,
+    isActive,
     markUnread,
     setTitle,
     onFocused,
@@ -178,10 +179,28 @@ describe('configureWebview', () => {
     expect(setTitle).toHaveBeenCalledWith('Renamed')
   })
 
-  it('posts host messages through the surface handle', () => {
+  // Panel-focus F3: the bare pre-token shape is gone. A delivered ask goes
+  // through the real `surface.post` with the real gate and carries the
+  // host's minted token; an ask its panel cannot own is dropped at post.
+  it('mints a host-owned token on a delivered focusInput', () => {
     const { webview, surface } = setup()
     surface.post({ type: 'focusInput' })
-    expect(webview.postMessage).toHaveBeenCalledWith({ type: 'focusInput' })
+    expect(webview.postMessage).toHaveBeenCalledOnce()
+    const posted = webview.postMessage.mock.calls[0]?.[0] as {
+      readonly type: string
+      readonly token: unknown
+      readonly issuedAt: unknown
+    }
+    expect(posted.type).toBe('focusInput')
+    expect(typeof posted.token).toBe('string')
+    expect(posted.token).not.toBe('')
+    expect(typeof posted.issuedAt).toBe('number')
+  })
+
+  it('drops a focusInput at post while its panel is not the active one', () => {
+    const { webview, surface } = setup(fakeHostContext(), undefined, () => false)
+    surface.post({ type: 'focusInput' })
+    expect(webview.postMessage).not.toHaveBeenCalled()
   })
 
   it('drops malformed messages and logs a warning', () => {
