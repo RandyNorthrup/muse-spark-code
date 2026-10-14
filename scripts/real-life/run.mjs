@@ -23,7 +23,7 @@ import { USAGE, matchesAny, parseArguments } from './lib/args.mjs'
 import { allowance, microUsd, usdText } from './lib/budget.mjs'
 import { newRunFolders, productEnvironment, setDailyBudget } from './lib/home.mjs'
 import { installArtefact, sha256Of } from './lib/install.mjs'
-import { keySource, readKey } from './lib/keys.mjs'
+import { keySource, missingKeys, readKey } from './lib/keys.mjs'
 import { heldUnsettled } from './lib/ledger.mjs'
 import {
   BARREN_MODELS,
@@ -180,6 +180,18 @@ if (plan.length === 0) {
 // The record's folder is made before anything is spent: a run that cannot
 // write its record stops here, not after paid calls.
 if (options.record !== undefined) ensureRecordDir(options.record)
+// A requested route with no key stops the run before anything is installed
+// or sent: without it every cell of the route is not run, yet the run
+// would exit 0 as a successful gate.
+const missing = missingKeys(
+  groups.flatMap((group) => group.units.map((unit) => unit.route)),
+  keys,
+)
+if (missing.length > 0) {
+  stopForUsage(
+    `no key for ${missing.map((one) => `the route ${one.id} (${one.reason})`).join(', ')}`,
+  )
+}
 // First of all: what an earlier run that was ended outright may have left.
 const noteOfEarlierRun = readMarker()
 if (noteOfEarlierRun !== undefined) {

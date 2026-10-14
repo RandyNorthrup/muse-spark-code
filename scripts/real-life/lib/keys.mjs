@@ -58,6 +58,29 @@ function dpapiKey(folders, name) {
 }
 
 /**
+ * The routes of a plan whose key the source does not hold, each with why.
+ * A run with a requested route and no key for it stops before anything is
+ * installed or sent, instead of recording the route as not run and
+ * exiting 0. A Muse Code route takes no key.
+ * @param {readonly { id: string, kind: string, stored?: string }[]} routes the plan's routes
+ * @param {{ kind: string }} source what keySource() spelled
+ * @returns {{ id: string, reason: string }[]}
+ */
+export function missingKeys(routes, source) {
+  const missing = []
+  const asked = new Set()
+  for (const route of routes) {
+    if (route.kind === 'museCode' || route.stored === undefined || asked.has(route.stored)) {
+      continue
+    }
+    asked.add(route.stored)
+    const read = readKey(source, route.stored)
+    if (read.key === undefined) missing.push({ id: route.id, reason: read.reason })
+  }
+  return missing
+}
+
+/**
  * The key a source holds under a name.
  * @returns {{ key: string } | { reason: string }}
  */

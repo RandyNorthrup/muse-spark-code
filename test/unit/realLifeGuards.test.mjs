@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { installerEnvironment } from '../../scripts/real-life/lib/install.mjs'
+import { keySource, missingKeys } from '../../scripts/real-life/lib/keys.mjs'
 import { ensureRecordDir, parseUsageOutput } from '../../scripts/real-life/lib/record.mjs'
 
 // Pure guards for the real-life run (scripts/real-life/): each `it` names
@@ -56,5 +57,21 @@ describe('real-life record destination', () => {
     const file = path.join(root, '0.19.0', 'rig-2026-10-14')
     ensureRecordDir(file)
     expect(existsSync(path.dirname(file))).toBe(true)
+  })
+})
+
+describe('real-life key check', () => {
+  it('names the routes whose key the source does not hold (4252482398)', () => {
+    const root = mkdtempSync(path.join(tmpdir(), 'real-life-'))
+    const missing = missingKeys(
+      [
+        { id: 'openai', kind: 'provider', stored: 'openai' },
+        { id: 'openai-again', kind: 'provider', stored: 'openai' },
+        { id: 'musecode', kind: 'museCode' },
+      ],
+      keySource(`dpapi:${root}`),
+    )
+    expect(missing.map((one) => one.id)).toEqual(['openai'])
+    expect(missing[0]?.reason).toMatch(/no stored key named openai/)
   })
 })
