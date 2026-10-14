@@ -35,26 +35,32 @@ import { fill } from '../../../shared/l10n/text'
 import { DeadlineError, withDeadline } from '../../timeouts'
 import type { ProvidersFile } from '../providersFile'
 import { type ChatGptSignIn, ChatGptSignInError, chatGptRecordSchema } from './chatgpt'
+import {
+  chatGptCatalogEntrySchema,
+  chatGptPlanFacts,
+  type ChatGptPlanFacts,
+} from './chatgptPlanFacts'
 import type { PlanUsageRow } from './planUsage'
 
 // Owner captures acdc0f60 / 577bc807 (0 + 1 model attempts), 2026-10-05.
-const catalogueSchema = z.object({
-  models: z.array(
-    z.object({
-      slug: z.string().check(z.minLength(1)),
-      display_name: z.string(),
-      visibility: z.enum(['list', 'hide']),
-      supported_in_api: z.boolean(),
-    }),
-  ),
-})
+const catalogueSchema = z.object({ models: z.array(chatGptCatalogEntrySchema) })
 const MODELS_URL = 'https://api.openai.com/v1/models'
 const RESPONSES_URL = 'https://api.openai.com/v1/responses'
 
-export async function chatGptModels(
+export interface ChatGptCatalog {
+  readonly slugs: readonly string[]
+  readonly facts: ReadonlyMap<string, ChatGptPlanFacts>
+}
+
+/**
+ * The plan catalogue with each entry's capability facts. An entry that
+ * fails the facts parse still lists by slug, without facts: listing never
+ * loses a model to a field the app does not use.
+ */
+export async function chatGptCatalog(
   signIn: ChatGptSignIn,
   fetcher: typeof fetch,
-): Promise<string[]> {
+): Promise<ChatGptCatalog> {
   const token = await signIn.accessToken(MODELS_URL, MODEL_API_REQUEST_TIMEOUT_MS)
   const response = await fetcher(MODELS_URL, {
     redirect: 'error',
@@ -65,11 +71,31 @@ export async function chatGptModels(
   const value: unknown = await response.json()
   const parsed = catalogueSchema.safeParse(value)
   if (!parsed.success) throw new Error(UI_TEXT.acpChatGpt.failure)
-  const models = parsed.data.models
-    .filter((row) => row.visibility === 'list' && row.supported_in_api)
-    .map((row) => row.slug)
-  if (models.length === 0) throw new Error(UI_TEXT.acpChatGpt.failure)
-  return [...new Set(models)]
+  const rows = parsed.data.models.filter((row) => row.visibility === 'list' && row.supported_in_api)
+  const slugs = [...new Set(rows.map((row) => row.slug))]
+  if (slugs.length === 0) throw new Error(UI_TEXT.acpChatGpt.failure)
+  const facts = new Map<string, ChatGptPlanFacts>()
+  for (const row of rows) {
+    const parsedFacts = chatGptPlanFacts(row)
+    if (parsedFacts !== undefined && !facts.has(row.slug)) facts.set(row.slug, parsedFacts)
+  }
+  return { slugs, facts }
+}
+
+export async function chatGptModels(
+  signIn: ChatGptSignIn,
+  fetcher: typeof fetch,
+): Promise<string[]> {
+  const catalog = await chatGptCatalog(signIn, fetcher)
+  return [...catalog.slugs]
+}
+
+// The catalogue slug for one model reference. Bare ids read as slugs;
+// a qualified foreign provider reads as undescribed, so plan facts are
+// never fetched for a provider the catalogue does not describe.
+function planSlug(model: string): string | undefined {
+  const ref = parseModelRef(model)
+  return ref === undefined || ref.providerId === 'chatgpt' ? (ref?.modelId ?? model) : undefined
 }
 
 function subscriptionRecord(record: unknown) {
@@ -152,6 +178,24 @@ export function createSubscriptionClient(
   deps: SubscriptionRegistryDeps,
 ): ProviderClient {
   let tallies = [...(deps.loadUsage?.() ?? [])]
+  // The catalogue's per-model facts, refreshed by every model listing and
+  // fetched on demand where a turn resolves before any listing ran. One
+  // in-flight fetch is shared; a failed fetch leaves the cache cold so the
+  // next read retries, and every read without facts keeps today's behaviour.
+  let cachedFacts: ReadonlyMap<string, ChatGptPlanFacts> | undefined
+  let inflightFacts: Promise<ReadonlyMap<string, ChatGptPlanFacts>> | undefined
+  const readFacts = (): Promise<ReadonlyMap<string, ChatGptPlanFacts>> => {
+    if (cachedFacts !== undefined) return Promise.resolve(cachedFacts)
+    return (inflightFacts ??= (async () => {
+      try {
+        const catalog = await chatGptCatalog(await deps.chatgpt(), deps.fetch)
+        cachedFacts = catalog.facts
+        return cachedFacts
+      } finally {
+        inflightFacts = undefined
+      }
+    })())
+  }
   const configured = async (model: string) => {
     const ref = parseModelRef(model)
     const file = await deps.providers()
@@ -166,9 +210,17 @@ export function createSubscriptionClient(
     isPlanModel,
     modelContextLimit: (model) => {
       const ref = parseModelRef(model)
+      // The catalogue's own window once a listing warmed the cache; cold
+      // keeps today's undefined.
       return ref?.providerId === 'copilot'
         ? deps.copilot?.().get(ref.modelId)?.model?.maxInputTokens
-        : undefined
+        : cachedFacts?.get(planSlug(model) ?? model)?.contextTokens
+    },
+    planModelFacts: async (model: string) => {
+      const slug = planSlug(model)
+      if (slug === undefined) return
+      const facts = await readFacts()
+      return facts.get(slug)
     },
     readPlanUsage: () =>
       deps.copilotUsage === undefined
@@ -188,9 +240,12 @@ export function createSubscriptionClient(
       const ids: string[] = []
       for (const entry of file.providers) {
         if (entry.id === 'chatgpt') {
-          const available = await chatGptModels(await deps.chatgpt(), deps.fetch)
+          // Every listing refreshes the cached catalogue facts the plan
+          // send path resolves from.
+          const catalog = await chatGptCatalog(await deps.chatgpt(), deps.fetch)
+          cachedFacts = catalog.facts
           ids.push(
-            ...available.filter((id) => entry.models.includes(id)).map((id) => `chatgpt/${id}`),
+            ...catalog.slugs.filter((id) => entry.models.includes(id)).map((id) => `chatgpt/${id}`),
           )
         } else if (entry.id === 'copilot') {
           ids.push(

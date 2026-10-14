@@ -833,7 +833,7 @@ export function createConfiguredProviderServices(
       list: registry.list,
       resolve: async (ref) =>
         modelRef.parseModelRef(ref)?.providerId === 'meta' || meta?.isPlanModel?.(ref) === true
-          ? metaResolvedModel(ref, delegate())
+          ? metaResolvedModel(ref, delegate(), await delegate().planModelFacts?.(ref))
           : await registry.resolve(ref),
     },
     isPlanModel: (ref) =>

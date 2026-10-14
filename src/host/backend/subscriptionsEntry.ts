@@ -12,6 +12,7 @@ export {
 } from '../../core/providers/subscriptions/chatgptHostId'
 export {
   createSubscriptionClient,
+  chatGptCatalog,
   chatGptModels,
   chatGptAccountId,
   chatGptPlanAccount,

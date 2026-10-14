@@ -83,6 +83,7 @@ import { outputTokenMinimumMessage } from '../../../shared/providerRouting'
 
 import type { PacingProvider, RequestPacer } from './pacing'
 import { fanOutPacingClass } from './subagentTools'
+import type { ChatGptPlanFacts } from '../../providers/subscriptions/chatgptPlanFacts'
 
 /** Public transport contract shared by Meta, plan clients and host adapters. */
 export type ProviderClient = Pick<
@@ -110,6 +111,13 @@ export type ProviderClient = Pick<
   readonly models?: ModelResolver
   readonly modelContextLimit?: (model: string) => number | undefined
   readonly isPlanModel?: (model: string) => boolean
+  /**
+   * The plan catalogue's facts for one model reference. Resolves them from
+   * the client's cache, fetching the catalogue when no listing warmed it;
+   * undefined where the catalogue names nothing. Absent on clients without
+   * a plan route, where the policy keeps today's behaviour.
+   */
+  readonly planModelFacts?: (model: string) => Promise<ChatGptPlanFacts | undefined>
   readonly readPlanUsage?: () => readonly PlanUsageRow[]
 }
 import type { SecretScrubPort } from '../../../shared/redact'
