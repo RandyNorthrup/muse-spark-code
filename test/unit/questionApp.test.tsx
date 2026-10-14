@@ -78,6 +78,11 @@ describe('M112 App commands and shared question delivery', () => {
     expect(marker).toBeEnabled()
     expect(marker.closest('li')).toHaveClass('tool-question-open')
     expect(screen.getByRole('main').querySelector('input, textarea, [role="tab"]')).toBeNull()
+    // A real click focuses the marker first; that surface focus is what lets
+    // the dock take the keyboard for the answer (D108).
+    act(() => {
+      marker.focus()
+    })
     fireEvent.click(marker)
     expect(dock().getByRole('radio', { name: 'Blue' })).toHaveFocus()
   })
