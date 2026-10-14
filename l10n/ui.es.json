@@ -3562,6 +3562,7 @@
     "purposeServe": "Servir el Agent Client Protocol por stdin y stdout.",
     "purposeLogin": "Iniciar sesión en Muse Code en este terminal.",
     "purposeAuth": "Guardar, comprobar o quitar claves.",
+    "authSetNote": "auth set lee la clave desde la entrada estándar (su terminal o una tubería); auth status indica si hay una clave guardada, nunca la clave en sí.",
     "purposeProviders": "Gestionar los proveedores de modelos y sus listas de modelos.",
     "purposeExec": "Ejecutar un turno sin interfaz.",
     "purposeScanSecrets": "Contar posibles secretos en un archivo (solo muestra el número).",

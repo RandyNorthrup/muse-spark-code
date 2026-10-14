@@ -3635,6 +3635,7 @@
     "purposeServe": "Poskytuje Agent Client Protocol přes stdin a stdout.",
     "purposeLogin": "Přihlásí se k Muse Code v tomto terminálu.",
     "purposeAuth": "Ukládat, kontrolovat a odebírat klíče.",
+    "authSetNote": "Příkaz auth set čte klíč ze standardního vstupu (z terminálu, nebo z roury); příkaz auth status vypíše, zda je klíč uložen, nikdy ne klíč samotný.",
     "purposeProviders": "Spravuje poskytovatele modelů a jejich seznamy modelů.",
     "purposeExec": "Spustit jeden běh bez rozhraní.",
     "purposeScanSecrets": "Spočítat pravděpodobná tajemství v jednom souboru (vypíše jen počet).",

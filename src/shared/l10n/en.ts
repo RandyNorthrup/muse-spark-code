@@ -4220,6 +4220,8 @@ export const EN = {
     purposeServe: 'Serve the Agent Client Protocol on stdin and stdout.',
     purposeLogin: 'Sign in to Muse Code in this terminal.',
     purposeAuth: 'Store, check or remove keys in this computer’s credential store.',
+    authSetNote:
+      'auth set reads the key from standard input (your terminal, or a pipe); auth status prints whether a key is stored, never the key itself.',
     purposeProviders: 'Manage model providers and their model lists.',
     purposeExec: 'Run one headless turn.',
     purposeScanSecrets: 'Count likely secrets in one file (prints only the number).',

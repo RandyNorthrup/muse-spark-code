@@ -3416,6 +3416,7 @@
     "purposeServe": "通过 stdin 和 stdout 提供 Agent Client Protocol。",
     "purposeLogin": "在此终端中登录 Muse Code。",
     "purposeAuth": "存储、检查或移除密钥。",
+    "authSetNote": "auth set 从标准输入（您的终端或管道）读取密钥；auth status 显示是否已存储密钥，且绝不显示密钥本身。",
     "purposeProviders": "管理模型提供方及其模型列表。",
     "purposeExec": "无界面运行一轮。",
     "purposeScanSecrets": "统计单个文件中疑似机密的数量（仅输出数量）。",
