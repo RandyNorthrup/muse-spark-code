@@ -1463,6 +1463,8 @@
   "manualHookFailed": "L’hook {name} non è riuscito: {reason}",
   "manualHookSlashDetail": "Esegui un hook Manual da spark-hooks.json",
   "extensionHooksUnavailable": "Non è stato possibile caricare gli hook dell’estensione, quindi nessun hook è stato eseguito; reinstalla l’estensione e ricarica la finestra. I dettagli sono nel log.",
+  "modelApiToolsUnavailable": "Non è stato possibile caricare gli helper di chiamata del modello, quindi i campi di chiamata degli hook non sono disponibili; reinstalla l’estensione e ricarica la finestra. I dettagli sono nel log.",
+  "modelApiToolsPreviewUnavailable": "Non è stato possibile caricare gli helper di chiamata del modello, quindi le anteprime degli argomenti non sono disponibili; reinstalla l’estensione e ricarica la finestra. I dettagli sono nel log.",
   "shellDirectory": "Nella cartella {path}",
   "shellDirectoryReset": "La shell è tornata alla radice dell’area di lavoro: {path} è fuori dall’area di lavoro.",
   "elicitationTitle": "{server} richiede informazioni",

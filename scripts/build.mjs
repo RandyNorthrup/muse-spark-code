@@ -479,6 +479,18 @@ const pluginHooksOptions = {
   outfile: PLUGIN_HOOKS_OUTFILE,
 }
 
+// MODELAPIDIET: the Model API backend's deferred per-call helpers (the hook
+// call fields, argument previews, fetch URL checks), loaded on first use.
+const MODEL_API_TOOLS_ENTRY = 'src/core/backends/modelapi/modelApiToolsEntry.ts'
+const MODEL_API_TOOLS_OUTFILE = 'dist/modelApiTools.js'
+
+/** @type {import('esbuild').BuildOptions} */
+const modelApiToolsOptions = {
+  ...modelApiOptions,
+  entryPoints: [MODEL_API_TOOLS_ENTRY],
+  outfile: MODEL_API_TOOLS_OUTFILE,
+}
+
 /** @type {import('esbuild').BuildOptions} */
 const reviewOptions = {
   ...common,
@@ -1214,6 +1226,7 @@ if (isWatch) {
       outfile: 'dist/runtimeAccounting.js',
     }),
     esbuild.context(hookRuntimeOptions),
+    esbuild.context(modelApiToolsOptions),
     esbuild.context({
       ...modelApiOptions,
       entryPoints: ['src/host/backend/providerPolicyEntry.ts'],
@@ -1339,6 +1352,7 @@ if (isWatch) {
     }),
     hookRuntime: esbuild.build(hookRuntimeOptions),
     pluginHooks: esbuild.build(pluginHooksOptions),
+    modelApiTools: esbuild.build(modelApiToolsOptions),
     planMarkdown: esbuild.build(planMarkdownOptions),
     checkpointStore: esbuild.build(checkpointStoreOptions),
     media: esbuild.build(mediaOptions),
