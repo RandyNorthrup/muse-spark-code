@@ -113,9 +113,17 @@ failed`. Reason holds field names and shapes only — never values,
   paths, or record content (privacy-canary suites pass unchanged).
 - `recording.report`: the literal `Usage history could not be recorded`
   → `Usage for this run was not recorded ({reason}).` (new `UI_TEXT`
-  key, translated in all 14 locales), told once per run; queue/flush/
-  `today` pass true reasons (`writer unavailable`, `write failed`,
-  `write timed out`, `read failed`).
+  key, translated in all 14 locales), told once per run; queue/flush
+  pass true reasons (`writer unavailable`, `write failed`,
+  `write timed out`). Review fix RVEXECUSAGE: `today()`'s read failure
+  no longer reports through that sentence — a failed read is not
+  evidence nothing was recorded, and reporting it also spent the
+  once-per-run warning a later real write failure needed; the explicit
+  `Usage history unavailable` throw to the caller stands. Red/green:
+  `does not say usage was not recorded when only the read fails` in
+  `test/unit/execUsageClock.test.ts` (real store on a regular file as
+  its data folder) failed with the warning `"Usage for this run was
+not recorded (read failed)."` before, passes after.
 - `onWriteError` widened to `(code, reason)` in `UsageJournalOptions`,
   `UsageWriterBundle`, and all call sites.
 

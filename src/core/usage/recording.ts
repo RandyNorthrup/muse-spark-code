@@ -137,7 +137,9 @@ export function createUsageRecording(options: UsageRecordingOptions): UsageRecor
         const day = localUsageDay(options.now())
         return records.filter((record) => record.day === day)
       } catch {
-        report('usageWriteFailed', 'read failed')
+        // A failed read is not evidence nothing was recorded: the caller
+        // gets the explicit failure below, and the once-per-run warning
+        // stays for a real write failure.
         throw new Error('Usage history unavailable')
       }
     },
