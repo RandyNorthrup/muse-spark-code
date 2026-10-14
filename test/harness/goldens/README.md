@@ -1,5 +1,11 @@
 # M114 visual-regression contract
 
+**Since 0.18.2 no gate and no CI job runs this check** (the owner's decision,
+2026-10-12). A change to the interface is looked at by a person, locally, in
+one light and one dark theme (`CONTRIBUTING.md`). The text below describes
+the tool and how CI ran it until then; the sentences about required jobs and
+shards on CI are history.
+
 `manifest.json` is the only golden payload in Git. Full-resolution PNGs live
 in its external archive; total archive bytes must not exceed **512 MiB**.
 Each image records SHA-256, byte size, dimensions, surface, scene, state,

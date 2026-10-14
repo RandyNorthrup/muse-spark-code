@@ -86,9 +86,12 @@ history from PLAN.md").
      and pass `npm run check:tokens`. Raw CSS/TypeScript paint is guarded;
      generated token files alone contain it. Meaningful motion uses the
      120/180/240 ms scale under the no-preference reduced-motion guard.
-     Every visual change passes `npm run check:visual`; reviewed baseline
-     updates name their review. Full PNG sets stay outside git (512 MiB);
-     track only their source revision, hashes, dimensions and coverage.
+     A change to the interface is looked at by a person on the built
+     product, in one light and one dark theme, and the two pictures go into
+     the change's certification record. No gate and no CI job renders or
+     compares screenshots (owner, 2026-10-12): `npm run check:visual` is a
+     tool that nothing runs for you, and a green CI says nothing about how a
+     screen looks.
      README screenshots use `scripts/readme-shots.mjs` (2 MiB curated set).
 6. **No dead code, no placeholders.** No commented-out code, unused exports,
    unused dependencies, TODO stubs, fake implementations, or mock data outside
@@ -460,7 +463,7 @@ media/                icons, banner, social preview, README screenshots
 | The gates CI runs everywhere   | `npm run quality:gates`                              |
 | Accessibility gate             | `npm run test:a11y`                                  |
 | Token generation / gate        | `npm run build:tokens` / `npm run check:tokens`      |
-| Visual regression              | `npm run check:visual`                               |
+| A screen to look at            | `npm run harness:shots -- <scene> --theme=light`     |
 | Reference gate                 | `npm run check:reference`                            |
 | Roadmap generation / gate      | `npm run roadmap:generate` / `npm run check:roadmap` |
 | Localization gate              | `npm run check:l10n`                                 |
