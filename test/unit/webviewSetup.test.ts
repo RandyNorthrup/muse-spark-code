@@ -30,7 +30,7 @@ function setup(context = fakeHostContext(), restoredSessionId?: string, isActive
     id: 'test',
     restoredSessionId,
     reveal,
-    isActive,
+    ...(isActive !== undefined && { isActive }),
     markUnread,
     setTitle,
     onFocused,
