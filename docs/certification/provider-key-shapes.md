@@ -182,6 +182,25 @@ Checked and left alone, with the reason:
   `auth set --provider <id> --account <id>`
   (`test/unit/cx1r4Truth.test.ts:87`). Not shape-based, out of scope.
 
+### Panel look: the new modal and password-box behaviour (pending)
+
+The interface change on this branch is two native VS Code surfaces, not
+webview: `promptForProviderKey` (`src/host/providers/keyPrompt.ts`)
+opens the password box, which now accepts any non-blank key, and
+`confirmKeyUse` (`src/host/models/modelsPanelEntry.ts:302`) asks the
+wrong-thing question (`This looks like a web address, not a key. Use it
+anyway?` and its three siblings) as a modal warning; answering "no"
+re-opens the box. No pictures were taken on the wslpc rig: it has no
+Chrome (`scripts/lib/chrome.mjs` `findChrome()` returns undefined, and
+the Playwright cache holds only Firefox/ffmpeg), and the webview
+harness cannot render native dialogs anyway. The lead's one small local
+look, on the packed product in one light and one dark theme: open the
+Models panel, start a keyed provider's setup, type a URL (for example
+`https://not-a-key.example/v1`) into the password box, and observe the
+modal question with Continue/Cancel; answer Cancel and observe the box
+re-open; answer Continue and observe the run continue to the free key
+test, which refuses with the provider's reason.
+
 ### Continuation verification (2026-10-12 evening, macmini, rig load ~8)
 
 Final tree (after the `keyInspection` split): `tsc` host and unit
