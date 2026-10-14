@@ -70,8 +70,8 @@ import { type DictationPress, pressAction, releaseAction } from '../dictationGes
 import { scrollRowIntoView, wrapIndex } from '../listNavigation'
 import {
   type DictationUiState,
+  landFocusRequest,
   type MentionResults,
-  shouldLandFocusRequest,
   userShellCommandOf,
 } from '../state/uiState'
 import { AttachmentChips } from './AttachmentChips'
@@ -451,6 +451,8 @@ export function Composer(props: ComposerProps) {
     onSlashMenuOpen,
   } = props
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  /** Focus requests already landed; a pending one waits for this surface's focus. */
+  const landedFocusRequests = useRef(0)
   /** Admission stays reserved until the host echoes acceptance or a refusal. */
   const pendingFiles = useRef<PendingMediaReservation[]>([])
   const currentAttachments = useRef(attachments)
@@ -581,16 +583,31 @@ export function Composer(props: ComposerProps) {
     }
   }, [isSlashMenuOpen, onSlashMenuOpen])
 
-  // The one place a recorded focus request lands (`shouldLandFocusRequest`):
-  // only while this surface already holds the keyboard. A request that
-  // arrives after the person moved on — a load finishing behind a freshly
-  // opened file, a `focusInput` delivered late — is dropped here, so the
-  // chat never takes the keyboard from a file the person just opened.
+  // The one place a recorded focus request lands (`landFocusRequest`):
+  // only while this surface already holds the keyboard. A request checked
+  // while unowned — a load finishing behind a freshly opened file — is not
+  // spent: it lands only if this surface itself gains focus (the `reveal()`
+  // a host command just issued, the person clicking this panel), so a
+  // `focusInput` delivered a moment before its reveal's focus still works,
+  // and the chat never takes the keyboard from a file a person just opened.
   useEffect(() => {
-    if (focusRequests === 0 || !shouldLandFocusRequest(document.hasFocus())) {
-      return
+    const landPending = () => {
+      const landed = landFocusRequest(
+        focusRequests,
+        landedFocusRequests.current,
+        document.hasFocus(),
+      )
+      if (landed === landedFocusRequests.current) {
+        return
+      }
+      landedFocusRequests.current = landed
+      textareaRef.current?.focus()
     }
-    textareaRef.current?.focus()
+    landPending()
+    window.addEventListener('focus', landPending)
+    return () => {
+      window.removeEventListener('focus', landPending)
+    }
   }, [focusRequests])
 
   // The box grows with its wrapped content and shrinks back (issue #4),
