@@ -691,6 +691,14 @@ async function runInScope(
   })
 }
 
+/** One plugin hook call outside any session. */
+export async function runPluginHook(
+  call: PluginCall,
+  deps: PluginRunDeps,
+): Promise<ForeignHookAnswer> {
+  return await runInScope(call, deps, undefined)
+}
+
 /** One session's plugin children: dispose ends every live child's tree. */
 export class PluginSession {
   private readonly resourceStop = new AbortController()

@@ -595,6 +595,11 @@ export function classifyTool(name: string): ToolClass | undefined {
   return TOOL_CLASSES[name]
 }
 
+/** Every tool the dispatcher knows by name (M78): what a fence must cover, external tools aside. */
+export function classifiedToolNames(): readonly string[] {
+  return Object.keys(TOOL_CLASSES)
+}
+
 /** The shell tool for the platform: PowerShell on Windows, bash elsewhere. */
 export function shellToolFor(platform: NodeJS.Platform): { name: string; shellName: string } {
   return platform === 'win32'

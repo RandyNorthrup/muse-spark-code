@@ -10,8 +10,8 @@ import {
   type AccountJournalReader,
   type AccountTrigger,
 } from '../../shared/accounts'
-import { ACCOUNT_DEFAULTS, UI_TEXT } from '../../shared/constants'
-import { parseUsd, sumUsd, usdDecimal, type Usd } from '../../shared/accountUsd'
+import { ACCOUNT_DEFAULTS, TOKENS_PER_MILLION, UI_TEXT } from '../../shared/constants'
+import { multiplyUsd, parseUsd, sumUsd, usdDecimal, type Usd } from '../../shared/accountUsd'
 import type { AccountPolicy } from '../providers/accountPolicy'
 import { accountLimitIdentity, isAccountLimitEligible } from './limitBlock'
 import type { AccountPolicyGate, AccountPolicyDecision } from './policyGate'
@@ -107,6 +107,13 @@ function projected(estimate: AccountRequestEstimate) {
     outputTokens: estimate.outputTokens,
     requests: estimate.requests,
   }
+}
+
+/** Conservative full re-read, even within a group until Q-M108 captures cache sharing. */
+export function accountColdCacheEstimate(inputTokens: number, inputUsdPerMillion: string): Usd {
+  if (!Number.isSafeInteger(inputTokens) || inputTokens < 0)
+    throw new Error(UI_TEXT.accounts.invalidAccount)
+  return multiplyUsd(parseUsd(inputUsdPerMillion), BigInt(inputTokens), BigInt(TOKENS_PER_MILLION))
 }
 
 export class AccountPool {
@@ -439,4 +446,34 @@ export class AccountPool {
   public current(kind: AccountPoolRequest['kind'], owner: string): string | undefined {
     return this.sticky.get(JSON.stringify([kind, owner]))?.account
   }
+}
+
+export interface AccountReplayIdentity {
+  readonly provider: string
+  readonly account: string
+  readonly origin: string
+  readonly model: string
+}
+
+/** Captured codecs classify native items and retain their visible text. No group exception yet. */
+export function accountReplay<Item>(
+  entries: readonly {
+    readonly item: Item
+    readonly producer?: AccountReplayIdentity
+  }[],
+  target: AccountReplayIdentity,
+  codec: {
+    readonly isNative: (item: Item) => boolean
+    readonly textOnly: (item: Item) => readonly Item[]
+  },
+): readonly Item[] {
+  return entries.flatMap(({ item, producer }) =>
+    !codec.isNative(item) ||
+    (producer?.provider === target.provider &&
+      producer.account === target.account &&
+      producer.origin === target.origin &&
+      producer.model === target.model)
+      ? [item]
+      : codec.textOnly(item),
+  )
 }

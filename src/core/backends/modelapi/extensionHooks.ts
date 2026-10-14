@@ -672,6 +672,32 @@ export function directoryAddedFields(relativePath: string): Readonly<Record<stri
   return { path: relativePath }
 }
 
+/**
+ * What the user answered. A project hook sees the action and the field
+ * names only; `values` are passed for user-scope hooks alone (the caller
+ * decides the scope; lane M validates the answer against the schema).
+ */
+export function elicitationResultFields(options: {
+  readonly server: string
+  readonly action: 'accept' | 'decline' | 'cancel'
+  readonly fieldNames: readonly string[]
+  readonly values?: Readonly<Record<string, unknown>> | undefined
+}): Readonly<Record<string, unknown>> {
+  return {
+    server: options.server,
+    action: options.action,
+    fields: [...options.fieldNames],
+    ...(options.values !== undefined && { values: options.values }),
+  }
+}
+
+export function teammateIdleFields(options: {
+  readonly name: string
+  readonly siblingsRunning: number
+}): Readonly<Record<string, unknown>> {
+  return { name: options.name, siblings_running: options.siblingsRunning }
+}
+
 export function messageDisplayFields(message: string): Readonly<Record<string, unknown>> {
   return { message: boundedHookText(message, HOOK_DISPLAY_MESSAGE_MAX_CHARS) }
 }

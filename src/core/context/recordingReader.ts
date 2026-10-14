@@ -43,6 +43,9 @@ export async function recordOperation<T>(reader: RecordingScope<T>): Promise<Rea
   return await reader.load()
 }
 
+/** Fixed function identities; there is no caller-controlled registration API. */
+export const RECORDING_BUILDERS = Object.freeze([recordProjection, recordOperation])
+
 /** Only allowlisted builders can close a scope; open scopes confer no authority. */
 export class RecordingScope<T = unknown> {
   public static build<T>(
