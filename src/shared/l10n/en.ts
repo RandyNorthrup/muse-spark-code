@@ -4148,7 +4148,7 @@ export const EN = {
     '  {command} auth set|status|clear --provider <id>  Store, check or remove a provider key (read from stdin)',
     '  {command} providers list|add|test|remove  Manage model providers',
     '  {command} exec [options] <prompt>  Run one headless turn',
-    '  {command} scan-secrets <file> [--key-stdin]  Count likely secrets in one file (prints only the number)',
+    '  {command} scan-secrets <file> [--key-stdin]  Count likely secrets in one file (prints only the number; exits 0 when clean, 10 when a secret is found, 2 for misuse)',
     '  {command} report [options]  Print a scrubbed problem report (starts no backend, opens no browser)',
     '  {command} legal [options]  Run the read-only legal scan (no backend, no sign-in)',
     '  {command} fonts install [--from <directory>]  Install the optional fonts for standalone surfaces',
@@ -4236,10 +4236,6 @@ export const EN = {
   execRequestCapReached: forms({
     one: 'The request cap of {count} attempt was reached.',
     other: 'The request cap of {count} attempts was reached.',
-  }),
-  execScanMatches: forms({
-    one: '{count} secret match',
-    other: '{count} secret matches',
   }),
   // M95 lane X (PLAN.md D74): the ACP agent's provider commands. Every key
   // below also lives in all 14 `l10n/ui.*.json` tables.
