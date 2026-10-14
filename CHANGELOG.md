@@ -136,6 +136,15 @@ happened, not what was planned; superseded entries are kept.
   only say that a frame had changed against the frame accepted before it,
   never that what a frame showed was wrong: Meta's logo was in the accepted
   frames.
+- Rule 2 (nothing is started again on the same commit) now holds
+  mechanically at both doors (`docs/certification/rule2-gate.md`). The merge
+  job refuses any attempt after the run's first execution and refuses unless
+  every other run on the head is complete and green on its first attempt; it
+  reads the head once more immediately before passing, so a run started late
+  refuses. The release job stops a release unless every run on the tagged
+  commit and on the merged pull request's head is, and each of those commits
+  needs runs of its own. Wire answers the gate cannot read fail closed
+  instead of checking fewer runs.
 
 ## [0.18.1] - 2026-10-12
 
