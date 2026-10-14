@@ -1057,6 +1057,7 @@ describe('deferred cohort bundles', () => {
       'src/runtime/chatGptProviderCommands.ts',
       'src/runtime/chatGptHost.ts',
       'src/core/providers/subscriptions/chatgpt.ts',
+      'src/core/providers/subscriptions/chatgptHostId.ts',
     ]) {
       expect(inputs('subscriptions')).toContain(file)
       expect(acpInputs).not.toContain(file)
@@ -1580,6 +1581,7 @@ describe('deferred cohort bundles', () => {
     ['providers', 'src/core/backends/modelapi/codecs/ollama.ts', 'missing'],
     ['extension', 'src/core/legal/entry.ts', 'on the first legal scan'],
     ['subscriptions', 'src/core/providers/subscriptions/chatgpt.ts', 'missing'],
+    ['subscriptions', 'src/core/providers/subscriptions/chatgptHostId.ts', 'missing'],
     ['subscriptions', 'src/core/providers/subscriptions/registry.ts', 'missing'],
     ['configuredProviders', 'src/core/providers/configured.ts', 'missing'],
     ['configuredProviders', 'src/core/backends/modelapi/authSource.ts', 'missing'],

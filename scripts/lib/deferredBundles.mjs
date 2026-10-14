@@ -15,6 +15,7 @@ export const BUNDLES = {
 }
 export const SUBSCRIPTION_ONLY = [
   'src/core/providers/subscriptions/chatgpt.ts',
+  'src/core/providers/subscriptions/chatgptHostId.ts',
   'src/core/providers/subscriptions/registry.ts',
 ]
 export const CONFIGURED_TRANSPORT_ONLY = ['authSource.ts', 'providerClient.ts']
