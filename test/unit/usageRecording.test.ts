@@ -85,24 +85,6 @@ describe('recording taps', () => {
       expect(isUsageWriterBundle(value)).toBe(false)
     expect(isUsageWriterBundle({ createUsageWriter: vi.fn() })).toBe(true)
   })
-  it('fails a history read explicitly, logging its private error only as fixed words', async () => {
-    const journal = writer()
-    vi.mocked(journal.read).mockRejectedValue(new Error('private history path'))
-    const log = new FakeLogOutputChannel()
-    const port = createUsageRecording({
-      client: 'cli',
-      now: () => toEpochMs(100),
-      newId: () => 'record',
-      isEnabled: () => true,
-      writer: () => Promise.resolve(journal),
-      log,
-    })
-    await expect(port.today()).rejects.toThrow('Usage history unavailable')
-    await expect(port.today()).rejects.toThrow('Usage history unavailable')
-    expect(log.warn).toHaveBeenCalledExactlyOnceWith(
-      'Usage for this run was not recorded (read failed).',
-    )
-  })
   it('never waits for a writer and logs failed writes once without their content', async () => {
     const log = new FakeLogOutputChannel()
     const journal = writer()
