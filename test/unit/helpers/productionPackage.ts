@@ -30,6 +30,7 @@ export const PRODUCTION_BUILD_SUITES = [
   '/visualCapture.test.mjs',
   '/visualStability.test.mjs',
   '/m114ConversationReview.test.mjs',
+  '/packagedBundles.test.mjs',
 ]
 
 export function buildProductionPackage(root: string, folder: string, shared?: unknown): void {
