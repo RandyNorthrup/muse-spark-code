@@ -17,14 +17,6 @@ export type TeamWindow = 'task' | 'day' | 'lifetime'
  * refusal. A shape that has not been captured is a plain failure, never a
  * switch, so the classifier answers undefined for it.
  */
-export type TeamLimitClassification =
-  | { readonly kind: 'rateLimit'; readonly retryAfterMs: number }
-  | { readonly kind: 'usageLimit'; readonly resetMs: number | undefined }
-
-export interface TeamLimitClassifier {
-  classify(error: unknown): TeamLimitClassification | undefined
-}
-
 // --- M96c scheduler region (lane S). M96 lane A owns pool/accounting selection. ---
 
 export interface SchedulerDependencies {

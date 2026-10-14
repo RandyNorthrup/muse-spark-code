@@ -148,6 +148,13 @@
     "test/harness/vault/run.mjs",
     // M115 schedule scenes: test/harness/index.html imports this page module.
     "test/harness/schedules.mjs",
+    // The schedule surface App.tsx renders through a dynamic import, which
+    // knip does not trace: the harness scene mounts the built bundle by path
+    // (test/harness/schedules.mjs) and the bundle config lists it by path.
+    "src/webview/schedules/ScheduleSurface.tsx",
+    // The schedule prompt App.tsx reads only through its dynamic import
+    // (loadSchedulePrompt), with `import type *` for the static shape.
+    "src/webview/schedules/prompt.ts",
     "test/unit/**/*.test.{ts,tsx,mjs}",
     // Standalone browser checks invoked by path; usageHost is bundled by them.
     "test/harness/usage-check.mjs",
