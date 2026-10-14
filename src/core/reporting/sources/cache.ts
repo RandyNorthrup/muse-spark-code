@@ -1,6 +1,8 @@
 import { createHash } from 'node:crypto'
 import * as z from 'zod/mini'
 import {
+  GITHUB_API_VERSION,
+  GITHUB_MEDIA_TYPE,
   MILLISECONDS_PER_SECOND,
   REPORT_GITHUB_RATE_FLOOR,
   REPORT_SOURCE_TIMEOUT_MS,
@@ -592,4 +594,24 @@ export class ReportNetworkReader {
       controller.abort()
     }
   }
+}
+
+/** Public fetch has no authorization and refuses redirects to another host. */
+export function publicReportTransport(fetcher: typeof fetch): ReportNetworkTransport {
+  return async (request, etag, signal) =>
+    await fetcher(request.url, {
+      method: request.method ?? 'GET',
+      ...(request.body !== undefined && { body: request.body }),
+      headers: {
+        ...(new URL(request.url).hostname === 'api.github.com' && {
+          Accept: GITHUB_MEDIA_TYPE,
+          'X-GitHub-Api-Version': GITHUB_API_VERSION,
+        }),
+        ...(etag !== null && { 'If-None-Match': etag }),
+        ...(request.body !== undefined && { 'Content-Type': 'application/json' }),
+      },
+      redirect: 'error',
+      credentials: 'omit',
+      signal,
+    })
 }

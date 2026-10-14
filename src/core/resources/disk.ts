@@ -77,6 +77,18 @@ export function diskPressure(volumes: readonly ResourceDiskVolume[], settings: R
   return { high, isPaused, isCritical, hasRecovered }
 }
 
+/** Peer data is validated by deviceResourceSchema before this admission check. */
+export function hasDeviceDiskHeadroom(device: DeviceResource): boolean {
+  const disk = device.diskFree
+  return (
+    device.level === 'normal' &&
+    disk?.freeBytes !== undefined &&
+    disk.freeBytes !== null &&
+    disk.floorBytes !== null &&
+    disk.freeBytes > disk.floorBytes
+  )
+}
+
 interface DiskCache {
   volume: ResourceDiskVolume
   history: { atMs: number; freeBytes: number }[]
