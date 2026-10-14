@@ -16,7 +16,8 @@ happened, not what was planned; superseded entries are kept.
   own free key test, and a refusal shows the provider's reason. Values
   that look like the wrong thing (a web address, a file path,
   placeholder text, a key with a space in it) ask a "use it anyway?"
-  question instead of dead-ending.
+  question instead of dead-ending. A key piped in that is not text is
+  now told so, instead of "No key was entered, so nothing was stored."
 
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
   reads and writes, and 1-hour cache writes settle at their own price.

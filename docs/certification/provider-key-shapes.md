@@ -98,6 +98,43 @@ already showed in red.
   is attached per request with no shape gate in the request path
   (comment at :520: "API-key sessions send that API bearer").
 
+### KEYTEXT: a piped key that is not text is told so (2026-10-14, wslpc rig)
+
+PR 159's review found one sentence false for its cause: `providerExec`
+mapped a failed `--key-stdin` read with reason `invalid` (bytes that are
+not UTF-8 text) to `providerKeyNotStored`, "No key was entered, so
+nothing was stored." — but the person did enter something. The audit of
+every stdin key reader showed, before the fix:
+
+| Surface                                   | tty                                         | empty                                        | invalid                                                            | tooLong                           |
+| ----------------------------------------- | ------------------------------------------- | -------------------------------------------- | ------------------------------------------------------------------ | --------------------------------- |
+| `exec` provider run (`providerExec.ts`)   | "Read the key from a pipe, not a terminal." | "No key was entered, so nothing was stored." | "No key was entered, so nothing was stored." (false)               | "The key exceeds the byte limit." |
+| `providers add` (`providersCommands.ts`)  | n/a (typed text is the normal path)         | "No key was entered, so nothing was stored." | accepted as U+FFFD replacement characters and sent to the key test | n/a (reader unbounded)            |
+| `auth set --provider` (`authCommands.ts`) | n/a                                         | "No key was entered, so nothing was stored." | accepted as U+FFFD, same as above                                  | n/a                               |
+
+After the fix, `invalid` reads the one new string `providerKeyNotText`
+("That input is not text (it is not valid UTF-8), so it was not used.",
+translated in all 14 `l10n/ui.*.json` tables) on every surface; the
+other three reasons keep their sentences. The mapping lives once, as
+`providerKeyFailureText` beside `readProviderKeyLine`
+(`src/runtime/exec/keyInput.ts`), called from all four readers (the
+third plus the account key flow in `accountsCommand.ts`); the piped
+secret reader (`src/runtime/hiddenInput.ts`) now refuses non-UTF-8
+pipes instead of decoding them with replacement. The Meta key keeps its
+existing sentence for the same bytes (`apiKeyInvalid`, unchanged).
+
+Packed-product drill (`npm run build` green, `node dist/acp.js` under a
+fresh empty HOME): `printf '\xff\xfe' | providers add --preset custom
+--as keytext --address http://127.0.0.1:9/v1 --private-ok --format chat
+--model m --key-stdin` answered before with "Test failed: The provider
+could not be reached." (exit 1; the bytes rode the key test as
+replacement characters) and answers now with "That input is not text
+(it is not valid UTF-8), so it was not used." (exit 1, no network).
+A text control (`AFTER-MADEUP-KEY-0001`) still reaches the key test and
+its connection truth. The brief's `--preset groq` form stops at "That
+address cannot be used (unresolved-address)." before and after on this
+rig (no DNS here; the key is never read), as in the PROVKEYS green run.
+
 ### Prefix-guessing: nowhere to keep
 
 Step 3 allowed keeping a prefix only as an overridable suggestion where
