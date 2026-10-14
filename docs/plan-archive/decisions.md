@@ -6675,3 +6675,32 @@ prompts into a chat in any workspace".
   tool installation is approved by this design record (D3/D9 apply at delivery).
 
 <!-- plan-archive:end id="2-D76-01" -->
+
+## D108 — The provider judges a key; no key is refused for its shape (lane PROVKEYS, 2026-10-12)
+
+<!-- plan-archive:begin id="decisions-a64aebd4a-14315" lines="14315-14336" at="a64aebd4a" bytes="1420" sha256="04385ca919235e6aea41a6ba2fb179aa3a925a792ef99a07cfd37c0741652958" -->
+
+A released defect: a working Google Gemini key (beginning `AQ.`) was
+refused before anything was sent because the product held a frozen idea
+of each provider's key shape (`AIza…` for Gemini, `sk-ant-…`,
+`sk-or-…`, `gsk_…`, `fw_…`, `hf_…`, `xai-…`, `sk-…` elsewhere). The
+panel, `providers add`, the editor protocol's auth methods, `auth set
+--provider` and stdin all refused such keys with "not shaped like"
+errors, so the route could not be configured at all.
+
+**Decision.** No key is ever refused for its looks, on any surface.
+What decides is the provider's own answer to the first authenticated
+request the product already makes (the free model-list key test); a
+refusal shows the provider's reason. The only checks before sending are
+the ones that protect the person and hold for every provider — the
+value is not empty, has no whitespace or line break inside, and is not
+obviously the wrong thing (a URL, a file path, placeholder text) — each
+asked as a "use it anyway?" question, never a dead end. This supersedes
+M95 lane K's "password box with the preset's live shape check" (the
+milestone scope rows): the box now accepts any non-blank key, and every
+preset carries the open `{ kind: 'any' }` shape with a hint naming where
+the key comes from. The endpoint policy, log redaction and the
+product's own Meta-key format are unchanged. Full record:
+`docs/certification/provider-key-shapes.md`.
+
+<!-- plan-archive:end id="decisions-a64aebd4a-14315" -->
