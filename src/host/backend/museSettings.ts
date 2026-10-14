@@ -5,5 +5,4 @@ export {
   readContributorMode,
   readDelegationMode,
   readWorkflowTriggerMode,
-  type MuseSettingsDeps,
 } from '../../core/backends/musecode/museSettings'
