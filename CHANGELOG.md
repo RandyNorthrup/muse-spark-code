@@ -9,6 +9,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- The real-life run (`npm run real-life`, `docs/testing/real-life.md`):
+  the packed product installed into a new empty folder and used for real,
+  against real providers on their cheapest models. A full run spends real
+  money up to a stated request and dollar cap, needs real keys, and writes
+  its record under `docs/testing/real-life/` with the release.
+
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
   reads and writes, and 1-hour cache writes settle at their own price.
   The shared retry classifier refuses known quota codes and excessive
