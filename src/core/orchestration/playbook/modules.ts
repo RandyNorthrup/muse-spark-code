@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from 'node:crypto'
+import { createHash } from 'node:crypto'
 import type { SpawnSyncOptions } from 'node:child_process'
 import { existsSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs'
 import nodePath from 'node:path'
@@ -60,27 +60,6 @@ export function normalizedModule(module: PlaybookModule): PlaybookModule {
       (a, b) => Number(a > b) - Number(a < b),
     ),
   }
-}
-
-/** Trusted adapters can declare lane/team selectors; without either, use
- * the first two directories under the source root. The registry journals
- * this returned id before dispatch; adapters retain it on subsequent calls. */
-export function newPlaybookModule(
-  files: readonly string[],
-  declaration?: { readonly source: 'lane' | 'team'; readonly key: string },
-): PlaybookModule {
-  const normalized = files.map((file) => modulePath(file))
-  const first = normalized[0]
-  if (!first) throw new Error(UI_TEXT.playbookUnavailable)
-  const parts = first.split('/')
-  parts.pop()
-  const key = declaration?.key ?? parts.slice(0, 1 + 2).join('/')
-  return normalizedModule({
-    id: randomUUID(),
-    key,
-    files: normalized,
-    source: declaration?.source ?? 'directory',
-  })
 }
 
 export function predecessorIds(module: PlaybookModule): string[] {
