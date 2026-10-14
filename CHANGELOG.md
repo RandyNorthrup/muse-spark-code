@@ -11,7 +11,8 @@ happened, not what was planned; superseded entries are kept.
 
 - A failure is never turned into a different fact. When saved credentials
   cannot be read, sign-out keeps its safety hold, no sign-in lifts it, and
-  the person is told once what could not be read and what to do. A damaged
+  the person is told what could not be read and what to do (once per kind
+  of failure, and again if it comes back after the store reads again). A damaged
   history choice, quote folder or schedule consent is announced once per
   damage (again if it changes or comes back after a repair), with what is
   damaged, what the product does, and the next step. A refused upload shows
