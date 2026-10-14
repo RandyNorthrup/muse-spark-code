@@ -53,6 +53,33 @@ export interface WorkerRolePolicy {
   readonly reportShape: WorkerReportShape
 }
 
+/** One delegation a worker executes. */
+export interface WorkerTask {
+  readonly taskId: string
+  readonly roleId: WorkerRoleId
+  /** The orchestrator's instruction; capped at `WORKER_BRIEF_MAX_CHARS`. */
+  readonly brief: string
+  /** The task's branch (`agents/<role>/<task-id>`), named with the brief. */
+  readonly branch: string
+  /**
+   * The folder the worker runs in: its working copy, or a scratch copy for
+   * a `read-only` role. Lane I creates it; lane W never runs elsewhere.
+   */
+  readonly folder: string
+  /** Files named as paths; small text files are inlined up to the byte cap. */
+  readonly files: readonly string[]
+}
+
+/** The parts of a worker's prompt, in the order D75 lists them. */
+export interface WorkerPromptParts {
+  /** The role's generated charter (lane R), cache-stable across tasks. */
+  readonly charter: string
+  /** The role's body: the user's guidance. */
+  readonly body: string
+  /** The workspace's rules and skills, as the worker's backend loads them. */
+  readonly rulesAndSkills: string
+}
+
 /** A worker's report fence tag: `muse-team-report` (D75). */
 export const WORKER_REPORT_FENCE = 'muse-team-report'
 
