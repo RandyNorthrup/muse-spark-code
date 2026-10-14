@@ -46,7 +46,12 @@ import {
   isStaleConfirmedError,
   isModelApiError,
 } from '../backends/modelapi/transport'
-import { parseRefusalError, refusalOf, refusalSentence } from '../backends/modelapi/providerRefusal'
+import {
+  isRefusalRetryable,
+  parseRefusalError,
+  refusalOf,
+  refusalSentence,
+} from '../backends/modelapi/providerRefusal'
 import { withDeadline } from '../timeouts'
 import { Usd } from '../../shared/usd'
 import { fill } from '../../shared/l10n/text'
@@ -234,6 +239,20 @@ const parseByFormat: Record<ProviderFormat, (status: number, value: unknown) => 
   ollama: (status, value) => ollama.parseOllamaError(status, value, ''),
   chat: (status, value) => openAiRefusal(status, value),
   responses: (status, value) => openAiRefusal(status, value),
+}
+/** One format's parser from the total table above. */
+const parseFormatError = (
+  format: ProviderFormat,
+  status: number,
+  value: unknown,
+): ModelApiError => {
+  const parse = parseByFormat[format]
+  // The table is total over the closed ProviderFormat, so the throw below is
+  // unreachable; the index type still carries undefined for tsc under
+  // `noUncheckedIndexedAccess`.
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- tsc's index access says possibly undefined
+  if (parse === undefined) throw new Error(UI_TEXT.actionFailed)
+  return parse(status, value)
 }
 /** An answered refusal with the sentence the person reads, keeping its
  * status, kind, code, request id and wait for the ledger and the log. */
@@ -597,6 +616,14 @@ export function createConfiguredProviderServices(
       baseUrl: address.baseUrl,
       // OPENAI-G20: the key-check path retries by the preset's own table too.
       retryTable: presets.quirksOf(preset).retry,
+      // RVPROVERR: the models list / key check is where the recorded bad-key
+      // answers arrive, so it reads them with the same format parser and
+      // never-retry rule as the turn path; without this the transport's
+      // default envelope (a string `code`) rejects e.g. Google's numeric
+      // code and the provider's words are lost behind a bare "HTTP 400".
+      parseError: (status, value) => parseFormatError(entry.format ?? preset.format, status, value),
+      isRetryableFailure: (failure, retryAfterMs) =>
+        isRefusalRetryable(failure, retryAfterMs, presets.quirksOf(preset).retry),
     })
     const headers: Record<string, string> = {}
     if ((entry.format ?? preset.format) === 'anthropic') headers['anthropic-version'] = '2023-06-01'
@@ -844,15 +871,7 @@ export function createConfiguredProviderServices(
       // the closed ProviderFormat, so there is no `default:` branch that
       // could invent a product sentence, and a new member fails to typecheck
       // until it gets its own parser.
-      parseError: (status, value) => {
-        const parse = parseByFormat[format]
-        // The table is total over the closed ProviderFormat, so the throw
-        // below is unreachable; the index type still carries undefined for
-        // tsc under `noUncheckedIndexedAccess`.
-        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- tsc's index access says possibly undefined
-        if (parse === undefined) throw new Error(UI_TEXT.actionFailed)
-        return parse(status, value)
-      },
+      parseError: (status, value) => parseFormatError(format, status, value),
       encode: (body) => {
         let path = '/v1/responses'
         let wire: unknown
@@ -1210,6 +1229,13 @@ export function createConfiguredProviderServices(
     test: async (entry: ProviderEntry, key: string) => {
       if (entry.address === undefined) throw invalidEntry(entry, { kind: 'missingAddress' })
       const address: string = entry.address
+      // RVPROVERR: an answered refusal on the probe reads as that refusal
+      // (a rejected key is neither "unreachable" nor "could not be read");
+      // only a failure with no answer keeps the probe sentences.
+      const probeFailure = (error: unknown, fallback: string): string =>
+        isModelApiError(error) && error.status !== 0
+          ? refusalSentence(refusalOf(error), providerDisplayName(entry, presetFor(entry)))
+          : fallback
       const outcome = await presets.runProviderKeyTest(
         presetFor(entry).keyTest,
         new URL(address).origin,
@@ -1223,16 +1249,24 @@ export function createConfiguredProviderServices(
               origin === new URL(address).origin ? undefined : origin,
             )
             return { ok: true, modelCount: undefined }
-          } catch {
-            return { ok: false, paid: false, reason: UI_TEXT.providerProbeUnreachable }
+          } catch (error: unknown) {
+            return {
+              ok: false,
+              paid: false,
+              reason: probeFailure(error, UI_TEXT.providerProbeUnreachable),
+            }
           }
         },
         async () => {
           try {
             const rows = await scan(entry, key)
             return { ok: true, modelCount: rows.length }
-          } catch {
-            return { ok: false, paid: false, reason: UI_TEXT.providerProbeUnparseable }
+          } catch (error: unknown) {
+            return {
+              ok: false,
+              paid: false,
+              reason: probeFailure(error, UI_TEXT.providerProbeUnparseable),
+            }
           }
         },
       )
