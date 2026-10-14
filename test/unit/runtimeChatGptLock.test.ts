@@ -14,6 +14,10 @@ import { chatGptCommandText } from '../../src/runtime/chatGptProviderCommands'
 import { CHATGPT_GRANT_LOCK_FILE } from '../../src/shared/constants'
 
 const scratch = { folder: '' }
+// Socket-file assertions only hold where the lock binds a Unix socket
+// (macOS/Linux). On Windows the same lock binds a named pipe instead, so
+// those cases have their own pipe variants below.
+const isWindows = process.platform === 'win32'
 beforeAll(async () => {
   const temp = path.resolve('temp')
   await mkdir(temp, { recursive: true })
@@ -51,6 +55,37 @@ function worker(directory: string): ChildProcess {
       env: { SystemRoot: process.env['SystemRoot'], PATH: process.env['PATH'] },
     },
   )
+}
+
+/** A foreign raw-socket holder: SIGKILL leaves its file like a real crash. */
+function staleHolder(socketPath: string): ChildProcess {
+  return spawn(
+    process.execPath,
+    [path.resolve('test/hosts/runtime-chatgpt-stale-socket.mjs'), socketPath],
+    {
+      stdio: ['ignore', 'ignore', 'pipe', 'ipc'],
+      env: { SystemRoot: process.env['SystemRoot'], PATH: process.env['PATH'] },
+    },
+  )
+}
+
+/** Crash a lock holder the way a dead process leaves one: no cleanup runs. */
+async function crashHolder(directory: string): Promise<void> {
+  const child = worker(directory)
+  try {
+    expect(await once(child, 'message')).toEqual(['held', undefined])
+    const exit = exited(child)
+    child.kill('SIGKILL')
+    await exit
+  } finally {
+    child.kill()
+  }
+}
+
+async function expectLockRecovery(directory: string): Promise<void> {
+  await expect(
+    withChatGptRefreshLock(() => Promise.resolve('recovered'), { directory, timeoutMs: 2000 }),
+  ).resolves.toBe('recovered')
 }
 
 function exited(child: ChildProcess): Promise<number | null> {
@@ -145,48 +180,40 @@ describe('ACP ChatGPT process lock', () => {
     }
   })
 
-  it('recovers automatically after the owner process crashes', async () => {
+  it.runIf(!isWindows)('recovers automatically after the owner process crashes', async () => {
     const directory = await lockDirectory('crash-')
-    const child = worker(directory)
-    try {
-      const message = await once(child, 'message')
-      expect(message[0]).toBe('held')
-      const exit = exited(child)
-      child.kill('SIGKILL')
-      await exit
-      // The crash leaves the socket file behind with no listener.
-      const crashed = await lstat(socketFile(directory))
-      expect(crashed.isSocket()).toBe(true)
-      await expect(
-        withChatGptRefreshLock(() => Promise.resolve('recovered'), {
-          directory,
-          timeoutMs: 2000,
-        }),
-      ).resolves.toBe('recovered')
-    } finally {
-      child.kill()
-    }
+    await crashHolder(directory)
+    // The crash leaves the socket file behind with no listener.
+    const crashed = await lstat(socketFile(directory))
+    expect(crashed.isSocket()).toBe(true)
+    await expectLockRecovery(directory)
   })
 
-  it('replaces a stale socket file left without a listener', async () => {
+  it.runIf(isWindows)('recovers automatically after the pipe holder dies', async () => {
+    const directory = await lockDirectory('crash-')
+    await crashHolder(directory)
+    // A named pipe has no file: the OS removes it with the dead holder.
+    await expectLockRecovery(directory)
+  })
+
+  it.runIf(!isWindows)('replaces a stale socket file left without a listener', async () => {
     const directory = await lockDirectory('stale-')
-    const park = createServer((socket) => socket.destroy())
-    await new Promise<void>((resolve) => {
-      park.listen(socketFile(directory), () => {
-        resolve()
-      })
-    })
-    await new Promise<void>((resolve) => {
-      park.close(() => {
-        resolve()
-      })
-    })
-    // Closing never unlinks: the file outlives its listener, as after a crash.
-    const parked = await lstat(socketFile(directory))
-    expect(parked.isSocket()).toBe(true)
-    await expect(
-      withChatGptRefreshLock(() => Promise.resolve('replaced'), { directory, timeoutMs: 2000 }),
-    ).resolves.toBe('replaced')
+    // A graceful close is not how stale files happen; bind the file in a
+    // child and crash it, exactly as a dead holder leaves one.
+    const holder = staleHolder(socketFile(directory))
+    try {
+      expect(await once(holder, 'message')).toEqual(['listening', undefined])
+      const exit = exited(holder)
+      holder.kill('SIGKILL')
+      await exit
+      const stale = await lstat(socketFile(directory))
+      expect(stale.isSocket()).toBe(true)
+      await expect(
+        withChatGptRefreshLock(() => Promise.resolve('replaced'), { directory, timeoutMs: 2000 }),
+      ).resolves.toBe('replaced')
+    } finally {
+      holder.kill()
+    }
   })
 
   it('takes the lock while the old fixed TCP port is held by another listener', async () => {
@@ -221,21 +248,24 @@ describe('ACP ChatGPT process lock', () => {
     }
   })
 
-  it('reports a local listener failure with its OS code, never as temporarily unavailable', async () => {
-    const directory = await lockDirectory('local-')
-    const blocker = path.join(directory, 'blocker')
-    await writeFile(blocker, 'a regular file, not a folder')
-    await expect(
-      withChatGptRefreshLock(() => Promise.resolve('never'), {
-        directory: path.join(blocker, 'grant'),
-        timeoutMs: 2000,
-      }),
-    ).rejects.toThrow('chatgpt.lock-unavailable')
-    const sentence = chatGptCommandText().failure('lock-unavailable', 'ENOTDIR')
-    expect(sentence).toContain('ENOTDIR')
-    expect(sentence).toContain('could not be opened')
-    expect(sentence).not.toContain('temporarily unavailable')
-  })
+  it.runIf(!isWindows)(
+    'reports a local listener failure with its OS code, never as temporarily unavailable',
+    async () => {
+      const directory = await lockDirectory('local-')
+      const blocker = path.join(directory, 'blocker')
+      await writeFile(blocker, 'a regular file, not a folder')
+      await expect(
+        withChatGptRefreshLock(() => Promise.resolve('never'), {
+          directory: path.join(blocker, 'grant'),
+          timeoutMs: 2000,
+        }),
+      ).rejects.toThrow('chatgpt.lock-unavailable')
+      const sentence = chatGptCommandText().failure('lock-unavailable', 'ENOTDIR')
+      expect(sentence).toContain('ENOTDIR')
+      expect(sentence).toContain('could not be opened')
+      expect(sentence).not.toContain('temporarily unavailable')
+    },
+  )
 
   it('refuses an already cancelled acquisition before running work', async () => {
     const directory = await lockDirectory('cancelled-')
