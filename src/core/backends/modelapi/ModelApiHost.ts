@@ -174,8 +174,6 @@ import {
   THEN_RUN_ARGUMENT,
   TOOL_OUTPUT_CLIP_MARKER,
   TOOL_OUTPUT_MAX_CHARS,
-  TOOL_RESULT_MAX_LINE_CHARS,
-  TOOL_RESULT_MAX_TOKENS,
   TOOL_RESULT_SPILL_DIR,
   TOOL_ARGUMENT_PREVIEW_INTERVAL_MS,
   TOOL_STATUS_INTERRUPTED,
@@ -372,6 +370,7 @@ import {
   cutNotice,
   fixedHarnessText,
   canRecoverOverflow,
+  limitsForByteGuard,
   parsePromptTooLong,
   toolNoteItem,
   validateToolResultCap,
@@ -2342,20 +2341,6 @@ function clipOutput(text: string): string {
     : text
 }
 
-/**
- * TOOLCAP: the per-result limits for this session's model. The byte guard is
- * the configured cap (refused with its reason when it cannot be honoured);
- * the token and line caps are fixed; the window share follows the room left.
- */
-function toolResultLimitsFor(maxBytes: number, windowTokens: number | undefined): ToolResultLimits {
-  return {
-    maxTokens: TOOL_RESULT_MAX_TOKENS,
-    maxLineChars: TOOL_RESULT_MAX_LINE_CHARS,
-    maxBytes,
-    windowTokens,
-  }
-}
-
 /** What the MCP servers' state says to the user, each keyed so it is said once per session. */
 function mcpNotices(snapshot: McpPoolSnapshot): readonly { key: string; text: string }[] {
   const { fault } = snapshot
@@ -3171,9 +3156,14 @@ export class ModelApiSession implements ScheduledAgentSession {
    */
   private toolResultLimits(): ToolResultLimits {
     const windowTokens = this.toolResultWindowTokens()
+    // The above-window refusal is judged against the model's whole window
+    // (what its sentence names), never the room left: judged on the room
+    // left, a cap that fits the window would be refused mid-session as the
+    // replay grows, with a window size in the sentence that is not the
+    // model's.
     const validated = validateToolResultCap(
       this.deps.maxToolOutputBytes?.(),
-      windowTokens,
+      this.modelWindowTokens(),
       TOOL_OUTPUT_MAX_CHARS,
     )
     if ('refused' in validated) {
@@ -3192,9 +3182,17 @@ export class ModelApiSession implements ScheduledAgentSession {
           }),
         })
       }
-      return toolResultLimitsFor(validated.fallback, windowTokens)
+      return limitsForByteGuard(validated.fallback, windowTokens)
     }
-    return toolResultLimitsFor(validated.bytes, windowTokens)
+    return limitsForByteGuard(validated.bytes, windowTokens)
+  }
+
+  /** TOOLCAP: the model's whole window in tokens; unknown when it names none. */
+  private modelWindowTokens(): number | undefined {
+    const window =
+      contextModelFor(this.deps, this.modelId)?.contextTokens ??
+      this.sendingContextModel?.contextTokens
+    return window !== undefined && Number.isSafeInteger(window) && window > 0 ? window : undefined
   }
 
   /**
@@ -3203,10 +3201,8 @@ export class ModelApiSession implements ScheduledAgentSession {
    * model names no window; the share is then skipped, never guessed.
    */
   private toolResultWindowTokens(): number | undefined {
-    const window =
-      contextModelFor(this.deps, this.modelId)?.contextTokens ??
-      this.sendingContextModel?.contextTokens
-    if (window === undefined || !Number.isSafeInteger(window) || window <= 0) return undefined
+    const window = this.modelWindowTokens()
+    if (window === undefined) return undefined
     // One straight pass over the replay: JSON per item, never the whole
     // conversation held twice.
     let chars = 0
@@ -14070,30 +14066,47 @@ export class ModelApiSession implements ScheduledAgentSession {
           if (!canRecoverOverflow(error.kind, error.promptTokens, error.promptMaximum)) {
             throw error
           }
-          if (error.kind === 'error' && !turn.didTrimOverflow) {
+          // Step (a) for every proven kind, count-based included: a
+          // restored session's oversized results are cut before any
+          // compaction spends a model call. A resend that is still too
+          // long falls through to step (b) instead of ending the turn.
+          let overflowError: ContextOverflowError = error
+          let recovered: StreamedCall | undefined
+          if (!turn.didTrimOverflow) {
             turn.didTrimOverflow = true
             if ((await this.trimLargestToolOutputs()) > 0) {
-              streamed = await this.streamOnce(turn.turnId, signal, round, turn.confirmedRequest)
-            } else if (turn.didRecoverOverflow) {
-              throw error
-            } else {
-              const resent = await this.compactAndResend(
-                turn,
-                signal,
-                round,
-                wasBudgetLimited,
-                error,
-              )
-              if ('stopped' in resent) return
-              streamed = resent.streamed
+              try {
+                recovered = await this.streamOnce(turn.turnId, signal, round, turn.confirmedRequest)
+              } catch (trimError: unknown) {
+                if (!(trimError instanceof ContextOverflowError) || isAbortRequested(signal)) {
+                  throw trimError
+                }
+                if (
+                  !canRecoverOverflow(
+                    trimError.kind,
+                    trimError.promptTokens,
+                    trimError.promptMaximum,
+                  )
+                ) {
+                  throw trimError
+                }
+                overflowError = trimError
+              }
             }
-          } else if (turn.didRecoverOverflow) {
-            throw error
-          } else {
-            const resent = await this.compactAndResend(turn, signal, round, wasBudgetLimited, error)
-            if ('stopped' in resent) return
-            streamed = resent.streamed
           }
+          if (recovered === undefined) {
+            if (turn.didRecoverOverflow) throw overflowError
+            const resent = await this.compactAndResend(
+              turn,
+              signal,
+              round,
+              wasBudgetLimited,
+              overflowError,
+            )
+            if ('stopped' in resent) return
+            recovered = resent.streamed
+          }
+          streamed = recovered
         } else {
           throw error
         }

@@ -18,6 +18,8 @@
 import {
   MODEL_API_MODEL_TEXT,
   OBS_PACK_CHARS_PER_TOKEN,
+  TOOL_RESULT_MAX_LINE_CHARS,
+  TOOL_RESULT_MAX_TOKENS,
   TOOL_RESULT_MIN_BYTES,
   TOOL_RESULT_WINDOW_SHARE,
   UI_TEXT,
@@ -40,9 +42,9 @@ export interface ToolResultCut {
   readonly totalLines: number
   readonly keptChars: number
   readonly keptBytes: number
-  /** Lines actually kept in the head part (all of them when no middle was cut). */
+  /** Whole lines actually kept in the head part (all of them when no middle was cut). */
   readonly headLines: number
-  /** Lines actually kept in the tail part (0 when no middle was cut). */
+  /** Whole lines actually kept in the tail part (0 when no middle was cut). */
   readonly tailLines: number
   /**
    * Original characters not carried in the kept text: exactly
@@ -105,6 +107,26 @@ export interface ToolResultLimits {
   readonly windowTokens: number | undefined
 }
 
+/**
+ * The session's limits for one byte guard (the setting or the exec flag,
+ * already validated). The token cap follows the guard at the same
+ * characters-per-token estimate the default pairs (64,000 bytes beside
+ * 16,000 tokens): raising the guard raises what one result may keep, as the
+ * setting promises, instead of leaving the fixed token cap silently in
+ * charge. The byte guard and the window share still bind as guarantees.
+ */
+export function limitsForByteGuard(
+  maxBytes: number,
+  windowTokens: number | undefined,
+): ToolResultLimits {
+  return {
+    maxTokens: Math.max(TOOL_RESULT_MAX_TOKENS, estimatePackTokens(maxBytes)),
+    maxLineChars: TOOL_RESULT_MAX_LINE_CHARS,
+    maxBytes,
+    windowTokens,
+  }
+}
+
 const LINE_MARK = '…'
 const HALVES = 2
 // A code point past the Basic Multilingual Plane starts at `index - 1`.
@@ -153,6 +175,9 @@ export type ToolResultCapRefusal =
  * default. Pure so the setting, the exec flag and the host share it. Where
  * the window is unknown the window fit cannot be checked, so the bound is
  * then the per-result caps alone — said in the certification, not guessed.
+ * `windowTokens` is the model's WHOLE window, never the room left: the
+ * refusal sentence names the model's window, and a cap that fits it must
+ * not be refused later merely because the conversation grew.
  */
 export function validateToolResultCap(
   value: number | undefined,
@@ -245,10 +270,18 @@ export function boundToolResultText(text: string, limits: ToolResultLimits): Bou
   if (joined.length > estimateCapChars || utf8Length(joined) > hardCapBytes) {
     // The most kept characters that fit BOTH the estimate and the byte
     // guarantee (binary search: byte length falls as kept characters fall).
-    const fit = (kept: number): { readonly head: string; readonly tail: string } => ({
-      head: joined.slice(0, boundary(joined, Math.ceil(kept / HALVES))),
-      tail: joined.slice(boundary(joined, joined.length - Math.floor(kept / HALVES))),
-    })
+    const fit = (
+      kept: number,
+    ): {
+      readonly head: string
+      readonly tail: string
+      readonly headEnd: number
+      readonly tailStart: number
+    } => {
+      const headEnd = boundary(joined, Math.ceil(kept / HALVES))
+      const tailStart = boundary(joined, joined.length - Math.floor(kept / HALVES))
+      return { head: joined.slice(0, headEnd), tail: joined.slice(tailStart), headEnd, tailStart }
+    }
     let low = 0
     let high = Math.min(estimateCapChars, joined.length)
     while (low < high) {
@@ -258,8 +291,18 @@ export function boundToolResultText(text: string, limits: ToolResultLimits): Bou
       else high = mid - 1
     }
     const parts = fit(low)
-    headLines = parts.head === '' ? 0 : splitLines(parts.head).length
-    tailLines = parts.tail === '' ? 0 : splitLines(parts.tail).length
+    // Whole lines only: a fragment the cut made inside a line is not a kept
+    // line, so the two counts can never claim more lines than there were.
+    headLines =
+      parts.head === ''
+        ? 0
+        : parts.head.split('\n').length -
+          (parts.headEnd >= joined.length || joined[parts.headEnd] === '\n' ? 0 : 1)
+    tailLines =
+      parts.tail === ''
+        ? 0
+        : parts.tail.split('\n').length -
+          (parts.tailStart === 0 || joined[parts.tailStart - 1] === '\n' ? 0 : 1)
     joined = `${parts.head}${parts.tail}`
   } else {
     // Lines were cut but no middle was: every line is kept, shortened.

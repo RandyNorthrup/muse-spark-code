@@ -16,6 +16,7 @@ import {
   cutNotice,
   fixedHarnessText,
   canRecoverOverflow,
+  limitsForByteGuard,
   parsePromptTooLong,
   toolNoteItem,
   utf8Length,
@@ -143,6 +144,16 @@ describe('boundToolResultText', () => {
     expect(utf8Length(denseCut.text)).toBeLessThanOrEqual(windowShareBytes(60_000))
   })
 
+  it('a middle cut inside one line keeps no whole line, and says so', () => {
+    // One line, line-capped to 8,000 then middle-cut by the byte guard: the
+    // kept head and tail are fragments of the same line, never two lines.
+    const cut = expectSums('x'.repeat(20_000), { ...LIMITS, maxBytes: 2000 })
+    expect(cut.totalLines).toBe(1)
+    expect(cut.headLines).toBe(0)
+    expect(cut.tailLines).toBe(0)
+    expect(cut.headLines + cut.tailLines).toBeLessThanOrEqual(cut.totalLines)
+  })
+
   it('a result that cannot fit at all becomes the notice with an empty keep', () => {
     const bounded = boundToolResultText('0123456789'.repeat(100), { ...LIMITS, windowTokens: 0 })
     if (bounded.cut === undefined) throw new Error('expected a cut')
@@ -225,6 +236,30 @@ describe('validateToolResultCap', () => {
 
   it('without a known window the bound is the per-result caps alone', () => {
     expect(validateToolResultCap(10_000_000, undefined, 64_000)).toEqual({ bytes: 10_000_000 })
+  })
+})
+
+describe('limitsForByteGuard', () => {
+  it('the default byte guard keeps the fixed token cap', () => {
+    expect(limitsForByteGuard(64_000, undefined)).toEqual(LIMITS)
+  })
+
+  it('raising the byte guard raises what one result may keep', () => {
+    // 100,000 characters in short lines: cut at the default guard, whole at
+    // a raised one. A raised setting that changed nothing would fail here.
+    const text = Array.from({ length: 2000 }, () => 'm'.repeat(49)).join('\n')
+    expect(text.length).toBe(99_999)
+    expect(boundToolResultText(text, limitsForByteGuard(64_000, undefined)).cut).not.toBeUndefined()
+    const raised = boundToolResultText(text, limitsForByteGuard(128_000, undefined))
+    expect(raised.cut).toBeUndefined()
+    expect(raised.text).toBe(text)
+  })
+
+  it('the window share still binds a raised guard', () => {
+    const text = Array.from({ length: 2000 }, () => 'm'.repeat(49)).join('\n')
+    const bounded = boundToolResultText(text, limitsForByteGuard(128_000, 60_000))
+    if (bounded.cut === undefined) throw new Error('expected a cut')
+    expect(utf8Length(bounded.text)).toBeLessThanOrEqual(windowShareBytes(60_000))
   })
 })
 
