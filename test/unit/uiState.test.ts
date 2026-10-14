@@ -458,12 +458,14 @@ describe('uiReducer: composer state', () => {
         type: 'composerState',
         effort: 'max',
         isThinkingEnabled: false,
+        isFastEnabled: true,
         permissionMode: 'bypassPermissions',
       }),
     )
     expect(updated).toMatchObject({
       effort: 'max',
       isThinkingEnabled: false,
+      isFastEnabled: true,
       permissionMode: 'bypassPermissions',
     })
   })

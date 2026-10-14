@@ -11,6 +11,7 @@ import { describe, expect, it } from 'vitest'
 import {
   chatGptPlanFacts,
   planDefaultEffort,
+  planFastTier,
   planOfferedLevels,
   resolvePlanEffort,
   type ChatGptPlanFacts,
@@ -51,6 +52,15 @@ describe('chatgpt catalogue facts', () => {
       { id: 'priority', name: 'Fast', description: '2x speed, increased usage' },
     ])
     expect(parsed.defaultServiceTier).toBeUndefined()
+  })
+
+  it('finds the priority tier behind the Fast switch', () => {
+    expect(planFastTier(facts())).toEqual({
+      id: 'priority',
+      name: 'Fast',
+      description: '2x speed, increased usage',
+    })
+    expect(planFastTier({ ...facts(), serviceTiers: [] })).toBeUndefined()
   })
 
   it('offers low through max, leaving ultra out of every picker', () => {

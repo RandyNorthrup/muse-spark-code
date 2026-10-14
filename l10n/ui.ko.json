@@ -342,7 +342,8 @@
     "estimate-by": "--by <date>: 마감일",
     "fleet": "--fleet current|minimum|optimum: 현재 장비 구성 / 최소 구성 / 최적 구성",
     "estimate-format": "--format md|html|json|text: 출력 형식",
-    "seed": "--seed <seed>: 시뮬레이션 시드"
+    "seed": "--seed <seed>: 시뮬레이션 시드",
+    "fast": "--fast: 플랜 카탈로그의 Fast 티어를 사용합니다(2배 속도, 사용량 증가). 기본적으로 꺼져 있습니다. 플랜 할당량을 더 많이 사용합니다."
   },
   "referenceScanSecrets": "UTF-8 패치 파일에서 비밀 정보를 검색하고 발견하면 실패로 종료합니다. --key-stdin은 메모리에 있는 정확한 Model API 키도 검색하며 키를 저장하지 않습니다.",
   "referenceVault": "진행 중.",
@@ -916,7 +917,8 @@
     "tokenCounts": "입력 {input} · 출력 {output} · 요청: {requests}",
     "reduced": "제한된 기능",
     "aiContent": "AI가 생성한 콘텐츠는 부정확할 수 있습니다. Copilot은 자체 규칙을 추가하고 AI 크레딧을 사용합니다. 사용량이 보고되지 않으면 토큰 수는 추정치입니다.",
-    "reportContent": "유해 콘텐츠 신고"
+    "reportContent": "유해 콘텐츠 신고",
+    "fastDetail": "{description}. 기본적으로 꺼져 있습니다. 플랜 할당량을 더 많이 사용합니다."
   },
   "untitledConversation": "제목 없음",
   "crashTitle": "패널에서 오류가 발생했습니다",
@@ -3415,6 +3417,7 @@
   "execTooManyChunks": "입력이 청크 수 한도를 초과합니다.",
   "execUnknownModel": "이번 실행에서는 이 모델을 사용할 수 없습니다.",
   "execEffortUnavailable": "이 모델에서는 이 사고 수준을 사용할 수 없습니다.",
+  "execFastUnavailable": "Fast는 이 모델에서 사용할 수 없습니다.",
   "execTimedOut": "실행이 제한 시간에 도달했습니다.",
   "execBudgetRefused": "다음 요청이 남은 예산을 초과합니다.",
   "execBudgetMinimum": "이 실행에는 최소 {minimum}이 필요합니다.",

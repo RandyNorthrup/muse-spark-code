@@ -342,7 +342,8 @@
     "estimate-by": "--by <date>: Termin",
     "fleet": "--fleet current|minimum|optimum: Obecna flota / Minimalna konfiguracja / Optymalna konfiguracja",
     "estimate-format": "--format md|html|json|text: Format wyjściowy",
-    "seed": "--seed <seed>: Ziarno symulacji"
+    "seed": "--seed <seed>: Ziarno symulacji",
+    "fast": "--fast: Użyj poziomu Fast z katalogu planu (2x szybkość, zwiększone użycie). Domyślnie wyłączone: zużywa więcej limitu Twojego planu."
   },
   "referenceScanSecrets": "Skanuje plik poprawki UTF-8 w poszukiwaniu sekretów i kończy się błędem po wykryciu. --key-stdin sprawdza także dokładny klucz Model API w pamięci; żaden klucz nie jest zapisywany.",
   "referenceVault": "W toku.",
@@ -928,7 +929,8 @@
     "tokenCounts": "{input} wejściowych · {output} wyjściowych · żądania: {requests}",
     "reduced": "Ograniczone możliwości",
     "aiContent": "Treści generowane przez AI mogą być niedokładne. Copilot dodaje własne reguły i używa Twoich kredytów AI; liczby tokenów są szacunkowe, gdy użycie nie jest zgłaszane.",
-    "reportContent": "Zgłoś szkodliwe treści"
+    "reportContent": "Zgłoś szkodliwe treści",
+    "fastDetail": "{description}. Domyślnie wyłączone: zużywa więcej limitu Twojego planu."
   },
   "untitledConversation": "Bez tytułu",
   "crashTitle": "W panelu wystąpił błąd",
@@ -3634,6 +3636,7 @@
   "execTooManyChunks": "Wejście przekracza limit bloków.",
   "execUnknownModel": "Ten model nie jest dostępny dla tego uruchomienia.",
   "execEffortUnavailable": "Ten poziom wysiłku nie jest dostępny dla tego modelu.",
+  "execFastUnavailable": "Fast nie jest dostępny dla tego modelu.",
   "execTimedOut": "Uruchomienie osiągnęło limit czasu.",
   "execBudgetRefused": "Następne żądanie przekracza pozostały budżet.",
   "execBudgetMinimum": "To uruchomienie wymaga co najmniej {minimum}.",

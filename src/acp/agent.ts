@@ -363,6 +363,8 @@ class AcpSession {
   private releaseSchedules: (() => Promise<void>) | undefined
   private isScheduleHostAvailable = true
   private effort: EffortLevel = DEFAULT_EFFORT
+  /** The conversation's Fast switch; off by default, reset on model change. */
+  private fast = false
   /** Let go (closed, loaded again, or never set up): the editor's late answers decide nothing. */
   private isDisposed = false
   private vaultGeneration = 0
@@ -1312,6 +1314,26 @@ class AcpSession {
   }
 
   /**
+   * The conversation's Fast switch: the model's priority tier where the
+   * catalogue lists one. Off by default; the description says so and names
+   * the tier's own words.
+   */
+  private fastOption(): SessionConfigOption[] {
+    const tier = this.models.find((model) => model.modelId === this.modelId)?.fastTier
+    if (tier === undefined) return []
+    return [
+      {
+        id: ACP_CONFIG_IDS.fast,
+        name: tier.name,
+        description: fill(UI_TEXT.planUi.fastDetail, { description: tier.description }),
+        category: 'thought_level',
+        type: 'boolean',
+        currentValue: this.fast,
+      },
+    ]
+  }
+
+  /**
    * The effort the model runs: the wanted tier where it serves it, else
    * the model's own default, else the highest tier it serves.
    */
@@ -1501,6 +1523,7 @@ class AcpSession {
           name: effortLabel(level),
         })),
       },
+      ...this.fastOption(),
     ]
   }
 
@@ -1550,6 +1573,17 @@ class AcpSession {
   }
 
   public async setConfigOption(configId: string, value: unknown): Promise<void> {
+    if (configId === ACP_CONFIG_IDS.fast) {
+      if (typeof value !== 'boolean') throw RequestError.invalidParams(undefined, configId)
+      const tier = this.models.find((model) => model.modelId === this.modelId)?.fastTier
+      if (tier === undefined) throw RequestError.invalidParams(undefined, configId)
+      if (this.session.setServiceTier === undefined)
+        throw RequestError.internalError(undefined, UI_TEXT.actionFailed)
+      this.ensureHeld()
+      await this.session.setServiceTier(value ? tier.id : undefined)
+      this.fast = value
+      return
+    }
     if (typeof value !== 'string') {
       throw RequestError.invalidParams(undefined, configId)
     }
@@ -1575,6 +1609,10 @@ class AcpSession {
       this.ensureHeld()
       await this.session.setModel(value)
       this.modelId = value
+      // Fast never survives a model change: it is off by default, and the
+      // new model may list no priority tier at all.
+      this.fast = false
+      await this.session.setServiceTier?.(undefined)
       await this.applyEffort(this.effort)
       return
     }

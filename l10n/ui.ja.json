@@ -342,7 +342,8 @@
     "estimate-by": "--by <date>: 期限",
     "fleet": "--fleet current|minimum|optimum: 現在のマシン群 / 最小構成 / 最適構成",
     "estimate-format": "--format md|html|json|text: 出力形式",
-    "seed": "--seed <seed>: シミュレーションのシード"
+    "seed": "--seed <seed>: シミュレーションのシード",
+    "fast": "--fast: プランカタログのFastティアを使用します（2倍の速度、使用量増）。デフォルトではオフです。プランの使用量を多く消費します。"
   },
   "referenceScanSecrets": "UTF-8 のパッチファイルから秘密情報を検出し、見つかった場合は失敗終了します。--key-stdin はメモリ内の Model API キーそのものも検索します。キーは保存されません。",
   "referenceVault": "進行中.",
@@ -916,7 +917,8 @@
     "tokenCounts": "入力：{input} · 出力：{output} · リクエスト数：{requests}",
     "reduced": "機能制限あり",
     "aiContent": "AIが生成した内容は不正確な場合があります。Copilotは独自のルールを追加し、AIクレジットを使用します。使用量が報告されない場合、トークン数は推定値です。",
-    "reportContent": "有害な内容を報告"
+    "reportContent": "有害な内容を報告",
+    "fastDetail": "{description}。デフォルトではオフです。プランの使用量を多く消費します。"
   },
   "untitledConversation": "無題",
   "crashTitle": "パネルでエラーが発生しました",
@@ -3415,6 +3417,7 @@
   "execTooManyChunks": "入力がチャンク数の上限を超えています。",
   "execUnknownModel": "このモデルは今回の実行では利用できません。",
   "execEffortUnavailable": "このモデルではこの思考量を利用できません。",
+  "execFastUnavailable": "Fastはこのモデルでは利用できません。",
   "execTimedOut": "実行が制限時間に達しました。",
   "execBudgetRefused": "次のリクエストが残りの予算を超えます。",
   "execBudgetMinimum": "この実行には最低 {minimum} が必要です。",

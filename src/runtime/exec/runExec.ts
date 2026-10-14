@@ -949,6 +949,25 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
               )
               effort = options.effort
             }
+            if (options.fast) {
+              // The switch rides only where the model lists a priority
+              // tier; off by default, refused anywhere else.
+              const fastConfig = created.configOptions?.find(
+                (option) => option.id === ACP_CONFIG_IDS.fast,
+              )
+              if (fastConfig?.type !== 'boolean') {
+                setup.isUsageError = true
+                error = UI_TEXT.execFastUnavailable
+                return
+              }
+              await lifecycle.race(
+                connection.request('session/set_config_option', {
+                  sessionId: created.sessionId,
+                  configId: ACP_CONFIG_IDS.fast,
+                  value: true,
+                }),
+              )
+            }
             const tier = modelApiPaidTier(model ?? '')
             if (outputSchema !== undefined) {
               setup.isUsageError = true

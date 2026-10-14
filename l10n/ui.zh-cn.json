@@ -342,7 +342,8 @@
     "estimate-by": "--by <date>: 截止日期",
     "fleet": "--fleet current|minimum|optimum: 当前设备群 / 最小配置 / 最优配置",
     "estimate-format": "--format md|html|json|text: 输出格式",
-    "seed": "--seed <seed>: 模拟种子"
+    "seed": "--seed <seed>: 模拟种子",
+    "fast": "--fast: 使用套餐目录的 Fast 档（2 倍速度，用量增加）。默认关闭：它会消耗更多的套餐额度。"
   },
   "referenceScanSecrets": "扫描 UTF-8 补丁文件中的秘密信息，检测到时以失败退出。--key-stdin 还会检查内存中的 Model API 密钥原值；不保存密钥。",
   "referenceVault": "进行中.",
@@ -916,7 +917,8 @@
     "tokenCounts": "输入 {input} · 输出 {output} · 请求数：{requests}",
     "reduced": "功能受限",
     "aiContent": "AI 生成的内容可能不准确。Copilot 会添加自己的规则并使用你的 AI 点数；未报告用量时，令牌数为估算值。",
-    "reportContent": "举报有害内容"
+    "reportContent": "举报有害内容",
+    "fastDetail": "{description}。默认关闭：它会消耗更多的套餐额度。"
   },
   "untitledConversation": "未命名",
   "crashTitle": "面板出错了",
@@ -3415,6 +3417,7 @@
   "execTooManyChunks": "输入超过分块数量限制。",
   "execUnknownModel": "本次运行无法使用此模型。",
   "execEffortUnavailable": "此模型不支持该推理强度。",
+  "execFastUnavailable": "此模型不支持 Fast。",
   "execTimedOut": "运行已达到时限。",
   "execBudgetRefused": "下一次请求将超过剩余预算。",
   "execBudgetMinimum": "本次运行至少需要 {minimum}。",

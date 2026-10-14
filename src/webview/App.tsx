@@ -2294,6 +2294,9 @@ export function App({
     },
     [postMessage],
   )
+  const onToggleFast = useCallback(() => {
+    postMessage({ type: 'setFast', enabled: !store.getState().isFastEnabled })
+  }, [postMessage, store])
   const onSelectMode = useCallback(
     (id: string) => {
       const mode = availablePermissionModes(canBypass).find((candidate) => candidate === id)
@@ -2734,6 +2737,7 @@ export function App({
   const effortLevels =
     state.models.find((model) => model.modelId === state.model?.modelId)?.effortLevels ??
     effortLevelsFor(state.model?.modelId)
+  const fastTier = state.models.find((model) => model.modelId === state.model?.modelId)?.fastTier
   const onStepEffort = useCallback(
     (direction: -1 | 1) => {
       if (effortLevels.length === 0) return false
@@ -2955,17 +2959,41 @@ export function App({
           entries={modeEntries}
           align="right"
           footer={
-            effortLevels.length === 0 ? undefined : (
-              <div className="effort-row">
-                <span className="effort-row-label">
-                  {UI_TEXT.effortItem} ({effortLabel(state.effort)})
-                </span>
-                <EffortSlider
-                  levels={effortLevels}
-                  current={state.effort}
-                  onSelect={onSelectEffort}
-                />
-              </div>
+            fastTier === undefined && effortLevels.length === 0 ? undefined : (
+              <>
+                {effortLevels.length === 0 ? undefined : (
+                  <div className="effort-row">
+                    <span className="effort-row-label">
+                      {UI_TEXT.effortItem} ({effortLabel(state.effort)})
+                    </span>
+                    <EffortSlider
+                      levels={effortLevels}
+                      current={state.effort}
+                      onSelect={onSelectEffort}
+                    />
+                  </div>
+                )}
+                {fastTier === undefined ? undefined : (
+                  <div className="effort-row">
+                    <span className="effort-row-label" aria-hidden="true">
+                      {fastTier.name}
+                    </span>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={state.isFastEnabled}
+                      aria-label={`${fastTier.name}. ${fill(UI_TEXT.planUi.fastDetail, { description: fastTier.description })}`}
+                      className={state.isFastEnabled ? 'toggle toggle-on' : 'toggle'}
+                      onClick={onToggleFast}
+                    >
+                      <span className="toggle-knob" />
+                    </button>
+                    <span className="effort-row-label" aria-hidden="true">
+                      {fill(UI_TEXT.planUi.fastDetail, { description: fastTier.description })}
+                    </span>
+                  </div>
+                )}
+              </>
             )
           }
           onSelect={onSelectMode}

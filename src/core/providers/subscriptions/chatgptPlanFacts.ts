@@ -83,6 +83,11 @@ export function planOfferedLevels(facts: ChatGptPlanFacts): readonly EffortLevel
   return facts.reasoningLevels.filter(isEffortLevel)
 }
 
+/** The priority tier where the model lists one (the provider's Fast switch). */
+export function planFastTier(facts: ChatGptPlanFacts): ChatGptServiceTier | undefined {
+  return facts.serviceTiers.find((tier) => tier.id === 'priority')
+}
+
 /** The catalogue default where offered, else the lowest offered level. */
 export function planDefaultEffort(facts: ChatGptPlanFacts): EffortLevel | undefined {
   const offered = planOfferedLevels(facts)

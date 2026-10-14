@@ -342,7 +342,8 @@
     "estimate-by": "--by <date>: Termín",
     "fleet": "--fleet current|minimum|optimum: Aktuální flotila / Minimální sestava / Optimální sestava",
     "estimate-format": "--format md|html|json|text: Výstupní formát",
-    "seed": "--seed <seed>: Počáteční hodnota simulace"
+    "seed": "--seed <seed>: Počáteční hodnota simulace",
+    "fast": "--fast: Použít rychlou (Fast) úroveň katalogu plánu (2x rychlost, zvýšené využití). Ve výchozím nastavení vypnuto: spotřebovává více z kvóty vašeho plánu."
   },
   "referenceScanSecrets": "Prohledejte soubor opravy v UTF-8 na tajné údaje; při nálezu skončí příkaz chybou. --key-stdin také hledá přesný klíč Model API držený v paměti; klíč se neukládá.",
   "referenceVault": "Probíhá.",
@@ -928,7 +929,8 @@
     "tokenCounts": "Vstup: {input} · výstup: {output} · požadavky: {requests}",
     "reduced": "Omezené možnosti",
     "aiContent": "Obsah vytvořený AI může být nepřesný. Copilot přidává vlastní pravidla a čerpá vaše kredity AI; počty tokenů jsou odhady, pokud využití není hlášeno.",
-    "reportContent": "Nahlásit škodlivý obsah"
+    "reportContent": "Nahlásit škodlivý obsah",
+    "fastDetail": "{description}. Ve výchozím nastavení vypnuto: spotřebovává více z kvóty vašeho plánu."
   },
   "untitledConversation": "Bez názvu",
   "crashTitle": "V panelu došlo k chybě",
@@ -3634,6 +3636,7 @@
   "execTooManyChunks": "Vstup překračuje limit bloků.",
   "execUnknownModel": "Tento model není pro tento běh dostupný.",
   "execEffortUnavailable": "Tato úroveň úsilí není pro tento model dostupná.",
+  "execFastUnavailable": "Fast není pro tento model k dispozici.",
   "execTimedOut": "Běh dosáhl časového limitu.",
   "execBudgetRefused": "Další požadavek překračuje zbývající rozpočet.",
   "execBudgetMinimum": "Tento běh vyžaduje alespoň {minimum}.",

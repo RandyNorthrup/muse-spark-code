@@ -449,6 +449,7 @@ export function createResponsesCodec(
         stream: body.stream,
         store: body.store,
         include: body.include,
+        ...(isChatgpt && body.service_tier !== undefined && { service_tier: body.service_tier }),
         ...(!isChatgpt && { max_output_tokens: body.max_output_tokens }),
         ...((isChatgpt || quirks.sendPromptCacheKey) && {
           prompt_cache_key: body.prompt_cache_key,

@@ -342,7 +342,8 @@
     "estimate-by": "--by <date>: Prazo",
     "fleet": "--fleet current|minimum|optimum: Frota atual / Configuração mínima / Configuração ideal",
     "estimate-format": "--format md|html|json|text: Formato de saída",
-    "seed": "--seed <seed>: Semente da simulação"
+    "seed": "--seed <seed>: Semente da simulação",
+    "fast": "--fast: Usar o nível Fast do catálogo do plano (velocidade 2x, maior uso). Desativado por padrão: usa mais da sua cota do plano."
   },
   "referenceScanSecrets": "Verifica um arquivo de patch UTF-8 em busca de segredos e falha ao detectá-los. --key-stdin também procura a chave exata da Model API mantida em memória; nenhuma chave é armazenada.",
   "referenceVault": "Em andamento.",
@@ -924,7 +925,8 @@
     "tokenCounts": "{input} de entrada · {output} de saída · solicitações: {requests}",
     "reduced": "Recursos reduzidos",
     "aiContent": "O conteúdo gerado por IA pode ser impreciso. O Copilot adiciona suas próprias regras e usa seus créditos de IA; as contagens de tokens são estimativas quando o uso não é informado.",
-    "reportContent": "Denunciar conteúdo prejudicial"
+    "reportContent": "Denunciar conteúdo prejudicial",
+    "fastDetail": "{description}. Desativado por padrão: usa mais da sua cota do plano."
   },
   "untitledConversation": "Sem título",
   "crashTitle": "O painel encontrou um erro",
@@ -3561,6 +3563,7 @@
   "execTooManyChunks": "A entrada excede o limite de blocos.",
   "execUnknownModel": "Este modelo não está disponível para esta execução.",
   "execEffortUnavailable": "Este esforço não está disponível para este modelo.",
+  "execFastUnavailable": "Fast não está disponível para este modelo.",
   "execTimedOut": "A execução atingiu seu prazo.",
   "execBudgetRefused": "A próxima solicitação excede o orçamento restante.",
   "execBudgetMinimum": "Esta execução exige pelo menos {minimum}.",

@@ -574,6 +574,17 @@ export function featureCatalog(): readonly Feature[] {
       ['acp'],
     ),
     feature(
+      'fast-tier',
+      { cli: 'fast' },
+      { cli: 'fast' },
+      [],
+      [],
+      'headless-runs',
+      ['modelApi'],
+      false,
+      ['vscode', 'acp'],
+    ),
+    feature(
       'service-status',
       { ui: 'modelApiStatusLabel' },
       { ui: 'modelApiStatusOpen' },

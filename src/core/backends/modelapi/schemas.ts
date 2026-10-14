@@ -648,6 +648,12 @@ export interface CreateResponseBody {
   readonly instructions: string
   readonly tools: readonly ToolDefinition[]
   readonly tool_choice: 'auto'
+  /**
+   * The plan route's priority tier (`priority`) while the conversation's
+   * Fast switch is on; absent otherwise and off the keyed route, whose
+   * bytes are unchanged.
+   */
+  readonly service_tier?: string
   // Optional: Tab asks for no reasoning summary (M94, PLAN.md D73), so it
   // omits the key. Every existing request still sends `summary: 'auto'`,
   // whose bytes are unchanged.

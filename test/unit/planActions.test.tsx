@@ -34,7 +34,13 @@ function renderPanel(options: { readonly sideChat?: boolean } = {}) {
 }
 
 function setMode(permissionMode: 'plan' | 'manual') {
-  deliver({ type: 'composerState', effort: 'high', isThinkingEnabled: true, permissionMode })
+  deliver({
+    type: 'composerState',
+    effort: 'high',
+    isThinkingEnabled: true,
+    isFastEnabled: false,
+    permissionMode,
+  })
 }
 
 /** A turn that asked for a plan and the reply that holds it, completed. */
