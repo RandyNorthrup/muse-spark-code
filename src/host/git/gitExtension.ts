@@ -149,22 +149,6 @@ export async function openOwnedRepository(
   return { repository, cwd: selected.cwd, check: checkOwned }
 }
 
-/** A workspace may name its repository through a link; an ancestor repository is still refused. */
-export async function isRepositoryRoot(
-  repository: GitRepository,
-  root: string,
-  platform: NodeJS.Platform,
-): Promise<boolean> {
-  if (isSameFolder(repository.rootUri.fsPath, root, platform)) {
-    return true
-  }
-  const [actual, selected] = await Promise.all([
-    canonicalPath(repository.rootUri.fsPath),
-    canonicalPath(root),
-  ])
-  return isSameFolder(actual, selected, platform)
-}
-
 /** What `getAPI(1)` returns, as far as it is read: repositories are checked where they are taken. */
 export interface GitApi {
   getRepository(uri: vscode.Uri): unknown
