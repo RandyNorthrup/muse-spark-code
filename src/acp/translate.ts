@@ -281,6 +281,8 @@ export class UpdateTranslator {
     private readonly isReplay: boolean,
     private readonly readCost?: () => UsageCost | undefined,
     private readonly backend: 'modelApi' | 'museCode' = 'museCode',
+    /** The client advertised `session.notices`: only then may a notice go out. */
+    private readonly hasAdvertisedNotices = false,
   ) {}
 
   private deltaUpdates(itemId: string, field: string, delta: string): SessionUpdate[] {
@@ -471,16 +473,26 @@ export class UpdateTranslator {
             ]
       }
       case 'backendNotice': {
-        // A status of the product is never model text: the protocol's own
-        // notice channel (`Notice` in the pinned SDK 1.7.0,
-        // node_modules/@agentclientprotocol/sdk/dist/v2/schema/types.gen.d.ts:4441-4481:
-        // no client capability is required, and clients may ignore
-        // notices). Notices are live events, never session history, so
-        // they carry no separator. An empty notice has no title and is
+        // A status of the product is never model text where the client can
+        // show notices: the protocol's own notice channel. The schema the
+        // agent speaks is the pinned SDK 1.7.0's v1 one
+        // (node_modules/@agentclientprotocol/sdk/dist/schema/types.gen.d.ts,
+        // `Notice`): "Agents MUST only send notices when the Client
+        // advertised [`ClientSessionCapabilities::notices`]. Otherwise,
+        // Agents may use an agent message when the information should still
+        // be surfaced to the user." (The v2 schema beside it drops the
+        // capability; this agent negotiates PROTOCOL_VERSION 1.) So a
+        // client that advertised `session.notices` gets the notice update,
+        // and any other client gets the agent message the SDK sanctions,
+        // never silence. Notices are live events, never session history,
+        // so they carry no separator. An empty notice has no title and is
         // dropped, never sent as blank model text.
-        return event.text === ''
-          ? []
-          : [{ sessionUpdate: 'notice', severity: event.level, title: event.text }]
+        if (event.text.trim() === '') return []
+        return [
+          this.hasAdvertisedNotices
+            ? { sessionUpdate: 'notice', severity: event.level, title: event.text }
+            : agentText(`${event.text}${PART_SEPARATOR}`),
+        ]
       }
       case 'messageAdmitted': {
         // Nothing to send (M87): an ACP prompt is never queued behind
