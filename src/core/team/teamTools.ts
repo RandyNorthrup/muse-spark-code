@@ -405,6 +405,13 @@ export const teamCommandRecordsSchema = z.record(
   }),
 )
 
+export interface TeamCommandStore {
+  /** The persisted conversation's records, validated before restoring. */
+  readonly load: () => unknown
+  /** Resolves only when this exact claim/answer is durable. */
+  readonly save: (records: Readonly<Record<string, TeamCommandRecord>>) => Promise<void>
+}
+
 /** Stable fingerprint of a `delegate` call's tasks: key order cannot change it. */
 export function fingerprintDelegateTasks(tasks: readonly unknown[]): string {
   const sorted = (value: unknown): unknown => {

@@ -1,3 +1,4 @@
+import type { ScheduledPrompt } from '../../shared/schedule'
 import * as z from 'zod/mini'
 import { scheduleV2Schema } from '../../shared/scheduleV2'
 
@@ -24,4 +25,20 @@ export interface ScheduleMigrationJournalPort {
     receipt: MigrationReceipt,
     expectedSourceFingerprint: string,
   ): Promise<boolean>
+}
+export interface ScheduleMigrationEntry {
+  readonly job: ScheduledPrompt
+  readonly occurrences: readonly number[]
+  /** Source-private identity used to verify its bytes before removal. */
+  readonly fingerprint: string
+  /** Stable original job bytes, distinct from racing receipt bytes. */
+  readonly jobFingerprint?: string
+}
+export interface ScheduleMigrationSource {
+  /** Stable source namespace; the host factory hashes its storage directory. */
+  readonly id?: string
+  /** Seals v1 admission before returning a recovered, validated snapshot. */
+  freeze(): Promise<readonly ScheduleMigrationEntry[]>
+  /** Must refuse unless the original job and receipt bytes still match. */
+  removeVerified(entry: ScheduleMigrationEntry): Promise<void>
 }

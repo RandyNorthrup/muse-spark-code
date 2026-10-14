@@ -64,3 +64,11 @@ export function memoryContextIo(
     realPath: (absolutePath) => Promise.resolve(through(absolutePath)),
   }
 }
+
+/** Workspace-relative names keyed as absolute paths below `root`. */
+export function memoryTree(
+  files: Record<string, FileContent>,
+  root: string,
+): Map<string, FileContent> {
+  return new Map(Object.entries(files).map(([name, content]) => [`${root}/${name}`, content]))
+}
