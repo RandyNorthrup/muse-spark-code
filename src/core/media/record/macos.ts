@@ -24,6 +24,10 @@ import type { ScreenRecordingDriver, ScreenRecordingResult } from './driver'
 
 const PRIVATE_DIRECTORY_MODE = 0o700
 const PRIVATE_FILE_MODE = 0o600
+const SCREEN_SETTINGS =
+  'x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture'
+const MICROPHONE_SETTINGS =
+  'x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone'
 
 type Permission = 'screen' | 'microphone'
 
@@ -93,6 +97,14 @@ const probeSchema = z.strictObject({
   display: z.enum(['available', 'unavailable']),
   encoder: z.enum(['available', 'unavailable']),
 })
+
+/** Called only from the recovery action the user chose. */
+export async function openMacosRecordingPermissions(
+  permission: Permission,
+  openExternal: (uri: string) => Promise<void>,
+): Promise<void> {
+  await openExternal(permission === 'screen' ? SCREEN_SETTINGS : MICROPHONE_SETTINGS)
+}
 
 function unavailable(reason: string): ScreenRecordingResult & { readonly ok: false } {
   return { ok: false, reason: fill(UI_TEXT.media.recordingUnavailable, { reason }) }

@@ -16,7 +16,13 @@
 //
 // Pure: the sources themselves are injected (lanes A and L).
 
-import { GITHUB_TOKEN_SOURCE_ORDER } from '../../shared/constants'
+import * as z from 'zod/mini'
+import {
+  GITHUB_LEASE_TTL_MS,
+  GITHUB_OAUTH_CLIENT_ID,
+  GITHUB_PERMITTED_SCOPES,
+  GITHUB_TOKEN_SOURCE_ORDER,
+} from '../../shared/constants'
 import { GitHubError } from './github'
 
 export type GitHubTokenSourceKind = (typeof GITHUB_TOKEN_SOURCE_ORDER)[number]
@@ -129,4 +135,78 @@ export async function didDropRejectedCredential(
   }
   await sources.find((source) => source.kind === credential.source)?.rejected(credential)
   return true
+}
+
+/**
+ * `auth/githubLease`'s result, with M123's additive `expiresAt` (epoch ms).
+ * The runtime-side mirror of M104's MHP row until M104 merges (PLAN.md
+ * M123, lane 0); its `methods.ts` row takes the same field then.
+ */
+export const githubLeaseResultSchema = z.strictObject({
+  leaseId: z.nullable(z.string().check(z.uuid())),
+  expiresAt: z.optional(z.int().check(z.positive())),
+})
+
+/**
+ * When a lease granted at `grantedAt` stops being used: the editor's
+ * `expiresAt`, but never later than GITHUB_LEASE_TTL_MS after the grant.
+ */
+export function leaseExpiresAt(grantedAt: number, expiresAt: number | undefined): number {
+  const limit = grantedAt + GITHUB_LEASE_TTL_MS
+  return expiresAt === undefined ? limit : Math.min(expiresAt, limit)
+}
+
+/**
+ * The scopes a request may ask for: `repo`, and `read:org` once a lane has
+ * proved the need. Anything else (`workflow`, `admin:*`, `gist`…) is refused.
+ */
+export function assertPermittedScopes(scopes: readonly string[]): void {
+  if (scopes.some((scope) => !GITHUB_PERMITTED_SCOPES.includes(scope))) {
+    throw new GitHubTokenSourceError('scopeRefused')
+  }
+}
+
+/**
+ * The `required` scopes a token lacks, from GitHub's `X-OAuth-Scopes`
+ * header; undefined when the header is absent (a lease's answer, or a
+ * token type that does not report scopes), so nothing is guessed.
+ */
+export function missingScopes(
+  header: string | null,
+  required: readonly string[],
+): readonly string[] | undefined {
+  if (header === null) {
+    return
+  }
+  const granted = new Set(
+    header
+      .split(',')
+      .map((scope) => scope.trim())
+      .filter((scope) => scope !== ''),
+  )
+  return required.filter((scope) => !granted.has(scope))
+}
+
+/** The OAuth App's client id; refused while the owner has not registered the app (Q-M123). */
+export function requireOAuthClientId(clientId: string = GITHUB_OAUTH_CLIENT_ID): string {
+  if (clientId.trim() === '') {
+    throw new GitHubTokenSourceError('clientIdUnset')
+  }
+  return clientId
+}
+
+/** A setting's values by scope, as an editor's `inspect` reports them. */
+export interface SettingInspection {
+  readonly globalValue?: unknown
+  readonly workspaceValue?: unknown
+  readonly workspaceFolderValue?: unknown
+}
+
+/**
+ * Whether `museSpark.github.useGhLogin` is on: only the user's (or the
+ * machine's) own `true` counts. A repository's or folder's value is ignored,
+ * whatever it says, so a cloned project cannot read the user's `gh` token.
+ */
+export function isGhLoginEnabled(setting: SettingInspection | undefined): boolean {
+  return setting?.globalValue === true
 }

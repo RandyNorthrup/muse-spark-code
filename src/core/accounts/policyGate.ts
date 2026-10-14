@@ -1,5 +1,7 @@
 // D88.6: policy decisions are independent of editor, transport and credentials.
 import type { AccountTrigger } from '../../shared/accounts'
+import { UI_TEXT } from '../../shared/constants'
+import { fill } from '../../shared/l10n/text'
 import type { AccountPolicy } from '../providers/accountPolicy'
 import type { AccountConfirmations, AccountPolicyGrant } from './confirmations'
 
@@ -10,6 +12,30 @@ export type AccountPolicyDecision =
       readonly reason: 'notOffered' | 'confirmation' | 'ownCapsOnly' | 'cancel'
     }
   | { readonly kind: 'recovery'; readonly recovery: 'chatgptPlan' | 'museCodeSubscription' }
+
+/** The UI port displays these words plus the original sources, URL and page date. */
+export function accountPolicyQuestion(row: AccountPolicy): {
+  readonly warning: string
+  readonly legitimate: string
+  readonly choices: readonly {
+    readonly id: 'confirm' | 'ownCapsOnly' | 'cancel'
+    readonly label: string
+  }[]
+  readonly sources: AccountPolicy['sources']
+  readonly checkedAt: string
+} {
+  return {
+    warning: fill(UI_TEXT.accounts.confirmWarning, { provider: row.provider }),
+    legitimate: UI_TEXT.accounts.legitimate,
+    choices: [
+      { id: 'confirm', label: UI_TEXT.accounts.confirm },
+      { id: 'ownCapsOnly', label: UI_TEXT.accounts.ownCapsOnly },
+      { id: 'cancel', label: UI_TEXT.accounts.cancel },
+    ],
+    sources: row.sources,
+    checkedAt: row.checkedAt,
+  }
+}
 
 export class AccountPolicyGate {
   public constructor(private readonly confirmations: AccountConfirmations) {}

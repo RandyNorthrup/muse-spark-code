@@ -260,3 +260,36 @@ export class AccountStore {
     return await use(binding, credential)
   }
 }
+
+/** One factory call per account lookup; no client/header/cache crosses identities. */
+export interface AccountClientPort<Client, Scan> {
+  create(binding: AccountBinding, credential: AccountCredential | undefined): Promise<Client>
+  scan(binding: AccountBinding, client: Client): Promise<Scan>
+}
+export function accountClientLookup<Client, Scan>(
+  accounts: AccountStore,
+  clients: AccountClientPort<Client, Scan>,
+): {
+  client(provider: string, account: string, requestUrl: string): Promise<Client>
+  scan(provider: string, account: string, requestUrl: string): Promise<Scan>
+} {
+  return {
+    async client(provider, account, requestUrl) {
+      return await accounts.useCredential(
+        provider,
+        account,
+        requestUrl,
+        async (binding, credential) => await clients.create(binding, credential),
+      )
+    },
+    async scan(provider, account, requestUrl) {
+      return await accounts.useCredential(
+        provider,
+        account,
+        requestUrl,
+        async (binding, credential) =>
+          await clients.scan(binding, await clients.create(binding, credential)),
+      )
+    },
+  }
+}
