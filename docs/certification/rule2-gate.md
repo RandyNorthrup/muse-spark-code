@@ -97,5 +97,29 @@ Break on purpose: removing `JUDGED_ATTEMPT` from the required aggregate in
 only when its whole tier succeeded", exit 1). Restoring it turned it green
 (exit 0).
 
-Hosted: this pull request's own run is the first hosted execution of the merge
-door. Its result is recorded below when it ends.
+## First hosted execution (pull request 158, head fb8d0ff84)
+
+CI run 38597656750, attempt 1:
+
+- The gate job "first attempt, every run green (rule 2)" (job 115984548670)
+  ended success after 9 seconds. It was attempt 1, and the only other run on
+  the head (Hosts 38597656120) was complete and green.
+- The run was red for one reason: `build / tests (windows-latest, shard 8)`,
+  step "unit and process e2e tests". Five cases of
+  `test/unit/reportHistory.test.ts` failed:
+  - "retries a transient own-process identity failure within the probe bound"
+  - "allows later writes after exhausted own-process probes"
+  - "recovers the writer lock after killing its owner process"
+  - "recovers a reused PID only with a complete mismatched birth identity
+    lease"
+  - "waits for a live writer held longer than the old 100 ms contention
+    budget"
+
+  Each failed with its PowerShell child process killed (`signal: 'SIGTERM'`)
+  or with "Test timed out in 15000ms". This pull request changes no product
+  code and no test, so the red belongs to that file on the hosted Windows
+  runner. Which step of the PowerShell launch overran is not measured. The
+  five required aggregates failed because of that shard, as they must.
+
+Rule 2 applies to this record too: the run was not started again. This commit
+starts the next one.
