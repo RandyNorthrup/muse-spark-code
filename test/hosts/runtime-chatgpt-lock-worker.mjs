@@ -7,6 +7,6 @@ await withChatGptRefreshLock(
     process.send('held')
     await new Promise((resolve) => process.once('message', resolve))
   },
-  { port: Number(process.argv[3]), timeoutMs: 5000 },
+  { directory: process.argv[3], timeoutMs: 5000 },
 )
 process.disconnect()

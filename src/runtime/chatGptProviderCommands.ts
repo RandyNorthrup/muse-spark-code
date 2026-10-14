@@ -90,7 +90,8 @@ export interface ChatGptCommandText {
   beforeSignIn(): string
   alreadyAdded(): string
   status(state: ChatGptLocalStatus): string
-  failure(code: ChatGptSignInError['code']): string
+  /** `reason` carries the OS code for a `lock-unavailable` failure only. */
+  failure(code: ChatGptSignInError['code'], reason?: string): string
 }
 
 export interface ChatGptProviderCommandDeps {
@@ -161,7 +162,10 @@ export async function runChatGptProviderCommand(
     })
   } catch (error) {
     deps.printError(
-      deps.text.failure(error instanceof ChatGptSignInError ? error.code : 'request-failed'),
+      deps.text.failure(
+        error instanceof ChatGptSignInError ? error.code : 'request-failed',
+        error instanceof ChatGptSignInError ? error.reason : undefined,
+      ),
     )
     return 1
   }
@@ -173,10 +177,13 @@ export function chatGptCommandText(): ChatGptCommandText {
     beforeSignIn: () => UI_TEXT.acpChatGpt.notice,
     alreadyAdded: () => UI_TEXT.acpChatGpt.alreadyAdded,
     status: (state) => UI_TEXT.acpChatGpt.states[state],
-    failure: (code) => {
+    failure: (code, reason) => {
       switch (code) {
         case 'store-unavailable': {
           return UI_TEXT.acpChatGpt.storeUnavailable
+        }
+        case 'lock-unavailable': {
+          return fill(UI_TEXT.acpChatGpt.lockUnavailable, { reason: reason ?? code })
         }
         case 'expired': {
           return UI_TEXT.planUi.expired
@@ -317,6 +324,7 @@ export function chatGptAuthenticationMethods(
         } catch (error) {
           return chatGptCommandText().failure(
             error instanceof ChatGptSignInError ? error.code : 'request-failed',
+            error instanceof ChatGptSignInError ? error.reason : undefined,
           )
         }
       },

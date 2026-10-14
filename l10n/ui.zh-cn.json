@@ -4169,7 +4169,8 @@
     },
     "callback": "ChatGPT 登录完成。请返回编辑器或终端。",
     "failure": "无法完成 ChatGPT 登录。请重试，或移除后重新登录。",
-    "storeUnavailable": "此计算机的凭据存储不可用。请从交互式桌面会话中登录，并解锁凭据存储；在 Linux 上，请先启动 Secret Service。"
+    "storeUnavailable": "此计算机的凭据存储不可用。请从交互式桌面会话中登录，并解锁凭据存储；在 Linux 上，请先启动 Secret Service。",
+    "lockUnavailable": "无法打开本地登录锁（{reason}）。请重试。"
   },
   "execProviderNotConfigured": "提供方 {id} 未配置。",
   "providerText": {

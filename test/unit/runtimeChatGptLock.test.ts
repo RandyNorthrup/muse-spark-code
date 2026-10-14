@@ -1,11 +1,17 @@
+// The real grant-lock module, real child processes, real temp folders. No
+// stand-ins: every test below fails when a person would be hurt (a second
+// holder, a lost lock after a crash, a stale file, a reserved port, a local
+// failure masked as "temporarily unavailable").
 import { spawn, type ChildProcess } from 'node:child_process'
 import { once } from 'node:events'
-import { mkdir, mkdtemp, rm } from 'node:fs/promises'
+import { lstat, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { createServer } from 'node:net'
 import path from 'node:path'
 import { build } from 'esbuild'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { withChatGptRefreshLock } from '../../src/runtime/chatGptRefreshLock'
+import { chatGptCommandText } from '../../src/runtime/chatGptProviderCommands'
+import { CHATGPT_GRANT_LOCK_FILE } from '../../src/shared/constants'
 
 const scratch = { folder: '' }
 beforeAll(async () => {
@@ -24,26 +30,21 @@ afterAll(async () => {
   if (scratch.folder !== '') await rm(scratch.folder, { recursive: true, force: true })
 })
 
-async function freePort(): Promise<number> {
-  const server = createServer()
-  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
-  const address = server.address()
-  if (address === null || typeof address === 'string') throw new Error('missing address')
-  await new Promise<void>((resolve) =>
-    server.close(() => {
-      resolve()
-    }),
-  )
-  return address.port
+async function lockDirectory(prefix: string): Promise<string> {
+  return await mkdtemp(path.join(scratch.folder, prefix))
 }
 
-function worker(port: number): ChildProcess {
+function socketFile(directory: string): string {
+  return path.join(directory, CHATGPT_GRANT_LOCK_FILE)
+}
+
+function worker(directory: string): ChildProcess {
   return spawn(
     process.execPath,
     [
       path.resolve('test/hosts/runtime-chatgpt-lock-worker.mjs'),
       path.join(scratch.folder, 'lock.cjs'),
-      String(port),
+      directory,
     ],
     {
       stdio: ['ignore', 'ignore', 'pipe', 'ipc'],
@@ -66,7 +67,7 @@ function exited(child: ChildProcess): Promise<number | null> {
 
 describe('ACP ChatGPT process lock', () => {
   it('serializes callers and releases after success', async () => {
-    const port = await freePort()
+    const directory = await lockDirectory('serial-')
     const held = Promise.withResolvers<undefined>()
     const release = Promise.withResolvers<undefined>()
     const order: string[] = []
@@ -77,7 +78,7 @@ describe('ACP ChatGPT process lock', () => {
         await release.promise
         order.push('released')
       },
-      { port, timeoutMs: 2000 },
+      { directory, timeoutMs: 2000 },
     )
     await held.promise
     const second = withChatGptRefreshLock(
@@ -85,7 +86,7 @@ describe('ACP ChatGPT process lock', () => {
         order.push('second')
         return Promise.resolve('done')
       },
-      { port, timeoutMs: 2000 },
+      { directory, timeoutMs: 2000 },
     )
     try {
       await new Promise((resolve) => setTimeout(resolve, 50))
@@ -101,18 +102,20 @@ describe('ACP ChatGPT process lock', () => {
   })
 
   it('releases after a thrown operation and withholds its secret-bearing error', async () => {
-    const port = await freePort()
+    const directory = await lockDirectory('thrown-')
     await expect(
-      withChatGptRefreshLock(() => Promise.reject(new Error('synthetic-private-detail')), { port }),
+      withChatGptRefreshLock(() => Promise.reject(new Error('synthetic-private-detail')), {
+        directory,
+      }),
     ).rejects.toThrow('chatgpt.request-failed')
     await expect(
-      withChatGptRefreshLock(() => Promise.resolve('next'), { port, timeoutMs: 2000 }),
+      withChatGptRefreshLock(() => Promise.resolve('next'), { directory, timeoutMs: 2000 }),
     ).resolves.toBe('next')
   })
 
   it('never steals a live process lock, and times out or cancels without running work', async () => {
-    const port = await freePort()
-    const child = worker(port)
+    const directory = await lockDirectory('live-')
+    const child = worker(directory)
     try {
       expect(await once(child, 'message')).toEqual(['held', undefined])
       let isEntered = false
@@ -121,7 +124,7 @@ describe('ACP ChatGPT process lock', () => {
         return Promise.resolve()
       }
       const bounded = Promise.race([
-        withChatGptRefreshLock(work, { port, timeoutMs: 40 }),
+        withChatGptRefreshLock(work, { directory, timeoutMs: 40 }),
         new Promise((_resolve, reject) => {
           setTimeout(() => {
             reject(new Error('lock deadline did not fire'))
@@ -130,7 +133,7 @@ describe('ACP ChatGPT process lock', () => {
       ])
       await expect(bounded).rejects.toThrow('request-failed')
       const controller = new AbortController()
-      const waiting = withChatGptRefreshLock(work, { port, signal: controller.signal })
+      const waiting = withChatGptRefreshLock(work, { directory, signal: controller.signal })
       controller.abort()
       await expect(waiting).rejects.toThrow('request-failed')
       expect(isEntered).toBe(false)
@@ -143,23 +146,99 @@ describe('ACP ChatGPT process lock', () => {
   })
 
   it('recovers automatically after the owner process crashes', async () => {
-    const port = await freePort()
-    const child = worker(port)
+    const directory = await lockDirectory('crash-')
+    const child = worker(directory)
     try {
       const message = await once(child, 'message')
       expect(message[0]).toBe('held')
       const exit = exited(child)
       child.kill('SIGKILL')
       await exit
+      // The crash leaves the socket file behind with no listener.
+      const crashed = await lstat(socketFile(directory))
+      expect(crashed.isSocket()).toBe(true)
       await expect(
-        withChatGptRefreshLock(() => Promise.resolve('recovered'), { port, timeoutMs: 2000 }),
+        withChatGptRefreshLock(() => Promise.resolve('recovered'), {
+          directory,
+          timeoutMs: 2000,
+        }),
       ).resolves.toBe('recovered')
     } finally {
       child.kill()
     }
   })
 
+  it('replaces a stale socket file left without a listener', async () => {
+    const directory = await lockDirectory('stale-')
+    const park = createServer((socket) => socket.destroy())
+    await new Promise<void>((resolve) => {
+      park.listen(socketFile(directory), () => {
+        resolve()
+      })
+    })
+    await new Promise<void>((resolve) => {
+      park.close(() => {
+        resolve()
+      })
+    })
+    // Closing never unlinks: the file outlives its listener, as after a crash.
+    const parked = await lstat(socketFile(directory))
+    expect(parked.isSocket()).toBe(true)
+    await expect(
+      withChatGptRefreshLock(() => Promise.resolve('replaced'), { directory, timeoutMs: 2000 }),
+    ).resolves.toBe('replaced')
+  })
+
+  it('takes the lock while the old fixed TCP port is held by another listener', async () => {
+    const directory = await lockDirectory('port-')
+    // The old lock bound this exact port; the new one never touches TCP. If
+    // this machine's OS already holds or reserves it, that only strengthens
+    // the premise, so every setup outcome proceeds to the same assertion.
+    const squatter = createServer((socket) => socket.destroy())
+    const isHeld = await new Promise<boolean>((resolve) => {
+      squatter.once('error', () => {
+        resolve(false)
+      })
+      squatter.listen(49_953, '127.0.0.1', () => {
+        resolve(true)
+      })
+    })
+    try {
+      await expect(
+        withChatGptRefreshLock(() => Promise.resolve('unblocked'), {
+          directory,
+          timeoutMs: 2000,
+        }),
+      ).resolves.toBe('unblocked')
+    } finally {
+      if (isHeld) {
+        await new Promise<void>((resolve) => {
+          squatter.close(() => {
+            resolve()
+          })
+        })
+      }
+    }
+  })
+
+  it('reports a local listener failure with its OS code, never as temporarily unavailable', async () => {
+    const directory = await lockDirectory('local-')
+    const blocker = path.join(directory, 'blocker')
+    await writeFile(blocker, 'a regular file, not a folder')
+    await expect(
+      withChatGptRefreshLock(() => Promise.resolve('never'), {
+        directory: path.join(blocker, 'grant'),
+        timeoutMs: 2000,
+      }),
+    ).rejects.toThrow('chatgpt.lock-unavailable')
+    const sentence = chatGptCommandText().failure('lock-unavailable', 'ENOTDIR')
+    expect(sentence).toContain('ENOTDIR')
+    expect(sentence).toContain('could not be opened')
+    expect(sentence).not.toContain('temporarily unavailable')
+  })
+
   it('refuses an already cancelled acquisition before running work', async () => {
+    const directory = await lockDirectory('cancelled-')
     const controller = new AbortController()
     controller.abort()
     let isEntered = false
@@ -169,7 +248,7 @@ describe('ACP ChatGPT process lock', () => {
           isEntered = true
           return Promise.resolve()
         },
-        { signal: controller.signal },
+        { directory, signal: controller.signal },
       ),
     ).rejects.toThrow('request-failed')
     expect(isEntered).toBe(false)
