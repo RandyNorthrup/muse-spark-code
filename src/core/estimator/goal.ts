@@ -64,6 +64,8 @@ const snapshotSchema = z
     }),
   )
 
+export type EstimateGoalSnapshot = z.infer<typeof snapshotSchema>
+
 /** M117-G-M113-snapshot: scrubbed application projections, not wire frames.
  * The adapter reads one bounded snapshot at asOf, including prerequisites.
  * Missing sources/estimates reject the read; no empty fallback is supplied.
