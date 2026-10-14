@@ -233,6 +233,17 @@ history is in this file. `PLAN.md` is at its archive threshold: closed
 history has to move to `docs/plan-archive/` by the procedure in
 `CONTRIBUTING.md` before much more is added.
 
+The review corrections on 2026-10-14 took the plan to 3,565,811 bytes,
+653 over the 3,565,158-byte gate. `npm run plan:archive` moved two closed
+section 7 records (the resolved 2026-09-27 bundle budget and the 2026-10-04
+browser size blocker resolved by FIX78W), 1,482 bytes, into
+`docs/plan-archive/gates.md`. Its reassembly was byte-identical to the
+pre-move plan (SHA-256
+`4ed12d970514d487745722feb1b39ee0a259919f4f5cd621eb70b916af1e5ae5`),
+parsed facts were identical and format drift was zero. The plan is now
+3,564,435 bytes, with 723 bytes of room. No local branch's plan diff touched
+those passages or their neighbours, and no test or script cites them.
+
 ## The hosted runs
 
 Times are Pacific, 2026-10-12. Two hosted runs of the released tree were
@@ -265,48 +276,63 @@ the probe watched, which is the red above (the first run stopped recording at
 the check, so its ten greens show nothing). It is a defect of the product
 that a person can see (open a file within half a second of a chat panel
 loading and the typing goes into the chat), there since 2026-09-21
-(`fb1166ec6f`) and in none of the files 0.18.2 changed; its fix is the next
-release's work.
+(`fb1166ec6f`) and in none of the files 0.18.2 changed. Its product fix is
+open work: the panel focus fix, branch `fix/panel-focus-steal`, is in review,
+not merged. Hosts run 38340629307, workflow_dispatch on the same released
+commit, ended cancelled.
 
 **Red on the pull request's head.** The CI run of pull request 153, below.
 
-| Run                                | Head        | Result                                                                                             |
-| ---------------------------------- | ----------- | -------------------------------------------------------------------------------------------------- |
-| CI 38308581634, 2:06 PM            | `e34587544` | Red: `check:plan`, the plan's size (above). Cancelled by the next push                             |
-| CI 38309090365, 2:11 PM            | `2e2b48e90` | 29 jobs green, none red, when the next push cancelled it (the walkthrough's other two pictures)    |
-| CI 38311021688, 2:30 PM, attempt 1 | `d243e0771` | 37 jobs green, one red: `tests (macos-latest, shard 6)`; the five aggregate names red with it      |
-| The same run, attempt 2, 5:35 PM   | `d243e0771` | The one failed job run again on the same commit, against the gate's rule (below): green at 5:48 PM |
-| Hosts 38311021363                  | `d243e0771` | 15 of 15                                                                                           |
-| Action check 38311021286           | `d243e0771` | 11 of 11                                                                                           |
+| Run                                | Head        | Result                                                                                          |
+| ---------------------------------- | ----------- | ----------------------------------------------------------------------------------------------- |
+| CI 38308581634, 2:06 PM            | `e34587544` | Red: `check:plan`, the plan's size (above). Cancelled by the next push                          |
+| CI 38309090365, 2:11 PM            | `2e2b48e90` | 29 jobs green, none red, when the next push cancelled it (the walkthrough's other two pictures) |
+| CI 38311021688, 2:30 PM, attempt 1 | `d243e0771` | 44 jobs listed: 37 success, 6 failure, 1 skipped                                                |
+| The same run, attempt 2, 5:35 PM   | `d243e0771` | 46 jobs listed, all 46 success; rerun on the same commit, against the gate's rule (below)       |
+| Hosts 38311021363                  | `d243e0771` | 15 of 15                                                                                        |
+| Action check 38311021286           | `d243e0771` | 11 of 11                                                                                        |
 
-The red shard, measured from the logs: `test/unit/m114Panel.test.mjs`, its
-first case, "loads the real lazy menu independently of the secret modal focus
-owner", ran into its 5,000 ms limit. The same case took 946 ms on Ubuntu and
-608 ms on Windows in that run (1,066 ms and 452 ms on pull request 151's
-green run), so the change did not slow it. On hosted macOS it had taken
-2,635 ms on the green run. It is the first case of its file and opens the
-file's first two browser pages; in the red attempt the file's first three
-cases took about twice as long as on the green run (over 5,007, then 3,270
-and 1,915 ms against 2,635, 1,948 and 998), the other 68 the same, and the
-file 71.7 s against 75.5 s. That is a cold browser start on a hosted macOS
-runner inside one case's limit. No limit was raised and nothing was changed
-in the test; the weakness (a browser suite whose first case opens its first
-page) is left to the test overhaul by the lead's decision.
+Attempt 1's job conclusions, from `actions/runs/38311021688/attempts/1/jobs`:
+37 success, 6 failure and 1 skipped out of 44 listed jobs. The six failures
+come from one root red, `build / tests (macos-latest, shard 6)`, at step 5,
+"unit and process e2e tests", and its five required aggregates:
+`build / dictation helper (macos)`, `build / package (.vsix)` and
+`build / quality (windows-latest)`, `build / quality (ubuntu-latest)`,
+`build / quality (macos-latest)`. The skipped job is
+`build / merged coverage (macos)`. Attempt 2 lists 46 jobs, all 46 success.
+
+The failing shard's log (job 115017063279) measures one case exceeding
+Vitest's 5,000 ms default timeout: "loads the real lazy menu independently
+of the secret modal focus owner" (`test/unit/m114Panel.test.mjs:241`). The
+file's other 70 cases passed; the log records no step times. The browser is
+already warmed in the file's `beforeAll` hook (lines 85–91).
+
+The unmerged probe `probe/m114-first-case`, head `b45c7592b`, Hosts run
+38340914755, ran the file 14 times across six jobs on hosted macOS with
+three cores. The case passed 14/14 in 1.2–3.9 s; the load average before
+it was 11–52. The two longest cases (3.9 s and 2.9 s) ran while two
+`MTLCompilerService` processes used 80–95% CPU each. The probe's "file
+alone" jobs ended red only on coverage thresholds (one file run alone
+with coverage on), not on a test. The case's run time on hosted macOS is
+close to its 5 s budget under load; which step overran in the failing run
+is not measured. Disposition: open; deciding the case's fate belongs to
+the test overhaul, branch `chore/test-overhaul`, now in review, not merged.
+No limit was raised and nothing in the test was changed for this record.
 
 **The gate's rule was not kept.** `AGENTS.md` rule 2: "Hosted CI is the gate
 for a release: every job green on the commit that merges, and a red job is
-read and its cause measured, never rerun into green." The red job was read
-and its cause measured, and then that one job was run again on the same
+read and its cause measured, never rerun into green." The red job was read,
+but which step overran was not measured; then that job was run again on the same
 commit and pull request 153 was merged on its second attempt. That is the
 rerun the rule forbids, and it was the release agent's mistake: the sentence
 of the rule had not been read before the job was run again. So the released
 tree has no hosted run in which every job was green on its first attempt:
 0.18.2 was merged and published without the gate as the rule defines it. The
 72 green checks GitHub showed on the pull request include that second
-attempt. What there is instead: 45 of the workflow's 46 jobs green on their
-first attempt, the measured cause of the one that was not, that job's green
-second attempt, and the real runs through the packed and the published file
-below.
+attempt. What there is instead: attempt 1's 44 listed jobs (37 success,
+6 failure, 1 skipped), the single root red described above, attempt 2's
+46 successful jobs, and the real runs through the packed and the published
+file below.
 
 The pull request that carries this record (155) met a runner fault on its
 first head (`ce6d5d307`, run 38331067480, job 115080677787): the Windows
@@ -319,16 +345,16 @@ the cause. A runner fault is answered by a new commit that says
 why, with the run and the job, which starts a fresh full run. Pull request
 155 merges only on a head whose runs are all green on their first attempt.
 
-Every other hosted run of the two releases was green on its first attempt.
+The following other hosted runs of the two releases were green on their
+first attempt.
 0.18.1: pull request 151's CI 38293068319, Hosts 38293067597 and Action
 check 38293067550 on its head `e90f0140c`; on the released commit
 `38ef148f1`, Hosts 38298001441 and the Release run 38298298094. 0.18.2: on
 the head `d243e0771`, Hosts 38311021363 and Action check 38311021286; on the
 released commit, the Release run 38329786779.
 
-Without the screenshot jobs the workflow has 46 jobs: the list of the red
-attempt showed 44, because the macOS coverage job was skipped and one more
-was not listed. The 46 jobs of the completed run took 291 minutes of runner
+Without the screenshot jobs, attempt 1 listed 44 jobs (including the
+skipped macOS coverage job); attempt 2 listed 46. The 46 jobs of the completed run took 291 minutes of runner
 time, and the red shard's first attempt another 12. The last run with the
 screenshot jobs (pull request 151, 38293068319) had 53 jobs and 369 minutes,
 88 of them in the seven screenshot jobs: seven jobs and about 78 minutes
