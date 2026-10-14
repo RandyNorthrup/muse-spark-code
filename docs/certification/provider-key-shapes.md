@@ -208,11 +208,14 @@ final run uses the repo default).
 Left for the lead per the owner's 2026-10-12 testing rules (stand-in
 tests are never repaired by a lane):
 
-- `test/unit/providersX.test.ts` "refuses an unknown preset, a repeat,
-  a bad shape and a missing key": asserts the OLD contract (exit 1 for
-  key `'wrong-shape'` on groq). With the fix the key goes to the key
-  test and the fake list accepts it (exit 0). Fails on assertion;
-  named, not repaired.
+- `test/unit/providersX.test.ts` "refuses an unknown preset, a repeat
+  and a missing key": the old bad-shape sub-case (exit 1 for key
+  `'wrong-shape'` on groq, the pre-PROVKEYS contract) was deleted in
+  `a4125641c`, not repaired through the stand-in, per the owner's
+  2026-10-12 testing rules; the real-module coverage is
+  `test/unit/providerKeyInspect.test.ts`. The renamed test passes on
+  the final tree: 34 passed at the repo default timeout (lane PRFIX159,
+  wslpc rig, load ~3.5).
 - `test/unit/execProvider.test.ts`, `providerKeyPrompt.test.ts`,
   `modelsQuickPick.test.ts` contain stand-ins and were repaired by the
   earlier session before the owner's rules arrived; kept, disclosed.
