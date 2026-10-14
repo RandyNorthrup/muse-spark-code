@@ -66,6 +66,10 @@ export function acpMspHost() {
   }))
   server.handle('session/resume', acpResumeEnvelope)
   server.handle('view/page', () => ({ events: [], nextCursor: null }))
+  server.handle('session/setModel', (params) => ({
+    status: 'accepted',
+    commandId: params['commandId'],
+  }))
   server.handle('session/setApprovalMode', ack)
   server.handle('session/setReasoningEffort', ack)
   server.handle('skill/list', () => ({ skills: [] }))
