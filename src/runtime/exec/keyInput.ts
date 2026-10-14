@@ -171,6 +171,28 @@ export async function readProviderKeyLine(
   return trimmed === '' ? { ok: false, reason: 'empty' } : { ok: true, key: trimmed }
 }
 
+/**
+ * One sentence for each failed provider-key stdin read. This is the
+ * mapping the callers share; today it repeats what each caller already
+ * says, including the wrong `invalid` answer, which KEYTEXT fixes next.
+ */
+export function providerKeyFailureText(reason: 'tty' | 'empty' | 'invalid' | 'tooLong'): string {
+  switch (reason) {
+    case 'tty': {
+      return UI_TEXT.execKeyStdinTerminal
+    }
+    case 'empty': {
+      return UI_TEXT.providerKeyNotStored
+    }
+    case 'tooLong': {
+      return UI_TEXT.execKeyTooLong
+    }
+    case 'invalid': {
+      return UI_TEXT.providerKeyNotStored
+    }
+  }
+}
+
 export async function readPromptStdin(
   input: Readable,
   maxBytes: number,
