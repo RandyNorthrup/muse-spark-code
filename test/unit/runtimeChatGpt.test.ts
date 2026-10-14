@@ -149,7 +149,7 @@ function record(): ChatGptRecord {
     origin: 'https://api.openai.com',
     issuer: ISSUER,
     clientId: 'oaiapp_synthetic',
-    hostId: 'synthetic_host_123456789',
+    hostId: 'urn:uuid:12345678-1234-4234-8234-123456789012',
     accessToken: 'synthetic-access',
     refreshToken: 'synthetic-refresh',
     expiresAt: Date.now() + 3_600_000,
@@ -672,7 +672,9 @@ describe('ACP ChatGPT OS-store adapter and commands', () => {
     const run = rig()
     const [one, two] = await Promise.all([run.createHost(), run.createHost()])
     expect(one.hostId).toBe(two.hostId)
-    expect(one.hostId).toMatch(/^[A-Za-z0-9_-]{22}$/u)
+    expect(one.hostId).toMatch(
+      /^urn:uuid:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u,
+    )
     expect(run.values.size).toBe(1)
   })
 
