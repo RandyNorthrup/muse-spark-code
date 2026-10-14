@@ -132,6 +132,30 @@ describe('wrong options and values', () => {
     expect(reason).toContain('--provider')
     expect(reason).toContain('auth --help')
   })
+
+  it('refuses a secret-looking option on serve and in key spellings without repeating it', () => {
+    for (const [argv, hidden] of [
+      [['--account-secret-canary'], 'account-secret-canary'],
+      [['--backend', 'modelApi', '--account-secret-canary'], 'account-secret-canary'],
+      [['exec', '--api-key', 'x', 'hi'], 'api-key'],
+      [['exec', '--api_key', 'x', 'hi'], 'api_key'],
+      [['exec', '--SECRET-KEY', 'x', 'hi'], 'SECRET-KEY'],
+    ] as const) {
+      const parsed = parseCommandLine([...argv])
+      expect(parsed, argv.join(' ')).toMatchObject({ command: 'invalid', exitCode: 2 })
+      const reason = parsed.command === 'invalid' ? parsed.reason : ''
+      expect(reason, argv.join(' ')).not.toContain(hidden)
+    }
+  })
+
+  it('names serve accepted options for a wrong serve option', () => {
+    const parsed = parseCommandLine(['--max-budgut', '1'])
+    expect(parsed).toMatchObject({ command: 'invalid', exitCode: 2 })
+    const reason = parsed.command === 'invalid' ? parsed.reason : ''
+    expect(reason).toContain('--max-budgut')
+    expect(reason).toContain('--max-budget-usd')
+    expect(reason).toContain('--trust-workspace')
+  })
 })
 
 describe('one table drives parsing and help', () => {

@@ -382,10 +382,14 @@ export function parseCommandLine<T>(
   try {
     parsed = parseCommandLineStrictly(argv)
   } catch (error: unknown) {
-    const [maybeTopic] = argv
-    const topic = helpTopicNamed(maybeTopic ?? '')
-    if (topic !== undefined && error instanceof Error && /unknown option/i.test(error.message)) {
-      return invalidStrictOption(topic.name, topicShownOptionNames(topic), error)
+    if (error instanceof Error && /unknown option/i.test(error.message)) {
+      // The strict grammar is the serve family: a bare wrong option belongs
+      // to serve, a named one to its command. The raw parser message is
+      // never the answer: it repeats the typed name (D108 secret rule).
+      const named = argv.find((argument) => helpTopicNamed(argument) !== undefined) ?? 'serve'
+      const topic = helpTopicNamed(named)
+      if (topic !== undefined)
+        return invalidStrictOption(topic.name, topicShownOptionNames(topic), error)
     }
     if (argv.includes('auth'))
       return { command: 'invalid', reason: UI_TEXT.accounts.credentialHelp }
