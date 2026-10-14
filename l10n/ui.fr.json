@@ -926,7 +926,8 @@
     "reduced": "Fonctionnalités réduites",
     "aiContent": "Le contenu généré par l’IA peut être inexact. Copilot ajoute ses propres règles et utilise vos crédits IA ; les nombres de jetons sont des estimations si l’utilisation n’est pas déclarée.",
     "reportContent": "Signaler du contenu nuisible",
-    "fastDetail": "{description}. Désactivé par défaut : cela utilise davantage votre quota de forfait."
+    "fastDetail": "{description}. Désactivé par défaut : cela utilise davantage votre quota de forfait.",
+    "requestFailed": "La requête au forfait ChatGPT a échoué : {message}"
   },
   "untitledConversation": "Sans titre",
   "crashTitle": "Le panneau a rencontré une erreur",

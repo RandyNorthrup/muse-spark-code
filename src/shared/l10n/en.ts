@@ -1118,6 +1118,8 @@ export const EN = {
     reportContent: 'Report Harmful Content',
     // {description}: the catalogue's own words for the priority tier.
     fastDetail: '{description}. Off by default: it uses more of your plan allowance.',
+    // {message}: OpenAI's own error message for the failed plan request.
+    requestFailed: 'The ChatGPT plan request failed: {message}',
   },
   untitledConversation: 'Untitled',
   crashTitle: 'The Panel Hit an Error',

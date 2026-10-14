@@ -930,7 +930,8 @@
     "reduced": "Ograniczone możliwości",
     "aiContent": "Treści generowane przez AI mogą być niedokładne. Copilot dodaje własne reguły i używa Twoich kredytów AI; liczby tokenów są szacunkowe, gdy użycie nie jest zgłaszane.",
     "reportContent": "Zgłoś szkodliwe treści",
-    "fastDetail": "{description}. Domyślnie wyłączone: zużywa więcej limitu Twojego planu."
+    "fastDetail": "{description}. Domyślnie wyłączone: zużywa więcej limitu Twojego planu.",
+    "requestFailed": "Żądanie planu ChatGPT nie powiodło się: {message}"
   },
   "untitledConversation": "Bez tytułu",
   "crashTitle": "W panelu wystąpił błąd",

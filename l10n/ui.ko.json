@@ -918,7 +918,8 @@
     "reduced": "제한된 기능",
     "aiContent": "AI가 생성한 콘텐츠는 부정확할 수 있습니다. Copilot은 자체 규칙을 추가하고 AI 크레딧을 사용합니다. 사용량이 보고되지 않으면 토큰 수는 추정치입니다.",
     "reportContent": "유해 콘텐츠 신고",
-    "fastDetail": "{description}. 기본적으로 꺼져 있습니다. 플랜 할당량을 더 많이 사용합니다."
+    "fastDetail": "{description}. 기본적으로 꺼져 있습니다. 플랜 할당량을 더 많이 사용합니다.",
+    "requestFailed": "ChatGPT 플랜 요청이 실패했습니다: {message}"
   },
   "untitledConversation": "제목 없음",
   "crashTitle": "패널에서 오류가 발생했습니다",

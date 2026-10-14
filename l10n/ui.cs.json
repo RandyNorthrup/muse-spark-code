@@ -930,7 +930,8 @@
     "reduced": "Omezené možnosti",
     "aiContent": "Obsah vytvořený AI může být nepřesný. Copilot přidává vlastní pravidla a čerpá vaše kredity AI; počty tokenů jsou odhady, pokud využití není hlášeno.",
     "reportContent": "Nahlásit škodlivý obsah",
-    "fastDetail": "{description}. Ve výchozím nastavení vypnuto: spotřebovává více z kvóty vašeho plánu."
+    "fastDetail": "{description}. Ve výchozím nastavení vypnuto: spotřebovává více z kvóty vašeho plánu.",
+    "requestFailed": "Požadavek plánu ChatGPT se nezdařil: {message}"
   },
   "untitledConversation": "Bez názvu",
   "crashTitle": "V panelu došlo k chybě",

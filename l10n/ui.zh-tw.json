@@ -918,7 +918,8 @@
     "reduced": "功能受限",
     "aiContent": "AI 產生的內容可能不準確。Copilot 會加入自己的規則並使用你的 AI 點數；未回報用量時，權杖數為估算值。",
     "reportContent": "檢舉有害內容",
-    "fastDetail": "{description}。預設為關閉：會消耗更多的方案額度。"
+    "fastDetail": "{description}。預設為關閉：會消耗更多的方案額度。",
+    "requestFailed": "ChatGPT 方案請求失敗：{message}"
   },
   "untitledConversation": "未命名",
   "crashTitle": "面板發生錯誤",
