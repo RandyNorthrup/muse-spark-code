@@ -239,6 +239,31 @@ export function buildFlightRecord(input: FlightEventInput, at: number): BuiltFli
   })
 }
 
+/**
+ * Scrub and validate a webview post: it must first pass lane 0's
+ * `reportWebviewErrorSchema` (the webview's own failure kinds only, strict,
+ * no free-text fields), and its frames are re-verified as package-relative
+ * here, since transport bounds alone cannot see an absolute path.
+ */
+export function buildWebviewFlightRecord(
+  input: unknown,
+  versions: { readonly ext: string; readonly host: string },
+  at: number,
+): BuiltFlightRecord {
+  const parsed = reportWebviewErrorSchema.safeParse(input)
+  if (!parsed.success) return { ok: false, reason: 'invalid' }
+  return assemble({
+    kind: parsed.data.kind,
+    code: parsed.data.code,
+    ext: versions.ext,
+    host: versions.host,
+    backend: undefined,
+    count: undefined,
+    frames: parsed.data.frames,
+    at,
+  })
+}
+
 /** One record as its journal line, newline-terminated for crash-safe appends. */
 export function serializeFlightRecord(record: FlightRecord): string {
   return `${JSON.stringify(record)}\n`
