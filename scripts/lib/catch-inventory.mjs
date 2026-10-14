@@ -519,12 +519,20 @@ export function classifySource(relative, source) {
   return entries
 }
 
-/** Every catch site under `<root>/src`, paths normalised to `/`. */
-export function scanCatches(root) {
-  const files = fs
-    .readdirSync(path.join(root, 'src'), { recursive: true })
-    .filter((file) => /\.[cm]?tsx?$/.test(file) && !file.endsWith('.d.ts'))
-    .map((file) => path.join(root, 'src', file))
+/**
+ * Every catch site under `<root>/src`, paths normalised to `/`. When
+ * `subpaths` (like `['src/acp', 'src/webview']`) is given, only those
+ * directories are read: a test that asserts on some areas need not parse
+ * the whole tree inside its timeout. The gate script scans everything.
+ */
+export function scanCatches(root, subpaths = ['src']) {
+  const files = subpaths
+    .flatMap((subpath) =>
+      fs
+        .readdirSync(path.join(root, subpath), { recursive: true })
+        .filter((file) => /\.[cm]?tsx?$/.test(file) && !file.endsWith('.d.ts'))
+        .map((file) => path.join(root, subpath, file)),
+    )
     .toSorted((left, right) => left.localeCompare(right))
   const entries = []
   for (const file of files) {
