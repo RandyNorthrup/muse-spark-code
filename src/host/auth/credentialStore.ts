@@ -70,6 +70,8 @@ export class CredentialStore {
       }
       return undefined
     }
+    // A healthy read re-arms the warning: a recurrence warns again.
+    this.hasReportedFailure = false
     return stored === undefined || stored === '' ? undefined : stored
   }
 
@@ -97,6 +99,8 @@ export class CredentialStore {
     let unreadable: CredentialUnreadableKind | undefined
     try {
       const stored = await this.secrets.get(SECRET_KEYS.modelApiKey)
+      // A healthy read re-arms the warning: a recurrence warns again.
+      this.hasReportedFailure = false
       if (stored !== undefined && stored !== '') {
         return { outcome: 'found' }
       }
@@ -148,6 +152,8 @@ export class CredentialStore {
           // Auth needs presence only; damaged records count too. Parsing and
           // credential dispatch remain in the lazy provider store.
           const stored = await this.secrets.get(`${PROVIDER_SECRET_PREFIX}${id}`)
+          // A healthy entry re-arms its warning.
+          this.reportedProviders.delete(id)
           if (stored !== undefined && stored !== '') {
             isFound = true
           }

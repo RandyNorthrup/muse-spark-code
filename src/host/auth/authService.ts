@@ -257,7 +257,7 @@ export class AuthService {
   /** Counts logout-hold writes: only the latest one's outcome is kept. */
   private holdWrites = 0
   /** Store kinds the session's person has already been told about, once each. */
-  private credentialUnreadableNoticed: CredentialUnreadableKind | undefined
+  private readonly credentialUnreadableNoticed = new Set<CredentialUnreadableKind>()
 
   public constructor(private readonly deps: AuthServiceDeps) {
     this.isLogoutHeld = deps.logoutHold.get()
@@ -838,9 +838,13 @@ export class AuthService {
   private storedKeyMayExist(read: CredentialRead, where: string): boolean {
     switch (read.outcome) {
       case 'found': {
+        // A healthy read clears the told kinds: a recurrence after a
+        // repair is told again, as with every damaged file.
+        this.credentialUnreadableNoticed.clear()
         return true
       }
       case 'absent': {
+        this.credentialUnreadableNoticed.clear()
         return false
       }
       case 'unreadable': {
@@ -856,10 +860,10 @@ export class AuthService {
   /** Tells the session's person once per kind that the store could not be read. */
   private noteCredentialUnreadable(kind: CredentialUnreadableKind): void {
     this.deps.log.warn(`Stored credential presence is unknown (${kind}); keeping the safe state`)
-    if (this.credentialUnreadableNoticed === kind) {
+    if (this.credentialUnreadableNoticed.has(kind)) {
       return
     }
-    this.credentialUnreadableNoticed = kind
+    this.credentialUnreadableNoticed.add(kind)
     this.deps.broadcast({
       type: 'notice',
       level: 'warning',

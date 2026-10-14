@@ -2970,9 +2970,13 @@ async function activateWindow(
             const read = await credentials.readModelApiCredential()
             switch (read.outcome) {
               case 'found': {
+                // A healthy read re-arms the warning: a recurrence after
+                // a repair is shown again.
+                hasShownCredentialUnreadable = false
                 return true
               }
               case 'absent': {
+                hasShownCredentialUnreadable = false
                 return false
               }
               case 'unreadable': {
