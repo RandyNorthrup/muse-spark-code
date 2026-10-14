@@ -165,7 +165,7 @@ Live on Windows (this branch built here, the owner's real ChatGPT sign-in, no Me
 
 Proof on the packed agent (`dist/acp.js`, built on Windows), through our app's editor protocol, one short turn each: `chatgpt/gpt-6.1-sol` offers low, medium, high, xhigh, max; `xhigh` set and read back; the turn completed. `anthropic-s2/claude-sonnet-5-5` offers the same five; `xhigh` set and read back; the turn completed. New `test/unit/providerRegistryEffort.test.ts` 3/3 (2 of 3 fail with the registry change reverted). Gates: `typecheck:host` 0, `typecheck:unit` 0, ESLint 0 and Prettier on the changed files, `build` 0, `deadcode` 0, `cycles` 0, `duplication` 0, `check:host-api` 0, `check:reference` 0.
 
-## Lead, Windows, 2026-10-14 ~4:50 PM: plan models used no tool (finding F87)
+## Lead, Windows, 2026-10-14 4:2x PM (committed 4:29 PM): plan models used no tool (finding F87)
 
 A Codex review through our app on `chatgpt/gpt-6.1-sol` (xhigh) ran 11 turns of 3-13 s with 0 tool calls: each reply only said what it would check. Measured with a value-blind preload on one tool-needing turn ("What is the secret word in probe-note.txt?"): the request offered the `functions` namespace with 11 tools; the stream carried `response.output_item.done` with a `function_call` named `read_file`, and the terminal `response.completed` frame carried `output: []` (0 items). `ModelApiHost.adoptOutput` takes calls and replay from the terminal frame's output, so the call was dropped and the turn ended.
 
