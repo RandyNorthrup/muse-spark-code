@@ -17,6 +17,14 @@ happened, not what was planned; superseded entries are kept.
   be opened for a local reason now says so with the operating system's code
   instead of "temporarily unavailable".
 
+- ChatGPT plan sign-in: OpenAI refused the sign-in because the app sent
+  its host identifier in a form OpenAI does not accept (a bare random
+  string). The app now sends the documented form (`urn:uuid:` plus one
+  generated value, kept for the host's life); a stored old identifier is
+  replaced in place before the next sign-in, and existing grants keep
+  working. When OpenAI refuses a sign-in request, the message now says
+  what OpenAI answered instead of a generic failure.
+
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
   reads and writes, and 1-hour cache writes settle at their own price.
   The shared retry classifier refuses known quota codes and excessive
