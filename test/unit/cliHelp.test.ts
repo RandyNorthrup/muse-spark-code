@@ -74,6 +74,14 @@ describe('per-command help', () => {
     }
   })
 
+  it('says auth set reads the key from standard input and status never prints it', () => {
+    const topic = helpTopicNamed('auth')
+    if (topic === undefined) throw new Error('auth topic is missing')
+    const text = renderTopicHelp(EN, COMMAND, topic)
+    expect(text).toContain('auth set reads the key from standard input')
+    expect(text).toContain('never the key itself')
+  })
+
   it('shows defaults and bounds on the exec options that carry them', () => {
     const topic = helpTopicNamed('exec')
     if (topic === undefined) throw new Error('exec topic is missing')

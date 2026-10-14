@@ -3489,6 +3489,7 @@
     "purposeServe": "Az Agent Client Protocol kiszolgálása stdin és stdout felett.",
     "purposeLogin": "Bejelentkezés a Muse Code-ba ebben a terminálban.",
     "purposeAuth": "Kulcsok tárolása, ellenőrzése vagy törlése.",
+    "authSetNote": "Az auth set a kulcsot a szokásos bemenetről olvassa (a terminálról, vagy egy csőből); az auth status azt írja ki, hogy van-e mentett kulcs, soha nem magát a kulcsot.",
     "purposeProviders": "Modellszolgáltatók és modellistáik kezelése.",
     "purposeExec": "Egy kör futtatása felület nélkül.",
     "purposeScanSecrets": "Valószínű titkok megszámolása egy fájlban (csak a számot írja ki).",

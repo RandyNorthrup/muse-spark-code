@@ -3489,6 +3489,7 @@
     "purposeServe": "Agent Client Protocol'ü stdin ve stdout üzerinden sunar.",
     "purposeLogin": "Bu terminalde Muse Code'da oturum açar.",
     "purposeAuth": "Anahtarları saklar, denetler veya kaldırır.",
+    "authSetNote": "auth set, anahtarı standart girdiden okur (terminalinizden veya bir veri kanalından); auth status bir anahtarın kayıtlı olup olmadığını yazar, anahtarın kendisini asla yazmaz.",
     "purposeProviders": "Model sağlayıcılarını ve model listelerini yönetir.",
     "purposeExec": "Arayüzsüz bir tur çalıştır.",
     "purposeScanSecrets": "Bir dosyadaki olası gizli bilgileri say (yalnızca sayıyı yazar).",

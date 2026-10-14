@@ -54,6 +54,8 @@ export interface CliHelpTopic {
   /** The command as typed (`exec`, `scan-secrets`, …). */
   readonly name: string
   readonly purpose: (table: UiText) => string
+  /** One fact a person needs that usage, options and examples cannot show. */
+  readonly note?: ((table: UiText) => string) | undefined
   /** Positional syntax lines, with the executable's name filled in. */
   readonly usage: readonly ((command: string) => string)[]
   /** Parser routes whose options this topic documents. */
@@ -144,6 +146,7 @@ export const CLI_HELP_TOPICS: readonly CliHelpTopic[] = [
   {
     name: 'auth',
     purpose: (table) => table.cliHelp.purposeAuth,
+    note: (table) => table.cliHelp.authSetNote,
     usage: [
       (command) => `${command} auth set|status|clear`,
       (command) => `${command} auth set|status|clear --provider <id>`,
@@ -440,6 +443,7 @@ export function renderTopicHelp(table: UiText, command: string, topic: CliHelpTo
   const lines: string[] = [table.cliHelp.usage]
   for (const usage of topic.usage) lines.push(`  ${usage(command)}`)
   lines.push(`  ${topic.purpose(table)}`)
+  if (topic.note !== undefined) lines.push(`  ${topic.note(table)}`)
   if (topic.options.length > 0) {
     lines.push(table.cliHelp.options)
     for (const option of topic.options) {

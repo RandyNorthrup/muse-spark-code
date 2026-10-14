@@ -3416,6 +3416,7 @@
     "purposeServe": "stdin と stdout で Agent Client Protocol を提供します。",
     "purposeLogin": "このターミナルで Muse Code にサインインします。",
     "purposeAuth": "キーを保存、確認、または削除します。",
+    "authSetNote": "auth set はキーを標準入力（端末、またはパイプ）から読み取ります。auth status はキーが保存されているかどうかを示し、キー自体は決して表示しません。",
     "purposeProviders": "モデルプロバイダーとそのモデル一覧を管理します。",
     "purposeExec": "ヘッドレスで1ターン実行。",
     "purposeScanSecrets": "1つのファイル内の秘密情報らしきものを数える（件数のみ出力）。",
