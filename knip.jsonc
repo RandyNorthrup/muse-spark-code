@@ -162,6 +162,9 @@
     // The Win11 OS-entry hosts script starts this wake fixture by path
     // (import.meta.resolve, which knip does not trace).
     "test/unit/helpers/fakeScheduleWake.mjs",
+    // The hosts scripts copy this fake CLI by path (test/hosts/fake-muse.sh,
+    // a shell cp knip does not trace).
+    "test/e2e/fake-muse/serve.mjs",
     // Tab's configured hook flow starts this real fake-hook process by path.
     "test/fixtures/tabHooks/completion.mjs",
     // M116 playbook scenes: the axe runner (an npm script knip already sees)
