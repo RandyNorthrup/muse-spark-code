@@ -3452,6 +3452,7 @@
   },
   "providerKeyStored": "{provider} キーを保存しました: {store}。",
   "providerKeyNotStored": "キーが入力されなかったため、何も保存しませんでした。",
+  "providerKeyNotText": "その入力はテキストではありません（有効なUTF-8ではありません）。そのため、使用しませんでした。",
   "providerKeyPresent": "{provider} キーが保存されています: {store}、{origin} にバインドされています。",
   "providerKeyAbsent": "{provider} キーは保存されていません。",
   "providerKeyCleared": "{provider} キーをこのコンピューターの資格情報ストアから削除しました。",

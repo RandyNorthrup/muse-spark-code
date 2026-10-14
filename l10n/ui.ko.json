@@ -3452,6 +3452,7 @@
   },
   "providerKeyStored": "{provider} 키를 저장했습니다: {store}.",
   "providerKeyNotStored": "키를 입력하지 않아 아무것도 저장하지 않았습니다.",
+  "providerKeyNotText": "해당 입력은 텍스트가 아닙니다(유효한 UTF-8이 아님). 그래서 사용하지 않았습니다.",
   "providerKeyPresent": "{provider} 키가 저장되어 있습니다: {store}, {origin}에 바인딩됨.",
   "providerKeyAbsent": "저장된 {provider} 키가 없습니다.",
   "providerKeyCleared": "이 컴퓨터의 자격 증명 저장소에서 {provider} 키를 제거했습니다.",

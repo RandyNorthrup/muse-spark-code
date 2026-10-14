@@ -3680,6 +3680,7 @@
   },
   "providerKeyStored": "Klíč {provider} je uložen: {store}.",
   "providerKeyNotStored": "Nebyl zadán žádný klíč, nic se neuložilo.",
+  "providerKeyNotText": "Vstup není text (není platné UTF-8), proto nebyl použit.",
   "providerKeyPresent": "Klíč {provider} je uložen: {store}, vázaný na {origin}.",
   "providerKeyAbsent": "Není uložen žádný klíč {provider}.",
   "providerKeyCleared": "Klíč {provider} byl odebrán z úložiště přihlašovacích údajů tohoto počítače.",

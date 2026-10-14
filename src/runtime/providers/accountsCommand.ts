@@ -9,6 +9,8 @@ import { isValidModelApiKey } from '../../host/auth/credentialStore'
 import { UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import type { AuthCommandDeps } from '../authCommands'
+import { providerKeyFailureText } from '../exec/keyInput'
+import { isNonTextStdin } from '../hiddenInput'
 
 import type { AccountTarget, AccountsCommand } from './accountArgs'
 export { parseAccountsCommand, type AccountTarget, type AccountsCommand } from './accountArgs'
@@ -95,7 +97,15 @@ export async function runAccountAuthSet(
       target.provider === 'meta'
         ? UI_TEXT.acpKeyPrompt
         : fill(UI_TEXT.accounts.keyPrompt, { provider: target.provider, account: target.account })
-    pending.value = await deps.readSecret(prompt)
+    try {
+      pending.value = await deps.readSecret(prompt)
+    } catch (error: unknown) {
+      if (isNonTextStdin(error)) {
+        deps.printError(providerKeyFailureText('invalid'))
+        return 1
+      }
+      throw error
+    }
     pending.value = pending.value.trim()
     if (pending.value === '' || (target.provider === 'meta' && !isValidModelApiKey(pending.value)))
       throw new AccountStoreError('invalidCredential')

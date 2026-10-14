@@ -3528,6 +3528,7 @@
   },
   "providerKeyStored": "{provider} anahtarı saklandı: {store}.",
   "providerKeyNotStored": "Anahtar girilmedi, bu yüzden hiçbir şey saklanmadı.",
+  "providerKeyNotText": "Bu giriş metin değil (geçerli UTF-8 değil), bu yüzden kullanılmadı.",
   "providerKeyPresent": "Bir {provider} anahtarı saklanıyor: {store}, {origin} adresine bağlı.",
   "providerKeyAbsent": "Saklanan {provider} anahtarı yok.",
   "providerKeyCleared": "{provider} anahtarı bu bilgisayarın kimlik bilgisi deposundan kaldırıldı.",

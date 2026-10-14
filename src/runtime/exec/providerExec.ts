@@ -42,7 +42,7 @@ import {
   parseStoredProviderSecret,
   providerSecretAccount,
 } from '../keyStore'
-import { memorySecretStoreFor, type MemorySecretStore } from './keyInput'
+import { memorySecretStoreFor, providerKeyFailureText, type MemorySecretStore } from './keyInput'
 /** Where a request path came from (AGENTS.md rule 13). */
 export type PathSource = 'capture' | 'research'
 
@@ -482,12 +482,7 @@ export async function assembleProviderRun(
       // its shape. Headless input cannot answer a wrong-thing question.
       const typed = await input.readKey()
       if (!typed.ok) {
-        if (typed.reason === 'tty') {
-          return auth(UI_TEXT.execKeyStdinTerminal)
-        }
-        return auth(
-          typed.reason === 'tooLong' ? UI_TEXT.execKeyTooLong : UI_TEXT.providerKeyNotStored,
-        )
+        return auth(providerKeyFailureText(typed.reason))
       }
       key = typed.key
       memory = memorySecretStoreFor({

@@ -3680,6 +3680,7 @@
   },
   "providerKeyStored": "Ключ {provider} сохранен: {store}.",
   "providerKeyNotStored": "Ключ не введен, поэтому ничего не сохранено.",
+  "providerKeyNotText": "Этот ввод не является текстом (это недопустимый UTF-8), поэтому он не был использован.",
   "providerKeyPresent": "Ключ {provider} сохранен: {store}, привязан к {origin}.",
   "providerKeyAbsent": "Ключ {provider} не сохранен.",
   "providerKeyCleared": "Ключ {provider} удален из хранилища учетных данных этого компьютера.",
