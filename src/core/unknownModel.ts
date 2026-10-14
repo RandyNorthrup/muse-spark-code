@@ -37,11 +37,17 @@ export function unknownModelRefText(ref: string): string {
   return unknownProviderModelText(ref, entry, remedy)
 }
 
-/** An effort refusal names the effort, the model, and the valid levels. */
+/**
+ * An effort refusal names the effort, the model, and the valid levels.
+ * A model serving no known levels (a BYO ref) gets its own sentence:
+ * "Use one of: ." would name no remedy.
+ */
 export function effortNotForModelText(
   effort: string,
   model: string,
   levels: readonly string[],
 ): string {
-  return fill(UI_TEXT.effortNotForModel, { effort, model, levels: levels.join(', ') })
+  return levels.length === 0
+    ? fill(UI_TEXT.effortNoneForModel, { effort, model })
+    : fill(UI_TEXT.effortNotForModel, { effort, model, levels: levels.join(', ') })
 }

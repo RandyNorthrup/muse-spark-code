@@ -3645,6 +3645,7 @@
   "unknownModelPickOffered": "Místo toho vyberte jeden z nabízených modelů.",
   "chatPartNotSupported": "Část \"{kind}\" nelze odeslat tomuto modelu.",
   "effortNotForModel": "Úsilí \"{effort}\" není pro model \"{model}\" k dispozici. Použijte jedno z: {levels}.",
+  "effortNoneForModel": "Úsilí \"{effort}\" není pro model \"{model}\" k dispozici: nenabízí žádné úrovně úsilí.",
   "execTimedOut": "Běh dosáhl časového limitu.",
   "execBudgetRefused": "Další požadavek překračuje zbývající rozpočet.",
   "execBudgetMinimum": "Tento běh vyžaduje alespoň {minimum}.",
