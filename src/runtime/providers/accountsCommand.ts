@@ -5,6 +5,7 @@ import {
   AccountStoreError,
   accountBindingSchema,
 } from '../../core/providers/accountCredentialRecord'
+import { isStoreUnavailable } from '../keyStore'
 import { isValidModelApiKey } from '../../host/auth/credentialStore'
 import { UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
@@ -20,7 +21,8 @@ export interface AccountsCommandDeps {
   readonly printError: (text: string) => void
 }
 
-function commandError(error: unknown): string {
+function commandError(provider: string, error: unknown): string {
+  if (isStoreUnavailable(error)) return UI_TEXT.acpStoreDown
   if (error instanceof AccountStoreError) {
     if (error.code === 'notOffered') return UI_TEXT.accounts.notOffered
     if (error.code === 'invalidAccount' || error.code === 'invalidCredential')
@@ -28,6 +30,9 @@ function commandError(error: unknown): string {
     // A refused providers file is not a connection problem: the runtime is
     // already on the account service, and the file was left untouched.
     if (error.code === 'invalidProvidersFile') return UI_TEXT.accounts.providersInvalid
+    // The terminal is the account service in this process: an unknown
+    // provider is not configured, not waiting on a connection.
+    if (error.code === 'unavailable') return fill(UI_TEXT.providerNotConfigured, { provider })
   }
   return UI_TEXT.accounts.unavailable
 }
@@ -68,7 +73,7 @@ export async function runAccountsCommand(
     }
     return 0
   } catch (error: unknown) {
-    deps.printError(commandError(error))
+    deps.printError(commandError(command.provider, error))
     return 1
   }
 }
@@ -108,7 +113,7 @@ export async function runAccountAuthSet(
     deps.print(fill(UI_TEXT.acpKeyStored, { store: deps.storeName }))
     return 0
   } catch (error: unknown) {
-    deps.printError(commandError(error))
+    deps.printError(commandError(target.provider, error))
     return 1
   } finally {
     pending.value = ''

@@ -1,5 +1,5 @@
 function isPlanModel(model: string): boolean {
-  return ['chatgpt', 'copilot'].includes(parseModelRef(model)?.providerId ?? '')
+  return PLAN_MODEL_PROVIDERS.includes(parseModelRef(model)?.providerId ?? '')
 }
 // M95b's subscription dispatch. Only the account catalogue chooses ChatGPT
 // models; neither tokens nor service error text cross the host bridge.
@@ -16,6 +16,7 @@ import {
   type Usage,
 } from '../../backends/modelapi/schemas'
 import { responses, modelRef, recordPlanUsage } from '../../../host/backend/providersEntry'
+import { PLAN_MODEL_PROVIDERS } from '../../../shared/providerRouting'
 const { ChatgptPlanLimitError, createResponsesCodec, ResponsesOutputCapError } = responses
 const { parseModelRef } = modelRef
 import {

@@ -82,6 +82,7 @@ import {
 import type { AssembledProviderRun } from './providerExec'
 import { createRunLedger, resolveExecOutputCap, previewResponseReservation } from './runLedger'
 import { modelPolicyFor, type ModelPolicy } from '../../core/backends/modelapi/modelPolicy'
+import { isPlanModelRef } from '../../shared/providerRouting'
 import { observeBackend, type SessionTap } from './sessionTap'
 import { readUntrustedInputs } from './untrustedInput'
 import type { ExecVaultPort, ExecVaultSession } from '../vault/execVault'
@@ -331,7 +332,12 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
   let resolvedOutputCap: number | undefined
   const outputCap = (policy?: ModelPolicy): number =>
     (resolvedOutputCap ??= resolveExecOutputCap(policy ?? modelPolicyFor(model ?? '')))
+  // A plan model spends its subscription allowance, not USD: no ledger
+  // meters it, so the run skips the priced-model reservation below too.
+  const isPlanRun =
+    options.backend === 'modelApi' && options.model !== undefined && isPlanModelRef(options.model)
   const ledger =
+    !isPlanRun &&
     options.backend === 'modelApi' &&
     options.budgetUsd !== undefined &&
     options.maxRequests !== undefined
@@ -766,7 +772,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         accounts = configured.accounts
       } else runtime = createRuntimeBackend(runtimeDeps)
       setup.isUsageError = false
-      const readiness = await lifecycle.race(runtime.backend.readiness(false))
+      const readiness = await lifecycle.race(runtime.backend.readiness(false, options.model))
       if (readiness.state !== 'ready') {
         status = readiness.state === 'signedOut' ? 'auth_required' : 'backend_unavailable'
         error = readiness.message
@@ -1109,6 +1115,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         incompleteReason ??= isEmptyCompaction ? NO_COMPACTABLE_HISTORY : reason
         if (isEmptyCompaction) error = UI_TEXT.nothingToCompact
       } else if (
+        !isPlanRun &&
         options.backend === 'modelApi' &&
         (last?.usage !== 'valid' || last.settlement !== 'priced')
       )
@@ -1120,8 +1127,9 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
     const cause = lifecycle.cause
     const tokens = totals?.tokens ?? latestTokens
     drain(sink)
+    // A plan run keeps no USD ledger, so its completion is the turn's own.
     const hasCompleteResponse =
-      options.backend === 'museCode'
+      isPlanRun || options.backend === 'museCode'
         ? terminal === 'completed'
         : last?.terminal === 'completed' &&
           last.transportError === null &&
@@ -1246,6 +1254,18 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
       }
       const result = early ?? makeResult()
       if (early === undefined) await grace(sink.finish(result))
+      // A refusal before any session names what is missing on stderr.
+      // Usage errors already printed above; turns speak through their own
+      // messages. The text is redacted like every other log line.
+      if (
+        early === undefined &&
+        !setup.isUsageError &&
+        setup.sessionId === null &&
+        (result.status === 'auth_required' || result.status === 'backend_unavailable') &&
+        result.error !== null
+      ) {
+        log.error(result.error.message)
+      }
       await grace(
         Promise.all([
           deps.stdout.flush(lifecycle.remainingGraceMs()),

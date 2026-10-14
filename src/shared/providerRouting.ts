@@ -13,6 +13,20 @@ import { outputTokenMinimumMessage } from './outputTokenMinimum'
 // code keeps reading it from here.
 export { outputTokenMinimumMessage } from './outputTokenMinimum'
 
+/** Subscription (plan) providers by model-ref prefix: their turns spend
+ * allowance, never the Meta key. */
+export const PLAN_MODEL_PROVIDERS: readonly string[] = ['chatgpt', 'copilot']
+
+/**
+ * Whether a validated model ref addresses a plan model. Only validated
+ * refs qualify (exec args, listed session models): validation itself stays
+ * with provider core, which lazy bundles cannot carry.
+ */
+export function isPlanModelRef(model: string): boolean {
+  const slash = model.indexOf('/')
+  return slash > 0 && PLAN_MODEL_PROVIDERS.includes(model.slice(0, slash))
+}
+
 // Pure factory: bundles that never read a provider file (panels, headless)
 // drop the schema instead of carrying it.
 export const openRouterRoutingSchema = /* @__PURE__ */ (() =>

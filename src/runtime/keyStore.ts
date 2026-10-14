@@ -33,6 +33,18 @@ export class StoreUnavailableError extends Error {
   }
 }
 
+/**
+ * Whether the store cannot be used. Name-based, not `instanceof`: lazy
+ * bundles carry their own copy of this module, so an error thrown by one
+ * copy is not an instance of another's class.
+ */
+export function isStoreUnavailable(error: unknown): boolean {
+  return (
+    error instanceof StoreUnavailableError ||
+    (error instanceof Error && error.name === 'StoreUnavailableError')
+  )
+}
+
 export async function storeOperation<T>(work: () => Promise<T>): Promise<T> {
   try {
     return await work()
