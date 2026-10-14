@@ -6319,6 +6319,13 @@
     },
     {
       "route": "exec",
+      "name": "exec: --fast",
+      "description": "--fast: Use the plan catalogue’s Fast tier (2x speed, increased usage). Off by default: it uses more of your plan allowance.",
+      "text": { "cli": "fast" },
+      "contract": { "type": "boolean", "repeatable": false, "default": false, "purpose": "fast" }
+    },
+    {
+      "route": "exec",
       "name": "exec: --output <value>",
       "description": "Choose the result format: text, json or jsonl.",
       "text": { "cli": "output" },

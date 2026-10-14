@@ -9,6 +9,20 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- ChatGPT plan turns: every model turn failed because the plan route's
+  request wrapped the tools without the namespace description the plan
+  endpoint requires, sent an effort level the model does not list, and
+  threw OpenAI's answer away behind a generic failure. The namespace tool
+  now always carries its description; each plan model takes its context
+  window, reasoning levels, default level and service tiers from the
+  plan's own model catalogue, so a listed level rides as named; every
+  picker (the editor protocol, the panel slider, `exec --effort`) offers
+  those levels with the catalogue default selected; a Fast switch rides
+  the catalogue's priority tier as `service_tier: "priority"` where the
+  model lists one (off by default: it uses more of the plan allowance);
+  and a refused plan request says what OpenAI answered instead of a
+  generic failure, without retrying a 4xx.
+
 - ChatGPT plan sign-in: on some Windows PCs the sign-in failed every time
   with "temporarily unavailable" because the app held its sign-in lock by
   listening on a fixed local port (49953) that Windows had reserved for its
