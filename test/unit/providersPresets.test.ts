@@ -35,9 +35,8 @@ describe('the preset table', () => {
     // DS-STRICT and DS-STRICT-PROD answer 200 with `strict: true` on
     // either address, so strict is declared, never address-gated.
     // DS-XHIGH and DS-ULTRA answer 200 to the names, so the dated
-    // record carries the full vocabulary and no aliases are declared.
+    // record carries the full vocabulary.
     expect(preset('deepseek').quirks.supportsStrictTools).toBe(true)
-    expect(preset('deepseek').quirks.effortAliases).toBeUndefined()
     const facts = preset('deepseek').reasoningFacts ?? []
     const flash = facts.find((fact) => fact.modelId === 'deepseek-flash')
     expect(flash?.fields.reasoning?.effortLevels).toEqual({

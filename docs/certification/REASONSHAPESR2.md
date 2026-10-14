@@ -62,6 +62,15 @@ typed-refusal fix; dumps removed after review). Every change is intended:
 - No-change presets: azure (no client in either dump), custom,
   llama.cpp, lmstudio, together, vllm, zai.
 
+Review addendum (RVREASONSHAPES, 2026-10-14): the no-neighbour rule
+above did not hold on Thinking-off-switch models — the shared resolver
+still substituted the nearest listed level there (and an unused client
+alias map rode five files), and the Gemini codec turned the provider
+default into a 1,024-token thinking budget on budget-mode models. Both
+are fixed on the review branch; the gemini, together and zai golden
+pins were re-recorded for exactly those byte changes (line counts
+unchanged).
+
 ## xAI-first defect — done
 
 Every turn on an xAI entry with `grok-build-0.1` failed on the published

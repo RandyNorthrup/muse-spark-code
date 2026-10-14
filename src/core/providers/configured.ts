@@ -528,7 +528,6 @@ export function createConfiguredProviderServices(
             // reasoning (see the codec quirks above).
             thinkingOff:
               record.reasoning.supported.state === 'yes' ? preset.quirks.thinkingOff : undefined,
-            effortAliases: preset.quirks.effortAliases,
             ...(preset.quirks.sendUndeclaredEffort === true && { sendUndeclaredEffort: true }),
           },
           pricing,
@@ -592,9 +591,6 @@ export function createConfiguredProviderServices(
               ? record.reasoning.effortLevels.value
               : undefined,
           canDisable: record.reasoning.canDisable.state === 'yes',
-          ...(preset.quirks.effortAliases !== undefined && {
-            effortAliases: preset.quirks.effortAliases,
-          }),
         }),
       // Groq's presentation rides only where the record affirms reasoning.
       ...(preset.quirks.reasoningFormat !== undefined &&

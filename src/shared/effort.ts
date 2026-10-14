@@ -77,25 +77,18 @@ export interface ReasoningControl {
    * before this resolver, so those requests stay byte-identical.
    */
   readonly thinkingOff: 'thinking-switch' | 'reasoning-enabled' | undefined
-  /**
-   * The preset's documented requested-to-canonical effort map, applied
-   * before matching. Absent maps nothing.
-   */
-  readonly effortAliases?: Readonly<Record<string, string>> | undefined
 }
 
 const REFUSED: ReasoningDecision = { kind: 'refuse', code: 'unsupported_reasoning_effort' }
 
 /**
- * The one mapping from a requested setting to a model's request. A
- * documented alias maps first (one hop); with a declared switch: off only
- * where the record affirms `canDisable`, an unlisted on-level moves to the
- * nearest listed on-level (a tie takes the higher), never to off; no listed
- * on-level sends nothing. Without one, a listed level rides as named and
- * anything else is the codec's `none`.
+ * The one mapping from a requested setting to a model's request. A listed
+ * level rides as named; an unlisted on-level resolves to the provider
+ * default (codecs omit the field), never to a neighbour and never to off.
+ * With a declared switch, off rides only where the record affirms
+ * `canDisable`, and a name outside the UI range refuses.
  */
-export function resolveReasoning(model: ReasoningControl, unaliased: string): ReasoningDecision {
-  const requested = model.effortAliases?.[unaliased] ?? unaliased
+export function resolveReasoning(model: ReasoningControl, requested: string): ReasoningDecision {
   const listed = model.effortLevels ?? []
   if (model.thinkingOff === undefined) {
     if (listed.includes(requested)) return { kind: 'effort', effort: requested }
@@ -103,14 +96,5 @@ export function resolveReasoning(model: ReasoningControl, unaliased: string): Re
   }
   if (requested === THINKING_OFF_EFFORT) return model.canDisable ? { kind: 'off' } : REFUSED
   if (!isEffortLevel(requested)) return REFUSED
-  if (listed.includes(requested)) return { kind: 'effort', effort: requested }
-  const wanted = EFFORT_LEVELS.indexOf(requested)
-  let nearest: EffortLevel | undefined
-  for (const level of EFFORT_LEVELS) {
-    if (!listed.includes(level)) continue
-    const distance = Math.abs(EFFORT_LEVELS.indexOf(level) - wanted)
-    if (nearest === undefined || distance <= Math.abs(EFFORT_LEVELS.indexOf(nearest) - wanted))
-      nearest = level
-  }
-  return nearest === undefined ? { kind: 'default' } : { kind: 'effort', effort: nearest }
+  return listed.includes(requested) ? { kind: 'effort', effort: requested } : { kind: 'default' }
 }

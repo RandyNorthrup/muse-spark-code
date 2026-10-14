@@ -136,11 +136,11 @@ describe('resolveReasoning', () => {
     // [model, requested, decision]
     [SWITCH, 'none', { kind: 'off' }],
     [SWITCH, 'high', { kind: 'effort', effort: 'high' }],
-    [SWITCH, 'minimal', { kind: 'effort', effort: 'low' }],
-    [SWITCH, 'medium', { kind: 'effort', effort: 'high' }],
-    [SWITCH, 'xhigh', { kind: 'effort', effort: 'max' }],
-    // `ultra` is unlisted here, so the nearest listed level answers.
-    [SWITCH, 'ultra', { kind: 'effort', effort: 'max' }],
+    // Unlisted levels take the provider default; no neighbour is sent.
+    [SWITCH, 'minimal', { kind: 'default' }],
+    [SWITCH, 'medium', { kind: 'default' }],
+    [SWITCH, 'xhigh', { kind: 'default' }],
+    [SWITCH, 'ultra', { kind: 'default' }],
     [
       { ...SWITCH, canDisable: false },
       'none',
