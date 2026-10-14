@@ -851,7 +851,10 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
             await lifecycle.race(
               connection.request('initialize', {
                 protocolVersion: engine.PROTOCOL_VERSION,
-                clientCapabilities: {},
+                // The exec tap forwards notice updates as update events, so
+                // it advertises them: the agent may send a notice only to a
+                // client that did (the pinned SDK's v1 `Notice` contract).
+                clientCapabilities: { session: { notices: {} } },
               }),
             )
             const created = await lifecycle.race(
