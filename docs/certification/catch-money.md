@@ -14,12 +14,12 @@ wrong outcome cannot be written.
    `hasModelApiCredential()` are deleted; the guards fail closed on
    could-not-read and tell the person once per kind.
 2. The switches are exhaustive by the compiler (`assertExhaustive`: a fourth
-   state or a forgotten arm does not compile). The guard test
-   (`test/unit/credentialReadGuard.test.ts`) parses the money, consent and
-   credential modules and fails on any `catch` returning `false`,
-   `undefined`, `[]` or `{}` unless the absence is proven under a named
-   condition on the failure or documented with a `read-state: cert TBL-nn`
-   marker whose row is in the table below.
+   state or a forgotten arm does not compile), and the three states are
+   exercised through the real store and service (`credentialStore`,
+   `providerCredentialStore`, `authService` unreadable-store tests). The
+   round's source-parsing guard test was removed in review: a test that
+   reads source proves the text, not the behaviour; the `read-state: cert
+TBL-nn` markers remain as the table's index into the code.
 3. A safety action runs whatever was thrown: decided by what was SENT, never
    by the type of what was thrown.
 4. A notice goes to the session that asked: bound when the question is asked
@@ -148,7 +148,7 @@ through.
 
 | Finding                                    | Commit                           | Test                                                                                                                                                                                                   |
 | ------------------------------------------ | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| P2-1 three-valued credential reads         | P2-1/P3-5 commit                 | `credentialStore`, `providerCredentialStore`, `authService` unreadable-store, `credentialReadGuard`                                                                                                    |
+| P2-1 three-valued credential reads         | P2-1/P3-5 commit                 | `credentialStore`, `providerCredentialStore`, `authService` unreadable-store                                                                                                                           |
 | P2-2 quarantine before the type test       | P2-2 commit                      | `mcpOAuth` "quarantines a sent refresh…"                                                                                                                                                               |
 | P2-3 notice bound at ask time              | P2-3/guard commit                | `acpPaid` "tells the asking session…"                                                                                                                                                                  |
 | P2-4 unreadable announced every sample     | P2-4/5/6 commit                  | `resourceHistoryReview` "reports an unreadable history choice once…"                                                                                                                                   |
@@ -169,10 +169,9 @@ drove this round's redesign instead of a third handler-by-handler pass.
 
 ## Red drills (each construction fires)
 
-- A boolean reintroduced: adding `hasModelApiCredential()` back to the
-  store fails the guard with `src/host/auth/credentialStore.ts:96:
-collapsing boolean hasModelApiCredential reintroduced: use
-readModelApiCredential`. Restored byte-exact (sha256 da6b3dac…).
+- A boolean reintroduced: no drill stands in review (the source-parsing
+  guard that ran it was removed, above). What holds the shape is the
+  compiler's exhaustive switches plus the three-state behaviour tests.
 - A non-exhaustive switch: deleting the `absent` arm fails the compiler
   with `src/host/auth/authService.ts(848,33): error TS2345: Argument of
 type '{ readonly outcome: "absent"; }' is not assignable to parameter of
@@ -215,7 +214,7 @@ the guarded paths (`src/host/auth`, `src/core/paid`, `src/acp/paid.ts`,
 `src/runtime/schedules`, `src/runtime/resources`), 98 handlers at this
 round's head. Every absence return in these modules is either proven under
 a named condition or carries a `read-state: cert TBL-nn` marker from the
-table above; the guard test enforces both.
+table above.
 
 | File:line                                     | Class    | Handler                                                                          |
 | --------------------------------------------- | -------- | -------------------------------------------------------------------------------- |
