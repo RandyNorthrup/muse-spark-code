@@ -112,6 +112,12 @@ export type ProviderClient = Pick<
   readonly modelContextLimit?: (model: string) => number | undefined
   readonly isPlanModel?: (model: string) => boolean
   /**
+   * The plan models this client serves without any Meta request (the
+   * signed-in ChatGPT and Copilot plans), listed on a computer that stores
+   * no Meta key. Absent on clients without a plan route.
+   */
+  readonly listPlanModels?: () => Promise<string[]>
+  /**
    * The plan catalogue's facts for one model reference. Resolves them from
    * the client's cache, fetching the catalogue when no listing warmed it;
    * undefined where the catalogue names nothing. Absent on clients without

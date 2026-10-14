@@ -17740,7 +17740,14 @@ export class ModelApiHost implements AgentHost {
   }
 
   public async listModels(sessionId?: string): Promise<readonly ModelSummary[]> {
-    const ids = this.deps.hasMetaCredential?.() === false ? [] : await this.deps.client.listModels()
+    // Without a Meta key no Meta model is listed, but the signed-in plans still
+    // are, with their catalogue facts (findings F79 and F80: a plan-only
+    // computer otherwise saw its plan models only as configured entries, with
+    // no effort levels at all).
+    const ids =
+      this.deps.hasMetaCredential?.() === false
+        ? ((await this.deps.client.listPlanModels?.()) ?? [])
+        : await this.deps.client.listModels()
     const providers = (await this.deps.models?.list?.()) ?? []
     const active = sessionId === undefined ? undefined : this.sessions.get(sessionId)?.modelId
     const direct = ids.filter(
@@ -17780,9 +17787,14 @@ export class ModelApiHost implements AgentHost {
         }
       }),
     )
+    // A plan model listed here carries its facts; its configured entry (the
+    // same reference) adds nothing and is not listed twice.
+    const listed = new Set(summaries.map((summary) => summary.modelId))
     return [
       ...summaries,
-      ...providers.map((model) => ({ ...model, isActive: model.modelId === active })),
+      ...providers
+        .filter((model) => !listed.has(model.modelId))
+        .map((model) => ({ ...model, isActive: model.modelId === active })),
     ]
   }
 

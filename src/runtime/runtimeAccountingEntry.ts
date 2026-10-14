@@ -313,6 +313,9 @@ export function withRuntimeAccounting(
       planModelFacts: client.planModelFacts.bind(client),
     }),
     ...(client.isPlanModel !== undefined && { isPlanModel: client.isPlanModel.bind(client) }),
+    ...(client.listPlanModels !== undefined && {
+      listPlanModels: client.listPlanModels.bind(client),
+    }),
     ...(client.readPlanUsage !== undefined && { readPlanUsage: client.readPlanUsage.bind(client) }),
     models: { ...(client.models?.list !== undefined && { list: client.models.list }), resolve },
     async *streamResponse(body, ...args) {

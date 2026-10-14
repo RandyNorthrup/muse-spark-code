@@ -9,6 +9,8 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- Effort levels for models from other providers: a ChatGPT plan model or a model you added yourself (for example Anthropic Claude Sonnet 5.5) offered no effort level at all in the editors, and an editor asking for one was refused. Each model now offers the levels its own record lists, also on a computer that stores no Meta key.
+
 - ChatGPT plan turns: every model turn failed because the plan route's
   request wrapped the tools without the namespace description the plan
   endpoint requires, sent an effort level the model does not list, and

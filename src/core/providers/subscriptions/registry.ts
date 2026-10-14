@@ -215,6 +215,29 @@ export function createSubscriptionClient(
       }
     })())
   }
+  /** The signed-in plans' model references; makes no Meta request. */
+  const planModelIds = async (): Promise<string[]> => {
+    const file = await deps.providers()
+    const ids: string[] = []
+    for (const entry of file.providers) {
+      if (entry.id === 'chatgpt') {
+        // Every listing refreshes the cached catalogue facts the plan
+        // send path resolves from.
+        const catalog = await chatGptCatalog(await deps.chatgpt(), deps.fetch)
+        cachedFacts = catalog.facts
+        ids.push(
+          ...catalog.slugs.filter((id) => entry.models.includes(id)).map((id) => `chatgpt/${id}`),
+        )
+      } else if (entry.id === 'copilot') {
+        ids.push(
+          ...entry.models
+            .filter((id) => deps.copilot?.().has(id) === true)
+            .map((id) => `copilot/${id}`),
+        )
+      }
+    }
+    return ids
+  }
   const configured = async (model: string) => {
     const ref = parseModelRef(model)
     const file = await deps.providers()
@@ -254,26 +277,10 @@ export function createSubscriptionClient(
     waitBeforeRetry: (ms, signal) => meta.waitBeforeRetry(ms, signal),
     createImage: (...args) => meta.createImage(...args),
     editImage: (...args) => meta.editImage(...args),
+    listPlanModels: async () => await planModelIds(),
     listModels: async () => {
       const file = await deps.providers()
-      const ids: string[] = []
-      for (const entry of file.providers) {
-        if (entry.id === 'chatgpt') {
-          // Every listing refreshes the cached catalogue facts the plan
-          // send path resolves from.
-          const catalog = await chatGptCatalog(await deps.chatgpt(), deps.fetch)
-          cachedFacts = catalog.facts
-          ids.push(
-            ...catalog.slugs.filter((id) => entry.models.includes(id)).map((id) => `chatgpt/${id}`),
-          )
-        } else if (entry.id === 'copilot') {
-          ids.push(
-            ...entry.models
-              .filter((id) => deps.copilot?.().has(id) === true)
-              .map((id) => `copilot/${id}`),
-          )
-        }
-      }
+      const ids = await planModelIds()
       // A plan-only account makes no Meta request; keyed users keep both catalogues.
       if ((await deps.hasMetaKey?.()) === true) return [...(await meta.listModels()), ...ids]
       if (ids.length === 0 && file.providers.some((entry) => entry.auth === 'subscription')) {
