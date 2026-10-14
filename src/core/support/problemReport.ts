@@ -538,15 +538,6 @@ function reportParts(input: ProblemReportInput): { title: string; text: string }
   }
 }
 
-/** Existing synchronous builder for callers with no vault. */
-export function buildProblemReportDraft(input: ProblemReportInput): SealedReportDraft {
-  const parts = reportParts(input)
-  return sealReportDraft(
-    scrubFinalDraft(parts.title, input.scrub),
-    scrubFinalDraft(parts.text, input.scrub),
-  )
-}
-
 /** M109: scrub raw final text before privacy edits and seal only the resulting preview. */
 export async function buildVaultProblemReportDraft(
   input: ProblemReportInput,

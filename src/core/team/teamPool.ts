@@ -78,16 +78,6 @@ export function isDefaultEntry(agent: TeamPoolEntry['agent']): agent is TeamDefa
   return 'defaultEntry' in agent
 }
 
-/**
- * The orchestrator slot (lane T owns the picker and the override): Default
- * resolves through it when each task starts, never from a snapshot, so a
- * picker change applies to the next delegation and a running task keeps
- * what it started on.
- */
-export interface TeamOrchestratorSlot {
-  resolve(): TeamAgentProfile
-}
-
 /** Why selection moved: D75's `TeamAgentSwitch` reasons. */
 export type TeamSwitchReason =
   'cap' | 'concurrency' | 'rateLimited' | 'usageLimit' | 'unavailable' | 'reset'
