@@ -33,6 +33,14 @@ describe('per-command help', () => {
       command: 'helpTopic',
       topic: 'login',
     })
+    expect(parseCommandLine(['playbook', '--help'])).toEqual({
+      command: 'helpTopic',
+      topic: 'playbook',
+    })
+    expect(parseCommandLine(['playbook', '-h'])).toEqual({
+      command: 'helpTopic',
+      topic: 'playbook',
+    })
     for (const topic of CLI_HELP_TOPICS) {
       expect(parseCommandLine(['help', topic.name])).toEqual({
         command: 'helpTopic',
@@ -45,6 +53,10 @@ describe('per-command help', () => {
     expect(parseCommandLine(['help', '--all'])).toEqual({ command: 'help', all: true })
     expect(parseCommandLine(['help', 'reference'])).toEqual({ command: 'help', all: true })
     expect(parseCommandLine(['help', 'nope'])).toMatchObject({ command: 'invalid', exitCode: 2 })
+    expect(parseCommandLine(['help', 'exec', 'extra'])).toMatchObject({
+      command: 'invalid',
+      exitCode: 2,
+    })
     const reason = parseCommandLine(['help', 'nope'])
     expect(reason.command === 'invalid' ? reason.reason : '').toContain('Unknown command')
   })

@@ -345,7 +345,7 @@ export function parseCommandLine<T>(
           : `${reason} ${fill(UI_TEXT.cliHelp.suggestOption, { nearest })}`,
       )
     }
-    return invalid(argv.join(' '))
+    return { ...invalid(argv.join(' ')), exitCode: 2 }
   }
   if (argv[0] === 'providers' && argv[1] === 'models') return parseProvidersModels(argv.slice(2))
   if (argv[0] === 'schedule') {
@@ -377,7 +377,10 @@ export function parseCommandLine<T>(
     return parseReport(argv.slice(argv[1] === 'problem' ? 2 : 1), argv[1] !== 'problem')
   if (argv[0] === 'legal') return parseLegalCommand(argv)
   if (argv[0] === 'fonts') return parseFonts(argv.slice(1))
-  if (argv[0] === 'playbook') return { command: 'playbook', argv: argv.slice(1) }
+  if (argv[0] === 'playbook')
+    return argv.length === 2 && (argv[1] === '--help' || argv[1] === '-h')
+      ? { command: 'helpTopic', topic: 'playbook' }
+      : { command: 'playbook', argv: argv.slice(1) }
   let parsed: ReturnType<typeof parseCommandLineStrictly>
   try {
     parsed = parseCommandLineStrictly(argv)
