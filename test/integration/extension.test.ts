@@ -191,6 +191,22 @@ suite('activation', () => {
         isChatTab(vscode.window.tabGroups.activeTabGroup.activeTab),
         'Focus Input did not bring the chat panel forward',
       )
+      // Input ownership, not just panel visibility: the composer's landing
+      // effect focuses the textarea, the webview reports it back, and the
+      // next Focus Input — a toggle — hands the keyboard to the file. A panel
+      // that merely revealed, without the composer ever taking focus, would
+      // re-post focusInput here instead, and the file would never go active.
+      const toggleDeadline = Date.now() + TAB_WAIT_TIMEOUT_MS
+      let hasEditorBack = false
+      while (Date.now() < toggleDeadline) {
+        await vscode.commands.executeCommand(COMMAND_IDS.focusInput)
+        await new Promise((resolve) => setTimeout(resolve, TAB_POLL_INTERVAL_MS))
+        if (activeTextEditorFsPath() === target.fsPath) {
+          hasEditorBack = true
+          break
+        }
+      }
+      assert.ok(hasEditorBack, 'Focus Input did not hand the keyboard back to the file')
     } finally {
       // Close the file tab wherever it is; the chat panels stay for the
       // later cases that count them.
