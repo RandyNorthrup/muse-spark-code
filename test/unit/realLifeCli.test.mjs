@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync } from 'node:fs'
+import { existsSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
@@ -43,5 +43,25 @@ describe('real-life command line', () => {
     )
     expect(finished.status).toBe(2)
     expect(`${finished.stderr} ${finished.stdout}`).toMatch(/no scenario runs/i)
+  })
+
+  it('fails a requested route with no key, after making the record folder (4252482398, 4252482389)', () => {
+    const root = mkdtempSync(path.join(tmpdir(), 'real-life-'))
+    const record = path.join(root, '0.19.0', 'rig-record')
+    const finished = run(
+      '--artefact',
+      'package.json',
+      '--routes',
+      'anthropic',
+      '--max-requests',
+      '10',
+      '--max-usd',
+      '1',
+      '--record',
+      record,
+    )
+    expect(finished.status).toBe(2)
+    expect(`${finished.stderr} ${finished.stdout}`).toMatch(/REAL_LIFE_KEY_ANTHROPIC_FLEET_1/)
+    expect(existsSync(path.dirname(record))).toBe(true)
   })
 })
