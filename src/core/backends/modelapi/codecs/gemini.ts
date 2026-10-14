@@ -19,7 +19,10 @@ import {
 } from '../../../providers/modelMetadata'
 import { capturedCapabilities } from '../../../providers/capturedCapabilities'
 import type { ModelCapabilityRecord } from '../../../providers/capabilityRecord'
-import { PROVIDER_MANUAL_THINKING_BUDGET } from '../../../../shared/constants'
+import {
+  EFFORT_PROVIDER_DEFAULT,
+  PROVIDER_MANUAL_THINKING_BUDGET,
+} from '../../../../shared/constants'
 import { UI_TEXT } from '../../../../shared/l10n/text'
 
 import { ModelApiError } from '../transport'
@@ -639,7 +642,14 @@ export function encodeGeminiRequest(
     }))
   const thinkingLevel = geminiThinkingLevelForEffort(body.reasoning.effort)
   const record = capabilityRecord ?? capturedCapabilities('gemini', nativeModelId)
-  if (body.reasoning.effort !== 'none' && record.reasoning.supported.state === 'no')
+  // The provider default (lane REASONSHAPESR2): no thinkingConfig at all, on
+  // budget-mode models too — never an invented budget in its place.
+  const isProviderDefault = body.reasoning.effort === EFFORT_PROVIDER_DEFAULT
+  if (
+    !isProviderDefault &&
+    body.reasoning.effort !== 'none' &&
+    record.reasoning.supported.state === 'no'
+  )
     throw new Error(`${UI_TEXT.providerCapabilityUnsupported} (gemini_reasoning_unsupported)`)
   if (
     body.reasoning.effort === 'none' &&
@@ -655,6 +665,7 @@ export function encodeGeminiRequest(
         Math.max(record.reasoning.budget?.min ?? 0, PROVIDER_MANUAL_THINKING_BUDGET))
   if (
     isBudgetUsed &&
+    !isProviderDefault &&
     (!Number.isSafeInteger(budget) ||
       budget < (record.reasoning.budget?.min ?? 0) ||
       (body.reasoning.effort !== 'none' && budget <= 0) ||
@@ -682,14 +693,15 @@ export function encodeGeminiRequest(
   }
   request['generationConfig'] = {
     maxOutputTokens: body.max_output_tokens,
-    ...(isBudgetUsed
-      ? { thinkingConfig: { thinkingBudget: budget, includeThoughts: true } }
-      : thinkingLevel !== undefined && {
-          thinkingConfig: {
-            ...(supportedLevel !== undefined && { thinkingLevel: supportedLevel }),
-            includeThoughts: true,
-          },
-        }),
+    ...(!isProviderDefault &&
+      (isBudgetUsed
+        ? { thinkingConfig: { thinkingBudget: budget, includeThoughts: true } }
+        : thinkingLevel !== undefined && {
+            thinkingConfig: {
+              ...(supportedLevel !== undefined && { thinkingLevel: supportedLevel }),
+              includeThoughts: true,
+            },
+          })),
   }
   return { path: geminiStreamPath(nativeModelId), body: request }
 }

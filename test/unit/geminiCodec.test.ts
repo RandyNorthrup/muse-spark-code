@@ -226,6 +226,18 @@ describe('encodeGeminiRequest goldens', () => {
     })
   })
 
+  it('sends no thinkingConfig at the provider default on a budget-mode model', () => {
+    const request = encodeGeminiRequest(
+      {
+        ...TOOL_BODY,
+        max_output_tokens: 8192,
+        reasoning: { effort: 'default', summary: 'auto' },
+      },
+      'gemini-2.5-flash',
+    )
+    expect(request.body['generationConfig']).toEqual({ maxOutputTokens: 8192 })
+  })
+
   it('never declares web search to the model', () => {
     const request = encodeGeminiRequest(
       {
