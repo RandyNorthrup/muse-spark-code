@@ -111,6 +111,40 @@ happened, not what was planned; superseded entries are kept.
   launches are not yet under the resource governor; nothing in this release
   can start them, and the process inventory fails the day something could.
 
+## [0.18.2] - 2026-10-12
+
+### Highlights
+
+- **The landing screen shows the extension's own mark.** The empty chat
+  panel showed the Meta logo beside the product name. It now shows the
+  product's own squiggled "m", the mark of the Marketplace and activity-bar
+  icons: blue in dark and light themes, and in the theme's text colour in
+  high-contrast themes and under forced colours.
+
+### Changed
+
+- The chat panel's empty screen shows the extension's own mark instead of
+  Meta's logo, in the same place and at the same size. The mark is blue in
+  ordinary themes and takes the text colour in high-contrast themes.
+- The Get Started walkthrough's four pictures were taken again. Two still
+  showed Meta's logo (the empty panel and the actions palette); the other
+  two were from an older panel, and the sign-in picture did not show the
+  third choice, Start with your own model, that the last page describes.
+
+### Documentation
+
+- The README's four screenshots that showed Meta's logo (modes, palette,
+  slash commands, voice) were taken again and show the extension's own mark.
+
+### Release infrastructure
+
+- Screenshot comparison no longer runs in CI or in the local gate (the
+  owner's decision, 2026-10-12). A change to the interface is looked at by a
+  person, locally, in one light and one dark theme. The comparison could
+  only say that a frame had changed against the frame accepted before it,
+  never that what a frame showed was wrong: Meta's logo was in the accepted
+  frames.
+
 ## [0.18.1] - 2026-10-12
 
 ### Fixed
