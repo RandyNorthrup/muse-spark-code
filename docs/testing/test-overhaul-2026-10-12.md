@@ -171,7 +171,23 @@ fixtures deleted, 2 scenes deferred to PASS 3); `npm run typecheck`
 green on all five projects afterwards. Exact test-count delta in
 PASS 6 (before 27,650 unit tests on the untouched base).
 
-## PASS 3 — screenshot system removal (TBD)
+## PASS 3 — screenshot system removal
+
+PASS 3a deletes the pixel-comparison pipeline entire: `check-visual`,
+the `visualImages` pixel code, the `visualManifest` sharding tooling,
+the capture-inputs list, the goldens capture/fixtures/manifest/a11y
+code, the visual matrix, the M114 audit JSON it reads, the two visual
+tests (`visualMatrix`, `visualSource`) and the orphaned audit-capture
+helper — 19 files — and trims the capture pins out of
+`whatsNewFixture`. What stays: the harness scenes, `readme-shots`, and
+one small local command for a person to look at a changed screen,
+`npm run ui:look -- <scene> [--theme light|dark]`, rendering into
+`temp/ui-look/` with no baseline, no comparison and no CI. PASS 3b
+drops the `visual-shards` and `visual` jobs and every `needs:` edge
+from `build.yml`, mirrors the workflow in `manifest.test.ts`, and
+repairs two PASS 2 danglers the deleted reporting verifier left
+(`scripts/a11y.mjs` spawned it; a mirror test read its source): the
+report-page axe cover lapses with it, listed for the lead below.
 
 ## PASS 4 — rule 3 decisions (one line each)
 
@@ -241,7 +257,7 @@ Stayed (what a person loses if deleted):
 `test:unit` is `vitest run` with no `--coverage`; the thresholds and the
 merge job are gone (the number measured fake-driven tests). `quality:gates`
 is format, lint, typecheck, badges, tokens, l10n, reference, host-api, plan,
-roadmap, deadcode, cycles, duplication, `test:unit`, `build`, `package`,
+roadmap, deadcode, cycles, duplication, `test:unit`, `build`,
 `security:audit`; `quality` adds `test:a11y`, `test:legal-a11y`,
 `security:secrets`, `security:sast` as before. The checks matrix `build`
 part runs the same list (the CIFLOW leaves test holds it).
@@ -276,13 +292,13 @@ Release: a comment-only placeholder reserves the `check:claims` step
 (branch feat/claims-gate) ahead of publishing — no stub, nothing that
 pretends to pass.
 
-`package` in the gate, measured: `npm run build` is green (budgets,
-split, lazy-registry current, notices). `npm run package` stops in
-`package-vsix.mjs` at `Required Linux created-path helper excluded
-from VSIX: arm64` — only `native/linux/x64` exists on this laptop;
-arm64 comes from CI's linux-native-build job. Pre-existing and
-environmental (no lane file touches natives or staging); CI's packages
-job stages both arches first. Not fixed here.
+`package` was first put in the gate, then taken back out in review
+(RVTESTCUT): `npm run package` stops in `package-vsix.mjs` at
+`Required Linux created-path helper excluded from VSIX: arm64`
+wherever the CI-built natives are not staged — and only the packages
+job stages them, so the checks job (and a dev machine) could never
+pass it. Packing stays gated in the packages job, where both arches
+are staged first; `npm run build` is the checks gate's last step.
 
 Pull-request minutes, computed from the job list (E = estimated from
 cited hosted records, not measured here): full tier (queue off) ≈ 15 —
@@ -371,16 +387,17 @@ Real editor throughout (Extension Development Host); model backend last.
 ### Listed, not fixed (survivor red after the deletions)
 
 - `spawnInventory.test.mjs` → `requires every source process import
-and launch`: `proveTestOnly` reports `exercised: false` for
+and launch`: `proveTestOnly` reported `exercised: false` for
   `nodeGitProcesses` (the checkout git port's default) and
   `openWorkerFile` (the worker fence's file opener) — the only tests
   that called them by name were GO deletions (the nativeGit suites).
   Both symbols are still live-wired production defaults
   (`options.processes ?? nodeGitProcesses`; `openFile:
 openWorkerFile`), so they are not dead code and were not removed.
-  Option for the lead: re-profile the two sites, restore converted
-  real-process cover, or leave the failure documented here. Never
-  skipped.
+  Fixed in review (RVTESTCUT): `nativeProcessDefaults.test.ts` runs
+  both for real (git through `run` and `start`; a real temp file
+  through `WORKER_NATIVE_IO.openFile`), so the profile is proved
+  again and the suite is green.
 - `readme-shots` `deterministic-report` shot: needs the deleted
   reporting verifier's `--prepare` output (`temp/m113-v/scenes.json`,
   built from deleted `reportRenderFixtures`). The spawn fails closed
@@ -415,3 +432,21 @@ pointing at deleted files, the stale cycles.json exclusion, and the
 PASS 2b error: `fakeScheduleWake.mjs` was still used by that LIST
 hosts script (by path string, which the import sweep cannot see), so it
 is restored with a knip entry rather than left dangling.
+
+## Review corrections (RVTESTCUT, 2026-10-14)
+
+- The classifier missed every chained `vi.spyOn(x).mockX(...)`:
+  `calleeChain` stops at the call receiver, so the head was the bare
+  `mockX` and the dot-anchored pattern never matched. Fourteen
+  surviving suites with a spyOn replacement were STAY in the record
+  above (the 40-file hand sample happened to contain none). The
+  classifier is fixed (a `vi.mocked` receiver stays the rule-2 seam;
+  a `vi.spyOn` receiver never does) and the 14 suites are rewritten
+  through the real module or, where the replacement was the only
+  mechanism, excised case by case. The JSON record is the historical
+  base-tree run and is not regenerated; its spy-chain deciders
+  undercount by this class.
+- `cyclesRoots` was red on the lane head: the restored
+  `fakeScheduleWake.mjs` had its knip entry but no cycles root. Added.
+- `package` left `quality:gates` and the checks matrix (PASS 5 above):
+  only the packages job stages the Linux natives it requires.
