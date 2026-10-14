@@ -4253,6 +4253,8 @@ export const EN = {
   // M80 (PLAN.md D65): the headless exec and scan-secrets commands.
   execBudgetRequired: 'Model API requires --max-budget-usd.',
   execNumberInvalid: 'Invalid number or limit; the USD budget accepts at most six decimal places.',
+  execValueInvalid:
+    'Invalid value for {option}; run exec --help for the accepted values and bounds.',
   execTrustRefused: 'Headless runs refuse workspace trust and bypass permissions.',
   execModeRefused: 'Headless runs permit only plan or acceptEdits.',
   execWebSearchUnbounded: 'Hosted web search has no bounded allowance and is refused.',

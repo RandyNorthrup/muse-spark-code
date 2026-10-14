@@ -143,6 +143,24 @@ describe('wrong options and values', () => {
     expect(parsed.command === 'invalid' ? parsed.reason : '').toContain('--backend auto')
   })
 
+  it('names the exec option a wrong value belongs to, never the budget sentence', () => {
+    for (const [argv, option] of [
+      [['exec', '--backend', 'auto', 'hi'], '--backend'],
+      [['exec', '--output', 'xml', 'hi'], '--output'],
+      [['exec', '--effort', 'turbo', 'hi'], '--effort'],
+      [['exec', '--timeout', '1', 'hi'], '--timeout'],
+      [['exec', '--max-requests', '0', 'hi'], '--max-requests'],
+    ] as const) {
+      const parsed = parseCommandLine([...argv])
+      expect(parsed, argv.join(' ')).toMatchObject({ command: 'invalid', exitCode: 2 })
+      const reason = parsed.command === 'invalid' ? parsed.reason : ''
+      expect(reason, argv.join(' ')).toContain(`Invalid value for ${option}`)
+      expect(reason, argv.join(' ')).not.toContain('six decimal')
+    }
+    const budget = parseCommandLine(['exec', '--max-budget-usd', 'abc', 'hi'])
+    expect(budget.command === 'invalid' ? budget.reason : '').toContain('six decimal')
+  })
+
   it('refuses a secret-looking option without repeating its name', () => {
     const parsed = parseCommandLine(['auth', 'set', '--account-secret-canary'])
     expect(parsed).toMatchObject({ command: 'invalid', exitCode: 2 })

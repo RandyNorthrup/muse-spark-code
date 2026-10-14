@@ -3659,6 +3659,7 @@
   },
   "execBudgetRequired": "Model API wymaga --max-budget-usd.",
   "execNumberInvalid": "Nieprawidłowa liczba lub limit; budżet w USD dopuszcza najwyżej sześć miejsc po przecinku.",
+  "execValueInvalid": "Nieprawidłowa wartość dla {option}; akceptowane wartości i limity pokazuje exec --help.",
   "execTrustRefused": "Uruchomienia bez interfejsu odmawiają zaufania obszarowi roboczemu i omijania uprawnień.",
   "execModeRefused": "Bez interfejsu dozwolone są tylko plan lub acceptEdits.",
   "execWebSearchUnbounded": "Hostowane wyszukiwanie w sieci nie ma gwarantowanego limitu i jest odrzucane.",

@@ -3513,6 +3513,7 @@
   },
   "execBudgetRequired": "Model API için --max-budget-usd gerekir.",
   "execNumberInvalid": "Geçersiz sayı veya sınır; USD bütçesi en fazla altı ondalık basamak kabul eder.",
+  "execValueInvalid": "{option} için geçersiz değer; kabul edilen değerleri ve sınırları exec --help gösterir.",
   "execTrustRefused": "Arayüzsüz çalıştırmalar çalışma alanına güvenmeyi ve izinleri atlamayı reddeder.",
   "execModeRefused": "Arayüzsüz çalıştırmalarda yalnızca plan veya acceptEdits kullanılabilir.",
   "execWebSearchUnbounded": "Barındırılan web aramasının garantili sınırı yoktur ve reddedilir.",
