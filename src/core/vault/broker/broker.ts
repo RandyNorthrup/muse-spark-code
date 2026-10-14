@@ -1,4 +1,4 @@
-import { randomBytes, timingSafeEqual } from 'node:crypto'
+import { randomBytes } from 'node:crypto'
 import * as z from 'zod/mini'
 import {
   UI_TEXT,
@@ -560,16 +560,5 @@ export class VaultBroker implements VaultBrokerPort {
     } finally {
       this.invalidations.clear()
     }
-  }
-}
-export function isVaultBootTokenMatch(expected: string, actual: string): boolean {
-  const a = Buffer.from(expected, 'hex')
-  let b: Buffer | undefined
-  try {
-    b = Buffer.from(actual, 'hex')
-    return a.length === VAULT_LIMITS.idBytes && b.length === a.length && timingSafeEqual(a, b)
-  } finally {
-    a.fill(0)
-    b?.fill(0)
   }
 }
