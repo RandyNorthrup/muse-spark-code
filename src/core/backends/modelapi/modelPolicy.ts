@@ -22,11 +22,7 @@ import type { ModelPricing, PricedUsage } from '../../providers/priceCard'
 import { outputTokenMinimumMessage } from '../../../shared/providerRouting'
 import { effortLevelsFor, resolveReasoning } from '../../../shared/effort'
 import { modelApiPaidTier } from '../../../shared/paid'
-import {
-  planOfferedLevels,
-  resolvePlanEffort,
-  type ChatGptPlanFacts,
-} from '../../providers/subscriptions/chatgptPlanFacts'
+import { planOfferedLevels, resolvePlanEffort, type ChatGptPlanFacts } from './planFacts'
 
 /** The configured provider and exact model that produced opaque reasoning. */
 export interface ReplayProducer {

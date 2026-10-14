@@ -195,6 +195,8 @@ const LAZY_ONLY = [
   // MODELAPIDIET: the hook call fields load with dist/modelApiTools.js (MODEL_API_TOOLS_ONLY).
   // M95-I: policy stays out of activation/ACP; the provider/reviewer bundles also read it.
   'modelPolicy.ts',
+  // The plan catalogue's facts type and send-path resolution beside the policy.
+  'planFacts.ts',
   // M73: observation packing's store, its placeholder and recall_output.
   'observationPack.ts',
   'autoCompact.ts',

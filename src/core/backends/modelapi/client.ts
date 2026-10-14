@@ -83,7 +83,7 @@ import { outputTokenMinimumMessage } from '../../../shared/providerRouting'
 
 import type { PacingProvider, RequestPacer } from './pacing'
 import { fanOutPacingClass } from './subagentTools'
-import type { ChatGptPlanFacts } from '../../providers/subscriptions/chatgptPlanFacts'
+import type { ChatGptPlanFacts } from './planFacts'
 
 /** Public transport contract shared by Meta, plan clients and host adapters. */
 export type ProviderClient = Pick<

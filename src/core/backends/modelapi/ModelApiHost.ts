@@ -342,11 +342,7 @@ import type {
   HookReplacement,
 } from './hooks'
 import { toolMatcherNames } from './hookNames'
-import {
-  planDefaultEffort,
-  planFastTier,
-  planOfferedLevels,
-} from '../../providers/subscriptions/chatgptPlanFacts'
+import { planDefaultEffort, planFastTier, planOfferedLevels } from './planFacts'
 import {
   replayProducer,
   type ReplayProducer,

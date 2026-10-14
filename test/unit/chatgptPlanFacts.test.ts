@@ -8,14 +8,14 @@
 // modules.
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
+import { chatGptPlanFacts } from '../../src/core/providers/subscriptions/chatgptPlanFacts'
 import {
-  chatGptPlanFacts,
   planDefaultEffort,
   planFastTier,
   planOfferedLevels,
   resolvePlanEffort,
   type ChatGptPlanFacts,
-} from '../../src/core/providers/subscriptions/chatgptPlanFacts'
+} from '../../src/core/backends/modelapi/planFacts'
 import { effortForPolicy, modelPolicyFor } from '../../src/core/backends/modelapi/modelPolicy'
 
 function entry(): unknown {
