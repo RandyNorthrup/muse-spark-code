@@ -8,9 +8,16 @@
 // (found against GNOME Keyring, docs/certification/m63.md), and as
 // undefined everywhere past this file.
 
+import { createHash } from 'node:crypto'
 import { modelRef, credentialRecord } from '../host/backend/providerPolicyEntry'
 import type { SecretStore } from '../host/auth/credentialStore'
-import { KEYRING_SERVICE, UI_TEXT } from '../shared/constants'
+import {
+  KEYRING_PART_CHARS,
+  KEYRING_PARTS_ID_CHARS,
+  KEYRING_PARTS_TAG,
+  KEYRING_SERVICE,
+  UI_TEXT,
+} from '../shared/constants'
 import type { CredentialRecord } from '../core/providers/credentialRecord'
 const { parseCredentialRecord } = credentialRecord
 const { isProviderId } = modelRef
@@ -43,18 +50,86 @@ export async function storeOperation<T>(work: () => Promise<T>): Promise<T> {
   }
 }
 
-/** The credential store as the key's `SecretStore`, each call on a freshly opened entry. */
+/** A value kept as parts: how many, and the whole value's SHA-256 (hex). */
+interface PartsHeader {
+  readonly count: number
+  readonly sha256: string
+}
+
+const PARTS_HEADER = new RegExp(`^${KEYRING_PARTS_TAG}([1-9][0-9]{0,5}):([0-9a-f]{64})$`, 'u')
+
+function partsHeader(value: string | undefined): PartsHeader | undefined {
+  const match = value === undefined ? null : PARTS_HEADER.exec(value)
+  return match === null ? undefined : { count: Number(match[1]), sha256: match[2] ?? '' }
+}
+
+/** One generation's part account: the hash prefix keeps a rewrite from touching the parts it replaces. */
+function partAccount(key: string, sha256: string, index: number): string {
+  return `${key}#${sha256.slice(0, KEYRING_PARTS_ID_CHARS)}.${String(index)}`
+}
+
+/**
+ * The credential store as the key's `SecretStore`, each call on a freshly
+ * opened entry. A value longer than one entry holds on every platform
+ * (Windows: 1,280 characters), or one that starts with the parts tag, is
+ * written as parts first and a header last, so a reader never meets a header
+ * whose parts are missing; the parts it replaces are removed afterwards.
+ * Reading reassembles the parts and checks the hash; a short value is read
+ * and written exactly as before.
+ */
 export function keyringSecretStore(openEntry: KeyringEntryFactory): SecretStore {
+  const read = async (account: string): Promise<string | undefined> =>
+    await storeOperation(
+      async () => (await openEntry(KEYRING_SERVICE, account).getPassword()) ?? undefined,
+    )
+  const write = async (account: string, value: string): Promise<void> => {
+    await storeOperation(() => openEntry(KEYRING_SERVICE, account).setPassword(value))
+  }
+  const remove = async (account: string): Promise<void> => {
+    await storeOperation(() => openEntry(KEYRING_SERVICE, account).deletePassword())
+  }
+  const removeParts = async (key: string, header: PartsHeader): Promise<void> => {
+    for (let index = 0; index < header.count; index += 1) {
+      await remove(partAccount(key, header.sha256, index))
+    }
+  }
   return {
-    get: async (key) =>
-      await storeOperation(
-        async () => (await openEntry(KEYRING_SERVICE, key).getPassword()) ?? undefined,
-      ),
+    get: async (key) => {
+      const stored = await read(key)
+      const header = partsHeader(stored)
+      if (header === undefined) return stored
+      const parts: string[] = []
+      for (let index = 0; index < header.count; index += 1) {
+        const part = await read(partAccount(key, header.sha256, index))
+        if (part === undefined) throw new StoreUnavailableError()
+        parts.push(part)
+      }
+      const value = parts.join('')
+      if (createHash('sha256').update(value).digest('hex') !== header.sha256) {
+        throw new StoreUnavailableError()
+      }
+      return value
+    },
     store: async (key, value) => {
-      await storeOperation(() => openEntry(KEYRING_SERVICE, key).setPassword(value))
+      const previous = partsHeader(await read(key))
+      if (value.length <= KEYRING_PART_CHARS && !value.startsWith(KEYRING_PARTS_TAG)) {
+        await write(key, value)
+        if (previous !== undefined) await removeParts(key, previous)
+        return
+      }
+      const sha256 = createHash('sha256').update(value).digest('hex')
+      const count = Math.ceil(value.length / KEYRING_PART_CHARS)
+      for (let index = 0; index < count; index += 1) {
+        const start = index * KEYRING_PART_CHARS
+        await write(partAccount(key, sha256, index), value.slice(start, start + KEYRING_PART_CHARS))
+      }
+      await write(key, `${KEYRING_PARTS_TAG}${String(count)}:${sha256}`)
+      if (previous !== undefined && previous.sha256 !== sha256) await removeParts(key, previous)
     },
     delete: async (key) => {
-      await storeOperation(() => openEntry(KEYRING_SERVICE, key).deletePassword())
+      const previous = partsHeader(await read(key))
+      await remove(key)
+      if (previous !== undefined) await removeParts(key, previous)
     },
   }
 }
