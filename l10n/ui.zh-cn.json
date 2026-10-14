@@ -918,7 +918,8 @@
     "reduced": "功能受限",
     "aiContent": "AI 生成的内容可能不准确。Copilot 会添加自己的规则并使用你的 AI 点数；未报告用量时，令牌数为估算值。",
     "reportContent": "举报有害内容",
-    "fastDetail": "{description}。默认关闭：它会消耗更多的套餐额度。"
+    "fastDetail": "{description}。默认关闭：它会消耗更多的套餐额度。",
+    "requestFailed": "ChatGPT 套餐请求失败：{message}"
   },
   "untitledConversation": "未命名",
   "crashTitle": "面板出错了",

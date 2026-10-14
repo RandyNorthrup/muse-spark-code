@@ -926,7 +926,8 @@
     "reduced": "Funzionalità ridotte",
     "aiContent": "I contenuti generati dall’IA possono essere inesatti. Copilot aggiunge le proprie regole e usa i tuoi crediti IA; i conteggi dei token sono stime quando l’utilizzo non viene riportato.",
     "reportContent": "Segnala contenuti dannosi",
-    "fastDetail": "{description}. Disattivato per impostazione predefinita: usa più quota del tuo piano."
+    "fastDetail": "{description}. Disattivato per impostazione predefinita: usa più quota del tuo piano.",
+    "requestFailed": "La richiesta del piano ChatGPT non è riuscita: {message}"
   },
   "untitledConversation": "Senza titolo",
   "crashTitle": "Si è verificato un errore nel pannello",

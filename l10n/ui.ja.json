@@ -918,7 +918,8 @@
     "reduced": "機能制限あり",
     "aiContent": "AIが生成した内容は不正確な場合があります。Copilotは独自のルールを追加し、AIクレジットを使用します。使用量が報告されない場合、トークン数は推定値です。",
     "reportContent": "有害な内容を報告",
-    "fastDetail": "{description}。デフォルトではオフです。プランの使用量を多く消費します。"
+    "fastDetail": "{description}。デフォルトではオフです。プランの使用量を多く消費します。",
+    "requestFailed": "ChatGPTプランのリクエストに失敗しました: {message}"
   },
   "untitledConversation": "無題",
   "crashTitle": "パネルでエラーが発生しました",

@@ -922,7 +922,8 @@
     "reduced": "Korlátozott képességek",
     "aiContent": "Az AI által létrehozott tartalom pontatlan lehet. A Copilot saját szabályokat ad hozzá és az Ön AI-kreditjeit használja; a tokenszámok becslések, ha a használat nincs jelentve.",
     "reportContent": "Káros tartalom jelentése",
-    "fastDetail": "{description}. Alapértelmezés szerint kikapcsolva: többet fogyaszt a csomagkeretből."
+    "fastDetail": "{description}. Alapértelmezés szerint kikapcsolva: többet fogyaszt a csomagkeretből.",
+    "requestFailed": "A ChatGPT-csomag kérése sikertelen: {message}"
   },
   "untitledConversation": "Névtelen",
   "crashTitle": "Hiba történt a panelen",

@@ -7,6 +7,7 @@ import { createHash } from 'node:crypto'
 import * as z from 'zod/mini'
 import type { ProviderClient } from '../../backends/modelapi/client'
 import {
+  errorBodySchema,
   isFunctionCallItem,
   isMessageItem,
   isReasoningItem,
@@ -88,6 +89,24 @@ export async function chatGptModels(
 ): Promise<string[]> {
   const catalog = await chatGptCatalog(signIn, fetcher)
   return [...catalog.slugs]
+}
+
+/**
+ * A non-OK plan answer says what OpenAI answered: the error envelope's
+ * own message, never a header or a token. Anything else keeps the
+ * standing retry sentence. The client sends the request once; a 4xx other
+ * than 429 is terminal and never retried.
+ */
+async function planRequestError(response: Response): Promise<Error> {
+  try {
+    const parsed = errorBodySchema.safeParse(await response.json())
+    const message = parsed.success ? parsed.data.error.message : ''
+    return new Error(
+      message === '' ? UI_TEXT.planUi.retry : fill(UI_TEXT.planUi.requestFailed, { message }),
+    )
+  } catch {
+    return new Error(UI_TEXT.planUi.retry)
+  }
 }
 
 // The catalogue slug for one model reference. Bare ids read as slugs;
@@ -372,7 +391,8 @@ export function createSubscriptionClient(
           }),
         )
         lastEventAt = Date.now()
-        if (!response.ok || response.body === null) throw new Error(UI_TEXT.acpChatGpt.failure)
+        if (!response.ok) throw await planRequestError(response)
+        if (response.body === null) throw new Error(UI_TEXT.acpChatGpt.failure)
         // The captured endpoint streams SSE without Content-Type. Never branch on that header.
         const reader = response.body.getReader()
         async function* bytes() {

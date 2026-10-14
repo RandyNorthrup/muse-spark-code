@@ -922,7 +922,8 @@
     "reduced": "Sınırlı özellikler",
     "aiContent": "Yapay zeka tarafından üretilen içerik hatalı olabilir. Copilot kendi kurallarını ekler ve yapay zeka kredilerinizi kullanır; kullanım bildirilmediğinde token sayıları tahminidir.",
     "reportContent": "Zararlı içeriği bildir",
-    "fastDetail": "{description}. Varsayılan olarak kapalı: plan kotanızdan daha fazla kullanır."
+    "fastDetail": "{description}. Varsayılan olarak kapalı: plan kotanızdan daha fazla kullanır.",
+    "requestFailed": "ChatGPT plan isteği başarısız oldu: {message}"
   },
   "untitledConversation": "Adsız",
   "crashTitle": "Panelde bir hata oluştu",

@@ -922,7 +922,8 @@
     "reduced": "Eingeschränkte Funktionen",
     "aiContent": "KI-generierte Inhalte können ungenau sein. Copilot fügt eigene Regeln hinzu und nutzt deine KI-Guthaben; Token-Zahlen sind Schätzungen, wenn keine Nutzung gemeldet wird.",
     "reportContent": "Schädliche Inhalte melden",
-    "fastDetail": "{description}. Standardmäßig ausgeschaltet: Es verbraucht mehr von Ihrem Plan-Kontingent."
+    "fastDetail": "{description}. Standardmäßig ausgeschaltet: Es verbraucht mehr von Ihrem Plan-Kontingent.",
+    "requestFailed": "Die ChatGPT-Plananfrage ist fehlgeschlagen: {message}"
   },
   "untitledConversation": "Unbenannt",
   "crashTitle": "Im Panel ist ein Fehler aufgetreten",
