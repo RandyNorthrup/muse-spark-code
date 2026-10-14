@@ -1,6 +1,9 @@
+import { existsSync, mkdtempSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { installerEnvironment } from '../../scripts/real-life/lib/install.mjs'
-import { parseUsageOutput } from '../../scripts/real-life/lib/record.mjs'
+import { ensureRecordDir, parseUsageOutput } from '../../scripts/real-life/lib/record.mjs'
 
 // Pure guards for the real-life run (scripts/real-life/): each `it` names
 // the review finding it holds. Values go in as data; nothing is faked.
@@ -44,5 +47,14 @@ describe('real-life usage readings', () => {
       expect(read.ok).toBe(false)
       expect(read.reason).not.toBe('')
     }
+  })
+})
+
+describe('real-life record destination', () => {
+  it('creates a missing record folder (4252482389)', () => {
+    const root = mkdtempSync(path.join(tmpdir(), 'real-life-'))
+    const file = path.join(root, '0.19.0', 'rig-2026-10-14')
+    ensureRecordDir(file)
+    expect(existsSync(path.dirname(file))).toBe(true)
   })
 })
