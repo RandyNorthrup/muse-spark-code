@@ -141,15 +141,6 @@ export class ShadowStorageInWorkspaceError extends Error {
   }
 }
 
-/** Whether `candidate` is `folder` or below it, by path segment and the platform's own case rules. */
-export function isWithinFolder(candidate: string, folder: string): boolean {
-  const relative = path.relative(folder, candidate)
-  return (
-    relative === '' ||
-    (relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative))
-  )
-}
-
 /** Any checkpoint storage inside the workspace, or the workspace inside this storage. */
 function isTangled(storageRoot: string, storage: string, workspace: string): boolean {
   return (

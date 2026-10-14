@@ -2,12 +2,7 @@
 // next request. ACP and the companion never handle credentials.
 import type { SessionConfigOption } from '@agentclientprotocol/sdk'
 import { accountEventSchema, accountIdSchema, type AccountEvent } from '../shared/accounts'
-import {
-  accountsReplySchema,
-  accountsRequestSchema,
-  type AccountsReply,
-  type AccountsRequest,
-} from '../shared/hostApi/accounts'
+import { accountsReplySchema, type AccountsReply } from '../shared/hostApi/accounts'
 import { ACP_CONFIG_IDS, UI_TEXT } from '../shared/constants'
 import { fill, formatNumber } from '../shared/l10n/text'
 import { slashCommandText } from '../shared/mentions'
@@ -20,11 +15,7 @@ import {
   type AccountUsagePort,
 } from './accountText'
 
-export {
-  accountErrorText,
-  AccountSwitchRefusedError,
-  isAccountSwitchRefusedError,
-} from './accountText'
+export { accountErrorText, isAccountSwitchRefusedError } from './accountText'
 
 type AccountsState = Extract<AccountsReply, { type: 'accounts/state' }>
 export interface AccountsSessionPort extends AccountUsagePort {
@@ -35,40 +26,6 @@ export interface AccountsSessionPort extends AccountUsagePort {
   /** Publish a fresh state from the live account store on metadata changes,
    * as well as notices from the same owner's committed adoption transaction. */
   subscribe(sessionId: string, listener: (event: AccountEvent | AccountsState) => void): () => void
-}
-
-/** U's panel dispatcher, also used by the authenticated companion bridge.
- * M104 owns origin/permission/envelope checks; this is the inner payload port. */
-export interface AccountsPanelPort {
-  dispatch(request: AccountsRequest): Promise<AccountsReply>
-  subscribe(listener: (reply: AccountsReply) => void): () => void
-}
-export function companionAccountsPanel(port: AccountsPanelPort): AccountsPanelPort {
-  return {
-    async dispatch(request) {
-      const parsed = accountsRequestSchema.safeParse(request)
-      if (!parsed.success) return { type: 'accounts/error', code: 'invalidAccount' }
-      try {
-        const reply = accountsReplySchema.safeParse(await port.dispatch(parsed.data))
-        return reply.success ? reply.data : { type: 'accounts/error', code: 'unavailable' }
-      } catch (error: unknown) {
-        return {
-          type: 'accounts/error',
-          code: isInvalidProvidersFileError(error) ? 'providersInvalid' : 'unavailable',
-        }
-      }
-    },
-    subscribe(listener) {
-      try {
-        return port.subscribe((reply) => {
-          const parsed = accountsReplySchema.safeParse(reply)
-          listener(parsed.success ? parsed.data : { type: 'accounts/error', code: 'unavailable' })
-        })
-      } catch {
-        throw new Error(UI_TEXT.accounts.unavailable)
-      }
-    },
-  }
 }
 
 function parseState(value: unknown): AccountsState {
