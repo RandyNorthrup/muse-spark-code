@@ -204,8 +204,9 @@ describe('CredentialStore', () => {
     expect(warnings[0]).not.toContain('locked')
   })
 
-  it('lets a non-error provider read failure keep its kind', async () => {
-    const foreign: unknown = 'a string failure'
+  it('reads a non-error store failure as unreadable, never throwing it at a guard', async () => {
+    const warnings: string[] = []
+    const foreign: unknown = 'a string failure naming /home/someone/keyring'
     const store = new CredentialStore(
       {
         get: () => {
@@ -214,10 +215,35 @@ describe('CredentialStore', () => {
         store: () => Promise.resolve(),
         delete: () => Promise.resolve(),
       },
-      unexpectedWarning,
+      (line) => {
+        warnings.push(line)
+      },
       "VS Code's secret storage",
       () => Promise.resolve(['meta']),
     )
-    await expect(store.readModelApiCredential()).rejects.toBe('a string failure')
+    // The three states are the whole contract: a foreign throw maps onto
+    // the closed kind instead of escaping to callers with no handler.
+    await expect(store.readModelApiCredential()).resolves.toEqual({
+      outcome: 'unreadable',
+      kind: 'other',
+    })
+    expect(warnings.join('\n')).not.toContain('keyring')
+    const codedFailure: unknown = { code: 'EACCES' }
+    const coded = new CredentialStore(
+      {
+        get: () => {
+          throw codedFailure
+        },
+        store: () => Promise.resolve(),
+        delete: () => Promise.resolve(),
+      },
+      () => undefined,
+      "VS Code's secret storage",
+      () => Promise.resolve([]),
+    )
+    await expect(coded.readModelApiCredential()).resolves.toEqual({
+      outcome: 'unreadable',
+      kind: 'denied',
+    })
   })
 })

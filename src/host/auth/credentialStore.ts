@@ -101,14 +101,15 @@ export class CredentialStore {
         return { outcome: 'found' }
       }
     } catch (error: unknown) {
-      // An unreadable key says nothing about presence. Anything that is not
-      // an error keeps its kind.
-      if (!(error instanceof Error)) throw error
+      // An unreadable key says nothing about presence. Every throw maps
+      // onto the closed kind (a non-Error keeps its code, else `other`):
+      // this read answers in the three states and never throws a foreign
+      // value at a guard that has no handler for it.
       unreadable = unreadableKindFor(error)
       if (!this.hasReportedFailure) {
         this.hasReportedFailure = true
         this.warn(
-          `${this.storeName} could not be read, so the Model API key's presence is unknown (${wireWordForLog(error.name)})`,
+          `${this.storeName} could not be read, so the Model API key's presence is unknown (${wireWordForLog(error instanceof Error ? error.name : typeof error)})`,
         )
       }
     }
@@ -122,11 +123,10 @@ export class CredentialStore {
       ids = await this.providerIds?.()
     } catch (error: unknown) {
       // A provider list that cannot be read cannot prove no provider holds
-      // a credential either. Anything that is not an error keeps its kind.
-      if (!(error instanceof Error)) throw error
+      // a credential either. Every throw maps onto the closed kind.
       unreadable ??= unreadableKindFor(error)
       this.warn(
-        `Provider credentials could not be listed, so their presence is unknown (${wireWordForLog(error.name)})`,
+        `Provider credentials could not be listed, so their presence is unknown (${wireWordForLog(error instanceof Error ? error.name : typeof error)})`,
       )
     }
     let isFound = false
@@ -154,14 +154,13 @@ export class CredentialStore {
         } catch (error: unknown) {
           // An entry that cannot be read says nothing about presence, so the
           // scan continues past it; the failure is recorded once per provider
-          // with its kind, never as absence. Anything that is not an error
-          // keeps its kind.
-          if (!(error instanceof Error)) throw error
+          // with its kind, never as absence. Every throw maps onto the
+          // closed kind.
           unreadable ??= unreadableKindFor(error)
           if (!this.reportedProviders.has(id)) {
             this.reportedProviders.add(id)
             this.warn(
-              `${this.storeName} could not be read for provider ${id}, so its credential is unknown (${wireWordForLog(error.name)})`,
+              `${this.storeName} could not be read for provider ${id}, so its credential is unknown (${wireWordForLog(error instanceof Error ? error.name : typeof error)})`,
             )
           }
         }
