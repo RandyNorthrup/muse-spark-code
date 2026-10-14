@@ -1,7 +1,14 @@
 import { PassThrough, Readable } from 'node:stream'
 import { describe, expect, it } from 'vitest'
-import { memorySecretStore, readKeyLine, readPromptStdin } from '../../src/runtime/exec/keyInput'
+import {
+  memorySecretStore,
+  providerKeyFailureText,
+  readKeyLine,
+  readPromptStdin,
+  readProviderKeyLine,
+} from '../../src/runtime/exec/keyInput'
 import { SECRET_KEYS } from '../../src/shared/constants'
+import { EN } from '../../src/shared/l10n/en'
 
 const KEY = `LLM_${'k'.repeat(20)}`
 const signal = () => new AbortController().signal
@@ -102,5 +109,28 @@ describe('M80 key/stdin (A11)', () => {
     const second = memorySecretStore(KEY)
     await second.delete(SECRET_KEYS.modelApiKey)
     expect(await second.get(SECRET_KEYS.modelApiKey)).toBeUndefined()
+  })
+})
+
+describe('provider key stdin failure sentences (KEYTEXT)', () => {
+  it('answers each failed read with a sentence that is true for its cause', () => {
+    expect(providerKeyFailureText('empty')).toBe(EN.providerKeyNotStored)
+    expect(providerKeyFailureText('tooLong')).toBe(EN.execKeyTooLong)
+    expect(providerKeyFailureText('tty')).toBe(EN.execKeyStdinTerminal)
+    expect(providerKeyFailureText('invalid')).toBe(EN.providerKeyNotText)
+  })
+
+  it('never answers non-text input with "no key was entered"', async () => {
+    const read = await readProviderKeyLine(Readable.from([Buffer.from([0xff, 0xfe])]), signal())
+    expect(read).toEqual({ ok: false, reason: 'invalid' })
+    if (read.ok) throw new Error('expected the non-text read to fail')
+    expect(providerKeyFailureText(read.reason)).toBe(EN.providerKeyNotText)
+    expect(providerKeyFailureText(read.reason)).not.toBe(EN.providerKeyNotStored)
+  })
+
+  it('pins the not-text sentence', () => {
+    expect(EN.providerKeyNotText).toBe(
+      'That input is not text (it is not valid UTF-8), so it was not used.',
+    )
   })
 })
