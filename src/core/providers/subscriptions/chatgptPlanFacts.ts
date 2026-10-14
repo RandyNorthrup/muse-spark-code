@@ -27,8 +27,6 @@ export const chatGptCatalogEntrySchema = z.looseObject({
   default_service_tier: z.optional(z.nullable(z.string())),
   multi_agent_reasoning_effort: z.optional(z.nullable(z.string())),
 })
-export type ChatGptCatalogEntry = z.infer<typeof chatGptCatalogEntrySchema>
-
 /** The entry's facts, or undefined when the entry is not shaped like one. */
 export function chatGptPlanFacts(entry: unknown): ChatGptPlanFacts | undefined {
   const parsed = chatGptCatalogEntrySchema.safeParse(entry)

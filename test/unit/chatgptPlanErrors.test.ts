@@ -143,17 +143,19 @@ describe('chatgpt plan request errors', () => {
     )
     const body: CreateResponseBody = {
       model: 'chatgpt/gpt-6.1-sol',
-      instructions: 'Test',
-      input: [{ type: 'message', role: 'user', content: [{ type: 'input_text', text: 'hi' }] }],
+      input: [
+        { type: 'message', role: 'user', content: [{ type: 'input_text', text: 'say hello' }] },
+      ],
+      instructions: 'Plan-route error replay',
       tools: [],
       tool_choice: 'auto',
+      reasoning: { effort: 'low' },
       stream: true,
       store: false,
-      prompt_cache_key: 'test-cache',
-      prompt_cache_retention: 'in_memory',
-      max_output_tokens: 64,
-      reasoning: { effort: 'none' },
       include: [],
+      max_output_tokens: 32,
+      prompt_cache_key: 'plan-error-replay',
+      prompt_cache_retention: 'in_memory',
     }
     const events = await Array.fromAsync(
       client.streamResponse(body, new AbortController().signal, undefined, undefined, undefined, {
