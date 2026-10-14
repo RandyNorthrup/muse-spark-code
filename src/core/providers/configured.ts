@@ -690,10 +690,16 @@ export function createConfiguredProviderServices(
           }
           default: {
             wire = responses
-              .createResponsesCodec({
-                sendPromptCacheKey: record.cache.acceptsKey,
-                sendPromptCacheRetention: record.cache.retention.length > 0,
-              })
+              .createResponsesCodec(
+                {
+                  sendPromptCacheKey: record.cache.acceptsKey,
+                  sendPromptCacheRetention: record.cache.retention.length > 0,
+                },
+                // The record resolved for this model gates the wire (tool
+                // choice modes, vision, strict tools); without it the codec
+                // would send `auto` for every model, listed or not.
+                () => capabilities.capabilitiesOf({ capabilityRecord: record }),
+              )
               .encodeRequest({ ...body, model: native })
           }
         }
