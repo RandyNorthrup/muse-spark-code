@@ -154,3 +154,13 @@ not app faults: the `muse.search` tool returned empty for present
 patterns mid-lane, so scoped `grep` covered it; and the ACP
 `session/set_config_option` for a boolean needs `type: "boolean"` on
 the wire, which the SDK schema requires and the driver first omitted.)
+
+## Lead, Windows, 2026-10-14 3:0x PM: the facts did not reach the pickers on a real computer
+
+Live on Windows (this branch built here, the owner's real ChatGPT sign-in, no Meta key stored), the editor protocol still answered `{"id":"effort","currentValue":"high","options":[]}` for `chatgpt/gpt-6.1-sol` and refused `xhigh`, and the same for `anthropic-s2/claude-sonnet-5-5` (finding F79). Three causes, read in the code and fixed:
+
+1. `createConfiguredProviderClient` (src/core/providers/configured.ts) wraps the plan client but did not forward `planModelFacts`, so `ModelApiHost.listModels` never received a plan model's facts. It now forwards it and the new `listPlanModels`.
+2. `ModelApiHost.listModels` listed nothing from the plan client when no Meta key is stored. It now lists the signed-in plans' models (`ProviderClient.listPlanModels`, no Meta request) and lists a plan model once (its summary with the facts wins over its configured entry).
+3. `createProviderRegistry().list()` (src/core/providers/providerRegistry.ts) dropped the effort levels its own policy holds, so every configured provider's model offered none. It now lists them (levels the app represents).
+
+Proof on the packed agent (`dist/acp.js`, built on Windows), through our app's editor protocol, one short turn each: `chatgpt/gpt-6.1-sol` offers low, medium, high, xhigh, max; `xhigh` set and read back; the turn completed. `anthropic-s2/claude-sonnet-5-5` offers the same five; `xhigh` set and read back; the turn completed. New `test/unit/providerRegistryEffort.test.ts` 3/3 (2 of 3 fail with the registry change reverted). Gates: `typecheck:host` 0, `typecheck:unit` 0, ESLint 0 and Prettier on the changed files, `build` 0, `deadcode` 0, `cycles` 0, `duplication` 0, `check:host-api` 0, `check:reference` 0.

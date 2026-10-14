@@ -840,6 +840,16 @@ export function createConfiguredProviderServices(
       presets.planKeyPresetById(records.get(ref)?.entry.preset ?? '') !== undefined ||
       meta?.isPlanModel?.(ref) === true,
     readPlanUsage: () => [...(meta?.readPlanUsage?.() ?? []), ...plans],
+    // The plan client's catalogue facts and its Meta-free listing, so a plan
+    // model listed through this client keeps its effort levels, default and
+    // Fast tier (finding F79: they stopped here, and every plan model offered
+    // no effort level).
+    ...(meta?.planModelFacts !== undefined && {
+      planModelFacts: async (ref: string) => await delegate().planModelFacts?.(ref),
+    }),
+    ...(meta?.listPlanModels !== undefined && {
+      listPlanModels: async () => (await delegate().listPlanModels?.()) ?? [],
+    }),
     streamResponse: async function* (body, ...args) {
       if (body.model.includes('/') && !meta?.isPlanModel?.(body.model)) {
         const resolved = await registry.resolve(body.model)
