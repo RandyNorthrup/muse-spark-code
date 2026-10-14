@@ -294,8 +294,19 @@ export const PROVIDER_HARNESS_MIN_CONTEXT_TOKENS = 32_000
 export const PROVIDER_SECRET_PREFIX = 'museSpark.provider.'
 /** The OAuth loopback's one-shot callback lasts ten minutes (D74). */
 export const OAUTH_LOOPBACK_TIMEOUT_MS = 10 * 60 * 1000
-/** ACP grant mutations serialize by exclusively listening on this loopback port. */
-export const CHATGPT_REFRESH_LOCK_PORT = 49_953
+/**
+ * ACP grant mutations serialize by an exclusive local listener, never a TCP
+ * port: a named pipe on Windows, a Unix domain socket on macOS and Linux.
+ * The name is scoped to the person (their own credential store), not the
+ * machine, by a hash of their OS user identity.
+ */
+export const CHATGPT_GRANT_LOCK_PIPE = 'muse-spark-chatgpt-grant'
+export const CHATGPT_GRANT_LOCK_DIR = 'muse-spark-chatgpt-grant'
+export const CHATGPT_GRANT_LOCK_FILE = 'grant.lock'
+/** Hex characters of the user-identity hash in the lock name. */
+export const CHATGPT_GRANT_LOCK_SCOPE_CHARS = 16
+/** A private per-user folder holds the socket; created mode 0700. */
+export const CHATGPT_GRANT_LOCK_DIR_MODE = 0o700
 export const CHATGPT_REFRESH_LOCK_RETRY_MS = 100
 /** A removed provider's secret waits ten seconds behind Undo (D74). */
 export const PROVIDER_UNDO_WINDOW_MS = 10 * 1000

@@ -4282,7 +4282,8 @@
     },
     "callback": "ChatGPT oturumu açıldı. Düzenleyicinize veya terminalinize dönün.",
     "failure": "ChatGPT oturumu açılamadı. Yeniden deneyin veya kaldırıp tekrar oturum açın.",
-    "storeUnavailable": "Bu bilgisayarın kimlik bilgisi deposu kullanılamıyor. Kilidi açılmış depoyla etkileşimli bir masaüstü oturumundan giriş yapın; Linux’ta önce Secret Service’i başlatın."
+    "storeUnavailable": "Bu bilgisayarın kimlik bilgisi deposu kullanılamıyor. Kilidi açılmış depoyla etkileşimli bir masaüstü oturumundan giriş yapın; Linux’ta önce Secret Service’i başlatın.",
+    "lockUnavailable": "Yerel oturum açma kilidi açılamadı ({reason}). Yeniden deneyin."
   },
   "execProviderNotConfigured": "{id} sağlayıcısı yapılandırılmadı.",
   "providerText": {

@@ -4169,7 +4169,8 @@
     },
     "callback": "ChatGPT のサインインが完了しました。エディターまたはターミナルに戻ってください。",
     "failure": "ChatGPT のサインインを完了できませんでした。再試行するか、削除して再度サインインしてください。",
-    "storeUnavailable": "このコンピューターの資格情報ストアを利用できません。ストアのロックを解除した対話型デスクトップセッションからサインインしてください。Linux では、先に Secret Service を起動してください。"
+    "storeUnavailable": "このコンピューターの資格情報ストアを利用できません。ストアのロックを解除した対話型デスクトップセッションからサインインしてください。Linux では、先に Secret Service を起動してください。",
+    "lockUnavailable": "ローカルのサインインロックを開けませんでした({reason})。再試行してください。"
   },
   "execProviderNotConfigured": "プロバイダー {id} は設定されていません。",
   "providerText": {

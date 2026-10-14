@@ -5228,6 +5228,8 @@ export const EN = {
     failure: 'ChatGPT sign-in could not be completed. Try again or remove it and sign in again.',
     storeUnavailable:
       'This computer’s credential store is unavailable. Sign in from an interactive desktop session with an unlocked credential store; on Linux, start Secret Service first.',
+    // {reason}: the operating system's own code for the failure.
+    lockUnavailable: 'The local sign-in lock could not be opened ({reason}). Try again.',
   },
   execProviderNotConfigured: 'Provider {id} is not configured.',
   // M95 providers: evaluated through UI_TEXT at use time.

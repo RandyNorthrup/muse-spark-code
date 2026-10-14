@@ -4282,7 +4282,8 @@
     },
     "callback": "A ChatGPT-bejelentkezés befejeződött. Térjen vissza a szerkesztőbe vagy a terminálba.",
     "failure": "A ChatGPT-bejelentkezést nem sikerült befejezni. Próbálja újra, vagy távolítsa el, és jelentkezzen be ismét.",
-    "storeUnavailable": "A számítógép hitelesítőadat-tárolója nem érhető el. Jelentkezzen be interaktív asztali munkamenetből, feloldott tárolóval; Linuxon előbb indítsa el a Secret Service szolgáltatást."
+    "storeUnavailable": "A számítógép hitelesítőadat-tárolója nem érhető el. Jelentkezzen be interaktív asztali munkamenetből, feloldott tárolóval; Linuxon előbb indítsa el a Secret Service szolgáltatást.",
+    "lockUnavailable": "A helyi bejelentkezési zárat nem sikerült megnyitni ({reason}). Próbálja újra."
   },
   "execProviderNotConfigured": "{id} szolgáltató nincs beállítva.",
   "providerText": {

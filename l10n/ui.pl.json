@@ -4508,7 +4508,8 @@
     },
     "callback": "Logowanie do ChatGPT zostało zakończone. Wróć do edytora lub terminala.",
     "failure": "Nie udało się zakończyć logowania do ChatGPT. Spróbuj ponownie lub usuń je i zaloguj się jeszcze raz.",
-    "storeUnavailable": "Magazyn poświadczeń tego komputera jest niedostępny. Zaloguj się z interaktywnej sesji pulpitu z odblokowanym magazynem; w systemie Linux najpierw uruchom Secret Service."
+    "storeUnavailable": "Magazyn poświadczeń tego komputera jest niedostępny. Zaloguj się z interaktywnej sesji pulpitu z odblokowanym magazynem; w systemie Linux najpierw uruchom Secret Service.",
+    "lockUnavailable": "Nie można otworzyć lokalnej blokady logowania ({reason}). Spróbuj ponownie."
   },
   "execProviderNotConfigured": "Dostawca {id} nie jest skonfigurowany.",
   "providerText": {

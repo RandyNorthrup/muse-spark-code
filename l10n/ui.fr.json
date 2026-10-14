@@ -4395,7 +4395,8 @@
     },
     "callback": "La connexion ChatGPT est terminée. Retournez à votre éditeur ou terminal.",
     "failure": "La connexion ChatGPT n’a pas pu être terminée. Réessayez ou supprimez-la et reconnectez-vous.",
-    "storeUnavailable": "Le magasin d’identifiants de cet ordinateur est indisponible. Connectez-vous depuis une session de bureau interactive avec le magasin déverrouillé ; sous Linux, démarrez d’abord Secret Service."
+    "storeUnavailable": "Le magasin d’identifiants de cet ordinateur est indisponible. Connectez-vous depuis une session de bureau interactive avec le magasin déverrouillé ; sous Linux, démarrez d’abord Secret Service.",
+    "lockUnavailable": "Le verrou de connexion locale n’a pas pu être ouvert ({reason}). Réessayez."
   },
   "execProviderNotConfigured": "Le fournisseur {id} n’est pas configuré.",
   "providerText": {

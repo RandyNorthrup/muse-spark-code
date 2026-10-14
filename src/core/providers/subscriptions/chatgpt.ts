@@ -79,7 +79,14 @@ export class ChatGptSignInError extends Error {
       | 'sign-in-required'
       | 'expired'
       | 'store-unavailable'
+      | 'lock-unavailable'
       | 'request-failed',
+    /**
+     * The operating system's own code for a `lock-unavailable` failure
+     * (for example `EACCES`); hosts show it beside the lock sentence.
+     * Undefined for every other code.
+     */
+    public readonly reason?: string,
   ) {
     super(`chatgpt.${code}`)
     this.name = 'ChatGptSignInError'
