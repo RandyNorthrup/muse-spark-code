@@ -4,6 +4,7 @@ import { EN } from '../../src/shared/l10n/en'
 import { BASE_LOCALE, setUiText } from '../../src/shared/l10n/text'
 import {
   classifyRun,
+  costForTier,
   estimateCostUsd,
   formatUsd,
   parseTraceLog,
@@ -125,6 +126,14 @@ describe('cost estimate', () => {
         estimateCostUsd({ inputTokens: 100, outputTokens: 1, cachedTokens: 0 }, model),
       ).toThrow()
     }
+  })
+
+  it('prices a named tier without consulting the paid whitelist', () => {
+    const usage = { inputTokens: 1_000_000, outputTokens: 100_000, cachedTokens: 200_000 }
+    expect(costForTier(usage, 'standard')).toEqual(estimateCostUsd(usage, 'muse-spark-1.3'))
+    expect(costForTier(usage, 'contributor')).toEqual(
+      estimateCostUsd(usage, 'muse-spark-1.3-contributor'),
+    )
   })
 
   it('prices fresh and cached input and output by the model’s tier', () => {

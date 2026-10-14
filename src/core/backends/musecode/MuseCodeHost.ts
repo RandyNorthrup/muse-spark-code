@@ -35,6 +35,7 @@ import {
   type RequirementRef,
   requirementRefSchema,
   type SessionGoal,
+  type TokenUsageCompletion,
 } from '../../../shared/agentEvents'
 import {
   APPROVAL_REJECT_ATTEMPTS,
@@ -859,7 +860,8 @@ export function describeExit(
       }
 }
 
-/** Each cumulative MSP report is journaled immediately as a known delta. */
+/** Each MSP report is journaled immediately: one completion's own counters
+ * where the frame carries them (1.4), else the known cumulative delta. */
 export class MuseUsageDeltas {
   private baseline: { inputTokens: number; outputTokens: number } | undefined
   private startedAt: number | undefined
@@ -873,6 +875,51 @@ export class MuseUsageDeltas {
   ) {
     this.currentModel = modelId
     if (isNew) this.baseline = { inputTokens: 0, outputTokens: 0 }
+  }
+  /** One completion's own counters, wall time and model: never a re-derived split. */
+  private noteCompletion(
+    event: Extract<AgentEvent, { type: 'tokenUsage' }>,
+    model: string,
+    startedAt: number,
+    at: number,
+  ): void {
+    const completion: TokenUsageCompletion | undefined = event.completion
+    if (completion === undefined) return
+    if (completion.inputTokens === 0 && completion.outputTokens === 0) return
+    this.recording.note(
+      {
+        input_tokens: completion.inputTokens,
+        output_tokens: completion.outputTokens,
+        ...((completion.cachedTokens !== undefined ||
+          completion.cacheWriteTokens !== undefined) && {
+          input_tokens_details: {
+            ...(completion.cachedTokens !== undefined && {
+              cached_tokens: completion.cachedTokens,
+            }),
+            ...(completion.cacheWriteTokens !== undefined && {
+              cache_write_tokens: completion.cacheWriteTokens,
+            }),
+          },
+        }),
+        ...(completion.reasoningTokens !== undefined && {
+          output_tokens_details: { reasoning_tokens: completion.reasoningTokens },
+        }),
+      },
+      {
+        backend: 'museCode',
+        provider: 'museCode',
+        model,
+        session: this.sessionId,
+        kind: 'turn',
+        pricing: { kind: 'plan' },
+        startedAt,
+        durationMs:
+          completion.durationMs !== undefined && Number.isFinite(completion.durationMs)
+            ? Math.max(0, completion.durationMs)
+            : Math.max(0, at - startedAt),
+        outcome: 'incomplete',
+      },
+    )
   }
   public receive(event: AgentEvent, isReplay = false): void {
     if (isReplay) {
@@ -897,6 +944,15 @@ export class MuseUsageDeltas {
     const prior = this.baseline
     this.baseline = next
     if (event.modelId !== undefined) this.currentModel = event.modelId
+    // The tier the request was really sent as is this completion's own
+    // effective model; the standing model is only the fallback for frames
+    // that predate it. A later model change must not rename an earlier call.
+    const model = event.completion?.modelId ?? event.modelId ?? this.currentModel
+    if (event.completion !== undefined) {
+      const at = this.now()
+      this.noteCompletion(event, model, this.startedAt ?? at, at)
+      return
+    }
     if (
       prior === undefined ||
       next.inputTokens < prior.inputTokens ||
@@ -913,7 +969,7 @@ export class MuseUsageDeltas {
       {
         backend: 'museCode',
         provider: 'museCode',
-        model: this.currentModel,
+        model,
         session: this.sessionId,
         kind: 'turn',
         pricing: { kind: 'plan' },
@@ -2220,6 +2276,8 @@ export class MuseCodeHost implements AgentHost {
             provider: 'museCode',
             source: 'museCode',
             observedAt: usage.observedAtMs,
+            // An empty tier names no plan; the label reader falls back then.
+            ...(usage.tier !== '' && { plan: usage.tier }),
             windows: [
               {
                 id: 'window',

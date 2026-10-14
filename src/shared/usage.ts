@@ -152,6 +152,27 @@ export function planLabel(tier: string): string {
   return tier === '' || OPAQUE_TIER.test(tier) ? UI_TEXT.usagePlanSubscription : tier
 }
 
+/**
+ * Whose plan the spend rode on: the latest observed Muse Code meter's own
+ * plan name. Undefined when no stored meter names one, and plan rows keep
+ * their generic label then rather than guessing.
+ */
+export function planDisplayName(
+  limits: readonly {
+    readonly provider: string
+    readonly observedAt: number
+    readonly plan?: string | undefined
+  }[],
+): string | undefined {
+  let latest: { readonly observedAt: number; readonly plan: string } | undefined
+  for (const limit of limits) {
+    if (limit.provider !== 'museCode' || limit.plan === undefined) continue
+    if (latest === undefined || limit.observedAt >= latest.observedAt)
+      latest = { observedAt: limit.observedAt, plan: limit.plan }
+  }
+  return latest === undefined ? undefined : planLabel(latest.plan)
+}
+
 /** "5-hour window" / "90-minute window" from the provider's duration. */
 export function formatWindowLength(windowDurationMins: number): string {
   return windowDurationMins % MINUTES_PER_HOUR === 0

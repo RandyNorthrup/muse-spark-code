@@ -103,6 +103,19 @@ happened, not what was planned; superseded entries are kept.
   launches are not yet under the resource governor; nothing in this release
   can start them, and the process inventory fails the day something could.
 
+- Usage and cost say what really happened (lane USAGETRUE): on the Muse
+  Code backend, `usage summary` now shows the cached input, reasoning
+  tokens and cache hit rate from each request's own reported counters
+  instead of Unknown. Total request time and latency percentiles come
+  from each request's own duration. Plan spend carries the equivalent
+  API price at the used tier's published rates (a `-contributor` model
+  prices at contributor rates) and is named by the subscription meter's
+  own plan name instead of a bare "Plan". The models breakdown shows the
+  model and tier each request was really sent as. The daily view no
+  longer prints the same day twice: hourly rows of one day name the hour.
+  The panel, the terminal agent and the editor protocol share the same
+  journal, aggregates and text, so all editors show the same numbers.
+
 ## [0.18.2] - 2026-10-12
 
 ### Highlights

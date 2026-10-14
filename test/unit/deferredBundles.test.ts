@@ -1126,7 +1126,10 @@ describe('deferred cohort bundles', () => {
     // 4 ms a call (one helper, also used for the code-intelligence and
     // schedules bundles). 13,183 B under 0.18.0's 532,537; D6's cap is
     // unchanged.
-    expect(Buffer.byteLength(bundleText('modelApi'))).toBeLessThanOrEqual(519_354)
+    // USAGETRUE (this rig, test build): 519,354 -> 519,386, +32 B. The
+    // per-tier price arithmetic is one shared function so plan equivalents
+    // price the used tier; D6's cap is unchanged.
+    expect(Buffer.byteLength(bundleText('modelApi'))).toBeLessThanOrEqual(519_386)
     const schedules = new Set(inputs('schedules'))
     for (const file of [
       'src/core/backends/modelapi/schedulesEntry.ts',

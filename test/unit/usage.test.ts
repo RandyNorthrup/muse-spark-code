@@ -5,6 +5,7 @@ import {
   barValue,
   formatDuration,
   formatWindowLength,
+  planDisplayName,
   planLabel,
   subscriptionUsageSchema,
   usageReadResultSchema,
@@ -70,6 +71,25 @@ describe('planLabel', () => {
     expect(planLabel('muse-pro')).toBe('muse-pro')
     expect(planLabel('27681393394859588')).toBe('Muse Code Subscription')
     expect(planLabel('')).toBe('Muse Code Subscription')
+  })
+
+  it('names the latest observed meter plan, and nothing when no meter names one', () => {
+    expect(planDisplayName([])).toBeUndefined()
+    expect(
+      planDisplayName([{ provider: 'museCode', observedAt: NOW, plan: undefined }]),
+    ).toBeUndefined()
+    expect(
+      planDisplayName([
+        { provider: 'museCode', observedAt: NOW, plan: 'Muse Code Max Usage subscription' },
+        { provider: 'museCode', observedAt: NOW + HOUR, plan: '27681393394859588' },
+      ]),
+    ).toBe('Muse Code Subscription')
+    expect(
+      planDisplayName([
+        { provider: 'openrouter', observedAt: NOW + HOUR, plan: 'other' },
+        { provider: 'museCode', observedAt: NOW, plan: 'Muse Code Max Usage subscription' },
+      ]),
+    ).toBe('Muse Code Max Usage subscription')
   })
 })
 
