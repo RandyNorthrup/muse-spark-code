@@ -9,6 +9,18 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- Reports say why when they cannot. A report that fails names the failing
+  source instead of printing one sentence, on the terminal, in a session and
+  over the editor protocol; a repeated row (two open questions sharing an id,
+  two channels with one name) keeps its first row instead of failing the
+  whole report. `report release` (and milestone, estimate) without its scope
+  says what is missing before the usage. `report --help` shows the report
+  command's own help with its kinds. The problem report names the Muse Code
+  CLI version and its contributor mode (unknown when unobserved), reads recent
+  events from the agent's journal, and says when that record is unavailable.
+  Skipped stored records are counted aloud on the terminal and in the report
+  dialog. Resource warnings name the reading's failure cause.
+
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
   reads and writes, and 1-hour cache writes settle at their own price.
   The shared retry classifier refuses known quota codes and excessive
