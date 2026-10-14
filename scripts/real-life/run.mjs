@@ -43,6 +43,7 @@ import { personFor } from './lib/person.mjs'
 import { endAll, runCommand } from './lib/product.mjs'
 import {
   clip,
+  ensureRecordDir,
   logExcerpt,
   observedText,
   parseUsageOutput,
@@ -176,6 +177,9 @@ if (plan.length === 0) {
     `the plan has no scenario runs: no scenario of '${pattern}' on ${where} by ${surfaces.join(', ') || 'no surface'}`,
   )
 }
+// The record's folder is made before anything is spent: a run that cannot
+// write its record stops here, not after paid calls.
+if (options.record !== undefined) ensureRecordDir(options.record)
 // First of all: what an earlier run that was ended outright may have left.
 const noteOfEarlierRun = readMarker()
 if (noteOfEarlierRun !== undefined) {

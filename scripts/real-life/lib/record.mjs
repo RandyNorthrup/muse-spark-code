@@ -9,7 +9,8 @@
 // is what the product booked for a request that ended with no usage report.
 // No key, no home folder and no user name is in it: everything written
 // passes through one scrub.
-import { writeFileSync } from 'node:fs'
+import { mkdirSync, writeFileSync } from 'node:fs'
+import path from 'node:path'
 import { usdText } from './budget.mjs'
 
 const CLIP = 300
@@ -169,8 +170,18 @@ export function totalsOf(results, notRun, spent, productUsage, unsettled) {
   }
 }
 
+/**
+ * Makes the folder a record is written in, so a run that cannot write its
+ * record stops before anything is spent, not after paid calls.
+ * @param {string} file the record file (`<file>.json` and `<file>.txt`)
+ */
+export function ensureRecordDir(file) {
+  mkdirSync(path.dirname(file), { recursive: true })
+}
+
 /** Writes `<file>.json` and `<file>.txt`, everything through the scrub. */
 export function writeRecord(file, record, scrub) {
+  ensureRecordDir(file)
   const stem = file.replace(/\.(json|txt)$/u, '')
   const cleaned = JSON.parse(scrub(JSON.stringify(record)))
   writeFileSync(`${stem}.json`, `${JSON.stringify(cleaned, null, 2)}\n`)
