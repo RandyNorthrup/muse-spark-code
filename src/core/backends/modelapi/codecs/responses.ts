@@ -358,6 +358,25 @@ const responseFrameSchema = z.object({
   }),
 })
 const itemFrameSchema = z.object({ item: nativeItemSchema })
+type NativeItem = z.infer<typeof nativeItemSchema>
+type NativeResponse = z.infer<typeof responseFrameSchema>['response']
+
+/**
+ * A ChatGPT plan response's output: the items its stream delivered, in their
+ * output order. A terminal frame that lists items itself must list the same
+ * number, or the stream is refused rather than one of the two trusted.
+ */
+function withStreamedOutput(
+  response: NativeResponse,
+  streamed: readonly { readonly index: number; readonly item: NativeItem }[],
+  frameLength: number,
+): NativeResponse {
+  if (response.output.length > 0 && response.output.length !== streamed.length) {
+    throw new ResponsesDecodeError('terminal output differs from the streamed items', frameLength)
+  }
+  const output = streamed.toSorted((a, b) => a.index - b.index).map((entry) => entry.item)
+  return { ...response, output }
+}
 const settledCostSchema = z.object({
   cost_in_usd_ticks: tokenCountSchema,
 })
@@ -475,6 +494,13 @@ export function createResponsesCodec(
         throw new ResponsesDecodeError('invalid output cap', 0)
       }
       let hasReportedCost = false
+      // The ChatGPT plan streams each output item in its own
+      // `response.output_item.done` frame and ends with `output: []` (measured
+      // 2026-10-14, finding F87: a read_file call streamed, the terminal frame
+      // listed nothing, and the turn ended without running it). Codex reads
+      // the items from those frames too, so for this profile they are the
+      // response's output.
+      const streamed: { readonly index: number; readonly item: NativeItem }[] = []
       for await (const frame of parseSse(chunks)) {
         if (frame.data.trim() === '' || frame.data === DONE_SENTINEL) {
           continue
@@ -525,11 +551,29 @@ export function createResponsesCodec(
               sink?.settledCostUsd?.(costUsd)
             }
           }
-          yield withinOutputCap({ ...known.data, response: parsed.data.response }, outputCap)
+          // The output cap judges the frame as it arrived (an over-cap reply
+          // stops before any of its items is kept); only then is a plan
+          // response's output taken from its streamed items.
+          const capped = withinOutputCap(
+            { ...known.data, response: parsed.data.response },
+            outputCap,
+          )
+          yield quirks.profile === 'chatgpt' && TERMINAL_WITH_USAGE.has(known.data.type)
+            ? {
+                ...known.data,
+                response: withStreamedOutput(parsed.data.response, streamed, frame.data.length),
+              }
+            : capped
         } else if ('item' in known.data) {
           const parsed = itemFrameSchema.safeParse(json)
           if (!parsed.success) {
             throw new ResponsesDecodeError('invalid item', frame.data.length)
+          }
+          if (quirks.profile === 'chatgpt' && known.data.type === 'response.output_item.done') {
+            streamed.push({
+              index: known.data.output_index ?? streamed.length,
+              item: parsed.data.item,
+            })
           }
           yield withinOutputCap({ ...known.data, item: parsed.data.item }, outputCap)
         } else {

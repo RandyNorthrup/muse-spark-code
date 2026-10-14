@@ -113,6 +113,13 @@ function stream(...frames: readonly string[]): ReadableStream<Uint8Array> {
   })
 }
 
+function completed(output: readonly unknown[]) {
+  return {
+    type: 'response.completed',
+    response: { id: 'resp_scrubbed', status: 'completed', output, usage: null },
+  }
+}
+
 function failed(error: unknown = limitError) {
   return {
     type: 'response.failed',
@@ -326,6 +333,54 @@ describe('chatgpt Responses stream profile', () => {
     expect(await Array.fromAsync(decode(stream(frame({ type: 'error', error }))))).toEqual([
       { type: 'error', code: 'other_error', message: 'Other error' },
     ])
+  })
+
+  // Finding F87 (2026-10-14): the plan's stream delivered a read_file call in
+  // its own output_item.done frame and ended with `output: []` (the frame
+  // shapes below are the measured ones; values scrubbed), so the call never
+  // reached the turn and the review job made no tool calls in 11 turns.
+  const readCall = {
+    type: 'function_call',
+    id: 'fc_scrubbed',
+    call_id: 'call_scrubbed',
+    name: 'read_file',
+    arguments: '{"path":"probe-note.txt"}',
+    status: 'completed',
+  }
+  const reply = {
+    type: 'message',
+    id: 'msg_scrubbed',
+    role: 'assistant',
+    content: [{ type: 'output_text', text: 'Reading it.' }],
+    status: 'completed',
+  }
+  it('takes the response output from the streamed items when the terminal frame lists none (F87)', async () => {
+    const events = await Array.fromAsync(
+      decode(
+        stream(
+          frame({ type: 'response.output_item.done', output_index: 1, item: readCall }),
+          frame({ type: 'response.output_item.done', output_index: 0, item: reply }),
+          frame(completed([])),
+        ),
+      ),
+    )
+    expect(events.at(-1)).toMatchObject({
+      type: 'response.completed',
+      response: { output: [reply, readCall] },
+    })
+  })
+
+  it('refuses a terminal frame whose items differ in number from the streamed ones', async () => {
+    await expect(
+      Array.fromAsync(
+        decode(
+          stream(
+            frame({ type: 'response.output_item.done', output_index: 0, item: readCall }),
+            frame(completed([readCall, reply])),
+          ),
+        ),
+      ),
+    ).rejects.toThrow(ResponsesDecodeError)
   })
 
   it('rejects malformed nested errors without exposing their contents', async () => {
