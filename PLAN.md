@@ -17,6 +17,21 @@ update render follows with the fixture in place; after it a release with
 notes and a version bump needs none. A scene-filtered update is left to the
 train. Certification: `docs/certification/visfix.md`.
 
+**PANELMARKR2 review repairs (2026-10-11, macmini).** Close all three
+RVPANELMARK findings: give the product mark its own blue tokens (the
+Marketplace gradient's light-background and dark-background endpoints),
+retain theme foreground in high contrast and CanvasText under forced colours,
+and fill the existing 1.8 by 1.2 em logo box with a cropped, stroke-padded
+view box and a weight suited to the bold name. Cover every ProductMark use,
+including the icon gallery. Compute six-theme contrast (at least 3:1) and
+ordinary-theme blue hue (210–240 degrees), prove unchanged surrounding
+layout/pixels at both widths, and certify all fourteen affected panel scenes
+with exact frame counts. Each finding gets a regression and a byte-exact
+red/restored drill in `docs/certification/panelmark.md`. No baseline update,
+dependency, merge, push, subagent or paid/live call. Scoped gates and dependent
+suites run directly on the rig; aggregate quality and the release's reviewed
+visual baseline remain lead-owned under the explicit rig/common brief.
+
 **REL0171C release assembly (2026-10-11, host with Kubuntu, the Mac mini,
 Win11 and linuxlt; 0.17.1).** Merge the accepted share-preview fix (SHAREFIX
 `a7052b708`) and the truth pass (C-X-1 `99e9b4106`) into `rel0171/final`.
@@ -40404,6 +40419,146 @@ Unresolved items remain delivery/security gaps, not accepted legal conclusions:
 
 ## 10. Definition of done and release records
 
+**0.18.2 preparation (2026-10-12, release branch).** `release/0.18.2` is
+cut from `int/train-0182` at `5bc38fbe0` and merges main at `e763f4938`
+(0.18.1 as released). One change for a person: the chat panel's empty screen
+shows the product's own mark instead of Meta's logo
+(`docs/certification/panelmark.md`; review RVPANELMARKC without a finding).
+Six pictures that showed the old logo were taken again, two of them shipped
+in the extension's walkthrough. By the owner's order of 1:30 PM PT no
+screenshot comparison runs in CI or in `quality:gates` any more; a change to
+the interface is looked at locally. No test was added. Record:
+`docs/certification/release-0182.md`. Not in 0.18.2: the spend ledger and
+the false error sentences (0.18.3), the contributor-price fix (0.18.4), and
+what the 0.18.1 record below leaves to "the next release" and "the
+follow-up". This is preparation, not publication; the public roadmap (M122)
+lists 0.18.2 as the next release until a `0.18.2 released (…)` record
+follows here.
+
+**0.18.1 released (2026-10-12, tag `v0.18.1` on main's release merge `38ef148f1`, PR #151, release run 38298298094).**
+Pull request 151 (`hotfix/0.18.1-nopin`, head `e90f0140c`) merged at 12:29 PM
+PT as `38ef148f1`, and the annotated tag was pushed at 12:32 PM PT. The
+Release run succeeded on its first attempt and ended at 12:45 PM PT: the tag
+checks, the verified CI artifacts (no second build), the GitHub Release, the
+Marketplace (done at 12:34 PM), npm (12:36 PM), Open VSX (12:44 PM), the
+channel summary and the README badge refresh. Read at 12:45 PM PT with
+`verify-release.sh 0.18.1`, which ended "ALL CHANNELS PUBLISHED 0.18.1": the
+GitHub Release holds `muse-spark-code-0.18.1.vsix`,
+`muse-spark-code-acp-0.18.1.tgz` and `SHA256SUMS`; the Marketplace shows 0.18.1;
+Open VSX shows 0.18.1; npm has 0.18.1 and its `latest` is 0.18.1. The badge
+refresh warned that four badge images were still the old ones. At 12:49 PM PT,
+after the badge service had answered afresh and GitHub's copies were purged
+(13 images), all four version badges of the README read 0.18.1. GitHub shows
+pull request 150 (the branch without the diet) as merged, because its commits
+are part of pull request 151's merge; it was never merged by itself. Both
+release branches were archived under `refs/archive/2026-10-12/` and deleted
+from GitHub.
+
+0.18.1 was gated by hosted CI on pull request 151, head `e90f0140c4`: 79 of 79
+checks green, each run on its first attempt: CI run 38293068319 (53 jobs in 33
+minutes: static gates on three systems, the visual render in six shards, tests
+on Ubuntu in 4 shards and on Windows and macOS in 8 each, merged coverage,
+accessibility, integration, the helpers, the universal release artifacts,
+gitleaks, semgrep), Hosts run 38293067597 (15 jobs) and Action check run
+38293067550 (11 jobs). For what changed after the pull request's first run
+(38270466443, red), that run showed: the registry command ran in `npm run
+build` on all three systems with the same line, "ok lazy registry: 97 bundles,
+127 loads by file name resolved, 5 listed load(s) by a computed name, 1 listed
+name(s) that are not a load; src/shared/lazyBundles.generated.ts is current";
+`lazyBundleFiles` (13 tests) took 128 ms on Ubuntu, 120 ms on Windows and 72
+ms on macOS (5,543 ms and red, 3,961 ms and 4,238 ms on the first run);
+`packagedBundles` with the five tests that run the command as a child process
+(8 tests) took 34.5 s, 37.2 s and 33.2 s; `modelApiHost.test.ts` (670 tests)
+took 231.1 s on macOS (372.2 s on the red run, 232.5 s on the last green run
+before the diet), 234.5 s on Windows and 152.6 s on Ubuntu; `cyclesRoots` 5 of
+5, `flightRecorder` 59 of 59 and the golden requests 142 of 142 on all three
+systems; `execStdio` 46 tests on all three, E8 and E9 among them (Windows
+skips the three POSIX signal rows); on eight shards the longest macOS test
+shard took 13.2 of its 20 minutes (the longest of all was Windows shard 1, 15.7).
+
+The size pin: `dist/modelApi.js` is 519,354 B, 400 B over the 518,954 B the
+diet measured: 68 B for a host's own reinstall sentence when the helpers
+bundle cannot load, 332 B for loading the helpers once a session and
+installing the language once per table instead of on every call. It is 13,183
+B under 0.18.0's 532,537 B. No cap moved.
+
+Real conversations through the packed product before the merge
+(`muse-spark-code-acp-0.18.1.tgz`, SHA-256
+`3e4d4ca2f52b9279152be29a720c1f7ef09a413c4cf9fbb52e9fd733461a74b0`, packed
+from `1d2858f6f`; the commits after it change one test file, documents and
+CLAUDE.md), run by the lead on the owner's PC on 2026-10-12, installed from
+the tarball with its digest verified there. At 11:38 AM PT the provider route
+was red: "Models & Agents is not available in this build", with $2.26 booked
+as uncertain. Measured cause: the Anthropic account used was out of credit,
+and Anthropic answered HTTP 400 `invalid_request_error` "Your credit balance
+is too low to access the Anthropic API". The product turns that answer into
+that sentence and counts the reservation as spent. The morning's package
+(`72fa54ea…`) gives the same result with that account and the new package
+passes with the other account, so it is a defect in the product's error
+handling and not in this package; it is not fixed in 0.18.1. From 11:43 to
+11:44 AM PT all three routes were green: the Meta contributor model through
+`exec` (plain, tool with the file written, long), 4 requests, $0.000745; a
+configured provider (Anthropic Sonnet) through `exec` (plain, tool with the
+file written, long), 4 requests, $0.014128; the editor protocol on that
+provider: a plain turn, a tool turn with an approval (file written), and
+`/usage` showing 3 requests. The keys were removed afterwards, and that was
+verified.
+
+The published package, after publication: `muse-spark-code-acp@0.18.1` was
+installed from the npm registry into an empty folder on the owner's PC
+(integrity
+`sha512-v7/qvesjE/vai5pVpSAL22OhwKPmedP06Vm6TKn7Lx+jlGuKaGJACLuKpVShhvJg6sXUCogj9oJ9ueVBN1mK4Q==`;
+SHA-256 `0bc828d09c75123c4bd5ea736b1cf31569201f209406cce1268683dd8c90a1cb`,
+the same as the `SHA256SUMS` line of the GitHub Release, and a different file
+from the candidate above). From 12:46 to 12:47 PM PT the same three routes
+were green through it: the Meta contributor model through `exec` (plain, tool
+with the file written, long), 4 requests, $0.000764; Anthropic Sonnet through
+`exec` (plain, tool with the file written, long), 4 requests, $0.014288, after
+the free key test ("Key works · 13 models"); the editor protocol on that
+provider: a plain turn, a tool turn with one approval (file written), and
+`/usage` showing 3 requests ($0.003228 in the usage history). That is 11 model
+requests and $0.018280 in all, with nothing uncertain. The keys went in over
+standard input and the agent's own files into a private folder; afterwards the
+agent reported no stored key and no provider, and the credential store listed
+no entry of the product.
+
+The registry command's drills, repeated by the lead on `e90f0140c4` (Kubuntu,
+a fresh checkout, production build exit 0): the tree as it is, exit 0; a
+planted loader, exit 1, naming `src/__drill__/rogueLoader.ts:2`; the same
+through a link, exit 1; a link with a clean tree, exit 0; a stale row, exit 1,
+naming the row; the metafile folder absent, exit 1; empty, exit 1; restored,
+exit 0; the tree clean afterwards; `packagedBundles` 8 of 8 in 35 s.
+
+The last review before the merge (by reading, range `b27e48f167..e90f0140c4`):
+0 P1, 2 P2, 3 P3, "safe to merge today: yes". P2-1: one listing of a computed
+load covers any number of loads, and loads through an adapter (`requireFile`,
+`lazyBundleLoader`, a `load = require` default, an aliased `createRequire`)
+are not seen. P2-2: a bundle-name constant anywhere in a load's argument
+counts as resolved. P3-1: only `.ts` and `.tsx` files are scanned. P3-2: in VS
+Code a missing helpers file says "hook call fields are unavailable" to a
+person who has no hooks. P3-3: the load cache is cleared on failure without
+checking that it is the promise that failed. None changes a person's turn; all
+five go into the follow-up, not into 0.18.1.
+
+Observed, cause not measured: `test/unit/modelApiHost.test.ts:3638`,
+"ModelApiSession: session budget (M82) > admits no two-host overspend when
+both real claims publish before final admission", hit its 5,000 ms limit in
+one whole-file run on the Kubuntu rig (57.60 s, the rig's load at 5.4). Alone
+it takes 143 to 291 ms, 8 of 8 on the fixed tree and 8 of 8 before the diet;
+in the whole file it passed 15 of 16 times on the fixed tree and 14 of 14
+before the diet, and the file was green on all three hosted systems in run 38293068319.
+No limit was raised and no retry added; the case is with the spend-ledger
+work. Record: `docs/certification/hotfix-0181-bundle-exports.md`.
+
+Measured for the record (production build of the final code):
+`src/core/backends/modelapi/ModelApiHost.ts` is an input of exactly one built
+output (`dist/modelApi.js`, 258,723 B of it; 96 metafiles read), so the
+per-bundle language-install map added in this release exists once per process.
+The split gate does not yet fail if a third deferred bundle embedded that file
+("a LAZY_ONLY file is an input of exactly one built output" is not a rule
+today): that guard is ruled into the next release, with the bundle-copies gate
+work.
+
 **0.18.1 preparation (2026-10-12, release branch).** `hotfix/0.18.1` is cut from
 main at `f8435aaac` and carries the extension version 0.18.1 and the dated
 `CHANGELOG.md` `[0.18.1]` section: fixes only. Released 0.18.0 could not complete
@@ -40451,6 +40606,18 @@ Pull request 150, the branch without the diet, is not merged. This is
 preparation, not publication; the public roadmap
 (M122) lists 0.18.1 as the next release until a `0.18.1 released (…)`
 record follows here.
+
+**2026-10-11 identity rewrite (main, 11:00 PM PT, owner's order).** Two commits
+on main (`2614ed56f`, `a1103c3f0`) ended with
+`Co-Authored-By: Muse Code <noreply@users.noreply.github.com>`, a line a lane
+invented; on GitHub that address belongs to a stranger's account, which then
+appeared under Contributors. Both messages now end
+`Co-Authored-By: Muse Spark (contributor) via Muse Code`. 65 commits on main
+have new ids, 63 of them only through their parent lines; every tree is
+byte-identical, so every gate result stands. main moved from `be6eaefbe` to
+`f8435aaac` and tag `v0.18.0` moved with it; `v0.17.2` and everything before
+it are unchanged. Records written before this one cite the old ids; the
+old-to-new map is `docs/certification/identity-rewrite-2026-10-11.md`.
 
 **0.18.0 released (2026-10-11, tag `v0.18.0` on main's release merge `f8435aaac` (`be6eaefbe` before the identity rewrite), PR #149, release run 38206002231).**
 The Release run succeeded on its first attempt and ended on 2026-10-11 at
