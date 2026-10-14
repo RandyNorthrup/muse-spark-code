@@ -8,6 +8,9 @@ import { type SchedulerSlots, type SlotRequest } from './scheduler/slots'
 // windows, which the ledger reads, and the event-driven window scheduler
 // with its sweep. No work at construction/import. No `vscode` here.
 
+/** D75's cap measures: `tokens` is input plus output. */
+export type TeamMeasure = 'tokens' | 'inputTokens' | 'outputTokens' | 'spendUsd' | 'tasks'
+
 /** D75's cap windows: one task, the local day, or the workspace's lifetime. */
 export type TeamWindow = 'task' | 'day' | 'lifetime'
 
@@ -17,6 +20,9 @@ export type TeamWindow = 'task' | 'day' | 'lifetime'
  * refusal. A shape that has not been captured is a plain failure, never a
  * switch, so the classifier answers undefined for it.
  */
+/** What runs the tools: the extension, a `muse serve` session, or an ACP agent. */
+export type TeamAgentKind = 'engine' | 'museCode' | 'external'
+
 // --- M96c scheduler region (lane S). M96 lane A owns pool/accounting selection. ---
 
 export interface SchedulerDependencies {
