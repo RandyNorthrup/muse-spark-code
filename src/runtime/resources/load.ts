@@ -3,6 +3,7 @@ import { lazyBundleLoader } from '../../host/lazyBundle'
 import type { Logger } from '../../host/logger'
 import { UI_TEXT } from '../../shared/constants'
 import { uiLocale } from '../../shared/l10n/text'
+import { warnResourceUnavailable } from '../../shared/resourceCause'
 import type { ResourceEntryOptions, createResources } from './entry'
 import type { RuntimeResources } from './port'
 import { configureResources } from '../../core/resources/admission'
@@ -112,8 +113,14 @@ export function lazyRuntimeResources(
     // its own that it creates private.
     registryFile: path.join(options.machineDir, 'resource-created', 'registry.json'),
     inspect: () => ({}),
-    onError: () => {
-      options.log.warn(UI_TEXT.resourceUnavailable)
+    onError: (error: unknown) => {
+      warnResourceUnavailable(
+        (message) => {
+          options.log.warn(message)
+        },
+        UI_TEXT,
+        error,
+      )
     },
     // The caller's deadline is armed before loading and sampling, so a slow
     // bundle, settings read or sampler cannot outlast it (SPAWN017C item 3).

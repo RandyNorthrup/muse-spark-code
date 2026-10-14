@@ -5,7 +5,15 @@ import { tableProblems } from '../../shared/l10n/check'
 import { tableLocaleFor } from '../../shared/l10n/locales'
 import { REPORT_EXIT_CODES, REPORT_WORKING_KINDS } from '../../shared/constants'
 import type { AcpReportsPort } from '../../acp/reports'
-import { parseReportsArguments, reportArguments, reportsUsage } from './reportsArgs'
+import { fill } from '../../shared/l10n/text'
+import { reportScrubber } from '../../core/reporting/render/redaction'
+import {
+  parseReportsArguments,
+  reportArguments,
+  reportsHelp,
+  reportsUsage,
+  ReportUsageError,
+} from './reportsArgs'
 import { runReportsCommand, type ReportsCommandDeps, type ReportsServices } from './reportsCommand'
 
 export { createReportsHost } from './reportsHost'
@@ -71,10 +79,15 @@ export function createRuntimeReports(input: RuntimeReportsInput) {
       else {
         try {
           const value = await input.readTable(tableLocale)
-          if (!isTable(value, tableLocale)) throw new Error(UI_TEXT.reportUi.generationFailed)
+          if (!isTable(value, tableLocale))
+            throw new Error('the display language table failed its check')
           table = value
-        } catch {
-          stderr(UI_TEXT.reportUi.generationFailed)
+        } catch (error) {
+          stderr(
+            error instanceof Error && error.message !== ''
+              ? fill(UI_TEXT.reportUi.generationReason, { reason: error.message })
+              : UI_TEXT.reportUi.generationFailed,
+          )
           return REPORT_EXIT_CODES.failed
         }
       }
@@ -90,7 +103,7 @@ export function createRuntimeReports(input: RuntimeReportsInput) {
           ? undefined
           : await input.servicesFor?.(cwd, sessionId, { table, locale })
     } catch {
-      stderr(table.reportUi.generationFailed)
+      stderr(fill(table.reportUi.generationReason, { reason: 'the report services did not start' }))
       return REPORT_EXIT_CODES.failed
     }
     const deps: ReportsCommandDeps = {
@@ -147,10 +160,17 @@ export function createRuntimeReports(input: RuntimeReportsInput) {
         try {
           argv = reportArguments(args)
           if (argv.includes('--help') || argv.includes('-h'))
-            return { code: REPORT_EXIT_CODES.generated, text: reportsUsage(UI_TEXT) }
+            return { code: REPORT_EXIT_CODES.generated, text: reportsHelp(UI_TEXT) }
           request = parseReportsArguments(argv)
-        } catch {
-          return { code: REPORT_EXIT_CODES.usage, text: reportsUsage(UI_TEXT) }
+        } catch (error) {
+          const usage = reportsUsage(UI_TEXT)
+          return {
+            code: REPORT_EXIT_CODES.usage,
+            text:
+              error instanceof ReportUsageError
+                ? `${UI_TEXT.reportUi[error.code]}\n${usage}`
+                : usage,
+          }
         }
         const format = request.formatExplicit ? request.format : context.format
         // Refuse unsupported formats before any source/history access or paid/model dispatch.
@@ -178,8 +198,20 @@ export function createRuntimeReports(input: RuntimeReportsInput) {
           context.signal,
         )
         return { code, text }
-      } catch {
-        return { code: REPORT_EXIT_CODES.failed, text: UI_TEXT.reportUi.generationFailed }
+      } catch (error) {
+        if (context.signal.aborted)
+          return { code: REPORT_EXIT_CODES.failed, text: UI_TEXT.reportUi.generationFailed }
+        const reason =
+          error instanceof Error && error.message !== ''
+            ? reportScrubber({ workspaceRoot: context.cwd, localRoots: input.roots })(error.message)
+            : UI_TEXT.reportUi.generationFailed
+        return {
+          code: REPORT_EXIT_CODES.failed,
+          text:
+            reason === UI_TEXT.reportUi.generationFailed
+              ? reason
+              : fill(UI_TEXT.reportUi.generationReason, { reason }),
+        }
       }
     },
   }

@@ -91,7 +91,8 @@ export interface ResourceLaunchHostOptions {
   readonly clock: ResourceClock
   readonly settings: () => ResourceSettings
   readonly bindTree: (process: ResourceProcessLaunch) => Promise<ResourceTreeBinding | null>
-  readonly onError: () => void
+  /** The failure that stopped sampling, admission or cleanup; the owner logs it with its cause. */
+  readonly onError: (error: unknown) => void
   readonly disks?: ResourceDiskSampler | undefined
   readonly tempRoots?: ResourceTempRoots | undefined
   readonly created?: Pick<CreatedRegistry, 'finish' | 'clean'> | undefined
@@ -164,15 +165,15 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
     const previous = this.snapshot
     try {
       if (this.status() === previous?.status) return
-    } catch {
-      this.options.onError()
+    } catch (error) {
+      this.options.onError(error)
       return
     }
     for (const listener of this.statusListeners) {
       try {
         listener()
-      } catch {
-        this.options.onError()
+      } catch (error) {
+        this.options.onError(error)
       }
     }
   }
@@ -313,18 +314,19 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
           work.ended = true
           const result = await work.registry?.kill(work.ticket)
           work.limited = result?.status === 'done'
-          if (!work.limited) this.options.onError()
+          if (!work.limited)
+            this.options.onError(new Error('the stopped job was not observed done'))
         }
       }
       const usage = await work.registry?.usage(work.ticket)
       work.known = usage !== undefined && usage !== null
       if (work.known) work.usage = usage ?? undefined
-    } catch {
+    } catch (error) {
       work.known = false
       if (work.ticket !== undefined) work.registry?.unregister(work.ticket)
       work.ticket = undefined
       work.usage = undefined
-      this.options.onError()
+      this.options.onError(error)
     }
   }
 
@@ -384,7 +386,7 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
     if (launched.attested === true) {
       if (this.work.has(work)) {
         work.known = false
-        this.options.onError()
+        this.options.onError(new Error('an attested stop was never observed'))
       }
       return
     }
@@ -401,7 +403,7 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
     }
     // Never observed: kept as uncertain, its temp root left for recovery, and said so.
     work.known = false
-    this.options.onError()
+    this.options.onError(new Error('a stopped tree was never observed gone'))
   }
 
   private async awaitGone(work: Work, launched: ResourceProcessLaunch): Promise<boolean> {
@@ -593,7 +595,7 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
         // Exit never observed: release admission, keep the temp root, report it.
         work.failed = true
         this.retire(work, false)
-        this.options.onError()
+        this.options.onError(new Error('a process exit was never observed'))
       },
       register: (process) => {
         if (!this.work.has(work)) return

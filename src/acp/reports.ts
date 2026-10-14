@@ -1,5 +1,7 @@
 import type { ContentBlock } from '@agentclientprotocol/sdk'
 import { REPORT_EXIT_CODES, SLASH_COMMAND_NAMES, UI_TEXT } from '../shared/constants'
+import { fill } from '../shared/l10n/text'
+import { redactSecrets } from '../shared/redact'
 
 export interface AcpReportsPort {
   /** ACP defines text blocks, not a Markdown capability. The client adapter chooses this. */
@@ -78,9 +80,16 @@ export async function runAcpReport(
       Object.values(REPORT_EXIT_CODES).every((code) => code !== result.code) ||
       typeof result.text !== 'string'
     )
-      throw new Error(UI_TEXT.reportUi.generationFailed)
+      throw new Error('the report integration answered outside the report protocol')
     return result.text
-  } catch {
-    return UI_TEXT.reportUi.generationFailed
+  } catch (error) {
+    // The port's own text is already scrubbed where it was rendered; only a
+    // thrown failure needs secrets and account ids taken out here.
+    if (context.signal.aborted) return UI_TEXT.reportUi.generationFailed
+    const reason =
+      error instanceof Error && error.message !== '' ? redactSecrets(error.message) : undefined
+    return reason === undefined
+      ? UI_TEXT.reportUi.generationFailed
+      : fill(UI_TEXT.reportUi.generationReason, { reason })
   }
 }

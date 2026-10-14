@@ -429,6 +429,7 @@ describe('rendering', () => {
         'node: 22.20.4',
         'platform: linux',
         'backend: auto',
+        'contributor mode: unknown',
         'cli: found (version 1.4.2); signed in: yes',
         'stored model api key: no; META_API_KEY in environment: no',
         'shell sandbox: auto',
