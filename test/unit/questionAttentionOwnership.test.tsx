@@ -18,8 +18,8 @@ import { AttentionDock } from '../../src/webview/components/AttentionDock'
 import { LegalReport } from '../../src/webview/components/LegalReport'
 import { QuestionDock, type QuestionDockProps } from '../../src/webview/components/QuestionUi'
 import { QuestionSurface } from '../../src/webview/components/QuestionSurface'
-import type { PendingQuestion, WaitingApproval } from '../../src/webview/state/uiState'
-import { questionFixture } from './helpers/questions/fixtures'
+import type { PendingQuestion } from '../../src/webview/state/uiState'
+import { approvalFixture, questionFixture } from './helpers/questions/fixtures'
 
 const noop = (): void => undefined
 
@@ -43,27 +43,21 @@ function waitingQuestion(): PendingQuestion {
   return { ...questionFixture({ state: 'waiting', deferredAt: undefined }) }
 }
 
-const approval: WaitingApproval = {
-  entryId: 'approval-row',
-  toolName: 'shell',
-  approval: {
-    approvalId: 'a1',
-    requirementId: { approvalId: 'a1', sourceIndex: 0 },
-    subject: { kind: 'shell', command: 'pwd' },
-    rawArgs: '{}',
-    availableChoices: [
-      { choiceId: 'allow_once', label: 'Allow Once', decision: 'approved', scope: 'once' },
-    ],
-    isProtectedWrite: false,
-    isJudgeEscalated: false,
-  },
-}
-
 /** The keyboard is genuinely elsewhere: blur whatever holds it, then prove it. */
 function leaveKeyboardElsewhere(): void {
   const active = document.activeElement
   if (active instanceof HTMLElement) active.blur()
   expect(document.hasFocus()).toBe(false)
+}
+
+/** Hold the keyboard on a real button so the surface owns it; caller removes it. */
+function ownKeyboard(label: string): HTMLButtonElement {
+  const owned = document.createElement('button')
+  owned.textContent = label
+  document.body.append(owned)
+  owned.focus()
+  expect(document.hasFocus()).toBe(true)
+  return owned
 }
 
 function dockedQuestion(questionGroup: Group, navigation?: { readonly userInputId: string }) {
@@ -163,11 +157,11 @@ describe('async arrivals keep the keyboard where it is (D108)', () => {
     )
     view.rerender(
       <QuestionSurface sessionId="session-1" navigation={undefined} onDismiss={noop}>
-        <AttentionDock waiting={[approval]} onDecide={noop} questionGroup={group([])} />
+        <AttentionDock waiting={[approvalFixture()]} onDecide={noop} questionGroup={group([])} />
       </QuestionSurface>,
     )
     expect(document.hasFocus()).toBe(false)
-    expect(within(view.container).getByRole('button', { name: 'Allow Once' })).toBeVisible()
+    expect(within(view.container).getByRole('button', { name: 'Allow once' })).toBeVisible()
     expect(document.activeElement).toBe(document.body)
   })
 
@@ -227,11 +221,7 @@ describe('async arrivals keep the keyboard where it is (D108)', () => {
   it('still focuses a navigated dock card while the surface holds the keyboard', () => {
     // The owned control for the navigated-card path (QuestionUi's own guard):
     // the same arrival lands when the keyboard is already here.
-    const owned = document.createElement('button')
-    owned.textContent = 'owned'
-    document.body.append(owned)
-    owned.focus()
-    expect(document.hasFocus()).toBe(true)
+    const owned = ownKeyboard('owned')
     try {
       const view = render(dockedQuestion(group([waitingQuestion()]), { userInputId: 'q-1' }))
       expect(view.container.contains(document.activeElement)).toBe(true)
@@ -258,11 +248,7 @@ describe('async arrivals keep the keyboard where it is (D108)', () => {
     // The owned control: the same arrival lands when the keyboard is already
     // here, so the unowned tests above can actually fail. Runs last: jsdom
     // keeps ownership once anything has focused.
-    const owned = document.createElement('button')
-    owned.textContent = 'owned'
-    document.body.append(owned)
-    owned.focus()
-    expect(document.hasFocus()).toBe(true)
+    const owned = ownKeyboard('owned')
     try {
       const view = render(dockedQuestion(group([waitingQuestion()])))
       expect(view.container.contains(document.activeElement)).toBe(true)
