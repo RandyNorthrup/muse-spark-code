@@ -34020,46 +34020,7 @@ in their original order. The records that remain in this section are later
 ones, records an open branch touches with their neighbours, and records of
 milestones that have nothing in a release yet.
 
-**FIX0160X scoped release repair (2026-10-07).** The shared lane brief
-prohibits aggregate quality and reserves it for the lead. This lane runs
-every named owning file at repository deadlines and all prescribed individual
-compiler/static/build/package checks. No threshold, deadline, assertion or
-package refusal is waived. Hosted cross-platform qualification remains with
-the joined release; receipts are in `docs/certification/fix0160x.md`.
-
-**DEP138 rig verification.** The lane's rig note limits each test invocation
-to three files. Certify every configured unit/process-e2e file in batches of
-at most three, with `CI=true`, V8 coverage and repository deadlines. Partial
-blob reports use the repository's existing shard handling; merge every report
-with the original global thresholds enabled. Run every other locally runnable
-quality gate separately in the same fresh `npm ci` clone. The monolithic
-`npm run quality` is deferred only because its test command exceeds the rig's
-explicit file cap; no gate, assertion, file, threshold or timeout is removed.
-The certification record must name every actual exit and any unavailable
-platform/hosted checks rather than claim an aggregate-command pass.
-Amended 2026-10-07 (lead): the rig's batched coverage run was not completed.
-Hosted CI on the pull request is the full gate for coverage and the
-accessibility harness (merged coverage on three OSes with the original
-thresholds and deadlines, accessibility on Ubuntu, static gates with lint at
-the unchanged 6144 MiB heap on three OSes; pull requests run the full tier
-while `CI_MERGE_QUEUE` is not `on`). None of the bumped packages takes part in
-the harness, and main's PR #139, merged into this branch, fixed harness
-readiness.
-The rig's failed first full accessibility run stays in the record.
-
-**MACSLOW bounded certification (2026-10-07, macmini).** The lane's shared
-rules prohibit aggregate quality and delegate it to the lead. Run complete
-owned files directly, at default timeouts, three times after the explicitly
-authorized clean; run each requested compiler/static/build gate separately.
-The unit gate retains all 1,864 configured roots and strict options across five
-sequential programs, sharing ambient declarations and matcher setup. Measured
-peak RSS falls from 2,767,564,800 to 1,688,055,808 bytes (39%); no heap override,
-timeout, retry, skip or other gate changes. Initial compiler probes exposed
-ambient-type resolution and cross-file matcher/declaration scope; preserve
-both through repository-local temporary configs and the shared support roots.
-Final evidence is recorded in `docs/certification/macslow.md`.
-
-**INT0170B final Linux certification (2026-10-08).** Source `2617dc15988655edb43f289db90d8e3d99f1ff68` completes 80 serial command receipts, including every requested Linux workflow phase. Static, accessibility, SAST and both secret scans pass. Coverage thresholds pass at 92.38/87.43/93.39/93.21; 15 failed tests and two hook-failed files remain, 80 reported skips/unrun, and all six visual jobs fail missing reviewed component coverage. Both actual VS Code versions pass 39 cases and fail only command registration; schedule defaults now pass. The three usage cases and all 49 plan-reader cases pass in full coverage at unchanged deadlines. Required checks remain red. The independently executed ACP registry command, unreachable after the package shell's prior assertion failure, passes against the actual installed final package; it does not change the failed package job.
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
 **FIXM112A (2026-10-06, RVM112A).** Repair all six ACP findings in lane A:
 Stop dispatches cancellation without waiting on question storage; late forms
@@ -34073,30 +34034,7 @@ drill in `docs/certification/m112-a.md`. The rig/shared rules delegate full
 quality and Q/U integration to the lead; this lane runs its focused suites
 and required static/build checks without merging, pushing or paid calls.
 
-**DIET1 bounded rig certification (2026-10-06).** The user-provided lane brief
-and shared rules prohibit aggregate quality and public network, merges and
-pushes. The local commit uses scoped typecheck, lint/format, Knip, duplication,
-localization, reference, host API, webview suites, production/split/size,
-accessibility matrix, real-browser fake-host smoke and VSIX packaging. Local
-packaging uses the existing named badge-network skip; CI rejects it. The lead
-must run integrated `npm run quality` and hosted checks before integration.
-See `docs/certification/diet1.md` for measurements and byte-exact red drills.
-The initial second accessibility scan reported zero violations/undecided rules
-across 628 pages but exited 1 when light/usage-install missed the unchanged
-10-second readiness deadline. FIXDIET1's final complete matrix supersedes that
-outstanding receipt: 628 pages (157 scenarios × four themes), exit 0, zero
-violations, zero undecided rules, zero exemptions and zero missing results.
-No timeout, exemption, worker policy or accessibility rule changed. The lead
-still owns integrated aggregate quality and actual host/release certification.
-**RVM116P lane certification (2026-10-06).** The rig brief prohibits full
-quality and all merges/pushes/rebases in P; the lead runs integrated quality.
-P runs default-timeout owning tests, typecheck, scoped lint/format, deadcode,
-duplication, localization, host API and production budgets. The generated host API
-inventory was refreshed for the new Node imports; editor bindings remain an
-integration handoff. REDM116P removes the
-shell-quote imports and the dependency-declaration handoff: the small advisory
-warning needs no shell interpreter. The help catalog and generated reference
-are checked by `check:reference`, included in `quality:gates`. Results are in `m116-p.md`.
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
 **REDM116P outcome redesign (2026-10-06).** The rig brief again prohibits
 aggregate quality, pushes and unlisted merges. The lane runs all owning tests
@@ -34117,54 +34055,7 @@ integration deferral, not a cap, ignore or rule change. Repair regressions,
 disk-mutated red drills and their byte-exact restores are recorded in
 `docs/certification/m116-u.md`.
 
-**FIXHELPREF4 bounded certification (2026-10-06).** The explicit rig brief
-prohibits aggregate quality and reserves release integration for the lead.
-Run all owning reference/budget tests, exact-restoration red drills and the
-existing scoped static/build checks directly on Kubuntu before the local
-hook-on commit. The original predicates, schemas and bundle caps remain gates;
-no threshold, ignore, rule level, timeout or dependency is relaxed.
-
-**FIXHELPREF bounded truth certification (2026-10-05).** Kubuntu runs the
-owning reference/ACP regressions, source and guard failure drills with exact
-SHA-256 restoration, five-project typecheck and the existing static/build
-gates. The lane brief forbids aggregate quality, merge, push and rebase;
-full integrated quality and the second truth audit remain with the lead.
-No threshold or size cap changes. Evidence: `docs/certification/help-reference.md`.
-
-**HELPREF bounded rig certification.** The explicit rig/shared rules prohibit
-aggregate `npm run quality`, merge, rebase and push in this lane. Hook-on local
-commits use scoped owning tests, deliberate red drills and available static/build
-checks. The lead retains the integrated quality/coverage/release gate. No gate
-or budget is weakened; the exact evidence is recorded in
-`docs/certification/help-reference.md`.
-**REDM106H bounded rig certification (2026-10-06).** The explicit rig brief
-prohibits aggregate quality, full-suite runs and branch integration here. Run
-touched/owned whole files with default timeouts, scoped lint/format, all five
-typechecks, deadcode, duplication, localization, host API, cycles and production
-build. The lead retains integrated quality and the multi-OS matrix. No gate is
-weakened. The v2 headless money contract remains private/unsupported pending
-M80’s hosted/live receipts; this lane uses fake transports only.
-**C-M106-1 bounded capture certification (2026-10-10).** The explicit rig
-brief forbids aggregate quality, full-suite runs and branch integration.
-Run whole owning files at repository timeouts, all five typechecks and the
-existing scoped lint, format, deadcode, duplication, localization, reference,
-host API, roadmap and production build gates. The lead retains integrated
-quality, Windows/Linux execution and live Meta/provider receipts because no
-key is supplied here. The CLI probes use ephemeral empty workspaces and no
-model turn; only the explicitly scoped synthetic note is uploaded, with
-both disclosures off. No guard, hook, timeout, cap or dependency is changed.
-Evidence: `docs/certification/m106-completion-captures.md`.
-**C-M106-2 R10 bounded dependent certification (2026-10-11).** The rig
-brief explicitly adds every dependent suite for the whole branch's source
-diff against 82d50d5e4, including all shared host/runtime and English-table
-consumers. Discover the full graph with Vitest's related selector, then run
-`npx vitest related --run` in complete three-file batches preserving the
-repository's configuration and deadlines. Keep Vitest's public runner open
-between batches if repeated cold setup threatens the time box; use the same
-related selector, three-file bound, ordinary project setup and deadlines. Aggregate quality, independent
-review and the multi-OS release matrix remain lead-owned. No gate or cap is
-weakened; record every outcome and compare any red with the clean base.
-Evidence: `docs/certification/m106-capability-binding.md`.
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
 **R10 time-box deferral (2026-10-11).** The whole-branch related graph has
 1,135 files. The owner's 75-minute rig limit permits 875 complete files here;
@@ -34380,17 +34271,7 @@ checks and a production build precede hook-on commits. No timeout,
 threshold, rule, ignore, cap or hook is changed. Evidence is recorded in
 `docs/certification/m106-s.md`.
 
-**CIFIX14C bounded ACP packaging certification (2026-10-05).** The installed
-tarball passes the unchanged strict English fallback check and 382 distinct
-scoped tests. Typecheck, changed-file lint/format, localization (source and staged),
-deadcode, duplication, host API and production build gates pass. Shared rules
-prohibit aggregate `npm run quality` and replacing the existing dependency tree;
-fresh tarball installs use an offline scratch prefix. Kubuntu runs Node 24.18.0,
-not CI's requested Node 22, and lacks CI's downloaded compiled macOS helper.
-The exact universal VSIX listing therefore fails only that helper entry; hosted
-artifact operations and full integrated quality remain with the lead. No check
-is weakened. Receipts and deliberate failures are in
-`docs/certification/cifix14-acp-usage.md`.
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
 **M106T-MODELAPI-BUDGET (2026-10-05, Kubuntu; lane W binding).** The
 required merge baseline `33ef31aa2`, before T's changes, builds
@@ -34662,47 +34543,7 @@ that file; lane 0 leaves it untouched and records the regeneration command
 in its certification. The full M109 checklist remains open until those
 lanes and captures pass.
 
-**CIFIX14C bounded ACP packaging certification (2026-10-05).** The installed
-tarball passes the unchanged strict English fallback check and 382 distinct
-scoped tests. Typecheck, changed-file lint/format, localization (source and staged),
-deadcode, duplication, host API and production build gates pass. Shared rules
-prohibit aggregate `npm run quality` and replacing the existing dependency tree;
-fresh tarball installs use an offline scratch prefix. Kubuntu runs Node 24.18.0,
-not CI's requested Node 22, and lacks CI's downloaded compiled macOS helper.
-The exact universal VSIX listing therefore fails only that helper entry; hosted
-artifact operations and full integrated quality remain with the lead. No check
-is weakened. Receipts and deliberate failures are in
-`docs/certification/cifix14-acp-usage.md`.
-
-**CIFIX14W2 short-path certification (2026-10-05).** The explicit rig brief
-requires complete directory-tracking and shell files with default CLI timeouts,
-three workers and a real 8.3 fixture. Shared lane rules prohibit aggregate
-`npm run quality`; focused regressions, static checks and the production build
-run locally with hooks on. The lead retains the integrated full quality gate.
-No threshold, timeout, retry, skip policy or gate is changed; evidence is in
-`docs/certification/cifix14-shortpath.md`.
-
-**FIXVSIX2 scoped certification (2026-10-05).** RVMVSIX2 P1 and P2 are
-fixed. All 78 owning unit tests and 49 native packaged-module tests pass,
-with declared-export, private-reader and absent-dist red drills restored
-byte-exact. Typecheck, scoped lint/format, Knip, duplication, localization,
-host API, cycles, production caps and both package commands exit 0.
-Universal VSIX is 2,033,170 bytes, with 219,630 bytes headroom; activation
-is byte-identical. The rig brief reserves aggregate quality/coverage and
-installed-editor/platform certification for the lead. No gate is weakened.
-Receipts: `docs/certification/vsix-diet-2.md`.
-
-**TRAIN14B Judge activation fixture stop (2026-10-05).** Full quality is
-explicitly authorized by this rig brief. Its aggregate unit run exposes a
-legacy Judge activation fixture that omits D78’s default callback. The field
-extraction fix resolves the undefined-variable error; a backend-availability
-fixture fix still leaves three subscription-default assertions failing.
-Common.md requires stopping after two different fixes to the same test, so
-this path is paused pending the requested explicit override for one targeted
-`isDefaultOn` fixture correction. No gate, test, timeout or paid policy is
-weakened. Until the unchanged full gate exits zero, this train is not ready
-for merge/release; all other authorized checks continue and their exact
-receipts are in `docs/certification/train-0.14.0.md`.
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
 Round-two cause fixes use a fixed Z.ai key pattern and localized plain-text
 OAuth callbacks instead of dynamic regex compilation/manual HTML escaping.
@@ -35058,34 +34899,7 @@ which also rechecks Together's leaked `final` word.
       failure is not supplied and has not reproduced in 200 original-file runs.
       Evidence: `docs/certification/deflake3.md`.
 
-**DEFLAKE3 test-only lane scope (2026-10-04).** The rig brief requires a
-complete Windows unit inventory in batches of at most three files and
-300 consecutive checkpoint-copy file passes. It explicitly requires full
-`npm run quality` only for a product change; this lane changes tests and
-documentation only. Shared static/build checks still apply. Aggregate
-coverage/full quality and hosted confirmation remain the lead's gates; no
-rule, timeout or coverage threshold is weakened. The exact original hosted
-failure is not supplied and has not reproduced in 200 original-file runs.
-Evidence: `docs/certification/deflake3.md`.
-
-**DEFLAKE2 bounded-lane result (2026-10-04).** Direct Win11 owning tests
-and the required static/build gates passed; two deliberate regressions
-failed and were restored byte-exact. The rig brief prohibits integration
-merges/pushes, and `common.md` forbids aggregate quality/full-unit runs in
-this shared lane. Full quality, aggregate coverage, accessibility and the
-hosted Windows recheck remain the lead's gates. No gate or deadline was
-weakened. Evidence: `docs/certification/mcp-job-flake.md`.
-**M94W size boundary (2026-10-05).** The Windows production build passes
-activation at 578.0/600 KiB and Tab at 62.4/75 KiB. W adds 3,378 bytes
-(3.299 KiB) against the integrated pre-W source control, within the brief's
-added-startup allowance. The whole Tab shim is 7.393 KiB, inherited from a
-4.431 KiB H shim: D73's stricter whole-shim 4 KiB target and acceptance 19
-are not certified. Reducing the whole shim needs the existing service/provider
-orchestration moved into the lazy entry while preserving loader retry,
-cleanup and startup status; that broader follow-up is deferred to the lead
-under W's bounded scope. The hard 600 KiB cap and every existing gate remain
-unchanged. The exact control and bundle measurements are in
-`docs/certification/m94.md`.
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
 - **Golden requests**: one per codec per scenario (first turn, tool loop
   with reasoning, image, packed output, compaction), checked-in bytes;
@@ -35319,23 +35133,7 @@ second wrapper, network install, global write or analyzer-pin change is
 attempted. Exact final gate receipts belong in docs/certification/m95-r3.md. No
 assertion, coverage threshold, ignore, deadline or rule is relaxed.
 
-**DEFLAKE5 unit/coverage acceptance (2026-10-05, kubuntu).** On committed
-code `8d31e73a`, three consecutive complete three-worker V8 runs return 0:
-404 files and 8,093 tests pass each, with four files / 57 existing skips.
-A complete ten-worker run plus four owned CPU-load processes also returns
-0 on that exact code. Every coverage threshold passes: 93.75% statements,
-89.01% branches, 94.70% functions and 93.89% lines in all four final runs.
-Typecheck (five projects), full lint, format, plain knip and duplication
-return 0. The scoped rig brief authorizes this unit-only acceptance instead
-of a whole quality wrapper. It closes the unit/coverage deferral below;
-the historical failed wrapper and unrelated release/helper prerequisites
-remain recorded. Two actual causes are fixed: shared build artifacts and
-repeated expensive checks of identical restored bytes. Red drills reproduce
-all five historical files' defects and the new shared-metafile regression,
-with byte-exact restoration. See `docs/certification/deflake5.md` for commands,
-errors, hashes, worker/load settings and all successful and failed receipts.
-
-Never drill against a user's repository.
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
 - **Phase 2 sections.** Planned, not dropped. Each starts after its
   dependency and the evidence it names.
@@ -35417,99 +35215,9 @@ Never drill against a user's repository.
 
 ### QPIN lane verification (2026-10-07)
 
-The rig brief scopes this repair to fresh-clone owning suites three times at
-default deadlines, five typechecks, lint, formatting, plain knip, duplication,
-unchanged build caps, reference and localization, plus question screenshots
-and four-theme accessibility. All passed; receipts are in
-`docs/certification/question-pinned.md`. Full `npm run quality`, unrelated
-repository coverage and native/installed-editor/live certification remain
-with release integration. This is a scoped run, not a gate relaxation: no
-rule, ignore, threshold, budget or deadline changed.
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
-**CI0150M round 3 aggregate status (2026-10-07).** The attempted unmodified
-`npm run quality` passes static gates, then fails whole-repository tests in
-unowned clean-artifact/localization suites and load-sensitive cases. The common
-OS brief assigns cross-platform failures to the Linux lane. Certify this lane
-with every exact macOS workflow command in fresh committed clones; record all
-remaining failures rather than weaken gates or edit another lane's suites.
-Aggregate release quality remains deferred to joined integration. Standalone
-secret scanning passes; the inherited SAST wrapper supplies duplicate `--jobs`
-options and is a shared failure, also deferred without changing its invocation.
-See this lane's round 3 section in `docs/certification/train-0.15.0.md`.
-
-**CI0150W round 3 certification.** Whole-shard and whole-job reproductions
-are explicitly required by `CI0150-os-common.md`; they run with unchanged
-default deadlines in fresh clones of local hooked commits. Targeted runs
-retain the three-file cap. Early scoped commits can precede aggregate
-`npm run quality` while the cross-platform failures assigned to the Linux
-lane remain; every failure and final Windows job result is recorded without
-weakening gates, assertions or deadlines. A complete quality claim requires
-the actual aggregate to exit zero.
-
-The final implementation run at `2548f459` passes the static CI job and all
-scoped test files in four complete shards. Aggregate quality stays deferred:
-clean/package fixtures remain red, integration has an external release-lookup
-timeout, and dedicated browser/credential-store checks have the exact residuals
-listed in §3 and the train record. Original coverage thresholds are exceeded;
-the merge command still fails because it replays failed package suite setup.
-No gate, refusal, assertion, timeout, retry or skip is weakened to claim green.
-
-**CI0150L rolling verification.** The round-3 rig brief explicitly requires
-committing finished pieces after owning tests pass, then verifying committed
-work in fresh clones. Full quality and Linux CI jobs remain pending until that
-fresh-clone run and are not claimed green by an intermediate commit. Record
-any external hosted dependency that cannot run on this rig in the Linux round-3
-certification section; no threshold, ignore, timeout or assertion changes.
-
-**FIX0150R scoped certification.** The rig brief requires complete owning test
-files in batches of at most three, with three clean `CI=true` repetitions and
-individual static/build gates. Shared lane rules reserve aggregate
-`npm run quality` for the lead; its whole-repository coverage invocation exceeds
-this lane's test-file limit. Defer that aggregate to release integration without
-changing any threshold or gate. Receipts are in `docs/certification/fix0150r.md`.
-
-**FIX0150P scoped release-review verification (2026-10-07, linuxlt).**
-The rig/common briefs prohibit a full quality run in this lane. Full quality
-and cross-platform release certification remain with the lead; this lane
-runs the prescribed complete owning suites and scoped static/build gates
-without weakening thresholds, timeouts, isolation or hooks. Detailed red/base
-and restored-green receipts belong in `docs/certification/fix0150p.md`.
-
-**CI0150A scoped certification.** CI0150-common.md requires three clean
-repetitions of complete owning files and individual static gates; the rig note
-caps each test run at three files. Aggregate `npm run quality` includes an
-unbounded whole-repository test/coverage run, so it is deferred to integration
-under this scoped repair. Hosted OS/release checks also include CI0150B/C work
-and are not certified here. This justified deferral changes no gate or threshold.
-
-**TRAIN15B raw-cap deferral (2026-10-05).** The resumed integration recovers
-the VSIX, with universal 2,213,704 and helperless 2,132,213 bytes, both under
-the unchanged 2,252,800 cap. The shared graph's original deferred cohort starts
-at 51,452 bytes; the first usage reduction still prints 50.1 KiB over 50 KiB,
-and the second leaves an exact 51,226 bytes (26 over). common.md requires
-stopping a path after two failed fixes, and the integration brief requires
-all caps to hold. Record the candidate with hooks and defer `m96/int3d`,
-`m96/ifix-win4` and `m97/sr`; no further raw-cap optimization or merge is tried.
-The source build completes and all other caps pass, but `npm run package`
-exits 1 before its packager. Running the actual packager separately measures
-exact archives and exercises strict staging, badges and native exports; that
-successful measurement does not certify the failing package command. All
-scoped checks and eight restored red drills are recorded in the train receipt.
-No full quality, cap increase, ignore, skip, feature removal or dependency change.
-This supersedes the first run's VSIX blocker below, preserving its history.
-
-**TRAIN15A budget stop (2026-10-05).** The integration brief explicitly
-forbids full quality and requires stopping after M101 if its unchanged universal
-VSIX cap cannot be met without a product decision. The first M101 candidate is
-2,368,627 bytes, 115,827 over. An existing-ESM shared-entry experiment preserves
-startup and model-text readership but leaves the original deferred cohort over
-its hard cap after two bounded fixes (57 bytes, then 10); common.md requires
-stopping that path. Restore the separate Models graph and retain every shipped
-feature and cap. Finish scoped checks, record the fresh artifact and exact largest
-twenty base deltas in `docs/certification/train-0.15.0.md`, commit the blocked
-integration locally with hooks, and do not merge steps 3–5. This is a justified
-review-candidate deferral under rule 2, never a green release claim. The lead
-owns a further size-recovery decision and the later continuation/full gate.
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
 ### M95 K repair residuals (2026-10-05)
 
@@ -35778,22 +35486,7 @@ owns a further size-recovery decision and the later continuation/full gate.
 **M95INT round-one whole-chain receipt — historical 120-minute rig brief.**
 The browser and SAST failures below are historical and repaired in round two.
 
-**CIFIX14T verified local result (2026-10-05).** The five owning suites
-pass 113 tests (six existing Windows-only skips); the exact restored monitor
-file passes 30/30 loaded runs, 210 tests. Removing the wait fails 3/3 loaded
-drills; all seven drills restore SHA-256-exact source. All five compiler
-projects, final unit compile, scoped ESLint/Prettier, plain knip, duplication,
-localization, host API and production build pass. Extension 437.4 / 600 KiB,
-Model API 446.6 / 475 KiB, ACP 817.5 / 850 KiB; every budget is unchanged.
-Native Mac proof and complete receipts are in `docs/certification/cifix14-monitor.md`.
-Hosted Node 22 and native Linux/Windows certification remain with the lead.
-
-**CIFIX14T bounded-lane gate delegation (2026-10-05).** The requested Mac
-mini reproduction and red drills run directly here with hooks enabled.
-`common.md` prohibits aggregate quality/full unit runs; collect the owned
-shell tests and required static/build checks, leaving full quality, merged
-coverage and hosted cross-platform certification to the lead. No gate is
-weakened and no integrated-green claim is made by this lane.
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
 **M101INT aggregate receipt (2026-10-06).** The brief authorizes exactly one
 `VITEST_MAX_WORKERS=3 npm run quality`. It exits 1 at unit tests: 541 passing
@@ -35843,42 +35536,7 @@ lane does not run it or weaken any gate. The generic delivery validator's
 ledger-format check remains deferred for this established plan format.
 Current receipts: `docs/certification/star-line.md`.
 
-**TRAIN13B (2026-10-05).** The owner authorizes recovering the two size
-failures and running the complete quality gate directly on Kubuntu within
-120 minutes. No cap, threshold, skip or user-facing feature may be weakened.
-The earlier TRAIN13 budget stop is historical; current receipts go in the
-same train certification record.
-
-**TRAIN13 release train (2026-10-04, Kubuntu).** Merge the six reviewed
-branches in the owner's order with two-parent commits, preserving all PR
-heads. Resolve only integration breakage; retain D78, D79 and D71 with all
-existing decisions and milestones. Consolidate Unreleased into one Highlights
-list of at most five bullets and the Added/Changed/Fixed/Security sections;
-released sections remain byte-identical to `main-sync`. Regenerate notices,
-the host API inventory and exec schemas. Verify the shared M92 detection table
-still feeds #116's host-to-webview diagnostics and confidential admission,
-then run full `npm run quality` once and the unchanged 2200 KiB VSIX gate.
-A size-budget failure stops this lane and is reported without changing a cap.
-The first combined gate exposed the missing M99 palette tip and stale eager-recall/request-order assertions after D78. Add the tip in every language; bind the concurrency test to parent/child identity and assert recall is absent until packing. Match the monitor probe to the existing MCP Linux zombie check and retain proof that it recognizes a live process. The corrected full run passes static gates and 7,758 tests, but two unchanged checkpoint tests fail under the shared `/tmp` quota (`EDQUOT`); coverage and downstream gates are unverified. The separate build gate fails on webview main (928,507 bytes against 921,600); a private Linux VSIX measurement also fails (2,330,538 against 2,252,800 bytes), without the universal macOS helper. Stop implementation at those budget failures as the brief requires. No cap, timeout, test skip or gate is changed. Quota recovery, full certification and package reduction remain deferred to the lead. Hooks stay on; no push, rebase, live model or paid call. Current evidence and any outstanding gate are in `docs/certification/train-0.13.0.md`.
-
-**MG87c merge (2026-10-04): main's activation diet into M81.** The browser
-check's model text sits by reader under D6's 2026-10-03 rule: `MODEL_TEXT`
-for what activation reads, `MODEL_API_MODEL_TEXT` for the three words only
-the Model API backend says; the refusal table reads them by name. Activation
-is 572.6 of 600 KiB. The shipped-bundle text test allows words a bundle's own
-blocks share with `MODEL_TEXT`, with four red drills. See
-`docs/certification/mg87c.md`.
-
-**MG87b merge (2026-10-04), source proof and explicit deferrals.** Merge `origin/main`
-into M81 while retaining all main bundles, budgets, translations and
-permission behavior. Browser results join M78's live policy fence; best-of-N
-attempts receive no window browser check. The lane runs targeted static
-gates and Kubuntu tests, with hooks on and no origin push; full quality
-remains the lead's gate. Kubuntu passes 7,105 tests; final integration and
-fixture runs pass 672 and 19 tests. Activation is 610.2 KiB against 600: the
-brief assigns its correction to the activation-diet lane. Focused accessibility
-has two missing Chrome results, so no complete browser pass is claimed.
-See `docs/certification/mg87b.md` for resolutions, drills and gate evidence.
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
 **M100 planning lane (2026-10-04).** The rig brief restricts changes to
 PLAN and `docs/certification/m100-research.md`, forbids full quality/unit
@@ -35918,34 +35576,7 @@ renumbering nothing. Only changed-document formatting/Markdown checks and
 normal commit hooks run here; full quality remains the lead's joined-tree
 gate. The research record separates these receipts from runtime certification.
 
-**DEFLAKE3 test-only lane scope (2026-10-04).** The rig brief requires a
-complete Windows unit inventory in batches of at most three files and
-300 consecutive checkpoint-copy file passes. It explicitly requires full
-`npm run quality` only for a product change; this lane changes tests and
-documentation only. Shared static/build checks still apply. Aggregate
-coverage/full quality and hosted confirmation remain the lead's gates; no
-rule, timeout or coverage threshold is weakened. The exact original hosted
-failure is not supplied and has not reproduced in 200 original-file runs.
-Evidence: `docs/certification/deflake3.md`.
-
-**DEFLAKE2 bounded-lane result (2026-10-04).** Direct Win11 owning tests
-and the required static/build gates passed; two deliberate regressions
-failed and were restored byte-exact. The rig brief prohibits integration
-merges/pushes, and `common.md` forbids aggregate quality/full-unit runs in
-this shared lane. Full quality, aggregate coverage, accessibility and the
-hosted Windows recheck remain the lead's gates. No gate or deadline was
-weakened. Evidence: `docs/certification/mcp-job-flake.md`.
-**M94W size boundary (2026-10-05).** The Windows production build passes
-activation at 578.0/600 KiB and Tab at 62.4/75 KiB. W adds 3,378 bytes
-(3.299 KiB) against the integrated pre-W source control, within the brief's
-added-startup allowance. The whole Tab shim is 7.393 KiB, inherited from a
-4.431 KiB H shim: D73's stricter whole-shim 4 KiB target and acceptance 19
-are not certified. Reducing the whole shim needs the existing service/provider
-orchestration moved into the lazy entry while preserving loader retry,
-cleanup and startup status; that broader follow-up is deferred to the lead
-under W's bounded scope. The hard 600 KiB cap and every existing gate remain
-unchanged. The exact control and bundle measurements are in
-`docs/certification/m94.md`.
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
 W's final `npm run quality` exits 0 on Windows (2026-10-05), and integration
 passes 34 tests each at VS Code 1.99.0 and stable 1.140.0. The local VSIX
@@ -36027,70 +35658,11 @@ unavailable because SSH refused its host key and WSL is not installed. No
 gate was weakened or case deadline changed; no retries, skips, dependencies
 or product source changes were introduced.
 
-**TRAIN15E release preparation gate scope (2026-10-06, win11).** The
-continuation brief explicitly requires the entire Vitest suite in batches of
-at most three files, at the repository's default deadline, the full accessibility
-harness, reviewed README screenshots, live HTTPS badge verification, and the
-listed compiler, lint, inventory, dependency, cycle, build and package gates.
-These override common.md's scoped-test and network-only limits for those exact
-commands. The shared rule still forbids the aggregate `npm run quality`
-wrapper; merged coverage, integration hosts, audit/SAST and hosted cross-platform
-quality remain with the lead. This lane records each requested gate separately
-in docs/certification/train-0.15.0.md and its release receipt, without claiming
-aggregate quality or new model-service certification. No gate is weakened.
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
-**TRAIN15E final continuation (2026-10-06, win11; before repair).** The new
-90-minute brief resumes the staged release and explicitly reopens the nine
-Windows failures. First restructure the harness inventory as fixture state
-and commit the authorized merge with hooks. Preserve D75's closed stdin,
-remote slot and native retirement contract: the real PowerShell self-test
-fails with DETACHED_PROCESS and succeeds with CREATE_NO_WINDOW, retaining
-breakaway and the exact inherited-handle list. Export the fake SSH host's
-metric functions into its helper shell and use its discovered Bash for marker
-polling. Prepare the four ordinary landing cases' real Git staging in a
-shared beforeEach rather than spending their unchanged five-second body
-deadline on setup. Keep every assertion, timeout, cap and existing skip.
-Run all test files in batches of at most three at the repository defaults;
-finish lint, inventories, knip, duplication, cycles and both actual packages.
-Reuse the 952-page accessibility receipt if browser sources remain unchanged.
-Record root causes, red/restored drills, final totals and package bytes in the
-train certification; no push or model call.
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
-The final sweep exposes a separate fake SSH canary race: Git Bash can finish
-the command's two-second sleep before its independently scheduled one-second
-timer gets CPU, so an early write is mistaken for a post-retirement escape.
-Bind the writer to the fixture's explicit release file, release it only after
-the unchanged timeout result has returned, and retain the canary-absence
-assertion and observation interval. This tests D75's retirement guarantee
-without assuming relative scheduling of two real processes. Re-run the whole
-SSH file at the default deadline and retain the original failing receipt.
-
-**TESTWARM bounded-lane certification (2026-10-06).** The rig/shared brief
-forbids aggregate quality and full-suite runs. Collect owning suites with default
-timeouts, the drift drill, scoped lint/format, five compiler projects, plain
-Knip, duplication, localization, host API and production build on this rig.
-Integrated full quality, coverage and hosted cross-platform checks remain with
-the lead; no gate, timeout or budget is weakened.
-
-**PROMPTMENU2 inherited duplication deferral (2026-10-06).** The unchanged
-zero-clone `npm run duplication` gate exits 1 on three clones between
-`test/e2e/acpRegistryAuth.e2e.test.ts` and `test/e2e/acpStdio.e2e.test.ts`
-(8/18/8 lines, 50/94/52 tokens). Both files are byte-identical to the lane's
-`4ca230efc` base; the prompt-menu changes introduce no clone. The shared lane
-rules prohibit unrelated refactoring, so ACPREG's existing fixture duplication
-remains a named release-integration repair for the lead. No threshold, ignore,
-rule, timeout or test is changed. Full quality cannot be claimed green until
-that repair passes the unchanged gate. Evidence and all other requested rig
-receipts: `docs/certification/promptmenu-hosts.md`.
-**M108W final rig certification (2026-10-07).** The W brief authorizes the
-complete configured test suite in sequential batches of at most three files
-and workers, using repository-default timeouts, all listed individual static/
-build/package gates, full axe harness and README previews. Shared rules still
-prohibit the aggregate `npm run quality` and public network; aggregate coverage,
-network audit/SAST, hosted/native/editor/live receipts remain lead-owned.
-Run local hook-on commits only after their scoped proofs, then certify the
-final joined tree without loosening any gate. Every named integration handoff
-and unavailable check is explicitly disposed in `docs/certification/m108.md`.
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
 **FIXM112Q bounded-lane certification (2026-10-06).** The rig/shared brief
 forbids aggregate quality and full-suite runs; full integrated quality remains
@@ -36146,19 +35718,7 @@ S/lead retain the host-API inventory, public docs, real editor captures and
 the full integrated quality/visual/accessibility gates. No gate is weakened
 and internal-port fakes do not certify unavailable native engines.
 
-**CIFIX14T bounded-lane gate delegation (2026-10-05).** The requested Mac
-mini reproduction and red drills run directly here with hooks enabled.
-`common.md` prohibits aggregate quality/full unit runs; collect the owned
-shell tests and required static/build checks, leaving full quality, merged
-coverage and hosted cross-platform certification to the lead. No gate is
-weakened and no integrated-green claim is made by this lane.
-**FIXM109PW3 bounded-lane verification (2026-10-06).** The rig brief reserves
-full quality/coverage for the lead. Direct Win11 checks pass typecheck, changed
-file ESLint/Prettier, deadcode, zero-clone duplication, localization, production
-build and the 96 owned tests at repository default deadlines. The host-API
-mismatch remains exactly W's five import-count changes recorded below; no
-new VS Code API or generated snapshot change belongs to this repair. Sixteen
-byte-exact red controls are in `docs/certification/m109-pw3-drills.json`.
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
 **M109 P Windows bounded-lane gates and capture deferral (2026-10-06).**
 The Windows rig brief and shared lane rules prohibit full quality and the
@@ -36205,29 +35765,7 @@ then rerun the check. API policy is unchanged; the snapshot gate is neither
 weakened nor claimed green. This is a documentation gate deferral, not an
 unfixed RVM98J finding.
 
-**RELFAST3 bounded-lane result (2026-10-04).** Fresh Windows compilers,
-dead-code, duplication, localization, host API, production build, actionlint
-and scoped formatting pass; the fixture's two ESLint style findings are fixed
-without suppression and its generated workflow shell is byte-identical.
-Kubuntu passes all 128 owning tests and six added byte-exact guard drills;
-RELFAST2's 36 controls remain historical receipts. A contended Windows Bash
-fixture timed out at the unchanged five-second limit and is not green proof.
-The live Model API size gate is 475 KiB, not common.md's 400 KiB figure: the
-430.1 KiB bundle passes the existing gate without a cap change, but 400 KiB
-compliance is not claimed. Full quality/hosted/CIFLOW/admin-tag verification
-and the skill's unsupported ledger-format validator remain deferred to the
-lead; no required gate was weakened. See `docs/certification/relfast.md`,
-`relfast3-drills.json` and `relfast3-shell-equivalence.json` beside it.
-
-**RELFAST2 bounded-lane deferral (2026-10-04).** The hard 60-minute brief
-requires scoped eslint/Prettier, owning release tests, available actionlint and
-hook-on commit. All 19 carried controls plus 17 new controls are proved locally.
-Fresh common.md aggregate typecheck, dead-code, duplication, localization,
-host-API and production-build runs are deferred to the lead: this change touches
-release tooling/workflows and owning tests, with no production bundle changes.
-This is a deferral, not current aggregate-green evidence; full quality, hosted
-reuse/recovery/fallback and CIFLOW integration remain required. Evidence:
-`docs/certification/relfast.md` and `docs/certification/relfast2-drills.json`.
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
 **M96CINT round-1 partial merged-source proof (historical, 2026-10-05).** Macmini passes all
 239 S/Q/T2/V tests plus 29 shared schema/text tests, in 21 complete files

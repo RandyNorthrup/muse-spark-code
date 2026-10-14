@@ -314,3 +314,70 @@ Proofs:
 - Merge simulation, 280 open heads: conflict regions 1,010 before and after,
   branch-changed lines in conflict 107,426 before and after, clean merges 35
   before and after, heads made worse 0.
+
+## Closed §6 sections and older §7 records (2026-10-14, with the command)
+
+The plan stood 1,546 bytes under the gate's line. Two `move --batch` runs
+(each `--dry-run` first, each proven byte for byte by the command before
+writing) archive closed history, oldest first, staying at least 20 lines
+from every range the lane brief lists as touched by open branches, and
+leaving §2, §10, the test-cited sections (M73, M91, M93, M100, M101, M113,
+M121) and every section with open checklist items or an active status
+(M71, M77, M80, M87, M88, M94, M95, M96, M97, M102, M103, M104, M105, M106,
+M107, M108, M109, M110, M111, M112, M114, M115, M116, M117, M118, M120,
+M123, M125, M96b/c/d, M87–M88 and M60–M66 groups) in place.
+
+| Measure                                | Before    | After     |
+| -------------------------------------- | --------- | --------- |
+| `PLAN.md` bytes                        | 3,563,612 | 3,502,761 |
+| Share of the reader's bound            | 85.0%     | 83.5%     |
+| Room under the gate's line (3,565,158) | 1,546     | 62,397    |
+| Hashed blocks in `milestones.md`       | 41        | 80        |
+| Hashed blocks in `gates.md`            | 140       | 157       |
+
+Batch 1 (commit `c54550e6`, at `898a26c5e`): 39 blocks, 29,306 bytes, the
+bodies of 17 closed §6 sections whose stubs keep the heading, status rows
+and pointer — the eight provider-wizard lanes built for 0.17.1 (PROVWIZ10,
+PROVWIZ9, PROVWIZ8, PROVWIZ7, PROVWIZ6, PROVWIZ2R5, PROVWIZ2R4, PROVWIRE),
+the M53 and M26 follow-ups (merged/built), TRAIN13B (certified), M119
+(released in 0.16.0), MUSE143, DEP138, FLAKEMERGE, SECWINPATH2, SECWINPATH.
+Parsed facts change only in the seven closed checklists that moved with
+their lanes (accepted for closed milestones); drift 0; reassembly
+identical (SHA-256 `5bcf5572…bd63c2`).
+
+Batch 2 (this commit): 17 blocks, 35,331 bytes, older §7 gate records of
+verified lanes — FIX0160X, DEP138, MACSLOW, INT0170B, DIET1, FIXHELPREF4,
+FIXHELPREF, HELPREF, CIFIX14C (both copies), CIFIX14W2, FIXVSIX2, TRAIN14B,
+DEFLAKE2/3 (both copies), DEFLAKE5, the QPIN verification body, the 0.15.0
+CI-repair and train records (CI0150M/W/L, FIX0150R/P, CI0150A, TRAIN15A/B),
+CIFIX14T (both copies plus the delegation duplicate), TRAIN13B, TRAIN13,
+MG87b/c, TRAIN15E (both, plus the SSH-race note), TESTWARM, PROMPTMENU2,
+RELFAST3/2. Each leaves one pointer line; the §7 pointer paragraph stands.
+Parsed facts identical; drift 0; reassembly identical
+(SHA-256 `77c9bf94…0172d4d`).
+
+Kept in place: every `Goal`, `Depends on` and `Gates` field, every lane
+table (including the M91, M93 and M100 tables the tests read), the M121
+sanctioned-money paragraph the money citations read, the M95/M96/M101
+plan passages the codec, team-record and closure tests read, and every
+record of an active or unreleased milestone thread (M95, M96, M97, M98,
+M100, M101, M102, M105, M106, M108, M109, M112, M113, M114, M115, M116,
+M123, PROVWIZ qualifications, CIFIX017, M123 and MENUFAN lanes).
+
+Gates: `prettier --check` on `PLAN.md` and both archive files; `npm run
+check:plan` (218 milestones, 0 drift); `npm run check:roadmap` (218
+entries, current); `npm run check:reference` (current); the nine
+plan-reading suites green at repository timeouts — planReader (49),
+planArchive (7), planCitation (19), checkPlan, autoCompact, geminiCodec
+(121 together), m113cLaneClosure, teamPlanRecord, paidMoneyStructure
+(50 together): 246 passed.
+
+The lane's 3,200,000-byte target is not reached, and cannot be reached
+under the archive rules: the only other closed §6 bodies (PORTS017, M122,
+INT0180B, M92) keep fields, status rows or open items in inseparable
+blocks, and every §6 section over 15 KB is an
+active milestone, a test-cited section, or the section M71 that stays as
+the VS Code record. §10 cannot supply the rest: the roadmap gate hashes
+its records, `planReader` requires the 0.11.0 release record, and
+CONTRIBUTING bars §10 moves. About 300 KB more would need archiving
+active sections, which is the lead's call.
