@@ -103,6 +103,14 @@ happened, not what was planned; superseded entries are kept.
   launches are not yet under the resource governor; nothing in this release
   can start them, and the process inventory fails the day something could.
 
+- Muse Code permissions: on the Muse Code backend one command is asked
+  about once — the first answer is reused for later stages instead of
+  asking again, and an answer given while a newer stage arrives is applied
+  to that stage instead of dropped. A permission mode set in the editor is
+  reported back and kept when the session is loaded again. The Manual and
+  Edit Automatically descriptions now say commands are asked about unless
+  a permission rule allows them.
+
 ## [0.18.2] - 2026-10-12
 
 ### Highlights

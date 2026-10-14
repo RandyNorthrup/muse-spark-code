@@ -1,0 +1,133 @@
+# Certification — Muse Code backend permissions (muse-code-permissions)
+
+Lane MUSEPERMS, 2026-10-14, worktree branch `fix/muse-code-permissions`.
+Lead's measurement (published 0.18.2, CLI 1.4.7, editor client answering
+every `session/request_permission`): F13 — four sessions, 0 client permission
+requests while commands ran (one session: 31 `execute` tool calls completed);
+F16 — one command asked 13 times (13 `pending`, 28 `in_progress` against 14
+`completed`); `acceptEdits` set, later updates still `currentModeId: manual`.
+
+## Causes, with file and line
+
+F13 (no request reaches the client) is the CLI raising no approval, not the
+agent dropping one. Every shell approval the CLI sends is forwarded:
+
+- `src/core/backends/musecode/mapNotification.ts:344` maps
+  `approval/requested` to `approvalRequested`; the `approval/request`
+  server-request mirror is delivered as the same notification
+  (`src/core/backends/musecode/MuseCodeHost.ts:2139`, `2140`).
+- The ledger admits a first-seen approval once
+  (`src/core/backends/musecode/promptLedger.ts:42`).
+- The ACP agent asks the client for every shell approval it sees:
+  `src/acp/agent.ts` `approvalRequested` case stores and calls
+  `askPermission`. The only no-ask path is `editAutomaticallyChoice`
+  (`src/core/agent/approvalRules.ts:136`), which answers file writes only,
+  in `acceptEdits` only. A shell subject can never take it.
+- The wire mode sticks (live, no-turn probe, CLI 1.4.7,
+  `muse serve --trust-workspace`, empty config home, empty workspace, no
+  prompt sent): `session/start` with `approvalMode: promptUnmatched`
+  returns `approvalMode: {mode: promptUnmatched, source: startup}` plus
+  `session/approvalModeChanged {mode: promptUnmatched,
+source: approvalReconfigure}`; `session/setApprovalMode` returns
+  `{applyOutcome: noop, effectiveMode: {mode: promptUnmatched,
+source: startup}}`. Mode clamping is ruled out.
+- So under `promptUnmatched` the CLI itself classified F13's 31 commands as
+  needing no approval (its own rules: workspace rules/skills loaded through
+  `--trust-workspace`, managed policy, permission profiles, built-in
+  classification). That decision is CLI-internal: no code path of ours sees
+  it. One live request settles which rule fired: send one command turn in
+  Manual on the lead's host and watch the `approval/requested` frames and
+  the workspace's permission sources (`settings.json`, `.muse/hooks.json`,
+  `muse config status`).
+
+F16 (one command asked 13 times) is ours, three paths in `src/acp/agent.ts`
+(old `askPermission`):
+
+- `approvalUpdated` called `askPermission` anew, so every stage of a staged
+  command (`a; b` is two stages, `src/shared/agentEvents.ts:274`) opened a
+  fresh client request.
+- No serialization: an update landing while a request was unanswered opened
+  a second concurrent request for the same approval.
+- The answer was discarded when the stage advanced mid-ask (old stale check
+  after the client answered), so the client answered and nothing was
+  decided, and the next update asked again.
+- `allow_always` variance is the CLI's offering, not a bug: `permissionKind`
+  (`src/acp/translate.ts:531`) maps the CLI's choice scope to the option
+  kind, and the CLI offers session/persistent rule choices only for staged
+  approvals (a stage's `suggestedPrefix`, `src/shared/agentEvents.ts:283`;
+  `src/core/backends/musecode/promptLedger.ts:127`).
+
+Mode reported back: `session/set_mode` returned `{}` and the agent never
+sent `current_mode_update` (the protocol's mode-change notice), and a later
+`session/load` rebuilt the session with the initial mode, discarding the
+set one. Hence `acceptEdits` set, `manual` reported.
+
+## Fixes
+
+- Ask once (`src/acp/permissionAsk.ts`, new; wired in `src/acp/agent.ts`
+  `askPermission`): the first answer is remembered per approval and per tool
+  call and re-decided silently on later stages and re-issued approvals;
+  one client request per approval at a time (synchronous claim); a mid-ask
+  answer is applied to the latest stage by meaning
+  (`answerChoice`: decision plus scope, never choice id), falling back to
+  the denial default. Allow-once is never escalated to an allow-always rule.
+- Mode report: `session/set_mode` notifies `current_mode_update`
+  (`src/acp/agent.ts` `setMode`); ordinary loads keep the set mode,
+  untrusted content still re-opens asking (`adoptedMode`, D49/M84);
+  `AgentState.setSessionMode` records it. The CLI's effective mode is
+  checked against the requested one and a mismatch is logged
+  (`MuseCodeHost.ts` `applyModeEffect`, wire word via `wireWordForLog`);
+  a CLI-initiated `approvalModeChanged` is logged in the ACP agent.
+- Descriptions match what happens: Manual / Edit Automatically on Muse Code
+  now say the agent asks before each command "unless a permission rule
+  allows it" — panel Modes menu, editor-protocol mode list, settings
+  manifests (`package.nls.json`) and help reference, in English and all 14
+  tables. No approval weakened (words only).
+
+## Proof
+
+- Red first: `test/unit/acpPermissionAsk.test.ts` failed before
+  `src/acp/permissionAsk.ts` existed (`Cannot find module
+'../../src/acp/permissionAsk'`); the descriptions test failed until the
+  English wording changed. After: 16/16 pass (repo default timeout).
+- `permissionModes` 10/10, `acpTranslate` 44/44, `App` + `approvalRules` +
+  `referenceGenerator` 385/385, `MuseCodeHost` + `mapNotification` 168/168.
+- `acpAgent` 141/143: the 2 failures are fake-harness tests
+  (`test/unit/helpers/fakeAgent` et al.) asserting the superseded behavior —
+  `asks again for each stage of a staged command` and `ignores an answer
+for an approval stage that advanced while the editor was asked`. Named
+  and left untouched per the owner's testing rules.
+- Gates on the final tree, all exit 0: `npm run typecheck` (5 projects),
+  ESLint and Prettier on changed files, `npm run check:l10n` (0 problems),
+  `npm run check:reference` (current), `npm run deadcode` (knip hints
+  only), `npm run cycles` (no cycles), `npm run duplication` (0 clones),
+  `npm run security:audit` (2 advisories, 1 exception),
+  `npm run check:host-api` (0 problems), `npm run build` (all bundles,
+  size checks pass). `npm run security:sast` unavailable: `semgrep is not
+installed`.
+- Packed product: `npm run build` rebuilt `dist/acp.js` + `dist/uiText.js`;
+  the bundled English table contains the new description and no longer the
+  old one (decompressed and read). Over stdio, the packed agent answers
+  `initialize` but `session/new` fails with `Authentication required: Muse
+Code is not signed in` under the empty HOME — the sandbox holds no CLI
+  sign-in and lanes never mint credentials. The modes list, `set_mode`
+  notice and permission counting are the lead's live session below.
+
+## Live-session steps for the lead (signed-in host)
+
+1. Start the packed agent: `node dist/acp.js --backend museCode
+--trust-workspace`; `initialize`, then `session/new` in a workspace.
+   Check the modes list: Manual and Edit Automatically carry the
+   "unless a permission rule allows it" line.
+2. F13: in Manual, run a turn with several plain commands
+   (`ls`, `grep -rn x .`). Count `session/request_permission` arrivals.
+   Zero arrivals means the CLI's rules allowed them: inspect the
+   workspace's permission sources and repeat with a command no rule
+   allows; exactly one request must arrive before it runs.
+3. F16: run one staged command (`grep -n "a" file | head; sed -n 1p
+file`). Answer the single request `allow_once`: no second request may
+   arrive, and the decided choice must repeat per stage in the log.
+   Answer `reject_once`: later stages are denied without re-asking.
+4. Modes: `session/set_mode acceptEdits` → expect a `current_mode_update`
+   with `acceptEdits`; `session/load` the same id → `currentModeId`
+   stays `acceptEdits`.
