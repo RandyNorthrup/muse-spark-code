@@ -117,6 +117,11 @@ export const EN = {
   modelApiContinuationLimit: 'The output limit was reached again. Send a message to continue.',
   modelApiToolStuck:
     'The turn stopped because the same tool call kept returning an unchanged result. Send a message to try another approach.',
+  modelApiTurnLimitReached: forms({
+    one: 'The turn reached your limit of {count} tool round. The summary above covers what was done and what is left. Send a message to continue.',
+    other:
+      'The turn reached your limit of {count} tool rounds. The summary above covers what was done and what is left. Send a message to continue.',
+  }),
   structuredOutputRepair: 'The structured answer was invalid. Retrying once…',
   structuredOutputFallback:
     'The structured answer could not be validated. Using the text fallback.',
@@ -140,6 +145,8 @@ export const EN = {
   modelApiStatusUnavailable: 'Status unavailable',
   modelApiStatusOpen: 'Open Service Status',
   modelApiServiceFailure: 'The service returned an error. Check its status or try again.',
+  modelApiSendFailed:
+    'The model request failed before a response arrived ({detail}). It was not sent again: a request over a pinned connection may already have reached the provider.',
   feedbackFailed: 'Could not submit feedback.',
   // M102: the shared usage page; its full table is a separate lazy family.
   usagePageTitle: 'Usage & Cost',
@@ -408,6 +415,7 @@ export const EN = {
     output: 'Choose the result format: text, json or jsonl.',
     'max-budget-usd': 'Set the hard spending limit in USD for this run.',
     'max-requests': 'Set the maximum number of model requests.',
+    'max-turn-requests': 'Set the maximum number of tool rounds in one turn; unset means no limit.',
     timeout: 'Set the run deadline in seconds.',
     'fail-on-denial': 'Stop the run when a permission request is denied.',
     ephemeral: 'Keep the session in memory without saving it.',
@@ -1347,6 +1355,9 @@ export const EN = {
   clearConversation: 'Clear Conversation',
   switchModel: 'Switch Model…',
   effortItem: 'Effort',
+  turnLimitItem: 'Tool-round limit',
+  turnLimitOff: 'Off',
+  turnLimitRounds: forms({ one: '{count} round', other: '{count} rounds' }),
   thinkingItem: 'Thinking',
   permissionModeItem: 'Permission Mode',
   focusViewItem: 'Focus View',
@@ -4131,6 +4142,8 @@ export const EN = {
   acpUnknownArgument: 'Unknown argument: {argument}',
   // {argument}: the paid feature's flag as typed.
   acpPaidNeedsModelApi: '{argument} needs --backend modelApi: paid features bill a Model API key.',
+  // {argument}: the flag as typed. A per-turn limit binds the Model API loop only.
+  acpModelApiOnlyFlag: '{argument} needs --backend modelApi.',
   // {command}: the executable's name. The options and values stay as typed.
   acpFontUi: 'UI Font',
   acpFontCode: 'Code Font',

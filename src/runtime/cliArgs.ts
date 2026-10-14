@@ -15,6 +15,7 @@ import {
   ACP_PAID_FLAGS,
   type AcpBackendKind,
   type AcpPaidFeature,
+  TURN_LIMIT_OPTION_VALUES,
   SETTING_DEFAULTS,
   SHELL_SANDBOX_MODES,
   type ShellSandboxMode,
@@ -85,6 +86,8 @@ export interface ServeOptions {
   readonly autoCompaction?: boolean | undefined
   readonly scheduledPrompts?: boolean
   readonly maxBudgetUsd?: UsdAmount
+  /** The sessions' per-turn tool-round limit (lane TURNLIMIT); undefined is no limit. Model API only. */
+  readonly maxTurnRequests?: number
 }
 
 /** What `report` prints: the scrubbed draft as text, or its exact bytes in a file. */
@@ -364,6 +367,17 @@ export function parseCommandLine<T>(
     values['max-budget-usd'] === undefined ? undefined : scheduleBudgetUsd(values['max-budget-usd'])
   if (budget === undefined && values['max-budget-usd'] !== undefined)
     return { command: 'invalid', reason: UI_TEXT.scheduleV2.runtime.usage }
+  const rawTurnLimit = values['max-turn-requests']
+  const isTurnLimit =
+    typeof rawTurnLimit === 'string' &&
+    (TURN_LIMIT_OPTION_VALUES as readonly string[]).includes(rawTurnLimit)
+  if (rawTurnLimit !== undefined && !isTurnLimit) return invalid('--max-turn-requests')
+  const maxTurnRequests = isTurnLimit && rawTurnLimit !== 'off' ? Number(rawTurnLimit) : undefined
+  if (maxTurnRequests !== undefined && backend !== 'modelApi')
+    return {
+      command: 'invalid',
+      reason: fill(UI_TEXT.acpModelApiOnlyFlag, { argument: '--max-turn-requests' }),
+    }
   const options: ServeOptions = {
     ...(values['usage-history'] !== undefined && {
       usageHistory: values['usage-history'] === 'on',
@@ -382,6 +396,7 @@ export function parseCommandLine<T>(
       scheduledPrompts: values['scheduled-prompts'],
     }),
     ...(budget !== undefined && { maxBudgetUsd: budget }),
+    ...(maxTurnRequests !== undefined && { maxTurnRequests }),
   }
   const [first, second, ...rest] = positionals
   if (values.account !== undefined && (first !== 'auth' || second !== 'set' || rest.length > 0))

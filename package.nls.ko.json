@@ -194,6 +194,7 @@
   "config.modelApiAutoCompaction.description": "첫 턴에 자동 압축이 평가를 기다린다는 알림을 표시합니다. 자동 압축은 비활성 상태이며 이 설정을 끄면 알림을 숨깁니다.",
   "config.modelApiStrictTools.description": "선택한 모델이 지원하는 경우 엄격한 도구 스키마를 사용합니다. 이전 도구 선언을 유지하려면 끄세요.",
   "config.modelApiParallelReads.description": "안전한 읽기 전용 도구 호출을 최대 네 개까지 동시에 실행합니다. 다른 호출은 순서대로 실행합니다.",
+  "config.modelApiMaxTurnRequests.description": "턴당 도구 라운드 최대 횟수(0–1000, 0은 무제한: 모델이 멈출 때까지 턴이 계속됩니다). 한도에 도달하면 모델이 요약을 작성하고 턴이 종료되며, 메시지를 보내면 계속됩니다.",
   "config.webSearchMaxPerRequest.description": "응답당 서비스 측 웹 검색의 최대 횟수(1~20, 기본값 5)입니다. 첫 과금 전에 가격과 공유 일일 예산이 표시됩니다.",
   "config.modelApiTeamWorkers.description": "호환성을 위해 저장됩니다. 이 설정은 이 빌드에서 효과가 없습니다.",
   "config.legalHeaderPolicy.description": "법률 검사를 위한 저작권 및 SPDX 헤더 검사: 필수 값은 일치하는 헤더가 없는 모든 프로젝트 소유 소스 파일을 표시하고, 선택 값은 감지된 프로젝트 스타일이나 REUSE 선언에 어긋나는 헤더만 표시하며, 끄기 값은 헤더 검사를 건너뜁니다. 기본값은 선택이며, 생성된 파일은 항상 제외됩니다.",

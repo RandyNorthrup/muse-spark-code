@@ -2786,6 +2786,10 @@ async function activateWindow(
     autoCompactionEvaluated: () => IS_AUTO_COMPACTION_EVALUATED,
     strictTools: () => currentSettings().modelApiStrictTools,
     parallelReads: () => currentSettings().modelApiParallelReads,
+    maxTurnRequests: () => {
+      const configured = currentSettings().modelApiMaxTurnRequests
+      return configured === 0 ? undefined : configured
+    },
     webSearchMaxPerRequest: () => currentSettings().webSearchMaxPerRequest,
     isShellKeepsDirectoryOn: () => currentSettings().modelApiShellKeepsDirectory,
     allowsPaidUse: async (request, requiresAsking) =>

@@ -194,6 +194,7 @@
   "config.modelApiAutoCompaction.description": "İlk turda otomatik sıkıştırmanın değerlendirme beklediğini bildirir. Otomatik sıkıştırma devre dışı kalır; bu ayarı kapatmak bildirimi gizler.",
   "config.modelApiStrictTools.description": "Seçilen model desteklediğinde katı araç şemalarını kullan. Önceki araç bildirimlerini korumak için kapatın.",
   "config.modelApiParallelReads.description": "Güvenli salt okunur araç çağrılarını aynı anda en fazla dört çağrı olacak şekilde paralel çalıştır. Diğer çağrılar sırayla çalışır.",
+  "config.modelApiMaxTurnRequests.description": "Tur başına en fazla araç turu sayısı (0–1000; 0 sınır yok demektir: model durana kadar tur sürer). Sınıra ulaşıldığında model bir özet yazar ve tur sona erer; mesaj göndermek devam eder.",
   "config.webSearchMaxPerRequest.description": "Yanıt başına hizmet tarafındaki web aramalarının üst sınırı (1–20; varsayılan 5). Fiyat ve paylaşılan günlük bütçe ilk ücretlendirmeden önce gösterilir.",
   "config.modelApiTeamWorkers.description": "Uyumluluk için saklanır; bu tercih bu derlemede etkili değildir.",
   "config.legalHeaderPolicy.description": "Yasal tarama için telif hakkı ve SPDX başlığı denetimleri: gerekli, eşleşen başlığı olmayan her projeye ait kaynak dosyayı işaretler, isteğe bağlı yalnızca algılanan proje stiliyle veya REUSE bildirimleriyle çelişen başlığı işaretler, kapalı ise başlık denetimlerini atlar. Varsayılan isteğe bağlıdır; oluşturulan dosyalar her zaman hariç tutulur.",

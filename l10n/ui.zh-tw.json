@@ -81,6 +81,9 @@
   "modelApiContinuing": "已達輸出上限。正在繼續一次…",
   "modelApiContinuationLimit": "再次達到輸出上限。請傳送訊息以繼續。",
   "modelApiToolStuck": "同一工具呼叫持續傳回未變更的結果，因此本輪已停止。請傳送訊息以嘗試其他方法。",
+  "modelApiTurnLimitReached": {
+    "other": "本輪已達到您的 {count} 個工具輪次上限。上面的摘要說明了已完成和未完成的工作。傳送訊息即可繼續。"
+  },
   "structuredOutputRepair": "結構化回答無效。正在重試一次…",
   "structuredOutputFallback": "無法驗證結構化回答。將使用文字回答。",
   "outputSchemaInvalid": "輸出結構描述不在支援的嚴格子集內：{detail}",
@@ -98,6 +101,7 @@
   "modelApiStatusUnavailable": "狀態無法取得",
   "modelApiStatusOpen": "開啟服務狀態",
   "modelApiServiceFailure": "服務傳回錯誤。請查看其狀態或重試。",
+  "modelApiSendFailed": "模型要求在收到回應之前失敗（{detail}）。未重新傳送：經固定連線發出的要求可能已到達服務商。",
   "feedbackFailed": "無法提交意見回饋。",
   "usagePageTitle": "用量與費用",
   "paletteUsagePage": "追蹤各編輯器中的費用、權杖和限額。",
@@ -326,6 +330,7 @@
     "output": "選擇結果格式：text、json或jsonl。",
     "max-budget-usd": "以USD設定本次執行的硬性支出上限。",
     "max-requests": "設定模型請求次數上限。",
+    "max-turn-requests": "設定每輪的最大工具輪次；未設定表示無限制。",
     "timeout": "以秒設定執行時間上限。",
     "fail-on-denial": "權限遭拒時停止執行。",
     "ephemeral": "將工作階段保留在記憶體中，不儲存。",
@@ -1109,6 +1114,11 @@
   "clearConversation": "清除對話",
   "switchModel": "切換模型…",
   "effortItem": "推理強度",
+  "turnLimitItem": "每輪工具輪次上限",
+  "turnLimitOff": "關閉",
+  "turnLimitRounds": {
+    "other": "{count} 輪"
+  },
   "thinkingItem": "思考",
   "permissionModeItem": "權限模式",
   "focusViewItem": "專注檢視",
@@ -3384,6 +3394,7 @@
   "acpQuestionAsked": "Muse 有個問題；此編輯器無法以表單顯示，請在下一則訊息中回答：",
   "acpUnknownArgument": "未知的引數：{argument}",
   "acpPaidNeedsModelApi": "{argument} 需要 --backend modelApi：付費功能會向 Model API 金鑰計費。",
+  "acpModelApiOnlyFlag": "{argument} 需要 --backend modelApi。",
   "acpFontUi": "介面字型",
   "acpFontCode": "程式碼字型",
   "acpFontLigatures": "程式碼連字",

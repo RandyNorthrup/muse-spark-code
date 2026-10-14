@@ -131,7 +131,8 @@ import {
   MODEL_API_LEGACY_CONTEXT_MODELS,
   MODEL_API_MAX_OUTPUT_TOKENS,
   MODEL_API_MAX_RETRIES,
-  MODEL_API_MAX_TOOL_ROUNDS,
+  MODEL_API_MAX_TURN_REQUESTS_MAX,
+  TURN_LIMIT_ERROR_KIND,
   MODEL_API_MEDIA_PER_REQUEST,
   MODEL_API_MODEL_PREFIX,
   MODEL_API_MODEL_TEXT,
@@ -766,6 +767,13 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDep
   /** M106, fixed for the session. Lane W binds modelApiParallelReads in every host. */
   readonly strictTools?: () => boolean
   readonly parallelReads?: () => boolean
+  /**
+   * The person's per-turn tool-round limit (lane TURNLIMIT):
+   * `museSpark.modelApiMaxTurnRequests`, read every round so a change lands
+   * mid-turn; undefined (or 0) is no limit. A session value set through
+   * `setMaxTurnRequests` wins over this host default.
+   */
+  readonly maxTurnRequests?: (() => number | undefined) | undefined
   /** Lane W binds the selected M95 record's output.maxTokens; absent keeps the legacy cap. */
   readonly modelOutputMaxTokens?: (modelId: string, resolved: ResolvedModel) => number | undefined
   /** Fixed for the session, with an explicit off arm for byte-identical requests. */
@@ -2645,6 +2653,15 @@ export class ModelApiSession implements ScheduledAgentSession {
   private readonly strictTools: boolean
   private readonly parallelReads: boolean
   private readonly outputContinuation: boolean
+  /** This session's own per-turn tool-round limit (lane TURNLIMIT), set through `setMaxTurnRequests`. */
+  private sessionMaxTurnRequests: number | undefined
+  /**
+   * One model call with no tools offered (lane TURNLIMIT): the limit summary.
+   * The flag rides the request build, so hooks and the schedule replay check
+   * see the tools the request really offers; cleared before anything else
+   * can send.
+   */
+  private noToolsOffered = false
   private outputFormat: CreateResponseBody['text']
   private readonly outputCaps = new WeakMap<ResolvedModel, number>()
   private readonly repeatGuard = new RepeatGuard()
@@ -4425,11 +4442,15 @@ export class ModelApiSession implements ScheduledAgentSession {
         // A custom agent's own prompt runs as the child's role (M76).
         ...(role !== undefined && { agent: role }),
       }),
-      tools: withStrictTools(
-        this.tools(hasShell, flags.hasSkills, hasMemory, this.isSubagent, resolved),
-        this.strictTools &&
-          this.deps.modelFacts?.(resolved.ref)?.capabilities.supportsStrictTools === true,
-      ),
+      // The limit summary offers no tools (lane TURNLIMIT): the request the
+      // model sees carries none, so it can only answer, never act.
+      tools: this.noToolsOffered
+        ? []
+        : withStrictTools(
+            this.tools(hasShell, flags.hasSkills, hasMemory, this.isSubagent, resolved),
+            this.strictTools &&
+              this.deps.modelFacts?.(resolved.ref)?.capabilities.supportsStrictTools === true,
+          ),
     }
   }
 
@@ -13543,20 +13564,30 @@ export class ModelApiSession implements ScheduledAgentSession {
       : this.team.appendTeamEvents(name, outcome, () => this.deps.takeTeamChanges?.(this.sessionId))
   }
 
-  private async loop(turn: ActiveTurn): Promise<void> {
+  /**
+   * A turn's model rounds (lane TURNLIMIT): no fixed cap. The turn runs until
+   * the model stops calling tools, the person cancels, the loop guard fires,
+   * a spend cap is reached, or an error happens. Returns the notice naming
+   * the stop when the person's own per-turn limit ended the turn.
+   */
+  private async loop(turn: ActiveTurn): Promise<string | undefined> {
     this.repeatGuard.reset()
     const { signal } = turn.abort
     if (this.teamModeForRequest() === 'team') await this.prepareTeamRuntime()
     let isStopHookActive = false
     let stopContinuations = 0
     let outputContinuations = 0
-    for (let round = 0; round < MODEL_API_MAX_TOOL_ROUNDS; round += 1) {
+    for (let round = 0; ; round += 1) {
       if (isAbortRequested(signal)) {
         throw new AbortedError()
       }
       const requiredBeforeRound = this.requiredMcpFailure(this.deps.mcpServers?.snapshot())
       if (requiredBeforeRound !== undefined) {
         throw requiredBeforeRound
+      }
+      const maxTurnRequests = this.maxTurnRequests()
+      if (maxTurnRequests !== undefined && round >= maxTurnRequests) {
+        return await this.stopAtTurnLimit(turn, maxTurnRequests, round)
       }
       await this.drainSteered(turn)
       this.drainGoalWake(turn)
@@ -13623,8 +13654,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         if (
           streamed.incompleteReason === 'max_output_tokens' &&
           this.outputContinuation &&
-          outputContinuations < MODEL_API_CONTINUATIONS_MAX &&
-          round < MODEL_API_MAX_TOOL_ROUNDS - 1
+          outputContinuations < MODEL_API_CONTINUATIONS_MAX
         ) {
           outputContinuations += 1
           this.emit({ type: 'backendNotice', level: 'info', text: UI_TEXT.modelApiContinuing })
@@ -13831,7 +13861,10 @@ export class ModelApiSession implements ScheduledAgentSession {
         this.dropUndeliveredMedia(turn.turnId)
         return
       }
-      const verifyStop = await this.verifyRound(turn, round === MODEL_API_MAX_TOOL_ROUNDS - 1)
+      // No round is the last: with no fixed cap every batch is followed by
+      // another request (or the turn ends because the model stopped calling
+      // tools), so the checks always run and their results are read.
+      const verifyStop = await this.verifyRound(turn, false)
       if (verifyStop !== undefined) {
         // A check's hook stopped the turn after the round, as PostToolBatch can.
         this.dropUndeliveredMedia(turn.turnId)
@@ -13839,17 +13872,51 @@ export class ModelApiSession implements ScheduledAgentSession {
       }
       this.autoCompact.noteToolWork()
       const compacted = await this.maybeAutoCompact(turn)
-      if (this.stopAfterAutoCompaction(turn, compacted, wasBudgetLimited)) return
+      if (this.stopAfterAutoCompaction(turn, compacted, wasBudgetLimited)) return undefined
     }
-    // Input accepted during the last permitted round still needs a request
-    // that sees it. Steered messages belonged to this turn, so run them
-    // before separately queued messages; a goal cue follows them.
+  }
+
+  /**
+   * The person's own per-turn limit stopped the turn (lane TURNLIMIT): one
+   * last request with no tools asks the model to summarise what it did and
+   * what is left, and the turn ends on that summary. Steered input and a goal
+   * wake keep the old cap-stop behavior: they become their own turns, so the
+   * next message in the same conversation still works. Returns the notice
+   * naming the stop.
+   */
+  private async stopAtTurnLimit(
+    turn: ActiveTurn,
+    maxTurnRequests: number,
+    round: number,
+  ): Promise<string> {
+    this.replay.push({
+      turnId: turn.turnId,
+      item: {
+        type: 'message',
+        role: 'user',
+        content: [{ type: 'input_text', text: MODEL_API_MODEL_TEXT.turnLimitSummary }],
+      },
+    })
+    const streamed = await this.streamWithoutTools(turn, round)
+    // No tools were offered, so nothing may run: answer every stray call for
+    // valid replay, never execute it.
+    this.skipCalls(turn.turnId, streamed.calls)
     if (turn.goalWakePending && isGoalActive(this.goal)) {
       this.queuedTurns.unshift(this.queuedGoalWake())
     }
     this.promoteSteered(turn)
-    this.outcomeStopReason = 'budget'
-    throw new Error(`stopped after ${String(MODEL_API_MAX_TOOL_ROUNDS)} tool rounds`)
+    const notice = plural(UI_TEXT.modelApiTurnLimitReached, maxTurnRequests)
+    this.emit({ type: 'backendNotice', level: 'warning', text: notice })
+    return notice
+  }
+
+  private async streamWithoutTools(turn: ActiveTurn, round: number): Promise<StreamedCall> {
+    this.noToolsOffered = true
+    try {
+      return await this.streamOnce(turn.turnId, turn.abort.signal, round, turn.confirmedRequest)
+    } finally {
+      this.noToolsOffered = false
+    }
   }
 
   /** Child turns share checkpoint ownership with their top parent, even after it finishes. */
@@ -14170,7 +14237,14 @@ export class ModelApiSession implements ScheduledAgentSession {
           text: UI_TEXT.autoCompactionAwaitingEvaluation,
         })
       }
-      await this.loop(turn)
+      const turnLimitNotice = await this.loop(turn)
+      if (turnLimitNotice !== undefined) {
+        // The person's own per-turn limit stopped the turn: it completed on
+        // the summary, with the notice as its reason. The editor protocol
+        // answers `max_turn_requests` for this error kind (lane TURNLIMIT).
+        reason = turnLimitNotice
+        errorKind = TURN_LIMIT_ERROR_KIND
+      }
     } catch (error: unknown) {
       const pendingRun = turn.scheduleRun === undefined ? this.owner.run(turn.turnId) : undefined
       const released = pendingRun === undefined ? undefined : this.owner.withdraw(pendingRun)
@@ -15598,6 +15672,13 @@ export class ModelApiSession implements ScheduledAgentSession {
     return Promise.resolve({ turnId: expectedTurnId, disposition: 'steered', userMessageId })
   }
 
+  /** The limit in force this round: the session's own, else the host default. */
+  private maxTurnRequests(): number | undefined {
+    if (this.sessionMaxTurnRequests !== undefined) return this.sessionMaxTurnRequests
+    const configured = this.deps.maxTurnRequests?.()
+    return configured === undefined || configured < 1 ? undefined : configured
+  }
+
   /** Recording adapters use the nominal session, never an arbitrary callback. */
   public async runRecordedTool(
     ...args: Parameters<ModelApiSession['decideAndRun']>
@@ -16030,6 +16111,25 @@ export class ModelApiSession implements ScheduledAgentSession {
       return Promise.reject(new Error('reasoning effort must not be empty'))
     }
     this.effort = reasoningEffort
+    this.touch()
+    return Promise.resolve()
+  }
+
+  /**
+   * This session's per-turn tool-round limit (lane TURNLIMIT): undefined is
+   * no limit. Read every round, so a change lands mid-turn; it wins over the
+   * host default. The editor protocol offers it as a session option.
+   */
+  public setMaxTurnRequests(maxTurnRequests: number | undefined): Promise<void> {
+    if (
+      maxTurnRequests !== undefined &&
+      (!Number.isSafeInteger(maxTurnRequests) ||
+        maxTurnRequests < 1 ||
+        maxTurnRequests > MODEL_API_MAX_TURN_REQUESTS_MAX)
+    ) {
+      return Promise.reject(new Error('invalid per-turn tool-round limit'))
+    }
+    this.sessionMaxTurnRequests = maxTurnRequests
     this.touch()
     return Promise.resolve()
   }

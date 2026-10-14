@@ -669,6 +669,10 @@ export const SETTING_DEFAULTS = {
   modelApiAutoCompaction: true,
   modelApiStrictTools: true,
   modelApiParallelReads: true,
+  // The person's per-turn tool-round limit (lane TURNLIMIT): 0 is no limit
+  // (a turn runs until the model stops), machine scoped, since a repository
+  // must not bound what the person's own turn may do.
+  modelApiMaxTurnRequests: 0,
   webSearchMaxPerRequest: 5,
   // Restore by the tools' own writes (M86, PLAN.md D63): each Model API turn
   // records what its file tools write, with nothing of the workspace
@@ -816,6 +820,7 @@ export const MACHINE_SCOPED_SETTINGS = [
   'modelApiAutoCompaction',
   'modelApiStrictTools',
   'modelApiParallelReads',
+  'modelApiMaxTurnRequests',
   'webSearchMaxPerRequest',
   // What runs on every turn (git) and what is copied out of the workspace (M72).
   'turnCheckpoints',
@@ -1283,6 +1288,13 @@ export const COMPOSER_MAX_ROWS = 10
 // so it would be a second dot for the same tier.
 export const EFFORT_LEVELS = ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'] as const
 export type EffortLevel = (typeof EFFORT_LEVELS)[number]
+// --- Per-turn tool-round limit (lane TURNLIMIT) ---
+//
+// The ACP select's values and the terminal flags' vocabulary: off, then
+// round counts bracketing the removed 50-round default. The VS Code setting
+// stays a free number; these surfaces show a fixed list.
+export const TURN_LIMIT_OPTION_VALUES = ['off', '25', '50', '100', '200', '500'] as const
+export type TurnLimitOption = (typeof TURN_LIMIT_OPTION_VALUES)[number]
 // The tiers each model family actually serves, keyed by model-id prefix
 // (verified live 2026-09-21, Muse Code 1.3.0: muse-spark-1.2 rejects `max`
 // with "Supported values: [minimal, low, medium, high, xhigh]"). Families not
@@ -2387,8 +2399,14 @@ export const MODEL_API_EFFORT_OFF = 'minimal'
 // Context pressure thresholds (fraction of the window) for the indicator.
 export const CONTEXT_PRESSURE_MEDIUM = 0.7
 export const CONTEXT_PRESSURE_HIGH = 0.9
-// A turn stops after this many model calls (tool rounds) to bound a loop.
-export const MODEL_API_MAX_TOOL_ROUNDS = 50
+// A turn runs until the model stops, the person cancels, the loop guard
+// fires, a spend cap is reached, or an error happens (lane TURNLIMIT): no
+// fixed cap. The person may still set their own per-turn tool-round limit
+// (`museSpark.modelApiMaxTurnRequests`); 0 is no limit, past this refuse.
+export const MODEL_API_MAX_TURN_REQUESTS_MAX = 1000
+// The `turnCompleted` error kind when the person's own per-turn limit stopped
+// the turn (lane TURNLIMIT): the editor protocol answers `max_turn_requests`.
+export const TURN_LIMIT_ERROR_KIND = 'turnLimit'
 // Tool parameter schemas convert to a constrained-decoding grammar on
 // servers that take one (llama.cpp, SoL-Pi #59/#65; M101 item 24): nested
 // past this, a schema trips the check. Past the current toolset's nesting
@@ -4159,7 +4177,12 @@ export const ACP_AUTH_METHODS = {
   museCodeLogin: { id: 'muse-code-login', args: ['login'] },
   modelApiKey: { id: 'model-api-key', args: ['auth', 'set'] },
 } as const
-export const ACP_CONFIG_IDS = { model: 'model', effort: 'effort', account: 'account' } as const
+export const ACP_CONFIG_IDS = {
+  model: 'model',
+  effort: 'effort',
+  account: 'account',
+  turnLimit: 'turn-limit',
+} as const
 // The paid Model API features the agent can use (M63c, PLAN.md D30): each
 // only with its flag, and each use asked in the editor (M58, D48). Muse
 // Voice needs the panel's microphone, so the agent has none.
@@ -6500,6 +6523,10 @@ export const MODEL_API_MODEL_TEXT = {
     'This tool call repeats the same arguments and unchanged result. It was not run again. Use a different approach or explain what is blocking the task.',
   continuationPrompt:
     'Continue the answer from where the output limit cut it off. Do not repeat the text already returned.',
+  // Asked once with no tools when the person's own per-turn limit stops the
+  // turn (lane TURNLIMIT): the turn ends on the summary it returns.
+  turnLimitSummary:
+    'You have reached the per-turn tool-round limit. Summarise what you did in this turn and what is still left, briefly. No tools are offered with this request, so do not ask for any.',
   // M91 lane E: BeforeToolSelection's tail note, and TeammateIdle's default.
   hookToolsUnavailable: 'Tools unavailable for this turn:',
   hookTeammateContinue: 'Continue the current task; a TeammateIdle hook requested another check.',

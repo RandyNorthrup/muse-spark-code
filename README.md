@@ -5722,7 +5722,16 @@ off preserves the previous declarations. Safe reads run at most four at a
 time; writes and other tools retain their order. An output-limit continuation
 is bounded to one request for text-only replies. A cut-short reply containing
 tool calls runs none of them and fails the turn; replay retains their error
-results. Repeated unchanged tool results stop the turn.
+results. Repeated unchanged tool results stop the turn. A turn has no fixed
+tool-round cap: it runs until the model stops, the person cancels, the loop
+guard fires, a spend cap is reached, or an error happens.
+`museSpark.modelApiMaxTurnRequests` (0–1000; 0 is no limit) sets the person's
+own per-turn limit, also offered as the editor session option Tool-round
+limit and the terminal flags `--max-turn-requests` (exec and serve). When the
+limit is reached, one last request with no tools asks the model to summarise
+what it did and what is left, and the turn ends on that summary with the
+editor protocol's `max_turn_requests` stop reason; sending a message
+continues the same conversation.
 
 `museSpark.webSearchMaxPerRequest` bounds hosted searches to 1–20 (default 5)
 where the selected model supports that bound. The first paid use presents the

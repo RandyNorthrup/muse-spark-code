@@ -194,6 +194,7 @@
   "config.modelApiAutoCompaction.description": "在首轮显示自动压缩等待评估的通知。自动压缩仍未启用，关闭此设置会隐藏通知。",
   "config.modelApiStrictTools.description": "当所选模型支持时，使用严格的工具架构。关闭后保留原有工具声明。",
   "config.modelApiParallelReads.description": "并发执行安全的只读工具调用，每次最多四个。其他工具调用按顺序执行。",
+  "config.modelApiMaxTurnRequests.description": "每轮的最大工具轮次（0–1000；0 表示无限制：模型停止前本轮一直继续）。达到上限时，模型会撰写摘要并结束本轮；发送消息即可继续。",
   "config.webSearchMaxPerRequest.description": "每次回答允许的服务端网页搜索次数上限（1–20，默认 5）。首次收费前会显示价格和共享每日预算。",
   "config.modelApiTeamWorkers.description": "为兼容性保留；此偏好设置在此构建中不起作用。",
   "config.legalHeaderPolicy.description": "用于法律扫描的版权与 SPDX 头检查：必需标记每个缺少匹配头的项目自有源文件，可选仅标记与检测到的项目风格或其 REUSE 声明相矛盾的头，关闭则跳过头检查。默认为可选；生成的文件始终排除在外。",

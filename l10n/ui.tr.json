@@ -81,6 +81,10 @@
   "modelApiContinuing": "Çıktı sınırına ulaşıldı. Bir kez devam ediliyor…",
   "modelApiContinuationLimit": "Çıktı sınırına yeniden ulaşıldı. Devam etmek için bir mesaj gönderin.",
   "modelApiToolStuck": "Aynı araç çağrısı sürekli değişmeyen bir sonuç döndürdüğü için tur durduruldu. Başka bir yaklaşım denemek için mesaj gönderin.",
+  "modelApiTurnLimitReached": {
+    "one": "Tur, {count} araç turluk sınırınıza ulaştı. Yukarıdaki özet neyin yapıldığını ve neyin kaldığını açıklar. Devam etmek için bir mesaj gönderin.",
+    "other": "Tur, {count} araç turluk sınırınıza ulaştı. Yukarıdaki özet neyin yapıldığını ve neyin kaldığını açıklar. Devam etmek için bir mesaj gönderin."
+  },
   "structuredOutputRepair": "Yapılandırılmış yanıt geçersizdi. Bir kez yeniden deneniyor…",
   "structuredOutputFallback": "Yapılandırılmış yanıt doğrulanamadı. Metin yanıtı kullanılacak.",
   "outputSchemaInvalid": "Çıktı şeması desteklenen katı alt kümenin dışında: {detail}",
@@ -98,6 +102,7 @@
   "modelApiStatusUnavailable": "Durum bilgisi alınamıyor",
   "modelApiStatusOpen": "Hizmet durumunu aç",
   "modelApiServiceFailure": "Hizmet bir hata döndürdü. Durumunu kontrol edin veya yeniden deneyin.",
+  "modelApiSendFailed": "Model isteği bir yanıt alınamadan başarısız oldu ({detail}). Tekrar gönderilmedi: sabitlenmiş bir bağlantı üzerinden giden istek sağlayıcıya ulaşmış olabilir.",
   "feedbackFailed": "Geri bildirim gönderilemedi.",
   "usagePageTitle": "Kullanım ve maliyet",
   "paletteUsagePage": "Tüm düzenleyicilerde maliyetleri, belirteçleri ve sınırları izleyin.",
@@ -326,6 +331,7 @@
     "output": "Sonuç biçimini seçin: text, json veya jsonl.",
     "max-budget-usd": "Bu çalıştırma için USD cinsinden kesin harcama sınırı belirleyin.",
     "max-requests": "Maksimum model isteği sayısını belirleyin.",
+    "max-turn-requests": "Tur başına en fazla araç turu sayısını ayarlayın; ayarlanmamışsa sınır yoktur.",
     "timeout": "Çalıştırma süresi sınırını saniye olarak belirleyin.",
     "fail-on-denial": "İzin reddedilirse çalıştırmayı durdurun.",
     "ephemeral": "Oturumu kaydetmeden bellekte tutun.",
@@ -1113,6 +1119,12 @@
   "clearConversation": "Konuşmayı temizle",
   "switchModel": "Modeli değiştir…",
   "effortItem": "Çaba",
+  "turnLimitItem": "Tur başına araç turu sınırı",
+  "turnLimitOff": "Kapalı",
+  "turnLimitRounds": {
+    "one": "{count} tur",
+    "other": "{count} tur"
+  },
   "thinkingItem": "Düşünme",
   "permissionModeItem": "İzin modu",
   "focusViewItem": "Odak görünümü",
@@ -3457,6 +3469,7 @@
   "acpQuestionAsked": "Muse'un bir sorusu var; bu düzenleyici soruyu form olarak gösteremiyor, bu yüzden bir sonraki iletinizde yanıtlayın:",
   "acpUnknownArgument": "Bilinmeyen bağımsız değişken: {argument}",
   "acpPaidNeedsModelApi": "{argument} için --backend modelApi gerekir: ücretli özellikler bir Model API anahtarına faturalandırılır.",
+  "acpModelApiOnlyFlag": "{argument} için --backend modelApi gerekir.",
   "acpFontUi": "Arayüz yazı tipi",
   "acpFontCode": "Kod yazı tipi",
   "acpFontLigatures": "Kod ligatürleri",

@@ -119,6 +119,7 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly showReplyUsage: () => boolean
   readonly strictTools?: ModelApiHostDeps['strictTools']
   readonly parallelReads?: ModelApiHostDeps['parallelReads']
+  readonly maxTurnRequests?: ModelApiHostDeps['maxTurnRequests']
   readonly webSearchMaxPerRequest?: ModelApiHostDeps['webSearchMaxPerRequest']
   readonly modelFacts?: ModelApiHostDeps['modelFacts']
   readonly modelCapabilities?: ModelApiHostDeps['modelCapabilities']
@@ -396,6 +397,9 @@ export class ModelApiBackendManager {
         showReplyUsage: this.deps.showReplyUsage,
         ...(this.deps.strictTools !== undefined && { strictTools: this.deps.strictTools }),
         ...(this.deps.parallelReads !== undefined && { parallelReads: this.deps.parallelReads }),
+        ...(this.deps.maxTurnRequests !== undefined && {
+          maxTurnRequests: this.deps.maxTurnRequests,
+        }),
         ...(this.deps.webSearchMaxPerRequest !== undefined && {
           webSearchMaxPerRequest: this.deps.webSearchMaxPerRequest,
         }),

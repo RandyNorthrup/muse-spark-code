@@ -81,6 +81,10 @@
   "modelApiContinuing": "Das Ausgabelimit wurde erreicht. Einmalige Fortsetzung…",
   "modelApiContinuationLimit": "Das Ausgabelimit wurde erneut erreicht. Senden Sie eine Nachricht, um fortzufahren.",
   "modelApiToolStuck": "Der Durchlauf wurde gestoppt, weil derselbe Werkzeugaufruf wiederholt ein unverändertes Ergebnis lieferte. Senden Sie eine Nachricht, um einen anderen Ansatz zu versuchen.",
+  "modelApiTurnLimitReached": {
+    "one": "Der Durchlauf hat Ihr Limit von {count} Werkzeugrunde erreicht. Die Zusammenfassung oben beschreibt, was erledigt wurde und was übrig ist. Senden Sie eine Nachricht, um fortzufahren.",
+    "other": "Der Durchlauf hat Ihr Limit von {count} Werkzeugrunden erreicht. Die Zusammenfassung oben beschreibt, was erledigt wurde und was übrig ist. Senden Sie eine Nachricht, um fortzufahren."
+  },
   "structuredOutputRepair": "Die strukturierte Antwort war ungültig. Ein weiterer Versuch…",
   "structuredOutputFallback": "Die strukturierte Antwort konnte nicht validiert werden. Die Textantwort wird verwendet.",
   "outputSchemaInvalid": "Das Ausgabeschema liegt außerhalb der unterstützten strikten Teilmenge: {detail}",
@@ -98,6 +102,7 @@
   "modelApiStatusUnavailable": "Status nicht verfügbar",
   "modelApiStatusOpen": "Dienststatus öffnen",
   "modelApiServiceFailure": "Der Dienst hat einen Fehler zurückgegeben. Prüfen Sie den Status oder versuchen Sie es erneut.",
+  "modelApiSendFailed": "Die Modellanfrage ist fehlgeschlagen, bevor eine Antwort eintraf ({detail}). Sie wurde nicht erneut gesendet: Eine Anfrage über eine gepinnte Verbindung hat den Anbieter möglicherweise bereits erreicht.",
   "feedbackFailed": "Feedback konnte nicht gesendet werden.",
   "usagePageTitle": "Nutzung und Kosten",
   "paletteUsagePage": "Kosten, Tokens und Limits in allen Editoren verfolgen.",
@@ -326,6 +331,7 @@
     "output": "Das Ergebnisformat wählen: text, json oder jsonl.",
     "max-budget-usd": "Das feste Ausgabenlimit in USD für diesen Lauf festlegen.",
     "max-requests": "Die maximale Anzahl von Modellanfragen festlegen.",
+    "max-turn-requests": "Die maximale Anzahl von Werkzeugrunden pro Durchlauf festlegen; nicht festgelegt bedeutet kein Limit.",
     "timeout": "Die Laufzeitgrenze in Sekunden festlegen.",
     "fail-on-denial": "Den Lauf bei verweigerter Berechtigung stoppen.",
     "ephemeral": "Die Sitzung im Speicher halten, ohne sie zu speichern.",
@@ -1113,6 +1119,12 @@
   "clearConversation": "Unterhaltung löschen",
   "switchModel": "Modell wechseln…",
   "effortItem": "Aufwand",
+  "turnLimitItem": "Limit für Werkzeugrunden",
+  "turnLimitOff": "Aus",
+  "turnLimitRounds": {
+    "one": "{count} Runde",
+    "other": "{count} Runden"
+  },
   "thinkingItem": "Nachdenken",
   "permissionModeItem": "Berechtigungsmodus",
   "focusViewItem": "Fokusansicht",
@@ -3457,6 +3469,7 @@
   "acpQuestionAsked": "Muse hat eine Frage; dieser Editor kann sie nicht als Formular anzeigen, antworten Sie daher in Ihrer nächsten Nachricht:",
   "acpUnknownArgument": "Unbekanntes Argument: {argument}",
   "acpPaidNeedsModelApi": "{argument} erfordert --backend modelApi: Kostenpflichtige Funktionen werden über einen Model-API-Schlüssel abgerechnet.",
+  "acpModelApiOnlyFlag": "{argument} erfordert --backend modelApi.",
   "acpFontUi": "Schrift der Oberfläche",
   "acpFontCode": "Schrift für Code",
   "acpFontLigatures": "Ligaturen im Code",

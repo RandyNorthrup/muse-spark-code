@@ -194,6 +194,7 @@
   "config.modelApiAutoCompaction.description": "Zobrazuje při prvním tahu oznámení, že automatická kompakce čeká na vyhodnocení. Automatická kompakce zůstává neaktivní; vypnutí skryje oznámení.",
   "config.modelApiStrictTools.description": "Používat striktní schémata nástrojů, pokud je vybraný model podporuje. Vypnutím zachováte předchozí deklarace nástrojů.",
   "config.modelApiParallelReads.description": "Spouštět bezpečná volání nástrojů pouze pro čtení souběžně, nejvýše čtyři najednou. Ostatní volání se provádějí v pořadí.",
+  "config.modelApiMaxTurnRequests.description": "Maximální počet kol nástrojů v jednom tahu (0–1000; 0 znamená bez limitu: tah běží, dokud model neskončí). Při dosažení limitu model napíše shrnutí a tah skončí; odesláním zprávy pokračujete.",
   "config.webSearchMaxPerRequest.description": "Maximální počet hostovaných webových vyhledávání na odpověď (1–20; výchozí 5). Cena a sdílený denní rozpočet se zobrazí před prvním účtováním.",
   "config.modelApiTeamWorkers.description": "Uloženo kvůli kompatibilitě; tato předvolba nemá v tomto sestavení žádný účinek.",
   "config.legalHeaderPolicy.description": "Kontroly hlaviček autorských práv a SPDX pro právní kontrolu: povinné označuje každý vlastní zdrojový soubor bez odpovídající hlavičky, volitelné pouze hlavičku odporující zjištěnému stylu projektu nebo jeho deklaracím REUSE a vypnuté kontroly hlaviček přeskakuje. Výchozí je volitelné; generované soubory jsou vždy vyloučeny.",

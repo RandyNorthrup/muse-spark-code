@@ -194,6 +194,7 @@
   "config.modelApiAutoCompaction.description": "Shows the first-turn notice that automatic compaction is awaiting evaluation. Automatic compaction remains inactive; turning this off hides the notice.",
   "config.modelApiStrictTools.description": "Use strict tool schemas where the selected model supports them. Disable to keep the previous tool declarations.",
   "config.modelApiParallelReads.description": "Run safe read-only tool calls concurrently, up to four at a time. Other tool calls run in order.",
+  "config.modelApiMaxTurnRequests.description": "Maximum tool rounds in one turn (0–1000; 0 is no limit: the turn runs until the model stops). When the limit is reached the model writes a summary and the turn ends; sending a message continues.",
   "config.webSearchMaxPerRequest.description": "Maximum hosted web searches per response (1–20; default 5). The price and shared daily budget are shown before the first charge.",
   "config.modelApiTeamWorkers.description": "Stored for compatibility; no runtime effect.",
   "config.legalHeaderPolicy.description": "Copyright and SPDX header checks for the legal scan: required flags every project-owned source file without a matching header, optional flags only a header that contradicts the detected project style or its REUSE declarations, and off skips header checks. Default optional; generated files are always excluded.",

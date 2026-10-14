@@ -81,6 +81,10 @@
   "modelApiContinuing": "A kimeneti korlát elérve. Egyszeri folytatás…",
   "modelApiContinuationLimit": "A kimeneti korlát ismét elérve. Küldjön üzenetet a folytatáshoz.",
   "modelApiToolStuck": "A kör leállt, mert ugyanaz az eszközhívás újra és újra változatlan eredményt adott. Küldjön üzenetet egy másik megközelítés kipróbálásához.",
+  "modelApiTurnLimitReached": {
+    "one": "A kör elérte a(z) {count} eszközkörös korlátját. A fenti összefoglaló leírja, mi készült el és mi maradt hátra. Küldjön üzenetet a folytatáshoz.",
+    "other": "A kör elérte a(z) {count} eszközkörös korlátját. A fenti összefoglaló leírja, mi készült el és mi maradt hátra. Küldjön üzenetet a folytatáshoz."
+  },
   "structuredOutputRepair": "A strukturált válasz érvénytelen volt. Egyetlen újrapróbálkozás…",
   "structuredOutputFallback": "A strukturált választ nem sikerült ellenőrizni. A szöveges válasz kerül felhasználásra.",
   "outputSchemaInvalid": "A kimeneti séma kívül esik a támogatott szigorú részhalmazon: {detail}",
@@ -98,6 +102,7 @@
   "modelApiStatusUnavailable": "Az állapot nem érhető el",
   "modelApiStatusOpen": "A szolgáltatás állapotának megnyitása",
   "modelApiServiceFailure": "A szolgáltatás hibát jelzett. Ellenőrizze az állapotát, vagy próbálja újra.",
+  "modelApiSendFailed": "A modellkérés meghiúsult, mielőtt válasz érkezett volna ({detail}). Nem lett újra elküldve: egy rögzített kapcsolaton küldött kérés már elérhette a szolgáltatót.",
   "feedbackFailed": "A visszajelzést nem sikerült elküldeni.",
   "usagePageTitle": "Használat és költség",
   "paletteUsagePage": "Költségek, tokenek és korlátok követése minden szerkesztőben.",
@@ -326,6 +331,7 @@
     "output": "Az eredmény formátumának kiválasztása: text, json vagy jsonl.",
     "max-budget-usd": "A futtatás szigorú kiadási korlátjának megadása USD-ben.",
     "max-requests": "A modellkérések maximális számának beállítása.",
+    "max-turn-requests": "Az egy körben engedélyezett eszközkörök maximális száma; ha nincs megadva, nincs korlát.",
     "timeout": "A futtatás határidejének beállítása másodpercben.",
     "fail-on-denial": "A futtatás leállítása elutasított engedélynél.",
     "ephemeral": "A munkamenet megőrzése memóriában mentés nélkül.",
@@ -1113,6 +1119,12 @@
   "clearConversation": "Beszélgetés törlése",
   "switchModel": "Modell váltása…",
   "effortItem": "Ráfordítás",
+  "turnLimitItem": "Körönkénti eszközkör-limit",
+  "turnLimitOff": "Ki",
+  "turnLimitRounds": {
+    "one": "{count} kör",
+    "other": "{count} kör"
+  },
   "thinkingItem": "Gondolkodás",
   "permissionModeItem": "Engedélyezési mód",
   "focusViewItem": "Fókusznézet",
@@ -3457,6 +3469,7 @@
   "acpQuestionAsked": "Muse-nak kérdése van; ez a szerkesztő nem tudja űrlapként megjeleníteni, ezért a következő üzenetében válaszoljon:",
   "acpUnknownArgument": "Ismeretlen argumentum: {argument}",
   "acpPaidNeedsModelApi": "A(z) {argument} használatához --backend modelApi szükséges: a fizetős funkciókat egy Model API-kulcsra számlázzák.",
+  "acpModelApiOnlyFlag": "{argument} esetén --backend modelApi szükséges.",
   "acpFontUi": "Felület betűtípusa",
   "acpFontCode": "Kód betűtípusa",
   "acpFontLigatures": "Ligatúrák a kódban",

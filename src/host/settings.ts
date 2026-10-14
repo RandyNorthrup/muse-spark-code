@@ -9,6 +9,7 @@ import { widenedHost } from '../core/browser/browserPolicy'
 import { checkCommandsSchema } from '../core/verify/checkCommands'
 import {
   BACKEND_MODES,
+  MODEL_API_MAX_TURN_REQUESTS_MAX,
   PAID_DAILY_BUDGET,
   WEB_SEARCH_MAX_PER_REQUEST_LIMIT,
   type BackendMode,
@@ -152,6 +153,8 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly modelApiAutoCompaction: boolean
   readonly modelApiStrictTools: boolean
   readonly modelApiParallelReads: boolean
+  /** The person's per-turn tool-round limit (lane TURNLIMIT); 0 is no limit. */
+  readonly modelApiMaxTurnRequests: number
   readonly webSearchMaxPerRequest: number
   /** A checkpoint of the workspace's files at each turn boundary (M72). */
   readonly turnCheckpoints: boolean
@@ -279,6 +282,7 @@ const settingSchemas = {
   modelApiAutoCompaction: z.boolean(),
   modelApiStrictTools: z.boolean(),
   modelApiParallelReads: z.boolean(),
+  modelApiMaxTurnRequests: z.int().check(z.gte(0), z.lte(MODEL_API_MAX_TURN_REQUESTS_MAX)),
   webSearchMaxPerRequest: z
     .number()
     .check(z.int(), z.gte(1), z.lte(WEB_SEARCH_MAX_PER_REQUEST_LIMIT)),
@@ -422,6 +426,7 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     modelApiAutoCompaction: readSetting(config, 'modelApiAutoCompaction', log),
     modelApiStrictTools: readSetting(config, 'modelApiStrictTools', log),
     modelApiParallelReads: readSetting(config, 'modelApiParallelReads', log),
+    modelApiMaxTurnRequests: readSetting(config, 'modelApiMaxTurnRequests', log),
     webSearchMaxPerRequest: readSetting(config, 'webSearchMaxPerRequest', log),
     turnCheckpoints: readSetting(config, 'turnCheckpoints', log),
     browserCheckExtraHosts: readSetting(config, 'browserCheckExtraHosts', log),

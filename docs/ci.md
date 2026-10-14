@@ -48,6 +48,7 @@ muse-spark-code-acp scan-secrets fix.patch
 | --output text\|json\|jsonl          | text                   | Exact enum.                                                                                                                 |
 | --max-budget-usd <usd>              | required for Model API | Finite, 0 < value ≤ 20; must cover the model minimum below before billable dispatch. Refuse on Muse Code.                   |
 | --max-requests <n>                  | 30 for Model API       | Integer 1–500; all admitted billable HTTP attempts, including retries, compaction and images. Refuse on Muse Code.          |
+| --max-turn-requests <rounds>        | unset (no limit)       | off, 25, 50, 100, 200 or 500; per-turn tool rounds, then a no-tools summary request ends the turn. Refuse on Muse Code.     |
 | --timeout <seconds>                 | 1800                   | Integer 10–21,600; deadline counts from process start.                                                                      |
 | --image-generation                  | off                    | Model API plus acceptEdits plus budget.                                                                                     |
 | --web-search                        | refused                | Exit 2; no hosted-tool allowance.                                                                                           |

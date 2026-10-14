@@ -46,6 +46,7 @@ import {
   isStaleConfirmedError,
 } from '../backends/modelapi/transport'
 import { withDeadline } from '../timeouts'
+import { wireWordForLog } from '../logging'
 import { Usd } from '../../shared/usd'
 import { fill } from '../../shared/l10n/text'
 import {
@@ -109,6 +110,26 @@ const fail = (): never => {
 function ignoreTransportLog(): void {
   // This adapter reports fixed failures through its caller, without retaining
   // per-request diagnostics or forwarding arbitrary provider text to a log.
+}
+
+/**
+ * A send that never got a response (lane TURNLIMIT, F88): the real cause is
+ * the network error's fixed-vocabulary code, never its free text (which can
+ * carry paths or account details the redactor would not catch). Still no
+ * ambiguous retry: a pinned send may have reached the provider, so the
+ * message says so in words.
+ */
+export function providerSendFailure(error: unknown): ModelApiError {
+  const code =
+    typeof error === 'object' && error !== null && 'code' in error && typeof error.code === 'string'
+      ? error.code
+      : 'unknown'
+  return new ModelApiError(
+    fill(UI_TEXT.modelApiSendFailed, { detail: wireWordForLog(code) }),
+    0,
+    undefined,
+    undefined,
+  )
 }
 
 function ignoreProviderCache(): void {
@@ -289,10 +310,10 @@ export function createConfiguredProviderServices(
                 target.url.protocol !== 'http:',
               )
             }
-          } catch {
+          } catch (error: unknown) {
             // A pinned send can have reached the provider; retain its liability
-            // and refuse an ambiguous retry, with no echoed diagnostic text.
-            throw new ModelApiError(UI_TEXT.modelsPanelUnavailable, 0, undefined, undefined)
+            // and refuse an ambiguous retry, while saying the real cause.
+            throw providerSendFailure(error)
           }
           const iterator = chunks(response, idleMs)[Symbol.asyncIterator]()
           return new Response(
@@ -636,7 +657,9 @@ export function createConfiguredProviderServices(
             return ollama.parseOllamaError(status, value, '')
           }
           default: {
-            return new ModelApiError(UI_TEXT.modelsPanelUnavailable, status, undefined, undefined)
+            // An OpenAI-format provider's own error (lane TURNLIMIT, F88):
+            // its status and envelope message, never the panel's text.
+            return responses.parseResponsesError(status, value)
           }
         }
       },

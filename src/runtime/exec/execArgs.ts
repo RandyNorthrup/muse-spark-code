@@ -24,6 +24,7 @@ import {
   SETTING_DEFAULTS,
   SHELL_SANDBOX_MODES,
   type ShellSandboxMode,
+  TURN_LIMIT_OPTION_VALUES,
   UI_TEXT,
 } from '../../shared/constants'
 import { fill, plural } from '../../shared/l10n/text'
@@ -63,6 +64,8 @@ export interface ExecOptions {
   /** Exact canonical budget; admission uses integer micro-units internally (F1). */
   readonly budgetUsd: UsdAmount | undefined
   readonly maxRequests: number | undefined
+  /** The run's per-turn tool-round limit (lane TURNLIMIT); undefined is no limit. Model API only. */
+  readonly maxTurnRequests: number | undefined
   readonly timeoutMs: number
   readonly paidFeatures: readonly ExecPaidFeature[]
   readonly failOnDenial: boolean
@@ -102,6 +105,7 @@ const STRING_OPTIONS = new Set([
   'output-schema',
   'max-budget-usd',
   'max-requests',
+  'max-turn-requests',
   'timeout',
   'muse-binary',
   'shell-sandbox',
@@ -231,11 +235,17 @@ export function parseExec(
     1,
     EXEC_MAX_REQUESTS,
   )
+  const rawTurnLimit = values['max-turn-requests']
+  const isTurnLimit =
+    typeof rawTurnLimit === 'string' &&
+    (TURN_LIMIT_OPTION_VALUES as readonly string[]).includes(rawTurnLimit)
+  const maxTurnRequests = isTurnLimit && rawTurnLimit !== 'off' ? Number(rawTurnLimit) : undefined
   const budgetUsd = budgetUnits(values['max-budget-usd'])
   if (
     timeout === undefined ||
     maxRequests === undefined ||
-    (budgetUsd === undefined && values['max-budget-usd'] !== undefined)
+    (budgetUsd === undefined && values['max-budget-usd'] !== undefined) ||
+    (rawTurnLimit !== undefined && !isTurnLimit)
   )
     return invalid(UI_TEXT.execNumberInvalid)
   if (backend === 'modelApi' && budgetUsd === undefined) return invalid(UI_TEXT.execBudgetRequired)
@@ -249,6 +259,7 @@ export function parseExec(
     [
       'max-budget-usd',
       'max-requests',
+      'max-turn-requests',
       'ephemeral',
       'key-stdin',
       'image-generation',
@@ -317,6 +328,7 @@ export function parseExec(
       ...(values['output-schema-outside'] === true && { outputSchemaOutside: true }),
       budgetUsd,
       maxRequests: backend === 'modelApi' ? maxRequests : undefined,
+      maxTurnRequests,
       timeoutMs: timeout * MILLISECONDS_PER_SECOND,
       paidFeatures: values['image-generation'] === true ? ['imageGeneration'] : [],
       failOnDenial: values['fail-on-denial'] === true,

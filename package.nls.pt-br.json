@@ -194,6 +194,7 @@
   "config.modelApiAutoCompaction.description": "Mostra no primeiro turno o aviso de que a compactação automática aguarda avaliação. Ela permanece inativa; desativar esta opção oculta o aviso.",
   "config.modelApiStrictTools.description": "Usar esquemas estritos de ferramentas quando o modelo selecionado os aceitar. Desative para manter as declarações anteriores.",
   "config.modelApiParallelReads.description": "Executar simultaneamente chamadas seguras a ferramentas de somente leitura, até quatro por vez. As demais chamadas são executadas em ordem.",
+  "config.modelApiMaxTurnRequests.description": "Número máximo de rodadas de ferramentas por turno (0–1000; 0 é sem limite: o turno continua até o modelo parar). Ao atingir o limite, o modelo escreve um resumo e o turno termina; enviar uma mensagem continua.",
   "config.webSearchMaxPerRequest.description": "Máximo de pesquisas web hospedadas por resposta (1–20; padrão 5). O preço e o orçamento diário compartilhado são exibidos antes da primeira cobrança.",
   "config.modelApiTeamWorkers.description": "Mantida por compatibilidade; esta preferência não tem efeito nesta compilação.",
   "config.legalHeaderPolicy.description": "Verificações de cabeçalhos de copyright e SPDX para a verificação legal: obrigatório sinaliza cada arquivo-fonte próprio sem cabeçalho correspondente, opcional apenas um cabeçalho que contradiga o estilo detectado do projeto ou suas declarações REUSE, e desativado ignora essas verificações. O padrão é opcional; arquivos gerados são sempre excluídos.",

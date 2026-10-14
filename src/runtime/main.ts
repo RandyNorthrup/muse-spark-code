@@ -819,6 +819,9 @@ async function serve(
         ...(options.questionsDeferAfterSeconds !== undefined && {
           questionsDeferAfterSeconds: options.questionsDeferAfterSeconds,
         }),
+        ...(options.maxTurnRequests !== undefined && {
+          maxTurnRequests: options.maxTurnRequests,
+        }),
       },
       signIn: signInMethod(options),
       providerSignIns: providerCommands.signIns,
