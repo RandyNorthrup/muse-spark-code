@@ -3005,10 +3005,16 @@ export class ModelApiSession implements ScheduledAgentSession {
       (this.deps.models !== undefined || this.deps.client.isPlanModel?.(ref) !== true)
         ? await this.deps.models?.resolve(ref)
         : metaResolvedModel(ref, this.deps.client)
-    if (model?.ref !== ref || !model.isCurrent()) {
-      // Unknown or stale: the sentence names the id as typed, the entry
-      // that was asked, and what the person can do. No request was sent.
+    if (model?.ref !== ref) {
+      // Unknown: the sentence names the id as typed, the entry that was
+      // asked, and what the person can do. No request was sent.
       throw new Error(unknownModelRefText(ref))
+    }
+    if (!model.isCurrent()) {
+      // Stale, not unknown: the record changed while resolving, so the
+      // stale sentence and its retry remedy are the true ones (as the
+      // provider registry itself answers a stale record).
+      throw this.staleRecordError()
     }
     if (ref.includes('/')) {
       this.modelKeyDigests.set(ref, await model.client.currentKeyDigest())
