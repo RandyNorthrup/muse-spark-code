@@ -160,6 +160,10 @@ describe('wrong options and values', () => {
       [['exec', '--api-key', 'x', 'hi'], 'api-key'],
       [['exec', '--api_key', 'x', 'hi'], 'api_key'],
       [['exec', '--SECRET-KEY', 'x', 'hi'], 'SECRET-KEY'],
+      [['--passphrase', 'x'], 'passphrase'],
+      [['--session-key', 'x'], 'session-key'],
+      [['--auth-key', 'x'], 'auth-key'],
+      [['exec', '--bearer', 'x', 'hi'], 'bearer'],
     ] as const) {
       const parsed = parseCommandLine([...argv])
       expect(parsed, argv.join(' ')).toMatchObject({ command: 'invalid', exitCode: 2 })

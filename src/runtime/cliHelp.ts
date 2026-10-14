@@ -491,10 +491,13 @@ const SECRET_OPTION_WORDS: readonly string[] = [
   'token',
   'password',
   'passwd',
+  'passphrase',
+  'pwd',
   'credential',
-  'apikey',
-  'privatekey',
-  'accesskey',
+  'bearer',
+  // Any `*key*` spelling (`api-key`, `session-key`, `authkey`, …) names a
+  // credential route; hiding a harmless typo costs less than echoing a key.
+  'key',
 ]
 
 /** An unknown option name that may carry a credential is never echoed. */
