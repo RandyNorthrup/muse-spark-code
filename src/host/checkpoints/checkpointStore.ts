@@ -129,6 +129,8 @@ import { isLegacyWindow, WindowPresence } from './windowPresence'
 import { WriteJournal } from './writeJournal'
 import { innermostFolders, type WriteLanes } from './writeRecorder'
 
+export { turnKey } from '../../core/checkpoints/turnKey'
+
 /** Why a tool may not write a path (`storagePathProblem`); the host words it. */
 export type StoragePathProblem = 'spelling' | 'storage' | 'uncertain'
 
