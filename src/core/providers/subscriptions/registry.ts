@@ -36,11 +36,8 @@ import { fill } from '../../../shared/l10n/text'
 import { DeadlineError, withDeadline } from '../../timeouts'
 import type { ProvidersFile } from '../providersFile'
 import { type ChatGptSignIn, ChatGptSignInError, chatGptRecordSchema } from './chatgpt'
-import {
-  chatGptCatalogEntrySchema,
-  chatGptPlanFacts,
-  type ChatGptPlanFacts,
-} from './chatgptPlanFacts'
+import type { ChatGptPlanFacts } from '../../backends/modelapi/planFacts'
+import { chatGptCatalogEntrySchema, chatGptPlanFacts } from './chatgptPlanFacts'
 import type { PlanUsageRow } from './planUsage'
 
 // Owner captures acdc0f60 / 577bc807 (0 + 1 model attempts), 2026-10-05.
