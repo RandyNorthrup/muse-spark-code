@@ -762,8 +762,8 @@ describe('App conversation', () => {
       // Muse Code's wording (D24, D69): its Manual applies in-workspace edits
       // unasked, so Edit Automatically is Manual there; its Auto skips only
       // simple commands, and the reviewer (on by default, M90) may allow others once.
-      'ManualMuse will ask before running commands; Muse Code edits workspace files without askingCurrent',
-      'Edit AutomaticallyOn Muse Code, the same as Manual: Muse Code edits workspace files without asking and asks before running commands',
+      'ManualMuse asks before running each command, unless a permission rule allows it; Muse Code edits workspace files without askingCurrent',
+      'Edit AutomaticallyOn Muse Code, the same as Manual: Muse Code edits workspace files without asking, and asks before running each command, unless a permission rule allows it',
       // Plan on Muse Code refuses commands, not file-tool edits (musecode-write-asks).
       'PlanMuse plans first; Muse Code refuses commands, but its file tools can still edit files without asking',
       'AutoMuse Code runs the commands it judges simple without asking; a reviewer may allow some others once, and you are asked about the rest',
