@@ -90,7 +90,8 @@ history from PLAN.md").
      120/180/240 ms scale under the no-preference reduced-motion guard.
      Every visual change gets one small local look (`npm run ui:look --
 <scene>`, pictures to `temp/ui-look/`, no baseline, no comparison, no
-     CI). README screenshots use `scripts/readme-shots.mjs` (2 MiB curated set).
+     CI), in one light and one dark theme, and the two pictures go into
+     the change's certification record. README screenshots use `scripts/readme-shots.mjs` (2 MiB curated set).
 6. **No dead code, no placeholders.** No commented-out code, unused exports,
    unused dependencies, TODO stubs, fake implementations, or mock data outside
    `test/**`. A function that cannot do its job throws or returns an explicit

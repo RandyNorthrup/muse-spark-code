@@ -549,7 +549,7 @@ describe('packaging (M26)', () => {
     const ci = read('.github', 'workflows', 'build.yml')
     expect(ci).toContain('run: node scripts/release-reuse.mjs record')
     expect(ci).toContain('name: source-tree-${{ steps.source.outputs.tree }}')
-    // Four package artifacts, every one on the same 30-day retention.
+    // The four package artifacts, every one on the same 30-day retention.
     expect(count(ci, /retention-days: 30/g)).toBe(4)
   })
   it('keeps manual recovery on the shared verified staging path and never rebuilds it (RELFAST2)', () => {
@@ -641,7 +641,7 @@ describe('tiered CI (CIFLOW)', () => {
       expect(job(id)).toContain('inputs.fast && \'["ubuntu-latest"]\'')
       expect(job(id)).toContain('["ubuntu-latest","windows-latest","macos-latest"]')
     }
-    // Exactly quality:gates without tests and pixels, which have required jobs: a
+    // Exactly quality:gates without the tests, which have a required job: a
     // gate added to quality:gates and not to CI fails here. The static gates run
     // in parts (CIFIX017R3): each script quality:gates reaches through run-s
     // runs in exactly one part, none twice and none dropped.
