@@ -3604,6 +3604,7 @@
   },
   "providerKeyStored": "La clé {provider} est enregistrée : {store}.",
   "providerKeyNotStored": "Aucune clé n’a été saisie ; rien n’a été enregistré.",
+  "providerKeyNotText": "Cette entrée n’est pas du texte (ce n’est pas de l’UTF-8 valide) ; elle n’a pas été utilisée.",
   "providerKeyPresent": "Une clé {provider} est enregistrée : {store}, liée à {origin}.",
   "providerKeyAbsent": "Aucune clé {provider} n’est enregistrée.",
   "providerKeyCleared": "La clé {provider} a été supprimée du magasin d’identifiants de cet ordinateur.",

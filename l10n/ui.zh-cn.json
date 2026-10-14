@@ -3452,6 +3452,7 @@
   },
   "providerKeyStored": "已存储 {provider} 密钥：{store}。",
   "providerKeyNotStored": "未输入密钥，因此未存储任何内容。",
+  "providerKeyNotText": "该输入不是文本（不是有效的 UTF-8），因此未使用。",
   "providerKeyPresent": "已存储 {provider} 密钥：{store}，绑定到 {origin}。",
   "providerKeyAbsent": "未存储 {provider} 密钥。",
   "providerKeyCleared": "已从这台计算机的凭据存储中移除 {provider} 密钥。",

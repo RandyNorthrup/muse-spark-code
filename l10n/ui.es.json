@@ -3604,6 +3604,7 @@
   },
   "providerKeyStored": "La clave de {provider} está guardada: {store}.",
   "providerKeyNotStored": "No se introdujo ninguna clave, así que no se guardó nada.",
+  "providerKeyNotText": "Esa entrada no es texto (no es UTF-8 válido), así que no se usó.",
   "providerKeyPresent": "Hay una clave de {provider} guardada: {store}, vinculada a {origin}.",
   "providerKeyAbsent": "No hay ninguna clave de {provider} guardada.",
   "providerKeyCleared": "La clave de {provider} se quitó del almacén de credenciales de este equipo.",

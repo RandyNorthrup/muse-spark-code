@@ -7,6 +7,7 @@ import {
   readPromptStdin,
   readProviderKeyLine,
 } from '../../src/runtime/exec/keyInput'
+import { isNonTextStdin, readSecretLine } from '../../src/runtime/hiddenInput'
 import { SECRET_KEYS } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
 
@@ -132,5 +133,26 @@ describe('provider key stdin failure sentences (KEYTEXT)', () => {
     expect(EN.providerKeyNotText).toBe(
       'That input is not text (it is not valid UTF-8), so it was not used.',
     )
+  })
+
+  it('refuses piped bytes that are not text, naming them as not text', async () => {
+    const input = new PassThrough()
+    const refused = readSecretLine('Key: ', input, new PassThrough())
+    input.end(Buffer.from([0xff, 0xfe]))
+    let failure: unknown
+    try {
+      await refused
+    } catch (error: unknown) {
+      failure = error
+    }
+    expect(isNonTextStdin(failure)).toBe(true)
+    expect(failure instanceof Error && failure.message).toBe(EN.providerKeyNotText)
+  })
+
+  it('still takes the first line of a text pipe', async () => {
+    const input = new PassThrough()
+    const line = readSecretLine('Key: ', input, new PassThrough())
+    input.end('pipe-key\nignored\n')
+    await expect(line).resolves.toBe('pipe-key')
   })
 })

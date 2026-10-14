@@ -13,6 +13,8 @@ import {
   UI_TEXT,
 } from '../shared/constants'
 import { fill } from '../shared/l10n/text'
+import { providerKeyFailureText } from './exec/keyInput'
+import { isNonTextStdin } from './hiddenInput'
 import {
   formatStoredProviderSecret,
   parseStoredProviderSecret,
@@ -42,7 +44,18 @@ function unavailable(deps: AuthCommandDeps, error: unknown): number {
 }
 
 export async function authSet(deps: AuthCommandDeps): Promise<number> {
-  const typed = await deps.readSecret(UI_TEXT.acpKeyPrompt)
+  let typed: string
+  try {
+    typed = await deps.readSecret(UI_TEXT.acpKeyPrompt)
+  } catch (error: unknown) {
+    // Non-text stdin is not a valid Model API key either; the sentence is
+    // the one this command already shows for that input.
+    if (isNonTextStdin(error)) {
+      deps.printError(UI_TEXT.apiKeyInvalid)
+      return EXIT_FAILED
+    }
+    throw error
+  }
   const candidate = typed.trim()
   if (candidate === '') {
     deps.printError(UI_TEXT.acpKeyNotStored)
@@ -110,10 +123,19 @@ export async function authSetProvider(
     deps.printError(fill(UI_TEXT.providerNotConfigured, { provider: providerId }))
     return EXIT_FAILED
   }
-  const typed = await deps.readSecret(fill(UI_TEXT.providerKeyPrompt, { provider: providerId }))
+  let typed: string
+  try {
+    typed = await deps.readSecret(fill(UI_TEXT.providerKeyPrompt, { provider: providerId }))
+  } catch (error: unknown) {
+    if (isNonTextStdin(error)) {
+      deps.printError(providerKeyFailureText('invalid'))
+      return EXIT_FAILED
+    }
+    throw error
+  }
   const candidate = typed.trim()
   if (candidate === '') {
-    deps.printError(UI_TEXT.providerKeyNotStored)
+    deps.printError(providerKeyFailureText('empty'))
     return EXIT_FAILED
   }
   const { presets } = await import('../host/backend/providersEntry')

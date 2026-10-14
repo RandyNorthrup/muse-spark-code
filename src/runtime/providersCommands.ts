@@ -48,6 +48,8 @@ import {
 } from '../shared/constants'
 import { fill, plural, uiLocale } from '../shared/l10n/text'
 import type { ProvidersAddOptions } from './cliArgs'
+import { providerKeyFailureText } from './exec/keyInput'
+import { isNonTextStdin } from './hiddenInput'
 import {
   formatStoredProviderSecret,
   parseStoredProviderSecret,
@@ -610,9 +612,15 @@ export async function providersAdd(
     if (!options.keyFromStdin) {
       return failed(deps, fill(UI_TEXT.providerKeyNeeded, { provider: id }))
     }
-    const typed = await deps.readSecret(fill(UI_TEXT.providerKeyPrompt, { provider: id }))
+    let typed: string
+    try {
+      typed = await deps.readSecret(fill(UI_TEXT.providerKeyPrompt, { provider: id }))
+    } catch (error: unknown) {
+      if (isNonTextStdin(error)) return failed(deps, providerKeyFailureText('invalid'))
+      throw error
+    }
     if (typed.trim() === '') {
-      return failed(deps, UI_TEXT.providerKeyNotStored)
+      return failed(deps, providerKeyFailureText('empty'))
     }
     key = typed.trim()
     // Any non-blank key goes to the free key test: the provider judges

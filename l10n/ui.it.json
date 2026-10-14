@@ -3604,6 +3604,7 @@
   },
   "providerKeyStored": "La chiave {provider} è salvata: {store}.",
   "providerKeyNotStored": "Non è stata inserita alcuna chiave, quindi non è stato salvato nulla.",
+  "providerKeyNotText": "Questo input non è testo (non è UTF-8 valido), quindi non è stato usato.",
   "providerKeyPresent": "È salvata una chiave {provider}: {store}, associata a {origin}.",
   "providerKeyAbsent": "Nessuna chiave {provider} salvata.",
   "providerKeyCleared": "La chiave {provider} è stata rimossa dall’archivio delle credenziali di questo computer.",

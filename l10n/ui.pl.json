@@ -3680,6 +3680,7 @@
   },
   "providerKeyStored": "Klucz {provider} został zapisany: {store}.",
   "providerKeyNotStored": "Nie wpisano klucza, więc nic nie zapisano.",
+  "providerKeyNotText": "To wejście nie jest tekstem (nie jest poprawnym UTF-8), więc nie zostało użyte.",
   "providerKeyPresent": "Klucz {provider} jest zapisany: {store}, powiązany z {origin}.",
   "providerKeyAbsent": "Nie zapisano klucza {provider}.",
   "providerKeyCleared": "Klucz {provider} został usunięty z magazynu poświadczeń tego komputera.",

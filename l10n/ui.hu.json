@@ -3528,6 +3528,7 @@
   },
   "providerKeyStored": "A(z) {provider}-kulcs tárolva: {store}.",
   "providerKeyNotStored": "Nem adott meg kulcsot, így semmi sem lett tárolva.",
+  "providerKeyNotText": "Ez a bevitel nem szöveg (nem érvényes UTF-8), ezért nem lett felhasználva.",
   "providerKeyPresent": "Van tárolt {provider}-kulcs: {store}, kötve ehhez: {origin}.",
   "providerKeyAbsent": "Nincs tárolt {provider}-kulcs.",
   "providerKeyCleared": "A(z) {provider}-kulcs törölve lett a számítógép hitelesítőadat-tárolójából.",

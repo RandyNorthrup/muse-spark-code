@@ -3604,6 +3604,7 @@
   },
   "providerKeyStored": "A chave {provider} está guardada: {store}.",
   "providerKeyNotStored": "Nenhuma chave foi digitada, então nada foi guardado.",
+  "providerKeyNotText": "Essa entrada não é texto (não é UTF-8 válido), então não foi usada.",
   "providerKeyPresent": "Há uma chave {provider} guardada: {store}, vinculada a {origin}.",
   "providerKeyAbsent": "Nenhuma chave {provider} está guardada.",
   "providerKeyCleared": "A chave {provider} foi removida do armazenamento de credenciais deste computador.",

@@ -3528,6 +3528,7 @@
   },
   "providerKeyStored": "Der Schlüssel für {provider} ist gespeichert: {store}.",
   "providerKeyNotStored": "Es wurde kein Schlüssel eingegeben, daher wurde nichts gespeichert.",
+  "providerKeyNotText": "Diese Eingabe ist kein Text (kein gültiges UTF-8) und wurde daher nicht verwendet.",
   "providerKeyPresent": "Ein Schlüssel für {provider} ist gespeichert: {store}, gebunden an {origin}.",
   "providerKeyAbsent": "Es ist kein Schlüssel für {provider} gespeichert.",
   "providerKeyCleared": "Der Schlüssel für {provider} wurde aus dem Anmeldeinformationsspeicher dieses Computers entfernt.",

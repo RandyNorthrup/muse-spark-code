@@ -4246,6 +4246,7 @@ export const EN = {
   // {provider}: the provider id; {store}: where the key lives; {origin}: the bound origin.
   providerKeyStored: 'The {provider} key is stored in {store}.',
   providerKeyNotStored: 'No key was entered, so nothing was stored.',
+  providerKeyNotText: 'That input is not text (it is not valid UTF-8), so it was not used.',
   providerKeyPresent: 'A {provider} key is stored in {store}, bound to {origin}.',
   providerKeyAbsent: 'No {provider} key is stored.',
   providerKeyCleared: 'The {provider} key was removed from this computer’s credential store.',
