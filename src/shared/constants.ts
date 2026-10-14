@@ -6060,6 +6060,17 @@ export const TEAM_MERGE_DETAILS_SHOWN = 10
 // only lazily loaded bundles or the ACP agent read is a block of its own
 // below, and the bundle-split gate fails a key here that no source file of
 // dist/extension.js reads (PLAN.md D6, 2026-10-03).
+// The ChatGPT plan route's namespace description stays a plain constant
+// beside MODEL_TEXT rather than a key of it: only the lazy provider bundles
+// and the ACP agent read it (no dist/extension.js source does), so a key
+// would fail that same gate. English, like every model-facing string.
+// The ChatGPT plan route wraps every turn's function tools in one
+// `{type:'namespace'}` tool, and the plan endpoint refuses the request
+// without the namespace's own description (HTTP 400
+// `missing_required_parameter: tools[0].description`, measured 2026-10-14).
+// Every ChatGPT-profile request carries this sentence.
+export const CHATGPT_TOOL_NAMESPACE_DESCRIPTION =
+  'Tools of the Muse Spark Code agent in this workspace.'
 export const MODEL_TEXT = {
   // The one line before a bundled skill's body (M89, PLAN.md D68), then the
   // vendored package's folder: what the skill's `${SKILL_ROOT}` paths name.

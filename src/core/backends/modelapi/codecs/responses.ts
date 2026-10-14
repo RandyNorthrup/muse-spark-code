@@ -47,8 +47,13 @@ export type ResponsesCodecQuirks =
       readonly supportsStrictTools?: boolean | undefined
       /** Stable across turns; supplied by the host, never derived from a token. */
       readonly toolNamespace: string
-      /** The caller's namespace description, preserved as in the M95b capture. */
-      readonly toolNamespaceDescription?: string
+      /**
+       * The namespace's own description. Required on this profile: the
+       * plan endpoint answers HTTP 400 without it
+       * (`missing_required_parameter: tools[0].description`), so the type
+       * leaves no way to omit it.
+       */
+      readonly toolNamespaceDescription: string
     }
 /**
  * M101 lane P1 (BYO item 2): per-request replay provenance. Replayed call
@@ -430,9 +435,7 @@ export function createResponsesCodec(
               {
                 type: 'namespace',
                 name: quirks.toolNamespace,
-                ...(quirks.toolNamespaceDescription !== undefined && {
-                  description: quirks.toolNamespaceDescription,
-                }),
+                description: quirks.toolNamespaceDescription,
                 tools: body.tools,
               },
             ]

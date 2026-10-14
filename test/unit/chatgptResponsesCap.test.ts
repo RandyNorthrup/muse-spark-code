@@ -10,13 +10,18 @@ import {
 } from '../../src/core/backends/modelapi/codecs/responses'
 import type { StreamEvent } from '../../src/core/backends/modelapi/schemas'
 import { ModelApiHost, ModelApiSession } from '../../src/core/backends/modelapi/ModelApiHost'
+import { CHATGPT_TOOL_NAMESPACE_DESCRIPTION } from '../../src/shared/constants'
 import { fakeModelApi, fakeModelApiClient } from './helpers/fakeModelApi'
 import { fakeModelApiHostDeps } from './helpers/modelApiHostDeps'
 import { memoryToolIo } from './helpers/fakeToolIo'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { watchSessionTurns } from './helpers/sessionTurns'
 
-const codec = createResponsesCodec({ profile: 'chatgpt', toolNamespace: 'functions' })
+const codec = createResponsesCodec({
+  profile: 'chatgpt',
+  toolNamespace: 'functions',
+  toolNamespaceDescription: CHATGPT_TOOL_NAMESPACE_DESCRIPTION,
+})
 const encoder = new TextEncoder()
 
 async function* chunks(
