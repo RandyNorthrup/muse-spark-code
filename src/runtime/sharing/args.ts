@@ -8,6 +8,7 @@ import type { ShareRequest } from '../../shared/share'
 
 interface LocalOptions {
   readonly cwd: string | undefined
+  readonly json: boolean
 }
 export type SharingCommand =
   | (LocalOptions & {
@@ -57,6 +58,9 @@ export function parseSharingArgs(argv: readonly string[], sessionId?: string): S
   const isShare = root === 'share' || action === 'share'
   const flags: NonNullable<ParseArgsConfig['options']> = {
     cwd: { type: 'string' },
+    // Scripts pass --json to receive the machine-readable result; without
+    // it the terminal prints only the human preview and review transcript.
+    json: { type: 'boolean' },
     ...(isShare && {
       mode: { type: 'string' },
       format: { type: 'string' },
@@ -101,21 +105,38 @@ export function parseSharingArgs(argv: readonly string[], sessionId?: string): S
   }
   if (Object.values(values).includes('')) throw localArgumentError(argv.join(' '))
   const cwd = flag('cwd')
+  const isJson = values['json'] === true
   const [id, ...extra] = positionals
   if (extra.length > 0) throw localArgumentError(extra.join(' '))
   if (action === 'list' && root === 'prompts' && id === undefined) {
-    return { command: 'prompts', action, cwd, search: flag('search') ?? '', tag: flag('tag') }
+    return {
+      command: 'prompts',
+      action,
+      cwd,
+      json: isJson,
+      search: flag('search') ?? '',
+      tag: flag('tag'),
+    }
   }
   const scope = oneOf(flag('scope') ?? 'user', ['user', 'workspace'])
   const title = flag('title')
   if (action === 'save' && root === 'prompts' && id === undefined && title !== undefined) {
-    return { command: 'prompts', action, cwd, title, scope, tags: listFlag('tag') }
+    return {
+      command: 'prompts',
+      action,
+      cwd,
+      json: isJson,
+      title,
+      scope,
+      tags: listFlag('tag'),
+    }
   }
   if (action === 'use' && root === 'prompts' && id !== undefined) {
     return {
       command: 'prompts',
       action,
       cwd,
+      json: isJson,
       promptId: id,
       scope,
       chat: oneOf(flag('chat') ?? 'active', ['active', 'new']),
@@ -162,6 +183,7 @@ export function parseSharingArgs(argv: readonly string[], sessionId?: string): S
   return {
     command: 'share',
     cwd,
+    json: isJson,
     request,
     exportedAt: flag('exported-at'),
     confirmation: flag('confirm'),

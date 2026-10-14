@@ -1273,28 +1273,30 @@ export function sharingFeatures(table: UiText = UI_TEXT) {
     {
       id: 'share-cli',
       surface: 'cli',
-      syntax: 'share chat SESSION_ID [--mode full|conversation] [--format md|html|json]',
+      syntax:
+        'share chat SESSION_ID [--mode full|conversation] [--format md|html|json] [--destination copy|file|browser] [--out FILE] [--json] [--confirm PREVIEW_ID --exported-at TIME]',
       label: table.shareChat,
       detail: table.shareConfirm,
     },
     {
       id: 'prompts-save-cli',
       surface: 'cli',
-      syntax: 'prompts save --title TITLE [--scope user|workspace] [--cwd FOLDER] < prompt.txt',
+      syntax:
+        'prompts save --title TITLE [--scope user|workspace] [--cwd FOLDER] [--json] < prompt.txt',
       label: table.promptLibrary,
       detail: table.promptRun,
     },
     {
       id: 'prompts-list-cli',
       surface: 'cli',
-      syntax: 'prompts list [--search TEXT] [--tag TAG] [--cwd FOLDER]',
+      syntax: 'prompts list [--search TEXT] [--tag TAG] [--cwd FOLDER] [--json]',
       label: table.promptLibrary,
       detail: table.promptScopeUser,
     },
     {
       id: 'prompts-use-cli',
       surface: 'cli',
-      syntax: 'prompts use ID [--scope user|workspace] [--chat active|new] [--cwd FOLDER]',
+      syntax: 'prompts use ID [--scope user|workspace] [--chat active|new] [--cwd FOLDER] [--json]',
       label: table.promptUseSaved,
       detail: `${table.promptVariables}; ${table.promptInsert}`,
     },
@@ -1302,7 +1304,7 @@ export function sharingFeatures(table: UiText = UI_TEXT) {
       id: 'prompts-share-cli',
       surface: 'cli',
       syntax:
-        'prompts share ID [--scope user|workspace] [--format md|html|json] [--destination copy|file|browser] [--out FILE]',
+        'prompts share ID [--scope user|workspace] [--format md|html|json] [--destination copy|file|browser] [--out FILE] [--json] [--confirm PREVIEW_ID --exported-at TIME]',
       label: table.sharePrompt,
       detail: table.shareConfirm,
     },
