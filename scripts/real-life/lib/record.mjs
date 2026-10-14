@@ -108,7 +108,7 @@ export function summaryOf(record) {
     ...(record.entriesFoundAtStart === undefined
       ? []
       : [
-          `LEFT IN THE CREDENTIAL STORE by an earlier run or diagnostic, found when this run started: ${record.entriesFoundAtStart.join(', ')}. A route of this run removed its own; any other is removed with \`auth clear --provider <name>\`.`,
+          `LEFT IN THE CREDENTIAL STORE by an earlier run or diagnostic, found when this run started: ${record.entriesFoundAtStart.join(', ')}. This run never removes or replaces a stored key: a route whose name is taken is not run; remove it with the product: \`auth clear --provider <name>\`.`,
         ]),
     `Scenario runs: ${String(record.totals.passed)} passed, ${String(record.totals.failed)} failed, ${String(record.totals.notRun)} not run.`,
     '',

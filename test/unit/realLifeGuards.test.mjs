@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest'
 import { installerEnvironment } from '../../scripts/real-life/lib/install.mjs'
 import { keySource, missingKeys } from '../../scripts/real-life/lib/keys.mjs'
 import { ensureRecordDir, parseUsageOutput } from '../../scripts/real-life/lib/record.mjs'
+import { takenProviderReason } from '../../scripts/real-life/lib/routes.mjs'
 
 // Pure guards for the real-life run (scripts/real-life/): each `it` names
 // the review finding it holds. Values go in as data; nothing is faked.
@@ -73,5 +74,14 @@ describe('real-life key check', () => {
     )
     expect(missing.map((one) => one.id)).toEqual(['openai'])
     expect(missing[0]?.reason).toMatch(/no stored key named openai/)
+  })
+})
+
+describe('real-life provider collision', () => {
+  it('refuses a taken provider name and names its removal (4252482402)', () => {
+    const reason = takenProviderReason({ id: 'openai', provider: 'rl-openai' })
+    expect(reason).toMatch(/rl-openai/)
+    expect(reason).toMatch(/never removes or replaces/)
+    expect(reason).toMatch(/auth clear --provider rl-openai/)
   })
 })
