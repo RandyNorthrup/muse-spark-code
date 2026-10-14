@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { installerEnvironment } from '../../scripts/real-life/lib/install.mjs'
+import { parseUsageOutput } from '../../scripts/real-life/lib/record.mjs'
 
 // Pure guards for the real-life run (scripts/real-life/): each `it` names
 // the review finding it holds. Values go in as data; nothing is faked.
@@ -18,5 +19,30 @@ describe('real-life installer environment', () => {
     expect(env.npm_execpath).toBe('/usr/lib/node_modules/npm/bin/npm-cli.js')
     expect(env.REAL_LIFE_KEY_ANTHROPIC_FLEET_1).toBeUndefined()
     expect(env.META_API_KEY).toBeUndefined()
+  })
+})
+
+describe('real-life usage readings', () => {
+  it('reads a good usage output (4252482371)', () => {
+    const read = parseUsageOutput({
+      code: 0,
+      stdout: '{"records":[{"id":"a","cost":{"usd":"0.002","certainty":"reported"}}]}',
+    })
+    expect(read.ok).toBe(true)
+    expect(read.records?.length).toBe(1)
+  })
+
+  it('refuses a failed command, malformed JSON and a missing records array (4252482371)', () => {
+    for (const run of [
+      { code: 1, stdout: '' },
+      { code: 0, stdout: 'not JSON' },
+      { code: 0, stdout: '{"records":{}}' },
+      { code: 0, stdout: '{"somethingElse":[]}' },
+      { code: 0, stdout: 'null' },
+    ]) {
+      const read = parseUsageOutput(run)
+      expect(read.ok).toBe(false)
+      expect(read.reason).not.toBe('')
+    }
   })
 })

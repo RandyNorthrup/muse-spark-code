@@ -45,6 +45,7 @@ import {
   clip,
   logExcerpt,
   observedText,
+  parseUsageOutput,
   scrubber,
   tableRoute,
   totalsOf,
@@ -218,14 +219,12 @@ const terminal = (args, stdin = '') => runCommand(product, args, { cwd: folders.
 /** A command of the clean-up: a run that is cut short ends every other process and lets these finish. */
 const cleaner = (args) => runCommand(product, args, { cwd: folders.workspaces, isCleanUp: true })
 
-/** The product's own usage records for this home. */
+/**
+ * The product's own usage records for this home, or why they cannot be
+ * read: an unreadable usage is spend nobody knows, never an empty reading.
+ */
 async function usageRecords() {
-  const run = await terminal(['usage', '--json'])
-  try {
-    return JSON.parse(run.stdout).records ?? []
-  } catch {
-    return []
-  }
+  return parseUsageOutput(await terminal(['usage', '--json']))
 }
 
 const said = (run) => clip(`${run.stdout} ${run.stderr}`)
@@ -460,8 +459,29 @@ async function runCell(cell, key) {
   // A matrix turn is a terminal run, counted by its own result: the journal
   // is not read for it (two more commands for each of hundreds of turns).
   const isJournalRead = !isMatrix
-  const earlier = isJournalRead ? await usageRecords() : []
-  const before = new Set(earlier.map((record) => record.id))
+  const readBefore = isJournalRead ? await usageRecords() : { ok: true, records: [] }
+  if (!readBefore.ok) {
+    // The spend so far cannot be read: the cell fails and nothing more starts.
+    see('the product usage for this home could be read', false, readBefore.reason)
+    budget.end(
+      `the product's usage could not be read (${readBefore.reason}): what was spent is unknown`,
+    )
+    await person.end()
+    return {
+      scenario: scenario.id,
+      title: scenario.title,
+      route,
+      surface,
+      claims: steps.claims,
+      outcome: 'failed',
+      observed,
+      requests: 0,
+      usd: usdText(0),
+      uncertainUsd: usdText(0),
+      seconds: 0,
+    }
+  }
+  const before = new Set(readBefore.records.map((record) => record.id))
   const clock = performance.now()
   let timer
   try {
@@ -485,8 +505,16 @@ async function runCell(cell, key) {
   }
   const seconds = (performance.now() - clock) / 1000
   for (const note of person.notes) see(note.what, note.ok, note.saw)
-  const later = isJournalRead ? await usageRecords() : []
-  const journal = journalOf(later.filter((record) => !before.has(record.id)))
+  const readAfter = isJournalRead ? await usageRecords() : { ok: true, records: [] }
+  if (!readAfter.ok) {
+    see('the product usage for this home could be read', false, readAfter.reason)
+    budget.end(
+      `the product's usage could not be read (${readAfter.reason}): what was spent is unknown`,
+    )
+  }
+  const journal = journalOf(
+    (readAfter.ok ? readAfter.records : []).filter((record) => !before.has(record.id)),
+  )
   // A terminal run is counted by its own result; an editor session by the
   // usage the product recorded for it.
   const used = surface === 'exec' ? person.made : journal
@@ -704,9 +732,17 @@ try {
     // that is ended outright leaves at most one route's entry behind.
     await cleanUp()
   }
-  const records = await usageRecords()
-  const held = journalOf(records)
-  productUsage = { requests: held.requests, usd: usdText(held.micro + held.uncertain) }
+  const read = await usageRecords()
+  if (read.ok) {
+    const held = journalOf(read.records)
+    productUsage = { requests: held.requests, usd: usdText(held.micro + held.uncertain) }
+  } else {
+    const reason = `the product's own usage could not be read (${read.reason}): what it spent is unknown`
+    console.error(reason)
+    budget.end(reason)
+    productUsage = { requests: 0, usd: usdText(0), unread: read.reason }
+    process.exitCode = EXIT_FAILED
+  }
   unsettled = heldUnsettled(folders.home)
 } catch (error) {
   console.error(

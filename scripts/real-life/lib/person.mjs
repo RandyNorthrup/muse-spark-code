@@ -7,6 +7,7 @@ import path from 'node:path'
 import { READ_BACK_USD, isTurnedAwayUnsent, modelNamed } from './admission.mjs'
 import { microUsd } from './budget.mjs'
 import { jsonLines, runCommand, saidIn, startEditor } from './product.mjs'
+import { parseUsageOutput } from './record.mjs'
 import { editorArguments, routeArguments } from './routes.mjs'
 
 const MODEL_OPTION = 'model'
@@ -237,14 +238,15 @@ export function personFor(cell) {
     command,
     exec,
     openEditor,
-    /** The product's own usage records for this home, as `usage --json` prints them. */
+    /**
+     * The product's own usage records for this home, as `usage --json`
+     * prints them. An unreadable usage fails the scenario: it is spend
+     * nobody knows, never an empty reading.
+     */
     async usage() {
-      const printed = await command(['usage', '--json'])
-      try {
-        return JSON.parse(printed.stdout).records ?? []
-      } catch {
-        return []
-      }
+      const read = parseUsageOutput(await command(['usage', '--json']))
+      if (!read.ok) throw new Error(`the usage could not be read: ${read.reason}`)
+      return read.records
     },
     /** The text of a file in the workspace, or nothing when there is none. */
     file(name) {
