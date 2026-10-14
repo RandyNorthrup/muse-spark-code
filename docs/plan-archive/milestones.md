@@ -13116,3 +13116,606 @@ release claim. See `docs/certification/int0170.md` and `int0170-ci.json`.
 - [ ] Release lane: 0.17.0 version/README summary, hosted cross-platform CI and publication.
 
 <!-- plan-archive:end id="milestones-bb25544b7-17204" -->
+
+## PROVWIZ10 — Re-entry credential comparison and retry receipts (2026-10-09)
+
+<!-- plan-archive:begin id="milestones-898a26c5e-15394" lines="15394-15401" at="898a26c5e" bytes="589" sha256="a563b4ead8b0ed8cc9e0020c277d2e209dfd420f5d56078f046d69ec7d3cd71c" -->
+
+Repair both RVPROVWIZ9C P2 findings on `00df4f872`. Edit snapshots and save
+preflight compare the same host-only credential record, including an old key
+refused at the saved origin. Reopening after an address/key-write partial save
+must accept a newly tested replacement while a concurrent credential change
+still conflicts. Confirmed quick-pick limit retries carry completed provider,
+key and default receipts into every later partial outcome, using existing
+translations in all 14 languages. Keep validation before writes, ordered saves,
+no rollback and origin-bound transport security.
+
+<!-- plan-archive:end id="milestones-898a26c5e-15394" -->
+
+<!-- plan-archive:begin id="milestones-898a26c5e-15403" lines="15403-15410" at="898a26c5e" bytes="607" sha256="736cf72561d7a1bb5247fb1c634590818b0f58d07e558fc10eb67b2e41a223fa" -->
+
+Add production/shared-form recovery and conflict regressions and a production
+store/facade/settings retry regression. Revert each fix, observe its complete
+test file fail, restore SHA-256 bytes exactly, then rerun all owning files,
+request goldens, one unit tsc, formatting, ESLint and localization. Inspect the
+inherited surface-English overage; shorten duplicated or verbose existing
+strings if possible without new keys or a cap change. Update certification and
+planning status. Aggregate quality/release gates remain lead-owned under the
+rig brief; no merge, rebase, push, subagents or paid/live calls.
+
+<!-- plan-archive:end id="milestones-898a26c5e-15403" -->
+
+<!-- plan-archive:begin id="milestones-898a26c5e-15412" lines="15412-15422" at="898a26c5e" bytes="862" sha256="feca0b9f239c03f592329dd9fbdcda30e0ef6d556aba57785b83b247adb799f1" -->
+
+Completed: both P2 repairs and the existing-string surface-English cap fix.
+Macbook passes 46 complete owning files / 833 tests, 152 request goldens and
+141 Help/browser-English tests at repository deadlines, both SHA-256-exact
+reversion drills, one unit tsc, changed-file lint/format, localization/reference/
+host API, plain Knip and the production build. Surface English is 25595 / 25600
+bytes after shortening `referenceQuestionsDeferral` in English and all 14
+translations, with no new keys or cap change. English/German production visuals
+pass at 690/320 px. Plain jscpd retains the inherited 21 clones / 287 lines /
+1970 tokens; no new clone remains. Next slice: lead review and cross-rig release
+gates, including the inherited duplication hold, then PROVSTORE-LOCKLIB after
+M123 for accepted cross-window last-writer-wins. See certification for receipts.
+
+<!-- plan-archive:end id="milestones-898a26c5e-15412" -->
+
+## PROVWIZ9 — Ordered save, honest partial outcomes, no rollback (2026-10-09)
+
+<!-- plan-archive:begin id="milestones-898a26c5e-15428" lines="15428-15438" at="898a26c5e" bytes="854" sha256="dd80e3eb15c23705c45cf019dc8c3bdcd571591ecbd068d5d65baa5a5a5f0b28" -->
+
+Replace PROVWIZ8 recovery after RVPROVWIZ8C's three P2 findings. Validate
+address policy, private consent, provider schema/token limits, credential/default
+snapshots and an edited spending limit before any write. Save changed provider
+fields in one atomic provider-file mutation, then an explicitly entered key
+bound to its origin, an explicitly chosen default, the edited spending limit,
+and finally the current conversation model when requested. Stop on a failed
+step; keep completed writes and name completed, failed and skipped steps in
+all 14 UI languages. Delete rollback and inverse machinery. Every Save outcome
+attempts panel refresh; refresh failure appends information without erasing the
+original outcome. Other partial or stale persisted drafts reopen to finish;
+budget-only partial drafts keep a freshly read comparison baseline for retry.
+
+<!-- plan-archive:end id="milestones-898a26c5e-15428" -->
+
+<!-- plan-archive:begin id="milestones-898a26c5e-15440" lines="15440-15454" at="898a26c5e" bytes="1164" sha256="6ea159d616d83003d82d817d17c0035d391f449f0911773751a6727001d596cc" -->
+
+Prove every failure boundary, same-window snapshot conflicts, the invalid
+inverse and absent-routing review scenarios, and address-change/key-failure
+origin rejection through the production store/shared form. Run complete
+provider/models/capability suites and request goldens at repository deadlines,
+byte-exact red/restored drills, changed-file format/lint, one unit-project tsc,
+localization/reference/host API, static gates, build budgets and visual checks.
+Record receipts in `docs/certification/provcat.md`. Aggregate quality, coverage,
+packages, hosted multi-OS/editor and live qualification remain lead-owned under
+the rig/common brief; inherited duplication hold remains. Schema/default
+preflight stays in the existing lazy provider-store port, keeping provider
+schemas out of the Models host bundle. The unchanged base and this lane both
+produce a 25651-byte surface-English chunk on macbook, over its 25600-byte cap;
+record this inherited build hold without changing the cap. No dependency, gate,
+hook, paid/live call, merge, rebase, push or subagent changes. Shared editor
+bridges receive the same form; ACP's persisted provider schema stays unchanged.
+
+<!-- plan-archive:end id="milestones-898a26c5e-15440" -->
+
+<!-- plan-archive:begin id="milestones-898a26c5e-15456" lines="15456-15459" at="898a26c5e" bytes="290" sha256="d2a0b91d69ae507fab47556092420f32aefdef362a1bf33b38ba44abc3c42210" -->
+
+The accepted cross-window residual remains: Two editor windows saving the same
+provider at the same moment: last writer wins for fields both changed; no secret
+is exposed; follow-up PROVSTORE-LOCKLIB moves the provider store and key rotation
+onto the shared lease after M123 lands on main.
+
+<!-- plan-archive:end id="milestones-898a26c5e-15456" -->
+
+## PROVWIZ8 — Save recovery and refresh honesty (2026-10-09)
+
+<!-- plan-archive:begin id="milestones-898a26c5e-15465" lines="15465-15473" at="898a26c5e" bytes="696" sha256="b3d9d883e3e9be46d460adda77df3a815c9862a46b4023577cbe4ec29f9628e7" -->
+
+Repair RVPROVWIZ7C P2-4 and P2-3 on `5f09bc0e2`: a successful provider
+save followed by a snapshot-refresh failure says “Provider saved; the panel
+could not refresh — reopen it” in all 14 languages. Retire the saved draft so
+it cannot retry against an obsolete baseline; still apply a submitted spending
+limit and report its own partial outcome. Rollback applies only the inverse of
+this save's changed fields inside the existing store mutation, preserving
+unrelated providers and later field changes. Prove credential-write and composer
+refusal interleavings through the production store/shared form, with byte-exact
+red drills and complete provider/models suites at repository deadlines.
+
+<!-- plan-archive:end id="milestones-898a26c5e-15465" -->
+
+<!-- plan-archive:begin id="milestones-898a26c5e-15475" lines="15475-15476" at="898a26c5e" bytes="384" sha256="bccd4a0c54905d58d201b810cd721e2e46c3e2270b9e6b7250c86df1df3621b9" -->
+
+The lead accepts RVPROVWIZ7C P2-1/P2-2 as a 0.17.1 residual; keep the current
+in-window comparison and add no second lock implementation. Two editor windows saving the same provider at the same moment: last writer wins for fields both changed; no secret is exposed; follow-up PROVSTORE-LOCKLIB moves the provider store and key rotation onto the shared lease after M123 lands on main.
+
+<!-- plan-archive:end id="milestones-898a26c5e-15475" -->
+
+<!-- plan-archive:begin id="milestones-898a26c5e-15478" lines="15478-15482" at="898a26c5e" bytes="348" sha256="eb69ddf6f217c561a75a22e3ea08c9776afd2f789e5178e5d999b051d15d2c09" -->
+
+Run changed-file Prettier/ESLint, one tsc and localization; record receipts in
+`docs/certification/provcat.md`. Shared editor bridges receive the same form;
+ACP's provider schema is unchanged. No subagents, merge, rebase, push, live/paid
+calls, dependency, hook or gate changes. Full quality remains lead-owned under
+the explicit rig/common brief.
+
+<!-- plan-archive:end id="milestones-898a26c5e-15478" -->
+
+## PROVWIZ7 — Save compares changed fields with the edit snapshot (2026-10-09)
+
+<!-- plan-archive:begin id="milestones-898a26c5e-15488" lines="15488-15495" at="898a26c5e" bytes="615" sha256="012acf78fc39d859a176efa43b5107cd15f81a53c3eb9f60cfa36ad08cb99832" -->
+
+Repair RVPROVWIZ6C's two P2 findings on `d32349de1`. A saved-provider draft
+records its opening provider/default/credential on the host. Only an explicitly
+entered credential may be written; untouched credentials retain later rotations
+or removals. Apply changed provider fields to the current entry inside the
+production store's protected mutation, after private-network consent. Compare
+each edited field (including individual token limits, routing, default and key)
+with its opening value; a competing change stops Save without overwriting it and offers
+Reload, retaining typed values until the user chooses it.
+
+<!-- plan-archive:end id="milestones-898a26c5e-15488" -->
+
+<!-- plan-archive:begin id="milestones-898a26c5e-15497" lines="15497-15506" at="898a26c5e" bytes="804" sha256="17aba0ed85fbd811acef6b66d78e4634c2703c7410e3324de209cff7b14ad10c" -->
+
+Prove newer/cleared stored credentials survive limit-only Save, untouched fields
+changed during the consent wait survive, and both-changed fields conflict with
+no overwrite. Keep existing edit/key-change, validation, rollback and partial
+budget-save behavior. Run complete provider/models suites in batches of at most
+three at repository deadlines, changed-file prettier/ESLint, one host typecheck,
+localization/reference and individual static/build checks. Record byte-exact
+guard drills in `docs/certification/provcat.md`. Shared React and editor bridges
+use the same contract; ACP's persisted provider schema is unchanged. No subagents,
+merge, rebase, push, credential access, live/paid calls or gate changes. Aggregate
+quality and inherited duplication cleanup remain lead-owned under the rig brief.
+
+<!-- plan-archive:end id="milestones-898a26c5e-15497" -->
+
+## PROVWIZ6 — Provider wizard/wiring integration and RVPROVWIZ5G (2026-10-09)
+
+<!-- plan-archive:begin id="milestones-898a26c5e-15512" lines="15512-15519" at="898a26c5e" bytes="622" sha256="67f5bde8b149b90b367018b07e8868278922aaada5d2ca60899e9b5d4ea88cba" -->
+
+Use one host-owned full snapshot factory for Edit, Change key and Change key →
+Edit, including routing, models/limits, format, pinned/compat/prices, the saved
+file default and private-network consent. Save overlays only changed draft
+fields on the current entry; an untouched default, secret or optional field is
+never synthesized or rewritten. Keep credential/connection validation and the
+production store transaction. Admit one queued Save per draft and disable both
+shared Save controls until it settles; failures retain the draft for retry.
+Declined private-network consent uses the existing confirmation sentence.
+
+<!-- plan-archive:end id="milestones-898a26c5e-15512" -->
+
+<!-- plan-archive:begin id="milestones-898a26c5e-15521" lines="15521-15531" at="898a26c5e" bytes="863" sha256="3a60b9708fc99d83c96ab957adaab0b0d7867657d3c08546615ea2b197d810bb" -->
+
+Qualify the merged provider lanes with real host/store and captured transport
+regressions, including the reviewer's unchanged ZDR Edit → Save, second/other/
+absent defaults, duplicate Save and private consent refusal. Supply the wizard
+lane's required spending-limit port in the older capture-backed wiring fixture;
+retain every existing assertion. Run complete named models/provider suites in
+batches of at most three at repository deadlines, changed-file lint/format,
+five typechecks, localization/reference and individual static/build gates.
+Append byte-exact red/restored receipts to `docs/certification/provcat.md`.
+No subagents, merge, push, live/paid call, dependency or gate change. Aggregate
+quality and hosted/editor qualification remain with the lead per the rig brief.
+Shared webview/editor bridges and ACP's stored provider contract remain intact.
+
+<!-- plan-archive:end id="milestones-898a26c5e-15521" -->
+
+## PROVWIZ2R5 — PROVWIZ2 round 5: RVPROVWIZ4G repairs (2026-10-09, macmini)
+
+<!-- plan-archive:begin id="milestones-898a26c5e-15537" lines="15537-15550" at="898a26c5e" bytes="1018" sha256="d49bfe25131303165463981190def898dec501b10a00cf0a47226e258628a08b" -->
+
+Save a saved provider's limits without requiring a fresh credential test when
+its connection is unchanged. Address, format and key changes
+still require Test. Keep the real Edit form open until the host removes its
+draft after success; failed saves retain typed values and display the specific
+failure with credential redaction. Report successful saves in the panel.
+Prove Edit → host Save → production provider file → re-open Edit, plus failure
+and retry, through the rendered shared form. Correct the round-3 certification
+text to provider-first persistence and explicit partial success on limit failure.
+Run Models suites at repository deadlines, byte-exact red/restored drills,
+five typechecks, changed-file lint/format and the prescribed individual gates.
+Full quality belongs to the lead per the rig brief; no merge, push, live/paid
+call, dependency or gate change. Existing editor bridges and ACP's provider-file
+reader retain the same limits contract. Record receipts in
+`docs/certification/provcat.md`.
+
+<!-- plan-archive:end id="milestones-898a26c5e-15537" -->
+
+## PROVWIZ2R4 — PROVWIZ2 round 4: RVPROVWIZ2 repairs (2026-10-09, macmini)
+
+<!-- plan-archive:begin id="milestones-898a26c5e-15556" lines="15556-15564" at="898a26c5e" bytes="670" sha256="a2cacbeb3085f824a62f4212cdf98ae756356842f417176a4e000cef6def2d83" -->
+
+Owner decisions: an untouched spending-limit field writes nothing; an edited
+value writes only while the setting still equals its prefill. A concurrent
+change is shown with a request to confirm the typed value. Save the provider
+first; a subsequent limit failure must say the provider was saved and the
+limit was not changed, with its reason. Keep saved custom model limits in
+edit/key-change drafts, expose their fields, and persist edits. Back from an
+incomplete Models step keeps entered limits and allows returning to Models.
+The native setting stores a number; refuse exact-decimal input that cannot
+round-trip through its non-negative numeric schema without loss.
+
+<!-- plan-archive:end id="milestones-898a26c5e-15556" -->
+
+<!-- plan-archive:begin id="milestones-898a26c5e-15566" lines="15566-15574" at="898a26c5e" bytes="681" sha256="494ef30948a650ad888e2675ae6c8299d390d3f53682dbc7b1c8c28a73826655" -->
+
+Use the production provider store and settings writer in regressions, with
+fake VS Code interactions and no service calls. Run complete Models suites
+in batches of at most three at repository deadlines, five typechecks,
+changed-file lint/format, localization/reference and prescribed individual
+static/build gates. Record deliberate failures and byte-exact restores in
+`docs/certification/provcat.md`; commit finished pieces with installed hooks.
+These shared webview/host repairs retain the existing editor bridge; ACP's
+provider file reads the same stored custom limits. No runtime command changes.
+No merge, push, live/paid call or dependency change is authorized in this lane.
+
+<!-- plan-archive:end id="milestones-898a26c5e-15566" -->
+
+## PROVWIRE — Provider setup through the real transport and panel (2026-10-09)
+
+<!-- plan-archive:begin id="milestones-898a26c5e-15580" lines="15580-15593" at="898a26c5e" bytes="1026" sha256="6cf978b83ff6cdfcaa0bfa56ae983f8a5cc88f4fafbb673282b5028f09f670e0" -->
+
+Close RVWIRING F2–F7 for 0.17.1 with the production panel catalogue,
+configured-provider service and checked-in M95 captures; fake only pinned
+dispatch, DNS and host storage/UI. Resolve format as `entry.format ??
+preset.format` without changing the persisted schema: ordinary presets retain
+their canonical format and custom servers retain their explicit override.
+Preserve captured prices/free flags and stable price fingerprints, share the
+preset key-test contract between CLI and panel, default OpenRouter to ZDR,
+retain replacement keys in edit drafts, and settle failed scans with a safe
+localized reason and retry. Keep panel changes small for PROVWIZ2; leave F10's
+logging to its owning lane. No live/paid calls, dependencies, merges or pushes.
+Run failing-first tests and byte-exact red/restored drills, scoped lint/format,
+five typechecks, provider/models suites, localization and reference checks.
+The lane rules reserve aggregate quality for the lead. Receipts:
+`docs/certification/provcat.md`, PROVWIRE section.
+
+<!-- plan-archive:end id="milestones-898a26c5e-15580" -->
+
+<!-- plan-archive:begin id="milestones-898a26c5e-15595" lines="15595-15601" at="898a26c5e" bytes="538" sha256="fd29e7cd45ca5aaa068eb0347a0769dd9abb80351eefa01a729f594af0494529" -->
+
+Completed: F2–F7 are capture-backed through the real facade, with 14
+byte-exact red/restored drills. Final macmini verification passes 44 complete
+provider/models files (739 tests at repository deadlines), five typechecks,
+changed-file ESLint/formatting, localization (0), reference, host API, plain
+knip, zero-clone duplication and the production build within all existing caps.
+The optional persisted format remains unchanged. Full quality, hosted CI and
+installed-editor/live certification remain with the lead under the lane brief.
+
+<!-- plan-archive:end id="milestones-898a26c5e-15595" -->
+
+<!-- plan-archive:begin id="milestones-898a26c5e-15603" lines="15603-15612" at="898a26c5e" bytes="758" sha256="c1439a1d29f92343069b5483f643f0e437fa5bed5ac8d32961767f1869002547" -->
+
+Round 2 (RVPROVWIREG finding 1, P2): seed every saved-provider edit draft,
+including Change key and Change key followed by Edit, with the saved routing's
+privacy, provider order and fallback choice. Save uses that seeded draft;
+new OpenRouter providers still default to ZDR. Regressions replay the saved
+`any`/ordered/fallback-enabled row through replacement key, Edit, Test and
+Save, and cover plain Edit and direct Change key, including `no-training`
+and disabled fallbacks. Record failing-first and byte-exact routing drills
+in the PROVWIRE certification, then run provider/models suites at repository
+deadlines, changed-file lint/format and all five typechecks before a normal-hook
+local commit. No new feature, wire shape, dependency or live/paid call.
+
+<!-- plan-archive:end id="milestones-898a26c5e-15603" -->
+
+<!-- plan-archive:begin id="milestones-898a26c5e-15614" lines="15614-15621" at="898a26c5e" bytes="569" sha256="85e2115b62863e188a9c0caca4a57d2fb23fc6dc50edd19e7026a163e1fec489" -->
+
+Round 2 completed: saved routing and the replacement key survive every edit
+flow; new providers remain ZDR. Macmini passes 44 complete provider/models
+files (746 tests, default deadlines), all five typechecks, changed-file
+ESLint/formatting, localization/reference/host-API checks, plain Knip,
+zero-clone duplication and the production build within unchanged caps.
+Four deliberate routing breaks fail and restore SHA-256-exact bytes; see
+the round-2 PROVWIRE certification. Aggregate quality and hosted/editor/live
+qualification remain lead-owned under the lane rules.
+
+<!-- plan-archive:end id="milestones-898a26c5e-15614" -->
+
+<!-- plan-archive:begin id="milestones-898a26c5e-15623" lines="15623-15631" at="898a26c5e" bytes="695" sha256="1fa52f936f49e35b2d28bfd7366c45be5cd609ad47e775768704eca0e47c5024" -->
+
+**CX1R3 removal pass (RVCX1B, 2026-10-10; ships in 0.17.1).** Remove dormant
+feature claims and usage from current README, Help, What's New and editor
+records; retain historical changelog text with dated corrections. Put dormant
+work in roadmap In progress without capability or shipped claims. Keep complete
+reference coverage validation before filtering its user-facing publication;
+archive corrected release bullets from What's New rather than qualifying them.
+The compact CLI help is also a current Help surface: remove its v2 schedule
+grammar and inactive automatic-compaction option without altering parsers.
+No feature implementation, dependency, gate widening, merge, push or live call.
+
+<!-- plan-archive:end id="milestones-898a26c5e-15623" -->
+
+<!-- plan-archive:begin id="milestones-898a26c5e-15633" lines="15633-15635" at="898a26c5e" bytes="238" sha256="9b8cdc6c0470a9342b79b764be11c5cd628d5d6d68f76667dca8a9f6dc504e0e" -->
+
+Plan: [x] current surfaces and roadmap; [x] regression tests and byte-exact red
+drills for every finding and sibling class; [x] scoped rig gates; [x] hooked
+commits, committed-diff review and certification in `docs/certification/cx1.md`.
+
+<!-- plan-archive:end id="milestones-898a26c5e-15633" -->
+
+## M53 follow-up — Account & usage reset accuracy
+
+<!-- plan-archive:begin id="milestones-898a26c5e-17037" lines="17037-17062" at="898a26c5e" bytes="1877" sha256="f8532a486491d299bb59f356ce66dad0dcf44b31df38887272018064d310465a" -->
+
+- Use Muse Code's `usage/read` and `usage/changed` account percentages and
+  absolute reset timestamps as reported. Its SDK has one account-level usage
+  payload, not model-specific quota or plan-name fields. Meta's public Muse
+  Code subscription page publishes an Everyday five-hour allowance, with
+  High 5× and Power 20× capacity, but no per-model conversion or weekly reset
+  rule. The owner's personal Muse Power/Maximum Upgrade screen is separate
+  from Muse Code CLI usage; its weekly token grants do not establish the CLI's
+  `usage/read` entitlement. Do not derive countdowns or usage weights from
+  either plan table, selected model or opaque MSP tier.
+- Recompute visible countdowns while Account & usage stays open, at least
+  once per minute. When a reported reset has passed without a newer frame,
+  label that row as awaiting fresh usage and hide its old percentage and
+  countdown. Retain the observation's age so the user can see why.
+- Drop the global last-usage fallback and attempt to erase its legacy stored
+  value on activation. Cleanup failure does not block activation because no
+  code reads the old value. It has no account identity, so a new sign-in must not inherit
+  another account's plan, percentages or reset time. Clear the webview's
+  report on authentication changes. An empty `usage/read` also clears a
+  same-host observation because the account may have changed. Within one
+  live host, prefer the newest `observedAtMs`; an older or empty read begun
+  before a newer `usage/changed` must not overwrite that event. Discard
+  results from a host stopped or replaced.
+- The timer, expired row, authentication boundary and out-of-order delivery
+  red drills failed before correction and passed after. Exact integrated
+  quality and hosted gates passed before PR #41 merged; the isolated
+  checkpoint alone was never used as certification.
+
+<!-- plan-archive:end id="milestones-898a26c5e-17037" -->
+
+## M26 follow-up — Refresh README badges after publication (BADGES)
+
+<!-- plan-archive:begin id="milestones-898a26c5e-17007" lines="17007-17018" at="898a26c5e" bytes="928" sha256="592cff6b223f6741427df048e0dcf1e7e97d7be5b88d5043cb234ef21e6820e1" -->
+
+The 0.13.0 release exposed stale badge-service and GitHub image-proxy caches.
+Extend the existing release workflow and scripts without changing publication:
+BADGES-A waits at most 15 minutes, polling every 30 seconds, for all four public
+channel versions; BADGES-B requests README badge URLs and retries older version
+answers with a cache-busting query; BADGES-C purges the repository page's camo
+images and logs statuses. Every failure warns only, with no credential required.
+The final job requires the summary's successful, all-published outcome.
+Fake-fetch tests and red drills cover parsing, version ordering, retries,
+polling bounds and warning-only failures; hosted public-service proof remains
+the lead's next release check. Implemented: 40 focused tests and 14 red drills
+passed, with typecheck and required focused gates green on the worktree merged
+with `8c894b60a`. Evidence: [BADGES](docs/certification/badges.md).
+
+<!-- plan-archive:end id="milestones-898a26c5e-17007" -->
+
+## TRAIN13B — Release-train size recovery and complete Kubuntu gate (2026-10-05)
+
+<!-- plan-archive:begin id="milestones-898a26c5e-17509" lines="17509-17513" at="898a26c5e" bytes="1556" sha256="c16ae2a3d5d8bb068961c32f639f54a6e226d20694d59169d743f6ef50b02c72" -->
+
+- [x] Confirm both checkpoint test files pass in the cleared normal temporary directory.
+- [x] Defer Account & usage, Agent map, best-of-N, board, history and review UI until opened, with accessible loading/cancellation, ESM chunks and startup-transitive size/split/packaging guards. Keep the 900 KiB startup cap and at least 20 KiB headroom.
+- [x] Share the Node bundles’ used zod/mini exports in one guarded runtime beside uiText; browser and integration builds retain their inline parser. Ship that runtime in the VSIX and both ACP packages. Keep every existing cap; give only the new measured artifact its D6 measured-plus-15%-rounded-to-25-KiB cap.
+- [x] Stage the VSIX in the worktree, minify its JSON without changing source tables, check shipped localization bytes, and use a concise marketplace README linking the complete repository guide. Ship Unreleased and the newest two released changelog sections with a full-history link; retain the complete source changelog. Preserve privacy, skills, helpers and every runtime feature. Test exclusions against actual package collection.
+- [x] Measure with the real universal helper extracted from the 0.12.1 release asset (119,342 compressed bytes), then run full quality and the unchanged VSIX gate. Drill new guards, restore byte-exact, update train certification/result and the reviewable PR description. Local hook-on commits only; no merge, push, paid or live model call. The specific brief authorizes full quality and read-only release-asset retrieval despite common.md’s ordinary lane limits.
+
+<!-- plan-archive:end id="milestones-898a26c5e-17509" -->
+
+## M119 — Agent activity, honest outcomes and receipts (D101)
+
+<!-- plan-archive:begin id="milestones-898a26c5e-33205" lines="33205-33210" at="898a26c5e" bytes="449" sha256="1b3cee6f2ba25d6c78a672a5b3f4e9a4ba25551496f55a35cb5ff565056b473b" -->
+
+Implementation evidence: Model API children previously could not write their own
+task list. Offer child-local `todo_write` (never forwarded to the parent list)
+as a structured unfinished-item declaration; absent a declaration, normal ends
+remain unverified. Parent conversation terminal behavior stays unchanged.
+Native ended-child Continue refuses until a capture proves preserved-session
+recovery; interrupted Resume remains the captured control.
+
+<!-- plan-archive:end id="milestones-898a26c5e-33205" -->
+
+<!-- plan-archive:begin id="milestones-898a26c5e-33212" lines="33212-33223" at="898a26c5e" bytes="950" sha256="9cae60c06c689f5fe3f6e4d01b081f33ec38565fd8635f7a3cc38be6472f222a" -->
+
+- [x] Record backend evidence and recovery limits before implementation.
+- [x] Portable structured outcome/activity mapping and bounded receipt evidence.
+- [x] Live Agent map, workflow and background task activity/outcomes; lazy receipts.
+- [x] Owner-confirmed Continue and Retry with honest unsupported refusals,
+      preserved original objective/session/edits and numbered attempt history.
+- [x] ACP /agents inspection, receipt and recovery parity for all editors.
+- [x] Fourteen translations, Help & Reference/feature catalog, README screenshots.
+- [x] Owning unit tests at default timeouts, intentional mapping failure with
+      byte-exact restoration, five typechecks, lint, prettier, plain knip,
+      duplication, localization/reference/host gates and unchanged production caps.
+- [x] Four-theme zero-violation harness scenes, CHANGELOG and certification record
+      in docs/certification/agent-outcomes.md with completed/blocked evidence.
+
+<!-- plan-archive:end id="milestones-898a26c5e-33212" -->
+
+## MUSE143 — Verify Windows upstream fixes on Muse Code 1.4.3 (2026-10-05)
+
+<!-- plan-archive:begin id="milestones-898a26c5e-16975" lines="16975-16981" at="898a26c5e" bytes="499" sha256="467686b1dfcfecb31f61013c5fab20f549804e0dcbb0ae8dc47a7f90c72c9263" -->
+
+Scoped maintenance on `fix/muse-1.4.3`: use the owner's signed-in
+1.4.3-R5018.1 CLI, an empty temporary workspace and at most six short
+contributor-model turns to capture #29 approval settlement, #30 rename,
+#31 fork and #26 sandbox working-directory evidence. Never touch credentials.
+Lift a workaround only for a version proven fixed; retain fault detection
+and older-version behavior. A successful sandbox command on this already
+prepared host does not prove the fresh-setup failure fixed (D12).
+
+<!-- plan-archive:end id="milestones-898a26c5e-16975" -->
+
+<!-- plan-archive:begin id="milestones-898a26c5e-16983" lines="16983-16991" at="898a26c5e" bytes="604" sha256="39dc7dad40ba70ef07f529c24d07123e55ce4ff43b532e88205d153109e94b58" -->
+
+- [x] Capture scrubbed MSP evidence, count turns/model attempts, stop the
+      owned server and remove the temporary workspace.
+- [x] Apply only evidence-backed compatibility changes in the existing
+      shared core and localized notices; test both version sides and fire
+      the affected guards with byte-exact restoration.
+- [x] Update README, changelog, certification and the upstream research
+      note. Update the feature catalog only if present on this base.
+- [x] Merge the current release candidate, run scoped gates on the rigs,
+      and commit explicit paths with existing hooks enabled.
+
+<!-- plan-archive:end id="milestones-898a26c5e-16983" -->
+
+<!-- plan-archive:begin id="milestones-898a26c5e-16993" lines="16993-17001" at="898a26c5e" bytes="632" sha256="3c3f6ad6f5790fd1283a24c3c5e7a5f5b18a6e5ecc3922368a3a4ea7000c1033" -->
+
+Evidence and remaining upstream limitations belong in
+`docs/certification/muse143.md` and `docs/research/muse-1.4.3-upstream.md`.
+Mac mini: 676 scoped tests passed, all five typechecks, scoped lint/format,
+deadcode, zero duplication, l10n, host API and production caps passed.
+Both before-fix failures and the version-boundary mutation fired; the
+mutated file was restored byte-exact. Existing commit hooks stay on.
+Shared MSP compatibility serves every extension host; the ACP runtime uses
+the same core. No editor-specific control or new UI is planned. Full
+aggregate quality remains the lead's gate, per the lane's common rules.
+
+<!-- plan-archive:end id="milestones-898a26c5e-16993" -->
+
+## DEP138 — Dev dependency updates without lint heap growth (2026-10-07, linuxlt)
+
+<!-- plan-archive:begin id="milestones-898a26c5e-16781" lines="16781-16785" at="898a26c5e" bytes="384" sha256="5abb2200839c4623e0ba15213130fce4b3e247325e6c97c4b0c0948a69c9e116" -->
+
+Replace Dependabot PR #138 from release base `a715a834` with exact reviewed
+development-tool pins. Preserve all rule levels, files, coverage thresholds,
+test deadlines and production bundle caps. Diagnose lint memory before choosing
+a structural configuration repair; hold only an offending package if no safe
+repair exists, and register a measured heap flag only as the last resort.
+
+<!-- plan-archive:end id="milestones-898a26c5e-16781" -->
+
+<!-- plan-archive:begin id="milestones-898a26c5e-16787" lines="16787-16829" at="898a26c5e" bytes="3109" sha256="8cb1430657050d429b9394d243bf4408e421fae07750aa3ebb37f68391adc24f" -->
+
+- [x] Read all six upstream changelogs, check exact peers and baseline audit.
+- [x] Measure baseline lint and isolate update-induced memory growth with CI's
+      Node 22; compare immutable parser programs before selecting a remedy.
+- [x] Install the reviewed exact versions, repair the cause and prove any new
+      regression guards fail under a deliberate restored mutation.
+      Add fake-only ACP transport checks for the SDK's new byte cap: exact
+      UTF-8/CRLF admission, split-frame refusal and upstream cancellation.
+- [x] Verify a fresh `npm ci` clone of `d3fff81f` with `CI=true`: five
+      typechecks, JavaScript/CSS lint, formatting, plain knip, duplication,
+      localization/reference/host API, cycles, unchanged production caps,
+      audit, secret scan and SAST. Lint peaks at 5,495,896 KiB, exit 0;
+      PowerShell analysis is an explicit Linux skip.
+- [x] Certify legal accessibility: 96 native keyboard/zoom checks and English
+      plus pseudo WCAG scans pass on Linux.
+- [x] Reproduce the changelog-version guard's 5 s timeout on the release base
+      and accepted pins with V8 coverage (7.026 s / 7.505 s).
+- [x] Scope that guard's real Markdown fixture to the manifest release; keep
+      its existing date/Highlights assertions and complete-history validation
+      in the real-parser tests and production build. Both missing-Highlights
+      and invalid-Try-it drills fail (one failed, one passed), exact bytes are
+      restored, and 23 focused tests pass with V8 coverage. Changed-file lint,
+      unit typecheck and unchanged production caps pass. No deadline changes.
+      Superseded at the 0.16.0 join (batch PR, 2026-10-08): main already
+      parses the full history once in `beforeAll`, outside the test deadline,
+      so the batch keeps main's guard and drops this rescoping.
+- [x] PR #144 review: SDK 1.5.1's option-free `ndJsonStream` refuses lines
+      over 32 MiB, below a valid prompt with three near-10 MiB images. Both
+      production streams (stdio agent, team host's ACP children) now open
+      through `src/shared/acpStream.ts` with `ACP_MAX_MESSAGE_BYTES`
+      (`MAX_ENCODED_MEDIA_CHARS` + 16 MiB). Tests read a three-image prompt
+      through the real SDK, refuse a line past the bound, and fail if any
+      other production file calls `ndJsonStream(` directly.
+- [x] Assign the full coverage and accessibility gates: hosted CI on the pull
+      request is the full gate (coverage, accessibility; §7 "DEP138 rig
+      verification"). The rig's three-file coverage batches were not completed.
+      The first full accessibility run had zero violations but four `long`
+      readiness timeouts; it stays recorded as a failure. All 119 browser
+      JS/CSS bundles match baseline exactly, none of the bumped packages takes
+      part in the harness, and main's PR #139 (merged into this branch) fixed
+      harness readiness.
+- [x] Record receipts in `docs/certification/deps-0150.md` and CHANGELOG;
+      merge main (`18dc7365`) and commit locally with hooks and explicit
+      paths. No push, rebase, credential disclosure or paid/live model call.
+
+<!-- plan-archive:end id="milestones-898a26c5e-16787" -->
+
+<!-- plan-archive:begin id="milestones-898a26c5e-16831" lines="16831-16833" at="898a26c5e" bytes="199" sha256="b0019c05a2d3f04055c06875328ffbfe2abf7ba2d84670ff17628575295d7b7c" -->
+
+Re-measure point: typescript-eslint 8.71.1 (PR #12957, fixing issue #12956)
+clears `.npmrc`'s seven-day release age on 2026-10-12. Measure its lint peak
+before accepting it (D3, "DEP138 selection").
+
+<!-- plan-archive:end id="milestones-898a26c5e-16831" -->
+
+## FLAKEMERGE — Start the team harness target wait at the played scene (2026-10-08)
+
+<!-- plan-archive:begin id="milestones-898a26c5e-16727" lines="16727-16749" at="898a26c5e" bytes="1638" sha256="5a0c7eb7c4e83e8e680102eb8cfac1cedb80bbea05a35e254076934265f8b26b" -->
+
+- [x] Explain the hosted Windows pseudo-locale merge-card timeout from CI
+      durations and phase measurements under CPU starvation.
+- [x] Mark the scene played in the harness (`data-scenario-played`) once its
+      steps, waits and events have run; never after a failed step.
+- [x] Start the merge-card and tree deadline there; navigation and playback
+      share the existing bounded wait. No deadline, retry, skip or assertion
+      changes; same targets at 320 px in the pseudo-locale.
+- [x] Prove the new unit and browser regressions fail on purpose; record
+      repro rates before and after (at least 20 runs after) in
+      docs/certification/flake-team-merge-wait.md; commit with hooks.
+- [x] Review RVTEAMFLAKE P2: count awaited native events (`whenEvent`) and
+      awaited promises (`track`); jump-scroll regressions and a red drill.
+- [x] Review RVTEAMFLAKE2 (third round, redesigned): scenes schedule all
+      work through the counted helpers and call `scenarioDone()` from their
+      final continuation; counted scene work after it fails the scene; a
+      counted failure clears the mark for good and is recorded. The static
+      async guard is replaced by browser coverage of every `PLAYED_SCENARIOS`
+      scene, and the extracted `track` is checked at runtime.
+- [x] Review RVTEAMFLAKE3 (final): the coverage test verifies ordering, a
+      quiet window for logged moves and the absence of page errors (now
+      collected; raw-timer-throw probe). Work started outside the helpers
+      (raw timers, detached promises) is not detected: a code-review rule for
+      scene authors, not something the harness proves.
+
+<!-- plan-archive:end id="milestones-898a26c5e-16727" -->
+
+<!-- plan-archive:begin id="milestones-898a26c5e-16751" lines="16751-16751" at="898a26c5e" bytes="77" sha256="0079b5dc8d5fedb331e76d6f2f40830672c71d35001c754cc1543b801db92049" -->
+
+Scope is the browser harness and its owning tests. No push; the lead pushes.
+
+<!-- plan-archive:end id="milestones-898a26c5e-16751" -->
+
+## SECWINPATH2 — Windows identity and ordinary-workspace repair (2026-10-08, win11)
+
+<!-- plan-archive:begin id="milestones-898a26c5e-16666" lines="16666-16672" at="898a26c5e" bytes="520" sha256="51c732813057473472f523aa25e8c5f90d24136fd9ed964bbb91c712312ea754" -->
+
+- [x] Regressions and native probes: C:/D:/Z:, real 8.3 names, UNC/WSL,
+      admin-share availability, relocated junction roots and storage
+      (directory symbolic links need privilege this host lacks).
+- [x] One red/restored drill per decision; replay new regressions on the base.
+- [x] Fresh npm-ci CI clone: prescribed suites (real-git stores three times),
+      five typechecks, lint/format, knip, duplication, localization, host API,
+      reference and production build; normal hooks, no merge/push/live calls.
+
+<!-- plan-archive:end id="milestones-898a26c5e-16666" -->
+
+<!-- plan-archive:begin id="milestones-898a26c5e-16674" lines="16674-16676" at="898a26c5e" bytes="190" sha256="e925aee3536451bc575935cdc0856ddd6e5ec5a3471de9c0a267faa5c6cbddc5" -->
+
+The shared rules delegate aggregate quality to the lead (§7); scoped gate
+results and hosted-admin-share qualification status are recorded in
+`docs/certification/sec-win-path-aliases2.md`.
+
+<!-- plan-archive:end id="milestones-898a26c5e-16674" -->
+
+## SECWINPATH — Windows path alias security repair (2026-10-08, win11)
+
+<!-- plan-archive:begin id="milestones-898a26c5e-16691" lines="16691-16697" at="898a26c5e" bytes="558" sha256="e1610de6eedab075ff0122397ac5f65a7b9efeeb722e4b6b6754981ae13100bf" -->
+
+- [x] Capture native Win32 normalization and loopback SMB identity in owned temp folders.
+- [x] Run new regressions against the unchanged base, then repair the owning boundaries.
+- [x] Fire stream, trailing-dot and storage-identity guards deliberately and restore bytes.
+- [x] Commit validated pieces with hooks; qualify a fresh `npm ci`, `CI=true` clone
+      with owning suites three times at repository deadlines, five typechecks,
+      changed-file lint/format, plain knip, duplication, cycles, localization,
+      reference and capped production build.
+
+<!-- plan-archive:end id="milestones-898a26c5e-16691" -->
+
+<!-- plan-archive:begin id="milestones-898a26c5e-16699" lines="16699-16701" at="898a26c5e" bytes="245" sha256="37eef627924d921be4db70533ce27455b1b48e0499c9ff4c65baabb13644acfd" -->
+
+The rig brief overrides common.md's stale merge step: no merges, push, paid/live
+calls or aggregate quality. Full aggregate quality remains with the lead under
+the shared lane rules (§7). Receipts: `docs/certification/sec-win-path-aliases.md`.
+
+<!-- plan-archive:end id="milestones-898a26c5e-16699" -->
