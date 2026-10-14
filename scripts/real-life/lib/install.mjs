@@ -6,8 +6,24 @@ import { createHash } from 'node:crypto'
 import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
+import { isPassedOn } from './home.mjs'
 
 export const sha256Of = (file) => createHash('sha256').update(readFileSync(file)).digest('hex')
+
+/**
+ * The environment the installer runs in: the caller's own without anything
+ * that can hold a credential. With the default `--keys env` source the keys
+ * stay in `process.env`, and the child `npm install` must never receive
+ * them; it needs no key (the tarball is a local file).
+ * @param {NodeJS.ProcessEnv} [from]
+ */
+export function installerEnvironment(from = process.env) {
+  const env = {}
+  for (const [name, value] of Object.entries(from)) {
+    if (value !== undefined && isPassedOn(name)) env[name] = value
+  }
+  return env
+}
 
 const NPM_CLI = 'npm-cli.js'
 
@@ -26,10 +42,10 @@ function npmScript() {
   ].find((candidate) => existsSync(candidate))
 }
 
-/** Runs npm with no shell: its command script under this Node, or the `npm` program itself. */
+/** Runs npm with no shell and no credential in its environment: its command script under this Node, or the `npm` program itself. */
 function npm(args, cwd) {
   const script = npmScript()
-  const options = { encoding: 'utf8', cwd, windowsHide: true }
+  const options = { encoding: 'utf8', cwd, windowsHide: true, env: installerEnvironment() }
   if (script !== undefined) return spawnSync(process.execPath, [script, ...args], options)
   // On Windows `npm` is a command script, which only a shell starts: without
   // npm's own script there is nothing this run may start.
