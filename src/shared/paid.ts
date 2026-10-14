@@ -428,7 +428,7 @@ export function paidFeaturePrice(feature: PaidFeature, searchPriceUsd?: UsdAmoun
 }
 
 import { modelApiPaidTier, type PaidTally } from './paidBoundary'
-export { EMPTY_PAID_TALLY, modelApiPaidTier } from './paidBoundary'
+export { paidTallySchema, EMPTY_PAID_TALLY, modelApiPaidTier } from './paidBoundary'
 export type { PaidTally, PaidState } from './paidBoundary'
 // The lazy money hub (`src/webview/money.ts`) reaches every exact display
 // through this module alone, so no webview surface imports exactUsd or usd

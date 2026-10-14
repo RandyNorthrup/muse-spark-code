@@ -52,6 +52,7 @@ const CLEAN_ARGS = ['status', '--porcelain=v1', '-z', '--untracked-files=normal'
 const OBJECT_ID = /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/i
 
 import { BestOfNError, isBestOfNError } from './bestOfNError'
+export { BestOfNError } from './bestOfNError'
 
 /** An attempt's conversation, started by the host around a worktree. */
 export interface BestOfNAttemptDriver {

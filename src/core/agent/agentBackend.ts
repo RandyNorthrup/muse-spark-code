@@ -15,6 +15,7 @@ import type {
 } from '../../shared/agentEvents'
 import type { GoalCommandVerb, ModelPricing, SubagentAction } from '../../shared/constants'
 import type { PlanUsageRow, SubscriptionUsage } from '../../shared/usage'
+export type { QuestionDeferralPort } from '../../shared/questions'
 import type {
   ScheduleCadence,
   ScheduledPrompt,
