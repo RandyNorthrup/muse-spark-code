@@ -12,5 +12,6 @@ export {
   TEAM_COLLECT_WAIT_MAX_SECONDS,
   TEAM_BRIEF_MAX_CHARS,
   TEAM_BRIEF_FILES_MAX_BYTES,
+  TEAM_MCP_TOKEN_BYTES,
   type TeamReasonCode,
 } from '../../shared/constants'

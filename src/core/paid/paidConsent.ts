@@ -30,10 +30,10 @@ import {
   type PaidUseDecision,
   type PaidUseRequest,
 } from '../../shared/paid'
-import { Usd } from '../../shared/usd'
+import { Usd, nonnegativeUsdSchema, type UsdAmount } from '../../shared/usd'
 import type { CoreLogger } from '../logging'
 import { PaidAuthority, paidAuthorityKey, type PaidGrant } from './paidAuthority'
-
+import { type ScheduleV2 } from '../../shared/scheduleV2'
 import { unlessAborted } from '../timeouts'
 
 async function paidTeamRuntime() {
@@ -50,6 +50,38 @@ export type PaidUseAnswer = 'once' | 'always' | 'deny'
  * not be kept, or a feature without a window once).
  */
 export type PaidUseScope = 'once' | 'window' | 'always'
+
+/** A verified selected-model tariff, not a provider-name assumption. No credential value. */
+export interface SchedulePaidIdentity {
+  readonly modelId: string
+  readonly accountId: string
+  readonly priceTier: string
+  readonly price: string
+  readonly sharedDailyBudgetUsd: UsdAmount
+}
+
+export type ScheduleConsent = NonNullable<ScheduleV2['paidConsent']>
+
+export function isScheduleConsentCurrent(
+  schedule: ScheduleV2,
+  identity: SchedulePaidIdentity,
+): boolean {
+  const consent = schedule.paidConsent
+  return (
+    schedule.action.kind === 'prompt' &&
+    consent !== undefined &&
+    nonnegativeUsdSchema.safeParse(consent.dailyCapUsd).success &&
+    consent.dailyCapUsd !== '0' &&
+    nonnegativeUsdSchema.safeParse(consent.sharedDailyBudgetUsd).success &&
+    consent.sharedDailyBudgetUsd !== '0' &&
+    consent.modelId === identity.modelId &&
+    consent.accountId === identity.accountId &&
+    consent.priceTier === identity.priceTier &&
+    consent.sharedDailyBudgetUsd === identity.sharedDailyBudgetUsd &&
+    Usd.from(consent.dailyCapUsd).compare(Usd.from(schedule.paidCapUsd)) <= 0 &&
+    Usd.from(consent.dailyCapUsd).compare(Usd.from(schedule.grant.paidCapUsd)) <= 0
+  )
+}
 
 /** The popup's question, formatted only when its existing runtime first loads. */
 export async function paidUseQuestion(request: PaidUseRequest): Promise<{
@@ -556,4 +588,12 @@ export class PaidUseConsent {
     this.deps.log.info('Paid uses ask again in this workspace')
     this.notify()
   }
+}
+
+/** D88.7: verified local tariff and opaque billing identity; never a credential. */
+export interface PaidAccountBinding {
+  readonly provider: string
+  readonly account: string
+  readonly price: string
+  readonly dailyBudgetUsd: UsdAmount
 }

@@ -333,6 +333,10 @@ export interface PlaybookBoard {
   readonly workers: readonly { readonly id: string; readonly available: boolean }[]
   readonly hasCi: boolean
 }
+export interface PlaybookPlanPort {
+  readBoard(): PlaybookBoard
+}
+
 /** Trusted harness freezes these object ids before verification and push. */
 export interface PlaybookPushRange {
   readonly remote: string
