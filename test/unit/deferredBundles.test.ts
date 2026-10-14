@@ -148,6 +148,7 @@ beforeAll(async () => {
       usagePanel: 'src/host/usage/usagePanelEntry.ts',
       headless: 'src/runtime/exec/runExec.ts',
       modelsPanel: 'src/host/models/modelsPanelEntry.ts',
+      modelsSubscriptions: 'src/host/models/modelsSubscriptionsEntry.ts',
       sessionBoard: 'src/host/sessionBoardEntry.ts',
       reviewer: 'src/core/backends/modelapi/reviewerEntry.ts',
       foreignHooks: 'src/core/backends/modelapi/foreignHooksEntry.ts',
