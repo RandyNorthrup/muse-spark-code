@@ -247,9 +247,29 @@ body {
   height: 1.2em;
 }
 
-/* The Meta mark is wider than tall (256×171). */
-.brand .brand-logo {
+.product-mark {
+  color: var(--ms-brand-mark);
+}
+
+/* The product mark keeps the old logo's box (1.8 x 1.2 em) so the brand
+   row does not shift. Brand blue in day-to-day themes; the theme's
+   foreground in high contrast, CanvasText under forced colors. No animation. */
+.brand .product-mark {
   width: 1.8em;
+}
+
+.vscode-light .product-mark {
+  --ms-brand-mark: var(--ms-brand-mark-light);
+}
+
+:is(.vscode-high-contrast, .vscode-high-contrast-light) .product-mark {
+  --ms-brand-mark: var(--ms-text);
+}
+
+@media (forced-colors: active) {
+  .product-mark {
+    color: CanvasText;
+  }
 }
 
 .hint {
