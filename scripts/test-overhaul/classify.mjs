@@ -24,7 +24,12 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const testDir = path.join(root, 'test')
 
 const FAKE_NAME = /fake|mock|stub/i
-const MOCK_REPLACEMENT = /\.mock(Implementation|ReturnValue|ResolvedValue|RejectedValue)(Once)?$/
+// The chain of a call on a CallExpression receiver (vi.spyOn(x).mockX(...),
+// vi.fn().mockX(...)) is just ["mockX"]: calleeChain stops at the call, so
+// the head carries no leading dot. The first version required the dot and
+// therefore missed every chained spyOn replacement (review RVTESTCUT).
+const MOCK_REPLACEMENT =
+  /(^|\.)mock(Implementation|ReturnValue|ResolvedValue|RejectedValue)(Once)?$/
 const LISTEN_CALL = /(^|\.)listen$/
 const CREATE_SERVER_CALL = /(^|\.)createServer$/
 
@@ -53,8 +58,15 @@ function receiverRoot(expression) {
     if (ts.isPropertyAccessExpression(node)) {
       node = node.expression
     } else if (ts.isCallExpression(node)) {
-      if (calleeChain(node.expression).join('.').startsWith('vi.fn')) {
+      const callee = calleeChain(node.expression).join('.')
+      // vi.fn() is the observer itself; vi.mocked(x) only re-types an
+      // existing seam mock. vi.spyOn(x) is the opposite: a mockX on it
+      // replaces the real method's behaviour, never an observer.
+      if (callee === 'vi.mocked' || callee.startsWith('vi.fn')) {
         return { inlineObserver: true }
+      }
+      if (callee === 'vi.spyOn') {
+        return { spyReceiver: true }
       }
       node = node.expression
     } else if (ts.isIdentifier(node)) {
