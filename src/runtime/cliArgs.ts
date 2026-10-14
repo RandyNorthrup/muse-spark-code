@@ -771,7 +771,8 @@ function parseReport(argv: readonly string[], canUseNamed = true): RuntimeComman
       strict: true,
       options: CLI_OPTION_REGISTRY.report.options,
     })
-    if (values.help === true) return { command: 'help', all: true }
+    // The report command's own help names its kinds; only other help shows everything.
+    if (values.help === true) return { command: 'reports', args: ['--help'] }
     if (positionals.length > 0 || values.out === '') {
       return { command: 'invalid', reason: reportUsage(), exitCode: 2 }
     }

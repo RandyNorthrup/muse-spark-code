@@ -50,14 +50,14 @@ export async function admitBootstrap(signal?: AbortSignal): Promise<ResourceLeas
   return await host.admit('other', signal, 'background', true, undefined, true)
 }
 
-async function disposeHost(onError: () => void): Promise<void> {
+async function disposeHost(onError: (error: unknown) => void): Promise<void> {
   try {
     const host = await state.pending
     host?.dispose()
     // The window's open resource minute is written, bounded, after sampling stops.
     await state.flush?.()
-  } catch {
-    onError()
+  } catch (error) {
+    onError(error)
   }
 }
 
@@ -75,8 +75,8 @@ async function createHost(configured: ResourceHostSettings): Promise<ResourceLau
     for (const attach of state.attachers) {
       try {
         attach(window)
-      } catch {
-        configured.onError()
+      } catch (error) {
+        configured.onError(error)
       }
     }
   }

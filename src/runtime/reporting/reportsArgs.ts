@@ -5,6 +5,7 @@ import {
   REPORT_FAIL_ON,
   REPORT_FORMATS,
   REPORT_KINDS,
+  REPORT_WORKING_KINDS,
   UI_TEXT,
 } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
@@ -29,6 +30,26 @@ export interface ReportsRequest {
 
 export function reportsUsage(table: Pick<UiText, 'reportCliUsage'> = UI_TEXT): string {
   return fill(table.reportCliUsage, { command: ACP_AGENT_NAME })
+}
+
+/** The working kinds the help names, with the table's own labels. */
+export function reportsHelp(
+  table: Pick<UiText, 'reportCliUsage' | 'reportUi' | 'reportKinds'> = UI_TEXT,
+): string {
+  const kinds = REPORT_WORKING_KINDS.map((kind) => `  ${kind}: ${table.reportKinds[kind]}`).join(
+    '\n',
+  )
+  return `${reportsUsage(table)}\n${table.reportUi.reportKindsHeading}\n${kinds}\n`
+}
+
+/** A usage failure that names the missing piece; the surface adds usage in its own language. */
+export class ReportUsageError extends Error {
+  public constructor(
+    public readonly code: 'releaseNeedsVersion' | 'milestoneNeedsId' | 'estimateNeedsScope',
+  ) {
+    super(code)
+    this.name = 'ReportUsageError'
+  }
 }
 
 function isOneOf<T extends string>(values: readonly T[], value: string): value is T {
@@ -85,7 +106,7 @@ export function parseReportsArguments(argv: readonly string[]): ReportsRequest {
   } else if (kind === 'estimate') {
     deadline = by === undefined ? undefined : `${by}T23:59:59+00:00`
     by = undefined
-    if (scope === '') throw new Error(reportsUsage())
+    if (scope === '') throw new ReportUsageError('estimateNeedsScope')
   } else if (kind === 'changes' && args.length > 0) {
     if (args.length !== 2 || args[0] !== 'since') throw new Error(reportsUsage())
     scope = args[1] ?? ''
@@ -99,7 +120,8 @@ export function parseReportsArguments(argv: readonly string[]): ReportsRequest {
     )
       throw new Error(reportsUsage())
   } else if (kind === 'milestone' || kind === 'release') {
-    if (args.length !== 1 && values.from === undefined) throw new Error(reportsUsage())
+    if (args.length !== 1 && values.from === undefined)
+      throw new ReportUsageError(kind === 'release' ? 'releaseNeedsVersion' : 'milestoneNeedsId')
     if (args.length > 1) throw new Error(reportsUsage())
   } else if (args.length > 0) throw new Error(reportsUsage())
   if (

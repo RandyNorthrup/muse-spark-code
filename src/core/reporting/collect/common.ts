@@ -73,6 +73,15 @@ export function section(
   options: ReportOptions,
 ): ReportSection {
   const ordered = rows.toSorted((left, right) => compare(left.key, right.key))
+  // Row keys are identities: a repeated identity (two open questions sharing
+  // an id, two channels with one name) keeps its first row, so the section
+  // stays valid and the report still generates instead of failing wholesale.
+  const seen = new Set<string>()
+  const unique = ordered.filter((entry) => {
+    if (seen.has(entry.key)) return false
+    seen.add(entry.key)
+    return true
+  })
   return {
     id,
     label: heading,
@@ -80,8 +89,8 @@ export function section(
     columns: columns.map((column) =>
       typeof column === 'string' ? { key: column, label: column } : column,
     ),
-    rows: options.full ? ordered : ordered.slice(0, REPORT_SECTION_ROWS),
-    omittedRows: options.full ? 0 : Math.max(0, ordered.length - REPORT_SECTION_ROWS),
+    rows: options.full ? unique : unique.slice(0, REPORT_SECTION_ROWS),
+    omittedRows: options.full ? 0 : Math.max(0, unique.length - REPORT_SECTION_ROWS),
   }
 }
 

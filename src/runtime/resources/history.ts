@@ -98,13 +98,13 @@ export interface ResourceHistoryRecorder {
 export function resourceHistoryRecorder(
   binding: ResourceHistoryBinding,
   work: ResourceRecordWorkSource,
-  onError: () => void,
+  onError: (error: unknown) => void,
 ): ResourceHistoryRecorder {
   let hasReported = false
   const report = () => {
     if (hasReported) return
     hasReported = true
-    onError()
+    onError(new Error('resource history dropped a record'))
   }
   const isConsented = () => {
     if (!binding.isEnabled()) return false
@@ -118,7 +118,9 @@ export function resourceHistoryRecorder(
   const store = journal(binding.dataFolder, isConsented, {
     historyDays: binding.historyDays,
     onDropped: report,
-    onRetentionError: onError,
+    onRetentionError: () => {
+      onError(new Error('resource history retention failed'))
+    },
   })
   let records = new ResourceRecords(store, work)
   let boundary = readResourceReset(binding.dataFolder)

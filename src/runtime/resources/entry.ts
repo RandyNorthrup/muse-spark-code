@@ -85,9 +85,10 @@ export async function createResources(
     }),
     // Missing T occupancy is explicitly unknown: throttle admits no background work.
     running: options.running ?? { backgroundCount: () => null },
-    onError: () => {
-      // Settings/OS failures carry no free-text diagnostic across a resource surface.
-      options.onError(new Error(UI_TEXT.resourceUnavailable))
+    onError: (error: unknown) => {
+      // The failure itself reaches the owner's log with its cause; no new
+      // free-text diagnostic is invented for any resource surface.
+      options.onError(error)
     },
     history: options.history ?? recorder?.history ?? resourceHistoryReader(options.machineDir),
     ...(recorder !== undefined && {

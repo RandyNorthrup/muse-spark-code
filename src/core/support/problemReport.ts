@@ -102,6 +102,12 @@ const problemReportFactsSchema = z.strictObject({
   cliFound: z.boolean(),
   /** The CLI's own version text: dropped, not trusted, when it is not a version. */
   cliVersion: z.optional(z.string().check(z.minLength(1), z.maxLength(REPORT_VERSION_MAX_CHARS))),
+  /**
+   * The CLI's contributor mode (its price tier): true or false when observed,
+   * absent when the reporter's setup could not say. Unknown prints as unknown,
+   * never guessed.
+   */
+  contributorMode: z.optional(z.boolean()),
   cliSignIn: z.boolean(),
   hasStoredApiKey: z.boolean(),
   hasEnvironmentApiKey: z.boolean(),
@@ -413,12 +419,16 @@ export function problemReportTitle(facts: ProblemReportFacts): string {
 function factLines(facts: ProblemReportFacts): readonly string[] {
   const found = facts.cliFound ? 'found' : 'not found'
   const cli = facts.cliVersion === undefined ? found : `found (version ${facts.cliVersion})`
+  let contributor = 'unknown'
+  if (facts.contributorMode === true) contributor = 'on'
+  else if (facts.contributorMode === false) contributor = 'off'
   return [
     `extension: ${facts.extensionVersion}`,
     `vscode: ${facts.vscodeVersion ?? STANDALONE_AGENT}`,
     `node: ${facts.nodeVersion}`,
     `platform: ${facts.platform}`,
     `backend: ${facts.backend}`,
+    `contributor mode: ${contributor}`,
     ...(facts.modelApiStatus === undefined
       ? []
       : [
@@ -526,10 +536,20 @@ function reportParts(input: ProblemReportInput): { title: string; text: string }
     sections.push(`Support facts:\n${factLines(facts).join('\n')}`)
   }
   if (input.includeEvents) {
+    const skipped = input.events.length - events.length
+    let carried = NONE
+    if (skipped !== 0 || events.length > 0) {
+      const lines: string[] = events.length > 0 ? [...eventLines(events)] : [NONE]
+      if (skipped > 0)
+        lines.push(
+          `${String(skipped)} stored ${skipped === 1 ? 'record was' : 'records were'} skipped (expired, invalid or from another build).`,
+        )
+      carried = lines.join('\n')
+    }
     sections.push(
       input.recordingUnavailable
         ? 'Recent events:\nevent recording was unavailable, so this report has no recent events.'
-        : `Recent events (${String(events.length)}):\n${events.length === 0 ? NONE : eventLines(events).join('\n')}`,
+        : `Recent events (${String(events.length)}):\n${carried}`,
     )
   }
   return {

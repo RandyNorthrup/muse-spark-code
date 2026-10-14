@@ -6,6 +6,7 @@ import { failureForLog } from '../core/backends/musecode/logText'
 // the log reads goes to stderr, except the sign-in commands' own output.
 // Exercised through the built `dist/acp.js` by the stdio e2e test.
 
+import { warnResourceUnavailable } from '../shared/resourceCause'
 import { spawnResourceProcess, handoffResourceFile } from '../core/resources/launcher'
 import { isResourcePaused } from '../core/resources/launch'
 import { randomBytes, randomUUID } from 'node:crypto'
@@ -458,8 +459,14 @@ function resourcesFor(
     }),
     sleep,
     log,
-    onError: () => {
-      log.warn(UI_TEXT.resourceUnavailable)
+    onError: (error: unknown) => {
+      warnResourceUnavailable(
+        (message) => {
+          log.warn(message)
+        },
+        UI_TEXT,
+        error,
+      )
     },
     ...(overrides !== undefined && { overrides }),
     ...(isRecordingHistory !== undefined && { isRecordingHistory }),
@@ -1507,8 +1514,14 @@ async function main(): Promise<number> {
     case 'reports': {
       try {
         return await runtimeReports(log)().run(command.args)
-      } catch {
-        writeLine(process.stderr, UI_TEXT.reportUi.generationFailed)
+      } catch (error) {
+        const reason = error instanceof Error && error.message !== '' ? error.message : undefined
+        writeLine(
+          process.stderr,
+          reason === undefined
+            ? UI_TEXT.reportUi.generationFailed
+            : fill(UI_TEXT.reportUi.generationReason, { reason }),
+        )
         return EXIT_FAILED
       }
     }

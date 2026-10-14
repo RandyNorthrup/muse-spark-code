@@ -181,6 +181,7 @@ import { createCheckpointedMemory } from './host/backend/checkpointedMemory'
 import { systemPath } from './host/backend/memoryIo'
 import {
   museSettingsPath,
+  readContributorMode,
   readDelegationMode,
   readWorkflowTriggerMode,
 } from './host/backend/museSettings'
@@ -287,6 +288,7 @@ import {
   loadResourceWindow,
   onResourceWindow,
 } from './core/resources/admission'
+import { warnResourceUnavailable } from './shared/resourceCause'
 import { createResourceWindow } from './host/resources/resourceWindow'
 import {
   createCheckpointPort,
@@ -724,8 +726,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     dispose: configureResources({
       history: resourceHistory,
       inspect: (key) => vscode.workspace.getConfiguration('museSpark').inspect(key),
-      onError: () => {
-        log.warn('Resource tree or sampler reading is unavailable')
+      onError: (error: unknown) => {
+        warnResourceUnavailable(
+          (message) => {
+            log.warn(message)
+          },
+          UI_TEXT,
+          error,
+        )
       },
       windowsJob: async () => {
         const assemblyPath = await resourceAssembly?.()
@@ -2911,6 +2919,7 @@ async function activateWindow(
         cli: resolution.ok
           ? { isFound: true, version: backend.installedVersion(resolution.launch.installDir) }
           : { isFound: false, version: undefined },
+        contributorMode: readContributorMode({ ...museConfig(), readTextFile: readTextFileSync }),
         credentialFileVerdict: backend.credentialFileVerdict(),
         hasStoredApiKey: (await credentials.getApiKey()) !== undefined,
         hasEnvironmentApiKey: backend.hasEnvironmentKey(),
