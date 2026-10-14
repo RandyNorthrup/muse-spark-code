@@ -27,6 +27,7 @@ import {
   type DictationEngine,
   type DictationUiStatus,
   type EffortLevel,
+  FOCUS_REQUEST_WINDOW_MS,
   HIDDEN_ITEM_KINDS,
   MAX_ATTACHMENTS_PER_MESSAGE,
   MILLISECONDS_PER_SECOND,
@@ -332,11 +333,12 @@ export interface UiState {
       }
     | undefined
   /**
-   * Recorded focus requests (host `focusInput`, `init`, inserts, restores and
-   * the composer's own actions). Recording is not landing: the composer
-   * focuses only through `landFocusRequest` while this surface holds
-   * the keyboard, so a late request waits for this surface's own focus
-   * instead of taking the keyboard from whatever holds it.
+   * Recorded focus requests (tokened host `focusInput`, `init`, inserts,
+   * restores and the composer's own actions). Recording is not landing: the
+   * composer focuses only through `landFocusRequest` while this surface
+   * holds the keyboard and only within the delivery window after the ask;
+   * afterwards the request is gone, so a late request is dropped instead of
+   * taking the keyboard from whatever holds it.
    */
   readonly focusRequests: number
   /** Incremented per host `openUsage`; Account & usage opens when it changes (M94). */
@@ -2800,7 +2802,7 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
         // Opening the panel asks for the caret in the composer, like Claude
         // Code; the request lands only while this surface holds the keyboard
         // (`landFocusRequest`), so a load that finishes after the person
-        // opened a file waits for this surface's focus instead of stealing.
+        // opened a file is dropped after the window instead of stealing.
         focusRequests: state.focusRequests + 1,
       }
     }
@@ -2816,7 +2818,11 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
       return message.sessionId === state.sessionId ? jumpQuestion(state, message.direction) : state
     }
     case 'focusInput': {
-      return { ...state, focusRequests: state.focusRequests + 1 }
+      // The host owns every focus request: without its token, or delivered
+      // after the window, the ask is dropped, never recorded and never held.
+      return isHostOwnedFocusInput(message, at)
+        ? { ...state, focusRequests: state.focusRequests + 1 }
+        : state
     }
     case 'openUsage': {
       return { ...state, usageRequests: state.usageRequests + 1 }
@@ -3677,24 +3683,43 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
 }
 
 /**
+ * Whether a host `focusInput` carries its owner's token and arrives within
+ * the delivery window (panel-focus F3): the host's gate mints `token` and
+ * `issuedAt` and drops the ask when its panel is not active, so a tokenless
+ * or stale ask is recorded nowhere and held nowhere.
+ */
+export function isHostOwnedFocusInput(
+  message: Extract<HostToWebviewMessage, { type: 'focusInput' }>,
+  at: number,
+): boolean {
+  return (
+    message.token !== undefined &&
+    message.issuedAt !== undefined &&
+    at - message.issuedAt <= FOCUS_REQUEST_WINDOW_MS
+  )
+}
+
+/**
  * The panel-focus ownership rule, as the composer's landed count after one
  * landing check: a recorded request lands (the count advances to `requested`)
  * only while this surface already holds the keyboard (`document.hasFocus()`
- * in the composer). The host owns the decision to ask — every `focusInput`
- * it posts is the direct effect of something the person just did — and the
- * webview confirms ownership here at delivery. An unowned check spends
- * nothing: the request stays pending for the surface's own focus event, so
- * a `reveal()` whose focus arrives after its `focusInput` message still
- * lands, while a load that finishes behind a just-opened file — which gets
- * no focus event — can never take the keyboard from that file. There is one
- * landing site (the composer's focus effect), never a check per sender.
+ * in the composer) and only within the delivery window after it was asked
+ * (`requestedAt`). Afterwards the request is gone — an unowned check spends
+ * nothing and accrues nothing, so a `reveal()` whose focus arrives within
+ * the window still lands, while a load that finishes behind a just-opened
+ * file, or an ask from an hour ago, can never take the keyboard. There is
+ * one landing site (the composer's focus effect), never a check per sender.
  */
 export function landFocusRequest(
   requested: number,
   landed: number,
   hasSurfaceFocus: boolean,
+  now: number,
+  requestedAt: number,
 ): number {
-  return hasSurfaceFocus && requested > landed ? requested : landed
+  return hasSurfaceFocus && requested > landed && now - requestedAt <= FOCUS_REQUEST_WINDOW_MS
+    ? requested
+    : landed
 }
 
 export function uiReducer(state: UiState, action: UiAction): UiState {
