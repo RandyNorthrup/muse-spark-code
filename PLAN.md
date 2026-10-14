@@ -14634,43 +14634,17 @@ INT0170B integration question (2026-10-07), narrowed by LEFT017 (2026-10-08): th
 
 ### D108 — A chat surface takes the keyboard only while it holds it (panel-focus, 2026-10-12)
 
-**Decision.** Focus is taken only as the direct effect of something the
-person just did on that surface, and only if that surface still holds the
-keyboard when the focus would land. A webview never focuses its composer
-merely because it finished loading; a focus request checked while its
-surface is unowned is not spent — it lands only on that surface's own
-focus event, which a load finishing behind a file never gets. The host
-owns the ask (every `focusInput` it posts answers a person's command);
-the webview confirms ownership with `document.hasFocus()` at the single
-landing effect (`landFocusRequest` in `src/webview/state/uiState.ts`,
-called only from the composer's focus effect) and never overrides the
-host. Async arrivals that focus on their own (an approval or question
-card, a report's arriving headings) take the keyboard only under the
-same ownership. Measured
-release defect: a panel loading behind a just-opened file took the keyboard
-0.4–0.8 s later in 14 of 20 hosted runs
-(`docs/certification/panel-focus.md`). The watching integration case
-(`creates AGENTS.md in the workspace root and opens it (D15)`) polls 3 s
-after `showTextDocument`; the mirror case proves Focus Input from a file
-still brings the chat forward. Same rule in the sidebar view and the panel,
-same extension code on every editor; no per-editor branch was read in any
-focus path.
-
-**Follow-up 2026-10-14 (the review's F3): a request that cannot land at
-once is dropped, not held.** The pending hold above had no bound: a stale
-request landed on whatever later focus the surface got. Now the host owns
-each request — the single gate in `surface.post`
-(`src/host/views/webviewSetup.ts`, decided by `shouldDeliverFocusInput` in
-`src/host/views/focusGate.ts`) mints a `token`/`issuedAt` and drops the
-ask when its panel is not the active one (`panel.active`, the sidebar's
-`visible`) and no fresh reveal armed it. The webview records only a
-tokened ask delivered within `FOCUS_REQUEST_WINDOW_MS` (1000 ms, covering
-the slowest measured 766 ms arrival) and lands it only while its surface
-holds the keyboard within that window; afterwards it is gone. Every sender
-(Focus Input, the deferred mention flush, mention inserts, the report
-attach, draft restore, load-time `init`) passes the same gate; acting on
-the chat still focuses the input exactly as before
-(`docs/certification/panel-focus.md`).
+**D108 — A chat surface takes the keyboard only while it holds it.** Focus
+moves only as the direct effect of something the person just did on that
+surface, and only while that surface still holds the keyboard when the focus
+would land. A webview never focuses its composer merely because it finished
+loading; async arrivals (an approval or question card, a report's arriving
+headings) take the keyboard only under the same ownership. A focus request
+that cannot land at once is dropped, not held: the host mints a tokened ask at
+its single post gate and drops it while its panel is not the active one, and
+the webview records and lands an ask only within the 1000 ms delivery window
+(`docs/certification/panel-focus.md`). Full record:
+[docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
 
 ### D89.5 — Credential variables stay out of model-run processes (ENVFENCE, 2026-10-05)
 
