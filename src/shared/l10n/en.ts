@@ -4114,6 +4114,9 @@ export const EN = {
   acpKeyNotStored: 'No key was entered, so nothing was stored.',
   acpKeyPresent: 'A Meta Model API key is stored in {store}.',
   acpKeyAbsent: 'No Meta Model API key is stored.',
+  // One sentence for one condition (F43/F47): no readable key and no store,
+  // wherever the store being down is reported.
+  acpStoreDown: 'No key is stored, and this computer’s credential store is unavailable.',
   acpKeyCleared: 'The Meta Model API key was removed from this computer’s credential store.',
   // {reason}: the operating system's own error.
   acpStoreUnavailable:
@@ -5222,8 +5225,6 @@ export const EN = {
     },
     callback: 'ChatGPT sign-in is complete. Return to your editor or terminal.',
     failure: 'ChatGPT sign-in could not be completed. Try again or remove it and sign in again.',
-    storeUnavailable:
-      'This computer’s credential store is unavailable. Sign in from an interactive desktop session with an unlocked credential store; on Linux, start Secret Service first.',
   },
   execProviderNotConfigured: 'Provider {id} is not configured.',
   // M95 providers: evaluated through UI_TEXT at use time.

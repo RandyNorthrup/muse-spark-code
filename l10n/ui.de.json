@@ -3444,6 +3444,7 @@
   "acpKeyNotStored": "Es wurde kein Schlüssel eingegeben, daher wurde nichts gespeichert.",
   "acpKeyPresent": "Ein Schlüssel für die Meta Model API ist gespeichert: {store}.",
   "acpKeyAbsent": "Es ist kein Schlüssel für die Meta Model API gespeichert.",
+  "acpStoreDown": "Es ist kein Schlüssel gespeichert, und der Anmeldeinformationsspeicher dieses Computers ist nicht verfügbar.",
   "acpKeyCleared": "Der Schlüssel für die Meta Model API wurde aus dem Anmeldeinformationsspeicher dieses Computers entfernt.",
   "acpStoreUnavailable": "Der Anmeldeinformationsspeicher dieses Computers kann nicht verwendet werden ({reason}). Unter Linux benötigt der Agent einen laufenden, entsperrten Secret Service wie GNOME Keyring oder KWallet.",
   "acpStoreNames": {
@@ -4277,8 +4278,7 @@
       "signed-out": "ChatGPT ist nicht angemeldet."
     },
     "callback": "Die ChatGPT-Anmeldung ist abgeschlossen. Kehren Sie zu Ihrem Editor oder Terminal zurück.",
-    "failure": "Die ChatGPT-Anmeldung konnte nicht abgeschlossen werden. Versuchen Sie es erneut oder entfernen Sie sie und melden Sie sich erneut an.",
-    "storeUnavailable": "Der Anmeldedatenspeicher dieses Computers ist nicht verfügbar. Melden Sie sich aus einer interaktiven Desktopsitzung mit entsperrtem Speicher an; starten Sie unter Linux zuerst Secret Service."
+    "failure": "Die ChatGPT-Anmeldung konnte nicht abgeschlossen werden. Versuchen Sie es erneut oder entfernen Sie sie und melden Sie sich erneut an."
   },
   "execProviderNotConfigured": "Anbieter {id} ist nicht konfiguriert.",
   "providerText": {

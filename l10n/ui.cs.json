@@ -3590,6 +3590,7 @@
   "acpKeyNotStored": "Nebyl zadán žádný klíč, nic se neuložilo.",
   "acpKeyPresent": "Klíč Meta Model API je uložen: {store}.",
   "acpKeyAbsent": "Není uložen žádný klíč Meta Model API.",
+  "acpStoreDown": "Není uložen žádný klíč a úložiště přihlašovacích údajů tohoto počítače není k dispozici.",
   "acpKeyCleared": "Klíč Meta Model API byl odebrán z úložiště přihlašovacích údajů tohoto počítače.",
   "acpStoreUnavailable": "Úložiště přihlašovacích údajů tohoto počítače nelze použít ({reason}). V Linuxu agent potřebuje spuštěnou a odemčenou službu Secret Service, například GNOME Keyring nebo KWallet.",
   "acpStoreNames": {
@@ -4501,8 +4502,7 @@
       "signed-out": "ChatGPT není přihlášen."
     },
     "callback": "Přihlášení ChatGPT je dokončeno. Vraťte se do editoru nebo terminálu.",
-    "failure": "Přihlášení ChatGPT se nepodařilo dokončit. Zkuste to znovu nebo jej odeberte a znovu se přihlaste.",
-    "storeUnavailable": "Úložiště přihlašovacích údajů tohoto počítače není dostupné. Přihlaste se z interaktivní relace plochy s odemčeným úložištěm; v Linuxu nejprve spusťte Secret Service."
+    "failure": "Přihlášení ChatGPT se nepodařilo dokončit. Zkuste to znovu nebo jej odeberte a znovu se přihlaste."
   },
   "execProviderNotConfigured": "Poskytovatel {id} není nastaven.",
   "providerText": {

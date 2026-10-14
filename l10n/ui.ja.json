@@ -3371,6 +3371,7 @@
   "acpKeyNotStored": "キーが入力されなかったため、何も保存しませんでした。",
   "acpKeyPresent": "Meta Model API キーが保存されています: {store}。",
   "acpKeyAbsent": "Meta Model API キーは保存されていません。",
+  "acpStoreDown": "キーは保存されておらず、このコンピューターの資格情報ストアは利用できません。",
   "acpKeyCleared": "Meta Model API キーをこのコンピューターの資格情報ストアから削除しました。",
   "acpStoreUnavailable": "このコンピューターの資格情報ストアを使用できません ({reason})。Linux では、GNOME Keyring や KWallet など、実行中でロック解除された Secret Service がエージェントに必要です。",
   "acpStoreNames": {
@@ -4165,8 +4166,7 @@
       "signed-out": "ChatGPT にサインインしていません。"
     },
     "callback": "ChatGPT のサインインが完了しました。エディターまたはターミナルに戻ってください。",
-    "failure": "ChatGPT のサインインを完了できませんでした。再試行するか、削除して再度サインインしてください。",
-    "storeUnavailable": "このコンピューターの資格情報ストアを利用できません。ストアのロックを解除した対話型デスクトップセッションからサインインしてください。Linux では、先に Secret Service を起動してください。"
+    "failure": "ChatGPT のサインインを完了できませんでした。再試行するか、削除して再度サインインしてください。"
   },
   "execProviderNotConfigured": "プロバイダー {id} は設定されていません。",
   "providerText": {

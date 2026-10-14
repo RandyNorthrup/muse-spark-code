@@ -3590,6 +3590,7 @@
   "acpKeyNotStored": "Nie wpisano klucza, więc nic nie zapisano.",
   "acpKeyPresent": "Klucz Meta Model API jest zapisany: {store}.",
   "acpKeyAbsent": "Nie zapisano klucza Meta Model API.",
+  "acpStoreDown": "Nie zapisano klucza, a magazyn poświadczeń tego komputera jest niedostępny.",
   "acpKeyCleared": "Klucz Meta Model API został usunięty z magazynu poświadczeń tego komputera.",
   "acpStoreUnavailable": "Nie można użyć magazynu poświadczeń tego komputera ({reason}). W systemie Linux agent potrzebuje uruchomionej i odblokowanej usługi Secret Service, takiej jak GNOME Keyring lub KWallet.",
   "acpStoreNames": {
@@ -4501,8 +4502,7 @@
       "signed-out": "ChatGPT nie jest zalogowany."
     },
     "callback": "Logowanie do ChatGPT zostało zakończone. Wróć do edytora lub terminala.",
-    "failure": "Nie udało się zakończyć logowania do ChatGPT. Spróbuj ponownie lub usuń je i zaloguj się jeszcze raz.",
-    "storeUnavailable": "Magazyn poświadczeń tego komputera jest niedostępny. Zaloguj się z interaktywnej sesji pulpitu z odblokowanym magazynem; w systemie Linux najpierw uruchom Secret Service."
+    "failure": "Nie udało się zakończyć logowania do ChatGPT. Spróbuj ponownie lub usuń je i zaloguj się jeszcze raz."
   },
   "execProviderNotConfigured": "Dostawca {id} nie jest skonfigurowany.",
   "providerText": {
