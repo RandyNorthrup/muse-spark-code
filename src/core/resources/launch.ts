@@ -108,24 +108,6 @@ export class ResourceMemoryLimitError extends Error {
   }
 }
 
-/** Structural, not instanceof: the launcher and its callers live in different bundles. */
-export function isResourceCapRefused(error: unknown): error is ResourceCapRefusedError {
-  return (
-    error instanceof Error &&
-    error.name === 'ResourceCapRefusedError' &&
-    'code' in error &&
-    error.code === 'capRefused'
-  )
-}
-
-export function isResourceMemoryLimit(error: unknown): error is ResourceMemoryLimitError {
-  return (
-    error instanceof Error &&
-    error.name === 'ResourceMemoryLimitError' &&
-    'code' in error &&
-    error.code === 'memoryLimit'
-  )
-}
 export interface ResourcePipedProcess extends ResourceInteractiveProcess {
   /** Settles after exit; undefined where the platform attests nothing (POSIX, bootstrap). */
   outcome: () => Promise<ResourceTreeOutcome | undefined>
