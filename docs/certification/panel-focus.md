@@ -54,7 +54,7 @@ through that effect; the review gated its own focus calls the same way.
 Recording is not landing. Every request above only increments
 `focusRequests`. The composer's effect is the single place a request lands
 (`src/webview/components/Composer.tsx:594`), through `landFocusRequest`
-(`src/webview/state/uiState.ts:3691`): the landed count advances to the
+(`src/webview/state/uiState.ts:3692`): the landed count advances to the
 requested count only while `document.hasFocus()` says this surface holds
 the keyboard. An unowned check spends nothing — the request stays pending
 and the effect retries on this surface's own `window` focus event (review
