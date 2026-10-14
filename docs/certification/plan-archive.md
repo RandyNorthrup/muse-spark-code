@@ -381,3 +381,43 @@ the VS Code record. §10 cannot supply the rest: the roadmap gate hashes
 its records, `planReader` requires the 0.11.0 release record, and
 CONTRIBUTING bars §10 moves. About 300 KB more would need archiving
 active sections, which is the lead's call.
+
+## Cold-thread §7 lanes and M91 prose (2026-10-14, with the command)
+
+A re-survey for the remaining 3,200,000-byte target moved one more
+`--batch` run (`--dry-run` first, proven byte for byte): 16 blocks,
+67,447 bytes, PLAN.md 3,502,761 → 3,436,064 bytes (83.5% → 81.9%;
+129,094 bytes of room). Parsed facts change only in closed M91 (accepted);
+drift 0; reassembly identical (SHA-256 `26615309…5a71`).
+
+To `gates.md` (9 blocks): the M116 playbook lanes (REDM116P, M116-U),
+the M105 multimodal lanes (FIXM105E3, W, M1 ×2, E1–E3, M2, F, FIXM105C,
+FIXM105R1, R2, R3, R3B, R3-host-api), the M106 lanes (FIXM106S,
+M106T-MODELAPI-BUDGET), the M108 account lanes (FIXM108U/H/P/P2/T/K,
+M108-X), the M96 team lanes (FIXM96B, M96CINT, FIXM96CT2/CC/CO) and the
+M101 lanes (M101INT, FIXM101C2/P1/P2) — all October 4–7 lanes of released
+milestones, verified and with no follow-up thread. Each leaves one
+pointer line.
+
+To `milestones.md` (7 blocks, 42,410 bytes): the prose of closed M91
+(captures, Lane P corrections, helper turns, event behaviour, Steps,
+Acceptance). The stub keeps the heading, the status rows, the Goal block
+and the lane tables the tests read (`planReader` still finds M91's lanes).
+
+Still kept: the M95/M96 plan cluster in §7 (Goal, Lanes and lane tables
+fused with hot-thread records), every record of an unreleased milestone
+(M97, M98, M100, M102, M104, M109), the hot-thread lanes (M112, M113,
+M114, PROVWIZ, CIFIX017, M123, MENUFAN), the October 8–11 records,
+KNIPC/DEFLAKE4 (fused in one block with M96's record), STAR (unknown
+milestone), all of §10 (the roadmap fingerprint covers every §10 record;
+regenerating it would rewrite ROADMAP.md), and every §6 section with open
+items or an active status.
+
+Gates re-run green after this move: `prettier --check`, `check:plan`
+(218 milestones, 0 drift), `check:roadmap` (218 entries, current),
+`check:reference` (current), `status` (51 + 166 + 87 blocks, all intact),
+and the nine plan suites (246 passed at repository timeouts).
+
+Even moving every remaining §7 record (about 150 KB including current
+and unreleased threads) would land near 3.29 MB; 3.20 MB needs active
+§6 sections as well. The plan now has 129 KB of room instead of 1.5 KB.
