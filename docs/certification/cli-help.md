@@ -3,6 +3,17 @@
 The terminal agent's help now tells a person what each command takes, from the
 same table the parser reads. No model call is involved in any drill below.
 
+Review note (RVCLIHELP, 2026-10-14): the accepted-today list in §1 covers the
+registry routes and playbook only. The grammars that parse outside the
+registry (`schedule`, `vault`, `providers accounts`, `developer`,
+`share`/`prompts`, `providers … chatgpt`) also existed on the base; they keep
+their own usage text, are not `help <command>` topics, and are outside the
+guard. Four review fixes landed on this branch after the lane: the serve
+grammar no longer echoes a secret-looking option name through the raw parser
+message (key spellings included), `playbook --help` prints its topic,
+a repeated `providers models --add` writes the model once, and `auth --help`
+states that `auth set` reads the key from standard input.
+
 ## 1. Accepted today (from the code, release 0.18.1 base)
 
 Parser routes (`CLI_OPTION_REGISTRY` in `src/runtime/cliOptions.ts`, plus the

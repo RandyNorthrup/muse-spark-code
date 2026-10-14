@@ -105,7 +105,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
-- The terminal agent documents itself per command. `<command> --help` and
+- The terminal agent documents itself per command for `serve`, `login`, `auth`,
+  `providers`, `exec`, `scan-secrets`, `report`, `legal`, `fonts`, `playbook`,
+  `setup`, `usage` and `resources`. `<command> --help` and
   `muse-spark-code-acp help <command>` print that command's own usage, its
   options with defaults and bounds, and two examples that run; the full
   Help & Reference stays behind `help --all`. A wrong option or value exits
