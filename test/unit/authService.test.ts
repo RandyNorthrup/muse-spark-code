@@ -1766,14 +1766,18 @@ describe('AuthService.signOut and host reports', () => {
 })
 
 /** A harness whose secret store cannot be read: every read throws. */
-function unreadableHarness(): { h: Harness; warnings: string[] } {
+function unreadableHarness(): {
+  h: Harness
+  warnings: string[]
+  secrets: ReturnType<typeof memorySecrets>
+} {
   const warnings: string[] = []
   const secrets = memorySecrets()
   vi.spyOn(secrets, 'get').mockRejectedValue(new Error('locked'))
   const credentials = new CredentialStore(secrets, (message) => {
     warnings.push(message)
   })
-  return { h: harness({ credentials }), warnings }
+  return { h: harness({ credentials }), warnings, secrets }
 }
 
 /** The unreadable-store warning notice broadcast to the session's person. */
@@ -1826,6 +1830,22 @@ describe('AuthService with an unreadable credential store (P2-1)', () => {
     expect(
       h.broadcasts.filter((message) => unreadableNotice({ ...h, broadcasts: [message] })),
     ).toHaveLength(1)
+  })
+
+  it('tells the person again when the store breaks again after a healthy read', async () => {
+    const { h, secrets } = unreadableHarness()
+    h.facts.cli = 'signedOut'
+    await h.service.refresh(true)
+    // The store reads again (nothing stored): a healthy read.
+    vi.mocked(secrets.get).mockResolvedValue(undefined)
+    await h.service.refresh(true)
+    // The same damage recurs after the repair: told again, not suppressed
+    // for the rest of the session.
+    vi.mocked(secrets.get).mockRejectedValue(new Error('locked'))
+    await h.service.refresh(true)
+    expect(
+      h.broadcasts.filter((message) => unreadableNotice({ ...h, broadcasts: [message] })),
+    ).toHaveLength(2)
   })
 })
 
