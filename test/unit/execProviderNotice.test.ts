@@ -20,36 +20,31 @@ const PLACEHOLDER_KEY = 'test-key'
 // Built, not typed: a committed key-like literal trips the secret scanner.
 const PLAIN_KEY = `sk-test-${'0'.repeat(16)}`
 
-function openRouterFile(): ProvidersFile {
-  return {
-    ...emptyProvidersFile(),
-    defaultModel: 'openrouter/m1',
-    providers: [
-      {
-        id: 'openrouter',
-        preset: 'openrouter',
-        address: 'https://openrouter.ai',
-        auth: 'apiKey',
-        models: ['m1'],
-      },
-    ],
-  }
-}
-
 /** Assembly never sends: a call here is the bug, reported as a failure. */
 const noFetch: typeof fetch = () => Promise.reject(new Error('assembly performs no fetch'))
 
 function assemblyInput(key: string): ProviderRunInput {
-  const file = openRouterFile()
   const result: KeyLineResult = { ok: true, key }
+  const file: ProvidersFile = {
+    ...emptyProvidersFile(),
+    providers: [
+      {
+        auth: 'apiKey',
+        models: ['m1'],
+        address: 'https://api.groq.com',
+        preset: 'groq',
+        id: 'groq',
+      },
+    ],
+  }
   return {
     filePath: '/user/providers.json',
     readFile: () => Promise.resolve(JSON.stringify(file)),
     secrets: memorySecretStoreFor({}),
     resolveHost: () => Promise.resolve(['93.184.216.34']),
     readKey: () => Promise.resolve(result),
-    providerId: 'openrouter',
-    model: 'openrouter/m1',
+    providerId: 'groq',
+    model: 'groq/m1',
     keyFromStdin: true,
     baseFetch: noFetch,
   }
@@ -62,12 +57,12 @@ describe('assembleProviderRun stdin key notice', () => {
     if (!assembled.ok) throw new Error('not assembled')
     expect(assembled.notice).toBe(EN.providerKeyNoticeUrl)
     expect(assembled.run.literals).toEqual([URL_KEY])
-    const account = providerSecretAccount('openrouter') ?? ''
+    const account = providerSecretAccount('groq') ?? ''
     const envelope = await assembled.run.secrets.get(account)
-    expect(envelope).toContain('https://openrouter.ai')
+    expect(envelope).toContain('https://api.groq.com')
     expect(envelope).toBe(
       formatStoredProviderSecret(
-        { v: CREDENTIAL_RECORD_VERSION, auth: 'apiKey', origin: 'https://openrouter.ai' },
+        { v: CREDENTIAL_RECORD_VERSION, auth: 'apiKey', origin: 'https://api.groq.com' },
         URL_KEY,
       ),
     )
