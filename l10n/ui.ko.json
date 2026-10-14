@@ -3371,6 +3371,7 @@
   "acpKeyNotStored": "키를 입력하지 않아 아무것도 저장하지 않았습니다.",
   "acpKeyPresent": "Meta Model API 키가 저장되어 있습니다: {store}.",
   "acpKeyAbsent": "저장된 Meta Model API 키가 없습니다.",
+  "acpStoreDown": "저장된 키가 없으며 이 컴퓨터의 자격 증명 저장소를 사용할 수 없습니다.",
   "acpKeyCleared": "이 컴퓨터의 자격 증명 저장소에서 Meta Model API 키를 제거했습니다.",
   "acpStoreUnavailable": "이 컴퓨터의 자격 증명 저장소를 사용할 수 없습니다({reason}). Linux에서는 GNOME Keyring이나 KWallet처럼 실행 중이고 잠금 해제된 Secret Service가 에이전트에 필요합니다.",
   "acpStoreNames": {
@@ -4165,8 +4166,7 @@
       "signed-out": "ChatGPT에 로그인되어 있지 않습니다."
     },
     "callback": "ChatGPT 로그인이 완료되었습니다. 편집기 또는 터미널로 돌아가세요.",
-    "failure": "ChatGPT 로그인을 완료할 수 없습니다. 다시 시도하거나 제거한 뒤 다시 로그인하세요.",
-    "storeUnavailable": "이 컴퓨터의 자격 증명 저장소를 사용할 수 없습니다. 저장소가 잠금 해제된 대화형 데스크톱 세션에서 로그인하세요. Linux에서는 먼저 Secret Service를 시작하세요."
+    "failure": "ChatGPT 로그인을 완료할 수 없습니다. 다시 시도하거나 제거한 뒤 다시 로그인하세요."
   },
   "execProviderNotConfigured": "공급자 {id}가 구성되지 않았습니다.",
   "providerText": {

@@ -3444,6 +3444,7 @@
   "acpKeyNotStored": "Anahtar girilmedi, bu yüzden hiçbir şey saklanmadı.",
   "acpKeyPresent": "Bir Meta Model API anahtarı saklanıyor: {store}.",
   "acpKeyAbsent": "Saklanan Meta Model API anahtarı yok.",
+  "acpStoreDown": "Saklanan anahtar yok ve bu bilgisayarın kimlik bilgisi deposu kullanılamıyor.",
   "acpKeyCleared": "Meta Model API anahtarı bu bilgisayarın kimlik bilgisi deposundan kaldırıldı.",
   "acpStoreUnavailable": "Bu bilgisayarın kimlik bilgisi deposu kullanılamıyor ({reason}). Linux'ta aracının GNOME Keyring veya KWallet gibi çalışan ve kilidi açık bir Secret Service hizmetine ihtiyacı vardır.",
   "acpStoreNames": {
@@ -4277,8 +4278,7 @@
       "signed-out": "ChatGPT oturumu açık değil."
     },
     "callback": "ChatGPT oturumu açıldı. Düzenleyicinize veya terminalinize dönün.",
-    "failure": "ChatGPT oturumu açılamadı. Yeniden deneyin veya kaldırıp tekrar oturum açın.",
-    "storeUnavailable": "Bu bilgisayarın kimlik bilgisi deposu kullanılamıyor. Kilidi açılmış depoyla etkileşimli bir masaüstü oturumundan giriş yapın; Linux’ta önce Secret Service’i başlatın."
+    "failure": "ChatGPT oturumu açılamadı. Yeniden deneyin veya kaldırıp tekrar oturum açın."
   },
   "execProviderNotConfigured": "{id} sağlayıcısı yapılandırılmadı.",
   "providerText": {

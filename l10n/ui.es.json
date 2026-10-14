@@ -3517,6 +3517,7 @@
   "acpKeyNotStored": "No se introdujo ninguna clave, así que no se guardó nada.",
   "acpKeyPresent": "Hay una clave de Meta Model API guardada: {store}.",
   "acpKeyAbsent": "No hay ninguna clave de Meta Model API guardada.",
+  "acpStoreDown": "No hay ninguna clave guardada y el almacén de credenciales de este equipo no está disponible.",
   "acpKeyCleared": "La clave de Meta Model API se quitó del almacén de credenciales de este equipo.",
   "acpStoreUnavailable": "No se puede usar el almacén de credenciales de este equipo ({reason}). En Linux, el agente necesita un Secret Service en ejecución y desbloqueado, como GNOME Keyring o KWallet.",
   "acpStoreNames": {
@@ -4389,8 +4390,7 @@
       "signed-out": "ChatGPT no tiene una sesión iniciada."
     },
     "callback": "El inicio de sesión de ChatGPT se ha completado. Vuelva al editor o al terminal.",
-    "failure": "No se pudo completar el inicio de sesión de ChatGPT. Inténtelo de nuevo o elimínelo y vuelva a iniciar sesión.",
-    "storeUnavailable": "El almacén de credenciales de este equipo no está disponible. Inicie sesión desde una sesión de escritorio interactiva con el almacén desbloqueado; en Linux, inicie primero Secret Service."
+    "failure": "No se pudo completar el inicio de sesión de ChatGPT. Inténtelo de nuevo o elimínelo y vuelva a iniciar sesión."
   },
   "execProviderNotConfigured": "El proveedor {id} no está configurado.",
   "providerText": {

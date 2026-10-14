@@ -3517,6 +3517,7 @@
   "acpKeyNotStored": "Non è stata inserita alcuna chiave, quindi non è stato salvato nulla.",
   "acpKeyPresent": "È salvata una chiave Meta Model API: {store}.",
   "acpKeyAbsent": "Nessuna chiave Meta Model API salvata.",
+  "acpStoreDown": "Nessuna chiave salvata e l’archivio delle credenziali di questo computer non è disponibile.",
   "acpKeyCleared": "La chiave Meta Model API è stata rimossa dall’archivio delle credenziali di questo computer.",
   "acpStoreUnavailable": "Impossibile usare l’archivio delle credenziali di questo computer ({reason}). Su Linux l’agente richiede un Secret Service avviato e sbloccato, come GNOME Keyring o KWallet.",
   "acpStoreNames": {
@@ -4389,8 +4390,7 @@
       "signed-out": "ChatGPT non ha effettuato l’accesso."
     },
     "callback": "L’accesso a ChatGPT è completato. Torna all’editor o al terminale.",
-    "failure": "Non è stato possibile completare l’accesso a ChatGPT. Riprova oppure rimuovilo e accedi nuovamente.",
-    "storeUnavailable": "L’archivio credenziali del computer non è disponibile. Accedi da una sessione desktop interattiva con l’archivio sbloccato; su Linux, avvia prima Secret Service."
+    "failure": "Non è stato possibile completare l’accesso a ChatGPT. Riprova oppure rimuovilo e accedi nuovamente."
   },
   "execProviderNotConfigured": "Il provider {id} non è configurato.",
   "providerText": {

@@ -3517,6 +3517,7 @@
   "acpKeyNotStored": "Aucune clé n’a été saisie ; rien n’a été enregistré.",
   "acpKeyPresent": "Une clé Meta Model API est enregistrée : {store}.",
   "acpKeyAbsent": "Aucune clé Meta Model API n’est enregistrée.",
+  "acpStoreDown": "Aucune clé n’est enregistrée et le magasin d’identifiants de cet ordinateur n’est pas disponible.",
   "acpKeyCleared": "La clé Meta Model API a été supprimée du magasin d’identifiants de cet ordinateur.",
   "acpStoreUnavailable": "Le magasin d’identifiants de cet ordinateur est inutilisable ({reason}). Sous Linux, l’agent a besoin d’un Secret Service lancé et déverrouillé, comme GNOME Keyring ou KWallet.",
   "acpStoreNames": {
@@ -4389,8 +4390,7 @@
       "signed-out": "ChatGPT n’est pas connecté."
     },
     "callback": "La connexion ChatGPT est terminée. Retournez à votre éditeur ou terminal.",
-    "failure": "La connexion ChatGPT n’a pas pu être terminée. Réessayez ou supprimez-la et reconnectez-vous.",
-    "storeUnavailable": "Le magasin d’identifiants de cet ordinateur est indisponible. Connectez-vous depuis une session de bureau interactive avec le magasin déverrouillé ; sous Linux, démarrez d’abord Secret Service."
+    "failure": "La connexion ChatGPT n’a pas pu être terminée. Réessayez ou supprimez-la et reconnectez-vous."
   },
   "execProviderNotConfigured": "Le fournisseur {id} n’est pas configuré.",
   "providerText": {

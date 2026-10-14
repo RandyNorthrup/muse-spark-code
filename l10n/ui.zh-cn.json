@@ -3371,6 +3371,7 @@
   "acpKeyNotStored": "未输入密钥，因此未存储任何内容。",
   "acpKeyPresent": "已存储 Meta Model API 密钥：{store}。",
   "acpKeyAbsent": "未存储 Meta Model API 密钥。",
+  "acpStoreDown": "未存储任何密钥，且这台计算机的凭据存储不可用。",
   "acpKeyCleared": "已从这台计算机的凭据存储中移除 Meta Model API 密钥。",
   "acpStoreUnavailable": "无法使用这台计算机的凭据存储（{reason}）。在 Linux 上，代理需要一个正在运行且已解锁的 Secret Service，例如 GNOME Keyring 或 KWallet。",
   "acpStoreNames": {
@@ -4165,8 +4166,7 @@
       "signed-out": "尚未登录 ChatGPT。"
     },
     "callback": "ChatGPT 登录完成。请返回编辑器或终端。",
-    "failure": "无法完成 ChatGPT 登录。请重试，或移除后重新登录。",
-    "storeUnavailable": "此计算机的凭据存储不可用。请从交互式桌面会话中登录，并解锁凭据存储；在 Linux 上，请先启动 Secret Service。"
+    "failure": "无法完成 ChatGPT 登录。请重试，或移除后重新登录。"
   },
   "execProviderNotConfigured": "提供方 {id} 未配置。",
   "providerText": {
