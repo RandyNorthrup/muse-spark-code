@@ -12,7 +12,17 @@ guard. Four review fixes landed on this branch after the lane: the serve
 grammar no longer echoes a secret-looking option name through the raw parser
 message (key spellings included), `playbook --help` prints its topic,
 a repeated `providers models --add` writes the model once, and `auth --help`
-states that `auth set` reads the key from standard input.
+states that `auth set` reads the key from standard input. The continuation
+run (same day, through Muse Spark Code) proved and fixed four more: the
+hidden refusal now covers `passphrase`, any `*key*` spelling and the bearer
+word (each was echoed); `providers models` recomputes its write from the
+commit's re-read (a model another writer added in between was lost); a
+`--force` reason stays one line (a newline forged a list line, a blank
+reason stored); and a wrong `exec` value names its own option (`--timeout 1`
+previously answered with the USD budget's six-decimal sentence). Packed
+proof on the merged tree: `exec --help` is 40 lines with no "Help &
+Reference" text, and the models add/list/remove cycle above ran against an
+isolated config home.
 
 ## 1. Accepted today (from the code, release 0.18.1 base)
 
