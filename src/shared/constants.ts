@@ -5916,6 +5916,7 @@ export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
   'dist/subscriptions.js',
   'dist/configuredProviders.js',
   'dist/modelsPanel.js',
+  'dist/modelsSubscriptions.js',
   'dist/usageService.js',
   'dist/usageCompanion.js',
   'dist/usagePanel.js',
