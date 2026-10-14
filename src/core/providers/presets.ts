@@ -154,13 +154,6 @@ export interface FormatQuirks {
    */
   readonly thinkingOff?: 'thinking-switch' | 'reasoning-enabled' | undefined
   /**
-   * The preset's documented requested-to-canonical effort map, applied
-   * before the shared resolver matches. A name the provider takes as
-   * named is never listed here (DeepSeek's table maps server-side, so
-   * the preset carries no aliases). Absent maps nothing.
-   */
-  readonly effortAliases?: Readonly<Record<string, string>> | undefined
-  /**
    * The preset's documented reasoning presentation parameter (Groq's
    * `reasoning_format`, read 2026-10-12): `parsed` keeps reasoning in its
    * dedicated field, which tool calling and JSON mode require. Absent

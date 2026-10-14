@@ -772,26 +772,20 @@ describe('chat codec request goldens', () => {
     expect(encoded.body).not.toHaveProperty('thinking')
   })
 
-  it('maps an unlisted Thinking-on effort to the nearest listed level, never to off', () => {
-    // Lane DSTHINK3: the shared resolver; a tie takes the higher level.
-    for (const [requested, sent] of [
-      ['medium', 'high'],
-      ['minimal', 'low'],
-      ['xhigh', 'max'],
-    ] as const) {
+  it('sends no effort for an unlisted Thinking-on level, never a neighbour or off', () => {
+    for (const requested of ['medium', 'minimal', 'xhigh'] as const) {
       const encoded = encodeChatRequest(
         tinyBody({ reasoning: { effort: requested, summary: 'auto' } }),
         'deepseek-flash',
         DEEPSEEK_DECLARED,
       )
-      expect(encoded.body.reasoning_effort).toBe(sent)
+      expect(encoded.body).not.toHaveProperty('reasoning_effort')
       expect(encoded.body).not.toHaveProperty('thinking')
     }
   })
 
   it('refuses an unknown effort and Thinking off where the model forbids it', () => {
-    // Lane REASONSHAPES: `ultra` is a UI tier now (nearest listed answers);
-    // `turbo` names nothing and still refuses.
+    // `turbo` names nothing in the UI range and refuses.
     const unknown = tinyBody({ reasoning: { effort: 'turbo', summary: 'auto' } })
     expect(() => encodeChatRequest(unknown, 'deepseek-flash', DEEPSEEK_DECLARED)).toThrow(
       `${UI_TEXT.chatCodecEffortUnsupported} (unsupported_reasoning_effort)`,
@@ -2317,9 +2311,7 @@ describe('chat codec reasoning controls (lane REASONSHAPES)', () => {
 
   it('sends every DeepSeek effort as named, never a neighbour', () => {
     // Round 2 (DS-ULTRA, DS-XHIGH): the provider takes the names, so
-    // no client remap. The real preset declares no aliases; assert
-    // that through the real module, then the bytes.
-    expect(presetById('deepseek')?.quirks.effortAliases).toBeUndefined()
+    // no client remap.
     for (const effort of ['minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra'] as const) {
       const encoded = encodeChatRequest(
         tinyBody({ reasoning: { effort, summary: 'auto' } }),

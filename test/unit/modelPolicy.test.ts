@@ -75,8 +75,10 @@ describe('resolved model policy', () => {
       thinkingOff: 'thinking-switch',
     })
     expect(effortForPolicy(deepseek, 'high')).toBe('high')
-    expect(effortForPolicy(deepseek, 'medium')).toBe('high')
-    expect(effortForPolicy(deepseek, 'minimal')).toBe('low')
+    // Unlisted levels ride unchanged to the codec, whose resolver takes
+    // the provider default; no neighbour is substituted at either layer.
+    expect(effortForPolicy(deepseek, 'medium')).toBe('medium')
+    expect(effortForPolicy(deepseek, 'minimal')).toBe('minimal')
     expect(effortForPolicy(deepseek, 'none')).toBe('none')
     // Refused and default settings ride unchanged to the codec's resolver.
     expect(
@@ -190,16 +192,14 @@ describe('resolved model policy', () => {
     expect(build).not.toHaveProperty('defaultEffort')
   })
 
-  it('maps documented effort aliases and passes server-routed efforts through', () => {
-    // Lane REASONSHAPES: the preset's table rides the policy to both codecs.
+  it('sends listed levels as named and passes server-routed efforts through', () => {
     const aliased = modelPolicyFor('deepseek/deepseek-flash', {
-      effortLevels: ['low', 'high', 'max'],
+      effortLevels: ['minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
       canDisableReasoning: true,
       thinkingOff: 'thinking-switch',
-      effortAliases: { ultra: 'max', xhigh: 'high' },
     })
-    expect(effortForPolicy(aliased, 'ultra')).toBe('max')
-    expect(effortForPolicy(aliased, 'xhigh')).toBe('high')
+    expect(effortForPolicy(aliased, 'ultra')).toBe('ultra')
+    expect(effortForPolicy(aliased, 'xhigh')).toBe('xhigh')
     expect(effortForPolicy(aliased, 'none')).toBe('none')
     const routed = modelPolicyFor('llamacpp/server-model', { sendUndeclaredEffort: true })
     expect(effortForPolicy(routed, 'high')).toBe('high')

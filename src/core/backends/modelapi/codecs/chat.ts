@@ -88,8 +88,6 @@ export interface ChatPresetQuirks {
    * preset's existing bytes.
    */
   readonly thinkingOff?: 'thinking-switch' | 'reasoning-enabled' | undefined
-  /** The preset's documented requested-to-canonical effort map. */
-  readonly effortAliases?: Readonly<Record<string, string>> | undefined
   /**
    * The preset's documented reasoning presentation (`reasoning_format`),
    * sent where the record affirms reasoning. Never beside
@@ -731,7 +729,6 @@ function nativeReasoning(
         effortLevels: quirks.effortLevels,
         canDisable: quirks.canDisable === true,
         thinkingOff: quirks.thinkingOff,
-        ...(quirks.effortAliases !== undefined && { effortAliases: quirks.effortAliases }),
       },
       requested,
     )

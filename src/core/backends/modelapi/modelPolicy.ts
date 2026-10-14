@@ -45,10 +45,9 @@ export type Known<T> =
 /**
  * The record-sourced optional reasoning facts (lane REASONSHAPESR2):
  * the affirmed Thinking-off value, the list's default effort,
- * manual-only thinking, the preset's Thinking-off switch, the
- * documented effort map and the full-vocabulary flag. Evidence and
- * policy share them; the policy adds the resolved level list and
- * disable flag.
+ * manual-only thinking, the preset's Thinking-off switch and the
+ * full-vocabulary flag. Evidence and policy share them; the policy
+ * adds the resolved level list and disable flag.
  */
 export interface ReasoningPolicyFields {
   /**
@@ -72,8 +71,6 @@ export interface ReasoningPolicyFields {
   readonly manualOnly?: boolean | undefined
   /** The preset's documented Thinking-off switch (lane DSTHINK3). */
   readonly thinkingOff?: 'thinking-switch' | 'reasoning-enabled' | undefined
-  /** The preset's documented requested-to-canonical effort map. */
-  readonly effortAliases?: Readonly<Record<string, string>> | undefined
   /** The preset documents its effort vocabulary for every model. */
   readonly sendUndeclaredEffort?: boolean | undefined
 }
@@ -157,10 +154,6 @@ export function modelPolicyFor(model: string, evidence: ModelPolicyEvidence = {}
       ...(evidence.defaultEffort !== undefined && { defaultEffort: evidence.defaultEffort }),
       ...(evidence.manualOnly !== undefined && { manualOnly: evidence.manualOnly }),
       ...(!isMeta && evidence.thinkingOff !== undefined && { thinkingOff: evidence.thinkingOff }),
-      ...(!isMeta &&
-        evidence.effortAliases !== undefined && {
-          effortAliases: evidence.effortAliases,
-        }),
       ...(!isMeta && evidence.sendUndeclaredEffort === true && { sendUndeclaredEffort: true }),
     },
     output: {
@@ -201,18 +194,6 @@ export function hasUsableEffortLevels(levels: Known<readonly string[]>): boolean
 }
 
 /**
- * The selected model's request effort, from the one resolver (lane
- * DSTHINK3). Without a declared switch a listed level rides as named; an
- * unlisted on-level resolves to `default` (the provider default: codecs
- * omit the field), never to a neighbour and never to off. Off rides as
- * `none` where the record affirms disabling (a listed `none`, an affirmed
- * `canDisable`, or an affirmed off switch); anywhere else the record
- * speaks, the typed refusal is raised before dispatch instead of sending
- * a value the model does not take (lane REASONSHAPESR2). With a declared
- * switch, a default or refused setting rides unchanged to the model's
- * codec, which resolves it again from the same record.
- */
-/**
  * The resolver input for a policy (lane REASONSHAPESR2): unwraps the
  * record's `Known<>` facts into the shared control. The resolver and
  * its test mirror build it here, so the mirror checks decisions, not
@@ -221,12 +202,11 @@ export function hasUsableEffortLevels(levels: Known<readonly string[]>): boolean
 export function reasoningControlForPolicy(
   policy: Pick<ModelPolicy, 'reasoning'>,
 ): ReasoningControl {
-  const { effortLevels, canDisable, thinkingOff, effortAliases } = policy.reasoning
+  const { effortLevels, canDisable, thinkingOff } = policy.reasoning
   return {
     effortLevels: effortLevels.state === 'yes' ? effortLevels.value : undefined,
     canDisable: canDisable.state === 'yes',
     thinkingOff,
-    ...(effortAliases !== undefined && { effortAliases }),
   }
 }
 
@@ -266,16 +246,24 @@ export function routedEffortForPolicy(policy: ModelPolicy, requested: string): s
     : undefined
 }
 
+/**
+ * The selected model's request effort, from the one resolver (lane
+ * DSTHINK3). A listed level rides as named; an unlisted on-level resolves
+ * to `default` (the provider default: codecs omit the field), never to a
+ * neighbour and never to off. Off rides as `none` where the record
+ * affirms disabling (a listed `none`, an affirmed `canDisable`, or an
+ * affirmed off switch); anywhere else the record speaks, the typed
+ * refusal is raised before dispatch instead of sending a value the model
+ * does not take (lane REASONSHAPESR2). With a declared switch, a default
+ * or refused setting rides unchanged to the model's codec, which
+ * resolves it again from the same record.
+ */
 export function effortForPolicy(policy: ModelPolicy, requested: string): string {
   const routed = routedEffortForPolicy(policy, requested)
   if (routed !== undefined) {
     return routed
   }
-  const { effortLevels, canDisable, offSwitch, thinkingOff, sendUndeclaredEffort } =
-    policy.reasoning
-  if (thinkingOff === undefined && sendUndeclaredEffort === true && requested !== 'default') {
-    return requested
-  }
+  const { effortLevels, canDisable, offSwitch, thinkingOff } = policy.reasoning
   const decision = resolveReasoning(reasoningControlForPolicy(policy), requested)
   if (decision.kind === 'effort') return decision.effort
   if (thinkingOff !== undefined) {
