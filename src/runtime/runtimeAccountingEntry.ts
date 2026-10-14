@@ -303,7 +303,7 @@ export function withRuntimeAccounting(
           if (
             contextTokens === undefined ||
             !Number.isSafeInteger(contextTokens) ||
-            contextTokens <= body.max_output_tokens
+            contextTokens < 1
           )
             throw new UserRefusalError(UI_TEXT.execContextLimit, 'context_limit')
           signal.throwIfAborted()
