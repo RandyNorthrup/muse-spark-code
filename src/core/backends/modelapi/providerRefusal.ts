@@ -306,11 +306,16 @@ export function isRefusalRetryable(
     message: failure.message,
   })
   if (isNeverRetryRefusal(failure.status, kind)) return false
+  // The message is not passed on: `classifyRetry` treats the bare word
+  // "quota" in prose as a spent-quota veto, but a provider's per-minute
+  // limit can say "quota" for a limit that resets (round 2, finding 3).
+  // Credit here is decided above, from the documented type/code/reason and
+  // the recorded phrases only, so prose must not veto a retry afterwards.
   return classifyRetry(table, {
     status: failure.status,
     kind: failure.kind,
     code: failure.code,
-    message: failure.message,
+    message: '',
     retryAfterMs,
   }).retry
 }

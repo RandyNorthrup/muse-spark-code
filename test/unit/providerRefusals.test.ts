@@ -203,6 +203,23 @@ describe('documented shapes the lane could not record (UNVERIFIED)', () => {
     expect(isRefusalRetryable(carrier(429, quota), undefined)).toBe(false)
   })
 
+  it('retries a quota-worded rate limit that carries no quota code (RVPROVERR)', () => {
+    // Gemini documents its per-minute limits as 429 RESOURCE_EXHAUSTED
+    // (https://ai.google.dev/gemini-api/docs/rate-limits, read 2026-10-14);
+    // the prose can say "quota" for a limit that resets, so the word alone
+    // must not veto the retry the 429 table allows. UNVERIFIED until a real
+    // quota-worded Gemini 429 is recorded (capture plan).
+    const parsed = parseRefusalError(429, {
+      error: {
+        code: 429,
+        message: 'Resource has been exhausted (e.g. check quota).',
+        status: 'RESOURCE_EXHAUSTED',
+      },
+    })
+    expect(refusalOf(carrier(429, parsed)).kind).toBe('rateLimited')
+    expect(isRefusalRetryable(carrier(429, parsed), undefined)).toBe(true)
+  })
+
   it('reads the preset retry override (OPENAI-G20)', () => {
     // OpenAI documents `server_error` as retryable past the format statuses
     // (the `quirks.retry` override in src/core/providers/presets.ts); the
