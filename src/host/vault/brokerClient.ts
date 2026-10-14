@@ -37,3 +37,5 @@ export class BrokerSecretStore implements SecretStore {
     await this.bindings.delete(key)
   }
 }
+
+export { VaultFirstPartyReader as HostVaultBrokerClient } from '../../core/vault/broker/firstParty'

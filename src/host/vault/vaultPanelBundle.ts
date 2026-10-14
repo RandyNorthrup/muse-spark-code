@@ -11,6 +11,11 @@ import type { VaultPanelEntryDeps } from './vaultPanelEntry'
 import type { VaultPanelHost, VaultPanelService } from './vaultPanelHost'
 
 export const VAULT_COMMANDS = { open: 'museSpark.vault', lock: 'museSpark.lockVault' } as const
+export const VAULT_LOCK_KEYBINDING = {
+  command: VAULT_COMMANDS.lock,
+  key: 'ctrl+alt+shift+l',
+  mac: 'cmd+alt+shift+l',
+} as const
 export interface VaultWindowControls {
   open(): Promise<void>
   lock(): Promise<void>

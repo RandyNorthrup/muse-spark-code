@@ -837,6 +837,14 @@ export const runnersMessageSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('runners/testAll') }),
 ])
 export type RunnersMessage = z.infer<typeof runnersMessageSchema>
+export const trafficHostMessageSchema = z.strictObject({
+  type: z.literal('traffic/state'),
+  state: trafficSliceSchema,
+})
+export const runnersHostMessageSchema = z.strictObject({
+  type: z.literal('runners/state'),
+  state: runnersSliceSchema,
+})
 // --- End Traffic and runners region. ---
 // M108 U's account slice. M95/M104 supply the authenticated panel envelope.
 // This local projection carries metadata and policy evidence, never credentials.
