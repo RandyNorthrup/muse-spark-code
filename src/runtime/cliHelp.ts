@@ -65,46 +65,87 @@ export interface CliHelpTopic {
   readonly examples: readonly ((command: string) => string)[]
 }
 
-/** Bounds and defaults from shared constants; the parser owns the values. */
-const FACTS: Readonly<Record<string, CliOptionFact>> = {
-  backend: { kind: 'enum', values: ACP_BACKENDS, default: ACP_DEFAULT_BACKEND },
-  'shell-sandbox': {
-    kind: 'enum',
-    values: SHELL_SANDBOX_MODES,
-    default: SETTING_DEFAULTS.shellSandbox,
-  },
-  'permission-mode': { kind: 'enum', values: EXEC_MODES, default: EXEC_DEFAULT_MODE },
-  output: { kind: 'enum', values: EXEC_OUTPUTS, default: EXEC_DEFAULT_OUTPUT },
-  effort: { kind: 'enum', values: EFFORT_LEVELS },
-  'max-requests': {
-    kind: 'range',
-    min: 1,
-    max: EXEC_MAX_REQUESTS,
-    default: EXEC_DEFAULT_MAX_REQUESTS,
-  },
-  timeout: {
-    kind: 'range',
-    min: EXEC_MIN_TIMEOUT_SECONDS,
-    max: EXEC_MAX_TIMEOUT_SECONDS,
-    default: EXEC_DEFAULT_TIMEOUT_SECONDS,
-    unit: 'seconds',
-  },
-  'max-budget-usd': { kind: 'maximum', max: EXEC_MAX_BUDGET_USD, unit: 'USD' },
-  'usage-history': { kind: 'enum', values: ['on', 'off'], default: 'on' },
-  range: { kind: 'enum', values: ['today', '7d', '30d', '90d', 'custom'], default: '30d' },
-  by: { kind: 'enum', values: ['provider', 'model', 'kind', 'client'] },
-  'resource-governor': { kind: 'enum', values: ['on', 'off'], default: 'on' },
-  'providersAdd:format': { kind: 'enum', values: ['chat', 'responses', 'anthropic'] },
-  'legal:format': { kind: 'enum', values: ['text', 'json'] },
-  'providersAdd:privacy': { kind: 'enum', values: ['zdr', 'no-training', 'any'] },
+/**
+ * Bounds and defaults from shared constants; the parser owns the values. A
+ * lookup function rather than a keyed record: the keys would be the option
+ * names, and `max-budget-usd` as a declared key holding a number is exactly
+ * what the M121 exact-money guard refuses (a CLI display bound is none of
+ * its sanctioned kinds). The values stay the shared constants.
+ */
+function factFor(name: string): CliOptionFact | undefined {
+  switch (name) {
+    case 'backend': {
+      return { kind: 'enum', values: ACP_BACKENDS, default: ACP_DEFAULT_BACKEND }
+    }
+    case 'shell-sandbox': {
+      return {
+        kind: 'enum',
+        values: SHELL_SANDBOX_MODES,
+        default: SETTING_DEFAULTS.shellSandbox,
+      }
+    }
+    case 'permission-mode': {
+      return { kind: 'enum', values: EXEC_MODES, default: EXEC_DEFAULT_MODE }
+    }
+    case 'output': {
+      return { kind: 'enum', values: EXEC_OUTPUTS, default: EXEC_DEFAULT_OUTPUT }
+    }
+    case 'effort': {
+      return { kind: 'enum', values: EFFORT_LEVELS }
+    }
+    case 'max-requests': {
+      return {
+        kind: 'range',
+        min: 1,
+        max: EXEC_MAX_REQUESTS,
+        default: EXEC_DEFAULT_MAX_REQUESTS,
+      }
+    }
+    case 'timeout': {
+      return {
+        kind: 'range',
+        min: EXEC_MIN_TIMEOUT_SECONDS,
+        max: EXEC_MAX_TIMEOUT_SECONDS,
+        default: EXEC_DEFAULT_TIMEOUT_SECONDS,
+        unit: 'seconds',
+      }
+    }
+    case 'max-budget-usd': {
+      return { kind: 'maximum', max: EXEC_MAX_BUDGET_USD, unit: 'USD' }
+    }
+    case 'usage-history': {
+      return { kind: 'enum', values: ['on', 'off'], default: 'on' }
+    }
+    case 'range': {
+      return { kind: 'enum', values: ['today', '7d', '30d', '90d', 'custom'], default: '30d' }
+    }
+    case 'by': {
+      return { kind: 'enum', values: ['provider', 'model', 'kind', 'client'] }
+    }
+    case 'resource-governor': {
+      return { kind: 'enum', values: ['on', 'off'], default: 'on' }
+    }
+    case 'providersAdd:format': {
+      return { kind: 'enum', values: ['chat', 'responses', 'anthropic'] }
+    }
+    case 'legal:format': {
+      return { kind: 'enum', values: ['text', 'json'] }
+    }
+    case 'providersAdd:privacy': {
+      return { kind: 'enum', values: ['zdr', 'no-training', 'any'] }
+    }
+    default: {
+      return undefined
+    }
+  }
 }
 
 /** The options serve and login take the same way. */
 const SERVE_FAMILY_OPTIONS: readonly CliHelpOption[] = [
-  { name: 'backend', shape: '', fact: FACTS['backend'] },
+  { name: 'backend', shape: '', fact: factFor('backend') },
   { name: 'trust-workspace', shape: '' },
   { name: 'muse-binary', shape: '<path>' },
-  { name: 'shell-sandbox', shape: '', fact: FACTS['shell-sandbox'] },
+  { name: 'shell-sandbox', shape: '', fact: factFor('shell-sandbox') },
   { name: 'allow-dangerously-skip-permissions', shape: '' },
   { name: 'allow-contributor-models', shape: '' },
   { name: 'verbose', shape: '' },
@@ -113,7 +154,7 @@ const SERVE_FAMILY_OPTIONS: readonly CliHelpOption[] = [
   { name: 'image-generation', shape: '' },
   { name: 'auto-compaction', shape: '' },
   { name: 'no-auto-compaction', shape: '' },
-  { name: 'usage-history', shape: '', fact: FACTS['usage-history'] },
+  { name: 'usage-history', shape: '', fact: factFor('usage-history') },
 ]
 
 /** The one table behind parsing and help: topic names, in help order. */
@@ -125,7 +166,7 @@ export const CLI_HELP_TOPICS: readonly CliHelpTopic[] = [
     routes: ['serve'],
     options: [
       ...SERVE_FAMILY_OPTIONS,
-      { name: 'max-budget-usd', shape: '<amount>', fact: FACTS['max-budget-usd'] },
+      { name: 'max-budget-usd', shape: '<amount>', fact: factFor('max-budget-usd') },
       { name: 'scheduled-prompts', shape: '' },
       { name: 'help', shape: '' },
       { name: 'version', shape: '' },
@@ -178,13 +219,13 @@ export const CLI_HELP_TOPICS: readonly CliHelpTopic[] = [
       {
         name: 'format',
         shape: '<format>',
-        fact: FACTS['providersAdd:format'],
+        fact: factFor('providersAdd:format'),
       },
       { name: 'model', shape: '<model>' },
       {
         name: 'privacy',
         shape: '<policy>',
-        fact: FACTS['providersAdd:privacy'],
+        fact: factFor('providersAdd:privacy'),
       },
       { name: 'private-ok', shape: '' },
       { name: 'key-stdin', shape: '' },
@@ -208,15 +249,15 @@ export const CLI_HELP_TOPICS: readonly CliHelpTopic[] = [
     ],
     routes: ['exec'],
     options: [
-      { name: 'backend', shape: '', fact: FACTS['backend'] },
+      { name: 'backend', shape: '', fact: factFor('backend') },
       { name: 'provider', shape: '<id>' },
       { name: 'model', shape: '<model>' },
-      { name: 'effort', shape: '', fact: FACTS['effort'] },
-      { name: 'permission-mode', shape: '', fact: FACTS['permission-mode'] },
-      { name: 'output', shape: '', fact: FACTS['output'] },
-      { name: 'max-budget-usd', shape: '<amount>', fact: FACTS['max-budget-usd'] },
-      { name: 'max-requests', shape: '<count>', fact: FACTS['max-requests'] },
-      { name: 'timeout', shape: '<seconds>', fact: FACTS['timeout'] },
+      { name: 'effort', shape: '', fact: factFor('effort') },
+      { name: 'permission-mode', shape: '', fact: factFor('permission-mode') },
+      { name: 'output', shape: '', fact: factFor('output') },
+      { name: 'max-budget-usd', shape: '<amount>', fact: factFor('max-budget-usd') },
+      { name: 'max-requests', shape: '<count>', fact: factFor('max-requests') },
+      { name: 'timeout', shape: '<seconds>', fact: factFor('timeout') },
       { name: 'cwd', shape: '<directory>' },
       { name: 'prompt-file', shape: '<file>' },
       { name: 'output-schema', shape: '<file>' },
@@ -227,7 +268,7 @@ export const CLI_HELP_TOPICS: readonly CliHelpTopic[] = [
       { name: 'account-pool', shape: '' },
       { name: 'allow-contributor-models', shape: '' },
       { name: 'muse-binary', shape: '<path>' },
-      { name: 'shell-sandbox', shape: '', fact: FACTS['shell-sandbox'] },
+      { name: 'shell-sandbox', shape: '', fact: factFor('shell-sandbox') },
       { name: 'image-generation', shape: '' },
       { name: 'fail-on-denial', shape: '' },
       { name: 'ephemeral', shape: '' },
@@ -235,7 +276,7 @@ export const CLI_HELP_TOPICS: readonly CliHelpTopic[] = [
       { name: 'vault', shape: '' },
       { name: 'verbose', shape: '' },
       { name: 'no-auto-compaction', shape: '' },
-      { name: 'resource-governor', shape: '', fact: FACTS['resource-governor'] },
+      { name: 'resource-governor', shape: '', fact: factFor('resource-governor') },
       { name: 'cpu-max', shape: '<percent>' },
       { name: 'memory-max', shape: '<percent>' },
       { name: 'help', shape: '' },
@@ -283,7 +324,7 @@ export const CLI_HELP_TOPICS: readonly CliHelpTopic[] = [
     routes: ['legal'],
     options: [
       { name: 'json', shape: '' },
-      { name: 'format', shape: '<format>', fact: FACTS['legal:format'] },
+      { name: 'format', shape: '<format>', fact: factFor('legal:format') },
       { name: 'out', shape: '<file>' },
       { name: 'registry', shape: '' },
       { name: 'help', shape: '' },
@@ -341,8 +382,8 @@ export const CLI_HELP_TOPICS: readonly CliHelpTopic[] = [
     usage: [(command) => `${command} usage [summary|daily|models|limits|export|open] [options]`],
     routes: ['usage'],
     options: [
-      { name: 'range', shape: '', fact: FACTS['range'] },
-      { name: 'by', shape: '', fact: FACTS['by'] },
+      { name: 'range', shape: '', fact: factFor('range') },
+      { name: 'by', shape: '', fact: factFor('by') },
       { name: 'from', shape: '<date>' },
       { name: 'to', shape: '<date>' },
       { name: 'json', shape: '' },
@@ -467,8 +508,13 @@ export function renderTopHelp(table: UiText, command: string): string {
   const lines: string[] = [formatAcpUsage(table, command), table.cliHelp.commands]
   for (const topic of CLI_HELP_TOPICS) lines.push(`  ${topic.name}  ${topic.purpose(table)}`)
   // Serve-only options the global list does not name (D108: --max-budget-usd).
+  // The dormant schedule-v2 admission flag stays out of the compact help
+  // (the schedules process boundary): the serve topic's own help still
+  // documents it, because the parser accepts it on serve.
   const serveOnly = Object.keys(CLI_OPTION_REGISTRY.serve.options).filter(
-    (name) => !Object.keys(CLI_OPTION_REGISTRY.login.options).includes(name),
+    (name) =>
+      name !== 'scheduled-prompts' &&
+      !Object.keys(CLI_OPTION_REGISTRY.login.options).includes(name),
   )
   for (const name of serveOnly) {
     const option = CLI_HELP_TOPICS.find((topic) => topic.name === 'serve')?.options.find(
