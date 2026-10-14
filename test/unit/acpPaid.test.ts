@@ -57,7 +57,10 @@ it('tells the session person at once when Always could not be saved', async () =
   expect(told).toHaveLength(1)
   expect(told[0]?.[0]).toBe('session')
   expect(told[0]?.[1]).toBe(
-    fill(EN.paidAlwaysNotKept, { feature: paidFeatureName('autoCompaction'), kind: 'Error' }),
+    fill(EN.paidAlwaysNotKept, {
+      feature: paidFeatureName('autoCompaction'),
+      kind: EN.paidStoreReasonUnknown,
+    }),
   )
 })
 
@@ -118,7 +121,10 @@ it('tells the terminal operator at once when Always could not be saved', async (
   paid.attach(() => Promise.resolve('always' as const))
   expect(await paid.allows('/ws', 'session', compactionRequest(), false)).toBe(true)
   expect(warned).toEqual([
-    fill(EN.paidAlwaysNotKept, { feature: paidFeatureName('autoCompaction'), kind: 'Error' }),
+    fill(EN.paidAlwaysNotKept, {
+      feature: paidFeatureName('autoCompaction'),
+      kind: EN.paidStoreReasonUnknown,
+    }),
   ])
 })
 

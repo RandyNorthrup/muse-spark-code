@@ -4468,6 +4468,11 @@ export const EN = {
     'Saved "always" choices could not be read ({kind}), so this use asks again.',
   paidAlwaysNotKept:
     '"Always" for {feature} applied this time, but it could not be saved ({kind}): you will be asked again.',
+  // `{kind}` above and in `paidQuoteChoicesUnreadable` is one of these
+  // closed words, never an errno or an error name.
+  paidStoreReasonDenied: 'permission was refused',
+  paidStoreReasonDiskFull: 'the disk is full or read-only',
+  paidStoreReasonUnknown: 'the cause is unknown',
   paidUseWebSearchDetail:
     'Muse may search the web while it answers. Each search is billed to your Model API key at {price}, on top of the tokens its results add. Deny sends the prompt without web search.',
   paidUseVoiceTitle: 'Record with Muse Voice?',

@@ -9,6 +9,7 @@ import {
   bestOfNPrice,
   modelApiPaidTier,
   hookModelPrice,
+  paidStoreReasonText,
   scheduledRunPrice,
   subagentTaskPrice,
   type PaidUseRequest,
@@ -55,7 +56,11 @@ export async function paidUseQuestion(request: PaidUseRequest): Promise<{
               ]),
           ...(request.quoteNotice === undefined
             ? []
-            : [fill(UI_TEXT.paidQuoteChoicesUnreadable, { kind: request.quoteNotice.kind })]),
+            : [
+                fill(UI_TEXT.paidQuoteChoicesUnreadable, {
+                  kind: paidStoreReasonText(request.quoteNotice.kind),
+                }),
+              ]),
         ].join('\n'),
       }
     }

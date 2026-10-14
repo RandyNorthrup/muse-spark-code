@@ -152,14 +152,16 @@ describe('PaidUseConsent (M58)', () => {
       },
       quoteGeneration: () => 'stored',
       readQuoteGrant: () => undefined,
-      readQuoteNotice: () => ({ kind: 'EACCES' }),
+      readQuoteNotice: () => ({ kind: 'denied' }),
       log: new FakeLogOutputChannel(),
     })
     await consent.allows(SEARCH)
-    expect(asked).toMatchObject({ feature: 'webSearch', quoteNotice: { kind: 'EACCES' } })
+    expect(asked).toMatchObject({ feature: 'webSearch', quoteNotice: { kind: 'denied' } })
     // The surface shows the notice with the question, in the display language.
     const question = await paidUseQuestion(asked ?? SEARCH)
-    expect(question.detail).toContain(fill(UI_TEXT.paidQuoteChoicesUnreadable, { kind: 'EACCES' }))
+    expect(question.detail).toContain(
+      fill(UI_TEXT.paidQuoteChoicesUnreadable, { kind: UI_TEXT.paidStoreReasonDenied }),
+    )
   })
 
   it('R3 P2-1: Ask again invalidates model B pending Always without restoring model A', async () => {
@@ -249,12 +251,16 @@ describe('PaidUseConsent (M58)', () => {
 
   it('tells the person at once when Always could not be kept', async () => {
     const notices: PaidNotKeptNotice[] = []
-    const { consent } = unsavableConsent(new Error('storage is full'), (notice) => {
-      notices.push(notice)
-    })
-    // The use is allowed once and charged; the sentence arrives when it happens.
+    const { consent } = unsavableConsent(
+      Object.assign(new Error('storage is full'), { code: 'ENOSPC' }),
+      (notice) => {
+        notices.push(notice)
+      },
+    )
+    // The use is allowed once and charged; the sentence arrives when it
+    // happens, with the closed kind, never the errno or the error's name.
     await expect(consent.allows(VOICE)).resolves.toBe(true)
-    expect(notices).toEqual([{ feature: 'voice', kind: 'Error' }])
+    expect(notices).toEqual([{ feature: 'voice', kind: 'diskFull' }])
   })
 
   describe('a quoted search "always" its store cannot keep (0.16.0 review)', () => {
@@ -296,7 +302,7 @@ describe('PaidUseConsent (M58)', () => {
         'Paid search quote could not be kept (Error)',
       )
       // The person is told at once, with the kind: applied this time, asked again next.
-      expect(t.notices).toEqual([{ feature: 'webSearch', kind: 'Error' }])
+      expect(t.notices).toEqual([{ feature: 'webSearch', kind: 'unknown' }])
       expect(t.log.info).toHaveBeenLastCalledWith('Paid use of webSearch: allowed once')
       expect(t.kept).toEqual([])
       expect(t.listener).not.toHaveBeenCalled()

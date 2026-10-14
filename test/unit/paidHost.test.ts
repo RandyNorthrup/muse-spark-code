@@ -460,7 +460,10 @@ describe('Allow always in this workspace (M58)', () => {
     await expect(paid.consent.allows({ feature: 'voice' })).resolves.toBe(true)
     const said = vi.mocked(confirmModal).mock.calls.map((call) => call[0])
     expect(said.at(-1)).toBe(
-      fill(UI_TEXT.paidAlwaysNotKept, { feature: paidFeatureName('voice'), kind: 'Error' }),
+      fill(UI_TEXT.paidAlwaysNotKept, {
+        feature: paidFeatureName('voice'),
+        kind: UI_TEXT.paidStoreReasonUnknown,
+      }),
     )
   })
 
