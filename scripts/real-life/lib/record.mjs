@@ -34,6 +34,26 @@ export function scrubber(replacements) {
   }
 }
 
+/**
+ * What `usage --json` printed, read fail-closed: a failed command, an
+ * output that is no JSON, or a shape with no records array is spend nobody
+ * knows, never an empty reading.
+ * @param {{ code: number | null, stdout: string }} run the finished command
+ * @returns {{ ok: true, records: object[] } | { ok: false, reason: string }}
+ */
+export function parseUsageOutput(run) {
+  if (run.code !== 0) return { ok: false, reason: `usage ended with exit ${String(run.code)}` }
+  let printed
+  try {
+    printed = JSON.parse(run.stdout)
+  } catch {
+    return { ok: false, reason: 'usage printed no JSON' }
+  }
+  return Array.isArray(printed?.records)
+    ? { ok: true, records: printed.records }
+    : { ok: false, reason: 'usage printed no records array' }
+}
+
 /** A short form of what was seen, on one line. */
 export const clip = (text) => {
   const line = String(text ?? '')
@@ -74,7 +94,7 @@ export function summaryOf(record) {
     `${record.os}, Node ${record.node}; ${record.startedAt} to ${record.endedAt}`,
     `Caps: ${String(record.caps.requests)} requests, $${record.caps.usd} of reported usage. Made: ${String(record.totals.requests)} requests, $${record.totals.usd} of usage the providers reported (settled).`,
     `Booked by the product for requests that were sent and came back with no usage report: $${record.totals.uncertainUsd} (may be real money). Its daily ledger holds $${record.totals.ledgerUnsettled.usd} in ${String(record.totals.ledgerUnsettled.claims)} claim(s) with no settlement (a whole reservation each). Runs the product turned away before anything was sent, at the run's own asking: ${String(record.totals.turnedAwayUnsentRuns)}.`,
-    `The product's own usage for this home afterwards: ${String(record.totals.productUsage.requests)} requests, $${record.totals.productUsage.usd}.`,
+    `The product's own usage for this home afterwards: ${String(record.totals.productUsage.requests)} requests, $${record.totals.productUsage.usd}${record.totals.productUsage.unread === undefined ? '' : ` (could not be read: ${record.totals.productUsage.unread})`}.`,
     ...record.settings.map(
       (one) => `Set by the run in ${one.where}: ${one.setting} = ${String(one.value)}; ${one.why}.`,
     ),
