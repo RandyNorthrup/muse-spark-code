@@ -69,8 +69,13 @@ const M95_UI_KEYS = [
   'providerConnect',
   'providerConnectWaiting',
   'providerKeyPrompt',
-  // Lane K: the password box's shape error and the loopback callback page.
-  'providerKeyInvalid',
+  // Lane PROVKEYS: no key is refused for its shape, so the password
+  // box's shape error is gone; the wrong-thing questions remain, plus the
+  // loopback callback page.
+  'providerKeyNoticeWhitespace',
+  'providerKeyNoticeUrl',
+  'providerKeyNoticePath',
+  'providerKeyNoticePlaceholder',
   'oauthCallbackDone',
   'keyStoredNote',
   'changeKey',

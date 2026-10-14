@@ -514,7 +514,7 @@ describe('providers add', () => {
     }
   })
 
-  it('refuses an unknown preset, a repeat, a bad shape and a missing key', async () => {
+  it('refuses an unknown preset, a repeat and a missing key', async () => {
     const unknown = fakeProviders(emptyProvidersFile(), { secret: OPENROUTER_KEY })
     expect(
       await providersAdd(unknown.deps, {
@@ -547,16 +547,6 @@ describe('providers add', () => {
       }),
     ).toBe(1)
     expect(repeat.errors.join(',')).toContain('already configured')
-
-    const shape = fakeProviders(emptyProvidersFile(), { secret: 'wrong-shape' })
-    expect(
-      await providersAdd(shape.deps, {
-        preset: 'groq',
-        models: ['m'],
-        privateOk: false,
-        keyFromStdin: true,
-      }),
-    ).toBe(1)
 
     const noKey = fakeProviders(emptyProvidersFile(), { secret: GROQ_KEY })
     expect(

@@ -60,9 +60,7 @@ describe('provider localization', () => {
       expect(Object.values(fr.providerText.descriptions)).toContain(preset.description)
     }
     expect(openai?.description).toBe(fr.providerText.descriptions.openai)
-    expect(openai?.keyHint).toBe(
-      fill(fr.providerText.hints.prefix, { prefix: 'sk-', site: 'platform.openai.com' }),
-    )
+    expect(openai?.keyHint).toBe(fill(fr.providerText.hints.site, { site: 'platform.openai.com' }))
     expect(presetById('azure')?.keyHint).toBe(fr.providerText.hints.azure)
     expect(presetById('custom')?.label).toBe(fr.providerText.labels.custom)
     for (const choice of OPENROUTER_PRIVACY_CHOICES) {

@@ -291,18 +291,18 @@ describe('probeProvider', () => {
 })
 
 describe('readProviderKeyLine and memorySecretStoreFor', () => {
-  const shape = { kind: 'prefix', prefix: 'sk-or-', minLength: 20 } as const
-
-  it('checks the preset shape and refuses anything else', async () => {
+  it('accepts any non-blank key: the provider judges it, never its shape', async () => {
     const signal = new AbortController().signal
-    expect(
-      await readProviderKeyLine(Readable.from([`${OPENROUTER_KEY}\n`]), signal, shape),
-    ).toEqual({ ok: true, key: OPENROUTER_KEY })
-    expect(await readProviderKeyLine(Readable.from(['nope\n']), signal, shape)).toMatchObject({
-      ok: false,
-      reason: 'invalid',
+    expect(await readProviderKeyLine(Readable.from([`${OPENROUTER_KEY}\n`]), signal)).toEqual({
+      ok: true,
+      key: OPENROUTER_KEY,
     })
-    expect(await readProviderKeyLine(Readable.from(['\n']), signal, shape)).toMatchObject({
+    // Lane PROVKEYS: a key with no frozen prefix is accepted for sending.
+    expect(await readProviderKeyLine(Readable.from(['nope\n']), signal)).toEqual({
+      ok: true,
+      key: 'nope',
+    })
+    expect(await readProviderKeyLine(Readable.from(['\n']), signal)).toMatchObject({
       ok: false,
       reason: 'empty',
     })

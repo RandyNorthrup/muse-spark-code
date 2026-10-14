@@ -19,8 +19,8 @@ import type { CredentialRecord } from '../../core/providers/credentialRecord'
 const { isCredentialBound } = credentialRecord
 const { checkEndpointUrl, originOf, verifyRequestAnswers } = endpointPolicy
 const { isProviderId, parseModelRef } = modelRef
-import type { KeyShape, ProviderPreset } from '../../core/providers/presets'
-const { azureOrigin, presetById } = presets
+import type { ProviderPreset } from '../../core/providers/presets'
+const { azureOrigin, inspectProviderKey, presetById, providerKeyNoticeText } = presets
 import type {
   ProviderEntry,
   ProviderFormat,
@@ -33,16 +33,22 @@ import {
   modelRef,
   presets,
   providersFile,
+  setUiText as setProvidersUiText,
 } from '../../host/backend/providersEntry'
 import type { SecretStore } from '../../host/auth/credentialStore'
 import { CREDENTIAL_RECORD_VERSION, UI_TEXT } from '../../shared/constants'
-import { fill } from '../../shared/l10n/text'
+import { fill, uiLocale } from '../../shared/l10n/text'
 import {
   formatStoredProviderSecret,
   parseStoredProviderSecret,
   providerSecretAccount,
 } from '../keyStore'
-import { memorySecretStoreFor, type MemorySecretStore } from './keyInput'
+import {
+  memorySecretStoreFor,
+  providerKeyFailureText,
+  type KeyLineResult,
+  type MemorySecretStore,
+} from './keyInput'
 /** Where a request path came from (AGENTS.md rule 13). */
 export type PathSource = 'capture' | 'research'
 
@@ -397,12 +403,8 @@ export interface ProviderRunInput {
   readonly readFile: (path: string) => Promise<string>
   readonly secrets: SecretStore
   readonly resolveHost: (hostname: string) => Promise<readonly string[]>
-  /** A provider key from standard input, checked against the preset's shape. */
-  readonly readKey: (
-    shape: KeyShape,
-  ) => Promise<
-    { readonly ok: true; readonly key: string } | { readonly ok: false; readonly reason: string }
-  >
+  /** A provider key from standard input: any non-blank value, judged by the provider. */
+  readonly readKey: () => Promise<KeyLineResult>
   readonly providerId: string
   /** The qualified model ref (`parseExec` qualifies a bare id). */
   readonly model: string | undefined
@@ -421,10 +423,13 @@ export type ProviderAssemblyFailure =
  * caller's mistake; auth failures need a key. The turn itself is lane T/I's
  * `ProviderExecRunner` seam (`runExec.ts`); this function never sends one.
  */
-export async function assembleProviderRun(
-  input: ProviderRunInput,
-): Promise<
-  | { readonly ok: true; readonly run: AssembledProviderRun }
+export async function assembleProviderRun(input: ProviderRunInput): Promise<
+  | {
+      readonly ok: true
+      readonly run: AssembledProviderRun
+      /** A wrong-looking stdin key's question, printed before the run starts. */
+      readonly notice: string | undefined
+    }
   | { readonly ok: false; readonly failure: ProviderAssemblyFailure }
 > {
   const usage = (
@@ -474,28 +479,30 @@ export async function assembleProviderRun(
   }
   let key: string | undefined
   let memory: MemorySecretStore | undefined
+  let notice: string | undefined
   if (provider.preset.auth === 'apiKey') {
     const account = providerSecretAccount(provider.entry.id)
     if (account === undefined) {
       return usage(fill(UI_TEXT.providerUnknown, { provider: provider.entry.id }))
     }
     if (input.keyFromStdin) {
-      const typed = await input.readKey(provider.preset.keyShape)
+      // Any non-blank stdin key is used: the provider judges it, never
+      // its shape. Headless input cannot answer a wrong-thing question,
+      // so a value that looks like the wrong thing is named and the run
+      // continues.
+      const typed = await input.readKey()
       if (!typed.ok) {
-        if (typed.reason === 'tty') {
-          return auth(UI_TEXT.execKeyStdinTerminal)
-        }
-        if (typed.reason === 'tooLong') {
-          return auth(UI_TEXT.execKeyTooLong)
-        }
-        return auth(
-          fill(UI_TEXT.providerKeyShape, {
-            provider: provider.preset.label,
-            hint: provider.preset.keyHint,
-          }),
-        )
+        return auth(providerKeyFailureText(typed.reason))
       }
       key = typed.key
+      // The notice is formatted in the providers bundle, which keeps its
+      // own installed language: install this run's table before reading it.
+      setProvidersUiText(UI_TEXT, uiLocale())
+      const inspection = inspectProviderKey(key)
+      notice =
+        inspection === 'ok' || inspection === 'empty'
+          ? undefined
+          : providerKeyNoticeText(inspection)
       memory = memorySecretStoreFor({
         [account]: formatStoredProviderSecret(
           { v: CREDENTIAL_RECORD_VERSION, auth: 'apiKey', origin: provider.origin },
@@ -545,5 +552,6 @@ export async function assembleProviderRun(
       literals: key === undefined ? [] : [key],
       memory,
     },
+    notice,
   }
 }

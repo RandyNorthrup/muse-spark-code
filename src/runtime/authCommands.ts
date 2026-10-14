@@ -12,7 +12,9 @@ import {
   SECRET_KEYS,
   UI_TEXT,
 } from '../shared/constants'
-import { fill } from '../shared/l10n/text'
+import { fill, uiLocale } from '../shared/l10n/text'
+import { providerKeyFailureText } from './exec/keyInput'
+import { isNonTextStdin } from './hiddenInput'
 import {
   formatStoredProviderSecret,
   parseStoredProviderSecret,
@@ -42,7 +44,18 @@ function unavailable(deps: AuthCommandDeps, error: unknown): number {
 }
 
 export async function authSet(deps: AuthCommandDeps): Promise<number> {
-  const typed = await deps.readSecret(UI_TEXT.acpKeyPrompt)
+  let typed: string
+  try {
+    typed = await deps.readSecret(UI_TEXT.acpKeyPrompt)
+  } catch (error: unknown) {
+    // Non-text stdin is not a valid Model API key either; the sentence is
+    // the one this command already shows for that input.
+    if (isNonTextStdin(error)) {
+      deps.printError(UI_TEXT.apiKeyInvalid)
+      return EXIT_FAILED
+    }
+    throw error
+  }
   const candidate = typed.trim()
   if (candidate === '') {
     deps.printError(UI_TEXT.acpKeyNotStored)
@@ -88,9 +101,10 @@ export async function authClear(deps: AuthCommandDeps): Promise<number> {
 
 /**
  * `auth set --provider <id>`: the key comes from standard input only (the
- * reader hides terminal typing and takes a pipe's first line), is checked
- * against the preset's shape, and is stored bound to the exact origin it
- * was entered for. Never an argument, a setting, a file or the environment.
+ * reader hides terminal typing and takes a pipe's first line), is never
+ * refused for its shape (the provider judges it), and is stored bound to
+ * the exact origin it was entered for. Never an argument, a setting, a
+ * file or the environment.
  */
 export async function authSetProvider(
   deps: AuthCommandDeps,
@@ -109,18 +123,30 @@ export async function authSetProvider(
     deps.printError(fill(UI_TEXT.providerNotConfigured, { provider: providerId }))
     return EXIT_FAILED
   }
-  const typed = await deps.readSecret(fill(UI_TEXT.providerKeyPrompt, { provider: providerId }))
+  let typed: string
+  try {
+    typed = await deps.readSecret(fill(UI_TEXT.providerKeyPrompt, { provider: providerId }))
+  } catch (error: unknown) {
+    if (isNonTextStdin(error)) {
+      deps.printError(providerKeyFailureText('invalid'))
+      return EXIT_FAILED
+    }
+    throw error
+  }
   const candidate = typed.trim()
   if (candidate === '') {
-    deps.printError(UI_TEXT.providerKeyNotStored)
+    deps.printError(providerKeyFailureText('empty'))
     return EXIT_FAILED
   }
-  const { presets } = await import('../host/backend/providersEntry')
-  if (!presets.isKeyShape(preset.keyShape, candidate)) {
-    deps.printError(
-      fill(UI_TEXT.providerKeyShape, { provider: preset.label, hint: preset.keyHint }),
-    )
-    return EXIT_FAILED
+  const { presets, setUiText } = await import('../host/backend/providersEntry')
+  // Any non-blank key is stored for the provider to judge; a value that
+  // looks like the wrong thing is named, and stdin cannot answer, so the
+  // run continues. The notice is formatted in the providers bundle, which
+  // keeps its own installed language: install this command's table first.
+  setUiText(UI_TEXT, uiLocale())
+  const inspection = presets.inspectProviderKey(candidate)
+  if (inspection !== 'ok' && inspection !== 'empty') {
+    deps.printError(presets.providerKeyNoticeText(inspection))
   }
   const account = providerAccount(deps, providerId)
   if (account === undefined) return EXIT_FAILED

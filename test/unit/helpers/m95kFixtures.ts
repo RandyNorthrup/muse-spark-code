@@ -35,7 +35,6 @@ export const OPENROUTER_PRESET: PresetInfo = {
   auth: 'apiKey',
   keyHint: 'sk-or-…',
   keyPage: 'https://openrouter.ai/keys',
-  isKeyShape: (value) => value.startsWith('sk-or-'),
   freeTest: 'modelsList',
   localProbes: [],
   connectLabel: 'Connect OpenRouter account',
@@ -51,7 +50,6 @@ export const OLLAMA_PRESET: PresetInfo = {
   auth: 'none',
   keyHint: '',
   keyPage: '',
-  isKeyShape: () => false,
   freeTest: 'none',
   localProbes: [{ host: '127.0.0.1', port: 11_434, path: '/' }],
 }
@@ -176,6 +174,7 @@ export interface TestHostParts {
   readonly deps?: Partial<ProvidersHostDeps>
   readonly confirmPaidTest?: (message: string) => Promise<boolean>
   readonly confirmPrivateNetwork?: (message: string) => Promise<boolean>
+  readonly confirmKeyUse?: (message: string) => Promise<boolean>
 }
 
 /** The host with memory backing and controllable confirms. */
@@ -184,6 +183,7 @@ export function testProvidersHost(parts: TestHostParts = {}): {
   readonly secrets: ReturnType<typeof memorySecrets>
   readonly confirmPaidTest: (message: string) => Promise<boolean>
   readonly confirmPrivateNetwork: (message: string) => Promise<boolean>
+  readonly confirmKeyUse: (message: string) => Promise<boolean>
 } {
   const secrets = memorySecrets()
   const store = parts.deps?.store ?? memoryProvidersStore([TEST_ENTRY])
@@ -193,6 +193,7 @@ export function testProvidersHost(parts: TestHostParts = {}): {
   })
   const confirmPaidTest = parts.confirmPaidTest ?? (() => Promise.resolve(true))
   const confirmPrivateNetwork = parts.confirmPrivateNetwork ?? (() => Promise.resolve(true))
+  const confirmKeyUse = parts.confirmKeyUse ?? (() => Promise.resolve(true))
   const providers = createProvidersHost({
     credentials,
     secrets,
@@ -222,9 +223,10 @@ export function testProvidersHost(parts: TestHostParts = {}): {
       showInputBox: window.showInputBox,
       confirmPaidTest: (message) => confirmPaidTest(message),
       confirmPrivateNetwork: (message) => confirmPrivateNetwork(message),
+      confirmKeyUse: (message) => confirmKeyUse(message),
       openBrowser: () => Promise.resolve(),
     },
     ...parts.deps,
   })
-  return { providers, secrets, confirmPaidTest, confirmPrivateNetwork }
+  return { providers, secrets, confirmPaidTest, confirmPrivateNetwork, confirmKeyUse }
 }
