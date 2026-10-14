@@ -231,10 +231,9 @@ describe('catch-inventory baseline', () => {
   })
 
   it('holds src/acp and src/webview at zero SWALLOW and GENERIC', () => {
-    const entries = scanCatches(root).filter(
-      (entry) =>
-        (entry.file.startsWith('src/acp/') || entry.file.startsWith('src/webview/')) &&
-        (entry.class === 'SWALLOW' || entry.class === 'GENERIC'),
+    // Only the asserted areas are parsed: the whole tree takes seconds.
+    const entries = scanCatches(root, ['src/acp', 'src/webview']).filter(
+      (entry) => entry.class === 'SWALLOW' || entry.class === 'GENERIC',
     )
     expect(entries.map((entry) => `${entry.file}:${String(entry.line)}`)).toEqual([])
   })
