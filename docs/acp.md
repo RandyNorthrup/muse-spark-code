@@ -767,10 +767,12 @@ workspace refuses; the standalone policy reads `.vscode/settings.json`, and
 malformed or unreadable policy refuses. Settings with JSON comments currently
 refuse rather than guessing. Full mode never disables privacy.
 
-A noninteractive share prints exact scrubbed content and a JSON cancelled
-preview, with exit 7. Review it, then repeat the identical command with an
-explicit `--destination`, the same `--exported-at`, `--out`, and
-`--confirm PREVIEW_ID`. The digest binds cwd, path/root, options, time and
+A noninteractive share prints exact scrubbed content and, with `--json`,
+a JSON cancelled preview, with exit 7. Review it, then repeat the identical
+command with an explicit `--destination`, the same `--exported-at`, `--out`,
+and `--confirm PREVIEW_ID`. Without `--json` no result JSON is printed;
+`prompts save`, `prompts list` and `prompts use` take the same `--json`
+flag for their machine-readable result. The digest binds cwd, path/root, options, time and
 bytes. Any change needs a new preview; there is no blanket `--yes`. Interactive
 sharing asks for a final confirmation. No file/clipboard/browser operation
 occurs during preview. Private atomic writes recheck live policy and abort. Sharing also scrubs the
