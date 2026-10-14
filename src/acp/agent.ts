@@ -143,7 +143,7 @@ export type BackendReadiness =
 export interface AcpBackend {
   readonly kind: AcpBackendKind
   /** `isRecheck`: the user says they signed in, so nothing said before counts (`authenticate`). */
-  readonly readiness: (isRecheck: boolean) => Promise<BackendReadiness>
+  readonly readiness: (isRecheck: boolean, modelHint?: string) => Promise<BackendReadiness>
   /** The host for a folder, started on first use. */
   readonly hostFor: (cwd: string) => Promise<AgentHost>
 }

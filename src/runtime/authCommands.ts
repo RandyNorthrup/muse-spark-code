@@ -15,6 +15,7 @@ import {
 import { fill } from '../shared/l10n/text'
 import {
   formatStoredProviderSecret,
+  isStoreUnavailable,
   parseStoredProviderSecret,
   providerSecretAccount,
 } from './keyStore'
@@ -61,12 +62,21 @@ export async function authSet(deps: AuthCommandDeps): Promise<number> {
   return EXIT_OK
 }
 
+function storeDown(deps: AuthCommandDeps, error: unknown): number | undefined {
+  // One sentence for one condition: no readable key and no store either.
+  if (isStoreUnavailable(error)) {
+    deps.print(UI_TEXT.acpStoreDown)
+    return EXIT_FAILED
+  }
+  return undefined
+}
+
 export async function authStatus(deps: AuthCommandDeps): Promise<number> {
   let stored: string | undefined
   try {
     stored = await deps.secrets.get(SECRET_KEYS.modelApiKey)
   } catch (error: unknown) {
-    return unavailable(deps, error)
+    return storeDown(deps, error) ?? unavailable(deps, error)
   }
   if (stored === undefined || stored === '') {
     deps.print(UI_TEXT.acpKeyAbsent)
@@ -158,7 +168,7 @@ export async function authStatusProvider(
   try {
     stored = await deps.secrets.get(account)
   } catch (error: unknown) {
-    return unavailable(deps, error)
+    return storeDown(deps, error) ?? unavailable(deps, error)
   }
   if (stored === undefined || stored === '') {
     deps.print(fill(UI_TEXT.providerKeyAbsent, { provider: providerId }))
