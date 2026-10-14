@@ -313,6 +313,12 @@ const modelOptionSchema = z.object({
   /** The provider or route may train on the content (hidden when confidential). */
   trainsOnContent: z.optional(booleanSchema),
   effortLevels: z.optional(z.array(z.enum(EFFORT_LEVELS))),
+  /** The level a new session selects unless the person chose one. */
+  defaultEffort: z.optional(z.enum(EFFORT_LEVELS)),
+  /** The provider's priority tier where the model lists one. */
+  fastTier: z.optional(
+    z.object({ id: stringSchema, name: stringSchema, description: stringSchema }),
+  ),
 })
 export type ModelOption = z.infer<typeof modelOptionSchema>
 

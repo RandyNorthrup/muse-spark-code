@@ -13,7 +13,12 @@ import type {
   SessionGoal,
   TodoItem,
 } from '../../shared/agentEvents'
-import type { GoalCommandVerb, ModelPricing, SubagentAction } from '../../shared/constants'
+import type {
+  EffortLevel,
+  GoalCommandVerb,
+  ModelPricing,
+  SubagentAction,
+} from '../../shared/constants'
 import type { PlanUsageRow, SubscriptionUsage } from '../../shared/usage'
 export type { QuestionDeferralPort } from '../../shared/questions'
 import type {
@@ -272,6 +277,17 @@ export interface ModelSummary {
   readonly isPinned?: boolean | undefined
   readonly trainsOnContent?: boolean | undefined
   readonly planLimitsUrl?: string | undefined
+  /**
+   * The effort levels this model serves, where the backend knows them (a
+   * plan model reports its catalogue's levels); absent where unknown, and
+   * the pickers fall back to the shared default range. `defaultEffort` is
+   * the level a new session selects unless the person chose one.
+   * `fastTier` is the provider's priority tier where the model lists one.
+   */
+  readonly effortLevels?: readonly EffortLevel[] | undefined
+  readonly defaultEffort?: EffortLevel | undefined
+  readonly fastTier?:
+    { readonly id: string; readonly name: string; readonly description: string } | undefined
 }
 
 export interface SkillSummary {

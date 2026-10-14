@@ -314,10 +314,26 @@ function startingModel(models: readonly ModelSummary[]): string {
   return model.modelId
 }
 
-/** The default effort where the model serves it, else the nearest tier it has. */
-function servedEffort(modelId: string, wanted: EffortLevel): EffortLevel {
-  const levels = effortLevelsFor(modelId)
-  return levels.includes(wanted) ? wanted : (levels.at(-1) ?? DEFAULT_EFFORT)
+/** The tiers a model serves: its own list where the backend knows it. */
+export function modelEffortLevels(
+  models: readonly ModelSummary[],
+  modelId: string,
+): readonly EffortLevel[] {
+  return effortLevelsFor(modelId, models.find((model) => model.modelId === modelId)?.effortLevels)
+}
+
+/**
+ * The level a new session selects: the model's own default where the
+ * backend knows it and serves it, else the standing default (a chosen
+ * level still wins: applyEffort keeps every tier the model serves).
+ */
+export function defaultEffortFor(models: readonly ModelSummary[], modelId: string): EffortLevel {
+  const summary = models.find((model) => model.modelId === modelId)
+  const fallback = summary?.defaultEffort
+  return fallback !== undefined &&
+    effortLevelsFor(modelId, summary?.effortLevels).includes(fallback)
+    ? fallback
+    : DEFAULT_EFFORT
 }
 
 /** One ACP session over one AgentSession. */
@@ -1295,6 +1311,20 @@ class AcpSession {
     return true
   }
 
+  /**
+   * The effort the model runs: the wanted tier where it serves it, else
+   * the model's own default, else the highest tier it serves.
+   */
+  private servedEffort(wanted: EffortLevel): EffortLevel {
+    const levels = modelEffortLevels(this.models, this.modelId)
+    if (levels.includes(wanted)) return wanted
+    const fallback = this.models.find((model) => model.modelId === this.modelId)?.defaultEffort
+    return (
+      (fallback !== undefined && levels.includes(fallback) ? fallback : levels.at(-1)) ??
+      DEFAULT_EFFORT
+    )
+  }
+
   public async askPaidUse(request: PaidUseRequest, canRemember: boolean): Promise<PaidUseAnswer> {
     const pending = this.pending
     const preparing = this.preparing
@@ -1466,7 +1496,7 @@ class AcpSession {
         category: 'thought_level',
         type: 'select',
         currentValue: this.effort,
-        options: effortLevelsFor(this.modelId).map((level) => ({
+        options: modelEffortLevels(this.models, this.modelId).map((level) => ({
           value: level,
           name: effortLabel(level),
         })),
@@ -1501,7 +1531,7 @@ class AcpSession {
 
   /** The session's standing effort, as the panel sets it on a new session. */
   public async applyEffort(effort: EffortLevel): Promise<void> {
-    const served = servedEffort(this.modelId, effort)
+    const served = this.servedEffort(effort)
     this.ensureHeld()
     await this.session.setReasoningEffort(effortForThinking(served, true))
     this.effort = served
@@ -1551,7 +1581,7 @@ class AcpSession {
     if (configId !== ACP_CONFIG_IDS.effort) {
       throw RequestError.invalidParams(undefined, configId)
     }
-    if (!isEffortLevel(value) || !effortLevelsFor(this.modelId).includes(value)) {
+    if (!isEffortLevel(value) || !modelEffortLevels(this.models, this.modelId).includes(value)) {
       throw RequestError.invalidParams(undefined, value)
     }
     await this.applyEffort(value)
@@ -2399,10 +2429,11 @@ class AgentState {
       approvalMode: approvalModeFor(this.deps.options.initialMode, true),
       ...(mcpServers !== undefined && { mcpServers }),
     })
-    // The mode and model went with the start; the effort is set here.
+    // The mode and model went with the start; the effort is set here. A
+    // plan model starts on its catalogue default unless the person chose one.
     const claim = this.claimSession(session.sessionId)
     const acp = await this.adopt(host, session, cwd, client, models, claim, (started) =>
-      started.applyEffort(DEFAULT_EFFORT),
+      started.applyEffort(defaultEffortFor(models, modelId)),
     )
     return { sessionId: session.sessionId, modes: acp.modes(), configOptions: acp.configOptions() }
   }
