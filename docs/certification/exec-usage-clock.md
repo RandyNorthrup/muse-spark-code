@@ -62,8 +62,9 @@ the repo's own `providerEntrySchema`, ollama preset at the closed port
   warning (no request sent, nothing to record — same as 0.18.1 on this
   path; the defect fires only when a request is answered).
 - `node dist/acp.js usage` in the same home → `Requests: 0 requests`.
-- Built bundles: `timeOrigin` counts 0 in `dist/headless.js`/`dist/acp.js`;
-  `Usage history could not be recorded` counts 0 everywhere.
+- Built bundles: `Usage history could not be recorded` counts 0
+  everywhere. (`timeOrigin` counted 0 in the lane's build; the
+  RVEXECUSAGE review restored it as the span clock — see below.)
 
 What needs a real provider answer is the lead's real-life run: exec a turn
 on a configured provider, then `usage` counts it (before: `0 of N recorded
@@ -76,8 +77,11 @@ One stored-time type (`EpochMs` in `src/shared/epochMs.ts`, branded, single
 number` and the compiler refuses it where `EpochMs` is wanted (41
 typecheck errors on the first build, all in tests, fixed by wrapping).
 
-- `src/runtime/main.ts` headless `now`: was the fractional expression;
-  now `epochNow`. The `serve` path: `Date.now` → `epochNow` (2 sites).
+- `src/runtime/main.ts` headless `now`: the lane first moved it to
+  `epochNow`; review fix RVEXECUSAGE restored the fractional
+  monotonic expression and `processStartMs: performance.timeOrigin`
+  (see the review note below). The `serve` path: `Date.now` →
+  `epochNow` (2 sites).
 - `src/runtime/exec/runExec.ts`: `deps.now` (caller span clock, still
   `() => number`) is wrapped once at the boundary,
   `epochClock = () => toEpochMs(deps.now())`, into `createUsageRecording`
@@ -191,3 +195,26 @@ lead. `execProvider` + `actionRunExec`: 3 timeouts here, 3 timeouts on base.
 The warm-cache benchmark failed once on this tree (2973 ms) and passed alone
 (also passes on base): load variance, measured. Per the owner rule these are
 reported as measured (fails on base too), not labelled.
+
+## Review fix RVEXECUSAGE (2026-10-14, wslpc)
+
+The lane replaced the headless monotonic span clock with the wall
+clock (`now = epochNow`, `processStartMs: Date.now()` in
+`src/runtime/main.ts`). That clock does double duty the brief keeps
+separate: `createLifecycle` (`src/runtime/exec/execLimits.ts`) sets
+`deadlineMs = processStartMs + timeoutMs` and measures signal dedup
+and stop grace against `now()`, and the exec result's `durationMs`
+is `deps.now() - (deadlineMs - timeoutMs)`. On the wall clock the
+timeout counted from lifecycle creation instead of from the process
+start (`performance.timeOrigin`), the reported duration excluded
+startup, and a system clock step could move grace and dedup spans.
+Restored: `now = () => performance.timeOrigin + performance.now()`
+and `processStartMs: performance.timeOrigin`. Usage stays fixed by
+construction, not by this clock: `runExec` wraps the fractional
+`deps.now()` once through `toEpochMs` for the recorder and writer,
+the image `startedAt` is wrapped, the result `durationMs` is
+rounded, and every stored-time field is `EpochMs`-typed so the bare
+span clock cannot be handed to the journal again.
+`test/unit/execUsageClock.test.ts` drives exactly that fractional
+clock through the real boundary and passes (5/5 including the
+read-failure case above).
