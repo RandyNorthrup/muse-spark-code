@@ -227,6 +227,34 @@ describe('providers models add and remove', () => {
     expect(f.printed.join('\n')).toContain('Added model-c to openrouter.')
   })
 
+  it('keeps a model another writer added between the read and the commit', async () => {
+    const f = deps()
+    await writeInitial(f.filePath, fileWith(['model-a']))
+    // After the command's first read, a real second write of the same file
+    // (the panel's) adds model-b; the commit must not lose it.
+    const realRead = f.deps.readUserFile
+    let reads = 0
+    const racing: ProvidersDeps = {
+      ...f.deps,
+      readUserFile: async () => {
+        const read = await realRead()
+        reads += 1
+        if (reads === 1) await writeInitial(f.filePath, fileWith(['model-a', 'model-b']))
+        return read
+      },
+    }
+    expect(
+      await providersModels(racing, {
+        entry: 'openrouter',
+        add: ['model-c'],
+        remove: [],
+        force: 'beta access',
+      }),
+    ).toBe(0)
+    const saved = await readEntry(f.filePath)
+    expect(saved.models).toEqual(['model-a', 'model-b', 'model-c'])
+  })
+
   it('refuses a blank model name and writes nothing', async () => {
     const f = deps()
     await writeInitial(f.filePath, fileWith(['model-a']))
