@@ -115,3 +115,73 @@ the workspace root and opens it (D15)`, now polls `activeTextEditor` and
 the D15 case (expect green ten times in ten here; red ~7/10 on the base)
 and the new Focus Input mirror. Nothing else needs an editor.
 No picture changes: not a visual change.
+
+## Follow-up: a request that cannot land at once is dropped, not held (F3, 2026-10-14)
+
+The review's open point on the change above: the brief asked for a
+host-owned token and a request dropped at delivery when its panel is no
+longer active, but what shipped held the request pending without a bound —
+an hour later, clicking the panel's transcript to select text threw the
+caret into the composer. The rule above still stands; this closes the
+bound.
+
+**Senders of a focus request (every one passes the same host gate, the
+`focusInput` branch of `surface.post` in
+`src/host/views/webviewSetup.ts`, decided by `shouldDeliverFocusInput` in
+`src/host/views/focusGate.ts`):**
+
+| Sender                                             | File:line                                                          | Reveal with the ask?         | Gate outcome                                                                     |
+| -------------------------------------------------- | ------------------------------------------------------------------ | ---------------------------- | -------------------------------------------------------------------------------- |
+| Focus Input command                                | `src/host/commands/focusInput.ts:29`                               | Yes (`reveal()` just before) | Delivers; the token is minted                                                    |
+| Deferred mention flush                             | `src/host/prompts/promptInsertion.ts:18`                           | No                           | Delivers only while its surface is active, else dropped at post                  |
+| Mention insert (Alt+K)                             | `src/host/commands/insertMention.ts:29`                            | Yes                          | Text posts as `insertText`; its focus side expires with every other recorded ask |
+| Report attach                                      | `src/host/conversation/conversationController.ts:11061`            | Yes (`surface.reveal()`)     | Same as the mention insert                                                       |
+| Composer @-mention, file attach, dictation inserts | `src/host/conversation/conversationController.ts:8570, 9046, 9727` | In-surface acts              | Same as the mention insert                                                       |
+| Draft restore after a fork                         | `src/host/conversation/conversationController.ts:5037`             | Person's own rewind gesture  | Same as the mention insert                                                       |
+| Load-time `init`                                   | `src/host/views/webviewSetup.ts:195`                               | The surface just opened      | Recorded fresh at delivery; lands only while owned                               |
+
+**Mechanism (two layers, one window,
+`FOCUS_REQUEST_WINDOW_MS = 1000` in `src/shared/constants.ts` —
+the probe measured the panel becoming active 415–766 ms after the file
+took over, so 1000 ms covers the slowest measured arrival with margin):**
+
+1. Host: the gate delivers a `focusInput` only while its panel is the
+   active one (`panel.active`; the sidebar's `view.visible`) or while the
+   reveal the person just asked for still propagates; otherwise the ask is
+   dropped at post, never held. A delivered ask carries the minted
+   `token`/`issuedAt` (`focusInput` in `src/shared/protocol.ts`).
+2. Webview: the reducer records only a tokened ask delivered within the
+   window (`isHostOwnedFocusInput` in `src/webview/state/uiState.ts`) and
+   the composer's effect lands a request only while the surface holds the
+   keyboard and only within the window after it was asked
+   (`landFocusRequest`, same file; the effect in
+   `src/webview/components/Composer.tsx`). Afterwards it is gone.
+
+What the person sees is unchanged when they act on the chat: Focus Input
+reveals then delivers within the window; clicks, sends and in-surface
+gestures land at once. What changes is the stale case: the deferred flush
+to a hidden panel is dropped at post, and an ask recorded behind a file
+expires — the hour-later transcript click selects text and the caret stays
+out of the composer.
+
+**Proof (repo default timeouts, `--maxWorkers=3`, this rig):**
+`test/unit/focusGate.test.ts` 5/5 (deliver while active, deliver on a
+fresh reveal, drop when inactive, drop on an old reveal, token shape);
+`test/unit/composerFocusOwnership.test.ts` 8/8 (fresh lands only while
+owned, fresh lands on the in-window focus, the hour-later scenario drops
+and stays gone, load-time recording, tokened recording, tokenless and
+stale ignored, mention insert). Red drills, restored byte-exact
+(`sha256sum` identical before and after): the window conjunct removed —
+`drops a stale request…` fails with the request landing; the gate forced
+to `return true` — both drop tests fail. Dependents unmodified:
+`test/unit/uiState.test.ts` (one line: its bare `focusInput` now carries
+the host's token), `focusInput`, `protocol`, `teamProtocolLoading`,
+`teamStartup`, `promptMenus`, `promptWorkspaceIntegration`,
+`surfaceRegistry`, `store`, `Composer.test.tsx` 100/100. Left as the
+owner's rules require (stand-in tests, named not repaired):
+`test/unit/webviewSetup.test.ts` — `posts host messages through the
+surface handle` asserts the exact pre-token shape and fails on the minted
+token, 14/15 pass. Real-editor proof stays with the lead's Hosts workflow
+(the D15 watching case and the Focus Input mirror); the new real-life
+scenario is the stale one: Focus Input to a hidden panel is dropped, and
+an hour-later transcript click never moves the caret.

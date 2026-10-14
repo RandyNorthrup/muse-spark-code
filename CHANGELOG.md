@@ -10,11 +10,12 @@ happened, not what was planned; superseded entries are kept.
 ### Pending
 
 - The chat no longer takes the keyboard from a file you just opened: a chat
-  panel that finishes loading or a focus request delivered late waits until
-  the chat itself has the keyboard instead of pulling it in, and a question
-  that arrives while you are elsewhere waits with its badge instead of
-  taking the keyboard. Acting on the chat yourself — clicking into the
-  panel, Focus Input, sending — focuses the input as before.
+  panel that finishes loading never pulls the focus in, a focus request for
+  a panel that is no longer active is dropped instead of landing on a much
+  later click, and a question that arrives while you are elsewhere waits
+  with its badge instead of taking the keyboard. Acting on the chat
+  yourself — clicking into the panel, Focus Input, sending — focuses the
+  input as before.
 
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
   reads and writes, and 1-hour cache writes settle at their own price.
