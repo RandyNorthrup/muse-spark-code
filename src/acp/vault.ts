@@ -76,7 +76,10 @@ export class AcpVault {
         vaultPermissionOptions(request).every((option) => option.optionId !== answer.decision)
         ? deny
         : answer
-    } catch {
+    } catch (error: unknown) {
+      // Deny stays fail-closed for every real failure: only a non-error
+      // keeps its kind past the boundary.
+      if (!(error instanceof Error)) throw error
       return deny
     }
   }

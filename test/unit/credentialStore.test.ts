@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { CredentialStore, isValidModelApiKey } from '../../src/host/auth/credentialStore'
+import { SECRET_KEYS } from '../../src/shared/constants'
 import { memorySecrets, unexpectedWarning } from './helpers/fakes'
 import { CURRENT_SHAPE_KEYS, OLDER_SHAPE_KEYS } from './helpers/modelApiKeys'
 
@@ -29,6 +30,22 @@ describe('isValidModelApiKey', () => {
     expect(isValidModelApiKey(key)).toBe(false)
   })
 })
+
+/** A store whose reads answer through `get`; warnings are collected. */
+function storeReading(
+  get: (key: string) => Promise<string | undefined>,
+  warnings: string[],
+  ids: string[],
+): CredentialStore {
+  return new CredentialStore(
+    { get, store: () => Promise.resolve(), delete: () => Promise.resolve() },
+    (line) => {
+      warnings.push(line)
+    },
+    "VS Code's secret storage",
+    () => Promise.resolve(ids),
+  )
+}
 
 describe('CredentialStore', () => {
   it('stores a trimmed valid key under the museSpark secret key', async () => {
@@ -80,7 +97,10 @@ describe('CredentialStore', () => {
     await expect(store.getApiKey()).resolves.toBeUndefined()
     await expect(store.getApiKey()).resolves.toBeUndefined()
     expect(warnings).toHaveLength(1)
-    expect(warnings[0]).toContain('no keyring')
+    // The log carries only the failure's kind, never the raw error: the
+    // message can name a keyring path (P3-5).
+    expect(warnings[0]).toContain('(Error)')
+    expect(warnings[0]).not.toContain('no keyring')
     expect(warnings[0]).toMatch(/^VS Code's secret storage could not be read/)
     // The ACP agent names its own store (PLAN.md D61).
     const agentWarnings: string[] = []
@@ -97,5 +117,124 @@ describe('CredentialStore', () => {
     )
     await agentStore.getApiKey()
     expect(agentWarnings[0]).toMatch(/^the operating system's credential store could not be read/)
+  })
+
+  it('reads an unreadable provider entry as unknown, never as absent (P2-1)', async () => {
+    const warnings: string[] = []
+    const message = 'locked: /home/someone/.local/share/keyrings/login.keyring'
+    const store = storeReading(
+      (key: string) =>
+        key === SECRET_KEYS.modelApiKey
+          ? Promise.resolve(undefined)
+          : Promise.reject(new Error(message)),
+      warnings,
+      ['meta'],
+    )
+    // The boolean is gone: could-not-read is its own state, so no guard can
+    // mistake it for "no credential".
+    await expect(store.readModelApiCredential()).resolves.toEqual({
+      outcome: 'unreadable',
+      kind: 'other',
+    })
+    await expect(store.readModelApiCredential()).resolves.toEqual({
+      outcome: 'unreadable',
+      kind: 'other',
+    })
+    expect(warnings).toHaveLength(1)
+    expect(warnings[0]).toContain('(Error)')
+    expect(warnings[0]).not.toContain('keyring')
+  })
+
+  it('reads an unreadable Meta key as unknown with its kind', async () => {
+    const store = new CredentialStore(
+      {
+        get: () => Promise.reject(Object.assign(new Error('denied'), { code: 'EACCES' })),
+        store: () => Promise.resolve(),
+        delete: () => Promise.resolve(),
+      },
+      () => undefined,
+      "VS Code's secret storage",
+      () => Promise.resolve([]),
+    )
+    await expect(store.readModelApiCredential()).resolves.toEqual({
+      outcome: 'unreadable',
+      kind: 'denied',
+    })
+  })
+
+  it('reads no key and no provider secrets as absent', async () => {
+    const store = new CredentialStore(
+      memorySecrets(),
+      unexpectedWarning,
+      "VS Code's secret storage",
+      () => Promise.resolve([]),
+    )
+    await expect(store.readModelApiCredential()).resolves.toEqual({ outcome: 'absent' })
+  })
+
+  it('reads a stored Meta key as found without listing providers', async () => {
+    const secrets = memorySecrets()
+    const store = new CredentialStore(
+      secrets,
+      unexpectedWarning,
+      "VS Code's secret storage",
+      () => {
+        throw new Error('must not list providers once the key is found')
+      },
+    )
+    await store.setApiKey('LLM|1|x')
+    await expect(store.readModelApiCredential()).resolves.toEqual({ outcome: 'found' })
+  })
+
+  it.each([
+    ['broken', 'openrouter'],
+    ['openrouter', 'broken'],
+  ])('finds a working provider past an unreadable entry: %j', async (...ids: string[]) => {
+    const warnings: string[] = []
+    const store = new CredentialStore(
+      {
+        get: (key: string) =>
+          key === 'museSpark.provider.broken'
+            ? Promise.reject(new Error('locked'))
+            : Promise.resolve(key === 'museSpark.provider.openrouter' ? '{"v":1}' : undefined),
+        store: () => Promise.resolve(),
+        delete: () => Promise.resolve(),
+      },
+      (line) => {
+        warnings.push(line)
+      },
+      "VS Code's secret storage",
+      () => Promise.resolve(ids),
+    )
+    await expect(store.readModelApiCredential()).resolves.toEqual({ outcome: 'found' })
+    expect(warnings).toHaveLength(1)
+    expect(warnings[0]).toContain('broken')
+    expect(warnings[0]).toContain('(Error)')
+    expect(warnings[0]).not.toContain('locked')
+  })
+
+  it('reads a non-error store failure as unreadable, never throwing it at a guard', async () => {
+    const warnings: string[] = []
+    const throwing = (failure: unknown) =>
+      storeReading(
+        () => {
+          throw failure
+        },
+        warnings,
+        ['meta'],
+      )
+    // The three states are the whole contract: a foreign throw maps onto
+    // the closed kind instead of escaping to callers with no handler.
+    const foreign: unknown = 'a string failure naming /home/someone/keyring'
+    await expect(throwing(foreign).readModelApiCredential()).resolves.toEqual({
+      outcome: 'unreadable',
+      kind: 'other',
+    })
+    expect(warnings.join('\n')).not.toContain('keyring')
+    const codedFailure: unknown = { code: 'EACCES' }
+    await expect(throwing(codedFailure).readModelApiCredential()).resolves.toEqual({
+      outcome: 'unreadable',
+      kind: 'denied',
+    })
   })
 })

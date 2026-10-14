@@ -85,7 +85,10 @@ export async function oauthJson(
     }
     const parsed: unknown = JSON.parse(bytes.toString('utf8'))
     return parsed
-  } catch {
+  } catch (error: unknown) {
+    // Any failure fetching, bounding or parsing denies: only a non-error
+    // keeps its kind past the boundary.
+    if (!(error instanceof Error)) throw error
     return oauthDenied()
   } finally {
     try {
@@ -126,7 +129,9 @@ export async function discoverMcpOAuth(
   let metadata: z.infer<typeof protectedResource>
   try {
     metadata = protectedResource.parse(resourceRaw)
-  } catch {
+  } catch (error: unknown) {
+    // Only a malformed document denies here: anything else keeps its kind.
+    if (!(error instanceof Error)) throw error
     oauthDenied()
   }
   if (metadata.resource !== resource || !metadata.authorization_servers.includes(issuer))
@@ -147,7 +152,9 @@ export async function discoverMcpOAuth(
   let result: McpOAuthDiscovery
   try {
     result = authorizationServer.parse(raw)
-  } catch {
+  } catch (error: unknown) {
+    // Only a malformed document denies here: anything else keeps its kind.
+    if (!(error instanceof Error)) throw error
     oauthDenied()
   }
   if (

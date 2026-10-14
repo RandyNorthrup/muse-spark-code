@@ -8,6 +8,12 @@ import {
   type PaidGrant,
 } from '../../../src/core/paid/paidAuthority'
 import type { PaidFeature } from '../../../src/shared/constants'
+import { vi } from 'vitest'
+
+/** A silent vi-fn logger for paid store tests. */
+export function testPaidLogger() {
+  return { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
+}
 
 export function memoryPaidGrants(): PaidGrantStore & {
   readonly byFolder: Map<string, ReadonlySet<PaidFeature>>

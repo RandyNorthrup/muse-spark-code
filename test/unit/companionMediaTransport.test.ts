@@ -175,3 +175,32 @@ describe('companion browser transport', () => {
     expect(send).not.toHaveBeenCalled()
   })
 })
+
+describe('CATCHAUDIT named-condition catches', () => {
+  it('carries the cause on an unreadable upload', async () => {
+    const rig = setup()
+    rig.response.resolve(new Response('malformed'))
+    let failure: unknown
+    try {
+      failure = await rig.pending
+    } catch (error: unknown) {
+      failure = error
+    }
+    expect(failure).toMatchObject({
+      message: UI_TEXT.attachmentUnreadable,
+      cause: expect.any(SyntaxError),
+    })
+  })
+
+  it('lets a foreign JSON failure through instead of an unreadable upload', async () => {
+    const hostile: unknown = 'json-boom'
+    class HostileResponse extends Response {
+      override json(): Promise<unknown> {
+        throw hostile
+      }
+    }
+    const rig = setup()
+    rig.response.resolve(new HostileResponse('malformed'))
+    await expect(rig.pending).rejects.toBe(hostile)
+  })
+})

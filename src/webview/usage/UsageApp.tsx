@@ -70,7 +70,10 @@ export function UsageApp({
       }
       try {
         host.post(message)
-      } catch {
+      } catch (error: unknown) {
+        // An unposted message reads failed: only a non-error keeps its kind
+        // past the page.
+        if (!(error instanceof Error)) throw error
         if ('requestId' in message) pending.current.delete(message.requestId)
         if (message.type === 'usage/query') wanted.current = undefined
         setBusy(false)

@@ -13,7 +13,11 @@
 // runs.
 
 import type { PermissionOption, RequestPermissionResponse } from '@agentclientprotocol/sdk'
-import { PaidUseConsent, type PaidUseAnswer } from '../core/paid/paidConsent'
+import {
+  PaidUseConsent,
+  type PaidNotKeptNotice,
+  type PaidUseAnswer,
+} from '../core/paid/paidConsent'
 import { failureForLog } from '../core/backends/musecode/logText'
 import type { CoreLogger } from '../core/logging'
 import {
@@ -26,7 +30,13 @@ import {
 } from '../shared/constants'
 import type { PaidUseRequest, PaidUseDecision } from '../shared/paid'
 import { PaidAuthority, type PaidGrant } from '../core/paid/paidAuthority'
-import type { PaidQuote } from '../shared/paid'
+import {
+  paidFeatureName,
+  paidStoreReasonText,
+  type PaidQuote,
+  type PaidQuoteNotice,
+} from '../shared/paid'
+import { fill } from '../shared/l10n/text'
 
 /** Where "Allow Always in This Workspace" is kept, per folder. */
 export interface PaidGrantStore {
@@ -38,6 +48,8 @@ export interface PaidGrantStore {
   readonly nextQuoteOrder?: () => number
   readonly prepareQuoteGeneration?: () => Promise<string>
   readonly quoteGeneration?: () => string
+  /** The last quote-folder read failure's kind, while saved Always quotes cannot be listed. */
+  readonly quoteNotice?: () => PaidQuoteNotice | undefined
   readonly readQuote?: (workspaceRoot: string, quote: PaidQuote) => PaidGrant | undefined
   readonly writeQuote?: (workspaceRoot: string, grant: PaidGrant) => Promise<void>
 }
@@ -58,17 +70,18 @@ export interface AcpPaidUseDeps {
   readonly grants: PaidGrantStore
   readonly log: CoreLogger
   readonly headless?: HeadlessPaidPolicy
+  /**
+   * Tells the terminal operator what the person must hear (an "always" that
+   * could not be kept). A session notifier attached with `attachNotify`
+   * reaches the session's person instead, where there is one.
+   */
+  readonly notify?: (text: string) => void
 }
 
 export type HeadlessPaidPolicy = (
   request: PaidUseRequest,
   requiresAsking: boolean,
 ) => Promise<boolean>
-
-/** The agent's own store's failure: its code and our own data folder's path, never a CLI's text. */
-function describe(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
-}
 
 /** The prompt's options: the popup's answers (D48), "always" only where it is kept. */
 export function paidUseOptions(canRemember: boolean): PermissionOption[] {
@@ -106,9 +119,19 @@ export class AcpPaidUse {
   private readonly consents = new Map<string, PaidUseConsent>()
   private readonly authority = new PaidAuthority()
   private asker: PaidUseAsker | undefined
+  private sessionNotifier: ((sessionId: string, text: string) => void) | undefined
+  /** The session each folder's last question ran in, for the not-kept notice. */
+  private readonly notifySessions = new Map<string, string>()
   private readonly used = new Map<PaidFeature, number>()
 
   public constructor(private readonly deps: AcpPaidUseDeps) {}
+
+  private notKeptText(notice: PaidNotKeptNotice): string {
+    return fill(UI_TEXT.paidAlwaysNotKept, {
+      feature: paidFeatureName(notice.feature),
+      kind: paidStoreReasonText(notice.kind),
+    })
+  }
 
   private async ask(
     sessionId: string,
@@ -160,6 +183,7 @@ export class AcpPaidUse {
         ...(this.deps.grants.quoteGeneration !== undefined && {
           quoteGeneration: this.deps.grants.quoteGeneration,
         }),
+        readQuoteNotice: () => this.deps.grants.quoteNotice?.(),
         ...(this.deps.grants.readQuote !== undefined && {
           readQuoteGrant: (quote) => this.deps.grants.readQuote?.(workspaceRoot, quote),
         }),
@@ -170,6 +194,18 @@ export class AcpPaidUse {
         readGrants: () => this.deps.grants.read(workspaceRoot),
         writeGrants: (grants) => this.keep(workspaceRoot, grants),
         ask: (asked, canRemember) => this.ask(sessionId, asked, canRemember),
+        // A choice that could not be saved is said at once: the session
+        // that asked (bound when the question was asked and carried with
+        // the pending write, P2-3), else the terminal operator.
+        onNotKept: (notice) => {
+          const text = this.notKeptText(notice)
+          const notifySession = notice.sessionId ?? this.notifySessions.get(workspaceRoot)
+          if (notifySession !== undefined && this.sessionNotifier !== undefined) {
+            this.sessionNotifier(notifySession, text)
+            return
+          }
+          this.deps.notify?.(text)
+        },
         log: this.deps.log,
       })
       this.consents.set(workspaceRoot, consent)
@@ -196,6 +232,11 @@ export class AcpPaidUse {
     this.asker = asker
   }
 
+  /** The agent's way to reach a session's person after its answer landed. */
+  public attachNotify(notify: (sessionId: string, text: string) => void): void {
+    this.sessionNotifier = notify
+  }
+
   /** The popup before a use in the folder's conversation `sessionId` (D48). */
   public async allows(
     workspaceRoot: string,
@@ -203,11 +244,16 @@ export class AcpPaidUse {
     request: PaidUseRequest,
     requiresAsking: boolean,
   ): Promise<PaidUseDecision> {
+    this.notifySessions.set(workspaceRoot, sessionId)
     return this.deps.headless === undefined
       ? await this.consentFor(workspaceRoot, sessionId).allows(
           request,
           requiresAsking,
           (asked, canRemember) => this.ask(sessionId, asked, canRemember),
+          undefined,
+          // The asking session travels with the pending write: a later
+          // question in another session cannot steal its notice (P2-3).
+          sessionId,
         )
       : this.isOn(request.feature) && (await this.deps.headless(request, requiresAsking))
   }
@@ -243,8 +289,9 @@ export class AcpPaidUse {
     try {
       await this.deps.grants.forget(unflagged)
     } catch (error: unknown) {
+      // The log carries only the failure's kind, never the store message.
       this.deps.log.warn(
-        `Paid uses allowed always could not be forgotten for ${unflagged.join(', ')}: ${describe(error)}`,
+        `Paid uses allowed always could not be forgotten for ${unflagged.join(', ')}: ${failureForLog(error)}`,
       )
     }
   }

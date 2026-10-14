@@ -16,8 +16,10 @@ import { readFileSync, readdirSync } from 'node:fs'
 import { link, rm } from 'node:fs/promises'
 import path from 'node:path'
 import * as z from 'zod/mini'
+import { paidStoreFailureKind, type PaidQuoteNotice } from '../shared/paid'
 import type { PaidGrantStore } from '../acp/paid'
-import type { CoreLogger } from '../core/logging'
+import { type CoreLogger, wireWordForLog } from '../core/logging'
+import { DamageNoter, fileDamageMarkers } from './damageNotice'
 import { describeStoreError, storeErrorCode } from '../host/backend/storeErrors'
 import { writeFileAtomically } from '../host/fsAtomic'
 import {
@@ -57,8 +59,12 @@ export function paidGrantFile(deps: PaidGrantFileDeps): PaidGrantStore {
       let raw: unknown
       try {
         raw = JSON.parse(text)
-      } catch {
-        throw new Error('not valid JSON')
+      } catch (error: unknown) {
+        // Only malformed JSON reads invalid here: anything else keeps its
+        // kind. The cause carries the syntax failure, never the record: a
+        // grant record holds no secret.
+        if (!(error instanceof SyntaxError)) throw error
+        throw new Error('not valid JSON', { cause: error })
       }
       const parsed = schema.safeParse(raw)
       if (!parsed.success) {
@@ -69,6 +75,9 @@ export function paidGrantFile(deps: PaidGrantFileDeps): PaidGrantStore {
       if (storeErrorCode(error) === ENOENT) {
         return undefined
       }
+      // read-state: cert TBL-09. Any other read failure warns with its kind
+      // and reads as no record, so the use asks again (fail closed for
+      // money); the failure is never silent and never "no grant".
       const reason = describeStoreError(error)
       if (isChanging) {
         throw new Error(`${file} could not be read: ${reason}`, { cause: error })
@@ -132,13 +141,42 @@ export function paidGrantFile(deps: PaidGrantFileDeps): PaidGrantStore {
   })
   const quotePrefix = (workspaceRoot: string, generation: string, key: string) =>
     `${grantFile(workspaceRoot, 'webSearch', generation)}.${workspaceKey(key)}.${PAID_APPROVAL_ORDER_DIRECTORY}.`
+  // The last quote-folder read failure's kind, while saved Always quotes
+  // cannot be listed. Consent carries it in the question it then asks.
+  let quoteNotice: PaidQuoteNotice | undefined
+  // An unreadable quote folder warns once per distinct damage (Part 2.1),
+  // never on every read: the rule is the shared DamageNoter.
+  const quoteListNoter = new DamageNoter(
+    fileDamageMarkers(path.join(`${deps.file}.d`, 'webSearch.quoteList')),
+    (identity) => {
+      deps.log.warn(`Paid-use quotes could not be read (${identity}), so no quote grant applies`)
+    },
+  )
   const readQuotes = (workspaceRoot: string, generation: string) => {
     let names: string[]
     try {
       names = readdirSync(featureFolder('webSearch'))
-    } catch {
+    } catch (error: unknown) {
+      // A missing quote folder holds no quotes; an unreadable one is
+      // reported with its kind and reads as no quotes, never silently.
+      // Fail-closed stays: asking again is the safe direction for money.
+      // read-state: cert TBL-10. `[]` here is "cannot list, ask again" with
+      // the kind warned and carried in the next question, never "no quotes".
+      if (error instanceof Error && storeErrorCode(error) === ENOENT) {
+        quoteListNoter.noteHealthy()
+        // A missing folder is healthy: an older listing failure must not
+        // survive as a notice claiming saved choices are unreadable (P3-3).
+        quoteNotice = undefined
+        return []
+      }
+      // The errno names the distinct damage for the noter and the log;
+      // the person is told the closed kind's word, never the errno.
+      quoteListNoter.noteDamaged(wireWordForLog(storeErrorCode(error) ?? 'unknown'))
+      quoteNotice = { kind: paidStoreFailureKind(error) }
       return []
     }
+    quoteListNoter.noteHealthy()
+    quoteNotice = undefined
     const prefix = `${path.basename(grantFile(workspaceRoot, 'webSearch', generation))}.`
     return names
       .filter(
@@ -158,6 +196,7 @@ export function paidGrantFile(deps: PaidGrantFileDeps): PaidGrantStore {
       })
   }
   return {
+    quoteNotice: () => quoteNotice,
     nextQuoteOrder: () =>
       nextPaidApprovalOrder(path.join(`${deps.file}.d`, PAID_APPROVAL_ORDER_DIRECTORY)),
     prepareQuoteGeneration: async () => {
@@ -167,7 +206,13 @@ export function paidGrantFile(deps: PaidGrantFileDeps): PaidGrantStore {
     quoteGeneration: () => read(generationFile('webSearch'), generationSchema)?.id ?? 'missing',
     readQuote: (workspaceRoot, quote) => {
       const generation = read(generationFile('webSearch'), generationSchema)
-      if (generation === undefined) return
+      if (generation === undefined) {
+        // No generation: no quotes exist, so an older listing failure must
+        // not survive as a notice claiming saved choices are unreadable
+        // when none exist (P3-3).
+        quoteNotice = undefined
+        return
+      }
       const grant = latestPaidGrant(
         readQuotes(workspaceRoot, generation.id).filter(
           (record) => paidAuthorityKey(record.quote) === paidAuthorityKey(quote),

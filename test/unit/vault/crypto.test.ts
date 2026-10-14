@@ -26,6 +26,15 @@ vi.mock('node:crypto', async (importOriginal) => {
   return { ...original, randomFillSync: vi.fn(original.randomFillSync) }
 })
 
+/** A sealed block with fresh key, context and plaintext for tamper tests. */
+function sealedBlock() {
+  const key = randomVaultBytes()
+  const context = { vaultId: 'a'.repeat(32), id: 'b'.repeat(32), kind: 'secret', generation: 1 }
+  const plaintext = randomVaultBytes()
+  const block = sealVaultBlock(key, context, plaintext)
+  return { key, context, plaintext, block }
+}
+
 describe('vault crypto', () => {
   it('canonicalizes nested JSON keys and numeric spellings while retaining array order', () => {
     const left = encodeVaultJson({ z: [{ b: -0, a: 1e2 }], a: { z: 2, a: 1 } })
@@ -134,11 +143,21 @@ describe('vault crypto', () => {
       aesGcmOpen(key, nonce, sealed.ciphertext, sealed.tag, Buffer.from('different')),
     ).toThrow()
   })
+  it('reads a wrong key and corrupt data alike as authentication, never as invalid', () => {
+    const { key, context, block } = sealedBlock()
+    // A wrong key and a flipped bit are indistinguishable to the cipher, and
+    // both stay the fixed authentication code.
+    expect(() => openVaultBlock(randomVaultBytes(), context, block)).toThrow(
+      expect.objectContaining({ code: 'authentication' }),
+    )
+    const tag = Buffer.from(block.tag, 'base64')
+    tag[0] = (tag[0] ?? 0) ^ 1
+    expect(() => openVaultBlock(key, context, { ...block, tag: tag.toString('base64') })).toThrow(
+      expect.objectContaining({ code: 'authentication' }),
+    )
+  })
   it('binds every context field and rejects tampering before material is returned', () => {
-    const key = randomVaultBytes()
-    const context = { vaultId: 'a'.repeat(32), id: 'b'.repeat(32), kind: 'secret', generation: 1 }
-    const plaintext = randomVaultBytes()
-    const block = sealVaultBlock(key, context, plaintext)
+    const { key, context, plaintext, block } = sealedBlock()
     expect(openVaultBlock(key, context, block)).toEqual(plaintext)
     expect(
       openVaultBlock(
@@ -241,6 +260,32 @@ describe('vault crypto', () => {
     expect(() => decodeVaultMaterial(Buffer.alloc(3))).toThrow()
     const copy = ownedBytes(original.material.value)
     expect(copy.buffer.byteLength).toBe(copy.length)
+  })
+  it('wipes already-copied fields when a later allocation fails', () => {
+    const encoded = encodeVaultMaterial({
+      kind: 'webLogin',
+      origins: ['https://example.com'],
+      username: randomVaultBytes(),
+      password: randomVaultBytes(),
+      totpSeed: randomVaultBytes(),
+    })
+    const copies: Buffer[] = []
+    const originalAlloc = Buffer.alloc
+    let calls = 0
+    Buffer.alloc = ((size: number) => {
+      calls += 1
+      if (calls === 2) throw new RangeError('synthetic allocation failure')
+      const copy: Buffer = originalAlloc(size)
+      copies.push(copy)
+      return copy
+    }) as typeof Buffer.alloc
+    try {
+      expect(() => decodeVaultMaterial(encoded)).toThrow(RangeError)
+    } finally {
+      Buffer.alloc = originalAlloc
+    }
+    expect(copies).toHaveLength(1)
+    for (const copy of copies) expect(copy.every((byte) => byte === 0)).toBe(true)
   })
   it('refuses malformed descriptors, duplicate byte references and trailing data', () => {
     const raw = encodeVaultMaterial({

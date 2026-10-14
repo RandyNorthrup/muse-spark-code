@@ -352,6 +352,29 @@ describe('M108 account credentials', () => {
     await expect(secrets.remove(binding)).rejects.toThrow('unavailable')
   })
 
+  it('lets a non-error vault failure keep its kind on write and remove', async () => {
+    const h = harness()
+    const foreign: unknown = 'a string failure'
+    const vault = {
+      read: vi.fn<AccountCredentialVault['read']>(() => Promise.resolve(undefined)),
+      readForRemoval: vi.fn<AccountCredentialVault['readForRemoval']>(() =>
+        Promise.resolve(undefined),
+      ),
+      write: vi.fn(() => {
+        throw foreign
+      }),
+      remove: vi.fn(() => {
+        throw foreign
+      }),
+    }
+    const secrets = new AccountSecrets({ vault, revokeSignIn: h.revoke })
+    disposals.push(() => {
+      secrets.dispose()
+    })
+    await expect(secrets.write(binding, record)).rejects.toBe('a string failure')
+    await expect(secrets.remove(binding)).rejects.toBe('a string failure')
+  })
+
   it('validates a new vault’s answers instead of trusting its account selection', async () => {
     const h = harness()
     vi.spyOn(h.vault, 'read').mockResolvedValue({ ...record, account: 'personal' })

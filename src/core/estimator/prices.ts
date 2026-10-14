@@ -77,7 +77,9 @@ function isPublicUrl(text: string): boolean {
   try {
     const url = new URL(text)
     return url.protocol === 'https:' && !url.username && !url.password && !url.hash
-  } catch {
+  } catch (error: unknown) {
+    // Only a malformed URL is not public: anything else keeps its kind.
+    if (!(error instanceof TypeError)) throw error
     return false
   }
 }
@@ -125,7 +127,10 @@ export async function lookupEstimatePrices(
     let wasCacheUnavailable = false
     try {
       rawCache = await port.cached(catalogUrl)
-    } catch {
+    } catch (error: unknown) {
+      // A store failure leaves the reason 'unavailable' while the refresh
+      // below retries over the network; anything else keeps its kind.
+      if (!(error instanceof Error)) throw error
       wasCacheUnavailable = true
     }
     const parsed = documentSchema.safeParse(rawCache)

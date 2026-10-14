@@ -35,6 +35,8 @@ async function editSurface(
     defaultModel?: string | null
     flow?: 'Edit' | 'Change key' | 'Change key → Edit'
     confirmPrivateNetwork?: () => Promise<boolean>
+    /** The first credential-snapshot read fails with this, before Edit opens. */
+    snapshotFailure?: unknown
   } = {},
 ) {
   const folder = await mkdtemp(path.join(tmpdir(), 'models-edit-'))
@@ -84,6 +86,9 @@ async function editSurface(
   )
   const saved = vi.fn()
   const warnings: string[] = []
+  if (options.snapshotFailure !== undefined) {
+    vi.spyOn(providers, 'credentialSnapshot').mockRejectedValueOnce(options.snapshotFailure)
+  }
   const log = {
     trace: vi.fn(),
     info: vi.fn(),
@@ -636,6 +641,50 @@ describe('Saved custom provider Edit through the shared form and production stor
     host.dispose()
   })
 
+  it('says the store failed instead of asking for a key when the edit snapshot cannot be read', async () => {
+    const { state, warnings, host } = await editSurface({
+      snapshotFailure: new Error('store down: synthetic-edit-key'),
+    })
+    await waitFor(() => {
+      expect(state().drafts.edits['custom']?.errors).toEqual([UI_TEXT.providerSaveSecretFailed])
+    })
+    expect(warnings.join('\n')).toContain('could not read a credential snapshot (Error)')
+    expect(warnings.join('\n')).not.toContain('synthetic-edit-key')
+    expect(JSON.stringify(state())).not.toContain('synthetic-edit-key')
+    host.dispose()
+  })
+
+  it('records a foreign save failure with the fixed sentence and keeps the queue', async () => {
+    const foreign: unknown = 'a string failure'
+    const seen: unknown[] = []
+    const onUnhandled = (reason: unknown) => {
+      if (reason === foreign) seen.push(reason)
+    }
+    process.on('unhandledRejection', onUnhandled)
+    try {
+      const { providers, state, warnings, host } = await editSurface()
+      await changeReplyLimit()
+      vi.spyOn(providers, 'saveDraft').mockImplementationOnce(() => {
+        throw foreign
+      })
+      fireEvent.click(screen.getByRole('button', { name: UI_TEXT.saveProvider }))
+      await waitFor(() => {
+        // A foreign failure is said as one, not as a write conflict it was
+        // not: the old assertion named a false reason, so it is rewritten.
+        expect(state().drafts.edits['custom']?.errors).toEqual([UI_TEXT.actionFailed])
+      })
+      expect(warnings.join('\n')).toContain('Models panel operation failed')
+      // The queue survives the foreign failure: saving again still works.
+      await saveEditSurface()
+      expect(state().drafts.edits['custom']).toBeUndefined()
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      expect(seen).toEqual([])
+      host.dispose()
+    } finally {
+      process.removeListener('unhandledRejection', onUnhandled)
+    }
+  })
+
   it.each(['provider', 'credential', 'panel'] as const)(
     'acknowledges the saved provider and retires the draft when the %s refresh fails',
     async (source) => {
@@ -662,6 +711,7 @@ describe('Saved custom provider Edit through the shared form and production stor
       expect(screen.getByRole('status')).toHaveTextContent(UI_TEXT.providerSavedRefreshFailed)
       expect(JSON.stringify(state())).not.toContain('synthetic-edit-key')
       expect(warnings.join(' ')).not.toContain('synthetic-edit-key')
+      expect(warnings.join(' ')).toContain('(Error)')
       host.dispose()
     },
   )

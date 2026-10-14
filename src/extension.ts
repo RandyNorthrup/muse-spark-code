@@ -165,6 +165,8 @@ import { AuthService } from './host/auth/authService'
 import { CliAccount, isCliSignedIn } from './host/auth/cliAccount'
 import { runDeviceSignIn } from './host/auth/deviceSignIn'
 import { isValidModelApiKey } from './host/auth/credentialStore'
+import { assertExhaustive, reasonTextForKind } from './host/auth/credentialRead'
+import type { DamagedChoiceNotice } from './runtime/resources/history'
 import { ModelApiBackendManager } from './host/backend/modelApiBackendManager'
 import { createFileScheduleStore } from './host/backend/fileScheduleStore'
 import { MuseCodeBackendManager } from './host/backend/museCodeBackendManager'
@@ -719,6 +721,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }),
     isEnabled: () =>
       vscode.workspace.getConfiguration(SETTINGS_SECTION).get<boolean>('usageHistory', true),
+    // A damaged usage-history choice as a notice, once per distinct damage,
+    // with what is damaged and what to do (the log keeps the onError line).
+    onDamagedChoice: (notice: DamagedChoiceNotice) => {
+      void vscode.window.showWarningMessage(notice.text)
+    },
   }
   context.subscriptions.push({
     dispose: configureResources({
@@ -2872,6 +2879,8 @@ async function activateWindow(
   const gitPopups = loggedPopups(log)
   const watchedHosts = new WeakSet<AgentHost>()
   let chosenBackend: BackendKind | undefined
+  /** The unreadable-store warning was already shown once in this window. */
+  let hasShownCredentialUnreadable = false
   // `Report a Problem` with no conversation open (M93): the dialog opens
   // once the surface it opened is ready to show it.
   let isReportPending = false
@@ -2955,7 +2964,40 @@ async function activateWindow(
           hasCli: backend.resolveLaunch().ok,
           hasCliSession,
           // A provider's secret counts as a Model API credential (M95, D74).
-          hasStoredKey: async () => await credentials.hasModelApiCredential(),
+          // Could-not-read counts as present (fail closed) and the person is
+          // told once: host choice never proceeds as if no key existed.
+          hasStoredKey: async () => {
+            const read = await credentials.readModelApiCredential()
+            switch (read.outcome) {
+              case 'found': {
+                // A healthy read re-arms the warning: a recurrence after
+                // a repair is shown again.
+                hasShownCredentialUnreadable = false
+                return true
+              }
+              case 'absent': {
+                hasShownCredentialUnreadable = false
+                return false
+              }
+              case 'unreadable': {
+                log.warn(
+                  `Stored credential presence is unknown (${read.kind}); assuming a key may exist`,
+                )
+                if (!hasShownCredentialUnreadable) {
+                  hasShownCredentialUnreadable = true
+                  void vscode.window.showWarningMessage(
+                    fill(UI_TEXT.credentialStoreUnreadable, {
+                      reason: reasonTextForKind(read.kind),
+                    }),
+                  )
+                }
+                return true
+              }
+              default: {
+                return assertExhaustive(read, 'extension.ensureSelectedHost')
+              }
+            }
+          },
         }),
       async (kind): Promise<AgentHost> =>
         kind === 'modelApi' ? await modelApi.ensureHost() : await backend.ensureHost(),

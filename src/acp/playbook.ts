@@ -32,7 +32,10 @@ export async function acpPlaybook(
     return command === undefined
       ? { ok: false, text: UI_TEXT.playbookCommandUsage }
       : await bundle.runPlaybookCommand(command, port())
-  } catch {
+  } catch (error: unknown) {
+    // A failed playbook stays a typed unavailable: only a non-error keeps
+    // its kind past the boundary.
+    if (!(error instanceof Error)) throw error
     return { ok: false, text: UI_TEXT.playbookUnavailable }
   }
 }

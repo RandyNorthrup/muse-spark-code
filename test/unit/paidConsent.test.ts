@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   PaidUseConsent,
   paidUseQuestion,
+  type PaidNotKeptNotice,
   type PaidUseAnswer,
 } from '../../src/core/paid/paidConsent'
 import {
@@ -13,6 +14,7 @@ import {
   type PaidGrant,
 } from '../../src/core/paid/paidAuthority'
 import { UI_TEXT, type PaidFeature } from '../../src/shared/constants'
+import { fill } from '../../src/shared/l10n/text'
 
 import { FakeLogOutputChannel } from './helpers/fakes'
 
@@ -43,6 +45,26 @@ function consentWith(
   return { consent, ask, on, writes, grants: () => grants }
 }
 
+/** A consent whose grant store cannot be written: every keep fails with `writeError`. */
+function unsavableConsent(
+  writeError: unknown,
+  onNotKept?: (notice: PaidNotKeptNotice) => void,
+): { consent: PaidUseConsent; log: FakeLogOutputChannel } {
+  const log = new FakeLogOutputChannel()
+  const consent = new PaidUseConsent({
+    isOn: () => true,
+    canRemember: () => true,
+    readGrants: () => new Set(),
+    writeGrants: () => {
+      throw writeError
+    },
+    ask: () => Promise.resolve('always'),
+    ...(onNotKept !== undefined && { onNotKept }),
+    log,
+  })
+  return { consent, log }
+}
+
 /** A search consent over an in-memory quote store whose order or save step can be broken. */
 function quoteConsentWith(store: {
   nextQuoteOrder?: () => number | Promise<number>
@@ -50,6 +72,7 @@ function quoteConsentWith(store: {
 }) {
   const log = new FakeLogOutputChannel()
   const kept: PaidGrant[] = []
+  const notices: PaidNotKeptNotice[] = []
   const ask = vi.fn(() => Promise.resolve<PaidUseAnswer>('always'))
   const consent = new PaidUseConsent({
     isOn: () => true,
@@ -57,6 +80,9 @@ function quoteConsentWith(store: {
     readGrants: () => new Set(),
     writeGrants: () => Promise.resolve(),
     ask,
+    onNotKept: (notice) => {
+      notices.push(notice)
+    },
     quoteGeneration: () => 'stored',
     readQuoteGrant: (quote) =>
       latestPaidGrant(
@@ -73,7 +99,7 @@ function quoteConsentWith(store: {
   })
   const listener = vi.fn()
   consent.onDidChange(listener)
-  return { consent, ask, log, kept, listener }
+  return { consent, ask, log, kept, listener, notices }
 }
 
 const SEARCH: PaidUseRequest = { feature: 'webSearch', priceUsd: Usd.from(0.0025).toAmount() }
@@ -113,6 +139,31 @@ const searchRequest = (tariff: string, provider = 'meta', model = 'muse-spark-1.
   }) as const
 
 describe('PaidUseConsent (M58)', () => {
+  it('tells the search question when saved Always quotes could not be read', async () => {
+    let asked: PaidUseRequest | undefined
+    const consent = new PaidUseConsent({
+      isOn: () => true,
+      canRemember: () => true,
+      readGrants: () => new Set(),
+      writeGrants: () => Promise.resolve(),
+      ask: (request) => {
+        asked = request
+        return Promise.resolve<PaidUseAnswer>('once')
+      },
+      quoteGeneration: () => 'stored',
+      readQuoteGrant: () => undefined,
+      readQuoteNotice: () => ({ kind: 'denied' }),
+      log: new FakeLogOutputChannel(),
+    })
+    await consent.allows(SEARCH)
+    expect(asked).toMatchObject({ feature: 'webSearch', quoteNotice: { kind: 'denied' } })
+    // The surface shows the notice with the question, in the display language.
+    const question = await paidUseQuestion(asked ?? SEARCH)
+    expect(question.detail).toContain(
+      fill(UI_TEXT.paidQuoteChoicesUnreadable, { kind: UI_TEXT.paidStoreReasonDenied }),
+    )
+  })
+
   it('R3 P2-1: Ask again invalidates model B pending Always without restoring model A', async () => {
     const pending = Promise.withResolvers<PaidUseAnswer>()
     const t = consentWith({
@@ -174,23 +225,42 @@ describe('PaidUseConsent (M58)', () => {
   )
 
   it('lets an "always" it cannot keep go ahead once, and says so', async () => {
-    const log = new FakeLogOutputChannel()
-    const consent = new PaidUseConsent({
-      isOn: () => true,
-      canRemember: () => true,
-      readGrants: () => new Set(),
-      writeGrants: () => Promise.reject(new Error('storage is full')),
-      ask: () => Promise.resolve('always'),
-      log,
-    })
+    const { consent, log } = unsavableConsent(new Error('storage is full'))
     await expect(consent.allows(SEARCH)).resolves.toMatchObject({
       feature: 'webSearch',
       tariffUsd: Usd.from('0.0025').toAmount(),
     })
     expect(log.warn).toHaveBeenCalledWith(
-      'Paid use of webSearch: "always" could not be kept, so it is allowed once: storage is full',
+      'Paid use of webSearch: "always" could not be kept, so it is allowed once (Error)',
     )
     expect(log.info).toHaveBeenLastCalledWith('Paid use of webSearch: allowed once')
+  })
+
+  it('names only the failure kind when "always" cannot be kept, and lets a non-error through', async () => {
+    const message = 'disk full at /private/user/grants.json'
+    const { consent, log } = unsavableConsent(new Error(message))
+    await expect(consent.allows(VOICE)).resolves.toBe(true)
+    expect(log.warn).toHaveBeenCalledOnce()
+    const said = String(log.warn.mock.calls[0]?.[0] ?? '')
+    expect(said).toContain('(Error)')
+    expect(said).not.toContain(message)
+    const foreign: unknown = 'a string failure'
+    const { consent: failing } = unsavableConsent(foreign)
+    await expect(failing.allows(VOICE)).rejects.toBe('a string failure')
+  })
+
+  it('tells the person at once when Always could not be kept', async () => {
+    const notices: PaidNotKeptNotice[] = []
+    const { consent } = unsavableConsent(
+      Object.assign(new Error('storage is full'), { code: 'ENOSPC' }),
+      (notice) => {
+        notices.push(notice)
+      },
+    )
+    // The use is allowed once and charged; the sentence arrives when it
+    // happens, with the closed kind, never the errno or the error's name.
+    await expect(consent.allows(VOICE)).resolves.toBe(true)
+    expect(notices).toEqual([{ feature: 'voice', kind: 'diskFull' }])
   })
 
   describe('a quoted search "always" its store cannot keep (0.16.0 review)', () => {
@@ -229,8 +299,10 @@ describe('PaidUseConsent (M58)', () => {
       expect(await t.consent.allows(first)).toMatchObject({ id: first.quote.id })
       expect(t.consent.authority.canSpend(first.quote)).toBe(true)
       expect(t.log.warn).toHaveBeenCalledExactlyOnceWith(
-        'Paid search quote could not be kept: read-only profile',
+        'Paid search quote could not be kept (Error)',
       )
+      // The person is told at once, with the kind: applied this time, asked again next.
+      expect(t.notices).toEqual([{ feature: 'webSearch', kind: 'unknown' }])
       expect(t.log.info).toHaveBeenLastCalledWith('Paid use of webSearch: allowed once')
       expect(t.kept).toEqual([])
       expect(t.listener).not.toHaveBeenCalled()
@@ -238,6 +310,26 @@ describe('PaidUseConsent (M58)', () => {
       const second = quotedSearch('0.01', 'model-a', 'second')
       expect(await t.consent.allows(second)).toMatchObject({ id: second.quote.id })
       expect(t.ask).toHaveBeenCalledTimes(2)
+    })
+
+    it('logs only the kind when the grant cannot be saved, and lets a non-error through', async () => {
+      const message = 'quota exceeded for /private/user/quotes'
+      const t = quoteConsentWith({
+        writeQuoteGrant: () => Promise.reject(new Error(message)),
+      })
+      const first = quotedSearch('0.01')
+      expect(await t.consent.allows(first)).toMatchObject({ id: first.quote.id })
+      expect(t.log.warn).toHaveBeenCalledExactlyOnceWith(
+        'Paid search quote could not be kept (Error)',
+      )
+      expect(String(t.log.warn.mock.calls[0]?.[0] ?? '')).not.toContain(message)
+      const foreign: unknown = 'a string failure'
+      const failing = quoteConsentWith({
+        nextQuoteOrder: () => {
+          throw foreign
+        },
+      })
+      await expect(failing.consent.allows(quotedSearch('0.01'))).rejects.toBe('a string failure')
     })
   })
 

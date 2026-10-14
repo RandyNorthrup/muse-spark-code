@@ -175,7 +175,10 @@ export class AcpQuestionDeferral {
       if (isOpened)
         this.deps.notice(fill(UI_TEXT.acpQuestionDeferred, { number: this.number(form.cardId) }))
       return isOpened
-    } catch {
+    } catch (error: unknown) {
+      // A failed deferral still closes the form: only a non-error keeps its
+      // kind past the boundary.
+      if (!(error instanceof Error)) throw error
       await this.failDeferral(form)
       return false
     }
@@ -212,7 +215,10 @@ export class AcpQuestionDeferral {
       const isOpen = record?.state === 'open'
       form.phase = isOpen ? 'open' : 'closed'
       return isOpen
-    } catch {
+    } catch (error: unknown) {
+      // A failed opening still closes the form: only a non-error keeps its
+      // kind past the boundary.
+      if (!(error instanceof Error)) throw error
       await this.failDeferral(form)
       return false
     }
@@ -291,7 +297,10 @@ export class AcpQuestionDeferral {
     if (turn.turnId === undefined) {
       try {
         await turn.starting
-      } catch {
+      } catch (error: unknown) {
+        // A turn that never started takes nothing: only a non-error keeps
+        // its kind past the boundary.
+        if (!(error instanceof Error)) throw error
         return 'uncertain'
       }
       turn = this.deps.turn?.()
@@ -302,6 +311,9 @@ export class AcpQuestionDeferral {
         await this.deps.session.steer(turn.turnId, [{ type: 'text', text: message.text }])
         return 'taken'
       } catch (error: unknown) {
+        // A refused steer still queues below: a real failure is uncertain,
+        // and a non-error keeps its kind past the boundary.
+        if (!(error instanceof Error)) throw error
         if (!isSteerRefusedError(error)) return 'uncertain'
       }
     }

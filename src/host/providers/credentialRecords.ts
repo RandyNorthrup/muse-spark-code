@@ -55,6 +55,15 @@ export function providerSecretKey(id: string): string {
   return `${PROVIDER_SECRET_PREFIX}${id}`
 }
 
+/**
+ * Refuses a malformed stored credential with its fixed sentence. A syntax
+ * failure's message quotes the stored text, which holds the secret, so the
+ * refusal carries no cause; the caller knows the provider id already.
+ */
+function refuseMalformedCredential(id: string): never {
+  throw new Error(`The stored credential for provider ${id} is not valid JSON`)
+}
+
 /** Stores a provider's credential record, bound to its origin. */
 export async function saveProviderCredential(
   secrets: RecordStore,
@@ -80,8 +89,10 @@ export async function readProviderCredential(
   let parsed: unknown
   try {
     parsed = JSON.parse(stored)
-  } catch {
-    throw new Error(`The stored credential for provider ${id} is not valid JSON`)
+  } catch (error: unknown) {
+    // Only malformed JSON reads invalid here: anything else keeps its kind.
+    if (!(error instanceof SyntaxError)) throw error
+    refuseMalformedCredential(id)
   }
   const record = credentialRecordSchema.safeParse(parsed)
   if (!record.success) {
@@ -107,7 +118,11 @@ export function isOriginBound(record: CredentialRecord, requestOrigin: string): 
   try {
     stored = new URL(record.origin).origin
     request = new URL(requestOrigin).origin
-  } catch {
+  } catch (error: unknown) {
+    // Only a malformed origin refuses the request; a stored record passed
+    // the URL schema, so only the request origin can fail here. Anything
+    // else keeps its kind.
+    if (!(error instanceof TypeError)) throw error
     return false
   }
   return stored === request

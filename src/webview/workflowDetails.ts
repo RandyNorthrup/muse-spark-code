@@ -57,7 +57,9 @@ function json(text: string): unknown {
   try {
     const parsed: unknown = JSON.parse(text)
     return parsed
-  } catch {
+  } catch (error: unknown) {
+    // Unparseable text reads as it came: anything else keeps its kind.
+    if (!(error instanceof SyntaxError)) throw error
     return undefined
   }
 }

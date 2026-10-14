@@ -45,7 +45,7 @@ import {
   MAX_ATTACHMENTS_PER_MESSAGE,
   UI_TEXT,
 } from '../../src/shared/constants'
-import type { PaidUseRequest } from '../../src/shared/paid'
+import { paidFeatureName, type PaidUseRequest } from '../../src/shared/paid'
 import { approvalModeFor } from '../../src/shared/permissionModes'
 import { FAKE_MODELS, FakeAgentHost, FakeAgentSession } from './helpers/fakeAgent'
 import { memoryPaidGrants } from './helpers/paidGrants'
@@ -90,6 +90,15 @@ interface Harness {
   readonly elicitations: acp.CreateElicitationRequest[]
   readonly log: { readonly info: ReturnType<typeof vi.fn>; readonly warn: ReturnType<typeof vi.fn> }
   run<T>(op: (client: acp.ClientContext) => Promise<T>): Promise<T>
+}
+
+/** The session's text chunks, in order, for sentence assertions. */
+function textMessages(updates: readonly acp.SessionUpdate[]): string[] {
+  return updates.flatMap((update) =>
+    update.sessionUpdate === 'agent_message_chunk' && update.content.type === 'text'
+      ? [update.content.text]
+      : [],
+  )
 }
 
 interface HarnessOptions {
@@ -717,15 +726,40 @@ describe('the ACP agent (M63)', () => {
     expect(h.permissions).toHaveLength(2)
     expect(h.host.sessions[0]?.controlSubagent).toHaveBeenCalledWith('child', 'continue')
     expect(h.host.sessions[0]?.controlSubagent).toHaveBeenCalledWith('child', 'retry')
-    const messages = h.updates
-      .flatMap((update) =>
-        update.sessionUpdate === 'agent_message_chunk' && update.content.type === 'text'
-          ? [update.content.text]
-          : [],
-      )
-      .join('\n')
+    const messages = textMessages(h.updates).join('\n')
     expect(messages).toContain('Inactive · Incomplete')
     expect(messages).toContain('Final message')
+  })
+
+  it('CATCHAUDIT: a failed subagent recovery is recorded and reads unavailable', async () => {
+    const h = harness({
+      canBypass: true,
+      initialMode: 'bypassPermissions',
+      answer: () => ({ outcome: { outcome: 'selected', optionId: 'recover' } }),
+    })
+    vi.spyOn(h.host, 'readSession').mockResolvedValue({
+      mode: 'inline',
+      items: [
+        {
+          itemId: 'a',
+          kind: 'subagent',
+          subagentId: 'child',
+          status: 'failed',
+        },
+      ],
+      name: undefined,
+      todos: [],
+    })
+    await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      h.host.sessions[0]?.controlSubagent.mockRejectedValueOnce(new Error('CONTROL-CANARY'))
+      await prompt(client, sessionId, '/agents continue child')
+    })
+    const messages = textMessages(h.updates).join('\n')
+    expect(messages).toContain(UI_TEXT.agentContinueUnavailable)
+    const logged = h.log.warn.mock.calls.map((call) => String(call[0])).join('\n')
+    expect(logged).toContain('subagent continue failed')
+    expect(logged).not.toContain('CONTROL-CANARY')
   })
 
   it('initializes with its capabilities, and a terminal sign-in only for a client that runs one', async () => {
@@ -1655,6 +1689,12 @@ describe('the ACP agent (M63)', () => {
     expect(h.host.sessions[0]?.settleElicitation).toHaveBeenLastCalledWith('elicit-1', {
       kind: 'cancelled',
     })
+    // CATCHAUDIT: the refused accept is recorded redacted, never the content.
+    const logged = h.log.warn.mock.calls.map((call) => String(call[0])).join('\n')
+    expect(logged).toContain('not accepted')
+    expect(logged).toContain('Error')
+    expect(logged).not.toContain('Ada')
+    expect(logged).not.toContain('does not fit')
   })
 
   it('logs a backend failure by its MSP kind and code, never the CLI’s message', async () => {
@@ -2394,6 +2434,29 @@ describe('paid features in the agent (M63c, M58)', () => {
       expect(h.grants.byFolder.size).toBe(0)
       expect(session.sendTurn).not.toHaveBeenCalled()
     })
+  })
+
+  it('tells the session when its Always could not be saved', async () => {
+    const h = harness({
+      kind: 'modelApi',
+      paid: ['webSearch'],
+      isTrusted: true,
+      answer: () => ({ outcome: { outcome: 'selected', optionId: 'paid-allow-always' } }),
+    })
+    vi.spyOn(h.grants, 'writeQuote').mockRejectedValue(new Error('store locked'))
+    const decision = await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      return await h.paid.allows(CWD, sessionId, WEB_SEARCH, false)
+    })
+    // The use is allowed once; the sentence arrives in the session itself.
+    expect(Boolean(decision)).toBe(true)
+    const said = textMessages(h.updates)
+    expect(said).toContain(
+      fill(UI_TEXT.paidAlwaysNotKept, {
+        feature: paidFeatureName('webSearch'),
+        kind: UI_TEXT.paidStoreReasonUnknown,
+      }),
+    )
   })
 
   it('denies a paid use answered after its session closed (Grok on 78a74430)', async () => {
@@ -3198,6 +3261,10 @@ describe('FIXM116I4 model-start answer commits', () => {
       await f.seed(sessionId)
       f.save.mockRejectedValueOnce(new Error('PRIVATE-COMMIT-CANARY'))
       await expect(prompt(client, sessionId)).rejects.toThrow(UI_TEXT.questionQueueCommitFailed)
+      // CATCHAUDIT: the failed commit is recorded redacted, never the cause.
+      const logged = f.h.log.warn.mock.calls.map((call) => String(call[0])).join('\n')
+      expect(logged).toContain('retaining pending')
+      expect(logged).not.toContain('PRIVATE-COMMIT-CANARY')
       const overlap = didRequestSucceed(prompt(client, sessionId, 'overlap'))
       await prompt(client, sessionId, '/questions')
       expect(f.h.host.sessions[0]!.sendTurn).toHaveBeenCalledTimes(1)

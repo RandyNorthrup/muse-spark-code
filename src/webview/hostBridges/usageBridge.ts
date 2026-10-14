@@ -26,7 +26,10 @@ export function deliverUsageReply(messages: EventTarget, input: unknown): void {
   if (typeof raw === 'string') {
     try {
       raw = JSON.parse(raw)
-    } catch {
+    } catch (error: unknown) {
+      // Unparseable text reads as an invalid message: anything else keeps
+      // its kind.
+      if (!(error instanceof SyntaxError)) throw error
       raw = undefined
     }
   }

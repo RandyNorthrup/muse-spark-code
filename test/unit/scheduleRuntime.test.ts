@@ -9,6 +9,11 @@ import { SCHEDULE_CLEANUP_EXIT_CODE, UI_TEXT } from '../../src/shared/constants'
 import { FakeScheduleBackground } from './helpers/schedules/background'
 import type { ScheduleWakeAuthorization } from '../../src/runtime/schedules/registration'
 import { NativeScheduleBackground } from '../../src/runtime/schedules/nativeBackground'
+import {
+  createBackgroundConsentStore,
+  scheduleStoredUnreadableReason,
+} from '../../src/runtime/schedules/consent'
+import type { ScheduleFsPort } from '../../src/core/schedules/journal'
 import type { ScheduleControlPort } from '../../src/runtime/schedules/command'
 import {
   fakeRuntimeScheduleControl,
@@ -410,5 +415,93 @@ describe('schedule runtime lifecycle', () => {
     await runtime.close()
     expect(unwatch).toHaveBeenCalledOnce()
     expect(host.holds(workspaceKey('/one'))).toBe(false)
+  })
+})
+
+function memoryConsentFs(initial: string | undefined, readFailure?: unknown): ScheduleFsPort {
+  const read = vi.fn<ScheduleFsPort['read']>(() => Promise.resolve(initial))
+  if (readFailure !== undefined) read.mockRejectedValue(readFailure)
+  return {
+    read,
+    names: () => Promise.resolve([]),
+    publish: () => Promise.resolve(true),
+    replace: () => Promise.resolve(),
+    remove: () => Promise.resolve(),
+    lock: (_key, work) => work(() => Promise.resolve()),
+  }
+}
+
+describe('background consent store reads', () => {
+  it('reads a missing file as no consent, never as invalid', async () => {
+    const store = createBackgroundConsentStore(memoryConsentFs(undefined), 'consent.json')
+    const seen: unknown[] = []
+    await store.exclusive((current) => {
+      seen.push(current)
+      return Promise.resolve()
+    })
+    expect(seen).toEqual([undefined])
+  })
+
+  it.each(['{oops', '{"choice":"maybe"}'])(
+    'refuses a corrupt or hostile consent file with the fixed code: %j',
+    async (content) => {
+      const store = createBackgroundConsentStore(memoryConsentFs(content), 'consent.json')
+      await expect(store.exclusive(() => Promise.resolve())).rejects.toThrow(
+        'scheduleStoredJsonInvalid',
+      )
+    },
+  )
+
+  it('lets a non-error read failure keep its kind', async () => {
+    const foreign: unknown = 'a string failure'
+    const store = createBackgroundConsentStore(memoryConsentFs(undefined, foreign), 'consent.json')
+    await expect(store.exclusive(() => Promise.resolve())).rejects.toBe('a string failure')
+  })
+
+  it.each(['EACCES', 'EIO'])(
+    'reports an unreadable consent file by its errno: %s',
+    async (code) => {
+      const failure = Object.assign(new Error('store locked'), { code })
+      const store = createBackgroundConsentStore(
+        memoryConsentFs(undefined, failure),
+        'consent.json',
+      )
+      await expect(store.exclusive(() => Promise.resolve())).rejects.toThrow(
+        `scheduleStoredUnreadable:${code}`,
+      )
+    },
+  )
+
+  it.each([
+    ['EACCES', UI_TEXT.scheduleStoreReasonDenied],
+    ['EPERM', UI_TEXT.scheduleStoreReasonDenied],
+    ['ENOSPC', UI_TEXT.scheduleStoreReasonDiskFull],
+    ['EIO', UI_TEXT.scheduleStoreReasonUnknown],
+  ])('tells the consent errno through a kind word, never raw: %s (P3-4)', (code, reason) => {
+    const failure = Object.assign(new Error('store locked'), { code })
+    const stored = new Error(`scheduleStoredUnreadable:${code}`, { cause: failure })
+    const sentence = scheduleStoredUnreadableReason(stored)
+    expect(sentence).toContain(UI_TEXT.scheduleConsentUnreadable.split('{reason}', 1)[0])
+    expect(sentence).toContain(reason)
+    // The errno and the store message never reach the person.
+    expect(sentence).not.toContain(code)
+    expect(sentence).not.toContain('store locked')
+  })
+
+  it('says nothing for failures that are not an unreadable consent file (P3-4)', () => {
+    expect(scheduleStoredUnreadableReason(new Error('scheduleStoredJsonInvalid'))).toBeUndefined()
+    expect(scheduleStoredUnreadableReason('scheduleStoredUnreadable:EACCES')).toBeUndefined()
+  })
+
+  it('passes on a codeless read failure instead of calling it corrupt', async () => {
+    const failure = new TypeError('faulty port')
+    const store = createBackgroundConsentStore(memoryConsentFs(undefined, failure), 'consent.json')
+    let seen: unknown
+    try {
+      await store.exclusive(() => Promise.resolve())
+    } catch (error: unknown) {
+      seen = error
+    }
+    expect(seen).toBe(failure)
   })
 })

@@ -14310,6 +14310,16 @@ cost and caution, never speed.
   reviewer on B1 and B2, never the only one and never an allow by itself.
   Everywhere else both stand unchanged.
 
+### D108 — Reads that guard money, consent or credentials are three-valued (2026-10-12)
+
+A read that guards money, consent or a credential answers found, absent,
+or could-not-read with a closed kind — never a boolean that collapses the
+third state into absence. Guards fail closed on could-not-read (a billing
+hold is never released, a sign-in never lifts one, "can recover" is never
+true, no key is asked for as if none existed) and tell the person once per
+distinct damage through a notice, not only the log. Full record:
+`docs/certification/catch-money.md` (round 3).
+
 ## 3. Open questions (need the owner)
 
 **Q-VIS0171-RELEASE-NOTES resolved by lead (2026-10-10, linuxlt).** Round 2
@@ -36729,6 +36739,15 @@ knip, duplication, localization, host API and production build here; record
 actual receipts in `docs/certification/m101-p2.md`. The lead must run the
 aggregate quality/coverage/platform matrix before integration/release. No
 threshold, ignore or rule is changed.
+
+**CATCHMONEY round 3 qualification (2026-10-12; review 2026-10-14).**
+Scoped runs and receipts: `docs/certification/catch-money.md`; the lead runs
+the aggregate suite before integration. Two deferrals stand. The stricter
+catch classifier reclassifies 94 raw-error logs from REPORTED to GENERIC;
+the baseline was regenerated after that intentional fix and the gate still
+fails on any new rise. `dist/modelsPanel.js` is 128,289 bytes against its
+128,000-byte budget on the merged tree (the required three-valued read);
+no threshold is changed: the lead rebases the budget or directs a trim.
 
 ## 8. Escape hatches register
 

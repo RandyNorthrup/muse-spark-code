@@ -634,9 +634,9 @@ describe('PROVWIZ2 round 2 regressions', () => {
       await sendDraft(panel, { type: 'providers/wizard', event: 'next' }, { step: 'models' })
       expect(latestState(panel).drafts.wizard?.blockers).toEqual([UI_TEXT.customLimitsMissing])
       await send(panel, { type: 'providers/save', useNow: false }, () => {
-        expect(latestState(panel).drafts.wizard?.errors).toEqual([
-          UI_TEXT.providerSaveWriteConflict,
-        ])
+        // P3-1: no write happened (saveDraft never called), so the failure
+        // says only that it did not work, never a write conflict it was not.
+        expect(latestState(panel).drafts.wizard?.errors).toEqual([UI_TEXT.actionFailed])
         expect(latestState(panel).notice).toBeUndefined()
       })
       expect(saveDraft).not.toHaveBeenCalled()

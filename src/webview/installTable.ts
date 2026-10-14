@@ -56,7 +56,9 @@ export function installEmbeddedTable(page: ParentNode): Error | undefined {
   try {
     // A tag Intl rejects would leave the plural and number rules half set.
     Intl.getCanonicalLocales(locale)
-  } catch {
+  } catch (error: unknown) {
+    // Only a rejected tag refuses the table: anything else keeps its kind.
+    if (!(error instanceof RangeError)) throw error
     return refused(`"${locale}" is not a language tag`)
   }
   if (!isUiText(table, locale)) {

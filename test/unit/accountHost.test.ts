@@ -149,6 +149,15 @@ describe('readAccountState', () => {
       readAccountState(host({ 'account/read': { state: 'loggedOut' } }).session.connection),
     ).resolves.toBeUndefined()
   })
+
+  it('lets a non-error failure keep its kind instead of reading as no answer', async () => {
+    const t = host({})
+    const foreign: unknown = 'a string failure'
+    vi.mocked(t.session.connection.request).mockImplementationOnce(() => {
+      throw foreign
+    })
+    await expect(readAccountState(t.session.connection)).rejects.toBe('a string failure')
+  })
 })
 
 describe('isStoredSignIn', () => {
@@ -166,6 +175,20 @@ describe('probeAccount', () => {
     const log = new FakeLogOutputChannel()
     await expect(probeAccount(t.connect, log, OPEN)).resolves.toEqual(LOGGED_OUT)
     expect(t.close).toHaveBeenCalledOnce()
+  })
+
+  it('lets a non-error start failure keep its kind instead of answering with the fallback', async () => {
+    const log = new FakeLogOutputChannel()
+    const foreign: unknown = 'a string failure'
+    await expect(
+      probeAccount(
+        () => {
+          throw foreign
+        },
+        log,
+        OPEN,
+      ),
+    ).rejects.toBe(foreign)
   })
 
   it('says nothing when the host cannot start, naming only the error', async () => {

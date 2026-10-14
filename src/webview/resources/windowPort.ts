@@ -52,7 +52,9 @@ function parsedJson(text: string | null | undefined): unknown {
   try {
     const value: unknown = JSON.parse(text)
     return value
-  } catch {
+  } catch (error: unknown) {
+    // Unreadable text reads null: anything else keeps its kind.
+    if (!(error instanceof SyntaxError)) throw error
     return null
   }
 }

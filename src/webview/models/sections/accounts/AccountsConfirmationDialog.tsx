@@ -61,7 +61,10 @@ function AccountsQuestion({
         providerGeneration: question.providerGeneration,
         choice,
       })
-    } catch {
+    } catch (error: unknown) {
+      // A refused choice reads failed: only a non-error keeps its kind past
+      // the dialog.
+      if (!(error instanceof Error)) throw error
       setFailed(true)
     } finally {
       pending.current = false

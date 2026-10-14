@@ -4,6 +4,12 @@
 // implements (PLAN.md D61), and tests replace with a Map.
 
 import { MODEL_API_KEY_PATTERN, PROVIDER_SECRET_PREFIX, SECRET_KEYS } from '../../shared/constants'
+import { wireWordForLog } from '../../core/logging'
+import {
+  unreadableKindFor,
+  type CredentialRead,
+  type CredentialUnreadableKind,
+} from './credentialRead'
 
 export interface SecretStore {
   get(key: string): PromiseLike<string | undefined>
@@ -17,6 +23,8 @@ export function isValidModelApiKey(candidate: string): boolean {
 
 export class CredentialStore {
   private hasReportedFailure = false
+  /** Provider ids whose unreadable entry was already recorded, once each. */
+  private readonly reportedProviders = new Set<string>()
 
   public constructor(
     private readonly secrets: SecretStore,
@@ -36,23 +44,34 @@ export class CredentialStore {
   ) {}
 
   /**
-   * The stored key; undefined when there is none or the store cannot be
-   * read (PLAN.md D25): on Linux without a keyring VS Code's secret storage
-   * throws, and that must not block the Muse Code backend, which needs no key.
+   * The stored key for operational use (backend key reads); undefined when
+   * there is none or the store cannot be read (PLAN.md D25): on Linux
+   * without a keyring VS Code's secret storage throws, and that must not
+   * block the Muse Code backend, which needs no key.
+   *
+   * read-state: cert TBL-02. This collapse is by design for non-guard use
+   * only: anything that guards money, consent or a credential reads
+   * `readModelApiCredential` and switches on all three states instead.
    */
   public async getApiKey(): Promise<string | undefined> {
     let stored: string | undefined
     try {
       stored = await this.secrets.get(SECRET_KEYS.modelApiKey)
     } catch (error: unknown) {
+      // read-state: cert TBL-02 (see the method note): this collapse is by
+      // design for operational, non-guard use only.
       if (!this.hasReportedFailure) {
         this.hasReportedFailure = true
+        // The log carries only the failure's kind, never the raw error: the
+        // message can name a keyring path (P3-5).
         this.warn(
-          `${this.storeName} could not be read, so no Model API key is available: ${String(error)}`,
+          `${this.storeName} could not be read, so no Model API key is available (${wireWordForLog(error instanceof Error ? error.name : typeof error)})`,
         )
       }
       return undefined
     }
+    // A healthy read re-arms the warning: a recurrence warns again.
+    this.hasReportedFailure = false
     return stored === undefined || stored === '' ? undefined : stored
   }
 
@@ -70,44 +89,94 @@ export class CredentialStore {
   }
 
   /**
-   * Whether any configured provider holds a credential. A damaged record
-   * counts: something is stored for that provider, and the panel asks for
-   * the credential again rather than treating it as absent.
-   */
-  public async hasProviderCredential(): Promise<boolean> {
-    const ids = await this.providerIds?.()
-    if (ids === undefined) {
-      return false
-    }
-    for (const provider of ids) {
-      if (
-        typeof provider !== 'string' &&
-        provider.auth === 'none' &&
-        (provider.models?.length ?? 0) > 0
-      ) {
-        return true
-      }
-      const id = typeof provider === 'string' ? provider : provider.id
-      try {
-        // Auth needs presence only; damaged records count too. Parsing and
-        // credential dispatch remain in the lazy provider store.
-        const stored = await this.secrets.get(`${PROVIDER_SECRET_PREFIX}${id}`)
-        if (stored !== undefined && stored !== '') {
-          return true
-        }
-      } catch {
-        return true
-      }
-    }
-    return false
-  }
-
-  /**
    * A Model API credential of either kind (M95, PLAN.md D74): the Meta key
    * or any provider's secret. Backend selection and the sign-in gate read
-   * this, never the key alone.
+   * this, never the key alone, and switch on all three states: found,
+   * absent, or could-not-read with its kind. Could-not-read never reads as
+   * absence on a path that guards billing (P2-1).
    */
-  public async hasModelApiCredential(): Promise<boolean> {
-    return (await this.getApiKey()) !== undefined || (await this.hasProviderCredential())
+  public async readModelApiCredential(): Promise<CredentialRead> {
+    let unreadable: CredentialUnreadableKind | undefined
+    try {
+      const stored = await this.secrets.get(SECRET_KEYS.modelApiKey)
+      // A healthy read re-arms the warning: a recurrence warns again.
+      this.hasReportedFailure = false
+      if (stored !== undefined && stored !== '') {
+        return { outcome: 'found' }
+      }
+    } catch (error: unknown) {
+      // An unreadable key says nothing about presence. Every throw maps
+      // onto the closed kind (a non-Error keeps its code, else `other`):
+      // this read answers in the three states and never throws a foreign
+      // value at a guard that has no handler for it.
+      unreadable = unreadableKindFor(error)
+      if (!this.hasReportedFailure) {
+        this.hasReportedFailure = true
+        this.warn(
+          `${this.storeName} could not be read, so the Model API key's presence is unknown (${wireWordForLog(error instanceof Error ? error.name : typeof error)})`,
+        )
+      }
+    }
+    let ids:
+      | readonly (
+          | string
+          | { readonly id: string; readonly auth: string; readonly models?: readonly string[] }
+        )[]
+      | undefined
+    try {
+      ids = await this.providerIds?.()
+    } catch (error: unknown) {
+      // A provider list that cannot be read cannot prove no provider holds
+      // a credential either. Every throw maps onto the closed kind.
+      unreadable ??= unreadableKindFor(error)
+      this.warn(
+        `Provider credentials could not be listed, so their presence is unknown (${wireWordForLog(error instanceof Error ? error.name : typeof error)})`,
+      )
+    }
+    let isFound = false
+    if (ids !== undefined) {
+      for (const provider of ids) {
+        if (
+          typeof provider !== 'string' &&
+          provider.auth === 'none' &&
+          (provider.models?.length ?? 0) > 0
+        ) {
+          // A local-model provider needs no credential, so the answer is
+          // already found; the scan still continues past it so an unreadable
+          // later entry is recorded rather than silently skipped.
+          isFound = true
+          continue
+        }
+        const id = typeof provider === 'string' ? provider : provider.id
+        try {
+          // Auth needs presence only; damaged records count too. Parsing and
+          // credential dispatch remain in the lazy provider store.
+          const stored = await this.secrets.get(`${PROVIDER_SECRET_PREFIX}${id}`)
+          // A healthy entry re-arms its warning.
+          this.reportedProviders.delete(id)
+          if (stored !== undefined && stored !== '') {
+            isFound = true
+          }
+        } catch (error: unknown) {
+          // An entry that cannot be read says nothing about presence, so the
+          // scan continues past it; the failure is recorded once per provider
+          // with its kind, never as absence. Every throw maps onto the
+          // closed kind.
+          unreadable ??= unreadableKindFor(error)
+          if (!this.reportedProviders.has(id)) {
+            this.reportedProviders.add(id)
+            this.warn(
+              `${this.storeName} could not be read for provider ${id}, so its credential is unknown (${wireWordForLog(error instanceof Error ? error.name : typeof error)})`,
+            )
+          }
+        }
+      }
+    }
+    if (isFound) {
+      return { outcome: 'found' }
+    }
+    return unreadable === undefined
+      ? { outcome: 'absent' }
+      : { outcome: 'unreadable', kind: unreadable }
   }
 }

@@ -34,8 +34,11 @@ export function createAcpEstimate(deps: {
           signal,
         )
         return renderEstimate(section, parsed.options.format, deps.money)
-      } catch {
+      } catch (error: unknown) {
         signal.throwIfAborted()
+        // A failed estimate stays the fixed sentence: only a non-error keeps
+        // its kind past the boundary.
+        if (!(error instanceof Error)) throw error
         return fill(UI_TEXT.estimateFailed, { detail: 'estimate-unavailable' })
       }
     },

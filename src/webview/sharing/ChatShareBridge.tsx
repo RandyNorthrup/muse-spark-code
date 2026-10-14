@@ -47,7 +47,10 @@ export function ChatShareBridge({
         setContext(contextSchema.parse(value))
       })
       .catch((error_: unknown) => {
-        setError(error_ instanceof Error ? error_.message : UI_TEXT.exportFailed)
+        // An unreadable context never shows its cause: only a non-error
+        // keeps its kind past the bridge.
+        if (!(error_ instanceof Error)) throw error_
+        setError(UI_TEXT.exportFailed)
       })
     return () => {
       rpc.close()

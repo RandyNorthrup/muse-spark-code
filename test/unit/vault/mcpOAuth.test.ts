@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import { describe, expect, it, vi } from 'vitest'
+import type { McpOAuthVaultPort } from '../../../src/core/mcp/oauth/client'
 import { discoverMcpOAuth } from '../../../src/core/mcp/oauth/discovery'
 import { mcpOAuthTransport } from '../../../src/core/mcp/oauth/transport'
 import { UI_TEXT, MCP_OAUTH_LIMITS } from '../../../src/shared/constants'
@@ -413,5 +414,78 @@ describe('M109 O OAuth audience and PKCE', () => {
       ),
     ).rejects.toThrow(UI_TEXT.vault.noAccess)
     expect(f.borrowed.every(isWiped)).toBe(true)
+  })
+
+  it('lets a foreign fetch failure keep its kind past discovery instead of denying it there', async () => {
+    const f = oauthFixture()
+    const foreign: unknown = 'a string failure'
+    await expect(
+      discoverMcpOAuth(
+        {
+          fetch: () => {
+            throw foreign
+          },
+          allowEndpoint: f.allowEndpoint,
+        },
+        f.binding.resource,
+        f.binding.issuer,
+        f.signal,
+      ),
+    ).rejects.toBe(foreign)
+  })
+
+  it('quarantines a sent refresh whatever the save failure is, then rethrows it', async () => {
+    const f = oauthFixture()
+    await f.client.signIn(f.binding, f.signal)
+    f.advance()
+    const foreign: unknown = 'a string failure'
+    f.vault.save = vi.fn<McpOAuthVaultPort['save']>(() => {
+      throw foreign
+    })
+    // The token POST already reached the server, so the old token is
+    // quarantined whatever the save threw, and the boundary still denies
+    // instead of leaking the foreign value. The old assertion (no quarantine
+    // for a non-Error) was wrong: the server may have rotated the token
+    // regardless of what the save threw, and the quarantine is decided by
+    // what was sent, never by the type of what was thrown.
+    await expect(f.client.fetch(f.binding, f.binding.resource, f.init)).rejects.toThrow(
+      UI_TEXT.vault.noAccess,
+    )
+    expect(f.vault.invalidate).toHaveBeenCalledTimes(1)
+  })
+
+  it('lets a caller stop stay a stop instead of denying it', async () => {
+    const f = oauthFixture()
+    const stop = new AbortController()
+    stop.abort(new Error('caller stopped'))
+    let failure: unknown
+    try {
+      await f.client.signIn(f.binding, stop.signal)
+    } catch (error: unknown) {
+      failure = error
+    }
+    expect(String(failure)).toContain('caller stopped')
+    expect(String(failure)).not.toContain(UI_TEXT.vault.noAccess)
+  })
+
+  it('denies a store failure racing a caller stop instead of leaking it', async () => {
+    const f = oauthFixture()
+    await f.client.signIn(f.binding, f.signal)
+    const stop = new AbortController()
+    // The stop lands while the read is in flight, then the read fails.
+    f.vault.read = vi.fn<McpOAuthVaultPort['read']>(() => {
+      stop.abort(new Error('caller stopped'))
+      return Promise.reject(new Error('private store text for sentinel-account'))
+    })
+    let failure: unknown
+    try {
+      await f.client.fetch(f.binding, f.binding.resource, { ...f.init, signal: stop.signal })
+    } catch (error: unknown) {
+      failure = error
+    }
+    expect(failure).toBeInstanceOf(Error)
+    expect(String(failure)).toContain(UI_TEXT.vault.noAccess)
+    expect(String(failure)).not.toContain('sentinel')
+    expect(String(failure)).not.toContain('caller stopped')
   })
 })

@@ -167,7 +167,10 @@ export function aesGcmOpen(
     plaintext.set(chunk)
     plaintext.set(tail, chunk.length)
     return plaintext
-  } catch {
+  } catch (error: unknown) {
+    // Authentication covers a wrong key and corrupt data alike: the cipher
+    // cannot tell them apart. Anything else keeps its kind.
+    if (!(error instanceof Error)) throw error
     throw new VaultError('authentication')
   } finally {
     chunk?.fill(0)
@@ -259,6 +262,7 @@ export function eraseVaultMaterial(material: VaultItem['material']): void {
 export function decodeVaultMaterial(bytes: Buffer): VaultItem['material'] {
   const fields: Buffer[] = []
   const width = Uint32Array.BYTES_PER_ELEMENT
+  let isComplete = false
   try {
     if (bytes.length < width) throw new VaultError('invalid')
     const headerLength = bytes.readUInt32BE()
@@ -294,9 +298,15 @@ export function decodeVaultMaterial(bytes: Buffer): VaultItem['material'] {
     }
     const material = vaultMaterialSchema.safeParse(Object.fromEntries(entries))
     if (!material.success || used.size !== fields.length) throw new VaultError('invalid')
+    isComplete = true
     return material.data
-  } catch {
-    for (const field of fields) field.fill(0)
+  } catch (error: unknown) {
+    // Only a malformed encoding reads invalid: anything else keeps its kind.
+    if (!(error instanceof VaultError) && !(error instanceof SyntaxError)) throw error
     throw new VaultError('invalid')
+  } finally {
+    // Every exit wipes what was copied: a decoded return owns its fields,
+    // every failure abandons only zeroes.
+    if (!isComplete) for (const field of fields) field.fill(0)
   }
 }
