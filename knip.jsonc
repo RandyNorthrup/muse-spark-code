@@ -183,21 +183,7 @@
     // The fake-only test package's bin, bundled by scripts/package-acp-test.mjs (M80 W).
     "test/action/exec-test-launcher.ts",
     "scripts/**/*.mjs",
-    ".vscode-test.mjs"
-  ],
-
-  "project": [
-    "src/**/*.{ts,tsx}",
-    "test/**/*.{ts,tsx}",
-    "test/**/*.mjs",
-    "scripts/**/*.mjs",
-    "action/**/*.mjs",
-    // The badge Worker (infra/marketplace-hook); wrangler deploys worker.js by path.
-    "infra/**/*.js"
-  ],
-
-  "ignore": [
-    "vendor/**",
+    ".vscode-test.mjs",
 
     // In-progress features: built, not yet wired into the product (TESTCUTFIN,
     // 2026-10-14; the lead's F6 decision: declared here, not hidden, not
@@ -357,6 +343,18 @@
     "src/core/eval/judgeReplay.ts",
     "src/runtime/tokenFile.ts"
   ],
+
+  "project": [
+    "src/**/*.{ts,tsx}",
+    "test/**/*.{ts,tsx}",
+    "test/**/*.mjs",
+    "scripts/**/*.mjs",
+    "action/**/*.mjs",
+    // The badge Worker (infra/marketplace-hook); wrangler deploys worker.js by path.
+    "infra/**/*.js"
+  ],
+
+  "ignore": ["vendor/**"],
 
   // `vscode` (the extension host module) needs no entry here: knip resolves it
   // through @types/vscode. @vscode/test-electron is imported by
