@@ -10,11 +10,13 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
   buildChatGptAuthorizeUrl,
   ChatGptSignInError,
-  createChatGptHostId,
-  isChatGptHostId,
   parseChatGptCallback,
   resolveChatGptHostId,
 } from '../../src/core/providers/subscriptions/chatgpt'
+import {
+  createChatGptHostId,
+  isChatGptHostId,
+} from '../../src/core/providers/subscriptions/chatgptHostId'
 import { createPkcePair } from '../../src/core/providers/pkce'
 import { loadChatGptHostId } from '../../src/host/providers/chatgptHostId'
 import { chatGptCommandText } from '../../src/runtime/chatGptProviderCommands'
