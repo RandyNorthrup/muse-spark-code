@@ -304,14 +304,22 @@ send the same value for the same host.
   the Windows pipe case correctly skips.
 - `test/unit/runtimeChatGptLock.test.ts`: socket-file cases now run
   only off Windows (`runIf`); Windows gets its own pipe crash-recovery
-  case (worker holds the pipe, SIGKILL, re-acquire, no `lstat`). A
-  deterministic Windows pipe-bind OS error has no trigger through the
-  unchanged module (a held name is contention with a retry deadline, not
-  a local failure; pipes have no files to block), so there is no
-  Windows `lock-unavailable` case: the mapping line is shared code the
-  POSIX test covers, and contention on the real pipe is covered by the
-  live-holder test. The lead runs this file outside the sandbox and on
-  the owner's PC.
+  case (worker holds the pipe, SIGKILL, re-acquire, no `lstat`) and its
+  own pipe local-failure case. The failure trigger is grounded in
+  libuv 1.52.1 `src/win/pipe.c` `uv_pipe_bind2` (fetched): an occupied
+  name fails `CreateNamedPipe` with `ERROR_ACCESS_DENIED` → `EADDRINUSE`
+  (contention, retried), while `ERROR_INVALID_NAME`/`ERROR_PATH_NOT_FOUND`
+  → `EACCES`, which the unchanged lock already reports as
+  `lock-unavailable` with its OS code. The lock takes a Windows-only
+  `pipeName` override (the POSIX `directory` option's counterpart, same
+  test-isolation legitimacy); the case passes an empty name no object
+  can carry, so the kernel itself refuses the bind. The assertion is
+  code-agnostic (`lock-unavailable` + string reason carried into the
+  sentence, never "temporarily unavailable"), so whichever refusal
+  Windows reports is the one checked. NOT RUN HERE: both Windows cases
+  skip on Linux (verified); the lead runs this file on the owner's PC,
+  where the new case's output names the actual Windows code.
+  Contention on the real pipe stays covered by the live-holder test.
 - Stale-socket Linux failure: the lock path is proven by the passing
   crash test (same EADDRINUSE → refused-probe → unlink → bind
   sequence), and Node's own `lib/net.js` (v24.21.0, fetched) performs no
@@ -320,16 +328,20 @@ send the same value for the same host.
   file the way production does (a child binds a raw socket and is
   SIGKilled; no cleanup runs), which the crash test already proves
   leaves the file.
-- Mock-based suites the new validation breaks (old-format `HOST`
-  constant, 22-char regex) are named and left for TESTCUT per the
-  owner's 2026-10-12 rules: `chatGptSignIn.test.ts` (was 105/105; the
-  URL-shape test now throws at `!isChatGptHostId`), plus
-  `runtimeChatGpt.test.ts`'s `initializes one opaque installation id`
-  outside the sandbox. Unchanged in-sandbox: `runtimeChatGpt.test.ts`
-  29/6 and `chatGptVsCode.test.ts` 9/17 before and after (sandbox
-  socket/fetch cascade); `subscriptionIntegration` +
-  `configuredProviders` 5 fail identically on the untouched base in the
-  same sandbox (measured in a base export under `$TMPDIR`).
+- Suite fixtures migrated to the documented form (fixture values only,
+  no test logic changed): `chatGptSignIn.test.ts` `HOST` is now
+  `urn:uuid:12345678-1234-4234-8234-123456789012` — back to 105/105
+  here. `runtimeChatGpt.test.ts`'s record fixture likewise, and its
+  installation-id regex now asserts the `urn:uuid:` shape; in this
+  sandbox that test still stops at the blocked lock
+  (`chatgpt.lock-unavailable`, never reaching the assertion), so the
+  regex itself is verified by the lead's outside-sandbox/Windows run.
+  `chatGptVsCode.test.ts` needed no migration (dynamic ids only).
+  Unchanged in-sandbox: `runtimeChatGpt.test.ts` 29/6 and
+  `chatGptVsCode.test.ts` 9/17 before and after (sandbox socket/fetch
+  cascade); `subscriptionIntegration` + `configuredProviders` 5 fail
+  identically on the untouched base in the same sandbox (measured in
+  a base export under `$TMPDIR`).
 
 ## Packed-product run (this Linux machine)
 
@@ -355,7 +367,10 @@ bundle-size and bundle-split). `npm run security:sast` cannot run:
 `semgrep is not installed: pip install -r
 .github/semgrep/requirements.txt`. No `eslint-disable`,
 `@ts-expect-error`, `as` cast or `any` added (no PLAN.md §8 row
-needed). `test/e2e/execStdio.e2e.test.ts` 46/46.
+needed). `test/e2e/execStdio.e2e.test.ts` 46/46. Follow-up re-verified
+after the fixture migration and pipe option: typecheck clean, ESLint
+and Prettier clean on changed files, duplication exit 0, build green
+(modelsPanel 123.6 KiB), `chatGptSignIn.test.ts` 105/105.
 
 ## Real-life scenarios for the lead
 
