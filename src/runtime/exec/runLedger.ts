@@ -311,9 +311,16 @@ export function createRunLedger(input: {
               ? charge(ticket.price, u.input_tokens, u.output_tokens, cached)
               : undefined
           if (pricing?.costUsd !== undefined) cost = units(pricing.costUsd)
+          const contextTokens = ticket.contextTokens ?? MODEL_API_CONTEXT_WINDOW
+          // A catalogue whose context does not exceed its output limit gives
+          // no input room under context-minus-output; the whole context is
+          // the only input bound such a model can be held to.
+          const inputBound =
+            contextTokens > ticket.maxOutputTokens
+              ? contextTokens - ticket.maxOutputTokens
+              : contextTokens
           if (
-            u.input_tokens >
-              (ticket.contextTokens ?? MODEL_API_CONTEXT_WINDOW) - ticket.maxOutputTokens ||
+            u.input_tokens > inputBound ||
             u.output_tokens > ticket.maxOutputTokens ||
             (cost !== undefined && cost > amount)
           ) {

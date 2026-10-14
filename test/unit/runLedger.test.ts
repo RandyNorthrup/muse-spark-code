@@ -160,6 +160,38 @@ describe('M80 ledger integer admission and retained liability', () => {
       uncertainUsd: Usd.from(0).toAmount(),
     })
   })
+  it('a model whose context equals its output limit settles a full answer without a breach', () => {
+    const l = createRunLedger({ capUsd: Usd.from(1).toAmount(), maxRequests: 30 })
+    const ticket = l.admitResponse({
+      model: 'mistral/voxtral-small-latest',
+      maxOutputTokens: 32_000,
+      contextTokens: 32_000,
+      reserveUsd: Usd.from(0.0096).toAmount(),
+      price,
+    })
+    if ('refused' in ticket) throw new Error(ticket.refused)
+    const result = l.settleResponse(
+      ticket,
+      eof({ input_tokens: 2068, output_tokens: 17, total_tokens: 2085 }),
+    )
+    expect(result.latch).toBeUndefined()
+    expect(result.outcome).toBe('priced')
+    expect(l.totals().breach).toBe(false)
+  })
+  it('input above the whole context still breaches when context equals the output limit', () => {
+    const l = createRunLedger({ capUsd: Usd.from(1).toAmount(), maxRequests: 30 })
+    const ticket = l.admitResponse({
+      model: 'mistral/voxtral-small-latest',
+      maxOutputTokens: 32_000,
+      contextTokens: 32_000,
+      reserveUsd: Usd.from(0.0096).toAmount(),
+      price,
+    })
+    if ('refused' in ticket) throw new Error(ticket.refused)
+    expect(l.settleResponse(ticket, eof({ input_tokens: 32_001, output_tokens: 17 })).latch).toBe(
+      'breach',
+    )
+  })
   it.each(['incomplete', 'failed'])('settles final usage on terminal %s', (terminal) => {
     const l = createRunLedger({ capUsd: Usd.from(1).toAmount(), maxRequests: 30 })
     const t = response(l)
