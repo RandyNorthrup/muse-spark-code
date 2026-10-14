@@ -29,6 +29,8 @@ const TAB_WAIT_TIMEOUT_MS = 5000
 const FIXTURE_OVERRIDE = 'hideOnboarding'
 const RULES_HEADER = 'Muse Code reads this file as project rules when it runs in this directory.'
 const TAB_POLL_INTERVAL_MS = 50
+// The measured panel-focus steal landed 0.4 to 0.8 s late; the watch outlasts it.
+const FOCUS_WATCH_MS = 3000
 
 // Tab groups update asynchronously after a webview panel is created, so a
 // direct read right after executeCommand races the UI.
@@ -136,7 +138,7 @@ suite('activation', () => {
       // keyboard back: the measured steal landed 0.4 to 0.8 s after
       // showTextDocument resolved, so AGENTS.md stays the active editor and
       // the active tab for 3 s of polling.
-      const watchUntil = Date.now() + 3000
+      const watchUntil = Date.now() + FOCUS_WATCH_MS
       while (Date.now() < watchUntil) {
         assert.equal(
           activeTextEditorFsPath(),
