@@ -645,6 +645,7 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
         side: ['acp', 'vscode'],
       },
       { importer: 'src/host/backend/fileScheduleStore.ts', symbol: 'currentJob', side: ['vscode'] },
+      { importer: 'src/host/backend/fileScheduleStore.ts', symbol: 'snapshot', side: ['vscode'] },
       {
         importer: 'src/host/schedules/schedulesBridge.ts',
         symbol: 'createSchedulesBridge',
