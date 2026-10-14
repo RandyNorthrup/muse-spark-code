@@ -10,8 +10,9 @@ happened, not what was planned; superseded entries are kept.
 ### Pending
 
 - The chat no longer takes the keyboard from a file you just opened: a chat
-  panel that finishes loading (or a focus request delivered late) now drops
-  the request instead of pulling the keyboard into its input. Acting on the
+  panel that finishes loading, a focus request delivered late, or a
+  question that arrives while you are elsewhere holds its request until
+  the chat itself has the keyboard instead of pulling it in. Acting on the
   chat yourself — clicking into the panel, Focus Input, sending — focuses
   the input as before.
 

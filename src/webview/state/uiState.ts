@@ -335,7 +335,8 @@ export interface UiState {
    * Recorded focus requests (host `focusInput`, `init`, inserts, restores and
    * the composer's own actions). Recording is not landing: the composer
    * focuses only through `landFocusRequest` while this surface holds
-   * the keyboard, so a request that arrives late is dropped, never taken.
+   * the keyboard, so a late request waits for this surface's own focus
+   * instead of taking the keyboard from whatever holds it.
    */
   readonly focusRequests: number
   /** Incremented per host `openUsage`; Account & usage opens when it changes (M94). */
@@ -2799,7 +2800,7 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
         // Opening the panel asks for the caret in the composer, like Claude
         // Code; the request lands only while this surface holds the keyboard
         // (`landFocusRequest`), so a load that finishes after the person
-        // opened a file is dropped instead of stealing it.
+        // opened a file waits for this surface's focus instead of stealing.
         focusRequests: state.focusRequests + 1,
       }
     }

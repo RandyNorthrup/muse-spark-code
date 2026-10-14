@@ -14637,13 +14637,16 @@ INT0170B integration question (2026-10-07), narrowed by LEFT017 (2026-10-08): th
 **Decision.** Focus is taken only as the direct effect of something the
 person just did on that surface, and only if that surface still holds the
 keyboard when the focus would land. A webview never focuses its composer
-merely because it finished loading; a focus request that cannot land at
-once is recorded and dropped at delivery when its surface is no longer
-active. The host owns the ask (every `focusInput` it posts answers a
-person's command); the webview confirms ownership with
-`document.hasFocus()` at the single landing effect
-(`shouldLandFocusRequest` in `src/webview/state/uiState.ts`, called only
-from the composer's focus effect) and never overrides the host. Measured
+merely because it finished loading; a focus request checked while its
+surface is unowned is not spent — it lands only on that surface's own
+focus event, which a load finishing behind a file never gets. The host
+owns the ask (every `focusInput` it posts answers a person's command);
+the webview confirms ownership with `document.hasFocus()` at the single
+landing effect (`landFocusRequest` in `src/webview/state/uiState.ts`,
+called only from the composer's focus effect) and never overrides the
+host. Async arrivals that focus on their own (an approval or question
+card, a report's arriving headings) take the keyboard only under the
+same ownership. Measured
 release defect: a panel loading behind a just-opened file took the keyboard
 0.4–0.8 s later in 14 of 20 hosted runs
 (`docs/certification/panel-focus.md`). The watching integration case
