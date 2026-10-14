@@ -722,6 +722,34 @@ describe('configured provider production transport', () => {
     await expect(services.scan(ENTRY)).rejects.toThrow('Could not reach')
   })
 
+  it('reads a recorded bad-key answer on the models-list path (RVPROVERR)', async () => {
+    // The recorded Gemini bad-key answer (2026-10-12, lead's capture),
+    // replayed byte for byte through the send seam: the models list / key
+    // check path must read it with the same extractor as the turn path, not
+    // the transport's default envelope (whose string `code` schema rejects
+    // Google's numeric code and drops the provider's words entirely).
+    const recorded = z
+      .object({ status: z.number(), response: z.json() })
+      .parse(
+        JSON.parse(
+          await readFile('test/fixtures/provider-refusals/gemini/bad-key.json', 'utf8'),
+        ) as unknown,
+      )
+    const f = await fixture()
+    const send = vi.fn<NonNullable<ConfiguredProviderOptions['send']>>(() =>
+      Promise.resolve(response(Buffer.from(JSON.stringify(recorded.response)), recorded.status)),
+    )
+    const services = createConfiguredProviderServices(undefined, {
+      ...f,
+      resolve: () => Promise.resolve(['8.8.8.8']),
+      send,
+    })
+    await expect(services.scan(ENTRY)).rejects.toThrow('API key not valid')
+    const outcome = await services.test(ENTRY, 'test-owned-key')
+    expect(outcome.kind).toBe('failed')
+    if (outcome.kind === 'failed') expect(outcome.detail).toContain('was rejected')
+  })
+
   it('invalidates an existing resolution after the same model is reconfigured', async () => {
     const f = await fixture()
     const services = createConfiguredProviderServices(undefined, f)

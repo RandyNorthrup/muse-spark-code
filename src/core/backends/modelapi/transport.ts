@@ -323,19 +323,23 @@ async function describeFailure(
   }
   const parsed = errorBodySchema.safeParse(body)
   if (!parsed.success) {
-    return new ModelApiError(
-      redact(`HTTP ${String(response.status)} ${response.statusText}`.trim()),
-      response.status,
-      undefined,
-      undefined,
+    return attach(
+      new ModelApiError(
+        redact(`HTTP ${String(response.status)} ${response.statusText}`.trim()),
+        response.status,
+        undefined,
+        undefined,
+      ),
     )
   }
   const { error } = parsed.data
-  return new ModelApiError(
-    redact(error.message),
-    response.status,
-    error.type == null ? undefined : redact(error.type),
-    error.code == null ? undefined : redact(error.code),
+  return attach(
+    new ModelApiError(
+      redact(error.message),
+      response.status,
+      error.type == null ? undefined : redact(error.type),
+      error.code == null ? undefined : redact(error.code),
+    ),
   )
 }
 
