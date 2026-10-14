@@ -1,4 +1,4 @@
-import { mkdtempSync } from 'node:fs'
+import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { randomUUID } from 'node:crypto'
@@ -116,5 +116,33 @@ describe('exec usage clock', () => {
     expect(errors).toHaveLength(1)
     expect(errors[0]?.code).toBe('usageWriteFailed')
     expect(errors[0]?.reason).toContain('id')
+  })
+
+  it('does not say usage was not recorded when only the read fails', async () => {
+    // A regular file where the data folder belongs: the real store cannot
+    // read it. Records may well exist elsewhere; the read failing is not
+    // evidence they were never written, so no "not recorded" warning.
+    const folder = mkdtempSync(path.join(tmpdir(), 'exec-usage-red-'))
+    const notAFolder = path.join(folder, 'not-a-folder')
+    writeFileSync(notAFolder, 'x')
+    const warnings: string[] = []
+    const recording = createUsageRecording({
+      client: 'cli',
+      now: epochNow,
+      newId: () => randomUUID(),
+      isEnabled: () => true,
+      log: collectingLog(warnings),
+      writer: (onWriteError) =>
+        Promise.resolve(
+          new UsageJournalStore(new NodeUsageFs(notAFolder, epochNow), {
+            writerId: 'redtest-writer',
+            now: epochNow,
+            isEnabled: () => true,
+            onWriteError,
+          }),
+        ),
+    })
+    await expect(recording.today()).rejects.toThrow('Usage history unavailable')
+    expect(warnings).toEqual([])
   })
 })
