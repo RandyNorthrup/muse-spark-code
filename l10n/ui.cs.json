@@ -4509,7 +4509,8 @@
     "callback": "Přihlášení ChatGPT je dokončeno. Vraťte se do editoru nebo terminálu.",
     "failure": "Přihlášení ChatGPT se nepodařilo dokončit. Zkuste to znovu nebo jej odeberte a znovu se přihlaste.",
     "storeUnavailable": "Úložiště přihlašovacích údajů tohoto počítače není dostupné. Přihlaste se z interaktivní relace plochy s odemčeným úložištěm; v Linuxu nejprve spusťte Secret Service.",
-    "lockUnavailable": "Místní zámek přihlášení se nepodařilo otevřít ({reason}). Zkuste to znovu."
+    "lockUnavailable": "Místní zámek přihlášení se nepodařilo otevřít ({reason}). Zkuste to znovu.",
+    "authorizeRefused": "OpenAI odmítlo požadavek na přihlášení ChatGPT ({reason}). Zkuste to znovu nebo jej odeberte a znovu se přihlaste."
   },
   "execProviderNotConfigured": "Poskytovatel {id} není nastaven.",
   "providerText": {

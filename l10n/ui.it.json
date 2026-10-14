@@ -4396,7 +4396,8 @@
     "callback": "L’accesso a ChatGPT è completato. Torna all’editor o al terminale.",
     "failure": "Non è stato possibile completare l’accesso a ChatGPT. Riprova oppure rimuovilo e accedi nuovamente.",
     "storeUnavailable": "L’archivio credenziali del computer non è disponibile. Accedi da una sessione desktop interattiva con l’archivio sbloccato; su Linux, avvia prima Secret Service.",
-    "lockUnavailable": "Non è stato possibile aprire il blocco di accesso locale ({reason}). Riprova."
+    "lockUnavailable": "Non è stato possibile aprire il blocco di accesso locale ({reason}). Riprova.",
+    "authorizeRefused": "OpenAI ha rifiutato la richiesta di accesso a ChatGPT ({reason}). Riprova oppure rimuovilo e accedi nuovamente."
   },
   "execProviderNotConfigured": "Il provider {id} non è configurato.",
   "providerText": {

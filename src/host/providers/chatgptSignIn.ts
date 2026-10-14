@@ -23,11 +23,9 @@ import {
   MILLISECONDS_PER_SECOND,
   OAUTH_CODE_TTL_MS,
   OAUTH_LOOPBACK_HOST,
-  PKCE_STATE_BYTES,
   PROVIDER_SECRET_PREFIX,
   UI_TEXT,
 } from '../../shared/constants'
-import { isPkceState, pkceRandom } from '../backend/providersEntry'
 import {
   ChatGptSignIn,
   ChatGptSignInError,
@@ -35,6 +33,7 @@ import {
   type ChatGptHostPort,
 } from '../backend/subscriptionsEntry'
 import type { RecordStore } from './credentialRecords'
+import { loadChatGptHostId } from './chatgptHostId'
 
 type ChatGptCallback = Awaited<ReturnType<ChatGptHostPort['startCallback']>> & {
   readonly bindHost: string
@@ -271,19 +270,7 @@ export async function createChatGptSignIn(deps: ChatGptVsCodeDeps): Promise<Chat
         deps.lockPollMs ?? MILLISECONDS_PER_SECOND,
         work,
       )
-    const hostId = await withRefreshLock(async () => {
-      const hostIdPath = path.join(directory, 'chatgpt.host-id')
-      try {
-        const stored = await readFile(hostIdPath, 'utf8')
-        if (!isPkceState(stored)) throw new ChatGptSignInError('invalid-token')
-        return stored
-      } catch (error) {
-        if (!(error instanceof Error) || !('code' in error) || error.code !== 'ENOENT') throw error
-      }
-      const id = pkceRandom(PKCE_STATE_BYTES)
-      await writeFile(hostIdPath, id, { flag: 'wx' })
-      return id
-    })
+    const hostId = await withRefreshLock(() => loadChatGptHostId(directory))
     const key = `${PROVIDER_SECRET_PREFIX}chatgpt`
     return new ChatGptSignIn({
       hostId,

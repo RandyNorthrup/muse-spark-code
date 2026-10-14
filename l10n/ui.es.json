@@ -4396,7 +4396,8 @@
     "callback": "El inicio de sesión de ChatGPT se ha completado. Vuelva al editor o al terminal.",
     "failure": "No se pudo completar el inicio de sesión de ChatGPT. Inténtelo de nuevo o elimínelo y vuelva a iniciar sesión.",
     "storeUnavailable": "El almacén de credenciales de este equipo no está disponible. Inicie sesión desde una sesión de escritorio interactiva con el almacén desbloqueado; en Linux, inicie primero Secret Service.",
-    "lockUnavailable": "No se pudo abrir el bloqueo de inicio de sesión local ({reason}). Inténtelo de nuevo."
+    "lockUnavailable": "No se pudo abrir el bloqueo de inicio de sesión local ({reason}). Inténtelo de nuevo.",
+    "authorizeRefused": "OpenAI rechazó la solicitud de inicio de sesión de ChatGPT ({reason}). Inténtelo de nuevo o elimínelo y vuelva a iniciar sesión."
   },
   "execProviderNotConfigured": "El proveedor {id} no está configurado.",
   "providerText": {

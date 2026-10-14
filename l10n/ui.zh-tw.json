@@ -4170,7 +4170,8 @@
     "callback": "ChatGPT 登入完成。請返回編輯器或終端機。",
     "failure": "無法完成 ChatGPT 登入。請重試，或移除後重新登入。",
     "storeUnavailable": "此電腦的認證儲存區無法使用。請從互動式桌面工作階段登入，並解鎖認證儲存區；在 Linux 上，請先啟動 Secret Service。",
-    "lockUnavailable": "無法開啟本機登入鎖定（{reason}）。請重試。"
+    "lockUnavailable": "無法開啟本機登入鎖定（{reason}）。請重試。",
+    "authorizeRefused": "OpenAI 拒絕了 ChatGPT 登入要求（{reason}）。請重試，或移除後重新登入。"
   },
   "execProviderNotConfigured": "提供者 {id} 未設定。",
   "providerText": {

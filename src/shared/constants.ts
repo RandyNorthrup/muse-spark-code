@@ -300,6 +300,12 @@ export const OAUTH_LOOPBACK_TIMEOUT_MS = 10 * 60 * 1000
  * The name is scoped to the person (their own credential store), not the
  * machine, by a hash of their OS user identity.
  */
+/**
+ * The documented `ext_agent_host_id` form this host sends: `urn:uuid:` plus
+ * one generated UUIDv4, persisted per host. OpenAI rejects a bare random
+ * string with `invalid_authorize_request` for `ext_agent_host_id`.
+ */
+export const CHATGPT_HOST_ID_URN_PREFIX = 'urn:uuid:'
 export const CHATGPT_GRANT_LOCK_PIPE = 'muse-spark-chatgpt-grant'
 export const CHATGPT_GRANT_LOCK_DIR = 'muse-spark-chatgpt-grant'
 export const CHATGPT_GRANT_LOCK_FILE = 'grant.lock'
