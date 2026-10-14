@@ -76,7 +76,8 @@ jobs:
       # every workflow run on the tagged commit and on the head of the pull
       # request that merged as it is complete and green on its first attempt.
       # One still in progress is waited for; a red one, or one that was started
-      # again, stops the release here, with the run, job and step named. A
+      # again, stops the release here, with the run, job and step named. An
+      # expected commit with no run of its own stops it too. A
       # recovery run passes the same door.
       - name: every hosted run on the tagged commit is green on its first attempt
         env:
