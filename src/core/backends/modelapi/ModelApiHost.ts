@@ -2999,11 +2999,18 @@ export class ModelApiSession implements ScheduledAgentSession {
   }
 
   private async resolveModel(ref = this.modelId): Promise<ResolvedModel> {
+    // A plan turn resolves from the catalogue's own facts, fetched when no
+    // listing warmed the client's cache; without them the policy keeps
+    // today's behaviour.
+    const planFacts =
+      this.deps.client.isPlanModel?.(ref) === true
+        ? await this.deps.client.planModelFacts?.(ref)
+        : undefined
     const model =
       ref.includes('/') &&
       (this.deps.models !== undefined || this.deps.client.isPlanModel?.(ref) !== true)
         ? await this.deps.models?.resolve(ref)
-        : metaResolvedModel(ref, this.deps.client)
+        : metaResolvedModel(ref, this.deps.client, planFacts)
     if (model?.ref !== ref || !model.isCurrent()) {
       throw new Error(UI_TEXT.execUnknownModel)
     }
@@ -4511,7 +4518,11 @@ export class ModelApiSession implements ScheduledAgentSession {
       tool_choice: 'auto',
       reasoning: {
         effort: effortForPolicy(resolved.policy, this.effort),
-        summary: 'auto',
+        // The provider's own client sends no summary where the catalogue
+        // says the model takes none; every other request is unchanged.
+        ...(resolved.policy.reasoning.planFacts?.supportsReasoningSummary !== false && {
+          summary: 'auto' as const,
+        }),
       },
       stream: true,
       store: false,

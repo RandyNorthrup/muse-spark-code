@@ -228,7 +228,9 @@ export async function createModelApiHost(deps: ModelApiBundleDeps): Promise<Mode
             return await registry.resolve(ref)
           } catch (error: unknown) {
             if (isPlanModel?.(ref) === true) {
-              return metaResolvedModel(ref, client)
+              const planFacts =
+                'planModelFacts' in client ? await client.planModelFacts(ref) : undefined
+              return metaResolvedModel(ref, client, planFacts)
             }
             throw error
           }
