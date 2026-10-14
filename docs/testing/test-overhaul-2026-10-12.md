@@ -458,3 +458,75 @@ is restored with a knip entry rather than left dangling.
   only compiler (`fakeMuse.ts`) was a GO deletion, is deleted.
 - The decision entry was numbered D105, already TRUSTROOT's (2026-10-09);
   renumbered D108 (D106 is reserved, D107 is the Judge).
+
+## F6 declaration (lane TESTCUTFIN, 2026-10-14)
+
+The lead's F6 decision: the unwired files are DECLARED, not hidden and not
+deleted. The declaration is one block in `knip.jsonc`, titled
+"In-progress features: built, not yet wired into the product", listing the
+files grouped by feature with a one-line reason and the PLAN.md milestone;
+nothing else is in the block.
+
+Scope correction against the "Listed, not fixed" section above: knip on the
+merged tree reports 110 unused files (not 112 — `src/runtime/panel/
+pullRequests/checkout.ts` and `pullRequests.ts` are reached by the surviving
+`test/unit/nativeProcessDefaults.test.ts`, so they are wired, not declared),
+and the 212 unused exports plus 18 unused exported types are NOT all inside
+those files: they sit in wired product files, most of them the same
+features' API surface. Every one of the 110 files maps to a live PLAN.md
+milestone (per-file header or milestone-table evidence re-checked
+file by file for this table), so no file is truly dead and none is deleted.
+
+| Feature                                                                     | Files                                                                                                                     | Milestone           | What wiring it needs                                                        |
+| --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- | ------------------- | --------------------------------------------------------------------------- |
+| Vault and broker service (incl. remote-server MCP OAuth, born in the vault) | 48 (`src/core/vault/**`, `src/host/vault/**`, `src/runtime/vault/**`, `src/core/mcp/oauth/**`)                            | M109 (D89)          | The vault panel and broker entries require these by path on first vault use |
+| Team host and worker runtime                                                | 11 (`src/core/team/remotePool.ts`, `teamMeter.ts`, `src/host/team/**`)                                                    | M96 (D75)           | The team host's spawn path; no product surface spawns team workers yet      |
+| Scheduled-prompts v2 remainder (engine, grant, event sources, editors)      | 11 (`src/core/schedules/**`, `src/host/schedules/backgroundTarget.ts`, `src/webview/schedules/**`)                        | M115 (D95)          | The schedules bundle entry on first schedule use                            |
+| Resource-governor remainder (actuators, relocate core, task row)            | 7 (`src/core/resources/actuators/**`, `relocate.ts`, `src/webview/resources/ResourceTaskRow.tsx`)                         | M107 (D87)          | The governor entry and the M96c traffic binding                             |
+| Multi-account UI and policy ports                                           | 10 (`src/host/models/**`, `src/webview/models/sections/accounts/**`, `src/webview/components/AccountChip.tsx`)            | M108 (D88)          | The models panel entry mount                                                |
+| Media attach/record pipeline (incl. batch transcription, converter)         | 10 (`src/core/media/convert.ts`, `src/core/voice/transcribeBatch.ts`, `src/runtime/companion/**`, `src/webview/media/**`) | M105 (D85)          | The media entries and ModelApiHost; M104 C binds the companion route        |
+| Capacity-estimator engine                                                   | 4 (`src/core/estimator/calibration/**`, `provision/provider.ts`, `src/runtime/estimator/session.ts`)                      | M117 (D97)          | The estimator entry on the first estimate                                   |
+| MHP theme bridge                                                            | 3 (`src/webview/bridges/theme/**`)                                                                                        | M114 (D94)          | The theme-message host adapter (M104 owns the MHP side)                     |
+| Report local and store sources                                              | 2 (`src/core/reporting/sources/stores.ts`, `src/host/reporting/sources.ts`)                                               | M113 (D93)          | The reporting entries behind `/report`                                      |
+| Device admission                                                            | 1 (`src/host/devices/deviceReceiver.ts`)                                                                                  | M100 (D80, planned) | The device pool                                                             |
+| Cline v1 hook discovery                                                     | 1 (`src/core/backends/modelapi/hookFormats/clineDiscover.ts`)                                                             | M91 (D70)           | The foreign-hooks bundle read                                               |
+| Judge replay measurements and token file                                    | 2 (`src/core/eval/judgeReplay.ts`, `src/runtime/tokenFile.ts`)                                                            | M98 (D77)           | The judge entry and the companion launch (M104 uses the token file)         |
+
+Exact per-file list: the `knip.jsonc` block (the live declaration).
+Historical 112-file inventory: `docs/testing/test-overhaul-unused-src.txt`
+(superseded for the two pullRequests files, which are test-reached).
+
+Measured residue (lead call): with the block, knip's files section is
+empty, but `npm run deadcode` still exits 1 on 212 unused exports and 18
+unused exported types in wired files. Two mechanisms, both proven per
+symbol, not labelled:
+
+1. knip does not count usage from files its own `ignore` covers. E.g.
+   `sealVaultBlock` (`src/core/vault/crypto.ts`) is imported AND called by
+   the declared `src/core/vault/store.ts` (lines 27, 668, 799) yet flagged.
+   About 25 exports are in this class (vault crypto/ports/feeder/migrate,
+   modelsPanel schemas, `ResourceLinkedDevice`, schedule-time, estimator
+   command, `acpSpawnArgs`, `VaultBrokerDiscovery`): deleting any of them
+   breaks `npm run typecheck` on the declared files, so they cannot be
+   deleted while their feature is declared.
+2. knip blind spots on live code. E.g. `src/webview/App.tsx:67` takes
+   `import type * as SchedulePromptModule` (deliberate: STARTUP017 keeps
+   the mapping out of the startup bundle) while the runtime value arrives
+   through a dynamic `import()` and is called as
+   `mapping.schedulePromptAction(...)` (lines 1269, 1309) — the flagged
+   members are live; a value import would regress the startup budget.
+   Same class: the `acpWorker`/`museCodeWorker`/`workerFence` circular
+   re-exports (live team-worker runtime) and `import type` uses of schema
+   values whose runtime consumers are declared files.
+
+Why no export is deleted in this lane: the 149 globally-unreferenced
+exports are overwhelmingly the declared features' future surface
+(`runPluginHook` for M91b's plugin host, the team-pool API
+(`teamCapKey`, `buildHandoffBrief`, `notStaffedText`) for the team host —
+each verified with zero references in `src/`, `test/`, `scripts/` and
+`action/`). Deleting
+them would gut the foundations this declaration preserves, for zero gate
+benefit (the two classes above keep the exit code red regardless). The
+per-feature owners triage their surface when they land; the per-symbol
+evidence (every flagged export with its referrers) is reproducible with
+`npm run deadcode` on this tree.

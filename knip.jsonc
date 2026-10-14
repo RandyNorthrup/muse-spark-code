@@ -196,7 +196,167 @@
     "infra/**/*.js"
   ],
 
-  "ignore": ["vendor/**"],
+  "ignore": [
+    "vendor/**",
+
+    // In-progress features: built, not yet wired into the product (TESTCUTFIN,
+    // 2026-10-14; the lead's F6 decision: declared here, not hidden, not
+    // deleted). Nothing else may enter this block. Full table with the wiring
+    // each group still needs: docs/testing/test-overhaul-2026-10-12.md.
+    //
+    // M109 (A credential vault and broker for agents, D89): the vault/broker
+    // service lands later; remote-server MCP OAuth tokens are born in the
+    // vault. Wiring: the vault panel and broker entries require these by path.
+    "src/core/vault/backup.ts",
+    "src/core/vault/broker/audit.ts",
+    "src/core/vault/broker/epoch.ts",
+    "src/core/vault/exec/brokerLease.ts",
+    "src/core/vault/exec/entry.ts",
+    "src/core/vault/exec/helpers.ts",
+    "src/core/vault/exec/tools.ts",
+    "src/core/vault/fleet.ts",
+    "src/core/vault/keyslots.ts",
+    "src/core/vault/migrate/importFile.ts",
+    "src/core/vault/migrate/material.ts",
+    "src/core/vault/migrate/migrate.ts",
+    "src/core/vault/migrate/modelApi.ts",
+    "src/core/vault/remote.ts",
+    "src/core/vault/ssh/brokerAccess.ts",
+    "src/core/vault/ssh/endpoint.ts",
+    "src/core/vault/ssh/externalAgent.ts",
+    "src/core/vault/ssh/hardwareKey.ts",
+    "src/core/vault/store.ts",
+    "src/core/vault/web/cookies.ts",
+    "src/core/vault/web/csvImport.ts",
+    "src/core/vault/web/items.ts",
+    "src/core/vault/web/origin.ts",
+    "src/core/vault/web/pageRead.ts",
+    "src/core/vault/web/ports.ts",
+    "src/core/vault/web/sessions.ts",
+    "src/core/vault/web/ticket.ts",
+    "src/core/vault/web/totp.ts",
+    "src/core/vault/web/webFill.ts",
+    "src/host/vault/brokerProcess.ts",
+    "src/host/vault/migrateSecretStorage.ts",
+    "src/host/vault/slots/windowsVaultBuild.ts",
+    "src/host/vault/vaultExecSpawn.ts",
+    "src/runtime/vault/brokerClient.ts",
+    "src/runtime/vault/migrateKeyStore.ts",
+    "src/runtime/vault/slots/macVaultProtocol.ts",
+    "src/runtime/vault/slots/macVaultSlot.ts",
+    "src/runtime/vault/slots/macVaultTransport.ts",
+    "src/runtime/vault/slots/slotChild.ts",
+    "src/runtime/vault/slots/slotIdentity.ts",
+    "src/runtime/vault/slots/slotWrap.ts",
+    "src/runtime/vault/slots/windowsVaultProtocol.ts",
+    "src/runtime/vault/slots/windowsVaultSlot.ts",
+    "src/runtime/vault/slots/windowsVaultTransport.ts",
+    "src/runtime/vault/vaultSurface.ts",
+    "src/core/mcp/oauth/client.ts",
+    "src/core/mcp/oauth/discovery.ts",
+    "src/core/mcp/oauth/transport.ts",
+    //
+    // M96 (Agent roles and the team, D75): the team host/worker runtime is
+    // built but no product surface spawns team workers yet. Wiring: the team
+    // host's spawn path.
+    "src/core/team/remotePool.ts",
+    "src/core/team/teamMeter.ts",
+    "src/host/team/acpProcess.ts",
+    "src/host/team/loadGuard.ts",
+    "src/host/team/orphanRecovery.ts",
+    "src/host/team/processLifetime.ts",
+    "src/host/team/processOwnership.ts",
+    "src/host/team/teamJournal.ts",
+    "src/host/team/teamLedger.ts",
+    "src/host/team/windowHints.ts",
+    "src/host/team/windowIdentity.ts",
+    //
+    // M115 (Scheduled prompts v2, D95): the v2 engine, grant, event-source
+    // and editor pieces ahead of their schedule-use wiring. Wiring: the
+    // schedules bundle entry.
+    "src/core/schedules/agentTools.ts",
+    "src/core/schedules/events/engine.ts",
+    "src/core/schedules/events/files.ts",
+    "src/core/schedules/events/git.ts",
+    "src/core/schedules/grant.ts",
+    "src/core/schedules/time/clock.ts",
+    "src/core/schedules/time/loop.ts",
+    "src/core/schedules/time/missed.ts",
+    "src/host/schedules/backgroundTarget.ts",
+    "src/webview/schedules/DeferredReportActionEditor.tsx",
+    "src/webview/schedules/ReportActionEditor.tsx",
+    //
+    // M107 (Resource governor, D87): actuators, relocate core and the task
+    // row ahead of governor wiring. Wiring: the governor entry and the M96c
+    // traffic binding.
+    "src/core/resources/actuators/controls.ts",
+    "src/core/resources/actuators/index.ts",
+    "src/core/resources/actuators/linux.ts",
+    "src/core/resources/actuators/mac.ts",
+    "src/core/resources/actuators/windows.ts",
+    "src/core/resources/relocate.ts",
+    "src/webview/resources/ResourceTaskRow.tsx",
+    //
+    // M108 (Several accounts per provider, D88): the multi-account UI and
+    // policy ports ahead of the panel mount. Wiring: the models panel entry.
+    "src/host/models/accountPolicyPrompt.ts",
+    "src/host/models/accountsHandler.ts",
+    "src/webview/models/sections/accounts/AccountEditor.tsx",
+    "src/webview/models/sections/accounts/AccountNotices.tsx",
+    "src/webview/models/sections/accounts/AccountsConfirmationDialog.tsx",
+    "src/webview/models/sections/accounts/AccountsSection.tsx",
+    "src/webview/models/sections/accounts/PolicyDetails.tsx",
+    "src/webview/models/sections/accounts/ThresholdEditor.tsx",
+    "src/webview/models/sections/accounts/accountsEntry.ts",
+    "src/webview/components/AccountChip.tsx",
+    //
+    // M105 (Multimodal input, D85): the attach/record pipeline, batch
+    // transcription and the converter ahead of their wiring (M104 C binds
+    // the companion route). Wiring: the media entries and ModelApiHost.
+    "src/core/media/convert.ts",
+    "src/core/voice/transcribeBatch.ts",
+    "src/runtime/companion/nativeAttachments.ts",
+    "src/runtime/companion/upload.ts",
+    "src/webview/media/CompanionMedia.tsx",
+    "src/webview/media/entry.tsx",
+    "src/webview/media/recorder/browserCapture.ts",
+    "src/webview/media/recorder/browserRecorder.ts",
+    "src/webview/media/recorder/CompanionRecorder.tsx",
+    "src/webview/media/recordingPort.ts",
+    //
+    // M117 (The capacity estimator, D97): calibration, provision and session
+    // engine ahead of first-estimate load. Wiring: the estimator entry.
+    "src/core/estimator/calibration/builders.ts",
+    "src/core/estimator/calibration/journal.ts",
+    "src/core/estimator/provision/provider.ts",
+    "src/runtime/estimator/session.ts",
+    //
+    // M114 (Design language and polish, D94): the MHP theme bridge ahead of
+    // the lane-C mount (M104 owns the MHP side). Wiring: the theme message
+    // host adapter.
+    "src/webview/bridges/theme/loadThemeBridge.ts",
+    "src/webview/bridges/theme/themeBridge.ts",
+    "src/webview/bridges/theme/themeEntry.ts",
+    //
+    // M113 (Deterministic reports, D93): the local and store sources ahead
+    // of their /report wiring. Wiring: the reporting entries.
+    "src/core/reporting/sources/stores.ts",
+    "src/host/reporting/sources.ts",
+    //
+    // M100 (Paired devices as lane pools, D80, planned): device admission
+    // ahead of the lane pools. Wiring: the device pool.
+    "src/host/devices/deviceReceiver.ts",
+    //
+    // M91 (Hooks from every popular agent, D70): Cline v1 discovery ahead
+    // of the foreign-hooks bundle read. Wiring: the hookFormats contracts.
+    "src/core/backends/modelapi/hookFormats/clineDiscover.ts",
+    //
+    // M98 (Muse Judge, D77): replay measurements and the token file ahead
+    // of phase-1 wiring (M104 uses the token file for its companion).
+    // Wiring: the judge entry and the companion launch.
+    "src/core/eval/judgeReplay.ts",
+    "src/runtime/tokenFile.ts"
+  ],
 
   // `vscode` (the extension host module) needs no entry here: knip resolves it
   // through @types/vscode. @vscode/test-electron is imported by
