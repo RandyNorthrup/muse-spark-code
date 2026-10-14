@@ -212,31 +212,32 @@ export function parseExec(
       (values['account'] !== undefined && values['account'] !== ACCOUNT_DEFAULT_ID))
   )
     return invalid(UI_TEXT.accounts.museCodeUnavailable)
-  if (
-    backend === undefined ||
-    output === undefined ||
-    shellSandbox === undefined ||
-    (effort === undefined && values['effort'] !== undefined)
-  )
-    return invalid(UI_TEXT.execUsage)
+  // A wrong value names its own option (D108), never a bare usage line.
+  if (backend === undefined) return invalid(fill(UI_TEXT.execValueInvalid, { option: '--backend' }))
+  if (output === undefined) return invalid(fill(UI_TEXT.execValueInvalid, { option: '--output' }))
+  if (shellSandbox === undefined)
+    return invalid(fill(UI_TEXT.execValueInvalid, { option: '--shell-sandbox' }))
+  if (effort === undefined && values['effort'] !== undefined)
+    return invalid(fill(UI_TEXT.execValueInvalid, { option: '--effort' }))
   const timeout = integer(
     values['timeout'],
     EXEC_DEFAULT_TIMEOUT_SECONDS,
     EXEC_MIN_TIMEOUT_SECONDS,
     EXEC_MAX_TIMEOUT_SECONDS,
   )
+  // The six-decimal sentence is true only of the budget; a wrong timeout
+  // or request count names its own option instead.
+  if (timeout === undefined) return invalid(fill(UI_TEXT.execValueInvalid, { option: '--timeout' }))
   const maxRequests = integer(
     values['max-requests'],
     EXEC_DEFAULT_MAX_REQUESTS,
     1,
     EXEC_MAX_REQUESTS,
   )
+  if (maxRequests === undefined)
+    return invalid(fill(UI_TEXT.execValueInvalid, { option: '--max-requests' }))
   const budgetUsd = budgetUnits(values['max-budget-usd'])
-  if (
-    timeout === undefined ||
-    maxRequests === undefined ||
-    (budgetUsd === undefined && values['max-budget-usd'] !== undefined)
-  )
+  if (budgetUsd === undefined && values['max-budget-usd'] !== undefined)
     return invalid(UI_TEXT.execNumberInvalid)
   if (backend === 'modelApi' && budgetUsd === undefined) return invalid(UI_TEXT.execBudgetRequired)
   if (

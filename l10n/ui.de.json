@@ -3513,6 +3513,7 @@
   },
   "execBudgetRequired": "Die Model API benötigt --max-budget-usd.",
   "execNumberInvalid": "Ungültige Zahl oder Grenze; das USD-Budget erlaubt höchstens sechs Nachkommastellen.",
+  "execValueInvalid": "Ungültiger Wert für {option}; exec --help zeigt die gültigen Werte und Grenzen.",
   "execTrustRefused": "Ausführungen ohne Oberfläche verweigern Workspace-Vertrauen und das Umgehen von Berechtigungen.",
   "execModeRefused": "Ohne Oberfläche sind nur plan oder acceptEdits erlaubt.",
   "execWebSearchUnbounded": "Gehostete Websuche hat keine begrenzte Freigabe und wird verweigert.",

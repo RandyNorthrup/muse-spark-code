@@ -3586,6 +3586,7 @@
   },
   "execBudgetRequired": "A Model API exige --max-budget-usd.",
   "execNumberInvalid": "Número ou limite inválido; o orçamento em USD aceita no máximo seis casas decimais.",
+  "execValueInvalid": "Valor inválido para {option}; o exec --help mostra os valores e limites aceitos.",
   "execTrustRefused": "Execuções sem interface recusam confiança no espaço de trabalho e desvio de permissões.",
   "execModeRefused": "Sem interface, apenas plan ou acceptEdits são permitidos.",
   "execWebSearchUnbounded": "A pesquisa web hospedada não tem limite garantido e é recusada.",

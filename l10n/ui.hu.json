@@ -3513,6 +3513,7 @@
   },
   "execBudgetRequired": "A Model API használatához --max-budget-usd szükséges.",
   "execNumberInvalid": "Érvénytelen szám vagy korlát; az USD-keret legfeljebb hat tizedesjegyet fogad el.",
+  "execValueInvalid": "Érvénytelen érték ehhez: {option}; az elfogadott értékeket és korlátokat az exec --help sorolja fel.",
   "execTrustRefused": "A felület nélküli futások nem engedélyezik a munkaterület megbízhatónak jelölését és az engedélyek megkerülését.",
   "execModeRefused": "Felület nélkül csak a plan vagy acceptEdits mód engedélyezett.",
   "execWebSearchUnbounded": "A szolgáltatói webes keresésnek nincs garantált korlátja, ezért tiltott.",
