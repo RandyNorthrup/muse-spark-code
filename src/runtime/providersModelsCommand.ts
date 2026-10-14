@@ -104,7 +104,8 @@ export async function providersModels(
   }
   const clean = (models: readonly string[]): readonly string[] | undefined => {
     const cleaned = models.map((model) => model.trim()).filter((model) => model !== '')
-    return cleaned.some((model) => /\s/.test(model)) ? undefined : cleaned
+    // A repeated flag names the model once; the file never carries it twice.
+    return cleaned.some((model) => /\s/.test(model)) ? undefined : [...new Set(cleaned)]
   }
   const add = clean(options.add)
   const remove = clean(options.remove)
