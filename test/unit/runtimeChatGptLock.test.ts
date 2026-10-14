@@ -10,6 +10,7 @@ import path from 'node:path'
 import { build } from 'esbuild'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { withChatGptRefreshLock } from '../../src/runtime/chatGptRefreshLock'
+import { ChatGptSignInError } from '../../src/core/providers/subscriptions/chatgptHostId'
 import { chatGptCommandText } from '../../src/runtime/chatGptProviderCommands'
 import { CHATGPT_GRANT_LOCK_FILE } from '../../src/shared/constants'
 
@@ -262,6 +263,41 @@ describe('ACP ChatGPT process lock', () => {
       ).rejects.toThrow('chatgpt.lock-unavailable')
       const sentence = chatGptCommandText().failure('lock-unavailable', 'ENOTDIR')
       expect(sentence).toContain('ENOTDIR')
+      expect(sentence).toContain('could not be opened')
+      expect(sentence).not.toContain('temporarily unavailable')
+    },
+  )
+
+  it.runIf(isWindows)(
+    'reports a local pipe failure with its OS code, never as temporarily unavailable',
+    async () => {
+      // An empty name within the pipe namespace: no object can carry it,
+      // so Windows itself refuses the bind (its ERROR_INVALID_NAME reaches
+      // the lock as EACCES through libuv) and the lock reports the OS code.
+      // No stand-in: the refusal comes from the kernel through the real
+      // lock, and no work runs.
+      let isEntered = false
+      let failure: unknown
+      try {
+        await withChatGptRefreshLock(
+          () => {
+            isEntered = true
+            return Promise.resolve('never')
+          },
+          { pipeName: '', timeoutMs: 2000 },
+        )
+      } catch (error) {
+        failure = error
+      }
+      expect(isEntered).toBe(false)
+      expect(failure).toBeInstanceOf(ChatGptSignInError)
+      const code = failure instanceof ChatGptSignInError ? failure.code : undefined
+      const reason = failure instanceof ChatGptSignInError ? failure.reason : undefined
+      expect(code).toBe('lock-unavailable')
+      expect(typeof reason).toBe('string')
+      if (typeof reason !== 'string') return
+      const sentence = chatGptCommandText().failure('lock-unavailable', reason)
+      expect(sentence).toContain(reason)
       expect(sentence).toContain('could not be opened')
       expect(sentence).not.toContain('temporarily unavailable')
     },

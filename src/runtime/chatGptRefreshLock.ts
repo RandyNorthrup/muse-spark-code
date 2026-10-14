@@ -28,6 +28,8 @@ import { StoreUnavailableError } from './keyStore'
 export interface ChatGptLockOptions {
   /** POSIX only: the folder holding the socket file. Tests isolate with this. */
   readonly directory?: string
+  /** Windows only: the name within the `\\.\pipe\` namespace. Tests isolate with this. */
+  readonly pipeName?: string
   readonly timeoutMs?: number
   readonly signal?: AbortSignal
 }
@@ -50,10 +52,10 @@ function lockScope(): string {
   return createHash('sha256').update(who).digest('hex').slice(0, CHATGPT_GRANT_LOCK_SCOPE_CHARS)
 }
 
-async function lockTarget(directory?: string): Promise<string> {
+async function lockTarget(directory?: string, pipeName?: string): Promise<string> {
   try {
     if (process.platform === 'win32')
-      return `\\\\.\\pipe\\${CHATGPT_GRANT_LOCK_PIPE}-${lockScope()}`
+      return `\\\\.\\pipe\\${pipeName ?? `${CHATGPT_GRANT_LOCK_PIPE}-${lockScope()}`}`
     const folder = directory ?? path.join(tmpdir(), `${CHATGPT_GRANT_LOCK_DIR}-${lockScope()}`)
     await mkdir(folder, { recursive: true, mode: CHATGPT_GRANT_LOCK_DIR_MODE })
     return path.join(folder, CHATGPT_GRANT_LOCK_FILE)
@@ -132,7 +134,7 @@ export async function withChatGptRefreshLock<T>(
   const deadline = AbortSignal.timeout(options.timeoutMs ?? OAUTH_CODE_TTL_MS)
   const signal =
     options.signal === undefined ? deadline : AbortSignal.any([deadline, options.signal])
-  const target = await lockTarget(options.directory)
+  const target = await lockTarget(options.directory, options.pipeName)
   try {
     for (;;) {
       signal.throwIfAborted()
