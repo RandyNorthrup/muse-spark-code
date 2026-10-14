@@ -8,7 +8,9 @@
 // A configured provider is added under a name of the run's own
 // (`rl-<route>`), so its key sits in the operating system's credential store
 // beside the person's own entries and never replaces one: the run adds it,
-// and removes it, through the product's own commands.
+// and removes it, through the product's own commands. A name that is
+// already taken when a route starts is not this run's, and the route is
+// not run.
 
 /** @typedef {{ kind: 'provider', preset: string, model: string, stored: string, wire: string, note?: string } | { kind: 'meta', model: string, stored: string, wire: string, note?: string } | { kind: 'museCode', model: string, wire: string, note?: string }} Route */
 
@@ -134,6 +136,17 @@ const MUSE_CODE_NOT_RUN =
 
 /** The name a route's provider is added under. */
 export const providerIdOf = (routeId) => `rl-${routeId}`
+
+/**
+ * Why a route whose provider name is already in the credential store is not
+ * run: the entry is not this run's (another run's, a diagnostic's, or the
+ * person's), and the run never removes or replaces a key it did not store
+ * itself. It names the entry and how to remove it with the product.
+ * @param {{ provider: string }} route the route as lib/routes.mjs gives it
+ */
+export function takenProviderReason(route) {
+  return `not run: ${route.provider} is already in the credential store (left by an earlier run or diagnostic, or stored outside any run). This run never removes or replaces a stored key: remove it with the product (auth clear --provider ${route.provider}) and run again`
+}
 // The names a diagnostic adds its provider under (`rlq-<route>`): the run
 // looks for both when it starts, since either can be left by a killed process.
 export const DIAGNOSTIC_PREFIX = 'rlq-'

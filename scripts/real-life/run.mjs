@@ -52,7 +52,14 @@ import {
   totalsOf,
   writeRecord,
 } from './lib/record.mjs'
-import { DIAGNOSTIC_PREFIX, ROUTES, providerIdOf, routeFor, routeRefusal } from './lib/routes.mjs'
+import {
+  DIAGNOSTIC_PREFIX,
+  ROUTES,
+  providerIdOf,
+  routeFor,
+  routeRefusal,
+  takenProviderReason,
+} from './lib/routes.mjs'
 
 const parsed = parseArguments(process.argv.slice(2))
 if (!parsed.ok) {
@@ -292,11 +299,12 @@ async function setUp(route, models) {
   if (read.key === undefined) return { ok: false, state: `not run: ${read.reason}` }
   secrets.set(read.key, '<key>')
   if (route.kind === 'meta') return await setUpMeta(read.key)
-  // A key left under this name by a run that was ended outright: the name is
-  // the run's own, so it removes it. From a new home only `auth clear` does
-  // (`providers remove` knows the providers of its own home).
+  // A name of the run's own that is already in the credential store is not
+  // this run's: another run's, a diagnostic's, or the person's. The run
+  // never removes or replaces a stored key, so the route stops here,
+  // before any call, and names the entry.
   const before = await terminal(['auth', 'status', '--provider', route.provider])
-  if (before.code === 0) await terminal(['auth', 'clear', '--provider', route.provider])
+  if (before.code === 0) return { ok: false, state: takenProviderReason(route) }
   const clock = performance.now()
   // Listed for the clean-up before the command runs: a run that is cut short
   // while it runs removes what it may have stored.
@@ -704,7 +712,7 @@ try {
   foundAtStart = await entriesLeft()
   if (foundAtStart.length > 0) {
     console.error(
-      `LEFT IN THE CREDENTIAL STORE BY AN EARLIER RUN OR DIAGNOSTIC: ${foundAtStart.join(', ')}. A route of this run removes its own before it starts; remove any other with the product: auth clear --provider <name>.`,
+      `LEFT IN THE CREDENTIAL STORE BY AN EARLIER RUN OR DIAGNOSTIC: ${foundAtStart.join(', ')}. This run never removes or replaces a stored key: a route whose name is taken is not run; remove it with the product: auth clear --provider <name>.`,
     )
   }
   const say = (done) => {
