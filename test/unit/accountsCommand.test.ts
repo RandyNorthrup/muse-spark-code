@@ -15,6 +15,7 @@ import {
   runAccountAuthSet,
   type AccountsCommand,
 } from '../../src/runtime/providers/accountsCommand'
+import { runtimeAccountStore } from '../../src/runtime/providers/accountStore'
 import { UI_TEXT } from '../../src/shared/constants'
 import { CURRENT_SHAPE_KEYS } from './helpers/modelApiKeys'
 import { commandAccountsRig } from './helpers/runtimeAccounts'
@@ -208,8 +209,31 @@ describe('M108 terminal account commands', () => {
 
   it('reports storage failures with fixed text and never reflects a secret in an exception', async () => {
     const h = rig()
-    vi.spyOn(h.accounts, 'list').mockRejectedValue(new Error('account-secret-canary'))
-    expect(await runAccountsCommand({ action: 'list', provider: 'meta' }, h.deps)).toBe(1)
+    // A real store over a metadata port whose read fails the way a broken
+    // providers store does: the command must answer with its fixed text.
+    const failingMetadata = {
+      read: () => Promise.reject(new Error('account-secret-canary')),
+      writeAccounts: () => Promise.resolve(),
+    }
+    const failing = runtimeAccountStore({
+      metadata: failingMetadata,
+      openEntry: (_service, name) => ({
+        getPassword: () => Promise.resolve(h.values.get(name)),
+        setPassword: (value) => {
+          h.values.set(name, value)
+          return Promise.resolve()
+        },
+        deletePassword: () => Promise.resolve(h.values.delete(name)),
+      }),
+      revokeSignIn: h.revoke,
+    })
+    disposals.push(failing.dispose)
+    expect(
+      await runAccountsCommand(
+        { action: 'list', provider: 'meta' },
+        { ...h.deps, accounts: failing.accounts, metadata: failingMetadata },
+      ),
+    ).toBe(1)
     expect(h.printError).toHaveBeenCalledWith(UI_TEXT.accounts.unavailable)
     expect(h.print).not.toHaveBeenCalled()
     expect(JSON.stringify(h.printError.mock.calls)).not.toContain('account-secret-canary')
