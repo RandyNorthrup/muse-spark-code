@@ -15,13 +15,18 @@ while the Hosts run on the released commit was red
   refuses an attempt after the run's first execution and names the jobs and
   steps of the earlier attempt that were not green. It also refuses unless
   every other run of this repository's workflows on the same head is complete
-  and green on its own first execution. A run still in progress is waited for.
+  and green on its own first execution. A run still in progress is waited for,
+  and after that wait the gate reads the head once more immediately before
+  passing: a run started after the judged set was read refuses, and is
+  answered by a new commit like any other start after the first.
   The five required names fail unless that job succeeded and judged this very
   attempt. A job re-run on its own reuses the earlier attempt's result of the
   gate job, and that result names the earlier attempt.
 - **Release** (`release.yml`, first job). It reads every run on the tagged
   commit and on the head of the pull request that merged as it. It stops the
-  release unless each is complete and green on its first execution.
+  release unless each is complete and green on its first execution, and each
+  expected commit needs runs of its own: one with no run left refuses even
+  when the others have runs.
 
 ## What happened before the gate
 

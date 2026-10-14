@@ -12,8 +12,10 @@
 //     the earlier attempt's cause (a runner fault is answered by a new
 //     commit, never by starting a job again), and refuses unless every other
 //     workflow run on the same head is complete and green on its first
-//     attempt. A run still in progress is waited for. One thing is not an
-//     attempt: a first-time contributor's run waits for a maintainer's
+//     attempt. A run still in progress is waited for, and the head is read
+//     once more immediately before passing, so a run started after the
+//     judged set was read refuses instead of slipping through. One thing is
+//     not an attempt: a first-time contributor's run waits for a maintainer's
 //     approval as attempt 1 ("action_required", no job) and executes as
 //     attempt 2.
 //
@@ -30,6 +32,7 @@
 // docs/certification/rule2-gate.md.
 import process from 'node:process'
 import { setTimeout as delay } from 'node:timers/promises'
+import { GateError, isRecord, missingEvidence, pullOf, runOf } from './lib/rule2Gate.mjs'
 
 const { AbortSignal } = globalThis
 const API = process.env['GITHUB_API_URL'] ?? 'https://api.github.com'
@@ -54,12 +57,12 @@ const OWN_WORKFLOWS = '.github/workflows/'
 // How many jobs that were not green a refusal names before it counts the rest.
 const MAX_NAMED_JOBS = 8
 
-class GateError extends Error {}
-
-function isRecord(value) {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
-
+/**
+ * The decoded answer of one endpoint. Every caller validates what it reads
+ * (`runOf`, `pullOf`, the list shape in `list`) and throws instead of passing
+ * on a shape it cannot read: this job installs nothing, so the check is
+ * written out rather than read through zod.
+ */
 async function get(endpoint) {
   const reply = await fetch(`${API}${endpoint}`, {
     headers: {
@@ -90,31 +93,6 @@ async function list(endpoint, key) {
     if (batch.length < PAGE_SIZE) return items
   }
   throw new GateError(`${endpoint} has more than ${String(PAGE_SIZE * MAX_PAGES)} entries`)
-}
-
-/** The fields of a workflow run the gate reads, checked. */
-function runOf(value) {
-  if (
-    !isRecord(value) ||
-    typeof value['id'] !== 'number' ||
-    typeof value['name'] !== 'string' ||
-    typeof value['path'] !== 'string' ||
-    typeof value['event'] !== 'string' ||
-    typeof value['status'] !== 'string' ||
-    typeof value['run_attempt'] !== 'number' ||
-    typeof value['head_sha'] !== 'string'
-  )
-    throw new GateError("a workflow run in GitHub's answer lacks a field the gate reads")
-  return {
-    id: value['id'],
-    name: value['name'],
-    path: value['path'],
-    event: value['event'],
-    status: value['status'],
-    conclusion: typeof value['conclusion'] === 'string' ? value['conclusion'] : '',
-    attempt: value['run_attempt'],
-    headSha: value['head_sha'],
-  }
 }
 
 /** Every job of an attempt that was not green, each with its first step that was not; empty when all were. */
@@ -262,6 +240,28 @@ async function gateRun() {
     return runs.filter((run) => run.id !== runId && !isNewerTwin(run))
   })
   if (refusals.length > 0) throw new GateError(refusals.join('\n'))
+  // The wait above and the merge are minutes apart: a workflow started or
+  // started again on this head after the judged set was read must not slip
+  // through on the earlier read. Read the head once more, with no further
+  // waiting: anything not complete and green now refuses, and the rerun is
+  // answered by a new commit, like any other start after the first.
+  const reread = await runsOn(head)
+  const fresh = reread.filter((run) => run.id !== runId && !isNewerTwin(run))
+  const late = []
+  for (const run of fresh) {
+    const verdict = await verdictOf(run)
+    const result = run.conclusion === '' ? run.status : `${run.status} ${run.conclusion}`
+    console.log(
+      `  recheck: ${run.name} run ${String(run.id)} (${run.event}), attempt ${String(run.attempt)}, ${result}: ${verdict === 'green' ? verdict : 'REFUSED'}`,
+    )
+    if (verdict === 'green') continue
+    late.push(
+      verdict === 'running'
+        ? `${run.name} run ${String(run.id)} (${run.event}) started after the judged set was read and is still ${run.status}: ${RULE}. Push a new commit: its run decides.`
+        : verdict,
+    )
+  }
+  if (late.length > 0) throw new GateError(late.join('\n'))
   console.log(
     'rule 2, merge: first execution, and every other run on this head is green on its own first',
   )
@@ -270,16 +270,17 @@ async function gateRun() {
 /** The heads of the pull requests that merged as `sha`. */
 async function mergedHeads(sha) {
   const pulls = await list(`/repos/${REPOSITORY}/commits/${sha}/pulls`)
-  return pulls
-    .filter(
-      (pull) =>
-        isRecord(pull) &&
-        typeof pull['merged_at'] === 'string' &&
-        pull['merge_commit_sha'] === sha &&
-        isRecord(pull['head']) &&
-        typeof pull['head']['sha'] === 'string',
-    )
-    .map((pull) => ({ number: Number(pull['number']), sha: String(pull['head']['sha']) }))
+  const checked = pulls.map((entry) => pullOf(entry))
+  const heads = []
+  for (const pull of checked) {
+    if (pull.mergedAt === null || pull.mergeSha !== sha) continue
+    if (pull.headSha === null)
+      throw new GateError(
+        `pull request ${String(pull.number)} merged as ${sha} but names no head: the gate cannot check it, so it does not pass`,
+      )
+    heads.push({ number: pull.number, sha: pull.headSha })
+  }
+  return heads
 }
 
 /** The release door: every run on the tagged commit and on the head of the pull request that merged as it. */
@@ -299,11 +300,9 @@ async function gateRelease(sha) {
     // an earlier one built after it had passed this door.
     return found.filter((run) => run.id !== ownId && run.path !== ownPath)
   })
-  if (runs.length === 0)
-    throw new GateError(
-      `no workflow run exists on ${commits.join(' or ')}: there is no hosted result to release on`,
-    )
-  if (refusals.length > 0) throw new GateError(refusals.join('\n'))
+  const missing = missingEvidence(sha, heads, runs)
+  if ([...missing, ...refusals].length > 0)
+    throw new GateError([...missing, ...refusals].join('\n'))
   console.log(
     `rule 2, release: ${String(runs.length)} run(s), every one complete and green on its first execution`,
   )
