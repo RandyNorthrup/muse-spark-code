@@ -489,13 +489,16 @@ const SECRET_OPTION_WORDS: readonly string[] = [
   'passwd',
   'credential',
   'apikey',
-  'api_key',
+  'privatekey',
+  'accesskey',
 ]
 
 /** An unknown option name that may carry a credential is never echoed. */
 export function isSecretLookingOption(name: string): boolean {
-  const lower = name.toLowerCase()
-  return SECRET_OPTION_WORDS.some((word) => lower.includes(word))
+  // `api-key`, `api_key` and `apikey` name the same credential route:
+  // compare with the separators removed.
+  const squashed = name.toLowerCase().replaceAll(/[-_]/g, '')
+  return SECRET_OPTION_WORDS.some((word) => squashed.includes(word))
 }
 
 /**
@@ -511,14 +514,17 @@ export function unknownOptionReason(
   valid: readonly string[],
   raw: string,
 ): string {
-  const match = /--([a-z][a-z-]*)/.exec(raw)
-  const wanted = match?.[1] ?? raw
+  const match = /--([a-zA-Z][a-zA-Z0-9_-]*)/.exec(raw)
+  const wanted = match?.[1]
   const accepted = valid.map((name) => `--${name}`).join(', ')
-  const first = isSecretLookingOption(wanted)
-    ? fill(table.cliHelp.unknownOptionHidden, { cmd: topic, accepted })
-    : fill(table.cliHelp.unknownOption, { option: `--${wanted}`, cmd: topic, accepted })
+  // A name the parser message does not expose as a long option (a short
+  // flag, an odd spelling) is refused without repeating anything at all.
+  const first =
+    wanted === undefined || isSecretLookingOption(wanted)
+      ? fill(table.cliHelp.unknownOptionHidden, { cmd: topic, accepted })
+      : fill(table.cliHelp.unknownOption, { option: `--${wanted}`, cmd: topic, accepted })
   const lines = [first]
-  const nearest = nearestOptionName(wanted, valid)
+  const nearest = wanted === undefined ? undefined : nearestOptionName(wanted, valid)
   if (nearest !== undefined)
     lines.push(fill(table.cliHelp.suggestOption, { nearest: `--${nearest}` }))
   lines.push(fill(table.cliHelp.seeHelp, { command, topic }))
