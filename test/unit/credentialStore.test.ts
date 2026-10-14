@@ -31,6 +31,22 @@ describe('isValidModelApiKey', () => {
   })
 })
 
+/** A store whose reads answer through `get`; warnings are collected. */
+function storeReading(
+  get: (key: string) => Promise<string | undefined>,
+  warnings: string[],
+  ids: string[],
+): CredentialStore {
+  return new CredentialStore(
+    { get, store: () => Promise.resolve(), delete: () => Promise.resolve() },
+    (line) => {
+      warnings.push(line)
+    },
+    "VS Code's secret storage",
+    () => Promise.resolve(ids),
+  )
+}
+
 describe('CredentialStore', () => {
   it('stores a trimmed valid key under the museSpark secret key', async () => {
     const secrets = memorySecrets()
@@ -106,20 +122,13 @@ describe('CredentialStore', () => {
   it('reads an unreadable provider entry as unknown, never as absent (P2-1)', async () => {
     const warnings: string[] = []
     const message = 'locked: /home/someone/.local/share/keyrings/login.keyring'
-    const store = new CredentialStore(
-      {
-        get: (key: string) =>
-          key === SECRET_KEYS.modelApiKey
-            ? Promise.resolve(undefined)
-            : Promise.reject(new Error(message)),
-        store: () => Promise.resolve(),
-        delete: () => Promise.resolve(),
-      },
-      (line) => {
-        warnings.push(line)
-      },
-      "VS Code's secret storage",
-      () => Promise.resolve(['meta']),
+    const store = storeReading(
+      (key: string) =>
+        key === SECRET_KEYS.modelApiKey
+          ? Promise.resolve(undefined)
+          : Promise.reject(new Error(message)),
+      warnings,
+      ['meta'],
     )
     // The boolean is gone: could-not-read is its own state, so no guard can
     // mistake it for "no credential".
@@ -206,42 +215,24 @@ describe('CredentialStore', () => {
 
   it('reads a non-error store failure as unreadable, never throwing it at a guard', async () => {
     const warnings: string[] = []
-    const foreign: unknown = 'a string failure naming /home/someone/keyring'
-    const store = new CredentialStore(
-      {
-        get: () => {
-          throw foreign
+    const throwing = (failure: unknown) =>
+      storeReading(
+        () => {
+          throw failure
         },
-        store: () => Promise.resolve(),
-        delete: () => Promise.resolve(),
-      },
-      (line) => {
-        warnings.push(line)
-      },
-      "VS Code's secret storage",
-      () => Promise.resolve(['meta']),
-    )
+        warnings,
+        ['meta'],
+      )
     // The three states are the whole contract: a foreign throw maps onto
     // the closed kind instead of escaping to callers with no handler.
-    await expect(store.readModelApiCredential()).resolves.toEqual({
+    const foreign: unknown = 'a string failure naming /home/someone/keyring'
+    await expect(throwing(foreign).readModelApiCredential()).resolves.toEqual({
       outcome: 'unreadable',
       kind: 'other',
     })
     expect(warnings.join('\n')).not.toContain('keyring')
     const codedFailure: unknown = { code: 'EACCES' }
-    const coded = new CredentialStore(
-      {
-        get: () => {
-          throw codedFailure
-        },
-        store: () => Promise.resolve(),
-        delete: () => Promise.resolve(),
-      },
-      () => undefined,
-      "VS Code's secret storage",
-      () => Promise.resolve([]),
-    )
-    await expect(coded.readModelApiCredential()).resolves.toEqual({
+    await expect(throwing(codedFailure).readModelApiCredential()).resolves.toEqual({
       outcome: 'unreadable',
       kind: 'denied',
     })
