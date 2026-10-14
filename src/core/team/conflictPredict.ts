@@ -1,4 +1,6 @@
 import { TEAM_DIFF_POLL_MS } from '../../shared/constants'
+import { type SharedFiles } from './sharedFiles'
+import { writeSetOverlap, type PlannedWriteSet } from './writeSets'
 
 export interface PredictionTask {
   readonly taskId: string
@@ -26,6 +28,28 @@ export interface ConflictPredictionDeps {
   ) => Promise<{ kind: 'merged' | 'conflict' }>
   readonly onConflict: (conflict: PredictedConflict) => void
   readonly onError: (error: unknown) => void
+}
+
+export function plannedConflicts(
+  tasks: readonly { taskId: string; set: PlannedWriteSet }[],
+  shared: SharedFiles,
+): PredictedConflict[] {
+  const conflicts: PredictedConflict[] = []
+  for (const [index, task] of tasks.entries()) {
+    const others = tasks.slice(index + 1)
+    for (const other of others) {
+      const paths = writeSetOverlap(task.set, other.set, shared)
+      if (paths.length > 0)
+        conflicts.push({
+          taskId: task.taskId,
+          attempt: 1,
+          otherTaskId: other.taskId,
+          otherAttempt: 1,
+          paths,
+        })
+    }
+  }
+  return conflicts
 }
 
 /** No timer starts at import/construction. Team activation starts polling;
