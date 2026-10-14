@@ -36,16 +36,22 @@ must remain opaque and shadowless, with contrast borders. Never blur a control.
 Use the 120/180/240 ms motion tokens only for meaningful changes, inside
 `prefers-reduced-motion: no-preference`; streamed text stays still.
 
-Run `npm run check:visual` for a visual change. The complete audited component
-inventory is rendered in six themes at 320 and 690 px. Pixelmatch uses colour
-threshold **0.1** and antialiasing detection (`includeAA: false`). The dated
-lead decision (2026-10-06) permits per image at most **0.01% of pixels or 12
-pixels**, whichever is smaller, rounded down. Goldens are
-PNG archives outside git, capped at 512 MiB; only the reviewed source revision,
-hashes, dimensions, render/state coverage and environment are tracked.
-On CI or another rasterization environment the recorded Git revision is
-rendered beside the candidate. Fetch that revision if a shallow checkout does
-not have it; a missing source or screenshot fails, never skips.
+Look at a change to the interface yourself. Build, open the changed screen
+in one light and one dark theme (`npm run harness:shots -- <scene>
+--theme=light` renders one harness scene from the built webview), look at
+both pictures, and put them into the change's certification record. That is
+the whole visual check. No gate and no CI job renders or compares
+screenshots (the owner's decision, 2026-10-12, with 0.18.2), so a green CI
+says nothing about how a screen looks, and there is no baseline to update or
+wait for.
+
+`npm run check:visual` still exists as a tool that nothing runs for you. It
+renders the audited component inventory in six themes at 320 and 690 px and
+compares it with the frames of a recorded Git revision (pixelmatch, colour
+threshold **0.1**, at most **0.01% of pixels or 12 pixels** per image). It
+answers one question only: did a frame change against the recorded one. It
+cannot say whether what a frame shows is allowed; that takes a person
+looking.
 
 The capture inputs are one list, `scripts/lib/captureInputs.mjs`: `src`,
 `design`, `test/harness`, `scripts/build.mjs`, `scripts/lib`,
@@ -57,9 +63,7 @@ fixture must hold every kind of part the real notes use;
 `test/unit/whatsNewFixture.test.mjs` names a missing kind, and adding it to
 the fixture means re-rendering those scenes.
 
-Commit capture inputs, run an update with a named review and a fresh external
-archive directory, inspect the candidate images, then commit the manifest.
-Normal checks never rewrite it. Keep full-resolution capture sets out of git;
+Keep full-resolution capture sets out of git;
 README media comes only from the existing curated `scripts/readme-shots.mjs`
 list (2 MiB total budget, banner included). The
 [visual contract](test/harness/goldens/README.md) explains grouped scenes,
