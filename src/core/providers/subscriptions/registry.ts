@@ -89,20 +89,23 @@ export async function chatGptModels(
 }
 
 /**
- * A non-OK plan answer says what OpenAI answered: the error envelope's
- * own message, never a header or a token. Anything else keeps the
- * standing retry sentence. The client sends the request once; a 4xx other
- * than 429 is terminal and never retried.
+ * A non-OK answer from the plan route. Its message is OpenAI's own
+ * `error.message` where the body carries one, never a header or a token,
+ * so the turn below yields it instead of the standing retry sentence. The
+ * client sends the request once; a 4xx other than 429 is terminal and
+ * never retried.
  */
+class ChatgptPlanRequestError extends Error {}
+
 async function planRequestError(response: Response): Promise<Error> {
   try {
     const parsed = errorBodySchema.safeParse(await response.json())
     const message = parsed.success ? parsed.data.error.message : ''
-    return new Error(
+    return new ChatgptPlanRequestError(
       message === '' ? UI_TEXT.planUi.retry : fill(UI_TEXT.planUi.requestFailed, { message }),
     )
   } catch {
-    return new Error(UI_TEXT.planUi.retry)
+    return new ChatgptPlanRequestError(UI_TEXT.planUi.retry)
   }
 }
 
@@ -461,6 +464,10 @@ export function createSubscriptionClient(
         }
         if (error instanceof DeadlineError) {
           // Only the ChatGPT idle limit above raises it: the user is told the stream went silent.
+          yield { type: 'error', code: 'request-failed', message: error.message }
+          return
+        }
+        if (error instanceof ChatgptPlanRequestError) {
           yield { type: 'error', code: 'request-failed', message: error.message }
           return
         }
