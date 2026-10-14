@@ -178,7 +178,18 @@ async function question(title: string, signal: AbortSignal) {
     return await input.question(`${title}: `, { signal })
   } finally {
     input.close()
+    // A TTY stdin left flowing keeps the event loop alive after the answer,
+    // so the process would never exit. Pause it deterministically here; the
+    // next question's interface resumes it.
+    process.stdin.pause()
   }
+}
+
+/** A terminal `(y/N)` answer: y or yes in any case, with surrounding space ignored. */
+export function isAffirmativeAnswer(answer: string | undefined): boolean {
+  if (answer === undefined) return false
+  const normalized = answer.trim().toLowerCase()
+  return normalized === 'y' || normalized === 'yes'
 }
 
 function terminalUi(): SharingUi {
@@ -190,22 +201,25 @@ function terminalUi(): SharingUi {
     },
     ...(process.stdin.isTTY && {
       confirmShare: async (preview: SharePreview, signal: AbortSignal) =>
-        (await question(`${UI_TEXT.shareConfirm} (y/N)`, signal)) === 'y'
+        isAffirmativeAnswer(await question(`${UI_TEXT.shareConfirm} (y/N)`, signal))
           ? { step: 'confirmed', previewId: preview.previewId, request: preview.request }
           : undefined,
     }),
     preparePrompt: async (prompt, signal) => {
+      // Only an imported prompt is untrusted; a prompt the person saved
+      // themselves must not be called imported. The single confirmation
+      // happens after the variables, at the review below.
+      if (prompt.untrusted) process.stdout.write(`${UI_TEXT.promptUntrusted}\n`)
       process.stdout.write(
-        `${UI_TEXT.promptUntrusted}\n${prompt.body}\n${UI_TEXT.promptVariables}: ${prompt.variables.map((variable) => variable.name).join(', ')}\n`,
+        `${prompt.body}\n${UI_TEXT.promptVariables}: ${prompt.variables.map((variable) => variable.name).join(', ')}\n`,
       )
-      if ((await question(`${UI_TEXT.promptInsert} (y/N)`, signal)) !== 'y') return
       let prepared: string | undefined
       await usePrompt(prompt, {
         valueFor: (variable) => question(`${UI_TEXT.promptVariables}: ${variable.name}`, signal),
         review: async (text) => {
           signal.throwIfAborted()
           process.stdout.write(`${text}\n`)
-          return (await question(`${UI_TEXT.promptInsert} (y/N)`, signal)) === 'y'
+          return isAffirmativeAnswer(await question(`${UI_TEXT.promptInsert} (y/N)`, signal))
         },
         insert: (text) => {
           signal.throwIfAborted()
@@ -262,7 +276,9 @@ export async function runRuntimeSharing(
         }
       },
     })
-    process.stdout.write(`${JSON.stringify(result)}\n`)
+    // Scripts opt into the machine-readable result with --json; a person
+    // sees only the preview and review transcript.
+    if (command.json) process.stdout.write(`${JSON.stringify(result)}\n`)
     return result.exitCode
   } catch (error: unknown) {
     if (isResourcePaused(error)) {
