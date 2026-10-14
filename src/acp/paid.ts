@@ -30,7 +30,12 @@ import {
 } from '../shared/constants'
 import type { PaidUseRequest, PaidUseDecision } from '../shared/paid'
 import { PaidAuthority, type PaidGrant } from '../core/paid/paidAuthority'
-import { paidFeatureName, type PaidQuote, type PaidQuoteNotice } from '../shared/paid'
+import {
+  paidFeatureName,
+  paidStoreReasonText,
+  type PaidQuote,
+  type PaidQuoteNotice,
+} from '../shared/paid'
 import { fill } from '../shared/l10n/text'
 
 /** Where "Allow Always in This Workspace" is kept, per folder. */
@@ -124,7 +129,7 @@ export class AcpPaidUse {
   private notKeptText(notice: PaidNotKeptNotice): string {
     return fill(UI_TEXT.paidAlwaysNotKept, {
       feature: paidFeatureName(notice.feature),
-      kind: notice.kind,
+      kind: paidStoreReasonText(notice.kind),
     })
   }
 

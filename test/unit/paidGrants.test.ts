@@ -74,7 +74,7 @@ describe('paid grant quote folder failures', () => {
     expect(log.warn).toHaveBeenCalledOnce()
     expect(String(log.warn.mock.calls[0]?.[0] ?? '')).toContain('(EACCES)')
     // The question it then asks carries the notice, so asking again is explained.
-    expect(store.quoteNotice?.()).toEqual({ kind: 'EACCES' })
+    expect(store.quoteNotice?.()).toEqual({ kind: 'denied' })
   })
 
   it('warns about an unreadable quote folder once, not on every read (P3-3)', async () => {
@@ -85,7 +85,7 @@ describe('paid grant quote folder failures', () => {
     expect(store.read(WORKSPACE)).toEqual(new Set(['webSearch']))
     expect(log.warn).toHaveBeenCalledOnce()
     // The notice still reaches the next question every time.
-    expect(store.quoteNotice?.()).toEqual({ kind: 'EACCES' })
+    expect(store.quoteNotice?.()).toEqual({ kind: 'denied' })
   })
 
   it('drops a stale quote notice when no generation exists (P3-3)', async () => {
@@ -93,7 +93,7 @@ describe('paid grant quote folder failures', () => {
     const { store } = fileStore(file)
     await store.add(WORKSPACE, ['webSearch'])
     expect(store.read(WORKSPACE)).toEqual(new Set(['webSearch']))
-    expect(store.quoteNotice?.()).toEqual({ kind: 'EACCES' })
+    expect(store.quoteNotice?.()).toEqual({ kind: 'denied' })
     // The generation goes missing: no quotes exist, so no unreadable-quotes
     // notice survives to claim saved choices are unreadable.
     rmSync(path.join(`${file}.d`, 'webSearch', 'generation.json'), { force: true })

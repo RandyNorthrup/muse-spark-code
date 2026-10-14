@@ -16,7 +16,7 @@ import { readFileSync, readdirSync } from 'node:fs'
 import { link, rm } from 'node:fs/promises'
 import path from 'node:path'
 import * as z from 'zod/mini'
-import type { PaidQuoteNotice } from '../shared/paid'
+import { paidStoreFailureKind, type PaidQuoteNotice } from '../shared/paid'
 import type { PaidGrantStore } from '../acp/paid'
 import { type CoreLogger, wireWordForLog } from '../core/logging'
 import { DamageNoter, fileDamageMarkers } from './damageNotice'
@@ -166,9 +166,10 @@ export function paidGrantFile(deps: PaidGrantFileDeps): PaidGrantStore {
         quoteListNoter.noteHealthy()
         return []
       }
-      const kind = wireWordForLog(storeErrorCode(error) ?? 'unknown')
-      quoteListNoter.noteDamaged(kind)
-      quoteNotice = { kind }
+      // The errno names the distinct damage for the noter and the log;
+      // the person is told the closed kind's word, never the errno.
+      quoteListNoter.noteDamaged(wireWordForLog(storeErrorCode(error) ?? 'unknown'))
+      quoteNotice = { kind: paidStoreFailureKind(error) }
       return []
     }
     quoteListNoter.noteHealthy()

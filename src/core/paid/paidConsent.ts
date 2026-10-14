@@ -35,8 +35,10 @@ import { formatUsd } from '../../shared/l10n/exactUsd'
 import {
   paidFeaturePrice,
   freezePaidQuote,
+  paidStoreFailureKind,
   type PaidQuote,
   type PaidQuoteNotice,
+  type PaidStoreFailureKind,
   type PaidUseDecision,
   paidFeatureName,
   type PaidUseRequest,
@@ -71,8 +73,8 @@ export type PaidUseAnswer = 'once' | 'always' | 'deny'
  */
 export interface PaidNotKeptNotice {
   readonly feature: PaidFeature
-  /** The store failure's kind word, never its message. */
-  readonly kind: string
+  /** The store failure's closed kind, never its message or an errno. */
+  readonly kind: PaidStoreFailureKind
   /**
    * The session that asked, bound when the question was asked: the pending
    * write carries it, so a later question in another session cannot steal
@@ -393,7 +395,7 @@ export class PaidUseConsent {
   /** The not-kept notice for a failed write, carrying the asking session (P2-3). */
   private notKeptNotice(
     feature: PaidFeature,
-    kind: string,
+    kind: PaidStoreFailureKind,
     notifySession: string | undefined,
   ): PaidNotKeptNotice {
     return {
@@ -418,18 +420,17 @@ export class PaidUseConsent {
       // read-state: cert TBL-07. `false` here is "not kept, allowed once,
       // person told" (onNotKept fired above the return), never "not allowed".
       if (!(error instanceof Error)) throw error
-      const kind = wireWordForLog(error.name)
       this.deps.log.warn(
-        `Paid use of ${feature}: "always" could not be kept, so it is allowed once (${kind})`,
+        `Paid use of ${feature}: "always" could not be kept, so it is allowed once (${wireWordForLog(error.name)})`,
       )
-      this.deps.onNotKept?.(this.notKeptNotice(feature, kind, notifySession))
+      this.deps.onNotKept?.(this.notKeptNotice(feature, paidStoreFailureKind(error), notifySession))
       return false
     }
   }
 
-  /** A search "always" that cannot be kept: the kind is logged, and this use goes ahead once. */
-  private quoteNotKeptKind(error: Error): string {
-    return wireWordForLog(error.name)
+  /** A search "always" that cannot be kept: its closed kind, and this use goes ahead once. */
+  private quoteNotKeptKind(error: Error): PaidStoreFailureKind {
+    return paidStoreFailureKind(error)
   }
 
   /**
@@ -444,9 +445,10 @@ export class PaidUseConsent {
    * not an error keeps its kind past this call (P2-2).
    */
   private quoteNotKept(error: Error, notifySession?: string): void {
-    const kind = this.quoteNotKeptKind(error)
-    this.deps.log.warn(`Paid search quote could not be kept (${kind})`)
-    this.deps.onNotKept?.(this.notKeptNotice('webSearch', kind, notifySession))
+    this.deps.log.warn(`Paid search quote could not be kept (${wireWordForLog(error.name)})`)
+    this.deps.onNotKept?.(
+      this.notKeptNotice('webSearch', this.quoteNotKeptKind(error), notifySession),
+    )
   }
 
   private async searchApprovalOrder(

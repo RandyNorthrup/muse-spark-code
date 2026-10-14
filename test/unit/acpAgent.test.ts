@@ -2452,7 +2452,10 @@ describe('paid features in the agent (M63c, M58)', () => {
     expect(Boolean(decision)).toBe(true)
     const said = textMessages(h.updates)
     expect(said).toContain(
-      fill(UI_TEXT.paidAlwaysNotKept, { feature: paidFeatureName('webSearch'), kind: 'Error' }),
+      fill(UI_TEXT.paidAlwaysNotKept, {
+        feature: paidFeatureName('webSearch'),
+        kind: UI_TEXT.paidStoreReasonUnknown,
+      }),
     )
   })
 

@@ -6,6 +6,7 @@ import {
   modelApiPaidTier,
   paidFeatureName,
   paidFeaturePrice,
+  paidStoreReasonText,
   type PaidState,
   type PaidUseRequest,
 } from '../../shared/paid'
@@ -387,7 +388,7 @@ export function createPaidFeatures(deps: PaidFeaturesDeps): PaidFeatures {
       void vscode.window.showWarningMessage(
         fill(UI_TEXT.paidAlwaysNotKept, {
           feature: paidFeatureName(notice.feature),
-          kind: notice.kind,
+          kind: paidStoreReasonText(notice.kind),
         }),
       )
     },
