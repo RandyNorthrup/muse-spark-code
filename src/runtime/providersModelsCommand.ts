@@ -161,37 +161,44 @@ export async function providersModels(
       }
     }
   }
-  const models = [...entry.models.filter((model) => !remove.includes(model)), ...added]
-  const forced: Record<string, string> = Object.fromEntries(
-    Object.entries(entry.forcedModels ?? {}).filter(
-      ([model]) => !remove.includes(model) && !added.includes(model),
-    ),
-  )
-  if (options.force !== undefined) {
-    for (const model of added) forced[model] = options.force
+  // The shape this command writes, from the entry it read. The commit
+  // re-reads the file, so the change is recomputed from that current
+  // entry there: a panel edit between the two reads is kept, not lost.
+  const entryWith = (base: ProviderEntry): ProviderEntry => {
+    const fresh = add.filter((model) => !base.models.includes(model))
+    const forced: Record<string, string> = Object.fromEntries(
+      Object.entries(base.forcedModels ?? {}).filter(
+        ([model]) => !remove.includes(model) && !fresh.includes(model),
+      ),
+    )
+    if (options.force !== undefined) {
+      for (const model of fresh) forced[model] = options.force
+    }
+    return {
+      ...base,
+      models: [...base.models.filter((model) => !remove.includes(model)), ...fresh],
+      forcedModels: Object.keys(forced).length > 0 ? forced : undefined,
+    }
   }
-  const removedRefs = new Set(remove.map((model) => `${entry.id}/${model}`))
-  const next: ProviderEntry = {
-    ...entry,
-    models,
-    forcedModels: Object.keys(forced).length > 0 ? forced : undefined,
-  }
-  const validated = providerEntrySchema.safeParse(next)
+  const validated = providerEntrySchema.safeParse(entryWith(entry))
   if (!validated.success) {
     return failed(deps, validated.error.issues[0]?.message ?? UI_TEXT.actionFailed)
   }
+  const removedRefs = new Set(remove.map((model) => `${entry.id}/${model}`))
+  let written: ProviderEntry = validated.data
   const committed = await commitProviderChange(
     deps,
     entry.id,
     (current) => {
       const currentEntry = current.providers.find((candidate) => candidate.id === entry.id)
       if (currentEntry === undefined) return
+      written = entryWith(currentEntry)
       return {
         ...current,
         ...(current.defaultModel !== undefined &&
           removedRefs.has(current.defaultModel) && { defaultModel: undefined }),
         providers: current.providers.map((candidate) =>
-          candidate.id === entry.id ? validated.data : candidate,
+          candidate.id === entry.id ? written : candidate,
         ),
       }
     },
@@ -205,6 +212,6 @@ export async function providersModels(
   if (removed.length > 0) {
     deps.print(fill(UI_TEXT.cliHelp.modelsRemoved, { models: removed.join(', '), entry: entry.id }))
   }
-  if (added.length === 0 && removed.length === 0) printModelsList(deps, validated.data)
+  if (added.length === 0 && removed.length === 0) printModelsList(deps, written)
   return EXIT_OK
 }
