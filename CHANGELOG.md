@@ -9,6 +9,8 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- ChatGPT plan models could not use any tool: the plan streams each tool call in its own message and ends with an empty list, and the app read only that list, so every turn ended after the model said what it would do. A plan reply's tool calls and text now come from the messages it streamed.
+
 - Effort levels for models from other providers: a ChatGPT plan model or a model you added yourself (for example Anthropic Claude Sonnet 5.5) offered no effort level at all in the editors, and an editor asking for one was refused. Each model now offers the levels its own record lists, also on a computer that stores no Meta key.
 
 - ChatGPT plan turns: every model turn failed because the plan route's
