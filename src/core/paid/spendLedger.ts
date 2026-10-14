@@ -135,7 +135,7 @@ export interface SpendLedgerDeps {
   readonly step?: (step: string) => Promise<void>
   readonly onHold?: (ms: number) => void
 }
-function syncDirectory(directory: string): void {
+function syncDirectoryNow(directory: string): void {
   if (process.platform === 'win32') return
   const fd = openSync(directory, 'r')
   try {
@@ -186,6 +186,25 @@ export function createSpendLedger(deps: SpendLedgerDeps) {
   const gone = isProcessOwnerGone
   const pending = new Map<string, { scope: LedgerScope; entry: LedgerEntry }>()
   const ownerNotes = new Map<string, Promise<string>>()
+  // One commit renames several names in the same directories; syncing each
+  // directory once at the commit's end makes the same returned state durable
+  // without paying a directory fsync per rename.
+  let deferredDirs: Set<string> | undefined
+  const syncDirectory = (directory: string): void => {
+    if (deferredDirs === undefined) syncDirectoryNow(directory)
+    else deferredDirs.add(directory)
+  }
+  const withDeferredSyncs = async <T>(operation: () => Promise<T>): Promise<T> => {
+    if (deferredDirs !== undefined) return await operation()
+    deferredDirs = new Set()
+    try {
+      return await operation()
+    } finally {
+      const dirs = deferredDirs
+      deferredDirs = undefined
+      for (const dir of dirs) syncDirectoryNow(dir)
+    }
+  }
   const fail = (
     scope: LedgerScope,
     kind: LedgerFailureKind,
@@ -270,23 +289,24 @@ export function createSpendLedger(deps: SpendLedgerDeps) {
     unlinkSync(path.join(scope.directory, 'transaction.json'))
     syncDirectory(scope.directory)
   }
-  const commit = async (scope: LedgerScope, before: State, next: State, entry?: LedgerEntry) => {
-    const txn = {
-      before: before.generation,
-      next: { ...next, generation: before.generation + 1 },
-      ...(entry !== undefined && { entry }),
-    }
-    publish(scope, 'transaction.json', {
-      ...txn.next,
-      change: { before: txn.before, ...(entry !== undefined && { entry }) },
+  const commit = async (scope: LedgerScope, before: State, next: State, entry?: LedgerEntry) =>
+    await withDeferredSyncs(async () => {
+      const txn = {
+        before: before.generation,
+        next: { ...next, generation: before.generation + 1 },
+        ...(entry !== undefined && { entry }),
+      }
+      publish(scope, 'transaction.json', {
+        ...txn.next,
+        change: { before: txn.before, ...(entry !== undefined && { entry }) },
+      })
+      await deps.step?.('transaction')
+      link(scope, 'transaction.json', 'state.json')
+      await deps.step?.('state')
+      finish(scope, txn)
+      await deps.step?.('audit')
+      return txn.next
     })
-    await deps.step?.('transaction')
-    link(scope, 'transaction.json', 'state.json')
-    await deps.step?.('state')
-    finish(scope, txn)
-    await deps.step?.('audit')
-    return txn.next
-  }
   const transition = async (
     scope: LedgerScope,
     state: State,
@@ -487,7 +507,7 @@ export function createSpendLedger(deps: SpendLedgerDeps) {
       }
       const heldAt = performance.now()
       await deps.step?.('lock')
-      const state = await recover(scope, deadOwners)
+      const state = await withDeferredSyncs(async () => await recover(scope, deadOwners))
       try {
         return await operation(state)
       } finally {
