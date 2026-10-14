@@ -462,7 +462,12 @@ export function createSpendLedger(deps: SpendLedgerDeps) {
           names = readdirSync(lock)
         } catch (error: unknown) {
           if (codeOf(error) === 'ENOENT') {
-            if (['EPERM', 'EACCES'].includes(codeOf(renameError) ?? ''))
+            // Windows answers EPERM while the lock directory is being removed
+            // (measured, PR 156); a vanished lock is contention, not damage.
+            if (
+              ['EPERM', 'EACCES'].includes(codeOf(renameError) ?? '') &&
+              process.platform !== 'win32'
+            )
               return fail(scope, 'unreadable', 'lock', renameError)
             continue
           }
@@ -648,6 +653,19 @@ export function createSpendLedger(deps: SpendLedgerDeps) {
       },
     }
   }
+  const readTotal = async (scope: LedgerScope): Promise<LedgerTotal> => {
+    try {
+      return await locked(scope, (state) => Promise.resolve(total(state)))
+    } catch (error: unknown) {
+      if (
+        isSpendLedgerError(error) &&
+        error.kind === 'busy' &&
+        read(scope, 'state.json', stateSchema) !== undefined
+      )
+        return view(scope)
+      throw error
+    }
+  }
   return {
     async admit(
       scope: LedgerScope,
@@ -696,19 +714,7 @@ export function createSpendLedger(deps: SpendLedgerDeps) {
         return claimFor(scope, entry)
       })
     },
-    async read(scope: LedgerScope): Promise<LedgerTotal> {
-      try {
-        return await locked(scope, (state) => Promise.resolve(total(state)))
-      } catch (error: unknown) {
-        if (
-          isSpendLedgerError(error) &&
-          error.kind === 'busy' &&
-          read(scope, 'state.json', stateSchema) !== undefined
-        )
-          return view(scope)
-        throw error
-      }
-    },
+    read: readTotal,
     readExisting(scope: LedgerScope): LedgerTotal | undefined {
       return read(scope, 'state.json', stateSchema) === undefined ? undefined : view(scope)
     },
@@ -725,6 +731,11 @@ export function createSpendLedger(deps: SpendLedgerDeps) {
       state: 'settled' | 'uncertain' | 'released' = 'settled',
     ): Promise<LedgerTotal> {
       validateAmount(scope, amount)
+      if (state === 'released') {
+        // A released record is a non-charge: it must be zero and writes no entry.
+        if (Usd.from(amount).compare(Usd.from(0)) !== 0) fail(scope, 'integrity', 'claim')
+        return await readTotal(scope)
+      }
       const entry: LedgerEntry = {
         id: randomUUID(),
         owner: await own,

@@ -78,6 +78,17 @@ describe('one spend ledger', () => {
     await expect(claim.settle('settled', usd('0.5'))).rejects.toMatchObject({ kind: 'integrity' })
     expect(ledger.readExisting(scope)?.spentUsd).toBe('0.4')
   })
+  it('recording a released non-charge writes nothing and keeps the total', async () => {
+    const { scope, ledger } = setup()
+    await ledger.read(scope)
+    await expect(ledger.record(scope, usd('0.5'), 'released')).rejects.toMatchObject({
+      kind: 'integrity',
+    })
+    const total = await ledger.record(scope, usd(0), 'released')
+    expect(total.spentUsd).toBe('0')
+    expect(readdirSync(path.join(scope.directory, 'inbox'))).toHaveLength(0)
+    expect(readdirSync(path.join(scope.directory, 'history'))).toHaveLength(0)
+  })
   it('never reads a staged snapshot as published data', async () => {
     const { scope, ledger } = setup()
     await ledger.read(scope)
