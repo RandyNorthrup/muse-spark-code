@@ -2447,7 +2447,9 @@ class AgentState {
     const acp = await this.adopt(host, session, cwd, client, models, claim, (started) =>
       started.applyEffort(DEFAULT_EFFORT),
     )
-    this.choices.set(session.sessionId, acp.currentChoice())
+    // Remember what the agent chose (not what the backend object reports):
+    // a later load re-applies exactly this choice.
+    this.choices.set(session.sessionId, { modelId, effort: DEFAULT_EFFORT })
     return { sessionId: session.sessionId, modes: acp.modes(), configOptions: acp.configOptions() }
   }
 

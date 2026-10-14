@@ -4735,9 +4735,9 @@ export class ConversationController {
    * Make a resumed or forked session this surface's: the transcript is
    * rebuilt from its history, the model comes from the catalogue's active
    * row (never the record's `modelId`, PLAN.md M6), and this surface's
-   * composer settings are applied to it. A resumed conversation runs on the
-   * panel's choice: it is applied and read back first, and a mismatch
-   * refuses instead of sending on the wrong model.
+   * composer settings are applied to it. A resumed conversation then has
+   * that standing model applied and read back, and a mismatch refuses
+   * instead of sending on the wrong model.
    */
   private async adopt(
     host: AgentHost,
@@ -4760,10 +4760,7 @@ export class ConversationController {
     }
     this.dropSession()
     const generation = this.sendInvalidationEpoch
-    const models =
-      origin === 'resumed'
-        ? await this.enforceResumedModel(host, loaded, this.modelId)
-        : await host.listModels(loaded.session.sessionId)
+    const models = await host.listModels(loaded.session.sessionId)
     if (generation !== this.sendInvalidationEpoch) {
       loaded.session.dispose()
       return false
@@ -4800,6 +4797,17 @@ export class ConversationController {
       }
       this.modelId = fallbackId
       this.notice('info', fill(UI_TEXT.contributorResumeFallbackTo, { model: fallbackId }))
+    }
+    if (origin === 'resumed') {
+      // The resumed standing model (learned above, consent-gated) is
+      // applied and read back before anything runs on it: a restart may
+      // have reset it on the CLI, and a mismatch refuses instead of
+      // sending on the wrong model.
+      await this.enforceResumedModel(host, loaded, this.modelId)
+      if (generation !== this.sendInvalidationEpoch) {
+        loaded.session.dispose()
+        return false
+      }
     }
     // A side chat runs in Plan (M53). Like the imported mode below, applied
     // only now that this opening is still current: one overtaken by another

@@ -7967,18 +7967,37 @@ describe('ConversationController: permission hardening (D24)', () => {
 
   it('asks before resuming on a contributor-tier model and falls back when declined', async () => {
     const t = setup({ confirmsContributor: false })
+    // Like the CLI, the fake moves the active row to the model an accepted
+    // `session/setModel` names, so the resumed choice reads back applied.
+    let activeModelId = 'muse-spark-1.3-contributor'
+    t.server.handle('session/setModel', (params) => {
+      const model = params['model']
+      if (typeof model === 'object' && model !== null && 'modelId' in model) {
+        const id = model.modelId
+        if (typeof id === 'string') {
+          activeModelId = id
+        }
+      }
+      return { status: 'accepted', commandId: params['commandId'] }
+    })
     t.server.handle('model/list', () => ({
       providerId: 'meta',
       profileId: null,
       source: 'catalog',
       models: [
-        { modelId: 'muse-spark-1.3', displayLabel: 'x', contextLimit: 1, isDefault: true },
+        {
+          modelId: 'muse-spark-1.3',
+          displayLabel: 'x',
+          contextLimit: 1,
+          isDefault: true,
+          ...(activeModelId === 'muse-spark-1.3' && { isActive: true }),
+        },
         {
           modelId: 'muse-spark-1.3-contributor',
           displayLabel: 'c',
           contextLimit: 1,
           isDefault: false,
-          isActive: true,
+          isActive: activeModelId === 'muse-spark-1.3-contributor',
         },
       ],
     }))

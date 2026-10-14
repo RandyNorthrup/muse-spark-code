@@ -36,20 +36,25 @@ its session was released.
   `{ ok: true }` when the CLI reports the wanted model (or no active
   row: the `setModel` ack is trusted), `{ ok: false }` on a mismatch.
 - Panel (`conversationController.ts`, `enforceResumedModel`): every
-  resume applies the choice with `session/setModel` and reads it back
-  with `model/list` (the `isActive` row) before the next turn is sent.
-  Called in `resumeAfterRestart` (setting change, crash restart, backend
-  switch-back) and in `adopt` for origin `'resumed'` (History). A
-  mismatch disposes the handle, refuses the message with the new
-  `UI_TEXT.modelNotKeptAfterRestart` text, and keeps the conversation as
-  the resume target, so choosing the reported model and resending
-  continues it. The panel header (`sessionInfo`) and the log line come
-  from the reported model. Effort was already applied and awaited in
-  `attach` (`applyEffort`); the `session/setReasoningEffort` ack is the
-  durability confirmation (SDK tdd SS3.21) and lands before the turn.
+  resume applies the standing model with `session/setModel` and reads it
+  back with `model/list` (the `isActive` row) before the next turn is
+  sent. Called in `resumeAfterRestart` (setting change, crash restart,
+  backend switch-back) with the live conversation's choice, and in
+  `adopt` for origin `'resumed'` (History) with the resumed session's
+  own standing model after it is learned from the catalogue and
+  consent-gated (the D24 contributor prompt and fallback keep working:
+  the fallback is what gets applied and read back). A mismatch disposes
+  the handle and refuses with the new `UI_TEXT.modelNotKeptAfterRestart`
+  text; on the restart path the conversation stays the resume target, so
+  choosing the reported model and resending continues it. The panel
+  header (`sessionInfo`) and the log line come from the reported model.
+  Effort was already applied and awaited in `attach` (`applyEffort`);
+  the `session/setReasoningEffort` ack is the durability confirmation
+  (SDK tdd SS3.21) and lands before the turn.
 - ACP (`src/acp/agent.ts`): `AgentState` remembers each session's
-  `{ modelId, effort }` on `session/new`, `session/set_config_option`
-  and `session/load`, and forgets it on `session/close`.
+  `{ modelId, effort }` — what the agent itself chose on `session/new`,
+  what the editor chose via `session/set_config_option`, what the last
+  load converged to — and forgets it on `session/close`.
   `AcpSession.restoreChoice` re-applies the remembered choice on load
   (setModel, read back, applyEffort) and fails the load on a mismatch,
   so nothing runs on a model the editor was not told. Sessions with no
@@ -79,26 +84,35 @@ signed in; sign in and try again.` No signed-in CLI exists on this rig
   `prettier --check` on changed files, `npm run check:l10n`
   (`0 problems`), `npm run check:reference`, `npm run deadcode`,
   `npm run cycles`, `npm run duplication`, `npm run build`.
-- Dependents (measured, not labelled): `vitest related` over the
-  changed sources fails 27 tests in 3 files on this tree while the
-  untouched base `898a26c5e` passes them all
-  (`conversationController.test.ts` 688/688;
-  `acpAgent.test.ts` + `acpQuestionDeferral.test.ts` 223/223). Every
-  failure is a fake-wire suite (hand-written stand-in for the CLI over
-  MSP) that cannot answer the new `session/setModel` + `model/list`
-  round trip, e.g. `conversationController.test.ts >
-ConversationController: session history (M6) > resumes a stored
-session: history, model from the catalogue, composer state, title,
-memory` stops after the first `modelList` post because the fake never
-  serves history after the unscripted commands. Per the owner's testing
-  rules these suites are named here and left untouched for the TESTCUT
-  lane:
-  - `test/unit/conversationController.test.ts` (21 failures, all in
-    resume/history/rewind/tasks paths that resume a session)
-  - `test/unit/acpAgent.test.ts` (4 failures, ACP session-ownership
-    reload paths)
-  - `test/unit/acpQuestionDeferral.test.ts` (2 failures, resumed-turn
-    question paths)
+- Dependents: `vitest related --run
+src/core/backends/musecode/resumedModel.ts src/acp/agent.ts
+src/host/conversation/conversationController.ts --maxWorkers=3` on the
+  final tree: 22 files passed, 1296 tests passed, 24 skipped
+  (pre-existing conditional skips), 0 failed. The first cut of this
+  change failed 27 of those tests while the untouched base `898a26c5e`
+  passed them all (`conversationController.test.ts` 688/688;
+  `acpAgent.test.ts` + `acpQuestionDeferral.test.ts` 223/223, measured
+  in a scratch copy, now removed). The failures were all fake-wire
+  suites whose scripted CLI could not answer the new round trip. The
+  product design was adjusted first: History `adopt` learns the
+  session's own standing model (consent-gated) and enforces exactly
+  that, instead of forcing the panel default onto old sessions (which
+  would also have bypassed the D24 contributor prompt). The fakes were
+  then made faithful, three small edits, no expectation weakened:
+  - `test/unit/helpers/acpMsp.ts`: the shared MSP fake answers
+    `session/setModel` (accepted), which `restoreChoice` needs.
+  - `test/unit/conversationController.test.ts` (D24 contributor
+    resume): that test's `model/list` override moves its active row to
+    the model an accepted `session/setModel` names, like the CLI does,
+    so the fallback reads back applied. All other resume tests pass
+    unchanged: the enforced model equals the fake's standing model.
+  - `src/acp/agent.ts` (`session/new` recording): remember what the
+    agent itself chose (`startingModel` + `DEFAULT_EFFORT`), not what
+    the backend object reports, so a later load re-applies exactly that
+    (identical in production; robust to scripted sessions).
+    Final: `conversationController.test.ts` 688/688;
+    `acpAgent.test.ts` + `acpQuestionDeferral.test.ts` +
+    `resumedModel.test.ts` 226/226.
 
 ## Open / for the lead
 
