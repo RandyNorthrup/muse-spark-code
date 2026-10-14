@@ -481,17 +481,14 @@
           "foreground": "colour.usage-orange",
           "background": "colour.editor-surface",
           "usage": "ui"
-        }
+        },
+        { "foreground": "colour.brand-mark", "background": "colour.surface", "usage": "ui" },
+        { "foreground": "colour.brand-mark-light", "background": "colour.surface", "usage": "ui" }
       ],
       "decorativeColours": [
         "colour.shadow",
         "colour.disabled",
         "colour.modal-scrim",
-        "colour.meta-start",
-        "colour.meta-middle",
-        "colour.meta-end",
-        "colour.meta-return",
-        "colour.meta-fill",
         "colour.status-low",
         "colour.status-mid",
         "colour.status-high"
@@ -735,6 +732,43 @@
         }
       },
       "$description": "Semantic host theme role: muted."
+    },
+    "brand-mark": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [0.239216, 0.545098, 1.0],
+        "alpha": 1
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-brand-mark",
+          "modes": {
+            "light": "{colour.brand-mark-light}",
+            "hc-light": "{colour.text}",
+            "hc-dark": "{colour.text}"
+          }
+        }
+      },
+      "$description": "Product mark on dark backgrounds: the bright endpoint of the Marketplace icon blue, independent of host button paint."
+    },
+    "brand-mark-light": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [0.039216, 0.360784, 1.0],
+        "alpha": 1
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-brand-mark-light",
+          "modes": {
+            "hc-light": "{colour.text}",
+            "hc-dark": "{colour.text}"
+          }
+        }
+      },
+      "$description": "Product mark on light backgrounds: the deep endpoint of the Marketplace icon blue; selected by the host light theme."
     },
     "accent": {
       "$type": "color",
@@ -1293,76 +1327,6 @@
         "org.muse-spark-code": {
           "css": "--ms-shadow",
           "vscode": ["--vscode-widget-shadow"]
-        }
-      },
-      "$description": "Decorative paint; content and state are named in text. No foreground/background contrast claim."
-    },
-    "meta-start": {
-      "$type": "color",
-      "$value": {
-        "colorSpace": "srgb",
-        "components": [0.0, 0.392157, 0.882353],
-        "alpha": 1
-      },
-      "$extensions": {
-        "org.muse-spark-code": {
-          "css": "--ms-meta-start"
-        }
-      },
-      "$description": "Decorative paint; content and state are named in text. No foreground/background contrast claim."
-    },
-    "meta-middle": {
-      "$type": "color",
-      "$value": {
-        "colorSpace": "srgb",
-        "components": [0.0, 0.45098, 0.933333],
-        "alpha": 1
-      },
-      "$extensions": {
-        "org.muse-spark-code": {
-          "css": "--ms-meta-middle"
-        }
-      },
-      "$description": "Decorative paint; content and state are named in text. No foreground/background contrast claim."
-    },
-    "meta-end": {
-      "$type": "color",
-      "$value": {
-        "colorSpace": "srgb",
-        "components": [0.0, 0.509804, 0.984314],
-        "alpha": 1
-      },
-      "$extensions": {
-        "org.muse-spark-code": {
-          "css": "--ms-meta-end"
-        }
-      },
-      "$description": "Decorative paint; content and state are named in text. No foreground/background contrast claim."
-    },
-    "meta-return": {
-      "$type": "color",
-      "$value": {
-        "colorSpace": "srgb",
-        "components": [0.0, 0.392157, 0.878431],
-        "alpha": 1
-      },
-      "$extensions": {
-        "org.muse-spark-code": {
-          "css": "--ms-meta-return"
-        }
-      },
-      "$description": "Decorative paint; content and state are named in text. No foreground/background contrast claim."
-    },
-    "meta-fill": {
-      "$type": "color",
-      "$value": {
-        "colorSpace": "srgb",
-        "components": [0.0, 0.505882, 0.984314],
-        "alpha": 1
-      },
-      "$extensions": {
-        "org.muse-spark-code": {
-          "css": "--ms-meta-fill"
         }
       },
       "$description": "Decorative paint; content and state are named in text. No foreground/background contrast claim."

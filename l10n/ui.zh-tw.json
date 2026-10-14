@@ -1431,6 +1431,8 @@
   "manualHookFailed": "鉤子 {name} 失敗：{reason}",
   "manualHookSlashDetail": "執行 spark-hooks.json 中的 Manual 鉤子",
   "extensionHooksUnavailable": "無法載入擴充功能鉤子，因此未執行任何鉤子；請重新安裝擴充功能並重新載入視窗。記錄中有詳細資訊。",
+  "modelApiToolsUnavailable": "無法載入模型呼叫小幫手，因此鉤子呼叫欄位無法使用；請重新安裝擴充功能並重新載入視窗。記錄中有詳細資訊。",
+  "modelApiToolsPreviewUnavailable": "無法載入模型呼叫小幫手，因此引數預覽無法使用；請重新安裝擴充功能並重新載入視窗。記錄中有詳細資訊。",
   "shellDirectory": "位於 {path}",
   "shellDirectoryReset": "shell 已返回工作區根目錄：{path} 位於工作區之外。",
   "elicitationTitle": "{server} 要求提供資訊",
