@@ -14327,7 +14327,14 @@ in the entry's `forcedModels` map. `docs/reference.md` is generated from the
 same `cliCommands()` table; `npm run check:reference` additionally requires
 every registry route (except in-progress `estimate`) in the help table and the
 `help <command>` route plus every topic name in the README's terminal
-section. Proof record: `docs/certification/cli-help.md`.
+section. Proof record: `docs/certification/cli-help.md`. Scope, stated
+plainly (review RVCLIHELP, 2026-10-14): the table's thirteen topics are the
+brief's commands plus `usage` and `resources`; the older grammars that parse
+outside `CLI_OPTION_REGISTRY` (`schedule`, `vault`, `providers accounts`,
+`developer`, `share`/`prompts`, `providers … chatgpt`, and the excluded
+`estimate`) keep their own usage text and are not `help <command>` topics
+yet — bringing them in needs their options in the registry and a translated
+purpose each, and is open work, not done by this decision.
 
 ## 3. Open questions (need the owner)
 
