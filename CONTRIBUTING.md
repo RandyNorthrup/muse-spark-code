@@ -281,23 +281,29 @@ green; 0.18.2 merged that way. Two things in `build.yml` close it, and since
 they sit behind the five aggregate names the main ruleset already requires,
 no repository setting changes:
 
-- The aggregate's own step fails when `github.run_attempt` is not 1,
-  whichever jobs the later attempt ran.
 - The job `first attempt, every run green (rule 2)` needs every other job, so
   starting any of them again starts it again. It runs
   `node scripts/rule2-gate.mjs run`: on a later attempt it names the job and
-  step of attempt 1 that was not green; on the first attempt it reads every
+  step of the earlier attempt that was not green; on the first it reads every
   other workflow run on the same head commit (Hosts, Action check, Browser
   check, Forks, a second CI run) and fails unless each is complete and green
   on its own first attempt. A run still in progress is waited for, up to 60
   minutes. A second CI run on the same head (closing and reopening the pull
   request, a manual dispatch) does not turn a red into green either: the
   second run reads the first.
+- The aggregate's own step fails unless that job succeeded and judged this
+  very attempt, so a job started again on its own (which reuses the gate
+  job's earlier result) fails too.
+
+One earlier attempt is not counted: an outside contributor's first run waits
+for a maintainer's approval as attempt 1 (`action_required`, no job) and
+executes as attempt 2. Any other earlier attempt refuses.
 
 What is left to do with a red, a cancelled job or a runner fault is a new
 commit. The release workflow's first job holds the same rule for a tag
-(`docs/RELEASING.md`, "Choosing the release build"). Both were seen to fire
-on hosted runners: [`docs/certification/rule2-gate.md`](docs/certification/rule2-gate.md).
+(`docs/RELEASING.md`, "Choosing the release build"). The drills against real
+runs of this repository are in
+[`docs/certification/rule2-gate.md`](docs/certification/rule2-gate.md).
 
 Maintainer rollout, in this order: land the workflows (their PR runs the full
 tier); add the merge-queue rule to the main ruleset (merge commits, one PR

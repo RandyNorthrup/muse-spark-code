@@ -813,7 +813,8 @@ describe('tiered CI (CIFLOW)', () => {
     () => {
       const required = job('required')
       // Each step variable and the expression it reads: FAST from the input,
-      // ATTEMPT from the run, the rest from one needed job's result.
+      // ATTEMPT from the run, JUDGED_ATTEMPT from the first-attempt job's
+      // output, the rest from one needed job's result.
       const pairs = Array.from(
         required.matchAll(/^ {10}([A-Z_]+): \$\{\{ (\S+) \}\}$/gm),
         (match) => [match[2] ?? '', match[1] ?? ''] as const,
@@ -836,9 +837,12 @@ describe('tiered CI (CIFLOW)', () => {
       ]
       expect(ids.toSorted(byText)).toEqual([...always, ...fullOnly].toSorted(byText))
       expect(pairs.map(([expression]) => expression).toSorted(byText)).toEqual(
-        ['inputs.fast', 'github.run_attempt', ...ids.map((id) => `needs.${id}.result`)].toSorted(
-          byText,
-        ),
+        [
+          'inputs.fast',
+          'github.run_attempt',
+          'needs.first-attempt.outputs.attempt',
+          ...ids.map((id) => `needs.${id}.result`),
+        ].toSorted(byText),
       )
       const key = (id: string) => env.get(`needs.${id}.result`) ?? ''
       const lines = required.split('\n')
@@ -851,6 +855,7 @@ describe('tiered CI (CIFLOW)', () => {
       const results = (isFast: boolean, overrides: Readonly<Record<string, string>> = {}) => ({
         [env.get('inputs.fast') ?? '']: String(isFast),
         [env.get('github.run_attempt') ?? '']: '1',
+        [env.get('needs.first-attempt.outputs.attempt') ?? '']: '1',
         ...Object.fromEntries(
           ids.map((id) => [key(id), isFast && fullOnly.includes(id) ? 'skipped' : 'success']),
         ),

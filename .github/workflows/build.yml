@@ -275,7 +275,8 @@ jobs:
   # head (Hosts, Action check, a second CI run) must be complete and green on
   # its first attempt; one still in progress is waited for. It needs every
   # job, so starting any of them again starts this one again, and it names
-  # the job and step of the first attempt that was not green.
+  # the job and step of the first attempt that was not green. Its output is
+  # the attempt it judged: the required names below pass only for that one.
   first-attempt:
     name: first attempt, every run green (rule 2)
     if: always()
@@ -298,20 +299,27 @@ jobs:
     permissions:
       contents: read
       actions: read
+    outputs:
+      attempt: ${{ steps.gate.outputs.attempt }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: nothing was started again, and every other run on this head is green
+        id: gate
+        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
           RULE2_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-        run: node scripts/rule2-gate.mjs run
+        run: |
+          node scripts/rule2-gate.mjs run
+          echo "attempt=$GITHUB_RUN_ATTEMPT" >> "$GITHUB_OUTPUT"
 
   # The matrix emits the five existing non-security required names on BOTH
   # events. Every name rejects a failed/cancelled/missing selected-tier job
-  # and every attempt after the first (rule 2: these are the names the main
-  # ruleset requires, so a run that was started again cannot merge).
+  # and every attempt the first-attempt job did not judge and pass (rule 2:
+  # these are the names the main ruleset requires, so a run that was started
+  # again cannot merge, whichever of its jobs ran again).
   required:
     name: ${{ matrix.check }}
     if: always()
@@ -357,16 +365,19 @@ jobs:
           SECRETS: ${{ needs.secrets.result }}
           SAST: ${{ needs.sast.result }}
           FIRST_ATTEMPT: ${{ needs.first-attempt.result }}
+          JUDGED_ATTEMPT: ${{ needs.first-attempt.outputs.attempt }}
         run: |
-          if [ "$ATTEMPT" != 1 ]; then
-            echo "::error::Attempt $ATTEMPT of this run: nothing is started again on the same commit (AGENTS.md rule 2). Push a new commit that says what happened; its run decides." >&2
-            exit 1
-          fi
           test "$CHECKS" = success
           test "$UNIT" = success
           test "$SECRETS" = success
           test "$SAST" = success
           test "$FIRST_ATTEMPT" = success
+          # A result of the first-attempt job carried over from an earlier
+          # attempt does not count: it must have judged this very attempt.
+          if [ "$JUDGED_ATTEMPT" != "$ATTEMPT" ]; then
+            echo "::error::This is attempt $ATTEMPT of the run and the first-attempt job judged attempt $JUDGED_ATTEMPT: nothing is started again on the same commit (AGENTS.md rule 2). Push a new commit that says what happened; its run decides." >&2
+            exit 1
+          fi
           if [ "$FAST" != true ]; then
             test "$COVERAGE" = success
             test "$ACCESSIBILITY" = success

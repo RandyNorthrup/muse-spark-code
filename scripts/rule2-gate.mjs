@@ -12,7 +12,10 @@
 //     the earlier attempt's cause (a runner fault is answered by a new
 //     commit, never by starting a job again), and refuses unless every other
 //     workflow run on the same head is complete and green on its first
-//     attempt. A run still in progress is waited for.
+//     attempt. A run still in progress is waited for. One thing is not an
+//     attempt: a first-time contributor's run waits for a maintainer's
+//     approval as attempt 1 ("action_required", no job) and executes as
+//     attempt 2.
 //
 //   node scripts/rule2-gate.mjs release [--sha <commit>]
 //     release.yml's first job. Every workflow run on the tagged commit and on
@@ -144,21 +147,43 @@ async function redJobs(runId, attempt) {
   ].join('; ')
 }
 
-/** What attempt 1 of a run that was started again looked like. */
-async function firstAttemptOf(runId) {
-  const red = await redJobs(runId, 1)
-  return red === '' ? 'every job of attempt 1 was green' : `not green in attempt 1: ${red}`
+/** Whether an attempt only waited for a maintainer's approval: it ended "action_required" and ran no job. */
+async function onlyWaitedForApproval(runId, attempt) {
+  const base = `/repos/${REPOSITORY}/actions/runs/${String(runId)}/attempts/${String(attempt)}`
+  const body = await get(base)
+  if (!isRecord(body) || body['conclusion'] !== 'action_required') return false
+  const jobs = await list(`${base}/jobs`, 'jobs')
+  return jobs.length === 0
+}
+
+/**
+ * Why a run on a later attempt was started again: the rule and what its
+ * earliest executed attempt looked like. Undefined when every earlier attempt
+ * only waited for approval, so that this attempt is the run's first execution.
+ */
+async function startedAgain(runId, attempt) {
+  for (let earlier = 1; earlier < attempt; earlier += 1) {
+    if (await onlyWaitedForApproval(runId, earlier)) continue
+    const red = await redJobs(runId, earlier)
+    const was =
+      red === ''
+        ? `every job of attempt ${String(earlier)} was green`
+        : `not green in attempt ${String(earlier)}: ${red}`
+    return `${RULE}; ${was}`
+  }
 }
 
 /** `green`, `running`, or the sentence that refuses the run. */
 async function verdictOf(run) {
   const label = `${run.name} run ${String(run.id)} (${run.event})`
-  if (run.attempt > 1)
-    return `${label} is on attempt ${String(run.attempt)}: ${RULE}; ${await firstAttemptOf(run.id)}.`
+  if (run.attempt > 1) {
+    const again = await startedAgain(run.id, run.attempt)
+    if (again !== undefined) return `${label} is on attempt ${String(run.attempt)}: ${again}.`
+  }
   if (run.status !== 'completed') return 'running'
   if (run.conclusion === GREEN || NOT_A_RESULT.has(run.conclusion)) return 'green'
   const red = await redJobs(run.id, run.attempt)
-  return `${label} ended ${run.conclusion} on its first attempt: ${red === '' ? 'no job of it says why' : red}.`
+  return `${label} ended ${run.conclusion} on its first execution (attempt ${String(run.attempt)}): ${red === '' ? 'no job of it says why' : red}.`
 }
 
 async function runsOn(sha) {
@@ -219,10 +244,16 @@ async function gateRun() {
   const head = required('RULE2_HEAD_SHA')
   const ownPath = ownWorkflowPath()
   console.log(`rule 2, merge: run ${String(runId)}, attempt ${String(attempt)}, head ${head}`)
-  if (attempt !== 1)
-    throw new GateError(
-      `This is attempt ${String(attempt)} of run ${String(runId)}: ${RULE}; ${await firstAttemptOf(runId)}. A red job is read and its cause measured; a runner fault is answered the same way. Push a new commit that says what happened: its run decides.`,
+  if (attempt !== 1) {
+    const again = await startedAgain(runId, attempt)
+    if (again !== undefined)
+      throw new GateError(
+        `This is attempt ${String(attempt)} of run ${String(runId)}: ${again}. A red job is read and its cause measured; a runner fault is answered the same way. Push a new commit that says what happened: its run decides.`,
+      )
+    console.log(
+      "  every earlier attempt only waited for a maintainer's approval and ran no job: this is the run's first execution",
     )
+  }
   // A newer run of this same workflow that is still going waits for this one
   // and decides with it in view; waiting for it here would stall both.
   const isNewerTwin = (run) => run.path === ownPath && run.id > runId && run.status !== 'completed'
@@ -231,7 +262,9 @@ async function gateRun() {
     return runs.filter((run) => run.id !== runId && !isNewerTwin(run))
   })
   if (refusals.length > 0) throw new GateError(refusals.join('\n'))
-  console.log('rule 2, merge: first attempt, and every other run on this head is green on its own')
+  console.log(
+    'rule 2, merge: first execution, and every other run on this head is green on its own first',
+  )
 }
 
 /** The heads of the pull requests that merged as `sha`. */
@@ -272,7 +305,7 @@ async function gateRelease(sha) {
     )
   if (refusals.length > 0) throw new GateError(refusals.join('\n'))
   console.log(
-    `rule 2, release: ${String(runs.length)} run(s), every one complete and green on its first attempt`,
+    `rule 2, release: ${String(runs.length)} run(s), every one complete and green on its first execution`,
   )
 }
 

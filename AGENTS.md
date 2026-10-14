@@ -32,8 +32,10 @@ history from PLAN.md").
    commit, whatever the cause: a runner fault is answered like any red, by a
    new commit that names the run and the job, and its run decides. Two doors
    hold this (`scripts/rule2-gate.mjs`, `docs/certification/rule2-gate.md`):
-   CI's required names fail on every attempt after the first and unless every
-   other workflow run on the head is green on its first attempt, and the
+   CI's required names fail on every attempt after the run's first execution
+   (an outside contributor's run executes as attempt 2, after the approval
+   wait) and unless every other workflow run on the head is green on its
+   first, and the
    release workflow refuses a tag unless every run on the tagged commit and
    on its pull request's head is. Local runs are for fast feedback: format,
    lint, typecheck, the suites you touched and the packed-product file
