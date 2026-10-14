@@ -341,7 +341,136 @@
     // of phase-1 wiring (M104 uses the token file for its companion).
     // Wiring: the judge entry and the companion launch.
     "src/core/eval/judgeReplay.ts",
-    "src/runtime/tokenFile.ts"
+    "src/runtime/tokenFile.ts",
+
+    // TESTCUTFIN2 (2026-10-14, the owner's ruling: built features are NEVER
+    // deleted to make this gate pass). The same unfinished features' API
+    // surface inside otherwise wired files: each file below is declared as
+    // unfinished work with its milestone and "not wired yet". Nothing here
+    // is deleted. Any export removed elsewhere is named with its reason in
+    // docs/certification/testcut.md.
+    //
+    // M96/M96c (Agent roles and the team / team scheduler and traffic,
+    // D75): the team host, worker, scheduler and traffic API surface ahead
+    // of the team host's spawn-path wiring — not wired yet.
+    "src/core/team/conflictPredict.ts",
+    "src/core/team/roles.ts",
+    "src/core/team/scheduler/pick.ts",
+    "src/core/team/scheduler/retire.ts",
+    "src/core/team/teamMerge.ts",
+    "src/core/team/teamPool.ts",
+    "src/core/team/teamWorkspaces.ts",
+    "src/core/team/workers/acpWorker.ts",
+    "src/core/team/workers/engineWorker.ts",
+    "src/core/team/workers/museCodeWorker.ts",
+    "src/core/team/workers/workerFence.ts",
+    "src/core/backends/modelapi/subagentTools.ts",
+    // classifiedToolNames only: the fence-coverage list (M78) the worker
+    // fence must cover — not wired yet.
+    "src/core/backends/modelapi/tools.ts",
+    "src/core/runners/routing.ts",
+    "src/host/team/checkSlots.ts",
+    "src/host/team/mcpBridge.ts",
+    "src/host/team/teamMcpServer.ts",
+    //
+    // M109 (A credential vault and broker for agents, D89): the vault
+    // broker, migration, panel-bundle and exec-session surface ahead of the
+    // vault/broker service landing — not wired yet.
+    "src/core/vault/broker/channel.ts",
+    "src/core/vault/broker/peer.ts",
+    "src/core/vault/migrate/ambient.ts",
+    "src/host/vault/brokerClient.ts",
+    "src/host/vault/vaultPanelBundle.ts",
+    "src/runtime/vault/execVault.ts",
+    //
+    // M115 (Scheduled prompts v2, D95): the migration, report-action, data
+    // folder, schedule-surface and recording-reader surface ahead of the
+    // schedules bundle entry wiring — not wired yet.
+    "src/core/schedules/migrate.ts",
+    "src/core/schedules/reportAction.ts",
+    "src/core/context/recordingReader.ts",
+    "src/host/backend/fileScheduleStore.ts",
+    "src/runtime/dataFolder.ts",
+    "src/webview/schedules/ScheduleSurface.tsx",
+    "src/webview/schedules/prompt.ts",
+    //
+    // M95 (Bring your own models): the models-panel message schemas and the
+    // exec runtime's account selection ahead of the models panel mount —
+    // not wired yet.
+    "src/shared/modelsPanel.ts",
+    "src/runtime/exec/execAccounts.ts",
+    //
+    // M105 (Multimodal input, D85): the media-cost consent and the macOS
+    // recording-permissions surface ahead of the media entries' wiring —
+    // not wired yet.
+    "src/core/media/mediaCost.ts",
+    "src/core/media/record/macos.ts",
+    //
+    // M107 (Resource governor, D87): the disk and launch refusal surface
+    // ahead of governor wiring — not wired yet.
+    "src/core/resources/disk.ts",
+    "src/core/resources/launch.ts",
+    //
+    // M117 (The capacity estimator, D97): the base-risk, calibration-fit
+    // and goal-snapshot surface ahead of first-estimate load — not wired yet.
+    "src/core/estimator/baseRisk.ts",
+    "src/core/estimator/calibration/fit.ts",
+    "src/core/estimator/goal.ts",
+    //
+    // M75 (Paired efficiency evaluation, D49): the task-set splitter the
+    // evaluation runner reads — not wired yet.
+    "src/core/eval/tasks.ts",
+    //
+    // M113 (Deterministic reports, D93): the local-cache and GitHub report
+    // sources ahead of their /report wiring — not wired yet.
+    "src/core/reporting/sources/cache.ts",
+    "src/core/reporting/sources/github.ts",
+    //
+    // M116 (Orchestrator playbook): the panel playbook, playbook modules,
+    // playbook reports and the shared playbook rule ahead of the VS Code
+    // panel integration — not wired yet.
+    "src/core/orchestration/panelPlaybook.ts",
+    "src/core/orchestration/playbook/modules.ts",
+    "src/core/orchestration/playbookReports.ts",
+    "src/shared/playbook.ts",
+    //
+    // M71/M123 (Git and pull requests, in every editor): the GitHub
+    // sign-in/token-lease surface and the pull-request checkout and panel
+    // ahead of their editor wiring — not wired yet.
+    "src/core/git/tokenSource.ts",
+    "src/host/git/gitExtension.ts",
+    "src/runtime/panel/pullRequests/checkout.ts",
+    "src/runtime/panel/pullRequests/pullRequests.ts",
+    //
+    // M58 (Ask before every paid use): the paid-use consent surface
+    // (including the schedule consent and scope) — not wired yet.
+    "src/core/paid/paidConsent.ts",
+    //
+    // M108 (Several accounts per provider, D88): the account policy, pool,
+    // provider-client and CLI account-homes surface ahead of the panel
+    // mount — not wired yet.
+    "src/core/accounts/policyGate.ts",
+    "src/core/accounts/pool.ts",
+    "src/core/providers/accounts.ts",
+    "src/core/backends/musecode/accountHomes.ts",
+    //
+    // M91/M91b (Hooks from every popular agent / Amp and OpenCode plugins):
+    // the extension-hook fields and the plugin-hook dispatcher ahead of
+    // the foreign-hooks and plugin-host bundle reads — not wired yet.
+    "src/core/backends/modelapi/extensionHooks.ts",
+    "src/core/backends/modelapi/pluginHost.ts",
+    //
+    // M93 (Report a problem, D72): the webview flight record the problem
+    // dialog attaches — not wired yet.
+    "src/core/support/flightRecorder.ts",
+    //
+    // M97 (Legal and licence scan, D76): the legal-report envelope the
+    // /legal export writes — not wired yet.
+    "src/runtime/legal/runLegal.ts",
+    //
+    // M84 (Session export and local share file, D49): the conversation
+    // share preview ahead of its panel wiring — not wired yet.
+    "src/host/conversation/exportConversation.ts"
   ],
 
   "project": [
