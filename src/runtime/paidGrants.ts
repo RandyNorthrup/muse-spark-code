@@ -164,6 +164,9 @@ export function paidGrantFile(deps: PaidGrantFileDeps): PaidGrantStore {
       // the kind warned and carried in the next question, never "no quotes".
       if (error instanceof Error && storeErrorCode(error) === ENOENT) {
         quoteListNoter.noteHealthy()
+        // A missing folder is healthy: an older listing failure must not
+        // survive as a notice claiming saved choices are unreadable (P3-3).
+        quoteNotice = undefined
         return []
       }
       // The errno names the distinct damage for the noter and the log;

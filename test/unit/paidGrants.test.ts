@@ -101,6 +101,22 @@ describe('paid grant quote folder failures', () => {
     expect(store.quoteNotice?.()).toBeUndefined()
   })
 
+  it('drops a stale quote notice when the folder becomes missing (P3-3)', async () => {
+    const { store } = fileStore(grantsFile())
+    await store.add(WORKSPACE, ['webSearch'])
+    expect(store.read(WORKSPACE)).toEqual(new Set(['webSearch']))
+    expect(store.quoteNotice?.()).toEqual({ kind: 'denied' })
+    // The folder is gone now: a missing folder is no quotes, so the notice
+    // must not survive to claim saved choices are unreadable.
+    readdirBehavior.mode = 'missing'
+    try {
+      expect(store.read(WORKSPACE)).toEqual(new Set(['webSearch']))
+      expect(store.quoteNotice?.()).toBeUndefined()
+    } finally {
+      readdirBehavior.mode = 'denied'
+    }
+  })
+
   it('reads a malformed generation as no grant with its reason', async () => {
     const file = grantsFile()
     const { store, log } = fileStore(file)
