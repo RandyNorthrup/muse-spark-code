@@ -28,7 +28,6 @@ export {
   ModelApiError,
   isModelApiError,
   isMissingApiKeyError,
-  retryAfterMs,
   type ConfirmedModelRequest,
   type ResponseAttemptGuard,
   type RetryBudget,
