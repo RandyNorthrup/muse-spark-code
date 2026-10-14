@@ -1,12 +1,13 @@
 // Panel-focus ownership: a recorded focus request lands only while the chat
-// surface already holds the keyboard. Through the real reducer and the real
-// drop rule, with messages passed in as data: no mocks, no fake timers.
+// surface already holds the keyboard, and an unowned check does not spend
+// it. Through the real reducer and the real landing rule, with messages
+// passed in as data: no mocks, no fake timers.
 
 import { describe, expect, it } from 'vitest'
 import type { HostToWebviewMessage, SettingsSnapshot } from '../../src/shared/protocol'
 import {
   initialUiState,
-  shouldLandFocusRequest,
+  landFocusRequest,
   uiReducer,
   type UiAction,
   type UiState,
@@ -53,15 +54,28 @@ function reduceAll(actions: readonly UiAction[], start: UiState = initialUiState
 
 describe('panel-focus ownership', () => {
   it('lands a request only while the surface holds the keyboard', () => {
-    expect(shouldLandFocusRequest(true)).toBe(true)
-    expect(shouldLandFocusRequest(false)).toBe(false)
+    // No request yet, and a request already landed: nothing to land.
+    expect(landFocusRequest(0, 0, true)).toBe(0)
+    expect(landFocusRequest(2, 2, true)).toBe(2)
+    // An owned request lands and is spent.
+    expect(landFocusRequest(1, 0, true)).toBe(1)
+  })
+
+  it('keeps an unowned request pending until the surface itself gains focus', () => {
+    // Reveal asked, focus not arrived yet: not landed, and not spent either,
+    // so the surface's own focus event can still land it.
+    const afterUnownedCheck = landFocusRequest(1, 0, false)
+    expect(afterUnownedCheck).toBe(0)
+    expect(landFocusRequest(1, afterUnownedCheck, true)).toBe(1)
+    // A load finishing behind a file: unowned checks never spend it.
+    expect(landFocusRequest(3, 1, false)).toBe(1)
   })
 
   it('records the load-time request without landing it anywhere', () => {
     const state = reduceAll([host(init)])
     expect(state.phase).toBe('ready')
     // Recorded, so opening the panel yourself still offers the caret; the
-    // composer's effect drops it unless the surface holds the keyboard.
+    // composer's effect lands it only while the surface holds the keyboard.
     expect(state.focusRequests).toBe(1)
   })
 
@@ -70,7 +84,7 @@ describe('panel-focus ownership', () => {
     expect(state.focusRequests).toBe(2)
   })
 
-  it('records a mention insert as a request, dropped like any other when unowned', () => {
+  it('records a mention insert as a request, pending like any other while unowned', () => {
     const state = reduceAll([host(init), host({ type: 'insertText', text: '@file ' })])
     expect(state.focusRequests).toBe(2)
     expect(state.pendingInsert).toBe('@file ')
