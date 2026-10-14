@@ -213,3 +213,160 @@ current; `npm run deadcode` exit 0; `npm run cycles` no cycles;
 3. If the lock folder is made uncreatable, the command prints `The local
 sign-in lock could not be opened (<CODE>). Try again.` — never
    "temporarily unavailable".
+
+---
+
+# Host-ID follow-up (HOSTID, branch `fix/chatgpt-host-id`)
+
+Worktree `/home/randy/lanes/HOSTID`, from LOCKPORT's head `791395dc2`.
+
+## The cause
+
+With the lock fixed, the lead's run printed the authorize address and
+OpenAI's authorize endpoint answered:
+
+`{"error":{"message":"Invalid authorize request","type":"invalid_request_error","param":"ext_agent_host_id","code":"invalid_authorize_request"}}`
+
+Our app sent `ext_agent_host_id` as a bare 22-character random string
+(`chatgpt.ts` `hostId`, validated with `isPkceState` like a PKCE value).
+OpenAI's token-sharing documentation
+(`https://developers.openai.com/siwc/token-sharing-open-source`, read
+2026-10-14) accepts only three forms and ours is none of them:
+
+- "`urn:ietf:params:oauth:jwk-thumbprint:…`", "Recommended ... Derive the
+  URI from the host's public key using RFC 9278";
+- "`urn:uuid:…`", "Supported alternative. Generate a UUID and store its
+  URI once for the host's lifecycle";
+- "`did:key:<key>`", "Use `did:key`, not another DID method".
+
+Further: "Choose and persist the host ID before its first sign-in.",
+"each host must have its own distinct host identifier.", "Use an opaque
+value, not an email, user ID, or other user-identifying value." The
+registration page shows `"ext_agent_host_id": "urn:uuid:..."` and says to
+send the same value for the same host.
+
+## What changed
+
+- New `urn:uuid:<UUIDv4>` host id, generated once per host and persisted
+  (`isChatGptHostId`, `createChatGptHostId`,
+  `src/core/providers/subscriptions/chatgptHostId.ts`). The JWK
+  thumbprint form was not chosen: our host has no key pair, and the docs
+  call the thumbprint "an identifier only" that OpenAI does not verify,
+  so it would add key management for nothing.
+- Every creator, store, validator and sender follows:
+  `buildChatGptAuthorizeUrl` (sends it, rejects the old form),
+  `createRuntimeChatGptHost` (OS-store slot, terminal/ACP),
+  `loadChatGptHostId` (new `src/host/providers/chatgptHostId.ts`,
+  the `chatgpt.host-id` file, VS Code). The record schema
+  (`chatGptRecordSchema.hostId`) stays open: a stored grant is never
+  re-parsed against the new shape, and refresh never sends the id.
+- Migration: a stored bare-random id is replaced in place with a fresh
+  documented one before the next sign-in; anything else unparseable is
+  still rejected, never repaired. An issued `client_id` survives the
+  migration with no re-authorization: the docs bind it "to the
+  authenticated user and the workspace", and "a single client can have
+  multiple hosts ... each has its own host ID". The locally derived
+  account key (`chatGptAccountId`, a hash of the record's host id)
+  follows the stored record on the next sign-in.
+- Refusal sentence: the callback's `error` now validates `state`, stops
+  without exchanging a code, and throws
+  `ChatGptSignInError('authorize-refused', <OpenAI's error code>)`,
+  shown as `OpenAI refused the ChatGPT sign-in request ({reason}). …`
+  (new `UI_TEXT.acpChatGpt.authorizeRefused` in all 14 locales, last
+  inside `acpChatGpt`). One honest limit is recorded: the measured
+  direct-JSON refusal (`invalid_authorize_request`, param
+  `ext_agent_host_id`) is answered to the browser, never to our loopback
+  callback, so the sentence carries OpenAI's error code from the
+  callback redirect; after this fix that refusal cannot recur.
+- Bundle diet (measured): the helpers first dragged the whole sign-in
+  core into `dist/modelsPanel.js` (123.4 → 125.4 KiB, over its 125 KiB
+  budget). The id, validator and failure codes now live in a
+  dependency-free module the panel reaches through the externalized
+  subscriptions bundle; the module joined the split guard's
+  subscription sibling list with drill rows. Panel is at 123.6 KiB;
+  `npm run build` is green.
+
+## Red and green
+
+- RED: `isChatGptHostId` weakened to accept long strings —
+  `test/unit/chatGptHostId.test.ts` fails 5 assertions (old id accepted,
+  old URL built, migration skipped); reverted byte-exact (SHA-256
+  `fdc22de6…` before and after).
+- GREEN: `test/unit/chatGptHostId.test.ts` 13/13 (format, persistence,
+  old-id migration in a real temp folder, refusal sentence) through the
+  real modules, no stand-ins.
+
+## Platform tests
+
+- This sandbox blocks `AF_UNIX` (`socket(AF_UNIX)` → `EPERM`, measured
+  with `node:net` listen in the worktree `temp/`): the 6 socket lock
+  tests cannot run here. The 2 lock tests that need no socket pass, and
+  the Windows pipe case correctly skips.
+- `test/unit/runtimeChatGptLock.test.ts`: socket-file cases now run
+  only off Windows (`runIf`); Windows gets its own pipe crash-recovery
+  case (worker holds the pipe, SIGKILL, re-acquire, no `lstat`). A
+  deterministic Windows pipe-bind OS error has no trigger through the
+  unchanged module (a held name is contention with a retry deadline, not
+  a local failure; pipes have no files to block), so there is no
+  Windows `lock-unavailable` case: the mapping line is shared code the
+  POSIX test covers, and contention on the real pipe is covered by the
+  live-holder test. The lead runs this file outside the sandbox and on
+  the owner's PC.
+- Stale-socket Linux failure: the lock path is proven by the passing
+  crash test (same EADDRINUSE → refused-probe → unlink → bind
+  sequence), and Node's own `lib/net.js` (v24.21.0, fetched) performs no
+  unlink on `close()`, so the setup — bind, graceful close, expect the
+  file — is where it breaks, not the lock. The drill now builds the
+  file the way production does (a child binds a raw socket and is
+  SIGKilled; no cleanup runs), which the crash test already proves
+  leaves the file.
+- Mock-based suites the new validation breaks (old-format `HOST`
+  constant, 22-char regex) are named and left for TESTCUT per the
+  owner's 2026-10-12 rules: `chatGptSignIn.test.ts` (was 105/105; the
+  URL-shape test now throws at `!isChatGptHostId`), plus
+  `runtimeChatGpt.test.ts`'s `initializes one opaque installation id`
+  outside the sandbox. Unchanged in-sandbox: `runtimeChatGpt.test.ts`
+  29/6 and `chatGptVsCode.test.ts` 9/17 before and after (sandbox
+  socket/fetch cascade); `subscriptionIntegration` +
+  `configuredProviders` 5 fail identically on the untouched base in the
+  same sandbox (measured in a base export under `$TMPDIR`).
+
+## Packed-product run (this Linux machine)
+
+`npm run build` green, then built `dist/acp.js` under a new empty HOME:
+`providers add chatgpt` prints the notice, then `The local sign-in
+lock could not be opened (EINVAL). Try again.` (exit 1) — the sandbox
+blocks the lock before discovery, so no authorize address prints here.
+Through the packed `dist/subscriptions.js` itself (no network, no
+lock): created id has shape `urn:uuid:<uuidv4-redacted>` (45 chars),
+accepted; the old bare-random id and an email rejected; the packed
+parser throws `authorize-refused` with reason `access_denied`. No
+request to OpenAI beyond the public documentation pages. The lead
+re-runs the authorize-address run outside the sandbox (Ctrl-C to stop).
+
+## Gates on the final tree
+
+`npm run typecheck` clean; ESLint and Prettier clean on changed files;
+`npm run check:l10n` 0 problems (key order verified English-last in all
+14 tables); `npm run check:reference` current; `npm run deadcode` exit
+0; `npm run cycles` no cycles; `npm run duplication` exit 0;
+`npm run security:audit` exit 0; `npm run build` green (incl.
+bundle-size and bundle-split). `npm run security:sast` cannot run:
+`semgrep is not installed: pip install -r
+.github/semgrep/requirements.txt`. No `eslint-disable`,
+`@ts-expect-error`, `as` cast or `any` added (no PLAN.md §8 row
+needed). `test/e2e/execStdio.e2e.test.ts` 46/46.
+
+## Real-life scenarios for the lead
+
+1. Outside the sandbox with an empty HOME: `providers add chatgpt`
+   prints the authorize URL whose `ext_agent_host_id` is
+   `urn:uuid:…`; completing it in the browser signs in (OpenAI accepts
+   the form), and a second run keeps the same host id.
+2. With an old-format id already stored, the next `providers add
+chatgpt` migrates the stored value in place and signs in with the
+   new one; an existing grant keeps working (refresh never sends the
+   id).
+3. A refused authorize request (e.g. declined consent) ends with
+   `OpenAI refused the ChatGPT sign-in request (access_denied). …` —
+   never "temporarily unavailable".
