@@ -1004,21 +1004,8 @@ async function main(): Promise<number> {
     })
     let headlessCode: number = EXEC_EXIT.internal
     try {
-      try {
-        await lifecycle.race(
-          loadUiTable({
-            language: displayLanguage(
-              process.env,
-              new Intl.DateTimeFormat().resolvedOptions().locale,
-            ),
-            readExtensionFile: (segments) => readUiTableFile(packageRoot, segments),
-            log,
-          }),
-        )
-      } catch {
-        /* The bundled English table is already installed; stop still owns the deadline. */
-      }
-      setProviderPolicyText(UI_TEXT, uiLocale())
+      // The scanner has no translated output: stdout is a count, and even
+      // its refusal is exit-only. Do not emit panel language diagnostics.
       if (command.command === 'scan-secrets') {
         try {
           headlessCode = await lifecycle.race(
@@ -1037,6 +1024,21 @@ async function main(): Promise<number> {
           return headlessCode
         }
       }
+      try {
+        await lifecycle.race(
+          loadUiTable({
+            language: displayLanguage(
+              process.env,
+              new Intl.DateTimeFormat().resolvedOptions().locale,
+            ),
+            readExtensionFile: (segments) => readUiTableFile(packageRoot, segments),
+            log,
+          }),
+        )
+      } catch {
+        /* The bundled English table is already installed; stop still owns the deadline. */
+      }
+      setProviderPolicyText(UI_TEXT, uiLocale())
       // The reserved read-only scan (M97 lane R): no backend, no auth, no
       // model. stdout carries only the rendered report; every other word
       // goes to stderr, as the sign-in commands' own output does.
