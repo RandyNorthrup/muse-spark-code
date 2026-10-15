@@ -25,7 +25,6 @@ export interface DamageMarkerStore {
  * again. All storage failures only repeat an announcement, never hide one.
  */
 export class DamageNoter {
-  private readonly seen = new Set<string>()
   private isDirty = false
   private healthyMarkerChecked = false
 
@@ -38,10 +37,6 @@ export class DamageNoter {
   public noteDamaged(identity: string): void {
     this.isDirty = true
     this.healthyMarkerChecked = false
-    if (this.seen.has(identity)) {
-      return
-    }
-    this.seen.add(identity)
     if (this.store.readMarker() === identity) {
       return
     }
@@ -60,7 +55,6 @@ export class DamageNoter {
       return
     }
     this.isDirty = false
-    this.seen.clear()
     this.store.clearMarker()
   }
 }

@@ -9,6 +9,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- A window reports recurring file damage again after another window has
+  observed a repair; a stale in-memory cache no longer hides the warning.
+
 - The catch baseline now identifies individual handlers and their work,
   so repairing one failure cannot conceal a new one in the same area.
 

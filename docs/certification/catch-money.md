@@ -492,3 +492,16 @@ Green: 13 tests, exit 0. Drill removes the identity from both keys: exit 1,
 `db1b4048273ad7384a2ad5043198e34819781f8ae8f190024815774c3a9d2913`.
 Logs: `.lane/T2-{green,drill,catch-gate}.log`. The actual command exits 1
 and names formerly misclassified sites; no new debt is accepted.
+
+### T3 — PRRT_kwDOUkzj5M6scSP8
+
+Valid. Removed the redundant local `seen` authority. Every damaged read now
+checks the durable marker first, so another window's repair or changed
+identity cannot be hidden by this window's history. A real temporary folder,
+two real `DamageNoter` instances and `fileDamageMarkers` cover duplicate
+suppression, repair and recurrence, then an identity changing away and back.
+No substitute store. Green exit 0 (1 test); drill reinstates `seen` before
+the marker read, exit 1: expected two `corrupt-a` announcements but got one.
+Restore exit 0, SHA-256
+`ab11ea91947aafa134625ec5427140fe39670637919359ddb51fc25f47d83930`.
+Logs: `.lane/T3-{drill,restored}.log` and `.lane/T2-T3-green.log`.
