@@ -584,6 +584,13 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     ],
   },
   {
+    file: 'rulesFile.js',
+    side: 'vscode',
+    requestedBy: [
+      { importer: 'src/shared/constants.ts', symbol: 'RULES_FILE_BUNDLE_FILE', side: ['vscode'] },
+    ],
+  },
+  {
     file: 'runtimeAccounting.js',
     side: 'acp',
     requestedBy: [
