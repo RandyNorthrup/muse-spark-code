@@ -1,5 +1,202 @@
 # Lane CLIFLOWS certification — terminal commands confirm, explain and exit as helped
 
+## Lane CLIFLOWSFIX — finish the terminal fixes (2026-10-15, linuxlt rig)
+
+Worktree `/home/randy/lanes/CLIFLOWSFIX`, branch `fix/cli-flows-final`.
+Base `0a9ffb7ac` (review branch) merged with main `d842cad5d` (test
+overhaul) as `12bf22822`: both CHANGELOG sides kept; the overhaul's
+deletion of `test/unit/runtimeChatGpt.test.ts` stands, and its 8
+real-module ChatGPT command-boundary cases move into the surviving
+`test/unit/accountsCommand.test.ts` (`389ef7020`, 31 tests pass).
+No fake is added anywhere; the packed `dist/acp.js` (`npm run build`)
+is the proof surface throughout, under a scratch HOME with
+`DBUS_SESSION_BUS_ADDRESS` pointing nowhere and no secret service.
+
+### F80 (P1): plan-model exec on the shared subscription path (`2a9904ed9`)
+
+`createProviderClient`/`getProviderAccountId` no longer exclude exec:
+a terminal plan-model run builds the subscription client and account
+identity exactly as the editor protocol does. The session tap carries
+the run's `--model` as the readiness hint, so the session gate sees
+the same plan hint as the run's own check. A plan run bypasses the
+Meta-only transport (which refuses non-Meta origins); its attempts are
+admitted through the shared accounting wrapper's zero-price tickets —
+the same single-admission pattern as a configured-provider run, so
+`--max-requests` still bounds it — and the ledger preview reserves $0
+instead of refusing the model as unpriced.
+
+Packed proof (no grant, dead store), exit 3, requests 0:
+
+```text
+[info] Authentication Required; requests 0; settled $0.000000; uncertain $0.000000; image attempts 0; returned 0; uncertain images 0
+[error] This computer's credential store is unavailable, so stored keys cannot be checked.
+```
+
+No Meta-key wording anywhere. With a working store and no grant the
+same path returns `ChatGPT is not signed in.` (readiness plan branch);
+with a grant the run dispatches on the ChatGPT sign-in. Both need a
+real grant/store and are owner real-life steps (no model call is made
+from any lane).
+
+### F43 (P1): sessions open with no unlocked store (`d7ec13ea3`, `3c7b54863`)
+
+A `signedOut` readiness caused by a dead store carries a `storeDown`
+marker and the agent opens the host anyway. The gate's Meta-key probe
+is cached, so the model list skips the doomed catalogue dial
+(`hasMetaCredential`, previously unwired) and the host builds without
+stored history when nothing can be attributed. A step that needs the
+stored key throws the store failure instead of claiming no key is
+stored; account identity falls back to the subscription account; failed
+turns name the store in the one sentence. `auth status`,
+`auth status --provider openai` and `providers status chatgpt` print
+exactly that sentence (exit 1). `auth set` with a valid-shaped key
+refuses the same way with the filesystem unchanged (no plain text).
+`session/new` on a bare scratch HOME reaches model availability and
+refuses `Authentication required: This computer's credential store is
+unavailable, so stored keys cannot be checked.` (authRequired,
+no store access, no dial) instead of the old pre-host refusal.
+
+Remaining wall (named, not patched): `startSession` pins spend to an
+account identity, and with no readable store or key there is none, so
+a fully-keyless session cannot start by design. A `--key-stdin` key
+gives the sha identity and opens end to end (owner run needs the
+network for the catalogue list). ACP file-model listing stays a
+Models & Agents panel capability: the configured-client list throws
+`Models & Agents is not available in this build` in a terminal
+session, which is accurate and unchanged.
+
+### F46 (P2): advice follows the file the service reads (`0c315b1e1`)
+
+`providers accounts list --provider openai` with no providers-file
+entry keeps `openai is not configured; add it with providers add
+first.` (exit 1); with a valid `openai` entry in the runner's own
+providers file it now says `Accounts are unavailable until this
+runtime is connected to the shared account service.` (exit 1),
+because the account service reads its own metadata rows, not that
+file. `meta` still lists its default account (exit 0). No new
+strings; the check reuses the runner's file read.
+
+### F44 (P2) + help (P2): scripted use, true words, own screen (`06e318dfc`)
+
+`prompts use` takes repeatable `--var name=value` and `--confirm`.
+Without `--confirm` a script sees the preview and stops, exit 7;
+with both it prints the prepared text, exit 0 (proven with a
+`Hello {{name}}` prompt: `Hello Tester`). The terminal review asks
+`Print prepared text (y/N)` — nothing is inserted into an editor —
+in English and all 14 translations (new key `promptPrintConfirm`,
+order-verified). `scan-secrets --help` prints its own 545-byte screen
+(usage, description, `--key-stdin`, `Exits 0 when clean, 10 when a
+secret is found, 2 for misuse.` — new key `scanSecretsExits`,
+order-verified) instead of the 158,621-character reference, exit 0.
+`exec --help`/`report --help` routing is untouched for the CLI-help
+owner; the reference gate still passes.
+
+### Gates (final tree, exit codes)
+
+All gates ran on the final tree (`15ae62c7a` plus this file) on the
+linuxlt rig, direct runs, repo-default timeouts throughout:
+
+| Gate        | Command                                                                                            | Exit |
+| ----------- | -------------------------------------------------------------------------------------------------- | ---- |
+| format      | `npm run format:check`                                                                             | 0    |
+| lint        | `npm run lint` (js main+unit+tests, css; `lint:ps` skips: PSScriptAnalyzer runs on Windows only)   | 0    |
+| typecheck   | `npm run typecheck` (host, webview, unit, e2e, integration)                                        | 0    |
+| deadcode    | `npm run deadcode` (knip; 3 pre-existing config hints, no findings)                                | 0    |
+| cycles      | `node scripts/cycles.mjs` (no circular dependency)                                                 | 0    |
+| duplication | `npm run duplication` (jscpd: 0 clones)                                                            | 0    |
+| l10n        | `node scripts/check-l10n.mjs` (14 UI + 14 usage tables, 0 problems)                                | 0    |
+| reference   | `node scripts/gen-reference.mjs --check` (73 features, 65 commands, 89 settings, 244 CLI; current) | 0    |
+| host-api    | `node scripts/check-host-api.mjs` (0 problems)                                                     | 0    |
+| plan        | `node scripts/check-plan.mjs` (218 milestones, 0 drift)                                            | 0    |
+| build       | `npm run build` (production + size/split/globals/notices)                                          | 0    |
+| sast        | `SEMGREP_ENABLE_VERSION_CHECK=0 npm run security:sast` (533 rules, 3232 files, 0 findings)         | 0    |
+
+Lint note: the first `lint:js:main` run flagged one error in
+`temp/acp-probe.mjs` — gitignored scratch from the earlier run, not a
+deliverable. It moved to `$TMPDIR` and the full `npm run lint` passes.
+
+Touched unit tests (real modules only, `--maxWorkers=3`):
+
+| Files                                                                  | Result                                         |
+| ---------------------------------------------------------------------- | ---------------------------------------------- |
+| `accountsCommand` (31) + `providersFileStore` + `sharingTerminal` (14) | 64 passed                                      |
+| `execArgs` (55) + `scanSecrets` + `referenceEntry` (15)                | 75 passed                                      |
+| `runtimeAccountsService` + `runtimeServices` + `runtimeChatGptPackage` | 30 passed, 1 failed — pre-existing (see below) |
+
+Pre-existing failure, not a lane regression:
+`runtimeAccountsService.test.ts > reports unavailable for an unconfigured
+provider and never writes it` expects `UI_TEXT.accounts.unavailable` but
+gets `openai is not configured; add it with providers add first.`
+Every file deciding that outcome (`accounts.ts`, `runtimeServices.ts`,
+`providersFileStore.ts`, the test itself) is byte-identical between the
+merge base `12bf22822` and this tree, and the lane's `accountsCommand.ts`
+change returns the identical string on this path (no `isProviderConfigured`
+dep in that rig). Re-ran that single test on a pristine `12bf22822`
+worktree: same 1 failure. It encodes a stale expectation (the
+F46-intended contract says unconfigured reads as unconfigured); left for
+the overhaul fallout owner, not re-asserted here.
+
+### Packed-product runs (final `dist/`, scratch HOME, dead secret service)
+
+`DBUS_SESSION_BUS_ADDRESS=unix:path=/nonexistent/no-bus`, fresh
+`HOME`/`XDG_*_HOME` under `$TMPDIR`. No real grant, no network model call.
+
+F80 — `exec --backend modelApi --model chatgpt/gpt-6.1-sol --max-requests 1 --max-budget-usd 1 "say hi in five words"`, exit 3:
+
+```text
+[info] Display language en-us: the panel is in English
+message withheld: the response did not complete
+[info] Authentication Required; requests 0; settled $0.000000; uncertain $0.000000; image attempts 0; returned 0; uncertain images 0
+[error] This computer's credential store is unavailable, so stored keys cannot be checked.
+```
+
+No Meta-key wording: the plan run builds the subscription client and
+reaches the grant check (requests 0, $0 settled). With a working store
+and no grant the same shared path returns `ChatGPT is not signed in.`
+(`acpChatGpt.states.signed-out`); observing that needs a real
+store/grant and stays an owner real-life step.
+
+F43 — `auth status`, `auth status --provider openai`,
+`providers status chatgpt`: each prints exactly
+`This computer's credential store is unavailable, so stored keys cannot
+be checked.`, exit 1. `auth set` with a valid-shaped but fake key
+(`LLM_` + 20 chars, never real, never stored) prints the same sentence,
+exit 1, and `find $HOME -type f` is empty before and after: nothing is
+written in plain text. (`auth set --key-stdin` without `--provider` is
+usage exit 1: `--key-stdin` belongs to the provider-key grammar.)
+
+F43 — ACP `initialize` succeeds and the host opens (`Model API backend
+ready`); then both `session/list` and `session/new` (each probed
+directly with the real ACP SDK client) refuse:
+
+```text
+RequestError: Authentication required: This computer's credential store is unavailable, so stored keys cannot be checked.
+```
+
+No store access, no catalogue dial before the refusal — the old
+pre-host refusal is gone; the remaining keyless wall is by design
+(`startSession` pins spend to an account identity).
+
+F46/F44 re-checked on this build: `scan-secrets --help` is 545 bytes,
+exit 0; `providers accounts list --provider openai` (unconfigured)
+prints `openai is not configured; add it with providers add first.`,
+exit 1.
+
+### Per-finding table
+
+| Finding                      | Fix commit               | Packed proof (this run)                                                                                     |
+| ---------------------------- | ------------------------ | ----------------------------------------------------------------------------------------------------------- |
+| F80 P1 plan-model exec       | `2a9904ed9`              | exec exit 3, requests 0, $0; no Meta wording                                                                |
+| F43 P1 dead-store sessions   | `d7ec13ea3`, `3c7b54863` | 3 status commands exit 1 with the store sentence; `auth set` exit 1, no files; list+new refuse authRequired |
+| F46 P2 account advice        | `0c315b1e1`              | unconfigured openai exit 1 with the add-first advice                                                        |
+| F44 P2 scripted prompt words | `06e318dfc`              | unit-covered; terminal asks `Print prepared text (y/N)`                                                     |
+| help P2 scan-secrets screen  | `06e318dfc`              | 545 bytes, exit 0                                                                                           |
+
+No `bwrap` namespace failure was hit in this run. Temp-space note:
+`/var/tmp/l-CLIFLOWSFIX` exists but is read-only (stale mount from the
+earlier run), so scratch lived in `$TMPDIR` and the worktree `temp/`
+(only `$TMPDIR/acp-probe.mjs` retained for the record).
+
 ## RVCLIFLOWS review — readable terminal results (2026-10-14, Windows)
 
 P2: `--json` opt-in suppressed the entire result of ordinary prompt save,
