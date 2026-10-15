@@ -103,6 +103,19 @@ happened, not what was planned; superseded entries are kept.
   launches are not yet under the resource governor; nothing in this release
   can start them, and the process inventory fails the day something could.
 
+- No-silent-drops lane (LIMITSC, PLAN.md D113): six limits that dropped
+  something without telling the person now keep it or say so, in every
+  installed language. A child task's full result is kept (`read_result`
+  returns it whole; the automatic push carries the bounded slice plus a
+  notice with both counts). Crowded-out questions stay readable on their
+  expired cards with a warning at that moment past 20 open. Every
+  damaged-session marker is kept (the 50 cap is gone) and marking warns
+  at that moment. A timed-out elicitation form settles as cancel with a
+  warning naming the server. A dropped judge advisory is named on the
+  approval card, and as a warning on auto-allow. An oversize panel state
+  still omits the transcript, but the unsent draft and pending send come
+  back on restore. Proof in `docs/certification/no-silent-drops.md`.
+
 ## [0.18.2] - 2026-10-12
 
 ### Highlights

@@ -14310,6 +14310,22 @@ cost and caution, never speed.
   reviewer on B1 and B2, never the only one and never an allow by itself.
   Everywhere else both stand unchanged.
 
+### D113 — Nothing is dropped without telling the person (2026-10-15)
+
+Owner, 2026-10-14, on the limits audit's "App problems" item 4: six limits
+dropped something without telling the person. Rule in force: keep what the
+product can keep; where something must still go, the person is told in a
+translated sentence, at the moment it happens — what was dropped, why, and
+where it can still be found. Lane LIMITSC applies it (proof in
+`docs/certification/no-silent-drops.md`): B9 keeps the full child result
+(pushes/listings carry the announced slice); B22 retains expired cards
+with a warning past 20 open; B23 keeps every damaged marker (50 cap
+removed) and warns on marking; C7 settles a timed-out form as cancel with
+a warning; B17 names a dropped judge advisory on the card (warning on
+auto-allow); B10 restores the unsent text past 8 MiB. An invented number
+binds only where the bound itself is the product; elsewhere the drop is
+removed or announced, with the reasoning in the lane's record.
+
 ## 3. Open questions (need the owner)
 
 **Q-VIS0171-RELEASE-NOTES resolved by lead (2026-10-10, linuxlt).** Round 2
