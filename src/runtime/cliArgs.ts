@@ -287,6 +287,28 @@ function topicValidOptions(topic: string): readonly string[] {
   return found === undefined ? [] : topicShownOptionNames(found)
 }
 
+/** Enum refusals use the help table's accepted values, never the supplied value. */
+function enumRefusal(
+  topic: string,
+  values: Readonly<Record<string, unknown>>,
+): Extract<RuntimeCommand, { command: 'invalid' }> | undefined {
+  const options = helpTopicNamed(topic)?.options ?? []
+  for (const option of options) {
+    const value = values[option.name]
+    if (value === undefined || option.fact?.kind !== 'enum') continue
+    if (typeof value === 'string' && option.fact.values.includes(value)) continue
+    const optionName = `--${option.name}`
+    const reason =
+      topic === 'exec'
+        ? fill(UI_TEXT.execValueInvalid, { option: optionName })
+        : fill(UI_TEXT.acpUnknownArgument, { argument: optionName })
+    return refused(
+      `${reason} (${fill(UI_TEXT.cliHelp.accepts, { values: option.fact.values.join('|') })})`,
+    )
+  }
+  return undefined
+}
+
 /** The paid features whose flags were given, in the flags' order. */
 function paidFeaturesOf(values: Readonly<Record<string, unknown>>): AcpPaidFeature[] {
   return ACP_PAID_FEATURES.filter((feature) => values[ACP_PAID_FLAGS[feature]] === true)
@@ -407,6 +429,8 @@ export function parseCommandLine<T>(
   if (values.version === true) {
     return { command: 'version' }
   }
+  const enumError = enumRefusal(positionals[0] === 'providers' ? 'providers' : 'serve', values)
+  if (enumError !== undefined) return enumError
   const backend = values.backend ?? ACP_DEFAULT_BACKEND
   if (!isOneOf(ACP_BACKENDS, backend)) {
     return positionals[0] === 'auth'
@@ -741,6 +765,8 @@ function parseUsage(argv: readonly string[]): RuntimeCommand {
       options: CLI_OPTION_REGISTRY.usage.options,
     })
     if (values.help) return { command: 'helpTopic', topic: 'usage' }
+    const enumError = enumRefusal('usage', values)
+    if (enumError !== undefined) return enumError
     const [action = 'summary', ...rest] = positionals
     const fail = (): RuntimeCommand => ({ ...invalid('usage'), exitCode: 2 })
     if (rest.length > 0 || (values.json && values.csv) || values.out === '') return fail()
@@ -837,6 +863,8 @@ function parseHeadless(argv: readonly string[]): RuntimeCommand {
       options: CLI_OPTION_REGISTRY.exec.options,
     })
     if (values.help === true) return { command: 'helpTopic', topic: 'exec' }
+    const enumError = enumRefusal('exec', values)
+    if (enumError !== undefined) return enumError
     const { help: _help, attach, record, ...execValues } = values
     if (record === true)
       return { command: 'invalid', reason: UI_TEXT.media.recordingUserOnly, exitCode: 2 }

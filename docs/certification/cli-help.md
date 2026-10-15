@@ -44,6 +44,11 @@ required per-model limits. Real-module regression failed with the misleading
 fetch and stdin reading, not throwing replacements. Its list uses a closed
 loopback port; no provider answers or credentials are used.
 
+T3: enum checks now use the canonical help facts before generic parser
+validation (serve family, exec, provider format/privacy, usage range/grouping).
+Refusals include accepted values and omit the untrusted rejected value.
+Regression red: `--backend auto` lacked `museCode|modelApi` (exit 1).
+
 ## 1. Accepted today (from the code, release 0.18.1 base)
 
 Parser routes (`CLI_OPTION_REGISTRY` in `src/runtime/cliOptions.ts`, plus the
