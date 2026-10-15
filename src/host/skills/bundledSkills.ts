@@ -129,17 +129,15 @@ function readShown(status: BundledSkillsStatus): ShownOffer | undefined {
 
 /**
  * The remembered answer for a stray Not now (F66): the copy's state read
- * now, or the fallback when even the read fails (a broken read keeps
- * nothing rather than a wrong memory).
+ * now; a broken read keeps nothing rather than a wrong memory.
  */
 async function readStrayAnswer(
   readStatus: () => Promise<BundledSkillsStatus>,
-  fallback: ShownOffer | undefined,
 ): Promise<ShownOffer | undefined> {
   try {
     return readShown(await readStatus())
   } catch {
-    return fallback
+    return undefined
   }
 }
 
@@ -202,7 +200,7 @@ export function createBundledSkillsOffer(deps: BundledSkillsOfferDeps): BundledS
       // or a second window's session, leaves `shown` empty while the panel
       // still shows the button. The copy's state then says which answer to
       // keep.
-      const answer = shown ?? (await readStrayAnswer(deps.status, shown))
+      const answer = shown ?? (await readStrayAnswer(deps.status))
       if (answer === undefined) {
         return
       }
