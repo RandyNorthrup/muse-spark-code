@@ -472,6 +472,8 @@ Each question or MCP form has one card pinned above the composer. Answer on its 
 
 Each question or MCP form has one card pinned above the composer. Answer on its Open question transcript marker opens or expands the card and focuses its first control, even after deferral. Muse receives submitted answers and explanations in the conversation. After museSpark.questions.deferAfterSeconds (default 60 seconds; 0 waits indefinitely), Muse resumes independent work; answer or dismiss the card later. Late answers are your messages and approve nothing. Next open question / Previous open question navigate cards. Scheduled prompts defer immediately; headless exec declines questions. ACP: --questions-defer-after sets the deadline; /questions lists open questions; /answer &lt;n&gt; &lt;text&gt; answers one.
 
+Expired
+
 ```json
 {
   "actions": ["submit", "explain", "cancel"]
@@ -636,6 +638,8 @@ Choose how much effort Muse puts into each reply. Thinking: On = effort; Off = m
 turnState: Rename, fork or rewind a conversation. Rewind can restore recorded edits as well as history; changed files are left alone, and shell changes are not covered. While a turn runs, new messages steer it. Model API messages can be withdrawn before the next request; Muse Code permits withdrawal only while queued, because steering is delivered immediately. Side chat copies completed turns, clears the goal and stays in Plan; Muse Code file tools may still edit in Plan. Select transcript text to reply, ask, comment or copy.
 
 Reload rebuilds the panel; the conversation is kept by the host.
+
+This conversation was too long to keep in the panel across the reload; open it from History to see all of it.
 
 Surfaces: vscode:museCode, vscode:modelApi. Paid: no extra feature charge; model usage still applies.
 
@@ -1406,6 +1410,8 @@ The structured answer was invalid. Retrying once…
 
 The structured answer could not be validated. Using the text fallback.
 
+The background safety check did not finish, so no advisory is attached to this approval.
+
 ```json
 {
   "paidFeature": "judge",
@@ -1478,6 +1484,8 @@ Commands: —. Settings: `museSpark.judge.engine`. [Documentation](https://githu
 ### Judge
 
 Muse Judge uses your chat model on your Muse subscription and counts against its limits. Each batch uses a fresh isolated Plan session. A tool-item guard cancels the session, but cannot prove that no tool ran. It can only add caution.
+
+The background safety check did not finish, so no advisory is attached to this approval.
 
 Surfaces: vscode:museCode. Paid: no extra feature charge; model usage still applies.
 

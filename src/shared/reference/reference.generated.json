@@ -657,7 +657,7 @@
       "backends": ["museCode", "modelApi"],
       "paid": false,
       "surfaces": ["vscode:museCode", "vscode:modelApi", "acp:museCode", "acp:modelApi"],
-      "details": [{ "ui": "referenceQuestionsDeferral" }],
+      "details": [{ "ui": "referenceQuestionsDeferral" }, { "ui": "questionExpired" }],
       "facts": { "actions": ["submit", "explain", "cancel"] },
       "editors": ["vscode", "acp"]
     },
@@ -866,7 +866,8 @@
         {
           "conditions": [{ "when": "turnState", "text": { "ui": "referenceConversationActions" } }]
         },
-        { "ui": "crashDetail" }
+        { "ui": "crashDetail" },
+        { "ui": "snapshotTooLong" }
       ],
       "facts": {},
       "editors": ["vscode"]
@@ -1704,7 +1705,11 @@
       "backends": ["modelApi"],
       "paid": true,
       "surfaces": ["vscode:modelApi"],
-      "details": [{ "ui": "structuredOutputRepair" }, { "ui": "structuredOutputFallback" }],
+      "details": [
+        { "ui": "structuredOutputRepair" },
+        { "ui": "structuredOutputFallback" },
+        { "ui": "judgeAdvisoryMissing" }
+      ],
       "facts": {
         "paidFeature": "judge",
         "paidSettings": ["museSpark.judge.engine"],
@@ -1770,7 +1775,7 @@
       "backends": ["museCode"],
       "paid": false,
       "surfaces": ["vscode:museCode"],
-      "details": [],
+      "details": [{ "ui": "judgeAdvisoryMissing" }],
       "facts": {},
       "editors": ["vscode"]
     },

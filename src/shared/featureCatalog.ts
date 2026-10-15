@@ -1161,7 +1161,7 @@ const REFERENCE_DETAILS: Readonly<
   'native-agents': ['referenceAgentControls', 'referenceNativeAgentsConditions'],
   account: ['signInBrowserDetail', 'signInApiKeyDetail', 'installDetail', 'referenceSecretPrompt'],
   'code-intelligence': ['referenceCodeIntelExtra'],
-  chat: ['referenceThinking', 'referenceConversationActions', 'crashDetail'],
+  chat: ['referenceThinking', 'referenceConversationActions', 'crashDetail', 'snapshotTooLong'],
   context: ['referenceContext'],
   skills: ['referenceBundled'],
   exports: ['referenceExports'],
@@ -1171,7 +1171,8 @@ const REFERENCE_DETAILS: Readonly<
   images: ['referencePaidContexts'],
   search: ['referencePaidContexts'],
   git: ['structuredOutputRepair', 'structuredOutputFallback'],
-  judge: ['structuredOutputRepair', 'structuredOutputFallback'],
+  judge: ['structuredOutputRepair', 'structuredOutputFallback', 'judgeAdvisoryMissing'],
+  'judge-subscription': ['judgeAdvisoryMissing'],
   'structured-side-calls': ['structuredOutputRepair', 'structuredOutputFallback'],
   budget: ['referenceBudget'],
   voice: ['referencePaidContexts'],
@@ -1192,7 +1193,7 @@ const REFERENCE_DETAILS: Readonly<
     'promptSave',
     'sharePrompt',
   ],
-  questions: ['referenceQuestionsDeferral'],
+  questions: ['referenceQuestionsDeferral', 'questionExpired'],
 }
 
 /** Runtime localized inventory for M118; the reference generator uses the English fallback. */
