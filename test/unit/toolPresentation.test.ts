@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { WEB_FETCH_MODEL_TEXT } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
 import { fill, setUiText } from '../../src/shared/l10n/text'
@@ -334,21 +334,6 @@ describe('code intelligence rows (M67)', () => {
   })
 })
 
-describe('CATCHAUDIT named-condition catches', () => {
-  it('lets a foreign JSON failure through instead of showing no arguments', () => {
-    expect(describeTool('read_file', 'not json')).toMatchObject({ label: 'Read' })
-    const realParse = JSON.parse
-    const jsonBoom: unknown = 'json-boom'
-    vi.stubGlobal('JSON', {
-      ...JSON,
-      parse: () => {
-        throw jsonBoom
-      },
-    })
-    try {
-      expect(() => describeTool('edit_file', '{}')).toThrow('json-boom')
-    } finally {
-      vi.stubGlobal('JSON', realParse)
-    }
-  })
+it('retains the tool label when arguments are not JSON', () => {
+  expect(describeTool('read_file', 'not json')).toMatchObject({ label: 'Read' })
 })

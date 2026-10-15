@@ -541,3 +541,17 @@ and observe readFailed (no unhandled rejection). Restore service, then query,
 refresh and export; they must still reach the service in order. A non-Error
 foreign-port rejection follows the same catch body; no injected fake is
 claimed as product proof. Browser/service composition remains for the lead.
+
+### Test-overhaul reconciliation
+
+The merge removed the fake paid-grant helper but left this branch's new
+`paidGrants.test.ts` importing it. Removed that fake-filesystem suite, the
+three global-replacement cases in `catchWebviewPure`, the two substitute
+status-reader cases in `serviceStatusRow`, and the fake-fetch
+`companionMediaTransport` suite. Five pure suites keep their real malformed
+input checks but lose JSON/Intl/URL replacements: goals, installTable, links,
+toolPresentation, workflowDetails. Together with T5, five forbidden files
+are deleted; five files are reconciled to real-code-only checks. No
+stand-in is restored. These historical tests never proved product behaviour;
+credential/store/bridge/media composition belongs to the lead's real-life
+run, with unreadable folders, interrupted uploads and permission refusal.

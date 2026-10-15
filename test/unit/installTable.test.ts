@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { UI_TEXT, WEBVIEW_L10N_ELEMENT_ID } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
 import { setUiText, uiLocale } from '../../src/shared/l10n/text'
@@ -70,23 +70,5 @@ describe('installEmbeddedTable (M40)', () => {
     expect(message).toMatch(/thoughtFor: slots \{duration\} expected/)
     expect(message).toMatch(/extra: not in the English table/)
     expectEnglish()
-  })
-})
-
-describe('CATCHAUDIT named-condition catches', () => {
-  it('lets a foreign locale failure through instead of refusing the table', () => {
-    embed(JSON.stringify({ locale: 'de', table: { ...EN } }))
-    const realIntl = Intl
-    const intlBoom: unknown = 'intl-boom'
-    vi.stubGlobal('Intl', {
-      getCanonicalLocales: () => {
-        throw intlBoom
-      },
-    })
-    try {
-      expect(() => installEmbeddedTable(document)).toThrow('intl-boom')
-    } finally {
-      vi.stubGlobal('Intl', realIntl)
-    }
   })
 })
