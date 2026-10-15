@@ -1,5 +1,15 @@
 # PLAN — Muse Spark for VS Code (unofficial)
 
+**PRTH154 review fixes (2026-10-15, Windows).** Merge main `ac21f1d24`,
+then answer PR 154's ten open threads: fail closed on uncertain credential
+cleanup, setup failure and unread liability; isolate concurrent provider
+identities; reconcile terminal results with journal usage; describe ACP
+request admission honestly; remove Node preload controls; validate model
+overrides; fix the runner locale; and record observed fail-first drills for
+the real-module tests. No provider calls or credential access in this lane.
+Receipts: `docs/certification/prth154.md`; lead-owned real-life steps remain
+explicit where the credential store or a provider is required.
+
 **VISFIX: release notes move no screenshot (2026-10-11, host with the Mac
 mini and linuxlt; before 0.17.2).** Lead's ruling after REL0171C's finding
 that a `CHANGELOG.md` entry or a version bump moved 108 What's New frames and

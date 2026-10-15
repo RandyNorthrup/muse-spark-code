@@ -9,6 +9,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Real-life run: a failed credential deletion is unknown cleanup, not proof
+  that the key is absent. The run retries it at final cleanup and fails if
+  no deletion succeeded, retaining Meta's recovery note when uncertain.
+
 - On Windows, two requests that reserve session spend at the same moment
   could end one of them with "The session spend ledger could not be read or
   saved", although nothing was wrong with the ledger. Windows answers a lock
