@@ -137,6 +137,19 @@ plan on its certainty rows (`KpiTiles` `plan` prop) and meter cards
 (`LimitCard`) from the same stored meter; its breakdown table and daily
 charts already keyed rows by model and timestamps.
 
+### Lead's visual look (one small local look, no screenshots in-lane)
+
+Per the owner's 2026-10-12 rule (no screenshot runs; a UI change gets one
+small local look by the lead), no pictures were taken in any lane for this
+change. Before release the lead looks once at the Account & usage page of
+a metered Muse Code session, in one light and one dark theme:
+
+- the cost section's certainty row reads the meter's plan name ("Muse Code
+  Max Usage subscription") instead of the generic certainty label
+  (`KpiTiles` `plan` prop, `src/webview/usage/KpiTiles.tsx:88-98);
+- the limit card heading reads the same plan name instead of the provider
+  id (`LimitCard`, `src/webview/usage/LimitsSection.tsx:104).
+
 ## Packed product (dist/acp.js)
 
 Fixtures: 3 old-shape records (input/output only, standing model,
