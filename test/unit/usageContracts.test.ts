@@ -36,7 +36,7 @@ const identity: Pick<
   UsageRecord,
   'v' | 'id' | 'at' | 'day' | 'timezoneOffsetMins' | 'client' | 'backend' | 'provider'
 > = {
-  v: 2,
+  v: 3,
   id: 'record-1',
   at: 1_791_234_567_890,
   day: '2026-10-05',
@@ -66,7 +66,7 @@ const totals: UsageTotals = {
   rateLimited: 0,
 }
 const state: UsagePageState = {
-  v: 2,
+  v: 3,
   query,
   generatedAt: 1_791_234_567_890,
   history: {
@@ -167,8 +167,8 @@ describe('usage journal v1', () => {
   it('rejects invalid versions, dates, ids and counters and strips control characters', () => {
     for (const change of [
       { v: 1 },
-      { v: 3 },
-      // Version 2 stores dollars as decimal text, never as a JSON number (M121).
+      { v: 2 },
+      // Version 3 stores dollars as decimal text, never as a JSON number (M121).
       { cost: { certainty: 'computed', usd: 0.5 } },
       { day: '2026-02-30' },
       { id: '../outside' },

@@ -32,7 +32,7 @@ function a(value: number | string): UsdAmount {
 }
 function record(extra: Partial<UsageRecord> = {}): UsageRecord {
   return usageRecordSchema.parse({
-    v: 2,
+    v: 3,
     id: 'call',
     type: 'usage',
     at: now,
