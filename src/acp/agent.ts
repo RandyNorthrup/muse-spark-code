@@ -1614,6 +1614,14 @@ class AcpSession {
    * F91: the editor hears once per session, in words, that Muse Code's
    * Linux sandbox cannot start on this machine. The host start already said
    * it on stderr; the posture stands until the person turns it off.
+   *
+   * This is the harness speaking, never the model (that confusion is F82),
+   * so the chunk carries a `_meta` marker (the accountNotice precedent) a
+   * client can tell apart from model speech. MERGE STEP with
+   * fix/provider-truth (F82, 0d73ac89e): where the client advertises its
+   * session-notices capability, send that branch's separate notice update
+   * instead of this chunk; the marker stays the fallback discriminator
+   * for clients that do not advertise it.
    */
   public noteSandboxCannotStart(): void {
     if (this.hasSaidSandboxCannotStart || !this.sandboxCannotStart()) {
@@ -1622,6 +1630,7 @@ class AcpSession {
     this.hasSaidSandboxCannotStart = true
     this.send({
       sessionUpdate: 'agent_message_chunk',
+      _meta: { sandboxCannotStartNotice: true },
       content: { type: 'text', text: UI_TEXT.sandboxCannotStartNotice },
     })
   }
