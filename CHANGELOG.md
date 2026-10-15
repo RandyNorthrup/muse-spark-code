@@ -9,6 +9,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- The reference gate checks command topics only in the README's terminal-help
+  paragraph, so unrelated mentions cannot hide missing documentation.
+
 - Per-command help always shows declared value shapes, including provider
   preset, id, address and privacy arguments.
 

@@ -59,6 +59,11 @@ translated prefixes are stripped from descriptions, never substituted for the
 required shape. Regression red: provider help lacked `--preset <preset>`
 (exit 1); also covers `--as`, `--address`, and `--privacy`.
 
+T6: README topic coverage is scoped to the terminal paragraph in Help and
+reference and requires code-formatted topic names. The real reference builder
+regression failed before repair because deleting `serve` still passed (exit 1).
+It checks serve/login/auth/providers deletions without changing other mentions.
+
 ## 1. Accepted today (from the code, release 0.18.1 base)
 
 Parser routes (`CLI_OPTION_REGISTRY` in `src/runtime/cliOptions.ts`, plus the
