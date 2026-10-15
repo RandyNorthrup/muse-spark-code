@@ -130,6 +130,32 @@ describe('M80 authoritative message release', () => {
       [UI_TEXT.execMessageWithheld, false],
     ])
   })
+  it('B1 a segment continued to completion releases whole', async () => {
+    const h = await harness()
+    listen(h)
+    h.session.emit(agentDone('a', 'PART-ONE '))
+    h.tap.settleResponse({ ...completed, terminal: 'incomplete', settlement: 'full-reservation' })
+    h.tap.beginResponse(2)
+    h.session.emit(agentDone('b', 'PART-TWO'))
+    h.tap.settleResponse({ ...completed, n: 2 })
+    expect(h.tap.releasedMessages()).toEqual([
+      { itemId: 'a', kind: 'agentMessage', text: 'PART-ONE ', complete: true },
+      { itemId: 'b', kind: 'agentMessage', text: 'PART-TWO', complete: true },
+    ])
+  })
+  it('B1 an incomplete segment nothing completed stays withheld', async () => {
+    const h = await harness()
+    listen(h)
+    h.session.emit(agentDone('a', 'PART-ONE '))
+    h.tap.settleResponse({ ...completed, terminal: 'incomplete', settlement: 'full-reservation' })
+    h.tap.beginResponse(2)
+    h.session.emit(agentDone('b', 'PART-TWO'))
+    h.tap.settleResponse({ ...completed, n: 2, terminal: 'failed' })
+    expect(h.tap.releasedMessages()).toEqual([
+      { itemId: 'a', kind: 'agentMessage', text: UI_TEXT.execMessageWithheld, complete: false },
+      { itemId: 'b', kind: 'agentMessage', text: UI_TEXT.execMessageWithheld, complete: false },
+    ])
+  })
   it.each(['completed', 'interrupted'])(
     'D22 Muse whole turn %s remains authority',
     async (terminal) => {
