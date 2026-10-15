@@ -55,7 +55,10 @@ import {
 } from '../core/agent/agentBackend'
 import { editAutomaticallyChoice } from '../core/agent/approvalRules'
 import { failureForLog } from '../core/backends/musecode/logText'
-import type { LinuxSandboxReadiness } from '../core/backends/musecode/sandbox'
+import {
+  isLinuxSandboxBlocked,
+  type LinuxSandboxReadiness,
+} from '../core/backends/musecode/sandbox'
 import { unlessAborted } from '../core/timeouts'
 import type { CoreLogger } from '../core/logging'
 import { type PaidUseAnswer, paidUseQuestion } from '../core/paid/paidConsent'
@@ -1086,7 +1089,7 @@ class AcpSession {
   private sandboxCannotStart(): boolean {
     return (
       this.deps.backend.kind === 'museCode' &&
-      this.deps.backend.shellSandboxReadiness?.(this.cwd)?.canStart === false
+      isLinuxSandboxBlocked(this.deps.backend.shellSandboxReadiness?.(this.cwd))
     )
   }
 

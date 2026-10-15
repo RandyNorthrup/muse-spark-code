@@ -273,13 +273,15 @@ describe('sandboxReadinessLine', () => {
     expect(line).toBe('cannot start here: bubblewrap cannot create a user namespace')
   })
 
-  it('says another bwrap failure with the probe’s own words', () => {
+  it('says another bwrap failure as a failed check, with the probe’s own words', () => {
+    // Not "cannot start": a missing system bwrap leaves Muse Code's
+    // embedded fallback unmeasured (RVSANDBOXSAY).
     expect(
       sandboxReadinessLine({ canStart: false, reason: 'bwrapFailed', detail: 'bwrap: ENOENT' }),
-    ).toBe('cannot start here: bwrap: ENOENT')
+    ).toBe('system bubblewrap check failed here: bwrap: ENOENT')
     expect(
       sandboxReadinessLine({ canStart: false, reason: 'bwrapFailed', detail: undefined }),
-    ).toBe('cannot start here: the bwrap probe failed')
+    ).toBe('system bubblewrap check failed here: the bwrap probe failed')
   })
 
   it('renders the blocked probe on the report line', () => {

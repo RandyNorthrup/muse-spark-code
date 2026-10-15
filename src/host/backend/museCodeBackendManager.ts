@@ -36,6 +36,7 @@ import {
   withLoopbackBypass,
 } from '../../core/backends/musecode/launch'
 import {
+  isLinuxSandboxBlocked,
   isSandboxNetworkApplied,
   type LinuxSandboxReadiness,
   probeLinuxSandboxShell,
@@ -275,8 +276,15 @@ export class MuseCodeBackendManager {
     // since the last one, then restarted the host.
     this.linuxSandboxReadiness = undefined
     const readiness = await this.readShellSandboxReadiness(posture)
-    if (readiness !== undefined && !readiness.canStart) {
+    if (isLinuxSandboxBlocked(readiness)) {
       this.deps.log.warn(UI_TEXT.sandboxCannotStartNotice)
+    } else if (readiness !== undefined && !readiness.canStart) {
+      // The system-bwrap measurement failed without proving the sandbox
+      // cannot start (Muse Code may use its embedded fallback), so this is
+      // a log line in fixed words, never the cannot-start notice.
+      this.deps.log.info(
+        'Shell sandbox check: the system bwrap probe did not pass here; Diagnostics has the detail',
+      )
     }
     if (!posture.isSandboxed) {
       // Meta's permissions page: --disable-sandbox "also removes workspace
