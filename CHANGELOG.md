@@ -24,6 +24,8 @@ happened, not what was planned; superseded entries are kept.
   run; a user-configurable provider id is not evidence of subscription billing.
 - RVCLIFLOWS: terminal prompt save/list/use retain readable results without
   `--json`; cancellation explains itself on stderr instead of silently exiting.
+- RVCLIFLOWS: an exact slash-command selector is announced once even if
+  repeated entries have different descriptions or argument hints.
 
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
   reads and writes, and 1-hour cache writes settle at their own price.

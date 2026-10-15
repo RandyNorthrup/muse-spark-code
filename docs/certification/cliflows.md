@@ -45,6 +45,17 @@ These coupled fixes are deferred rather than bypassing ownership/accounting.
 The earlier F80 claim below describes the submitted attempt, **not verified
 working behavior**. Its positive path was not run and is not certified.
 
+## RVCLIFLOWS review — selector identity (2026-10-14, Windows)
+
+P2: deduplication keyed on selector plus metadata, so two `plan` entries
+with different descriptions still announced `/plan` twice. Exact selector
+identity now keeps the first entry; the `X`/`X:X` alias rule remains narrow.
+Real helper regression with two different descriptions fails before (1 failed,
+10 passed, exit 1) and passes after (11 passed, exit 0). This is plain input
+data, not a simulated CLI. Logs: `.lane/red-dedupe.log`, `.lane/green-dedupe.log`.
+The lane's real Muse skill capture remains the historical provenance for the
+alias case; no CLI/provider was run by this review.
+
 ## RVCLIFLOWS review — remove stand-in proof (2026-10-14, Windows)
 
 P2: the submitted localization deletion leaves `runtimeChatGpt.test.ts:423,501`

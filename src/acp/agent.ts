@@ -323,17 +323,16 @@ function servedEffort(modelId: string, wanted: EffortLevel): EffortLevel {
 /**
  * One announced command per skill. The CLI lists a plugin's lone skill
  * twice (the bare plugin name and the self-qualified `name:name` selector
- * with the same text), and may repeat a selector. Collapse exact repeats
- * and an identically-reading self-qualified pair, keeping the first form;
- * anything that reads differently stays listed.
+ * with the same text), and may repeat a selector. Keep the first entry
+ * for each exact selector; collapse a self-qualified alias only when its
+ * bare form reads the same. Distinct selectors with different text stay.
  */
 export function dedupeSkillSelectors(skills: readonly SkillSummary[]): readonly SkillSummary[] {
   const kept: SkillSummary[] = []
   const seen = new Set<string>()
   for (const skill of skills) {
-    const key = `${skill.selector}\n${skill.description}\n${skill.argumentHint ?? ''}`
-    if (seen.has(key)) continue
-    seen.add(key)
+    if (seen.has(skill.selector)) continue
+    seen.add(skill.selector)
     kept.push(skill)
   }
   return kept.filter((skill) => {

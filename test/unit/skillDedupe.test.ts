@@ -27,6 +27,10 @@ describe('dedupeSkillSelectors', () => {
       ),
     ).toEqual(['threejs', 'threejs:threejs'])
   })
+  it('announces an exact selector once even when its metadata changed', () => {
+    const first = skill('plan', 'original description')
+    expect(dedupeSkillSelectors([first, skill('plan', 'updated description')])).toEqual([first])
+  })
   it('collapses exact repeats and keeps unrelated selectors', () => {
     expect(
       dedupeSkillSelectors([skill('plan'), skill('plan'), skill('other:skill')]).map(
