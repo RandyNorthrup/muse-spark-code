@@ -391,11 +391,13 @@ class AcpSession {
       clientCapabilities.session?.notices != null,
     )
     this.unsubscribeResources = deps.resources?.subscribe(this.sessionId, (notice) => {
-      const updates = acpResourceUpdates(notice)
+      const updates = acpResourceUpdates(notice, this.areNoticesSupported)
       const isPause = notice.event.type === 'levelChanged' && notice.event.to === 'pause'
       for (const update of updates) {
         if (isPause && this.hasShownResourcePause && update.sessionUpdate === 'agent_message_chunk')
           update.content = { type: 'text', text: resourceStatusText(notice.status) }
+        if (isPause && this.hasShownResourcePause && update.sessionUpdate === 'notice')
+          update.title = resourceStatusText(notice.status)
         this.send(update)
       }
       if (isPause) this.hasShownResourcePause = true
@@ -415,11 +417,24 @@ class AcpSession {
               })
             },
             (text, event) => {
-              this.send({
-                sessionUpdate: 'agent_message_chunk',
-                _meta: { accountNotice: event },
-                content: { type: 'text', text },
-              })
+              // An account swap or stop is the app's own status, never the
+              // model's words: its own notice where the client can show
+              // one, the agent-message fallback otherwise (F82's class).
+              // The structured event rides `_meta` either way.
+              this.send(
+                this.areNoticesSupported
+                  ? {
+                      sessionUpdate: 'notice',
+                      severity: event.type === 'stop' ? 'warning' : 'info',
+                      title: text,
+                      _meta: { accountNotice: event },
+                    }
+                  : {
+                      sessionUpdate: 'agent_message_chunk',
+                      _meta: { accountNotice: event },
+                      content: { type: 'text', text },
+                    },
+              )
             },
           )
   }
@@ -468,6 +483,11 @@ class AcpSession {
   /** Cancellation/release callbacks can change the prompt across await. */
   private wasEstimateCancelled(preparing: PreparingPrompt): boolean {
     return preparing.isCancelled || this.isDisposed
+  }
+
+  /** The client advertised `session.notices`: app statuses go out as notices. */
+  private get areNoticesSupported(): boolean {
+    return this.clientCapabilities.session?.notices != null
   }
 
   /** Queues an update behind the ones before it: the client sees them in order. */
