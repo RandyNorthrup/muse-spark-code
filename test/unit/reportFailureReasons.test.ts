@@ -1,39 +1,24 @@
 import { describe, expect, it } from 'vitest'
-import { EN } from '../../src/shared/l10n/en'
 import { runAcpReport } from '../../src/acp/reports'
-import {
-  runReportsCommand,
-  type ReportsCommandDeps,
-} from '../../src/runtime/reporting/reportsCommand'
-import { REPORT_THEME } from './reportRenderFixtures'
-
-function commandDeps(stderr: (text: string) => void): ReportsCommandDeps {
-  return {
-    text: EN,
-    services: {
-      generate: () => Promise.reject(new Error('plan store locked: EACCES')),
-    },
-    keepHistory: true,
-    locale: 'en',
-    localePort: { textForLocale: () => EN },
-    theme: REPORT_THEME,
-    now: () => '2026-10-14T00:00:00.000Z',
-    readSaved: () => Promise.reject(new Error('unused')),
-    writeOut: () => Promise.resolve(),
-    stdout: (text) => {
-      stderr(`unexpected stdout: ${text}`)
-    },
-    stderr,
-  }
-}
+import { runReportsCommand } from '../../src/runtime/reporting/reportsCommand'
+import { reportsCommandDeps } from './reportRenderFixtures'
 
 describe('report failure reasons', () => {
   it('names the failing source on the terminal instead of one sentence', async () => {
     let diagnostic = ''
+    const collect = (text: string) => {
+      diagnostic += text
+    }
     const code = await runReportsCommand(
       ['project'],
-      commandDeps((text) => {
-        diagnostic += text
+      reportsCommandDeps({
+        services: {
+          generate: () => Promise.reject(new Error('plan store locked: EACCES')),
+        },
+        stdout: (text) => {
+          collect(`unexpected stdout: ${text}`)
+        },
+        stderr: collect,
       }),
     )
     expect(code).toBe(1)

@@ -6,11 +6,8 @@ import {
   reportsHelp,
   ReportUsageError,
 } from '../../src/runtime/reporting/reportsArgs'
-import {
-  runReportsCommand,
-  type ReportsCommandDeps,
-} from '../../src/runtime/reporting/reportsCommand'
-import { REPORT_THEME } from './reportRenderFixtures'
+import { runReportsCommand } from '../../src/runtime/reporting/reportsCommand'
+import { reportsCommandDeps } from './reportRenderFixtures'
 
 describe('report usage errors', () => {
   it.each([
@@ -31,23 +28,15 @@ describe('report usage errors', () => {
 
   it('prints the missing piece before usage on the terminal', async () => {
     let diagnostic = ''
-    const deps: ReportsCommandDeps = {
-      text: EN,
+    const deps = reportsCommandDeps({
       services: {},
-      keepHistory: true,
-      locale: 'en',
-      localePort: { textForLocale: () => EN },
-      theme: REPORT_THEME,
-      now: () => '2026-10-14T00:00:00.000Z',
-      readSaved: () => Promise.reject(new Error('unused')),
-      writeOut: () => Promise.resolve(),
       stdout: (text) => {
         diagnostic += `unexpected stdout: ${text}`
       },
       stderr: (text) => {
         diagnostic += text
       },
-    }
+    })
     const code = await runReportsCommand(['release'], deps)
     expect(code).toBe(2)
     expect(diagnostic).toContain(EN.reportUi.releaseNeedsVersion)
@@ -66,23 +55,15 @@ describe('report help', () => {
 
   it('answers --help with the kinds on the terminal', async () => {
     let shown = ''
-    const deps: ReportsCommandDeps = {
-      text: EN,
+    const deps = reportsCommandDeps({
       services: {},
-      keepHistory: true,
-      locale: 'en',
-      localePort: { textForLocale: () => EN },
-      theme: REPORT_THEME,
-      now: () => '2026-10-14T00:00:00.000Z',
-      readSaved: () => Promise.reject(new Error('unused')),
-      writeOut: () => Promise.resolve(),
       stdout: (text) => {
         shown += text
       },
       stderr: (text) => {
         shown += `unexpected stderr: ${text}`
       },
-    }
+    })
     const code = await runReportsCommand(['--help'], deps)
     expect(code).toBe(0)
     for (const kind of REPORT_WORKING_KINDS) expect(shown).toContain(kind)
