@@ -604,17 +604,9 @@ function parseProvidersModels(argv: readonly string[]): RuntimeCommand {
   }
 }
 
-/** ASCII control range ends: the first printable code and DEL. */
-const FIRST_PRINTABLE_CODE = 32
-const DELETE_CODE = 127
-
-/** A stored-and-reprinted reason must not smuggle in its own lines. */
+/** A stored-and-reprinted reason must not smuggle in lines or terminal controls. */
 function hasControlCharacter(text: string): boolean {
-  for (let index = 0; index < text.length; index += 1) {
-    const code = text.codePointAt(index) ?? 0
-    if (code === DELETE_CODE || code < FIRST_PRINTABLE_CODE) return true
-  }
-  return false
+  return /\p{Cc}|\p{Zl}|\p{Zp}/u.test(text)
 }
 
 function finishProvidersModels(

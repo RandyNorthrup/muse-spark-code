@@ -74,6 +74,12 @@ T8: the provider feature includes model add/remove/force details and its
 detail. Relationships use real runtime discriminators and the reference gate
 validates them. The generated reference is regenerated from this catalogue.
 
+T9: persisted forced-model reasons reject blanks, Unicode control characters
+and line/paragraph separators. The CLI uses the same character policy. The real
+schema/file-reader regression failed because the empty reason was accepted
+(exit 1); cases include newline, CR, ESC, DEL and C1 NEL. No bad reason reaches
+list rendering through the validated file reader.
+
 ## 1. Accepted today (from the code, release 0.18.1 base)
 
 Parser routes (`CLI_OPTION_REGISTRY` in `src/runtime/cliOptions.ts`, plus the
