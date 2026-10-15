@@ -903,6 +903,10 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
               (option) => option.id === ACP_CONFIG_IDS.model,
             )
             model = typeof modelConfig?.currentValue === 'string' ? modelConfig.currentValue : null
+            // The effort and Fast options belong to the model they were listed
+            // for: after a model change the agent's answer replaces the first
+            // listing, whose levels are the initial model's.
+            let configOptions = created.configOptions
             if (options.model !== undefined) {
               if (
                 modelConfig?.type !== 'select' ||
@@ -914,20 +918,19 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
                 error = UI_TEXT.execUnknownModel
                 return
               }
-              await lifecycle.race(
+              const changed = await lifecycle.race(
                 connection.request('session/set_config_option', {
                   sessionId: created.sessionId,
                   configId: ACP_CONFIG_IDS.model,
                   value: options.model,
                 }),
               )
+              configOptions = changed.configOptions
               model = options.model
             }
             // A plan model offers its catalogue levels through the
             // option; the shared range only covers agents without one.
-            const config = created.configOptions?.find(
-              (option) => option.id === ACP_CONFIG_IDS.effort,
-            )
+            const config = configOptions?.find((option) => option.id === ACP_CONFIG_IDS.effort)
             if (options.effort === undefined) {
               effort = typeof config?.currentValue === 'string' ? config.currentValue : null
             } else {
@@ -952,9 +955,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
             if (options.fast) {
               // The switch rides only where the model lists a priority
               // tier; off by default, refused anywhere else.
-              const fastConfig = created.configOptions?.find(
-                (option) => option.id === ACP_CONFIG_IDS.fast,
-              )
+              const fastConfig = configOptions?.find((option) => option.id === ACP_CONFIG_IDS.fast)
               if (fastConfig?.type !== 'boolean') {
                 setup.isUsageError = true
                 error = UI_TEXT.execFastUnavailable
