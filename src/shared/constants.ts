@@ -4948,6 +4948,9 @@ export const DIAGNOSTICS_SETTLE_MAX_MS = 10_000
 export const VERIFY_SHOWN_FILES_MAX = 8
 // The edited files' errors and warnings sent after a round, at most.
 export const VERIFY_DIAGNOSTICS_MAX_ENTRIES = 50
+// B6 (limits-output): how many files holding entries past the page the
+// overflow note names before counting the rest.
+export const VERIFY_UNSHOWN_FILES_NAMED = 5
 // One budget for everything a verify note or a `run_checks` result carries
 // (the diagnostics and every check's output), shared out equally: the size
 // of a single tool output's cap (TOOL_OUTPUT_MAX_CHARS), not one per check.
@@ -6714,7 +6717,8 @@ export const MODEL_API_MODEL_TEXT = {
     'it has unsaved changes in an editor, so its problems are those of the unsaved text',
   verifyUncheckedCodeLoading:
     "this turn wrote {file}, which the editor's own tools load and run as code, so no file is shown or formatted automatically until the user's next message",
-  verifyUncheckedTooMany: 'more than {count} files were edited in this round',
+  verifyUncheckedTooMany:
+    'more than {count} files were edited in this round; call getDiagnostics for an unchecked file above to read its own',
   verifyUncheckedStopped: 'the turn was stopped',
   verifyUncheckedChanged:
     'the file no longer holds what the edit left there, or its path now leads to another file',

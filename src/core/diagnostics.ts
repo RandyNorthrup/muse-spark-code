@@ -115,12 +115,16 @@ function formatEntry(entry: WorkspaceDiagnostic): string {
 }
 
 /**
- * The tool's text for `entries`, worst first, capped at `max` with a count
- * (the verify loop sends fewer than the tool, M68).
+ * B6 (limits-output): one page of the tool's text for `entries`, worst
+ * first. `offset` skips that many sorted entries first, so entries past the
+ * first page are pageable, not dropped. `nextPage` names the fetch for the
+ * rest and is appended to the overflow note; every product path passes one.
  */
 export function formatDiagnostics(
   entries: readonly WorkspaceDiagnostic[],
   max: number = DIAGNOSTICS_MAX_ENTRIES,
+  offset = 0,
+  nextPage?: string,
 ): string {
   if (entries.length === 0) {
     return NO_DIAGNOSTICS
@@ -131,11 +135,28 @@ export function formatDiagnostics(
       a.path.localeCompare(b.path) ||
       a.line - b.line,
   )
-  const shown = sorted.slice(0, max).map((entry) => formatEntry(entry))
-  if (sorted.length > max) {
-    shown.push(`… ${String(sorted.length - max)} more not shown`)
+  const skip = Math.max(Math.floor(offset), 0)
+  if (skip >= sorted.length) {
+    throw new RangeError(
+      `offset ${String(skip)} is past the last of ${String(sorted.length)} diagnostics; use an offset from 0 to ${String(sorted.length - 1)}`,
+    )
+  }
+  const shown = sorted.slice(skip, skip + max).map((entry) => formatEntry(entry))
+  const rest = sorted.length - skip - shown.length
+  if (rest > 0) {
+    shown.push(
+      nextPage === undefined
+        ? `… ${String(rest)} more not shown`
+        : `[diagnostics ${String(skip + 1)}-${String(skip + shown.length)} of ${String(sorted.length)}; ${nextPage}]`,
+    )
   }
   return shown.join('\n')
+}
+
+/** `offset` as a page start: a number floors at zero, anything else starts over. */
+function readOffset(args: Readonly<Record<string, unknown>>): number {
+  const offset = args['offset']
+  return typeof offset === 'number' ? Math.max(Math.floor(offset), 0) : 0
 }
 
 export interface DiagnosticsToolDeps {
@@ -166,13 +187,17 @@ export function diagnosticsTool(deps: DiagnosticsToolDeps): McpTool {
   return {
     name: IDE_MCP_TOOL_DIAGNOSTICS,
     description:
-      "Language-server diagnostics: the errors and warnings in VS Code's Problems panel for the files in the workspace, worst first. Optionally scoped to one file, which is then shown in an editor so its language server reports on it.",
+      "Language-server diagnostics: the errors and warnings in VS Code's Problems panel for the files in the workspace, worst first. Optionally scoped to one file, which is then shown in an editor so its language server reports on it. Long lists are pages: the note names the offset that fetches the rest.",
     inputSchema: {
       type: 'object',
       properties: {
         [URI_ARGUMENT]: {
           type: 'string',
           description: 'A file:// URI or workspace-relative path; omit for the whole workspace.',
+        },
+        offset: {
+          type: 'integer',
+          description: 'Skip this many diagnostics before returning entries.',
         },
       },
     },
@@ -183,9 +208,20 @@ export function diagnosticsTool(deps: DiagnosticsToolDeps): McpTool {
     call: async (args, signal) => {
       const uri = args[URI_ARGUMENT]
       const { platform } = deps
+      const offset = readOffset(args)
+      // B6 (limits-output): every page names the offset that fetches the rest.
+      const page = (list: readonly WorkspaceDiagnostic[]): string => {
+        const next = offset + Math.min(DIAGNOSTICS_MAX_ENTRIES, Math.max(list.length - offset, 0))
+        return formatDiagnostics(
+          list,
+          DIAGNOSTICS_MAX_ENTRIES,
+          offset,
+          `call ${IDE_MCP_TOOL_DIAGNOSTICS} again with offset ${String(next)} for the rest`,
+        )
+      }
       const inWorkspace = () => deps.getDiagnostics().filter((entry) => isInWorkspace(entry))
       if (typeof uri !== 'string' || uri === '') {
-        return formatDiagnostics(inWorkspace())
+        return page(inWorkspace())
       }
       const request = requestedPath(uri, deps)
       if (!request.ok) {
@@ -193,14 +229,14 @@ export function diagnosticsTool(deps: DiagnosticsToolDeps): McpTool {
       }
       const read = await deps.settleFile?.(request.fsPath, signal)
       if (read !== undefined) {
-        return formatDiagnostics(read.map((entry) => ({ ...entry, path: request.path })))
+        return page(read.map((entry) => ({ ...entry, path: request.path })))
       }
       const wanted = pathKey(request.path, platform)
       const found = inWorkspace().filter((entry) => pathKey(entry.path, platform) === wanted)
       // A file its server never reported on is not checked, never clean (M68).
       return deps.settleFile !== undefined && found.length === 0
         ? fill(MODEL_TEXT.diagnosticsNotSettled, { path: request.path })
-        : formatDiagnostics(found)
+        : page(found)
     },
   }
 }

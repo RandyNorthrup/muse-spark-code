@@ -11,11 +11,13 @@
 // caller commits the report, once the model has it. Pure.
 
 import {
+  IDE_MCP_TOOL_DIAGNOSTICS,
   MODEL_API_MODEL_TEXT,
   TOOL_OUTPUT_CLIP_MARKER,
   type UncheckedReason,
   VERIFY_DIAGNOSTICS_MAX_ENTRIES,
   VERIFY_SHOWN_FILES_MAX,
+  VERIFY_UNSHOWN_FILES_NAMED,
 } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import { type DiagnosticEntry, formatDiagnostics, type WorkspaceDiagnostic } from '../diagnostics'
@@ -191,8 +193,25 @@ export class DiagnosticsHistory {
       )
       listed.push(...reported.map((entry) => ({ ...entry, path: file.relative })))
     }
+    // B6 (limits-output): entries past the page are pageable, not dropped:
+    // the note names the files that hold them, each readable on its own
+    // through getDiagnostics.
     if (listed.length > 0) {
-      lines.push(formatDiagnostics(listed, VERIFY_DIAGNOSTICS_MAX_ENTRIES))
+      const unshown = listed.slice(VERIFY_DIAGNOSTICS_MAX_ENTRIES)
+      const unshownFiles = [...new Set(unshown.map((entry) => entry.path))]
+      const namedFiles = unshownFiles.slice(0, VERIFY_UNSHOWN_FILES_NAMED)
+      const named = namedFiles.join(', ')
+      const moreFiles = unshownFiles.length - namedFiles.length
+      lines.push(
+        formatDiagnostics(
+          listed,
+          VERIFY_DIAGNOSTICS_MAX_ENTRIES,
+          0,
+          unshown.length === 0
+            ? undefined
+            : `call ${IDE_MCP_TOOL_DIAGNOSTICS} for ${named}${moreFiles > 0 ? ` and ${String(moreFiles)} more files` : ''} to read the rest`,
+        ),
+      )
     }
     const isAnyRead = reads.size > 0
     return {
