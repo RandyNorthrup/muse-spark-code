@@ -404,3 +404,27 @@ in the native launch.
 b2f35827e (workflow restores), c72ba3862 (fake-agent.mjs + apply
 proof), 329e1bcd3 (real-code restores), d95183034 + ede3cf56f
 (deadcode honesty), 9d08238dc + af5b10357 (cycle roots).
+## RVTESTCUT2 — retain real calendar regressions (2026-10-14, Windows)
+
+P2: deleting the mixed `test/unit/scheduleTime.test.ts` also deleted real
+calendar behavior checks. Its fake clock supplied plain timestamps to
+`nextTimeFire`; the time engine and Intl zone rules were real. The deleted
+half-hour/whole-date case (old lines 242–258) had no fake at all. No surviving
+unit test referenced `nextTimeFire`, `nextScheduleTime` or
+`previewScheduleTimes` (`git grep` returned no matches). The legacy
+`schedules.test.ts` covers M52, not the M115 stored-zone engine.
+
+Restore a small pure-data suite at that path: nine cases over the real
+modules, no clock, store, transport, spy replacement or helper stand-in.
+Daily/weekly/cron gaps and folds cover Los Angeles, Berlin and Sydney;
+Lord Howe and Apia cover half-hour changes and a skipped date; sparse cron,
+preview/admission agreement, exclusive end times and run limits remain.
+No product implementation, timeout, retry or skip changes.
+
+Proof: `vitest run test/unit/scheduleTime.test.ts --maxWorkers=2` passed
+9/9 at the repository defaults. Deliberately changing
+`ZonedScheduleCalendar.resolve` from `Math.min(...exact)` to
+`Math.max(...exact)` failed 4/9 (exit 1): all three ordinary fold cases and
+the Lord Howe fold case; Los Angeles expected 1793521800000, received 1793525400000. Restored the product file byte-for-byte against HEAD,
+SHA-256 `ffd7b0edfc5c7026e15aaf67e1dd6cd9110e002049d0611061a6030b0e18e70d`.
+The restored run and scoped static checks are recorded in the review report.
