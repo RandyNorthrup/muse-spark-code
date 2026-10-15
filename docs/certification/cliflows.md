@@ -20,6 +20,31 @@ process test. It also confirms `playbook settings` has no `(panel)` suffix.
 The historical lane record below is not final review acceptance; in particular,
 F43 and F80 remain open as described in the review handoff.
 
+## RVCLIFLOWS review — preserve headless limits (2026-10-14)
+
+P1: the `isPlanRun` prefix check disabled the request/ USD ledger, transport
+metering and settlement validation even for a configured paid API provider
+whose user-chosen id was `chatgpt` or `copilot`. `providerEntrySchema` permits
+those ids for API-key entries; only entries with `auth: subscription` have
+subscription-specific restrictions. Input: `exec --backend modelApi --provider
+chatgpt --model chatgpt/MODEL --max-requests 1 --max-budget-usd 0.05 ...` with
+an API-key provider row named `chatgpt`. The prefix made `ledger` undefined;
+BYO response accounting was then omitted and completion accepted on the turn
+alone. No provider request was made to demonstrate an unsafe dispatch.
+
+Fix: remove all prefix-based accounting exemptions from `runExec`. Every
+Model API/BYO run retains the existing ledger, dispatch guard and verified
+settlement path. F80 remains refused until a complete subscription binding
+can retain request counting, safe no-USD settlement and released output.
+The readiness hint by itself is not that binding: backend construction still
+excludes exec subscriptions and their account resolver; ACP subsequently
+rechecks readiness without the hint. `sessionTap` also releases Model API
+messages only after accounting outcomes, absent in the removed bypass.
+These coupled fixes are deferred rather than bypassing ownership/accounting.
+
+The earlier F80 claim below describes the submitted attempt, **not verified
+working behavior**. Its positive path was not run and is not certified.
+
 Worktree `/home/randy/lanes/CLIFLOWS` from origin/main 0.18.2 (`898a26c5e`).
 Product under test: production build (`npm run build`) run as
 `node dist/acp.js` with a scratch `HOME` (`$TMPDIR/clihome`, no Secret

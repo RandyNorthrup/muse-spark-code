@@ -82,7 +82,6 @@ import {
 import type { AssembledProviderRun } from './providerExec'
 import { createRunLedger, resolveExecOutputCap, previewResponseReservation } from './runLedger'
 import { modelPolicyFor, type ModelPolicy } from '../../core/backends/modelapi/modelPolicy'
-import { isPlanModelRef } from '../../shared/providerRouting'
 import { observeBackend, type SessionTap } from './sessionTap'
 import { readUntrustedInputs } from './untrustedInput'
 import type { ExecVaultPort, ExecVaultSession } from '../vault/execVault'
@@ -332,12 +331,9 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
   let resolvedOutputCap: number | undefined
   const outputCap = (policy?: ModelPolicy): number =>
     (resolvedOutputCap ??= resolveExecOutputCap(policy ?? modelPolicyFor(model ?? '')))
-  // A plan model spends its subscription allowance, not USD: no ledger
-  // meters it, so the run skips the priced-model reservation below too.
-  const isPlanRun =
-    options.backend === 'modelApi' && options.model !== undefined && isPlanModelRef(options.model)
+  // A provider id is user-configurable, not proof of subscription billing.
+  // Keep every Model API/BYO run inside its request and exact-USD limits.
   const ledger =
-    !isPlanRun &&
     options.backend === 'modelApi' &&
     options.budgetUsd !== undefined &&
     options.maxRequests !== undefined
@@ -1115,7 +1111,6 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         incompleteReason ??= isEmptyCompaction ? NO_COMPACTABLE_HISTORY : reason
         if (isEmptyCompaction) error = UI_TEXT.nothingToCompact
       } else if (
-        !isPlanRun &&
         options.backend === 'modelApi' &&
         (last?.usage !== 'valid' || last.settlement !== 'priced')
       )
@@ -1127,9 +1122,8 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
     const cause = lifecycle.cause
     const tokens = totals?.tokens ?? latestTokens
     drain(sink)
-    // A plan run keeps no USD ledger, so its completion is the turn's own.
     const hasCompleteResponse =
-      isPlanRun || options.backend === 'museCode'
+      options.backend === 'museCode'
         ? terminal === 'completed'
         : last?.terminal === 'completed' &&
           last.transportError === null &&
