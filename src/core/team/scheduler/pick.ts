@@ -1,6 +1,8 @@
 import { isResourceSlotAvailable, type TeamCapacityPort } from './slots'
 
-/** Input is M96c's already eligible, fairly ordered local work; keep that order. */
+/** Input is M96c's already eligible, fairly ordered local work; keep that order.
+ * @unwired M96c scheduler ready-work picker
+ */
 export function pickResourceReady<T extends { readonly kind: 'worker' | 'check' }>(
   ordered: readonly T[],
   capacity: TeamCapacityPort,

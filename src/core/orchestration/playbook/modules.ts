@@ -64,6 +64,7 @@ export function normalizedModule(module: PlaybookModule): PlaybookModule {
 
 /** Trusted adapters can declare lane/team selectors; without either, use
  * the first two directories under the source root. The registry journals
+ * @unwired M116 playbook module registry entry
  * this returned id before dispatch; adapters retain it on subsequent calls. */
 export function newPlaybookModule(
   files: readonly string[],

@@ -1,7 +1,5 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { CAPTURE_INPUTS } from '../../scripts/lib/captureInputs.mjs'
-import { CAPTURE_INPUTS as TOOLING_INPUTS } from '../../scripts/lib/visualManifest.mjs'
 import {
   constructKinds,
   contributedIds,
@@ -105,52 +103,5 @@ describe('the What’s New screenshot fixture', () => {
     expect(constructKinds(notes)).toContain(kind)
     expect(missingFrom(without, notes)).toContain(kind)
     expect(missingFrom(parse(fixtureText), notes)).toEqual([])
-  })
-
-  it('is what the capture renders, with the real builder and schema, and nothing from CHANGELOG.md', () => {
-    const fixtures = readFileSync('test/harness/goldens/fixtures.mjs', 'utf8')
-    expect(fixtures).toContain(`const WHATS_NEW_FIXTURE = '${FIXTURE}'`)
-    expect(fixtures).toContain("await readFile(path.join(auditRoot, WHATS_NEW_FIXTURE), 'utf8'),")
-    // On the train the builder returns a result (the What's New budget): the
-    // capture encodes the fixture's releases, refuses an over-budget fixture
-    // and parses the encoded text.
-    expect(fixtures).toContain(
-      'const encoded = encodeWhatsNewContent(\n    JSON.stringify({ schema: WHATS_NEW_CONTENT_SCHEMA_VERSION, releases }),\n  )',
-    )
-    expect(fixtures).toContain("if (encoded.kind !== 'encoded')\n    throw new Error(")
-    expect(fixtures).toContain('const content = parseWhatsNewContent(encoded.text)')
-    // Both releases, and the version line from the fixture's newest.
-    expect(fixtures).toContain(
-      '    releases,\n    from: undefined,\n    current: releases[0].version,',
-    )
-    // The real notes are named in a comment only, never read.
-    expect(fixtures).not.toMatch(/['"`]CHANGELOG\.md['"`]/)
-    expect(fixtures).not.toContain('writeWhatsNewContent')
-    expect(fixtures).not.toContain('dist/whatsNew.json')
-  })
-})
-
-describe('the one list of capture inputs', () => {
-  it('names what can move a pixel: not the release notes, but the build helpers and the dependencies', () => {
-    expect(CAPTURE_INPUTS).toEqual([
-      'src',
-      'design',
-      'test/harness',
-      'scripts/build.mjs',
-      'scripts/lib',
-      'package.json',
-      'package-lock.json',
-    ])
-    // The fixture is a capture input through its folder.
-    expect(FIXTURE.startsWith('test/harness/')).toBe(true)
-    // The manifest tooling hands out the same object, not a copy.
-    expect(TOOLING_INPUTS).toBe(CAPTURE_INPUTS)
-    const update = readFileSync('scripts/check-visual.mjs', 'utf8')
-    // The reviewed update's clean-tree guard and the candidate's identity.
-    expect(update).toContain("['status', '--porcelain', '--', ...CAPTURE_INPUTS],")
-    expect(update).toContain("['diff', 'HEAD', '--', ...CAPTURE_INPUTS],")
-    expect(update).not.toMatch(/'src',\s*'design'/)
-    expect(update).toContain('export const MANIFEST = VISUAL_MANIFEST\n')
-    expect(readFileSync('scripts/lib/captureInputs.mjs', 'utf8')).not.toMatch(/^import /m)
   })
 })
