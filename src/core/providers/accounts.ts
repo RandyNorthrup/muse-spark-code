@@ -266,6 +266,7 @@ export interface AccountClientPort<Client, Scan> {
   create(binding: AccountBinding, credential: AccountCredential | undefined): Promise<Client>
   scan(binding: AccountBinding, client: Client): Promise<Scan>
 }
+/** @unwired M108 provider account client lookup */
 export function accountClientLookup<Client, Scan>(
   accounts: AccountStore,
   clients: AccountClientPort<Client, Scan>,
