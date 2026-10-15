@@ -726,3 +726,131 @@ and `test/unit/runtimeChatGptLock.test.ts` on macOS** (its `AF_UNIX` and the
 race on either. Not proven here: a real `SIGKILL` of a holder inside the
 racing rounds themselves (the crash test and the seeded dead files cover the
 dead-entry paths separately).
+
+---
+
+# PLANFIX R7 remainder: local causes shown as a temporary ChatGPT outage (2026-10-15)
+
+## What the review listed, and what each one says now
+
+Every sentence below goes through one function, `chatGptFailureText`
+(`src/core/providers/subscriptions/registry.ts`): the terminal and ACP commands
+(`chatGptCommandText().failure`), the ACP `verify` path and the plan stream's
+catch all read it, so a cause cannot be said one way in the terminal and
+another in the panel's turns. A code that is genuinely the network or OpenAI
+(`request-failed`) keeps "ChatGPT is temporarily unavailable. Try again."
+
+| Review item                                                                                                                       | Before                                         | Now (code, sentence key)                                                                                                                                                                |
+| --------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Runtime grant lock: contention past the deadline                                                                                  | `request-failed`                               | `lock-busy`, `acpChatGpt.lockBusy` ("Another window or process is signing in..."). `NamedLockError('busy')` from `namedLock.ts`, mapped in `chatGptRefreshLock.ts`                      |
+| Runtime grant lock: the caller aborted                                                                                            | `request-failed`                               | `cancelled`, `acpChatGpt.cancelled`                                                                                                                                                     |
+| Runtime grant lock: untyped failure of the protected work                                                                         | `request-failed`                               | UNCHANGED, on purpose: nothing at that point can tell a network failure from a local one (see "Tried and reverted")                                                                     |
+| Local providers file unreadable                                                                                                   | `request-failed`                               | `providers-file-unreadable` + the file's reason (`unparseable`, `invalid`), `acpChatGpt.providersFileUnreadable`                                                                        |
+| Local providers file cannot be saved                                                                                              | `request-failed`                               | `providers-file-unwritable` + reason (`io-error`, `invalid`), `acpChatGpt.providersFileUnwritable`                                                                                      |
+| Duplicate ChatGPT entry on add                                                                                                    | `request-failed`                               | `already-added`, the existing `acpChatGpt.alreadyAdded`                                                                                                                                 |
+| VS Code host-id / file setup failure                                                                                              | `request-failed`                               | a typed failure (corrupt host id: `invalid-token`) is kept; any other file failure is `local-failed` + the OS code, `acpChatGpt.localFailed`                                            |
+| VS Code file-lock deadlines (two)                                                                                                 | `request-failed`                               | `lock-busy`                                                                                                                                                                             |
+| Browser opener refused or returned false (VS Code)                                                                                | `request-failed`                               | `browser-unavailable`, `acpChatGpt.browserUnavailable`                                                                                                                                  |
+| Runtime browser opener threw                                                                                                      | the editor's raw error through the guard       | `browser-unavailable`; the editor's message is never carried                                                                                                                            |
+| VS Code SecretStorage read, write, delete refused                                                                                 | untyped, then `request-failed`                 | `store-unavailable` (the sentence the runtime already used); an unparseable stored record is `invalid-token`                                                                            |
+| Plan stream: this app's own refusal to build the request (hosted tool it cannot send, output cap it was not given, a bad counter) | the generic retry                              | `planUi.requestNotBuilt` + the refusal's reason word. `ResponsesDecodeError.isLocal` marks exactly those four sites; a frame the provider sent that does not parse stays the provider's |
+| Plan stream: the reply grew past the size this app accepts                                                                        | `UI_TEXT.actionFailed`, then the generic retry | `planUi.streamTooLarge`                                                                                                                                                                 |
+| Plan stream: a typed sign-in error (store, lock, ...)                                                                             | `acpChatGpt.failure`, with `reason` lost       | its own sentence with its reason, through `chatGptFailureText`                                                                                                                          |
+| Runtime `openBrowser` printing foreign errors                                                                                     | the guard's `request-failed`                   | covered by the browser row                                                                                                                                                              |
+
+New strings: `acpChatGpt.lockBusy`, `cancelled`, `browserUnavailable`,
+`localFailed`, `providersFileUnreadable`, `providersFileUnwritable` (last
+inside `acpChatGpt`) and `planUi.streamTooLarge`, `requestNotBuilt` (last
+inside `planUi`), in `src/shared/l10n/en.ts` and all 14 `l10n/ui.*.json`, each
+a real translation in the English table's position. `npm run check:l10n`: 0
+problems.
+
+`namedLock.ts` has its own `NamedLockError` (`unavailable | busy | cancelled`)
+and does not import any ChatGPT type: the mechanism knows nothing of a caller.
+(The R1/R5 and R2 commits imported `chatgptHostId.ts` there, which put that file
+into `dist/acp.js`, `dist/headless.js` and `dist/runtimeAccounts.js` and broke
+the build's bundle-split check with 3 problems; that, and `headless.js` going
+over its 100 KiB budget by 0.1 KiB when the import was switched to
+`chatgpt.ts`, are gone with this change. `chatGptRefreshLock.ts` maps the
+lock's error to the ChatGPT codes.)
+
+## Not done, and why
+
+- **The Models panel still shows `UI_TEXT.actionFailed` for any failed
+  connect.** `src/host/models/modelsPanel.ts:201-205` replaces the error with the
+  generic sentence for every operation. Showing the typed cause there means a
+  change in the lazy panel, which is at 124.0 of 125 KiB; a cap moves only on
+  the owner's word. The plan stream in VS Code (the turns) does say the cause.
+  This is the review's R6 presentation residual and it stays open.
+- **The runtime lock's untyped failure of protected work stays
+  `request-failed`.** See the next section.
+
+## Tried and reverted
+
+A first version mapped the runtime lock's untyped failure to `local-failed`.
+It is wrong: the protected work includes the token refresh and the network, so
+an untyped throw there is as likely the provider as this machine. Three
+existing runtime cases asserted the retry code for exactly that, and it was
+right. Reverted to `request-failed`; the typed causes carry the rest.
+
+## Proof
+
+`test/unit/chatGptLocalFailures.test.ts` (15 cases, real modules): every new
+code returns its own sentence and none is the retry text, the terminal, the
+ACP verify path and the plan stream read the same function, a real broken
+providers file and a real unwritable path (a regular file where a folder is
+needed) end the real `runChatGptProviderCommand` with their reason, the real
+runtime host turns a browser that cannot open and a credential store that
+refuses into their own codes (the editor's message is never carried), and the
+real codec tells this app's own refusals (hosted tool, missing output cap)
+from a frame the provider sent. The grant-lock suite now asserts the lock's
+timeout as `lock-busy` and a caller's abort as `cancelled`.
+
+The OS store and the browser are the outside world; they are supplied as a
+store that refuses and an opener that rejects. Nothing of ours is replaced.
+
+Red drills (each file restored byte-exact, SHA-256 identical before and after):
+
+1. `lock-busy` collapsed into the retry sentence: 1 fails
+   (`expected 'ChatGPT is temporarily unavailable. T…' not to be …`).
+2. The runtime host's browser failure left untyped: 1 fails
+   (`expected Error: no display to be an instance of ChatGptSignInError`).
+3. The `isLocal` flag dropped from the hosted-tool refusal: 1 fails
+   (`expected false to be true`).
+
+Results on this PC (Windows), final bytes: the R7, lock, race, keystore,
+keyring, host-id and sign-in core suites, 7 files, 156 passed and 3 skipped,
+exit 0.
+
+## Existing suites this changes (named, left alone)
+
+These use stand-ins and are in the test-overhaul lane's deletion set; they
+assert the old catch-all code for causes that now have their own. Measured on
+this tree against an untouched export of the previous commit (`30e035562`),
+same machine, same command:
+
+- `test/unit/chatGptVsCode.test.ts`: base 1 failed / 25 passed; now 9 failed.
+  The 1 on base is `access_denied` expected as `invalid-callback` while the
+  parser now says `authorize-refused` (RVHOSTID R6, unrelated to this change).
+  The 8 new ones each assert `request-failed` where the received code is now
+  `lock-busy` (5), `browser-unavailable` (1) or `invalid-token` (2).
+- `test/unit/runtimeChatGpt.test.ts`: base 4 failed of 35; now 7. The 3 new:
+  two `preserves invalid or existing provider configuration...` cases expect the
+  retry sentence and now get the providers-file and already-added sentences;
+  `propagates cancellation...` expects `request-failed` and gets `cancelled`.
+- `test/unit/subscriptionIntegration.test.ts`: 2 failed on base and now.
+
+I did not edit them.
+
+## Packed-product / real-life steps for the lead
+
+1. With a folder where `~/.config/<providers dir>/providers.json` is not valid
+   JSON: `muse-spark-code-acp providers add chatgpt` prints "The providers file
+   could not be read (unparseable). Fix or remove it..." and never "temporarily
+   unavailable"; remove the file and it signs in.
+2. Hold the grant lock in one shell (start `providers add chatgpt` and leave
+   the browser step open), run `providers status chatgpt` in a second: after the
+   wait it says "Another window or process is signing in..."; Ctrl-C of the
+   second says it was cancelled.
+3. In VS Code, with the opener failing (a remote window), the sign-in says the
+   address could not be opened in a browser.

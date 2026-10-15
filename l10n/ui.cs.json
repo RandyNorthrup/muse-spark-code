@@ -931,7 +931,9 @@
     "aiContent": "Obsah vytvořený AI může být nepřesný. Copilot přidává vlastní pravidla a čerpá vaše kredity AI; počty tokenů jsou odhady, pokud využití není hlášeno.",
     "reportContent": "Nahlásit škodlivý obsah",
     "fastDetail": "{description}. Ve výchozím nastavení vypnuto: spotřebovává více z kvóty vašeho plánu.",
-    "requestFailed": "Požadavek plánu ChatGPT se nezdařil: {message}"
+    "requestFailed": "Požadavek plánu ChatGPT se nezdařil: {message}",
+    "streamTooLarge": "Odpověď ChatGPT byla větší, než tato aplikace přijímá. Požádejte o kratší odpověď.",
+    "requestNotBuilt": "Aplikace nemohla připravit požadavek na plán ChatGPT ({reason}). Nic nebylo odesláno."
   },
   "untitledConversation": "Bez názvu",
   "crashTitle": "V panelu došlo k chybě",
@@ -4514,7 +4516,13 @@
     "failure": "Přihlášení ChatGPT se nepodařilo dokončit. Zkuste to znovu nebo jej odeberte a znovu se přihlaste.",
     "storeUnavailable": "Úložiště přihlašovacích údajů tohoto počítače není dostupné. Přihlaste se z interaktivní relace plochy s odemčeným úložištěm; v Linuxu nejprve spusťte Secret Service.",
     "lockUnavailable": "Místní zámek přihlášení se nepodařilo otevřít ({reason}). Zkuste to znovu.",
-    "authorizeRefused": "OpenAI odmítlo požadavek na přihlášení ChatGPT ({reason}). Zkuste to znovu nebo jej odeberte a znovu se přihlaste."
+    "authorizeRefused": "OpenAI odmítlo požadavek na přihlášení ChatGPT ({reason}). Zkuste to znovu nebo jej odeberte a znovu se přihlaste.",
+    "lockBusy": "Jiné okno nebo proces se právě přihlašuje k ChatGPT nebo obnovuje přihlášení. Počkejte, až skončí, a zkuste to znovu.",
+    "cancelled": "Přihlášení k ChatGPT bylo zrušeno před dokončením.",
+    "browserUnavailable": "Přihlašovací adresu se nepodařilo otevřít v prohlížeči. Otevřete ji sami nebo to zkuste znovu z desktopové relace.",
+    "localFailed": "Místní krok přihlášení k ChatGPT selhal ({reason}). Zkuste to znovu.",
+    "providersFileUnreadable": "Soubor poskytovatelů se nepodařilo přečíst ({reason}). Opravte ho nebo odstraňte a zkuste to znovu.",
+    "providersFileUnwritable": "Soubor poskytovatelů se nepodařilo uložit ({reason}). Zkontrolujte, zda je jeho složka zapisovatelná, a zkuste to znovu."
   },
   "execProviderNotConfigured": "Poskytovatel {id} není nastaven.",
   "providerText": {

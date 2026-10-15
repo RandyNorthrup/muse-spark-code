@@ -20,6 +20,7 @@ import type { ProviderClient } from '../core/backends/modelapi/client'
 import {
   createSubscriptionClient,
   chatGptAccountId,
+  chatGptFailureText,
 } from '../core/providers/subscriptions/registry'
 import { PROVIDER_SECRET_PREFIX, SECRET_KEYS } from '../shared/constants'
 
@@ -177,28 +178,7 @@ export function chatGptCommandText(): ChatGptCommandText {
     beforeSignIn: () => UI_TEXT.acpChatGpt.notice,
     alreadyAdded: () => UI_TEXT.acpChatGpt.alreadyAdded,
     status: (state) => UI_TEXT.acpChatGpt.states[state],
-    failure: (code, reason) => {
-      switch (code) {
-        case 'store-unavailable': {
-          return UI_TEXT.acpChatGpt.storeUnavailable
-        }
-        case 'lock-unavailable': {
-          return fill(UI_TEXT.acpChatGpt.lockUnavailable, { reason: reason ?? code })
-        }
-        case 'authorize-refused': {
-          return fill(UI_TEXT.acpChatGpt.authorizeRefused, { reason: reason ?? code })
-        }
-        case 'expired': {
-          return UI_TEXT.planUi.expired
-        }
-        case 'request-failed': {
-          return UI_TEXT.planUi.retry
-        }
-        default: {
-          return UI_TEXT.acpChatGpt.failure
-        }
-      }
-    },
+    failure: chatGptFailureText,
   }
 }
 
@@ -228,11 +208,11 @@ export function runtimeChatGptCommandDeps(
     const result = await readProvidersFile(options.configFile)
     if (result.ok) return result.file
     if (result.reason === 'missing') return emptyProvidersFile()
-    throw new ChatGptSignInError('request-failed')
+    throw new ChatGptSignInError('providers-file-unreadable', result.reason)
   }
   const save = async (file: unknown) => {
     const result = await writeProvidersFileAtomic(options.configFile, file)
-    if (!result.ok) throw new ChatGptSignInError('request-failed')
+    if (!result.ok) throw new ChatGptSignInError('providers-file-unwritable', result.reason)
   }
   return {
     createHost: () => createRuntimeChatGptHost(options),
@@ -243,7 +223,7 @@ export function runtimeChatGptCommandDeps(
       add: async (host) => {
         const file = await read()
         if (file.providers.some((entry) => entry.id === 'chatgpt'))
-          throw new ChatGptSignInError('request-failed')
+          throw new ChatGptSignInError('already-added')
         const url = 'https://api.openai.com/v1/models'
         // The command already holds the nonreentrant grant lock through this commit.
         const token = await new ChatGptSignIn({

@@ -29,7 +29,22 @@ import {
   NAMED_LOCK_GARBAGE_MIN_AGE_MS,
   OAUTH_CODE_TTL_MS,
 } from '../shared/constants'
-import { ChatGptSignInError } from '../core/providers/subscriptions/chatgptHostId'
+
+/**
+ * Why a lock was not had: it could not be opened (`unavailable`, with the
+ * operating system's code as `reason`), another holder kept it past the
+ * deadline (`busy`), or the caller gave up (`cancelled`). The mechanism knows
+ * nothing of any one caller; each caller says it in its own words.
+ */
+export class NamedLockError extends Error {
+  public constructor(
+    public readonly kind: 'unavailable' | 'busy' | 'cancelled',
+    public readonly reason?: string,
+  ) {
+    super(`namedLock.${kind}`)
+    this.name = 'NamedLockError'
+  }
+}
 
 export interface NamedLockOptions {
   /** POSIX only: the folder holding the socket files. Tests isolate with this. */
@@ -103,7 +118,7 @@ async function tryListen(target: string): Promise<Server | 'in-use'> {
   } catch (error) {
     server.close()
     if (errorCode(error) === 'EADDRINUSE') return 'in-use'
-    throw new ChatGptSignInError('lock-unavailable', osReason(error))
+    throw new NamedLockError('unavailable', osReason(error))
   }
 }
 
@@ -137,7 +152,7 @@ async function isLive(file: string): Promise<boolean> {
   })
   if (code === undefined || LIVE_LISTENER_CODES.has(code)) return true
   if (DEAD_ENTRY_CODES.has(code)) return false
-  throw new ChatGptSignInError('lock-unavailable', code)
+  throw new NamedLockError('unavailable', code)
 }
 
 /**
@@ -150,8 +165,7 @@ async function removeIfGarbage(file: string): Promise<void> {
     const found = await lstat(file)
     if (Date.now() - found.mtimeMs >= NAMED_LOCK_GARBAGE_MIN_AGE_MS) await unlink(file)
   } catch (error) {
-    if (errorCode(error) !== 'ENOENT')
-      throw new ChatGptSignInError('lock-unavailable', osReason(error))
+    if (errorCode(error) !== 'ENOENT') throw new NamedLockError('unavailable', osReason(error))
   }
 }
 
@@ -166,7 +180,7 @@ async function hasLiveContender(
   try {
     names = await readdir(directory)
   } catch (error) {
-    throw new ChatGptSignInError('lock-unavailable', osReason(error))
+    throw new NamedLockError('unavailable', osReason(error))
   }
   for (const name of names) {
     const other = path.join(directory, name)
@@ -217,15 +231,42 @@ async function openAttempt(names: NamedLockNames, options: NamedLockOptions): Pr
     folder = options.directory ?? path.join(tmpdir(), names.folder)
     await mkdir(folder, { recursive: true, mode: CHATGPT_GRANT_LOCK_DIR_MODE })
   } catch (error) {
-    throw new ChatGptSignInError('lock-unavailable', osReason(error))
+    throw new NamedLockError('unavailable', osReason(error))
   }
   return (signal) => acquireSocket(folder, names.file, signal)
 }
 
+/** Why the wait ended: the caller gave up, or another holder kept the lock past the deadline. */
+function endOfWait(options: NamedLockOptions): NamedLockError {
+  return new NamedLockError(options.signal?.aborted === true ? 'cancelled' : 'busy')
+}
+
+async function acquireLock(
+  attempt: Attempt,
+  signal: AbortSignal,
+  options: NamedLockOptions,
+): Promise<Held> {
+  try {
+    for (;;) {
+      signal.throwIfAborted()
+      const held = await attempt(signal)
+      if (held !== undefined) return held
+      // Contenders that looked at each other both gave way: a random wait lets one of them through.
+      const wait = CHATGPT_REFRESH_LOCK_RETRY_MS + randomInt(CHATGPT_REFRESH_LOCK_RETRY_MS)
+      await delay(wait, undefined, { signal })
+    }
+  } catch (error) {
+    if (signal.aborted && !(error instanceof NamedLockError)) throw endOfWait(options)
+    throw error
+  }
+}
+
 /**
- * Runs `work` as the one holder of the named lock. Errors of `work` and a
- * missed deadline or cancellation are thrown as they are; a lock that cannot
- * be opened for a local reason is `ChatGptSignInError('lock-unavailable')`.
+ * Runs `work` as the one holder of the named lock. Errors of `work` are
+ * thrown as they are. A lock that cannot be opened for a local reason is
+ * `NamedLockError('unavailable')` with its OS code; a wait that
+ * outlasts the deadline is `'lock-busy'` and one the caller cancels is
+ * `'cancelled'`, so neither reads as a provider outage.
  */
 export async function withNamedLock<T>(
   work: () => Promise<T>,
@@ -236,19 +277,11 @@ export async function withNamedLock<T>(
   const signal =
     options.signal === undefined ? deadline : AbortSignal.any([deadline, options.signal])
   const attempt = await openAttempt(names, options)
-  for (;;) {
-    signal.throwIfAborted()
-    const held = await attempt(signal)
-    if (held !== undefined) {
-      try {
-        signal.throwIfAborted()
-        return await work()
-      } finally {
-        await held.release()
-      }
-    }
-    // Contenders that looked at each other both gave way: a random wait lets one of them through.
-    const wait = CHATGPT_REFRESH_LOCK_RETRY_MS + randomInt(CHATGPT_REFRESH_LOCK_RETRY_MS)
-    await delay(wait, undefined, { signal })
+  const held = await acquireLock(attempt, signal, options)
+  try {
+    if (signal.aborted) throw endOfWait(options)
+    return await work()
+  } finally {
+    await held.release()
   }
 }

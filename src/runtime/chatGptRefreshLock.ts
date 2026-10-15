@@ -1,8 +1,8 @@
 // One person-scoped grant lock serializes OS-store grant mutations across
 // processes: the named lock of namedLock.ts, on the grant's own name. A
-// contention timeout, an abort or an untyped failure of the protected work
-// fails closed as `request-failed`; a local failure to open the lock reports
-// its OS code, never "temporarily unavailable".
+// contention timeout is `lock-busy`, a caller's abort `cancelled`, and a local
+// failure to open the lock reports its OS code: none reads as "temporarily
+// unavailable". An untyped failure of the protected work stays `request-failed`.
 import {
   CHATGPT_GRANT_LOCK_DIR,
   CHATGPT_GRANT_LOCK_FILE,
@@ -10,7 +10,7 @@ import {
 } from '../shared/constants'
 import { ChatGptSignInError } from '../core/providers/subscriptions/chatgpt'
 import { StoreUnavailableError } from './keyStore'
-import { personScope, withNamedLock, type NamedLockOptions } from './namedLock'
+import { NamedLockError, personScope, withNamedLock, type NamedLockOptions } from './namedLock'
 
 export type ChatGptLockOptions = NamedLockOptions
 
@@ -32,7 +32,16 @@ export async function withChatGptRefreshLock<T>(
     )
   } catch (error) {
     if (error instanceof ChatGptSignInError) throw error
+    if (error instanceof NamedLockError) {
+      if (error.kind === 'busy') throw new ChatGptSignInError('lock-busy')
+      if (error.kind === 'cancelled') throw new ChatGptSignInError('cancelled')
+      throw new ChatGptSignInError('lock-unavailable', error.reason)
+    }
     if (error instanceof StoreUnavailableError) throw new ChatGptSignInError('store-unavailable')
+    // An untyped failure of the protected work can be the network as well as this
+    // machine, and nothing here can tell which: the known local causes are typed
+    // where they happen (store, lock, browser, providers file), so what is left
+    // keeps the retry sentence.
     throw new ChatGptSignInError('request-failed')
   }
 }

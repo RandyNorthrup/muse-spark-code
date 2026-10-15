@@ -22,12 +22,21 @@ export class ChatGptSignInError extends Error {
       | 'expired'
       | 'store-unavailable'
       | 'lock-unavailable'
+      | 'lock-busy'
+      | 'cancelled'
+      | 'browser-unavailable'
+      | 'local-failed'
+      | 'providers-file-unreadable'
+      | 'providers-file-unwritable'
+      | 'already-added'
       | 'request-failed',
     /**
-     * The operating system's own code for a `lock-unavailable` failure
-     * (for example `EACCES`), or OpenAI's own error code for an
-     * `authorize-refused` failure (for example `access_denied`); hosts
-     * show it beside the sentence. Undefined for every other code.
+     * The operating system's own code for a `lock-unavailable` or
+     * `local-failed` failure (for example `EACCES`), OpenAI's own error code
+     * for an `authorize-refused` failure (for example `access_denied`), or
+     * this app's own word for why the providers file failed (`unparseable`,
+     * `invalid`, `io-error`); hosts show it beside the sentence. Undefined
+     * for every other code.
      */
     public readonly reason?: string,
   ) {

@@ -927,7 +927,9 @@
     "aiContent": "I contenuti generati dall’IA possono essere inesatti. Copilot aggiunge le proprie regole e usa i tuoi crediti IA; i conteggi dei token sono stime quando l’utilizzo non viene riportato.",
     "reportContent": "Segnala contenuti dannosi",
     "fastDetail": "{description}. Disattivato per impostazione predefinita: usa più quota del tuo piano.",
-    "requestFailed": "La richiesta del piano ChatGPT non è riuscita: {message}"
+    "requestFailed": "La richiesta del piano ChatGPT non è riuscita: {message}",
+    "streamTooLarge": "La risposta di ChatGPT era più grande di quanto questa app accetta. Chiedi una risposta più breve.",
+    "requestNotBuilt": "Questa app non è riuscita a preparare la richiesta del piano ChatGPT ({reason}). Non è stato inviato nulla."
   },
   "untitledConversation": "Senza titolo",
   "crashTitle": "Si è verificato un errore nel pannello",
@@ -4401,7 +4403,13 @@
     "failure": "Non è stato possibile completare l’accesso a ChatGPT. Riprova oppure rimuovilo e accedi nuovamente.",
     "storeUnavailable": "L’archivio credenziali del computer non è disponibile. Accedi da una sessione desktop interattiva con l’archivio sbloccato; su Linux, avvia prima Secret Service.",
     "lockUnavailable": "Non è stato possibile aprire il blocco di accesso locale ({reason}). Riprova.",
-    "authorizeRefused": "OpenAI ha rifiutato la richiesta di accesso a ChatGPT ({reason}). Riprova oppure rimuovilo e accedi nuovamente."
+    "authorizeRefused": "OpenAI ha rifiutato la richiesta di accesso a ChatGPT ({reason}). Riprova oppure rimuovilo e accedi nuovamente.",
+    "lockBusy": "Un’altra finestra o un altro processo sta accedendo a ChatGPT o rinnovando l’accesso. Attendi che finisca e riprova.",
+    "cancelled": "L’accesso a ChatGPT è stato annullato prima del completamento.",
+    "browserUnavailable": "Non è stato possibile aprire l’indirizzo di accesso in un browser. Aprilo tu stesso o riprova da una sessione desktop.",
+    "localFailed": "Un passaggio locale dell’accesso a ChatGPT non è riuscito ({reason}). Riprova.",
+    "providersFileUnreadable": "Non è stato possibile leggere il file dei provider ({reason}). Correggilo o rimuovilo, poi riprova.",
+    "providersFileUnwritable": "Non è stato possibile salvare il file dei provider ({reason}). Controlla che la cartella sia scrivibile, poi riprova."
   },
   "execProviderNotConfigured": "Il provider {id} non è configurato.",
   "providerText": {

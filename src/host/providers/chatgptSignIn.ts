@@ -214,7 +214,7 @@ async function withFileLock<T>(
         try {
           const stat = await lstat(lockPath)
           if (!stat.isDirectory()) {
-            if (Date.now() >= deadline) throw new ChatGptSignInError('request-failed')
+            if (Date.now() >= deadline) throw new ChatGptSignInError('lock-busy')
             await pause(Math.min(pollMs, Math.max(0, deadline - Date.now())))
             continue
           }
@@ -232,7 +232,7 @@ async function withFileLock<T>(
         )
           throw error
         const isRecovered = await hasRecoveredLock(lockPath)
-        if (Date.now() >= deadline) throw new ChatGptSignInError('request-failed')
+        if (Date.now() >= deadline) throw new ChatGptSignInError('lock-busy')
         if (isRecovered) continue
         await pause(Math.min(pollMs, Math.max(0, deadline - Date.now())))
       }
@@ -247,6 +247,19 @@ async function withFileLock<T>(
       }
       await hasRecoveredLock(lockPath)
     } else await rm(prepared, { recursive: true, force: true })
+  }
+}
+
+/**
+ * The grant's SecretStorage calls. A refusal is the editor's credential
+ * store and is said as such: the sign-in core's guard would otherwise report
+ * any foreign error as a temporary ChatGPT failure (F14).
+ */
+async function grantStore<T>(work: () => Thenable<T>): Promise<T> {
+  try {
+    return await work()
+  } catch {
+    throw new ChatGptSignInError('store-unavailable')
   }
 }
 
@@ -282,27 +295,40 @@ export async function createChatGptSignIn(deps: ChatGptVsCodeDeps): Promise<Chat
       now: Date.now,
       withRefreshLock,
       openBrowser: async (url) => {
-        const isOpened = await (deps.openExternal ?? vscode.env.openExternal)(vscode.Uri.parse(url))
-        if (!isOpened) throw new ChatGptSignInError('request-failed')
+        let isOpened = false
+        try {
+          isOpened = await (deps.openExternal ?? vscode.env.openExternal)(vscode.Uri.parse(url))
+        } catch {
+          // The editor refused to open it: said as that below, never as a ChatGPT outage.
+        }
+        if (!isOpened) throw new ChatGptSignInError('browser-unavailable')
       },
       startCallback: async (state, timeoutMs) => {
         if (deps.isRemote) throw new ChatGptSignInError('invalid-callback')
         return await startChatGptCallback(state, timeoutMs)
       },
       readRecord: async () => {
-        const stored = await deps.secrets.get(key)
+        const stored = await grantStore(() => deps.secrets.get(key))
         if (stored === undefined) return
-        const parsed: unknown = JSON.parse(stored)
-        return parsed
+        try {
+          const parsed: unknown = JSON.parse(stored)
+          return parsed
+        } catch {
+          throw new ChatGptSignInError('invalid-token')
+        }
       },
       writeRecord: async (record) => {
-        await deps.secrets.store(key, JSON.stringify(record))
+        await grantStore(() => deps.secrets.store(key, JSON.stringify(record)))
       },
       deleteRecord: async () => {
-        await deps.secrets.delete(key)
+        await grantStore(() => deps.secrets.delete(key))
       },
     })
-  } catch {
-    throw new ChatGptSignInError('request-failed')
+  } catch (error) {
+    // A typed failure (a corrupt host id) keeps its own sentence; anything else
+    // is a local file problem, said with the operating system's code.
+    if (error instanceof ChatGptSignInError) throw error
+    const code = fileErrorCode(error)
+    throw new ChatGptSignInError('local-failed', typeof code === 'string' ? code : 'unknown')
   }
 }

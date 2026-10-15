@@ -146,11 +146,19 @@ describe('ACP ChatGPT process lock', () => {
 
   it('releases after a thrown operation and withholds its secret-bearing error', async () => {
     const directory = await lockDirectory('thrown-')
-    await expect(
-      withChatGptRefreshLock(() => Promise.reject(new Error('synthetic-private-detail')), {
+    let failure: unknown
+    try {
+      await withChatGptRefreshLock(() => Promise.reject(new Error('synthetic-private-detail')), {
         directory,
-      }),
-    ).rejects.toThrow('chatgpt.request-failed')
+      })
+    } catch (error) {
+      failure = error
+    }
+    // Nothing can tell a network failure from a local one here: the retry code, and never the detail.
+    expect(failure).toBeInstanceOf(ChatGptSignInError)
+    const message = failure instanceof Error ? failure.message : ''
+    expect(message).toBe('chatgpt.request-failed')
+    expect(message).not.toContain('synthetic')
     await expect(
       withChatGptRefreshLock(() => Promise.resolve('next'), { directory, timeoutMs: 2000 }),
     ).resolves.toBe('next')
@@ -174,11 +182,12 @@ describe('ACP ChatGPT process lock', () => {
           }, 500)
         }),
       ])
-      await expect(bounded).rejects.toThrow('request-failed')
+      // Another process holds it past the deadline: said as that, not as an outage.
+      await expect(bounded).rejects.toThrow('chatgpt.lock-busy')
       const controller = new AbortController()
       const waiting = withChatGptRefreshLock(work, { directory, signal: controller.signal })
       controller.abort()
-      await expect(waiting).rejects.toThrow('request-failed')
+      await expect(waiting).rejects.toThrow('chatgpt.cancelled')
       expect(isEntered).toBe(false)
       const exit = exited(child)
       child.send('release')
@@ -329,7 +338,7 @@ describe('ACP ChatGPT process lock', () => {
         },
         { directory, signal: controller.signal },
       ),
-    ).rejects.toThrow('request-failed')
+    ).rejects.toThrow('chatgpt.cancelled')
     expect(isEntered).toBe(false)
   })
 })

@@ -17,7 +17,12 @@ import {
   type Usage,
 } from '../../backends/modelapi/schemas'
 import { responses, modelRef, recordPlanUsage } from '../../../host/backend/providersEntry'
-const { ChatgptPlanLimitError, createResponsesCodec, ResponsesOutputCapError } = responses
+const {
+  ChatgptPlanLimitError,
+  createResponsesCodec,
+  ResponsesDecodeError,
+  ResponsesOutputCapError,
+} = responses
 const { parseModelRef } = modelRef
 import {
   CHATGPT_TOOL_NAMESPACE_DESCRIPTION,
@@ -96,6 +101,57 @@ export async function chatGptModels(
  * never retried.
  */
 class ChatgptPlanRequestError extends Error {}
+
+/**
+ * The one sentence for a failed ChatGPT sign-in, refresh or lock, shared by
+ * the terminal and ACP commands and by the plan stream's catch, so a local
+ * cause is never shown as a temporary ChatGPT outage. `reason` is the
+ * operating system's code, OpenAI's error code or this app's own word, and
+ * never provider text.
+ */
+export function chatGptFailureText(code: ChatGptSignInError['code'], reason?: string): string {
+  switch (code) {
+    case 'store-unavailable': {
+      return UI_TEXT.acpChatGpt.storeUnavailable
+    }
+    case 'lock-unavailable': {
+      return fill(UI_TEXT.acpChatGpt.lockUnavailable, { reason: reason ?? code })
+    }
+    case 'lock-busy': {
+      return UI_TEXT.acpChatGpt.lockBusy
+    }
+    case 'cancelled': {
+      return UI_TEXT.acpChatGpt.cancelled
+    }
+    case 'browser-unavailable': {
+      return UI_TEXT.acpChatGpt.browserUnavailable
+    }
+    case 'local-failed': {
+      return fill(UI_TEXT.acpChatGpt.localFailed, { reason: reason ?? code })
+    }
+    case 'providers-file-unreadable': {
+      return fill(UI_TEXT.acpChatGpt.providersFileUnreadable, { reason: reason ?? code })
+    }
+    case 'providers-file-unwritable': {
+      return fill(UI_TEXT.acpChatGpt.providersFileUnwritable, { reason: reason ?? code })
+    }
+    case 'already-added': {
+      return UI_TEXT.acpChatGpt.alreadyAdded
+    }
+    case 'authorize-refused': {
+      return fill(UI_TEXT.acpChatGpt.authorizeRefused, { reason: reason ?? code })
+    }
+    case 'expired': {
+      return UI_TEXT.planUi.expired
+    }
+    case 'request-failed': {
+      return UI_TEXT.planUi.retry
+    }
+    default: {
+      return UI_TEXT.acpChatGpt.failure
+    }
+  }
+}
 
 async function planRequestError(response: Response): Promise<Error> {
   try {
@@ -411,7 +467,7 @@ export function createSubscriptionClient(
               const chunk = z.instanceof(Uint8Array).parse(next.value)
               receivedBytes += chunk.byteLength
               if (receivedBytes > SUBSCRIPTION_STREAM_MAX_BYTES)
-                throw new Error(UI_TEXT.actionFailed)
+                throw new ChatgptPlanRequestError(UI_TEXT.planUi.streamTooLarge)
               yield chunk
             }
           } finally {
@@ -478,14 +534,25 @@ export function createSubscriptionClient(
           yield { type: 'error', code: 'request-failed', message: error.message }
           return
         }
-        const code = error instanceof ChatGptSignInError ? error.code : 'request-failed'
-        let message = UI_TEXT.acpChatGpt.failure
-        if (code === 'expired') message = UI_TEXT.planUi.expired
-        else if (code === 'request-failed') message = UI_TEXT.planUi.retry
+        // This app's own refusal to build or read the request (a tool it
+        // cannot send, an output cap it was not given) is said as that.
+        if (error instanceof ResponsesDecodeError && error.isLocal) {
+          yield {
+            type: 'error',
+            code: 'request-failed',
+            message: fill(UI_TEXT.planUi.requestNotBuilt, { reason: error.reason }),
+          }
+          return
+        }
+        const signInCode = error instanceof ChatGptSignInError ? error.code : undefined
+        const code = signInCode ?? 'request-failed'
         yield {
           type: 'error',
           code: code === 'sign-in-required' ? 'invalid_api_key' : code,
-          message,
+          message: chatGptFailureText(
+            code,
+            error instanceof ChatGptSignInError ? error.reason : undefined,
+          ),
         }
       } finally {
         if (isDispatched && (ref.providerId !== 'copilot' || deps.copilotUsage === undefined)) {

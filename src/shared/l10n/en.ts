@@ -1120,6 +1120,11 @@ export const EN = {
     fastDetail: '{description}. Off by default: it uses more of your plan allowance.',
     // {message}: OpenAI's own error message for the failed plan request.
     requestFailed: 'The ChatGPT plan request failed: {message}',
+    // The reply grew past the size this app accepts; nothing is wrong with ChatGPT.
+    streamTooLarge: 'The ChatGPT reply was larger than this app accepts. Ask for a shorter answer.',
+    // {reason}: this app's own word for what it could not build or read.
+    requestNotBuilt:
+      'This app could not prepare the ChatGPT plan request ({reason}). Nothing was sent.',
   },
   untitledConversation: 'Untitled',
   crashTitle: 'The Panel Hit an Error',
@@ -5239,6 +5244,22 @@ export const EN = {
     // {reason}: OpenAI's own error code for refusing the authorize request.
     authorizeRefused:
       'OpenAI refused the ChatGPT sign-in request ({reason}). Try again or remove it and sign in again.',
+    // Another window or process kept the sign-in lock past the wait.
+    lockBusy:
+      'Another window or process is signing in to ChatGPT or refreshing the sign-in. Wait for it to finish and try again.',
+    // The person or the editor ended the wait.
+    cancelled: 'The ChatGPT sign-in was cancelled before it finished.',
+    // Said when the editor or terminal could not show the sign-in address.
+    browserUnavailable:
+      'The sign-in address could not be opened in a browser. Open it yourself, or try again from a desktop session.',
+    // {reason}: the operating system's code, or this app's own word, for the local failure.
+    localFailed: 'A local step of the ChatGPT sign-in failed ({reason}). Try again.',
+    // {reason}: why the providers file could not be read: unparseable or invalid.
+    providersFileUnreadable:
+      'The providers file could not be read ({reason}). Fix or remove it, then try again.',
+    // {reason}: why the providers file could not be saved: invalid or io-error.
+    providersFileUnwritable:
+      'The providers file could not be saved ({reason}). Check that its folder is writable, then try again.',
   },
   execProviderNotConfigured: 'Provider {id} is not configured.',
   // M95 providers: evaluated through UI_TEXT at use time.

@@ -67,7 +67,14 @@ export async function createRuntimeChatGptHost(
                 : AbortSignal.any([options.signal, init.signal]),
           }),
         }),
-      openBrowser: options.openBrowser,
+      openBrowser: async (url) => {
+        try {
+          await options.openBrowser(url)
+        } catch {
+          // The terminal or editor could not show the address: said as that, never as a ChatGPT outage.
+          throw new ChatGptSignInError('browser-unavailable')
+        }
+      },
       startCallback: (state, timeoutMs) =>
         startChatGptCallback(state, timeoutMs, options.callbackText, options.signal),
       readRecord: async () => {

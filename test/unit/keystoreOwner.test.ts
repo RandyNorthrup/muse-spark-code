@@ -150,6 +150,38 @@ async function entriesOf(name: string): Promise<string[]> {
   return mine.toSorted((first, second) => first.localeCompare(second))
 }
 
+/**
+ * What an R1 interleaving needs: its own lock scope and throwaway account, the
+ * file whose existence resumes a paused process, and the two long values it
+ * races (different lengths, so no part lines up).
+ */
+function raceSetup() {
+  return {
+    scope: randomUUID().slice(0, 16),
+    name: account(),
+    resumeFile: path.join(scratch.folder, `resume-${randomUUID()}`),
+    x: longValue('X', KEYRING_PART_CHARS * 2 + 9),
+    y: longValue('Y', KEYRING_PART_CHARS * 3 + 4),
+  }
+}
+
+/**
+ * The next owner of an account, as a fresh process: it optionally writes
+ * `rewrite`, then deletes the account, so what a killed owner left is found
+ * and removed by the owner's own reclamation.
+ */
+async function nextOwnerDeletes(scope: string, name: string, rewrite?: string): Promise<void> {
+  const owner = new Worker(scope)
+  try {
+    if (rewrite !== undefined) {
+      await succeeded(owner.ask({ op: 'store', account: name, value: rewrite }), 'next owner write')
+    }
+    await succeeded(owner.ask({ op: 'delete', account: name }), 'next owner delete')
+  } finally {
+    owner.close()
+  }
+}
+
 /** The store as a fresh process sees it. */
 async function readFresh(scope: string, name: string): Promise<Reply> {
   const worker = new Worker(scope)
@@ -229,11 +261,7 @@ describe.runIf(isWindows)('one owner per credential account (R1, R5), real Windo
   }, 180_000)
 
   it('R1: a writer paused before its header cannot be overtaken into a header whose parts are gone', async () => {
-    const scope = randomUUID().slice(0, 16)
-    const name = account()
-    const resumeFile = path.join(scratch.folder, `resume-${randomUUID()}`)
-    const x = longValue('X', KEYRING_PART_CHARS * 2 + 9)
-    const y = longValue('Y', KEYRING_PART_CHARS * 3 + 4)
+    const { scope, name, resumeFile, x, y } = raceSetup()
     const slow = new Worker(scope, { pauseBeforeHeader: true, resumeFile })
     const quick = new Worker(scope)
     try {
@@ -262,11 +290,7 @@ describe.runIf(isWindows)('one owner per credential account (R1, R5), real Windo
   }, 120_000)
 
   it('R1: a reader that holds a header is never handed parts a replacement deleted', async () => {
-    const scope = randomUUID().slice(0, 16)
-    const name = account()
-    const resumeFile = path.join(scratch.folder, `resume-${randomUUID()}`)
-    const x = longValue('X', KEYRING_PART_CHARS * 2 + 9)
-    const y = longValue('Y', KEYRING_PART_CHARS * 3 + 4)
+    const { scope, name, resumeFile, x, y } = raceSetup()
     const writer = new Worker(scope)
     const reader = new Worker(scope, { pauseAfterHeader: true, resumeFile })
     try {
@@ -338,13 +362,7 @@ describe.runIf(isWindows)('one owner per credential account (R1, R5), real Windo
       expect([old, fresh], `killed at call ${String(at)}`).toContain(read.value)
       // The next owner finds and removes what the killed one left; a delete then
       // leaves no secret part of any generation.
-      const owner = new Worker(scope)
-      try {
-        await succeeded(owner.ask({ op: 'store', account: name, value: fresh }), 'next owner write')
-        await succeeded(owner.ask({ op: 'delete', account: name }), 'next owner delete')
-      } finally {
-        owner.close()
-      }
+      await nextOwnerDeletes(scope, name, fresh)
       expect(await entriesOf(name), `killed at call ${String(at)}`).toEqual([])
     }
   }, 600_000)
@@ -364,12 +382,7 @@ describe.runIf(isWindows)('one owner per credential account (R1, R5), real Windo
       }
       // A delete is the next owner: it removes the orphaned parts the first
       // write left, which no header ever named.
-      const owner = new Worker(scope)
-      try {
-        await succeeded(owner.ask({ op: 'delete', account: name }), 'next owner delete')
-      } finally {
-        owner.close()
-      }
+      await nextOwnerDeletes(scope, name)
       expect(await entriesOf(name), `killed at call ${String(at)}`).toEqual([])
     }
   }, 300_000)
