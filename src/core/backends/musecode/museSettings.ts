@@ -24,14 +24,21 @@ export interface MuseSettingsDeps extends CredentialPathInput {
 
 /**
  * Only the members the extension reads are checked, each on its own, so one
- * of another type costs that fact alone, never the other. Anything else in
- * the file is ignored, never kept. `contributor_mode_enabled` is the CLI's
- * own top-level price tier flag (captured 2026-10-14, CLI 1.4.6).
+ * of another type costs that fact alone, never the other: every member is
+ * taken as unknown here and type-checked by its own reader below, so a
+ * mistyped sibling can never fail the whole parse. Anything else in the file
+ * is ignored, never kept. `contributor_mode_enabled` is the CLI's own
+ * top-level price tier flag (captured 2026-10-14, CLI 1.4.6).
  */
 const settingsSchema = z.object({
-  run: z.optional(z.record(z.string(), z.unknown())),
-  contributor_mode_enabled: z.optional(z.boolean()),
+  run: z.optional(z.unknown()),
+  contributor_mode_enabled: z.optional(z.unknown()),
 })
+
+/** The file's `run` block as a record; undefined when it is anything else. */
+function runRecord(value: unknown): Record<string, unknown> | undefined {
+  return z.record(z.string(), z.unknown()).safeParse(value).data
+}
 
 export function museSettingsPath(input: CredentialPathInput): string {
   const p = input.platform === 'win32' ? path.win32 : path.posix
@@ -46,7 +53,7 @@ function readRunSetting(deps: MuseSettingsDeps, key: string): string | undefined
     return undefined
   }
   try {
-    const value = settingsSchema.safeParse(JSON.parse(text)).data?.run?.[key]
+    const value = runRecord(settingsSchema.safeParse(JSON.parse(text)).data?.run)?.[key]
     return typeof value === 'string' ? value : undefined
   } catch {
     return undefined

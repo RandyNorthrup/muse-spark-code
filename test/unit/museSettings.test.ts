@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   museSettingsPath,
+  readContributorMode,
   readDelegationMode,
   readWorkflowTriggerMode,
 } from '../../src/host/backend/museSettings'
@@ -71,5 +72,31 @@ describe('readWorkflowTriggerMode (M47)', () => {
     }
     expect(readDelegationMode(offDeps)).toBe('off')
     expect(readWorkflowTriggerMode(offDeps)).toBe('off')
+  })
+})
+
+describe('readContributorMode', () => {
+  it('reads the boolean and leaves every fact standing when a sibling is mistyped', () => {
+    const deps = {
+      ...base,
+      readTextFile: () =>
+        '{"contributor_mode_enabled":true,"run":{"subagent_delegation_mode":"auto"}}',
+    }
+    expect(readContributorMode(deps)).toBe(true)
+    // A mistyped contributor flag costs that fact alone, never the run facts.
+    const mistypedFlag = {
+      ...base,
+      readTextFile: () =>
+        '{"contributor_mode_enabled":"yes","run":{"subagent_delegation_mode":"auto"}}',
+    }
+    expect(readContributorMode(mistypedFlag)).toBeUndefined()
+    expect(readDelegationMode(mistypedFlag)).toBe('auto')
+    // A mistyped run block costs the run facts alone, never contributor mode.
+    const mistypedRun = {
+      ...base,
+      readTextFile: () => '{"contributor_mode_enabled":false,"run":"auto"}',
+    }
+    expect(readContributorMode(mistypedRun)).toBe(false)
+    expect(readDelegationMode(mistypedRun)).toBe('off')
   })
 })
