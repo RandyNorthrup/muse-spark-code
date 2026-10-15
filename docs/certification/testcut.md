@@ -362,12 +362,18 @@ and `checkCommandLine` is pure string building — no deterministic
 wait found in product or test code. The 161 s sits inside the test's
 own unbounded `execFileSync(powershell …)`, which a sync-blocked
 worker cannot interrupt (vitest's 15 s Windows timeout cannot fire
-there), consistent with a cold PowerShell + Node start stall on a
-loaded hosted runner — but that is UNMEASURED, not a finding: no
-timeout or retry was added (per the brief) and no product wait exists
-to fix. For the lead: the CI log around job 116174782905 will show
-whether the sibling `.cmd` case (second launch, warm) was fast,
-which decides cold-start stall vs. something in the native launch.
+there). Shard durations from the public jobs API (measured,
+unauthenticated): windows shards 1/2/3/4/6/7/8 took
+187/236/232/203/195/189/203 s; shard 5 took 513 s — 2.2x the slowest
+healthy sibling. The 161 s test explains only ~160 s of the ~280 s
+excess, so the whole runner was degraded, not one test slow by
+itself. Combined with byte-identical code, this points at a
+runner-level stall — but that remains UNMEASURED, not a finding: no
+timeout or retry was added (per the brief), no skip was added, and no
+product wait exists to fix. For the lead: the CI log around job
+116174782905 will show whether the sibling `.cmd` case (second
+launch, warm) was fast, which decides cold-start stall vs. something
+in the native launch.
 
 ## Gates (final tree, exit codes, measured without pipes)
 
