@@ -72,7 +72,9 @@ export interface VaultChannelDeps {
   perform(requester: VaultRequester, ticketId: string, use: VaultUse, socket: Socket): Promise<void>
   scrub(text: string): Promise<string>
 }
-/** NDJSON with a byte limit and validation before dispatch; one sequential stream per pinned peer. */
+/** NDJSON with a byte limit and validation before dispatch; one sequential stream per pinned peer.
+ * @unwired M109 vault broker channel server
+ */
 export class VaultChannelServer {
   private server: Server | null = null
   private isClosed = false
