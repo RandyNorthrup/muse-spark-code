@@ -76,13 +76,17 @@
             { "when": "outputMinimum=known", "text": { "ui": "referenceOutputCapMinimum" } }
           ]
         },
-        { "ui": "customLimitsMissing" }
+        { "ui": "customLimitsMissing" },
+        { "cli": "add" },
+        { "cli": "remove" },
+        { "cli": "force" }
       ],
       "facts": {
         "management": ["vscode:museCode", "vscode:modelApi", "acp:museCode", "acp:modelApi"],
         "modelRequests": "modelApi"
       },
-      "editors": ["vscode", "acp"]
+      "editors": ["vscode", "acp"],
+      "cliRoutes": ["providersModels"]
     },
     {
       "id": "reports",
@@ -688,7 +692,7 @@
       "backends": ["museCode", "modelApi"],
       "paid": false,
       "surfaces": ["acp:museCode", "acp:modelApi"],
-      "details": [],
+      "details": [{ "ui": "referenceBriefHelp" }],
       "facts": {
         "operations": [
           "initialize",
@@ -718,7 +722,8 @@
         },
         "editorMcp": { "museCode": ["stdio", "http"], "modelApi": [], "sse": false }
       },
-      "editors": ["acp"]
+      "editors": ["acp"],
+      "cliRoutes": ["helpTopic"]
     },
     {
       "id": "web-fetch",
@@ -4442,7 +4447,7 @@
     {
       "route": "helpTopic",
       "name": "help <command>",
-      "description": "help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation.",
+      "description": "help / --help / -h: ACP / CLI. help <command> / <command> --help: Usage, options and examples for one command. help --all: Commands, settings and features, with descriptions and documentation.",
       "text": { "ui": "referenceBriefHelp" }
     },
     {
@@ -4544,7 +4549,7 @@
     {
       "route": "help",
       "name": "help / --help / -h",
-      "description": "help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation.",
+      "description": "help / --help / -h: ACP / CLI. help <command> / <command> --help: Usage, options and examples for one command. help --all: Commands, settings and features, with descriptions and documentation.",
       "text": { "ui": "referenceBriefHelp" }
     },
     {

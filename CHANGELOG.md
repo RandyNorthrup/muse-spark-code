@@ -9,6 +9,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- The feature catalogue links provider model editing and per-command help to
+  their CLI routes, with model add/remove/force details in the generated reference.
+
 - Forced-model annotations use the installed language in provider model lists.
 
 - The reference gate checks command topics only in the README's terminal-help

@@ -365,7 +365,7 @@
   "referenceRemoveSkills": "仅删除由扩展管理的 Muse Code 技能副本及其链接，保留其他技能。",
   "referenceInstallSkills": "将 project_setup、feature_delivery 和 quality_retrofit 复制到 Muse Code 配置中，并链接为技能。",
   "referenceExecContract": "无界面运行不允许信任工作区或绕过权限。 无界面运行仅允许 plan 或 acceptEdits。 托管网页搜索没有可保证的费用上限，因此拒绝使用。 图像生成需要 acceptEdits。 请选择且仅选择一个提示来源。 提示和密钥不能同时使用 stdin。 Model API 需要 --max-budget-usd。 modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.",
-  "referenceBriefHelp": "help / --help / -h: ACP / CLI. help --all: 命令、设置和功能，附有说明和文档。",
+  "referenceBriefHelp": "help / --help / -h: ACP / CLI. help <command> / <command> --help: 单个命令的用法、选项和示例。help --all: 命令、设置和功能，附有说明和文档。",
   "referenceKeyStdin": "auth set: 在终端中读取你的密钥，并将其保存在这台计算机的凭据存储中。对话费用计入该密钥。 exec / scan-secrets --key-stdin: 请从管道读取密钥，而非终端。 stdin → memory; prompt stdin + key stdin = 提示和密钥不能同时使用 stdin。",
   "referenceModalKeys": "关闭对话框或在其中移动焦点。",
   "referenceRenameKeys": "确认或取消重命名此对话。",

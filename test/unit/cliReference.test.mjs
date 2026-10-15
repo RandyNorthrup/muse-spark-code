@@ -10,6 +10,18 @@ const nls = JSON.parse(readFileSync(path.join(root, 'package.nls.json'), 'utf8')
 const runtime = readFileSync(path.join(root, 'src/runtime/cliArgs.ts'), 'utf8')
 const readme = readFileSync(path.join(root, 'README.md'), 'utf8')
 
+it('connects provider model edits and per-command help to their catalogue features', () => {
+  const model = buildReference(manifest, nls, source, runtime, readme)
+  expect(model.features.find((feature) => feature.id === 'providers')).toMatchObject({
+    cliRoutes: ['providersModels'],
+    details: expect.arrayContaining([{ cli: 'add' }, { cli: 'remove' }, { cli: 'force' }]),
+  })
+  expect(model.features.find((feature) => feature.id === 'acp')).toMatchObject({
+    cliRoutes: ['helpTopic'],
+    details: expect.arrayContaining([{ ui: 'referenceBriefHelp' }]),
+  })
+})
+
 it('rejects missing terminal topics even when the README mentions them elsewhere', () => {
   expect(() => buildReference(manifest, nls, source, runtime, readme)).not.toThrow()
   const start = readme.indexOf('In a terminal,')
