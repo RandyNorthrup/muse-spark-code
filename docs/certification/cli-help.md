@@ -75,6 +75,8 @@ T8: the provider feature includes model add/remove/force details and its
 `providersModels` CLI relationship; ACP includes `helpTopic` and the brief-help
 detail. Relationships use real runtime discriminators and the reference gate
 validates them. The generated reference is regenerated from this catalogue.
+The dependent `referenceEntry` round-trip caught the generated parser dropping
+`cliRoutes` (exit 1); its schema now retains this optional relationship too.
 
 T9: persisted forced-model reasons reject blanks, Unicode control characters
 and line/paragraph separators. The CLI uses the same character policy. The real
