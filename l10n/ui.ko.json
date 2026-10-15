@@ -3945,6 +3945,7 @@
     "other": "판단 {count}회"
   },
   "judgeCaution": "Muse Judge가 주의를 권고합니다. 결정은 사용자가 하며, 이 작업을 승인할 수는 없습니다.",
+  "judgeAdvisoryMissing": "백그라운드 안전 검사가 끝나지 않아 이 승인에는 권고가 첨부되지 않았습니다.",
   "judgeSubscriptionNotice": "Muse Judge는 Muse 구독으로 사용자의 채팅 모델을 사용하며 구독 한도에 포함됩니다. 각 묶음은 격리된 새 계획 모드 세션을 사용합니다. 도구 감지 보호 기능이 세션을 취소하지만 도구가 실행되지 않았음을 증명할 수는 없습니다. 주의만 권고할 수 있습니다.",
   "judgeStatusSame": "같은 모델",
   "judgeStatusOff": "꺼짐",

@@ -4155,6 +4155,7 @@
     "many": "{count} jugements"
   },
   "judgeCaution": "Muse Judge recommande la prudence. Vous décidez ; il ne peut pas autoriser cette action.",
+  "judgeAdvisoryMissing": "La vérification de sécurité en arrière-plan ne s’est pas terminée, donc aucun avis n’est joint à cette approbation.",
   "judgeSubscriptionNotice": "Muse Judge utilise votre modèle de discussion via votre abonnement Muse et compte dans ses limites. Chaque lot utilise une nouvelle session isolée en mode Plan. Une protection annule la session lorsqu’un outil est détecté, mais ne peut pas prouver qu’aucun outil n’a été exécuté. Il peut seulement recommander la prudence.",
   "judgeStatusSame": "Même modèle",
   "judgeStatusOff": "Désactivé",

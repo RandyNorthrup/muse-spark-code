@@ -18,6 +18,12 @@ export interface JudgeFence {
   read(): JudgeReadyOutcome | undefined
   card(onCaution: () => void): void
   discard(): void
+  /**
+   * Whether the run settled `failed` or never settled (B17, the fence): a
+   * late result is dropped, and the person is told instead of shown a card
+   * with no advisory. True even after read or discard.
+   */
+  dropped(): boolean
 }
 
 export interface JudgeAdvisory {
@@ -54,6 +60,7 @@ interface LiveFence {
   readonly action: JudgeEntryParts
   readonly stop: AbortController
   outcome: JudgeReadyOutcome | undefined
+  failed: boolean
   onCaution: (() => void) | undefined
 }
 
@@ -84,7 +91,11 @@ export class JudgeUse implements JudgeAdvisory {
       return false
     }
     live.outcome = outcome === 'failed' ? undefined : outcome
-    if (outcome === 'caution') live.onCaution?.()
+    if (outcome === 'failed') {
+      live.failed = true
+    } else if (outcome === 'caution') {
+      live.onCaution?.()
+    }
     // A card callback may synchronously answer; S must not cache that discarded entry.
     return this.live.get(handle) === live
   })
@@ -104,7 +115,15 @@ export class JudgeUse implements JudgeAdvisory {
   }
 
   private fence(handle: JudgeEntryHandle): JudgeFence {
+    // The live entry this fence was made for: it survives read and discard,
+    // so dropped() still answers afterwards.
+    const owned = this.live.get(handle)
     return {
+      dropped: () => {
+        // No usable outcome at the fence (B17): settled `failed`, or still
+        // pending — a late result is dropped, never attached afterwards.
+        return owned === undefined || owned.failed || owned.outcome === undefined
+      },
       read: () => {
         const live = this.live.get(handle)
         const outcome =
@@ -151,6 +170,7 @@ export class JudgeUse implements JudgeAdvisory {
       action,
       stop: new AbortController(),
       outcome: undefined,
+      failed: false,
       onCaution: undefined,
     }
     this.live.set(handle, live)

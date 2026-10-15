@@ -4155,6 +4155,7 @@
     "many": "{count} giudizi"
   },
   "judgeCaution": "Muse Judge suggerisce cautela. Decidi tu; non può approvare questa azione.",
+  "judgeAdvisoryMissing": "Il controllo di sicurezza in background non è terminato, quindi a questa approvazione non è allegato alcun avviso.",
   "judgeSubscriptionNotice": "Muse Judge usa il tuo modello di chat tramite l’abbonamento Muse e ne consuma i limiti. Ogni gruppo usa una nuova sessione isolata in modalità Piano. Una protezione annulla la sessione quando rileva uno strumento, ma non può dimostrare che nessuno strumento sia stato eseguito. Può solo suggerire cautela.",
   "judgeStatusSame": "Stesso modello",
   "judgeStatusOff": "Disattivato",

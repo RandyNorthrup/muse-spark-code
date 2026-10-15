@@ -3945,6 +3945,7 @@
     "other": "評判 {count} 次"
   },
   "judgeCaution": "Muse Judge 建議謹慎。由你決定；它不能核准此操作。",
+  "judgeAdvisoryMissing": "背景安全檢查未完成，因此此核准未附加任何建議。",
   "judgeSubscriptionNotice": "Muse Judge 透過你的 Muse 訂閱使用聊天模型，並計入訂閱額度。每個批次都使用全新、隔離的計畫模式工作階段。偵測到工具時，保護機制會取消工作階段，但無法證明沒有工具曾執行。它只能建議謹慎。",
   "judgeStatusSame": "同一模型",
   "judgeStatusOff": "關閉",

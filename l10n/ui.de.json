@@ -4050,6 +4050,7 @@
     "other": "{count} Beurteilungen"
   },
   "judgeCaution": "Muse Judge empfiehlt Vorsicht. Sie entscheiden; er kann diese Aktion nicht genehmigen.",
+  "judgeAdvisoryMissing": "Die Sicherheitsprüfung im Hintergrund wurde nicht abgeschlossen, daher ist dieser Genehmigung kein Hinweis beigefügt.",
   "judgeSubscriptionNotice": "Muse Judge verwendet Ihr Chatmodell über Ihr Muse-Abonnement und zählt gegen dessen Limits. Jeder Stapel nutzt eine neue isolierte Sitzung im Planmodus. Eine Schutzfunktion bricht die Sitzung bei einem Werkzeugelement ab, kann aber nicht beweisen, dass kein Werkzeug ausgeführt wurde. Er kann nur zur Vorsicht raten.",
   "judgeStatusSame": "Gleiches Modell",
   "judgeStatusOff": "Aus",

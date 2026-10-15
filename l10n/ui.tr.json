@@ -4050,6 +4050,7 @@
     "other": "{count} değerlendirme"
   },
   "judgeCaution": "Muse Judge dikkatli olmanızı öneriyor. Kararı siz verirsiniz; bu eylemi onaylayamaz.",
+  "judgeAdvisoryMissing": "Arka plan güvenlik denetimi bitmedi, bu nedenle bu onaya herhangi bir tavsiye eklenmedi.",
   "judgeSubscriptionNotice": "Muse Judge, Muse aboneliğiniz üzerinden sohbet modelinizi kullanır ve abonelik sınırlarını tüketir. Her toplu işlem, Plan modunda yeni ve yalıtılmış bir oturum kullanır. Araç algılama koruması oturumu iptal eder ancak hiçbir aracın çalışmadığını kanıtlayamaz. Yalnızca dikkatli olmanızı önerebilir.",
   "judgeStatusSame": "Aynı model",
   "judgeStatusOff": "Kapalı",

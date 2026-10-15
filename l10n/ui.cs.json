@@ -4260,6 +4260,7 @@
     "many": "{count} posouzení"
   },
   "judgeCaution": "Muse Judge doporučuje opatrnost. Rozhodujete vy; tuto akci nemůže schválit.",
+  "judgeAdvisoryMissing": "Bezpečnostní kontrola na pozadí nedoběhla, takže k tomuto schválení není připojeno žádné doporučení.",
   "judgeSubscriptionNotice": "Muse Judge používá váš chatovací model v rámci předplatného Muse a čerpá jeho limity. Každá dávka používá novou izolovanou relaci v režimu Plán. Ochrana při zjištění nástroje relaci zruší, ale nemůže prokázat, že se žádný nástroj nespustil. Může pouze doporučit opatrnost.",
   "judgeStatusSame": "Stejný model",
   "judgeStatusOff": "Vypnuto",

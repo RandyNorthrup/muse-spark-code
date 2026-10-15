@@ -4050,6 +4050,7 @@
     "other": "{count} értékelés"
   },
   "judgeCaution": "A Muse Judge óvatosságot javasol. Ön dönt; nem hagyhatja jóvá ezt a műveletet.",
+  "judgeAdvisoryMissing": "A háttérben futó biztonsági ellenőrzés nem fejeződött be, ezért ehhez a jóváhagyáshoz nem tartozik tanács.",
   "judgeSubscriptionNotice": "A Muse Judge az Ön csevegési modelljét használja a Muse-előfizetésével, és beleszámít annak korlátjaiba. Minden köteg új, elkülönített munkamenetet használ Terv módban. Az eszközészlelési védelem megszakítja a munkamenetet, de nem bizonyíthatja, hogy egyetlen eszköz sem futott. Csak óvatosságot javasolhat.",
   "judgeStatusSame": "Ugyanaz a modell",
   "judgeStatusOff": "Kikapcsolva",

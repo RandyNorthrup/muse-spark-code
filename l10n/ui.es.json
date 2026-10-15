@@ -4155,6 +4155,7 @@
     "many": "{count} juicios"
   },
   "judgeCaution": "Muse Judge recomienda precaución. Tú decides; no puede aprobar esta acción.",
+  "judgeAdvisoryMissing": "La comprobación de seguridad en segundo plano no terminó, por lo que esta aprobación no lleva ningún aviso.",
   "judgeSubscriptionNotice": "Muse Judge usa tu modelo de chat con tu suscripción a Muse y cuenta para sus límites. Cada lote usa una sesión nueva y aislada en modo Plan. Una protección cancela la sesión al detectar una herramienta, pero no puede demostrar que ninguna herramienta se ejecutó. Solo puede recomendar precaución.",
   "judgeStatusSame": "Mismo modelo",
   "judgeStatusOff": "Desactivado",
