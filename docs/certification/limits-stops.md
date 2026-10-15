@@ -235,6 +235,9 @@ Pure regressions in `configuredStreamError.test.ts` cover the visible HTTP
 status and a separately bundled error shape; they still need an observed
 run/red drill. The original positive wire-error examples are data, not a
 provider emulator. Real provider HTTP behavior is not certified here.
+The host's fallback registry/model-list refusals in `modelApiEntry.ts`
+also use fixed request diagnostics instead of the panel's unavailable
+sentence; the panel bundle's actual load failure keeps its panel wording.
 
 ## RVLIMITS evidence correction — reflex-only notice test (2026-10-14)
 

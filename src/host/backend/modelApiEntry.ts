@@ -63,7 +63,7 @@ import { requestImageCount } from '../../core/backends/modelapi/modelPolicy'
 import { Usd } from '../../shared/usd'
 
 import type { UiText } from '../../shared/l10n/en'
-import { setUiText, uiLocale } from '../../shared/l10n/text'
+import { fill, setUiText, uiLocale } from '../../shared/l10n/text'
 import type { ModelApiBundleDeps } from './modelApiBundle'
 
 /**
@@ -176,7 +176,8 @@ export async function createModelApiHost(deps: ModelApiBundleDeps): Promise<Mode
         }
   let providers: ReturnType<NonNullable<typeof deps.createProviders>> | undefined
   const resolveProviders = async () => {
-    if (deps.createProviders === undefined) throw new Error(UI_TEXT.modelsPanelUnavailable)
+    if (deps.createProviders === undefined)
+      throw new Error(fill(UI_TEXT.webFetchNetwork, { detail: 'provider_registry_unavailable' }))
     providers ??= deps.createProviders()
     try {
       return await providers
@@ -239,7 +240,10 @@ export async function createModelApiHost(deps: ModelApiBundleDeps): Promise<Mode
           list: async () => {
             if (clientModels?.list !== undefined) return await clientModels.list()
             const { list } = await resolveProviders()
-            if (list === undefined) throw new Error(UI_TEXT.modelsPanelUnavailable)
+            if (list === undefined)
+              throw new Error(
+                fill(UI_TEXT.webFetchNetwork, { detail: 'provider_model_list_unavailable' }),
+              )
             return await list()
           },
         }),

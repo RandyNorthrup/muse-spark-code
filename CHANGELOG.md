@@ -24,7 +24,8 @@ happened, not what was planned; superseded entries are kept.
   required.
 
 - RVLIMITS: configured-provider configuration, credential, stream-size and
-  replay-binding failures no longer blame the Models & Agents panel. They
+  replay-binding and fallback-registry failures no longer blame the
+  Models & Agents panel. They
   name fixed diagnostic codes through the translated request-failure
   sentence, and provider HTTP failures include their status in the visible
   message, including across separately loaded bundles.
