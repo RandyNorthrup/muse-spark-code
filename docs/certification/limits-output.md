@@ -253,6 +253,13 @@ is not applied to the repository's legacy, non-ledger PLAN format.
   pass (6 tests with output-cap checks, exit 0, `.lane/tap-green.log`). This
   does not certify full event delivery or provider behavior.
 
+- F7 diagnostic message tails: `getDiagnostics` now offers `messageOffset`;
+  a clipped message names its entry offset and next message offset, preserving
+  any `uri` filter. The formatter is the real module, driven with data: the
+  1,000-character prefix and important tail are separately reachable. Both
+  diagnostic suites pass (exit 0, `.lane/diagnostics-green.log`). Verify's
+  separate summary remains pageable through getDiagnostics.
+
 ## Qualification
 
 All work runs directly in `/home/randy/lanes/LIMITSB` on linuxlt. No

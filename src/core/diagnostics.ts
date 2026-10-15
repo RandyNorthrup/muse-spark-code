@@ -70,15 +70,17 @@ function isInWorkspace(entry: DiagnosticEntry): entry is WorkspaceDiagnostic {
 }
 
 /** At most `DIAGNOSTIC_MESSAGE_MAX_CHARS`, never splitting a surrogate pair, with the rest counted. */
-function clipMessage(message: string): string {
-  if (message.length <= DIAGNOSTIC_MESSAGE_MAX_CHARS) {
-    return message
+function clipMessage(message: string, offset = 0, next?: (offset: number) => string): string {
+  const start = HIGH_SURROGATE.test(message.slice(0, offset)) ? Math.max(offset - 1, 0) : offset
+  if (message.length - start <= DIAGNOSTIC_MESSAGE_MAX_CHARS) {
+    return message.slice(start)
   }
-  let kept = message.slice(0, DIAGNOSTIC_MESSAGE_MAX_CHARS)
+  let kept = message.slice(start, start + DIAGNOSTIC_MESSAGE_MAX_CHARS)
   if (HIGH_SURROGATE.test(kept)) {
     kept = kept.slice(0, -1)
   }
-  return `${kept}… [${String(message.length - kept.length)} characters clipped]`
+  const end = start + kept.length
+  return `${kept}… [${String(message.length - end)} characters clipped${next === undefined ? '' : `; ${next(end)}`}]`
 }
 
 type PathRequest =
@@ -109,9 +111,13 @@ function requestedPath(given: string, deps: DiagnosticsToolDeps): PathRequest {
     : { ok: true, path: relative, fsPath }
 }
 
-function formatEntry(entry: WorkspaceDiagnostic): string {
+function formatEntry(
+  entry: WorkspaceDiagnostic,
+  messageOffset = 0,
+  next?: (offset: number) => string,
+): string {
   const source = entry.source === undefined ? '' : ` [${entry.source}]`
-  return `${entry.path}:${String(entry.line)}:${String(entry.column)}: ${entry.severity}: ${clipMessage(entry.message)}${source}`
+  return `${entry.path}:${String(entry.line)}:${String(entry.column)}: ${entry.severity}: ${clipMessage(entry.message, messageOffset, next)}${source}`
 }
 
 /**
@@ -125,6 +131,8 @@ export function formatDiagnostics(
   max: number = DIAGNOSTICS_MAX_ENTRIES,
   offset = 0,
   nextPage?: string,
+  messageOffset = 0,
+  messagePage?: (entryOffset: number, messageOffset: number) => string,
 ): string {
   if (entries.length === 0) {
     return NO_DIAGNOSTICS
@@ -141,7 +149,21 @@ export function formatDiagnostics(
       `offset ${String(skip)} is past the last of ${String(sorted.length)} diagnostics; use an offset from 0 to ${String(sorted.length - 1)}`,
     )
   }
-  const shown = sorted.slice(skip, skip + max).map((entry) => formatEntry(entry))
+  const messageLength = sorted[skip]?.message.length ?? 1
+  if (
+    messageOffset !== 0 &&
+    (messageOffset < 0 || messageOffset >= messageLength || !Number.isSafeInteger(messageOffset))
+  )
+    throw new RangeError('messageOffset is past the diagnostic message')
+  const shown = sorted
+    .slice(skip, skip + max)
+    .map((entry, index) =>
+      formatEntry(
+        entry,
+        index === 0 ? messageOffset : 0,
+        messagePage === undefined ? undefined : (next) => messagePage(skip + index, next),
+      ),
+    )
   const rest = sorted.length - skip - shown.length
   if (rest > 0) {
     shown.push(
@@ -199,6 +221,11 @@ export function diagnosticsTool(deps: DiagnosticsToolDeps): McpTool {
           type: 'integer',
           description: 'Skip this many diagnostics before returning entries.',
         },
+        messageOffset: {
+          type: 'integer',
+          description:
+            'Characters to skip in the first diagnostic message; its clip note gives the next offset.',
+        },
       },
     },
     // It only reads the Problems panel (D49's rule for tools on `ide`, M67).
@@ -209,6 +236,7 @@ export function diagnosticsTool(deps: DiagnosticsToolDeps): McpTool {
       const uri = args[URI_ARGUMENT]
       const { platform } = deps
       const offset = readOffset(args)
+      const messageOffset = typeof args['messageOffset'] === 'number' ? args['messageOffset'] : 0
       // B6 (limits-output): every page names the offset that fetches the rest.
       const page = (list: readonly WorkspaceDiagnostic[]): string => {
         const next = offset + Math.min(DIAGNOSTICS_MAX_ENTRIES, Math.max(list.length - offset, 0))
@@ -216,7 +244,10 @@ export function diagnosticsTool(deps: DiagnosticsToolDeps): McpTool {
           list,
           DIAGNOSTICS_MAX_ENTRIES,
           offset,
-          `call ${IDE_MCP_TOOL_DIAGNOSTICS} again with offset ${String(next)} for the rest`,
+          `call ${IDE_MCP_TOOL_DIAGNOSTICS} again with offset ${String(next)}${typeof uri === 'string' ? ` and uri ${JSON.stringify(uri)}` : ''} for the rest`,
+          messageOffset,
+          (entryOffset, nextMessageOffset) =>
+            `call ${IDE_MCP_TOOL_DIAGNOSTICS} with offset ${String(entryOffset)} and messageOffset ${String(nextMessageOffset)}${typeof uri === 'string' ? ` and uri ${JSON.stringify(uri)}` : ''} for the rest`,
         )
       }
       const inWorkspace = () => deps.getDiagnostics().filter((entry) => isInWorkspace(entry))

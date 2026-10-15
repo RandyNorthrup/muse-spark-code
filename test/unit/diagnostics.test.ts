@@ -32,6 +32,20 @@ const entries: readonly WorkspaceDiagnostic[] = [
 ]
 
 describe('formatDiagnostics', () => {
+  it('pages one long diagnostic message without discarding its tail', () => {
+    const diagnostic = { ...entries[0]!, message: 'x'.repeat(1000) + 'important tail' }
+    const first = formatDiagnostics(
+      [diagnostic],
+      1,
+      0,
+      undefined,
+      0,
+      (entryOffset, messageOffset) =>
+        `offset ${String(entryOffset)} messageOffset ${String(messageOffset)}`,
+    )
+    expect(first).toContain('offset 0 messageOffset 1000')
+    expect(formatDiagnostics([diagnostic], 1, 0, undefined, 1000)).toContain('important tail')
+  })
   it('lists errors first, then by path and line, one line each', () => {
     expect(formatDiagnostics(entries)).toBe(
       [
