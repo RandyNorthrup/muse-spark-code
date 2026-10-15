@@ -548,3 +548,140 @@ The suite fails 1/3 (exit 1): `notices miss
 byte-exact; SHA-256
 `5e18a0b29b7f9b7c1e732347de3136a40b14ee370a193a88f4c92a704670147d`.
 Final real-code run: 3/3 passed at repository defaults.
+
+## Unwired exports in wired files (review thread)
+
+Lane TESTCUTTAGS, 2026-10-15. PR 172 removed 60 product-imported files from
+knip.jsonc entries; `npx knip` then reported 118 unused exports (113 exports,
+3 types, 2 namespace exports). Per the owner's rule (2026-10-14) no built
+feature was deleted: every item is tagged `@unwired <milestone> <purpose>`,
+which knip honours via `tags: ["-unwired"]`. Decisions: **118 tagged
+planned-but-unwired, 0 true duplicates removed, 0 dead code removed,
+0 unsure** (every item maps to a milestone with code evidence below).
+Milestone counts: M96 52, M96c 5, M115 9, M109 7, M71/M123 12, M108 6,
+M116 5, M58 4, M117 4, M107 3, M91 2, M113 2, M105 2, M91b/M93/M95/M97/M118 1 each.
+
+Red drill: removed the `schedulesFolder` tag -- `npx knip` exits 1 reporting
+`schedulesFolder function src/runtime/dataFolder.ts:65:17`. Restored byte-exact
+(SHA-256 6a18e6aba925a3134ec54ee0ba5ead779df8b9e11d041b90efa9cadcf2036d0c).
+
+| Export                              | File:line                                                    | Decision | Milestone / note                                                                               |
+| ----------------------------------- | ------------------------------------------------------------ | -------- | ---------------------------------------------------------------------------------------------- |
+| `accountPolicyQuestion`             | src/core/accounts/policyGate.ts:17                           | tag      | M108 accounts policy question for the panel                                                    |
+| `accountColdCacheEstimate`          | src/core/accounts/pool.ts:113                                | tag      | M108 conservative pool cost estimate                                                           |
+| `accountReplay`                     | src/core/accounts/pool.ts:459                                | tag      | M108 pool replay of captured items                                                             |
+| `elicitationResultFields`           | src/core/backends/modelapi/extensionHooks.ts:680             | tag      | M91 project hook elicitation fields                                                            |
+| `teammateIdleFields`                | src/core/backends/modelapi/extensionHooks.ts:694             | tag      | M91 team hook idle field names                                                                 |
+| `runPluginHook`                     | src/core/backends/modelapi/pluginHost.ts:695                 | tag      | M91b one plugin hook call outside any session                                                  |
+| `dispatchPlaybookSubagent`          | src/core/backends/modelapi/subagentTools.ts:193              | tag      | M116 playbook subagent dispatch                                                                |
+| `classifiedToolNames`               | src/core/backends/modelapi/tools.ts:599                      | tag      | M96 tool inventory the team fence must cover                                                   |
+| `MuseCodeAccountHomes`              | src/core/backends/musecode/accountHomes.ts:65                | tag      | M108 CLI account homes reader                                                                  |
+| `recoverMuseCodeAccount`            | src/core/backends/musecode/accountHomes.ts:234               | tag      | M108 CLI account recovery port                                                                 |
+| `RECORDING_BUILDERS`                | src/core/context/recordingReader.ts:47                       | tag      | M115 schedule recording builder identities                                                     |
+| `staleBaseText`                     | src/core/estimator/baseRisk.ts:50                            | tag      | M117 stale-baseline label                                                                      |
+| `calibrationLabel`                  | src/core/estimator/calibration/fit.ts:211                    | tag      | M117 calibration fit label                                                                     |
+| `laneRedesignRisk`                  | src/core/estimator/calibration/fit.ts:216                    | tag      | M117 lane redesign risk quantity                                                               |
+| `EstimateGoalSnapshot`              | src/core/estimator/goal.ts:67                                | tag      | M117 estimator goal snapshot                                                                   |
+| `assertPermittedScopes`             | src/core/git/tokenSource.ts:163                              | tag      | M123 permitted GitHub scope guard                                                              |
+| `githubLeaseResultSchema`           | src/core/git/tokenSource.ts:145                              | tag      | M123 GitHub lease result shape                                                                 |
+| `isGhLoginEnabled`                  | src/core/git/tokenSource.ts:210                              | tag      | M123 gh login setting reader                                                                   |
+| `leaseExpiresAt`                    | src/core/git/tokenSource.ts:154                              | tag      | M123 GitHub lease expiry                                                                       |
+| `missingScopes`                     | src/core/git/tokenSource.ts:174                              | tag      | M123 missing GitHub scope reader                                                               |
+| `requireOAuthClientId`              | src/core/git/tokenSource.ts:191                              | tag      | M123 GitHub OAuth client id                                                                    |
+| `MediaContributorConsent`           | src/core/media/mediaCost.ts:423                              | tag      | M105 per-editor media consent bridge                                                           |
+| `openMacosRecordingPermissions`     | src/core/media/record/macos.ts:102                           | tag      | M105 macOS recording permission recovery                                                       |
+| `PanelPlaybook`                     | src/core/orchestration/panelPlaybook.ts:74                   | tag      | M116 panel playbook port                                                                       |
+| `newPlaybookModule`                 | src/core/orchestration/playbook/modules.ts:68                | tag      | M116 playbook module registry entry                                                            |
+| `collectPlaybookReport`             | src/core/orchestration/playbookReports.ts:181                | tag      | M116 playbook report rows                                                                      |
+| `AccountPaidUseConsent`             | src/core/paid/paidConsent.ts:907                             | tag      | M58 account paid-use consent                                                                   |
+| `askSchedulePaidConsent`            | src/core/paid/paidConsent.ts:107                             | tag      | M58 schedule-run paid consent                                                                  |
+| `createSchedulePaidScope`           | src/core/paid/paidConsent.ts:165                             | tag      | M58 schedule paid scope                                                                        |
+| `paidAccountQuestion`               | src/core/paid/paidConsent.ts:861                             | tag      | M58 account paid-use question                                                                  |
+| `accountClientLookup`               | src/core/providers/accounts.ts:269                           | tag      | M108 provider account client lookup                                                            |
+| `publicReportTransport`             | src/core/reporting/sources/cache.ts:600                      | tag      | M113 public report fetch transport                                                             |
+| `postReport`                        | src/core/reporting/sources/github.ts:436                     | tag      | M113 report posting to GitHub                                                                  |
+| `hasDeviceDiskHeadroom`             | src/core/resources/disk.ts:81                                | tag      | M107 device disk headroom check                                                                |
+| `isResourceCapRefused`              | src/core/resources/launch.ts:112                             | tag      | M107 resource cap refusal guard                                                                |
+| `isResourceMemoryLimit`             | src/core/resources/launch.ts:121                             | tag      | M107 resource memory limit guard                                                               |
+| `resourceRunnerPreference`          | src/core/runners/routing.ts:13                               | tag      | M96c SSH runner routing preference                                                             |
+| `migrateSchedules`                  | src/core/schedules/migrate.ts:101                            | tag      | M115 schedule store migration                                                                  |
+| `ScheduleReportActionRunner`        | src/core/schedules/reportAction.ts:54                        | tag      | M115 schedule report action runner                                                             |
+| `scheduleReportTool`                | src/core/schedules/reportAction.ts:162                       | tag      | M115 schedule report tool                                                                      |
+| `buildWebviewFlightRecord`          | src/core/support/flightRecorder.ts:248                       | tag      | M93 report dialog flight record                                                                |
+| `plannedConflicts`                  | src/core/team/conflictPredict.ts:33                          | tag      | M96 planned team conflicts                                                                     |
+| `applyNewRoleCeiling`               | src/core/team/roles.ts:465                                   | tag      | M96 new role ceiling                                                                           |
+| `loadRoles`                         | src/core/team/roles.ts:694                                   | tag      | M96 role catalogue loader                                                                      |
+| `newRoleAsks`                       | src/core/team/roles.ts:450                                   | tag      | M96 new role approval asks                                                                     |
+| `offeredRoles`                      | src/core/team/roles.ts:894                                   | tag      | M96 offered roles                                                                              |
+| `resolveRole`                       | src/core/team/roles.ts:899                                   | tag      | M96 role resolution                                                                            |
+| `pickResourceReady`                 | src/core/team/scheduler/pick.ts:4                            | tag      | M96c scheduler ready-work picker                                                               |
+| `AttemptRetirement`                 | src/core/team/scheduler/retire.ts:52                         | tag      | M96c scheduler attempt retirement                                                              |
+| `applyTeamMerge`                    | src/core/team/teamMerge.ts:441                               | tag      | M96 team merge applier                                                                         |
+| `planTeamMerge`                     | src/core/team/teamMerge.ts:356                               | tag      | M96 team merge planner                                                                         |
+| `TEAM_DEFAULT_ENTRY`                | src/core/team/teamPool.ts:66                                 | tag      | M96 team default entry marker                                                                  |
+| `TeamTaskQueue`                     | src/core/team/teamPool.ts:636                                | tag      | M96 team task queue                                                                            |
+| `answerExhausted`                   | src/core/team/teamPool.ts:567                                | tag      | M96 exhausted-pool answer                                                                      |
+| `buildHandoffBrief`                 | src/core/team/teamPool.ts:692                                | tag      | M96 agent handoff brief                                                                        |
+| `formatSwitchRow`                   | src/core/team/teamPool.ts:178                                | tag      | M96 agent switch transcript row                                                                |
+| `notStaffedText`                    | src/core/team/teamPool.ts:715                                | tag      | M96 not-staffed refusal text                                                                   |
+| `noteTeamFailure`                   | src/core/team/teamPool.ts:248                                | tag      | M96 team failure recorder                                                                      |
+| `recordTeamSwitch`                  | src/core/team/teamPool.ts:490                                | tag      | M96 agent switch recorder                                                                      |
+| `selectTeamEntry`                   | src/core/team/teamPool.ts:403                                | tag      | M96 team entry selector                                                                        |
+| `switchHookPayload`                 | src/core/team/teamPool.ts:125                                | tag      | M96 agent switch hook payload                                                                  |
+| `teamCapKey`                        | src/core/team/teamPool.ts:35                                 | tag      | M96 team cap map key                                                                           |
+| `commitTaskBranch`                  | src/core/team/teamWorkspaces.ts:414                          | tag      | M96 task branch committer                                                                      |
+| `isTeamWorkspaceError`              | src/core/team/teamWorkspaces.ts:147                          | tag      | M96 team workspace error guard                                                                 |
+| `publishTaskRef`                    | src/core/team/teamWorkspaces.ts:453                          | tag      | M96 task ref publisher                                                                         |
+| `resolveBaseCommit`                 | src/core/team/teamWorkspaces.ts:251                          | tag      | M96 team base commit resolver                                                                  |
+| `scratchBreach`                     | src/core/team/teamWorkspaces.ts:626                          | tag      | M96 scratch-copy breach scanner                                                                |
+| `startTeamWorkspace`                | src/core/team/teamWorkspaces.ts:358                          | tag      | M96 team workspace starter                                                                     |
+| `ACP_PRESETS`                       | src/core/team/workers/acpWorker.ts:69                        | tag      | M96 external agent preset table                                                                |
+| `AcpNativeServersError`             | src/core/team/workers/acpWorker.ts:26                        | tag      | M96 workerFence re-export for ACP host consumers [one JSDoc over the shared re-export]         |
+| `acpFsRead`                         | src/core/team/workers/acpWorker.ts:222                       | tag      | M96 ACP fs read                                                                                |
+| `acpFsWrite`                        | src/core/team/workers/acpWorker.ts:237                       | tag      | M96 ACP fs write                                                                               |
+| `answerAcpPermission`               | src/core/team/workers/acpWorker.ts:26                        | tag      | M96 workerFence re-export for ACP host consumers [one JSDoc over the shared re-export]         |
+| `confineAcpFsPath`                  | src/core/team/workers/acpWorker.ts:197                       | tag      | M96 ACP fs path confinement                                                                    |
+| `extractRequestPaths`               | src/core/team/workers/acpWorker.ts:26                        | tag      | M96 workerFence re-export for ACP host consumers [one JSDoc over the shared re-export]         |
+| `pickOnceOption`                    | src/core/team/workers/acpWorker.ts:168                       | tag      | M96 ACP once-option picker                                                                     |
+| `runAcpWorker`                      | src/core/team/workers/acpWorker.ts:322                       | tag      | M96 ACP worker runner                                                                          |
+| `checkWorkerDepth`                  | src/core/team/workers/engineWorker.ts:380                    | tag      | M96 worker child-loop depth guard                                                              |
+| `createReportCapture`               | src/core/team/workers/engineWorker.ts:224                    | tag      | M96 worker report capture                                                                      |
+| `createWorkerShellRunner`           | src/core/team/workers/engineWorker.ts:163                    | tag      | M96 worker shell runner                                                                        |
+| `runEngineWorker`                   | src/core/team/workers/engineWorker.ts:321                    | tag      | M96 engine worker runner                                                                       |
+| `MuseWorkerCapturePendingError`     | src/core/team/workers/museCodeWorker.ts:30                   | tag      | M96 workerFence re-export for Muse worker host consumers [one JSDoc over the shared re-export] |
+| `MuseWorkerFolderError`             | src/core/team/workers/museCodeWorker.ts:34                   | tag      | M96 workerFence re-export for Muse worker host consumers [one JSDoc over the shared re-export] |
+| `classifyMuseWorkerApproval`        | src/core/team/workers/museCodeWorker.ts:31                   | tag      | M96 workerFence re-export for Muse worker host consumers [one JSDoc over the shared re-export] |
+| `hasRefMove`                        | src/core/team/workers/museCodeWorker.ts:32                   | tag      | M96 workerFence re-export for Muse worker host consumers [one JSDoc over the shared re-export] |
+| `isRefMovingGitCommand`             | src/core/team/workers/museCodeWorker.ts:33                   | tag      | M96 workerFence re-export for Muse worker host consumers [one JSDoc over the shared re-export] |
+| `runMuseCodeWorker`                 | src/core/team/workers/museCodeWorker.ts:183                  | tag      | M96 Muse worker runner                                                                         |
+| `userServerExclusion`               | src/core/team/workers/museCodeWorker.ts:29                   | tag      | M96 workerFence re-export for Muse worker host consumers [one JSDoc over the shared re-export] |
+| `workerServeArgs`                   | src/core/team/workers/museCodeWorker.ts:53                   | tag      | M96 worker serve arguments                                                                     |
+| `answerAcpPermission`               | src/core/team/workers/workerFence.ts:777                     | tag      | M96 ACP permission answer                                                                      |
+| `classifyMuseWorkerApproval`        | src/core/team/workers/workerFence.ts:850                     | tag      | M96 worker approval classifier                                                                 |
+| `VaultChannelServer`                | src/core/vault/broker/channel.ts:76                          | tag      | M109 vault broker channel server                                                               |
+| `UnixVaultPeerVerifier`             | src/core/vault/broker/peer.ts:34                             | tag      | M109 Unix vault peer verifier                                                                  |
+| `WindowsVaultPeerVerifier`          | src/core/vault/broker/peer.ts:107                            | tag      | M109 Windows vault peer verifier                                                               |
+| `discoverAmbientFiles`              | src/core/vault/migrate/ambient.ts:62                         | tag      | M109 ambient vault file discovery                                                              |
+| `createFileScheduleMigrationSource` | src/host/backend/fileScheduleStore.ts:262                    | tag      | M115 v1 file schedule source                                                                   |
+| `previewConversationShare`          | src/host/conversation/exportConversation.ts:72               | tag      | M118 conversation share preview                                                                |
+| `isRepositoryRoot`                  | src/host/git/gitExtension.ts:153                             | tag      | M123 repository root check                                                                     |
+| `requestCheckSlot`                  | src/host/team/checkSlots.ts:5                                | tag      | M96 heavy team check slot                                                                      |
+| `TeamMcpBridge`                     | src/host/team/mcpBridge.ts:170                               | tag      | M96 team MCP bridge                                                                            |
+| `TeamMcpServer`                     | src/host/team/teamMcpServer.ts:94                            | tag      | M96 team MCP server                                                                            |
+| `HostVaultBrokerClient`             | src/host/vault/brokerClient.ts:41                            | tag      | M109 host vault broker client                                                                  |
+| `VAULT_LOCK_KEYBINDING`             | src/host/vault/vaultPanelBundle.ts:14                        | tag      | M109 vault lock keybinding                                                                     |
+| `schedulesFolder`                   | src/runtime/dataFolder.ts:64                                 | tag      | M115 shared schedule store root                                                                |
+| `execAccountRequest`                | src/runtime/exec/execAccounts.ts:42                          | tag      | M95 headless exec account selection                                                            |
+| `LegalReportEnvelope`               | src/runtime/legal/runLegal.ts:89                             | tag      | M97 legal report envelope                                                                      |
+| `RuntimePullRequestCheckout`        | src/runtime/panel/pullRequests/checkout.ts:1503              | tag      | M123 runtime PR checkout                                                                       |
+| `createNodePullRequestCheckoutGit`  | src/runtime/panel/pullRequests/checkout.ts:750               | tag      | M123 PR checkout git runner                                                                    |
+| `pullRequestFetchEnvironment`       | src/runtime/panel/pullRequests/checkout.ts:311               | tag      | M123 PR fetch environment                                                                      |
+| `quietPullRequestEnvironment`       | src/runtime/panel/pullRequests/checkout.ts:320               | tag      | M123 quiet PR git environment                                                                  |
+| `RuntimePullRequests`               | src/runtime/panel/pullRequests/pullRequests.ts:136           | tag      | M123 runtime pull requests                                                                     |
+| `HeadlessVaultSession`              | src/runtime/vault/execVault.ts:36                            | tag      | M109 headless vault session                                                                    |
+| `runnersHostMessageSchema`          | src/shared/modelsPanel.ts:844                                | tag      | M96c team runners host message                                                                 |
+| `trafficHostMessageSchema`          | src/shared/modelsPanel.ts:840                                | tag      | M96c team traffic host message                                                                 |
+| `PlaybookRule`                      | src/shared/playbook.ts:19                                    | tag      | M116 playbook rule type                                                                        |
+| `mountScheduleSurface`              | src/webview/schedules/ScheduleSurface.tsx:441                | tag      | M115 schedule surface mount                                                                    |
+| `schedulePromptAction`              | src/webview/schedules/prompt.ts:30 (ns SchedulePromptModule) | tag      | M115 schedule prompt action                                                                    |
+| `scheduleUnavailableReason`         | src/webview/schedules/prompt.ts:24 (ns SchedulePromptModule) | tag      | M115 schedule refused reason                                                                   |
