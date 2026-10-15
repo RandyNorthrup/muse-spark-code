@@ -1,39 +1,19 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { afterEach, describe, expect, it, vi } from 'vitest'
-import { AccountStore } from '../../src/core/providers/accounts'
-import type { AccountCredentialVault } from '../../src/core/providers/accountCredentialRecord'
+import { afterEach, describe, expect, it } from 'vitest'
+import { AccountStoreError } from '../../src/core/providers/accountCredentialRecord'
+import { parseCommandLine } from '../../src/runtime/cliArgs'
+import { parseAccountsCommand } from '../../src/runtime/providers/accountsCommand'
 import {
   fileAccountsMetadata,
   runtimeProvidersFile,
 } from '../../src/runtime/providers/providersFileStore'
-import { parseCommandLine } from '../../src/runtime/cliArgs'
-import {
-  parseAccountsCommand,
-  runAccountsCommand,
-  runAccountAuthSet,
-  type AccountsCommand,
-} from '../../src/runtime/providers/accountsCommand'
-import { runtimeAccountStore } from '../../src/runtime/providers/accountStore'
-import { UI_TEXT } from '../../src/shared/constants'
-import { CURRENT_SHAPE_KEYS } from './helpers/modelApiKeys'
-import { commandAccountsRig } from './helpers/runtimeAccounts'
 
-const disposals: (() => void)[] = []
-afterEach(() => {
-  for (const dispose of disposals.splice(0)) dispose()
+const folders: string[] = []
+afterEach(async () => {
+  for (const folder of folders.splice(0)) await rm(folder, { recursive: true, force: true })
 })
-function rig() {
-  const h = commandAccountsRig()
-  disposals.push(h.dispose)
-  return h
-}
-function command(args: string[]): AccountsCommand {
-  const parsed = parseAccountsCommand(args)
-  if (parsed === undefined) throw new Error('fixture command invalid')
-  return parsed
-}
 
 const META_ENTRY = {
   id: 'meta',
@@ -43,40 +23,38 @@ const META_ENTRY = {
   origin: 'https://api.meta.ai',
 } as const
 
-describe('M108 terminal account commands', () => {
-  it('parses and executes list, add, remove, order and thresholds with no credential output', async () => {
-    const h = rig()
-    const run = (args: string[]) =>
-      runAccountsCommand(command([...args, '--provider', 'meta']), h.deps)
+async function metadataFolder() {
+  const folder = await mkdtemp(path.join(tmpdir(), 'rvtestcut2-accounts-'))
+  folders.push(folder)
+  return folder
+}
+
+describe('terminal account command parsing and real metadata files', () => {
+  it('parses account management without accepting credentials on the command line', () => {
     expect(parseCommandLine(['providers', 'accounts', 'list', '--provider', 'meta'])).toMatchObject(
       { command: 'accounts' },
     )
-    expect(await run(['list'])).toBe(0)
-    expect(JSON.parse(h.print.mock.calls[0]?.[0] ?? '')).toMatchObject([{ id: 'default' }])
-    expect(await run(['add', '--account', 'work', '--label', 'Work', '--limit-group', 'org'])).toBe(
-      0,
-    )
-    expect(await h.accounts.list('meta')).toMatchObject([
-      { id: 'default', order: 0 },
-      { id: 'work', order: 1 },
-    ])
-    expect(await run(['order', 'work', 'default'])).toBe(0)
     expect(
-      await run([
+      parseAccountsCommand(['add', '--provider', 'meta', '--account', 'work', '--label', 'Work']),
+    ).toMatchObject({ action: 'add', provider: 'meta', account: { id: 'work', label: 'Work' } })
+    expect(parseAccountsCommand(['order', '--provider', 'meta', 'work', 'default'])).toMatchObject({
+      action: 'order',
+      accounts: ['work', 'default'],
+    })
+    expect(
+      parseAccountsCommand(['remove', '--provider', 'meta', '--account', 'work']),
+    ).toMatchObject({ action: 'remove', account: 'work' })
+    expect(
+      parseAccountsCommand([
         'thresholds',
+        '--provider',
+        'meta',
         '--account',
         'work',
         '--thresholds',
-        '{"spendUsd":{"day":0.3},"requests":{"month":2}}',
+        '{"requests":{"day":2}}',
       ]),
-    ).toBe(0)
-    expect(await h.accounts.list('meta')).toMatchObject([
-      { id: 'work', order: 0, limitGroup: 'org', thresholds: { spendUsd: { day: '0.3' } } },
-      { id: 'default', order: 1 },
-    ])
-    expect(await run(['remove', '--account', 'work'])).toBe(0)
-    expect(await h.accounts.list('meta')).toHaveLength(1)
-    expect(h.printError).not.toHaveBeenCalled()
+    ).toMatchObject({ action: 'thresholds', thresholds: { requests: { day: 2 } } })
   })
 
   it.each(
@@ -118,42 +96,11 @@ describe('M108 terminal account commands', () => {
       ['remove', '--provider', 'meta', '--account', '../bad'],
       ['order', '--provider', 'meta', 'default', '../bad'],
     ].map((args) => ({ args })),
-  )('rejects malformed CLI metadata without reflecting arguments: %j', ({ args }) => {
+  )('rejects malformed metadata without reflecting arguments: %j', ({ args }) => {
     expect(parseAccountsCommand(args)).toBeUndefined()
     const parsed = parseCommandLine(['providers', 'accounts', ...args])
     expect(parsed.command).toBe('invalid')
     expect(JSON.stringify(parsed)).not.toContain('account-secret-canary')
-  })
-
-  it('reads a second Meta key only from hidden stdin and preserves the existing default', async () => {
-    const h = rig()
-    h.values.set('museSpark.modelApiKey', CURRENT_SHAPE_KEYS[0])
-    await h.accounts.add('meta', { id: 'work', label: 'Work', order: 1, thresholds: {} })
-    const readSecret = vi.fn(() => Promise.resolve(` ${CURRENT_SHAPE_KEYS[1]} `))
-    const target = { provider: 'meta', account: 'work' }
-    expect(parseCommandLine(['auth', 'set', '--provider', 'meta', '--account', 'work'])).toEqual({
-      command: 'authSet',
-      target,
-    })
-    expect(
-      await runAccountAuthSet(target, { ...h.deps, readSecret, storeName: 'test vault' }),
-    ).toBe(0)
-    expect(readSecret).toHaveBeenCalledExactlyOnceWith(UI_TEXT.acpKeyPrompt)
-    expect(h.values.get('museSpark.modelApiKey')).toBe(CURRENT_SHAPE_KEYS[0])
-    expect(h.values.get('museSpark.provider.meta.account.work')).toContain(CURRENT_SHAPE_KEYS[1])
-    expect(
-      await h.accounts.useCredential(
-        'meta',
-        'work',
-        'https://api.meta.ai/v1/models',
-        (_binding, credential) => Promise.resolve(credential?.secret),
-      ),
-    ).toBe(CURRENT_SHAPE_KEYS[1])
-    expect(JSON.stringify([h.print.mock.calls, h.printError.mock.calls])).not.toContain(
-      CURRENT_SHAPE_KEYS[1],
-    )
-    await h.accounts.remove('meta', 'work')
-    expect(h.values.has('museSpark.provider.meta.account.work')).toBe(false)
   })
 
   it.each(
@@ -174,107 +121,31 @@ describe('M108 terminal account commands', () => {
     expect(JSON.stringify(parsed)).not.toContain('account-secret-canary')
   })
 
-  it('supports API-key providers and refuses subscription auth, unknown accounts and invalid Meta keys', async () => {
-    const h = rig()
-    h.configure({
-      id: 'anthropic',
-      policyProvider: 'anthropic',
-      product: 'api',
-      origin: 'https://api.anthropic.com',
+  it('persists account metadata across adapters without a credential store', async () => {
+    const folder = await metadataFolder()
+    const metadata = fileAccountsMetadata(folder)
+    expect(await metadata.read('meta')).toEqual(META_ENTRY)
+    const accounts = [{ id: 'work', label: 'Work', order: 0, thresholds: { requests: { day: 2 } } }]
+    await metadata.writeAccounts('meta', accounts)
+    expect(await fileAccountsMetadata(folder).read('meta')).toEqual({ ...META_ENTRY, accounts })
+    expect(JSON.parse(await readFile(runtimeProvidersFile(folder), 'utf8'))).toEqual({
+      providers: { meta: { ...META_ENTRY, accounts } },
     })
-    const readSecret = vi.fn(() => Promise.resolve('account-secret-canary'))
-    const deps = { ...h.deps, readSecret, storeName: 'test' }
-    const set = vi.spyOn(h.accounts, 'setCredential')
-    expect(await runAccountAuthSet({ provider: 'anthropic', account: 'default' }, deps)).toBe(0)
-    expect(h.values.get('museSpark.provider.anthropic')).toContain('account-secret-canary')
-    expect(readSecret).toHaveBeenCalledWith('anthropic · default API key (not shown as you type): ')
-    h.configure({ auth: 'subscription' })
-    readSecret.mockClear()
-    set.mockClear()
-    expect(await runAccountAuthSet({ provider: 'anthropic', account: 'default' }, deps)).toBe(1)
-    expect(readSecret).not.toHaveBeenCalled()
-    h.configure({
-      id: 'meta',
-      policyProvider: 'meta',
-      product: 'model-api',
-      origin: 'https://api.meta.ai',
-      auth: 'apiKey',
-    })
-    expect(await runAccountAuthSet({ provider: 'meta', account: 'missing' }, deps)).toBe(1)
-    expect(readSecret).not.toHaveBeenCalled()
-    expect(await runAccountAuthSet({ provider: 'meta', account: 'default' }, deps)).toBe(1)
-    expect(h.values.has('museSpark.modelApiKey')).toBe(false)
-    expect(set).not.toHaveBeenCalled()
-  })
-
-  it('reports storage failures with fixed text and never reflects a secret in an exception', async () => {
-    const h = rig()
-    // A real store over a metadata port whose read fails the way a broken
-    // providers store does: the command must answer with its fixed text.
-    const failingMetadata = {
-      read: () => Promise.reject(new Error('account-secret-canary')),
-      writeAccounts: () => Promise.resolve(),
-    }
-    const failing = runtimeAccountStore({
-      metadata: failingMetadata,
-      openEntry: (_service, name) => ({
-        getPassword: () => Promise.resolve(h.values.get(name)),
-        setPassword: (value) => {
-          h.values.set(name, value)
-          return Promise.resolve()
-        },
-        deletePassword: () => Promise.resolve(h.values.delete(name)),
-      }),
-      revokeSignIn: h.revoke,
-    })
-    disposals.push(failing.dispose)
-    expect(
-      await runAccountsCommand(
-        { action: 'list', provider: 'meta' },
-        { ...h.deps, accounts: failing.accounts, metadata: failingMetadata },
-      ),
-    ).toBe(1)
-    expect(h.printError).toHaveBeenCalledWith(UI_TEXT.accounts.unavailable)
-    expect(h.print).not.toHaveBeenCalled()
-    expect(JSON.stringify(h.printError.mock.calls)).not.toContain('account-secret-canary')
   })
 
   it.each([
     ['a malformed provider row', { providers: { meta: { ...META_ENTRY, auth: 'not-a-method' } } }],
     ['a file that is not JSON', '{oops'],
-  ])(
-    'names a refused providers file instead of the connection sentence: %s',
-    async (_label, envelope) => {
-      const folder = mkdtempSync(path.join(tmpdir(), 'm108-accounts-cmd-'))
-      disposals.push(() => {
-        rmSync(folder, { recursive: true, force: true })
-      })
-      const file = runtimeProvidersFile(folder)
-      const before = typeof envelope === 'string' ? envelope : JSON.stringify(envelope)
-      writeFileSync(file, before)
-      // Listing never touches the vault; it stays a stub.
-      const vault: AccountCredentialVault = {
-        read: () => Promise.resolve(undefined),
-        readForRemoval: () => Promise.resolve(undefined),
-        write: () => Promise.resolve(),
-        remove: () => Promise.resolve(),
-      }
-      const metadata = fileAccountsMetadata(folder)
-      const print = vi.fn<(text: string) => void>()
-      const printError = vi.fn<(text: string) => void>()
-      const store = new AccountStore(metadata, vault)
-      expect(
-        await runAccountsCommand(command(['list', '--provider', 'meta']), {
-          accounts: store,
-          metadata,
-          print,
-          printError,
-        }),
-      ).toBe(1)
-      expect(printError).toHaveBeenCalledWith(UI_TEXT.accounts.providersInvalid)
-      expect(printError).not.toHaveBeenCalledWith(UI_TEXT.accounts.unavailable)
-      expect(print).not.toHaveBeenCalled()
-      expect(readFileSync(file, 'utf8')).toBe(before)
-    },
-  )
+  ])('refuses %s and preserves its exact bytes', async (_label, envelope) => {
+    const folder = await metadataFolder()
+    const file = runtimeProvidersFile(folder)
+    const before = typeof envelope === 'string' ? envelope : JSON.stringify(envelope)
+    await writeFile(file, before)
+    const metadata = fileAccountsMetadata(folder)
+    await expect(async () => await metadata.read('meta')).rejects.toMatchObject({
+      code: 'invalidProvidersFile',
+    })
+    await expect(async () => await metadata.read('meta')).rejects.toBeInstanceOf(AccountStoreError)
+    expect(await readFile(file, 'utf8')).toBe(before)
+  })
 })

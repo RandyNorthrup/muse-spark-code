@@ -9,6 +9,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- Test-overhaul review: account-command tests now use the real parser and
+  metadata files, not a hand-built provider metadata store or key store.
+  Credential-operation composition remains for the real-life run.
+
 - Test-overhaul review: retain real on-disk session save/load, damaged
   history, retention-boundary and path-confinement checks without fake
   upload ledgers, question stores or filesystem replacements.

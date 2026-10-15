@@ -471,3 +471,24 @@ failed, expected the `recent` history header but received an empty list
 file byte-for-byte against HEAD; SHA-256
 `5b603a2f6baaade17441b220ba2f4b1a87e9b414167326619b295ebf0004d733`.
 Initial real-code run: 4/4 passed at repository defaults.
+
+## RVTESTCUT2 — remove the surviving account-command stand-in
+
+P2: the trimmed `helpers/runtimeAccounts.ts` still exported
+`commandAccountsRig`: `metadata.read/writeAccounts` used one local object,
+and `openEntry` read/wrote a Map instead of the OS credential store. Its
+only consumer, `accountsCommand.test.ts`, therefore still violated D108.
+
+Rewrite that suite through the real parser and file metadata adapter:
+23 cases retain argument/secret-route refusal, malformed-file rejection,
+byte preservation and metadata round-trip. No credential store is opened,
+no provider call runs. The former credential-operation composition cases
+are removed rather than replaced with another fake; the lead's real-life
+run must exercise add/order/threshold/remove and stdin credential flows.
+Remove the now-orphan helper export and imports; keep no placeholder API.
+
+Red drill: make the real metadata adapter silently return undefined for a
+malformed stored row. The suite fails 1/23 (exit 1): expected rejection,
+promise resolved undefined. Restore the adapter byte-exact; SHA-256
+`964b0b4cd228d3e416cac86f5ad9f8176a3ad9b468433c6aec0e33290cc094fe`.
+Initial and restored real-code runs are recorded in the review report.
