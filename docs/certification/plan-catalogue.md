@@ -223,6 +223,33 @@ same conditions: `conversationController.test.ts` fails 15 of 688 on both, the
 same 15 names; no case differs. A first version of this change posted an extra
 `composerState` and failed three more cases; that was removed, not the cases.
 
+## PLANFIX R8: exec reads effort and Fast from the selected model's options (2026-10-14, Windows)
+
+`runExec` (`src/runtime/exec/runExec.ts`) took the `effort` and `fast` options
+from the `session/new` answer even after `--model` changed the model, so `--effort`
+was checked against the START model's levels. The agent's `session/set_config_option`
+answer already carries the options for the new model (`agent.ts` 2635-2639); `runExec`
+now keeps it (`configOptions`) and reads `effort` and `fast` from it.
+
+Measured on the real `runExec` (the exec suite's own harness, scratch probe, deleted),
+start model `muse-spark-1.3` (serves `max`), selected `muse-spark-1.2` (does not):
+HEAD `--model muse-spark-1.2 --effort max` ended as an incomplete turn, exit 8,
+no usage error; with the fix exit 2 and "This effort is not available for this
+model.", before any request. `--effort xhigh` on 1.2 and `--effort max` on 1.3
+are unchanged (exit 5 in that harness, both before and after). The opposite
+direction (a Fast option only the selected model lists) shares the same read.
+
+Test `test/unit/execModelOptions.test.ts` (2 cases): the real `runExec` over the
+real Model API bundle, ACP agent and command-line parser; the stand-ins are the
+provider's model list (a fetch answering `GET /models`, failing any other path)
+and a map holding a throwaway key. Red: against the untouched `runExec.ts` the
+first case fails (`expected 8 to be 2`); restored byte-exact (SHA-256
+`5AFADE00…DBB`), 2/2. Dependents: `execRun` 94/94, `execProvider` 17/17,
+`execResources` 6/6, `execVault` 25/25.
+
+Not run: `exec --fast` against a model that lists Fast needs a plan model and a
+sign-in; a person's steps are in the lead's list at the end of this lane.
+
 ## RVHOSTID: output-index boundary review (2026-10-14, Windows)
 
 The F87 accumulator accepted duplicate, negative, fractional and unsafe indices;

@@ -9,6 +9,8 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- `exec --effort` checked the level against the model the session started on, not the one `--model` selected: `--model muse-spark-1.2 --effort max` was not refused as a usage error (1.2 has no `max`) and the run ended as an incomplete turn. The level, and `--fast`, are now checked against the selected model's own options.
+
 - ChatGPT plan, Fast: the Fast switch could stay on in the request while the panel showed it off. Turning Fast on for one model, switching to a model without it and back sent the priority tier (more of your plan allowance) with the switch showing off, and a conversation resumed or opened in a panel could re-apply a Fast flag left from an earlier one. The session now drops Fast the moment its model changes, the panel always tells the session "off" when it shows off, and every conversation a panel takes starts with Fast off.
 
 - ChatGPT plan streams now refuse missing, invalid or repeated output indices and repeated call identities instead of retaining ambiguous tool calls for execution and replay.
