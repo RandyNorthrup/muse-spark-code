@@ -4,6 +4,7 @@
 
 import type * as vscode from 'vscode'
 import { vi } from 'vitest'
+import type { SecretStore } from '../../../src/host/auth/credentialStore'
 import type { HostToWebviewMessage } from '../../../src/shared/protocol'
 import type { ChatSurface } from '../../../src/host/views/chatSurface'
 import { EventEmitter } from '../mocks/vscode'
@@ -53,6 +54,23 @@ export function fakeSurface(id: string, isSideChat = false): FakeSurface {
     takeRestoredSessionId: vi.fn<() => string | undefined>(),
     dispose() {
       // nothing to release in the fake
+    },
+  }
+}
+
+/** An in-memory `SecretStore` for tests: a stand-in for the OS credential store (the outside world). */
+export function memorySecrets(): SecretStore & { readonly values: Map<string, string> } {
+  const values = new Map<string, string>()
+  return {
+    values,
+    get: (key) => Promise.resolve(values.get(key)),
+    store: (key, value) => {
+      values.set(key, value)
+      return Promise.resolve()
+    },
+    delete: (key) => {
+      values.delete(key)
+      return Promise.resolve()
     },
   }
 }
