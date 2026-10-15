@@ -33,6 +33,25 @@ for the read-back wait, then close the panel and verify its tasks can stop.
 No fake timeout or provider replay was added, so this lifecycle scenario is
 not claimed as automated proof here.
 
+## PRTH166 review repair — T3 (`PRRT_kwDOUkzj5M6sew_W`)
+
+The finding is correct. Both controller verification and ACP
+`restoreChoice` now call `setModel` only for Muse Code, whose resume carries
+no choice, or when the loaded handle reports a genuinely different model.
+Model API's durable same-model loads still read back the active model, but
+no longer run a spurious switch (and its hooks, judge reset, revision,
+budget-base reset and persistence). A genuinely different remembered choice
+continues to switch, so the restart choice is not silently discarded.
+
+Lead real-use check: configure Model API PreModelSwitch/PostModelSwitch
+hooks to append to a local marker file. Open an existing same-model History
+conversation and load/resume the same id in ACP; neither opening should
+append a switch marker. Choose a different model explicitly; the hooks
+should now append and that model should be the one displayed. Repeat the
+Muse restart scenario to verify its mandatory explicit selection remains.
+Hook execution and session access are left to the lead, not replaced by a
+fake backend or store in this lane.
+
 The records below describe the original lane and are retained as history;
 they do not certify the merged review tree.
 

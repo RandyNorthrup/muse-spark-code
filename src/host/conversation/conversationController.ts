@@ -4105,7 +4105,11 @@ export class ConversationController {
     wantedModelId: string,
   ): Promise<Awaited<ReturnType<AgentHost['listModels']>>> {
     try {
-      await loaded.session.setModel(wantedModelId)
+      // Model API restores its durable model itself. Setting the same id
+      // there is still a switch (hooks, judge and budget state included).
+      if (host.info.kind === 'museCode' || loaded.session.modelId !== wantedModelId) {
+        await loaded.session.setModel(wantedModelId)
+      }
       const models = await host.listModels(loaded.session.sessionId)
       const outcome = resolveResumedModel({
         wantedModelId,
