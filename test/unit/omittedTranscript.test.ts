@@ -3,7 +3,8 @@
 // snapshot and come back on restore. Real snapshot functions, data in.
 import { describe, expect, it } from 'vitest'
 import { restoredUiState, webviewStateOf } from '../../src/webview/state/snapshot'
-import { initialUiState } from '../../src/webview/state/uiState'
+import { initialUiState, uiReducer } from '../../src/webview/state/uiState'
+import { UI_TEXT } from '../../src/shared/constants'
 
 function oversized() {
   return {
@@ -43,6 +44,32 @@ describe('oversize webview state', () => {
       text: 'pending send text',
       revision: 3,
     })
+  })
+
+  it('recovers a refused pending send after an omitted transcript reload', () => {
+    const submitted = uiReducer(
+      { ...oversized(), draft: '  keep this send  ', draftRevision: 2 },
+      {
+        type: 'submitted',
+        localId: 'l2',
+        text: 'keep this send',
+        attachments: [],
+        contextLabel: undefined,
+      },
+    )
+    const restored = restoredUiState(webviewStateOf(submitted, true, 100))
+    const refused = uiReducer(restored, {
+      type: 'hostMessage',
+      at: 0,
+      message: {
+        type: 'sendFailed',
+        localId: 'l2',
+        reason: UI_TEXT.handoffBusy,
+        attachmentsKept: true,
+      },
+    })
+    expect(refused.draft).toBe('  keep this send  ')
+    expect(refused.pendingSendDraft).toBeUndefined()
   })
 
   it('still saves the transcript when it fits', () => {

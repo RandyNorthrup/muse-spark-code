@@ -114,7 +114,8 @@ happened, not what was planned; superseded entries are kept.
   warning naming the server. A dropped judge advisory is named on the
   approval card, and as a warning on auto-allow. An oversize panel state
   still omits the transcript, but the unsent draft and pending send come
-  back on restore. Proof in `docs/certification/no-silent-drops.md`.
+  back on restore, including the revision needed to recover a refused
+  pending send without replacing newer typing. Proof in `docs/certification/no-silent-drops.md`.
 
 ## [0.18.2] - 2026-10-12
 

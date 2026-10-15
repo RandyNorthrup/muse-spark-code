@@ -145,6 +145,7 @@ describe('the saved conversation (M25)', () => {
       sessionId: 's1',
       attachmentEpoch: 4,
       omittedSessionId: 's1',
+      draftRevision: shown.draftRevision,
       draft: 'and then',
     })
     expect(restoredUiState(omitted).attachmentEpoch).toBe(4)
@@ -152,7 +153,12 @@ describe('the saved conversation (M25)', () => {
 
   it('keeps the session id and the unsent text past the size cap, and says so once the host confirms it', () => {
     const saved = throughJson(webviewStateOf(shown, true, 100))
-    expect(saved).toEqual({ sessionId: 's1', omittedSessionId: 's1', draft: 'and then' })
+    expect(saved).toEqual({
+      sessionId: 's1',
+      omittedSessionId: 's1',
+      draftRevision: shown.draftRevision,
+      draft: 'and then',
+    })
     const restored = restoredUiState(saved)
     expect(restored.transcript).toEqual([])
     expect(restored.draft).toBe('and then')

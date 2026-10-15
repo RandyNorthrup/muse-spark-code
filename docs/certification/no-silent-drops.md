@@ -192,6 +192,20 @@ editor protocol and terminal, so one notice covers all three surfaces.
   the notice names History, and the composer still holds the unsent
   text. (Lead-run: reload a heavy panel.)
 
+## RVDROPS review — B10 pending-send recovery
+
+- P1: the omitted-transcript envelope kept `pendingSendDraft.revision` but
+  lost `draftRevision`. A real `submitted` action at revision 2, saved with
+  a 100-character cap, restored revision 0. The real `sendFailed` reducer
+  then refused to restore the pending text and deleted the last copy.
+- `omittedTranscript.test.ts` now runs that sequence through the real snapshot
+  and reducer: before the fix, 1 failed / 3 passed (exit 1,
+  `temp/rv-b10-red.log`); after retaining the revision, snapshot + omitted
+  transcript: 16 passed (exit 0, `temp/rv-b10-green.log`, Windows).
+- This is logic evidence, not a panel look. Lead: send while handoff is busy,
+  reload an oversize panel before the refusal arrives, and confirm the exact
+  pending text returns to the composer without overwriting a newer draft.
+
 ## Limits raised or removed (owner's rule)
 
 | Row | Number              | Outcome                                                  | Reasoning                                                                       |

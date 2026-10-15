@@ -64,6 +64,7 @@ const webviewStateSchema = z.object({
    * along even when the transcript is omitted rather than forgotten.
    */
   draft: z.optional(z.string()),
+  draftRevision: z.optional(z.number()),
   pendingSendDraft: z.optional(
     z.object({ localId: z.string(), text: z.string(), revision: z.number() }),
   ),
@@ -132,6 +133,7 @@ export function webviewStateOf(
   return {
     ...base,
     omittedSessionId: state.sessionId,
+    draftRevision: state.draftRevision,
     ...(state.draft !== '' && { draft: redactSecrets(state.draft) }),
     ...(state.pendingSendDraft !== undefined && {
       pendingSendDraft: {
@@ -170,6 +172,7 @@ export function restoredUiState(raw: unknown): UiState {
     sideChat,
     attachmentEpoch,
     draft,
+    draftRevision,
     pendingSendDraft,
   } = persisted.data
   const base: UiState = {
@@ -221,6 +224,7 @@ export function restoredUiState(raw: unknown): UiState {
   return {
     ...base,
     ...(draft !== undefined && { draft: redactSecrets(draft) }),
+    draftRevision: draftRevision ?? 0,
     ...(pendingSendDraft !== undefined && {
       pendingSendDraft: {
         ...pendingSendDraft,
