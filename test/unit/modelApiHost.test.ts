@@ -8053,9 +8053,10 @@ function scriptExplorerSpawn(t: ReturnType<typeof setup>, callId: string): void 
 }
 
 /** The popup request for an explorer's "Map files" task on the default model. */
+// Lane LIMITSA, D113: the task carries no request cap.
 const MAP_FILES_REQUEST: PaidUseRequest = {
   feature: 'subagents',
-  task: { role: 'explorer', objective: 'Map files', modelId: 'muse-spark-1.3', attemptLimit: 4 },
+  task: { role: 'explorer', objective: 'Map files', modelId: 'muse-spark-1.3' },
 }
 
 /** A settled first child, so follow-up consent tests have no parent race. */

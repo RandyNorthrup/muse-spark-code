@@ -4440,8 +4440,11 @@ export const EN = {
   paidVoiceName: 'Muse Voice',
   paidScheduledName: 'Scheduled Prompts',
   paidSubagentsName: 'Subagents',
+  // Lane LIMITSA, D113: a child task has no request cap; the consent names
+  // the per-request rates, and the task detail already says the actual cost
+  // depends on tokens used.
   paidSubagentRates:
-    '{model}: {input} input, {cached} cached input, {output} output per million tokens; up to {limit} requests per task, including retries.',
+    '{model}: {input} input, {cached} cached input, {output} output per million tokens, billed per request with no request cap.',
   paidSubagentTaskTitle: 'Approve paid task for {role}?',
   paidSubagentTaskDetail:
     '{objective}\n\n{price}\n\nBilled to your Model API key. Actual cost depends on tokens used. Other enabled paid tools are charged separately. Allow once covers this task only.',
@@ -4702,8 +4705,6 @@ export const EN = {
   subagentConsentDeclined: 'The paid child task was not approved.',
   subagentContributorBlocked:
     'The custom agent names a contributor-tier model, which cannot run while this workspace is confidential (museSpark.confidentialWorkspace).',
-  subagentRequestLimit:
-    'The child task reached its approved limit of {limit} requests, including retries.',
   subagentKeyChanged:
     'The Model API key changed after approval. Approve a new child task to continue.',
   subagentModelChanged: 'The model changed after approval. Approve a new child task to continue.',

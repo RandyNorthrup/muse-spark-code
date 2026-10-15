@@ -169,7 +169,6 @@ import {
   SUBAGENT_RESULT_READY,
   SUBAGENT_RESULT_TEXT_MAX_CHARS,
   SUBAGENT_SUMMARY_MAX_CHARS,
-  SUBAGENT_TASK_MAX_REQUESTS,
   SUBAGENT_WAIT_DEFAULT_MS,
   type SubagentAction,
   THEN_RUN_ARGUMENT,
@@ -1069,7 +1068,6 @@ interface ChildTaskGrant {
   readonly parentModelId: string
   readonly keyDigest: string
   readonly goalId: string | undefined
-  remainingAttempts: number
   /**
    * Whether the task may search the web (M58): the parent turn's answer to
    * the web search popup, or for a task the user starts, the feature allowed
@@ -1885,7 +1883,6 @@ function subagentFailure(reason: string, visibleReason?: string): ToolOutcome {
 const CHILD_TASK_REFUSALS = [
   'paidOff',
   'consentDeclined',
-  'requestLimit',
   'keyChanged',
   'modelChanged',
   'goalEnded',
@@ -1908,13 +1905,6 @@ function childTaskMessages(kind: ChildTaskRefusal): {
       return {
         model: MODEL_API_MODEL_TEXT.subagentConsentDeclined,
         visible: UI_TEXT.subagentConsentDeclined,
-      }
-    }
-    case 'requestLimit': {
-      const limit = SUBAGENT_TASK_MAX_REQUESTS
-      return {
-        model: fill(MODEL_API_MODEL_TEXT.subagentRequestLimit, { limit }),
-        visible: fill(UI_TEXT.subagentRequestLimit, { limit }),
       }
     }
     case 'keyChanged': {
@@ -5106,9 +5096,6 @@ export class ModelApiSession implements ScheduledAgentSession {
           this.autoCompact.noteRequest()
         }
         if (directBudget === undefined) this.wasCallSent = true
-        if (this.isSubagent && this.childTaskGrant !== undefined) {
-          this.childTaskGrant.remainingAttempts -= 1
-        }
         if (reservation !== undefined) {
           reservation.isSent = true
         }
@@ -9118,7 +9105,6 @@ export class ModelApiSession implements ScheduledAgentSession {
       siblings === 0 ||
       grant === undefined ||
       keeps >= HOOK_MAX_STOP_CONTINUATIONS ||
-      grant.remainingAttempts <= 0 ||
       !this.canContinueChild(child, grant)
     )
       return false
@@ -9304,7 +9290,6 @@ export class ModelApiSession implements ScheduledAgentSession {
             role: parsed.data.role,
             objective: parsed.data.objective,
             modelId: resolveAgentModel(this.modelId, agent?.model),
-            attemptLimit: SUBAGENT_TASK_MAX_REQUESTS,
           }
         : undefined
     }
@@ -9326,7 +9311,6 @@ export class ModelApiSession implements ScheduledAgentSession {
       objective: parsed.success ? parsed.data.message : child.objective,
       // A follow-up continues the child's own run: a custom agent's model, not the session's.
       modelId: child.session.modelId,
-      attemptLimit: SUBAGENT_TASK_MAX_REQUESTS,
     }
   }
 
@@ -9369,7 +9353,10 @@ export class ModelApiSession implements ScheduledAgentSession {
     ) {
       return 'goalEnded'
     }
-    return grant.remainingAttempts <= 0 ? 'requestLimit' : undefined
+    // Lane LIMITSA (D113): no per-task request cap. A child runs like its
+    // parent: the loop guard watches it, its spend shows in the session,
+    // and stopping the turn stops the task.
+    return undefined
   }
 
   /** All child admission routes read the originating task, then its live caller. */
@@ -9441,7 +9428,6 @@ export class ModelApiSession implements ScheduledAgentSession {
         },
       }),
       goalId,
-      remainingAttempts: SUBAGENT_TASK_MAX_REQUESTS,
       isWebSearchAllowed,
       ...(this.approvedSearchQuote !== undefined && { searchQuote: this.approvedSearchQuote }),
     }
@@ -9584,7 +9570,6 @@ export class ModelApiSession implements ScheduledAgentSession {
       role: child.role,
       objective,
       modelId: child.session.modelId,
-      attemptLimit: SUBAGENT_TASK_MAX_REQUESTS,
     }
     const gate = this.childTaskGate(task.modelId)
     const admitted =
@@ -14250,8 +14235,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         terminal = FAILED
         if (
           error instanceof SessionBudgetExceededError ||
-          (error instanceof ChildTaskRefusedError &&
-            (error.kind === 'requestLimit' || error.kind === 'goalEnded'))
+          (error instanceof ChildTaskRefusedError && error.kind === 'goalEnded')
         ) {
           this.outcomeStopReason = 'budget'
         }
