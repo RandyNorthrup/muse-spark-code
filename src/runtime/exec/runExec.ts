@@ -440,6 +440,10 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
     } else if (event.type === 'questionRequested') {
       questionsDeclined += 1
       sink.emit({ type: 'question_declined', count: 1 })
+    } else if (event.type === 'backendNotice') {
+      // The app's own words, on stderr beside the run: never part of the
+      // model's message. The backend emits each notice once per session.
+      log.warn(event.text)
     } else if (
       event.type === 'itemCompleted' &&
       event.item.kind !== 'agentMessage' &&
