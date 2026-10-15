@@ -863,6 +863,10 @@ async function activateWindow(
     },
   })
   let isInputFocused = false
+  // The file the toggle hands the keyboard back to: focusing the editor
+  // group keeps a chat tab active when the chat shares the group, so Focus
+  // Input with the composer focused reopens the file the person was in.
+  let lastTextDocumentUri: vscode.Uri | undefined
   // Ctrl+B belongs to the panel only while the conversation in view runs a
   // command it can move to the background (M46); VS Code's sidebar toggle
   // keeps it otherwise.
@@ -4257,8 +4261,13 @@ async function activateWindow(
         ideServer.close()
       },
     },
-    vscode.window.onDidChangeActiveTextEditor(() => {
+    vscode.window.onDidChangeActiveTextEditor((editor) => {
       editorContext.update(editorSnapshot)
+      // A webview becoming active clears the active text editor; only a real
+      // text editor moves the toggle's target.
+      if (editor !== undefined) {
+        lastTextDocumentUri = editor.document.uri
+      }
       // Tab's language-off and snooze states follow the active editor (M94).
       tab.refreshStatus()
     }),
@@ -4646,7 +4655,32 @@ async function activateWindow(
       await toggleInputFocus({
         isInputFocused: () => isInputFocused,
         activeSurface: () => registry.active,
-        focusEditor: () => vscode.commands.executeCommand(VSCODE_COMMANDS.focusActiveEditorGroup),
+        focusEditor: async () => {
+          // The group focus is a no-op while a chat tab is the group's
+          // active tab, so the toggle returns to the file itself while a tab
+          // still holds it; a file the person closed is not reopened, and
+          // without one the toggle falls back to the group, which is still
+          // the sidebar toggle's way back.
+          const target = lastTextDocumentUri
+          const isStillOpen =
+            target !== undefined &&
+            vscode.window.tabGroups.all.some((group) =>
+              group.tabs.some(
+                (tab) =>
+                  tab.input instanceof vscode.TabInputText &&
+                  tab.input.uri.toString() === target.toString(),
+              ),
+            )
+          if (isStillOpen) {
+            try {
+              await vscode.window.showTextDocument(target)
+              return
+            } catch {
+              lastTextDocumentUri = undefined
+            }
+          }
+          await vscode.commands.executeCommand(VSCODE_COMMANDS.focusActiveEditorGroup)
+        },
         openSidebar,
       })
     }),
