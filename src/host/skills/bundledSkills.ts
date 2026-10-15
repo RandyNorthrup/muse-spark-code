@@ -109,10 +109,56 @@ function listed(ids: readonly string[]): string {
   return ids.length === 0 ? NONE : ids.join(LIST_SEPARATOR)
 }
 
+/** What a shown notice answered: the install, or this release's update. */
+type ShownOffer = { readonly kind: 'install' } | { readonly kind: 'update'; readonly tag: string }
+
+/**
+ * What a Not now answers when this window showed nothing (F66): the offer
+ * the copy's state would make now. A current copy or someone else's folder
+ * offers nothing, so there is nothing to remember either.
+ */
+function readShown(status: BundledSkillsStatus): ShownOffer | undefined {
+  let answer: ShownOffer | undefined
+  if (status.kind === 'notInstalled') {
+    answer = { kind: 'install' }
+  } else if (status.kind === 'installed' && status.installedTag !== status.vendorTag) {
+    answer = { kind: 'update', tag: status.vendorTag }
+  }
+  return answer
+}
+
+/**
+ * The remembered answer for a stray Not now (F66): the copy's state read
+ * now, or the fallback when even the read fails (a broken read keeps
+ * nothing rather than a wrong memory).
+ */
+async function readStrayAnswer(
+  readStatus: () => Promise<BundledSkillsStatus>,
+  fallback: ShownOffer | undefined,
+): Promise<ShownOffer | undefined> {
+  try {
+    return readShown(await readStatus())
+  } catch {
+    return fallback
+  }
+}
+
+/** Remembers a shown notice's Not now: the install, or this release's update. */
+async function rememberDecline(
+  update: (key: string, value: unknown) => PromiseLike<void>,
+  keys: BundledSkillsOfferKeys,
+  answer: ShownOffer,
+): Promise<void> {
+  if (answer.kind === 'install') {
+    await update(keys.installDeclined, true)
+  } else {
+    await update(keys.updateDeclined, answer.tag)
+  }
+}
+
 export function createBundledSkillsOffer(deps: BundledSkillsOfferDeps): BundledSkillsOffer {
   let isClaimed = false
-  let shown:
-    { readonly kind: 'install' } | { readonly kind: 'update'; readonly tag: string } | undefined
+  let shown: ShownOffer | undefined
   const noticeFor = (status: BundledSkillsStatus): BundledSkillsNotice | undefined => {
     if (status.kind === 'notInstalled' && deps.state.get(deps.keys.installDeclined) !== true) {
       shown = { kind: 'install' }
@@ -151,12 +197,16 @@ export function createBundledSkillsOffer(deps: BundledSkillsOfferDeps): BundledS
   return {
     next: async () => (isClaimed || !deps.isEnabled() ? undefined : await claimAndRead()),
     decline: async () => {
-      if (shown === undefined) {
+      // A Not now is remembered even when this window never showed the
+      // notice itself (F66): a host restart between the offer and the click,
+      // or a second window's session, leaves `shown` empty while the panel
+      // still shows the button. The copy's state then says which answer to
+      // keep.
+      const answer = shown ?? (await readStrayAnswer(deps.status, shown))
+      if (answer === undefined) {
         return
       }
-      await (shown.kind === 'install'
-        ? deps.state.update(deps.keys.installDeclined, true)
-        : deps.state.update(deps.keys.updateDeclined, shown.tag))
+      await rememberDecline((key, value) => deps.state.update(key, value), deps.keys, answer)
     },
   }
 }

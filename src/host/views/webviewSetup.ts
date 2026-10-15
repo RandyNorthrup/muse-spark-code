@@ -9,6 +9,7 @@ import {
   WEBVIEW_SCRIPT_FILE,
   WEBVIEW_STYLE_FILE,
 } from '../../shared/constants'
+import { fill } from '../../shared/l10n/text'
 import {
   type HostToWebviewMessage,
   parseWebviewToHostMessage,
@@ -58,11 +59,27 @@ function isRestoreEnding(message: HostToWebviewMessage): boolean {
   )
 }
 
+/**
+ * The empty composer's invitation (F67): a message first, then only this
+ * machine's focus key, in one line. Key names are not translated (the same
+ * physical keys in every language); macOS binds Cmd+Esc, Windows
+ * Ctrl+Alt+Esc (Ctrl+Esc opens Start there; M26, D29), elsewhere Ctrl+Esc.
+ */
+export function composerPlaceholderFor(platform: NodeJS.Platform): string {
+  let shortcut = 'Ctrl+Esc'
+  if (platform === 'darwin') {
+    shortcut = 'Cmd+Esc'
+  } else if (platform === 'win32') {
+    shortcut = 'Ctrl+Alt+Esc'
+  }
+  return fill(UI_TEXT.composerPlaceholderWithShortcut, { shortcut })
+}
+
 function buildInitMessage(context: WebviewHostContext, isSideChat: boolean): HostToWebviewMessage {
   return {
     type: 'init',
     emptyStateHint: UI_TEXT.emptyStateHint,
-    composerPlaceholder: UI_TEXT.composerPlaceholder,
+    composerPlaceholder: composerPlaceholderFor(process.platform),
     settings: isSideChat
       ? { ...context.getSettings(), initialPermissionMode: 'plan' }
       : context.getSettings(),
