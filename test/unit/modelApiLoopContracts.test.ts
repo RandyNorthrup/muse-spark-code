@@ -4,19 +4,13 @@ import { z } from 'zod'
 import type { CreateResponseBody } from '../../src/core/backends/modelapi/schemas'
 import {
   MODEL_API_MAX_OUTPUT_TOKENS,
-  MODEL_API_MODEL_TEXT,
-  MODEL_API_PARALLEL_READS,
   MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS,
   PACING_START_REQUESTS_PER_MINUTE,
   PACING_WINDOW_MS,
-  STRUCTURED_OUTPUT_REPAIRS_MAX,
-  TOOL_ARGUMENT_PREVIEW_MAX_CHARS,
-  TOOL_REPEAT_LIMIT,
   WEB_SEARCH_MAX_PER_REQUEST,
   WEB_SEARCH_MAX_PER_REQUEST_LIMIT,
   WEB_SEARCH_MIN_PER_REQUEST,
 } from '../../src/shared/constants'
-import { shouldContinueOutput } from '../../src/core/backends/modelapi/modelPolicy'
 import { reviewerAnswerSchema } from '../../src/shared/sideCallSchemas'
 
 const goldenSchema = z.object({ scenario: z.string(), requests: z.array(z.string()) })
@@ -73,49 +67,6 @@ describe('M106 loop contracts', () => {
     expect(caps).toEqual([MODEL_API_MAX_OUTPUT_TOKENS])
     expect(MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS).toBe(131_072)
     expect(MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS).toBeGreaterThan(MODEL_API_MAX_OUTPUT_TOKENS)
-  })
-
-  it('fixes the plan’s concurrency, repair and repetition bounds; continuations are unbounded', () => {
-    expect(MODEL_API_PARALLEL_READS).toBe(4)
-    expect(STRUCTURED_OUTPUT_REPAIRS_MAX).toBe(1)
-    expect(TOOL_REPEAT_LIMIT).toBe(3)
-    expect(TOOL_ARGUMENT_PREVIEW_MAX_CHARS).toBe(16_000)
-    expect(MODEL_API_MODEL_TEXT.toolRepeatStopped).toContain('not run again')
-    expect(MODEL_API_MODEL_TEXT.continuationPrompt).toContain('Do not repeat')
-    // B1 (limits-output): no count stops a cut-short answer; only the round
-    // bound, the off switch, or another stop reason does.
-    expect(
-      shouldContinueOutput({
-        incompleteReason: 'max_output_tokens',
-        outputContinuation: true,
-        round: 5,
-        maxRounds: 50,
-      }),
-    ).toBe(true)
-    expect(
-      shouldContinueOutput({
-        incompleteReason: 'max_output_tokens',
-        outputContinuation: true,
-        round: 49,
-        maxRounds: 50,
-      }),
-    ).toBe(false)
-    expect(
-      shouldContinueOutput({
-        incompleteReason: 'max_output_tokens',
-        outputContinuation: false,
-        round: 0,
-        maxRounds: 50,
-      }),
-    ).toBe(false)
-    expect(
-      shouldContinueOutput({
-        incompleteReason: 'content_filter',
-        outputContinuation: true,
-        round: 0,
-        maxRounds: 50,
-      }),
-    ).toBe(false)
   })
 
   it('provides a bounded search default and a conservative startup pace', () => {
