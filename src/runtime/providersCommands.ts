@@ -714,6 +714,14 @@ export async function providersAdd(
   const models = options.models
     .map((model) => model.trim())
     .filter((model) => model !== '' && !/\s/.test(model))
+  if (models.length === 0 && (probe.modelIds ?? []).length > 0) {
+    // The panel keeps its own "tick" wording; the terminal names the flag
+    // and lists what the key test just read (F85).
+    deps.printError(UI_TEXT.providerAddPickModel)
+    const listed = probe.modelIds ?? []
+    for (const id of listed) deps.printError(id)
+    return EXIT_FAILED
+  }
   state = applyWizardEvent(state, { type: 'set-models', models })
   if (state.error !== undefined) {
     return failed(deps, state.error)
