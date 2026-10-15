@@ -231,6 +231,20 @@ is not applied to the repository's legacy, non-ledger PLAN format.
   The unrelated existing no-note clip budget assertion also found maxChars
   plus marker output; fixed by reserving the marker in `clipWithNote`.
 
+- F5 owner's testing rule: removed 6 lane-added stand-in cases: 3 from the
+  deleted `test/e2e/limitsOutput.e2e.test.ts`, 2 fake-agent cases from
+  `sessionTap.test.ts`, and 1 fake-world paging case from `webFetch.test.ts`.
+  Existing stand-in suites remain TESTCUT-owned and were not run here.
+  The removed packed test exercises real bundles/tools but scripts provider
+  decisions, replaces fetch and keyring, uses nine literal output characters
+  rather than exhausting a real token window, and checks only range headers
+  and prefixes, not full 30 MiB equality. Its 3 passes are not product proof.
+  A dated, sanitized real capture must include the actual max-token terminal,
+  continuation request and completed terminal, usage, tool calls/results and
+  ordered deltas; replay it without replacing fetch or the keyring, and compare
+  all delivered file bytes. Lead-owned real use must cover Stop, budget refusal,
+  repeated continuations, web and editor diagnostics.
+
 ## Qualification
 
 All work runs directly in `/home/randy/lanes/LIMITSB` on linuxlt. No
