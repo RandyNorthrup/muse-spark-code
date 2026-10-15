@@ -87,7 +87,7 @@ import {
   withoutKeyringRoutes,
 } from './credentialVariables'
 import { walkFiles } from './fileWalk'
-import { isStoreUnavailable } from './keyStore'
+import { isStoreUnavailable, StoreUnavailableError } from './keyStore'
 import { isPlanModelRef } from '../shared/providerRouting'
 import { paidGrantFile } from './paidGrants'
 
@@ -216,6 +216,17 @@ interface MuseHomes {
   readonly xdgDataHome: string | undefined
 }
 
+/**
+ * The last Meta-key probe's outcome, shared by the session gate (which
+ * probes) and the workspace managers (which list and dispatch). The gate
+ * runs before the model list, so a dead store is known before anything
+ * dials, and a step that needs the stored key can name the store instead
+ * of claiming that no key is stored.
+ */
+interface MetaKeyProbe {
+  state: 'key' | 'absent' | 'storeDown' | undefined
+}
+
 function modelApiManager(
   deps: RuntimeBackendDeps,
   credentials: CredentialStore,
@@ -225,6 +236,7 @@ function modelApiManager(
   paid: AcpPaidUse,
   workspaceEdits: WorkspaceEdits,
   assertWorkspaceCurrent: () => void,
+  metaKeyProbe: MetaKeyProbe,
 ): ModelApiBackendManager {
   const { options, log, platform } = deps
   const providerConfigFile = path.join(
@@ -362,7 +374,20 @@ function modelApiManager(
     log,
     usageRecording: deps.usageRecording,
     hasExternalPaidRecording: deps.exec !== undefined,
-    getApiKey: () => credentials.getApiKey(),
+    getApiKey: async () => {
+      const key = await credentials.getApiKey()
+      if (key !== undefined) return key
+      // getApiKey degrades a dead store to undefined (D25). Once the gate
+      // has proven the store dead, a step that needs the stored key throws
+      // the store failure instead, so it names the store rather than
+      // claiming no key is stored. Unprobed sessions keep absent-key reads.
+      if (metaKeyProbe.state === 'storeDown') throw new StoreUnavailableError()
+      return
+    },
+    // No Meta key on record means no catalogue dial: the model list comes
+    // from the providers file alone, so a keyless session still opens.
+    // Unprobed sessions keep today's dial behavior.
+    hasMetaCredential: () => metaKeyProbe.state === undefined || metaKeyProbe.state === 'key',
     workspaceRoot,
     sessionWorkspaceRoot: storedWorkspaceRoot,
     assertWorkspaceCurrent,
@@ -607,6 +632,7 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
     log: deps.log,
     ...(deps.exec !== undefined && { headless: deps.exec.headlessPaid }),
   })
+  const metaKeyProbe: MetaKeyProbe = { state: undefined }
   const museEnvironment = museCode.childEnvironment()
   const homes: MuseHomes = {
     xdgConfigHome: environmentValue(museEnvironment, deps.platform, 'XDG_CONFIG_HOME'),
@@ -674,6 +700,7 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
     let key: string | undefined
     try {
       key = await deps.secrets.get(SECRET_KEYS.modelApiKey)
+      metaKeyProbe.state = key !== undefined && key !== '' ? 'key' : 'absent'
     } catch (error: unknown) {
       // A refused providers file is not a keyring outage: the runtime is
       // already on the account service, so its own refusal stands as read
@@ -682,7 +709,10 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
         return { state: 'unavailable', message: accountErrorText(error) }
       // A dead store reads as no key; only a step that needs a stored key
       // still says so, in the one sentence for this condition.
-      if (isStoreUnavailable(error)) return { state: 'signedOut', message: UI_TEXT.acpStoreDown }
+      if (isStoreUnavailable(error)) {
+        metaKeyProbe.state = 'storeDown'
+        return { state: 'signedOut', message: UI_TEXT.acpStoreDown, storeDown: true }
+      }
       return {
         state: 'unavailable',
         message: fill(UI_TEXT.acpStoreUnavailable, { reason: describe(error) }),
@@ -714,9 +744,11 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
         if ((await factory.accountId()) !== undefined) return { state: 'ready' }
       }
     } catch (error: unknown) {
-      return isStoreUnavailable(error)
-        ? { state: 'signedOut', message: UI_TEXT.acpStoreDown }
-        : { state: 'unavailable', message: UI_TEXT.acpChatGpt.failure }
+      if (isStoreUnavailable(error)) {
+        metaKeyProbe.state = 'storeDown'
+        return { state: 'signedOut', message: UI_TEXT.acpStoreDown, storeDown: true }
+      }
+      return { state: 'unavailable', message: UI_TEXT.acpChatGpt.failure }
     }
     const refusal =
       isPlan && modelHint.startsWith('chatgpt/')
@@ -754,6 +786,7 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
       paid,
       edits,
       assertWorkspaceCurrent,
+      metaKeyProbe,
     )
     modelApiHosts.set(cwd, { manager, identity: key })
     return await manager.ensureHost()

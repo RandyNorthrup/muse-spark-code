@@ -80,6 +80,7 @@ import {
   UI_TEXT,
   SLASH_COMMAND_NAMES,
 } from '../shared/constants'
+import { isCredentialStoreDown } from '../host/auth/credentialStore'
 import { effortForThinking, effortLabel, effortLevelsFor, isEffortLevel } from '../shared/effort'
 import { fill, formatBytes, formatUnit, uiLocale } from '../shared/l10n/text'
 import type { AcpAttachment, AcpMediaFactory, AcpMediaPort } from './media'
@@ -136,7 +137,16 @@ const [SESSION_MCP_CAPABILITY] = MSP_REQUESTED_CAPABILITIES
 /** Whether the backend can start a session now, and what the user must do if not. */
 export type BackendReadiness =
   | { readonly state: 'ready' }
-  | { readonly state: 'signedOut'; readonly message: string }
+  | {
+      readonly state: 'signedOut'
+      readonly message: string
+      /**
+       * The credential store itself cannot be read, so no stored key could
+       * be checked. A session may still open: only a step that needs a
+       * stored key refuses, in this message's words.
+       */
+      readonly storeDown?: true
+    }
   | { readonly state: 'unavailable'; readonly message: string }
 
 /** The backend the agent was started on (the runtime builds it, D62). */
@@ -2193,9 +2203,9 @@ class AgentState {
       : { id, name, description: fill(UI_TEXT.acpSignInByHand, { command }) }
   }
 
-  private async requireReady(isRecheck = false): Promise<void> {
+  private async requireReady(isRecheck = false, isStoreDownAllowed = false): Promise<void> {
     const readiness = await this.deps.backend.readiness(isRecheck)
-    if (readiness.state === 'signedOut') {
+    if (readiness.state === 'signedOut' && !(isStoreDownAllowed && readiness.storeDown === true)) {
       throw RequestError.authRequired(undefined, readiness.message)
     }
     if (readiness.state === 'unavailable') {
@@ -2209,10 +2219,18 @@ class AgentState {
     if (!path.isAbsolute(cwd)) {
       throw RequestError.invalidParams(undefined, cwd)
     }
-    await this.requireReady()
+    // A dead credential store does not stop the session from opening: only
+    // a step that needs a stored key refuses, in the store-down words.
+    await this.requireReady(false, true)
     const host = await this.deps.backend.hostFor(cwd)
     this.watch(host)
-    const listed = await host.listModels()
+    let listed: readonly ModelSummary[]
+    try {
+      listed = await host.listModels()
+    } catch (error: unknown) {
+      if (!isCredentialStoreDown(error)) throw error
+      throw RequestError.authRequired(undefined, UI_TEXT.acpStoreDown)
+    }
     const models = this.deps.options.allowsContributorModels
       ? listed
       : listed.filter((model) => !isContributorModel(model.modelId))
