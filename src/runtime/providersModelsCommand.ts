@@ -51,7 +51,9 @@ function printModelsList(deps: ProvidersDeps, entry: ProviderEntry): void {
       ? '—'
       : entry.models
           .map((model) =>
-            forced[model] === undefined ? model : `${model} (forced: ${forced[model]})`,
+            forced[model] === undefined
+              ? model
+              : `${model} (${fill(UI_TEXT.cliHelp.modelsForced, { reason: forced[model] })})`,
           )
           .join(', ')
   deps.print(fill(UI_TEXT.cliHelp.modelsList, { entry: entry.id }))

@@ -3574,6 +3574,7 @@
     "purposeUsage": "Mostra l’utilizzo e il costo di tutti i modelli.",
     "purposeResources": "Mostra il carico della macchina e la cronologia recente.",
     "modelsList": "Modelli di {entry}:",
+    "modelsForced": "forzato: {reason}",
     "modelsExtra": "Presso il provider, ma non nella voce:",
     "modelsUnreadable": "Impossibile leggere l’elenco del provider; viene mostrata solo la voce.",
     "modelsAdded": "Aggiunti a {entry}: {models}.",

@@ -3647,6 +3647,7 @@
     "purposeUsage": "Zobrazit využití a náklady všech modelů.",
     "purposeResources": "Zobrazit zatížení počítače a nedávnou historii.",
     "modelsList": "Modely pro {entry}:",
+    "modelsForced": "vynuceno: {reason}",
     "modelsExtra": "U poskytovatele, ale ne v záznamu:",
     "modelsUnreadable": "Seznam poskytovatele se nepodařilo načíst; zobrazuje se pouze záznam.",
     "modelsAdded": "Do {entry} přidáno: {models}.",

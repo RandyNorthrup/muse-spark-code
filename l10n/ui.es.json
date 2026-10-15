@@ -3574,6 +3574,7 @@
     "purposeUsage": "Mostrar el uso y coste de todos los modelos.",
     "purposeResources": "Mostrar la carga de la máquina y el historial reciente.",
     "modelsList": "Modelos de {entry}:",
+    "modelsForced": "forzado: {reason}",
     "modelsExtra": "En el proveedor, pero no en la entrada:",
     "modelsUnreadable": "No se pudo leer la lista del proveedor; solo se muestra la entrada.",
     "modelsAdded": "Añadidos a {entry}: {models}.",

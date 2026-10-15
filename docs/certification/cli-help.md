@@ -64,6 +64,11 @@ reference and requires code-formatted topic names. The real reference builder
 regression failed before repair because deleting `serve` still passed (exit 1).
 It checks serve/login/auth/providers deletions without changing other mentions.
 
+T7: the forced-model annotation is a translated `{reason}` template in the
+English table and all fourteen locales, read at rendering time. The real
+command regression failed under French with `model-a (forced: beta access)`
+before repair (exit 1); it requires `model-a (forcé : beta access)`.
+
 ## 1. Accepted today (from the code, release 0.18.1 base)
 
 Parser routes (`CLI_OPTION_REGISTRY` in `src/runtime/cliOptions.ts`, plus the

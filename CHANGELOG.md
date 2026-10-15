@@ -9,6 +9,8 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- Forced-model annotations use the installed language in provider model lists.
+
 - The reference gate checks command topics only in the README's terminal-help
   paragraph, so unrelated mentions cannot hide missing documentation.
 
