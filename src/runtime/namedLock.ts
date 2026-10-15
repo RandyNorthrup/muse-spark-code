@@ -1,14 +1,22 @@
-// A cross-process lock by name: an exclusive named pipe on Windows, a Unix
-// domain socket in a private per-user folder on macOS and Linux. Never a TCP
-// port, so a reserved port range cannot refuse it. The OS releases the
-// listener on exit, including a crash; a socket file left by a crashed
-// process is replaced after a refused connection proves no holder, and the OS
-// grants each bind to exactly one contender. Contention retries to the
-// deadline; a local failure to open the listener reports its OS code. The
-// grant lock (chatGptRefreshLock.ts) and the credential store's per-account
-// owner (keyStore.ts) are two names on this one mechanism.
-import { createHash } from 'node:crypto'
-import { mkdir, unlink } from 'node:fs/promises'
+// A cross-process lock by name: an exclusive named pipe on Windows, Unix domain
+// sockets in a private per-user folder on macOS and Linux. Never a TCP port, so
+// a reserved port range cannot refuse it. The OS releases a listener on exit,
+// including a crash.
+//
+// POSIX ownership (docs/certification/chatgpt-grant-lock.md, "PLANFIX R2"): a
+// socket file outlives a crashed holder, and no operating system can remove
+// "that file, if it is still the stale one" in one step, so no contender ever
+// recovers a shared name. Each contender binds a socket of its own, under a
+// random name that nobody else binds or removes, then looks at every other
+// entry: a live one means another holder, and it gives its own up and waits.
+// Of two contenders that both pass, one's look would have preceded the other's
+// listener, which is a contradiction, so at most one holds. A dead entry (it
+// refuses a connection) never blocks; it is removed only once it is older than
+// the time a bind needs to become a listener, so a file being born is never
+// taken. The grant lock (chatGptRefreshLock.ts) and the credential store's
+// per-account owner (keyStore.ts) are two names on this mechanism.
+import { createHash, randomBytes, randomInt } from 'node:crypto'
+import { lstat, mkdir, readdir, unlink } from 'node:fs/promises'
 import { createConnection, createServer, type Server } from 'node:net'
 import { tmpdir, userInfo } from 'node:os'
 import path from 'node:path'
@@ -17,12 +25,14 @@ import {
   CHATGPT_GRANT_LOCK_DIR_MODE,
   CHATGPT_GRANT_LOCK_SCOPE_CHARS,
   CHATGPT_REFRESH_LOCK_RETRY_MS,
+  NAMED_LOCK_ENTRY_BYTES,
+  NAMED_LOCK_GARBAGE_MIN_AGE_MS,
   OAUTH_CODE_TTL_MS,
 } from '../shared/constants'
 import { ChatGptSignInError } from '../core/providers/subscriptions/chatgptHostId'
 
 export interface NamedLockOptions {
-  /** POSIX only: the folder holding the socket file. Tests isolate with this. */
+  /** POSIX only: the folder holding the socket files. Tests isolate with this. */
   readonly directory?: string
   /** Windows only: the name within the `\\.\pipe\` namespace. Tests isolate with this. */
   readonly pipeName?: string
@@ -36,6 +46,14 @@ export interface NamedLockNames {
   readonly folder: string
   readonly file: string
 }
+
+/** One acquired lock; releasing it closes the listener and removes this holder's own file. */
+interface Held {
+  readonly release: () => Promise<void>
+}
+
+/** One try at the lock: the holder, or undefined when another holds it. */
+type Attempt = (signal: AbortSignal) => Promise<Held | undefined>
 
 function errorCode(error: unknown): string | undefined {
   return error instanceof Error && 'code' in error && typeof error.code === 'string'
@@ -55,16 +73,17 @@ export function personScope(): string {
   return createHash('sha256').update(who).digest('hex').slice(0, CHATGPT_GRANT_LOCK_SCOPE_CHARS)
 }
 
-async function lockTarget(names: NamedLockNames, options: NamedLockOptions): Promise<string> {
-  try {
-    if (process.platform === 'win32') return `\\\\.\\pipe\\${options.pipeName ?? names.pipe}`
-    const folder = options.directory ?? path.join(tmpdir(), names.folder)
-    await mkdir(folder, { recursive: true, mode: CHATGPT_GRANT_LOCK_DIR_MODE })
-    return path.join(folder, names.file)
-  } catch (error) {
-    if (error instanceof ChatGptSignInError) throw error
-    throw new ChatGptSignInError('lock-unavailable', osReason(error))
-  }
+/** One contender's own socket file: the lock's file name, a dot, and a random suffix nobody else uses. */
+function socketEntryPath(directory: string, file: string, suffix: string): string {
+  return path.join(directory, `${file}.${suffix}`)
+}
+
+async function closeServer(server: Server): Promise<void> {
+  await new Promise<void>((resolve) => {
+    server.close(() => {
+      resolve()
+    })
+  })
 }
 
 async function tryListen(target: string): Promise<Server | 'in-use'> {
@@ -88,14 +107,25 @@ async function tryListen(target: string): Promise<Server | 'in-use'> {
   }
 }
 
+/** A Windows named pipe that exists has a live holder: the OS removes a crashed process's pipe with its last handle. */
+async function acquirePipe(target: string): Promise<Held | undefined> {
+  const server = await tryListen(target)
+  return server === 'in-use' ? undefined : { release: () => closeServer(server) }
+}
+
+const LIVE_LISTENER_CODES = new Set(['EAGAIN', 'ECONNRESET'])
+const DEAD_ENTRY_CODES = new Set(['ECONNREFUSED', 'ENOENT', 'ENOTSOCK'])
+
 /**
- * A bound socket path with no listener is a crashed holder's file: a live
- * holder answers the connection. Anything but refusal or absence while
- * probing is a local failure, reported with its OS code.
+ * Whether a socket file has a listener. A refused connection or a missing or
+ * foreign file is a dead entry. A full backlog, or a connection the listener
+ * accepted and dropped (every lock listener drops what connects to it: the
+ * measured `ECONNRESET`), is a live listener. Any other failure is a local
+ * failure, reported with its OS code.
  */
-async function probe(target: string): Promise<'live' | 'stale'> {
+async function isLive(file: string): Promise<boolean> {
   const code = await new Promise<string | undefined>((resolve) => {
-    const client = createConnection(target)
+    const client = createConnection(file)
     client.once('connect', () => {
       client.destroy()
       resolve(undefined)
@@ -105,27 +135,91 @@ async function probe(target: string): Promise<'live' | 'stale'> {
       resolve(errorCode(error) ?? 'unknown')
     })
   })
-  if (code === undefined) return 'live'
-  if (['ECONNREFUSED', 'ENOENT', 'ENOTSOCK'].includes(code)) return 'stale'
+  if (code === undefined || LIVE_LISTENER_CODES.has(code)) return true
+  if (DEAD_ENTRY_CODES.has(code)) return false
   throw new ChatGptSignInError('lock-unavailable', code)
 }
 
-async function acquire(target: string, signal: AbortSignal): Promise<Server | undefined> {
-  const first = await tryListen(target)
-  if (first !== 'in-use') return first
-  // A named pipe that exists has a live holder: the OS removes a crashed
-  // process's pipe with its last handle. A socket file may outlive one.
-  if (process.platform === 'win32') return undefined
-  signal.throwIfAborted()
-  if ((await probe(target)) === 'live') return undefined
+/**
+ * Removes a dead entry once it is older than a bind needs to become a
+ * listener. Its name is random and was bound once, so nobody binds it again;
+ * a younger one may be a file in the middle of being born, and stays.
+ */
+async function removeIfGarbage(file: string): Promise<void> {
   try {
-    await unlink(target)
+    const found = await lstat(file)
+    if (Date.now() - found.mtimeMs >= NAMED_LOCK_GARBAGE_MIN_AGE_MS) await unlink(file)
   } catch (error) {
     if (errorCode(error) !== 'ENOENT')
       throw new ChatGptSignInError('lock-unavailable', osReason(error))
   }
-  const second = await tryListen(target)
-  return second === 'in-use' ? undefined : second
+}
+
+/** Whether another process holds, or is trying to hold, this lock: any other entry with a listener. */
+async function hasLiveContender(
+  directory: string,
+  file: string,
+  own: string,
+  signal: AbortSignal,
+): Promise<boolean> {
+  let names: string[]
+  try {
+    names = await readdir(directory)
+  } catch (error) {
+    throw new ChatGptSignInError('lock-unavailable', osReason(error))
+  }
+  for (const name of names) {
+    const other = path.join(directory, name)
+    if (other === own || !name.startsWith(`${file}.`)) continue
+    signal.throwIfAborted()
+    if (await isLive(other)) return true
+    await removeIfGarbage(other)
+  }
+  return false
+}
+
+async function acquireSocket(
+  directory: string,
+  file: string,
+  signal: AbortSignal,
+): Promise<Held | undefined> {
+  const own = socketEntryPath(directory, file, randomBytes(NAMED_LOCK_ENTRY_BYTES).toString('hex'))
+  const server = await tryListen(own)
+  // Another contender drew the same random name: nothing was bound, try again under a new one.
+  if (server === 'in-use') return undefined
+  const held: Held = {
+    release: async () => {
+      await closeServer(server)
+      try {
+        await unlink(own)
+      } catch {
+        // A file left behind is a dead entry: the next contender removes it once it is old.
+      }
+    },
+  }
+  try {
+    if (!(await hasLiveContender(directory, file, own, signal))) return held
+  } catch (error) {
+    await held.release()
+    throw error
+  }
+  await held.release()
+  return undefined
+}
+
+async function openAttempt(names: NamedLockNames, options: NamedLockOptions): Promise<Attempt> {
+  if (process.platform === 'win32') {
+    const pipe = `\\\\.\\pipe\\${options.pipeName ?? names.pipe}`
+    return () => acquirePipe(pipe)
+  }
+  let folder: string
+  try {
+    folder = options.directory ?? path.join(tmpdir(), names.folder)
+    await mkdir(folder, { recursive: true, mode: CHATGPT_GRANT_LOCK_DIR_MODE })
+  } catch (error) {
+    throw new ChatGptSignInError('lock-unavailable', osReason(error))
+  }
+  return (signal) => acquireSocket(folder, names.file, signal)
 }
 
 /**
@@ -141,22 +235,20 @@ export async function withNamedLock<T>(
   const deadline = AbortSignal.timeout(options.timeoutMs ?? OAUTH_CODE_TTL_MS)
   const signal =
     options.signal === undefined ? deadline : AbortSignal.any([deadline, options.signal])
-  const target = await lockTarget(names, options)
+  const attempt = await openAttempt(names, options)
   for (;;) {
     signal.throwIfAborted()
-    const server = await acquire(target, signal)
-    if (server !== undefined) {
+    const held = await attempt(signal)
+    if (held !== undefined) {
       try {
         signal.throwIfAborted()
         return await work()
       } finally {
-        await new Promise<void>((resolve) =>
-          server.close(() => {
-            resolve()
-          }),
-        )
+        await held.release()
       }
     }
-    await delay(CHATGPT_REFRESH_LOCK_RETRY_MS, undefined, { signal })
+    // Contenders that looked at each other both gave way: a random wait lets one of them through.
+    const wait = CHATGPT_REFRESH_LOCK_RETRY_MS + randomInt(CHATGPT_REFRESH_LOCK_RETRY_MS)
+    await delay(wait, undefined, { signal })
   }
 }

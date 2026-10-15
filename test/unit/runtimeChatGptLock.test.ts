@@ -4,7 +4,7 @@
 // failure masked as "temporarily unavailable").
 import { spawn, type ChildProcess } from 'node:child_process'
 import { once } from 'node:events'
-import { lstat, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { lstat, mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises'
 import { createServer } from 'node:net'
 import path from 'node:path'
 import { build } from 'esbuild'
@@ -39,8 +39,15 @@ async function lockDirectory(prefix: string): Promise<string> {
   return await mkdtemp(path.join(scratch.folder, prefix))
 }
 
-function socketFile(directory: string): string {
-  return path.join(directory, CHATGPT_GRANT_LOCK_FILE)
+/** A contender's own socket entry: the lock's file name, a dot, and a name only it binds. */
+function entryFile(directory: string, suffix: string): string {
+  return path.join(directory, `${CHATGPT_GRANT_LOCK_FILE}.${suffix}`)
+}
+
+/** The socket entries a lock's folder holds. */
+async function entriesIn(directory: string): Promise<string[]> {
+  const names = await readdir(directory)
+  return names.filter((name) => name.startsWith(`${CHATGPT_GRANT_LOCK_FILE}.`))
 }
 
 function worker(directory: string): ChildProcess {
@@ -184,8 +191,10 @@ describe('ACP ChatGPT process lock', () => {
   it.runIf(!isWindows)('recovers automatically after the owner process crashes', async () => {
     const directory = await lockDirectory('crash-')
     await crashHolder(directory)
-    // The crash leaves the socket file behind with no listener.
-    const crashed = await lstat(socketFile(directory))
+    // The crash leaves the holder's socket entry behind with no listener.
+    const left = await entriesIn(directory)
+    expect(left).toHaveLength(1)
+    const crashed = await lstat(path.join(directory, left[0] ?? ''))
     expect(crashed.isSocket()).toBe(true)
     await expectLockRecovery(directory)
   })
@@ -197,25 +206,29 @@ describe('ACP ChatGPT process lock', () => {
     await expectLockRecovery(directory)
   })
 
-  it.runIf(!isWindows)('replaces a stale socket file left without a listener', async () => {
-    const directory = await lockDirectory('stale-')
-    // A graceful close is not how stale files happen; bind the file in a
-    // child and crash it, exactly as a dead holder leaves one.
-    const holder = staleHolder(socketFile(directory))
-    try {
-      expect(await once(holder, 'message')).toEqual(['listening', undefined])
-      const exit = exited(holder)
-      holder.kill('SIGKILL')
-      await exit
-      const stale = await lstat(socketFile(directory))
-      expect(stale.isSocket()).toBe(true)
-      await expect(
-        withChatGptRefreshLock(() => Promise.resolve('replaced'), { directory, timeoutMs: 2000 }),
-      ).resolves.toBe('replaced')
-    } finally {
-      holder.kill()
-    }
-  })
+  it.runIf(!isWindows)(
+    'takes the lock past a dead socket entry left without a listener',
+    async () => {
+      const directory = await lockDirectory('stale-')
+      // A graceful close is not how stale files happen; bind the entry in a
+      // child and crash it, exactly as a dead holder leaves one.
+      const dead = entryFile(directory, 'deadbeef')
+      const holder = staleHolder(dead)
+      try {
+        expect(await once(holder, 'message')).toEqual(['listening', undefined])
+        const exit = exited(holder)
+        holder.kill('SIGKILL')
+        await exit
+        const stale = await lstat(dead)
+        expect(stale.isSocket()).toBe(true)
+        await expect(
+          withChatGptRefreshLock(() => Promise.resolve('taken'), { directory, timeoutMs: 2000 }),
+        ).resolves.toBe('taken')
+      } finally {
+        holder.kill()
+      }
+    },
+  )
 
   it('takes the lock while the old fixed TCP port is held by another listener', async () => {
     const directory = await lockDirectory('port-')
