@@ -5,6 +5,8 @@
 // would be hurt (a refused sign-in, a lost host id, a masked refusal).
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
+import { get } from 'node:http'
+import { startChatGptCallback } from '../../src/runtime/chatGptCallback'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
@@ -94,6 +96,32 @@ describe('ChatGPT host id', () => {
     expect(() =>
       parseChatGptCallback(`${REDIRECT}?error=<script>&state=${STATE}`, REDIRECT, STATE),
     ).toThrow('chatgpt.invalid-callback')
+  })
+
+  it('preserves an authorize refusal through the real runtime callback listener', async () => {
+    const callback = await startChatGptCallback(STATE, 2000, () => 'Return to the app.')
+    const waiting = (async () => {
+      try {
+        await callback.waitForCallback()
+        return undefined
+      } catch (error) {
+        return error
+      }
+    })()
+    try {
+      const status = await new Promise<number | undefined>((resolve, reject) => {
+        get(`${callback.redirectUri}?error=access_denied&state=${STATE}`, (response) => {
+          response.resume()
+          response.once('end', () => {
+            resolve(response.statusCode)
+          })
+        }).once('error', reject)
+      })
+      expect(status).toBe(400)
+      expect(await waiting).toMatchObject({ code: 'authorize-refused', reason: 'access_denied' })
+    } finally {
+      callback.close()
+    }
   })
 
   it('keeps a granted callback working after the refusal branch', () => {

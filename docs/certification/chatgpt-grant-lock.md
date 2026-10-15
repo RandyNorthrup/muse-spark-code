@@ -386,6 +386,35 @@ chatgpt` migrates the stored value in place and signs in with the
    `OpenAI refused the ChatGPT sign-in request (access_denied). …` —
    never "temporarily unavailable".
 
+## RVHOSTID: callback refusal propagation (2026-10-14, Windows)
+
+Both real callback adapters caught `authorize-refused` and replaced it with
+`invalid-callback`, losing the reason HOSTID's parser had validated. The runtime
+listener regression returned HTTP 400 and `invalid-callback` before repair (exit
+1); preserving only `ChatGptSignInError` through each adapter keeps the reason
+without exposing arbitrary error text. Runtime listener + host-id tests pass 14/14
+(exit 0). Deliberately discarding the typed failure fails that same real-listener
+assertion (13 pass, 1 fail, exit 1). Byte-exact restored SHA-256:
+`7E6B1611687641E1B28D996B6699D845808BC36133720D617AB1DFD9F167DB74`.
+Restored host-id + codec + pure plan-error cases: 41/41, exit 0. Receipts:
+`.lane/callback-red.log`, `.lane/callback-drill.log`, `.lane/fixes-green.log`.
+The final adapter preserves `authorize-refused` only; malformed/state failures
+retain the previous invalid-callback contract. Final deliberate removal: 13 pass,
+1 fail, exit 1; restored callback + host-id + keyring suites 40/40 (exit 0),
+SHA-256 `B70050DBD55C26CA15314E30DA40BD47F96C23CC4A309B7CD36513D6E57BE42D`
+identical. Logs: `.lane/callback-final-drill.log`,
+`.lane/callback-final-restored.log`. Real callback + capability suite 67/67.
+The VS Code adapter is source-reviewed; no replacement editor API was used.
+The panel's separate generic-error presentation remains an open review finding.
+Runtime host creation now preserves every validated sign-in error, including a
+corrupt host id's `invalid-token`, instead of turning it into `request-failed`.
+The OS-only keyring suite passes 8/8; reinstating the old catch produces the
+intended failure (7 pass, 1 fail, exit 1), restored 8/8, exit 0. Host SHA-256
+before/after `27A4B9B3FDA5C0AC0F1A360E6608AB2A0A7C8949578CC444BEB25E7271352007`.
+Receipts: `.lane/host-error-drill.log`, `.lane/host-error-restored.log`.
+The real Windows store case uses a unique throwaway test account only.
+No sign-in, live stored grant access or provider request was made.
+
 ## F78: the record did not fit Windows Credential Manager (lead, Windows, 2026-10-14)
 
 Found by using the build of this branch for real on Windows (this PC), with

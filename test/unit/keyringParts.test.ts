@@ -6,6 +6,10 @@
 // case runs the real Windows store with throwaway values.
 
 import { randomUUID } from 'node:crypto'
+import { mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
+import { createRuntimeChatGptHost } from '../../src/runtime/chatGptHost'
 import { describe, expect, it } from 'vitest'
 import {
   keyringSecretStore,
@@ -56,6 +60,26 @@ function firstPartOf(entries: Map<string, string>, key: string): string {
 }
 
 describe('the OS credential store keeps long secrets as parts (F78)', () => {
+  it('reports a corrupt local host id as invalid-token, not a temporary provider failure', async () => {
+    const os = windowsLikeStore()
+    const store = keyringSecretStore(os.open)
+    await store.store('museSpark.provider.chatgpt.host-id', 'not a host id')
+    const directory = await mkdtemp(path.join(tmpdir(), 'muse-host-failure-'))
+    try {
+      await expect(
+        createRuntimeChatGptHost({
+          secrets: store,
+          fetch: globalThis.fetch,
+          openBrowser: () => Promise.reject(new Error('no browser needed')),
+          callbackText: () => 'Return to the app.',
+          lock: { directory, pipeName: `muse-test-${randomUUID()}` },
+        }),
+      ).rejects.toMatchObject({ code: 'invalid-token' })
+    } finally {
+      await rm(directory, { recursive: true, force: true })
+    }
+  })
+
   it('keeps a short value in one entry exactly as before', async () => {
     const os = windowsLikeStore()
     const store = keyringSecretStore(os.open)

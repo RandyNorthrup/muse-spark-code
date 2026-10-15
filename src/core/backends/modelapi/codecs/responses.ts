@@ -570,10 +570,30 @@ export function createResponsesCodec(
             throw new ResponsesDecodeError('invalid item', frame.data.length)
           }
           if (quirks.profile === 'chatgpt' && known.data.type === 'response.output_item.done') {
-            streamed.push({
-              index: known.data.output_index ?? streamed.length,
-              item: parsed.data.item,
-            })
+            const index = known.data.output_index
+            if (
+              index === undefined ||
+              !Number.isSafeInteger(index) ||
+              index < 0 ||
+              streamed.some((entry) => entry.index === index)
+            ) {
+              throw new ResponsesDecodeError('invalid or repeated output index', frame.data.length)
+            }
+            const item = parsed.data.item
+            if (
+              streamed.some(
+                (entry) =>
+                  (item.id !== undefined && entry.item.id === item.id) ||
+                  (item.type === 'function_call' &&
+                    'call_id' in item &&
+                    entry.item.type === 'function_call' &&
+                    'call_id' in entry.item &&
+                    entry.item.call_id === item.call_id),
+              )
+            ) {
+              throw new ResponsesDecodeError('repeated output identity', frame.data.length)
+            }
+            streamed.push({ index, item })
           }
           yield withinOutputCap({ ...known.data, item: parsed.data.item }, outputCap)
         } else {

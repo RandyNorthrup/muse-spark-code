@@ -9,6 +9,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- ChatGPT plan streams now refuse missing, invalid or repeated output indices and repeated call identities instead of retaining ambiguous tool calls for execution and replay.
+
+- ChatGPT sign-in callbacks preserve OpenAI's validated refusal code instead of replacing it with an invalid-callback failure. A corrupt local host identifier is no longer reported as a temporary provider failure.
+
 - ChatGPT plan models could not use any tool: the plan streams each tool call in its own message and ends with an empty list, and the app read only that list, so every turn ended after the model said what it would do. A plan reply's tool calls and text now come from the messages it streamed.
 
 - Effort levels for models from other providers: a ChatGPT plan model or a model you added yourself (for example Anthropic Claude Sonnet 5.5) offered no effort level at all in the editors, and an editor asking for one was refused. Each model now offers the levels its own record lists, also on a computer that stores no Meta key.

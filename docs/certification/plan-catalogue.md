@@ -165,6 +165,42 @@ Live on Windows (this branch built here, the owner's real ChatGPT sign-in, no Me
 
 Proof on the packed agent (`dist/acp.js`, built on Windows), through our app's editor protocol, one short turn each: `chatgpt/gpt-6.1-sol` offers low, medium, high, xhigh, max; `xhigh` set and read back; the turn completed. `anthropic-s2/claude-sonnet-5-5` offers the same five; `xhigh` set and read back; the turn completed. New `test/unit/providerRegistryEffort.test.ts` 3/3 (2 of 3 fail with the registry change reverted). Gates: `typecheck:host` 0, `typecheck:unit` 0, ESLint 0 and Prettier on the changed files, `build` 0, `deadcode` 0, `cycles` 0, `duplication` 0, `check:host-api` 0, `check:reference` 0.
 
+## RVHOSTID: output-index boundary review (2026-10-14, Windows)
+
+The F87 accumulator accepted duplicate, negative, fractional and unsafe indices;
+its missing-index fallback could collide with an explicit index. Repeating the
+same indexed `function_call` retained it twice for terminal adoption and replay.
+The ChatGPT profile now requires a nonnegative safe integer and refuses a repeated
+index before keeping the item. Repeated item IDs or function-call IDs at distinct indices are refused too:
+that additional regression failed on the indexed fix, then passed with identity
+validation. Removing that identity guard deliberately makes both cases fail
+(exit 1); restored codec 25/25 (exit 0), byte-exact SHA-256
+`7BABA2C334292A46B1462DBFFA6FAAB453B1E5A7D3316EE6AE18D11B4F183EA8`.
+Receipts: `.lane/identity-drill.log`, `.lane/identity-restored.log`.
+The API-key profile is unchanged. The directly affected codec + host-id + pure
+plan-error selection passed 41/41 before the additional distinct-item-ID case.
+
+Removed four stand-in cases under the owner's rule: one from
+`chatgptPlanErrors.test.ts` replaced our grant host, store and Meta client; three
+parameterized cases from `chatgptResponsesCap.test.ts` replaced the client's
+stream and tool I/O. Pure capture/retry and codec-cap assertions remain. This
+does not claim the removed product behavior has been re-proven by a stand-in.
+
+Real codec tests: baseline 40/40 across codec, host-id and facts; five added
+boundary cases fail on the reviewed codec (exit 1), then codec + cap + API codec
+pass 97/97 (exit 0). Deliberately removing duplicate rejection then fails its
+named assertion (exit 1); restored codec 23/23 (exit 0), SHA-256
+`682A550077A1D72A491612B25323C718956AC08BBC4D941C68930E7407E6F4C2`
+identical before/after. Logs: `.lane/f87-red.log`, `.lane/f87-green.log`,
+`.lane/f87-drill.log`, `.lane/f87-restored.log`. The new boundary cases use no
+provider, store, CLI or editor stand-in and make no provider request. Earlier
+aggregate runs included the four subsequently removed stand-in cases and are
+not product proof. Final codec/API/cap selection after removal: 96/96 (exit 0),
+`.lane/final-codecs-no-fakes.log`. Generic error/failed frames
+already stop the main host; incomplete frames pair refused tool results rather
+than executing tools (`ModelApiHost.ts` applyStreamEvent/adoptOutput). This review
+does not claim that accepting a later frame in the codec alone executes it.
+
 ## Lead, Windows, 2026-10-14 4:2x PM (committed 4:29 PM): plan models used no tool (finding F87)
 
 A Codex review through our app on `chatgpt/gpt-6.1-sol` (xhigh) ran 11 turns of 3-13 s with 0 tool calls: each reply only said what it would check. Measured with a value-blind preload on one tool-needing turn ("What is the secret word in probe-note.txt?"): the request offered the `functions` namespace with 11 tools; the stream carried `response.output_item.done` with a `function_call` named `read_file`, and the terminal `response.completed` frame carried `output: []` (0 items). `ModelApiHost.adoptOutput` takes calls and replay from the terminal frame's output, so the call was dropped and the turn ended.
