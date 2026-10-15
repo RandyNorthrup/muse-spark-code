@@ -1,5 +1,3 @@
-import type { SessionUpdate } from '@agentclientprotocol/sdk'
-import { UI_TEXT } from '../../../../src/shared/constants'
 import type { OpenQuestion } from '../../../../src/shared/questions'
 import type { WaitingApproval } from '../../../../src/webview/state/uiState'
 
@@ -47,34 +45,5 @@ export function approvalFixture(overrides: Partial<WaitingApproval> = {}): Waiti
       isJudgeEscalated: false,
     },
     ...overrides,
-  }
-}
-
-/** The ACP-local commands announced without invoking the conversation model. */
-export function expectedQuestionCommandsUpdate(
-  skillCommands: Extract<
-    SessionUpdate,
-    { sessionUpdate: 'available_commands_update' }
-  >['availableCommands'] = [],
-): SessionUpdate {
-  return {
-    sessionUpdate: 'available_commands_update',
-    availableCommands: [
-      { name: 'help', description: UI_TEXT.referenceIntro, input: null },
-      { name: 'compact', description: UI_TEXT.compactDetail, input: null },
-      {
-        name: 'report',
-        description: UI_TEXT.reportSlashDescription,
-        input: { hint: '<kind> [args] | history' },
-      },
-      {
-        name: 'agents',
-        description: UI_TEXT.referenceAgentOutcomes,
-        input: { hint: '[receipt|continue|retry] [ID]' },
-      },
-      ...skillCommands,
-      { name: 'answer', description: UI_TEXT.acpAnswerHelp, input: { hint: '<n> <text>' } },
-      { name: 'questions', description: UI_TEXT.acpQuestionsHelp, input: null },
-    ],
   }
 }
