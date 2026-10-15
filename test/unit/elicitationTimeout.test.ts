@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest'
 import {
   isElicitationTimeout,
   McpElicitationTimeoutError,
-} from '../../src/core/backends/modelapi/mcp/connection'
+} from '../../src/core/backends/modelapi/mcp/elicitation'
 import { MCP_ELICITATION_TIMEOUT_MS, UI_TEXT } from '../../src/shared/constants'
 import { fill, formatNumber } from '../../src/shared/l10n/text'
 

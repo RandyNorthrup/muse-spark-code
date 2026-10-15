@@ -42,9 +42,10 @@ export interface AcpQuestionRegistry {
   list(): readonly OpenQuestion[]
   /**
    * Cards crowded out past the open cap since the last call (B22): drained
-   * so the deferral layer tells the person once, at that moment.
+   * so the deferral layer tells the person once, at that moment. Optional:
+   * bindings without expiry retention simply have none to report.
    */
-  takeExpired(): readonly OpenQuestion[]
+  takeExpired?(): readonly OpenQuestion[]
   /** Validate against stored questions and mark before calling the supplied delivery port. */
   answer(
     userInputId: string,
@@ -176,7 +177,7 @@ export class AcpQuestionDeferral {
       const isOpened = await this.deps.registry.defer(form.event.userInputId)
       // Cards crowded out past the open cap (B22): one notice naming the
       // count; the expired cards keep their text in the session.
-      const crowded = this.deps.registry.takeExpired()
+      const crowded = this.deps.registry.takeExpired?.() ?? []
       if (crowded.length > 0) {
         this.deps.notice(
           plural(UI_TEXT.questionsExpiredNotice, crowded.length, { max: OPEN_QUESTIONS_MAX }),

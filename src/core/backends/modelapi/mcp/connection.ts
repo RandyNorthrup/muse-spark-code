@@ -20,7 +20,12 @@ import {
   MILLISECONDS_PER_SECOND,
 } from '../../../../shared/constants'
 import { clipForLog, type CoreLogger } from '../../../logging'
-import type { ElicitationOutcome, McpElicitationHandler } from './elicitation'
+import {
+  type ElicitationOutcome,
+  type McpElicitationHandler,
+  McpElicitationTimeoutError,
+  isElicitationTimeout,
+} from './elicitation'
 import {
   type CallToolResult,
   callToolResultSchema,
@@ -115,22 +120,6 @@ export class McpTimeoutError extends RequestAbort {
     super(message)
     this.name = 'McpTimeoutError'
   }
-}
-
-/**
- * An elicitation wait the deadline ended (C7): carried as the abort reason
- * so the host tells the person the form settled as cancel, never as accept.
- */
-export class McpElicitationTimeoutError extends Error {
-  public constructor() {
-    super('the elicitation was not answered in time')
-    this.name = 'McpElicitationTimeoutError'
-  }
-}
-
-/** Whether this wait ended on the elicitation deadline (C7), not on a stop. */
-export function isElicitationTimeout(signal: AbortSignal): boolean {
-  return signal.aborted && signal.reason instanceof McpElicitationTimeoutError
 }
 
 export class McpConnection {

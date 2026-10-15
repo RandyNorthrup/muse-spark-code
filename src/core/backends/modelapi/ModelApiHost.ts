@@ -440,6 +440,7 @@ import {
   type ElicitationHookSeam,
   elicitationFieldNames,
   type ElicitationOutcome,
+  isElicitationTimeout,
 } from './mcp/elicitation'
 import type {
   McpElicitationHandler,
@@ -448,7 +449,7 @@ import type {
   McpToolRef,
   McpToolSource,
 } from './mcp/pool'
-import { isElicitationTimeout } from './mcp/connection'
+
 import { isMemoryTool, placeMemoryCall, runMemoryCall, type PlacedMemoryCall } from './memoryTools'
 
 import {
