@@ -16,10 +16,19 @@ describe('serve --max-turn-requests', () => {
     expect(parsed.options.maxTurnRequests).toBeUndefined()
   })
 
-  it('refuses a value outside the offered presets', () => {
-    expect(parseCommandLine(['--backend', 'modelApi', '--max-turn-requests', '75']).command).toBe(
-      'invalid',
-    )
+  // Lane LIMITSFIX, F8: any whole number from 1 up is the person's own limit.
+  it('takes a value that is not one of the suggested presets', () => {
+    const parsed = parseCommandLine(['--backend', 'modelApi', '--max-turn-requests', '75'])
+    expect(parsed).toMatchObject({ command: 'serve', options: { maxTurnRequests: 75 } })
+  })
+
+  it('refuses a value that is not a whole number of rounds', () => {
+    for (const bad of ['0', '-1', '2.5', 'abc']) {
+      expect(
+        parseCommandLine(['--backend', 'modelApi', '--max-turn-requests', bad]).command,
+        bad,
+      ).toBe('invalid')
+    }
   })
 
   it('refuses the flag on the Muse Code backend, naming the backend', () => {

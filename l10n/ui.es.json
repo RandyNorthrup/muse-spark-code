@@ -1064,6 +1064,7 @@
     "permissionMode": "Elige cómo pregunta Muse antes de actuar.",
     "focusView": "Oculta los pasos fuera de tu foco.",
     "ctrlEnter": "Envía mensajes con Ctrl+Intro en lugar de Intro.",
+    "turnLimit": "Detener un turno tras el número de rondas de herramientas que elija, con un resumen de lo que queda.",
     "importFromAgents": "Copiar servidores MCP, hooks, agentes, comandos y reglas desde Claude Code, Codex o Cursor.",
     "memory": "Las notas que Muse guarda para sesiones posteriores.",
     "settings": "Abrir configuración.",
@@ -1136,6 +1137,9 @@
     "other": "{count} rondas",
     "many": "{count} rondas"
   },
+  "turnLimitPrompt": "Detener un turno tras este número de rondas de herramientas, con un resumen de lo que queda. Cualquier número entero desde 1.",
+  "turnLimitPlaceholder": "Por ejemplo, 50",
+  "turnLimitInvalid": "Introduzca un número entero de rondas, 1 o más.",
   "thinkingItem": "Pensamiento",
   "permissionModeItem": "Modo de permisos",
   "focusViewItem": "Vista de enfoque",

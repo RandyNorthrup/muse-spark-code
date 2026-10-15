@@ -1052,6 +1052,7 @@
     "permissionMode": "行動前に Muse が確認する方法を選びます。",
     "focusView": "フォーカス外のステップを非表示にします。",
     "ctrlEnter": "Enter の代わりに Ctrl+Enter でメッセージを送信します。",
+    "turnLimit": "選んだ数のツールラウンドでターンを止め、残りの作業を要約します。",
     "importFromAgents": "Claude Code、Codex、Cursor から MCP サーバー、フック、エージェント、コマンド、ルールをコピー。",
     "memory": "Muse が後のセッションのために保存するノート。",
     "settings": "設定を開く。",
@@ -1122,6 +1123,9 @@
   "turnLimitRounds": {
     "other": "{count} ラウンド"
   },
+  "turnLimitPrompt": "このツールラウンド数でターンを止め、残りの作業を要約します。1 以上の任意の整数。",
+  "turnLimitPlaceholder": "例: 50",
+  "turnLimitInvalid": "ラウンド数は 1 以上の整数で入力してください。",
   "thinkingItem": "思考",
   "permissionModeItem": "権限モード",
   "focusViewItem": "フォーカス ビュー",

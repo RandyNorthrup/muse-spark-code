@@ -389,6 +389,7 @@ const KEEPS_PALETTE_OPEN: ReadonlySet<PaletteAction['type']> = new Set([
   'toggleThinking',
   'toggleFocusView',
   'toggleCtrlEnterToSend',
+  'toggleTurnLimit',
   'none',
 ])
 
@@ -2385,7 +2386,8 @@ export function App({
           break
         }
         case 'toggleFocusView':
-        case 'toggleCtrlEnterToSend': {
+        case 'toggleCtrlEnterToSend':
+        case 'toggleTurnLimit': {
           postMessage({ type: 'hostAction', action: action.type })
           break
         }
@@ -2590,6 +2592,7 @@ export function App({
       permissionMode: state.permissionMode,
       isFocusView: state.settings?.focusView ?? false,
       useCtrlEnterToSend: state.settings?.useCtrlEnterToSend ?? false,
+      isTurnLimitOn: (state.settings?.modelApiMaxTurnRequests ?? 0) > 0,
       usage: state.usage,
       skills: state.skills,
       backend: state.auth.backend,

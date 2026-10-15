@@ -32,6 +32,7 @@ const settings: SettingsSnapshot = {
   allowDangerouslySkipPermissions: false,
   archiveInactiveSessions: 0,
   modelApiReplyUsage: false,
+  modelApiMaxTurnRequests: 0,
   schedules: false,
   museCodeAutoReviewer: false,
   'estimator.optimize': 'cost',

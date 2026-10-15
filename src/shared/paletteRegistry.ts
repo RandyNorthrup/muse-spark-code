@@ -488,6 +488,19 @@ export function buildPalette(
           widget: { kind: 'toggle', isOn: context.useCtrlEnterToSend },
           action: { type: 'toggleCtrlEnterToSend' },
         },
+        // The person's own per-turn tool-round limit (lane LIMITSFIX, F8): a
+        // switch like every other on/off setting. Only the Model API loop has
+        // rounds of its own to limit.
+        ...(context.backend === 'modelApi'
+          ? [
+              {
+                id: 'turnLimit',
+                label: UI_TEXT.turnLimitItem,
+                widget: { kind: 'toggle' as const, isOn: context.isTurnLimitOn },
+                action: { type: 'toggleTurnLimit' as const },
+              },
+            ]
+          : []),
         ...museConfigItems(context.backend),
         // From the other agents (M83): local files only, the same on both backends.
         {

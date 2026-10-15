@@ -15,7 +15,6 @@ import {
   ACP_PAID_FLAGS,
   type AcpBackendKind,
   type AcpPaidFeature,
-  TURN_LIMIT_OPTION_VALUES,
   SETTING_DEFAULTS,
   SHELL_SANDBOX_MODES,
   type ShellSandboxMode,
@@ -27,6 +26,7 @@ const { isProviderId } = modelRef
 import type { OpenRouterPrivacy } from '../core/providers/presets'
 import { accountIdSchema } from '../shared/accounts'
 import { fill } from '../shared/l10n/text'
+import { readTurnLimit } from '../shared/turnLimit'
 import { parseExec } from './exec/execArgs'
 import { resourceFlagOverrides } from './resources/args'
 import type { ResourceSettings } from '../shared/resources'
@@ -367,12 +367,11 @@ export function parseCommandLine<T>(
     values['max-budget-usd'] === undefined ? undefined : scheduleBudgetUsd(values['max-budget-usd'])
   if (budget === undefined && values['max-budget-usd'] !== undefined)
     return { command: 'invalid', reason: UI_TEXT.scheduleV2.runtime.usage }
+  // Any whole number from 1 up, or off (lane LIMITSFIX, F8): the person's own limit.
   const rawTurnLimit = values['max-turn-requests']
-  const isTurnLimit =
-    typeof rawTurnLimit === 'string' &&
-    (TURN_LIMIT_OPTION_VALUES as readonly string[]).includes(rawTurnLimit)
-  if (rawTurnLimit !== undefined && !isTurnLimit) return invalid('--max-turn-requests')
-  const maxTurnRequests = isTurnLimit && rawTurnLimit !== 'off' ? Number(rawTurnLimit) : undefined
+  const turnLimit = rawTurnLimit === undefined ? undefined : readTurnLimit(rawTurnLimit)
+  if (turnLimit?.isValid === false) return invalid('--max-turn-requests')
+  const maxTurnRequests = turnLimit?.isValid === true ? turnLimit.rounds : undefined
   if (maxTurnRequests !== undefined && backend !== 'modelApi')
     return {
       command: 'invalid',

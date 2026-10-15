@@ -1058,6 +1058,7 @@
     "permissionMode": "Válassza ki, hogyan kérdezzen a Muse, mielőtt cselekszik.",
     "focusView": "A fókuszon kívüli lépések elrejtése.",
     "ctrlEnter": "Üzenetküldés Ctrl+Enterrel Enter helyett.",
+    "turnLimit": "A kör leállítása az Ön által választott számú eszközkör után, az hátralévők összefoglalásával.",
     "importFromAgents": "MCP-kiszolgálók, hookok, ügynökök, parancsok és szabályok másolása a Claude Code, a Codex vagy a Cursor közül.",
     "memory": "A jegyzetek, amelyeket a Muse a későbbi munkamenetekhez megőriz.",
     "settings": "Beállítások megnyitása.",
@@ -1129,6 +1130,9 @@
     "one": "{count} kör",
     "other": "{count} kör"
   },
+  "turnLimitPrompt": "A kör leállítása ennyi eszközkör után, az hátralévők összefoglalásával. Bármely 1-től induló egész szám.",
+  "turnLimitPlaceholder": "Például 50",
+  "turnLimitInvalid": "Adjon meg egész számú kört, 1-et vagy többet.",
   "thinkingItem": "Gondolkodás",
   "permissionModeItem": "Engedélyezési mód",
   "focusViewItem": "Fókusznézet",

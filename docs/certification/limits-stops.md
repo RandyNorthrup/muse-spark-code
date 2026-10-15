@@ -493,3 +493,46 @@ requested lane report; remaining P1/P2 findings prevent merge approval.
   `typecheck:host` 0; eslint `--max-warnings=0` 0. **Not proven here:** the
   clean stop over the real editor protocol with a real failing summary (no
   provider call allowed): real-life step 3 below.
+
+## LIMITSFIX F8 — the turn limit is any whole number on every surface (2026-10-15)
+
+- **Cause.** The limit was accepted only as off/25/50/100/200/500 by exec,
+  serve and the editor protocol's select (`TURN_LIMIT_OPTION_VALUES`), capped
+  at 1000 as a setting, had no panel switch, was never written to the stored
+  session (a resumed ACP session reapplied the serve default) and a child
+  session read only the host default, not its parent's choice. The review's
+  limit-3 case could not run: built `exec ... --max-turn-requests 3` exited 2.
+- **Fix.** One reading, `src/shared/turnLimit.ts` (`readTurnLimit`,
+  `isTurnLimitRounds`): off, or a whole number from 1 up, no bound of ours.
+  Exec and serve (`execArgs.ts`, `cliArgs.ts`), the ACP select
+  (`acp/agent.ts`: suggested presets plus the value in force, any whole number
+  accepted) and the session (`setMaxTurnRequests`) use it; the setting's
+  1000 bound is gone (`settings.ts`, `package.json`). The panel's Customize
+  list has a `turnLimit` switch on the Model API backend
+  (`paletteRegistry.ts`, host action `toggleTurnLimit` in `extension.ts`: off
+  writes 0, on asks for the number through the same reading). Persisted:
+  `StoredSession.maxTurnRequests` (0 is a chosen no limit, absent is no choice;
+  `sessionStore.ts`, `ModelApiHost.ts` snapshot and restore). A child reads its
+  parent's limit (`maxTurnRequests()` follows `parentSession`).
+- **Red drills.** (1) the reading made to accept only the old list:
+  `turnLimit.test.ts` 3 failed; SHA-256
+  `4DC2FD7A4098FE45404FA3714ED5A8AC88EACF2AD9FECA420E8FB4E7916A2E14` before and
+  after the restore. (2) the saved limit dropped when a session is read back:
+  `fileSessionStore.test.ts` 1 failed;
+  `A28C71FA9ABEE38E1CA0D69DC03FCA8A629C693318C84B7F35BE8F8CBC1B234B` before and
+  after.
+- **Tests (real code, data in).** `turnLimit.test.ts` (the reading, the real
+  exec and serve parsers), `fileSessionStore.test.ts` (real session files: a
+  chosen limit, a chosen no limit and a corrupt one), `paletteRegistry.test.ts`
+  (the switch exists on the Model API backend only), `execArgs.test.ts` and
+  `serveTurnLimit.test.ts` (their old "75 is refused" cases now follow the new
+  rule). `paletteRegistry.test.ts` also carried a stale subagent price sentence
+  from the LIMITSA child-cap removal ("up to 4 requests per task"); it now
+  pins the sentence the product shows. Checks: `check:l10n` 0 problems (new
+  keys in all 14 tables), `check:reference` 0, `check:host-api` 0 (regenerated:
+  `extension.ts` uses `InputBoxOptions.prompt` once more), `typecheck` host,
+  webview and unit 0 each.
+- **Not proven here.** A child inheriting the limit and a resumed ACP session
+  keeping it need a live conversation: real-life steps 2 and 6 below. The
+  panel switch needs the lead's one small local look in a light and a dark
+  theme (`npm run ui:look`), not run here.

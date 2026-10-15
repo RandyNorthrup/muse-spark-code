@@ -9,6 +9,16 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- Lane LIMITSFIX (F8, D113): the per-turn tool-round limit is one thing on
+  every surface: off, or any whole number from 1 up. The terminal's exec and
+  serve flags and the editor protocol's session option used to accept only
+  off, 25, 50, 100, 200 and 500; they take any whole number now (the
+  protocol's select lists those as suggestions, plus the value in force),
+  and the VS Code setting lost its upper bound of 1000. The panel's Customize
+  list has a Tool-round limit switch on the Model API backend (off writes
+  0; on asks for the number). The limit is saved with the conversation, so
+  a resume or fork keeps it, and a sub-agent uses its parent's limit.
+
 - Lane LIMITSFIX (F5, D113): a turn limit the person set ends cleanly even
   when its summary cannot be written (a spend cap reached, the connection
   lost, a hook or the provider refusing the request). The turn ends as

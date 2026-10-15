@@ -1290,9 +1290,9 @@ export const EFFORT_LEVELS = ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'
 export type EffortLevel = (typeof EFFORT_LEVELS)[number]
 // --- Per-turn tool-round limit (lane TURNLIMIT) ---
 //
-// The ACP select's values and the terminal flags' vocabulary: off, then
-// round counts bracketing the removed 50-round default. The VS Code setting
-// stays a free number; these surfaces show a fixed list.
+// The ACP select's suggested choices: off, then round counts bracketing the
+// removed 50-round default. They are suggestions only (lane LIMITSFIX, F8):
+// every surface accepts any whole number from 1 up, or off (src/shared/turnLimit.ts).
 export const TURN_LIMIT_OPTION_VALUES = ['off', '25', '50', '100', '200', '500'] as const
 export type TurnLimitOption = (typeof TURN_LIMIT_OPTION_VALUES)[number]
 // The tiers each model family actually serves, keyed by model-id prefix
@@ -2407,9 +2407,9 @@ export const CONTEXT_PRESSURE_MEDIUM = 0.7
 export const CONTEXT_PRESSURE_HIGH = 0.9
 // A turn runs until the model stops, the person cancels, the loop guard
 // fires, a spend cap is reached, or an error happens (lane TURNLIMIT): no
-// fixed cap. The person may still set their own per-turn tool-round limit
-// (`museSpark.modelApiMaxTurnRequests`); 0 is no limit, past this refuse.
-export const MODEL_API_MAX_TURN_REQUESTS_MAX = 1000
+// fixed cap. The person may still set their own per-turn tool-round limit,
+// any whole number from 1 up (`museSpark.modelApiMaxTurnRequests`; 0 is no
+// limit; lane LIMITSFIX, F8): no bound of ours.
 // The `turnCompleted` error kind when the person's own per-turn limit stopped
 // the turn (lane TURNLIMIT): the editor protocol answers `max_turn_requests`.
 export const TURN_LIMIT_ERROR_KIND = 'turnLimit'

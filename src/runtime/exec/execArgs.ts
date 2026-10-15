@@ -24,9 +24,9 @@ import {
   SETTING_DEFAULTS,
   SHELL_SANDBOX_MODES,
   type ShellSandboxMode,
-  TURN_LIMIT_OPTION_VALUES,
   UI_TEXT,
 } from '../../shared/constants'
+import { readTurnLimit } from '../../shared/turnLimit'
 import { fill, plural } from '../../shared/l10n/text'
 import { modelRef } from '../../host/backend/providerPolicyEntry'
 const { isProviderId, parseModelRef } = modelRef
@@ -235,17 +235,20 @@ export function parseExec(
     1,
     EXEC_MAX_REQUESTS,
   )
+  // Any whole number from 1 up, or off (lane LIMITSFIX, F8): the person's own limit.
   const rawTurnLimit = values['max-turn-requests']
-  const isTurnLimit =
-    typeof rawTurnLimit === 'string' &&
-    (TURN_LIMIT_OPTION_VALUES as readonly string[]).includes(rawTurnLimit)
-  const maxTurnRequests = isTurnLimit && rawTurnLimit !== 'off' ? Number(rawTurnLimit) : undefined
+  // A value that is not text (a repeated or bare flag) is no limit at all: refused, never coerced.
+  const turnLimit =
+    rawTurnLimit === undefined
+      ? undefined
+      : readTurnLimit(typeof rawTurnLimit === 'string' ? rawTurnLimit : '')
+  const maxTurnRequests = turnLimit?.isValid === true ? turnLimit.rounds : undefined
   const budgetUsd = budgetUnits(values['max-budget-usd'])
   if (
     timeout === undefined ||
     maxRequests === undefined ||
     (budgetUsd === undefined && values['max-budget-usd'] !== undefined) ||
-    (rawTurnLimit !== undefined && !isTurnLimit)
+    turnLimit?.isValid === false
   )
     return invalid(UI_TEXT.execNumberInvalid)
   if (backend === 'modelApi' && budgetUsd === undefined) return invalid(UI_TEXT.execBudgetRequired)

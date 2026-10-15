@@ -65,6 +65,35 @@ describe('real session files', () => {
     expect(await readdir(directory)).toEqual([])
   })
 
+  // Lane LIMITSFIX, F8 (D113): the person's own tool-round limit is saved with
+  // the conversation, so a resume or a fork keeps their choice. 0 is their
+  // choice of no limit, which must not read back as "no choice made".
+  it('keeps the tool-round limit a person chose, including a chosen no limit', async () => {
+    const { open } = await setup()
+    for (const [id, maxTurnRequests] of [
+      ['limit-3', 3],
+      ['limit-big', 73_000],
+      ['limit-none', 0],
+    ] as const) {
+      await open().save({ ...stored(id), maxTurnRequests })
+      const loaded = await open().load(id)
+      expect(loaded?.maxTurnRequests, id).toBe(maxTurnRequests)
+    }
+    await open().save(stored('limit-unset'))
+    const unset = await open().load('limit-unset')
+    expect(unset?.maxTurnRequests).toBeUndefined()
+  })
+
+  it('refuses a stored limit that is not a whole number from 0 up', async () => {
+    const { open, directory, log } = await setup()
+    await open().save(stored('limit-bad'))
+    const file = path.join(directory, 'limit-bad.json')
+    const text = JSON.parse(await readFile(file, 'utf8')) as Record<string, unknown>
+    await writeFile(file, JSON.stringify({ ...text, maxTurnRequests: -5 }))
+    expect(await open().load('limit-bad')).toBeUndefined()
+    expect(log.warn).toHaveBeenCalled()
+  })
+
   it('lists intact headers of damaged conversations but refuses to open corrupt replay', async () => {
     const { store, directory, log } = await setup()
     await store.save(stored('good'))

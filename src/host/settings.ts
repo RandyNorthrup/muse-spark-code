@@ -9,7 +9,6 @@ import { widenedHost } from '../core/browser/browserPolicy'
 import { checkCommandsSchema } from '../core/verify/checkCommands'
 import {
   BACKEND_MODES,
-  MODEL_API_MAX_TURN_REQUESTS_MAX,
   PAID_DAILY_BUDGET,
   WEB_SEARCH_MAX_PER_REQUEST_LIMIT,
   type BackendMode,
@@ -282,7 +281,8 @@ const settingSchemas = {
   modelApiAutoCompaction: z.boolean(),
   modelApiStrictTools: z.boolean(),
   modelApiParallelReads: z.boolean(),
-  modelApiMaxTurnRequests: z.int().check(z.gte(0), z.lte(MODEL_API_MAX_TURN_REQUESTS_MAX)),
+  // Any whole number from 0 up (lane LIMITSFIX, F8): 0 is no limit, the person's own otherwise.
+  modelApiMaxTurnRequests: z.int().check(z.gte(0)),
   webSearchMaxPerRequest: z
     .number()
     .check(z.int(), z.gte(1), z.lte(WEB_SEARCH_MAX_PER_REQUEST_LIMIT)),
@@ -499,6 +499,7 @@ export function toSettingsSnapshot(settings: ExtensionSettings): SettingsSnapsho
     allowDangerouslySkipPermissions: settings.allowDangerouslySkipPermissions,
     archiveInactiveSessions: settings.archiveInactiveSessions,
     modelApiReplyUsage: settings.modelApiReplyUsage,
+    modelApiMaxTurnRequests: settings.modelApiMaxTurnRequests,
     museCodeAutoReviewer: settings.museCodeAutoReviewer,
     schedules: settings.schedules,
     'estimator.optimize': settings['estimator.optimize'],

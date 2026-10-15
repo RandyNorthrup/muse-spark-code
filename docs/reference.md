@@ -318,7 +318,7 @@ Commands: —. Settings: `museSpark.modelApiParallelReads`. [Documentation](http
 
 ### museSpark.modelApiMaxTurnRequests
 
-conversationStart: Maximum tool rounds in one turn (0–1000; 0 is no limit: the turn runs until the model stops). When the limit is reached the model writes a summary and the turn ends; sending a message continues.
+conversationStart: Your own limit on tool rounds in one turn: any whole number from 1 up; 0 is no limit, and the turn then runs until the model stops. When the limit is reached the model is asked once, with no tools, to summarise what it did and what is left, and the turn ends; if that summary cannot be written the turn still ends and says why. Sending a message continues. Also set from the panel (Tool-round limit switch), the terminal (--max-turn-requests) and the editor protocol; saved with the conversation and used by its sub-agents.
 
 Surfaces: vscode:modelApi, acp:modelApi. Paid: no extra feature charge; model usage still applies.
 
@@ -2424,7 +2424,7 @@ Type: `"boolean"`. Default: `true`. Scope: `window`.
 
 ### museSpark.modelApiSessionBudgetUsd
 
-sessionBudget: Spend cap in US dollars for each Model API conversation; 0 means no cap. Only the input estimate is held before sending, and real spend is compared after each response, so a cap can be passed by at most one response; a request whose input alone exceeds what is left is not sent, and input estimates may differ from billed usage. Web search is unavailable while capped because its billed query count has no verified limit. Unknown sent requests keep their reservation; automatic retries after ambiguous failures are refused. Requires working session storage. Separate paid consent still applies. Paid Muse Voice is also unavailable with a cap because no billed-duration bound is verified; use system dictation. Child requests are counted when usage is reported, without reserving against the parent cap, and can exceed it.
+sessionBudget: Spend cap in US dollars for each Model API conversation; 0 means no cap. The cap is compared with the real spend already settled, never with an estimate: a request is sent while that spend is below the cap, and once it has reached the cap the next request is not sent, in words that name the spend, the cap and how to raise it. Each response settles at its real cost when its usage arrives, so the spend can pass the cap by at most the responses in flight when their requests were admitted: one for the conversation itself, plus any running sub-agents (they share this cap and ledger, up to 8). A response lost before its usage is recorded as unknown, never as a guessed amount, and the next capped request says so. Web search is unavailable while capped because its billed query count has no verified limit. Automatic retries after ambiguous failures are refused. Requires working session storage. Separate paid consent still applies. Paid Muse Voice is also unavailable with a cap because no billed-duration bound is verified; use system dictation.
 
 Type: `"number"`. Default: `0`. Scope: `machine`.
 
@@ -2784,7 +2784,7 @@ Type: `"string"`. Default: `"system"`. Scope: `machine`.
 ### museSpark.modelApiTab
 
 Tab uses the stored Model API key on either chat backend. The default trigger is Invoke; automatic typing suggestions require Automatic.
-Hard daily budget in US dollars for Tab completion requests across every window on this machine; a request whose worst case would pass it is not sent. From $0.05 to $50.
+Daily budget in US dollars for Tab completion requests across every window on this machine: a request is sent while the real spend settled so far today is below the budget. From $0.05 to $50.
 Allow once / Allow always in this workspace.
 
 Type: `"boolean"`. Default: `true`. Scope: `machine`.
@@ -2815,7 +2815,7 @@ Type: `"string"`. Default: `"muse-spark-1.3"`. Scope: `machine`.
 
 ### museSpark.tabDailyBudgetUsd
 
-Hard daily budget in US dollars for Tab completion requests across every window on this machine; a request whose worst case would pass it is not sent. From $0.05 to $50.
+Daily budget in US dollars for Tab completion requests across every window on this machine. A request is sent while the real spend settled so far today is below the budget; at the budget, completions pause until tomorrow and a notice names the spend and the budget. From $0.05 to $50.
 
 Type: `"number"`. Default: `1`. Scope: `machine`.
 
@@ -3124,7 +3124,7 @@ Type: `"boolean"`. Default: `true`. Scope: `machine`.
 
 ### museSpark.modelApiMaxTurnRequests
 
-conversationStart: Maximum tool rounds in one turn (0–1000; 0 is no limit: the turn runs until the model stops). When the limit is reached the model writes a summary and the turn ends; sending a message continues.
+conversationStart: Your own limit on tool rounds in one turn: any whole number from 1 up; 0 is no limit, and the turn then runs until the model stops. When the limit is reached the model is asked once, with no tools, to summarise what it did and what is left, and the turn ends; if that summary cannot be written the turn still ends and says why. Sending a message continues. Also set from the panel (Tool-round limit switch), the terminal (--max-turn-requests) and the editor protocol; saved with the conversation and used by its sub-agents.
 
 Type: `"integer"`. Default: `0`. Scope: `machine`.
 
@@ -3132,8 +3132,7 @@ Type: `"integer"`. Default: `0`. Scope: `machine`.
 {
   "type": "integer",
   "default": 0,
-  "minimum": 0,
-  "maximum": 1000
+  "minimum": 0
 }
 ```
 

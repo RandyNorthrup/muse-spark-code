@@ -1504,8 +1504,7 @@
           "default": 0,
           "scope": "machine",
           "description": "%config.modelApiMaxTurnRequests.description%",
-          "minimum": 0,
-          "maximum": 1000
+          "minimum": 0
         },
         "museSpark.webSearchMaxPerRequest": {
           "type": "number",

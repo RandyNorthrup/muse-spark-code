@@ -1291,6 +1291,8 @@ export const EN = {
     permissionMode: 'Choose how Muse asks before it acts.',
     focusView: 'Hide the steps outside your focus.',
     ctrlEnter: 'Send messages with Ctrl+Enter instead of Enter.',
+    turnLimit:
+      'Stop a turn after a number of tool rounds you choose, with a summary of what is left.',
     importFromAgents:
       'Copy MCP servers, hooks, agents, commands and rules from Claude Code, Codex or Cursor.',
     memory: 'The notes Muse keeps for later sessions.',
@@ -1365,6 +1367,11 @@ export const EN = {
   turnLimitItem: 'Tool-round limit',
   turnLimitOff: 'Off',
   turnLimitRounds: forms({ one: '{count} round', other: '{count} rounds' }),
+  // The panel's switch asks for the number when it is turned on (lane LIMITSFIX, F8).
+  turnLimitPrompt:
+    'Stop a turn after this many tool rounds, with a summary of what is left. Any whole number from 1 up.',
+  turnLimitPlaceholder: 'For example 50',
+  turnLimitInvalid: 'Enter a whole number of rounds, 1 or more.',
   thinkingItem: 'Thinking',
   permissionModeItem: 'Permission Mode',
   focusViewItem: 'Focus View',

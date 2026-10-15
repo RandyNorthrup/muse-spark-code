@@ -1064,6 +1064,7 @@
     "permissionMode": "Choisissez comment Muse demande avant d’agir.",
     "focusView": "Masque les étapes hors de votre focus.",
     "ctrlEnter": "Envoyez les messages avec Ctrl+Entrée au lieu d’Entrée.",
+    "turnLimit": "Arrêter un tour après le nombre de cycles d’outils que vous choisissez, avec un résumé de ce qui reste.",
     "importFromAgents": "Copier les serveurs MCP, hooks, agents, commandes et règles depuis Claude Code, Codex ou Cursor.",
     "memory": "Les notes que Muse conserve pour les sessions suivantes.",
     "settings": "Ouvrir les paramètres.",
@@ -1136,6 +1137,9 @@
     "other": "{count} cycles",
     "many": "{count} cycles"
   },
+  "turnLimitPrompt": "Arrêter un tour après ce nombre de cycles d’outils, avec un résumé de ce qui reste. Tout nombre entier à partir de 1.",
+  "turnLimitPlaceholder": "Par exemple 50",
+  "turnLimitInvalid": "Saisissez un nombre entier de cycles, 1 ou plus.",
   "thinkingItem": "Réflexion",
   "permissionModeItem": "Mode d’autorisation",
   "focusViewItem": "Vue concentrée",

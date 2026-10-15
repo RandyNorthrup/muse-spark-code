@@ -197,6 +197,7 @@ export const REFERENCE_ACTION_FEATURES = {
   openLog: 'support',
   toggleFocusView: 'chat',
   toggleCtrlEnterToSend: 'chat',
+  toggleTurnLimit: 'chat',
   hideOnboarding: 'chat',
   reload: 'support',
   openMuseSettings: 'chat',

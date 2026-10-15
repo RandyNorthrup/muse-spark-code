@@ -137,7 +137,8 @@ describe('M80 args (A1–A10, F1)', () => {
     { backend: 'modelApi', 'max-budget-usd': '1', 'muse-binary': '/muse' },
     { backend: 'modelApi', 'max-budget-usd': '1', 'shell-sandbox': 'off' },
     { 'max-requests': '1' },
-    { backend: 'modelApi', 'max-budget-usd': '1', 'max-turn-requests': '75' },
+    // Any whole number from 1 up is a limit now (F8); only a non-number is refused.
+    { backend: 'modelApi', 'max-budget-usd': '1', 'max-turn-requests': '0' },
     { backend: 'modelApi', 'max-budget-usd': '1', 'max-turn-requests': 'abc' },
     { backend: 'museCode', 'max-turn-requests': '50' },
     { ephemeral: true },

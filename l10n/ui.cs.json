@@ -1070,6 +1070,7 @@
     "permissionMode": "Zvolte, jak se Muse ptá, než začne jednat.",
     "focusView": "Skrýt kroky mimo vaše zaměření.",
     "ctrlEnter": "Odesílat zprávy pomocí Ctrl+Enter místo Enteru.",
+    "turnLimit": "Zastavit tah po zvoleném počtu kol nástrojů se shrnutím toho, co zbývá.",
     "importFromAgents": "Zkopírovat MCP servery, hooky, agenty, příkazy a pravidla z Claude Code, Codexu nebo Cursoru.",
     "memory": "Poznámky, které si Muse uchovává pro další relace.",
     "settings": "Otevřít nastavení.",
@@ -1143,6 +1144,9 @@
     "few": "{count} kola",
     "many": "{count} kola"
   },
+  "turnLimitPrompt": "Zastavit tah po tomto počtu kol nástrojů se shrnutím toho, co zbývá. Libovolné celé číslo od 1.",
+  "turnLimitPlaceholder": "Například 50",
+  "turnLimitInvalid": "Zadejte celý počet kol, 1 nebo více.",
   "thinkingItem": "Přemýšlení",
   "permissionModeItem": "Režim oprávnění",
   "focusViewItem": "Zaměřené zobrazení",

@@ -1058,6 +1058,7 @@
     "permissionMode": "Wählen, wie Muse fragt, bevor es handelt.",
     "focusView": "Die Schritte außerhalb Ihres Fokus ausblenden.",
     "ctrlEnter": "Nachrichten mit Strg+Eingabe statt Eingabe senden.",
+    "turnLimit": "Einen Durchlauf nach einer von Ihnen gewählten Anzahl von Werkzeugrunden beenden, mit einer Zusammenfassung des Rests.",
     "importFromAgents": "MCP-Server, Hooks, Agents, Befehle und Regeln aus Claude Code, Codex oder Cursor übernehmen.",
     "memory": "Die Notizen, die Muse für spätere Sitzungen aufbewahrt.",
     "settings": "Einstellungen öffnen.",
@@ -1129,6 +1130,9 @@
     "one": "{count} Runde",
     "other": "{count} Runden"
   },
+  "turnLimitPrompt": "Einen Durchlauf nach dieser Anzahl von Werkzeugrunden mit einer Zusammenfassung des Rests beenden. Jede ganze Zahl ab 1.",
+  "turnLimitPlaceholder": "Zum Beispiel 50",
+  "turnLimitInvalid": "Geben Sie eine ganze Zahl von Runden ein, 1 oder mehr.",
   "thinkingItem": "Nachdenken",
   "permissionModeItem": "Berechtigungsmodus",
   "focusViewItem": "Fokusansicht",

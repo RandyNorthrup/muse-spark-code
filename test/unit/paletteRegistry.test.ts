@@ -26,6 +26,7 @@ const context: PaletteContext = {
   permissionMode: 'acceptEdits',
   isFocusView: false,
   useCtrlEnterToSend: true,
+  isTurnLimitOn: false,
   usage: { inputTokens: 12_345, outputTokens: 678 },
   skills: [
     { selector: 'fix-bug', displayName: 'Fix bug', description: 'Fixes a bug' },
@@ -458,6 +459,7 @@ describe('buildPalette', () => {
       'permissionMode',
       'focusView',
       'ctrlEnter',
+      'turnLimit',
       'mcpServers',
       'hooks',
       'importFromAgents',
@@ -467,6 +469,21 @@ describe('buildPalette', () => {
     ])
     expect(mcpDetailOn('modelApi')).toBe(EN.mcpItemDetailModelApi)
     expect(mcpDetailOn('museCode')).toBe(EN.mcpItemDetail)
+  })
+
+  // Lane LIMITSFIX, F8 (D113): every on/off setting gets a switch, and the
+  // tool-round limit belongs to the Model API loop alone.
+  it('offers the tool-round limit as a switch on the Model API backend only', () => {
+    for (const isTurnLimitOn of [false, true]) {
+      const row = pricedPalette({ ...context, backend: 'modelApi', isTurnLimitOn })
+        .find((group) => group.id === 'customize')
+        ?.items.find((item) => item.id === 'turnLimit')
+      expect(row?.widget, String(isTurnLimitOn)).toEqual({ kind: 'toggle', isOn: isTurnLimitOn })
+      expect(row?.action).toEqual({ type: 'toggleTurnLimit' })
+    }
+    for (const backend of ['museCode', undefined] as const) {
+      expect(customizeIds(backend), String(backend)).not.toContain('turnLimit')
+    }
   })
 
   it('offers the import from other agents on both backends and signed out (M83)', () => {
@@ -777,8 +794,8 @@ describe('buildPalette: paid features (M33, PLAN.md D30)', () => {
       ],
       [
         'Subagents (Paid)',
-        'muse-spark-1.3: $1.250 input, $0.150 cached input, $4.250 output per million tokens; up to 4 requests per task, including retries.\n' +
-          'muse-spark-1.3-contributor: $0.100 input, $0.0020 cached input, $0.200 output per million tokens; up to 4 requests per task, including retries.',
+        'muse-spark-1.3: $1.250 input, $0.150 cached input, $4.250 output per million tokens, billed per request with no request cap.\n' +
+          'muse-spark-1.3-contributor: $0.100 input, $0.0020 cached input, $0.200 output per million tokens, billed per request with no request cap.',
         { kind: 'toggle', isOn: false },
         { type: 'setPaidFeature', feature: 'subagents', isOn: true },
       ],

@@ -1058,6 +1058,7 @@
     "permissionMode": "Muse'un harekete geçmeden önce nasıl soracağını seçin.",
     "focusView": "Odağınız dışındaki adımları gizleyin.",
     "ctrlEnter": "İletileri Enter yerine Ctrl+Enter ile gönderin.",
+    "turnLimit": "Bir turu seçtiğiniz sayıda araç turundan sonra, kalanların özetiyle durdurun.",
     "importFromAgents": "Claude Code, Codex veya Cursor'dan MCP sunucularını, kancaları, aracıları, komutları ve kuralları kopyala.",
     "memory": "Muse'un sonraki oturumlar için sakladığı notlar.",
     "settings": "Ayarları aç.",
@@ -1129,6 +1130,9 @@
     "one": "{count} tur",
     "other": "{count} tur"
   },
+  "turnLimitPrompt": "Bir turu bu kadar araç turundan sonra, kalanların özetiyle durdurun. 1’den başlayan herhangi bir tam sayı.",
+  "turnLimitPlaceholder": "Örneğin 50",
+  "turnLimitInvalid": "Tam sayı olarak tur sayısı girin, 1 veya daha fazla.",
   "thinkingItem": "Düşünme",
   "permissionModeItem": "İzin modu",
   "focusViewItem": "Odak görünümü",

@@ -1052,6 +1052,7 @@
     "permissionMode": "選擇 Muse 行動前如何徵求確認。",
     "focusView": "隱藏焦點之外的步驟。",
     "ctrlEnter": "用 Ctrl+Enter 而不是 Enter 傳送訊息。",
+    "turnLimit": "在您選定的工具輪數後停止一輪，並總結剩餘工作。",
     "importFromAgents": "從 Claude Code、Codex 或 Cursor 複製 MCP 伺服器、鉤子、代理、命令和規則。",
     "memory": "Muse 為後續工作階段保留的筆記。",
     "settings": "開啟設定。",
@@ -1122,6 +1123,9 @@
   "turnLimitRounds": {
     "other": "{count} 輪"
   },
+  "turnLimitPrompt": "在達到此工具輪數後停止一輪，並總結剩餘工作。任何不小於 1 的整數。",
+  "turnLimitPlaceholder": "例如 50",
+  "turnLimitInvalid": "請輸入輪數，須為不小於 1 的整數。",
   "thinkingItem": "思考",
   "permissionModeItem": "權限模式",
   "focusViewItem": "專注檢視",

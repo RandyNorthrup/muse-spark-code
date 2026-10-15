@@ -85,6 +85,7 @@ import {
 } from '../shared/constants'
 import { effortForThinking, effortLabel, effortLevelsFor, isEffortLevel } from '../shared/effort'
 import { fill, formatBytes, formatUnit, plural, uiLocale } from '../shared/l10n/text'
+import { readTurnLimit } from '../shared/turnLimit'
 import type { AcpAttachment, AcpMediaFactory, AcpMediaPort } from './media'
 import { parseSkillInvocation, slashCommandText } from '../shared/mentions'
 import type { PaidUseRequest } from '../shared/paid'
@@ -325,20 +326,29 @@ function servedEffort(modelId: string, wanted: EffortLevel): EffortLevel {
   return levels.includes(wanted) ? wanted : (levels.at(-1) ?? DEFAULT_EFFORT)
 }
 
-/** Whether the select carries the value: off or one of the round counts. */
-function isTurnLimitOption(value: string): value is TurnLimitOption {
-  return (TURN_LIMIT_OPTION_VALUES as readonly string[]).includes(value)
-}
-
 /** The select's display for a value: off, or the round count. */
-function turnLimitOptionName(value: TurnLimitOption): string {
-  return value === 'off' ? UI_TEXT.turnLimitOff : plural(UI_TEXT.turnLimitRounds, Number(value))
+function turnLimitOptionName(value: string): string {
+  const reading = readTurnLimit(value)
+  return reading.isValid && reading.rounds !== undefined
+    ? plural(UI_TEXT.turnLimitRounds, reading.rounds)
+    : UI_TEXT.turnLimitOff
 }
 
 /** The select's value for a limit: off for no limit, else the round count. */
-function turnLimitOptionValue(maxTurnRequests: number | undefined): TurnLimitOption {
-  const value = maxTurnRequests === undefined ? 'off' : String(maxTurnRequests)
-  return isTurnLimitOption(value) ? value : 'off'
+function turnLimitOptionValue(maxTurnRequests: number | undefined): string {
+  return maxTurnRequests === undefined ? 'off' : String(maxTurnRequests)
+}
+
+/**
+ * The select's choices (lane LIMITSFIX, F8): the common presets plus the
+ * limit in force, so any whole number the person set (the flag, the setting,
+ * a saved session) is shown and valid. Setting accepts any whole number from
+ * 1 up, or off.
+ */
+function turnLimitChoices(current: string): readonly string[] {
+  return TURN_LIMIT_OPTION_VALUES.includes(current as TurnLimitOption)
+    ? TURN_LIMIT_OPTION_VALUES
+    : [...TURN_LIMIT_OPTION_VALUES, current]
 }
 
 /** One ACP session over one AgentSession. */
@@ -1491,10 +1501,12 @@ class AcpSession {
               category: 'model_config',
               type: 'select',
               currentValue: turnLimitOptionValue(this.maxTurnRequests),
-              options: TURN_LIMIT_OPTION_VALUES.map((value) => ({
-                value,
-                name: turnLimitOptionName(value),
-              })),
+              options: turnLimitChoices(turnLimitOptionValue(this.maxTurnRequests)).map(
+                (value) => ({
+                  value,
+                  name: turnLimitOptionName(value),
+                }),
+              ),
             },
           ]
         : []
@@ -1606,10 +1618,11 @@ class AcpSession {
       return
     }
     if (configId === ACP_CONFIG_IDS.turnLimit) {
-      if (!isTurnLimitOption(value)) {
+      const reading = readTurnLimit(value)
+      if (!reading.isValid) {
         throw RequestError.invalidParams(undefined, value)
       }
-      await this.applyTurnLimit(value === 'off' ? undefined : Number(value))
+      await this.applyTurnLimit(reading.rounds)
       return
     }
     if (configId !== ACP_CONFIG_IDS.effort) {

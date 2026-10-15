@@ -33,6 +33,7 @@ import { notify } from '../../events/notify'
 import { isParallelRead, scheduleTools } from './toolScheduler'
 import { RepeatGuard, toolRepeatKey, type RepeatVerdict } from './repeatGuard'
 import { repairAfterFailedSummary } from './turnLimitStop'
+import { isTurnLimitRounds } from '../../../shared/turnLimit'
 import { recordPaidUse } from '../../paid/paidFeatures'
 import type { RecordedCall, UsageRecording } from '../../usage/recording'
 import type { UsageBudgetRead } from '../../usage/usageService'
@@ -133,7 +134,6 @@ import {
   MODEL_API_LEGACY_CONTEXT_MODELS,
   MODEL_API_MAX_OUTPUT_TOKENS,
   MODEL_API_MAX_RETRIES,
-  MODEL_API_MAX_TURN_REQUESTS_MAX,
   TURN_LIMIT_ERROR_KIND,
   MODEL_API_MEDIA_PER_REQUEST,
   MODEL_API_MODEL_PREFIX,
@@ -2647,6 +2647,8 @@ export class ModelApiSession implements ScheduledAgentSession {
   private readonly outputContinuation: boolean
   /** This session's own per-turn tool-round limit (lane TURNLIMIT), set through `setMaxTurnRequests`. */
   private sessionMaxTurnRequests: number | undefined
+  /** The person chose a limit (or none) for this session: it wins over the host default (F8). */
+  private hasSessionTurnLimit = false
   /**
    * One model call with no tools offered (lane TURNLIMIT): the limit summary.
    * The flag rides the request build, so hooks and the schedule replay check
@@ -15702,7 +15704,9 @@ export class ModelApiSession implements ScheduledAgentSession {
 
   /** The limit in force this round: the session's own, else the host default. */
   private maxTurnRequests(): number | undefined {
-    if (this.sessionMaxTurnRequests !== undefined) return this.sessionMaxTurnRequests
+    // A child runs like its parent (F8): the owner's own choice, else the host default.
+    if (this.parentSession !== undefined) return this.parentSession.maxTurnRequests()
+    if (this.hasSessionTurnLimit) return this.sessionMaxTurnRequests
     const configured = this.deps.maxTurnRequests?.()
     return configured === undefined || configured < 1 ? undefined : configured
   }
@@ -16170,15 +16174,12 @@ export class ModelApiSession implements ScheduledAgentSession {
    * host default. The editor protocol offers it as a session option.
    */
   public setMaxTurnRequests(maxTurnRequests: number | undefined): Promise<void> {
-    if (
-      maxTurnRequests !== undefined &&
-      (!Number.isSafeInteger(maxTurnRequests) ||
-        maxTurnRequests < 1 ||
-        maxTurnRequests > MODEL_API_MAX_TURN_REQUESTS_MAX)
-    ) {
+    // Any whole number from 1 up, or none (lane LIMITSFIX, F8): the person's own.
+    if (maxTurnRequests !== undefined && !isTurnLimitRounds(maxTurnRequests)) {
       return Promise.reject(new Error('invalid per-turn tool-round limit'))
     }
     this.sessionMaxTurnRequests = maxTurnRequests
+    this.hasSessionTurnLimit = true
     this.touch()
     return Promise.resolve()
   }
@@ -16824,6 +16825,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       ...freshFork,
       ...(packedTokensAvoided !== undefined && { packedTokensAvoided }),
       ...(this.hookTokensAdded > 0 && { hookTokensAdded: this.hookTokensAdded }),
+      ...(this.hasSessionTurnLimit && { maxTurnRequests: this.sessionMaxTurnRequests ?? 0 }),
       ...(packedCallIds !== undefined && { packedCallIds }),
       ...(this.spawnCommands.size > 0 && { spawnCommands: Object.fromEntries(this.spawnCommands) }),
       // M96 lane T: the declared delegation family, so a resumed
@@ -16929,6 +16931,12 @@ export class ModelApiSession implements ScheduledAgentSession {
     // session saved before it was kept carries none, so it starts at zero.
     this.restoredPackedTokens = stored.packedTokensAvoided
     this.hookTokensAdded = stored.hookTokensAdded ?? 0
+    // The person's own limit for this session comes back with it (F8).
+    if (stored.maxTurnRequests !== undefined) {
+      this.hasSessionTurnLimit = true
+      this.sessionMaxTurnRequests =
+        stored.maxTurnRequests === 0 ? undefined : stored.maxTurnRequests
+    }
     this.packing?.restoreSavings(stored.packedTokensAvoided ?? 0)
     this.restoredPackedCallIds = stored.packedCallIds
     this.packing?.restorePackedCallIds(

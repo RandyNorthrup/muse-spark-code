@@ -1064,6 +1064,7 @@
     "permissionMode": "Escolha como o Muse pergunta antes de agir.",
     "focusView": "Oculta as etapas fora do seu foco.",
     "ctrlEnter": "Envie mensagens com Ctrl+Enter em vez de Enter.",
+    "turnLimit": "Interrompe um turno após o número de rodadas de ferramentas que você escolher, com um resumo do que resta.",
     "importFromAgents": "Copiar servidores MCP, ganchos, agentes, comandos e regras do Claude Code, Codex ou Cursor.",
     "memory": "As notas que o Muse guarda para sessões futuras.",
     "settings": "Abrir configurações.",
@@ -1136,6 +1137,9 @@
     "other": "{count} rodadas",
     "many": "{count} rodadas"
   },
+  "turnLimitPrompt": "Interrompe um turno após este número de rodadas de ferramentas, com um resumo do que resta. Qualquer número inteiro a partir de 1.",
+  "turnLimitPlaceholder": "Por exemplo, 50",
+  "turnLimitInvalid": "Digite um número inteiro de rodadas, 1 ou mais.",
   "thinkingItem": "Pensamento",
   "permissionModeItem": "Modo de permissão",
   "focusViewItem": "Exibição de foco",

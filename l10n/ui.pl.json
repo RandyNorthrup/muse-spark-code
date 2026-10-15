@@ -1070,6 +1070,7 @@
     "permissionMode": "Wybierz, jak Muse pyta, zanim zacznie działać.",
     "focusView": "Ukryj kroki spoza swojego fokusu.",
     "ctrlEnter": "Wysyłaj wiadomości klawiszami Ctrl+Enter zamiast Enter.",
+    "turnLimit": "Zatrzymaj turę po wybranej liczbie rund narzędzi, z podsumowaniem tego, co zostało.",
     "importFromAgents": "Kopiuj serwery MCP, hooki, agentów, polecenia i reguły z Claude Code, Codexa lub Cursora.",
     "memory": "Notatki, które Muse przechowuje na potrzeby kolejnych sesji.",
     "settings": "Otwórz ustawienia.",
@@ -1143,6 +1144,9 @@
     "few": "{count} rundy",
     "many": "{count} rund"
   },
+  "turnLimitPrompt": "Zatrzymaj turę po tylu rundach narzędzi, z podsumowaniem tego, co zostało. Dowolna liczba całkowita od 1.",
+  "turnLimitPlaceholder": "Na przykład 50",
+  "turnLimitInvalid": "Wpisz całkowitą liczbę rund, 1 lub więcej.",
   "thinkingItem": "Myślenie",
   "permissionModeItem": "Tryb uprawnień",
   "focusViewItem": "Widok skupienia",

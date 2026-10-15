@@ -40,6 +40,7 @@ export type PaletteAction =
   | { readonly type: 'openPermissionModes' }
   | { readonly type: 'toggleFocusView' }
   | { readonly type: 'toggleCtrlEnterToSend' }
+  | { readonly type: 'toggleTurnLimit' }
   | { readonly type: 'openSettings' }
   | { readonly type: 'openKeybindings' }
   | { readonly type: 'signOut' }
@@ -145,6 +146,8 @@ export interface PaletteContext {
   readonly permissionMode: PermissionMode
   readonly isFocusView: boolean
   readonly useCtrlEnterToSend: boolean
+  /** The person's own per-turn tool-round limit is on (lane LIMITSFIX, F8). */
+  readonly isTurnLimitOn: boolean
   readonly usage: UsageTotals | undefined
   /** undefined while the session has not been started, so nothing is known. */
   readonly skills: readonly SkillOption[] | undefined
