@@ -125,7 +125,6 @@ import {
   type MemoryScope,
   MODEL_API_CLOSE_SETTLE_MS,
   MODEL_API_CONTEXT_BYTES_PER_TOKEN,
-  MODEL_API_CONTINUATIONS_MAX,
   MODEL_API_CONTEXT_WINDOW,
   MODEL_API_HOOK_PROVIDER,
   MODEL_API_LEGACY_CONTEXT_MODELS,
@@ -351,7 +350,8 @@ import {
   modelPolicyFor,
   modelPricedUsage,
   requestImageCount,
-  outputLimitFor,
+  outputCapForRequest,
+  shouldContinueOutput,
   type ModelResolver,
   type ResolvedModel,
 } from './modelPolicy'
@@ -1204,6 +1204,13 @@ class PaidQuoteChangedError extends Error {
 
 /** A request's budget reservation while it runs (M82). */
 interface OpenReservation extends BudgetReservation {
+  /**
+   * B1 (limits-output): the request's output allowance before the session
+   * budget lowered it (the model's own record maximum). The settle check
+   * compares against this, not a fixed constant, so a record-sized allowance
+   * is never misread as budget-limited.
+   */
+  readonly uncappedOutputTokens: number
   hasMediaAccounting?: boolean
 
   /** Returned search fees share this request's original durable claim. */
@@ -3898,6 +3905,7 @@ export class ModelApiSession implements ScheduledAgentSession {
           }
     this.openReservation = {
       ...reservation,
+      uncappedOutputTokens: maxOutputTokens,
       searchSpentUsd: Usd.from(0).toAmount(),
       searchReservedUsd: multiplyUsd(
         this.approvedSearchQuote?.tariffUsd ?? Usd.from(0).toAmount(),
@@ -4450,15 +4458,13 @@ export class ModelApiSession implements ScheduledAgentSession {
     // provider-file edit between turns reaches the next request's record.
     const cached = this.outputCaps.get(resolved)
     if (cached !== undefined) return cached
-    const requested =
-      this.deps.modelOutputMaxTokens?.(resolved.ref, resolved) ??
-      (resolved.ref.includes('/') ? resolved.policy.output.maxTokens : undefined) ??
-      MODEL_API_MAX_OUTPUT_TOKENS
-    if (!Number.isSafeInteger(requested)) throw new RangeError('invalid output.maxTokens')
     // A cap below the provider's minimum refuses here with the minimum's own
     // sentence (MINOUT), zero and negative caps included.
-    const cap = outputLimitFor(resolved.policy, requested)
-    if (!Number.isSafeInteger(cap) || cap < 1) throw new RangeError('invalid output.maxTokens')
+    const cap = outputCapForRequest(
+      this.deps.modelOutputMaxTokens?.(resolved.ref, resolved),
+      resolved.policy,
+      MODEL_API_MAX_OUTPUT_TOKENS,
+    )
     this.outputCaps.set(resolved, cap)
     return cap
   }
@@ -5472,7 +5478,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         : undefined
     if (
       reservation?.hasCap === true &&
-      reservation.maxOutputTokens < MODEL_API_MAX_OUTPUT_TOKENS &&
+      reservation.maxOutputTokens < reservation.uncappedOutputTokens &&
       usage.output_tokens >= reservation.maxOutputTokens
     ) {
       this.emit({
@@ -13594,6 +13600,20 @@ export class ModelApiSession implements ScheduledAgentSession {
             streamed = await this.streamOnce(turn.turnId, signal, round, turn.confirmedRequest)
           } else throw error
         } else {
+          // B1 (limits-output): the answer already arrived in parts, and the
+          // provider refused the next one: say so in words before the failure
+          // itself surfaces, so the partial reply is not mistaken for whole.
+          if (
+            outputContinuations > 0 &&
+            !(error instanceof AbortedError) &&
+            !isAbortRequested(signal)
+          ) {
+            this.emit({
+              type: 'backendNotice',
+              level: 'warning',
+              text: UI_TEXT.modelApiContinuationRefused,
+            })
+          }
           throw error
         }
       }
@@ -13620,11 +13640,19 @@ export class ModelApiSession implements ScheduledAgentSession {
         // answer every call, never execute it (M101 item 8).
         this.skipCalls(turn.turnId, calls, `response.incomplete: ${streamed.incompleteReason}`)
         this.appendHookContexts(turn.turnId, postContexts)
+        // B1 (limits-output): a reply cut short by the output limit keeps
+        // going on its own until the model finishes: every continuation is
+        // announced, and the repeat and loop guards still bound the turn.
+        // The turn stops here only when continuations are off, when the
+        // round bound is reached, or when the provider refuses the next
+        // request (named in words by the catch below).
         if (
-          streamed.incompleteReason === 'max_output_tokens' &&
-          this.outputContinuation &&
-          outputContinuations < MODEL_API_CONTINUATIONS_MAX &&
-          round < MODEL_API_MAX_TOOL_ROUNDS - 1
+          shouldContinueOutput({
+            incompleteReason: streamed.incompleteReason,
+            outputContinuation: this.outputContinuation,
+            round,
+            maxRounds: MODEL_API_MAX_TOOL_ROUNDS,
+          })
         ) {
           outputContinuations += 1
           this.emit({ type: 'backendNotice', level: 'info', text: UI_TEXT.modelApiContinuing })

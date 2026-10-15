@@ -2242,7 +2242,9 @@ export const READ_FILE_CONTEXT_CHAR_FRACTION = 1 / 2
 // budget clamp. These defaults are fixed for the session, never cache inputs.
 export const MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS = 131_072
 export const MODEL_API_PARALLEL_READS = 4
-export const MODEL_API_CONTINUATIONS_MAX = 1
+// B1 (limits-output): continuations after max_output_tokens are unbounded by
+// count. The turn ends when the model finishes, when continuations are off,
+// when the round bound is reached, or when a guard or the provider stops it.
 export const TOOL_REPEAT_LIMIT = 3
 export const TOOL_ARGUMENT_PREVIEW_MAX_CHARS = 16_000
 /** Incremental preview grammar stops before deeply nested untrusted arguments. */

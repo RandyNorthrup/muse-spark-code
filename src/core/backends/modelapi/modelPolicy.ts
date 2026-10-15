@@ -139,6 +139,47 @@ export function outputLimitFor(policy: ModelPolicy, ceiling: number): number {
 }
 
 /**
+ * B1 (limits-output): the request's output allowance is the selected model's
+ * own maximum from its capability record. An explicit caller override wins;
+ * a record with no maximum keeps the legacy cap (unconfirmed), clamped by
+ * the record through `outputLimitFor` either way.
+ */
+export function outputCapForRequest(
+  overrideValue: number | undefined,
+  policy: ModelPolicy,
+  legacyCap: number,
+): number {
+  const requested = overrideValue ?? policy.output.maxTokens ?? legacyCap
+  if (!Number.isSafeInteger(requested)) throw new RangeError('invalid output.maxTokens')
+  const cap = outputLimitFor(policy, requested)
+  if (!Number.isSafeInteger(cap) || cap < 1) throw new RangeError('invalid output.maxTokens')
+  return cap
+}
+
+/** Whether a turn cut short by the output limit continues on its own (B1). */
+export interface OutputContinuationState {
+  readonly incompleteReason: string | undefined
+  readonly outputContinuation: boolean
+  readonly round: number
+  readonly maxRounds: number
+}
+
+/**
+ * B1 (limits-output): continuations are unbounded by count. The turn
+ * continues while the stop reason is the output limit, continuations are on,
+ * and a round is left for the next request; the repeat and loop guards still
+ * bound the turn elsewhere. A provider refusal surfaces as the request's own
+ * error, named in words by the caller.
+ */
+export function shouldContinueOutput(state: OutputContinuationState): boolean {
+  return (
+    state.incompleteReason === 'max_output_tokens' &&
+    state.outputContinuation &&
+    state.round < state.maxRounds - 1
+  )
+}
+
+/**
  * The smallest max_output_tokens the provider accepts (Meta's live capture
  * is 16). Requests below it are rejected by the provider, so a budget that
  * cannot fit it refuses instead of sending. Unknown keeps 1.
