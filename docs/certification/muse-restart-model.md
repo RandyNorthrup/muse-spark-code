@@ -110,6 +110,46 @@ Exact real-life restart checks for the lead, through the packed product:
    provider-record assertion must fail. Restore each source byte-exact by
    SHA-256 and repeat successfully. A missing module is not this drill.
 
+## PRTH166 final-tree verification (2026-10-15, Windows)
+
+Tree `c9a8523ed`, with the requested main `d842cad5d` already merged.
+Final receipts are in `.lane/PRTH166.report.md` and its named logs. Node
+24.20.0, npm 11.19.0; all heavy commands run serially, Vitest at
+`--maxWorkers=2`. The created-path registry launcher collision (F90) was
+retried with the identical command; no launcher or gate was bypassed.
+
+- Format, zero-warning ESLint, all five typechecks, knip, cycles,
+  duplication, l10n, reference, host API, plan, roadmap, production build
+  and dependency audit exited 0. No cap, ignore or assertion was relaxed.
+- Eleven scoped files passed 83 tests: resolver, cyclesRoots, manifest,
+  packagedBundles, modelsActivationBudget, privateFiles,
+  integrationPackaging, acpNpmReadme, rulesTemplate, jobSource and
+  walkthrough. The real production closure includes main's new rulesFile
+  entry. Related discovery found only the resolver unit file and the live
+  Model API e2e file; the latter was not run (provider calls forbidden).
+- The resolver now has a meaningful policy drill, not a missing-import
+  failure: baseline exit 0; invert `activeModelId === wantedModelId` to
+  `!==`; exit 1 with both the equal-model and mismatch assertions failing;
+  restore and exit 0 (3/3). Before/after SHA-256:
+  `404678b0416bb097aebcb4117dfa27d4c03df031d19e0a5f7b1c04c38ae369aa`.
+  This proves comparison policy only, not T1–T4 wiring or T5 restart proof.
+- Actual production CLI: version/full help exit 0, invalid option exit 1.
+  Actual `packRuntimeArchive` over unchanged production bundles: packed
+  locale check exit 0, archived runtimeEngine/modelApi/reference bytes exact,
+  archived CLI version/help exit 0, invalid option exit 1. No stand-in or
+  model request was used.
+- Full `node scripts/package-acp.mjs` exited 1:
+  `Required Darwin created-path helper is missing: native\darwin\muse-dictate`.
+  Linux release helper binaries are absent too. No dummy binaries were supplied.
+  The compressed runtime probe is not a complete npm release package.
+- Stand-in-driven usagePackaging, vsixPackaging, runtimeChatGptPackage and
+  rulesFileBundle suites were not run or repaired. Complete release packing,
+  hosted SAST and the real-life checks above remain lead-owned.
+- The vendor delivery snapshot exited 2:
+  `plan: expected exactly one quality-ledger fence`.
+  This repository retains its canonical plan format and passing `check:plan`,
+  rather than adding a parallel ledger.
+
 The records below describe the original lane and are retained as history;
 they do not certify the merged review tree.
 
