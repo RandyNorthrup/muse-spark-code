@@ -7,6 +7,7 @@ import { failureForLog } from '../core/backends/musecode/logText'
 // Exercised through the built `dist/acp.js` by the stdio e2e test.
 
 import { warnResourceUnavailable } from '../shared/resourceCause'
+import { redactSecrets } from '../shared/redact'
 import { spawnResourceProcess, handoffResourceFile } from '../core/resources/launcher'
 import { isResourcePaused } from '../core/resources/launch'
 import { randomBytes, randomUUID } from 'node:crypto'
@@ -1515,7 +1516,8 @@ async function main(): Promise<number> {
       try {
         return await runtimeReports(log)().run(command.args)
       } catch (error) {
-        const reason = error instanceof Error && error.message !== '' ? error.message : undefined
+        const reason =
+          error instanceof Error && error.message !== '' ? redactSecrets(error.message) : undefined
         writeLine(
           process.stderr,
           reason === undefined
