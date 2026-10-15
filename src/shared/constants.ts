@@ -4609,12 +4609,26 @@ export const MUSE_SANDBOX_SETUP_ARGS = ['sandbox', 'windows', 'setup'] as const
 // binary carries LinuxBwrapSelection and --unshare-user; measured 2026-10-15
 // on Muse Code 1.4.6). The probe runs that same mechanism minimally: where
 // the kernel or an outer sandbox blocks unprivileged user namespaces, bwrap
-// fails at once with LINUX_SANDBOX_NAMESPACE_MARKER instead of running.
+// fails at once with LINUX_SANDBOX_NAMESPACE_MARKER instead of running. The
+// `--ro-bind / /` is load-bearing: bwrap starts from a completely empty root
+// (bwrap(1): "a new, completely empty, filesystem namespace where the root
+// is on a tmpfs"), so without a bind the probed `/bin/true` does not exist
+// inside and the probe fails on healthy machines too (RVSANDBOXSAY P1).
 export const LINUX_SANDBOX_PROBE_COMMAND = 'bwrap'
-export const LINUX_SANDBOX_PROBE_ARGS = ['--unshare-user', '--', '/bin/true'] as const
-export const LINUX_SANDBOX_PROBE_TIMEOUT_MS = 10_000
+export const LINUX_SANDBOX_PROBE_ARGS = [
+  '--ro-bind',
+  '/',
+  '/',
+  '--unshare-user',
+  '--',
+  '/bin/true',
+] as const
+// The host start awaits this probe, so its budget is short: bwrap creating
+// (or refusing) a user namespace answers in milliseconds.
+export const LINUX_SANDBOX_PROBE_TIMEOUT_MS = 2000
 // bubblewrap 0.11.0's first line when user-namespace creation is refused
-// (measured 2026-10-15: `bwrap --unshare-user -- /bin/true`, exit 1).
+// (measured 2026-10-15: `bwrap --ro-bind / / --unshare-user -- /bin/true`,
+// exit 1).
 export const LINUX_SANDBOX_NAMESPACE_MARKER = 'No permissions to create new namespace'
 export const SANDBOX_STATUS_READY = 'ready'
 export const SANDBOX_STATUS_SETUP_REQUIRED = 'setup_required'
