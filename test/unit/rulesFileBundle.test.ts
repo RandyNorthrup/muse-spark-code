@@ -89,7 +89,7 @@ describe('loadRulesFileBundle', () => {
     const { deps: commandDeps, shown, opened } = deps(root, () => undefined)
     const bundle = loadRulesFileBundle('dist/rulesFile.js', () => entry)
     expect(bundle).toBeDefined()
-    await bundle!.createRulesFile(commandDeps, EN, 'en')
+    await bundle.createRulesFile(commandDeps, EN, 'en')
     const target = path.join(root, 'AGENTS.md')
     expect(readFileSync(target, 'utf8')).toContain('AGENTS.md')
     expect(opened).toEqual([target])
@@ -102,7 +102,7 @@ describe('loadRulesFileBundle', () => {
     writeFileSync(target, 'existing rules')
     const { deps: commandDeps, shown } = deps(root, () => undefined)
     const bundle = loadRulesFileBundle('dist/rulesFile.js', () => entry)
-    await bundle!.createRulesFile(commandDeps, EN, 'en')
+    await bundle.createRulesFile(commandDeps, EN, 'en')
     expect(readFileSync(target, 'utf8')).toBe('existing rules')
     expect(shown.some((message) => message.includes('already exists'))).toBe(true)
   })
@@ -115,7 +115,7 @@ describe('loadRulesFileBundle', () => {
       return Promise.resolve({ exitCode: 0, stdout: '', stderr: '' })
     })
     const bundle = loadRulesFileBundle('dist/rulesFile.js', () => entry)
-    await bundle!.createRulesFile(commandDeps, EN, 'en')
+    await bundle.createRulesFile(commandDeps, EN, 'en')
     expect(readFileSync(target, 'utf8')).toBe('from muse init')
     expect(opened).toEqual([target])
   })
@@ -126,7 +126,7 @@ describe('loadRulesFileBundle', () => {
       Promise.resolve({ exitCode: 1, stdout: '', stderr: 'boom' }),
     )
     const bundle = loadRulesFileBundle('dist/rulesFile.js', () => entry)
-    await bundle!.createRulesFile(commandDeps, EN, 'en')
+    await bundle.createRulesFile(commandDeps, EN, 'en')
     const target = path.join(root, 'AGENTS.md')
     expect(readFileSync(target, 'utf8')).toContain('AGENTS.md')
     expect(logged.some((line) => line.startsWith('warn:') && line.includes('exited 1'))).toBe(true)
@@ -135,20 +135,22 @@ describe('loadRulesFileBundle', () => {
   it('warns without a workspace', async () => {
     const { deps: commandDeps, shown } = deps(undefined, () => undefined)
     const bundle = loadRulesFileBundle('dist/rulesFile.js', () => entry)
-    await bundle!.createRulesFile(commandDeps, EN, 'en')
+    await bundle.createRulesFile(commandDeps, EN, 'en')
     expect(shown.some((message) => message.includes('folder'))).toBe(true)
   })
 
-  it('refuses a wrong-shaped module and a failed load', () => {
-    expect(loadRulesFileBundle('dist/rulesFile.js', () => ({}))).toBeUndefined()
-    expect(
-      loadRulesFileBundle('dist/rulesFile.js', () => ({ createRulesFile: 42 })),
-    ).toBeUndefined()
-    expect(
+  it('refuses a wrong-shaped module and a failed load, naming the cause', () => {
+    expect(() => loadRulesFileBundle('dist/rulesFile.js', () => ({}))).toThrow(
+      'dist/rulesFile.js is not the Create AGENTS.md command bundle',
+    )
+    expect(() => loadRulesFileBundle('dist/rulesFile.js', () => ({ createRulesFile: 42 }))).toThrow(
+      'is not the Create AGENTS.md command bundle',
+    )
+    expect(() =>
       loadRulesFileBundle('dist/rulesFile.js', () => {
-        throw new Error('missing')
+        throw new Error('ENOENT: no such file')
       }),
-    ).toBeUndefined()
+    ).toThrow('dist/rulesFile.js could not be loaded: ENOENT: no such file')
     expect(isRulesFileBundle(entry)).toBe(true)
     expect(isRulesFileBundle(undefined)).toBe(false)
   })

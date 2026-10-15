@@ -134,3 +134,13 @@ AGENTS.md` in a trusted workspace folder → `muse init` runs when the CLI
 - Scratch worktree `$TMPDIR/actbase` (at `06847350f` with a node_modules
   symlink) was removed; `temp/actroom-*.mjs` probe scripts and gate logs
   remain in the worktree's gitignored `temp/`.
+
+## Lead review (2026-10-14 11:2x PM PT)
+
+The first loader swallowed a failed or wrong-shaped bundle load and the
+command then threw only the file name, while the comment said the log had
+the cause. `loadRulesFileBundle` now throws with the cause
+(`<path> could not be loaded: <reason>`, or `<path> is not the Create
+AGENTS.md command bundle`), so the command's own error path logs it and shows
+it as "Action failed: <reason>". Activation growth after the change: 2,369 B
+(703 B under the 3,072 B allowance). `test/unit/rulesFileBundle.test.ts` 6/6.
