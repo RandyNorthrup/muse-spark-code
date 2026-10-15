@@ -9,6 +9,23 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- Lane LIMITSA (D113): no default cap refuses the person's work, and money
+  stays visible and theirs to cap. A failed send through a configured
+  provider keeps its own error words (budget and session-budget refusals,
+  paid-daily stops, the provider's own error with its status and message)
+  instead of "Models & Agents is not available in this build". A
+  person-set daily or session cap compares real settled spend after each
+  response, plus that one response's overshoot: requests keep their own
+  `max_output_tokens`, only the input estimate is held up front, and the
+  stop names the spend, the cap and how to raise it
+  (`museSpark.modelApiSessionBudgetUsd`). Requests to the person's own
+  provider keys have no default daily cap. A child task has no request
+  cap and runs like its parent; its consent names the per-request rates.
+  Identical tool calls warn the model at 3 and stop the turn at 5 with the
+  translated stop sentence. Tab keeps its daily budget, but the first
+  refusal of each day raises a notice naming the spend, the budget and how
+  to raise it (`museSpark.tabDailyBudgetUsd`).
+
 - Lane TURNLIMIT (F88): a Model API turn has no fixed tool-round cap. It
   runs until the model stops, the person cancels, the loop guard fires, a
   spend cap is reached, or an error happens. One optional per-turn limit

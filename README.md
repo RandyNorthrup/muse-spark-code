@@ -3592,11 +3592,13 @@ rate instead of a "warm for N minutes" countdown.
   (`0`, the default, is no cap). Before each request the input is estimated
   high: the last request's input as Meta counted it, plus everything added
   since at one token per byte (so an attached image or file counts at its
-  encoded size, far above its real cost). `max_output_tokens` is then
-  lowered so input plus output fits what is left. A request that cannot fit
-  is not sent, and the turn stops and says so; a reply that used all the
-  output the budget left is marked as possibly cut short, and the
-  transcript shows what each turn cost against the cap. Each request is
+  encoded size, far above its real cost). Only that input estimate is held
+  before sending; the request keeps its own `max_output_tokens`, and real
+  spend is compared after each response, so a cap can be passed by at most
+  one response. A request whose input alone exceeds what is left is not
+  sent; otherwise the turn stops with the spend, the cap and how to raise
+  it once real spend has passed the cap. The transcript shows what each
+  turn cost against the cap. Each request is
   priced at the model it was sent to, and what the conversation spent is
   saved as it is spent, even while a call waits for your approval, so a
   reload cannot forget it. A shared spend journal covers hosts opening the
@@ -3623,7 +3625,10 @@ rate instead of a "warm for N minutes" countdown.
   session storage keep their normal behavior and cannot share persisted
   spending. A provided spend journal that cannot be read or saved blocks
   new requests; repair the storage and reopen the conversation.
-  Paid subagent requests have their own consent and request ceiling. Their
+  Paid subagent requests have their own consent and no request ceiling: a
+  child runs like its parent, watched by the loop guard with its spend
+  visible, until the model stops, the person stops it, or a spend cap is
+  reached. Their
   reported cost counts toward the conversation, but they are not reserved
   against the parent's cap and can take it past that cap. Each task keeps its
   own paid confirmation, unless subagents are allowed always in this

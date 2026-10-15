@@ -207,15 +207,21 @@ describe('reserveRequest', () => {
 
   it('never lowers max_output_tokens to fit what is left', () => {
     // Input $0.125 (100k × $1.25/M) against $0.13: the old code sent 1,176
-    // output tokens; now the request keeps its whole allowance.
-    const reservation = reserveRequest({
-      capUsd: Usd.from(0.13).toAmount(),
-      spentUsd: Usd.from(0).toAmount(),
-      estimatedInputTokens: 100_000,
-      modelId: MODEL,
-    })
-    expect(reservation.maxOutputTokens).toBe(MODEL_API_MAX_OUTPUT_TOKENS)
-    expect(reservation.costUsd).toBe(Usd.from('0.125').toAmount())
+    // output tokens; now the request keeps its whole allowance, tight cap
+    // or roomy one.
+    for (const [cap, spent] of [
+      [0.13, 0],
+      [1, 0.2],
+    ] as const) {
+      const reservation = reserveRequest({
+        capUsd: Usd.from(cap).toAmount(),
+        spentUsd: Usd.from(spent).toAmount(),
+        estimatedInputTokens: 100_000,
+        modelId: MODEL,
+      })
+      expect(reservation.maxOutputTokens).toBe(MODEL_API_MAX_OUTPUT_TOKENS)
+      expect(reservation.costUsd).toBe(Usd.from('0.125').toAmount())
+    }
   })
 
   it('sends a full-size request while real spend is still under the cap', () => {
@@ -230,17 +236,6 @@ describe('reserveRequest', () => {
     })
     expect(reservation.maxOutputTokens).toBe(MODEL_API_MAX_OUTPUT_TOKENS)
     expect(reservation.costUsd).toBe(Usd.from('0.00125').toAmount())
-  })
-
-  it('keeps the usual maximum and holds the input alone', () => {
-    const reservation = reserveRequest({
-      capUsd: Usd.from(1).toAmount(),
-      spentUsd: Usd.from(0.2).toAmount(),
-      estimatedInputTokens: 100_000,
-      modelId: MODEL,
-    })
-    expect(reservation.maxOutputTokens).toBe(MODEL_API_MAX_OUTPUT_TOKENS)
-    expect(reservation.costUsd).toBe(Usd.from('0.125').toAmount())
   })
 
   it('keeps the caller’s own cap, large or small, without lowering it', () => {

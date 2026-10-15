@@ -14344,6 +14344,35 @@ its real cause (the HTTP status with the provider's own error message, or
 the network error's code) without echoing secrets or headers, and is still
 never retried automatically: a pinned send may have reached the provider.
 
+### D113 — No default cap refuses the person's work; money stays visible and theirs to cap (lane LIMITSA, 2026-10-15)
+
+**Owner (2026-10-14).** "why are there all there arbitraty limits in the
+actual app thats insane?!!!" Measured: every Sonnet request refused with
+"Stopped: the next request (about $3.03) would pass the session budget of
+$5.00 ($2.03 used)" (worst-case reservation), then that sentence hidden
+behind "Models & Agents is not available in this build" (F88).
+
+**Comparison (lead; sources read 2026-10-15, see the limits audit).**
+Claude Code's budget option has no limit by default and compares real
+spend after each answer (over by at most one response); no surveyed
+harness (Codex CLI, Gemini CLI, OpenCode, Cline) has a default daily
+dollar, sub-task request, or session-spend cap. Cline warns at 3
+identical calls and escalates at 5; Gemini's repeat threshold is 5.
+
+**Rule.** Every product error keeps its own words where a send can fail
+(F88; only a wordless non-`Error` throw becomes the unavailable
+sentence). Own provider keys have no default daily cap. A person-set
+daily or session cap compares real settled spend after each response,
+plus that one response's overshoot; nothing reserves the worst case, and
+requests keep their own `max_output_tokens`. A cap that stops work names
+spend, cap and raise path. Paid extras keep ask-first consent and the
+shared daily extras budget, also counting real spend; `--max-budget-usd`
+stays the terminal's run cap. A child task has no request cap and runs
+like its parent; its consent names per-request rates. Identical calls
+warn at 3 and stop the turn at 5 with the translated sentence. Tab keeps
+its daily budget, but the first refusal of each day raises a notice with
+spend, budget and raise path.
+
 ## 3. Open questions (need the owner)
 
 **Q-VIS0171-RELEASE-NOTES resolved by lead (2026-10-10, linuxlt).** Round 2
