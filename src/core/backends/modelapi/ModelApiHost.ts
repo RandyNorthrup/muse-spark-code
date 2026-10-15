@@ -1876,14 +1876,17 @@ function modelChildResultText(
  * The person-facing child result (B9): the summary, plus where the full text
  * lives when the shown text is clipped. Read when it runs, never at load.
  */
-function visibleChildResultText(result: ChildRecord['result']): string | undefined {
+function visibleChildResultText(
+  result: ChildRecord['result'],
+  kept = result?.summary.length ?? 0,
+): string | undefined {
   if (result === undefined) {
     return undefined
   }
   const total = result.text?.length ?? result.summary.length
-  return total <= SUBAGENT_RESULT_TEXT_MAX_CHARS
+  return total <= kept
     ? result.summary
-    : `${result.summary} ${fill(UI_TEXT.subagentResultClipped, { kept: SUBAGENT_RESULT_TEXT_MAX_CHARS, total })}`
+    : `${result.summary} ${fill(UI_TEXT.subagentResultClipped, { kept, total })}`
 }
 
 /** A transcript row's bounded copy of one child's result (B9): listings stay bounded. */
@@ -1894,7 +1897,7 @@ function listedChildResult(result: ChildRecord['result']): ChildRecord['result']
   const { text, ...rest } = result
   return {
     ...rest,
-    summary: visibleChildResultText(result) ?? rest.summary,
+    summary: visibleChildResultText(result, SUBAGENT_RESULT_TEXT_MAX_CHARS) ?? rest.summary,
     text: text.slice(0, SUBAGENT_RESULT_TEXT_MAX_CHARS),
   }
 }

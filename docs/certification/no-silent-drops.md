@@ -388,6 +388,17 @@ McpElicitationTimeoutError` was false at the real boundary: the connection
     Lead: reload twice while reconnecting an oversize panel; draft and omission
     notice must survive until the host confirms the session.
 
+## RVDROPS review — B9 distinguish a 512-character summary from a 32K listing
+
+- P2, quoted-code proof: the explicit wait/read tool's `visibleOutput` was
+  the 512-character summary, but its notice claimed the first 32,768 were
+  shown and was absent for results between 513 and 32,768 characters.
+- The person-facing composer now compares against the actual shown length;
+  bounded listings explicitly pass their own 32,768-character length. The
+  existing translated sentence therefore names the real kept/total counts.
+  Full model reads remain uncut. Lead: read a 1,000-character child result;
+  the short tool summary names its 512-character preview and full transcript.
+
 ## Limits raised or removed (owner's rule)
 
 | Row | Number              | Outcome                                                  | Reasoning                                                                       |
