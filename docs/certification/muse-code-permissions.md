@@ -168,6 +168,18 @@ Lead run: load a real conversation with history and immediately set Manual;
 the real ACP trace must deliver its mode notice before the set response,
 and the client must not report “did not confirm its mode”. Not run by lane.
 
+### T5 — close retains the selected mode
+
+`closeSession` no longer deletes `sessionModes`: close releases live ownership,
+not saved history. `adopt` already reads that map through `adoptedMode`, whose
+real-module tests retain the selected mode and re-ask untrusted imports.
+This is connection-lifetime retention, not on-disk persistence across agent
+restart. Lead run: configure initial Bypass, create a normal session, select
+Manual, close it, then load the same stored id on the same connection. Expect
+Manual in the load response and normal unmatched-command prompts. Repeat with
+an imported session: the existing untrusted-content asking clamp must remain.
+No live provider call made; those lifecycle steps remain for the lead.
+
 ## Live-session steps for the lead (signed-in host)
 
 1. Start the packed agent: `node dist/acp.js --backend museCode

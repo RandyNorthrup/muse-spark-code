@@ -9,6 +9,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- Closing an ACP session no longer discards its selected permission mode;
+  loading it again on the same connection keeps that mode.
+
 - ACP waits for the selected-mode notice to leave its ordered update queue
   before acknowledging `session/set_mode`.
 
