@@ -3,53 +3,45 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { AccountState } from '../../src/host/auth/accountHost'
-import { AuthService, type AuthBackendFacts } from '../../src/host/auth/authService'
+import {
+  AuthService,
+  type AuthBackendFacts,
+  type AuthSnapshot,
+} from '../../src/host/auth/authService'
 import { CliAccount } from '../../src/host/auth/cliAccount'
 import { CredentialStore, type SecretStore } from '../../src/host/auth/credentialStore'
 import type { Logger } from '../../src/host/logger'
 import type { HostToWebviewMessage } from '../../src/shared/protocol'
 
-const log: Logger = {
-  trace: () => undefined,
-  info: () => undefined,
-  warn: () => undefined,
-  error: () => undefined,
-}
+const silent = (): undefined => undefined
+const log: Logger = { trace: silent, info: silent, warn: silent, error: silent }
 
-const dirs: string[] = []
+const scratchDirs = new Set<string>()
 afterEach(() => {
-  while (dirs.length > 0) {
-    rmSync(dirs.pop()!, { recursive: true, force: true })
+  for (const dir of scratchDirs) {
+    rmSync(dir, { recursive: true, force: true })
   }
+  scratchDirs.clear()
 })
 
-/** A credential file on disk and the real account reader over it. */
-function accountFor(
-  contents: string,
-  probe: () => Promise<AccountState | undefined>,
-): { readonly account: CliAccount; readonly file: string } {
-  const dir = mkdtempSync(path.join(tmpdir(), 'fast-signin-'))
-  dirs.push(dir)
-  const file = path.join(dir, 'auth.json')
-  writeFileSync(file, contents)
-  return {
-    file,
-    account: new CliAccount({ platform: 'linux', credentialFilePath: () => file, probe, log }),
-  }
+interface Started {
+  readonly pending: Promise<AuthSnapshot>
+  readonly messages: HostToWebviewMessage[]
+  readonly answerKeyRead: () => void
 }
 
 /**
- * The real service wired as activation wires it: `cliSignIn` and the peek
- * are one real `CliAccount` over the file, so a state the file settles
- * never reaches the probe. The secret table's `get` is the refresh's
- * remaining wait, handed in as a promise the test settles.
+ * One refresh, wired as activation wires it: `cliSignIn` and the peek are
+ * one real `CliAccount` over a temp credential file, so a state the file
+ * settles never reaches the probe. The secret table's `get` is the
+ * refresh's remaining wait, settled by `answerKeyRead`.
  */
-function service(
-  account: CliAccount,
-  file: string,
-  secretGet: Promise<string | undefined>,
-): { readonly svc: AuthService; readonly messages: HostToWebviewMessage[] } {
-  const messages: HostToWebviewMessage[] = []
+function start(contents: string, probe: () => Promise<AccountState | undefined>): Started {
+  const dir = mkdtempSync(path.join(tmpdir(), 'fast-signin-'))
+  scratchDirs.add(dir)
+  const file = path.join(dir, 'auth.json')
+  writeFileSync(file, contents)
+  const account = new CliAccount({ platform: 'linux', credentialFilePath: () => file, probe, log })
   const backend: AuthBackendFacts = {
     resolveCli: () => ({ ok: true, cliPath: '/bin/muse' }),
     cliSignIn: (isUserAction) => account.signIn(isUserAction),
@@ -67,18 +59,20 @@ function service(
     restartBackend: () => Promise.resolve(),
     logOutCli: () => Promise.resolve(false),
   }
+  const keyRead = Promise.withResolvers<string | undefined>()
   const secrets: SecretStore = {
-    get: () => secretGet,
+    get: () => keyRead.promise,
     store: () => Promise.resolve(),
     delete: () => Promise.resolve(),
   }
+  const messages: HostToWebviewMessage[] = []
   const svc = new AuthService({
     backend,
-    credentials: new CredentialStore(secrets, () => undefined),
+    credentials: new CredentialStore(secrets, silent),
     logoutHold: { get: () => false, set: () => Promise.resolve() },
-    runInTerminal: () => undefined,
+    runInTerminal: silent,
     installCommand: 'install',
-    runInstallerInTerminal: () => undefined,
+    runInstallerInTerminal: silent,
     runDeviceSignIn: () => Promise.resolve('timedOut'),
     promptForApiKey: () => Promise.resolve(undefined),
     broadcast: (message: HostToWebviewMessage) => {
@@ -88,7 +82,13 @@ function service(
     now: () => Date.now(),
     log,
   })
-  return { svc, messages }
+  return {
+    pending: svc.refresh(),
+    messages,
+    answerKeyRead: () => {
+      keyRead.resolve(undefined)
+    },
+  }
 }
 
 function authStates(messages: readonly HostToWebviewMessage[]): HostToWebviewMessage[] {
@@ -102,37 +102,30 @@ const SIGNED_OUT = '{"schema_version":1,"providers":{}}'
 
 describe('sign-in fast path', () => {
   it('shows a signed-in file before the stored-key read answers', async () => {
-    const { account, file } = accountFor(INLINE, () => Promise.resolve(undefined))
-    const keyRead = Promise.withResolvers<string | undefined>()
-    const { svc, messages } = service(account, file, keyRead.promise)
-    const pending = svc.refresh()
+    const run = start(INLINE, () => Promise.resolve(undefined))
     // The stored-key read is still unanswered, yet the panel already knows.
-    expect(authStates(messages)).toHaveLength(1)
-    expect(authStates(messages)[0]).toMatchObject({ status: 'signedIn', backend: 'museCode' })
-    keyRead.resolve(undefined)
-    const final = await pending
-    expect(final).toMatchObject({ status: 'signedIn', backend: 'museCode' })
+    expect(authStates(run.messages)).toHaveLength(1)
+    expect(authStates(run.messages)[0]).toMatchObject({ status: 'signedIn', backend: 'museCode' })
+    run.answerKeyRead()
+    await expect(run.pending).resolves.toMatchObject({ status: 'signedIn', backend: 'museCode' })
   })
 
   it('waits for the CLI when the file settles nothing', async () => {
     const probe = Promise.withResolvers<AccountState | undefined>()
-    const { account, file } = accountFor('not json at all', () => probe.promise)
-    const { svc, messages } = service(account, file, Promise.resolve(undefined))
-    const pending = svc.refresh()
-    expect(authStates(messages)).toHaveLength(0)
+    const run = start('not json at all', () => probe.promise)
+    run.answerKeyRead()
+    expect(authStates(run.messages)).toHaveLength(0)
     probe.resolve(undefined)
-    const final = await pending
-    expect(final).toMatchObject({ status: 'signedIn', backend: 'museCode' })
+    await expect(run.pending).resolves.toMatchObject({ status: 'signedIn', backend: 'museCode' })
   })
 
   it('never jumps ahead with a signed-out file', async () => {
-    const { account, file } = accountFor(SIGNED_OUT, () => Promise.resolve(undefined))
-    const keyRead = Promise.withResolvers<string | undefined>()
-    const { svc, messages } = service(account, file, keyRead.promise)
-    const pending = svc.refresh()
-    expect(authStates(messages)).toHaveLength(0)
-    keyRead.resolve(undefined)
-    const final = await pending
-    expect(final).toMatchObject({ status: 'signedOut', backend: 'museCode' })
+    const run = start(SIGNED_OUT, () => Promise.resolve(undefined))
+    expect(authStates(run.messages)).toHaveLength(0)
+    run.answerKeyRead()
+    await expect(run.pending).resolves.toMatchObject({
+      status: 'signedOut',
+      backend: 'museCode',
+    })
   })
 })
