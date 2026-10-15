@@ -3974,7 +3974,9 @@ export class ConversationController {
       effort: this.effort,
       isThinkingEnabled: this.isThinkingEnabled,
     })
-    if (this.fast) await this.updateFast(true)
+    // Fast starts off on every session this surface takes, new or resumed: a
+    // flag left by an earlier conversation or another surface is not applied.
+    await this.updateFast(false)
     if (this.session !== session || this.attachmentGeneration !== generation || this.isDisposed) {
       return
     }
@@ -8249,8 +8251,9 @@ export class ConversationController {
       await this.updateEffort(this.modelDefaultEffort(modelId, levels), this.isThinkingEnabled)
     }
     // Fast never survives a model change: it is off by default, and the
-    // new model may list no priority tier at all.
-    if (this.fast) await this.updateFast(false)
+    // new model may list no priority tier at all. Off is sent even when the
+    // panel already shows it off, so the session never keeps an old tier.
+    await this.updateFast(false)
   }
 
   /** The tiers a model serves: its own list where the backend knows it. */
@@ -8289,25 +8292,28 @@ export class ConversationController {
     this.postComposerState()
   }
 
-  /** The conversation's Fast switch; refused where the model lists no priority tier. */
+  /**
+   * The conversation's Fast switch: on only where the model lists a priority
+   * tier. Off is always sent to the session, whatever the model lists, so the
+   * backend never keeps a tier the panel shows as off.
+   */
   private async updateFast(isEnabled: boolean): Promise<void> {
     const tier = this.models?.find((model) => model.modelId === this.modelId)?.fastTier
-    if (tier === undefined) {
-      this.fast = false
-      this.postComposerState()
-      return
-    }
-    this.fast = isEnabled
+    const tierId = isEnabled ? tier?.id : undefined
+    const wasFast = this.fast
+    this.fast = tierId !== undefined
     const { session } = this
     if (session?.setServiceTier !== undefined) {
       try {
-        await session.setServiceTier(isEnabled ? tier.id : undefined)
+        await session.setServiceTier(tierId)
       } catch (error: unknown) {
         this.fast = false
         this.say('warning', `${UI_TEXT.effortNotApplied}: ${describe(error)}`)
       }
     }
-    this.postComposerState()
+    // The panel is told only what changed: a session set to off again, with
+    // the switch already off, has nothing new to show.
+    if (this.fast !== wasFast) this.postComposerState()
   }
 
   /** Whether the user may enter Bypass now: the setting, and in a remote window one yes (D24). */
