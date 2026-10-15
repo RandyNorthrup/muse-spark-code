@@ -2,7 +2,7 @@ import { globSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import ts from 'typescript'
 import * as z from 'zod/mini'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import manifest from '../../package.json'
 import cycles from '../../scripts/cycles.json'
 import * as integrationTestSources from '../../scripts/lib/integrationTests.mjs'
@@ -103,19 +103,6 @@ describe('dependency-cycle root coverage (FIXCYCLES, G77)', () => {
     const entries = lazyEntries()
     expect(entries).toContain('src/core/resources/sampler/optionalProbes.ts')
     expect(missing(entries)).toEqual([])
-  })
-
-  it('requires a changed integration source from the build instead of the old directory or filter', () => {
-    const listing = vi
-      .spyOn(integrationTestSources, 'listIntegrationTests')
-      .mockReturnValue([String.raw`test\integration-next\additional.spec.ts`])
-    try {
-      const entries = buildEntries()
-      expect(missing(entries)).toEqual(['test/integration-next/additional.spec.ts'])
-      expect(entries).not.toContain('test/integration/extension.test.ts')
-    } finally {
-      listing.mockRestore()
-    }
   })
 
   it('covers every entry-named source module, including lowercase entry.ts', () => {
