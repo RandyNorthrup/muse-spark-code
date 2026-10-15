@@ -4159,7 +4159,9 @@ itself: `muse-spark-code-acp help <command>` (or `<command> --help`) prints that
 command's own usage, options with defaults and bounds, and two examples, for
 `serve`, `login`, `auth`, `providers`, `exec`, `scan-secrets`, `report`, `legal`,
 `fonts`, `playbook`, `setup`, `usage` and `resources`. `--help` prints concise
-ACP usage. Terminal help states that VS Code current values are unavailable.
+ACP usage. `providers models <entry>` lists custom providers too, but custom
+model lists are read-only in the CLI: use the Models panel to set each model's
+context window and output cap. Terminal help states that VS Code current values are unavailable.
 
 Maintainers run `npm run reference:generate` after changes. The reference reads
 the complete contributed setting schema and palette conditions. The CLI parser,

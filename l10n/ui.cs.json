@@ -3655,6 +3655,7 @@
     "modelsUnknownEntry": "Neznámý záznam poskytovatele '{entry}'; nastavené záznamy: {closest}.",
     "modelsNeedsForce": "Model, který poskytovatel neuvádí, přidáte pomocí --force '<reason>'.",
     "modelsForceNeedsAdd": "--force vyžaduje --add: důvod nesou jen přidané modely.",
+    "modelsCustomReadOnly": "Seznamy modelů vlastních poskytovatelů jsou zde jen pro čtení; kontextové okno a limit výstupu každého modelu nastavte na panelu Modely.",
     "modelsUsage": "Použití: {command} providers models <entry> [--add <model>] [--remove <model>] [--force <reason>]"
   },
   "execBudgetRequired": "Model API vyžaduje --max-budget-usd.",

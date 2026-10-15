@@ -129,6 +129,9 @@ export async function providersModels(
     }
     return EXIT_OK
   }
+  // Custom limits are explicit per model; this CLI has no limit inputs.
+  // Keep listing available, but send edits to the Models panel instead.
+  if (entry.preset === 'custom') return failed(deps, UI_TEXT.cliHelp.modelsCustomReadOnly)
   for (const model of remove) {
     if (!entry.models.includes(model)) {
       deps.printError(

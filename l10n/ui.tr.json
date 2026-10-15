@@ -3509,6 +3509,7 @@
     "modelsUnknownEntry": "Bilinmeyen sağlayıcı girdisi '{entry}'; yapılandırılmış girdiler: {closest}.",
     "modelsNeedsForce": "Sağlayıcının listelemediği bir modeli eklemek için --force '<reason>' kullanın.",
     "modelsForceNeedsAdd": "--force, --add gerektirir: gerekçeyi yalnızca eklenen modeller taşır.",
+    "modelsCustomReadOnly": "Özel sağlayıcı model listeleri burada salt okunurdur; her modelin bağlam penceresini ve çıktı sınırını Modeller panelinde ayarlayın.",
     "modelsUsage": "Kullanım: {command} providers models <entry> [--add <model>] [--remove <model>] [--force <reason>]"
   },
   "execBudgetRequired": "Model API için --max-budget-usd gerekir.",

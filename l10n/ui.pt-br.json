@@ -3582,6 +3582,7 @@
     "modelsUnknownEntry": "Entrada de provedor desconhecida '{entry}'; entradas configuradas: {closest}.",
     "modelsNeedsForce": "Use --force '<reason>' para adicionar um modelo que o provedor não lista.",
     "modelsForceNeedsAdd": "--force precisa de --add: só modelos adicionados têm um motivo.",
+    "modelsCustomReadOnly": "As listas de modelos de provedores personalizados são somente leitura aqui; use o painel Modelos para definir a janela de contexto e o limite de saída de cada modelo.",
     "modelsUsage": "Uso: {command} providers models <entry> [--add <model>] [--remove <model>] [--force <reason>]"
   },
   "execBudgetRequired": "A Model API exige --max-budget-usd.",

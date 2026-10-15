@@ -3509,6 +3509,7 @@
     "modelsUnknownEntry": "Unbekannter Anbietereintrag '{entry}'; eingerichtete Einträge: {closest}.",
     "modelsNeedsForce": "Verwenden Sie --force '<reason>', um ein Modell hinzuzufügen, das der Anbieter nicht aufführt.",
     "modelsForceNeedsAdd": "--force braucht --add: nur hinzugefügte Modelle tragen eine Begründung.",
+    "modelsCustomReadOnly": "Modelllisten eigener Anbieter sind hier schreibgeschützt; legen Sie Kontextfenster und Ausgabelimit jedes Modells im Modelle-Panel fest.",
     "modelsUsage": "Verwendung: {command} providers models <entry> [--add <model>] [--remove <model>] [--force <reason>]"
   },
   "execBudgetRequired": "Die Model API benötigt --max-budget-usd.",

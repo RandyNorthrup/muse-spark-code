@@ -3509,6 +3509,7 @@
     "modelsUnknownEntry": "Ismeretlen szolgáltatói bejegyzés '{entry}'; beállított bejegyzések: {closest}.",
     "modelsNeedsForce": "A szolgáltató által nem listázott modellhez használja a --force '<reason>' kapcsolót.",
     "modelsForceNeedsAdd": "--force mellé --add kell: csak a hozzáadott modellek kaphatnak indoklást.",
+    "modelsCustomReadOnly": "Az egyéni szolgáltatók modelllistái itt csak olvashatók; az egyes modellek kontextusablakát és kimeneti korlátját a Modellek panelen állíthatja be.",
     "modelsUsage": "Használat: {command} providers models <entry> [--add <model>] [--remove <model>] [--force <reason>]"
   },
   "execBudgetRequired": "A Model API használatához --max-budget-usd szükséges.",

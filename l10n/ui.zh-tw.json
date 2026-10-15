@@ -3436,6 +3436,7 @@
     "modelsUnknownEntry": "未知提供者項目 '{entry}'；已設定的項目：{closest}。",
     "modelsNeedsForce": "使用 --force '<reason>' 加入提供者未列出的模型。",
     "modelsForceNeedsAdd": "--force 需要 --add：只有新增的模型可以附帶原因。",
+    "modelsCustomReadOnly": "自訂提供者的模型清單在此處為唯讀；請在模型面板中設定每個模型的上下文視窗與輸出上限。",
     "modelsUsage": "用法：{command} providers models <entry> [--add <model>] [--remove <model>] [--force <reason>]"
   },
   "execBudgetRequired": "Model API 需要 --max-budget-usd。",

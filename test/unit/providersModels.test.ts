@@ -1,12 +1,12 @@
 // D108: `providers models` edits an entry's model list through the same
 // validated atomic file the panel writes, with a real providers file in a
-// temp folder. Only real modules run here: the argument parser, the command,
-// the file IO and the product's own memory secret store. A seam the path
-// must not touch is a tripwire that fails the test when called — nothing
-// answers as a provider.
+// temp folder. Only real modules run here: parser, command, file IO,
+// memory secret store, DNS, fetch and stdin reader. A closed local port
+// gives a real connection refusal; nothing answers as a provider.
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
+import { PassThrough } from 'node:stream'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
   emptyProvidersFile,
@@ -17,7 +17,12 @@ import {
 } from '../../src/core/providers/providersFile'
 import { parseCommandLine } from '../../src/runtime/cliArgs'
 import { memorySecretStoreFor } from '../../src/runtime/exec/keyInput'
-import { userFileIo, type ProvidersDeps } from '../../src/runtime/providersCommands'
+import {
+  resolveEndpointHost,
+  userFileIo,
+  type ProvidersDeps,
+} from '../../src/runtime/providersCommands'
+import { readSecretLine } from '../../src/runtime/hiddenInput'
 import { providersModels } from '../../src/runtime/providersModelsCommand'
 import { UI_TEXT } from '../../src/shared/constants'
 
@@ -44,17 +49,6 @@ function fileWith(models: readonly string[] = ['model-a']): ProvidersFile {
   return { ...emptyProvidersFile(), providers: [entry(models)] }
 }
 
-/**
- * A seam the command must not touch: typed as the seam, failing the test
- * when called. Nothing answers here, so nothing can drift from a provider.
- */
-const unreachableFetch: typeof fetch = () => {
-  throw new Error('fetch must not be called on this path')
-}
-function unreachableSecret(prompt: string): Promise<string> {
-  throw new Error(`readSecret must not be called on this path (${prompt})`)
-}
-
 interface ModelsHarness {
   readonly deps: ProvidersDeps
   readonly printed: string[]
@@ -76,6 +70,8 @@ function deps(): ModelsHarness {
   const errors: string[] = []
   const store = memorySecretStoreFor({})
   let reads = 0
+  const input = new PassThrough()
+  input.end()
   return {
     deps: {
       ...userFileIo(filePath),
@@ -86,11 +82,9 @@ function deps(): ModelsHarness {
           return store.get(name)
         },
       },
-      // DNS answers nothing, so an entry that needs the network resolves to
-      // the honest unreadable-list fallback without any invented address.
-      resolveHost: () => Promise.resolve([]),
-      fetch: unreachableFetch,
-      readSecret: unreachableSecret,
+      resolveHost: resolveEndpointHost,
+      fetch: globalThis.fetch.bind(globalThis),
+      readSecret: (prompt) => readSecretLine(prompt, input, new PassThrough()),
       print: (line) => {
         printed.push(line)
       },
@@ -186,7 +180,16 @@ async function expectEntryOnlyList(f: ModelsHarness): Promise<void> {
 describe('providers models list', () => {
   it('lists the entry models and notes an unreadable provider list without failing', async () => {
     const f = deps()
-    await writeInitial(f.filePath, fileWith(['model-a']))
+    await writeInitial(f.filePath, {
+      ...emptyProvidersFile(),
+      providers: [
+        entry(['model-a'], {
+          preset: 'lmstudio',
+          address: 'http://127.0.0.1:1',
+          auth: 'none',
+        }),
+      ],
+    })
     await expectEntryOnlyList(f)
   })
 
@@ -209,6 +212,29 @@ describe('providers models list', () => {
 })
 
 describe('providers models add and remove', () => {
+  it('refuses custom-model edits explicitly before probing or changing the file', async () => {
+    const f = deps()
+    await writeInitial(f.filePath, {
+      ...emptyProvidersFile(),
+      providers: [
+        entry(['model-a'], {
+          preset: 'custom',
+          address: 'http://127.0.0.1:1',
+          format: 'chat',
+          auth: 'none',
+          modelLimits: { 'model-a': { contextTokens: 128_000, outputTokens: 4096 } },
+        }),
+      ],
+    })
+    for (const force of [undefined, 'beta access']) {
+      expect(await runModels(f, ['model-b'], [], force)).toBe(1)
+      expect(f.errors.at(-1)).toContain('Custom provider model lists are read-only')
+      const saved = await readEntry(f.filePath)
+      expect(saved.models).toEqual(['model-a'])
+    }
+    expect(f.secretReads()).toBe(0)
+  })
+
   it('adds an unlisted model with --force, stores the reason, and never reads the key', async () => {
     const f = deps()
     await writeInitial(f.filePath, fileWith(['model-a']))

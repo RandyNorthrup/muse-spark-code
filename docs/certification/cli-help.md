@@ -37,6 +37,13 @@ Reassembly SHA-256 `db3c401a71c2bc2d21197b904bf4dbb12d9ddb3aff7d4bf24d1460c47a93
 is identical before/after; parsed facts are identical. Only the rule and link
 remain live. Main's separately named D108 test-overhaul rule is retained.
 
+T2: custom-provider model edits refuse explicitly before probing or writing;
+listing remains available. The CLI help and README name the Models panel's
+required per-model limits. Real-module regression failed with the misleading
+`Use --force` advice (exit 1) before repair. The models suite now uses real DNS,
+fetch and stdin reading, not throwing replacements. Its list uses a closed
+loopback port; no provider answers or credentials are used.
+
 ## 1. Accepted today (from the code, release 0.18.1 base)
 
 Parser routes (`CLI_OPTION_REGISTRY` in `src/runtime/cliOptions.ts`, plus the

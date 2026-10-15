@@ -3655,6 +3655,7 @@
     "modelsUnknownEntry": "Nieznany wpis dostawcy '{entry}'; skonfigurowane wpisy: {closest}.",
     "modelsNeedsForce": "Użyj --force '<reason>', aby dodać model, którego dostawca nie wymienia.",
     "modelsForceNeedsAdd": "--force wymaga --add: powód mają tylko dodane modele.",
+    "modelsCustomReadOnly": "Listy modeli niestandardowych dostawców są tutaj tylko do odczytu; okno kontekstu i limit wyjścia każdego modelu ustaw w panelu Modele.",
     "modelsUsage": "Użycie: {command} providers models <entry> [--add <model>] [--remove <model>] [--force <reason>]"
   },
   "execBudgetRequired": "Model API wymaga --max-budget-usd.",
