@@ -165,6 +165,64 @@ Live on Windows (this branch built here, the owner's real ChatGPT sign-in, no Me
 
 Proof on the packed agent (`dist/acp.js`, built on Windows), through our app's editor protocol, one short turn each: `chatgpt/gpt-6.1-sol` offers low, medium, high, xhigh, max; `xhigh` set and read back; the turn completed. `anthropic-s2/claude-sonnet-5-5` offers the same five; `xhigh` set and read back; the turn completed. New `test/unit/providerRegistryEffort.test.ts` 3/3 (2 of 3 fail with the registry change reverted). Gates: `typecheck:host` 0, `typecheck:unit` 0, ESLint 0 and Prettier on the changed files, `build` 0, `deadcode` 0, `cycles` 0, `duplication` 0, `check:host-api` 0, `check:reference` 0.
 
+## PLANFIX R3: Fast is never sent while the panel shows it off (2026-10-14, Windows)
+
+The review's finding: `updateFast(false)` returned before clearing the
+backend's tier when the new model listed none, and `setModel` never cleared it,
+so A (Fast on), B, A sent `priority` with the switch off; `attach` also
+re-applied a `true` flag left from an earlier conversation.
+
+Fix, three places:
+
+- `ModelApiHost.setModel` (`src/core/backends/modelapi/ModelApiHost.ts`): the
+  session drops its tier at the accepted model-change boundary, whoever set it.
+- `updateFast` (`conversationController.ts`): off is always sent to the session,
+  whatever the model lists; on only where the model lists a tier. The panel is
+  told only when the switch changed, so no extra `composerState` is posted.
+- `setModel` and `attach` (the one place new, resumed, forked and imported
+  sessions all pass): both send Fast off.
+
+Test, `test/unit/chatgptFastTier.test.ts` (3 cases): the REAL
+`ConversationController`, `ModelApiHost`, subscription client and Responses codec
+over a real temporary workspace and the real tool and context I/O. Only the
+outside world is replaced: the provider's two endpoints (the captured
+`gpt-6.1-sol` catalogue entry, and a copy of it without a Fast tier, as data;
+a streamed text reply) and the editor-side ports the panel is built on, which
+refuse when reached. The grant is a throwaway in-memory record; no sign-in, no
+stored grant, no provider call. Cases: A (Fast on) then B then A carries no
+`service_tier` while the same harness sees `priority` while Fast is on; a new
+conversation after Fast on carries none; the session alone, with no panel,
+drops a tier set before two model changes.
+
+Red drills (each reverted byte-exact; SHA-256 of the fixed files compared):
+
+- host reset removed: the host-level case fails (`not to have property
+"service_tier"`), exit 1;
+- controller `updateFast` returning early for a model without a tier, and the
+  `setModel` call guarded by `this.fast`: the A-B-A case fails on request 3,
+  exit 1;
+- `attach` re-applying `if (this.fast) updateFast(true)`: the new-conversation
+  case fails (`expected true to be false`), exit 1.
+  Fixed-file hashes: `ModelApiHost.ts` `2D2FAC8C…1599` and
+  `conversationController.ts` (final) restored equal after each drill.
+
+Surfaces checked: the VS Code panel (fixed, tested above); the ACP agent
+(`src/acp/agent.ts` 1575-1616) already sends off at its own model option, and
+the host now drops the tier at every model change, so a model switch through
+it is covered; `exec --fast` (`runExec.ts` 952-970) sets the model first and
+Fast after it, once, and never switches models afterwards. NOT CHANGED, NOT
+PROVEN EITHER WAY: `matchAdvertised` (`src/acp/agent.ts` 1539-1553) for a loaded
+or resumed ACP session does not send "off" to the host. I did not show that a
+live host session can reach it with a tier already set (the tier is set only by
+that agent's own `fast` option and by exec), and a test of it would need a
+stand-in for the agent's session, which the owner's rules forbid; the lead
+decides whether the one-line `setServiceTier(undefined)` there is wanted.
+
+Controller suite, measured on the untouched HEAD sources and on this tree in the
+same conditions: `conversationController.test.ts` fails 15 of 688 on both, the
+same 15 names; no case differs. A first version of this change posted an extra
+`composerState` and failed three more cases; that was removed, not the cases.
+
 ## RVHOSTID: output-index boundary review (2026-10-14, Windows)
 
 The F87 accumulator accepted duplicate, negative, fractional and unsafe indices;

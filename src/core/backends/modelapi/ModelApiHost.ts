@@ -16023,6 +16023,9 @@ export class ModelApiSession implements ScheduledAgentSession {
       // Economic debt uses the selected tariff's units; paid ledger liability remains owned by D78.
       this.autoCompact.failed()
       this.autoCompact.newUserTask()
+      // Fast is the conversation's switch for one model: it never rides to
+      // another, so a switch back finds it off, as the panel shows it.
+      this.serviceTier = undefined
     }
     this.modelId = modelId
     this.modelRevision += 1

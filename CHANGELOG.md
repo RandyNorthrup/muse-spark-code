@@ -9,6 +9,8 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- ChatGPT plan, Fast: the Fast switch could stay on in the request while the panel showed it off. Turning Fast on for one model, switching to a model without it and back sent the priority tier (more of your plan allowance) with the switch showing off, and a conversation resumed or opened in a panel could re-apply a Fast flag left from an earlier one. The session now drops Fast the moment its model changes, the panel always tells the session "off" when it shows off, and every conversation a panel takes starts with Fast off.
+
 - ChatGPT plan streams now refuse missing, invalid or repeated output indices and repeated call identities instead of retaining ambiguous tool calls for execution and replay.
 
 - ChatGPT sign-in callbacks preserve OpenAI's validated refusal code instead of replacing it with an invalid-callback failure. A corrupt local host identifier is no longer reported as a temporary provider failure.
