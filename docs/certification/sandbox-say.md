@@ -230,3 +230,73 @@ bubblewrap cannot create a user namespace`.
    durability "apply to every session the host loads; neither is
    negotiable over the wire" — the editor-protocol notice is therefore
    words only, by design; the posture cannot be changed per session.
+
+## Review addendum — RVSANDBOXSAY, 2026-10-14 (rig `linuxlt`)
+
+The record above stands as the lane wrote it; four of its claims did not
+survive review and are corrected here, with the fixes on branch
+`rv/sandbox-say`.
+
+1. **P1 — the probe could not pass on a healthy machine.** The shipped
+   probe was `bwrap --unshare-user -- /bin/true` with no bind. bwrap
+   starts "a new, completely empty, filesystem namespace where the root
+   is on a tmpfs" (bwrap(1), read on this rig), so `/bin/true` does not
+   exist inside it and the probe fails wherever user namespaces work
+   too: every sandboxed Linux user would have been told the sandbox
+   cannot start. "Minimal form fails identically" (above) is true only
+   on a blocked machine, where both forms die at namespace creation
+   before exec. Fixed in `e650111b0`: the probe is now
+   `bwrap --ro-bind / / --unshare-user -- /bin/true` (the full form this
+   record measured at line 29), and the host-start-awaited timeout drops
+   from 10 s to 2 s (measured refusal here: 4 ms). The probe's success
+   path remains UNVERIFIED on this rig — user namespaces are refused
+   here — and is exactly real-life scenario 4 above, still owed.
+2. **P2 — cannot-start was said for unproven causes.** Any probe failure
+   (no `bwrap` on PATH, a timeout, any other bwrap error) produced the
+   notice and model note naming the user-namespace cause and the sysctl
+   remedy. Muse Code's own message (quoted above) names an embedded
+   bwrap fallback, so those failures do not prove the sandbox cannot
+   start. Fixed in `81fc89efd`: `isLinuxSandboxBlocked` is the one gate
+   for the cannot-start words on every surface; other failures get a
+   fixed-words log line and an honest Diagnostics line. This corrects
+   "fixed words, safe for public issues" above: the `bwrapFailed`
+   Diagnostics branch carries the probe's own detail (bwrap's first
+   stderr line or the spawn errno from a fixed-args local probe), now
+   worded as a failed check, never "cannot start".
+3. **P2 — "once per conversation" was once per surface.** The panel
+   notice shared `hasWarnedSandbox` and `hasToldModelSandboxCannotStart`
+   was never reset, while the controller lives per surface across
+   sessions: a second conversation's model was never told and its
+   person never re-shown the notice. Fixed in `690bb252a`.
+4. **P2 (partial) — the editor-protocol notice was unmarked model
+   speech (F82's class).** The AFTER capture above shows it as a plain
+   text chunk. `fix/provider-truth` (F82) is not in this tree, so its
+   session-notices update cannot be used from here; fixed as far as
+   this branch can in `dd51230a9`: the chunk carries
+   `_meta {sandboxCannotStartNotice: true}` (the `accountNotice`
+   precedent) and the code records the merge step — clients advertising
+   F82's notices capability must get its separate notice update
+   instead. Re-proven on the packed product after the fixes (same
+   driver shape as above, scratch `temp/rv-probe-acp.mjs`): 2 sessions
+   → 2 marked chunks, 0 unmarked, 1 stderr warn, posture still
+   `Shell sandbox on (default)`.
+
+Red drill (review): `isLinuxSandboxBlocked` broken to ignore the reason
+→ `holds only for the proven user-namespace refusal` failed (1 of 20);
+reverted, green. A real-probe test (`probeLinuxSandboxShell` against the
+machine's real bwrap or its real absence) now covers the spawn path the
+lane's parse-only tests never reached.
+
+Gates on the reviewed tree (main `898a26c5e3` is already an ancestor of
+the lane base, so the merge is "Already up to date", no conflicts):
+typecheck 0, eslint `--max-warnings=0` on the 8 changed code/test files
+0, prettier clean, `check:l10n` 0, `check:reference` 0,
+`check:host-api` 0, `deadcode` 0, `cycles` 0, `duplication` 0 clones,
+`npm run build` 0; `sandbox.test.ts` (20) + `supportReport.test.ts`
+(12) green; `vitest related` for the ACP agent and backend manager
+green (30 passed, 3 live-provider skips). `security:sast` not re-run
+(semgrep cannot start on this rig, as above).
+
+Real-life scenario 1 gains one step: start a SECOND conversation in the
+same panel — the warning shows again and the new session's first turn
+carries the model note (item 3).
