@@ -98,9 +98,11 @@ describe('byte windows', () => {
     })
     expect(outcome.output).toContain('recall_output')
     expect(retained.size).toBe(1)
-    expect(
-      retained.recall(JSON.stringify({ id: 'retained-1', offset: 0 })).failureReason,
-    ).toBeUndefined()
+    const keptId = /call recall_output with id "([^"]+)"/u.exec(outcome.output)?.[1]
+    if (keptId === undefined) {
+      throw new Error('the clip note names no kept id')
+    }
+    expect(retained.recall(JSON.stringify({ id: keptId, offset: 0 })).failureReason).toBeUndefined()
   })
   it('follows byte offsets without losing UTF-8 boundary characters', async () => {
     writeFileSync(path.join(root, 'utf8.txt'), 'aé😀z')

@@ -20,7 +20,12 @@ import {
   VERIFY_UNSHOWN_FILES_NAMED,
 } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
-import { type DiagnosticEntry, formatDiagnostics, type WorkspaceDiagnostic } from '../diagnostics'
+import {
+  type DiagnosticEntry,
+  formatDiagnostics,
+  sortWorkspaceDiagnostics,
+  type WorkspaceDiagnostic,
+} from '../diagnostics'
 import { clipWithNote, retainNote, type ShellRetain } from '../backends/modelapi/tools'
 
 /**
@@ -200,18 +205,20 @@ export class DiagnosticsHistory {
       )
       listed.push(...reported.map((entry) => ({ ...entry, path: file.relative })))
     }
-    // B6 (limits-output): entries past the page are pageable, not dropped:
-    // the note names the files that hold them, each readable on its own
-    // through getDiagnostics.
+    // B6 (limits-output): entries past the page are pageable, not dropped.
+    // The overflow names come from the same worst-first sorted snapshot the
+    // page shows (not input order), each file readable on its own through
+    // getDiagnostics, which pages by offset past any per-file limit.
     if (listed.length > 0) {
-      const unshown = listed.slice(VERIFY_DIAGNOSTICS_MAX_ENTRIES)
+      const sorted = sortWorkspaceDiagnostics(listed)
+      const unshown = sorted.slice(VERIFY_DIAGNOSTICS_MAX_ENTRIES)
       const unshownFiles = [...new Set(unshown.map((entry) => entry.path))]
       const namedFiles = unshownFiles.slice(0, VERIFY_UNSHOWN_FILES_NAMED)
       const named = namedFiles.join(', ')
       const moreFiles = unshownFiles.length - namedFiles.length
       lines.push(
         formatDiagnostics(
-          listed,
+          sorted,
           VERIFY_DIAGNOSTICS_MAX_ENTRIES,
           0,
           unshown.length === 0

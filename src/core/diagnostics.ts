@@ -121,6 +121,22 @@ function formatEntry(
 }
 
 /**
+ * B6 (limits-output): worst-first order (severity, then path, then line).
+ * Shared with the verify report so its overflow names come from the same
+ * sorted snapshot the page shows, not input order.
+ */
+export function sortWorkspaceDiagnostics(
+  entries: readonly WorkspaceDiagnostic[],
+): WorkspaceDiagnostic[] {
+  return entries.toSorted(
+    (a, b) =>
+      SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity] ||
+      a.path.localeCompare(b.path) ||
+      a.line - b.line,
+  )
+}
+
+/**
  * B6 (limits-output): one page of the tool's text for `entries`, worst
  * first. `offset` skips that many sorted entries first, so entries past the
  * first page are pageable, not dropped. `nextPage` names the fetch for the
@@ -137,12 +153,7 @@ export function formatDiagnostics(
   if (entries.length === 0) {
     return NO_DIAGNOSTICS
   }
-  const sorted = entries.toSorted(
-    (a, b) =>
-      SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity] ||
-      a.path.localeCompare(b.path) ||
-      a.line - b.line,
-  )
+  const sorted = sortWorkspaceDiagnostics(entries)
   const skip = Math.max(Math.floor(offset), 0)
   if (skip >= sorted.length) {
     throw new RangeError(

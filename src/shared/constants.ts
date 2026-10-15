@@ -3868,6 +3868,9 @@ export const OBS_PACK_RECALL_ID_LIMIT = 8
 // Random bytes (as hex) in the markers around a recalled page, fresh for
 // each recall, so the original cannot close the untrusted block itself.
 export const OBS_PACK_MARKER_BYTES = 8
+// Random bytes (as hex) tagging each retained-output id to its store, so a
+// resumed session's fresh store never reissues an old note's id.
+export const OBS_PACK_RETAINED_TAG_BYTES = 4
 // The ledger's tokens-avoided estimate (the ~4-characters-per-token rule of
 // thumb): an estimate, never a bill.
 export const OBS_PACK_CHARS_PER_TOKEN = 4
@@ -6273,6 +6276,11 @@ export const WEB_FETCH_MODEL_TEXT = {
   // converter itself truncated, so `{total}` is then a floor.
   webFetchTruncated:
     'Showing characters {start}–{end} of {total}{more}; fetch {url} again with offset {next} for the rest.',
+  // B7 (limits-output): the last window of a conversion the converter cut
+  // short. No later offset reaches further converted text: the tail past
+  // the converter's measured cap is not available as Markdown.
+  webFetchConvertStopped:
+    'Showing characters {start}–{end} of {total}: the converter stopped at its measured cap here, so no later offset reaches more of {url} as Markdown.',
   webFetchPastEnd:
     'Offset {offset} is past the end of this page ({total} characters); fetch {url} again with an offset from 0 to {last} for the rest.',
   webFetchUntrusted:

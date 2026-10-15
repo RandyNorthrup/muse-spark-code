@@ -32,6 +32,15 @@ function entry(
   return { path: undefined, severity, line, column: 1, message, source }
 }
 
+function warnings(file: EditedFile): FileDiagnostics {
+  return {
+    file,
+    entries: Array.from({ length: 50 }, (_, index) =>
+      entry('warning', `w${String(index)}`, index + 1),
+    ),
+  }
+}
+
 /** A report whose reads become the baseline at once, as when the model has it. */
 function delivered(history: DiagnosticsHistory, files: readonly FileDiagnostics[]) {
   const pending = history.report(files, OPTIONS)
@@ -50,10 +59,22 @@ describe('DiagnosticsHistory', () => {
       },
     )
     expect(report.text).toContain('offset 0 for the rest')
-    expect(pack.recall(JSON.stringify({ id: 'retained-1', offset: 0 })).output).toContain(
-      'x'.repeat(500),
-    )
+    const keptId = /call recall_output with id "([^"]+)"/u.exec(report.text)?.[1]
+    if (keptId === undefined) {
+      throw new Error('the clip note names no kept id')
+    }
+    expect(pack.recall(JSON.stringify({ id: keptId, offset: 0 })).output).toContain('x'.repeat(500))
   })
+  it('names overflow files from the sorted snapshot, not input order', () => {
+    // Input order shows b.ts first, but worst-first (path) order shows
+    // a.ts: the overflow names b.ts, the file the page hides.
+    const { report } = new DiagnosticsHistory().report([warnings(B), warnings(A)], {
+      maxChars: 1_000_000,
+    })
+    expect(report.text).toContain(`for ${B.relative} to read the rest`)
+    expect(report.text).not.toContain(`for ${A.relative}`)
+  })
+
   it("counts each file's errors and warnings and lists them, leaving hints out", () => {
     const { report } = new DiagnosticsHistory().report(
       [

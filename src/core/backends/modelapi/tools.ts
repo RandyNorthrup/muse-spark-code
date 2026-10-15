@@ -2630,6 +2630,11 @@ async function search(
           `[showing matches ${String(offset + 1)}-${String(offset + page.rows.length)} of at least ${String(page.total)}; the search stopped at its own cap, narrow the pattern or the glob for the rest]`,
         ]
       : []),
+    // A cut hit line names its file and line: the full line is reached
+    // through read_file, never through a wider search window.
+    ...(page.rows.some((row) => row.includes('[line cut to '))
+      ? ['[a shown hit line is cut; read its file with read_file for the full line]']
+      : []),
   ]
   const found = page.rows.length === 0 ? 'No matches.' : page.rows.join('\n')
   const body = retainedHead(
@@ -2923,7 +2928,15 @@ function retainedShell(
   if (whole === body) return { output: body, visibleOutput: shown }
   const id = retain.keep(whole, retain.tool, retain.touch)
   if (id === undefined) return { output: body, visibleOutput: shown }
-  const note = `\n${retainNote(id, at)}`
+  // The command runner drops each stream's middle past its own cap before
+  // this keeps anything: that dropped text is marked in what is kept, and
+  // recall cannot bring it back. The way to it is re-running the command
+  // with its output to a file and reading the file by byte range.
+  const dropped =
+    /\[\d+ characters omitted\]/u.test(whole) || /\[\d+ characters omitted\]/u.test(body)
+      ? '\nThe command runner dropped the middle of this output before it was kept: recall returns what is kept, and the dropped middle is reached by running the command again with its output to a file and reading that file by byte range.'
+      : ''
+  const note = `\n${retainNote(id, at)}${dropped}`
   return { output: `${body}${note}`, visibleOutput: `${shown}${note}` }
 }
 

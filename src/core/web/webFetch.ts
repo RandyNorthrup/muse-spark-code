@@ -608,6 +608,14 @@ export function pageText(
     if (end >= content.length && !flags.hasMore) {
       return ''
     }
+    if (end >= content.length) {
+      return fill(WEB_FETCH_MODEL_TEXT.webFetchConvertStopped, {
+        start: String(start + 1),
+        end: String(end),
+        total: String(content.length),
+        url: page.url,
+      })
+    }
     return fill(WEB_FETCH_MODEL_TEXT.webFetchTruncated, {
       start: String(start + 1),
       end: String(end),

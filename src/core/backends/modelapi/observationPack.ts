@@ -28,6 +28,7 @@ import {
   OBS_PACK_MARKER_BYTES,
   OBS_PACK_PAGE_CHARS,
   OBS_PACK_RECALL_ID_LIMIT,
+  OBS_PACK_RETAINED_TAG_BYTES,
   OBS_PACK_SINGLE_LINE_EXCERPT_CHARS,
   OBS_PACK_TAIL_LINES,
   OBS_PACK_THRESHOLD_CHARS,
@@ -230,8 +231,14 @@ export class ObservationPack {
    */
   private readonly counted = new WeakSet<readonly InputItem[]>()
   private tokensAvoided = 0
-  /** Clipped outputs kept by `retain`, numbered for their ids. */
+  /**
+   * Clipped outputs kept by `retain`, numbered for their ids. The number
+   * rides beside a per-store random tag: a resumed session's fresh store
+   * never reissues a note's old id for new unrelated text (its old notes
+   * honestly report unknown instead of returning the wrong bytes).
+   */
   private retained = 0
+  private readonly retainedTag = randomBytes(OBS_PACK_RETAINED_TAG_BYTES).toString('hex')
 
   /**
    * B3 (limits-output): keep a clipped tool output whole so its clip note
@@ -358,7 +365,7 @@ export class ObservationPack {
    */
   public retain(text: string, tool: string | undefined, origin?: RetainedOrigin): string {
     this.retained += 1
-    const id = `retained-${String(this.retained)}`
+    const id = `retained-${this.retainedTag}-${String(this.retained)}`
     this.register(id, text, tool, origin)
     return id
   }

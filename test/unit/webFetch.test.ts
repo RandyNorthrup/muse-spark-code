@@ -7,15 +7,18 @@ import { nat64PrefixesOf } from '../../src/core/web/publicAddress'
 import {
   fetchWebPage,
   type Nat64Discovery,
+  pageText,
   type PinnedResponse,
   type PinnedTarget,
   type WebFetchResult,
+  type WebPage,
 } from '../../src/core/web/webFetch'
 import { WEB_FETCH_DESCRIPTION } from '../../src/core/web/webFetchDefinition'
 import {
   UI_TEXT,
   WEB_FETCH_ATTEMPT_DELAY_MS,
   WEB_FETCH_MAX_BYTES,
+  WEB_FETCH_MAX_CONTENT_CHARS,
   WEB_FETCH_MAX_REDIRECTS,
   WEB_FETCH_MODEL_TEXT,
   WEB_FETCH_NOT_TLS_CODE,
@@ -960,5 +963,39 @@ describe('fetchWebPage (M69)', () => {
       turn.abort()
     }, 20)
     await expect(fetching).rejects.toThrow()
+  })
+})
+
+describe('pageText converter cutoff (B7)', () => {
+  const page: WebPage = {
+    url: 'https://example.com/',
+    finalUrl: 'https://example.com/',
+    status: 200,
+    type: 'text/html',
+    bytes: 1000,
+  }
+  // A conversion the converter cut short: more page past its measured cap.
+  const content = 'x'.repeat(WEB_FETCH_MAX_CONTENT_CHARS + 100)
+
+  it('pages a cut conversion window by window, then says the tail is not reachable', () => {
+    const first = pageText(page, content, { isHtml: true, hasMore: true }, MARKER, 0)
+    expect(first).toContain(`with offset ${String(WEB_FETCH_MAX_CONTENT_CHARS)}`)
+    const last = pageText(
+      page,
+      content,
+      { isHtml: true, hasMore: true },
+      MARKER,
+      WEB_FETCH_MAX_CONTENT_CHARS,
+    )
+    // The last window names the stop, never a next offset that fails past the end.
+    expect(last).toContain('converter stopped')
+    expect(last).not.toContain('with offset')
+  })
+
+  it('keeps paging a complete page end to end with no stop note', () => {
+    const full = 'y'.repeat(100)
+    const only = pageText(page, full, { isHtml: true, hasMore: false }, MARKER, 0)
+    expect(only).not.toContain('converter stopped')
+    expect(only).not.toContain('with offset')
   })
 })

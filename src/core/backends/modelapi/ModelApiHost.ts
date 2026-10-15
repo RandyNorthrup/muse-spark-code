@@ -12105,6 +12105,10 @@ export class ModelApiSession implements ScheduledAgentSession {
         provisionalSeen,
       )
     }
+    // B3 (limits-output): a subagent recalls its OWN kept outputs through
+    // the same fenced choke point as any session (its store holds only its
+    // own clips; packing never runs for a subagent). Barring the call while
+    // its clip notes instruct it left an unusable recovery instruction.
     if (
       this.isSubagent &&
       (isSubagentTool(call.name) ||
@@ -12112,8 +12116,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         call.name === MODEL_API_TOOLS.createGoal ||
         call.name === MODEL_API_TOOLS.getGoal ||
         call.name === MODEL_API_TOOLS.updateGoal ||
-        call.name === MODEL_API_TOOLS.reportProgress ||
-        call.name === MODEL_API_TOOLS.recallOutput)
+        call.name === MODEL_API_TOOLS.reportProgress)
     ) {
       return { outcome: subagentFailure('tool unavailable to a subagent'), isRejected: true }
     }

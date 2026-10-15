@@ -69,16 +69,34 @@ describe('retained clipped outputs', () => {
       revision: CURRENT_REVISION,
       wasTrusted: true,
     })
-    expect(id).toBe('retained-1')
+    // The id carries a per-store tag: a fresh store never reissues it.
+    expect(id).toMatch(/^retained-[0-9a-f]+-1$/u)
+    expect(new ObservationPack().has(id)).toBe(false)
     expect(pack.has(id)).toBe(true)
-    expect(pack.has('retained-2')).toBe(false)
+    expect(pack.has('retained-nonexistent')).toBe(false)
     const first = pack.recall(JSON.stringify({ id, offset: 0 }), judge)
     expect(pageText(first)).toContain('a'.repeat(100))
     expect(first.output).toContain(`offset ${String(OBS_PACK_PAGE_CHARS)}`)
     const second = pack.recall(JSON.stringify({ id, offset: OBS_PACK_PAGE_CHARS }), judge)
     expect(pageText(second)).toContain('end of output')
-    const missing = pack.recall(JSON.stringify({ id: 'retained-9', offset: 0 }), judge)
+    const missing = pack.recall(JSON.stringify({ id: 'retained-nonexistent', offset: 0 }), judge)
     expect(missing.failureReason).toBeDefined()
+  })
+
+  it('never binds an old note to a fresh store’s unrelated output', () => {
+    const first = new ObservationPack()
+    const oldId = first.retain('old session text', 'shell')
+    const second = new ObservationPack()
+    const newId = second.retain('new session text', 'shell')
+    expect(newId).not.toBe(oldId)
+    // The old note names no output here: unknown in words, never the new text.
+    const refused = second.recall(
+      JSON.stringify({ id: oldId, offset: 0 }),
+      fence(currentAuthority()),
+    )
+    expect(refused.failureReason).toBeDefined()
+    expect(refused.output).not.toContain('new session text')
+    expect(refused.output).not.toContain('old session text')
   })
 
   it('names the id and resume offset in the clip note', () => {
@@ -98,14 +116,32 @@ describe('retained clipped outputs', () => {
     }
     const outcome = shellOutcome(result, 120_000, TOOL_OUTPUT_MAX_CHARS, false, kept(pack, 'bash'))
     expect(outcome.output).toContain(TOOL_OUTPUT_ELIDED_MARKER)
-    const id = 'retained-1'
-    expect(outcome.output).toContain(`call recall_output with id "${id}"`)
+    const id = /call recall_output with id "([^"]+)"/u.exec(outcome.output)?.[1]
+    expect(id).toMatch(/^retained-[0-9a-f]+-1$/u)
+    if (id === undefined) {
+      throw new Error('the clip note names no kept id')
+    }
     expect(outcome.output.endsWith('[exit code 0]')).toBe(false)
     const at = outcome.output.indexOf(TOOL_OUTPUT_ELIDED_MARKER)
     expect(outcome.output).toContain(`offset ${String(at)}`)
     // The kept whole pages back from the note's offset.
     const recalled = pack.recall(JSON.stringify({ id, offset: at }), fence(currentAuthority()))
     expect(pageText(recalled)).toContain('x'.repeat(100))
+  })
+
+  it('says a runner-dropped middle is not recoverable, with the way back', () => {
+    const pack = new ObservationPack()
+    const result = {
+      stdout: `${'a'.repeat(40_000)}\n[12345 characters omitted]\n${'b'.repeat(40_000)}`,
+      stderr: '',
+      exitCode: 0 as const,
+      isTimedOut: false,
+      isCancelled: false,
+    }
+    const outcome = shellOutcome(result, 120_000, TOOL_OUTPUT_MAX_CHARS, false, kept(pack, 'bash'))
+    expect(outcome.output).toContain(TOOL_OUTPUT_ELIDED_MARKER)
+    expect(outcome.output).toContain('dropped the middle')
+    expect(outcome.output).toContain('output to a file')
   })
 
   it('leaves a fitting shell result and a storeless clip alone', () => {
