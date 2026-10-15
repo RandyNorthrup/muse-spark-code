@@ -49,8 +49,10 @@ validation (serve family, exec, provider format/privacy, usage range/grouping).
 Refusals include accepted values and omit the untrusted rejected value.
 Regression red: `--backend auto` lacked `museCode|modelApi` (exit 1).
 
-T4: the early usage exit installs the selected locale and reparses before
-printing the refusal. No backend or credential service starts. The old path
+T4: the selected locale is installed before argument parsing and before the
+early usage exit prints its refusal. A first final duplication run found the
+initial repair's repeated locale-load block (exit 1); moving the existing
+pre-parse load ahead of all parsing removes that duplication and reparse. No backend or credential service starts. The old path
 formatted the reason before `loadUiTable`; packed French refusal checks are
 listed in the PRTH162 report (LC_ALL, not VSCODE_NLS_CONFIG).
 

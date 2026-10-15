@@ -924,14 +924,14 @@ function logLevel(command: RuntimeCommand | SharingCommand): LogLevel {
 }
 
 async function main(): Promise<number> {
-  if (process.argv[2] === 'share' || process.argv[2] === 'prompts')
-    await loadUiTable({
-      language: displayLanguage(process.env, new Intl.DateTimeFormat().resolvedOptions().locale),
-      readExtensionFile: (segments) => readUiTableFile(packageRoot, segments),
-      log: stderrLogger((line) => {
-        writeLine(process.stderr, line)
-      }, 'warn'),
-    })
+  // All parser refusals, including the early usage exit, read this locale.
+  await loadUiTable({
+    language: displayLanguage(process.env, new Intl.DateTimeFormat().resolvedOptions().locale),
+    readExtensionFile: (segments) => readUiTableFile(packageRoot, segments),
+    log: stderrLogger((line) => {
+      writeLine(process.stderr, line)
+    }, 'warn'),
+  })
   const command = parseCommandLine(process.argv.slice(2), parseSharingArgs)
   const servicesInput: RuntimeAccountServicesInput = {
     dataDir: agentDataFolder({
@@ -959,21 +959,10 @@ async function main(): Promise<number> {
     return cachedAccounts
   }
   if (command.command === 'invalid' && command.exitCode === EXEC_EXIT.usage) {
-    // Parser reasons are values, not deferred text. Install the language and
-    // parse again before the early exit, without starting any runtime service.
-    await loadUiTable({
-      language: displayLanguage(process.env, new Intl.DateTimeFormat().resolvedOptions().locale),
-      readExtensionFile: (segments) => readUiTableFile(packageRoot, segments),
-      log: stderrLogger((line) => {
-        writeLine(process.stderr, line)
-      }, 'warn'),
-    })
-    const localized = parseCommandLine(process.argv.slice(2), parseSharingArgs)
-    const reason = localized.command === 'invalid' ? localized.reason : command.reason
     const stderr = createFdWriter(process.stderr.fd, () => {
       /* A usage error already owns exit 2; a closed pipe cannot turn it into success. */
     })
-    stderr.write(`${redactWhole(reason, [])}\n`)
+    stderr.write(`${redactWhole(command.reason, [])}\n`)
     const isFlushed = await stderr.flush(EXEC_FORCE_WRITE_MS)
     exitHeadless(EXEC_EXIT.usage, !isFlushed)
   }
