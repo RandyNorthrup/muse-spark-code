@@ -21,12 +21,7 @@ import {
 } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import { type DiagnosticEntry, formatDiagnostics, type WorkspaceDiagnostic } from '../diagnostics'
-import {
-  clipWithNote,
-  codePointBoundary,
-  retainNote,
-  type ShellRetain,
-} from '../backends/modelapi/tools'
+import { clipWithNote, retainNote, type ShellRetain } from '../backends/modelapi/tools'
 
 /**
  * A file an edit tool wrote, as confinement found it at the edit (links and
@@ -233,8 +228,9 @@ export class DiagnosticsHistory {
       full.length > options.maxChars
         ? options.retainOutput?.keep(full, options.retainOutput.tool)
         : undefined
-    const note =
-      id === undefined ? '' : `\n${retainNote(id, codePointBoundary(full, options.maxChars))}`
+    // Re-read from zero: the reserved note shortens the delivered prefix,
+    // so resuming at maxChars would skip the hidden gap.
+    const note = id === undefined ? '' : `\n${retainNote(id, 0)}`
     return {
       report: {
         text: clipWithNote(full, options.maxChars, note),

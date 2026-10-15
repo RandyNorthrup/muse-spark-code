@@ -220,6 +220,17 @@ is not applied to the repository's legacy, non-ledger PLAN format.
   command started. Restored SHA-256s match `.lane/range-read-hashes.json`;
   this red drill is **deferred**, not passing.
 
+- F4 clipped lists/search and verify recall: list/search pages that overflow
+  the character window retain their entire page (including its next-row note)
+  in the existing recall store. Long line clips name byte addressing. Verify
+  clips restart recall at zero; the former maxChars offset skipped the space
+  consumed by the clip marker and recall note. A real 500-file listing and
+  real `DiagnosticsHistory`/`ObservationPack` assertions pass: 28 tests in
+  3 files, exit 0. Deliberately restoring the wrong verify offset fails the
+  new report assertion (exit 1, `.lane/paging-red.log`); restored afterwards.
+  The unrelated existing no-note clip budget assertion also found maxChars
+  plus marker output; fixed by reserving the marker in `clipWithNote`.
+
 ## Qualification
 
 All work runs directly in `/home/randy/lanes/LIMITSB` on linuxlt. No

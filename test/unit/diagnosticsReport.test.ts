@@ -6,6 +6,7 @@ import {
   type EditedFile,
   type FileDiagnostics,
 } from '../../src/core/verify/diagnosticsReport'
+import { ObservationPack } from '../../src/core/backends/modelapi/observationPack'
 import { applyOffsetEdits } from '../../src/core/verify/textEdits'
 import {
   MODEL_API_MODEL_TEXT,
@@ -39,6 +40,20 @@ function delivered(history: DiagnosticsHistory, files: readonly FileDiagnostics[
 }
 
 describe('DiagnosticsHistory', () => {
+  it('recalls the complete report including the gap reserved for its clip note', () => {
+    const pack = new ObservationPack()
+    const { report } = new DiagnosticsHistory().report(
+      [{ file: A, entries: [entry('error', 'x'.repeat(500))] }],
+      {
+        maxChars: 200,
+        retainOutput: { keep: (text, tool) => pack.retain(text, tool), tool: 'verify' },
+      },
+    )
+    expect(report.text).toContain('offset 0 for the rest')
+    expect(pack.recall(JSON.stringify({ id: 'retained-1', offset: 0 })).output).toContain(
+      'x'.repeat(500),
+    )
+  })
   it("counts each file's errors and warnings and lists them, leaving hints out", () => {
     const { report } = new DiagnosticsHistory().report(
       [

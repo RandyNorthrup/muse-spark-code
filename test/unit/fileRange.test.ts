@@ -6,6 +6,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { decodeWindow, executeTool, type ToolContext } from '../../src/core/backends/modelapi/tools'
 import { createToolIo } from '../../src/host/backend/toolIo'
 import { fingerprint } from '../../src/core/verify/fingerprint'
+import { ObservationPack } from '../../src/core/backends/modelapi/observationPack'
 import { TOOL_FILE_MAX_BYTES } from '../../src/shared/constants'
 
 // A9 (limits-output): files of any size read and edit by byte range.
@@ -18,6 +19,7 @@ const big = path.join(root, 'big.txt')
 function context(): {
   ctx: ToolContext
   seen: Map<string, string>
+  retained: ObservationPack
   run: (name: string, args: unknown) => Promise<{ output: string; failure?: string }>
 } {
   const io = createToolIo({
@@ -31,7 +33,9 @@ function context(): {
   })
   const seen = new Map<string, string>()
   const provisionalSeen = new Map<string, string>()
+  const retained = new ObservationPack()
   const ctx: ToolContext = {
+    retainOutput: (text, tool) => retained.retain(text, tool),
     workspaceRoot: root,
     platform: process.platform,
     io,
@@ -41,6 +45,7 @@ function context(): {
   return {
     ctx,
     seen,
+    retained,
     run: async (name: string, args: unknown) => {
       const outcome = await executeTool(name, JSON.stringify(args), ctx)
       for (const [absolute, hash] of provisionalSeen) seen.set(absolute, hash)
@@ -68,6 +73,37 @@ afterAll(() => {
 })
 
 describe('byte windows', () => {
+  it('retains a file-list page when its rows exceed the character window', async () => {
+    const longRoot = path.join(root, 'list')
+    mkdirSync(longRoot, { recursive: true })
+    const folder = path.join(longRoot, 'd'.repeat(150))
+    mkdirSync(folder)
+    for (let index = 0; index < 500; index += 1)
+      writeFileSync(path.join(folder, `f${String(index)}.txt`), '')
+    const { ctx, retained } = context()
+    const outcome = await executeTool('list_files', '{}', {
+      ...ctx,
+      workspaceRoot: longRoot,
+      io: createToolIo({
+        platform: process.platform,
+        listFiles: async () => {
+          const fs = await import('node:fs/promises')
+          const names = await fs.readdir(folder)
+          return names.map((name) => `${'d'.repeat(150)}/${name}`)
+        },
+        systemRoot: undefined,
+        env: () => ({}),
+        searchWorkerPath: 'unused',
+        log: () => undefined,
+        unsavedFiles: () => [],
+      }),
+    })
+    expect(outcome.output).toContain('recall_output')
+    expect(retained.size).toBe(1)
+    expect(
+      retained.recall(JSON.stringify({ id: 'retained-1', offset: 0 })).failureReason,
+    ).toBeUndefined()
+  })
   it('follows byte offsets without losing UTF-8 boundary characters', async () => {
     writeFileSync(path.join(root, 'utf8.txt'), 'aé😀z')
     const { run } = context()

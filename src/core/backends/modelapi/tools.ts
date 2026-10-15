@@ -1070,7 +1070,11 @@ function clip(text: string, maxChars = TOOL_OUTPUT_MAX_CHARS): string {
  * appended after the marker, never cut with the listing.
  */
 export function clipWithNote(text: string, maxChars: number, note: string): string {
-  if (note === '') return clip(text, maxChars)
+  if (note === '') {
+    if (text.length <= maxChars) return text
+    const kept = codePointBoundary(text, Math.max(maxChars - TOOL_OUTPUT_CLIP_MARKER.length, 0))
+    return `${text.slice(0, kept)}${TOOL_OUTPUT_CLIP_MARKER}`
+  }
   if (text.length + note.length <= maxChars) return `${text}${note}`
   const reserve = TOOL_OUTPUT_CLIP_MARKER.length + note.length
   if (reserve >= maxChars) return `${clip(text, maxChars)}${note}`
@@ -1752,7 +1756,7 @@ async function readFile(
   for (const [index, line] of selected.entries()) {
     const body =
       line.length > READ_FILE_MAX_LINE_CHARS
-        ? `${line.slice(0, codePointBoundary(line, READ_FILE_MAX_LINE_CHARS))}…`
+        ? `${line.slice(0, codePointBoundary(line, READ_FILE_MAX_LINE_CHARS))}… [line clipped; call read_file with byteOffset 0 and byteLength ${String(TOOL_OUTPUT_MAX_CHARS)} to page through the complete file]`
         : line
     const numbered = `${String(start + index + 1)}|${body}`
     const nextSize = used + numbered.length + (shown.length > 0 ? 1 : 0)
@@ -2512,7 +2516,14 @@ async function search(
       : []),
   ]
   const found = page.rows.length === 0 ? 'No matches.' : page.rows.join('\n')
-  const body = clipWithNote([found, ...notes].join('\n'), TOOL_OUTPUT_MAX_CHARS, '')
+  const body = retainedHead(
+    [found, ...notes].join('\n'),
+    TOOL_OUTPUT_MAX_CHARS,
+    context.retainOutput === undefined
+      ? undefined
+      : { keep: context.retainOutput, tool: MODEL_API_TOOLS.search },
+    MODEL_API_TOOLS.search,
+  )
   return { output: body, visibleOutput: body, touched }
 }
 
@@ -2544,11 +2555,19 @@ async function listFiles(
     offset + shown.length < files.length
       ? `\n${pageNote(MODEL_API_TOOLS.listFiles, offset, shown.length, files.length, false, 'files')}`
       : ''
-  const body = shown.length === 0 ? 'No files.' : `${shown.join('\n')}${tail}`
+  const full = shown.length === 0 ? 'No files.' : `${shown.join('\n')}${tail}`
+  const body = retainedHead(
+    full,
+    TOOL_OUTPUT_MAX_CHARS,
+    context.retainOutput === undefined
+      ? undefined
+      : { keep: context.retainOutput, tool: MODEL_API_TOOLS.listFiles },
+    MODEL_API_TOOLS.listFiles,
+  )
   // Every file listed, shown or counted.
   return {
-    output: clip(body),
-    visibleOutput: clip(body),
+    output: body,
+    visibleOutput: body,
     touched: { names: files, complete: true },
   }
 }
