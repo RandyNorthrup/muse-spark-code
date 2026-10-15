@@ -399,6 +399,21 @@ McpElicitationTimeoutError` was false at the real boundary: the connection
   Full model reads remain uncut. Lead: read a 1,000-character child result;
   the short tool summary names its 512-character preview and full transcript.
 
+## RVDROPS review — C7 withdraw the editor form when the backend settles
+
+- P2, quoted-code proof: ACP ignored `elicitationSettled`, and its MCP form
+  request had no cancellation signal. A backend deadline could warn that it
+  cancelled while the editor still showed an answerable form; a late answer
+  then attempted to settle an already-settled request.
+- ACP now owns one AbortController per MCP form, supplies the SDK's existing
+  cooperative cancellation option, aborts on settlement/release, and ignores
+  late responses. Finally removes only its own controller. This reuses the
+  same SDK mechanism as question deferral, not a guessed protocol field.
+- Lead: leave an MCP form open in an ACP editor until timeout; it withdraws
+  cooperatively, warning text arrives, and any late client reply is ignored.
+  A client that does not honor cooperative cancellation may keep its own UI;
+  this agent still refuses to deliver its stale answer.
+
 ## Limits raised or removed (owner's rule)
 
 | Row | Number              | Outcome                                                  | Reasoning                                                                       |
