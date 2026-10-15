@@ -9,6 +9,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- Test-overhaul review: paid-popup lazy-load checks now build the real
+  runtime instead of writing a replacement formatter, retaining locale
+  propagation and sub-cent search-price disclosure checks.
+
 - Test-overhaul review: account-command tests now use the real parser and
   metadata files, not a hand-built provider metadata store or key store.
   Credential-operation composition remains for the real-life run.
