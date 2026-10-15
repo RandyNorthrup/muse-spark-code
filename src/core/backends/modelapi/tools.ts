@@ -418,6 +418,12 @@ export interface ToolContext {
    */
   readonly wholeShellOutput?: boolean
   /**
+   * B3 (limits-output): keep a clipped tool output whole under the returned
+   * id, so its clip note pages the rest back through `recall_output`.
+   * Absent, the clip keeps its bare marker.
+   */
+  readonly retainOutput?: (fullText: string, tool: string) => string | undefined
+  /**
    * The session's record of each file as the model last read or wrote it
    * (absolute path to a fingerprint): `write_file` replaces only what the
    * model has seen (D27).
@@ -677,7 +683,7 @@ export interface ToolDefinitionOptions {
   readonly isSubagent?: boolean
   /** Muse Code's memory tools, trusted workspaces only (M49, PLAN.md D41). */
   readonly hasMemory?: boolean
-  /** `recall_output` (M73): true only while the session packs observations. */
+  /** `recall_output` (M73, B3): true while the session packs observations or keeps a clipped output. */
   readonly hasPackedRecall?: boolean
   /** The user's check commands (M68): `run_checks` is offered with the shell while there are any. */
   readonly checks?: readonly CheckCommandSetting[]
@@ -2058,7 +2064,11 @@ async function listFiles(
   }
 }
 
-async function shell(args: z.infer<typeof shellArgs>, context: ToolContext): Promise<ToolOutcome> {
+async function shell(
+  args: z.infer<typeof shellArgs>,
+  context: ToolContext,
+  toolName: string,
+): Promise<ToolOutcome> {
   const timeoutMs = Math.min(
     Math.max(args.timeout_ms ?? SHELL_DEFAULT_TIMEOUT_MS, 1),
     SHELL_MAX_TIMEOUT_MS,
@@ -2088,9 +2098,20 @@ async function shell(args: z.infer<typeof shellArgs>, context: ToolContext): Pro
             context.assertCanRun,
             context.isInteractiveShell === true,
           )
+    // B3 (limits-output): an elided middle stays reachable through recall.
+    const retain: ShellRetain | undefined =
+      context.retainOutput === undefined
+        ? undefined
+        : { keep: context.retainOutput, tool: toolName }
     return args.secrets && result.exitCode === null
       ? failure(MODEL_API_MODEL_TEXT.toolRefusedByMode, UI_TEXT.vault.noAccess)
-      : shellOutcome(result, timeoutMs, TOOL_OUTPUT_MAX_CHARS, context.wholeShellOutput === true)
+      : shellOutcome(
+          result,
+          timeoutMs,
+          TOOL_OUTPUT_MAX_CHARS,
+          context.wholeShellOutput === true,
+          retain,
+        )
   } catch (error: unknown) {
     if (args.secrets) return failure(MODEL_API_MODEL_TEXT.toolRefusedByMode, UI_TEXT.vault.noAccess)
     throw error
@@ -2173,16 +2194,53 @@ export function shellText(
 }
 
 /**
+ * B3 (limits-output): the recall note for a kept whole text: its id and the
+ * offset that continues past what is shown.
+ */
+export function retainNote(id: string, resumeOffset: number): string {
+  return `[the rest is kept: call recall_output with id "${id}" and offset ${String(resumeOffset)} for the rest]`
+}
+
+export interface ShellRetain {
+  /** Keep the whole outcome under an id; undefined when there is no store. */
+  readonly keep: (fullText: string, tool: string) => string | undefined
+  /** The tool whose output this is, named in the store. */
+  readonly tool: string
+}
+
+/**
+ * B3 (limits-output): a clipped head with its whole kept. Call sites without
+ * an offset argument keep the rest reachable this way; without a store the
+ * clip keeps its bare marker.
+ */
+export function retainedHead(
+  fullText: string,
+  maxChars: number,
+  retain: ShellRetain | undefined,
+  tool: string,
+): string {
+  if (fullText.length <= maxChars) return fullText
+  const kept = codePointBoundary(fullText, maxChars)
+  const id = retain?.keep(fullText, tool)
+  return id === undefined
+    ? `${fullText.slice(0, kept)}${TOOL_OUTPUT_CLIP_MARKER}`
+    : `${fullText.slice(0, kept)}${TOOL_OUTPUT_CLIP_MARKER}\n${retainNote(id, kept)}`
+}
+
+/**
  * A finished command as the model and the row read it (the shell tool, and
  * the user's own `!` command on this backend, M46): what it printed, then an
  * exit line that is never clipped, so a flood of output still says how the
  * command ended (D27). A check's output takes its share of one budget (M68).
+ * An elided middle is kept whole under `retain` when one is given, and the
+ * note pages it back; without one the elision keeps its bare marker.
  */
 export function shellOutcome(
   result: ShellResult,
   timeoutMs: number,
   maxChars: number = TOOL_OUTPUT_MAX_CHARS,
   shouldKeepWhole = false,
+  retain?: ShellRetain,
 ): ToolOutcome {
   let exit = `exit code ${String(result.exitCode ?? 'unknown')}`
   if (result.isCancelled) {
@@ -2194,12 +2252,37 @@ export function shellOutcome(
   // The row keeps the elided text it always showed; only what the model
   // receives rides whole into the packed replay.
   const shown = shouldKeepWhole ? `${shellText(result, maxChars)}\n[${exit}]`.trim() : body
+  const tail: Pick<ToolOutcome, 'output' | 'visibleOutput'> =
+    retain === undefined || shouldKeepWhole
+      ? { output: body, visibleOutput: shown }
+      : retainedShell(body, shown, result, maxChars, exit, retain)
   return {
-    output: body,
-    visibleOutput: shown,
+    ...tail,
     ...(result.exitCode !== null && { exitCode: result.exitCode }),
     ...((result.isTimedOut || result.isCancelled) && { failureReason: exit }),
   }
+}
+
+/**
+ * B3 (limits-output): an elided shell outcome with its whole kept. The note
+ * resumes where the elision starts, so nothing shown is sent twice.
+ */
+function retainedShell(
+  body: string,
+  shown: string,
+  result: ShellResult,
+  maxChars: number,
+  exit: string,
+  retain: ShellRetain,
+): Pick<ToolOutcome, 'output' | 'visibleOutput'> {
+  const at = body.indexOf(TOOL_OUTPUT_ELIDED_MARKER)
+  if (at === -1) return { output: body, visibleOutput: shown }
+  const whole = `${shellText(result, maxChars, true)}\n[${exit}]`.trim()
+  if (whole === body) return { output: body, visibleOutput: shown }
+  const id = retain.keep(whole, retain.tool)
+  if (id === undefined) return { output: body, visibleOutput: shown }
+  const note = `\n${retainNote(id, at)}`
+  return { output: `${body}${note}`, visibleOutput: `${shown}${note}` }
 }
 
 /**
@@ -2244,7 +2327,9 @@ export async function executeTool(
         return failure(`unknown tool ${name}`)
       }
       const parsed = shellArgs.safeParse(raw)
-      return parsed.success ? await shell(parsed.data, context) : argumentFailure(parsed.error)
+      return parsed.success
+        ? await shell(parsed.data, context, name)
+        : argumentFailure(parsed.error)
     }
     default: {
       const tool = context.io.vaultTools?.find((tool) => tool.name === name)
@@ -2253,7 +2338,13 @@ export async function executeTool(
         if (!args.success) return argumentFailure(args.error)
         try {
           const output = await tool.call(args.data, context.signal ?? new AbortController().signal)
-          return { output: clip(output), visibleOutput: clip(output) }
+          // B3 (limits-output): a clipped vault result stays reachable through recall.
+          const retain: ShellRetain | undefined =
+            context.retainOutput === undefined
+              ? undefined
+              : { keep: context.retainOutput, tool: name }
+          const kept = retainedHead(output, TOOL_OUTPUT_MAX_CHARS, retain, name)
+          return { output: kept, visibleOutput: kept }
         } catch {
           return failure(MODEL_API_MODEL_TEXT.toolRefusedByMode, UI_TEXT.vault.noAccess)
         }

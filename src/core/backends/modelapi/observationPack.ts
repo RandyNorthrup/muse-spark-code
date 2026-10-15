@@ -43,16 +43,16 @@ const recallOutputArgs = z.object({
   search: z.optional(z.string().check(z.minLength(1), z.maxLength(OBS_PACK_PAGE_CHARS))),
 })
 
-/** `recall_output`, offered only while packing runs. */
+/** `recall_output`, offered while packing runs or a kept output exists. */
 export const RECALL_TOOL_DEFINITION: FunctionToolDefinition = {
   type: 'function',
   name: MODEL_API_TOOLS.recallOutput,
   description:
-    'Read back a packed tool output by its id, one page at a time. A packed output names its id; pass it with a character offset (0 for the first page), or search for a case-sensitive literal string at or after that offset.',
+    'Read back a packed or kept tool output by its id, one page at a time. A packed output names its id in its placeholder, a kept one in its clip note; pass it with a character offset (0 for the first page), or search for a case-sensitive literal string at or after that offset.',
   parameters: {
     type: 'object',
     properties: {
-      id: { type: 'string', description: 'The packed output id from its placeholder' },
+      id: { type: 'string', description: 'The output id from its placeholder or clip note' },
       offset: { type: 'integer', description: 'Characters to skip; 0 reads from the start' },
       search: {
         type: 'string',
@@ -142,7 +142,14 @@ export class ObservationPack {
    */
   private readonly counted = new WeakSet<readonly InputItem[]>()
   private tokensAvoided = 0
+  /** Clipped outputs kept by `retain`, numbered for their ids. */
+  private retained = 0
 
+  /**
+   * B3 (limits-output): keep a clipped tool output whole so its clip note
+   * can page it back. The id never matches a replay call, so the projector
+   * leaves it alone; `recall` pages it like a packed original.
+   */
   private register(callId: string, text: string, tool: string | undefined): PackedOutput {
     const known = this.outputs.get(callId)
     if (known !== undefined) {
@@ -220,6 +227,28 @@ export class ObservationPack {
       head: head.join('\n'),
       tail: tail.join('\n'),
     })
+  }
+
+  /**
+   * B3 (limits-output): keep a clipped tool output whole so its clip note
+   * can page it back. The id never matches a replay call, so the projector
+   * leaves it alone; `recall` pages it like a packed original.
+   */
+  public retain(text: string, tool: string | undefined): string {
+    this.retained += 1
+    const id = `retained-${String(this.retained)}`
+    this.register(id, text, tool)
+    return id
+  }
+
+  /** Whether this store holds `id`, packed, retained, or still whole. */
+  public has(id: string): boolean {
+    return this.outputs.has(id)
+  }
+
+  /** How many outputs this store holds. */
+  public get size(): number {
+    return this.ids.length
   }
 
   /**

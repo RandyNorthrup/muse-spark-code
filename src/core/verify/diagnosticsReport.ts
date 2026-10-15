@@ -21,6 +21,12 @@ import {
 } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import { type DiagnosticEntry, formatDiagnostics, type WorkspaceDiagnostic } from '../diagnostics'
+import {
+  clipWithNote,
+  codePointBoundary,
+  retainNote,
+  type ShellRetain,
+} from '../backends/modelapi/tools'
 
 /**
  * A file an edit tool wrote, as confinement found it at the edit (links and
@@ -59,6 +65,12 @@ export interface ReportOptions {
   readonly maxChars: number
   /** The code-loading file the turn wrote, for the `codeLoading` reason. */
   readonly codeFile?: string
+  /**
+   * B3 (limits-output): keep the whole report when the budget cuts it, so
+   * the rest stays reachable through `recall_output`. Absent, the cut keeps
+   * its bare marker.
+   */
+  readonly retainOutput?: ShellRetain
 }
 
 const KEY_SEPARATOR = '\u{0}'
@@ -214,9 +226,18 @@ export class DiagnosticsHistory {
       )
     }
     const isAnyRead = reads.size > 0
+    // B3 (limits-output): the whole report is kept when the budget cuts it,
+    // and the file-targeted overflow note above survives the cut with it.
+    const full = lines.join('\n')
+    const id =
+      full.length > options.maxChars
+        ? options.retainOutput?.keep(full, options.retainOutput.tool)
+        : undefined
+    const note =
+      id === undefined ? '' : `\n${retainNote(id, codePointBoundary(full, options.maxChars))}`
     return {
       report: {
-        text: clipText(lines.join('\n'), options.maxChars),
+        text: clipWithNote(full, options.maxChars, note),
         ...(isAnyRead && { errors, warnings }),
         ...(unchecked > 0 && { unchecked }),
       },

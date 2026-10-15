@@ -402,6 +402,12 @@ export interface McpCallOutcome {
   readonly outputParts?: readonly FunctionOutputPart[]
   readonly visibleOutput: string
   readonly failureReason?: string
+  /**
+   * B3 (limits-output): the unclipped text when the clip cut it, so the
+   * host keeps the rest reachable through `recall_output`. Absent when
+   * nothing was cut.
+   */
+  readonly fullOutput?: string
 }
 
 const STRICT_BASE64 = /^[A-Za-z0-9+/]*={0,2}$/
@@ -528,5 +534,6 @@ export function mcpCallOutcome(result: CallToolResult): McpCallOutcome {
     }),
     visibleOutput,
     ...(result.isError === true && { failureReason: text }),
+    ...(text !== body && { fullOutput: result.isError === true ? `Error: ${body}` : body }),
   }
 }

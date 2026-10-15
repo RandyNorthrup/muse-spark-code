@@ -19,6 +19,7 @@ import {
 import type { RecordingScope, ContentRead } from '../../context/recordingReader'
 import { setUiText } from '../../../shared/l10n/text'
 import type { VerifyLedger, CheckScope } from './verifyLedger'
+import type { ShellRetain } from './tools'
 import type { CheckRun, VerifyHooks, skippedCheck, checksSection } from './verifyLoop'
 import type {
   EditedFile,
@@ -459,6 +460,8 @@ interface VerificationContext {
     { readonly source: ContentSource; readonly scope: RecordingScope | undefined }
   >
   readonly diagnosticsHistory: Pick<DiagnosticsHistory, 'report'>
+  /** B3 (limits-output): keep a budget-cut verify report for recall. */
+  readonly retainVerifyOutput?: ShellRetain
   readonly verificationAdmission: (signal: AbortSignal) => (canRunDetached?: boolean) => boolean
   readonly verificationAllowed: (files: readonly EditedFile[], wasTrusted: boolean) => boolean
   readonly canRunVerifyCommands: () => boolean
@@ -752,6 +755,9 @@ async function editDiagnostics(
   return context.diagnosticsHistory.report([...read, ...skipped], {
     maxChars,
     ...(codeFile !== undefined && { codeFile }),
+    ...(context.retainVerifyOutput !== undefined && {
+      retainOutput: context.retainVerifyOutput,
+    }),
   })
 }
 

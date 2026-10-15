@@ -499,6 +499,7 @@ import {
   parseQuestions,
   type ReadMediaFile,
   readSkillArgs,
+  retainNote,
   webFetchArgs,
   type ShellResult,
   parseShellDirectoryReport,
@@ -2422,6 +2423,23 @@ function waitFor<T>(signal: AbortSignal, register: (pending: Pending<T>) => void
   })
 }
 
+/**
+ * B3 (limits-output): the id a `recall_output` call names, so a kept
+ * clipped output answers from its own store. Undefined when the arguments
+ * name none: the pack's own parsing reports that, never this probe.
+ */
+function retainedRecallId(argsJson: string): string | undefined {
+  let raw: unknown
+  try {
+    raw = JSON.parse(argsJson)
+  } catch {
+    return undefined
+  }
+  if (typeof raw !== 'object' || raw === null) return undefined
+  const id: unknown = (raw as { readonly id?: unknown }).id
+  return typeof id === 'string' ? id : undefined
+}
+
 function modelOutputPage(content: string, request: OutputPageRequest): Promise<OutputPage> {
   const bytes = Buffer.from(content, MODEL_API_OUTPUT_ENCODING)
   // Pages start and end on character boundaries, as the CLI serves them (D26):
@@ -2649,6 +2667,12 @@ export class ModelApiSession implements ScheduledAgentSession {
   private restoredFileRefs: readonly UploadedMediaRef[] = []
   /** Packed tool outputs and the savings ledger (M73): undefined unless packing is on. */
   private readonly packing: ObservationPack | undefined
+  /**
+   * B3 (limits-output): clipped tool outputs kept whole, paged back by
+   * `recall_output`. Independent of packing, so a clipped middle stays
+   * reachable in every session, packing or not, subagent or not.
+   */
+  private readonly retainedOutputs = new ObservationPack()
   private readonly strictTools: boolean
   private readonly parallelReads: boolean
   private readonly outputContinuation: boolean
@@ -4670,7 +4694,9 @@ export class ModelApiSession implements ScheduledAgentSession {
         }),
       isSubagent,
       hasMemory,
-      hasPackedRecall: this.canPack(),
+      // B3 (limits-output): recall is offered while packing runs or a kept
+      // clipped output exists.
+      hasPackedRecall: this.canPack() || this.retainedOutputs.size > 0,
       checks: this.checkCommands(),
       // Trusted workspaces only, as the shell (M69).
       hasWebFetch: this.isWebFetchOffered(hasShell),
@@ -7905,12 +7931,26 @@ export class ModelApiSession implements ScheduledAgentSession {
   }
 
   /**
-   * A `recall_output` call (M73): pages a packed original back. A read of
-   * the session's own earlier output, so it runs in every mode without a
-   * card. Without packing the tool is not offered, and a model that calls
-   * it anyway is told so, never run.
+   * A `recall_output` call (M73, B3): pages a packed original or a kept
+   * clipped output back. A read of the session's own earlier output, so it
+   * runs in every mode without a card. For an id neither store holds, the
+   * tool is unknown when packing is off, and the pack's own unknown-id
+   * error when it runs: a model that calls it anyway is told so, never run.
    */
+  /**
+   * B3 (limits-output): the note appended to a clipped head whose whole is
+   * kept. It resumes where the clip cut, so nothing shown is sent twice.
+   */
+  private keptClippedNote(fullText: string, tool: string): string {
+    const id = this.retainedOutputs.retain(fullText, tool)
+    return `\n${retainNote(id, codePointBoundary(fullText, TOOL_OUTPUT_MAX_CHARS))}`
+  }
+
   private recallPacked(call: FunctionCallItem): ToolOutcome {
+    const retained = retainedRecallId(call.arguments)
+    if (retained !== undefined && this.retainedOutputs.has(retained)) {
+      return this.retainedOutputs.recall(call.arguments)
+    }
     return !this.canPack() || this.packing === undefined
       ? toolFailure(`unknown tool ${call.name}`)
       : this.packing.recall(call.arguments)
@@ -8718,6 +8758,9 @@ export class ModelApiSession implements ScheduledAgentSession {
       seen: this.seenFiles,
       provisionalSeen,
       files: this.policy().files,
+      // B3 (limits-output): clipped tool outputs stay reachable through recall.
+      retainOutput: (fullText: string, tool: string): string =>
+        this.retainedOutputs.retain(fullText, tool),
       ...(media === undefined &&
         this.getScheduledRun() !== undefined && {
           media: { reason: UI_TEXT.scheduledMediaSupport },
@@ -8865,7 +8908,13 @@ export class ModelApiSession implements ScheduledAgentSession {
     signal: AbortSignal,
   ): Promise<ToolOutcome> {
     if (external.kind === 'ide') {
-      const text = clipOutput(await external.tool.call(argumentsOf(call), signal))
+      // B3 (limits-output): a clipped IDE result stays reachable through recall.
+      const full = await external.tool.call(argumentsOf(call), signal)
+      if (full.length <= TOOL_OUTPUT_MAX_CHARS) {
+        return { output: full, visibleOutput: full }
+      }
+      const note = this.keptClippedNote(full, call.name)
+      const text = `${clipOutput(full)}${note}`
       return { output: text, visibleOutput: text }
     }
     const servers = this.deps.mcpServers
@@ -8878,10 +8927,28 @@ export class ModelApiSession implements ScheduledAgentSession {
     // only asks, in every approval mode.
     const route: McpElicitationHandler = (request) => this.runElicitation(itemId, request)
     const outcome = await servers.call(call.name, call.arguments, signal, route)
+    // B3 (limits-output): a clipped MCP result stays reachable through recall.
+    if (outcome.fullOutput === undefined) {
+      return {
+        output: outcome.output,
+        visibleOutput: outcome.visibleOutput,
+        ...(outcome.outputParts !== undefined && { outputParts: outcome.outputParts }),
+        ...(outcome.failureReason !== undefined && { failureReason: outcome.failureReason }),
+      }
+    }
+    const note = this.keptClippedNote(outcome.fullOutput, call.name)
+    const outputParts =
+      outcome.outputParts === undefined
+        ? undefined
+        : outcome.outputParts.map((part, index) =>
+            index === 0 && part.type === 'input_text'
+              ? { ...part, text: `${part.text}${note}` }
+              : part,
+          )
     return {
-      output: outcome.output,
-      visibleOutput: outcome.visibleOutput,
-      ...(outcome.outputParts !== undefined && { outputParts: outcome.outputParts }),
+      output: `${outcome.output}${note}`,
+      visibleOutput: `${outcome.visibleOutput}${note}`,
+      ...(outputParts !== undefined && { outputParts }),
       ...(outcome.failureReason !== undefined && { failureReason: outcome.failureReason }),
     }
   }
@@ -11639,7 +11706,12 @@ export class ModelApiSession implements ScheduledAgentSession {
     )
     return (
       this.networkCallWithdrawn(call, query, signal, browserCheckRestrictedCall) ?? {
-        outcome: browserCheckOutcome(placement.url, result),
+        // B3 (limits-output): a clipped report stays reachable through recall.
+        outcome: browserCheckOutcome(placement.url, result, {
+          keep: (fullText: string, tool: string): string =>
+            this.retainedOutputs.retain(fullText, tool),
+          tool: call.name,
+        }),
         isRejected: false,
       }
     )
@@ -13511,6 +13583,12 @@ export class ModelApiSession implements ScheduledAgentSession {
         replay: this.replay,
         contentOrigins: this.contentOrigins,
         diagnosticsHistory: this.diagnosticsHistory,
+        // B3 (limits-output): a budget-cut verify report stays reachable through recall.
+        retainVerifyOutput: {
+          keep: (fullText: string, tool: string): string =>
+            this.retainedOutputs.retain(fullText, tool),
+          tool: 'verify',
+        },
         checkScope,
         newEffects: newHookEffects,
         verificationAdmission: (signal) => this.verificationAdmission(signal),
