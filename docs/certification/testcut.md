@@ -214,3 +214,187 @@ src/runtime/gitUserEnvironment.ts:36:17`. Restored the file byte-exact
 - duplication: 0 (0 clones)
 - build --production (`node scripts/build.mjs --production`): 0
 - related suites (repo default timeout): runtimeAccountsService 11/11 + runtimeServices 17/17, exit 0
+
+---
+
+# PR 172 hosted-run repair (lane TESTCUTFIN2, 2026-10-15)
+
+PR 172's first hosted run (CI 38658777663, Hosts 38658777612, Action
+check 38658777764, Browser check 38658777580) failed 19 checks with
+three causes. Base for every comparison below is local `main`
+(898a26c5e, release 0.18.2); this rig has no remote, so `origin/main`
+in the brief reads as `main`. Reference: the overhaul's per-file
+verdicts (`chore/test-overhaul:docs/testing/test-overhaul-2026-10-12.json`,
+TypeScript-parser + transitive-import classifier with a recorded
+80-file hand check), cross-checked by this lane's own marker script
+(`temp/classify.mjs`, kept uncommitted in `temp/`) and by reading
+every file this record calls RESTORE plus samples of every DELETE
+group. Method note: the overhaul's `vi.stubEnv(...) = GO` blanket
+rule was over-broad (five of its stubEnv files stub test data, not a
+platform), and its rule 4 ("no process test against a stand-in")
+deleted real-product suites whose only stand-ins are the outside
+world; both are corrected below. Its fake-code verdicts were confirmed
+by sampling and stand.
+
+Counts: the overhaul deleted 992 files under `test/`; this lane
+restores 29 and keeps 963 deleted. No product (`src/`, `action/`,
+`scripts/`) line changes except the stale `@unwired` tag (below).
+
+## 1a. Workflow-referenced restores (19 files, commit b2f35827e)
+
+Every `vitest run <path>` token in `.github/workflows/*.yml` plus the
+live script references, verified by `temp/workflow-paths.mjs`
+("all workflow vitest paths exist", 10 tokens across hosts.yml,
+build.yml, action-check.yml, browser-check.yml):
+
+| File                                   | Why it stays                                                                                                                   |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| test/e2e/acpStdio.e2e.test.ts          | Real installed agent as a child process, driven by the ACP SDK's own client; only the Muse Code CLI is faked (outside world)   |
+| test/e2e/execStdio.e2e.test.ts         | Real built engine; fake fetch/keyring only through a test preload (outside world)                                              |
+| test/e2e/execTestLauncher.e2e.test.ts  | Action check workflow runs it; real run-exec entry over the test package                                                       |
+| test/unit/actionGate.test.ts           | Real gate over captured GitHub payloads with a stub API (GitHub is the outside world)                                          |
+| test/unit/actionApply.test.ts          | Real apply/prepare/push against local bare origins with the fake agent binary (installed agent = outside world for the Action) |
+| test/unit/actionGit.test.ts            | Real safeGit against armed fixture programs                                                                                    |
+| test/unit/browserCheckLive.test.ts     | Real pinned browser runtime (browser-check workflow)                                                                           |
+| test/unit/browserCheckR51.test.ts      | R51 control for the above                                                                                                      |
+| test/unit/helpers/browserProcesses.ts  | Referenced by browser-check.yml; starts the real pinned runtime                                                                |
+| test/unit/helpers/actionFixtures.ts    | Real fixture repos/owners used by the kept Action suites                                                                       |
+| test/unit/helpers/actionModules.d.ts   | Type declarations the kept Action suites typecheck against                                                                     |
+| test/unit/helpers/liveBrowser.ts       | Browser-check helper (loopback servers + real browser driver)                                                                  |
+| test/unit/helpers/modelApiBundle.ts    | Builds the real Model API bundle for the stdio suites                                                                          |
+| test/unit/helpers/github/deviceFlow.ts | REVERTED again (commit d95183034): only the deleted fake-infra e2e used it                                                     |
+| test/e2e/acpFixture.ts                 | Shared fixture of the stdio suites (fake CLI install, credential file)                                                         |
+| test/e2e/createdHelperFixture.ts       | Builds the real created helper for execStdio                                                                                   |
+| test/e2e/fakeMuse.ts                   | The fake Muse Code CLI the stdio suites drive (outside world)                                                                  |
+| test/e2e/fakeGitHub.ts                 | REVERTED again (commit d95183034): only the deleted fake-infra e2e used it                                                     |
+| test/e2e/reportsEntry.ts               | Reporting entry the restored reports e2e bundles by path                                                                       |
+| test/harness/reporting/verify.mjs      | Spawned by path in scripts/readme-shots.mjs while `scripts/readme-shots.json` still lists the deterministic-report shot        |
+
+Two helpers the restores needed back: `memorySecrets` (in-memory
+SecretStore, a stand-in for the OS credential store — the outside
+world) re-added to `test/unit/helpers/fakes.ts`, and
+`test/action/fake-agent.mjs` (imitates the installed agent's frozen
+exec/scan-secrets protocol over a real child process; commit
+c72ba3862). Proof it matters: actionApply was 1/6 without it
+(`patchPublished` false — `preparedRun` could not start its agent
+child), 6/6 with it; untouched main measured 6/6 in the same
+conditions, so the product was never broken. `test/action/fake-npm.mjs`
+stays deleted: only deleted install tests referenced it.
+
+## 1b. Triage of the remaining deleted files
+
+RESTORE — read in full on main, exercising real code with stand-ins
+only for the outside world (commit 329e1bcd3):
+
+| File                                                                                                                                                                | Evidence read                                                                                                                                                                                        |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| test/e2e/reports.e2e.test.ts                                                                                                                                        | Builds real `src/runtime/main.ts` + reporting entry, runs the binary as a child (imports only a timeout const)                                                                                       |
+| test/e2e/schedulesStdio.e2e.test.ts                                                                                                                                 | Builds real runtime, spawns schedule CLI boundary cases as a child                                                                                                                                   |
+| test/unit/actionInputs.test.ts                                                                                                                                      | Real `action/lib/{inputs,lifecycle,run-exec,tools}.mjs` + real `parseExec` over real temp dirs/repos; its `preparedRun` use is the outside-world fake agent                                          |
+| test/unit/actionManifest.test.ts                                                                                                                                    | Strict-reads the real composite manifests, asserts pins/steps/conditions                                                                                                                             |
+| test/unit/eval/evalTasks.test.ts (+ evalFixes.ts)                                                                                                                   | Real eval verifiers over fixture task dirs; `stubEnv` sets only test-data env                                                                                                                        |
+| test/unit/hostL10n.test.ts                                                                                                                                          | Real `loadUiTable` on real temp tables; the local `fakeLog` is observer `vi.fn` sinks (allowed), D33 behavior a person depends on                                                                    |
+| test/unit/reviewMaterial.test.ts (+ `helpers/isolatedGitConfig.ts`, `helpers/gitFilterNames.ts`, `aliasedReviewRepositories` back in kept `helpers/reviewRoots.ts`) | Real review collector over real git repos with hostile listings; `vi.fn` wraps the real runner as observer. Its 10 failures were the trimmed helper export, not the product: 47/47 after the restore |
+
+DELETE — kept deleted, grouped by deciding evidence (overhaul
+verdict + lane sample reads; one sample per group was opened and the
+marker confirmed):
+
+| Group (overhaul decider, files)                                                                                                                                                                                                                                                                                                                                                                                                                                                          | Faked own-code module named                                                                                                                           |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `vi.mock(...)` (146) — sampled `accountHost.test.ts` mocks `@muse-code/sdk`                                                                                                                                                                                                                                                                                                                                                                                                              | Banned by the owner rule with no exceptions (`vi.mock`, any target); e.g. the SDK driver, `src/` modules                                              |
+| `helpers/fakes` + transitive (115+8+6)                                                                                                                                                                                                                                                                                                                                                                                                                                                   | Editor surfaces, secret stores, budget config, providers (our host layer)                                                                             |
+| `vi.useFakeTimers` (58) — sampled `acpVault.test.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                     | Fakes our async/clock boundaries                                                                                                                      |
+| `vi.stubGlobal` (20) — sampled `browserCapture.test.ts` stubs `navigator/MediaStream/MediaRecorder`                                                                                                                                                                                                                                                                                                                                                                                      | Browser/editor globals                                                                                                                                |
+| stand-in `mock*` without `spyOn` (~60) — sampled `companionLifecycle.test.ts` (`panel.handler.post.mockImplementation`)                                                                                                                                                                                                                                                                                                                                                                  | Our handlers/services given replacement behavior                                                                                                      |
+| `vi.spyOn` with `mock*` (~40)                                                                                                                                                                                                                                                                                                                                                                                                                                                            | Same class, observed-then-replaced                                                                                                                    |
+| `vscode` / `mocks/vscode` import (32) — e.g. `languageServices`, `chatSharingHost`, `providerKeyPrompt`, `runtimeConsent`, `webFetchConfirm`                                                                                                                                                                                                                                                                                                                                             | The editor API (explicitly banned)                                                                                                                    |
+| `fakeToolIo` (30), `fakeContextIo` (10), `fakeMemoryIo` (4), `fakeSessionStore` (4), `fakePlanFiles`, `fakeFolders`, `fakeLanguageService`                                                                                                                                                                                                                                                                                                                                               | Our tool/context/session/store layer                                                                                                                  |
+| `reporting/snapshot` via `fakeSourcePort` (28+) — collect._, render._, report* suites                                                                                                                                                                                                                                                                                                                                                                                                    | Our reporting source ports                                                                                                                            |
+| `schedules/*` fakes (~30: `fakeSchedule`, `FakeScheduleClock`, `FakeScheduleApprovalStream`, `fakeRuntimeScheduleControl`, `MemoryScheduleFs`)                                                                                                                                                                                                                                                                                                                                           | Our schedule store/clock/approvals                                                                                                                    |
+| `vault/*` fakes (~25: `FakeVaultClock`, `fakeScrub`)                                                                                                                                                                                                                                                                                                                                                                                                                                     | Our vault clock/exec scrubbing                                                                                                                        |
+| `estimator/*` fakes (~20: `fakeDisclosures`, estimator `fakes.ts`)                                                                                                                                                                                                                                                                                                                                                                                                                       | Our estimator disclosures/runs                                                                                                                        |
+| `accounts/*`, `teamFakes`, `playbook/fakes`, `resources/fakes`, `usageAdapters`, `workerIdentity`, `mcpFixtures` (`FAKE_MCP_SERVER`), `fakeMsp`, `fakeGit` (VS Code git extension API), `github/fakes` (`fakeTokenSource`, `fakeRuntimeGitDeps`), `fakeModelApi`, `questions/*` (`FakeQuestionClock`, `FakeQuestionStore`, …)                                                                                                                                                            | Our accounts/team/playbook/resources/usage/MCP/MSP/git/GitHub/model-client/question services                                                          |
+| `createServer`/`localhost` hand-answering servers (6), `chromium.launch`/`playwright-core` suites (8) — e.g. `estimator.e2e`, `fontsPack`, `panelMarkBrowser`                                                                                                                                                                                                                                                                                                                            | Hand-answering provider/local servers; new process/browser tests (owner rules)                                                                        |
+| `accounts.e2e` ("Fake-only composition" header), `providersXFix` (hand-built `ProvidersDeps` with hand-answering fetch), `playbookOutcomes` (`FAKE_PLAYBOOK_MODULE`), `nativeGitService` (`fakeRuntimeGitDeps`), `questionFakes` (tests the dependency fakes themselves), `githubTokenSource` (`fakeTokenSource`), `m123Unreleased` (`fakeGit`), `pluginContainment` (`FAKE_MCP_SERVER`), `acpSchedules` (`fakeRuntimeScheduleControl`), `estimator.e2e` (browser + `FakeEstimateStart`) | Read in full on main; each fakes our own ports or tests the fakes                                                                                     |
+| 8 PASS-4 gate mirrors (`genRoadmap`, `playbookBundles`, `reportingBundles`, `resourceHistoryBundle`, `teamActivationGraph`, `vsixBudget`, `webviewBundle`, `webviewBundles`) + `visualMatrix` (capture hash pins)                                                                                                                                                                                                                                                                        | Deleted by reviewed PASS 4 (`c3ddc0bab`): a pipeline gate enforces the same on real inputs; owner rule 3 (pins/mirrors go). Not relitigated here      |
+| 102 STAY-but-orphaned support files + harness scenes/fixtures + `test/action/fake-npm.mjs`                                                                                                                                                                                                                                                                                                                                                                                               | No kept or restored test references them (import-resolution check over every restored file, transitive); `fake-npm` served only deleted install tests |
+
+## 1c. Restored-suite results (repo default timeouts, no `--testTimeout`)
+
+actionGate 17/17, actionGit 51/51, actionApply 6/6, actionInputs +
+actionManifest + hostL10n 45/45, evalTasks + reviewMaterial 119/119
+(47 reviewMaterial after the helper fix), execTestLauncher 6/6,
+execStdio 46/46, acpStdio 13/13, reports + schedulesStdio 13/13,
+checkCommands 10/10 + 2 Windows-only skipped (Linux rig),
+cyclesRoots 4/4. execStdio's first attempt failed its packaging
+`beforeAll` (14 pass / 32 skipped) and passed 46/46 on rerun ~7 min
+later with no code change; rig load was 10.2 at the time — recorded
+UNMEASURED, cause not isolated. browserCheckLive/R51 self-skip here
+(`MUSE_TEST_BROWSER_STORAGE` names no installed runtime; the
+browser-check workflow installs it) — NOT RUN here, for the hosted
+workflow, not green by skip.
+
+## 2. Cycle roots
+
+`cyclesRoots > covers every knip entry` failed on all three systems:
+164 knip entries (the TESTCUTFIN unwired-feature declaration) had no
+cycle root. Commit 9d08238dc appends the exact 164 `src/` files;
+commit af5b10357 adds the two string-loaded knip entries from this
+lane (`test/e2e/reportsEntry.ts`, `test/harness/reporting/verify.mjs`).
+`npm run cycles`: 2285 files, no circular dependency.
+
+## 3. Windows 161 s (UNMEASURED — no code change)
+
+`checkCommands > hands a native program each path as one argument`
+took 161,603 ms on windows-latest shard 5 (job 116174782905).
+Measured: the test file, `src/core/verify/checkCommands.ts` and the
+quoting (`src/core/shellQuote.ts`, incl. the U+2018–U+201B doubling)
+are byte-identical to main (`git diff main HEAD` empty), so main
+behaves the same by construction. Whether main's CI shows it could
+not be checked: `gh` has no auth on this rig (`gh auth login`
+required) and the API refuses job logs without admin rights
+(`403 "Must have admin rights to Repository"`, pasted). No Windows
+runner exists on this rig to reproduce. Static analysis: every
+hostile path is refused before execution, the win32 quoting is
+balanced (covered by the passing quoting cases), stdin is ignored,
+and `checkCommandLine` is pure string building — no deterministic
+wait found in product or test code. The 161 s sits inside the test's
+own unbounded `execFileSync(powershell …)`, which a sync-blocked
+worker cannot interrupt (vitest's 15 s Windows timeout cannot fire
+there), consistent with a cold PowerShell + Node start stall on a
+loaded hosted runner — but that is UNMEASURED, not a finding: no
+timeout or retry was added (per the brief) and no product wait exists
+to fix. For the lead: the CI log around job 116174782905 will show
+whether the sibling `.cmd` case (second launch, warm) was fast,
+which decides cold-start stall vs. something in the native launch.
+
+## Gates (final tree, exit codes, measured without pipes)
+
+- deadcode: 1 before the repair (restored suites orphaned 4 files +
+  6 helper exports), 0 after (commits d95183034, ede3cf56f;
+  hints-only: the 3 standing configuration hints)
+- red drill for the repair: removing any restored consumer's helper
+  re-lists it (observed live: `memorySecrets` removal failed eslint
+  on the restored acpStdio; `aliasedReviewRepositories` removal
+  failed 10 reviewMaterial cases; both restored byte-exact)
+- typecheck (all 5 projects): 0
+- eslint (all 71 changed lintable files): 0
+- prettier (changed files + knip.jsonc + cycles.json): 0
+- check:host-api: 0
+- cycles: 0 (2285 files, no circular deps); cyclesRoots 4/4: 0
+- duplication: 0
+- build (`npm run build`): 0
+- security:audit: 0
+- dependents: `vitest related` over changed `src/` (shadowGit.ts,
+  comment-only tag removal) selects only browserCheckLive (skipped
+  here, above)
+- NOT RUN here: browserCheckLive/R51 (no installed runtime; hosted
+  workflow owns them), Windows-only checkCommands cases (Linux rig),
+  `npm run security:sast` (semgrep not installed on this rig)
+
+## Commits (this lane run, hooks on, trailer exact)
+
+b2f35827e (workflow restores), c72ba3862 (fake-agent.mjs + apply
+proof), 329e1bcd3 (real-code restores), d95183034 + ede3cf56f
+(deadcode honesty), 9d08238dc + af5b10357 (cycle roots).
