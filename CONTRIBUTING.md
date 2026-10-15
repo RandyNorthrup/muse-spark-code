@@ -106,7 +106,7 @@ Use this order for a candidate branch:
   `npm run quality:ci` and CI): formatting, ESLint (zero warnings),
   stylelint, the PowerShell lint, type checks, the localization and host-API
   checks, dead-code and cycle detection, duplication, unit tests with no coverage gate, the
-  production build with bundle budgets and the bundle split, the VSIX pack, `npm audit`,
+  production build with bundle budgets and the bundle split, `npm audit`,
   the accessibility gate, secret scanning and semgrep. CI's full tier runs
   the gates on Ubuntu, Windows and macOS, the accessibility gate on Ubuntu
   except on pull requests, and integration tests on Ubuntu and Windows, and gitleaks and
@@ -141,7 +141,7 @@ Use this order for a candidate branch:
 
 - A visible change gets a harness scenario (`test/harness/index.html`, its
   name listed in `scripts/lib/harnessServer.mjs` beside the related one),
-  rendered with `npm run harness:shots -- <names>` (`--theme=dark`, `light`,
+  rendered with `npm run ui:look -- <names>` (`--theme=dark`, `light`,
   `hc-dark`, `hc-light`, `one-dark-pro` or `dracula`; `--lang=pseudo` for clipping) and checked with
   `node scripts/a11y.mjs <names>` in the four themes. Scenes wait with
   `whenFound`, never fixed delays; nest waits when one control reveals the
@@ -514,7 +514,7 @@ never a literal in the code:
 
 `npm run check:l10n` checks all of this. It fails a key missing from a
 translation, a changed `{slot}`, a wrong set of plural forms, and a
-`UI_TEXT` read at module load. `npm run harness:shots -- --lang=pseudo`
+`UI_TEXT` read at module load. `npm run ui:look -- --lang=pseudo`
 renders the panel in a pseudo-locale where any English left outside the
 table stands out.
 
@@ -530,7 +530,7 @@ there, and the gate compares each form's slots with the English.
 **Correcting a translation.** The translations are machine-made. Edit the
 line in `l10n/ui.<language>.json` or `package.nls.<language>.json`, keeping
 its `{slots}` and code spans. Run `npm run check:l10n` and
-`npm run harness:shots -- --lang=<language>` to see the result.
+`npm run ui:look -- --lang=<language>` to see the result.
 
 - **A value that reads the same as English** (a name, or a word the language
   borrows) goes in `l10n/untranslated.json` under that language.
