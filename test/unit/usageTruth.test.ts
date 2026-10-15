@@ -7,9 +7,10 @@
 // ids absent). No doubles of our modules: the recording runs into a real
 // UsageJournalStore on a real temporary folder, then the real aggregate,
 // service and text.
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
+import { USAGE_DAYS_FOLDER, USAGE_FOLDER, USAGE_VERSION_FOLDER } from '../../src/shared/constants'
 import { afterEach, describe, expect, it } from 'vitest'
 import { mapNotification } from '../../src/core/backends/musecode/mapNotification'
 import { MuseUsageDeltas } from '../../src/core/backends/musecode/MuseCodeHost'
@@ -290,6 +291,64 @@ describe('usage says what really happened (F20-F24)', () => {
     expect(text).toContain(`museCode / ${MODEL}`)
     // The standing model without its tier must not appear as a whole label.
     expect(text).not.toContain(`museCode / ${STANDING_MODEL}:`)
+  })
+
+  it('reads version 2 limit snapshots with and without plan as current (T7)', async () => {
+    const root = await mkdtemp(path.join(tmpdir(), 'usagetrue-v2-'))
+    roots.push(root)
+    const day = '2026-10-14'
+    const at = new Date(2026, 9, 14, 9, 10).getTime()
+    const limit = {
+      type: 'limit',
+      id: 'limit-1',
+      at,
+      day,
+      timezoneOffsetMins: -120,
+      client: 'test',
+      backend: 'museCode',
+      provider: 'museCode',
+      source: 'museCode',
+      observedAt: at,
+      windows: [{ id: 'window', usedPercent: 12, resetsAt: at + 3_600_000, windowMins: 300 }],
+    }
+    const lines = [
+      // What this release wrote before the version 3 bump, and what the
+      // previous release wrote: both must read, never drop as invalid.
+      { ...limit, v: 2, plan: PLAN_NAME },
+      { ...limit, v: 2, id: 'limit-2' },
+      // The version 1 shape still migrates after the union reorder.
+      { ...limit, v: 1, id: 'limit-0' },
+      { ...limit, v: 3, id: 'limit-3', plan: PLAN_NAME },
+      // A genuinely newer line stays a newer-version line, not an invalid one.
+      { ...limit, v: 4, id: 'limit-4', plan: PLAN_NAME },
+    ]
+    const folder = path.join(root, USAGE_FOLDER, USAGE_VERSION_FOLDER, USAGE_DAYS_FOLDER, day)
+    await mkdir(folder, { recursive: true })
+    await writeFile(
+      path.join(folder, 't7.jsonl'),
+      `${lines.map((line) => JSON.stringify(line)).join('\n')}\n`,
+    )
+    const warnings: string[] = []
+    const store = new UsageJournalStore(new NodeUsageFs(root), {
+      writerId: 'usage-truth-t7',
+      now: () => at,
+      isEnabled: () => true,
+      onWriteError: () => {
+        warnings.push('usageWriteFailed')
+      },
+    })
+    const journal = await store.read()
+    expect(warnings).toEqual([])
+    expect(journal.invalidLines).toBe(0)
+    expect(journal.newerVersionRecords).toBe(1)
+    expect(journal.limits).toHaveLength(4)
+    for (const snapshot of journal.limits) expect(snapshot.v).toBe(3)
+    expect(journal.limits.map((snapshot) => snapshot.plan)).toEqual([
+      PLAN_NAME,
+      undefined,
+      undefined,
+      PLAN_NAME,
+    ])
   })
 
   it('never prints today twice without saying what separates the rows (F24)', async () => {
