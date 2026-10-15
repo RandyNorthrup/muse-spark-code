@@ -42,6 +42,7 @@ import {
   RequestTransport,
   parseJsonResponse,
   ModelApiError,
+  isModelApiError,
   assertConfirmedAllowed,
 } from '../backends/modelapi/transport'
 import { withDeadline } from '../timeouts'
@@ -101,8 +102,8 @@ const costSchema = z.object({
   cache_write: z.optional(z.number().check(z.nonnegative())),
 })
 const digest = (value: string) => createHash('sha256').update(value).digest('hex')
-const fail = (): never => {
-  throw new Error(UI_TEXT.modelsPanelUnavailable)
+const fail = (reason: string): never => {
+  throw new Error(fill(UI_TEXT.webFetchNetwork, { detail: reason }))
 }
 
 function ignoreTransportLog(): void {
@@ -110,23 +111,20 @@ function ignoreTransportLog(): void {
   // per-request diagnostics or forwarding arbitrary provider text to a log.
 }
 
-/**
- * A send that never got a response (lane TURNLIMIT, F88): the real cause is
- * the network error's fixed-vocabulary code, never its free text (which can
- * carry paths or account details the redactor would not catch). Still no
- * ambiguous retry: a pinned send may have reached the provider, so the
- * message says so in words.
- */
-/**
- * A failed send through a configured provider (lane LIMITSA, F88): every
- * product error keeps its own words. Budget and session-budget refusals,
- * paid-daily stops, the provider's own error with its status and message,
- * codec refusals, the output minimum and a lapsed confirmation all reach
- * the person as themselves. Only a non-`Error` throw, which carries no
- * words of its own, becomes the unavailable sentence.
- */
+/** Preserve product failures; include HTTP status in the person's message. */
 export function configuredStreamError(error: unknown): Error {
-  return error instanceof Error ? error : new Error(UI_TEXT.modelsPanelUnavailable)
+  if (isModelApiError(error) && error.status > 0) {
+    const status = `HTTP ${String(error.status)}`
+    return new ModelApiError(
+      error.message.startsWith(status) ? error.message : `${status}: ${error.message}`,
+      error.status,
+      error.kind,
+      error.code,
+    )
+  }
+  return error instanceof Error
+    ? error
+    : new Error(fill(UI_TEXT.webFetchNetwork, { detail: 'unknown_provider_failure' }))
 }
 
 /**
@@ -151,6 +149,7 @@ export function configuredProviderStreamError(
     : undefined
 }
 
+/** A pinned send may have arrived: name its code, never retry ambiguously. */
 export function providerSendFailure(error: unknown): ModelApiError {
   const code =
     typeof error === 'object' && error !== null && 'code' in error && typeof error.code === 'string'
@@ -177,7 +176,7 @@ async function* chunks(response: PinnedResponse, idleMs: number) {
       if (part.done) return
       const bytes = z.instanceof(Uint8Array).parse(part.value)
       size += bytes.byteLength
-      if (size > SUBSCRIPTION_STREAM_MAX_BYTES) return fail()
+      if (size > SUBSCRIPTION_STREAM_MAX_BYTES) return fail('provider_stream_too_large')
       yield bytes
     }
   } finally {
@@ -205,7 +204,7 @@ export function createConfiguredProviderServices(
       return z.object({ default: catalogSchema }).parse(packed).default
     }
   }
-  const delegate = () => meta ?? fail()
+  const delegate = () => meta ?? fail('model_backend_unavailable')
   const base: ProviderClient = {
     hasPaidDailyBudget: meta?.hasPaidDailyBudget ?? false,
     currentKeyDigest: () => delegate().currentKeyDigest(),
@@ -229,34 +228,36 @@ export function createConfiguredProviderServices(
     if (!result.ok) {
       if (result.reason === 'missing') return providersFile.emptyProvidersFile()
       if (result.reason === 'invalid') throw new RangeError(result.detail)
-      return fail()
+      return fail('providers_file_unreadable')
     }
     revision = digest(JSON.stringify(result.file))
     return result.file
   }
   const presetFor = (entry: ProviderEntry) =>
-    presets.planKeyPresetById(entry.preset) ?? presets.presetById(entry.preset) ?? fail()
+    presets.planKeyPresetById(entry.preset) ??
+    presets.presetById(entry.preset) ??
+    fail('provider_preset_unsupported')
   const credential = async (entry: ProviderEntry, supplied?: string) => {
     if (entry.auth === 'none') return
-    if (entry.auth !== 'apiKey') return fail()
+    if (entry.auth !== 'apiKey') return fail('provider_auth_unsupported')
     if (supplied !== undefined) return supplied
     const stored = await options.secrets.get(`${PROVIDER_SECRET_PREFIX}${entry.id}`)
-    if (stored === undefined) return fail()
+    if (stored === undefined) return fail('provider_credential_missing')
     let value: unknown
     try {
       value = JSON.parse(stored)
     } catch {
-      return fail()
+      return fail('provider_credential_invalid')
     }
     const parsed = secretSchema.safeParse(value)
     return !parsed.success ||
       endpointPolicy.originOf(parsed.data.origin) !== endpointPolicy.originOf(entry.address ?? '')
-      ? fail()
+      ? fail('provider_credential_invalid_or_origin_changed')
       : parsed.data.secret
   }
   const transportFor = (entry: ProviderEntry, supplied?: string, keyTestOrigin?: string) => {
     const preset = presetFor(entry)
-    const configuredUrl = new URL(entry.address ?? fail())
+    const configuredUrl = new URL(entry.address ?? fail('provider_address_missing'))
     const base = new URL(keyTestOrigin ?? configuredUrl.href)
     if (
       (!preset.wireCapture && entry.preset !== 'custom' && entry.auth !== 'none') ||
@@ -264,7 +265,7 @@ export function createConfiguredProviderServices(
       (keyTestOrigin !== undefined &&
         (preset.keyTest.kind !== 'provider-key' || preset.keyTest.origin !== keyTestOrigin))
     )
-      return fail()
+      return fail('provider_origin_mismatch')
     const auth =
       entry.auth === 'none'
         ? new NoAuthSource(base.origin)
@@ -299,7 +300,8 @@ export function createConfiguredProviderServices(
           if (typeof url === 'string') requestUrl = url
           else if (url instanceof URL) requestUrl = url.href
           else requestUrl = url.url
-          if (target?.url.href !== requestUrl || init?.redirect !== 'error') return fail()
+          if (target?.url.href !== requestUrl || init?.redirect !== 'error')
+            return fail('provider_pin_mismatch')
           const signal = init.signal ?? AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS)
           const headers = Object.fromEntries(
             Object.entries(z.record(z.string(), z.string()).parse(init.headers)).map(
@@ -376,12 +378,12 @@ export function createConfiguredProviderServices(
       },
       verifyEndpoint: async (url: string) => {
         const parsed = new URL(url)
-        if (parsed.origin !== base.origin) return fail()
+        if (parsed.origin !== base.origin) return fail('provider_origin_mismatch')
         if (
           keyTestOrigin !== undefined &&
           (preset.keyTest.kind !== 'provider-key' || parsed.pathname !== preset.keyTest.path)
         )
-          return fail()
+          return fail('provider_key_test_path_mismatch')
         const host = parsed.hostname.replaceAll(/^\[|\]$/g, '')
         const answers =
           isIP(host) === 0
@@ -394,20 +396,20 @@ export function createConfiguredProviderServices(
               )(host)
             : [host]
         const verdict = endpointPolicy.checkEndpointUrl(base.href, answers)
+        if (verdict.kind === 'refused') return fail(verdict.reason)
         if (
-          verdict.kind === 'refused' ||
-          (verdict.kind === 'confirm-private' &&
-            (keyTestOrigin !== undefined || entry.privateNetwork !== true))
+          verdict.kind === 'confirm-private' &&
+          (keyTestOrigin !== undefined || entry.privateNetwork !== true)
         )
-          return fail()
-        const address = answers[0] ?? fail()
+          return fail('provider_private_network_not_approved')
+        const address = answers[0] ?? fail('provider_dns_no_addresses')
         if (supplied === undefined) {
           const file = await read()
           if (
             JSON.stringify(file.providers.find((row) => row.id === entry.id)) !==
             JSON.stringify(entry)
           )
-            return fail()
+            return fail('provider_configuration_changed')
         }
         target = {
           url: parsed,
@@ -420,7 +422,7 @@ export function createConfiguredProviderServices(
     }
   }
   const baseAndPath = (entry: ProviderEntry, path: string) => {
-    const url = new URL(entry.address ?? fail())
+    const url = new URL(entry.address ?? fail('provider_address_missing'))
     const prefix = url.pathname.replace(/\/$/, '')
     return { baseUrl: url.origin, path: prefix + path }
   }
@@ -465,17 +467,19 @@ export function createConfiguredProviderServices(
       const format = entry.format ?? presetFor(entry).format
       const value = await getJson(entry, presetFor(entry).modelsList.path, supplied, signal)
       if (format === 'anthropic')
-        return anthropic.parseAnthropicModelsList(value).map((row) => row.native ?? fail())
+        return anthropic
+          .parseAnthropicModelsList(value)
+          .map((row) => row.native ?? fail('provider_model_metadata_missing'))
       if (format === 'gemini')
         return gemini.parseGeminiModelsList(value).map((row) => ({
-          ...(row.native ?? fail()),
+          ...(row.native ?? fail('provider_model_metadata_missing')),
           id: row.id,
         }))
       return format === 'ollama'
         ? ollama.parseOllamaModelsList(value)
         : modelMetadata.parseNativeModelsList(value)
-    } catch {
-      return fail()
+    } catch (error: unknown) {
+      throw configuredStreamError(error)
     }
   }
   const models = async (): Promise<RegistryModel[]> => {
@@ -530,7 +534,7 @@ export function createConfiguredProviderServices(
         else if (card !== undefined) pricing = { kind: 'priced', card }
         const model: RegistryModel = {
           ref,
-          origin: endpointPolicy.originOf(entry.address ?? '') ?? fail(),
+          origin: endpointPolicy.originOf(entry.address ?? '') ?? fail('provider_address_invalid'),
           evidence: {
             capabilities: four,
             effortLevels: capabilities.capabilityEffortLevels(record),
@@ -561,10 +565,10 @@ export function createConfiguredProviderServices(
     return rows
   }
   const boundClient = (ref: string): ProviderClient => {
-    const bound = records.get(ref) ?? fail()
+    const bound = records.get(ref) ?? fail('provider_model_binding_missing')
     const { entry, record } = bound
     const preset = presetFor(entry)
-    const native = modelRef.parseModelRef(ref)?.modelId ?? fail()
+    const native = modelRef.parseModelRef(ref)?.modelId ?? fail('provider_model_reference_invalid')
     let reasoningParam: chat.ChatPresetQuirks['reasoningParam'] = 'none'
     if (record.reasoning.effortLevels.state === 'yes')
       reasoningParam = preset.id === 'openrouter' ? 'effort-object' : 'effort-flat'
@@ -732,7 +736,10 @@ export function createConfiguredProviderServices(
             wire = JSON.parse(
               ollama.encodeOllamaRequest(body, {
                 model: native,
-                numCtx: entry.numCtx?.[native] ?? record.limits.contextTokens ?? fail(),
+                numCtx:
+                  entry.numCtx?.[native] ??
+                  record.limits.contextTokens ??
+                  fail('provider_context_limit_missing'),
                 ...(record.reasoning.supported.state === 'yes' && {
                   think: ollama.thinkForEffort(body.reasoning.effort),
                 }),
@@ -755,7 +762,7 @@ export function createConfiguredProviderServices(
         return { path: baseAndPath(entry, path).path, body: wire, headers: extras }
       },
       decode: async function* (response) {
-        if (response.body === null) return fail()
+        if (response.body === null) return fail('provider_response_body_missing')
         for await (const event of decode(response.body, response.status)) {
           const providerError = configuredProviderStreamError(event, response.status)
           if (providerError !== undefined) throw providerError
@@ -821,7 +828,7 @@ export function createConfiguredProviderServices(
           // lapsed or mismatched confirmation refuses with the run's own
           // guidance before the provider's unavailable text.
           assertConfirmedAllowed(body.model, confirmed)
-          if (body.model !== ref) return fail()
+          if (body.model !== ref) return fail('provider_model_binding_changed')
           // No limit on the stream's total time: it ends when it finishes,
           // on the caller's signal, on a budget or request cap, or after
           // `idleMs` of silence (the transport bounds the wait for headers
@@ -906,8 +913,8 @@ export function createConfiguredProviderServices(
         )
           return digest(
             entry.auth === 'none'
-              ? (endpointPolicy.originOf(entry.address ?? '') ?? fail())
-              : ((await credential(entry)) ?? fail()),
+              ? (endpointPolicy.originOf(entry.address ?? '') ?? fail('provider_address_invalid'))
+              : ((await credential(entry)) ?? fail('provider_credential_missing')),
           )
       }
       return
@@ -921,7 +928,10 @@ export function createConfiguredProviderServices(
           .string()
           .check(z.minLength(1))
           .parse(native['id'] ?? native['name'])
-        const source = { kind: 'models-list' as const, ref: entry.address ?? fail() }
+        const source = {
+          kind: 'models-list' as const,
+          ref: entry.address ?? fail('provider_address_missing'),
+        }
         const known = catalogue.providers[preset.id.replace('-plan', '')]?.models[id]
         const record = capabilities.resolveModelCapabilities(
           { provider: entry.id, nativeModel: id, format: entry.format ?? preset.format },
@@ -1011,7 +1021,7 @@ export function createConfiguredProviderServices(
     test: async (entry: ProviderEntry, key: string) => {
       const outcome = await presets.runProviderKeyTest(
         presetFor(entry).keyTest,
-        new URL(entry.address ?? fail()).origin,
+        new URL(entry.address ?? fail('provider_address_missing')).origin,
         async (origin, path) => {
           try {
             await getJson(
@@ -1019,7 +1029,9 @@ export function createConfiguredProviderServices(
               path,
               key,
               AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
-              origin === new URL(entry.address ?? fail()).origin ? undefined : origin,
+              origin === new URL(entry.address ?? fail('provider_address_missing')).origin
+                ? undefined
+                : origin,
             )
             return { ok: true, modelCount: undefined }
           } catch {
@@ -1039,7 +1051,7 @@ export function createConfiguredProviderServices(
       // No captured paid-token request is installed; never dispatch one here.
       return {
         kind: 'failed' as const,
-        detail: outcome.paid ? UI_TEXT.modelsPanelUnavailable : outcome.reason,
+        detail: outcome.paid ? UI_TEXT.signInNotOffered : outcome.reason,
       }
     },
   }

@@ -8,12 +8,25 @@ import { SessionBudgetExceededError } from '../../src/core/backends/modelapi/ses
 import { UI_TEXT } from '../../src/shared/constants'
 
 // Lane LIMITSA, F88: a configured provider send masks nothing. Every product
-// error keeps its own words; only a throw with no words becomes the
-// unavailable sentence. Pure: the real classifiers, values passed in as data.
+// error keeps its own words and HTTP status; unknown failures never blame
+// the panel. Pure: the real classifiers, values passed in as data.
 describe('configuredStreamError', () => {
   it('rethrows the provider’s own error with its status and message', () => {
     const provider = new ModelApiError('Bad request: unknown model', 400, 'invalid_request', 'x')
-    expect(configuredStreamError(provider)).toBe(provider)
+    const error = configuredStreamError(provider)
+    expect(error.message).toBe('HTTP 400: Bad request: unknown model')
+    expect(error).toMatchObject({ status: 400, kind: 'invalid_request', code: 'x' })
+  })
+
+  it('keeps the HTTP status from a separately bundled provider constructor', () => {
+    const error = configuredStreamError({
+      name: 'ModelApiError',
+      message: 'Invalid model',
+      status: 400,
+      kind: 'invalid_request_error',
+      code: 'invalid_model',
+    })
+    expect(error.message).toBe('HTTP 400: Invalid model')
   })
 
   it('rethrows the session-budget refusal in its own words', () => {
@@ -33,10 +46,11 @@ describe('configuredStreamError', () => {
     expect(configuredStreamError(stalled)).toBe(stalled)
   })
 
-  it('gives a wordless throw the unavailable sentence', () => {
+  it('gives a wordless throw an honest request failure', () => {
     const error = configuredStreamError('boom')
     expect(error).toBeInstanceOf(Error)
-    expect(error.message).toBe(UI_TEXT.modelsPanelUnavailable)
+    expect(error.message).toContain('unknown_provider_failure')
+    expect(error.message).not.toBe(UI_TEXT.modelsPanelUnavailable)
   })
 })
 

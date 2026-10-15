@@ -9,6 +9,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- RVLIMITS: configured-provider configuration, credential, stream-size and
+  replay-binding failures no longer blame the Models & Agents panel. They
+  name fixed diagnostic codes through the translated request-failure
+  sentence, and provider HTTP failures include their status in the visible
+  message, including across separately loaded bundles.
+
 - RVLIMITS: Tab's budget warning puts the spend, cap and Settings remedy
   in the visible notification text; VS Code does not display `detail` on
   a non-modal notification.

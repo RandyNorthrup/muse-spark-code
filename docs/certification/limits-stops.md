@@ -216,3 +216,22 @@ keeping the non-modal warning and Open Settings action. Proof: original
 `src/host/tab/tabBundle.ts:1165` call plus the installed `MessageOptions`
 contract. No provider call or editor stand-in was used. A lead must still
 look at the built warning once; no UI inspection is claimed here.
+
+## RVLIMITS review correction — remaining F88 paths (2026-10-14)
+
+The original fail-site list above is historical, not evidence of F88
+completion. Every `fail` in `configured.ts` now requires a fixed diagnostic
+code, read through the existing translated `webFetchNetwork` template.
+Config, credential, endpoint/pinning, missing model metadata, null body,
+stream-size, stale binding and model scan failures no longer say the panel
+is unavailable. Unknown non-Error throws use `unknown_provider_failure`.
+HTTP errors retain their status in the visible message (previously
+`ModelApiHost.describe` kept only `error.message`, losing the status).
+The structural `isModelApiError` guard covers errors from another bundle.
+No raw credential, header, provider URL or thrown free text is added to a
+diagnostic code. Existing transport redaction remains in place.
+
+Pure regressions in `configuredStreamError.test.ts` cover the visible HTTP
+status and a separately bundled error shape; they still need an observed
+run/red drill. The original positive wire-error examples are data, not a
+provider emulator. Real provider HTTP behavior is not certified here.
