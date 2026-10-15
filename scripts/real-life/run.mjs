@@ -781,6 +781,12 @@ try {
     process.exitCode = EXIT_FAILED
   }
   unsettled = heldUnsettled(folders.home)
+  if (unsettled.unread.length > 0) {
+    const reason = `the daily ledger has unread liability: ${unsettled.unread.join('; ')}`
+    console.error(reason)
+    budget.end(reason)
+    process.exitCode = EXIT_FAILED
+  }
 } catch (error) {
   console.error(
     `The run stopped: ${scrub()(error instanceof Error ? error.message : String(error))}`,

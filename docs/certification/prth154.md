@@ -35,6 +35,21 @@ product. The run must exit 1, name the occupied entry and leave it alone.
 The per-run identity repair in T4 removes ordinary cross-run collisions;
 the failure boundary still handles an occupied generated name or failed add.
 
+## T3 — unread ledger liability
+
+`heldUnsettled(...).unread` now sets exit 1 and ends admission; the text
+record names unknown liability rather than showing only the readable sum.
+A null JSON claim is retained as unread instead of throwing.
+
+Fail-first command: `npx vitest run test/unit/realLifeGuards.test.mjs
+--maxWorkers=2`. Before the null guard, exit 1, 6 passed / 1 failed:
+`TypeError: Cannot read properties of null (reading 'settledUsd')` at
+`ledger.mjs:43`. With the fix, exit 0, 7 passed. Logs:
+`.lane/T3-red.log`, `.lane/T3-green.log`. T10 records deliberate mutation
+and byte-exact restoration. Real-life lead step: corrupt an unsettled
+`claim.json` in a kept fresh run before final accounting; expect exit 1,
+`unread` in JSON and `UNKNOWN DAILY-LEDGER LIABILITY` in the text record.
+
 ## Merge
 
 Merged `ac21f1d24` in `c1ead3231`, hooks on. Only AGENTS.md and CHANGELOG.md

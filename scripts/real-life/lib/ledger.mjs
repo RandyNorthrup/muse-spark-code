@@ -40,6 +40,10 @@ export function heldUnsettled(home) {
       held.unread.push('a claim file that is no JSON')
       continue
     }
+    if (claim === null || typeof claim !== 'object' || Array.isArray(claim)) {
+      held.unread.push('a claim file that is no object')
+      continue
+    }
     if (claim.settledUsd !== undefined) continue
     const micro = microUsd(claim.reservedUsd)
     if (Number.isNaN(micro)) held.unread.push(`reservedUsd: ${String(claim.reservedUsd)}`)
