@@ -502,6 +502,13 @@
 
   "ignoreExportsUsedInFile": true,
 
+  // Planned-but-unwired product surface: an export whose JSDoc carries
+  // `@unwired <milestone>` (ROADMAP.md id, e.g. `@unwired M104`) is excused
+  // from the unused-exports gate, so the gate still reports any untagged
+  // unused export. A built feature is never deleted to make this gate pass
+  // (owner's rule, 2026-10-14).
+  "tags": ["-unwired"],
+
   // These add-on issue types extend Knip 6's default set; listing any ordinary
   // issue type here would replace that set and silently narrow the gate.
   // Type-only namespace imports in partial mocks must not hide unused exports.
