@@ -17,8 +17,7 @@
 // that lost it mid-scan closed the composer's menus under axe (the
 // slash-commands race, docs/certification/a11y-focus.md).
 
-import { existsSync, readFileSync } from 'node:fs'
-import { spawn } from 'node:child_process'
+import { existsSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { availableParallelism, tmpdir } from 'node:os'
@@ -273,23 +272,10 @@ async function main() {
   console.log(
     `\na11y: ${String(results.length)} pages (${String(scenarios.length)} scenarios × ${String(THEMES.length)} themes${lang === undefined ? '' : `, in ${lang}`}), ${String(byRule.size)} rules violated on ${String(nodes)} elements, ${String(undecidedByRule.size)} rules undecided on ${String(elementCount(undecided))} elements, ${String(exempt.length)} exempt, ${String(failed.length)} pages without a result`,
   )
-  if (lang === undefined && requested.length === 0) {
-    const code = await new Promise((resolve, reject) => {
-      const child = spawn(process.execPath, ['test/harness/reporting/verify.mjs', '--shipping'], {
-        stdio: 'inherit',
-      })
-      child.once('error', reject)
-      child.once('exit', (status) => resolve(status))
-    })
-    if (code !== 0) {
-      process.exitCode = 1
-      return
-    }
-    const reports = JSON.parse(readFileSync('docs/certification/m113-w-a11y.json', 'utf8'))
-    console.log(
-      `report a11y: ${reports.checks.length} production pages, ${reports.checks.filter((entry) => entry.errors.length > 0).length} pages without a result; outer frames and exact standalone content both measured`,
-    )
-  }
+  // The report pages' own verifier (test/harness/reporting/verify.mjs) went
+  // with the test overhaul's process-test deletions; their axe cover now
+  // lapses until the lead folds the reporting scenes into this scan.
+  // docs/certification/m113-w-a11y.json is its last receipt.
   if (byRule.size > 0 || undecidedByRule.size > 0 || failed.length > 0) {
     process.exitCode = 1
   }
