@@ -509,10 +509,9 @@ async function runCell(cell, key) {
   const see = (what, ok, saw) => {
     observed.push({ what, ok: ok === true, saw: clip(saw) })
   }
-  // A matrix turn is a terminal run, counted by its own result: the journal
-  // is not read for it (two more commands for each of hundreds of turns).
-  const isJournalRead = !isMatrix
-  const readBefore = isJournalRead ? await usageRecords() : { ok: true, records: [] }
+  // Read every cell, including matrix turns: a missing exec result must
+  // not discard requests already recorded by the installed product.
+  const readBefore = await usageRecords()
   if (!readBefore.ok) {
     // The spend so far cannot be read: the cell fails and nothing more starts.
     see('the product usage for this home could be read', false, readBefore.reason)
@@ -558,7 +557,7 @@ async function runCell(cell, key) {
   }
   const seconds = (performance.now() - clock) / 1000
   for (const note of person.notes) see(note.what, note.ok, note.saw)
-  const readAfter = isJournalRead ? await usageRecords() : { ok: true, records: [] }
+  const readAfter = await usageRecords()
   if (!readAfter.ok) {
     see('the product usage for this home could be read', false, readAfter.reason)
     budget.end(
@@ -568,9 +567,25 @@ async function runCell(cell, key) {
   const journal = journalOf(
     (readAfter.ok ? readAfter.records : []).filter((record) => !before.has(record.id)),
   )
-  // A terminal run is counted by its own result; an editor session by the
-  // usage the product recorded for it.
-  const used = surface === 'exec' ? person.made : journal
+  // These are two views of the same cell, never additive. Keep the higher
+  // request and money counts; a missing result cannot prove that every
+  // dispatch reached the journal, so stop admission even after recovering it.
+  const used =
+    surface === 'exec'
+      ? {
+          requests: Math.max(person.made.requests, journal.requests),
+          micro: Math.max(person.made.micro, journal.micro),
+          uncertain: Math.max(person.made.uncertain, journal.uncertain),
+        }
+      : journal
+  if (person.made.missingResults > 0) {
+    see(
+      'every terminal dispatch returned readable request and cost totals',
+      false,
+      `${String(person.made.missingResults)} missing or incomplete result(s); recovered ${String(journal.requests)} journal request(s)`,
+    )
+    budget.end('a terminal result is missing or incomplete: additional spend may be unknown')
+  }
   budget.spend(used.requests, used.micro, used.uncertain, person.made.turnedAway)
   see(
     'it made no more requests than it said it may',
@@ -597,12 +612,10 @@ async function runCell(cell, key) {
     requests: used.requests,
     usd: usdText(used.micro),
     uncertainUsd: usdText(used.uncertain),
-    ...(isJournalRead && {
-      recordedByProduct: {
-        requests: journal.requests,
-        usd: usdText(journal.micro + journal.uncertain),
-      },
-    }),
+    recordedByProduct: {
+      requests: journal.requests,
+      usd: usdText(journal.micro + journal.uncertain),
+    },
     seconds,
     ...(person.skipped.length > 0 && { stepsNotRun: person.skipped }),
     ...(!isPassed && { log: logExcerpt(person.logText()) }),

@@ -206,9 +206,13 @@ can end above its stop by what one scenario costs. Afterwards it prints the
 requests made and the dollars, and beside them what the product's own
 `usage` holds for that home.
 
-Requests and dollars are the product's own count: a terminal run by its
-result, an editor session by the usage the product recorded for it. A
-scenario that makes more requests than it said it may fails for that alone.
+Requests and dollars are the product's own count: terminal results are
+reconciled with the journal after every cell, including matrix cells,
+keeping the higher request and dollar counts rather than adding two views
+of the same usage. Editor sessions use the journal. A missing or incomplete
+terminal result fails the cell and stops further admission even if journal
+usage was recovered: unjournaled spend may still be unknown. A scenario
+that makes more requests than it said it may fails for that alone.
 
 The product keeps kinds of dollars apart, and so does the run, in every
 scenario's result, in the totals and in the first and last lines it prints:
