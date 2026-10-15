@@ -1476,7 +1476,7 @@
   "elicitationDeclinedByHook": "Un hook a refusé cette demande de {server} : {reason}",
   "elicitationAnsweredByHook": "L’un de vos hooks a répondu à cette demande de {server}.",
   "elicitationExpired": "La demande de {server} n’est plus en attente.",
-  "mcpElicitationTimedOut": "La demande de {server} est restée sans réponse pendant {seconds} secondes et a donc été réglée comme annulée. L’appel d’outil s’est poursuivi sans sa réponse.",
+  "mcpElicitationTimedOut": "La demande de {server} est restée sans réponse pendant {seconds} secondes et a donc été réglée comme annulée. Aucune réponse n’a été envoyée.",
   "hookHttpHostRefused": "Un hook http a été refusé : {host} n’est pas un hôte autorisé.",
   "hookHttpSchemeRefused": "Un hook http a été refusé : seul HTTPS est autorisé.",
   "hookHttpRedirectRefused": "Un hook http a été refusé : il a redirigé vers {host}.",

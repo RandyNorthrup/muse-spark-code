@@ -1460,7 +1460,7 @@
   "elicitationDeclinedByHook": "Bir kanca {server} sunucusundan gelen bu isteği reddetti: {reason}",
   "elicitationAnsweredByHook": "Kancalarınızdan biri {server} sunucusundan gelen bu isteği yanıtladı.",
   "elicitationExpired": "{server} sunucusundan gelen istek artık beklemiyor.",
-  "mcpElicitationTimedOut": "{server} isteği {seconds} saniye yanıtsız kaldı ve iptal olarak sonuçlandı. Araç çağrısı yanıtı olmadan devam etti.",
+  "mcpElicitationTimedOut": "{server} isteği {seconds} saniye yanıtsız kaldı ve iptal olarak sonuçlandı. Hiçbir yanıt gönderilmedi.",
   "hookHttpHostRefused": "Bir http kancası reddedildi: {host} izin verilen bir ana bilgisayar değil.",
   "hookHttpSchemeRefused": "Bir http kancası reddedildi: yalnızca HTTPS’ye izin verilir.",
   "hookHttpRedirectRefused": "Bir http kancası reddedildi: {host} adresine yönlendirdi.",

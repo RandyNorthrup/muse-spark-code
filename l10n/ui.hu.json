@@ -1460,7 +1460,7 @@
   "elicitationDeclinedByHook": "Egy hook elutasította a(z) {server} kiszolgáló kérését: {reason}",
   "elicitationAnsweredByHook": "Az egyik hookja megválaszolta a(z) {server} kiszolgáló kérését.",
   "elicitationExpired": "A(z) {server} kiszolgáló kérése már nem vár válaszra.",
-  "mcpElicitationTimedOut": "A(z) {server} kérése {seconds} másodpercig megválaszolatlan maradt, ezért törlésként lett lezárva. Az eszközhívás a válasza nélkül folytatódott.",
+  "mcpElicitationTimedOut": "A(z) {server} kérése {seconds} másodpercig megválaszolatlan maradt, ezért törlésként lett lezárva. Nem lett válasz elküldve.",
   "hookHttpHostRefused": "Egy http hook el lett utasítva: a(z) {host} nem engedélyezett gazdagép.",
   "hookHttpSchemeRefused": "Egy http hook el lett utasítva: csak a HTTPS engedélyezett.",
   "hookHttpRedirectRefused": "Egy http hook el lett utasítva, mert átirányított a(z) {host} gazdagépre.",

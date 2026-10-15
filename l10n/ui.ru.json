@@ -1492,7 +1492,7 @@
   "elicitationDeclinedByHook": "Хук отклонил этот запрос от {server}: {reason}",
   "elicitationAnsweredByHook": "На этот запрос от {server} ответил один из ваших хуков.",
   "elicitationExpired": "Запрос от {server} больше не ожидает ответа.",
-  "mcpElicitationTimedOut": "Запрос от {server} остался без ответа в течение {seconds} с, поэтому он завершён как отменённый. Вызов инструмента продолжился без его ответа.",
+  "mcpElicitationTimedOut": "Запрос от {server} остался без ответа в течение {seconds} с, поэтому он завершён как отменённый. Ответ не был отправлен.",
   "hookHttpHostRefused": "Хук http отклонён: {host} не входит в число разрешённых хостов.",
   "hookHttpSchemeRefused": "Хук http отклонён: разрешён только HTTPS.",
   "hookHttpRedirectRefused": "Хук http отклонён: он перенаправил на {host}.",

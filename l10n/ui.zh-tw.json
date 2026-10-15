@@ -1444,7 +1444,7 @@
   "elicitationDeclinedByHook": "鉤子拒絕了來自 {server} 的此要求：{reason}",
   "elicitationAnsweredByHook": "您的一個鉤子回答了來自 {server} 的此要求。",
   "elicitationExpired": "來自 {server} 的要求已不再等待。",
-  "mcpElicitationTimedOut": "來自{server}的請求在{seconds}秒內未得到答覆，因此按取消處理。工具呼叫在其無答覆的情況下繼續。",
+  "mcpElicitationTimedOut": "來自{server}的請求在{seconds}秒內未得到答覆，因此按取消處理。未傳送任何答覆。",
   "hookHttpHostRefused": "http 鉤子被拒絕：{host} 不是允許的主機。",
   "hookHttpSchemeRefused": "http 鉤子被拒絕：僅允許 HTTPS。",
   "hookHttpRedirectRefused": "http 鉤子被拒絕：它重新導向至 {host}。",

@@ -1492,7 +1492,7 @@
   "elicitationDeclinedByHook": "Hook odmítl tento požadavek od serveru {server}: {reason}",
   "elicitationAnsweredByHook": "Na tento požadavek od serveru {server} odpověděl jeden z vašich hooků.",
   "elicitationExpired": "Požadavek od serveru {server} už nečeká.",
-  "mcpElicitationTimedOut": "Požadavek od {server} zůstal {seconds} sekund bez odpovědi, takže byl vyřízen jako zrušený. Volání nástroje pokračovalo bez jeho odpovědi.",
+  "mcpElicitationTimedOut": "Požadavek od {server} zůstal {seconds} sekund bez odpovědi, takže byl vyřízen jako zrušený. Žádná odpověď nebyla odeslána.",
   "hookHttpHostRefused": "Hook http byl odmítnut: {host} není povolený hostitel.",
   "hookHttpSchemeRefused": "Hook http byl odmítnut: povoleno je jen HTTPS.",
   "hookHttpRedirectRefused": "Hook http byl odmítnut: přesměroval na {host}.",

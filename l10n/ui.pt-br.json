@@ -1476,7 +1476,7 @@
   "elicitationDeclinedByHook": "Um gancho recusou esta solicitação de {server}: {reason}",
   "elicitationAnsweredByHook": "Um dos seus ganchos respondeu a esta solicitação de {server}.",
   "elicitationExpired": "A solicitação de {server} não está mais aguardando.",
-  "mcpElicitationTimedOut": "A solicitação de {server} ficou sem resposta por {seconds} segundos e foi encerrada como cancelada. A chamada da ferramenta continuou sem a resposta.",
+  "mcpElicitationTimedOut": "A solicitação de {server} ficou sem resposta por {seconds} segundos e foi encerrada como cancelada. Nenhuma resposta foi enviada.",
   "hookHttpHostRefused": "Um gancho http foi recusado: {host} não é um host permitido.",
   "hookHttpSchemeRefused": "Um gancho http foi recusado: só HTTPS é permitido.",
   "hookHttpRedirectRefused": "Um gancho http foi recusado: ele redirecionou para {host}.",

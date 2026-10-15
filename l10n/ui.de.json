@@ -1460,7 +1460,7 @@
   "elicitationDeclinedByHook": "Ein Hook hat diese Anfrage von {server} abgelehnt: {reason}",
   "elicitationAnsweredByHook": "Einer Ihrer Hooks hat diese Anfrage von {server} beantwortet.",
   "elicitationExpired": "Die Anfrage von {server} wartet nicht mehr.",
-  "mcpElicitationTimedOut": "Die Anfrage von {server} blieb {seconds} Sekunden lang unbeantwortet und wurde daher als abgebrochen gewertet. Der Werkzeugaufruf wurde ohne ihre Antwort fortgesetzt.",
+  "mcpElicitationTimedOut": "Die Anfrage von {server} blieb {seconds} Sekunden lang unbeantwortet und wurde daher als abgebrochen gewertet. Es wurde keine Antwort gesendet.",
   "hookHttpHostRefused": "Ein http-Hook wurde abgelehnt: {host} ist kein zugelassener Host.",
   "hookHttpSchemeRefused": "Ein http-Hook wurde abgelehnt: Nur HTTPS ist zulässig.",
   "hookHttpRedirectRefused": "Ein http-Hook wurde abgelehnt: Er hat auf {host} umgeleitet.",

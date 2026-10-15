@@ -367,6 +367,14 @@ McpElicitationTimeoutError` was false at the real boundary: the connection
   observe one warning even though no form opened, and no later accepted
   answer. No hook/provider stand-in was added to tests.
 
+## RVDROPS review — C7 do not claim the tool continued
+
+- P2: all fifteen timeout sentences asserted that the tool call continued,
+  before the server had processed cancellation. A timed-out/failed tool or
+  broken connection need not continue. Kept the known facts only: the form
+  timed out, settled as cancelled, and no answer was sent. Updated English
+  and all fourteen translations in place, preserving slots and key order.
+
 ## Limits raised or removed (owner's rule)
 
 | Row | Number              | Outcome                                                  | Reasoning                                                                       |

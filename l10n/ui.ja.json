@@ -1444,7 +1444,7 @@
   "elicitationDeclinedByHook": "フックが {server} からのこの要求を拒否しました: {reason}",
   "elicitationAnsweredByHook": "ユーザーのフックの 1 つが {server} からのこの要求に回答しました。",
   "elicitationExpired": "{server} からの要求はもう待機していません。",
-  "mcpElicitationTimedOut": "{server}からのリクエストは{seconds}秒間無回答だったため、キャンセルとして確定しました。ツール呼び出しはその回答なしに続行されました。",
+  "mcpElicitationTimedOut": "{server}からのリクエストは{seconds}秒間無回答だったため、キャンセルとして確定しました。回答は送信されませんでした。",
   "hookHttpHostRefused": "http フックが拒否されました: {host} は許可されたホストではありません。",
   "hookHttpSchemeRefused": "http フックが拒否されました: HTTPS のみ許可されています。",
   "hookHttpRedirectRefused": "http フックが拒否されました: {host} にリダイレクトされました。",

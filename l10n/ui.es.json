@@ -1476,7 +1476,7 @@
   "elicitationDeclinedByHook": "Un hook rechazó esta solicitud de {server}: {reason}",
   "elicitationAnsweredByHook": "Uno de sus hooks respondió a esta solicitud de {server}.",
   "elicitationExpired": "La solicitud de {server} ya no está en espera.",
-  "mcpElicitationTimedOut": "La solicitud de {server} quedó sin respuesta durante {seconds} segundos, por lo que se resolvió como cancelada. La llamada a la herramienta continuó sin su respuesta.",
+  "mcpElicitationTimedOut": "La solicitud de {server} quedó sin respuesta durante {seconds} segundos, por lo que se resolvió como cancelada. No se envió ninguna respuesta.",
   "hookHttpHostRefused": "Se rechazó un hook http: {host} no es un host permitido.",
   "hookHttpSchemeRefused": "Se rechazó un hook http: solo se permite HTTPS.",
   "hookHttpRedirectRefused": "Se rechazó un hook http: redirigió a {host}.",
