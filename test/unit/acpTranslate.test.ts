@@ -277,6 +277,15 @@ describe('UpdateTranslator', () => {
     expect(translator.updates({ type: 'backendNotice', level: 'warning', text: 'Slow' })).toEqual([
       { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'Slow\n\n' } },
     ])
+    // F82: where the client can show notices, a backend notice is its own
+    // update with the app's severity — never the model's words.
+    const notices = new UpdateTranslator(CWD, false, undefined, 'museCode', true)
+    expect(notices.updates({ type: 'backendNotice', level: 'warning', text: 'Slow' })).toEqual([
+      { sessionUpdate: 'notice', severity: 'warning', title: 'Slow' },
+    ])
+    expect(notices.updates({ type: 'backendNotice', level: 'info', text: 'Calm' })).toEqual([
+      { sessionUpdate: 'notice', severity: 'info', title: 'Calm' },
+    ])
     expect(
       translator.updates({
         type: 'todoChanged',

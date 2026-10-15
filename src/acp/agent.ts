@@ -383,7 +383,13 @@ class AcpSession {
             clock: questionClock,
             deliver: (message) => this.getQuestions().deliver(message),
           })
-    this.translator = new UpdateTranslator(cwd, false)
+    this.translator = new UpdateTranslator(
+      cwd,
+      false,
+      undefined,
+      'museCode',
+      clientCapabilities.session?.notices != null,
+    )
     this.unsubscribeResources = deps.resources?.subscribe(this.sessionId, (notice) => {
       const updates = acpResourceUpdates(notice)
       const isPause = notice.event.type === 'levelChanged' && notice.event.to === 'pause'
