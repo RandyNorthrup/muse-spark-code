@@ -6,7 +6,11 @@
 // and the eval stays comparable. Every test below calls the real module with
 // real inputs: no mocks, no fakes, no timers, no loopback provider.
 
+import { readFileSync, readdirSync } from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
+import { z } from 'zod'
 import {
   MODEL_API_TOOLS,
   OBS_PACK_PAGE_CHARS,
@@ -17,13 +21,18 @@ import {
 import { Usd } from '../../src/shared/usd'
 import type { PaidQuote } from '../../src/shared/paid'
 import { toolDefinitions } from '../../src/core/backends/modelapi/tools'
-import { GOAL_TOOL_DEFINITIONS } from '../../src/core/backends/modelapi/goals'
 import {
   instructionsFor,
   type InstructionFacts,
 } from '../../src/core/backends/modelapi/instructions'
-import { ObservationPack } from '../../src/core/backends/modelapi/observationPack'
-import type { InputItem } from '../../src/core/backends/modelapi/schemas'
+import {
+  ObservationPack,
+  estimatePackTokens,
+} from '../../src/core/backends/modelapi/observationPack'
+import { withStrictTools, type InputItem } from '../../src/core/backends/modelapi/schemas'
+import { promptCacheKey } from '../../src/core/backends/modelapi/promptCache'
+import { toolMatcherNames } from '../../src/core/backends/modelapi/hookNames'
+import { authorizeThenGuard } from '../../src/core/backends/modelapi/verifyLoop'
 import { thenRunOf } from '../../src/core/backends/modelapi/verifyTools'
 import { AutoCompact, type AutoCompactInput } from '../../src/core/backends/modelapi/autoCompact'
 import {
@@ -54,24 +63,28 @@ describe('invariant 1: earlier request bytes never change, extras append at the 
     const names = toolDefinitions('linux', { hasShell: true, hasSkills: false }).map(
       (tool) => tool.name,
     )
+    // Literal wire names, not the constants that produce them: renaming a
+    // tool changes every request's prefix, so the rename must fail here.
     expect(names).toEqual([
-      MODEL_API_TOOLS.readFile,
-      MODEL_API_TOOLS.editFile,
-      MODEL_API_TOOLS.writeFile,
-      MODEL_API_TOOLS.search,
-      MODEL_API_TOOLS.listFiles,
-      MODEL_API_TOOLS.bash,
-      MODEL_API_TOOLS.askUser,
-      MODEL_API_TOOLS.todoWrite,
-      ...GOAL_TOOL_DEFINITIONS.map((tool) => tool.name),
+      'read_file',
+      'edit_file',
+      'write_file',
+      'search',
+      'list_files',
+      'bash',
+      'ask_user',
+      'todo_write',
+      'create_goal',
+      'get_goal',
+      'update_goal',
+      'report_progress',
     ])
   })
 
   it('adds optional tools without touching the base list around them', () => {
-    const base = toolDefinitions('linux', { hasShell: true, hasSkills: false }).map(
-      (tool) => tool.name,
-    )
-    const baseBytes = JSON.stringify(toolDefinitions('linux', { hasShell: true, hasSkills: false }))
+    const baseTools = toolDefinitions('linux', { hasShell: true, hasSkills: false })
+    const base = baseTools.map((tool) => tool.name)
+    const baseBytes = JSON.stringify(baseTools)
     // Same options, same bytes: one session's declared list never drifts.
     expect(JSON.stringify(toolDefinitions('linux', { hasShell: true, hasSkills: false }))).toBe(
       baseBytes,
@@ -82,10 +95,17 @@ describe('invariant 1: earlier request bytes never change, extras append at the 
       { hasShell: true, hasSkills: false, hasPackedRecall: true },
       { hasShell: true, hasSkills: false, hasWebFetch: true },
     ] as const) {
-      const extended = toolDefinitions('linux', { ...options }).map((tool) => tool.name)
+      const extendedTools = toolDefinitions('linux', { ...options })
+      const extended = extendedTools.map((tool) => tool.name)
       // Every base tool stays, in order; the flag only adds its own entries.
       expect(extended.filter((name) => base.includes(name))).toEqual(base)
       expect(extended.length).toBeGreaterThan(base.length)
+      // And each base tool's own bytes stay: a flag that rewrote a base
+      // description or parameter would change the request prefix.
+      for (const baseTool of baseTools) {
+        const kept = extendedTools.find((tool) => tool.name === baseTool.name)
+        expect(JSON.stringify(kept)).toBe(JSON.stringify(baseTool))
+      }
     }
   })
 
@@ -129,6 +149,16 @@ describe('invariant 1: earlier request bytes never change, extras append at the 
     expect(withGoal.startsWith(minimal)).toBe(true)
     const withMap = instructionsFor({ ...baseFacts(), repoMap: 'src/index.ts' })
     expect(withMap.startsWith(minimal)).toBe(true)
+    // Both trailing sections, in the host's arrival order (the repo map is
+    // loaded before a turn's prompt is built; a goal can start later):
+    // adding the goal after the map still only appends.
+    const withBoth = instructionsFor({
+      ...baseFacts(),
+      repoMap: 'src/index.ts',
+      goalSection: 'Ship the fix.',
+    })
+    expect(withBoth.startsWith(withMap)).toBe(true)
+    expect(withBoth.endsWith('Ship the fix.')).toBe(true)
   })
 })
 
@@ -164,6 +194,15 @@ describe('invariant 2: observation packing keeps what the model saw', () => {
     return result!.output as string
   }
 
+  it('pins the packing thresholds the savings come from', () => {
+    // Literal numbers, not the constants read back: raising the whole-send
+    // count or the threshold quietly spends the savings on every request,
+    // so a deliberate change must update this test and say why.
+    expect(OBS_PACK_WHOLE_SENDS).toBe(2)
+    expect(OBS_PACK_THRESHOLD_CHARS).toBe(8000)
+    expect(OBS_PACK_PAGE_CHARS).toBe(4000)
+  })
+
   it('rides whole for its first sends, then packs, and the swap stays sticky', () => {
     expect(BIG.length).toBeGreaterThan(OBS_PACK_THRESHOLD_CHARS)
     const pack = new ObservationPack()
@@ -176,7 +215,45 @@ describe('invariant 2: observation packing keeps what the model saw', () => {
     expect(packed).toContain(CALL_ID)
     expect(outputOf(send(pack, BIG))).not.toBe(BIG)
     expect(pack.packedCallIds()).toContain(CALL_ID)
-    expect(pack.savings()).toBeGreaterThan(0)
+    // The ledger counts exactly what the two packed sends left out.
+    expect(pack.savings()).toBe(
+      2 * (estimatePackTokens(BIG.length) - estimatePackTokens(packed.length)),
+    )
+  })
+
+  it('does not count a retried send of the same request twice', () => {
+    const pack = new ObservationPack()
+    const call: InputItem = {
+      type: 'function_call',
+      call_id: CALL_ID,
+      name: 'search',
+      arguments: '{}',
+    }
+    const result: InputItem = { type: 'function_call_output', call_id: CALL_ID, output: BIG }
+    const projected = pack.project([call, result])
+    pack.noteSent(projected)
+    pack.noteSent(projected)
+    // One real send so far: the output still rides whole.
+    expect(outputOf(send(pack, BIG))).toBe(BIG)
+  })
+
+  it('keeps the swap sticky across a resume and forgets it after a reset', () => {
+    const call: InputItem = {
+      type: 'function_call',
+      call_id: CALL_ID,
+      name: 'search',
+      arguments: '{}',
+    }
+    const result: InputItem = { type: 'function_call_output', call_id: CALL_ID, output: BIG }
+    const resumed = new ObservationPack()
+    resumed.restorePackedCallIds([CALL_ID], [call, result])
+    // A resumed session packs from its first request, not after whole sends.
+    expect(outputOf(resumed.project([call, result]))).not.toBe(BIG)
+    expect(resumed.recall(JSON.stringify({ id: CALL_ID, offset: 0 })).failureReason).toBeUndefined()
+    resumed.reset()
+    const forgotten = resumed.recall(JSON.stringify({ id: CALL_ID, offset: 0 }))
+    expect(forgotten.output.startsWith('Error:')).toBe(true)
+    expect(forgotten.failureReason).toBeDefined()
   })
 
   it('pages the archived original back through recall_output', () => {
@@ -189,20 +266,23 @@ describe('invariant 2: observation packing keeps what the model saw', () => {
     expect(first.failureReason).toBeUndefined()
     const later = pack.recall(JSON.stringify({ id: CALL_ID, offset: OBS_PACK_PAGE_CHARS }))
     expect(later.output).toContain(BIG.slice(OBS_PACK_PAGE_CHARS, OBS_PACK_PAGE_CHARS + 100))
+    const tail = pack.recall(JSON.stringify({ id: CALL_ID, search: 'line 399' }))
+    expect(tail.output).toContain('line 399')
+    expect(tail.failureReason).toBeUndefined()
     const unknown = pack.recall(JSON.stringify({ id: 'call_missing', offset: 0 }))
     expect(unknown.output.startsWith('Error:')).toBe(true)
     expect(unknown.failureReason).toBeDefined()
   })
 })
 
-function paidQuote(id: string, model: string): PaidQuote {
+function paidQuote(id: string, model: string, tariff = '0.05'): PaidQuote {
   return {
     id,
     feature: 'webSearch',
     provider: 'meta',
     model,
     modelRevision: 1,
-    tariffUsd: Usd.from('0.05').toAmount(),
+    tariffUsd: Usd.from(tariff).toAmount(),
     unit: 'search',
     capturedAt: 0,
   }
@@ -281,6 +361,96 @@ describe('invariant 3: paid calls share one gate and tally separately', () => {
     expect(Usd.from(state.settledUsd).compare(Usd.from(afterFirst))).toBeGreaterThan(0)
     expect(state.claims.has('claim-a1')).toBe(true)
     expect(state.claims.has('claim-a2')).toBe(true)
+    // Each claim keeps its own tally: 2 calls and 4 calls at the same tariff.
+    expect(state.claims.get('claim-a1')?.settlement?.costUsd).toBe(Usd.from('0.10').toAmount())
+    expect(state.claims.get('claim-a2')?.settlement?.costUsd).toBe(Usd.from('0.20').toAmount())
+    expect(state.settledUsd).toBe(Usd.from('0.30').toAmount())
+
+    // A claim settled in stages counts each stage's delta once, never the
+    // running total again.
+    state = step(state, {
+      type: 'reserve',
+      claimId: 'claim-a3',
+      quote: searchA,
+      reservedUsd: Usd.from('0.15').toAmount(),
+    }).state
+    state = step(state, {
+      type: 'settle',
+      claimId: 'claim-a3',
+      returnedCalls: 1,
+      isTerminal: false,
+    }).state
+    expect(state.settledUsd).toBe(Usd.from('0.35').toAmount())
+    state = step(state, {
+      type: 'settle',
+      claimId: 'claim-a3',
+      returnedCalls: 3,
+      isTerminal: true,
+    }).state
+    expect(state.claims.get('claim-a3')?.settlement?.costUsd).toBe(Usd.from('0.15').toAmount())
+    expect(state.settledUsd).toBe(Usd.from('0.45').toAmount())
+
+    // Revoking the key ends its authority: nothing under it reserves again.
+    state = step(state, {
+      type: 'revoke',
+      key: paidAuthorityKey(searchA),
+      generation: 'g2',
+    }).state
+    expect(() =>
+      step(state, {
+        type: 'reserve',
+        claimId: 'claim-a4',
+        quote: searchA,
+        reservedUsd: Usd.from('0.05').toAmount(),
+      }),
+    ).toThrow()
+  })
+
+  it('asks again when the price rises under a saved grant for the same key', () => {
+    const cheap = paidQuote('q-cheap', 'muse-spark-1.3', '0.05')
+    let state = initialPaidAuthorityState()
+    state = step(state, { type: 'quote', quote: cheap, generation: 'g1', ask: true }).state
+    state = step(state, {
+      type: 'answer',
+      grant: { generation: 'g1', quote: cheap },
+      answer: 'always',
+    }).state
+    state = step(state, {
+      type: 'saved',
+      grant: { generation: 'g1', quote: cheap },
+      ok: true,
+    }).state
+
+    // Same key, same price: the saved grant answers, no question.
+    const samePrice = paidQuote('q-same', 'muse-spark-1.3', '0.05')
+    const quiet = step(state, {
+      type: 'quote',
+      quote: samePrice,
+      generation: 'g1',
+      grant: { generation: 'g1', quote: cheap },
+      ask: false,
+    })
+    expect(quiet.effects.some((effect) => effect.type === 'ask')).toBe(false)
+
+    // Same key, higher price: the person is asked again before any spend.
+    const dearer = paidQuote('q-dearer', 'muse-spark-1.3', '0.10')
+    expect(paidAuthorityKey(dearer)).toBe(paidAuthorityKey(cheap))
+    const asked = step(quiet.state, {
+      type: 'quote',
+      quote: dearer,
+      generation: 'g1',
+      grant: { generation: 'g1', quote: cheap },
+      ask: false,
+    })
+    expect(asked.effects.some((effect) => effect.type === 'ask')).toBe(true)
+    expect(() =>
+      step(asked.state, {
+        type: 'reserve',
+        claimId: 'claim-dearer',
+        quote: dearer,
+        reservedUsd: Usd.from('0.10').toAmount(),
+      }),
+    ).toThrow()
   })
 })
 
@@ -296,6 +466,68 @@ describe('invariant 4: then_run is the shell by another name', () => {
     expect(thenRunOf(JSON.stringify({ [THEN_RUN_ARGUMENT]: ' '.repeat(3) }))).toEqual({
       kind: 'absent',
     })
+  })
+
+  it('names the shell to imported hooks under every alias they match', () => {
+    // Literal aliases: a hook imported from another agent matches `Bash`
+    // or `shell`, and then_run reaches it only under those names.
+    expect(toolMatcherNames('bash')).toEqual(['bash', 'Bash', 'shell'])
+    expect(toolMatcherNames('powershell')).toEqual(['powershell', 'Bash', 'shell'])
+  })
+
+  it('authorizes before the as-edited guard, and again when a rule lapses', async () => {
+    let authorizations = 0
+    const allowed = await authorizeThenGuard({
+      isRuleLapsed: () => false,
+      authorize: () => {
+        authorizations += 1
+        return Promise.resolve(undefined)
+      },
+      guard: () => Promise.resolve(true),
+    })
+    expect(allowed).toBeUndefined()
+    expect(authorizations).toBe(1)
+
+    // A refusal at authorization ends it: the guard never runs.
+    let guardRuns = 0
+    const refused = await authorizeThenGuard({
+      isRuleLapsed: () => false,
+      authorize: () => Promise.resolve({ skip: 'refused' as const }),
+      guard: () => {
+        guardRuns += 1
+        return Promise.resolve(true)
+      },
+    })
+    expect(refused).toEqual({ skip: 'refused' })
+    expect(guardRuns).toBe(0)
+
+    // The file no longer holding the edit is its own refusal.
+    const changed = await authorizeThenGuard({
+      isRuleLapsed: () => false,
+      authorize: () => Promise.resolve(undefined),
+      guard: () => Promise.resolve(false),
+    })
+    expect(changed).toEqual({ skip: 'changed' })
+
+    // A rule file edited while the guard waited: authorize and guard again.
+    let isLapsed = false
+    let secondAuthorizations = 0
+    let secondGuardRuns = 0
+    const relapsed = await authorizeThenGuard({
+      isRuleLapsed: () => isLapsed,
+      authorize: () => {
+        secondAuthorizations += 1
+        return Promise.resolve(undefined)
+      },
+      guard: () => {
+        secondGuardRuns += 1
+        isLapsed = true
+        return Promise.resolve(true)
+      },
+    })
+    expect(relapsed).toBeUndefined()
+    expect(secondAuthorizations).toBe(2)
+    expect(secondGuardRuns).toBe(2)
   })
 })
 
@@ -331,25 +563,156 @@ describe('invariant 5: overflow compaction skips the economics gate', () => {
     compact.noteToolWork()
     expect(compact.decide(compactInput(), true)?.reason).toBe('overflow')
   })
+
+  it('reopens overflow for a new user task after a failure', () => {
+    const compact = new AutoCompact()
+    compact.failed()
+    expect(compact.decide(compactInput(), true)).toBeUndefined()
+    compact.newUserTask()
+    expect(compact.decide(compactInput(), true)?.reason).toBe('overflow')
+  })
+
+  it('still refuses overflow when there is nothing removable to compact', () => {
+    const compact = new AutoCompact()
+    expect(compact.decide({ ...compactInput(), removableTokens: 0 }, true)).toBeUndefined()
+    expect(compact.decide({ ...compactInput(), contextTokens: -1 }, true)).toBeUndefined()
+  })
 })
 
 describe('invariant 6: the eval stays comparable', () => {
   it('records the packing arm in the arm description with live numbers', () => {
     expect(OBSERVATION_PACKING_ARM.name).toBe('packing')
-    expect(OBSERVATION_PACKING_ARM.mechanism).toContain(String(OBS_PACK_THRESHOLD_CHARS))
-    expect(OBSERVATION_PACKING_ARM.mechanism).toContain(String(OBS_PACK_WHOLE_SENDS))
+    // Literal numbers: the mechanism text is built from the same constants,
+    // so reading them back would pass at any value. A threshold change
+    // makes old and new eval runs incomparable and must fail here.
+    expect(OBSERVATION_PACKING_ARM.mechanism).toContain('8000 characters')
+    expect(OBSERVATION_PACKING_ARM.mechanism).toContain('whole for 2 requests')
+    expect(OBSERVATION_PACKING_ARM.change).toBeDefined()
   })
 
   it('keeps a fixed task set per split', () => {
     const accept = evalTasksOfSplit('accept')
     const heldout = evalTasksOfSplit('heldout')
-    expect(accept.length).toBeGreaterThan(0)
-    expect(heldout.length).toBeGreaterThan(0)
+    // The literal task ids: adding, dropping or renaming a task changes
+    // what an eval score means, so it must be a deliberate, recorded edit.
+    expect(accept.map((task) => task.id)).toEqual([
+      'accept-off-by-one',
+      'accept-null-guard',
+      'accept-await-read',
+      'accept-import-path',
+      'accept-no-secret',
+      'accept-empty-average',
+      'accept-long-middle-value',
+    ])
+    expect(heldout.map((task) => task.id)).toEqual([
+      'heldout-strict-equal',
+      'heldout-clear-timer',
+      'heldout-sort-numbers',
+      'heldout-await-write',
+      'heldout-long-middle-rule',
+    ])
     expect(accept.every((task) => task.split === 'accept')).toBe(true)
     expect(heldout.every((task) => task.split === 'heldout')).toBe(true)
     const acceptIds = new Set(accept.map((task) => task.id))
     expect(acceptIds.size).toBe(accept.length)
     expect(heldout.every((task) => !acceptIds.has(task.id))).toBe(true)
     expect(evalTasksOfSplit('accept').map((task) => task.id)).toEqual([...acceptIds])
+  })
+})
+
+const goldenFileSchema = z.object({ scenario: z.string(), requests: z.array(z.string()) })
+const goldenBodySchema = z.object({
+  model: z.string(),
+  instructions: z.string(),
+  tools: z.array(z.unknown()),
+  tool_choice: z.string(),
+  reasoning: z.object({ effort: z.string(), summary: z.string().optional() }),
+  stream: z.boolean(),
+  store: z.boolean(),
+  include: z.array(z.string()),
+  max_output_tokens: z.number(),
+  prompt_cache_key: z.string(),
+  prompt_cache_retention: z.string(),
+})
+
+function goldenRequests(relativePath: string): readonly string[] {
+  const raw: unknown = JSON.parse(
+    readFileSync(new URL(`../fixtures/golden-requests/${relativePath}`, import.meta.url), 'utf8'),
+  )
+  return goldenFileSchema.parse(raw).requests
+}
+
+describe('invariant 7: golden request bytes with new features off', () => {
+  // The host's body assembly order (ModelApiHost.body + keyed), pinned as
+  // literals: it is the order JSON.stringify sends on the Meta path.
+  const BODY_KEYS = [
+    'model',
+    'input',
+    'instructions',
+    'tools',
+    'tool_choice',
+    'reasoning',
+    'stream',
+    'store',
+    'include',
+    'max_output_tokens',
+    'prompt_cache_key',
+    'prompt_cache_retention',
+  ]
+
+  it('keeps every recorded golden request in the sent key order', () => {
+    const directory = fileURLToPath(new URL('../fixtures/golden-requests/', import.meta.url))
+    const files = [
+      ...readdirSync(directory)
+        .filter((name) => name.endsWith('.json'))
+        .map((name) => name),
+      ...readdirSync(path.join(directory, 'strict'))
+        .filter((name) => name.endsWith('.json'))
+        .map((name) => `strict/${name}`),
+    ]
+    expect(files.length).toBeGreaterThan(0)
+    for (const file of files) {
+      for (const request of goldenRequests(file)) {
+        const parsed: unknown = JSON.parse(request)
+        expect(Object.keys(z.record(z.string(), z.unknown()).parse(parsed))).toEqual(BODY_KEYS)
+      }
+    }
+  })
+
+  it('reproduces the plain golden turn from the real modules', () => {
+    const body = goldenBodySchema.parse(
+      JSON.parse(goldenRequests('01-plain-turn.json')[0]!) as unknown,
+    )
+    const tools = toolDefinitions('linux', { hasShell: true, hasSkills: false })
+    const instructions = instructionsFor({ ...baseFacts(), today: '1970-01-01' })
+    expect(JSON.stringify(body.tools)).toBe(JSON.stringify(tools))
+    expect(body.instructions).toBe(instructions)
+    expect(body.prompt_cache_key).toBe(
+      promptCacheKey({ model: 'muse-spark-1.3', instructions, tools }),
+    )
+    expect(body.model).toBe('muse-spark-1.3')
+    expect(body.tool_choice).toBe('auto')
+    expect(body.reasoning).toEqual({ effort: 'high', summary: 'auto' })
+    expect(body.stream).toBe(true)
+    expect(body.store).toBe(false)
+    expect(body.include).toEqual(['reasoning.encrypted_content'])
+    expect(body.max_output_tokens).toBe(32_768)
+    expect(body.prompt_cache_retention).toBe('in_memory')
+  })
+
+  it('reproduces the strict golden tools from the real strict conversion', () => {
+    const body = goldenBodySchema.parse(
+      JSON.parse(goldenRequests('strict/01-plain-turn.json')[0]!) as unknown,
+    )
+    const tools = withStrictTools(
+      toolDefinitions('linux', { hasShell: true, hasSkills: false }),
+      true,
+    )
+    const instructions = instructionsFor({ ...baseFacts(), today: '1970-01-01' })
+    expect(JSON.stringify(body.tools)).toBe(JSON.stringify(tools))
+    expect(body.instructions).toBe(instructions)
+    expect(body.prompt_cache_key).toBe(
+      promptCacheKey({ model: 'muse-spark-1.3', instructions, tools }),
+    )
   })
 })
