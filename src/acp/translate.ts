@@ -26,6 +26,7 @@ import {
 // content blocks become turn parts, and the backend's approval choices
 // become permission options. Pure; `agent.ts` sends what these return.
 
+import type { AttachmentLimits } from '../core/providers/capabilityRecord'
 import { Buffer } from 'node:buffer'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -663,13 +664,12 @@ export function decodeAcpBlob(
     : fill(UI_TEXT.media.attachmentUnknownType, { type: mime })
 }
 
-function imagePart(base64Data: string, mime?: string): TurnPart | string {
-  const bytes = decodeAcpBlob(
-    base64Data,
-    MAX_IMAGE_BYTES,
-    mime ?? 'image',
-    UI_TEXT.attachmentTooLarge,
-  )
+function imagePart(
+  base64Data: string,
+  mime?: string,
+  maxBytes: number = MAX_IMAGE_BYTES,
+): TurnPart | string {
+  const bytes = decodeAcpBlob(base64Data, maxBytes, mime ?? 'image', UI_TEXT.attachmentTooLarge)
   if (typeof bytes === 'string') return bytes
   const info = readImageInfo(bytes)
   if (info !== undefined && mime !== undefined && mime !== info.mediaType)
@@ -692,13 +692,14 @@ async function blockPart(
   signal: AbortSignal,
   media?: PromptMediaPort,
   canAcceptDocuments = false,
+  limits?: AttachmentLimits,
 ): Promise<TurnPart | string> {
   switch (block.type) {
     case 'text': {
       return { type: 'text', text: block.text }
     }
     case 'image': {
-      return imagePart(block.data, block.mimeType)
+      return imagePart(block.data, block.mimeType, limits?.imageMaxBytes ?? MAX_IMAGE_BYTES)
     }
     case 'resource_link': {
       // Only media links reach the port: an ordinary context link must not
@@ -716,7 +717,7 @@ async function blockPart(
       const bytes = decodeAcpBlob(
         resource.blob,
         resource.mimeType === PDF_MEDIA_TYPE
-          ? MAX_DOCUMENT_BYTES
+          ? (limits?.documentMaxBytes ?? MAX_DOCUMENT_BYTES)
           : MEDIA_MAX_UPLOAD_DEFAULT_MIB * BYTES_PER_MIB,
         resource.mimeType ?? 'blob',
         resource.mimeType === PDF_MEDIA_TYPE ? UI_TEXT.documentTooLarge : UI_TEXT.execFileTooLarge,
@@ -789,11 +790,12 @@ export async function promptParts(
   media?: PromptMediaPort,
   canAcceptDocuments = false,
   signal: AbortSignal = new AbortController().signal,
+  limits?: AttachmentLimits,
 ): Promise<PromptResult> {
   const parts: TurnPart[] = []
   for (const block of blocks) {
     signal.throwIfAborted()
-    const part = await blockPart(block, cwd, signal, media, canAcceptDocuments)
+    const part = await blockPart(block, cwd, signal, media, canAcceptDocuments, limits)
     signal.throwIfAborted()
     if (typeof part === 'string') {
       return { ok: false, reason: part }

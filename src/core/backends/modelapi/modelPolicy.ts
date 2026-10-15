@@ -18,6 +18,11 @@ import {
 } from '../../../shared/constants'
 import type { ModelCapabilities } from '../../providers/capabilities'
 import type { ModelPricing, PricedUsage } from '../../providers/priceCard'
+import {
+  type AttachmentLimits,
+  attachmentLimitsForRecord,
+  metaCapabilityRecord,
+} from '../../providers/capabilityRecord'
 
 import { outputTokenMinimumMessage } from '../../../shared/providerRouting'
 import { effortLevelsFor, resolveReasoning } from '../../../shared/effort'
@@ -154,6 +159,20 @@ export function outputCapForRequest(
   const cap = outputLimitFor(policy, requested)
   if (!Number.isSafeInteger(cap) || cap < 1) throw new RangeError('invalid output.maxTokens')
   return cap
+}
+
+/**
+ * A10 (limits-output): per-request attachment limits for a model reference.
+ * Meta models resolve their own capability record (confirmed); any other
+ * reference keeps today's enforcement values, reported unconfirmed.
+ */
+export function attachmentLimitsForModel(model: string): AttachmentLimits {
+  const producer = replayProducer(model)
+  const isMeta = producer.provider === 'meta' && model.startsWith(MODEL_API_MODEL_PREFIX)
+  if (!isMeta) return attachmentLimitsForRecord(undefined)
+  const slash = model.indexOf('/')
+  const nativeModel = slash === -1 ? model : model.slice(slash + 1)
+  return attachmentLimitsForRecord(metaCapabilityRecord(nativeModel))
 }
 
 /** Whether a turn cut short by the output limit continues on its own (B1). */

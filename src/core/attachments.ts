@@ -11,9 +11,7 @@ import {
   BASE64_INPUT_BLOCK_BYTES,
   BASE64_OUTPUT_BLOCK_CHARS,
   MAX_ATTACHMENTS_PER_MESSAGE,
-  MAX_DOCUMENT_BYTES,
   MAX_ENCODED_MEDIA_CHARS,
-  MAX_IMAGE_BYTES,
   MAX_MODEL_API_TEXT_ATTACHMENT_BYTES,
   MAX_TEXT_ATTACHMENT_BYTES,
   MODEL_API_MEDIA_PER_REQUEST,
@@ -30,7 +28,7 @@ import { fill } from '../shared/l10n/text'
 import { readImageInfo } from './imageDimensions'
 import { isPdf, pdfPageCount } from './pdf'
 import type { TurnPart } from './agent/agentBackend'
-import type { ModelCapabilityRecord } from './providers/capabilityRecord'
+import { attachmentLimitsForRecord, type ModelCapabilityRecord } from './providers/capabilityRecord'
 import { textFileInput } from './textAttachment'
 import type { MediaFileInfo, MediaLimitResult } from './media/limits'
 
@@ -149,7 +147,9 @@ export class AttachmentStore {
     if (policy !== undefined && policy.state !== 'yes')
       return { ok: false, reason: UI_TEXT.modelAttachmentUnsupported }
     const isMeta = record === undefined || record.identity.provider === 'meta'
-    const maxBytes = isMeta ? MAX_DOCUMENT_BYTES : policy?.value.maxBytes
+    const maxBytes = isMeta
+      ? attachmentLimitsForRecord(record).documentMaxBytes
+      : policy?.value.maxBytes
     if (maxBytes !== undefined && bytes.byteLength > maxBytes) {
       return {
         ok: false,
@@ -175,7 +175,10 @@ export class AttachmentStore {
       ...(pageCount !== undefined && { pageCount }),
     }
     // A message Meta would refuse whole (more than 50 images) is refused here, with the reason.
-    if (isMeta && this.weight() + imageWeight(summary) > MODEL_API_MEDIA_PER_REQUEST) {
+    if (
+      isMeta &&
+      this.weight() + imageWeight(summary) > attachmentLimitsForRecord(record).imageMaxCount
+    ) {
       return {
         ok: false,
         reason: UI_TEXT.documentsOverBudget,
@@ -198,7 +201,9 @@ export class AttachmentStore {
     if (policy !== undefined && policy.state !== 'yes')
       return { ok: false, reason: UI_TEXT.modelAttachmentUnsupported }
     const isMeta = record === undefined || record.identity.provider === 'meta'
-    const maxBytes = isMeta ? MAX_IMAGE_BYTES : policy?.value.maxBytes
+    const maxBytes = isMeta
+      ? attachmentLimitsForRecord(record).imageMaxBytes
+      : policy?.value.maxBytes
     if (maxBytes !== undefined && bytes.byteLength > maxBytes) {
       return {
         ok: false,
@@ -217,7 +222,7 @@ export class AttachmentStore {
     }
     if (
       isMeta
-        ? this.weight() + 1 > MODEL_API_MEDIA_PER_REQUEST
+        ? this.weight() + 1 > attachmentLimitsForRecord(record).imageMaxCount
         : policy?.state === 'yes' &&
           policy.value.maxCount !== undefined &&
           imageCount + 1 > policy.value.maxCount

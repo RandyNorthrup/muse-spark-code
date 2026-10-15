@@ -7,7 +7,8 @@
 import { Buffer } from 'node:buffer'
 import { randomUUID } from 'node:crypto'
 import { lstat, open, type FileHandle } from 'node:fs/promises'
-import { BYTES_PER_MIB, MAX_DOCUMENT_BYTES, MAX_IMAGE_BYTES, UI_TEXT } from '../../shared/constants'
+import { BYTES_PER_MIB, UI_TEXT } from '../../shared/constants'
+import { attachmentLimitsForModel } from '../../core/backends/modelapi/modelPolicy'
 import type { MediaModelCapabilities } from '../../core/media/modalityGate'
 import type { MediaLimits } from '../../core/media/limits'
 import { isProtectedPath } from '../../core/protectedPaths'
@@ -33,10 +34,12 @@ const INLINE_DOCUMENT_FORMATS = ['application/pdf']
 
 /**
  * Project the selected model from established behavior, never a guess: image
- * and document formats are what the request builder encodes today; video and
+ * and document formats are what the request builder encodes today, and their
+ * per-request sizes come from the model's capability record (A10); video and
  * audio stay unknown until lane V verifies them against live captures.
  */
 export function projectMediaCapabilities(modelId: string): MediaModelCapabilities {
+  const limits = attachmentLimitsForModel(modelId)
   return {
     modelId,
     modelName: modelId,
@@ -45,12 +48,12 @@ export function projectMediaCapabilities(modelId: string): MediaModelCapabilitie
       image: {
         support: 'yes',
         formats: INLINE_IMAGE_FORMATS,
-        inlineMaxBytes: MAX_IMAGE_BYTES,
+        inlineMaxBytes: limits.imageMaxBytes,
       },
       document: {
         support: 'yes',
         formats: INLINE_DOCUMENT_FORMATS,
-        inlineMaxBytes: MAX_DOCUMENT_BYTES,
+        inlineMaxBytes: limits.documentMaxBytes,
       },
       video: { support: 'unknown', formats: [] },
       audio: { support: 'unknown', formats: [] },

@@ -2,7 +2,11 @@
 // transient; a model switch never overwrites the original upload reference.
 import { Buffer } from 'node:buffer'
 import { createHash } from 'node:crypto'
-import { MEDIA_FILE_ID_MIN_BYTES, UI_TEXT } from '../../shared/constants'
+import {
+  MEDIA_FILE_ID_MIN_BYTES,
+  MODEL_API_MEDIA_PER_REQUEST,
+  UI_TEXT,
+} from '../../shared/constants'
 import { fill, formatBytes, formatUnit } from '../../shared/l10n/text'
 import {
   storedMediaPartSchema,
@@ -19,6 +23,7 @@ import type { InputContentPart, InputItem } from '../backends/modelapi/schemas'
 import type { StoredReplayItem } from '../backends/modelapi/sessionStore'
 import type { ResponsesMediaCodec } from '../backends/modelapi/codecs/responses'
 import type { MediaBudget } from '../backends/modelapi/mediaBudget'
+import { attachmentLimitsForModel } from '../backends/modelapi/modelPolicy'
 import type { UploadLedger } from './uploadLedger'
 import { modalityGate, type MediaModelCapabilities, type MediaGateResult } from './modalityGate'
 
@@ -195,9 +200,10 @@ export class ReplayMedia {
     content: readonly InputContentPart[],
     budget: MediaBudget,
     queued?: { readonly chars: number; readonly slots: number },
+    maxSlots: number = MODEL_API_MEDIA_PER_REQUEST,
   ): void {
     try {
-      budget.assertMessageFits(content, queued)
+      budget.assertMessageFits(content, queued, maxSlots)
     } catch (error) {
       const names = new Set(
         content.flatMap((part) => {
@@ -463,10 +469,21 @@ export class ReplayMedia {
         )
         return encoded
       })
-      if (hasFreshMedia) this.assertPendingFits(content, budget)
+      if (hasFreshMedia)
+        this.assertPendingFits(
+          content,
+          budget,
+          undefined,
+          attachmentLimitsForModel(modelId).imageMaxCount,
+        )
       return { ...item, content }
     })
-    this.assertPendingFits(this.pending(projected), budget)
+    this.assertPendingFits(
+      this.pending(projected),
+      budget,
+      undefined,
+      attachmentLimitsForModel(modelId).imageMaxCount,
+    )
     return projected
   }
 

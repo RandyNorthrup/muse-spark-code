@@ -80,6 +80,7 @@ import {
   UI_TEXT,
   SLASH_COMMAND_NAMES,
 } from '../shared/constants'
+import { attachmentLimitsForModel } from '../core/backends/modelapi/modelPolicy'
 import { effortForThinking, effortLabel, effortLevelsFor, isEffortLevel } from '../shared/effort'
 import { fill, formatBytes, formatUnit, uiLocale } from '../shared/l10n/text'
 import type { AcpAttachment, AcpMediaFactory, AcpMediaPort } from './media'
@@ -1705,6 +1706,7 @@ class AcpSession {
         media,
         this.deps.backend.kind === 'modelApi',
         preparing.abort.signal,
+        attachmentLimitsForModel(this.modelId),
       )
       if (!parsed.ok) throw RequestError.invalidParams(undefined, parsed.reason)
       // Every local command below is decided on this one text, the same one

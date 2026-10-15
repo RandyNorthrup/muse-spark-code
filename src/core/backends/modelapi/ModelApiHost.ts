@@ -131,7 +131,6 @@ import {
   MODEL_API_MAX_OUTPUT_TOKENS,
   MODEL_API_MAX_RETRIES,
   MODEL_API_MAX_TOOL_ROUNDS,
-  MODEL_API_MEDIA_PER_REQUEST,
   MODEL_API_MODEL_PREFIX,
   MODEL_API_MODEL_TEXT,
   MCP_POOL_MODEL_TEXT,
@@ -350,6 +349,7 @@ import {
   modelPolicyFor,
   modelPricedUsage,
   requestImageCount,
+  attachmentLimitsForModel,
   outputCapForRequest,
   shouldContinueOutput,
   type ModelResolver,
@@ -4508,6 +4508,7 @@ export class ModelApiSession implements ScheduledAgentSession {
           mediaProjected,
           undefined,
           this.media?.pending(mediaProjected),
+          this.modelId,
         )
         // Packing projects per request only: the replay keeps the originals, so
         // a later request (or a restore) packs from the full outputs again.
@@ -7555,7 +7556,12 @@ export class ModelApiSession implements ScheduledAgentSession {
         this.budget.note(sent, part.pageCount)
       }
     }
-    this.media?.assertPendingFits(content, this.budget)
+    this.media?.assertPendingFits(
+      content,
+      this.budget,
+      undefined,
+      attachmentLimitsForModel(this.modelId).imageMaxCount,
+    )
     return content
   }
 
@@ -7839,7 +7845,8 @@ export class ModelApiSession implements ScheduledAgentSession {
   private canQueueMedia(chars: number, slots: number): boolean {
     const queued = this.queuedMediaUsage()
     const limit = this.deps.mediaBudgetMaxEncodedChars ?? MAX_ENCODED_MEDIA_CHARS
-    return queued.chars + chars <= limit && queued.slots + slots <= MODEL_API_MEDIA_PER_REQUEST
+    const maxSlots = attachmentLimitsForModel(this.modelId).imageMaxCount
+    return queued.chars + chars <= limit && queued.slots + slots <= maxSlots
   }
 
   /** Reserve all current-batch visual outputs before their tool row reports success. */
@@ -7856,7 +7863,12 @@ export class ModelApiSession implements ScheduledAgentSession {
 
   private canQueueSteeredMedia(parts: readonly TurnPart[]): boolean {
     if (this.media !== undefined) {
-      this.media.assertPendingFits(this.contentParts(parts), this.budget, this.queuedMediaUsage())
+      this.media.assertPendingFits(
+        this.contentParts(parts),
+        this.budget,
+        this.queuedMediaUsage(),
+        attachmentLimitsForModel(this.modelId).imageMaxCount,
+      )
       return true
     }
     let chars = 0
@@ -15116,12 +15128,17 @@ export class ModelApiSession implements ScheduledAgentSession {
         ...(cached !== undefined && {
           instructions: cached.instructions,
         }),
-        input: this.budget.fit([
-          ...(this.media?.summaryInput(current.input) ?? current.input).filter(
-            (item) => canReplayReasoning || !isReasoningItem(item),
-          ),
-          append,
-        ]),
+        input: this.budget.fit(
+          [
+            ...(this.media?.summaryInput(current.input) ?? current.input).filter(
+              (item) => canReplayReasoning || !isReasoningItem(item),
+            ),
+            append,
+          ],
+          undefined,
+          [],
+          modelId,
+        ),
         tools: canReuse ? current.tools : [],
         include: ['reasoning.encrypted_content'],
       })

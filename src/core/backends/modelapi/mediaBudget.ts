@@ -22,9 +22,13 @@ import {
   UI_TEXT,
 } from '../../../shared/constants'
 import type { MediaInfo } from '../../../shared/media'
+import { attachmentLimitsForModel } from './modelPolicy'
 import { fill } from '../../../shared/l10n/text'
 import { pdfPageCount } from '../../pdf'
-import type { ModelCapabilityRecord } from '../../providers/capabilityRecord'
+import {
+  attachmentLimitsForRecord,
+  type ModelCapabilityRecord,
+} from '../../providers/capabilityRecord'
 import type {
   FunctionOutputPart,
   InputContentPart,
@@ -138,10 +142,10 @@ export class MediaBudget {
   public assertMessageFits(
     content: readonly InputContentPart[],
     queued?: { readonly chars: number; readonly slots: number },
+    maxSlots: number = MODEL_API_MEDIA_PER_REQUEST,
   ): void {
     const usage = this.usage(content)
-    if (usage.slots + (queued?.slots ?? 0) > MODEL_API_MEDIA_PER_REQUEST)
-      throw new Error(UI_TEXT.documentsOverBudget)
+    if (usage.slots + (queued?.slots ?? 0) > maxSlots) throw new Error(UI_TEXT.documentsOverBudget)
     if (usage.chars + (queued?.chars ?? 0) > this.maxEncodedMediaChars)
       throw new Error(UI_TEXT.mediaTotalTooLarge)
   }
@@ -166,11 +170,16 @@ export class MediaBudget {
     input: readonly InputItem[],
     record?: ModelCapabilityRecord,
     required: readonly InputContentPart[] = [],
+    modelId?: string,
   ): readonly InputItem[] {
-    this.assertMessageFits(required)
+    const limits =
+      record === undefined
+        ? attachmentLimitsForModel(modelId ?? '')
+        : attachmentLimitsForRecord(record)
+    this.assertMessageFits(required, undefined, limits.imageMaxCount)
     const reserved = this.usage(required)
     const protectedParts = new Set(required)
-    let left = MODEL_API_MEDIA_PER_REQUEST - reserved.slots
+    let left = limits.imageMaxCount - reserved.slots
     let imageCount = 0
     let encodedLeft = this.maxEncodedMediaChars - reserved.chars
     const refusal = (part: InputContentPart): OmissionReason | undefined => {
