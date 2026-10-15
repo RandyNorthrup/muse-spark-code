@@ -9,6 +9,18 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- Fixed: the app's own statuses (such as automatic compaction awaiting
+  evaluation) no longer speak as the model's reply on the editor
+  protocol — they arrive as their own session notice where the editor
+  can show one, as a separate panel notice as before, and on terminal
+  stderr in headless runs (F82).
+- Fixed: a configured model without confirmed tool calling is listed
+  with its limit stated instead of vanishing silently, is flagged when
+  added, and is refused for agent turns with the same sentence (F83).
+- Fixed: terminal `providers add` without `--model` lists the key's
+  models and says to pass `--model <id>` (repeatable) instead of the
+  panel's tick wording (F85).
+
 - Test-overhaul review: paid-popup lazy-load checks now build the real
   runtime instead of writing a replacement formatter, retaining locale
   propagation and sub-cent search-price disclosure checks.
