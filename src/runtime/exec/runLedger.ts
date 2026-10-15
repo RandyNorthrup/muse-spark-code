@@ -61,10 +61,10 @@ export interface SettlementResult {
   chargedUsd: UsdAmount
   latch?: 'accounting_invalid' | 'breach'
 }
-/** Exec reserves the worst case before sending; its ceiling is a money policy. */
+/** Reserve the selected model's maximum; affordability is checked by the ledger. */
 export function resolveExecOutputCap(policy?: Pick<ModelPolicy, 'output'>): number {
   const maximum = policy?.output.maxTokens
-  const cap = Math.min(MODEL_API_MAX_OUTPUT_TOKENS, maximum ?? MODEL_API_MAX_OUTPUT_TOKENS)
+  const cap = maximum ?? MODEL_API_MAX_OUTPUT_TOKENS
   if (!Number.isSafeInteger(maximum ?? cap) || cap < EXEC_MIN_OUTPUT_TOKENS)
     throw new RangeError(UI_TEXT.execRequestShape)
   return cap

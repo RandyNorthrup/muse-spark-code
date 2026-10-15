@@ -14348,6 +14348,14 @@ gains a way to the rest:
   numbers; where a record lacks them, today's value stays and is marked
   "unconfirmed" in the record.
 
+**RVLIMITSB review scope (2026-10-14).** Reuse the existing request policy,
+conditional file writer, range tools and paging stores. Correct proven exec-cap,
+range-read, range-edit and paging defects in separate commits; remove lane-added
+stand-in tests and qualify claims against actual evidence. No new provider calls,
+new abstraction or raised gate cap. Unknown attachment limits and any remaining
+whole-file edit bound are unresolved obligations, not provider capabilities.
+Review receipts and remaining acceptance gaps: `.lane/RVLIMITSB.report.md`.
+
 Out of scope: compaction timing (B2, M101), money and stopping limits
 (lane LIMITSA), silent drops (lane LIMITSC). Proof and record:
 `test/e2e/limitsOutput.e2e.test.ts` drives the packed product (a reply

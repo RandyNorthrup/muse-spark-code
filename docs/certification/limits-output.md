@@ -184,6 +184,19 @@ No network, no paid calls. 3/3 green (repo-default timeouts; per-test
 7. Jscpd notes (under threshold, gate green): the proof's report helpers
    share a 7-line shape with `execStdio.e2e.test.ts`.
 
+## RVLIMITSB review receipts (Windows, 2026-10-14)
+
+These receipts supersede the affected claims above; historical Linux results
+are not a certification of this review tree. Native inventory succeeded with
+no `error`; observed Node v24.20.0 and Python 3.14.0. The delivery validator
+is not applied to the repository's legacy, non-ledger PLAN format.
+
+- F1 exec cap: `npx vitest run test/unit/outputCapRecord.test.ts --maxWorkers=2`
+  failed before the fix (exit 1, expected 131072, received 32768), then passed
+  after it (exit 0, 5 tests). Logs: `.lane/exec-cap-{red,green}.log`.
+  `resolveExecOutputCap` now uses the record maximum; the existing per-request
+  ledger still refuses an unaffordable reservation rather than shrinking it.
+
 ## Qualification
 
 All work runs directly in `/home/randy/lanes/LIMITSB` on linuxlt. No

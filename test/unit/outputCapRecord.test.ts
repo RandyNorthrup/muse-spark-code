@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { resolveExecOutputCap } from '../../src/runtime/exec/runLedger'
 import { modelPolicyFor, outputCapForRequest } from '../../src/core/backends/modelapi/modelPolicy'
 import {
   MODEL_API_MAX_OUTPUT_TOKENS,
@@ -9,6 +10,12 @@ import {
 // maximum, not the fixed legacy value. Pure logic through the real policy
 // module: model ids in, token counts out.
 describe('record output cap', () => {
+  it('uses the record maximum for exec reservations as well as interactive sends', () => {
+    expect(resolveExecOutputCap(modelPolicyFor('muse-spark-1.3'))).toBe(131_072)
+    expect(resolveExecOutputCap({ output: { maxTokens: 65_536 } })).toBe(65_536)
+    expect(resolveExecOutputCap({ output: { maxTokens: 4096 } })).toBe(4096)
+    expect(() => resolveExecOutputCap({ output: { maxTokens: NaN } })).toThrow(RangeError)
+  })
   it('uses the Meta record maximum, not the legacy cap', () => {
     expect(modelPolicyFor('muse-spark-1.3').output.maxTokens).toBe(
       MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS,

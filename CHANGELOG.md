@@ -9,6 +9,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- Review repair: headless exec reserves the selected model's recorded maximum
+  output instead of imposing a second 32,768-token ceiling; unaffordable
+  requests are still refused by the run budget.
+
 - Limits-output lane (B1/B3/B5/B6/B7/A9/A10): nothing the Model API
   backend says, reads, searches, fetches or diagnoses is cut short
   without a way to get the rest. Answers stopped on max tokens continue
