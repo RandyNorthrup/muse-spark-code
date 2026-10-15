@@ -24,6 +24,7 @@ declare module 'vitest' {
   }
 }
 export const PRODUCTION_BUILD_SUITES = [
+  '/limitsOutput.e2e.test.ts',
   '/runtimeChatGptPackage.test.ts',
   '/webviewBundle.test.mjs',
   '/execStdio.e2e.test.ts',

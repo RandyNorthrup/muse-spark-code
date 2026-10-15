@@ -394,10 +394,19 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
     sink.resource(event)
     log.warn(text.replaceAll('\n', ' · '))
   })
-  const drain = (target: ExecSink) => {
+  /**
+   * B1 (limits-output): a message its response left incomplete may still be
+   * continued whole by a later response, so only the final drain freezes a
+   * withheld verdict. Earlier drains emit settled messages and hold the rest;
+   * a turn that never continues them withholds them at the end, as before.
+   */
+  const drain = (target: ExecSink, isFinal: boolean) => {
     const messages = tap?.releasedMessages() ?? []
     for (const item of messages) {
       if (emitted.has(item.itemId)) {
+        continue
+      }
+      if (!isFinal && !item.complete) {
         continue
       }
 
@@ -453,7 +462,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         durationMs: event.item.durationMs ?? 0,
       })
     }
-    drain(sink)
+    drain(sink, false)
   }
   /**
    * A BYO provider run (M95, PLAN.md D74): everything is resolved and
@@ -693,7 +702,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
           },
           onResponseSettled: (outcome) => {
             tap?.settleResponse(outcome)
-            if (!isFinishing) drain(sink)
+            if (!isFinishing) drain(sink, false)
           },
         })
       const engine = await import('../runtimeEngineEntry')
@@ -730,7 +739,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
                 },
                 settled: (outcome) => {
                   tap?.settleResponse(outcome)
-                  if (!isFinishing) drain(sink)
+                  if (!isFinishing) drain(sink, false)
                 },
               },
             }),
@@ -1119,7 +1128,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
     const signal = lifecycle.cause?.kind === 'signal' ? lifecycle.cause.signal : null
     const cause = lifecycle.cause
     const tokens = totals?.tokens ?? latestTokens
-    drain(sink)
+    drain(sink, true)
     const hasCompleteResponse =
       options.backend === 'museCode'
         ? terminal === 'completed'
