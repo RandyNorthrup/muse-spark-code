@@ -98,6 +98,9 @@ true`, dummy secret to the dead port, since removed): the send ended
 
 ## Real-life scenarios for the lead (need a real provider answer)
 
+_Superseded by "LIMITSFIX real-life steps for the lead (final behavior)" at the
+end of this record; kept as written by lane LIMITSA._
+
 1. Set `museSpark.modelApiSessionBudgetUsd` to $5, spend ~$2, send a
    long-context request: it runs (no worst-case refusal); after real
    spend passes $5 the next request stops with the spend/cap/raise
@@ -392,7 +395,7 @@ requested lane report; remaining P1/P2 findings prevent merge approval.
   five touched files 0. Pure logic through the real module only; the host
   wiring is proven by a real turn (real-life step 8), not by a stand-in.
 
-## LIMITSFIX F3 â€” one admission and settlement contract on real spend (2026-10-15)
+## LIMITSFIX F3 — one admission and settlement contract on real spend (2026-10-15)
 
 - **Cause.** Each consumer of a cap reserved its own estimate or worst case:
   the conversation held an input estimate (`sessionBudget.ts`), providers held
@@ -435,15 +438,18 @@ requested lane report; remaining P1/P2 findings prevent merge approval.
   extras still ask first; the daily extras still own their raise/stop dialog.
   The scheduled-run ledger (D95) and media request accounting (M105) keep
   their own finite, exact reservation (they have no person-set cap to follow).
-- **Budget comparison with sources** (read this session):
-  | Harness                                                                  | What it does                                                                                                                                                                                                                                                                                                                  | Source                                                                    |
-  | ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
-  | Claude Agent SDK / Claude Code                                           | `maxBudgetUsd` / `max_budget_usd` compares the call's accumulated cost, which is a _client-side estimate from a price table_; the `error_max_budget_usd` result's `total_cost_usd` **includes the response that crossed the budget**, so it can pass the cap by that response. Subagent cost is included in `total_cost_usd`. | https://code.claude.com/docs/en/agent-sdk/cost-tracking (read 2026-10-15) |
-  | OpenCode                                                                 | Its Config reference documents no spend cap or budget option at all (provider timeouts, compaction, subagent depth only).                                                                                                                                                                                                     | https://opencode.ai/docs/config/ (read 2026-10-15)                        |
-  | Codex CLI                                                                | **UNVERIFIED** â€” not read this session.                                                                                                                                                                                                                                                                                     | â€”                                                                       |
-  | Gemini CLI, Cline                                                        | From `.lane/limits-audit.md` (sources it names, not re-read): Gemini has quota windows and no dollar cap; Cline has per-task `allowedMaxCost` auto-approval caps. **UNVERIFIED** here.                                                                                                                                        | audit, 2026-10-15                                                         |
-  | Our contract matches the one documented behavior: real settled cost, the |
-  | crossing response is counted, no pre-send hold.                          |
+- **Budget comparison with sources** (pages read 2026-10-15):
+
+  | Harness                        | What it does                                                                                                                                                                                                                                                                                                         | Source                                                      |
+  | ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+  | Claude Agent SDK / Claude Code | `maxBudgetUsd` / `max_budget_usd` compares the call's accumulated cost, a _client-side estimate from a price table_. The `error_max_budget_usd` result's `total_cost_usd` **includes the response that crossed the budget**, so it can pass the cap by that response. Subagent cost is included in `total_cost_usd`. | https://code.claude.com/docs/en/agent-sdk/cost-tracking     |
+  | OpenCode                       | Its Config reference documents no spend cap or budget option (provider timeouts, compaction, subagent depth only).                                                                                                                                                                                                   | https://opencode.ai/docs/config/                            |
+  | Codex CLI                      | **UNVERIFIED.** `https://developers.openai.com/codex/config-reference` redirects to `https://learn.chatgpt.com/docs/config-file/config-reference`; the first 50,000 characters of that 1.4 MB page (navigation and the Work Cloud policy table) name no spend setting, which is not proof there is none.             | https://learn.chatgpt.com/docs/config-file/config-reference |
+  | Gemini CLI, Cline              | From `.lane/limits-audit.md` (its sources, not re-read here): Gemini has quota windows and no dollar cap; Cline has per-task `allowedMaxCost` auto-approval caps. **UNVERIFIED** here.                                                                                                                               | the audit, 2026-10-15                                       |
+
+  Our contract matches the one documented behavior: real settled cost, the
+  crossing response counted, no pre-send hold.
+
 - **Red drills (broke source on purpose, saw the fail, restored byte-exact).**
   (1) `isBelowCap` made to add a $3.03 worst case: `sessionBudget.test.ts` 6
   failed; SHA-256 `7F315F8F842DD34F0D34500440996EB4FEBF1D77A727DFDC2F1FD1B6671AE778`
@@ -560,3 +566,166 @@ requested lane report; remaining P1/P2 findings prevent merge approval.
   `stale claims found: 0`. `check:l10n` 0 problems, `check:reference` 0,
   `manifest.test.ts` pins the English claims. The translations are mine, not
   a human review: the lead should have a native reader look at one language.
+
+## LIMITSFIX F7 — every spending stop says what is true (2026-10-15)
+
+- **Cause.** Two sentences were false under the one cap rule. Tab refused when
+  spend plus its next worst case passed its cap, then said the spend "reached"
+  the cap (`tabLedger.ts`, `en.ts` `tabBudgetReachedDetail`). The shared daily
+  extras' dialog (`paidDailyBudget.ts` `raise`, `paidDailyReachedDetail`) still
+  said "this request and existing reservations need {needed}" and accepted a
+  raised limit equal to a figure nothing held any more.
+- **Fix.** Tab was moved onto the contract in F3 (admission on settled spend
+  only, `isBelowCap`), so its sentence "has reached the daily budget" is true
+  exactly when it is said; all 14 translations carry the same claim (read, not
+  only counted). The daily extras' dialog now names what the paid extras have
+  spent of today's limit and that the next paid request was not sent
+  (`paidDailyReachedDetail` takes `{spent}` and `{budget}`), and its raise
+  prompt asks for a limit above what is already spent (`paidDailyRaisePrompt`).
+  The raise accepts only a limit strictly above the spend (an equal one would
+  stop the next request again) and suggests double today's limit, or double the
+  spend when that is higher, never above $500. English and all 14 tables
+  (28 values).
+- **Proof.** `tabLedger.test.ts` (real ledger files: admitted below the budget
+  whatever a completion could cost; refused at the budget with the real spend;
+  windows share one budget; a lost request stays unknown) 4 passed; red drill
+  recorded in F3 (3). The dialog is VS Code UI over the real daily ledger and
+  is not provable without the editor: real-life step 4 below. `check:l10n` 0
+  problems (14 tables, 253 manifest strings), `typecheck:host` 0, eslint 0.
+
+## LIMITSFIX gates and findings on the final tree (2026-10-15, Windows, Node 24.20.0)
+
+Commits since the step-0 merge `e8a7ec524` (all with hooks on, trailer exact):
+
+| Commit      | Finding                                                                                                        |
+| ----------- | -------------------------------------------------------------------------------------------------------------- |
+| `a16b46081` | F4 one repeat policy for every tool class                                                                      |
+| `dbd86d171` | F3 one admission and settlement contract on real spend                                                         |
+| `10e5e06fc` | F5 a failed limit summary still ends cleanly                                                                   |
+| `af3b8c4d4` | F8 the turn limit is any whole number on every surface                                                         |
+| `bc75d25a8` | F9 every claim matches the final behavior                                                                      |
+| `68b2a7474` | F7 the daily extras stop says spent and limit                                                                  |
+| `c9732f346` | F3 the hook and review helpers admit through one function (the duplication gate found the same 12 lines twice) |
+| `91d3671d9` | F5 `turnLimitStop.ts` listed as backend-only for the bundle-split check (`npm run build` stopped on it)        |
+| `f4f9d91e6` | PLAN D113 states the final contract                                                                            |
+
+| Finding | Cause                                                                           | Fix                                                                                                       | Proof                                                                                                                      |
+| ------- | ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| F4 P1   | the repeat guard reset without a witness, only `read_file` had one              | `RepeatGuard.observe` at `settlePreparedCall`, same args and same result: warn at 3-4, stop at 5          | `repeatGuard.test.ts` 9 passed, red drill                                                                                  |
+| F3 P1   | every consumer reserved an estimate or worst case; children bypassed the cap    | `isBelowCap` (`spendCap.ts`), settled spend only, unknown recorded not guessed, children share the ledger | `sessionBudget.test.ts` 36, `tabLedger.test.ts`, `judgeAdmissionLedger.test.ts`, 3 red drills + 1 for `admitScopedRequest` |
+| F5 P1   | a failed limit summary fell into the failed path: "Internal error"              | the limit ends as `max_turn_requests` with a notice naming why; replay repaired                           | `turnLimitStop.test.ts` 4, red drill; real failure is step 3                                                               |
+| F7 P2   | "reached" said while below; "reservations need" with none held                  | Tab on the contract; daily dialog says spent and limit, raise only above spend                            | `tabLedger.test.ts` 4; dialog is step 4                                                                                    |
+| F8 P2   | only off/25/50/100/200/500, no panel switch, not saved, children not inheriting | any whole number, panel switch, `StoredSession.maxTurnRequests`, parent's limit                           | `turnLimit.test.ts`, `fileSessionStore.test.ts`, `paletteRegistry.test.ts`, 2 red drills                                   |
+| F9 P2   | 14 translated manifest tables, README and Help kept the old promises            | five descriptions in 15 tables, README, regenerated reference                                             | scan: 0 stale claims, `check:reference` 0                                                                                  |
+
+`admitScopedRequest` red drill: the cap check skipped on purpose,
+`sessionBudget.test.ts` 1 failed ("promise resolved instead of rejecting"),
+`sessionBudget.ts` restored byte-exact, SHA-256
+`81F2176AE47D234705CE84A521D2B73CDE8675A8DEA1A1EDE2EBEA7EDEACE35B` before and after.
+
+Gates on the final tree (each its own command, this PC; exit code):
+
+| Gate                                                                                                                 | Exit                                                                                                                  |
+| -------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `prettier --check .` (the lane's own scratch folder `.lane/` excluded: it is outside the repository, ignored by git) | 0                                                                                                                     |
+| `lint:js:main`, `lint:js:unit`, `lint:js:tests` (`--max-warnings=0`)                                                 | 0, 0, 0                                                                                                               |
+| `lint:css`, `lint:ps`                                                                                                | 0, 0                                                                                                                  |
+| `typecheck:host`, `:webview`, `:unit`, `:e2e`, `:integration`                                                        | 0 each                                                                                                                |
+| `deadcode` (knip; 3 configuration hints)                                                                             | 0                                                                                                                     |
+| `cycles` (dpdm, 2302 files)                                                                                          | 0                                                                                                                     |
+| `duplication` (jscpd)                                                                                                | 0 (first run found 1 clone in my F3 code: fixed, `c9732f346`)                                                         |
+| `check:l10n` (14 UI tables, 14 usage tables, 253 manifest strings, 0 problems)                                       | 0                                                                                                                     |
+| `check:reference`, `check:host-api`, `check:plan`, `check:roadmap`, `check:badges`, `check:tokens`                   | 0 each                                                                                                                |
+| `npm run build` (tokens, production build, size, split, registry, host globals, notices)                             | 0 (first run exit 1: split check, fixed `91d3671d9`); `extension.js` 552.6 KiB of 600, `modelApi.js` 508.0 KiB of 525 |
+| `security:audit`                                                                                                     | 0 (2 advisories, 1 configured exception)                                                                              |
+| `security:sast` with `SEMGREP_ENABLE_VERSION_CHECK=0`                                                                | **2: semgrep-core "rule validation failed", "Failed to obtain target files". Not counted. It runs in hosted CI.**     |
+| the 15 test files this lane touched                                                                                  | 263 passed                                                                                                            |
+| `vitest related` over the lane's 11 source files (80 files resolved, 30 ran)                                         | 381 passed, 27 skipped, 0 failed                                                                                      |
+
+Failing suite, **not mine and not claimed green**: `modelsActivationBudget.test.ts`
+("adds at most 3 KiB"). It measured growth of 4480 B on this tree (3860 B on
+`e8a7ec524` and on `a16b46081`, run in clean extracted copies earlier this
+lane, so it failed before any edit of this continuation); its cause is
+UNMEASURED and I did not touch its cap. The growth went from 3860 B to 4480 B
+over the lane (+620 B in `dist/extension.js`: the panel's tool-round switch and
+`turnLimit.ts`); the cap is the owner's to move, not mine.
+
+Not run (owner's testing rules): `npm run quality`, the full `test:unit`, any
+live provider, browser or UI look, `execStdio.e2e.test.ts`, `check:visual`.
+
+## LIMITSFIX real-life steps for the lead (final behavior, 2026-10-15)
+
+Use the packed candidate. Paid calls are the lead's explicit opt-in; none were
+made here. For each step: what a person does, then what they must see.
+
+1. **No fixed round cap.** Leave `museSpark.modelApiMaxTurnRequests` at 0 (the
+   panel's Customize list shows the Tool-round limit switch off). Give a task
+   that needs well over 50 distinct tool rounds (for example "read each file in
+   `src/core/backends/modelapi` and summarise it"). See the turn run past 50
+   rounds with no stop; the model's own end, your Stop, the loop guard or a cap
+   you set are the only ends.
+2. **The limit is any whole number, everywhere.** Set the limit to 3 in
+   Settings (or turn the panel switch on and enter 3). Ask for a task of more
+   than 3 rounds. See one tool-free summary, the notice "The turn reached your
+   limit of 3 tool rounds…", and in an ACP client the stop reason
+   `max_turn_requests`. Send a message in the same conversation: it continues.
+   Repeat from a terminal with the packed agent: `muse-spark-code-acp exec
+--backend modelApi --max-budget-usd 0.50 --max-turn-requests 3 "…"` (and
+   `serve --backend modelApi --max-turn-requests 3`): the flag must be accepted
+   (the earlier build exited 2 on any value outside 25/50/100/200/500). Reopen the ACP
+   conversation: the limit is still 3 (saved with the session). A sub-agent
+   task started in that conversation stops at the same limit.
+3. **A summary that cannot be written.** Reach the limit with a session cap
+   already crossed (set the cap just under the spend), or drop the connection
+   as the limit is reached. See a clean stop with the notice "…but the summary
+   could not be written: <reason> Your conversation is unchanged." Never
+   "Internal error". Then raise the cap or reconnect and send a message: it
+   works, and the transcript has no leftover summary instruction. Repeat with a
+   steering message typed during the last round and with a goal wake.
+4. **Money: a cap compares real spend.** Set `museSpark.modelApiSessionBudgetUsd`
+   to 0.05 and use a long cached context. See requests run while the
+   real spend is under $0.05 (the old "next request (about $3.03) would pass
+   the budget" stop does not appear). When the reported spend reaches the cap,
+   the next request is not sent and the sentence says "Stopped: $X is spent of
+   the $0.05 session budget, so the next request was not sent. To continue,
+   raise the session budget in Settings (museSpark.modelApiSessionBudgetUsd) or
+   start a new conversation." Count the extra spend: at most one response per
+   request that was in flight. Repeat with a hook model, the Auto reviewer and
+   two running sub-agents: they stop on the same sentence and share one total.
+   The shared daily extras: set `museSpark.paidDailyBudgetUsd` low, use a paid
+   extra until it is spent: consent is asked first; at the limit the dialog says
+   "Paid extras have spent $X of today's $Y limit, so the next paid request was
+   not sent." and Raise for Today refuses a limit that is not above the spend.
+   The terminal keeps its hard budget: `exec --max-budget-usd 0.01` stops the run.
+5. **Unknown usage.** Drop a real response after it has streamed output but
+   before it reports usage, under a cap. See the next capped request say the
+   history has an unknown charge and stop, not treat it as free.
+6. **Children and Stop.** Approve a task that needs 10 requests: more than 4
+   run (no child request cap) and the consent names per-request rates. Start a
+   second child, then Stop the parent, also while a child has an interrupt or
+   follow-up pending: nothing is sent afterwards and no follow-up resumes.
+   Retrying asks for a new consent.
+7. **F88 in the open.** Use an authorized provider with an invalid model to get
+   a real 400: the visible text names the HTTP status and the provider's
+   redacted message, never "Models & Agents is not available". Point an approved
+   local entry at a closed port: the network code shows and the send is not
+   retried automatically.
+8. **One repeat policy.** Give a task that makes the model repeat the same call:
+   the same `read_file`, a shell command with the same output, the same search,
+   a list, an MCP call, then the same failing call. See a warning to the model
+   at the 3rd and 4th identical call-and-result and the turn stop at the 5th
+   with "The turn stopped because the same tool call kept returning an
+   unchanged result…". Poll a running command whose output changes between
+   calls (or a build log): it is never stopped for repeating.
+9. **Tab.** Set `museSpark.tabDailyBudgetUsd` to 0.02 and type until Tab has
+   spent it. In one light and one dark theme see the visible notification "Today's
+   Tab spend of $X has reached the daily budget of $0.02, so completions pause
+   until tomorrow. To continue today, raise museSpark.tabDailyBudgetUsd in
+   Settings." with an Open Settings button. Below the budget Tab must not say
+   "reached" and must not refuse on a worst case.
+10. **The panel switch** needs the one small local look: `npm run ui:look --
+palette` in a light and a dark theme (not run here).
+
+**HUB: integration run** for `constants.ts`, the l10n tables, `featureCatalog.ts`
+and the generated reference. The translations of the nine new or changed
+sentences are mine, not a human's: a native reader should check one language.
