@@ -17,6 +17,8 @@ happened, not what was planned; superseded entries are kept.
   A restart that finishes verification after you clear or replace the
   conversation no longer reattaches the conversation you left. Failed model
   verification releases its resumed handle, including command timeouts.
+  Opening Model API history on its already-selected model no longer runs
+  model-switch hooks or resets switch-related session state.
 
 - Activation budget: the Create AGENTS.md command, its rules template and
   their redaction load on the command's first run instead of at activation,

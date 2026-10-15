@@ -1525,7 +1525,11 @@ class AcpSession {
     this.ensureHeld()
     await this.session.setApprovalMode(approvalModeFor(this.mode, true))
     this.ensureHeld()
-    await this.session.setModel(modelId)
+    // Muse resume needs an explicit selection; Model API's loaded model is
+    // authoritative and an unchanged selection must not run switch hooks.
+    if (this.host.info.kind === 'museCode' || this.session.modelId !== modelId) {
+      await this.session.setModel(modelId)
+    }
     const reported = await this.host.listModels(this.sessionId)
     const outcome = resolveResumedModel({
       wantedModelId: modelId,
