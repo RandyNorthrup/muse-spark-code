@@ -2203,7 +2203,10 @@ class AgentState {
       : { id, name, description: fill(UI_TEXT.acpSignInByHand, { command }) }
   }
 
-  private async requireReady(isRecheck = false, isStoreDownAllowed = false): Promise<void> {
+  private async requireReady(
+    isRecheck = false,
+    isStoreDownAllowed = false,
+  ): Promise<BackendReadiness> {
     const readiness = await this.deps.backend.readiness(isRecheck)
     if (readiness.state === 'signedOut' && !(isStoreDownAllowed && readiness.storeDown === true)) {
       throw RequestError.authRequired(undefined, readiness.message)
@@ -2211,6 +2214,7 @@ class AgentState {
     if (readiness.state === 'unavailable') {
       throw RequestError.internalError(undefined, readiness.message)
     }
+    return readiness
   }
 
   private async openHost(
@@ -2221,7 +2225,7 @@ class AgentState {
     }
     // A dead credential store does not stop the session from opening: only
     // a step that needs a stored key refuses, in the store-down words.
-    await this.requireReady(false, true)
+    const readiness = await this.requireReady(false, true)
     const host = await this.deps.backend.hostFor(cwd)
     this.watch(host)
     let listed: readonly ModelSummary[]
@@ -2231,6 +2235,10 @@ class AgentState {
       if (!isCredentialStoreDown(error)) throw error
       throw RequestError.authRequired(undefined, UI_TEXT.acpStoreDown)
     }
+    // No models without a readable store or key: the catalogue, the grant
+    // and the key all need the store. Say so instead of offering no model.
+    if (listed.length === 0 && readiness.state === 'signedOut' && readiness.storeDown === true)
+      throw RequestError.authRequired(undefined, UI_TEXT.acpStoreDown)
     const models = this.deps.options.allowsContributorModels
       ? listed
       : listed.filter((model) => !isContributorModel(model.modelId))
@@ -2442,12 +2450,25 @@ class AgentState {
     const { host, models } = await this.openHost(cwd)
     const modelId = startingModel(models)
     const mcpServers = this.forwardedMcp(host, requestedMcp)
-    const session = await host.startSession({
-      workspaceRoot: cwd,
-      modelId,
-      approvalMode: approvalModeFor(this.deps.options.initialMode, true),
-      ...(mcpServers !== undefined && { mcpServers }),
-    })
+    let session: AgentSession
+    try {
+      session = await host.startSession({
+        workspaceRoot: cwd,
+        modelId,
+        approvalMode: approvalModeFor(this.deps.options.initialMode, true),
+        ...(mcpServers !== undefined && { mcpServers }),
+      })
+    } catch (error: unknown) {
+      // No account identity without a readable store or key: the session
+      // cannot attribute spend, so it cannot start — but the refusal names
+      // the dead store, never a missing sign-in the person cannot perform.
+      if (error instanceof Error && error.message === UI_TEXT.notSignedInReason) {
+        const readiness = await this.deps.backend.readiness(false)
+        if (readiness.state === 'signedOut' && readiness.storeDown === true)
+          throw RequestError.authRequired(undefined, UI_TEXT.acpStoreDown)
+      }
+      throw error
+    }
     // The mode and model went with the start; the effort is set here.
     const claim = this.claimSession(session.sessionId)
     const acp = await this.adopt(host, session, cwd, client, models, claim, (started) =>

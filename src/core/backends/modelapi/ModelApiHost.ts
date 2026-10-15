@@ -630,6 +630,8 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDep
   readonly client: ProviderClient
   readonly models?: ModelResolver | undefined
   readonly hasMetaCredential?: (() => boolean) | undefined
+  /** The gate's Meta-key probe says the credential store itself is dead. */
+  readonly isCredentialStoreDown?: (() => boolean) | undefined
   readonly autoCompaction?: (() => boolean) | undefined
   /** Lane E's bounded evaluation override; production uses the certified latch. */
   readonly autoCompactionEvaluated?: (() => boolean) | undefined
@@ -17687,6 +17689,10 @@ export class ModelApiHost implements AgentHost {
 
   /** Reads the store once; this window's sessions then include the stored ones. */
   public async load(): Promise<void> {
+    // A dead store attributes no stored turn to anyone: the host builds
+    // without history instead of refusing to build. An absent key (store
+    // alive) still refuses below, as before.
+    if (this.deps.isCredentialStoreDown?.() === true) return
     const accountId = await this.requireAccountId()
     const { store } = this.deps
     if (store === undefined) {
