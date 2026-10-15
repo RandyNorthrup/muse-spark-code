@@ -18,8 +18,10 @@ happened, not what was planned; superseded entries are kept.
   `playbook settings` no longer shows `(panel)`; each slash command is
   announced once; one sentence reports a dead credential store everywhere;
   the terminal serves provider accounts (unknown providers say they are not
-  configured); headless runs with a plan model use its own sign-in instead
-  of demanding the Meta key, and pre-session refusals name what is missing.
+  configured); pre-session refusals name what is missing. Keyless session
+  creation and authenticated headless plan-model dispatch remain unfinished.
+- RVCLIFLOWS: retain headless request and USD limits for every Model API/BYO
+  run; a user-configurable provider id is not evidence of subscription billing.
 - RVCLIFLOWS: terminal prompt save/list/use retain readable results without
   `--json`; cancellation explains itself on stderr instead of silently exiting.
 
