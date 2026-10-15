@@ -160,3 +160,30 @@ Restored the exact bytes; before/after SHA-256:
 Restored: 24 passed, exit 0. Logs: `.lane/PRTH158.T1.{green,red,restored}.log`.
 The lead's hosted check is to read the same release verify command with a
 run id and attempt 2: it must refuse before any API access or publisher.
+
+### T2 — final release reread
+
+After settling, release reads all tagged/PR-head runs again through the same
+finder. Missing evidence or a pending run refuses immediately without a new
+wait; completed runs pass through the existing attempt/conclusion verdict.
+This narrows the observation window; no API read can lock out a future
+GitHub dispatch after the read.
+
+Same Vitest command as T1: baseline 27 passed, exit 0. Inverted the real
+`releaseRecheck` pending-run predicate (`!== 'completed'` to `===`):
+
+```text
+refuses a late pending run on either commit without waiting again
+AssertionError: expected [ …(2) ] to deeply equal [ StringContaining{…} ]
+- StringContaining "still queued at the final release recheck"
+Tests 3 failed | 24 passed (27)
+RED_EXIT=1
+```
+
+Restored bytes, SHA-256 before/after:
+`6ff87303666ed3da6e46d0c25fc36b8f406be328b3d4b90c135da2bd0dc1bd4d`.
+Restored: 27 passed, exit 0. Logs: `.lane/PRTH158.T2.{green,red,restored}.log`.
+Lead: on a disposable hosted commit with a successful result, start the
+read-only release preflight while another existing workflow is pending;
+expect a refusal naming the pending run. Never rerun a workflow for this
+check on the same commit.

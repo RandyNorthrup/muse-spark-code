@@ -9,6 +9,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- The rule-2 release door rereads hosted evidence immediately before passing;
+  a late pending run, rerun or deleted evidence refuses publication.
+
 - The rule-2 release door now refuses re-executed verification. Publication
   recovery uses a fresh artifact-only run, not another attempt of a failed run.
 

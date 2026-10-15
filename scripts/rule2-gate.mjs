@@ -38,6 +38,7 @@ import {
   isRecord,
   missingEvidence,
   pullOf,
+  releaseRecheck,
   runOf,
 } from './lib/rule2Gate.mjs'
 
@@ -302,19 +303,29 @@ async function gateRelease(sha) {
     `rule 2, release: commit ${sha}${heads.map((head) => `; pull request ${String(head.number)}, head ${head.sha}`).join('')}`,
   )
   const commits = [sha, ...heads.map((head) => head.sha).filter((head) => head !== sha)]
-  const { runs, refusals } = await settle(async () => {
+  const find = async () => {
     const found = []
     for (const commit of commits) found.push(...(await runsOn(commit)))
     // Not this workflow's own runs on the tag: this one is in progress by
     // definition, and a recovery (docs/RELEASING.md) publishes the packages
     // an earlier one built after it had passed this door.
     return found.filter((run) => run.id !== ownId && run.path !== ownPath)
-  })
+  }
+  const { runs, refusals } = await settle(find)
   const missing = missingEvidence(sha, heads, runs)
   if ([...missing, ...refusals].length > 0)
     throw new GateError([...missing, ...refusals].join('\n'))
+  // As at the merge door, do not publish on the snapshot from the wait.
+  // A late start, rerun or deletion must decide from a fresh read of every head.
+  const fresh = await find()
+  const late = releaseRecheck(sha, heads, fresh)
+  for (const run of fresh) {
+    const verdict = await verdictOf(run)
+    if (verdict !== 'green' && verdict !== 'running') late.push(verdict)
+  }
+  if (late.length > 0) throw new GateError(late.join('\n'))
   console.log(
-    `rule 2, release: ${String(runs.length)} run(s), every one complete and green on its first execution`,
+    `rule 2, release: ${String(fresh.length)} run(s), every one complete and green on its first execution`,
   )
 }
 
