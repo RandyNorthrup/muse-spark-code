@@ -509,6 +509,9 @@ const UTF8_BOM_SECOND = 0xbb
 const UTF8_BOM_THIRD = 0xbf
 const ASCII_LINE_FEED = 0x0a
 const ASCII_CARRIAGE_RETURN = 0x0d
+const UTF8_MAX_SEQUENCE_BYTES = 4
+const UTF8_CONTINUATION_MASK = 0xc0
+const UTF8_CONTINUATION_BITS = 0x80
 
 async function scanFileShape(
   file: FileHandle,
@@ -905,10 +908,24 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
         const size = metadata.size
         const mtimeMs = metadata.mtimeMs
         const shape = await scanFileShape(file, signal)
-        const start = Math.min(offset, size)
-        const windowLength = Math.min(length, Math.max(size - start, 0))
-        const bytes = Buffer.alloc(windowLength)
-        const { bytesRead } = await file.read(bytes, 0, windowLength, start)
+        const requestedStart = Math.min(offset, size)
+        const readStart = Math.max(requestedStart - UTF8_MAX_SEQUENCE_BYTES + 1, 0)
+        const requestedEnd = Math.min(requestedStart + length, size)
+        const readEnd = Math.min(requestedEnd + UTF8_MAX_SEQUENCE_BYTES, size)
+        const bytes = Buffer.alloc(readEnd - readStart)
+        const { bytesRead } = await file.read(bytes, 0, bytes.length, readStart)
+        const view = bytes.subarray(0, bytesRead)
+        const isContinuation = (at: number): boolean => {
+          const byte = view[at]
+          return byte !== undefined && (byte & UTF8_CONTINUATION_MASK) === UTF8_CONTINUATION_BITS
+        }
+        let from = requestedStart - readStart
+        let to = Math.min(requestedEnd - readStart, bytesRead)
+        while (from > 0 && isContinuation(from)) from -= 1
+        while (to < bytesRead && isContinuation(to)) to += 1
+        // CRLF is one logical break; do not normalize its halves separately.
+        if (view[from] === ASCII_LINE_FEED && view[from - 1] === ASCII_CARRIAGE_RETURN) from -= 1
+        if (view[to] === ASCII_LINE_FEED && view[to - 1] === ASCII_CARRIAGE_RETURN) to += 1
         signal?.throwIfAborted()
         const after = await file.stat()
         const current = await checkedOpenedFile(
@@ -924,7 +941,7 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
           !sameFile(identity, current)
         )
           throw new Error(fill(UI_TEXT.media.sourceChanged, { name: path.basename(absolutePath) }))
-        return { bytes: bytes.subarray(0, bytesRead), size, mtimeMs, ...shape }
+        return { bytes: view.subarray(from, to), offset: readStart + from, size, mtimeMs, ...shape }
       } finally {
         await file.close()
       }

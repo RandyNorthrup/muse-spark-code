@@ -208,6 +208,18 @@ is not applied to the repository's legacy, non-ledger PLAN format.
   The 128 MiB edit refusal remains an unresolved design finding, not a
   provider/harness limit. A streaming splice needs a separate implementation.
 
+- F3 range-read paging: real-file regressions pass (13 tests, exit 0). A
+  100,000-byte range now advertises only bytes actually delivered in the
+  64,000-character tool result. UTF-8 and CRLF boundaries are completed by the
+  adapter and the next offset uses that actual aligned end. Before repair,
+  `aé😀z` with byteLength 2 returned `a`, then offset 2 discarded the remaining
+  byte of `é`; byteLength 100000 on ASCII clipped text but said end of file.
+  Logs: `.lane/range-read-{green,restored}.log`. A deliberate edge regression
+  could not be executed: the app's shell launcher failed in
+  `MuseSparkCreated.Execute(... publish ... registry.json ...)`, before the
+  command started. Restored SHA-256s match `.lane/range-read-hashes.json`;
+  this red drill is **deferred**, not passing.
+
 ## Qualification
 
 All work runs directly in `/home/randy/lanes/LIMITSB` on linuxlt. No

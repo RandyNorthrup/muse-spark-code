@@ -1086,6 +1086,8 @@ export interface FileByteRange {
 
 /** A9 (limits-output): a byte window read, with what reading and editing by range needs. */
 export interface FileRangeRead {
+  /** Actual aligned first byte, when the adapter completed a split character. */
+  readonly offset?: number
   /** The window's bytes, possibly short at the end of the file. */
   readonly bytes: Uint8Array
   /** The file's size in bytes. */
@@ -1625,10 +1627,16 @@ async function readFileWindow(
       `byteOffset ${String(offset)} is past the end of \`${head.relative}\` (${String(size)} bytes); use an offset from 0 to ${String(size - 1)}`,
     )
   }
+  // Reserve the complete header/note and UTF-8 edge before reading. Never
+  // advertise bytes discarded later by a character-budget clip as delivered.
+  const longestHeader = `Read text file \`${head.relative}\` (bytes ${String(offset)}–${String(size)} of ${String(size)}):\n`
+  const longestNote = `\n[bytes ${String(offset)}–${String(size)} of ${String(size)}; call read_file again with byteOffset ${String(size)} for the rest]`
+  const payload =
+    TOOL_OUTPUT_MAX_CHARS - longestHeader.length - longestNote.length - UTF8_FOUR_BYTE_LENGTH
   const window = await context.io.readFileRange(
     head.checkedAbsolute,
     head.checkedAbsolute,
-    { offset, length: Math.min(length, size - offset) },
+    { offset, length: Math.min(length, size - offset, Math.max(payload, 1)) },
     context.signal,
   )
   if (window === undefined) {
@@ -1642,18 +1650,18 @@ async function readFileWindow(
     throw new Error(`${head.checkedAbsolute} ${MODEL_TEXT.fileNotText}`)
   }
   const shown = modelText(text, {
-    hasBom: window.hasBom && offset === 0,
+    hasBom: window.hasBom && (window.offset ?? offset) === 0,
     isCrlf: window.isCrlf,
     hasTrailingBreak: text.endsWith('\n'),
   })
-  const first = offset
-  const last = offset + window.bytes.length
+  const first = window.offset ?? offset
+  const last = first + window.bytes.length
   const header = `Read text file \`${head.relative}\` (bytes ${String(first)}–${String(last)} of ${String(window.size)}):`
   const note =
     last < window.size
       ? `[bytes ${String(first)}–${String(last)} of ${String(window.size)}; call read_file again with byteOffset ${String(last)} for the rest]`
       : `[bytes ${String(first)}–${String(last)} of ${String(window.size)}; end of file]`
-  const body = clipWithNote(`${header}\n${shown}`, TOOL_OUTPUT_MAX_CHARS, `\n${note}`)
+  const body = `${header}\n${shown}\n${note}`
   const touched: TouchedFiles = { names: [head.relative, head.canonical], complete: false }
   return { output: body, visibleOutput: body, touched }
 }

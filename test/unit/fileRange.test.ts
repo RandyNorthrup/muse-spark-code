@@ -68,6 +68,27 @@ afterAll(() => {
 })
 
 describe('byte windows', () => {
+  it('follows byte offsets without losing UTF-8 boundary characters', async () => {
+    writeFileSync(path.join(root, 'utf8.txt'), 'aé😀z')
+    const { run } = context()
+    const first = await run('read_file', { path: 'utf8.txt', byteOffset: 0, byteLength: 2 })
+    expect(first.output).toContain('aé')
+    expect(first.output).toContain('byteOffset 3 for the rest')
+    const second = await run('read_file', { path: 'utf8.txt', byteOffset: 3, byteLength: 1 })
+    expect(second.output).toContain('😀')
+    expect(second.output).toContain('byteOffset 7 for the rest')
+  })
+
+  it('the advertised next byte is the end of the text actually delivered', async () => {
+    writeFileSync(path.join(root, 'flood.txt'), 'a'.repeat(100_000))
+    const { run } = context()
+    const first = await run('read_file', { path: 'flood.txt', byteOffset: 0, byteLength: 100_000 })
+    const next = Number(/byteOffset (\d+) for the rest/.exec(first.output)?.[1])
+    expect(next).toBeGreaterThan(0)
+    expect(next).toBeLessThan(100_000)
+    expect(first.output).toContain('a'.repeat(next))
+    expect(first.output).not.toContain('output clipped')
+  })
   it('decodes edge-trimmed slices and refuses non-text', () => {
     const bytes = new TextEncoder().encode('aé😀z')
     // 'é' is bytes 1-2, '😀' bytes 3-6.
