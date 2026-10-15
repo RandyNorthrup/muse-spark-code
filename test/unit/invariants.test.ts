@@ -108,14 +108,14 @@ describe('invariant 1: earlier request bytes never change, extras append at the 
     for (const name of [MODEL_API_TOOLS.editFile, MODEL_API_TOOLS.writeFile]) {
       const tool = withShell.find((candidate) => candidate.name === name)
       expect(tool).toBeDefined()
-      expect(tool!.parameters.properties).toHaveProperty(THEN_RUN_ARGUMENT)
+      expect(tool!.parameters['properties']).toHaveProperty(THEN_RUN_ARGUMENT)
     }
     const withoutShell = toolDefinitions('linux', { hasShell: false, hasSkills: false })
     expect(withoutShell.map((tool) => tool.name)).not.toContain(MODEL_API_TOOLS.bash)
     for (const name of [MODEL_API_TOOLS.editFile, MODEL_API_TOOLS.writeFile]) {
       const tool = withoutShell.find((candidate) => candidate.name === name)
       expect(tool).toBeDefined()
-      expect(tool!.parameters.properties).not.toHaveProperty(THEN_RUN_ARGUMENT)
+      expect(tool!.parameters['properties']).not.toHaveProperty(THEN_RUN_ARGUMENT)
     }
   })
 
