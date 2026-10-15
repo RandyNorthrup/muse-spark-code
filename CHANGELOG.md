@@ -9,6 +9,21 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- Lane TURNLIMIT (F88): a Model API turn has no fixed tool-round cap. It
+  runs until the model stops, the person cancels, the loop guard fires, a
+  spend cap is reached, or an error happens. One optional per-turn limit
+  replaces the removed 50-round default, off by default: the
+  machine-scoped `museSpark.modelApiMaxTurnRequests` setting (0 is no
+  limit, 1–1000), the editor protocol's Tool-round limit session option,
+  and `--max-turn-requests` for exec and serve. When the person's limit is
+  reached, one last request with no tools asks the model to summarise what
+  it did and what is left; the turn ends on that summary with the editor
+  protocol's `max_turn_requests` stop reason, and the next message in the
+  same conversation continues. A failed send to a configured provider now
+  says its real cause (the HTTP status with the provider's own error
+  message, or the network error's code) without echoing secrets or
+  headers, and is still never retried automatically.
+
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
   reads and writes, and 1-hour cache writes settle at their own price.
   The shared retry classifier refuses known quota codes and excessive

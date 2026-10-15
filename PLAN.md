@@ -14310,6 +14310,40 @@ cost and caution, never speed.
   reviewer on B1 and B2, never the only one and never an allow by itself.
   Everywhere else both stand unchanged.
 
+### D112 — No fixed cap on a turn's tool rounds; a limit the person sets ends the turn cleanly (lane TURNLIMIT, 2026-10-14)
+
+**Owner (2026-10-14).** "why do we have the limits on tools? is this how
+other harnesses handle this? it seems broken". Measured: the Model API
+backend's fixed 50-round default (in since 2026-09-22, reason only "to
+bound a loop") ended a 17-minute coding turn with `stopped after 50 tool
+rounds`, which the editor received as "Internal error" with nothing saying
+the conversation can continue.
+
+**Comparison (lead; sources read).** Claude Agent SDK / Claude Code:
+`maxTurns` defaults to no limit; when set and reached the result is
+`error_max_turns` and the session stays alive and resumable. Gemini CLI:
+`model.maxSessionTurns` defaults to -1 (unlimited), loop detection on by
+default. OpenCode: without `steps` the agent iterates until the model
+stops or the user interrupts; when `steps` is reached the agent gets a
+system prompt to summarise its work and next tasks. Codex CLI: no turn cap
+in its source. Cline: counts consecutive mistakes, not tool calls.
+
+**Rule.** By default a turn runs until the model stops, the person cancels,
+the loop guard fires, a spend cap is reached, or an error happens
+(`repeatGuard` with `modelApiToolStuck` stays the loop guard; spend caps
+stay the cost guard). One optional per-turn tool-round limit, off by
+default (no limit): the machine-scoped `museSpark.modelApiMaxTurnRequests`
+setting (0 is no limit), the editor protocol's Tool-round limit session
+option, and `--max-turn-requests` for exec and serve. When the person's
+limit is reached, one last request with no tools asks the model to
+summarise what it did and what is left; the turn ends completed with a
+translated notice, the editor protocol answers `max_turn_requests`, and
+the next message in the same conversation continues. Never an "Internal
+error" for a planned stop. A failed send to a configured provider says
+its real cause (the HTTP status with the provider's own error message, or
+the network error's code) without echoing secrets or headers, and is still
+never retried automatically: a pinned send may have reached the provider.
+
 ## 3. Open questions (need the owner)
 
 **Q-VIS0171-RELEASE-NOTES resolved by lead (2026-10-10, linuxlt).** Round 2
@@ -33913,43 +33947,9 @@ all Models panel visual comparisons. No gate, cap, coverage threshold or
 timeout is relaxed. Nine byte-restored red drills and the documented
 first-ever estimate are in `docs/certification/models-split.md`.
 
-**REL0171B final 0.17.1 branch (2026-10-10, linuxlt + Kubuntu).** Merge
-MENUFAN and VIS0171 onto `release/0.17.1` by meaning, regenerate every
-generated file with its script, and repair what the merged gates found:
-the pressed menu pill's inset ring (M114 P2), the menu browser cases' setup
-cost, the open-menu capture race and the 21 inherited jscpd clones. One
-reviewed full visual update explains every changed scene (the two menu
-scenes and What's New's 0.17.1 notes); the full unsharded `check:visual`
-on the final head is the receipt that closes VIS0171's stopped replay. No
-deadline, threshold, assertion or cap changes. Evidence:
-`docs/certification/rel0171b.md`.
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
-**VIS0171 0.17.1 visual refresh (2026-10-10, linuxlt).** Compare the full
-9,792-frame matrix on `4acb7015f`; classify every changed scene as Title Case,
-question-field spacing, provider-picker repair, or an unrelated hold. Inspect
-every changed frame before the repository's reviewed update; stop on unrelated
-changes. Regenerate all curated README shots, refresh their existing input
-fingerprint and current audit hashes, and certify a full zero-changed-scene
-replay, complete owning suites at repository deadlines, and an old-baseline
-failure with SHA-256 byte-exact restoration in `docs/certification/cifix017.md`.
-Aggregate quality remains lead-owned under the shared rig brief. No merge,
-push, subagents, paid calls, timeout changes or gate weakening.
-The initial reconstruction fails at `paid-always/light/320`: the current
-driver waits for Title Case `Auth Method` in the historical sentence-case
-source. Make the exact account-label and vault-action selectors accept both
-capitalizations, with browser regressions; preserve their readiness checks.
-The compatibility repair is committed as `7c8338ac5`; the new regressions
-first fail on both historical labels and then all seven readiness tests pass
-at repository deadlines. Five typechecks, changed-file lint/format, plain
-knip, localization, host API, reference, tokens, plan and roadmap pass.
-The unchanged duplication gate reports 21 inherited provider-wizard/test
-clones, none in lane-edited files; leave their repair with the lead rather
-than weakening the zero-clone threshold or expanding this visual lane.
-The complete historical capture succeeds, but two candidate attempts reject
-the fake Models state at `models-configure`: its required `sessionBudget`
-is absent. PROVWIZ9 already documents this stale harness contract. Add the
-canonical `modelsPanelFixtures.makeState().sessionBudget` to the fake host
-and a strict production-schema regression; never relax the message schema.
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
 - [x] Repair and drill historical-label readiness and the strict provider-budget fixture.
 - [x] Reconstruct all 9,792 historical frames; compare all 1,632 light-theme candidate frames.

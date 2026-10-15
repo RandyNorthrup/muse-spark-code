@@ -314,3 +314,45 @@ Proofs:
 - Merge simulation, 280 open heads: conflict regions 1,010 before and after,
   branch-changed lines in conflict 107,426 before and after, clean merges 35
   before and after, heads made worse 0.
+
+## Archive move (2026-10-14, lane TURNLIMIT)
+
+`npm run check:plan` refused the lane's decision entry: `PLAN.md` stood at
+3,565,781 bytes, 623 over the gate's 85% line (3,565,158). The move carries
+two closed gate records from §7 to `docs/plan-archive/gates.md`, whose closed
+sections the move leaves in place:
+
+| Measure                                | Before    | After     |
+| -------------------------------------- | --------- | --------- |
+| `PLAN.md` bytes                        | 3,565,781 | 3,563,376 |
+| Room under the gate's line (3,565,158) | -623      | 1,782     |
+| Blocks in `gates.md`                   | 2         | 4         |
+| Bytes moved (2 closed records)         |           | 2,619     |
+
+What moved: the `REL0171B final 0.17.1 branch` paragraph (672 B) under its
+own `##` heading, and the `VIS0171 0.17.1 visual refresh` paragraph
+(1,947 B) under its own `##` heading, each replaced by a one-line pointer to
+`docs/plan-archive/gates.md`. No test file cites either heading. No branch edits or deletes any of the
+36 moved lines; two heads of one lane insert a paragraph directly before the
+REL0171B record (merge-simulated below). What stayed: both closed sections, every
+`Goal`, `Depends on` and `Gates` field, and every lane table.
+
+Proofs:
+
+- Reassembly: the command rebuilt the old `PLAN.md` from the result,
+  SHA-256 `9b7bd797…7f6de1`, before writing.
+- Parsed facts: byte-identical old text, drift 0, 218 milestones.
+- `check:plan`: `plan-format-v1; 218 milestones; 0 drift`, 1,782 bytes of
+  room.
+- `ROADMAP.md` regenerates byte-identical (`git status` clean for it).
+- `status`: 51 + 140 + 41 blocks, all intact.
+- Merge simulation, 35 local heads (`git merge-tree` of each head onto
+  synthetic pre- and post-move commits holding the lane's decision entry
+  constant): 33 heads have no hunk within 3 lines of either moved block, so
+  their merge outcome is unchanged by construction. The remaining 2 (one lane
+  under two names, inserting a paragraph directly before the REL0171B
+  record): 95 hunks and 2 conflict markers (a pre-existing, unrelated §2
+  conflict) before and after; the region diff is the archive alone plus
+  hunk-offset shifts, and the branch's insertion stands in the post-move
+  merge. Heads made worse: 0. No head adds a `D112` heading, so the lane's
+  decision number is unique.
