@@ -6534,6 +6534,9 @@ export const MODEL_API_MODEL_TEXT = {
   // block rather than carrying new keys in activation's MODEL_TEXT (D6).
   toolRepeatStopped:
     'This tool call repeats the same arguments and unchanged result. It was not run again. Use a different approach or explain what is blocking the task.',
+  // The 3rd and 4th identical call and result, for any tool (lane LIMITSFIX, F4).
+  toolRepeatWarned:
+    'The last tool calls had the same arguments and returned the same result. Change the approach, or explain what is blocking the task, before calling it again: the turn stops if it repeats.',
   continuationPrompt:
     'Continue the answer from where the output limit cut it off. Do not repeat the text already returned.',
   // Asked once with no tools when the person's own per-turn limit stops the

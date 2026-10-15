@@ -9,6 +9,15 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- Lane LIMITSFIX (F4, D113): one repeat policy for every tool class. The
+  same call with the same arguments returning the same result warns the
+  model at the 3rd and 4th time and stops the turn at the 5th with the
+  translated sentence, for shell, search, list, MCP, goal and failed calls
+  as well as reads. A call whose result changes (a poll of a running
+  command) is not a repeat, and a wait that timed out or a command moved to
+  the background never counts. A text read with no hooks is still skipped
+  instead of run again.
+
 - RVLIMITS: a sent or ambiguous request with no verified usage remains
   explicitly uncertain under a session cap, even with a zero input hold.
   An input-only retained amount is not a confirmed bill for the reply.

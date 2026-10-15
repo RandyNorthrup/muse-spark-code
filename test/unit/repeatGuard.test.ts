@@ -58,13 +58,50 @@ describe('tool repeat guard', () => {
     expect(guard.before(call, 'fresh state')).toBe('run')
   })
 
-  it('never blocks a legitimate repeat with a changed or unprovable result', () => {
-    for (const witness of ['new state', undefined]) {
-      const guard = new RepeatGuard()
-      twice(guard)
-      expect(guard.before(call, witness)).toBe('run')
-      expect(guard.needsWitness(call)).toBe(false)
-    }
+  it('never skips a call whose result cannot be proven unchanged, and never when it changed', () => {
+    const changed = new RepeatGuard()
+    twice(changed)
+    expect(changed.before(call, 'new state')).toBe('run')
+    expect(changed.needsWitness(call)).toBe(false)
+    const unproven = new RepeatGuard()
+    twice(unproven)
+    expect(unproven.before(call, undefined)).toBe('run')
+  })
+
+  // Lane LIMITSFIX, F4 (D113): one policy for every tool class. A tool with no
+  // witness (shell, search, list, MCP, goal, a failed call) runs every time,
+  // and its own repeated result warns at 3 and stops at 5.
+  it('warns at the third identical result and stops at the fifth for a tool with no witness', () => {
+    const shell = { name: 'bash', arguments: '{"command":"npm test"}' }
+    const guard = new RepeatGuard()
+    const verdicts = Array.from({ length: 5 }, () =>
+      guard.observe(shell, 'Error: failed', undefined),
+    )
+    expect(verdicts).toEqual(['ok', 'ok', 'warn', 'warn', 'stuck'])
+    expect(guard.before(shell, undefined)).toBe('run')
+  })
+
+  it('never calls a poll with a changing result a repeat', () => {
+    const poll = { name: 'bash', arguments: '{"command":"tail -n 1 build.log"}' }
+    const guard = new RepeatGuard()
+    const verdicts = Array.from({ length: 8 }, (_, index) =>
+      guard.observe(poll, `line ${String(index)}`, undefined),
+    )
+    expect(new Set(verdicts)).toEqual(new Set(['ok']))
+    guard.observe(poll, 'same', undefined)
+    guard.observe(poll, 'same', undefined)
+    expect(guard.observe(poll, 'changed at last', undefined)).toBe('ok')
+    expect(guard.observe(poll, 'same', undefined)).toBe('ok')
+  })
+
+  it('counts only consecutive calls: an intervening different call starts over', () => {
+    const search = { name: 'search', arguments: '{"pattern":"x"}' }
+    const list = { name: 'list_files', arguments: '{}' }
+    const guard = new RepeatGuard()
+    guard.observe(search, 'none', undefined)
+    guard.observe(search, 'none', undefined)
+    guard.observe(list, 'a', undefined)
+    expect(guard.observe(search, 'none', undefined)).toBe('ok')
   })
 
   it('checks the fresh state again before stopping the fifth call', () => {

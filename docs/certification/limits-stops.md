@@ -362,3 +362,32 @@ The F88 pure regressions still need their own observed suite/red drill;
 the built config probe does not establish HTTP, money or turn behavior.
 The complete review report and exact fail-site inventory are in the
 requested lane report; remaining P1/P2 findings prevent merge approval.
+
+## LIMITSFIX F4 — one repeat policy for every tool class (2026-10-14)
+
+- **Cause.** `RepeatGuard.before` reset the count whenever no trusted
+  witness existed, and only `read_file` without hooks had one
+  (`ModelApiHost.ts` `canWitnessRead`). Every other tool's repeats were
+  forgotten at once, so with the fixed round cap gone a shell, search, list,
+  MCP, goal or failed call could repeat without bound.
+- **Fix.** One choke point, `settlePreparedCall`: after every finished call
+  `RepeatGuard.observe` fingerprints the call's arguments and its real
+  result and returns `ok`, `warn` or `stuck`. The 3rd and 4th identical
+  call and result queue `MODEL_API_MODEL_TEXT.toolRepeatWarned` for the
+  model, written after the whole tool batch (a user message between a call
+  and its output is invalid replay); the 5th stops the turn with the same
+  translated sentence `modelApiToolStuck`. A witness stays an optimisation
+  that lets a text read be skipped instead of run again; a missing witness
+  no longer resets the count. A result that changes is never a repeat. A
+  wait that timed out (`unfinished`: `subagent_wait`) and a command moved to
+  the background reset the count instead of adding to it.
+- **Red drill.** `observe` changed to count consecutive same-argument calls
+  whatever their result: `test/unit/repeatGuard.test.ts` 2 failed
+  ("resets for a changed argument, result…" and "never calls a poll with a
+  changing result a repeat"), source restored byte-exact, SHA-256
+  `483B7DE91792300D5D70BC7CBABFB8612B960581BEF8CAC39F3B168CA21C4B77`
+  before and after.
+- **Proof.** `npx vitest run test/unit/repeatGuard.test.ts --maxWorkers=2`:
+  9 passed (this PC). `typecheck:host` 0; eslint `--max-warnings=0` on the
+  five touched files 0. Pure logic through the real module only; the host
+  wiring is proven by a real turn (real-life step 8), not by a stand-in.

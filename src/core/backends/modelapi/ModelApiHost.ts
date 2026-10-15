@@ -30,7 +30,7 @@ import {
 } from './structuredOutput'
 import { notify } from '../../events/notify'
 import { isParallelRead, scheduleTools } from './toolScheduler'
-import { RepeatGuard, toolRepeatKey } from './repeatGuard'
+import { RepeatGuard, toolRepeatKey, type RepeatVerdict } from './repeatGuard'
 import { recordPaidUse } from '../../paid/paidFeatures'
 import type { RecordedCall, UsageRecording } from '../../usage/recording'
 import type { UsageBudgetRead } from '../../usage/usageService'
@@ -2655,6 +2655,8 @@ export class ModelApiSession implements ScheduledAgentSession {
   private outputFormat: CreateResponseBody['text']
   private readonly outputCaps = new WeakMap<ResolvedModel, number>()
   private readonly repeatGuard = new RepeatGuard()
+  /** The repeat warning the model reads after the tool batch that earned it (F4). */
+  private isRepeatWarned = false
   /**
    * The ledger total a resumed session brought (M73), kept so a save keeps
    * it even where this session does not pack; a packing session's store
@@ -3085,6 +3087,13 @@ export class ModelApiSession implements ScheduledAgentSession {
         requester_id: `schedule:${this.active.scheduleRun.context.scheduleId}`,
       }),
     }
+  }
+
+  /** A user message between a call and its output is invalid replay, so warnings follow the whole batch. */
+  private flushRepeatWarning(turnId: string): void {
+    if (!this.isRepeatWarned) return
+    this.isRepeatWarned = false
+    this.replay.push({ turnId, item: noteItem(MODEL_API_MODEL_TEXT.toolRepeatWarned) })
   }
 
   private appendHookContexts(turnId: string, contexts: readonly string[]): void {
@@ -9914,6 +9923,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       }),
       visibleOutput: child.result?.summary ?? childStateLabel(child.state),
       touched: childResultsTouched([child]),
+      ...(state === 'timeout' && { unfinished: true }),
     }
   }
 
@@ -13004,16 +13014,23 @@ export class ModelApiSession implements ScheduledAgentSession {
     ) {
       this.replaceOutput(attemptReplay, outcome, post.replacement.value)
     }
-    if (!executed.value.isRepeatSuppressed) {
-      this.repeatGuard.observe(
+    // One policy for every tool class (lane LIMITSFIX, F4): a finished call
+    // whose arguments and result match the last call's counts as a repeat.
+    // The 3rd and 4th tell the model to change approach, the 5th stops the
+    // turn. A call whose result differs is never a repeat.
+    let verdict: RepeatVerdict = 'ok'
+    if (running !== undefined || outcome.unfinished === true) this.repeatGuard.reset()
+    else if (!executed.value.isRepeatSuppressed)
+      verdict = this.repeatGuard.observe(
         effectiveCall,
         post.replacement?.target === 'toolResult'
           ? post.replacement.value
           : (outcome.outputParts ?? outcome.output),
         post.replacement === undefined ? repeatWitness : undefined,
       )
-    }
-    if (executed.value.isRepeatStopped) {
+    const isRepeatStopped = executed.value.isRepeatStopped || verdict === 'stuck'
+    if (verdict === 'warn') this.isRepeatWarned = true
+    if (isRepeatStopped) {
       this.emit({ type: 'backendNotice', level: 'warning', text: UI_TEXT.modelApiToolStuck })
     }
     const blocked = [
@@ -13078,7 +13095,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       },
       // A PreToolUse stop (Amp's tool.call `error`, M91b) refused the call
       // and ends the turn too.
-      stopReason: executed.value.isRepeatStopped
+      stopReason: isRepeatStopped
         ? MODEL_API_MODEL_TEXT.toolRepeatStopped
         : (post.stopReason ?? hookEffects?.stopReason ?? pre.stopReason),
     }
@@ -13546,6 +13563,7 @@ export class ModelApiSession implements ScheduledAgentSession {
    */
   private async loop(turn: ActiveTurn): Promise<string | undefined> {
     this.repeatGuard.reset()
+    this.isRepeatWarned = false
     const { signal } = turn.abort
     if (this.teamModeForRequest() === 'team') await this.prepareTeamRuntime()
     let isStopHookActive = false
@@ -13803,6 +13821,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         // A user message between a function call and its output is invalid
         // replay. Post-model context follows the whole tool batch instead.
         this.appendHookContexts(turn.turnId, postContexts)
+        this.flushRepeatWarning(turn.turnId)
         // A stopped or failed round names its read files without replaying
         // bytes that no model request saw (M54).
         await this.appendReadFiles(turn.turnId, isRoundComplete && !isAbortRequested(signal))
