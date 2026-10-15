@@ -854,3 +854,63 @@ I did not edit them.
    second says it was cancelled.
 3. In VS Code, with the opener failing (a remote window), the sign-in says the
    address could not be opened in a browser.
+
+---
+
+# PLANFIX: gates on the final tree (2026-10-15, Windows, head `f8c05f942`)
+
+Each command run alone, exit code read from the command itself.
+
+| Gate                                                                                  | Result                                                                                |
+| ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `npm run typecheck` (host, webview, unit, e2e, integration)                           | exit 0                                                                                |
+| `npx eslint --max-warnings=0` on the 23 code files the lane changed since `7ed95bc1f` | exit 0                                                                                |
+| `npx prettier --check` on all 40 changed files                                        | exit 0                                                                                |
+| `npm run check:l10n`                                                                  | 0 problems (14 UI tables)                                                             |
+| `npm run check:host-api`                                                              | 0 problems                                                                            |
+| `npm run check:reference`                                                             | current                                                                               |
+| `npm run deadcode`                                                                    | exit 0                                                                                |
+| `npm run cycles`                                                                      | exit 0, no circular dependency                                                        |
+| `npx jscpd`                                                                           | exit 1, 5 clones, none in a file this lane wrote or changed in this round (see below) |
+| `npm run build`                                                                       | exit 1 on the bundle-split check, 8 problems (see below); sizes within caps           |
+
+Build sizes (this tree): `extension.js` 550.9 / 600 KiB, `modelApi.js`
+508.8 / 525, `subscriptions.js` 36.1 / 50, `modelsPanel.js` 124.0 / 125,
+`acp.js` 241.1 / 850, `headless.js` 98.5 / 100. No cap was changed.
+
+**`jscpd`: 5 clones remain.** Four are `test/e2e/modelApi.live.e2e.test.ts` against
+`test/unit/chatgptFastTier.test.ts` (the controller's dependency literal), one is
+`chatgptFastTier.test.ts` against `test/unit/helpers/modelApiHostDeps.ts`. They come
+from the R3 commit `bb3c5af2d` (this lane's earlier run, `chatgptFastTier.test.ts`
+copies the live e2e harness's constructor). I removed the clones this round's
+tests made (`chatGptLocalFailures.test.ts`, `keystoreOwner.test.ts`: 9 down to 5).
+I did not touch the R3 test: the owner's rule is to leave a stand-in suite for the
+test-overhaul lane, and its fix is a shared harness extraction across an e2e file
+that the lane does not own. For the lead.
+
+**`npm run build`, 8 bundle-split problems.** `pageWorker.js` (parse5, entities,
+html-encoding-sniffer, @exodus/bytes), `agentImport.js` (smol-toml),
+`imageResizeWorker.js` (jpeg-js, pngjs), `validation.js` (mini-parser): "no longer
+carries". The review recorded the same 8 on the base (`UNMEASURED` attribution
+there). They are not in a file this lane touched. The 3 further problems this lane
+caused (`chatgptHostId.ts` in `acp.js`, `headless.js`, `runtimeAccounts.js`) are
+fixed in R7 (`namedLock.ts` has its own error type).
+
+Not run: `npm run security:sast` (semgrep is not installed on this PC; the review
+saw the same), `npm run security:audit`, the packed-product file
+`test/e2e/execStdio.e2e.test.ts` and the ACP package build (the review saw it
+fail on a missing `native/darwin/muse-dictate`): this lane did not run them.
+
+## Left for the lead
+
+1. **POSIX / macOS run of the lock race:** `npx vitest run test/unit/namedLockRace.test.ts
+test/unit/runtimeChatGptLock.test.ts`, then `node test/hosts/named-lock-race.mjs
+<bundle> <folder> 6 40` for a longer race. Linux (WSL2) was run here; macOS
+   (`AF_UNIX` and its 103-character path) was not.
+2. **Real-store proof on macOS / Linux for the keystore:** `test/unit/keystoreOwner.test.ts`
+   is `runIf(win32)`; the worker (`test/hosts/keystore-worker.mjs`) is portable but
+   was only run over Windows Credential Manager.
+3. The Models panel still hides the typed cause behind its general sentence
+   (`src/host/models/modelsPanel.ts:201`); 124.0 / 125 KiB leaves no room.
+4. The three suites named under R7, which assert the old catch-all code and use
+   stand-ins; they are in the overhaul's deletion set.
