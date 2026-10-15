@@ -1,5 +1,25 @@
 # Lane CLIFLOWS certification — terminal commands confirm, explain and exit as helped
 
+## RVCLIFLOWS review — readable terminal results (2026-10-14, Windows)
+
+P2: `--json` opt-in suppressed the entire result of ordinary prompt save,
+list and variable-free use. Baseline production build exited 0; each of
+those commands produced empty stdout (`.lane/product-before.log`). Reuse
+ACP's existing result formatter for saved ids, listings and cancellation;
+terminal prepared text prints without claiming an editor insertion. No new
+strings, provider calls or credentials. `docs/acp.md`, README and the generated
+sharing reference describe the terminal behavior.
+
+Proof: production build before/after both exit 0; isolated HOME/LOCALAPPDATA
+runs via `.lane/review-product.mjs` show save with title/id, list with titles/ids,
+plain use with exact body (all exit 0), cancelled file share with preview plus
+`Sharing cancelled` on stderr (exit 7); explicit JSON remains structured.
+The before run is the failing behavioral proof, not a stand-in or a new
+process test. It also confirms `playbook settings` has no `(panel)` suffix.
+
+The historical lane record below is not final review acceptance; in particular,
+F43 and F80 remain open as described in the review handoff.
+
 Worktree `/home/randy/lanes/CLIFLOWS` from origin/main 0.18.2 (`898a26c5e`).
 Product under test: production build (`npm run build`) run as
 `node dist/acp.js` with a scratch `HOME` (`$TMPDIR/clihome`, no Secret

@@ -1284,7 +1284,7 @@ export function sharingFeatures(table: UiText = UI_TEXT) {
       syntax:
         'prompts save --title TITLE [--scope user|workspace] [--cwd FOLDER] [--json] < prompt.txt',
       label: table.promptLibrary,
-      detail: table.promptRun,
+      detail: table.promptSave,
     },
     {
       id: 'prompts-list-cli',
@@ -1298,7 +1298,7 @@ export function sharingFeatures(table: UiText = UI_TEXT) {
       surface: 'cli',
       syntax: 'prompts use ID [--scope user|workspace] [--chat active|new] [--cwd FOLDER] [--json]',
       label: table.promptUseSaved,
-      detail: `${table.promptVariables}; ${table.promptInsert}`,
+      detail: table.promptVariables,
     },
     {
       id: 'prompts-share-cli',
