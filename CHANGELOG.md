@@ -9,6 +9,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Real-life run: every requested route setup failure, including an occupied
+  provider credential name, fails the exit code rather than passing with
+  all of that route's scenarios skipped.
+
 - Real-life run: a failed credential deletion is unknown cleanup, not proof
   that the key is absent. The run retries it at final cleanup and fails if
   no deletion succeeded, retaining Meta's recovery note when uncertain.

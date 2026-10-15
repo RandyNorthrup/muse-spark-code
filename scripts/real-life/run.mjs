@@ -746,6 +746,9 @@ try {
     if (cut.why !== undefined) break
     const { route } = group
     const state = await setUp(route, group.models)
+    // Every requested setup failure fails the run, even when it produced
+    // no setup observations and all subsequent cells are not run.
+    if (!state.ok) process.exitCode = EXIT_FAILED
     routeStates.push({ id: route.id, wire: route.wire, model: modelsOf(group), state: state.state })
     console.log(`Route ${route.id}: ${scrub()(state.state)}`)
     if (state.seen !== undefined) {
