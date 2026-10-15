@@ -10,12 +10,14 @@ function twice(guard: RepeatGuard) {
 }
 
 describe('tool repeat guard', () => {
-  it('skips the third unchanged call and stops the fourth without executing either', () => {
+  // Lane LIMITSA, D113 (A6): warn at 3, stop at 5.
+  it('skips the third and fourth unchanged calls and stops the fifth without executing any', () => {
     const guard = new RepeatGuard()
     expect(guard.before(call, 'fresh state')).toBe('run')
     twice(guard)
     expect(guard.needsWitness(reordered)).toBe(true)
     expect(guard.before(reordered, 'fresh state')).toBe('skip')
+    expect(guard.before(call, 'fresh state')).toBe('skip')
     expect(guard.before(call, 'fresh state')).toBe('stuck')
   })
 
@@ -65,9 +67,10 @@ describe('tool repeat guard', () => {
     }
   })
 
-  it('checks the fresh state again before stopping the fourth call', () => {
+  it('checks the fresh state again before stopping the fifth call', () => {
     const guard = new RepeatGuard()
     twice(guard)
+    expect(guard.before(call, 'fresh state')).toBe('skip')
     expect(guard.before(call, 'fresh state')).toBe('skip')
     expect(guard.before(call, 'changed after note')).toBe('run')
   })

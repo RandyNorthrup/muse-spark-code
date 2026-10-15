@@ -1,5 +1,5 @@
 import { fingerprint } from '../../verify/fingerprint'
-import { TOOL_REPEAT_LIMIT } from '../../../shared/constants'
+import { TOOL_REPEAT_LIMIT, TOOL_REPEAT_STOP_LIMIT } from '../../../shared/constants'
 
 interface ToolIdentity {
   readonly name: string
@@ -54,7 +54,12 @@ export class RepeatGuard {
     )
   }
 
-  /** A witness must freshly prove the complete observable result is unchanged. */
+  /**
+   * A witness must freshly prove the complete observable result is
+   * unchanged. Lane LIMITSA (D113, A6): the 3rd identical call is skipped
+   * (the model is told to change approach) and the call is not run again;
+   * the 5th stops the turn.
+   */
   public before(call: ToolIdentity, witness: string | undefined): 'run' | 'skip' | 'stuck' {
     const previous = this.previous
     if (previous?.key !== toolRepeatKey(call)) return 'run'
@@ -64,7 +69,7 @@ export class RepeatGuard {
     }
     if (previous.count < TOOL_REPEAT_LIMIT - 1) return 'run'
     previous.count += 1
-    return previous.count === TOOL_REPEAT_LIMIT ? 'skip' : 'stuck'
+    return previous.count >= TOOL_REPEAT_STOP_LIMIT ? 'stuck' : 'skip'
   }
 
   public observe(call: ToolIdentity, output: unknown, witness: string | undefined): void {

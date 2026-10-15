@@ -2257,7 +2257,11 @@ export const READ_FILE_CONTEXT_CHAR_FRACTION = 1 / 2
 export const MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS = 131_072
 export const MODEL_API_PARALLEL_READS = 4
 export const MODEL_API_CONTINUATIONS_MAX = 1
+// Lane LIMITSA (D113, A6): the 3rd identical call warns the model and is
+// not run again; the 5th stops the turn with the person's own sentence
+// (Cline warns at 3 and escalates at 5; Gemini's threshold is 5).
 export const TOOL_REPEAT_LIMIT = 3
+export const TOOL_REPEAT_STOP_LIMIT = 5
 export const TOOL_ARGUMENT_PREVIEW_MAX_CHARS = 16_000
 /** Incremental preview grammar stops before deeply nested untrusted arguments. */
 export const TOOL_ARGUMENT_PREVIEW_MAX_DEPTH = 32
