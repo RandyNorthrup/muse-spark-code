@@ -391,6 +391,8 @@
     "src/webview/models/sections/accounts/ThresholdEditor.tsx",
     "src/webview/resources/ResourceTaskRow.tsx",
     "src/webview/schedules/DeferredReportActionEditor.tsx",
-    "src/webview/schedules/ScheduleSurface.tsx"
+    "src/webview/schedules/ScheduleSurface.tsx",
+    "test/e2e/reportsEntry.ts",
+    "test/harness/reporting/verify.mjs"
   ]
 }
