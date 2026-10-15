@@ -21,7 +21,11 @@ export function warnResourceUnavailable(
   error: unknown,
 ): void {
   const cause = resourceUnavailableCause(error)
+  // Several owners throw the plain sentence itself as their error; naming it
+  // as its own cause would only repeat it.
   warn(
-    cause === undefined ? table.resourceUnavailable : fill(table.resourceUnavailableWhy, { cause }),
+    cause === undefined || cause === table.resourceUnavailable
+      ? table.resourceUnavailable
+      : fill(table.resourceUnavailableWhy, { cause }),
   )
 }

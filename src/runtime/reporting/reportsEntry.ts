@@ -85,7 +85,11 @@ export function createRuntimeReports(input: RuntimeReportsInput) {
         } catch (error) {
           stderr(
             error instanceof Error && error.message !== ''
-              ? fill(UI_TEXT.reportUi.generationReason, { reason: error.message })
+              ? fill(UI_TEXT.reportUi.generationReason, {
+                  reason: reportScrubber({ workspaceRoot: cwd, localRoots: input.roots })(
+                    error.message,
+                  ),
+                })
               : UI_TEXT.reportUi.generationFailed,
           )
           return REPORT_EXIT_CODES.failed
