@@ -433,10 +433,12 @@ function modelApiManager(
           },
         })
         client = headlessProviders.client
-      } else if (
-        deps.exec === undefined &&
-        (existsSync(providerConfigFile) || (await hasChatGptSecret()))
-      ) {
+      } else if (existsSync(providerConfigFile) || (await hasChatGptSecret())) {
+        // The editor protocol and a terminal plan-model exec share this
+        // construction: a plan model runs on its own subscription sign-in,
+        // with or without a Meta key. A plan exec bypasses the Meta-only
+        // transport (runExec), so its requests reach the subscription leg
+        // while admission and settlement stay on the shared accounting path.
         const subscriptions = await subscriptionClient()
         client = await subscriptions.createClient(meta)
       }
@@ -459,9 +461,11 @@ function modelApiManager(
       const budget = await dailyBudget()
       return await budget.reserve(PAID_PRICES_USD.imageGeneration, signal)
     },
-    ...(deps.exec === undefined && {
+    ...(deps.exec?.providerRun === undefined && {
       getProviderAccountId: async () => {
-        // No readable store means no readable account: unknown, not failed.
+        // One shared subscription identity for the editor protocol and a
+        // terminal plan-model exec. No readable store means no readable
+        // account: unknown, not failed.
         try {
           const subscriptions = await subscriptionClient()
           return await subscriptions.accountId()

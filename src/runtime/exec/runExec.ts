@@ -80,7 +80,13 @@ import {
   readPromptStdin,
 } from './keyInput'
 import type { AssembledProviderRun } from './providerExec'
-import { createRunLedger, resolveExecOutputCap, previewResponseReservation } from './runLedger'
+import {
+  createRunLedger,
+  resolveExecOutputCap,
+  previewResponseReservation,
+  type TierPrice,
+} from './runLedger'
+import { isPlanModelRef } from '../../shared/providerRouting'
 import { modelPolicyFor, type ModelPolicy } from '../../core/backends/modelapi/modelPolicy'
 import { observeBackend, type SessionTap } from './sessionTap'
 import { readUntrustedInputs } from './untrustedInput'
@@ -343,6 +349,12 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
           outputCap,
         })
       : undefined
+  // A plan model runs on its subscription sign-in, not the Meta key: it
+  // bypasses the Meta-only transport below, and its attempts are admitted
+  // through the shared accounting wrapper's zero-price tickets (the same
+  // single-admission pattern as a configured-provider run), so the run's
+  // request count still bounds it.
+  const isPlanRun = options.model !== undefined && isPlanModelRef(options.model)
   let providerRun: AssembledProviderRun | undefined
   let memory: MemorySecretStore | undefined
   let runtime: RuntimeBackend | undefined
@@ -649,7 +661,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         store: secrets.store.bind(secrets),
         delete: secrets.delete.bind(secrets),
       }
-      if (ledger !== undefined && providerRun === undefined)
+      if (ledger !== undefined && providerRun === undefined && !isPlanRun)
         transport = execFetch({
           fetch: async (url, init) => {
             const response = await deps.fetch(url, init)
@@ -719,7 +731,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
           isEphemeral: options.ephemeral,
           outputCap,
           ...(providerRun !== undefined && { providerRun }),
-          ...(providerRun !== undefined &&
+          ...((providerRun !== undefined || isPlanRun) &&
             ledger !== undefined && {
               responseAccounting: {
                 ledger,
@@ -774,7 +786,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         error = readiness.message
         return await finish()
       }
-      tap = observeBackend(runtime.backend)
+      tap = observeBackend(runtime.backend, options.model)
       const { createAcpAgent, createExecClient } = engine
       const agent = createAcpAgent({
         questions: 'decline',
@@ -977,18 +989,23 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
               setup.isUsageError = false
             }
             if (ledger !== undefined && providerRun === undefined) {
-              if (tier === undefined) {
+              // A plan model reserves nothing: its zero-price preview still
+              // consumes the preview ledger's one request, so an exhausted
+              // run is refused before dispatch like a priced one.
+              let price: TierPrice | undefined
+              if (tier !== undefined) price = MODEL_API_PRICES_PER_MILLION[tier]
+              else if (isPlanModelRef(model ?? '')) {
+                const zero = Usd.from(0).toAmount()
+                price = { input: zero, cachedInput: zero, output: zero }
+              }
+              if (price === undefined) {
                 setup.isUsageError = true
                 error = UI_TEXT.execModelUnpriced
                 return
               }
               // Ask the ledger's exact arithmetic for the start reservation, in a
               // separate un-dispatched ledger. No request belongs to this run yet.
-              const preview = previewResponseReservation(
-                ledger,
-                model ?? '',
-                MODEL_API_PRICES_PER_MILLION[tier],
-              )
+              const preview = previewResponseReservation(ledger, model ?? '', price)
               const minimum =
                 microUsd(preview.reserveUsd) +
                 (options.paidFeatures.includes('imageGeneration')
