@@ -339,6 +339,19 @@ McpElicitationTimeoutError` was false at the real boundary: the connection
   open the same session twice, close its original panel, then cross 20 open
   questions in the remaining panel; verify the warning there.
 
+## RVDROPS review — B23 portable damaged-log notice
+
+- P2, quoted-code proof: Muse Code exposes `AgentSession.onLogDamaged`,
+  but only the VS Code controller subscribed. ACP/terminal therefore missed
+  the translated recovery warning this lane added to the panel.
+- ACP now subscribes after loading its session, sends the existing translated
+  `sessionLogDamaged` notice once per held session, and unsubscribes on release.
+  This adds no CLI-log reads and no invented wire shape. The marker list is
+  VS Code workspace state; ACP does not claim to have that store.
+- Lead: reproduce a real Muse Code event-log fault through ACP and terminal;
+  verify the recovery warning (History/new conversation), then release the
+  session and confirm no subsequent callbacks reach the released editor.
+
 ## Limits raised or removed (owner's rule)
 
 | Row | Number              | Outcome                                                  | Reasoning                                                                       |

@@ -330,6 +330,8 @@ class AcpSession {
   private accounts: AcpAccounts | undefined
   private readonly translator: UpdateTranslator
   private unsubscribe: (() => void) | undefined
+  private unsubscribeLogDamaged: (() => void) | undefined
+  private isLogDamageAnnounced = false
   private readonly unsubscribeResources: (() => void) | undefined
   private readonly approvals = new Map<string, ApprovalRequest>()
   private readonly earlyFinishes = new Map<string, TurnCompleted>()
@@ -1584,6 +1586,11 @@ class AcpSession {
     this.unsubscribe = this.session.onEvent((event) => {
       this.onEvent(event)
     })
+    this.unsubscribeLogDamaged = this.session.onLogDamaged?.(() => {
+      if (this.isDisposed || this.isLogDamageAnnounced) return
+      this.isLogDamageAnnounced = true
+      this.questionNotice(UI_TEXT.sessionLogDamaged)
+    })
   }
 
   public async prompt(blocks: readonly ContentBlock[]): Promise<StopReason> {
@@ -2086,6 +2093,7 @@ class AcpSession {
     this.pending?.resolve('cancelled')
     this.pending = undefined
     this.unsubscribe?.()
+    this.unsubscribeLogDamaged?.()
     this.unsubscribeResources?.()
     const releaseSchedules = this.releaseSchedules
     this.releaseSchedules = undefined
