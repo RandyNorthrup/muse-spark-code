@@ -14,8 +14,9 @@ happened, not what was planned; superseded entries are kept.
   An input-only retained amount is not a confirmed bill for the reply.
 
 - RVLIMITS: Stop interrupts running and queued paid child tasks and revokes
-  their uncapped grants, including while the parent is idle. Previously
-  only the parent's own turn was cancelled.
+  their uncapped grants, including while the parent is idle or a child
+  interruption has a pending follow-up. Previously only the parent's own
+  turn was cancelled.
 
 - RVLIMITS: removed thirteen lane test cases that used product stand-ins,
   substituted pricing or a disconnected Tab formatter. Their old green counts are not product

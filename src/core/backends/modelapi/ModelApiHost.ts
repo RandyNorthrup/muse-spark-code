@@ -16026,7 +16026,13 @@ export class ModelApiSession implements ScheduledAgentSession {
     // interrupt both running and queued tasks, even if the parent is idle.
     const stoppingChildren: Promise<void>[] = []
     for (const child of this.children.values()) {
-      if (child.state !== 'running' && child.state !== 'queued') continue
+      if (
+        child.state !== 'running' &&
+        child.state !== 'queued' &&
+        child.session.activeTurnId === undefined &&
+        child.followupAfterStop === undefined
+      )
+        continue
       child.revision += 1
       child.pendingMessages.length = 0
       child.followupAfterStop = undefined

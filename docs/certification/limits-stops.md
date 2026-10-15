@@ -261,6 +261,8 @@ queued work. Completed results are retained. No fake-provider test was
 added; this is proven by the old cancellation code and the reachable spawn
 path. The lead must run a real paid child, press Stop, and check that both
 an in-flight task and one waiting for capacity cease without new sends.
+An already-interrupted child with an active turn or queued follow-up is
+also included, so a follow-up cannot restart after the parent's Stop.
 
 ## RVLIMITS evidence correction — substituted pricing (2026-10-14)
 
