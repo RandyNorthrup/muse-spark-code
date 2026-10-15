@@ -12,15 +12,18 @@ import {
 } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { afterAll, beforeAll, expect, it } from 'vitest'
+import { afterAll, beforeAll, expect, inject, it } from 'vitest'
 import { listFiles } from '@vscode/vsce/out/package.js'
 import { ACP_BUNDLES, acpUsageAssets } from '../../scripts/lib/acpBundles.mjs'
 import { LAZY_BUNDLES } from '../../src/shared/lazyBundles.generated'
-import { buildProductionPackage } from './helpers/productionPackage'
+import { PRODUCTION_BUILD_KEY, buildProductionPackage } from './helpers/productionPackage'
 import { removeFolder } from './helpers/temporaryFolders'
 
-// A real production build and VSCE's inventory run once before assertions;
-// cold builds on hosted runners exceed the ordinary ten-second hook deadline.
+// This suite owns a complete copy of the once-per-run shared production
+// build (test/unit/globalSetup.mjs): building the product inside this hook
+// timed out at 60 s on Windows (PR 163), while sibling runs passed in
+// 27–42 s. The copy still stands on the real packed product; only the
+// build moved out of the hook's deadline.
 const PRODUCTION_SETUP_TIMEOUT_MS = 60_000
 // Six runs of the registry command over that build, four of them complete:
 // each reads every source that can load a file and inventories the VSIX
@@ -66,11 +69,9 @@ beforeAll(async () => {
   fixture.folder = folder
   // The production schema generator reads this formatter config too.
   cpSync(path.join(root, '.prettierrc.json'), path.join(folder, '.prettierrc.json'))
-  try {
-    buildProductionPackage(root, folder)
-  } catch (error) {
-    throw new Error(readFileSync(path.join(folder, 'build.log'), 'utf8'), { cause: error })
-  }
+  // A copy of the shared production build, never a rebuild here: a build
+  // failure is reported by the global setup with its own diagnostics.
+  buildProductionPackage(root, folder, inject(PRODUCTION_BUILD_KEY))
   const outputs = new Map()
   const vscodeOutputs = new Set()
   const acpEntries = new Set()
