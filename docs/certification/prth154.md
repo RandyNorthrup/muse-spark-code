@@ -128,6 +128,21 @@ openia=gpt-x --artefact package.json --max-requests 1 --max-usd 1 --record
 .lane/no-spend-record` exited 2 with `--model route openia must be selected
 exactly once in --routes`, before keys or install. No provider needed.
 
+## T9 — localized usage labels
+
+The allowed explicit-locale alternative is used: all product child
+environments pin `LC_ALL`, `LC_MESSAGES`, `LANG` to `en_US.UTF-8`. This
+also overrides Windows' runtime fallback, unlike `C` (the real
+`src/runtime/locale.ts` falls back to runtime locale for `C`). The guide
+states that UI scenarios certify English only, not translations.
+
+Pure environment test red: exit 1, 10 passed / 1 failed, `expected
+'de_DE.UTF-8' to be 'en_US.UTF-8'`; after fix exit 0, 11 passed. Command:
+`npx vitest run test/unit/realLifeGuards.test.mjs --maxWorkers=2`; receipts
+`.lane/T9-{red,green}.log`. Lead real-life step: invoke the usage scenario
+on both surfaces from a German-locale shell; English usage labels and the
+request/cost assertions must succeed. No paid request made here.
+
 ## Merge
 
 Merged `ac21f1d24` in `c1ead3231`, hooks on. Only AGENTS.md and CHANGELOG.md

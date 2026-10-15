@@ -79,6 +79,11 @@ export function productEnvironment(home, from = process.env) {
     TEMP: temp,
     TMP: temp,
     TMPDIR: temp,
+    // Usage scenarios read English UI labels; never depend on the caller's
+    // locale or Windows' runtime locale. The run certifies English UI only.
+    LC_ALL: 'en_US.UTF-8',
+    LC_MESSAGES: 'en_US.UTF-8',
+    LANG: 'en_US.UTF-8',
     NO_COLOR: '1',
   }
 }
