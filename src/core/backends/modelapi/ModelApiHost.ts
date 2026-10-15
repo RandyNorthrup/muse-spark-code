@@ -2436,6 +2436,8 @@ function retainedRecallId(argsJson: string): string | undefined {
     return undefined
   }
   if (typeof raw !== 'object' || raw === null) return undefined
+  // The cast only names the probed field: the object shape is guarded above
+  // and the value is accepted only as a string below (PLAN.md §8).
   const id: unknown = (raw as { readonly id?: unknown }).id
   return typeof id === 'string' ? id : undefined
 }

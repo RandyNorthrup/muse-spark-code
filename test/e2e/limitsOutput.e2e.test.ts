@@ -19,6 +19,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { build } from 'esbuild'
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest'
+import * as z from 'zod/mini'
 import {
   execEventV2Schema,
   validateResult,
@@ -65,28 +66,27 @@ function finalResult(stdout: string): ExecResult {
   return validateResult(final.result)
 }
 
-interface ProofRequest {
-  readonly path: string
-  readonly body: unknown
-}
+const proofRequestSchema = z.looseObject({ path: z.string(), body: z.optional(z.unknown()) })
+const proofReportSchema = z.looseObject({ requests: z.array(proofRequestSchema) })
 
-function proofReport(caseName: string): { readonly requests: readonly ProofRequest[] } {
-  const report = JSON.parse(
-    readFileSync(path.join(WORK, `${caseName}.report.json`), 'utf8'),
-  ) as unknown
-  if (
-    typeof report !== 'object' ||
-    report === null ||
-    !Array.isArray((report as { requests: unknown }).requests)
+function proofReport(caseName: string): readonly z.infer<typeof proofRequestSchema>[] {
+  const parsed = proofReportSchema.safeParse(
+    JSON.parse(readFileSync(path.join(WORK, `${caseName}.report.json`), 'utf8')),
   )
-    throw new Error(`bad proof report for ${caseName}`)
-  return report as { readonly requests: readonly ProofRequest[] }
+  if (!parsed.success) throw new Error(`bad proof report for ${caseName}`)
+  return parsed.data.requests
 }
 
-function responseBodies(caseName: string): readonly Record<string, unknown>[] {
-  return proofReport(caseName)
-    .requests.filter((request) => request.path === '/responses')
-    .map((request) => request.body as Record<string, unknown>)
+const responseBodySchema = z.looseObject({ input: z.optional(z.array(z.unknown())) })
+
+function responseBodies(caseName: string): readonly z.infer<typeof responseBodySchema>[] {
+  const bodies: z.infer<typeof responseBodySchema>[] = []
+  for (const request of proofReport(caseName)) {
+    if (request.path !== '/responses') continue
+    const parsed = responseBodySchema.safeParse(request.body)
+    if (parsed.success) bodies.push(parsed.data)
+  }
+  return bodies
 }
 
 /**
@@ -106,18 +106,18 @@ function allToolOutputs(caseName: string): readonly string[] {
   return responseBodies(caseName).flatMap((body) => outputsIn(body))
 }
 
-function outputsIn(body: Record<string, unknown> | undefined): readonly string[] {
+const callOutputSchema = z.looseObject({
+  type: z.literal('function_call_output'),
+  output: z.unknown(),
+})
+
+function outputsIn(body: z.infer<typeof responseBodySchema> | undefined): readonly string[] {
   const outputs: string[] = []
-  const input = body?.['input']
-  if (!Array.isArray(input)) return outputs
+  const input = body?.input ?? []
   for (const item of input) {
-    if (
-      typeof item !== 'object' ||
-      item === null ||
-      (item as { type?: unknown }).type !== 'function_call_output'
-    )
-      continue
-    const output = (item as { output?: unknown }).output
+    const parsed = callOutputSchema.safeParse(item)
+    if (!parsed.success) continue
+    const output = parsed.data.output
     outputs.push(typeof output === 'string' ? output : JSON.stringify(output))
   }
   return outputs
