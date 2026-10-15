@@ -682,6 +682,7 @@ const schema = z.object({
       summary: textSchema,
       description: textSchema,
       commands: strings,
+      cliRoutes: z.optional(strings),
       settings: strings,
       docs: z.string(),
       editors: z.array(z.enum(['vscode', 'acp'])),
