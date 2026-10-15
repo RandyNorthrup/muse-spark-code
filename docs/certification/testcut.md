@@ -448,3 +448,6 @@ instead of clearing them in `QuestionSurface`'s session-change branch
 fails the session-boundary case (exit 1): expected an empty field, received
 `Old draft`. Restore byte-exact against HEAD; SHA-256
 `8b45c83d225305bbf4b98539ed071b012105c7d0b67b4e8a87a0d783d04253b3`.
+The final duplication gate caught eight repeated setup lines in these new
+cases (exit 1); share that setup locally, preserve every assertion, and
+re-run duplication: zero clones, exit 0.

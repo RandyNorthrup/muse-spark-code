@@ -44,6 +44,16 @@ function scene(group: Group, sessionId = 'session-1', isInert = false) {
   )
 }
 
+async function focusedDraft(group: Group) {
+  const view = await mount(group)
+  const box = dock().getByLabelText('Other: Colour')
+  act(() => {
+    box.focus()
+  })
+  fireEvent.change(box, { target: { value: 'Teal' } })
+  return { view, box }
+}
+
 async function mount(group: Group) {
   let view: ReturnType<typeof render> | undefined
   await act(async () => {
@@ -59,12 +69,7 @@ const dock = () => within(screen.getByRole('region'))
 describe('real question dock and draft surface', () => {
   it('keeps a focused draft through deferral and submits that same late answer', async () => {
     const group = actions()
-    const view = await mount(group)
-    const box = dock().getByLabelText('Other: Colour')
-    act(() => {
-      box.focus()
-    })
-    fireEvent.change(box, { target: { value: 'Teal' } })
+    const { view, box } = await focusedDraft(group)
     view.rerender(scene({ ...group, questions: [questionFixture()] }))
     expect(box).toHaveFocus()
     expect(box).toBeVisible()
@@ -79,12 +84,7 @@ describe('real question dock and draft surface', () => {
 
   it('does not replace the focused question when another waiting question arrives', async () => {
     const group = actions()
-    const view = await mount(group)
-    const box = dock().getByLabelText('Other: Colour')
-    act(() => {
-      box.focus()
-    })
-    fireEvent.change(box, { target: { value: 'Teal' } })
+    const { view, box } = await focusedDraft(group)
     const newest = questionFixture({
       userInputId: 'q-2',
       state: 'waiting',
