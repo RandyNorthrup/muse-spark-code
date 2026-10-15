@@ -246,3 +246,18 @@ notification now formats its visible text directly. Combined with the
 TURNLIMIT removals, review removed **10 cases** (3 fake-provider/product
 cases, 6 fake-settings/logger cases, 1 disconnected notice case). Existing
 unrelated stand-in suites are left for TESTCUT, not extended here.
+
+## RVLIMITS correction — Stop owns uncapped child tasks (2026-10-14)
+
+Original `ModelApiSession.cancel()` only aborted its own active turn and
+compaction; it never called a child's cancel or revoked the child's grant.
+With the 4-request ceiling gone, a child could keep making paid requests
+indefinitely after the person's Stop. `childGrantRefusal` did not depend on
+the parent's active/aborted state. Stop now synchronously invalidates each
+running/queued child's revision, pending/follow-up work and consent grant,
+marks it interrupted, aborts resource admission and cancels its session.
+Every child is invalidated before an awaited completion can start more
+queued work. Completed results are retained. No fake-provider test was
+added; this is proven by the old cancellation code and the reachable spawn
+path. The lead must run a real paid child, press Stop, and check that both
+an in-flight task and one waiting for capacity cease without new sends.

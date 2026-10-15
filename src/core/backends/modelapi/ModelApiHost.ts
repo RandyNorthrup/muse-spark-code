@@ -9081,7 +9081,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     this.emit(event)
   }
 
-  /** A hidden continuation uses the original consent and its remaining request bound. */
+  /** A hidden continuation uses the original, still-current task consent. */
   private canContinueChild(child: ChildRecord, grant: ChildTaskGrant): boolean {
     return (
       !this.isDisposed &&
@@ -15995,7 +15995,7 @@ export class ModelApiSession implements ScheduledAgentSession {
    * Stop: the running turn or compaction is aborted, and each queued message
    * is ended with a reason instead of vanishing (D26).
    */
-  public cancel(): Promise<void> {
+  public async cancel(): Promise<void> {
     this.resourceAdmissionStop.abort()
     this.resourceAdmissionStop = new AbortController()
     this.deps.judge?.discardSession(this.sessionId)
@@ -16022,13 +16022,28 @@ export class ModelApiSession implements ScheduledAgentSession {
     if (this.compacting !== undefined) {
       this.compacting.abort()
     }
+    // Child consent is now unbounded (LIMITSA): Stop must revoke it and
+    // interrupt both running and queued tasks, even if the parent is idle.
+    const stoppingChildren: Promise<void>[] = []
+    for (const child of this.children.values()) {
+      if (child.state !== 'running' && child.state !== 'queued') continue
+      child.revision += 1
+      child.pendingMessages.length = 0
+      child.followupAfterStop = undefined
+      child.nextTaskGrant = undefined
+      child.session.childTaskGrant = undefined
+      child.state = 'interrupted'
+      child.resourceStop?.abort()
+      stoppingChildren.push(child.session.cancel())
+      this.updateChild(child)
+    }
     // Muse Code's Interrupt fires on a cancelled running turn or compaction,
     // never on an idle close (M91, docs/certification/m91.md). Disposal and
     // host close reach it through here.
     if (hasRunning) {
       this.fireInterrupt()
     }
-    return Promise.resolve()
+    await Promise.all(stoppingChildren)
   }
 
   /**

@@ -9,6 +9,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- RVLIMITS: Stop interrupts running and queued paid child tasks and revokes
+  their uncapped grants, including while the parent is idle. Previously
+  only the parent's own turn was cancelled.
+
 - RVLIMITS: removed ten lane test cases that used product stand-ins or a
   disconnected Tab formatter. Their old green counts are not product
   certification; the real-life turn, continuation and budget checks remain
