@@ -36,38 +36,15 @@ must remain opaque and shadowless, with contrast borders. Never blur a control.
 Use the 120/180/240 ms motion tokens only for meaningful changes, inside
 `prefers-reduced-motion: no-preference`; streamed text stays still.
 
-Look at a change to the interface yourself. Build, open the changed screen
-in one light and one dark theme (`npm run harness:shots -- <scene>
---theme=light` renders one harness scene from the built webview), look at
-both pictures, and put them into the change's certification record. That is
-the whole visual check. No gate and no CI job renders or compares
-screenshots (the owner's decision, 2026-10-12, with 0.18.2), so a green CI
-says nothing about how a screen looks, and there is no baseline to update or
-wait for.
+A UI change gets one small local look: `npm run ui:look -- <scene>`
+renders that scene from the built webview into `temp/ui-look/`, in the
+light and dark themes unless `--theme` names one. No baseline, no
+comparison, no CI. There are no screenshot runs anywhere in the pipeline.
+Look at both pictures yourself and put them into the change's
+certification record: a green CI says nothing about how a screen looks.
 
-`npm run check:visual` still exists as a tool that nothing runs for you. It
-renders the audited component inventory in six themes at 320 and 690 px and
-compares it with the frames of a recorded Git revision (pixelmatch, colour
-threshold **0.1**, at most **0.01% of pixels or 12 pixels** per image). It
-answers one question only: did a frame change against the recorded one. It
-cannot say whether what a frame shows is allowed; that takes a person
-looking.
-
-The capture inputs are one list, `scripts/lib/captureInputs.mjs`: `src`,
-`design`, `test/harness`, `scripts/build.mjs`, `scripts/lib`,
-`package.json` and `package-lock.json`. `CHANGELOG.md` is not one: the
-What's New scenes render a fixed fixture
-(`test/harness/whats-new/CHANGELOG.fixture.md`, two made-up releases and a
-fixed version), so a release's notes and its version move no frame. The
-fixture must hold every kind of part the real notes use;
-`test/unit/whatsNewFixture.test.mjs` names a missing kind, and adding it to
-the fixture means re-rendering those scenes.
-
-Keep full-resolution capture sets out of git;
 README media comes only from the existing curated `scripts/readme-shots.mjs`
-list (2 MiB total budget, banner included). The
-[visual contract](test/harness/goldens/README.md) explains grouped scenes,
-CSS pseudo-states and the real-interaction/accessibility companion checks.
+list (2 MiB total budget, banner included).
 
 ## Before you open a pull request
 
@@ -77,11 +54,12 @@ Use this order for a candidate branch:
    conflicts and stage the candidate with no unstaged changes. Record its
    `git write-tree` hash.
 2. Run `npm ci` and the fast local checks on that exact staged tree: format,
-   lint, typecheck, the suites you touched and the packed-product file
-   (`npx vitest run test/e2e/execStdio.e2e.test.ts`). Hosted CI is the gate
-   for a release: every job green on the commit that merges. Its full tier
-   runs the static gates and the tests on three systems and the
-   accessibility gate on Ubuntu, so no complete local
+   lint, typecheck, the suites you touched and the packed product itself
+   (its commands, its help, its errors, its files on disk). Hosted CI is the
+   gate for a release: every job green on the commit that merges. Its full
+   tier runs the static gates and the unit tests on three systems and the
+   accessibility and integration gates on Ubuntu (no screenshot runs
+   anywhere), so no complete local
    `npm run quality` is owed before a push, and the maintainer's Mac mini,
    Kubuntu VM and Windows 11 VM serve targeted runs and reproductions only
    (the affected real filesystem, process and packaging paths,
@@ -108,11 +86,11 @@ Use this order for a candidate branch:
    full branch check without a pull request.
 5. Use `gh run watch RUN_ID --exit-status`, then
    `gh run view RUN_ID --json headSha,jobs`. Match `headSha` to the pushed
-   commit and inspect all seven required conclusions. After the PR checks and
+   commit and inspect all five required conclusions. After the PR checks and
    review pass, choose **Merge when ready** (`gh pr merge N --merge`) to put
    the PR in GitHub's merge queue. The `merge_group` event runs the full tier
    once on the merge commit that will become `main`; the queue merges it only
-   if all seven pass, and removes the PR otherwise. Fix failures and repeat
+   if all five pass, and removes the PR otherwise. Fix failures and repeat
    from the exact-tree gate; later branch changes need fresh PR checks and a
    fresh queue entry. Do not merge `main` into a PR just to refresh it: the
    queue tests the combination itself.
@@ -133,11 +111,11 @@ Use this order for a candidate branch:
   the VS Code integration tests (`npm run test:integration`, run by
   `npm run quality:ci` and CI): formatting, ESLint (zero warnings),
   stylelint, the PowerShell lint, type checks, the localization and host-API
-  checks, dead-code and cycle detection, duplication, unit tests with coverage thresholds, the
+  checks, dead-code and cycle detection, duplication, unit tests with no coverage gate, the
   production build with bundle budgets and the bundle split, `npm audit`,
   the accessibility gate, secret scanning and semgrep. CI's full tier runs
-  the gates on Ubuntu, Windows and macOS, the complete accessibility gate on
-  Ubuntu and integration tests on Ubuntu and Windows, and gitleaks and
+  the gates on Ubuntu, Windows and macOS, the accessibility gate on Ubuntu
+  except on pull requests, and integration tests on Ubuntu and Windows, and gitleaks and
   semgrep as jobs of their own; the PowerShell lint runs only where Windows
   PowerShell exists, so a green run on one platform is not quite the whole
   set.
@@ -169,7 +147,7 @@ Use this order for a candidate branch:
 
 - A visible change gets a harness scenario (`test/harness/index.html`, its
   name listed in `scripts/lib/harnessServer.mjs` beside the related one),
-  rendered with `npm run harness:shots -- <names>` (`--theme=dark`, `light`,
+  rendered with `npm run ui:look -- <names>` (`--theme=dark`, `light`,
   `hc-dark`, `hc-light`, `one-dark-pro` or `dracula`; `--lang=pseudo` for clipping) and checked with
   `node scripts/a11y.mjs <names>` in the four themes. Scenes wait with
   `whenFound`, never fixed delays; nest waits when one control reveals the
@@ -248,22 +226,21 @@ Use this order for a candidate branch:
 the repository variable `CI_MERGE_QUEUE` is `on`. That tier runs formatting,
 ESLint/stylelint, all five compiler projects, localization, host API, knip,
 cycles, duplication, token checks, the production build and its size/split/host-global/
-notices checks, audit, and every unit/process-e2e test on Ubuntu (no
-coverage). Gitleaks and semgrep also run. No tier renders or compares
-screenshots (removed with 0.18.2; "Design tokens and visual changes" above).
+notices checks, audit, and every unit test on Ubuntu. Gitleaks and semgrep
+also run. There is no screenshot run on either tier.
 
 Everything else selects the full tier: `merge_group`, manual dispatch, the
 release workflow's fallback build, and every PR while `CI_MERGE_QUEUE` is not
 `on`. Static gates run on all three OSes. Ubuntu runs four Vitest shards,
-Windows and macOS eight (their files stay serial within a shard); each uploads blob
-reports, checks that every shard arrived, then merges them and enforces the unchanged coverage
-thresholds once per OS. The 448-page a11y harness runs once on Ubuntu against
-the production webview from the static gate; its pages, themes and scenarios
-do not depend on the OS. Linux/Windows VS Code integration, the macOS helper
-and the universal VSIX/ACP package checks remain. Expected wall time is
-roughly 10–15 minutes, pending hosted proof. In a merge group, gitleaks runs
-its pinned CLI (checksum-checked) over every commit the group reaches, since
-the gitleaks action refuses the `merge_group` event.
+Windows and macOS eight (their files stay serial within a shard); all run
+without a coverage gate. The accessibility harness runs on Ubuntu against
+the production webview from the static gate except on pull requests; its
+pages, themes and scenarios do not depend on the OS. Linux/Windows VS Code
+integration, the macOS helper and the universal VSIX/ACP package checks
+remain. Expected wall time is roughly 10–15 minutes, pending hosted proof.
+In a merge group, gitleaks runs its pinned CLI (checksum-checked) over every
+commit the group reaches, since the gitleaks action refuses the
+`merge_group` event.
 
 The seven required names stay: `build / quality (ubuntu-latest)`,
 `build / quality (windows-latest)`, `build / quality (macos-latest)`,
@@ -573,7 +550,7 @@ never a literal in the code:
 
 `npm run check:l10n` checks all of this. It fails a key missing from a
 translation, a changed `{slot}`, a wrong set of plural forms, and a
-`UI_TEXT` read at module load. `npm run harness:shots -- --lang=pseudo`
+`UI_TEXT` read at module load. `npm run ui:look -- --lang=pseudo`
 renders the panel in a pseudo-locale where any English left outside the
 table stands out.
 
@@ -589,7 +566,7 @@ there, and the gate compares each form's slots with the English.
 **Correcting a translation.** The translations are machine-made. Edit the
 line in `l10n/ui.<language>.json` or `package.nls.<language>.json`, keeping
 its `{slots}` and code spans. Run `npm run check:l10n` and
-`npm run harness:shots -- --lang=<language>` to see the result.
+`npm run ui:look -- --lang=<language>` to see the result.
 
 - **A value that reads the same as English** (a name, or a word the language
   borrows) goes in `l10n/untranslated.json` under that language.

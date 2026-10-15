@@ -215,7 +215,16 @@ async function reservedStore(
   return { ...setup, store, reserved }
 }
 
-/** Window A's store on a 200 ms lease, paused just before it publishes a generation. */
+/**
+ * Window A's store, paused just before it publishes a generation. Its lease
+ * is 2 s: the retry after the takeover must still fit a full save path
+ * (read the head, a flushed stage write, the link) inside one lease. A
+ * 200 ms lease passed here but failed on Windows (PR 161): the first publish
+ * beat it and paused, then the retries each outlasted it, so one test saw
+ * the product's `could not be kept` after its attempts and the other's
+ * `beforePublish.reached` never settled (the loss is reported before the
+ * link the pause watches). The takeover stays fast: window B honors 10 ms.
+ */
 function pausedPublisher(dataFolder: string) {
   const windowAFs = pausingPort()
   const beforePublish = windowAFs.pauseAt('link', ([, target]) =>
@@ -223,7 +232,7 @@ function pausedPublisher(dataFolder: string) {
   )
   const windowA = createFileWorktreeRecordStore(dataFolder, process.platform, log, {
     fs: windowAFs.port,
-    leaseMs: 200,
+    leaseMs: 2000,
   })
   return { windowA, beforePublish }
 }
@@ -484,7 +493,12 @@ describe('worktree records generations (M123 lane P)', () => {
     const aReserve = windowA.reserve(heldRecord(other, { checkoutId: 'other-checkout' }))
     await beforePublish.reached
     await delay(300)
-    const windowB = createFileWorktreeRecordStore(dataFolder, process.platform, log)
+    // Takes the lock over within milliseconds of watching it (the race
+    // test's eager window does the same), so the takeover does not wait out
+    // A's two-second lease.
+    const windowB = createFileWorktreeRecordStore(dataFolder, process.platform, log, {
+      honoredLeaseMs: 10,
+    })
     const replaced = await windowB.supersede(
       folder,
       versionOf(trusted),
@@ -523,7 +537,12 @@ describe('worktree records generations (M123 lane P)', () => {
     const aRelease = windowA.release(ticket, 3000)
     await beforePublish.reached
     await delay(300)
-    const windowB = createFileWorktreeRecordStore(dataFolder, process.platform, log)
+    // Takes the lock over within milliseconds of watching it (the race
+    // test's eager window does the same), so the takeover does not wait out
+    // A's two-second lease.
+    const windowB = createFileWorktreeRecordStore(dataFolder, process.platform, log, {
+      honoredLeaseMs: 10,
+    })
     const replaced = await windowB.supersede(
       folder,
       versionOf(ready),
