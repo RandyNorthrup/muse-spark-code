@@ -45,6 +45,8 @@ const HOST_BUNDLES = [
   'dist/configuredProviders.js',
   'dist/validation.js',
   'dist/modelsPanel.js',
+  'dist/auth.js',
+  'dist/paid.js',
   'dist/review.js',
   'dist/sessionBoard.js',
   'dist/reviewer.js',

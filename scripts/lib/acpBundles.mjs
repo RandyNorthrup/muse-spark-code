@@ -81,6 +81,7 @@ export const ACP_BUNDLES = [
   'estimateContracts.js',
   'legalScan.js',
   'providers.js',
+  'auth.js',
   'subscriptions.js',
   'configuredProviders.js',
   'providerCatalog.json',

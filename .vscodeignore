@@ -44,6 +44,8 @@
 !dist/webFetch.js
 !dist/museCodeReviewer.js
 !dist/modelsPanel.js
+!dist/auth.js
+!dist/paid.js
 !dist/usageService.js
 !dist/usageCompanion.js
 !dist/usagePanel.js
