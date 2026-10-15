@@ -1163,13 +1163,10 @@ export function createTabActivation(deps: TabActivationDeps): TabActivation {
         void (async () => {
           const table = deps.table()
           const answer = await vscode.window.showWarningMessage(
-            table.tabStatusBudget,
-            {
-              detail: fill(table.tabBudgetReachedDetail, {
-                spent: formatUsd(spent),
-                budget: formatUsd(budget),
-              }),
-            },
+            fill(table.tabBudgetReachedDetail, {
+              spent: formatUsd(spent),
+              budget: formatUsd(budget),
+            }),
             table.openSettings,
           )
           if (answer === table.openSettings) {

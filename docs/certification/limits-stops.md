@@ -204,3 +204,15 @@ measured 670/670 on `modelApiHost.test.ts`; mine is 633/670.
    table; if a budget refusal ever precedes provider creation, the
    fallback is English. No such path exists today (provider creation
    installs the table before any reserve).
+
+## RVLIMITS review correction — Tab warning visibility (2026-10-14)
+
+The original A4 callback passed its spend/cap/remedy sentence as
+`MessageOptions.detail` without `modal: true`. The installed VS Code type
+contract says detail is only shown for modal messages, so the pure notice
+string test did not prove the person could read that sentence. The callback
+now passes the translated sentence as the notification's visible message,
+keeping the non-modal warning and Open Settings action. Proof: original
+`src/host/tab/tabBundle.ts:1165` call plus the installed `MessageOptions`
+contract. No provider call or editor stand-in was used. A lead must still
+look at the built warning once; no UI inspection is claimed here.

@@ -9,6 +9,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- RVLIMITS: Tab's budget warning puts the spend, cap and Settings remedy
+  in the visible notification text; VS Code does not display `detail` on
+  a non-modal notification.
+
 - Lane LIMITSA (D113): no default cap refuses the person's work, and money
   stays visible and theirs to cap. A failed send through a configured
   provider keeps its own error words (budget and session-budget refusals,
