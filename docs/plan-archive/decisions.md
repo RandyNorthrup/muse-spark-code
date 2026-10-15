@@ -6720,7 +6720,7 @@ the chat still focuses the input exactly as before
 
 <!-- plan-archive:end id="decisions-6409d5aad-14637" -->
 
-## D108 — The terminal agent documents itself per command
+## D117 — The terminal agent documents itself per command
 
 <!-- plan-archive:begin id="decisions-819ec0f8b-14320" lines="14320-14357" at="819ec0f8b" bytes="2747" sha256="26ed459cf6b7b7ec0c1438e8f2a1ebb6c0754ec4dcc3c1a909c0b017fdc0123d" -->
 

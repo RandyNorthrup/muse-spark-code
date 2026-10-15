@@ -212,7 +212,7 @@ export function parseExec(
       (values['account'] !== undefined && values['account'] !== ACCOUNT_DEFAULT_ID))
   )
     return invalid(UI_TEXT.accounts.museCodeUnavailable)
-  // A wrong value names its own option (D108), never a bare usage line.
+  // A wrong value names its own option (D117), never a bare usage line.
   if (backend === undefined) return invalid(fill(UI_TEXT.execValueInvalid, { option: '--backend' }))
   if (output === undefined) return invalid(fill(UI_TEXT.execValueInvalid, { option: '--output' }))
   if (shellSandbox === undefined)
