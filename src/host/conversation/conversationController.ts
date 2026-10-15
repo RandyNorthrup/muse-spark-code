@@ -1218,6 +1218,8 @@ export class ConversationController {
    */
   private readonly importedSessionIds = new Set<string>()
   private effort: EffortLevel = DEFAULT_EFFORT
+  /** The person moved the effort slider: a level they chose is kept, never replaced by a default. */
+  private isEffortChosen = false
   private isThinkingEnabled = true
   /** The conversation's Fast switch; off by default, reset on model change. */
   private fast = false
@@ -3757,6 +3759,9 @@ export class ConversationController {
       ...(model.trainsOnContent === true && { trainsOnContent: model.trainsOnContent }),
     }))
     this.post({ type: 'modelList', models: [...this.models] })
+    // Before any session exists the composer already shows the level the
+    // first turn will run at; a live session keeps the level it was given.
+    if (this.session === undefined) this.startOnCatalogueEffort(this.modelId)
   }
 
   /**
@@ -3970,6 +3975,7 @@ export class ConversationController {
     this.postSessionInfo(this.modelId)
     this.noteActivity()
     this.git.sessionChanged(session.sessionId)
+    this.startOnCatalogueEffort(this.modelId)
     await this.applyEffort(session, {
       effort: this.effort,
       isThinkingEnabled: this.isThinkingEnabled,
@@ -8247,7 +8253,10 @@ export class ConversationController {
     // (muse-spark-1.2 has no `max`); drop to the model's own default where
     // the backend knows it, else the highest tier it does serve.
     const levels = this.modelEffortLevels(modelId)
-    if (!levels.includes(this.effort)) {
+    const startEffort = this.unchosenEffort(modelId)
+    if (startEffort !== undefined && startEffort !== this.effort) {
+      await this.updateEffort(startEffort, this.isThinkingEnabled)
+    } else if (!levels.includes(this.effort)) {
       await this.updateEffort(this.modelDefaultEffort(modelId, levels), this.isThinkingEnabled)
     }
     // Fast never survives a model change: it is off by default, and the
@@ -8262,6 +8271,31 @@ export class ConversationController {
       modelId,
       this.models?.find((model) => model.modelId === modelId)?.effortLevels,
     )
+  }
+
+  /**
+   * A level nobody chose starts on the catalogue's own default for the model
+   * (a plan model lists one), not on the standing default; the composer shows
+   * it before the session applies it. Nothing changes once the person chose.
+   */
+  private startOnCatalogueEffort(modelId: string): void {
+    const startEffort = this.unchosenEffort(modelId)
+    if (startEffort === undefined || startEffort === this.effort) return
+    this.effort = startEffort
+    this.postComposerState()
+  }
+
+  /**
+   * The catalogue's default for a model the person has not chosen a level
+   * for, where the model lists one and serves it; undefined otherwise (a
+   * chosen level, or a model with no default of its own, keeps today's rule).
+   */
+  private unchosenEffort(modelId: string): EffortLevel | undefined {
+    if (this.isEffortChosen) return undefined
+    const fallback = this.models?.find((model) => model.modelId === modelId)?.defaultEffort
+    return fallback !== undefined && this.modelEffortLevels(modelId).includes(fallback)
+      ? fallback
+      : undefined
   }
 
   /** The level a switched model selects: its own default where known. */
@@ -10245,6 +10279,7 @@ export class ConversationController {
         break
       }
       case 'setEffort': {
+        this.isEffortChosen = true
         await this.updateEffort(message.effort, this.isThinkingEnabled)
         break
       }
