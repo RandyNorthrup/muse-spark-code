@@ -28,6 +28,8 @@ happened, not what was planned; superseded entries are kept.
   repeated entries have different descriptions or argument hints.
 - RVCLIFLOWS: an unavailable credential store says stored keys cannot be
   checked, rather than falsely claiming no key is stored (all display languages).
+- RVCLIFLOWS: `scan-secrets` no longer emits a panel-language diagnostic on
+  stderr; successful scans print only their count.
 
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
   reads and writes, and 1-hour cache writes settle at their own price.

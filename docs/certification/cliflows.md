@@ -45,6 +45,15 @@ These coupled fixes are deferred rather than bypassing ownership/accounting.
 The earlier F80 claim below describes the submitted attempt, **not verified
 working behavior**. Its positive path was not run and is not certified.
 
+## RVCLIFLOWS review — scanner owns its output (2026-10-14, Windows)
+
+P2/F48: real `node dist/acp.js scan-secrets clean.txt` printed stdout `0`
+and stderr `[info] Display language en-us: the panel is in English` (exit 0),
+contrary to the count-only terminal contract. Run the existing scanner before
+language loading: it has no translated output or refusal text. Real clean,
+canary and missing-file commands retain exits 0/10/2 and no panel diagnostic.
+No logger suppression, gate exemption or new string is needed.
+
 ## RVCLIFLOWS review — unknown is not absent (2026-10-14)
 
 P2: a locked or unavailable credential store can still contain a key. Every
