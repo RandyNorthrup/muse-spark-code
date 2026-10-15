@@ -65,6 +65,7 @@
     "src/host/backend/subscriptionsEntry.ts",
     "src/host/backend/configuredProvidersEntry.ts",
     "src/host/models/modelsPanelEntry.ts",
+    "src/host/models/modelsSubscriptionsEntry.ts",
 
     // The Node-only team schema proxy selected by the production resolver (M96, D6).
     "src/host/teamViewBundle.ts",
