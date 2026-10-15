@@ -240,6 +240,13 @@ describe('usage says what really happened (F20-F24)', () => {
     )
   })
 
+  it('starts each completion at its own start, not the turn start (T3)', async () => {
+    const { records } = await recordedThroughRealJournal()
+    expect(records.map((record) => record.startedAt)).toEqual(
+      COMPLETIONS.map((completion) => completion.at - completion.durationMs),
+    )
+  })
+
   it('times each request by its own duration (F21)', async () => {
     const { records, limits } = await recordedThroughRealJournal()
     expect(records.map((record) => record.durationMs)).toEqual(
