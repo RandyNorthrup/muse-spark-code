@@ -596,6 +596,24 @@ notice paths this lane made reliable, for bytes it cannot recover.
 Branch strings cost 0 bytes (all read through the lazy language
 tables). The pin is unreachable by either named means with the fixes'
 behavior kept; recorded here as the lead's call.
+Doors closed, each measured (second pass): every consumer of the
+branch's B9/judge/fence code returns synchronously — `childSnapshot`
+(`: ItemSnapshot`), `childEvent` (`: void`), the `childById`
+dispatcher, the abort listener, the `visibleOutput` returns — so lazy
+loading any formatter or fence read means converting core synchronous
+data paths to async up the whole caller chain, the shared redesign the
+review declined; only timer/notice fragments (~300 B combined) sit in
+async contexts, and chunk-failure handling on those notice paths would
+add bytes back. Whole-module moves are pinned too: `agentReceipt.ts`
+and `mcp/elicitation.ts` both feed synchronous importers in the static
+bundle. The shell-independent bound: consolidation keeps behavior, so
+it keeps ≥70% of the 1,413 (saves ≤400); lazy-viable ≤300; both fully
+credited save ≤700 against 1,575 needed (lands ~520,229, still ~875
+over). Separately, the pin predates the merged base: main itself added
+net +11 lines across current bundle inputs between `898a26c5e` and
+`06847350f`, so 519,354 no longer describes any tree on this branch.
+Re-pin (not a raise: a re-baseline to merged main) or retire the deleted
+test's number — that decision is the owner's.
 
 ### 4. Retained limits with peer citations (owner's 2026-10-14 rule)
 
