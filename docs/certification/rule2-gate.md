@@ -267,3 +267,35 @@ Restored: 42 passed, exit 0. Logs: `.lane/PRTH158.T5.{green,red,restored}.log`.
 Lead: read the existing release-recovery run's verification output; prior
 Release runs must be excluded even when their REST path has a ref suffix,
 while CI/Hosts results and their failures remain in the judged set.
+
+### T6 — parser and per-commit evidence guards deliberately broken
+
+All three drills ran the complete real-module file with the T1 command,
+Windows, Node 24.20.0, Vitest 5.0.3, `--maxWorkers=2`, repository timeouts.
+Baseline 42 passed, exit 0. Each mutation was applied separately, the
+intended assertion failed (not a startup/syntax failure), and the exact
+source bytes were restored before the next drill. Every restored run:
+42 passed, exit 0. Every before/after SHA-256:
+`0794b17d13be089576daf795be1769f253497d5849ecf557923ba42678525c11`.
+
+| Real guard        | Deliberate defect                                           | Observed failure                                                                                                                                                            | Red exit |
+| ----------------- | ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| `runOf`           | Allow a string run id                                       | `refuses a run it cannot read` for id `"38597656750"`; `expected [Function] to throw an error`; 1 failed, 41 passed                                                         | 1        |
+| `pullOf`          | Allow a numeric head SHA                                    | `refuses a pull request it cannot read` for `head.sha: 42`; `expected [Function] to throw an error`; 1 failed, 41 passed                                                    | 1        |
+| `missingEvidence` | Check only an empty global list/tag instead of every commit | `names the pull request head that has no run`, `names the tagged commit when only the head has runs`, and missing/deleted/success evidence assertions; 10 failed, 32 passed | 1        |
+
+Raw intended failures:
+
+```text
+runOf: AssertionError: expected [Function] to throw an error
+pullOf: AssertionError: expected [Function] to throw an error
+missingEvidence: AssertionError: expected [] to deeply equal [ StringContaining{…} ]
+- StringContaining "pull request 158 head fb8d0ff84"
+```
+
+Logs: `.lane/PRTH158.T6.green.log` and
+`.lane/PRTH158.T6.{runOf,pullOf,missingEvidence}.{red,restored}.log`.
+No test was removed or replaced with a stand-in. The original pure parser
+suite survives main's deletion of fake-driven tests, so no lost proof was
+reintroduced. These are deliberate broken-code drills, not merely negative
+input examples. No GitHub dispatch or model provider is needed for them.
