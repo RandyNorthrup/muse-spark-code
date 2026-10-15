@@ -482,7 +482,7 @@ Expired
 
 Surfaces: vscode:museCode, vscode:modelApi, acp:museCode, acp:modelApi. Paid: no extra feature charge; model usage still applies.
 
-Commands: `museSpark.nextOpenQuestion`, `museSpark.previousOpenQuestion`. Settings: `museSpark.questions.deferAfterSeconds`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#questions)
+Commands: `museSpark.nextOpenQuestion`, `museSpark.previousOpenQuestion`. Settings: `museSpark.questions.deferAfterSeconds`, `museSpark.questions.maxOpenQuestions`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#questions)
 
 ### MCP Elicitation
 
@@ -1479,7 +1479,7 @@ The background safety check did not finish, so no advisory is attached to this a
 
 Surfaces: vscode:modelApi. Paid: yes; consent required; admission depends on the surface.
 
-Commands: —. Settings: `museSpark.judge.engine`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#muse-judge)
+Commands: —. Settings: `museSpark.judge.engine`, `museSpark.judge.timeoutSeconds`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#muse-judge)
 
 ### Judge
 
@@ -1489,7 +1489,7 @@ The background safety check did not finish, so no advisory is attached to this a
 
 Surfaces: vscode:museCode. Paid: no extra feature charge; model usage still applies.
 
-Commands: —. Settings: `museSpark.judge.engine`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#muse-judge)
+Commands: —. Settings: `museSpark.judge.engine`, `museSpark.judge.timeoutSeconds`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#muse-judge)
 
 ### Orchestrator Playbook
 
@@ -2917,6 +2917,21 @@ Type: `"string"`. Default: `"auto"`. Scope: `machine`.
 - `"same"`: Only your own chat model judges; it never switches models.
 - `"off"`: No judge: approvals behave exactly as without one.
 
+### museSpark.judge.timeoutSeconds
+
+Seconds a background safety check may run before its missing advisory is named on the approval instead of waited on. 60 by default; 10 to 600. Only this machine’s setting is used.
+
+Type: `"integer"`. Default: `60`. Scope: `machine`.
+
+```json
+{
+  "type": "integer",
+  "default": 60,
+  "minimum": 10,
+  "maximum": 600
+}
+```
+
 ### museSpark.shell.passEnvironmentVariables
 
 backend=modelApi&shellOrigin=interactive: Names of environment variables to pass to interactive top-level shell commands, including credential variables normally withheld. Names only, never values. Default: none. A command can expose these values in the conversation and to the model provider. Verification/then_run, schedules, child/team workers and hooks never receive credential variables, even when named here. An interactive command moved to the background retains its starting environment. Does not change Muse Code or explicitly configured MCP server environments.
@@ -3066,6 +3081,21 @@ Type: `"integer"`. Default: `60`. Scope: `machine`.
   "default": 60,
   "minimum": 0,
   "maximum": 3600
+}
+```
+
+### museSpark.questions.maxOpenQuestions
+
+How many questions stay open before the oldest expire with a warning. 20 by default; 2 to 100. Expired cards keep their text and can still be read. Only this machine’s setting is used.
+
+Type: `"integer"`. Default: `20`. Scope: `machine`.
+
+```json
+{
+  "type": "integer",
+  "default": 20,
+  "minimum": 2,
+  "maximum": 100
 }
 ```
 

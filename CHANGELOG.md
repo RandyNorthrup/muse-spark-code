@@ -9,6 +9,14 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- Nothing-dropped review: the two retained bounds no peer harness shares
+  are now the person's settings (both machine-scoped). `museSpark.questions.maxOpenQuestions`
+  (20 by default, 2–100) sets how many questions stay open before the
+  oldest expire with a warning; `museSpark.judge.timeoutSeconds` (60 by
+  default, 10–600) sets how long a background safety check may run before
+  its missing advisory is named instead of waited on. Surfaces without
+  settings (ACP, headless) keep the defaults.
+
 - Test-overhaul review: paid-popup lazy-load checks now build the real
   runtime instead of writing a replacement formatter, retaining locale
   propagation and sub-cent search-price disclosure checks.

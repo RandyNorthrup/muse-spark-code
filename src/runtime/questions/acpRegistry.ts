@@ -85,10 +85,8 @@ export function createRuntimeQuestionRegistry(
       published = snapshot
     },
     failed,
-    onExpired: (cards) => {
-      input.notice?.(
-        plural(UI_TEXT.questionsExpiredNotice, cards.length, { max: OPEN_QUESTIONS_MAX }),
-      )
+    onExpired: (cards, max) => {
+      input.notice?.(plural(UI_TEXT.questionsExpiredNotice, cards.length, { max }))
     },
   })
   // Loading begins in the constructor; observe failures before ACP's later replay setup.

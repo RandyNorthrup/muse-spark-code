@@ -953,7 +953,9 @@ bindings: these keys conflict with defaults in JetBrains and Visual Studio.
 `museSpark.questions.deferAfterSeconds` is machine-scoped: 60 by default,
 0 to wait indefinitely, otherwise 10–3600 seconds (1–9 are read as 10).
 A workspace setting cannot change it. Open questions survive a reload and
-resume, with at most 20 open per session and two reminders per question.
+resume, with at most 20 open per session (`museSpark.questions.maxOpenQuestions`,
+machine-scoped, 2–100; the oldest expire with a warning but keep their text)
+and two reminders per question.
 A late answer is your own message in the current mode and approves nothing.
 In the panel it steers a running turn or starts a new one, billed normally.
 
@@ -2663,7 +2665,9 @@ call or production calibration is claimed.
 model, `same` keeps that selection explicit, and `off` disables Judge. Set
 it to `off` in Settings to stop future judgments. A measured ready rate below
 the floor disables `auto` on that backend; no production ready-rate or
-precision measurement is claimed here. Status and separate dispatch rows
+precision measurement is claimed here. `museSpark.judge.timeoutSeconds` is
+machine-scoped: seconds a check may run before its missing advisory is named
+instead of waited on (60 by default, 10–600). Status and separate dispatch rows
 show what ran, with missing usage left unknown. See [Judge](docs/judge.md)
 for the phase-1 contract and remaining certification.
 

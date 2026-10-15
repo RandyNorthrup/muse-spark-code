@@ -1,7 +1,7 @@
 import type { Question } from '../../shared/agentEvents'
+import { questionMaxOpen } from '../../shared/questionDeadline'
 import {
   MILLISECONDS_PER_SECOND,
-  OPEN_QUESTIONS_MAX,
   QUESTION_DEFER_DEFAULT_SECONDS,
   QUESTION_DEFER_MAX_SECONDS,
   QUESTION_DEFER_MIN_SECONDS,
@@ -36,11 +36,18 @@ export interface QuestionRegistryDeps extends QuestionRegistryPort {
   readonly changed: (snapshot: OpenQuestionsSnapshot) => void
   readonly failed: () => void
   /**
+   * How many questions stay open before the oldest expire (B22, D115): no
+   * peer harness caps this, so it is the person's setting where settings
+   * exist; unwired surfaces keep the default.
+   */
+  readonly maxOpenQuestions?: (() => number) | undefined
+  /**
    * The cards crowded out past the open cap (B22): fired with each newly
    * expired entry so its surface tells the person at that moment. Expired
-   * entries are retained, so this is a notice, never a farewell.
+   * entries are retained, so this is a notice, never a farewell. The second
+   * argument is the cap the notice names.
    */
-  readonly onExpired?: ((expired: readonly OpenQuestion[]) => void) | undefined
+  readonly onExpired?: ((expired: readonly OpenQuestion[], max: number) => void) | undefined
 }
 
 export interface QuestionRequest {
@@ -168,9 +175,14 @@ export class QuestionRegistry {
     }
   }
 
+  /** The person's open-question cap (B22, D115), clamped; the default where unwired. */
+  private openMax(): number {
+    return questionMaxOpen(this.deps.maxOpenQuestions?.())
+  }
+
   private expireOldest(): readonly OpenQuestion[] {
     const open = this.snapshot().questions.filter((entry) => entry.state === 'open')
-    const expired = open.slice(0, Math.max(0, open.length - OPEN_QUESTIONS_MAX))
+    const expired = open.slice(0, Math.max(0, open.length - this.openMax()))
     if (expired.length === 0) {
       return []
     }
@@ -194,7 +206,7 @@ export class QuestionRegistry {
         this.entries.delete(entry.userInputId)
     }
     if (expired.length > 0) {
-      this.deps.onExpired?.(structuredClone(expired))
+      this.deps.onExpired?.(structuredClone(expired), this.openMax())
     }
     this.deps.changed(
       structuredClone({

@@ -1380,6 +1380,14 @@
           "description": "%config.judge.engine.description%",
           "scope": "machine"
         },
+        "museSpark.judge.timeoutSeconds": {
+          "type": "integer",
+          "default": 60,
+          "minimum": 10,
+          "maximum": 600,
+          "description": "%config.judge.timeoutSeconds.description%",
+          "scope": "machine"
+        },
         "museSpark.shell.passEnvironmentVariables": {
           "type": "array",
           "default": [],
@@ -1474,6 +1482,14 @@
           "minimum": 0,
           "maximum": 3600,
           "description": "%config.questions.deferAfterSeconds.description%",
+          "scope": "machine"
+        },
+        "museSpark.questions.maxOpenQuestions": {
+          "type": "integer",
+          "default": 20,
+          "minimum": 2,
+          "maximum": 100,
+          "description": "%config.questions.maxOpenQuestions.description%",
           "scope": "machine"
         },
         "museSpark.suggestedProvider": {

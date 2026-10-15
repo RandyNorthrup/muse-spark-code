@@ -161,6 +161,7 @@ export function createWindowJudge(
               cache,
               modelId: initial.modelId,
               signal: lifetime,
+              timeoutMs: deps.timeoutMs?.(),
               measureTokens: (text: string) => Buffer.byteLength(text),
               contextTokenLimit: Math.min(
                 JUDGE_MAX_STATE_TOKENS,

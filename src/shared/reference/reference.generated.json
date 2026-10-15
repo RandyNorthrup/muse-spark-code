@@ -652,7 +652,7 @@
       "summary": { "ui": "referenceQuestionsDeferral" },
       "description": { "ui": "referenceQuestionsDeferral" },
       "commands": ["museSpark.nextOpenQuestion", "museSpark.previousOpenQuestion"],
-      "settings": ["museSpark.questions.deferAfterSeconds"],
+      "settings": ["museSpark.questions.deferAfterSeconds", "museSpark.questions.maxOpenQuestions"],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#questions",
       "backends": ["museCode", "modelApi"],
       "paid": false,
@@ -1700,7 +1700,7 @@
       "summary": { "tip": "paid:judge" },
       "description": { "tip": "paid:judge" },
       "commands": [],
-      "settings": ["museSpark.judge.engine"],
+      "settings": ["museSpark.judge.engine", "museSpark.judge.timeoutSeconds"],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#muse-judge",
       "backends": ["modelApi"],
       "paid": true,
@@ -1770,7 +1770,7 @@
       "summary": { "ui": "judgeSubscriptionNotice" },
       "description": { "ui": "judgeSubscriptionNotice" },
       "commands": [],
-      "settings": ["museSpark.judge.engine"],
+      "settings": ["museSpark.judge.engine", "museSpark.judge.timeoutSeconds"],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#muse-judge",
       "backends": ["museCode"],
       "paid": false,
@@ -3593,6 +3593,17 @@
       "schema": { "type": "string", "enum": ["auto", "same", "off"], "default": "auto" }
     },
     {
+      "id": "museSpark.judge.timeoutSeconds",
+      "name": "museSpark.judge.timeoutSeconds",
+      "description": "Seconds a background safety check may run before its missing advisory is named on the approval instead of waited on. 60 by default; 10 to 600. Only this machine’s setting is used.",
+      "descriptionKey": "config.judge.timeoutSeconds.description",
+      "type": "integer",
+      "default": 60,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "integer", "default": 60, "minimum": 10, "maximum": 600 }
+    },
+    {
       "text": {
         "conditions": [
           {
@@ -3795,6 +3806,17 @@
       "scope": "machine",
       "refinements": [],
       "schema": { "type": "integer", "default": 60, "minimum": 0, "maximum": 3600 }
+    },
+    {
+      "id": "museSpark.questions.maxOpenQuestions",
+      "name": "museSpark.questions.maxOpenQuestions",
+      "description": "How many questions stay open before the oldest expire with a warning. 20 by default; 2 to 100. Expired cards keep their text and can still be read. Only this machine’s setting is used.",
+      "descriptionKey": "config.questions.maxOpenQuestions.description",
+      "type": "integer",
+      "default": 20,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "integer", "default": 20, "minimum": 2, "maximum": 100 }
     },
     {
       "id": "museSpark.suggestedProvider",

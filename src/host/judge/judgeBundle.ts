@@ -15,6 +15,8 @@ import type * as JudgeEntry from './judgeEntry'
 
 export interface JudgeWindowDeps {
   readonly engine: () => JudgeEngine
+  /** B17 (D115): the person's fence deadline in ms; unset keeps the default. */
+  readonly timeoutMs?: (() => number) | undefined
   readonly context: (action: JudgeEntryParts) =>
     | {
         readonly backend: 'museCode' | 'modelApi'

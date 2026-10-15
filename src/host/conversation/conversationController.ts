@@ -151,7 +151,6 @@ import {
   MUSE_EVENT_LOG_FAULT,
   MUSE_APPROVAL_LEDGER_FIXED_VERSION,
   MUSE_INSTALL_COMMANDS,
-  OPEN_QUESTIONS_MAX,
   OUTPUT_DOCUMENT_MAX_PAGES,
   OUTPUT_PAGE_BYTES,
   OUTPUT_TAB_ID_LENGTH,
@@ -692,6 +691,8 @@ export interface ConversationDeps {
     readonly store: QuestionStore
     readonly clock: QuestionClock
     readonly deferAfterSeconds: () => number
+    /** B22 (D115): the person's open-question cap; unset keeps the default. */
+    readonly maxOpenQuestions?: (() => number) | undefined
     readonly formatAnswer: QuestionAnswerText
   }
   /**
@@ -3052,11 +3053,12 @@ export class ConversationController {
             surface.post({ type: 'openQuestions', snapshot })
           }
         },
+        maxOpenQuestions: binding.maxOpenQuestions,
         // Crowded out past the open cap (B22): one warning naming the
         // count; the expired cards keep their text below.
-        onExpired: (expired) => {
+        onExpired: (expired, max) => {
           const text = plural(UI_TEXT.questionsExpiredNotice, expired.length, {
-            max: OPEN_QUESTIONS_MAX,
+            max,
           })
           const surfaces = sessionSurfaces.get(session) ?? []
           for (const surface of surfaces) {
