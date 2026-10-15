@@ -1570,6 +1570,7 @@ class AcpSession {
     // The set took: tell the editor, which otherwise keeps showing the old
     // mode (it learns it only from new/load responses and this notice).
     this.send({ sessionUpdate: 'current_mode_update', currentModeId: mode })
+    await this.outbox
   }
 
   public async setConfigOption(configId: string, value: unknown): Promise<void> {
