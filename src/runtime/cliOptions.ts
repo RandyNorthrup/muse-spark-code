@@ -4,6 +4,16 @@ import type { UiText } from '../shared/l10n/en'
 import { sharingHelp } from '../shared/featureCatalog'
 import { fill } from '../shared/l10n/text'
 
+/** One screen for `scan-secrets --help`: its own usage, options and exit codes. */
+export function formatScanSecretsHelp(table: UiText, command: string): string {
+  return [
+    `${command} ${table.execScanUsage}`,
+    table.referenceScanSecrets,
+    table.referenceCliOptions['key-stdin'],
+    table.scanSecretsExits,
+  ].join('\n')
+}
+
 /** Compact CLI help, also checked against the installed package's tables. */
 export function formatAcpUsage(table: UiText, command: string): string {
   const options = {

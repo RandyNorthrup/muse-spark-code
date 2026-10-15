@@ -158,7 +158,7 @@ export type RuntimeCommand =
     }
   | { readonly command: 'accounts'; readonly options: AccountsCommand }
   | { readonly command: 'developer'; readonly args: readonly string[] }
-  | { readonly command: 'help'; readonly all?: boolean }
+  | { readonly command: 'help'; readonly all?: boolean; readonly topic?: 'scan-secrets' }
   | { readonly command: 'version' }
   | { readonly command: 'vaultHelp' }
   | { readonly command: 'invalid'; readonly reason: string; readonly exitCode?: number }
@@ -638,7 +638,9 @@ function parseHeadless(argv: readonly string[]): RuntimeCommand {
         strict: true,
         options: CLI_OPTION_REGISTRY['scan-secrets'].options,
       })
-      if (values.help === true) return { command: 'help', all: true }
+      // The scanner's help is its own one screen — usage, options and
+      // exit codes — never the whole reference.
+      if (values.help === true) return { command: 'help', topic: 'scan-secrets' }
       return positionals.length === 1 && positionals[0] !== undefined
         ? {
             command: 'scan-secrets',

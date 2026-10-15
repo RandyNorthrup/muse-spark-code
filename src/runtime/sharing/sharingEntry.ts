@@ -197,7 +197,10 @@ export function isAffirmativeAnswer(answer: string | undefined): boolean {
   return normalized === 'y' || normalized === 'yes'
 }
 
-function terminalUi(): SharingUi {
+function terminalUi(scripted?: {
+  readonly vars: ReadonlyMap<string, string>
+  readonly confirmed: boolean
+}): SharingUi {
   return {
     showPreview: (preview, signal) => {
       signal.throwIfAborted()
@@ -220,11 +223,26 @@ function terminalUi(): SharingUi {
       )
       let prepared: string | undefined
       await usePrompt(prompt, {
-        valueFor: (variable) => question(`${UI_TEXT.promptVariables}: ${variable.name}`, signal),
+        valueFor: (variable) => {
+          // A script's --var answers without a keyboard; anything else
+          // still asks the terminal, and a script without the value stops
+          // at the cancelled review below instead of hanging.
+          const scriptedValue = scripted?.vars.get(variable.name)
+          return scriptedValue === undefined
+            ? question(`${UI_TEXT.promptVariables}: ${variable.name}`, signal)
+            : Promise.resolve(scriptedValue)
+        },
         review: async (text) => {
           signal.throwIfAborted()
           process.stdout.write(`${text}\n`)
-          return isAffirmativeAnswer(await question(`${UI_TEXT.promptInsert} (y/N)`, signal))
+          // The terminal prints the prepared text: nothing is inserted
+          // into an editor, so the review says print, not insert. A
+          // script confirms explicitly with --confirm after previewing
+          // the same text in an earlier run without it.
+          return (
+            scripted?.confirmed === true ||
+            isAffirmativeAnswer(await question(`${UI_TEXT.promptPrintConfirm} (y/N)`, signal))
+          )
         },
         insert: (text) => {
           signal.throwIfAborted()
@@ -259,7 +277,11 @@ export async function runRuntimeSharing(
       cwd: process.cwd(),
       isActive: () => !controller.signal.aborted,
       signal: controller.signal,
-      ui: terminalUi(),
+      ui: terminalUi(
+        command.command === 'prompts' && command.action === 'use'
+          ? { vars: command.vars, confirmed: command.confirmed }
+          : undefined,
+      ),
       readBody: async () => {
         controller.signal.addEventListener('abort', cancelRead, { once: true })
         const deadline = setTimeout(stop, PROMPT_STDIN_TIMEOUT_MS)

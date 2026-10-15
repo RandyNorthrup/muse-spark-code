@@ -156,8 +156,12 @@ describe('RVHELPREF host and terminal regressions', () => {
       '/goal pause',
     ])
       expect(text).toContain(marker)
-    for (const route of ['exec', 'report', 'scan-secrets'])
+    for (const route of ['exec', 'report'])
       expect(parseCommandLine([route, '--help'])).toEqual({ command: 'help', all: true })
+    expect(parseCommandLine(['scan-secrets', '--help'])).toEqual({
+      command: 'help',
+      topic: 'scan-secrets',
+    })
   })
   it('R20 leaves an unsupported host value set empty without reading sensitive values', async () => {
     const bridge = host()
