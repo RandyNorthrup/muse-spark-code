@@ -335,3 +335,101 @@ browser, paid/live request, dependency installation, credential access
 (`.husky/_`, never `--no-verify`) and the exact trailer. Every command's
 output went through `| cut -c1-300 | head -n 80`. Gate exit codes above are
 the commands' own (`$?` to a file, never through a pipe).
+
+## LIMITSBFIX (Codex-review follow-up, 2026-10-15, linuxlt)
+
+Branch `fix/limits-output-final` from `731f9e670`, merged PR 172 head
+`d1271bd70` (both sides kept in append-only files; overhauled test
+deletions stay deleted). All work runs directly in
+`/home/randy/lanes/LIMITSBFIX` on linuxlt. No browser, paid/live request,
+dependency installation, credential access, push or rebase. Commits carry
+the hooks (`.husky/_`, never `--no-verify`) and the exact trailer.
+
+### Per-finding record
+
+- P1 retained-output authority: every kept output stores its origin (tool,
+  touched paths, file-policy revision, workspace trust, taint source)
+  through one retention choke point (`retainFullText`); `recall_output`
+  re-checks it under the live policy through one recall choke point
+  (`recallPacked` + `judgeRetainedRecall`). Denied/untrusted/stale sources
+  are refused in words, never returned. Real-module tests prove
+  denied-path, trust-loss, stale-opaque, unrecorded and allow cases.
+  Red drill: fence disabled → 4 fence tests fail; restored byte-exact
+  (sha256 `9bb4dc3a…` before and after).
+- P2 128 MiB cap: removed (`TOOL_FILE_EDIT_MAX_BYTES` deleted). Range
+  reads are window-only (window-local shape, window digest, no full-file
+  scan); range edits read the window and splice it through a streaming
+  temp-file copy (flat memory: window + 64 KiB chunk). Freshness is the
+  window's bytes/size/mtime as read; matching is window-scoped. Proved by
+  editing a 128 MiB + 1 byte sparse file by range, plus BOM/CRLF/partial/
+  stale cases. Red drill: splice forced `changed` → 5 edit tests fail;
+  restored byte-exact (`8eff31ca…`).
+- P2 A10: a record that states no limit leaves it unknown (no legacy
+  fallback); nothing local enforces it and the provider's own refusal
+  comes back in words. Meta models keep their capability record's values.
+  Tests prove unknown pass-through and stated-limit refusal at record,
+  budget and ACP layers. Red drill: fallback reintroduced → unknown test
+  fails; restored byte-exact (`61bdcc26…`).
+- P2 rest-paths: subagents recall their own kept outputs through the
+  fenced choke point; retained ids carry a per-store tag so a resumed
+  session never rebinds an old note; diagnostics overflow names come from
+  the sorted snapshot (`sortWorkspaceDiagnostics`) with per-file offset
+  paging; a converter-cut page tail, a runner-dropped shell middle and a
+  cut search hit each name the way back or say why not (live probe through
+  the real built search worker confirmed the cut-hit note; probe file
+  removed after).
+- Deliberate schema moves with their pins: edit-schema hash
+  `fcde96bd…` → `a2be6849…` (1707 bytes; A9 byte args) with the m101-t.md
+  row; strict-tool goldens gain `byteOffset`/`byteLength` (chat +
+  responses codecs).
+- Duplication gate fixed: 6 clones / 72 lines → 0 (shared window address,
+  edit matching/apply, test builders).
+
+### Gates with exit codes (final tree, this machine)
+
+- `format:check` → 0; `lint` (js main/unit/tests, css, ps) → 0
+  (ps skipped: Windows-only, on linux); `typecheck` (all 5 projects) → 0.
+- `knip` → 0; `cycles` → 0 (no circular dependency).
+- `duplication` → 0 (0 clones; was red at review).
+- `check:l10n` → 0; `check:reference` → 0; `check:host-api` → 0;
+  `check:plan` → 0.
+- `build` → 0 (production + size/split/globals/notices all pass; the
+  review's Windows build failures were the shared-install junction,
+  re-measured clean here).
+- `security:sast` → not runnable: semgrep fails to start, `OSError:
+[Errno 30] Read-only file system` writing its version-check cache.
+- Touched unit suites → 0 (26 files in rig-sized batches plus
+  planArchive; totals include retainedOutput 10, fileRange 15,
+  mediaBudget 12, attachmentLimitsRecord 5, acpTranslate 44,
+  diagnosticsReport 11, webFetch incl. 2 new, m101Certification,
+  both codec goldens).
+
+### What integration with LIMITSFIX needs from this branch
+
+- The text-only continuation repeat joins LIMITSFIX's one repeat policy
+  for every tool class (untouched here by design): the continuation
+  call sites are `ModelApiHost` continuation loop + `repeatGuard.ts`
+  consumers, and the recall fence's `packRecallWithheld` wording assumes
+  the model is told not to retry a withheld id (a repeat policy must not
+  re-issue `recall_output` for a refused id).
+- `AttachmentLimits` fields are now `number | undefined`; any LIMITSFIX
+  consumer of the old always-number shape must handle unknown.
+- `FileRangeRead.fingerprint` is now the window digest (not the file);
+  `ToolContext.retainOutput`/`ShellRetain.keep` take an optional touch;
+  `readFileCapped` is removed in favor of `spliceFileRange`.
+- Open for the owner: Meta's attachment numbers are record preset values,
+  not separately published provider docs (32 MB local PDF table vs the
+  provider's 50 MB allowance stands); MCP-server-gone is not re-checked
+  on recall (trust-flip is); the Composer's client-side size guards still
+  enforce legacy numbers pre-send.
+
+### Lead's real-life steps (updated)
+
+1. Pack and install this branch; run a real Model API conversation.
+2. Attach 21 images with no provider record stating a count: all send;
+   the provider's refusal (if any) arrives in words.
+3. Clip a long shell output, change a file permission mid-session, call
+   `recall_output`: refused in words, nothing returned.
+4. Edit a >128 MiB file by byte range after reading the window.
+5. Fetch a page whose conversion exceeds the cap: last window says the
+   tail is not reachable as Markdown.
