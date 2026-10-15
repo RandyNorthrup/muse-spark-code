@@ -3266,12 +3266,15 @@ li:focus-within > .row-actions .row-actions-button,
 }
 
 /* A row is two grid columns that can never overlap (F59): the key keeps
-   the room its text needs and the description wraps beside it, at any
-   sidebar width. A flex row could shrink the key below its content, whose
-   visible overflow then ran into the description ("Shift+Tabcycles"). */
+   the room its text needs, up to half the row (the all-platform shortcuts
+   wrap inside their half), and the description keeps the rest and wraps
+   beside it, at any sidebar width. A flex row could shrink the key below
+   its content, whose visible overflow then ran into the description
+   ("Shift+Tabcycles"); an uncapped auto column could instead take the
+   whole row for a long shortcut and starve the description. */
 .onboarding-list li {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: fit-content(50%) minmax(0, 1fr);
   gap: var(--ms-gap);
   align-items: baseline;
 }
