@@ -536,3 +536,27 @@ requested lane report; remaining P1/P2 findings prevent merge approval.
   keeping it need a live conversation: real-life steps 2 and 6 below. The
   panel switch needs the lead's one small local look in a light and a dark
   theme (`npm run ui:look`), not run here.
+
+## LIMITSFIX F9 — every claim matches the final behavior (2026-10-15)
+
+- **Cause.** After F3-F8 the 14 translated `package.nls.*.json` tables still
+  promised an unconditional summary, "an input estimate held before sending",
+  "a cap can be passed by at most one response", "keep their reservation" and
+  a 0-1000 turn-limit range; README said the same and that the guard covered
+  only `read_file`.
+- **Fix.** Five manifest descriptions rewritten, with real translations, in
+  all 14 tables (`modelApiSessionBudgetUsd`, `tabDailyBudgetUsd`,
+  `modelApiTab`, `paidDailyBudgetUsd`, `modelApiMaxTurnRequests`; 70 values);
+  the English ones in `package.nls.json` (the reference generator's lint
+  refuses the words "already", "when", "if" in a description, so the wording
+  avoids them); README's session-budget, children, image, estimate and
+  turn-limit paragraphs; the Help reference regenerated with
+  `node scripts/gen-reference.mjs` (`docs/reference.md`,
+  `reference.generated.json/.ts`, `reference.node.generated.ts`).
+- **Proof.** A scan of the manifest, README, reference, catalog and the five
+  descriptions in every table for the old claims (a one-response promise, an
+  input-estimate hold, "keep their reservation", "without reserving", "worst
+  case would pass", "up to 4 requests per task", a 1000 bound) finds none:
+  `stale claims found: 0`. `check:l10n` 0 problems, `check:reference` 0,
+  `manifest.test.ts` pins the English claims. The translations are mine, not
+  a human review: the lead should have a native reader look at one language.

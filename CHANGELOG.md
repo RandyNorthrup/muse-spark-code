@@ -9,6 +9,14 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- Lane LIMITSFIX (F9, D113): every claim about money and the turn limit now
+  matches the final behavior, in English and in all 14 translated manifest
+  tables, README and the generated Help reference: no estimate or
+  reservation against a cap, the overshoot bound named honestly (the
+  responses in flight, children included), a lost response unknown rather
+  than guessed, the limit any whole number, and a failed summary still a
+  clean stop.
+
 - Lane LIMITSFIX (F8, D113): the per-turn tool-round limit is one thing on
   every surface: off, or any whole number from 1 up. The terminal's exec and
   serve flags and the editor protocol's session option used to accept only
