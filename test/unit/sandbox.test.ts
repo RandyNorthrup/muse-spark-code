@@ -6,6 +6,7 @@ import {
   museCliInvocation,
   parseLinuxSandboxProbe,
   parseSandboxCheck,
+  probeLinuxSandboxShell,
   resolveShellSandbox,
   sandboxCheckInvocation,
   sandboxSetupInvocation,
@@ -323,5 +324,25 @@ describe('parseLinuxSandboxProbe', () => {
       reason: 'bwrapFailed',
       detail: 'bwrap: Cannot mkdir /run: permission denied',
     })
+  })
+})
+
+// The probe itself, against the machine's real bwrap (or its real absence).
+// The verdict depends on the machine, so this asserts only what must hold
+// everywhere: the promise resolves (never throws, never hangs past its
+// budget) and the shape is coherent. The success path needs a machine where
+// unprivileged user namespaces work (the lead's real-life scenario 4); the
+// argument list that makes success possible at all (--ro-bind / / into
+// bwrap's otherwise empty root, RVSANDBOXSAY P1) is exercised here either
+// way, because the refusal measured on blocked rigs happens after it.
+describe('probeLinuxSandboxShell', () => {
+  it('resolves with a coherent readiness against the real bwrap', async () => {
+    const readiness = await probeLinuxSandboxShell()
+    if (readiness.canStart) {
+      expect(readiness.reason).toBeUndefined()
+      expect(readiness.detail).toBeUndefined()
+    } else {
+      expect(['userNamespacesBlocked', 'bwrapFailed']).toContain(readiness.reason)
+    }
   })
 })

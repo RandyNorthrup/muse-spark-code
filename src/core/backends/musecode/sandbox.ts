@@ -5,7 +5,10 @@
 // "sandbox enforcement unavailable". `muse sandbox windows check` prints
 // `key=value` lines and exits 1 while setup is required (verified 2026-09-22
 // on Muse Code 1.3.0). Linux and macOS have no sandbox subcommand and need no
-// setup. This module is pure: the host runs the processes it describes.
+// setup. The posture, invocation and parsing helpers here are pure and the
+// host runs the processes they describe; the one exception is
+// probeLinuxSandboxShell (F91), which runs the fixed bwrap probe itself so
+// every host measures the sandbox the same way.
 
 import { execFile } from 'node:child_process'
 import path from 'node:path'
