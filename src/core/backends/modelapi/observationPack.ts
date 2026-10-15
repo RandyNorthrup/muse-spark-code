@@ -563,7 +563,7 @@ export class ObservationPack {
     }
     const refused = judge?.(entry.origin)
     if (refused !== undefined) {
-      let detail = MODEL_API_MODEL_TEXT.packWithheldStale
+      let detail: string = MODEL_API_MODEL_TEXT.packWithheldStale
       if (refused.kind === 'denied') {
         detail = fill(MODEL_API_MODEL_TEXT.packWithheldDenied, { detail: refused.detail })
       } else if (refused.kind === 'untrusted') {
