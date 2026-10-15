@@ -85,6 +85,10 @@
     "one": "A kör elérte a(z) {count} eszközkörös korlátját. A fenti összefoglaló leírja, mi készült el és mi maradt hátra. Küldjön üzenetet a folytatáshoz.",
     "other": "A kör elérte a(z) {count} eszközkörös korlátját. A fenti összefoglaló leírja, mi készült el és mi maradt hátra. Küldjön üzenetet a folytatáshoz."
   },
+  "modelApiTurnLimitNoSummary": {
+    "one": "A kör elérte a(z) {count} eszközkörös korlátját, de az összefoglalót nem sikerült megírni: {reason} A beszélgetése változatlan. A folytatáshoz küldjön egy üzenetet.",
+    "other": "A kör elérte a(z) {count} eszközkörös korlátját, de az összefoglalót nem sikerült megírni: {reason} A beszélgetése változatlan. A folytatáshoz küldjön egy üzenetet."
+  },
   "structuredOutputRepair": "A strukturált válasz érvénytelen volt. Egyetlen újrapróbálkozás…",
   "structuredOutputFallback": "A strukturált választ nem sikerült ellenőrizni. A szöveges válasz kerül felhasználásra.",
   "outputSchemaInvalid": "A kimeneti séma kívül esik a támogatott szigorú részhalmazon: {detail}",

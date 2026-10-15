@@ -86,6 +86,11 @@
     "other": "Le tour a atteint votre limite de {count} cycles d’outil. Le résumé ci-dessus décrit ce qui a été fait et ce qui reste. Envoyez un message pour continuer.",
     "many": "Le tour a atteint votre limite de {count} cycles d’outil. Le résumé ci-dessus décrit ce qui a été fait et ce qui reste. Envoyez un message pour continuer."
   },
+  "modelApiTurnLimitNoSummary": {
+    "one": "Le tour a atteint votre limite de {count} cycle d’outils, mais le résumé n’a pas pu être rédigé : {reason} Votre conversation est inchangée. Envoyez un message pour continuer.",
+    "other": "Le tour a atteint votre limite de {count} cycles d’outils, mais le résumé n’a pas pu être rédigé : {reason} Votre conversation est inchangée. Envoyez un message pour continuer.",
+    "many": "Le tour a atteint votre limite de {count} cycles d’outils, mais le résumé n’a pas pu être rédigé : {reason} Votre conversation est inchangée. Envoyez un message pour continuer."
+  },
   "structuredOutputRepair": "La réponse structurée était invalide. Une nouvelle tentative…",
   "structuredOutputFallback": "La réponse structurée n’a pas pu être validée. La réponse textuelle sera utilisée.",
   "outputSchemaInvalid": "Le schéma de sortie dépasse le sous-ensemble strict pris en charge : {detail}",

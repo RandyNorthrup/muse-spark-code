@@ -122,6 +122,13 @@ export const EN = {
     other:
       'The turn reached your limit of {count} tool rounds. The summary above covers what was done and what is left. Send a message to continue.',
   }),
+  // Lane LIMITSFIX (F5): the limit ends the turn cleanly even when the
+  // summary request fails; this says the summary was not written, and why.
+  modelApiTurnLimitNoSummary: forms({
+    one: 'The turn reached your limit of {count} tool round, but the summary could not be written: {reason} Your conversation is unchanged. Send a message to continue.',
+    other:
+      'The turn reached your limit of {count} tool rounds, but the summary could not be written: {reason} Your conversation is unchanged. Send a message to continue.',
+  }),
   structuredOutputRepair: 'The structured answer was invalid. Retrying once…',
   structuredOutputFallback:
     'The structured answer could not be validated. Using the text fallback.',

@@ -84,6 +84,9 @@
   "modelApiTurnLimitReached": {
     "other": "本輪已達到您的 {count} 個工具輪次上限。上面的摘要說明了已完成和未完成的工作。傳送訊息即可繼續。"
   },
+  "modelApiTurnLimitNoSummary": {
+    "other": "本輪已達到您設定的 {count} 輪工具上限，但無法產生摘要：{reason} 您的交談保持不變。傳送訊息即可繼續。"
+  },
   "structuredOutputRepair": "結構化回答無效。正在重試一次…",
   "structuredOutputFallback": "無法驗證結構化回答。將使用文字回答。",
   "outputSchemaInvalid": "輸出結構描述不在支援的嚴格子集內：{detail}",

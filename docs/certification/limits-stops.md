@@ -466,3 +466,30 @@ requested lane report; remaining P1/P2 findings prevent merge approval.
 - **Not claimed.** Real-life: a long cached context under a small cap runs;
   after reported spend passes the cap the next request stops naming
   spent/cap/raise (real-life step 4 below); concurrent children's overshoot.
+
+## LIMITSFIX F5 — a person-set limit whose summary fails still ends cleanly (2026-10-15)
+
+- **Cause.** `stopAtTurnLimit` awaited the summary request before returning
+  the limit marker. A budget reached, a lost connection, a hook or a provider
+  refusing that one request threw into the ordinary FAILED path
+  (`ModelApiHost.ts`, the turn's catch), so ACP rejected the prompt with
+  `RequestError.internalError` (`acp/agent.ts` `settle`), and the summary
+  instruction stayed in the replay.
+- **Fix.** The catch in `stopAtTurnLimit` ends the turn as the limit anyway,
+  with a new translated notice `modelApiTurnLimitNoSummary` that says the
+  summary could not be written and gives the failure's own reason. The
+  summary instruction is removed from the stored replay and any call the
+  half-finished reply left without an output is answered
+  (`turnLimitStop.ts` `repairAfterFailedSummary`), so the next message
+  replays valid input. A spend cap reached in the summary request is marked a
+  budget stop. Steered input and a goal wake are still promoted. The person's
+  own Stop (abort) is not turned into a clean limit.
+- **Red drill.** `repairAfterFailedSummary` made to keep the instruction:
+  `turnLimitStop.test.ts` 2 failed; SHA-256
+  `6890BB2C14C59415B4F9232A796D7291C1500679BCE323B93CE29443FBA16A56` before
+  and after the byte-exact restore.
+- **Proof.** `turnLimitStop.test.ts` 4 passed (pure logic over data, real
+  module); `check:l10n` 0 problems with the new key in all 14 tables;
+  `typecheck:host` 0; eslint `--max-warnings=0` 0. **Not proven here:** the
+  clean stop over the real editor protocol with a real failing summary (no
+  provider call allowed): real-life step 3 below.

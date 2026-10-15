@@ -86,6 +86,11 @@
     "other": "Il turno ha raggiunto il tuo limite di {count} cicli di strumenti. Il riepilogo sopra descrive cosa è stato fatto e cosa resta. Invia un messaggio per continuare.",
     "many": "Il turno ha raggiunto il tuo limite di {count} cicli di strumenti. Il riepilogo sopra descrive cosa è stato fatto e cosa resta. Invia un messaggio per continuare."
   },
+  "modelApiTurnLimitNoSummary": {
+    "one": "Il turno ha raggiunto il tuo limite di {count} ciclo di strumenti, ma non è stato possibile scrivere il riepilogo: {reason} La conversazione è invariata. Invia un messaggio per continuare.",
+    "other": "Il turno ha raggiunto il tuo limite di {count} cicli di strumenti, ma non è stato possibile scrivere il riepilogo: {reason} La conversazione è invariata. Invia un messaggio per continuare.",
+    "many": "Il turno ha raggiunto il tuo limite di {count} cicli di strumenti, ma non è stato possibile scrivere il riepilogo: {reason} La conversazione è invariata. Invia un messaggio per continuare."
+  },
   "structuredOutputRepair": "La risposta strutturata non era valida. Un solo nuovo tentativo…",
   "structuredOutputFallback": "Non è stato possibile convalidare la risposta strutturata. Verrà usata la risposta testuale.",
   "outputSchemaInvalid": "Lo schema di output non rientra nel sottoinsieme rigoroso supportato: {detail}",

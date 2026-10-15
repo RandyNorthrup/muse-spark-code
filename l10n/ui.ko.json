@@ -84,6 +84,9 @@
   "modelApiTurnLimitReached": {
     "other": "턴이 {count}회 도구 라운드 한도에 도달했습니다. 위 요약에 수행 내용과 남은 작업이 정리되어 있습니다. 계속하려면 메시지를 보내세요."
   },
+  "modelApiTurnLimitNoSummary": {
+    "other": "턴이 도구 라운드 {count}회 한도에 도달했지만 요약을 작성하지 못했습니다: {reason} 대화는 변경되지 않았습니다. 계속하려면 메시지를 보내세요."
+  },
   "structuredOutputRepair": "구조화된 답변이 유효하지 않았습니다. 한 번 다시 시도하는 중…",
   "structuredOutputFallback": "구조화된 답변을 검증할 수 없습니다. 텍스트 답변을 사용합니다.",
   "outputSchemaInvalid": "출력 스키마가 지원되는 엄격한 하위 집합을 벗어납니다: {detail}",

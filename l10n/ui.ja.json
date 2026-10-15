@@ -84,6 +84,9 @@
   "modelApiTurnLimitReached": {
     "other": "ターンがツールラウンド {count} 回の上限に達しました。上の要約に実施内容と残作業を記載しています。続けるにはメッセージを送信してください。"
   },
+  "modelApiTurnLimitNoSummary": {
+    "other": "ターンがツールラウンド {count} 回の上限に達しましたが、要約を作成できませんでした: {reason} 会話は変更されていません。続けるにはメッセージを送信してください。"
+  },
   "structuredOutputRepair": "構造化された回答が無効でした。一度だけ再試行します…",
   "structuredOutputFallback": "構造化された回答を検証できませんでした。テキスト形式の回答を使用します。",
   "outputSchemaInvalid": "出力スキーマが対応する厳密なサブセットの範囲外です: {detail}",

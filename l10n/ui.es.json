@@ -86,6 +86,11 @@
     "other": "El turno alcanzó su límite de {count} rondas de herramientas. El resumen anterior describe lo hecho y lo pendiente. Envíe un mensaje para continuar.",
     "many": "El turno alcanzó su límite de {count} rondas de herramientas. El resumen anterior describe lo hecho y lo pendiente. Envíe un mensaje para continuar."
   },
+  "modelApiTurnLimitNoSummary": {
+    "one": "El turno alcanzó su límite de {count} ronda de herramientas, pero no se pudo escribir el resumen: {reason} Su conversación no ha cambiado. Envíe un mensaje para continuar.",
+    "other": "El turno alcanzó su límite de {count} rondas de herramientas, pero no se pudo escribir el resumen: {reason} Su conversación no ha cambiado. Envíe un mensaje para continuar.",
+    "many": "El turno alcanzó su límite de {count} rondas de herramientas, pero no se pudo escribir el resumen: {reason} Su conversación no ha cambiado. Envíe un mensaje para continuar."
+  },
   "structuredOutputRepair": "La respuesta estructurada no era válida. Reintentando una vez…",
   "structuredOutputFallback": "No se pudo validar la respuesta estructurada. Se usará la respuesta de texto.",
   "outputSchemaInvalid": "El esquema de salida queda fuera del subconjunto estricto admitido: {detail}",

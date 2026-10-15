@@ -87,6 +87,12 @@
     "few": "Tah dosáhl vašeho limitu {count} kola nástrojů. Shrnutí výše popisuje, co je hotové a co zbývá. Pokračujte odesláním zprávy.",
     "many": "Tah dosáhl vašeho limitu {count} kola nástrojů. Shrnutí výše popisuje, co je hotové a co zbývá. Pokračujte odesláním zprávy."
   },
+  "modelApiTurnLimitNoSummary": {
+    "one": "Tah dosáhl vašeho limitu {count} kol nástrojů, ale shrnutí se nepodařilo napsat: {reason} Vaše konverzace je beze změny. Pokračujte odesláním zprávy.",
+    "other": "Tah dosáhl vašeho limitu {count} kol nástrojů, ale shrnutí se nepodařilo napsat: {reason} Vaše konverzace je beze změny. Pokračujte odesláním zprávy.",
+    "few": "Tah dosáhl vašeho limitu {count} kol nástrojů, ale shrnutí se nepodařilo napsat: {reason} Vaše konverzace je beze změny. Pokračujte odesláním zprávy.",
+    "many": "Tah dosáhl vašeho limitu {count} kol nástrojů, ale shrnutí se nepodařilo napsat: {reason} Vaše konverzace je beze změny. Pokračujte odesláním zprávy."
+  },
   "structuredOutputRepair": "Strukturovaná odpověď byla neplatná. Jeden nový pokus…",
   "structuredOutputFallback": "Strukturovanou odpověď se nepodařilo ověřit. Použije se textová odpověď.",
   "outputSchemaInvalid": "Výstupní schéma je mimo podporovanou striktní podmnožinu: {detail}",

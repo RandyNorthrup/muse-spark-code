@@ -9,6 +9,15 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- Lane LIMITSFIX (F5, D113): a turn limit the person set ends cleanly even
+  when its summary cannot be written (a spend cap reached, the connection
+  lost, a hook or the provider refusing the request). The turn ends as
+  the editor protocol's `max_turn_requests`, never "Internal error"; the
+  notice says the summary could not be written and why; the summary
+  instruction leaves the stored conversation and any call left without an
+  output is answered, so the next message works with its input intact.
+  Only the person's own Stop is not a clean limit.
+
 - Lane LIMITSFIX (F3, D113): one admission and settlement contract for
   every spending cap the person sets. A request is sent while the real
   spend already settled is below the cap; at or over it the next request

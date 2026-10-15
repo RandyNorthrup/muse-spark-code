@@ -85,6 +85,10 @@
     "one": "Der Durchlauf hat Ihr Limit von {count} Werkzeugrunde erreicht. Die Zusammenfassung oben beschreibt, was erledigt wurde und was übrig ist. Senden Sie eine Nachricht, um fortzufahren.",
     "other": "Der Durchlauf hat Ihr Limit von {count} Werkzeugrunden erreicht. Die Zusammenfassung oben beschreibt, was erledigt wurde und was übrig ist. Senden Sie eine Nachricht, um fortzufahren."
   },
+  "modelApiTurnLimitNoSummary": {
+    "one": "Der Durchlauf hat Ihr Limit von {count} Werkzeugrunde erreicht, aber die Zusammenfassung konnte nicht geschrieben werden: {reason} Ihre Unterhaltung ist unverändert. Senden Sie eine Nachricht, um fortzufahren.",
+    "other": "Der Durchlauf hat Ihr Limit von {count} Werkzeugrunden erreicht, aber die Zusammenfassung konnte nicht geschrieben werden: {reason} Ihre Unterhaltung ist unverändert. Senden Sie eine Nachricht, um fortzufahren."
+  },
   "structuredOutputRepair": "Die strukturierte Antwort war ungültig. Ein weiterer Versuch…",
   "structuredOutputFallback": "Die strukturierte Antwort konnte nicht validiert werden. Die Textantwort wird verwendet.",
   "outputSchemaInvalid": "Das Ausgabeschema liegt außerhalb der unterstützten strikten Teilmenge: {detail}",

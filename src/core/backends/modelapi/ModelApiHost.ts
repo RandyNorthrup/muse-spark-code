@@ -32,6 +32,7 @@ import {
 import { notify } from '../../events/notify'
 import { isParallelRead, scheduleTools } from './toolScheduler'
 import { RepeatGuard, toolRepeatKey, type RepeatVerdict } from './repeatGuard'
+import { repairAfterFailedSummary } from './turnLimitStop'
 import { recordPaidUse } from '../../paid/paidFeatures'
 import type { RecordedCall, UsageRecording } from '../../usage/recording'
 import type { UsageBudgetRead } from '../../usage/usageService'
@@ -13881,29 +13882,59 @@ export class ModelApiSession implements ScheduledAgentSession {
    * wake keep the old cap-stop behavior: they become their own turns, so the
    * next message in the same conversation still works. Returns the notice
    * naming the stop.
+   *
+   * Lane LIMITSFIX (F5): the limit is the person's own planned stop, so it
+   * ends cleanly even when the summary cannot be written (a cap reached, the
+   * connection lost, a hook or the provider refusing it). The notice then says
+   * so and why, the summary instruction leaves the replay, and the next
+   * message works with its input and replay intact. Only the person's own
+   * Stop is not a clean limit.
    */
   private async stopAtTurnLimit(
     turn: ActiveTurn,
     maxTurnRequests: number,
     round: number,
   ): Promise<string> {
-    this.replay.push({
+    const instruction: ReplayItem = {
       turnId: turn.turnId,
       item: {
         type: 'message',
         role: 'user',
         content: [{ type: 'input_text', text: MODEL_API_MODEL_TEXT.turnLimitSummary }],
       },
-    })
-    const streamed = await this.streamWithoutTools(turn, round)
-    // No tools were offered, so nothing may run: answer every stray call for
-    // valid replay, never execute it.
-    this.skipCalls(turn.turnId, streamed.calls)
+    }
+    this.replay.push(instruction)
+    let notice: string
+    try {
+      const streamed = await this.streamWithoutTools(turn, round)
+      // No tools were offered, so nothing may run: answer every stray call for
+      // valid replay, never execute it.
+      this.skipCalls(turn.turnId, streamed.calls)
+      notice = plural(UI_TEXT.modelApiTurnLimitReached, maxTurnRequests)
+    } catch (error: unknown) {
+      if (isAbortRequested(turn.abort.signal) || error instanceof AbortedError) throw error
+      if (error instanceof SessionBudgetExceededError) this.outcomeStopReason = 'budget'
+      // Fixed words only: the reason can name a path or an account.
+      this.deps.log.warn(
+        'Model API turn limit: the summary request failed; ending the turn cleanly',
+      )
+      const repaired = repairAfterFailedSummary(this.replay, instruction, (callId) => ({
+        turnId: turn.turnId,
+        item: {
+          type: 'function_call_output',
+          call_id: callId,
+          output: `Error: ${MODEL_API_MODEL_TEXT.toolCancelledByStop}`,
+        },
+      }))
+      this.replay.splice(0, this.replay.length, ...repaired)
+      notice = plural(UI_TEXT.modelApiTurnLimitNoSummary, maxTurnRequests, {
+        reason: describe(error),
+      })
+    }
     if (turn.goalWakePending && isGoalActive(this.goal)) {
       this.queuedTurns.unshift(this.queuedGoalWake())
     }
     this.promoteSteered(turn)
-    const notice = plural(UI_TEXT.modelApiTurnLimitReached, maxTurnRequests)
     this.emit({ type: 'backendNotice', level: 'warning', text: notice })
     return notice
   }

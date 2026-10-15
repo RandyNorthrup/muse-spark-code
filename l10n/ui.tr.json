@@ -85,6 +85,10 @@
     "one": "Tur, {count} araç turluk sınırınıza ulaştı. Yukarıdaki özet neyin yapıldığını ve neyin kaldığını açıklar. Devam etmek için bir mesaj gönderin.",
     "other": "Tur, {count} araç turluk sınırınıza ulaştı. Yukarıdaki özet neyin yapıldığını ve neyin kaldığını açıklar. Devam etmek için bir mesaj gönderin."
   },
+  "modelApiTurnLimitNoSummary": {
+    "one": "Tur, {count} araç turluk sınırınıza ulaştı ancak özet yazılamadı: {reason} Konuşmanız değişmedi. Devam etmek için bir mesaj gönderin.",
+    "other": "Tur, {count} araç turluk sınırınıza ulaştı ancak özet yazılamadı: {reason} Konuşmanız değişmedi. Devam etmek için bir mesaj gönderin."
+  },
   "structuredOutputRepair": "Yapılandırılmış yanıt geçersizdi. Bir kez yeniden deneniyor…",
   "structuredOutputFallback": "Yapılandırılmış yanıt doğrulanamadı. Metin yanıtı kullanılacak.",
   "outputSchemaInvalid": "Çıktı şeması desteklenen katı alt kümenin dışında: {detail}",

@@ -87,6 +87,12 @@
     "few": "Tura osiągnęła Twój limit {count} rundy narzędzi. Podsumowanie powyżej opisuje, co zostało zrobione, a co pozostało. Wyślij wiadomość, aby kontynuować.",
     "many": "Tura osiągnęła Twój limit {count} rund narzędzi. Podsumowanie powyżej opisuje, co zostało zrobione, a co pozostało. Wyślij wiadomość, aby kontynuować."
   },
+  "modelApiTurnLimitNoSummary": {
+    "one": "Tura osiągnęła Twój limit {count} rundy narzędzi, ale nie udało się napisać podsumowania: {reason} Twoja rozmowa pozostaje bez zmian. Wyślij wiadomość, aby kontynuować.",
+    "other": "Tura osiągnęła Twój limit {count} rundy narzędzi, ale nie udało się napisać podsumowania: {reason} Twoja rozmowa pozostaje bez zmian. Wyślij wiadomość, aby kontynuować.",
+    "few": "Tura osiągnęła Twój limit {count} rundy narzędzi, ale nie udało się napisać podsumowania: {reason} Twoja rozmowa pozostaje bez zmian. Wyślij wiadomość, aby kontynuować.",
+    "many": "Tura osiągnęła Twój limit {count} rund narzędzi, ale nie udało się napisać podsumowania: {reason} Twoja rozmowa pozostaje bez zmian. Wyślij wiadomość, aby kontynuować."
+  },
   "structuredOutputRepair": "Odpowiedź strukturalna była nieprawidłowa. Jedna ponowna próba…",
   "structuredOutputFallback": "Nie udało się zweryfikować odpowiedzi strukturalnej. Zostanie użyta odpowiedź tekstowa.",
   "outputSchemaInvalid": "Schemat wyjścia wykracza poza obsługiwany ścisły podzbiór: {detail}",
