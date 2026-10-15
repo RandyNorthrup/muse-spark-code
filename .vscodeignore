@@ -11,6 +11,7 @@
 !dist/prompts.js
 !dist/modelApi.js
 !dist/modelApiSessions.js
+!dist/rulesFile.js
 !dist/modelApiCodeIntel.js
 !dist/mcpPool.js
 !dist/structuredSchema.js

@@ -9,6 +9,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- Activation budget: the Create AGENTS.md command, its rules template and
+  their redaction load on the command's first run instead of at activation,
+  leaving 830 bytes of room below the 3,072-byte growth allowance. No
+  behaviour change; a missing bundle refuses the run and the next run tries
+  again.
+
 - The chat no longer takes the keyboard from a file you just opened: a chat
   panel that finishes loading never pulls the focus in, a focus request for
   a panel that is no longer active is dropped instead of landing on a much

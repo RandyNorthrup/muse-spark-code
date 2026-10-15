@@ -5910,6 +5910,7 @@ export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
   'dist/uiText.js',
   'dist/modelApi.js',
   'dist/modelApiSessions.js',
+  'dist/rulesFile.js',
   'dist/mcpPool.js',
   'dist/mcpVault.js',
   'dist/modelApiCodeIntel.js',
