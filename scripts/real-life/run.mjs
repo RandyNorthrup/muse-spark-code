@@ -9,8 +9,8 @@
 //
 // Nothing of the product is imported, replaced or faked: the run starts the
 // installed command and reads what it prints, what it writes and how it
-// ends. It prints what it may spend before the first request, stops at
-// either cap, and prints what it spent afterwards, by the product's own
+// ends. It prints its admission stops before the first request, starts
+// nothing more once one is reached, and prints spending by the product's own
 // count.
 import { randomBytes } from 'node:crypto'
 import { mkdirSync, readdirSync, rmSync } from 'node:fs'
@@ -227,7 +227,7 @@ console.log(
   `Real-life run: ${String(plan.length)} scenario runs on ${String(groups.length)} route(s) (${groups.map((group) => `${group.route.id}: ${modelsOf(group)}`).join('; ')}).`,
 )
 console.log(
-  `It may make up to ${String(Math.min(mostRequests, options.maxRequests))} model requests (the plan's most: ${String(mostRequests)}; the cap: ${String(options.maxRequests)}) and starts nothing more once $${usdText(budget.cap.micro)} of reported usage (settled) is spent, or once the product has booked $${usdText(budget.cap.uncertain)} for requests that were sent and came back with no usage.`,
+  `The plan declares ${String(mostRequests)} model requests; admission stops at ${String(options.maxRequests)} counted requests. These are scenario admission stops, not hard in-flight caps: ACP can exceed its declaration during a running scenario. Nothing more starts once $${usdText(budget.cap.micro)} of reported usage (settled) is spent, or once the product has booked $${usdText(budget.cap.uncertain)} for requests that were sent and came back with no usage.`,
 )
 
 const started = new Date()
@@ -592,6 +592,11 @@ async function runCell(cell, key) {
     used.requests <= steps.requests,
     `${String(used.requests)} of at most ${String(steps.requests)}`,
   )
+  if (used.requests > steps.requests) {
+    budget.end(
+      'a scenario exceeded its declared request allowance: no further scenario is admitted',
+    )
+  }
   // Money the run cannot read is not zero: it is unknown, and the run ends.
   const unread = [...person.made.unread, ...journal.unread]
   if (unread.length > 0) {

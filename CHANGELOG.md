@@ -9,6 +9,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Real-life run: help, preflight and records describe request admission
+  honestly, not as an enforceable in-flight ACP cap. A scenario exceeding
+  its declared requests fails and prevents any further scenario admission.
+
 - Real-life run: every cell, matrix turns included, reconciles terminal
   totals with journal usage. Missing or incomplete exec results fail the
   cell and stop further admission instead of counting a crash as free.

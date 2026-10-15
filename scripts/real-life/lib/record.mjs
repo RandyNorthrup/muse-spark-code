@@ -94,7 +94,7 @@ export function summaryOf(record) {
     `Real-life run of ${record.artefact.name} (${record.artefact.package} ${record.artefact.version})`,
     `SHA-256 ${record.artefact.sha256}`,
     `${record.os}, Node ${record.node}; ${record.startedAt} to ${record.endedAt}`,
-    `Caps: ${String(record.caps.requests)} requests, $${record.caps.usd} of reported usage. Made: ${String(record.totals.requests)} requests, $${record.totals.usd} of usage the providers reported (settled).`,
+    `Admission stops (not hard in-flight ACP caps): ${String(record.caps.requests)} requests, $${record.caps.usd} of reported usage. Made: ${String(record.totals.requests)} requests, $${record.totals.usd} of usage the providers reported (settled).`,
     `Booked by the product for requests that were sent and came back with no usage report: $${record.totals.uncertainUsd} (may be real money). Its daily ledger holds $${record.totals.ledgerUnsettled.usd} in ${String(record.totals.ledgerUnsettled.claims)} claim(s) with no settlement (a whole reservation each). Runs the product turned away before anything was sent, at the run's own asking: ${String(record.totals.turnedAwayUnsentRuns)}.`,
     ...(record.totals.ledgerUnsettled.unread?.length > 0
       ? [`UNKNOWN DAILY-LEDGER LIABILITY: ${record.totals.ledgerUnsettled.unread.join('; ')}`]

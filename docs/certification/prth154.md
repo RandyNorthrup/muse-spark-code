@@ -85,6 +85,22 @@ no later paid cell dispatched. A real provider/credential is required;
 no stand-in or new process test was introduced. Static evidence is the
 removed `!isMatrix` branch and the new missing-result admission stop.
 
+## T6 — ACP request admission honesty
+
+The review's permitted alternative is used: no invented ACP option, no
+product protocol change, and no limit increase. `--max-requests` is now
+explicitly an admission stop, not a hard in-flight ACP request bound, in
+help, preflight, README, guide and text records. Exceeding a cell's request
+declaration fails it and stops all later scenario admission, rather than
+continuing when the overall allowance still has room.
+
+Lead step: run a real ACP tool scenario whose model takes extra turns.
+Preflight must warn before spending; after usage exceeds the declaration,
+observe the failed request count and no later admitted scenario. For a
+strict hard request ceiling use the product's bounded exec surface, not
+ACP; this lane does not claim ACP acquired a request limiter. No application
+command/setting or feature-catalog entry changed (runner-only tooling).
+
 ## Merge
 
 Merged `ac21f1d24` in `c1ead3231`, hooks on. Only AGENTS.md and CHANGELOG.md
