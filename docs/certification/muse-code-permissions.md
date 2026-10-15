@@ -192,6 +192,40 @@ Muse Spark settings and read the two initial-permission-mode descriptions.
 Both must state the exception, while Model API still says commands ask.
 No screenshot/visual gate or stand-in test was added.
 
+### Final-tree verification and limits
+
+All required scoped static gates passed, including all five typecheck projects,
+zero-warning ESLint, Prettier, knip, cycles, duplication, l10n, reference,
+host API, plan, roadmap and production build. Final receipts and exit codes
+are in `.lane/PRTH165.report.md`. The unit typecheck first caught three
+index-signature accesses in the new capture test; bracket access fixed them.
+Four scoped real-module/manifest suites passed 76 tests; two list consumers
+passed 17; six manifest/localization/compression consumers passed 56.
+
+After the lint-required ternary rewrite, repeated T1's drill on the final
+source: 21 green, three intended red failures (exit 1), 21 restored green.
+Final before/after SHA-256:
+`ef90855980ed80babeba7200a827c5b926b5a0f45932e3b40b0ea32ec0056143`.
+Logs: `.lane/PRTH165.T1-final-{drill,restored}.log`.
+
+Verification mistake disclosed: `vitest related` also selected surviving
+fake-driven `acpStdio` and `runtimeServices` suites. They ran (13 and 17 cases),
+but are not accepted as product proof. Live-provider cases remained disabled.
+No tests of those kinds were added or repaired. No model calls were made.
+
+Official `node scripts/package-acp.mjs` failed, exit 1:
+`Required Darwin created-path helper is missing: native\\darwin\\muse-dictate`.
+Both required Linux helper artifacts are absent too. No placeholder was made,
+no packaging check bypassed; packed-product verification remains blocked.
+The actual built agent's `--version`, English `help --all` and German
+`help --all` ran with exit 0; an unknown option refused with exit 1. German
+full Help renders both corrected manifest mode descriptions. These are built,
+not packed, product observations. Lead must provide the genuine native release
+artifacts, pack, and perform the signed-in steps before treating this certified.
+SAST stays with hosted CI under this lane's brief. The generic delivery helper
+cannot read this repository's native plan (expected a `quality-ledger` fence,
+exit 2); `npm run check:plan` passes its actual plan format instead.
+
 ## Live-session steps for the lead (signed-in host)
 
 1. Start the packed agent: `node dist/acp.js --backend museCode

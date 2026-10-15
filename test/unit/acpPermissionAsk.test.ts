@@ -91,9 +91,9 @@ describe('ApprovalAnswers.reuse', () => {
 })
 
 describe('persistent rule consent (captured Muse Code 1.4.2, 2026-10-02)', () => {
-  const first = z.array(approvalChoiceSchema).parse(raceRequested('session').availableChoices)
-  const changed = z.array(approvalChoiceSchema).parse(raceUpdated('session', 5).availableChoices)
-  const same = z.array(approvalChoiceSchema).parse(raceUpdated('session', 4).availableChoices)
+  const first = z.array(approvalChoiceSchema).parse(raceRequested('session')['availableChoices'])
+  const changed = z.array(approvalChoiceSchema).parse(raceUpdated('session', 5)['availableChoices'])
+  const same = z.array(approvalChoiceSchema).parse(raceUpdated('session', 4)['availableChoices'])
   const selectedRule = first.find((entry) => entry.choiceId === 'allow_local_prefix')
   if (selectedRule === undefined) throw new Error('Capture has no persistent rule')
 
