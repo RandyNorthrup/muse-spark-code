@@ -300,6 +300,13 @@ describe('invariant 3: paid calls share one gate and tally separately', () => {
       capUsd: Usd.from('1').toAmount(),
       spentUsd: Usd.from(0).toAmount(),
     }).state
+    // The reducer mirrors the day's cap and spend for the host's budget
+    // wiring; the cap itself is refused by the budget journal's claim
+    // check, not here (see the certification record).
+    expect(state.days.get('2026-01-01')).toEqual({
+      capUsd: Usd.from('1').toAmount(),
+      spentUsd: Usd.from(0).toAmount(),
+    })
 
     const first = step(state, { type: 'quote', quote: searchA, generation: 'g1', ask: true })
     state = first.state
