@@ -3470,6 +3470,7 @@
   },
   "providerModelNoToolCalling": "{model} はツール呼び出しが確認されていないため、コーディングエージェントを実行できません。",
   "providerAddPickModel": "これらのモデルの1つ以上を --model <id> で追加してください（繰り返し可）：",
+  "providerAddNeedsModel": "--model <id> で少なくとも1つのモデルを指定してください（繰り返し可）。",
   "providerProbeUnreachable": "プロバイダーに接続できませんでした。",
   "providerProbeUnparseable": "モデル一覧を読み取れませんでした。",
   "providerProbeNoKey": "キーが指定されていません。",

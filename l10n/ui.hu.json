@@ -3547,6 +3547,7 @@
   },
   "providerModelNoToolCalling": "{model} nem tudja futtatni a kódoló ügynököt, mert az eszközhívások nincsenek megerősítve hozzá.",
   "providerAddPickModel": "Adja hozzá e modellek közül egyet vagy többet a --model <id> kapcsolóval (ismételhető):",
+  "providerAddNeedsModel": "Adjon meg legalább egy modellt a --model <id> kapcsolóval (ismételhető).",
   "providerProbeUnreachable": "A szolgáltató nem érhető el.",
   "providerProbeUnparseable": "A modelllista nem olvasható.",
   "providerProbeNoKey": "Nincs megadva kulcs.",

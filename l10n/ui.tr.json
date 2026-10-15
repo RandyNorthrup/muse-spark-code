@@ -3547,6 +3547,7 @@
   },
   "providerModelNoToolCalling": "{model}, araç çağrıları onaylanmadığı için kodlama aracısını çalıştıramaz.",
   "providerAddPickModel": "Bu modellerden birini veya birkaçını --model <id> ile ekleyin (tekrarlanabilir):",
+  "providerAddNeedsModel": "--model <id> ile en az bir model belirtin (tekrarlanabilir).",
   "providerProbeUnreachable": "Sağlayıcıya ulaşılamadı.",
   "providerProbeUnparseable": "Model listesi okunamadı.",
   "providerProbeNoKey": "Anahtar sağlanmadı.",

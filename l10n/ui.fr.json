@@ -3624,6 +3624,7 @@
   },
   "providerModelNoToolCalling": "«{model}» ne peut pas exécuter l’agent de codage car les appels d’outils ne sont pas confirmés pour ce modèle.",
   "providerAddPickModel": "Ajoutez un ou plusieurs de ces modèles avec --model <id> (répétable) :",
+  "providerAddNeedsModel": "Indiquez au moins un modèle avec --model <id> (répétable).",
   "providerProbeUnreachable": "Le fournisseur est injoignable.",
   "providerProbeUnparseable": "La liste des modèles n’a pas pu être lue.",
   "providerProbeNoKey": "Aucune clé n’a été fournie.",

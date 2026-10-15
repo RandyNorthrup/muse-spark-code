@@ -714,11 +714,16 @@ export async function providersAdd(
   const models = options.models
     .map((model) => model.trim())
     .filter((model) => model !== '' && !/\s/.test(model))
-  if (models.length === 0 && (probe.modelIds ?? []).length > 0) {
+  if (models.length === 0) {
     // The panel keeps its own "tick" wording; the terminal names the flag
-    // and lists what the key test just read (F85).
-    deps.printError(UI_TEXT.providerAddPickModel)
+    // and lists what the key test just read (F85). A key test that read no
+    // list (an identity check on another origin, an empty list) still gets
+    // the terminal's own sentence, never the wizard's tick wording.
     const listed = probe.modelIds ?? []
+    if (listed.length === 0) {
+      return failed(deps, UI_TEXT.providerAddNeedsModel)
+    }
+    deps.printError(UI_TEXT.providerAddPickModel)
     for (const id of listed) deps.printError(id)
     return EXIT_FAILED
   }
