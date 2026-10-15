@@ -91,6 +91,10 @@ assertion fails (1 failed/7 passed), exit 1; restore and 8 pass, exit 0.
 SHA-256 restored `E506EE46BEDC5F6AF61D9CC64F45468C0DE06AA75EF6093A1D4D8B32FA6D8A74`.
 Logs: `.lane/red-scan.log`, `.lane/restored-scan.log`,
 `.lane/red-chatgpt-text.log`, `.lane/restored-chatgpt-text.log`.
+The final duplication gate exposed repeated scanner setup (exit 1, one clone).
+Consolidating it into one table preserves all assertions and independently
+exercises missing-file/invalid-UTF-8 cases: 5 scanner tests pass, exit 0;
+duplication then exits 0 with zero clones.
 
 Worktree `/home/randy/lanes/CLIFLOWS` from origin/main 0.18.2 (`898a26c5e`).
 Product under test: production build (`npm run build`) run as
