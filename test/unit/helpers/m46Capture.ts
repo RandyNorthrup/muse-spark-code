@@ -25,19 +25,6 @@ export const USER_SHELL_STARTED = {
   },
 }
 
-export const USER_SHELL_COMPLETED = {
-  sessionId: SESSION,
-  item: {
-    ...USER_SHELL_STARTED.item,
-    revision: 2,
-    status: 'completed',
-    recordedAt: '2026-09-25T19:13:49.712383Z',
-    visibleOutput: 'hello-m46\r\n',
-    exitCode: 0,
-    durationMs: 563,
-  },
-}
-
 /** `Write-Output 'failing-m46'; exit 3`: failed, with its exit code. */
 export const USER_SHELL_FAILED = {
   sessionId: SESSION,
@@ -53,24 +40,6 @@ export const USER_SHELL_FAILED = {
     commandText: "Write-Output 'failing-m46'; exit 3",
     exitCode: 3,
     durationMs: 617,
-  },
-}
-
-/** The same command with the Windows sandbox on and not set up (the first capture). */
-export const USER_SHELL_SANDBOX_FAILED = {
-  sessionId: SESSION,
-  item: {
-    itemId: '0eb1fa9c-6202-40e4-b750-535510b49f05',
-    kind: 'userShell',
-    turnId: null,
-    revision: 2,
-    status: 'failed',
-    recordedAt: '2026-09-25T19:08:31.571503Z',
-    commandId: '01a0d9f8-1d90-7000-beaa-411fc517fba2',
-    visibleOutput:
-      'tool failed: environment failure: managed shell sandbox is unavailable\nThe execution environment is broken: the command was never started and every later command will fail the same way. Do not retry and do not fabricate command output; report this environment failure.',
-    commandText: "Write-Output 'hello-m46'",
-    durationMs: 50,
   },
 }
 
@@ -114,18 +83,6 @@ export const SHELL_CALL_STOPPED = {
     background: true,
     backgroundInitiator: 'user',
   },
-}
-
-/** The acks of the task commands: echoing the task. */
-export function taskAck(params: Record<string, unknown>): Record<string, unknown> {
-  return { commandId: params['commandId'], status: 'accepted', taskId: params['taskId'] }
-}
-
-/** A task command naming no running task: refused, reason `invalid_target`. */
-export const INVALID_TARGET = {
-  kind: 'commandRejected',
-  code: -32_030,
-  data: { reason: 'invalid_target', retryable: false },
 }
 
 /** `userInput/clarify` settled the colour question (the first capture). */

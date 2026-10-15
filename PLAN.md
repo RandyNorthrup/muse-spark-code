@@ -773,6 +773,11 @@ quality`) and as a CI job.
 
 ### D5 — Testing strategy
 
+**Superseded 2026-10-12 by D108** (owner's test-overhaul ruling) for the
+fake-transport unit pattern, the `vscode` mock in unit tests, and the
+coverage-threshold gate. What stays: unit tests over `src/**`, webview
+component tests, and the real-editor integration run.
+
 - **Unit (vitest, node env)**: everything in `src/core/**` (protocol types,
   backends with fake transports, the host ⇄ webview protocol, settings
   mapping, path guards). The `vscode` module is aliased to
@@ -14310,6 +14315,42 @@ cost and caution, never speed.
   reviewer on B1 and B2, never the only one and never an allow by itself.
   Everywhere else both stand unchanged.
 
+### D108 — Test overhaul: no stand-ins, a short gate, the real-life run (owner, 2026-10-12)
+
+The owner, verbatim: "get the useless tests get it streamlined and
+meaningful with nothing testing fake code no exceptions. no more ci
+screenshot runs. if we change the ui is gets a small local verification
+and thats it." A thousand-test suite kept shipping broken code as
+"completed", so the suite is overhauled, not extended.
+
+- **A test stays only if it runs real code** (no `vi.mock`, fake timers,
+  stand-ins for our modules, providers, the CLI, GitHub, MCP, the editor
+  or stores, no hand-answering servers), checks behaviour a person or a
+  caller depends on, and is not an end-to-end run against a stand-in.
+  Live-provider `*.live.e2e.test.ts` files move under the real-life run.
+- **No screenshot runs in CI.** The pixel pipeline (`check:visual`, the
+  goldens, the visual matrix and audit, the visual workflow jobs) is
+  deleted. A UI change gets one small local look: `npm run ui:look --
+<scene> [--theme light|dark]`, pictures to `temp/ui-look/`, no
+  baseline, no comparison.
+- **No coverage gate.** `test:unit` runs without `--coverage`; the
+  thresholds and the merge job are gone.
+- **The short gate** (`quality:gates`): format, lint, typecheck, badges,
+  tokens, l10n, reference, host-api, plan, roadmap, deadcode, cycles,
+  duplication, the unit run, build and pack, audit. Accessibility runs
+  on merge groups, manual runs and releases, never on pull requests.
+- **The product's test is the real-life run**: the packed product used
+  for real against real providers on the cheapest models. The release
+  workflow reserves the `check:claims` step for it (branch
+  feat/claims-gate).
+- **This supersedes** D5's fake-transport unit pattern, its `vscode`
+  mock in unit tests and its coverage gate, and the M114 visual-CI jobs.
+  D32's accessibility gate stands, relocated. The golden request bytes,
+  the SoL-Pi invariants and the money-arithmetic suites stay: they run
+  real code over recorded data.
+- Record: `docs/testing/test-overhaul-2026-10-12.md` (before/after
+  1,321 → 524 files, 27,650 → 8,988 tests, ~26 → ~5.5 wall minutes).
+
 ## 3. Open questions (need the owner)
 
 **Q-VIS0171-RELEASE-NOTES resolved by lead (2026-10-10, linuxlt).** Round 2
@@ -15405,248 +15446,49 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 **Status 2026-10-09: built.** On the provider branch for 0.17.1.
 
-Repair both RVPROVWIZ9C P2 findings on `00df4f872`. Edit snapshots and save
-preflight compare the same host-only credential record, including an old key
-refused at the saved origin. Reopening after an address/key-write partial save
-must accept a newly tested replacement while a concurrent credential change
-still conflicts. Confirmed quick-pick limit retries carry completed provider,
-key and default receipts into every later partial outcome, using existing
-translations in all 14 languages. Keep validation before writes, ordered saves,
-no rollback and origin-bound transport security.
-
-Add production/shared-form recovery and conflict regressions and a production
-store/facade/settings retry regression. Revert each fix, observe its complete
-test file fail, restore SHA-256 bytes exactly, then rerun all owning files,
-request goldens, one unit tsc, formatting, ESLint and localization. Inspect the
-inherited surface-English overage; shorten duplicated or verbose existing
-strings if possible without new keys or a cap change. Update certification and
-planning status. Aggregate quality/release gates remain lead-owned under the
-rig brief; no merge, rebase, push, subagents or paid/live calls.
-
-Completed: both P2 repairs and the existing-string surface-English cap fix.
-Macbook passes 46 complete owning files / 833 tests, 152 request goldens and
-141 Help/browser-English tests at repository deadlines, both SHA-256-exact
-reversion drills, one unit tsc, changed-file lint/format, localization/reference/
-host API, plain Knip and the production build. Surface English is 25595 / 25600
-bytes after shortening `referenceQuestionsDeferral` in English and all 14
-translations, with no new keys or cap change. English/German production visuals
-pass at 690/320 px. Plain jscpd retains the inherited 21 clones / 287 lines /
-1970 tokens; no new clone remains. Next slice: lead review and cross-rig release
-gates, including the inherited duplication hold, then PROVSTORE-LOCKLIB after
-M123 for accepted cross-window last-writer-wins. See certification for receipts.
+- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 ### PROVWIZ9 — Ordered save, honest partial outcomes, no rollback (2026-10-09)
 
 **Status 2026-10-09: built.** On the provider branch for 0.17.1.
 
-Replace PROVWIZ8 recovery after RVPROVWIZ8C's three P2 findings. Validate
-address policy, private consent, provider schema/token limits, credential/default
-snapshots and an edited spending limit before any write. Save changed provider
-fields in one atomic provider-file mutation, then an explicitly entered key
-bound to its origin, an explicitly chosen default, the edited spending limit,
-and finally the current conversation model when requested. Stop on a failed
-step; keep completed writes and name completed, failed and skipped steps in
-all 14 UI languages. Delete rollback and inverse machinery. Every Save outcome
-attempts panel refresh; refresh failure appends information without erasing the
-original outcome. Other partial or stale persisted drafts reopen to finish;
-budget-only partial drafts keep a freshly read comparison baseline for retry.
-
-Prove every failure boundary, same-window snapshot conflicts, the invalid
-inverse and absent-routing review scenarios, and address-change/key-failure
-origin rejection through the production store/shared form. Run complete
-provider/models/capability suites and request goldens at repository deadlines,
-byte-exact red/restored drills, changed-file format/lint, one unit-project tsc,
-localization/reference/host API, static gates, build budgets and visual checks.
-Record receipts in `docs/certification/provcat.md`. Aggregate quality, coverage,
-packages, hosted multi-OS/editor and live qualification remain lead-owned under
-the rig/common brief; inherited duplication hold remains. Schema/default
-preflight stays in the existing lazy provider-store port, keeping provider
-schemas out of the Models host bundle. The unchanged base and this lane both
-produce a 25651-byte surface-English chunk on macbook, over its 25600-byte cap;
-record this inherited build hold without changing the cap. No dependency, gate,
-hook, paid/live call, merge, rebase, push or subagent changes. Shared editor
-bridges receive the same form; ACP's persisted provider schema stays unchanged.
-
-The accepted cross-window residual remains: Two editor windows saving the same
-provider at the same moment: last writer wins for fields both changed; no secret
-is exposed; follow-up PROVSTORE-LOCKLIB moves the provider store and key rotation
-onto the shared lease after M123 lands on main.
+- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 ### PROVWIZ8 — Save recovery and refresh honesty (2026-10-09)
 
 **Status 2026-10-09: built.** On the provider branch for 0.17.1.
 
-Repair RVPROVWIZ7C P2-4 and P2-3 on `5f09bc0e2`: a successful provider
-save followed by a snapshot-refresh failure says “Provider saved; the panel
-could not refresh — reopen it” in all 14 languages. Retire the saved draft so
-it cannot retry against an obsolete baseline; still apply a submitted spending
-limit and report its own partial outcome. Rollback applies only the inverse of
-this save's changed fields inside the existing store mutation, preserving
-unrelated providers and later field changes. Prove credential-write and composer
-refusal interleavings through the production store/shared form, with byte-exact
-red drills and complete provider/models suites at repository deadlines.
-
-The lead accepts RVPROVWIZ7C P2-1/P2-2 as a 0.17.1 residual; keep the current
-in-window comparison and add no second lock implementation. Two editor windows saving the same provider at the same moment: last writer wins for fields both changed; no secret is exposed; follow-up PROVSTORE-LOCKLIB moves the provider store and key rotation onto the shared lease after M123 lands on main.
-
-Run changed-file Prettier/ESLint, one tsc and localization; record receipts in
-`docs/certification/provcat.md`. Shared editor bridges receive the same form;
-ACP's provider schema is unchanged. No subagents, merge, rebase, push, live/paid
-calls, dependency, hook or gate changes. Full quality remains lead-owned under
-the explicit rig/common brief.
+- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 ### PROVWIZ7 — Save compares changed fields with the edit snapshot (2026-10-09)
 
 **Status 2026-10-09: built.** On the provider branch for 0.17.1.
 
-Repair RVPROVWIZ6C's two P2 findings on `d32349de1`. A saved-provider draft
-records its opening provider/default/credential on the host. Only an explicitly
-entered credential may be written; untouched credentials retain later rotations
-or removals. Apply changed provider fields to the current entry inside the
-production store's protected mutation, after private-network consent. Compare
-each edited field (including individual token limits, routing, default and key)
-with its opening value; a competing change stops Save without overwriting it and offers
-Reload, retaining typed values until the user chooses it.
-
-Prove newer/cleared stored credentials survive limit-only Save, untouched fields
-changed during the consent wait survive, and both-changed fields conflict with
-no overwrite. Keep existing edit/key-change, validation, rollback and partial
-budget-save behavior. Run complete provider/models suites in batches of at most
-three at repository deadlines, changed-file prettier/ESLint, one host typecheck,
-localization/reference and individual static/build checks. Record byte-exact
-guard drills in `docs/certification/provcat.md`. Shared React and editor bridges
-use the same contract; ACP's persisted provider schema is unchanged. No subagents,
-merge, rebase, push, credential access, live/paid calls or gate changes. Aggregate
-quality and inherited duplication cleanup remain lead-owned under the rig brief.
+- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 ### PROVWIZ6 — Provider wizard/wiring integration and RVPROVWIZ5G (2026-10-09)
 
 **Status 2026-10-09: built.** On the provider branch for 0.17.1.
 
-Use one host-owned full snapshot factory for Edit, Change key and Change key →
-Edit, including routing, models/limits, format, pinned/compat/prices, the saved
-file default and private-network consent. Save overlays only changed draft
-fields on the current entry; an untouched default, secret or optional field is
-never synthesized or rewritten. Keep credential/connection validation and the
-production store transaction. Admit one queued Save per draft and disable both
-shared Save controls until it settles; failures retain the draft for retry.
-Declined private-network consent uses the existing confirmation sentence.
-
-Qualify the merged provider lanes with real host/store and captured transport
-regressions, including the reviewer's unchanged ZDR Edit → Save, second/other/
-absent defaults, duplicate Save and private consent refusal. Supply the wizard
-lane's required spending-limit port in the older capture-backed wiring fixture;
-retain every existing assertion. Run complete named models/provider suites in
-batches of at most three at repository deadlines, changed-file lint/format,
-five typechecks, localization/reference and individual static/build gates.
-Append byte-exact red/restored receipts to `docs/certification/provcat.md`.
-No subagents, merge, push, live/paid call, dependency or gate change. Aggregate
-quality and hosted/editor qualification remain with the lead per the rig brief.
-Shared webview/editor bridges and ACP's stored provider contract remain intact.
+- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 ### PROVWIZ2R5 — PROVWIZ2 round 5: RVPROVWIZ4G repairs (2026-10-09, macmini)
 
 **Status 2026-10-09: built.** On the provider branch for 0.17.1.
 
-Save a saved provider's limits without requiring a fresh credential test when
-its connection is unchanged. Address, format and key changes
-still require Test. Keep the real Edit form open until the host removes its
-draft after success; failed saves retain typed values and display the specific
-failure with credential redaction. Report successful saves in the panel.
-Prove Edit → host Save → production provider file → re-open Edit, plus failure
-and retry, through the rendered shared form. Correct the round-3 certification
-text to provider-first persistence and explicit partial success on limit failure.
-Run Models suites at repository deadlines, byte-exact red/restored drills,
-five typechecks, changed-file lint/format and the prescribed individual gates.
-Full quality belongs to the lead per the rig brief; no merge, push, live/paid
-call, dependency or gate change. Existing editor bridges and ACP's provider-file
-reader retain the same limits contract. Record receipts in
-`docs/certification/provcat.md`.
+- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 ### PROVWIZ2R4 — PROVWIZ2 round 4: RVPROVWIZ2 repairs (2026-10-09, macmini)
 
 **Status 2026-10-09: built.** On the provider branch for 0.17.1.
 
-Owner decisions: an untouched spending-limit field writes nothing; an edited
-value writes only while the setting still equals its prefill. A concurrent
-change is shown with a request to confirm the typed value. Save the provider
-first; a subsequent limit failure must say the provider was saved and the
-limit was not changed, with its reason. Keep saved custom model limits in
-edit/key-change drafts, expose their fields, and persist edits. Back from an
-incomplete Models step keeps entered limits and allows returning to Models.
-The native setting stores a number; refuse exact-decimal input that cannot
-round-trip through its non-negative numeric schema without loss.
-
-Use the production provider store and settings writer in regressions, with
-fake VS Code interactions and no service calls. Run complete Models suites
-in batches of at most three at repository deadlines, five typechecks,
-changed-file lint/format, localization/reference and prescribed individual
-static/build gates. Record deliberate failures and byte-exact restores in
-`docs/certification/provcat.md`; commit finished pieces with installed hooks.
-These shared webview/host repairs retain the existing editor bridge; ACP's
-provider file reads the same stored custom limits. No runtime command changes.
-No merge, push, live/paid call or dependency change is authorized in this lane.
+- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 ### PROVWIRE — Provider setup through the real transport and panel (2026-10-09)
 
 **Status 2026-10-09: built.** On the provider branch for 0.17.1.
 
-Close RVWIRING F2–F7 for 0.17.1 with the production panel catalogue,
-configured-provider service and checked-in M95 captures; fake only pinned
-dispatch, DNS and host storage/UI. Resolve format as `entry.format ??
-preset.format` without changing the persisted schema: ordinary presets retain
-their canonical format and custom servers retain their explicit override.
-Preserve captured prices/free flags and stable price fingerprints, share the
-preset key-test contract between CLI and panel, default OpenRouter to ZDR,
-retain replacement keys in edit drafts, and settle failed scans with a safe
-localized reason and retry. Keep panel changes small for PROVWIZ2; leave F10's
-logging to its owning lane. No live/paid calls, dependencies, merges or pushes.
-Run failing-first tests and byte-exact red/restored drills, scoped lint/format,
-five typechecks, provider/models suites, localization and reference checks.
-The lane rules reserve aggregate quality for the lead. Receipts:
-`docs/certification/provcat.md`, PROVWIRE section.
-
-Completed: F2–F7 are capture-backed through the real facade, with 14
-byte-exact red/restored drills. Final macmini verification passes 44 complete
-provider/models files (739 tests at repository deadlines), five typechecks,
-changed-file ESLint/formatting, localization (0), reference, host API, plain
-knip, zero-clone duplication and the production build within all existing caps.
-The optional persisted format remains unchanged. Full quality, hosted CI and
-installed-editor/live certification remain with the lead under the lane brief.
-
-Round 2 (RVPROVWIREG finding 1, P2): seed every saved-provider edit draft,
-including Change key and Change key followed by Edit, with the saved routing's
-privacy, provider order and fallback choice. Save uses that seeded draft;
-new OpenRouter providers still default to ZDR. Regressions replay the saved
-`any`/ordered/fallback-enabled row through replacement key, Edit, Test and
-Save, and cover plain Edit and direct Change key, including `no-training`
-and disabled fallbacks. Record failing-first and byte-exact routing drills
-in the PROVWIRE certification, then run provider/models suites at repository
-deadlines, changed-file lint/format and all five typechecks before a normal-hook
-local commit. No new feature, wire shape, dependency or live/paid call.
-
-Round 2 completed: saved routing and the replacement key survive every edit
-flow; new providers remain ZDR. Macmini passes 44 complete provider/models
-files (746 tests, default deadlines), all five typechecks, changed-file
-ESLint/formatting, localization/reference/host-API checks, plain Knip,
-zero-clone duplication and the production build within unchanged caps.
-Four deliberate routing breaks fail and restore SHA-256-exact bytes; see
-the round-2 PROVWIRE certification. Aggregate quality and hosted/editor/live
-qualification remain lead-owned under the lane rules.
-
-**CX1R3 removal pass (RVCX1B, 2026-10-10; ships in 0.17.1).** Remove dormant
-feature claims and usage from current README, Help, What's New and editor
-records; retain historical changelog text with dated corrections. Put dormant
-work in roadmap In progress without capability or shipped claims. Keep complete
-reference coverage validation before filtering its user-facing publication;
-archive corrected release bullets from What's New rather than qualifying them.
-The compact CLI help is also a current Help surface: remove its v2 schedule
-grammar and inactive automatic-compaction option without altering parsers.
-No feature implementation, dependency, gate widening, merge, push or live call.
-
-Plan: [x] current surfaces and roadmap; [x] regression tests and byte-exact red
-drills for every finding and sibling class; [x] scoped rig gates; [x] hooked
-commits, committed-diff review and certification in `docs/certification/cx1.md`.
+- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 ### M125 — The Judge: our own Jev, for speed and accuracy (D107)
 
@@ -16677,17 +16519,7 @@ trees stay conservative), distinguish spelling/storage/unknown refusals,
 translate new text in every table, and remove guessed `C:` system roots and
 the `C:\Users` wording.
 
-- [x] Regressions and native probes: C:/D:/Z:, real 8.3 names, UNC/WSL,
-      admin-share availability, relocated junction roots and storage
-      (directory symbolic links need privilege this host lacks).
-- [x] One red/restored drill per decision; replay new regressions on the base.
-- [x] Fresh npm-ci CI clone: prescribed suites (real-git stores three times),
-      five typechecks, lint/format, knip, duplication, localization, host API,
-      reference and production build; normal hooks, no merge/push/live calls.
-
-The shared rules delegate aggregate quality to the lead (§7); scoped gate
-results and hosted-admin-share qualification status are recorded in
-`docs/certification/sec-win-path-aliases2.md`.
+- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 ### SECWINPATH — Windows path alias security repair (2026-10-08, win11)
 
@@ -16702,17 +16534,7 @@ Share the native identity walker through the existing Node boundary bundle;
 the unchanged sharing-runtime cap must accommodate the refusal at admission.
 Its Node entry stays in core, outside the browser project's shared sources.
 
-- [x] Capture native Win32 normalization and loopback SMB identity in owned temp folders.
-- [x] Run new regressions against the unchanged base, then repair the owning boundaries.
-- [x] Fire stream, trailing-dot and storage-identity guards deliberately and restore bytes.
-- [x] Commit validated pieces with hooks; qualify a fresh `npm ci`, `CI=true` clone
-      with owning suites three times at repository deadlines, five typechecks,
-      changed-file lint/format, plain knip, duplication, cycles, localization,
-      reference and capped production build.
-
-The rig brief overrides common.md's stale merge step: no merges, push, paid/live
-calls or aggregate quality. Full aggregate quality remains with the lead under
-the shared lane rules (§7). Receipts: `docs/certification/sec-win-path-aliases.md`.
+- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 ### FIXCYCLES2 — Share the build's integration-test roots (2026-10-08, Kubuntu)
 
@@ -16738,31 +16560,7 @@ coverage lesson; receipts are in `docs/certification/fixcycles.md`.
 
 **Status 2026-10-08: built.**
 
-- [x] Explain the hosted Windows pseudo-locale merge-card timeout from CI
-      durations and phase measurements under CPU starvation.
-- [x] Mark the scene played in the harness (`data-scenario-played`) once its
-      steps, waits and events have run; never after a failed step.
-- [x] Start the merge-card and tree deadline there; navigation and playback
-      share the existing bounded wait. No deadline, retry, skip or assertion
-      changes; same targets at 320 px in the pseudo-locale.
-- [x] Prove the new unit and browser regressions fail on purpose; record
-      repro rates before and after (at least 20 runs after) in
-      docs/certification/flake-team-merge-wait.md; commit with hooks.
-- [x] Review RVTEAMFLAKE P2: count awaited native events (`whenEvent`) and
-      awaited promises (`track`); jump-scroll regressions and a red drill.
-- [x] Review RVTEAMFLAKE2 (third round, redesigned): scenes schedule all
-      work through the counted helpers and call `scenarioDone()` from their
-      final continuation; counted scene work after it fails the scene; a
-      counted failure clears the mark for good and is recorded. The static
-      async guard is replaced by browser coverage of every `PLAYED_SCENARIOS`
-      scene, and the extracted `track` is checked at runtime.
-- [x] Review RVTEAMFLAKE3 (final): the coverage test verifies ordering, a
-      quiet window for logged moves and the absence of page errors (now
-      collected; raw-timer-throw probe). Work started outside the helpers
-      (raw timers, detached promises) is not detected: a code-review rule for
-      scene authors, not something the harness proves.
-
-Scope is the browser harness and its owning tests. No push; the lead pushes.
+- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 ### FIX0160X — Repair release CI composition (2026-10-07, macmini)
 
@@ -16792,59 +16590,7 @@ Scope is the browser harness and its owning tests. No push; the lead pushes.
 
 **Status 2026-10-08: merged.** Merged to main as batch PR #144 (`67099ce1b`); records in `docs/certification/deps-0150.md`.
 
-Replace Dependabot PR #138 from release base `a715a834` with exact reviewed
-development-tool pins. Preserve all rule levels, files, coverage thresholds,
-test deadlines and production bundle caps. Diagnose lint memory before choosing
-a structural configuration repair; hold only an offending package if no safe
-repair exists, and register a measured heap flag only as the last resort.
-
-- [x] Read all six upstream changelogs, check exact peers and baseline audit.
-- [x] Measure baseline lint and isolate update-induced memory growth with CI's
-      Node 22; compare immutable parser programs before selecting a remedy.
-- [x] Install the reviewed exact versions, repair the cause and prove any new
-      regression guards fail under a deliberate restored mutation.
-      Add fake-only ACP transport checks for the SDK's new byte cap: exact
-      UTF-8/CRLF admission, split-frame refusal and upstream cancellation.
-- [x] Verify a fresh `npm ci` clone of `d3fff81f` with `CI=true`: five
-      typechecks, JavaScript/CSS lint, formatting, plain knip, duplication,
-      localization/reference/host API, cycles, unchanged production caps,
-      audit, secret scan and SAST. Lint peaks at 5,495,896 KiB, exit 0;
-      PowerShell analysis is an explicit Linux skip.
-- [x] Certify legal accessibility: 96 native keyboard/zoom checks and English
-      plus pseudo WCAG scans pass on Linux.
-- [x] Reproduce the changelog-version guard's 5 s timeout on the release base
-      and accepted pins with V8 coverage (7.026 s / 7.505 s).
-- [x] Scope that guard's real Markdown fixture to the manifest release; keep
-      its existing date/Highlights assertions and complete-history validation
-      in the real-parser tests and production build. Both missing-Highlights
-      and invalid-Try-it drills fail (one failed, one passed), exact bytes are
-      restored, and 23 focused tests pass with V8 coverage. Changed-file lint,
-      unit typecheck and unchanged production caps pass. No deadline changes.
-      Superseded at the 0.16.0 join (batch PR, 2026-10-08): main already
-      parses the full history once in `beforeAll`, outside the test deadline,
-      so the batch keeps main's guard and drops this rescoping.
-- [x] PR #144 review: SDK 1.5.1's option-free `ndJsonStream` refuses lines
-      over 32 MiB, below a valid prompt with three near-10 MiB images. Both
-      production streams (stdio agent, team host's ACP children) now open
-      through `src/shared/acpStream.ts` with `ACP_MAX_MESSAGE_BYTES`
-      (`MAX_ENCODED_MEDIA_CHARS` + 16 MiB). Tests read a three-image prompt
-      through the real SDK, refuse a line past the bound, and fail if any
-      other production file calls `ndJsonStream(` directly.
-- [x] Assign the full coverage and accessibility gates: hosted CI on the pull
-      request is the full gate (coverage, accessibility; §7 "DEP138 rig
-      verification"). The rig's three-file coverage batches were not completed.
-      The first full accessibility run had zero violations but four `long`
-      readiness timeouts; it stays recorded as a failure. All 119 browser
-      JS/CSS bundles match baseline exactly, none of the bumped packages takes
-      part in the harness, and main's PR #139 (merged into this branch) fixed
-      harness readiness.
-- [x] Record receipts in `docs/certification/deps-0150.md` and CHANGELOG;
-      merge main (`18dc7365`) and commit locally with hooks and explicit
-      paths. No push, rebase, credential disclosure or paid/live model call.
-
-Re-measure point: typescript-eslint 8.71.1 (PR #12957, fixing issue #12956)
-clears `.npmrc`'s seven-day release age on 2026-10-12. Measure its lint peak
-before accepting it (D3, "DEP138 selection").
+- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 ### FLAKETH20 — Explain and repair the Windows team harness hang (2026-10-07)
 
@@ -16986,50 +16732,13 @@ train, and those waiting on outside events, keep their own status lines.
 `fix/muse-1.4.3` (`1285eb6f4`, never merged): 0.17.0 still showed the plain
 ledger notice on every version (port note in `docs/certification/muse143.md`).
 
-Scoped maintenance on `fix/muse-1.4.3`: use the owner's signed-in
-1.4.3-R5018.1 CLI, an empty temporary workspace and at most six short
-contributor-model turns to capture #29 approval settlement, #30 rename,
-#31 fork and #26 sandbox working-directory evidence. Never touch credentials.
-Lift a workaround only for a version proven fixed; retain fault detection
-and older-version behavior. A successful sandbox command on this already
-prepared host does not prove the fresh-setup failure fixed (D12).
-
-- [x] Capture scrubbed MSP evidence, count turns/model attempts, stop the
-      owned server and remove the temporary workspace.
-- [x] Apply only evidence-backed compatibility changes in the existing
-      shared core and localized notices; test both version sides and fire
-      the affected guards with byte-exact restoration.
-- [x] Update README, changelog, certification and the upstream research
-      note. Update the feature catalog only if present on this base.
-- [x] Merge the current release candidate, run scoped gates on the rigs,
-      and commit explicit paths with existing hooks enabled.
-
-Evidence and remaining upstream limitations belong in
-`docs/certification/muse143.md` and `docs/research/muse-1.4.3-upstream.md`.
-Mac mini: 676 scoped tests passed, all five typechecks, scoped lint/format,
-deadcode, zero duplication, l10n, host API and production caps passed.
-Both before-fix failures and the version-boundary mutation fired; the
-mutated file was restored byte-exact. Existing commit hooks stay on.
-Shared MSP compatibility serves every extension host; the ACP runtime uses
-the same core. No editor-specific control or new UI is planned. Full
-aggregate quality remains the lead's gate, per the lane's common rules.
+- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 ### M26 follow-up — Refresh README badges after publication (BADGES)
 
 **Status 2026-10-05: built.** Status evidence: `docs/certification/badges.md`.
 
-The 0.13.0 release exposed stale badge-service and GitHub image-proxy caches.
-Extend the existing release workflow and scripts without changing publication:
-BADGES-A waits at most 15 minutes, polling every 30 seconds, for all four public
-channel versions; BADGES-B requests README badge URLs and retries older version
-answers with a cache-busting query; BADGES-C purges the repository page's camo
-images and logs statuses. Every failure warns only, with no credential required.
-The final job requires the summary's successful, all-published outcome.
-Fake-fetch tests and red drills cover parsing, version ordering, retries,
-polling bounds and warning-only failures; hosted public-service proof remains
-the lead's next release check. Implemented: 40 focused tests and 14 red drills
-passed, with typecheck and required focused gates green on the worktree merged
-with `8c894b60a`. Evidence: [BADGES](docs/certification/badges.md).
+- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 ### M43–M56 — Parity with everything Muse Code and the Model API offer (D36)
 
@@ -17048,32 +16757,7 @@ translations. The order is D36's table:
 run. Certification record:
 `docs/certification/m53-usage-timing.md`.
 
-- Use Muse Code's `usage/read` and `usage/changed` account percentages and
-  absolute reset timestamps as reported. Its SDK has one account-level usage
-  payload, not model-specific quota or plan-name fields. Meta's public Muse
-  Code subscription page publishes an Everyday five-hour allowance, with
-  High 5× and Power 20× capacity, but no per-model conversion or weekly reset
-  rule. The owner's personal Muse Power/Maximum Upgrade screen is separate
-  from Muse Code CLI usage; its weekly token grants do not establish the CLI's
-  `usage/read` entitlement. Do not derive countdowns or usage weights from
-  either plan table, selected model or opaque MSP tier.
-- Recompute visible countdowns while Account & usage stays open, at least
-  once per minute. When a reported reset has passed without a newer frame,
-  label that row as awaiting fresh usage and hide its old percentage and
-  countdown. Retain the observation's age so the user can see why.
-- Drop the global last-usage fallback and attempt to erase its legacy stored
-  value on activation. Cleanup failure does not block activation because no
-  code reads the old value. It has no account identity, so a new sign-in must not inherit
-  another account's plan, percentages or reset time. Clear the webview's
-  report on authentication changes. An empty `usage/read` also clears a
-  same-host observation because the account may have changed. Within one
-  live host, prefer the newest `observedAtMs`; an older or empty read begun
-  before a newer `usage/changed` must not overwrite that event. Discard
-  results from a host stopped or replaced.
-- The timer, expired row, authentication boundary and out-of-order delivery
-  red drills failed before correction and passed after. Exact integrated
-  quality and hosted gates passed before PR #41 merged; the isolated
-  checkpoint alone was never used as certification.
+- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 ### M67–M85 — Coding quality first (D49, D50)
 
@@ -17520,11 +17204,7 @@ separate from Linux rig receipts.
 
 **Status 2026-10-05: certified.** Status evidence: `docs/certification/train-0.13.0.md`.
 
-- [x] Confirm both checkpoint test files pass in the cleared normal temporary directory.
-- [x] Defer Account & usage, Agent map, best-of-N, board, history and review UI until opened, with accessible loading/cancellation, ESM chunks and startup-transitive size/split/packaging guards. Keep the 900 KiB startup cap and at least 20 KiB headroom.
-- [x] Share the Node bundles’ used zod/mini exports in one guarded runtime beside uiText; browser and integration builds retain their inline parser. Ship that runtime in the VSIX and both ACP packages. Keep every existing cap; give only the new measured artifact its D6 measured-plus-15%-rounded-to-25-KiB cap.
-- [x] Stage the VSIX in the worktree, minify its JSON without changing source tables, check shipped localization bytes, and use a concise marketplace README linking the complete repository guide. Ship Unreleased and the newest two released changelog sections with a full-history link; retain the complete source changelog. Preserve privacy, skills, helpers and every runtime feature. Test exclusions against actual package collection.
-- [x] Measure with the real universal helper extracted from the 0.12.1 release asset (119,342 compressed bytes), then run full quality and the unchanged VSIX gate. Drill new guards, restore byte-exact, update train certification/result and the reviewable PR description. Local hook-on commits only; no merge, push, paid or live model call. The specific brief authorizes full quality and read-only release-asset retrieval despite common.md’s ordinary lane limits.
+- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 ### DEFAULTS — Available enhancements and interactive daily paid admission (D78)
 
@@ -23212,61 +22892,7 @@ process that owns the work.
 **Status 2026-10-05: integrated on `feature/m91-hooks-parity`; pull request
 next, in the 0.14.0 batch.**
 
-- The step 1 captures are recorded (`docs/certification/m91.md`,
-  `docs/certification/m91-captures/`).
-- Lane 0 is built: 88 strings in all 14 tables, and the hook region's four
-  constants.
-- Every lane is merged on the branch: G, R, P, I, S, X, H, M and E, with
-  the fix rounds of R (RVM91R), P (RVM91P3) and I (FIXM91I3). Lane H's
-  branch brought main with it. Lane W's wiring is built
-  (`docs/certification/m91.md`, "Lane W"):
-  - imported hooks on Muse Code's events run through lane P's adapters;
-  - the Hooks picker lists both files per scope;
-  - the panel marks a MessageDisplay rewrite.
-- **M91b** (below) is merged: Amp and OpenCode plugin dispatch
-  (`m91/w-plugins` at `797e31fc`), in the same 0.14.0 batch. Imported hooks
-  on extension events stay planned there; the importer refuses them.
-- **Main 0.13.0** (`928a9200`) is merged. Lane G's golden hooks-off fixtures
-  were regenerated on main itself, with M91's test, and M91 matches them
-  byte for byte (`m91.md`, "After main and M91b").
-- **Size (D6).** M91 took `dist/modelApi.js` to 486.1 KiB of its 475. Lanes
-  E, H and M's runtime moved into `dist/hookRuntime.js` and the imported
-  records' reader into `dist/foreignHooks.js`, both loaded on first use, and
-  the cap held: 467.6 KiB with main and M91b. `dist/extension.js` is
-  596.9 KiB of 600 and the webview 896.3 of 900.
-- **Integration fixes:** semgrep's prototype-pollution finding in lane P's
-  engine (own keys only, prototype segments refused); a duplicate-key check
-  in `check-l10n`; lane S's unused setting-name constant is gone. knip is
-  still blind to `constants.ts` for a reason not yet found (`m91.md`, drill
-  W22).
-- **Lane I round 3 (FIXM91I3, RVM91I2):** repair all eleven findings
-  within the importer: unknown source switches refuse hooks; Cline executable
-  references are rechecked after awaits and during planning, quoted as
-  literal paths and retain their source 30-second bound; strict Copilot inline blocks refuse together; nonexact
-  matcher translations refuse; Gemini lifecycle filters stay exact and
-  sequential policy spans merged settings; Cursor records match adapter
-  source-event selection at `d8e609aa` and require version 1. Each finding
-  gets a regression and a SHA-256-restored red drill in `m91-i.md`.
-  The lane also removes its six duplication-gate clones using existing
-  scanner/converter functions and replaces the heavy Model API name-builder
-  import with bounded canonical-name checks against the pinned 20/64 contract,
-  verified by tests against the real builder; the import bundle keeps its
-  existing 125 KiB cap. No new layer or dependency.
-
-**Lane P review corrections (RVM91P3, 2026-10-04).** Keep the declarative
-contracts and public entry points. Translate Gemini tool inputs only where the
-saved captures or examples establish the fields; an unsupported blocking call
-returns `refused` with `blockOperation: true`, which the dispatcher must enforce
-before execution. Preserve tool whitelists while refusing forced selection,
-validate captured model request/response shapes, merge argument patches against
-the original execution input, retain advisory observations beside ignored
-controls, and carry Notification details. Replay the vendor's own data-dependent
-scripts and narrow certification claims to the checks actually performed.
-Each finding gets a failing regression and a byte-exact restored red drill in
-`docs/certification/m91-p.md`. No live call or new dependency is authorized.
-
-The early protected-paths fix is its own pull request,
-`fix/protect-agent-folders`.
+- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 - **Goal.** A hook written for any of these agents runs on the Model API
   backend at the same point, and with no more power, wherever this extension
@@ -23307,50 +22933,6 @@ The early protected-paths fix is its own pull request,
   [#31](https://github.com/meta-models/muse-code-sdk/issues/31)
   (`session/fork` refused on Windows) is still open on 1.4.2.
 
-- **Internal helper turns.** Today the Model API runtime fires hooks for a
-  call it makes for itself only where M51 documents it.
-  - Compaction's summary request runs PreLLMCall and PostLLMCall, between
-    PreCompact and PostCompact.
-  - These run no hooks at all: the Auto reviewer's calls (M78), side chats
-    (M51), and Best-of-N attempt hosts (M77: `isHooksEnabled` is off in
-    `modelApiBackendManager.ts`).
-
-  M91 keeps it so. A `prompt` or `agent` handler's own model call fires no
-  hook, so a hook cannot recurse. Neither do M74's hidden follow-up and
-  memory flush, once built (SoL-Pi rule 5). So TeammateIdle for a Best-of-N
-  attempt fires from the parent session's snapshot in the coordinator, never
-  inside the attempt, which still runs no hooks.
-
-- **Event behaviour.** The Muse Code events first, then the 21 extension
-  events.
-
-  | Event                                  | Fires at                                                                                       | Behaviour                                                                                                                              | Backends                      |
-  | -------------------------------------- | ---------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------- |
-  | Interrupt                              | A running turn or compaction is cancelled: Stop, a UserPromptSubmit block, the session closing | Async only; observation; never when an idle session closes (captured)                                                                  | Both                          |
-  | SessionFork                            | Accepted, not run: 1.4.2 never runs it (captured)                                              | Sync only. When a capture shows it running: before forkSession copies anything; a refusal ends the fork; side chats still run no hooks | Both                          |
-  | PostToolUseFailure with `updatedInput` | A failed tool call                                                                             | The same tool only, as a new call through PreToolUse, policy, path confinement and approval; bounded by `HOOK_ON_FAILURE_MAX_DEPTH`    | Model API (Muse runs its own) |
-  | InstructionsLoaded                     | Rules or a skill read into the context (`instructionsFor`, the touched path's rules)           | Observation; a workspace-relative path and a reason, never content                                                                     | Model API                     |
-  | UserPromptExpansion                    | A slash command or a skill expands                                                             | Can refuse, with a visible reason                                                                                                      | Model API                     |
-  | PermissionDenied                       | The Auto reviewer, a refusal or a mode refuses a call                                          | Observation; no `retry`                                                                                                                | Model API                     |
-  | PreModelSwitch                         | `setModel`                                                                                     | Can refuse only; model ids only                                                                                                        | Model API                     |
-  | PostModelSwitch                        | After `setModel`                                                                               | Observation                                                                                                                            | Model API                     |
-  | TaskCreated                            | `todo_write` adds an item                                                                      | Can refuse, with a visible reason; counts toward `HOOK_MAX_STOP_CONTINUATIONS`; the subject and description bounded                    | Model API                     |
-  | TaskCompleted                          | `todo_write` completes an item                                                                 | As TaskCreated; runs before M74's compaction check                                                                                     | Model API                     |
-  | FileChanged                            | A file changed outside the agent (`noteExternalEdit`, the watcher)                             | Observation; matcher required; debounced per path; capped per minute; never starts a model request; path and reason only               | Both                          |
-  | ConfigChange                           | A settings or hook file changes                                                                | Observation                                                                                                                            | Both                          |
-  | WorktreeCreate                         | After Best-of-N creates its worktree                                                           | A non-zero exit fails that attempt; cannot choose a path                                                                               | Model API                     |
-  | WorktreeRemove                         | Before Best-of-N removes it                                                                    | Observation                                                                                                                            | Model API                     |
-  | Setup                                  | **Run Setup Hooks**; the ACP agent's `setup` (`--maintenance` for that matcher)                | Observation; matcher `init` or `maintenance`                                                                                           | Both                          |
-  | DirectoryAdded                         | A trusted workspace activates; a folder is added to the window                                 | Observation                                                                                                                            | Both                          |
-  | CwdChanged                             | The kept shell directory changes                                                               | Observation; old and new directory, workspace-relative                                                                                 | Model API                     |
-  | Elicitation                            | An MCP server sends `elicitation/create`                                                       | A project hook may decline or cancel; a user hook may answer, validated against the server's schema                                    | Model API                     |
-  | ElicitationResult                      | The user answered                                                                              | Observation; a project hook sees field names and the action only                                                                       | Model API                     |
-  | TeammateIdle                           | A Best-of-N attempt or a background subagent is about to stop while siblings run               | A block keeps it working inside its consented run; counts toward `HOOK_MAX_STOP_CONTINUATIONS` and the budget                          | Model API                     |
-  | MessageDisplay                         | An assistant message is about to show                                                          | A display-only rewrite with a marker the hook cannot remove and a one-click original                                                   | Both                          |
-  | BeforeToolSelection                    | Before each model request                                                                      | Narrow only, enforced at call admission; the declared tool list never changes                                                          | Model API                     |
-  | AfterAgentThought                      | A reasoning block finished                                                                     | Observation; bounded; through the M54 preview scrubber                                                                                 | Model API                     |
-  | Manual                                 | **Run Hook…** or `/hook run <name>`                                                            | The user starts it; observation; output shown                                                                                          | Both                          |
-
 - **Lanes.** One branch, `feature/m91-hooks-parity`.
   - Lane 0 goes first. Then R, E, I, P, S, M, H and X run in parallel, and
     W goes last.
@@ -23389,354 +22971,6 @@ The early protected-paths fix is its own pull request,
   | H Handler types         | `hooks.ts`'s handler fields; the new `src/core/backends/modelapi/hookHandlers.ts` (`http`, `mcp_tool`, `prompt`, `agent`); the paid gate's new feature and its tally; the Muse Code side session for `prompt` and `agent`; tests                                                                                                                                                                                                                                                           |
   | X Plugin host           | the new `src/core/backends/modelapi/pluginHost.ts` and its child entry (its own bundle if D6 needs it; M91b if the budget does); the Amp and OpenCode shims; tests                                                                                                                                                                                                                                                                                                                         |
   | W Wiring                | the Hooks picker (`museConfigCommands.ts`); the MessageDisplay marker in the panel; README, PRIVACY, CHANGELOG, AGENTS.md, CONTRIBUTING, PLAN, `docs/certification/m91.md`; the full gate                                                                                                                                                                                                                                                                                                  |
-
-- **Steps.**
-  1. **Capture first: done 2026-10-04** (`docs/certification/m91.md`). The
-     echo provider, empty folders, an isolated home, 0 model calls. The
-     findings are in D70. Nothing uncaptured is wired: SessionFork's veto
-     waits for a release that runs it.
-  2. **Lane R.**
-     - Interrupt is async only. It fires when a running turn or compaction
-       is cancelled: by Stop, by a UserPromptSubmit block, or by the session
-       closing while the turn runs. That is when Muse Code fires it
-       (captured). It never fires when an idle session closes.
-     - SessionFork must be sync and is accepted. It runs nothing until
-       upstream #84 is answered and a capture shows it running.
-     - The PostToolUseFailure `updatedInput` correction takes the same tool
-       only, as a new call through PreToolUse, policy, path confinement and
-       approval, bounded by `HOOK_ON_FAILURE_MAX_DEPTH`.
-  3. **Lane E.**
-     - spark-hooks.json loads together with Muse Code's sources: in the same
-       per-session snapshot, behind the same trust gate and
-       `museSpark.modelApiHooks` opt-in.
-     - The 21 events fire at their operations, with the behaviour in the
-       table above.
-     - BeforeToolSelection narrows at admission and leaves the declared tool
-       list as it was.
-  4. **Lane S.** The shell keeps its directory between calls.
-     - The shell tool's declared description and schema stay byte-stable
-       (SoL-Pi rule 1). The kept directory is reported at the tail of a
-       result whose directory is not the root, and in the tool row.
-     - A machine-scoped setting turns it off; M75 records it.
-     - `then_run` and `run_checks` still run at the root.
-  5. **Lane M.** MCP elicitation's form mode on the Model API backend's
-     client.
-     - The form shows in the panel, and in the ACP agent through its form
-       path.
-     - The answer is accept, decline or cancel, validated against the
-       requested schema.
-     - Elicitation and ElicitationResult follow the event table.
-  6. **Lane P.** One adapter per format, translating stdin and mapping each
-     answer onto `HookAnswer`.
-     - Each source's fail-closed rules are kept: Cursor's invalid JSON on
-       permission hooks and its `failClosed`; Copilot's preToolUse errors.
-     - An adapter parse failure counts as a failure, never as allow.
-     - A foreign `allow` never skips an approval card.
-  7. **Lane I.** Readers and converters, per the research's importer table.
-     - Codex hooks go into Muse Code's files (TOML read with smol-toml).
-     - The other formats go into spark-hooks.json with their format tag.
-     - Concepts this milestone adopts are no longer refused.
-     - A source event that can block where ours cannot is still refused, so
-       an imported guard is never weaker: Claude's WorktreeCreate (it
-       chooses the path) and ConfigChange (it can block), and Cursor's
-       subagentStart.
-     - Every refusal is listed with its reason; the preview shows metadata
-       only.
-     - M83's rules apply: unsaved edits that the user saves, D64 exposure,
-       project sources only when trusted.
-  8. **Lane H.** The four handler types, as D70 says. A `prompt` or `agent`
-     handler is a paid use on the Model API, and a side-session turn on Muse
-     Code. None of them widens.
-     Lane H's receipt is `docs/certification/m91-h.md`. The shared daily
-     budget setting is absent in this lane's base; its owner must wire
-     `ModelApiPaidHooks.hookModelDailyBudget` (reserve/check/settle) and the
-     popup cap. Lane R must consume the Muse Code helper factory. Until
-     those integrations are proved, handler acceptance 11 stays open.
-  9. **Lane X.** The plugin child and its shims for Amp and OpenCode, and
-     Cline's scripts through the `cline` adapter. The plugins' events map
-     onto the event list above, and lane X records the mapping in this plan
-     before its code.
-- **Lane X event mapping (recorded 2026-10-05, before lane X code).**
-  Sources are the saved research under `hooks-parity/` (cited per row);
-  nothing here is captured live. A plugin answer can only refuse, narrow or
-  add context — never grant; a crash or timeout follows the event's
-  fail-closed rule; the child is killed with the session and bounded in
-  memory and time. The shim offers no shell helper, no client and no model
-  access: a call to one fails that hook.
-  - **Amp** (in-process `amp.on` plugins; `hooks-parity/raw/amp_plugin-api.md`).
-    Runtimes: the user's system `node` ≥ 22.18, plain JS or TS through
-    Node's built-in type stripping; never the extension host's Node.
-
-    | Amp event                                    | Muse event       | Answer mapping                                                                                                                                                                                                                                                                        |
-    | -------------------------------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-    | `session.start` (`amp_plugin-api.md:1929`)   | SessionStart     | Observation; the thread id only                                                                                                                                                                                                                                                       |
-    | `tool.call` (`:1953`, results `:1962`)       | PreToolUse       | `allow` → completed; `reject-and-continue{message}` → blocked with the message; `modify{input}` → completed with `updatedInput` (same tool only); `synthesize{result}` → completed with a tool-result replacement; `error{message}` → failed (blocked where the event is fail-closed) |
-    | `tool.result` (`:2044`, replacement `:2052`) | PostToolUse      | `void` → completed; a returned `{status, output?, error?}` → completed with a tool-result replacement                                                                                                                                                                                 |
-    | `agent.start` (`:2074`, result `:2097`)      | UserPromptSubmit | `void` → completed; `{message:{content}}` → completed with context                                                                                                                                                                                                                    |
-    | `agent.end` (`:2109`, result `:2130`)        | Stop             | `void` → completed; `{action:'continue', userMessage}` → blocked with the user message as the reason (the turn continues); `maxContinuations` is capped by `HOOK_MAX_STOP_CONTINUATIONS`                                                                                              |
-    | `changes.prompt` (`:2148`)                   | Refused          | No Ship/Push workflow here; refused with a reason                                                                                                                                                                                                                                     |
-    | (no `session.end`; `:29`)                    | SessionEnd       | Refused: Amp has no matching event                                                                                                                                                                                                                                                    |
-
-  - **OpenCode typed hooks** (`hooks-parity/raw/oc_plugin_index.ts`; the docs
-    list at `hooks-parity/raw/oc_plugins.mdx`). OpenCode is Bun-native, so
-    its plugins run under the user's installed `bun`; when `bun` is absent
-    the hook is refused with a reason. Handler order across plugins is
-    undefined upstream (`raw-kiro-amp-opencode-continue.md:29`); each
-    registered handler runs in load order and one's block ends the chain.
-
-    | OpenCode hook (`oc_plugin_index.ts`)                                                                                      | Muse event          | Answer mapping                                                                                           |
-    | ------------------------------------------------------------------------------------------------------------------------- | ------------------- | -------------------------------------------------------------------------------------------------------- |
-    | `tool.execute.before` (`:266`, throw blocks, mutate `output.args`)                                                        | PreToolUse          | Throw → blocked with the thrown message; mutated `args` → completed with `updatedInput` (same tool only) |
-    | `tool.execute.after` (`:274`, mutate `output.output`)                                                                     | PostToolUse         | Throw → failed; mutated `output` → completed with a tool-result replacement                              |
-    | `permission.ask` (`:261`, `output.status`)                                                                                | PermissionRequest   | `deny` → deny; `ask` → ask; `allow` is never applied (completed without a grant)                         |
-    | `command.execute.before` (`:262`)                                                                                         | UserPromptExpansion | Throw → blocked with the reason; otherwise completed                                                     |
-    | `chat.message` (`:234`)                                                                                                   | UserPromptSubmit    | Observation only; a mutated message is not applied                                                       |
-    | `experimental.session.compacting` (`:305`, `context`/`prompt`)                                                            | PreCompact          | `context` entries → context; a full `prompt` replacement is not applied (the prefix stays byte-stable)   |
-    | `chat.params` (`:242`), `chat.headers` (`:258`), `experimental.provider.small_model` (`:297`), `tool.definition` (`:332`) | Refused             | They choose a model, headers, params or the tool list; refused with a reason                             |
-    | `experimental.chat.messages.transform` (`:282`), `experimental.chat.system.transform` (`:291`)                            | Refused             | They rewrite earlier request bytes (SoL-Pi rule 1); refused with a reason                                |
-    | `experimental.compaction.autocontinue` (`:316`), `experimental.text.complete` (`:327`)                                    | Refused             | No equivalent operation (auto-continue control, display rewrite); refused with a reason                  |
-    | `shell.env` (`:270`)                                                                                                      | Refused             | Environment edits are a secret risk (as Copilot `env`); refused with a reason                            |
-    | `config`, `tool`, `auth`, `provider`, `dispose` (`:223`)                                                                  | Refused             | Registration, not hook points; refused with a reason                                                     |
-
-  - **OpenCode event-bus subset** (bus list `raw-kiro-amp-opencode-continue.md:36;
-the `event`hook at`oc_plugin_index.ts:224`). The `event`handler
-returns`void`, so every bus mapping is observation only; a throw fails
-    the hook, never blocks it.
-
-    | Bus event                                                                                                                                                                                               | Muse event                                                                          |
-    | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-    | `session.created`                                                                                                                                                                                       | SessionStart (observation)                                                          |
-    | `session.deleted`                                                                                                                                                                                       | SessionEnd (observation)                                                            |
-    | `session.compacted`                                                                                                                                                                                     | PostCompact (observation)                                                           |
-    | `todo.updated`                                                                                                                                                                                          | TaskCreated/TaskCompleted (by the item's status; observation, refusals not applied) |
-    | `permission.asked`                                                                                                                                                                                      | PermissionRequest (observation only)                                                |
-    | `permission.replied` denied                                                                                                                                                                             | PermissionDenied (observation only)                                                 |
-    | `file.watcher.updated`                                                                                                                                                                                  | FileChanged (observation; path only)                                                |
-    | `file.edited`                                                                                                                                                                                           | PostToolUse for Edit\|Write (observation)                                           |
-    | `message.updated`                                                                                                                                                                                       | MessageDisplay (observation; a rewrite is not applied)                              |
-    | `session.error`                                                                                                                                                                                         | StopFailure (observation)                                                           |
-    | `tool.execute.before` / `tool.execute.after` on the bus                                                                                                                                                 | As the typed hooks above (a plugin subscribed to both fires twice, as upstream)     |
-    | `tui.*`, `lsp.*`, `server.connected`, `installation.updated`, `message.part.*`, `message.removed`, `session.diff`, `session.status`, `session.updated`, `command.executed`, `session.idle`, `shell.env` | Refused: TUI/display internals, no equivalent operation, or covered by a typed hook |
-
-  - **Cline v1 scripts** (per-event scripts in `.clinerules/hooks/` and
-    `~/Documents/Cline/Hooks/`; `hooks-parity/raw-copilot-cline.md:13-15,24-26`;
-    the full `cline-hooks-901d1b5c97.mdx` and `cline/src_*` copies named there
-    are not on this rig, so field shapes below stay conservative and every
-    gap is labelled). They run as command hooks through the `cline` contract
-    table, interpreted by the shared engine; no hand-written per-event
-    translator. The newer SDK/CLI file-hook contract
-    (`raw-copilot-cline.md:26`: `tool_call`/`tool_result`/`agent_start` with
-    `cancel`/`review`/`overrideInput`) is a different contract and is
-    refused with a reason. Discovery follows the source platform rules:
-    Windows runs `<HookName>.ps1` only, Unix runs the extensionless
-    `<HookName>` only and it must be executable; anything else is ignored,
-    never converted. Timeout 30 s; a `contextModification` over 50,000 chars
-    is capped; a non-zero exit without JSON does not block
-    (`raw-copilot-cline.md:25`).
-
-    | Cline script                                                                  | Muse event       | Notes                                                                                                                                                     |
-    | ----------------------------------------------------------------------------- | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-    | TaskStart                                                                     | SessionStart     | `cancel` → blocked; `contextModification` → context (see #13554, `raw-copilot-cline.md:27`: upstream may drop it for non-cancelling hooks; ours keeps it) |
-    | TaskResume                                                                    | SessionStart     | As TaskStart (a resumed task starts the session)                                                                                                          |
-    | TaskCancel                                                                    | SessionEnd       | Observation; `cancel` has nothing left to block                                                                                                           |
-    | TaskComplete                                                                  | Stop             | `cancel` → blocked with the reason (the turn continues); context kept                                                                                     |
-    | PreToolUse                                                                    | PreToolUse       | JSON `cancel` → blocked; a non-zero exit without JSON does not block (`raw-copilot-cline.md:25`)                                                          |
-    | PostToolUse                                                                   | PostToolUse      | Observation; context kept                                                                                                                                 |
-    | UserPromptSubmit                                                              | UserPromptSubmit | As TaskStart                                                                                                                                              |
-    | PreCompact                                                                    | PreCompact       | `cancel` → blocked (the optional compaction stops; the hard-limit compaction still runs)                                                                  |
-    | Notification (in `VALID_HOOK_TYPES`, `raw-copilot-cline.md:24`, undocumented) | Notification     | Observation; context kept                                                                                                                                 |
-  10. **Lane W.**
-      - The Hooks picker lists both files per scope and says which backend
-        runs each.
-      - The MessageDisplay marker and the original.
-      - Then the docs, the certification and the full gate.
-
-- **Acceptance.**
-  1. **Interrupt and SessionFork.** One `.muse/hooks.json` with Interrupt
-     and SessionFork behaves the same on both backends:
-     - Interrupt fires on Stop during a turn or a compaction, on a
-       UserPromptSubmit block, and on a close with a turn running. It never
-       fires on an idle close.
-     - A sync Interrupt is refused.
-     - SessionFork is accepted only as sync, and runs nothing, as on Muse
-       Code 1.4.2.
-  2. **The correction.** The PostToolUseFailure correction re-runs the same
-     tool once per chain step, through the full path. A correction to
-     another tool, to a path outside the workspace, or past the depth bound
-     is refused.
-  3. **Extension events.** Each extension event fires once at its
-     operation, with its documented fields, and never when the operation did
-     not happen. Blocking events refuse with a visible reason; observation
-     events cannot block.
-  4. **The two files.** A Muse Code name in spark-hooks.json is refused with
-     a warning. An extension name in `.muse/hooks.json` is skipped with Muse
-     Code's warning.
-  5. **Import.** Each source imports per the research's importer table, as
-     amended by D70. Every refusal is listed, and nothing is written until
-     the user saves.
-  6. **Guards.** For each format, a PreToolUse-type guard that denies,
-     returns an invalid answer or crashes blocks exactly when its source
-     agent would.
-  7. **Protected folders.** Writes to other agents' configuration folders
-     ask in every mode except Bypass. This ships early, in
-     `fix/protect-agent-folders`.
-  8. **The Hooks picker** lists both files for each scope, and the backend
-     that runs each.
-  9. **The kept shell directory.**
-     - It survives between shell calls and is shown in the tool row.
-     - It resets to the root, with a note to the model, when it would leave
-       the workspace or follow a link out of it.
-     - CwdChanged fires once per change.
-     - `then_run` and `run_checks` run at the root.
-  10. **Elicitation.**
-      - A server's elicitation shows as a form.
-      - Accept, decline and cancel reach the server, and an answer outside
-        the requested schema is refused.
-      - A project hook can only decline or cancel; a user hook can answer.
-      - ElicitationResult never gives a project hook what the user typed.
-  11. **Handler types.**
-      - `http` reaches only allowlisted hosts over HTTPS, follows no
-        redirect, and is refused in project files.
-      - `mcp_tool` goes through the tool's own approval.
-      - `prompt` and `agent` are refused while their paid feature is off.
-        When it is on, they ask in the paid-use popup, are tallied on their
-        own line and stop at the budget. On Muse Code they run in a side
-        session.
-      - None of them widens.
-  12. **Plugins.**
-      - Amp's and OpenCode's plugins run in the plugin child, never in the
-        extension host, under the hook limits.
-      - A shim call they are not offered fails that hook.
-      - Cline's scripts run through the `cline` adapter.
-  13. **The ten new operations.**
-      - Setup, DirectoryAdded and Manual fire only at their operations.
-      - TeammateIdle keeps an attempt working within its bound.
-      - MessageDisplay's marker cannot be removed, and the history, copy and
-        export keep the original.
-      - BeforeToolSelection can only narrow: a call to a removed tool is
-        refused.
-      - AfterAgentThought sends bounded, scrubbed text.
-  14. **The SoL-Pi rules hold** (D70):
-      - a. With hooks active, request N+1 begins with request N's whole
-        bytes, and the `prompt_cache_key` does not change.
-      - b. A packed output after a hook's rewrite recalls exactly the bytes
-        the model saw, and a hook's stdin holds only the bounded preview.
-      - c. `prompt` and `agent` handlers never bypass the paid gate or the
-        hard budget, and are tallied apart from the reducer.
-      - d. An imported shell guard blocks a `then_run` command.
-      - e. M74's compaction cases, once M74's automatic compaction lands.
-      - f. The M75 evaluation records the hook set or runs with hooks off,
-        and the ledger keeps "added by hooks" separate.
-      - g. With hooks off, the request bytes and tool list equal the
-        pre-M91 fixture.
-  15. **Cursor's Tab hooks.** They import and are listed as waiting for
-      inline completions, until M94's lane K gives them their operation
-      (§3, resolved 2026-10-04).
-- **Tests.** Every one must be able to fail, with a red drill recorded in
-  `m91.md`.
-  - Interrupt fires on cancel, on a UserPromptSubmit block and on a close
-    with a turn running, and not on an idle close. Drill: fire it from an
-    idle dispose.
-  - A sync Interrupt is refused. Drill: remove the async check.
-  - An async SessionFork is refused, and a sync one runs nothing. Drill:
-    remove the sync check.
-  - A correction to another tool is refused. Drill: remove the same-tool
-    check.
-  - The correction depth bound holds. Drill: raise it.
-  - One test per extension event, on fake I/O.
-  - A Muse Code name in spark-hooks.json is refused. Drill: remove the
-    check; the hook runs twice.
-  - The FileChanged debounce and per-minute cap hold. Drill: remove the
-    debounce.
-  - FileChanged never queues a turn.
-  - An untrusted workspace, or the opt-in off, loads nothing.
-  - Format adapters:
-    - recorded stdin and stdout pairs;
-    - the fail-closed cases (drill: make Cursor's invalid JSON fail open);
-    - a foreign `allow` still shows the card.
-  - Importer:
-    - each mapping row and each refusal reason;
-    - TOML `[hooks]`; Gemini ms → s; Copilot camelCase and PascalCase;
-      Windsurf powershell; Kiro v1;
-    - the preview carries no command text.
-  - Shell directory:
-    - it is kept;
-    - it resets outside the workspace (drill: drop the confinement);
-    - CwdChanged fires once per change;
-    - `then_run` runs at the root after a `cd`.
-  - Elicitation:
-    - an answer outside the schema is refused (drill: skip the
-      validation);
-    - a project hook's answer is refused;
-    - ElicitationResult's project payload has no values.
-  - Handlers:
-    - `http` off-list host, plain HTTP and redirect refused (drill: allow
-      redirects);
-    - `prompt` refused with the paid feature off (drill: skip the gate).
-  - Plugins: a plugin's shell or client call fails its hook, and the
-    plugin's process is not the extension host's.
-  - The ten new operations, one test each. BeforeToolSelection's drill:
-    filter the declared list instead, and SoL-Pi test (a) fails.
-  - SoL-Pi tests:
-    - (a) the byte-prefix comparison across a turn with SessionStart,
-      UserPromptSubmit and PostToolUse context and a BeforeToolSelection
-      narrowing (drill: put the context into the instructions);
-    - (b) a pack after a hook rewrite (drill: archive the pre-hook output);
-    - (c) the paid gate and the separate tally;
-    - (d) a `then_run` command blocked by an imported Cursor
-      beforeShellExecution guard (drill: skip the adapter for `then_run`);
-    - (f) the evaluation's hook record and the ledger line;
-    - (g) the golden request comparison against a fixture recorded on main
-      before M91 (drill: change one byte of the tool list with hooks off).
-  - Protected paths: one test per folder. Drill: remove a segment.
-  - One live check on the contributor model, in an empty workspace. State
-    the expected number of model calls first, and count them from the trace
-    afterwards.
-    - A Codex PreToolUse deny guard and a Cursor one each stop one bash
-      call.
-    - On Muse Code, one turn with a tool call captures PostToolBatch.
-- **Gates.**
-  - The full quality gate.
-  - The Model API bundle within its D6 budget: the adapters and the plugin
-    host load lazily if needed, and X moves to M91b if they cannot fit.
-  - check-l10n.
-  - host-API.
-- **Security.**
-  - **Trust** as in M51: a trusted workspace, the `museSpark.modelApiHooks`
-    opt-in, a per-session snapshot, and nothing in Restricted Mode.
-  - **Environment and limits** as in M51:
-    - an allowlisted environment (`HOOK_FORBIDDEN_ENV_NAMES`);
-    - 256 KiB stdin, and 16 KiB stdout and stderr;
-    - a 600 s timeout cap;
-    - four running commands at most;
-    - cancel kills the process tree;
-    - a closed output schema per event.
-
-    The plugin child, `http` and `mcp_tool` take the same caps.
-
-  - **Payload privacy** as in M51 and M54: bounded previews, and no media
-    bytes or credentials.
-    - FileChanged, InstructionsLoaded, CwdChanged and DirectoryAdded send a
-      workspace-relative path and a reason, never content.
-    - PreModelSwitch sends model ids only.
-    - TaskCreated sends the subject and description, bounded.
-    - ElicitationResult sends values to user hooks only.
-  - **No new power.** Adapters keep each source's fail-closed rules and none
-    of its grants.
-    - `http` is user scope only, HTTPS to allowlisted hosts.
-    - `prompt` and `agent` are paid uses under D30 and D48.
-    - MessageDisplay cannot touch a card, a tool row or a notice.
-- **Certification checklist.**
-  - [x] Step 1 captures recorded (2026-10-04, 0 model calls).
-  - [x] Lane 0's keys in all 14 tables, and its constants (2026-10-04,
-        `check-l10n` 0 problems).
-  - [ ] Acceptance 1–14, each with its test and drill; 14e waits on Q-M74.
-  - [ ] SessionFork's veto: waits on meta-models/muse-code-sdk#84 (Meta-blocked).
-  - [x] Acceptance 15: the owner's answer (2026-10-04: M94 builds Tab
-        completions; the hooks wait for its lane K).
-  - [ ] Live check and its call count.
-  - [ ] Docs: README, PRIVACY, CHANGELOG, AGENTS.md, CONTRIBUTING, PLAN,
-        m91.md.
 
 ### M91b — Amp and OpenCode plugin dispatch (D70)
 
@@ -33216,25 +32450,7 @@ Final evidence is recorded in `docs/certification/macslow.md`.
 
 **Status 2026-10-07: released.** Shipped in 0.16.0 (§10).
 
-Implementation evidence: Model API children previously could not write their own
-task list. Offer child-local `todo_write` (never forwarded to the parent list)
-as a structured unfinished-item declaration; absent a declaration, normal ends
-remain unverified. Parent conversation terminal behavior stays unchanged.
-Native ended-child Continue refuses until a capture proves preserved-session
-recovery; interrupted Resume remains the captured control.
-
-- [x] Record backend evidence and recovery limits before implementation.
-- [x] Portable structured outcome/activity mapping and bounded receipt evidence.
-- [x] Live Agent map, workflow and background task activity/outcomes; lazy receipts.
-- [x] Owner-confirmed Continue and Retry with honest unsupported refusals,
-      preserved original objective/session/edits and numbered attempt history.
-- [x] ACP /agents inspection, receipt and recovery parity for all editors.
-- [x] Fourteen translations, Help & Reference/feature catalog, README screenshots.
-- [x] Owning unit tests at default timeouts, intentional mapping failure with
-      byte-exact restoration, five typechecks, lint, prettier, plain knip,
-      duplication, localization/reference/host gates and unchanged production caps.
-- [x] Four-theme zero-violation harness scenes, CHANGELOG and certification record
-      in docs/certification/agent-outcomes.md with completed/blocked evidence.
+- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 ### FIXAGENTOUT — Independent M119 review repairs (2026-10-07)
 
@@ -34413,46 +33629,7 @@ in their original order. The records that remain in this section are later
 ones, records an open branch touches with their neighbours, and records of
 milestones that have nothing in a release yet.
 
-**FIX0160X scoped release repair (2026-10-07).** The shared lane brief
-prohibits aggregate quality and reserves it for the lead. This lane runs
-every named owning file at repository deadlines and all prescribed individual
-compiler/static/build/package checks. No threshold, deadline, assertion or
-package refusal is waived. Hosted cross-platform qualification remains with
-the joined release; receipts are in `docs/certification/fix0160x.md`.
-
-**DEP138 rig verification.** The lane's rig note limits each test invocation
-to three files. Certify every configured unit/process-e2e file in batches of
-at most three, with `CI=true`, V8 coverage and repository deadlines. Partial
-blob reports use the repository's existing shard handling; merge every report
-with the original global thresholds enabled. Run every other locally runnable
-quality gate separately in the same fresh `npm ci` clone. The monolithic
-`npm run quality` is deferred only because its test command exceeds the rig's
-explicit file cap; no gate, assertion, file, threshold or timeout is removed.
-The certification record must name every actual exit and any unavailable
-platform/hosted checks rather than claim an aggregate-command pass.
-Amended 2026-10-07 (lead): the rig's batched coverage run was not completed.
-Hosted CI on the pull request is the full gate for coverage and the
-accessibility harness (merged coverage on three OSes with the original
-thresholds and deadlines, accessibility on Ubuntu, static gates with lint at
-the unchanged 6144 MiB heap on three OSes; pull requests run the full tier
-while `CI_MERGE_QUEUE` is not `on`). None of the bumped packages takes part in
-the harness, and main's PR #139, merged into this branch, fixed harness
-readiness.
-The rig's failed first full accessibility run stays in the record.
-
-**MACSLOW bounded certification (2026-10-07, macmini).** The lane's shared
-rules prohibit aggregate quality and delegate it to the lead. Run complete
-owned files directly, at default timeouts, three times after the explicitly
-authorized clean; run each requested compiler/static/build gate separately.
-The unit gate retains all 1,864 configured roots and strict options across five
-sequential programs, sharing ambient declarations and matcher setup. Measured
-peak RSS falls from 2,767,564,800 to 1,688,055,808 bytes (39%); no heap override,
-timeout, retry, skip or other gate changes. Initial compiler probes exposed
-ambient-type resolution and cross-file matcher/declaration scope; preserve
-both through repository-local temporary configs and the shared support roots.
-Final evidence is recorded in `docs/certification/macslow.md`.
-
-**INT0170B final Linux certification (2026-10-08).** Source `2617dc15988655edb43f289db90d8e3d99f1ff68` completes 80 serial command receipts, including every requested Linux workflow phase. Static, accessibility, SAST and both secret scans pass. Coverage thresholds pass at 92.38/87.43/93.39/93.21; 15 failed tests and two hook-failed files remain, 80 reported skips/unrun, and all six visual jobs fail missing reviewed component coverage. Both actual VS Code versions pass 39 cases and fail only command registration; schedule defaults now pass. The three usage cases and all 49 plan-reader cases pass in full coverage at unchanged deadlines. Required checks remain red. The independently executed ACP registry command, unreachable after the package shell's prior assertion failure, passes against the actual installed final package; it does not change the failed package job.
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
 **FIXM112A (2026-10-06, RVM112A).** Repair all six ACP findings in lane A:
 Stop dispatches cancellation without waiting on question storage; late forms
@@ -34466,98 +33643,11 @@ drill in `docs/certification/m112-a.md`. The rig/shared rules delegate full
 quality and Q/U integration to the lead; this lane runs its focused suites
 and required static/build checks without merging, pushing or paid calls.
 
-**DIET1 bounded rig certification (2026-10-06).** The user-provided lane brief
-and shared rules prohibit aggregate quality and public network, merges and
-pushes. The local commit uses scoped typecheck, lint/format, Knip, duplication,
-localization, reference, host API, webview suites, production/split/size,
-accessibility matrix, real-browser fake-host smoke and VSIX packaging. Local
-packaging uses the existing named badge-network skip; CI rejects it. The lead
-must run integrated `npm run quality` and hosted checks before integration.
-See `docs/certification/diet1.md` for measurements and byte-exact red drills.
-The initial second accessibility scan reported zero violations/undecided rules
-across 628 pages but exited 1 when light/usage-install missed the unchanged
-10-second readiness deadline. FIXDIET1's final complete matrix supersedes that
-outstanding receipt: 628 pages (157 scenarios × four themes), exit 0, zero
-violations, zero undecided rules, zero exemptions and zero missing results.
-No timeout, exemption, worker policy or accessibility rule changed. The lead
-still owns integrated aggregate quality and actual host/release certification.
-**RVM116P lane certification (2026-10-06).** The rig brief prohibits full
-quality and all merges/pushes/rebases in P; the lead runs integrated quality.
-P runs default-timeout owning tests, typecheck, scoped lint/format, deadcode,
-duplication, localization, host API and production budgets. The generated host API
-inventory was refreshed for the new Node imports; editor bindings remain an
-integration handoff. REDM116P removes the
-shell-quote imports and the dependency-declaration handoff: the small advisory
-warning needs no shell interpreter. The help catalog and generated reference
-are checked by `check:reference`, included in `quality:gates`. Results are in `m116-p.md`.
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
-**REDM116P outcome redesign (2026-10-06).** The rig brief again prohibits
-aggregate quality, pushes and unlisted merges. The lane runs all owning tests
-at default timeout, scoped lint/format, all five typecheck projects, deadcode,
-duplication, localization, host API, the new help-reference check and production
-budgets directly on macmini. It removes the shell-quote dependency handoff,
-refreshes the generated Node import inventory, and records deliberate
-receipt/generation/merge and round-2 mutation failures with byte-exact restores
-in `docs/certification/m116-p.md`. Full joined-tree quality and trusted
-editor/planner bindings remain the lead/I/U/W integration work; no gate is
-weakened and no round-2 finding is accepted as a residual.
-**M116-U repair certification (RVM116U/RVM116U2).** The rig brief reserves the full
-quality run for the lead and requires scoped local checks with default test
-timeouts. U does not change the inherited failing bundle/knip registration
-gates: W must register the three lazy playbook entries and the two harness
-entrypoints before integration can go green. This is the existing named
-integration deferral, not a cap, ignore or rule change. Repair regressions,
-disk-mutated red drills and their byte-exact restores are recorded in
-`docs/certification/m116-u.md`.
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
-**FIXHELPREF4 bounded certification (2026-10-06).** The explicit rig brief
-prohibits aggregate quality and reserves release integration for the lead.
-Run all owning reference/budget tests, exact-restoration red drills and the
-existing scoped static/build checks directly on Kubuntu before the local
-hook-on commit. The original predicates, schemas and bundle caps remain gates;
-no threshold, ignore, rule level, timeout or dependency is relaxed.
-
-**FIXHELPREF bounded truth certification (2026-10-05).** Kubuntu runs the
-owning reference/ACP regressions, source and guard failure drills with exact
-SHA-256 restoration, five-project typecheck and the existing static/build
-gates. The lane brief forbids aggregate quality, merge, push and rebase;
-full integrated quality and the second truth audit remain with the lead.
-No threshold or size cap changes. Evidence: `docs/certification/help-reference.md`.
-
-**HELPREF bounded rig certification.** The explicit rig/shared rules prohibit
-aggregate `npm run quality`, merge, rebase and push in this lane. Hook-on local
-commits use scoped owning tests, deliberate red drills and available static/build
-checks. The lead retains the integrated quality/coverage/release gate. No gate
-or budget is weakened; the exact evidence is recorded in
-`docs/certification/help-reference.md`.
-**REDM106H bounded rig certification (2026-10-06).** The explicit rig brief
-prohibits aggregate quality, full-suite runs and branch integration here. Run
-touched/owned whole files with default timeouts, scoped lint/format, all five
-typechecks, deadcode, duplication, localization, host API, cycles and production
-build. The lead retains integrated quality and the multi-OS matrix. No gate is
-weakened. The v2 headless money contract remains private/unsupported pending
-M80’s hosted/live receipts; this lane uses fake transports only.
-**C-M106-1 bounded capture certification (2026-10-10).** The explicit rig
-brief forbids aggregate quality, full-suite runs and branch integration.
-Run whole owning files at repository timeouts, all five typechecks and the
-existing scoped lint, format, deadcode, duplication, localization, reference,
-host API, roadmap and production build gates. The lead retains integrated
-quality, Windows/Linux execution and live Meta/provider receipts because no
-key is supplied here. The CLI probes use ephemeral empty workspaces and no
-model turn; only the explicitly scoped synthetic note is uploaded, with
-both disclosures off. No guard, hook, timeout, cap or dependency is changed.
-Evidence: `docs/certification/m106-completion-captures.md`.
-**C-M106-2 R10 bounded dependent certification (2026-10-11).** The rig
-brief explicitly adds every dependent suite for the whole branch's source
-diff against 82d50d5e4, including all shared host/runtime and English-table
-consumers. Discover the full graph with Vitest's related selector, then run
-`npx vitest related --run` in complete three-file batches preserving the
-repository's configuration and deadlines. Keep Vitest's public runner open
-between batches if repeated cold setup threatens the time box; use the same
-related selector, three-file bound, ordinary project setup and deadlines. Aggregate quality, independent
-review and the multi-OS release matrix remain lead-owned. No gate or cap is
-weakened; record every outcome and compare any red with the clean base.
-Evidence: `docs/certification/m106-capability-binding.md`.
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
 **R10 time-box deferral (2026-10-11).** The whole-branch related graph has
 1,135 files. The owner's 75-minute rig limit permits 875 complete files here;
@@ -34606,265 +33696,13 @@ and live certification remain with the lead. No gate, timeout, hook, cap or
 paid-call fence is weakened. Final scoped gate results are recorded in
 `docs/certification/m106-r.md`.
 
-**FIXM105E3 gate scope (Kubuntu, 2026-10-07).** The rig brief/common rules
-forbid aggregate quality and full unit commands; run owning files in batches of
-at most three, followed by the five typecheck projects, lint, changed-file
-formatting, plain knip, duplication, unchanged-cap production build, reference
-and localization. Run final verification from a fresh clone of the committed
-repair with npm ci and CI=true. Hooks remain active; no external network except
-npm ci.
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
-**M105 W final gate scope (linuxlt, 2026-10-07).** The rig brief overrides
-bounded lane test scope with all configured files in batches of at most three,
-repository timeouts and three workers. Shared rules still forbid the aggregate
-quality command and external network. Run requested static/build/test/browser
-gates separately and serially. Local VSIX/ACP packaging uses the badge gate's
-existing named network deferral, only in those commands (never in hooks):
-`BADGE_CHECK_SKIP_NETWORK='M105W lane forbids external network; badge fetch
-remains lead-owned' npm run package` (and `npm run package:acp`). Validate
-staged text/version/l10n/listing and size; do not claim HTTP badge verification.
-Fresh audit, Semgrep auto-registry, downloaded VS Code integration, native
-OS, universal macOS-artifact packaging and hosted coverage remain lead-owned.
-Browser gates are attempted unchanged, with exact failures recorded if this
-rig cannot launch Chrome. No cap, threshold, hook or test is weakened.
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
-**M105-M1 second follow-up gate scope (RVM105M12, 2026-10-06).** The
-same rig override applies to these two P2 corrections: direct focused suites
-at default timeouts, no full quality/full unit run or branch merge. The eight
-resource/structure red drills restore source byte-exact. W's existing host
-record, browser-size and split-classification failures remain enforced and
-are reported in the lane certification; the lead owns the integrated gates.
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
-**M105-E1 bounded-lane gate scope (2026-10-06).** The rig brief forbids a
-full quality/full unit run and reserves manifest, generated reference/host
-records and bundle registration for W. Run owning files at the repository's
-default timeout, scoped lint/format, typecheck, dead-code, duplication,
-localization and production build directly on linuxlt. Keep inherited size
-and split gates enforced. Hook-on commits remain unmerged lane work; full
-quality is required on the integrated tree. Record receipts and handoffs in
-`docs/certification/m105-e1-vs-code-(a).md`. E1 also leaves a measured
-59-byte browser-startup excess (900.1/900 KiB) for W's lazy build integration
-after two failed local reductions, and the new preview's generated host-API
-inventory update. These are failures, not gate exemptions; the integrated
-quality gate must pass before proposing a product commit.
-
-**M105-E2 gate scope (2026-10-06).** The rig brief forbids aggregate quality
-and full-unit runs, merges and browser runs on this Chrome-free MacBook.
-E2 runs complete focused files with the repository default timeout, plus
-typecheck, scoped lint/format, localization, deadcode, duplication, host API
-and production build checks. W retains the enforced inherited bundle/split
-and generated importer-record failures and the full integrated gate. No cap,
-ignore, timeout or rule is weakened. Receipts and required bindings are in
-[E2 certification](<docs/certification/m105-e2-acp,-headless-and-`read_file`-(a).md>).
-The broader IO batch on Node 26 additionally exposed the unchanged reservation
-handle left open by the existing retargeted-fill test. Lead/IO-write owner
-must close that path and rerun the complete file; E2 does not edit reservation
-regions outside its media-read ownership. Production compilation succeeds:
-ACP 844.8/850 KiB, Model API 454.9/475 KiB; deferred browser stays 51.1/50 KiB.
-
-**M105-E3 gate scope (2026-10-06).** The rig brief forbids full quality
-and full unit runs, and reserves integration for the lead. Run focused tests
-with repository-default timeouts and all named lane checks directly on linuxlt.
-Keep inherited W-owned bundle/split/host-record failures enforced; add no cap,
-ignore or weakened rule. New lazy browser/runtime entries await W binding.
-Scoped E3 and existing regressions pass (113 + 143 tests); 63 guards have
-named red failures and byte-exact restoration. Production compilation passes,
-but the deferred-browser gate remains 51.1/50 KiB, `files.ts` and
-`codecs/responses.ts` still lack split classifications, and the generated host
-importer/style inventory is stale. E3's standalone split media graph measures
-194.5 KiB including shared dependencies; W must bind its own companion-page
-budget and include R3, without raising a cap. Full quality and installed-editor,
-Windows private-ACL and real browser-capture receipts remain lead handoffs.
-Receipts and doc/reference handoffs:
-`docs/certification/m105-e3-companion,-native-plugins,-muse-code-(a,-d).md`.
-
-**M105-M2 follow-up gate scope (RVM105M2, 2026-10-06).** The rig brief
-reserves full quality/full-unit and integrated cross-platform certification
-for the lead. Scoped regression files, typecheck, lint/format, dead-code,
-duplication, cycles, localization and production compilation run directly on
-Kubuntu. The enforced W handoffs remain red: deferred browser JS 51.1/50 KiB;
-`files.ts` and `codecs/responses.ts` missing from the backend split lists; and
-the generated host importer inventory (buffer 39→45, crypto 46→49, plus the
-inherited child_process/fs/fs-promises/os/path drift). W must repair them
-before integration. No cap, ignore, timeout or rule is weakened. The Model
-API bundle is 453.9/475 KiB. All three review findings are fixed; §9 records
-the named integration handoffs and why the unbound ports remain safe.
-Receipts: `docs/certification/m105-m2-wire,-gate-and-replay-(a).md`.
-
-**M105-M1 follow-up gate scope (RVM105M1, 2026-10-06).** The rig brief
-requires direct focused suites and forbids full quality/full unit runs and
-merging another branch. Full quality and cross-platform gates remain the
-lead's integrated-tree responsibility. Keep the existing W-owned host-record,
-deferred-browser-size and `files.ts` split blockers enforced; this lane fixes
-the three media-core findings with regressions and red drills, without
-changing a gate or cap. Results and exact commands are in
-`docs/certification/m105-m1-media-core-(a).md`.
-
-**M105-F gate deferral (RVM105F corrections, 2026-10-05).** The lane brief
-reserves full quality and integration for the lead. Required local checks are
-recorded in `docs/certification/m105-f.md`; the unchanged lane W blockers
-remain red: deferred browser JS 51.1/50 KiB, Files backend classification in
-the bundle-split check, and the generated Node crypto importer count 46 → 48.
-No gate, ignore or budget is changed. W must close these before integration;
-§9 records the named residuals and why this unmerged lane remains safe.
-
-**FIXM105C rig lane (2026-10-06).** The fix brief/common rules reserve the
-full quality/coverage/accessibility run for the lead; this lane runs all
-five typecheck projects, changed-file lint/format checks, owned whole-file
-tests at default timeouts, localization/host-API/deadcode/duplication and a
-production build. The pre-existing W-owned deferred-webview size and
-unlisted lazy chip split failures remain explicit integration deferrals;
-no cap, check, ignore or timeout is weakened. Exact money also introduces
-the shared USD helper used by M106H/M108T. The final production build reports
-903.1/900 KiB browser startup and 50.6/50 KiB deferred JS; the helper adds
-about 3.8 KiB to startup on this pre-diet base. W's existing diet and lazy
-surface registration are required before release. Final sizes, gate results and red
-drills are in `docs/certification/m105-c-cost-(b).md`.
-
-**FIXM105R1 gate ownership (2026-10-06).** The rig brief/common rules
-reserve full `npm run quality`, coverage and integration/package certification
-for the integrating lead and prohibit running that aggregate in this lane.
-R1 runs the five typecheck projects, changed-file lint/format, its entire
-owned unit file at the repository timeout, native permission-free suites,
-localization, deadcode, duplication, host API and the production build.
-The pre-existing generated host API record drift from R1's four Node imports
-remains W-owned; refresh it at integration, without weakening the gate.
-See `docs/certification/m105-r1-macos-recorder-(c).md` for exact receipts.
-
-**M105 R2 review-fix gate delegation (2026-10-06).** The lane brief and
-shared common rules prohibit aggregate `npm run quality` on this shared rig.
-Run the complete owned test files at the repository timeout, changed-file
-lint/format, typecheck, localization, deadcode, duplication, host API and
-production build directly on Win11. The lead owes full quality/coverage and
-the hosted matrix before integration; no gate or cap is weakened.
-The unchanged W-owned host API record still fails its previously recorded
-`node:path` importer count (84 → 85); portable-boundary checks pass. W must
-regenerate/review that record with the integrated recorder factory.
-
-**FIXM105R3 bounded repair certification (2026-10-06).** The rig brief and
-shared lane rules prohibit aggregate `npm run quality` and the full test
-suite. The repair runs all four owned test files with the default timeout,
-the 11 byte-exact restored red drills, all-project typecheck, changed-file
-lint/format, dead-code, duplication, localization and production build here.
-The lead retains integrated full quality/coverage/native/editor gates.
-No gate, threshold, test filter, timeout or hook is changed.
-
-**FIXM105R3B final repair certification (2026-10-06).** The same bounded
-gate scope applies. The remaining encoder-exit P2 has regressions for
-spontaneous, Stop and duration-limit exits, including failed automatic Stop,
-and two byte-exact restored red drills. Existing genuine cancellation
-assertions now check the exact reason. The existing failure message is used
-at runtime and retains its translations in all 14 tables. No review finding
-is deferred; the two named integration/gate residuals below remain.
-
-**M105-R3-host-api-count deferral.** `npm run check:host-api` exits 1 on
-the same pre-existing generated count as the original R3 receipt:
-`node:path` importers 84 → 85. The repair adds no imports or host API calls.
-W owns `docs/ide-compatibility/host-api.md`, outside the repair's scope, and
-must regenerate/review that row on the integrated source. The check is not
-weakened or claimed green; see §9 and the R3 certification.
-
-**FIXM106S scoped review certification (2026-10-06).** The rig repair
-brief requires all three RVM106S P2 findings fixed, no residuals, default
-test timeouts, and three-file/three-worker batches. The shared rules
-explicitly prohibit aggregate `npm run quality`; the lead retains that
-integrated gate. Local scoped regressions, byte-exact red drills, static
-checks and a production build precede hook-on commits. No timeout,
-threshold, rule, ignore, cap or hook is changed. Evidence is recorded in
-`docs/certification/m106-s.md`.
-
-**CIFIX14C bounded ACP packaging certification (2026-10-05).** The installed
-tarball passes the unchanged strict English fallback check and 382 distinct
-scoped tests. Typecheck, changed-file lint/format, localization (source and staged),
-deadcode, duplication, host API and production build gates pass. Shared rules
-prohibit aggregate `npm run quality` and replacing the existing dependency tree;
-fresh tarball installs use an offline scratch prefix. Kubuntu runs Node 24.18.0,
-not CI's requested Node 22, and lacks CI's downloaded compiled macOS helper.
-The exact universal VSIX listing therefore fails only that helper entry; hosted
-artifact operations and full integrated quality remain with the lead. No check
-is weakened. Receipts and deliberate failures are in
-`docs/certification/cifix14-acp-usage.md`.
-
-**M106T-MODELAPI-BUDGET (2026-10-05, Kubuntu; lane W binding).** The
-required merge baseline `33ef31aa2`, before T's changes, builds
-`dist/modelApi.js` at 486,485 bytes, 85 bytes above the unchanged 475 KiB
-(486,400-byte) cap. T's final bundle is 486,935 bytes: 450 bytes added and 535 bytes over the
-cap. The failing gate is recorded in `docs/certification/m106-t.md`.
-Baseline comparison restored all four owned source files byte-exact. No
-threshold is raised and no full build/quality pass is claimed. W owns the
-bundle layout and must reduce/split it before integration is certified.
-The base also lacks the feature catalog/reference generator and the
-`check:reference` script; **M106T-HELP-REFERENCE** records the integration
-entry instead of claiming a nonexistent gate passed.
-
-**FIXM108U bounded-lane certification (2026-10-06).** The explicit rig brief
-and shared rules prohibit aggregate quality/full unit runs, merges and
-network calls. Run complete owning files with repository timeouts and at
-most three workers/files, scoped static/build checks and hook-on commits.
-The lead retains integrated quality, coverage and installed editor/live
-certification. No gate is weakened; receipts are in
-`docs/certification/m108-u-panel-and-vs-code.md`.
-The FIXM108U2 continuation's final scoped tests pass 690/690 (U 256, K 434),
-including 32 browser axe scenes; direct static, localization and production
-build gates pass. `check:host-api` still requires
-W's generated record update: `node:crypto` imports 46 → 48 and Accounts CSS
-in the theme-source list. The API/theme totals are unchanged. Keep that
-named integration handoff rather than editing W's owned file in this lane.
-
-**FIXM108H bounded-lane certification (2026-10-06).** The explicit rig
-brief and shared lane rules prohibit the full quality run and merges here;
-W/the lead runs the full gate before integration. H runs the named complete
-owned test files with repository-default timeouts, typecheck, changed-file
-lint/format, deadcode, duplication, l10n, host-API and build checks directly
-on Kubuntu. Per-finding regressions and deliberate mutations are recorded in
-`docs/certification/m108-h-runtime,-acp,-headless,-companion.md`.
-
-**M108-X bounded-lane certification.** The rig brief prohibits aggregate
-quality/full-unit runs, merges and network calls. Complete owning test files
-run directly on Kubuntu with repository timeouts and at most three files and
-workers. Scoped static/build checks and normal hooks certify local commits;
-W retains full integrated quality, coverage, installed editor and packaging
-checks. No threshold or gate is weakened.
-
-**FIXM108P / FIXM108P2 bounded-lane certification (2026-10-06).** The rig brief and
-shared rules prohibit aggregate quality/full unit runs, merges and network
-calls. Run complete owning test files with repository timeouts and at most
-three workers/files, scoped static/build checks and hook-on local commits.
-The lead retains integrated quality, coverage and installed editor/live gates;
-no gate is weakened. Receipts: `docs/certification/m108-p-pool-and-policy.md`.
-Existing `P-W-HOST-API-RECORD` deferral: the generated Node crypto import
-count is 46 rather than 47, from P's earlier confirmation digest; W owns
-regenerating that record and rerunning the host API gate during integration.
-FIXM108P2 adds no host API and leaves this generated file with its owner.
-
-**FIXM108T bounded-lane certification (2026-10-06).** The rig brief and
-shared rules prohibit full quality/full unit runs, merges and network calls.
-Run complete owning test files with the default timeout, at most three files
-and workers per run, plus scoped static/build gates and hook-on commits.
-The lead retains integrated quality, coverage and editor/live certification.
-No gate is weakened; receipts are in `docs/certification/m108-t-thresholds.md`.
-
-**FIXM108K bounded-lane certification.** The explicit rig brief and shared
-rules prohibit aggregate quality/full test runs, merges and network calls.
-Hook-on local commits use complete owning test files, mutation/restoration
-drills and scoped static/build checks. The lead retains integrated quality,
-coverage and editor/live certification; no gate is weakened.
-**FIXM109C2 review repair (2026-10-06, Mac mini).** The remaining RVM109C2
-P2 is fixed: exact-anchor backups repair damaged/unreadable destination
-documents without authenticating them, retaining owner-only diagnostic
-ciphertext before atomic replacement. Backup authentication, complete-state
-history admission, destination identity and single-advance pending recovery
-remain enforced. All five owned suites pass 71 tests, including the existing
-RFC/NIST KATs; focused coverage meets unchanged thresholds. Eight distinct
-red mutations fail their named regressions and restore the source byte-exact.
-All 79 prior drill receipts remain, with eight appended in the C record.
-Test-only fixture consolidation fixes two new duplication-gate findings;
-the zero-clone threshold stays unchanged. Records: `docs/certification/m109-c.md`
-and `m109-c-drills.json`. Aggregate quality stays lead-owned under the rig
-brief; the existing W-owned generated host-API count deferral is unchanged
-(crypto 46 → 50, fs 33 → 34, fs/promises 47 → 48, path 84 → 85). The mandatory
-native quarantine/diagnostic integration binding is named in §9. No review
-finding, gate threshold or file-security guard is deferred or weakened.
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
 **FIXM109C review repair (2026-10-05, Mac mini).** All five RVM109C findings
 are fixed: exact committed-state/hash-chain anchoring, explicitly confirmed
@@ -35055,47 +33893,7 @@ that file; lane 0 leaves it untouched and records the regeneration command
 in its certification. The full M109 checklist remains open until those
 lanes and captures pass.
 
-**CIFIX14C bounded ACP packaging certification (2026-10-05).** The installed
-tarball passes the unchanged strict English fallback check and 382 distinct
-scoped tests. Typecheck, changed-file lint/format, localization (source and staged),
-deadcode, duplication, host API and production build gates pass. Shared rules
-prohibit aggregate `npm run quality` and replacing the existing dependency tree;
-fresh tarball installs use an offline scratch prefix. Kubuntu runs Node 24.18.0,
-not CI's requested Node 22, and lacks CI's downloaded compiled macOS helper.
-The exact universal VSIX listing therefore fails only that helper entry; hosted
-artifact operations and full integrated quality remain with the lead. No check
-is weakened. Receipts and deliberate failures are in
-`docs/certification/cifix14-acp-usage.md`.
-
-**CIFIX14W2 short-path certification (2026-10-05).** The explicit rig brief
-requires complete directory-tracking and shell files with default CLI timeouts,
-three workers and a real 8.3 fixture. Shared lane rules prohibit aggregate
-`npm run quality`; focused regressions, static checks and the production build
-run locally with hooks on. The lead retains the integrated full quality gate.
-No threshold, timeout, retry, skip policy or gate is changed; evidence is in
-`docs/certification/cifix14-shortpath.md`.
-
-**FIXVSIX2 scoped certification (2026-10-05).** RVMVSIX2 P1 and P2 are
-fixed. All 78 owning unit tests and 49 native packaged-module tests pass,
-with declared-export, private-reader and absent-dist red drills restored
-byte-exact. Typecheck, scoped lint/format, Knip, duplication, localization,
-host API, cycles, production caps and both package commands exit 0.
-Universal VSIX is 2,033,170 bytes, with 219,630 bytes headroom; activation
-is byte-identical. The rig brief reserves aggregate quality/coverage and
-installed-editor/platform certification for the lead. No gate is weakened.
-Receipts: `docs/certification/vsix-diet-2.md`.
-
-**TRAIN14B Judge activation fixture stop (2026-10-05).** Full quality is
-explicitly authorized by this rig brief. Its aggregate unit run exposes a
-legacy Judge activation fixture that omits D78’s default callback. The field
-extraction fix resolves the undefined-variable error; a backend-availability
-fixture fix still leaves three subscription-default assertions failing.
-Common.md requires stopping after two different fixes to the same test, so
-this path is paused pending the requested explicit override for one targeted
-`isDefaultOn` fixture correction. No gate, test, timeout or paid policy is
-weakened. Until the unchanged full gate exits zero, this train is not ready
-for merge/release; all other authorized checks continue and their exact
-receipts are in `docs/certification/train-0.14.0.md`.
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
 Round-two cause fixes use a fixed Z.ai key pattern and localized plain-text
 OAuth callbacks instead of dynamic regex compilation/manual HTML escaping.
@@ -35451,34 +34249,7 @@ which also rechecks Together's leaked `final` word.
       failure is not supplied and has not reproduced in 200 original-file runs.
       Evidence: `docs/certification/deflake3.md`.
 
-**DEFLAKE3 test-only lane scope (2026-10-04).** The rig brief requires a
-complete Windows unit inventory in batches of at most three files and
-300 consecutive checkpoint-copy file passes. It explicitly requires full
-`npm run quality` only for a product change; this lane changes tests and
-documentation only. Shared static/build checks still apply. Aggregate
-coverage/full quality and hosted confirmation remain the lead's gates; no
-rule, timeout or coverage threshold is weakened. The exact original hosted
-failure is not supplied and has not reproduced in 200 original-file runs.
-Evidence: `docs/certification/deflake3.md`.
-
-**DEFLAKE2 bounded-lane result (2026-10-04).** Direct Win11 owning tests
-and the required static/build gates passed; two deliberate regressions
-failed and were restored byte-exact. The rig brief prohibits integration
-merges/pushes, and `common.md` forbids aggregate quality/full-unit runs in
-this shared lane. Full quality, aggregate coverage, accessibility and the
-hosted Windows recheck remain the lead's gates. No gate or deadline was
-weakened. Evidence: `docs/certification/mcp-job-flake.md`.
-**M94W size boundary (2026-10-05).** The Windows production build passes
-activation at 578.0/600 KiB and Tab at 62.4/75 KiB. W adds 3,378 bytes
-(3.299 KiB) against the integrated pre-W source control, within the brief's
-added-startup allowance. The whole Tab shim is 7.393 KiB, inherited from a
-4.431 KiB H shim: D73's stricter whole-shim 4 KiB target and acceptance 19
-are not certified. Reducing the whole shim needs the existing service/provider
-orchestration moved into the lazy entry while preserving loader retry,
-cleanup and startup status; that broader follow-up is deferred to the lead
-under W's bounded scope. The hard 600 KiB cap and every existing gate remain
-unchanged. The exact control and bundle measurements are in
-`docs/certification/m94.md`.
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
 - **Golden requests**: one per codec per scenario (first turn, tool loop
   with reasoning, image, packed output, compaction), checked-in bytes;
@@ -35712,23 +34483,7 @@ second wrapper, network install, global write or analyzer-pin change is
 attempted. Exact final gate receipts belong in docs/certification/m95-r3.md. No
 assertion, coverage threshold, ignore, deadline or rule is relaxed.
 
-**DEFLAKE5 unit/coverage acceptance (2026-10-05, kubuntu).** On committed
-code `8d31e73a`, three consecutive complete three-worker V8 runs return 0:
-404 files and 8,093 tests pass each, with four files / 57 existing skips.
-A complete ten-worker run plus four owned CPU-load processes also returns
-0 on that exact code. Every coverage threshold passes: 93.75% statements,
-89.01% branches, 94.70% functions and 93.89% lines in all four final runs.
-Typecheck (five projects), full lint, format, plain knip and duplication
-return 0. The scoped rig brief authorizes this unit-only acceptance instead
-of a whole quality wrapper. It closes the unit/coverage deferral below;
-the historical failed wrapper and unrelated release/helper prerequisites
-remain recorded. Two actual causes are fixed: shared build artifacts and
-repeated expensive checks of identical restored bytes. Red drills reproduce
-all five historical files' defects and the new shared-metafile regression,
-with byte-exact restoration. See `docs/certification/deflake5.md` for commands,
-errors, hashes, worker/load settings and all successful and failed receipts.
-
-Never drill against a user's repository.
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
 - **Phase 2 sections.** Planned, not dropped. Each starts after its
   dependency and the evidence it names.
@@ -35810,99 +34565,9 @@ Never drill against a user's repository.
 
 ### QPIN lane verification (2026-10-07)
 
-The rig brief scopes this repair to fresh-clone owning suites three times at
-default deadlines, five typechecks, lint, formatting, plain knip, duplication,
-unchanged build caps, reference and localization, plus question screenshots
-and four-theme accessibility. All passed; receipts are in
-`docs/certification/question-pinned.md`. Full `npm run quality`, unrelated
-repository coverage and native/installed-editor/live certification remain
-with release integration. This is a scoped run, not a gate relaxation: no
-rule, ignore, threshold, budget or deadline changed.
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
-**CI0150M round 3 aggregate status (2026-10-07).** The attempted unmodified
-`npm run quality` passes static gates, then fails whole-repository tests in
-unowned clean-artifact/localization suites and load-sensitive cases. The common
-OS brief assigns cross-platform failures to the Linux lane. Certify this lane
-with every exact macOS workflow command in fresh committed clones; record all
-remaining failures rather than weaken gates or edit another lane's suites.
-Aggregate release quality remains deferred to joined integration. Standalone
-secret scanning passes; the inherited SAST wrapper supplies duplicate `--jobs`
-options and is a shared failure, also deferred without changing its invocation.
-See this lane's round 3 section in `docs/certification/train-0.15.0.md`.
-
-**CI0150W round 3 certification.** Whole-shard and whole-job reproductions
-are explicitly required by `CI0150-os-common.md`; they run with unchanged
-default deadlines in fresh clones of local hooked commits. Targeted runs
-retain the three-file cap. Early scoped commits can precede aggregate
-`npm run quality` while the cross-platform failures assigned to the Linux
-lane remain; every failure and final Windows job result is recorded without
-weakening gates, assertions or deadlines. A complete quality claim requires
-the actual aggregate to exit zero.
-
-The final implementation run at `2548f459` passes the static CI job and all
-scoped test files in four complete shards. Aggregate quality stays deferred:
-clean/package fixtures remain red, integration has an external release-lookup
-timeout, and dedicated browser/credential-store checks have the exact residuals
-listed in §3 and the train record. Original coverage thresholds are exceeded;
-the merge command still fails because it replays failed package suite setup.
-No gate, refusal, assertion, timeout, retry or skip is weakened to claim green.
-
-**CI0150L rolling verification.** The round-3 rig brief explicitly requires
-committing finished pieces after owning tests pass, then verifying committed
-work in fresh clones. Full quality and Linux CI jobs remain pending until that
-fresh-clone run and are not claimed green by an intermediate commit. Record
-any external hosted dependency that cannot run on this rig in the Linux round-3
-certification section; no threshold, ignore, timeout or assertion changes.
-
-**FIX0150R scoped certification.** The rig brief requires complete owning test
-files in batches of at most three, with three clean `CI=true` repetitions and
-individual static/build gates. Shared lane rules reserve aggregate
-`npm run quality` for the lead; its whole-repository coverage invocation exceeds
-this lane's test-file limit. Defer that aggregate to release integration without
-changing any threshold or gate. Receipts are in `docs/certification/fix0150r.md`.
-
-**FIX0150P scoped release-review verification (2026-10-07, linuxlt).**
-The rig/common briefs prohibit a full quality run in this lane. Full quality
-and cross-platform release certification remain with the lead; this lane
-runs the prescribed complete owning suites and scoped static/build gates
-without weakening thresholds, timeouts, isolation or hooks. Detailed red/base
-and restored-green receipts belong in `docs/certification/fix0150p.md`.
-
-**CI0150A scoped certification.** CI0150-common.md requires three clean
-repetitions of complete owning files and individual static gates; the rig note
-caps each test run at three files. Aggregate `npm run quality` includes an
-unbounded whole-repository test/coverage run, so it is deferred to integration
-under this scoped repair. Hosted OS/release checks also include CI0150B/C work
-and are not certified here. This justified deferral changes no gate or threshold.
-
-**TRAIN15B raw-cap deferral (2026-10-05).** The resumed integration recovers
-the VSIX, with universal 2,213,704 and helperless 2,132,213 bytes, both under
-the unchanged 2,252,800 cap. The shared graph's original deferred cohort starts
-at 51,452 bytes; the first usage reduction still prints 50.1 KiB over 50 KiB,
-and the second leaves an exact 51,226 bytes (26 over). common.md requires
-stopping a path after two failed fixes, and the integration brief requires
-all caps to hold. Record the candidate with hooks and defer `m96/int3d`,
-`m96/ifix-win4` and `m97/sr`; no further raw-cap optimization or merge is tried.
-The source build completes and all other caps pass, but `npm run package`
-exits 1 before its packager. Running the actual packager separately measures
-exact archives and exercises strict staging, badges and native exports; that
-successful measurement does not certify the failing package command. All
-scoped checks and eight restored red drills are recorded in the train receipt.
-No full quality, cap increase, ignore, skip, feature removal or dependency change.
-This supersedes the first run's VSIX blocker below, preserving its history.
-
-**TRAIN15A budget stop (2026-10-05).** The integration brief explicitly
-forbids full quality and requires stopping after M101 if its unchanged universal
-VSIX cap cannot be met without a product decision. The first M101 candidate is
-2,368,627 bytes, 115,827 over. An existing-ESM shared-entry experiment preserves
-startup and model-text readership but leaves the original deferred cohort over
-its hard cap after two bounded fixes (57 bytes, then 10); common.md requires
-stopping that path. Restore the separate Models graph and retain every shipped
-feature and cap. Finish scoped checks, record the fresh artifact and exact largest
-twenty base deltas in `docs/certification/train-0.15.0.md`, commit the blocked
-integration locally with hooks, and do not merge steps 3–5. This is a justified
-review-candidate deferral under rule 2, never a green release claim. The lead
-owns a further size-recovery decision and the later continuation/full gate.
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
 ### M95 K repair residuals (2026-10-05)
 
@@ -36171,45 +34836,11 @@ owns a further size-recovery decision and the later continuation/full gate.
 **M95INT round-one whole-chain receipt — historical 120-minute rig brief.**
 The browser and SAST failures below are historical and repaired in round two.
 
-**CIFIX14T verified local result (2026-10-05).** The five owning suites
-pass 113 tests (six existing Windows-only skips); the exact restored monitor
-file passes 30/30 loaded runs, 210 tests. Removing the wait fails 3/3 loaded
-drills; all seven drills restore SHA-256-exact source. All five compiler
-projects, final unit compile, scoped ESLint/Prettier, plain knip, duplication,
-localization, host API and production build pass. Extension 437.4 / 600 KiB,
-Model API 446.6 / 475 KiB, ACP 817.5 / 850 KiB; every budget is unchanged.
-Native Mac proof and complete receipts are in `docs/certification/cifix14-monitor.md`.
-Hosted Node 22 and native Linux/Windows certification remain with the lead.
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
-**CIFIX14T bounded-lane gate delegation (2026-10-05).** The requested Mac
-mini reproduction and red drills run directly here with hooks enabled.
-`common.md` prohibits aggregate quality/full unit runs; collect the owned
-shell tests and required static/build checks, leaving full quality, merged
-coverage and hosted cross-platform certification to the lead. No gate is
-weakened and no integrated-green claim is made by this lane.
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
-**M101INT aggregate receipt (2026-10-06).** The brief authorizes exactly one
-`VITEST_MAX_WORKERS=3 npm run quality`. It exits 1 at unit tests: 541 passing
-files, 9 failing, 7 pre-existing opt-in skipped; 12,014 passing tests, 32 failing,
-72 skipped. Formatting, lint, all five compiler projects, l10n, host API,
-deadcode, cycles and duplication pass before that failure. Repairs are verified
-by whole owning files and remaining gates separately. This records a justified
-local review-commit deferral under rule 2, not an aggregate pass or release
-certification; the lead must rerun full quality/coverage on the final integrated
-tree. No rule, threshold, test filter or timeout is relaxed.
-
-**FIXM96B (2026-10-05, macmini).** RVM96A findings 9–11 and 23–26 are
-fixed with full-file regression runs and byte-exact red drills. All five
-TypeScript projects, focused lint/format, localization (0 problems), knip,
-duplication (0 clones), dpdm and the production build pass; 96 relevant
-tests pass. The host API record gate fails identically on the starting
-`006edd40` source and the fixed source: its recorded Node import counts
-omit lane B's existing bridge/loopback imports. Justified scope deferral
-`M96B-HOST-API-RECORD` (§9): the lead regenerates the shared record after
-parallel integration. Full quality remains the lead's gate under the
-explicit lane prohibition. No gate, ignore, threshold or deadline changes.
-See `docs/certification/m96-b.md` for exact evidence and the late-answer
-liveness residual.
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
 **Resolved in integration (lane W, 2026-10-04, accepted by the lead).** The import bundle's cap is 175 KiB under the D6 rule (147.7 KiB measured, plus 15%, rounded up to 25 KiB); see the D6 table.
 **KNIPC bounded lane (2026-10-05).** The rig brief and shared rules prohibit
@@ -36236,42 +34867,7 @@ lane does not run it or weaken any gate. The generic delivery validator's
 ledger-format check remains deferred for this established plan format.
 Current receipts: `docs/certification/star-line.md`.
 
-**TRAIN13B (2026-10-05).** The owner authorizes recovering the two size
-failures and running the complete quality gate directly on Kubuntu within
-120 minutes. No cap, threshold, skip or user-facing feature may be weakened.
-The earlier TRAIN13 budget stop is historical; current receipts go in the
-same train certification record.
-
-**TRAIN13 release train (2026-10-04, Kubuntu).** Merge the six reviewed
-branches in the owner's order with two-parent commits, preserving all PR
-heads. Resolve only integration breakage; retain D78, D79 and D71 with all
-existing decisions and milestones. Consolidate Unreleased into one Highlights
-list of at most five bullets and the Added/Changed/Fixed/Security sections;
-released sections remain byte-identical to `main-sync`. Regenerate notices,
-the host API inventory and exec schemas. Verify the shared M92 detection table
-still feeds #116's host-to-webview diagnostics and confidential admission,
-then run full `npm run quality` once and the unchanged 2200 KiB VSIX gate.
-A size-budget failure stops this lane and is reported without changing a cap.
-The first combined gate exposed the missing M99 palette tip and stale eager-recall/request-order assertions after D78. Add the tip in every language; bind the concurrency test to parent/child identity and assert recall is absent until packing. Match the monitor probe to the existing MCP Linux zombie check and retain proof that it recognizes a live process. The corrected full run passes static gates and 7,758 tests, but two unchanged checkpoint tests fail under the shared `/tmp` quota (`EDQUOT`); coverage and downstream gates are unverified. The separate build gate fails on webview main (928,507 bytes against 921,600); a private Linux VSIX measurement also fails (2,330,538 against 2,252,800 bytes), without the universal macOS helper. Stop implementation at those budget failures as the brief requires. No cap, timeout, test skip or gate is changed. Quota recovery, full certification and package reduction remain deferred to the lead. Hooks stay on; no push, rebase, live model or paid call. Current evidence and any outstanding gate are in `docs/certification/train-0.13.0.md`.
-
-**MG87c merge (2026-10-04): main's activation diet into M81.** The browser
-check's model text sits by reader under D6's 2026-10-03 rule: `MODEL_TEXT`
-for what activation reads, `MODEL_API_MODEL_TEXT` for the three words only
-the Model API backend says; the refusal table reads them by name. Activation
-is 572.6 of 600 KiB. The shipped-bundle text test allows words a bundle's own
-blocks share with `MODEL_TEXT`, with four red drills. See
-`docs/certification/mg87c.md`.
-
-**MG87b merge (2026-10-04), source proof and explicit deferrals.** Merge `origin/main`
-into M81 while retaining all main bundles, budgets, translations and
-permission behavior. Browser results join M78's live policy fence; best-of-N
-attempts receive no window browser check. The lane runs targeted static
-gates and Kubuntu tests, with hooks on and no origin push; full quality
-remains the lead's gate. Kubuntu passes 7,105 tests; final integration and
-fixture runs pass 672 and 19 tests. Activation is 610.2 KiB against 600: the
-brief assigns its correction to the activation-diet lane. Focused accessibility
-has two missing Chrome results, so no complete browser pass is claimed.
-See `docs/certification/mg87b.md` for resolutions, drills and gate evidence.
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
 **M100 planning lane (2026-10-04).** The rig brief restricts changes to
 PLAN and `docs/certification/m100-research.md`, forbids full quality/unit
@@ -36311,34 +34907,7 @@ renumbering nothing. Only changed-document formatting/Markdown checks and
 normal commit hooks run here; full quality remains the lead's joined-tree
 gate. The research record separates these receipts from runtime certification.
 
-**DEFLAKE3 test-only lane scope (2026-10-04).** The rig brief requires a
-complete Windows unit inventory in batches of at most three files and
-300 consecutive checkpoint-copy file passes. It explicitly requires full
-`npm run quality` only for a product change; this lane changes tests and
-documentation only. Shared static/build checks still apply. Aggregate
-coverage/full quality and hosted confirmation remain the lead's gates; no
-rule, timeout or coverage threshold is weakened. The exact original hosted
-failure is not supplied and has not reproduced in 200 original-file runs.
-Evidence: `docs/certification/deflake3.md`.
-
-**DEFLAKE2 bounded-lane result (2026-10-04).** Direct Win11 owning tests
-and the required static/build gates passed; two deliberate regressions
-failed and were restored byte-exact. The rig brief prohibits integration
-merges/pushes, and `common.md` forbids aggregate quality/full-unit runs in
-this shared lane. Full quality, aggregate coverage, accessibility and the
-hosted Windows recheck remain the lead's gates. No gate or deadline was
-weakened. Evidence: `docs/certification/mcp-job-flake.md`.
-**M94W size boundary (2026-10-05).** The Windows production build passes
-activation at 578.0/600 KiB and Tab at 62.4/75 KiB. W adds 3,378 bytes
-(3.299 KiB) against the integrated pre-W source control, within the brief's
-added-startup allowance. The whole Tab shim is 7.393 KiB, inherited from a
-4.431 KiB H shim: D73's stricter whole-shim 4 KiB target and acceptance 19
-are not certified. Reducing the whole shim needs the existing service/provider
-orchestration moved into the lazy entry while preserving loader retry,
-cleanup and startup status; that broader follow-up is deferred to the lead
-under W's bounded scope. The hard 600 KiB cap and every existing gate remain
-unchanged. The exact control and bundle measurements are in
-`docs/certification/m94.md`.
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
 W's final `npm run quality` exits 0 on Windows (2026-10-05), and integration
 passes 34 tests each at VS Code 1.99.0 and stable 1.140.0. The local VSIX
@@ -36420,70 +34989,11 @@ unavailable because SSH refused its host key and WSL is not installed. No
 gate was weakened or case deadline changed; no retries, skips, dependencies
 or product source changes were introduced.
 
-**TRAIN15E release preparation gate scope (2026-10-06, win11).** The
-continuation brief explicitly requires the entire Vitest suite in batches of
-at most three files, at the repository's default deadline, the full accessibility
-harness, reviewed README screenshots, live HTTPS badge verification, and the
-listed compiler, lint, inventory, dependency, cycle, build and package gates.
-These override common.md's scoped-test and network-only limits for those exact
-commands. The shared rule still forbids the aggregate `npm run quality`
-wrapper; merged coverage, integration hosts, audit/SAST and hosted cross-platform
-quality remain with the lead. This lane records each requested gate separately
-in docs/certification/train-0.15.0.md and its release receipt, without claiming
-aggregate quality or new model-service certification. No gate is weakened.
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
-**TRAIN15E final continuation (2026-10-06, win11; before repair).** The new
-90-minute brief resumes the staged release and explicitly reopens the nine
-Windows failures. First restructure the harness inventory as fixture state
-and commit the authorized merge with hooks. Preserve D75's closed stdin,
-remote slot and native retirement contract: the real PowerShell self-test
-fails with DETACHED_PROCESS and succeeds with CREATE_NO_WINDOW, retaining
-breakaway and the exact inherited-handle list. Export the fake SSH host's
-metric functions into its helper shell and use its discovered Bash for marker
-polling. Prepare the four ordinary landing cases' real Git staging in a
-shared beforeEach rather than spending their unchanged five-second body
-deadline on setup. Keep every assertion, timeout, cap and existing skip.
-Run all test files in batches of at most three at the repository defaults;
-finish lint, inventories, knip, duplication, cycles and both actual packages.
-Reuse the 952-page accessibility receipt if browser sources remain unchanged.
-Record root causes, red/restored drills, final totals and package bytes in the
-train certification; no push or model call.
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
-The final sweep exposes a separate fake SSH canary race: Git Bash can finish
-the command's two-second sleep before its independently scheduled one-second
-timer gets CPU, so an early write is mistaken for a post-retirement escape.
-Bind the writer to the fixture's explicit release file, release it only after
-the unchanged timeout result has returned, and retain the canary-absence
-assertion and observation interval. This tests D75's retirement guarantee
-without assuming relative scheduling of two real processes. Re-run the whole
-SSH file at the default deadline and retain the original failing receipt.
-
-**TESTWARM bounded-lane certification (2026-10-06).** The rig/shared brief
-forbids aggregate quality and full-suite runs. Collect owning suites with default
-timeouts, the drift drill, scoped lint/format, five compiler projects, plain
-Knip, duplication, localization, host API and production build on this rig.
-Integrated full quality, coverage and hosted cross-platform checks remain with
-the lead; no gate, timeout or budget is weakened.
-
-**PROMPTMENU2 inherited duplication deferral (2026-10-06).** The unchanged
-zero-clone `npm run duplication` gate exits 1 on three clones between
-`test/e2e/acpRegistryAuth.e2e.test.ts` and `test/e2e/acpStdio.e2e.test.ts`
-(8/18/8 lines, 50/94/52 tokens). Both files are byte-identical to the lane's
-`4ca230efc` base; the prompt-menu changes introduce no clone. The shared lane
-rules prohibit unrelated refactoring, so ACPREG's existing fixture duplication
-remains a named release-integration repair for the lead. No threshold, ignore,
-rule, timeout or test is changed. Full quality cannot be claimed green until
-that repair passes the unchanged gate. Evidence and all other requested rig
-receipts: `docs/certification/promptmenu-hosts.md`.
-**M108W final rig certification (2026-10-07).** The W brief authorizes the
-complete configured test suite in sequential batches of at most three files
-and workers, using repository-default timeouts, all listed individual static/
-build/package gates, full axe harness and README previews. Shared rules still
-prohibit the aggregate `npm run quality` and public network; aggregate coverage,
-network audit/SAST, hosted/native/editor/live receipts remain lead-owned.
-Run local hook-on commits only after their scoped proofs, then certify the
-final joined tree without loosening any gate. Every named integration handoff
-and unavailable check is explicitly disposed in `docs/certification/m108.md`.
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
 **FIXM112Q bounded-lane certification (2026-10-06).** The rig/shared brief
 forbids aggregate quality and full-suite runs; full integrated quality remains
@@ -36539,19 +35049,7 @@ S/lead retain the host-API inventory, public docs, real editor captures and
 the full integrated quality/visual/accessibility gates. No gate is weakened
 and internal-port fakes do not certify unavailable native engines.
 
-**CIFIX14T bounded-lane gate delegation (2026-10-05).** The requested Mac
-mini reproduction and red drills run directly here with hooks enabled.
-`common.md` prohibits aggregate quality/full unit runs; collect the owned
-shell tests and required static/build checks, leaving full quality, merged
-coverage and hosted cross-platform certification to the lead. No gate is
-weakened and no integrated-green claim is made by this lane.
-**FIXM109PW3 bounded-lane verification (2026-10-06).** The rig brief reserves
-full quality/coverage for the lead. Direct Win11 checks pass typecheck, changed
-file ESLint/Prettier, deadcode, zero-clone duplication, localization, production
-build and the 96 owned tests at repository default deadlines. The host-API
-mismatch remains exactly W's five import-count changes recorded below; no
-new VS Code API or generated snapshot change belongs to this repair. Sixteen
-byte-exact red controls are in `docs/certification/m109-pw3-drills.json`.
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
 **M109 P Windows bounded-lane gates and capture deferral (2026-10-06).**
 The Windows rig brief and shared lane rules prohibit full quality and the
@@ -36598,84 +35096,7 @@ then rerun the check. API policy is unchanged; the snapshot gate is neither
 weakened nor claimed green. This is a documentation gate deferral, not an
 unfixed RVM98J finding.
 
-**RELFAST3 bounded-lane result (2026-10-04).** Fresh Windows compilers,
-dead-code, duplication, localization, host API, production build, actionlint
-and scoped formatting pass; the fixture's two ESLint style findings are fixed
-without suppression and its generated workflow shell is byte-identical.
-Kubuntu passes all 128 owning tests and six added byte-exact guard drills;
-RELFAST2's 36 controls remain historical receipts. A contended Windows Bash
-fixture timed out at the unchanged five-second limit and is not green proof.
-The live Model API size gate is 475 KiB, not common.md's 400 KiB figure: the
-430.1 KiB bundle passes the existing gate without a cap change, but 400 KiB
-compliance is not claimed. Full quality/hosted/CIFLOW/admin-tag verification
-and the skill's unsupported ledger-format validator remain deferred to the
-lead; no required gate was weakened. See `docs/certification/relfast.md`,
-`relfast3-drills.json` and `relfast3-shell-equivalence.json` beside it.
-
-**RELFAST2 bounded-lane deferral (2026-10-04).** The hard 60-minute brief
-requires scoped eslint/Prettier, owning release tests, available actionlint and
-hook-on commit. All 19 carried controls plus 17 new controls are proved locally.
-Fresh common.md aggregate typecheck, dead-code, duplication, localization,
-host-API and production-build runs are deferred to the lead: this change touches
-release tooling/workflows and owning tests, with no production bundle changes.
-This is a deferral, not current aggregate-green evidence; full quality, hosted
-reuse/recovery/fallback and CIFLOW integration remain required. Evidence:
-`docs/certification/relfast.md` and `docs/certification/relfast2-drills.json`.
-
-**M96CINT round-1 partial merged-source proof (historical, 2026-10-05).** Macmini passes all
-239 S/Q/T2/V tests plus 29 shared schema/text tests, in 21 complete files
-and invocations of at most three files. All five compiler projects, the
-harness compiler, full lint/Prettier, deadcode, duplication (0 clones),
-localization (0 problems), production and merged-team cycle checks, build,
-and all 17 unchanged bundle caps pass. A cumulative-admission mutation fails
-three real-repository cases, including interaction; SHA-256-exact restoration
-passes all four. The Mac fixture correction retains every assertion.
-See `docs/certification/m96c-int.md` and `m96c-int-drills.json`.
-The extra host API check fails on the X2-owned generated inventory's five
-Node import counts and Traffic stylesheet source; its regeneration remains
-with X2 under the brief's explicit docs/wiring exclusion. Full quality,
-native/editor/live acceptance, C/O and X2 remain with the lead. These scoped
-receipts certify this partial integration, not production team wiring.
-
-**FIXM96CT2 scoped proof (2026-10-05).** Both `RVM96CT2` findings are
-fixed within T2. Kubuntu passes all five compiler projects, 21 focused tests,
-changed-file ESLint/Prettier, localization, host API, deadcode, duplication
-(0 clones), and production build with unchanged budgets. Four guard mutations
-fail their named regressions and restore SHA-256-exact source bytes; see
-`docs/certification/m96c-t2.md`. The rig/shared rules prohibit this lane from
-running full quality, merging, rebasing or pushing. Full quality and the
-existing runtime/integration/live handoff remain the lead's work; no gate was
-weakened and neither reviewed finding remains as a residual.
-
-**FIXM96CC lane gate scope (2026-10-05).** The owner's rig brief explicitly
-forbids a full `npm run quality`, merges, rebases and pushes in this lane.
-Focused Vitest, all compiler projects, changed-file lint/format, dead-code,
-duplication, localization, host API and production-build checks run directly
-on macmini. Hooked local commits are checkpoints for the lead; full quality
-and assembled S/K/Q/T2/X2 certification remain the lead's required gates.
-Review-repair receipts are in `docs/certification/m96c-c.md`. Final focused
-checks pass on macmini: 52/52 owned cases (including real Git under the
-unchanged default deadline), all listed static/build gates, and 25 distinct
-byte-exact restored guard drills. No RVM96CC finding is deferred.
-
-**FIXM96CO rig validation (2026-10-05).** The lane brief forbids full
-`quality` and full test suites on the shared rig; the lead runs those after
-integration. Owned files are checked directly on macmini in batches of at
-most three Vitest files, plus typecheck, lint, formatting, knip, duplication,
-localization and build gates. The host API record still fails only on the
-six base Node import-count changes already assigned to X2 (buffer 27→28,
-crypto 32→34, fs 24→25, fs/promises 34→36, path 65→68, zlib 1→2).
-Its gate is unchanged; X2 must regenerate and review its owned record before
-full quality. Native Windows parser/runtime certification is explicitly
-pending in §9 and `docs/certification/m96c-o.md`.
-**M97 integration gate blockers (earlier 2026-10-05, lane I; superseded by M97FIN receipts).** Full quality did not
-exit 0. Source coverage and every production cap pass, but the 456-page a11y
-run was stopped within the lane time box after very slow Chrome progress.
-Gitleaks reports five historical `authSource.test.ts` findings; only redacted
-metadata was inspected. SAST reports five non-literal RegExp findings in the
-legal ecosystem readers and rule timeouts. No history, ignore, threshold or
-rule was changed. These are release blockers, not waivers; exact receipts are
-in `docs/certification/m97.md`. Installed-host certification remains pending.
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
 **Resolved 2026-09-27: the bundle budget after M48–M56 joined M60–M63.**
 The joined tree's build failed its size check (`dist/extension.js` 600.5
@@ -36714,35 +35135,6 @@ Pause local browser gates while that extension is enabled. Hosted CI runs
 remain available.
 
 M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; full `npm run quality` remains the lead's aggregate gate. After deferring paid review the Model API bundle stayed 2.8 KiB over 400 KiB; the lead revisited its budget to 475 KiB by the repository's rule (Q-M78b). See `docs/certification/m78.md` and the lane's `m78/BUNDLE.md` handoff.
-
-**FIXM101C2 current check scope (2026-10-05, kubuntu).** The five inherited
-test repairs from `3e04f6f5` are carried unchanged after their failures are
-reproduced here. Their old C2 baseline deferral below is historical, superseded
-by this repair lane's complete-file receipts in `docs/certification/m101-c2.md`.
-The shared rig common rules expressly prohibit `npm run quality` and the full
-test wrapper here; run the required scoped static/build gates and complete
-owning suites, with the integrator responsible for full quality and the
-platform matrix before release. No threshold, ignore or timeout is weakened.
-
-**FIXM101P1 lane verification (2026-10-05).** The rig brief expressly
-forbids the full `npm run quality` wrapper and full unit suite because the
-rig is shared; the lead runs the combined four-machine quality gate.
-This lane runs focused complete test files (at most three per invocation),
-all project typechecks, changed-file lint/format, deadcode, duplication,
-localization, host API and production build directly on Kubuntu. The final
-receipts and twelve red drills are in `docs/certification/m101-p1.md`: 330
-focused tests and all listed lane checks pass, including the unchanged
-production bundle-split gate. This defers only the full-tree/full-platform
-quality receipt; no gate is weakened.
-
-**FIXM101P2 aggregate gate deferral (2026-10-05).** The explicit lane brief
-and its shared `codex/common.md` forbid the full `npm run quality` wrapper
-on this shared rig. Run the required scoped suites (at most three files per
-run), all five TypeScript projects, lint/format over the complete P2 range,
-knip, duplication, localization, host API and production build here; record
-actual receipts in `docs/certification/m101-p2.md`. The lead must run the
-aggregate quality/coverage/platform matrix before integration/release. No
-threshold, ignore or rule is changed.
 
 ## 8. Escape hatches register
 
