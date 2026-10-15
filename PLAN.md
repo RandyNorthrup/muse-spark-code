@@ -1,5 +1,15 @@
 # PLAN — Muse Spark for VS Code (unofficial)
 
+**PRTH161 review closure (2026-10-15, Windows).** Merge main `d842cad5d`,
+retain its real-code-only test overhaul, then address threads T1–T5 in
+`.lane/PR161.threads.md`. Reuse the catch classifier and baseline: prove
+all handler paths, then ratchet individual sites rather than area totals.
+Recheck durable damage markers across windows; defer paid not-kept notices
+until the currentness fence; settle HTTP bridge failures without poisoning
+its queue. Pure-module tests and real temporary files only; consent/editor
+composition goes to the lead's real-life steps, never a stand-in. Receipts:
+`docs/certification/catch-money.md` and `.lane/PRTH161.report.md`.
+
 **VISFIX: release notes move no screenshot (2026-10-11, host with the Mac
 mini and linuxlt; before 0.17.2).** Lead's ruling after REL0171C's finding
 that a `CHANGELOG.md` entry or a version bump moved 108 What's New frames and

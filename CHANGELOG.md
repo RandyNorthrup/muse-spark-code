@@ -9,6 +9,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- The catch audit now checks every handler branch before calling a failure
+  handled. A bare `Error` fallback, a conditional report and a partial
+  rethrow no longer pass as a named-condition handler.
+
 - Startup stays lean: the sign-in gate (AuthService and the three-valued
   credential read) and the paid gate, consent, usage and quote authority now
   load from `dist/auth.js` and `dist/paid.js` the first time a credential,

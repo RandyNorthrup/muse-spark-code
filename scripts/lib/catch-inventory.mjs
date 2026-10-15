@@ -344,6 +344,157 @@ function isMeaningfulReturn(node) {
   return true
 }
 
+/** Which branch establishes a specific expected condition (never all Errors). */
+function expectedBranch(expression, binding, truth) {
+  let node = unparen(expression)
+  while (ts.isPrefixUnaryExpression(node) && node.operator === ts.SyntaxKind.ExclamationToken) {
+    node = unparen(node.operand)
+    truth = !truth
+  }
+  if (ts.isBinaryExpression(node)) {
+    const operator = node.operatorToken.kind
+    if (operator === ts.SyntaxKind.AmpersandAmpersandToken)
+      return (
+        truth &&
+        (expectedBranch(node.left, binding, true) || expectedBranch(node.right, binding, true))
+      )
+    if (operator === ts.SyntaxKind.BarBarToken)
+      return (
+        !truth &&
+        (expectedBranch(node.left, binding, false) || expectedBranch(node.right, binding, false))
+      )
+    if (operator === ts.SyntaxKind.InstanceOfKeyword)
+      return (
+        truth &&
+        readsError(node.left, binding) &&
+        !(ts.isIdentifier(node.right) && node.right.text === 'Error')
+      )
+    if (COMPARISON.has(operator)) {
+      const isEqual =
+        operator === ts.SyntaxKind.EqualsEqualsEqualsToken ||
+        operator === ts.SyntaxKind.EqualsEqualsToken
+      const value = isErrorMember(node.left, binding)
+        ? node.right
+        : isErrorMember(node.right, binding)
+          ? node.left
+          : undefined
+      return truth === isEqual && value !== undefined && ts.isStringLiteralLike(unparen(value))
+    }
+  }
+  return truth && (isErrorTest(node, binding) || isAbortTest(node)) && !ts.isBinaryExpression(node)
+}
+
+/** Follow the handler's own paths; opaque loops/try/switch never prove a report. */
+function handlerPaths(body, binding) {
+  const expression = (input, states) => {
+    const node = unparen(input)
+    if (ts.isConditionalExpression(node))
+      return [
+        ...expression(node.whenTrue, branch(node.condition, states, true)),
+        ...expression(node.whenFalse, branch(node.condition, states, false)),
+      ]
+    if (
+      ts.isBinaryExpression(node) &&
+      (node.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken ||
+        node.operatorToken.kind === ts.SyntaxKind.BarBarToken)
+    ) {
+      const isTruthy = node.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken
+      return [
+        ...branch(node.left, states, !isTruthy),
+        ...expression(node.right, branch(node.left, states, isTruthy)),
+      ]
+    }
+    let isRecorded = false
+    let isLogged = false
+    walkOwn(node, (child) => {
+      // Conditional work may never execute, so do not let it prove this path.
+      if (child !== node) return
+      isRecorded =
+        isErrorSinkCall(child, binding) || isCodeRecordCall(child) || isDiagnosticMarkerCall(child)
+      isLogged = isLogCall(child) && !isRawErrorLog(child, binding)
+      if (isLogged) {
+        const visit = (part) => {
+          if (ts.isConditionalExpression(part) || FUNCTION_LIKE.has(part.kind)) return
+          if (ts.isBinaryExpression(part) && part.operatorToken.kind !== ts.SyntaxKind.PlusToken)
+            return
+          isRecorded ||= isRedactedCall(part, binding)
+          ts.forEachChild(part, visit)
+        }
+        for (const argument of child.arguments) visit(argument)
+      }
+      if (!isLogged && ts.isCallExpression(child))
+        isRecorded ||= child.arguments.some(
+          (argument) =>
+            ERROR_CHANNEL_FNS.has(calleeName(unparen(argument).expression ?? argument) ?? '') &&
+            readsError(argument, binding),
+        )
+    })
+    return states.map((state) => ({
+      ...state,
+      recorded: state.recorded || isRecorded,
+      logged: state.logged || isLogged,
+      carried: carriesCause(node, binding),
+    }))
+  }
+  const branch = (condition, states, truth) =>
+    expression(condition, states).map((state) => ({
+      ...state,
+      expected: state.expected || expectedBranch(condition, binding, truth),
+    }))
+  const statements = (nodes, states) => {
+    let paths = states
+    for (const node of nodes) {
+      const done = paths.filter((state) => state.done)
+      const live = paths.filter((state) => !state.done)
+      paths = [...done, ...statement(node, live)]
+    }
+    return paths
+  }
+  const statement = (node, states) => {
+    if (ts.isBlock(node)) return statements(node.statements, states)
+    if (ts.isIfStatement(node))
+      return [
+        ...statement(node.thenStatement, branch(node.expression, states, true)),
+        ...(node.elseStatement === undefined
+          ? branch(node.expression, states, false)
+          : statement(node.elseStatement, branch(node.expression, states, false))),
+      ]
+    if (ts.isReturnStatement(node) || ts.isThrowStatement(node)) {
+      const isThrow = ts.isThrowStatement(node)
+      const values = node.expression === undefined ? states : expression(node.expression, states)
+      return values.map((state) => ({
+        ...state,
+        done: true,
+        recorded: state.recorded || (node.expression !== undefined && state.carried),
+        generic: isThrow || isMeaningfulReturn(node),
+      }))
+    }
+    if (ts.isExpressionStatement(node)) return expression(node.expression, states)
+    if (ts.isVariableStatement(node)) {
+      let paths = states
+      for (const declaration of node.declarationList.declarations)
+        if (declaration.initializer !== undefined)
+          paths = expression(declaration.initializer, paths)
+      return paths
+    }
+    // Unsupported control flow cannot establish coverage. Later unconditional
+    // reporting can still cover it; early exits are conservatively unreported.
+    return ts.isIterationStatement(node, false) ||
+      ts.isTryStatement(node) ||
+      ts.isSwitchStatement(node)
+      ? [...states, ...states.map((state) => ({ ...state, done: true, generic: true }))]
+      : states
+  }
+  const initial = [{ recorded: false, logged: false, expected: false, done: false, generic: false }]
+  return ts.isBlock(body)
+    ? statements(body.statements, initial)
+    : expression(body, initial).map((state) => ({
+        ...state,
+        generic: isMeaningfulReturn({ expression: body }),
+        recorded: state.recorded || state.carried,
+      }))
+}
+
 /**
  * Classify one handler body. `binding` is the caught name, if any.
  * `catchLine` is the source line of the `catch` keyword or `.catch(` call;
@@ -355,77 +506,25 @@ export function classifyHandler(body, options) {
   const block = ts.isBlock(body) ? body : undefined
   if (block === undefined && body === undefined)
     return hasReason(catchLine, leading) ? 'CLEANUP' : 'SWALLOW'
-  let isTested = false
-  let isAborted = false
-  let isThrown = false
-  let isThrownCarried = false
-  let isBareRethrow = false
-  let isReturnedValue = false
-  let isReturnedCarried = false
-  let isRedacted = false
-  let isSink = false
-  let isCodeRecorded = false
-  let isLogged = false
   let hasRawLog = false
   let hasErrorUse = false
-  if (binding !== undefined && block !== undefined) {
-    walkOwn(block, (node) => {
-      if (!hasErrorUse && ts.isIdentifier(node) && node.text === binding) hasErrorUse = true
-    })
-  }
-  const examine = (node) => {
-    if (isErrorTest(node, binding)) isTested = true
-    if (ts.isIfStatement(node) && isAbortTest(node.expression)) isAborted = true
-    if (ts.isThrowStatement(node)) {
-      isThrown = true
-      if (node.expression === undefined) isBareRethrow = true
-      else if (carriesCause(node.expression, binding)) isThrownCarried = true
-    }
-    if (ts.isReturnStatement(node) && isMeaningfulReturn(node)) {
-      isReturnedValue = true
-      if (node.expression !== undefined && carriesCause(node.expression, binding))
-        isReturnedCarried = true
-    }
-    if (binding !== undefined && isRedactedCall(node, binding)) isRedacted = true
-    if (isErrorSinkCall(node, binding)) isSink = true
-    if (isCodeRecordCall(node) || isDiagnosticMarkerCall(node)) isCodeRecorded = true
-    if (!isLogCall(node)) {
-      return
-    }
-
-    isLogged = true
-    if (isRawErrorLog(node, binding)) hasRawLog = true
-  }
-  if (block === undefined) {
-    // A `.catch(() => value)` expression body returns that value. `body` is
-    // defined here: both missing returned above.
-    isReturnedValue = isMeaningfulReturn({ expression: body })
-    if (isReturnedValue && carriesCause(body, binding)) isReturnedCarried = true
-  }
-  walkOwn(block ?? body, examine)
-  const namedTest = isTested || isAborted
-  const reported = isRedacted || isSink
-  if (!hasRawLog && namedTest && (isThrown || reported || isCodeRecorded)) return 'NARROW'
-  if (!hasRawLog && isThrown) {
-    // A rethrow (or a throw carrying the cause) reports everything. A fixed
-    // throw counts too when the handler records the kind beside it; a fixed
-    // throw with no record replaces the cause.
-    return isThrownCarried || isBareRethrow || reported || isCodeRecorded ? 'REPORTED' : 'GENERIC'
-  }
-  if (!hasRawLog && isReturnedCarried) return 'REPORTED'
-  if (!hasRawLog && reported) return 'REPORTED'
-  if (!hasRawLog && isCodeRecorded) return 'REPORTED'
-  if (!hasRawLog && isLogged && !isReturnedValue) return 'REPORTED'
+  let hasReplacement = block === undefined && isMeaningfulReturn({ expression: body })
+  walkOwn(body, (node) => {
+    hasRawLog ||= isRawErrorLog(node, binding)
+    hasErrorUse ||= binding !== undefined && ts.isIdentifier(node) && node.text === binding
+    hasReplacement ||=
+      ts.isThrowStatement(node) || (ts.isReturnStatement(node) && isMeaningfulReturn(node))
+  })
+  const paths = handlerPaths(body, binding)
   if (
-    binding === undefined &&
-    !isThrown &&
-    !reported &&
-    !isLogged &&
-    !isCodeRecorded &&
-    !isReturnedValue
+    !hasRawLog &&
+    paths.some((state) => state.expected) &&
+    paths.every((state) => state.recorded || (state.logged && !state.generic) || state.expected)
   )
-    return hasReason(catchLine, leading) ? 'CLEANUP' : 'SWALLOW'
-  if (!hasErrorUse && !isThrown && !reported && !isLogged && !isCodeRecorded && !isReturnedValue)
+    return 'NARROW'
+  if (!hasRawLog && paths.every((state) => state.recorded || (state.logged && !state.generic)))
+    return 'REPORTED'
+  if (!hasRawLog && !hasErrorUse && !hasReplacement && paths.every((state) => !state.logged))
     return hasReason(catchLine, leading) ? 'CLEANUP' : 'SWALLOW'
   return 'GENERIC'
 }
