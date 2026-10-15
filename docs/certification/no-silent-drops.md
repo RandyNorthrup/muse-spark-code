@@ -286,6 +286,37 @@ McpElicitationTimeoutError` was false at the real boundary: the connection
   describe the original tests only, not current product proof. Live judge,
   cross-host notifications and panel appearance remain lead-run obligations.
 
+## RVDROPS review — evidence, shared rule and unresolved gates
+
+- P2: D113's last sentence replaced the owner's peer-evidence rule with
+  “the bound itself is the product”. Restored the requirement for three
+  harness precedents and explicitly shared it with LIMITSA. No such evidence
+  was supplied for retained B9/B22/C7/B17/B10 limits; this remains an owner/
+  integration item, not a claim that a rationale proves permission.
+- The lane changed a `toBeLessThanOrEqual` bundle ceiling as if it were an
+  exact-size assertion. Restored that lane edit to its base value; it is a cap
+  and this review has no owner authorization to raise it. Current production
+  Model API bundle measures 520,679 bytes; that test's 519,354-byte ceiling
+  remains unmet. The production 525 KiB budget is met. Do not waive either.
+- `npm run typecheck`: exit 1, unit TS2305 imports removed
+  `DAMAGED_SESSIONS_KEPT` in the fake-based conversationController suite.
+  Host and webview projects passed before the failure; e2e and integration
+  projects separately passed. Per the owner's rule, this fake suite was not
+  repaired/extended merely to get green. It needs TESTCUT integration.
+- `npm run build`: exit 1, eight split-gate problems (package paths under
+  the shared node_modules install are not recognized). Cause UNMEASURED;
+  no untouched-base comparison was run. Actual errors are in
+  `temp/rv-build.log`. Production size checks all passed (extension 550.8
+  KiB, Model API 508.5 KiB, checkpoint store 84.6 KiB); that does not make
+  the build green. `security:sast`: exit 2, semgrep-core failed rule
+  validation / obtaining target files; cause UNMEASURED.
+
+## RVDROPS review — reference coverage
+
+- P3: the lane changed user-facing recovery/expiry/advisory behavior without
+  updating `featureCatalog.ts`. Added existing translated details and regenerated
+  the canonical reference with `npm run reference:generate` (exit 0).
+
 ## Limits raised or removed (owner's rule)
 
 | Row | Number              | Outcome                                                  | Reasoning                                                                       |
@@ -302,13 +333,14 @@ McpElicitationTimeoutError` was false at the real boundary: the connection
 1. Mislabelled spend refusal (F88): not this lane (TURNLIMIT lane's area).
 2. Worst-case reservation vs $5 default: not this lane; still open.
 3. A1 has no peer: not this lane (TURNLIMIT lane removed it).
-4. Silent drops (this lane): B9, B10, B22, B23, C7, B17 fixed above.
+4. Silent drops (this lane): code changed above; cross-host live proof and
+   the review's residuals are still open, so not certified complete.
 5. One-shot continuations (B1): not this lane; still open.
 6. Unchangeable majority: narrowed — B23's cap is gone, B9's stored
-   slice is gone, B22's expiry no longer deletes; the kept bounds are
-   justified in the table above.
+   slice is gone, B22's expiry no longer deletes. The table records lane
+   rationales, not the missing three-harness authorization.
 
-## Gates (final tree)
+## Original lane gate receipts (12c156f8e, not the reviewed final tree)
 
 - `npx tsc --noEmit -p tsconfig.json`: exit 0.
 - `npx eslint --max-warnings=0` on all changed/new source and test
@@ -346,8 +378,8 @@ McpElicitationTimeoutError` was false at the real boundary: the connection
 - Neighbours green: elicitation ×3 (69), deferral/registry ×3 (101),
   question bundles/strings ×3 (39), question UI ×3 (23),
   judgeUse/judgeFences/judgeEntries (55), museCodeReviewer +
-  deferredBundles (169, after moving the modelApi exact-size pin
-  519,354 → 520,388 with its reason, per the pin rule), open-question
+  deferredBundles (169, after raising the modelApi ceiling
+  519,354 → 520,388; RVDROPS rejects that unauthorized cap change), open-question
   notices/elicitation card/deferred UI (10), snapshot + omitted (15).
 - The ACP `takeExpired` addition first broke 24 fake-based
   `acpQuestionDeferral` tests (their doubles lack the method); the

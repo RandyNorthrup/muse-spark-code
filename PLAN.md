@@ -14322,9 +14322,9 @@ where it can still be found. Lane LIMITSC applies it (proof in
 with a warning past 20 open; B23 keeps every damaged marker (50 cap
 removed) and warns on marking; C7 settles a timed-out form as cancel with
 a warning; B17 names a dropped judge advisory on the card (warning on
-auto-allow); B10 restores the unsent text past 8 MiB. An invented number
-binds only where the bound itself is the product; elsewhere the drop is
-removed or announced, with the reasoning in the lane's record.
+auto-allow); B10 restores the unsent text past 8 MiB. Shared with LIMITSA:
+an invented limit needs three harness precedents, not a lane's rationale.
+Unproven retained limits and missing live proof remain open in the record.
 
 ## 3. Open questions (need the owner)
 
