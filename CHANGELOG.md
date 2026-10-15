@@ -9,6 +9,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Rule-2 certification now records deliberately failing parser and
+  per-commit evidence drills, with byte-exact restoration and green reruns.
+
 - Rule-2 workflow identity strips the API's `@ref` suffix too, so prior
   release runs do not incorrectly block fresh artifact-only recovery.
 
