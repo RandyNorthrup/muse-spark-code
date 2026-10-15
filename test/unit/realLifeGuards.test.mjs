@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { parseArguments } from '../../scripts/real-life/lib/args.mjs'
 import { dataFolderOf, productEnvironment } from '../../scripts/real-life/lib/home.mjs'
 import { heldUnsettled } from '../../scripts/real-life/lib/ledger.mjs'
 import { installerEnvironment } from '../../scripts/real-life/lib/install.mjs'
@@ -51,6 +52,29 @@ describe('real-life installer environment', () => {
     expect(env.npm_execpath).toBe('/usr/lib/node_modules/npm/bin/npm-cli.js')
     expect(env.REAL_LIFE_KEY_ANTHROPIC_FLEET_1).toBeUndefined()
     expect(env.META_API_KEY).toBeUndefined()
+  })
+})
+
+describe('real-life model overrides', () => {
+  it('rejects an override unless its route is selected exactly once (T8)', () => {
+    const base = [
+      '--artefact',
+      'package.tgz',
+      '--max-requests',
+      '1',
+      '--max-usd',
+      '1',
+      '--record',
+      'record',
+    ]
+    for (const routes of ['openai', 'openia,openia']) {
+      const parsed = parseArguments([...base, '--routes', routes, '--model', 'openia=gpt-x'])
+      expect(parsed.ok).toBe(false)
+      expect(parsed.reason).toMatch(/openia.*selected exactly once/u)
+    }
+    const selected = parseArguments([...base, '--routes', 'openai', '--model', 'openai=gpt-x'])
+    expect(selected.ok).toBe(true)
+    expect(selected.options.models.get('openai')).toBe('gpt-x')
   })
 })
 

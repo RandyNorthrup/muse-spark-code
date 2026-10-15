@@ -116,6 +116,18 @@ SHA-256 restoration. Lead step: start the runner from a shell with a benign
 preload configured; it must not run in npm or installed product children.
 The runner's own parent process remains the operator's responsibility.
 
+## T8 — unconsumed model overrides
+
+Each override route must appear exactly once in `--routes`; validation is
+before any install, key access or dispatch. Valid selected overrides remain
+unchanged. Pure parser test red: exit 1, 9 passed / 1 failed, `expected true
+to be false`; after fix exit 0, 10 passed. Commands:
+`npx vitest run test/unit/realLifeGuards.test.mjs --maxWorkers=2` (logs
+`.lane/T8-{red,green}.log`). Real command with `--routes openai --model
+openia=gpt-x --artefact package.json --max-requests 1 --max-usd 1 --record
+.lane/no-spend-record` exited 2 with `--model route openia must be selected
+exactly once in --routes`, before keys or install. No provider needed.
+
 ## Merge
 
 Merged `ac21f1d24` in `c1ead3231`, hooks on. Only AGENTS.md and CHANGELOG.md

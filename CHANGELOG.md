@@ -9,6 +9,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Real-life run: `--model` rejects a misspelled or unselected route instead
+  of silently running the selected route's default model.
+
 - Real-life run: npm and installed-product children no longer inherit
   `NODE_OPTIONS` or `NODE_PATH`, including differently cased Windows names.
 
