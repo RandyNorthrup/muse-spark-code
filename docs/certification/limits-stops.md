@@ -284,12 +284,14 @@ not a second implementation of that code; no replacement proof is claimed.
   at-most-one-response overshoot. This needs one agreed admission and
   uncertain-liability contract across those consumers; no partial money
   patch was attempted in review.
-- **Unknown usage can be falsely known.** `endRequest` closes a capped,
-  sent request at its input-only retained amount but only sets the unknown
-  flag for uncapped/media requests (`ModelApiHost.ts:4179`). A failed
-  stream's output may be billed and is no longer bounded by that amount.
-  It must stay explicitly uncertain, including a zero input reservation;
-  this fix is recorded separately from these claim corrections.
+- **Unknown usage was falsely known (fixed in review).** `endRequest`
+  closed capped, sent requests at the input-only retained amount but only
+  set unknown for uncapped/media requests (`ModelApiHost.ts:4179`). The
+  unknown flag now follows ambiguous or sent-not-refused state regardless
+  of cap, media or a zero amount. `recordBudgetCost` preserves zero unknown
+  entries and journal admission refuses unverified history, rather than
+  pretending the output was free. Source scenario proves the defect and
+  the branch correction; a provider-driven failure run is still required.
 - **A6 is not a general loop guard.** Production supplies no
   `repeatResultWitness`; the built-in witness only covers `read_file`
   without hooks (`ModelApiHost.ts:12703`). Repeating shell, search, list,

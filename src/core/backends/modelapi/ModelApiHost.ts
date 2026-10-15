@@ -4176,7 +4176,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     this.recordBudgetCost(
       costUsd,
       reservation.claim,
-      isPositiveUsd(costUsd) && (!reservation.hasCap || reservation.hasMediaAccounting === true),
+      reservation.hasAmbiguousAttempt || (reservation.isSent && !reservation.isRefused),
     )
     await this.budgetWrites
     // The on-disk liability is now settled or released, even if this request failed before a frame.

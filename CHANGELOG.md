@@ -9,6 +9,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- RVLIMITS: a sent or ambiguous request with no verified usage remains
+  explicitly uncertain under a session cap, even with a zero input hold.
+  An input-only retained amount is not a confirmed bill for the reply.
+
 - RVLIMITS: Stop interrupts running and queued paid child tasks and revokes
   their uncapped grants, including while the parent is idle. Previously
   only the parent's own turn was cancelled.
