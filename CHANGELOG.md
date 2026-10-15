@@ -9,6 +9,8 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- Credential store, long values (ChatGPT grant): two processes writing the same account at once could destroy the current credential (one wrote a header whose parts the other had just removed), and a failed or killed write left secret parts that no later delete removed. Every write, delete and read of a long value now takes one cross-process owner per account (the same named lock the sign-in uses, on a name of its own), a small record names every generation of parts before any is written, and the next owner of an account removes whatever a crashed owner left. A reader never sees a generation that was deleted.
+
 - ChatGPT plan, effort: the panel started a plan model on `high` and kept it when you switched models, although the plan's own catalogue names a lower default (`low` for `gpt-6.1-sol`). A conversation or model switch you have not chosen a level for now starts on the model's catalogue default; a level you picked with the slider is kept.
 
 - `exec --effort` checked the level against the model the session started on, not the one `--model` selected: `--model muse-spark-1.2 --effort max` was not refused as a usage error (1.2 has no `max`) and the run ended as an incomplete turn. The level, and `--fast`, are now checked against the selected model's own options.

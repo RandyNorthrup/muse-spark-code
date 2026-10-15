@@ -12,13 +12,20 @@ import { createHash } from 'node:crypto'
 import { modelRef, credentialRecord } from '../host/backend/providerPolicyEntry'
 import type { SecretStore } from '../host/auth/credentialStore'
 import {
+  KEYRING_GENERATIONS_SUFFIX,
+  KEYRING_GENERATIONS_TAG,
   KEYRING_PART_CHARS,
   KEYRING_PARTS_ID_CHARS,
   KEYRING_PARTS_TAG,
   KEYRING_SERVICE,
+  KEYSTORE_LOCK_ACCOUNT_CHARS,
+  KEYSTORE_LOCK_DIR,
+  KEYSTORE_LOCK_PIPE,
+  KEYSTORE_LOCK_TIMEOUT_MS,
   UI_TEXT,
 } from '../shared/constants'
 import type { CredentialRecord } from '../core/providers/credentialRecord'
+import { personScope, withNamedLock } from './namedLock'
 const { parseCredentialRecord } = credentialRecord
 const { isProviderId } = modelRef
 
@@ -56,28 +63,90 @@ interface PartsHeader {
   readonly sha256: string
 }
 
+/** One generation of parts: the hash prefix naming it, and how many parts it has. */
+interface Generation {
+  readonly id: string
+  readonly count: number
+}
+
 const PARTS_HEADER = new RegExp(`^${KEYRING_PARTS_TAG}([1-9][0-9]{0,5}):([0-9a-f]{64})$`, 'u')
+const GENERATION = new RegExp(
+  String.raw`^([0-9a-f]{${String(KEYRING_PARTS_ID_CHARS)}})\.([1-9][0-9]{0,5})$`,
+  'u',
+)
 
 function partsHeader(value: string | undefined): PartsHeader | undefined {
   const match = value === undefined ? null : PARTS_HEADER.exec(value)
   return match === null ? undefined : { count: Number(match[1]), sha256: match[2] ?? '' }
 }
 
+function generationOf(header: PartsHeader): Generation {
+  return { id: header.sha256.slice(0, KEYRING_PARTS_ID_CHARS), count: header.count }
+}
+
+/** The generations a record names; undefined when the value is not a record of ours. */
+function recordedGenerations(value: string): readonly Generation[] | undefined {
+  if (!value.startsWith(KEYRING_GENERATIONS_TAG)) return undefined
+  const generations: Generation[] = []
+  for (const text of value.slice(KEYRING_GENERATIONS_TAG.length).split(',')) {
+    const match = GENERATION.exec(text)
+    if (match === null) return undefined
+    generations.push({ id: match[1] ?? '', count: Number(match[2]) })
+  }
+  return generations
+}
+
+function generationRecord(generations: readonly Generation[]): string {
+  const named = generations.map((generation) => `${generation.id}.${String(generation.count)}`)
+  return `${KEYRING_GENERATIONS_TAG}${named.join(',')}`
+}
+
+/** The account of a long value's generation record. */
+function recordAccount(key: string): string {
+  return `${key}${KEYRING_GENERATIONS_SUFFIX}`
+}
+
 /** One generation's part account: the hash prefix keeps a rewrite from touching the parts it replaces. */
-function partAccount(key: string, sha256: string, index: number): string {
-  return `${key}#${sha256.slice(0, KEYRING_PARTS_ID_CHARS)}.${String(index)}`
+function partAccount(key: string, id: string, index: number): string {
+  return `${key}#${id}.${String(index)}`
+}
+
+/** The lock of one account, on the person's scope: one name per account, so unrelated accounts never wait. */
+function accountLock(key: string, scope: string) {
+  const id = createHash('sha256').update(key).digest('hex').slice(0, KEYSTORE_LOCK_ACCOUNT_CHARS)
+  return {
+    pipe: `${KEYSTORE_LOCK_PIPE}-${scope}-${id}`,
+    folder: `${KEYSTORE_LOCK_DIR}-${scope}`,
+    file: `${id}.lock`,
+  }
+}
+
+/** Where a store's locks live; tests give their own scope so they never share a name with a real account. */
+interface KeyringStoreOptions {
+  readonly lockScope?: string
 }
 
 /**
  * The credential store as the key's `SecretStore`, each call on a freshly
  * opened entry. A value longer than one entry holds on every platform
  * (Windows: 1,280 characters), or one that starts with the parts tag, is
- * written as parts first and a header last, so a reader never meets a header
- * whose parts are missing; the parts it replaces are removed afterwards.
- * Reading reassembles the parts and checks the hash; a short value is read
- * and written exactly as before.
+ * kept as parts behind a header; a short value is read and written exactly
+ * as before.
+ *
+ * One owner per account, across processes (docs/certification/
+ * chatgpt-grant-lock.md, "PLANFIX R1 + R5"): every write and delete, and the
+ * read of a header, runs under that account's named lock. A long write first
+ * records every generation of parts that may exist, writes the new parts,
+ * then publishes the header (the one point a reader can see), then removes
+ * the generation the header stopped naming, then deletes the record. Each
+ * owner, before its own work, removes what a crashed or failed owner left:
+ * the parts of every recorded generation the header does not name. A read of
+ * a short value stays lock-free: it is one atomic entry.
  */
-export function keyringSecretStore(openEntry: KeyringEntryFactory): SecretStore {
+export function keyringSecretStore(
+  openEntry: KeyringEntryFactory,
+  options: KeyringStoreOptions = {},
+): SecretStore {
   const read = async (account: string): Promise<string | undefined> =>
     await storeOperation(
       async () => (await openEntry(KEYRING_SERVICE, account).getPassword()) ?? undefined,
@@ -88,48 +157,121 @@ export function keyringSecretStore(openEntry: KeyringEntryFactory): SecretStore 
   const remove = async (account: string): Promise<void> => {
     await storeOperation(() => openEntry(KEYRING_SERVICE, account).deletePassword())
   }
-  const removeParts = async (key: string, header: PartsHeader): Promise<void> => {
-    for (let index = 0; index < header.count; index += 1) {
-      await remove(partAccount(key, header.sha256, index))
+  /** The owner of one account; a lock that cannot be had is a store that cannot be used. */
+  const owned = async <T>(key: string, work: () => Promise<T>): Promise<T> => {
+    try {
+      return await withNamedLock(work, accountLock(key, options.lockScope ?? personScope()), {
+        timeoutMs: KEYSTORE_LOCK_TIMEOUT_MS,
+      })
+    } catch (error) {
+      throw error instanceof StoreUnavailableError ? error : new StoreUnavailableError()
+    }
+  }
+  const removeGeneration = async (key: string, generation: Generation): Promise<void> => {
+    for (let index = 0; index < generation.count; index += 1) {
+      await remove(partAccount(key, generation.id, index))
+    }
+  }
+  /** Removes what no header names: the parts of every recorded generation but the live one. */
+  const reclaim = async (key: string): Promise<void> => {
+    const recorded = await read(recordAccount(key))
+    if (recorded === undefined) return
+    const header = partsHeader(await read(key))
+    const live = header === undefined ? undefined : generationOf(header).id
+    const named = recordedGenerations(recorded) ?? []
+    for (const generation of named) {
+      if (generation.id !== live) await removeGeneration(key, generation)
+    }
+    await remove(recordAccount(key))
+  }
+  /** A failed owner leaves nothing it can remove; what it cannot is the next owner's. */
+  const guarded = async (key: string, work: () => Promise<void>): Promise<void> => {
+    await reclaim(key)
+    try {
+      await work()
+    } catch (error) {
+      try {
+        await reclaim(key)
+      } catch {
+        // The record still names the generations: the next owner removes them.
+      }
+      throw error
     }
   }
   return {
     get: async (key) => {
       const stored = await read(key)
-      const header = partsHeader(stored)
-      if (header === undefined) return stored
-      const parts: string[] = []
-      for (let index = 0; index < header.count; index += 1) {
-        const part = await read(partAccount(key, header.sha256, index))
-        if (part === undefined) throw new StoreUnavailableError()
-        parts.push(part)
-      }
-      const value = parts.join('')
-      if (createHash('sha256').update(value).digest('hex') !== header.sha256) {
-        throw new StoreUnavailableError()
-      }
-      return value
+      if (partsHeader(stored) === undefined) return stored
+      return await owned(key, async () => {
+        const current = await read(key)
+        const header = partsHeader(current)
+        if (header === undefined) return current
+        const id = generationOf(header).id
+        const parts: string[] = []
+        for (let index = 0; index < header.count; index += 1) {
+          const part = await read(partAccount(key, id, index))
+          if (part === undefined) throw new StoreUnavailableError()
+          parts.push(part)
+        }
+        const value = parts.join('')
+        if (createHash('sha256').update(value).digest('hex') !== header.sha256) {
+          throw new StoreUnavailableError()
+        }
+        return value
+      })
     },
     store: async (key, value) => {
-      const previous = partsHeader(await read(key))
-      if (value.length <= KEYRING_PART_CHARS && !value.startsWith(KEYRING_PARTS_TAG)) {
-        await write(key, value)
-        if (previous !== undefined) await removeParts(key, previous)
-        return
-      }
-      const sha256 = createHash('sha256').update(value).digest('hex')
-      const count = Math.ceil(value.length / KEYRING_PART_CHARS)
-      for (let index = 0; index < count; index += 1) {
-        const start = index * KEYRING_PART_CHARS
-        await write(partAccount(key, sha256, index), value.slice(start, start + KEYRING_PART_CHARS))
-      }
-      await write(key, `${KEYRING_PARTS_TAG}${String(count)}:${sha256}`)
-      if (previous !== undefined && previous.sha256 !== sha256) await removeParts(key, previous)
+      await owned(key, async () => {
+        await guarded(key, async () => {
+          const header = partsHeader(await read(key))
+          const previous = header === undefined ? undefined : generationOf(header)
+          if (value.length <= KEYRING_PART_CHARS && !value.startsWith(KEYRING_PARTS_TAG)) {
+            if (previous !== undefined)
+              await write(recordAccount(key), generationRecord([previous]))
+            await write(key, value)
+            if (previous !== undefined) {
+              await removeGeneration(key, previous)
+              await remove(recordAccount(key))
+            }
+            return
+          }
+          const sha256 = createHash('sha256').update(value).digest('hex')
+          const next: Generation = {
+            id: sha256.slice(0, KEYRING_PARTS_ID_CHARS),
+            count: Math.ceil(value.length / KEYRING_PART_CHARS),
+          }
+          const named =
+            previous === undefined || previous.id === next.id ? [next] : [previous, next]
+          await write(recordAccount(key), generationRecord(named))
+          for (let index = 0; index < next.count; index += 1) {
+            const start = index * KEYRING_PART_CHARS
+            await write(
+              partAccount(key, next.id, index),
+              value.slice(start, start + KEYRING_PART_CHARS),
+            )
+          }
+          await write(key, `${KEYRING_PARTS_TAG}${String(next.count)}:${sha256}`)
+          if (previous !== undefined && previous.id !== next.id)
+            await removeGeneration(key, previous)
+          await remove(recordAccount(key))
+        })
+      })
     },
     delete: async (key) => {
-      const previous = partsHeader(await read(key))
-      await remove(key)
-      if (previous !== undefined) await removeParts(key, previous)
+      await owned(key, async () => {
+        await guarded(key, async () => {
+          const header = partsHeader(await read(key))
+          if (header === undefined) {
+            await remove(key)
+            return
+          }
+          const previous = generationOf(header)
+          await write(recordAccount(key), generationRecord([previous]))
+          await remove(key)
+          await removeGeneration(key, previous)
+          await remove(recordAccount(key))
+        })
+      })
     },
   }
 }

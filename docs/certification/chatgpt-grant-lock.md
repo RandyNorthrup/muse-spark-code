@@ -469,3 +469,149 @@ Proof:
   measured before this change ("The local sign-in lock could not be opened
   (unknown)"); the real `providers status chatgpt` from this build opens
   the lock on the same PC. The test overhaul deletes that file.
+
+---
+
+# PLANFIX R1 + R5: one owner per credential account (2026-10-14, Windows)
+
+## Design (written before the code)
+
+**The defects (RVHOSTID R1, R5).** `keyringSecretStore` (`src/runtime/keyStore.ts`)
+keeps a long secret as parts plus a header. Nothing serializes two writers, a
+reader and a writer, or a writer and a delete, across processes:
+
+- R1: writer A writes X's parts and pauses before publishing X's header; writer B
+  writes Y, publishes Y, deletes X's parts; A publishes X's header and returns
+  success. The account now holds a header whose parts are gone: every read throws.
+- R1 (reader): a reader holds X's header while a replacement deletes X's parts.
+- R5: a failure or a crash after some parts and before the header, or after the
+  header and before the old parts are removed, leaves parts no header names;
+  `delete(key)` only knows the parts the current header names.
+
+**One owner per account, across processes.** Every write, delete and long-value
+read takes a lock named after the account, by the existing lock-by-name
+mechanism (Windows: an exclusive named pipe; macOS/Linux: a socket in the
+person's private folder), on a name of its own (`muse-spark-keystore-<person>`,
+file `<8 hex of the account's SHA-256>.lock`), never the ChatGPT grant lock:
+the grant lock is held across a whole sign-in or refresh, which itself reads and
+writes the store, so sharing one name would deadlock. The mechanism moves from
+`chatGptRefreshLock.ts` to `namedLock.ts` unchanged in behaviour (the store
+cannot import the grant lock's module: that one imports the store's error type,
+a cycle). The OS releases a crashed owner's lock; a hung owner makes waiters
+fail closed (`StoreUnavailableError`) after `KEYSTORE_LOCK_TIMEOUT_MS`.
+A short value read stays lock-free: a plain value is one atomic OS read, and the
+Model API key is read per request. Only a header sends the reader to the lock.
+
+**Generation records that survive a crash.** A generation is the parts of one
+long value, named by its hash (`<key>#<hash12>.<i>`, as before). Before the
+owner changes anything that can leave parts behind, it writes a record
+`<key>#gens` (`muse-spark-gens:v1:<hash12>.<count>,…`) naming every generation
+that may hold parts: the one the header names now and the one it is about to
+write (or, for a delete or a long-to-short write, the one it is about to drop).
+It writes the new parts, then the header (the single publication point), then
+removes the generation the header no longer names, then deletes the record.
+A clean account has no record. The record holds hashes and counts, never a part.
+
+Every owner, before its own work, reclaims: it reads the header and the record,
+removes the parts of every generation the record names that the header does not,
+and deletes the record. So a crash at any step is found and cleaned by the next
+owner of that account:
+
+| killed after              | header names | next owner                                      |
+| ------------------------- | ------------ | ----------------------------------------------- |
+| record written            | old          | removes the new generation's parts (maybe none) |
+| some or all parts written | old          | removes them                                    |
+| header written            | new          | removes the old generation's parts              |
+| old parts removed         | new          | deletes the record                              |
+| delete: header removed    | none         | removes every named generation                  |
+
+**Readers never see a deleted generation.** A header read without the lock
+sends the reader to the lock, which waits for any owner; it reads the header
+again under the lock and assembles that generation. Parts are removed only by
+an owner, only after the header stopped naming them, and never while a
+reader holds the lock. A part missing under the lock is damage, refused as
+before.
+
+**Delete order.** Header first, so the account reads as absent; then the
+parts; then the record. A crash after the header leaves the record naming
+what to remove.
+
+## What was built
+
+- `src/runtime/namedLock.ts` (new): the pipe/socket lock of
+  `chatGptRefreshLock.ts`, moved unchanged in behaviour (`withNamedLock`,
+  `personScope`). `chatGptRefreshLock.ts` is now only the grant's own name on
+  it. No new lock kind.
+- `src/runtime/keyStore.ts`: `keyringSecretStore(open, { lockScope? })`. Every
+  `store` and `delete`, and the read of a header, runs inside the account's
+  lock; `reclaim` runs first in every owner; the generation record
+  `<key>#gens` is written before any part and deleted last. A lock that
+  cannot be had (timeout `KEYSTORE_LOCK_TIMEOUT_MS`, 30 s, or a local failure)
+  is `StoreUnavailableError`, never a partial write. A short value read is
+  still one lock-free OS read. `lockScope` exists so the proof's processes
+  share a throwaway lock name that no real account shares.
+- `src/shared/constants.ts`: `KEYRING_GENERATIONS_SUFFIX`,
+  `KEYRING_GENERATIONS_TAG`, `KEYSTORE_LOCK_PIPE`, `KEYSTORE_LOCK_DIR`,
+  `KEYSTORE_LOCK_ACCOUNT_CHARS`, `KEYSTORE_LOCK_TIMEOUT_MS`.
+
+## Proof: the real keyringSecretStore, the real Windows Credential Manager
+
+`test/unit/keystoreOwner.test.ts` bundles the real `src/runtime/keyStore.ts`
+with esbuild and runs it in real child processes
+(`test/hosts/keystore-worker.mjs`) over the real `@napi-rs/keyring`, on
+throwaway accounts `museSpark.test.keystoreOwner.<uuid>` and a throwaway lock
+scope. Nothing of ours is replaced. The worker adds only scheduling of the OS
+calls, which a race this narrow needs to be repeatable: SIGKILL at the Nth OS
+call, or a pause before the header write / after a header read. It reads no
+credential and the owner's ChatGPT grant is never opened (its account name is
+not used anywhere in the test).
+
+| Case                                                                                           | What a person would suffer if it failed                                     |
+| ---------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| two processes write the same account at once, four rounds                                      | one write destroys the other: the account reads as damage                   |
+| a reader polls while a writer replaces the value twelve times                                  | a reader meets a deleted generation                                         |
+| R1: writer A paused before its header, writer B writes meanwhile                               | A publishes a header whose parts B deleted                                  |
+| R1: a reader paused holding a header, a replacement removes its parts                          | the reader is handed parts that are gone                                    |
+| a replacing write killed at EACH of its OS calls (every one, measured on a live process first) | a write that was acknowledged cannot be read, or a part outlives the delete |
+| a first write killed at calls 3 to 6, before any header                                        | orphaned secret parts no header names, which no delete ever removed (R5)    |
+
+After every kill point: the account reads as the old value or the new one
+(never as damage); the next owner stores and deletes it; the service then
+holds no entry whose name starts with the account (`entriesOf` lists the
+real store).
+
+Results (this PC, Windows, 2026-10-14 22:4x PM):
+
+- `test/unit/keystoreOwner.test.ts` 6/6 and `keyringParts.test.ts` 8/8
+  (14/14, exit 0), after the lint fixes below. The first run failed once
+  (5/6): the worker paused on the reader's first header read AND its second
+  one under the lock (a read reads the header twice); the pause is now once per
+  process. A test-harness defect, not the store's.
+- Red drills (each file restored byte-exact; SHA-256 before and after
+  `023B1CCC…F9F1` identical for the first three; final tree `9C78402F…F37D`):
+  1. The previous `keyStore.ts` (HEAD): 5 of 6 fail
+     (`killed at call 12: expected [ …(3) ] to deeply equal []`, `expected 'X:…'
+to be 'Y:…'`, writers refused). Its first attempt printed 6/6 failed in
+     60 ms each because the old file has no `lockScope` option and the
+     worker could not start: that run was discarded as proving nothing.
+  2. Reclamation switched off (`reclaim` returns at once): 2 fail, the two kill
+     sweeps (`killed at call 17`, `killed at call 4`: parts left behind).
+  3. The lock bypassed (`return await work()`): 3 fail, the concurrency cases
+     (`expected [ …(7) ] to have a length of 4`, `expected [ …(3) ] to include
+null`, a refused write).
+- After the run the real store holds no `test.keystoreOwner` entry (counted by
+  name only; no value read). The service's other 6 entries are the owner's and
+  were never opened.
+- Dependents run: `runtimeChatGptLock.test.ts` 7 pass / 3 skipped (the POSIX
+  socket cases skip on Windows), `runtimeAccountStore.test.ts` +
+  `execProvider.test.ts` 20/20.
+- Gates on this tree: `typecheck:host` 0, `typecheck:unit` 0, ESLint 0 on the
+  six files (the first run had 32 findings, all fixed, none disabled),
+  Prettier unchanged, `deadcode` 0, `cycles` 0 (3,275 files), `check:host-api` 0.
+
+Honest limits: the proof is Windows. On POSIX the same worker would run over
+the Secret Service / Keychain, which this PC cannot reach; the lock beneath is
+the same mechanism the grant lock already proves on both. A killed process at
+the store's OS call is a process killed between two OS calls, which is the
+only granularity a crash has on a credential store; a power cut mid-call is the
+OS's atomicity to give, and the record is written before the call it protects.

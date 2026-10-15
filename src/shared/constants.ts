@@ -4093,6 +4093,21 @@ export const KEYRING_PART_CHARS = 1200
 export const KEYRING_PARTS_TAG = 'muse-spark-parts:v1:'
 // How many hex characters of that hash name one generation of parts.
 export const KEYRING_PARTS_ID_CHARS = 12
+// The generation record beside a long value (docs/certification/chatgpt-grant-lock.md,
+// "PLANFIX R1 + R5"): its account suffix and its tag. It names every generation
+// of parts that may exist, written before any part, so a crash leaves a trail
+// the next owner of the account follows to remove what no header names.
+export const KEYRING_GENERATIONS_SUFFIX = '#gens'
+export const KEYRING_GENERATIONS_TAG = 'muse-spark-gens:v1:'
+// The credential store's per-account owner is a lock of its own, never the
+// ChatGPT grant lock, which is held across a sign-in that reads and writes
+// this store. The hex characters of the account's hash name its lock file.
+export const KEYSTORE_LOCK_PIPE = 'muse-spark-keystore'
+export const KEYSTORE_LOCK_DIR = 'muse-spark-keystore'
+export const KEYSTORE_LOCK_ACCOUNT_CHARS = 16
+// How long a writer, a reader of a long value or a delete waits for the
+// account's owner before it fails closed; the owner's work is a few OS calls.
+export const KEYSTORE_LOCK_TIMEOUT_MS = 30 * 1000
 // Which account pays is chosen at launch, never guessed (D62).
 export const ACP_BACKENDS = ['museCode', 'modelApi'] as const
 export type AcpBackendKind = (typeof ACP_BACKENDS)[number]
