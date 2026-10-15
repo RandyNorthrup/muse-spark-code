@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { dataFolderOf } from '../../scripts/real-life/lib/home.mjs'
+import { dataFolderOf, productEnvironment } from '../../scripts/real-life/lib/home.mjs'
 import { heldUnsettled } from '../../scripts/real-life/lib/ledger.mjs'
 import { installerEnvironment } from '../../scripts/real-life/lib/install.mjs'
 import { keySource, missingKeys } from '../../scripts/real-life/lib/keys.mjs'
@@ -18,6 +18,26 @@ import {
 // the review finding it holds. Values go in as data; nothing is faked.
 
 describe('real-life installer environment', () => {
+  it('removes case-insensitive Node preloads from installer and product children (T7)', () => {
+    const root = mkdtempSync(path.join(tmpdir(), 'real-life-'))
+    try {
+      const from = {
+        PATH: '/usr/bin',
+        NODE_OPTIONS: '--require outside.cjs',
+        node_options: '--import outside.mjs',
+        NODE_PATH: '/outside',
+      }
+      for (const env of [installerEnvironment(from), productEnvironment(root, from)]) {
+        expect(env.PATH).toBe('/usr/bin')
+        expect(env.NODE_OPTIONS).toBeUndefined()
+        expect(env.node_options).toBeUndefined()
+        expect(env.NODE_PATH).toBeUndefined()
+      }
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
   it('keeps no credential variable out of the child npm (4252482350)', () => {
     const env = installerEnvironment({
       PATH: '/usr/bin',

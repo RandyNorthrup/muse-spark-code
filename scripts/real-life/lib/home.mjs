@@ -15,8 +15,13 @@ const CREDENTIAL_NAME = /KEY|TOKEN|SECRET|PASSWORD|PASSWD|CREDENTIAL|AUTH|COOKIE
 // bus a Linux credential store is reached through, and SSH's agent socket.
 const NOT_A_CREDENTIAL = new Set(['DBUS_SESSION_BUS_ADDRESS', 'SSH_AUTH_SOCK'])
 
+// Node must not load caller-controlled code before the installed product.
+const NODE_INJECTION = new Set(['NODE_OPTIONS', 'NODE_PATH'])
+
 /** Whether a variable of the caller is handed to the product. */
-export const isPassedOn = (name) => NOT_A_CREDENTIAL.has(name) || !CREDENTIAL_NAME.test(name)
+export const isPassedOn = (name) =>
+  !NODE_INJECTION.has(name.toUpperCase()) &&
+  (NOT_A_CREDENTIAL.has(name) || !CREDENTIAL_NAME.test(name))
 
 /**
  * A fresh folder tree: where the artefact is installed, the home, and an

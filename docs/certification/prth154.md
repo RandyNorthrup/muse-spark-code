@@ -101,6 +101,21 @@ strict hard request ceiling use the product's bounded exec surface, not
 ACP; this lane does not claim ACP acquired a request limiter. No application
 command/setting or feature-catalog entry changed (runner-only tooling).
 
+## T7 — Node preload injection
+
+The shared environment filter now excludes `NODE_OPTIONS` and `NODE_PATH`
+case-insensitively for both installer and product. Pure test data contains
+`--require`/`--import` strings; they are never placed in the actual process
+environment or executed. Existing PATH remains. No hook environment changed.
+
+Fail-first: `npx vitest run test/unit/realLifeGuards.test.mjs
+--maxWorkers=2`, exit 1, 8 passed / 1 failed, `expected '--require
+outside.cjs' to be undefined`. After fix: exit 0, 9 passed. Receipts:
+`.lane/T7-red.log`, `.lane/T7-green.log`. T10 records deliberate break and
+SHA-256 restoration. Lead step: start the runner from a shell with a benign
+preload configured; it must not run in npm or installed product children.
+The runner's own parent process remains the operator's responsibility.
+
 ## Merge
 
 Merged `ac21f1d24` in `c1ead3231`, hooks on. Only AGENTS.md and CHANGELOG.md

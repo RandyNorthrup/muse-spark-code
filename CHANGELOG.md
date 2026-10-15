@@ -9,6 +9,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Real-life run: npm and installed-product children no longer inherit
+  `NODE_OPTIONS` or `NODE_PATH`, including differently cased Windows names.
+
 - Real-life run: help, preflight and records describe request admission
   honestly, not as an enforceable in-flight ACP cap. A scenario exceeding
   its declared requests fails and prevents any further scenario admission.
