@@ -165,6 +165,12 @@
     // The hosts scripts copy this fake CLI by path (test/hosts/fake-muse.sh,
     // a shell cp knip does not trace).
     "test/e2e/fake-muse/serve.mjs",
+    // The reports e2e bundles this entry with esbuild by path
+    // (test/e2e/reports.e2e.test.ts), which knip does not trace.
+    "test/e2e/reportsEntry.ts",
+    // The README-shots script starts this reporting verifier by path
+    // (scripts/readme-shots.mjs), which knip does not trace.
+    "test/harness/reporting/verify.mjs",
     // Tab's configured hook flow starts this real fake-hook process by path.
     "test/fixtures/tabHooks/completion.mjs",
     // M116 playbook scenes: the axe runner (an npm script knip already sees)
