@@ -32,7 +32,9 @@ export interface ExecVaultPort {
   open(context: ExecVaultContext): Promise<ExecVaultSession>
 }
 
-/** B/X inject the authenticated headless registration and bind this authorizer to engine uses. */
+/** B/X inject the authenticated headless registration and bind this authorizer to engine uses.
+ * @unwired M109 headless vault session
+ */
 export class HeadlessVaultSession implements ExecVaultSession {
   private closed = false
   private readonly requester: VaultRequester
