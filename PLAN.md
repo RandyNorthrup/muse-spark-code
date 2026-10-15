@@ -1362,6 +1362,8 @@ properties, and retain all existing caps. No new artifact or dependency.
 | `dist/exec.js`                           | ≤ 950 KiB                           |
 | Webview estimator import closure         | ≤ 25 KiB                            |
 | `dist/reference.js`                      | ≤ 125 KiB                           |
+| `dist/auth.js`                           | ≤ 75 KiB                            |
+| `dist/paid.js`                           | ≤ 75 KiB                            |
 
 **`dist/conversation.js` budget rationale.** (ACTDIET: first chat surface, 216.0 KiB plus 15%, rounded to 25 KiB)
 
@@ -1478,6 +1480,10 @@ properties, and retain all existing caps. No new artifact or dependency.
 **Webview estimator import closure budget rationale.** (M117: EstimatorPanel.tsx and its boundary; first split 9.6 KiB on 2026-10-06 by the same rule; separate from the unchanged unclassified deferred group)
 
 **`dist/reference.js` budget rationale.** (M117: the generated help reference; the estimator feature, command and settings rows bring it to 100.7 KiB on 2026-10-07, plus 15%, rounded up to 25 KiB)
+
+**`dist/auth.js` budget rationale.** (CIFIX161B: the sign-in gate, AuthService and the three-valued credential read, loaded on the first credential, money or consent read; measured 64.8 KiB plus 15%, rounded up to 25 KiB)
+
+**`dist/paid.js` budget rationale.** (CIFIX161B: the paid gate, consent, usage and quote authority, loaded on the first paid consent, gate or usage read; measured 62.7 KiB plus 15%, rounded up to 25 KiB)
 
 **TRAIN13B (2026-10-05):** `dist/validation.js` shares only the used
 Node zod/mini runtime exports (40,416 bytes measured; new 50 KiB cap by

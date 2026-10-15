@@ -52,6 +52,23 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     ],
   },
   {
+    file: 'auth.js',
+    side: 'both',
+    requestedBy: [
+      { importer: 'src/extension.ts', symbol: 'activateWindow', side: ['vscode'] },
+      {
+        importer: 'src/host/auth/credentialStore.ts',
+        symbol: 'CredentialStore.getApiKey',
+        side: ['acp', 'vscode'],
+      },
+      {
+        importer: 'src/host/auth/credentialStore.ts',
+        symbol: 'CredentialStore.readModelApiCredential',
+        side: ['acp', 'vscode'],
+      },
+    ],
+  },
+  {
     file: 'browserCheck.js',
     side: 'vscode',
     requestedBy: [
@@ -388,6 +405,11 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     requestedBy: [
       { importer: 'src/shared/constants.ts', symbol: 'PAGE_WORKER_FILE', side: ['acp', 'vscode'] },
     ],
+  },
+  {
+    file: 'paid.js',
+    side: 'vscode',
+    requestedBy: [{ importer: 'src/extension.ts', symbol: 'activateWindow', side: ['vscode'] }],
   },
   {
     file: 'planMarkdown.js',
