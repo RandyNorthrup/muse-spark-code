@@ -24,9 +24,21 @@ export interface SessionTap {
  * its text already arrived settled: once a later response completes, the
  * earlier segment releases whole instead of staying withheld forever.
  */
-function isContinued(outcomes: ReadonlyMap<number, LastResponse>, n: number): boolean {
-  for (const [laterN, later] of outcomes) {
-    if (laterN > n && later.terminal === 'completed') return true
+export function isContinued(outcomes: ReadonlyMap<number, LastResponse>, n: number): boolean {
+  if (outcomes.get(n)?.incompleteReason !== 'max_output_tokens') return false
+  for (let laterN = n + 1; laterN <= outcomes.size; laterN += 1) {
+    const outcome = outcomes.get(laterN)
+    if (
+      outcome === undefined ||
+      outcome.usage === 'invalid' ||
+      outcome.transportError !== null ||
+      outcome.endedWithoutTerminal ||
+      outcome.httpStatus !== null
+    )
+      return false
+    if (outcome.terminal === 'completed') return true
+    if (outcome.terminal !== 'incomplete' || outcome.incompleteReason !== 'max_output_tokens')
+      return false
   }
   return false
 }

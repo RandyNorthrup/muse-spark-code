@@ -245,6 +245,14 @@ is not applied to the repository's legacy, non-ledger PLAN format.
   all delivered file bytes. Lead-owned real use must cover Stop, budget refusal,
   repeated continuations, web and editor diagnostics.
 
+- F6 headless release authority: a later `completed` terminal formerly
+  released any earlier incomplete segment, including `content_filter` or a
+  chain whose terminal had a transport/accounting failure. The real tap's
+  continuation predicate now requires max_output_tokens and a clean chain,
+  stopping at failures. Data-only tests through the real exported predicate
+  pass (6 tests with output-cap checks, exit 0, `.lane/tap-green.log`). This
+  does not certify full event delivery or provider behavior.
+
 ## Qualification
 
 All work runs directly in `/home/randy/lanes/LIMITSB` on linuxlt. No
