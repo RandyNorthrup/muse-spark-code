@@ -94,6 +94,8 @@
     "src/host/git/conversationGitEntry.ts",
     // The Model API's session store (D14), required by path when its host is first built.
     "src/host/backend/fileSessionStoreEntry.ts",
+    // The Create AGENTS.md command (D15), required by path when that command runs.
+    "src/host/commands/rulesFileEntry.ts",
     // The bundled skills installer's own bundle (M89), required by path on first use.
     "src/host/skills/bundledSkillsEntry.ts",
     // Code intelligence's `ide` answers and voice's drivers, each required by
