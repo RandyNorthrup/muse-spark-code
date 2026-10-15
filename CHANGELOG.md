@@ -9,6 +9,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- Test-overhaul review: retain stored-zone scheduling regressions through
+  the real calendar engine and Intl, without the deleted suite's fake
+  clock or spy replacements. Covers daylight-saving gaps/folds, skipped
+  dates, sparse cron and preview/admission end bounds.
+
 - Test overhaul (not a user feature): the unit suite now runs real code
   only — about 800 fake-driven test files deleted, the screenshot
   comparison system removed (a UI change gets one small local look,
