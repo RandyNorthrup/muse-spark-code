@@ -961,7 +961,16 @@ export class MuseUsageDeltas {
         next.outputTokens >= base.outputTokens &&
         (next.inputTokens > base.inputTokens || next.outputTokens > base.outputTokens)
       if (!hasMovedForward) return
-      this.noteCompletion(event, model, this.startedAt ?? at, at)
+      // The frame carries this completion's own wall time: its start is
+      // the notification time minus that duration, not the turn's start,
+      // so later requests in one turn do not overlap the first. Frames
+      // without a duration keep the turn start (then the receipt time).
+      const ownDuration = event.completion.durationMs
+      const completionStartedAt =
+        ownDuration !== undefined && Number.isFinite(ownDuration)
+          ? Math.max(0, at - Math.max(0, ownDuration))
+          : (this.startedAt ?? at)
+      this.noteCompletion(event, model, completionStartedAt, at)
       return
     }
     if (
