@@ -428,3 +428,23 @@ Proof: `vitest run test/unit/scheduleTime.test.ts --maxWorkers=2` passed
 the Lord Howe fold case; Los Angeles expected 1793521800000, received 1793525400000. Restored the product file byte-for-byte against HEAD,
 SHA-256 `ffd7b0edfc5c7026e15aaf67e1dd6cd9110e002049d0611061a6030b0e18e70d`.
 The restored run and scoped static checks are recorded in the review report.
+
+## RVTESTCUT2 — retain real attention-dock regressions
+
+P2: `attentionDock.test.tsx` was deleted because one case used fake timers
+(old lines 287–321). Its other cases rendered the real `AttentionDock`,
+`QuestionCard` and `QuestionSurface`, with observer callbacks and data.
+The surviving `ApprovalDock` and `QuestionCard` suites do not exercise a
+question group's shared draft across deferral or a session change.
+
+Restore three small real-component cases at the deleted path: focused
+late-answer draft retention, no focus theft on another question's arrival,
+and clearing the draft at a session boundary while remaining modal-inert.
+Only real imports and observer callbacks; no fake timer or host. No UI or
+product change, so no new screenshot or browser run.
+
+Proof: 3/3 pass at default deadlines. Deliberately retaining `drafts`
+instead of clearing them in `QuestionSurface`'s session-change branch
+fails the session-boundary case (exit 1): expected an empty field, received
+`Old draft`. Restore byte-exact against HEAD; SHA-256
+`8b45c83d225305bbf4b98539ed071b012105c7d0b67b4e8a87a0d783d04253b3`.

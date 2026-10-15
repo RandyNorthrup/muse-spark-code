@@ -9,6 +9,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- Test-overhaul review: retain real question-dock draft, focus and session
+  boundary regressions without the deleted suite's fake-timer case.
+
 - Test-overhaul review: retain stored-zone scheduling regressions through
   the real calendar engine and Intl, without the deleted suite's fake
   clock or spy replacements. Covers daylight-saving gaps/folds, skipped
