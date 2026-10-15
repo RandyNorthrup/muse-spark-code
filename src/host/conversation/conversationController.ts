@@ -1235,7 +1235,7 @@ export class ConversationController {
   private messageDisplayQueue: Promise<void> = Promise.resolve()
   private readonly childSessionIds = new Set<string>()
   private hasWarnedSandbox = false
-  /** F91: the model heard once that Muse Code's Linux sandbox cannot start here. */
+  /** F91: the model heard once (per session) that Muse Code's Linux sandbox cannot start here. */
   private hasToldModelSandboxCannotStart = false
   /** The contributor model the user said yes to (once per conversation). */
   private confirmedContributor: string | undefined
@@ -2875,6 +2875,12 @@ export class ConversationController {
    * commands (#26) is warned once per session.
    */
   private noteShellSandbox(): void {
+    // Called once per newly opened session (openSession's new-session
+    // path, never on resume), which is what makes the F91 panel notice
+    // below once per session. This controller outlives its sessions (one
+    // per surface), so the model flag resets here: a new conversation's
+    // model has heard nothing yet.
+    this.hasToldModelSandboxCannotStart = false
     const posture = this.deps.shellSandbox()
     if (!posture.isSandboxed) {
       if (this.deps.shouldWarnSandboxOff?.() ?? true) {
@@ -2891,12 +2897,12 @@ export class ConversationController {
       this.notice('warning', UI_TEXT.sandboxProfileNotice)
     }
     // F91: the probe measured at host start that Muse Code's Linux sandbox
-    // cannot start on this machine. Said once per conversation, sharing the
-    // failure notice's flag, so a later raw bwrap line never piles on.
-    if (!isLinuxSandboxBlocked(this.deps.shellSandboxReadiness?.()) || this.hasWarnedSandbox) {
+    // cannot start on this machine (once per session: see above). It does
+    // not share the Windows setup-failure flag: a different notice, and
+    // that flag's once-per-surface lifetime would silence later sessions.
+    if (!isLinuxSandboxBlocked(this.deps.shellSandboxReadiness?.())) {
       return
     }
-    this.hasWarnedSandbox = true
     this.notice('warning', UI_TEXT.sandboxCannotStartNotice)
   }
 
