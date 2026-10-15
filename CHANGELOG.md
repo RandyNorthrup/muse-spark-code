@@ -9,6 +9,59 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- Activation budget: the Create AGENTS.md command, its rules template and
+  their redaction load on the command's first run instead of at activation,
+  leaving 830 bytes of room below the 3,072-byte growth allowance. No
+  behaviour change; a missing bundle refuses the run and the next run tries
+  again.
+
+- The chat no longer takes the keyboard from a file you just opened: a chat
+  panel that finishes loading never pulls the focus in, a focus request for
+  a panel that is no longer active is dropped instead of landing on a much
+  later click, and a question that arrives while you are elsewhere waits
+  with its badge instead of taking the keyboard. Acting on the chat
+  yourself — clicking into the panel, Focus Input, sending — focuses the
+  input as before, and Focus Input while the composer is focused hands
+  the keyboard back to the file you were in (it used to focus the editor
+  group, which keeps a chat tab active).
+
+- Test-overhaul review: paid-popup lazy-load checks now build the real
+  runtime instead of writing a replacement formatter, retaining locale
+  propagation and sub-cent search-price disclosure checks.
+
+- Test-overhaul review: account-command tests now use the real parser and
+  metadata files, not a hand-built provider metadata store or key store.
+  Credential-operation composition remains for the real-life run.
+
+- Test-overhaul review: retain real on-disk session save/load, damaged
+  history, retention-boundary and path-confinement checks without fake
+  upload ledgers, question stores or filesystem replacements.
+
+- Test-overhaul review: retain real question-dock draft, focus and session
+  boundary regressions without the deleted suite's fake-timer case.
+
+- Test-overhaul review: retain stored-zone scheduling regressions through
+  the real calendar engine and Intl, without the deleted suite's fake
+  clock or spy replacements. Covers daylight-saving gaps/folds, skipped
+  dates, sparse cron and preview/admission end bounds.
+
+- Test overhaul (not a user feature): the unit suite now runs real code
+  only — about 800 fake-driven test files deleted, the screenshot
+  comparison system removed (a UI change gets one small local look,
+  `npm run ui:look -- <scene>`), the coverage gate dropped, and the
+  accessibility check moved off the pull-request path. The packed
+  product's real-life run is the product's test.
+  (docs/testing/test-overhaul-2026-10-12.md).
+
+- Test overhaul follow-up (not a user feature): the dead-code gate
+  declares the built-but-unwired in-progress source instead of deleting
+  it — one titled block in `knip.jsonc` grouping 110 files by feature
+  (vault, team workers, schedules, resources, accounts, media,
+  estimator, theme, reporting, devices, hooks, judge) with their PLAN.md
+  milestones; no file is deleted. The unused-export residue those
+  features' API surface leaves in wired files is measured in
+  docs/testing/test-overhaul-2026-10-12.md for the per-feature owners.
+
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
   reads and writes, and 1-hour cache writes settle at their own price.
   The shared retry classifier refuses known quota codes and excessive
