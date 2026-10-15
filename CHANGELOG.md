@@ -9,6 +9,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Rule-2 workflow identity strips the API's `@ref` suffix too, so prior
+  release runs do not incorrectly block fresh artifact-only recovery.
+
 - Rule 2 refuses a second run ID for the same workflow and unchanged head,
   including a close/reopen run on attempt 1; different workflows still run once.
 

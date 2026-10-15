@@ -11,6 +11,7 @@ import {
   pullOf,
   releaseRecheck,
   runOf,
+  workflowPath,
 } from '../../scripts/lib/rule2Gate.mjs'
 
 const run = {
@@ -92,6 +93,30 @@ describe('rule2 gate wire parsing', () => {
     [{ ...mergedPull, head: { sha: 42 } }],
   ])('refuses a pull request it cannot read: %j', (value) => {
     expect(() => pullOf(value)).toThrow(/lacks a field/)
+  })
+})
+
+describe('rule2 workflow path identity', () => {
+  it('matches REST ref-suffixed release paths to the hosted workflow reference', () => {
+    const repository = 'RandyNorthrup/muse-spark-code'
+    const hosted = workflowPath(
+      `${repository}/.github/workflows/release.yml@refs/tags/v0.18.2`,
+      repository,
+    )
+    const earlier = runOf({ ...run, path: '.github/workflows/release.yml@main' })
+    expect(earlier.path).toBe('.github/workflows/release.yml')
+    expect(earlier.path).toBe(hosted)
+    const ci = runOf(run)
+    expect([earlier, ci].filter((entry) => entry.path !== hosted)).toEqual([ci])
+  })
+
+  it('keeps plain paths and detects a duplicate across ref suffixes', () => {
+    const plain = runOf(run)
+    const suffixed = runOf({ ...run, id: run.id + 1, path: `${run.path}@main` })
+    expect(workflowPath(run.path)).toBe(run.path)
+    expect(duplicateExecutions([plain, suffixed])).toEqual([
+      expect.stringContaining('distinct runs'),
+    ])
   })
 })
 
