@@ -86,7 +86,10 @@ import {
   planTooLargeText,
 } from '../../core/plans/planStore'
 import type { WorkspaceEditRecorder } from '../../core/verify/workspaceEdits'
-import type { ShellSandboxPosture } from '../../core/backends/musecode/sandbox'
+import type {
+  LinuxSandboxReadiness,
+  ShellSandboxPosture,
+} from '../../core/backends/musecode/sandbox'
 import type { BestOfNGitGuard } from '../../core/bestOfN/bestOfNRunner'
 import { type BestOfNError, isBestOfNError } from '../../core/bestOfN/bestOfNError'
 import type { BestOfNCoordinator } from '../../core/bestOfN/bestOfNCoordinator'
@@ -160,6 +163,7 @@ import {
   type PermissionMode,
   REVIEW_PANE_MAX_EDITS,
   REVIEW_PANE_MAX_LINES,
+  SANDBOX_CANNOT_START_MODEL_NOTE,
   SANDBOX_FAILURE_MARKER,
   SANDBOX_PREPARING_MARKER,
   SESSION_LIST_LIMIT,
@@ -470,6 +474,11 @@ export interface ConversationDeps {
   readonly platform: NodeJS.Platform
   /** The shell sandbox posture the host runs with (D12). */
   readonly shellSandbox: () => ShellSandboxPosture
+  /**
+   * What the Linux capability probe measured (F91); absent where it does
+   * not apply, while no host has started, or where the wiring predates it.
+   */
+  readonly shellSandboxReadiness?: () => LinuxSandboxReadiness | undefined
   /**
    * True the first time in this window that the sandbox-off warning may be
    * shown (musecode-write-asks); without it, every session shows it.
@@ -1225,6 +1234,8 @@ export class ConversationController {
   private messageDisplayQueue: Promise<void> = Promise.resolve()
   private readonly childSessionIds = new Set<string>()
   private hasWarnedSandbox = false
+  /** F91: the model heard once that Muse Code's Linux sandbox cannot start here. */
+  private hasToldModelSandboxCannotStart = false
   /** The contributor model the user said yes to (once per conversation). */
   private confirmedContributor: string | undefined
   /** The workspace's stored sessions once the dialog asked for them (M6). */
@@ -2878,6 +2889,14 @@ export class ConversationController {
     if (posture.isUnsupportedWorkspace) {
       this.notice('warning', UI_TEXT.sandboxProfileNotice)
     }
+    // F91: the probe measured at host start that Muse Code's Linux sandbox
+    // cannot start on this machine. Said once per conversation, sharing the
+    // failure notice's flag, so a later raw bwrap line never piles on.
+    if (this.deps.shellSandboxReadiness?.()?.canStart !== false || this.hasWarnedSandbox) {
+      return
+    }
+    this.hasWarnedSandbox = true
+    this.notice('warning', UI_TEXT.sandboxCannotStartNotice)
   }
 
   /**
@@ -6569,6 +6588,19 @@ export class ConversationController {
         host.info.kind === 'museCode'
           ? [{ type: 'text', text: CHOICE_STEERING_NOTE }, ...verifyParts]
           : []
+      // F91: while Muse Code's Linux sandbox cannot start here, the model
+      // hears it once, at the tail, so a failing read-only command never
+      // reads as a dead shell. Earlier request bytes are untouched: this
+      // part is appended, never spliced into what came before.
+      const sandboxNote: readonly TurnPart[] =
+        host.info.kind === 'museCode' &&
+        !this.hasToldModelSandboxCannotStart &&
+        this.deps.shellSandboxReadiness?.()?.canStart === false
+          ? [{ type: 'text', text: SANDBOX_CANNOT_START_MODEL_NOTE }]
+          : []
+      if (sandboxNote.length > 0) {
+        this.hasToldModelSandboxCannotStart = true
+      }
       // A brief's first message (M79): what to do with it, for the model only.
       const hasSetTodos =
         brief !== undefined && brief.todos.length > 0 && session.setTodos !== undefined
@@ -6581,6 +6613,7 @@ export class ConversationController {
         ...drafting,
         ...(context === undefined ? [] : [context]),
         ...note,
+        ...sandboxNote,
       ]
       // What the card shows: a brief's own words, a handoff's request card
       // (M74, in the user's language), else what was typed.

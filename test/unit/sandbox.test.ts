@@ -4,6 +4,7 @@ import {
   elevatedInvocation,
   isProfileWorkspace,
   museCliInvocation,
+  parseLinuxSandboxProbe,
   parseSandboxCheck,
   resolveShellSandbox,
   sandboxCheckInvocation,
@@ -274,5 +275,53 @@ describe('resolveShellSandbox', () => {
     expect(isSandboxNetworkApplied('restricted', unsandboxed)).toBe(false)
     // `default` leaves Muse Code's own default or a managed configuration's.
     expect(isSandboxNetworkApplied('default', sandboxed)).toBe(false)
+  })
+})
+
+// Verbatim `bwrap --unshare-user -- /bin/true` output, measured 2026-10-15 on
+// the linuxlt rig (bubblewrap 0.11.0, exit 1): the kernel refuses the user
+// namespace, which is the same refusal Muse Code's Linux sandbox meets (F91).
+const BWRAP_NAMESPACE_REFUSED = [
+  'bwrap: No permissions to create new namespace, likely because the kernel does not allow non-privileged user namespaces. See <https://deb.li/bubblewrap> or <file:///usr/share/doc/bubblewrap/README.Debian.gz>.',
+  '',
+].join('\n')
+
+describe('parseLinuxSandboxProbe', () => {
+  it('reads a started user namespace as a sandbox that can start', () => {
+    expect(parseLinuxSandboxProbe({ exitCode: 0, stderr: '' })).toEqual({
+      canStart: true,
+      reason: undefined,
+      detail: undefined,
+    })
+  })
+
+  it('reads the kernel refusing the user namespace as blocked namespaces', () => {
+    expect(parseLinuxSandboxProbe({ exitCode: 1, stderr: BWRAP_NAMESPACE_REFUSED })).toEqual({
+      canStart: false,
+      reason: 'userNamespacesBlocked',
+      detail:
+        'bwrap: No permissions to create new namespace, likely because the kernel does not allow non-privileged user namespaces. See <https://deb.li/bubblewrap> or <file:///usr/share/doc/bubblewrap/README.Debian.gz>.',
+    })
+  })
+
+  it('reads a bwrap that never ran as a failed probe, without guessing why', () => {
+    expect(parseLinuxSandboxProbe({ exitCode: undefined, stderr: '' })).toEqual({
+      canStart: false,
+      reason: 'bwrapFailed',
+      detail: undefined,
+    })
+  })
+
+  it('keeps another bwrap failure as failed, with its own first line', () => {
+    expect(
+      parseLinuxSandboxProbe({
+        exitCode: 1,
+        stderr: '\nbwrap: Cannot mkdir /run: permission denied\n',
+      }),
+    ).toEqual({
+      canStart: false,
+      reason: 'bwrapFailed',
+      detail: 'bwrap: Cannot mkdir /run: permission denied',
+    })
   })
 })
