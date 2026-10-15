@@ -112,38 +112,28 @@ describe('report entry points', () => {
 
 describe('report on the crash screen', () => {
   it('keeps only the reload without a report handler', () => {
-    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
-    try {
-      render(
-        <ErrorBoundary onReload={() => undefined} onError={() => undefined}>
-          <Bomb />
-        </ErrorBoundary>,
-      )
-      expect(screen.getByRole('button', { name: /Reload/ })).toBeInTheDocument()
-      expect(screen.queryByRole('button', { name: 'Report a Problem' })).not.toBeInTheDocument()
-    } finally {
-      consoleError.mockRestore()
-    }
+    render(
+      <ErrorBoundary onReload={() => undefined} onError={() => undefined}>
+        <Bomb />
+      </ErrorBoundary>,
+    )
+    expect(screen.getByRole('button', { name: /Reload/ })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Report a Problem' })).not.toBeInTheDocument()
   })
 
   it('hands the render failure to the report workflow with no row text', () => {
-    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
-    try {
-      const onReportProblem = vi.fn()
-      render(
-        <ErrorBoundary
-          onReload={() => undefined}
-          onError={() => undefined}
-          onReportProblem={onReportProblem}
-        >
-          <Bomb />
-        </ErrorBoundary>,
-      )
-      fireEvent.click(screen.getByRole('button', { name: 'Report a Problem' }))
-      expect(onReportProblem).toHaveBeenCalledTimes(1)
-    } finally {
-      consoleError.mockRestore()
-    }
+    const onReportProblem = vi.fn()
+    render(
+      <ErrorBoundary
+        onReload={() => undefined}
+        onError={() => undefined}
+        onReportProblem={onReportProblem}
+      >
+        <Bomb />
+      </ErrorBoundary>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Report a Problem' }))
+    expect(onReportProblem).toHaveBeenCalledTimes(1)
   })
 })
 
