@@ -950,6 +950,17 @@ export class MuseUsageDeltas {
     const model = event.completion?.modelId ?? event.modelId ?? this.currentModel
     if (event.completion !== undefined) {
       const at = this.now()
+      // The CLI can deliver the same completion-bearing frame twice; its
+      // cumulative totals then did not move. Only a forward move records,
+      // the same rule headless counting uses (`isCountedCompletion` in
+      // runExec.ts), so the journal and the request count never count the
+      // same report differently.
+      const base = prior ?? { inputTokens: 0, outputTokens: 0 }
+      const hasMovedForward =
+        next.inputTokens >= base.inputTokens &&
+        next.outputTokens >= base.outputTokens &&
+        (next.inputTokens > base.inputTokens || next.outputTokens > base.outputTokens)
+      if (!hasMovedForward) return
       this.noteCompletion(event, model, this.startedAt ?? at, at)
       return
     }

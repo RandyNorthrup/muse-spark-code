@@ -110,7 +110,7 @@ function tokenUsageEvent(sessionId: string, frame: ReturnType<typeof tokenUsageF
   return mapped.event
 }
 
-async function recordedThroughRealJournal(): Promise<{
+async function recordedThroughRealJournal(shouldRepeatFirst = false): Promise<{
   readonly records: readonly UsageRecord[]
   readonly limits: readonly UsageLimitSnapshot[]
 }> {
@@ -151,16 +151,15 @@ async function recordedThroughRealJournal(): Promise<{
   deltas.receive({ type: 'turnStarted', turnId: 'turn-1' })
   let cumulativeInput = 0
   let cumulativeOutput = 0
-  for (const completion of COMPLETIONS) {
+  for (const [index, completion] of COMPLETIONS.entries()) {
     nowMs = completion.at
     cumulativeInput += completion.input
     cumulativeOutput += completion.output
-    deltas.receive(
-      tokenUsageEvent(
-        sessionId,
-        tokenUsageFrame(sessionId, completion, cumulativeInput, cumulativeOutput),
-      ),
-    )
+    const frame = tokenUsageFrame(sessionId, completion, cumulativeInput, cumulativeOutput)
+    deltas.receive(tokenUsageEvent(sessionId, frame))
+    // T1: the CLI can deliver the same completion-bearing frame twice.
+    if (!shouldRepeatFirst || index !== 0) continue
+    deltas.receive(tokenUsageEvent(sessionId, frame))
   }
   deltas.receive({ type: 'turnCompleted', turnId: 'turn-1', terminal: 'completed' })
   recording.limit({
@@ -231,6 +230,14 @@ describe('usage says what really happened (F20-F24)', () => {
     expect(text).not.toContain('Reasoning Tokens: Unknown')
     expect(text).not.toContain('Cache Hit Rate: Unknown')
     expect(text).toContain('Cache Hit Rate: 95%')
+  })
+
+  it('records a twice-delivered completion once (T1)', async () => {
+    const { records } = await recordedThroughRealJournal(true)
+    expect(records).toHaveLength(COMPLETIONS.length)
+    expect(records.map((record) => record.tokens.input)).toEqual(
+      COMPLETIONS.map((completion) => completion.input),
+    )
   })
 
   it('times each request by its own duration (F21)', async () => {
