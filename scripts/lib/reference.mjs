@@ -1127,10 +1127,13 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
         errors.push(`CLI help route is not parsed: ${String(route)}`)
     }
   }
-  if (!readme.includes('help <command>'))
+  const helpSection =
+    /^## Help and reference\r?\n([\s\S]*?)(?=^## |$(?![\s\S]))/m.exec(readme)?.[1] ?? ''
+  const terminal = /In a terminal,[\s\S]*?(?=\r?\n\r?\n|$)/.exec(helpSection)?.[0] ?? ''
+  if (!terminal.includes('help <command>'))
     errors.push('README terminal section lacks help <command>')
   for (const name of helpTopics) {
-    if (!readme.includes(name)) errors.push(`README terminal section lacks ${name}`)
+    if (!terminal.includes(`\`${name}\``)) errors.push(`README terminal section lacks ${name}`)
   }
   for (const row of slash.values())
     row.syntax = source.SLASH_REFERENCE[row.name]?.syntax ?? [`/${row.name}`]
