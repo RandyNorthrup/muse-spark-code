@@ -213,6 +213,8 @@ suite('activation', () => {
       // next Focus Input — a toggle — hands the keyboard to the file. A panel
       // that merely revealed, without the composer ever taking focus, would
       // re-post focusInput here instead, and the file would never go active.
+      // A waitForTab red in this file names every open tab's kind through
+      // describeTab, so the next F74 names its thief instead of 'Untitled'.
       const toggleDeadline = Date.now() + TAB_WAIT_TIMEOUT_MS
       let hasEditorBack = false
       while (Date.now() < toggleDeadline) {
