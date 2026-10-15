@@ -228,8 +228,12 @@ test/e2e/execStdio.e2e.test.ts --maxWorkers=3`: 59 passed, exit 0 —
 - `npm run cycles` (dpdm): exit 0, no circular dependencies.
 - `npm run duplication`: exit 0, 0 clones.
 - `npm run security:audit`: exit 0 (2 advisories, 1 exception-file entry).
-- `npm run security:sast`: semgrep is missing on this rig (the runner
-  reports its absence; exact text in the lane report).
+- `npm run security:sast`: scan completed, 0 findings (0 blocking,
+  533 rules, 3226 files). The process exits 2 only because semgrep's
+  post-scan version check cannot write its cache on this rig's read-only
+  filesystem (`OSError: [Errno 30] Read-only file system:
+'/home/randy/.cache/semgrep_version'`); the failure is after the scan,
+  not in it.
 
 ## What was not run and why
 
