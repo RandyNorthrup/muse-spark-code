@@ -2453,6 +2453,9 @@ export class ConversationController {
       }
       case 'approvalResolved': {
         this.questionApprovals.delete(event.approvalId)
+        if (this.judgeCards.get(event.approvalId)?.dropped() === true) {
+          this.notice('warning', UI_TEXT.judgeAdvisoryMissing)
+        }
         this.judgeCards.get(event.approvalId)?.discard()
         this.judgeCards.delete(event.approvalId)
         this.noteShellApprovalResolved(event)
@@ -9999,6 +10002,9 @@ export class ConversationController {
         break
       }
       case 'decideApproval': {
+        if (this.judgeCards.get(message.approvalId)?.dropped() === true) {
+          this.notice('warning', UI_TEXT.judgeAdvisoryMissing)
+        }
         this.judgeCards.get(message.approvalId)?.discard()
         this.judgeCards.delete(message.approvalId)
         await this.decideApproval(message)

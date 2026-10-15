@@ -6813,6 +6813,9 @@ export class ModelApiSession implements ScheduledAgentSession {
         })
       })
     } finally {
+      if (!signal.aborted && caution?.dropped() === true) {
+        this.emit({ type: 'backendNotice', level: 'warning', text: UI_TEXT.judgeAdvisoryMissing })
+      }
       caution?.discard()
       this.judgeCardFences.delete(approvalId)
       this.pendingApprovalEvents.delete(approvalId)
@@ -7040,6 +7043,9 @@ export class ModelApiSession implements ScheduledAgentSession {
       throw error
     }
     const hasJudgeCaution = caution?.read() === 'caution'
+    if (caution?.dropped() === true) {
+      this.emit({ type: 'backendNotice', level: 'warning', text: UI_TEXT.judgeAdvisoryMissing })
+    }
     return hasJudgeCaution
       ? {
           decision: 'ask',

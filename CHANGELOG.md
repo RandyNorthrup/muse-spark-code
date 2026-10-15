@@ -115,7 +115,8 @@ happened, not what was planned; superseded entries are kept.
   at that moment. A timed-out elicitation form settles as cancel with a
   warning naming the server, including across the MCP/session bundle boundary.
   A dropped judge advisory is named on the
-  approval card, and as a warning on auto-allow. An oversize panel state
+  Muse Code Auto-review approval card; both backends warn when consuming a
+  missing advisory at Auto review or an ordinary approval decision. An oversize panel state
   still omits the transcript, but the unsent draft and pending send come
   back on restore, including the revision needed to recover a refused
   pending send without replacing newer typing. Proof in `docs/certification/no-silent-drops.md`.

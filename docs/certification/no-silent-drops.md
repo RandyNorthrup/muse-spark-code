@@ -147,10 +147,9 @@ editor protocol and terminal, so one notice covers all three surfaces.
   names it with `UI_TEXT.judgeAdvisoryMissing` (all 14 locales): on the
   card when the person decides, and as a warning when an approval is
   auto-allowed without its advisory. Judged-clean (`none`) and caution
-  paths are unchanged. The judge never runs on ACP, so the panel tells
-  the person; the Model API `card()`-only flow never distinguished
-  judged-clean from dropped, so it is out of scope (recorded, not
-  changed).
+  paths are unchanged. The judge is a VS Code-only feature, not an ACP or
+  terminal feature. The original lane left the Model API and ordinary-card
+  paths silent; RVDROPS corrects those omissions below.
 - Owner's rule: the 60 s bound stays (user-path latency is the stated
   rationale, and the fence owns staleness by design); the drop is now
   announced instead of silent.
@@ -255,6 +254,22 @@ McpElicitationTimeoutError` was false at the real boundary: the connection
   read the child transcript and request `subagent_read_result` for its tail.
   The clip-helper tests do not prove this host event route; live proof remains
   required and no provider was called during review.
+
+## RVDROPS review — B17 complete the existing judge consumers
+
+- P2, quoted-code proof: `ModelApiHost.autoReview` only read caution/none
+  and discarded a failed/pending result silently. Both Model API and Muse
+  Code ordinary approval-card paths simply discarded their judge fence on
+  decision, so the initial B17 fix covered only Muse Code Auto review.
+- Model API Auto review now emits the translated missing-advisory warning
+  when consuming a dropped result. Both ordinary-card paths warn at the
+  decision fence before discarding a missing result (not on a stopped turn).
+  No result is attached late; a ready caution retains its existing behavior.
+- No provider-backed claim is made. Lead: with Judge on, make its request
+  fail or finish late on each backend, both Auto reviewer and ordinary card;
+  verify the warning on auto resolution/decision and no late caution on a
+  different approval. ACP/terminal do not offer Judge (`featureCatalog.ts`
+  declares VS Code only), so no imaginary protocol binding is claimed.
 
 ## Limits raised or removed (owner's rule)
 
