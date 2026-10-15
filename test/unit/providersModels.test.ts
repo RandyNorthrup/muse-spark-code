@@ -8,6 +8,9 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { PassThrough } from 'node:stream'
 import { afterEach, describe, expect, it } from 'vitest'
+import french from '../../l10n/ui.fr.json'
+import { EN } from '../../src/shared/l10n/en'
+import { BASE_LOCALE, setUiText } from '../../src/shared/l10n/text'
 import {
   emptyProvidersFile,
   readProvidersFile,
@@ -29,6 +32,7 @@ import { UI_TEXT } from '../../src/shared/constants'
 const folders: string[] = []
 
 afterEach(() => {
+  setUiText(EN, BASE_LOCALE)
   for (const folder of folders.splice(0)) rmSync(folder, { recursive: true, force: true })
 })
 
@@ -178,6 +182,23 @@ async function expectEntryOnlyList(f: ModelsHarness): Promise<void> {
 }
 
 describe('providers models list', () => {
+  it('prints forced-model annotations in the installed language', async () => {
+    const f = deps()
+    await writeInitial(f.filePath, {
+      ...emptyProvidersFile(),
+      providers: [
+        entry(['model-a'], {
+          preset: 'retired-preset',
+          forcedModels: { 'model-a': 'beta access' },
+        }),
+      ],
+    })
+    setUiText({ ...EN, cliHelp: french.cliHelp }, 'fr')
+    expect(await runModels(f)).toBe(0)
+    expect(f.printed.join('\n')).toContain('model-a (forcé : beta access)')
+    expect(f.printed.join('\n')).not.toContain('forced:')
+  })
+
   it('lists the entry models and notes an unreadable provider list without failing', async () => {
     const f = deps()
     await writeInitial(f.filePath, {

@@ -3647,6 +3647,7 @@
     "purposeUsage": "Pokaż użycie i koszty wszystkich modeli.",
     "purposeResources": "Pokaż obciążenie komputera i ostatnią historię.",
     "modelsList": "Modele dla {entry}:",
+    "modelsForced": "wymuszono: {reason}",
     "modelsExtra": "U dostawcy, ale nie we wpisie:",
     "modelsUnreadable": "Nie można odczytać listy dostawcy; wyświetlono tylko wpis.",
     "modelsAdded": "Dodano do {entry}: {models}.",

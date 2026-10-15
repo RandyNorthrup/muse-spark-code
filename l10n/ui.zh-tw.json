@@ -3428,6 +3428,7 @@
     "purposeUsage": "顯示各模型的用量與費用。",
     "purposeResources": "顯示電腦負載與最近歷程紀錄。",
     "modelsList": "{entry} 的模型：",
+    "modelsForced": "強制加入：{reason}",
     "modelsExtra": "提供者有但項目中沒有：",
     "modelsUnreadable": "無法讀取提供者清單；僅顯示項目。",
     "modelsAdded": "已加入至 {entry}：{models}。",

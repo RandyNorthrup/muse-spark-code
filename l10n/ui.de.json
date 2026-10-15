@@ -3501,6 +3501,7 @@
     "purposeUsage": "Nutzung und Kosten aller Modelle anzeigen.",
     "purposeResources": "Rechnerauslastung und Verlauf anzeigen.",
     "modelsList": "Modelle für {entry}:",
+    "modelsForced": "erzwungen: {reason}",
     "modelsExtra": "Beim Anbieter, aber nicht im Eintrag:",
     "modelsUnreadable": "Die Anbieterliste konnte nicht gelesen werden; nur der Eintrag wird gezeigt.",
     "modelsAdded": "Zu {entry} hinzugefügt: {models}.",

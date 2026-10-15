@@ -4234,6 +4234,8 @@ export const EN = {
     purposeResources: 'Show machine pressure and recent history.',
     // {entry}: the provider entry id.
     modelsList: 'Models for {entry}:',
+    // {reason}: the user's one-line reason for forcing the model.
+    modelsForced: 'forced: {reason}',
     modelsExtra: 'On the provider but not in the entry:',
     modelsUnreadable: 'The provider list could not be read; showing the entry only.',
     // {models}: the model ids; {entry}: the provider entry id.

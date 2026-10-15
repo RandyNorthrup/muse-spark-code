@@ -3428,6 +3428,7 @@
     "purposeUsage": "モデル全体の使用量と費用を表示します。",
     "purposeResources": "マシンの負荷と最近の履歴を表示します。",
     "modelsList": "{entry} のモデル:",
+    "modelsForced": "強制追加: {reason}",
     "modelsExtra": "プロバイダーにはあるがエントリにないもの:",
     "modelsUnreadable": "プロバイダーの一覧を読み取れませんでした。エントリのみ表示します。",
     "modelsAdded": "{entry} に追加しました: {models}。",

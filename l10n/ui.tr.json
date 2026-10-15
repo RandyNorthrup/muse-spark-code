@@ -3501,6 +3501,7 @@
     "purposeUsage": "Tüm modellerin kullanımını ve maliyetini gösterir.",
     "purposeResources": "Makine yükünü ve son geçmişi gösterir.",
     "modelsList": "{entry} modelleri:",
+    "modelsForced": "zorla eklendi: {reason}",
     "modelsExtra": "Sağlayıcıda var, girdide yok:",
     "modelsUnreadable": "Sağlayıcı listesi okunamadı; yalnızca girdi gösteriliyor.",
     "modelsAdded": "{entry} öğesine eklendi: {models}.",

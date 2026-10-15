@@ -3428,6 +3428,7 @@
     "purposeUsage": "모델별 사용량과 비용을 표시합니다.",
     "purposeResources": "컴퓨터 부하와 최근 기록을 표시합니다.",
     "modelsList": "{entry}의 모델:",
+    "modelsForced": "강제 추가: {reason}",
     "modelsExtra": "공급자에는 있지만 항목에 없는 모델:",
     "modelsUnreadable": "공급자 목록을 읽을 수 없습니다. 항목만 표시합니다.",
     "modelsAdded": "{entry}에 추가했습니다: {models}.",
