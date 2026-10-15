@@ -146,6 +146,17 @@ inspect the real MSP trace for an update preceding the decision response,
 and confirm there is only one ACP request for that unchanged meaning.
 Until that ordering is observed, integration verification remains pending.
 
+### T3 — superseded assertions after merging main
+
+The historical 141/143 result above describes the PR head, not this merged
+branch. Main removed `test/unit/acpAgent.test.ts` in `f2b00c094` (test overhaul),
+which is an ancestor of the requested merge target. Both that file and the
+conflicting `App.test.tsx` remain deleted. No fake assertion was repaired or
+restored. The surviving real-module permission suite covers 21 cases, including
+staged answer reuse and updated persistent identity; it does not prove the
+agent/backend event sequence. The real-life steps below replace the deleted
+integration claims, per the owner's rule. No whole-suite pass is claimed.
+
 ## Live-session steps for the lead (signed-in host)
 
 1. Start the packed agent: `node dist/acp.js --backend museCode
