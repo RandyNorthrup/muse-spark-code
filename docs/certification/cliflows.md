@@ -108,8 +108,8 @@ duplication then exits 0 with zero clones.
 Worktree `/home/randy/lanes/CLIFLOWS` from origin/main 0.18.2 (`898a26c5e`).
 Product under test: production build (`npm run build`) run as
 `node dist/acp.js` with a scratch `HOME` (`$TMPDIR/clihome`, no Secret
-Service, no stored keys). Every run below is the packed product, not a
-fake of our code. Real-SDK drivers live in `temp/` (gitignored scratch):
+Service, no stored keys). These were built-bundle runs, not an extracted
+production npm package. They do not prove packaged-product behavior. Real-SDK drivers live in `temp/` (gitignored scratch):
 `temp/acp-new-session.mjs` (real `@agentclientprotocol/sdk` client against
 the real agent) and `temp/pty-drive.py` / `temp/pty-use.py` (real
 pseudo-terminals). No model call was made; no credential was printed,
@@ -134,8 +134,8 @@ branch `fix/cli-flows`.
   Answered `y` still works. Unit: `test/unit/sharingTerminal.test.ts`
   (14 tests) covers the answers and `--json` parsing through the real
   modules. The Linux hang half did not reproduce here (the answered process
-  exited); the stdin pause makes the release deterministic on every
-  platform.
+  exited); the stdin pause is a mitigation, not proof of exit behavior on
+  every platform. A real terminal drill is still required on each target.
 
 ## F44 — no script confirm path; raw JSON always printed
 
@@ -300,11 +300,11 @@ Unavailable`, exit 3 — same gate, earlier branch).
   `src/shared/providerRouting.ts` — provider core stays out of the
   headless/engine bundles per the split gate) with a ChatGPT sign-in is
   ready; without one the refusal names the plan sign-in
-  (`ChatGPT is not signed in.`). The run skips the USD ledger, the
-  priced-model reservation and the priced-settlement check (allowance, not
-  USD), judges completion by the turn itself, and prints a pre-session
-  refusal reason on stderr. `--max-requests`/`--max-budget-usd` do not
-  meter plan turns (unchanged requirements, documented here).
+  (`ChatGPT is not signed in.`). The submitted attempt skipped the USD
+  ledger, priced reservation and settlement check based on the model prefix.
+  RVCLIFLOWS removed those unsafe exemptions: provider ids are configurable,
+  and `--max-requests` must not silently stop applying. Pre-session refusal
+  reasons still print on stderr; positive plan dispatch remains unfinished.
 - After: the same command exits 3 with `Authentication Required` plus
   `[error] No key is stored, and this computer's credential store is
 unavailable.` on stderr. The positive path (ChatGPT signed in, no Meta
@@ -313,7 +313,7 @@ unavailable.` on stderr. The positive path (ChatGPT signed in, no Meta
   from the finding.
 - Unit: `isPlanModelRef` cases in `test/unit/skillDedupe.test.ts`.
 
-## Gates on the final tree
+## Submitted lane gates (historical; superseded by RVCLIFLOWS)
 
 - `npm run build`: exit 0.
 - `npm run check:l10n`: exit 0 (0 problems).
@@ -324,12 +324,13 @@ test/unit/skillDedupe.test.ts --maxWorkers=3`: 24 passed, exit 0.
 test/e2e/execStdio.e2e.test.ts --maxWorkers=3`: 59 passed, exit 0 —
   including the packed-product E7 scanner cases (counts-only, no keyring).
 - `npm run typecheck`: host/webview/e2e/integration pass; `typecheck:unit`
-  is red ONLY on the pre-existing `test/unit/runtimeChatGpt.test.ts:423,501`,
-  which asserts the removed `acpChatGpt.storeUnavailable` key with
-  hand-built rigs — named here and untouched per the owner's rules.
+  was red on `test/unit/runtimeChatGpt.test.ts:423,501`, which referenced the
+  key this lane removed using hand-built rigs. No untouched-base comparison
+  was supplied, so this is not called pre-existing. RVCLIFLOWS replaces the
+  stand-ins and measures a passing full typecheck.
 - ESLint (`--max-warnings=0`) and Prettier on every changed file: clean.
 - `npm run check:host-api`: exit 0 (0 problems).
-- `npm run deadcode` (knip): exit 0 (2 pre-existing config hints).
+- `npm run deadcode` (knip): exit 0 (2 configuration hints; origin unmeasured).
 - `npm run cycles` (dpdm): exit 0, no circular dependencies.
 - `npm run duplication`: exit 0, 0 clones.
 - `npm run security:audit`: exit 0 (2 advisories, 1 exception-file entry).
