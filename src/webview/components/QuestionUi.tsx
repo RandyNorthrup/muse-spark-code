@@ -84,6 +84,9 @@ export function QuestionDock({ questionGroup, hasApproval, isInert }: QuestionDo
     )
     if (card === undefined) return
     card.scrollIntoView({ block: 'nearest' })
+    // The card may have arrived behind a file (D108): scroll is local, but
+    // the keyboard moves only while this surface already holds it.
+    if (!document.hasFocus()) return
     const control =
       card.querySelector<HTMLElement>(
         'input:not(:disabled), textarea:not(:disabled), select:not(:disabled), [role="tab"]:not(:disabled)',
