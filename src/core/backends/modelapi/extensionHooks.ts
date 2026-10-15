@@ -676,6 +676,7 @@ export function directoryAddedFields(relativePath: string): Readonly<Record<stri
  * What the user answered. A project hook sees the action and the field
  * names only; `values` are passed for user-scope hooks alone (the caller
  * decides the scope; lane M validates the answer against the schema).
+ * @unwired M91 project hook elicitation fields
  */
 export function elicitationResultFields(options: {
   readonly server: string
@@ -691,6 +692,7 @@ export function elicitationResultFields(options: {
   }
 }
 
+/** @unwired M91 team hook idle field names */
 export function teammateIdleFields(options: {
   readonly name: string
   readonly siblingsRunning: number

@@ -1156,8 +1156,6 @@ function errorKind(error: unknown): string {
   return error instanceof Error ? error.name : typeof error
 }
 
-export { restartConversationBackends } from './conversationBackends'
-
 export class ConversationController {
   // Revert owns turn admission until file I/O settles; pending sends own it
   // even before their turnStarted event or acknowledgement reaches the panel.
