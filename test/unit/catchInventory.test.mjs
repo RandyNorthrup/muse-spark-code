@@ -260,6 +260,9 @@ describe('catch-inventory baseline', () => {
       'if (ready) report("failed", error)',
       'if (error.code === "ENOENT") return; if (ready) throw error',
       'return ready ? error : fallback',
+      'report("failed", ready ? error : undefined)',
+      'throw new Error("failed", { cause: ready ? error : undefined })',
+      'throw new Error("failed", { cause: "unrelated" })',
       'ready && report("failed", error)',
       'while (ready) { report("failed", error); break }',
     ]) {

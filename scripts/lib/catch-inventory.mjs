@@ -125,11 +125,12 @@ function isErrorSinkCall(node, binding) {
   const name = calleeName(node.expression)
   if (name === undefined) return false
   if (ERROR_SINK_FNS.has(name))
-    return node.arguments.some((argument) => readsError(argument, binding))
+    return node.arguments.some((argument) => carriesCause(argument, binding))
   // The error passed to a record-bound formatter (`webviewErrorReport(source,
   // error)`) reaches the host's failure record with the send.
   return (
-    ERROR_CHANNEL_FNS.has(name) && node.arguments.some((argument) => readsError(argument, binding))
+    ERROR_CHANNEL_FNS.has(name) &&
+    node.arguments.some((argument) => carriesCause(argument, binding))
   )
 }
 
@@ -313,9 +314,11 @@ function isAbortTest(node) {
 function carriesCause(expression, binding) {
   const target = unparen(expression)
   if (binding !== undefined && ts.isIdentifier(target) && target.text === binding) return true
+  if (ts.isConditionalExpression(target))
+    return carriesCause(target.whenTrue, binding) && carriesCause(target.whenFalse, binding)
   if (ts.isCallExpression(target))
     return (
-      binding !== undefined && target.arguments.some((argument) => readsError(argument, binding))
+      binding !== undefined && target.arguments.some((argument) => carriesCause(argument, binding))
     )
   if (ts.isNewExpression(target) || ts.isObjectLiteralExpression(target)) {
     let isFound = false
@@ -324,10 +327,12 @@ function carriesCause(expression, binding) {
       if (
         ts.isPropertyAssignment(current) &&
         ts.isIdentifier(current.name) &&
-        current.name.text === 'cause'
+        current.name.text === 'cause' &&
+        carriesCause(current.initializer, binding)
       )
         isFound = true
-      else ts.forEachChild(current, visit)
+      else if (!FUNCTION_LIKE.has(current.kind) && !ts.isConditionalExpression(current))
+        ts.forEachChild(current, visit)
     }
     visit(target)
     return isFound

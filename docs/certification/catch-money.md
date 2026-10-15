@@ -570,3 +570,10 @@ real injected writer directly inside the same delayed-notice catch, instead
 of the old `remember()` helper that could notify before the fence. Non-search
 consent is unchanged. The nested ternary in the classifier became explicit
 branches because Prettier removed parentheses ESLint required; no rule change.
+
+Conditional causes are branch-checked too: `report(kind, ready ? error :
+undefined)` and a conditional/unrelated `cause` no longer prove every failure
+reported. Green 13 tests; drill changes the cause's all-branches `&&` to `||`:
+exit 1 (`REPORTED` instead of `GENERIC`), restored 13 tests exit 0, SHA-256
+`da2c7d6afd623f3bdfeb5f94e973d0a046748c7c27a59a1e6d7d2923ec8821b2`.
+Logs `.lane/T1-cause-{paths,drill,restored}.log`.
