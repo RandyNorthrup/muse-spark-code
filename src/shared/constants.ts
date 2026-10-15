@@ -3905,6 +3905,9 @@ export const CONVERSATION_BUNDLE_FILE = 'conversation.js'
 export const MODEL_API_BUNDLE_FILE = 'modelApi.js'
 // Its session store (D14), required when that backend's host is first built.
 export const MODEL_API_SESSIONS_BUNDLE_FILE = 'modelApiSessions.js'
+// The Create AGENTS.md command (D15), required when that command runs, not at
+// activation.
+export const RULES_FILE_BUNDLE_FILE = 'rulesFile.js'
 // The plan reader's bundle (M79, PLAN.md D6), beside dist/extension.js:
 // the panel's Markdown parser, loaded on the first plan action.
 export const PLAN_MARKDOWN_BUNDLE_FILE = 'planMarkdown.js'
