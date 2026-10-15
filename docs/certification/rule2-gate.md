@@ -187,3 +187,28 @@ Lead: on a disposable hosted commit with a successful result, start the
 read-only release preflight while another existing workflow is pending;
 expect a refusal naming the pending run. Never rerun a workflow for this
 check on the same commit.
+
+### T3 — a skipped workflow is not green evidence
+
+Both run verdicts and per-commit release evidence require completed success.
+`skipped` and `neutral` no longer pass; neither can stand in for a tested
+commit. The existing successful fixtures now include the actual status and
+conclusion used by that decision.
+
+Same Vitest command: baseline 34 passed, exit 0. Removed the conclusion
+check from real `isSuccessfulRun`, admitting every completed run:
+
+```text
+never treats skipped as green or hosted evidence
+never treats neutral as green or hosted evidence
+AssertionError: expected true to be false
+Tests 6 failed | 28 passed (34)
+RED_EXIT=1
+```
+
+Restored bytes, SHA-256 before/after:
+`6040fe15942d0ddb008761ea3bbea1deb7399bc2e6369d835ccc1645ddbafa5e`.
+Restored: 34 passed, exit 0. Logs: `.lane/PRTH158.T3.{green,red,restored}.log`.
+Lead: use read-only release preflight on a disposable tagged commit with
+only an existing skipped workflow result; observe the named skipped-run
+refusal and no successful hosted evidence. Do not invoke a paid workflow.

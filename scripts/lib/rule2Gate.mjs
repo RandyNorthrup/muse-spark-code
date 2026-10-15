@@ -68,12 +68,11 @@ export function pullOf(value) {
   }
 }
 
-/**
- * The commits the release door needs hosted evidence for that have none.
- * Every expected commit is counted on its own: runs on the tagged commit
- * must not stand in for a pull request head whose runs were skipped or
- * deleted, and the other way round.
- */
+/** Successful execution, not a skipped/neutral workflow, is hosted evidence. */
+export function isSuccessfulRun(run) {
+  return run.status === 'completed' && run.conclusion === 'success'
+}
+
 /** The final release snapshot must still contain evidence, with nothing pending. */
 export function releaseRecheck(tag, heads, runs) {
   return [
@@ -87,6 +86,7 @@ export function releaseRecheck(tag, heads, runs) {
   ]
 }
 
+/** Every expected commit needs a successful executed workflow of its own. */
 export function missingEvidence(tag, heads, runs) {
   const labels = new Map([[tag, `commit ${tag}`]])
   for (const head of heads) {
@@ -95,7 +95,9 @@ export function missingEvidence(tag, heads, runs) {
   }
   const missing = []
   for (const [commit, label] of labels)
-    if (runs.every((run) => run.headSha !== commit))
-      missing.push(`${label} has no workflow run: there is no hosted result to release on`)
+    if (runs.every((run) => !(run.headSha === commit && isSuccessfulRun(run))))
+      missing.push(
+        `${label} has no successful workflow run: there is no hosted result to release on`,
+      )
   return missing
 }
