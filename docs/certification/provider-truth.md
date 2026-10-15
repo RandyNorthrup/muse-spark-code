@@ -336,6 +336,20 @@ exactly. The review found and fixed the rest of the class:
   wizard's "Tick at least one model." in the terminal. It now exits 1
   with the terminal's own `providerAddNeedsModel` sentence (English
   table plus all 14 locale tables, in English order).
+- Packed drills rerun in review (loopback works in this session;
+  `temp/drill/packed-rv.mjs`, real `dist/acp.js` against a local
+  Ollama-shaped `/api/tags`, no model call): `providers add` without
+  `--model` exits 1, one `GET /api/tags`, stderr names `--model <id>`
+  and lists both ids (F85); adding `drill-model-a` exits 0 and prints
+  the tool-calling sentence before `Added …` (F83); `providers list`
+  prints the sentence under the row (F83, review fix). The exec
+  refusal itself is NOT proven here: this rig has no unlocked
+  credential store, so the run stops at readiness with
+  `backend_unavailable` ("This computer's credential store cannot be
+  used (store-unavailable)…" in the JSON result's `error.message`,
+  requests 0, no provider request) before any model resolution. The
+  lead's run on a machine with a credential store still owes that
+  step.
 - Not fixed, recorded for the lead: the panel wizard's tick row reads
   scan evidence (catalogue plus the provider's own models-list row),
   while the registry resolves catalogue plus the person's overrides
