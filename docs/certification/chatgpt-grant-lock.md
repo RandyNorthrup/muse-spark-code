@@ -615,3 +615,114 @@ the same mechanism the grant lock already proves on both. A killed process at
 the store's OS call is a process killed between two OS calls, which is the
 only granularity a crash has on a credential store; a power cut mid-call is the
 OS's atomicity to give, and the record is written before the call it protects.
+
+---
+
+# PLANFIX R2: POSIX stale-socket recovery by ownership (2026-10-14)
+
+## The defect (RVHOSTID R2), and a correction to this record
+
+Earlier sections above say "the OS grants the bind to exactly one racing
+contender, so there are never two holders". That holds for a bind of a free
+name; it is false for the recovery that came first (probe the path, `unlink`
+it, bind again). A and B both find a crashed holder's file and both probe it
+dead. A unlinks it and binds a NEW live socket. B, still acting on its probe,
+unlinks A's new file and binds its own. Both hold. A probe repeated before the
+unlink only narrows the window: no operating system removes "this file, if it
+is still the stale one" in one step.
+
+## Design: recovery by ownership, never by a race on a shared name
+
+`src/runtime/namedLock.ts` (POSIX branch only; the Windows pipe is unchanged,
+the OS removes a crashed process's pipe with its last handle):
+
+1. A contender never binds, probes-and-removes or recovers the lock's shared
+   name. It binds a socket under a name of its own, `<file>.<6 random hex>`,
+   that nobody else binds or removes.
+2. It then looks at every other `<file>.*` entry in the lock's folder. An entry
+   with a listener (a connection is accepted, or reset after accept, or the
+   backlog is full) means another holder or contender: it closes and removes
+   its own entry and waits `100 ms + 0..99 ms` (random, so two contenders that
+   gave way to each other do not repeat in step) and tries again.
+3. No live entry: it holds the lock. It removes its own entry when done.
+4. A dead entry (connection refused, file gone, not a socket) never blocks. It
+   is removed only when older than `NAMED_LOCK_GARBAGE_MIN_AGE_MS` (10 s), so
+   a file whose owner has bound but not yet listened is never taken. Removal
+   only ever targets a name that was bound once and is never bound again.
+
+Why two holders cannot occur: A and B both pass only if A's look at B's entry
+found it not live and B's look at A's entry found it not live. A's listener
+exists before A's look and B's before B's. A's look at B's entry found no
+listener, so B's listener started after it, so B's look came after A's
+listener started, and B finds A live. Contradiction. The proof needs only that
+`listen()` follows `bind()` within the process, which Node does in one call.
+The one assumption outside it is the 10 s age: a bound-but-not-listening file
+older than that is treated as a corpse, which `bind` then `listen` in one
+synchronous call cannot be.
+
+What else changed with it:
+
+- Socket paths are held to macOS's limit (103 characters; its temp folder takes
+  48). The per-contender suffix lengthened the path, so the folder and file
+  names were shortened: the grant lock `muse-spark-grant-<12 hex>/grant.lock.<6 hex>`
+  (96 characters on macOS) and the credential store
+  `muse-spark-keys-<12 hex>/<8 hex>.lock.<6 hex>` (98). The R1/R5 commit's
+  store path was 107 characters on macOS, which `bind` would have refused
+  (`EINVAL`) there: measured by the arithmetic below, fixed here. A test holds
+  both under 103.
+- `CHATGPT_GRANT_LOCK_SCOPE_CHARS` 16 to 12. On Windows the pipe name carries
+  it, so the grant lock's pipe name changed; the pipe-based lock has not been
+  released (the published build used a TCP port), so no running process holds
+  the old name.
+- A connection that a lock listener accepts and drops reads as `ECONNRESET` to
+  the prober. The first run on Linux measured it (a process failed with
+  `lock-unavailable ECONNRESET`); it now counts as a live listener.
+
+## Proof
+
+`test/hosts/named-lock-race.mjs` (a plain node script, with
+`named-lock-worker.mjs`): first it leaves dead socket files in every round's
+folder the way a crash does (a process binds and is SIGKILLed): the old shared
+name and a per-contender-style name. Then 6 real processes meet at the same
+instant in every round (a shared start time), take the real `withNamedLock`,
+and inside it create a marker file with `wx`; a second holder inside fails that
+create and is counted. It exits 1 on any violation, failure or crashed process,
+or if a process did not get the lock in every round.
+
+`test/unit/namedLockRace.test.ts` runs it through vitest and checks the path
+budget. `test/unit/runtimeChatGptLock.test.ts` follows the new shape (a
+crashed holder leaves one entry; a dead entry never blocks).
+
+Run on REAL Linux (Windows PC's WSL2 Arch distro, Linux 6.18.54.1-microsoft-standard-WSL2,
+Node v26.9.0, on WSL's own ext4 `/tmp`; the Windows-mounted drive refuses
+`AF_UNIX` with `ENOTSUP`, so the checkout was copied to `/tmp` and installed
+there with `npm ci --ignore-scripts`; nothing was written outside that copy
+and this worktree's `temp/`):
+
+- OLD recovery (this lane's previous commit `5cbd65139`), 6 processes: 14 rounds
+  `entered 60 of 84, violations 23, failures 1`; and a 1-round run
+  `violations 2`: two holders inside the protected work at once. RED.
+- NEW: 20 rounds, 6 processes: `entered 120 of 120, violations 0, failures 0`.
+  (The first NEW run printed `lock-unavailable ECONNRESET` for some processes
+  and violations 0: the dropped-connection case above, fixed, then the run
+  above.)
+- vitest on Linux, final bytes (SHA-256 `4680976A…C39E`): `runtimeChatGptLock`
+  - `namedLockRace` 10 passed, 2 skipped (the two Windows-only cases), three
+    times in a row.
+- Red drill through the test itself, on Linux: the previous `namedLock.ts`
+  put into the Linux copy: `AssertionError: two holders inside the protected
+work at once: expected 16 to be +0`, 1 failed; the new file restored there,
+  SHA-256 identical to this worktree's (`517FEBC3…`, the bytes of that run;
+  lint-only edits followed, re-proven by the three runs above).
+- Windows (this PC), final bytes: `runtimeChatGptLock` 7 passed, 3 skipped;
+  `namedLockRace` 2 passed (the pipe race, 6 processes x 8 rounds, and the
+  path budget); `keystoreOwner` 6/6 and `keyringParts` 8/8 on the shortened
+  store lock names. 23 passed, 3 skipped, exit 0.
+
+This was run on Linux, not macOS. **For the lead: run `test/unit/namedLockRace.test.ts`
+and `test/unit/runtimeChatGptLock.test.ts` on macOS** (its `AF_UNIX` and the
+103-character path are the part Linux cannot show), and
+`node test/hosts/named-lock-race.mjs <bundle> <folder> 6 40` for a longer
+race on either. Not proven here: a real `SIGKILL` of a holder inside the
+racing rounds themselves (the crash test and the seeded dead files cover the
+dead-entry paths separately).

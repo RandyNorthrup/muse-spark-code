@@ -9,6 +9,8 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- Sign-in lock on macOS and Linux: two processes recovering a crashed process's leftover socket file at the same moment could both end up holding the lock, so two sign-ins or refreshes could run at once and burn each other's refresh token. A process now binds a socket of its own under a random name and holds the lock only if no other entry has a live listener; it never removes a name another process may have just bound. The lock's folder and file names are shorter so their socket path fits macOS's 103-character limit (the credential store's per-account lock from the entry below was 107 there).
+
 - Credential store, long values (ChatGPT grant): two processes writing the same account at once could destroy the current credential (one wrote a header whose parts the other had just removed), and a failed or killed write left secret parts that no later delete removed. Every write, delete and read of a long value now takes one cross-process owner per account (the same named lock the sign-in uses, on a name of its own), a small record names every generation of parts before any is written, and the next owner of an account removes whatever a crashed owner left. A reader never sees a generation that was deleted.
 
 - ChatGPT plan, effort: the panel started a plan model on `high` and kept it when you switched models, although the plan's own catalogue names a lower default (`low` for `gpt-6.1-sol`). A conversation or model switch you have not chosen a level for now starts on the model's catalogue default; a level you picked with the slider is kept.

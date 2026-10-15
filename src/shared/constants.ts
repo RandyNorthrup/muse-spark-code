@@ -307,13 +307,30 @@ export const OAUTH_LOOPBACK_TIMEOUT_MS = 10 * 60 * 1000
  */
 export const CHATGPT_HOST_ID_URN_PREFIX = 'urn:uuid:'
 export const CHATGPT_GRANT_LOCK_PIPE = 'muse-spark-chatgpt-grant'
-export const CHATGPT_GRANT_LOCK_DIR = 'muse-spark-chatgpt-grant'
+/**
+ * A Unix socket path holds at most 103 characters on macOS, and a typical
+ * macOS temp folder takes 48 of them. A lock's socket entry is
+ * `<tmp>/<folder>-<scope>/<file>.<entry>`: the grant lock's is 48 + 1 + 29 + 1
+ * + 17 = 96 characters, the credential store's 48 + 1 + 28 + 1 + 20 = 98.
+ * Keep these names short; a longer one makes a bind fail on macOS
+ * (test/unit/namedLockRace.test.ts measures both against the limit).
+ */
+export const CHATGPT_GRANT_LOCK_DIR = 'muse-spark-grant'
 export const CHATGPT_GRANT_LOCK_FILE = 'grant.lock'
 /** Hex characters of the user-identity hash in the lock name. */
-export const CHATGPT_GRANT_LOCK_SCOPE_CHARS = 16
+export const CHATGPT_GRANT_LOCK_SCOPE_CHARS = 12
 /** A private per-user folder holds the socket; created mode 0700. */
 export const CHATGPT_GRANT_LOCK_DIR_MODE = 0o700
 export const CHATGPT_REFRESH_LOCK_RETRY_MS = 100
+/**
+ * POSIX ownership by entry (docs/certification/chatgpt-grant-lock.md, "PLANFIX
+ * R2"): each contender binds a socket under a random name of this many bytes
+ * (hex in the file name) and holds the lock only if no other entry has a
+ * listener. A dead entry is removed only once it is older than a bind needs to
+ * become a listener, so a file that is being born is never taken.
+ */
+export const NAMED_LOCK_ENTRY_BYTES = 3
+export const NAMED_LOCK_GARBAGE_MIN_AGE_MS = 10 * 1000
 /** A removed provider's secret waits ten seconds behind Undo (D74). */
 export const PROVIDER_UNDO_WINDOW_MS = 10 * 1000
 /** How long Scan this computer waits on one loopback port (D74). */
@@ -4103,8 +4120,8 @@ export const KEYRING_GENERATIONS_TAG = 'muse-spark-gens:v1:'
 // ChatGPT grant lock, which is held across a sign-in that reads and writes
 // this store. The hex characters of the account's hash name its lock file.
 export const KEYSTORE_LOCK_PIPE = 'muse-spark-keystore'
-export const KEYSTORE_LOCK_DIR = 'muse-spark-keystore'
-export const KEYSTORE_LOCK_ACCOUNT_CHARS = 16
+export const KEYSTORE_LOCK_DIR = 'muse-spark-keys'
+export const KEYSTORE_LOCK_ACCOUNT_CHARS = 8
 // How long a writer, a reader of a long value or a delete waits for the
 // account's owner before it fails closed; the owner's work is a few OS calls.
 export const KEYSTORE_LOCK_TIMEOUT_MS = 30 * 1000
