@@ -271,6 +271,19 @@ export async function providersList(deps: ProvidersDeps): Promise<number> {
     const where = entry.address ?? fixedOriginOf(preset) ?? entry.preset
     const models = entry.models.length === 0 ? '—' : entry.models.join(', ')
     deps.print(`${entry.id} — ${preset?.label ?? entry.preset} — ${where} — ${models}`)
+    // A listed model states its tool-calling limit here too (F83): the
+    // same sentence the panel picker shows and the turn refusal repeats.
+    if (preset === undefined || entry.auth === 'subscription') continue
+    const unconfirmed = await unconfirmedToolModels(
+      preset,
+      entry.id,
+      entry.format,
+      entry.models,
+      entry.modelCapabilities,
+    )
+    for (const nativeModel of unconfirmed) {
+      deps.print(fill(UI_TEXT.providerModelNoToolCalling, { model: `${entry.id}/${nativeModel}` }))
+    }
   }
   return EXIT_OK
 }
@@ -330,6 +343,7 @@ async function unconfirmedToolModels(
   providerId: string,
   format: ProviderEntry['format'],
   nativeModels: readonly string[],
+  overrides?: ProviderEntry['modelCapabilities'],
 ): Promise<readonly string[]> {
   let catalogue: z.infer<typeof catalogProviders>
   try {
@@ -353,6 +367,14 @@ async function unconfirmedToolModels(
                 ref: catalogId,
               }),
             ]
+      // The registry resolves the person's own capability overrides over
+      // the catalogue; the warning reads the same evidence (F83).
+      const entered = overrides?.[nativeModel]
+      if (entered !== undefined)
+        evidence.push({
+          source: { kind: 'user', ref: `${providerId}/${nativeModel}` },
+          fields: entered,
+        })
       const record = capabilities.resolveModelCapabilities(
         { provider: providerId, nativeModel, format: format ?? preset.format },
         evidence,
