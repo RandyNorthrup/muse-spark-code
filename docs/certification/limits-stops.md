@@ -321,3 +321,44 @@ These are open, not accepted deferrals. CHANGELOG/README no longer claim
 completion. D113 collides with LIMITSC: proposal to the integrator is keep
 LIMITSA at D113 and renumber LIMITSC to D114 (D114 is absent in this tree),
 updating its references together. No unreviewed LIMITSC bytes were changed.
+
+## RVLIMITS observed final checks (Windows, Node 24.20.0)
+
+- `git merge --no-ff origin/main`: exit 0, Already up to date; local
+  origin/main is `898a26c5e304426f2fb374910ec700b51b5260d1`. No fetch or push.
+- All five typecheck projects run separately/serially: exit 0 each. ESLint
+  on 38 changed code/test files and Prettier on 80 existing changed files:
+  exit 0. Localization, reference, host API, plan, roadmap, deadcode, cycles
+  and duplication: exit 0. Dependency audit: exit 0 (2 advisories, 1
+  configured exception). These are static checks, not live-model proof.
+- `npm run security:sast`: exit 2, `RPC subprocess failed: semgrep-core
+exited with code 1`, `Failed to obtain target files from semgrep-core`.
+  Cause UNMEASURED; no untouched-base comparison was run.
+- `npm run build`: exit 1 at bundle-split (8 problems: pageWorker's parse5,
+  entities, html-encoding-sniffer and @exodus/bytes; agentImport's
+  smol-toml; imageResizeWorker's jpeg-js/pngjs; validation's mini-parser).
+  Production compilation and size checks completed. No cap was changed;
+  cause UNMEASURED, not called pre-existing or environmental.
+- `node scripts/package-acp.mjs`: exit 1, `Required Darwin created-path
+helper is missing: native\\darwin\\muse-dictate`. No packed product is
+  certified. Built CLI Help ran, exit 0; built exec limit 3 refused, exit 2;
+  built serve/Muse Code limit flag refused, exit 1. None read credentials
+  or dispatched a model.
+- Real built `dist/configuredProviders.js` registry with a temporary
+  providers file naming an unsupported preset: exit 0, `The request
+failed: provider_preset_unsupported`. Deliberately changed `fail` to panel
+  masking, rebuilt production (exit 0), ran the same probe: exit 1,
+  `Models & Agents is not available in this build.` Restored source
+  byte-exact SHA-256
+  `0399F821D7C7FE3573FB54CE9E34400651415CC898C10D4DB6B73F9C0CC60D7F`,
+  rebuilt (exit 0), probe restored-green (exit 0). No server, provider,
+  credentials or substitute for our product modules; the scratch probe's
+  credential-access trap was never reached.
+
+No Vitest run is claimed: copied rig scripts push snapshots outside this
+worktree, forbidden here, and permission for local Vitest was unanswered.
+No provider calls, GUI/browser run, screenshots or fake-provider e2e.
+The F88 pure regressions still need their own observed suite/red drill;
+the built config probe does not establish HTTP, money or turn behavior.
+The complete review report and exact fail-site inventory are in the
+requested lane report; remaining P1/P2 findings prevent merge approval.
