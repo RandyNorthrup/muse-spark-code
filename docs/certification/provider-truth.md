@@ -87,9 +87,11 @@ Red drill: old `providerRegistry.ts` → 2 failed; restored byte-exact
 
 Real-life run for the lead: `providers add --preset together --as
 matrix-together --key-stdin --model openai/gpt-oss-20b` prints the
-sentence after `Added …`; the model appears in the panel picker and
-the session model list with the sentence; starting an agent turn on it
-fails with the sentence and sends no request.
+sentence after the wizard summary and before the `Added …` line
+(corrected in review; it does not follow `Added …`); the model appears
+in the panel picker and the session model list with the sentence;
+starting an agent turn on it fails with the sentence and sends no
+request.
 
 ## F85: the terminal speaks panel words and cannot discover models
 
@@ -213,32 +215,55 @@ the branch): `packed.mjs` (all four packed runs with HIT logging),
 
 What automatic compaction waits on: the evaluated latch
 `IS_AUTO_COMPACTION_EVALUATED` (`src/shared/constants.ts:2226`,
-currently `false`; single runtime reader
-`isAutoCompactionEvaluated()`, `:2228`), AND the
-`museSpark.modelApiAutoCompaction` setting (machine-scoped, default
-on), AND per-turn admission `admitAutoCompaction` returning the shared
-paid (D78) actual-send guard with per-attempt settlement
+currently `false`), AND the `museSpark.modelApiAutoCompaction`
+setting (machine-scoped, default on), AND per-turn admission
+`admitAutoCompaction` returning the shared paid (D78) actual-send
+guard with per-attempt settlement
 (`ModelApiHost.maybeAutoCompact`, `src/core/backends/modelapi/ModelApiHost.ts:14757`;
 `admitAutoCompaction` is the fail-closed port,
-`docs/certification/m101-c2.md:92-98`).
+`docs/certification/m101-c2.md:92-98`). Corrected in review: the
+constant is not read through a single reader — `ModelApiHost`,
+`src/host/backend/modelApiEntry.ts`, `src/host/paid/paidHost.ts`,
+`src/acp/paid.ts`, `src/extension.ts` (twice) and
+`src/runtime/backends.ts` (twice) read it directly, while
+`isAutoCompactionEvaluated()` (`constants.ts:2228`) serves
+`src/shared/paid.ts`, `src/shared/paidBoundary.ts`,
+`src/shared/reference/referenceEntry.ts` and
+`src/runtime/cliOptions.ts`. Flipping the one constant reaches all of
+them; there is no second latch.
 
 What exactly must run to activate it (lane E,
-`docs/certification/m101-c2.md:100-119`): freeze the long-context
-accept and held-out tasks on the current M75 harness; inject
+`docs/certification/m101-c2.md:100-119`), corrected in review for what
+this tree already has: the D78 admission binding m101-c2 lists as
+future work is already bound — the panel passes
+`reserveAutoCompaction` (`src/extension.ts:2739`), the runtime passes
+transport accounting (`src/runtime/backends.ts:522`), and
+`src/host/backend/modelApiEntry.ts:116-158,212` builds
+`admitAutoCompaction` from them for every Model API host. What remains
+is the evaluation itself: freeze the long-context accept and held-out
+tasks on the current M75 harness; in that bounded harness only, inject
 `autoCompaction: () => true`, `autoCompactionEvaluated: () => true`
-plus the real shared D78 guard/ledger adapter in that bounded harness
-only; run the current paired baseline/mechanism evaluation and require
-both 0.75 capability floors with actual compaction evidence; bind the
-same D78 adapter and model readers in the panel and runtime backend
-managers (ACP and exec); only then flip the constant to `true`.
+plus the real shared D78 guard/ledger adapter; run the paired
+baseline/mechanism evaluation and require both 0.75 capability floors
+with actual compaction evidence; only then flip the constant to
+`true`.
 
-Real model calls and which models: zero to date
+Real model calls and which models: zero for compaction to date
 (`docs/certification/m101-c2.md:5-7`: "zero live or paid model
-attempts"; the M75 pair itself runs on muse-spark per PLAN "Measured
-first"). At activation each auto-compaction costs the host's
-conservative estimate of two summary requests on the session's own
-selected model (`docs/certification/m101-c2.md:29-35`: cached-prefix
-response + possible tool-less fallback, zero assumed cache hits).
+attempts" in that lane, and no later record runs the pair). The M75
+task set is twelve tasks, seven accept and five held-out (PLAN.md,
+the M75 packing record); the only completed pair on it, for
+observation packing, made 111 model calls on
+`muse-spark-1.3-contributor` for $0.0156
+(`docs/certification/m73-run.md:3`). A compaction pair's call count is
+not predetermined — it is whatever the frozen twelve tasks take on
+both arms, on the same contributor model unless the freeze names
+another — and no honest total can be quoted before that run. After
+activation each auto-compaction costs the host's conservative
+estimate of two summary requests on the session's own selected model
+(`docs/certification/m101-c2.md:29-35`: cached-prefix response +
+possible tool-less fallback, zero assumed cache hits), each actual
+attempt settled through the D78 guard.
 
 Overflow while inactive: nothing automatic stops it. `maybeAutoCompact`
 returns `false` when the latch is false — including the overflow path
@@ -265,4 +290,56 @@ only classifies a provider reply as `empty-near-window`
    governor pause into an `agent_message_chunk` (same "internal status
    as the model's words" class as F82, but a status rewrite of the
    governor's own chunk rather than a prefix to the model's reply).
-   Left alone as out of scope; flagging for the lead.
+   Left alone as out of scope; flagging for the lead. **Fixed in
+   review** (see the review addendum below).
+
+## Review addendum (RVPROVIDERTRUTH, 2026-10-14)
+
+The ACP fallback is the specification's own: SDK 1.7.0's `Notice`
+schema says agents MUST only send notices when the client advertised
+`ClientSessionCapabilities::notices`, and "Otherwise, Agents may use
+an agent message when the information should still be surfaced"
+(RFD: Session Notices). The lane's translator change follows it
+exactly. The review found and fixed the rest of the class:
+
+- Resource-governor statuses (`src/acp/resources.ts`) and account
+  swap/stop notices (`src/acp/agent.ts`, `AcpAccounts.onNotice`) still
+  went out as `agent_message_chunk` for every client. Both now use
+  the `notice` update where advertised (pause and account stop as
+  `warning`, the rest `info`), with the agent-message fallback and
+  the structured `_meta` unchanged otherwise. New
+  `test/unit/acpResources.test.ts` (real module, data in) proves it;
+  red before the fix (1 failed / 2 passed), 3 passed after.
+- Every other `agent_message_chunk` path is an answer the person
+  asked for, not an unsolicited status: slash-command and `/agents`,
+  `/questions`, `/resources` answers, question-deferral instructions
+  (durable by design — a notice is fire-and-forget and the person
+  needs the question id), the elicitation fallback text, and the
+  `/attach` and `/record` answers. The two internal ACP clients (headless exec,
+  `clientCapabilities: {}`; the team process) advertise no notices,
+  so their account-event parsing of agent chunks is unchanged.
+- Headless `backendNotice` lines now carry the notice's own level
+  instead of always `[warn]`.
+- F83: `ModelApiHost.setModel` committed the new model before
+  resolving it, so the F83 refusal left the backend session on the
+  refused model while the panel and the ACP session kept the old one.
+  The switch now restores the old model when resolution refuses. On
+  ACP the refusal itself arrived as a bare "Internal error" (the
+  SDK puts a plain error's message in the error data, not its
+  message); `set_config_option` now refuses a limited model with
+  `invalidParams` carrying the sentence. A new ACP session also no
+  longer starts on a limited model while a usable one is listed, and
+  terminal `providers list` states the limit, reading the person's
+  capability overrides as the registry does.
+- F85: a key test that read no model list (Hugging Face's identity
+  check on its own origin; an empty list) still fell through to the
+  wizard's "Tick at least one model." in the terminal. It now exits 1
+  with the terminal's own `providerAddNeedsModel` sentence (English
+  table plus all 14 locale tables, in English order).
+- Not fixed, recorded for the lead: the panel wizard's tick row reads
+  scan evidence (catalogue plus the provider's own models-list row),
+  while the registry resolves catalogue plus the person's overrides
+  only. A model the list row confirms but the catalogue does not
+  would show no wizard sentence yet still be listed with the limit
+  and refused at turn start. Unifying the evidence is a capability
+  change beyond this lane.

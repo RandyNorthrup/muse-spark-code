@@ -20,6 +20,12 @@ happened, not what was planned; superseded entries are kept.
 - Fixed: terminal `providers add` without `--model` lists the key's
   models and says to pass `--model <id>` (repeatable) instead of the
   panel's tick wording (F85).
+- Provider-truth review: resource-governor and account statuses use
+  the same session notice on the editor protocol; a refused model
+  switch keeps the session on its model and carries the refusal
+  sentence in the protocol error; `providers list` states the
+  tool-calling limit; a key test that read no model list still gets
+  the terminal's own wording (F82, F83, F85).
 
 - Test-overhaul review: paid-popup lazy-load checks now build the real
   runtime instead of writing a replacement formatter, retaining locale
