@@ -271,6 +271,21 @@ McpElicitationTimeoutError` was false at the real boundary: the connection
   different approval. ACP/terminal do not offer Judge (`featureCatalog.ts`
   declares VS Code only), so no imaginary protocol binding is claimed.
 
+## RVDROPS review — remove stand-ins from the lane's evidence
+
+- P2: `judgeFenceDropped.test.ts` supplied its own `createRunner().judge`
+  implementation and `prepare` success. Removed the file (5 tests), including
+  its one text-only assertion: it did not prove real judge behavior.
+- Rewrote `questionExpiry.test.ts` (4 tests -> 1) to seed valid waiting
+  records in the real owner-only file store and load the real registry twice.
+  All backend/delivery ports throw if reached rather than impersonating
+  successful operations. It verifies retained text, publication, disk and
+  once-only expiry across reload; it does not claim to prove backend deferral.
+- Final focused run on Windows: 6 files / 32 tests passed, exit 0
+  (`temp/rv-pure.log`). The original judge/registry red-drill receipts above
+  describe the original tests only, not current product proof. Live judge,
+  cross-host notifications and panel appearance remain lead-run obligations.
+
 ## Limits raised or removed (owner's rule)
 
 | Row | Number              | Outcome                                                  | Reasoning                                                                       |
