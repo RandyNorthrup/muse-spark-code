@@ -897,10 +897,10 @@
   "paidDailyLedgerUnavailable": "Ücretli günlük bütçeye ulaşıldı: kayıt okunamıyor, eksik veya bu isteği kabul edemiyor. Ücretli istek gönderilmedi.",
   "paidDailyStopped": "Ücretli ek özellikler yarına kadar durduruldu.",
   "paidDailyReached": "Ücretli günlük bütçeye ulaşıldı",
-  "paidDailyReachedDetail": "Bugünkü sınır {budget}. Bu istek ve mevcut ayırmalar {needed} gerektiriyor. Bugünkü sınırı artırın veya ücretli ek özellikleri yarına kadar durdurun.",
+  "paidDailyReachedDetail": "Ücretli ek özellikler bugünkü {budget} sınırının {spent} kadarını harcadı, bu yüzden sonraki ücretli istek gönderilmedi. Bugünkü sınırı artırın veya ücretli ek özellikleri yarına kadar durdurun.",
   "paidDailyRaise": "Bugün için artır",
   "paidDailyStop": "Yarına kadar durdur",
-  "paidDailyRaisePrompt": "Bekleyen ayırmalara yetecek bugünkü USD sınırını girin (0.50–500).",
+  "paidDailyRaisePrompt": "Bugünkü USD sınırını girin (0.50–500); şimdiye kadar harcanan tutardan yüksek olmalı.",
   "planUi": {
     "copilotConnect": "Copilot modellerimi kullan",
     "copilotUnavailable": "Copilot modelleri kullanılamıyor. Copilot’u etkinleştirip tekrar deneyin.",

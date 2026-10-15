@@ -897,10 +897,10 @@
   "paidDailyLedgerUnavailable": "A napi fizetős keret elfogyott: a nyilvántartás olvashatatlan, hiányos, vagy nem fogadhatja ezt a kérést. Nem ment ki fizetős kérés.",
   "paidDailyStopped": "A fizetős extrák holnapig leállítva.",
   "paidDailyReached": "A napi fizetős keret elfogyott",
-  "paidDailyReachedDetail": "A mai korlát {budget}. Ez a kérés és a meglévő foglalások {needed} összeget igényelnek. Emelje a mai korlátot, vagy állítsa le a fizetős extrákat holnapig.",
+  "paidDailyReachedDetail": "A fizetős extrák ma {spent} összeget költöttek el a(z) {budget} napi korlátból, ezért a következő fizetős kérés nem lett elküldve. Emelje a mai korlátot, vagy állítsa le a fizetős extrákat holnapig.",
   "paidDailyRaise": "Emelés mára",
   "paidDailyStop": "Leállítás holnapig",
-  "paidDailyRaisePrompt": "Adja meg a mai USD-korlátot (0.50–500), amely fedezi a függő foglalásokat.",
+  "paidDailyRaisePrompt": "Adja meg a mai USD-korlátot (0.50–500), amely magasabb a már elköltött összegnél.",
   "planUi": {
     "copilotConnect": "Saját Copilot-modellek használata",
     "copilotUnavailable": "A Copilot-modellek nem érhetők el. Engedélyezze a Copilotot, és próbálja újra.",

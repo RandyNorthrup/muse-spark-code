@@ -909,10 +909,10 @@
   "paidDailyLedgerUnavailable": "Osiągnięto dzienny budżet płatny: rejestr jest nieczytelny, niepełny lub nie może przyjąć tego żądania. Nie wysłano płatnego żądania.",
   "paidDailyStopped": "Płatne dodatki wstrzymane do jutra.",
   "paidDailyReached": "Osiągnięto dzienny budżet płatny",
-  "paidDailyReachedDetail": "Dzisiejszy limit to {budget}. To żądanie i istniejące rezerwacje wymagają {needed}. Zwiększ limit na dziś lub wstrzymaj płatne dodatki do jutra.",
+  "paidDailyReachedDetail": "Płatne dodatki wydały dziś {spent} z limitu {budget}, więc kolejne płatne żądanie nie zostało wysłane. Zwiększ limit na dziś lub wstrzymaj płatne dodatki do jutra.",
   "paidDailyRaise": "Zwiększ na dziś",
   "paidDailyStop": "Wstrzymaj do jutra",
-  "paidDailyRaisePrompt": "Wpisz dzisiejszy limit w USD (0.50–500), wystarczający na oczekujące rezerwacje.",
+  "paidDailyRaisePrompt": "Wpisz dzisiejszy limit w USD (0.50–500), wyższy niż dotychczasowe wydatki.",
   "planUi": {
     "copilotConnect": "Użyj moich modeli Copilot",
     "copilotUnavailable": "Modele Copilot są niedostępne. Włącz Copilot i spróbuj ponownie.",

@@ -903,10 +903,10 @@
   "paidDailyLedgerUnavailable": "Budget quotidien payant atteint : le registre est illisible, incomplet ou ne peut pas admettre cette requête. Aucune requête payante n’a été envoyée.",
   "paidDailyStopped": "Les options payantes sont arrêtées jusqu’à demain.",
   "paidDailyReached": "Budget quotidien payant atteint",
-  "paidDailyReachedDetail": "La limite d’aujourd’hui est {budget}. Cette requête et les réservations existantes nécessitent {needed}. Augmentez la limite pour aujourd’hui ou arrêtez les options payantes jusqu’à demain.",
+  "paidDailyReachedDetail": "Les options payantes ont dépensé {spent} sur la limite d’aujourd’hui de {budget} ; la prochaine requête payante n’a donc pas été envoyée. Augmentez la limite pour aujourd’hui ou arrêtez les options payantes jusqu’à demain.",
   "paidDailyRaise": "Augmenter pour aujourd’hui",
   "paidDailyStop": "Arrêter jusqu’à demain",
-  "paidDailyRaisePrompt": "Saisissez la limite d’aujourd’hui en USD (0.50–500), suffisante pour les réservations en attente.",
+  "paidDailyRaisePrompt": "Saisissez la limite d’aujourd’hui en USD (0.50–500), supérieure à ce qui est déjà dépensé.",
   "planUi": {
     "copilotConnect": "Utiliser mes modèles Copilot",
     "copilotUnavailable": "Les modèles Copilot sont indisponibles. Activez Copilot et réessayez.",

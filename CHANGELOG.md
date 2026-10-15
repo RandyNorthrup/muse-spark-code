@@ -9,6 +9,17 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- Lane LIMITSFIX (F7, D113): the words of every spending stop are true under
+  the one cap rule, in English and all 14 translated tables. Tab's notice
+  says its spend "has reached" the daily budget only once it has. The
+  shared daily extras' dialog used to say "this request and existing
+  reservations need $X", although nothing is reserved any more, and accepted
+  a raised limit equal to the spend, which would stop the next request
+  again. It now says what the paid extras have spent of today's limit and
+  that the next paid request was not sent, and it accepts a raised limit
+  only above that spend. The suggested limit is double today's limit, or
+  double the spend when the spend is already past that, never above $500.
+
 - Lane LIMITSFIX (F9, D113): every claim about money and the turn limit now
   matches the final behavior, in English and in all 14 translated manifest
   tables, README and the generated Help reference: no estimate or

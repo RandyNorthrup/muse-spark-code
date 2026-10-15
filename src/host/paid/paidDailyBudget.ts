@@ -83,7 +83,11 @@ export function createPaidDailyBudget(deps: {
     return limit.limitUsd
   }
   const capUsd = () => readLimit(day())
-  const raise = async (scope: string, neededUsd: UsdAmount, signal: AbortSignal): Promise<void> => {
+  // The one cap rule (F3) admits only while the spend is BELOW the limit, so a
+  // raised limit must be strictly above what is spent: an equal one would stop
+  // the very next request again.
+  const raise = async (scope: string, spentUsd: UsdAmount, signal: AbortSignal): Promise<void> => {
+    const isAboveSpend = (limitUsd: UsdAmount) => Usd.from(limitUsd).compare(Usd.from(spentUsd)) > 0
     const assertActive = () => {
       signal.throwIfAborted()
       if (scope !== day()) throw new Error(UI_TEXT.paidDailyStopped)
@@ -107,7 +111,7 @@ export function createPaidDailyBudget(deps: {
             modal: true,
             detail: fill(UI_TEXT.paidDailyReachedDetail, {
               budget: formatUsd(readLimit(scope), 2),
-              needed: formatUsd(neededUsd, 2),
+              spent: formatUsd(spentUsd, 2),
             }),
           },
           { title: raiseTitle },
@@ -119,12 +123,12 @@ export function createPaidDailyBudget(deps: {
     assertActive()
     if (answer?.title !== raiseTitle) stop()
     const doubledLimit = Usd.from(readLimit(scope)).times(2)
-    let suggestedLimit = neededUsd
-    if (Usd.from(neededUsd).compare(doubledLimit) <= 0)
-      suggestedLimit =
-        doubledLimit.compare(Usd.from(PAID_DAILY_BUDGET.maximumUsd)) > 0
-          ? Usd.from(PAID_DAILY_BUDGET.maximumUsd).toAmount()
-          : doubledLimit.toAmount()
+    const suggestedBase =
+      doubledLimit.compare(Usd.from(spentUsd)) > 0 ? doubledLimit : Usd.from(spentUsd).times(2)
+    const suggestedLimit =
+      suggestedBase.compare(Usd.from(PAID_DAILY_BUDGET.maximumUsd)) > 0
+        ? Usd.from(PAID_DAILY_BUDGET.maximumUsd).toAmount()
+        : suggestedBase.toAmount()
     const entered = await unlessAborted(
       Promise.resolve(
         vscode.window.showInputBox({
@@ -136,7 +140,7 @@ export function createPaidDailyBudget(deps: {
               limitUsd: usdInputSchema.safeParse(value).data,
               stopped: false,
             })
-            if (!parsed.success || Usd.from(parsed.data.limitUsd).compare(Usd.from(neededUsd)) < 0)
+            if (!parsed.success || !isAboveSpend(parsed.data.limitUsd))
               return UI_TEXT.paidDailyRaisePrompt
             return
           },
@@ -149,11 +153,7 @@ export function createPaidDailyBudget(deps: {
       limitUsd: usdInputSchema.safeParse(entered).data,
       stopped: false,
     })
-    if (
-      entered === undefined ||
-      !parsed.success ||
-      Usd.from(parsed.data.limitUsd).compare(Usd.from(neededUsd)) < 0
-    ) {
+    if (entered === undefined || !parsed.success || !isAboveSpend(parsed.data.limitUsd)) {
       stop()
     }
     await writeFileAtomically(limitPath(scope), JSON.stringify(parsed.data), {

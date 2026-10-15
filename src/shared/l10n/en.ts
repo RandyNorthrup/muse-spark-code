@@ -1087,11 +1087,10 @@ export const EN = {
   paidDailyStopped: 'Paid extras are stopped until tomorrow.',
   paidDailyReached: 'Daily paid budget reached',
   paidDailyReachedDetail:
-    'Today’s limit is {budget}. This request and existing reservations need {needed}. Raise the limit for today, or stop paid extras until tomorrow.',
+    'Paid extras have spent {spent} of today’s {budget} limit, so the next paid request was not sent. Raise the limit for today, or stop paid extras until tomorrow.',
   paidDailyRaise: 'Raise for Today',
   paidDailyStop: 'Stop Until Tomorrow',
-  paidDailyRaisePrompt:
-    'Enter today’s limit in USD (0.50–500), enough for the pending reservations.',
+  paidDailyRaisePrompt: 'Enter today’s limit in USD (0.50–500), above what is already spent.',
   planUi: {
     copilotConnect: 'Use My Copilot Models',
     copilotUnavailable: 'Copilot models are unavailable. Enable Copilot and try again.',

@@ -897,10 +897,10 @@
   "paidDailyLedgerUnavailable": "Tagesbudget für kostenpflichtige Extras erreicht: Die Abrechnung ist unlesbar, unvollständig oder kann diese Anfrage nicht zulassen. Keine kostenpflichtige Anfrage wurde gesendet.",
   "paidDailyStopped": "Kostenpflichtige Extras sind bis morgen gestoppt.",
   "paidDailyReached": "Tagesbudget für kostenpflichtige Extras erreicht",
-  "paidDailyReachedDetail": "Das heutige Limit ist {budget}. Diese Anfrage und bestehende Reservierungen benötigen {needed}. Erhöhen Sie das Limit für heute oder stoppen Sie kostenpflichtige Extras bis morgen.",
+  "paidDailyReachedDetail": "Kostenpflichtige Extras haben heute {spent} des Limits von {budget} ausgegeben, daher wurde die nächste kostenpflichtige Anfrage nicht gesendet. Erhöhen Sie das Limit für heute oder stoppen Sie kostenpflichtige Extras bis morgen.",
   "paidDailyRaise": "Für heute erhöhen",
   "paidDailyStop": "Bis morgen stoppen",
-  "paidDailyRaisePrompt": "Heutiges Limit in USD (0.50–500) eingeben, ausreichend für die ausstehenden Reservierungen.",
+  "paidDailyRaisePrompt": "Heutiges Limit in USD (0.50–500) eingeben, höher als die bisherigen Ausgaben.",
   "planUi": {
     "copilotConnect": "Meine Copilot-Modelle verwenden",
     "copilotUnavailable": "Copilot-Modelle sind nicht verfügbar. Aktivieren Sie Copilot und versuchen Sie es erneut.",

@@ -903,10 +903,10 @@
   "paidDailyLedgerUnavailable": "Orçamento diário pago atingido: o registro está ilegível, incompleto ou não pode admitir esta solicitação. Nenhuma solicitação paga foi enviada.",
   "paidDailyStopped": "Extras pagos interrompidos até amanhã.",
   "paidDailyReached": "Orçamento diário pago atingido",
-  "paidDailyReachedDetail": "O limite de hoje é {budget}. Esta solicitação e as reservas existentes precisam de {needed}. Aumente o limite de hoje ou interrompa os extras pagos até amanhã.",
+  "paidDailyReachedDetail": "Os extras pagos gastaram {spent} do limite de hoje de {budget}, então a próxima solicitação paga não foi enviada. Aumente o limite de hoje ou interrompa os extras pagos até amanhã.",
   "paidDailyRaise": "Aumentar para hoje",
   "paidDailyStop": "Parar até amanhã",
-  "paidDailyRaisePrompt": "Informe o limite de hoje em USD (0.50–500), suficiente para as reservas pendentes.",
+  "paidDailyRaisePrompt": "Informe o limite de hoje em USD (0.50–500), maior que o valor já gasto.",
   "planUi": {
     "copilotConnect": "Usar meus modelos do Copilot",
     "copilotUnavailable": "Os modelos do Copilot estão indisponíveis. Ative o Copilot e tente novamente.",

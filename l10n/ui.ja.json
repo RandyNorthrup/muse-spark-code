@@ -891,10 +891,10 @@
   "paidDailyLedgerUnavailable": "有料機能の1日予算に達しました。台帳が読めない、不完全、またはこのリクエストを承認できません。有料リクエストは送信していません。",
   "paidDailyStopped": "有料機能を明日まで停止しました。",
   "paidDailyReached": "有料機能の1日予算に達しました",
-  "paidDailyReachedDetail": "今日の上限は{budget}です。このリクエストと既存の予約には{needed}が必要です。今日の上限を増やすか、有料機能を明日まで停止してください。",
+  "paidDailyReachedDetail": "有料機能は今日の上限{budget}のうち{spent}を使用したため、次の有料リクエストは送信されませんでした。今日の上限を増やすか、有料機能を明日まで停止してください。",
   "paidDailyRaise": "今日の上限を増やす",
   "paidDailyStop": "明日まで停止",
-  "paidDailyRaisePrompt": "保留中の予約を満たす今日の上限を米ドルで入力してください（0.50～500）。",
+  "paidDailyRaisePrompt": "今日の上限を米ドルで入力してください（0.50～500）。すでに使用した額より大きい値にしてください。",
   "planUi": {
     "copilotConnect": "自分のCopilotモデルを使う",
     "copilotUnavailable": "Copilotモデルを利用できません。Copilotを有効にして再試行してください。",

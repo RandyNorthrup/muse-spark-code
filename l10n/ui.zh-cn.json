@@ -891,10 +891,10 @@
   "paidDailyLedgerUnavailable": "已达到每日付费预算：账本不可读、不完整或无法批准此请求。未发送任何付费请求。",
   "paidDailyStopped": "付费附加功能已停止，明天恢复。",
   "paidDailyReached": "已达到每日付费预算",
-  "paidDailyReachedDetail": "今天的上限为 {budget}。此请求和现有预留需要 {needed}。请提高今天的上限，或将付费附加功能停止至明天。",
+  "paidDailyReachedDetail": "付费附加功能今天已花费 {spent}（上限 {budget}），因此下一个付费请求未发送。请提高今天的上限，或将付费附加功能停止至明天。",
   "paidDailyRaise": "提高今天的上限",
   "paidDailyStop": "停止至明天",
-  "paidDailyRaisePrompt": "请输入足以覆盖待处理预留的今日美元上限（0.50–500）。",
+  "paidDailyRaisePrompt": "请输入今日美元上限（0.50–500），须高于已花费的金额。",
   "planUi": {
     "copilotConnect": "使用我的 Copilot 模型",
     "copilotUnavailable": "Copilot 模型不可用。请启用 Copilot 后重试。",

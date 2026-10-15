@@ -909,10 +909,10 @@
   "paidDailyLedgerUnavailable": "Denní placený rozpočet byl dosažen: jeho evidence je nečitelná, neúplná nebo nemůže přijmout tento požadavek. Žádný placený požadavek nebyl odeslán.",
   "paidDailyStopped": "Placené doplňky jsou zastaveny do zítřka.",
   "paidDailyReached": "Denní placený rozpočet byl dosažen",
-  "paidDailyReachedDetail": "Dnešní limit je {budget}. Tento požadavek a stávající rezervace potřebují {needed}. Zvyšte dnešní limit, nebo zastavte placené doplňky do zítřka.",
+  "paidDailyReachedDetail": "Placené doplňky dnes utratily {spent} z limitu {budget}, proto se další placený požadavek neodeslal. Zvyšte dnešní limit, nebo zastavte placené doplňky do zítřka.",
   "paidDailyRaise": "Zvýšit pro dnešek",
   "paidDailyStop": "Zastavit do zítřka",
-  "paidDailyRaisePrompt": "Zadejte dnešní limit v USD (0.50–500), který pokryje čekající rezervace.",
+  "paidDailyRaisePrompt": "Zadejte dnešní limit v USD (0.50–500), vyšší než dosavadní útrata.",
   "planUi": {
     "copilotConnect": "Použít mé modely Copilot",
     "copilotUnavailable": "Modely Copilot nejsou dostupné. Zapněte Copilot a zkuste to znovu.",
