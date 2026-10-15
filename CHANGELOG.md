@@ -18,9 +18,9 @@ happened, not what was planned; superseded entries are kept.
   skill."), never SKILL.md's model-facing instructions; a palette tip that
   repeats its row's detail reads once; the Backend row says which engine
   runs the conversation instead of the raw setting id; the model picker
-  marks contributor-tier models; the pill says "Checking sign-in…" while
-  the sign-in facts are read, and a signed-in credential file shows at
-  once instead of after the `account/read` probe; a skills "Not now" is
+  marks contributor-suffixed models; the pill says "Checking sign-in…"
+  while the sign-in facts are read, and a signed-in credential file shows
+  at once, before the rest of the sign-in facts are read; a skills "Not now" is
   remembered even when the click reaches a window that never showed the
   notice.
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
