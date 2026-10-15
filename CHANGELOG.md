@@ -24,6 +24,19 @@ happened, not what was planned; superseded entries are kept.
   test was removed: no recorded-real-exchange or live-product certification
   is claimed. Details: `docs/certification/limits-output.md`.
 
+- Limits-output review fixes (this branch): kept tool output carries its
+  origin and `recall_output` re-checks the current permission settings and
+  workspace trust before returning any of it — a source that is now denied
+  or untrusted is refused in words, never returned. Range reads and edits
+  work on the window at any file size (the 128 MiB refusal is gone; memory
+  stays flat and OS failures name their cause). Attachment limits a
+  provider's record does not state are unknown and unenforced locally; the
+  provider's own refusal comes back in words. Subagents recall their own
+  kept outputs; resumed sessions never rebind an old kept-output note to
+  new text; diagnostics overflow names come from the sorted snapshot; a
+  converter-cut page tail, a runner-dropped shell middle and a cut search
+  hit each name the way to the rest or say why there is none.
+
 - The chat no longer takes the keyboard from a file you just opened: a chat
   panel that finishes loading never pulls the focus in, a focus request for
   a panel that is no longer active is dropped instead of landing on a much

@@ -563,12 +563,12 @@ export class ObservationPack {
     }
     const refused = judge?.(entry.origin)
     if (refused !== undefined) {
-      const detail =
-        refused.kind === 'denied'
-          ? fill(MODEL_API_MODEL_TEXT.packWithheldDenied, { detail: refused.detail })
-          : refused.kind === 'untrusted'
-            ? fill(MODEL_API_MODEL_TEXT.packWithheldUntrusted, { detail: refused.detail })
-            : MODEL_API_MODEL_TEXT.packWithheldStale
+      let detail = MODEL_API_MODEL_TEXT.packWithheldStale
+      if (refused.kind === 'denied') {
+        detail = fill(MODEL_API_MODEL_TEXT.packWithheldDenied, { detail: refused.detail })
+      } else if (refused.kind === 'untrusted') {
+        detail = fill(MODEL_API_MODEL_TEXT.packWithheldUntrusted, { detail: refused.detail })
+      }
       return failure(
         fill(MODEL_API_MODEL_TEXT.packRecallWithheld, { id, detail }),
         UI_TEXT.policyChangedRefused,
