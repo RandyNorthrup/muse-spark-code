@@ -9,6 +9,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- CLI enum refusals list the accepted values from command help without
+  echoing the rejected value.
+
 - CLI review: custom provider model lists are explicitly read-only in the
   terminal; edits require the Models panel's per-model context/output limits.
 

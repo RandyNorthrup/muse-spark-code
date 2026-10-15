@@ -132,8 +132,31 @@ describe('wrong options and values', () => {
     }
   })
 
-  it('exits 2 for a wrong value, naming what was typed', () => {
-    expect(refusalFor(['--backend', 'auto'])).toContain('--backend auto')
+  it('names accepted enum values without echoing an untrusted value', () => {
+    for (const [argv, option, accepted] of [
+      [['--backend', 'auto'], '--backend', 'museCode|modelApi'],
+      [['--shell-sandbox', 'on'], '--shell-sandbox', 'auto|muse|off'],
+      [['--usage-history', 'maybe'], '--usage-history', 'on|off'],
+      [['exec', '--output', 'xml', 'hi'], '--output', 'text|json|jsonl'],
+      [['exec', '--permission-mode', 'bypass', 'hi'], '--permission-mode', 'plan|acceptEdits'],
+      [
+        ['providers', 'add', '--preset', 'custom', '--format', 'xml'],
+        '--format',
+        'chat|responses|anthropic',
+      ],
+      [
+        ['providers', 'add', '--preset', 'openrouter', '--privacy', 'none'],
+        '--privacy',
+        'zdr|no-training|any',
+      ],
+      [['usage', '--range', 'yesterday'], '--range', 'today|7d|30d|90d|custom'],
+      [['usage', '--by', 'date'], '--by', 'provider|model|kind|client'],
+    ] as const) {
+      const reason = refusalFor(argv)
+      expect(reason).toContain(option)
+      expect(reason).toContain(accepted)
+    }
+    expect(refusalFor(['--backend', 'secret-canary'])).not.toContain('secret-canary')
   })
 
   it('names the exec option a wrong value belongs to, never the budget sentence', () => {
