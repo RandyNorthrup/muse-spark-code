@@ -23,6 +23,18 @@ record and exit 1; restore the service before the final cleanup to observe
 the retry clear it. Repeat for Meta and check its recovery marker remains
 on failure. No fake-store test added; this path needs the real OS service.
 
+## T2 — failed route setup
+
+Before: a present provider credential returned `ok: false` with no `seen`;
+all cells became `notRun` and the final check looked only at failed cells.
+After: any `!state.ok` sets exit 1 at the setup boundary, regardless of
+whether a setup observation exists. No credential is replaced or removed.
+
+Lead real-life proof: reserve the route name before setup using the real
+product. The run must exit 1, name the occupied entry and leave it alone.
+The per-run identity repair in T4 removes ordinary cross-run collisions;
+the failure boundary still handles an occupied generated name or failed add.
+
 ## Merge
 
 Merged `ac21f1d24` in `c1ead3231`, hooks on. Only AGENTS.md and CHANGELOG.md
