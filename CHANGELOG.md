@@ -9,6 +9,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- Invariants lane: `test/unit/invariants.test.ts` re-guards the SoL-Pi
+  request-shape and savings invariants through real modules with real inputs
+  (tool-list order and bytes, instruction tail appending, packing sticky swap
+  and recall, one paid gate with separate tallies, `then_run` parsing,
+  overflow compaction bypass, eval splits). Full loopback golden stays with
+  the lead pending recorded exchanges.
+
 - Test-overhaul review: paid-popup lazy-load checks now build the real
   runtime instead of writing a replacement formatter, retaining locale
   propagation and sub-cent search-price disclosure checks.
