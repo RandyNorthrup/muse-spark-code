@@ -232,7 +232,7 @@ export class CliAccount {
    * What the credential file settles alone, without asking the CLI (F60):
    * `signedOut` for no file, `signedIn` for an inline credential off macOS,
    * undefined when only the CLI can say. Synchronous, so activation can show
-   * it before the short-lived `account/read` host answers.
+   * it before a refresh's remaining reads answer.
    */
   public peekFile(): CliSignIn | undefined {
     return this.look().settled
