@@ -14317,44 +14317,17 @@ cost and caution, never speed.
 
 ### D108 — The terminal agent documents itself per command (lane CLIHELP, 2026-10-12)
 
-**Lead brief (2026-10-12).** Measured on the released 0.18.1 agent:
-`exec --help` printed the whole Help & Reference and never listed exec's own
-options; `auth --help` printed the top-level usage again; `providers --help`
-showed one line although `list|add|test|remove` exist with their flags; a
-provider entry's model list could not be changed after `providers add`; serve
-mode accepts `--max-budget-usd` but the top-level help did not list it.
-
-**Rule in force.** One table drives parsing and help
-(`src/runtime/cliHelp.ts`): per command its name, one-line purpose,
-positional syntax, each option (name, value shape, bounds/default from shared
-constants, repeatable from the parser registry, meaning from the installed
-language's `referenceCliOptions`), and two runnable examples. The parser reads
-`CLI_OPTION_REGISTRY`; each topic's routes are registry routes, and the guard
-test (`test/unit/cliHelp.test.ts`) fails when a parsed option is neither
-shown nor mapped in `CLI_NON_TOPIC_OPTIONS`. `<command> --help` and
-`help <command>` print that command's own help (exit 0, nothing else);
-`help --all` / `help reference` keep the full reference; a wrong option or
-value exits 2 naming the option, the accepted values and the nearest valid
-option, except a secret-looking name (`secret`, `token`, `password`,
-`credential`, `apikey` and kin), which is refused without repeating it so a
-mistyped credential flag never reaches output, logs or reports
-(`unknownOptionHidden`, all 15 tables; the fonts refusal reads the live
-table so it formats in the installed language). `providers models <entry> [--add] [--remove] [--force <reason>]`
-(`src/runtime/providersModelsCommand.ts`) edits the entry through the same
-validated atomic commit the Models panel writes; the stored key is read only
-to consult the provider's list, never for a forced add, whose reason is kept
-in the entry's `forcedModels` map. `docs/reference.md` is generated from the
-same `cliCommands()` table; `npm run check:reference` additionally requires
-every registry route (except in-progress `estimate`) in the help table and the
-`help <command>` route plus every topic name in the README's terminal
-section. Proof record: `docs/certification/cli-help.md`. Scope, stated
-plainly (review RVCLIHELP, 2026-10-14): the table's thirteen topics are the
-brief's commands plus `usage` and `resources`; the older grammars that parse
-outside `CLI_OPTION_REGISTRY` (`schedule`, `vault`, `providers accounts`,
-`developer`, `share`/`prompts`, `providers … chatgpt`, and the excluded
-`estimate`) keep their own usage text and are not `help <command>` topics
-yet — bringing them in needs their options in the registry and a translated
-purpose each, and is open work, not done by this decision.
+One table drives the terminal command parser and installed-language help.
+`<command> --help` and `help <command>` print that command's own help; `help --all`
+/ `help reference` retain the full reference. Wrong options and values exit 2
+with accepted options/values, without echoing secret-looking names. `providers
+models <entry>` edits models through the validated atomic provider-file
+commit; forced additions retain a reason and never read a key. The reference
+gate checks registry coverage and the README terminal topics. The thirteen
+help topics cover the registry routes except `estimate`; older non-registry
+grammars retain their own usage and are not help topics. Proof:
+`docs/certification/cli-help.md`. Full record:
+[docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
 
 ### D108 — Test overhaul: no stand-ins, a short gate, the real-life run (owner, 2026-10-12)
 

@@ -24,6 +24,19 @@ proof on the merged tree: `exec --help` is 40 lines with no "Help &
 Reference" text, and the models add/list/remove cycle above ran against an
 isolated config home.
 
+## PRTH162 review fixes (2026-10-15, Windows)
+
+Readiness: the nine review threads are bounded changes to the existing CLI,
+provider schema, reference generator and catalogue. Reuse those owners; no new
+command, dependency, gate exception or provider call. Main `d842cad5d` merged
+as `819ec0f8b`; its three deleted test files stay deleted. Parser/help proof is
+retained in `cliHelp.test.ts`; report output is checked through the packed CLI.
+
+T1: archived the complete CLI D108 record with `npm run plan:archive`.
+Reassembly SHA-256 `db3c401a71c2bc2d21197b904bf4dbb12d9ddb3aff7d4bf24d1460c47a93865f`
+is identical before/after; parsed facts are identical. Only the rule and link
+remain live. Main's separately named D108 test-overhaul rule is retained.
+
 ## 1. Accepted today (from the code, release 0.18.1 base)
 
 Parser routes (`CLI_OPTION_REGISTRY` in `src/runtime/cliOptions.ts`, plus the
