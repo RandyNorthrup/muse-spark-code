@@ -222,6 +222,20 @@ export interface SelectedReportEvent {
 export function selectProblemReportEvents(
   input: readonly unknown[],
 ): readonly SelectedReportEvent[] {
+  return problemReportEventSelection(input).events
+}
+
+/**
+ * The selection above, with the records it skipped counted separately. Only
+ * expired or invalid records count as skipped: a valid record older than the
+ * recent-events cap is left out by the cap, never reported as unusable. A
+ * caller that pre-selects (the dialog) passes this count to the builder, so
+ * removing a listed record cannot pull an unlisted older one into the draft.
+ */
+export function problemReportEventSelection(input: readonly unknown[]): {
+  readonly events: readonly SelectedReportEvent[]
+  readonly skippedStoredRecords: number
+} {
   const valid: SelectedReportEvent[] = []
   for (const [index, candidate] of input.entries()) {
     const parsed = problemReportEventSchema.safeParse(candidate)
@@ -243,7 +257,10 @@ export function selectProblemReportEvents(
       },
     })
   }
-  return valid.slice(-REPORT_RECENT_EVENT_COUNT)
+  return {
+    events: valid.slice(-REPORT_RECENT_EVENT_COUNT),
+    skippedStoredRecords: input.length - valid.length,
+  }
 }
 
 function validatedEvents(input: readonly unknown[]): readonly ProblemReportEvent[] {
@@ -418,7 +435,8 @@ export function problemReportTitle(facts: ProblemReportFacts): string {
 
 function factLines(facts: ProblemReportFacts): readonly string[] {
   const found = facts.cliFound ? 'found' : 'not found'
-  const cli = facts.cliVersion === undefined ? found : `found (version ${facts.cliVersion})`
+  const cli =
+    facts.cliFound && facts.cliVersion !== undefined ? `found (version ${facts.cliVersion})` : found
   let contributor = 'unknown'
   if (facts.contributorMode === true) contributor = 'on'
   else if (facts.contributorMode === false) contributor = 'off'
@@ -463,6 +481,13 @@ export interface ProblemReportInput {
   readonly facts: unknown
   /** Stored fact records; invalid ones are skipped, never exported. */
   readonly events: readonly unknown[]
+  /**
+   * Stored records the caller already counted as expired or invalid while
+   * pre-selecting `events` (the dialog's list). Absent: the builder counts the
+   * expired or invalid records in `events` itself. Records past the cap and
+   * records the person removed are never counted here.
+   */
+  readonly skippedStoredRecords?: number
   /** The recorder never ran: the report says so instead of carrying events. */
   readonly recordingUnavailable: boolean
   /** Renders the relative ages; must be a finite epoch. */
@@ -536,7 +561,8 @@ function reportParts(input: ProblemReportInput): { title: string; text: string }
     sections.push(`Support facts:\n${factLines(facts).join('\n')}`)
   }
   if (input.includeEvents) {
-    const skipped = input.events.length - events.length
+    const skipped =
+      input.skippedStoredRecords ?? problemReportEventSelection(input.events).skippedStoredRecords
     let carried = NONE
     if (skipped !== 0 || events.length > 0) {
       const lines: string[] = events.length > 0 ? [...eventLines(events)] : [NONE]

@@ -49,6 +49,38 @@ describe('problem report price facts', () => {
     expect(draft.text).toContain('contributor mode: unknown')
   })
 
+  it('does not call valid records past the recent-events cap skipped', () => {
+    const valid = { kind: 'backendExit', code: 'ECONNRESET', frames: [], ageMs: 1 }
+    const draft = buildProblemReportDraft({
+      description: '',
+      includeFacts: false,
+      includeEvents: true,
+      facts: facts(),
+      events: Array.from({ length: 51 }, () => ({ ...valid })),
+      recordingUnavailable: false,
+      nowMs: Date.now(),
+      scrub,
+    })
+    expect(draft.text).toContain('Recent events (50)')
+    expect(draft.text).not.toMatch(/skipped/i)
+  })
+
+  it('carries a stored-record skip count the caller counted before selection', () => {
+    const draft = buildProblemReportDraft({
+      description: '',
+      includeFacts: false,
+      includeEvents: true,
+      facts: facts(),
+      events: [{ kind: 'backendExit', code: 'ECONNRESET', frames: [], ageMs: 1 }],
+      skippedStoredRecords: 2,
+      recordingUnavailable: false,
+      nowMs: Date.now(),
+      scrub,
+    })
+    expect(draft.text).toContain('Recent events (1)')
+    expect(draft.text).toContain('2 stored records were skipped')
+  })
+
   it('says when stored records could not be carried', () => {
     const draft = buildProblemReportDraft({
       description: '',
