@@ -14349,7 +14349,7 @@ its real cause (the HTTP status with the provider's own error message, or
 the network error's code) without echoing secrets or headers, and is still
 never retried automatically: a pinned send may have reached the provider.
 
-### D113 — No default cap refuses the person's work; money stays visible and theirs to cap (lane LIMITSA, 2026-10-15; RVLIMITS: blocked, see certification)
+### D113 — No default cap refuses the person's work; money stays visible and theirs to cap (lanes LIMITSA and LIMITSFIX, 2026-10-15; closed by LIMITSFIX, see certification)
 
 **Owner (2026-10-14).** "why are there all there arbitraty limits in the
 actual app thats insane?!!!" Measured: every Sonnet request refused with
@@ -14364,17 +14364,33 @@ warns at 3 identical calls, escalates at 5; Gemini's threshold is 5.
 
 **Rule.** Every product error keeps its own words where a send can fail
 (F88; unknown failures name a fixed request diagnostic, never the panel).
-Own provider keys have no default daily cap. A person-set
-daily or session cap compares real settled spend after each response,
-plus that one response's overshoot; nothing reserves the worst case, and
-requests keep their own `max_output_tokens`. A cap that stops work names
-spend, cap and raise path. Paid extras keep ask-first consent and the
-shared daily extras budget, also counting real spend; `--max-budget-usd`
-stays the terminal's run cap. A child task has no request cap and runs
-like its parent; its consent names per-request rates. Identical calls
-warn at 3 and stop the turn at 5 with the translated sentence. Tab keeps
-its daily budget, but the first refusal of each day raises a notice with
-spend, budget and raise path.
+Own provider keys have no default daily cap. ONE admission and
+settlement contract (`src/shared/spendCap.ts`, `isBelowCap`) serves every
+consumer of a cap the person set (the conversation and its sub-agents,
+compaction, the hook and review helpers, hosted search, the shared daily
+extras, Tab): a request is sent while the REAL settled spend is below the
+cap; at or over it the next request stops, naming spent, cap and the raise
+path. Nothing reserves an input estimate or an output worst case, and
+requests keep their own `max_output_tokens`. Each response settles at its
+real cost; a response lost before its usage is recorded as unknown (never
+guessed) and the next capped request says so. The overshoot bound is the
+responses in flight when their requests were admitted: one for the
+conversation, up to `SUBAGENT_CAPACITY` (8) running sub-agents, which share
+the owner's cap and ledger, and one per helper request in flight; Tab's own
+budget at most `TAB_MAX_IN_FLIGHT` (2). Paid extras keep ask-first consent
+and the shared daily extras budget, also on real spend; `--max-budget-usd`
+stays the terminal's run cap. A child task has no request cap; its consent
+names per-request rates. One repeat policy for every tool class: the same
+call and arguments with the same result warns the model at 3 and stops the
+turn at 5 with the translated sentence; a result that changes is not a
+repeat. The per-turn tool-round limit is off, or any whole number from 1
+up, on every surface (setting and panel switch, exec/serve flag, editor
+protocol option), saved with the conversation and inherited by children; a
+person-set limit whose summary cannot be written still ends cleanly as
+`max_turn_requests` with a notice saying so, never "Internal error", and
+the next message works. Tab keeps its daily budget, but the first refusal
+of each day raises a notice with spend, budget and raise path, and says
+"reached" only once it is.
 
 ### D108 — Test overhaul: no stand-ins, a short gate, the real-life run (owner, 2026-10-12)
 
