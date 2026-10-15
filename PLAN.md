@@ -14310,6 +14310,52 @@ cost and caution, never speed.
   reviewer on B1 and B2, never the only one and never an allow by itself.
   Everywhere else both stand unchanged.
 
+### D114 — Nothing the app says, reads, searches, fetches or diagnoses is cut short without a way to get the rest (LIMITSB, 2026-10-14)
+
+**Owner (2026-10-14).** "why are there all there arbitraty limits in the
+actual app thats insane?!!!" **The owner's rule: a limit we invented binds
+only if other harnesses do the same.** The lead's audit (73 rows, five
+harnesses compared; its record `docs/limits-audit.md` lands with its own
+pull request, branch `docs/limits-audit`) is the comparison this decision
+names: on 11 of the 15 rows that most
+often hit a real person, no surveyed harness publishes any corresponding
+cap (Claude Code, Codex CLI, Gemini CLI, OpenCode, Cline). Where harnesses
+do cap, they use subscription or rate windows, higher thresholds, or
+user-set knobs — never a low fixed default that refuses work. So the lane
+keeps no invented refusal, and every remaining window keeps its size but
+gains a way to the rest:
+
+- **Long answers (B1).** The output cap is each model's own maximum output
+  from its capability record, not our fixed 32,768 (no surveyed harness
+  publishes a fixed reply cap; Claude Code's `maxOutputTokens` feeds only
+  its compaction arithmetic). An answer stopped on max tokens continues
+  automatically until the model finishes; each continuation is shown, the
+  repeat and loop guards still apply, and a provider that refuses a
+  continuation is reported in words. It never stops after one continuation
+  waiting for a nudge.
+- **Tool output, search and read, web pages, diagnostics (B3, B5, B7,
+  B6).** Each call still shows the same size it did, but the rest is
+  always reachable: every clipped result says how much is left and how to
+  get the next part through an offset or page argument the tool already
+  has, or one the lane adds. Claude Code's own file reader works this way
+  (2,000 lines by default, with an offset); Codex CLI stores per-tool
+  output behind its own `tool_output_token_limit` rather than dropping it.
+- **Files over 10 MiB (A9).** Reading works at any size by range (offset
+  and length); an edit over the size says why, and the person can still
+  edit by range. No surveyed harness publishes a file-tool size cap.
+- **Attachments (A10).** Per-request counts and sizes follow each
+  provider's documented limits from its capability record, not our own
+  numbers; where a record lacks them, today's value stays and is marked
+  "unconfirmed" in the record.
+
+Out of scope: compaction timing (B2, M101), money and stopping limits
+(lane LIMITSA), silent drops (lane LIMITSC). Proof and record:
+`test/e2e/limitsOutput.e2e.test.ts` drives the packed product (a reply
+longer than one max-output window arrives whole through visible
+continuations; a 30 MiB file reads end to end in ranges; a clipped tool
+output, search, page and diagnostics list each lead to the rest), recorded
+in `docs/certification/limits-output.md`.
+
 ## 3. Open questions (need the owner)
 
 **Q-VIS0171-RELEASE-NOTES resolved by lead (2026-10-10, linuxlt).** Round 2

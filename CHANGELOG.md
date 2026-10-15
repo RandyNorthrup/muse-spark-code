@@ -9,6 +9,18 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- Limits-output lane (B1/B3/B5/B6/B7/A9/A10): nothing the Model API
+  backend says, reads, searches, fetches or diagnoses is cut short
+  without a way to get the rest. Answers stopped on max tokens continue
+  automatically until the model finishes, each continuation shown.
+  Clipped search, file-list, file-read, web-page and diagnostics results
+  name the offset that fetches the next part. `read_file`/`edit_file`
+  read and edit files of any size by byte range. Attachment sizes and
+  counts follow each provider's capability record. Proof:
+  `test/e2e/limitsOutput.e2e.test.ts` drives the packed product (whole
+  multi-window reply, 30 MiB in ranges, every paging note followed).
+  Record: `docs/certification/limits-output.md`.
+
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
   reads and writes, and 1-hour cache writes settle at their own price.
   The shared retry classifier refuses known quota codes and excessive
