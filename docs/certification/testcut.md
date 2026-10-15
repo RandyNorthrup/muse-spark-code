@@ -492,3 +492,19 @@ malformed stored row. The suite fails 1/23 (exit 1): expected rejection,
 promise resolved undefined. Restore the adapter byte-exact; SHA-256
 `964b0b4cd228d3e416cac86f5ad9f8176a3ad9b468433c6aec0e33290cc094fe`.
 Initial and restored real-code runs are recorded in the review report.
+
+## RVTESTCUT2 — replace the paid popup's fake lazy runtime
+
+P2: `paidConsentBundle.test.mjs` wrote its own `foreignHooks.js` with a
+hand-written `paidUseQuestion`, so the successful retry and language check
+never ran the product formatter. Build the actual `foreignHooksEntry.ts`
+with the existing production redirect plugin instead; retain the real
+missing-chunk refusal and retry, and assert French currency rendering.
+Also retain the deleted `paidConsent.test.ts:82–97` real sub-cent search
+price disclosure through that built formatter. No network or paid call.
+
+Red drill: remove the caller's `runtime.setUiText(UI_TEXT, uiLocale())`.
+Exit 1: expected French `0,18 $US`, received English `$0.18`. Restore
+`paidConsent.ts` byte-exact against HEAD; SHA-256
+`d26aded313196a3d43ff3575ed348367f7f34ffad46d2c42b6812f1a23899da8`.
+The real-bundle suite passes 1/1 at default deadlines after restoration.
