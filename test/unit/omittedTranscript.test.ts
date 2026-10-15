@@ -72,6 +72,14 @@ describe('oversize webview state', () => {
     expect(refused.pendingSendDraft).toBeUndefined()
   })
 
+  it('keeps omitted history and typing across another reload before the host confirms', () => {
+    const first = restoredUiState(webviewStateOf(oversized(), true, 100))
+    const second = restoredUiState(webviewStateOf(first, true))
+    expect(second.pendingRestore).toEqual({ sessionId: 's1', isTranscriptOmitted: true })
+    expect(second.draft).toBe('unsent composer text')
+    expect(second.pendingSendDraft).toEqual(first.pendingSendDraft)
+  })
+
   it('still saves the transcript when it fits', () => {
     const saved = webviewStateOf({ ...oversized(), transcript: [] }, true, 100_000)
     expect(saved).toHaveProperty('snapshot')

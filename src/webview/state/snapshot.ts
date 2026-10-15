@@ -122,17 +122,20 @@ export function webviewStateOf(
     return base
   }
   const snapshot = snapshotOf(state)
-  if (JSON.stringify(snapshot).length <= maxChars) {
+  if (
+    state.pendingRestore?.isTranscriptOmitted !== true &&
+    JSON.stringify(snapshot).length <= maxChars
+  ) {
     return { ...base, snapshot }
   }
-  if (state.sessionId === undefined) {
+  if (sessionId === undefined) {
     return base
   }
   // The transcript stays with the host (History reopens it); the unsent
   // text is small and the person's own, so it is kept, not forgotten (B10).
   return {
     ...base,
-    omittedSessionId: state.sessionId,
+    omittedSessionId: sessionId,
     draftRevision: state.draftRevision,
     ...(state.draft !== '' && { draft: redactSecrets(state.draft) }),
     ...(state.pendingSendDraft !== undefined && {

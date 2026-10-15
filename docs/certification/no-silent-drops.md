@@ -375,6 +375,19 @@ McpElicitationTimeoutError` was false at the real boundary: the connection
   timed out, settled as cancelled, and no answer was sent. Updated English
   and all fourteen translations in place, preserving slots and key order.
 
+## RVDROPS review — B10 a second reload must not forget the omission
+
+- P1: after restoring an omitted transcript, the live `sessionId` is not
+  set until the host responds. Saving again wrote a small snapshot with no
+  session id; the next restore rejected it against `restoredSessionId`, losing
+  the ride-along text and History notice. Two real save/restore cycles proved
+  it (1 failed / 4 passed, exit 1, `temp/rv-repeat-reload-red.log`).
+- While an omitted restore awaits confirmation, persist its omission envelope
+  and effective session id again, not an empty transcript snapshot. Snapshot
+  - omission suites: 17 passed (exit 0, `temp/rv-repeat-reload-green.log`).
+    Lead: reload twice while reconnecting an oversize panel; draft and omission
+    notice must survive until the host confirms the session.
+
 ## Limits raised or removed (owner's rule)
 
 | Row | Number              | Outcome                                                  | Reasoning                                                                       |
