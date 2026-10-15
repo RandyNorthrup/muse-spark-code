@@ -1,10 +1,8 @@
 // Fixes for the M75 task set: what a correct run writes. The unit tests use
 // them to prove every verifier accepts a fix (the canonical one and one
-// spelled differently) and to script the fake Model API's correct runs.
+// spelled differently).
 
 import type { EvalTask } from '../../../src/core/eval/tasks'
-import { MODEL_API_TOOLS } from '../../../src/shared/constants'
-import type { ScriptedReply } from '../helpers/fakeModelApi'
 
 export interface EvalFix {
   readonly path: string
@@ -191,43 +189,4 @@ export function fixesFor(
     throw new Error(`no fix for eval task ${task.id}`)
   }
   return fixes
-}
-
-/** A reply that reads one file. */
-export function readReply(path: string, callId: string): ScriptedReply {
-  return { calls: [{ name: 'read_file', arguments: JSON.stringify({ path }), callId }] }
-}
-
-/**
- * A long-output task as the phases direct: read the evidence, then each
- * phase file in a request of its own, then recall the middle (or read the
- * evidence again without packing), then write the canonical fix.
- */
-export function longTaskReplies(
-  task: EvalTask,
-  isPacking: boolean,
-  offset: number,
-): ScriptedReply[] {
-  const [fix] = fixesFor(EVAL_CANONICAL_FIXES, task)
-  if (fix === undefined) {
-    throw new Error(`no canonical fix for ${task.id}`)
-  }
-  return [
-    readReply('evidence.txt', 'evidence'),
-    readReply('phase-one.txt', 'phase-one'),
-    readReply('phase-two.txt', 'phase-two'),
-    isPacking
-      ? {
-          calls: [
-            {
-              name: MODEL_API_TOOLS.recallOutput,
-              arguments: JSON.stringify({ id: 'evidence', offset }),
-              callId: 'recall',
-            },
-          ],
-        }
-      : readReply('evidence.txt', 'reread'),
-    { calls: [{ name: 'write_file', arguments: JSON.stringify(fix) }] },
-    { text: 'Recovered and fixed.' },
-  ]
 }

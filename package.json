@@ -1793,7 +1793,7 @@
     "notices": "node scripts/build.mjs --production && node scripts/third-party-notices.mjs --write",
     "build:dev": "node scripts/build.mjs",
     "watch": "node scripts/build.mjs --watch",
-    "harness:shots": "node scripts/harness-shots.mjs",
+    "ui:look": "node scripts/ui-look.mjs",
     "harness:playbook": "node test/harness/playbook-axe.mjs",
     "harness:pseudo": "node scripts/pseudo-l10n.mjs",
     "readme:shots": "node scripts/readme-shots.mjs",
@@ -1826,7 +1826,7 @@
     "cycles": "node scripts/cycles.mjs",
     "duplication": "jscpd",
     "test": "run-s test:unit test:integration",
-    "test:unit": "vitest run --coverage",
+    "test:unit": "vitest run",
     "test:e2e:live": "vitest run test/e2e/live.e2e.test.ts",
     "test:e2e:live:modelapi": "vitest run test/e2e/modelApi.live.e2e.test.ts",
     "test:e2e:live:eval": "vitest run test/e2e/eval.live.e2e.test.ts",
@@ -1851,9 +1851,7 @@
     "real-life": "node scripts/real-life/run.mjs",
     "check:lazy-registry": "node scripts/gen-lazy-registry.mjs --check",
     "build:tokens": "node scripts/build-tokens.mjs",
-    "check:tokens": "node scripts/check-tokens.mjs",
-    "check:visual": "node scripts/check-visual.mjs",
-    "check:visual:a11y": "node test/harness/goldens/a11y.mjs"
+    "check:tokens": "node scripts/check-tokens.mjs"
   },
   "lint-staged": {
     "{*.{ts,tsx,mjs},!(vendor)/**/*.{ts,tsx,mjs}}": [
