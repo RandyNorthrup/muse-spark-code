@@ -464,15 +464,17 @@ export function renderOptionRow(table: UiText, route: CliHelpRoute, option: CliH
   )?.[1]
   const isRepeatable =
     definition !== undefined && 'multiple' in definition && definition.multiple === true
-  const meaning = optionMeaning(table, option.name)
+  // Descriptions may contain a legacy rendered prefix. Keep its translated
+  // prose, but the table alone owns the flag and required value syntax.
+  const meaning = optionMeaning(table, option.name).replace(
+    /^--[\w-]+(?::\s*|\s+(?:<[^>]+>|[\w-]+(?:\|[\w-]+)+|YYYY-MM-DD)(?::\s*|\s{2,})|\s{2,})/,
+    '',
+  )
   const notes: string[] = []
   const note = option.fact === undefined ? undefined : factNote(table, option.fact)
   if (note !== undefined) notes.push(note)
   if (isRepeatable) notes.push(table.cliHelp.repeatable)
   const suffix = notes.length === 0 ? '' : ` (${notes.join('; ')})`
-  // Reference meanings that already name the option (and its shape) stand
-  // as written; the row only adds bounds, the default and repeatability.
-  if (meaning.startsWith(`--${option.name}`)) return `  ${meaning}${suffix}`
   let shape = option.shape === '' ? '' : ` ${option.shape}`
   if (option.fact?.kind === 'enum' && option.shape === '') {
     shape = ` ${option.fact.values.join('|')}`

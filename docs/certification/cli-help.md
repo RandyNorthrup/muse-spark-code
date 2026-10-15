@@ -54,6 +54,11 @@ printing the refusal. No backend or credential service starts. The old path
 formatted the reason before `loadUiTable`; packed French refusal checks are
 listed in the PRTH162 report (LC_ALL, not VSCODE_NLS_CONFIG).
 
+T5: rendered option syntax always comes from the command table. Legacy
+translated prefixes are stripped from descriptions, never substituted for the
+required shape. Regression red: provider help lacked `--preset <preset>`
+(exit 1); also covers `--as`, `--address`, and `--privacy`.
+
 ## 1. Accepted today (from the code, release 0.18.1 base)
 
 Parser routes (`CLI_OPTION_REGISTRY` in `src/runtime/cliOptions.ts`, plus the
