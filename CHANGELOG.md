@@ -9,6 +9,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- Linux shell sandbox that cannot start (F91): while sandboxed on Linux,
+  each host start probes whether Muse Code's bubblewrap sandbox can create
+  a user namespace here, and says so once in words on every surface (panel
+  notice, editor-protocol session update, terminal log) naming the two ways
+  out, without ever switching the sandbox off on its own. The model hears it
+  once too. Diagnostics reports the posture and the check.
+
 - Test-overhaul review: paid-popup lazy-load checks now build the real
   runtime instead of writing a replacement formatter, retaining locale
   propagation and sub-cent search-price disclosure checks.
