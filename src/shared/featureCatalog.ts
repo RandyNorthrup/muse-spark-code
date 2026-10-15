@@ -1155,6 +1155,7 @@ const REFERENCE_DETAILS: Readonly<
     'pricePerMillion',
     'privacyNoRetentionDetail',
     'referenceOutputCapMinimum',
+    'customLimitsMissing',
   ],
   estimator: ['estimateCliHelp'],
   permissions: ['referencePermissionLimits'],

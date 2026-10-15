@@ -4246,6 +4246,8 @@ export const EN = {
     modelsUnknownEntry: "Unknown provider entry '{entry}'; configured entries are: {closest}.",
     modelsNeedsForce: "Use --force '<reason>' to add a model the provider does not list.",
     modelsForceNeedsAdd: '--force needs --add: only added models can carry a reason.',
+    modelsCustomReadOnly:
+      'Custom provider model lists are read-only here; use the Models panel to set each model’s context window and output cap.',
     // {command}: the executable's name.
     modelsUsage:
       'Usage: {command} providers models <entry> [--add <model>] [--remove <model>] [--force <reason>]',

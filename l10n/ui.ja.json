@@ -3436,6 +3436,7 @@
     "modelsUnknownEntry": "不明なプロバイダーエントリ '{entry}'。設定済みエントリ: {closest}。",
     "modelsNeedsForce": "プロバイダーにないモデルを追加するには --force '<reason>' を使います。",
     "modelsForceNeedsAdd": "--force には --add が必要です。理由を持てるのは追加したモデルのみです。",
+    "modelsCustomReadOnly": "カスタムプロバイダーのモデル一覧はここでは読み取り専用です。モデルパネルで各モデルのコンテキストウィンドウと出力上限を設定してください。",
     "modelsUsage": "使い方: {command} providers models <entry> [--add <model>] [--remove <model>] [--force <reason>]"
   },
   "execBudgetRequired": "Model API には --max-budget-usd が必要です。",

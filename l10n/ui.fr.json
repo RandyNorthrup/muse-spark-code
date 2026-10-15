@@ -3582,6 +3582,7 @@
     "modelsUnknownEntry": "Entrée de fournisseur inconnue '{entry}' ; entrées configurées : {closest}.",
     "modelsNeedsForce": "Utilisez --force '<reason>' pour ajouter un modèle absent de la liste du fournisseur.",
     "modelsForceNeedsAdd": "--force exige --add : seuls les modèles ajoutés portent un motif.",
+    "modelsCustomReadOnly": "Les listes de modèles des fournisseurs personnalisés sont en lecture seule ici ; définissez la fenêtre de contexte et la limite de sortie de chaque modèle dans le panneau Modèles.",
     "modelsUsage": "Utilisation : {command} providers models <entry> [--add <model>] [--remove <model>] [--force <reason>]"
   },
   "execBudgetRequired": "La Model API exige --max-budget-usd.",

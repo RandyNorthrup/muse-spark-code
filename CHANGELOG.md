@@ -9,6 +9,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- CLI review: custom provider model lists are explicitly read-only in the
+  terminal; edits require the Models panel's per-model context/output limits.
+
 - Activation budget: the Create AGENTS.md command, its rules template and
   their redaction load on the command's first run instead of at activation,
   leaving 830 bytes of room below the 3,072-byte growth allowance. No

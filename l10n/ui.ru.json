@@ -3655,6 +3655,7 @@
     "modelsUnknownEntry": "Неизвестная запись провайдера '{entry}'; настроенные записи: {closest}.",
     "modelsNeedsForce": "Используйте --force '<reason>', чтобы добавить модель, которой нет у провайдера.",
     "modelsForceNeedsAdd": "--force требует --add: причину имеют только добавленные модели.",
+    "modelsCustomReadOnly": "Списки моделей пользовательских провайдеров здесь доступны только для чтения; задайте контекстное окно и предел вывода каждой модели на панели моделей.",
     "modelsUsage": "Использование: {command} providers models <entry> [--add <model>] [--remove <model>] [--force <reason>]"
   },
   "execBudgetRequired": "Model API требует --max-budget-usd.",

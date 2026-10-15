@@ -207,6 +207,7 @@ export const CLI_HELP_TOPICS: readonly CliHelpTopic[] = [
   {
     name: 'providers',
     purpose: (table) => table.cliHelp.purposeProviders,
+    note: (table) => table.cliHelp.modelsCustomReadOnly,
     usage: [
       (command) => `${command} providers list|add|test|remove`,
       (command) => `${command} providers models <entry> [--add <model>] [--remove <model>]`,

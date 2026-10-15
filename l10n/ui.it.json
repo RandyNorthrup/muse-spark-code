@@ -3582,6 +3582,7 @@
     "modelsUnknownEntry": "Voce provider sconosciuta '{entry}'; voci configurate: {closest}.",
     "modelsNeedsForce": "Usa --force '<reason>' per aggiungere un modello non elencato dal provider.",
     "modelsForceNeedsAdd": "--force richiede --add: solo i modelli aggiunti hanno una motivazione.",
+    "modelsCustomReadOnly": "Gli elenchi dei modelli dei provider personalizzati sono di sola lettura qui; usa il pannello Modelli per impostare la finestra di contesto e il limite di output di ciascun modello.",
     "modelsUsage": "Uso: {command} providers models <entry> [--add <model>] [--remove <model>] [--force <reason>]"
   },
   "execBudgetRequired": "La Model API richiede --max-budget-usd.",
