@@ -102,11 +102,13 @@ GITHUB_REPOSITORY=RandyNorthrup/muse-spark-code node scripts/rule2-gate.mjs rele
 A later merge to `main` does not cancel an earlier commit's Hosts run: each
 push to `main` has a concurrency group of its own commit in `hosts.yml`.
 
-The release workflow's own runs on the tag are not counted, so the recovery
-below still works: starting a failed publication job again, or a
-`workflow_dispatch` recovery, builds and tests nothing (the recovery run
-passes this step like the first run did). A job of the release's own fallback
-build is a gate job: the aggregate refuses a second attempt of it as CI does.
+The release workflow's own runs on the tag are not hosted test evidence.
+Its verification step nevertheless refuses a second attempt before reading
+that evidence. After a publication failure, use the `workflow_dispatch`
+artifact-only recovery below: it is a fresh run whose verification executes
+once and which builds and tests nothing. Do not rerun the failed job or the
+whole release. A job of the release's own fallback build is a gate job: the
+aggregate refuses a second attempt of it as CI does.
 
 ## Choosing the release build
 

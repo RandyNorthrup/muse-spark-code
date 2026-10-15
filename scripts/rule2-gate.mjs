@@ -32,7 +32,14 @@
 // docs/certification/rule2-gate.md.
 import process from 'node:process'
 import { setTimeout as delay } from 'node:timers/promises'
-import { GateError, isRecord, missingEvidence, pullOf, runOf } from './lib/rule2Gate.mjs'
+import {
+  assertReleaseAttempt,
+  GateError,
+  isRecord,
+  missingEvidence,
+  pullOf,
+  runOf,
+} from './lib/rule2Gate.mjs'
 
 const { AbortSignal } = globalThis
 const API = process.env['GITHUB_API_URL'] ?? 'https://api.github.com'
@@ -285,6 +292,9 @@ async function mergedHeads(sha) {
 
 /** The release door: every run on the tagged commit and on the head of the pull request that merged as it. */
 async function gateRelease(sha) {
+  // A read-only local preflight has no run id; a hosted verify must be first.
+  if (process.env['GITHUB_RUN_ID'] !== undefined)
+    assertReleaseAttempt(required('GITHUB_RUN_ATTEMPT'))
   const ownId = Number(process.env['GITHUB_RUN_ID'] ?? 0)
   const ownPath = ownWorkflowPath()
   const heads = await mergedHeads(sha)

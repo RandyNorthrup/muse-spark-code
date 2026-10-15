@@ -5,6 +5,14 @@
 // as data; anything the gate cannot read throws instead of passing.
 export class GateError extends Error {}
 
+/** Publication recovery is a fresh run, never another execution of verify. */
+export function assertReleaseAttempt(attempt) {
+  if (Number(attempt) !== 1)
+    throw new GateError(
+      `Release verification is on attempt ${String(attempt)}: nothing is started again on the same commit (AGENTS.md rule 2). Use a new commit, or a fresh artifact-only recovery run after publication failed.`,
+    )
+}
+
 export function isRecord(value) {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }

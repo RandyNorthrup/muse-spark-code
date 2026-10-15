@@ -128,3 +128,35 @@ CI run 38597656750, attempt 1:
 
 Rule 2 applies to this record too: the run was not started again. This commit
 starts the next one.
+
+## PRTH158 review-fix receipts (2026-10-15, Windows)
+
+Main `ac21f1d24` merged with hooks as `c7b3af609`. Both rule-2 enforcement
+and the real-code test overhaul remain; the removed coverage job is not a
+`first-attempt` dependency. No stand-in GitHub, model call or new process
+test is used. Tests import the real pure policy module.
+
+### T1 — release verification is never executed twice
+
+Hosted release verification checks `GITHUB_RUN_ATTEMPT` before excluding
+its own run. Only attempt 1 passes. Local read-only preflight has no run id;
+a fresh artifact-only recovery run still starts at attempt 1. The release
+guide now distinguishes that recovery from rerunning a failed job.
+
+Command: `npx --no-install vitest run test/unit/rule2Gate.test.mjs --maxWorkers=2`.
+Baseline: 24 passed, exit 0. Deliberately changed the real
+`assertReleaseAttempt` comparison from `!== 1` to `< 1`:
+
+```text
+refuses re-executed or unreadable verification: 2
+refuses re-executed or unreadable verification: 3
+AssertionError: expected [Function] to throw an error
+Tests 4 failed | 20 passed (24)
+RED_EXIT=1
+```
+
+Restored the exact bytes; before/after SHA-256:
+`12ca289fd6be85e8feec13a280c6a485c618c886317d55c86ad839bfb2807673`.
+Restored: 24 passed, exit 0. Logs: `.lane/PRTH158.T1.{green,red,restored}.log`.
+The lead's hosted check is to read the same release verify command with a
+run id and attempt 2: it must refuse before any API access or publisher.
