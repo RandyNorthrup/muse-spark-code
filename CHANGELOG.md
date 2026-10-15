@@ -9,6 +9,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- All fourteen translated settings tables now say Muse Code asks before a
+  command unless a permission rule allows it, matching the English modes.
+
 - Closing an ACP session no longer discards its selected permission mode;
   loading it again on the same connection keeps that mode.
 
