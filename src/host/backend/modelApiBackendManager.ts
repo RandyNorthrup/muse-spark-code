@@ -43,6 +43,7 @@ import type { SubagentUsage } from '../../shared/paid'
 import { BestOfNError } from '../../core/bestOfN/bestOfNError'
 import { WorkspaceEdits, type WorkspaceEditRecorder } from '../../core/verify/workspaceEdits'
 import type { AgentSession } from '../../core/agent/agentBackend'
+import { isCredentialStoreDown } from '../auth/credentialStore'
 import type { EditedFile } from '../../core/verify/diagnosticsReport'
 import { unstartedShell } from '../../core/shellResult'
 import {
@@ -245,6 +246,22 @@ function describe(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
+/**
+ * The key, with a dead credential store reading as no key: account
+ * identity falls back to the subscription account (unknown, not failed)
+ * instead of failing on the store.
+ */
+async function readApiKey(
+  getApiKey: ModelApiBackendManagerDeps['getApiKey'],
+): Promise<string | undefined> {
+  try {
+    return await getApiKey()
+  } catch (error: unknown) {
+    if (!isCredentialStoreDown(error)) throw error
+    return undefined
+  }
+}
+
 export class ModelApiBackendManager {
   /** Runtime/activation injects the same journal into every owned host. */
   public static usageRecording: UsageRecording | undefined
@@ -376,7 +393,7 @@ export class ModelApiBackendManager {
         scheduleStore: variant.scheduleStore,
         getAccountId: async () => {
           if (this.deps.getAccountId !== undefined) return await this.deps.getAccountId()
-          const key = await this.deps.getApiKey()
+          const key = await readApiKey(this.deps.getApiKey)
           return key === undefined
             ? await this.deps.getProviderAccountId?.()
             : createHash('sha256').update(key).digest('hex')
@@ -633,7 +650,7 @@ export class ModelApiBackendManager {
   }
 
   public async accountId(): Promise<string | undefined> {
-    const key = await this.deps.getApiKey()
+    const key = await readApiKey(this.deps.getApiKey)
     return key === undefined
       ? await this.deps.getProviderAccountId?.()
       : createHash('sha256').update(key).digest('hex')

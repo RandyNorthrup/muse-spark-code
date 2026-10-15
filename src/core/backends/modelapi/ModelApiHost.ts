@@ -309,6 +309,7 @@ import type {
 } from './foreignHooksEntry'
 import type * as HookRuntime from './hookRuntimeEntry'
 import type * as ModelHooksRuntime from './modelApiHooksEntry'
+import { isCredentialStoreDown } from '../../../host/auth/credentialStore'
 import {
   type ConfirmedModelRequest,
   MissingApiKeyError,
@@ -14192,7 +14193,10 @@ export class ModelApiSession implements ScheduledAgentSession {
         ) {
           this.outcomeStopReason = 'budget'
         }
-        reason = error instanceof ChildTaskRefusedError ? error.visible : describe(error)
+        // A step that needs a stored key names the dead store instead of
+        // claiming no key is stored; anything else reads as it came.
+        if (isCredentialStoreDown(error)) reason = UI_TEXT.acpStoreDown
+        else reason = error instanceof ChildTaskRefusedError ? error.visible : describe(error)
         if (this.isSubagent && this.outcomeStopReason === 'budget') terminal = COMPLETED
         if (error instanceof ChildTaskRefusedError) {
           errorKind = `subagent_${error.kind}`
