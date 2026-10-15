@@ -1464,7 +1464,11 @@ class AcpSession {
         category: 'model',
         type: 'select',
         currentValue: this.modelId,
-        options: this.models.map((model) => ({ value: model.modelId, name: model.displayLabel })),
+        options: this.models.map((model) => ({
+          value: model.modelId,
+          name: model.displayLabel,
+          ...(model.agentLimit !== undefined && { description: model.agentLimit }),
+        })),
       },
       {
         id: ACP_CONFIG_IDS.effort,

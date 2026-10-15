@@ -4269,6 +4269,10 @@ export const EN = {
     one: 'Key works · {count} model.',
     other: 'Key works · {count} models.',
   }),
+  // {model}: the `<provider>/<model>` ref whose tool calling is unconfirmed.
+  providerModelNoToolCalling:
+    '{model} cannot run the coding agent because tool calling is not confirmed for it.',
+  providerAddPickModel: 'Add one or more of these models with --model <id> (repeatable):',
   providerProbeUnreachable: 'The provider could not be reached.',
   providerProbeUnparseable: 'The model list could not be read.',
   providerProbeNoKey: 'No key was supplied.',

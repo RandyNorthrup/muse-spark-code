@@ -3741,6 +3741,7 @@ export class ConversationController {
       ...(model.isPinned === true && { isPinned: model.isPinned }),
       ...(model.planLimitsUrl !== undefined && { planLimitsUrl: model.planLimitsUrl }),
       ...(model.trainsOnContent === true && { trainsOnContent: model.trainsOnContent }),
+      ...(model.agentLimit !== undefined && { agentLimit: model.agentLimit }),
     }))
     this.post({ type: 'modelList', models: [...this.models] })
   }

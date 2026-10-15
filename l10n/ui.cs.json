@@ -3699,6 +3699,8 @@
     "few": "Klíč funguje · {count} modely.",
     "many": "Klíč funguje · {count} modelů."
   },
+  "providerModelNoToolCalling": "{model} nemůže spouštět kódovacího agenta, protože pro něj není potvrzeno volání nástrojů.",
+  "providerAddPickModel": "Přidejte jeden nebo více těchto modelů pomocí --model <id> (lze opakovat):",
   "providerProbeUnreachable": "Poskytovatel není dostupný.",
   "providerProbeUnparseable": "Seznam modelů se nepodařilo přečíst.",
   "providerProbeNoKey": "Nebyl zadán klíč.",
