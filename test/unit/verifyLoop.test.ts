@@ -95,8 +95,6 @@ interface SetupOptions {
   /** The user's hooks (M51), and what each run of one answers. */
   readonly hooks?: readonly HookDefinition[]
   readonly runHook?: HookRunner
-  /** The test's own per-turn tool-round limit (lane TURNLIMIT); unset is no limit. */
-  readonly maxTurnRequests?: number
 }
 
 type HookRunner = NonNullable<ToolIo['runHook']>
@@ -190,9 +188,6 @@ function setup(options: SetupOptions = {}) {
     memory: options.memory,
     ...(options.hasVerify !== false && { verify }),
     ...(hooks !== undefined && { loadHooks: () => Promise.resolve(hooks) }),
-    ...(options.maxTurnRequests !== undefined && {
-      maxTurnRequests: () => options.maxTurnRequests,
-    }),
   })
   return { api, host, io, log, diagnosticsCalls, formatCalls }
 }
@@ -1785,28 +1780,6 @@ describe('the checks’ state since the user’s message', () => {
       'npm test',
       "npm run lint -- 'src/a.ts'",
     ])
-  })
-
-  it('runs the checks after every batch when the test’s limit ends the turn on a summary', async () => {
-    // No round is the last (lane TURNLIMIT): the limit's summary request
-    // reads the last batch's results, so the checks run for every batch.
-    const limit = 50
-    const t = setup({ files: {}, checks: [LINT], maxTurnRequests: limit })
-    const { events, turn } = await start(t, 'allowAll')
-    scriptWriteRounds(t, limit, 'never')
-    await turn()
-    expect(t.api.responseBodies()).toHaveLength(limit + 1)
-    expect(t.api.responseBodies()[limit]?.['tools']).toHaveLength(0)
-    expect(completedRows(events, 'verify_edits')).toHaveLength(limit)
-    expect(t.diagnosticsCalls).toHaveLength(limit)
-    expect(lintRuns(t)).toBe(limit)
-    const notice = events.find((event) => event.type === 'backendNotice')
-    expect(notice?.type === 'backendNotice' && notice.level).toBe('warning')
-    expect(notice?.type === 'backendNotice' && notice.text).toBe(
-      plural(UI_TEXT.modelApiTurnLimitReached, limit),
-    )
-    const done = events.findLast((event) => event.type === 'turnCompleted')
-    expect(done?.type === 'turnCompleted' && done.terminal).toBe('completed')
   })
 
   it('keeps the fix loop’s stop through a goal’s wake; the user’s next message starts over', async () => {

@@ -9,6 +9,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- RVLIMITS: removed ten lane test cases that used product stand-ins or a
+  disconnected Tab formatter. Their old green counts are not product
+  certification; the real-life turn, continuation and budget checks remain
+  required.
+
 - RVLIMITS: configured-provider configuration, credential, stream-size and
   replay-binding failures no longer blame the Models & Agents panel. They
   name fixed diagnostic codes through the translated request-failure

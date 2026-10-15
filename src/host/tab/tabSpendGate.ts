@@ -10,23 +10,10 @@ import { Usd, type UsdAmount } from '../../shared/usd'
 // refusal of each local day calls `onBudgetReached`.
 
 import { tabDayKey, tabSettleUsd } from '../../core/tab/tabSpend'
-import { estimateCostUsd, formatUsd } from '../../core/usage/insights'
-import { UI_TEXT } from '../../shared/constants'
-import { fill } from '../../shared/l10n/text'
+import { estimateCostUsd } from '../../core/usage/insights'
 import type { Logger } from '../logger'
 import type { TabLedger } from './tabLedger'
 import type { TabReportedUsage, TabReservation, TabSpendFacts, TabSpendGate } from './tabBundle'
-
-/**
- * The budget-hit notice (lane LIMITSA, D113, A4): today's spend, the daily
- * budget and how to raise it. Pure: the installed table, values in as data.
- */
-export function tabBudgetReachedDetail(spentUsd: UsdAmount, budgetUsd: UsdAmount): string {
-  return fill(UI_TEXT.tabBudgetReachedDetail, {
-    spent: formatUsd(spentUsd),
-    budget: formatUsd(budgetUsd),
-  })
-}
 
 export interface TabSpendGateDeps {
   readonly ledger: TabLedger

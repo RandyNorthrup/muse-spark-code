@@ -235,3 +235,14 @@ Pure regressions in `configuredStreamError.test.ts` cover the visible HTTP
 status and a separately bundled error shape; they still need an observed
 run/red drill. The original positive wire-error examples are data, not a
 provider emulator. Real provider HTTP behavior is not certified here.
+
+## RVLIMITS evidence correction — reflex-only notice test (2026-10-14)
+
+Removed `tabBudgetNotice.test.ts` (one case) and its exported
+`tabBudgetReachedDetail` helper: the production notification never called
+that helper. A test of a second formatter cannot prove the warning is
+visible; it passed with the original hidden-detail defect. The real
+notification now formats its visible text directly. Combined with the
+TURNLIMIT removals, review removed **10 cases** (3 fake-provider/product
+cases, 6 fake-settings/logger cases, 1 disconnected notice case). Existing
+unrelated stand-in suites are left for TESTCUT, not extended here.

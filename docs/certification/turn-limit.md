@@ -8,6 +8,24 @@ own test timeout (no `--testTimeout`); at most 3 files per run.
 
 Commits: `01232154e` (implementation), `8a88010c6` (tests + reference).
 
+## RVLIMITS evidence correction (2026-10-14)
+
+The original suite counts below are historical receipts, **not product
+proof under the owner's current testing rules**. Review removed the two
+rewritten goal/steer cases in `modelApiHost.test.ts`, the rewritten final
+batch case in `verifyLoop.test.ts`, and all six cases in
+`turnLimitSettings.test.ts`. The first three used a hand-written provider,
+tool/editor IO and session store; the last six replaced the editor settings
+reader and logger. None is retained as proof of actual product behavior.
+The corresponding live steps remain mandatory, including more than 50
+rounds, a person-set limit, pending steering/goal input, checks on the final
+batch, and the next prompt in the same session.
+
+The four failures following the original cap stop remain NOT REPRODUCED;
+source inspection is not proof that all request shapes are valid. Claims
+below that say promotion/verify suites prove the product are superseded by
+this correction. The review made zero model calls.
+
 ## What changed
 
 - The fixed 50-round default (`MODEL_API_MAX_TOOL_ROUNDS`) is gone. A turn

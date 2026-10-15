@@ -420,8 +420,6 @@ function setup(
     admitSummaryFork?: ModelApiHostDeps['admitSummaryFork']
     observationPacking?: ModelApiHostDeps['observationPacking']
     outputContinuation?: ModelApiHostDeps['outputContinuation']
-    /** The test's own per-turn tool-round limit (lane TURNLIMIT); unset is no limit. */
-    maxTurnRequests?: number
     /** A capped fixture usually keeps its reservation in memory; this tests an unavailable store. */
     hasNoStore?: boolean
     describeEnvironment?: ModelApiHostDeps['describeEnvironment']
@@ -540,9 +538,6 @@ function setup(
     observationPacking: options.observationPacking,
     ...(options.outputContinuation !== undefined && {
       outputContinuation: options.outputContinuation,
-    }),
-    ...(options.maxTurnRequests !== undefined && {
-      maxTurnRequests: () => options.maxTurnRequests,
     }),
     workspaceRoot: ROOT,
     platform: options.platform ?? 'linux',
@@ -12896,27 +12891,6 @@ async function expectReplacementGoalWake(
   expect(instructionsOf(t, 2)).toContain('- Objective: Goal B')
 }
 
-/** Fifty tool replies, with the final one held for a busy command. */
-/**
- * The per-turn tool-round limit the promotion tests below set through the
- * new option (lane TURNLIMIT): the same workload the removed fixed default
- * used to bound, now bounded by the test.
- */
-const LIMITED_TOOL_ROUNDS = 50
-
-function scriptHeldFinalToolRound(
-  t: ReturnType<typeof setup>,
-  hold: Promise<void>,
-  finalText: string,
-): void {
-  const tool = { name: 'get_goal', arguments: '{}' }
-  t.api.script(
-    ...Array.from({ length: LIMITED_TOOL_ROUNDS - 1 }, () => ({ calls: [tool] })),
-    { calls: [tool], hold },
-    { text: finalText },
-  )
-}
-
 /** Records whether any persisted replay had a call without its output. */
 function storeTrackingPendingCalls() {
   const store = memorySessionStore()
@@ -13088,94 +13062,6 @@ describe('ModelApiHost: the session goal (M45, PLAN.md D38)', () => {
     expect(session.history().items.filter((item) => item.kind === 'userMessage')).toHaveLength(1)
     expect(events.filter((event) => event.type === 'turnStarted')).toHaveLength(1)
   })
-
-  it(
-    'starts a fresh goal turn when a busy command arrives in the last tool round',
-    async () => {
-      const t = setup({ maxTurnRequests: LIMITED_TOOL_ROUNDS })
-      const { session, events, turnDone } = await startSession(t)
-      const held = Promise.withResolvers<undefined>()
-      scriptHeldFinalToolRound(t, held.promise, 'Working on the goal')
-      await session.sendTurn([{ type: 'text', text: 'many tool rounds' }])
-      await vi.waitFor(() => {
-        expect(t.api.responseBodies()).toHaveLength(LIMITED_TOOL_ROUNDS)
-      })
-      await session.controlGoal({ verb: 'set', objective: 'New goal' })
-      held.resolve(undefined)
-      await turnDone()
-      // The limit ends the turn on a no-tools summary (one more request),
-      // then the queued goal wake runs as its own turn.
-      await vi.waitFor(() => {
-        expect(t.api.responseBodies()).toHaveLength(LIMITED_TOOL_ROUNDS + 2)
-      })
-      expect(t.api.responseBodies()[LIMITED_TOOL_ROUNDS]?.['tools']).toHaveLength(0)
-      expect(instructionsOf(t, LIMITED_TOOL_ROUNDS + 1)).toContain('- Objective: New goal')
-      expect(events.filter((event) => event.type === 'turnStarted')).toHaveLength(2)
-    },
-    ENGINE_LOAD_TIMEOUT_MS,
-  )
-
-  it(
-    'starts a fresh turn for steering accepted in the last tool round',
-    async () => {
-      const store = memorySessionStore()
-      const t = setup({ store, maxTurnRequests: LIMITED_TOOL_ROUNDS })
-      const { session, events, turnDone } = await startSession(t)
-      const held = Promise.withResolvers<undefined>()
-      scriptHeldFinalToolRound(t, held.promise, 'Steered answer')
-      const running = await session.sendTurn([{ type: 'text', text: 'many tool rounds' }])
-      await vi.waitFor(() => {
-        expect(t.api.responseBodies()).toHaveLength(LIMITED_TOOL_ROUNDS)
-      })
-      const steeredImage = Buffer.from('late steer').toString('base64')
-      const steered = await session.steer(running.turnId, [
-        { type: 'text', text: 'New instruction' },
-        { type: 'image', mediaType: 'image/png', base64Data: steeredImage, width: 1, height: 1 },
-      ])
-      held.resolve(undefined)
-      await turnDone()
-      // The steered text is not consumed by the limit summary: the summary
-      // request carries no new instruction, and the promoted steer runs next.
-      await vi.waitFor(() => {
-        expect(t.api.responseBodies()).toHaveLength(LIMITED_TOOL_ROUNDS + 2)
-      })
-      expect(JSON.stringify(t.api.responseBodies()[LIMITED_TOOL_ROUNDS]?.['input'])).not.toContain(
-        'New instruction',
-      )
-      expect(JSON.stringify(t.api.responseBodies()[LIMITED_TOOL_ROUNDS + 1]?.['input'])).toContain(
-        'New instruction',
-      )
-      expect(events.filter((event) => event.type === 'turnStarted')).toHaveLength(2)
-      await vi.waitFor(() => {
-        expect(events.filter((event) => event.type === 'turnCompleted')).toHaveLength(2)
-      })
-      const changed = events.find(
-        (event) =>
-          event.type === 'userMessageTurnChanged' && event.userMessageId === steered.userMessageId,
-      )
-      if (changed?.type !== 'userMessageTurnChanged') {
-        throw new Error('expected promoted-steer turn mapping')
-      }
-      expect(changed.turnId).not.toBe(running.turnId)
-      expect(session.sentImages(changed.turnId, steered.userMessageId ?? '')).toEqual([
-        { mediaType: 'image/png', base64Data: steeredImage },
-      ])
-      await t.host.flush()
-      expect(
-        store.saved
-          .get(session.sessionId)
-          ?.replay.find((entry) => entry.userMessageId === steered.userMessageId)?.turnId,
-      ).toBe(changed.turnId)
-      session.dispose()
-      const reopened = setup({ store })
-      await reopened.host.load()
-      const loaded = await reopened.host.resumeSession(session.sessionId, 'muse-spark-1.3')
-      expect(loaded.session.sentImages?.(changed.turnId, steered.userMessageId ?? '')).toEqual([
-        { mediaType: 'image/png', base64Data: steeredImage },
-      ])
-    },
-    ENGINE_LOAD_TIMEOUT_MS,
-  )
 
   const staleGoalCases: readonly {
     readonly command: Parameters<ModelApiSession['controlGoal']>[0]
