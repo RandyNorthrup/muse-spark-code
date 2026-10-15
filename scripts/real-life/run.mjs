@@ -12,6 +12,7 @@
 // ends. It prints what it may spend before the first request, stops at
 // either cap, and prints what it spent afterwards, by the product's own
 // count.
+import { randomBytes } from 'node:crypto'
 import { mkdirSync, readdirSync, rmSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -37,7 +38,14 @@ import {
   MATRIX_SURFACE,
   UNSENT_IN_A_ROW,
 } from './lib/limits.mjs'
-import { clearMarker, readMarker, writeMarker } from './lib/marker.mjs'
+import {
+  clearMarker,
+  clearProviderMarker,
+  providerMarkers,
+  readMarker,
+  writeMarker,
+  writeProviderMarker,
+} from './lib/marker.mjs'
 import { readMatrix } from './lib/matrix.mjs'
 import { personFor } from './lib/person.mjs'
 import { endAll, runCommand } from './lib/product.mjs'
@@ -137,6 +145,9 @@ function cellsFor(route) {
  * and per model the cells that run on it. Outside a matrix a route has one
  * model.
  */
+// One identity per invocation, shared by all models of a route. Twenty-four
+// random hex digits plus the route ordinal fit the product's 32-character id.
+const runId = randomBytes(12).toString('hex')
 const groups = []
 if (isMatrix) {
   const matrix = readMatrix(options.matrix)
@@ -144,10 +155,16 @@ if (isMatrix) {
   for (const { routeId, models } of matrix.groups) {
     groups.push({
       // What is set up once stands for all the route's models.
-      route: { ...routeFor(routeId), model: namedModels(models.map((model) => model.id)) },
+      route: {
+        ...routeFor(routeId, new Map(), runId),
+        model: namedModels(models.map((model) => model.id)),
+      },
       models: models.map((model) => model.id),
       units: models.map((model) => {
-        const route = { ...routeFor(routeId, new Map([[routeId, model.id]])), isFree: model.free }
+        const route = {
+          ...routeFor(routeId, new Map([[routeId, model.id]]), runId),
+          isFree: model.free,
+        }
         return { route, cells: cellsFor(route) }
       }),
     })
@@ -156,7 +173,7 @@ if (isMatrix) {
   for (const id of options.routes) {
     const refusal = routeRefusal(id, options.models.get(id))
     if (refusal !== undefined) stopForUsage(refusal)
-    const route = routeFor(id, options.models)
+    const route = routeFor(id, options.models, runId)
     groups.push({
       route,
       models: [route.model],
@@ -308,6 +325,7 @@ async function setUp(route, models) {
   const clock = performance.now()
   // Listed for the clean-up before the command runs: a run that is cut short
   // while it runs removes what it may have stored.
+  writeProviderMarker(route.provider)
   configured.push(route)
   const added = await terminal(
     [
@@ -390,6 +408,7 @@ async function removeStored() {
     // proof of absence. Require a successful delete before retiring ownership.
     const isRemoved = (removed.code === 0 || cleared.code === 0) && after.code !== 0
     if (isRemoved) {
+      clearProviderMarker(route.provider)
       configured.splice(configured.indexOf(route), 1)
       const index = left.indexOf(route.provider)
       if (index !== -1) left.splice(index, 1)
@@ -678,9 +697,13 @@ let earlierRun
  * asked, name by name; nothing is removed here.
  */
 async function entriesLeft() {
-  const names = Object.entries(ROUTES)
-    .filter(([, route]) => route.kind === 'provider')
-    .flatMap(([id]) => [providerIdOf(id), `${DIAGNOSTIC_PREFIX}${id}`])
+  const names = [
+    ...providerMarkers(),
+    ...Object.entries(ROUTES)
+      .filter(([, route]) => route.kind === 'provider')
+      .flatMap(([id]) => [providerIdOf(id), `${DIAGNOSTIC_PREFIX}${id}`]),
+  ]
+
   const found = []
   for (const name of names) {
     const status = await terminal(['auth', 'status', '--provider', name])

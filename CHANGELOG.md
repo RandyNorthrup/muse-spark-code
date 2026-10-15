@@ -9,6 +9,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Real-life run: configured providers use per-invocation credential names,
+  so concurrent runs cannot overwrite or delete each other's route keys.
+  Key-free recovery notes retain the names if a run is ended outright.
+
 - Real-life run: unread daily-ledger claims now fail the run and are named
   as unknown liability in the text record, including null claim files.
 

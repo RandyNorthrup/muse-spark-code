@@ -7,7 +7,12 @@ import { heldUnsettled } from '../../scripts/real-life/lib/ledger.mjs'
 import { installerEnvironment } from '../../scripts/real-life/lib/install.mjs'
 import { keySource, missingKeys } from '../../scripts/real-life/lib/keys.mjs'
 import { ensureRecordDir, parseUsageOutput } from '../../scripts/real-life/lib/record.mjs'
-import { takenProviderReason } from '../../scripts/real-life/lib/routes.mjs'
+import { ROUTES, routeFor, takenProviderReason } from '../../scripts/real-life/lib/routes.mjs'
+import {
+  clearProviderMarker,
+  providerMarkers,
+  writeProviderMarker,
+} from '../../scripts/real-life/lib/marker.mjs'
 
 // Pure guards for the real-life run (scripts/real-life/): each `it` names
 // the review finding it holds. Values go in as data; nothing is faked.
@@ -98,6 +103,26 @@ describe('real-life unread liability', () => {
 })
 
 describe('real-life provider collision', () => {
+  it('gives overlapping runs separate valid credential accounts and recovery notes (T4)', () => {
+    const root = mkdtempSync(path.join(tmpdir(), 'real-life-'))
+    try {
+      const names = Object.entries(ROUTES)
+        .filter(([, route]) => route.kind === 'provider')
+        .flatMap(([id]) =>
+          ['a'.repeat(24), 'b'.repeat(24)].map((runId) => routeFor(id, new Map(), runId).provider),
+        )
+      expect(new Set(names).size).toBe(names.length)
+      for (const name of names) expect(name).toMatch(/^[a-z][a-z0-9-]{0,31}$/u)
+      for (const name of names) writeProviderMarker(name, root)
+      expect(new Set(providerMarkers(root))).toEqual(new Set(names))
+      clearProviderMarker(names[0], root)
+      expect(providerMarkers(root)).not.toContain(names[0])
+      expect(providerMarkers(root)).toHaveLength(names.length - 1)
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
   it('refuses a taken provider name and names its removal (4252482402)', () => {
     const reason = takenProviderReason({ id: 'openai', provider: 'rl-openai' })
     expect(reason).toMatch(/rl-openai/)

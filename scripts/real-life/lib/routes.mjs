@@ -6,7 +6,7 @@
 // gets its credentials from (lib/keys.mjs): a name, never the credential.
 //
 // A configured provider is added under a name of the run's own
-// (`rl-<route>`), so its key sits in the operating system's credential store
+// (`rl-<run>-<route ordinal>`), so its key sits in the operating system's credential store
 // beside the person's own entries and never replaces one: the run adds it,
 // and removes it, through the product's own commands. A name that is
 // already taken when a route starts is not this run's, and the route is
@@ -135,7 +135,10 @@ const MUSE_CODE_NOT_RUN =
   'the route musecode is not run: the product does not say which Muse Code CLI version it will start (its report prints only "cli: found"), so the run cannot check it against a version known to bill the contributor tier'
 
 /** The name a route's provider is added under. */
-export const providerIdOf = (routeId) => `rl-${routeId}`
+export const providerIdOf = (routeId, runId) =>
+  runId === undefined
+    ? `rl-${routeId}`
+    : `rl-${runId}-${String(Object.keys(ROUTES).indexOf(routeId))}`
 
 /**
  * Why a route whose provider name is already in the credential store is not
@@ -188,12 +191,12 @@ export function routeRefusal(id, model) {
  * @param {string} id
  * @param {ReadonlyMap<string, string>} models `--model <route>=<model>` overrides
  */
-export function routeFor(id, models = new Map()) {
+export function routeFor(id, models = new Map(), runId) {
   const route = ROUTES[id]
   const refusal = route === undefined ? undefined : routeRefusal(id, models.get(id))
   if (refusal !== undefined) throw new Error(refusal)
   const model = models.get(id) ?? route?.model
-  const provider = route?.kind === 'provider' ? providerIdOf(id) : undefined
+  const provider = route?.kind === 'provider' ? providerIdOf(id, runId) : undefined
   return route === undefined
     ? undefined
     : {

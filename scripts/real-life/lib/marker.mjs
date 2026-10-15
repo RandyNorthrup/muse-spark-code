@@ -12,7 +12,7 @@
 // person may have stored their own key since. It says, first of all and in
 // its record, that a key is stored and that an earlier run left one, and
 // how to remove it; while no key is stored any more, it clears the note.
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 
@@ -38,6 +38,26 @@ export function readMarker(file = markerFile()) {
 export function writeMarker(note, file = markerFile()) {
   mkdirSync(path.dirname(file), { recursive: true })
   writeFileSync(file, `${JSON.stringify(note, null, 2)}\n`)
+}
+
+/** Names left by runs, never keys: each invocation owns a separate note. */
+export function providerMarkers(parent = tmpdir()) {
+  const folder = path.join(parent, 'real-life-run', 'providers')
+  return existsSync(folder)
+    ? readdirSync(folder).filter((name) => /^rl-[a-f0-9]{24}-\d+$/u.test(name))
+    : []
+}
+
+/** Persist ownership before storing a key, including when --keep is off. */
+export function writeProviderMarker(provider, parent = tmpdir()) {
+  const folder = path.join(parent, 'real-life-run', 'providers')
+  mkdirSync(folder, { recursive: true })
+  writeFileSync(path.join(folder, provider), '')
+}
+
+/** A successful deletion retires only this provider's note. */
+export function clearProviderMarker(provider, parent = tmpdir()) {
+  rmSync(path.join(parent, 'real-life-run', 'providers', provider), { force: true })
 }
 
 /** Clears the note: no key of a run is in the store. */
