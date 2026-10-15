@@ -41,14 +41,11 @@ describe('question expiry past the open cap', () => {
     if (directory !== '') rmSync(directory, { recursive: true, force: true })
   })
 
-  async function twentyOneOpen() {
-    directory = mkdtempSync(path.join(tmpdir(), 'b22-questions-'))
-    const changed: OpenQuestionsSnapshot[] = []
-    const expired: OpenQuestion[][] = []
-    const registry = new QuestionRegistry('session-1', 'modelApi', {
+  function ports(failMessage: string) {
+    return {
       store: createQuestionStore(directory),
       now: () => 1000,
-      setTimer: (ms, callback) => {
+      setTimer: (ms: number, callback: () => void) => {
         const handle = setTimeout(callback, ms)
         return () => {
           clearTimeout(handle)
@@ -58,11 +55,20 @@ describe('question expiry past the open cap', () => {
       formatAnswer: questionAnswerText,
       reply: () => Promise.resolve(),
       deliver: (): Promise<QuestionDeliveryOutcome> => Promise.resolve('notTaken'),
+      failed: () => {
+        throw new Error(failMessage)
+      },
+    }
+  }
+
+  async function twentyOneOpen() {
+    directory = mkdtempSync(path.join(tmpdir(), 'b22-questions-'))
+    const changed: OpenQuestionsSnapshot[] = []
+    const expired: OpenQuestion[][] = []
+    const registry = new QuestionRegistry('session-1', 'modelApi', {
+      ...ports('expiry must not fail'),
       changed: (snapshot) => {
         changed.push(snapshot)
-      },
-      failed: () => {
-        throw new Error('expiry must not fail')
       },
       onExpired: (cards) => {
         expired.push([...cards])
@@ -106,22 +112,8 @@ describe('question expiry past the open cap', () => {
   it('keeps the expired card across a reload', async () => {
     const { registry } = await twentyOneOpen()
     const reloaded = new QuestionRegistry('session-1', 'modelApi', {
-      store: createQuestionStore(directory),
-      now: () => 2000,
-      setTimer: (ms, callback) => {
-        const handle = setTimeout(callback, ms)
-        return () => {
-          clearTimeout(handle)
-        }
-      },
-      deferQuestions: () => Promise.resolve(),
-      formatAnswer: questionAnswerText,
-      reply: () => Promise.resolve(),
-      deliver: (): Promise<QuestionDeliveryOutcome> => Promise.resolve('notTaken'),
+      ...ports('reload must not fail'),
       changed: () => undefined,
-      failed: () => {
-        throw new Error('reload must not fail')
-      },
     })
     await reloaded.ready()
     const crowded = reloaded.snapshot().questions.find((entry) => entry.userInputId === 'q-0')

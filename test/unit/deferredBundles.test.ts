@@ -1126,7 +1126,10 @@ describe('deferred cohort bundles', () => {
     // 4 ms a call (one helper, also used for the code-intelligence and
     // schedules bundles). 13,183 B under 0.18.0's 532,537; D6's cap is
     // unchanged.
-    expect(Buffer.byteLength(bundleText('modelApi'))).toBeLessThanOrEqual(519_354)
+    // LIMITSC (this rig, production build): 520,388 B, +1,034 B over
+    // 519,354. The elicitation-timeout notice path and the child-result
+    // clip composers with their two notices. D6's cap is unchanged.
+    expect(Buffer.byteLength(bundleText('modelApi'))).toBeLessThanOrEqual(520_388)
     const schedules = new Set(inputs('schedules'))
     for (const file of [
       'src/core/backends/modelapi/schedulesEntry.ts',
