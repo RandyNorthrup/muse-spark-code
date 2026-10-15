@@ -108,7 +108,9 @@ export class ResourceMemoryLimitError extends Error {
   }
 }
 
-/** Structural, not instanceof: the launcher and its callers live in different bundles. */
+/** Structural, not instanceof: the launcher and its callers live in different bundles.
+ * @unwired M107 resource cap refusal guard
+ */
 export function isResourceCapRefused(error: unknown): error is ResourceCapRefusedError {
   return (
     error instanceof Error &&
@@ -118,6 +120,7 @@ export function isResourceCapRefused(error: unknown): error is ResourceCapRefuse
   )
 }
 
+/** @unwired M107 resource memory limit guard */
 export function isResourceMemoryLimit(error: unknown): error is ResourceMemoryLimitError {
   return (
     error instanceof Error &&
