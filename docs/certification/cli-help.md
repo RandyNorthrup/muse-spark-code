@@ -69,6 +69,11 @@ English table and all fourteen locales, read at rendering time. The real
 command regression failed under French with `model-a (forced: beta access)`
 before repair (exit 1); it requires `model-a (forcé : beta access)`.
 
+T8: the provider feature includes model add/remove/force details and its
+`providersModels` CLI relationship; ACP includes `helpTopic` and the brief-help
+detail. Relationships use real runtime discriminators and the reference gate
+validates them. The generated reference is regenerated from this catalogue.
+
 ## 1. Accepted today (from the code, release 0.18.1 base)
 
 Parser routes (`CLI_OPTION_REGISTRY` in `src/runtime/cliOptions.ts`, plus the

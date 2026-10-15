@@ -1109,6 +1109,12 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
     })
   })
   const names = new Set(cli.map((c) => c.route))
+  for (const feature of source.featureCatalog()) {
+    const routes = feature.cliRoutes ?? []
+    for (const route of routes) {
+      if (!names.has(route)) errors.push(`Feature CLI route is not parsed: ${feature.id}/${route}`)
+    }
+  }
   for (const name of runtimeNames) {
     if (name !== 'invalid' && !names.has(name)) errors.push(`CLI command lacks entry: ${name}`)
   }

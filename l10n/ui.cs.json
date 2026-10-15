@@ -365,7 +365,7 @@
   "referenceRemoveSkills": "Odstranit pouze kopii dovedností Muse Code spravovanou rozšířením a její odkazy; ostatní dovednosti ponechat.",
   "referenceInstallSkills": "Zkopírovat project_setup, feature_delivery a quality_retrofit do konfigurace Muse Code a propojit je jako dovednosti.",
   "referenceExecContract": "Běhy bez rozhraní odmítají důvěru v pracovní prostor a obcházení oprávnění. Bez rozhraní jsou povoleny jen plan nebo acceptEdits. Hostované vyhledávání na webu nemá zaručený limit a je odmítnuto. Generování obrázků vyžaduje acceptEdits. Vyberte právě jeden zdroj pokynu. Pokyn i klíč nemohou současně používat stdin. Model API vyžaduje --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.",
-  "referenceBriefHelp": "help / --help / -h: ACP / CLI. help --all: Příkazy, nastavení a funkce s popisy a dokumentací.",
+  "referenceBriefHelp": "help / --help / -h: ACP / CLI. help <command> / <command> --help: Použití, volby a příklady pro jeden příkaz. help --all: Příkazy, nastavení a funkce s popisy a dokumentací.",
   "referenceKeyStdin": "auth set: Přečte váš klíč v terminálu a uloží ho do úložiště přihlašovacích údajů tohoto počítače. Konverzace se účtují na klíč. exec / scan-secrets --key-stdin: Načtěte klíč z roury, nikoli z terminálu. stdin → memory; prompt stdin + key stdin = Pokyn i klíč nemohou současně používat stdin.",
   "referenceModalKeys": "Zavřít dialog nebo přesunout fokus uvnitř něj.",
   "referenceRenameKeys": "Potvrdit či zrušit přejmenování konverzace.",

@@ -365,7 +365,7 @@
   "referenceRemoveSkills": "확장 프로그램이 관리하는 Muse Code 스킬 복사본과 링크만 제거하고 다른 스킬은 유지합니다.",
   "referenceInstallSkills": "project_setup, feature_delivery, quality_retrofit을 Muse Code 설정에 복사하고 스킬로 연결합니다.",
   "referenceExecContract": "헤드리스 실행에서는 작업 영역 신뢰와 권한 우회를 거부합니다. 헤드리스 실행에서는 plan 또는 acceptEdits만 허용합니다. 호스팅 웹 검색에는 보장된 한도가 없어 거부합니다. 이미지 생성에는 acceptEdits가 필요합니다. 프롬프트 입력 소스를 하나만 선택하세요. 프롬프트와 키가 동시에 stdin을 사용할 수 없습니다. Model API에는 --max-budget-usd가 필요합니다. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.",
-  "referenceBriefHelp": "help / --help / -h: ACP / CLI. help --all: 명령, 설정, 기능에 대한 설명과 문서입니다.",
+  "referenceBriefHelp": "help / --help / -h: ACP / CLI. help <command> / <command> --help: 명령별 사용법, 옵션 및 예제. help --all: 명령, 설정, 기능에 대한 설명과 문서입니다.",
   "referenceKeyStdin": "auth set: 터미널에서 키를 읽어 이 컴퓨터의 자격 증명 저장소에 보관합니다. 대화 요금은 이 키로 청구됩니다. exec / scan-secrets --key-stdin: 터미널이 아닌 파이프에서 키를 읽으세요. stdin → memory; prompt stdin + key stdin = 프롬프트와 키가 동시에 stdin을 사용할 수 없습니다.",
   "referenceModalKeys": "대화 상자를 닫거나 내부에서 초점을 이동합니다.",
   "referenceRenameKeys": "이 대화의 이름 변경을 확인하거나 취소합니다.",

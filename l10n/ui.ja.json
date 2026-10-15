@@ -365,7 +365,7 @@
   "referenceRemoveSkills": "拡張機能が管理する Muse Code スキルのコピーとリンクだけを削除し、他のスキルは保持します。",
   "referenceInstallSkills": "project_setup、feature_delivery、quality_retrofit を Muse Code の設定へコピーし、スキルとしてリンクします。",
   "referenceExecContract": "ヘッドレス実行ではワークスペースの信頼と権限の回避を許可しません。 ヘッドレス実行で許可されるのは plan または acceptEdits のみです。 ホスト型ウェブ検索には保証された上限がないため拒否します。 画像生成には acceptEdits が必要です。 プロンプトの入力元は1つだけ選んでください。 プロンプトとキーに同時に stdin は使えません。 Model API には --max-budget-usd が必要です。 modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.",
-  "referenceBriefHelp": "help / --help / -h: ACP / CLI. help --all: コマンド、設定、機能の説明とドキュメント。",
+  "referenceBriefHelp": "help / --help / -h: ACP / CLI. help <command> / <command> --help: コマンドごとの使い方、オプション、例。help --all: コマンド、設定、機能の説明とドキュメント。",
   "referenceKeyStdin": "auth set: ターミナルでキーを読み取り、このコンピューターの資格情報ストアに保管します。会話はこのキーに課金されます。 exec / scan-secrets --key-stdin: キーは端末ではなくパイプから読み込んでください。 stdin → memory; prompt stdin + key stdin = プロンプトとキーに同時に stdin は使えません。",
   "referenceModalKeys": "ダイアログを閉じるか、内部のフォーカスを移動します。",
   "referenceRenameKeys": "この会話の名前変更を確定またはキャンセルします。",
