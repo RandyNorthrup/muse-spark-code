@@ -348,6 +348,8 @@ class AcpSession {
   private releaseSchedules: (() => Promise<void>) | undefined
   private isScheduleHostAvailable = true
   private effort: EffortLevel = DEFAULT_EFFORT
+  private modelChangeRevision = 0
+  private effortChangeRevision = 0
   /** Let go (closed, loaded again, or never set up): the editor's late answers decide nothing. */
   private isDisposed = false
   private vaultGeneration = 0
@@ -367,6 +369,7 @@ class AcpSession {
     private mode: PermissionMode,
     private modelId: string,
     private activeTurnId: string | undefined,
+    private readonly noteChoice: () => void,
   ) {
     this.sessionId = session.sessionId
     this.questionBundle =
@@ -801,13 +804,17 @@ class AcpSession {
         return
       }
       case 'modelChanged': {
+        this.modelChangeRevision += 1
         this.modelId = event.modelId
+        this.noteChoice()
         this.send({ sessionUpdate: 'config_option_update', configOptions: this.configOptions() })
         return
       }
       case 'effortChanged': {
         if (isEffortLevel(event.effort)) {
+          this.effortChangeRevision += 1
           this.effort = event.effort
+          this.noteChoice()
           this.send({ sessionUpdate: 'config_option_update', configOptions: this.configOptions() })
         }
         return
@@ -1504,8 +1511,11 @@ class AcpSession {
   public async applyEffort(effort: EffortLevel): Promise<void> {
     const served = servedEffort(this.modelId, effort)
     this.ensureHeld()
+    const revision = this.effortChangeRevision
     await this.session.setReasoningEffort(effortForThinking(served, true))
-    this.effort = served
+    if (this.effortChangeRevision === revision) {
+      this.effort = served
+    }
   }
 
   /** The model and effort the editor chose for this session, for a later load. */
@@ -1584,8 +1594,13 @@ class AcpSession {
         throw RequestError.invalidParams(undefined, value)
       }
       this.ensureHeld()
+      const revision = this.modelChangeRevision
       await this.session.setModel(value)
-      this.modelId = value
+      // A backend event during the command is authoritative (for example a
+      // canonicalized id); its editor update must survive the command ack.
+      if (this.modelChangeRevision === revision) {
+        this.modelId = value
+      }
       await this.applyEffort(this.effort)
       return
     }
@@ -2278,6 +2293,16 @@ class AgentState {
           : this.deps.options.initialMode,
         session.modelId,
         activeTurnId,
+        () => {
+          // A replaced or released surface cannot overwrite its successor.
+          if (
+            acp !== undefined &&
+            !acp.isReleased &&
+            (this.sessions.get(sessionId) === acp || this.adopting.get(sessionId) === acp)
+          ) {
+            this.choices.set(sessionId, acp.currentChoice())
+          }
+        },
       )
       this.adopting.set(sessionId, acp)
       await acp.loadQuestions()
@@ -2451,9 +2476,8 @@ class AgentState {
     const acp = await this.adopt(host, session, cwd, client, models, claim, (started) =>
       started.applyEffort(DEFAULT_EFFORT),
     )
-    // Remember what the agent chose (not what the backend object reports):
-    // a later load re-applies exactly this choice.
-    this.choices.set(session.sessionId, { modelId, effort: DEFAULT_EFFORT })
+    // Keep what the editor is shown, including backend events during setup.
+    this.choices.set(session.sessionId, acp.currentChoice())
     return { sessionId: session.sessionId, modes: acp.modes(), configOptions: acp.configOptions() }
   }
 

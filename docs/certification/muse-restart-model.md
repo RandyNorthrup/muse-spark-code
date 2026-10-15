@@ -52,6 +52,27 @@ Muse restart scenario to verify its mandatory explicit selection remains.
 Hook execution and session access are left to the lead, not replaced by a
 fake backend or store in this lane.
 
+## PRTH166 review repair — T4 (`PRRT_kwDOUkzj5M6sew_a`)
+
+The finding is correct. ACP's modelChanged and valid effortChanged event
+paths now refresh AgentState's remembered choice before posting the editor
+update. The callback accepts only the current held/adopting, unreleased
+session, so a replaced session cannot change its successor's choice. New
+sessions remember `currentChoice()` rather than overwriting setup events
+with the requested defaults. Model/effort event revisions also prevent a
+pending explicit selection's acknowledgement from overwriting a backend
+canonicalization received while awaiting the command.
+
+Lead real-use check: keep an ACP session open and change its shared real
+Muse session from another surface (or use an actual captured CLI fallback
+that emits modelChanged). Observe config_option_update's new model/effort,
+restart only that agent's Muse host, then load the same session id. The
+returned configOptions must retain the last announced model/effort. Repeat
+with an event arriving before the explicit configuration command answers;
+the answer and subsequent resume must not restore the originally requested
+id over the backend-reported id. Close/reload must not accept late updates
+from the replaced AcpSession. No invented wire fields or provider calls.
+
 The records below describe the original lane and are retained as history;
 they do not certify the merged review tree.
 
