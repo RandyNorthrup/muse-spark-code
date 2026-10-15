@@ -157,6 +157,17 @@ staged answer reuse and updated persistent identity; it does not prove the
 agent/backend event sequence. The real-life steps below replace the deleted
 integration claims, per the owner's rule. No whole-suite pass is claimed.
 
+### T4 — mode notice precedes the request response
+
+`send` only appends to the session outbox; `setMode` previously returned
+without waiting. The editor client checks its notification-populated map as
+soon as the response arrives (`src/host/team/acpProcess.ts:620–628`). Now
+`setMode` awaits that outbox after enqueuing `current_mode_update`, preserving
+the existing ordered delivery and error reporting. No queue stand-in test.
+Lead run: load a real conversation with history and immediately set Manual;
+the real ACP trace must deliver its mode notice before the set response,
+and the client must not report “did not confirm its mode”. Not run by lane.
+
 ## Live-session steps for the lead (signed-in host)
 
 1. Start the packed agent: `node dist/acp.js --backend museCode

@@ -9,6 +9,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- ACP waits for the selected-mode notice to leave its ordered update queue
+  before acknowledging `session/set_mode`.
+
 - ACP remembers a permission answer before dispatching it, so a stage update
   arriving before the decision acknowledgement cannot open the same prompt again.
 
