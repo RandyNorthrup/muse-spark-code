@@ -221,7 +221,9 @@ export function modelSections(
   const rowFor = (model: ModelOption): PaletteRow => ({
     id: `model:${model.modelId}`,
     label: model.displayLabel,
-    detail: modelDetail(model, formatPrice),
+    // A model that cannot run the coding agent names its limit where the
+    // price and window would read (F83); the turn refusal says it again.
+    detail: model.agentLimit ?? modelDetail(model, formatPrice),
     tip: UI_TEXT.paletteTips.switchModel,
     widget: undefined,
     isCurrent: model.modelId === currentModelId,

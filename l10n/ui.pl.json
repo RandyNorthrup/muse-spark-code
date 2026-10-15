@@ -3699,6 +3699,8 @@
     "few": "Klucz działa · {count} modele.",
     "many": "Klucz działa · {count} modeli."
   },
+  "providerModelNoToolCalling": "{model} nie może uruchomić agenta kodowania, ponieważ wywoływanie narzędzi nie zostało dla niego potwierdzone.",
+  "providerAddPickModel": "Dodaj co najmniej jeden z tych modeli za pomocą --model <id> (powtarzalne):",
   "providerProbeUnreachable": "Nie można połączyć się z dostawcą.",
   "providerProbeUnparseable": "Nie można odczytać listy modeli.",
   "providerProbeNoKey": "Nie podano klucza.",

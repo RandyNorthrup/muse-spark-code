@@ -3468,6 +3468,8 @@
   "providerTestOk": {
     "other": "金鑰有效 · {count} 個模型。"
   },
+  "providerModelNoToolCalling": "{model} 無法執行編碼代理，因為尚未確認其工具呼叫能力。",
+  "providerAddPickModel": "使用 --model <id> 新增其中一個或多個模型（可重複）：",
   "providerProbeUnreachable": "無法連線至提供者。",
   "providerProbeUnparseable": "無法讀取模型清單。",
   "providerProbeNoKey": "未提供金鑰。",
