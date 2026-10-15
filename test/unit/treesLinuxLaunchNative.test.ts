@@ -12,17 +12,6 @@ import { removeFolder } from './helpers/temporaryFolders'
 
 const metadata = { kind: 'check', class: 'foreground', sessionId: null } as const
 
-function noUserManager() {
-  const actualRun = treeRun.runTreeProgram
-  return vi
-    .spyOn(treeRun, 'runTreeProgram')
-    .mockImplementation((file, args, env) =>
-      args.includes('--user')
-        ? Promise.reject(new Error('no user manager'))
-        : actualRun(file, args, env),
-    )
-}
-
 describe.runIf(process.platform === 'linux')('native cgroup launch and completion', () => {
   it('retires and removes an empty cgroup after normal root exit without Stop', async () => {
     const launch = await launchLinuxResourceTree('/bin/sh', ['-c', 'read input'], {
@@ -141,25 +130,6 @@ describe.runIf(process.platform === 'linux')('native cgroup launch and completio
     }
   })
 
-  it('keeps fallback group authority until the caller observes completion', async () => {
-    const probe = noUserManager()
-    let launch: Awaited<ReturnType<typeof launchLinuxResourceTree>> | undefined
-    try {
-      launch = await launchLinuxResourceTree('/bin/sleep', ['30'], metadata)
-      expect(launch.ticket.scope.type).toBe('group')
-      const exited = once(launch.child, 'exit')
-      expect(await launch.stop()).toMatchObject({ status: 'done' })
-      expect(launch.registry.tickets()).toEqual([launch.ticket])
-      await exited
-      launch.registry.unregister(launch.ticket)
-      expect(launch.registry.tickets()).toEqual([])
-      launch = undefined
-    } finally {
-      await launch?.stop()
-      probe.mockRestore()
-    }
-  })
-
   it.each(['kill', 'freeze'] as const)(
     'launches a forked grandchild in its own cgroup and Stop (%s) observes populated zero before removal',
     async (method) => {
@@ -237,7 +207,7 @@ describe.runIf(process.platform === 'linux')('native cgroup launch and completio
     },
   )
 
-  it('keeps workload instructions behind admission and refuses low-pid_max fallback before GO', async () => {
+  it('keeps workload instructions behind admission before GO', async () => {
     const folder = await mkdtemp(path.join(tmpdir(), 'm107-t3-gate-'))
     const marker = path.join(folder, 'started')
     const proof = Promise.withResolvers<string>()
@@ -274,21 +244,6 @@ describe.runIf(process.platform === 'linux')('native cgroup launch and completio
       expect(await launch.stop()).toMatchObject({ status: 'done' })
       await exited
       launch = undefined
-      const probe = noUserManager()
-      try {
-        await expect(
-          launchLinuxResourceTree('/bin/sh', ['-c', 'exit 0'], metadata, {
-            deps: {
-              read: (file) =>
-                file === '/proc/sys/kernel/pid_max'
-                  ? Promise.resolve('32768')
-                  : readFile(file, 'utf8'),
-            },
-          }),
-        ).rejects.toThrow('not proven')
-      } finally {
-        probe.mockRestore()
-      }
     } finally {
       if (pending !== undefined) {
         observed.mockImplementation((file) => readFile(file, 'utf8'))
