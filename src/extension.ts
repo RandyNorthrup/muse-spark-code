@@ -77,6 +77,7 @@ import {
   MUSE_INIT_ARGS,
   MUSE_INIT_TIMEOUT_MS,
   MUSE_INSTALL_COMMANDS,
+  RULES_FILE_BUNDLE_FILE,
   OUTPUT_DOCUMENT_SCHEME,
   PRODUCT_NAME,
   PROMPT_BUNDLE_FILE,
@@ -200,7 +201,8 @@ import { createRevertIo } from './host/editor/revertIo'
 import { createVerifyEditor } from './host/editor/verifyEditor'
 import { verifyGuidance } from './core/verify/checkCommands'
 import { IdeMcpServer } from './host/ide/ideMcpServer'
-import { createRulesFile } from './host/commands/createRulesFile'
+import type { CreateRulesFileDeps } from './host/commands/createRulesFile'
+import { loadRulesFileBundle } from './host/commands/rulesFileBundle'
 import { insertMentionReference } from './host/commands/insertMention'
 import { openMuseTerminal, type TerminalLaunchOptions } from './host/commands/openInTerminal'
 import { toggleInputFocus } from './host/commands/focusInput'
@@ -4477,8 +4479,16 @@ async function activateWindow(
       })
     }),
     registerLoggedCommand(log, COMMAND_IDS.createRulesFile, async () => {
+      // The command loads on first use (PLAN.md D6); a missing bundle refuses
+      // the run and the next run tries again.
+      const rulesFile = loadRulesFileBundle(
+        vscode.Uri.joinPath(context.extensionUri, 'dist', RULES_FILE_BUNDLE_FILE).fsPath,
+      )
+      if (rulesFile === undefined) {
+        throw new Error(RULES_FILE_BUNDLE_FILE)
+      }
       const check = backend.workspaceActionGuard(nativeStarts.signal)
-      await createRulesFile({
+      const deps: CreateRulesFileDeps = {
         workspaceRoot,
         // `muse init` reads the project: not while the window is held (M71).
         isWorkspaceTrusted: isProjectTrusted,
@@ -4511,7 +4521,8 @@ async function activateWindow(
           void vscode.window.showWarningMessage(message)
         },
         log,
-      })
+      }
+      await rulesFile.createRulesFile(deps, UI_TEXT, uiLocale())
     }),
     registerLoggedCommand(log, COMMAND_IDS.openWalkthrough, async () => {
       await vscode.commands.executeCommand(
