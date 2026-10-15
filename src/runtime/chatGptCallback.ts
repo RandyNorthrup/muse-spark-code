@@ -45,16 +45,15 @@ export async function startChatGptCallback(
   })
   void waiting.catch(() => null)
 
-  const finish = (value?: string, isFlushing = false): void => {
+  const finish = (value?: string | ChatGptSignInError, isFlushing = false): void => {
     if (isSettled) return
     isSettled = true
     clearTimeout(timer)
     signal?.removeEventListener('abort', cancel)
     server.close()
     if (!isFlushing) server.closeAllConnections()
-    if (value === undefined) {
-      rejectWait?.(new ChatGptSignInError('invalid-callback'))
-    } else resolveWait?.(value)
+    if (typeof value === 'string') resolveWait?.(value)
+    else rejectWait?.(value ?? new ChatGptSignInError('invalid-callback'))
   }
   const cancel = () => {
     finish()
@@ -101,11 +100,16 @@ export async function startChatGptCallback(
       parseChatGptCallback(url.href, redirectUri, state)
       answer(response, HTTP_STATUS.ok)
       finish(url.href, true)
-    } catch {
+    } catch (error) {
       answer(response, HTTP_STATUS.badRequest)
-      // Let the fixed page flush, then destroy every connection, including
-      // an incomplete request from a competing local process.
-      finish(undefined, true)
+      // Let the fixed page flush, then destroy every connection. Preserve
+      // only our validated failure, never arbitrary request/error text.
+      finish(
+        error instanceof ChatGptSignInError && error.code === 'authorize-refused'
+          ? error
+          : undefined,
+        true,
+      )
     }
   })
   try {

@@ -370,6 +370,64 @@ describe('chatgpt Responses stream profile', () => {
     })
   })
 
+  it.each([-1, 0.5, Number.MAX_SAFE_INTEGER + 1])(
+    'refuses an invalid output index %s before retaining a tool call',
+    async (outputIndex) => {
+      await expect(
+        Array.fromAsync(
+          decode(
+            stream(
+              frame({
+                type: 'response.output_item.done',
+                output_index: outputIndex,
+                item: readCall,
+              }),
+              frame(completed([])),
+            ),
+          ),
+        ),
+      ).rejects.toThrow(ResponsesDecodeError)
+    },
+  )
+
+  it('refuses a repeated output index instead of executing the same terminal call twice', async () => {
+    const done = frame({ type: 'response.output_item.done', output_index: 0, item: readCall })
+    await expect(Array.fromAsync(decode(stream(done, done, frame(completed([])))))).rejects.toThrow(
+      ResponsesDecodeError,
+    )
+  })
+
+  it.each([readCall, { ...readCall, id: 'fc_other' }])(
+    'refuses a repeated call identity at a different output index (%j)',
+    async (repeated) => {
+      await expect(
+        Array.fromAsync(
+          decode(
+            stream(
+              frame({ type: 'response.output_item.done', output_index: 0, item: readCall }),
+              frame({ type: 'response.output_item.done', output_index: 1, item: repeated }),
+              frame(completed([])),
+            ),
+          ),
+        ),
+      ).rejects.toThrow(ResponsesDecodeError)
+    },
+  )
+
+  it('does not infer a missing index that can collide with an explicitly indexed call', async () => {
+    await expect(
+      Array.fromAsync(
+        decode(
+          stream(
+            frame({ type: 'response.output_item.done', output_index: 1, item: reply }),
+            frame({ type: 'response.output_item.done', item: readCall }),
+            frame(completed([])),
+          ),
+        ),
+      ),
+    ).rejects.toThrow(ResponsesDecodeError)
+  })
+
   it('refuses a terminal frame whose items differ in number from the streamed ones', async () => {
     await expect(
       Array.fromAsync(

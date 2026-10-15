@@ -104,10 +104,14 @@ export async function startChatGptCallback(
         finish(url.href)
       })
       answer(HTTP_STATUS.ok)
-    } catch {
+    } catch (error) {
       isClaimed = true
       response.on('finish', () => {
-        finish(new ChatGptSignInError('invalid-callback'))
+        finish(
+          error instanceof ChatGptSignInError && error.code === 'authorize-refused'
+            ? error
+            : new ChatGptSignInError('invalid-callback'),
+        )
       })
       answer(HTTP_STATUS.badRequest)
     }
