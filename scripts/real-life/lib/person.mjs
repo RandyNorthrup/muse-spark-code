@@ -25,7 +25,7 @@ export function personFor(cell) {
   const { product, route, workspace } = cell
   const editors = []
   const logs = []
-  const made = { requests: 0, micro: 0, uncertain: 0, turnedAway: 0, unread: [] }
+  const made = { requests: 0, micro: 0, uncertain: 0, turnedAway: 0, unread: [], missingResults: 0 }
   const notes = []
   const skipped = []
 
@@ -53,13 +53,28 @@ export function personFor(cell) {
       ...(options.args ?? []),
       prompt,
     ]
-    const run = await command(args, { stdin: isKeyOnPipe ? `${cell.key ?? ''}\n` : '' })
+    let run
+    try {
+      run = await command(args, { stdin: isKeyOnPipe ? `${cell.key ?? ''}\n` : '' })
+    } catch (error) {
+      made.missingResults += 1
+      throw error
+    }
     const events = jsonLines(run.stdout)
     const result = events.findLast((event) => event.type === 'result')?.result
     // What the product's own ledger says of it: usage a provider reported
     // (settled), and what it booked with no usage report (uncertain).
     const cost = result?.usage?.costUsd
-    made.requests += result?.usage?.requests ?? 0
+    const requests = result?.usage?.requests
+    if (
+      !Number.isSafeInteger(requests) ||
+      requests < 0 ||
+      cost?.settled === undefined ||
+      cost?.uncertain === undefined
+    ) {
+      made.missingResults += 1
+    }
+    made.requests += Number.isSafeInteger(requests) && requests >= 0 ? requests : 0
     made.micro += readUsd(cost?.settled, 'settled')
     made.uncertain += readUsd(cost?.uncertain, 'uncertain')
     return { ...run, events, result }

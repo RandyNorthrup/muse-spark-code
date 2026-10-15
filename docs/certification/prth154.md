@@ -67,6 +67,24 @@ T10 includes deliberate break and hash restoration. Lead step: start two
 runs of the same route concurrently; observe different `added as` names,
 then end one and confirm the other still completes with its own key.
 
+## T5 — terminal journal reconciliation
+
+Before: exec always chose `person.made`, and matrix cells never read the
+journal. A child ending without a result could count zero despite a written
+journal request. After: journal snapshots bracket every cell; terminal
+accounting keeps the greater of result/journal counts in each category,
+without double counting. Missing/incomplete results or a rejected launch
+mark the cell failed and stop all further admission, even if the journal
+recovers some usage: it cannot prove no other dispatch was lost. The record
+always keeps the cell's journal count.
+
+Lead real-life proof: during a paid exec (also matrix), terminate the child
+after the product has journaled usage but before the result is printed.
+Expect recovered requests/cost, a failed missing-result observation, and
+no later paid cell dispatched. A real provider/credential is required;
+no stand-in or new process test was introduced. Static evidence is the
+removed `!isMatrix` branch and the new missing-result admission stop.
+
 ## Merge
 
 Merged `ac21f1d24` in `c1ead3231`, hooks on. Only AGENTS.md and CHANGELOG.md
