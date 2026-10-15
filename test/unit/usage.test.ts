@@ -1,8 +1,9 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { EN } from '../../src/shared/l10n/en'
-import { setUiText } from '../../src/shared/l10n/text'
+import { formatDateTime, setUiText } from '../../src/shared/l10n/text'
 import {
   barValue,
+  bucketHourLabel,
   formatDuration,
   formatWindowLength,
   planDisplayName,
@@ -90,6 +91,32 @@ describe('planLabel', () => {
         { provider: 'museCode', observedAt: NOW, plan: 'Muse Code Max Usage subscription' },
       ]),
     ).toBe('Muse Code Max Usage subscription')
+  })
+})
+
+describe('bucketHourLabel', () => {
+  afterEach(() => {
+    setUiText(EN, 'en')
+  })
+
+  it('renders the hour in the recorded timezone, not the viewer one (T4)', () => {
+    setUiText(EN, 'en')
+    // 07:10 UTC recorded at UTC+2: the recorded-local hour is 9:10,
+    // whatever the viewing machine's timezone is.
+    const at = Date.UTC(2026, 9, 14, 7, 10)
+    const expected = new Intl.DateTimeFormat('en', {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+      timeZone: 'UTC',
+    }).format(Date.UTC(2026, 9, 14, 9, 10))
+    expect(bucketHourLabel({ at, timezoneOffsetMins: -120 })).toBe(expected)
+    expect(bucketHourLabel({ at, timezoneOffsetMins: -120 })).toContain('9:10')
+  })
+
+  it('falls back to the viewer timezone without a recorded one', () => {
+    setUiText(EN, 'en')
+    const at = Date.UTC(2026, 9, 14, 7, 10)
+    expect(bucketHourLabel({ at })).toBe(formatDateTime(at))
   })
 })
 

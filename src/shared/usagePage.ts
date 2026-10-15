@@ -77,6 +77,9 @@ const breakdownRowSchema = /* @__PURE__ */ z.strictObject({
 const bucketSchema = /* @__PURE__ */ z.strictObject({
   at: usageCountSchema,
   day: usageDaySchema,
+  // Date.getTimezoneOffset() of the records behind this bucket, so the hour
+  // label keeps the timezone they were written in. Absent for rollup months.
+  timezoneOffsetMins: z.optional(z.int()),
   totals: usageTotalsSchema,
   groups: z.array(breakdownRowSchema),
 })

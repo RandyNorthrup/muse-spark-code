@@ -15,7 +15,7 @@ import { usagePeriodDelta, usageRange, usageSumUsd, usageWindowStatus } from './
 // provider/model labels are escaped; numbers use the installed display locale.
 
 import { USAGE_TEXT } from '../../shared/l10n/usageTable'
-import { planDisplayName, planLabel } from '../../shared/usage'
+import { bucketHourLabel, planDisplayName, planLabel } from '../../shared/usage'
 import type { UsageCertainty, UsageLimitSnapshot } from '../../shared/usageJournal'
 import type { UsagePageState, UsageTotals } from '../../shared/usagePage'
 import type { UsdAmount } from '../../shared/usdSchema'
@@ -250,7 +250,7 @@ export function usageText(
       for (const bucket of state.buckets)
         row(
           hasSharedDay
-            ? formatDateTime(bucket.at)
+            ? bucketHourLabel(bucket)
             : formatDate(new Date(`${bucket.day}T12:00:00`).getTime()),
           `${amount(charge(bucket.totals))} · ${count(bucket.totals.tokens.input)} / ${count(bucket.totals.tokens.output)} · ${plural(USAGE_TEXT.requestCount, bucket.totals.records)}`,
         )

@@ -427,6 +427,12 @@ describe('usage aggregation', () => {
       freshness: 'awaiting',
     })
   })
+  it('keeps the recorded timezone on each hour bucket (T4)', () => {
+    const at = now - 30 * 60_000
+    const result = aggregateUsage([record({ at, timezoneOffsetMins: -120 })], [], query, now)
+    expect(result.buckets).toHaveLength(1)
+    expect(result.buckets[0]?.timezoneOffsetMins).toBe(-120)
+  })
   it('projects only after thirty minutes of spend and never after reset', () => {
     expect(
       usageBurnProjection(
