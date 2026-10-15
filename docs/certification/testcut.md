@@ -152,3 +152,65 @@ configuration hints: vendor/**, axe-core, mkfifo).
   needs a real editor so it is covered by typecheck:integration (exit 0)
   instead; repo-wide grep confirms zero dangling references to any
   removed symbol
+
+## One more restore: b74a496be (continuation run, 2026-10-14 ~5 PM PT)
+
+`git revert --no-edit b74a496be` committed cleanly as bdf3751d6
+(14 files, +101/−4). Each export the commit had removed was then judged
+from `main`'s source (local `main` stands in for origin/main; this rig
+has no remote). Reference point: `main` = 898a26c5e (release 0.18.2).
+
+### True duplicates: re-removed (commit 23580f0c3)
+
+Same name and same body live in a defining file the product imports
+directly; no src or test file on this branch uses the re-export path.
+
+| Export                                   | Removed from                                    | Live copy (file:line on main)                   | Product use of the live copy                                                                      |
+| ---------------------------------------- | ----------------------------------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| AccountSwitchRefusedError                | src/acp/accounts.ts                             | src/acp/accountText.ts:11                       | src/runtime/providers/runtimeServices.ts:14                                                       |
+| QuestionDeferralPort                     | src/core/agent/agentBackend.ts                  | src/shared/questions.ts:193                     | src/shared/questions.ts:198 (QuestionRegistryPort extends it)                                     |
+| rateLimitHeaders                         | src/core/backends/modelapi/client.ts            | src/core/backends/modelapi/transport.ts:438     | transport.ts:1057, src/host/backend/modelApiEntry.ts:34                                           |
+| BestOfNError                             | src/core/bestOfN/bestOfNRunner.ts               | src/core/bestOfN/bestOfNError.ts:23             | src/host/conversation/conversationController.ts:91, src/host/backend/modelApiBackendManager.ts:43 |
+| storedMediaPartSchema (value; type kept) | src/core/media/replayMedia.ts                   | src/shared/media.ts:113                         | src/core/media/replayMedia.ts:245,264,282,312,407,499 via direct import                           |
+| turnKey                                  | src/host/checkpoints/checkpointStore.ts         | src/core/checkpoints/turnKey.ts:4               | src/host/checkpoints/checkpointHost.ts:34, writeRecorder.ts, conversationCheckpoints.ts           |
+| restartConversationBackends              | src/host/conversation/conversationController.ts | src/host/conversation/conversationBackends.ts:7 | src/extension.ts:216,1591                                                                         |
+| parseProcessTable                        | src/host/processTree.ts                         | src/core/resources/trees/processTable.ts:16     | src/host/processTree.ts:217 via direct import                                                     |
+| paidTallySchema                          | src/shared/paid.ts                              | src/shared/paidBoundary.ts:20                   | src/shared/paidBoundary.ts:144                                                                    |
+
+### Planned, not yet called: kept with `@unwired <milestone>`
+
+knip honours the tag through its `tags` option (`"-unwired"` in
+knip.jsonc), so the dead-code gate still reports any untagged unused
+export.
+
+| Export                    | File                              | Evidence (no other copy on main)                                                                                   | Milestone                                   |
+| ------------------------- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------ | ------------------------------------------- |
+| AccountsPanelPort         | src/acp/accounts.ts               | only accounts.ts:42 (+ deleted test)                                                                               | M104 companion bridge for accounts          |
+| companionAccountsPanel    | src/acp/accounts.ts               | only accounts.ts:46 (+ deleted test)                                                                               | M104 companion bridge for accounts          |
+| buildProblemReportDraft   | src/core/support/problemReport.ts | only problemReport.ts:542; sole src mention is a comment (reportCommand.ts:29)                                     | M93 report-a-problem draft without vault    |
+| TeamOrchestratorSlot      | src/core/team/teamPool.ts         | teamConfig.ts:62 is the same name with a different body (agent/settings vs resolve()); lead verified no other copy | M96 lane T orchestrator slot                |
+| htmlToMarkdown            | src/core/web/htmlToMarkdown.ts    | unique; product uses convertHtmlJob (pageWorker.ts:10)                                                             | M69 web-fetch page conversion               |
+| isWithinFolder            | src/host/checkpoints/shadowGit.ts | same name in core/paths.ts:14 but a different 3-arg body; no in-file use                                           | M72 shadow-repository storage guard         |
+| runtimeGitUserEnvironment | src/runtime/gitUserEnvironment.ts | unique; sole src mention is a comment (runtimeGit.ts:76)                                                           | M71 confirmed-push and PR-fetch environment |
+
+### Red drill (deadcode gate fires)
+
+Removed the `@unwired` line from runtimeGitUserEnvironment.ts, ran
+`npm run deadcode`: exit 1, `Unused exports (1)` naming
+`runtimeGitUserEnvironment function
+src/runtime/gitUserEnvironment.ts:36:17`. Restored the file byte-exact
+(diff against backup empty); `npm run deadcode` exits 0 with zero
+"Unused".
+
+### Gates (final tree, exit codes)
+
+- deadcode: 0 (3 standing configuration hints: vendor/**, axe-core, mkfifo)
+- typecheck (all 5 projects): 0
+- eslint changed files: 0
+- prettier changed files + knip.jsonc: 0
+- check:host-api: 0 (0 problems)
+- check:reference: 0
+- cycles: 0 (no circular deps, 2146 files)
+- duplication: 0 (0 clones)
+- build --production (`node scripts/build.mjs --production`): 0
+- related suites (repo default timeout): runtimeAccountsService 11/11 + runtimeServices 17/17, exit 0
