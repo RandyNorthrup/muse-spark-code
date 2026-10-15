@@ -203,6 +203,8 @@ const MUSE_CODE_REVIEWER_ENTRY = 'src/host/review/museCodeReviewerEntry.ts'
 const MUSE_CODE_REVIEWER_OUTFILE = 'dist/museCodeReviewer.js'
 const MODELS_PANEL_ENTRY = 'src/host/models/modelsPanelEntry.ts'
 const MODELS_PANEL_OUTFILE = 'dist/modelsPanel.js'
+const MODELS_SUBSCRIPTIONS_ENTRY = 'src/host/models/modelsSubscriptionsEntry.ts'
+const MODELS_SUBSCRIPTIONS_OUTFILE = 'dist/modelsSubscriptions.js'
 const USAGE_SERVICE_ENTRY = 'src/runtime/usage/usageServiceEntry.ts'
 const USAGE_COMPANION_ENTRY = 'src/runtime/usage/usageCompanionEntry.ts'
 const USAGE_PANEL_ENTRY = 'src/host/usage/usagePanelEntry.ts'
@@ -689,6 +691,18 @@ const modelsPanelOptions = {
   plugins: [sharedUiText, sharedValidation, deferredCohort],
   entryPoints: [MODELS_PANEL_ENTRY],
   outfile: MODELS_PANEL_OUTFILE,
+  platform: 'node',
+  external: ['vscode'],
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const modelsSubscriptionsOptions = {
+  ...common,
+  plugins: [sharedUiText, sharedValidation, deferredCohort],
+  entryPoints: [MODELS_SUBSCRIPTIONS_ENTRY],
+  outfile: MODELS_SUBSCRIPTIONS_OUTFILE,
   platform: 'node',
   external: ['vscode'],
   format: 'cjs',
@@ -1265,6 +1279,7 @@ if (isWatch) {
     esbuild.context(mcpVaultOptions),
     esbuild.context(museCodeReviewerOptions),
     esbuild.context(modelsPanelOptions),
+    esbuild.context(modelsSubscriptionsOptions),
     esbuild.context(usageServiceOptions),
     esbuild.context(headlessOptions),
     esbuild.context(usageCompanionOptions),
@@ -1381,6 +1396,7 @@ if (isWatch) {
     mcpVault: esbuild.build(mcpVaultOptions),
     museCodeReviewer: esbuild.build(museCodeReviewerOptions),
     modelsPanel: esbuild.build(modelsPanelOptions),
+    modelsSubscriptions: esbuild.build(modelsSubscriptionsOptions),
     usageService: esbuild.build(usageServiceOptions),
     usageCompanion: esbuild.build(usageCompanionOptions),
     usagePanel: esbuild.build(usagePanelOptions),
@@ -1510,6 +1526,7 @@ if (isWatch) {
   reportSize(WEB_FETCH_OUTFILE)
   reportSize(MUSE_CODE_REVIEWER_OUTFILE)
   reportSize(MODELS_PANEL_OUTFILE)
+  reportSize(MODELS_SUBSCRIPTIONS_OUTFILE)
   reportSize('dist/usageService.js')
   reportSize('dist/usageCompanion.js')
   reportSize('dist/usagePanel.js')
@@ -1529,6 +1546,7 @@ if (isWatch) {
   reportSize(BROWSER_CHECK_OUTFILE)
   reportSize(BROWSER_RUNTIME_OUTFILE)
   reportSize(MODELS_PANEL_OUTFILE)
+  reportSize(MODELS_SUBSCRIPTIONS_OUTFILE)
   reportSize(SEARCH_WORKER_OUTFILE)
   reportSize(PAGE_WORKER_OUTFILE)
   reportSize(IMAGE_RESIZE_WORKER_OUTFILE)
