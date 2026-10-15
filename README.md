@@ -3593,9 +3593,10 @@ rate instead of a "warm for N minutes" countdown.
   high: the last request's input as Meta counted it, plus everything added
   since at one token per byte (so an attached image or file counts at its
   encoded size, far above its real cost). Only that input estimate is held
-  before sending; the request keeps its own `max_output_tokens`, and real
-  spend is compared after each response, so a cap can be passed by at most
-  one response. A request whose input alone exceeds what is left is not
+  before sending; the request keeps its own `max_output_tokens`. This
+  remains an estimate-based gate, not the requested real-spend-only cap:
+  helpers still reserve full output allowances and concurrent requests can
+  overshoot by more than one response (RVLIMITS review; completion blocked). A request whose input alone exceeds what is left is not
   sent; otherwise the turn stops with the spend, the cap and how to raise
   it once real spend has passed the cap. The transcript shows what each
   turn cost against the cap. Each request is
@@ -5727,16 +5728,18 @@ off preserves the previous declarations. Safe reads run at most four at a
 time; writes and other tools retain their order. An output-limit continuation
 is bounded to one request for text-only replies. A cut-short reply containing
 tool calls runs none of them and fails the turn; replay retains their error
-results. Repeated unchanged tool results stop the turn. A turn has no fixed
+results. Unchanged `read_file` calls without hooks warn at 3 and stop at 5;
+other tools do not have a production repeat witness yet. A turn has no fixed
 tool-round cap: it runs until the model stops, the person cancels, the loop
 guard fires, a spend cap is reached, or an error happens.
 `museSpark.modelApiMaxTurnRequests` (0–1000; 0 is no limit) sets the person's
 own per-turn limit, also offered as the editor session option Tool-round
-limit and the terminal flags `--max-turn-requests` (exec and serve). When the
-limit is reached, one last request with no tools asks the model to summarise
-what it did and what is left, and the turn ends on that summary with the
-editor protocol's `max_turn_requests` stop reason; sending a message
-continues the same conversation.
+limit and the terminal flags `--max-turn-requests` (exec and serve).
+Terminal/ACP choices are off, 25, 50, 100, 200 or 500. At the limit, one
+request without tools attempts a summary; when that succeeds, ACP returns
+`max_turn_requests`. A failed summary still fails the turn. The ACP option
+is not persisted on reload; reapply it after reopening a session. Live
+continuation and the limit-3 scenario remain unverified.
 
 `museSpark.webSearchMaxPerRequest` bounds hosted searches to 1–20 (default 5)
 where the selected model supports that bound. The first paid use presents the

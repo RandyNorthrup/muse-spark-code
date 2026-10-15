@@ -28,22 +28,16 @@ happened, not what was planned; superseded entries are kept.
   in the visible notification text; VS Code does not display `detail` on
   a non-modal notification.
 
-- Lane LIMITSA (D113): no default cap refuses the person's work, and money
-  stays visible and theirs to cap. A failed send through a configured
-  provider keeps its own error words (budget and session-budget refusals,
-  paid-daily stops, the provider's own error with its status and message)
-  instead of "Models & Agents is not available in this build". A
-  person-set daily or session cap compares real settled spend after each
-  response, plus that one response's overshoot: requests keep their own
-  `max_output_tokens`, only the input estimate is held up front, and the
-  stop names the spend, the cap and how to raise it
-  (`museSpark.modelApiSessionBudgetUsd`). Requests to the person's own
-  provider keys have no default daily cap. A child task has no request
-  cap and runs like its parent; its consent names the per-request rates.
-  Identical tool calls warn the model at 3 and stop the turn at 5 with the
-  translated stop sentence. Tab keeps its daily budget, but the first
-  refusal of each day raises a notice naming the spend, the budget and how
-  to raise it (`museSpark.tabDailyBudgetUsd`).
+- Lane LIMITSA (D113, incomplete; RVLIMITS review): the main session
+  reservation no longer lowers `max_output_tokens`, but still refuses
+  conservative input estimates before real spend reaches the cap. Helper,
+  hosted-search and Tab paths still reserve worst cases; the one-response
+  overshoot guarantee is not established. The 4-request child-task cap is
+  removed and its consent names per-request rates. The 3-warning/5-stop
+  repeat guard is effective for unchanged `read_file` calls without hooks,
+  not general tool calls. Tab retains its separate budget and now shows
+  the warning's explanation. These remaining accounting/guard gaps block
+  completion; see `docs/certification/limits-stops.md`.
 
 - Lane TURNLIMIT (F88): a Model API turn has no fixed tool-round cap. It
   runs until the model stops, the person cancels, the loop guard fires, a
@@ -51,11 +45,12 @@ happened, not what was planned; superseded entries are kept.
   replaces the removed 50-round default, off by default: the
   machine-scoped `museSpark.modelApiMaxTurnRequests` setting (0 is no
   limit, 1–1000), the editor protocol's Tool-round limit session option,
-  and `--max-turn-requests` for exec and serve. When the person's limit is
-  reached, one last request with no tools asks the model to summarise what
-  it did and what is left; the turn ends on that summary with the editor
-  protocol's `max_turn_requests` stop reason, and the next message in the
-  same conversation continues. A failed send to a configured provider now
+  and `--max-turn-requests` for exec and serve (terminal/ACP presets are
+  25, 50, 100, 200 and 500, not arbitrary positive integers). At the limit,
+  a tool-free summary is attempted; a successful summary ends with ACP's
+  `max_turn_requests`. A failed summary still fails the turn, and resumed
+  conversations reset the session option. Limit-3 ACP/CLI, failed-summary
+  recovery and continued live conversation are not certified. A failed send to a configured provider now
   says its real cause (the HTTP status with the provider's own error
   message, or the network error's code) without echoing secrets or
   headers, and is still never retried automatically.

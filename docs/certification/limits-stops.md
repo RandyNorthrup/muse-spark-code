@@ -270,3 +270,47 @@ They did not exercise the real registry's worst-case cache-write pricing,
 which still reserves more than real spend. Review has now removed **13
 cases total**, not 10. Their replacement needs real registry/pricing code,
 not a second implementation of that code; no replacement proof is claimed.
+
+## RVLIMITS open blockers — claims corrected, behavior not complete
+
+- **Real-spend-only caps are not implemented.** `reserveRequest` still
+  compares a conservative input/search estimate with remaining cap. A
+  $0.001 cap at $0 spent refuses 1,000 input tokens estimated at $0.00125,
+  even though a cached response can cost less. `reserveProviderRequest`
+  calls the real registry's worst-case cache-write price.
+  `hookModelEntry:316`, `reviewerEntry:279`, hosted search in
+  `client.ts:536` and Tab in `tabSpendGate.ts:56` still reserve whole
+  response allowances. Parallel/child responses invalidate the claimed
+  at-most-one-response overshoot. This needs one agreed admission and
+  uncertain-liability contract across those consumers; no partial money
+  patch was attempted in review.
+- **Unknown usage can be falsely known.** `endRequest` closes a capped,
+  sent request at its input-only retained amount but only sets the unknown
+  flag for uncapped/media requests (`ModelApiHost.ts:4179`). A failed
+  stream's output may be billed and is no longer bounded by that amount.
+  It must stay explicitly uncertain, including a zero input reservation;
+  this fix is recorded separately from these claim corrections.
+- **A6 is not a general loop guard.** Production supplies no
+  `repeatResultWitness`; the built-in witness only covers `read_file`
+  without hooks (`ModelApiHost.ts:12703`). Repeating shell, search, list,
+  MCP, goal or failed calls can run indefinitely with the default turn cap
+  removed. The pure RepeatGuard cases prove only its state machine.
+- **Summary failure is not a clean limit stop.** `stopAtTurnLimit` awaits
+  its summary before returning the limit marker. A budget, connection,
+  hook or provider refusal throws into the ordinary FAILED path; ACP
+  rejects it as Internal error. The success-path notice cannot claim a
+  summary when no summary arrived. A clean fallback needs translated
+  wording and lifecycle proof, not swallowing the error.
+- **The optional control is incomplete.** CLI/ACP reject 3 (fixed
+  presets only), the panel has no new control, and `sessionMaxTurnRequests`
+  is neither serialized nor inherited by children. Reopening ACP resets
+  it to the serve default. The documented limit-3/continuation scenario
+  cannot currently be completed as briefed.
+- **Tab wording can still be false.** Its hard ledger refuses a pending
+  worst-case request below the settled cap, but the warning says today's
+  spend reached it. The visible-text repair does not change accounting.
+
+These are open, not accepted deferrals. CHANGELOG/README no longer claim
+completion. D113 collides with LIMITSC: proposal to the integrator is keep
+LIMITSA at D113 and renumber LIMITSC to D114 (D114 is absent in this tree),
+updating its references together. No unreviewed LIMITSC bytes were changed.

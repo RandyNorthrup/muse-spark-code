@@ -14344,7 +14344,7 @@ its real cause (the HTTP status with the provider's own error message, or
 the network error's code) without echoing secrets or headers, and is still
 never retried automatically: a pinned send may have reached the provider.
 
-### D113 — No default cap refuses the person's work; money stays visible and theirs to cap (lane LIMITSA, 2026-10-15)
+### D113 — No default cap refuses the person's work; money stays visible and theirs to cap (lane LIMITSA, 2026-10-15; RVLIMITS: blocked, see certification)
 
 **Owner (2026-10-14).** "why are there all there arbitraty limits in the
 actual app thats insane?!!!" Measured: every Sonnet request refused with
@@ -14352,16 +14352,14 @@ actual app thats insane?!!!" Measured: every Sonnet request refused with
 $5.00 ($2.03 used)" (worst-case reservation), then that sentence hidden
 behind "Models & Agents is not available in this build" (F88).
 
-**Comparison (lead; sources read 2026-10-15, see the limits audit).**
-Claude Code's budget option has no limit by default and compares real
-spend after each answer (over by at most one response); no surveyed
-harness (Codex CLI, Gemini CLI, OpenCode, Cline) has a default daily
-dollar, sub-task request, or session-spend cap. Cline warns at 3
-identical calls and escalates at 5; Gemini's repeat threshold is 5.
+**Comparison (lead's limits audit, 2026-10-15).** Claude Code's budget is
+unset by default and compares actual spend; Codex CLI, Gemini CLI, OpenCode
+and Cline have no surveyed default daily/task/session dollar cap. Cline
+warns at 3 identical calls, escalates at 5; Gemini's threshold is 5.
 
 **Rule.** Every product error keeps its own words where a send can fail
-(F88; only a wordless non-`Error` throw becomes the unavailable
-sentence). Own provider keys have no default daily cap. A person-set
+(F88; unknown failures name a fixed request diagnostic, never the panel).
+Own provider keys have no default daily cap. A person-set
 daily or session cap compares real settled spend after each response,
 plus that one response's overshoot; nothing reserves the worst case, and
 requests keep their own `max_output_tokens`. A cap that stops work names

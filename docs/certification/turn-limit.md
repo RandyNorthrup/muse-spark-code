@@ -26,6 +26,16 @@ source inspection is not proof that all request shapes are valid. Claims
 below that say promotion/verify suites prove the product are superseded by
 this correction. The review made zero model calls.
 
+Further review found that `stopAtTurnLimit` only returns its limit marker
+**after** the awaited summary succeeds. A spend refusal, failed send or
+hook stop during the summary still reaches the ordinary FAILED path and
+ACP's Internal error. The advertised clean stop is therefore a
+success-path implementation, not unconditional behavior. CLI/ACP also
+reject a limit of 3, expose only fixed presets, and reset the option when a
+session is reopened. No panel control or child inheritance was added. The
+original completion wording below is superseded on these points; the
+TURNLIMIT brief remains incomplete.
+
 ## What changed
 
 - The fixed 50-round default (`MODEL_API_MAX_TOOL_ROUNDS`) is gone. A turn
