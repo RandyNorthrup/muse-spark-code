@@ -1892,7 +1892,11 @@ function listedChildResult(result: ChildRecord['result']): ChildRecord['result']
     return result
   }
   const { text, ...rest } = result
-  return { ...rest, text: text.slice(0, SUBAGENT_RESULT_TEXT_MAX_CHARS) }
+  return {
+    ...rest,
+    summary: visibleChildResultText(result) ?? rest.summary,
+    text: text.slice(0, SUBAGENT_RESULT_TEXT_MAX_CHARS),
+  }
 }
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
@@ -9101,6 +9105,16 @@ export class ModelApiSession implements ScheduledAgentSession {
         // notice, and `subagent_read_result` returns it whole (B9).
         ...(text !== '' && { text }),
         ...(event.errorKind !== undefined && { errorKind: event.errorKind }),
+      }
+      if (text.length > SUBAGENT_RESULT_TEXT_MAX_CHARS) {
+        this.emit({
+          type: 'backendNotice',
+          level: 'warning',
+          text: `${child.id}: ${fill(UI_TEXT.subagentResultClipped, {
+            kept: SUBAGENT_RESULT_TEXT_MAX_CHARS,
+            total: text.length,
+          })}`,
+        })
       }
       if (child.state === 'interrupted') {
         child.evidence = { ...child.evidence, inFlight: false, waiting: 'interrupted' }

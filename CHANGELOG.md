@@ -107,7 +107,8 @@ happened, not what was planned; superseded entries are kept.
   something without telling the person now keep it or say so, in every
   installed language. A child task's full result is kept (`read_result`
   returns it whole; the automatic push carries the bounded slice plus a
-  notice with both counts). Crowded-out questions stay readable on their
+  notice with both counts, and completion warns the person immediately).
+  Crowded-out questions stay readable on their
   expired cards with a warning at that moment past 20 open; ACP and terminal
   `/questions` also retain their text and Expired label. Every
   damaged-session marker is kept (the 50 cap is gone) and marking warns

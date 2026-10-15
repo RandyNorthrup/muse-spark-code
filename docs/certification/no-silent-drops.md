@@ -239,6 +239,23 @@ McpElicitationTimeoutError` was false at the real boundary: the connection
   deferral. The original four registry tests prove retention, not these ACP
   bindings; they are not evidence of a real terminal/editor run.
 
+## RVDROPS review — B9 automatic clipping must reach the person
+
+- P2, quoted-code proof: `listedChildResult` sliced `result.text` without a
+  marker. The person-facing helper was used only by explicit wait/read
+  tools, not `childSnapshot` or `subagent_status`. A long automatically
+  completed child therefore still showed an unmarked result to the person.
+- Listed summaries now include the existing translated clipping notice, and
+  the child completion emits `backendNotice` immediately with its id and
+  kept/total counts. This reaches the panel and ACP translator, rather than
+  hoping the parent model repeats its model-only notice. Full result storage
+  and explicit reads remain unchanged. No new slices were added.
+- Lead: complete a child with more than 32,768 characters without calling a
+  wait/read tool; observe the warning, inspect the map/status summary, then
+  read the child transcript and request `subagent_read_result` for its tail.
+  The clip-helper tests do not prove this host event route; live proof remains
+  required and no provider was called during review.
+
 ## Limits raised or removed (owner's rule)
 
 | Row | Number              | Outcome                                                  | Reasoning                                                                       |
