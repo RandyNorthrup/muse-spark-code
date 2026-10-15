@@ -259,12 +259,14 @@ token, or a new release version. Do not publish this lane's rebuilt 0.10.1
 package over the older release's version.
 
 Keep the version tag, release commit, original Actions run and its downloaded
-artifacts. Check its summary and retain the VSIX/tarball hashes. Use the run's
-**Re-run failed jobs** after fixing the named cause; this keeps the successful
-build's artifacts. Avoid **Re-run all jobs** once anything has published:
-rebuilt ZIP timestamps or changed build tools can produce different hashes.
-If artifacts have expired or hashes differ, stop for owner review and prepare
-a new version rather than replacing a published version.
+artifacts. Check its summary and retain the VSIX/tarball hashes. After fixing
+the named publication cause, start a fresh `workflow_dispatch` recovery on
+the same version tag with `artifacts_run_id` naming the original run. It
+reuses the original bytes without another build or another execution of a
+failed job. Never use **Re-run failed jobs** or **Re-run all jobs**: rule 2
+refuses repeated verification, and a rebuilt package can have different
+hashes. If artifacts have expired or hashes differ, stop for owner review
+and prepare a new version rather than replacing a published version.
 
 A failed registry step prints one fixed reason and never the tool's own
 output, which can carry a token. The reasons are: network attempts
@@ -273,22 +275,19 @@ exhausted; npm asks for a one-time password (EOTP); the token was refused
 artifact does not match the release; and publication refused, for anything
 else.
 
-| State                                                                       | Recovery                                                                                                                                                                                                                                                                                          |
-| --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| GitHub job failed before creating the Release                               | Fix permissions, attestation, or network cause; rerun failed jobs. Creation requires a definite not-found response.                                                                                                                                                                               |
-| GitHub Release exists but its job failed after creation                     | Rerun failed jobs with the same artifacts. Existing assets are downloaded and verified before any missing assets are uploaded; no `--clobber`. This also handles a partial asset upload.                                                                                                          |
-| GitHub published; Marketplace failed; other registries published or skipped | Fix Marketplace PAT/transport; rerun failed jobs. An ambiguous prior publish is accepted only after the gallery download matches.                                                                                                                                                                 |
-| GitHub published; Open VSX failed; other registries published or skipped    | Fix `OVSX_PAT`/namespace permissions/transport; rerun failed jobs. Namespace lookup/create and publishing have bounded network retries; an existing version requires the file hash match.                                                                                                         |
-| GitHub published; npm failed; other registries published or skipped         | Check the package's trusted publisher (below) and the job's `id-token: write`; rerun failed jobs. A prior successful upload requires matching `dist.integrity`.                                                                                                                                   |
-| Several registries failed                                                   | Fix each cause and rerun failed jobs together; successful channels remain published and the final summary covers all four.                                                                                                                                                                        |
-| Marketplace or Open VSX says `skipped-no-secret`                            | Add its token in the tag-only `marketplace` environment, then rerun that specific registry job via its job ID in the Actions API (or owner tooling that supports rerunning a job); rerun the summary after the job completes. Rerunning only failed jobs will not rerun a successful skipped job. |
-| Hash/integrity mismatch, or original artifacts expired                      | Stop. Identify which bytes were published. Issue a new version after owner review; never move the version tag or overwrite registry bytes.                                                                                                                                                        |
+Each recovery below means a fresh artifact-only `workflow_dispatch` run,
+not the Actions rerun controls. Its verification executes on attempt 1.
 
-For example, the owner can rerun one successful-but-skipped registry job using
-GitHub's `POST /repos/{owner}/{repo}/actions/jobs/{job_id}/rerun` endpoint.
-Use the job from the original run, not another release. Verify the new run
-attempt's channel summary; the API reruns the job and its dependents. See
-[GitHub's rerun-job API](https://docs.github.com/en/rest/actions/workflow-runs#re-run-a-job).
+| State                                                   | Recovery                                                                                                                                                                          |
+| ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GitHub job failed before creating the Release           | Fix permissions, attestation, or network cause; start recovery. Creation requires a definite not-found response.                                                                  |
+| GitHub Release exists but its job failed after creation | Start recovery with the same artifacts. Existing assets are downloaded and verified before missing assets are uploaded; no `--clobber`. This also handles a partial asset upload. |
+| GitHub published; Marketplace failed                    | Fix Marketplace PAT/transport; start recovery. An ambiguous prior publish is accepted only after the gallery download matches.                                                    |
+| GitHub published; Open VSX failed                       | Fix `OVSX_PAT`/namespace permissions/transport; start recovery. An existing version requires the file hash match.                                                                 |
+| GitHub published; npm failed                            | Check the trusted publisher and the job's `id-token: write`; start recovery. A prior successful upload requires matching `dist.integrity`.                                        |
+| Several registries failed                               | Fix each cause and start recovery; successful channels remain published and the final summary covers all four.                                                                    |
+| Marketplace or Open VSX says `skipped-no-secret`        | The owner adds its token in the tag-only `marketplace` environment, then starts recovery with the original artifacts. No successful skipped job is rerun.                         |
+| Hash/integrity mismatch, or original artifacts expired  | Stop. Identify which bytes were published. Issue a new version after owner review; never move the version tag or overwrite registry bytes.                                        |
 
 ## npm trusted publishing
 

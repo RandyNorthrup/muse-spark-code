@@ -299,3 +299,26 @@ No test was removed or replaced with a stand-in. The original pure parser
 suite survives main's deletion of fake-driven tests, so no lost proof was
 reintroduced. These are deliberate broken-code drills, not merely negative
 input examples. No GitHub dispatch or model provider is needed for them.
+
+### Final integration observations
+
+The rest of the release guide's recovery table now uses the same fresh
+artifact-only dispatch as T1, instead of contradicting it with rerun-job
+instructions. This is documentation of the existing recovery path, not a
+new publication bypass.
+
+Local Windows production build: exit 0, extension 550.8 KiB, Model API
+507.2 KiB, checkpoint store 84.6 KiB; unchanged budgets. Built agent
+`node dist/acp.js --help`: exit 0, no backend or credential operation.
+Actual `node scripts/package-acp.mjs`: exit 1, exactly:
+
+```text
+Error: Required Darwin created-path helper is missing: native\darwin\muse-dictate
+```
+
+No fake helper was supplied. Therefore no packed-agent run is claimed.
+The CI gate is a source command, not part of the packed runtime; its hosted
+composition remains for the lead's read-only historical-run checks above.
+Surviving dependent suites `manifest`, `cyclesRoots`, `lazyBundleFiles`,
+`rule2Gate`, `packagedBundles`, `actionManifest`: 117 passed, exit 0.
+Final static-gate exit receipts and exclusions are in the lane report.
