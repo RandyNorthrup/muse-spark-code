@@ -29,20 +29,22 @@ history from PLAN.md").
 2. **Gates are not optional.** Hosted CI is the gate for a release: every job
    green on the commit that merges, and a red job is read and its cause
    measured, never rerun into green. Local runs are for fast feedback: format,
-   lint, typecheck, the suites you touched and the packed-product file
-   (`test/e2e/execStdio.e2e.test.ts`). Before a release, real conversations go
-   through the packed product (CONTRIBUTING.md, "Before you open a pull
-   request"). Never weaken a gate (thresholds, rule levels, ignores) to get
-   green; fix the code or record a justified deferral in `PLAN.md` §7. An
-   exact-size assertion may move with the measured number and a one-line
-   reason in the same change; a cap moves only on the owner's word.
+   lint, typecheck, the suites you touched and the packed product itself
+   (its commands, its help, its errors, its files on disk). Before a release,
+   real conversations go through the packed product in the real-life run
+   (CONTRIBUTING.md, "Before you open a pull request"). Never weaken a gate
+   (rule levels, ignores) to get green; fix the code or record a justified
+   deferral in `PLAN.md` §7. An exact-size assertion may move with the
+   measured number and a one-line reason in the same change; a cap moves only
+   on the owner's word.
 3. **Prove new gates and tests fire.** A test or lint rule that has never been
    seen to fail is a decoration. Break the thing on purpose, watch it fail,
    revert, and note it in the milestone's certification record under
-   `docs/certification/`. Tests stand on the built product wherever the
-   behaviour is the product's; a stand-in is allowed for the outside world
-   only (for example a server replaying a recorded exchange), never for our
-   own code.
+   `docs/certification/`. Tests run real code only, no exceptions: no
+   `vi.mock`, fake timers, stand-in for our modules, a provider, the CLI,
+   GitHub, an MCP server, the editor API or a store, no hand-answering local
+   server, no screenshot or frame comparison. A UI change gets one small
+   local look (`npm run ui:look -- <scene>`).
 4. **Escape hatches are logged.** Any `eslint-disable`, `@ts-expect-error`,
    `as` cast that is not a narrowing the compiler can verify, or `any` needs an
    inline reason **and** a row in `PLAN.md` §8.
@@ -86,13 +88,10 @@ history from PLAN.md").
      and pass `npm run check:tokens`. Raw CSS/TypeScript paint is guarded;
      generated token files alone contain it. Meaningful motion uses the
      120/180/240 ms scale under the no-preference reduced-motion guard.
-     A change to the interface is looked at by a person on the built
-     product, in one light and one dark theme, and the two pictures go into
-     the change's certification record. No gate and no CI job renders or
-     compares screenshots (owner, 2026-10-12): `npm run check:visual` is a
-     tool that nothing runs for you, and a green CI says nothing about how a
-     screen looks.
-     README screenshots use `scripts/readme-shots.mjs` (2 MiB curated set).
+     Every visual change gets one small local look (`npm run ui:look --
+<scene>`, pictures to `temp/ui-look/`, no baseline, no comparison, no
+     CI), in one light and one dark theme, and the two pictures go into
+     the change's certification record. README screenshots use `scripts/readme-shots.mjs` (2 MiB curated set).
 6. **No dead code, no placeholders.** No commented-out code, unused exports,
    unused dependencies, TODO stubs, fake implementations, or mock data outside
    `test/**`. A function that cannot do its job throws or returns an explicit
@@ -411,28 +410,29 @@ native/darwin/**      Dictation.swift, Info.plist, build.sh, check-disclaim.sh:
                       the macOS helper (built and checked in CI), with
                       Muse Voice's `--capture` mode
 resources/            the walkthrough
-test/unit/**          vitest (node + jsdom via docblock); `vscode` is mocked
-test/e2e/**           the fake Muse Code CLI driven through the real backend;
-                      the opt-in live drills (the Muse Code CLI; the Model
-                      API sweep and the M75 evaluation, which bill the
-                      owner's key)
+test/unit/**          vitest (node + jsdom via docblock) over real code only:
+                      no mocks, fakes, stand-ins or screenshot comparisons;
+                      the `vscode` alias and its hand-written module stay for
+                      the listed integration and host suites only
+test/e2e/**           the live drills, kept listed for the real-life run
+                      (the Muse Code CLI; the Model API sweep and the M75
+                      evaluation, which bill the owner's key)
 test/integration/**   @vscode/test-cli, runs inside VS Code, over the workspace
                       test/fixtures/workspace (code-intel/ is a TypeScript
                       project its language service reads)
-test/harness/         the webview behind a fake host, for screenshots and the
-                      accessibility gate; themes/ holds VS Code's four themes
-                      plus One Dark Pro and Dracula; goldens/ holds the
-                      visual-regression manifest and shot lists (M114;
-                      full PNG sets stay outside git)
+test/harness/         the webview behind a scripted host, for the local look
+                      (`npm run ui:look -- <scene>`), the README pictures and
+                      the accessibility gate; themes/ holds VS Code's four
+                      captured themes
                       playbook.mjs scenes run standalone as
                       `npm run harness:playbook` until the panel port is bound
 test/hosts/           the extension and the ACP agent in other editors
                       against the fake CLI, one script per host (hosts.yml)
 scripts/**            esbuild build; bundle-size, bundle-split, host-globals,
                       notices, audit, PSScriptAnalyzer, semgrep, accessibility,
-                      localization, tokens, visual regression, reference
+                      localization, tokens, reference
                       and host API gates; theme capture, the
-                      pseudo-locale, harness screenshots, image rendering,
+                      pseudo-locale, the local UI look, image rendering,
                       changelog notes, What's New's content (lib/), VS Code
                       versions for CI, the ACP
                       agent's package
@@ -472,15 +472,15 @@ media/                icons, banner, social preview, README screenshots
 | ------------------------------ | ---------------------------------------------------- |
 | Every local gate in one run    | `npm run quality`                                    |
 | The gates CI runs everywhere   | `npm run quality:gates`                              |
-| Accessibility gate             | `npm run test:a11y`                                  |
+| Accessibility gate             | `npm run test:a11y` (merge and release, not PRs)     |
 | Token generation / gate        | `npm run build:tokens` / `npm run check:tokens`      |
-| A screen to look at            | `npm run harness:shots -- <scene> --theme=light`     |
+| Local UI look                  | `npm run ui:look -- <scene>`                         |
 | Reference gate                 | `npm run check:reference`                            |
 | Roadmap generation / gate      | `npm run roadmap:generate` / `npm run check:roadmap` |
 | Localization gate              | `npm run check:l10n`                                 |
 | Host API record (D60)          | `npm run check:host-api` (`-- --write`)              |
-| Panel in the pseudo-locale     | `npm run harness:shots -- --lang=pseudo`             |
-| Unit tests with coverage       | `npm run test:unit`                                  |
+| Panel in the pseudo-locale     | `npm run ui:look -- <scene> --lang=pseudo`           |
+| Unit tests (no coverage gate)  | `npm run test:unit`                                  |
 | Integration tests              | `npm run test:integration`                           |
 | Dev build / watch              | `npm run build:dev` / `npm run watch`                |
 | Production build + size budget | `npm run build`                                      |

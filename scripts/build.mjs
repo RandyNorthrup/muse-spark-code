@@ -173,6 +173,8 @@ const CONVERSATION_GIT_ENTRY = 'src/host/git/conversationGitEntry.ts'
 const CONVERSATION_GIT_OUTFILE = 'dist/conversationGit.js'
 const MODEL_API_SESSIONS_ENTRY = 'src/host/backend/fileSessionStoreEntry.ts'
 const MODEL_API_SESSIONS_OUTFILE = 'dist/modelApiSessions.js'
+const RULES_FILE_ENTRY = 'src/host/commands/rulesFileEntry.ts'
+const RULES_FILE_OUTFILE = 'dist/rulesFile.js'
 const BUNDLED_SKILLS_ENTRY = 'src/host/skills/bundledSkillsEntry.ts'
 const BUNDLED_SKILLS_OUTFILE = 'dist/bundledSkills.js'
 const CHECKPOINT_STORE_ENTRY = 'src/host/checkpoints/checkpointStoreEntry.ts'
@@ -831,6 +833,15 @@ const modelApiSessionsOptions = {
   outfile: MODEL_API_SESSIONS_OUTFILE,
 }
 
+// The Create AGENTS.md command (D15), required when that command runs: the
+// command, the rules template and their redaction.
+/** @type {import('esbuild').BuildOptions} */
+const rulesFileOptions = {
+  ...conversationGitOptions,
+  entryPoints: [RULES_FILE_ENTRY],
+  outfile: RULES_FILE_OUTFILE,
+}
+
 /** @type {import('esbuild').BuildOptions} */
 const checkpointStoreOptions = {
   ...common,
@@ -1277,6 +1288,7 @@ if (isWatch) {
     esbuild.context(agentImportOptions),
     esbuild.context(conversationGitOptions),
     esbuild.context(modelApiSessionsOptions),
+    esbuild.context(rulesFileOptions),
     esbuild.context(bundledSkillsOptions),
     esbuild.context(legalScanOptions),
     esbuild.context(codeIntelOptions),
@@ -1394,6 +1406,7 @@ if (isWatch) {
     agentImport: esbuild.build(agentImportOptions),
     conversationGit: esbuild.build(conversationGitOptions),
     modelApiSessions: esbuild.build(modelApiSessionsOptions),
+    rulesFile: esbuild.build(rulesFileOptions),
     bundledSkills: esbuild.build(bundledSkillsOptions),
     legalScan: esbuild.build(legalScanOptions),
     codeIntel: esbuild.build(codeIntelOptions),
@@ -1525,6 +1538,7 @@ if (isWatch) {
   reportSize(AGENT_IMPORT_OUTFILE)
   reportSize(CONVERSATION_GIT_OUTFILE)
   reportSize(MODEL_API_SESSIONS_OUTFILE)
+  reportSize(RULES_FILE_OUTFILE)
   reportSize(BUNDLED_SKILLS_OUTFILE)
   reportSize(LEGAL_SCAN_OUTFILE)
   reportSize(CODE_INTEL_OUTFILE)
