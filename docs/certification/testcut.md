@@ -451,3 +451,23 @@ fails the session-boundary case (exit 1): expected an empty field, received
 The final duplication gate caught eight repeated setup lines in these new
 cases (exit 1); share that setup locally, preserve every assertion, and
 re-run duplication: zero clones, exit 0.
+
+## RVTESTCUT2 — retain real file-session persistence regressions
+
+P2: the deleted `fileSessionStore.test.ts` mixed fake upload ledgers and
+question stores with real filesystem cases (old lines 441–537). The
+round-trip, header-only corrupt-replay listing, path confinement and
+retention cases used the real file store and real files; replacing their
+log sink and sleep seam with observers and the real timer removes the
+unnecessary fake dependency. No surviving test imported
+`createFileSessionStore` before this repair.
+
+Restore four focused cases at the same path, with temporary directories,
+real atomic writes, observer-only logs and no replacement filesystem,
+provider, ledger or question store. Prove the retention boundary by
+changing `idleMs <= days * MILLISECONDS_PER_DAY` to `<`: exit 1, 1/4
+failed, expected the `recent` history header but received an empty list
+(the session was deleted one boundary too early). Restore the product
+file byte-for-byte against HEAD; SHA-256
+`5b603a2f6baaade17441b220ba2f4b1a87e9b414167326619b295ebf0004d733`.
+Initial real-code run: 4/4 passed at repository defaults.

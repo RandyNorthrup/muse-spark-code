@@ -9,6 +9,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- Test-overhaul review: retain real on-disk session save/load, damaged
+  history, retention-boundary and path-confinement checks without fake
+  upload ledgers, question stores or filesystem replacements.
+
 - Test-overhaul review: retain real question-dock draft, focus and session
   boundary regressions without the deleted suite's fake-timer case.
 
