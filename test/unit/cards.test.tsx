@@ -284,9 +284,9 @@ describe('TodoPanel', () => {
 
   // M25: rows were keyed by their text, so two tasks with the same text collided.
   it('keeps two tasks with the same text apart', () => {
-    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {
-      // A key collision is reported here; the test asserts there is none.
-    })
+    // Call-through only: a key collision would be reported here; the test
+    // asserts there is none.
+    const consoleError = vi.spyOn(console, 'error')
     const { rerender } = render(
       <TodoPanel
         items={[
