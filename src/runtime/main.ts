@@ -74,7 +74,7 @@ import { defaultServeOptions, sharingPorts, type SharingPortsDeps } from './shar
 import { acpSharingCommands } from '../acp/sharing'
 import { boundedAcpStream } from '../shared/acpStream'
 import type { PlaybookCommand, PlaybookSurfacePort } from './playbook/command'
-import { formatAcpUsage } from './cliOptions'
+import { formatAcpUsage, formatScanSecretsHelp } from './cliOptions'
 import { referenceLoader } from '../host/referenceLoader'
 import { createRuntimeEstimate, runRuntimeEstimateCommand } from './estimator/ports'
 import { isProcessAlive } from '../host/checkpoints/windowPresence'
@@ -1374,6 +1374,14 @@ async function main(): Promise<number> {
     case 'accounts': {
       return await loadAccountsBundle(log).runAccountsCommand(command.options, {
         ...loadAccounts(log).commands,
+        // The account service reads its own metadata rows, not the
+        // runner's providers file: advice for a provider the runner
+        // already added names the missing accounts, not another add.
+        isProviderConfigured: async (provider) => {
+          const userFile = await userProvidersFile()
+          const read = await userFile.readUserFile()
+          return read.ok && read.file.providers.some((entry) => entry.id === provider)
+        },
         print: (line) => {
           writeLine(process.stdout, line)
         },
@@ -1556,7 +1564,9 @@ async function main(): Promise<number> {
       return 0
     }
     case 'help': {
-      if (command.all === true) {
+      if (command.topic === 'scan-secrets') {
+        writeLine(process.stdout, formatScanSecretsHelp(UI_TEXT, ACP_AGENT_NAME))
+      } else if (command.all === true) {
         const reference = referenceLoader({
           bundlePath: path.join(distDir, REFERENCE_BUNDLE_FILE),
           log,

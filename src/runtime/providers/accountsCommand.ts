@@ -19,9 +19,21 @@ export interface AccountsCommandDeps {
   readonly metadata: AccountsMetadataPort
   readonly print: (text: string) => void
   readonly printError: (text: string) => void
+  /**
+   * Whether the provider is configured in the runner's own providers file.
+   * The account service reads its own metadata rows: a configured provider
+   * without a row needs its accounts provisioned, not another `providers
+   * add`, so the advice differs. Absent, every unknown provider reads as
+   * unconfigured, as before.
+   */
+  readonly isProviderConfigured?: (provider: string) => Promise<boolean>
 }
 
-function commandError(provider: string, error: unknown): string {
+async function commandError(
+  deps: AccountsCommandDeps,
+  provider: string,
+  error: unknown,
+): Promise<string> {
   if (isStoreUnavailable(error)) return UI_TEXT.acpStoreDown
   if (error instanceof AccountStoreError) {
     if (error.code === 'notOffered') return UI_TEXT.accounts.notOffered
@@ -31,8 +43,13 @@ function commandError(provider: string, error: unknown): string {
     // already on the account service, and the file was left untouched.
     if (error.code === 'invalidProvidersFile') return UI_TEXT.accounts.providersInvalid
     // The terminal is the account service in this process: an unknown
-    // provider is not configured, not waiting on a connection.
-    if (error.code === 'unavailable') return fill(UI_TEXT.providerNotConfigured, { provider })
+    // provider is not configured, not waiting on a connection. A provider
+    // the runner already added still has no account metadata here, so it
+    // says what is missing instead of repeating the add advice.
+    if (error.code === 'unavailable')
+      return (await deps.isProviderConfigured?.(provider)) === true
+        ? UI_TEXT.accounts.unavailable
+        : fill(UI_TEXT.providerNotConfigured, { provider })
   }
   return UI_TEXT.accounts.unavailable
 }
@@ -73,7 +90,7 @@ export async function runAccountsCommand(
     }
     return 0
   } catch (error: unknown) {
-    deps.printError(commandError(command.provider, error))
+    deps.printError(await commandError(deps, command.provider, error))
     return 1
   }
 }
@@ -113,7 +130,7 @@ export async function runAccountAuthSet(
     deps.print(fill(UI_TEXT.acpKeyStored, { store: deps.storeName }))
     return 0
   } catch (error: unknown) {
-    deps.printError(commandError(target.provider, error))
+    deps.printError(await commandError(deps, target.provider, error))
     return 1
   } finally {
     pending.value = ''
