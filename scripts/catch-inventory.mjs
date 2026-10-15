@@ -32,8 +32,15 @@ const flag = (name) => {
 }
 
 if (has('--write-baseline')) {
-  const counts = countByArea(scanCatches(ROOT))
-  const baseline = { version: 1, counts: {} }
+  const entries = scanCatches(ROOT)
+  const counts = countByArea(entries)
+  const baseline = {
+    version: 2,
+    counts: {},
+    sites: entries
+      .filter((entry) => entry.class === 'SWALLOW' || entry.class === 'GENERIC')
+      .map(({ file, identity, class: kind }) => ({ file, identity, class: kind })),
+  }
   for (const area of Object.keys(counts).toSorted(byName))
     baseline.counts[area] = { SWALLOW: counts[area].SWALLOW, GENERIC: counts[area].GENERIC }
   fs.writeFileSync(BASELINE_PATH, `${JSON.stringify(baseline, null, 2)}\n`)
@@ -49,10 +56,10 @@ if (has('--write-baseline')) {
     process.stderr.write('No scripts/catch-baseline.json; run with --write-baseline first\n')
     process.exitCode = 1
   } else {
-    const problems = checkBaseline(countByArea(scanCatches(ROOT)), baseline)
+    const problems = checkBaseline(scanCatches(ROOT), baseline)
     for (const problem of problems) process.stderr.write(`${problem}\n`)
     if (problems.length > 0) process.exitCode = 1
-    else process.stdout.write('All catch counts match the baseline\n')
+    else process.stdout.write('All catch sites and counts match the baseline\n')
   }
 } else {
   const entries = scanCatches(ROOT)

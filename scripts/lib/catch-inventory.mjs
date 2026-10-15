@@ -31,6 +31,7 @@
 // count; only the handler's own level (including nested blocks, excluding
 // nested functions and classes) decides. `console.*` is a devtools sink, not
 // the failure record: it neither reports nor poisons.
+import { createHash } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import ts from 'typescript'
@@ -568,6 +569,23 @@ function isCatchProperty(expression) {
   return false
 }
 
+/** Token identity ignores formatting, but binds the handler to its work and owner. */
+function siteIdentity(node, source) {
+  const context = []
+  let current = node
+  while (current !== undefined && !ts.isSourceFile(current)) {
+    if (current.name !== undefined) context.push(current.name.getText(source))
+    if (ts.isIfStatement(current)) context.push(current.expression.getText(source))
+    current = current.parent
+  }
+  const text = [...context, node.parent.getText(source)].join('\n')
+  const scanner = ts.createScanner(ts.ScriptTarget.ESNext, true, ts.LanguageVariant.Standard, text)
+  const tokens = []
+  for (let token = scanner.scan(); token !== ts.SyntaxKind.EndOfFileToken; token = scanner.scan())
+    tokens.push(scanner.getTokenText())
+  return createHash('sha256').update(JSON.stringify(tokens)).digest('hex')
+}
+
 /** Every catch clause and `.catch(` handler in one parsed source file. */
 export function classifySource(relative, source) {
   const entries = []
@@ -581,6 +599,7 @@ export function classifySource(relative, source) {
       entries.push({
         file: relative,
         line,
+        identity: siteIdentity(node, source),
         class: classifyHandler(node.block, {
           binding,
           catchLine: catchLineOf(source, node.getStart(source)),
@@ -603,6 +622,7 @@ export function classifySource(relative, source) {
         entries.push({
           file: relative,
           line,
+          identity: siteIdentity(node, source),
           class: classifyHandler(handler.body, {
             binding,
             catchLine: catchLineOf(source, node.expression.getStart(source)),
@@ -672,8 +692,30 @@ export function countByArea(entries) {
  * A rise fails; a fall without a lowered baseline fails too, so the number
  * only goes down and is always exact.
  */
-export function checkBaseline(live, baseline) {
+export function checkBaseline(entries, baseline) {
+  if (baseline.version !== 2 || !Array.isArray(baseline.sites))
+    return ['Catch baseline lacks site identities; migrate it without increasing the accepted debt']
+  const live = countByArea(entries)
   const problems = []
+  const accepted = new Map()
+  for (const site of baseline.sites) {
+    const key = JSON.stringify([site.file, site.class, site.identity])
+    accepted.set(key, (accepted.get(key) ?? 0) + 1)
+  }
+  for (const entry of entries) {
+    if (entry.class !== 'SWALLOW' && entry.class !== 'GENERIC') continue
+    const key = JSON.stringify([entry.file, entry.class, entry.identity])
+    const remaining = accepted.get(key) ?? 0
+    if (remaining === 0)
+      problems.push(
+        `${entry.file}:${String(entry.line)}: new ${entry.class} catch site; handle or report the failure`,
+      )
+    else accepted.set(key, remaining - 1)
+  }
+  if (accepted.values().some((count) => count > 0))
+    problems.push(
+      'Accepted catch sites were removed or changed; regenerate the lowered site baseline',
+    )
   const areas = new Set([...Object.keys(live), ...Object.keys(baseline.counts ?? {})])
   const names = [...areas].toSorted((left, right) => left.localeCompare(right))
   for (const area of names) {

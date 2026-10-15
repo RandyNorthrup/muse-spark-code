@@ -472,3 +472,23 @@ raised or rebaselined: `check:catches` remains red pending repair or an
 owner decision on these formerly misclassified sites. T2 records site
 identities from the old classifier's accepted baseline, not the expanded
 set, so a migration cannot silently grandfather the newly exposed debt.
+
+### T2 — PRRT_kwDOUkzj5M6scSP2
+
+Valid. Baseline v2 persists the file, failure class and SHA-256 of tokens
+from the handler's work and enclosing named/conditional context. Formatting
+and line shifts do not move a site; another operation, function, file or
+handler does. Occurrence counts prevent copying an identical bad handler.
+Area counts remain an additional exact check. The migration ran the original
+`8b5025aaf` classifier over the merged source and attached current identities
+to only its 1,164 bad sites; the numeric limits are unchanged. The merged
+source itself already has three root SWALLOWs against the old limit of two;
+that limit is not raised.
+
+The real parser/ratchet test covers same-count replacement, file relocation,
+formatting-only shifts, identical copies, removal and a missing v2 baseline.
+Green: 13 tests, exit 0. Drill removes the identity from both keys: exit 1,
+`expected '' to match /new GENERIC catch site/`. Restored SHA-256
+`db1b4048273ad7384a2ad5043198e34819781f8ae8f190024815774c3a9d2913`.
+Logs: `.lane/T2-{green,drill,catch-gate}.log`. The actual command exits 1
+and names formerly misclassified sites; no new debt is accepted.
