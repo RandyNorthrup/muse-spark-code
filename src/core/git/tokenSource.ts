@@ -141,6 +141,7 @@ export async function didDropRejectedCredential(
  * `auth/githubLease`'s result, with M123's additive `expiresAt` (epoch ms).
  * The runtime-side mirror of M104's MHP row until M104 merges (PLAN.md
  * M123, lane 0); its `methods.ts` row takes the same field then.
+ * @unwired M123 GitHub lease result shape
  */
 export const githubLeaseResultSchema = z.strictObject({
   leaseId: z.nullable(z.string().check(z.uuid())),
@@ -150,6 +151,7 @@ export const githubLeaseResultSchema = z.strictObject({
 /**
  * When a lease granted at `grantedAt` stops being used: the editor's
  * `expiresAt`, but never later than GITHUB_LEASE_TTL_MS after the grant.
+ * @unwired M123 GitHub lease expiry
  */
 export function leaseExpiresAt(grantedAt: number, expiresAt: number | undefined): number {
   const limit = grantedAt + GITHUB_LEASE_TTL_MS
@@ -159,6 +161,7 @@ export function leaseExpiresAt(grantedAt: number, expiresAt: number | undefined)
 /**
  * The scopes a request may ask for: `repo`, and `read:org` once a lane has
  * proved the need. Anything else (`workflow`, `admin:*`, `gist`…) is refused.
+ * @unwired M123 permitted GitHub scope guard
  */
 export function assertPermittedScopes(scopes: readonly string[]): void {
   if (scopes.some((scope) => !GITHUB_PERMITTED_SCOPES.includes(scope))) {
@@ -170,6 +173,7 @@ export function assertPermittedScopes(scopes: readonly string[]): void {
  * The `required` scopes a token lacks, from GitHub's `X-OAuth-Scopes`
  * header; undefined when the header is absent (a lease's answer, or a
  * token type that does not report scopes), so nothing is guessed.
+ * @unwired M123 missing GitHub scope reader
  */
 export function missingScopes(
   header: string | null,
@@ -187,7 +191,9 @@ export function missingScopes(
   return required.filter((scope) => !granted.has(scope))
 }
 
-/** The OAuth App's client id; refused while the owner has not registered the app (Q-M123). */
+/** The OAuth App's client id; refused while the owner has not registered the app (Q-M123).
+ * @unwired M123 GitHub OAuth client id
+ */
 export function requireOAuthClientId(clientId: string = GITHUB_OAUTH_CLIENT_ID): string {
   if (clientId.trim() === '') {
     throw new GitHubTokenSourceError('clientIdUnset')
@@ -206,6 +212,7 @@ export interface SettingInspection {
  * Whether `museSpark.github.useGhLogin` is on: only the user's (or the
  * machine's) own `true` counts. A repository's or folder's value is ignored,
  * whatever it says, so a cloned project cannot read the user's `gh` token.
+ * @unwired M123 gh login setting reader
  */
 export function isGhLoginEnabled(setting: SettingInspection | undefined): boolean {
   return setting?.globalValue === true

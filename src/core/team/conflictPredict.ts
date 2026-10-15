@@ -30,6 +30,7 @@ export interface ConflictPredictionDeps {
   readonly onError: (error: unknown) => void
 }
 
+/** @unwired M96 planned team conflicts */
 export function plannedConflicts(
   tasks: readonly { taskId: string; set: PlannedWriteSet }[],
   shared: SharedFiles,
