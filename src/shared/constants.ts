@@ -281,6 +281,7 @@ export const COMMAND_IDS = {
 // the command registrations and the loader.
 export const MODELS_PANEL_VIEW_TYPE = 'museSpark.modelsPanel'
 export const MODELS_PANEL_BUNDLE_FILE = 'modelsPanel.js'
+export const MODELS_SUBSCRIPTIONS_BUNDLE_FILE = 'modelsSubscriptions.js'
 export const MODELS_WEBVIEW_SCRIPT_FILE = 'models.js'
 export const MODELS_WEBVIEW_STYLE_FILE = 'models.css'
 
@@ -5919,6 +5920,7 @@ export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
   'dist/subscriptions.js',
   'dist/configuredProviders.js',
   'dist/modelsPanel.js',
+  'dist/modelsSubscriptions.js',
   'dist/usageService.js',
   'dist/usageCompanion.js',
   'dist/usagePanel.js',
