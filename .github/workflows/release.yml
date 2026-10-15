@@ -182,6 +182,11 @@ jobs:
     # reusable workflow takes no timeout-minutes; build.yml's jobs set theirs.
     uses: ./.github/workflows/build.yml
 
+  # check:claims (branch feat/claims-gate): the real-life record check lands
+  # here before any release publishes — a step that fails the release when
+  # the packed product's real-life run record does not cover the shipped
+  # claims. No stub: until that branch lands there is nothing here that
+  # pretends to pass.
   release:
     name: GitHub Release
     needs: [verify, reuse, build]
