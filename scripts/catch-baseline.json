@@ -2817,11 +2817,6 @@
       "identity": "ec689430580beef4554bd43cfbbffa378e37c666d24aa43f14c3b21af2a090a3"
     },
     {
-      "file": "src/extension.ts",
-      "class": "SWALLOW",
-      "identity": "23343f10f541e86d130ca218f037879be902df8670fb0f786a69b180377f8280"
-    },
-    {
       "file": "src/host/agentImportHost.ts",
       "class": "GENERIC",
       "identity": "941ea4e5a9739b65950f51041d236f70d75b13c1583929b6d0b5c217f75f9229"
