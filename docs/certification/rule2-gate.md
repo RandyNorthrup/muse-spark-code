@@ -241,3 +241,29 @@ Restored: 40 passed, exit 0. Logs: `.lane/PRTH158.T4.{green,red,restored}.log`.
 Lead: inspect existing historical duplicate workflow runs through read-only
 preflight and observe both run ids in the refusal. Do not close/reopen this
 PR or dispatch another run merely to manufacture the case.
+
+### T5 — workflow paths have one identity
+
+`runOf` normalizes REST paths with the same pure `workflowPath` used for
+`GITHUB_WORKFLOW_REF`. `.github/workflows/release.yml@main` and the hosted
+repository-prefixed reference now identify the same workflow; exclusion
+still removes only the release workflow, not CI/Hosts evidence. Duplicate
+execution checks also cannot be evaded by a different ref suffix.
+
+Same Vitest command: baseline 42 passed, exit 0. Removed `@ref` stripping
+from the real normalizer:
+
+```text
+matches REST ref-suffixed release paths to the hosted workflow reference
+Expected: ".github/workflows/release.yml"
+Received: ".github/workflows/release.yml@main"
+Tests 2 failed | 40 passed (42)
+RED_EXIT=1
+```
+
+Restored bytes, SHA-256 before/after:
+`533dc8e8b10f0e57bd25f1855edddc7ae2afe26be3533a2cab4dcbad53dbc4a9`.
+Restored: 42 passed, exit 0. Logs: `.lane/PRTH158.T5.{green,red,restored}.log`.
+Lead: read the existing release-recovery run's verification output; prior
+Release runs must be excluded even when their REST path has a ref suffix,
+while CI/Hosts results and their failures remain in the judged set.

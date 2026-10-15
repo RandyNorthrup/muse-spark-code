@@ -42,6 +42,7 @@ import {
   pullOf,
   releaseRecheck,
   runOf,
+  workflowPath,
 } from './lib/rule2Gate.mjs'
 
 const { AbortSignal } = globalThis
@@ -219,8 +220,7 @@ function required(name) {
 /** The workflow file of the run this process is part of. */
 function ownWorkflowPath() {
   const reference = process.env['GITHUB_WORKFLOW_REF'] ?? ''
-  const prefix = `${REPOSITORY}/`
-  return reference.startsWith(prefix) ? (reference.slice(prefix.length).split('@', 1)[0] ?? '') : ''
+  return reference.startsWith(`${REPOSITORY}/`) ? workflowPath(reference, REPOSITORY) : ''
 }
 
 /** The merge door: this run's own attempt, then every other run on the same head. */

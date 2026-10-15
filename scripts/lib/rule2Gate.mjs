@@ -17,6 +17,14 @@ export function isRecord(value) {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
+/** REST paths and GITHUB_WORKFLOW_REF identify the same file despite @ref. */
+export function workflowPath(reference, repository = '') {
+  const prefix = `${repository}/`
+  const relative =
+    repository !== '' && reference.startsWith(prefix) ? reference.slice(prefix.length) : reference
+  return relative.split('@', 1)[0] ?? ''
+}
+
 /** The fields of a workflow run the gate reads, checked. */
 export function runOf(value) {
   if (
@@ -33,7 +41,7 @@ export function runOf(value) {
   return {
     id: value['id'],
     name: value['name'],
-    path: value['path'],
+    path: workflowPath(value['path']),
     event: value['event'],
     status: value['status'],
     conclusion: typeof value['conclusion'] === 'string' ? value['conclusion'] : '',
