@@ -4479,14 +4479,11 @@ async function activateWindow(
       })
     }),
     registerLoggedCommand(log, COMMAND_IDS.createRulesFile, async () => {
-      // The command loads on first use (PLAN.md D6); a missing bundle refuses
-      // the run and the next run tries again.
+      // The command loads on first use (PLAN.md D6); a missing or damaged
+      // bundle refuses the run with its cause and the next run tries again.
       const rulesFile = loadRulesFileBundle(
         vscode.Uri.joinPath(context.extensionUri, 'dist', RULES_FILE_BUNDLE_FILE).fsPath,
       )
-      if (rulesFile === undefined) {
-        throw new Error(RULES_FILE_BUNDLE_FILE)
-      }
       const check = backend.workspaceActionGuard(nativeStarts.signal)
       const deps: CreateRulesFileDeps = {
         workspaceRoot,

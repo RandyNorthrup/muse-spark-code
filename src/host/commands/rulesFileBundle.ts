@@ -4,8 +4,8 @@
 // imported from there would carry the command back into dist/extension.js,
 // which the bundle-split gate refuses.
 //
-// A missing or damaged bundle refuses the command (the log has the cause)
-// and the next run tries again.
+// A missing or damaged bundle refuses the command with its cause (the
+// command's own error path logs it and shows it) and the next run tries again.
 import type * as Entry from './rulesFileEntry'
 import { requireFile } from '../lazyBundle'
 
@@ -23,16 +23,20 @@ export function isRulesFileBundle(value: unknown): value is RulesFileBundle {
   )
 }
 
-/** The bundle, or undefined when it cannot be loaded (the command refuses). */
+/** The bundle; a load failure or a wrong-shaped module throws with its cause. */
 export function loadRulesFileBundle(
   bundlePath: string,
   loadBundle: (file: string) => unknown = requireFile,
-): RulesFileBundle | undefined {
+): RulesFileBundle {
   let loaded: unknown
   try {
     loaded = loadBundle(bundlePath)
-  } catch {
-    return undefined
+  } catch (error: unknown) {
+    const reason = error instanceof Error ? error.message : String(error)
+    throw new Error(`${bundlePath} could not be loaded: ${reason}`, { cause: error })
   }
-  return isRulesFileBundle(loaded) ? loaded : undefined
+  if (!isRulesFileBundle(loaded)) {
+    throw new Error(`${bundlePath} is not the Create AGENTS.md command bundle`)
+  }
+  return loaded
 }
