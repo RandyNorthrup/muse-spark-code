@@ -7353,11 +7353,8 @@ export class ModelApiSession implements ScheduledAgentSession {
         })
       })
     } catch {
-      // The connection's own deadline aborts with its reason (C7); a bare
-      // abort is a stop, which stays silent.
-      if (isElicitationTimeout(signal)) {
-        this.noticeElicitationTimeout(server, MCP_ELICITATION_TIMEOUT_MS)
-      }
+      // The external-call route announces connection deadlines, including
+      // those reached before a form opens. A bare stop stays silent.
       return { kind: 'cancelled' }
     } finally {
       clearTimeout(timer)
@@ -8958,7 +8955,20 @@ export class ModelApiSession implements ScheduledAgentSession {
     // This call's elicitations are answered in this session (M91 lane M),
     // with the form under this tool's row. Never auto-accepted: the route
     // only asks, in every approval mode.
-    const route: McpElicitationHandler = (request) => this.runElicitation(itemId, request)
+    const route: McpElicitationHandler = async (request) => {
+      const onAbort = () => {
+        if (isElicitationTimeout(request.signal)) {
+          this.noticeElicitationTimeout(request.server, MCP_ELICITATION_TIMEOUT_MS)
+        }
+      }
+      request.signal.addEventListener('abort', onAbort, { once: true })
+      try {
+        if (request.signal.aborted) onAbort()
+        return await this.runElicitation(itemId, request)
+      } finally {
+        request.signal.removeEventListener('abort', onAbort)
+      }
+    }
     const outcome = await servers.call(call.name, call.arguments, signal, route)
     return {
       output: outcome.output,

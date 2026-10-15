@@ -352,6 +352,21 @@ McpElicitationTimeoutError` was false at the real boundary: the connection
   verify the recovery warning (History/new conversation), then release the
   session and confirm no subsequent callbacks reach the released editor.
 
+## RVDROPS review — C7 deadline while hooks are still running
+
+- P2, quoted-code proof: timeout notification was only in
+  `waitForElicitation`'s catch. If the connection deadline fired during
+  lazy form loading or `fireElicitation`, `runElicitation` took an early
+  stopped return before that wait and only the connection log said anything.
+- The external-call route now observes the timeout abort for the whole
+  elicitation lifecycle and removes its listener in finally. The local
+  configured form timer still reports its own shorter timeout; its signal
+  is not the connection timeout. The former wait-only notice is removed to
+  avoid duplicates. Bare Stop is not presented as a deadline.
+- Lead: delay a configured elicitation hook past the connection deadline;
+  observe one warning even though no form opened, and no later accepted
+  answer. No hook/provider stand-in was added to tests.
+
 ## Limits raised or removed (owner's rule)
 
 | Row | Number              | Outcome                                                  | Reasoning                                                                       |
