@@ -3371,7 +3371,7 @@
   "acpKeyNotStored": "未输入密钥，因此未存储任何内容。",
   "acpKeyPresent": "已存储 Meta Model API 密钥：{store}。",
   "acpKeyAbsent": "未存储 Meta Model API 密钥。",
-  "acpStoreDown": "未存储任何密钥，且这台计算机的凭据存储不可用。",
+  "acpStoreDown": "这台计算机的凭据存储不可用，因此无法检查已存储的密钥。",
   "acpKeyCleared": "已从这台计算机的凭据存储中移除 Meta Model API 密钥。",
   "acpStoreUnavailable": "无法使用这台计算机的凭据存储（{reason}）。在 Linux 上，代理需要一个正在运行且已解锁的 Secret Service，例如 GNOME Keyring 或 KWallet。",
   "acpStoreNames": {

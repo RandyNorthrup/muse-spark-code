@@ -3590,7 +3590,7 @@
   "acpKeyNotStored": "Nie wpisano klucza, więc nic nie zapisano.",
   "acpKeyPresent": "Klucz Meta Model API jest zapisany: {store}.",
   "acpKeyAbsent": "Nie zapisano klucza Meta Model API.",
-  "acpStoreDown": "Nie zapisano klucza, a magazyn poświadczeń tego komputera jest niedostępny.",
+  "acpStoreDown": "Magazyn poświadczeń tego komputera jest niedostępny, więc nie można sprawdzić zapisanych kluczy.",
   "acpKeyCleared": "Klucz Meta Model API został usunięty z magazynu poświadczeń tego komputera.",
   "acpStoreUnavailable": "Nie można użyć magazynu poświadczeń tego komputera ({reason}). W systemie Linux agent potrzebuje uruchomionej i odblokowanej usługi Secret Service, takiej jak GNOME Keyring lub KWallet.",
   "acpStoreNames": {

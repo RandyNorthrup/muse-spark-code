@@ -3517,7 +3517,7 @@
   "acpKeyNotStored": "Nenhuma chave foi digitada, então nada foi guardado.",
   "acpKeyPresent": "Há uma chave da Meta Model API guardada: {store}.",
   "acpKeyAbsent": "Nenhuma chave da Meta Model API está guardada.",
-  "acpStoreDown": "Nenhuma chave está guardada e o armazenamento de credenciais deste computador está indisponível.",
+  "acpStoreDown": "O armazenamento de credenciais deste computador está indisponível, por isso não é possível verificar as chaves guardadas.",
   "acpKeyCleared": "A chave da Meta Model API foi removida do armazenamento de credenciais deste computador.",
   "acpStoreUnavailable": "Não é possível usar o armazenamento de credenciais deste computador ({reason}). No Linux, o agente precisa de um Secret Service em execução e desbloqueado, como o GNOME Keyring ou o KWallet.",
   "acpStoreNames": {

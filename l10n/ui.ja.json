@@ -3371,7 +3371,7 @@
   "acpKeyNotStored": "キーが入力されなかったため、何も保存しませんでした。",
   "acpKeyPresent": "Meta Model API キーが保存されています: {store}。",
   "acpKeyAbsent": "Meta Model API キーは保存されていません。",
-  "acpStoreDown": "キーは保存されておらず、このコンピューターの資格情報ストアは利用できません。",
+  "acpStoreDown": "このコンピューターの資格情報ストアを利用できないため、保存済みのキーを確認できません。",
   "acpKeyCleared": "Meta Model API キーをこのコンピューターの資格情報ストアから削除しました。",
   "acpStoreUnavailable": "このコンピューターの資格情報ストアを使用できません ({reason})。Linux では、GNOME Keyring や KWallet など、実行中でロック解除された Secret Service がエージェントに必要です。",
   "acpStoreNames": {

@@ -4114,9 +4114,9 @@ export const EN = {
   acpKeyNotStored: 'No key was entered, so nothing was stored.',
   acpKeyPresent: 'A Meta Model API key is stored in {store}.',
   acpKeyAbsent: 'No Meta Model API key is stored.',
-  // One sentence for one condition (F43/F47): no readable key and no store,
-  // wherever the store being down is reported.
-  acpStoreDown: 'No key is stored, and this computer’s credential store is unavailable.',
+  // An unavailable store cannot prove whether it contains a key (F43/F47).
+  acpStoreDown:
+    'This computer’s credential store is unavailable, so stored keys cannot be checked.',
   acpKeyCleared: 'The Meta Model API key was removed from this computer’s credential store.',
   // {reason}: the operating system's own error.
   acpStoreUnavailable:

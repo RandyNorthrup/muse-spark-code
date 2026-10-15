@@ -3444,7 +3444,7 @@
   "acpKeyNotStored": "Nem adott meg kulcsot, így semmi sem lett tárolva.",
   "acpKeyPresent": "Van tárolt Meta Model API-kulcs: {store}.",
   "acpKeyAbsent": "Nincs tárolt Meta Model API-kulcs.",
-  "acpStoreDown": "Nincs tárolt kulcs, és a számítógép hitelesítőadat-tárolója nem érhető el.",
+  "acpStoreDown": "A számítógép hitelesítőadat-tárolója nem érhető el, ezért a tárolt kulcsok nem ellenőrizhetők.",
   "acpKeyCleared": "A Meta Model API-kulcs törölve lett a számítógép hitelesítőadat-tárolójából.",
   "acpStoreUnavailable": "A számítógép hitelesítőadat-tárolója nem használható ({reason}). Linuxon az ügynöknek futó, feloldott Secret Service szolgáltatásra van szüksége, például GNOME Keyringre vagy KWalletre.",
   "acpStoreNames": {
