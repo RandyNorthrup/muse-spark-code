@@ -3,7 +3,12 @@
 // gate refuses instead of checking fewer runs, and the release door needs
 // hosted evidence on every expected commit, not just on one of them.
 import { describe, expect, it } from 'vitest'
-import { missingEvidence, pullOf, runOf } from '../../scripts/lib/rule2Gate.mjs'
+import {
+  assertReleaseAttempt,
+  missingEvidence,
+  pullOf,
+  runOf,
+} from '../../scripts/lib/rule2Gate.mjs'
 
 const run = {
   id: 38_597_656_750,
@@ -22,6 +27,19 @@ const mergedPull = {
   merge_commit_sha: '46d971f85',
   head: { sha: 'fb8d0ff84' },
 }
+
+describe('rule2 release verification attempt', () => {
+  it('admits the first execution, including a fresh recovery run', () => {
+    expect(() => assertReleaseAttempt('1')).not.toThrow()
+  })
+
+  it.each(['2', '3', '', undefined, 'invalid'])(
+    'refuses re-executed or unreadable verification: %s',
+    (attempt) => {
+      expect(() => assertReleaseAttempt(attempt)).toThrow(/nothing is started again/)
+    },
+  )
+})
 
 describe('rule2 gate wire parsing', () => {
   it('reads the run fields the gate decides on', () => {

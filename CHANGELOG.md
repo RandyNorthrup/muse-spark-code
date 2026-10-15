@@ -9,6 +9,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- The rule-2 release door now refuses re-executed verification. Publication
+  recovery uses a fresh artifact-only run, not another attempt of a failed run.
+
 - On Windows, two requests that reserve session spend at the same moment
   could end one of them with "The session spend ledger could not be read or
   saved", although nothing was wrong with the ledger. Windows answers a lock
