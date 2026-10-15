@@ -84,6 +84,44 @@ schema/file-reader regression failed because the empty reason was accepted
 (exit 1); cases include newline, CR, ESC, DEL and C1 NEL. No bad reason reaches
 list rendering through the validated file reader.
 
+### PRTH162 deliberate failures and restoration
+
+On Windows, `npx vitest run test/unit/cliHelp.test.ts
+test/unit/providersModels.test.ts test/unit/cliReference.test.mjs --maxWorkers=2`:
+34 green (exit 0); deliberately disabled enum checks, value shapes, custom-edit
+refusal, localized annotation and stored-reason validation, and removed README
+`serve`: eight intended failures (exit 1). The assertions named missing
+`museCode|modelApi`, `--preset <preset>`, the custom read-only refusal, French
+`forcé`, the wrongly accepted empty reason, and README `serve`. The actual
+`npm run check:reference` command failed with `README terminal section lacks
+serve` (exit 1), then passed after restoration (exit 0).
+A separate catalogue-only break removed the provider CLI relationship: the
+real builder regression failed with missing `cliRoutes: ['providersModels']`
+(exit 1). No source-reading reflex test or stand-in was added.
+
+Every drilled source was restored byte-exact (SHA-256 before = after;
+`git diff --exit-code` = 0), then all 34 tests passed again. Hashes:
+
+| File                                  | Restored SHA-256                                                 |
+| ------------------------------------- | ---------------------------------------------------------------- |
+| src/runtime/cliArgs.ts                | 9818b1872d488e7c8155e8a3afadab044f4d352fb3a48dbe053d9f84919c6fbe |
+| src/runtime/cliHelp.ts                | ac04ce1ce3dd3c4fb28d57c8e26049c652e2a92cef5188e9439f77faa7d634a3 |
+| src/runtime/providersModelsCommand.ts | 49815e18904eeb112828b6e17a3d58f8e50d814744d6aa491ee0a5c1311acdb1 |
+| src/core/providers/providersFile.ts   | 20dec1aa33842896533d7e7a9dc65c7932034b937a40e236f913581bf4e1a0c3 |
+| README.md                             | c7c36648ec093b4b53ac2fe217843fe1221e8f083a813855aa4883b007437fcf |
+| src/shared/featureCatalog.ts          | caeaaac340d56d3fa58ba85a64ed2348b01c11da834dddcda2efd0086749f869 |
+
+Product use: the actual `dist/acp.js` passed help/argument/locale checks,
+secret-canary non-echo checks, real provider-file add/list/remove, custom-edit
+refusal and malformed force-reason read refusal. The no-key local entry points
+to closed port 1; nothing answers as a provider. The full ACP pack is **not
+verified here**: `node scripts/package-acp.mjs` exits 1 because
+`native/darwin/muse-dictate` is missing. No placeholder helper or packaging
+bypass was supplied; lead must pack on a rig with genuine native artifacts.
+The old fake-driven `acpStdio.e2e.test.ts` was selected by `vitest related` and
+failed two stale help expectations; it is left unchanged under the owner's
+no-stand-in rule. Final related verification is restricted to unit suites.
+
 ## 1. Accepted today (from the code, release 0.18.1 base)
 
 Parser routes (`CLI_OPTION_REGISTRY` in `src/runtime/cliOptions.ts`, plus the
