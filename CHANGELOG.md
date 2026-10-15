@@ -9,6 +9,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- ACP permission answers retain the selected persistent rule's identity;
+  consent for one command prefix cannot silently install another stage's rule.
+
 - Activation budget: the Create AGENTS.md command, its rules template and
   their redaction load on the command's first run instead of at activation,
   leaving 830 bytes of room below the 3,072-byte growth allowance. No

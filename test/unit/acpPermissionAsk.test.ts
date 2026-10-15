@@ -5,9 +5,12 @@
 // client set survives a later load, and the Muse Code descriptions say a
 // permission rule can already allow a command.
 import { describe, expect, it } from 'vitest'
+import * as z from 'zod/mini'
 import type { RequestPermissionResponse } from '@agentclientprotocol/sdk'
 import type { ApprovalChoice } from '../../src/shared/agentEvents'
 import { UI_TEXT } from '../../src/shared/constants'
+import { approvalChoiceSchema } from '../../src/shared/agentEvents'
+import { raceRequested, raceUpdated } from './helpers/stageRaceCapture'
 import { adoptedMode, answerChoice, ApprovalAnswers } from '../../src/acp/permissionAsk'
 
 function choice(choiceId: string, decision: string, scope: string): ApprovalChoice {
@@ -84,6 +87,46 @@ describe('ApprovalAnswers.reuse', () => {
     expect(answers.reuse({ approvalId: 'a1', itemId: 't1', availableChoices: next })).toEqual(
       next[0],
     )
+  })
+})
+
+describe('persistent rule consent (captured Muse Code 1.4.2, 2026-10-02)', () => {
+  const first = z.array(approvalChoiceSchema).parse(raceRequested('session').availableChoices)
+  const changed = z.array(approvalChoiceSchema).parse(raceUpdated('session', 5).availableChoices)
+  const same = z.array(approvalChoiceSchema).parse(raceUpdated('session', 4).availableChoices)
+  const selectedRule = first.find((entry) => entry.choiceId === 'allow_local_prefix')
+  if (selectedRule === undefined) throw new Error('Capture has no persistent rule')
+
+  it('does not reuse git show consent for Measure-Object on the same tool call', () => {
+    const answers = new ApprovalAnswers()
+    answers.remember('approval', 'tool', selectedRule)
+    expect(
+      answers.reuse({ approvalId: 'approval', itemId: 'tool', availableChoices: changed }),
+    ).toBeUndefined()
+    expect(
+      answers.reuse({ approvalId: 'reissued', itemId: 'tool', availableChoices: changed }),
+    ).toBeUndefined()
+  })
+
+  it('does not transfer a mid-ask answer to a different rule with the same choice id', () => {
+    expect(answerChoice(selected('allow_local_prefix'), first, changed)).toBeUndefined()
+  })
+
+  it('reuses consent for the same captured git show rule', () => {
+    expect(answerChoice(selected('allow_local_prefix'), first, same)).toEqual(same[1])
+  })
+
+  it('honors a first choice without a preview while that exact choice is still current', () => {
+    const offered = [ALLOW_ALWAYS()]
+    expect(answerChoice(selected('allow-rule'), offered, offered)).toEqual(offered[0])
+  })
+
+  it('does not reuse a persistent choice whose rule identity is missing', () => {
+    const answers = new ApprovalAnswers()
+    answers.remember('approval', 'tool', ALLOW_ALWAYS())
+    expect(
+      answers.reuse({ approvalId: 'approval', itemId: 'tool', availableChoices: [ALLOW_ALWAYS()] }),
+    ).toBeUndefined()
   })
 })
 
