@@ -88,8 +88,8 @@ editor protocol and terminal, so one notice covers all three surfaces.
   (`UI_TEXT.questionsExpiredNotice`, plural count + the 20-open bound +
   where the text lives, all 14 locales with the gate's per-locale plural
   categories); ACP's deferral layer drains `takeExpired()` and posts the
-  same sentence through its notice channel. Expiry during turn-end/settle
-  is retained and announced on the next deferral notice.
+  same sentence through its notice channel. RVDROPS corrects the original
+  delayed-drain implementation below.
 - Owner's rule: no surveyed harness publishes a question cap; the 20-open
   bound stays as the attention-dock presentation bound (the dock schema
   caps `openQuestionIds` at 20) but no longer forgets anything.
@@ -220,6 +220,24 @@ McpElicitationTimeoutError` was false at the real boundary: the connection
   original same-class tests did not prove the split-bundle boundary. Lead:
   leave a real MCP form unanswered and observe the warning in the panel,
   terminal and ACP client before trying a new form.
+
+## RVDROPS review — B22 ACP recovery and immediate notice
+
+- P2, quoted-code proof: runtime `list()` filtered to waiting/open/dismissed,
+  and ACP `/questions` filtered again to open. A retained `expired` record
+  was therefore unreachable in the terminal/editor protocol. `takeExpired()`
+  was drained only by `deferRegistered`; expiry from load, settle or turn-end
+  could remain unannounced indefinitely if no later question was deferred.
+- The production registry now sends its expiry notice directly through the
+  ACP session's notice port, and `/questions` includes retained expired text
+  with the existing translated Expired label. Stable numbers include expired
+  records; answering one still refuses (only open records accept answers).
+- No stand-in test was added for ACP. Lead: defer 21 distinct questions;
+  observe the warning immediately, run `/questions`, see the first question
+  labelled Expired with its original text, reload and list it again. Also
+  end a turn with 21 waiting questions and verify the notice without another
+  deferral. The original four registry tests prove retention, not these ACP
+  bindings; they are not evidence of a real terminal/editor run.
 
 ## Limits raised or removed (owner's rule)
 

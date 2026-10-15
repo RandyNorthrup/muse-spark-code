@@ -382,6 +382,9 @@ class AcpSession {
             session,
             clock: questionClock,
             deliver: (message) => this.getQuestions().deliver(message),
+            notice: (text) => {
+              this.questionNotice(text)
+            },
           })
     this.translator = new UpdateTranslator(cwd, false)
     this.unsubscribeResources = deps.resources?.subscribe(this.sessionId, (notice) => {

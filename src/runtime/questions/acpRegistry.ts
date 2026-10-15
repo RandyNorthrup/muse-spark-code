@@ -4,12 +4,12 @@ import type {
   AcpQuestionRegistryFactory,
 } from '../../acp/questionDeferral'
 import type {
-  OpenQuestion,
   QuestionDelivery,
   QuestionDeliveryOutcome,
   OpenQuestionsSnapshot,
 } from '../../shared/questions'
 import { OPEN_QUESTIONS_MAX, UI_TEXT } from '../../shared/constants'
+import { plural } from '../../shared/l10n/text'
 import { QuestionRegistry } from '../../core/questions/registry'
 import { questionAnswerText } from '../../core/questions/lateAnswer'
 import { createQuestionQueueStore, createQuestionStore } from './questionStore'
@@ -52,8 +52,6 @@ export function createRuntimeQuestionRegistry(
   let published: OpenQuestionsSnapshot | undefined
   const aliases = new Map<string, string>()
   const failedDeferrals = new Set<string>()
-  // Cards crowded out past the open cap, told once through takeExpired (B22).
-  let expired: OpenQuestion[] = []
   const registry = new QuestionRegistry(session.sessionId, backend, {
     store: createQuestionStore(directory),
     now: () => clock.now(),
@@ -88,7 +86,9 @@ export function createRuntimeQuestionRegistry(
     },
     failed,
     onExpired: (cards) => {
-      expired.push(...cards)
+      input.notice?.(
+        plural(UI_TEXT.questionsExpiredNotice, cards.length, { max: OPEN_QUESTIONS_MAX }),
+      )
     },
   })
   // Loading begins in the constructor; observe failures before ACP's later replay setup.
@@ -126,13 +126,8 @@ export function createRuntimeQuestionRegistry(
     },
     list: () =>
       (published ?? registry.snapshot()).questions.filter((entry) =>
-        ['waiting', 'open', 'dismissed'].includes(entry.state),
+        ['waiting', 'open', 'dismissed', 'expired'].includes(entry.state),
       ),
-    takeExpired: () => {
-      const crowded = expired
-      expired = []
-      return crowded
-    },
     async answer(id, reply) {
       return card(id)?.state === 'open' ? await registry.answer(id, reply) : undefined
     },

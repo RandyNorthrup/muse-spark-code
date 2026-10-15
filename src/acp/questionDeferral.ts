@@ -3,8 +3,8 @@
 import type { AgentContext, CreateElicitationResponse } from '@agentclientprotocol/sdk'
 import { isSteerRefusedError, type AgentSession, type TurnPart } from '../core/agent/agentBackend'
 import type { AgentEvent } from '../shared/agentEvents'
-import { MILLISECONDS_PER_SECOND, OPEN_QUESTIONS_MAX, UI_TEXT } from '../shared/constants'
-import { fill, formatNumber, plural } from '../shared/l10n/text'
+import { MILLISECONDS_PER_SECOND, UI_TEXT } from '../shared/constants'
+import { fill, formatNumber } from '../shared/l10n/text'
 import type {
   OpenQuestion,
   OpenQuestionAnswer,
@@ -40,12 +40,6 @@ export interface AcpQuestionRegistry {
     reply: Exclude<QuestionReply, { kind: 'deferred' }>,
   ): Promise<void>
   list(): readonly OpenQuestion[]
-  /**
-   * Cards crowded out past the open cap since the last call (B22): drained
-   * so the deferral layer tells the person once, at that moment. Optional:
-   * bindings without expiry retention simply have none to report.
-   */
-  takeExpired?(): readonly OpenQuestion[]
   /** Validate against stored questions and mark before calling the supplied delivery port. */
   answer(
     userInputId: string,
@@ -68,6 +62,8 @@ export type AcpQuestionRegistryFactory = (input: {
   readonly session: AgentSession
   readonly clock: QuestionClock
   readonly deliver: (message: QuestionDelivery) => Promise<QuestionDeliveryOutcome>
+  /** Runtime expiry is announced at the transition, including load/settle/turn-end. */
+  readonly notice?: (text: string) => void
 }) => AcpQuestionRegistry
 
 interface Form {
@@ -110,7 +106,7 @@ export class AcpQuestionDeferral {
     const live = new Set(
       this.deps.registry
         .list()
-        .filter((record) => record.state === 'open' || record.state === 'waiting')
+        .filter((record) => ['open', 'waiting', 'expired'].includes(record.state))
         .map((record) => record.userInputId),
     )
     for (const previous of this.numbers.keys()) {
@@ -175,14 +171,6 @@ export class AcpQuestionDeferral {
       form.cardId = record.userInputId
       if (this.closed(form) || form.phase !== 'deferring') return false
       const isOpened = await this.deps.registry.defer(form.event.userInputId)
-      // Cards crowded out past the open cap (B22): one notice naming the
-      // count; the expired cards keep their text in the session.
-      const crowded = this.deps.registry.takeExpired?.() ?? []
-      if (crowded.length > 0) {
-        this.deps.notice(
-          plural(UI_TEXT.questionsExpiredNotice, crowded.length, { max: OPEN_QUESTIONS_MAX }),
-        )
-      }
       if (this.closed(form)) return false
       form.phase = isOpened ? 'open' : 'closed'
       form.controller.abort()
@@ -233,7 +221,9 @@ export class AcpQuestionDeferral {
   }
 
   public list(): string {
-    const open = this.deps.registry.list().filter((question) => question.state === 'open')
+    const open = this.deps.registry
+      .list()
+      .filter((question) => question.state === 'open' || question.state === 'expired')
     if (open.length === 0) return UI_TEXT.questionNoOpen
     return open
       .map((record) =>
@@ -241,7 +231,10 @@ export class AcpQuestionDeferral {
           .map((question) =>
             fill(UI_TEXT.acpQuestionListEntry, {
               number: this.number(record.userInputId),
-              header: question.header,
+              header:
+                record.state === 'expired'
+                  ? `${question.header} (${UI_TEXT.questionExpired})`
+                  : question.header,
               question: question.question,
             }),
           )
