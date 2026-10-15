@@ -17,6 +17,22 @@ another History item. Once verification finishes, send in the current
 conversation. The abandoned conversation must not be attached or receive the
 message. Run with the real CLI; no provider request was made by this lane.
 
+## PRTH166 review repair — T2 (`PRRT_kwDOUkzj5M6sew_L`)
+
+The finding is correct. `enforceResumedModel` now owns cleanup for all its
+failures: rejected `setModel`, rejected `listModels`, and an active-model
+mismatch. It removes the IDE-session registration, disposes the retained
+handle once, then rethrows the original error. It leaves the restart target
+intact so a later retry continues the same conversation. Both controller
+callers use this cleanup; ACP already releases failed adoption in its catch.
+
+Lead real-use check: with the real CLI host still running, suspend its
+process during resume model verification until the command times out, then
+continue it and retry. The failed opening must not hold a session; repeat
+for the read-back wait, then close the panel and verify its tasks can stop.
+No fake timeout or provider replay was added, so this lifecycle scenario is
+not claimed as automated proof here.
+
 The records below describe the original lane and are retained as history;
 they do not certify the merged review tree.
 

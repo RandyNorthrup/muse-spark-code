@@ -4104,25 +4104,32 @@ export class ConversationController {
     loaded: LoadedSession,
     wantedModelId: string,
   ): Promise<Awaited<ReturnType<AgentHost['listModels']>>> {
-    await loaded.session.setModel(wantedModelId)
-    const models = await host.listModels(loaded.session.sessionId)
-    const outcome = resolveResumedModel({
-      wantedModelId,
-      activeModelId: models.find((model) => model.isActive)?.modelId,
-    })
-    if (outcome.ok) {
-      return models
+    try {
+      await loaded.session.setModel(wantedModelId)
+      const models = await host.listModels(loaded.session.sessionId)
+      const outcome = resolveResumedModel({
+        wantedModelId,
+        activeModelId: models.find((model) => model.isActive)?.modelId,
+      })
+      if (outcome.ok) {
+        return models
+      }
+      this.deps.log.warn(
+        `Session ${loaded.session.sessionId} resumed on ${outcome.activeModelId} instead of ${outcome.wantedModelId}: the message is not sent`,
+      )
+      throw new Error(
+        fill(UI_TEXT.modelNotKeptAfterRestart, {
+          active: outcome.activeModelId,
+          wanted: outcome.wantedModelId,
+        }),
+      )
+    } catch (error: unknown) {
+      // Ownership has not passed to attach: timeouts and read-back errors
+      // must release the retained handle just as a reported mismatch does.
+      this.ideSessions.delete(loaded.session)
+      loaded.session.dispose()
+      throw error
     }
-    this.deps.log.warn(
-      `Session ${loaded.session.sessionId} resumed on ${outcome.activeModelId} instead of ${outcome.wantedModelId}: the message is not sent`,
-    )
-    loaded.session.dispose()
-    throw new Error(
-      fill(UI_TEXT.modelNotKeptAfterRestart, {
-        active: outcome.activeModelId,
-        wanted: outcome.wantedModelId,
-      }),
-    )
   }
 
   /**

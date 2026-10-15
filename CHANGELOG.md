@@ -15,7 +15,8 @@ happened, not what was planned; superseded entries are kept.
   the next message is sent, the panel shows the model each request really
   used, and a message that would run on another model is not sent.
   A restart that finishes verification after you clear or replace the
-  conversation no longer reattaches the conversation you left.
+  conversation no longer reattaches the conversation you left. Failed model
+  verification releases its resumed handle, including command timeouts.
 
 - Activation budget: the Create AGENTS.md command, its rules template and
   their redaction load on the command's first run instead of at activation,
