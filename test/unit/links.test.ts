@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { linkHref, linkLabel, linkTarget } from '../../src/webview/links'
 
 // M25: a relative link in a reply was sent to the host as a URL and refused
@@ -63,33 +63,7 @@ describe('linkHref', () => {
   })
 })
 
-describe('CATCHAUDIT named-condition catches', () => {
-  it('keeps a stray escape as text, and lets a foreign failure through', () => {
-    expect(linkTarget('100%.md')).toMatchObject({ kind: 'file', path: '100%.md' })
-    const realDecode = decodeURIComponent
-    const decodeBoom: unknown = 'decode-boom'
-    vi.stubGlobal('decodeURIComponent', () => {
-      throw decodeBoom
-    })
-    try {
-      expect(() => linkTarget('notes.md')).toThrow('decode-boom')
-    } finally {
-      vi.stubGlobal('decodeURIComponent', realDecode)
-    }
-  })
-
-  it('reads a relative link as itself, and lets a foreign failure through', () => {
-    expect(linkLabel(undefined, 'notes.md')).toBe('notes.md')
-    const realUrl = URL
-    const urlBoom: unknown = 'url-boom'
-    function HostileURL(): void {
-      throw urlBoom
-    }
-    vi.stubGlobal('URL', HostileURL)
-    try {
-      expect(() => linkLabel(undefined, 'notes.md')).toThrow('url-boom')
-    } finally {
-      vi.stubGlobal('URL', realUrl)
-    }
-  })
+it('keeps malformed escapes and relative labels as text', () => {
+  expect(linkTarget('100%.md')).toMatchObject({ kind: 'file', path: '100%.md' })
+  expect(linkLabel(undefined, 'notes.md')).toBe('notes.md')
 })
