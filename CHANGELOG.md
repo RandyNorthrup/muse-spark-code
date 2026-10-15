@@ -18,8 +18,20 @@ happened, not what was planned; superseded entries are kept.
   `playbook settings` no longer shows `(panel)`; each slash command is
   announced once; one sentence reports a dead credential store everywhere;
   the terminal lists Meta provider accounts; non-Meta accounts are not yet
-  bound to the provider configuration. Pre-session refusals name what is missing. Keyless session
-  creation and authenticated headless plan-model dispatch remain unfinished.
+  bound to the provider configuration. Pre-session refusals name what is missing.
+- Terminal commands (CLIFLOWSFIX): an `exec` with a ChatGPT plan model runs
+  on the shared subscription path (no Meta key needed; attempts count
+  against `--max-requests` at no USD reservation; a missing grant names the
+  ChatGPT sign-in); sessions open with no unlocked credential store and only
+  a step that needs a stored key refuses, in the one store sentence, with
+  nothing written in plain text; `providers accounts` advice follows the
+  runner's providers file (a configured provider without account metadata
+  says accounts are unavailable); `prompts use` takes scripted `--var
+  name=value` and `--confirm` and its review asks to print, not insert;
+  `scan-secrets --help` prints its own one screen with exit codes. A
+  fully-keyless session still cannot attribute spend, so the start refuses
+  at account identity, in store words; grant-backed dispatch and a
+  stdin-key session start are owner-verified.
 - RVCLIFLOWS: retain headless request and USD limits for every Model API/BYO
   run; a user-configurable provider id is not evidence of subscription billing.
 - RVCLIFLOWS: terminal prompt save/list/use retain readable results without
