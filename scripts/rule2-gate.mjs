@@ -36,6 +36,7 @@ import {
   assertReleaseAttempt,
   GateError,
   isRecord,
+  isSuccessfulRun,
   missingEvidence,
   pullOf,
   releaseRecheck,
@@ -55,8 +56,6 @@ const POLL_MS = 60_000
 // to 25 on a pull request; CI takes 35 to 45.
 const WAIT_MS = Number(process.env['RULE2_WAIT_MINUTES'] ?? 60) * 60_000
 const GREEN = 'success'
-// A run in which every job was filtered out decided nothing.
-const NOT_A_RESULT = new Set(['skipped', 'neutral'])
 const RULE = 'nothing is started again on the same commit (AGENTS.md rule 2)'
 // The runs that count are those of this repository's own workflow files.
 // GitHub's own runs on a commit (Dependabot's updates, path `dynamic/...`)
@@ -167,7 +166,7 @@ async function verdictOf(run) {
     if (again !== undefined) return `${label} is on attempt ${String(run.attempt)}: ${again}.`
   }
   if (run.status !== 'completed') return 'running'
-  if (run.conclusion === GREEN || NOT_A_RESULT.has(run.conclusion)) return 'green'
+  if (isSuccessfulRun(run)) return 'green'
   const red = await redJobs(run.id, run.attempt)
   return `${label} ended ${run.conclusion} on its first execution (attempt ${String(run.attempt)}): ${red === '' ? 'no job of it says why' : red}.`
 }

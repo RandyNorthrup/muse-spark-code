@@ -9,6 +9,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Skipped or neutral workflows no longer count as green rule-2 results;
+  every release commit needs an actually successful hosted run.
+
 - The rule-2 release door rereads hosted evidence immediately before passing;
   a late pending run, rerun or deleted evidence refuses publication.
 

@@ -5,6 +5,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   assertReleaseAttempt,
+  isSuccessfulRun,
   missingEvidence,
   pullOf,
   releaseRecheck,
@@ -124,10 +125,26 @@ describe('rule2 final release recheck', () => {
 describe('rule2 release evidence per commit', () => {
   const tag = '46d971f85'
   const heads = [{ number: 158, sha: 'fb8d0ff84' }]
-  const onTag = { headSha: tag }
-  const onHead = { headSha: 'fb8d0ff84' }
+  const onTag = { ...runOf(run), headSha: tag }
+  const onHead = { ...runOf(run), headSha: 'fb8d0ff84' }
 
-  it('asks nothing more when every expected commit has a run', () => {
+  it.each(['skipped', 'neutral', 'failure', 'cancelled', 'action_required', ''])(
+    'never treats %s as green or hosted evidence',
+    (conclusion) => {
+      const noResult = { ...onTag, conclusion }
+      expect(isSuccessfulRun(noResult)).toBe(false)
+      expect(missingEvidence(tag, heads, [noResult, onHead])).toEqual([
+        expect.stringContaining(`commit ${tag} has no successful workflow run`),
+      ])
+    },
+  )
+
+  it('requires completed success, not an in-progress success value', () => {
+    expect(isSuccessfulRun({ ...onTag, status: 'in_progress' })).toBe(false)
+    expect(isSuccessfulRun(onTag)).toBe(true)
+  })
+
+  it('asks nothing more when every expected commit has a successful run', () => {
     expect(missingEvidence(tag, heads, [onTag, onHead])).toEqual([])
   })
 
