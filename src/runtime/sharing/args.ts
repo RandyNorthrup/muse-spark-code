@@ -38,6 +38,10 @@ export type SharingCommand =
       readonly promptId: string
       readonly scope: SavedPrompt['scope']
       readonly chat: 'active' | 'new'
+      /** Scripted variable values (`--var name=value`, repeatable). */
+      readonly vars: ReadonlyMap<string, string>
+      /** A script's explicit confirmation, without the interactive review. */
+      readonly confirmed: boolean
     })
 
 export function localArgumentError(argument: string): Error {
@@ -81,7 +85,14 @@ export function parseSharingArgs(argv: readonly string[], sessionId?: string): S
       title: { type: 'string' },
       tag: { type: 'string', multiple: true },
     }),
-    ...(action === 'use' && { chat: { type: 'string' } }),
+    ...(action === 'use' && {
+      chat: { type: 'string' },
+      // Scripts supply variables as --var name=value and confirm without
+      // the interactive review as --confirm; the terminal prints the
+      // prepared text either way (nothing is inserted into an editor).
+      var: { type: 'string', multiple: true },
+      confirm: { type: 'boolean' },
+    }),
   }
   const { values, positionals } = parseArgs({
     args,
@@ -132,6 +143,12 @@ export function parseSharingArgs(argv: readonly string[], sessionId?: string): S
     }
   }
   if (action === 'use' && root === 'prompts' && id !== undefined) {
+    const vars = new Map<string, string>()
+    for (const entry of listFlag('var')) {
+      const separator = entry.indexOf('=')
+      if (separator <= 0) throw localArgumentError(`--var ${entry}`)
+      vars.set(entry.slice(0, separator), entry.slice(separator + 1))
+    }
     return {
       command: 'prompts',
       action,
@@ -140,6 +157,8 @@ export function parseSharingArgs(argv: readonly string[], sessionId?: string): S
       promptId: id,
       scope,
       chat: oneOf(flag('chat') ?? 'active', ['active', 'new']),
+      vars,
+      confirmed: values['confirm'] === true,
     }
   }
   if (!isShare) throw localArgumentError(argv.join(' '))

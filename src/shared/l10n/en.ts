@@ -183,6 +183,7 @@ export const EN = {
   promptUntrusted:
     'Imported prompt: untrusted text. Review the text and variables before inserting.',
   promptInsert: 'Insert Into Chat',
+  promptPrintConfirm: 'Print prepared text',
   promptFileInvalid: 'The prompt file is invalid or unsupported.',
   shareChat: 'Share Chat…',
   sharePrompt: 'Share Prompt…',
@@ -4307,6 +4308,7 @@ export const EN = {
     'Provider runs need the provider transport lane; request validation passed for {provider}.',
   execUsage: 'exec [options] <prompt> | exec [options] --prompt-file <path> | exec [options] -',
   execScanUsage: 'scan-secrets <file> [--key-stdin]',
+  scanSecretsExits: 'Exits 0 when clean, 10 when a secret is found, 2 for misuse.',
   execSummary:
     '{status}; requests {requests}; settled {settled}; uncertain {uncertain}; image attempts {imageAttempts}; returned {imagesReturned}; uncertain images {imagesUncertain}',
   execSummaryUpperBound:
