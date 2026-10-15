@@ -13,8 +13,8 @@ happened, not what was planned; superseded entries are kept.
   their uncapped grants, including while the parent is idle. Previously
   only the parent's own turn was cancelled.
 
-- RVLIMITS: removed ten lane test cases that used product stand-ins or a
-  disconnected Tab formatter. Their old green counts are not product
+- RVLIMITS: removed thirteen lane test cases that used product stand-ins,
+  substituted pricing or a disconnected Tab formatter. Their old green counts are not product
   certification; the real-life turn, continuation and budget checks remain
   required.
 

@@ -261,3 +261,12 @@ queued work. Completed results are retained. No fake-provider test was
 added; this is proven by the old cancellation code and the reachable spawn
 path. The lead must run a real paid child, press Stop, and check that both
 an in-flight task and one waiting for capacity cease without new sends.
+
+## RVLIMITS evidence correction — substituted pricing (2026-10-14)
+
+Removed three `sessionBudget.test.ts` price-card cases whose hand-written
+`ModelPricePolicy` duplicated token arithmetic and returned no settlement.
+They did not exercise the real registry's worst-case cache-write pricing,
+which still reserves more than real spend. Review has now removed **13
+cases total**, not 10. Their replacement needs real registry/pricing code,
+not a second implementation of that code; no replacement proof is claimed.

@@ -12,16 +12,11 @@ import {
   withAccountBudgetAdmission,
   type SessionBudgetClaim,
 } from '../../src/core/backends/modelapi/sessionBudget'
-import type { ModelPricePolicy } from '../../src/core/backends/modelapi/modelPolicy'
 import { createSessionBudgetJournal } from '../../src/host/backend/sessionBudgetJournal'
 import { removeFolder } from './helpers/temporaryFolders'
 import type { CreateResponseBody } from '../../src/core/backends/modelapi/schemas'
 import { formatUsd } from '../../src/core/usage/insights'
-import {
-  MODEL_API_MAX_OUTPUT_TOKENS,
-  TOKENS_PER_MILLION,
-  UI_TEXT,
-} from '../../src/shared/constants'
+import { MODEL_API_MAX_OUTPUT_TOKENS, UI_TEXT } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
 import { BASE_LOCALE, fill, setUiText } from '../../src/shared/l10n/text'
 
@@ -401,41 +396,6 @@ describe('reserveRequest', () => {
           reserveRequest({ ...minimumBase(Usd.from('0.002').toAmount()), minOutputTokens }),
         ).toThrow('invalid output.minTokens')
       }
-    })
-  })
-
-  describe('price-card provider input hold', () => {
-    const price: ModelPricePolicy = {
-      reserve: (usage) =>
-        Usd.from('1.25')
-          .times(usage.inputTokens)
-          .add(Usd.from('4.25').times(usage.outputTokens))
-          .divide(TOKENS_PER_MILLION)
-          .toAmount(),
-      settle: () => undefined,
-    }
-    const priced = (capUsd: UsdAmount, minOutputTokens?: number) =>
-      reserveRequest({
-        capUsd,
-        spentUsd: Usd.from(0).toAmount(),
-        estimatedInputTokens: 1000,
-        modelId: MODEL,
-        price,
-        minOutputTokens,
-      })
-
-    it('holds the input alone and keeps the whole allowance', () => {
-      const reservation = priced(Usd.from('0.002').toAmount(), 16)
-      expect(reservation.maxOutputTokens).toBe(MODEL_API_MAX_OUTPUT_TOKENS)
-      expect(reservation.costUsd).toBe(Usd.from('0.00125').toAmount())
-    })
-
-    it('refuses only when the input alone exceeds what is left', () => {
-      expect(() => priced(Usd.from('0.001').toAmount(), 16)).toThrow(SessionBudgetExceededError)
-    })
-
-    it('sends with its own allowance when no minimum was captured', () => {
-      expect(priced(Usd.from('0.002').toAmount()).maxOutputTokens).toBe(MODEL_API_MAX_OUTPUT_TOKENS)
     })
   })
 })
