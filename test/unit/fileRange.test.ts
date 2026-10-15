@@ -20,7 +20,7 @@ function context(): {
   ctx: ToolContext
   seen: Map<string, string>
   retained: ObservationPack
-  run: (name: string, args: unknown) => Promise<{ output: string; failure?: string }>
+  run: (name: string, args: unknown) => Promise<{ output: string; failure: string | undefined }>
 } {
   const io = createToolIo({
     platform: process.platform,
