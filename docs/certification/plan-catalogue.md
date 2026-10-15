@@ -250,6 +250,47 @@ first case fails (`expected 8 to be 2`); restored byte-exact (SHA-256
 Not run: `exec --fast` against a model that lists Fast needs a plan model and a
 sign-in; a person's steps are in the lead's list at the end of this lane.
 
+## PLANFIX R9: a fresh plan model or session starts on the catalogue default (2026-10-14, Windows)
+
+The panel started every conversation on the standing default (`high`) and kept it
+across a switch to a model that also serves `high`, so `gpt-6.1-sol` (catalogue
+default `low`) ran at `high` unless the person moved the slider. The controller now
+remembers whether the person moved the slider (`isEffortChosen`, set by `setEffort`
+only). While it is not set, the panel starts on the model's catalogue default where
+the model lists one and serves it: when the model list arrives with no session
+(`listModels`, the panel's warm-up), at `attach` (new, resumed, forked and
+imported sessions), and at a model switch. A level the person chose is kept across
+a new conversation and a model switch, as before (`setModel` still drops one the
+new model does not serve).
+
+Test, `test/unit/chatgptFastTier.test.ts` (3 more cases, the same real
+controller/host/client/codec harness; the panel is opened through
+`surfaceReady`): a fresh conversation shows `low` and the first request carries
+`reasoning.effort: low`; a chosen `xhigh` survives a new conversation and a switch
+to the second model, on the wire and in the panel; an unchosen switch moves to the
+new model's default. Red drills, each restored byte-exact (SHA-256
+`90F8E1A8…FC7E`): no catalogue default offered, 2 of 6 fail; a choice not
+remembered, 1 of 6 fails. `conversationController.test.ts`: 15 of 688 fail on the
+untouched sources and on this tree, the same 15 names.
+
+Surfaces checked:
+
+- VS Code panel: fixed and tested above.
+- ACP new session (`agent.ts` 2472-2475): already `defaultEffortFor`, the
+  catalogue default, then `applyEffort`. Unchanged.
+- `exec` (`runExec.ts`): reads the ACP session's option; with no `--effort` it
+  runs at what the new session shows, which is the catalogue default. After R8 it
+  reads the selected model's options. Unchanged.
+- ACP model switch (`agent.ts` 1605-1617): `applyEffort(this.effort)` keeps the
+  shown level when the new model serves it, so a switch from a model at `high` to
+  a plan model keeps `high`. NOT CHANGED: it needs the same chosen/unchosen
+  memory in `AcpSession`, a class that is not exported, and a test of it needs a
+  plan model behind the real agent (a signed-in grant or a stand-in for the agent's
+  session). Left to the lead; the change is a copy of the panel's rule.
+- Muse Code (CLI) models: no catalogue default exists (`defaultEffort` is set by
+  plan facts only), so `unchosenEffort` answers undefined and today's rule
+  (`high`, or the highest tier served) is unchanged.
+
 ## RVHOSTID: output-index boundary review (2026-10-14, Windows)
 
 The F87 accumulator accepted duplicate, negative, fractional and unsafe indices;

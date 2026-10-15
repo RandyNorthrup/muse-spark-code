@@ -1,4 +1,4 @@
-// Fast (the plan's priority tier) must never be sent while the panel shows
+﻿// Fast (the plan's priority tier) must never be sent while the panel shows
 // it off. The real ConversationController drives the real ModelApiHost, the
 // real subscription client and the real Responses codec; only the outside
 // world is replaced: the two provider endpoints (a catalogue answer and a
@@ -390,6 +390,55 @@ function shownFast(p: Panel): boolean | undefined {
   const state = p.posted.findLast((message) => message.type === 'composerState')
   return state?.type === 'composerState' ? state.isFastEnabled : undefined
 }
+
+/** The panel opening: its warm-up lists the models, which is when it learns each model's default. */
+async function open(p: Panel): Promise<void> {
+  p.controller.surfaceReady()
+  await vi.waitFor(() => {
+    expect(p.posted.some((message) => message.type === 'modelList')).toBe(true)
+  })
+}
+
+/** The effort the panel last showed. */
+function shownEffort(p: Panel): string | undefined {
+  const state = p.posted.findLast((message) => message.type === 'composerState')
+  return state?.type === 'composerState' ? state.effort : undefined
+}
+
+describe('a plan model starts on the catalogue default effort (R9)', () => {
+  it('starts a fresh conversation on low, the captured default, not the standing high', async () => {
+    const p = panel()
+    // The panel lists the models when it opens, before any message.
+    await open(p)
+    expect(shownEffort(p)).toBe('low')
+    const first = await send(p, 'l0')
+    expect(first).toMatchObject({ reasoning: { effort: 'low' } })
+    p.controller.dispose()
+  })
+
+  it('keeps a level the person chose, across a new conversation and a model switch', async () => {
+    const p = panel()
+    await open(p)
+    await p.controller.handle({ type: 'setEffort', effort: 'xhigh' })
+    expect(await send(p, 'l0')).toMatchObject({ reasoning: { effort: 'xhigh' } })
+    await p.controller.handle({ type: 'clearConversation' })
+    expect(await send(p, 'l1')).toMatchObject({ reasoning: { effort: 'xhigh' } })
+    await p.controller.handle({ type: 'setModel', modelId: PLAIN_MODEL })
+    expect(await send(p, 'l2')).toMatchObject({ reasoning: { effort: 'xhigh' } })
+    expect(shownEffort(p)).toBe('xhigh')
+    p.controller.dispose()
+  })
+
+  it('moves a model switch that nobody chose a level for to the new model default', async () => {
+    const p = panel()
+    await open(p)
+    await send(p, 'l0')
+    await p.controller.handle({ type: 'setModel', modelId: PLAIN_MODEL })
+    expect(shownEffort(p)).toBe('low')
+    expect(await send(p, 'l1')).toMatchObject({ reasoning: { effort: 'low' } })
+    p.controller.dispose()
+  })
+})
 
 describe('Fast tier follows the panel (R3)', () => {
   it('the session itself drops Fast at its model change, whoever asked for it', async () => {
