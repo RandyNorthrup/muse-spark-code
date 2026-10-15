@@ -317,6 +317,17 @@ McpElicitationTimeoutError` was false at the real boundary: the connection
   updating `featureCatalog.ts`. Added existing translated details and regenerated
   the canonical reference with `npm run reference:generate` (exit 0).
 
+## RVDROPS review — B22 announce only durable expiry
+
+- P2: `expireOldest()` called `onExpired` before `publish()` saved the
+  retained cards. A write failure could tell the person “text is kept” even
+  though the transition was rolled back. Real-file proof reads the saved
+  record inside the notice callback: before, `[false]` rather than `[true]`
+  (exit 1, `temp/rv-expiry-durable-red.log`); after, 1 passed (exit 0,
+  `temp/rv-expiry-durable-green.log`, Windows).
+- Every expiry path now passes its new expired records to `publish`, which
+  notifies only after the atomic save succeeds. No backend stand-in was used.
+
 ## Limits raised or removed (owner's rule)
 
 | Row | Number              | Outcome                                                  | Reasoning                                                                       |

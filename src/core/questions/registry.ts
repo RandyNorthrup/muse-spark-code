@@ -100,8 +100,8 @@ export class QuestionRegistry {
         )
       }
     }
-    this.expireOldest()
-    await this.publish()
+    const expired = this.expireOldest()
+    await this.publish(expired)
   }
 
   private run<T>(work: () => Promise<T> | T): Promise<T> {
@@ -168,18 +168,18 @@ export class QuestionRegistry {
     }
   }
 
-  private expireOldest(): void {
+  private expireOldest(): readonly OpenQuestion[] {
     const open = this.snapshot().questions.filter((entry) => entry.state === 'open')
     const expired = open.slice(0, Math.max(0, open.length - OPEN_QUESTIONS_MAX))
     if (expired.length === 0) {
-      return
+      return []
     }
     const settled = expired.map((entry) => ({ ...entry, state: 'expired' as const }))
     for (const entry of settled) this.entries.set(entry.userInputId, entry)
-    this.deps.onExpired?.(settled.map((entry) => structuredClone(entry)))
+    return settled
   }
 
-  private async publish(): Promise<void> {
+  private async publish(expired: readonly OpenQuestion[] = []): Promise<void> {
     const snapshot = openQuestionsSnapshotSchema.parse(this.snapshot(false))
     // Expired cards are undelivered: their text stays readable (B22), unlike
     // answered ones, which the reply already carried.
@@ -192,6 +192,9 @@ export class QuestionRegistry {
     for (const entry of snapshot.questions) {
       if (retained.every((kept) => kept.userInputId !== entry.userInputId))
         this.entries.delete(entry.userInputId)
+    }
+    if (expired.length > 0) {
+      this.deps.onExpired?.(structuredClone(expired))
     }
     this.deps.changed(
       structuredClone({
@@ -296,8 +299,8 @@ export class QuestionRegistry {
             state: 'open',
             deferredAt: entry.deferredAt ?? Math.max(entry.askedAt, this.deps.now()),
           })
-          this.expireOldest()
-          await this.publish()
+          const expired = this.expireOldest()
+          await this.publish(expired)
           const requests = Array.from(this.requests.values(), (request) => ({ ...request }))
           return requests
             .filter(
@@ -361,8 +364,8 @@ export class QuestionRegistry {
           deferredAt: entry.deferredAt ?? Math.max(entry.askedAt, this.deps.now()),
         }),
       })
-      this.expireOldest()
-      await this.publish()
+      const expired = this.expireOldest()
+      await this.publish(expired)
     })
   }
 
@@ -501,11 +504,11 @@ export class QuestionRegistry {
         }
         this.requests.delete(request.userInputId)
       }
-      this.expireOldest()
+      const expired = this.expireOldest()
       const reminder = nextQuestionReminder(this.snapshot().questions, hasApproval)
       if (reminder !== undefined)
         this.entries.set(reminder.userInputId, { ...reminder, reminders: reminder.reminders + 1 })
-      await this.publish()
+      await this.publish(expired)
       return reminder
     })
   }
