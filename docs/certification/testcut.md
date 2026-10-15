@@ -404,6 +404,7 @@ in the native launch.
 b2f35827e (workflow restores), c72ba3862 (fake-agent.mjs + apply
 proof), 329e1bcd3 (real-code restores), d95183034 + ede3cf56f
 (deadcode honesty), 9d08238dc + af5b10357 (cycle roots).
+
 ## RVTESTCUT2 — retain real calendar regressions (2026-10-14, Windows)
 
 P2: deleting the mixed `test/unit/scheduleTime.test.ts` also deleted real
@@ -508,3 +509,42 @@ Exit 1: expected French `0,18 $US`, received English `$0.18`. Restore
 `paidConsent.ts` byte-exact against HEAD; SHA-256
 `d26aded313196a3d43ff3575ed348367f7f34ffad46d2c42b6812f1a23899da8`.
 The real-bundle suite passes 1/1 at default deadlines after restoration.
+
+## RVTESTCUT2 F6 — the ChatGPT package test runs the real notices step (lane TESTCUTF6)
+
+F6: `test/unit/runtimeChatGptPackage.test.ts` built the ChatGPT ACP package
+in a temporary folder but swapped our own code for stand-ins: a replacement
+`scripts/third-party-notices.mjs` that only wrote "test-owned notices", a
+stand-in `LICENSE`, an empty `dist/providerCatalog.json`, and the
+`packageImagePreload` fetch answers from
+`test/unit/helpers/productionPackage.ts`.
+
+The fixture now runs the real `scripts/third-party-notices.mjs --acp`
+(real script plus its real `notices-fonts.mjs` and `lib/noticesInput.mjs`
+imports) against the production build's real `dist/meta/` and
+`dist/meta-acp/` metafiles and the repository's real installed packages
+(`node_modules` linked in: a junction on Windows, a symlink elsewhere). It
+uses the real `LICENSE`, the real `dist/providerCatalog.json` / `.js` the
+production build writes, and the real notices inputs (`native/openssl-NOTICE.txt`,
+`src/core/legal/data/NOTICE.md`, `src/runtime/fonts/`, `design/fonts/`).
+Metafile inputs are relative to the shared build root, so the fixture
+rebases the packaged (node_modules) inputs to absolute repository paths —
+same packages and byte counts, only the root moves — and leaves the
+namespaced `resource-validation:` clones, which are absolute already. A new
+test asserts the staged `THIRD_PARTY_NOTICES.txt` names every package the
+staged bundles contain, read from the metafiles through the real installed
+manifests. All prior assertions are kept.
+
+`packageImagePreload` is kept: it stands in for the outside world, not our
+code — the public network `scripts/check-badges.mjs` reads through `fetch`
+(the GitHub tree API, the badge CDNs). Repository image bytes stay real,
+read from the fixture's own copied `media/` tree. Noted in a comment on the
+helper.
+
+Red drill: make the real notices script's `--acp` write an empty file.
+The suite fails 1/3 (exit 1): `notices miss
+@agentclientprotocol/sdk: expected '' to contain
+'@agentclientprotocol/sdk'`. Restore `scripts/third-party-notices.mjs`
+byte-exact; SHA-256
+`5e18a0b29b7f9b7c1e732347de3136a40b14ee370a193a88f4c92a704670147d`.
+Final real-code run: 3/3 passed at repository defaults.
