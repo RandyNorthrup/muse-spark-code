@@ -643,7 +643,7 @@ const shellArgs = z.object({
 })
 export const askUserArgs = z.object({ questions: z.array(questionSchema) })
 export const readSkillArgs = z.object({ id: z.string() })
-export const webFetchArgs = z.object({ url: z.string() })
+export const webFetchArgs = z.object({ url: z.string(), offset: z.optional(z.number()) })
 export const todoWriteArgs = z.object({ items: z.array(todoItemSchema) })
 
 const PATH_PROPERTY = { type: 'string', description: 'Workspace-relative path' }

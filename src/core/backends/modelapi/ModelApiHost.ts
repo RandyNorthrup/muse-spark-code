@@ -11507,7 +11507,17 @@ export class ModelApiSession implements ScheduledAgentSession {
       return withdrawn
     }
     slot.admission = this.admitted(query, this.permissions.judge(query, this.policy()))
-    const result = await fetchPage(url, signal, () => this.isWebFetchStillAllowed(query))
+    // B7 (limits-output): a page past the first window is fetched by offset.
+    const pageOffset =
+      typeof parsed.data.offset === 'number' && Number.isFinite(parsed.data.offset)
+        ? Math.max(Math.floor(parsed.data.offset), 0)
+        : 0
+    const result = await fetchPage(
+      url,
+      signal,
+      () => this.isWebFetchStillAllowed(query),
+      pageOffset,
+    )
     // Asked again once the page is in: it reaches the model only while web
     // fetch is still allowed.
     return (

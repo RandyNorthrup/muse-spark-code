@@ -977,7 +977,14 @@ describe('fetchWebPage (M69)', () => {
     })
     const cut = await w.fetch('https://docs.example.com/long')
     expect(cut.kind === 'page' && cut.text).toContain(
-      fill(WEB_FETCH_MODEL_TEXT.webFetchTruncated, { shown: String(WEB_FETCH_MAX_CONTENT_CHARS) }),
+      fill(WEB_FETCH_MODEL_TEXT.webFetchTruncated, {
+        start: '1',
+        end: String(WEB_FETCH_MAX_CONTENT_CHARS),
+        total: String(WEB_FETCH_MAX_CONTENT_CHARS + 10),
+        more: '',
+        url: 'https://docs.example.com/long',
+        next: String(WEB_FETCH_MAX_CONTENT_CHARS),
+      }),
     )
     const forged = await w.fetch('https://docs.example.com/forged')
     const lines = forged.kind === 'page' ? forged.text.split('\n') : []
@@ -994,8 +1001,39 @@ describe('fetchWebPage (M69)', () => {
       replies: { [base]: { body: html } },
     })
     const result = await w.fetch(base)
-    expect(result.kind === 'page' && result.text).toContain(
-      fill(WEB_FETCH_MODEL_TEXT.webFetchTruncated, { shown: String(WEB_FETCH_MAX_CONTENT_CHARS) }),
+    expect(result.kind === 'page' && result.text).toContain('for the rest.')
+  })
+
+  it('pages a long page by offset end to end, and refuses past the end (B7)', async () => {
+    const long = 'x'.repeat(WEB_FETCH_MAX_CONTENT_CHARS + 10)
+    const w = world({
+      answers: { 'docs.example.com': [[PUBLIC]] },
+      replies: {
+        'https://docs.example.com/long': { headers: { 'content-type': 'text/plain' }, body: long },
+      },
+    })
+    const first = await w.fetch('https://docs.example.com/long')
+    expect(first.kind === 'page' && first.text).toContain(
+      `Showing characters 1–${String(WEB_FETCH_MAX_CONTENT_CHARS)} of ${String(WEB_FETCH_MAX_CONTENT_CHARS + 10)}; fetch https://docs.example.com/long again with offset ${String(WEB_FETCH_MAX_CONTENT_CHARS)} for the rest.`,
     )
+    const second = await fetchWebPage(
+      'https://docs.example.com/long',
+      w.deps,
+      new AbortController().signal,
+      () => true,
+      WEB_FETCH_MAX_CONTENT_CHARS,
+    )
+    expect(second.kind === 'page' && inside(second)).toBe('x'.repeat(10))
+    // The final window is whole: no window note and no way back needed.
+    expect(second.kind === 'page' && second.text).not.toContain('Showing characters')
+    expect(second.kind === 'page' && second.text).not.toContain('for the rest.')
+    const past = await fetchWebPage(
+      'https://docs.example.com/long',
+      w.deps,
+      new AbortController().signal,
+      () => true,
+      WEB_FETCH_MAX_CONTENT_CHARS + 10,
+    )
+    expect(past.kind === 'page' && past.text).toContain('is past the end of this page')
   })
 })

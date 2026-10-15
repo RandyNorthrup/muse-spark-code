@@ -49,7 +49,7 @@ export interface IdeWebFetchDeps {
   readonly log: Logger
 }
 
-const argsSchema = z.object({ url: z.string() })
+const argsSchema = z.object({ url: z.string(), offset: z.optional(z.number()) })
 
 /** A listener with nothing to do until it is replaced. */
 function noop(): void {
@@ -160,7 +160,12 @@ async function callWebFetch(
   // Muse Code's stop reaches the fetch too; the fetch's own deadline bounds
   // it. The offer is asked again before each request goes out, and once the
   // page is in: it reaches the model only while web fetch is still offered.
-  const result = await deps.fetchPage(checked.url.href, signal, deps.isOffered)
+  // B7 (limits-output): a page past the first window is fetched by offset.
+  const offset =
+    typeof parsed.data.offset === 'number' && Number.isFinite(parsed.data.offset)
+      ? Math.max(Math.floor(parsed.data.offset), 0)
+      : 0
+  const result = await deps.fetchPage(checked.url.href, signal, deps.isOffered, offset)
   if (signal.aborted) {
     throw new Error(MODEL_TEXT.webFetchCancelled)
   }
