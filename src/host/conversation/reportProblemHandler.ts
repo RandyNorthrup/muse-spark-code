@@ -21,8 +21,8 @@ import {
   isSealedDraftCurrent,
   sealReportDraft,
   ReportBuildError,
+  problemReportEventSelection,
   reportAge,
-  selectProblemReportEvents,
   type ReportScrubContext,
   type SealedReportDraft,
   type SelectedReportEvent,
@@ -117,11 +117,11 @@ async function openVscodeReporter(
   return { ok: true }
 }
 
-/** The snapshot one dialog builds from: facts, the journal records, scrub and clock, frozen at open. */
+/** The snapshot one dialog builds from: facts, the selected records, scrub and clock, frozen at open. */
 interface ReportData {
   readonly facts: unknown
-  /** The journal's raw records: the builder validates, caps and counts the skipped ones. */
-  readonly entries: readonly unknown[]
+  /** Expired or invalid journal records, counted at selection: the draft names the count. */
+  readonly skippedStoredRecords: number
   /** The records the draft can carry: the builder's validated, capped selection. */
   readonly events: readonly SelectedReportEvent[]
   readonly scrub: ReportScrubContext
@@ -154,17 +154,18 @@ async function buildChoiceDraft(
   choice: ReportChoice,
   vaultScrub?: SecretScrubPort,
 ): Promise<SealedReportDraft> {
-  // The builder sees the raw records minus what the user removed (by journal
-  // index), so the preview carries exactly what the builder makes — skipped
-  // stored records included — and matches the sealed draft byte for byte.
-  const removed = choice.removed
+  // The builder sees exactly the listed records minus what the user removed,
+  // plus the skip count taken at selection: removing a listed record never
+  // pulls an older, unlisted one into the draft, and the preview matches the
+  // sealed draft byte for byte.
   return await buildVaultProblemReportDraft(
     {
       description: choice.description,
       includeFacts: choice.isFactsIncluded,
       includeEvents: choice.isEventsIncluded,
       facts: data.facts,
-      events: data.entries.filter((_, index) => !removed.has(index)),
+      events: keptEvents(data, choice).map((selected) => selected.event),
+      skippedStoredRecords: data.skippedStoredRecords,
       recordingUnavailable: data.isRecordingUnavailable,
       nowMs: data.nowMs,
       scrub: data.scrub,
@@ -250,10 +251,11 @@ async function snapshot(source: ReportDataSource): Promise<ReportData> {
   const facts = await source.readFacts()
   const journal = await source.readJournal()
   const canUseVscodeReporter = await source.canUseVscodeReporter()
+  const selection = problemReportEventSelection(journal.entries)
   return {
     facts,
-    entries: journal.entries,
-    events: selectProblemReportEvents(journal.entries),
+    skippedStoredRecords: selection.skippedStoredRecords,
+    events: selection.events,
     scrub: source.readScrub(),
     nowMs: source.nowMs(),
     isRecordingUnavailable: journal.recordingUnavailable,
