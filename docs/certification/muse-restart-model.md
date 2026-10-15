@@ -1,5 +1,25 @@
 # muse-restart-model: a conversation keeps the chosen model across restarts
 
+## PRTH166 review repair — T1 (`PRRT_kwDOUkzj5M6sew_C`)
+
+The finding is correct: clearing/replacing during `setModel` or `listModels`
+invalidates the original opening, while `attach` captures the generation at
+its own entry. The restart path now checks the original generation directly
+after verification, removes the unadopted IDE-session registration and
+releases the loaded handle before throwing. It does not clear a newer
+opening's resume target. The History path already checks its original send
+epoch after verification.
+
+Proof here is the concrete interleaving in the real controller, not a fake
+session test. Lead real-use check: resume a conversation after restarting
+its Muse host; while model verification is pending, clear the panel or open
+another History item. Once verification finishes, send in the current
+conversation. The abandoned conversation must not be attached or receive the
+message. Run with the real CLI; no provider request was made by this lane.
+
+The records below describe the original lane and are retained as history;
+they do not certify the merged review tree.
+
 Lane RESTARTMODEL, branch `fix/muse-restart-model`, from main `898a26c5e`
 (release 0.18.2). The lead measured on 2026-10-14 that after a
 `muse serve` restart a conversation ran on `muse-wonder-1.0-contributor`

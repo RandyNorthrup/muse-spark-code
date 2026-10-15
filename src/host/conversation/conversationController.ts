@@ -4188,6 +4188,11 @@ export class ConversationController {
     // conversation stays the resume target, so choosing the reported model
     // and resending continues it on the model it really runs on.
     await this.enforceResumedModel(host, loaded, this.modelId)
+    if (this.isDisposed || this.attachmentGeneration !== generation) {
+      this.ideSessions.delete(loaded.session)
+      loaded.session.dispose()
+      this.requireCurrentOpening(generation)
+    }
     this.resumeTarget = undefined
     // The same conversation continues, imported history and all (M84): its
     // mark comes back from the record, while the panel keeps the mode its
