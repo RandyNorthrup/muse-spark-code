@@ -1092,6 +1092,8 @@ export interface FileRangeRead {
   readonly size: number
   /** The file's mtime in milliseconds, for the edit's staleness check. */
   readonly mtimeMs: number
+  /** Digest of the file whose range was read; older adapters may not supply it. */
+  readonly fingerprint?: string
   /** Whether the file starts with a UTF-8 byte-order mark. */
   readonly hasBom: boolean
   /** Whether every line break in the file is a CRLF. */
@@ -1632,6 +1634,9 @@ async function readFileWindow(
   if (window === undefined) {
     return failure(`file not found: ${head.relative}`)
   }
+  if (window.fingerprint !== undefined) {
+    context.provisionalSeen.set(head.absolute, window.fingerprint)
+  }
   const text = decodeWindow(window.bytes, 0, window.bytes.length)
   if (text === undefined) {
     throw new Error(`${head.checkedAbsolute} ${MODEL_TEXT.fileNotText}`)
@@ -2157,23 +2162,15 @@ async function editFileRange(
   if (full === undefined) {
     return failure(`file not found: ${head.relative}`)
   }
-  // The window's character offsets in the whole text: the head's whole
-  // characters, then the window's, decoded the same way the read showed them.
-  const fullBytes = new TextEncoder().encode(full)
   const shape = shapeOf(full)
   const current = modelText(full, shape)
-  const headText = modelText(decodeWindow(fullBytes, 0, offset) ?? '', {
-    hasBom: shape.hasBom,
-    isCrlf: shape.isCrlf,
-    hasTrailingBreak: false,
-  })
-  const windowText = modelText(decodeWindow(fullBytes, offset, offset + length) ?? '', {
-    hasBom: shape.hasBom && offset === 0,
-    isCrlf: shape.isCrlf,
-    hasTrailingBreak: false,
-  })
-  const start = headText.length
-  const end = start + windowText.length
+  if (context.seen.get(head.absolute) !== fingerprint(full)) {
+    return failure(`${head.relative} ${MODEL_API_MODEL_TEXT.fileChangedSinceRead}`)
+  }
+  // Compare actual byte boundaries, not the length of separately decoded
+  // prefixes: a split UTF-8 character or CRLF is not an editable character.
+  const byteAt = (index: number): number =>
+    Buffer.byteLength(fileText(current.slice(0, index), shape), 'utf8')
   const ranges: { readonly start: number; readonly end: number; readonly replace: string }[] = []
   for (const [index, entry] of singles.entries()) {
     const find = shape.isCrlf ? toLf(entry.find) : entry.find
@@ -2191,7 +2188,7 @@ async function editFileRange(
         `${prefix}${fill(visible, { path: head.relative })}`,
       )
     }
-    if (matched.start < start || matched.end > end) {
+    if (byteAt(matched.start) < offset || byteAt(matched.end) > offset + length) {
       return failure(
         `edits[${String(index)}]: matched outside the read window (bytes ${String(offset)}–${String(offset + length)} of \`${head.relative}\`); read the window that holds it and pass that range`,
         `edits[${String(index)}]: matched outside the read window; read the window that holds it and pass that range`,
@@ -2226,10 +2223,19 @@ async function editFileRange(
     relative: head.relative,
     canonical: head.canonical,
   }
-  await context.io.writeFile(head.checkedAbsolute, after, head.checkedAbsolute, () => {
-    context.signal?.throwIfAborted()
-    writeAdmission(target, context)()
-  })
+  const wrote = await context.io.writeFileIfUnchanged(
+    head.checkedAbsolute,
+    fingerprint(full),
+    after,
+    {
+      expectedCanonicalPath: head.checkedAbsolute,
+      unsavedAt: [head.absolute, head.checkedAbsolute],
+      assertCanWrite: writeAdmission(target, context),
+    },
+  )
+  if (wrote === 'changed') {
+    return failure(`${head.relative} ${MODEL_API_MODEL_TEXT.fileChangedSinceRead}`)
+  }
   context.signal?.throwIfAborted()
   context.provisionalSeen.set(head.absolute, fingerprint(after))
   return {

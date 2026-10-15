@@ -21,7 +21,7 @@ function context(): {
   run: (name: string, args: unknown) => Promise<{ output: string; failure?: string }>
 } {
   const io = createToolIo({
-    platform: 'linux',
+    platform: process.platform,
     listFiles: () => Promise.resolve([]),
     systemRoot: undefined,
     env: () => ({}),
@@ -31,7 +31,13 @@ function context(): {
   })
   const seen = new Map<string, string>()
   const provisionalSeen = new Map<string, string>()
-  const ctx: ToolContext = { workspaceRoot: root, platform: 'linux', io, seen, provisionalSeen }
+  const ctx: ToolContext = {
+    workspaceRoot: root,
+    platform: process.platform,
+    io,
+    seen,
+    provisionalSeen,
+  }
   return {
     ctx,
     seen,
@@ -132,10 +138,58 @@ describe('byte windows', () => {
 })
 
 describe('range edits', () => {
+  it('refuses a concurrent change since the range was read', async () => {
+    const target = path.join(root, 'stale.txt')
+    writeFileSync(target, 'abc')
+    const { run } = context()
+    await run('read_file', { path: 'stale.txt', byteOffset: 0, byteLength: 3 })
+    writeFileSync(target, 'abc changed by the person')
+    const result = await run('edit_file', {
+      path: 'stale.txt',
+      find: 'abc',
+      replace: 'ABC',
+      byteOffset: 0,
+      byteLength: 3,
+    })
+    expect(result.failure).toBeDefined()
+    expect(readFileSync(target, 'utf8')).toBe('abc changed by the person')
+  })
+  it('cannot replace a character whose leading byte is outside the window', async () => {
+    const target = path.join(root, 'partial.txt')
+    writeFileSync(target, 'éA')
+    const { run } = context()
+    await run('read_file', { path: 'partial.txt', byteOffset: 1, byteLength: 2 })
+    const result = await run('edit_file', {
+      path: 'partial.txt',
+      find: 'é',
+      replace: 'X',
+      byteOffset: 1,
+      byteLength: 2,
+    })
+    expect(result.failure).toBeDefined()
+    expect(readFileSync(target)).toEqual(Buffer.from('éA'))
+  })
+
+  it('preserves bytes outside a window split between CR and LF', async () => {
+    const target = path.join(root, 'split-crlf.txt')
+    writeFileSync(target, '\u{FEFF}a\r\nb\r\nc\r\n')
+    const { run } = context()
+    await run('read_file', { path: 'split-crlf.txt', byteOffset: 5, byteLength: 3 })
+    const result = await run('edit_file', {
+      path: 'split-crlf.txt',
+      find: 'b',
+      replace: 'B',
+      byteOffset: 5,
+      byteLength: 3,
+    })
+    expect(result.failure).toBeUndefined()
+    expect(readFileSync(target)).toEqual(Buffer.from('\u{FEFF}a\r\nB\r\nc\r\n'))
+  })
   it('replaces inside the window and fingerprints the whole new text', async () => {
     const target = path.join(root, 'edit.txt')
     writeFileSync(target, readFileSync(big))
     const { seen, run } = context()
+    await run('read_file', { path: 'edit.txt', byteOffset: 0, byteLength: 65_536 })
     const edited = await run('edit_file', {
       path: 'edit.txt',
       find: 'line 000002',
@@ -157,6 +211,7 @@ describe('range edits', () => {
     const target = path.join(root, 'scoped.txt')
     writeFileSync(target, 'aaa needle bbb\nccc needle ddd\n')
     const { run } = context()
+    await run('read_file', { path: 'scoped.txt', byteOffset: 0, byteLength: 10 })
     const outside = await run('edit_file', {
       path: 'scoped.txt',
       find: 'ddd',

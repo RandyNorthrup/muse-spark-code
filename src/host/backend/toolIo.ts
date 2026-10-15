@@ -513,7 +513,8 @@ const ASCII_CARRIAGE_RETURN = 0x0d
 async function scanFileShape(
   file: FileHandle,
   signal?: AbortSignal,
-): Promise<{ readonly hasBom: boolean; readonly isCrlf: boolean }> {
+): Promise<{ readonly hasBom: boolean; readonly isCrlf: boolean; readonly fingerprint: string }> {
+  const hash = createHash('sha256')
   const chunk = Buffer.alloc(BOUNDED_FILE_READ_CHUNK_BYTES)
   let position = 0
   let breaks = 0
@@ -528,6 +529,7 @@ async function scanFileShape(
     }
     signal?.throwIfAborted()
     const view = chunk.subarray(0, bytesRead)
+    hash.update(view)
     if (isFirstChunk) {
       isFirstChunk = false
       hasBom =
@@ -554,7 +556,7 @@ async function scanFileShape(
       break
     }
   }
-  return { hasBom, isCrlf: breaks > 0 && crlf === breaks }
+  return { hasBom, isCrlf: breaks > 0 && crlf === breaks, fingerprint: hash.digest('hex') }
 }
 
 /** A path's metadata and bytes come from one handle; growth stops after max + 1 bytes. */
@@ -893,7 +895,12 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
       }
       try {
         signal?.throwIfAborted()
-        await checkedOpenedFile(absolutePath, file, expectedCanonicalPath, deps.platform)
+        const identity = await checkedOpenedFile(
+          absolutePath,
+          file,
+          expectedCanonicalPath,
+          deps.platform,
+        )
         const metadata = await file.stat()
         const size = metadata.size
         const mtimeMs = metadata.mtimeMs
@@ -901,13 +908,23 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
         const start = Math.min(offset, size)
         const windowLength = Math.min(length, Math.max(size - start, 0))
         const bytes = Buffer.alloc(windowLength)
-        if (windowLength > 0) {
-          const { bytesRead } = await file.read(bytes, 0, windowLength, start)
-          signal?.throwIfAborted()
-          return { bytes: bytes.subarray(0, bytesRead), size, mtimeMs, ...shape }
-        }
+        const { bytesRead } = await file.read(bytes, 0, windowLength, start)
         signal?.throwIfAborted()
-        return { bytes: new Uint8Array(0), size, mtimeMs, ...shape }
+        const after = await file.stat()
+        const current = await checkedOpenedFile(
+          absolutePath,
+          file,
+          expectedCanonicalPath,
+          deps.platform,
+        )
+        if (
+          after.size !== size ||
+          after.mtimeMs !== mtimeMs ||
+          after.ctimeMs !== metadata.ctimeMs ||
+          !sameFile(identity, current)
+        )
+          throw new Error(fill(UI_TEXT.media.sourceChanged, { name: path.basename(absolutePath) }))
+        return { bytes: bytes.subarray(0, bytesRead), size, mtimeMs, ...shape }
       } finally {
         await file.close()
       }

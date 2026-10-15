@@ -197,6 +197,17 @@ is not applied to the repository's legacy, non-ledger PLAN format.
   `resolveExecOutputCap` now uses the record maximum; the existing per-request
   ledger still refuses an unaffordable reservation rather than shrinking it.
 
+- F2 range-edit safety: `fileRange.test.ts` now runs with the actual platform.
+  Before the repair, editing `éA` at byteOffset 1/byteLength 2 replaced `é`
+  outside that window (exit 1 on the new assertion). A read of `abc`, followed
+  by a person writing `abc changed by the person`, also allowed the stale edit
+  (exit 1). After repair all 11 tests pass (exit 0). The scan records a full
+  digest; the edit checks that digest and publishes through the existing
+  `writeFileIfUnchanged`, with exact byte containment and no formatter. BOM and
+  a split CRLF are checked byte-for-byte. Logs: `.lane/range-*.log`.
+  The 128 MiB edit refusal remains an unresolved design finding, not a
+  provider/harness limit. A streaming splice needs a separate implementation.
+
 ## Qualification
 
 All work runs directly in `/home/randy/lanes/LIMITSB` on linuxlt. No
