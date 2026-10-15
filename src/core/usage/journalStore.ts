@@ -28,6 +28,7 @@ import {
   usageAmountSchema,
   usageCountSchema,
   usageCostSchema,
+  usageUsdSchema,
   usageTokensSchema,
   usageUnitsSchema,
   usageDaySchema,
@@ -100,7 +101,7 @@ const USAGE_PREVIOUS_JOURNAL_VERSION = 2
 const usagePreviousRecordSchema = recordSchemaWith(USAGE_PREVIOUS_JOURNAL_VERSION, usageCostSchema)
 const usagePreviousLimitSnapshotSchema = limitSchemaWith(
   USAGE_PREVIOUS_JOURNAL_VERSION,
-  usageCostSchema,
+  usageUsdSchema,
 )
 /** A stored line: a current entry, or a version 1 or 2 entry read as current. */
 const usageJournalReadSchema = z.union([
@@ -166,7 +167,10 @@ export type UsageRollupRow = z.infer<typeof usageRollupRowSchema>
 function rollupSchemaWith<
   V extends number,
   C extends typeof usageCostSchema | typeof usageLegacyCostSchema,
-  L extends typeof usageLimitSnapshotSchema | typeof usageLegacyLimitSnapshotSchema,
+  L extends
+    | typeof usageLimitSnapshotSchema
+    | typeof usagePreviousLimitSnapshotSchema
+    | typeof usageLegacyLimitSnapshotSchema,
 >(version: V, cost: C, limit: L) {
   return z
     .strictObject({

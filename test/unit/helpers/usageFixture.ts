@@ -8,7 +8,7 @@ import { Usd } from '../../../src/shared/usd'
 export const usageNow = new Date(2026, 9, 5, 12).getTime()
 export function usageFixtureRecord(extra: Partial<UsageRecord> = {}): UsageRecord {
   return usageRecordSchema.parse({
-    v: 2,
+    v: 3,
     type: 'usage',
     id: 'fixture',
     at: usageNow,
@@ -76,7 +76,7 @@ export function usageFixtureDeps(records: readonly UsageRecord[] = [usageFixture
     readLiveLimits: vi.fn((): ReturnType<UsageServiceDeps['readLiveLimits']> =>
       Promise.resolve([
         {
-          v: 2,
+          v: 3,
           id: 'limit',
           type: 'limit',
           at: usageNow,
