@@ -202,3 +202,96 @@ token, 14/15 pass. Real-editor proof stays with the lead's Hosts workflow
 (the D15 watching case and the Focus Input mirror); the new real-life
 scenario is the stale one: Focus Input to a hidden panel is dropped, and
 an hour-later transcript click never moves the caret.
+
+## Round 2: the merge, the toggle fix, F74 (2026-10-14, lane PRFIX160)
+
+Branch `fix/panel-focus-steal` head `748b949c9` (PR 160) merged PR 172's
+head `06847350f` (`git merge --no-ff`, committed as `54adeef18`, hooks on).
+Conflicts, resolved by meaning: `CHANGELOG.md` and
+`docs/certification/plan-archive.md` keep both sides' additions;
+`test/unit/questionApp.test.tsx`, `test/unit/uiState.test.ts` and
+`test/unit/webviewSetup.test.ts` stay deleted (the overhaul deleted them);
+`test/unit/helpers/questions/fixtures.ts` keeps PR 160's additions with
+their imports (the merge had dropped the two import lines; still consumed
+by `attentionDock`, `questionAttentionOwnership`, `questionContracts`,
+`questionUiState`, `questionKey` and the integration questions suite).
+The `test/unit/m114Audit.test.mjs` hash pin on the deleted `Composer.tsx`
+is gone with the overhaul, as expected.
+
+### The Focus Input failure: cause and fix
+
+Hosted `build / integration`: `Focus Input did not hand the keyboard back
+to the file` — reproduced on this rig (VS Code stable 1.142.0 under
+`xvfb-run`, same assertion, `40 passing, 1 failing`).
+
+Root cause (product, not test): the toggle's editor leg ran
+`workbench.action.focusActiveEditorGroup`, which is a no-op while a chat
+tab is the group's active tab. A temporary trace through the real editor
+(removed afterwards) showed it: after the first Focus Input the chat tab is
+active with no text editor; the raw group-focus command leaves exactly
+that state (`activeTab=webview:…chatPanel activeEditor=none`). So once the
+composer reported focus, every later toggle took the editor branch and
+stayed in the chat forever — the loop could never succeed, deterministically.
+For a person the same: a second Focus Input with the composer focused kept
+the keyboard in the chat.
+
+Fix (`src/extension.ts`, commit `3fa83c0f5`): the host remembers the last
+active text document (`onDidChangeActiveTextEditor` only moves the target
+on a real text editor, never on the webview clearing it) and the toggle's
+`focusEditor` reopens that file, falling back to the group focus when there
+is none or it closed. The trace with the fix ends
+`activeTab=text:…/AGENTS.md activeEditor=…/AGENTS.md`. One CHANGELOG line
+extends the panel-focus entry.
+
+### F74: what takes the keyboard from AGENTS.md
+
+The lead's probe (quoted at the top of this file) measured the thief: the
+loading panel's composer focused itself 310–696 ms after `showTextDocument`
+and the panel went active 415–766 ms after. That is rows 1–2 of the path
+table above, now gated twice: the host drops `focusInput` for an inactive
+panel (`shouldDeliverFocusInput`) and the composer lands a request only
+while its own surface holds the keyboard (`landFocusRequest`).
+
+On the fixed tree a 6 s poll-trace (temporary test, removed) around
+`createRulesFile` shows no steal: tabs stay
+`[Untitled(webview:…chatPanel), AGENTS.md(text:…)]` with AGENTS.md active
+throughout. Code census for the Windows-only second `Untitled`: every chat
+tab is labelled `Untitled` (`src/host/views/chatPanel.ts:101`), but no
+product path opens or reveals a tab during that test — all 17 focus paths
+in the table above are person-command or person-gesture driven, the
+schedule openers included (`src/host/schedules/schedulesBridge.ts`
+commands only), and the fixture workspace holds no schedule store. The
+second `Untitled` did not reproduce on this rig, so it stays UNRESOLVED
+here; to name it on the next red, `waitForTab` now reports each open tab's
+kind (chat webview `viewType` vs text `fsPath`) and the active editor
+(commit `9425cce38`).
+
+10-run proof (full stable suite, `xvfb-run -a npx vscode-test --label
+stable`, exit code per run): all 10 exit 0 with 41 passing, the
+`creates AGENTS.md (D15)` case green 10/10 and the Focus Input mirror
+green 10/10. (Per-run table sits in the lane report; logs
+`temp/integ-10x-*.log` are gitignored scratch, not committed.)
+
+### Gates on the final tree
+
+| Gate                                                            | Exit             | Note                                                                                                                                                                                               |
+| --------------------------------------------------------------- | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `format:check`                                                  | 0                | whole repo                                                                                                                                                                                         |
+| `lint` (js main+unit+tests, css; ps skipped on Linux by design) | 0                | zero warnings                                                                                                                                                                                      |
+| `typecheck` (host, webview, unit, e2e, integration)             | 0                |                                                                                                                                                                                                    |
+| `deadcode` (knip)                                               | 0                | was 1: `expectedQuestionCommandsUpdate` orphaned by the overhaul's deletions (orphaned already on PR 160's head — one reason its quality run failed); removed with its imports, commit `893861927` |
+| `cycles`                                                        | 0                | no circular dependencies                                                                                                                                                                           |
+| `duplication` (jscpd)                                           | 0                | 0 clones                                                                                                                                                                                           |
+| `check:plan`                                                    | 0                | 218 milestones, 0 drift                                                                                                                                                                            |
+| `check:host-api`                                                | 1 then 0         | stale record (`Uri.toJSON`/`Uri.with` newly attributed to `src/extension.ts`); regenerated with `--write`, diff reviewed (additive only), commit `893861927`                                       |
+| `check:l10n`                                                    | 0                | 0 problems                                                                                                                                                                                         |
+| `check:roadmap` / `check:reference` (extra)                     | 0 / 0            | current                                                                                                                                                                                            |
+| `build` (production)                                            | 1 then 0         | the 1 was local `dist/` pollution (`dist/test`, `dist/traffic-harness`, both gitignored) tripping the lazy-registry check; removed, rebuilt green                                                  |
+| `package`                                                       | 1, environmental | `Required Linux created-path helper excluded from VSIX: arm64` — built helpers are untracked, CI compiles them per-arch first (`native-build`/`linux-native-build`); this rig holds only x64       |
+| unit (touched, repo timeout, `--maxWorkers=3`)                  | 0                | `focusGate` 5/5, `composerFocusOwnership` 8/8, `questionAttentionOwnership` 8/8, `attentionDock` 3/3, `toggleFocusView` 2/2, `questionContracts` 16/16, `questionUiState` 10/10, `questionKey` 1/1 |
+| integration stable (`xvfb-run`, final tree)                     | 0                | 41 passing, incl. both focus cases                                                                                                                                                                 |
+
+Real-life scenario for the lead's run: open a chat tab, open a file, Focus
+Input (the panel comes forward, caret in the composer), Focus Input again
+(the file has the keyboard); create AGENTS.md while a panel loads behind
+it (the file keeps the keyboard).
