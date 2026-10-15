@@ -9,6 +9,18 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- Terminal commands (CLIFLOWS): sharing answers accept `y`/`yes` in any
+  case and the answered process exits; `share`/`prompts` print their result
+  JSON only with `--json`, and the CLI reference documents the scripted
+  `--confirm` repeat; `prompts use` asks once, after the variables, and only
+  imported prompts are called untrusted; `scan-secrets` prints only the
+  number and its help names the exits (0 clean, 10 found, 2 misuse);
+  `playbook settings` no longer shows `(panel)`; each slash command is
+  announced once; one sentence reports a dead credential store everywhere;
+  the terminal serves provider accounts (unknown providers say they are not
+  configured); headless runs with a plan model use its own sign-in instead
+  of demanding the Meta key, and pre-session refusals name what is missing.
+
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
   reads and writes, and 1-hour cache writes settle at their own price.
   The shared retry classifier refuses known quota codes and excessive
