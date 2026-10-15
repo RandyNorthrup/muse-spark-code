@@ -81,8 +81,8 @@ language…` line goes to stderr, where logs belong).
 - Fix (`1923e6ea4`): stdout carries the bare count; the usage line names
   the exits in all 15 tables; the now-unused `execScanMatches` key was
   removed from all 15 tables. `npm run check:l10n`: 0 problems.
-- After: dirty file → stdout `1`, exit 10. (Clean-file `0`/exit 0 follows
-  the same write; the exit mapping is unchanged code.)
+- After: dirty file → stdout `1`, exit 10; clean file → stdout `0`,
+  exit 0.
 - Left as named: `test/unit/scanSecrets.test.ts:26` asserts the old
   wording with hand-built fakes; per the owner's testing rules it is
   named here and untouched.
@@ -212,17 +212,24 @@ unavailable.` on stderr. The positive path (ChatGPT signed in, no Meta
 
 - `npm run build`: exit 0.
 - `npm run check:l10n`: exit 0 (0 problems).
-- `npm run check:reference`: (final run below).
+- `npm run check:reference`: exit 0 (sharing reference matches the catalog).
 - `npx vitest run test/unit/sharingTerminal.test.ts
-test/unit/skillDedupe.test.ts --maxWorkers=3`: 24 passed.
-- e2e `acpStdio`/`execStdio`: (final run below).
+test/unit/skillDedupe.test.ts --maxWorkers=3`: 24 passed, exit 0.
+- `npx vitest run test/e2e/acpStdio.e2e.test.ts
+test/e2e/execStdio.e2e.test.ts --maxWorkers=3`: 59 passed, exit 0 —
+  including the packed-product E7 scanner cases (counts-only, no keyring).
 - `npm run typecheck`: host/webview/e2e/integration pass; `typecheck:unit`
   is red ONLY on the pre-existing `test/unit/runtimeChatGpt.test.ts:423,501`,
   which asserts the removed `acpChatGpt.storeUnavailable` key with
   hand-built rigs — named here and untouched per the owner's rules.
-- ESLint/Prettier on changed files: clean (final run below).
-- `check:host-api`, `deadcode`, `cycles`, `duplication`,
-  `security:audit`, `security:sast`: (final run below).
+- ESLint (`--max-warnings=0`) and Prettier on every changed file: clean.
+- `npm run check:host-api`: exit 0 (0 problems).
+- `npm run deadcode` (knip): exit 0 (2 pre-existing config hints).
+- `npm run cycles` (dpdm): exit 0, no circular dependencies.
+- `npm run duplication`: exit 0, 0 clones.
+- `npm run security:audit`: exit 0 (2 advisories, 1 exception-file entry).
+- `npm run security:sast`: semgrep is missing on this rig (the runner
+  reports its absence; exact text in the lane report).
 
 ## What was not run and why
 
