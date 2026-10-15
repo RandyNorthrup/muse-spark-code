@@ -1,4 +1,4 @@
-import { Usd, isPositiveUsd } from '../../../shared/usd'
+import { Usd } from '../../../shared/usd'
 // A prompt/agent hook's own model call (M91, PLAN.md D70, lane H): loaded
 // only after the paid-use popup allows it. No transport retry, hooks off,
 // billed to the Model API key on the hookModels tally line, apart from the
@@ -14,8 +14,8 @@ import type { ConfirmedModelRequest, ResponseAttemptGuard } from './client'
 import { isFunctionCallItem } from './schemas'
 import type { FunctionCallItem, InputItem, StreamEvent, ToolDefinition, Usage } from './schemas'
 import {
+  admitScopedRequest,
   helperRequestSettlement,
-  reserveRequest,
   type OwnedSessionBudgetScope,
   type SessionBudgetClaim,
 } from './sessionBudget'
@@ -295,26 +295,14 @@ async function requestHookStep(
   const calls: FunctionCallItem[] = []
   let hasCompleted = false
   try {
+    // The one admission rule (F3): sent while settled real spend is below the
+    // cap; nothing of this response is estimated or held. It settles at its
+    // real cost, or stays unknown if it never reports usage.
     if (budgetScope !== undefined) {
-      const total = await budgetScope.journal.read(budgetScope.sessionId, budgetScope.accountId)
-      const capUsd = budgetScope.capUsd()
-      // The one admission rule (F3): sent while settled real spend is below
-      // the cap; nothing of this response is estimated or held. It settles
-      // at its real cost, or stays unknown if it never reports usage.
-      if (isPositiveUsd(capUsd)) {
-        reserveRequest({
-          capUsd,
-          spentUsd: total.spentUsd,
-          modelId,
-          minOutputTokens: minOutputTokensForPolicy(modelPolicyFor(modelId)),
-        })
-      }
-      claim = await budgetScope.journal.reserve(
-        budgetScope.sessionId,
-        budgetScope.accountId,
-        Usd.from(0).toAmount(),
-        { isUnbounded: !isPositiveUsd(capUsd) },
-      )
+      claim = await admitScopedRequest(budgetScope, {
+        modelId,
+        minOutputTokens: minOutputTokensForPolicy(modelPolicyFor(modelId)),
+      })
     }
     dailyClaim = await context.deps.hookModelDailyBudget?.reserve(modelId, signal)
     directBudget = { scope: budgetScope, claim, isSent: false }

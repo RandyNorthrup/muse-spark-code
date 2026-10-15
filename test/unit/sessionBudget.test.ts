@@ -4,12 +4,14 @@ import path from 'node:path'
 import { Usd } from '../../src/shared/usd'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  admitScopedRequest,
   estimateInput,
   helperRequestSettlement,
   requestParts,
   reserveRequest,
   SessionBudgetExceededError,
   withAccountBudgetAdmission,
+  type OwnedSessionBudgetScope,
   type SessionBudgetClaim,
 } from '../../src/core/backends/modelapi/sessionBudget'
 import { createSessionBudgetJournal } from '../../src/host/backend/sessionBudgetJournal'
@@ -271,6 +273,47 @@ describe('the journal admits by settled real spend, not by its own hold', () => 
         UI_TEXT.sessionBudgetLegacyFeesUnknown,
       )
       await next.settle(Usd.from(0).toAmount())
+    })
+  })
+})
+
+describe('admitScopedRequest: the one door for the hook and review helpers', () => {
+  const sessionId = 'conversation'
+  const accountId = 'c'.repeat(64)
+  const scopeOver = (
+    journal: ReturnType<typeof createSessionBudgetJournal>,
+    capUsd: number,
+  ): OwnedSessionBudgetScope => ({
+    sessionId,
+    accountId,
+    journal,
+    capUsd: () => Usd.from(capUsd).toAmount(),
+    isStillAllowed: () => true,
+  })
+
+  it('admits below the cap and gives the request its own claim with nothing held', async () => {
+    await withJournal(async (journal) => {
+      await journal.record(sessionId, accountId, Usd.from(2.03).toAmount())
+      const claim = await admitScopedRequest(scopeOver(journal, 5), { modelId: MODEL })
+      expect(claim.reservedUsd).toBe(Usd.from(0).toAmount())
+      await claim.settle(Usd.from(0).toAmount())
+    })
+  })
+
+  it('stops at the cap with the sentence that names spent and cap, and starts no claim', async () => {
+    await withJournal(async (journal) => {
+      await journal.record(sessionId, accountId, Usd.from(5).toAmount())
+      await expect(admitScopedRequest(scopeOver(journal, 5), { modelId: MODEL })).rejects.toThrow(
+        fill(UI_TEXT.sessionBudgetStopped, { spent: formatUsd(5), cap: formatUsd(5) }),
+      )
+    })
+  })
+
+  it('is not capped when the person set no cap: any spend is admitted', async () => {
+    await withJournal(async (journal) => {
+      await journal.record(sessionId, accountId, Usd.from(500).toAmount())
+      const claim = await admitScopedRequest(scopeOver(journal, 0), { modelId: MODEL })
+      await claim.settle(Usd.from(0).toAmount())
     })
   })
 })

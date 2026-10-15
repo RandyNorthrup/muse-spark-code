@@ -1,4 +1,4 @@
-import { Usd, isPositiveUsd } from '../../../shared/usd'
+import { Usd } from '../../../shared/usd'
 import type { ResponseObservation, ConfirmedModelRequest, ResponseAttemptGuard } from './client'
 // Paid Auto review execution: loaded only after the paid-use popup allows it.
 // Session-owned fences and journal observers are passed through unchanged.
@@ -19,7 +19,7 @@ import {
 } from './schemas'
 
 import {
-  reserveRequest,
+  admitScopedRequest,
   type OwnedSessionBudgetScope,
   type SessionBudgetClaim,
   helperRequestSettlement,
@@ -257,28 +257,16 @@ async function requestReviewer(
   let outcome: 'completed' | 'incomplete' | 'failed' | 'cancelled' = 'failed'
   let served: string | undefined
   try {
+    // The one admission rule (F3): sent while settled real spend is below the
+    // cap; nothing of this response is estimated or held. It settles at its
+    // real cost, or stays unknown if it never reports usage.
     if (budgetScope !== undefined) {
-      const total = await budgetScope.journal.read(budgetScope.sessionId, budgetScope.accountId)
-      const capUsd = budgetScope.capUsd()
-      // The one admission rule (F3): sent while settled real spend is below
-      // the cap; nothing of this response is estimated or held. It settles
-      // at its real cost, or stays unknown if it never reports usage.
-      if (isPositiveUsd(capUsd)) {
-        reserveRequest({
-          capUsd,
-          spentUsd: total.spentUsd,
-          modelId,
-          maxOutputTokens: body.max_output_tokens,
-          minOutputTokens: minOutputTokensForPolicy(context.resolved.policy),
-          ...(modelId.includes('/') && { price: context.resolved.price }),
-        })
-      }
-      claim = await budgetScope.journal.reserve(
-        budgetScope.sessionId,
-        budgetScope.accountId,
-        Usd.from(0).toAmount(),
-        { isUnbounded: !isPositiveUsd(capUsd) },
-      )
+      claim = await admitScopedRequest(budgetScope, {
+        modelId,
+        maxOutputTokens: body.max_output_tokens,
+        minOutputTokens: minOutputTokensForPolicy(context.resolved.policy),
+        ...(modelId.includes('/') && { price: context.resolved.price }),
+      })
     }
     directBudget = { scope: budgetScope, claim, isSent: false }
     const required = context.guard(body, directBudget)

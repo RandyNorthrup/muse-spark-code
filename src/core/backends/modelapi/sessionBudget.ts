@@ -36,7 +36,13 @@ import {
 import { fill } from '../../../shared/l10n/text'
 import { modelApiPaidTier } from '../../../shared/paid'
 import { isBelowCap } from '../../../shared/spendCap'
-import { Usd, multiplyUsd, usdAmountSchema, type UsdAmount } from '../../../shared/usd'
+import {
+  Usd,
+  isPositiveUsd,
+  multiplyUsd,
+  usdAmountSchema,
+  type UsdAmount,
+} from '../../../shared/usd'
 import { formatUsd, estimateCostUsd } from '../../usage/insights'
 import { type ModelPricePolicy, modelPricedUsage } from './modelPolicy'
 
@@ -272,6 +278,24 @@ export function reserveRequest(request: {
   if (!Number.isSafeInteger(outputCap) || outputCap < 1)
     throw new RangeError('invalid output.maxTokens')
   return { maxOutputTokens: outputCap, costUsd: searchCostUsd }
+}
+
+/**
+ * A hook or review helper request under the owner's scope (F3): admitted by
+ * the one cap rule against the scope's settled spend, then given its own
+ * journal claim with nothing held (an uncapped scope marks it unbounded).
+ * Both helpers call this, so they cannot admit differently.
+ */
+export async function admitScopedRequest(
+  scope: OwnedSessionBudgetScope,
+  request: Omit<Parameters<typeof reserveRequest>[0], 'capUsd' | 'spentUsd'>,
+): Promise<SessionBudgetClaim> {
+  const total = await scope.journal.read(scope.sessionId, scope.accountId)
+  const capUsd = scope.capUsd()
+  if (isPositiveUsd(capUsd)) reserveRequest({ ...request, capUsd, spentUsd: total.spentUsd })
+  return await scope.journal.reserve(scope.sessionId, scope.accountId, Usd.from(0).toAmount(), {
+    isUnbounded: !isPositiveUsd(capUsd),
+  })
 }
 
 /** The hosted fee held alongside tokens, from a verified bound and tariff. */
