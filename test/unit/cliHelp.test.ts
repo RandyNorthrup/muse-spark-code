@@ -97,6 +97,14 @@ describe('per-command help', () => {
     expect(text).toContain('repeatable')
   })
 
+  it('preserves required argument shapes even when translations repeat the flag', () => {
+    const topic = helpTopicNamed('providers')
+    if (topic === undefined) throw new Error('providers topic is missing')
+    const text = renderTopicHelp(EN, COMMAND, topic)
+    for (const shape of ['--preset <preset>', '--as <id>', '--address <url>', '--privacy <policy>'])
+      expect(text).toContain(shape)
+  })
+
   it('lists every command with its purpose on the top-level help', () => {
     const text = renderTopHelp(EN, COMMAND)
     for (const topic of CLI_HELP_TOPICS) {

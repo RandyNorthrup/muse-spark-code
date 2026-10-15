@@ -9,6 +9,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- Per-command help always shows declared value shapes, including provider
+  preset, id, address and privacy arguments.
+
 - Exit-2 CLI refusals load the display language before formatting the parser
   error, without starting a backend or credential service.
 
