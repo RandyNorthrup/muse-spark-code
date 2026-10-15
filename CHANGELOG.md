@@ -9,6 +9,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- Imported provider files reject blank force reasons, terminal controls and
+  line separators, matching the CLI's one-line reason requirement.
+
 - The feature catalogue links provider model editing and per-command help to
   their CLI routes, with model add/remove/force details in the generated reference.
 

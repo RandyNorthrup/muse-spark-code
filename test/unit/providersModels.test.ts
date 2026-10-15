@@ -3,7 +3,7 @@
 // temp folder. Only real modules run here: parser, command, file IO,
 // memory secret store, DNS, fetch and stdin reader. A closed local port
 // gives a real connection refusal; nothing answers as a provider.
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { PassThrough } from 'node:stream'
@@ -14,6 +14,7 @@ import { BASE_LOCALE, setUiText } from '../../src/shared/l10n/text'
 import {
   emptyProvidersFile,
   readProvidersFile,
+  providerEntrySchema,
   writeProvidersFileAtomic,
   type ProviderEntry,
   type ProvidersFile,
@@ -126,6 +127,33 @@ function runModels(
 ): Promise<number> {
   return providersModels(f.deps, { entry: target, add, remove, force })
 }
+
+describe('stored force reasons', () => {
+  it('rejects blank reasons, forged lines and terminal controls on import and read', async () => {
+    const f = deps()
+    for (const reason of [
+      '',
+      ' '.repeat(3),
+      'ok\nforged',
+      'ok\rforged',
+      '\u{1B}[31mred',
+      '\u{7F}',
+      '\u{85}',
+    ]) {
+      const supplied = entry(['model-a'], { forcedModels: { 'model-a': reason } })
+      expect(providerEntrySchema.safeParse(supplied).success, JSON.stringify(reason)).toBe(false)
+      writeFileSync(f.filePath, JSON.stringify({ ...emptyProvidersFile(), providers: [supplied] }))
+      expect(await readProvidersFile(f.filePath)).toMatchObject({ ok: false, reason: 'invalid' })
+    }
+    expect(
+      providerEntrySchema.safeParse(
+        entry(['model-a'], {
+          forcedModels: { 'model-a': 'accès bêta' },
+        }),
+      ).success,
+    ).toBe(true)
+  })
+})
 
 describe('providers models parsing', () => {
   it('parses list, add, remove and force', () => {
