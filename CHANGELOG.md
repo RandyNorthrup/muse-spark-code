@@ -9,6 +9,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- A revoked paid-search request no longer says that an unsaved Always
+  choice applied this time. Order and grant-save failures notify only
+  after the request's currentness check.
+
 - A window reports recurring file damage again after another window has
   observed a repair; a stale in-memory cache no longer hides the warning.
 

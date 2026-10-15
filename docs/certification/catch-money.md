@@ -505,3 +505,22 @@ the marker read, exit 1: expected two `corrupt-a` announcements but got one.
 Restore exit 0, SHA-256
 `ab11ea91947aafa134625ec5427140fe39670637919359ddb51fc25f47d83930`.
 Logs: `.lane/T3-{drill,restored}.log` and `.lane/T2-T3-green.log`.
+
+### T4 — PRRT_kwDOUkzj5M6scSQA
+
+Valid by code/interleaving: Always answers; `nextQuoteOrder` awaits;
+`forget()` increments revocation; the order rejects; the old helper called
+`onNotKept` before the caller's `isCurrent()` refused. The helper now returns
+only a number or closed failure kind. Only after the currentness fence may
+the caller notify. The same defect in `writeQuoteGrant` is fixed as a class:
+retain its closed failure kind, check currentness, then notify. No extra
+provider call and no failure text reaches the notice.
+
+No fake store/popup test is reinstated after main removed paidConsent's
+suite. Lead real-life scenario: make the real quote folder unwritable,
+answer Always on a paid search, and concurrently use Account & usage → Ask
+again while the order/save waits. Observe no dispatch and no “applied this
+time” notice. Without revocation, observe one not-kept notice in the asking
+session and one-use approval; the next use asks again. Restore permissions.
+No model/provider call was made in this lane; this composition proof remains
+for the lead. The quoted original code and interleaving are the finding proof.

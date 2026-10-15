@@ -432,45 +432,21 @@ export class PaidUseConsent {
     }
   }
 
-  /** A search "always" that cannot be kept: its closed kind, and this use goes ahead once. */
-  private quoteNotKeptKind(error: Error): PaidStoreFailureKind {
-    return paidStoreFailureKind(error)
-  }
-
-  /**
-   * The approval order a search "always" is kept under. A store that cannot
-   * hand one out (read-only or corrupt) is treated like one that cannot save
-   * the grant: none is returned, so the approved use goes ahead once and the
-   * next one asks again.
-   */
-  /**
-   * Logs a quote write the store cannot keep and tells the person at once.
-   * The caller keeps the type test and rethrow inline: a rejection that is
-   * not an error keeps its kind past this call (P2-2).
-   */
-  private quoteNotKept(error: Error, notifySession?: string): void {
-    this.deps.log.warn(`Paid search quote could not be kept (${wireWordForLog(error.name)})`)
-    this.deps.onNotKept?.(
-      this.notKeptNotice('webSearch', this.quoteNotKeptKind(error), notifySession),
-    )
-  }
-
+  /** Failure kinds travel back to the caller; only a current use gets the notice. */
   private async searchApprovalOrder(
     quote: PaidQuote,
     prior: PaidGrant | undefined,
-    notifySession?: string,
-  ): Promise<number | undefined> {
+  ): Promise<number | PaidStoreFailureKind> {
     try {
       return await (this.deps.nextQuoteOrder?.() ?? this.authority.nextOrder(quote, prior))
     } catch (error: unknown) {
-      // A quote order the store cannot hand out leaves the approved use
-      // allowed once, and the person is told at once; anything that is not
-      // an error keeps its kind.
-      // read-state: cert TBL-08. `undefined` here is "no order, allowed
-      // once, person told" (onNotKept fired above the return), never "no quote".
+      // An order failure may downgrade a still-current use to once. A
+      // revoked use is refused without claiming the choice applied.
+      // read-state: cert TBL-08. Return the failure kind; only the caller's
+      // currentness fence can say whether an approved use still proceeds.
       if (!(error instanceof Error)) throw error
-      this.quoteNotKept(error, notifySession)
-      return undefined
+      this.deps.log.warn(`Paid search quote could not be kept (${wireWordForLog(error.name)})`)
+      return paidStoreFailureKind(error)
     }
   }
 
@@ -639,11 +615,14 @@ export class PaidUseConsent {
     }
     if (!isCurrent()) return undefined
     if (answer === 'once' && isWindowUse) this.searchWindowOnce.add(windowKey)
-    const approvalOrder =
+    const approval =
       answer === 'always' && this.deps.canRemember()
-        ? await this.searchApprovalOrder(quote, prior, notifySession)
+        ? await this.searchApprovalOrder(quote, prior)
         : undefined
     if (!isCurrent()) return undefined
+    if (typeof approval === 'string')
+      this.deps.onNotKept?.(this.notKeptNotice('webSearch', approval, notifySession))
+    const approvalOrder = typeof approval === 'number' ? approval : undefined
     const isKept = approvalOrder !== undefined && this.deps.canRemember()
     const saving = this.authority.dispatch({
       type: 'answer',
@@ -655,6 +634,7 @@ export class PaidUseConsent {
       if (effect.type !== 'save') continue
       tag = effect.grant
       let isOk = false
+      let saveFailure: PaidStoreFailureKind | undefined
       try {
         if (this.deps.writeQuoteGrant === undefined)
           isOk = await this.remember('webSearch', notifySession)
@@ -663,13 +643,15 @@ export class PaidUseConsent {
           isOk = true
         }
       } catch (error: unknown) {
-        // A quote grant the store cannot keep leaves the approved use
-        // allowed once, and the person is told at once; anything that is
-        // not an error keeps its kind.
+        // Keep only the closed kind until currentness has been rechecked;
+        // a revoked use must not be described as allowed once.
         if (!(error instanceof Error)) throw error
-        this.quoteNotKept(error, notifySession)
+        saveFailure = paidStoreFailureKind(error)
+        this.deps.log.warn(`Paid search quote could not be kept (${wireWordForLog(error.name)})`)
       }
       if (!isCurrent()) return undefined
+      if (saveFailure !== undefined)
+        this.deps.onNotKept?.(this.notKeptNotice('webSearch', saveFailure, notifySession))
       this.authority.dispatch({ type: 'saved', grant: effect.grant, ok: isOk })
       if (isOk) this.notify()
     }
