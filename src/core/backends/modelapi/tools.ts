@@ -628,8 +628,13 @@ const searchArgs = z.object({
   glob: z.optional(z.string()),
   output_mode: z.optional(z.enum(OUTPUT_MODES)),
   max_results: z.optional(z.number()),
+  offset: z.optional(z.number()),
 })
-const listFilesArgs = z.object({ glob: z.optional(z.string()), limit: z.optional(z.number()) })
+const listFilesArgs = z.object({
+  glob: z.optional(z.string()),
+  limit: z.optional(z.number()),
+  offset: z.optional(z.number()),
+})
 const shellArgs = z.object({
   command: z.string(),
   description: z.optional(z.string()),
@@ -780,7 +785,7 @@ export function toolDefinitions(
     ),
     define(
       MODEL_API_TOOLS.search,
-      'Search file contents with a regular expression, optionally within files matching a glob.',
+      'Search file contents with a regular expression, optionally within files matching a glob. Long result lists are pages: the note names the offset that fetches the rest.',
       {
         pattern: { type: 'string', description: 'JavaScript regular expression' },
         glob: { type: 'string', description: 'Only files matching this glob, e.g. src/**/*.ts' },
@@ -791,14 +796,25 @@ export function toolDefinitions(
             'content (default): matching lines; files_with_matches: paths; count: matches per file',
         },
         max_results: { type: 'integer' },
+        offset: {
+          type: 'integer',
+          description: 'Skip this many matches before returning max_results',
+        },
       },
       ['pattern'],
       ['pattern'],
     ),
     define(
       MODEL_API_TOOLS.listFiles,
-      'List workspace files, optionally those matching a glob.',
-      { glob: { type: 'string' }, limit: { type: 'integer' } },
+      'List workspace files, optionally those matching a glob. Long lists are pages: the note names the offset that fetches the rest.',
+      {
+        glob: { type: 'string' },
+        limit: { type: 'integer' },
+        offset: {
+          type: 'integer',
+          description: 'Skip this many files before returning limit',
+        },
+      },
       [],
     ),
     ...(options.hasShell
@@ -991,6 +1007,20 @@ function clip(text: string, maxChars = TOOL_OUTPUT_MAX_CHARS): string {
   return text.length > maxChars
     ? `${text.slice(0, codePointBoundary(text, maxChars))}${TOOL_OUTPUT_CLIP_MARKER}`
     : text
+}
+
+/**
+ * B5 (limits-output): a listed page clipped with its way back kept. The
+ * `note` names the remainder and the offset that fetches it, so it is
+ * appended after the marker, never cut with the listing.
+ */
+export function clipWithNote(text: string, maxChars: number, note: string): string {
+  if (note === '') return clip(text, maxChars)
+  if (text.length + note.length <= maxChars) return `${text}${note}`
+  const reserve = TOOL_OUTPUT_CLIP_MARKER.length + note.length
+  if (reserve >= maxChars) return `${clip(text, maxChars)}${note}`
+  const kept = codePointBoundary(text, maxChars - reserve)
+  return `${text.slice(0, kept)}${TOOL_OUTPUT_CLIP_MARKER}${note}`
 }
 
 const LAST_BMP_CODE_POINT = 0xff_ff
@@ -1487,10 +1517,13 @@ async function readFile(
     shown.push(numbered)
     used = nextSize
   }
-  const body = `${header}${shown.join('\n')}${continuation(shown.length)}`
+  // B5 (limits-output): the range note survives the clip, so a long page
+  // still says which lines are left and which offset fetches them.
+  const listed = `${header}${shown.join('\n')}`
+  const body = clipWithNote(listed, TOOL_OUTPUT_MAX_CHARS, continuation(shown.length))
   // A refused read leaves no trace: the host forgets `seen` with the outcome.
   return {
-    output: clip(body),
+    output: body,
     visibleOutput: `${fill(UI_TEXT.toolReadText, { path: resolved.relative })}\n${shown.join('\n')}${start + shown.length < lines.length ? `\n[${fill(UI_TEXT.toolReadRange, { start: formatNumber(start + 1), end: formatNumber(start + shown.length), total: formatNumber(lines.length), offset: String(start + shown.length + 1) })}]` : ''}`,
     touched: { ...touched, seen: resolved.absolute },
   }
@@ -1852,22 +1885,56 @@ async function listMatching(
   )
 }
 
-/** The lines a search reports for its mode, capped at `limit`. */
-function searchLines(
+/** One page of a search's rows, with the row count the page was taken from. */
+export interface SearchPage {
+  readonly rows: readonly string[]
+  readonly total: number
+}
+
+/**
+ * B5 (limits-output): the rows a search reports for its mode, one page.
+ * `offset` skips that many rows first, so every capped list stays reachable.
+ */
+export function searchPage(
   hits: readonly SearchHit[],
   mode: (typeof OUTPUT_MODES)[number],
   limit: number,
-): readonly string[] {
+  offset = 0,
+): SearchPage {
+  const skip = Math.max(Math.floor(offset), 0)
   if (mode === 'content') {
-    return hits.slice(0, limit).map((hit) => `${hit.file}:${String(hit.line)}: ${hit.text}`)
+    return {
+      rows: hits
+        .slice(skip, skip + limit)
+        .map((hit) => `${hit.file}:${String(hit.line)}: ${hit.text}`),
+      total: hits.length,
+    }
   }
   const perFile = new Map<string, number>()
   for (const hit of hits) {
     perFile.set(hit.file, (perFile.get(hit.file) ?? 0) + 1)
   }
-  return Array.from(perFile, ([file, count]) =>
+  const rows = Array.from(perFile, ([file, count]) =>
     mode === 'count' ? `${file}: ${String(count)}` : file,
-  ).slice(0, limit)
+  )
+  return { rows: rows.slice(skip, skip + limit), total: rows.length }
+}
+
+/**
+ * B5 (limits-output): the page note for a capped row list: which rows these
+ * are, how many there are, and the offset that fetches the rest. `atLeast`
+ * when the search itself stopped at its own cap, so the total is a floor.
+ */
+export function pageNote(
+  tool: string,
+  skip: number,
+  shown: number,
+  total: number,
+  isFloor: boolean,
+  noun = 'matches',
+): string {
+  const floor = isFloor ? 'at least ' : ''
+  return `[${noun} ${String(skip + 1)}-${String(skip + shown)} of ${floor}${String(total)}; call ${tool} again with offset ${String(skip + shown)} for the rest]`
 }
 
 async function search(
@@ -1912,7 +1979,23 @@ async function search(
   if (!outcome.ok) {
     return { ...failure(outcome.reason), touched }
   }
-  const results = searchLines(outcome.hits, mode, limit)
+  // B5 (limits-output): the page size stays capped, and every page names
+  // what is left and the offset that fetches it.
+  const offset = Math.max(Math.floor(args.offset ?? 0), 0)
+  const page = searchPage(outcome.hits, mode, limit, offset)
+  // At the search's own hit cap (or a timeout) the total is a floor: the
+  // rest is reached by narrowing the pattern or glob, not by offset.
+  const isFloor = outcome.hits.length >= SEARCH_MAX_HITS || outcome.isPartial === true
+  if (page.rows.length === 0 && page.total > 0) {
+    return {
+      ...failure(
+        isFloor
+          ? `offset ${String(offset)} is past the ${String(page.total)} matches returned (of at least ${String(page.total)}); narrow the pattern or the glob`
+          : `offset ${String(offset)} is past the last of ${String(page.total)} matches; use an offset from 0 to ${String(page.total - 1)}`,
+      ),
+      touched,
+    }
+  }
   const notes = [
     ...(searched.length < candidates.length
       ? [
@@ -1924,10 +2007,18 @@ async function search(
           `[the search stopped after ${String(SEARCH_TIMEOUT_MS)} ms; these results are partial, narrow the pattern or the glob]`,
         ]
       : []),
+    ...(offset + page.rows.length < page.total
+      ? [pageNote(MODEL_API_TOOLS.search, offset, page.rows.length, page.total, isFloor)]
+      : []),
+    ...(isFloor && page.rows.length > 0 && offset + page.rows.length >= page.total
+      ? [
+          `[showing matches ${String(offset + 1)}-${String(offset + page.rows.length)} of at least ${String(page.total)}; the search stopped at its own cap, narrow the pattern or the glob for the rest]`,
+        ]
+      : []),
   ]
-  const found = results.length === 0 ? 'No matches.' : results.join('\n')
-  const body = [found, ...notes].join('\n')
-  return { output: clip(body), visibleOutput: clip(body), touched }
+  const found = page.rows.length === 0 ? 'No matches.' : page.rows.join('\n')
+  const body = clipWithNote([found, ...notes].join('\n'), TOOL_OUTPUT_MAX_CHARS, '')
+  return { output: body, visibleOutput: body, touched }
 }
 
 async function listFiles(
@@ -1942,9 +2033,22 @@ async function listFiles(
     context.signal?.throwIfAborted()
     return failure(error instanceof Error ? error.message : String(error))
   }
-  const shown = files.slice(0, limit)
+  // B5 (limits-output): the page stays capped, and every page names what is
+  // left and the offset that fetches it.
+  const offset = Math.max(Math.floor(args.offset ?? 0), 0)
+  const shown = files.slice(offset, offset + limit)
+  if (shown.length === 0 && files.length > 0) {
+    return {
+      ...failure(
+        `offset ${String(offset)} is past the last of ${String(files.length)} files; use an offset from 0 to ${String(files.length - 1)}`,
+      ),
+      touched: { names: files, complete: true },
+    }
+  }
   const tail =
-    files.length > shown.length ? `\n[${String(files.length - shown.length)} more files]` : ''
+    offset + shown.length < files.length
+      ? `\n${pageNote(MODEL_API_TOOLS.listFiles, offset, shown.length, files.length, false, 'files')}`
+      : ''
   const body = shown.length === 0 ? 'No files.' : `${shown.join('\n')}${tail}`
   // Every file listed, shown or counted.
   return {
