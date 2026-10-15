@@ -5238,7 +5238,9 @@ full reference) installs the packed product into a new empty folder and
 uses it for real, against real providers on their cheapest models. A full
 run spends real money: it prints the requests it may make and its dollar
 cap before the first one, needs real keys, and writes its record under
-`docs/testing/real-life/`.
+`docs/testing/real-life/`. Request and dollar stops govern admission between
+scenarios, not in-flight ACP turns: ACP can exceed its declared requests
+within a running scenario, which then fails its request-count check.
 
 The macOS screen-recorder implementation can be checked without screen or
 microphone access. These commands build the signed, localized screen-helper

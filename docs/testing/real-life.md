@@ -197,12 +197,15 @@ its own per-run identity does not reuse those names.
 
 ## What it costs
 
-Before the first request the run prints the most requests it may make and
-its dollar stops. It starts a scenario only while the scenario's own most
-still fits under `--max-requests`, and starts nothing more once a stop is
-reached or one scenario did not fit. A stop ends what is started next: a
-scenario that is running when the stop is passed runs to its end, so a run
-can end above its stop by what one scenario costs. Afterwards it prints the
+Before the first request the run prints the plan's declared requests and
+its admission stops. It starts a scenario only while its declared request
+allowance fits under `--max-requests`, and starts nothing more once a stop
+is reached or one scenario did not fit. **This is not a hard in-flight
+request bound:** ACP has no per-request cap; extra model/tool/retry turns
+can exceed the declaration during a running scenario. That cell fails and
+nothing more is admitted once its usage reaches the stop. Dollar stops
+also act between scenarios: a running scenario finishes, so it can take
+the run above a stop by what it costs. Afterwards it prints the
 requests made and the dollars, and beside them what the product's own
 `usage` holds for that home.
 

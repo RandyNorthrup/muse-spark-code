@@ -13,7 +13,8 @@ node scripts/real-life/run.mjs --artefact <agent tarball> --matrix <file> --max-
   --scenarios     which scenarios, by file name, several separated by commas; * stands
                   for any characters (default: all)
   --surfaces      exec (the terminal agent), acp (the editor protocol), or both (default)
-  --max-requests  the run makes no more model requests than this
+  --max-requests  admission stop: start a scenario only while its declared requests fit;
+                  ACP has no per-request cap and can exceed this within a running scenario
   --max-usd       the run starts nothing more once it has spent this much (usage the
                   providers reported; what the product booked with no usage is listed apart)
   --max-uncertain-usd  the run starts nothing more once the product has booked this much
