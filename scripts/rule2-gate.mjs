@@ -34,6 +34,7 @@ import process from 'node:process'
 import { setTimeout as delay } from 'node:timers/promises'
 import {
   assertReleaseAttempt,
+  duplicateExecutions,
   GateError,
   isRecord,
   isSuccessfulRun,
@@ -183,7 +184,7 @@ async function settle(find) {
   const deadline = Date.now() + WAIT_MS
   for (;;) {
     const runs = await find()
-    const refusals = []
+    const refusals = duplicateExecutions(runs)
     const running = []
     for (const run of runs) {
       const verdict = await verdictOf(run)
@@ -239,21 +240,21 @@ async function gateRun() {
       "  every earlier attempt only waited for a maintainer's approval and ran no job: this is the run's first execution",
     )
   }
-  // A newer run of this same workflow that is still going waits for this one
-  // and decides with it in view; waiting for it here would stall both.
-  const isNewerTwin = (run) => run.path === ownPath && run.id > runId && run.status !== 'completed'
-  const { refusals } = await settle(async () => {
+  const find = async () => {
     const runs = await runsOn(head)
-    return runs.filter((run) => run.id !== runId && !isNewerTwin(run))
-  })
+    // Include our own execution even if GitHub's list has not exposed it yet.
+    const duplicates = duplicateExecutions([{ id: runId, path: ownPath, headSha: head }, ...runs])
+    if (duplicates.length > 0) throw new GateError(duplicates.join('\n'))
+    return runs.filter((run) => run.id !== runId)
+  }
+  const { refusals } = await settle(find)
   if (refusals.length > 0) throw new GateError(refusals.join('\n'))
   // The wait above and the merge are minutes apart: a workflow started or
   // started again on this head after the judged set was read must not slip
   // through on the earlier read. Read the head once more, with no further
   // waiting: anything not complete and green now refuses, and the rerun is
   // answered by a new commit, like any other start after the first.
-  const reread = await runsOn(head)
-  const fresh = reread.filter((run) => run.id !== runId && !isNewerTwin(run))
+  const fresh = await find()
   const late = []
   for (const run of fresh) {
     const verdict = await verdictOf(run)
@@ -301,7 +302,7 @@ async function gateRelease(sha) {
   console.log(
     `rule 2, release: commit ${sha}${heads.map((head) => `; pull request ${String(head.number)}, head ${head.sha}`).join('')}`,
   )
-  const commits = [sha, ...heads.map((head) => head.sha).filter((head) => head !== sha)]
+  const commits = [...new Set([sha, ...heads.map((head) => head.sha)])]
   const find = async () => {
     const found = []
     for (const commit of commits) found.push(...(await runsOn(commit)))

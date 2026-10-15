@@ -9,6 +9,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Rule 2 refuses a second run ID for the same workflow and unchanged head,
+  including a close/reopen run on attempt 1; different workflows still run once.
+
 - Skipped or neutral workflows no longer count as green rule-2 results;
   every release commit needs an actually successful hosted run.
 

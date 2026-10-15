@@ -212,3 +212,32 @@ Restored: 34 passed, exit 0. Logs: `.lane/PRTH158.T3.{green,red,restored}.log`.
 Lead: use read-only release preflight on a disposable tagged commit with
 only an existing skipped workflow result; observe the named skipped-run
 refusal and no successful hosted evidence. Do not invoke a paid workflow.
+
+### T4 — a new run id is still another execution
+
+The real duplicate policy groups by head SHA and workflow path, refusing
+more than one distinct run id irrespective of attempt or completion. It
+runs during settling and the final reread at both doors. Merge includes
+its own identity before excluding the in-progress current run, so a second
+CI run cannot hide behind the old newer-twin exception (now removed).
+Different workflows, different commits, and duplicate list entries for one
+run remain distinct from repeated execution. Release recovery exclusions
+remain unchanged; T5 normalizes their paths.
+
+Same Vitest command: baseline 40 passed, exit 0. Inverted the real distinct
+id comparison from `!==` to `===`:
+
+```text
+refuses a second run id even on its first attempt, status completed
+AssertionError: expected [] to deeply equal [ StringContaining{…} ]
+- StringContaining "distinct runs 38597656750 and 38597656751"
+Tests 5 failed | 35 passed (40)
+RED_EXIT=1
+```
+
+Restored bytes, SHA-256 before/after:
+`7f19e8775d15bc62499f387abd1d05e71783dd6dcaf61a6a106a5c4fb8bd13c7`.
+Restored: 40 passed, exit 0. Logs: `.lane/PRTH158.T4.{green,red,restored}.log`.
+Lead: inspect existing historical duplicate workflow runs through read-only
+preflight and observe both run ids in the refusal. Do not close/reopen this
+PR or dispatch another run merely to manufacture the case.
