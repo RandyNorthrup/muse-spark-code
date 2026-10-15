@@ -38,6 +38,7 @@ export function execAccountSelection(
 }
 
 /** The adapter calls this for every attempt. Parent identities, exact USD
+ * @unwired M95 headless exec account selection
  * estimates and recovery state survive unchanged; headless can never ask. */
 export function execAccountRequest(
   options: Pick<ExecOptions, 'account' | 'accountPool' | 'keyFromStdin'>,

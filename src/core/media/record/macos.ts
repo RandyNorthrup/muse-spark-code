@@ -98,7 +98,9 @@ const probeSchema = z.strictObject({
   encoder: z.enum(['available', 'unavailable']),
 })
 
-/** Called only from the recovery action the user chose. */
+/** Called only from the recovery action the user chose.
+ * @unwired M105 macOS recording permission recovery
+ */
 export async function openMacosRecordingPermissions(
   permission: Permission,
   openExternal: (uri: string) => Promise<void>,
