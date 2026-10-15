@@ -1,16 +1,15 @@
 import { Usd, type UsdAmount } from '../../shared/usd'
 // Tab's spend gate over lane L's ledger (M94, PLAN.md D73): the provider's
-// `TabSpendGate`. `reserve` prices the request's worst case (lane C's
-// arithmetic: one token per UTF-8 byte at the input price plus the mode's
-// output cap) and admits it through the cross-window daily ledger; the
-// reservation it returns is what `settle` replaces with the reported cost.
-// The status bar reads today's total synchronously, so the gate keeps the
-// last total the ledger answered and refreshes it after every change.
-// Hitting the budget is never silent (lane LIMITSA, D113, A4): the first
-// refusal of each local day calls `onBudgetReached`.
+// `TabSpendGate`. `reserve` admits a request through the cross-window daily
+// ledger by the one cap rule (lane LIMITSFIX, F3, D113; src/shared/spendCap.ts):
+// while the real spend already settled today is below the budget. Nothing
+// of the response is estimated or held; the reservation it returns is what
+// `settle` closes with the real reported cost. The status bar reads today's
+// total synchronously, so the gate keeps the last total the ledger answered
+// and refreshes it after every change. Hitting the budget is never silent
+// (A4): the first refusal of each local day calls `onBudgetReached`.
 
 import { tabDayKey, tabSettleUsd } from '../../core/tab/tabSpend'
-import { estimateCostUsd } from '../../core/usage/insights'
 import type { Logger } from '../logger'
 import type { TabLedger } from './tabLedger'
 import type { TabReportedUsage, TabReservation, TabSpendFacts, TabSpendGate } from './tabBundle'
@@ -53,11 +52,7 @@ export function createTabSpendGate(deps: TabSpendGateDeps): TabSpendGate {
 
   return {
     reserve: async (facts: TabSpendFacts): Promise<TabReservation | undefined> => {
-      const worstCaseUsd = estimateCostUsd(
-        { inputTokens: facts.inputBytes, outputTokens: facts.maxOutputTokens, cachedTokens: 0 },
-        facts.model,
-      )
-      const admission = await deps.ledger.admit(worstCaseUsd, deps.budgetUsd())
+      const admission = await deps.ledger.admit(deps.budgetUsd())
       if (!admission.admitted) {
         if (admission.totalUsd !== undefined) {
           totalUsd = admission.totalUsd
@@ -77,12 +72,12 @@ export function createTabSpendGate(deps: TabSpendGateDeps): TabSpendGate {
       totalUsd = admission.totalUsd
       countRequest()
       deps.onTotalChanged()
-      return { model: facts.model, worstCaseUsd, date: admission.reservation.date }
+      return { model: facts.model, date: admission.reservation.date }
     },
     settle: (reservation: TabReservation, usage: TabReportedUsage): void => {
       const actualUsd = tabSettleUsd(usage, reservation.model)
       void deps.ledger
-        .settle({ date: reservation.date, worstCaseUsd: reservation.worstCaseUsd }, actualUsd)
+        .settle({ date: reservation.date }, actualUsd)
         .then(refreshTotal)
         .catch((error: unknown) => {
           deps.log.warn(

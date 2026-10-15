@@ -16,17 +16,13 @@ import { redactSecrets } from '../../core/redact'
 import { isProtectedPath } from '../../core/protectedPaths'
 import { contextWindow, orderSnippets, type TabSnippet } from '../../core/tab/tabContext'
 import type { TabHookContext } from '../../core/tab/tabHooks'
-import { tabUserText } from '../../core/tab/tabRequest'
 import {
   TAB_CONTEXT_FILES,
   TAB_CONTEXT_SNIPPET_LINES,
   TAB_UTF8_BYTES_PER_CODE_UNIT,
-  TAB_FAST_MAX_OUTPUT_TOKENS,
   VSCODE_COMMANDS,
   TAB_FILE_MAX_BYTES,
-  TAB_MODEL_TEXT,
   TAB_MULTILINE_MAX_LINES,
-  TAB_MULTILINE_MAX_OUTPUT_TOKENS,
 } from '../../shared/constants'
 import { isPrivateFileName } from '../../shared/privateFiles'
 import {
@@ -879,23 +875,9 @@ export function createTabProvider(deps: TabProviderDeps): TabProviderHandle {
     if (isCancelled()) return quiet('cancelled-before-send')
     if (!policy.isCurrent() || !grant.isCurrent()) return quiet('policy-changed')
     const redactedPath = redactSecrets(relativePath)
-    // The worst case is priced on everything sent: the instructions and the
-    // one user message (D73, M82's one token per UTF-8 byte; RVM94HU 16).
-    const sentText =
-      TAB_MODEL_TEXT.tabSystem +
-      tabUserText({
-        path: redactedPath,
-        languageId: document.languageId,
-        prefix,
-        suffix,
-        snippets,
-      })
-    const reservation = await deps.spend.reserve({
-      model,
-      inputBytes: Buffer.byteLength(sentText, 'utf8'),
-      maxOutputTokens:
-        mode === 'fast' ? TAB_FAST_MAX_OUTPUT_TOKENS : TAB_MULTILINE_MAX_OUTPUT_TOKENS,
-    })
+    // Admitted while real spend today is below the budget (F3); nothing of
+    // the response is estimated, it settles at its real cost.
+    const reservation = await deps.spend.reserve({ model })
     if (reservation === undefined) {
       return quiet('budget')
     }

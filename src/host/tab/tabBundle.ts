@@ -112,38 +112,33 @@ function stringTableOf(value: unknown): Record<string, unknown> | undefined {
   return table
 }
 
-/** A request the completion engine (lane C) may bill: facts only, no prices. */
+/** A request the completion engine (lane C) may bill: its model, never an estimate of its cost. */
 export interface TabSpendFacts {
-  /** The request's model, for the tier's rates. */
+  /** The request's model, for the tier's rates when its usage settles. */
   readonly model: string
-  /** The redacted window's UTF-8 bytes. */
-  readonly inputBytes: number
-  /** The mode's output cap, reasoning included. */
-  readonly maxOutputTokens: number
 }
 
 /** Usage a finished request reported (the engine reads the stream's usage). */
 export type TabReportedUsage = TabEngineUsage
 
 /**
- * One admitted request's reservation, settled with its own worst case into
- * its own local day's ledger file, also after midnight (RVM94LC finding 1).
+ * One admitted request, settled with its real cost into its own local day's
+ * ledger file, also after midnight (RVM94LC finding 1). Nothing was held.
  */
 export interface TabReservation {
   readonly model: string
-  readonly worstCaseUsd: UsdAmount
   /** The admission's local day (`YYYY-MM-DD`), as the ledger named it. */
   readonly date: string
 }
 
 /**
  * Lane L's spend side (src/host/tab/tabLedger.ts through tabSpendGate.ts,
- * M94): the hard daily budget across windows. `reserve` writes this
- * request's worst case first and returns its reservation only when it fits
- * (undefined: at the budget, or a missing, corrupt or unreadable ledger);
- * `settle` replaces that reservation with the reported usage (zero for a
- * request never sent; a request that never reports keeps it);
- * `todayTotalUsd` is what the status bar shows.
+ * M94): the hard daily budget across windows, by the one cap rule (F3,
+ * src/shared/spendCap.ts). `reserve` returns a reservation only while the
+ * real spend already settled today is below the budget (undefined: at the
+ * budget, or a missing, corrupt or unreadable ledger); `settle` closes it
+ * with the reported usage (zero for a request never sent; a request that
+ * never reports stays unknown); `todayTotalUsd` is what the status bar shows.
  */
 export interface TabSpendGate {
   reserve(facts: TabSpendFacts): Promise<TabReservation | undefined>

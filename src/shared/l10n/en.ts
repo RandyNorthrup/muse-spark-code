@@ -3094,12 +3094,13 @@ export const EN = {
   autoCompactionAwaitingEvaluation: 'Automatic compaction is awaiting evaluation and is inactive.',
   autoCompactionFailed: 'Automatic compaction failed; continuing with the original context.',
   contextWindowFull: 'Context window full: /compact or /handoff',
-  // The Model API session budget (M82; lane LIMITSA, D113): real spend is
-  // compared after each response, so a request runs unless its input alone
-  // exceeds what is left or spend has passed the cap. The stop names the
-  // spend, the cap and how to raise it.
+  // The Model API session budget (M82; lane LIMITSFIX F3, D113): the cap is
+  // compared with real settled spend after each response, never with an
+  // estimate, so a request runs while the spend is below the cap and stops
+  // once it has reached it. The stop names the spend, the cap and how to
+  // raise it.
   sessionBudgetStopped:
-    'Stopped: the next request (about {estimate}) would pass the session budget of {cap} ({spent} used). It was not sent. To continue, raise the session budget in Settings (museSpark.modelApiSessionBudgetUsd) or start a new conversation.',
+    'Stopped: {spent} is spent of the {cap} session budget, so the next request was not sent. To continue, raise the session budget in Settings (museSpark.modelApiSessionBudgetUsd) or start a new conversation.',
   sessionBudgetStoreUnavailable:
     'The session spend ledger could not be read or saved. No new request can be sent until it is available.',
   sessionBudgetLegacyFeesUnknown:
@@ -3107,9 +3108,9 @@ export const EN = {
   sessionBudgetSearchUnavailable:
     'Web search is unavailable under a finite spend cap: its billed query count has no verified limit. Ordinary chat and free web fetch remain available.',
   sessionBudgetRetryUnavailable:
-    'The previous request may have been billed. Its full reservation was kept; send a new prompt to retry with a fresh allowance.',
+    'The previous request may have been billed and its cost is unknown. It was not sent again; send a new prompt to retry.',
   sessionBudgetUnknownCharge:
-    'Usage was not verified. {amount} remains reserved as a possible charge; this is not a confirmed bill.',
+    'Usage was not verified. {amount} is counted as a possible charge; this is not a confirmed bill.',
   sessionBudgetVoiceUnavailable:
     'Muse Voice is unavailable under a finite spend cap: its billed audio duration has no verified bound. Use free system dictation.',
   sessionBudgetVoiceContextChanged:
@@ -4533,10 +4534,12 @@ export const EN = {
   // Each state D73 names; {left} is the snooze's remaining time.
   tabStatusSnoozed: 'Tab snoozed ({left} left)',
   tabStatusBudget: 'Tab daily budget reached',
-  // Lane LIMITSA, D113 (A4): Tab keeps its daily budget, but hitting it is
-  // never silent. The notice names the spend, the budget and how to raise it.
+  // Lane LIMITSFIX F3, D113 (A4): Tab keeps its daily budget, but hitting it
+  // is never silent. It stops only once the real spend {spent} has reached
+  // the budget (no estimate is compared), and the notice names both and how
+  // to raise it.
   tabBudgetReachedDetail:
-    'Today’s Tab spend of {spent} reached the daily budget of {budget}, so completions pause until tomorrow. To continue today, raise museSpark.tabDailyBudgetUsd in Settings.',
+    'Today’s Tab spend of {spent} has reached the daily budget of {budget}, so completions pause until tomorrow. To continue today, raise museSpark.tabDailyBudgetUsd in Settings.',
   tabStatusNoKey: 'Tab: no key',
   tabStatusUntrusted: 'Tab off in an untrusted workspace',
   tabStatusLanguageOff: 'Tab off for {language}',

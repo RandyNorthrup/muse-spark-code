@@ -391,3 +391,78 @@ requested lane report; remaining P1/P2 findings prevent merge approval.
   9 passed (this PC). `typecheck:host` 0; eslint `--max-warnings=0` on the
   five touched files 0. Pure logic through the real module only; the host
   wiring is proven by a real turn (real-life step 8), not by a stand-in.
+
+## LIMITSFIX F3 â€” one admission and settlement contract on real spend (2026-10-15)
+
+- **Cause.** Each consumer of a cap reserved its own estimate or worst case:
+  the conversation held an input estimate (`sessionBudget.ts`), providers held
+  `price.reserve` (worst-case cache writes), the hook and review helpers held
+  whole response allowances, hosted search held an estimated token cost, Tab
+  held input bytes plus its output cap, the daily extras held an input
+  estimate, and a sub-agent bypassed the owner's cap altogether. A $0.001 cap
+  at $0 spent refused 1,000 input tokens; $2.03 of a $5 cap refused a request
+  whose worst case was $3.03.
+- **The contract** (`src/shared/spendCap.ts`, one function `isBelowCap`):
+  1. _Admission:_ a request is sent while the **settled real spend** is below
+     the cap the person set. At or over it the next request stops, in words
+     naming the spend, the cap and how to raise it (`sessionBudgetStopped`,
+     `tabBudgetReachedDetail`, the daily extras' raise dialog). No input
+     estimate and no output worst case is ever compared with a cap.
+  2. _Settlement:_ each response's real cost lands in the shared ledger when
+     its usage arrives (unchanged).
+  3. _Unknown:_ a response lost before its usage is recorded as unknown, never
+     as a guessed amount (journal `hasUnknownCost`; Tab's `unreportedRequests`),
+     and the next capped request says so (`sessionBudgetLegacyFeesUnknown`).
+- **Consumers moved onto it.** Conversation (`reserveRequest` in
+  `sessionBudget.ts`, `budgeted` in `ModelApiHost.ts`); the journal's own final
+  check (`sessionBudgetJournal.ts` `check`: it no longer compares its own hold,
+  only everything else's settled spend); image generation (`ModelApiHost.ts`);
+  hook helper (`hookModelEntry.ts`), reviewer (`reviewerEntry.ts`); hosted
+  search (`client.ts`: holds only the exact fee ceiling, its own bound at the
+  approved tariff); the shared daily extras (`paidDailyBudget.ts`); Tab
+  (`tabLedger.ts`, `tabSpendGate.ts`, `tabProvider.ts`: no worst case, a
+  zero-dollar in-flight mark); **children**: a sub-agent now shares its owner's
+  cap and ledger (`admissionCap`, `budgeted`), where it used to bypass it.
+- **Overshoot bound (honest).** The spend can pass the cap by at most the
+  responses in flight when their requests were admitted: **one** for the
+  conversation itself, plus **up to `SUBAGENT_CAPACITY` = 8** running
+  sub-agents (they share the owner's ledger), plus one per helper request
+  (hook, review) in flight, and Tab at most `TAB_MAX_IN_FLIGHT` = 2 (its own
+  budget). It is not "one response" when children run. What a cap can never do
+  is refuse work while the real spend is below it.
+- **Kept.** The terminal's `--max-budget-usd` (`runtimeAccountingEntry.ts`,
+  `reserveAdmitted`) and paid consent (`PaidUseConsent`) are untouched: paid
+  extras still ask first; the daily extras still own their raise/stop dialog.
+  The scheduled-run ledger (D95) and media request accounting (M105) keep
+  their own finite, exact reservation (they have no person-set cap to follow).
+- **Budget comparison with sources** (read this session):
+  | Harness                                                                  | What it does                                                                                                                                                                                                                                                                                                                  | Source                                                                    |
+  | ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+  | Claude Agent SDK / Claude Code                                           | `maxBudgetUsd` / `max_budget_usd` compares the call's accumulated cost, which is a _client-side estimate from a price table_; the `error_max_budget_usd` result's `total_cost_usd` **includes the response that crossed the budget**, so it can pass the cap by that response. Subagent cost is included in `total_cost_usd`. | https://code.claude.com/docs/en/agent-sdk/cost-tracking (read 2026-10-15) |
+  | OpenCode                                                                 | Its Config reference documents no spend cap or budget option at all (provider timeouts, compaction, subagent depth only).                                                                                                                                                                                                     | https://opencode.ai/docs/config/ (read 2026-10-15)                        |
+  | Codex CLI                                                                | **UNVERIFIED** â€” not read this session.                                                                                                                                                                                                                                                                                     | â€”                                                                       |
+  | Gemini CLI, Cline                                                        | From `.lane/limits-audit.md` (sources it names, not re-read): Gemini has quota windows and no dollar cap; Cline has per-task `allowedMaxCost` auto-approval caps. **UNVERIFIED** here.                                                                                                                                        | audit, 2026-10-15                                                         |
+  | Our contract matches the one documented behavior: real settled cost, the |
+  | crossing response is counted, no pre-send hold.                          |
+- **Red drills (broke source on purpose, saw the fail, restored byte-exact).**
+  (1) `isBelowCap` made to add a $3.03 worst case: `sessionBudget.test.ts` 6
+  failed; SHA-256 `7F315F8F842DD34F0D34500440996EB4FEBF1D77A727DFDC2F1FD1B6671AE778`
+  before and after. (2) the journal's `check` made to compare its own hold:
+  2 failed; `A5C8F9E8D5187FB32292856CB0FB5A1D3455104EA42896A7C870A32F8FBF9538`
+  before and after. (3) Tab admission made to add a $0.05 worst case:
+  `tabLedger.test.ts` 1 failed; `45CDABE3343C25278B30A8B23ADB342B84566B9A4FB661734FE73E2694EE20BC`
+  before and after.
+- **Tests (real code only).** `sessionBudget.test.ts` (rewritten: the old
+  cases asserted the estimate comparison; new ones use a real journal over a
+  real temporary folder), `tabLedger.test.ts` (new, real ledger files),
+  `judgeAdmissionLedger.test.ts` (the two-window race now admits both and says
+  so), `manifest.test.ts` (the setting's claims), `confirmedDispatchInventory.test.ts`
+  (an allowlist entry moved with F88's rethrow, plus a behaviour check).
+  One suite fails on this branch for a reason I measured as **not mine**:
+  `modelsActivationBudget.test.ts` ("adds at most 3 KiB"): 3860 B growth, the
+  the same 3860 B on `e8a7ec524` (the step-0 merge, before any edit of this
+  continuation) and on `a16b46081` (F4), run in clean extracted copies of
+  those commits. Its cause is UNMEASURED; I did not touch the cap.
+- **Not claimed.** Real-life: a long cached context under a small cap runs;
+  after reported spend passes the cap the next request stops naming
+  spent/cap/raise (real-life step 4 below); concurrent children's overshoot.

@@ -19,8 +19,6 @@ import {
 } from './schemas'
 
 import {
-  estimateInput,
-  requestParts,
   reserveRequest,
   type OwnedSessionBudgetScope,
   type SessionBudgetClaim,
@@ -223,7 +221,7 @@ async function requestReviewer(
     workspaceRoot: context.deps.workspaceRoot,
     platform: context.deps.platform,
   })
-  let body = context.keyed(
+  const body = context.keyed(
     sideCallBody(
       context.keyed({
         model: confirmed.modelId,
@@ -250,7 +248,9 @@ async function requestReviewer(
   let usage: Usage | null | undefined
   let claim: SessionBudgetClaim | undefined
   let directBudget: DirectResponseBudget | undefined
-  let reservedUsd = Usd.from(0).toAmount()
+  // Nothing is held for the response (F3): a request that goes out and never
+  // reports usage settles as unknown, not as a guess.
+  const reservedUsd = Usd.from(0).toAmount()
   let wasRefused = false
   const startedAt = context.deps.now()
   let observation: ResponseObservation = {}
@@ -260,32 +260,23 @@ async function requestReviewer(
     if (budgetScope !== undefined) {
       const total = await budgetScope.journal.read(budgetScope.sessionId, budgetScope.accountId)
       const capUsd = budgetScope.capUsd()
-      const input = estimateInput(requestParts(body), undefined).inputTokens
+      // The one admission rule (F3): sent while settled real spend is below
+      // the cap; nothing of this response is estimated or held. It settles
+      // at its real cost, or stays unknown if it never reports usage.
       if (isPositiveUsd(capUsd)) {
-        const reservation = reserveRequest({
+        reserveRequest({
           capUsd,
           spentUsd: total.spentUsd,
-          estimatedInputTokens: input,
           modelId,
           maxOutputTokens: body.max_output_tokens,
           minOutputTokens: minOutputTokensForPolicy(context.resolved.policy),
           ...(modelId.includes('/') && { price: context.resolved.price }),
         })
-        body = {
-          ...body,
-          max_output_tokens: Math.min(body.max_output_tokens, reservation.maxOutputTokens),
-        }
       }
-      reservedUsd =
-        context.resolved.price.reserve({
-          inputTokens: input,
-          outputTokens: body.max_output_tokens,
-          cachedTokens: 0,
-        }) ?? Usd.from(0).toAmount()
       claim = await budgetScope.journal.reserve(
         budgetScope.sessionId,
         budgetScope.accountId,
-        reservedUsd,
+        Usd.from(0).toAmount(),
         { isUnbounded: !isPositiveUsd(capUsd) },
       )
     }

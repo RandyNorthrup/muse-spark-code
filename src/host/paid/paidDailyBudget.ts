@@ -13,12 +13,12 @@ import type {
   SessionBudgetClaim,
 } from '../../core/backends/modelapi/sessionBudget'
 import { fingerprint } from '../../core/verify/fingerprint'
-import { estimateCostUsd } from '../../core/usage/insights'
 import { unlessAborted } from '../../core/timeouts'
 import { PAID_DAILY_BUDGET, PAID_PRICES_USD, UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import { formatUsd } from '../../shared/l10n/exactUsd'
 import { modelApiPaidTier } from '../../shared/paid'
+import { isBelowCap } from '../../shared/spendCap'
 import { createSessionBudgetJournal } from '../backend/sessionBudgetJournal'
 import { storeErrorCode } from '../backend/storeErrors'
 import { writeFileAtomically } from '../fsAtomic'
@@ -230,7 +230,7 @@ export function createPaidDailyBudget(deps: {
   const reserve: NonNullable<ModelApiClientDeps['reservePaidRequest']> = async (
     body,
     feature,
-    estimatedInputTokens,
+    _estimatedInputTokens,
     signal = new AbortController().signal,
   ) => {
     signal.throwIfAborted()
@@ -248,26 +248,15 @@ export function createPaidDailyBudget(deps: {
       if ('input' in body) {
         if (modelApiPaidTier(body.model) === undefined)
           throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
-        if (estimatedInputTokens === undefined) throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
-        if (
-          !Number.isSafeInteger(estimatedInputTokens) ||
-          estimatedInputTokens < 0 ||
-          !Number.isSafeInteger(body.max_output_tokens) ||
-          body.max_output_tokens < 0
-        )
+        if (!Number.isSafeInteger(body.max_output_tokens) || body.max_output_tokens < 0)
           throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
-        // Lane LIMITSA (D113): the shared daily extras budget counts real
-        // spend, not a worst-case reservation. Only the input estimate is
-        // held up front; the response's real cost settles afterwards, so a
-        // cap can be passed by at most that one response.
-        costUsd = estimateCostUsd(
-          {
-            inputTokens: estimatedInputTokens,
-            outputTokens: 0,
-            cachedTokens: 0,
-          },
-          body.model,
-        )
+        // Lane LIMITSFIX (F3, D113): the shared daily extras budget follows
+        // the one cap rule (src/shared/spendCap.ts). Nothing of the response
+        // is held, neither an input estimate nor an output worst case: the
+        // request is admitted below while settled real spend is under the
+        // cap, and its real cost settles when its usage arrives. A flat-fee
+        // image keeps its exact price as its real cost.
+        costUsd = Usd.from(0).toAmount()
       }
       claim = await reserveClaim(scope, costUsd)
     } catch (error: unknown) {
@@ -294,7 +283,8 @@ export function createPaidDailyBudget(deps: {
       }
       const total = await journal.read(scope, PAID_DAILY_BUDGET.accountId)
       signal.throwIfAborted()
-      if (Usd.from(total.spentUsd).compare(Usd.from(readLimit(scope))) > 0)
+      // The one admission rule (F3): below the cap is admitted; at or over it stops.
+      if (!isBelowCap(readLimit(scope), total.spentUsd))
         await unlessAborted(raise(scope, total.spentUsd, signal), signal)
       signal.throwIfAborted()
       return admittedClaim

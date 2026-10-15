@@ -1,7 +1,7 @@
 import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { Usd, type UsdAmount } from '../../src/shared/usd'
+import { Usd } from '../../src/shared/usd'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   estimateInput,
@@ -22,16 +22,6 @@ import { BASE_LOCALE, fill, setUiText } from '../../src/shared/l10n/text'
 
 const MODEL = 'muse-spark-1.3'
 const CONTRIBUTOR = 'muse-spark-1.3-contributor'
-
-// Standard output: $4.25 per million tokens.
-const STANDARD_OUTPUT_TOKEN_USD = 4.25 / 1_000_000
-const FLOAT_SLACK = 1e-12
-const minimumBase = (capUsd: UsdAmount) => ({
-  capUsd,
-  spentUsd: Usd.from(0).toAmount(),
-  estimatedInputTokens: 1000,
-  modelId: MODEL,
-})
 
 beforeEach(() => {
   setUiText(EN, BASE_LOCALE)
@@ -108,34 +98,82 @@ describe('calibrated media budget parts', () => {
   })
 })
 
+const request = (capUsd: number, spentUsd: number, modelId = MODEL) => ({
+  capUsd: Usd.from(capUsd).toAmount(),
+  spentUsd: Usd.from(spentUsd).toAmount(),
+  modelId,
+})
+
+const refuseAtCap = () => reserveRequest(request(1, 1))
+
+async function withJournal(
+  run: (journal: ReturnType<typeof createSessionBudgetJournal>) => Promise<void>,
+): Promise<void> {
+  const directory = await mkdtemp(path.join(tmpdir(), 'muse-f3-journal-'))
+  try {
+    await run(
+      createSessionBudgetJournal({
+        directory,
+        sleep: () => Promise.resolve(),
+        initialBudget: () =>
+          Promise.resolve({ spentUsd: Usd.from(0).toAmount(), hasUnknownHistoricalFees: false }),
+      }),
+    )
+  } finally {
+    await removeFolder(directory)
+  }
+}
+
 describe('reserveRequest', () => {
-  // Lane LIMITSA, D113: real spend is compared after each response; nothing
-  // reserves the output worst case up front. These tests pin the new
-  // contract on purpose: the old ones asserted the worst-case reservation
-  // the lane removes.
-  it('holds input plus search and keeps the whole output allowance', () => {
-    const reservation = reserveRequest({
-      capUsd: Usd.from(0.0025055).toAmount(),
-      spentUsd: Usd.from(0).toAmount(),
-      estimatedInputTokens: 1,
-      modelId: MODEL,
-      maxToolCalls: 1,
-      searchPriceUsd: Usd.from(0.0025).toAmount(),
-    })
-    expect(reservation.maxOutputTokens).toBe(MODEL_API_MAX_OUTPUT_TOKENS)
-    expect(reservation.costUsd).toBe(Usd.from('0.00250125').toAmount())
+  // Lane LIMITSFIX, F3 (D113): ONE admission rule. A request is sent while the
+  // real spend already settled is below the cap; nothing of the response is
+  // estimated or held. These tests pin that contract on purpose: the earlier
+  // ones asserted an input estimate compared with what was left.
+  it('sends a request while real spend is below the cap, whatever its input would cost', () => {
+    // The 2026-10-14 incident: $2.03 spent of a $5 cap and a request whose
+    // worst case was about $3.03 was refused. Real spend is under the cap.
+    expect(reserveRequest(request(5, 2.03)).maxOutputTokens).toBe(MODEL_API_MAX_OUTPUT_TOKENS)
+    // A $0.001 cap at $0 spent used to refuse 1,000 input tokens (estimated
+    // $0.00125). Nothing is estimated now, so the first request goes.
+    expect(reserveRequest(request(0.001, 0)).maxOutputTokens).toBe(MODEL_API_MAX_OUTPUT_TOKENS)
+    // One cent below the cap is still below it.
+    expect(reserveRequest(request(1, 0.99)).costUsd).toBe(Usd.from(0).toAmount())
   })
-  it('holds the input estimate and the search allowance, never the output', () => {
+
+  it('holds nothing for the response: no input estimate, no output worst case', () => {
+    for (const modelId of [MODEL, CONTRIBUTOR]) {
+      expect(reserveRequest(request(100, 0, modelId)).costUsd).toBe(Usd.from(0).toAmount())
+    }
+  })
+
+  it('stops once real spend has reached the cap, naming spent, cap and how to raise it', () => {
+    expect(refuseAtCap).toThrow(SessionBudgetExceededError)
+    expect(refuseAtCap).toThrow(
+      fill(UI_TEXT.sessionBudgetStopped, { spent: formatUsd(1), cap: formatUsd(1) }),
+    )
+    expect(refuseAtCap).toThrow('museSpark.modelApiSessionBudgetUsd')
+    expect(() => reserveRequest(request(1, 1.5))).toThrow(SessionBudgetExceededError)
+  })
+
+  it('never says the cap was reached while real spend is below it', () => {
+    for (const [cap, spent] of [
+      [0.001, 0],
+      [0.01, 0.0099999],
+      [5, 2.03],
+      [100, 99.99],
+    ] as const) {
+      expect(() => reserveRequest(request(cap, spent))).not.toThrow()
+    }
+  })
+
+  it('holds only the exact hosted-search fee ceiling, from its own bound and approved tariff', () => {
     const reservation = reserveRequest({
-      capUsd: Usd.from(0.14).toAmount(),
-      spentUsd: Usd.from(0).toAmount(),
-      estimatedInputTokens: 100_000,
-      modelId: MODEL,
+      ...request(5, 0),
       maxToolCalls: 5,
       searchPriceUsd: Usd.from(0.0025).toAmount(),
     })
+    expect(reservation.costUsd).toBe(Usd.from('0.0125').toAmount())
     expect(reservation.maxOutputTokens).toBe(MODEL_API_MAX_OUTPUT_TOKENS)
-    expect(reservation.costUsd).toBe(Usd.from('0.1375').toAmount())
   })
 
   it.each([0, -1, 21, 1.5, NaN, Infinity])(
@@ -143,10 +181,7 @@ describe('reserveRequest', () => {
     (maxToolCalls) => {
       expect(() =>
         reserveRequest({
-          capUsd: Usd.from(1).toAmount(),
-          spentUsd: Usd.from(0).toAmount(),
-          estimatedInputTokens: 0,
-          modelId: MODEL,
+          ...request(1, 0),
           maxToolCalls,
           searchPriceUsd: Usd.from(0.0025).toAmount(),
         }),
@@ -159,10 +194,7 @@ describe('reserveRequest', () => {
     (searchPriceUsd) => {
       expect(() =>
         reserveRequest({
-          capUsd: Usd.from(1).toAmount(),
-          spentUsd: Usd.from(0).toAmount(),
-          estimatedInputTokens: 0,
-          modelId: MODEL,
+          ...request(1, 0),
           maxToolCalls: 5,
           searchPriceUsd:
             searchPriceUsd === undefined || !Number.isFinite(searchPriceUsd)
@@ -173,229 +205,72 @@ describe('reserveRequest', () => {
     },
   )
 
-  it('admits when input plus search exactly fit, settling the output later', () => {
-    const reservation = reserveRequest({
-      capUsd: Usd.from(0.0125).toAmount(),
-      spentUsd: Usd.from(0).toAmount(),
-      estimatedInputTokens: 0,
-      modelId: MODEL,
-      maxToolCalls: 5,
-      searchPriceUsd: Usd.from(0.0025).toAmount(),
-    })
-    expect(reservation.maxOutputTokens).toBe(MODEL_API_MAX_OUTPUT_TOKENS)
-    expect(reservation.costUsd).toBe(Usd.from('0.0125').toAmount())
-  })
-
-  it('holds a large input estimate alone, keeping the whole output allowance', () => {
-    // $0.30 - $0.20 is exactly $0.10, and 999,998 contributor input tokens
-    // cost $0.0999998 at $0.10/M: the input fits, so the request runs.
-    const request = {
-      capUsd: Usd.from(0.3).toAmount(),
-      spentUsd: Usd.from(0.2).toAmount(),
-      estimatedInputTokens: 999_998,
-      modelId: CONTRIBUTOR,
-    }
-    const reservation = reserveRequest(request)
-    expect(reservation.maxOutputTokens).toBe(MODEL_API_MAX_OUTPUT_TOKENS)
-    expect(reservation.costUsd).toBe(Usd.from('0.0999998').toAmount())
-  })
-
-  it('never lowers max_output_tokens to fit what is left', () => {
-    // Input $0.125 (100k × $1.25/M) against $0.13: the old code sent 1,176
-    // output tokens; now the request keeps its whole allowance, tight cap
-    // or roomy one.
-    for (const [cap, spent] of [
-      [0.13, 0],
-      [1, 0.2],
-    ] as const) {
-      const reservation = reserveRequest({
-        capUsd: Usd.from(cap).toAmount(),
-        spentUsd: Usd.from(spent).toAmount(),
-        estimatedInputTokens: 100_000,
-        modelId: MODEL,
-      })
-      expect(reservation.maxOutputTokens).toBe(MODEL_API_MAX_OUTPUT_TOKENS)
-      expect(reservation.costUsd).toBe(Usd.from('0.125').toAmount())
-    }
-  })
-
-  it('sends a full-size request while real spend is still under the cap', () => {
-    // The 2026-10-14 incident: $2.03 spent of a $5 session cap, a request
-    // whose worst case was about $3.03. Real spend is under the cap and the
-    // input fits, so the request runs; the response settles afterwards.
-    const reservation = reserveRequest({
-      capUsd: Usd.from(5).toAmount(),
-      spentUsd: Usd.from(2.03).toAmount(),
-      estimatedInputTokens: 1000,
-      modelId: MODEL,
-    })
-    expect(reservation.maxOutputTokens).toBe(MODEL_API_MAX_OUTPUT_TOKENS)
-    expect(reservation.costUsd).toBe(Usd.from('0.00125').toAmount())
-  })
-
-  it('keeps the caller’s own cap, large or small, without lowering it', () => {
+  it('keeps the caller’s own output allowance, large or small, and refuses an invalid one', () => {
     for (const maxOutputTokens of [1, 4096, 131_072]) {
-      const reservation = reserveRequest({
-        capUsd: Usd.from(1).toAmount(),
-        spentUsd: Usd.from(0).toAmount(),
-        estimatedInputTokens: 0,
-        modelId: MODEL,
+      expect(reserveRequest({ ...request(1, 0), maxOutputTokens }).maxOutputTokens).toBe(
         maxOutputTokens,
-      })
-      expect(reservation.maxOutputTokens).toBe(maxOutputTokens)
+      )
     }
-    // A caller cap the old code would have lowered to 25,000 stays whole.
-    expect(
-      reserveRequest({
-        capUsd: Usd.from(0.01).toAmount(),
-        spentUsd: Usd.from(0).toAmount(),
-        estimatedInputTokens: 50_000,
-        modelId: CONTRIBUTOR,
-        maxOutputTokens: 131_072,
-      }).maxOutputTokens,
-    ).toBe(131_072)
     for (const maxOutputTokens of [0, -1, 1.5, Infinity, NaN]) {
-      expect(() =>
-        reserveRequest({
-          capUsd: Usd.from(1).toAmount(),
-          spentUsd: Usd.from(0).toAmount(),
-          estimatedInputTokens: 0,
-          modelId: MODEL,
-          maxOutputTokens,
-        }),
-      ).toThrow('invalid output.maxTokens')
+      expect(() => reserveRequest({ ...request(1, 0), maxOutputTokens })).toThrow(
+        'invalid output.maxTokens',
+      )
     }
   })
 
-  it('prices a contributor model at its own tier and still sends whole', () => {
-    // $0.10/M in: 50k is $0.005, held alone against the $0.01 cap.
-    const reservation = reserveRequest({
-      capUsd: Usd.from(0.01).toAmount(),
-      spentUsd: Usd.from(0).toAmount(),
-      estimatedInputTokens: 50_000,
-      modelId: CONTRIBUTOR,
-    })
-    expect(reservation.maxOutputTokens).toBe(MODEL_API_MAX_OUTPUT_TOKENS)
-    expect(reservation.costUsd).toBe(Usd.from('0.005').toAmount())
-  })
-
-  it('sends a request whose input fits, however little is left over it', () => {
-    // $0.00125 of input against barely more: the output settles later.
-    const reservation = reserveRequest({
-      capUsd: Usd.from(0.00125 + 1.5 * STANDARD_OUTPUT_TOKEN_USD).toAmount(),
-      spentUsd: Usd.from(0).toAmount(),
-      estimatedInputTokens: 1000,
-      modelId: MODEL,
-    })
-    expect(reservation.maxOutputTokens).toBe(MODEL_API_MAX_OUTPUT_TOKENS)
-  })
-
-  it('refuses only when the input alone exceeds what is left, and says why', () => {
-    const capUsd = 0.001
-    const refuse = () =>
-      reserveRequest({
-        capUsd: Usd.from(capUsd).toAmount(),
-        spentUsd: Usd.from(0).toAmount(),
-        estimatedInputTokens: 1000,
-        modelId: MODEL,
-      })
-    expect(refuse).toThrow(SessionBudgetExceededError)
-    expect(refuse).toThrow(
-      fill(UI_TEXT.sessionBudgetStopped, {
-        estimate: formatUsd(0.00125),
-        cap: formatUsd(capUsd),
-        spent: formatUsd(0),
-      }),
-    )
-    expect(refuse).toThrow('museSpark.modelApiSessionBudgetUsd')
-  })
-
-  it('refuses once real spend has passed the cap, whatever the request', () => {
-    // Spend exactly at the cap with nothing new held still runs: the cap is
-    // compared against real spend after each response, and nothing here is
-    // over it yet.
-    expect(
-      reserveRequest({
-        capUsd: Usd.from(1).toAmount(),
-        spentUsd: Usd.from(1).toAmount(),
-        estimatedInputTokens: 0,
-        modelId: MODEL,
-      }).maxOutputTokens,
-    ).toBe(MODEL_API_MAX_OUTPUT_TOKENS)
-    expect(() =>
-      reserveRequest({
-        capUsd: Usd.from(1).toAmount(),
-        spentUsd: Usd.from(1.5).toAmount(),
-        estimatedInputTokens: 0,
-        modelId: MODEL,
-      }),
-    ).toThrow(SessionBudgetExceededError)
-  })
-
-  it('refuses a model whose price it does not know: the cap could not be kept', () => {
-    const request = {
-      capUsd: Usd.from(100).toAmount(),
-      spentUsd: Usd.from(0).toAmount(),
-      estimatedInputTokens: 1,
-      modelId: 'muse-x',
-    }
-    expect(() => reserveRequest(request)).toThrow(SessionBudgetExceededError)
-    expect(() => reserveRequest(request)).toThrow(
+  it('refuses a model whose price it does not know: its spend could not be settled', () => {
+    const unknown = request(100, 0, 'muse-x')
+    expect(() => reserveRequest(unknown)).toThrow(SessionBudgetExceededError)
+    expect(() => reserveRequest(unknown)).toThrow(
       fill(UI_TEXT.sessionBudgetUnpriced, { model: 'muse-x' }),
     )
   })
 
-  it('never reserves more than what is left', () => {
-    for (const capUsd of [0.001, 0.01, 0.1, 0.5, 2]) {
-      for (const spentUsd of [0, capUsd / 3, capUsd / 2]) {
-        for (const estimatedInputTokens of [0, 10, 700, 5000, 70_000]) {
-          for (const modelId of [MODEL, CONTRIBUTOR]) {
-            let reservation
-            try {
-              reservation = reserveRequest({
-                capUsd: Usd.from(capUsd).toAmount(),
-                spentUsd: Usd.from(spentUsd).toAmount(),
-                estimatedInputTokens,
-                modelId,
-              })
-            } catch (error: unknown) {
-              expect(error).toBeInstanceOf(SessionBudgetExceededError)
-              continue
-            }
-            expect(reservation.maxOutputTokens).toBeGreaterThanOrEqual(1)
-            expect(Number(reservation.costUsd)).toBeLessThanOrEqual(capUsd - spentUsd + FLOAT_SLACK)
-          }
-        }
-      }
+  it('validates the provider minimum but never lets it gate sending', () => {
+    expect(reserveRequest({ ...request(1, 0), minOutputTokens: 16 }).maxOutputTokens).toBe(
+      MODEL_API_MAX_OUTPUT_TOKENS,
+    )
+    for (const minOutputTokens of [0, -1, 1.5, NaN, Infinity]) {
+      expect(() => reserveRequest({ ...request(1, 0), minOutputTokens })).toThrow(
+        'invalid output.minTokens',
+      )
     }
   })
+})
 
-  // Lane LIMITSA, D113: the provider minimum is validated but never gates
-  // sending: the request keeps its own allowance (always at least the
-  // provider minimum in practice), so the budget cannot refuse on the
-  // minimum's behalf.
-  describe('provider minimum output tokens', () => {
-    it('sends with its own allowance when the input fits, whatever the minimum', () => {
-      const reservation = reserveRequest({
-        ...minimumBase(Usd.from('0.002').toAmount()),
-        minOutputTokens: 16,
-      })
-      expect(reservation.maxOutputTokens).toBe(MODEL_API_MAX_OUTPUT_TOKENS)
-      expect(reservation.costUsd).toBe(Usd.from('0.00125').toAmount())
+describe('the journal admits by settled real spend, not by its own hold', () => {
+  const owner = 'b'.repeat(64)
+
+  it('admits a request whose old worst-case hold would have passed the cap', async () => {
+    await withJournal(async (journal) => {
+      await journal.record('conversation', owner, Usd.from(2.03).toAmount())
+      // The incident's request: a held worst case of about $3.03 against $5.
+      const claim = await journal.reserve('conversation', owner, Usd.from(3.03).toAmount())
+      expect(Number(claim.check(Usd.from(5).toAmount()).spentUsd)).toBeCloseTo(5.06)
+      await claim.settle(Usd.from(0.01).toAmount())
     })
+  })
 
-    it('sends with its own allowance when no minimum was captured', () => {
-      expect(reserveRequest(minimumBase(Usd.from('0.002').toAmount())).maxOutputTokens).toBe(
-        MODEL_API_MAX_OUTPUT_TOKENS,
+  it('stops the next request once settled real spend has reached the cap, naming it', async () => {
+    await withJournal(async (journal) => {
+      await journal.record('conversation', owner, Usd.from(5).toAmount())
+      const next = await journal.reserve('conversation', owner, Usd.from(0).toAmount())
+      expect(() => next.check(Usd.from(5).toAmount())).toThrow(
+        fill(UI_TEXT.sessionBudgetStopped, { spent: formatUsd(5), cap: formatUsd(5) }),
       )
+      await next.settle(Usd.from(0).toAmount())
     })
+  })
 
-    it('refuses an invalid provider minimum without sending', () => {
-      for (const minOutputTokens of [0, -1, 1.5, NaN, Infinity]) {
-        expect(() =>
-          reserveRequest({ ...minimumBase(Usd.from('0.002').toAmount()), minOutputTokens }),
-        ).toThrow('invalid output.minTokens')
-      }
+  it('records a response lost before its usage as unknown, and the next capped request says so', async () => {
+    await withJournal(async (journal) => {
+      const lost = await journal.reserve('conversation', owner, Usd.from(0).toAmount())
+      await lost.settle(Usd.from(0).toAmount(), true)
+      const next = await journal.reserve('conversation', owner, Usd.from(0).toAmount())
+      expect(() => next.check(Usd.from(5).toAmount())).toThrow(
+        UI_TEXT.sessionBudgetLegacyFeesUnknown,
+      )
+      await next.settle(Usd.from(0).toAmount())
     })
   })
 })
@@ -493,13 +368,7 @@ describe('M108 T account budget admission', () => {
       const rejected = await journal.reserve('conversation', owner, Usd.from(0.01).toAmount())
       expect(() =>
         withAccountBudgetAdmission(rejected, () => check).check(Usd.from(1).toAmount()),
-      ).toThrow(
-        fill(UI_TEXT.sessionBudgetStopped, {
-          estimate: formatUsd(0.01),
-          cap: formatUsd(1),
-          spent: formatUsd(1),
-        }),
-      )
+      ).toThrow(fill(UI_TEXT.sessionBudgetStopped, { cap: formatUsd(1), spent: formatUsd(1) }))
       await rejected.settle(Usd.from(0).toAmount())
       const total = await journal.read('conversation', owner)
       expect(Number(total.spentUsd)).toBeCloseTo(1)

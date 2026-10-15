@@ -9,6 +9,23 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- Lane LIMITSFIX (F3, D113): one admission and settlement contract for
+  every spending cap the person sets. A request is sent while the real
+  spend already settled is below the cap; at or over it the next request
+  stops in words naming the spend, the cap and how to raise it. Nothing is
+  estimated or reserved against a cap: not an input estimate, not an
+  output worst case, not a provider's cache-write worst case. The
+  conversation, its sub-agents (which now share the conversation's cap and
+  ledger instead of bypassing it), compaction, the hook and review
+  helpers, hosted search, the shared daily extras and Tab all follow it.
+  A response lost before its usage is recorded as unknown, never as a
+  guessed amount, and the next capped request says so. The spend can pass
+  a cap by at most the responses in flight when their requests were
+  admitted: one for the conversation plus up to 8 running sub-agents plus
+  any helper request. Tab's notice says the spend "has reached" the budget
+  only once it has. The terminal's `--max-budget-usd` and the ask-first
+  consent of paid extras are unchanged.
+
 - Lane LIMITSFIX (F4, D113): one repeat policy for every tool class. The
   same call with the same arguments returning the same result warns the
   model at the 3rd and 4th time and stops the turn at the 5th with the

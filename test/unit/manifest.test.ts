@@ -238,22 +238,26 @@ describe('package.json manifest', () => {
     const budget = properties['museSpark.modelApiSessionBudgetUsd']
     expect(budget?.scope).toBe('machine')
     expect(budget?.default).toBe(0)
-    // The description resolves through package.nls.json. It says what the
-    // cap does (a request that cannot fit is not sent) and what it cannot
-    // promise: billed usage can differ from the estimates, sent requests keep
-    // their reservation, and it makes no claim that the estimate's error is
-    // the only way past the cap (the review of PR #58's "overclaims").
+    // The description resolves through package.nls.json. Lane LIMITSFIX (F3,
+    // D113): it says what the cap does (a request is sent while the real
+    // settled spend is below it, never compared with an estimate) and what it
+    // cannot promise: the spend can pass the cap by the responses in flight,
+    // a lost response is unknown rather than guessed, and it makes no claim
+    // that a single response is the only way past the cap (the review of
+    // PR #58's "overclaims").
     const here = path.dirname(fileURLToPath(import.meta.url))
     const nls = JSON.parse(
       readFileSync(path.join(here, '..', '..', 'package.nls.json'), 'utf8'),
     ) as Record<string, string>
     const description = nls[budget?.description?.replace(/^%(.+)%$/, '$1') ?? '']
     expect(description).toContain('0 means no cap')
-    expect(description).toContain('a request that cannot fit what is left is not sent')
-    expect(description).toContain('input estimates may differ from billed usage')
-    expect(description).toContain('Unknown sent requests keep their reservation')
+    expect(description).toContain('never with an estimate')
+    expect(description).toContain('the responses in flight')
+    expect(description).toContain('recorded as unknown, never as a guessed amount')
+    expect(description).toContain('sub-agents')
     expect(description).toContain('Web search is unavailable while capped')
-    expect(description).not.toMatch(/only through|only overrun|only way/i)
+    expect(description).not.toMatch(/at most one response|only through|only overrun|only way/i)
+    expect(description).not.toMatch(/input estimate is held|keep their reservation|worst case/i)
   })
 
   it('claims only the GitHub reads the wired network port can make (M113W)', () => {

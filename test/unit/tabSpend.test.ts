@@ -1,45 +1,8 @@
-import { Usd } from '../../src/shared/usd'
 import { describe, expect, it } from 'vitest'
 
-import {
-  tabDayKey,
-  tabSettleUsd,
-  isWithinTabBudget,
-  tabWorstCaseUsd,
-} from '../../src/core/tab/tabSpend'
+import { tabDayKey, tabSettleUsd } from '../../src/core/tab/tabSpend'
 
 const STANDARD = 'muse-spark-1.3'
-const CONTRIBUTOR = 'muse-spark-1.3-contributor'
-
-describe('tabWorstCaseUsd', () => {
-  it('reserves input bytes plus the output cap at list price', () => {
-    // 2 input bytes at $1.25 and 128 output tokens at $4.25 per million.
-    expect(
-      Number(tabWorstCaseUsd({ model: STANDARD, inputText: 'ab', maxOutputTokens: 128 })),
-    ).toBeCloseTo(0.0005465, 10)
-    // The contributor tier's own rates: 2 at $0.10, 128 at $0.20.
-    expect(
-      Number(tabWorstCaseUsd({ model: CONTRIBUTOR, inputText: 'ab', maxOutputTokens: 128 })),
-    ).toBeCloseTo(0.0000258, 10)
-  })
-
-  it('counts UTF-8 bytes, not characters', () => {
-    // 'é' is one character but two bytes: 2 at $1.25, 16 at $4.25.
-    expect(
-      Number(tabWorstCaseUsd({ model: STANDARD, inputText: 'é', maxOutputTokens: 16 })),
-    ).toBeCloseTo(0.0000705, 10)
-  })
-
-  it('errs high against the settlement for the same usage', () => {
-    const worst = tabWorstCaseUsd({
-      model: STANDARD,
-      inputText: 'x'.repeat(100),
-      maxOutputTokens: 128,
-    })
-    const settled = tabSettleUsd({ inputTokens: 100, outputTokens: 20, cachedTokens: 90 }, STANDARD)
-    expect(Number(worst)).toBeGreaterThan(Number(settled))
-  })
-})
 
 describe('tabSettleUsd', () => {
   it('prices reported usage with cached tokens at the cached rate', () => {
@@ -47,25 +10,6 @@ describe('tabSettleUsd', () => {
     expect(
       Number(tabSettleUsd({ inputTokens: 100, outputTokens: 10, cachedTokens: 40 }, STANDARD)),
     ).toBeCloseTo(0.0001235, 10)
-  })
-})
-
-describe('isWithinTabBudget', () => {
-  it('fits exactly at the budget and refuses past it', () => {
-    expect(
-      isWithinTabBudget({
-        spentTodayUsd: Usd.from(0.5).toAmount(),
-        worstCaseUsd: Usd.from(0.5).toAmount(),
-        budgetUsd: Usd.from(1).toAmount(),
-      }),
-    ).toBe(true)
-    expect(
-      isWithinTabBudget({
-        spentTodayUsd: Usd.from(0.5).toAmount(),
-        worstCaseUsd: Usd.from(0.500001).toAmount(),
-        budgetUsd: Usd.from(1).toAmount(),
-      }),
-    ).toBe(false)
   })
 })
 

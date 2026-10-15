@@ -10,6 +10,7 @@ import {
   negateUsd,
   isPositiveUsd,
 } from '../../../shared/usd'
+import { isBelowCap } from '../../../shared/spendCap'
 import {
   freezePaidQuote,
   isSamePaidQuote,
@@ -3851,14 +3852,17 @@ export class ModelApiSession implements ScheduledAgentSession {
 
   /**
    * The body as the session budget lets it be sent (M82; real-spend
-   * accounting lane LIMITSA, D113): with a cap, its input estimated high
-   * from the last reported request, the estimate alone held up front, the
-   * request keeping its own `max_output_tokens`, the response's real cost
-   * settling afterwards. Throws `SessionBudgetExceededError` when the
-   * input alone exceeds what is left, or when real spend has passed the
-   * cap: it is not sent, and the turn stops with the reason. Child tokens
-   * are counted when reported, but their separately consented requests are
-   * not reserved against the parent's cap (M82 owner decision).
+   * accounting lane LIMITSFIX, F3, D113): with a cap, the request is sent
+   * while the real spend already settled is below it (`isBelowCap`); no
+   * input estimate and no output worst case is compared with the cap, the
+   * request keeps its own `max_output_tokens`, and the response's real cost
+   * settles when its usage arrives. Throws `SessionBudgetExceededError`
+   * once real spend has reached the cap: it is not sent, and the turn stops
+   * with the reason. A sub-agent shares its owner's ledger and cap: it is
+   * admitted by the same comparison, and its real cost settles into the
+   * same ledger, so the cap can be passed by at most the responses in
+   * flight when they were admitted (the conversation's own and up to
+   * SUBAGENT_CAPACITY sub-agents').
    */
   private budgeted(body: CreateResponseBody, selected: ResolvedModel): CreateResponseBody {
     const searchBound = this.webSearchBound()
@@ -3869,7 +3873,22 @@ export class ModelApiSession implements ScheduledAgentSession {
       body = { ...body, max_tool_calls: searchBound }
     }
     this.openReservation = undefined
-    if (this.isSubagent || this.deps.client.isPlanModel?.(body.model) === true) return body
+    if (this.deps.client.isPlanModel?.(body.model) === true) return body
+    if (this.isSubagent) {
+      // Same rule, the owner's cap and the shared ledger the child's real
+      // cost already settles into. The child holds no claim of its own.
+      const owner = this.budgetOwner()
+      const ownerCapUsd = this.admissionCap()
+      if (isPositiveUsd(ownerCapUsd) && !isBelowCap(ownerCapUsd, owner.budgetSpentUsd)) {
+        throw new SessionBudgetExceededError(
+          fill(UI_TEXT.sessionBudgetStopped, {
+            spent: formatUsd(owner.budgetSpentUsd),
+            cap: formatUsd(ownerCapUsd),
+          }),
+        )
+      }
+      return body
+    }
     const capUsd = this.currentBudgetCap()
     if (Usd.from(capUsd).compare(Usd.from(0)) <= 0 && this.budgetJournal() === undefined) {
       return body
@@ -3878,41 +3897,23 @@ export class ModelApiSession implements ScheduledAgentSession {
       this.media?.budgetParts(body) ?? requestParts(body),
       body.model === this.modelId ? this.budgetBase : undefined,
     )
-    const maxOutputTokens = body.max_output_tokens
-    const reservation =
-      Usd.from(capUsd).compare(Usd.from(0)) > 0
-        ? reserveRequest({
-            capUsd,
-            spentUsd: this.budgetSpentUsd,
-            estimatedInputTokens: estimate.inputTokens,
-            modelId: body.model,
-            ...(body.max_tool_calls !== undefined && {
-              maxToolCalls: body.max_tool_calls,
-              searchPriceUsd: this.approvedSearchQuote?.tariffUsd,
-            }),
-            maxOutputTokens,
-            minOutputTokens: minOutputTokensForPolicy(selected.policy),
-            images: requestImageCount(body),
-            ...(body.model.includes('/') && { price: selected.price }),
-          })
-        : {
-            estimatedInputTokens: estimate.inputTokens,
-            maxOutputTokens,
-            costUsd: sumUsd(
-              Usd.from(
-                selected.price.reserve({
-                  inputTokens: estimate.inputTokens,
-                  outputTokens: maxOutputTokens,
-                  cachedTokens: 0,
-                  images: requestImageCount(body),
-                }) ?? 0,
-              ).toAmount(),
-              multiplyUsd(
-                this.approvedSearchQuote?.tariffUsd ?? Usd.from(0).toAmount(),
-                body.max_tool_calls ?? 0,
-              ),
-            ),
-          }
+    // Nothing is held for the response, capped or not: its real cost
+    // settles when its usage arrives (F3). The claim is the durable record
+    // that a request went out, so one lost before its usage stays unknown.
+    const reservation: BudgetReservation = isPositiveUsd(capUsd)
+      ? reserveRequest({
+          capUsd,
+          spentUsd: this.budgetSpentUsd,
+          modelId: body.model,
+          ...(body.max_tool_calls !== undefined && {
+            maxToolCalls: body.max_tool_calls,
+            searchPriceUsd: this.approvedSearchQuote?.tariffUsd,
+          }),
+          maxOutputTokens: body.max_output_tokens,
+          minOutputTokens: minOutputTokensForPolicy(selected.policy),
+          ...(body.model.includes('/') && { price: selected.price }),
+        })
+      : { maxOutputTokens: body.max_output_tokens, costUsd: Usd.from(0).toAmount() }
     this.openReservation = {
       ...reservation,
       searchSpentUsd: Usd.from(0).toAmount(),
@@ -3938,8 +3939,8 @@ export class ModelApiSession implements ScheduledAgentSession {
       isSent: false,
       isRefused: false,
     }
-    // Lane LIMITSA (D113): the budget never lowers `max_output_tokens`;
-    // the reservation holds the input estimate alone (see sessionBudget.ts).
+    // The budget never lowers `max_output_tokens` and holds no estimate
+    // (see sessionBudget.ts and src/shared/spendCap.ts).
     return body
   }
 
@@ -3982,13 +3983,7 @@ export class ModelApiSession implements ScheduledAgentSession {
           : this.sendingModel.policy.pricing,
       outcome: 'failed',
     }
-    const reservation = this.openReservation
-    if (reservation?.hasCap === true) {
-      this.deps.log.info(
-        `Session budget: request reserved for ${String(reservation.estimatedInputTokens)} input tokens`,
-      )
-    }
-    return reservation
+    return this.openReservation
   }
 
   /** A capped request never reaches fetch before its possible charge is durable. */
@@ -4034,6 +4029,15 @@ export class ModelApiSession implements ScheduledAgentSession {
       : (this.deps.budgetScope?.capUsd() ?? this.deps.sessionBudgetUsd())
   }
 
+  /**
+   * The cap that decides whether a request may be sent (F3). A sub-agent
+   * shares its owner's cap and ledger, so one contract covers the whole
+   * conversation; the display paths keep `currentBudgetCap`.
+   */
+  private admissionCap(): UsdAmount {
+    return this.isSubagent ? this.budgetOwner().currentBudgetCap() : this.currentBudgetCap()
+  }
+
   private budgetJournal(): SessionStore['budget'] {
     return this.deps.client.isPlanModel?.(this.modelId) === true
       ? undefined
@@ -4057,23 +4061,24 @@ export class ModelApiSession implements ScheduledAgentSession {
     owner.budgetAccountId = accountId
     const journal = this.budgetJournal()
     if (journal === undefined) {
-      if (Usd.from(this.currentBudgetCap()).compare(Usd.from(0)) > 0) {
+      if (isPositiveUsd(this.admissionCap())) {
         throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
       }
       return
     }
+    // A sub-agent reads the shared ledger into its owner's figure, which its
+    // own admission compares with the cap (F3: one ledger, one contract).
+    const spentSink = this.isSubagent ? owner : this
     if (scope === undefined) {
       await this.onPersisted('budget')
     }
     const total = await journal.read(scope?.sessionId ?? owner.sessionId, accountId)
     owner.budgetIsFreshFork = false
-    if (
-      Usd.from(this.currentBudgetCap()).compare(Usd.from(0)) > 0 &&
-      total.hasUnknownHistoricalFees
-    ) {
+    // An unknown cost in a capped conversation is said, not guessed (F3).
+    if (isPositiveUsd(this.admissionCap()) && total.hasUnknownHistoricalFees) {
       throw new Error(UI_TEXT.sessionBudgetLegacyFeesUnknown)
     }
-    this.budgetSpentUsd = total.spentUsd
+    spentSink.budgetSpentUsd = total.spentUsd
     owner.hasUnknownBudgetCost = total.hasUnknownHistoricalFees
   }
 
@@ -4107,6 +4112,7 @@ export class ModelApiSession implements ScheduledAgentSession {
             )
           : await claim.settle(costUsd, hasUnknownCost, isFinal)
       this.budgetSpentUsd = total.spentUsd
+      owner.budgetSpentUsd = total.spentUsd
       owner.hasUnknownBudgetCost = total.hasUnknownHistoricalFees
       this.touch()
     })()
@@ -4171,6 +4177,8 @@ export class ModelApiSession implements ScheduledAgentSession {
               : Usd.from(0).toAmount(),
           )
         : Usd.from(0).toAmount()
+    const isUnknown =
+      reservation.hasAmbiguousAttempt || (reservation.isSent && !reservation.isRefused)
     if (isPositiveUsd(costUsd)) {
       this.budgetSpentUsd = sumUsd(
         this.budgetSpentUsd,
@@ -4178,15 +4186,13 @@ export class ModelApiSession implements ScheduledAgentSession {
         negateUsd(reservation.searchSpentUsd),
       )
       this.warnUnknownCharge(costUsd)
-      this.deps.log.warn(
-        `Session budget: a response ended without its usage; its remaining reservation of ${costUsd} USD counts as spent`,
-      )
     }
-    this.recordBudgetCost(
-      costUsd,
-      reservation.claim,
-      reservation.hasAmbiguousAttempt || (reservation.isSent && !reservation.isRefused),
-    )
+    if (isUnknown) {
+      // A response lost before its usage is recorded as unknown, never as a
+      // guessed amount (F3); a capped conversation says so at its next request.
+      this.deps.log.warn('Session budget: a response ended without its usage; its cost is unknown')
+    }
+    this.recordBudgetCost(costUsd, reservation.claim, isUnknown)
     await this.budgetWrites
     // The on-disk liability is now settled or released, even if this request failed before a frame.
     if (this.deps.budgetScope === undefined) {
@@ -4776,7 +4782,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       this.webSearchBound() !== undefined ||
       (this.deps.modelCapabilities === undefined &&
         !this.deps.client.hasPaidDailyBudget &&
-        Usd.from(this.currentBudgetCap()).compare(Usd.from(0)) <= 0)
+        !isPositiveUsd(this.admissionCap()))
     )
   }
 
@@ -4992,7 +4998,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         if (directBudget.scope?.isStillAllowed(keyDigest) === false) {
           throw new AbortedError()
         }
-        const capUsd = directBudget.scope?.capUsd() ?? this.currentBudgetCap()
+        const capUsd = directBudget.scope?.capUsd() ?? this.admissionCap()
         if (directBudget.claim === undefined && Usd.from(capUsd).compare(Usd.from(0)) > 0) {
           throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
         }
@@ -5002,6 +5008,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         directBudget.claim?.check(capUsd)
       } else if (
         reservation === undefined &&
+        !this.isSubagent &&
         this.deps.client.isPlanModel?.(body.model) !== true &&
         Usd.from(this.currentBudgetCap()).compare(Usd.from(0)) > 0
       ) {
@@ -7992,13 +7999,11 @@ export class ModelApiSession implements ScheduledAgentSession {
     if (run === undefined) await this.refreshBudgetSpend()
     const price = Usd.from(PAID_PRICES_USD.imageGeneration).toAmount()
     const capUsd = run === undefined ? this.currentBudgetCap() : Usd.from(0).toAmount()
-    if (
-      Usd.from(capUsd).compare(Usd.from(0)) > 0 &&
-      Usd.from(price).compare(Usd.from(capUsd).subtract(Usd.from(this.budgetSpentUsd))) > 0
-    ) {
+    // The same admission rule as every request (F3): settled real spend
+    // below the cap. The image's flat price is its real cost, settled below.
+    if (isPositiveUsd(capUsd) && !isBelowCap(capUsd, this.budgetSpentUsd)) {
       throw new SessionBudgetExceededError(
         fill(UI_TEXT.sessionBudgetStopped, {
-          estimate: formatUsd(price),
           cap: formatUsd(capUsd),
           spent: formatUsd(this.budgetSpentUsd),
         }),
