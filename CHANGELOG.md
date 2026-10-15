@@ -169,6 +169,16 @@ happened, not what was planned; superseded entries are kept.
   The panel, the terminal agent and the editor protocol share the same
   journal, aggregates and text, so all editors show the same numbers.
 
+- Usage-truth review fixes (lane USAGEFIX): a completion report the CLI
+  delivers twice is journaled once, so tokens, time and the equivalent
+  price are never doubled. Each request's start is its own start, not
+  the turn's, so later requests in one turn no longer overlap the first
+  in the calls export. Hourly rows keep the timezone they were recorded
+  in, so a later timezone change cannot move an hour onto another day.
+  The journal format is version 3 for the stored plan name; older
+  releases count the new lines as a newer version instead of dropping
+  them, and this release still reads versions 1 and 2.
+
 ## [0.18.2] - 2026-10-12
 
 ### Highlights
