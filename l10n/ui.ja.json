@@ -2581,6 +2581,7 @@
   "sandboxOffProfileWarning": "Muse Code の Windows サンドボックスは、ユーザー プロファイルの下にあるワークスペースではコマンドを確実に実行できません。そのため、このウィンドウは Muse Code を OS のサンドボックスなしで実行します。その場合、ファイル ツールはこのワークスペースの外も含め、あなたのアカウントが書き込める場所ならどこにでも、プランを含むすべてのモードで確認なしに書き込めます。また、コマンドはあなたのネットワークを使って、あなたとして直接実行されます。承認の対象は引き続き、コマンドと .git、.muse、.agents への書き込みです。ユーザー プロファイルの外にあるワークスペースでは、サンドボックスが維持されます。設定: museSpark.shellSandbox。",
   "sandboxOffSettingWarning": "museSpark.shellSandbox がオフのため、このウィンドウでは Muse Code が OS のサンドボックスなしで実行されます。その場合、ファイル ツールはこのワークスペースの外も含め、あなたのアカウントが書き込める場所ならどこにでも、プランを含むすべてのモードで確認なしに書き込めます。また、コマンドはあなたのネットワークを使って、あなたとして直接実行されます。承認の対象は引き続き、コマンドと .git、.muse、.agents への書き込みです。",
   "sandboxPreparingNotice": "Muse Code の Windows サンドボックスはまだ準備中のため、このコマンドは実行されませんでした。セットアップ後、Muse Code はバックグラウンドで一度だけサンドボックスにファイルの読み取りアクセスを付与します。ユーザー プロファイルが大きい場合は時間がかかることがあります。数分後にもう一度お試しください。設定: museSpark.shellSandbox。",
+  "sandboxCannotStartNotice": "Muse Code のシェル サンドボックスはこのマシンでは起動できません。bubblewrap サンドボックスがここでユーザー名前空間を作成できないため、確認なしに実行されるコマンド（git status など）は失敗します。museSpark.shellSandbox をオフにするか、このマシンで非特権ユーザー名前空間を許可してください（sysctl kernel.unprivileged_userns_clone=1。AppArmor が制限している場合は kernel.apparmor_restrict_unprivileged_userns=0）。選択するまでサンドボックスはオンのままです。",
   "rulesFileNoWorkspace": "まずフォルダーを開いてください。AGENTS.md はワークスペースのルートに置かれます。",
   "rulesFileExists": "AGENTS.md はこのワークスペースに既に存在します。開いています。",
   "rulesFileCreated": "AGENTS.md を作成しました。Muse は次の会話からこれをプロジェクトのルールとして読み込みます。",

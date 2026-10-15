@@ -2581,6 +2581,7 @@
   "sandboxOffProfileWarning": "Muse Code 的 Windows 沙盒无法在你的用户配置文件目录下的工作区中可靠地运行命令，因此此窗口在不使用其操作系统沙盒的情况下运行 Muse Code。此时，它的文件工具可以在任何模式下（包括规划模式）不经询问地写入你的帐户可写的任何位置，包括此工作区之外；它的命令会以你的身份、使用你的网络直接运行。批准仍然适用于它的命令以及对 .git、.muse 和 .agents 的写入。位于你的用户配置文件目录之外的工作区会保留沙盒。设置：museSpark.shellSandbox。",
   "sandboxOffSettingWarning": "museSpark.shellSandbox 已关闭，因此 Muse Code 在此窗口中不使用其操作系统沙盒运行。此时，它的文件工具可以在任何模式下（包括规划模式）不经询问地写入你的帐户可写的任何位置，包括此工作区之外；它的命令会以你的身份、使用你的网络直接运行。批准仍然适用于它的命令以及对 .git、.muse 和 .agents 的写入。",
   "sandboxPreparingNotice": "Muse Code 的 Windows 沙盒仍在准备中，因此此命令没有运行。设置完成后，Muse Code 会在后台一次性为沙盒授予对你的文件的读取权限，用户配置文件较大时可能需要一些时间。请几分钟后重试。设置：museSpark.shellSandbox。",
+  "sandboxCannotStartNotice": "Muse Code 的 shell 沙盒无法在此计算机上启动：其 bubblewrap 沙盒无法在此创建用户命名空间，因此它未经询问即运行的命令（例如 git status）将会失败。请将 museSpark.shellSandbox 设置为 off，或在此计算机上允许非特权用户命名空间（sysctl kernel.unprivileged_userns_clone=1；在 AppArmor 对其限制的地方，使用 kernel.apparmor_restrict_unprivileged_userns=0）。在您做出选择之前，沙盒将保持开启。",
   "rulesFileNoWorkspace": "请先打开文件夹；AGENTS.md 位于工作区根目录。",
   "rulesFileExists": "此工作区中已存在 AGENTS.md；正在打开它。",
   "rulesFileCreated": "已创建 AGENTS.md。从下一个对话开始，Muse 会将其作为项目规则读取。",

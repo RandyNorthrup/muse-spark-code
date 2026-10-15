@@ -4504,6 +4504,12 @@ export const USAGE_INSIGHTS_TTL_MS = 30 * 1000
 // panel could show a picker (the request_user_input tool).
 export const CHOICE_STEERING_NOTE =
   '<harness_note>When you offer the user a choice between options, ask through the request_user_input tool instead of listing the options in prose, so the panel can show a picker.</harness_note>'
+// Sent once with the first turn on the CLI backend, at the tail like the
+// steering note, while its Linux sandbox cannot start here (F91): commands
+// Muse Code runs without asking fail, while ones the person approves run, so
+// a failing read-only command never means the shell is dead.
+export const SANDBOX_CANNOT_START_MODEL_NOTE =
+  '<harness_note>Muse Code’s Linux shell sandbox cannot start on this machine (its bubblewrap sandbox cannot create a user namespace here), so commands run without asking you, such as read-only ones, fail instead of running. Commands the person approves still run. Never conclude from a failing command that the shell is dead: carry on with the approved commands, and point the person once at the shell sandbox setting or at allowing unprivileged user namespaces on this machine.</harness_note>'
 // The verify loop's guidance to Muse Code (M68) rides in a note of its own.
 export const HARNESS_NOTE_TAG = 'harness_note'
 // Collapsed tool bodies show this many lines before "Show More".
@@ -4598,6 +4604,18 @@ export const SANDBOX_PREPARING_MARKER = 'ACL publication lock'
 // check prints `key=value` lines and exits 1 while setup is required.
 export const MUSE_SANDBOX_CHECK_ARGS = ['sandbox', 'windows', 'check'] as const
 export const MUSE_SANDBOX_SETUP_ARGS = ['sandbox', 'windows', 'setup'] as const
+// The Linux capability probe (F91): Muse Code's Linux shell sandbox runs
+// commands under the system `bwrap` from PATH with a user namespace (its
+// binary carries LinuxBwrapSelection and --unshare-user; measured 2026-10-15
+// on Muse Code 1.4.6). The probe runs that same mechanism minimally: where
+// the kernel or an outer sandbox blocks unprivileged user namespaces, bwrap
+// fails at once with LINUX_SANDBOX_NAMESPACE_MARKER instead of running.
+export const LINUX_SANDBOX_PROBE_COMMAND = 'bwrap'
+export const LINUX_SANDBOX_PROBE_ARGS = ['--unshare-user', '--', '/bin/true'] as const
+export const LINUX_SANDBOX_PROBE_TIMEOUT_MS = 10_000
+// bubblewrap 0.11.0's first line when user-namespace creation is refused
+// (measured 2026-10-15: `bwrap --unshare-user -- /bin/true`, exit 1).
+export const LINUX_SANDBOX_NAMESPACE_MARKER = 'No permissions to create new namespace'
 export const SANDBOX_STATUS_READY = 'ready'
 export const SANDBOX_STATUS_SETUP_REQUIRED = 'setup_required'
 // The check is a short local process; the setup waits on the UAC prompt and
