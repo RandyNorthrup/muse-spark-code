@@ -13,7 +13,7 @@ import path from 'node:path'
 import { USAGE_DAYS_FOLDER, USAGE_FOLDER, USAGE_VERSION_FOLDER } from '../../src/shared/constants'
 import { afterEach, describe, expect, it } from 'vitest'
 import { mapNotification } from '../../src/core/backends/musecode/mapNotification'
-import { MuseUsageDeltas } from '../../src/core/backends/musecode/MuseCodeHost'
+import { MuseUsageDeltas, museCodeLimitInput } from '../../src/core/backends/musecode/MuseCodeHost'
 import type { AgentEvent } from '../../src/shared/agentEvents'
 import { createUsageRecording } from '../../src/core/usage/recording'
 import { UsageJournalStore } from '../../src/core/usage/journalStore'
@@ -239,6 +239,40 @@ describe('usage says what really happened (F20-F24)', () => {
     expect(records.map((record) => record.tokens.input)).toEqual(
       COMPLETIONS.map((completion) => completion.input),
     )
+  })
+
+  it('names the meter tier as the limit plan, absent only for an empty tier (T2)', () => {
+    const reading = {
+      observedAtMs: 100,
+      tier: 'opaque',
+      window: { usedPercent: 110, resetsAtMs: 200, windowDurationMins: 300 },
+      weekly: { usedPercent: 20, resetsAtMs: 500 },
+    }
+    // A nonempty tier names the plan, even an opaque one: the label reader,
+    // not the journal, falls back to the generic subscription name then.
+    expect(museCodeLimitInput(reading)).toEqual({
+      backend: 'museCode',
+      provider: 'museCode',
+      source: 'museCode',
+      observedAt: 100,
+      plan: 'opaque',
+      windows: [
+        { id: 'window', usedPercent: 110, resetsAt: 200, windowMins: 300 },
+        { id: 'weekly', usedPercent: 20, resetsAt: 500 },
+      ],
+    })
+    const unnamed = museCodeLimitInput({ ...reading, tier: '' })
+    expect('plan' in unnamed).toBe(false)
+    expect(unnamed).toEqual({
+      backend: 'museCode',
+      provider: 'museCode',
+      source: 'museCode',
+      observedAt: 100,
+      windows: [
+        { id: 'window', usedPercent: 110, resetsAt: 200, windowMins: 300 },
+        { id: 'weekly', usedPercent: 20, resetsAt: 500 },
+      ],
+    })
   })
 
   it('starts each completion at its own start, not the turn start (T3)', async () => {

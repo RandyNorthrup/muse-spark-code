@@ -860,6 +860,35 @@ export function describeExit(
       }
 }
 
+/** The journal's limit snapshot for one `usage/changed` meter reading: the
+ * meter's tier names the subscription plan, except an empty tier, which the
+ * label reader falls back from. Exported for the exact-assertion test. */
+export function museCodeLimitInput(
+  usage: SubscriptionUsage,
+): Parameters<UsageRecording['limit']>[0] {
+  return {
+    backend: 'museCode',
+    provider: 'museCode',
+    source: 'museCode',
+    observedAt: usage.observedAtMs,
+    // An empty tier names no plan; the label reader falls back then.
+    ...(usage.tier !== '' && { plan: usage.tier }),
+    windows: [
+      {
+        id: 'window',
+        usedPercent: usage.window.usedPercent,
+        resetsAt: usage.window.resetsAtMs,
+        windowMins: usage.window.windowDurationMins,
+      },
+      {
+        id: 'weekly',
+        usedPercent: usage.weekly.usedPercent,
+        resetsAt: usage.weekly.resetsAtMs,
+      },
+    ],
+  }
+}
+
 /** Each MSP report is journaled immediately: one completion's own counters
  * where the frame carries them (1.4), else the known cumulative delta. */
 export class MuseUsageDeltas {
@@ -2291,27 +2320,7 @@ export class MuseCodeHost implements AgentHost {
         const usage = parsed.data
         if (!this.observedUsage.has(usage.observedAtMs)) {
           this.observedUsage.add(usage.observedAtMs)
-          this.usageRecording?.limit({
-            backend: 'museCode',
-            provider: 'museCode',
-            source: 'museCode',
-            observedAt: usage.observedAtMs,
-            // An empty tier names no plan; the label reader falls back then.
-            ...(usage.tier !== '' && { plan: usage.tier }),
-            windows: [
-              {
-                id: 'window',
-                usedPercent: usage.window.usedPercent,
-                resetsAt: usage.window.resetsAtMs,
-                windowMins: usage.window.windowDurationMins,
-              },
-              {
-                id: 'weekly',
-                usedPercent: usage.weekly.usedPercent,
-                resetsAt: usage.weekly.resetsAtMs,
-              },
-            ],
-          })
+          this.usageRecording?.limit(museCodeLimitInput(usage))
         }
         this.accountHome?.assertCurrent()
         this.accountHome?.observeUsage(parsed.data)
