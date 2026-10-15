@@ -45,6 +45,16 @@ These coupled fixes are deferred rather than bypassing ownership/accounting.
 The earlier F80 claim below describes the submitted attempt, **not verified
 working behavior**. Its positive path was not run and is not certified.
 
+## RVCLIFLOWS review — unknown is not absent (2026-10-14)
+
+P2: a locked or unavailable credential store can still contain a key. Every
+failed status read nevertheless said `No key is stored`. The fixed sentence
+in English and all fourteen tables says the store is unavailable and stored
+keys cannot be checked; it preserves the distinction from a successful
+missing-key read and never offers plaintext fallback. Proof is the throwing
+read branch in `authStatus`/`authStatusProvider` and real text-module tests;
+no owner's credential store was touched. F43's session creation remains open.
+
 ## RVCLIFLOWS review — selector identity (2026-10-14, Windows)
 
 P2: deduplication keyed on selector plus metadata, so two `plan` entries

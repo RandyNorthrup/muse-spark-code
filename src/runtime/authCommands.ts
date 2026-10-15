@@ -38,7 +38,11 @@ function describe(error: unknown): string {
 }
 
 function unavailable(deps: AuthCommandDeps, error: unknown): number {
-  deps.printError(fill(UI_TEXT.acpStoreUnavailable, { reason: describe(error) }))
+  deps.printError(
+    isStoreUnavailable(error)
+      ? UI_TEXT.acpStoreDown
+      : fill(UI_TEXT.acpStoreUnavailable, { reason: describe(error) }),
+  )
   return EXIT_FAILED
 }
 
@@ -63,7 +67,7 @@ export async function authSet(deps: AuthCommandDeps): Promise<number> {
 }
 
 function storeDown(deps: AuthCommandDeps, error: unknown): number | undefined {
-  // One sentence for one condition: no readable key and no store either.
+  // A failed read cannot establish whether the store contains a key.
   if (isStoreUnavailable(error)) {
     deps.print(UI_TEXT.acpStoreDown)
     return EXIT_FAILED

@@ -26,6 +26,8 @@ happened, not what was planned; superseded entries are kept.
   `--json`; cancellation explains itself on stderr instead of silently exiting.
 - RVCLIFLOWS: an exact slash-command selector is announced once even if
   repeated entries have different descriptions or argument hints.
+- RVCLIFLOWS: an unavailable credential store says stored keys cannot be
+  checked, rather than falsely claiming no key is stored (all display languages).
 
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
   reads and writes, and 1-hour cache writes settle at their own price.

@@ -3444,7 +3444,7 @@
   "acpKeyNotStored": "Anahtar girilmedi, bu yüzden hiçbir şey saklanmadı.",
   "acpKeyPresent": "Bir Meta Model API anahtarı saklanıyor: {store}.",
   "acpKeyAbsent": "Saklanan Meta Model API anahtarı yok.",
-  "acpStoreDown": "Saklanan anahtar yok ve bu bilgisayarın kimlik bilgisi deposu kullanılamıyor.",
+  "acpStoreDown": "Bu bilgisayarın kimlik bilgisi deposu kullanılamadığı için saklanan anahtarlar denetlenemiyor.",
   "acpKeyCleared": "Meta Model API anahtarı bu bilgisayarın kimlik bilgisi deposundan kaldırıldı.",
   "acpStoreUnavailable": "Bu bilgisayarın kimlik bilgisi deposu kullanılamıyor ({reason}). Linux'ta aracının GNOME Keyring veya KWallet gibi çalışan ve kilidi açık bir Secret Service hizmetine ihtiyacı vardır.",
   "acpStoreNames": {

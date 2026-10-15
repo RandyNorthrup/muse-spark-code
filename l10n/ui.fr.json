@@ -3517,7 +3517,7 @@
   "acpKeyNotStored": "Aucune clé n’a été saisie ; rien n’a été enregistré.",
   "acpKeyPresent": "Une clé Meta Model API est enregistrée : {store}.",
   "acpKeyAbsent": "Aucune clé Meta Model API n’est enregistrée.",
-  "acpStoreDown": "Aucune clé n’est enregistrée et le magasin d’identifiants de cet ordinateur n’est pas disponible.",
+  "acpStoreDown": "Le magasin d’identifiants de cet ordinateur est indisponible, les clés enregistrées ne peuvent donc pas être vérifiées.",
   "acpKeyCleared": "La clé Meta Model API a été supprimée du magasin d’identifiants de cet ordinateur.",
   "acpStoreUnavailable": "Le magasin d’identifiants de cet ordinateur est inutilisable ({reason}). Sous Linux, l’agent a besoin d’un Secret Service lancé et déverrouillé, comme GNOME Keyring ou KWallet.",
   "acpStoreNames": {

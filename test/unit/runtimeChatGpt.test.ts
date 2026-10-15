@@ -26,7 +26,9 @@ describe('terminal ChatGPT command boundary', () => {
   })
 
   it('uses the same credential-store refusal as the other terminal surfaces', () => {
-    expect(chatGptCommandText().failure('store-unavailable')).toBe(UI_TEXT.acpStoreDown)
+    const failure = chatGptCommandText().failure('store-unavailable')
+    expect(failure).toBe(UI_TEXT.acpStoreDown)
+    expect(failure).toContain('stored keys cannot be checked')
     expect(chatGptCommandText().status('signed-out')).toBe(UI_TEXT.acpChatGpt.states['signed-out'])
     expect(chatGptCommandText().failure('expired')).toBe(UI_TEXT.planUi.expired)
   })

@@ -3444,7 +3444,7 @@
   "acpKeyNotStored": "Es wurde kein Schlüssel eingegeben, daher wurde nichts gespeichert.",
   "acpKeyPresent": "Ein Schlüssel für die Meta Model API ist gespeichert: {store}.",
   "acpKeyAbsent": "Es ist kein Schlüssel für die Meta Model API gespeichert.",
-  "acpStoreDown": "Es ist kein Schlüssel gespeichert, und der Anmeldeinformationsspeicher dieses Computers ist nicht verfügbar.",
+  "acpStoreDown": "Der Anmeldeinformationsspeicher dieses Computers ist nicht verfügbar, daher können gespeicherte Schlüssel nicht überprüft werden.",
   "acpKeyCleared": "Der Schlüssel für die Meta Model API wurde aus dem Anmeldeinformationsspeicher dieses Computers entfernt.",
   "acpStoreUnavailable": "Der Anmeldeinformationsspeicher dieses Computers kann nicht verwendet werden ({reason}). Unter Linux benötigt der Agent einen laufenden, entsperrten Secret Service wie GNOME Keyring oder KWallet.",
   "acpStoreNames": {

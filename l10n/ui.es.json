@@ -3517,7 +3517,7 @@
   "acpKeyNotStored": "No se introdujo ninguna clave, así que no se guardó nada.",
   "acpKeyPresent": "Hay una clave de Meta Model API guardada: {store}.",
   "acpKeyAbsent": "No hay ninguna clave de Meta Model API guardada.",
-  "acpStoreDown": "No hay ninguna clave guardada y el almacén de credenciales de este equipo no está disponible.",
+  "acpStoreDown": "El almacén de credenciales de este equipo no está disponible, por lo que no se pueden comprobar las claves guardadas.",
   "acpKeyCleared": "La clave de Meta Model API se quitó del almacén de credenciales de este equipo.",
   "acpStoreUnavailable": "No se puede usar el almacén de credenciales de este equipo ({reason}). En Linux, el agente necesita un Secret Service en ejecución y desbloqueado, como GNOME Keyring o KWallet.",
   "acpStoreNames": {

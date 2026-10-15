@@ -3590,7 +3590,7 @@
   "acpKeyNotStored": "Nebyl zadán žádný klíč, nic se neuložilo.",
   "acpKeyPresent": "Klíč Meta Model API je uložen: {store}.",
   "acpKeyAbsent": "Není uložen žádný klíč Meta Model API.",
-  "acpStoreDown": "Není uložen žádný klíč a úložiště přihlašovacích údajů tohoto počítače není k dispozici.",
+  "acpStoreDown": "Úložiště přihlašovacích údajů tohoto počítače není k dispozici, takže uložené klíče nelze zkontrolovat.",
   "acpKeyCleared": "Klíč Meta Model API byl odebrán z úložiště přihlašovacích údajů tohoto počítače.",
   "acpStoreUnavailable": "Úložiště přihlašovacích údajů tohoto počítače nelze použít ({reason}). V Linuxu agent potřebuje spuštěnou a odemčenou službu Secret Service, například GNOME Keyring nebo KWallet.",
   "acpStoreNames": {
