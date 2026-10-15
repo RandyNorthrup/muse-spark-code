@@ -93,10 +93,15 @@ on the test's measure).
 | `npm run security:audit`                                         | exit 0 (2 advisories, 1 exception — pre-existing) |
 | `npm run build` (size, split, registry, globals, notices)        | exit 0                                            |
 
-NOT RUN HERE: `test/integration/extension.test.ts` (D15 covers the moved
-command twice through the real `dist/rulesFile.js`) and
-`test/integration/questions.test.ts` — they need two VS Code downloads, a
-dev build and a display; the box did not fit them. CI runs them.
+RUN IN A REAL HOST: `test/integration/extension.test.ts` on VS Code stable
+1.142.0 under xvfb (`--label stable`, dev build): `creates AGENTS.md in the
+workspace root and opens it (D15)` and `Focus Input from a file brings the
+chat panel forward (panel-focus)` — 2 passing. The D15 case drives the real
+`dist/rulesFile.js` through the real command (file created with the header,
+opened, keyboard held); the panel-focus case proves the untouched focus path
+in the same host.
+NOT RUN HERE: `test/integration/questions.test.ts` and the `minimum` label —
+same reason as before; CI runs the full matrix.
 NOT RUN: `npm run security:sast` — semgrep cannot start here:
 `OSError: [Errno 30] Read-only file system:
 '/home/randy/.cache/semgrep_version'` (exit 2, environmental).
