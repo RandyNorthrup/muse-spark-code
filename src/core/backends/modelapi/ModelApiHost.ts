@@ -16009,7 +16009,15 @@ export class ModelApiSession implements ScheduledAgentSession {
     this.modelId = modelId
     this.modelRevision += 1
     const revision = this.modelRevision
-    if (modelId.includes('/')) await this.resolveModel(modelId)
+    try {
+      if (modelId.includes('/')) await this.resolveModel(modelId)
+    } catch (error: unknown) {
+      // A refused switch (F83's unconfirmed tool calling, an unknown ref)
+      // leaves the session on the model it had: the caller keeps showing
+      // that model, and the next turn must not run on the refused one.
+      if (this.modelRevision === revision) this.modelId = oldModel
+      throw error
+    }
     if (revision !== this.modelRevision) throw new AbortedError()
     this.modelId = modelId
     // Another model may count the same request differently (M82).
