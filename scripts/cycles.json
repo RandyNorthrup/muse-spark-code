@@ -2,6 +2,7 @@
   "options": ["--no-warning", "--no-tree", "--exit-code", "circular:1", "-T"],
   "roots": [
     "src/runtime/runtimeEngineEntry.ts",
+    "src/host/commands/rulesFileEntry.ts",
     "src/host/backend/providerPolicyEntry.ts",
     "src/runtime/runtimeAccountingEntry.ts",
     "src/core/backends/modelapi/modelApiHooksEntry.ts",
