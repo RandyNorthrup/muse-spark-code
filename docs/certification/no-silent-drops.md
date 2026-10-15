@@ -579,10 +579,23 @@ lane's settings (+58). The 519,354-byte pin lived only in
 `test/unit/deferredBundles.test.ts`, which the ordered merge deleted
 (`f2b00c094`); no 519,354 gate exists on this tree. The enforced gate,
 `scripts/check-bundle-size.mjs` (owner-authorized 525 KiB budget):
-508.7 KiB, exit 0, ~16.7 KiB headroom. Nothing was raised. Shrinking
-1,517 bytes of hot-path notice code to meet an unpinned number would
-mean cutting owner-demanded notices or async-loading synchronous fence
-code: not done; recorded here as the lead's call.
+508.7 KiB, exit 0, ~16.7 KiB headroom. Nothing was raised.
+Follow-up size work, measured on this rig (all restores sha256-verified,
+tree left byte-identical): with every branch logic body in
+`ModelApiHost.ts`, `mcp/elicitation.ts` and `agentReceipt.ts` stubbed to
+signatures (call sites compiling, behavior discarded), the bundle is
+519,516 bytes — the branch's total minified cost is 1,413 bytes against
+1,575 needed, so even deleting all six fixes still lands 162 bytes over
+the pin. The honest dedup (one `listedChildResult` clip path, twin
+judge emits into one method) was built and measured: 520,929 →
+520,960 (+31), then reverted. Lazy was assessed, not built: only the
+push/notice fragments sit in async contexts (~400–550 B combined) while
+the clipping and fence reads feed synchronous returns; a lazy chunk
+would need async restructuring plus chunk-failure handling on the exact
+notice paths this lane made reliable, for bytes it cannot recover.
+Branch strings cost 0 bytes (all read through the lazy language
+tables). The pin is unreachable by either named means with the fixes'
+behavior kept; recorded here as the lead's call.
 
 ### 4. Retained limits with peer citations (owner's 2026-10-14 rule)
 
