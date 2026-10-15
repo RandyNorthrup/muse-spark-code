@@ -1444,6 +1444,7 @@
   "elicitationDeclinedByHook": "钩子拒绝了来自 {server} 的此请求：{reason}",
   "elicitationAnsweredByHook": "你的一个钩子回答了来自 {server} 的此请求。",
   "elicitationExpired": "来自 {server} 的请求已不再等待。",
+  "mcpElicitationTimedOut": "来自{server}的请求在{seconds}秒内未得到答复，因此按取消处理。工具调用在其无答复的情况下继续。",
   "hookHttpHostRefused": "http 钩子被拒绝：{host} 不是允许的主机。",
   "hookHttpSchemeRefused": "http 钩子被拒绝：仅允许 HTTPS。",
   "hookHttpRedirectRefused": "http 钩子被拒绝：它重定向到了 {host}。",

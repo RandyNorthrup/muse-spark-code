@@ -127,6 +127,7 @@ import {
   MAX_MODEL_API_TEXT_ATTACHMENT_BYTES,
   MEMORY_INDEX_FILE,
   type MemoryScope,
+  MILLISECONDS_PER_SECOND,
   MODEL_API_CLOSE_SETTLE_MS,
   MODEL_API_CONTEXT_BYTES_PER_TOKEN,
   MODEL_API_CONTINUATIONS_MAX,
@@ -447,6 +448,7 @@ import type {
   McpToolRef,
   McpToolSource,
 } from './mcp/pool'
+import { isElicitationTimeout } from './mcp/connection'
 import { isMemoryTool, placeMemoryCall, runMemoryCall, type PlacedMemoryCall } from './memoryTools'
 
 import {
@@ -7318,9 +7320,13 @@ export class ModelApiSession implements ScheduledAgentSession {
     fields: readonly ElicitationField[],
     signal: AbortSignal,
   ): Promise<ElicitationContent> {
+    const timeoutMs = this.deps.elicitationTimeoutMs ?? MCP_ELICITATION_TIMEOUT_MS
     const timer = setTimeout(() => {
       this.pendingElicitations.get(elicitationId)?.pending.resolve({ kind: 'cancelled' })
-    }, this.deps.elicitationTimeoutMs ?? MCP_ELICITATION_TIMEOUT_MS)
+      // A form that waited out its deadline settles as cancel, never as
+      // accept (C7): the person is told, with the server that asked.
+      this.noticeElicitationTimeout(server, timeoutMs)
+    }, timeoutMs)
     try {
       // Pending before it is shown, as an approval card is: an answer given
       // as the form arrives must find it (the live sweep, 2026-09-27).
@@ -7336,10 +7342,31 @@ export class ModelApiSession implements ScheduledAgentSession {
         })
       })
     } catch {
+      // The connection's own deadline aborts with its reason (C7); a bare
+      // abort is a stop, which stays silent.
+      if (isElicitationTimeout(signal)) {
+        this.noticeElicitationTimeout(server, MCP_ELICITATION_TIMEOUT_MS)
+      }
       return { kind: 'cancelled' }
     } finally {
       clearTimeout(timer)
     }
+  }
+
+  /**
+   * A form's deadline passed (C7): one warning on every surface the
+   * backend notice reaches (panel, ACP, terminal), naming what settled,
+   * why, and that the tool call continued without its answer.
+   */
+  private noticeElicitationTimeout(server: string, timeoutMs: number): void {
+    this.emit({
+      type: 'backendNotice',
+      level: 'warning',
+      text: fill(UI_TEXT.mcpElicitationTimedOut, {
+        server,
+        seconds: Math.round(timeoutMs / MILLISECONDS_PER_SECOND),
+      }),
+    })
   }
 
   /**

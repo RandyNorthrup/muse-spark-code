@@ -1444,6 +1444,7 @@
   "elicitationDeclinedByHook": "후크가 {server}의 이 요청을 거절했습니다: {reason}",
   "elicitationAnsweredByHook": "사용자 후크 중 하나가 {server}의 이 요청에 응답했습니다.",
   "elicitationExpired": "{server}의 요청이 더 이상 대기 중이 아닙니다.",
+  "mcpElicitationTimedOut": "{server}의 요청이 {seconds}초 동안 응답이 없어 취소로 처리되었습니다. 도구 호출은 그 답변 없이 계속되었습니다.",
   "hookHttpHostRefused": "http 후크가 거부되었습니다. {host}은(는) 허용된 호스트가 아닙니다.",
   "hookHttpSchemeRefused": "http 후크가 거부되었습니다. HTTPS만 허용됩니다.",
   "hookHttpRedirectRefused": "http 후크가 거부되었습니다. {host}(으)로 리디렉션되었습니다.",

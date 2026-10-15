@@ -1802,6 +1802,8 @@ export const EN = {
   elicitationDeclinedByHook: 'A hook declined this request from {server}: {reason}',
   elicitationAnsweredByHook: 'One of your hooks answered this request from {server}.',
   elicitationExpired: 'The request from {server} is no longer waiting.',
+  mcpElicitationTimedOut:
+    'The request from {server} went unanswered for {seconds} seconds, so it settled as cancelled. The tool call continued without its answer.',
   // The http and mcp_tool hook handlers. {host}: a host name; {tool}: a tool name.
   hookHttpHostRefused: 'An http hook was refused: {host} is not an allowed host.',
   hookHttpSchemeRefused: 'An http hook was refused: only HTTPS is allowed.',

@@ -1492,6 +1492,7 @@
   "elicitationDeclinedByHook": "Hook odrzucił tę prośbę serwera {server}: {reason}",
   "elicitationAnsweredByHook": "Jeden z Twoich hooków odpowiedział na tę prośbę serwera {server}.",
   "elicitationExpired": "Prośba serwera {server} nie oczekuje już na odpowiedź.",
+  "mcpElicitationTimedOut": "Żądanie od {server} pozostało bez odpowiedzi przez {seconds} s, więc zostało rozliczone jako anulowane. Wywołanie narzędzia było kontynuowane bez jego odpowiedzi.",
   "hookHttpHostRefused": "Hook http został odrzucony: {host} nie jest dozwolonym hostem.",
   "hookHttpSchemeRefused": "Hook http został odrzucony: dozwolony jest tylko HTTPS.",
   "hookHttpRedirectRefused": "Hook http został odrzucony: przekierował do hosta {host}.",
