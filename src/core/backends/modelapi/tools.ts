@@ -51,7 +51,6 @@ import {
   TOOL_OUTPUT_CLIP_MARKER,
   TOOL_OUTPUT_ELIDED_MARKER,
   TOOL_OUTPUT_MAX_CHARS,
-  TOOL_FILE_EDIT_MAX_BYTES,
   TOOL_FILE_MAX_BYTES,
   TOOL_FILE_RANGE_MAX_BYTES,
   UI_TEXT,
@@ -241,16 +240,28 @@ export interface ToolIo {
     signal?: AbortSignal,
   ) => Promise<FileRangeRead | undefined>
   /**
-   * A9 (limits-output): the whole file as text up to `maxBytes`, for a
-   * range edit's host-side splice: the model never sees more than its
-   * window. Undefined when the file does not exist.
+   * A9 (limits-output): replace bytes `[start, end)` of the file with
+   * `replacement`, streaming the rest through a temporary file so a range
+   * edit never loads the whole file. Memory stays flat (one 64 KiB copy
+   * chunk plus the window); only the window is ever decoded. The write
+   * lands only while the file still has `expected` size and mtime:
+   * `changed`, and nothing written, when it does not. A missing file is
+   * `changed` too. Other failures (permissions, disk full) throw, naming
+   * the OS cause in words.
    */
-  readonly readFileCapped?: (
+  readonly spliceFileRange?: (
     absolutePath: string,
     expectedCanonicalPath: string | undefined,
-    maxBytes: number,
+    expected: { readonly size: number; readonly mtimeMs: number },
+    start: number,
+    end: number,
+    replacement: Uint8Array,
+    options: {
+      readonly unsavedAt: readonly string[]
+      readonly assertCanWrite?: () => void
+    },
     signal?: AbortSignal,
-  ) => Promise<string | undefined>
+  ) => Promise<SpliceFileOutcome>
   /** Replaces the file whole (a temporary file renamed into place), folders created. */
   writeFile(
     absolutePath: string,
@@ -1106,13 +1117,40 @@ export interface FileRangeRead {
   readonly size: number
   /** The file's mtime in milliseconds, for the edit's staleness check. */
   readonly mtimeMs: number
-  /** Digest of the file whose range was read; older adapters may not supply it. */
+  /**
+   * Hex digest of the returned window's bytes (not the file): with the size
+   * and mtime it names the window the model saw, so a range edit refuses a
+   * window that moved. Older adapters may not supply it, and then no range
+   * edit can prove freshness.
+   */
   readonly fingerprint?: string
-  /** Whether the file starts with a UTF-8 byte-order mark. */
+  /** Whether the file starts with a UTF-8 byte-order mark (true only when the window covers byte 0). */
   readonly hasBom: boolean
-  /** Whether every line break in the file is a CRLF. */
+  /** Whether every line break in this window is a CRLF. */
   readonly isCrlf: boolean
 }
+
+/**
+ * A9 (limits-output): the `seen` identity a range read records and a range
+ * edit requires: the window's bytes, size and mtime as the model saw them.
+ * The model must have read (about) this window: a whole-file read's digest
+ * does not satisfy it, nor does another window's.
+ */
+export function rangeSeenIdentity(window: FileRangeRead): string | undefined {
+  return window.fingerprint === undefined
+    ? undefined
+    : `w:${String(window.size)}:${String(window.mtimeMs)}:${window.fingerprint}`
+}
+
+/**
+ * What a byte-range splice did: `written` with the file's new size and
+ * mtime (for the edit's post-edit identity, without re-reading), or
+ * `changed` when the file no longer held the expected size and mtime and
+ * nothing was written.
+ */
+export type SpliceFileOutcome =
+  | { readonly status: 'written'; readonly size: number; readonly mtimeMs: number }
+  | { readonly status: 'changed' }
 
 const UTF8_CONTINUATION_MASK = 0xc0
 const UTF8_CONTINUATION_BITS = 0x80
@@ -1129,6 +1167,20 @@ function isContinuationByte(byte: number | undefined): boolean {
 
 const UTF8_THREE_BYTE_LENGTH = 3
 const UTF8_FOUR_BYTE_LENGTH = 4
+
+/**
+ * A9 (limits-output): the window bytes a read and an edit of one range
+ * agree on. The model's character budget caps what one call shows, so both
+ * clamp the same way: the same arguments read and edit the same window, and
+ * the note's advertised range is the edit's range.
+ */
+function windowedLength(relative: string, offset: number, length: number, size: number): number {
+  const longestHeader = `Read text file \`${relative}\` (bytes ${String(offset)}–${String(size)} of ${String(size)}):\n`
+  const longestNote = `\n[bytes ${String(offset)}–${String(size)} of ${String(size)}; call read_file again with byteOffset ${String(size)} for the rest]`
+  const payload =
+    TOOL_OUTPUT_MAX_CHARS - longestHeader.length - longestNote.length - UTF8_FOUR_BYTE_LENGTH
+  return Math.min(length, size - offset, Math.max(payload, 1))
+}
 
 /** Expected UTF-8 sequence length for a lead byte; 0 when it leads nothing. */
 function utf8SequenceLength(lead: number): number {
@@ -1641,21 +1693,19 @@ async function readFileWindow(
   }
   // Reserve the complete header/note and UTF-8 edge before reading. Never
   // advertise bytes discarded later by a character-budget clip as delivered.
-  const longestHeader = `Read text file \`${head.relative}\` (bytes ${String(offset)}–${String(size)} of ${String(size)}):\n`
-  const longestNote = `\n[bytes ${String(offset)}–${String(size)} of ${String(size)}; call read_file again with byteOffset ${String(size)} for the rest]`
-  const payload =
-    TOOL_OUTPUT_MAX_CHARS - longestHeader.length - longestNote.length - UTF8_FOUR_BYTE_LENGTH
+  // The edit clamps the same way, so the advertised range is its range.
   const window = await context.io.readFileRange(
     head.checkedAbsolute,
     head.checkedAbsolute,
-    { offset, length: Math.min(length, size - offset, Math.max(payload, 1)) },
+    { offset, length: windowedLength(head.relative, offset, length, size) },
     context.signal,
   )
   if (window === undefined) {
     return failure(`file not found: ${head.relative}`)
   }
-  if (window.fingerprint !== undefined) {
-    context.provisionalSeen.set(head.absolute, window.fingerprint)
+  const identity = rangeSeenIdentity(window)
+  if (identity !== undefined) {
+    context.provisionalSeen.set(head.absolute, identity)
   }
   const text = decodeWindow(window.bytes, 0, window.bytes.length)
   if (text === undefined) {
@@ -1918,7 +1968,7 @@ async function writeFile(
   if (
     context.io.fileSize !== undefined &&
     context.io.readFileRange !== undefined &&
-    context.io.readFileCapped !== undefined
+    context.io.spliceFileRange !== undefined
   ) {
     const size = await context.io.fileSize(file.checkedAbsolute, file.checkedAbsolute)
     if (size !== undefined && size > TOOL_FILE_MAX_BYTES) {
@@ -2120,9 +2170,13 @@ function editSingles(args: z.infer<typeof editFileArgs>):
 }
 
 /**
- * A9 (limits-output): an edit scoped to the byte window the model read. The
- * match runs on the whole text as always, but must land inside the window:
- * only what the model saw is replaced, whatever the file's size.
+ * A9 (limits-output): an edit scoped to the byte window the model read, at
+ * any file size: only the window is read and decoded, and the rest of the
+ * file streams untouched through a temporary file into place. No invented
+ * whole-file cap: memory stays flat (the window plus one 64 KiB copy
+ * chunk); what the OS itself refuses (permissions, a full disk) throws,
+ * naming the cause. The model must have read (about) this window: a
+ * whole-file read's digest does not satisfy it, nor does another window's.
  */
 async function editFileRange(
   head: {
@@ -2143,7 +2197,7 @@ async function editFileRange(
   if (
     context.io.fileSize === undefined ||
     context.io.readFileRange === undefined ||
-    context.io.readFileCapped === undefined
+    context.io.spliceFileRange === undefined
   ) {
     return failure(
       `${head.relative} needs byte addressing, which this host does not offer; edit it whole instead`,
@@ -2163,32 +2217,44 @@ async function editFileRange(
   if (size === undefined) {
     return failure(`file not found: ${head.relative}`)
   }
-  if (size > TOOL_FILE_EDIT_MAX_BYTES) {
-    return failure(
-      `${head.relative} is ${String(size)} bytes, over the ${String(TOOL_FILE_EDIT_MAX_BYTES)}-byte edit limit: the tools cannot edit it; edit it in an editor instead`,
-    )
-  }
   if (size > 0 && offset >= size) {
     return failure(
       `byteOffset ${String(offset)} is past the end of \`${head.relative}\` (${String(size)} bytes); use an offset from 0 to ${String(size - 1)}`,
     )
   }
-  const full = await context.io.readFileCapped(
+  // The same clamp the read applies, so the same arguments address the
+  // same window the model was shown.
+  const clamped = windowedLength(head.relative, offset, length, size)
+  const window = await context.io.readFileRange(
     head.checkedAbsolute,
     head.checkedAbsolute,
-    TOOL_FILE_EDIT_MAX_BYTES,
+    { offset, length: clamped },
     context.signal,
   )
-  if (full === undefined) {
+  if (window === undefined) {
     return failure(`file not found: ${head.relative}`)
   }
-  const shape = shapeOf(full)
-  const current = modelText(full, shape)
-  if (context.seen.get(head.absolute) !== fingerprint(full)) {
-    return failure(`${head.relative} ${MODEL_API_MODEL_TEXT.fileChangedSinceRead}`)
+  const first = window.offset ?? offset
+  const seen = rangeSeenIdentity(window)
+  if (seen === undefined || context.seen.get(head.absolute) !== seen) {
+    return failure(
+      `${head.relative} ${MODEL_API_MODEL_TEXT.fileChangedSinceRead}: read the byte window with read_file first, then edit_file with the same byteOffset and byteLength`,
+    )
   }
+  const text = decodeWindow(window.bytes, 0, window.bytes.length)
+  if (text === undefined) {
+    throw new Error(`${head.checkedAbsolute} ${MODEL_TEXT.fileNotText}`)
+  }
+  const shape = {
+    hasBom: window.hasBom && first === 0,
+    isCrlf: window.isCrlf,
+    hasTrailingBreak: text.endsWith('\n'),
+  }
+  const current = modelText(text, shape)
   // Compare actual byte boundaries, not the length of separately decoded
   // prefixes: a split UTF-8 character or CRLF is not an editable character.
+  // Offsets are file bytes (a leading BOM counts), matching the window the
+  // read advertised.
   const byteAt = (index: number): number =>
     Buffer.byteLength(fileText(current.slice(0, index), shape), 'utf8')
   const ranges: { readonly start: number; readonly end: number; readonly replace: string }[] = []
@@ -2197,20 +2263,23 @@ async function editFileRange(
     const matched = await matchRange(current, find, context.signal)
     if ('refusal' in matched) {
       const prefix = hasEdits ? `edits[${String(index)}]: ` : ''
-      const model =
-        matched.refusal === 'notFound'
-          ? MODEL_API_MODEL_TEXT.editNotFound
-          : MODEL_API_MODEL_TEXT.editAmbiguous
-      const visible =
-        matched.refusal === 'notFound' ? UI_TEXT.toolEditNotFound : UI_TEXT.toolEditAmbiguous
-      return failure(
-        `${prefix}${fill(model, { path: head.relative })}`,
-        `${prefix}${fill(visible, { path: head.relative })}`,
-      )
+      // Window-scoped: only this window was searched, so the note names
+      // it, not the file. A match elsewhere is reached by reading its
+      // window, never by widening this one past its cap.
+      const scope = `bytes ${String(offset)}–${String(offset + clamped)} of \`${head.relative}\``
+      return matched.refusal === 'notFound'
+        ? failure(
+            `${prefix}find text not found in ${scope}; read the window that holds it and pass that range`,
+            `${prefix}Find text was not found in this window; read the window that holds it and pass that range.`,
+          )
+        : failure(
+            `${prefix}find text occurs more than once in ${scope}; include more context`,
+            `${prefix}Find text occurs more than once in this window; include more context.`,
+          )
     }
-    if (byteAt(matched.start) < offset || byteAt(matched.end) > offset + length) {
+    if (byteAt(matched.start) < offset - first || byteAt(matched.end) > offset - first + clamped) {
       return failure(
-        `edits[${String(index)}]: matched outside the read window (bytes ${String(offset)}–${String(offset + length)} of \`${head.relative}\`); read the window that holds it and pass that range`,
+        `edits[${String(index)}]: matched outside the read window (bytes ${String(offset)}–${String(offset + clamped)} of \`${head.relative}\`); read the window that holds it and pass that range`,
         `edits[${String(index)}]: matched outside the read window; read the window that holds it and pass that range`,
       )
     }
@@ -2227,6 +2296,13 @@ async function editFileRange(
       return failure(MODEL_API_MODEL_TEXT.editOverlap, UI_TEXT.toolEditOverlap)
     }
   }
+  const firstMatch = ordered.at(0)
+  const lastMatch = ordered.at(-1)
+  if (firstMatch === undefined || lastMatch === undefined) {
+    return failure(
+      `${head.relative} ${MODEL_API_MODEL_TEXT.fileChangedSinceRead}: read the byte window with read_file first, then edit_file with the same byteOffset and byteLength`,
+    )
+  }
   let updated = ''
   let at = 0
   for (const range of ordered) {
@@ -2236,39 +2312,71 @@ async function editFileRange(
   updated += current.slice(at)
   // A range edit skips format on edit (M68): a formatter reads a whole
   // file, never a window, so running one over the slice would corrupt it.
-  const after = fileText(updated, shape)
+  // Absolute file bytes of the matched span: only this span is replaced.
+  // The span's new text is re-encoded on its own (never the whole window):
+  // gaps between matches re-encode byte-identical by construction, and a
+  // leading BOM is outside every span, so it is never re-encoded either.
+  const spanStart = first + byteAt(firstMatch.start)
+  const spanEnd = first + byteAt(lastMatch.end)
+  const newSpanText = updated.slice(
+    firstMatch.start,
+    lastMatch.end + (updated.length - current.length),
+  )
+  const replacement = Buffer.from(fileText(newSpanText, { ...shape, hasBom: false }), 'utf8')
   const target: FormatTarget = {
     absolute: head.absolute,
     checkedAbsolute: head.checkedAbsolute,
     relative: head.relative,
     canonical: head.canonical,
   }
-  const wrote = await context.io.writeFileIfUnchanged(
+  const spliced = await context.io.spliceFileRange(
     head.checkedAbsolute,
-    fingerprint(full),
-    after,
+    head.checkedAbsolute,
+    { size: window.size, mtimeMs: window.mtimeMs },
+    spanStart,
+    spanEnd,
+    replacement,
     {
-      expectedCanonicalPath: head.checkedAbsolute,
       unsavedAt: [head.absolute, head.checkedAbsolute],
       assertCanWrite: writeAdmission(target, context),
     },
+    context.signal,
   )
-  if (wrote === 'changed') {
+  if (spliced.status === 'changed') {
     return failure(`${head.relative} ${MODEL_API_MODEL_TEXT.fileChangedSinceRead}`)
   }
   context.signal?.throwIfAborted()
-  context.provisionalSeen.set(head.absolute, fingerprint(after))
+  // The post-edit window identity, from a fresh read of the same range: a
+  // length-changing edit shifts every later byte, so only a re-read names
+  // the window a further edit must match. Recorded only while the file
+  // still holds what the splice wrote (a concurrent change in between
+  // leaves nothing to prove fresh with); the read itself is one window.
+  const reread = await context.io.readFileRange(
+    head.checkedAbsolute,
+    head.checkedAbsolute,
+    { offset, length: clamped },
+    context.signal,
+  )
+  const identity = reread === undefined ? undefined : rangeSeenIdentity(reread)
+  if (
+    reread !== undefined &&
+    identity !== undefined &&
+    reread.size === spliced.size &&
+    reread.mtimeMs === spliced.mtimeMs
+  ) {
+    context.provisionalSeen.set(head.absolute, identity)
+  }
   return {
     ...patchOutcome(
       head.relative,
       current,
       updated,
       hasEdits
-        ? `edited ${head.relative} (${String(singles.length)} edits, bytes ${String(offset)}–${String(offset + length)})`
-        : `edited ${head.relative} (bytes ${String(offset)}–${String(offset + length)})`,
+        ? `edited ${head.relative} (${String(singles.length)} edits, bytes ${String(offset)}–${String(offset + clamped)})`
+        : `edited ${head.relative} (bytes ${String(offset)}–${String(offset + clamped)})`,
       hasEdits
-        ? `edited ${head.relative} (${String(singles.length)} edits, bytes ${String(offset)}–${String(offset + length)})`
-        : `edited ${head.relative} (bytes ${String(offset)}–${String(offset + length)})`,
+        ? `edited ${head.relative} (${String(singles.length)} edits, bytes ${String(offset)}–${String(offset + clamped)})`
+        : `edited ${head.relative} (bytes ${String(offset)}–${String(offset + clamped)})`,
     ),
     touched: touchedBy(head),
   }

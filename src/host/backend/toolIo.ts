@@ -10,9 +10,9 @@
 
 import { fileReadIdentity } from '../../core/fs/fileIdentity'
 import { spawn, type ChildProcess } from 'node:child_process'
-import { createHash } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { existsSync, type BigIntStats } from 'node:fs'
-import { type FileHandle, lstat, mkdir, open, rm } from 'node:fs/promises'
+import { type FileHandle, lstat, mkdir, open, realpath, rm, stat } from 'node:fs/promises'
 import path from 'node:path'
 import {
   type FileIdentity,
@@ -48,6 +48,7 @@ import { isSamePath } from '../../core/paths'
 import { isCredentialVariable, withoutCredentials } from '../../core/credentialEnvironment'
 import { powerShellQuoted } from '../../core/shellQuote'
 import {
+  ATOMIC_TEMPORARY_SUFFIX,
   BOUNDED_FILE_READ_CHUNK_BYTES,
   CLI_OUTPUT_MAX_BYTES,
   BYTES_PER_MIB,
@@ -71,7 +72,13 @@ import {
 } from '../../shared/constants'
 import { fill, uiLocale } from '../../shared/l10n/text'
 import { canonicalPath } from '../canonicalPath'
-import { foldersMade, writeFileAtomically, writeFileIfUnchanged } from '../fsAtomic'
+import {
+  foldersMade,
+  PERMISSION_BITS,
+  renameReplacing,
+  writeFileAtomically,
+  writeFileIfUnchanged,
+} from '../fsAtomic'
 import { killTree, type ProcessTreeDeps, type ShellJob, treeSpawnOptions } from '../processTree'
 import { spawnMcpJob } from './mcpJobLaunch'
 import { joinStatement, newShellJob } from './shellJob'
@@ -513,54 +520,8 @@ const UTF8_MAX_SEQUENCE_BYTES = 4
 const UTF8_CONTINUATION_MASK = 0xc0
 const UTF8_CONTINUATION_BITS = 0x80
 
-async function scanFileShape(
-  file: FileHandle,
-  signal?: AbortSignal,
-): Promise<{ readonly hasBom: boolean; readonly isCrlf: boolean; readonly fingerprint: string }> {
-  const hash = createHash('sha256')
-  const chunk = Buffer.alloc(BOUNDED_FILE_READ_CHUNK_BYTES)
-  let position = 0
-  let breaks = 0
-  let crlf = 0
-  let isAfterCarriageReturn = false
-  let isFirstChunk = true
-  let hasBom = false
-  for (;;) {
-    const { bytesRead } = await file.read(chunk, 0, chunk.length, position)
-    if (bytesRead === 0) {
-      break
-    }
-    signal?.throwIfAborted()
-    const view = chunk.subarray(0, bytesRead)
-    hash.update(view)
-    if (isFirstChunk) {
-      isFirstChunk = false
-      hasBom =
-        view.length >= UTF8_BOM_LENGTH &&
-        view[0] === UTF8_BOM_FIRST &&
-        view[1] === UTF8_BOM_SECOND &&
-        view[2] === UTF8_BOM_THIRD
-    }
-    for (const byte of view) {
-      if (byte === ASCII_LINE_FEED) {
-        breaks += 1
-        if (isAfterCarriageReturn) {
-          crlf += 1
-        }
-        isAfterCarriageReturn = false
-      } else if (byte === ASCII_CARRIAGE_RETURN) {
-        isAfterCarriageReturn = true
-      } else {
-        isAfterCarriageReturn = false
-      }
-    }
-    position += bytesRead
-    if (bytesRead < chunk.length) {
-      break
-    }
-  }
-  return { hasBom, isCrlf: breaks > 0 && crlf === breaks, fingerprint: hash.digest('hex') }
-}
+/** A range splice that found the file changed under it: nothing was written. */
+class spliceStaleError extends Error {}
 
 /** A path's metadata and bytes come from one handle; growth stops after max + 1 bytes. */
 async function readBoundedFile(
@@ -882,8 +843,11 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
       }
     },
     // A9 (limits-output): one byte window of a file of any size, with the
-    // shape a range display and edit needs. Memory stays flat: one scan
-    // pass for the shape, then the window alone is loaded.
+    // shape a range display and edit needs. Memory and I/O stay windowed:
+    // the window's bytes plus a few overlap bytes are the only bytes read —
+    // no whole-file scan. The shape is window-local (BOM only when the
+    // window covers byte 0, this window's breaks only) and the fingerprint
+    // digests the returned window, not the file.
     async readFileRange(absolutePath, expectedCanonicalPath, range, signal) {
       const offset = Math.max(Math.floor(range.offset), 0)
       const length = Math.min(Math.max(Math.floor(range.length), 0), TOOL_FILE_RANGE_MAX_BYTES)
@@ -907,7 +871,6 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
         const metadata = await file.stat()
         const size = metadata.size
         const mtimeMs = metadata.mtimeMs
-        const shape = await scanFileShape(file, signal)
         const requestedStart = Math.min(offset, size)
         const readStart = Math.max(requestedStart - UTF8_MAX_SEQUENCE_BYTES + 1, 0)
         const requestedEnd = Math.min(requestedStart + length, size)
@@ -926,6 +889,31 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
         // CRLF is one logical break; do not normalize its halves separately.
         if (view[from] === ASCII_LINE_FEED && view[from - 1] === ASCII_CARRIAGE_RETURN) from -= 1
         if (view[to] === ASCII_LINE_FEED && view[to - 1] === ASCII_CARRIAGE_RETURN) to += 1
+        const window = view.subarray(from, to)
+        const alignedStart = readStart + from
+        let breaks = 0
+        let crlf = 0
+        let isAfterCarriageReturn = false
+        for (const byte of window) {
+          if (byte === ASCII_LINE_FEED) {
+            breaks += 1
+            if (isAfterCarriageReturn) {
+              crlf += 1
+            }
+            isAfterCarriageReturn = false
+          } else if (byte === ASCII_CARRIAGE_RETURN) {
+            isAfterCarriageReturn = true
+          } else {
+            isAfterCarriageReturn = false
+          }
+        }
+        const hasBom =
+          alignedStart === 0 &&
+          window.length >= UTF8_BOM_LENGTH &&
+          window[0] === UTF8_BOM_FIRST &&
+          window[1] === UTF8_BOM_SECOND &&
+          window[2] === UTF8_BOM_THIRD
+        const fingerprint = createHash('sha256').update(window).digest('hex')
         signal?.throwIfAborted()
         const after = await file.stat()
         const current = await checkedOpenedFile(
@@ -941,38 +929,141 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
           !sameFile(identity, current)
         )
           throw new Error(fill(UI_TEXT.media.sourceChanged, { name: path.basename(absolutePath) }))
-        return { bytes: view.subarray(from, to), offset: readStart + from, size, mtimeMs, ...shape }
+        return {
+          bytes: window,
+          offset: alignedStart,
+          size,
+          mtimeMs,
+          fingerprint,
+          hasBom,
+          isCrlf: breaks > 0 && crlf === breaks,
+        }
       } finally {
         await file.close()
       }
     },
-    // A9 (limits-output): the whole file as text up to `maxBytes`, for a
-    // range edit's host-side splice; the model never sees it.
-    async readFileCapped(absolutePath, expectedCanonicalPath, maxBytes, signal) {
-      let bytes: Uint8Array
+    // A9 (limits-output): replace one byte span `[start, end)` with
+    // `replacement` without loading the file: head and tail stream through
+    // a temporary file beside the target in 64 KiB chunks, which is renamed
+    // over it (PLAN.md D26/D27). `changed`, and nothing written, when the
+    // file no longer has the expected size and mtime, is gone, or an editor
+    // holds unsaved text; other OS failures throw, naming the cause.
+    async spliceFileRange(
+      absolutePath,
+      expectedCanonicalPath,
+      expected,
+      start,
+      end,
+      replacement,
+      options,
+      signal,
+    ) {
+      let file: FileHandle
       try {
-        const read = await readBoundedFile(
-          absolutePath,
-          maxBytes,
-          expectedCanonicalPath,
-          deps.platform,
-          undefined,
-          signal,
-        )
-        if (!read.ok) {
-          const mib = (read.size / BYTES_PER_MIB).toFixed(1)
-          throw new Error(
-            `${MODEL_TEXT.toolFileTooLarge} ${String(TOOL_FILE_MAX_MIB)} MiB, and this one is ${mib} MiB: ${MODEL_TEXT.toolFileTooLargeHint}`,
-          )
-        }
-        bytes = read.bytes
+        file = await open(absolutePath, 'r')
       } catch (error: unknown) {
         if (isMissingFile(error)) {
-          return
+          return { status: 'changed' } as const
         }
         throw error
       }
-      return decodeText(bytes, absolutePath)
+      try {
+        signal?.throwIfAborted()
+        await checkedOpenedFile(absolutePath, file, expectedCanonicalPath, deps.platform)
+        const metadata = await file.stat()
+        if (metadata.size !== expected.size || metadata.mtimeMs !== expected.mtimeMs) {
+          return { status: 'changed' } as const
+        }
+        if (start < 0 || end < start || end > metadata.size) {
+          throw new Error(
+            `range splice [${String(start)}, ${String(end)}) is outside ${path.basename(absolutePath)} (${String(metadata.size)} bytes)`,
+          )
+        }
+        options.assertCanWrite?.()
+        // The write lands where the file really is (through a link, the
+        // file it leads to), keeping its permission bits, as the atomic
+        // whole-file write does.
+        let real: string
+        try {
+          real = await realpath(absolutePath)
+        } catch (error: unknown) {
+          if (isMissingFile(error)) {
+            return { status: 'changed' } as const
+          }
+          throw error
+        }
+        const { mode } = await stat(real)
+        const temporary = `${real}.${randomUUID()}${ATOMIC_TEMPORARY_SUFFIX}`
+        const copy = Buffer.alloc(BOUNDED_FILE_READ_CHUNK_BYTES)
+        const staged = await open(temporary, 'wx')
+        try {
+          let position = 0
+          const pump = async (from: number, to: number): Promise<void> => {
+            position = from
+            while (position < to) {
+              signal?.throwIfAborted()
+              const { bytesRead } = await file.read(
+                copy,
+                0,
+                Math.min(copy.length, to - position),
+                position,
+              )
+              if (bytesRead === 0) {
+                break
+              }
+              await staged.write(copy.subarray(0, bytesRead))
+              position += bytesRead
+            }
+          }
+          await pump(0, start)
+          await staged.write(replacement)
+          await pump(end, metadata.size)
+          await staged.chmod(mode & PERMISSION_BITS)
+        } finally {
+          await staged.close()
+        }
+        const latest = await file.stat()
+        if (latest.size !== expected.size || latest.mtimeMs !== expected.mtimeMs) {
+          await rm(temporary, { force: true })
+          return { status: 'changed' } as const
+        }
+        if (options.unsavedAt.some((name) => hasUnsavedChanges(name))) {
+          await rm(temporary, { force: true })
+          return { status: 'changed' } as const
+        }
+        options.assertCanWrite?.()
+        try {
+          await renameReplacing(
+            temporary,
+            real,
+            {
+              sleep: pause,
+              assertCanWrite: () => {
+                deps.assertWorkspaceCurrent?.()
+                options.assertCanWrite?.()
+              },
+              ...(expectedCanonicalPath !== undefined && { expectedCanonicalPath }),
+              platform: deps.platform,
+            },
+            async () => {
+              const again = await file.stat()
+              if (again.size !== expected.size || again.mtimeMs !== expected.mtimeMs) {
+                throw new spliceStaleError()
+              }
+            },
+          )
+        } catch (error: unknown) {
+          if (error instanceof spliceStaleError) {
+            await rm(temporary, { force: true })
+            return { status: 'changed' } as const
+          }
+          throw error
+        }
+        const done = await stat(real)
+        return { status: 'written', size: done.size, mtimeMs: done.mtimeMs } as const
+      } finally {
+        await file.close()
+      }
     },
     async readBytes(absolutePath, maxBytes, expectedCanonicalPath, signal, observeSource) {
       try {

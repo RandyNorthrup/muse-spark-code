@@ -1,11 +1,9 @@
-import { createHash } from 'node:crypto'
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { decodeWindow, executeTool, type ToolContext } from '../../src/core/backends/modelapi/tools'
 import { createToolIo } from '../../src/host/backend/toolIo'
-import { fingerprint } from '../../src/core/verify/fingerprint'
 import { ObservationPack } from '../../src/core/backends/modelapi/observationPack'
 import { TOOL_FILE_MAX_BYTES } from '../../src/shared/constants'
 
@@ -242,11 +240,16 @@ describe('range edits', () => {
     expect(result.failure).toBeUndefined()
     expect(readFileSync(target)).toEqual(Buffer.from('\u{FEFF}a\r\nB\r\nc\r\n'))
   })
-  it('replaces inside the window and fingerprints the whole new text', async () => {
+  it('replaces inside the window and records the post-edit window identity', async () => {
     const target = path.join(root, 'edit.txt')
-    writeFileSync(target, readFileSync(big))
+    const before = readFileSync(big)
+    writeFileSync(target, before)
     const { seen, run } = context()
-    await run('read_file', { path: 'edit.txt', byteOffset: 0, byteLength: 65_536 })
+    const shown = await run('read_file', { path: 'edit.txt', byteOffset: 0, byteLength: 65_536 })
+    // The character budget clamps the delivered window; the edit names the
+    // advertised range, and both address the same bytes.
+    const last = Number(/bytes 0–(\d+) of/.exec(shown.output)?.[1])
+    expect(last).toBeGreaterThan(0)
     const edited = await run('edit_file', {
       path: 'edit.txt',
       find: 'line 000002',
@@ -255,20 +258,66 @@ describe('range edits', () => {
       byteLength: 65_536,
     })
     expect(edited.failure).toBeUndefined()
-    expect(edited.output).toContain('edited edit.txt (bytes 0–65536)')
+    expect(edited.output).toContain(`edited edit.txt (bytes 0–${String(last)})`)
     const final = readFileSync(target, 'utf8')
     expect(final).toContain('line 000002 edited')
     expect(final).not.toContain('line 000002 x')
+    // Bytes outside the window stream through untouched: same head and tail.
+    expect(final.slice(0, 100)).toBe(before.toString('utf8').slice(0, 100))
+    expect(final.slice(-100)).toBe(before.toString('utf8').slice(-100))
+    // The recorded identity is exactly what a fresh read of the same range
+    // records: the edit left provable freshness behind, without re-reading.
     const absolute = path.join(root, 'edit.txt')
-    expect(seen.get(absolute)).toBe(fingerprint(final))
-    expect(createHash('sha256').update(final).digest('hex')).toBe(fingerprint(final))
+    const recorded = seen.get(absolute)
+    expect(recorded?.startsWith('w:')).toBe(true)
+    const reread = await run('read_file', { path: 'edit.txt', byteOffset: 0, byteLength: 65_536 })
+    expect(reread.output).toContain('line 000002 edited')
+    expect(seen.get(absolute)).toBe(recorded)
   })
 
-  it('refuses a match outside the window and an ambiguous whole file', async () => {
+  it('edits a file past the old 128 MiB cap by range, without loading it', async () => {
+    const target = path.join(root, 'huge.txt')
+    const size = 128 * 1024 * 1024 + 1
+    const marker = 'needle-here-12345\n'
+    const at = 4096
+    const { open } = await import('node:fs/promises')
+    const handle = await open(target, 'w')
+    await handle.truncate(size)
+    await handle.write(Buffer.from(marker), 0, marker.length, at)
+    await handle.close()
+    const { run } = context()
+    const shown = await run('read_file', {
+      path: 'huge.txt',
+      byteOffset: at,
+      byteLength: marker.length,
+    })
+    expect(shown.failure).toBeUndefined()
+    expect(shown.output).toContain('needle-here-12345')
+    const edited = await run('edit_file', {
+      path: 'huge.txt',
+      find: 'needle-here-12345',
+      replace: 'replaced-here-123',
+      byteOffset: at,
+      byteLength: marker.length,
+    })
+    expect(edited.failure).toBeUndefined()
+    const { statSync } = await import('node:fs')
+    expect(statSync(target).size).toBe(size)
+    const check = Buffer.alloc(marker.length)
+    const { readSync, openSync, closeSync } = await import('node:fs')
+    const fd = openSync(target, 'r')
+    readSync(fd, check, 0, marker.length, at)
+    closeSync(fd)
+    expect(check.toString('utf8')).toBe('replaced-here-123\n')
+  })
+
+  it('matches only inside the window and refuses ambiguity there', async () => {
     const target = path.join(root, 'scoped.txt')
     writeFileSync(target, 'aaa needle bbb\nccc needle ddd\n')
     const { run } = context()
     await run('read_file', { path: 'scoped.txt', byteOffset: 0, byteLength: 10 })
+    // 'ddd' is in the file but not in this window: the note names the
+    // window and how to reach it, not the file.
     const outside = await run('edit_file', {
       path: 'scoped.txt',
       find: 'ddd',
@@ -276,17 +325,32 @@ describe('range edits', () => {
       byteOffset: 0,
       byteLength: 10,
     })
-    expect(outside.failure).toContain('outside the read window')
+    expect(outside.failure).toContain('was not found in this window')
+    expect(outside.failure).toContain('read the window that holds it')
     expect(readFileSync(target, 'utf8')).toContain('ddd')
-    const ambiguous = await run('edit_file', {
+    // One in-window match edits, leaving the out-of-window one alone.
+    const inside = await run('edit_file', {
       path: 'scoped.txt',
       find: 'needle',
       replace: 'NEEDLE',
       byteOffset: 0,
       byteLength: 10,
     })
-    expect(ambiguous.failure).toBeDefined()
-    expect(readFileSync(target, 'utf8')).not.toContain('NEEDLE')
+    expect(inside.failure).toBeUndefined()
+    expect(readFileSync(target, 'utf8')).toBe('aaa NEEDLE bbb\nccc needle ddd\n')
+    // Two matches in one window stay refused.
+    const two = path.join(root, 'two.txt')
+    writeFileSync(two, 'needle one needle two\n')
+    await run('read_file', { path: 'two.txt', byteOffset: 0, byteLength: 30 })
+    const ambiguous = await run('edit_file', {
+      path: 'two.txt',
+      find: 'needle',
+      replace: 'NEEDLE',
+      byteOffset: 0,
+      byteLength: 30,
+    })
+    expect(ambiguous.failure).toContain('more than once in this window')
+    expect(readFileSync(two, 'utf8')).not.toContain('NEEDLE')
   })
 
   it('keeps CRLF breaks and strips a leading BOM for the window', async () => {
