@@ -388,6 +388,7 @@ function modelApiManager(
     // from the providers file alone, so a keyless session still opens.
     // Unprobed sessions keep today's dial behavior.
     hasMetaCredential: () => metaKeyProbe.state === undefined || metaKeyProbe.state === 'key',
+    isCredentialStoreDown: () => metaKeyProbe.state === 'storeDown',
     workspaceRoot,
     sessionWorkspaceRoot: storedWorkspaceRoot,
     assertWorkspaceCurrent,

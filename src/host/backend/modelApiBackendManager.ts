@@ -75,6 +75,8 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly getAccountId?: (() => Promise<string | undefined>) | undefined
   readonly createProviders?: (() => Promise<ModelResolver>) | undefined
   readonly hasMetaCredential?: (() => boolean) | undefined
+  /** The gate's Meta-key probe says the credential store itself is dead. */
+  readonly isCredentialStoreDown?: (() => boolean) | undefined
   readonly workspaceRoot: string | undefined
   readonly io: ToolIo
   /** Existing file-listing adapter rooted in each actual attempt worktree. */
@@ -404,6 +406,7 @@ export class ModelApiBackendManager {
         hasExternalPaidRecording: this.deps.hasExternalPaidRecording,
         usageKind: variant.usageKind,
         hasMetaCredential: this.deps.hasMetaCredential,
+        isCredentialStoreDown: this.deps.isCredentialStoreDown,
         ...(variant.budgetScope !== undefined && { budgetScope: variant.budgetScope }),
         describeEnvironment: variant.describeEnvironment,
         isPaidFeatureOn: variant.isPaidFeatureOn,
