@@ -713,10 +713,10 @@ describe('createBundledSkillsOffer', () => {
     })
   })
 
-  it('remembers nothing when Not now comes before any offer', async () => {
+  it('remembers Not now from the copy state when it comes before any offer', async () => {
     const t = offer(() => Promise.resolve(notInstalled))
     await t.offer.decline()
-    expect(t.state.values.size).toBe(0)
+    expect(t.state.values.get('install')).toBe(true)
   })
 })
 

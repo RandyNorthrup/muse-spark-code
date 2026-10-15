@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { ChatSurface } from '../../src/host/views/chatSurface'
-import { configureWebview } from '../../src/host/views/webviewSetup'
+import { composerPlaceholderFor, configureWebview } from '../../src/host/views/webviewSetup'
 import { WEBVIEW_DOCUMENT_ATTRIBUTE, WEBVIEW_L10N_ELEMENT_ID } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
 import { FakeWebview, fakeHostContext, testSettings } from './helpers/fakes'
@@ -119,8 +119,7 @@ describe('configureWebview', () => {
     expect(webview.postMessage).toHaveBeenCalledWith({
       type: 'init',
       emptyStateHint: 'Type /model to pick the right tool for the job.',
-      composerPlaceholder:
-        'ctrl esc (cmd esc on macOS, ctrl alt esc on Windows) to focus or unfocus Muse',
+      composerPlaceholder: composerPlaceholderFor(process.platform),
       settings: testSettings,
     })
     expect(context.onSurfaceReady).toHaveBeenCalledWith(surface, 4)
