@@ -3057,12 +3057,13 @@ export class ConversationController {
         // Crowded out past the open cap (B22): one warning naming the
         // count; the expired cards keep their text below.
         onExpired: (expired) => {
-          this.notice(
-            'warning',
-            plural(UI_TEXT.questionsExpiredNotice, expired.length, {
-              max: OPEN_QUESTIONS_MAX,
-            }),
-          )
+          const text = plural(UI_TEXT.questionsExpiredNotice, expired.length, {
+            max: OPEN_QUESTIONS_MAX,
+          })
+          const surfaces = sessionSurfaces.get(session) ?? []
+          for (const surface of surfaces) {
+            if (!surface.isDisposed) surface.notice('warning', text)
+          }
         },
         failed: () => {
           const surfaces = sessionSurfaces.get(session) ?? []

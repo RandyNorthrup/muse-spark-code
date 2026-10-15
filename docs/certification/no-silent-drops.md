@@ -328,6 +328,17 @@ McpElicitationTimeoutError` was false at the real boundary: the connection
 - Every expiry path now passes its new expired records to `publish`, which
   notifies only after the atomic save succeeds. No backend stand-in was used.
 
+## RVDROPS review — B22 shared-session notice ownership
+
+- P2, quoted-code proof: `attachQuestions` shares its registry across
+  controllers, but `onExpired` captured only the first controller's `this`.
+  After that panel closed (or switched sessions), later expiry could notify
+  a disposed/wrong panel while the live surface received only the snapshot.
+- Expiry now uses `sessionSurfaces.get(session)`, like the adjacent changed
+  and failure callbacks, notifying each still-attached live surface. Lead:
+  open the same session twice, close its original panel, then cross 20 open
+  questions in the remaining panel; verify the warning there.
+
 ## Limits raised or removed (owner's rule)
 
 | Row | Number              | Outcome                                                  | Reasoning                                                                       |
