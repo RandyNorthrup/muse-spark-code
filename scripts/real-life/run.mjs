@@ -379,23 +379,32 @@ const left = []
  * is taken up again where it stopped.
  */
 async function removeStored() {
-  while (configured.length > 0) {
-    const route = configured.at(-1)
+  for (const route of configured.toReversed()) {
     // `providers remove` takes the provider out of this home and its key out
     // of the store; `auth clear` takes the key out when the provider was
     // never written (an add that was cut short).
-    await cleaner(['providers', 'remove', route.provider])
-    await cleaner(['auth', 'clear', '--provider', route.provider])
+    const removed = await cleaner(['providers', 'remove', route.provider])
+    const cleared = await cleaner(['auth', 'clear', '--provider', route.provider])
     const after = await cleaner(['auth', 'status', '--provider', route.provider])
-    if (after.code === 0) left.push(route.provider)
-    configured.pop()
+    // A nonzero status is also a store error or an unreadable entry, not
+    // proof of absence. Require a successful delete before retiring ownership.
+    const isRemoved = (removed.code === 0 || cleared.code === 0) && after.code !== 0
+    if (isRemoved) {
+      configured.splice(configured.indexOf(route), 1)
+      const index = left.indexOf(route.provider)
+      if (index !== -1) left.splice(index, 1)
+    } else if (!left.includes(route.provider)) left.push(route.provider)
   }
   if (!stores.isMetaStored) return
-  await cleaner(['auth', 'clear'])
+  const cleared = await cleaner(['auth', 'clear'])
   const after = await cleaner(['auth', 'status'])
-  if (after.code === 0) left.push('the Meta Model API key')
-  else clearMarker()
-  stores.isMetaStored = false
+  const name = 'the Meta Model API key'
+  if (cleared.code === 0 && after.code !== 0) {
+    clearMarker()
+    stores.isMetaStored = false
+    const index = left.indexOf(name)
+    if (index !== -1) left.splice(index, 1)
+  } else if (!left.includes(name)) left.push(name)
 }
 
 // One clean-up at a time: the one a cut asks for waits for the one in flight.
@@ -433,7 +442,8 @@ async function cutShort(why) {
   try {
     if (product !== undefined) await cleanUp()
   } finally {
-    if (left.length > 0) console.error(`STILL IN THE CREDENTIAL STORE: ${left.join(', ')}`)
+    if (left.length > 0)
+      console.error(`STILL OR POSSIBLY IN THE CREDENTIAL STORE: ${left.join(', ')}`)
     process.exit(EXIT_FAILED)
   }
 }
@@ -843,7 +853,7 @@ console.log(
 )
 if (left.length > 0) {
   console.error(
-    `STILL IN THE CREDENTIAL STORE: ${left.join(', ')} (remove with: providers remove <name>)`,
+    `STILL OR POSSIBLY IN THE CREDENTIAL STORE: ${left.join(', ')} (remove with: auth clear [--provider <name>])`,
   )
   process.exitCode = EXIT_FAILED
 }
