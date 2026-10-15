@@ -305,9 +305,16 @@ function accountRequestError(error: unknown): RequestError {
     : RequestError.internalError(undefined, text)
 }
 
-/** The model a new session starts on: the backend's default, else the first listed. */
+/**
+ * The model a new session starts on: the backend's default, else the first
+ * listed — among models that can run the coding agent (F83). A limited
+ * model starts a session only when nothing usable is listed, where its
+ * first turn is refused with the limit's own sentence.
+ */
 function startingModel(models: readonly ModelSummary[]): string {
-  const model = models.find((candidate) => candidate.isDefault) ?? models[0]
+  const usable = models.filter((candidate) => candidate.agentLimit === undefined)
+  const pool = usable.length > 0 ? usable : models
+  const model = pool.find((candidate) => candidate.isDefault) ?? pool[0]
   if (model === undefined) {
     throw RequestError.internalError(undefined, UI_TEXT.acpNoModels)
   }
@@ -1569,8 +1576,15 @@ class AcpSession {
       return
     }
     if (configId === ACP_CONFIG_IDS.model) {
-      if (this.models.every((model) => model.modelId !== value)) {
+      const chosen = this.models.find((model) => model.modelId === value)
+      if (chosen === undefined) {
         throw RequestError.invalidParams(undefined, value)
+      }
+      // Refused in the protocol's own error with the limit's sentence
+      // (F83): a plain backend error would reach the client as a bare
+      // "Internal error" with the sentence buried in its data.
+      if (chosen.agentLimit !== undefined) {
+        throw RequestError.invalidParams(undefined, chosen.agentLimit)
       }
       this.ensureHeld()
       await this.session.setModel(value)
