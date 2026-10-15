@@ -74,6 +74,19 @@ export function pullOf(value) {
  * must not stand in for a pull request head whose runs were skipped or
  * deleted, and the other way round.
  */
+/** The final release snapshot must still contain evidence, with nothing pending. */
+export function releaseRecheck(tag, heads, runs) {
+  return [
+    ...missingEvidence(tag, heads, runs),
+    ...runs
+      .filter((run) => run.status !== 'completed')
+      .map(
+        (run) =>
+          `${run.name} run ${String(run.id)} is still ${run.status} at the final release recheck: no result to pass on.`,
+      ),
+  ]
+}
+
 export function missingEvidence(tag, heads, runs) {
   const labels = new Map([[tag, `commit ${tag}`]])
   for (const head of heads) {

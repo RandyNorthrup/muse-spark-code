@@ -7,6 +7,7 @@ import {
   assertReleaseAttempt,
   missingEvidence,
   pullOf,
+  releaseRecheck,
   runOf,
 } from '../../scripts/lib/rule2Gate.mjs'
 
@@ -89,6 +90,34 @@ describe('rule2 gate wire parsing', () => {
     [{ ...mergedPull, head: { sha: 42 } }],
   ])('refuses a pull request it cannot read: %j', (value) => {
     expect(() => pullOf(value)).toThrow(/lacks a field/)
+  })
+})
+
+describe('rule2 final release recheck', () => {
+  const tag = '46d971f85'
+  const head = 'fb8d0ff84'
+  const heads = [{ number: 158, sha: head }]
+  const successful = runOf(run)
+  const onTag = { ...successful, headSha: tag }
+  const onHead = { ...successful, id: successful.id + 1, headSha: head }
+
+  it('accepts a complete final snapshot of both commits', () => {
+    expect(releaseRecheck(tag, heads, [onTag, onHead])).toEqual([])
+  })
+
+  it('refuses a late pending run on either commit without waiting again', () => {
+    for (const headSha of [tag, head]) {
+      const late = { ...successful, headSha, status: 'queued', conclusion: '' }
+      expect(releaseRecheck(tag, heads, [onTag, onHead, late])).toEqual([
+        expect.stringContaining('still queued at the final release recheck'),
+      ])
+    }
+  })
+
+  it('refuses evidence deleted between settling and the final snapshot', () => {
+    expect(releaseRecheck(tag, heads, [onTag])).toEqual([
+      expect.stringContaining(`pull request 158 head ${head}`),
+    ])
   })
 })
 
