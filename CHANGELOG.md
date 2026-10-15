@@ -15,7 +15,9 @@ happened, not what was planned; superseded entries are kept.
   later click, and a question that arrives while you are elsewhere waits
   with its badge instead of taking the keyboard. Acting on the chat
   yourself — clicking into the panel, Focus Input, sending — focuses the
-  input as before.
+  input as before, and Focus Input while the composer is focused hands
+  the keyboard back to the file you were in (it used to focus the editor
+  group, which keeps a chat tab active).
 
 - Test-overhaul review: paid-popup lazy-load checks now build the real
   runtime instead of writing a replacement formatter, retaining locale
