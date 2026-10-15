@@ -66,9 +66,13 @@ export { parseHandoffPrompt } from '../handoff'
 const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
   ['resources', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
   ['providers', ['vscode:museCode', 'vscode:modelApi']],
-  ...['strict-tools', 'parallel-reads', 'cut-short-tools', 'structured-side-calls'].map(
-    (id): [string, readonly string[]] => [id, ['vscode:modelApi', 'acp:modelApi']],
-  ),
+  ...[
+    'strict-tools',
+    'parallel-reads',
+    'cut-short-tools',
+    'structured-side-calls',
+    'turn-request-limit',
+  ].map((id): [string, readonly string[]] => [id, ['vscode:modelApi', 'acp:modelApi']]),
   // M106 (C-M106-2): the selected model's record is bound in production, so
   // previews render in the panel and in ACP where that record verifies
   // streamed arguments.

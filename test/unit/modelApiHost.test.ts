@@ -29,7 +29,6 @@ import {
   MODEL_API_IMPORT_MAX_REPLAY_BYTES,
   MODEL_API_MAX_OUTPUT_TOKENS,
   MODEL_API_MAX_RETRIES,
-  MODEL_API_MAX_TOOL_ROUNDS,
   MODEL_API_MODEL_TEXT,
   MODEL_API_SUBAGENT_TOOLS,
   MODEL_API_TOOLS,
@@ -421,6 +420,8 @@ function setup(
     admitSummaryFork?: ModelApiHostDeps['admitSummaryFork']
     observationPacking?: ModelApiHostDeps['observationPacking']
     outputContinuation?: ModelApiHostDeps['outputContinuation']
+    /** The test's own per-turn tool-round limit (lane TURNLIMIT); unset is no limit. */
+    maxTurnRequests?: number
     /** A capped fixture usually keeps its reservation in memory; this tests an unavailable store. */
     hasNoStore?: boolean
     describeEnvironment?: ModelApiHostDeps['describeEnvironment']
@@ -539,6 +540,9 @@ function setup(
     observationPacking: options.observationPacking,
     ...(options.outputContinuation !== undefined && {
       outputContinuation: options.outputContinuation,
+    }),
+    ...(options.maxTurnRequests !== undefined && {
+      maxTurnRequests: () => options.maxTurnRequests,
     }),
     workspaceRoot: ROOT,
     platform: options.platform ?? 'linux',
@@ -12892,6 +12896,13 @@ async function expectReplacementGoalWake(
 }
 
 /** Fifty tool replies, with the final one held for a busy command. */
+/**
+ * The per-turn tool-round limit the promotion tests below set through the
+ * new option (lane TURNLIMIT): the same workload the removed fixed default
+ * used to bound, now bounded by the test.
+ */
+const LIMITED_TOOL_ROUNDS = 50
+
 function scriptHeldFinalToolRound(
   t: ReturnType<typeof setup>,
   hold: Promise<void>,
@@ -12899,7 +12910,7 @@ function scriptHeldFinalToolRound(
 ): void {
   const tool = { name: 'get_goal', arguments: '{}' }
   t.api.script(
-    ...Array.from({ length: MODEL_API_MAX_TOOL_ROUNDS - 1 }, () => ({ calls: [tool] })),
+    ...Array.from({ length: LIMITED_TOOL_ROUNDS - 1 }, () => ({ calls: [tool] })),
     { calls: [tool], hold },
     { text: finalText },
   )
@@ -13080,21 +13091,24 @@ describe('ModelApiHost: the session goal (M45, PLAN.md D38)', () => {
   it(
     'starts a fresh goal turn when a busy command arrives in the last tool round',
     async () => {
-      const t = setup()
+      const t = setup({ maxTurnRequests: LIMITED_TOOL_ROUNDS })
       const { session, events, turnDone } = await startSession(t)
       const held = Promise.withResolvers<undefined>()
       scriptHeldFinalToolRound(t, held.promise, 'Working on the goal')
       await session.sendTurn([{ type: 'text', text: 'many tool rounds' }])
       await vi.waitFor(() => {
-        expect(t.api.responseBodies()).toHaveLength(MODEL_API_MAX_TOOL_ROUNDS)
+        expect(t.api.responseBodies()).toHaveLength(LIMITED_TOOL_ROUNDS)
       })
       await session.controlGoal({ verb: 'set', objective: 'New goal' })
       held.resolve(undefined)
       await turnDone()
+      // The limit ends the turn on a no-tools summary (one more request),
+      // then the queued goal wake runs as its own turn.
       await vi.waitFor(() => {
-        expect(t.api.responseBodies()).toHaveLength(MODEL_API_MAX_TOOL_ROUNDS + 1)
+        expect(t.api.responseBodies()).toHaveLength(LIMITED_TOOL_ROUNDS + 2)
       })
-      expect(instructionsOf(t, MODEL_API_MAX_TOOL_ROUNDS)).toContain('- Objective: New goal')
+      expect(t.api.responseBodies()[LIMITED_TOOL_ROUNDS]?.['tools']).toHaveLength(0)
+      expect(instructionsOf(t, LIMITED_TOOL_ROUNDS + 1)).toContain('- Objective: New goal')
       expect(events.filter((event) => event.type === 'turnStarted')).toHaveLength(2)
     },
     ENGINE_LOAD_TIMEOUT_MS,
@@ -13104,13 +13118,13 @@ describe('ModelApiHost: the session goal (M45, PLAN.md D38)', () => {
     'starts a fresh turn for steering accepted in the last tool round',
     async () => {
       const store = memorySessionStore()
-      const t = setup({ store })
+      const t = setup({ store, maxTurnRequests: LIMITED_TOOL_ROUNDS })
       const { session, events, turnDone } = await startSession(t)
       const held = Promise.withResolvers<undefined>()
       scriptHeldFinalToolRound(t, held.promise, 'Steered answer')
       const running = await session.sendTurn([{ type: 'text', text: 'many tool rounds' }])
       await vi.waitFor(() => {
-        expect(t.api.responseBodies()).toHaveLength(MODEL_API_MAX_TOOL_ROUNDS)
+        expect(t.api.responseBodies()).toHaveLength(LIMITED_TOOL_ROUNDS)
       })
       const steeredImage = Buffer.from('late steer').toString('base64')
       const steered = await session.steer(running.turnId, [
@@ -13119,12 +13133,17 @@ describe('ModelApiHost: the session goal (M45, PLAN.md D38)', () => {
       ])
       held.resolve(undefined)
       await turnDone()
+      // The steered text is not consumed by the limit summary: the summary
+      // request carries no new instruction, and the promoted steer runs next.
       await vi.waitFor(() => {
-        expect(t.api.responseBodies()).toHaveLength(MODEL_API_MAX_TOOL_ROUNDS + 1)
+        expect(t.api.responseBodies()).toHaveLength(LIMITED_TOOL_ROUNDS + 2)
       })
-      expect(
-        JSON.stringify(t.api.responseBodies()[MODEL_API_MAX_TOOL_ROUNDS]?.['input']),
-      ).toContain('New instruction')
+      expect(JSON.stringify(t.api.responseBodies()[LIMITED_TOOL_ROUNDS]?.['input'])).not.toContain(
+        'New instruction',
+      )
+      expect(JSON.stringify(t.api.responseBodies()[LIMITED_TOOL_ROUNDS + 1]?.['input'])).toContain(
+        'New instruction',
+      )
       expect(events.filter((event) => event.type === 'turnStarted')).toHaveLength(2)
       await vi.waitFor(() => {
         expect(events.filter((event) => event.type === 'turnCompleted')).toHaveLength(2)

@@ -10,6 +10,7 @@ import { toolDefinitions } from '../../src/core/backends/modelapi/tools'
 import { mcpFunctionDefinition } from '../../src/core/backends/modelapi/mcp/functions'
 import {
   createResponsesCodec,
+  parseResponsesError,
   ResponsesDecodeError,
   type ResponsesCodecQuirks,
   type ResponsesWireCodec,
@@ -740,6 +741,36 @@ describe('responsesCodec decodeStream', () => {
   it('preserves captured text-part additions', async () => {
     const events = await collect(stream(...openaiText.map((event) => frame(event))))
     expect(events.at(-1)).toMatchObject({ response: { output: [{ content: [{ logprobs: [] }] }] } })
+  })
+})
+
+describe('parseResponsesError (lane TURNLIMIT, F88)', () => {
+  it('says the provider’s own error: the status with the envelope message, type and code', () => {
+    const error = parseResponsesError(400, {
+      error: {
+        message: 'Invalid `messages[50]`: a tool_use without tool_result',
+        type: 'invalid_request_error',
+        code: 'invalid_messages',
+      },
+    })
+    expect(error.status).toBe(400)
+    expect(error.message).toBe('Invalid `messages[50]`: a tool_use without tool_result')
+    expect(error.kind).toBe('invalid_request_error')
+    expect(error.code).toBe('invalid_messages')
+  })
+
+  it('falls back to the status when the body is not an envelope', () => {
+    const error = parseResponsesError(400, { unexpected: true })
+    expect(error.status).toBe(400)
+    expect(error.message).toBe('HTTP 400')
+    expect(error.kind).toBeUndefined()
+  })
+
+  it('tolerates a bare envelope without type or code', () => {
+    const error = parseResponsesError(429, { error: { message: 'Slow down.' } })
+    expect(error.message).toBe('Slow down.')
+    expect(error.kind).toBeUndefined()
+    expect(error.code).toBeUndefined()
   })
 })
 

@@ -455,6 +455,29 @@
       "editors": ["vscode", "acp"]
     },
     {
+      "id": "turn-request-limit",
+      "name": { "setting": "modelApiMaxTurnRequests" },
+      "summary": {
+        "conditions": [
+          { "when": "conversationStart", "text": { "setting": "modelApiMaxTurnRequests" } }
+        ]
+      },
+      "description": {
+        "conditions": [
+          { "when": "conversationStart", "text": { "setting": "modelApiMaxTurnRequests" } }
+        ]
+      },
+      "commands": [],
+      "settings": ["museSpark.modelApiMaxTurnRequests"],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#agent-loop-guarantees",
+      "backends": ["modelApi"],
+      "paid": false,
+      "surfaces": ["vscode:modelApi", "acp:modelApi"],
+      "details": [],
+      "facts": {},
+      "editors": ["vscode", "acp"]
+    },
+    {
       "id": "argument-preview",
       "name": { "ui": "toolArgumentPreviewLabel" },
       "summary": { "ui": "toolArgumentPreviewDescription" },
@@ -703,7 +726,12 @@
           "session/cancel"
         ],
         "clientRequests": ["session/request_permission", "elicitation/create"],
-        "configOptions": { "model": "model", "effort": "effort", "account": "account" },
+        "configOptions": {
+          "model": "model",
+          "effort": "effort",
+          "account": "account",
+          "turnLimit": "turn-limit"
+        },
         "permissionModes": ["manual", "acceptEdits", "plan", "auto", "bypassPermissions"],
         "bypassFlag": "--allow-dangerously-skip-permissions",
         "projectContext": {
@@ -3856,6 +3884,22 @@
     {
       "text": {
         "conditions": [
+          { "when": "conversationStart", "text": { "setting": "modelApiMaxTurnRequests" } }
+        ]
+      },
+      "id": "museSpark.modelApiMaxTurnRequests",
+      "name": "museSpark.modelApiMaxTurnRequests",
+      "description": "Maximum tool rounds in one turn (0–1000; 0 is no limit: the turn runs until the model stops). When the limit is reached the model writes a summary and the turn ends; sending a message continues.",
+      "descriptionKey": "config.modelApiMaxTurnRequests.description",
+      "type": "integer",
+      "default": 0,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "integer", "default": 0, "minimum": 0, "maximum": 1000 }
+    },
+    {
+      "text": {
+        "conditions": [
           {
             "when": "conversationStart&hosted.webSearch",
             "text": { "setting": "webSearchMaxPerRequest" }
@@ -4983,6 +5027,13 @@
         "required": "modelApi",
         "unit": "USD"
       }
+    },
+    {
+      "route": "serve",
+      "name": "serve: --max-turn-requests <value>",
+      "description": "Set the maximum number of tool rounds in one turn; unset means no limit.",
+      "text": { "cli": "max-turn-requests" },
+      "contract": { "type": "string", "repeatable": false }
     },
     {
       "route": "login",
@@ -6339,6 +6390,13 @@
         "maximum": 500,
         "purpose": "maxRequests"
       }
+    },
+    {
+      "route": "exec",
+      "name": "exec: --max-turn-requests <value>",
+      "description": "Set the maximum number of tool rounds in one turn; unset means no limit.",
+      "text": { "cli": "max-turn-requests" },
+      "contract": { "type": "string", "repeatable": false, "purpose": "max-turn-requests" }
     },
     {
       "route": "exec",
