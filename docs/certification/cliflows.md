@@ -45,6 +45,17 @@ These coupled fixes are deferred rather than bypassing ownership/accounting.
 The earlier F80 claim below describes the submitted attempt, **not verified
 working behavior**. Its positive path was not run and is not certified.
 
+## RVCLIFLOWS review — F46 remediation does not configure accounts
+
+P2: the new `providerNotConfigured` text directs a person to `providers add`,
+but accounts read a different file/envelope (`runtime/providers/providersFileStore.ts:67`,
+`main.ts:935`) from M95's provider configuration. Real isolated product run
+with a valid OpenAI `providers add` envelope at XDG_CONFIG_HOME's
+`muse-spark-code/providers.json` still exits 1 with `openai is not configured;
+add it with providers add first.` (`.lane/accounts-config-proof.log`).
+Binding two canonical stores safely exceeds this review's scoped repair;
+F46 remains open and CHANGELOG now limits the working claim to Meta accounts.
+
 ## RVCLIFLOWS review — scanner owns its output (2026-10-14, Windows)
 
 P2/F48: real `node dist/acp.js scan-secrets clean.txt` printed stdout `0`

@@ -17,8 +17,8 @@ happened, not what was planned; superseded entries are kept.
   number and its help names the exits (0 clean, 10 found, 2 misuse);
   `playbook settings` no longer shows `(panel)`; each slash command is
   announced once; one sentence reports a dead credential store everywhere;
-  the terminal serves provider accounts (unknown providers say they are not
-  configured); pre-session refusals name what is missing. Keyless session
+  the terminal lists Meta provider accounts; non-Meta accounts are not yet
+  bound to the provider configuration. Pre-session refusals name what is missing. Keyless session
   creation and authenticated headless plan-model dispatch remain unfinished.
 - RVCLIFLOWS: retain headless request and USD limits for every Model API/BYO
   run; a user-configurable provider id is not evidence of subscription billing.
