@@ -106,6 +106,7 @@ export function parseArguments(argv) {
   const surfaces = listOf(one('surfaces') ?? SURFACES.join(','))
   const unknown = surfaces.find((surface) => !SURFACES.includes(surface))
   if (unknown !== undefined) return { ok: false, reason: `--surfaces: not a surface: ${unknown}` }
+  const routes = listOf(one('routes') ?? '')
   const models = new Map()
   const pairs = given.get('model') ?? []
   for (const pair of pairs) {
@@ -113,14 +114,21 @@ export function parseArguments(argv) {
     if (at < 1 || at === pair.length - 1) {
       return { ok: false, reason: `--model takes <route>=<model>, not ${pair}` }
     }
-    models.set(pair.slice(0, at), pair.slice(at + 1))
+    const route = pair.slice(0, at)
+    if (routes.filter((id) => id === route).length !== 1) {
+      return {
+        ok: false,
+        reason: `--model route ${route} must be selected exactly once in --routes`,
+      }
+    }
+    models.set(route, pair.slice(at + 1))
   }
   return {
     ok: true,
     options: {
       isList,
       artefact: one('artefact') === undefined ? undefined : path.resolve(one('artefact')),
-      routes: listOf(one('routes') ?? ''),
+      routes,
       matrix: one('matrix') === undefined ? undefined : path.resolve(one('matrix')),
       scenarios: one('scenarios') ?? '*',
       surfaces,
