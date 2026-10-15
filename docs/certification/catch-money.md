@@ -524,3 +524,20 @@ time” notice. Without revocation, observe one not-kept notice in the asking
 session and one-use approval; the next use asks again. Restore permissions.
 No model/provider call was made in this lane; this composition proof remains
 for the lead. The quoted original code and interleaving are the finding proof.
+
+### T5 — PRRT_kwDOUkzj5M6scSQI
+
+Valid by code: the void `post` assigned its async closure to `pending`, then
+re-threw any non-Error request rejection. No caller could await that closure;
+every next post awaited its rejected tail outside the catch. The boundary
+now reports every rejection as the fixed `usage/error: readFailed` reply and
+settles normally, with no raw thrown value exposed. The queue continues.
+
+The branch's `catchWebviewBridges.test.ts` had five substitute-port/global
+cases, one explicitly requiring an unhandled rejection. Deleted rather than
+repairing it with another fake. Lead real-life scenario: open the companion
+usage page with its real service, interrupt its connection, query/refresh,
+and observe readFailed (no unhandled rejection). Restore service, then query,
+refresh and export; they must still reach the service in order. A non-Error
+foreign-port rejection follows the same catch body; no injected fake is
+claimed as product proof. Browser/service composition remains for the lead.

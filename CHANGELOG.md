@@ -9,6 +9,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- The HTTP usage bridge settles every failed request with a read-failed
+  reply, including non-Error rejections, so later refreshes and exports are
+  not blocked behind a rejected queue.
+
 - A revoked paid-search request no longer says that an unsaved Always
   choice applied this time. Order and grant-save failures notify only
   after the request's currentness check.
