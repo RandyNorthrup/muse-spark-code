@@ -191,3 +191,47 @@ preview still byte-identical to the sealed draft.
 5. In a session: `/report project`, `/report quality`, `/report release`
    (bare), `/report` help, and a problem report after real turns (events
    carried, or the unavailable reason when the journal cannot be read).
+
+## Review corrections (RVREPORTTRUE, 2026-10-14)
+
+The review lane (`rv/reports-work`) measured the claims above against the
+code and corrected five, each with a red test first:
+
+- The dedup kept the first distinct row and silently dropped the rest. It
+  now re-keys a distinct row under a taken identity from its own content and
+  carries every record; only a truly identical repeat keeps one copy
+  (`204c78cf9`). The statement above and the CHANGELOG's "keeps its first
+  row" are superseded by this paragraph and the corrected entry.
+- The skipped-records count also counted valid records past the 50-record
+  cap as "expired, invalid or from another build", and the dialog passed raw
+  journal records to the builder, so removing one listed record (with more
+  than 50 valid stored) pulled an older unlisted record into the draft. Only
+  expired or invalid records count now; the dialog passes exactly its listed
+  records plus the count taken at selection (`467eba145`).
+- `contributor_mode_enabled` joined the one settings schema, so a mistyped
+  flag also cost the delegation and workflow facts (and a mistyped `run`
+  cost contributor mode) — the opposite of the schema's own comment. Each
+  member is type-checked by its own reader again (`aebc0303a`). The flag's
+  shape was re-verified against this machine's real
+  `~/.config/muse/settings.json` (a top-level boolean beside
+  `schema_version`).
+- Two failure paths printed the raw error with no scrub at all (the
+  terminal's reports catch and the language-table catch); both scrub now,
+  and a resource warning never repeats the plain sentence as its own cause
+  (`98e6e93e6`).
+- `npm run duplication` did not pass on the lane tree (exit 1, two clones in
+  the lane's new test scaffolding), contrary to the gates list above. The
+  scaffolding is one shared factory now and the gate exits 0 (`a191b3c70`).
+- The "see final message" gates, measured on the review tree:
+  `security:sast` exit 0 (533 rules, 0 findings), `security:audit` exit 0,
+  `vitest related` over the changed sources: 76 files passed, 1 skipped, 5
+  failed with 8 tests — the 7 old-contract assertions the lane named plus
+  `referenceEntry.test.ts` R16 (the same pre-F34 `report --help` route). All
+  8 sit in suites built on stand-ins, left for TESTCUT per the owner's
+  testing rules; in every case only the reason text or the help route the
+  brief changed is asserted. The packed-product file
+  (`test/e2e/execStdio.e2e.test.ts`) exits 0.
+- Still open (not fixed in review): internal history/destination errors
+  still throw the plain generation-failed sentence, so those failures name
+  no cause yet; a resource warning names the cause but not which reading
+  failed; an empty Needs You section renders an empty table.
