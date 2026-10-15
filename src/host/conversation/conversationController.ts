@@ -152,6 +152,7 @@ import {
   MUSE_EVENT_LOG_FAULT,
   MUSE_APPROVAL_LEDGER_FIXED_VERSION,
   MUSE_INSTALL_COMMANDS,
+  OPEN_QUESTIONS_MAX,
   OUTPUT_DOCUMENT_MAX_PAGES,
   OUTPUT_PAGE_BYTES,
   OUTPUT_TAB_ID_LENGTH,
@@ -3047,6 +3048,16 @@ export class ConversationController {
             )
             surface.post({ type: 'openQuestions', snapshot })
           }
+        },
+        // Crowded out past the open cap (B22): one warning naming the
+        // count; the expired cards keep their text below.
+        onExpired: (expired) => {
+          this.notice(
+            'warning',
+            plural(UI_TEXT.questionsExpiredNotice, expired.length, {
+              max: OPEN_QUESTIONS_MAX,
+            }),
+          )
         },
         failed: () => {
           const surfaces = sessionSurfaces.get(session) ?? []

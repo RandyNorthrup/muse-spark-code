@@ -2206,6 +2206,10 @@
   "questionDeclined": "Elutasítva",
   "questionDismissed": "Válasz nélkül lezárva",
   "questionExpired": "Lejárt",
+  "questionsExpiredNotice": {
+    "one": "Egy régebbi kérdés megválaszolatlanul lejárt: csak a legújabb {max} kérdés marad nyitva. A szövege megmarad a kártyáján.",
+    "other": "{count} régebbi kérdés megválaszolatlanul lejárt: csak a legújabb {max} kérdés marad nyitva. A szövegük megmarad a kártyáikon."
+  },
   "questionAnswer": "Válaszadás",
   "questionDismiss": "Lezárás válasz nélkül",
   "questionExpand": "Kérdés kibontása",

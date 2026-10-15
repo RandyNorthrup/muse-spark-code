@@ -2243,6 +2243,11 @@
   "questionDeclined": "Rifiutata",
   "questionDismissed": "Chiusa senza risposta",
   "questionExpired": "Scaduta",
+  "questionsExpiredNotice": {
+    "one": "Una domanda precedente è scaduta senza risposta: solo le {max} domande più recenti restano aperte. Il suo testo è conservato sulla sua scheda.",
+    "many": "{count} di domande precedenti sono scadute senza risposta: solo le {max} domande più recenti restano aperte. Il loro testo è conservato sulle loro schede.",
+    "other": "{count} domande precedenti sono scadute senza risposta: solo le {max} domande più recenti restano aperte. Il loro testo è conservato sulle loro schede."
+  },
   "questionAnswer": "Rispondi",
   "questionDismiss": "Chiudi senza rispondere",
   "questionExpand": "Espandi domanda",

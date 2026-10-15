@@ -35,6 +35,12 @@ export interface QuestionRegistryDeps extends QuestionRegistryPort {
   readonly reply: (userInputId: string, reply: OpenQuestionAnswer | undefined) => Promise<void>
   readonly changed: (snapshot: OpenQuestionsSnapshot) => void
   readonly failed: () => void
+  /**
+   * The cards crowded out past the open cap (B22): fired with each newly
+   * expired entry so its surface tells the person at that moment. Expired
+   * entries are retained, so this is a notice, never a farewell.
+   */
+  readonly onExpired?: ((expired: readonly OpenQuestion[]) => void) | undefined
 }
 
 export interface QuestionRequest {
@@ -81,7 +87,7 @@ export class QuestionRegistry {
     if (!parsed.success) throw new Error(UI_TEXT.questionAnswerFailed)
     const snapshot = parsed.data
     for (const entry of snapshot.questions) {
-      if (['waiting', 'open', 'dismissed'].includes(entry.state)) {
+      if (['waiting', 'open', 'dismissed', 'expired'].includes(entry.state)) {
         this.entries.set(
           entry.userInputId,
           entry.state === 'waiting'
@@ -165,13 +171,20 @@ export class QuestionRegistry {
   private expireOldest(): void {
     const open = this.snapshot().questions.filter((entry) => entry.state === 'open')
     const expired = open.slice(0, Math.max(0, open.length - OPEN_QUESTIONS_MAX))
-    for (const entry of expired) this.entries.set(entry.userInputId, { ...entry, state: 'expired' })
+    if (expired.length === 0) {
+      return
+    }
+    const settled = expired.map((entry) => ({ ...entry, state: 'expired' as const }))
+    for (const entry of settled) this.entries.set(entry.userInputId, entry)
+    this.deps.onExpired?.(settled.map((entry) => structuredClone(entry)))
   }
 
   private async publish(): Promise<void> {
     const snapshot = openQuestionsSnapshotSchema.parse(this.snapshot(false))
+    // Expired cards are undelivered: their text stays readable (B22), unlike
+    // answered ones, which the reply already carried.
     const retained = snapshot.questions.filter((entry) =>
-      ['waiting', 'open', 'dismissed'].includes(entry.state),
+      ['waiting', 'open', 'dismissed', 'expired'].includes(entry.state),
     )
     // One atomic replacement: terminal deletion is itself the durable answer mark.
     await this.deps.store.save(this.sessionId, retained)

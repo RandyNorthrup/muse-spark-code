@@ -2243,6 +2243,11 @@
   "questionDeclined": "Refusée",
   "questionDismissed": "Fermée sans réponse",
   "questionExpired": "Expirée",
+  "questionsExpiredNotice": {
+    "one": "{count} question plus ancienne a expiré sans réponse : seules les {max} questions les plus récentes restent ouvertes. Son texte est conservé sur sa carte.",
+    "other": "{count} questions plus anciennes ont expiré sans réponse : seules les {max} questions les plus récentes restent ouvertes. Leur texte est conservé sur leurs cartes.",
+    "many": "{count} de questions plus anciennes ont expiré sans réponse : seules les {max} questions les plus récentes restent ouvertes. Leur texte est conservé sur leurs cartes."
+  },
   "questionAnswer": "Répondre",
   "questionDismiss": "Fermer sans répondre",
   "questionExpand": "Développer la question",

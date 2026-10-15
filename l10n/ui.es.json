@@ -2243,6 +2243,11 @@
   "questionDeclined": "Rechazada",
   "questionDismissed": "Cerrada sin respuesta",
   "questionExpired": "Caducada",
+  "questionsExpiredNotice": {
+    "one": "Una pregunta anterior caducó sin respuesta: solo las {max} preguntas más recientes permanecen abiertas. Su texto se conserva en su tarjeta.",
+    "many": "{count} de preguntas anteriores caducaron sin respuesta: solo las {max} preguntas más recientes permanecen abiertas. Su texto se conserva en sus tarjetas.",
+    "other": "{count} preguntas anteriores caducaron sin respuesta: solo las {max} preguntas más recientes permanecen abiertas. Su texto se conserva en sus tarjetas."
+  },
   "questionAnswer": "Responder",
   "questionDismiss": "Cerrar sin responder",
   "questionExpand": "Expandir pregunta",

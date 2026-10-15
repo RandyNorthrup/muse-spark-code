@@ -2169,6 +2169,9 @@
   "questionDeclined": "回答を辞退",
   "questionDismissed": "回答せずに閉じました",
   "questionExpired": "期限切れ",
+  "questionsExpiredNotice": {
+    "other": "古い質問{count}件が未回答のまま期限切れになりました: 開いたままになるのは最新の{max}件のみです。本文はそれぞれのカードに残っています。"
+  },
   "questionAnswer": "回答する",
   "questionDismiss": "回答せずに閉じる",
   "questionExpand": "質問を展開",

@@ -2169,6 +2169,9 @@
   "questionDeclined": "답변 거절됨",
   "questionDismissed": "답변 없이 닫힘",
   "questionExpired": "만료됨",
+  "questionsExpiredNotice": {
+    "other": "이전 질문 {count}개가 답변 없이 만료되었습니다. 가장 최근 {max}개의 질문만 열려 있습니다. 해당 내용은 각 카드에 보관됩니다."
+  },
   "questionAnswer": "답변",
   "questionDismiss": "답변 없이 닫기",
   "questionExpand": "질문 펼치기",

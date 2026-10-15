@@ -2169,6 +2169,9 @@
   "questionDeclined": "已拒绝回答",
   "questionDismissed": "已关闭且未回答",
   "questionExpired": "已过期",
+  "questionsExpiredNotice": {
+    "other": "有{count}个旧问题在未答复的情况下过期：仅最新的{max}个问题保持开放。其文本保留在各自的卡片上。"
+  },
   "questionAnswer": "回答",
   "questionDismiss": "关闭且不回答",
   "questionExpand": "展开问题",

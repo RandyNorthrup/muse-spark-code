@@ -2660,6 +2660,11 @@ export const EN = {
   questionDeclined: 'Declined',
   questionDismissed: 'Dismissed',
   questionExpired: 'Expired',
+  questionsExpiredNotice: forms({
+    one: 'One older question expired unanswered: only the newest {max} questions stay open. Its text is kept on its card.',
+    other:
+      '{count} older questions expired unanswered: only the newest {max} questions stay open. Their text is kept on their cards.',
+  }),
   questionAnswer: 'Answer',
   questionDismiss: 'Dismiss',
   questionExpand: 'Expand Question',

@@ -3,8 +3,8 @@
 import type { AgentContext, CreateElicitationResponse } from '@agentclientprotocol/sdk'
 import { isSteerRefusedError, type AgentSession, type TurnPart } from '../core/agent/agentBackend'
 import type { AgentEvent } from '../shared/agentEvents'
-import { MILLISECONDS_PER_SECOND, UI_TEXT } from '../shared/constants'
-import { fill, formatNumber } from '../shared/l10n/text'
+import { MILLISECONDS_PER_SECOND, OPEN_QUESTIONS_MAX, UI_TEXT } from '../shared/constants'
+import { fill, formatNumber, plural } from '../shared/l10n/text'
 import type {
   OpenQuestion,
   OpenQuestionAnswer,
@@ -40,6 +40,11 @@ export interface AcpQuestionRegistry {
     reply: Exclude<QuestionReply, { kind: 'deferred' }>,
   ): Promise<void>
   list(): readonly OpenQuestion[]
+  /**
+   * Cards crowded out past the open cap since the last call (B22): drained
+   * so the deferral layer tells the person once, at that moment.
+   */
+  takeExpired(): readonly OpenQuestion[]
   /** Validate against stored questions and mark before calling the supplied delivery port. */
   answer(
     userInputId: string,
@@ -169,6 +174,14 @@ export class AcpQuestionDeferral {
       form.cardId = record.userInputId
       if (this.closed(form) || form.phase !== 'deferring') return false
       const isOpened = await this.deps.registry.defer(form.event.userInputId)
+      // Cards crowded out past the open cap (B22): one notice naming the
+      // count; the expired cards keep their text in the session.
+      const crowded = this.deps.registry.takeExpired()
+      if (crowded.length > 0) {
+        this.deps.notice(
+          plural(UI_TEXT.questionsExpiredNotice, crowded.length, { max: OPEN_QUESTIONS_MAX }),
+        )
+      }
       if (this.closed(form)) return false
       form.phase = isOpened ? 'open' : 'closed'
       form.controller.abort()

@@ -2243,6 +2243,11 @@
   "questionDeclined": "Recusada",
   "questionDismissed": "Fechada sem resposta",
   "questionExpired": "Expirada",
+  "questionsExpiredNotice": {
+    "one": "{count} pergunta anterior expirou sem resposta: apenas as {max} perguntas mais recentes permanecem abertas. O texto dela está guardado no cartão.",
+    "many": "{count} de perguntas anteriores expiraram sem resposta: apenas as {max} perguntas mais recentes permanecem abertas. O texto delas está guardado nos cartões.",
+    "other": "{count} perguntas anteriores expiraram sem resposta: apenas as {max} perguntas mais recentes permanecem abertas. O texto delas está guardado nos cartões."
+  },
   "questionAnswer": "Responder",
   "questionDismiss": "Fechar sem responder",
   "questionExpand": "Expandir pergunta",

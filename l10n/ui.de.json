@@ -2206,6 +2206,10 @@
   "questionDeclined": "Abgelehnt",
   "questionDismissed": "Ohne Antwort geschlossen",
   "questionExpired": "Abgelaufen",
+  "questionsExpiredNotice": {
+    "one": "Eine ältere Frage ist unbeantwortet abgelaufen: Nur die neuesten {max} Fragen bleiben offen. Ihr Text steht weiter auf ihrer Karte.",
+    "other": "{count} ältere Fragen sind unbeantwortet abgelaufen: Nur die neuesten {max} Fragen bleiben offen. Ihr Text steht weiter auf ihren Karten."
+  },
   "questionAnswer": "Antworten",
   "questionDismiss": "Ohne Antwort schließen",
   "questionExpand": "Frage aufklappen",

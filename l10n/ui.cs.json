@@ -2280,6 +2280,12 @@
   "questionDeclined": "Odmítnuto",
   "questionDismissed": "Uzavřeno bez odpovědi",
   "questionExpired": "Platnost vypršela",
+  "questionsExpiredNotice": {
+    "one": "Jedna starší otázka vypršela bez odpovědi: otevřených zůstává jen nejnovějších {max} otázek. Její text zůstal na její kartě.",
+    "few": "{count} starší otázky vypršely bez odpovědi: otevřených zůstávají jen nejnovější {max} otázky. Jejich text zůstal na jejich kartách.",
+    "many": "{count} starších otázek vypršelo bez odpovědi: otevřených zůstává jen nejnovějších {max} otázek. Jejich text zůstal na jejich kartách.",
+    "other": "{count} starších otázek vypršelo bez odpovědi: otevřených zůstává jen nejnovějších {max} otázek. Jejich text zůstal na jejich kartách."
+  },
   "questionAnswer": "Odpovědět",
   "questionDismiss": "Uzavřít bez odpovědi",
   "questionExpand": "Rozbalit otázku",

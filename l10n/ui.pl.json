@@ -2280,6 +2280,12 @@
   "questionDeclined": "Odmówiono odpowiedzi",
   "questionDismissed": "Zamknięte bez odpowiedzi",
   "questionExpired": "Wygasłe",
+  "questionsExpiredNotice": {
+    "one": "Jedno starsze pytanie wygasło bez odpowiedzi: otwartych pozostaje tylko {max} najnowszych pytań. Jego tekst jest zachowany na jego karcie.",
+    "few": "{count} starsze pytania wygasły bez odpowiedzi: otwarte pozostają tylko {max} najnowsze pytania. Ich tekst jest zachowany na ich kartach.",
+    "many": "{count} starszych pytań wygasło bez odpowiedzi: otwartych pozostaje tylko {max} najnowszych pytań. Ich tekst jest zachowany na ich kartach.",
+    "other": "{count} starszych pytań wygasło bez odpowiedzi: otwartych pozostaje tylko {max} najnowszych pytań. Ich tekst jest zachowany na ich kartach."
+  },
   "questionAnswer": "Odpowiedz",
   "questionDismiss": "Zamknij bez odpowiedzi",
   "questionExpand": "Rozwiń pytanie",

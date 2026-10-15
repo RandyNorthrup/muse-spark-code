@@ -4,6 +4,7 @@ import type {
   AcpQuestionRegistryFactory,
 } from '../../acp/questionDeferral'
 import type {
+  OpenQuestion,
   QuestionDelivery,
   QuestionDeliveryOutcome,
   OpenQuestionsSnapshot,
@@ -51,6 +52,8 @@ export function createRuntimeQuestionRegistry(
   let published: OpenQuestionsSnapshot | undefined
   const aliases = new Map<string, string>()
   const failedDeferrals = new Set<string>()
+  // Cards crowded out past the open cap, told once through takeExpired (B22).
+  let expired: OpenQuestion[] = []
   const registry = new QuestionRegistry(session.sessionId, backend, {
     store: createQuestionStore(directory),
     now: () => clock.now(),
@@ -84,6 +87,9 @@ export function createRuntimeQuestionRegistry(
       published = snapshot
     },
     failed,
+    onExpired: (cards) => {
+      expired.push(...cards)
+    },
   })
   // Loading begins in the constructor; observe failures before ACP's later replay setup.
   void registry.ready().catch(failed)
@@ -122,6 +128,11 @@ export function createRuntimeQuestionRegistry(
       (published ?? registry.snapshot()).questions.filter((entry) =>
         ['waiting', 'open', 'dismissed'].includes(entry.state),
       ),
+    takeExpired: () => {
+      const crowded = expired
+      expired = []
+      return crowded
+    },
     async answer(id, reply) {
       return card(id)?.state === 'open' ? await registry.answer(id, reply) : undefined
     },
