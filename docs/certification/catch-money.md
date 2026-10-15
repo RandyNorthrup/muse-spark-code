@@ -439,3 +439,36 @@ Red drill: with `src/extension.ts`, `credentialStore.ts` and
 removed, the gate fails again at `current=568269 growth=6917`; restored,
 it passes at `-53115`. A single piece back is not enough to fail it: the
 whole-module moves also evacuated each module's base bytes.
+
+## PRTH161 review (2026-10-15, Windows)
+
+Main `d842cad5d` merged with hooks on. Main's 25 conflicting test-file
+removals (including one helper) and removed visual audit stay deleted.
+Both changelog/plan sides stay; the money-read decision is D109, leaving
+main's test-overhaul D108 intact. The earlier fake-driven certification
+above is historical, not current proof. Credential/editor/consent paths
+whose tests main removed require the lead's real-life run; no fake is
+restored to replace them.
+
+### T1 — PRRT_kwDOUkzj5M6scSPz
+
+Valid. The real classifier now follows each if/else, fallthrough, return,
+throw, ternary and short-circuit path. Only the matched side of a named
+condition can consume a failure; `instanceof Error` is not a specific
+expected failure. Unsupported control flow is conservative, not a proof.
+The source-inventory zero test was removed: it asserted a list, not a
+person's behaviour, and hid the misclassified cases. Real parser inputs
+replace it, including both review examples and conditional reports.
+
+`vitest run test/unit/catchInventory.test.mjs --maxWorkers=2`: before fix
+exit 1 (2 assertions: NARROW instead of GENERIC); fixed exit 0 (13 tests).
+Drill: change the all-path `every` to `some`; exit 1, same two intended
+assertions. Restore exit 0, 13 tests. SHA-256 before/after
+`129fa235b5fd197b5eeb01cb648ac714bc1873d85d6119786762f3d250ef1ac3`.
+Logs: `.lane/T1-{before,green,drill,restored}.log`.
+
+The stricter classifier exposes more existing debt. No count limit is
+raised or rebaselined: `check:catches` remains red pending repair or an
+owner decision on these formerly misclassified sites. T2 records site
+identities from the old classifier's accepted baseline, not the expanded
+set, so a migration cannot silently grandfather the newly exposed debt.

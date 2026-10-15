@@ -1,6 +1,5 @@
 // The catch-inventory classifier: one example of each class plus the tricky
 // shapes the gate must not misread.
-import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import ts from 'typescript'
 import {
@@ -8,10 +7,7 @@ import {
   classifyHandler,
   classifySource,
   countByArea,
-  scanCatches,
 } from '../../scripts/lib/catch-inventory.mjs'
-
-const root = path.resolve('.')
 
 function classesOf(text, file = 'src/fixture.ts') {
   const source = ts.createSourceFile(file, text, ts.ScriptTarget.ESNext, true)
@@ -116,7 +112,7 @@ describe('catch-inventory classifier', () => {
         if (!(error instanceof Error)) throw error
         if (!isSteerRefusedError(error)) return 'uncertain'
       }`),
-    ).toEqual(['NARROW'])
+    ).toEqual(['GENERIC'])
     expect(
       classesOf(`try { a() } catch {
         log.warn('ask failed')
@@ -230,11 +226,29 @@ describe('catch-inventory baseline', () => {
     expect(checkBaseline({ acp: { SWALLOW: 1, GENERIC: 0 } }, stale)[0]).toMatch(/lowering/)
   })
 
-  it('holds src/acp and src/webview at zero SWALLOW and GENERIC', () => {
-    // Only the asserted areas are parsed: the whole tree takes seconds.
-    const entries = scanCatches(root, ['src/acp', 'src/webview']).filter(
-      (entry) => entry.class === 'SWALLOW' || entry.class === 'GENERIC',
-    )
-    expect(entries.map((entry) => `${entry.file}:${String(entry.line)}`)).toEqual([])
+  it('rejects handlers with an unreported branch, including broad Error fallbacks', () => {
+    for (const handler of [
+      'if (error instanceof Error) throw error',
+      'if (!(error instanceof Error)) throw error; return fallback',
+      'if (ready) report("failed", error)',
+      'if (error.code === "ENOENT") return; if (ready) throw error',
+      'return ready ? error : fallback',
+      'ready && report("failed", error)',
+      'while (ready) { report("failed", error); break }',
+    ]) {
+      expect(classesOf(`try { a() } catch (error) { ${handler} }`)).toEqual(['GENERIC'])
+    }
+    expect(
+      classesOf(`try { a() } catch (error) {
+      if (!(error instanceof URIError)) throw error
+      return fallback
+    }`),
+    ).toEqual(['NARROW'])
+    expect(
+      classesOf(`try { a() } catch (error) {
+      if (ready) report('failed', error)
+      else throw error
+    }`),
+    ).toEqual(['REPORTED'])
   })
 })
