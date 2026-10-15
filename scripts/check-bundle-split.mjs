@@ -206,6 +206,8 @@ const LAZY_ONLY = [
   'subagentTools.ts',
   'toolHookPayload.ts',
   'tools.ts',
+  // F5 (D113): a failed limit summary's repair of the stored replay; the host's.
+  'turnLimitStop.ts',
   // M81: what a browser check hands the model and the row.
   'browserCalls.ts',
   // The verify loop's session side and its tool surface (M68).
