@@ -649,6 +649,20 @@ function goldenRequests(relativePath: string): readonly string[] {
   return goldenFileSchema.parse(raw).requests
 }
 
+function goldenTurn(
+  file: string,
+  tools: ReturnType<typeof toolDefinitions> | ReturnType<typeof withStrictTools>,
+) {
+  const body = goldenBodySchema.parse(JSON.parse(goldenRequests(file)[0]!) as unknown)
+  const instructions = instructionsFor({ ...baseFacts(), today: '1970-01-01' })
+  expect(JSON.stringify(body.tools)).toBe(JSON.stringify(tools))
+  expect(body.instructions).toBe(instructions)
+  expect(body.prompt_cache_key).toBe(
+    promptCacheKey({ model: 'muse-spark-1.3', instructions, tools }),
+  )
+  return body
+}
+
 describe('invariant 7: golden request bytes with new features off', () => {
   // The host's body assembly order (ModelApiHost.body + keyed), pinned as
   // literals: it is the order JSON.stringify sends on the Meta path.
@@ -687,15 +701,9 @@ describe('invariant 7: golden request bytes with new features off', () => {
   })
 
   it('reproduces the plain golden turn from the real modules', () => {
-    const body = goldenBodySchema.parse(
-      JSON.parse(goldenRequests('01-plain-turn.json')[0]!) as unknown,
-    )
-    const tools = toolDefinitions('linux', { hasShell: true, hasSkills: false })
-    const instructions = instructionsFor({ ...baseFacts(), today: '1970-01-01' })
-    expect(JSON.stringify(body.tools)).toBe(JSON.stringify(tools))
-    expect(body.instructions).toBe(instructions)
-    expect(body.prompt_cache_key).toBe(
-      promptCacheKey({ model: 'muse-spark-1.3', instructions, tools }),
+    const body = goldenTurn(
+      '01-plain-turn.json',
+      toolDefinitions('linux', { hasShell: true, hasSkills: false }),
     )
     expect(body.model).toBe('muse-spark-1.3')
     expect(body.tool_choice).toBe('auto')
@@ -708,18 +716,9 @@ describe('invariant 7: golden request bytes with new features off', () => {
   })
 
   it('reproduces the strict golden tools from the real strict conversion', () => {
-    const body = goldenBodySchema.parse(
-      JSON.parse(goldenRequests('strict/01-plain-turn.json')[0]!) as unknown,
-    )
-    const tools = withStrictTools(
-      toolDefinitions('linux', { hasShell: true, hasSkills: false }),
-      true,
-    )
-    const instructions = instructionsFor({ ...baseFacts(), today: '1970-01-01' })
-    expect(JSON.stringify(body.tools)).toBe(JSON.stringify(tools))
-    expect(body.instructions).toBe(instructions)
-    expect(body.prompt_cache_key).toBe(
-      promptCacheKey({ model: 'muse-spark-1.3', instructions, tools }),
+    goldenTurn(
+      'strict/01-plain-turn.json',
+      withStrictTools(toolDefinitions('linux', { hasShell: true, hasSkills: false }), true),
     )
   })
 })
