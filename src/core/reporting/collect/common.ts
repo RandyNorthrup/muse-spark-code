@@ -74,14 +74,31 @@ export function section(
 ): ReportSection {
   const ordered = rows.toSorted((left, right) => compare(left.key, right.key))
   // Row keys are identities: a repeated identity (two open questions sharing
-  // an id, two channels with one name) keeps its first row, so the section
-  // stays valid and the report still generates instead of failing wholesale.
-  const seen = new Set<string>()
-  const unique = ordered.filter((entry) => {
-    if (seen.has(entry.key)) return false
-    seen.add(entry.key)
-    return true
-  })
+  // an id, two channels with one name) must not fail the whole report, and a
+  // distinct record must not vanish either. A truly identical repeat keeps
+  // one copy; a distinct row under a taken identity is re-keyed from its own
+  // content, so the section stays valid and still carries every record.
+  const contentsByKey = new Map<string, Set<string>>()
+  const usedKeys = new Set<string>()
+  const unique: ReportRow[] = []
+  for (const entry of ordered) {
+    const content = JSON.stringify([entry.cells, entry.sourceIds])
+    const contents = contentsByKey.get(entry.key) ?? new Set<string>()
+    contentsByKey.set(entry.key, contents)
+    if (contents.has(content)) continue
+    contents.add(content)
+    let entryKey = entry.key
+    if (usedKeys.has(entryKey)) {
+      let attempt = 0
+      do {
+        attempt += 1
+        entryKey = key(entry.key, content, String(attempt))
+      } while (usedKeys.has(entryKey))
+    }
+    usedKeys.add(entryKey)
+    unique.push(entryKey === entry.key ? entry : { ...entry, key: entryKey })
+  }
+  unique.sort((left, right) => compare(left.key, right.key))
   return {
     id,
     label: heading,
