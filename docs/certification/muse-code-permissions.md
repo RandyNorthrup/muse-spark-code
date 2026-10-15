@@ -133,6 +133,19 @@ Logs: `.lane/PRTH165.T1-{green,drill,restored}.log`.
 An initial test setup used Zod's non-mini array method and discovered no tests;
 that setup error was corrected and does not count as the red proof.
 
+### T2 — consent published before dispatch
+
+Code proof: the claim was released in `askPermission`'s `finally` before the
+backend decision, and the cache write followed its awaited acknowledgement.
+An `approvalUpdated` during that wait therefore found neither claim nor answer.
+The cache write now occurs synchronously before calling `decideApproval`.
+A failed dispatch does not erase the user's consent; a changed rule still
+fails T1's identity check. No fake agent/backend was introduced to exercise
+that interleaving. Lead run: in a real Muse Code staged command, answer once,
+inspect the real MSP trace for an update preceding the decision response,
+and confirm there is only one ACP request for that unchanged meaning.
+Until that ordering is observed, integration verification remains pending.
+
 ## Live-session steps for the lead (signed-in host)
 
 1. Start the packed agent: `node dist/acp.js --backend museCode

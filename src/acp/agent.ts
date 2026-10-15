@@ -997,13 +997,15 @@ class AcpSession {
       await this.cancel()
       return
     }
+    // The next stage can arrive before approval/decide is acknowledged.
+    // Publish the consent synchronously so that event reuses it, not a new ask.
+    this.permissionAnswers.remember(settled.approvalId, settled.itemId, choice)
     try {
       await this.session.decideApproval({
         approvalId: settled.approvalId,
         choiceId: choice.choiceId,
         requirementId: settled.requirementId,
       })
-      this.permissionAnswers.remember(settled.approvalId, settled.itemId, choice)
     } catch (error: unknown) {
       const level = isPromptSettledError(error) ? 'info' : 'warn'
       this.deps.log[level](
