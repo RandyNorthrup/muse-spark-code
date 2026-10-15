@@ -4653,12 +4653,23 @@ async function activateWindow(
         activeSurface: () => registry.active,
         focusEditor: async () => {
           // The group focus is a no-op while a chat tab is the group's
-          // active tab, so the toggle returns to the file itself; when that
-          // file is gone (or there never was one) it falls back to the
-          // group, which is still the sidebar toggle's way back.
-          if (lastTextDocumentUri !== undefined) {
+          // active tab, so the toggle returns to the file itself while a tab
+          // still holds it; a file the person closed is not reopened, and
+          // without one the toggle falls back to the group, which is still
+          // the sidebar toggle's way back.
+          const target = lastTextDocumentUri
+          const isStillOpen =
+            target !== undefined &&
+            vscode.window.tabGroups.all.some((group) =>
+              group.tabs.some(
+                (tab) =>
+                  tab.input instanceof vscode.TabInputText &&
+                  tab.input.uri.toString() === target.toString(),
+              ),
+            )
+          if (isStillOpen) {
             try {
-              await vscode.window.showTextDocument(lastTextDocumentUri)
+              await vscode.window.showTextDocument(target)
               return
             } catch {
               lastTextDocumentUri = undefined
