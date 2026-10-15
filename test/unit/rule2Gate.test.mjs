@@ -5,6 +5,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   assertReleaseAttempt,
+  duplicateExecutions,
   isSuccessfulRun,
   missingEvidence,
   pullOf,
@@ -94,6 +95,40 @@ describe('rule2 gate wire parsing', () => {
   })
 })
 
+describe('rule2 distinct executions on a head', () => {
+  const first = runOf(run)
+  const second = { ...first, id: first.id + 1 }
+
+  it.each(['queued', 'in_progress', 'completed'])(
+    'refuses a second run id even on its first attempt, status %s',
+    (status) => {
+      expect(duplicateExecutions([first, { ...second, status }])).toEqual([
+        expect.stringContaining(`distinct runs ${first.id} and ${second.id}`),
+      ])
+    },
+  )
+
+  it('allows different workflows and different heads, not repeated execution', () => {
+    expect(
+      duplicateExecutions([
+        first,
+        { ...second, path: '.github/workflows/hosts.yml' },
+        { ...second, headSha: 'another-commit' },
+      ]),
+    ).toEqual([])
+  })
+
+  it('does not count the same run id twice when merging API pages or own identity', () => {
+    expect(duplicateExecutions([first, first])).toEqual([])
+  })
+
+  it('refuses duplicate runs that arrive in the final release snapshot', () => {
+    expect(releaseRecheck(first.headSha, [], [first, second])).toEqual([
+      expect.stringContaining('distinct runs'),
+    ])
+  })
+})
+
 describe('rule2 final release recheck', () => {
   const tag = '46d971f85'
   const head = 'fb8d0ff84'
@@ -108,7 +143,13 @@ describe('rule2 final release recheck', () => {
 
   it('refuses a late pending run on either commit without waiting again', () => {
     for (const headSha of [tag, head]) {
-      const late = { ...successful, headSha, status: 'queued', conclusion: '' }
+      const late = {
+        ...successful,
+        path: '.github/workflows/hosts.yml',
+        headSha,
+        status: 'queued',
+        conclusion: '',
+      }
       expect(releaseRecheck(tag, heads, [onTag, onHead, late])).toEqual([
         expect.stringContaining('still queued at the final release recheck'),
       ])

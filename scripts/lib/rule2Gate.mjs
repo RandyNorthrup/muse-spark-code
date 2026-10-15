@@ -68,6 +68,22 @@ export function pullOf(value) {
   }
 }
 
+/** Different workflow files may test a head; one file must not execute twice. */
+export function duplicateExecutions(runs) {
+  const first = new Map()
+  const refusals = []
+  for (const run of runs) {
+    const key = `${run.headSha}:${run.path}`
+    const earlier = first.get(key)
+    if (earlier === undefined) first.set(key, run.id)
+    else if (earlier !== run.id)
+      refusals.push(
+        `${run.path} has distinct runs ${String(earlier)} and ${String(run.id)} on head ${run.headSha}: nothing is started again on the same commit (AGENTS.md rule 2). Push a new commit: its run decides.`,
+      )
+  }
+  return refusals
+}
+
 /** Successful execution, not a skipped/neutral workflow, is hosted evidence. */
 export function isSuccessfulRun(run) {
   return run.status === 'completed' && run.conclusion === 'success'
@@ -77,6 +93,7 @@ export function isSuccessfulRun(run) {
 export function releaseRecheck(tag, heads, runs) {
   return [
     ...missingEvidence(tag, heads, runs),
+    ...duplicateExecutions(runs),
     ...runs
       .filter((run) => run.status !== 'completed')
       .map(
