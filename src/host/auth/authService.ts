@@ -39,13 +39,10 @@ export interface AuthBackendFacts {
    */
   readonly cliSignIn: (isUserAction: boolean) => Promise<CliSignIn>
   /**
-   * Leaves an unanswered probe behind (Cancel): the next question asks
-   * afresh, and a remembered answer stands.
-   */
-  /**
    * What the credential file settles alone, without asking the CLI (F60):
    * undefined when only the CLI can say. Lets a refresh show a signed-in
-   * file's answer before the short-lived `account/read` host answers.
+   * file's answer before its remaining reads (the stored key) answer; a
+   * file the structure settles never reaches `account/read` at all.
    */
   readonly peekCliSignIn?: () => CliSignIn | undefined
   /**
@@ -1021,10 +1018,12 @@ export class AuthService {
 
   /**
    * A signed-in answer the credential facts settle without the CLI (F60):
-   * shown at once while `account/read` answers, so first start says
-   * "signed in" in milliseconds instead of after the probe. Only a
-   * signed-in answer ever jumps ahead: a stored key may still sign in where
-   * the file says nothing, so any other answer waits for the full facts.
+   * shown at once while the refresh's remaining reads answer (the stored
+   * key, whose secret-storage read can be slow where no keyring runs), so
+   * first start says "signed in" without waiting for them. A file the
+   * structure cannot settle still waits for `account/read`: only a
+   * signed-in answer ever jumps ahead, because a stored key may still
+   * sign in where the file says nothing.
    */
   private publishFastSignIn(ticket: number): void {
     if (
