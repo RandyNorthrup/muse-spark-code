@@ -141,7 +141,8 @@ export class ShadowStorageInWorkspaceError extends Error {
   }
 }
 
-/** Whether `candidate` is `folder` or below it, by path segment and the platform's own case rules. */
+/** Whether `candidate` is `folder` or below it, by path segment and the platform's own case rules.
+ * @unwired M72 shadow-repository storage guard */
 export function isWithinFolder(candidate: string, folder: string): boolean {
   const relative = path.relative(folder, candidate)
   return (

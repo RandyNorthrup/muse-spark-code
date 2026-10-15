@@ -83,6 +83,7 @@ export function isDefaultEntry(agent: TeamPoolEntry['agent']): agent is TeamDefa
  * resolves through it when each task starts, never from a snapshot, so a
  * picker change applies to the next delegation and a running task keeps
  * what it started on.
+ * @unwired M96 lane T orchestrator slot
  */
 export interface TeamOrchestratorSlot {
   resolve(): TeamAgentProfile
