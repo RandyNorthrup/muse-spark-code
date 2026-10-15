@@ -143,6 +143,54 @@ Pure environment test red: exit 1, 10 passed / 1 failed, `expected
 on both surfaces from a German-locale shell; English usage labels and the
 request/cost assertions must succeed. No paid request made here.
 
+## T10 — observed deliberate failures and exact restoration
+
+Both original files lacked a certification record; the comment is valid.
+No fake added, no test removed, no new process test introduced. Existing
+CLI tests launch the real runner and stop before install/credentials.
+
+Commands on 2026-10-15 (Windows), repository timeouts, maxWorkers=2:
+
+1. Changed only `stopForUsage` to exit 0. Ran `npx vitest run
+test/unit/realLifeCli.test.mjs --maxWorkers=2`: **exit 1, 2 failed**.
+   Both original cases reported `expected +0 to be 2`. They still stopped
+   before any install, key access or provider call (`.lane/T10-cli-red.log`).
+2. Deliberately broke the real modules: installer copies credential-shaped
+   variables; child environment accepts Node preload/translated locale;
+   model override membership check removed; missing key list never added;
+   unread ledger amounts discarded; record mkdir removed; provider identity
+   ignores run id; collision reason emptied; usage parser refuses good data.
+   Ran `npx vitest run test/unit/realLifeGuards.test.mjs --maxWorkers=2`:
+   **exit 1, 10 failed / 1 passed** (`.lane/T10-guards-red.log`).
+3. Changed usage parser to accept unread input. Same guards command:
+   **exit 1, all 11 failed**, including the original failed-command,
+   malformed-JSON and missing-array case (`expected true to be false`).
+   Observed failures include `expected 13 to be 26` (shared accounts),
+   `expected [] to have a length of 3` (unknown liability), `expected
+'de_DE.UTF-8' to be 'en_US.UTF-8'`, `expected '--require outside.cjs'
+to be undefined`, and `expected false to be true` (missing record folder).
+   Full output: `.lane/T10-usage-red.log`.
+4. Restored every edited byte using the exact reverse edits. SHA-256 before
+   and after matched for **all eight files** (`BYTE_EXACT=True`,
+   `.lane/drill-{before,after}.sha256`). No mutations staged or committed.
+5. Ran `npx vitest run test/unit/realLifeCli.test.mjs
+test/unit/realLifeGuards.test.mjs --maxWorkers=2`: **exit 0, 13 passed**
+   (`.lane/T10-restored-green.log`). Every current test in both files was
+   observed failing during the deliberate drills, then restored-green.
+
+Restored SHA-256 fingerprints (full, case-insensitive hex):
+
+| Real module     | SHA-256                                                          |
+| --------------- | ---------------------------------------------------------------- |
+| run.mjs         | 6D059A6FE920F2C3DE083CE41BEA1D4C9A2FCDC6F8FE3742C492777B5B9182DD |
+| lib/args.mjs    | B466688C2E1135EED4AE4DFA403DA117BEAF0B9DDA741F12B18E3421FDC04241 |
+| lib/home.mjs    | C1D6D7D06285935B3DFFDDC767A0B772EAB5BCB65370FB9081ED0610F1637F8D |
+| lib/install.mjs | 2D31944FE4E401E9BD18762708507BF84BDB5A107201C7CCCE7F08B1FDC2A21A |
+| lib/keys.mjs    | 83AC034F57E376CF261F018914278E9EEFA5BF177EFB947664953B1FEC67A6ED |
+| lib/ledger.mjs  | 914F5C3E7F166BAC501C7797D8ADF8B97FE2A204BE967AD825A3F908C49203E9 |
+| lib/record.mjs  | 755D7FA03C60DFD6A4BB5B17A45F8446F3417529156DF78B761B77F011CD572C |
+| lib/routes.mjs  | 2046969C7613605F8AF6B2CF58D12610F2E458C3412B636B87617042A963422F |
+
 ## Merge
 
 Merged `ac21f1d24` in `c1ead3231`, hooks on. Only AGENTS.md and CHANGELOG.md
