@@ -1,6 +1,10 @@
 import type { ItemSnapshot } from './agentEvents'
 import type { AgentEvidence, AgentReceipt } from './agentEvidence'
-import { AGENT_RECEIPT_MAX_ROWS, AGENT_RECEIPT_MAX_CHARS } from './constants'
+import {
+  AGENT_RECEIPT_MAX_ROWS,
+  AGENT_RECEIPT_MAX_CHARS,
+  SUBAGENT_RESULT_TEXT_MAX_CHARS,
+} from './constants'
 import { redactSecrets } from './redact'
 import * as z from 'zod/mini'
 import { parsePatchFiles, ADD_MARKER, REMOVE_MARKER } from './patchDocument'
@@ -98,4 +102,26 @@ export function buildAgentReceipt(
     unfinished,
     truncated: isTruncated,
   }
+}
+
+/** A child result's text against the parent-context bound (B9, D45). */
+export interface ClippedChildResultText {
+  /** What a listing or an automatic push may carry; the full text stays on the result. */
+  readonly text: string
+  readonly kept: number
+  readonly total: number
+  readonly clipped: boolean
+}
+
+/**
+ * Clip one child result for a bounded surface: short results pass through
+ * byte-identical, so only a genuinely clipped result needs its notice.
+ */
+export function clipChildResultText(
+  text: string,
+  maxChars = SUBAGENT_RESULT_TEXT_MAX_CHARS,
+): ClippedChildResultText {
+  return text.length <= maxChars
+    ? { text, kept: text.length, total: text.length, clipped: false }
+    : { text: text.slice(0, maxChars), kept: maxChars, total: text.length, clipped: true }
 }

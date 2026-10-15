@@ -3792,6 +3792,7 @@
   "subagentConsentDeclined": "有料の子タスクは承認されませんでした。",
   "subagentContributorBlocked": "カスタムエージェントがコントリビューターレベルのモデルを指定しています。このワークスペースが機密扱いの間は実行できません (museSpark.confidentialWorkspace)。",
   "subagentRequestLimit": "子タスクは、再試行を含む承認済み上限の{limit}リクエストに達しました。",
+  "subagentResultClipped": "この結果は{total}文字のうち最初の{kept}文字に切り詰められました。完全な結果は子タスクのトランスクリプトに残っています。",
   "subagentKeyChanged": "承認後にModel APIキーが変更されました。続行するには新しい子タスクを承認してください。",
   "subagentModelChanged": "承認後にモデルが変更されました。続行するには新しい子タスクを承認してください。",
   "subagentGoalEnded": "元の目標は現在アクティブではありません。子タスクは追加リクエストを送れません。",

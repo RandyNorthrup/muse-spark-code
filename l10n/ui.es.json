@@ -3982,6 +3982,7 @@
   "subagentConsentDeclined": "No se aprobó la tarea secundaria de pago.",
   "subagentContributorBlocked": "El agente personalizado nombra un modelo de nivel de colaborador, que no puede ejecutarse mientras este espacio de trabajo sea confidencial (museSpark.confidentialWorkspace).",
   "subagentRequestLimit": "La tarea secundaria alcanzó su límite aprobado de {limit} solicitudes, incluidos los reintentos.",
+  "subagentResultClipped": "Este resultado se recortó a los primeros {kept} de {total} caracteres; el resultado completo se conserva en la transcripción de la subtarea.",
   "subagentKeyChanged": "La clave de Model API cambió después de la aprobación. Apruebe una nueva tarea secundaria para continuar.",
   "subagentModelChanged": "El modelo cambió después de la aprobación. Apruebe una nueva tarea secundaria para continuar.",
   "subagentGoalEnded": "El objetivo de origen ya no está activo. La tarea secundaria no puede realizar otra solicitud.",

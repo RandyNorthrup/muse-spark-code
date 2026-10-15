@@ -3982,6 +3982,7 @@
   "subagentConsentDeclined": "A tarefa paga de subagente não foi aprovada.",
   "subagentContributorBlocked": "O agente personalizado nomeia um modelo de nível de colaborador, que não pode ser executado enquanto este espaço de trabalho for confidencial (museSpark.confidentialWorkspace).",
   "subagentRequestLimit": "A tarefa de subagente atingiu o limite aprovado de {limit} solicitações, incluindo novas tentativas.",
+  "subagentResultClipped": "Este resultado foi cortado para os primeiros {kept} de {total} caracteres; o resultado completo está guardado na transcrição da subtarefa.",
   "subagentKeyChanged": "A chave da Model API mudou após a aprovação. Aprove uma nova tarefa de subagente para continuar.",
   "subagentModelChanged": "O modelo mudou após a aprovação. Aprove uma nova tarefa de subagente para continuar.",
   "subagentGoalEnded": "A meta de origem não está mais ativa. A tarefa de subagente não pode fazer outra solicitação.",

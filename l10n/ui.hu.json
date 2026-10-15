@@ -3887,6 +3887,7 @@
   "subagentConsentDeclined": "A fizetős alfeladatot nem hagyták jóvá.",
   "subagentContributorBlocked": "Az egyéni ügynök közreműködői szintű modellt nevez meg, amely nem futhat, amíg ez a munkaterület bizalmas (museSpark.confidentialWorkspace).",
   "subagentRequestLimit": "Az alfeladat elérte a jóváhagyott {limit} kéréses korlátot, az újrapróbálkozásokat is beleértve.",
+  "subagentResultClipped": "Ez az eredmény az első {kept} karakterre lett vágva a(z) {total} közül; a teljes eredmény az alfeladat átiratában megmarad.",
   "subagentKeyChanged": "A Model API-kulcs a jóváhagyás után megváltozott. A folytatáshoz hagyjon jóvá egy új alfeladatot.",
   "subagentModelChanged": "A modell a jóváhagyás után megváltozott. A folytatáshoz hagyjon jóvá egy új alfeladatot.",
   "subagentGoalEnded": "A kiinduló cél már nem aktív. Az alfeladat nem küldhet újabb kérést.",

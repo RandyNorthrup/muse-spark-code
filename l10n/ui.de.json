@@ -3887,6 +3887,7 @@
   "subagentConsentDeclined": "Die kostenpflichtige Kindaufgabe wurde nicht genehmigt.",
   "subagentContributorBlocked": "Der benutzerdefinierte Agent nennt ein Modell der Contributor-Stufe, das nicht ausgeführt werden kann, solange dieser Arbeitsbereich vertraulich ist (museSpark.confidentialWorkspace).",
   "subagentRequestLimit": "Die Kindaufgabe hat ihr genehmigtes Limit von {limit} Anfragen einschließlich Wiederholungen erreicht.",
+  "subagentResultClipped": "Dieses Ergebnis wurde auf die ersten {kept} von {total} Zeichen gekürzt; das vollständige Ergebnis steht im Transkript der Kindaufgabe.",
   "subagentKeyChanged": "Der Model-API-Schlüssel wurde nach der Genehmigung geändert. Genehmigen Sie eine neue Kindaufgabe, um fortzufahren.",
   "subagentModelChanged": "Das Modell wurde nach der Genehmigung geändert. Genehmigen Sie eine neue Kindaufgabe, um fortzufahren.",
   "subagentGoalEnded": "Das ursprüngliche Ziel ist nicht mehr aktiv. Die Kindaufgabe kann keine weitere Anfrage senden.",

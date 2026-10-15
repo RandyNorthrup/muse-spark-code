@@ -4689,6 +4689,8 @@ export const EN = {
     'The custom agent names a contributor-tier model, which cannot run while this workspace is confidential (museSpark.confidentialWorkspace).',
   subagentRequestLimit:
     'The child task reached its approved limit of {limit} requests, including retries.',
+  subagentResultClipped:
+    'This result was clipped to the first {kept} of {total} characters; the full result is kept in the child transcript.',
   subagentKeyChanged:
     'The Model API key changed after approval. Approve a new child task to continue.',
   subagentModelChanged: 'The model changed after approval. Approve a new child task to continue.',

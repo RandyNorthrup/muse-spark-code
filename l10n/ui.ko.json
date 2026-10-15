@@ -3792,6 +3792,7 @@
   "subagentConsentDeclined": "유료 하위 작업이 승인되지 않았습니다.",
   "subagentContributorBlocked": "사용자 지정 에이전트가 기여자 등급 모델을 지정했는데, 이 작업 영역이 기밀인 동안에는 실행할 수 없습니다(museSpark.confidentialWorkspace).",
   "subagentRequestLimit": "하위 작업이 재시도를 포함한 승인 한도 {limit}회 요청에 도달했습니다.",
+  "subagentResultClipped": "이 결과는 {total}자 중 처음 {kept}자로 잘렸습니다. 전체 결과는 하위 작업 기록에 보관됩니다.",
   "subagentKeyChanged": "승인 후 Model API 키가 변경되었습니다. 계속하려면 새 하위 작업을 승인하세요.",
   "subagentModelChanged": "승인 후 모델이 변경되었습니다. 계속하려면 새 하위 작업을 승인하세요.",
   "subagentGoalEnded": "원래 목표가 더 이상 활성 상태가 아닙니다. 하위 작업은 추가 요청을 보낼 수 없습니다.",

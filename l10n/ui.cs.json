@@ -4077,6 +4077,7 @@
   "subagentConsentDeclined": "Placený úkol podagenta nebyl schválen.",
   "subagentContributorBlocked": "Vlastní agent uvádí model přispěvatelské úrovně, který nemůže běžet, dokud je tento pracovní prostor důvěrný (museSpark.confidentialWorkspace).",
   "subagentRequestLimit": "Úkol podagenta dosáhl schváleného limitu {limit} požadavků včetně opakování.",
+  "subagentResultClipped": "Tento výsledek byl zkrácen na prvních {kept} z {total} znaků; úplný výsledek je uložen v přepisu podagenta.",
   "subagentKeyChanged": "Klíč Model API se po schválení změnil. Pro pokračování schvalte nový úkol podagenta.",
   "subagentModelChanged": "Model se po schválení změnil. Pro pokračování schvalte nový úkol podagenta.",
   "subagentGoalEnded": "Původní cíl už není aktivní. Úkol podagenta nemůže odeslat další požadavek.",

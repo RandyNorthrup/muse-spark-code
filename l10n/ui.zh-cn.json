@@ -3792,6 +3792,7 @@
   "subagentConsentDeclined": "付费子任务未获批准。",
   "subagentContributorBlocked": "自定义代理指定了贡献者层级模型，在此工作区处于机密状态时无法运行 (museSpark.confidentialWorkspace)。",
   "subagentRequestLimit": "子任务已达到获批的{limit}次请求上限，包含重试。",
+  "subagentResultClipped": "此结果已被裁剪为{total}个字符中的前{kept}个；完整结果保留在子任务记录中。",
   "subagentKeyChanged": "批准后 Model API 密钥已更改。请批准新的子任务以继续。",
   "subagentModelChanged": "批准后模型已更改。请批准新的子任务以继续。",
   "subagentGoalEnded": "发起此任务的目标已不再处于活动状态。子任务无法再发起请求。",

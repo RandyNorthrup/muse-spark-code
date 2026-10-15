@@ -3887,6 +3887,7 @@
   "subagentConsentDeclined": "Ücretli alt görev onaylanmadı.",
   "subagentContributorBlocked": "Özel aracı, bu çalışma alanı gizliyken çalıştırılamayan bir katkıcı katmanı modeli adlandırıyor (museSpark.confidentialWorkspace).",
   "subagentRequestLimit": "Alt görev, yeniden denemeler dahil onaylanan {limit} istek sınırına ulaştı.",
+  "subagentResultClipped": "Bu sonuç {total} karakterin ilk {kept} karakterine kırpıldı; sonucun tamamı alt görevin transkriptinde saklanır.",
   "subagentKeyChanged": "Onaydan sonra Model API anahtarı değişti. Devam etmek için yeni bir alt görevi onaylayın.",
   "subagentModelChanged": "Onaydan sonra model değişti. Devam etmek için yeni bir alt görevi onaylayın.",
   "subagentGoalEnded": "Başlatan hedef artık etkin değil. Alt görev yeni bir istek yapamaz.",

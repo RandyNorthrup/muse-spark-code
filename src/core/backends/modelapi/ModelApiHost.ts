@@ -38,7 +38,11 @@ import type { PlanUsageRow, SubscriptionUsage } from '../../../shared/usage'
 import { finishedAgentEvidence } from '../../agent/agentEvidence'
 import type { AgentEvidence } from '../../../shared/agentEvidence'
 import { endedOutcome, agentStopReason } from '../../../shared/agentOutcome'
-import { buildAgentReceipt, agentFilesFromPatch } from '../../../shared/agentReceipt'
+import {
+  buildAgentReceipt,
+  agentFilesFromPatch,
+  clipChildResultText,
+} from '../../../shared/agentReceipt'
 import { continuationNote, recoveryRefusal } from '../../../shared/agentRecovery'
 import type { ModelApiSchedules } from './schedulesEntry'
 import {
@@ -1840,6 +1844,52 @@ function storedPending(pending: PendingChildResult): StoredPendingChildResult {
  */
 function childResultsTouched(children: readonly ChildRecord[]): TouchedFiles {
   return { names: [], complete: false, revisions: children.map((child) => child.policyRevision) }
+}
+
+/**
+ * The automatic push of one child's result to the parent model (B9): the
+ * full text stays on the result (readable through `subagent_read_result`
+ * and the child's transcript); the push carries the bounded slice and says
+ * so, with both counts, instead of slicing silently.
+ */
+function modelChildResultText(
+  childId: string,
+  result: ChildRecord['result'],
+  modelText: string,
+): string {
+  const clipped = clipChildResultText(modelText)
+  const envelope = JSON.stringify({
+    ...result,
+    summary: modelText.slice(0, SUBAGENT_SUMMARY_MAX_CHARS),
+    text: clipped.text,
+  })
+  const pushed = `${MODEL_API_MODEL_TEXT.subagentResult}\n${childId}: ${envelope}`
+  return clipped.clipped
+    ? `${pushed} ${fill(MODEL_API_MODEL_TEXT.subagentResultClipped, { kept: clipped.kept, total: clipped.total })}`
+    : pushed
+}
+
+/**
+ * The person-facing child result (B9): the summary, plus where the full text
+ * lives when the shown text is clipped. Read when it runs, never at load.
+ */
+function visibleChildResultText(result: ChildRecord['result']): string | undefined {
+  if (result === undefined) {
+    return undefined
+  }
+  const total = result.text?.length ?? result.summary.length
+  return total <= SUBAGENT_RESULT_TEXT_MAX_CHARS
+    ? result.summary
+    : `${result.summary} ${fill(UI_TEXT.subagentResultClipped, { kept: SUBAGENT_RESULT_TEXT_MAX_CHARS, total })}`
+}
+
+/** A transcript row's bounded copy of one child's result (B9): listings stay bounded. */
+function listedChildResult(result: ChildRecord['result']): ChildRecord['result'] {
+  if (result?.text === undefined || result.text.length <= SUBAGENT_RESULT_TEXT_MAX_CHARS) {
+    return result
+  }
+  const { text, ...rest } = result
+  return { ...rest, text: text.slice(0, SUBAGENT_RESULT_TEXT_MAX_CHARS) }
 }
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
@@ -8904,7 +8954,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       ...(isDone && { durationMs: this.deps.now() - child.startedAt }),
       usage: child.usage,
       paid: 'subagents',
-      ...(child.result !== undefined && { result: child.result }),
+      ...(child.result !== undefined && { result: listedChildResult(child.result) }),
     }
   }
 
@@ -9019,7 +9069,9 @@ export class ModelApiSession implements ScheduledAgentSession {
       const modelText = isTaskRefusal ? (modelChildFailure(event.errorKind, text) ?? text) : text
       child.result = {
         summary: text.slice(0, SUBAGENT_SUMMARY_MAX_CHARS),
-        ...(text !== '' && { text: text.slice(0, SUBAGENT_RESULT_TEXT_MAX_CHARS) }),
+        // The full text stays on the result: the push below clips it with a
+        // notice, and `subagent_read_result` returns it whole (B9).
+        ...(text !== '' && { text }),
         ...(event.errorKind !== undefined && { errorKind: event.errorKind }),
       }
       if (child.state === 'interrupted') {
@@ -9054,7 +9106,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       }
       this.pendingChildResults.push({
         childId: child.id,
-        text: `${MODEL_API_MODEL_TEXT.subagentResult}\n${child.id}: ${JSON.stringify({ ...child.result, summary: modelText.slice(0, SUBAGENT_SUMMARY_MAX_CHARS), text: modelText.slice(0, SUBAGENT_RESULT_TEXT_MAX_CHARS) })}`,
+        text: modelChildResultText(child.id, child.result, modelText),
         revision: child.policyRevision,
       })
       this.emit(event)
@@ -9881,7 +9933,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     if (CHILD_RESULT_STATES.has(child.state)) {
       return {
         output: JSON.stringify({ subagent_id: child.id, state: child.state, result: child.result }),
-        visibleOutput: child.result?.summary ?? childStateLabel(child.state),
+        visibleOutput: visibleChildResultText(child.result) ?? childStateLabel(child.state),
         touched: childResultsTouched([child]),
       }
     }
@@ -9917,7 +9969,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         timed_out: state === 'timeout',
         result: child.result,
       }),
-      visibleOutput: child.result?.summary ?? childStateLabel(child.state),
+      visibleOutput: visibleChildResultText(child.result) ?? childStateLabel(child.state),
       touched: childResultsTouched([child]),
     }
   }
@@ -9962,7 +10014,7 @@ export class ModelApiSession implements ScheduledAgentSession {
           role: child.role,
           objective: child.objective,
           state: child.state,
-          result: child.result,
+          result: listedChildResult(child.result),
         })
       }
       return {
@@ -10043,7 +10095,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       this.updateChild(child)
       return {
         output: JSON.stringify({ subagent_id: child.id, result: child.result }),
-        visibleOutput: child.result?.summary ?? '',
+        visibleOutput: visibleChildResultText(child.result) ?? '',
         touched: childResultsTouched([child]),
       }
     }

@@ -4077,6 +4077,7 @@
   "subagentConsentDeclined": "Płatne zadanie podrzędne nie zostało zatwierdzone.",
   "subagentContributorBlocked": "Agent niestandardowy wskazuje model w warstwie współtwórcy, który nie może działać, dopóki ten obszar roboczy jest poufny (museSpark.confidentialWorkspace).",
   "subagentRequestLimit": "Zadanie podrzędne osiągnęło zatwierdzony limit {limit} żądań, łącznie z ponowieniami.",
+  "subagentResultClipped": "Ten wynik został przycięty do pierwszych {kept} z {total} znaków; pełny wynik jest zachowany w transkrypcji zadania podrzędnego.",
   "subagentKeyChanged": "Klucz Model API zmienił się po zatwierdzeniu. Zatwierdź nowe zadanie podrzędne, aby kontynuować.",
   "subagentModelChanged": "Model zmienił się po zatwierdzeniu. Zatwierdź nowe zadanie podrzędne, aby kontynuować.",
   "subagentGoalEnded": "Pierwotny cel nie jest już aktywny. Zadanie podrzędne nie może wysłać kolejnego żądania.",
