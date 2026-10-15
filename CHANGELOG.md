@@ -9,6 +9,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Real-life run: product children explicitly use English, so usage-label
+  scenarios do not fail because the release machine uses another locale.
+
 - Real-life run: `--model` rejects a misspelled or unselected route instead
   of silently running the selected route's default model.
 

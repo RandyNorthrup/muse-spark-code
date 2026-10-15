@@ -15,6 +15,9 @@ nothing is tested against fake code.
 
 Nothing of the product is imported, replaced or faked. The run starts the
 installed command and reads what it prints, what it writes and how it ends.
+The product's child environment pins `LC_ALL`, `LC_MESSAGES` and `LANG` to
+`en_US.UTF-8`: UI-label scenarios certify English, not translated UI. Node
+preload controls (`NODE_OPTIONS`, `NODE_PATH`) are not handed to children.
 
 ## What it does
 

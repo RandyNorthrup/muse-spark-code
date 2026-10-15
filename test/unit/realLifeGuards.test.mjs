@@ -79,6 +79,22 @@ describe('real-life model overrides', () => {
 })
 
 describe('real-life usage readings', () => {
+  it('pins product UI parsing to English despite a translated caller locale (T9)', () => {
+    const root = mkdtempSync(path.join(tmpdir(), 'real-life-'))
+    try {
+      const env = productEnvironment(root, {
+        LC_ALL: 'de_DE.UTF-8',
+        LC_MESSAGES: 'fr_FR.UTF-8',
+        LANG: 'ja_JP.UTF-8',
+      })
+      expect(env.LC_ALL).toBe('en_US.UTF-8')
+      expect(env.LC_MESSAGES).toBe('en_US.UTF-8')
+      expect(env.LANG).toBe('en_US.UTF-8')
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
   it('reads a good usage output (4252482371)', () => {
     const read = parseUsageOutput({
       code: 0,
