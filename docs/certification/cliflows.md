@@ -45,6 +45,32 @@ These coupled fixes are deferred rather than bypassing ownership/accounting.
 The earlier F80 claim below describes the submitted attempt, **not verified
 working behavior**. Its positive path was not run and is not certified.
 
+## RVCLIFLOWS review — remove stand-in proof (2026-10-14, Windows)
+
+P2: the submitted localization deletion leaves `runtimeChatGpt.test.ts:423,501`
+referencing a removed key: measured `npm run typecheck` exit 1 (unit tsc exit 2,
+two TS2339 diagnostics). This is not certified as a failure on base. Its 27
+original test definitions use an invented OAuth issuer, map credential store,
+replaced process/keyring and provider callbacks; one is a source-text guard.
+`scanSecrets.test.ts` has four original definitions using a hand-built writer,
+replaced reader and mocked flush. Neither qualifies as product proof.
+
+Rewritten both files rather than repairing their fakes: 8 pure command/text
+cases and 4 scanner cases with real temp input/output files and the production
+fd writer. Both suites pass (12 tests, exit 0). No provider or OS credential
+store is accessed. Auth lifecycle replacement requires dated real OpenAI
+discovery/JWKS/token/catalogue/response exchanges plus an owner-run OS-store
+sign-in/refresh/revoke drill; absent here, those claims are unverified.
+
+Red/restored drills: change scanner output to append ` secret matches`;
+three exact-output assertions fail, exit 1; restore and 4 pass, exit 0.
+SHA-256 restored `C5E033462CC4765CCF2C460DD5DAA4DA4D76F8C7368ACBBBAE50B63879B38E07`.
+Change ChatGPT store-unavailable text to generic sign-in failure; the intended
+assertion fails (1 failed/7 passed), exit 1; restore and 8 pass, exit 0.
+SHA-256 restored `E506EE46BEDC5F6AF61D9CC64F45468C0DE06AA75EF6093A1D4D8B32FA6D8A74`.
+Logs: `.lane/red-scan.log`, `.lane/restored-scan.log`,
+`.lane/red-chatgpt-text.log`, `.lane/restored-chatgpt-text.log`.
+
 Worktree `/home/randy/lanes/CLIFLOWS` from origin/main 0.18.2 (`898a26c5e`).
 Product under test: production build (`npm run build`) run as
 `node dist/acp.js` with a scratch `HOME` (`$TMPDIR/clihome`, no Secret
