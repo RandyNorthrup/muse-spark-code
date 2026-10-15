@@ -483,7 +483,9 @@ Area counts remain an additional exact check. The migration ran the original
 `8b5025aaf` classifier over the merged source and attached current identities
 to only its 1,164 bad sites; the numeric limits are unchanged. The merged
 source itself already has three root SWALLOWs against the old limit of two;
-that limit is not raised.
+that limit is not raised. Final migration inspection removed that extra
+merged site from the identities too: 1,163 sites, exactly the `8b5025aaf`
+source and classifier, with the numeric limits unchanged.
 
 The real parser/ratchet test covers same-count replacement, file relocation,
 formatting-only shifts, identical copies, removal and a missing v2 baseline.
