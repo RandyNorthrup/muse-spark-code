@@ -923,7 +923,9 @@
     "aiContent": "Az AI által létrehozott tartalom pontatlan lehet. A Copilot saját szabályokat ad hozzá és az Ön AI-kreditjeit használja; a tokenszámok becslések, ha a használat nincs jelentve.",
     "reportContent": "Káros tartalom jelentése",
     "fastDetail": "{description}. Alapértelmezés szerint kikapcsolva: többet fogyaszt a csomagkeretből.",
-    "requestFailed": "A ChatGPT-csomag kérése sikertelen: {message}"
+    "requestFailed": "A ChatGPT-csomag kérése sikertelen: {message}",
+    "streamTooLarge": "A ChatGPT válasza nagyobb volt, mint amit ez az alkalmazás elfogad. Kérjen rövidebb választ.",
+    "requestNotBuilt": "Az alkalmazás nem tudta előkészíteni a ChatGPT-csomag kérését ({reason}). Semmi nem lett elküldve."
   },
   "untitledConversation": "Névtelen",
   "crashTitle": "Hiba történt a panelen",
@@ -4288,7 +4290,13 @@
     "failure": "A ChatGPT-bejelentkezést nem sikerült befejezni. Próbálja újra, vagy távolítsa el, és jelentkezzen be ismét.",
     "storeUnavailable": "A számítógép hitelesítőadat-tárolója nem érhető el. Jelentkezzen be interaktív asztali munkamenetből, feloldott tárolóval; Linuxon előbb indítsa el a Secret Service szolgáltatást.",
     "lockUnavailable": "A helyi bejelentkezési zárat nem sikerült megnyitni ({reason}). Próbálja újra.",
-    "authorizeRefused": "Az OpenAI elutasította a ChatGPT-bejelentkezési kérelmet ({reason}). Próbálja újra, vagy távolítsa el, és jelentkezzen be ismét."
+    "authorizeRefused": "Az OpenAI elutasította a ChatGPT-bejelentkezési kérelmet ({reason}). Próbálja újra, vagy távolítsa el, és jelentkezzen be ismét.",
+    "lockBusy": "Egy másik ablak vagy folyamat éppen bejelentkezik a ChatGPT-be, vagy megújítja a bejelentkezést. Várja meg, amíg végez, majd próbálja újra.",
+    "cancelled": "A ChatGPT-bejelentkezés megszakadt, mielőtt befejeződött volna.",
+    "browserUnavailable": "A bejelentkezési címet nem sikerült megnyitni böngészőben. Nyissa meg saját maga, vagy próbálja újra asztali munkamenetből.",
+    "localFailed": "A ChatGPT-bejelentkezés egy helyi lépése sikertelen volt ({reason}). Próbálja újra.",
+    "providersFileUnreadable": "A szolgáltatófájlt nem sikerült beolvasni ({reason}). Javítsa vagy törölje, majd próbálja újra.",
+    "providersFileUnwritable": "A szolgáltatófájlt nem sikerült elmenteni ({reason}). Ellenőrizze, hogy a mappája írható-e, majd próbálja újra."
   },
   "execProviderNotConfigured": "{id} szolgáltató nincs beállítva.",
   "providerText": {

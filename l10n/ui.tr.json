@@ -923,7 +923,9 @@
     "aiContent": "Yapay zeka tarafından üretilen içerik hatalı olabilir. Copilot kendi kurallarını ekler ve yapay zeka kredilerinizi kullanır; kullanım bildirilmediğinde token sayıları tahminidir.",
     "reportContent": "Zararlı içeriği bildir",
     "fastDetail": "{description}. Varsayılan olarak kapalı: plan kotanızdan daha fazla kullanır.",
-    "requestFailed": "ChatGPT plan isteği başarısız oldu: {message}"
+    "requestFailed": "ChatGPT plan isteği başarısız oldu: {message}",
+    "streamTooLarge": "ChatGPT yanıtı bu uygulamanın kabul ettiğinden büyüktü. Daha kısa bir yanıt isteyin.",
+    "requestNotBuilt": "Bu uygulama ChatGPT planı isteğini hazırlayamadı ({reason}). Hiçbir şey gönderilmedi."
   },
   "untitledConversation": "Adsız",
   "crashTitle": "Panelde bir hata oluştu",
@@ -4288,7 +4290,13 @@
     "failure": "ChatGPT oturumu açılamadı. Yeniden deneyin veya kaldırıp tekrar oturum açın.",
     "storeUnavailable": "Bu bilgisayarın kimlik bilgisi deposu kullanılamıyor. Kilidi açılmış depoyla etkileşimli bir masaüstü oturumundan giriş yapın; Linux’ta önce Secret Service’i başlatın.",
     "lockUnavailable": "Yerel oturum açma kilidi açılamadı ({reason}). Yeniden deneyin.",
-    "authorizeRefused": "OpenAI, ChatGPT oturum açma isteğini reddetti ({reason}). Yeniden deneyin veya kaldırıp tekrar oturum açın."
+    "authorizeRefused": "OpenAI, ChatGPT oturum açma isteğini reddetti ({reason}). Yeniden deneyin veya kaldırıp tekrar oturum açın.",
+    "lockBusy": "Başka bir pencere veya işlem ChatGPT’de oturum açıyor ya da oturumu yeniliyor. Bitmesini bekleyin ve yeniden deneyin.",
+    "cancelled": "ChatGPT oturumu açma işlemi tamamlanmadan iptal edildi.",
+    "browserUnavailable": "Oturum açma adresi tarayıcıda açılamadı. Kendiniz açın veya masaüstü oturumundan yeniden deneyin.",
+    "localFailed": "ChatGPT oturum açmanın yerel bir adımı başarısız oldu ({reason}). Yeniden deneyin.",
+    "providersFileUnreadable": "Sağlayıcı dosyası okunamadı ({reason}). Düzeltin veya kaldırın, sonra yeniden deneyin.",
+    "providersFileUnwritable": "Sağlayıcı dosyası kaydedilemedi ({reason}). Klasörünün yazılabilir olduğunu denetleyin, sonra yeniden deneyin."
   },
   "execProviderNotConfigured": "{id} sağlayıcısı yapılandırılmadı.",
   "providerText": {

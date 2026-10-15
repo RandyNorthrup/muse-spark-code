@@ -931,7 +931,9 @@
     "aiContent": "Treści generowane przez AI mogą być niedokładne. Copilot dodaje własne reguły i używa Twoich kredytów AI; liczby tokenów są szacunkowe, gdy użycie nie jest zgłaszane.",
     "reportContent": "Zgłoś szkodliwe treści",
     "fastDetail": "{description}. Domyślnie wyłączone: zużywa więcej limitu Twojego planu.",
-    "requestFailed": "Żądanie planu ChatGPT nie powiodło się: {message}"
+    "requestFailed": "Żądanie planu ChatGPT nie powiodło się: {message}",
+    "streamTooLarge": "Odpowiedź ChatGPT była większa, niż akceptuje ta aplikacja. Poproś o krótszą odpowiedź.",
+    "requestNotBuilt": "Ta aplikacja nie mogła przygotować żądania planu ChatGPT ({reason}). Nic nie zostało wysłane."
   },
   "untitledConversation": "Bez tytułu",
   "crashTitle": "W panelu wystąpił błąd",
@@ -4514,7 +4516,13 @@
     "failure": "Nie udało się zakończyć logowania do ChatGPT. Spróbuj ponownie lub usuń je i zaloguj się jeszcze raz.",
     "storeUnavailable": "Magazyn poświadczeń tego komputera jest niedostępny. Zaloguj się z interaktywnej sesji pulpitu z odblokowanym magazynem; w systemie Linux najpierw uruchom Secret Service.",
     "lockUnavailable": "Nie można otworzyć lokalnej blokady logowania ({reason}). Spróbuj ponownie.",
-    "authorizeRefused": "OpenAI odrzuciło żądanie logowania do ChatGPT ({reason}). Spróbuj ponownie lub usuń je i zaloguj się jeszcze raz."
+    "authorizeRefused": "OpenAI odrzuciło żądanie logowania do ChatGPT ({reason}). Spróbuj ponownie lub usuń je i zaloguj się jeszcze raz.",
+    "lockBusy": "Inne okno lub proces loguje się do ChatGPT albo odnawia logowanie. Poczekaj, aż skończy, i spróbuj ponownie.",
+    "cancelled": "Logowanie do ChatGPT zostało anulowane przed ukończeniem.",
+    "browserUnavailable": "Nie udało się otworzyć adresu logowania w przeglądarce. Otwórz go samodzielnie albo spróbuj ponownie z sesji pulpitu.",
+    "localFailed": "Lokalny krok logowania do ChatGPT nie powiódł się ({reason}). Spróbuj ponownie.",
+    "providersFileUnreadable": "Nie udało się odczytać pliku dostawców ({reason}). Napraw go lub usuń, a następnie spróbuj ponownie.",
+    "providersFileUnwritable": "Nie udało się zapisać pliku dostawców ({reason}). Sprawdź, czy jego folder jest zapisywalny, i spróbuj ponownie."
   },
   "execProviderNotConfigured": "Dostawca {id} nie jest skonfigurowany.",
   "providerText": {

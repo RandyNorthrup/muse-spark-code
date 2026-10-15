@@ -919,7 +919,9 @@
     "aiContent": "AI 產生的內容可能不準確。Copilot 會加入自己的規則並使用你的 AI 點數；未回報用量時，權杖數為估算值。",
     "reportContent": "檢舉有害內容",
     "fastDetail": "{description}。預設為關閉：會消耗更多的方案額度。",
-    "requestFailed": "ChatGPT 方案請求失敗：{message}"
+    "requestFailed": "ChatGPT 方案請求失敗：{message}",
+    "streamTooLarge": "ChatGPT 的回覆超出此應用程式接受的大小。請要求較短的回答。",
+    "requestNotBuilt": "此應用程式無法準備 ChatGPT 方案要求({reason})。未傳送任何內容。"
   },
   "untitledConversation": "未命名",
   "crashTitle": "面板發生錯誤",
@@ -4175,7 +4177,13 @@
     "failure": "無法完成 ChatGPT 登入。請重試，或移除後重新登入。",
     "storeUnavailable": "此電腦的認證儲存區無法使用。請從互動式桌面工作階段登入，並解鎖認證儲存區；在 Linux 上，請先啟動 Secret Service。",
     "lockUnavailable": "無法開啟本機登入鎖定（{reason}）。請重試。",
-    "authorizeRefused": "OpenAI 拒絕了 ChatGPT 登入要求（{reason}）。請重試，或移除後重新登入。"
+    "authorizeRefused": "OpenAI 拒絕了 ChatGPT 登入要求（{reason}）。請重試，或移除後重新登入。",
+    "lockBusy": "另一個視窗或程序正在登入 ChatGPT 或更新登入。請等待其完成後再試一次。",
+    "cancelled": "ChatGPT 登入在完成前已取消。",
+    "browserUnavailable": "無法在瀏覽器中開啟登入網址。請自行開啟，或從桌面工作階段再試一次。",
+    "localFailed": "ChatGPT 登入的本機步驟失敗({reason})。請再試一次。",
+    "providersFileUnreadable": "無法讀取提供者檔案({reason})。請修正或移除後再試一次。",
+    "providersFileUnwritable": "無法儲存提供者檔案({reason})。請確認其資料夾可寫入後再試一次。"
   },
   "execProviderNotConfigured": "提供者 {id} 未設定。",
   "providerText": {

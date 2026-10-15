@@ -919,7 +919,9 @@
     "aiContent": "AIが生成した内容は不正確な場合があります。Copilotは独自のルールを追加し、AIクレジットを使用します。使用量が報告されない場合、トークン数は推定値です。",
     "reportContent": "有害な内容を報告",
     "fastDetail": "{description}。デフォルトではオフです。プランの使用量を多く消費します。",
-    "requestFailed": "ChatGPTプランのリクエストに失敗しました: {message}"
+    "requestFailed": "ChatGPTプランのリクエストに失敗しました: {message}",
+    "streamTooLarge": "ChatGPT の返信がこのアプリの受け付ける大きさを超えました。より短い回答を依頼してください。",
+    "requestNotBuilt": "このアプリは ChatGPT プランのリクエストを準備できませんでした({reason})。何も送信されていません。"
   },
   "untitledConversation": "無題",
   "crashTitle": "パネルでエラーが発生しました",
@@ -4175,7 +4177,13 @@
     "failure": "ChatGPT のサインインを完了できませんでした。再試行するか、削除して再度サインインしてください。",
     "storeUnavailable": "このコンピューターの資格情報ストアを利用できません。ストアのロックを解除した対話型デスクトップセッションからサインインしてください。Linux では、先に Secret Service を起動してください。",
     "lockUnavailable": "ローカルのサインインロックを開けませんでした({reason})。再試行してください。",
-    "authorizeRefused": "OpenAI が ChatGPT のサインイン要求を拒否しました({reason})。再試行するか、削除して再度サインインしてください。"
+    "authorizeRefused": "OpenAI が ChatGPT のサインイン要求を拒否しました({reason})。再試行するか、削除して再度サインインしてください。",
+    "lockBusy": "別のウィンドウまたはプロセスが ChatGPT にサインイン中か、サインインを更新中です。完了するまで待ってから、もう一度お試しください。",
+    "cancelled": "ChatGPT のサインインは完了する前にキャンセルされました。",
+    "browserUnavailable": "サインイン用のアドレスをブラウザーで開けませんでした。ご自身で開くか、デスクトップのセッションからもう一度お試しください。",
+    "localFailed": "ChatGPT のサインインのローカル処理に失敗しました({reason})。再試行してください。",
+    "providersFileUnreadable": "プロバイダーのファイルを読み取れませんでした({reason})。修正または削除してから、もう一度お試しください。",
+    "providersFileUnwritable": "プロバイダーのファイルを保存できませんでした({reason})。フォルダーが書き込み可能か確認してから、もう一度お試しください。"
   },
   "execProviderNotConfigured": "プロバイダー {id} は設定されていません。",
   "providerText": {

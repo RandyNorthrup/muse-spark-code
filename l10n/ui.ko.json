@@ -919,7 +919,9 @@
     "aiContent": "AI가 생성한 콘텐츠는 부정확할 수 있습니다. Copilot은 자체 규칙을 추가하고 AI 크레딧을 사용합니다. 사용량이 보고되지 않으면 토큰 수는 추정치입니다.",
     "reportContent": "유해 콘텐츠 신고",
     "fastDetail": "{description}. 기본적으로 꺼져 있습니다. 플랜 할당량을 더 많이 사용합니다.",
-    "requestFailed": "ChatGPT 플랜 요청이 실패했습니다: {message}"
+    "requestFailed": "ChatGPT 플랜 요청이 실패했습니다: {message}",
+    "streamTooLarge": "ChatGPT 응답이 이 앱이 받아들이는 크기보다 컸습니다. 더 짧은 답변을 요청하세요.",
+    "requestNotBuilt": "이 앱이 ChatGPT 요금제 요청을 준비하지 못했습니다({reason}). 아무것도 전송되지 않았습니다."
   },
   "untitledConversation": "제목 없음",
   "crashTitle": "패널에서 오류가 발생했습니다",
@@ -4175,7 +4177,13 @@
     "failure": "ChatGPT 로그인을 완료할 수 없습니다. 다시 시도하거나 제거한 뒤 다시 로그인하세요.",
     "storeUnavailable": "이 컴퓨터의 자격 증명 저장소를 사용할 수 없습니다. 저장소가 잠금 해제된 대화형 데스크톱 세션에서 로그인하세요. Linux에서는 먼저 Secret Service를 시작하세요.",
     "lockUnavailable": "로컬 로그인 잠금을 열 수 없습니다({reason}). 다시 시도하세요.",
-    "authorizeRefused": "OpenAI가 ChatGPT 로그인 요청을 거부했습니다({reason}). 다시 시도하거나 제거한 뒤 다시 로그인하세요."
+    "authorizeRefused": "OpenAI가 ChatGPT 로그인 요청을 거부했습니다({reason}). 다시 시도하거나 제거한 뒤 다시 로그인하세요.",
+    "lockBusy": "다른 창이나 프로세스가 ChatGPT에 로그인하거나 로그인을 갱신하고 있습니다. 끝날 때까지 기다린 후 다시 시도하세요.",
+    "cancelled": "ChatGPT 로그인이 완료되기 전에 취소되었습니다.",
+    "browserUnavailable": "로그인 주소를 브라우저에서 열 수 없습니다. 직접 열거나 데스크톱 세션에서 다시 시도하세요.",
+    "localFailed": "ChatGPT 로그인의 로컬 단계가 실패했습니다({reason}). 다시 시도하세요.",
+    "providersFileUnreadable": "공급자 파일을 읽을 수 없습니다({reason}). 수정하거나 삭제한 후 다시 시도하세요.",
+    "providersFileUnwritable": "공급자 파일을 저장할 수 없습니다({reason}). 폴더에 쓸 수 있는지 확인한 후 다시 시도하세요."
   },
   "execProviderNotConfigured": "공급자 {id}가 구성되지 않았습니다.",
   "providerText": {

@@ -927,7 +927,9 @@
     "aiContent": "Le contenu généré par l’IA peut être inexact. Copilot ajoute ses propres règles et utilise vos crédits IA ; les nombres de jetons sont des estimations si l’utilisation n’est pas déclarée.",
     "reportContent": "Signaler du contenu nuisible",
     "fastDetail": "{description}. Désactivé par défaut : cela utilise davantage votre quota de forfait.",
-    "requestFailed": "La requête au forfait ChatGPT a échoué : {message}"
+    "requestFailed": "La requête au forfait ChatGPT a échoué : {message}",
+    "streamTooLarge": "La réponse de ChatGPT était plus grande que ce que cette application accepte. Demandez une réponse plus courte.",
+    "requestNotBuilt": "Cette application n’a pas pu préparer la requête du forfait ChatGPT ({reason}). Rien n’a été envoyé."
   },
   "untitledConversation": "Sans titre",
   "crashTitle": "Le panneau a rencontré une erreur",
@@ -4401,7 +4403,13 @@
     "failure": "La connexion ChatGPT n’a pas pu être terminée. Réessayez ou supprimez-la et reconnectez-vous.",
     "storeUnavailable": "Le magasin d’identifiants de cet ordinateur est indisponible. Connectez-vous depuis une session de bureau interactive avec le magasin déverrouillé ; sous Linux, démarrez d’abord Secret Service.",
     "lockUnavailable": "Le verrou de connexion locale n’a pas pu être ouvert ({reason}). Réessayez.",
-    "authorizeRefused": "OpenAI a refusé la demande de connexion ChatGPT ({reason}). Réessayez ou supprimez-la et reconnectez-vous."
+    "authorizeRefused": "OpenAI a refusé la demande de connexion ChatGPT ({reason}). Réessayez ou supprimez-la et reconnectez-vous.",
+    "lockBusy": "Une autre fenêtre ou un autre processus se connecte à ChatGPT ou renouvelle la connexion. Attendez qu’il ait fini, puis réessayez.",
+    "cancelled": "La connexion à ChatGPT a été annulée avant la fin.",
+    "browserUnavailable": "L’adresse de connexion n’a pas pu être ouverte dans un navigateur. Ouvrez-la vous-même ou réessayez depuis une session de bureau.",
+    "localFailed": "Une étape locale de la connexion à ChatGPT a échoué ({reason}). Réessayez.",
+    "providersFileUnreadable": "Le fichier des fournisseurs n’a pas pu être lu ({reason}). Corrigez-le ou supprimez-le, puis réessayez.",
+    "providersFileUnwritable": "Le fichier des fournisseurs n’a pas pu être enregistré ({reason}). Vérifiez que son dossier est accessible en écriture, puis réessayez."
   },
   "execProviderNotConfigured": "Le fournisseur {id} n’est pas configuré.",
   "providerText": {

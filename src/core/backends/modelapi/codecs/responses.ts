@@ -70,11 +70,16 @@ export interface ResponsesEncodeOptions {
   readonly replayOrigins?: Readonly<Record<string, string>> | undefined
 }
 
-/** Technical diagnostics contain no provider-controlled text or schema errors. */
+/**
+ * Technical diagnostics contain no provider-controlled text or schema errors.
+ * `isLocal` marks a refusal of this app's own setup (a hosted tool it cannot
+ * send, an output cap it was not given), not of what the provider streamed.
+ */
 export class ResponsesDecodeError extends Error {
   public constructor(
-    reason: string,
+    public readonly reason: string,
     public readonly frameLength: number,
+    public readonly isLocal = false,
   ) {
     super(`ResponsesDecodeError: ${reason}`)
     this.name = 'ResponsesDecodeError'
@@ -395,7 +400,7 @@ function withinOutputCap(event: StreamEvent, cap: ResponsesOutputCap | undefined
   if (cap === undefined) return event
   const counted = cap.countOutputTokens(event)
   if (!Number.isSafeInteger(counted) || counted < 0) {
-    throw new ResponsesDecodeError('invalid output counter', 0)
+    throw new ResponsesDecodeError('invalid output counter', 0, true)
   }
   // Encrypted reasoning is not observable in deltas. Reported output usage
   // includes it; it can only stop the reply once that usage arrives.
@@ -424,7 +429,7 @@ export function createResponsesCodec(
     ): Record<string, unknown> {
       const isChatgpt = quirks.profile === 'chatgpt'
       if (isChatgpt && body.tools.some((tool) => tool.type !== 'function')) {
-        throw new ResponsesDecodeError('unsupported ChatGPT hosted tool', 0)
+        throw new ResponsesDecodeError('unsupported ChatGPT hosted tool', 0, true)
       }
       // M101 lane P1 (BYO items 1, 2, 13): the input replays replay-safe.
       // An input left with nothing after the mapping is refused outright
@@ -485,13 +490,13 @@ export function createResponsesCodec(
     ): AsyncGenerator<StreamEvent> {
       const outputCap = quirks.profile === 'chatgpt' ? sink?.outputCap : undefined
       if (outputCap === undefined && quirks.profile === 'chatgpt') {
-        throw new ResponsesDecodeError('missing ChatGPT output cap', 0)
+        throw new ResponsesDecodeError('missing ChatGPT output cap', 0, true)
       }
       if (
         outputCap !== undefined &&
         (!Number.isSafeInteger(outputCap.maxOutputTokens) || outputCap.maxOutputTokens <= 0)
       ) {
-        throw new ResponsesDecodeError('invalid output cap', 0)
+        throw new ResponsesDecodeError('invalid output cap', 0, true)
       }
       let hasReportedCost = false
       // The ChatGPT plan streams each output item in its own

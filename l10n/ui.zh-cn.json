@@ -919,7 +919,9 @@
     "aiContent": "AI 生成的内容可能不准确。Copilot 会添加自己的规则并使用你的 AI 点数；未报告用量时，令牌数为估算值。",
     "reportContent": "举报有害内容",
     "fastDetail": "{description}。默认关闭：它会消耗更多的套餐额度。",
-    "requestFailed": "ChatGPT 套餐请求失败：{message}"
+    "requestFailed": "ChatGPT 套餐请求失败：{message}",
+    "streamTooLarge": "ChatGPT 的回复超出了此应用接受的大小。请要求更短的回答。",
+    "requestNotBuilt": "此应用无法准备 ChatGPT 套餐请求({reason})。未发送任何内容。"
   },
   "untitledConversation": "未命名",
   "crashTitle": "面板出错了",
@@ -4175,7 +4177,13 @@
     "failure": "无法完成 ChatGPT 登录。请重试，或移除后重新登录。",
     "storeUnavailable": "此计算机的凭据存储不可用。请从交互式桌面会话中登录，并解锁凭据存储；在 Linux 上，请先启动 Secret Service。",
     "lockUnavailable": "无法打开本地登录锁（{reason}）。请重试。",
-    "authorizeRefused": "OpenAI 拒绝了 ChatGPT 登录请求（{reason}）。请重试，或移除后重新登录。"
+    "authorizeRefused": "OpenAI 拒绝了 ChatGPT 登录请求（{reason}）。请重试，或移除后重新登录。",
+    "lockBusy": "另一个窗口或进程正在登录 ChatGPT 或刷新登录。请等待其完成后重试。",
+    "cancelled": "ChatGPT 登录在完成前已取消。",
+    "browserUnavailable": "无法在浏览器中打开登录地址。请自行打开，或从桌面会话重试。",
+    "localFailed": "ChatGPT 登录的本地步骤失败({reason})。请重试。",
+    "providersFileUnreadable": "无法读取提供商文件({reason})。请修复或删除后重试。",
+    "providersFileUnwritable": "无法保存提供商文件({reason})。请确认其文件夹可写后重试。"
   },
   "execProviderNotConfigured": "提供方 {id} 未配置。",
   "providerText": {
