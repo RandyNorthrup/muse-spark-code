@@ -180,6 +180,18 @@ Manual in the load response and normal unmatched-command prompts. Repeat with
 an imported session: the existing untrusted-content asking clamp must remain.
 No live provider call made; those lifecycle steps remain for the lead.
 
+### T6 — translated manifest descriptions
+
+Read and updated Manual / Edit Automatically in all fourteen
+`package.nls.<locale>.json` files. Each now includes the permission-rule
+exception in that language, preserving Model API wording and the other modes.
+The feature catalog's existing permission-limits binding remains canonical;
+the reference is regenerated rather than creating another description.
+Lead's small local look: with a supported non-English display language, open
+Muse Spark settings and read the two initial-permission-mode descriptions.
+Both must state the exception, while Model API still says commands ask.
+No screenshot/visual gate or stand-in test was added.
+
 ## Live-session steps for the lead (signed-in host)
 
 1. Start the packed agent: `node dist/acp.js --backend museCode
