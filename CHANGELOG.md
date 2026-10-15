@@ -9,6 +9,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- Exit-2 CLI refusals load the display language before formatting the parser
+  error, without starting a backend or credential service.
+
 - CLI enum refusals list the accepted values from command help without
   echoing the rejected value.
 
