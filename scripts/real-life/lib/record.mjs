@@ -96,6 +96,9 @@ export function summaryOf(record) {
     `${record.os}, Node ${record.node}; ${record.startedAt} to ${record.endedAt}`,
     `Caps: ${String(record.caps.requests)} requests, $${record.caps.usd} of reported usage. Made: ${String(record.totals.requests)} requests, $${record.totals.usd} of usage the providers reported (settled).`,
     `Booked by the product for requests that were sent and came back with no usage report: $${record.totals.uncertainUsd} (may be real money). Its daily ledger holds $${record.totals.ledgerUnsettled.usd} in ${String(record.totals.ledgerUnsettled.claims)} claim(s) with no settlement (a whole reservation each). Runs the product turned away before anything was sent, at the run's own asking: ${String(record.totals.turnedAwayUnsentRuns)}.`,
+    ...(record.totals.ledgerUnsettled.unread?.length > 0
+      ? [`UNKNOWN DAILY-LEDGER LIABILITY: ${record.totals.ledgerUnsettled.unread.join('; ')}`]
+      : []),
     `The product's own usage for this home afterwards: ${String(record.totals.productUsage.requests)} requests, $${record.totals.productUsage.usd}${record.totals.productUsage.unread === undefined ? '' : ` (could not be read: ${record.totals.productUsage.unread})`}.`,
     ...record.settings.map(
       (one) => `Set by the run in ${one.where}: ${one.setting} = ${String(one.value)}; ${one.why}.`,

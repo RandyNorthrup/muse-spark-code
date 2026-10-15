@@ -9,6 +9,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Real-life run: unread daily-ledger claims now fail the run and are named
+  as unknown liability in the text record, including null claim files.
+
 - Real-life run: every requested route setup failure, including an occupied
   provider credential name, fails the exit code rather than passing with
   all of that route's scenarios skipped.

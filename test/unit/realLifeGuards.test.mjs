@@ -1,7 +1,9 @@
-import { existsSync, mkdtempSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { dataFolderOf } from '../../scripts/real-life/lib/home.mjs'
+import { heldUnsettled } from '../../scripts/real-life/lib/ledger.mjs'
 import { installerEnvironment } from '../../scripts/real-life/lib/install.mjs'
 import { keySource, missingKeys } from '../../scripts/real-life/lib/keys.mjs'
 import { ensureRecordDir, parseUsageOutput } from '../../scripts/real-life/lib/record.mjs'
@@ -74,6 +76,24 @@ describe('real-life key check', () => {
     )
     expect(missing.map((one) => one.id)).toEqual(['openai'])
     expect(missing[0]?.reason).toMatch(/no stored key named openai/)
+  })
+})
+
+describe('real-life unread liability', () => {
+  it('retains malformed, null and unreadable reservation claims as unknown (T3)', () => {
+    const home = mkdtempSync(path.join(tmpdir(), 'real-life-'))
+    try {
+      const daily = path.join(dataFolderOf(home), 'paid-daily')
+      for (const [index, text] of ['not JSON', 'null', '{"reservedUsd":"unknown"}'].entries()) {
+        const folder = path.join(daily, String(index))
+        mkdirSync(folder, { recursive: true })
+        writeFileSync(path.join(folder, 'claim.json'), text)
+      }
+      expect(heldUnsettled(home)).toEqual({ claims: 0, micro: 0, unread: expect.any(Array) })
+      expect(heldUnsettled(home).unread).toHaveLength(3)
+    } finally {
+      rmSync(home, { recursive: true, force: true })
+    }
   })
 })
 
