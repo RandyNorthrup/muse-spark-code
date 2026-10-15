@@ -157,7 +157,7 @@ interface Feature {
   readonly description: ReferenceText
   readonly commands: readonly string[]
   /** Runtime command discriminators documented by this feature. */
-  readonly cliRoutes?: readonly string[]
+  readonly cliRoutes?: readonly string[] | undefined
   readonly settings: readonly string[]
   readonly docs: string
   readonly editors: readonly ('vscode' | 'acp')[]
