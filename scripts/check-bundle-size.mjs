@@ -221,6 +221,15 @@ const BUDGETS = [
   // shared contracts. 60.7 KiB when split out, plus 15%, rounded up to
   // 25 KiB (PLAN.md D6).
   { path: 'dist/estimator.js', budgetKiB: 75 },
+  // CIFIX161B: the sign-in gate (AuthService and the three-valued
+  // credential read), loaded on the first credential, money or consent
+  // read. 64.8 KiB when split out, plus 15%, rounded up to 25 KiB
+  // (PLAN.md D6).
+  { path: 'dist/auth.js', budgetKiB: 75 },
+  // CIFIX161B: the paid gate, consent, usage and quote authority, loaded
+  // on the first paid consent, gate or usage read. 62.7 KiB when split
+  // out, plus 15%, rounded up to 25 KiB (PLAN.md D6).
+  { path: 'dist/paid.js', budgetKiB: 75 },
   // INT0180: estimator application contracts, measured with D6 headroom.
   { path: 'dist/estimateContracts.js', budgetKiB: 25 },
   // The flight recorder's journal (M93), loaded just after activation or at

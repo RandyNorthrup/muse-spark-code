@@ -378,3 +378,64 @@ test/e2e/execStdio.e2e.test.ts test/e2e/acpStdio.e2e.test.ts`.
 - The handler table above was regenerated from the merged tree (98
   handlers); `npm run build` still fails only on `dist/modelsPanel.js`
   at 128,289 bytes against its 128,000-byte budget (PLAN.md §7).
+
+## Startup addendum (CIFIX161B, 2026-10-14)
+
+The activation-growth gate (`modelsActivationBudget`, limit base + 3 KiB)
+failed on this branch: base growth 2,712 bytes, branch 6,917. The overlay
+(measured per file by rebuilding the gate bundle with that file at its
+`898a26c5e` content) lived in 9 activation files:
+
+| File                                           | Overlay bytes in `dist/extension.js` | After                                                   | Lives now in                                   |
+| ---------------------------------------------- | ------------------------------------ | ------------------------------------------------------- | ---------------------------------------------- |
+| `src/host/auth/credentialStore.ts`             | 1,355                                | shell, 318 under base                                   | delegates to `dist/auth.js`                    |
+| `src/host/auth/credentialRead.ts`              | ~1,006 (new file)                    | 0, not carried                                          | `dist/auth.js`                                 |
+| `src/host/auth/authService.ts`                 | 917                                  | 0, not carried                                          | `dist/auth.js`                                 |
+| `src/core/paid/paidConsent.ts`                 | 641                                  | 0, not carried                                          | `dist/paid.js`                                 |
+| `src/extension.ts` (host-choice closure)       | 405                                  | thin call sites                                         | `dist/auth.js`                                 |
+| `src/host/paid/paidHost.ts`                    | 292                                  | 0, not carried                                          | `dist/paid.js`                                 |
+| `src/shared/paid.ts` (new fns)                 | shaken with the above                | file stays for `usablePaidFeatures`; new fns shaken out | `dist/paid.js` carries them for the paid flows |
+| `src/host/auth/accountHost.ts`                 | 73                                   | 73, stays                                               | sync rethrow guards, nowhere to move to        |
+| `src/core/backends/musecode/credentialFile.ts` | 42                                   | 42, stays                                               | sync rethrow guard, nowhere to move to         |
+
+What moved where: `src/host/auth/authEntry.ts` (new) builds `dist/auth.js`
+(AuthService, the three-valued read, the Meta read, the provider scan, the
+kind mapping and sentences, the host-choice projection); `src/host/paid/
+paidEntry.ts` (new) builds `dist/paid.js` (`createPaidFeatures` with the
+gate, consent, usage and quote authority). Activation keeps only the two
+entries' dynamic imports, through the existing lazy-registry and
+bundle-split mechanism (`paidTeamRuntime`, `recorderEntry` precedent). The
+whole-module moves also carried each module's base bytes out, plus the
+`PaidAuthority` construction (the usage panel now shares
+`paid.consent.authority`).
+
+Behaviour is unchanged: same classes, same methods, same sentences, same
+provider scan results, same once-only notices. The tests that pin them are
+unchanged and green through the real moved code (vitest follows the
+dynamic imports to source). No UI-text key was added or changed. The ACP
+side keeps English credential sentences, as its bundle's table was never
+installed there either.
+
+Gate receipts (repo default timeouts throughout): activation gate
+`baseline=561352 current=508237 growth=-53115` (was `current=568269
+growth=6917`); `node scripts/build.mjs --production` 0; bundle-split 0;
+lazy-registry `--check` 0 after regen; `check-bundle-size` 0
+(`dist/auth.js` 64.8/75 KiB, `dist/paid.js` 62.7/75 KiB,
+`dist/extension.js` 496.3/600 KiB); typecheck 0; ESLint 0; Prettier 0;
+`check:host-api` 0; `deadcode` 0; `cycles` 0; duplication 0 clones;
+`check-l10n` 0; `check:reference` 0; `check:catches` 0;
+`check-host-globals` 0; third-party notices regenerated, 0. Packaging
+suites 170/170. PR suites: credentialStore 29, providerCredentialStore 9,
+accountHost 14, authService 118, paidConsent 45, paidHost 43, paidGrants 21,
+accountPaidConsent 17, acpPaid 42. Dependents
+(`vitest related --run` over the 5 changed sources): 44 files, 1822
+tests green; `test/unit/vault/channel.test.ts` (44 tests) fails here with
+`listen EINVAL ... broker.sock`, identically on the untouched base
+worktree at `e816c0c9e` (sandbox blocks unix-socket listeners; listed for
+the lead outside the sandbox). `test/e2e/acpStdio.e2e.test.ts` 13/13.
+
+Red drill: with `src/extension.ts`, `credentialStore.ts` and
+`credentialRead.ts` back at their `e816c0c9e` content and both entries
+removed, the gate fails again at `current=568269 growth=6917`; restored,
+it passes at `-53115`. A single piece back is not enough to fail it: the
+whole-module moves also evacuated each module's base bytes.

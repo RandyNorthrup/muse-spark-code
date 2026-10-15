@@ -704,7 +704,7 @@ const modelsPanelOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const authOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation, deferredCohort],
+  plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire],
   entryPoints: [AUTH_ENTRY],
   outfile: AUTH_OUTFILE,
   platform: 'node',
@@ -716,7 +716,7 @@ const authOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const paidOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation, deferredCohort],
+  plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire],
   entryPoints: [PAID_ENTRY],
   outfile: PAID_OUTFILE,
   platform: 'node',

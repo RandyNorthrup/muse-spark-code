@@ -9,6 +9,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- Startup stays lean: the sign-in gate (AuthService and the three-valued
+  credential read) and the paid gate, consent, usage and quote authority now
+  load from `dist/auth.js` and `dist/paid.js` the first time a credential,
+  money, consent or paid path needs them, instead of at activation. Every
+  sentence, notice and scan result is unchanged.
 - A failure is never turned into a different fact. When saved credentials
   cannot be read, sign-out keeps its safety hold, no sign-in lifts it, and
   the person is told what could not be read and what to do (once per kind
