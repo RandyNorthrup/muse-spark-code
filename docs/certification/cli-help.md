@@ -1,4 +1,4 @@
-# CLI help (lane CLIHELP, D108) — certification
+# CLI help (lane CLIHELP, D117) — certification
 
 The terminal agent's help now tells a person what each command takes, from the
 same table the parser reads. No model call is involved in any drill below.
@@ -32,7 +32,7 @@ command, dependency, gate exception or provider call. Main `d842cad5d` merged
 as `819ec0f8b`; its three deleted test files stay deleted. Parser/help proof is
 retained in `cliHelp.test.ts`; report output is checked through the packed CLI.
 
-T1: archived the complete CLI D108 record with `npm run plan:archive`.
+T1: archived the complete CLI decision record with `npm run plan:archive` (numbered D108 then; renumbered D117 on 2026-10-15, when D108 was found shared with the test overhaul and the panel-focus rule).
 Reassembly SHA-256 `db3c401a71c2bc2d21197b904bf4dbb12d9ddb3aff7d4bf24d1460c47a93865f`
 is identical before/after; parsed facts are identical. Only the rule and link
 remain live. Main's separately named D108 test-overhaul rule is retained.

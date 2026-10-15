@@ -14331,7 +14331,7 @@ cost and caution, never speed.
   reviewer on B1 and B2, never the only one and never an allow by itself.
   Everywhere else both stand unchanged.
 
-### D108 — The terminal agent documents itself per command (lane CLIHELP, 2026-10-12)
+### D117 — The terminal agent documents itself per command (lane CLIHELP, 2026-10-12)
 
 One table drives the terminal command parser and installed-language help.
 `<command> --help` and `help <command>` print that command's own help; `help --all`

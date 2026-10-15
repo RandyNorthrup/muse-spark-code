@@ -337,7 +337,7 @@ function ignoreProbeLog(): void {
   // Commands return fixed probe outcomes; transport details never reach terminal logs.
 }
 
-/** One pinned, authenticated provider read (D108): the status with its parsed body, an HTTP status alone, or the transport failure. */
+/** One pinned, authenticated provider read (D117): the status with its parsed body, an HTTP status alone, or the transport failure. */
 async function getProviderJson(
   fetch: typeof globalThis.fetch,
   provider: ResolvedProvider,
@@ -431,7 +431,7 @@ function providerListHeaders(provider: ResolvedProvider): Record<string, string>
 }
 
 /**
- * The provider's own model list (D108): the ids as the provider lists them,
+ * The provider's own model list (D117): the ids as the provider lists them,
  * or undefined where the list cannot be read with the stored key (no key,
  * no free check, unreachable, unparseable). Nothing is billed.
  */

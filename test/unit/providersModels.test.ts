@@ -1,4 +1,4 @@
-// D108: `providers models` edits an entry's model list through the same
+// D117: `providers models` edits an entry's model list through the same
 // validated atomic file the panel writes, with a real providers file in a
 // temp folder. Only real modules run here: parser, command, file IO,
 // memory secret store, DNS, fetch and stdin reader. A closed local port

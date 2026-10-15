@@ -1,4 +1,4 @@
-// D108: one table drives parsing and help for the terminal agent. Each
+// D117: one table drives parsing and help for the terminal agent. Each
 // command's `--help` and `help <command>` print that command's own usage,
 // options with defaults and bounds, and two real examples; a wrong option
 // exits 2 naming the option, the accepted values and the nearest match.

@@ -1,4 +1,4 @@
-// The terminal agent's command table (PLAN.md D108): one topic per
+// The terminal agent's command table (PLAN.md D117): one topic per
 // command with its positional syntax, its parser routes, and two real
 // examples. The option rows render from CLI_OPTION_REGISTRY (the exact
 // tables parseArgs receives) with their referenceCliOptions meaning and
@@ -510,7 +510,7 @@ export function renderTopicHelp(table: UiText, command: string, topic: CliHelpTo
 export function renderTopHelp(table: UiText, command: string): string {
   const lines: string[] = [formatAcpUsage(table, command), table.cliHelp.commands]
   for (const topic of CLI_HELP_TOPICS) lines.push(`  ${topic.name}  ${topic.purpose(table)}`)
-  // Serve-only options the global list does not name (D108: --max-budget-usd).
+  // Serve-only options the global list does not name (D117: --max-budget-usd).
   // The dormant schedule-v2 admission flag stays out of the compact help
   // (the schedules process boundary): the serve topic's own help still
   // documents it, because the parser accepts it on serve.

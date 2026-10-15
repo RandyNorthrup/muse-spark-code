@@ -1,5 +1,5 @@
 // `providers models <entry>`: list an entry's models, or change the list
-// with `--add`/`--remove` (D108). A module of its own so the headless
+// with `--add`/`--remove` (D117). A module of its own so the headless
 // preflight, which imports providersCommands lazily, never carries it. The
 // write goes through the same validated atomic commit as every other
 // provider command; the stored key is read only when the provider's own
