@@ -772,7 +772,10 @@ a JSON cancelled preview, with exit 7. Review it, then repeat the identical
 command with an explicit `--destination`, the same `--exported-at`, `--out`,
 and `--confirm PREVIEW_ID`. Without `--json` no result JSON is printed;
 `prompts save`, `prompts list` and `prompts use` take the same `--json`
-flag for their machine-readable result. The digest binds cwd, path/root, options, time and
+flag for their machine-readable result. Without it, save prints the saved title
+and id, list prints the matching titles and ids, and use prints prepared text
+without inserting it into an editor or sending it to a model. Cancellation
+reasons go to stderr. The digest binds cwd, path/root, options, time and
 bytes. Any change needs a new preview; there is no blanket `--yes`. Interactive
 sharing asks for a final confirmation. No file/clipboard/browser operation
 occurs during preview. Private atomic writes recheck live policy and abort. Sharing also scrubs the

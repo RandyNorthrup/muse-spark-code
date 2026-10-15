@@ -17,7 +17,12 @@ import { writeFileAtomically } from '../../host/fsAtomic'
 import { agentDataFolder, type DataFolderInput } from '../dataFolder'
 import { SharingCommands, runSharingCommand, type SharePreview, type SharingUi } from './commands'
 import type { SharingCommand } from './args'
-import { createAcpSharing, acpSharingCommands, type AcpSharingPort } from '../../acp/sharing'
+import {
+  createAcpSharing,
+  acpSharingCommands,
+  sharingResultText,
+  type AcpSharingPort,
+} from '../../acp/sharing'
 import {
   UI_TEXT,
   PROMPT_LIMITS,
@@ -276,9 +281,14 @@ export async function runRuntimeSharing(
         }
       },
     })
-    // Scripts opt into the machine-readable result with --json; a person
-    // sees only the preview and review transcript.
+    // Scripts opt into JSON; people still need the saved id, list, prepared
+    // text and cancellation reason. A preview is not a command result.
     if (command.json) process.stdout.write(`${JSON.stringify(result)}\n`)
+    else {
+      const text = result.kind === 'prepared' ? result.text : sharingResultText(result)
+      const output = result.kind === 'cancelled' ? process.stderr : process.stdout
+      output.write(`${text}\n`)
+    }
     return result.exitCode
   } catch (error: unknown) {
     if (isResourcePaused(error)) {

@@ -1,5 +1,13 @@
 # PLAN — Muse Spark for VS Code (unofficial)
 
+**RVCLIFLOWS review repairs (2026-10-14).** Reuse the canonical sharing
+result formatter for terminal save/list/cancellation output, with prepared
+text printed as text rather than a claim to insert into an editor. Preserve
+explicit `--json` opt-in and exact-preview confirmation. Review credential
+ownership and plan-model headless accounting without bypassing either for
+readiness alone. Evidence and unresolved work: `docs/certification/cliflows.md`
+(review section); the handoff is `.lane/RVCLIFLOWS.report.md`.
+
 **VISFIX: release notes move no screenshot (2026-10-11, host with the Mac
 mini and linuxlt; before 0.17.2).** Lead's ruling after REL0171C's finding
 that a `CHANGELOG.md` entry or a version bump moved 108 What's New frames and

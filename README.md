@@ -191,6 +191,9 @@ hash verification and migrate when read.
 - **ACP and terminal.** Use local `/prompt` and `/share chat` commands in ACP
   editors, or `muse-spark-code-acp prompts` and `share chat` in the terminal.
   Help & Reference lists the commands and the opt-in prompt sync setting.
+  Terminal prompt commands print saved ids, matching prompts and prepared text;
+  add `--json` for their structured result. A terminal `use` prepares text only:
+  it does not insert into an editor or send a model request.
 
 ### Earlier in 0.14.3
 

@@ -20,6 +20,8 @@ happened, not what was planned; superseded entries are kept.
   the terminal serves provider accounts (unknown providers say they are not
   configured); headless runs with a plan model use its own sign-in instead
   of demanding the Meta key, and pre-session refusals name what is missing.
+- RVCLIFLOWS: terminal prompt save/list/use retain readable results without
+  `--json`; cancellation explains itself on stderr instead of silently exiting.
 
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
   reads and writes, and 1-hour cache writes settle at their own price.
