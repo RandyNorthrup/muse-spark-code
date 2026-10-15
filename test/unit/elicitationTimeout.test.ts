@@ -17,6 +17,17 @@ describe('isElicitationTimeout', () => {
     expect(isElicitationTimeout(controller.signal)).toBe(true)
   })
 
+  it('recognises the timeout name across independently built module copies', () => {
+    // Abort reasons cross the modelApiMcp -> modelApi bundle boundary.
+    // Error data retains its name, but not either bundle's class identity.
+    class TimeoutReason extends Error {
+      public override name = 'McpElicitationTimeoutError'
+    }
+    const controller = new AbortController()
+    controller.abort(new TimeoutReason('the elicitation was not answered in time'))
+    expect(isElicitationTimeout(controller.signal)).toBe(true)
+  })
+
   it('does not mistake a bare stop for a timeout', () => {
     const controller = new AbortController()
     controller.abort()

@@ -111,7 +111,8 @@ happened, not what was planned; superseded entries are kept.
   expired cards with a warning at that moment past 20 open. Every
   damaged-session marker is kept (the 50 cap is gone) and marking warns
   at that moment. A timed-out elicitation form settles as cancel with a
-  warning naming the server. A dropped judge advisory is named on the
+  warning naming the server, including across the MCP/session bundle boundary.
+  A dropped judge advisory is named on the
   approval card, and as a warning on auto-allow. An oversize panel state
   still omits the transcript, but the unsent draft and pending send come
   back on restore, including the revision needed to recover a refused

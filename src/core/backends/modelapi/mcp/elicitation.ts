@@ -71,7 +71,10 @@ export class McpElicitationTimeoutError extends Error {
 
 /** Whether this wait ended on the elicitation deadline (C7), not on a stop. */
 export function isElicitationTimeout(signal: AbortSignal): boolean {
-  return signal.aborted && signal.reason instanceof McpElicitationTimeoutError
+  // The connection and session ship in independent bundles; their copies
+  // of this class have different identities, but the abort reason is shared.
+  const reason: unknown = signal.reason
+  return signal.aborted && reason instanceof Error && reason.name === 'McpElicitationTimeoutError'
 }
 
 export interface ParsedElicitation {

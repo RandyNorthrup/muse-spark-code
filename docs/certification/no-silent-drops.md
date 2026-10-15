@@ -206,6 +206,21 @@ editor protocol and terminal, so one notice covers all three surfaces.
   reload an oversize panel before the refusal arrives, and confirm the exact
   pending text returns to the composer without overwriting a newer draft.
 
+## RVDROPS review — C7 bundle-safe timeout detection
+
+- P1: `modelApiMcp.js`/`mcpPool.js` create the timeout error, while
+  `modelApi.js` checks it. Each bundles its own class, so `instanceof
+McpElicitationTimeoutError` was false at the real boundary: the connection
+  timer cancelled the form and the host cleared its own timer without warning.
+- The detector now checks the Error's stable name instead of local class
+  identity. A data-only Error from another copy's contract failed before
+  (1 failed / 5 passed, exit 1, `temp/rv-c7-red.log`) and passes after
+  (6 passed, exit 0, `temp/rv-c7-green.log`, Windows).
+- This proves the detector, not a 300-second live MCP run. The lane's
+  original same-class tests did not prove the split-bundle boundary. Lead:
+  leave a real MCP form unanswered and observe the warning in the panel,
+  terminal and ACP client before trying a new form.
+
 ## Limits raised or removed (owner's rule)
 
 | Row | Number              | Outcome                                                  | Reasoning                                                                       |
