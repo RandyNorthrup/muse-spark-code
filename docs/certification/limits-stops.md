@@ -647,8 +647,10 @@ Failing suite, **not mine and not claimed green**: `modelsActivationBudget.test.
 `e8a7ec524` and on `a16b46081`, run in clean extracted copies earlier this
 lane, so it failed before any edit of this continuation); its cause is
 UNMEASURED and I did not touch its cap. The growth went from 3860 B to 4480 B
-over the lane (+620 B in `dist/extension.js`: the panel's tool-round switch and
-`turnLimit.ts`); the cap is the owner's to move, not mine.
+over the lane's F3-F9 commits (+620 B); which of them added it is UNMEASURED
+(I did not build each commit). `dist/meta/extension.json` shows only
+`src/shared/turnLimit.ts` (197 B) of the lane's new files in the activation
+bundle. The cap is the owner's to move, not mine.
 
 Not run (owner's testing rules): `npm run quality`, the full `test:unit`, any
 live provider, browser or UI look, `execStdio.e2e.test.ts`, `check:visual`.
