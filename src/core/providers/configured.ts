@@ -43,7 +43,6 @@ import {
   parseJsonResponse,
   ModelApiError,
   assertConfirmedAllowed,
-  isStaleConfirmedError,
 } from '../backends/modelapi/transport'
 import { withDeadline } from '../timeouts'
 import { wireWordForLog } from '../logging'
@@ -54,7 +53,6 @@ import {
   ANTHROPIC_MAX_ARGUMENT_BYTES,
   ANTHROPIC_MAX_FRAME_BYTES,
   ANTHROPIC_MAX_ITEMS,
-  MILLISECONDS_PER_SECOND,
   MODEL_API_REQUEST_TIMEOUT_MS,
   MODEL_API_STREAM_IDLE_MS,
   PROVIDER_SECRET_PREFIX,
@@ -119,6 +117,40 @@ function ignoreTransportLog(): void {
  * ambiguous retry: a pinned send may have reached the provider, so the
  * message says so in words.
  */
+/**
+ * A failed send through a configured provider (lane LIMITSA, F88): every
+ * product error keeps its own words. Budget and session-budget refusals,
+ * paid-daily stops, the provider's own error with its status and message,
+ * codec refusals, the output minimum and a lapsed confirmation all reach
+ * the person as themselves. Only a non-`Error` throw, which carries no
+ * words of its own, becomes the unavailable sentence.
+ */
+export function configuredStreamError(error: unknown): Error {
+  return error instanceof Error ? error : new Error(UI_TEXT.modelsPanelUnavailable)
+}
+
+/**
+ * A configured provider's own stream error (lane LIMITSA, F88): an `error`
+ * event or a response carrying `error` becomes the provider's message with
+ * its status and code, never the panel's unavailable text. Anything else is
+ * not an error.
+ */
+export function configuredProviderStreamError(
+  event: StreamEvent,
+  status: number,
+): ModelApiError | undefined {
+  if (event.type === 'error')
+    return new ModelApiError(event.message, status, undefined, event.code ?? undefined)
+  return 'response' in event && event.response.error != null
+    ? new ModelApiError(
+        event.response.error.message,
+        status,
+        undefined,
+        event.response.error.code ?? undefined,
+      )
+    : undefined
+}
+
 export function providerSendFailure(error: unknown): ModelApiError {
   const code =
     typeof error === 'object' && error !== null && 'code' in error && typeof error.code === 'string'
@@ -158,11 +190,10 @@ export function createConfiguredProviderServices(
   options: ConfiguredProviderOptions,
 ) {
   // The only time limit on an inference stream: silence, of headers or
-  // frames. The transport ends such a stream with this sentence (read when
-  // it is compared: the language can change while the services live).
+  // frames. A stalled stream already carries the Meta Model API path's own
+  // stalled sentence as a `ModelApiError`, which the send's catch rethrows
+  // unchanged (lane LIMITSA, F88).
   const idleMs = options.streamIdleMs ?? MODEL_API_STREAM_IDLE_MS
-  const stalled = () =>
-    fill(UI_TEXT.modelApiStalled, { seconds: Math.round(idleMs / MILLISECONDS_PER_SECOND) })
   const readCatalog = async () => {
     try {
       return catalogSchema.parse(JSON.parse(await readFile(options.catalogFile, 'utf8')))
@@ -726,8 +757,8 @@ export function createConfiguredProviderServices(
       decode: async function* (response) {
         if (response.body === null) return fail()
         for await (const event of decode(response.body, response.status)) {
-          if (event.type === 'error' || ('response' in event && event.response.error != null))
-            return fail()
+          const providerError = configuredProviderStreamError(event, response.status)
+          if (providerError !== undefined) throw providerError
           yield 'response' in event
             ? { ...event, response: { ...event.response, model: ref } }
             : event
@@ -808,19 +839,10 @@ export function createConfiguredProviderServices(
             yield event
           }
         } catch (error: unknown) {
-          // A typed codec refusal (an unsupported reasoning effort and its
-          // localized reason) and the output-cap minimum refusal (MINOUT)
-          // reach the caller; genuinely unknown errors keep the generic
-          // unavailable error (lane FIXDSTHINK2 finding 3).
-          if (chat.isChatCodecError(error)) throw error
-          if (error instanceof RangeError) throw error
-          // A lapsed confirmation keeps the run's own guidance instead of
-          // the provider's unavailable text.
-          if (isStaleConfirmedError(error)) throw error
-          // The idle limit ended the stream: the user is told so, in the
-          // sentence the Meta Model API path uses.
-          if (error instanceof ModelApiError && error.message === stalled()) throw error
-          return fail()
+          // Lane LIMITSA (F88): the send's own failure keeps its own words
+          // (configuredStreamError); nothing this send can report is masked
+          // behind the unavailable sentence.
+          throw configuredStreamError(error)
         } finally {
           if (presets.planKeyPresetById(entry.preset) !== undefined)
             for (let index = 0; index < dispatch.attempts; index++)
