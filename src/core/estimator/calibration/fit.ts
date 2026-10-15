@@ -207,12 +207,16 @@ export function fitCalibration(
   }
 }
 
-/** Read at render time so changing the installed language changes the label. */
+/** Read at render time so changing the installed language changes the label.
+ * @unwired M117 calibration fit label
+ */
 export function calibrationLabel(fit: CalibrationFit): string {
   return fit.calibration.basis === 'fitted' ? UI_TEXT.estimateFitted : UI_TEXT.estimatePrior
 }
 
-/** Risk applies only to currently unresolved families with two strikes; unknown is not zero. */
+/** Risk applies only to currently unresolved families with two strikes; unknown is not zero.
+ * @unwired M117 lane redesign risk quantity
+ */
 export function laneRedesignRisk(fit: CalibrationFit, value: EstimateLane['review']): Quantity {
   const parsed = historyRecordSchema.shape.review.safeParse(value)
   if (!parsed.success) throw calibrationFailure('invalidReviewState')

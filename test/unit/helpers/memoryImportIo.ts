@@ -13,24 +13,6 @@ import type {
   ImportWriter,
 } from '../../../src/core/import/agentImport'
 import { AGENT_IMPORT_ROOT_CHANGED_CODE } from '../../../src/shared/constants'
-import { scanAgentImports, type ImportScanInput } from '../../../src/core/import/agentImport'
-
-/** The same trusted Claude fixture scan over either memory or real filesystem IO. */
-export async function scanImportFixture(
-  io: ImportIo,
-  context: Pick<ImportScanInput, 'platform' | 'homeDir' | 'workspaceRoot' | 'workspaceRoots'>,
-) {
-  return await scanAgentImports({
-    ...context,
-    io,
-    claudeConfigDir: undefined,
-    codexHome: undefined,
-    isWorkspaceTrusted: () => true,
-    isActive: () => true,
-    sources: ['claudeCode'],
-  })
-}
-
 export interface MemoryImportTree {
   readonly ignored?: readonly string[]
   readonly files?: Record<string, string>

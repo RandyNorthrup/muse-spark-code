@@ -149,7 +149,9 @@ export async function openOwnedRepository(
   return { repository, cwd: selected.cwd, check: checkOwned }
 }
 
-/** A workspace may name its repository through a link; an ancestor repository is still refused. */
+/** A workspace may name its repository through a link; an ancestor repository is still refused.
+ * @unwired M123 repository root check
+ */
 export async function isRepositoryRoot(
   repository: GitRepository,
   root: string,
