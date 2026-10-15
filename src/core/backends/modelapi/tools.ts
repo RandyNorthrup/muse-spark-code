@@ -1234,7 +1234,7 @@ function applyMatches(current: string, matches: readonly EditMatch[]): string {
  * the over-cap note for the caller's direction.
  */
 function windowRange(
-  args: { readonly byteOffset?: number; readonly byteLength?: number },
+  args: { readonly byteOffset?: number | undefined; readonly byteLength?: number | undefined },
   verb: string,
 ): { readonly offset: number; readonly length: number } | { readonly refusal: ToolOutcome } {
   const offset = Math.max(Math.floor(args.byteOffset ?? 0), 0)
@@ -1265,7 +1265,7 @@ function windowSize(
  * share: parsed arguments plus the file's size, or the first refusal.
  */
 async function windowAddress(
-  args: { readonly byteOffset?: number; readonly byteLength?: number },
+  args: { readonly byteOffset?: number | undefined; readonly byteLength?: number | undefined },
   verb: string,
   relative: string,
   checkedAbsolute: string,
