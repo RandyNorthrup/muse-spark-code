@@ -49,6 +49,11 @@ validation (serve family, exec, provider format/privacy, usage range/grouping).
 Refusals include accepted values and omit the untrusted rejected value.
 Regression red: `--backend auto` lacked `museCode|modelApi` (exit 1).
 
+T4: the early usage exit installs the selected locale and reparses before
+printing the refusal. No backend or credential service starts. The old path
+formatted the reason before `loadUiTable`; packed French refusal checks are
+listed in the PRTH162 report (LC_ALL, not VSCODE_NLS_CONFIG).
+
 ## 1. Accepted today (from the code, release 0.18.1 base)
 
 Parser routes (`CLI_OPTION_REGISTRY` in `src/runtime/cliOptions.ts`, plus the
