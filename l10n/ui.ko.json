@@ -3661,6 +3661,7 @@
   "tabStatusTooltip": "Tab 완성({model}). 오늘 {requests}건, 일일 예산 {budget} 중 {spend} 사용.",
   "tabStatusSnoozed": "Tab 다시 알림({left} 후 재개)",
   "tabStatusBudget": "Tab 일일 예산에 도달함",
+  "tabBudgetReachedDetail": "오늘의 Tab 지출({spent})이 일일 예산 {budget}에 도달하여 내일까지 자동 완성이 일시 중지됩니다. 오늘 계속하려면 설정에서 museSpark.tabDailyBudgetUsd를 높이세요.",
   "tabStatusNoKey": "Tab: 키 없음",
   "tabStatusUntrusted": "Tab 꺼짐: 신뢰할 수 없는 작업 영역",
   "tabStatusLanguageOff": "Tab 꺼짐({language} 제외)",

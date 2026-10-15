@@ -3919,6 +3919,7 @@
   "tabStatusTooltip": "Подстановки Tab ({model}). {requests} сегодня, {spend} из дневного бюджета {budget}.",
   "tabStatusSnoozed": "Tab отложен (возобновление через {left})",
   "tabStatusBudget": "Дневной бюджет Tab исчерпан",
+  "tabBudgetReachedDetail": "Сегодняшние расходы Tab ({spent}) достигли дневного бюджета {budget}, поэтому автодополнение приостановлено до завтра. Чтобы продолжить сегодня, увеличьте museSpark.tabDailyBudgetUsd в настройках.",
   "tabStatusNoKey": "Tab: нет ключа",
   "tabStatusUntrusted": "Tab отключён: ненадежная рабочая область",
   "tabStatusLanguageOff": "Tab отключён для {language}",

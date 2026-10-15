@@ -3833,6 +3833,7 @@
   "tabStatusTooltip": "Completados de Tab ({model}). {requests} hoy, {spend} de un presupuesto diario de {budget}.",
   "tabStatusSnoozed": "Tab pospuesto (vuelve en {left})",
   "tabStatusBudget": "Presupuesto diario de Tab alcanzado",
+  "tabBudgetReachedDetail": "El gasto de Tab de hoy, de {spent}, alcanzó el presupuesto diario de {budget}, por lo que las terminaciones se pausan hasta mañana. Para continuar hoy, aumente museSpark.tabDailyBudgetUsd en Ajustes.",
   "tabStatusNoKey": "Tab: sin clave",
   "tabStatusUntrusted": "Tab desactivado: área de trabajo no confiable",
   "tabStatusLanguageOff": "Tab desactivado para {language}",

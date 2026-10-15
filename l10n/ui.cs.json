@@ -3919,6 +3919,7 @@
   "tabStatusTooltip": "Doplňování Tab ({model}). Dnes: {requests}, z denního rozpočtu {budget} utraceno {spend}.",
   "tabStatusSnoozed": "Tab odložen (obnovení za {left})",
   "tabStatusBudget": "Denní rozpočet Tab vyčerpán",
+  "tabBudgetReachedDetail": "Dnešní útrata za Tab ve výši {spent} dosáhla denního rozpočtu {budget}, takže dokončování se do zítřka pozastavuje. Chcete-li dnes pokračovat, zvyšte v Nastavení hodnotu museSpark.tabDailyBudgetUsd.",
   "tabStatusNoKey": "Tab: žádný klíč",
   "tabStatusUntrusted": "Tab vypnut: nedůvěryhodný pracovní prostor",
   "tabStatusLanguageOff": "Tab vypnut pro {language}",

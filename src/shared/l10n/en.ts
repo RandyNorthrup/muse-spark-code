@@ -4533,6 +4533,10 @@ export const EN = {
   // Each state D73 names; {left} is the snooze's remaining time.
   tabStatusSnoozed: 'Tab snoozed ({left} left)',
   tabStatusBudget: 'Tab daily budget reached',
+  // Lane LIMITSA, D113 (A4): Tab keeps its daily budget, but hitting it is
+  // never silent. The notice names the spend, the budget and how to raise it.
+  tabBudgetReachedDetail:
+    'Today’s Tab spend of {spent} reached the daily budget of {budget}, so completions pause until tomorrow. To continue today, raise museSpark.tabDailyBudgetUsd in Settings.',
   tabStatusNoKey: 'Tab: no key',
   tabStatusUntrusted: 'Tab off in an untrusted workspace',
   tabStatusLanguageOff: 'Tab off for {language}',

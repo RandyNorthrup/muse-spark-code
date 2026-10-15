@@ -3747,6 +3747,7 @@
   "tabStatusTooltip": "Tab-kiegészítések ({model}). Ma: {requests}, a(z) {budget} napi keretből elköltve {spend}.",
   "tabStatusSnoozed": "Tab szundiban ({left} múlva folytatódik)",
   "tabStatusBudget": "A Tab napi kerete kimerült",
+  "tabBudgetReachedDetail": "A mai Tab-költés ({spent}) elérte a(z) {budget} napi keretet, ezért a kiegészítések holnapig szünetelnek. A mai folytatáshoz emelje meg a Beállításokban a museSpark.tabDailyBudgetUsd értékét.",
   "tabStatusNoKey": "Tab: nincs kulcs",
   "tabStatusUntrusted": "Tab kikapcsolva: nem megbízható munkaterület",
   "tabStatusLanguageOff": "Tab kikapcsolva ehhez: {language}",

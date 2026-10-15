@@ -3747,6 +3747,7 @@
   "tabStatusTooltip": "Tab tamamlamaları ({model}). Bugün {requests}, {budget} günlük bütçeden {spend} kullanıldı.",
   "tabStatusSnoozed": "Tab ertelendi ({left} sonra devam)",
   "tabStatusBudget": "Tab günlük bütçeye ulaşıldı",
+  "tabBudgetReachedDetail": "Bugünkü Tab harcaması ({spent}) {budget} tutarındaki günlük bütçeye ulaştı, bu yüzden tamamlamalar yarına kadar duraklatıldı. Bugün devam etmek için Ayarlar’da museSpark.tabDailyBudgetUsd değerini yükseltin.",
   "tabStatusNoKey": "Tab: anahtar yok",
   "tabStatusUntrusted": "Tab kapalı: güvenilmeyen çalışma alanı",
   "tabStatusLanguageOff": "Tab kapalı: {language} için kapalı",

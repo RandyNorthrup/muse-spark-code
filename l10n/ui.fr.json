@@ -3833,6 +3833,7 @@
   "tabStatusTooltip": "Complétions Tab ({model}). {requests} aujourd’hui, {spend} sur un budget quotidien de {budget}.",
   "tabStatusSnoozed": "Tab en veille (reprend dans {left})",
   "tabStatusBudget": "Budget quotidien de Tab atteint",
+  "tabBudgetReachedDetail": "Les dépenses Tab d’aujourd’hui ({spent}) ont atteint le budget quotidien de {budget} : les complétions sont en pause jusqu’à demain. Pour continuer aujourd’hui, augmentez museSpark.tabDailyBudgetUsd dans les Paramètres.",
   "tabStatusNoKey": "Tab : aucune clé",
   "tabStatusUntrusted": "Tab désactivé : espace de travail non approuvé",
   "tabStatusLanguageOff": "Tab désactivé pour {language}",

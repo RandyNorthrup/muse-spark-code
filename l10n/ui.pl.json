@@ -3919,6 +3919,7 @@
   "tabStatusTooltip": "Uzupełnienia Tab ({model}). Dzisiaj: {requests}, wydano {spend} z dziennego budżetu {budget}.",
   "tabStatusSnoozed": "Tab odłożony (wznowienie za {left})",
   "tabStatusBudget": "Dzienny budżet Tab wyczerpany",
+  "tabBudgetReachedDetail": "Dzisiejsze wydatki na Tab ({spent}) osiągnęły dzienny budżet {budget}, więc uzupełnienia są wstrzymane do jutra. Aby kontynuować dziś, zwiększ museSpark.tabDailyBudgetUsd w Ustawieniach.",
   "tabStatusNoKey": "Tab: brak klucza",
   "tabStatusUntrusted": "Tab wyłączony: niezaufany obszar roboczy",
   "tabStatusLanguageOff": "Tab wyłączony dla: {language}",

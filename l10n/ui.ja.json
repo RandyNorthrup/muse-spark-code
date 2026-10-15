@@ -3661,6 +3661,7 @@
   "tabStatusTooltip": "Tab 補完 ({model})。今日 {requests} 件、1 日の予算 {budget} のうち {spend} を使用。",
   "tabStatusSnoozed": "Tab をスヌーズ中 ({left} 後に再開)",
   "tabStatusBudget": "Tab の 1 日の予算に達しました",
+  "tabBudgetReachedDetail": "今日のTab使用額（{spent}）が1日の予算{budget}に達したため、補完は明日まで一時停止します。今日続けるには、設定でmuseSpark.tabDailyBudgetUsdを引き上げてください。",
   "tabStatusNoKey": "Tab: キーなし",
   "tabStatusUntrusted": "Tab オフ: 信頼されていないワークスペース",
   "tabStatusLanguageOff": "Tab オフ ({language} は対象外)",

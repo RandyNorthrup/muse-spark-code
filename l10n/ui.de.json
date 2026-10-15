@@ -3747,6 +3747,7 @@
   "tabStatusTooltip": "Tab-Vervollständigungen ({model}). {requests} heute, {spend} vom {budget}-Tagesbudget.",
   "tabStatusSnoozed": "Tab zurückgestellt ({left} übrig)",
   "tabStatusBudget": "Tab-Tagesbudget erreicht",
+  "tabBudgetReachedDetail": "Die heutigen Tab-Ausgaben von {spent} haben das Tagesbudget von {budget} erreicht, daher pausieren Vervollständigungen bis morgen. Um heute fortzufahren, erhöhen Sie museSpark.tabDailyBudgetUsd in den Einstellungen.",
   "tabStatusNoKey": "Tab: kein Schlüssel",
   "tabStatusUntrusted": "Tab aus: Arbeitsbereich nicht vertrauenswürdig",
   "tabStatusLanguageOff": "Tab aus für {language}",

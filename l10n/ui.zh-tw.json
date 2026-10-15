@@ -3661,6 +3661,7 @@
   "tabStatusTooltip": "Tab 補全（{model}）。今日 {requests} 次，已使用每日預算 {budget} 中的 {spend}。",
   "tabStatusSnoozed": "Tab 已稍後提醒（{left}後恢復）",
   "tabStatusBudget": "Tab 每日預算已用完",
+  "tabBudgetReachedDetail": "今日 Tab 支出（{spent}）已達到每日預算 {budget}，補全將暫停至明天。如需今天繼續，請在「設定」中提高 museSpark.tabDailyBudgetUsd。",
   "tabStatusNoKey": "Tab：沒有金鑰",
   "tabStatusUntrusted": "Tab 已關閉：不受信任的工作區",
   "tabStatusLanguageOff": "Tab 已關閉：{language} 不適用",
