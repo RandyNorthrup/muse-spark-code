@@ -14322,15 +14322,17 @@ often hit a real person, no surveyed harness publishes any corresponding
 cap (Claude Code, Codex CLI, Gemini CLI, OpenCode, Cline). Where harnesses
 do cap, they use subscription or rate windows, higher thresholds, or
 user-set knobs — never a low fixed default that refuses work. So the lane
-keeps no invented refusal, and every remaining window keeps its size but
-gains a way to the rest:
+must remove invented refusals and make every remaining window recoverable.
+The following is the acceptance contract, not a completion claim:
 
 - **Long answers (B1).** The output cap is each model's own maximum output
   from its capability record, not our fixed 32,768 (no surveyed harness
   publishes a fixed reply cap; Claude Code's `maxOutputTokens` feeds only
   its compaction arithmetic). An answer stopped on max tokens continues
-  automatically until the model finishes; each continuation is shown, the
-  repeat and loop guards still apply, and a provider that refuses a
+  automatically until the model finishes, subject to the person's budget
+  and Stop; each continuation must be shown. Tool repetition guards do not
+  detect repeated text-only continuations; the current 50-round turn bound
+  still stops them and its removal requires a text-loop guard. A provider that refuses a
   continuation is reported in words. It never stops after one continuation
   waiting for a nudge.
 - **Tool output, search and read, web pages, diagnostics (B3, B5, B7,
@@ -14345,8 +14347,12 @@ gains a way to the rest:
   edit by range. No surveyed harness publishes a file-tool size cap.
 - **Attachments (A10).** Per-request counts and sizes follow each
   provider's documented limits from its capability record, not our own
-  numbers; where a record lacks them, today's value stays and is marked
-  "unconfirmed" in the record.
+  numbers. An absent field means **unknown provider limit**, not a confirmed
+  legacy number. The lane brief requested today's enforcement temporarily;
+  that is a compatibility fallback, not provider evidence, and must be shown
+  separately as local policy with its source until the owner resolves the
+  conflict with the no-fallbacks rule. The current booleans are not recorded
+  or surfaced as that evidence, so A10 is not accepted.
 
 **RVLIMITSB review scope (2026-10-14).** Reuse the existing request policy,
 conditional file writer, range tools and paging stores. Correct proven exec-cap,
@@ -14357,12 +14363,13 @@ whole-file edit bound are unresolved obligations, not provider capabilities.
 Review receipts and remaining acceptance gaps: `.lane/RVLIMITSB.report.md`.
 
 Out of scope: compaction timing (B2, M101), money and stopping limits
-(lane LIMITSA), silent drops (lane LIMITSC). Proof and record:
-`test/e2e/limitsOutput.e2e.test.ts` drives the packed product (a reply
-longer than one max-output window arrives whole through visible
-continuations; a 30 MiB file reads end to end in ranges; a clipped tool
-output, search, page and diagnostics list each lead to the rest), recorded
-in `docs/certification/limits-output.md`.
+(lane LIMITSA), silent drops (lane LIMITSC). **Acceptance remains open.**
+The scripted-provider packed test was removed under the owner's testing rule;
+it did not prove real provider termination, complete file equality, web or
+editor diagnostics. Remaining gaps include the invented 128 MiB edit refusal,
+HTML converter truncation, lost retained outputs after resume, search ceilings,
+and configured-provider attachment evidence. Measured review receipts:
+`docs/certification/limits-output.md`; handoff: `.lane/RVLIMITSB.report.md`.
 
 ## 3. Open questions (need the owner)
 

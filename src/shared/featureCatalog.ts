@@ -853,6 +853,8 @@ export function featureCatalog(): readonly Feature[] {
       [],
       'handoff-to-a-new-conversation',
     ),
+    // Diagnostics paging (offset and messageOffset) is documented under
+    // checking-edits, the same canonical destination used by Help.
     feature(
       'verify',
       { command: COMMAND_IDS.diagnostics },

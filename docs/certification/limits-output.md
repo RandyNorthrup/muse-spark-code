@@ -1,4 +1,24 @@
-# LIMITSB — no answer, file, page or output is cut short without a way to get the rest
+# LIMITSB — recovery paths (acceptance incomplete)
+
+**RVLIMITSB status, 2026-10-14: NOT CERTIFIED / not mergeable.** The Linux
+receipts below are historical lane claims, not review-tree results. Superseding
+review receipts are at the end. The packed stand-in test has been deleted;
+claims below that call it proof are withdrawn, not current guarantees.
+A10's fallback is real legacy enforcement, not documented absence: its
+`imageConfirmed`/`documentConfirmed` booleans have no production readers and
+are not written into a capability record. The request builder passes no
+resolved record to `MediaBudget.fit`; model-id-only helpers cannot read a
+configured provider's record. Honest evidence is `unknown` per missing field,
+with any temporarily enforced local policy separately named and sourced.
+Meta's preset also builds sizes from constants; equality tests alone do not
+establish documentary provenance. No provider limits were newly captured.
+
+Other unaccepted claims: every continuation still consumes one of 50 rounds;
+tool repeat guards do not inspect text-only continuations; a zero interactive
+session budget is uncapped; retained outputs are in-memory only; 128 MiB is an
+invented range-edit refusal; HTML conversion discards text past 100,000;
+verify overflow file names are chosen before the diagnostic sort. These need
+follow-up implementation and real-life evidence, not broader certification.
 
 Linux rig `linuxlt`, worktree `/home/randy/lanes/LIMITSB`, branch
 `fix/limits-output` from `origin/main 898a26c5e` (0.18.2), 2026-10-14/15.
@@ -231,9 +251,10 @@ is not applied to the repository's legacy, non-ledger PLAN format.
   The unrelated existing no-note clip budget assertion also found maxChars
   plus marker output; fixed by reserving the marker in `clipWithNote`.
 
-- F5 owner's testing rule: removed 6 lane-added stand-in cases: 3 from the
+- F5 owner's testing rule: removed 8 lane-added/modified stand-in cases: 3 from the
   deleted `test/e2e/limitsOutput.e2e.test.ts`, 2 fake-agent cases from
-  `sessionTap.test.ts`, and 1 fake-world paging case from `webFetch.test.ts`.
+  `sessionTap.test.ts`, and 3 fake-world cases from `webFetch.test.ts` (one
+  new and two modified by LIMITSB).
   Existing stand-in suites remain TESTCUT-owned and were not run here.
   The removed packed test exercises real bundles/tools but scripts provider
   decisions, replaces fetch and keyring, uses nine literal output characters

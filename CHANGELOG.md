@@ -13,17 +13,16 @@ happened, not what was planned; superseded entries are kept.
   output instead of imposing a second 32,768-token ceiling; unaffordable
   requests are still refused by the run budget.
 
-- Limits-output lane (B1/B3/B5/B6/B7/A9/A10): nothing the Model API
-  backend says, reads, searches, fetches or diagnoses is cut short
-  without a way to get the rest. Answers stopped on max tokens continue
-  automatically until the model finishes, each continuation shown.
-  Clipped search, file-list, file-read, web-page and diagnostics results
-  name the offset that fetches the next part. `read_file`/`edit_file`
-  read and edit files of any size by byte range. Attachment sizes and
-  counts follow each provider's capability record. Proof:
-  `test/e2e/limitsOutput.e2e.test.ts` drives the packed product (whole
-  multi-window reply, 30 MiB in ranges, every paging note followed).
-  Record: `docs/certification/limits-output.md`.
+- Limits-output lane (B1/B3/B5/B6/B7/A9/A10), pending acceptance:
+  record-sized output allowances, automatic max-token continuations within
+  existing turn/budget/Stop bounds, offset paging and retained tool-output
+  recall. Byte-range reads preserve UTF-8/CRLF boundaries; range edits check
+  byte containment and file freshness, but still refuse files over 128 MiB.
+  Attachment admission still uses legacy values in paths without resolved
+  capability evidence. HTML conversion, diagnostics/verify summaries and
+  restored-session recall have remaining recovery gaps. The scripted-provider
+  test was removed: no recorded-real-exchange or live-product certification
+  is claimed. Details: `docs/certification/limits-output.md`.
 
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
   reads and writes, and 1-hour cache writes settle at their own price.

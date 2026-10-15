@@ -2429,7 +2429,9 @@ files, and before the next request to Meta:
   the first 8 of a round is **not checked**, and the model and the row say
   so; it is never reported clean. At most 50 problems are listed; past
   that, the report names the files holding the rest, and diagnostics pages
-  by offset, each page naming the next one.
+  by offset, each page naming the next one. A long diagnostic message also
+  names its `messageOffset`; repeat `getDiagnostics` with that value, its
+  entry `offset` and the same optional `uri` to read its remaining text.
 - **Code the editor runs is never opened or formatted.** Opening a file can
   make an extension load its configuration as code (`eslint.config.js`,
   `.prettierrc.cjs`, `package.json`, anything under `node_modules`), so the
@@ -2702,8 +2704,9 @@ Meta's paid web search.
   (`application/xhtml+xml`) is refused, since read as HTML its XML syntax
   would be misread; anything else is refused with the reason. At most 5 MiB (after decompression) within 30
   seconds; the model reads the first 50,000 characters, and is told when
-  there was more, with the `offset` to fetch the next part. A page built
-  to expand stops converting at 100,000.
+  there was more, with the `offset` to fetch the next part of the retained
+  conversion. A page built to expand stops converting at 100,000; text beyond
+  that conversion bound is not recoverable with offset (pending repair).
 - **Where it may go.** Public internet addresses only. A URL that names a
   local or reserved name (`localhost`, `*.local`, `*.internal`, single-label
   intranet names) or a non-public address is refused before anything else
@@ -4047,8 +4050,10 @@ context limits, sampling, logprobs, completion and hosted services. Yes carries
 a value, no explicitly refuses support, and unknown supplies no evidence.
 User-file parsing stamps known overrides with `source.kind: "user"`; a supplied
 source cannot elevate their priority. See [M95 N's record contract](docs/certification/m95-n.md).
-Per-request attachment sizes and counts come from the same record; where a
-provider's record lacks them, the table values below apply as unconfirmed.
+Some request paths read attachment limits from the capability record, but
+staging, ACP and unresolved-provider paths still enforce the local table below.
+Missing record fields mean unknown provider limits; legacy enforced values
+are not evidence of a provider's limits (A10 remains pending).
 
 | What                             | Limit                                                                                                                                                                                                                                                           |
 | -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -4061,7 +4066,7 @@ provider's record lacks them, the table values below apply as unconfirmed.
 | Model API: shell commands        | 2 minutes by default, 10 at most                                                                                                                                                                                                                                |
 | Model API: retries               | Up to 5 attempts on 429, 500, 502 and 503, and when a reply stream ends because the server shut down or was overloaded, honouring `Retry-After`, shown in the transcript; Stop cuts the wait short                                                              |
 | Model API: a silent reply stream | Ended after 5 minutes with nothing from the server; send again to retry                                                                                                                                                                                         |
-| Model API: file tools            | Text and images up to 10 MiB whole, PDFs up to 32 MB; files of any size read and edit by byte range (`byteOffset`/`byteLength`); the search tool skips files over 1 MiB                                                                                         |
+| Model API: file tools            | Text and images up to 10 MiB whole, PDFs up to 32 MB; text files read by byte range (`byteOffset`/`byteLength`), range edits up to 128 MiB; the search tool skips files over 1 MiB                                                                              |
 | Opened tool outputs              | 16 MiB each; the latest 20, and 33,554,432 characters together                                                                                                                                                                                                  |
 
 ## Legal scan (M97)
@@ -4640,9 +4645,10 @@ stopped and the next message resumes the same session.
   Send the message again to retry.
 - **The agent says a file is too large (Model API backend)** — the file tools
   read whole text and images up to 10 MiB and PDFs up to 32 MB; the
-  search tool skips files over 1 MiB. A larger file is still read and
-  edited by byte range (`byteOffset`/`byteLength`), window by window to
-  the end; a whole-read or whole-edit refusal names the range path.
+  search tool skips files over 1 MiB. A larger text file can be read by
+  byte range (`byteOffset`/`byteLength`). Range edits still load the whole
+  file and refuse past 128 MiB; this is a pending limitation, not a provider
+  limit. Read before editing; a changed file is refused.
 - **Sign-out does not finish, or the panel stays gated** — sign-out asks
   Muse Code to sign itself out (`account/logout`). Only when Muse Code
   still reads signed in afterwards does it open `muse logout` in a
@@ -5726,10 +5732,12 @@ machine-scoped switches; each conversation snapshots the choice. Strict
 schemas require the selected model's known support. Turning strict schemas
 off preserves the previous declarations. Safe reads run at most four at a
 time; writes and other tools retain their order. An answer stopped on max
-tokens continues automatically until the model finishes; each continuation
-is shown, and the repeat and loop guards still apply. A cut-short reply containing
-tool calls runs none of them and fails the turn; replay retains their error
-results. Repeated unchanged tool results stop the turn.
+tokens continues automatically while enabled and within the turn's remaining
+rounds, budget and Stop authority; each continuation is announced. Tool repeat
+guards cover tool calls, not repeated text-only continuations. A cut-short reply
+containing tool calls runs none of them; replay retains their error results.
+Only max-token cutoffs request continuation. Repeated unchanged tool results
+stop the turn.
 
 `museSpark.webSearchMaxPerRequest` bounds hosted searches to 1–20 (default 5)
 where the selected model supports that bound. The first paid use presents the
