@@ -2556,7 +2556,7 @@ class AgentState {
   /** The editor closes a session: the one held, or one still being set up. */
   public async closeSession(sessionId: string): Promise<void> {
     const wasClaimed = this.claims.delete(sessionId)
-    this.sessionModes.delete(sessionId)
+    // Close releases the live handle, not history or the client's selected mode.
     const wasReleased = await this.releaseAll(sessionId)
     if (!wasClaimed && !wasReleased) {
       throw RequestError.resourceNotFound(sessionId)
