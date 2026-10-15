@@ -12,10 +12,11 @@ import { untrustedStartMode } from '../shared/permissionModes'
 interface ApprovalAnswer {
   readonly decision: string
   readonly scope: string
+  readonly rulePreview: string | undefined
 }
 
 function answerOf(choice: ApprovalChoice): ApprovalAnswer {
-  return { decision: choice.decision, scope: choice.scope }
+  return { decision: choice.decision, scope: choice.scope, rulePreview: choice.rulePreview }
 }
 
 interface ApprovalPrompt {
@@ -30,10 +31,16 @@ function matchingChoice(
   answer: ApprovalAnswer,
 ): ApprovalChoice | undefined {
   // Matched by meaning, not by id: the CLI mints new choice ids per stage.
-  // Never escalated: an allow-once answer never becomes an allow-always rule.
-  return available.find(
-    (choice) => choice.decision === answer.decision && choice.scope === answer.scope,
-  )
+  // A persistent choice id can name a different rule on the next stage.
+  // Without a rule identity it cannot be safely reused; ask again instead.
+  return answer.scope !== 'once' && !answer.rulePreview
+    ? undefined
+    : available.find(
+        (choice) =>
+          choice.decision === answer.decision &&
+          choice.scope === answer.scope &&
+          choice.rulePreview === answer.rulePreview,
+      )
 }
 
 /**
@@ -52,7 +59,8 @@ export function answerChoice(
     return undefined
   }
   const picked = asked.find((choice) => choice.choiceId === outcome.optionId)
-  return picked === undefined ? undefined : matchingChoice(latest, answerOf(picked))
+  if (picked === undefined) return undefined
+  return latest.includes(picked) ? picked : matchingChoice(latest, answerOf(picked))
 }
 
 /**

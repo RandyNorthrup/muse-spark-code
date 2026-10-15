@@ -979,7 +979,7 @@ class AcpSession {
         // the picked meaning moves to it, else the denial default decides.
         choice =
           answerChoice(response, event.availableChoices, settled.availableChoices) ??
-          decidedChoice(response, settled.availableChoices)
+          decidedChoice(undefined, settled.availableChoices)
       } finally {
         this.permissionAnswers.release(event.approvalId)
       }

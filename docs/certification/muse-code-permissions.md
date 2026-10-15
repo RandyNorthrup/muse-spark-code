@@ -113,6 +113,26 @@ Code is not signed in` under the empty HOME — the sandbox holds no CLI
   sign-in and lanes never mint credentials. The modes list, `set_mode`
   notice and permission counting are the lead's live session below.
 
+## PRTH165 review repairs (2026-10-15, Windows)
+
+### T1 — persistent rule identity
+
+Reused the existing `ApprovalAnswers` / `answerChoice` module and the captured
+2026-10-02 Muse Code stage data (`helpers/stageRaceCapture.ts`); no stand-in.
+Persistent consent now compares `rulePreview` as well as decision/scope, and
+missing rule identity cannot be reused. The exact current choice can still be
+selected without a preview. A mid-ask meaning mismatch defaults to denial,
+not a second lookup of the old option id in the new stage.
+
+Real-module suite: 21/21, exit 0. Before the fix, three new assertions failed
+with the unauthorized `Measure-Object` rule / missing-preview choice returned.
+Green/red/restored-green drill removed the rule guard/comparison: exit 0 / 1 /
+0, three intended failures. Restored SHA-256 of `src/acp/permissionAsk.ts`:
+`c143d9495cbec373d8b21d97e96c909ced46dc97fe55fcd815b3414f441fe97c`.
+Logs: `.lane/PRTH165.T1-{green,drill,restored}.log`.
+An initial test setup used Zod's non-mini array method and discovered no tests;
+that setup error was corrected and does not count as the red proof.
+
 ## Live-session steps for the lead (signed-in host)
 
 1. Start the packed agent: `node dist/acp.js --backend museCode

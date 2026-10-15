@@ -1,5 +1,19 @@
 # PLAN — Muse Spark for VS Code (unofficial)
 
+**PRTH165 review repair (2026-10-15, Windows).** Merge `d842cad5d`
+with hooks, retaining main's deleted fake-driven tests. Resolve threads T1–T6
+in the existing ACP permission-answer cache, agent lifecycle and translated
+manifest tables; no new abstraction or provider calls. T1 compares persistent
+rule identity and never falls back to a reused choice id; T2 remembers consent
+before dispatch; T4 awaits the queued mode notice; T5 retains mode across close;
+T6 aligns all fourteen manifest translations. T3 records the merged deletion
+and real-life replacement steps, never restores a stand-in. Pure-module proof
+and a byte-exact red drill cover rule identity; integration ordering and mode
+lifecycle require the lead's real signed-in run. Run scoped static gates,
+all five typechecks, dependent/list-consuming unit suites, build and permitted
+packed-product commands. Evidence and postable replies: `.lane/PRTH165.report.md`
+and `docs/certification/muse-code-permissions.md`.
+
 **VISFIX: release notes move no screenshot (2026-10-11, host with the Mac
 mini and linuxlt; before 0.17.2).** Lead's ruling after REL0171C's finding
 that a `CHANGELOG.md` entry or a version bump moved 108 What's New frames and
