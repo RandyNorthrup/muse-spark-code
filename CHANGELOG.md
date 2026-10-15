@@ -9,6 +9,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- The catch baseline now identifies individual handlers and their work,
+  so repairing one failure cannot conceal a new one in the same area.
+
 - The catch audit now checks every handler branch before calling a failure
   handled. A bare `Error` fallback, a conditional report and a partial
   rethrow no longer pass as a named-condition handler.

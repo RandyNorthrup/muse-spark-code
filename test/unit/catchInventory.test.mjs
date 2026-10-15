@@ -9,6 +9,10 @@ import {
   countByArea,
 } from '../../scripts/lib/catch-inventory.mjs'
 
+function scan(text, file = 'src/acp/agent.ts') {
+  return classifySource(file, ts.createSourceFile(file, text, ts.ScriptTarget.ESNext, true))
+}
+
 function classesOf(text, file = 'src/fixture.ts') {
   const source = ts.createSourceFile(file, text, ts.ScriptTarget.ESNext, true)
   return classifySource(file, source).map((entry) => entry.class)
@@ -218,12 +222,35 @@ describe('catch-inventory baseline', () => {
     expect(counts['root']).toMatchObject({ GENERIC: 1 })
   })
 
-  it('fails a rise and fails a fall without a lowered baseline', () => {
-    const baseline = { version: 1, counts: { acp: { SWALLOW: 0, GENERIC: 0 } } }
-    expect(checkBaseline({ acp: { SWALLOW: 1, GENERIC: 0 } }, baseline)).toHaveLength(1)
-    expect(checkBaseline({ acp: { SWALLOW: 0, GENERIC: 0 } }, baseline)).toEqual([])
-    const stale = { version: 1, counts: { acp: { SWALLOW: 2, GENERIC: 0 } } }
-    expect(checkBaseline({ acp: { SWALLOW: 1, GENERIC: 0 } }, stale)[0]).toMatch(/lowering/)
+  it('refuses replacement or relocated debt even when area counts stay equal', () => {
+    const original = scan('function read() { try { load() } catch { return fallback } }')
+    const baseline = { version: 2, counts: countByArea(original), sites: original }
+    expect(checkBaseline(original, baseline)).toEqual([])
+    expect(
+      checkBaseline(
+        scan('\n\nfunction read() { try { load() } catch { return fallback } }'),
+        baseline,
+      ),
+    ).toEqual([])
+    expect(
+      checkBaseline(
+        scan('function save() { try { write() } catch { return fallback } }'),
+        baseline,
+      ).join('\n'),
+    ).toMatch(/new GENERIC catch site/)
+    expect(
+      checkBaseline(
+        scan('function read() { try { load() } catch { return fallback } }', 'src/acp/other.ts'),
+        baseline,
+      ).join('\n'),
+    ).toMatch(/new GENERIC catch site/)
+    expect(checkBaseline([...original, ...original], baseline).join('\n')).toMatch(
+      /new GENERIC catch site/,
+    )
+    expect(checkBaseline([], baseline).join('\n')).toMatch(/lowered site baseline/)
+    expect(
+      checkBaseline(original, { version: 1, counts: countByArea(original) }).join('\n'),
+    ).toMatch(/lacks site identities/)
   })
 
   it('rejects handlers with an unreported branch, including broad Error fallbacks', () => {
