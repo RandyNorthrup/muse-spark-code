@@ -155,8 +155,9 @@ export interface LinuxSandboxReadiness {
 /**
  * Reads one finished `bwrap` probe run (LINUX_SANDBOX_PROBE_*): exit 0
  * starts a user namespace, so the sandbox can start; the namespace marker
- * is the kernel or an outer sandbox refusing it; anything else is still a
- * sandbox that cannot start, with the probe's own first line as the detail.
+ * is the kernel or an outer sandbox refusing it (the one proven
+ * cannot-start: isLinuxSandboxBlocked); anything else is a system-bwrap
+ * measurement that failed, with the probe's own first line as the detail.
  */
 export function parseLinuxSandboxProbe(run: LinuxSandboxProbeRun): LinuxSandboxReadiness {
   if (run.exitCode === 0) {
@@ -173,11 +174,27 @@ export function parseLinuxSandboxProbe(run: LinuxSandboxProbeRun): LinuxSandboxR
 }
 
 /**
+ * Whether the probe PROVED Muse Code's Linux sandbox cannot start here.
+ * Only the kernel (or an outer sandbox) refusing the user namespace proves
+ * that, whichever bwrap Muse Code ends up running: its own message names a
+ * capability-valid system bwrap "and no usable embedded fallback", so a
+ * missing or otherwise failing system bwrap leaves the embedded fallback
+ * unmeasured. Surfaces may say "cannot start" (and name the user-namespace
+ * cause, as UI_TEXT.sandboxCannotStartNotice and the model note do) only
+ * where this holds; a `bwrapFailed` readiness is a failed measurement of
+ * the system bwrap, fit for Diagnostics, not for that claim.
+ */
+export function isLinuxSandboxBlocked(readiness: LinuxSandboxReadiness | undefined): boolean {
+  return readiness?.canStart === false && readiness.reason === 'userNamespacesBlocked'
+}
+
+/**
  * Runs the Linux capability probe: the same `bwrap` user-namespace
  * mechanism Muse Code's sandbox uses, minimally. Never throws: a probe that
- * cannot run (no bwrap on PATH, a refused spawn, a timeout) is a sandbox
- * that cannot start, with how the spawn failed as the detail. The host runs
- * this once per start, only while sandboxed on Linux.
+ * cannot run (no bwrap on PATH, a refused spawn, a timeout) resolves as
+ * `bwrapFailed` with how the spawn failed as the detail (not proof the
+ * sandbox cannot start: see isLinuxSandboxBlocked). The host runs this once
+ * per start, only while sandboxed on Linux.
  */
 export function probeLinuxSandboxShell(): Promise<LinuxSandboxReadiness> {
   return new Promise((resolve) => {

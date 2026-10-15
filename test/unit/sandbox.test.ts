@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { MuseLaunch } from '../../src/core/backends/musecode/launch'
 import {
   elevatedInvocation,
+  isLinuxSandboxBlocked,
   isProfileWorkspace,
   museCliInvocation,
   parseLinuxSandboxProbe,
@@ -324,6 +325,29 @@ describe('parseLinuxSandboxProbe', () => {
       reason: 'bwrapFailed',
       detail: 'bwrap: Cannot mkdir /run: permission denied',
     })
+  })
+})
+
+// Only the kernel refusing the user namespace proves Muse Code's sandbox
+// cannot start, whichever bwrap it runs; its own message names an embedded
+// fallback, so a missing or otherwise failing system bwrap must never be
+// said as cannot-start (RVSANDBOXSAY).
+describe('isLinuxSandboxBlocked', () => {
+  it('holds only for the proven user-namespace refusal', () => {
+    expect(
+      isLinuxSandboxBlocked({
+        canStart: false,
+        reason: 'userNamespacesBlocked',
+        detail: 'bwrap: No permissions to create new namespace, likely because …',
+      }),
+    ).toBe(true)
+    expect(
+      isLinuxSandboxBlocked({ canStart: false, reason: 'bwrapFailed', detail: 'bwrap: ENOENT' }),
+    ).toBe(false)
+    expect(isLinuxSandboxBlocked({ canStart: true, reason: undefined, detail: undefined })).toBe(
+      false,
+    )
+    expect(isLinuxSandboxBlocked(undefined)).toBe(false)
   })
 })
 

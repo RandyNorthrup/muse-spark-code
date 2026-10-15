@@ -86,9 +86,10 @@ import {
   planTooLargeText,
 } from '../../core/plans/planStore'
 import type { WorkspaceEditRecorder } from '../../core/verify/workspaceEdits'
-import type {
-  LinuxSandboxReadiness,
-  ShellSandboxPosture,
+import {
+  isLinuxSandboxBlocked,
+  type LinuxSandboxReadiness,
+  type ShellSandboxPosture,
 } from '../../core/backends/musecode/sandbox'
 import type { BestOfNGitGuard } from '../../core/bestOfN/bestOfNRunner'
 import { type BestOfNError, isBestOfNError } from '../../core/bestOfN/bestOfNError'
@@ -2892,7 +2893,7 @@ export class ConversationController {
     // F91: the probe measured at host start that Muse Code's Linux sandbox
     // cannot start on this machine. Said once per conversation, sharing the
     // failure notice's flag, so a later raw bwrap line never piles on.
-    if (this.deps.shellSandboxReadiness?.()?.canStart !== false || this.hasWarnedSandbox) {
+    if (!isLinuxSandboxBlocked(this.deps.shellSandboxReadiness?.()) || this.hasWarnedSandbox) {
       return
     }
     this.hasWarnedSandbox = true
@@ -6595,7 +6596,7 @@ export class ConversationController {
       const sandboxNote: readonly TurnPart[] =
         host.info.kind === 'museCode' &&
         !this.hasToldModelSandboxCannotStart &&
-        this.deps.shellSandboxReadiness?.()?.canStart === false
+        isLinuxSandboxBlocked(this.deps.shellSandboxReadiness?.())
           ? [{ type: 'text', text: SANDBOX_CANNOT_START_MODEL_NOTE }]
           : []
       if (sandboxNote.length > 0) {

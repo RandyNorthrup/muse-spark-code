@@ -164,9 +164,12 @@ export function sandboxReadinessLine(readiness: LinuxSandboxReadiness | undefine
   if (readiness.canStart) {
     return 'can start here'
   }
+  // Only the kernel's refusal proves the sandbox cannot start (Muse Code
+  // may fall back to an embedded bwrap); any other probe failure is said
+  // as what it is, a failed system-bwrap check, with the probe's detail.
   return readiness.reason === 'userNamespacesBlocked'
     ? 'cannot start here: bubblewrap cannot create a user namespace'
-    : `cannot start here: ${readiness.detail ?? 'the bwrap probe failed'}`
+    : `system bubblewrap check failed here: ${readiness.detail ?? 'the bwrap probe failed'}`
 }
 
 /**
