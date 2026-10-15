@@ -288,7 +288,7 @@ McpElicitationTimeoutError` was false at the real boundary: the connection
 
 ## RVDROPS review — evidence, shared rule and unresolved gates
 
-- P2: D113's last sentence replaced the owner's peer-evidence rule with
+- P2: D115's last sentence replaced the owner's peer-evidence rule with
   “the bound itself is the product”. Restored the requirement for three
   harness precedents and explicitly shared it with LIMITSA. No such evidence
   was supplied for retained B9/B22/C7/B17/B10 limits; this remains an owner/
@@ -505,7 +505,7 @@ native\\darwin\\muse-dictate` (`scripts/package-acp.mjs:79`). No package
   import pulled `mcp/connection.ts` into the static `dist/modelApi.js`.
   Moved `McpElicitationTimeoutError`/`isElicitationTimeout` into the
   already-static `mcp/elicitation.ts` → exit 0, no split problems.
-- `npm run check:plan`: exit 0 (D113 compressed to fit under the 85%
+- `npm run check:plan`: exit 0 (D115 compressed to fit under the 85%
   reader bound; the tree sits just under it, so the next PLAN addition
   needs `npm run plan:archive` first). `npm run check:roadmap`: exit 0
   (218 entries, current; no milestone changed).
@@ -534,3 +534,106 @@ native\\darwin\\muse-dictate` (`scripts/package-acp.mjs:79`). No package
   drills (sandbox + no model calls per the brief); real-life steps per
   row are listed above for the lead. No browser, no loopback server was
   started by this lane.
+
+## DROPSFIX lane — finish for merge (2026-10-15, rig wslpc, branch fix/drops-final)
+
+Commits: `674bc3ed0` (merge `06847350f`), `9abcd2d81`
+(B22/B17 settings). D113 renumbered to D115 everywhere (PLAN, CHANGELOG,
+this record; D114 belongs to lane LIMITSB).
+
+### 1. Merge
+
+`git merge --no-ff --no-edit 06847350f` (PR 172's head). One conflict,
+PLAN.md §2: kept both D108 (test overhaul) and this branch's decision
+(then D113, now D115), D108 first (2026-10-12 precedes 2026-10-15).
+CHANGELOG merged cleanly. The overhaul's test deletions stay deleted
+(including `test/unit/conversationController.test.ts`, whose
+`DAMAGED_SESSIONS_KEPT` import broke the review's typecheck).
+
+### 2. Typecheck / build / SAST, measured
+
+- `npm run typecheck` (all five projects): exit 0 on the merged tree.
+  The review's Windows failure (TS2305 on the deleted test file) is gone
+  by the ordered deletion; no base run needed.
+- `npm run build`: exit 0 on this Linux rig. The review's eight Windows
+  split failures (parse5, entities, html-encoding-sniffer,
+  @exodus/bytes, smol-toml, jpeg-js/pngjs, mini-parser) do not reproduce
+  here. No untouched-base build was possible (scratch mounts read-only,
+  second checkouts forbidden), so the Windows cause is UNMEASURED, not
+  environmental: either this branch's imports or the Windows splitter.
+  `dist/modelApi.js` also reports "no English table" and "0
+  reference(s) to navigator" on this build.
+- `npm run security:sast`: exit 2, twice, both tooling, no finding.
+  First: `semgrep is not installed` (pinned 1.178.0 installed into a
+  project-local `.venv-semgrep`, since removed). Then semgrep crashed in
+  its version check writing `/home/randy/.cache/semgrep_version`
+  (read-only sandbox home). Reran with `XDG_CACHE_HOME` pointed at a
+  writable `temp/` dir, same script and args: scan completed, 533 rules
+  over 3,228 files, 0 findings. The `.venv-semgrep` directory was
+  removed after the scan; `temp/semgrep-cache` remains (gitignored).
+
+### 3. Bundle ceiling
+
+`dist/modelApi.js` measured 520,871 bytes at review, 520,929 after this
+lane's settings (+58). The 519,354-byte pin lived only in
+`test/unit/deferredBundles.test.ts`, which the ordered merge deleted
+(`f2b00c094`); no 519,354 gate exists on this tree. The enforced gate,
+`scripts/check-bundle-size.mjs` (owner-authorized 525 KiB budget):
+508.7 KiB, exit 0, ~16.7 KiB headroom. Nothing was raised. Shrinking
+1,517 bytes of hot-path notice code to meet an unpinned number would
+mean cutting owner-demanded notices or async-loading synchronous fence
+code: not done; recorded here as the lead's call.
+
+### 4. Retained limits with peer citations (owner's 2026-10-14 rule)
+
+| Bound                                                                            | Disposition     | Peer evidence                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| -------------------------------------------------------------------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| B9 child clip 32,768 chars (full text kept, warning with counts)                 | KEEP fixed      | Codex `tool_output_token_limit` 10k tokens, configurable ([config ref](https://github.com/thammachet/codex-with-manager-and-ceo/blob/HEAD/docs/example-config.md)); Gemini `truncateToolOutputThreshold` 40,000 chars, 0 disables ([config ref](https://geminicli.com/docs/reference/configuration/)); OpenCode `tool_output` max 50 KB/2,000 lines, configurable, full output saved to file with notice ([config](https://github.com/casualdeveloper/opencode/blob/HEAD/services/www/src/docs/content/config.mdx)); Claude Code truncates inline (~30k valid / 10k failure, third-party docs UNVERIFIED: [tools ref](https://github.com/posimind/claude-code-docs/blob/HEAD/docs/tools-reference.md)) |
+| B10 8 MiB renderer snapshot (session kept, unsent text restored, History notice) | KEEP fixed      | All peers bound what a surface holds: Claude Code auto-compact ([compaction guide](https://github.com/pengr/learn-claude-code/blob/HEAD/docs/en/04-compaction.md)), Codex `model_auto_compact_token_limit` ([config ref](https://github.com/thammachet/codex-with-manager-and-ceo/blob/HEAD/docs/example-config.md)), Gemini compresses at 0.7 ([config ref](https://geminicli.com/docs/reference/configuration/)). No peer publishes a renderer byte cap; the bound is the platform-memory equivalent and nothing is silently lost.                                                                                                                                                                   |
+| B22 20 open questions, oldest expire with warning                                | SETTING         | No peer publishes a count cap on open questions (Claude Code AskUserQuestion has a 60 s auto-continue timeout, not a count: [issue](https://github.com/anthropics/claude-code/issues/73435), UNVERIFIED beyond the issue text). Now `museSpark.questions.maxOpenQuestions` (machine-scoped, 2–100, default 20); ACP/headless keep 20.                                                                                                                                                                                                                                                                                                                                                                  |
+| B23 damaged sessions                                                             | REMOVED earlier | The 50 cap (`DAMAGED_SESSIONS_KEPT`) is already gone on this branch; every marker is kept and marking warns. Nothing to authorize.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| C7 300 s form deadline, settles cancel with warning                              | KEEP fixed      | MCP SEP-1539 proposes 600 s for `elicitation/create` ([SEP](https://github.com/modelcontextprotocol/modelcontextprotocol/issues/1539)); MCP TS SDK defaults 60 s and tells servers to raise it for humans ([elicitation docs](https://github.com/modelcontextprotocol/typescript-sdk/blob/HEAD/docs/servers/elicitation.md)); Claude Code has `MCP_TOOL_TIMEOUT` per tool call; Cline defaults ~60 s tool timeout (third-party docs, UNVERIFIED). Timeouts on MCP waits are universal; 300 s sits between tool timeouts and the elicitation proposal.                                                                                                                                                  |
+| B17 60 s judge fence, missing advisory named                                     | SETTING         | No peer has this fence (Judge is ours). Now `museSpark.judge.timeoutSeconds` (machine-scoped, 10–600, default 60); the runner already took `timeoutMs` and now reads it.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+
+New settings: `test/unit/limitSettings.test.ts` (8 tests, real
+modules, no stand-ins). Red drill: broke both clamps (`+1`), 6 failed;
+restored byte-exact (sha256 `77ce9cb1…`, `a34a6f2e…`), 8 green.
+Reference regenerated (91 settings) and `check:reference` passes.
+Manifest descriptions translated in all 14 `package.nls.*.json`
+(28 strings). README documents both; CHANGELOG under `[Unreleased]`.
+Forward `const` references from `SETTING_DEFAULTS` evaluate to
+`undefined` in the reference bundling (found while `reference:generate`
+failed red with `$ZodError expected number`); defaults stay literals,
+as `deferAfterSeconds` does.
+
+### 5. Packed product on this rig
+
+- `node scripts/package-acp.mjs`: exit 1 —
+  `Required Darwin created-path helper is missing:
+native/darwin/muse-dictate`. A macOS Swift binary cannot be built on
+  Linux and the script has no skip path; not bypassed. Same blocker as
+  the review's Windows run.
+- Built (not packed) `dist/acp.js`: `--help` exit 0 (command list
+  shown); unknown argument exit 1. Reached without a provider, model, or
+  credential.
+- `test/e2e/execStdio.e2e.test.ts`: exit 1 — 29 failures, all in pack
+  setup (`package-acp.mjs` → same Darwin check inside temp copies),
+  before any product code runs. Listed for the lead; cause location
+  measured, base comparison impossible here (read-only scratch).
+- The review's six real-life scenarios are unchanged by the merge and
+  are listed for the lead verbatim in RVDROPS §"Lead's real-life
+  scenarios"; the two new settings add: set each to its minimum, cross
+  the bound, observe the warning names the effective number.
+
+### 6. Gates on the final tree (this rig)
+
+`format:check`, full `lint:js`, `lint:css`, `typecheck` (all),
+`check:badges`, `check:tokens`, `check:l10n`, `check:reference`,
+`check:host-api`, `check:plan`, `check:roadmap`, `deadcode` (knip),
+`cycles` (dpdm), `duplication` (jscpd 0 clones), `security:audit`,
+`build`, `security:sast`, unit files
+(`limitSettings`, `questionExpiry`, `judgeContract`). Exit codes in the
+lane report. `test:unit` full suite and `test:a11y` were not run on
+this rig (shared-machine load rule; brief asks for the touched files).
+`test/e2e/execStdio.e2e.test.ts` blocked as above. No browser or
+screenshot run anywhere (owner's rule).

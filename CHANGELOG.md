@@ -148,7 +148,7 @@ happened, not what was planned; superseded entries are kept.
   launches are not yet under the resource governor; nothing in this release
   can start them, and the process inventory fails the day something could.
 
-- No-silent-drops lane (LIMITSC, PLAN.md D113): six limits that dropped
+- No-silent-drops lane (LIMITSC, PLAN.md D115): six limits that dropped
   something without telling the person now keep it or say so, in every
   installed language. A child task's full result is kept (`read_result`
   returns it whole; the automatic push carries the bounded slice plus a

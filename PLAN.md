@@ -14351,7 +14351,7 @@ and thats it." A thousand-test suite kept shipping broken code as
 - Record: `docs/testing/test-overhaul-2026-10-12.md` (before/after
   1,321 → 524 files, 27,650 → 8,988 tests, ~26 → ~5.5 wall minutes).
 
-### D113 — Nothing is dropped without telling the person (2026-10-15)
+### D115 — Nothing is dropped without telling the person (2026-10-15)
 
 Owner, 2026-10-14, on the limits audit's "App problems" item 4: six limits
 dropped something without telling the person. Rule in force: keep what the
