@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { resolveResumedModel } from '../../src/core/backends/musecode/resumedModel'
 
-// After a `muse serve` restart a resumed conversation must run on the model
-// the person chose: the caller applies it with `session/setModel` and reads
-// the CLI's answer back with `model/list`. This table decides what the
-// session runs on from those two values alone.
+// Unit proof of the comparison policy only. This does not exercise resume,
+// setModel/listModels ordering, handle ownership, or turn dispatch. Those
+// product behaviours require the real-life restart scenarios recorded in
+// docs/certification/muse-restart-model.md, not a stand-in CLI.
 describe('resolveResumedModel', () => {
   it('keeps the chosen model when the CLI reports it active', () => {
     expect(

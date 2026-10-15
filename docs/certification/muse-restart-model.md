@@ -73,6 +73,43 @@ the answer and subsequent resume must not restore the originally requested
 id over the backend-reported id. Close/reload must not accept late updates
 from the replaced AcpSession. No invented wire fields or provider calls.
 
+## PRTH166 review answer — T5 (`PRRT_kwDOUkzj5M6sew_j`)
+
+The coverage criticism is correct. The three resolver cases exercise only
+the comparison policy; neither the missing-module failure nor their green
+result proves the controller/ACP wiring. The test comment now states this
+limit. Main's deleted controller/MSP-fake suites remain deleted (two files
+modified by this PR); no replay CLI, provider, editor or store was added.
+The owner's 2026-10-12 rule forbids the requested substitute boundary, and
+this lane may not call a provider. Product-wiring proof therefore remains a
+lead-run requirement, not an automated pass.
+
+Exact real-life restart checks for the lead, through the packed product:
+
+1. Panel: with the real signed-in Muse CLI, select `muse-spark-1.3` and
+   complete a turn. Restart that panel's own `muse serve` (not the agent or
+   another panel), then send a second turn. Observe the same session id,
+   `session/setModel` followed by `model/list` before turn dispatch, the
+   displayed model still `muse-spark-1.3`, and the real session log's provider
+   record naming that model. Reopen it from History and repeat.
+2. ACP: initialize the packed agent, session/new, set_config_option model
+   `muse-spark-1.3`, and choose a supported nondefault effort. Restart only
+   its own Muse host, then session/load the same id. Check configOptions for
+   the chosen model/effort, then send one prompt and verify the real provider
+   record names that model. No change of model may be hidden from the editor.
+3. Mismatch: with an actual CLI configuration that rejects or canonicalizes
+   the chosen model, resume. A rejection or a different active row must fail
+   the load/send, with no turn/start for that attempted message. Retrying
+   after choosing the reported model must continue the same conversation.
+4. Perform T1's concurrent clear, T2's real command timeout, T3's hook marker
+   and T4's actual backend-event scenarios above. These are not covered by
+   the resolver unit test.
+5. Wiring red drill (lead-owned): on a disposable copy remove the controller
+   verification call, then separately remove ACP's restore call. Repeat 1
+   and 2 with a host whose real default differs from the chosen model; the
+   provider-record assertion must fail. Restore each source byte-exact by
+   SHA-256 and repeat successfully. A missing module is not this drill.
+
 The records below describe the original lane and are retained as history;
 they do not certify the merged review tree.
 
