@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { personFor } from '../../scripts/real-life/lib/person.mjs'
 import { parseArguments } from '../../scripts/real-life/lib/args.mjs'
 import { dataFolderOf, productEnvironment } from '../../scripts/real-life/lib/home.mjs'
 import { heldUnsettled } from '../../scripts/real-life/lib/ledger.mjs'
@@ -52,6 +53,18 @@ describe('real-life installer environment', () => {
     expect(env.npm_execpath).toBe('/usr/lib/node_modules/npm/bin/npm-cli.js')
     expect(env.REAL_LIFE_KEY_ANTHROPIC_FLEET_1).toBeUndefined()
     expect(env.META_API_KEY).toBeUndefined()
+  })
+})
+
+describe('real-life interrupted cell', () => {
+  it('refuses a later terminal dispatch after the cell has ended (T5)', async () => {
+    // No product is supplied: this exercises the real pre-launch refusal,
+    // not a replacement process, provider or store.
+    const person = personFor({ route: routeFor('openai') })
+    await person.end()
+    await expect(person.exec('must not be dispatched')).rejects.toThrow(
+      'no further terminal dispatch',
+    )
   })
 })
 

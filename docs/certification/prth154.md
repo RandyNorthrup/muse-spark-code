@@ -85,6 +85,25 @@ no later paid cell dispatched. A real provider/credential is required;
 no stand-in or new process test was introduced. Static evidence is the
 removed `!isMatrix` branch and the new missing-result admission stop.
 
+### T5 completion check — timeout before child result
+
+The final lifecycle pass found the same unknown-spend class at a different
+boundary: scenario timeout can win before exec's own result callback.
+Missing-result ownership now starts before command launch and stays held
+through parsing; only a complete request/cost result retires it. Thus a
+pending command is already unknown when reconciliation runs. An ended cell
+or a preceding missing result refuses later exec dispatch, including a late
+continuation of the timed-out scenario. No separate review round was asked.
+
+Real-module test supplies no product at all, calls `person.end()`, and
+requires the pre-launch refusal. Deliberately removed the ended-cell guard;
+`npx vitest run test/unit/realLifeGuards.test.mjs --maxWorkers=2` exited 1,
+11 passed / 1 failed: expected `no further terminal dispatch`, received
+`Cannot read properties of undefined (reading 'agent')` (no spawn occurred).
+Restored SHA-256 `AF92910B21940EFEEB6F035560C9C5F862638965D60E33A4C9EEB682D0B57CE6`
+for `lib/person.mjs`, `BYTE_EXACT=True`, then exit 0, 12 passed. Logs:
+`.lane/T5-timeout-{red,restored}.log`.
+
 ## T6 — ACP request admission honesty
 
 The review's permitted alternative is used: no invented ACP option, no

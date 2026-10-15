@@ -25,6 +25,8 @@ happened, not what was planned; superseded entries are kept.
 - Real-life run: every cell, matrix turns included, reconciles terminal
   totals with journal usage. Missing or incomplete exec results fail the
   cell and stop further admission instead of counting a crash as free.
+  An in-flight terminal command is already unknown at scenario timeout;
+  a late scenario continuation cannot dispatch another terminal request.
 
 - Real-life run: configured providers use per-invocation credential names,
   so concurrent runs cannot overwrite or delete each other's route keys.

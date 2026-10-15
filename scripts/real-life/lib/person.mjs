@@ -28,6 +28,7 @@ export function personFor(cell) {
   const made = { requests: 0, micro: 0, uncertain: 0, turnedAway: 0, unread: [], missingResults: 0 }
   const notes = []
   const skipped = []
+  let isEnded = false
 
   async function command(args, options = {}) {
     const run = await runCommand(product, args, { cwd: workspace, ...options })
@@ -37,6 +38,9 @@ export function personFor(cell) {
 
   /** One `exec` with the route's arguments and one budget, its result read from the JSONL it prints. */
   async function execOnce(prompt, options, budget) {
+    if (isEnded || made.missingResults > 0) {
+      throw new Error('no further terminal dispatch: the cell ended or earlier spend is unknown')
+    }
     const isKeyOnPipe = route.kind === 'meta'
     const args = [
       'exec',
@@ -53,13 +57,11 @@ export function personFor(cell) {
       ...(options.args ?? []),
       prompt,
     ]
-    let run
-    try {
-      run = await command(args, { stdin: isKeyOnPipe ? `${cell.key ?? ''}\n` : '' })
-    } catch (error) {
-      made.missingResults += 1
-      throw error
-    }
+    // Pending from before launch, not just after close: a scenario timeout
+    // can reconcile while this command is still in flight. Exceptions during
+    // launch or JSONL parsing also leave spend unknown, never a zero count.
+    made.missingResults += 1
+    const run = await command(args, { stdin: isKeyOnPipe ? `${cell.key ?? ''}\n` : '' })
     const events = jsonLines(run.stdout)
     const result = events.findLast((event) => event.type === 'result')?.result
     // What the product's own ledger says of it: usage a provider reported
@@ -70,10 +72,16 @@ export function personFor(cell) {
       !Number.isSafeInteger(requests) ||
       requests < 0 ||
       cost?.settled === undefined ||
-      cost?.uncertain === undefined
+      cost.settled === null ||
+      cost?.uncertain === undefined ||
+      cost.uncertain === null
     ) {
-      made.missingResults += 1
-    }
+      notes.push({
+        what: 'the terminal result contains request and cost totals',
+        ok: false,
+        saw: 'missing or incomplete usage',
+      })
+    } else made.missingResults -= 1
     made.requests += Number.isSafeInteger(requests) && requests >= 0 ? requests : 0
     made.micro += readUsd(cost?.settled, 'settled')
     made.uncertain += readUsd(cost?.uncertain, 'uncertain')
@@ -281,6 +289,7 @@ export function personFor(cell) {
     logText: () => logs.join('\n'),
     /** Ends every agent the scenario left running. */
     async end() {
+      isEnded = true
       for (const editor of editors) {
         await editor.stop()
         logs.push(editor.stderr)
