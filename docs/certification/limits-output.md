@@ -280,6 +280,52 @@ is not applied to the repository's legacy, non-ledger PLAN format.
   1,000-character prefix and important tail are separately reachable. Both
   diagnostic suites pass (exit 0, `.lane/diagnostics-green.log`). Verify's
   separate summary remains pageable through getDiagnostics.
+- Final authority/message red drills: removing the max-token source check
+  fails `expected true to be false` (exit 1); forcing diagnostic messageOffset
+  to zero fails `important tail` (exit 1). Both sources restored byte-exact:
+  sessionTap SHA-256 `0f52dff54777808228f659bb159387eb9922133ff55722798703d48c944c66a5`,
+  diagnostics SHA-256 `86095827415b77b1d14896e36ef690ba2c88251b1e23ef26164c076f3a273592`.
+  Restored run passes 23 tests / 2 files, exit 0 (`.lane/restored-drills.log`).
+
+## RVLIMITSB final gate record (Windows, review tree 5ced4e321)
+
+- `git merge --no-ff origin/main` → 0, `Already up to date.` The local
+  origin/main is 898a26c5e304426f2fb374910ec700b51b5260d1, already an ancestor;
+  no conflict or merge commit. No fetch, push, rebase or reset.
+- `npm run typecheck` → 0, all five projects. An earlier run failed the
+  lane helper's exact-optional return type; corrected in 55a8fcf06.
+- Changed-file ESLint → 0; changed-file Prettier → 0; `check:l10n` → 0;
+  `check:reference` → 0; `check:roadmap` → 0; `deadcode` → 0; `cycles` → 0.
+- `check:host-api` initially → 137 with no diagnostic; standalone rerun → 0
+  (380 APIs, 48 importing files, 30 built-ins, 71 theme variables).
+- `check:plan` initially → 1 (3,567,743 bytes, 2,585 over the unchanged cap).
+  Archived D114's own record with the canonical generator (reassembly and
+  parsed facts identical); then → 0. Archive integrity suite passes.
+- `duplication` → 1: four clones / 65 lines in tools.ts and toolIo.ts;
+  no threshold changed. This is a remaining release blocker.
+- `build` → 1: production compilation and size checks succeed (extension
+  554.4 KiB / 600; modelApi 521.0 / 525; headless 98.2 / 100). Bundle split
+  fails eight inventory checks: pageWorker parse5/entities/html-encoding-sniffer/
+  @exodus/bytes; agentImport smol-toml; imageResizeWorker jpeg-js/pngjs;
+  validation mini-parser. Cause UNMEASURED; not labelled pre-existing.
+- `security:sast` → 2: `semgrep-core rule validation failed (SemgrepError)`
+  and `[ERROR] Failed to obtain target files from semgrep-core`. Not clean.
+- `security:audit` → 0: two advisories, one configured high exception.
+- Final allowed tests → 0: 104 tests / 9 files (`outputCapRecord`, `fileRange`,
+  `toolPaging`, `retainedOutput`, `diagnostics`, `diagnosticsReport`,
+  `attachmentLimitsRecord`, `runLedger`, `planArchive`), maxWorkers=2.
+- `node scripts/package-acp.mjs` → 1: `Required Darwin created-path helper
+is missing: native\\darwin\\muse-dictate`. No packed-product proof available.
+  Built `node dist/acp.js help` → 0; local invalid exec flag → 2 as expected.
+  Neither action starts a provider or opens the credential store.
+- Stand-in suites including `sessionTap`, `webFetch`, and `execStdio.e2e`
+  were not run under the owner's final testing rule. Related-suite breadth
+  and remaining red drills are not certified. The attempted related listing
+  used an unsupported `--list` flag and exited 1; no test result is claimed.
+
+Full logs are under `.lane/`; final finding/handoff report is
+`.lane/RVLIMITSB.report.md`. Required acceptance work and failed gates remain;
+this is **not mergeable**, even after main is merged.
 
 ## Qualification
 
