@@ -437,6 +437,51 @@ McpElicitationTimeoutError` was false at the real boundary: the connection
    slice is gone, B22's expiry no longer deletes. The table records lane
    rationales, not the missing three-harness authorization.
 
+## RVDROPS closing receipts (Windows, source head 49d64de73)
+
+Verdict: **not mergeable**. `origin/main` is `898a26c5e304426f2fb374910ec700b51b5260d1`;
+`git merge --no-ff --no-edit origin/main` returned `Already up to date`
+(exit 0), so there was no merge commit or conflict. No push or provider call.
+
+- Final source gates: ESLint 0; Prettier 0; l10n 0; reference 0; deadcode 0;
+  cycles 0; duplication 0. Typecheck 1: host/webview pass, unit fails TS2305
+  on the obsolete fake-suite import at `conversationController.test.ts:87`.
+  E2E/integration projects previously passed separately; a later combined
+  attempt reached its 120-second command bound (reported e2e exit 137), and
+  further final e2e attempts failed in the app's created-path registry publish
+  before launching. The last separately completed integration check exited 0.
+- Final build 1: eight split diagnostics remain exactly as recorded in
+  `temp/rv-close-build.log`. Production size checks pass: extension 550.8 KiB,
+  Model API 508.7 KiB (520,871 bytes), checkpoint store 84.6 KiB. The
+  restored unit bundle ceiling is 519,354 bytes, 1,517 bytes below this output;
+  no cap increase is authorized. Lazy-registry/host-globals/notices checks
+  also ran separately and exited 0 after an earlier build stopped at split.
+- Final SAST 2: semgrep-core rule validation/target discovery failed. Final
+  dependency audit 0: one excepted high and one noted low advisory. No base
+  comparison was run for any gate failure; causes remain UNMEASURED.
+- Final focused tests: 8 files, 78 passed, exit 0 (`temp/rv-close-tests.log`),
+  maxWorkers=2, repository deadlines. No broad fake/provider/browser run.
+- Package command 1: `Required Darwin created-path helper is missing:
+native\\darwin\\muse-dictate` (`scripts/package-acp.mjs:79`). No package
+  was produced or run. Built `dist/acp.js --help` exits 0; invalid-option
+  error exits 1. These are built CLI checks, not packed-product proof.
+- A scratch command built two independent copies of the real elicitation
+  module and proved distinct classes still detect a timeout (exit 0,
+  `temp/rv-bundle-timeout.log`). No server or backend was substituted.
+- New regressions deliberately broken: missing restore revision, bundle-local
+  timeout class identity, notice before durable expiry, and loss on second
+  reload. All four failed as intended (three together: 3 failed / 8 passed,
+  then second reload: 1 failed / 4 passed), restored byte-exact and green.
+  SHA-256 before/after restoration:
+  - revision snapshot: `C58ABD84900623CB2193C17194186B175E241606C1A37347730DC87121886BE0`;
+  - timeout: `CF6EEFAB5670AC5CE07B2622FEE756879E86B06A6F5DCFF2DEFAA514095EF459`;
+  - registry: `8A84024DCB86FEF056E5AC6BF6225E6AF449ADF73F20F161967F7A4A0C74CBA1`;
+  - final second-reload snapshot: `49363875255D7CCCFB1DCF662E5E6CB6255E692105D692BA69F61D0F8AC3261A`.
+- Retention/clip tests do not prove UI/event bindings. Cross-host real-life
+  runs, one light/dark panel look, remaining fake-suite cleanup, retained-limit
+  precedents, bundle ceiling and blocked gates remain integration work.
+  Full report and exact scenarios: `.lane/RVDROPS.report.md` (lane scratch).
+
 ## Original lane gate receipts (12c156f8e, not the reviewed final tree)
 
 - `npx tsc --noEmit -p tsconfig.json`: exit 0.

@@ -119,7 +119,9 @@ happened, not what was planned; superseded entries are kept.
   missing advisory at Auto review or an ordinary approval decision. An oversize panel state
   still omits the transcript, but the unsent draft and pending send come
   back on restore, including the revision needed to recover a refused
-  pending send without replacing newer typing. Proof in `docs/certification/no-silent-drops.md`.
+  pending send without replacing newer typing. Repeated reloads preserve that
+  recovery state; ACP withdraws settled MCP forms and rejects late answers.
+  Implementation and outstanding verification: `docs/certification/no-silent-drops.md`.
 
 ## [0.18.2] - 2026-10-12
 
