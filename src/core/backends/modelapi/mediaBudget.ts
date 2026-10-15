@@ -22,13 +22,10 @@ import {
   UI_TEXT,
 } from '../../../shared/constants'
 import type { MediaInfo } from '../../../shared/media'
-import { attachmentLimitsForModel } from './modelPolicy'
+import { attachmentLimitsForModel, attachmentLimitsForRecord } from './modelPolicy'
 import { fill } from '../../../shared/l10n/text'
 import { pdfPageCount } from '../../pdf'
-import {
-  attachmentLimitsForRecord,
-  type ModelCapabilityRecord,
-} from '../../providers/capabilityRecord'
+import type { ModelCapabilityRecord } from '../../providers/capabilityRecord'
 import type {
   FunctionOutputPart,
   InputContentPart,

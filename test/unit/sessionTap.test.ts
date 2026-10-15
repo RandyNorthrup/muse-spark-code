@@ -44,6 +44,16 @@ function agentDone(itemId: string, text: string) {
     item: { itemId, kind: 'agentMessage', status: 'completed', text },
   } as const
 }
+async function continuedHarness(secondTerminal: LastResponse['terminal']) {
+  const h = await harness()
+  listen(h)
+  h.session.emit(agentDone('a', 'PART-ONE '))
+  h.tap.settleResponse({ ...completed, terminal: 'incomplete', settlement: 'full-reservation' })
+  h.tap.beginResponse(2)
+  h.session.emit(agentDone('b', 'PART-TWO'))
+  h.tap.settleResponse({ ...completed, n: 2, terminal: secondTerminal })
+  return h.tap.releasedMessages()
+}
 
 describe('M80 authoritative message release', () => {
   it('D22 host wrapper preserves prototype methods and leaves first backlog to ACP', async () => {
@@ -131,27 +141,13 @@ describe('M80 authoritative message release', () => {
     ])
   })
   it('B1 a segment continued to completion releases whole', async () => {
-    const h = await harness()
-    listen(h)
-    h.session.emit(agentDone('a', 'PART-ONE '))
-    h.tap.settleResponse({ ...completed, terminal: 'incomplete', settlement: 'full-reservation' })
-    h.tap.beginResponse(2)
-    h.session.emit(agentDone('b', 'PART-TWO'))
-    h.tap.settleResponse({ ...completed, n: 2 })
-    expect(h.tap.releasedMessages()).toEqual([
+    expect(await continuedHarness('completed')).toEqual([
       { itemId: 'a', kind: 'agentMessage', text: 'PART-ONE ', complete: true },
       { itemId: 'b', kind: 'agentMessage', text: 'PART-TWO', complete: true },
     ])
   })
   it('B1 an incomplete segment nothing completed stays withheld', async () => {
-    const h = await harness()
-    listen(h)
-    h.session.emit(agentDone('a', 'PART-ONE '))
-    h.tap.settleResponse({ ...completed, terminal: 'incomplete', settlement: 'full-reservation' })
-    h.tap.beginResponse(2)
-    h.session.emit(agentDone('b', 'PART-TWO'))
-    h.tap.settleResponse({ ...completed, n: 2, terminal: 'failed' })
-    expect(h.tap.releasedMessages()).toEqual([
+    expect(await continuedHarness('failed')).toEqual([
       { itemId: 'a', kind: 'agentMessage', text: UI_TEXT.execMessageWithheld, complete: false },
       { itemId: 'b', kind: 'agentMessage', text: UI_TEXT.execMessageWithheld, complete: false },
     ])

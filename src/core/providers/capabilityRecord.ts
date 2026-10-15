@@ -334,32 +334,3 @@ export function metaCapabilityRecord(nativeModel: string): ModelCapabilityRecord
 export function capabilityEffortLevels(record: ModelCapabilityRecord): readonly string[] {
   return record.reasoning.effortLevels.state === 'yes' ? record.reasoning.effortLevels.value : []
 }
-
-/**
- * A10 (limits-output): per-request attachment limits read from a capability
- * record. A limit the record states is confirmed; a missing one keeps today's
- * enforcement value and is reported unconfirmed (the brief's fallback).
- */
-export interface AttachmentLimits {
-  readonly imageMaxBytes: number
-  readonly imageMaxCount: number
-  readonly documentMaxBytes: number
-  readonly pdfMaxPages: number
-  readonly imageConfirmed: boolean
-  readonly documentConfirmed: boolean
-}
-export function attachmentLimitsForRecord(
-  record: ModelCapabilityRecord | undefined,
-): AttachmentLimits {
-  const imageValue =
-    record?.modalities.image.state === 'yes' ? record.modalities.image.value : undefined
-  const pdfValue = record?.modalities.pdf.state === 'yes' ? record.modalities.pdf.value : undefined
-  return {
-    imageMaxBytes: imageValue?.maxBytes ?? MAX_IMAGE_BYTES,
-    imageMaxCount: imageValue?.maxCount ?? MODEL_API_MEDIA_PER_REQUEST,
-    documentMaxBytes: pdfValue?.maxBytes ?? MAX_DOCUMENT_BYTES,
-    pdfMaxPages: pdfValue?.maxPages ?? MODEL_API_PDF_PAGE_IMAGES,
-    imageConfirmed: imageValue?.maxBytes !== undefined && imageValue.maxCount !== undefined,
-    documentConfirmed: pdfValue?.maxBytes !== undefined && pdfValue.maxPages !== undefined,
-  }
-}

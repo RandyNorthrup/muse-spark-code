@@ -26,7 +26,7 @@ import {
 // content blocks become turn parts, and the backend's approval choices
 // become permission options. Pure; `agent.ts` sends what these return.
 
-import type { AttachmentLimits } from '../core/providers/capabilityRecord'
+import type { AttachmentLimits } from '../core/backends/modelapi/modelPolicy'
 import { Buffer } from 'node:buffer'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'

@@ -5,9 +5,11 @@ import {
   MODEL_API_MEDIA_PER_REQUEST,
   MODEL_API_PDF_PAGE_IMAGES,
 } from '../../src/shared/constants'
-import { attachmentLimitsForModel } from '../../src/core/backends/modelapi/modelPolicy'
 import {
+  attachmentLimitsForModel,
   attachmentLimitsForRecord,
+} from '../../src/core/backends/modelapi/modelPolicy'
+import {
   metaCapabilityRecord,
   resolveModelCapabilities,
 } from '../../src/core/providers/capabilityRecord'
@@ -64,5 +66,11 @@ describe('A10 attachment limits from the capability record', () => {
     const limits = attachmentLimitsForRecord(metaCapabilityRecord('muse-spark-1.3'))
     expect(limits.imageConfirmed).toBe(true)
     expect(limits.documentConfirmed).toBe(true)
+  })
+
+  it('the request path uses the record’s own values, pinned equal', () => {
+    expect(attachmentLimitsForModel('muse-spark-1.3')).toEqual(
+      attachmentLimitsForRecord(metaCapabilityRecord('muse-spark-1.3')),
+    )
   })
 })

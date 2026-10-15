@@ -7,8 +7,12 @@ import type { ModelSummary } from '../../agent/agentBackend'
 import type { CreateResponseBody, Usage } from './schemas'
 import { estimateCostUsd } from '../../usage/insights'
 import {
+  MAX_DOCUMENT_BYTES,
+  MAX_IMAGE_BYTES,
   MODEL_API_BASE_URL,
+  MODEL_API_MEDIA_PER_REQUEST,
   MODEL_API_MIN_OUTPUT_TOKENS,
+  MODEL_API_PDF_PAGE_IMAGES,
   MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS,
   MODEL_API_PRICES_PER_MILLION,
   MODEL_API_MODEL_PREFIX,
@@ -18,11 +22,7 @@ import {
 } from '../../../shared/constants'
 import type { ModelCapabilities } from '../../providers/capabilities'
 import type { ModelPricing, PricedUsage } from '../../providers/priceCard'
-import {
-  type AttachmentLimits,
-  attachmentLimitsForRecord,
-  metaCapabilityRecord,
-} from '../../providers/capabilityRecord'
+import type { ModelCapabilityRecord } from '../../providers/capabilityRecord'
 
 import { outputTokenMinimumMessage } from '../../../shared/providerRouting'
 import { effortLevelsFor, resolveReasoning } from '../../../shared/effort'
@@ -162,17 +162,61 @@ export function outputCapForRequest(
 }
 
 /**
+ * A10 (limits-output): per-request attachment limits read from a capability
+ * record. A limit the record states is confirmed; a missing one keeps today's
+ * enforcement value and is reported unconfirmed (the brief's fallback).
+ */
+export interface AttachmentLimits {
+  readonly imageMaxBytes: number
+  readonly imageMaxCount: number
+  readonly documentMaxBytes: number
+  readonly pdfMaxPages: number
+  readonly imageConfirmed: boolean
+  readonly documentConfirmed: boolean
+}
+export function attachmentLimitsForRecord(
+  record: ModelCapabilityRecord | undefined,
+): AttachmentLimits {
+  const imageValue =
+    record?.modalities.image.state === 'yes' ? record.modalities.image.value : undefined
+  const pdfValue = record?.modalities.pdf.state === 'yes' ? record.modalities.pdf.value : undefined
+  return {
+    imageMaxBytes: imageValue?.maxBytes ?? MAX_IMAGE_BYTES,
+    imageMaxCount: imageValue?.maxCount ?? MODEL_API_MEDIA_PER_REQUEST,
+    documentMaxBytes: pdfValue?.maxBytes ?? MAX_DOCUMENT_BYTES,
+    pdfMaxPages: pdfValue?.maxPages ?? MODEL_API_PDF_PAGE_IMAGES,
+    imageConfirmed: imageValue?.maxBytes !== undefined && imageValue.maxCount !== undefined,
+    documentConfirmed: pdfValue?.maxBytes !== undefined && pdfValue.maxPages !== undefined,
+  }
+}
+
+/**
+ * A10 (limits-output): the Meta record's per-request attachment limits.
+ * metaCapabilityRecord (providers/capabilityRecord.ts) is the source of
+ * truth: it builds these modalities from the same constants, and
+ * attachmentLimitsRecord.test.ts pins the two equal. They live here too so
+ * the request path does not bundle the record's zod machinery (D6).
+ */
+function metaAttachmentLimits(): AttachmentLimits {
+  return {
+    imageMaxBytes: MAX_IMAGE_BYTES,
+    imageMaxCount: MODEL_API_MEDIA_PER_REQUEST,
+    documentMaxBytes: MAX_DOCUMENT_BYTES,
+    pdfMaxPages: MODEL_API_PDF_PAGE_IMAGES,
+    imageConfirmed: true,
+    documentConfirmed: true,
+  }
+}
+
+/**
  * A10 (limits-output): per-request attachment limits for a model reference.
- * Meta models resolve their own capability record (confirmed); any other
+ * Meta models read their record's documented values (confirmed); any other
  * reference keeps today's enforcement values, reported unconfirmed.
  */
 export function attachmentLimitsForModel(model: string): AttachmentLimits {
   const producer = replayProducer(model)
   const isMeta = producer.provider === 'meta' && model.startsWith(MODEL_API_MODEL_PREFIX)
-  if (!isMeta) return attachmentLimitsForRecord(undefined)
-  const slash = model.indexOf('/')
-  const nativeModel = slash === -1 ? model : model.slice(slash + 1)
-  return attachmentLimitsForRecord(metaCapabilityRecord(nativeModel))
+  return isMeta ? metaAttachmentLimits() : attachmentLimitsForRecord(undefined)
 }
 
 /** Whether a turn cut short by the output limit continues on its own (B1). */
