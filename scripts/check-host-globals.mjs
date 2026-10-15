@@ -66,6 +66,7 @@ const HOST_BUNDLES = [
   'dist/agentImport.js',
   'dist/conversationGit.js',
   'dist/modelApiSessions.js',
+  'dist/rulesFile.js',
   'dist/bundledSkills.js',
   'dist/legalScan.js',
   'dist/codeIntel.js',

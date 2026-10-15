@@ -333,7 +333,8 @@ describe('registry visibility poll', () => {
   })
   it('warns loudly without failing on pending, and confirms visible', async () => {
     const summaryFile = path.join(fixture.directory, 'visibility-summary.md')
-    const log = vi.spyOn(console, 'log').mockImplementation(vi.fn())
+    // Call-through only: the lines print, and the test asserts on the calls.
+    const log = vi.spyOn(console, 'log')
     try {
       reportVisibility('npm', 'pending', { GITHUB_STEP_SUMMARY: summaryFile })
       expect(log).toHaveBeenCalledWith(

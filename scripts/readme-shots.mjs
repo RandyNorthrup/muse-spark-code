@@ -1,6 +1,6 @@
 // Refreshes the README's screenshots from the UI harness
 // (test/harness/index.html), one scenario per image as declared in
-// scripts/readme-shots.json. Each scenario opens like harness-shots does —
+// scripts/readme-shots.json. Each scenario opens like ui-look does —
 // served from the repository, waited on its real ready result — and is
 // captured at the entry's size.
 // Needs a Chrome install and a dev bundle (`npm run build:dev`).
