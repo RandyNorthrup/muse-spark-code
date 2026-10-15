@@ -35,6 +35,10 @@ function fence(authority: RecallAuthority) {
     judgeRetainedRecall(origin, authority)
 }
 
+function shellResult(stdout: string) {
+  return { stdout, stderr: '', exitCode: 0 as const, isTimedOut: false, isCancelled: false }
+}
+
 function kept(pack: ObservationPack, tool: string, origin?: RetainedOrigin) {
   return {
     keep: (fullText: string, name: string): string | undefined =>
@@ -107,13 +111,7 @@ describe('retained clipped outputs', () => {
 
   it('keeps an elided shell middle with a note that resumes at the elision', () => {
     const pack = new ObservationPack()
-    const result = {
-      stdout: `s${'x'.repeat(100_000)}e`,
-      stderr: '',
-      exitCode: 0 as const,
-      isTimedOut: false,
-      isCancelled: false,
-    }
+    const result = shellResult(`s${'x'.repeat(100_000)}e`)
     const outcome = shellOutcome(result, 120_000, TOOL_OUTPUT_MAX_CHARS, false, kept(pack, 'bash'))
     expect(outcome.output).toContain(TOOL_OUTPUT_ELIDED_MARKER)
     const id = /call recall_output with id "([^"]+)"/u.exec(outcome.output)?.[1]
@@ -131,13 +129,9 @@ describe('retained clipped outputs', () => {
 
   it('says a runner-dropped middle is not recoverable, with the way back', () => {
     const pack = new ObservationPack()
-    const result = {
-      stdout: `${'a'.repeat(40_000)}\n[12345 characters omitted]\n${'b'.repeat(40_000)}`,
-      stderr: '',
-      exitCode: 0 as const,
-      isTimedOut: false,
-      isCancelled: false,
-    }
+    const result = shellResult(
+      `${'a'.repeat(40_000)}\n[12345 characters omitted]\n${'b'.repeat(40_000)}`,
+    )
     const outcome = shellOutcome(result, 120_000, TOOL_OUTPUT_MAX_CHARS, false, kept(pack, 'bash'))
     expect(outcome.output).toContain(TOOL_OUTPUT_ELIDED_MARKER)
     expect(outcome.output).toContain('dropped the middle')

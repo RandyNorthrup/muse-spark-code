@@ -11,31 +11,27 @@ import { pdfFixture } from './helpers/pdfFixture'
 const record = metaCapabilityRecord('muse-spark-1.3')
 const slotCap = attachmentLimitsForRecord(record).imageMaxCount
 
+function fiftyOneImages() {
+  return Array.from(
+    { length: 51 },
+    () =>
+      ({
+        type: 'input_image',
+        image_url: 'data:image/png;base64,AQ==',
+        detail: 'auto',
+      }) as const,
+  )
+}
+
 describe('Model API replay media budget', () => {
   it('refuses overfull required media instead of fitting it as delivered history', () => {
-    const required = Array.from(
-      { length: 51 },
-      () =>
-        ({
-          type: 'input_image',
-          image_url: 'data:image/png;base64,AQ==',
-          detail: 'auto',
-        }) as const,
-    )
+    const required = fiftyOneImages()
     const input: readonly InputItem[] = [{ type: 'message', role: 'user', content: required }]
     expect(() => new MediaBudget().fit(input, record, required)).toThrow()
   })
 
   it('leaves an unknown slot count unenforced: 51 images fit with no record', () => {
-    const required = Array.from(
-      { length: 51 },
-      () =>
-        ({
-          type: 'input_image',
-          image_url: 'data:image/png;base64,AQ==',
-          detail: 'auto',
-        }) as const,
-    )
+    const required = fiftyOneImages()
     const input: readonly InputItem[] = [{ type: 'message', role: 'user', content: required }]
     const budget = new MediaBudget()
     expect(budget.fit(input)).toBe(input)

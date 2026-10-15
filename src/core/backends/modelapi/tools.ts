@@ -1168,12 +1168,122 @@ function isContinuationByte(byte: number | undefined): boolean {
 const UTF8_THREE_BYTE_LENGTH = 3
 const UTF8_FOUR_BYTE_LENGTH = 4
 
+/** One find/replace resolved to character offsets with its replacement. */
+interface EditMatch {
+  readonly start: number
+  readonly end: number
+  readonly replace: string
+}
+
+/**
+ * Every entry matched against the original text first (M101): overlaps are
+ * refused and one write applies all of them, so either all land or none
+ * does. `refuse` words the miss for the caller's scope: a whole-file edit
+ * names the file, a range edit names the window.
+ */
+async function matchSingles(
+  current: string,
+  isCrlf: boolean,
+  singles: readonly { readonly find: string; readonly replace: string }[],
+  signal: AbortSignal | undefined,
+  refuse: (index: number, kind: 'notFound' | 'ambiguous') => ToolOutcome,
+): Promise<{ readonly matches: readonly EditMatch[] } | { readonly outcome: ToolOutcome }> {
+  const ranges: EditMatch[] = []
+  for (const [index, entry] of singles.entries()) {
+    const find = isCrlf ? toLf(entry.find) : entry.find
+    const matched = await matchRange(current, find, signal)
+    if ('refusal' in matched) {
+      return { outcome: refuse(index, matched.refusal) }
+    }
+    ranges.push({
+      start: matched.start,
+      end: matched.end,
+      replace: isCrlf ? toLf(entry.replace) : entry.replace,
+    })
+  }
+  const ordered = ranges.toSorted((a, b) => a.start - b.start)
+  for (const [index, range] of ordered.entries()) {
+    const previous = ordered[index - 1]
+    if (previous !== undefined && range.start < previous.end) {
+      return { outcome: failure(MODEL_API_MODEL_TEXT.editOverlap, UI_TEXT.toolEditOverlap) }
+    }
+  }
+  return { matches: ordered }
+}
+
+/** The matched replacements applied to the text they were resolved against. */
+function applyMatches(current: string, matches: readonly EditMatch[]): string {
+  let updated = ''
+  let at = 0
+  for (const range of matches) {
+    updated += `${current.slice(at, range.start)}${range.replace}`
+    at = range.end
+  }
+  return updated + current.slice(at)
+}
+
 /**
  * A9 (limits-output): the window bytes a read and an edit of one range
  * agree on. The model's character budget caps what one call shows, so both
  * clamp the same way: the same arguments read and edit the same window, and
  * the note's advertised range is the edit's range.
  */
+/**
+ * A9 (limits-output): the offset and length a range read and a range edit
+ * parse from the same arguments, under the same range cap. `verb` finishes
+ * the over-cap note for the caller's direction.
+ */
+function windowRange(
+  args: { readonly byteOffset?: number; readonly byteLength?: number },
+  verb: string,
+): { readonly offset: number; readonly length: number } | { readonly refusal: ToolOutcome } {
+  const offset = Math.max(Math.floor(args.byteOffset ?? 0), 0)
+  const length = args.byteLength === undefined ? TOOL_OUTPUT_MAX_CHARS : Math.floor(args.byteLength)
+  if (!(length > 0)) {
+    return { refusal: failure('byteLength is a positive number of bytes') }
+  }
+  if (length > TOOL_FILE_RANGE_MAX_BYTES) {
+    return {
+      refusal: failure(
+        `byteLength holds at most ${String(TOOL_FILE_RANGE_MAX_BYTES)} bytes; ${verb}`,
+      ),
+    }
+  }
+  return { offset, length }
+}
+
+/** A9 (limits-output): the size a range read and a range edit share, or the not-found refusal. */
+function windowSize(
+  relative: string,
+  size: number | undefined,
+): { readonly size: number } | { readonly refusal: ToolOutcome } {
+  return size === undefined ? { refusal: failure(`file not found: ${relative}`) } : { size }
+}
+
+/**
+ * A9 (limits-output): the addressed window a range read and a range edit
+ * share: parsed arguments plus the file's size, or the first refusal.
+ */
+async function windowAddress(
+  args: { readonly byteOffset?: number; readonly byteLength?: number },
+  verb: string,
+  relative: string,
+  checkedAbsolute: string,
+  fileSize:
+    | ((absolutePath: string, expectedCanonicalPath: string) => Promise<number | undefined>)
+    | undefined,
+): Promise<
+  | { readonly offset: number; readonly length: number; readonly size: number }
+  | { readonly refusal: ToolOutcome }
+> {
+  const range = windowRange(args, verb)
+  if ('refusal' in range) {
+    return range
+  }
+  const sized = windowSize(relative, await fileSize?.(checkedAbsolute, checkedAbsolute))
+  return 'refusal' in sized ? sized : { ...range, ...sized }
+}
+
 function windowedLength(relative: string, offset: number, length: number, size: number): number {
   const longestHeader = `Read text file \`${relative}\` (bytes ${String(offset)}–${String(size)} of ${String(size)}):\n`
   const longestNote = `\n[bytes ${String(offset)}–${String(size)} of ${String(size)}; call read_file again with byteOffset ${String(size)} for the rest]`
@@ -1668,20 +1778,17 @@ async function readFileWindow(
       `${head.relative} needs byte addressing, which this host does not offer; read it whole instead`,
     )
   }
-  const offset = Math.max(Math.floor(args.byteOffset ?? 0), 0)
-  const length = args.byteLength === undefined ? TOOL_OUTPUT_MAX_CHARS : Math.floor(args.byteLength)
-  if (!(length > 0)) {
-    return failure('byteLength is a positive number of bytes')
+  const address = await windowAddress(
+    args,
+    'read the file window by window',
+    head.relative,
+    head.checkedAbsolute,
+    context.io.fileSize,
+  )
+  if ('refusal' in address) {
+    return address.refusal
   }
-  if (length > TOOL_FILE_RANGE_MAX_BYTES) {
-    return failure(
-      `byteLength holds at most ${String(TOOL_FILE_RANGE_MAX_BYTES)} bytes; read the file window by window`,
-    )
-  }
-  const size = await context.io.fileSize(head.checkedAbsolute, head.checkedAbsolute)
-  if (size === undefined) {
-    return failure(`file not found: ${head.relative}`)
-  }
+  const { offset, length, size } = address
   if (size === 0) {
     const empty = `Read text file \`${head.relative}\` (0 bytes): the file is empty.`
     return { output: empty, visibleOutput: empty }
@@ -2203,20 +2310,17 @@ async function editFileRange(
       `${head.relative} needs byte addressing, which this host does not offer; edit it whole instead`,
     )
   }
-  const offset = Math.max(Math.floor(args.byteOffset ?? 0), 0)
-  const length = args.byteLength === undefined ? TOOL_OUTPUT_MAX_CHARS : Math.floor(args.byteLength)
-  if (!(length > 0)) {
-    return failure('byteLength is a positive number of bytes')
+  const address = await windowAddress(
+    args,
+    'edit window by window',
+    head.relative,
+    head.checkedAbsolute,
+    context.io.fileSize,
+  )
+  if ('refusal' in address) {
+    return address.refusal
   }
-  if (length > TOOL_FILE_RANGE_MAX_BYTES) {
-    return failure(
-      `byteLength holds at most ${String(TOOL_FILE_RANGE_MAX_BYTES)} bytes; edit window by window`,
-    )
-  }
-  const size = await context.io.fileSize(head.checkedAbsolute, head.checkedAbsolute)
-  if (size === undefined) {
-    return failure(`file not found: ${head.relative}`)
-  }
+  const { offset, length, size } = address
   if (size > 0 && offset >= size) {
     return failure(
       `byteOffset ${String(offset)} is past the end of \`${head.relative}\` (${String(size)} bytes); use an offset from 0 to ${String(size - 1)}`,
@@ -2257,17 +2361,18 @@ async function editFileRange(
   // read advertised.
   const byteAt = (index: number): number =>
     Buffer.byteLength(fileText(current.slice(0, index), shape), 'utf8')
-  const ranges: { readonly start: number; readonly end: number; readonly replace: string }[] = []
-  for (const [index, entry] of singles.entries()) {
-    const find = shape.isCrlf ? toLf(entry.find) : entry.find
-    const matched = await matchRange(current, find, context.signal)
-    if ('refusal' in matched) {
+  // Window-scoped misses: only this window was searched, so the note names
+  // it, not the file. A match elsewhere is reached by reading its window,
+  // never by widening this one past its cap.
+  const scope = `bytes ${String(offset)}–${String(offset + clamped)} of \`${head.relative}\``
+  const resolved = await matchSingles(
+    current,
+    shape.isCrlf,
+    singles,
+    context.signal,
+    (index, kind) => {
       const prefix = hasEdits ? `edits[${String(index)}]: ` : ''
-      // Window-scoped: only this window was searched, so the note names
-      // it, not the file. A match elsewhere is reached by reading its
-      // window, never by widening this one past its cap.
-      const scope = `bytes ${String(offset)}–${String(offset + clamped)} of \`${head.relative}\``
-      return matched.refusal === 'notFound'
+      return kind === 'notFound'
         ? failure(
             `${prefix}find text not found in ${scope}; read the window that holds it and pass that range`,
             `${prefix}Find text was not found in this window; read the window that holds it and pass that range.`,
@@ -2276,24 +2381,18 @@ async function editFileRange(
             `${prefix}find text occurs more than once in ${scope}; include more context`,
             `${prefix}Find text occurs more than once in this window; include more context.`,
           )
-    }
-    if (byteAt(matched.start) < offset - first || byteAt(matched.end) > offset - first + clamped) {
+    },
+  )
+  if ('outcome' in resolved) {
+    return resolved.outcome
+  }
+  const ordered = resolved.matches
+  for (const [index, range] of ordered.entries()) {
+    if (byteAt(range.start) < offset - first || byteAt(range.end) > offset - first + clamped) {
       return failure(
         `edits[${String(index)}]: matched outside the read window (bytes ${String(offset)}–${String(offset + clamped)} of \`${head.relative}\`); read the window that holds it and pass that range`,
         `edits[${String(index)}]: matched outside the read window; read the window that holds it and pass that range`,
       )
-    }
-    ranges.push({
-      start: matched.start,
-      end: matched.end,
-      replace: shape.isCrlf ? toLf(entry.replace) : entry.replace,
-    })
-  }
-  const ordered = ranges.toSorted((a, b) => a.start - b.start)
-  for (const [index, range] of ordered.entries()) {
-    const previous = ordered[index - 1]
-    if (previous !== undefined && range.start < previous.end) {
-      return failure(MODEL_API_MODEL_TEXT.editOverlap, UI_TEXT.toolEditOverlap)
     }
   }
   const firstMatch = ordered.at(0)
@@ -2303,13 +2402,7 @@ async function editFileRange(
       `${head.relative} ${MODEL_API_MODEL_TEXT.fileChangedSinceRead}: read the byte window with read_file first, then edit_file with the same byteOffset and byteLength`,
     )
   }
-  let updated = ''
-  let at = 0
-  for (const range of ordered) {
-    updated += `${current.slice(at, range.start)}${range.replace}`
-    at = range.end
-  }
-  updated += current.slice(at)
+  const updated = applyMatches(current, ordered)
   // A range edit skips format on edit (M68): a formatter reads a whole
   // file, never a window, so running one over the slice would corrupt it.
   // Absolute file bytes of the matched span: only this span is replaced.
@@ -2429,46 +2522,26 @@ async function editFileWhole(
   // and the file gets its own BOM and line breaks back (D27).
   const shape = shapeOf(before)
   const current = modelText(before, shape)
-  // Every entry resolved against the original text first (M101): overlaps
-  // are refused and one write applies all of them, so either all land or
-  // none does.
-  const ranges: { readonly start: number; readonly end: number; readonly replace: string }[] = []
-  for (const [index, entry] of singles.entries()) {
-    const find = shape.isCrlf ? toLf(entry.find) : entry.find
-    const matched = await matchRange(current, find, context.signal)
-    if ('refusal' in matched) {
+  const resolved = await matchSingles(
+    current,
+    shape.isCrlf,
+    singles,
+    context.signal,
+    (index, kind) => {
       const prefix = hasEdits ? `edits[${String(index)}]: ` : ''
       const model =
-        matched.refusal === 'notFound'
-          ? MODEL_API_MODEL_TEXT.editNotFound
-          : MODEL_API_MODEL_TEXT.editAmbiguous
-      const visible =
-        matched.refusal === 'notFound' ? UI_TEXT.toolEditNotFound : UI_TEXT.toolEditAmbiguous
+        kind === 'notFound' ? MODEL_API_MODEL_TEXT.editNotFound : MODEL_API_MODEL_TEXT.editAmbiguous
+      const visible = kind === 'notFound' ? UI_TEXT.toolEditNotFound : UI_TEXT.toolEditAmbiguous
       return failure(
         `${prefix}${fill(model, { path: relative })}`,
         `${prefix}${fill(visible, { path: relative })}`,
       )
-    }
-    ranges.push({
-      start: matched.start,
-      end: matched.end,
-      replace: shape.isCrlf ? toLf(entry.replace) : entry.replace,
-    })
+    },
+  )
+  if ('outcome' in resolved) {
+    return resolved.outcome
   }
-  const ordered = ranges.toSorted((a, b) => a.start - b.start)
-  for (const [index, range] of ordered.entries()) {
-    const previous = ordered[index - 1]
-    if (previous !== undefined && range.start < previous.end) {
-      return failure(MODEL_API_MODEL_TEXT.editOverlap, UI_TEXT.toolEditOverlap)
-    }
-  }
-  let updated = ''
-  let at = 0
-  for (const range of ordered) {
-    updated += `${current.slice(at, range.start)}${range.replace}`
-    at = range.end
-  }
-  updated += current.slice(at)
+  const updated = applyMatches(current, resolved.matches)
   const after = fileText(updated, shape)
   const final = await publishText(file, after, context)
   return {
