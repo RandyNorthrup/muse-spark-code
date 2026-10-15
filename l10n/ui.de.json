@@ -2568,7 +2568,7 @@
   "autoCompactionAwaitingEvaluation": "Die automatische Komprimierung wartet auf die Auswertung und ist inaktiv.",
   "autoCompactionFailed": "Die automatische Komprimierung ist fehlgeschlagen; der ursprüngliche Kontext wird weiterverwendet.",
   "contextWindowFull": "Kontextfenster voll: /compact oder /handoff",
-  "sessionBudgetStopped": "Angehalten: Die nächste Anfrage (ca. {estimate}) würde das Sitzungsbudget von {cap} überschreiten ({spent} verbraucht). Sie wurde nicht gesendet.",
+  "sessionBudgetStopped": "Angehalten: Die nächste Anfrage (ca. {estimate}) würde das Sitzungsbudget von {cap} überschreiten ({spent} verbraucht). Sie wurde nicht gesendet. Um fortzufahren, erhöhen Sie das Sitzungsbudget in den Einstellungen (museSpark.modelApiSessionBudgetUsd) oder beginnen Sie eine neue Unterhaltung.",
   "sessionBudgetStoreUnavailable": "Das Ausgabenprotokoll der Sitzung konnte nicht gelesen oder gespeichert werden. Bis es verfügbar ist, kann keine neue Anfrage gesendet werden.",
   "sessionBudgetLegacyFeesUnknown": "Die Ausgaben der Unterhaltung sind nicht vollständig bestätigt. Warten Sie auf ausstehende Anfragen oder starten Sie eine neue Unterhaltung, um ein Ausgabenlimit zu verwenden.",
   "sessionBudgetSearchUnavailable": "Websuche ist bei einer endlichen Ausgabengrenze nicht verfügbar: Die abgerechnete Abfragezahl hat keine verifizierte Obergrenze. Normaler Chat und kostenloser Webseitenabruf bleiben verfügbar.",

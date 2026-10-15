@@ -28,16 +28,15 @@ import { BASE_LOCALE, fill, setUiText } from '../../src/shared/l10n/text'
 const MODEL = 'muse-spark-1.3'
 const CONTRIBUTOR = 'muse-spark-1.3-contributor'
 
-function priceCardCapFor(tokens: number): UsdAmount {
-  return Usd.from('1.25')
-    .times(1000)
-    .add(Usd.from('4.25').times(tokens))
-    .divide(TOKENS_PER_MILLION)
-    .toAmount()
-}
 // Standard output: $4.25 per million tokens.
 const STANDARD_OUTPUT_TOKEN_USD = 4.25 / 1_000_000
 const FLOAT_SLACK = 1e-12
+const minimumBase = (capUsd: UsdAmount) => ({
+  capUsd,
+  spentUsd: Usd.from(0).toAmount(),
+  estimatedInputTokens: 1000,
+  modelId: MODEL,
+})
 
 beforeEach(() => {
   setUiText(EN, BASE_LOCALE)
@@ -115,7 +114,11 @@ describe('calibrated media budget parts', () => {
 })
 
 describe('reserveRequest', () => {
-  it('admits one output token when search and input consume the exact remaining allowance', () => {
+  // Lane LIMITSA, D113: real spend is compared after each response; nothing
+  // reserves the output worst case up front. These tests pin the new
+  // contract on purpose: the old ones asserted the worst-case reservation
+  // the lane removes.
+  it('holds input plus search and keeps the whole output allowance', () => {
     const reservation = reserveRequest({
       capUsd: Usd.from(0.0025055).toAmount(),
       spentUsd: Usd.from(0).toAmount(),
@@ -124,10 +127,10 @@ describe('reserveRequest', () => {
       maxToolCalls: 1,
       searchPriceUsd: Usd.from(0.0025).toAmount(),
     })
-    expect(reservation.maxOutputTokens).toBe(1)
-    expect(reservation.costUsd).toBe(Usd.from('0.0025055').toAmount())
+    expect(reservation.maxOutputTokens).toBe(MODEL_API_MAX_OUTPUT_TOKENS)
+    expect(reservation.costUsd).toBe(Usd.from('0.00250125').toAmount())
   })
-  it('holds the search bound times its price before allocating output tokens', () => {
+  it('holds the input estimate and the search allowance, never the output', () => {
     const reservation = reserveRequest({
       capUsd: Usd.from(0.14).toAmount(),
       spentUsd: Usd.from(0).toAmount(),
@@ -136,12 +139,8 @@ describe('reserveRequest', () => {
       maxToolCalls: 5,
       searchPriceUsd: Usd.from(0.0025).toAmount(),
     })
-    expect(reservation.maxOutputTokens).toBe(588)
-    expect(Number(reservation.costUsd)).toBeCloseTo(
-      0.125 + 588 * STANDARD_OUTPUT_TOKEN_USD + 0.0125,
-      12,
-    )
-    expect(Number(reservation.costUsd)).toBeLessThanOrEqual(0.14 + FLOAT_SLACK)
+    expect(reservation.maxOutputTokens).toBe(MODEL_API_MAX_OUTPUT_TOKENS)
+    expect(reservation.costUsd).toBe(Usd.from('0.1375').toAmount())
   })
 
   it.each([0, -1, 21, 1.5, NaN, Infinity])(
@@ -179,21 +178,22 @@ describe('reserveRequest', () => {
     },
   )
 
-  it('refuses search when its allowance leaves no room for a reply', () => {
-    expect(() =>
-      reserveRequest({
-        capUsd: Usd.from(0.0125).toAmount(),
-        spentUsd: Usd.from(0).toAmount(),
-        estimatedInputTokens: 0,
-        modelId: MODEL,
-        maxToolCalls: 5,
-        searchPriceUsd: Usd.from(0.0025).toAmount(),
-      }),
-    ).toThrow(SessionBudgetExceededError)
+  it('admits when input plus search exactly fit, settling the output later', () => {
+    const reservation = reserveRequest({
+      capUsd: Usd.from(0.0125).toAmount(),
+      spentUsd: Usd.from(0).toAmount(),
+      estimatedInputTokens: 0,
+      modelId: MODEL,
+      maxToolCalls: 5,
+      searchPriceUsd: Usd.from(0.0025).toAmount(),
+    })
+    expect(reservation.maxOutputTokens).toBe(MODEL_API_MAX_OUTPUT_TOKENS)
+    expect(reservation.costUsd).toBe(Usd.from('0.0125').toAmount())
   })
 
-  it('keeps exactly one output token affordable after decimal cap subtraction', () => {
-    // $0.30 - $0.20 is exactly $0.10: the remaining $0.0000002 buys one token.
+  it('holds a large input estimate alone, keeping the whole output allowance', () => {
+    // $0.30 - $0.20 is exactly $0.10, and 999,998 contributor input tokens
+    // cost $0.0999998 at $0.10/M: the input fits, so the request runs.
     const request = {
       capUsd: Usd.from(0.3).toAmount(),
       spentUsd: Usd.from(0.2).toAmount(),
@@ -201,24 +201,38 @@ describe('reserveRequest', () => {
       modelId: CONTRIBUTOR,
     }
     const reservation = reserveRequest(request)
-    expect(reservation.maxOutputTokens).toBe(1)
-    expect(reservation.costUsd).toBe(Usd.from(0.1).toAmount())
+    expect(reservation.maxOutputTokens).toBe(MODEL_API_MAX_OUTPUT_TOKENS)
+    expect(reservation.costUsd).toBe(Usd.from('0.0999998').toAmount())
   })
 
-  it('lowers max_output_tokens so input plus output at list price fits what is left', () => {
-    // Input $0.125 (100k × $1.25/M); $0.005 left pays 1,176 output tokens at $4.25/M.
+  it('never lowers max_output_tokens to fit what is left', () => {
+    // Input $0.125 (100k × $1.25/M) against $0.13: the old code sent 1,176
+    // output tokens; now the request keeps its whole allowance.
     const reservation = reserveRequest({
       capUsd: Usd.from(0.13).toAmount(),
       spentUsd: Usd.from(0).toAmount(),
       estimatedInputTokens: 100_000,
       modelId: MODEL,
     })
-    expect(reservation.maxOutputTokens).toBe(1176)
-    expect(Number(reservation.costUsd)).toBeCloseTo(0.125 + 1176 * STANDARD_OUTPUT_TOKEN_USD, 12)
-    expect(Number(reservation.costUsd)).toBeLessThanOrEqual(0.13 + FLOAT_SLACK)
+    expect(reservation.maxOutputTokens).toBe(MODEL_API_MAX_OUTPUT_TOKENS)
+    expect(reservation.costUsd).toBe(Usd.from('0.125').toAmount())
   })
 
-  it('keeps the usual maximum when the cap has room for it', () => {
+  it('sends a full-size request while real spend is still under the cap', () => {
+    // The 2026-10-14 incident: $2.03 spent of a $5 session cap, a request
+    // whose worst case was about $3.03. Real spend is under the cap and the
+    // input fits, so the request runs; the response settles afterwards.
+    const reservation = reserveRequest({
+      capUsd: Usd.from(5).toAmount(),
+      spentUsd: Usd.from(2.03).toAmount(),
+      estimatedInputTokens: 1000,
+      modelId: MODEL,
+    })
+    expect(reservation.maxOutputTokens).toBe(MODEL_API_MAX_OUTPUT_TOKENS)
+    expect(reservation.costUsd).toBe(Usd.from('0.00125').toAmount())
+  })
+
+  it('keeps the usual maximum and holds the input alone', () => {
     const reservation = reserveRequest({
       capUsd: Usd.from(1).toAmount(),
       spentUsd: Usd.from(0.2).toAmount(),
@@ -226,13 +240,10 @@ describe('reserveRequest', () => {
       modelId: MODEL,
     })
     expect(reservation.maxOutputTokens).toBe(MODEL_API_MAX_OUTPUT_TOKENS)
-    expect(Number(reservation.costUsd)).toBeCloseTo(
-      0.125 + MODEL_API_MAX_OUTPUT_TOKENS * STANDARD_OUTPUT_TOKEN_USD,
-      12,
-    )
+    expect(reservation.costUsd).toBe(Usd.from('0.125').toAmount())
   })
 
-  it('clamps the selected model cap to affordable tokens without enlarging smaller caps', () => {
+  it('keeps the caller’s own cap, large or small, without lowering it', () => {
     for (const maxOutputTokens of [1, 4096, 131_072]) {
       const reservation = reserveRequest({
         capUsd: Usd.from(1).toAmount(),
@@ -243,6 +254,7 @@ describe('reserveRequest', () => {
       })
       expect(reservation.maxOutputTokens).toBe(maxOutputTokens)
     }
+    // A caller cap the old code would have lowered to 25,000 stays whole.
     expect(
       reserveRequest({
         capUsd: Usd.from(0.01).toAmount(),
@@ -251,7 +263,7 @@ describe('reserveRequest', () => {
         modelId: CONTRIBUTOR,
         maxOutputTokens: 131_072,
       }).maxOutputTokens,
-    ).toBe(25_000)
+    ).toBe(131_072)
     for (const maxOutputTokens of [0, -1, 1.5, Infinity, NaN]) {
       expect(() =>
         reserveRequest({
@@ -265,31 +277,31 @@ describe('reserveRequest', () => {
     }
   })
 
-  it('prices a contributor model at its own tier', () => {
-    // $0.10/M in: 50k is $0.005; the other $0.005 pays 25,000 at $0.20/M.
-    expect(
-      reserveRequest({
-        capUsd: Usd.from(0.01).toAmount(),
-        spentUsd: Usd.from(0).toAmount(),
-        estimatedInputTokens: 50_000,
-        modelId: CONTRIBUTOR,
-      }).maxOutputTokens,
-    ).toBe(25_000)
+  it('prices a contributor model at its own tier and still sends whole', () => {
+    // $0.10/M in: 50k is $0.005, held alone against the $0.01 cap.
+    const reservation = reserveRequest({
+      capUsd: Usd.from(0.01).toAmount(),
+      spentUsd: Usd.from(0).toAmount(),
+      estimatedInputTokens: 50_000,
+      modelId: CONTRIBUTOR,
+    })
+    expect(reservation.maxOutputTokens).toBe(MODEL_API_MAX_OUTPUT_TOKENS)
+    expect(reservation.costUsd).toBe(Usd.from('0.005').toAmount())
   })
 
-  it('sends a request that has room for a single output token', () => {
-    // $0.00125 of input, and one and a half output tokens' worth left.
+  it('sends a request whose input fits, however little is left over it', () => {
+    // $0.00125 of input against barely more: the output settles later.
     const reservation = reserveRequest({
       capUsd: Usd.from(0.00125 + 1.5 * STANDARD_OUTPUT_TOKEN_USD).toAmount(),
       spentUsd: Usd.from(0).toAmount(),
       estimatedInputTokens: 1000,
       modelId: MODEL,
     })
-    expect(reservation.maxOutputTokens).toBe(1)
+    expect(reservation.maxOutputTokens).toBe(MODEL_API_MAX_OUTPUT_TOKENS)
   })
 
-  it('refuses a request with no room for one output token, and says why', () => {
-    const capUsd = 0.00125 + 0.9 * STANDARD_OUTPUT_TOKEN_USD
+  it('refuses only when the input alone exceeds what is left, and says why', () => {
+    const capUsd = 0.001
     const refuse = () =>
       reserveRequest({
         capUsd: Usd.from(capUsd).toAmount(),
@@ -305,17 +317,21 @@ describe('reserveRequest', () => {
         spent: formatUsd(0),
       }),
     )
+    expect(refuse).toThrow('museSpark.modelApiSessionBudgetUsd')
   })
 
-  it('refuses once the spend has reached the cap, whatever the request', () => {
-    expect(() =>
+  it('refuses once real spend has passed the cap, whatever the request', () => {
+    // Spend exactly at the cap with nothing new held still runs: the cap is
+    // compared against real spend after each response, and nothing here is
+    // over it yet.
+    expect(
       reserveRequest({
         capUsd: Usd.from(1).toAmount(),
         spentUsd: Usd.from(1).toAmount(),
         estimatedInputTokens: 0,
         modelId: MODEL,
-      }),
-    ).toThrow(SessionBudgetExceededError)
+      }).maxOutputTokens,
+    ).toBe(MODEL_API_MAX_OUTPUT_TOKENS)
     expect(() =>
       reserveRequest({
         capUsd: Usd.from(1).toAmount(),
@@ -364,55 +380,36 @@ describe('reserveRequest', () => {
     }
   })
 
-  // Meta rejects max_output_tokens below 16 (lead live capture 2026-10-10):
-  // a budget that cannot fit the provider minimum refuses with the budget
-  // message instead of sending a request the provider rejects.
+  // Lane LIMITSA, D113: the provider minimum is validated but never gates
+  // sending: the request keeps its own allowance (always at least the
+  // provider minimum in practice), so the budget cannot refuse on the
+  // minimum's behalf.
   describe('provider minimum output tokens', () => {
-    const inputCost = Usd.from('0.00125')
-    const outputPrice = Usd.from('4.25').divide(TOKENS_PER_MILLION)
-    const capFor = (tokens: number): UsdAmount =>
-      inputCost.add(outputPrice.times(tokens)).toAmount()
-    const base = (capUsd: UsdAmount) => ({
-      capUsd,
-      spentUsd: Usd.from(0).toAmount(),
-      estimatedInputTokens: 1000,
-      modelId: MODEL,
+    it('sends with its own allowance when the input fits, whatever the minimum', () => {
+      const reservation = reserveRequest({
+        ...minimumBase(Usd.from('0.002').toAmount()),
+        minOutputTokens: 16,
+      })
+      expect(reservation.maxOutputTokens).toBe(MODEL_API_MAX_OUTPUT_TOKENS)
+      expect(reservation.costUsd).toBe(Usd.from('0.00125').toAmount())
     })
 
-    it('refuses a budget that affords 15 tokens when the minimum is 16, and says why', () => {
-      const capUsd = capFor(15)
-      const refuse = () => reserveRequest({ ...base(capUsd), minOutputTokens: 16 })
-      expect(refuse).toThrow(SessionBudgetExceededError)
-      expect(refuse).toThrow(
-        fill(UI_TEXT.sessionBudgetStopped, {
-          estimate: formatUsd(inputCost.toAmount()),
-          cap: formatUsd(capUsd),
-          spent: formatUsd(0),
-        }),
+    it('sends with its own allowance when no minimum was captured', () => {
+      expect(reserveRequest(minimumBase(Usd.from('0.002').toAmount())).maxOutputTokens).toBe(
+        MODEL_API_MAX_OUTPUT_TOKENS,
       )
-    })
-
-    it('sends 16 when the provider minimum exactly fits, without rounding up', () => {
-      const capUsd = capFor(16)
-      const reservation = reserveRequest({ ...base(capUsd), minOutputTokens: 16 })
-      expect(reservation.maxOutputTokens).toBe(16)
-      expect(reservation.costUsd).toBe(capUsd)
-    })
-
-    it('still sends 1 for a provider with no captured minimum', () => {
-      expect(reserveRequest(base(capFor(1))).maxOutputTokens).toBe(1)
     })
 
     it('refuses an invalid provider minimum without sending', () => {
       for (const minOutputTokens of [0, -1, 1.5, NaN, Infinity]) {
-        expect(() => reserveRequest({ ...base(capFor(16)), minOutputTokens })).toThrow(
-          'invalid output.minTokens',
-        )
+        expect(() =>
+          reserveRequest({ ...minimumBase(Usd.from('0.002').toAmount()), minOutputTokens }),
+        ).toThrow('invalid output.minTokens')
       }
     })
   })
 
-  describe('price-card provider minimum output tokens', () => {
+  describe('price-card provider input hold', () => {
     const price: ModelPricePolicy = {
       reserve: (usage) =>
         Usd.from('1.25')
@@ -432,25 +429,18 @@ describe('reserveRequest', () => {
         minOutputTokens,
       })
 
-    it('refuses 15 affordable tokens against a minimum of 16 without sending', () => {
-      const capUsd = priceCardCapFor(15)
-      const refuse = () => priced(capUsd, 16)
-      expect(refuse).toThrow(SessionBudgetExceededError)
-      expect(refuse).toThrow(
-        fill(UI_TEXT.sessionBudgetStopped, {
-          estimate: formatUsd('0.00125'),
-          cap: formatUsd(capUsd),
-          spent: formatUsd(0),
-        }),
-      )
+    it('holds the input alone and keeps the whole allowance', () => {
+      const reservation = priced(Usd.from('0.002').toAmount(), 16)
+      expect(reservation.maxOutputTokens).toBe(MODEL_API_MAX_OUTPUT_TOKENS)
+      expect(reservation.costUsd).toBe(Usd.from('0.00125').toAmount())
     })
 
-    it('sends 16 when the minimum exactly fits', () => {
-      expect(priced(priceCardCapFor(16), 16).maxOutputTokens).toBe(16)
+    it('refuses only when the input alone exceeds what is left', () => {
+      expect(() => priced(Usd.from('0.001').toAmount(), 16)).toThrow(SessionBudgetExceededError)
     })
 
-    it('still sends 1 when no minimum was captured', () => {
-      expect(priced(priceCardCapFor(1)).maxOutputTokens).toBe(1)
+    it('sends with its own allowance when no minimum was captured', () => {
+      expect(priced(Usd.from('0.002').toAmount()).maxOutputTokens).toBe(MODEL_API_MAX_OUTPUT_TOKENS)
     })
   })
 })

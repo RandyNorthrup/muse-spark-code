@@ -256,10 +256,14 @@ export function createPaidDailyBudget(deps: {
           body.max_output_tokens < 0
         )
           throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
+        // Lane LIMITSA (D113): the shared daily extras budget counts real
+        // spend, not a worst-case reservation. Only the input estimate is
+        // held up front; the response's real cost settles afterwards, so a
+        // cap can be passed by at most that one response.
         costUsd = estimateCostUsd(
           {
             inputTokens: estimatedInputTokens,
-            outputTokens: body.max_output_tokens,
+            outputTokens: 0,
             cachedTokens: 0,
           },
           body.model,

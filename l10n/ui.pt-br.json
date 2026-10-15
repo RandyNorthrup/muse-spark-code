@@ -2624,7 +2624,7 @@
   "autoCompactionAwaitingEvaluation": "A compactação automática aguarda avaliação e está inativa.",
   "autoCompactionFailed": "A compactação automática falhou; continuando com o contexto original.",
   "contextWindowFull": "Janela de contexto cheia: /compact ou /handoff",
-  "sessionBudgetStopped": "Interrompido: a próxima solicitação (cerca de {estimate}) ultrapassaria o orçamento de sessão de {cap} ({spent} usados). Ela não foi enviada.",
+  "sessionBudgetStopped": "Interrompido: a próxima solicitação (cerca de {estimate}) ultrapassaria o orçamento de sessão de {cap} ({spent} usados). Ela não foi enviada. Para continuar, aumente o orçamento de sessão em Configurações (museSpark.modelApiSessionBudgetUsd) ou inicie uma nova conversa.",
   "sessionBudgetStoreUnavailable": "Não foi possível ler ou salvar o registro de gastos da sessão. Nenhuma nova solicitação pode ser enviada até que ele esteja disponível.",
   "sessionBudgetLegacyFeesUnknown": "Os gastos da conversa não foram totalmente verificados. Aguarde as solicitações pendentes terminarem ou inicie uma nova conversa para usar um limite de gastos.",
   "sessionBudgetSearchUnavailable": "A busca web fica indisponível com um limite de gastos finito: o número de consultas cobradas não tem um máximo verificado. O chat comum e a leitura gratuita de páginas web continuam disponíveis.",

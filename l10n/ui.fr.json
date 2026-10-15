@@ -2624,7 +2624,7 @@
   "autoCompactionAwaitingEvaluation": "La compaction automatique attend son évaluation et reste inactive.",
   "autoCompactionFailed": "La compaction automatique a échoué ; poursuite avec le contexte initial.",
   "contextWindowFull": "Fenêtre de contexte pleine : /compact ou /handoff",
-  "sessionBudgetStopped": "Arrêté : la prochaine requête (environ {estimate}) dépasserait le budget de session de {cap} ({spent} utilisés). Elle n’a pas été envoyée.",
+  "sessionBudgetStopped": "Arrêté : la prochaine requête (environ {estimate}) dépasserait le budget de session de {cap} ({spent} utilisés). Elle n’a pas été envoyée. Pour continuer, augmentez le budget de session dans les Paramètres (museSpark.modelApiSessionBudgetUsd) ou démarrez une nouvelle conversation.",
   "sessionBudgetStoreUnavailable": "Le registre des dépenses de la session n’a pas pu être lu ou enregistré. Aucune nouvelle requête ne peut être envoyée tant qu’il n’est pas disponible.",
   "sessionBudgetLegacyFeesUnknown": "Les dépenses de la conversation ne sont pas entièrement vérifiées. Attendez la fin des requêtes en cours ou démarrez une nouvelle conversation pour utiliser un plafond de dépenses.",
   "sessionBudgetSearchUnavailable": "La recherche web est indisponible avec un plafond de dépense fini : le nombre de requêtes facturées n’a pas de limite vérifiée. Le chat ordinaire et la lecture gratuite de pages web restent disponibles.",

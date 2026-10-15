@@ -2680,7 +2680,7 @@
   "autoCompactionAwaitingEvaluation": "Automatické zhuštění čeká na vyhodnocení a není aktivní.",
   "autoCompactionFailed": "Automatické zhuštění selhalo; pokračuje se s původním kontextem.",
   "contextWindowFull": "Kontextové okno je plné: /compact nebo /handoff",
-  "sessionBudgetStopped": "Zastaveno: další požadavek (asi {estimate}) by překročil rozpočet relace {cap} (využito {spent}). Nebyl odeslán.",
+  "sessionBudgetStopped": "Zastaveno: další požadavek (asi {estimate}) by překročil rozpočet relace {cap} (využito {spent}). Nebyl odeslán. Pokračujte zvýšením rozpočtu relace v Nastavení (museSpark.modelApiSessionBudgetUsd) nebo začněte novou konverzaci.",
   "sessionBudgetStoreUnavailable": "Záznam výdajů relace nelze přečíst nebo uložit. Dokud nebude dostupný, nelze odeslat nový požadavek.",
   "sessionBudgetLegacyFeesUnknown": "Výdaje konverzace nejsou plně ověřeny. Počkejte na dokončení čekajících požadavků, nebo začněte novou konverzaci pro použití limitu výdajů.",
   "sessionBudgetSearchUnavailable": "Webové vyhledávání není dostupné s konečným limitem útraty: účtovaný počet dotazů nemá ověřený strop. Běžný chat a bezplatné načítání webových stránek zůstávají dostupné.",

@@ -2512,7 +2512,7 @@
   "autoCompactionAwaitingEvaluation": "자동 압축은 평가를 기다리고 있으며 비활성 상태입니다.",
   "autoCompactionFailed": "자동 압축에 실패했습니다. 원래 컨텍스트로 계속 진행합니다.",
   "contextWindowFull": "컨텍스트 창이 가득 찼습니다: /compact 또는 /handoff",
-  "sessionBudgetStopped": "중지됨: 다음 요청(약 {estimate})이 세션 예산 {cap}을(를) 초과합니다(사용 {spent}). 전송되지 않았습니다.",
+  "sessionBudgetStopped": "중지됨: 다음 요청(약 {estimate})이 세션 예산 {cap}을(를) 초과합니다(사용 {spent}). 전송되지 않았습니다. 계속하려면 설정에서 세션 예산을 높이거나(museSpark.modelApiSessionBudgetUsd) 새 대화를 시작하세요.",
   "sessionBudgetStoreUnavailable": "세션 지출 기록을 읽거나 저장할 수 없습니다. 기록을 사용할 수 있을 때까지 새 요청을 전송할 수 없습니다.",
   "sessionBudgetLegacyFeesUnknown": "대화의 지출이 완전히 검증되지 않았습니다. 대기 중인 요청이 끝날 때까지 기다리거나 지출 한도를 사용하려면 새 대화를 시작하세요.",
   "sessionBudgetSearchUnavailable": "유한한 지출 한도에서는 웹 검색을 사용할 수 없습니다. 청구되는 쿼리 수에 검증된 상한이 없습니다. 일반 채팅과 무료 웹 페이지 가져오기는 계속 사용할 수 있습니다.",

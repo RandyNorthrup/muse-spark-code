@@ -3094,10 +3094,12 @@ export const EN = {
   autoCompactionAwaitingEvaluation: 'Automatic compaction is awaiting evaluation and is inactive.',
   autoCompactionFailed: 'Automatic compaction failed; continuing with the original context.',
   contextWindowFull: 'Context window full: /compact or /handoff',
-  // The Model API session budget (M82): a request that cannot fit is not
-  // sent, and the turn's cost is shown against the cap afterwards.
+  // The Model API session budget (M82; lane LIMITSA, D113): real spend is
+  // compared after each response, so a request runs unless its input alone
+  // exceeds what is left or spend has passed the cap. The stop names the
+  // spend, the cap and how to raise it.
   sessionBudgetStopped:
-    'Stopped: the next request (about {estimate}) would pass the session budget of {cap} ({spent} used). It was not sent.',
+    'Stopped: the next request (about {estimate}) would pass the session budget of {cap} ({spent} used). It was not sent. To continue, raise the session budget in Settings (museSpark.modelApiSessionBudgetUsd) or start a new conversation.',
   sessionBudgetStoreUnavailable:
     'The session spend ledger could not be read or saved. No new request can be sent until it is available.',
   sessionBudgetLegacyFeesUnknown:

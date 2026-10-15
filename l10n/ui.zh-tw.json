@@ -2512,7 +2512,7 @@
   "autoCompactionAwaitingEvaluation": "自動壓縮正在等待評估，目前未啟用。",
   "autoCompactionFailed": "自動壓縮失敗；繼續使用原始上下文。",
   "contextWindowFull": "上下文視窗已滿：/compact 或 /handoff",
-  "sessionBudgetStopped": "已停止：下一個要求（約 {estimate}）將超出階段預算 {cap}（已使用 {spent}）。該要求未傳送。",
+  "sessionBudgetStopped": "已停止：下一個要求（約 {estimate}）將超出階段預算 {cap}（已使用 {spent}）。該要求未傳送。 若要繼續，請在「設定」中提高階段預算 (museSpark.modelApiSessionBudgetUsd)，或開始新的交談。",
   "sessionBudgetStoreUnavailable": "無法讀取或儲存階段支出記錄。在記錄可用之前，無法傳送新要求。",
   "sessionBudgetLegacyFeesUnknown": "對話支出尚未完全驗證。請等待待處理要求完成，或開始新對話以使用支出上限。",
   "sessionBudgetSearchUnavailable": "有限支出上限下無法使用網頁搜尋：計費查詢數量沒有經過驗證的上限。一般聊天與免費網頁讀取仍可使用。",

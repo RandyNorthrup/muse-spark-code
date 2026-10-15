@@ -2680,7 +2680,7 @@
   "autoCompactionAwaitingEvaluation": "Automatyczna kompakcja oczekuje na ocenę i jest nieaktywna.",
   "autoCompactionFailed": "Automatyczna kompakcja nie powiodła się; kontynuowanie z pierwotnym kontekstem.",
   "contextWindowFull": "Okno kontekstu jest pełne: /compact lub /handoff",
-  "sessionBudgetStopped": "Zatrzymano: następne żądanie (ok. {estimate}) przekroczyłoby budżet sesji {cap} (wykorzystano {spent}). Nie zostało wysłane.",
+  "sessionBudgetStopped": "Zatrzymano: następne żądanie (ok. {estimate}) przekroczyłoby budżet sesji {cap} (wykorzystano {spent}). Nie zostało wysłane. Aby kontynuować, zwiększ budżet sesji w Ustawieniach (museSpark.modelApiSessionBudgetUsd) lub rozpocznij nową rozmowę.",
   "sessionBudgetStoreUnavailable": "Nie można odczytać ani zapisać rejestru wydatków sesji. Do czasu jego udostępnienia nie można wysłać nowego żądania.",
   "sessionBudgetLegacyFeesUnknown": "Wydatki rozmowy nie są w pełni zweryfikowane. Poczekaj na zakończenie oczekujących żądań lub rozpocznij nową rozmowę, aby korzystać z limitu wydatków.",
   "sessionBudgetSearchUnavailable": "Wyszukiwanie w sieci jest niedostępne przy skończonym limicie wydatków: liczba rozliczanych zapytań nie ma zweryfikowanej granicy. Zwykły czat i bezpłatny odczyt stron internetowych pozostają dostępne.",

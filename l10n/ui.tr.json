@@ -2568,7 +2568,7 @@
   "autoCompactionAwaitingEvaluation": "Otomatik sıkıştırma değerlendirme bekliyor ve etkin değil.",
   "autoCompactionFailed": "Otomatik sıkıştırma başarısız oldu; özgün bağlamla devam ediliyor.",
   "contextWindowFull": "Bağlam penceresi dolu: /compact veya /handoff",
-  "sessionBudgetStopped": "Durduruldu: sonraki istek (yaklaşık {estimate}), {cap} tutarındaki oturum bütçesini aşardı (kullanılan {spent}). Gönderilmedi.",
+  "sessionBudgetStopped": "Durduruldu: sonraki istek (yaklaşık {estimate}), {cap} tutarındaki oturum bütçesini aşardı (kullanılan {spent}). Gönderilmedi. Devam etmek için Ayarlar’da oturum bütçesini yükseltin (museSpark.modelApiSessionBudgetUsd) veya yeni bir görüşme başlatın.",
   "sessionBudgetStoreUnavailable": "Oturum harcama kaydı okunamadı veya kaydedilemedi. Kayıt kullanılabilir olana kadar yeni bir istek gönderilemez.",
   "sessionBudgetLegacyFeesUnknown": "Konuşmanın harcamaları tam olarak doğrulanmadı. Bekleyen isteklerin bitmesini bekleyin veya harcama sınırı kullanmak için yeni bir konuşma başlatın.",
   "sessionBudgetSearchUnavailable": "Sonlu harcama sınırıyla web araması kullanılamaz: ücretlendirilen sorgu sayısının doğrulanmış bir üst sınırı yoktur. Normal sohbet ve ücretsiz web sayfası getirme kullanılabilir kalır.",

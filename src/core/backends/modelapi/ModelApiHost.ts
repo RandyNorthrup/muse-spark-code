@@ -187,7 +187,7 @@ import {
   CODEC_IMAGE_WITHOUT_VISION,
   TEAM_TOOL_NAMES,
 } from '../../../shared/constants'
-import { fill, formatNumber, numberFormat, plural, uiLocale } from '../../../shared/l10n/text'
+import { fill, numberFormat, plural, uiLocale } from '../../../shared/l10n/text'
 import type { UnattendedRun, ScheduledAgentSession } from '../../schedules/unattended'
 import { SessionOwner, type SessionToken } from '../../schedules/sessionOwner'
 import {
@@ -3851,14 +3851,15 @@ export class ModelApiSession implements ScheduledAgentSession {
   }
 
   /**
-   * The body as the session budget lets it be sent (M82): with a cap, its
-   * input estimated high from the last reported request and
-   * `max_output_tokens` lowered so input plus output at list price fits
-   * what is left, the reservation held open until the response reports.
-   * Throws `SessionBudgetExceededError` when it cannot fit: it is not sent,
-   * and the turn stops with the reason. Child tokens are counted when
-   * reported, but their separately consented requests are not reserved
-   * against the parent's cap (M82 owner decision).
+   * The body as the session budget lets it be sent (M82; real-spend
+   * accounting lane LIMITSA, D113): with a cap, its input estimated high
+   * from the last reported request, the estimate alone held up front, the
+   * request keeping its own `max_output_tokens`, the response's real cost
+   * settling afterwards. Throws `SessionBudgetExceededError` when the
+   * input alone exceeds what is left, or when real spend has passed the
+   * cap: it is not sent, and the turn stops with the reason. Child tokens
+   * are counted when reported, but their separately consented requests are
+   * not reserved against the parent's cap (M82 owner decision).
    */
   private budgeted(body: CreateResponseBody, selected: ResolvedModel): CreateResponseBody {
     const searchBound = this.webSearchBound()
@@ -3938,9 +3939,9 @@ export class ModelApiSession implements ScheduledAgentSession {
       isSent: false,
       isRefused: false,
     }
-    return Usd.from(capUsd).compare(Usd.from(0)) > 0
-      ? { ...body, max_output_tokens: reservation.maxOutputTokens }
-      : body
+    // Lane LIMITSA (D113): the budget never lowers `max_output_tokens`;
+    // the reservation holds the input estimate alone (see sessionBudget.ts).
+    return body
   }
 
   /**
@@ -3985,7 +3986,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     const reservation = this.openReservation
     if (reservation?.hasCap === true) {
       this.deps.log.info(
-        `Session budget: request reserved for ${String(reservation.estimatedInputTokens)} input and ${String(reservation.maxOutputTokens)} output tokens`,
+        `Session budget: request reserved for ${String(reservation.estimatedInputTokens)} input tokens`,
       )
     }
     return reservation
@@ -5478,8 +5479,9 @@ export class ModelApiSession implements ScheduledAgentSession {
    * The request in flight reported its usage (M82): its reservation closes,
    * and it becomes the base the next estimate starts from. A request sent
    * without a reservation (no cap) leaves no base, so a cap set later
-   * estimates the whole of its first request. An output that used every
-   * token the budget allowed may be cut short, and the transcript says so.
+   * estimates the whole of its first request. Lane LIMITSA (D113): the
+   * request always keeps its own `max_output_tokens`, so the budget never
+   * cuts an answer short and the budget-lowered notice below is gone.
    */
   private settleReservation(usage: Usage): void {
     const reservation = this.openReservation
@@ -5491,19 +5493,6 @@ export class ModelApiSession implements ScheduledAgentSession {
       reservation.modelRevision === this.modelRevision
         ? { inputTokens: usage.input_tokens, parts: reservation.parts }
         : undefined
-    if (
-      reservation?.hasCap === true &&
-      reservation.maxOutputTokens < MODEL_API_MAX_OUTPUT_TOKENS &&
-      usage.output_tokens >= reservation.maxOutputTokens
-    ) {
-      this.emit({
-        type: 'backendNotice',
-        level: 'warning',
-        text: fill(UI_TEXT.sessionBudgetOutputLimited, {
-          tokens: formatNumber(reservation.maxOutputTokens),
-        }),
-      })
-    }
   }
 
   /**

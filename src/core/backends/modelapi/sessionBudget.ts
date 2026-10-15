@@ -1,6 +1,7 @@
-// The Model API session budget (M82, PLAN.md M82): a dollar cap per
-// conversation, kept by reservation, since a request's cost is incurred
-// once it is sent.
+// The Model API session budget (M82, PLAN.md M82; real-spend accounting
+// lane LIMITSA, D113): a dollar cap per conversation, compared against
+// real settled spend after each response, never reserved worst-case up
+// front, since a request's cost is incurred once it is sent.
 //
 // Before each request its input is estimated high: the last reported
 // request's input tokens, as Meta counted them, plus every part of this
@@ -11,9 +12,11 @@
 // calibrated upper bound: encoded size is never their token count. A part
 // the reported request carried and this one does not (a compaction, older
 // media left out) is never subtracted, so a removal can only raise the
-// estimate. `max_output_tokens`
-// is then set so that input plus output at list price fits what is left; a
-// request that cannot fit is not sent.
+// estimate. Only that input estimate (plus any hosted-search allowance)
+// is held up front; the request keeps its own `max_output_tokens`, and
+// the response's real cost settles afterwards. A cap stops the next
+// request once real spend has passed it, plus that one response's
+// overshoot; a request whose input alone exceeds what is left is not sent.
 //
 // Pure: the session owns the spend and the base, this module the arithmetic.
 
@@ -64,9 +67,9 @@ export interface InputEstimate {
 /** A request the cap still fits. */
 export interface BudgetReservation {
   readonly estimatedInputTokens: number
-  /** The `max_output_tokens` the request is sent with. */
+  /** The `max_output_tokens` the request is sent with: its own allowance, never lowered. */
   readonly maxOutputTokens: number
-  /** The estimated input and the whole output allowance at list price: at most what was left. */
+  /** The liability held up front: the estimated input plus any search allowance, never the output. */
   readonly costUsd: UsdAmount
 }
 
@@ -223,10 +226,12 @@ export function estimateInput(
  * The reservation for a request whose input is estimated at
  * `estimatedInputTokens`, at the model's list price with no cache discount
  * assumed. Throws when the model has no verified price (the cap could not
- * be kept) or when the provider's minimum output (`minOutputTokens`, 1 when
- * no minimum was captured) does not fit on top of the input: the request is
- * not sent, and the turn stops with the budget reason instead of a provider
- * rejection. The cap is never rounded up past what the budget affords.
+ * be kept) or when the input estimate plus any hosted-search allowance
+ * alone exceeds what is left: the request is not sent, and the turn stops
+ * with the budget reason instead of a provider rejection. The output is
+ * never reserved up front: the request keeps its own `max_output_tokens`,
+ * and the response's real cost settles afterwards, so a cap can be passed
+ * by at most that one response.
  */
 export function reserveRequest(request: {
   readonly capUsd: UsdAmount
@@ -257,18 +262,14 @@ export function reserveRequest(request: {
   const inputCost = Usd.from(prices.input)
     .times(request.estimatedInputTokens)
     .divide(TOKENS_PER_MILLION)
-  const outputPrice = Usd.from(prices.output).divide(TOKENS_PER_MILLION)
+  const liability = inputCost.add(Usd.from(searchCostUsd))
   const left = Usd.from(request.capUsd).subtract(Usd.from(request.spentUsd))
-  const affordableOutputTokens = left
-    .subtract(inputCost)
-    .subtract(Usd.from(searchCostUsd))
-    .floorDivide(outputPrice)
   const floor = request.minOutputTokens ?? 1
   if (!Number.isSafeInteger(floor) || floor < 1) throw new RangeError('invalid output.minTokens')
-  if (affordableOutputTokens < BigInt(floor)) {
+  if (liability.compare(left) > 0) {
     throw new SessionBudgetExceededError(
       fill(UI_TEXT.sessionBudgetStopped, {
-        estimate: formatUsd(inputCost.add(Usd.from(searchCostUsd)).toAmount()),
+        estimate: formatUsd(liability.toAmount()),
         cap: formatUsd(request.capUsd),
         spent: formatUsd(request.spentUsd),
       }),
@@ -277,16 +278,10 @@ export function reserveRequest(request: {
   const outputCap = request.maxOutputTokens ?? MODEL_API_MAX_OUTPUT_TOKENS
   if (!Number.isSafeInteger(outputCap) || outputCap < 1)
     throw new RangeError('invalid output.maxTokens')
-  const maxOutputTokens = Number(
-    affordableOutputTokens < BigInt(outputCap) ? affordableOutputTokens : BigInt(outputCap),
-  )
   return {
     estimatedInputTokens: request.estimatedInputTokens,
-    maxOutputTokens,
-    costUsd: inputCost
-      .add(outputPrice.times(maxOutputTokens))
-      .add(Usd.from(searchCostUsd))
-      .toAmount(),
+    maxOutputTokens: outputCap,
+    costUsd: liability.toAmount(),
   }
 }
 
@@ -343,7 +338,12 @@ export function helperRequestSettlement(
   return { costUsd, isUnknown: wasSent && !wasRefused && (!hasUsage || !hasKnownCost) }
 }
 
-/** A provider's public price-card reservation bounds every potentially written input token. */
+/**
+ * A provider's public price-card reservation (lane LIMITSA, D113): only the
+ * input is held up front. The request keeps its own `max_output_tokens`;
+ * the response's real cost settles afterwards, so a cap can be passed by at
+ * most that one response.
+ */
 function reserveProviderRequest(request: {
   readonly capUsd: UsdAmount
   readonly spentUsd: UsdAmount
@@ -370,22 +370,9 @@ function reserveProviderRequest(request: {
     )
   }
   const leftUsd = Usd.from(request.capUsd).subtract(Usd.from(request.spentUsd))
-  let low = 0
-  let high = request.maxOutputTokens ?? MODEL_API_MAX_OUTPUT_TOKENS
-  while (low < high) {
-    const tokens = Math.ceil((low + high) / 2)
-    const cost = request.price.reserve({ ...usage, outputTokens: tokens })
-    if (
-      cost !== undefined &&
-      usdAmountSchema.safeParse(cost).success &&
-      Usd.from(cost).compare(leftUsd) <= 0
-    )
-      low = tokens
-    else high = tokens - 1
-  }
   const floor = request.minOutputTokens ?? 1
   if (!Number.isSafeInteger(floor) || floor < 1) throw new RangeError('invalid output.minTokens')
-  if (low < floor) {
+  if (Usd.from(inputCostUsd).compare(leftUsd) > 0) {
     throw new SessionBudgetExceededError(
       fill(UI_TEXT.sessionBudgetStopped, {
         estimate: formatUsd(inputCostUsd),
@@ -394,7 +381,8 @@ function reserveProviderRequest(request: {
       }),
     )
   }
-  const costUsd = request.price.reserve({ ...usage, outputTokens: low })
-  if (costUsd === undefined) throw new SessionBudgetExceededError(UI_TEXT.subagentTariffUnknown)
-  return { estimatedInputTokens: usage.inputTokens, maxOutputTokens: low, costUsd }
+  const maxOutputTokens = request.maxOutputTokens ?? MODEL_API_MAX_OUTPUT_TOKENS
+  if (!Number.isSafeInteger(maxOutputTokens) || maxOutputTokens < 1)
+    throw new RangeError('invalid output.maxTokens')
+  return { estimatedInputTokens: usage.inputTokens, maxOutputTokens, costUsd: inputCostUsd }
 }
