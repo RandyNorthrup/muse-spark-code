@@ -4156,8 +4156,9 @@ ACP editors can send `/help` for the current installed-skill list and the
 [generated reference](docs/reference.md). ACP locally handles `/help`, `/compact`, `/legal`, `/usage`, `/questions`, `/answer` and
 installed skills; the linked panel slash commands and settings are extension
 workflows. In a terminal, `muse-spark-code-acp help --all` prints the full
-reference in the installed language without a model call. `exec --help`,
-`report --help` and `scan-secrets --help` also print it; `--help` prints concise
+reference in the installed language without a model call. `exec --help` and
+`report --help` also print it; `scan-secrets --help` prints the scanner's own
+one screen with its usage and exit codes; `--help` prints concise
 ACP usage. Terminal help states that VS Code current values are unavailable.
 
 Maintainers run `npm run reference:generate` after changes. The reference reads
@@ -4894,6 +4895,24 @@ withheld whole.
 prints only a count and exits 0 when clean, 10 on matches or 2 on refusal or
 error. Its 30-second lifetime includes reading the key and flushing output.
 Only known literals and patterns are covered.
+
+`prompts use <id> [--chat active|new]` prints the prepared prompt text after
+one review of the filled variables; the terminal inserts nothing into an
+editor, so the review asks to print, not to insert. A script passes variables
+as repeatable `--var name=value` and confirms explicitly with `--confirm`:
+preview first without it (the run shows the text and stops, exit 7), then
+repeat with it.
+
+A ChatGPT plan model (`exec --backend modelApi --model chatgpt/…`) runs on
+the ChatGPT subscription sign-in through the same path as the editor
+protocol, with or without a Meta key; its attempts count against
+`--max-requests` at no USD reservation. Without a grant the refusal names
+the ChatGPT sign-in, never a Meta key.
+
+With no unlocked credential store (Linux without Secret Service) sessions
+still open: status commands and every refusal say stored keys cannot be
+checked, a key passed for the run with `--key-stdin` works, and nothing is
+ever written in plain text without an explicit choice.
 
 On Windows a forced stop (an output pipe closed, or output still queued when
 the cleanup grace runs out, or a distinct second signal's 300 ms grace ends)
