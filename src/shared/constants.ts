@@ -6563,6 +6563,17 @@ export const MODEL_API_MODEL_TEXT = {
   packKnownIdsMore: '{known}, and {count} more',
   packBadOffset:
     'offset for packed output "{id}" must be a whole number of characters from 0 to {last}, not inside a character',
+  // B3 (limits-output, P1 recall fence): a kept output whose origin the
+  // person's current policy or trust no longer covers is refused in words,
+  // never returned. {id} names the kept output; {detail} says what changed.
+  packRecallWithheld:
+    'kept output "{id}" is withheld: {detail}. Do not retry recall_output for it; tell the person what changed and continue without that text.',
+  packWithheldDenied:
+    'its source is now refused by the permission settings ({detail}), which changed since it was kept',
+  packWithheldUntrusted:
+    'its source is no longer trusted ({detail}), which changed since it was kept',
+  packWithheldStale:
+    'the permission settings changed since it was kept and what it quotes can no longer be named, so it cannot be checked',
   // PLAN.md D27: what the Model API's file tools say when they will not write.
   fileChangedSinceRead:
     'has changed since you last read it, or you have not read it yet; read it with read_file first so nothing is overwritten unseen',

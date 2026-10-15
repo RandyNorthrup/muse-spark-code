@@ -356,7 +356,14 @@ import {
   type ResolvedModel,
 } from './modelPolicy'
 import type { HookMcpOutcome, HookModelTurn, HookModelDailyBudget } from './hookHandlers'
-import { ObservationPack, estimatePackTokens } from './observationPack'
+import {
+  ObservationPack,
+  estimatePackTokens,
+  judgeRetainedRecall,
+  type RecallAuthority,
+  type RetainTouch,
+  type RetainedOrigin,
+} from './observationPack'
 import { admitResource, inResourceClass } from '../../resources/admission'
 import type { ResourceLease } from '../../resources/launch'
 import {
@@ -4515,9 +4522,14 @@ export class ModelApiSession implements ScheduledAgentSession {
         // Packing projects per request only: the replay keeps the originals, so
         // a later request (or a restore) packs from the full outputs again.
         // Reviewer tools cannot recall packed output: retain the full observations.
+        // The projection stamps what it registers with the current
+        // authority, so the recall fence can judge it later (P1 fence).
         return this.isReviewing() || !this.canPack()
           ? fitted
-          : (this.packing?.project(fitted) ?? fitted)
+          : (this.packing?.project(fitted, {
+              revision: this.filePolicyRevision(),
+              wasTrusted: this.deps.isWorkspaceTrusted(),
+            }) ?? fitted)
       },
     })
     this.mediaScope = recorded.scope
@@ -7952,22 +7964,67 @@ export class ModelApiSession implements ScheduledAgentSession {
    * error when it runs: a model that calls it anyway is told so, never run.
    */
   /**
+   * B3 (limits-output) with the P1 recall fence: the one choke point for
+   * retention. Every kept output funnels here with what its tool knows it
+   * came from (`touch`; absent for commands, servers and external results,
+   * which cannot name their sources). The store keeps the stamped origin —
+   * tool, touched paths, file-policy revision, workspace trust and the
+   * tool's own taint source — beside the text, and the recall fence judges
+   * that origin again under the current authority before returning any of
+   * it. Paths are normalised to `/` so Windows spellings compare.
+   */
+  private retainFullText(fullText: string, tool: string, touch?: RetainTouch): string {
+    const taint = this.toolProvenance(tool)
+    const names = (touch?.names ?? []).map((name) => name.replaceAll('\\', '/'))
+    const origin: RetainedOrigin = {
+      tool,
+      names,
+      complete: touch?.complete === true && names.length > 0,
+      revision: this.filePolicyRevision(),
+      wasTrusted: this.deps.isWorkspaceTrusted(),
+      ...(touch?.extraRoot !== undefined && { extraRoot: touch.extraRoot }),
+      ...(taint !== undefined && { taint }),
+    }
+    return this.retainedOutputs.retain(fullText, tool, origin)
+  }
+
+  /**
    * B3 (limits-output): the note appended to a clipped head whose whole is
    * kept. It resumes where the clip cut, so nothing shown is sent twice.
    */
   private keptClippedNote(fullText: string, tool: string): string {
-    const id = this.retainedOutputs.retain(fullText, tool)
+    const id = this.retainFullText(fullText, tool)
     return `\n${retainNote(id, codePointBoundary(fullText, TOOL_OUTPUT_MAX_CHARS))}`
   }
 
+  /** The person's live authority the recall fence judges a kept origin under. */
+  private recallAuthority(): RecallAuthority {
+    const files = this.policy().files
+    return {
+      revision: this.filePolicyRevision(),
+      trusted: this.deps.isWorkspaceTrusted(),
+      isDenied: (names) => files.isDenied(names),
+      extraRoots: files.extraRoots,
+    }
+  }
+
+  /**
+   * The one choke point for recall: a kept or packed output pages back only
+   * while its stored origin still stands under the current policy and trust.
+   * A source that is now denied or untrusted is refused in words, never
+   * returned — the old text never re-enters under new authority.
+   */
   private recallPacked(call: FunctionCallItem): ToolOutcome {
+    const authority = this.recallAuthority()
+    const judge = (origin: RetainedOrigin): ReturnType<typeof judgeRetainedRecall> =>
+      judgeRetainedRecall(origin, authority)
     const retained = retainedRecallId(call.arguments)
     if (retained !== undefined && this.retainedOutputs.has(retained)) {
-      return this.retainedOutputs.recall(call.arguments)
+      return this.retainedOutputs.recall(call.arguments, judge)
     }
     return !this.canPack() || this.packing === undefined
       ? toolFailure(`unknown tool ${call.name}`)
-      : this.packing.recall(call.arguments)
+      : this.packing.recall(call.arguments, judge)
   }
 
   /**
@@ -8773,8 +8830,8 @@ export class ModelApiSession implements ScheduledAgentSession {
       provisionalSeen,
       files: this.policy().files,
       // B3 (limits-output): clipped tool outputs stay reachable through recall.
-      retainOutput: (fullText: string, tool: string): string =>
-        this.retainedOutputs.retain(fullText, tool),
+      retainOutput: (fullText: string, tool: string, touch?: RetainTouch): string =>
+        this.retainFullText(fullText, tool, touch),
       ...(media === undefined &&
         this.getScheduledRun() !== undefined && {
           media: { reason: UI_TEXT.scheduledMediaSupport },
@@ -11722,8 +11779,8 @@ export class ModelApiSession implements ScheduledAgentSession {
       this.networkCallWithdrawn(call, query, signal, browserCheckRestrictedCall) ?? {
         // B3 (limits-output): a clipped report stays reachable through recall.
         outcome: browserCheckOutcome(placement.url, result, {
-          keep: (fullText: string, tool: string): string =>
-            this.retainedOutputs.retain(fullText, tool),
+          keep: (fullText: string, tool: string, touch?: RetainTouch): string =>
+            this.retainFullText(fullText, tool, touch),
           tool: call.name,
         }),
         isRejected: false,
@@ -13599,8 +13656,8 @@ export class ModelApiSession implements ScheduledAgentSession {
         diagnosticsHistory: this.diagnosticsHistory,
         // B3 (limits-output): a budget-cut verify report stays reachable through recall.
         retainVerifyOutput: {
-          keep: (fullText: string, tool: string): string =>
-            this.retainedOutputs.retain(fullText, tool),
+          keep: (fullText: string, tool: string, touch?: RetainTouch): string =>
+            this.retainFullText(fullText, tool, touch),
           tool: 'verify',
         },
         checkScope,

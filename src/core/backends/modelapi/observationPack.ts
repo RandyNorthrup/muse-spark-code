@@ -19,6 +19,7 @@
 
 import { createHash, randomBytes } from 'node:crypto'
 import * as z from 'zod/mini'
+import type { VaultTaint } from '../../../shared/vault'
 import {
   MODEL_API_MODEL_TEXT,
   MODEL_API_TOOLS,
@@ -116,11 +117,98 @@ function packBoundary(text: string, index: number): number {
   return before > LAST_BMP_CODE_POINT ? index - 1 : index
 }
 
+/**
+ * B3 (limits-output, P1 recall fence): what a kept output came from, stored
+ * with it at every retention site so `recall_output` can judge it again
+ * under the person's CURRENT policy and trust instead of the old authority.
+ * Paths are workspace-relative (or absolute under an extra root), normalised
+ * to `/` so Windows and POSIX spellings compare equal.
+ */
+export interface RetainedOrigin {
+  /** The tool that returned it, named by its call; undefined when that call is gone. */
+  readonly tool: string | undefined
+  /** The workspace files the call read or wrote; empty when it cannot name them. */
+  readonly names: readonly string[]
+  /**
+   * True only when the text provably carries nothing from any file but
+   * `names` (a command's, a server's or a child's text never is). An entry
+   * that is not complete fails closed: any policy move withholds it.
+   */
+  readonly complete: boolean
+  /**
+   * The file-policy revision (profile, deny rules, extra roots, trust
+   * digest) under which it was kept. Undefined means nobody recorded one,
+   * which never counts as current.
+   */
+  readonly revision: string | undefined
+  /** Whether the workspace was trusted when it was kept. */
+  readonly wasTrusted: boolean
+  /** The permission profile's extra root a file was read under, if any. */
+  readonly extraRoot?: string
+  /** The taint the tool's own source carried (web, browser, MCP), if any. */
+  readonly taint?: VaultTaint
+}
+
+/**
+ * What the retaining tool knows about the text's sources. The host stamps
+ * the policy revision, trust and taint around it at the retention choke
+ * point, so tools never judge policy themselves.
+ */
+export interface RetainTouch {
+  readonly names: readonly string[]
+  readonly complete: boolean
+  readonly extraRoot?: string
+}
+
+/** The person's live authority a recall is judged under. */
+export interface RecallAuthority {
+  readonly revision: string
+  readonly trusted: boolean
+  readonly isDenied: (names: readonly string[]) => boolean
+  readonly extraRoots: readonly string[]
+}
+
+/**
+ * Why a recall is refused, in model words (the detail names what changed):
+ * `denied` (a named source the current settings refuse), `untrusted` (trust
+ * lost since it was kept) or `stale` (the policy moved and opaque text
+ * cannot be named, so it cannot be checked). Undefined means it may return.
+ * Mirrors the dispatcher's live policy fence (M78): complete entries are
+ * judged by their names under the current settings; opaque ones fail closed
+ * on any policy move.
+ */
+export function judgeRetainedRecall(
+  origin: RetainedOrigin,
+  current: RecallAuthority,
+): { readonly kind: 'denied' | 'untrusted' | 'stale'; readonly detail: string } | undefined {
+  if (origin.wasTrusted && !current.trusted) {
+    return { kind: 'untrusted', detail: 'the workspace is no longer trusted' }
+  }
+  if (origin.complete && origin.names.length > 0) {
+    if (origin.extraRoot !== undefined && !current.extraRoots.includes(origin.extraRoot)) {
+      return { kind: 'denied', detail: `extra root ${origin.extraRoot} is no longer allowed` }
+    }
+    return current.isDenied(origin.names)
+      ? { kind: 'denied', detail: 'its file is now refused' }
+      : undefined
+  }
+  return origin.revision === undefined || origin.revision !== current.revision
+    ? { kind: 'stale', detail: '' }
+    : undefined
+}
+
+/** An origin nobody recorded: opaque, unchecked, never current. */
+function unknownOrigin(tool: string | undefined): RetainedOrigin {
+  return { tool, names: [], complete: false, revision: undefined, wasTrusted: false }
+}
+
 interface PackedOutput {
   readonly text: string
   readonly lineCount: number
   /** The tool that returned it, named by its call; undefined when that call is gone. */
   readonly tool: string | undefined
+  /** What it came from, for the recall fence; opaque and unrecorded by default. */
+  origin: RetainedOrigin
   sends: number
   isPacked: boolean
 }
@@ -148,9 +236,16 @@ export class ObservationPack {
   /**
    * B3 (limits-output): keep a clipped tool output whole so its clip note
    * can page it back. The id never matches a replay call, so the projector
-   * leaves it alone; `recall` pages it like a packed original.
+   * leaves it alone; `recall` pages it like a packed original. The origin
+   * rides with the text; without one the entry stays opaque and unrecorded,
+   * and the recall fence withholds it.
    */
-  private register(callId: string, text: string, tool: string | undefined): PackedOutput {
+  private register(
+    callId: string,
+    text: string,
+    tool: string | undefined,
+    origin?: RetainedOrigin,
+  ): PackedOutput {
     const known = this.outputs.get(callId)
     if (known !== undefined) {
       return known
@@ -159,12 +254,36 @@ export class ObservationPack {
       text,
       lineCount: packLines(text).length,
       tool,
+      origin: origin ?? unknownOrigin(tool),
       sends: 0,
       isPacked: false,
     }
     this.outputs.set(callId, entry)
     this.ids.push(callId)
     return entry
+  }
+
+  /**
+   * The origin a projection stamps on entries it registers: the tool that
+   * returned the text, opaque (the projection sees replay bytes, not what
+   * the call touched) but current, so the recall fence judges it like any
+   * other opaque entry. Undefined without a stamp, leaving the unrecorded
+   * default that no recall passes.
+   */
+  private stamped(
+    tool: string | undefined,
+    stamp: Pick<RetainedOrigin, 'revision' | 'wasTrusted'> | undefined,
+  ): RetainedOrigin | undefined {
+    if (stamp === undefined) {
+      return undefined
+    }
+    return {
+      tool,
+      names: [],
+      complete: false,
+      revision: stamp.revision,
+      wasTrusted: stamp.wasTrusted,
+    }
   }
 
   private placeholder(callId: string, entry: PackedOutput, original: InputItem): InputItem {
@@ -232,12 +351,15 @@ export class ObservationPack {
   /**
    * B3 (limits-output): keep a clipped tool output whole so its clip note
    * can page it back. The id never matches a replay call, so the projector
-   * leaves it alone; `recall` pages it like a packed original.
+   * leaves it alone; `recall` pages it like a packed original. The one choke
+   * point for retention: every host keep funnels here with the entry's
+   * origin, and the recall fence judges that origin again under the current
+   * authority before returning any of it.
    */
-  public retain(text: string, tool: string | undefined): string {
+  public retain(text: string, tool: string | undefined, origin?: RetainedOrigin): string {
     this.retained += 1
     const id = `retained-${String(this.retained)}`
-    this.register(id, text, tool)
+    this.register(id, text, tool, origin)
     return id
   }
 
@@ -255,8 +377,15 @@ export class ObservationPack {
    * The request's input with packable outputs projected: whole while an
    * output is still new, a placeholder once it packed. Registers outputs it
    * has not seen; counting happens in `noteSent`, once per request sent.
+   * `stamp` records under what authority the host projects: entries the
+   * projection registers carry it as their origin (opaque but current, so a
+   * later policy move still withholds them), replacing the unrecorded
+   * default that no recall could ever pass.
    */
-  public project(input: readonly InputItem[]): InputItem[] {
+  public project(
+    input: readonly InputItem[],
+    stamp?: Pick<RetainedOrigin, 'revision' | 'wasTrusted'>,
+  ): InputItem[] {
     // Each output's tool, named by its call in the same request.
     const tools = new Map<string, string>()
     for (const item of input) {
@@ -276,7 +405,7 @@ export class ObservationPack {
           part.text.length > OBS_PACK_THRESHOLD_CHARS
         ) {
           const id = `background-${createHash('sha256').update(part.text).digest('hex')}`
-          const entry = this.register(id, part.text, undefined)
+          const entry = this.register(id, part.text, undefined, this.stamped(undefined, stamp))
           if (entry.isPacked || entry.text.length > SHELL_PACKED_MAX_CHARS) {
             const packed = this.placeholder(id, entry, {
               type: 'function_call_output',
@@ -306,7 +435,8 @@ export class ObservationPack {
       if (item.output.length <= OBS_PACK_THRESHOLD_CHARS) {
         return item
       }
-      const entry = this.register(item.call_id, item.output, tools.get(item.call_id))
+      const tool = tools.get(item.call_id)
+      const entry = this.register(item.call_id, item.output, tool, this.stamped(tool, stamp))
       return entry.isPacked || entry.text.length > SHELL_PACKED_MAX_CHARS
         ? this.placeholder(item.call_id, entry, item)
         : item
@@ -386,8 +516,18 @@ export class ObservationPack {
     this.ids.length = 0
   }
 
-  /** Pages a packed original back; the host reports the outcome as the call's result. */
-  public recall(argsJson: string): RecallOutcome {
+  /**
+   * Pages a packed original back; the host reports the outcome as the call's
+   * result. `judge` is the host's recall fence: it reads the entry's stored
+   * origin under the person's current authority and names the refusal, so a
+   * source that is now denied or untrusted is refused in words, never
+   * returned. Without it the text pages back unchecked (the host always
+   * passes one; direct store uses in tests pass their own).
+   */
+  public recall(
+    argsJson: string,
+    judge?: (origin: RetainedOrigin) => ReturnType<typeof judgeRetainedRecall>,
+  ): RecallOutcome {
     let raw: unknown
     try {
       raw = JSON.parse(argsJson)
@@ -412,6 +552,19 @@ export class ObservationPack {
       return failure(
         fill(MODEL_API_MODEL_TEXT.packUnknownId, { id, known: known === '' ? 'none' : known }),
         fill(UI_TEXT.packRecallUnknownId, { id }),
+      )
+    }
+    const refused = judge?.(entry.origin)
+    if (refused !== undefined) {
+      const detail =
+        refused.kind === 'denied'
+          ? fill(MODEL_API_MODEL_TEXT.packWithheldDenied, { detail: refused.detail })
+          : refused.kind === 'untrusted'
+            ? fill(MODEL_API_MODEL_TEXT.packWithheldUntrusted, { detail: refused.detail })
+            : MODEL_API_MODEL_TEXT.packWithheldStale
+      return failure(
+        fill(MODEL_API_MODEL_TEXT.packRecallWithheld, { id, detail }),
+        UI_TEXT.policyChangedRefused,
       )
     }
     const offset = parsed.data.offset ?? 0

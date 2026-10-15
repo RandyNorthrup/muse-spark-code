@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
+  judgeRetainedRecall,
   ObservationPack,
+  type RecallAuthority,
   type RecallOutcome,
+  type RetainedOrigin,
 } from '../../src/core/backends/modelapi/observationPack'
 import { retainedHead, retainNote, shellOutcome } from '../../src/core/backends/modelapi/tools'
 import {
@@ -14,9 +17,38 @@ import {
 // B3 (limits-output): a clipped tool output stays reachable through
 // recall_output. Pure logic through the real modules: text in, kept pages
 // and notes out.
-function kept(pack: ObservationPack, tool: string) {
+const CURRENT_REVISION = 'rev-current'
+
+function currentAuthority(overrides?: Partial<RecallAuthority>): RecallAuthority {
   return {
-    keep: (fullText: string, name: string): string | undefined => pack.retain(fullText, name),
+    revision: CURRENT_REVISION,
+    trusted: true,
+    isDenied: () => false,
+    extraRoots: [],
+    ...overrides,
+  }
+}
+
+/** The host's recall fence, bound to one authority: the real judge. */
+function fence(authority: RecallAuthority) {
+  return (origin: RetainedOrigin): ReturnType<typeof judgeRetainedRecall> =>
+    judgeRetainedRecall(origin, authority)
+}
+
+function kept(pack: ObservationPack, tool: string, origin?: RetainedOrigin) {
+  return {
+    keep: (fullText: string, name: string): string | undefined =>
+      pack.retain(
+        fullText,
+        name,
+        origin ?? {
+          tool: name,
+          names: [],
+          complete: false,
+          revision: CURRENT_REVISION,
+          wasTrusted: true,
+        },
+      ),
     tool,
   }
 }
@@ -29,16 +61,23 @@ function pageText(outcome: RecallOutcome): string {
 describe('retained clipped outputs', () => {
   it('retains under a recallable id and pages back by offset', () => {
     const pack = new ObservationPack()
-    const id = pack.retain('a'.repeat(OBS_PACK_PAGE_CHARS + 10), 'shell')
+    const judge = fence(currentAuthority())
+    const id = pack.retain('a'.repeat(OBS_PACK_PAGE_CHARS + 10), 'shell', {
+      tool: 'shell',
+      names: [],
+      complete: false,
+      revision: CURRENT_REVISION,
+      wasTrusted: true,
+    })
     expect(id).toBe('retained-1')
     expect(pack.has(id)).toBe(true)
     expect(pack.has('retained-2')).toBe(false)
-    const first = pack.recall(JSON.stringify({ id, offset: 0 }))
+    const first = pack.recall(JSON.stringify({ id, offset: 0 }), judge)
     expect(pageText(first)).toContain('a'.repeat(100))
     expect(first.output).toContain(`offset ${String(OBS_PACK_PAGE_CHARS)}`)
-    const second = pack.recall(JSON.stringify({ id, offset: OBS_PACK_PAGE_CHARS }))
+    const second = pack.recall(JSON.stringify({ id, offset: OBS_PACK_PAGE_CHARS }), judge)
     expect(pageText(second)).toContain('end of output')
-    const missing = pack.recall(JSON.stringify({ id: 'retained-9', offset: 0 }))
+    const missing = pack.recall(JSON.stringify({ id: 'retained-9', offset: 0 }), judge)
     expect(missing.failureReason).toBeDefined()
   })
 
@@ -65,7 +104,7 @@ describe('retained clipped outputs', () => {
     const at = outcome.output.indexOf(TOOL_OUTPUT_ELIDED_MARKER)
     expect(outcome.output).toContain(`offset ${String(at)}`)
     // The kept whole pages back from the note's offset.
-    const recalled = pack.recall(JSON.stringify({ id, offset: at }))
+    const recalled = pack.recall(JSON.stringify({ id, offset: at }), fence(currentAuthority()))
     expect(pageText(recalled)).toContain('x'.repeat(100))
   })
 
@@ -89,5 +128,86 @@ describe('retained clipped outputs', () => {
     )
     expect(keptText.endsWith(TOOL_OUTPUT_CLIP_MARKER)).toBe(true)
     expect(keptText).not.toContain('recall_output')
+  })
+})
+
+describe('recall fence (P1)', () => {
+  const secretText = `project secret ${'s'.repeat(OBS_PACK_PAGE_CHARS)}`
+
+  function searchKept(pack: ObservationPack): string {
+    return pack.retain(secretText, 'search', {
+      tool: 'search',
+      names: ['notes/secret.md'],
+      complete: true,
+      revision: CURRENT_REVISION,
+      wasTrusted: true,
+    })
+  }
+
+  it('refuses a kept path the current settings now deny, in words', () => {
+    const pack = new ObservationPack()
+    const id = searchKept(pack)
+    const denied = fence(
+      currentAuthority({ isDenied: (names) => names.includes('notes/secret.md') }),
+    )
+    const refused = pack.recall(JSON.stringify({ id, offset: 0 }), denied)
+    expect(refused.failureReason).toBeDefined()
+    expect(refused.output).toContain('withheld')
+    expect(refused.output).toContain('now refused')
+    expect(refused.output).not.toContain('project secret')
+    expect(refused.visibleOutput).toContain('nothing from it was sent to the model')
+  })
+
+  it('returns the same entry while its source is still allowed', () => {
+    const pack = new ObservationPack()
+    const id = searchKept(pack)
+    const allowed = pack.recall(JSON.stringify({ id, offset: 0 }), fence(currentAuthority()))
+    expect(allowed.failureReason).toBeUndefined()
+    expect(allowed.output).toContain('project secret')
+  })
+
+  it('refuses a tainted entry once the workspace loses trust, in words', () => {
+    const pack = new ObservationPack()
+    const id = pack.retain(secretText, 'read_file', {
+      tool: 'read_file',
+      names: ['notes/secret.md'],
+      complete: true,
+      revision: CURRENT_REVISION,
+      wasTrusted: true,
+    })
+    const untrusted = fence(currentAuthority({ trusted: false }))
+    const refused = pack.recall(JSON.stringify({ id, offset: 0 }), untrusted)
+    expect(refused.failureReason).toBeDefined()
+    expect(refused.output).toContain('withheld')
+    expect(refused.output).toContain('no longer trusted')
+    expect(refused.output).not.toContain('project secret')
+  })
+
+  it('withholds opaque text the policy moved under, and keeps it while still', () => {
+    const pack = new ObservationPack()
+    const id = pack.retain(secretText, 'bash', {
+      tool: 'bash',
+      names: [],
+      complete: false,
+      revision: CURRENT_REVISION,
+      wasTrusted: true,
+    })
+    const moved = fence(currentAuthority({ revision: 'rev-changed' }))
+    const refused = pack.recall(JSON.stringify({ id, offset: 0 }), moved)
+    expect(refused.failureReason).toBeDefined()
+    expect(refused.output).toContain('withheld')
+    expect(refused.output).not.toContain('project secret')
+    const still = pack.recall(JSON.stringify({ id, offset: 0 }), fence(currentAuthority()))
+    expect(still.failureReason).toBeUndefined()
+    expect(still.output).toContain('project secret')
+  })
+
+  it('withholds an entry nobody recorded an origin for', () => {
+    const pack = new ObservationPack()
+    const id = pack.retain(secretText, 'bash')
+    const refused = pack.recall(JSON.stringify({ id, offset: 0 }), fence(currentAuthority()))
+    expect(refused.failureReason).toBeDefined()
+    expect(refused.output).toContain('withheld')
+    expect(refused.output).not.toContain('project secret')
   })
 })

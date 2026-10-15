@@ -95,7 +95,7 @@ import type { ToolClass } from './permissions'
 import { type FunctionOutputPart, type FunctionToolDefinition, withStrictTools } from './schemas'
 
 import { LEGAL_SCAN_DESCRIPTION, LEGAL_SCAN_PARAMETERS } from './legalScanTool'
-import { RECALL_TOOL_DEFINITION } from './observationPack'
+import { RECALL_TOOL_DEFINITION, type RetainTouch } from './observationPack'
 import { SUBAGENT_TOOL_DEFINITIONS } from './subagentTools'
 import type { TEAM_TOOL_DEFINITIONS } from '../../team/teamTools'
 import { runChecksDefinition, THEN_RUN_PROPERTY } from './verifyTools'
@@ -455,9 +455,15 @@ export interface ToolContext {
   /**
    * B3 (limits-output): keep a clipped tool output whole under the returned
    * id, so its clip note pages the rest back through `recall_output`.
-   * Absent, the clip keeps its bare marker.
+   * Absent, the clip keeps its bare marker. `touch` names what the text
+   * came from where the tool knows it; the host stamps the policy revision,
+   * trust and taint around it at the retention choke point.
    */
-  readonly retainOutput?: (fullText: string, tool: string) => string | undefined
+  readonly retainOutput?: (
+    fullText: string,
+    tool: string,
+    touch?: RetainTouch,
+  ) => string | undefined
   /**
    * The session's record of each file as the model last read or wrote it
    * (absolute path to a fingerprint): `write_file` replaces only what the
@@ -2523,7 +2529,15 @@ async function search(
     TOOL_OUTPUT_MAX_CHARS,
     context.retainOutput === undefined
       ? undefined
-      : { keep: context.retainOutput, tool: MODEL_API_TOOLS.search },
+      : {
+          keep: context.retainOutput,
+          tool: MODEL_API_TOOLS.search,
+          touch: {
+            names: touched.names,
+            complete: touched.complete,
+            ...(touched.extraRoot !== undefined && { extraRoot: touched.extraRoot }),
+          },
+        },
     MODEL_API_TOOLS.search,
   )
   return { output: body, visibleOutput: body, touched }
@@ -2563,7 +2577,11 @@ async function listFiles(
     TOOL_OUTPUT_MAX_CHARS,
     context.retainOutput === undefined
       ? undefined
-      : { keep: context.retainOutput, tool: MODEL_API_TOOLS.listFiles },
+      : {
+          keep: context.retainOutput,
+          tool: MODEL_API_TOOLS.listFiles,
+          touch: { names: files, complete: true },
+        },
     MODEL_API_TOOLS.listFiles,
   )
   // Every file listed, shown or counted.
@@ -2713,9 +2731,15 @@ export function retainNote(id: string, resumeOffset: number): string {
 
 export interface ShellRetain {
   /** Keep the whole outcome under an id; undefined when there is no store. */
-  readonly keep: (fullText: string, tool: string) => string | undefined
+  readonly keep: (fullText: string, tool: string, touch?: RetainTouch) => string | undefined
   /** The tool whose output this is, named in the store. */
   readonly tool: string
+  /**
+   * What the kept text came from, where the tool knows it. Commands, vault
+   * and server results leave it absent (opaque): the recall fence then
+   * withholds them on any policy move.
+   */
+  readonly touch?: RetainTouch
 }
 
 /**
@@ -2731,7 +2755,7 @@ export function retainedHead(
 ): string {
   if (fullText.length <= maxChars) return fullText
   const kept = codePointBoundary(fullText, maxChars)
-  const id = retain?.keep(fullText, tool)
+  const id = retain?.keep(fullText, tool, retain.touch)
   return id === undefined
     ? `${fullText.slice(0, kept)}${TOOL_OUTPUT_CLIP_MARKER}`
     : `${fullText.slice(0, kept)}${TOOL_OUTPUT_CLIP_MARKER}\n${retainNote(id, kept)}`
@@ -2789,7 +2813,7 @@ function retainedShell(
   if (at === -1) return { output: body, visibleOutput: shown }
   const whole = `${shellText(result, maxChars, true)}\n[${exit}]`.trim()
   if (whole === body) return { output: body, visibleOutput: shown }
-  const id = retain.keep(whole, retain.tool)
+  const id = retain.keep(whole, retain.tool, retain.touch)
   if (id === undefined) return { output: body, visibleOutput: shown }
   const note = `\n${retainNote(id, at)}`
   return { output: `${body}${note}`, visibleOutput: `${shown}${note}` }
