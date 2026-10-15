@@ -50,6 +50,23 @@ and byte-exact restoration. Real-life lead step: corrupt an unsettled
 `claim.json` in a kept fresh run before final accounting; expect exit 1,
 `unread` in JSON and `UNKNOWN DAILY-LEDGER LIABILITY` in the text record.
 
+## T4 — concurrent provider identities
+
+Removed the shared static account from active setup. Every invocation gets
+96 random bits; each route uses that identity plus its ordinal (under the
+32-character provider id bound), including every matrix model. Cleanup only
+owns that invocation's names. Key-free per-provider recovery notes survive
+root removal and let the next run report a killed run's entries. Legacy
+static and diagnostic names are still reported, never removed.
+
+Real-module test: different run identities across all configured routes
+produce distinct valid accounts; notes in a real folder preserve all names
+and clearing one retains the others. `npx vitest run
+test/unit/realLifeGuards.test.mjs --maxWorkers=2`: exit 0, 8 passed.
+T10 includes deliberate break and hash restoration. Lead step: start two
+runs of the same route concurrently; observe different `added as` names,
+then end one and confirm the other still completes with its own key.
+
 ## Merge
 
 Merged `ac21f1d24` in `c1ead3231`, hooks on. Only AGENTS.md and CHANGELOG.md

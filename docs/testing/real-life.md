@@ -167,7 +167,9 @@ scrub.
 
 The operating system's credential store belongs to the signed-in user, so a
 new home cannot replace it. The run therefore adds each provider under a
-name of its own (`rl-<route>`): its key sits beside your own entries and
+name of its own (`rl-<24 random hex digits>-<route ordinal>`, within the
+product's 32-character limit): concurrent runs use different accounts. Its
+key sits beside your own entries and
 never replaces one. Meta's key goes to each terminal command on standard
 input and stores nothing; an editor session reads it from the store only,
 so the run stores it with `auth set` only when no Meta key is stored, and
@@ -185,12 +187,13 @@ all. It never removes a Meta key on the strength of the note, because you
 may have stored your own since: it says, on its first line and in its
 record, that a key is stored and that an earlier run left one, and how to
 remove it (`auth clear`); when no key is stored any more, it clears the
-note. A provider key left the same way is under a name of the run's own
-(`rl-<route>`) or of its diagnostic (`rlq-<route>`). When it starts, a run
-asks the product about every such name, says on its first lines and in its
-record which ones it found, removes those of its own routes before it adds
-them, and names the command that removes any other
-(`auth clear --provider <name>`).
+note. A provider key left the same way has a recovery note (the provider name
+only) under `real-life-run/providers/` in the system's temporary folder.
+The note is written before storing and removed only after successful cleanup.
+When it starts, a run checks those names plus the older static names
+(`rl-<route>` and diagnostic `rlq-<route>`), reports present entries, and
+names `auth clear --provider <name>`. It never removes an earlier entry;
+its own per-run identity does not reuse those names.
 
 ## What it costs
 
