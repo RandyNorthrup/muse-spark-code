@@ -555,3 +555,16 @@ are deleted; five files are reconciled to real-code-only checks. No
 stand-in is restored. These historical tests never proved product behaviour;
 credential/store/bridge/media composition belongs to the lead's real-life
 run, with unreadable folders, interrupted uploads and permission refusal.
+
+A follow-up real-module replacement for companionMediaTransport uses the
+actual fetch against an OS-assigned port after its real listener is closed.
+No server answers, no fetch is replaced, and the assertion requires the real
+ECONNREFUSED cause plus no completion progress. The listener is closed
+before upload. This restores useful failure proof and keeps knip meaningful,
+rather than adding an ignore for the now-unreferenced transport.
+
+Final inspection also fenced the legacy search-grant write: it now calls the
+real injected writer directly inside the same delayed-notice catch, instead
+of the old `remember()` helper that could notify before the fence. Non-search
+consent is unchanged. The nested ternary in the classifier became explicit
+branches because Prettier removed parentheses ESLint required; no rule change.

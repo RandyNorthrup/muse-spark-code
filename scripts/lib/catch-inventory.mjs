@@ -374,11 +374,9 @@ function expectedBranch(expression, binding, truth) {
       const isEqual =
         operator === ts.SyntaxKind.EqualsEqualsEqualsToken ||
         operator === ts.SyntaxKind.EqualsEqualsToken
-      const value = isErrorMember(node.left, binding)
-        ? node.right
-        : isErrorMember(node.right, binding)
-          ? node.left
-          : undefined
+      let value
+      if (isErrorMember(node.left, binding)) value = node.right
+      else if (isErrorMember(node.right, binding)) value = node.left
       return truth === isEqual && value !== undefined && ts.isStringLiteralLike(unparen(value))
     }
   }

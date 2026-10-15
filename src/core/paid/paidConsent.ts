@@ -636,12 +636,14 @@ export class PaidUseConsent {
       let isOk = false
       let saveFailure: PaidStoreFailureKind | undefined
       try {
-        if (this.deps.writeQuoteGrant === undefined)
-          isOk = await this.remember('webSearch', notifySession)
-        else {
+        if (this.deps.writeQuoteGrant !== undefined)
           await this.deps.writeQuoteGrant({ ...effect.grant, generation: storedGeneration })
-          isOk = true
+        else if (this.deps.rememberGrant === undefined) {
+          await this.deps.writeGrants(new Set([...this.deps.readGrants(), 'webSearch']))
+        } else {
+          await this.deps.rememberGrant('webSearch')
         }
+        isOk = true
       } catch (error: unknown) {
         // Keep only the closed kind until currentness has been rechecked;
         // a revoked use must not be described as allowed once.
