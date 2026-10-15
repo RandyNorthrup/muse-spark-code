@@ -595,7 +595,9 @@ export function classifyTool(name: string): ToolClass | undefined {
   return TOOL_CLASSES[name]
 }
 
-/** Every tool the dispatcher knows by name (M78): what a fence must cover, external tools aside. */
+/** Every tool the dispatcher knows by name (M78): what a fence must cover, external tools aside.
+ * @unwired M96 tool inventory the team fence must cover
+ */
 export function classifiedToolNames(): readonly string[] {
   return Object.keys(TOOL_CLASSES)
 }

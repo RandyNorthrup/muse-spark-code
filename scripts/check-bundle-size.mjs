@@ -186,6 +186,10 @@ const BUDGETS = [
   // required when that backend's host is first built: 37.1 KiB measured;
   // plus 15%, rounded up to 25 KiB (PLAN.md D6).
   { path: 'dist/modelApiSessions.js', budgetKiB: 50 },
+  // ACTROOM: the Create AGENTS.md command (the command, the rules template
+  // and their redaction) moved out of activation, required when that command
+  // runs: 6.6 KiB measured; plus 15%, rounded up to 25 KiB (PLAN.md D6).
+  { path: 'dist/rulesFile.js', budgetKiB: 25 },
   // M89: the bundled skills installer for Muse Code (the copy, the links and
   // zod's parser for the vendor record and the mark), loaded on first use:
   // 22.6 KiB when split out. Measured size plus 15%, rounded up to 25 KiB.

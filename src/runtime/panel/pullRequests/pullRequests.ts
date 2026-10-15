@@ -133,6 +133,7 @@ function refused(reason: string): PullRequestServiceError {
   return new PullRequestServiceError(reason)
 }
 
+/** @unwired M123 runtime pull requests */
 export class RuntimePullRequests {
   public constructor(private readonly deps: RuntimePullRequestDeps) {}
 

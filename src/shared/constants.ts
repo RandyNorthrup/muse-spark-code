@@ -3906,6 +3906,9 @@ export const CONVERSATION_BUNDLE_FILE = 'conversation.js'
 export const MODEL_API_BUNDLE_FILE = 'modelApi.js'
 // Its session store (D14), required when that backend's host is first built.
 export const MODEL_API_SESSIONS_BUNDLE_FILE = 'modelApiSessions.js'
+// The Create AGENTS.md command (D15), required when that command runs, not at
+// activation.
+export const RULES_FILE_BUNDLE_FILE = 'rulesFile.js'
 // The plan reader's bundle (M79, PLAN.md D6), beside dist/extension.js:
 // the panel's Markdown parser, loaded on the first plan action.
 export const PLAN_MARKDOWN_BUNDLE_FILE = 'planMarkdown.js'
@@ -5908,6 +5911,7 @@ export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
   'dist/uiText.js',
   'dist/modelApi.js',
   'dist/modelApiSessions.js',
+  'dist/rulesFile.js',
   'dist/mcpPool.js',
   'dist/mcpVault.js',
   'dist/modelApiCodeIntel.js',
@@ -6018,6 +6022,13 @@ export const TOOL_STATUS_IN_PROGRESS = 'inProgress'
 // The approval dock (D26) moves focus to an arriving card unless the user is
 // typing: a field holding text, or a key pressed this recently.
 export const DOCK_TYPING_GRACE_MS = 1500
+// How long after it was asked a composer focus request may still land
+// (panel-focus F3): a request lands only at its delivery, or while the
+// delivery's own focus still arrives. The lead's probe measured the panel
+// becoming active 415–766 ms after the file took over; 1000 ms covers the
+// slowest measured arrival with margin. Afterwards the request is gone, so
+// an hour-old ask never yanks the caret on a much later click.
+export const FOCUS_REQUEST_WINDOW_MS = 1000
 // The team tree (M96 lane U2): keystrokes this far apart start a new
 // type-ahead search rather than extending it.
 export const TEAM_TREE_TYPEAHEAD_MS = 500
