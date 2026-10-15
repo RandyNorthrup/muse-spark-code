@@ -2,6 +2,9 @@
 
 Worktree `/home/randy/lanes/PANELTEXT`, from origin/main 0.18.2 (898a26c5e).
 Commit 8abd37ecb. No model calls, no pushes. All commands run in the worktree.
+Review RVPANELTEXT (branch `rv/panel-text`) amended this record where its
+claims were not true of the code; its fixes are commits c58fb2bf0,
+771e41da1, 8ae3be363 and e647d8ba7, each noted inline below.
 
 ## Reproduction (from the product's code path) and fix
 
@@ -12,11 +15,14 @@ with `src/webview/styles.css:3276` (`kbd { flex: 0 1 auto; max-width: 50%;
 min-width: 2em }`). In a narrow sidebar the key shrinks to `min-width: 2em`
 (about 26 px, below "Shift+Tab"), and its default visible overflow runs into
 the description: "Shift+Tabcycles".
-Fix: rows are `grid-template-columns: auto minmax(0, 1fr)`; the key keeps the
-room its text needs and the description wraps beside it. Grid columns cannot
-overlap at any width.
+Fix: rows are `grid-template-columns: fit-content(50%) minmax(0, 1fr)`; the
+key keeps the room its text needs up to half the row (the all-platform
+shortcuts wrap inside their half) and the description keeps the rest. Grid
+columns cannot overlap at any width, and the capped key column cannot
+starve the description (review RVPANELTEXT: the lane's first cut used an
+uncapped `auto` column).
 Proof: `npm run build` exit 0; `dist/webview/main.css` contains
-`.onboarding-list li{display:grid;grid-template-columns:auto minmax(0,1fr);…}`.
+`.onboarding-list li{display:grid;grid-template-columns:fit-content(50%) minmax(0,1fr);…}`.
 Local look (light + dark) NOT RUN here: no browser on the rig
 (`which google-chrome chromium chromium-browser`: all "no ... in ...").
 The lead runs the one small look.
@@ -32,7 +38,14 @@ Causes:
 - `src/host/auth/cliAccount.ts` (`signIn` → `probe()`): confirming the
   sign-in spawns a short-lived `muse serve` for `account/read`
   (`src/extension.ts:1798`). On a cold start that answers late (measured
-  68 s); nothing publishes before it.
+  68 s); nothing publishes before it. Corrected in review (RVPANELTEXT):
+  a credential file the structure settles never reaches that probe —
+  `signIn` returns the file's verdict at once (`cliAccount.ts:247`); for
+  such a file the refresh's remaining wait is the stored-key read
+  (`choose()` awaits `hasModelApiCredential`, a secret-storage read that
+  can be slow where no keyring runs, as in the measured code-server).
+  Which of the two waits made the measured 68 s is UNMEASURED; the fast
+  publish below skips the second, and only the wording covers the first.
 - The pill opens the deferred palette (`src/webview/App.tsx:199`), whose
   `Suspense` fallback (`src/webview/components/DeferredSurface.tsx:93`) read
   bare `loadingOutput` ("Loading…") with no surface label.
@@ -48,8 +61,12 @@ Causes:
   `paletteLabel`), so the box reads "Models: Loading…" / "Actions: Loading…".
   Proof: `test/unit/startupWords.test.tsx` (2 passed), `test/unit/cliPeek.test.ts`
   (3 passed, real temp credential files), `test/unit/authFastSignIn.test.ts`
-  (3 passed: fast publish before the probe answers; wait when the file settles
-  nothing; full facts overrule a stale fast answer);
+  (3 passed, rewritten in review through one real `CliAccount` over a temp
+  file: fast publish before the stored-key read answers; wait for the CLI
+  when the file settles nothing; never jump ahead with a signed-out file.
+  The lane's first version paired a signed-in peek with a pending probe, a
+  state the real `CliAccount` cannot reach, and its "full facts overrule"
+  case was dropped with it);
   `test/unit/authService.test.ts` 113 passed, `test/unit/cliAccount.test.ts`
   28 passed after the change.
 
@@ -66,16 +83,23 @@ models are unmarked (their tier is the CLI's to report — see UPSTREAM).
 The controller marks `-contributor` ids `trainsOnContent: true`, the
 protocol field the contributor switch reads.
 Not done: per-model prices for CLI models — the app holds no subscription
-price facts and must not invent them (see UPSTREAM).
+price facts and must not invent them (see UPSTREAM). Also unchanged for
+the measured case: CLI 1.4.7 lists plain ids (no `-contributor` suffix),
+so none of its models carries the mark until the CLI reports a tier or
+the contributor switch (F8 lane) supplies the state (review RVPANELTEXT).
 Proof: `test/unit/palettePanelText.test.tsx` (4 passed, real render).
 
 ### F66 — "Not Now" asked again in a new window
 
-Cause: `src/host/skills/bundledSkills.ts` (`decline()`): a click arriving
-with `shown === undefined` silently did nothing. That happens after a host
-restart between the offer and the click, or when the click reaches a window
-that never offered (its own `isClaimed`/`shown` are fresh while the panel
-still shows the button) — exactly "a new window asks again".
+Cause (a path proven in code; whether it is the measured window's path is
+UNMEASURED — review RVPANELTEXT): `src/host/skills/bundledSkills.ts`
+(`decline()`): a click arriving with `shown === undefined` silently did
+nothing. That happens after a host restart between the offer and the click,
+or when the click reaches a window that never offered (its own
+`isClaimed`/`shown` are fresh while a restored panel still shows the
+button). A same-window click after a normal offer already wrote
+`globalState` before this lane, so the lead's two-window check below is
+what decides whether this was the measured path.
 Fix: the fallback reads the copy's state now (`readShown`/`readStrayAnswer`):
 not installed → install decline; an older installed tag → that release's
 update decline; a current copy or someone else's folder → nothing. A broken
@@ -177,6 +201,9 @@ capability both backends already forward: `pricing`, `inputUsdPerMTokens`,
   (stray-click cases); restored, 4 passed.
 - `authService.ts` `publishFastSignIn` call removed → `authFastSignIn`
   2 failed (fast-publish cases); restored, 3 passed.
+- Review (RVPANELTEXT): the same removal against the rewritten
+  `authFastSignIn` → 1 failed (the stored-key case), 2 passed; restored
+  byte-exact (SHA-256 `a800c5fa…62b2` before and after), 3 passed.
 
 ## Gates on the final tree (exit codes)
 
@@ -214,7 +241,9 @@ placeholder); no test was deleted or skipped.
 
 ## Real-life scenarios for the lead's run
 
-- Narrow the sidebar with Getting Started visible: keys and text never touch.
+- Narrow the sidebar with Getting Started visible, one light and one dark
+  theme: keys and text never touch, and the two all-platform shortcut rows
+  (focus, new tab) wrap inside their half without squeezing the text.
 - Fresh start signed in: pill reads "Checking sign-in…" then the model pill;
   the sign-in state lands at once.
 - `/` palette: skill rows read "Run the … skill."; no row repeats itself;
