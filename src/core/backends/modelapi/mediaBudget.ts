@@ -16,7 +16,6 @@
 import { Buffer } from 'node:buffer'
 import {
   MAX_ENCODED_MEDIA_CHARS,
-  MODEL_API_MEDIA_PER_REQUEST,
   MODEL_API_MODEL_TEXT,
   MODEL_API_PDF_PAGE_IMAGES,
   UI_TEXT,
@@ -135,14 +134,20 @@ export class MediaBudget {
     if (omission !== undefined) this.mediaOmissions.set(part, omission)
   }
 
-  /** Fresh media must fit whole; only older replay can be elided. */
+  /**
+   * Fresh media must fit whole; only older replay can be elided. An unknown
+   * slot count (no provider record states one) enforces nothing: the
+   * encoded-chars budget still binds, and the provider's own refusal comes
+   * back in words.
+   */
   public assertMessageFits(
     content: readonly InputContentPart[],
     queued?: { readonly chars: number; readonly slots: number },
-    maxSlots: number = MODEL_API_MEDIA_PER_REQUEST,
+    maxSlots?: number,
   ): void {
     const usage = this.usage(content)
-    if (usage.slots + (queued?.slots ?? 0) > maxSlots) throw new Error(UI_TEXT.documentsOverBudget)
+    if (maxSlots !== undefined && usage.slots + (queued?.slots ?? 0) > maxSlots)
+      throw new Error(UI_TEXT.documentsOverBudget)
     if (usage.chars + (queued?.chars ?? 0) > this.maxEncodedMediaChars)
       throw new Error(UI_TEXT.mediaTotalTooLarge)
   }
@@ -176,7 +181,10 @@ export class MediaBudget {
     this.assertMessageFits(required, undefined, limits.imageMaxCount)
     const reserved = this.usage(required)
     const protectedParts = new Set(required)
-    let left = limits.imageMaxCount - reserved.slots
+    // Unknown for this provider: no slot count is enforced (the chars
+    // budget and any record-stated per-part limits still bind below).
+    const maxSlots = limits.imageMaxCount
+    let left = maxSlots === undefined ? undefined : maxSlots - reserved.slots
     let imageCount = 0
     let encodedLeft = this.maxEncodedMediaChars - reserved.chars
     const refusal = (part: InputContentPart): OmissionReason | undefined => {
@@ -224,10 +232,12 @@ export class MediaBudget {
         encodedLeft -= encodedChars
         return undefined
       }
-      if (weight > left || encodedChars > encodedLeft) {
+      if ((left !== undefined && weight > left) || encodedChars > encodedLeft) {
         return 'budget'
       }
-      left -= weight
+      if (left !== undefined) {
+        left -= weight
+      }
       encodedLeft -= encodedChars
       return undefined
     }

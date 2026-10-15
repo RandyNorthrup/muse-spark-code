@@ -163,16 +163,16 @@ export function outputCapForRequest(
 
 /**
  * A10 (limits-output): per-request attachment limits read from a capability
- * record. A limit the record states is confirmed; a missing one keeps today's
- * enforcement value and is reported unconfirmed (the brief's fallback).
+ * record. A limit the record states is enforced; a missing one is unknown
+ * for this provider (undefined): nothing local enforces it, and the
+ * provider's own refusal comes back in words. There is no fallback to
+ * legacy numbers (owner's rule).
  */
 export interface AttachmentLimits {
-  readonly imageMaxBytes: number
-  readonly imageMaxCount: number
-  readonly documentMaxBytes: number
-  readonly pdfMaxPages: number
-  readonly imageConfirmed: boolean
-  readonly documentConfirmed: boolean
+  readonly imageMaxBytes: number | undefined
+  readonly imageMaxCount: number | undefined
+  readonly documentMaxBytes: number | undefined
+  readonly pdfMaxPages: number | undefined
 }
 export function attachmentLimitsForRecord(
   record: ModelCapabilityRecord | undefined,
@@ -181,12 +181,10 @@ export function attachmentLimitsForRecord(
     record?.modalities.image.state === 'yes' ? record.modalities.image.value : undefined
   const pdfValue = record?.modalities.pdf.state === 'yes' ? record.modalities.pdf.value : undefined
   return {
-    imageMaxBytes: imageValue?.maxBytes ?? MAX_IMAGE_BYTES,
-    imageMaxCount: imageValue?.maxCount ?? MODEL_API_MEDIA_PER_REQUEST,
-    documentMaxBytes: pdfValue?.maxBytes ?? MAX_DOCUMENT_BYTES,
-    pdfMaxPages: pdfValue?.maxPages ?? MODEL_API_PDF_PAGE_IMAGES,
-    imageConfirmed: imageValue?.maxBytes !== undefined && imageValue.maxCount !== undefined,
-    documentConfirmed: pdfValue?.maxBytes !== undefined && pdfValue.maxPages !== undefined,
+    imageMaxBytes: imageValue?.maxBytes,
+    imageMaxCount: imageValue?.maxCount,
+    documentMaxBytes: pdfValue?.maxBytes,
+    pdfMaxPages: pdfValue?.maxPages,
   }
 }
 
@@ -195,7 +193,9 @@ export function attachmentLimitsForRecord(
  * metaCapabilityRecord (providers/capabilityRecord.ts) is the source of
  * truth: it builds these modalities from the same constants, and
  * attachmentLimitsRecord.test.ts pins the two equal. They live here too so
- * the request path does not bundle the record's zod machinery (D6).
+ * the request path does not bundle the record's zod machinery (D6). These
+ * are the record's preset values, not separately published provider docs
+ * (that provenance gap stays open for the owner).
  */
 function metaAttachmentLimits(): AttachmentLimits {
   return {
@@ -203,15 +203,15 @@ function metaAttachmentLimits(): AttachmentLimits {
     imageMaxCount: MODEL_API_MEDIA_PER_REQUEST,
     documentMaxBytes: MAX_DOCUMENT_BYTES,
     pdfMaxPages: MODEL_API_PDF_PAGE_IMAGES,
-    imageConfirmed: true,
-    documentConfirmed: true,
   }
 }
 
 /**
  * A10 (limits-output): per-request attachment limits for a model reference.
- * Meta models read their record's documented values (confirmed); any other
- * reference keeps today's enforcement values, reported unconfirmed.
+ * Meta models read their capability record's values; any other reference
+ * without a resolved record is unknown for its provider (every field
+ * undefined): nothing local enforces it, and the provider's own refusal
+ * comes back in words.
  */
 export function attachmentLimitsForModel(model: string): AttachmentLimits {
   const producer = replayProducer(model)

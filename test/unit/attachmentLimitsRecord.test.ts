@@ -15,27 +15,25 @@ import {
 } from '../../src/core/providers/capabilityRecord'
 
 describe('A10 attachment limits from the capability record', () => {
-  it('meta models read confirmed limits from their own record', () => {
+  it('meta models read limits from their own record', () => {
     const limits = attachmentLimitsForModel('muse-spark-1.3')
-    expect(limits.imageConfirmed).toBe(true)
-    expect(limits.documentConfirmed).toBe(true)
     expect(limits.imageMaxBytes).toBe(MAX_IMAGE_BYTES)
     expect(limits.imageMaxCount).toBe(MODEL_API_MEDIA_PER_REQUEST)
     expect(limits.documentMaxBytes).toBe(MAX_DOCUMENT_BYTES)
     expect(limits.pdfMaxPages).toBe(MODEL_API_PDF_PAGE_IMAGES)
   })
 
-  it('a model without a record keeps today’s values, marked unconfirmed', () => {
+  it('a model without a record is unknown: no legacy numbers stand in', () => {
     const limits = attachmentLimitsForModel('anthropic/claude-opus-4-6')
-    expect(limits.imageConfirmed).toBe(false)
-    expect(limits.documentConfirmed).toBe(false)
-    expect(limits.imageMaxBytes).toBe(MAX_IMAGE_BYTES)
-    expect(limits.imageMaxCount).toBe(MODEL_API_MEDIA_PER_REQUEST)
-    expect(limits.documentMaxBytes).toBe(MAX_DOCUMENT_BYTES)
-    expect(limits.pdfMaxPages).toBe(MODEL_API_PDF_PAGE_IMAGES)
+    expect(limits).toEqual({
+      imageMaxBytes: undefined,
+      imageMaxCount: undefined,
+      documentMaxBytes: undefined,
+      pdfMaxPages: undefined,
+    })
   })
 
-  it('a record stating only some limits confirms only those', () => {
+  it('a record stating only some limits leaves the rest unknown', () => {
     const source = { kind: 'models-list' as const, ref: 'models' }
     const record = resolveModelCapabilities(
       { provider: 'acme', nativeModel: 'acme-1', format: 'responses' },
@@ -56,16 +54,17 @@ describe('A10 attachment limits from the capability record', () => {
     )
     const limits = attachmentLimitsForRecord(record)
     expect(limits.imageMaxBytes).toBe(1024)
-    expect(limits.imageConfirmed).toBe(false)
-    expect(limits.imageMaxCount).toBe(MODEL_API_MEDIA_PER_REQUEST)
-    expect(limits.documentConfirmed).toBe(false)
-    expect(limits.documentMaxBytes).toBe(MAX_DOCUMENT_BYTES)
+    expect(limits.imageMaxCount).toBeUndefined()
+    expect(limits.documentMaxBytes).toBeUndefined()
+    expect(limits.pdfMaxPages).toBeUndefined()
   })
 
   it('the meta record states every enforced attachment limit', () => {
     const limits = attachmentLimitsForRecord(metaCapabilityRecord('muse-spark-1.3'))
-    expect(limits.imageConfirmed).toBe(true)
-    expect(limits.documentConfirmed).toBe(true)
+    expect(limits.imageMaxBytes).toBe(MAX_IMAGE_BYTES)
+    expect(limits.imageMaxCount).toBe(MODEL_API_MEDIA_PER_REQUEST)
+    expect(limits.documentMaxBytes).toBe(MAX_DOCUMENT_BYTES)
+    expect(limits.pdfMaxPages).toBe(MODEL_API_PDF_PAGE_IMAGES)
   })
 
   it('the request path uses the record’s own values, pinned equal', () => {

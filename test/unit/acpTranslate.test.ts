@@ -623,7 +623,23 @@ describe('promptParts', () => {
 
   it('refuses a prompt with an image too large, a file that is not one, audio, or a link it cannot map', async () => {
     const huge = Buffer.alloc(10 * 1024 * 1024 + 1).toString('base64')
-    expect(await promptParts([{ type: 'image', data: huge, mimeType: 'image/png' }], CWD)).toEqual({
+    const tinyPng =
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
+    const tiny = { type: 'image', data: tinyPng, mimeType: 'image/png' } as const
+    // Unknown for this provider: a valid image passes with no local size
+    // refusal; the provider's own refusal comes back in words.
+    const passed = await promptParts([tiny], CWD)
+    expect(passed.ok).toBe(true)
+    // A stated record limit still refuses locally, in words.
+    const image = { type: 'image', data: huge, mimeType: 'image/png' } as const
+    expect(
+      await promptParts([image], CWD, undefined, false, undefined, {
+        imageMaxBytes: 10 * 1024 * 1024,
+        imageMaxCount: undefined,
+        documentMaxBytes: undefined,
+        pdfMaxPages: undefined,
+      }),
+    ).toEqual({
       ok: false,
       reason: UI_TEXT.attachmentTooLarge,
     })

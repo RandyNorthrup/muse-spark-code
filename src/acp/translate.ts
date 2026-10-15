@@ -11,8 +11,6 @@ import {
   FILE_READ_TOOLS,
   IDE_CONTEXT_TAGS,
   IMAGE_MAKING_TOOLS,
-  MAX_IMAGE_BYTES,
-  MAX_DOCUMENT_BYTES,
   MEDIA_MAX_UPLOAD_DEFAULT_MIB,
   PDF_MEDIA_TYPE,
   MODEL_API_WEB_SEARCH_TOOL,
@@ -651,24 +649,25 @@ function linkText(uri: string, cwd: string): string {
 /** Check the encoded cap before allocating; malformed base64 is never decoded lossily. */
 export function decodeAcpBlob(
   data: string,
-  maxBytes: number,
+  maxBytes: number | undefined,
   mime: string,
   tooLarge: string,
 ): Uint8Array | string {
-  if (data.length > BASE64_OUTPUT_BLOCK_CHARS * Math.ceil(maxBytes / BASE64_INPUT_BLOCK_BYTES))
+  // Unknown for this provider: no size is refused locally; the provider's
+  // own refusal comes back in words.
+  if (
+    maxBytes !== undefined &&
+    data.length > BASE64_OUTPUT_BLOCK_CHARS * Math.ceil(maxBytes / BASE64_INPUT_BLOCK_BYTES)
+  )
     return tooLarge
   const bytes = Buffer.from(data, 'base64')
-  if (bytes.length > maxBytes) return tooLarge
+  if (maxBytes !== undefined && bytes.length > maxBytes) return tooLarge
   return bytes.toString('base64') === data
     ? bytes
     : fill(UI_TEXT.media.attachmentUnknownType, { type: mime })
 }
 
-function imagePart(
-  base64Data: string,
-  mime?: string,
-  maxBytes: number = MAX_IMAGE_BYTES,
-): TurnPart | string {
+function imagePart(base64Data: string, mime?: string, maxBytes?: number): TurnPart | string {
   const bytes = decodeAcpBlob(base64Data, maxBytes, mime ?? 'image', UI_TEXT.attachmentTooLarge)
   if (typeof bytes === 'string') return bytes
   const info = readImageInfo(bytes)
@@ -699,7 +698,7 @@ async function blockPart(
       return { type: 'text', text: block.text }
     }
     case 'image': {
-      return imagePart(block.data, block.mimeType, limits?.imageMaxBytes ?? MAX_IMAGE_BYTES)
+      return imagePart(block.data, block.mimeType, limits?.imageMaxBytes)
     }
     case 'resource_link': {
       // Only media links reach the port: an ordinary context link must not
@@ -717,7 +716,7 @@ async function blockPart(
       const bytes = decodeAcpBlob(
         resource.blob,
         resource.mimeType === PDF_MEDIA_TYPE
-          ? (limits?.documentMaxBytes ?? MAX_DOCUMENT_BYTES)
+          ? limits?.documentMaxBytes
           : MEDIA_MAX_UPLOAD_DEFAULT_MIB * BYTES_PER_MIB,
         resource.mimeType ?? 'blob',
         resource.mimeType === PDF_MEDIA_TYPE ? UI_TEXT.documentTooLarge : UI_TEXT.execFileTooLarge,
@@ -727,7 +726,10 @@ async function blockPart(
         if (resource.mimeType != null && resource.mimeType !== PDF_MEDIA_TYPE)
           return fill(UI_TEXT.media.attachmentUnknownType, { type: resource.mimeType })
         if (!canAcceptDocuments) return UI_TEXT.pdfNeedsModelApi
-        if (bytes.length > MAX_DOCUMENT_BYTES) return UI_TEXT.documentTooLarge
+        // Unknown for this provider: decodeAcpBlob above already enforced a
+        // stated record limit; without one nothing local refuses the bytes.
+        if (limits?.documentMaxBytes !== undefined && bytes.length > limits.documentMaxBytes)
+          return UI_TEXT.documentTooLarge
         return {
           type: 'file',
           name: resourceName(resource.uri),

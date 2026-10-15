@@ -7859,8 +7859,12 @@ export class ModelApiSession implements ScheduledAgentSession {
   private canQueueMedia(chars: number, slots: number): boolean {
     const queued = this.queuedMediaUsage()
     const limit = this.deps.mediaBudgetMaxEncodedChars ?? MAX_ENCODED_MEDIA_CHARS
+    // Unknown for this provider: no slot count gates the queue (the chars
+    // budget still does); the provider's own refusal comes back in words.
     const maxSlots = attachmentLimitsForModel(this.modelId).imageMaxCount
-    return queued.chars + chars <= limit && queued.slots + slots <= maxSlots
+    return (
+      queued.chars + chars <= limit && (maxSlots === undefined || queued.slots + slots <= maxSlots)
+    )
   }
 
   /** Reserve all current-batch visual outputs before their tool row reports success. */
