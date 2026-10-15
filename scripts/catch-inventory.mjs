@@ -2,9 +2,9 @@
 // The catch-clause gate (`npm run check:catches`): every `catch` clause and
 // `.catch(` handler under src holds a named condition or a failure report.
 // `node scripts/catch-inventory.mjs --check` scans the tree and compares the
-// SWALLOW and GENERIC counts per top-level area with scripts/catch-baseline.json:
-// any rise fails, and any fall without a lowered baseline fails too, so the
-// number only goes down and is always exact. `--write-baseline` regenerates
+// SWALLOW and GENERIC sites and per-area counts with scripts/catch-baseline.json:
+// replacement sites fail even at equal totals; a fall needs a lowered baseline.
+// No newly exposed debt is accepted automatically. `--write-baseline` regenerates
 // the baseline after an intentional fix; `--inventory <json> --markdown <md>`
 // writes the full listing for the certification record.
 import fs from 'node:fs'
