@@ -66,6 +66,12 @@
     "src/host/backend/subscriptionsEntry.ts",
     "src/host/backend/configuredProvidersEntry.ts",
     "src/host/models/modelsPanelEntry.ts",
+    // The sign-in gate's own bundle (CIFIX161B), required by path on the
+    // first credential, money or consent read.
+    "src/host/auth/authEntry.ts",
+    // The paid features' own bundle (CIFIX161B), required by path on the
+    // first paid consent, gate or usage read.
+    "src/host/paid/paidEntry.ts",
 
     // The Node-only team schema proxy selected by the production resolver (M96, D6).
     "src/host/teamViewBundle.ts",
