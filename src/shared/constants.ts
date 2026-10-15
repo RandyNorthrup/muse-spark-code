@@ -2330,6 +2330,17 @@ export const MODEL_API_STREAM_IDLE_MS = 300_000
 export const BYTES_PER_MIB = 1024 * 1024
 export const TOOL_FILE_MAX_MIB = 10
 export const TOOL_FILE_MAX_BYTES = TOOL_FILE_MAX_MIB * BYTES_PER_MIB
+/**
+ * A9 (limits-output): one byte window is at most this large: a bigger file
+ * is read window by window, never whole into the context.
+ */
+export const TOOL_FILE_RANGE_MAX_BYTES = 1 * 1024 * 1024
+/**
+ * A9 (limits-output): a range edit's host-side splice reads the whole file
+ * only up to this size; past it the edit refuses with its reason. The model
+ * never sees more than its window either way.
+ */
+export const TOOL_FILE_EDIT_MAX_BYTES = 128 * 1024 * 1024
 export const BOUNDED_FILE_READ_CHUNK_BYTES = 64 * 1024
 export const HTTP_UNAUTHORIZED = 401
 // Refused before any work was done: the one status a per-call-billed request retries (M34).

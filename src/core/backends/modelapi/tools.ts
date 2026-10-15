@@ -30,6 +30,7 @@ import {
   MAX_IMAGE_BYTES,
   BYTES_PER_MIB,
   MEDIA_MAX_UPLOAD_DEFAULT_MIB,
+  MODEL_TEXT,
   MODEL_API_MODEL_TEXT,
   MODEL_API_SUBAGENT_TOOLS,
   MODEL_API_TOOLS,
@@ -50,6 +51,9 @@ import {
   TOOL_OUTPUT_CLIP_MARKER,
   TOOL_OUTPUT_ELIDED_MARKER,
   TOOL_OUTPUT_MAX_CHARS,
+  TOOL_FILE_EDIT_MAX_BYTES,
+  TOOL_FILE_MAX_BYTES,
+  TOOL_FILE_RANGE_MAX_BYTES,
   UI_TEXT,
   VERIFY_TOOLS,
 } from '../../../shared/constants'
@@ -216,6 +220,37 @@ export interface ToolIo {
     signal?: AbortSignal,
     observeSource?: (source: Extract<ContentSource, { kind: 'file' }>) => void,
   ): Promise<Uint8Array | undefined>
+  /**
+   * A9 (limits-output): the file's size in bytes; undefined when it does
+   * not exist. Absent on IO that predates range reads.
+   */
+  readonly fileSize?: (
+    absolutePath: string,
+    expectedCanonicalPath?: string,
+  ) => Promise<number | undefined>
+  /**
+   * A9 (limits-output): one byte window of a file of any size, with the
+   * file's size, mtime and text shape, so reads and edits reach past the
+   * whole-read cap by range. Undefined when the file does not exist.
+   * Absent on IO that predates range reads.
+   */
+  readonly readFileRange?: (
+    absolutePath: string,
+    expectedCanonicalPath: string | undefined,
+    range: FileByteRange,
+    signal?: AbortSignal,
+  ) => Promise<FileRangeRead | undefined>
+  /**
+   * A9 (limits-output): the whole file as text up to `maxBytes`, for a
+   * range edit's host-side splice: the model never sees more than its
+   * window. Undefined when the file does not exist.
+   */
+  readonly readFileCapped?: (
+    absolutePath: string,
+    expectedCanonicalPath: string | undefined,
+    maxBytes: number,
+    signal?: AbortSignal,
+  ) => Promise<string | undefined>
   /** Replaces the file whole (a temporary file renamed into place), folders created. */
   writeFile(
     absolutePath: string,
@@ -619,6 +654,8 @@ const readFileArgs = z.object({
   path: z.string(),
   offset: z.optional(z.number()),
   limit: z.optional(z.number()),
+  byteOffset: z.optional(z.number()),
+  byteLength: z.optional(z.number()),
 })
 const writeFileArgs = z.object({ path: z.string(), content: z.string() })
 const editEntryArgs = z.object({ find: z.string(), replace: z.string() })
@@ -627,6 +664,8 @@ const editFileArgs = z.object({
   find: z.optional(z.string()),
   replace: z.optional(z.string()),
   edits: z.optional(z.array(editEntryArgs)),
+  byteOffset: z.optional(z.number()),
+  byteLength: z.optional(z.number()),
 })
 const OUTPUT_MODES = ['content', 'files_with_matches', 'count'] as const
 const searchArgs = z.object({
@@ -749,18 +788,20 @@ export function toolDefinitions(
       })),
     define(
       MODEL_API_TOOLS.readFile,
-      'Read a file from the workspace. A text file comes back numbered by line (use offset and limit for long files); a PDF or an image (PNG, JPEG, GIF, WebP) comes back whole, for you to see.',
+      'Read a file from the workspace. A text file comes back numbered by line (use offset and limit for long files); a PDF or an image (PNG, JPEG, GIF, WebP) comes back whole, for you to see. A file past the whole-read size is read by byte range instead: byteOffset (0-based first byte) with byteLength, window by window to the end.',
       {
         path: PATH_PROPERTY,
         offset: { type: 'integer', description: '1-based first line to return' },
         limit: { type: 'integer', description: 'Maximum lines to return' },
+        byteOffset: { type: 'integer', description: '0-based first byte of a byte-range read' },
+        byteLength: { type: 'integer', description: 'Bytes in a byte-range read' },
       },
       ['path'],
       ['path'],
     ),
     define(
       MODEL_API_TOOLS.editFile,
-      'Replace one exact occurrence of `find` with `replace` in a file. `find` must match exactly once; include enough surrounding lines to make it unique. Pass `edits` (a list of `find`/`replace` pairs) instead for several replacements in one call: every entry must match exactly once, entries must not overlap, and either all of them are applied or none is.',
+      'Replace one exact occurrence of `find` with `replace` in a file. `find` must match exactly once; include enough surrounding lines to make it unique. Pass `edits` (a list of `find`/`replace` pairs) instead for several replacements in one call: every entry must match exactly once, entries must not overlap, and either all of them are applied or none is. A file past the whole-read size is edited by byte range instead: read the window first, then pass the same byteOffset and byteLength with the change, matched inside that window.',
       {
         path: PATH_PROPERTY,
         find: { type: 'string', description: 'The exact text to replace' },
@@ -776,6 +817,14 @@ export function toolDefinitions(
             },
             required: ['find', 'replace'],
           },
+        },
+        byteOffset: {
+          type: 'integer',
+          description: '0-based first byte of the window the change is matched in',
+        },
+        byteLength: {
+          type: 'integer',
+          description: 'Bytes of the window the change is matched in',
         },
         ...thenRun,
       },
@@ -1027,6 +1076,87 @@ export function clipWithNote(text: string, maxChars: number, note: string): stri
   if (reserve >= maxChars) return `${clip(text, maxChars)}${note}`
   const kept = codePointBoundary(text, maxChars - reserve)
   return `${text.slice(0, kept)}${TOOL_OUTPUT_CLIP_MARKER}${note}`
+}
+
+/** A9 (limits-output): a byte window into a file: `offset` first, at most `length` bytes. */
+export interface FileByteRange {
+  readonly offset: number
+  readonly length: number
+}
+
+/** A9 (limits-output): a byte window read, with what reading and editing by range needs. */
+export interface FileRangeRead {
+  /** The window's bytes, possibly short at the end of the file. */
+  readonly bytes: Uint8Array
+  /** The file's size in bytes. */
+  readonly size: number
+  /** The file's mtime in milliseconds, for the edit's staleness check. */
+  readonly mtimeMs: number
+  /** Whether the file starts with a UTF-8 byte-order mark. */
+  readonly hasBom: boolean
+  /** Whether every line break in the file is a CRLF. */
+  readonly isCrlf: boolean
+}
+
+const UTF8_CONTINUATION_MASK = 0xc0
+const UTF8_CONTINUATION_BITS = 0x80
+const UTF8_ASCII_MAX = 0x80
+const UTF8_LEAD_2_MIN = 0xc0
+const UTF8_TWO_BYTE_MAX = 0xe0
+const UTF8_THREE_BYTE_MAX = 0xf0
+const UTF8_FOUR_BYTE_MAX = 0xf8
+const UTF8_NUL = 0
+
+function isContinuationByte(byte: number | undefined): boolean {
+  return byte !== undefined && (byte & UTF8_CONTINUATION_MASK) === UTF8_CONTINUATION_BITS
+}
+
+const UTF8_THREE_BYTE_LENGTH = 3
+const UTF8_FOUR_BYTE_LENGTH = 4
+
+/** Expected UTF-8 sequence length for a lead byte; 0 when it leads nothing. */
+function utf8SequenceLength(lead: number): number {
+  if (lead < UTF8_ASCII_MAX) return 1
+  if (lead < UTF8_LEAD_2_MIN) return 0
+  if (lead < UTF8_TWO_BYTE_MAX) return 2
+  if (lead < UTF8_THREE_BYTE_MAX) return UTF8_THREE_BYTE_LENGTH
+  return lead < UTF8_FOUR_BYTE_MAX ? UTF8_FOUR_BYTE_LENGTH : 0
+}
+
+/**
+ * A9 (limits-output): the byte window as the model reads it. Partial
+ * UTF-8 sequences at the edges are left out, so the slice always decodes;
+ * an interior NUL or invalid sequence refuses like a whole read (D27).
+ * Returns undefined for bytes no text window can show.
+ */
+export function decodeWindow(bytes: Uint8Array, start: number, end: number): string | undefined {
+  let from = Math.max(start, 0)
+  const to = Math.min(end, bytes.length)
+  while (from < to && isContinuationByte(bytes[from])) {
+    from += 1
+  }
+  let trimmed = to
+  let following = 0
+  while (trimmed > from && isContinuationByte(bytes[trimmed - 1])) {
+    trimmed -= 1
+    following += 1
+  }
+  if (trimmed > from) {
+    const lead = bytes[trimmed - 1]
+    // A complete trailing sequence stays whole; a partial one is left out.
+    trimmed = lead === undefined || following + 1 < utf8SequenceLength(lead) ? trimmed - 1 : to
+  }
+  const slice = bytes.slice(from, trimmed)
+  if (slice.includes(UTF8_NUL)) {
+    return undefined
+  }
+  try {
+    // The BOM is kept as a character, exactly as whole reads decode (D27):
+    // the display strips it, the digest covers it.
+    return new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(slice)
+  } catch {
+    return undefined
+  }
 }
 
 const LAST_BMP_CODE_POINT = 0xff_ff
@@ -1451,10 +1581,91 @@ async function readablePath(
   return inWorkspace
 }
 
+/**
+ * A9 (limits-output): one byte window of a text file of any size. The model
+ * never sees more than the window; the note names the bytes shown, the
+ * total, and the offset that fetches the rest.
+ */
+async function readFileWindow(
+  given: string,
+  args: z.infer<typeof readFileArgs>,
+  context: ToolContext,
+): Promise<ToolOutcome> {
+  const head = await locateHead(given, context)
+  if (!head.ok) {
+    return head.outcome
+  }
+  if (context.io.fileSize === undefined || context.io.readFileRange === undefined) {
+    return failure(
+      `${head.relative} needs byte addressing, which this host does not offer; read it whole instead`,
+    )
+  }
+  const offset = Math.max(Math.floor(args.byteOffset ?? 0), 0)
+  const length = args.byteLength === undefined ? TOOL_OUTPUT_MAX_CHARS : Math.floor(args.byteLength)
+  if (!(length > 0)) {
+    return failure('byteLength is a positive number of bytes')
+  }
+  if (length > TOOL_FILE_RANGE_MAX_BYTES) {
+    return failure(
+      `byteLength holds at most ${String(TOOL_FILE_RANGE_MAX_BYTES)} bytes; read the file window by window`,
+    )
+  }
+  const size = await context.io.fileSize(head.checkedAbsolute, head.checkedAbsolute)
+  if (size === undefined) {
+    return failure(`file not found: ${head.relative}`)
+  }
+  if (size === 0) {
+    const empty = `Read text file \`${head.relative}\` (0 bytes): the file is empty.`
+    return { output: empty, visibleOutput: empty }
+  }
+  if (offset >= size) {
+    return failure(
+      `byteOffset ${String(offset)} is past the end of \`${head.relative}\` (${String(size)} bytes); use an offset from 0 to ${String(size - 1)}`,
+    )
+  }
+  const window = await context.io.readFileRange(
+    head.checkedAbsolute,
+    head.checkedAbsolute,
+    { offset, length: Math.min(length, size - offset) },
+    context.signal,
+  )
+  if (window === undefined) {
+    return failure(`file not found: ${head.relative}`)
+  }
+  const text = decodeWindow(window.bytes, 0, window.bytes.length)
+  if (text === undefined) {
+    throw new Error(`${head.checkedAbsolute} ${MODEL_TEXT.fileNotText}`)
+  }
+  const shown = modelText(text, {
+    hasBom: window.hasBom && offset === 0,
+    isCrlf: window.isCrlf,
+    hasTrailingBreak: text.endsWith('\n'),
+  })
+  const first = offset
+  const last = offset + window.bytes.length
+  const header = `Read text file \`${head.relative}\` (bytes ${String(first)}–${String(last)} of ${String(window.size)}):`
+  const note =
+    last < window.size
+      ? `[bytes ${String(first)}–${String(last)} of ${String(window.size)}; call read_file again with byteOffset ${String(last)} for the rest]`
+      : `[bytes ${String(first)}–${String(last)} of ${String(window.size)}; end of file]`
+  const body = clipWithNote(`${header}\n${shown}`, TOOL_OUTPUT_MAX_CHARS, `\n${note}`)
+  const touched: TouchedFiles = { names: [head.relative, head.canonical], complete: false }
+  return { output: body, visibleOutput: body, touched }
+}
+
 async function readFile(
   args: z.infer<typeof readFileArgs>,
   context: ToolContext,
 ): Promise<ToolOutcome> {
+  const hasByteRange = args.byteOffset !== undefined || args.byteLength !== undefined
+  if (hasByteRange && (args.offset !== undefined || args.limit !== undefined)) {
+    return failure(
+      'read_file takes either line addressing (offset and limit) or byte addressing (byteOffset and byteLength), not both',
+    )
+  }
+  if (hasByteRange) {
+    return await readFileWindow(args.path, args, context)
+  }
   const resolved = await readablePath(args.path, context)
   context.signal?.throwIfAborted()
   if (!resolved.ok) {
@@ -1474,6 +1685,19 @@ async function readFile(
     return { ...(await readMediaFile(resolved, context)), touched }
   if (visual !== undefined) {
     return { ...(await readVisual(resolved, visual, context)), touched }
+  }
+  // A9 (limits-output): past the whole-read size the refusal says why and
+  // names the byte window that reads the file instead.
+  if (context.io.fileSize !== undefined && context.io.readFileRange !== undefined) {
+    const size = await context.io.fileSize(resolved.checkedAbsolute, resolved.checkedAbsolute)
+    if (size !== undefined && size > TOOL_FILE_MAX_BYTES) {
+      return {
+        ...failure(
+          `${resolved.relative} is ${String(size)} bytes, over the ${String(TOOL_FILE_MAX_BYTES)}-byte whole-read limit: call read_file again with byteOffset 0 and byteLength ${String(TOOL_OUTPUT_MAX_CHARS)} for the first window`,
+        ),
+        touched,
+      }
+    }
   }
   const raw = await context.io.readFile(
     resolved.checkedAbsolute,
@@ -1536,7 +1760,12 @@ async function readFile(
 }
 
 /** The confined path and the file's current text (undefined when absent), or the refusal. */
-async function located(
+/**
+ * A9 (limits-output): a path confined, policy-checked and approval-checked,
+ * without reading the file: range reads and edits work from here, so files
+ * of any size stay reachable without loading them whole.
+ */
+async function locateHead(
   given: string,
   context: ToolContext,
 ): Promise<
@@ -1546,7 +1775,6 @@ async function located(
       readonly canonical: string
       readonly absolute: string
       readonly checkedAbsolute: string
-      readonly before: string | undefined
     }
   | { readonly ok: false; readonly outcome: ToolOutcome }
 > {
@@ -1572,15 +1800,35 @@ async function located(
   ) {
     return { ok: false, outcome: failure(FILE_REFUSAL_MODEL_TEXT.pathChangedAfterApproval) }
   }
-  const before = await context.io.readFile(resolved.checkedAbsolute, resolved.checkedAbsolute)
   return {
     ok: true,
     relative: resolved.relative,
     canonical: resolved.canonical,
     absolute: resolved.absolute,
     checkedAbsolute: resolved.checkedAbsolute,
-    before,
   }
+}
+
+async function located(
+  given: string,
+  context: ToolContext,
+): Promise<
+  | {
+      readonly ok: true
+      readonly relative: string
+      readonly canonical: string
+      readonly absolute: string
+      readonly checkedAbsolute: string
+      readonly before: string | undefined
+    }
+  | { readonly ok: false; readonly outcome: ToolOutcome }
+> {
+  const head = await locateHead(given, context)
+  if (!head.ok) {
+    return head
+  }
+  const before = await context.io.readFile(head.checkedAbsolute, head.checkedAbsolute)
+  return { ...head, before }
 }
 
 /** A file an edit wrote, as the dispatcher's fence judges it (M78). */
@@ -1639,6 +1887,23 @@ async function writeFile(
   const refusal = editRefusal(file, context)
   if (refusal !== undefined) {
     return refusal
+  }
+  // A9 (limits-output): a file past the whole-read size says why whole
+  // replacement is refused, and the range edit that still works.
+  if (
+    context.io.fileSize !== undefined &&
+    context.io.readFileRange !== undefined &&
+    context.io.readFileCapped !== undefined
+  ) {
+    const size = await context.io.fileSize(file.checkedAbsolute, file.checkedAbsolute)
+    if (size !== undefined && size > TOOL_FILE_MAX_BYTES) {
+      return {
+        ...failure(
+          `${file.relative} is ${String(size)} bytes, over the ${String(TOOL_FILE_MAX_BYTES)}-byte whole-file limit: read it by byte range first, then edit_file with the same byteOffset and byteLength, matched inside that window`,
+        ),
+        touched: touchedBy(file),
+      }
+    }
   }
   const { before, relative, absolute } = file
   const touched = touchedBy(file)
@@ -1774,30 +2039,31 @@ async function matchRange(
   }
 }
 
-async function editFile(
-  args: z.infer<typeof editFileArgs>,
-  context: ToolContext,
-): Promise<ToolOutcome> {
-  const file = await located(args.path, context)
-  if (!file.ok) {
-    return file.outcome
-  }
-  const { before, relative } = file
-  if (before === undefined) {
-    return failure(`file not found: ${relative}`)
-  }
-  const refusal = editRefusal(file, context)
-  if (refusal !== undefined) {
-    return refusal
-  }
+/**
+ * A9 (limits-output): the entries one call edits, validated before any file
+ * is touched, so both edit paths refuse the same malformed calls.
+ */
+function editSingles(args: z.infer<typeof editFileArgs>):
+  | {
+      readonly ok: true
+      readonly singles: readonly { readonly find: string; readonly replace: string }[]
+      readonly hasEdits: boolean
+    }
+  | { readonly ok: false; readonly outcome: ToolOutcome } {
   // One call edits once (`find`/`replace`) or several times (`edits`),
   // never both; an empty `edits` edits nothing and is refused outright.
   if (args.edits?.length === 0) {
-    return failure(MODEL_API_MODEL_TEXT.editEmptyList, UI_TEXT.toolEditInvalid)
+    return {
+      ok: false,
+      outcome: failure(MODEL_API_MODEL_TEXT.editEmptyList, UI_TEXT.toolEditInvalid),
+    }
   }
   const hasEdits = args.edits !== undefined
   if (hasEdits && (args.find !== undefined || args.replace !== undefined)) {
-    return failure(MODEL_API_MODEL_TEXT.editMixedShape, UI_TEXT.toolEditInvalid)
+    return {
+      ok: false,
+      outcome: failure(MODEL_API_MODEL_TEXT.editMixedShape, UI_TEXT.toolEditInvalid),
+    }
   }
   const singles =
     args.edits ??
@@ -1805,17 +2071,226 @@ async function editFile(
       ? [{ find: args.find, replace: args.replace }]
       : undefined)
   if (singles === undefined) {
-    return failure(MODEL_API_MODEL_TEXT.editPairRequired, UI_TEXT.toolEditInvalid)
+    return {
+      ok: false,
+      outcome: failure(MODEL_API_MODEL_TEXT.editPairRequired, UI_TEXT.toolEditInvalid),
+    }
   }
   for (const entry of singles) {
     if (entry.find === '') {
-      return failure(MODEL_API_MODEL_TEXT.editFindEmpty, UI_TEXT.toolEditInvalid)
+      return {
+        ok: false,
+        outcome: failure(MODEL_API_MODEL_TEXT.editFindEmpty, UI_TEXT.toolEditInvalid),
+      }
     }
     // A no-op edit writes the file for nothing; refuse it (M101).
     if (entry.find === entry.replace) {
-      return failure(MODEL_API_MODEL_TEXT.editNoChange, UI_TEXT.toolEditNoChange)
+      return {
+        ok: false,
+        outcome: failure(MODEL_API_MODEL_TEXT.editNoChange, UI_TEXT.toolEditNoChange),
+      }
     }
   }
+  return { ok: true, singles, hasEdits }
+}
+
+/**
+ * A9 (limits-output): an edit scoped to the byte window the model read. The
+ * match runs on the whole text as always, but must land inside the window:
+ * only what the model saw is replaced, whatever the file's size.
+ */
+async function editFileRange(
+  head: {
+    readonly relative: string
+    readonly canonical: string
+    readonly absolute: string
+    readonly checkedAbsolute: string
+  },
+  args: z.infer<typeof editFileArgs>,
+  singles: readonly { readonly find: string; readonly replace: string }[],
+  hasEdits: boolean,
+  context: ToolContext,
+): Promise<ToolOutcome> {
+  const refusal = editRefusal(head, context)
+  if (refusal !== undefined) {
+    return refusal
+  }
+  if (
+    context.io.fileSize === undefined ||
+    context.io.readFileRange === undefined ||
+    context.io.readFileCapped === undefined
+  ) {
+    return failure(
+      `${head.relative} needs byte addressing, which this host does not offer; edit it whole instead`,
+    )
+  }
+  const offset = Math.max(Math.floor(args.byteOffset ?? 0), 0)
+  const length = args.byteLength === undefined ? TOOL_OUTPUT_MAX_CHARS : Math.floor(args.byteLength)
+  if (!(length > 0)) {
+    return failure('byteLength is a positive number of bytes')
+  }
+  if (length > TOOL_FILE_RANGE_MAX_BYTES) {
+    return failure(
+      `byteLength holds at most ${String(TOOL_FILE_RANGE_MAX_BYTES)} bytes; edit window by window`,
+    )
+  }
+  const size = await context.io.fileSize(head.checkedAbsolute, head.checkedAbsolute)
+  if (size === undefined) {
+    return failure(`file not found: ${head.relative}`)
+  }
+  if (size > TOOL_FILE_EDIT_MAX_BYTES) {
+    return failure(
+      `${head.relative} is ${String(size)} bytes, over the ${String(TOOL_FILE_EDIT_MAX_BYTES)}-byte edit limit: the tools cannot edit it; edit it in an editor instead`,
+    )
+  }
+  if (size > 0 && offset >= size) {
+    return failure(
+      `byteOffset ${String(offset)} is past the end of \`${head.relative}\` (${String(size)} bytes); use an offset from 0 to ${String(size - 1)}`,
+    )
+  }
+  const full = await context.io.readFileCapped(
+    head.checkedAbsolute,
+    head.checkedAbsolute,
+    TOOL_FILE_EDIT_MAX_BYTES,
+    context.signal,
+  )
+  if (full === undefined) {
+    return failure(`file not found: ${head.relative}`)
+  }
+  // The window's character offsets in the whole text: the head's whole
+  // characters, then the window's, decoded the same way the read showed them.
+  const fullBytes = new TextEncoder().encode(full)
+  const shape = shapeOf(full)
+  const current = modelText(full, shape)
+  const headText = modelText(decodeWindow(fullBytes, 0, offset) ?? '', {
+    hasBom: shape.hasBom,
+    isCrlf: shape.isCrlf,
+    hasTrailingBreak: false,
+  })
+  const windowText = modelText(decodeWindow(fullBytes, offset, offset + length) ?? '', {
+    hasBom: shape.hasBom && offset === 0,
+    isCrlf: shape.isCrlf,
+    hasTrailingBreak: false,
+  })
+  const start = headText.length
+  const end = start + windowText.length
+  const ranges: { readonly start: number; readonly end: number; readonly replace: string }[] = []
+  for (const [index, entry] of singles.entries()) {
+    const find = shape.isCrlf ? toLf(entry.find) : entry.find
+    const matched = await matchRange(current, find, context.signal)
+    if ('refusal' in matched) {
+      const prefix = hasEdits ? `edits[${String(index)}]: ` : ''
+      const model =
+        matched.refusal === 'notFound'
+          ? MODEL_API_MODEL_TEXT.editNotFound
+          : MODEL_API_MODEL_TEXT.editAmbiguous
+      const visible =
+        matched.refusal === 'notFound' ? UI_TEXT.toolEditNotFound : UI_TEXT.toolEditAmbiguous
+      return failure(
+        `${prefix}${fill(model, { path: head.relative })}`,
+        `${prefix}${fill(visible, { path: head.relative })}`,
+      )
+    }
+    if (matched.start < start || matched.end > end) {
+      return failure(
+        `edits[${String(index)}]: matched outside the read window (bytes ${String(offset)}–${String(offset + length)} of \`${head.relative}\`); read the window that holds it and pass that range`,
+        `edits[${String(index)}]: matched outside the read window; read the window that holds it and pass that range`,
+      )
+    }
+    ranges.push({
+      start: matched.start,
+      end: matched.end,
+      replace: shape.isCrlf ? toLf(entry.replace) : entry.replace,
+    })
+  }
+  const ordered = ranges.toSorted((a, b) => a.start - b.start)
+  for (const [index, range] of ordered.entries()) {
+    const previous = ordered[index - 1]
+    if (previous !== undefined && range.start < previous.end) {
+      return failure(MODEL_API_MODEL_TEXT.editOverlap, UI_TEXT.toolEditOverlap)
+    }
+  }
+  let updated = ''
+  let at = 0
+  for (const range of ordered) {
+    updated += `${current.slice(at, range.start)}${range.replace}`
+    at = range.end
+  }
+  updated += current.slice(at)
+  // A range edit skips format on edit (M68): a formatter reads a whole
+  // file, never a window, so running one over the slice would corrupt it.
+  const after = fileText(updated, shape)
+  const target: FormatTarget = {
+    absolute: head.absolute,
+    checkedAbsolute: head.checkedAbsolute,
+    relative: head.relative,
+    canonical: head.canonical,
+  }
+  await context.io.writeFile(head.checkedAbsolute, after, head.checkedAbsolute, () => {
+    context.signal?.throwIfAborted()
+    writeAdmission(target, context)()
+  })
+  context.signal?.throwIfAborted()
+  context.provisionalSeen.set(head.absolute, fingerprint(after))
+  return {
+    ...patchOutcome(
+      head.relative,
+      current,
+      updated,
+      hasEdits
+        ? `edited ${head.relative} (${String(singles.length)} edits, bytes ${String(offset)}–${String(offset + length)})`
+        : `edited ${head.relative} (bytes ${String(offset)}–${String(offset + length)})`,
+      hasEdits
+        ? `edited ${head.relative} (${String(singles.length)} edits, bytes ${String(offset)}–${String(offset + length)})`
+        : `edited ${head.relative} (bytes ${String(offset)}–${String(offset + length)})`,
+    ),
+    touched: touchedBy(head),
+  }
+}
+
+async function editFile(
+  args: z.infer<typeof editFileArgs>,
+  context: ToolContext,
+): Promise<ToolOutcome> {
+  const parsed = editSingles(args)
+  if (!parsed.ok) {
+    return parsed.outcome
+  }
+  const { singles, hasEdits } = parsed
+  const hasByteRange = args.byteOffset !== undefined || args.byteLength !== undefined
+  if (!hasByteRange) {
+    const file = await located(args.path, context)
+    if (!file.ok) {
+      return file.outcome
+    }
+    const { before, relative } = file
+    if (before === undefined) {
+      return failure(`file not found: ${relative}`)
+    }
+    const refusal = editRefusal(file, context)
+    return refusal ?? (await editFileWhole(file, before, relative, singles, hasEdits, context))
+  }
+  const head = await locateHead(args.path, context)
+  return head.ok ? await editFileRange(head, args, singles, hasEdits, context) : head.outcome
+}
+
+/**
+ * The whole-file edit, unchanged: the match runs on the whole text, and the
+ * file gets its own BOM and line breaks back (D27).
+ */
+async function editFileWhole(
+  file: {
+    readonly relative: string
+    readonly canonical: string
+    readonly absolute: string
+    readonly checkedAbsolute: string
+  },
+  before: string,
+  relative: string,
+  singles: readonly { readonly find: string; readonly replace: string }[],
+  hasEdits: boolean,
+  context: ToolContext,
+): Promise<ToolOutcome> {
   // The model reads LF lines without the BOM: the match runs on that text,
   // and the file gets its own BOM and line breaks back (D27).
   const shape = shapeOf(before)
