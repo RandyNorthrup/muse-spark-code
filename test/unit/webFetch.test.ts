@@ -15,9 +15,7 @@ import { WEB_FETCH_DESCRIPTION } from '../../src/core/web/webFetchDefinition'
 import {
   UI_TEXT,
   WEB_FETCH_ATTEMPT_DELAY_MS,
-  WEB_FETCH_MAX_BYTES,
   WEB_FETCH_MAX_CONTENT_CHARS,
-  WEB_FETCH_MAX_REDIRECTS,
   WEB_FETCH_MODEL_TEXT,
   WEB_FETCH_NOT_TLS_CODE,
 } from '../../src/shared/constants'
@@ -804,17 +802,29 @@ describe('fetchWebPage (M69)', () => {
     expect(w.lookups).toEqual(['docs.example.com'])
   })
 
-  it(`stops after ${String(WEB_FETCH_MAX_REDIRECTS)} redirects, and on one with nowhere to go`, async () => {
+  it('follows same-host redirects past five to the page', async () => {
     const replies: Record<string, Reply> = {}
-    for (let hop = 0; hop <= WEB_FETCH_MAX_REDIRECTS; hop += 1) {
+    for (let hop = 0; hop < 7; hop += 1) {
       replies[`${DOCS}${String(hop)}`] = {
         status: 302,
         headers: { location: `/guide${String(hop + 1)}` },
       }
     }
-    const loop = world({ answers: { 'docs.example.com': [[PUBLIC]] }, replies })
-    expect(failureKind(await loop.fetch(`${DOCS}0`))).toBe('tooManyRedirects')
-    expect(loop.requests).toHaveLength(WEB_FETCH_MAX_REDIRECTS + 1)
+    replies[`${DOCS}7`] = { body: 'at last', headers: { 'content-type': 'text/plain' } }
+    const w = world({ answers: { 'docs.example.com': [[PUBLIC]] }, replies })
+    const result = await w.fetch(`${DOCS}0`)
+    expect(result.kind).toBe('page')
+    expect(result.kind === 'page' && result.text).toContain('at last')
+    expect(w.requests).toHaveLength(8)
+  })
+
+  it('ends a same-host redirect loop at the deadline instead of hanging', async () => {
+    const loop = world({
+      answers: { 'docs.example.com': [[PUBLIC]] },
+      replies: { [DOCS]: { status: 302, headers: { location: '/guide' } } },
+      timeoutMs: 50,
+    })
+    expect(failureKind(await loop.fetch(DOCS))).toBe('timeout')
     const lost = world({
       answers: { 'docs.example.com': [[PUBLIC]] },
       replies: { [DOCS]: { status: 301, headers: {} } },
@@ -868,29 +878,44 @@ describe('fetchWebPage (M69)', () => {
     expect(coding.reason).toBe(WEB_FETCH_MODEL_TEXT.webFetchEncodingUnnamed)
   })
 
-  it('refuses a body past the cap: declared, streamed, or grown by decompression', async () => {
-    const chunk = Buffer.alloc(1024 * 1024, 0x61)
+  it('reads a page past five mebibytes when the caller sets no cap', async () => {
+    const big = 'a'.repeat(6 * 1024 * 1024)
+    const w = world({
+      answers: { 'docs.example.com': [[PUBLIC]] },
+      replies: { [DOCS]: { body: big, headers: { 'content-type': 'text/plain' } } },
+    })
+    const result = await w.fetch(DOCS)
+    expect(result.kind).toBe('page')
+    expect(result.kind === 'page' ? result.page.bytes : 0).toBe(big.length)
+  })
+
+  it('refuses a body past the caller-set raw cap: declared, streamed, or grown by decompression', async () => {
+    const cap = 2048
+    const chunk = Buffer.alloc(1024, 0x61)
     const text = { 'content-type': 'text/plain' }
     const w = world({
       answers: { 'docs.example.com': [[PUBLIC]] },
       replies: {
         'https://docs.example.com/declared': {
-          headers: { ...text, 'content-length': String(WEB_FETCH_MAX_BYTES + 1) },
+          headers: { ...text, 'content-length': String(cap + 1) },
           body: 'small',
         },
         'https://docs.example.com/streamed': {
           headers: text,
-          body: Array.from({ length: 6 }, () => chunk),
+          body: Array.from({ length: 3 }, () => chunk),
         },
         'https://docs.example.com/bomb': {
           headers: { ...text, 'content-encoding': 'gzip' },
-          body: gzipSync(Buffer.alloc(WEB_FETCH_MAX_BYTES + 1, 0x61)),
+          body: gzipSync(Buffer.alloc(cap + 1, 0x61)),
         },
       },
+      rawTextLimit: cap,
     })
     for (const name of ['declared', 'streamed', 'bomb']) {
       expect(failureKind(await w.fetch(`https://docs.example.com/${name}`)), name).toBe('tooLarge')
     }
+    const over = failure(await w.fetch('https://docs.example.com/declared'))
+    expect(over.reason).toContain(String(cap))
   })
 
   it('decodes gzip and Brotli, and refuses an unknown coding or damaged data as the coding', async () => {

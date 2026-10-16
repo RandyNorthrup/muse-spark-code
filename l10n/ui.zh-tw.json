@@ -2006,7 +2006,6 @@
   "webFetchUnresolved": "無法從這台電腦找到 {host}。",
   "webFetchWithdrawn": "此處不再允許網頁擷取（工作區失去了信任、權限模式已變更，或沙箱網路設定已變為受限），因此擷取在下一個要求之前停止。",
   "webFetchNat64Unknown": "{host} 在此只有 IPv6 位址，且無法得知此網路是否將其轉換為 IPv4 位址 (NAT64)，因此無法檢查它們是否為私人位址。未擷取任何內容。（{detail}）",
-  "webFetchTooManyRedirects": "網頁重新導向超過 {max} 次。",
   "webFetchRedirectWithoutLocation": "伺服器回應了 {status}，但未說明要前往何處。",
   "webFetchRedirectRefused": "網頁重新導向到遭拒絕的位址：{reason}",
   "webFetchHttpStatus": "伺服器回應了 {status}。",

@@ -2036,7 +2036,6 @@
   "webFetchUnresolved": "{host} bu bilgisayardan bulunamadı.",
   "webFetchWithdrawn": "Sayfa getirme burada artık izinli değil (çalışma alanı güvenini kaybetti, izin modu değişti veya korumalı alan ağ ayarı kısıtlı oldu), bu yüzden getirme bir sonraki isteğinden önce durduruldu.",
   "webFetchNat64Unknown": "{host} burada yalnızca IPv6 adreslerine sahip ve bu ağın bunları IPv4 adreslerine çevirip çevirmediği (NAT64) öğrenilemedi ({detail}); bu yüzden özel bir adres olup olmadıkları denetlenemedi. Hiçbir şey alınmadı.",
-  "webFetchTooManyRedirects": "Sayfa {max} kereden fazla yönlendirdi.",
   "webFetchRedirectWithoutLocation": "Sunucu {status} ile yanıt verdi ama nereye gidileceğini belirtmedi.",
   "webFetchRedirectRefused": "Sayfa reddedilen bir adrese yönlendirdi: {reason}",
   "webFetchHttpStatus": "Sunucu {status} ile yanıt verdi.",
