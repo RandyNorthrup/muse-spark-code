@@ -21,7 +21,6 @@ import {
   KEYSTORE_LOCK_ACCOUNT_CHARS,
   KEYSTORE_LOCK_DIR,
   KEYSTORE_LOCK_PIPE,
-  KEYSTORE_LOCK_TIMEOUT_MS,
   UI_TEXT,
 } from '../shared/constants'
 import type { CredentialRecord } from '../core/providers/credentialRecord'
@@ -160,9 +159,7 @@ export function keyringSecretStore(
   /** The owner of one account; a lock that cannot be had is a store that cannot be used. */
   const owned = async <T>(key: string, work: () => Promise<T>): Promise<T> => {
     try {
-      return await withNamedLock(work, accountLock(key, options.lockScope ?? personScope()), {
-        timeoutMs: KEYSTORE_LOCK_TIMEOUT_MS,
-      })
+      return await withNamedLock(work, accountLock(key, options.lockScope ?? personScope()))
     } catch (error) {
       throw error instanceof StoreUnavailableError ? error : new StoreUnavailableError()
     }
