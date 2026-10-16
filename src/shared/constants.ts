@@ -2058,7 +2058,7 @@ export const IDE_CODE_INTEL_TOOLS = {
 // says so, and Muse Code may run it as a read (D49's rule for `ide`).
 export const MCP_ANNOTATIONS_READ_ONLY = { readOnlyHint: true } as const
 // What one answer lists at most; the rest are counted, never silently cut.
-export const CODE_INTEL_MAX_LOCATIONS = 100
+// (Locations have no cap: every one is shown.)
 export const CODE_INTEL_MAX_SYMBOLS = 200
 export const CODE_INTEL_MAX_CALLS = 50
 // Call sites listed per caller or callee; the rest are counted.
@@ -2107,10 +2107,10 @@ export const SYMBOL_KIND_NAMES = [
   'operator',
   'type parameter',
 ] as const
-// The repo map (Aider's idea, over VS Code's services): files ranked by how
-// often other files use the names they define. The names are counted in
-// the files' text; where each is defined comes from workspace symbols.
-export const REPO_MAP_MAX_FILES = 1000
+// The repo map (Aider's idea, over VS Code's services): every listed file
+// ranked by how often other files use the names they define. The names are
+// counted in the files' text; where each is defined comes from workspace
+// symbols.
 export const REPO_MAP_MAX_FILE_CHARS = 131_072
 // The names looked up (the most widely used first), and how many at once.
 export const REPO_MAP_MAX_LOOKUPS = 300
@@ -6472,7 +6472,6 @@ export const CODE_INTEL_MODEL_TEXT = {
   repoMapLead:
     'Files ranked by how often other files use the names they define (names counted in the text, definitions from workspace symbols), each with its most used definitions:',
   repoMapPartial: '[partial: looked up {done} of {total} names within the time budget]',
-  repoMapFilesCapped: '[ranked the first {count} of {total} files]',
   repoMapFilesRead: '[partial: read {done} of {total} files within the time budget]',
   repoMapNoFiles: "[partial: the workspace's files were not listed within the time budget]",
   repoMapNoService:
