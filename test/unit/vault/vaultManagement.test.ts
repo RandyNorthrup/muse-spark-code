@@ -204,7 +204,8 @@ describe('C-M109-1 setup flow and management', () => {
         metadata: metadata(),
         material: { kind: 'secret', value: randomBytes(8) },
       }),
-    ).rejects.toMatchObject({ reason: 'exists' })
+      // RVCM1091D P2: a duplicate item is a collision, never "already exists" setup.
+    ).rejects.toMatchObject({ reason: 'conflict' })
     await f.management.editMetadata({ ...metadata(), label: 'Renamed generated item' })
     expect(f.broker.policyChanged).toHaveBeenCalledWith(metadata().id)
     await expect(

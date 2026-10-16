@@ -121,12 +121,11 @@ export function VaultGrantEditor({ items, onSave, onClose, now, newId }: VaultGr
         <VaultDetails value={item.bindings[bindingIndex]} />
       )}
       <label>
-        {UI_TEXT.vault.roles} (any / orchestrator / subagent / headless / role:name / hook:name /
-        mcp:name)
+        {UI_TEXT.vault.roles} ({UI_TEXT.vault.rolesHint})
         <textarea name="roles" required defaultValue="orchestrator" />
       </label>
       <label>
-        {UI_TEXT.vault.workspaces} (any)
+        {UI_TEXT.vault.workspaces} ({UI_TEXT.vault.workspacesHint})
         <textarea name="workspaces" required />
       </label>
       <label>
@@ -148,15 +147,15 @@ export function VaultGrantEditor({ items, onSave, onClose, now, newId }: VaultGr
           {UI_TEXT.vault.timeWindow} ({UI_TEXT.vault.localTime})
         </legend>
         <label>
-          {UI_TEXT.vault.days} (0–6)
+          {UI_TEXT.vault.days} ({UI_TEXT.vault.daysHint})
           <textarea name="days" />
         </label>
         <label>
-          {UI_TEXT.vault.hours} (startHour)
+          {UI_TEXT.vault.hours} ({UI_TEXT.vault.startHourHint})
           <input name="startHour" type="number" min={0} step={1} defaultValue={0} />
         </label>
         <label>
-          {UI_TEXT.vault.hours} (endHour)
+          {UI_TEXT.vault.hours} ({UI_TEXT.vault.endHourHint})
           <input name="endHour" type="number" min={1} step={1} />
         </label>
       </fieldset>
@@ -173,7 +172,7 @@ export function VaultGrantEditor({ items, onSave, onClose, now, newId }: VaultGr
         <input name="taskId" />
       </label>
       <label>
-        {UI_TEXT.vault.ceiling} (none / ask / secret://)
+        {UI_TEXT.vault.ceiling} ({UI_TEXT.vault.ceilingHint})
         <textarea name="ceiling" defaultValue="ask" required />
       </label>
       {error && <p role="alert">{UI_TEXT.vault.invalidFields}</p>}

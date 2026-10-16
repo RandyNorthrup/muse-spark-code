@@ -135,7 +135,7 @@ async function openScene(page, root, port, scene, theme, width, height, fixtures
   for (const [name, selector, label] of [
     ['accounts-edit', '.accounts-section button', 'Edit'],
     ['accounts-thresholds', '.accounts-section button', 'Edit'],
-    ['vault-grant', '.vault-actions button', 'Create grant'],
+    ['vault-grant', '.vault-actions button', 'Create Grant'],
     ['resource-controls', '.resource-chip', undefined],
   ]) {
     if (scene !== name) continue

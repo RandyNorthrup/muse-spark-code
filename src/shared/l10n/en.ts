@@ -6125,19 +6125,25 @@ export const EN = {
     title: 'Vault',
     locked: 'Locked',
     unlocked: 'Unlocked',
+    // RVCM1091D P2: every vault state has its own true heading, so no state
+    // falls through to 'Locked'.
+    stateUncreated: 'Not set up',
+    stateSetupPending: 'Setup pending',
+    stateUnavailable: 'Unavailable',
     empty: 'No vault items yet.',
-    add: 'Add to vault',
-    edit: 'Edit item',
-    remove: 'Remove item',
-    grant: 'Create grant',
-    revoke: 'Revoke grant',
+    add: 'Add to Vault',
+    edit: 'Edit Item',
+    remove: 'Remove Item',
+    grant: 'Create Grant',
+    revoke: 'Revoke Grant',
     audit: 'Audit',
-    lock: 'Lock vault now',
-    unlock: 'Unlock vault',
-    allowSession: 'Allow for this session',
-    manage: 'Manage in vault',
+    lock: 'Lock Vault Now',
+    unlock: 'Unlock Vault',
+    allowSession: 'Allow for This Session',
+    manage: 'Manage in Vault',
     requirePresence: 'Require presence for each use',
     unattended: 'Unattended allowed',
+    silentUnlock: 'Silent Unlock',
     hidden: 'Hidden from agents',
     firstParty: 'First-party only',
     askEveryTime: 'Ask every time',
@@ -6152,7 +6158,12 @@ export const EN = {
     password: 'Password',
     seed: 'One-time code seed',
     roles: 'Roles',
+    // RVCM1091D P3: grant-form hints are code vocabularies (field names and
+    // keywords the form parses back), so they stay English in every table via
+    // l10n/untranslated.json; the label words beside them stay translated.
+    rolesHint: 'any / orchestrator / subagent / headless / role:name / hook:name / mcp:name',
     workspaces: 'Workspaces',
+    workspacesHint: 'any',
     target: 'Target',
     command: 'Command',
     cwd: 'Working folder',
@@ -6161,7 +6172,10 @@ export const EN = {
     expires: 'Expires',
     timeWindow: 'Time window',
     days: 'Days',
+    daysHint: '0–6',
     hours: 'Hours',
+    startHourHint: 'startHour',
+    endHourHint: 'endHour',
     remoteUser: 'Remote user',
     hostKey: 'Host key',
     origin: 'Origin',
@@ -6169,15 +6183,16 @@ export const EN = {
     requester: 'Requester',
     outcome: 'Outcome',
     tier: 'Protection tier',
-    publicKey: 'Public key',
+    provider: 'Provider',
+    publicKey: 'Public Key',
     fingerprint: 'Fingerprint',
     signInYourself: 'Sign in yourself',
-    moveToVault: 'Move to vault',
-    undoMigration: 'Undo migration',
-    importFile: 'Import file',
-    keepFile: 'Keep file',
-    deleteFile: 'Delete the file',
-    rotate: 'Rotate credential',
+    moveToVault: 'Move to Vault',
+    undoMigration: 'Undo Migration',
+    importFile: 'Import File',
+    keepFile: 'Keep File',
+    deleteFile: 'Delete the File',
+    rotate: 'Rotate Credential',
     recoveryCode: 'Recovery code',
     apiKey: 'API key',
     oauth: 'OAuth tokens',
@@ -6225,6 +6240,13 @@ export const EN = {
     cancelSetup: 'Cancel Setup',
     setupNeeded: 'Set up the vault before you store a secret in it.',
     setupExists: 'A vault already exists for this user.',
+    // RVCM1091D P2: an item or path collision is not a setup failure.
+    itemConflict:
+      'An item with the same name is already in the vault, or the source changed during the import. Nothing was added.',
+    // RVCM1091E P2: a Delete refused because the source changed after a
+    // successful import is not told that nothing was added.
+    deleteConflict:
+      'The original file changed after its credentials were imported. Nothing was deleted; the imported items stay in the vault.',
     setupPending: 'Save the recovery code, then confirm to finish setting up the vault.',
     setupCancelled: 'Vault setup was cancelled. Nothing was saved.',
     setupHeadless:
@@ -6258,6 +6280,9 @@ export const EN = {
       'Protected by your operating system’s credential store. Programs running as you may unlock it too.',
     unknownTierWarning:
       'The protection tier is unknown because the vault is locked. Unlock to see how it is protected.',
+    // RVCM1091D P2: an open vault with no observed slot names no protection
+    // and never asks for an unlock.
+    tierUnknown: 'The protection tier is unknown.',
     hardwareWarning:
       'Protected by this device’s hardware. It unlocks silently, so programs running as you can unlock it too.',
     presenceTierWarning:
@@ -6284,6 +6309,12 @@ export const EN = {
     presence: 'User presence',
     osStore: 'OS credential store',
     secretStorage: 'Editor secret storage',
+    windowsTpm: 'Windows TPM',
+    secureEnclave: 'Secure Enclave',
+    linuxTpm2: 'Linux TPM',
+    windowsDpapi: 'Windows DPAPI',
+    loginKeychain: 'Login Keychain',
+    secretService: 'Secret Service',
     passphrase: 'Passphrase protection',
     recovery: 'Recovery protection',
     autoProtection: 'Automatic protection',
@@ -6293,12 +6324,39 @@ export const EN = {
     seUnavailable: 'Secure Enclave protection is unavailable. Use a passphrase for presence.',
     passphraseWarning:
       'A passphrase is required to unlock. It protects a copied disk and prevents silent unlock by programs running as you.',
-    operationFailed: 'The vault operation failed. Unlock the vault and try again.',
+    // RVCM1091E P3: never names an unlock; the section showing Unlocked
+    // after a failed operation would otherwise be told to unlock it.
+    operationFailed: 'The vault operation failed. Try again.',
+    // RVCM1091F REDESIGN: the person's own Retry after a transient failure
+    // spent the bounded auto-retries.
+    retry: 'Retry',
+    // RVCM1091G P3: true whether the leftover record was cleared or is
+    // still stuck — the file is gone either way, there is nothing to retry,
+    // and the imported credentials stay in the vault.
+    sourceGone:
+      'The original file is already gone; there is nothing to retry. The imported credentials stay in the vault.',
+    // RVCM1091G P2: a Delete whose source cannot be read (permissions). The
+    // import record is kept and nothing is deleted.
+    sourceUnreadable:
+      'The original file could not be read. Check its permissions and try again; the import record was kept and nothing was deleted.',
+    // RVAPP-CM1091D5 P3-1: the source's location is not available (a drive
+    // down or away). Never "gone": the import record is kept and nothing
+    // is deleted.
+    sourceUnavailable:
+      'The original file’s location is not available. Try again later; the import record was kept and nothing was deleted.',
+    // RVAPP-CM1091D5 P2-2: imports whose receipt was kept or orphaned,
+    // finishable here with Keep or Delete.
+    pendingImports: 'Unfinished imports',
+    // RVAPP-CM1091D5 P2-2: the terminal lists the same finishable receipts.
+    noPendingImports: 'No unfinished imports.',
+    // RVCM1091G P3: the kept view shown while a bounded auto-retry is
+    // scheduled or in flight.
+    retrying: 'Retrying the last request. The view shown may be stale.',
     invalidFields: 'Check the grant fields and its target.',
     grantHelp:
       'Every scope below limits this grant. Empty count, expiry or time window means no limit.',
-    metadataOnly: 'Edit settings only',
-    replaceValue: 'Replace credential',
+    metadataOnly: 'Edit Settings Only',
+    replaceValue: 'Replace Credential',
     presenceAdvice: 'Presence is recommended for sudo, SSH keys and web logins.',
     passwordEntry:
       'Enter credentials in the editor’s password box. Existing values are never shown.',
@@ -6314,6 +6372,7 @@ export const EN = {
     sessionScope: 'Session',
     taskScope: 'Task',
     ceiling: 'Access ceiling',
+    ceilingHint: 'none / ask / secret://',
     enabledDescription: 'Enable the per-user credential vault shared by editors.',
     protectionDescription:
       'Choose vault key protection. Automatic uses available hardware plus the operating system store.',

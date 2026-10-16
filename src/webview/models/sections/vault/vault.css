@@ -27,9 +27,15 @@
 .vault-card button {
   min-height: 28px;
   padding: 4px 8px;
-  color: var(--vscode-button-secondaryForeground);
-  background: var(--vscode-button-secondaryBackground);
-  border: 1px solid var(--vscode-contrastBorder, transparent);
+
+  /* RVCM1091D P3: the shared button tokens keep an edge in every theme.
+   * `--vscode-button-border` carries high contrast; `--ms-boundary` and
+   * `--ms-raised` resolve wherever this sheet loads (chat styles.css and
+   * the models panel both import tokens.css); `--ms-raised` covers the one
+   * theme that leaves the secondary fill unset. */
+  color: var(--vscode-button-secondaryForeground, var(--ms-text));
+  background: var(--vscode-button-secondaryBackground, var(--ms-raised));
+  border: 1px solid var(--vscode-button-border, var(--ms-boundary));
   border-radius: 4px;
   cursor: pointer;
 }

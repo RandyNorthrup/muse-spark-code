@@ -1298,6 +1298,15 @@ export class VaultStore implements VaultStorePort {
     this.active()
     return result
   }
+  /** Every kept or orphaned receipt's id and opaque record, for the finish sweep. */
+  async receiptEntries(): Promise<readonly { id: string; record: string }[]> {
+    const result = await this.options.files.withWriter(async () => {
+      const { index } = await this.load()
+      return index.receipts.map((entry) => ({ id: entry.id, record: entry.record }))
+    })
+    this.active()
+    return result
+  }
   /** Idempotent; authorize runs at the commit. */
   async forgetReceipt(id: string, authorize: () => void): Promise<void> {
     await this.options.files.withWriter(async () => {

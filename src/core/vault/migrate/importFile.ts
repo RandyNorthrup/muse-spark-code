@@ -1,4 +1,4 @@
-import { constants, unlinkSync, openSync, closeSync, realpathSync } from 'node:fs'
+import { constants, lstatSync, unlinkSync, openSync, closeSync, realpathSync } from 'node:fs'
 import { open } from 'node:fs/promises'
 import nodePath from 'node:path'
 import { createHash, randomUUID } from 'node:crypto'
@@ -16,7 +16,9 @@ import { vaultItemSchema, type VaultItem, type VaultItemMetadata } from '../../.
 import { VAULT_LIMITS } from '../../../shared/constants'
 import { type AmbientFile } from './ambient'
 import { eraseItem, itemDigest } from './material'
-import { type MigrationOwnerPort, type MigrationLease, VaultMigrationFault } from './ports'
+import { type MigrationOwnerPort, type MigrationLease } from './ports'
+import { VaultMigrationFault } from './fault'
+import { VaultError } from '../crypto'
 
 const digestSchema = z.string().check(z.regex(/^[a-f0-9]{64}$/u))
 const receiptSchema = z.strictObject({
@@ -30,6 +32,17 @@ const receiptSchema = z.strictObject({
     .check(z.minLength(1), z.maxLength(VAULT_LIMITS.items)),
 })
 type ImportReceipt = z.infer<typeof receiptSchema>
+/** The OS error code of a filesystem failure, without trusting its shape. */
+function systemCode(error: unknown): string | null {
+  return error instanceof Error && 'code' in error && typeof error.code === 'string'
+    ? error.code
+    : null
+}
+/** EACCES/EPERM: the file may be there, but this process may not read it. */
+function isAccessError(error: unknown): boolean {
+  const code = systemCode(error)
+  return code === 'EACCES' || code === 'EPERM'
+}
 export interface VaultFileImportPort {
   list(): Promise<readonly VaultItemMetadata[]>
   read(id: string): Promise<VaultItem>
@@ -43,7 +56,16 @@ export interface VaultFileImportPort {
     authorize: () => void,
   ): Promise<void>
   readReceipt(id: string): Promise<unknown>
+  /** Every kept or orphaned receipt's id and opaque record, for the finish sweep. */
+  listReceipts(): Promise<readonly { id: string; record: unknown }[]>
   forgetReceipt(id: string, authorize: () => void): Promise<void>
+}
+
+/** A kept or orphaned import receipt that can still be finished (RVAPP-CM1091D5 P2-2). */
+export interface PendingImport {
+  receipt: string
+  path: string
+  items: readonly VaultItemMetadata[]
 }
 
 /** U/H call only from a user's Import/Keep/Delete action; neither agent tools nor models own this port. */
@@ -129,6 +151,30 @@ export class VaultFileImporter {
   private assertActive(lease: MigrationLease): void {
     if (this.isDisposed) throw new VaultMigrationFault('invalid')
     lease.assertCurrent()
+  }
+
+  /**
+   * The probe's true reason (RVAPP-CM1091D5 P3-1): only "does not exist"
+   * with a reachable home means gone. A permission error names permissions;
+   * an unreachable location (a down or away drive, with or without ENOENT)
+   * names that; any other code is invalid. Nothing but a proven-gone source
+   * discards the receipt, and an unavailable drive is never "gone".
+   */
+  private probeRefusal(error: unknown): VaultMigrationFault {
+    const code = systemCode(error)
+    if (isAccessError(error)) return new VaultMigrationFault('unreadable')
+    if (code === 'ENOENT') {
+      let isHomeReachable = false
+      try {
+        lstatSync(this.home)
+        isHomeReachable = true
+      } catch {
+        /* The drive itself is away: not "gone". */
+      }
+      return new VaultMigrationFault(isHomeReachable ? 'orphaned' : 'unavailable')
+    }
+    const isDriveDown = ['EIO', 'ENXIO', 'ENODEV', 'ESTALE'].includes(code ?? '')
+    return new VaultMigrationFault(isDriveDown ? 'unavailable' : 'invalid')
   }
 
   private async read(
@@ -249,6 +295,10 @@ export class VaultFileImporter {
         return { items: structuredClone(metadata), receipt }
       } catch (error: unknown) {
         if (error instanceof VaultMigrationFault) throw error
+        // A busy or rolled-back store is named, not collapsed: retrying the
+        // import later (or restoring a backup) is the true next step.
+        if (error instanceof VaultError && (error.code === 'busy' || error.code === 'rollback'))
+          throw error
         throw new VaultMigrationFault('storage')
       } finally {
         for (const item of items) eraseItem(item)
@@ -270,6 +320,56 @@ export class VaultFileImporter {
       })
     })
   }
+  /**
+   * The finish sweep (RVAPP-CM1091D5 P2-2): every receipt whose source or
+   * secret still exists, listed with the two real actions (finish the
+   * delete, keep the file). A receipt whose source is proven gone AND whose
+   * secret is gone is forgotten best-effort here instead of listed.
+   * Anything unproven keeps its receipt and is listed.
+   */
+  async pending(): Promise<readonly PendingImport[]> {
+    return await this.owner.run(async (lease) => {
+      this.assertActive(lease)
+      const entries = await this.vault.listReceipts()
+      this.assertActive(lease)
+      const existing = await this.vault.list()
+      this.assertActive(lease)
+      const found: PendingImport[] = []
+      for (const entry of entries) {
+        const parsed = receiptSchema.safeParse(entry.record)
+        if (!parsed.success) {
+          try {
+            await this.vault.forgetReceipt(entry.id, () => {
+              this.assertActive(lease)
+            })
+          } catch {
+            /* Best effort: never listed; retried at the next sweep. */
+          }
+          continue
+        }
+        const saved = parsed.data
+        let isSourceGone = false
+        try {
+          lstatSync(saved.path)
+        } catch (error: unknown) {
+          isSourceGone = this.probeRefusal(error).code === 'orphaned'
+        }
+        const items = existing.filter((item) => saved.items.some((kept) => kept.id === item.id))
+        if (isSourceGone && items.length === 0) {
+          try {
+            await this.vault.forgetReceipt(entry.id, () => {
+              this.assertActive(lease)
+            })
+          } catch {
+            /* Best effort: retried at the next sweep. */
+          }
+          continue
+        }
+        found.push({ receipt: entry.id, path: saved.path, items })
+      }
+      return found
+    })
+  }
   async deleteSource(receipt: string, assertUserAction: () => void): Promise<void> {
     await this.owner.run(async (lease) => {
       const parsed = receiptSchema.safeParse(await this.vault.readReceipt(receipt))
@@ -284,6 +384,30 @@ export class VaultFileImporter {
       try {
         assertReceipt()
         assertUserAction()
+        // Only "does not exist" with a reachable home means gone: any other
+        // probe failure keeps its receipt and names its true reason instead
+        // of discarding it as deleted (RVCM1091G P2, RVAPP-CM1091D5 P3-1).
+        let isGone = false
+        try {
+          lstatSync(saved.path)
+        } catch (error: unknown) {
+          const refusal = this.probeRefusal(error)
+          if (refusal.code !== 'orphaned') throw refusal
+          isGone = true
+        }
+        if (isGone) {
+          // The file is already gone (a previous Delete removed it but could
+          // not forget its receipt, or the person deleted it): clear the
+          // leftover receipt at this next start and say what happened.
+          try {
+            await this.vault.forgetReceipt(receipt, () => {
+              this.assertActive(lease)
+            })
+          } catch {
+            /* Best effort: the receipt stays for the attempt after this one. */
+          }
+          throw new VaultMigrationFault('orphaned')
+        }
         parents = this.holdParents(saved.path)
         const read = await this.read(saved.path, parents.assertPath)
         source = read.bytes
@@ -318,11 +442,26 @@ export class VaultFileImporter {
         parents.assertPath(read.identity)
         unlinkSync(saved.path)
         assertReceipt()
-        await this.vault.forgetReceipt(receipt, () => {
-          this.assertActive(lease)
-        })
+        try {
+          await this.vault.forgetReceipt(receipt, () => {
+            this.assertActive(lease)
+          })
+        } catch (error: unknown) {
+          // The source is gone but its receipt is stuck: report the truth
+          // (the file is gone; nothing to retry) instead of a retryable
+          // failure. The next Delete clears the receipt (see above).
+          if (error instanceof VaultMigrationFault) throw error
+          throw new VaultMigrationFault('orphaned')
+        }
       } catch (error: unknown) {
         if (error instanceof VaultMigrationFault) throw error
+        // A busy or rolled-back store before the unlink names itself: the
+        // source and the receipt both stay (RVCM1091G P3). A source that
+        // fails after the probe keeps its receipt with its true reason too
+        // (RVCM1091G P2, RVAPP-CM1091D5 P3-1).
+        if (error instanceof VaultError && (error.code === 'busy' || error.code === 'rollback'))
+          throw error
+        if (error instanceof Error && 'code' in error) throw this.probeRefusal(error)
         throw new VaultMigrationFault('storage')
       } finally {
         source?.fill(0)

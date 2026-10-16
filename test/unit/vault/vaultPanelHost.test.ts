@@ -6,6 +6,7 @@ import {
   type VaultPanelHostDeps,
 } from '../../../src/host/vault/vaultPanelHost'
 import { type VaultItem, type VaultItemMetadata } from '../../../src/shared/vault'
+import { UI_TEXT } from '../../../src/shared/constants'
 import { panel, item, metadata, approval, grant } from '../helpers/vault/fixtures'
 import { generatedImport, generatedSetup } from '../helpers/vault/runtime'
 
@@ -93,16 +94,25 @@ async function answerSession(
 }
 
 describe('U authenticated panel host', () => {
-  it('V16 failed Lock keeps controls locked until an explicit unlock; cancellation reaches native entry', async () => {
+  it('V16 failed Lock restores the unlocked section and reports the failure; cancellation reaches native entry', async () => {
     const f = fixture()
     await f.host.refresh()
     vi.mocked(f.service.lock).mockRejectedValueOnce(new Error('test failure'))
     await f.host.lock()
+    // RVCM1091D P2: the optimistic Locked view is replaced by the vault's
+    // real unlocked snapshot, and the foreign failure stays generic.
+    expect(f.deps.showError).toHaveBeenCalledWith(UI_TEXT.vault.operationFailed)
+    expect(f.deps.status).toHaveBeenLastCalledWith(true)
+    expect(f.deps.publish).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        state: expect.objectContaining({ status: expect.objectContaining({ state: 'unlocked' }) }),
+      }),
+    )
+    // A later refresh of the still-unlocked vault publishes it normally:
+    // the request record republishes the view, then the fresh snapshot does.
     const count = f.deps.publish.mock.calls.length
     await f.host.refresh()
-    expect(f.deps.publish.mock.calls.length).toBe(count)
-    expect(f.deps.status).toHaveBeenLastCalledWith(false)
-    await f.host.handle({ type: 'vaultUnlock' })
+    expect(f.deps.publish.mock.calls.length).toBe(count + 2)
     expect(f.deps.status).toHaveBeenLastCalledWith(true)
     const held = Promise.withResolvers<VaultItem | null>()
     let signal: AbortSignal | undefined
@@ -158,14 +168,22 @@ describe('U authenticated panel host', () => {
       f.host.dispose()
     }
   })
-  it('malformed and older-epoch notifications do not invalidate the current view', async () => {
+  it('a stale locked notification republishes the current view unchanged, never silently', async () => {
     const f = fixture()
     f.state.status.lockEpoch = 2
     await f.host.refresh()
-    const count = f.deps.publish.mock.calls.length
+    const snapshots = vi.mocked(f.service.snapshot).mock.calls.length
+    const before = f.deps.publish.mock.calls.at(-1)?.[0]
+    // An older broker epoch cannot re-lock the view — but the event is still
+    // answered with a publish of the unchanged view, never ignored, and
+    // never with a reload (RVCM1091F: no silent path).
     f.changed.callback({ kind: 'locked', v: 2, lockEpoch: 1 })
+    expect(f.deps.publish.mock.calls.length).toBe(2)
+    expect(f.deps.publish.mock.calls.at(-1)?.[0]).toEqual(before)
+    expect(vi.mocked(f.service.snapshot).mock.calls.length).toBe(snapshots)
+    // A malformed notification is not a broker event at all: ignored.
     f.changed.callback({ kind: 'locked', v: 2, lockEpoch: 3, value: randomBytes(32) })
-    expect(f.deps.publish.mock.calls.length).toBe(count)
+    expect(f.deps.publish.mock.calls.length).toBe(2)
     f.host.dispose()
   })
   it('V11 replay is refused even while the broker snapshot still contains an answered card', async () => {
@@ -198,7 +216,16 @@ describe('U authenticated panel host', () => {
     const f = fixture()
     vi.mocked(f.service.snapshot).mockResolvedValue({ ...panel(), value: randomBytes(32) })
     await f.host.refresh()
-    expect(f.deps.publish).not.toHaveBeenCalled()
+    // No valid snapshot can be had: the one publish is the explicit
+    // unavailable state with no item labels — never the malformed frame
+    // and never its value field (RVCM1091E CLASS 1).
+    expect(f.deps.publish).toHaveBeenCalledOnce()
+    const frame = f.deps.publish.mock.calls[0]?.[0] as {
+      state: ReturnType<typeof panel>
+    }
+    expect(frame.state.status.state).toBe('unavailable')
+    expect(frame.state.items).toEqual([])
+    expect(JSON.stringify(frame)).not.toContain('test-secret')
     expect(f.deps.showError).toHaveBeenCalledOnce()
     f.host.dispose()
   })
@@ -293,7 +320,15 @@ describe('U authenticated panel host', () => {
     await f.host.refresh()
     f.state.status.lockEpoch = 1
     await f.host.refresh()
-    expect(f.deps.publish).toHaveBeenCalledOnce()
+    // The rolled-back snapshot never reaches the screen: the current view
+    // republishes unchanged instead — still a publish, never silence. (The
+    // second refresh publishes twice: the request record, then the republish
+    // that drops the stale reply.)
+    expect(f.deps.publish).toHaveBeenCalledTimes(3)
+    const frame = f.deps.publish.mock.calls.at(-1)?.[0] as {
+      state: ReturnType<typeof panel>
+    }
+    expect(frame.state.status.lockEpoch).toBe(2)
     f.state.status.lockEpoch = 2
     await f.host.handle({ type: 'vaultAdd' })
     expect(f.service.write).not.toHaveBeenCalled()

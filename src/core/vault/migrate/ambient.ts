@@ -3,7 +3,7 @@ import nodePath from 'node:path'
 import { lstatIdentity } from '../../fs/fileIdentity'
 import { VAULT_LIMITS } from '../../../shared/constants'
 import { type VaultPanelState } from '../../../shared/vaultPanel'
-import { VaultMigrationFault } from './ports'
+import { VaultMigrationFault } from './fault'
 
 export type AmbientFile = VaultPanelState['ambientFiles'][number]
 

@@ -32,12 +32,19 @@ function connect() {
     sshKey: vi.fn(() => Promise.reject(new Error('unused'))),
     now: () => 1000,
     publish: vi.fn(),
+    log: new FakeLogOutputChannel(),
   }
 }
 
 describe('isVaultBundle', () => {
-  it('accepts a module that exports the panel factory, and nothing else', () => {
-    expect(isVaultBundle({ createVaultPanelHost: () => ({}) })).toBe(true)
+  it('accepts a module that exports both panel factories, and nothing else', () => {
+    expect(
+      isVaultBundle({
+        createVaultPanelHost: () => ({}),
+        createModelsVaultBinding: () => ({}),
+      }),
+    ).toBe(true)
+    expect(isVaultBundle({ createVaultPanelHost: () => ({}) })).toBe(false)
     expect(isVaultBundle({ createVaultPanelHost: 1 })).toBe(false)
     expect(isVaultBundle({})).toBe(false)
     expect(isVaultBundle(null)).toBe(false)
@@ -47,9 +54,11 @@ describe('isVaultBundle', () => {
 
 describe('vaultBundleLoader', () => {
   const bundle: VaultBundle = {
-    // A same-build factory the loader shape-checks; these tests observe only
+    // Same-build factories the loader shape-checks; these tests observe only
     // identity and refusal, never the panel, so no real host is built.
     createVaultPanelHost: () => ({}) as unknown as ReturnType<VaultBundle['createVaultPanelHost']>,
+    createModelsVaultBinding: () =>
+      ({}) as unknown as ReturnType<VaultBundle['createModelsVaultBinding']>,
   }
 
   it('logs fixed loader failures without paths or arbitrary error content', () => {
@@ -134,7 +143,11 @@ describe('loadVaultControls', () => {
     const createVaultPanelHost = vi.fn(
       () => created as unknown as ReturnType<VaultBundle['createVaultPanelHost']>,
     )
-    const bundle: VaultBundle = { createVaultPanelHost }
+    const bundle: VaultBundle = {
+      createVaultPanelHost,
+      createModelsVaultBinding: () =>
+        ({}) as unknown as ReturnType<VaultBundle['createModelsVaultBinding']>,
+    }
     const entry = connect()
     const controls = loadVaultControls(deps({ loadBundle: () => bundle }), () => entry)
     expect(createVaultPanelHost).toHaveBeenCalledOnce()

@@ -83,6 +83,7 @@ const hostMessages: readonly HostToPanelMessage[] = [
   { type: 'modelsPanel/state', state: emptyState },
   { type: 'modelsPanel/navigate', section: 'providers' },
   { type: 'modelsPanel/navigate', section: 'models', itemId: 'ollama/qwen3:8b' },
+  { type: 'modelsPanel/navigate', section: 'vault' },
 ]
 
 describe('modelsPanel schemas', () => {
@@ -137,6 +138,13 @@ describe('modelsPanel schemas', () => {
   it('refuses a deep link to an unknown section', () => {
     expect(parseHostToPanelMessage({ type: 'modelsPanel/navigate', section: 'roles' }).ok).toBe(
       false,
+    )
+  })
+
+  it('offers the vault section only when the host says so', () => {
+    expect(parseModelsPanelState({ ...emptyState, vaultOffered: true }).ok).toBe(true)
+    expect(parseHostToPanelMessage({ type: 'modelsPanel/navigate', section: 'vault' }).ok).toBe(
+      true,
     )
   })
 

@@ -17,7 +17,9 @@ import {
   vaultApprovalResultSchema,
   vaultBrokerEventSchema,
   vaultStatusSchema,
+  type VaultPendingReceipt,
 } from '../../shared/vaultProtocol'
+import { vaultRefusalSentences } from '../../shared/vaultRefusals'
 import { vaultApprovalText, vaultDecisionChoices } from './vaultApproval'
 import type { VaultImportReport, VaultManagementPort } from '../../core/vault/broker/ports'
 
@@ -41,6 +43,7 @@ export type VaultCommandOptions =
   | { command: 'remove' | 'public-key'; itemId: string }
   | { command: 'revoke'; grantId: string }
   | { command: 'import'; path: string }
+  | { command: 'receipts' }
 
 /** Trusted local management channel only. Private material never uses the panel/MHP port. */
 export interface VaultCommandPort extends Pick<
@@ -59,6 +62,8 @@ export interface VaultCommandPort extends Pick<
   importFile(path: string): Promise<VaultImportReport>
   keepImport(receipt: string): Promise<void>
   deleteImport(receipt: string): Promise<void>
+  /** Kept or orphaned receipts that can still be finished (RVAPP-CM1091D5 P2-2). */
+  pendingReceipts(): Promise<readonly VaultPendingReceipt[]>
   /** Reset Vault (lead decision): only for a lost vault; two steps. */
   resetBegin(): Promise<{ resetId: string; word: string }>
   resetConfirm(resetId: string, word: string): Promise<void>
@@ -83,7 +88,7 @@ export interface VaultCommandDeps {
 }
 
 export function vaultUsage(): string {
-  return `${UI_TEXT.vault.title}: setup | recover | reset | status | unlock [slot-id] | lock | list | add <metadata-json> | remove <item-id> | grant <grant-json> | revoke <grant-id> | audit [--item <handle>] [--requester <id>] [--kind <kind>] [--outcome <outcome>] | import <path> | public-key <item-id> | watch`
+  return `${UI_TEXT.vault.title}: setup | recover | reset | status | unlock [slot-id] | lock | list | add <metadata-json> | remove <item-id> | grant <grant-json> | revoke <grant-id> | audit [--item <handle>] [--requester <id>] [--kind <kind>] [--outcome <outcome>] | import <path> | receipts | public-key <item-id> | watch`
 }
 
 /** Parse without echoing supplied arguments or JSON errors (they can contain an accidental value). */
@@ -109,6 +114,8 @@ export function parseVaultCommand(args: readonly string[]): VaultCommandOptions 
       (candidate) => candidate === command,
     )
     if (argument === undefined && read !== undefined) return { command: read }
+    // Finish kept or orphaned imports from the terminal (RVAPP-CM1091D5 P2-2).
+    if (command === 'receipts' && argument === undefined) return { command: 'receipts' }
     if (command === 'unlock')
       return {
         command,
@@ -290,9 +297,75 @@ async function importFile(
   } catch {
     /* EOF, timeout and cancellation keep the file. */
   }
-  if (answer === 'delete') await port.deleteImport(report.receipt)
-  else await port.keepImport(report.receipt)
+  if (answer === 'delete') {
+    try {
+      await port.deleteImport(report.receipt)
+    } catch (error: unknown) {
+      // The source is already gone: finish the person's Delete by clearing
+      // the leftover record instead of dropping it (RVCM1091G P3). A record
+      // already cleared (or still stuck) leaves the refusal below as is.
+      if (error instanceof Error && error.message === UI_TEXT.vault.sourceGone) {
+        try {
+          await port.keepImport(report.receipt)
+        } catch {
+          /* The refusal below still holds: the file is gone. */
+        }
+      }
+      throw error
+    }
+  } else await port.keepImport(report.receipt)
   return 0
+}
+/**
+ * Finish kept or orphaned imports from the terminal: the same two real
+ * actions the panel offers (RVAPP-CM1091D5 P2-2). Every "try again" refusal
+ * names an action that exists here too: the receipt stays listed until it
+ * is kept or its delete succeeds.
+ */
+async function finishReceipts(port: VaultCommandPort, deps: VaultCommandDeps): Promise<number> {
+  const pending = await port.pendingReceipts()
+  if (pending.length === 0) {
+    deps.print(UI_TEXT.vault.noPendingImports)
+    return 0
+  }
+  let code = 0
+  for (const entry of pending) {
+    deps.print(
+      `${entry.path}: ${entry.items.map((item) => `${item.name} (${item.kind})`).join(', ')}`,
+    )
+    if (!deps.isInteractive) continue
+    let answer = 'keep'
+    try {
+      answer = await deps.choose(UI_TEXT.vault.importKeepOrDelete, ['keep', 'delete'], deps.signal)
+    } catch {
+      /* EOF, timeout and cancellation keep the file. */
+    }
+    if (answer !== 'delete') {
+      try {
+        await port.keepImport(entry.receipt)
+      } catch (error: unknown) {
+        deps.printError(vaultCommandFailure(error))
+        code = 1
+      }
+      continue
+    }
+    try {
+      await port.deleteImport(entry.receipt)
+    } catch (error: unknown) {
+      // The source is already gone: finish the person's Delete by clearing
+      // the leftover record instead of dropping it.
+      if (error instanceof Error && error.message === UI_TEXT.vault.sourceGone) {
+        try {
+          await port.keepImport(entry.receipt)
+        } catch {
+          /* The refusal below still holds: the file is gone. */
+        }
+      }
+      deps.printError(vaultCommandFailure(error))
+      code = 1
+    }
+  }
+  return code
 }
 /** Reset Vault: a lost vault only; the warning, Continue, then the typed word. */
 async function resetVault(port: VaultCommandPort, deps: VaultCommandDeps): Promise<number> {
@@ -347,6 +420,19 @@ async function setUpVault(port: VaultCommandPort, deps: VaultCommandDeps): Promi
   } finally {
     shown.code.fill(0)
   }
+}
+
+/**
+ * A refused Delete (or any other refused management call) tells the true
+ * reason on the terminal too: every named refusal keeps its own sentence,
+ * and only an unnamed failure stays "No access" (RVAPP-CM1091D5 P2-3).
+ * Exact match only: no foreign text can quote a full sentence.
+ */
+export function vaultCommandFailure(error: unknown): string {
+  // Every named sentence, shared with the panel (RVAPP-CM1091D5 P2-3).
+  return error instanceof Error && vaultRefusalSentences().includes(error.message)
+    ? error.message
+    : UI_TEXT.vault.noAccess
 }
 
 export async function runVaultCommand(
@@ -409,6 +495,10 @@ export async function runVaultCommand(
         code = await importFile(port, deps, options.path)
         break
       }
+      case 'receipts': {
+        code = await finishReceipts(port, deps)
+        break
+      }
       case 'reset': {
         code = await resetVault(port, deps)
         break
@@ -444,11 +534,11 @@ export async function runVaultCommand(
         break
       }
     }
-  } catch {
+  } catch (error: unknown) {
     deps.printError(
       port === undefined && !deps.signal.aborted
         ? UI_TEXT.vault.brokerBlocked
-        : UI_TEXT.vault.noAccess,
+        : vaultCommandFailure(error),
     )
     code = 1
   } finally {

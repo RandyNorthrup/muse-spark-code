@@ -145,24 +145,35 @@ describe('RVCM1091A', () => {
       cancelSetup: (setupId) => f.management.cancelSetup(setupId),
     }
     const showError = vi.fn()
+    const publish = vi.fn()
+    const status = vi.fn()
     const host = new VaultPanelHost({
       service,
       now: () => f.clock.now(),
       editItem: () => Promise.resolve(null),
       confirmRemove: () => Promise.resolve(false),
       copyPublicKey: () => Promise.resolve(),
-      publish: vi.fn(),
-      status: vi.fn(),
+      publish,
+      status,
       showError,
       showRecoveryCode: () => Promise.resolve(true),
       importDone: () => Promise.resolve('keep'),
       confirmReset: () => Promise.resolve(null),
     })
     await host.handle({ type: 'vaultSetup' })
-    // The echo's refresh may hold the writer briefly; the vault exists either way.
-    await vi.waitFor(async () => {
-      expect(await VaultStore.exists(f.files)).toBe(true)
+    // The setup really succeeded: the section converges on the unlocked
+    // snapshot with no error — not just files on disk (RVCM1091E: the
+    // confirmation's mid-flight broadcast used to race broker.unlock for
+    // the writer, fail the setup, and stay silent). Quiescence first: the
+    // test's own reads would otherwise steal the writer from the refresh.
+    await vi.waitFor(() => {
+      const last = publish.mock.calls.at(-1)?.[0] as
+        { state: { status: { state: string } } } | undefined
+      expect(last?.state.status.state).toBe('unlocked')
     })
+    expect(await stateOf(f.management)).toBe('unlocked')
+    expect(await VaultStore.exists(f.files)).toBe(true)
+    expect(status).toHaveBeenLastCalledWith(true)
     expect(showError).not.toHaveBeenCalled()
     host.dispose()
   })

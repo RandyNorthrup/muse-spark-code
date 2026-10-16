@@ -149,6 +149,10 @@
     // by path for the panel scenes and axe (`node test/harness/vault/run.mjs`).
     "test/harness/vault/main.tsx",
     "test/harness/vault/run.mjs",
+    // The mounted-vault harness page and its runner (C-M109-1 P1): same
+    // by-path shape as U's (`node test/harness/vault/run-mounted.mjs`).
+    "test/harness/vault/mounted.tsx",
+    "test/harness/vault/run-mounted.mjs",
     // M115 schedule scenes: test/harness/index.html imports this page module.
     "test/harness/schedules.mjs",
     "test/unit/**/*.test.{ts,tsx,mjs}",

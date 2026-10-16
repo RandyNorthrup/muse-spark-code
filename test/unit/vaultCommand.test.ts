@@ -7,6 +7,8 @@ import {
   type VaultCommandOptions,
 } from '../../src/runtime/vault/vaultCommand'
 import { UI_TEXT, VAULT_PROTOCOL_VERSION, VAULT_LIMITS } from '../../src/shared/constants'
+import { vaultRefusalMessage } from '../../src/core/vault/broker/manageClient'
+import type { VaultManagementRefusal } from '../../src/core/vault/broker/ports'
 import { approval, grant, metadata, panel, audit } from './helpers/vault/fixtures'
 import { commandHarness } from './helpers/vault/runtime'
 
@@ -231,6 +233,104 @@ describe('M109 H terminal commands', () => {
       },
     ])
     expect(JSON.parse(await vaultRead(h.port, 'list', true))).toEqual([metadata()])
+  })
+  it('RVAPP-CM1091D5 P2-3 the terminal tells the true reason for a refused Delete', async () => {
+    // Each refusal reason keeps its own sentence on the terminal, never "No
+    // access" for all. The broker's own sentences are the oracle — not the
+    // shared list under test — so dropping a sentence from the list fails
+    // here: the broker still says it, the terminal no longer does.
+    const broker: readonly VaultManagementRefusal[] = [
+      'locked',
+      'uncreated',
+      'exists',
+      'conflict',
+      'deleteConflict',
+      'sourceGone',
+      'sourceUnreadable',
+      'sourceUnavailable',
+      'busy',
+      'invalid',
+      'rollback',
+      'io',
+      'storeUnavailable',
+    ]
+    const sentences = new Set([
+      ...broker.map((reason) => vaultRefusalMessage(reason)),
+      UI_TEXT.vault.useChanged,
+      UI_TEXT.vault.approvalExpired,
+    ])
+    for (const sentence of sentences) {
+      const h = commandHarness()
+      h.deps.choose.mockResolvedValue('delete')
+      h.port.deleteImport.mockRejectedValueOnce(new Error(sentence))
+      expect(
+        await runVaultCommand({ command: 'import', path: String.raw`C:\\picked\\id_key` }, h.deps),
+      ).toBe(1)
+      expect(h.deps.printError).toHaveBeenCalledWith(sentence)
+      expect(h.deps.printError).not.toHaveBeenCalledWith(UI_TEXT.vault.noAccess)
+    }
+    // An unnamed failure still stays "No access".
+    const h = commandHarness()
+    h.deps.choose.mockResolvedValue('delete')
+    h.port.deleteImport.mockRejectedValueOnce(new Error('private-canary'))
+    expect(
+      await runVaultCommand({ command: 'import', path: String.raw`C:\\picked\\id_key` }, h.deps),
+    ).toBe(1)
+    expect(h.deps.printError).toHaveBeenCalledWith(UI_TEXT.vault.noAccess)
+  })
+  it('RVAPP-CM1091D5 P2-2 receipts finishes kept imports from the terminal', async () => {
+    expect(parseVaultCommand(['receipts'])).toEqual({ command: 'receipts' })
+    expect(parseVaultCommand(['receipts', 'extra'])).toBeUndefined()
+    // Nothing pending: say so, exit 0.
+    const empty = commandHarness()
+    expect(await runVaultCommand({ command: 'receipts' }, empty.deps)).toBe(0)
+    expect(empty.deps.print).toHaveBeenCalledWith(UI_TEXT.vault.noPendingImports)
+    // A pending receipt offers Keep or Delete, like the panel.
+    const receipt = {
+      receipt: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+      path: '/home/user/.netrc',
+      items: [metadata()],
+    }
+    const keeping = commandHarness()
+    keeping.port.pendingReceipts.mockResolvedValue([receipt])
+    keeping.deps.choose.mockResolvedValue('keep')
+    expect(await runVaultCommand({ command: 'receipts' }, keeping.deps)).toBe(0)
+    expect(keeping.port.keepImport).toHaveBeenCalledWith(receipt.receipt)
+    expect(keeping.port.deleteImport).not.toHaveBeenCalled()
+    const deleting = commandHarness()
+    deleting.port.pendingReceipts.mockResolvedValue([receipt])
+    deleting.deps.choose.mockResolvedValue('delete')
+    expect(await runVaultCommand({ command: 'receipts' }, deleting.deps)).toBe(0)
+    expect(deleting.port.deleteImport).toHaveBeenCalledWith(receipt.receipt)
+    // A refused Delete tells the true reason and marks the run failed.
+    const refused = commandHarness()
+    refused.port.pendingReceipts.mockResolvedValue([receipt])
+    refused.deps.choose.mockResolvedValue('delete')
+    refused.port.deleteImport.mockRejectedValueOnce(new Error(UI_TEXT.vault.sourceUnreadable))
+    expect(await runVaultCommand({ command: 'receipts' }, refused.deps)).toBe(1)
+    expect(refused.deps.printError).toHaveBeenCalledWith(UI_TEXT.vault.sourceUnreadable)
+    expect(refused.deps.printError).not.toHaveBeenCalledWith(UI_TEXT.vault.noAccess)
+    // Without a terminal the list prints and nothing is chosen.
+    const headless = commandHarness()
+    headless.port.pendingReceipts.mockResolvedValue([receipt])
+    expect(
+      await runVaultCommand({ command: 'receipts' }, { ...headless.deps, isInteractive: false }),
+    ).toBe(0)
+    expect(headless.deps.choose).not.toHaveBeenCalled()
+    expect(headless.port.keepImport).not.toHaveBeenCalled()
+    expect(headless.port.deleteImport).not.toHaveBeenCalled()
+  })
+  it('RVCM1091G a Delete rejected as sourceGone finishes by clearing the leftover record', async () => {
+    const h = commandHarness()
+    h.deps.choose.mockResolvedValue('delete')
+    h.port.deleteImport.mockRejectedValueOnce(new Error(UI_TEXT.vault.sourceGone))
+    expect(
+      await runVaultCommand({ command: 'import', path: String.raw`C:\picked\id_key` }, h.deps),
+    ).toBe(1)
+    // The receipt is finished, not dropped: Keep clears the record the
+    // Delete could not.
+    expect(h.port.keepImport).toHaveBeenCalledTimes(1)
+    expect(h.port.close).toHaveBeenCalledOnce()
   })
 })
 

@@ -16,7 +16,12 @@ import type { UiTable } from '../l10n'
 import type { Logger } from '../logger'
 import { showPickOne } from '../quickPick'
 import { startOAuthLoopback } from '../providers/oauthLoopback'
-import { createModelsPanel, type ModelsPanel, type ModelsPanelNavigate } from './modelsPanel'
+import {
+  createModelsPanel,
+  type ModelsPanel,
+  type ModelsPanelNavigate,
+  type ModelsVaultFactory,
+} from './modelsPanel'
 import { runAddProviderQuickPick, type ProviderQuickPickOutcome } from './modelsQuickPick'
 import { createProvidersHost, type ProvidersHost } from '../providers/providersHost'
 import type { ModelScan, ScanStore } from '../providers/modelScans'
@@ -58,6 +63,12 @@ export interface ModelsPanelHostDeps {
   readonly readImportFile?: () => Promise<string | undefined>
   readonly onWizardSaved?: (outcome: WizardSaveOutcome) => void | Promise<void>
   readonly onKeyUsage?: Parameters<typeof createProvidersHost>[0]['onKeyUsage']
+  /**
+   * The vault binding factory (C-M109-1 P1): dist/vault.js builds the
+   * broker-backed binding around this panel's publisher. Undefined until
+   * lanes (b) and (c) bind the broker; the section stays hidden without it.
+   */
+  readonly createVault?: ModelsVaultFactory | undefined
 }
 
 export interface ModelsPanelFeatures {
@@ -307,6 +318,7 @@ export function createModelsPanelFeatures(
         extensionUri: host.extensionUri,
         l10n: host.l10n,
         log: host.log,
+        vault: host.createVault,
         providers,
         connectChatGpt: host.connectChatGpt,
         connectCopilot: host.connectCopilot,

@@ -5218,7 +5218,7 @@ The terminal grammar is `muse-spark-code-acp vault` followed by `setup`,
 `recover`, `reset`, `status`,
 `unlock [slot-id]`, `lock`, `list`, `add <metadata-json>`, `remove <item-id>`,
 `grant <grant-json>`, `revoke <grant-id>`, `audit`, `import <path>`,
-`public-key <item-id>` or `watch`. Every handler was run successfully against
+`receipts`, `public-key <item-id>` or `watch`. Every handler was run successfully against
 an injected fake-only local port in the H certification; installed-command
 success remains the integration check. `audit` accepts `--item`, `--requester`,
 `--kind` and `--outcome`. IDs, metadata and grant JSON use the shared schemas.
@@ -5263,7 +5263,10 @@ import, while ordinary change notifications preserve your Keep/Delete choice.
 If the report or Keep/Delete step fails after an import committed, the panel
 reloads the stored items and reports the failure. A changed source file is
 kept when Delete refuses.
-You then keep the original file or delete it. `grant` displays every
+You then keep the original file or delete it. `receipts` lists imports
+whose record was kept or orphaned and whose source or secret still exists,
+so a refused Delete can be finished from the terminal with the same Keep or
+Delete choice the panel offers. `grant` displays every
 scope field and requires explicit terminal confirmation. `watch` displays
 exact requester/use details, asks through the terminal, and answers only the
 same unexpired request id and digest. Pipes cannot approve grants or uses.

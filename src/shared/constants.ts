@@ -3798,6 +3798,10 @@ export const EXTENSION_HOOKS_BUNDLE_FILE = 'extensionHooks.js'
 // The vault's window (M109 lane W, PLAN.md D6): the panel host, the native
 // editor and the broker client, loaded on the first vault command.
 export const VAULT_BUNDLE_FILE = 'vault.js'
+// RVAPP-CM1091D5 BYTES: the vault's explicit-action code (the native Add/Edit
+// editor, write-only crypto, the Reset/Setup/Import dialogs), loaded on the
+// first action that needs it.
+export const VAULT_ACTIONS_BUNDLE_FILE = 'vaultActions.js'
 // C-M109-1: the CLI, ACP and headless vault (no `vscode`), lead decision 5.
 export const VAULT_RUNTIME_BUNDLE_FILE = 'vaultRuntime.js'
 // The empty folder under the extension's global storage the reviewer's side
@@ -5778,6 +5782,7 @@ export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
   'dist/vaultPosix.js',
   'dist/vaultRuntime.js',
   'dist/vaultBrokerBindings.js',
+  'dist/vaultActions.js',
   'dist/vaultBoundaries.js',
   'dist/estimator.js',
   'dist/estimateContracts.js',
@@ -7826,6 +7831,11 @@ export const VAULT_LOCK_DRAIN_MS = 1000
 export const VAULT_WATCH_RETRY_MS = 1000
 // RVCM1091A F7: the panel's watch backoff doubles up to this while the broker is down.
 export const VAULT_WATCH_RETRY_MAX_MS = 30_000
+// RVCM1091F REDESIGN: a transient snapshot failure (busy, rollback, timeout,
+// watch lost) keeps the last good view and retries this many times before the
+// section goes unavailable and offers the person's own Retry.
+export const VAULT_VIEW_RETRY_BUDGET = 2
+export const VAULT_VIEW_RETRY_MS = 250
 export const VAULT_ASKPASS_USES = 3
 export const VAULT_ASKPASS_TTL_MS = 600_000
 export const VAULT_SESSION_MAX_DAYS = 30
@@ -7888,6 +7898,9 @@ export const MCP_OAUTH_LIMITS = {
 // U's independent lazy surfaces; W registers these new caps without changing existing caps.
 export const VAULT_PANEL_BUDGET_KIB = 75
 export const VAULT_HOST_BUDGET_KIB = 50
+// RVAPP-CM1091D5 BYTES: the vault's explicit-action bundle, loaded on the
+// first action that needs it; a new cap, no existing cap moves.
+export const VAULT_ACTIONS_BUDGET_KIB = 25
 export const VAULT_UI_TICK_MS = 1000
 export const VAULT_ID_BYTES = 16
 export const VAULT_TOTP_PERIOD_SECONDS = 30

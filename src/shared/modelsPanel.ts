@@ -28,8 +28,12 @@ import { legacyUsdSchema } from './usdSchema'
 
 import * as z from 'zod/mini'
 
-/** The panel's sections; M96 registers `roles` and `agents` beside these. */
-export const modelsPanelSectionSchema = z.enum(['providers', 'models'])
+/**
+ * The panel's sections; M96 registers `roles` and `agents` beside these.
+ * `vault` (C-M109-1 P1) is offered only while the host holds a vault
+ * binding (`vaultOffered`); the webview hides its navigation otherwise.
+ */
+export const modelsPanelSectionSchema = z.enum(['providers', 'models', 'vault'])
 export type ModelsPanelSection = z.infer<typeof modelsPanelSectionSchema>
 
 /** The add-provider wizard's steps, in order (mirrors lane P's `WizardStep`). */
@@ -335,6 +339,12 @@ export const modelsPanelStateSchema = z.strictObject({
   notice: z.optional(z.string()),
   subscriptionsAvailable: z.optional(z.boolean()),
   copilotAvailable: z.optional(z.boolean()),
+  /**
+   * True while the host holds the vault binding (C-M109-1 P1): the broker
+   * is composed and the vault section is mounted. Absent or false keeps
+   * the section hidden and the vault refusing, as 0.17.0 does.
+   */
+  vaultOffered: z.optional(z.boolean()),
 })
 export type ModelsPanelState = z.infer<typeof modelsPanelStateSchema>
 

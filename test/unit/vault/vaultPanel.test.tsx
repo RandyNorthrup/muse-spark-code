@@ -7,6 +7,7 @@ import { VaultSurface } from '../../../src/webview/models/sections/vault/VaultSu
 import { VaultApprovalCard } from '../../../src/webview/components/VaultApprovalCard'
 import { VaultGrantEditor } from '../../../src/webview/models/sections/vault/VaultGrantEditor'
 import { type VaultUse, type VaultApprovalRequest } from '../../../src/shared/vault'
+import { type VaultPanelState } from '../../../src/shared/vaultPanel'
 import { setUiText } from '../../../src/shared/l10n/text'
 import { EN } from '../../../src/shared/l10n/en'
 import { UI_TEXT } from '../../../src/shared/constants'
@@ -188,7 +189,8 @@ describe('U Vault section', () => {
         post={post}
       />,
     )
-    expect(screen.getByText(UI_TEXT.vault.vaultLost)).toHaveAttribute('role', 'status')
+    // RVCM1091D P2: the tier card names the lost vault once, with no second copy.
+    expect(screen.getByText(UI_TEXT.vault.vaultLost)).toBeInTheDocument()
     const reset = screen.getByRole('button', { name: UI_TEXT.vault.resetVault })
     expect(reset).toBeEnabled()
     reset.focus()
@@ -204,6 +206,61 @@ describe('U Vault section', () => {
     expect(screen.queryByRole('button', { name: UI_TEXT.vault.resetVault })).toBeNull()
   })
 
+  it('uncreated offers Set Up Vault once; setupPending disables it', () => {
+    const state = panel()
+    state.status.state = 'uncreated'
+    const post = vi.fn()
+    const view = render(<VaultSection state={state} post={post} />)
+    // RVCM1091D P2: the tier card names the uncreated vault once, with no second copy.
+    expect(screen.getByText(UI_TEXT.vault.setupNeeded)).toBeInTheDocument()
+    const setup = screen.getByRole('button', { name: UI_TEXT.vault.setUp })
+    expect(setup).toBeEnabled()
+    fireEvent.click(setup)
+    expect(post).toHaveBeenCalledExactlyOnceWith({ type: 'vaultSetup' })
+    // The host shows the one-time recovery code natively; nothing secret is rendered.
+    expect(screen.queryByLabelText(UI_TEXT.vault.value)).toBeNull()
+    view.rerender(
+      <VaultSection
+        state={{ ...state, status: { ...state.status, state: 'setupPending' } }}
+        post={post}
+      />,
+    )
+    expect(screen.getByText(UI_TEXT.vault.setupPending)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: UI_TEXT.vault.setUp })).toBeDisabled()
+  })
+  it('unavailable and first-party-only disable the lock toggle; the lost vault still offers Reset', () => {
+    const state = panel()
+    const post = vi.fn()
+    const view = render(<VaultSection state={state} post={post} />)
+    expect(screen.getByRole('button', { name: UI_TEXT.vault.lock })).toBeEnabled()
+    view.rerender(
+      <VaultSection
+        state={{ ...state, status: { ...state.status, state: 'unavailable', reason: 'vaultLost' } }}
+        post={post}
+      />,
+    )
+    // Unlock would only be refused, so it stays disabled; Reset is the action.
+    expect(screen.getByRole('button', { name: UI_TEXT.vault.unlock })).toBeDisabled()
+    expect(screen.getByRole('button', { name: UI_TEXT.vault.resetVault })).toBeEnabled()
+    view.rerender(
+      <VaultSection
+        state={{
+          ...state,
+          status: { ...state.status, state: 'firstPartyOnly', reason: 'brokerBlocked' },
+        }}
+        post={post}
+      />,
+    )
+    expect(screen.getByText(UI_TEXT.vault.brokerBlocked)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: UI_TEXT.vault.unlock })).toBeDisabled()
+    expect(screen.queryByRole('button', { name: UI_TEXT.vault.resetVault })).toBeNull()
+  })
+  it('platform notices render with their own sentences', () => {
+    const state: VaultPanelState = { ...panel(), notices: ['seUnavailable', 'nopasswd'] }
+    render(<VaultSection state={state} post={vi.fn()} />)
+    expect(screen.getByText(UI_TEXT.vault.seUnavailable)).toHaveAttribute('role', 'status')
+    expect(screen.getByText(UI_TEXT.vault.nopasswd)).toBeInTheDocument()
+  })
   it('V8 uses host password entry messages and offers clipboard only for public SSH keys', () => {
     const state = panel()
     state.items.push({

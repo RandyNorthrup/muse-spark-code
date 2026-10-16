@@ -6,14 +6,16 @@
 
 import type { ComponentType } from 'react'
 import { UI_TEXT } from '../../shared/constants'
+import type { VaultClientMessage } from '../../shared/hostApi/vaultMessages'
 import type {
   ModelsPanelSection,
   ModelsPanelState,
   PanelToHostMessage,
 } from '../../shared/modelsPanel'
-import { CodeIcon, PlusIcon } from '../components/icons'
+import { CodeIcon, LockIcon, PlusIcon } from '../components/icons'
 import { ModelsSection } from './ModelsSection'
 import { ProvidersSection } from './ProvidersSection'
+import { VaultSectionMount } from './sections/vault/VaultSectionMount'
 import type { PanelUiAction, PanelUiState, WizardLife } from './reducer'
 
 export interface SectionProps {
@@ -27,6 +29,14 @@ export interface SectionProps {
   readonly wizardLife: WizardLife
   readonly importOpen: boolean
   readonly highlightedItem: string | undefined
+  /**
+   * The vault section's own channel (C-M109-1 P1): the host's latest vault
+   * envelope and the vault post port. Both stay undefined until the host
+   * offers the vault (`vaultOffered`); other sections never read them. The
+   * mount validates the envelope before use, inside the lazy surface.
+   */
+  readonly vaultRaw?: unknown
+  readonly vaultPost?: ((message: VaultClientMessage) => void) | undefined
 }
 
 export interface PanelSectionDef {
@@ -34,6 +44,13 @@ export interface PanelSectionDef {
   /** Read at render, never at module load, so the installed table shows. */
   readonly getTitle: () => string
   readonly icon: ComponentType<object>
+  /**
+   * Whether the host offers this section in the given state. Absent means
+   * always offered; the vault (C-M109-1 P1) is offered only while
+   * `vaultOffered` is true, so its navigation stays hidden until the
+   * broker binds.
+   */
+  readonly isOffered?: ((panelState: ModelsPanelState | undefined) => boolean) | undefined
   readonly Component: ComponentType<SectionProps>
   /**
    * The section's own fold of a panel action. Every section sees every
@@ -77,6 +94,10 @@ function reduceModels(state: PanelUiState, _action: PanelUiAction): PanelUiState
   return state
 }
 
+function reduceVault(state: PanelUiState, _action: PanelUiAction): PanelUiState {
+  return state
+}
+
 export const MODEL_SECTIONS: readonly PanelSectionDef[] = [
   {
     id: 'providers',
@@ -91,6 +112,14 @@ export const MODEL_SECTIONS: readonly PanelSectionDef[] = [
     icon: CodeIcon,
     Component: ModelsSection,
     reduceSection: reduceModels,
+  },
+  {
+    id: 'vault',
+    getTitle: () => UI_TEXT.vault.title,
+    icon: LockIcon,
+    isOffered: (panelState) => panelState?.vaultOffered === true,
+    Component: VaultSectionMount,
+    reduceSection: reduceVault,
   },
 ]
 

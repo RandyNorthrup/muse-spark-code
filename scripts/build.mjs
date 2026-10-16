@@ -210,12 +210,18 @@ const USAGE_COMPANION_ENTRY = 'src/runtime/usage/usageCompanionEntry.ts'
 const USAGE_PANEL_ENTRY = 'src/host/usage/usagePanelEntry.ts'
 const EXTENSION_HOOKS_ENTRY = 'src/host/extensionHooksEntry.ts'
 const EXTENSION_HOOKS_OUTFILE = 'dist/extensionHooks.js'
-// M109 lane W: the vault's window (the panel host and the native editor),
+// M109 lane W: the vault's window (the panel host and the broker client),
 // loaded on the first vault command. `vscode` stays external, provided by
 // the host, as for the import. The broker client joins it once the
-// broker-backed service lands (docs/certification/m109.md).
+// broker-backed service lands (docs/certification/m109.md). The native
+// editor, the write-only crypto and the action dialogs load later from
+// dist/vaultActions.js (RVAPP-CM1091D5 BYTES).
 const VAULT_ENTRY = 'src/host/vault/vaultPanelEntry.ts'
 const VAULT_OUTFILE = 'dist/vault.js'
+// RVAPP-CM1091D5 BYTES: the vault's explicit-action code (dist/vaultActions.js),
+// loaded on the first action that needs it instead of when the panel opens.
+const VAULT_ACTIONS_ENTRY = 'src/host/vault/vaultActionsEntry.ts'
+const VAULT_ACTIONS_OUTFILE = 'dist/vaultActions.js'
 const WHATS_NEW_ENTRY = 'src/host/whatsNew/whatsNewEntry.ts'
 const WHATS_NEW_OUTFILE = 'dist/whatsNew.js'
 const JUDGE_ENTRY = 'src/host/judge/judgeEntry.ts'
@@ -724,6 +730,20 @@ const vaultOptions = {
   ],
   entryPoints: [VAULT_ENTRY],
   outfile: VAULT_OUTFILE,
+  platform: 'node',
+  external: ['vscode'],
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+// RVAPP-CM1091D5 BYTES: the vault's explicit-action code, loaded on the first
+// action that needs it. Same shape as the opening bundle above.
+const vaultActionsOptions = {
+  ...common,
+  plugins: [sharedUiText, sharedValidation, sharedWire, sharedModelApiBoundaries],
+  entryPoints: [VAULT_ACTIONS_ENTRY],
+  outfile: VAULT_ACTIONS_OUTFILE,
   platform: 'node',
   external: ['vscode'],
   format: 'cjs',
@@ -1300,6 +1320,7 @@ if (isWatch) {
     esbuild.context(vaultStoreOptions),
     esbuild.context(vaultPosixOptions),
     esbuild.context(vaultBrokerBindingsOptions),
+    esbuild.context(vaultActionsOptions),
     esbuild.context(reportOptions),
     esbuild.context(estimatorOptions),
     esbuild.context(recorderOptions),
@@ -1417,6 +1438,7 @@ if (isWatch) {
     vaultStore: esbuild.build(vaultStoreOptions),
     vaultPosix: esbuild.build(vaultPosixOptions),
     vaultBrokerBindings: esbuild.build(vaultBrokerBindingsOptions),
+    vaultActions: esbuild.build(vaultActionsOptions),
     report: esbuild.build(reportOptions),
     estimator: esbuild.build(estimatorOptions),
     recorder: esbuild.build(recorderOptions),
@@ -1554,6 +1576,7 @@ if (isWatch) {
   reportSize(VAULT_OUTFILE)
   reportSize('dist/vaultBroker.js')
   reportSize('dist/vaultBrokerBindings.js')
+  reportSize(VAULT_ACTIONS_OUTFILE)
   reportSize(REPORT_OUTFILE)
   reportSize(ESTIMATOR_OUTFILE)
   reportSize(RECORDER_OUTFILE)

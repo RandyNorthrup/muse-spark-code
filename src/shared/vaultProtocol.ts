@@ -46,6 +46,14 @@ export {
 } from './vaultStatus'
 
 /** v2 `snapshot`: the value-free management view (every item, grants, pending cards). */
+/** A kept or orphaned import receipt that can still be finished (RVAPP-CM1091D5 P2-2). */
+export const vaultPendingReceiptSchema = z.strictObject({
+  receipt: importReceipt,
+  path: text,
+  items: z.array(vaultItemMetadataSchema).check(z.maxLength(VAULT_LIMITS.items)),
+})
+export type VaultPendingReceipt = z.infer<typeof vaultPendingReceiptSchema>
+
 export const vaultBrokerSnapshotSchema = z.strictObject({
   status: vaultStatusSchema,
   // Pending setup only: the id the confirmation must echo; never the code.
@@ -53,6 +61,9 @@ export const vaultBrokerSnapshotSchema = z.strictObject({
   items: z.array(vaultItemMetadataSchema).check(z.maxLength(VAULT_LIMITS.items)),
   grants: z.array(vaultGrantSchema).check(z.maxLength(VAULT_LIMITS.grants)),
   pending: z.array(vaultApprovalRequestSchema).check(z.maxLength(VAULT_LIMITS.items)),
+  // The finish sweep: kept or orphaned receipts whose source or secret
+  // still exists, with the two real actions (RVAPP-CM1091D5 P2-2).
+  pendingReceipts: z.array(vaultPendingReceiptSchema).check(z.maxLength(VAULT_LIMITS.items)),
 })
 export type VaultBrokerSnapshot = z.infer<typeof vaultBrokerSnapshotSchema>
 
@@ -214,6 +225,21 @@ export const vaultBrokerResponseSchema = z.strictObject({
         'locked',
         'uncreated',
         'exists',
+        // RVCM1091D P2: an item or path collision is not "a vault already
+        // exists"; it has its own reason and sentence.
+        'conflict',
+        // RVCM1091E P2: a Delete refused because the source changed after a
+        // successful import is not an add/import collision.
+        'deleteConflict',
+        // RVCM1091F P3: a Delete that removed the source and then could not
+        // forget its receipt. The file is gone; nothing to retry.
+        'sourceGone',
+        // RVCM1091G P2: a Delete whose source cannot be read (permissions).
+        // The receipt stays; the sentence names the true reason.
+        'sourceUnreadable',
+        // RVAPP-CM1091D5 P3-1: the source's location is not available (a
+        // drive down or away). Never "gone": the receipt stays.
+        'sourceUnavailable',
         'busy',
         'invalid',
         'rollback',

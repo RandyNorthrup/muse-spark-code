@@ -9,7 +9,7 @@ import { randomBytes } from 'node:crypto'
 import * as z from 'zod/mini'
 import { once } from 'node:events'
 import { VaultChannelServer, type VaultChannelDeps } from '../../../src/core/vault/broker/channel'
-import { VaultBrokerClient } from '../../../src/core/vault/broker/client'
+import { VaultBrokerClient, VaultChannelError } from '../../../src/core/vault/broker/client'
 import { VaultFirstPartyReader } from '../../../src/core/vault/broker/firstParty'
 import { UnixVaultPrivateFiles } from '../../../src/core/vault/broker/files'
 import {
@@ -181,6 +181,14 @@ async function openClient(fixture: Awaited<ReturnType<typeof channelSetup>>) {
     fixture.peers,
   )
 }
+/** The server side of every open channel in the fixture. */
+function serverSocketsOf(fixture: Awaited<ReturnType<typeof channelSetup>>): Socket[] {
+  return [...z.set(z.instanceof(Socket)).parse(Reflect.get(fixture.server, 'sockets'))]
+}
+/** The client socket behind an opened test client. */
+function clientSocketOf(client: Awaited<ReturnType<typeof openClient>>): Socket {
+  return z.instanceof(Socket).parse(Reflect.get(client, 'socket'))
+}
 async function auditRecord(fixture: Awaited<ReturnType<typeof channelSetup>>) {
   await fixture.broker.request(fixture.identity, fixture.stored.metadata.handle, use(), {
     tainted: false,
@@ -244,6 +252,15 @@ async function closedOrReply(socket: Socket): Promise<'closed' | 'reply'> {
     socket.removeListener('data', reply)
   }
 }
+async function channelFailureOf(work: () => Promise<unknown>): Promise<unknown> {
+  try {
+    await work()
+  } catch (error: unknown) {
+    return error
+  }
+  expect.unreachable('expected the channel call to reject')
+}
+
 describe.skipIf(!hasUnixPeer)('native authenticated broker channel', () => {
   it.each(['fragment', 'remote', 'throwingDestroy', 'parsed'])(
     'RVM109B5 P1 channel erases owned input on %s',
@@ -522,6 +539,121 @@ describe.skipIf(!hasUnixPeer)('native authenticated broker channel', () => {
     expect(fixture.brokerDeps.onApproval).not.toHaveBeenCalled()
     expect(fixture.deps.perform).not.toHaveBeenCalled()
     client.close()
+  })
+
+  it('RVCM1091G P3 a closed socket, failed write and invalid response name themselves, never Locked', async () => {
+    const fixture = await channelSetup()
+    const serverSockets = (): Socket[] => serverSocketsOf(fixture)
+    // 1. A send on a closed channel.
+    const closed = await openClient(fixture)
+    try {
+      closed.close()
+      const failure = await channelFailureOf(() => closed.send({ kind: 'status' }))
+      expect(failure).toBeInstanceOf(VaultChannelError)
+      expect(failure).toMatchObject({ name: 'VaultChannelError', code: 'closed' })
+      expect(failure).toMatchObject({ message: UI_TEXT.vault.operationFailed })
+      expect(failure).not.toMatchObject({ message: UI_TEXT.vault.locked })
+    } finally {
+      closed.close()
+    }
+    // 2. A failed write.
+    const writer = await openClient(fixture)
+    const clientSocket = z.instanceof(Socket).parse(Reflect.get(writer, 'socket'))
+    const write = vi.spyOn(clientSocket, 'write').mockImplementation(() => {
+      throw new Error('test write failed')
+    })
+    try {
+      const failure = await channelFailureOf(() => writer.send({ kind: 'status' }))
+      expect(failure).toBeInstanceOf(VaultChannelError)
+      expect(failure).toMatchObject({ name: 'VaultChannelError', code: 'writeFailed' })
+      expect(failure).toMatchObject({ message: UI_TEXT.vault.operationFailed })
+      expect(failure).not.toMatchObject({ message: UI_TEXT.vault.locked })
+    } finally {
+      write.mockRestore()
+      writer.close()
+    }
+    // 3. An invalid response.
+    const reader = await openClient(fixture)
+    const serverWrites = serverSockets().map((serverSocket) =>
+      vi.spyOn(serverSocket, 'write').mockImplementation(() => true),
+    )
+    try {
+      // The server's reply goes nowhere, so the invalid frame below is the
+      // only answer the pending request can get.
+      const pending = reader.send({ kind: 'status' })
+      await vi.waitFor(() => {
+        expect(Reflect.get(reader, 'pending')).not.toBeNull()
+      })
+      const socket = z.instanceof(Socket).parse(Reflect.get(reader, 'socket'))
+      socket.emit('data', Buffer.from('not a frame\n'))
+      const failure = await channelFailureOf(() => pending)
+      expect(failure).toBeInstanceOf(VaultChannelError)
+      expect(failure).toMatchObject({ name: 'VaultChannelError', code: 'invalidResponse' })
+      expect(failure).toMatchObject({ message: UI_TEXT.vault.operationFailed })
+      expect(failure).not.toMatchObject({ message: UI_TEXT.vault.locked })
+    } finally {
+      for (const serverWrite of serverWrites) serverWrite.mockRestore()
+      reader.close()
+    }
+  })
+
+  // RVAPP-CM1091D5 P3-2: the typed channel reasons cover every close the
+  // client can see. An oversized frame, a wrong reply sequence and trailing
+  // bytes close as invalidResponse (never a plain closed); the oversized
+  // send is writeFailed in src/core/vault/broker/client.ts. Each case fails
+  // without its reason literal. Needs a real loopback socket: NOT RUN on a
+  // sandboxed rig (unix-socket listen is blocked); the lead runs it outside.
+  it('RVAPP-CM1091D5 P3-2 oversized, missequenced and trailed replies are invalidResponse', async () => {
+    const fixture = await channelSetup()
+    const silenceServer = () =>
+      serverSocketsOf(fixture).map((serverSocket) =>
+        vi.spyOn(serverSocket, 'write').mockImplementation(() => true),
+      )
+    // One corrupt reply per shape; each fails without its invalidResponse
+    // literal in src/core/vault/broker/client.ts.
+    const corrupt: Record<string, (sequence: number) => Buffer> = {
+      oversized: () => Buffer.alloc(VAULT_LIMITS.frameBytes + 1),
+      missequenced: () =>
+        Buffer.from(`${JSON.stringify({ v: 2, sequence: 9999, response: { kind: 'ok' } })}\n`),
+      trailed: (sequence) =>
+        Buffer.from(
+          `${JSON.stringify({ v: 2, sequence, response: { kind: 'ok' } })}\n{"extra":true}\n`,
+        ),
+    }
+    for (const [shape, payload] of Object.entries(corrupt)) {
+      const client = await openClient(fixture)
+      const silenced = silenceServer()
+      const clientSocket = clientSocketOf(client)
+      // The sequence is what a real broker peer sees: the request as it
+      // arrives on the server side. Not the client's private pending state,
+      // and not the buffer handed to the client socket's write: the client
+      // wipes its request bytes after the write, so a recorded reference to
+      // that buffer reads as zeros.
+      const arrived: Buffer[] = []
+      const collect = (bytes: Buffer) => {
+        arrived.push(Buffer.from(bytes))
+      }
+      const peers = serverSocketsOf(fixture)
+      for (const peer of peers) peer.on('data', collect)
+      try {
+        const pending = client.send({ kind: 'status' })
+        const request = await vi.waitFor(() => {
+          const text = Buffer.concat(arrived).toString('utf8')
+          const end = text.indexOf('\n')
+          expect(end, shape).toBeGreaterThan(0)
+          return text.slice(0, end)
+        })
+        const sequence = z.object({ sequence: z.number() }).parse(JSON.parse(request)).sequence
+        clientSocket.emit('data', payload(sequence))
+        const failure = await channelFailureOf(() => pending)
+        expect(failure, shape).toBeInstanceOf(VaultChannelError)
+        expect(failure, shape).toMatchObject({ name: 'VaultChannelError', code: 'invalidResponse' })
+      } finally {
+        for (const peer of peers) peer.off('data', collect)
+        for (const serverWrite of silenced) serverWrite.mockRestore()
+        client.close()
+      }
+    }
   })
 
   it('P2-7 closing a private connection cancels presence and erases its pending material', async () => {
