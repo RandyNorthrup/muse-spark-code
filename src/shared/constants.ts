@@ -3787,11 +3787,8 @@ export const PLAN_NAME_ATTEMPTS = 100
 export const PLAN_SLUG_MAX_CHARS = 60
 export const PLAN_SLUG_FALLBACK = 'plan'
 export const PLAN_TITLE_MAX_CHARS = 80
-// A plan larger than this is neither saved nor read back (Plans…,
-// Implement): it travels as one named text part, far inside both backends'
-// text budgets (M54). The message names it in KB.
-export const PLAN_FILE_MAX_BYTES = 256 * 1024
-export const PLAN_FILE_MAX_KB = PLAN_FILE_MAX_BYTES / 1024
+// A plan saves and reads back at any size (Plans…, Implement): it travels
+// as one named text part (D121: the removed 256 KiB ceiling was invented).
 // A save's hidden stage left in the plans folder (a crash, a file a scanner
 // held) is removed by the next save or listing once it is this old.
 export const PLAN_STAGE_STALE_MS = 5 * 60 * 1000
@@ -3799,8 +3796,8 @@ export const PLAN_STAGE_STALE_MS = 5 * 60 * 1000
 export const PLAN_LOG_HASH_CHARS = 8
 // What Plans… lists at most, newest first.
 export const PLAN_LIST_MAX = 200
-// The todo list a plan seeds: at most this many steps, each cut to this length.
-export const PLAN_STEPS_MAX = 50
+// The todo list a plan seeds holds every step (D121: the removed 50-step
+// ceiling was invented); each step is cut to this length.
 export const PLAN_STEP_MAX_CHARS = 200
 export const PLAN_TODO_PENDING_STATUS = 'pending'
 // A handoff seeds its open items only (M74, PLAN.md D49): what is done or

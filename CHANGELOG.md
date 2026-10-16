@@ -17,7 +17,8 @@ happened, not what was planned; superseded entries are kept.
   touches more than 200 files; a hook agent handler loops over its
   read-only tools until the model stops calling them instead of stopping
   after 5 steps; a goal objective of any length stands instead of refusing
-  past 4000 characters.
+  past 4000 characters; a plan keeps every step past 50 and saves and reads
+  back at any size instead of refusing past 256 KB (handoff briefs too).
 - On Windows, two requests that reserve session spend at the same moment
   could end one of them with "The session spend ledger could not be read or
   saved", although nothing was wrong with the ledger. Windows answers a lock

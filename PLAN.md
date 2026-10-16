@@ -14401,6 +14401,9 @@ heading; the other NOLIMITS lanes add no PLAN.md lines).
 - A21 (NOLIMITS1): `GOAL_OBJECTIVE_MAX_CHARS` = 4000 removed — invented
   (Muse Code states no limit), not about a model; only a blank objective
   refuses.
+- A22 (NOLIMITS1): `PLAN_STEPS_MAX` = 50 and `PLAN_FILE_MAX_BYTES` = 256 KiB
+  removed — not about a model; every step is kept, plans and handoff briefs
+  save and read at any size (the shared constant's handoff checks go with it).
 
 ## 3. Open questions (need the owner)
 

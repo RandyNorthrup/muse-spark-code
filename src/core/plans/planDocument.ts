@@ -19,7 +19,6 @@ import {
   PLAN_SLUG_FALLBACK,
   PLAN_SLUG_MAX_CHARS,
   PLAN_STEP_MAX_CHARS,
-  PLAN_STEPS_MAX,
   PLAN_TITLE_MAX_CHARS,
 } from '../../shared/constants'
 
@@ -209,14 +208,11 @@ export function parsePlanFile(
 
 /**
  * The plan's steps: its top-level numbered items, or, when it numbers none,
- * its top-level bullets, as the panel parses them; at most PLAN_STEPS_MAX,
- * each cut to PLAN_STEP_MAX_CHARS.
+ * its top-level bullets, as the panel parses them; every step (D121: the
+ * removed 50-step ceiling was invented), each cut to PLAN_STEP_MAX_CHARS.
  */
 export function planSteps(markdown: PlanMarkdown, body: string): readonly string[] {
-  return markdown
-    .listItems(body)
-    .slice(0, PLAN_STEPS_MAX)
-    .map((item) => cut(item, PLAN_STEP_MAX_CHARS))
+  return markdown.listItems(body).map((item) => cut(item, PLAN_STEP_MAX_CHARS))
 }
 
 /** The steps as numbered lines, as the model is told its todo list was set. */

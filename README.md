@@ -1177,7 +1177,7 @@ says why when it cannot.
   - Pressing again the same day finds the file already saved with the same
     content and writes nothing.
   - `.agents` is a protected folder, so the save asks first.
-  - A plan may be up to 256 KB.
+  - A plan saves at any size.
   - The file is published by a hard link; on a file system without hard
     links the save is refused rather than risk replacing a file.
   - The reply you approve is shown as the model will get it: a link's
@@ -1233,8 +1233,8 @@ you need to, then **Start New Conversation**, or **Cancel** and nothing
 starts. Starting leaves the old conversation in History and seeds the new
 one with the brief alone — the goal and the open items travel in its note,
 and on the Model API backend the open items become the todo list before
-the first request. The generated or edited brief may be up to 256 KB in
-UTF-8. Cancel closes a handoff before the new conversation commits. A
+the first request. The generated or edited brief reads at any size.
+Cancel closes a handoff before the new conversation commits. A
 brief that is ready while Account & usage, the Agent map or a share file is open waits
 until you close that dialog, then opens.
 
