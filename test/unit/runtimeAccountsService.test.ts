@@ -20,6 +20,7 @@ import { parseAccountsCommand } from '../../src/runtime/providers/accountArgs'
 import { createRuntimeAccountServices } from '../../src/runtime/providers/runtimeServices'
 import type { RuntimeAccountServices } from '../../src/runtime/providers/runtimeServices'
 import { SECRET_KEYS, UI_TEXT } from '../../src/shared/constants'
+import { fill } from '../../src/shared/l10n/text'
 
 const META_ORIGIN = 'https://api.meta.ai'
 const homes: string[] = []
@@ -164,12 +165,30 @@ describe('installed runtime account service', () => {
     await expect(port.read('session-1')).resolves.toMatchObject({ currentAccount: 'default' })
   })
 
-  it('reports unavailable for an unconfigured provider and never writes it', async () => {
+  it('reports an unconfigured provider as unconfigured and never writes it', async () => {
     const h = rig()
     expect(
       await accounts(h.services, h.print, h.printError, ['list', '--provider', 'openai']),
     ).toBe(1)
-    expect(h.printError).toHaveBeenCalledWith(UI_TEXT.accounts.unavailable)
+    expect(h.printError).toHaveBeenCalledWith(
+      fill(UI_TEXT.providerNotConfigured, { provider: 'openai' }),
+    )
+  })
+
+  it('names a configured provider whose accounts this terminal does not serve yet', async () => {
+    const h = rig()
+    const exit = await runAccountsCommand(commandOf(['list', '--provider', 'openai']), {
+      ...h.services.commands,
+      print: h.print,
+      printError: h.printError,
+      // The runner's own providers file already holds this provider; the
+      // account service has no row for it (F46).
+      isProviderConfigured: () => Promise.resolve(true),
+    })
+    expect(exit).toBe(1)
+    expect(h.printError).toHaveBeenCalledWith(
+      fill(UI_TEXT.accounts.providerUnavailable, { provider: 'openai' }),
+    )
   })
 
   it('reports a corrupt file instead of clobbering it', async () => {

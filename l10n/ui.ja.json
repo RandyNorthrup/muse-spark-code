@@ -4883,6 +4883,7 @@
     "keyPrompt": "{provider} · {account} のAPIキー（入力中は表示されません）: ",
     "execHelp": "非対話型のアカウント: {command} exec --account <id> [--account-pool]。--key-stdin を使うCIは既定のアカウントのみを使用し、アカウントを切り替えません。",
     "unavailable": "このランタイムが共有アカウントサービスに接続されるまで、アカウントは利用できません。",
+    "providerUnavailable": "{provider} のアカウントはこのターミナルではまだ利用できません。",
     "providersInvalid": "プロバイダーファイルが無効なため、そのエントリは拒否され、ファイルは変更されませんでした。",
     "poolUnavailable": "このランタイムではアカウントのプール利用はできません。バインドされたリソース所有者が必要です。--account-pool なしでもう一度実行してください。",
     "cliUsage": "アカウント: {command} providers accounts list|add|remove|order|thresholds --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [順序付きID]。認証情報: {command} auth set --provider <id> --account <id>（標準入力のみ）。",

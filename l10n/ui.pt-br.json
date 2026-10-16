@@ -5181,6 +5181,7 @@
     "keyPrompt": "Chave de API de {provider} · {account} (oculta ao digitar): ",
     "execHelp": "Contas sem interação: {command} exec --account <id> [--account-pool]. CI com --key-stdin usa apenas a conta padrão e nunca troca de conta.",
     "unavailable": "As contas ficarão disponíveis quando este ambiente estiver conectado ao serviço compartilhado de contas.",
+    "providerUnavailable": "As contas de {provider} ainda não estão disponíveis neste terminal.",
     "providersInvalid": "O arquivo de provedores é inválido, por isso suas entradas foram recusadas e o arquivo foi mantido inalterado.",
     "poolUnavailable": "O agrupamento de contas não está disponível neste runtime: ele precisa de um proprietário de recursos vinculado. Execute novamente sem --account-pool.",
     "cliUsage": "Contas: {command} providers accounts list|add|remove|order|thresholds --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [ids ordenados]. Credenciais: {command} auth set --provider <id> --account <id> (somente entrada padrão).",

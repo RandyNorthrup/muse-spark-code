@@ -5032,6 +5032,7 @@
     "keyPrompt": "{provider} · {account} API anahtarı (yazarken gizlenir): ",
     "execHelp": "Etkileşimsiz hesaplar: {command} exec --account <id> [--account-pool]. --key-stdin kullanan CI yalnızca varsayılan hesabı kullanır ve asla hesap değiştirmez.",
     "unavailable": "Bu çalışma ortamı paylaşılan hesap hizmetine bağlanana kadar hesaplar kullanılamaz.",
+    "providerUnavailable": "{provider} hesapları bu terminalde henüz kullanılamıyor.",
     "providersInvalid": "Sağlayıcı dosyası geçersiz olduğundan girişleri reddedildi ve dosya değiştirilmeden bırakıldı.",
     "poolUnavailable": "Bu çalışma ortamında hesap havuzu kullanılamıyor: bağlı bir kaynak sahibi gerekiyor. --account-pool olmadan yeniden çalıştırın.",
     "cliUsage": "Hesaplar: {command} providers accounts list|add|remove|order|thresholds --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [sıralı kimlikler]. Kimlik bilgileri: {command} auth set --provider <id> --account <id> (yalnızca standart girdi).",
