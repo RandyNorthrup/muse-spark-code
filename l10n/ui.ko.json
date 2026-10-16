@@ -1645,9 +1645,6 @@
   "gitChecksCancelled": {
     "other": "{count}개 취소됨"
   },
-  "gitChecksNotRead": {
-    "other": "나머지 {count}개는 읽지 않음"
-  },
   "gitStatusNeedsSignIn": "상태를 보려면 GitHub에 로그인하세요.",
   "gitCheckedAt": "{time} 기준",
   "gitSignInGitHub": "GitHub에 로그인",

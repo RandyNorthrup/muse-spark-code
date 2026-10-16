@@ -1726,12 +1726,6 @@
     "few": "{count} anulowane",
     "many": "{count} anulowanych"
   },
-  "gitChecksNotRead": {
-    "one": "{count} kolejna nieodczytana",
-    "other": "{count} kolejnej nieodczytanej",
-    "few": "{count} kolejne nieodczytane",
-    "many": "{count} kolejnych nieodczytanych"
-  },
   "gitStatusNeedsSignIn": "Zaloguj się do serwisu GitHub, aby zobaczyć stan.",
   "gitCheckedAt": "stan na {time}",
   "gitSignInGitHub": "Zaloguj się do serwisu GitHub",

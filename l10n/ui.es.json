@@ -1699,11 +1699,6 @@
     "other": "{count} canceladas",
     "many": "{count} canceladas"
   },
-  "gitChecksNotRead": {
-    "one": "{count} más sin leer",
-    "other": "{count} más sin leer",
-    "many": "{count} de más sin leer"
-  },
   "gitStatusNeedsSignIn": "Inicie sesión en GitHub para ver su estado.",
   "gitCheckedAt": "actualizado {time}",
   "gitSignInGitHub": "Iniciar sesión en GitHub",

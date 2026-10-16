@@ -1672,10 +1672,6 @@
     "one": "{count} megszakítva",
     "other": "{count} megszakítva"
   },
-  "gitChecksNotRead": {
-    "one": "további {count} nincs beolvasva",
-    "other": "további {count} nincs beolvasva"
-  },
   "gitStatusNeedsSignIn": "Az állapot megtekintéséhez jelentkezzen be a GitHubra.",
   "gitCheckedAt": "állapot: {time}",
   "gitSignInGitHub": "Bejelentkezés a GitHubra",

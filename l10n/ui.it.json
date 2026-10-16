@@ -1699,11 +1699,6 @@
     "other": "{count} annullati",
     "many": "{count} di controlli annullati"
   },
-  "gitChecksNotRead": {
-    "one": "altro {count} non letto",
-    "other": "altri {count} non letti",
-    "many": "altri {count} di controlli non letti"
-  },
   "gitStatusNeedsSignIn": "Accedi a GitHub per vederne lo stato.",
   "gitCheckedAt": "aggiornato: {time}",
   "gitSignInGitHub": "Accedi a GitHub",
