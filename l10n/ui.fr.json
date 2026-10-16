@@ -4967,11 +4967,6 @@
     "m112": "Analyse arrêtée à la limite : durée",
     "m113": "Non vérifié : {v0} ne peut pas être lu comme texte.",
     "m114": "Analyse arrêtée à la limite : {v0} dépasse le budget de lecture.",
-    "m115": {
-      "one": "Non vérifié : arrêt après {count} fichier ; {v1} autres non lus.",
-      "other": "Non vérifié : arrêt après {count} fichiers ; {v1} autres non lus.",
-      "many": "Non vérifié : arrêt après {count} fichiers ; {v1} autres non lus."
-    },
     "m116": {
       "one": "Non vérifié : limite de preuves de dépendances atteinte ; {count} entrée omises.",
       "other": "Non vérifié : limite de preuves de dépendances atteinte ; {count} entrées omises.",
@@ -4986,11 +4981,6 @@
     },
     "m120": "Fournissez les entrées de bundle ou un inventaire pour préciser les obligations de livraison.",
     "m121": "Analyse arrêtée à la limite : rapport tronqué pour {v0}",
-    "m122": {
-      "one": "Rapport tronqué : {count} constat omis au-delà de {v1} ; blocages et corrections conservés en priorité.",
-      "other": "Rapport tronqué : {count} constats omis au-delà de {v1} ; blocages et corrections conservés en priorité.",
-      "many": "Rapport tronqué : {count} constats omis au-delà de {v1} ; blocages et corrections conservés en priorité."
-    },
     "m123": {
       "one": "Rapport tronqué : {count} exclusions générées omises au-delà de la limite.",
       "other": "Rapport tronqué : {count} exclusions générées omises au-delà de la limite.",

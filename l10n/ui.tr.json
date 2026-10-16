@@ -4843,10 +4843,6 @@
     "m112": "Tarama sınırda durdu: süre",
     "m113": "İncelenmedi: {v0} metin olarak okunamıyor.",
     "m114": "Tarama sınırda durdu: {v0} okuma bütçesini aşıyor.",
-    "m115": {
-      "one": "İncelenmedi: {count} dosyadan sonra durdu; ek {v1} dosya okunmadı.",
-      "other": "İncelenmedi: {count} dosyadan sonra durdu; ek {v1} dosya okunmadı."
-    },
     "m116": {
       "one": "İncelenmedi: bağımlılık kanıtı sınırına ulaşıldı; {count} kayıt atlandı.",
       "other": "İncelenmedi: bağımlılık kanıtı sınırına ulaşıldı; {count} kayıt atlandı."
@@ -4859,10 +4855,6 @@
     },
     "m120": "Kesin yükümlülükler için paket girdileri veya envanter kanıtı sağlayın.",
     "m121": "Tarama sınırda durdu: {v0} raporu kısaltıldı",
-    "m122": {
-      "one": "Rapor kısaltıldı: {v1} sınırı üstündeki {count} bulgu atlandı; engeller ve düzeltilmesi gerekenler önce korundu.",
-      "other": "Rapor kısaltıldı: {v1} sınırı üstündeki {count} bulgu atlandı; engeller ve düzeltilmesi gerekenler önce korundu."
-    },
     "m123": {
       "one": "Rapor kısaltıldı: sınırı aşan {count} üretilmiş dışlama atlandı.",
       "other": "Rapor kısaltıldı: sınırı aşan {count} üretilmiş dışlama atlandı."

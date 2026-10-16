@@ -5891,10 +5891,6 @@ export const EN = {
     m112: 'scan stopped at limit: elapsed time',
     m113: 'not checked: {v0} cannot be read as text',
     m114: 'scan stopped at limit: {v0} exceeds the bounded text read budget',
-    m115: forms({
-      one: 'not checked: the scan stopped after reading {count} file; {v1} more not read',
-      other: 'not checked: the scan stopped after reading {count} files; {v1} more not read',
-    }),
     m116: forms({
       one: 'not checked: dependency evidence bound reached; {count} entry omitted',
       other: 'not checked: dependency evidence bound reached; {count} entries omitted',
@@ -5908,11 +5904,7 @@ export const EN = {
     }),
     m120: 'Supply bundle inputs or package inventory evidence so shipped obligations are exact.',
     m121: 'scan stopped at limit: report truncated for {v0}',
-    m122: forms({
-      one: 'report truncated: {count} finding omitted past the {v1}-finding bound; blockers and should-fix findings kept first',
-      other:
-        'report truncated: {count} findings omitted past the {v1}-finding bound; blockers and should-fix findings kept first',
-    }),
+
     m123: forms({
       one: 'report truncated: {count} generated exclusions omitted past the bound',
       other: 'report truncated: {count} generated exclusions omitted past the bound',

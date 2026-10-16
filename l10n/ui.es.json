@@ -4967,11 +4967,6 @@
     "m112": "Análisis detenido en el límite: tiempo",
     "m113": "Sin comprobar: {v0} no se puede leer como texto.",
     "m114": "Análisis detenido en el límite: {v0} excede el presupuesto de lectura.",
-    "m115": {
-      "one": "Sin comprobar: detenido tras {count} archivo; otros {v1} no leídos.",
-      "other": "Sin comprobar: detenido tras {count} archivos; otros {v1} no leídos.",
-      "many": "Sin comprobar: detenido tras {count} archivos; otros {v1} no leídos."
-    },
     "m116": {
       "one": "Sin comprobar: límite de pruebas de dependencias alcanzado; {count} entrada omitidas.",
       "other": "Sin comprobar: límite de pruebas de dependencias alcanzado; {count} entradas omitidas.",
@@ -4986,11 +4981,6 @@
     },
     "m120": "Proporcione entradas compiladas o inventario para precisar las obligaciones.",
     "m121": "Análisis detenido en el límite: informe truncado para {v0}",
-    "m122": {
-      "one": "Informe truncado: {count} hallazgo omitidos sobre el límite de {v1}; bloqueos y correcciones conservados primero.",
-      "other": "Informe truncado: {count} hallazgos omitidos sobre el límite de {v1}; bloqueos y correcciones conservados primero.",
-      "many": "Informe truncado: {count} hallazgos omitidos sobre el límite de {v1}; bloqueos y correcciones conservados primero."
-    },
     "m123": {
       "one": "Informe truncado: {count} exclusiones generadas omitidas sobre el límite.",
       "other": "Informe truncado: {count} exclusiones generadas omitidas sobre el límite.",

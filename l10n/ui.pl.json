@@ -5091,12 +5091,6 @@
     "m112": "Skan zatrzymany na limicie: czas",
     "m113": "Nie sprawdzono: {v0} nie można odczytać jako tekst.",
     "m114": "Skan zatrzymany na limicie: {v0} przekracza budżet odczytu.",
-    "m115": {
-      "one": "Nie sprawdzono: zatrzymano po {count} plikach; dalszych {v1} nie odczytano.",
-      "other": "Nie sprawdzono: zatrzymano po {count} plikach; dalszych {v1} nie odczytano.",
-      "few": "Nie sprawdzono: zatrzymano po {count} plikach; dalszych {v1} nie odczytano.",
-      "many": "Nie sprawdzono: zatrzymano po {count} plikach; dalszych {v1} nie odczytano."
-    },
     "m116": {
       "one": "Nie sprawdzono: limit dowodów zależności; pominięto {count} wpis.",
       "other": "Nie sprawdzono: limit dowodów zależności; pominięto {count} wpisów.",
@@ -5113,12 +5107,6 @@
     },
     "m120": "Dostarcz wejścia pakietu lub inwentarz dla dokładnych obowiązków.",
     "m121": "Skan zatrzymany na limicie: raport dla {v0} skrócony",
-    "m122": {
-      "one": "Raport skrócony: pominięto {count} wynik ponad limit {v1}; blokujące i wymagające naprawy zachowano najpierw.",
-      "other": "Raport skrócony: pominięto {count} wyników ponad limit {v1}; blokujące i wymagające naprawy zachowano najpierw.",
-      "few": "Raport skrócony: pominięto {count} wyniki ponad limit {v1}; blokujące i wymagające naprawy zachowano najpierw.",
-      "many": "Raport skrócony: pominięto {count} wyników ponad limit {v1}; blokujące i wymagające naprawy zachowano najpierw."
-    },
     "m123": {
       "one": "Raport skrócony: pominięto {count} wygenerowanych wykluczeń ponad limit.",
       "other": "Raport skrócony: pominięto {count} wygenerowanych wykluczeń ponad limit.",

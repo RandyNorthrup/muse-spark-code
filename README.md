@@ -5757,9 +5757,10 @@ only the schema digest. The captured Meta contributor model uses its strict sche
 models use the explicitly reported local validator. Provider formats can be
 bound through the selected-record port. Schema mismatches exit with code 10. See
 [the ACP guide](docs/acp.md) and [the CI contract](docs/ci.md).
-Legal scanner limits: 20,000 files/directory entries, 1,000,000 UTF-8 bytes per
-file, 10,000,000 bytes per scan, 100 findings per rule (500 total), and 120
-seconds. Reaching a limit is reported as incomplete. License title and clause
+Legal scanner limits: 20,000 directory entries, 1,000,000 UTF-8 bytes per
+file, 10,000,000 bytes per scan, 100 findings per rule, and 120
+seconds. Every file is scanned and every finding is kept; reaching a limit
+is reported as incomplete. License title and clause
 matching remains heuristic; review the original terms before distribution.
 
 Editor legal scans offer public npm/PyPI metadata lookup by default, after a

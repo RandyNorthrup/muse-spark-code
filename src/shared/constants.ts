@@ -7748,13 +7748,10 @@ export type LegalHeaderPolicy = (typeof LEGAL_HEADER_POLICIES)[number]
 export const LEGAL_RESULT_VERSION = 1
 // Bounds every scan and result stays inside (D76: bound all reads, file
 // counts and result sizes through named constants). Each has its reason.
-// Files read per scan: a large workspace holds tens of thousands of files,
-// but manifests, locks, license texts and headers number in the hundreds;
-// past this the scan stops and says it is incomplete instead of hanging a
-// machine on generated folders.
+// The scan reads every file and keeps every finding, however many the
+// workspace holds. These stay as the shared array bounds the other legal
+// modules and the report schemas reuse (never the scan's own stop).
 export const LEGAL_FILES_SCANNED_MAX = 20_000
-// Findings kept per report: past this the scan keeps the blockers and
-// should-fix findings first and says the report is truncated.
 export const LEGAL_FINDINGS_MAX = 500
 // Independent admission budgets: UTF-8 bytes, directory entries and findings per rule.
 export const LEGAL_FILE_MAX_BYTES = 1_000_000
