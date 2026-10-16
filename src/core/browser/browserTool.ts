@@ -303,28 +303,38 @@ function clip(text: string): string {
 }
 
 /**
- * What the model reads of a finished check: the counts, then what the page
- * produced between markers it cannot know (`marker`, fresh random hex).
+ * B3 (limits-output): the whole report, so a clipped check stays reachable
+ * through `recall_output` where the caller keeps one.
  */
-export function browserReportText(url: string, report: BrowserCheckReport, marker: string): string {
+export function browserReportFullText(
+  url: string,
+  report: BrowserCheckReport,
+  marker: string,
+): string {
   const facts = fill(MODEL_TEXT.browserCheckFacts, {
     url,
     errors: String(total(report.consoleErrors)),
     failed: String(total(report.failedRequests)),
     blocked: String(total(report.blockedRequests)),
   })
-  return clip(
-    [
-      report.screenshot === undefined ? facts : `${facts} ${MODEL_TEXT.browserCheckScreenshotNext}`,
-      MODEL_TEXT.browserCheckUntrusted,
-      fill(MODEL_TEXT.browserCheckOpen, { marker }),
-      fill(MODEL_TEXT.browserCheckFinalUrl, { url: redactSecrets(report.finalUrl) }),
-      ...section(MODEL_TEXT.browserCheckConsoleErrors, report.consoleErrors),
-      ...section(MODEL_TEXT.browserCheckFailedRequests, report.failedRequests),
-      ...section(MODEL_TEXT.browserCheckBlockedRequests, report.blockedRequests),
-      fill(MODEL_TEXT.browserCheckClose, { marker }),
-    ].join('\n'),
-  )
+  return [
+    report.screenshot === undefined ? facts : `${facts} ${MODEL_TEXT.browserCheckScreenshotNext}`,
+    MODEL_TEXT.browserCheckUntrusted,
+    fill(MODEL_TEXT.browserCheckOpen, { marker }),
+    fill(MODEL_TEXT.browserCheckFinalUrl, { url: redactSecrets(report.finalUrl) }),
+    ...section(MODEL_TEXT.browserCheckConsoleErrors, report.consoleErrors),
+    ...section(MODEL_TEXT.browserCheckFailedRequests, report.failedRequests),
+    ...section(MODEL_TEXT.browserCheckBlockedRequests, report.blockedRequests),
+    fill(MODEL_TEXT.browserCheckClose, { marker }),
+  ].join('\n')
+}
+
+/**
+ * What the model reads of a finished check: the counts, then what the page
+ * produced between markers it cannot know (`marker`, fresh random hex).
+ */
+export function browserReportText(url: string, report: BrowserCheckReport, marker: string): string {
+  return clip(browserReportFullText(url, report, marker))
 }
 
 /** The row's lines: the counts in the display language, then each entry under its count. */

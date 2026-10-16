@@ -19,6 +19,7 @@ import type { InputContentPart, InputItem } from '../backends/modelapi/schemas'
 import type { StoredReplayItem } from '../backends/modelapi/sessionStore'
 import type { ResponsesMediaCodec } from '../backends/modelapi/codecs/responses'
 import type { MediaBudget } from '../backends/modelapi/mediaBudget'
+import { attachmentLimitsForModel } from '../backends/modelapi/modelPolicy'
 import type { UploadLedger } from './uploadLedger'
 import { modalityGate, type MediaModelCapabilities, type MediaGateResult } from './modalityGate'
 
@@ -195,9 +196,10 @@ export class ReplayMedia {
     content: readonly InputContentPart[],
     budget: MediaBudget,
     queued?: { readonly chars: number; readonly slots: number },
+    maxSlots?: number,
   ): void {
     try {
-      budget.assertMessageFits(content, queued)
+      budget.assertMessageFits(content, queued, maxSlots)
     } catch (error) {
       const names = new Set(
         content.flatMap((part) => {
@@ -463,10 +465,21 @@ export class ReplayMedia {
         )
         return encoded
       })
-      if (hasFreshMedia) this.assertPendingFits(content, budget)
+      if (hasFreshMedia)
+        this.assertPendingFits(
+          content,
+          budget,
+          undefined,
+          attachmentLimitsForModel(modelId).imageMaxCount,
+        )
       return { ...item, content }
     })
-    this.assertPendingFits(this.pending(projected), budget)
+    this.assertPendingFits(
+      this.pending(projected),
+      budget,
+      undefined,
+      attachmentLimitsForModel(modelId).imageMaxCount,
+    )
     return projected
   }
 

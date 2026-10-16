@@ -111,4 +111,30 @@ describe('tool repeat guard', () => {
     expect(guard.before(call, 'fresh state')).toBe('skip')
     expect(guard.before(call, 'changed after note')).toBe('run')
   })
+
+  // D114 joined with D113: a reply continued past the output limit is the
+  // call and the text it returned is its result, under the same policy.
+  it('warns at the third identical continued text and stops at the fifth', () => {
+    const guard = new RepeatGuard()
+    const verdicts = Array.from({ length: 5 }, () =>
+      guard.observeContinuation('The same paragraph again.'),
+    )
+    expect(verdicts).toEqual(['ok', 'ok', 'warn', 'warn', 'stuck'])
+  })
+
+  it('never calls changing continued text a repeat, and never mixes it with a tool call', () => {
+    const guard = new RepeatGuard()
+    const verdicts = Array.from({ length: 8 }, (_, index) =>
+      guard.observeContinuation(`part ${String(index)} of the answer`),
+    )
+    expect(new Set(verdicts)).toEqual(new Set(['ok']))
+    guard.observeContinuation('same')
+    guard.observeContinuation('same')
+    const lookalike = { name: 'output-continuation', arguments: '' }
+    expect(guard.observe(lookalike, 'same', undefined)).toBe('ok')
+    expect(guard.observeContinuation('same')).toBe('ok')
+    guard.observeContinuation('same')
+    guard.reset()
+    expect(guard.observeContinuation('same')).toBe('ok')
+  })
 })

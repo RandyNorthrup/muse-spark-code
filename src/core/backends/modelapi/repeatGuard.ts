@@ -36,6 +36,9 @@ export function toolRepeatKey(call: ToolIdentity): string {
 /** What the guard says about a finished call: nothing, warn the model, or stop the turn. */
 export type RepeatVerdict = 'ok' | 'warn' | 'stuck'
 
+// A one-element array: `toolRepeatKey` always encodes two elements.
+const CONTINUATION_KEY = JSON.stringify(['output-continuation'])
+
 /**
  * Turn-local, consecutive results only; stores digests, never tool output text.
  * One policy for every tool class (lane LIMITSFIX, F4, D113): the same call
@@ -44,7 +47,8 @@ export type RepeatVerdict = 'ok' | 'warn' | 'stuck'
  * changed (a poll of a running command, a wait on output) is never a repeat.
  * A tool with a trusted witness of its unchanged result (a text read) is
  * additionally skipped instead of run again; every other tool runs, and its
- * result decides.
+ * result decides. A reply that continues past the output limit counts the
+ * same way, its text being the result (`observeContinuation`).
  */
 export class RepeatGuard {
   private previous:
@@ -55,6 +59,16 @@ export class RepeatGuard {
         count: number
       }
     | undefined
+
+  /** The one count: the same key and the same result, consecutively. */
+  private record(key: string, output: unknown, witness: string | undefined): RepeatVerdict {
+    const result = fingerprint(JSON.stringify(canonical(output)))
+    const count =
+      this.previous?.key === key && this.previous.result === result ? this.previous.count + 1 : 1
+    this.previous = { key, result, witness, count }
+    if (count >= TOOL_REPEAT_STOP_LIMIT) return 'stuck'
+    return count >= TOOL_REPEAT_LIMIT ? 'warn' : 'ok'
+  }
 
   public reset(): void {
     this.previous = undefined
@@ -88,12 +102,15 @@ export class RepeatGuard {
 
   /** Records a finished call's result and says whether it makes a repeat the model or the person must hear about. */
   public observe(call: ToolIdentity, output: unknown, witness: string | undefined): RepeatVerdict {
-    const key = toolRepeatKey(call)
-    const result = fingerprint(JSON.stringify(canonical(output)))
-    const count =
-      this.previous?.key === key && this.previous.result === result ? this.previous.count + 1 : 1
-    this.previous = { key, result, witness, count }
-    if (count >= TOOL_REPEAT_STOP_LIMIT) return 'stuck'
-    return count >= TOOL_REPEAT_LIMIT ? 'warn' : 'ok'
+    return this.record(toolRepeatKey(call), output, witness)
+  }
+
+  /**
+   * A reply cut short by the output limit that continues on its own (D114)
+   * joins the same policy: the continuation is the call and the text it
+   * returned is its result. Its key cannot equal any tool call's.
+   */
+  public observeContinuation(text: string): RepeatVerdict {
+    return this.record(CONTINUATION_KEY, text, undefined)
   }
 }

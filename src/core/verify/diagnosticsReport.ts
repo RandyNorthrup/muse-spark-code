@@ -11,14 +11,22 @@
 // caller commits the report, once the model has it. Pure.
 
 import {
+  IDE_MCP_TOOL_DIAGNOSTICS,
   MODEL_API_MODEL_TEXT,
   TOOL_OUTPUT_CLIP_MARKER,
   type UncheckedReason,
   VERIFY_DIAGNOSTICS_MAX_ENTRIES,
   VERIFY_SHOWN_FILES_MAX,
+  VERIFY_UNSHOWN_FILES_NAMED,
 } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
-import { type DiagnosticEntry, formatDiagnostics, type WorkspaceDiagnostic } from '../diagnostics'
+import {
+  type DiagnosticEntry,
+  formatDiagnostics,
+  sortWorkspaceDiagnostics,
+  type WorkspaceDiagnostic,
+} from '../diagnostics'
+import { clipWithNote, retainNote, type ShellRetain } from '../backends/modelapi/tools'
 
 /**
  * A file an edit tool wrote, as confinement found it at the edit (links and
@@ -57,6 +65,12 @@ export interface ReportOptions {
   readonly maxChars: number
   /** The code-loading file the turn wrote, for the `codeLoading` reason. */
   readonly codeFile?: string
+  /**
+   * B3 (limits-output): keep the whole report when the budget cuts it, so
+   * the rest stays reachable through `recall_output`. Absent, the cut keeps
+   * its bare marker.
+   */
+  readonly retainOutput?: ShellRetain
 }
 
 const KEY_SEPARATOR = '\u{0}'
@@ -191,13 +205,42 @@ export class DiagnosticsHistory {
       )
       listed.push(...reported.map((entry) => ({ ...entry, path: file.relative })))
     }
+    // B6 (limits-output): entries past the page are pageable, not dropped.
+    // The overflow names come from the same worst-first sorted snapshot the
+    // page shows (not input order), each file readable on its own through
+    // getDiagnostics, which pages by offset past any per-file limit.
     if (listed.length > 0) {
-      lines.push(formatDiagnostics(listed, VERIFY_DIAGNOSTICS_MAX_ENTRIES))
+      const sorted = sortWorkspaceDiagnostics(listed)
+      const unshown = sorted.slice(VERIFY_DIAGNOSTICS_MAX_ENTRIES)
+      const unshownFiles = [...new Set(unshown.map((entry) => entry.path))]
+      const namedFiles = unshownFiles.slice(0, VERIFY_UNSHOWN_FILES_NAMED)
+      const named = namedFiles.join(', ')
+      const moreFiles = unshownFiles.length - namedFiles.length
+      lines.push(
+        formatDiagnostics(
+          sorted,
+          VERIFY_DIAGNOSTICS_MAX_ENTRIES,
+          0,
+          unshown.length === 0
+            ? undefined
+            : `call ${IDE_MCP_TOOL_DIAGNOSTICS} for ${named}${moreFiles > 0 ? ` and ${String(moreFiles)} more files` : ''} to read the rest`,
+        ),
+      )
     }
     const isAnyRead = reads.size > 0
+    // B3 (limits-output): the whole report is kept when the budget cuts it,
+    // and the file-targeted overflow note above survives the cut with it.
+    const full = lines.join('\n')
+    const id =
+      full.length > options.maxChars
+        ? options.retainOutput?.keep(full, options.retainOutput.tool)
+        : undefined
+    // Re-read from zero: the reserved note shortens the delivered prefix,
+    // so resuming at maxChars would skip the hidden gap.
+    const note = id === undefined ? '' : `\n${retainNote(id, 0)}`
     return {
       report: {
-        text: clipText(lines.join('\n'), options.maxChars),
+        text: clipWithNote(full, options.maxChars, note),
         ...(isAnyRead && { errors, warnings }),
         ...(unchecked > 0 && { unchecked }),
       },

@@ -6676,6 +6676,71 @@ prompts into a chat in any workspace".
 
 <!-- plan-archive:end id="2-D76-01" -->
 
+## D114 — LIMITSB recovery contract and RVLIMITSB qualifications (2026-10-14)
+
+<!-- plan-archive:begin id="decisions-18124b446-14315" lines="14315-14372" at="18124b446" bytes="3991" sha256="c7eeca060c927178eb8c30ad75109eb6dc542c06d4fe8ec2c6da036325bf8ebe" -->
+
+**Owner (2026-10-14).** "why are there all there arbitraty limits in the
+actual app thats insane?!!!" **The owner's rule: a limit we invented binds
+only if other harnesses do the same.** The lead's audit (73 rows, five
+harnesses compared; its record `docs/limits-audit.md` lands with its own
+pull request, branch `docs/limits-audit`) is the comparison this decision
+names: on 11 of the 15 rows that most
+often hit a real person, no surveyed harness publishes any corresponding
+cap (Claude Code, Codex CLI, Gemini CLI, OpenCode, Cline). Where harnesses
+do cap, they use subscription or rate windows, higher thresholds, or
+user-set knobs — never a low fixed default that refuses work. So the lane
+must remove invented refusals and make every remaining window recoverable.
+The following is the acceptance contract, not a completion claim:
+
+- **Long answers (B1).** The output cap is each model's own maximum output
+  from its capability record, not our fixed 32,768 (no surveyed harness
+  publishes a fixed reply cap; Claude Code's `maxOutputTokens` feeds only
+  its compaction arithmetic). An answer stopped on max tokens continues
+  automatically until the model finishes, subject to the person's budget
+  and Stop; each continuation must be shown. Tool repetition guards do not
+  detect repeated text-only continuations; the current 50-round turn bound
+  still stops them and its removal requires a text-loop guard. A provider that refuses a
+  continuation is reported in words. It never stops after one continuation
+  waiting for a nudge.
+- **Tool output, search and read, web pages, diagnostics (B3, B5, B7,
+  B6).** Each call still shows the same size it did, but the rest is
+  always reachable: every clipped result says how much is left and how to
+  get the next part through an offset or page argument the tool already
+  has, or one the lane adds. Claude Code's own file reader works this way
+  (2,000 lines by default, with an offset); Codex CLI stores per-tool
+  output behind its own `tool_output_token_limit` rather than dropping it.
+- **Files over 10 MiB (A9).** Reading works at any size by range (offset
+  and length); an edit over the size says why, and the person can still
+  edit by range. No surveyed harness publishes a file-tool size cap.
+- **Attachments (A10).** Per-request counts and sizes follow each
+  provider's documented limits from its capability record, not our own
+  numbers. An absent field means **unknown provider limit**, not a confirmed
+  legacy number. The lane brief requested today's enforcement temporarily;
+  that is a compatibility fallback, not provider evidence, and must be shown
+  separately as local policy with its source until the owner resolves the
+  conflict with the no-fallbacks rule. The current booleans are not recorded
+  or surfaced as that evidence, so A10 is not accepted.
+
+**RVLIMITSB review scope (2026-10-14).** Reuse the existing request policy,
+conditional file writer, range tools and paging stores. Correct proven exec-cap,
+range-read, range-edit and paging defects in separate commits; remove lane-added
+stand-in tests and qualify claims against actual evidence. No new provider calls,
+new abstraction or raised gate cap. Unknown attachment limits and any remaining
+whole-file edit bound are unresolved obligations, not provider capabilities.
+Review receipts and remaining acceptance gaps: `.lane/RVLIMITSB.report.md`.
+
+Out of scope: compaction timing (B2, M101), money and stopping limits
+(lane LIMITSA), silent drops (lane LIMITSC). **Acceptance remains open.**
+The scripted-provider packed test was removed under the owner's testing rule;
+it did not prove real provider termination, complete file equality, web or
+editor diagnostics. Remaining gaps include the invented 128 MiB edit refusal,
+HTML converter truncation, lost retained outputs after resume, search ceilings,
+and configured-provider attachment evidence. Measured review receipts:
+`docs/certification/limits-output.md`; handoff: `.lane/RVLIMITSB.report.md`.
+
+<!-- plan-archive:end id="decisions-18124b446-14315" -->
+
 ## D108 — A chat surface takes the keyboard only while it holds it (panel-focus, 2026-10-12)
 
 <!-- plan-archive:begin id="decisions-6409d5aad-14637" lines="14637-14673" at="6409d5aad" bytes="2388" sha256="5e93bad2d134d71cbd13ac74eea7a8087b3db7d711d960cf97f6cb91896d7568" -->

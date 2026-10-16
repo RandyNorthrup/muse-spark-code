@@ -149,6 +149,11 @@ export class AttachmentStore {
     if (policy !== undefined && policy.state !== 'yes')
       return { ok: false, reason: UI_TEXT.modelAttachmentUnsupported }
     const isMeta = record === undefined || record.identity.provider === 'meta'
+    // A10 (limits-output): the staging values below equal the Meta record's
+    // documented limits (pinned by attachmentLimitsRecord.test.ts); the
+    // per-request enforcement in the budget and gates resolves them from the
+    // record through modelPolicy instead, so this composer-side store does
+    // not bundle the backend-only policy module (D6).
     const maxBytes = isMeta ? MAX_DOCUMENT_BYTES : policy?.value.maxBytes
     if (maxBytes !== undefined && bytes.byteLength > maxBytes) {
       return {

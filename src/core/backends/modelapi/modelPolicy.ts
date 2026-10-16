@@ -7,8 +7,12 @@ import type { ModelSummary } from '../../agent/agentBackend'
 import type { CreateResponseBody, Usage } from './schemas'
 import { estimateCostUsd } from '../../usage/insights'
 import {
+  MAX_DOCUMENT_BYTES,
+  MAX_IMAGE_BYTES,
   MODEL_API_BASE_URL,
+  MODEL_API_MEDIA_PER_REQUEST,
   MODEL_API_MIN_OUTPUT_TOKENS,
+  MODEL_API_PDF_PAGE_IMAGES,
   MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS,
   MODEL_API_PRICES_PER_MILLION,
   MODEL_API_MODEL_PREFIX,
@@ -18,6 +22,7 @@ import {
 } from '../../../shared/constants'
 import type { ModelCapabilities } from '../../providers/capabilities'
 import type { ModelPricing, PricedUsage } from '../../providers/priceCard'
+import type { ModelCapabilityRecord } from '../../providers/capabilityRecord'
 
 import { outputTokenMinimumMessage } from '../../../shared/providerRouting'
 import { effortLevelsFor, resolveReasoning } from '../../../shared/effort'
@@ -136,6 +141,101 @@ export function outputLimitFor(policy: ModelPolicy, ceiling: number): number {
   const minimum = minOutputTokensForPolicy(policy)
   if (cap < minimum) throw new RangeError(outputTokenMinimumMessage(minimum))
   return cap
+}
+
+/**
+ * B1 (limits-output): the request's output allowance is the selected model's
+ * own maximum from its capability record. An explicit caller override wins;
+ * a record with no maximum keeps the legacy cap (unconfirmed), clamped by
+ * the record through `outputLimitFor` either way.
+ */
+export function outputCapForRequest(
+  overrideValue: number | undefined,
+  policy: ModelPolicy,
+  legacyCap: number,
+): number {
+  const requested = overrideValue ?? policy.output.maxTokens ?? legacyCap
+  if (!Number.isSafeInteger(requested)) throw new RangeError('invalid output.maxTokens')
+  const cap = outputLimitFor(policy, requested)
+  if (!Number.isSafeInteger(cap) || cap < 1) throw new RangeError('invalid output.maxTokens')
+  return cap
+}
+
+/**
+ * A10 (limits-output): per-request attachment limits read from a capability
+ * record. A limit the record states is enforced; a missing one is unknown
+ * for this provider (undefined): nothing local enforces it, and the
+ * provider's own refusal comes back in words. There is no fallback to
+ * legacy numbers (owner's rule).
+ */
+export interface AttachmentLimits {
+  readonly imageMaxBytes: number | undefined
+  readonly imageMaxCount: number | undefined
+  readonly documentMaxBytes: number | undefined
+  readonly pdfMaxPages: number | undefined
+}
+export function attachmentLimitsForRecord(
+  record: ModelCapabilityRecord | undefined,
+): AttachmentLimits {
+  const imageValue =
+    record?.modalities.image.state === 'yes' ? record.modalities.image.value : undefined
+  const pdfValue = record?.modalities.pdf.state === 'yes' ? record.modalities.pdf.value : undefined
+  return {
+    imageMaxBytes: imageValue?.maxBytes,
+    imageMaxCount: imageValue?.maxCount,
+    documentMaxBytes: pdfValue?.maxBytes,
+    pdfMaxPages: pdfValue?.maxPages,
+  }
+}
+
+/**
+ * A10 (limits-output): the Meta record's per-request attachment limits.
+ * metaCapabilityRecord (providers/capabilityRecord.ts) is the source of
+ * truth: it builds these modalities from the same constants, and
+ * attachmentLimitsRecord.test.ts pins the two equal. They live here too so
+ * the request path does not bundle the record's zod machinery (D6). These
+ * are the record's preset values, not separately published provider docs
+ * (that provenance gap stays open for the owner).
+ */
+function metaAttachmentLimits(): AttachmentLimits {
+  return {
+    imageMaxBytes: MAX_IMAGE_BYTES,
+    imageMaxCount: MODEL_API_MEDIA_PER_REQUEST,
+    documentMaxBytes: MAX_DOCUMENT_BYTES,
+    pdfMaxPages: MODEL_API_PDF_PAGE_IMAGES,
+  }
+}
+
+/**
+ * A10 (limits-output): per-request attachment limits for a model reference.
+ * Meta models read their capability record's values; any other reference
+ * without a resolved record is unknown for its provider (every field
+ * undefined): nothing local enforces it, and the provider's own refusal
+ * comes back in words.
+ */
+export function attachmentLimitsForModel(model: string): AttachmentLimits {
+  const producer = replayProducer(model)
+  const isMeta = producer.provider === 'meta' && model.startsWith(MODEL_API_MODEL_PREFIX)
+  return isMeta ? metaAttachmentLimits() : attachmentLimitsForRecord(undefined)
+}
+
+/** Whether a turn cut short by the output limit continues on its own (B1). */
+export interface OutputContinuationState {
+  readonly incompleteReason: string | undefined
+  readonly outputContinuation: boolean
+}
+
+/**
+ * B1 (limits-output): continuations are unbounded by count. The turn
+ * continues while the stop reason is the output limit and continuations are
+ * on. There is no fixed round bound to leave room for (D112): a limit the
+ * person set ends the turn at the next round's start with its summary, and
+ * the one repeat policy (D113) stops a continuation that keeps returning the
+ * same text. A provider refusal surfaces as the request's own error, named
+ * in words by the caller.
+ */
+export function shouldContinueOutput(state: OutputContinuationState): boolean {
+  return state.incompleteReason === 'max_output_tokens' && state.outputContinuation
 }
 
 /**

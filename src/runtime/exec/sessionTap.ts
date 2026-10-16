@@ -18,6 +18,31 @@ export interface SessionTap {
   releasedMessages(): readonly ReleasedMessage[]
 }
 
+/**
+ * B1 (limits-output): whether a later response completed after response `n`.
+ * A response cut short by the output limit is continued by a later one, and
+ * its text already arrived settled: once a later response completes, the
+ * earlier segment releases whole instead of staying withheld forever.
+ */
+export function isContinued(outcomes: ReadonlyMap<number, LastResponse>, n: number): boolean {
+  if (outcomes.get(n)?.incompleteReason !== 'max_output_tokens') return false
+  for (let laterN = n + 1; laterN <= outcomes.size; laterN += 1) {
+    const outcome = outcomes.get(laterN)
+    if (
+      outcome === undefined ||
+      outcome.usage === 'invalid' ||
+      outcome.transportError !== null ||
+      outcome.endedWithoutTerminal ||
+      outcome.httpStatus !== null
+    )
+      return false
+    if (outcome.terminal === 'completed') return true
+    if (outcome.terminal !== 'incomplete' || outcome.incompleteReason !== 'max_output_tokens')
+      return false
+  }
+  return false
+}
+
 export function observeBackend(backend: AcpBackend): SessionTap {
   const hosts = new WeakMap<AgentHost, AgentHost>()
   const sessions = new Map<string, AgentSession>()
@@ -110,12 +135,16 @@ export function observeBackend(backend: AcpBackend): SessionTap {
       for (const [itemId, entry] of items) {
         const outcome = outcomes.get(entry.n)
         if (outcome === undefined) continue
-        const isComplete =
-          outcome.terminal === 'completed' &&
+        const isClean =
           outcome.usage !== 'invalid' &&
           outcome.transportError === null &&
           !outcome.endedWithoutTerminal &&
           outcome.httpStatus === null
+        // Anything incomplete that nothing completed stays withheld: a
+        // failure, an abort, a response nothing followed.
+        const isComplete =
+          (outcome.terminal === 'completed' && isClean) ||
+          (outcome.terminal === 'incomplete' && isClean && isContinued(outcomes, entry.n))
         if (isComplete && !entry.isDone) continue
         const kind = entry.item.kind
         if (kind !== 'agentMessage' && kind !== 'reasoning') continue

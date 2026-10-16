@@ -1,22 +1,41 @@
 import { describe, expect, it } from 'vitest'
 import { MediaBudget } from '../../src/core/backends/modelapi/mediaBudget'
 import type { InputItem } from '../../src/core/backends/modelapi/schemas'
+import { attachmentLimitsForRecord } from '../../src/core/backends/modelapi/modelPolicy'
+import { metaCapabilityRecord } from '../../src/core/providers/capabilityRecord'
 import { MODEL_API_MODEL_TEXT } from '../../src/shared/constants'
 import { pdfFixture } from './helpers/pdfFixture'
 
+// Slot-count enforcement comes from a capability record that states one;
+// without a record the count is unknown and unenforced (A10).
+const record = metaCapabilityRecord('muse-spark-1.3')
+const slotCap = attachmentLimitsForRecord(record).imageMaxCount
+
+function fiftyOneImages() {
+  return Array.from(
+    { length: 51 },
+    () =>
+      ({
+        type: 'input_image',
+        image_url: 'data:image/png;base64,AQ==',
+        detail: 'auto',
+      }) as const,
+  )
+}
+
 describe('Model API replay media budget', () => {
   it('refuses overfull required media instead of fitting it as delivered history', () => {
-    const required = Array.from(
-      { length: 51 },
-      () =>
-        ({
-          type: 'input_image',
-          image_url: 'data:image/png;base64,AQ==',
-          detail: 'auto',
-        }) as const,
-    )
+    const required = fiftyOneImages()
     const input: readonly InputItem[] = [{ type: 'message', role: 'user', content: required }]
-    expect(() => new MediaBudget().fit(input, undefined, required)).toThrow()
+    expect(() => new MediaBudget().fit(input, record, required)).toThrow()
+  })
+
+  it('leaves an unknown slot count unenforced: 51 images fit with no record', () => {
+    const required = fiftyOneImages()
+    const input: readonly InputItem[] = [{ type: 'message', role: 'user', content: required }]
+    const budget = new MediaBudget()
+    expect(budget.fit(input)).toBe(input)
+    expect(budget.omitted).toBe(false)
   })
 
   it.each(['slots', 'chars'])(
@@ -37,7 +56,7 @@ describe('Model API replay media budget', () => {
         },
       ]
       const budget = new MediaBudget(limit === 'chars' ? pending.image_url.length : undefined)
-      const fitted = budget.fit(input, undefined, [pending])
+      const fitted = budget.fit(input, record, [pending])
       expect(fitted[0]).toBe(input[0])
       expect(fitted[1]).toMatchObject({
         content: expect.arrayContaining([expect.objectContaining({ type: 'input_text' })]),
@@ -64,7 +83,7 @@ describe('Model API replay media budget', () => {
     const input: readonly InputItem[] = [
       { type: 'message', role: 'user', content: Array.from({ length: 51 }, () => part) },
     ]
-    const fitted = budget.fit(input)
+    const fitted = budget.fit(input, record)
     expect(fitted).toMatchObject([
       {
         content: [
@@ -74,10 +93,18 @@ describe('Model API replay media budget', () => {
       },
     ])
     expect(() => {
-      budget.assertMessageFits(Array.from({ length: 51 }, () => part))
+      budget.assertMessageFits(
+        Array.from({ length: 51 }, () => part),
+        undefined,
+        slotCap,
+      )
     }).toThrow()
     expect(() => {
-      budget.assertMessageFits(Array.from({ length: 50 }, () => part))
+      budget.assertMessageFits(
+        Array.from({ length: 50 }, () => part),
+        undefined,
+        slotCap,
+      )
     }).not.toThrow()
   })
 
@@ -104,10 +131,10 @@ describe('Model API replay media budget', () => {
       0,
     )
     expect(() => {
-      budget.assertMessageFits([known, video])
+      budget.assertMessageFits([known, video], undefined, slotCap)
     }).not.toThrow()
     expect(() => {
-      budget.assertMessageFits([unknown, video])
+      budget.assertMessageFits([unknown, video], undefined, slotCap)
     }).toThrow()
   })
   it('keeps newer PDF pages and images, naming older media it leaves out', () => {
@@ -132,7 +159,7 @@ describe('Model API replay media budget', () => {
       { type: 'message', role: 'user', content: [pdf, newestImage] },
     ]
     const budget = new MediaBudget()
-    expect(budget.fit(input)).toEqual([
+    expect(budget.fit(input, record)).toEqual([
       {
         type: 'message',
         role: 'user',
@@ -158,7 +185,7 @@ describe('Model API replay media budget', () => {
         content: [{ type: 'input_image', image_url: 'data:image/png;base64,AA==', detail: 'auto' }],
       },
     ]
-    const fitted = new MediaBudget().fit(input)
+    const fitted = new MediaBudget().fit(input, record)
     expect(fitted[0]).toMatchObject({
       content: [{ type: 'input_text', text: expect.stringContaining('opaque.pdf') }],
     })
@@ -180,7 +207,7 @@ describe('Model API replay media budget', () => {
       { type: 'message', role: 'user', content: [pdf] },
       { type: 'message', role: 'user', content: [image] },
     ]
-    const fitted = new MediaBudget().fit(input)
+    const fitted = new MediaBudget().fit(input, record)
     expect(fitted[0]).toMatchObject({
       content: [{ type: 'input_text', text: expect.stringContaining('nested.pdf') }],
     })
@@ -240,7 +267,7 @@ describe('Model API replay media budget', () => {
       },
     ]
     const budget = new MediaBudget()
-    expect(budget.fit(input)).toEqual([
+    expect(budget.fit(input, record)).toEqual([
       {
         type: 'message',
         role: 'user',

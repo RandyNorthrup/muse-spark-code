@@ -139,6 +139,43 @@ happened, not what was planned; superseded entries are kept.
   message, or the network error's code) without echoing secrets or
   headers, and is still never retried automatically.
 
+- Review repair: headless exec reserves the selected model's recorded maximum
+  output instead of imposing a second 32,768-token ceiling; unaffordable
+  requests are still refused by the run budget.
+
+- Limits-output lane (B1/B3/B5/B6/B7/A9/A10), pending acceptance:
+  record-sized output allowances, automatic max-token continuations within
+  existing turn/budget/Stop bounds, offset paging and retained tool-output
+  recall. Byte-range reads preserve UTF-8/CRLF boundaries; range edits check
+  byte containment and file freshness, but still refuse files over 128 MiB.
+  Attachment admission still uses legacy values in paths without resolved
+  capability evidence. HTML conversion, diagnostics/verify summaries and
+  restored-session recall have remaining recovery gaps. The scripted-provider
+  test was removed: no recorded-real-exchange or live-product certification
+  is claimed. Details: `docs/certification/limits-output.md`.
+
+- Limits-output review fixes (this branch): kept tool output carries its
+  origin and `recall_output` re-checks the current permission settings and
+  workspace trust before returning any of it — a source that is now denied
+  or untrusted is refused in words, never returned. Range reads and edits
+  work on the window at any file size (the 128 MiB refusal is gone; memory
+  stays flat and OS failures name their cause). Attachment limits a
+  provider's record does not state are unknown and unenforced locally; the
+  provider's own refusal comes back in words. Subagents recall their own
+  kept outputs; resumed sessions never rebind an old kept-output note to
+  new text; diagnostics overflow names come from the sorted snapshot; a
+  converter-cut page tail, a runner-dropped shell middle and a cut search
+  hit each name the way to the rest or say why there is none.
+
+- Limits integration (D112, D113, D114): an answer continued past the output
+  limit follows the one repeat policy. A continuation that returns the same
+  text the 3rd and 4th time tells the model to stop repeating it, and the 5th
+  stops the turn with the translated sentence the tool repeats use; text that
+  changes is never a repeat. Continuations have no round bound of their own:
+  a turn limit the person set ends the turn at the next round, with its
+  summary. The "output limit was reached again" notice is gone with the
+  one-continuation bound it reported.
+
 - The chat no longer takes the keyboard from a file you just opened: a chat
   panel that finishes loading never pulls the focus in, a focus request for
   a panel that is no longer active is dropped instead of landing on a much

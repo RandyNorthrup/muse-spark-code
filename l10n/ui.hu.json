@@ -78,8 +78,8 @@
   "toolArgumentPreviewTruncated": "Az előnézet csonkolva.",
   "toolArgumentPreviewPending": "Várakozás a teljes argumentumokra…",
   "toolArgumentPreviewPreparing": "Argumentumok előkészítése…",
-  "modelApiContinuing": "A kimeneti korlát elérve. Egyszeri folytatás…",
-  "modelApiContinuationLimit": "A kimeneti korlát ismét elérve. Küldjön üzenetet a folytatáshoz.",
+  "modelApiContinuing": "A kimeneti korlát elérve. Folytatás…",
+  "modelApiContinuationRefused": "A szolgáltató megtagadta a félbeszakadt válasz folytatását, így az részleges marad. Küldjön üzenetet a folytatáshoz.",
   "modelApiToolStuck": "A kör leállt, mert ugyanaz az eszközhívás újra és újra változatlan eredményt adott. Küldjön üzenetet egy másik megközelítés kipróbálásához.",
   "modelApiTurnLimitReached": {
     "one": "A kör elérte a(z) {count} eszközkörös korlátját. A fenti összefoglaló leírja, mi készült el és mi maradt hátra. Küldjön üzenetet a folytatáshoz.",

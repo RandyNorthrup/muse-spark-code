@@ -14408,6 +14408,32 @@ the next message works. Tab keeps its daily budget, but the first refusal
 of each day raises a notice with spend, budget and raise path, and says
 "reached" only once it is.
 
+### D114 — Nothing the app says, reads, searches, fetches or diagnoses is cut short without a way to get the rest (LIMITSB, 2026-10-14)
+
+**D114 / LIMITSB, owner 2026-10-14: acceptance remains open.** A local limit
+needs the harness comparison; every clipped result needs a working path to the
+rest. Requests use model-record output maxima, with budget and Stop authority;
+announce every continuation. Text-only loops are not covered by the tool
+repeat guard. Byte reads must preserve UTF-8/CRLF; range edits must preserve
+bytes outside the window and refuse stale writes. Missing attachment evidence
+is unknown, not a confirmed legacy number; any temporary local policy must be
+named separately. Unresolved: 50-round continuation bound, 128 MiB edit
+refusal, HTML conversion truncation, search ceilings, persisted recall and
+configured-provider attachment limits. Scripted-provider tests are not product
+proof. Certification: `docs/certification/limits-output.md`; review handoff:
+`.lane/RVLIMITSB.report.md`. Full record:
+[docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
+
+**Joined with D112 and D113 (branch `fix/limits-integrated`, 2026-10-16).**
+A reply continued past the output limit uses D113's one repeat policy, not a
+mechanism of its own: the continuation is the call and the text it returned
+is the result, so the same text the 3rd and 4th time warns the model and the
+5th stops the turn with the translated stuck sentence; text that changes is
+never a repeat. No fixed round bound is left to make room for (D112): a limit
+the person set ends the turn at the next round's start, with its summary. The
+budget-lowered output notice stays removed (D113). Record:
+`docs/certification/limits-output.md`.
+
 ### D108 — Test overhaul: no stand-ins, a short gate, the real-life run (owner, 2026-10-12)
 
 The owner, verbatim: "get the useless tests get it streamlined and

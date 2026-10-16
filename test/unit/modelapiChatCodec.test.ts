@@ -686,7 +686,7 @@ describe('chat codec request goldens', () => {
       strict: true,
       parameters: {
         additionalProperties: false,
-        required: ['path', 'offset', 'limit'],
+        required: ['path', 'offset', 'limit', 'byteOffset', 'byteLength'],
         properties: { offset: { type: ['integer', 'null'] } },
       },
     })

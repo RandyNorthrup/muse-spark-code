@@ -6,4 +6,9 @@ export const WEB_FETCH_DESCRIPTION =
 
 export const WEB_FETCH_PARAMETERS: Readonly<Record<string, unknown>> = {
   url: { type: 'string', description: 'The https:// URL of the page' },
+  offset: {
+    type: 'integer',
+    description:
+      'The first character of the page text to show; the note names the offset that fetches the rest',
+  },
 }

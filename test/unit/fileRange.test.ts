@@ -1,0 +1,387 @@
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { decodeWindow, executeTool, type ToolContext } from '../../src/core/backends/modelapi/tools'
+import { createToolIo } from '../../src/host/backend/toolIo'
+import { ObservationPack } from '../../src/core/backends/modelapi/observationPack'
+import { TOOL_FILE_MAX_BYTES } from '../../src/shared/constants'
+
+// A9 (limits-output): files of any size read and edit by byte range.
+// Real files in a real temp folder through the real IO and tool layers:
+// paths in, windowed text and edited bytes out.
+const root = mkdtempSync(path.join(tmpdir(), 'limits-a9-'))
+mkdirSync(path.join(root, 'sub'), { recursive: true })
+const big = path.join(root, 'big.txt')
+
+function context(): {
+  ctx: ToolContext
+  seen: Map<string, string>
+  retained: ObservationPack
+  run: (name: string, args: unknown) => Promise<{ output: string; failure: string | undefined }>
+} {
+  const io = createToolIo({
+    platform: process.platform,
+    listFiles: () => Promise.resolve([]),
+    systemRoot: undefined,
+    env: () => ({}),
+    searchWorkerPath: 'unused',
+    log: () => undefined,
+    unsavedFiles: () => [],
+  })
+  const seen = new Map<string, string>()
+  const provisionalSeen = new Map<string, string>()
+  const retained = new ObservationPack()
+  const ctx: ToolContext = {
+    retainOutput: (text, tool) => retained.retain(text, tool),
+    workspaceRoot: root,
+    platform: process.platform,
+    io,
+    seen,
+    provisionalSeen,
+  }
+  return {
+    ctx,
+    seen,
+    retained,
+    run: async (name: string, args: unknown) => {
+      const outcome = await executeTool(name, JSON.stringify(args), ctx)
+      for (const [absolute, hash] of provisionalSeen) seen.set(absolute, hash)
+      provisionalSeen.clear()
+      return { output: outcome.output, failure: outcome.failureReason }
+    },
+  }
+}
+
+function line(number_: number): string {
+  return `line ${String(number_).padStart(6, '0')} ${'x'.repeat(90)}\n`
+}
+
+beforeAll(() => {
+  let text = ''
+  for (let index = 1; index <= 115_000; index += 1) {
+    text += line(index)
+  }
+  writeFileSync(big, text)
+  expect(text.length).toBeGreaterThan(TOOL_FILE_MAX_BYTES)
+})
+
+afterAll(() => {
+  rmSync(root, { recursive: true, force: true })
+})
+
+describe('byte windows', () => {
+  it('retains a file-list page when its rows exceed the character window', async () => {
+    const longRoot = path.join(root, 'list')
+    mkdirSync(longRoot, { recursive: true })
+    const folder = path.join(longRoot, 'd'.repeat(150))
+    mkdirSync(folder)
+    for (let index = 0; index < 500; index += 1)
+      writeFileSync(path.join(folder, `f${String(index)}.txt`), '')
+    const { ctx, retained } = context()
+    const outcome = await executeTool('list_files', '{}', {
+      ...ctx,
+      workspaceRoot: longRoot,
+      io: createToolIo({
+        platform: process.platform,
+        listFiles: async () => {
+          const fs = await import('node:fs/promises')
+          const names = await fs.readdir(folder)
+          return names.map((name) => `${'d'.repeat(150)}/${name}`)
+        },
+        systemRoot: undefined,
+        env: () => ({}),
+        searchWorkerPath: 'unused',
+        log: () => undefined,
+        unsavedFiles: () => [],
+      }),
+    })
+    expect(outcome.output).toContain('recall_output')
+    expect(retained.size).toBe(1)
+    const keptId = /call recall_output with id "([^"]+)"/u.exec(outcome.output)?.[1]
+    if (keptId === undefined) {
+      throw new Error('the clip note names no kept id')
+    }
+    expect(retained.recall(JSON.stringify({ id: keptId, offset: 0 })).failureReason).toBeUndefined()
+  })
+  it('follows byte offsets without losing UTF-8 boundary characters', async () => {
+    writeFileSync(path.join(root, 'utf8.txt'), 'aé😀z')
+    const { run } = context()
+    const first = await run('read_file', { path: 'utf8.txt', byteOffset: 0, byteLength: 2 })
+    expect(first.output).toContain('aé')
+    expect(first.output).toContain('byteOffset 3 for the rest')
+    const second = await run('read_file', { path: 'utf8.txt', byteOffset: 3, byteLength: 1 })
+    expect(second.output).toContain('😀')
+    expect(second.output).toContain('byteOffset 7 for the rest')
+  })
+
+  it('the advertised next byte is the end of the text actually delivered', async () => {
+    writeFileSync(path.join(root, 'flood.txt'), 'a'.repeat(100_000))
+    const { run } = context()
+    const first = await run('read_file', { path: 'flood.txt', byteOffset: 0, byteLength: 100_000 })
+    const next = Number(/byteOffset (\d+) for the rest/.exec(first.output)?.[1])
+    expect(next).toBeGreaterThan(0)
+    expect(next).toBeLessThan(100_000)
+    expect(first.output).toContain('a'.repeat(next))
+    expect(first.output).not.toContain('output clipped')
+  })
+  it('decodes edge-trimmed slices and refuses non-text', () => {
+    const bytes = new TextEncoder().encode('aé😀z')
+    // 'é' is bytes 1-2, '😀' bytes 3-6.
+    expect(decodeWindow(bytes, 0, 1)).toBe('a')
+    expect(decodeWindow(bytes, 1, 3)).toBe('é')
+    expect(decodeWindow(bytes, 2, 7)).toBe('😀')
+    expect(decodeWindow(bytes, 3, 7)).toBe('😀')
+    expect(decodeWindow(bytes, 3, 8)).toBe('😀z')
+    expect(decodeWindow(new Uint8Array([0x61, 0x00, 0x62]), 0, 3)).toBeUndefined()
+    expect(decodeWindow(new Uint8Array([0xff, 0xfe]), 0, 2)).toBeUndefined()
+    // The BOM is kept as a character, like whole reads: the display strips it.
+    expect(decodeWindow(new Uint8Array([0xef, 0xbb, 0xbf, 0x68, 0x69]), 0, 5)).toBe('\u{FEFF}hi')
+  })
+
+  it('reads an over-cap file window by window to the end', async () => {
+    const { run } = context()
+    const first = await run('read_file', { path: 'big.txt', byteOffset: 0, byteLength: 100 })
+    expect(first.failure).toBeUndefined()
+    expect(first.output).toContain('bytes 0–100 of')
+    expect(first.output).toContain('call read_file again with byteOffset 100 for the rest')
+    expect(first.output).toContain('line 000001')
+    const size = Number(/of (\d+)\):/.exec(first.output)?.[1])
+    expect(size).toBeGreaterThan(TOOL_FILE_MAX_BYTES)
+    const last = await run('read_file', {
+      path: 'big.txt',
+      byteOffset: size - 100,
+      byteLength: 100,
+    })
+    expect(last.failure).toBeUndefined()
+    expect(last.output).toContain('end of file')
+    expect(last.output).toContain('115000')
+  })
+
+  it('refuses past-end offsets, mixed addressing and oversized windows', async () => {
+    const { run } = context()
+    const past = await run('read_file', { path: 'big.txt', byteOffset: 999_999_999 })
+    expect(past.failure).toContain('past the end')
+    const mixed = await run('read_file', { path: 'big.txt', offset: 1, byteOffset: 0 })
+    expect(mixed.failure).toContain('either line addressing')
+    const wide = await run('read_file', {
+      path: 'big.txt',
+      byteOffset: 0,
+      byteLength: 2 * 1024 * 1024,
+    })
+    expect(wide.failure).toContain('at most')
+  })
+
+  it('refuses a line-mode read past the cap with the byte way instead', async () => {
+    const { run } = context()
+    const refused = await run('read_file', { path: 'big.txt' })
+    expect(refused.failure).toContain('whole-read limit')
+    expect(refused.failure).toContain('byteOffset 0')
+  })
+
+  it('reports a missing file instead of an empty window', async () => {
+    const { run } = context()
+    const missing = await run('read_file', { path: 'nope.txt', byteOffset: 0 })
+    expect(missing.failure).toContain('file not found')
+    const emptyPath = path.join(root, 'empty.txt')
+    writeFileSync(emptyPath, '')
+    const empty = await run('read_file', { path: 'empty.txt', byteOffset: 0 })
+    expect(empty.failure).toBeUndefined()
+    expect(empty.output).toContain('the file is empty')
+    const binary = path.join(root, 'binary.bin')
+    writeFileSync(binary, Buffer.from([0x61, 0x00, 0x62]))
+    await expect(run('read_file', { path: 'binary.bin', byteOffset: 0 })).rejects.toThrow()
+  })
+})
+
+describe('range edits', () => {
+  it('refuses a concurrent change since the range was read', async () => {
+    const target = path.join(root, 'stale.txt')
+    writeFileSync(target, 'abc')
+    const { run } = context()
+    await run('read_file', { path: 'stale.txt', byteOffset: 0, byteLength: 3 })
+    writeFileSync(target, 'abc changed by the person')
+    const result = await run('edit_file', {
+      path: 'stale.txt',
+      find: 'abc',
+      replace: 'ABC',
+      byteOffset: 0,
+      byteLength: 3,
+    })
+    expect(result.failure).toBeDefined()
+    expect(readFileSync(target, 'utf8')).toBe('abc changed by the person')
+  })
+  it('cannot replace a character whose leading byte is outside the window', async () => {
+    const target = path.join(root, 'partial.txt')
+    writeFileSync(target, 'éA')
+    const { run } = context()
+    await run('read_file', { path: 'partial.txt', byteOffset: 1, byteLength: 2 })
+    const result = await run('edit_file', {
+      path: 'partial.txt',
+      find: 'é',
+      replace: 'X',
+      byteOffset: 1,
+      byteLength: 2,
+    })
+    expect(result.failure).toBeDefined()
+    expect(readFileSync(target)).toEqual(Buffer.from('éA'))
+  })
+
+  it('preserves bytes outside a window split between CR and LF', async () => {
+    const target = path.join(root, 'split-crlf.txt')
+    writeFileSync(target, '\u{FEFF}a\r\nb\r\nc\r\n')
+    const { run } = context()
+    await run('read_file', { path: 'split-crlf.txt', byteOffset: 5, byteLength: 3 })
+    const result = await run('edit_file', {
+      path: 'split-crlf.txt',
+      find: 'b',
+      replace: 'B',
+      byteOffset: 5,
+      byteLength: 3,
+    })
+    expect(result.failure).toBeUndefined()
+    expect(readFileSync(target)).toEqual(Buffer.from('\u{FEFF}a\r\nB\r\nc\r\n'))
+  })
+  it('replaces inside the window and records the post-edit window identity', async () => {
+    const target = path.join(root, 'edit.txt')
+    const before = readFileSync(big)
+    writeFileSync(target, before)
+    const { seen, run } = context()
+    const shown = await run('read_file', { path: 'edit.txt', byteOffset: 0, byteLength: 65_536 })
+    // The character budget clamps the delivered window; the edit names the
+    // advertised range, and both address the same bytes.
+    const last = Number(/bytes 0–(\d+) of/.exec(shown.output)?.[1])
+    expect(last).toBeGreaterThan(0)
+    const edited = await run('edit_file', {
+      path: 'edit.txt',
+      find: 'line 000002',
+      replace: 'line 000002 edited',
+      byteOffset: 0,
+      byteLength: 65_536,
+    })
+    expect(edited.failure).toBeUndefined()
+    expect(edited.output).toContain(`edited edit.txt (bytes 0–${String(last)})`)
+    const final = readFileSync(target, 'utf8')
+    expect(final).toContain('line 000002 edited')
+    expect(final).not.toContain('line 000002 x')
+    // Bytes outside the window stream through untouched: same head and tail.
+    expect(final.slice(0, 100)).toBe(before.toString('utf8').slice(0, 100))
+    expect(final.slice(-100)).toBe(before.toString('utf8').slice(-100))
+    // The recorded identity is exactly what a fresh read of the same range
+    // records: the edit left provable freshness behind, without re-reading.
+    const absolute = path.join(root, 'edit.txt')
+    const recorded = seen.get(absolute)
+    expect(recorded?.startsWith('w:')).toBe(true)
+    const reread = await run('read_file', { path: 'edit.txt', byteOffset: 0, byteLength: 65_536 })
+    expect(reread.output).toContain('line 000002 edited')
+    expect(seen.get(absolute)).toBe(recorded)
+  })
+
+  it('edits a file past the old 128 MiB cap by range, without loading it', async () => {
+    const target = path.join(root, 'huge.txt')
+    const size = 128 * 1024 * 1024 + 1
+    const marker = 'needle-here-12345\n'
+    const at = 4096
+    const { open } = await import('node:fs/promises')
+    const handle = await open(target, 'w')
+    await handle.truncate(size)
+    await handle.write(Buffer.from(marker), 0, marker.length, at)
+    await handle.close()
+    const { run } = context()
+    const shown = await run('read_file', {
+      path: 'huge.txt',
+      byteOffset: at,
+      byteLength: marker.length,
+    })
+    expect(shown.failure).toBeUndefined()
+    expect(shown.output).toContain('needle-here-12345')
+    const edited = await run('edit_file', {
+      path: 'huge.txt',
+      find: 'needle-here-12345',
+      replace: 'replaced-here-123',
+      byteOffset: at,
+      byteLength: marker.length,
+    })
+    expect(edited.failure).toBeUndefined()
+    const { statSync } = await import('node:fs')
+    expect(statSync(target).size).toBe(size)
+    const check = Buffer.alloc(marker.length)
+    const { readSync, openSync, closeSync } = await import('node:fs')
+    const fd = openSync(target, 'r')
+    readSync(fd, check, 0, marker.length, at)
+    closeSync(fd)
+    expect(check.toString('utf8')).toBe('replaced-here-123\n')
+  })
+
+  it('matches only inside the window and refuses ambiguity there', async () => {
+    const target = path.join(root, 'scoped.txt')
+    writeFileSync(target, 'aaa needle bbb\nccc needle ddd\n')
+    const { run } = context()
+    await run('read_file', { path: 'scoped.txt', byteOffset: 0, byteLength: 10 })
+    // 'ddd' is in the file but not in this window: the note names the
+    // window and how to reach it, not the file.
+    const outside = await run('edit_file', {
+      path: 'scoped.txt',
+      find: 'ddd',
+      replace: 'DDD',
+      byteOffset: 0,
+      byteLength: 10,
+    })
+    expect(outside.failure).toContain('was not found in this window')
+    expect(outside.failure).toContain('read the window that holds it')
+    expect(readFileSync(target, 'utf8')).toContain('ddd')
+    // One in-window match edits, leaving the out-of-window one alone.
+    const inside = await run('edit_file', {
+      path: 'scoped.txt',
+      find: 'needle',
+      replace: 'NEEDLE',
+      byteOffset: 0,
+      byteLength: 10,
+    })
+    expect(inside.failure).toBeUndefined()
+    expect(readFileSync(target, 'utf8')).toBe('aaa NEEDLE bbb\nccc needle ddd\n')
+    // Two matches in one window stay refused.
+    const two = path.join(root, 'two.txt')
+    writeFileSync(two, 'needle one needle two\n')
+    await run('read_file', { path: 'two.txt', byteOffset: 0, byteLength: 30 })
+    const ambiguous = await run('edit_file', {
+      path: 'two.txt',
+      find: 'needle',
+      replace: 'NEEDLE',
+      byteOffset: 0,
+      byteLength: 30,
+    })
+    expect(ambiguous.failure).toContain('more than once in this window')
+    expect(readFileSync(two, 'utf8')).not.toContain('NEEDLE')
+  })
+
+  it('keeps CRLF breaks and strips a leading BOM for the window', async () => {
+    const crlf = path.join(root, 'crlf.txt')
+    writeFileSync(crlf, 'a\r\nb\r\n')
+    const { run } = context()
+    const shown = await run('read_file', { path: 'crlf.txt', byteOffset: 0, byteLength: 100 })
+    expect(shown.output).toContain('a\nb\n')
+    const edited = await run('edit_file', {
+      path: 'crlf.txt',
+      find: 'b',
+      replace: 'B',
+      byteOffset: 0,
+      byteLength: 100,
+    })
+    expect(edited.failure).toBeUndefined()
+    expect(readFileSync(crlf)).toEqual(Buffer.from('a\r\nB\r\n'))
+    const bom = path.join(root, 'bom.txt')
+    writeFileSync(bom, Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), Buffer.from('hello\n')]))
+    const bomShown = await run('read_file', { path: 'bom.txt', byteOffset: 0, byteLength: 100 })
+    expect(bomShown.output).toContain('\nhello\n')
+    const bomEdited = await run('edit_file', {
+      path: 'bom.txt',
+      find: 'hello',
+      replace: 'hi',
+      byteOffset: 0,
+      byteLength: 100,
+    })
+    expect(bomEdited.failure).toBeUndefined()
+    expect([...readFileSync(bom)]).toEqual([0xef, 0xbb, 0xbf, ...Buffer.from('hi\n')])
+  })
+})

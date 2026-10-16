@@ -6,6 +6,7 @@ import {
   type EditedFile,
   type FileDiagnostics,
 } from '../../src/core/verify/diagnosticsReport'
+import { ObservationPack } from '../../src/core/backends/modelapi/observationPack'
 import { applyOffsetEdits } from '../../src/core/verify/textEdits'
 import {
   MODEL_API_MODEL_TEXT,
@@ -31,6 +32,15 @@ function entry(
   return { path: undefined, severity, line, column: 1, message, source }
 }
 
+function warnings(file: EditedFile): FileDiagnostics {
+  return {
+    file,
+    entries: Array.from({ length: 50 }, (_, index) =>
+      entry('warning', `w${String(index)}`, index + 1),
+    ),
+  }
+}
+
 /** A report whose reads become the baseline at once, as when the model has it. */
 function delivered(history: DiagnosticsHistory, files: readonly FileDiagnostics[]) {
   const pending = history.report(files, OPTIONS)
@@ -39,6 +49,32 @@ function delivered(history: DiagnosticsHistory, files: readonly FileDiagnostics[
 }
 
 describe('DiagnosticsHistory', () => {
+  it('recalls the complete report including the gap reserved for its clip note', () => {
+    const pack = new ObservationPack()
+    const { report } = new DiagnosticsHistory().report(
+      [{ file: A, entries: [entry('error', 'x'.repeat(500))] }],
+      {
+        maxChars: 200,
+        retainOutput: { keep: (text, tool) => pack.retain(text, tool), tool: 'verify' },
+      },
+    )
+    expect(report.text).toContain('offset 0 for the rest')
+    const keptId = /call recall_output with id "([^"]+)"/u.exec(report.text)?.[1]
+    if (keptId === undefined) {
+      throw new Error('the clip note names no kept id')
+    }
+    expect(pack.recall(JSON.stringify({ id: keptId, offset: 0 })).output).toContain('x'.repeat(500))
+  })
+  it('names overflow files from the sorted snapshot, not input order', () => {
+    // Input order shows b.ts first, but worst-first (path) order shows
+    // a.ts: the overflow names b.ts, the file the page hides.
+    const { report } = new DiagnosticsHistory().report([warnings(B), warnings(A)], {
+      maxChars: 1_000_000,
+    })
+    expect(report.text).toContain(`for ${B.relative} to read the rest`)
+    expect(report.text).not.toContain(`for ${A.relative}`)
+  })
+
   it("counts each file's errors and warnings and lists them, leaving hints out", () => {
     const { report } = new DiagnosticsHistory().report(
       [
@@ -142,7 +178,13 @@ describe('DiagnosticsHistory', () => {
     )
     const { report } = new DiagnosticsHistory().report([{ file: A, entries: flood }], OPTIONS)
     expect(report.errors).toBe(VERIFY_DIAGNOSTICS_MAX_ENTRIES + 3)
-    expect(report.text.endsWith('… 3 more not shown')).toBe(true)
+    // B6 (limits-output): entries past the page name the file that holds
+    // them, each readable on its own through getDiagnostics.
+    expect(
+      report.text.endsWith(
+        `[diagnostics 1-${String(VERIFY_DIAGNOSTICS_MAX_ENTRIES)} of ${String(VERIFY_DIAGNOSTICS_MAX_ENTRIES + 3)}; call getDiagnostics for src/a.ts to read the rest]`,
+      ),
+    ).toBe(true)
     const share = 200
     const clipped = new DiagnosticsHistory().report([{ file: A, entries: flood }], {
       maxChars: share,

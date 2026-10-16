@@ -33,8 +33,12 @@ const INLINE_DOCUMENT_FORMATS = ['application/pdf']
 
 /**
  * Project the selected model from established behavior, never a guess: image
- * and document formats are what the request builder encodes today; video and
- * audio stay unknown until lane V verifies them against live captures.
+ * and document formats are what the request builder encodes today. Their
+ * per-request sizes equal the Meta record's documented limits (A10, pinned
+ * by attachmentLimitsRecord.test.ts); they stay constants here because this
+ * host-side projection cannot bundle the backend-only policy module (D6),
+ * while the per-request budget and gates resolve them from the record.
+ * Video and audio stay unknown until lane V verifies them live.
  */
 export function projectMediaCapabilities(modelId: string): MediaModelCapabilities {
   return {

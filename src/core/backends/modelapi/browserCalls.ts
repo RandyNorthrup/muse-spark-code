@@ -11,6 +11,7 @@ import {
   MAX_IMAGE_BYTES,
   MODEL_API_MODEL_TEXT,
   PNG_MEDIA_TYPE,
+  TOOL_OUTPUT_MAX_CHARS,
   UI_TEXT,
 } from '../../../shared/constants'
 import { fill } from '../../../shared/l10n/text'
@@ -18,10 +19,11 @@ import type { BrowserCheckResult } from '../../browser/browserRun'
 import {
   type BrowserRefusal,
   browserRefusal,
+  browserReportFullText,
   browserReportRow,
   browserReportText,
 } from '../../browser/browserTool'
-import type { ToolOutcome } from './tools'
+import { codePointBoundary, type ToolOutcome, retainNote, type ShellRetain } from './tools'
 
 /** A check that did not happen or did not finish: the model's reason, the row's in the user's language. */
 export function browserCheckRefused(refusal: BrowserRefusal): ToolOutcome {
@@ -40,8 +42,15 @@ export function browserCheckRestricted(): ToolOutcome {
   })
 }
 
-/** What the model and the row receive for a check of `url`. */
-export function browserCheckOutcome(url: string, result: BrowserCheckResult): ToolOutcome {
+/**
+ * What the model and the row receive for a check of `url`. A clipped report
+ * stays reachable through `recall_output` where `retain` keeps one (B3).
+ */
+export function browserCheckOutcome(
+  url: string,
+  result: BrowserCheckResult,
+  retain?: ShellRetain,
+): ToolOutcome {
   if (!result.ok) {
     return browserCheckRefused(browserRefusal(result.failure))
   }
@@ -50,18 +59,21 @@ export function browserCheckOutcome(url: string, result: BrowserCheckResult): To
     result.report.screenshot !== undefined && result.report.screenshot.png.length > MAX_IMAGE_BYTES
       ? { ...result.report, screenshot: undefined }
       : result.report
-  const output = browserReportText(
-    url,
-    report,
-    randomBytes(BROWSER_CHECK_MARKER_BYTES).toString('hex'),
-  )
+  const marker = randomBytes(BROWSER_CHECK_MARKER_BYTES).toString('hex')
+  const full = browserReportFullText(url, report, marker)
+  const output = browserReportText(url, report, marker)
+  const id = full.length > TOOL_OUTPUT_MAX_CHARS ? retain?.keep(full, retain.tool) : undefined
+  const kept =
+    id === undefined
+      ? output
+      : `${output}\n${retainNote(id, codePointBoundary(full, TOOL_OUTPUT_MAX_CHARS))}`
   const visibleOutput = browserReportRow(url, report)
   const { screenshot } = report
   if (screenshot === undefined) {
-    return { output, visibleOutput }
+    return { output: kept, visibleOutput }
   }
   return {
-    output,
+    output: kept,
     visibleOutput,
     visibleFile: {
       lead: fill(MODEL_API_MODEL_TEXT.browserCheckScreenshotLead, { url }),

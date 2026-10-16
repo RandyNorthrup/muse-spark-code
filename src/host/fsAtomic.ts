@@ -91,7 +91,7 @@ export interface AtomicWriteOptions {
 }
 
 // The bits `chmod` sets: setuid, setgid, sticky and the three rwx triads.
-const PERMISSION_BITS = 0o7777
+export const PERMISSION_BITS = 0o7777
 const EXECUTE_BITS = 0o111
 const READ_BITS = 0o444
 // A read bit two places left of its triad's execute bit.

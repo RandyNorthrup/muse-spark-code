@@ -128,14 +128,12 @@ import {
   type MemoryScope,
   MODEL_API_CLOSE_SETTLE_MS,
   MODEL_API_CONTEXT_BYTES_PER_TOKEN,
-  MODEL_API_CONTINUATIONS_MAX,
   MODEL_API_CONTEXT_WINDOW,
   MODEL_API_HOOK_PROVIDER,
   MODEL_API_LEGACY_CONTEXT_MODELS,
   MODEL_API_MAX_OUTPUT_TOKENS,
   MODEL_API_MAX_RETRIES,
   TURN_LIMIT_ERROR_KIND,
-  MODEL_API_MEDIA_PER_REQUEST,
   MODEL_API_MODEL_PREFIX,
   MODEL_API_MODEL_TEXT,
   MCP_POOL_MODEL_TEXT,
@@ -353,12 +351,21 @@ import {
   modelPolicyFor,
   modelPricedUsage,
   requestImageCount,
-  outputLimitFor,
+  attachmentLimitsForModel,
+  outputCapForRequest,
+  shouldContinueOutput,
   type ModelResolver,
   type ResolvedModel,
 } from './modelPolicy'
 import type { HookMcpOutcome, HookModelTurn, HookModelDailyBudget } from './hookHandlers'
-import { ObservationPack, estimatePackTokens } from './observationPack'
+import {
+  ObservationPack,
+  estimatePackTokens,
+  judgeRetainedRecall,
+  type RecallAuthority,
+  type RetainTouch,
+  type RetainedOrigin,
+} from './observationPack'
 import { admitResource, inResourceClass } from '../../resources/admission'
 import type { ResourceLease } from '../../resources/launch'
 import {
@@ -501,6 +508,7 @@ import {
   parseQuestions,
   type ReadMediaFile,
   readSkillArgs,
+  retainNote,
   webFetchArgs,
   type ShellResult,
   parseShellDirectoryReport,
@@ -1201,6 +1209,11 @@ interface StreamedCall {
   readonly goalCommandRevision: number
   readonly postContexts: readonly string[]
   readonly incompleteReason: string | undefined
+  /**
+   * A cut-short reply's text (empty for a finished one): the result the one
+   * repeat policy compares when the reply continues on its own (D113, D114).
+   */
+  readonly replyText: string
 }
 
 /** A quote changed before fetch; refund nonsent claims and obtain current consent. */
@@ -2415,6 +2428,25 @@ function waitFor<T>(signal: AbortSignal, register: (pending: Pending<T>) => void
   })
 }
 
+/**
+ * B3 (limits-output): the id a `recall_output` call names, so a kept
+ * clipped output answers from its own store. Undefined when the arguments
+ * name none: the pack's own parsing reports that, never this probe.
+ */
+function retainedRecallId(argsJson: string): string | undefined {
+  let raw: unknown
+  try {
+    raw = JSON.parse(argsJson)
+  } catch {
+    return undefined
+  }
+  if (typeof raw !== 'object' || raw === null) return undefined
+  // The cast only names the probed field: the object shape is guarded above
+  // and the value is accepted only as a string below (PLAN.md §8).
+  const id: unknown = (raw as { readonly id?: unknown }).id
+  return typeof id === 'string' ? id : undefined
+}
+
 function modelOutputPage(content: string, request: OutputPageRequest): Promise<OutputPage> {
   const bytes = Buffer.from(content, MODEL_API_OUTPUT_ENCODING)
   // Pages start and end on character boundaries, as the CLI serves them (D26):
@@ -2642,6 +2674,12 @@ export class ModelApiSession implements ScheduledAgentSession {
   private restoredFileRefs: readonly UploadedMediaRef[] = []
   /** Packed tool outputs and the savings ledger (M73): undefined unless packing is on. */
   private readonly packing: ObservationPack | undefined
+  /**
+   * B3 (limits-output): clipped tool outputs kept whole, paged back by
+   * `recall_output`. Independent of packing, so a clipped middle stays
+   * reachable in every session, packing or not, subagent or not.
+   */
+  private readonly retainedOutputs = new ObservationPack()
   private readonly strictTools: boolean
   private readonly parallelReads: boolean
   private readonly outputContinuation: boolean
@@ -4480,15 +4518,13 @@ export class ModelApiSession implements ScheduledAgentSession {
     // provider-file edit between turns reaches the next request's record.
     const cached = this.outputCaps.get(resolved)
     if (cached !== undefined) return cached
-    const requested =
-      this.deps.modelOutputMaxTokens?.(resolved.ref, resolved) ??
-      (resolved.ref.includes('/') ? resolved.policy.output.maxTokens : undefined) ??
-      MODEL_API_MAX_OUTPUT_TOKENS
-    if (!Number.isSafeInteger(requested)) throw new RangeError('invalid output.maxTokens')
     // A cap below the provider's minimum refuses here with the minimum's own
     // sentence (MINOUT), zero and negative caps included.
-    const cap = outputLimitFor(resolved.policy, requested)
-    if (!Number.isSafeInteger(cap) || cap < 1) throw new RangeError('invalid output.maxTokens')
+    const cap = outputCapForRequest(
+      this.deps.modelOutputMaxTokens?.(resolved.ref, resolved),
+      resolved.policy,
+      MODEL_API_MAX_OUTPUT_TOKENS,
+    )
     this.outputCaps.set(resolved, cap)
     return cap
   }
@@ -4508,13 +4544,19 @@ export class ModelApiSession implements ScheduledAgentSession {
           mediaProjected,
           undefined,
           this.media?.pending(mediaProjected),
+          this.modelId,
         )
         // Packing projects per request only: the replay keeps the originals, so
         // a later request (or a restore) packs from the full outputs again.
         // Reviewer tools cannot recall packed output: retain the full observations.
+        // The projection stamps what it registers with the current
+        // authority, so the recall fence can judge it later (P1 fence).
         return this.isReviewing() || !this.canPack()
           ? fitted
-          : (this.packing?.project(fitted) ?? fitted)
+          : (this.packing?.project(fitted, {
+              revision: this.filePolicyRevision(),
+              wasTrusted: this.deps.isWorkspaceTrusted(),
+            }) ?? fitted)
       },
     })
     this.mediaScope = recorded.scope
@@ -4694,7 +4736,9 @@ export class ModelApiSession implements ScheduledAgentSession {
         }),
       isSubagent,
       hasMemory,
-      hasPackedRecall: this.canPack(),
+      // B3 (limits-output): recall is offered while packing runs or a kept
+      // clipped output exists.
+      hasPackedRecall: this.canPack() || this.retainedOutputs.size > 0,
       checks: this.checkCommands(),
       // Trusted workspaces only, as the shell (M69).
       hasWebFetch: this.isWebFetchOffered(hasShell),
@@ -6354,6 +6398,13 @@ export class ModelApiSession implements ScheduledAgentSession {
         final.status === 'incomplete'
           ? (final.incomplete_details?.reason ?? 'response.incomplete')
           : undefined,
+      replyText:
+        final.status === 'incomplete'
+          ? final.output
+              .filter((item) => isMessageItem(item))
+              .map((item) => messageText(item))
+              .join('')
+          : '',
     }
   }
 
@@ -7539,7 +7590,12 @@ export class ModelApiSession implements ScheduledAgentSession {
         this.budget.note(sent, part.pageCount)
       }
     }
-    this.media?.assertPendingFits(content, this.budget)
+    this.media?.assertPendingFits(
+      content,
+      this.budget,
+      undefined,
+      attachmentLimitsForModel(this.modelId).imageMaxCount,
+    )
     return content
   }
 
@@ -7823,7 +7879,12 @@ export class ModelApiSession implements ScheduledAgentSession {
   private canQueueMedia(chars: number, slots: number): boolean {
     const queued = this.queuedMediaUsage()
     const limit = this.deps.mediaBudgetMaxEncodedChars ?? MAX_ENCODED_MEDIA_CHARS
-    return queued.chars + chars <= limit && queued.slots + slots <= MODEL_API_MEDIA_PER_REQUEST
+    // Unknown for this provider: no slot count gates the queue (the chars
+    // budget still does); the provider's own refusal comes back in words.
+    const maxSlots = attachmentLimitsForModel(this.modelId).imageMaxCount
+    return (
+      queued.chars + chars <= limit && (maxSlots === undefined || queued.slots + slots <= maxSlots)
+    )
   }
 
   /** Reserve all current-batch visual outputs before their tool row reports success. */
@@ -7840,7 +7901,12 @@ export class ModelApiSession implements ScheduledAgentSession {
 
   private canQueueSteeredMedia(parts: readonly TurnPart[]): boolean {
     if (this.media !== undefined) {
-      this.media.assertPendingFits(this.contentParts(parts), this.budget, this.queuedMediaUsage())
+      this.media.assertPendingFits(
+        this.contentParts(parts),
+        this.budget,
+        this.queuedMediaUsage(),
+        attachmentLimitsForModel(this.modelId).imageMaxCount,
+      )
       return true
     }
     let chars = 0
@@ -7915,15 +7981,74 @@ export class ModelApiSession implements ScheduledAgentSession {
   }
 
   /**
-   * A `recall_output` call (M73): pages a packed original back. A read of
-   * the session's own earlier output, so it runs in every mode without a
-   * card. Without packing the tool is not offered, and a model that calls
-   * it anyway is told so, never run.
+   * A `recall_output` call (M73, B3): pages a packed original or a kept
+   * clipped output back. A read of the session's own earlier output, so it
+   * runs in every mode without a card. For an id neither store holds, the
+   * tool is unknown when packing is off, and the pack's own unknown-id
+   * error when it runs: a model that calls it anyway is told so, never run.
+   */
+  /**
+   * B3 (limits-output) with the P1 recall fence: the one choke point for
+   * retention. Every kept output funnels here with what its tool knows it
+   * came from (`touch`; absent for commands, servers and external results,
+   * which cannot name their sources). The store keeps the stamped origin —
+   * tool, touched paths, file-policy revision, workspace trust and the
+   * tool's own taint source — beside the text, and the recall fence judges
+   * that origin again under the current authority before returning any of
+   * it. Paths are normalised to `/` so Windows spellings compare.
+   */
+  private retainFullText(fullText: string, tool: string, touch?: RetainTouch): string {
+    const taint = this.toolProvenance(tool)
+    const names = (touch?.names ?? []).map((name) => name.replaceAll('\\', '/'))
+    const origin: RetainedOrigin = {
+      tool,
+      names,
+      complete: touch?.complete === true && names.length > 0,
+      revision: this.filePolicyRevision(),
+      wasTrusted: this.deps.isWorkspaceTrusted(),
+      ...(touch?.extraRoot !== undefined && { extraRoot: touch.extraRoot }),
+      ...(taint !== undefined && { taint }),
+    }
+    return this.retainedOutputs.retain(fullText, tool, origin)
+  }
+
+  /**
+   * B3 (limits-output): the note appended to a clipped head whose whole is
+   * kept. It resumes where the clip cut, so nothing shown is sent twice.
+   */
+  private keptClippedNote(fullText: string, tool: string): string {
+    const id = this.retainFullText(fullText, tool)
+    return `\n${retainNote(id, codePointBoundary(fullText, TOOL_OUTPUT_MAX_CHARS))}`
+  }
+
+  /** The person's live authority the recall fence judges a kept origin under. */
+  private recallAuthority(): RecallAuthority {
+    const files = this.policy().files
+    return {
+      revision: this.filePolicyRevision(),
+      trusted: this.deps.isWorkspaceTrusted(),
+      isDenied: (names) => files.isDenied(names),
+      extraRoots: files.extraRoots,
+    }
+  }
+
+  /**
+   * The one choke point for recall: a kept or packed output pages back only
+   * while its stored origin still stands under the current policy and trust.
+   * A source that is now denied or untrusted is refused in words, never
+   * returned — the old text never re-enters under new authority.
    */
   private recallPacked(call: FunctionCallItem): ToolOutcome {
+    const authority = this.recallAuthority()
+    const judge = (origin: RetainedOrigin): ReturnType<typeof judgeRetainedRecall> =>
+      judgeRetainedRecall(origin, authority)
+    const retained = retainedRecallId(call.arguments)
+    if (retained !== undefined && this.retainedOutputs.has(retained)) {
+      return this.retainedOutputs.recall(call.arguments, judge)
+    }
     return !this.canPack() || this.packing === undefined
       ? toolFailure(`unknown tool ${call.name}`)
-      : this.packing.recall(call.arguments)
+      : this.packing.recall(call.arguments, judge)
   }
 
   /**
@@ -8726,6 +8851,9 @@ export class ModelApiSession implements ScheduledAgentSession {
       seen: this.seenFiles,
       provisionalSeen,
       files: this.policy().files,
+      // B3 (limits-output): clipped tool outputs stay reachable through recall.
+      retainOutput: (fullText: string, tool: string, touch?: RetainTouch): string =>
+        this.retainFullText(fullText, tool, touch),
       ...(media === undefined &&
         this.getScheduledRun() !== undefined && {
           media: { reason: UI_TEXT.scheduledMediaSupport },
@@ -8873,7 +9001,13 @@ export class ModelApiSession implements ScheduledAgentSession {
     signal: AbortSignal,
   ): Promise<ToolOutcome> {
     if (external.kind === 'ide') {
-      const text = clipOutput(await external.tool.call(argumentsOf(call), signal))
+      // B3 (limits-output): a clipped IDE result stays reachable through recall.
+      const full = await external.tool.call(argumentsOf(call), signal)
+      if (full.length <= TOOL_OUTPUT_MAX_CHARS) {
+        return { output: full, visibleOutput: full }
+      }
+      const note = this.keptClippedNote(full, call.name)
+      const text = `${clipOutput(full)}${note}`
       return { output: text, visibleOutput: text }
     }
     const servers = this.deps.mcpServers
@@ -8886,10 +9020,28 @@ export class ModelApiSession implements ScheduledAgentSession {
     // only asks, in every approval mode.
     const route: McpElicitationHandler = (request) => this.runElicitation(itemId, request)
     const outcome = await servers.call(call.name, call.arguments, signal, route)
+    // B3 (limits-output): a clipped MCP result stays reachable through recall.
+    if (outcome.fullOutput === undefined) {
+      return {
+        output: outcome.output,
+        visibleOutput: outcome.visibleOutput,
+        ...(outcome.outputParts !== undefined && { outputParts: outcome.outputParts }),
+        ...(outcome.failureReason !== undefined && { failureReason: outcome.failureReason }),
+      }
+    }
+    const note = this.keptClippedNote(outcome.fullOutput, call.name)
+    const outputParts =
+      outcome.outputParts === undefined
+        ? undefined
+        : outcome.outputParts.map((part, index) =>
+            index === 0 && part.type === 'input_text'
+              ? { ...part, text: `${part.text}${note}` }
+              : part,
+          )
     return {
-      output: outcome.output,
-      visibleOutput: outcome.visibleOutput,
-      ...(outcome.outputParts !== undefined && { outputParts: outcome.outputParts }),
+      output: `${outcome.output}${note}`,
+      visibleOutput: `${outcome.visibleOutput}${note}`,
+      ...(outputParts !== undefined && { outputParts }),
       ...(outcome.failureReason !== undefined && { failureReason: outcome.failureReason }),
     }
   }
@@ -11514,7 +11666,17 @@ export class ModelApiSession implements ScheduledAgentSession {
       return withdrawn
     }
     slot.admission = this.admitted(query, this.permissions.judge(query, this.policy()))
-    const result = await fetchPage(url, signal, () => this.isWebFetchStillAllowed(query))
+    // B7 (limits-output): a page past the first window is fetched by offset.
+    const pageOffset =
+      typeof parsed.data.offset === 'number' && Number.isFinite(parsed.data.offset)
+        ? Math.max(Math.floor(parsed.data.offset), 0)
+        : 0
+    const result = await fetchPage(
+      url,
+      signal,
+      () => this.isWebFetchStillAllowed(query),
+      pageOffset,
+    )
     // Asked again once the page is in: it reaches the model only while web
     // fetch is still allowed.
     return (
@@ -11636,7 +11798,12 @@ export class ModelApiSession implements ScheduledAgentSession {
     )
     return (
       this.networkCallWithdrawn(call, query, signal, browserCheckRestrictedCall) ?? {
-        outcome: browserCheckOutcome(placement.url, result),
+        // B3 (limits-output): a clipped report stays reachable through recall.
+        outcome: browserCheckOutcome(placement.url, result, {
+          keep: (fullText: string, tool: string, touch?: RetainTouch): string =>
+            this.retainFullText(fullText, tool, touch),
+          tool: call.name,
+        }),
         isRejected: false,
       }
     )
@@ -11955,6 +12122,10 @@ export class ModelApiSession implements ScheduledAgentSession {
         provisionalSeen,
       )
     }
+    // B3 (limits-output): a subagent recalls its OWN kept outputs through
+    // the same fenced choke point as any session (its store holds only its
+    // own clips; packing never runs for a subagent). Barring the call while
+    // its clip notes instruct it left an unusable recovery instruction.
     if (
       this.isSubagent &&
       (isSubagentTool(call.name) ||
@@ -11962,8 +12133,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         call.name === MODEL_API_TOOLS.createGoal ||
         call.name === MODEL_API_TOOLS.getGoal ||
         call.name === MODEL_API_TOOLS.updateGoal ||
-        call.name === MODEL_API_TOOLS.reportProgress ||
-        call.name === MODEL_API_TOOLS.recallOutput)
+        call.name === MODEL_API_TOOLS.reportProgress)
     ) {
       return { outcome: subagentFailure('tool unavailable to a subagent'), isRejected: true }
     }
@@ -13515,6 +13685,12 @@ export class ModelApiSession implements ScheduledAgentSession {
         replay: this.replay,
         contentOrigins: this.contentOrigins,
         diagnosticsHistory: this.diagnosticsHistory,
+        // B3 (limits-output): a budget-cut verify report stays reachable through recall.
+        retainVerifyOutput: {
+          keep: (fullText: string, tool: string, touch?: RetainTouch): string =>
+            this.retainFullText(fullText, tool, touch),
+          tool: 'verify',
+        },
         checkScope,
         newEffects: newHookEffects,
         verificationAdmission: (signal) => this.verificationAdmission(signal),
@@ -13625,6 +13801,20 @@ export class ModelApiSession implements ScheduledAgentSession {
             streamed = await this.streamOnce(turn.turnId, signal, round, turn.confirmedRequest)
           } else throw error
         } else {
+          // B1 (limits-output): the answer already arrived in parts, and the
+          // provider refused the next one: say so in words before the failure
+          // itself surfaces, so the partial reply is not mistaken for whole.
+          if (
+            outputContinuations > 0 &&
+            !(error instanceof AbortedError) &&
+            !isAbortRequested(signal)
+          ) {
+            this.emit({
+              type: 'backendNotice',
+              level: 'warning',
+              text: UI_TEXT.modelApiContinuationRefused,
+            })
+          }
           throw error
         }
       }
@@ -13651,25 +13841,40 @@ export class ModelApiSession implements ScheduledAgentSession {
         // answer every call, never execute it (M101 item 8).
         this.skipCalls(turn.turnId, calls, `response.incomplete: ${streamed.incompleteReason}`)
         this.appendHookContexts(turn.turnId, postContexts)
+        // B1 (limits-output): a reply cut short by the output limit keeps
+        // going on its own until the model finishes: every continuation is
+        // announced. The turn stops here only when continuations are off,
+        // when the one repeat policy finds the continuation returning the
+        // same text again (D113, F4), or when the provider refuses the next
+        // request (named in words by the catch below). A limit the person
+        // set ends the turn at the next round's start, with its summary
+        // (D112).
         if (
-          streamed.incompleteReason === 'max_output_tokens' &&
-          this.outputContinuation &&
-          outputContinuations < MODEL_API_CONTINUATIONS_MAX
+          shouldContinueOutput({
+            incompleteReason: streamed.incompleteReason,
+            outputContinuation: this.outputContinuation,
+          })
         ) {
+          // The continuation is the call and the text it returned is its
+          // result: the same text the 3rd and 4th time warns the model, the
+          // 5th stops the turn with the person's sentence, exactly as for a
+          // tool. Text that changes is never a repeat.
+          const verdict = this.repeatGuard.observeContinuation(streamed.replyText)
+          if (verdict === 'stuck') {
+            this.emit({ type: 'backendNotice', level: 'warning', text: UI_TEXT.modelApiToolStuck })
+            return
+          }
           outputContinuations += 1
           this.emit({ type: 'backendNotice', level: 'info', text: UI_TEXT.modelApiContinuing })
           this.replay.push({
             turnId: turn.turnId,
-            item: noteItem(MODEL_API_MODEL_TEXT.continuationPrompt),
+            item: noteItem(
+              verdict === 'warn'
+                ? MODEL_API_MODEL_TEXT.continuationRepeatWarned
+                : MODEL_API_MODEL_TEXT.continuationPrompt,
+            ),
           })
           continue
-        }
-        if (streamed.incompleteReason === 'max_output_tokens' && this.outputContinuation) {
-          this.emit({
-            type: 'backendNotice',
-            level: 'warning',
-            text: UI_TEXT.modelApiContinuationLimit,
-          })
         }
         return
       }
@@ -15104,12 +15309,17 @@ export class ModelApiSession implements ScheduledAgentSession {
         ...(cached !== undefined && {
           instructions: cached.instructions,
         }),
-        input: this.budget.fit([
-          ...(this.media?.summaryInput(current.input) ?? current.input).filter(
-            (item) => canReplayReasoning || !isReasoningItem(item),
-          ),
-          append,
-        ]),
+        input: this.budget.fit(
+          [
+            ...(this.media?.summaryInput(current.input) ?? current.input).filter(
+              (item) => canReplayReasoning || !isReasoningItem(item),
+            ),
+            append,
+          ],
+          undefined,
+          [],
+          modelId,
+        ),
         tools: canReuse ? current.tools : [],
         include: ['reasoning.encrypted_content'],
       })
