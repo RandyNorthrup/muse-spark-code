@@ -33,7 +33,7 @@ import {
 import type { QuestionStore } from '../../shared/questions'
 import { writeFileAtomically } from '../fsAtomic'
 import type { Logger } from '../logger'
-import { describeStoreError, storeErrorCode } from './storeErrors'
+import { describeStoreError, isStoreErrorCode } from './storeErrors'
 import { createSessionBudgetJournal, type SessionBudgetJournalDeps } from './sessionBudgetJournal'
 import type { SessionUploadLifecycle, SessionUploadOwnership } from '../../core/media/uploadLedger'
 import type { UploadedMediaRef } from '../../shared/media'
@@ -152,7 +152,7 @@ async function hasSessionFile(file: string): Promise<boolean> {
     await stat(file)
     return true
   } catch (error: unknown) {
-    if (storeErrorCode(error) === ENOENT) {
+    if (isStoreErrorCode(error, ENOENT)) {
       return false
     }
     throw new Error(UI_TEXT.sessionBudgetStoreUnavailable, { cause: error })
@@ -173,7 +173,7 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
     try {
       return JSON.parse(await readFile(file, 'utf8'))
     } catch (error: unknown) {
-      if (storeErrorCode(error) !== ENOENT) {
+      if (!isStoreErrorCode(error, ENOENT)) {
         deps.log.warn(`Session file ${name} skipped: ${describeStoreError(error)}`)
       }
       return undefined
@@ -247,7 +247,7 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
     try {
       return uploadIntentSchema.parse(JSON.parse(await readFile(intentFor(sessionId), 'utf8')))
     } catch (error: unknown) {
-      if (storeErrorCode(error) === ENOENT) return undefined
+      if (isStoreErrorCode(error, ENOENT)) return undefined
       throw new Error(UI_TEXT.sessionBudgetStoreUnavailable, { cause: error })
     }
   }
@@ -392,7 +392,7 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
       try {
         names = await readdir(deps.directory)
       } catch (error: unknown) {
-        if (storeErrorCode(error) === ENOENT) {
+        if (isStoreErrorCode(error, ENOENT)) {
           return []
         }
         throw error

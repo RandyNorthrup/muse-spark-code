@@ -1,5 +1,5 @@
 import type { ScheduleFsPort } from '../../core/schedules/journal'
-import { storeErrorCode } from '../../host/backend/storeErrors'
+import { isStoreErrorCode, storeErrorCode } from '../../host/backend/storeErrors'
 import { UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import { scheduleBackgroundConsentSchema } from '../../shared/scheduleV2'
@@ -16,25 +16,25 @@ export function createBackgroundConsentStore(
   return {
     async exclusive(work) {
       return await fs.lock(file, async () => {
-        // Deferred past the catches: the fixed refusals carry no cause
-        // because a store failure's message can name the file's path.
-        let unreadable: string | undefined
+        // The unreadable refusal keeps the failure as its cause; the person
+        // hears only the closed kind word (scheduleStoredUnreadableReason),
+        // never the raw store failure, whose message can name the path.
         let isInvalid = false
         let raw: string | undefined
         try {
           raw = await fs.read(file)
         } catch (error: unknown) {
           // A missing file is no consent; a file the store cannot read is
-          // neither absent nor corrupt, so its errno kind is kept for the
-          // fixed refusal below. Anything without an errno keeps its kind.
+          // neither absent nor corrupt, so its errno kind refuses below.
+          // Anything without an errno keeps its kind.
           if (!(error instanceof Error)) throw error
           const code = storeErrorCode(error)
           if (code === undefined) throw error
-          if (code === MISSING_CODE) raw = undefined
-          else unreadable = code
+          if (isStoreErrorCode(error, MISSING_CODE)) raw = undefined
+          else throw new Error(`${UNREADABLE_PREFIX}${code}`, { cause: error })
         }
         let parsed: unknown
-        if (unreadable === undefined && raw !== undefined) {
+        if (raw !== undefined) {
           try {
             parsed = JSON.parse(raw)
           } catch (error: unknown) {
@@ -43,7 +43,6 @@ export function createBackgroundConsentStore(
             isInvalid = true
           }
         }
-        if (unreadable !== undefined) throw new Error(`${UNREADABLE_PREFIX}${unreadable}`)
         if (isInvalid) throw new Error('scheduleStoredJsonInvalid')
         if (raw === undefined) {
           return await work(undefined, async (consent) => {

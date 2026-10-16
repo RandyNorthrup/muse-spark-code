@@ -1,11 +1,11 @@
-import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { headerOf, type StoredSession } from '../../src/core/backends/modelapi/sessionStore'
 import { createFileSessionStore } from '../../src/host/backend/fileSessionStore'
-import { MILLISECONDS_PER_DAY } from '../../src/shared/constants'
+import { MILLISECONDS_PER_DAY, UI_TEXT } from '../../src/shared/constants'
 
 const folders: string[] = []
 afterEach(async () => {
@@ -97,5 +97,30 @@ describe('real session files', () => {
     await expect(store.load('a/b')).rejects.toThrow('cannot name a file')
     await expect(store.remove('a/b')).rejects.toThrow('cannot name a file')
     expect(await readdir(directory)).toEqual([])
+  })
+})
+
+describe('session budget store failures', () => {
+  it('refuses a damaged upload intent with the store sentence and keeps the cause', async () => {
+    const { store, directory } = await setup()
+    await store.save(stored('s1'))
+    await writeFile(path.join(directory, 's1.uploads'), 'not json', 'utf8')
+    let failure: unknown
+    try {
+      await store.list()
+    } catch (error: unknown) {
+      failure = error
+    }
+    expect(failure).toBeInstanceOf(Error)
+    expect(failure instanceof Error && failure.message).toBe(UI_TEXT.sessionBudgetStoreUnavailable)
+    expect(failure instanceof Error && failure.cause instanceof Error).toBe(true)
+  })
+
+  it('reads an unreadable session file as absent instead of throwing', async () => {
+    const { store, directory } = await setup()
+    await store.save(stored('s1'))
+    await rm(path.join(directory, 's1.json'))
+    await mkdir(path.join(directory, 's1.json'))
+    await expect(store.load('s1')).resolves.toBeUndefined()
   })
 })
