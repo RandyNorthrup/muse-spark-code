@@ -4809,8 +4809,8 @@ export const MCP_FUNCTION_SEPARATOR = '__'
 export const MCP_FUNCTION_NAME_MAX_CHARS = 64
 export const MCP_FUNCTION_HASH_CHARS = 8
 export const MCP_TOOL_DESCRIPTION_MAX_CHARS = 2048
-// Past these a server's tools are not all offered (the view says how many were).
-export const MCP_TOOLS_MAX_PER_SERVER = 128
+// How many list-tools pages are read for one listing (MCP_TOOLS_LIST_MAX_PAGES
+// is paging, not a tool cap: every listed tool is offered).
 export const MCP_TOOLS_LIST_MAX_PAGES = 20
 // Meta's limits on a function's `parameters` schema (structured-output,
 // "Stay within schema constraints", read 2026-09-25): a request that breaks
