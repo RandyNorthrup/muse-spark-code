@@ -522,6 +522,7 @@ const MODEL_API_SESSIONS = {
   metafile: 'dist/meta/modelApiSessions.json',
 }
 const RULES_FILE = { output: 'dist/rulesFile.js', metafile: 'dist/meta/rulesFile.json' }
+const NATIVE_GIT = { output: 'dist/nativeGit.js', metafile: 'dist/meta/nativeGit.json' }
 const BUNDLED_SKILLS = {
   output: 'dist/bundledSkills.js',
   metafile: 'dist/meta/bundledSkills.json',
@@ -805,6 +806,29 @@ for (const file of MODEL_API_SESSIONS_ONLY) {
   }
   if (!modelApiSessions.has(file)) {
     problems.push(`${MODEL_API_SESSIONS.output} no longer carries ${file}`)
+  }
+}
+
+// M123: the native Git route (the runtime adapter, its service and lease, the
+// runtime's pull requests) loads only in a host without `vscode.git`; the
+// conversation Git bundle keeps its checked loader and the route's types.
+const NATIVE_GIT_ONLY = [
+  'src/runtime/panel/git/nativeGitEntry.ts',
+  'src/runtime/panel/git/adapter.ts',
+  'src/runtime/panel/git/service.ts',
+  'src/runtime/panel/git/transaction.ts',
+  'src/runtime/panel/git/confinedFiles.ts',
+  'src/runtime/panel/pullRequests/pullRequests.ts',
+]
+const nativeGit = inputsOf(NATIVE_GIT)
+for (const file of NATIVE_GIT_ONLY) {
+  for (const bundle of [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp, CONVERSATION_GIT]) {
+    if (inputsOf(bundle).has(file)) {
+      problems.push(`${bundle.output} carries ${file}, which loads only with the native Git route`)
+    }
+  }
+  if (!nativeGit.has(file)) {
+    problems.push(`${NATIVE_GIT.output} no longer carries ${file}`)
   }
 }
 
@@ -1164,7 +1188,8 @@ const TEXT_BLOCKS = [
   {
     block: 'GIT_MODEL_TEXT',
     sentinels: ['gitCommitInstructions', 'gitPullRequestInstructions'],
-    readers: [CONVERSATION_GIT.output],
+    // M123's native route builds the same drafts' prompts where vscode.git is missing.
+    readers: [CONVERSATION_GIT.output, NATIVE_GIT.output],
   },
   // The review turn's text (M70): the review's bundle, the Model API's
   // built-in Reviewer. The pane's one comment template has its own block.

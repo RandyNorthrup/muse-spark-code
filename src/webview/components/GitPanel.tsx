@@ -5,15 +5,18 @@
 // they show everything that goes out, all of it editable, and nothing is
 // committed or sent until their button is pressed. A draft is written by
 // the model only when the user presses "Write With Muse", as their own
-// message in the conversation.
+// message in the conversation. The GitHub card (M123, PLAN.md D104 §2)
+// shows a device-flow code to enter on GitHub's own page, with Copy, Open
+// and Cancel, and then which sign-in GitHub calls use and its account.
 
 import type { ReactNode, SubmitEvent } from 'react'
 import {
+  GITHUB_DEVICE_VERIFICATION_URL,
   PULL_REQUEST_BODY_MAX_CHARS,
   PULL_REQUEST_TITLE_MAX_CHARS,
   UI_TEXT,
 } from '../../shared/constants'
-import type { GitAction, GitDraftKind, PullRequestView } from '../../shared/git'
+import type { GitAction, GitDraftKind, GitHubView, PullRequestView } from '../../shared/git'
 import { fill, formatDateTime, plural } from '../../shared/l10n/text'
 import type { GitFormEdit, GitFormState, GitUiState } from '../state/gitState'
 
@@ -30,6 +33,8 @@ export interface GitPanelProps {
   readonly onCreatePullRequest: () => void
   readonly onGenerate: (kind: GitDraftKind) => void
   readonly onOpenLink: (url: string) => void
+  /** Copies text through the host (the device-flow code). */
+  readonly onCopy: (text: string) => void
 }
 
 type PanelActions = Pick<
@@ -155,6 +160,100 @@ function HoldCard({
         )}
       </div>
     </section>
+  )
+}
+
+/**
+ * The window's GitHub sign-in: a device-flow code waiting to be entered on
+ * GitHub's own page (only that page is ever opened, whatever a reply
+ * said), or which sign-in GitHub calls use and its account. Sign Out is
+ * offered for Muse Spark's own sign-in only: the editor's and `gh`'s are
+ * their own to sign out of.
+ */
+function GitHubCard({
+  github,
+  onAction,
+  onOpenLink,
+  onCopy,
+}: {
+  readonly github: GitHubView
+  readonly onAction: (action: GitAction) => void
+  readonly onOpenLink: (url: string) => void
+  readonly onCopy: (text: string) => void
+}) {
+  const { code, account } = github
+  if (code !== undefined) {
+    return (
+      <section className="git-github" aria-label={UI_TEXT.gitHubCardLabel}>
+        <div className="git-row">
+          <strong>{UI_TEXT.gitSignInGitHub}</strong>
+        </div>
+        <p className="git-text">
+          {fill(UI_TEXT.gitHubCardCode, { url: GITHUB_DEVICE_VERIFICATION_URL })}
+        </p>
+        <div className="git-row">
+          <code className="git-code">{code.userCode}</code>
+        </div>
+        <p className="git-text git-muted">
+          {fill(UI_TEXT.gitHubCardExpires, { time: formatDateTime(code.expiresAt) })}
+        </p>
+        <div className="git-actions">
+          <button
+            type="button"
+            className="tool-more"
+            onClick={() => {
+              onCopy(code.userCode)
+            }}
+          >
+            {UI_TEXT.gitHubCopyCode}
+          </button>
+          <button
+            type="button"
+            className="tool-more"
+            onClick={() => {
+              onOpenLink(GITHUB_DEVICE_VERIFICATION_URL)
+            }}
+          >
+            {UI_TEXT.gitHubOpenPage}
+          </button>
+          <button
+            type="button"
+            className="tool-more"
+            onClick={() => {
+              onAction('cancelGitHubSignIn')
+            }}
+          >
+            {UI_TEXT.gitCancel}
+          </button>
+        </div>
+      </section>
+    )
+  }
+  if (account === undefined) {
+    return null
+  }
+  const source = UI_TEXT.gitHubSources[account.source]
+  return (
+    <div className="git-row git-muted">
+      <span dir="auto">
+        {account.login === undefined
+          ? fill(UI_TEXT.gitHubAccountNoLogin, { source })
+          : fill(UI_TEXT.gitHubAccount, { login: account.login, source })}
+      </span>
+      {account.source === 'deviceFlow' ? (
+        <span className="git-actions git-actions-end">
+          <button
+            type="button"
+            className="tool-more"
+            onClick={() => {
+              onAction('signOutGitHub')
+            }}
+          >
+            {UI_TEXT.gitHubSignOut}
+          </button>
+        </span>
+      ) : null}
+    </div>
   )
 }
 
@@ -466,19 +565,29 @@ function PullRequestForm({
 
 export function GitPanel(props: GitPanelProps) {
   const { git, isInert } = props
-  const { worktree, pullRequest } = git.state
+  const { worktree, pullRequest, github } = git.state
   const { form } = git
+  // The account line rides with the rest; a code to enter shows on its own.
   if (
     form === undefined &&
     worktree === undefined &&
     pullRequest === undefined &&
-    git.state.hold === undefined
+    git.state.hold === undefined &&
+    github?.code === undefined
   ) {
     return null
   }
   return (
     <div className="git-panel" inert={isInert}>
       <HoldCard git={git} onAction={props.onAction} onOpenLink={props.onOpenLink} />
+      {github === undefined ? null : (
+        <GitHubCard
+          github={github}
+          onAction={props.onAction}
+          onOpenLink={props.onOpenLink}
+          onCopy={props.onCopy}
+        />
+      )}
       {worktree === undefined ? null : (
         <div className="git-worktree git-muted">
           {worktree.pullRequestNumber === undefined

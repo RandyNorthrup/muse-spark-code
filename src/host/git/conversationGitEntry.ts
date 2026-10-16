@@ -4,15 +4,17 @@
 // lives here, so the adapter recognises its own window's errors.
 //
 // A VS Code-family host without the `vscode.git` extension (Arduino IDE 2,
-// some forks) gets M123's native adapter in-process instead (PLAN.md D104):
-// status, the commit form, commit, push after its modal, the remote pick
-// and commit-message drafts through the user's own git on PATH.
+// some forks) gets M123's native adapter in-process instead (PLAN.md D104),
+// from its own bundle (dist/nativeGit.js, nativeGitBundle.ts): status, the
+// commit form, commit, push after its modal, the remote pick, pull requests
+// and their drafts through the user's own git on PATH and the window's
+// GitHub sign-in.
 import type { UiText } from '../../shared/l10n/en'
 import { setUiText } from '../../shared/l10n/text'
-import { createRuntimeGit } from '../../runtime/panel/git/adapter'
 import type { ConversationGitPort, GitSurface } from '../conversation/conversationController'
 import { ConversationGit, type ConversationGitErrorTypes, type GitWindow } from './conversationGit'
-import { isGitExtensionInstalled } from './gitExtension'
+import { GitUnavailableError, isGitExtensionInstalled } from './gitExtension'
+import { loadNativeGitBundle } from './nativeGitBundle'
 import {
   createGitFeatures as gitFeaturesFrom,
   type GitFeaturesDeps,
@@ -29,9 +31,19 @@ export function createConversationGit(
 ): ConversationGitPort {
   setUiText(table, locale)
   const native = isGitExtensionInstalled() ? undefined : window.nativeGit?.()
-  return native === undefined
-    ? new ConversationGit(window, surface, errorTypes)
-    : createRuntimeGit(surface, native)
+  if (native === undefined) {
+    return new ConversationGit(window, surface, errorTypes)
+  }
+  let bundle: ReturnType<typeof loadNativeGitBundle>
+  try {
+    bundle = loadNativeGitBundle(native.bundlePath)
+  } catch (error: unknown) {
+    window.log.warn(
+      `The native Git bundle could not be loaded: ${error instanceof Error ? error.message : String(error)}`,
+    )
+    throw new GitUnavailableError(table.gitUnavailable)
+  }
+  return bundle.createNativeGit(surface, native.deps, table, locale)
 }
 
 export function createGitFeatures(

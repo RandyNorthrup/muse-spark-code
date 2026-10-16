@@ -228,6 +228,7 @@
   "config.accountSwap.description": "互換性のために保存されています。この設定はこのビルドでは効果がありません。",
   "config.accountParallel.description": "互換性のために保存されています。この設定はこのビルドでは効果がありません。",
   "config.accounts.severalOnThisDevice.description": "互換性のために保存されています。この設定はこのビルドでは効果がありません。",
+  "config.github.useGhLogin.description": "プルリクエストで既存の GitHub CLI のサインイン (`gh auth token`) を使えるようにします。エディターの GitHub サインインと Muse Spark のサインインの後、最後に試されます。トークンは 1 回のリクエストごとに読み取られ、保存されません。既定ではオフです。ユーザー設定でのみ有効にでき、リポジトリからはオンにできません。",
   "command.vault.title": "保管庫",
   "command.lockVault.title": "今すぐ保管庫をロック",
   "config.vault.description": "互換性のために保存されています。この設定はこのビルドでは効果がありません。",

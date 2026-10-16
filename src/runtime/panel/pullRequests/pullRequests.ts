@@ -17,6 +17,7 @@ import { UI_TEXT } from '../../../shared/constants'
 import type { PullRequestView } from '../../../shared/git'
 import { fill } from '../../../shared/l10n/text'
 import {
+  didDropRejectedCredential,
   GitHubClient,
   GitHubError,
   repositoryFromFullName,
@@ -32,11 +33,7 @@ import { hasCredentialShapes } from '../../../core/git/gitText'
 import { pullRequestFormProblem } from '../../../core/git/pullRequestRef'
 import { isPlainRefName } from '../../../core/git/pushPlan'
 import { redactSecrets } from '../../../core/redact'
-import {
-  didDropRejectedCredential,
-  resolveGitHubCredential,
-  type GitHubCredential,
-} from '../../../core/git/tokenSource'
+import type { GitHubCredential } from '../../../core/git/tokenSource'
 import type { RuntimeGitDeps } from '../../../core/git/runtimeGit'
 
 /** A refusal in words for the user; the log gets the kind, never a secret. */
@@ -50,11 +47,6 @@ export class PullRequestServiceError extends Error {
 export interface RuntimePullRequestDeps extends RuntimeGitDeps {
   readonly platform: NodeJS.Platform
   readonly now: () => number
-  /**
-   * An explicit confirmation; true only for an explicit yes. Creating a
-   * pull request always asks, showing what goes out; nothing posts without it.
-   */
-  readonly confirm: (message: string, detail: string, action: string) => Promise<boolean>
   /** The REST client's base URL; api.github.com unless a test points it elsewhere. */
   readonly baseUrl?: string
 }
@@ -155,11 +147,7 @@ export class RuntimePullRequests {
 
   private async credential(mode: 'ask' | 'silent'): Promise<GitHubCredential | undefined> {
     this.checkTrust()
-    const found = await resolveGitHubCredential(this.deps.tokenSources, {
-      mode,
-      signal: this.deps.signal,
-      now: this.deps.now,
-    })
+    const found = await this.deps.github.credential(mode, this.deps.signal)
     this.checkTrust()
     return found
   }
@@ -171,7 +159,7 @@ export class RuntimePullRequests {
 
   /** GitHub's refusal; a 401 drops the stored credential, so the user signs in again. */
   private async failure(credential: GitHubCredential, error: unknown): Promise<PullRequestFailure> {
-    const isSignIn = await didDropRejectedCredential(this.deps.tokenSources, credential, error)
+    const isSignIn = await didDropRejectedCredential(this.deps.github, credential, error)
     return { ok: false, reason: this.failureText(error), ...(isSignIn && { needsSignIn: true }) }
   }
 

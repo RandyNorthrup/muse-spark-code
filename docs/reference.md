@@ -790,7 +790,7 @@ The structured answer could not be validated. Using the text fallback.
 
 Surfaces: vscode:museCode, vscode:modelApi. Paid: no extra feature charge; model usage still applies.
 
-Commands: `museSpark.newWorktree`, `museSpark.removeWorktree`, `museSpark.openPullRequestInConversation`. Settings: —. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#git-and-pull-requests)
+Commands: `museSpark.newWorktree`, `museSpark.removeWorktree`, `museSpark.openPullRequestInConversation`. Settings: `museSpark.github.useGhLogin`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#git-and-pull-requests)
 
 ### Background Tasks
 
@@ -1510,6 +1510,8 @@ Availability depends on the backend. Installed skills also add their own slash c
 - `/push`: museCode: Push this branch; always asks, never forces; modelApi: Push this branch; always asks, never forces
 - `/pr`: museCode: On GitHub, as a draft or ready, linked to this conversation; modelApi: On GitHub, as a draft or ready, linked to this conversation
 - `/checkout-pr`: museCode: Check a pull request out in its own worktree and window; modelApi: Check a pull request out in its own worktree and window
+- `/github-login`: museCode: Sign in to GitHub with a code you enter on github.com/login/device; the token stays in this computer’s credential store; modelApi: Sign in to GitHub with a code you enter on github.com/login/device; the token stays in this computer’s credential store
+- `/github-logout`: museCode: Delete Muse Spark’s GitHub sign-in from this computer and open GitHub’s page where you revoke it; modelApi: Delete Muse Spark’s GitHub sign-in from this computer and open GitHub’s page where you revoke it
 - `/model`: museCode: Switch Model…; modelApi: Switch Model…
 - `/permissions`: museCode: Permission Mode; modelApi: Permission Mode
 - `/mcp`: museCode: What Muse Code connects to; sign in to a server; modelApi: The servers in Muse Code’s settings, run by this window
@@ -3323,6 +3325,19 @@ Type: `"string"`. Default: `"transcribe"`. Scope: `machine`.
 
 - `"transcribe"`:
 - `"sendAudio"`:
+
+### museSpark.github.useGhLogin
+
+Lets pull requests use your existing GitHub CLI sign-in (`gh auth token`), tried last, after the editor's own GitHub sign-in and Muse Spark's. The token is read for one request at a time and never stored. Off by default; user settings only, so a repository cannot turn it on.
+
+Type: `"boolean"`. Default: `false`. Scope: `machine`.
+
+```json
+{
+  "type": "boolean",
+  "default": false
+}
+```
 
 ### museSpark.vault.agentFence
 

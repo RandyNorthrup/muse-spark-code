@@ -228,6 +228,7 @@
   "config.accountSwap.description": "Conservée pour la compatibilité ; cette préférence est sans effet dans cette version.",
   "config.accountParallel.description": "Conservée pour la compatibilité ; cette préférence est sans effet dans cette version.",
   "config.accounts.severalOnThisDevice.description": "Conservée pour la compatibilité ; cette préférence est sans effet dans cette version.",
+  "config.github.useGhLogin.description": "Permet aux pull requests d'utiliser votre connexion GitHub CLI existante (`gh auth token`), essayée en dernier, après la connexion GitHub de l'éditeur et celle de Muse Spark. Le jeton est lu pour une seule requête à la fois et n'est jamais enregistré. Désactivé par défaut ; paramètres utilisateur uniquement, afin qu'un dépôt ne puisse pas l'activer.",
   "command.vault.title": "Coffre-fort",
   "command.lockVault.title": "Verrouiller le coffre-fort maintenant",
   "config.vault.description": "Conservée pour la compatibilité ; cette préférence est sans effet dans cette version.",
