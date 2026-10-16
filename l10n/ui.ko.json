@@ -3260,6 +3260,7 @@
   "stopAllTasksTitle": "이 대화의 모든 백그라운드 작업 중지",
   "stopTaskFailed": "백그라운드 작업을 중지하지 못했습니다",
   "taskNotRunning": "해당 작업은 더 이상 실행 중이 아닙니다",
+  "stillWaitingNotice": "{duration} 후에도 {what} 대기 중 — 중지로 종료합니다.",
   "userShellLabel": "직접 실행",
   "userShellExitCode": "종료 코드 {code}",
   "userShellExitSignal": "신호 {signal}(으)로 종료됨",

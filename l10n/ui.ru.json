@@ -3458,6 +3458,7 @@
   "stopAllTasksTitle": "Остановить все фоновые задачи этой беседы",
   "stopTaskFailed": "Не удалось остановить фоновую задачу",
   "taskNotRunning": "Эта задача больше не выполняется",
+  "stillWaitingNotice": "Всё ещё ожидает {what} спустя {duration} — «Остановить» завершает ожидание.",
   "userShellLabel": "Вы выполнили",
   "userShellExitCode": "Код выхода {code}",
   "userShellExitSignal": "Завершено сигналом {signal}",

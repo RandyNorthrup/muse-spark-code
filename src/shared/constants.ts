@@ -4541,6 +4541,10 @@ export const HEARTBEAT_BEAM_MAX_TICKS_PER_FRAME = 8
 export const MILLISECONDS_PER_SECOND = 1000
 export const SECONDS_PER_MINUTE = 60
 export const USAGE_COUNTDOWN_REFRESH_MS = MILLISECONDS_PER_SECOND * SECONDS_PER_MINUTE
+// How often a wait with no deadline of its own says so out loud (owner
+// 2026-10-16: no silent hangs — the wait tells the person it is still
+// waiting, and Stop ends it). A notice cadence, not a limit: nothing stops.
+export const STILL_WAITING_NOTICE_MS = MILLISECONDS_PER_SECOND * SECONDS_PER_MINUTE
 
 // M102 / D82: machine-local usage history, independent of spend ledgers.
 // Version 2 (M121) stores dollars as exact decimal text. Both versions share
@@ -4823,14 +4827,12 @@ export const MCP_SCHEMA_LIMITS = {
   largeEnumChars: 15_000,
   nodes: 200_000,
 } as const
-// Muse Code's `startup_timeout_sec` and `tool_timeout_sec`, when the entry
-// sets none; a value is capped at the hour.
-export const MCP_STARTUP_TIMEOUT_MS = 30_000
+// An entry's own `startup_timeout_sec` and `tool_timeout_sec` (Muse Code's
+// documented keys, seconds); when the entry sets none, starting and tool
+// calls are waited on until the server answers or is stopped, never killed
+// at an invented default (owner 2026-10-16: no arbitrary limits). The wait
+// says so out loud on STILL_WAITING_NOTICE_MS; Stop ends it.
 export const MCP_START_CONCURRENCY = 4
-export const MCP_TOOL_TIMEOUT_MS = 300_000
-export const MCP_TIMEOUT_MAX_SECONDS = 3600
-// `tools/list` and the other short requests after the handshake.
-export const MCP_REQUEST_TIMEOUT_MS = 30_000
 // Closing: a stdio server gets this long to leave after its input closes
 // before its process tree is killed; a remote session's DELETE this long.
 export const MCP_SHUTDOWN_GRACE_MS = 1500

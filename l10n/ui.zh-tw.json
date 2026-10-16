@@ -3260,6 +3260,7 @@
   "stopAllTasksTitle": "停止此對話的所有背景工作",
   "stopTaskFailed": "無法停止背景工作",
   "taskNotRunning": "該工作已不在執行",
+  "stillWaitingNotice": "已等待 {what} 超過 {duration}——「停止」可結束等待。",
   "userShellLabel": "您執行了",
   "userShellExitCode": "結束代碼 {code}",
   "userShellExitSignal": "被訊號 {signal} 終止",

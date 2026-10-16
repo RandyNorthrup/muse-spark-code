@@ -3326,6 +3326,7 @@
   "stopAllTasksTitle": "Bu konuşmanın tüm arka plan görevlerini durdur",
   "stopTaskFailed": "Arka plan görevi durdurulamadı",
   "taskNotRunning": "Bu görev artık çalışmıyor",
+  "stillWaitingNotice": "{duration} sonra hâlâ {what} bekleniyor — Durdur sonlandırır.",
   "userShellLabel": "Sizin çalıştırdığınız",
   "userShellExitCode": "Çıkış kodu {code}",
   "userShellExitSignal": "{signal} sinyaliyle sonlandı",

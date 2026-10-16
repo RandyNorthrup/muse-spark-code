@@ -2,6 +2,14 @@
 // handshake and commands, which the SDK waits on for ever. And an end to the
 // wait when the caller stops caring (Cancel, sign-out, the window closing).
 
+import {
+  MILLISECONDS_PER_SECOND,
+  SECONDS_PER_MINUTE,
+  STILL_WAITING_NOTICE_MS,
+  UI_TEXT,
+} from '../shared/constants'
+import { fill, formatUnit } from '../shared/l10n/text'
+
 export class DeadlineError extends Error {
   public constructor(message: string) {
     super(message)
@@ -70,6 +78,31 @@ export async function withSlowDeadline<T>(promise: Promise<T>, deadline: SlowDea
     deadline.totalMs - deadline.firstMs,
     deadline.message(deadline.totalMs),
   )
+}
+
+/**
+ * A wait with no deadline of its own says so out loud (owner 2026-10-16:
+ * no silent hangs): `tell` runs with the elapsed milliseconds every
+ * `everyMs` until the returned stop runs. The work itself keeps waiting;
+ * only its own end or Stop ends it. A notice cadence, not a limit.
+ */
+export function startStillWaiting(
+  tell: (elapsedMs: number) => void,
+  everyMs: number = STILL_WAITING_NOTICE_MS,
+): () => void {
+  const startedAt = Date.now()
+  const timer = setInterval(() => {
+    tell(Date.now() - startedAt)
+  }, everyMs)
+  return () => {
+    clearInterval(timer)
+  }
+}
+
+/** The person's words for a wait with no deadline: what waits, and how long. */
+export function stillWaitingText(what: string, elapsedMs: number): string {
+  const minutes = Math.max(1, Math.round(elapsedMs / MILLISECONDS_PER_SECOND / SECONDS_PER_MINUTE))
+  return fill(UI_TEXT.stillWaitingNotice, { what, duration: formatUnit(minutes, 'minute') })
 }
 
 /** Does nothing: the abort listener until it is made, and a late failure nobody waits for. */

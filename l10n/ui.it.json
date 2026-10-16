@@ -3392,6 +3392,7 @@
   "stopAllTasksTitle": "Arresta tutte le attività in background di questa conversazione",
   "stopTaskFailed": "Non è stato possibile arrestare l’attività in background",
   "taskNotRunning": "L’attività non è più in esecuzione",
+  "stillWaitingNotice": "Ancora in attesa di {what} dopo {duration} — Arresta lo interrompe.",
   "userShellLabel": "Hai eseguito",
   "userShellExitCode": "Codice di uscita {code}",
   "userShellExitSignal": "Terminato dal segnale {signal}",

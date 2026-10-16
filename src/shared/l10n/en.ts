@@ -3957,6 +3957,7 @@ export const EN = {
   stopAllTasksTitle: 'Stop every background task of this conversation',
   stopTaskFailed: 'The background task could not be stopped',
   taskNotRunning: 'That task is not running any more',
+  stillWaitingNotice: 'Still waiting on {what} after {duration} — Stop ends it.',
   userShellLabel: 'You Ran',
   userShellExitCode: 'Exit code {code}',
   userShellExitSignal: 'Ended by signal {signal}',

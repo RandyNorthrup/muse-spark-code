@@ -1734,7 +1734,10 @@ hooks from `.muse/hooks.json`. `MCP servers…` and `Hooks…` show configuratio
     `framing` (`auto`, `line_delimited_json`, `content_length`) for a
     local server; `url` and `headers` for a remote one (streamable HTTP);
     `enabled`, `mode`, `startup_timeout_sec`, `tool_timeout_sec`,
-    `enabled_tools` and `disabled_tools` for either. `${VAR}` reads an
+    `enabled_tools` and `disabled_tools` for either. A timeout the entry
+    names is honoured whole, however long; one it does not name is no
+    deadline at all — the server is waited on until it answers or is
+    stopped, with a still-waiting notice each minute. `${VAR}` reads an
     environment variable of VS Code's; an unset one keeps the server from
     starting. A local server sees only a short list of VS Code's environment
     variables (`PATH`, `HOME`, `TEMP` and the like) plus its own `env`.

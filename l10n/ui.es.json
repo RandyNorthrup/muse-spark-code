@@ -3392,6 +3392,7 @@
   "stopAllTasksTitle": "Detener todas las tareas en segundo plano de esta conversación",
   "stopTaskFailed": "No se pudo detener la tarea en segundo plano",
   "taskNotRunning": "Esa tarea ya no se está ejecutando",
+  "stillWaitingNotice": "Sigue esperando {what} después de {duration} — Detener lo termina.",
   "userShellLabel": "Usted ejecutó",
   "userShellExitCode": "Código de salida {code}",
   "userShellExitSignal": "Terminado por la señal {signal}",

@@ -3260,6 +3260,7 @@
   "stopAllTasksTitle": "停止此对话的所有后台任务",
   "stopTaskFailed": "无法停止后台任务",
   "taskNotRunning": "该任务已不在运行",
+  "stillWaitingNotice": "已等待 {what} 超过 {duration}——“停止”可结束等待。",
   "userShellLabel": "你运行了",
   "userShellExitCode": "退出代码 {code}",
   "userShellExitSignal": "被信号 {signal} 终止",

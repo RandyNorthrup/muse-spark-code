@@ -3392,6 +3392,7 @@
   "stopAllTasksTitle": "Arrêter toutes les tâches en arrière-plan de cette conversation",
   "stopTaskFailed": "La tâche en arrière-plan n’a pas pu être arrêtée",
   "taskNotRunning": "Cette tâche ne s’exécute plus",
+  "stillWaitingNotice": "Toujours en attente de {what} après {duration} — Arrêter y met fin.",
   "userShellLabel": "Vous avez exécuté",
   "userShellExitCode": "Code de sortie {code}",
   "userShellExitSignal": "Terminé par le signal {signal}",
