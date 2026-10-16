@@ -16,6 +16,7 @@ import { homedir, hostname, tmpdir } from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
 import { Writable } from 'node:stream'
+import { setTimeout as abortableSleep } from 'node:timers/promises'
 import type { SignInMethod } from '../acp/agent'
 import { runtimeQuestionsLoader } from './questions/questionRegistryBundle'
 import { processGitRunner } from '../host/git'
@@ -56,6 +57,7 @@ import {
   authClear,
   authClearProvider,
   type AuthCommandDeps,
+  authGitHub,
   authSet,
   authSetProvider,
   authStatus,
@@ -69,6 +71,7 @@ import {
   type ServeOptions,
 } from './cliArgs'
 import { parseSharingArgs, type SharingCommand } from './sharing/args'
+import { deviceFlowSource } from './github/deviceFlowSource'
 import { runtimeSharingLoader } from './sharing/sharingBundle'
 import { defaultServeOptions, sharingPorts, type SharingPortsDeps } from './sharing/sharingPorts'
 import { acpSharingCommands } from '../acp/sharing'
@@ -1396,6 +1399,53 @@ async function main(): Promise<number> {
       )
       writeLine(result.exitCode === 0 ? process.stdout : process.stderr, result.text)
       return result.exitCode
+    }
+    case 'authGitHub': {
+      const controller = new AbortController()
+      const abort = () => {
+        controller.abort()
+      }
+      process.once('SIGINT', abort)
+      try {
+        const network = globalThis.fetch.bind(globalThis)
+        return await authGitHub(command.action, {
+          // The terminal is this sign-in's surface: the code and GitHub's
+          // address are printed; the token never is.
+          source: deviceFlowSource({
+            store: secrets,
+            flow: {
+              fetch: network,
+              now: Date.now,
+              sleep: (ms, signal) => abortableSleep(ms, undefined, { signal }),
+            },
+            present: (prompt) => {
+              writeLine(
+                process.stdout,
+                fill(UI_TEXT.githubSignIn.code, {
+                  url: prompt.verificationUri,
+                  code: prompt.userCode,
+                }),
+              )
+              return Promise.resolve()
+            },
+            openExternal: (url) => {
+              writeLine(process.stdout, fill(UI_TEXT.githubSignIn.signedOut, { url }))
+              return Promise.resolve()
+            },
+            fetch: network,
+          }),
+          storeName: credentialStoreName(process.platform),
+          signal: controller.signal,
+          print: (line) => {
+            writeLine(process.stdout, line)
+          },
+          printError: (line) => {
+            writeLine(process.stderr, line)
+          },
+        })
+      } finally {
+        process.off('SIGINT', abort)
+      }
     }
     case 'authStatus': {
       return command.provider === undefined

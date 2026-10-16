@@ -191,9 +191,7 @@ export function missingScopes(
   return required.filter((scope) => !granted.has(scope))
 }
 
-/** The OAuth App's client id; refused while the owner has not registered the app (Q-M123).
- * @unwired M123 GitHub OAuth client id
- */
+/** The OAuth App's client id (Q-M123); an empty one is refused, so no request goes out without it. */
 export function requireOAuthClientId(clientId: string = GITHUB_OAUTH_CLIENT_ID): string {
   if (clientId.trim() === '') {
     throw new GitHubTokenSourceError('clientIdUnset')

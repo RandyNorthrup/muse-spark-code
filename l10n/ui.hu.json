@@ -351,6 +351,7 @@
   "referenceVaultLock": "Folyamatban.",
   "referenceAuthClear": "Eltávolítja a tárolt Model API-kulcsot.",
   "referenceAuthStatus": "Ellenőrzi, hogy van-e tárolt Model API-kulcs.",
+  "referenceAuthGitHub": "Bejelentkezés a GitHubra a pull requestekhez a GitHub eszközfolyamatával: írja be a kiírt kódot a github.com/login/device oldalon; a token a számítógép hitelesítőadat-tárolójában marad. A logout törli, a status megmondja, van-e tárolva.",
   "referenceAccountsTitle": "Several accounts per provider",
   "referenceAccounts": "Egy szolgáltató fiókjainak kezelése: listázás, hozzáadás, eltávolítás, sorrend és küszöbértékek. A hitelesítő adatok csak a standard bemenetről érkeznek. A fizetős hozzájárulás egyelőre munkaterületenként érvényes.",
   "referenceDeveloper": "Megjeleníti vagy feloldja a gép helyi fejlesztői beállításait. A profilműveletekhez csatlakoztatott erőforrás-kezelő szükséges.",
@@ -4284,6 +4285,28 @@
     "callback": "A ChatGPT-bejelentkezés befejeződött. Térjen vissza a szerkesztőbe vagy a terminálba.",
     "failure": "A ChatGPT-bejelentkezést nem sikerült befejezni. Próbálja újra, vagy távolítsa el, és jelentkezzen be ismét.",
     "storeUnavailable": "A számítógép hitelesítőadat-tárolója nem érhető el. Jelentkezzen be interaktív asztali munkamenetből, feloldott tárolóval; Linuxon előbb indítsa el a Secret Service szolgáltatást."
+  },
+  "githubSignIn": {
+    "usage": "Használat: muse-spark-code-acp auth github login|logout|status",
+    "code": "A GitHub-bejelentkezéshez nyissa meg ezt: {url}, és írja be a(z) {code} kódot. Várakozás a GitHubra; a megszakításhoz nyomja meg a Ctrl+C billentyűket.",
+    "signedIn": "Bejelentkezve a GitHubra. A token itt van tárolva: {store}.",
+    "notSignedIn": "Nincs bejelentkezve a GitHubra. Futtassa a muse-spark-code-acp auth github login parancsot a GitHub eszközfolyamatával való bejelentkezéshez.",
+    "signedOut": "Kijelentkezve a GitHubról: a token törölve lett erről a számítógépről. Az alkalmazás hozzáférésének visszavonásához nyissa meg ezt: {url}, és válassza a „Revoke” lehetőséget.",
+    "cancelled": "A GitHub-bejelentkezés megszakítva.",
+    "failures": {
+      "clientIdUnset": "Ez a build nem tartalmaz GitHub-alkalmazás ügyfél-azonosítót, ezért a GitHub-bejelentkezés nem érhető el.",
+      "verificationAddress": "A GitHub válasza a github.com/login/device címtől eltérő bejelentkezési címet adott meg, ezért elutasítva.",
+      "userCode": "A GitHub válasza olyan kódot tartalmazott, amely nem jeleníthető meg biztonságosan, ezért elutasítva.",
+      "expired": "A kód lejárt, mielőtt beírták volna. Jelentkezzen be újra.",
+      "denied": "A bejelentkezést elutasították a GitHubon.",
+      "disabled": "A GitHub kikapcsolta az eszközfolyamatot ehhez az alkalmazáshoz.",
+      "incorrectClient": "A GitHub nem ismerte fel az alkalmazás ügyfél-azonosítóját.",
+      "incorrectDeviceCode": "A GitHub nem ismerte fel a bejelentkezési kódot. Jelentkezzen be újra.",
+      "unsupportedGrant": "A GitHub elutasította a bejelentkezési kérést.",
+      "refreshRefused": "A GitHub nem újította meg a bejelentkezést. Jelentkezzen be újra.",
+      "network": "A GitHub nem érhető el. Ellenőrizze a kapcsolatot, és próbálja újra.",
+      "reply": "A GitHub válasza nem olvasható."
+    }
   },
   "execProviderNotConfigured": "{id} szolgáltató nincs beállítva.",
   "providerText": {

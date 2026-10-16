@@ -351,6 +351,7 @@
   "referenceVaultLock": "进行中.",
   "referenceAuthClear": "删除已存储的 Model API 密钥。",
   "referenceAuthStatus": "检查是否存储了 Model API 密钥。",
+  "referenceAuthGitHub": "使用 GitHub 的设备流登录 GitHub 以处理拉取请求：在 github.com/login/device 输入显示的代码；令牌保存在此计算机的凭据存储中。logout 删除令牌，status 显示是否已保存。",
   "referenceAccountsTitle": "Several accounts per provider",
   "referenceAccounts": "管理同一提供商的账号：列出、添加、删除、排序和阈值。凭据仅来自标准输入。 付费同意目前仍按工作区生效。",
   "referenceDeveloper": "显示或解锁本机开发者选项。配置文件操作需要连接资源管理组件。",
@@ -4171,6 +4172,28 @@
     "callback": "ChatGPT 登录完成。请返回编辑器或终端。",
     "failure": "无法完成 ChatGPT 登录。请重试，或移除后重新登录。",
     "storeUnavailable": "此计算机的凭据存储不可用。请从交互式桌面会话中登录，并解锁凭据存储；在 Linux 上，请先启动 Secret Service。"
+  },
+  "githubSignIn": {
+    "usage": "用法：muse-spark-code-acp auth github login|logout|status",
+    "code": "要登录 GitHub，请打开 {url} 并输入代码 {code}。正在等待 GitHub；按 Ctrl+C 取消。",
+    "signedIn": "已登录 GitHub。令牌保存在 {store} 中。",
+    "notSignedIn": "未登录 GitHub。运行 muse-spark-code-acp auth github login，使用 GitHub 的设备流登录。",
+    "signedOut": "已退出 GitHub：令牌已从此计算机删除。如需同时撤销该应用的访问权限，请打开 {url} 并选择“Revoke”。",
+    "cancelled": "已取消 GitHub 登录。",
+    "failures": {
+      "clientIdUnset": "此版本没有 GitHub 应用客户端 ID，因此无法登录 GitHub。",
+      "verificationAddress": "GitHub 的回复给出了 github.com/login/device 以外的登录地址，因此已拒绝。",
+      "userCode": "GitHub 的回复包含无法安全显示的代码，因此已拒绝。",
+      "expired": "代码在输入前已过期。请重新登录。",
+      "denied": "登录在 GitHub 上被拒绝。",
+      "disabled": "GitHub 已为此应用关闭设备流。",
+      "incorrectClient": "GitHub 无法识别此应用的客户端 ID。",
+      "incorrectDeviceCode": "GitHub 无法识别登录代码。请重新登录。",
+      "unsupportedGrant": "GitHub 拒绝了登录请求。",
+      "refreshRefused": "GitHub 拒绝续期登录。请重新登录。",
+      "network": "无法连接 GitHub。请检查网络连接后重试。",
+      "reply": "无法读取 GitHub 的回复。"
+    }
   },
   "execProviderNotConfigured": "提供方 {id} 未配置。",
   "providerText": {

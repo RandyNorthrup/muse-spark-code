@@ -351,6 +351,7 @@
   "referenceVaultLock": "Em andamento.",
   "referenceAuthClear": "Remover a chave Model API salva.",
   "referenceAuthStatus": "Verificar se uma chave Model API está salva.",
+  "referenceAuthGitHub": "Entre no GitHub para pull requests com o fluxo de dispositivo do GitHub: digite o código exibido em github.com/login/device; o token fica no armazenamento de credenciais deste computador. logout o exclui e status informa se há um guardado.",
   "referenceAccountsTitle": "Several accounts per provider",
   "referenceAccounts": "Gerencia as contas de um provedor: listar, adicionar, remover, ordenar e limites. As credenciais vêm somente da entrada padrão. O consentimento pago permanece por espaço de trabalho por enquanto.",
   "referenceDeveloper": "Mostra ou desbloqueia as opções de desenvolvedor desta máquina. As operações de perfis exigem um gerenciador de recursos conectado.",
@@ -4397,6 +4398,28 @@
     "callback": "O login do ChatGPT foi concluído. Volte ao editor ou terminal.",
     "failure": "Não foi possível concluir o login do ChatGPT. Tente novamente ou remova-o e faça login outra vez.",
     "storeUnavailable": "O armazenamento de credenciais deste computador está indisponível. Faça login em uma sessão de desktop interativa com o armazenamento desbloqueado; no Linux, inicie primeiro o Secret Service."
+  },
+  "githubSignIn": {
+    "usage": "Uso: muse-spark-code-acp auth github login|logout|status",
+    "code": "Para entrar no GitHub, abra {url} e digite o código {code}. Aguardando o GitHub; pressione Ctrl+C para cancelar.",
+    "signedIn": "Conectado ao GitHub. O token fica guardado em {store}.",
+    "notSignedIn": "Não conectado ao GitHub. Execute muse-spark-code-acp auth github login para entrar com o fluxo de dispositivo do GitHub.",
+    "signedOut": "Desconectado do GitHub: o token foi excluído deste computador. Para revogar também o acesso do aplicativo, abra {url} e escolha “Revoke”.",
+    "cancelled": "A entrada no GitHub foi cancelada.",
+    "failures": {
+      "clientIdUnset": "Esta versão não tem ID de cliente do aplicativo GitHub, então a entrada no GitHub não está disponível.",
+      "verificationAddress": "A resposta do GitHub indicava um endereço de entrada diferente de github.com/login/device, então foi recusada.",
+      "userCode": "A resposta do GitHub continha um código que não pode ser exibido com segurança, então foi recusada.",
+      "expired": "O código expirou antes de ser digitado. Entre novamente.",
+      "denied": "A entrada foi negada no GitHub.",
+      "disabled": "O GitHub desativou o fluxo de dispositivo para este aplicativo.",
+      "incorrectClient": "O GitHub não reconheceu o ID de cliente deste aplicativo.",
+      "incorrectDeviceCode": "O GitHub não reconheceu o código de entrada. Entre novamente.",
+      "unsupportedGrant": "O GitHub recusou a solicitação de entrada.",
+      "refreshRefused": "O GitHub recusou renovar a entrada. Entre novamente.",
+      "network": "Não foi possível acessar o GitHub. Verifique a conexão e tente novamente.",
+      "reply": "Não foi possível ler a resposta do GitHub."
+    }
   },
   "execProviderNotConfigured": "O provedor {id} não está configurado.",
   "providerText": {

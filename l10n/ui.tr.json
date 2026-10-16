@@ -351,6 +351,7 @@
   "referenceVaultLock": "Devam ediyor.",
   "referenceAuthClear": "Kayıtlı Model API anahtarını kaldırın.",
   "referenceAuthStatus": "Model API anahtarının kayıtlı olup olmadığını denetleyin.",
+  "referenceAuthGitHub": "Pull request’ler için GitHub’ın cihaz akışıyla GitHub’da oturum açın: yazdırılan kodu github.com/login/device adresine girin; belirteç bu bilgisayarın kimlik bilgisi deposunda kalır. logout onu siler, status kayıtlı olup olmadığını söyler.",
   "referenceAccountsTitle": "Several accounts per provider",
   "referenceAccounts": "Bir sağlayıcının hesaplarını yönetir: listeleme, ekleme, kaldırma, sıralama ve eşikler. Kimlik bilgileri yalnızca standart girdiden gelir. Ücretli onay şimdilik çalışma alanı bazında kalır.",
   "referenceDeveloper": "Bu bilgisayardaki geliştirici seçeneklerini gösterir veya kilidini açar. Profil işlemleri bağlı bir kaynak yöneticisi gerektirir.",
@@ -4284,6 +4285,28 @@
     "callback": "ChatGPT oturumu açıldı. Düzenleyicinize veya terminalinize dönün.",
     "failure": "ChatGPT oturumu açılamadı. Yeniden deneyin veya kaldırıp tekrar oturum açın.",
     "storeUnavailable": "Bu bilgisayarın kimlik bilgisi deposu kullanılamıyor. Kilidi açılmış depoyla etkileşimli bir masaüstü oturumundan giriş yapın; Linux’ta önce Secret Service’i başlatın."
+  },
+  "githubSignIn": {
+    "usage": "Kullanım: muse-spark-code-acp auth github login|logout|status",
+    "code": "GitHub’da oturum açmak için {url} adresini açın ve {code} kodunu girin. GitHub bekleniyor; iptal etmek için Ctrl+C tuşlarına basın.",
+    "signedIn": "GitHub’da oturum açıldı. Belirteç {store} içinde tutuluyor.",
+    "notSignedIn": "GitHub’da oturum açılmadı. GitHub’ın cihaz akışıyla oturum açmak için muse-spark-code-acp auth github login komutunu çalıştırın.",
+    "signedOut": "GitHub oturumu kapatıldı: belirteç bu bilgisayardan silindi. Uygulamanın erişimini de iptal etmek için {url} adresini açın ve “Revoke” seçeneğini seçin.",
+    "cancelled": "GitHub oturum açma işlemi iptal edildi.",
+    "failures": {
+      "clientIdUnset": "Bu derlemede GitHub uygulaması istemci kimliği yok, bu nedenle GitHub oturumu açılamıyor.",
+      "verificationAddress": "GitHub’ın yanıtı github.com/login/device dışında bir oturum açma adresi belirttiği için reddedildi.",
+      "userCode": "GitHub’ın yanıtı güvenle gösterilemeyen bir kod içerdiği için reddedildi.",
+      "expired": "Kod girilmeden önce süresi doldu. Yeniden oturum açın.",
+      "denied": "Oturum açma GitHub’da reddedildi.",
+      "disabled": "GitHub bu uygulama için cihaz akışını kapatmış.",
+      "incorrectClient": "GitHub bu uygulamanın istemci kimliğini tanımadı.",
+      "incorrectDeviceCode": "GitHub oturum açma kodunu tanımadı. Yeniden oturum açın.",
+      "unsupportedGrant": "GitHub oturum açma isteğini reddetti.",
+      "refreshRefused": "GitHub oturumu yenilemeyi reddetti. Yeniden oturum açın.",
+      "network": "GitHub’a ulaşılamıyor. Bağlantıyı denetleyip yeniden deneyin.",
+      "reply": "GitHub’ın yanıtı okunamadı."
+    }
   },
   "execProviderNotConfigured": "{id} sağlayıcısı yapılandırılmadı.",
   "providerText": {

@@ -351,6 +351,7 @@
   "referenceVaultLock": "進行中.",
   "referenceAuthClear": "保存済みの Model API キーを削除します。",
   "referenceAuthStatus": "Model API キーが保存されているか確認します。",
+  "referenceAuthGitHub": "GitHub のデバイスフローで、プルリクエスト用に GitHub にサインインします。表示されたコードを github.com/login/device で入力します。トークンはこのコンピューターの資格情報ストアに保管されます。logout で削除し、status で保管の有無を確認します。",
   "referenceAccountsTitle": "Several accounts per provider",
   "referenceAccounts": "1 つのプロバイダーのアカウントを管理します。一覧表示、追加、削除、順序、しきい値。認証情報は標準入力からのみ受け取ります。有料機能の同意は当面ワークスペース単位のままです。",
   "referenceDeveloper": "このコンピューターの開発者向けオプションを表示またはロック解除します。プロファイル操作には接続済みのリソース管理機構が必要です。",
@@ -4171,6 +4172,28 @@
     "callback": "ChatGPT のサインインが完了しました。エディターまたはターミナルに戻ってください。",
     "failure": "ChatGPT のサインインを完了できませんでした。再試行するか、削除して再度サインインしてください。",
     "storeUnavailable": "このコンピューターの資格情報ストアを利用できません。ストアのロックを解除した対話型デスクトップセッションからサインインしてください。Linux では、先に Secret Service を起動してください。"
+  },
+  "githubSignIn": {
+    "usage": "使い方: muse-spark-code-acp auth github login|logout|status",
+    "code": "GitHub にサインインするには、{url} を開いてコード {code} を入力してください。GitHub を待っています。キャンセルするには Ctrl+C を押してください。",
+    "signedIn": "GitHub にサインインしました。トークンは {store} に保管されています。",
+    "notSignedIn": "GitHub にサインインしていません。muse-spark-code-acp auth github login を実行して、GitHub のデバイスフローでサインインしてください。",
+    "signedOut": "GitHub からサインアウトしました。トークンはこのコンピューターから削除されました。アプリのアクセスも取り消すには、{url} を開いて「Revoke」を選んでください。",
+    "cancelled": "GitHub へのサインインはキャンセルされました。",
+    "failures": {
+      "clientIdUnset": "このビルドには GitHub アプリのクライアント ID がないため、GitHub にサインインできません。",
+      "verificationAddress": "GitHub の応答が github.com/login/device 以外のサインインアドレスを示したため、拒否しました。",
+      "userCode": "GitHub の応答に安全に表示できないコードが含まれていたため、拒否しました。",
+      "expired": "コードは入力される前に期限切れになりました。もう一度サインインしてください。",
+      "denied": "GitHub でサインインが拒否されました。",
+      "disabled": "GitHub はこのアプリのデバイスフローを無効にしています。",
+      "incorrectClient": "GitHub はこのアプリのクライアント ID を認識しませんでした。",
+      "incorrectDeviceCode": "GitHub はサインインコードを認識しませんでした。もう一度サインインしてください。",
+      "unsupportedGrant": "GitHub はサインイン要求を拒否しました。",
+      "refreshRefused": "GitHub はサインインの更新を拒否しました。もう一度サインインしてください。",
+      "network": "GitHub に接続できません。接続を確認して、もう一度お試しください。",
+      "reply": "GitHub の応答を読み取れませんでした。"
+    }
   },
   "execProviderNotConfigured": "プロバイダー {id} は設定されていません。",
   "providerText": {
