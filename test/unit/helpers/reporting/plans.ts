@@ -52,16 +52,3 @@ export const QUALITY_LEDGER_FIXTURE = `# Fixture project
 \`\`\`
 `
 export const NO_PLAN_FIXTURE = '# Fixture project\n\nThis project has no structured plan.\n'
-
-export const PACKAGE_FIXTURE = `${JSON.stringify(
-  {
-    name: 'reporting-fixture',
-    scripts: {
-      quality: 'npm run quality:gates && npm run test:a11y',
-      'quality:gates': 'npm run typecheck && npm run check:reference',
-      'check:reference': 'node scripts/gen-reference.mjs --check',
-    },
-  },
-  undefined,
-  2,
-)}\n`

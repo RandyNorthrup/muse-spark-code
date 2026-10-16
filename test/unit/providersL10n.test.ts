@@ -44,10 +44,11 @@ describe('provider localization', () => {
         'report [options]',
         'setup [--maintenance]',
         'legal [options]',
-        '--no-auto-compaction',
       ]) {
         expect.soft(help).toContain(command)
       }
+      // C-X-1: automatic compaction is inactive, so no table's help offers its opt-out.
+      expect.soft(help).not.toContain('--no-auto-compaction')
     },
   )
 
@@ -130,5 +131,31 @@ describe('provider localization', () => {
     if (!invalid.success) {
       expect(invalid.error.message).toContain(fr.providerText.schema.customLimits)
     }
+  })
+
+  it('uses the grammatical Russian token noun for the output-cap minimum', () => {
+    // RVMINOUT2 P3: `не менее` governs the genitive, so `one`/`other` take
+    // токена and `few`/`many` take токенов — the same pattern as the file's
+    // existing checksStoppedNotice (раунда/раундов), not the standalone
+    // estimateTokens nominative nouns.
+    setUiText(ru, 'ru')
+    expect(plural(UI_TEXT.outputCapBelowMinimum, 1)).toBe(
+      'Лимит вывода должен составлять не менее 1 токена.',
+    )
+    expect(plural(UI_TEXT.outputCapBelowMinimum, 2)).toBe(
+      'Лимит вывода должен составлять не менее 2 токенов.',
+    )
+    expect(plural(UI_TEXT.outputCapBelowMinimum, 5)).toBe(
+      'Лимит вывода должен составлять не менее 5 токенов.',
+    )
+    expect(plural(UI_TEXT.outputCapBelowMinimum, 16)).toBe(
+      'Лимит вывода должен составлять не менее 16 токенов.',
+    )
+    expect(plural(UI_TEXT.outputCapBelowMinimum, 21)).toBe(
+      'Лимит вывода должен составлять не менее 21 токена.',
+    )
+    expect(plural(UI_TEXT.outputCapBelowMinimum, 22)).toBe(
+      'Лимит вывода должен составлять не менее 22 токенов.',
+    )
   })
 })

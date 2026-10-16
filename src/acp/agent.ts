@@ -7,7 +7,7 @@ import { vaultApprovalText } from '../runtime/vault/vaultApproval'
 //
 // What the panel guarantees holds here too: an approval is decided only
 // with a choice the backend offered, and one the client did not answer is
-// denied (D62); "Edit automatically" answers only what the panel's rule
+// denied (D62); "Edit Automatically" answers only what the panel's rule
 // allows (`editAutomaticallyChoice`, D24); a paid feature is on only with
 // its flag, and each use asks in the editor first, naming its price (M58,
 // paid.ts). Every update of a turn goes out before the turn's response.
@@ -26,6 +26,7 @@ import type { PlaybookSurfacePort } from '../runtime/playbook/command'
 import {
   agent as acpAgent,
   type AgentApp,
+  type AvailableCommand,
   type AgentContext,
   type AuthMethod,
   type ClientCapabilities,
@@ -54,6 +55,7 @@ import {
 } from '../core/agent/agentBackend'
 import { editAutomaticallyChoice } from '../core/agent/approvalRules'
 import { failureForLog } from '../core/backends/musecode/logText'
+import { resolveResumedModel } from '../core/backends/musecode/resumedModel'
 import { unlessAborted } from '../core/timeouts'
 import type { CoreLogger } from '../core/logging'
 import { type PaidUseAnswer, paidUseQuestion } from '../core/paid/paidConsent'
@@ -82,7 +84,7 @@ import {
 import { effortForThinking, effortLabel, isEffortLevel, servedEffortLevels } from '../shared/effort'
 import { fill, formatBytes, formatUnit, uiLocale } from '../shared/l10n/text'
 import type { AcpAttachment, AcpMediaFactory, AcpMediaPort } from './media'
-import { parseSkillInvocation } from '../shared/mentions'
+import { parseSkillInvocation, slashCommandText } from '../shared/mentions'
 import type { PaidUseRequest } from '../shared/paid'
 import {
   approvalModeFor,
@@ -100,7 +102,12 @@ import type {
   AcpQuestionRegistryFactory,
   AcpQueuedAnswerLease,
 } from './questionDeferral'
-import { AcpAccounts, accountErrorText, type AccountsSessionPort } from './accounts'
+import {
+  AcpAccounts,
+  accountErrorText,
+  isAccountSwitchRefusedError,
+  type AccountsSessionPort,
+} from './accounts'
 import {
   acpQuestionClock,
   questionDeferralLoader,
@@ -289,6 +296,10 @@ function isContributorModel(modelId: string): boolean {
 }
 
 function accountRequestError(error: unknown): RequestError {
+  // A refused switch is user-actionable (the session kept its account), not
+  // an internal failure: answer invalidRequest with the stay-put text.
+  if (isAccountSwitchRefusedError(error))
+    return RequestError.invalidRequest(undefined, error.message)
   const text = accountErrorText(error)
   return text === UI_TEXT.accounts.invalidAccount
     ? RequestError.invalidParams(undefined, text)
@@ -356,7 +367,7 @@ class AcpSession {
   private readonly questionBundle: () => AcpQuestionBundle
   private media: Promise<AcpMediaPort> | undefined
   private readonly attachments: AcpAttachment[] = []
-  private readonly accounts: AcpAccounts | undefined
+  private accounts: AcpAccounts | undefined
   private readonly translator: UpdateTranslator
   private unsubscribe: (() => void) | undefined
   private readonly unsubscribeResources: (() => void) | undefined
@@ -376,6 +387,8 @@ class AcpSession {
   private releaseSchedules: (() => Promise<void>) | undefined
   private isScheduleHostAvailable = true
   private effort: EffortLevel = DEFAULT_EFFORT
+  private modelChangeRevision = 0
+  private effortChangeRevision = 0
   /** Let go (closed, loaded again, or never set up): the editor's late answers decide nothing. */
   private isDisposed = false
   private vaultGeneration = 0
@@ -395,6 +408,7 @@ class AcpSession {
     private mode: PermissionMode,
     private modelId: string,
     private activeTurnId: string | undefined,
+    private readonly noteChoice: () => void,
   ) {
     this.sessionId = session.sessionId
     this.questionBundle =
@@ -556,126 +570,130 @@ class AcpSession {
     }
     this.send({
       sessionUpdate: 'available_commands_update',
-      availableCommands: [
-        ...(this.deps.sharing
-          ?.commands()
-          .filter((command) => command.name !== SLASH_COMMAND_NAMES.help) ?? []),
-        { name: SLASH_COMMAND_NAMES.help, description: UI_TEXT.referenceIntro, input: null },
-        ...(this.deps.vault === undefined
-          ? []
-          : [
-              {
-                name: 'vault',
-                description: UI_TEXT.vault.title,
-                input: { hint: 'status | list | lock | audit' },
-              },
-            ]),
-        ...(this.accounts === undefined
-          ? []
-          : [{ name: 'accounts', description: UI_TEXT.accounts.slashDescription, input: null }]),
-        { name: ACP_COMPACT_COMMAND, description: UI_TEXT.compactDetail, input: null },
-        {
-          name: SLASH_COMMAND_NAMES.report,
-          description: UI_TEXT.reportSlashDescription,
-          input: { hint: '<kind> [args] | history' },
-        },
-        ...(this.deps.legalScan === undefined
-          ? []
-          : [{ name: 'legal', description: UI_TEXT.legalScanDisclaimer, input: null }]),
-        ...(this.deps.usage === undefined
-          ? []
-          : [
-              {
-                name: 'usage',
-                description: UI_TEXT.acpUsageDescription,
-                input: null,
-              },
-            ]),
-        ...(this.deps.resources === undefined
-          ? []
-          : resourceCommands().filter(
-              (command) => command.name !== 'usage' || this.deps.usage === undefined,
-            )),
-        {
-          name: 'agents',
-          description: UI_TEXT.referenceAgentOutcomes,
-          input: { hint: '[receipt|continue|retry] [ID]' },
-        },
-        ...(this.deps.playbookFor === undefined
-          ? []
-          : [
-              {
-                name: 'playbook',
-                description: UI_TEXT.playbookHelpDescription,
-                input: { hint: 'status|record|settings' },
-              },
-            ]),
-        ...(this.deps.schedules === undefined
-          ? []
-          : [
-              {
-                name: 'schedule',
-                description: UI_TEXT.scheduleV2.labels.title,
-                input: { hint: UI_TEXT.scheduleV2.runtime.usage },
-              },
-            ]),
-        ...(this.deps.media === undefined || this.deps.options.isHeadless === true
-          ? []
-          : [
-              {
-                name: 'attach',
-                description: UI_TEXT.paletteTips.attachFile,
-                input: { hint: '<path>' },
-              },
-              { name: 'record', description: UI_TEXT.media.attachRecording, input: null },
-            ]),
-        ...(this.deps.estimate === undefined
-          ? []
-          : [
-              {
-                name: SLASH_COMMAND_NAMES.estimate,
-                description: UI_TEXT.estimateCliHelp,
-                input: { hint: UI_TEXT.estimateUsage },
-              },
-            ]),
-        ...this.skills
-          .filter(
-            (skill) =>
-              skill.selector !== SLASH_COMMAND_NAMES.help &&
-              skill.selector !== SLASH_COMMAND_NAMES.estimate &&
-              skill.selector !== ACP_COMPACT_COMMAND &&
-              skill.selector !== 'legal' &&
-              ![
-                'answer',
-                'questions',
-                'share',
-                'prompt',
-                'resources',
-                'agents',
-                SLASH_COMMAND_NAMES.report,
-                'attach',
-                'record',
-                'accounts',
-                'vault',
-              ].includes(skill.selector) &&
-              ((this.deps.usage === undefined && this.deps.resources === undefined) ||
-                skill.selector !== 'usage') &&
-              (this.deps.playbookFor === undefined || skill.selector !== 'playbook') &&
-              (this.deps.schedules === undefined || skill.selector !== 'schedule'),
-          )
-          .map((skill) => ({
-            name: skill.selector,
-            description: skill.description === '' ? skill.displayName : skill.description,
-            input: skill.argumentHint === undefined ? null : { hint: skill.argumentHint },
-          })),
-        ...(this.questionRegistry === undefined
-          ? []
-          : [
-              { name: 'answer', description: UI_TEXT.acpAnswerHelp, input: { hint: '<n> <text>' } },
-              { name: 'questions', description: UI_TEXT.acpQuestionsHelp, input: null },
-            ]),
-      ],
+      availableCommands: this.availableCommands(),
     })
+  }
+
+  private availableCommands(): AvailableCommand[] {
+    return [
+      ...(this.deps.sharing
+        ?.commands()
+        .filter((command) => command.name !== SLASH_COMMAND_NAMES.help) ?? []),
+      { name: SLASH_COMMAND_NAMES.help, description: UI_TEXT.referenceIntro, input: null },
+      ...(this.deps.vault === undefined
+        ? []
+        : [
+            {
+              name: 'vault',
+              description: UI_TEXT.vault.title,
+              input: { hint: 'status | list | lock | audit' },
+            },
+          ]),
+      ...(this.accounts === undefined
+        ? []
+        : [{ name: 'accounts', description: UI_TEXT.accounts.slashDescription, input: null }]),
+      { name: ACP_COMPACT_COMMAND, description: UI_TEXT.compactDetail, input: null },
+      {
+        name: SLASH_COMMAND_NAMES.report,
+        description: UI_TEXT.reportSlashDescription,
+        input: { hint: '<kind> [args] | history' },
+      },
+      ...(this.deps.legalScan === undefined
+        ? []
+        : [{ name: 'legal', description: UI_TEXT.legalScanDisclaimer, input: null }]),
+      ...(this.deps.usage === undefined
+        ? []
+        : [
+            {
+              name: 'usage',
+              description: UI_TEXT.acpUsageDescription,
+              input: null,
+            },
+          ]),
+      ...(this.deps.resources === undefined
+        ? []
+        : resourceCommands().filter(
+            (command) => command.name !== 'usage' || this.deps.usage === undefined,
+          )),
+      {
+        name: 'agents',
+        description: UI_TEXT.referenceAgentOutcomes,
+        input: { hint: '[receipt|continue|retry] [ID]' },
+      },
+      ...(this.deps.playbookFor === undefined
+        ? []
+        : [
+            {
+              name: 'playbook',
+              description: UI_TEXT.playbookHelpDescription,
+              input: { hint: 'status|record|settings' },
+            },
+          ]),
+      ...(this.deps.schedules === undefined || this.deps.schedules.isAvailable === false
+        ? []
+        : [
+            {
+              name: 'schedule',
+              description: UI_TEXT.scheduleV2.labels.title,
+              input: { hint: UI_TEXT.scheduleV2.runtime.usage },
+            },
+          ]),
+      ...(this.deps.media === undefined || this.deps.options.isHeadless === true
+        ? []
+        : [
+            {
+              name: 'attach',
+              description: UI_TEXT.paletteTips.attachFile,
+              input: { hint: '<path>' },
+            },
+            { name: 'record', description: UI_TEXT.media.attachRecording, input: null },
+          ]),
+      ...(this.deps.estimate === undefined || this.deps.estimate.isAvailable === false
+        ? []
+        : [
+            {
+              name: SLASH_COMMAND_NAMES.estimate,
+              description: UI_TEXT.estimateCliHelp,
+              input: { hint: UI_TEXT.estimateUsage },
+            },
+          ]),
+      ...this.skills
+        .filter(
+          (skill) =>
+            skill.selector !== SLASH_COMMAND_NAMES.help &&
+            skill.selector !== SLASH_COMMAND_NAMES.estimate &&
+            skill.selector !== ACP_COMPACT_COMMAND &&
+            skill.selector !== 'legal' &&
+            ![
+              'answer',
+              'questions',
+              'share',
+              'prompt',
+              'resources',
+              'agents',
+              SLASH_COMMAND_NAMES.report,
+              'attach',
+              'record',
+              'accounts',
+              'vault',
+            ].includes(skill.selector) &&
+            ((this.deps.usage === undefined && this.deps.resources === undefined) ||
+              skill.selector !== 'usage') &&
+            (this.deps.playbookFor === undefined || skill.selector !== 'playbook') &&
+            skill.selector !== 'schedule',
+        )
+        .map((skill) => ({
+          name: skill.selector,
+          description: skill.description === '' ? skill.displayName : skill.description,
+          input: skill.argumentHint === undefined ? null : { hint: skill.argumentHint },
+        })),
+      ...(this.questionRegistry === undefined
+        ? []
+        : [
+            { name: 'answer', description: UI_TEXT.acpAnswerHelp, input: { hint: '<n> <text>' } },
+            { name: 'questions', description: UI_TEXT.acpQuestionsHelp, input: null },
+          ]),
+    ]
   }
 
   private mediaPort(): Promise<AcpMediaPort> {
@@ -825,13 +843,17 @@ class AcpSession {
         return
       }
       case 'modelChanged': {
+        this.modelChangeRevision += 1
         this.modelId = event.modelId
+        this.noteChoice()
         this.send({ sessionUpdate: 'config_option_update', configOptions: this.configOptions() })
         return
       }
       case 'effortChanged': {
         if (isEffortLevel(event.effort)) {
+          this.effortChangeRevision += 1
           this.effort = event.effort
+          this.noteChoice()
           this.send({ sessionUpdate: 'config_option_update', configOptions: this.configOptions() })
         }
         return
@@ -1381,7 +1403,20 @@ class AcpSession {
   }
 
   public async startAccounts(): Promise<void> {
-    await this.accounts?.start()
+    // Ordinary sessions never depend on accounts: a failing port leaves the
+    // session working without accounts instead of failing adoption.
+    try {
+      await this.accounts?.start()
+    } catch (error: unknown) {
+      const accounts = this.accounts
+      this.accounts = undefined
+      this.deps.log.warn(`ACP accounts startup failed: ${failureForLog(error)}`)
+      try {
+        accounts?.dispose()
+      } catch (error: unknown) {
+        this.deps.log.warn(`ACP accounts cleanup failed: ${failureForLog(error)}`)
+      }
+    }
   }
 
   /** Broker-owned request; Bypass, tools and paid grants never enter this path. */
@@ -1521,8 +1556,51 @@ class AcpSession {
     const served = servedEffort(this.models, this.modelId, effort)
     if (served === undefined) return
     this.ensureHeld()
+    const revision = this.effortChangeRevision
     await this.session.setReasoningEffort(effortForThinking(served, true))
-    this.effort = served
+    if (this.effortChangeRevision === revision) {
+      this.effort = served
+    }
+  }
+
+  /** The model and effort the editor chose for this session, for a later load. */
+  public currentChoice(): { readonly modelId: string; readonly effort: EffortLevel } {
+    return { modelId: this.modelId, effort: this.effort }
+  }
+
+  /**
+   * A loaded session made to run on the remembered choice (restart
+   * recovery): `session/resume` takes no model, so the choice is applied
+   * with `session/setModel` and read back with `model/list` before anything
+   * is replayed or run. What the editor is shown comes from the backend's
+   * answer: on a mismatch the load fails instead, so nothing runs on a
+   * model the editor was not told.
+   */
+  public async restoreChoice(modelId: string, effort: EffortLevel): Promise<void> {
+    this.ensureHeld()
+    await this.session.setApprovalMode(approvalModeFor(this.mode, true))
+    this.ensureHeld()
+    // Muse resume needs an explicit selection; Model API's loaded model is
+    // authoritative and an unchanged selection must not run switch hooks.
+    if (this.host.info.kind === 'museCode' || this.session.modelId !== modelId) {
+      await this.session.setModel(modelId)
+    }
+    const reported = await this.host.listModels(this.sessionId)
+    const outcome = resolveResumedModel({
+      wantedModelId: modelId,
+      activeModelId: reported.find((model) => model.isActive)?.modelId,
+    })
+    if (!outcome.ok) {
+      throw RequestError.internalError(
+        undefined,
+        fill(UI_TEXT.modelNotKeptAfterRestart, {
+          active: outcome.activeModelId,
+          wanted: outcome.wantedModelId,
+        }),
+      )
+    }
+    this.modelId = outcome.modelId
+    await this.applyEffort(effort)
   }
 
   public async setMode(modeId: string): Promise<void> {
@@ -1561,8 +1639,13 @@ class AcpSession {
         throw RequestError.invalidParams(undefined, value)
       }
       this.ensureHeld()
+      const revision = this.modelChangeRevision
       await this.session.setModel(value)
-      this.modelId = value
+      // A backend event during the command is authoritative (for example a
+      // canonicalized id); its editor update must survive the command ack.
+      if (this.modelChangeRevision === revision) {
+        this.modelId = value
+      }
       await this.applyEffort(this.effort)
       return
     }
@@ -1725,19 +1808,29 @@ class AcpSession {
         preparing.abort.signal,
       )
       if (!parsed.ok) throw RequestError.invalidParams(undefined, parsed.reason)
-      const estimatePart = blocks.find((block) => block.type === 'text')
-      if (estimatePart !== undefined && /^\/estimate(?:\s|$)/.test(estimatePart.text.trim())) {
+      // Every local command below is decided on this one text, the same one
+      // the skill parser reads (withSkill). Matching the text as sent let
+      // " /schedule list" pass the schedule refusal and still run a workspace
+      // skill of that name, or start a model turn (RVCX1F F1).
+      const typed = slashCommandText(parsed.displayText)
+      if (/^\/estimate(?:\s|$)/.test(typed)) {
         const controller = preparing.abort
         try {
           await this.announceCommands()
           if ('error' in preparing) throw preparing.error
           if (this.wasEstimateCancelled(preparing)) return 'cancelled'
-          let text = UI_TEXT.estimateUsage
-          if (parsed.parts.length === 1)
-            text =
-              this.deps.estimate === undefined
-                ? fill(UI_TEXT.estimateWaiting, { dependency: 'M117-W-estimator-binding' })
-                : await this.deps.estimate.run(estimatePart.text, this.cwd, controller.signal)
+          let text =
+            this.deps.estimate !== undefined &&
+            this.deps.estimate.isAvailable !== false &&
+            parsed.parts.length !== 1
+              ? UI_TEXT.estimateUsage
+              : UI_TEXT.estimateRuntimeUnavailable
+          if (
+            this.deps.estimate !== undefined &&
+            this.deps.estimate.isAvailable !== false &&
+            parsed.parts.length === 1
+          )
+            text = await this.deps.estimate.run(typed, this.cwd, controller.signal)
           if ('error' in preparing) throw preparing.error
           if (this.wasEstimateCancelled(preparing)) return 'cancelled'
           this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
@@ -1761,11 +1854,11 @@ class AcpSession {
       }
 
       if (
-        ['/legal', '/legal --offline'].includes(parsed.displayText.trim()) &&
+        ['/legal', '/legal --offline'].includes(typed) &&
         this.deps.legalScan !== undefined &&
         parsed.parts.every((part) => part.type === 'text')
       )
-        return await this.runLegalScan(this.deps.legalScan, parsed.displayText.trim() === '/legal')
+        return await this.runLegalScan(this.deps.legalScan, typed === '/legal')
       const [part] = parsed.parts
       isCompact =
         parsed.parts.length === 1 &&
@@ -1783,31 +1876,7 @@ class AcpSession {
             sessionUpdate: 'agent_message_chunk',
             content: {
               type: 'text',
-              text: compactReference([
-                ACP_COMPACT_COMMAND,
-                ...(this.deps.legalScan === undefined ? [] : ['legal']),
-                ...(this.deps.usage === undefined ? [] : ['usage']),
-                ...(this.deps.media === undefined || this.deps.options.isHeadless === true
-                  ? []
-                  : ['attach', 'record']),
-                ...this.skills
-                  .map((skill) => skill.selector)
-                  .filter(
-                    (name) =>
-                      ![
-                        'answer',
-                        'questions',
-                        'share',
-                        'prompt',
-                        'agents',
-                        'attach',
-                        'record',
-                      ].includes(name),
-                  ),
-                'agents',
-                ...(this.questionRegistry === undefined ? [] : ['questions', 'answer']),
-                ...(this.deps.sharing?.commands().map((command) => command.name) ?? []),
-              ]),
+              text: compactReference(this.availableCommands().map((command) => command.name)),
             },
           })
         await this.outbox
@@ -1823,11 +1892,13 @@ class AcpSession {
         },
       )
       if (local === undefined) await this.announceCommands()
-      if (/^\/schedule(?:\s|$)/.test(parsed.displayText)) {
+      if (/^\/schedule(?:\s|$)/.test(typed)) {
         const result =
-          this.deps.schedules === undefined || !this.isScheduleHostAvailable
+          this.deps.schedules === undefined ||
+          this.deps.schedules.isAvailable === false ||
+          !this.isScheduleHostAvailable
             ? UI_TEXT.scheduleV2.runtime.unavailable
-            : await this.deps.schedules.run(parsed.displayText, {
+            : await this.deps.schedules.run(typed, {
                 cwd: this.cwd,
                 sessionId: this.sessionId,
                 backend: this.deps.backend.kind,
@@ -1839,8 +1910,7 @@ class AcpSession {
         await this.outbox
         return 'end_turn'
       }
-      const first = parsed.parts[0]
-      if (first?.type === 'text' && /^\/accounts(?:\s|$)/.test(first.text)) {
+      if (/^\/accounts(?:\s|$)/.test(typed)) {
         if (this.accounts === undefined)
           throw RequestError.internalError(undefined, UI_TEXT.accounts.unavailable)
         if (parsed.parts.length !== 1)
@@ -1848,7 +1918,7 @@ class AcpSession {
         let text: string | undefined
         try {
           text = await this.accounts.command(
-            first.text,
+            typed,
             () => !this.isDisposed && !preparing.isCancelled && !('error' in preparing),
           )
         } catch (error) {
@@ -2073,6 +2143,7 @@ class AcpSession {
   }
 
   public async holdSchedules(): Promise<void> {
+    if (this.deps.schedules?.isAvailable === false) return
     try {
       const release = await this.deps.schedules?.holdWorkspace?.(this.cwd)
       if (this.isDisposed) await release?.()
@@ -2163,6 +2234,12 @@ class AcpSession {
 /** The agent's state across the connection: the client's capabilities and the live sessions. */
 class AgentState {
   private readonly sessions = new Map<string, AcpSession>()
+  /**
+   * The model and effort the editor chose per session: a load after the
+   * backend restarted re-applies them and reads them back, so the session
+   * keeps running on the chosen model instead of the CLI's default.
+   */
+  private readonly choices = new Map<string, { modelId: string; effort: EffortLevel }>()
   /** Sessions being set up (`adopt`), by id: a newer load or a close lets them go too. */
   private readonly adopting = new Map<string, AcpSession>()
   private readonly claims = new Map<string, SessionClaim>()
@@ -2261,6 +2338,16 @@ class AgentState {
           : this.deps.options.initialMode,
         session.modelId,
         activeTurnId,
+        () => {
+          // A replaced or released surface cannot overwrite its successor.
+          if (
+            acp !== undefined &&
+            !acp.isReleased &&
+            (this.sessions.get(sessionId) === acp || this.adopting.get(sessionId) === acp)
+          ) {
+            this.choices.set(sessionId, acp.currentChoice())
+          }
+        },
       )
       this.adopting.set(sessionId, acp)
       await acp.loadQuestions()
@@ -2434,6 +2521,8 @@ class AgentState {
     const acp = await this.adopt(host, session, cwd, client, models, claim, (started) =>
       started.applyEffort(startingEffort(models, modelId)),
     )
+    // Keep what the editor is shown, including backend events during setup.
+    this.choices.set(session.sessionId, acp.currentChoice())
     return { sessionId: session.sessionId, modes: acp.modes(), configOptions: acp.configOptions() }
   }
 
@@ -2459,7 +2548,10 @@ class AgentState {
       // which may differ from what the editor is told (a more permissive mode,
       // a hidden model): they are set before anything is replayed, as the
       // panel sets its own on a resume. Nothing is shown that does not run:
-      // if the backend refuses, the load fails instead.
+      // if the backend refuses, the load fails instead. Where the editor
+      // chose a model and effort in this process, that choice is applied and
+      // read back first, so a restart keeps running on it.
+      const remembered = this.choices.get(sessionId)
       const acp = await this.adopt(
         host,
         loaded.session,
@@ -2468,7 +2560,11 @@ class AgentState {
         models,
         claim,
         async (resumed) => {
-          await resumed.matchAdvertised()
+          if (remembered === undefined) {
+            await resumed.matchAdvertised()
+          } else {
+            await resumed.restoreChoice(remembered.modelId, remembered.effort)
+          }
           if (!isReplayed) {
             return
           }
@@ -2478,6 +2574,7 @@ class AgentState {
         loaded.record.imported === true,
         loaded.activeTurnId,
       )
+      this.choices.set(sessionId, acp.currentChoice())
       return { modes: acp.modes(), configOptions: acp.configOptions() }
     } catch (error: unknown) {
       if (this.claims.get(sessionId) === claim) {
@@ -2522,10 +2619,19 @@ class AgentState {
     return this.sessions.get(sessionId)
   }
 
+  /** Remember the editor's latest model/effort choice for a later load. */
+  public noteChoice(sessionId: string): void {
+    const held = this.sessions.get(sessionId)
+    if (held !== undefined) {
+      this.choices.set(sessionId, held.currentChoice())
+    }
+  }
+
   /** The editor closes a session: the one held, or one still being set up. */
   public async closeSession(sessionId: string): Promise<void> {
     const wasClaimed = this.claims.delete(sessionId)
     const wasReleased = await this.releaseAll(sessionId)
+    this.choices.delete(sessionId)
     if (!wasClaimed && !wasReleased) {
       throw RequestError.resourceNotFound(sessionId)
     }
@@ -2596,6 +2702,7 @@ export function createAcpAgent(deps: AcpAgentDeps): AgentApp {
     .onRequest('session/set_config_option', async (context) => {
       const session = state.session(context.params.sessionId)
       await session.setConfigOption(context.params.configId, context.params.value)
+      state.noteChoice(context.params.sessionId)
       return { configOptions: session.configOptions() }
     })
     .onRequest('session/prompt', async (context) => ({

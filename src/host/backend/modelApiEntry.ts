@@ -1,4 +1,9 @@
-import { MODEL_API_MAX_RETRIES, UI_TEXT } from '../../shared/constants'
+import {
+  IS_AUTO_COMPACTION_EVALUATED,
+  MODEL_API_MAX_RETRIES,
+  SETTING_DEFAULTS,
+  UI_TEXT,
+} from '../../shared/constants'
 import type { CreateResponseBody, StreamEvent } from '../../core/backends/modelapi/schemas'
 import {
   type ResponseAttemptGuard,
@@ -15,6 +20,13 @@ import {
 // available when this backend is loaded outside the extension.
 
 // T's one request loop and framing API are shared by the lazy provider adapters.
+// The build points every other bundle's import of transport.ts, sse.ts and
+// ndjson.ts at this bundle (deferredCohort), so a name those bundles import
+// exists at run time only if it is exported here: TypeScript checks the import
+// against the source module and cannot see the difference. 0.18.0 shipped
+// without the three confirmed-dispatch names, and every turn on a configured
+// provider, a plan or Copilot failed before sending (HOTFIX0181). The split
+// gate now reads the built bundles and fails on a member this list lacks.
 export {
   RequestTransport,
   ModelApiError,
@@ -24,6 +36,9 @@ export {
   redactModelApiError,
   ignoreClosingError,
   redactSecrets,
+  assertConfirmedAllowed,
+  isStaleConfirmedError,
+  noteConfirmedRequestStarted,
 } from '../../core/backends/modelapi/transport'
 export { parseSse, boundedChunks, streamLimitError } from '../../core/backends/modelapi/sse'
 export { parseNdjson } from '../../core/backends/modelapi/ndjson'
@@ -42,10 +57,13 @@ import {
 
 import { sparkHooksFiles } from '../../core/backends/modelapi/hookNames'
 
-import { ModelApiHost } from '../../core/backends/modelapi/ModelApiHost'
+import { ModelApiHost, type ModelApiHostDeps } from '../../core/backends/modelapi/ModelApiHost'
+import { resolveAutoCompactModel } from '../../core/backends/modelapi/autoCompactionAdmission'
+import { requestImageCount } from '../../core/backends/modelapi/modelPolicy'
+import { Usd } from '../../shared/usd'
 
 import type { UiText } from '../../shared/l10n/en'
-import { setUiText } from '../../shared/l10n/text'
+import { setUiText, uiLocale } from '../../shared/l10n/text'
 import type { ModelApiBundleDeps } from './modelApiBundle'
 
 /**
@@ -92,6 +110,51 @@ async function loadSparkHooks(sources: HookLoadDeps): Promise<readonly Extension
     return []
   }
   return await entry.loadSparkHookDefinitions(sources)
+}
+
+/** The same admission authority, constructed behind the backend's existing boundary. */
+function autoCompactionAdmission(
+  deps: ModelApiBundleDeps,
+): ModelApiHostDeps['admitAutoCompaction'] {
+  const config = deps.autoCompaction
+  if (
+    config?.reserveAutoCompaction === undefined &&
+    config?.autoCompactionAccounting !== 'transport'
+  )
+    return
+  const host = deps.host
+  return async (request) => {
+    const runtime = await import('../../core/backends/modelapi/foreignHooksEntry')
+    runtime.setUiText(UI_TEXT, uiLocale())
+    return await runtime.createAutoCompactionAdmission({
+      loadPricing: async () => {
+        const { priceCard } = await import('./providersEntry')
+        return { reserveRequestAmount: priceCard.reserveRequestAmount, requestImageCount }
+      },
+      accounting:
+        config.autoCompactionAccounting === 'transport'
+          ? 'transport'
+          : {
+              reserveCompaction: async (amount, signal) => {
+                if (config.reserveAutoCompaction === undefined)
+                  throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+                return await config.reserveAutoCompaction(amount, signal)
+              },
+            },
+      allowsPaidUse: host.allowsPaidUse,
+      isOn: () => host.isPaidFeatureOn('autoCompaction') && host.autoCompaction?.() !== false,
+      isTrusted: host.isWorkspaceTrusted,
+      isEvaluated: () => host.autoCompactionEvaluated?.() ?? IS_AUTO_COMPACTION_EVALUATED,
+      paidUseFence: (sessionId) =>
+        config.paidUseFence?.('autoCompaction', sessionId) ?? (() => false),
+      dailyBudgetUsd:
+        config.paidDailyBudgetUsd ??
+        (() => Usd.from(SETTING_DEFAULTS.paidDailyBudgetUsd).toAmount()),
+      notePaidUse: host.notePaidUse,
+      log: host.log,
+      storeUnavailable: UI_TEXT.sessionBudgetStoreUnavailable,
+    })(request)
+  }
 }
 
 /** The host over the given dependencies, its stored sessions read. */
@@ -145,6 +208,8 @@ export async function createModelApiHost(deps: ModelApiBundleDeps): Promise<Mode
   const isPlanModel = 'isPlanModel' in client ? client.isPlanModel : undefined
   const host = new ModelApiHost({
     ...hostDeps,
+    autoCompactModel: hostDeps.autoCompactModel ?? resolveAutoCompactModel,
+    admitAutoCompaction: hostDeps.admitAutoCompaction ?? autoCompactionAdmission(deps),
     modelFacts: hostDeps.modelFacts ?? metaModelFacts,
     sideCallFormats: hostDeps.sideCallFormats ?? metaSideCallFormats,
     modelCapabilities: hostDeps.modelCapabilities ?? metaHostedCapabilities,

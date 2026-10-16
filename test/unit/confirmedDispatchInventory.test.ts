@@ -64,6 +64,11 @@ const ALLOWLIST: readonly AllowEntry[] = [
     why: 'provider failure after dispatch; the confirmation gate already passed',
   },
   {
+    file: 'src/core/backends/modelapi/client.ts',
+    match: /outputTokenMinimumMessage\(MODEL_API_MIN_OUTPUT_TOKENS\)/,
+    why: 'output-cap minimum (MINOUT) for every request, confirmed or not; it decides no confirmation and the helper runs right after it',
+  },
+  {
     file: 'src/core/backends/modelapi/hookModelEntry.ts',
     match: /throw error/,
     why: 'rethrow; the hook confirmation is only forwarded to the client',
@@ -125,6 +130,11 @@ const ALLOWLIST: readonly AllowEntry[] = [
     why: 'non-stale dispatch failures keep the provider unavailable text',
   },
   {
+    file: 'src/core/providers/configured.ts',
+    match: /outputTokenMinimumMessage\(minimum\)/,
+    why: 'the provider output-cap minimum (MINOUT) for every request, confirmed or not; the confirmed gate is the helper below it',
+  },
+  {
     file: 'src/core/providers/subscriptions/registry.ts',
     match: /adapter === undefined/,
     why: 'missing Copilot adapter; unrelated to the confirmation it forwards',
@@ -133,6 +143,11 @@ const ALLOWLIST: readonly AllowEntry[] = [
     file: 'src/core/providers/subscriptions/registry.ts',
     match: /throw signal\.reason/,
     why: 'abort rethrow after the helper re-check; not a confirmation decision',
+  },
+  {
+    file: 'src/core/providers/subscriptions/registry.ts',
+    match: /^throw error$/,
+    why: 'the ChatGPT idle limit (0.17.2): the awaited fetch or read is rethrown after a silent stream is aborted; it decides no confirmation',
   },
   {
     file: 'src/host/providers/copilotClient.ts',
@@ -153,6 +168,11 @@ const ALLOWLIST: readonly AllowEntry[] = [
     file: 'src/runtime/runtimeAccountingEntry.ts',
     match: /execModelUnpriced/,
     why: 'exec pricing fence; the confirmation is forwarded untouched',
+  },
+  {
+    file: 'src/runtime/runtimeAccountingEntry.ts',
+    match: /throw error/,
+    why: 'rethrow after noting a rate limit for settlement (M101 admission); the confirmation is forwarded untouched',
   },
 ]
 

@@ -66,6 +66,9 @@
   "tornLines": {
     "other": "불완전한 줄 {count}건을 건너뛰었습니다"
   },
+  "inexactRecords": {
+    "other": "금액을 정확히 읽을 수 없는 이전 기록 {count}건은 집계에 포함되지 않았습니다"
+  },
   "recordCount": {
     "other": "기록 {count}건"
   },
@@ -85,7 +88,7 @@
   "apiEquivalentNote": "구독 추가 요금이 아닌 동등한 API 가격입니다.",
   "totalTime": "총 요청 시간",
   "latencyP50": "중앙값 지연 시간(p50)",
-  "latencyP95": "p95 지연 시간",
+  "latencyP95": "P95 지연 시간",
   "firstToken": "첫 토큰까지의 시간",
   "tokensPerSecond": "초당 토큰 수",
   "cacheHit": "캐시 적중률",

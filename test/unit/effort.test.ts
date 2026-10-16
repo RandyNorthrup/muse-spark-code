@@ -31,7 +31,7 @@ describe('effort helpers', () => {
   })
 
   it('labels tiers the way Claude Code does', () => {
-    expect(effortLabel('xhigh')).toBe('Extra high')
+    expect(effortLabel('xhigh')).toBe('Extra High')
     expect(effortLabel('max')).toBe('Max')
   })
 

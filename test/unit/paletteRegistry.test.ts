@@ -276,12 +276,12 @@ describe('buildPalette', () => {
   it('lays out the seven Claude Code groups in order, with git and pull requests (M71), Review (M70) before Support', () => {
     expect(pricedPalette(context).map((group) => group.title)).toEqual([
       'Context',
-      'Git and pull requests',
+      'Git and Pull Requests',
       'Model',
       'Customize',
-      'Account & usage',
+      'Account & Usage',
       'Skills',
-      'Slash commands',
+      'Slash Commands',
       'Review',
       'Support',
     ])
@@ -316,7 +316,7 @@ describe('buildPalette', () => {
       text: 'muse-spark-1.3 (1M context)',
     })
     expect(items.find((item) => item.id === 'effort')).toMatchObject({
-      label: 'Effort (Extra high)',
+      label: 'Effort (Extra High)',
       widget: {
         kind: 'slider',
         levels: ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'],
@@ -337,7 +337,7 @@ describe('buildPalette', () => {
     })
     expect(items.find((item) => item.id === 'permissionMode')?.widget).toEqual({
       kind: 'value',
-      text: 'Edit automatically',
+      text: 'Edit Automatically',
     })
     expect(items.find((item) => item.id === 'usage')?.widget).toEqual({
       kind: 'value',
@@ -351,14 +351,14 @@ describe('buildPalette', () => {
       {
         id: 'manageSkills',
         tip: EN.paletteTips.manageSkills,
-        label: 'Manage skills…',
+        label: 'Manage Skills…',
         detail: 'Turn Muse Code’s skills on or off',
         action: { type: 'manageSkills' },
       },
       {
         id: 'importSkills',
         tip: EN.paletteTips.importSkills,
-        label: 'Import skills…',
+        label: 'Import Skills…',
         detail: 'Copy your Claude Code or Codex skills into Muse Code',
         action: { type: 'importSkills' },
       },
@@ -415,24 +415,24 @@ describe('buildPalette', () => {
     })
   })
 
-  it('shows the backend in use under Account & usage, opening the settings', () => {
+  it('shows the backend in use under Account & Usage, opening the settings', () => {
     expect(backendRow(context, 'museCode')).toMatchObject({
       label: 'Backend',
-      widget: { kind: 'value', text: 'Muse Code (your Muse subscription)' },
+      widget: { kind: 'value', text: 'Muse Code (Your Muse Subscription)' },
       action: { type: 'openSettings' },
     })
     expect(backendRow(context, 'modelApi')?.widget).toEqual({
       kind: 'value',
-      text: 'Meta Model API (your key, pay as you go)',
+      text: 'Meta Model API (Your Key, Pay as You Go)',
     })
     expect(backendRow(context, undefined)?.widget).toEqual({ kind: 'value', text: '—' })
   })
 
-  it('opens the Account & usage dialog from its row and from /usage and /cost', () => {
+  it('opens the Account & Usage dialog from its row and from /usage and /cost', () => {
     const groups = pricedPalette(context)
     const account = groups.find((group) => group.id === 'account')
     expect(account?.items[0]).toMatchObject({
-      label: 'Account & usage…',
+      label: 'Account & Usage…',
       action: { type: 'openUsage' },
     })
     const slash = groups.find((group) => group.id === 'slash')
@@ -444,9 +444,9 @@ describe('buildPalette', () => {
       '/goal',
       '/legal',
       '/export',
-      'Export session log…',
-      'Export session as JSON…',
-      'Open share file…',
+      'Export Session Log…',
+      'Export Session as JSON…',
+      'Open Share File…',
       '/clear',
       '/logout',
       '/usage',
@@ -588,14 +588,14 @@ describe('buildPalette', () => {
       {
         id: 'continue:claude',
         tip: EN.paletteTips['continue:claude'],
-        label: 'Continue a Claude Code session',
+        label: 'Continue a Claude Code Session',
         detail: 'Pick up unfinished work in this conversation',
         action: { type: 'insertSkill', selector: 'resume-claude' },
       },
       {
         id: 'continue:codex',
         tip: EN.paletteTips['continue:codex'],
-        label: 'Continue a Codex session',
+        label: 'Continue a Codex Session',
         detail: 'Pick up unfinished work in this conversation',
         action: { type: 'insertSkill', selector: 'resume-codex' },
       },
@@ -696,7 +696,7 @@ describe('slashCommandsOf', () => {
     ])
     // A row named for the prompt describes itself by its label.
     expect(commands.find((command) => command.name === 'model')).toMatchObject({
-      detail: 'Switch model…',
+      detail: 'Switch Model…',
       action: { type: 'openModelPicker' },
     })
     expect(commands.find((command) => command.name === 'compact')?.detail).toBe(
@@ -758,7 +758,7 @@ describe('rankSlashCommands', () => {
     slashCommand('compact', 'Summarise older context'),
     slashCommand('engineering:standup'),
     slashCommand('code-review'),
-    slashCommand('clear', 'Clear conversation'),
+    slashCommand('clear', 'Clear Conversation'),
     slashCommand('describe-this'),
   ]
   const rank = (query: string) => rankSlashCommands(commands, query).map((entry) => entry.name)
@@ -789,7 +789,7 @@ describe('buildPalette: paid features (M33, PLAN.md D30)', () => {
 
   it('offers the key’s images, voice and legal explanation on Muse Code (M44, M97)', () => {
     const rows = paidRows(pricedPalette({ ...context, isKeyStored: true }))
-    // Web search is Muse Code's own there, on the subscription.
+    // Web Search is Muse Code's own there, on the subscription.
     // D75 also exposes the key's team setting; paid delegate consent still gates use.
     expect(rows.map((row) => row.id)).toEqual([
       'paid:imageGeneration',
@@ -798,7 +798,7 @@ describe('buildPalette: paid features (M33, PLAN.md D30)', () => {
       'paid:legalExplanation',
     ])
     expect(rows.at(-1)).toMatchObject({
-      label: 'Explain findings (paid)',
+      label: 'Explain Findings (Paid)',
       widget: { kind: 'toggle', isOn: false },
       action: { type: 'setPaidFeature', feature: 'legalExplanation', isOn: true },
     })
@@ -810,60 +810,60 @@ describe('buildPalette: paid features (M33, PLAN.md D30)', () => {
     )
     expect(rows.map((row) => [row.label, row.detail, row.widget, row.action])).toEqual([
       [
-        'Web search (paid)',
+        'Web Search (Paid)',
         '$2.50 per 1,000 searches',
         { kind: 'toggle', isOn: false },
         { type: 'setPaidFeature', feature: 'webSearch', isOn: true },
       ],
       [
-        'Images (paid)',
+        'Images (Paid)',
         '$0.01 per image',
         { kind: 'toggle', isOn: true },
         { type: 'setPaidFeature', feature: 'imageGeneration', isOn: false },
       ],
       [
-        'Muse Voice (paid)',
+        'Muse Voice (Paid)',
         '$0.18 per hour of audio',
         { kind: 'toggle', isOn: false },
         { type: 'setPaidFeature', feature: 'voice', isOn: true },
       ],
       [
-        'Subagents (paid)',
+        'Subagents (Paid)',
         'muse-spark-1.3: $1.250 input, $0.150 cached input, $4.250 output per million tokens; up to 4 requests per task, including retries.\n' +
           'muse-spark-1.3-contributor: $0.100 input, $0.0020 cached input, $0.200 output per million tokens; up to 4 requests per task, including retries.',
         { kind: 'toggle', isOn: false },
         { type: 'setPaidFeature', feature: 'subagents', isOn: true },
       ],
       [
-        'Scheduled prompts (paid)',
+        'Scheduled Prompts (Paid)',
         'muse-spark-1.1, muse-spark-1.2, muse-spark-1.3: $1.250/1M input, $0.150/1M cached input, $4.250/1M output tokens\n' +
           'muse-spark-1.2-contributor, muse-spark-1.3-contributor: $0.100/1M input, $0.0020/1M cached input, $0.200/1M output tokens',
         { kind: 'toggle', isOn: false },
         { type: 'setPaidFeature', feature: 'scheduledPrompts', isOn: true },
       ],
       [
-        'Auto reviewer (paid)',
+        'Auto Reviewer (Paid)',
         'muse-spark-1.1, muse-spark-1.2, muse-spark-1.3: $1.250/1M input, $0.150/1M cached input, $4.250/1M output tokens\n' +
           'muse-spark-1.2-contributor, muse-spark-1.3-contributor: $0.100/1M input, $0.0020/1M cached input, $0.200/1M output tokens',
         { kind: 'toggle', isOn: false },
         { type: 'setPaidFeature', feature: 'autoReviewer', isOn: true },
       ],
       [
-        'Best of N (paid)',
+        'Best of N (Paid)',
         'muse-spark-1.3: $1.250 input, $0.150 cached input, $4.250 output per million tokens; 3 attempts with up to 20 requests each, including retries.\n' +
           'muse-spark-1.3-contributor: $0.100 input, $0.0020 cached input, $0.200 output per million tokens; 3 attempts with up to 20 requests each, including retries.',
         { kind: 'toggle', isOn: false },
         { type: 'setPaidFeature', feature: 'bestOfN', isOn: true },
       ],
       [
-        'Team workers (paid)',
+        'Team Workers (Paid)',
         'muse-spark-1.1, muse-spark-1.2, muse-spark-1.3: $1.250/1M input, $0.150/1M cached input, $4.250/1M output tokens\n' +
           'muse-spark-1.2-contributor, muse-spark-1.3-contributor: $0.100/1M input, $0.0020/1M cached input, $0.200/1M output tokens',
         { kind: 'toggle', isOn: false },
         { type: 'setPaidFeature', feature: 'teamWorkers', isOn: true },
       ],
       [
-        'Tab completions (paid)',
+        'Tab Completions (Paid)',
         'muse-spark-1.1, muse-spark-1.2, muse-spark-1.3: $1.250/1M input, $0.150/1M cached input, $4.250/1M output tokens\n' +
           'muse-spark-1.2-contributor, muse-spark-1.3-contributor: $0.100/1M input, $0.0020/1M cached input, $0.200/1M output tokens',
         { kind: 'toggle', isOn: false },
@@ -871,21 +871,21 @@ describe('buildPalette: paid features (M33, PLAN.md D30)', () => {
       ],
       // M91 lane H: prompt and agent hooks, each a paid model call.
       [
-        'Model hooks (paid)',
+        'Model Hooks (Paid)',
         '$1.250/1M input, $0.150/1M cached input, $4.250/1M output tokens\n' +
           '$0.100/1M input, $0.0020/1M cached input, $0.200/1M output tokens',
         { kind: 'toggle', isOn: false },
         { type: 'setPaidFeature', feature: 'hookModels', isOn: true },
       ],
       [
-        'Judge (paid)',
+        'Judge (Paid)',
         'muse-spark-1.1, muse-spark-1.2, muse-spark-1.3: $1.250/1M input, $0.150/1M cached input, $4.250/1M output tokens\n' +
           'muse-spark-1.2-contributor, muse-spark-1.3-contributor: $0.100/1M input, $0.0020/1M cached input, $0.200/1M output tokens',
         { kind: 'toggle', isOn: false },
         { type: 'setPaidFeature', feature: 'judge', isOn: true },
       ],
       [
-        'Explain findings (paid)',
+        'Explain Findings (Paid)',
         'muse-spark-1.1, muse-spark-1.2, muse-spark-1.3: $1.250/1M input, $0.150/1M cached input, $4.250/1M output tokens\n' +
           'muse-spark-1.2-contributor, muse-spark-1.3-contributor: $0.100/1M input, $0.0020/1M cached input, $0.200/1M output tokens',
         { kind: 'toggle', isOn: false },
@@ -901,7 +901,7 @@ describe('buildPalette: paid features (M33, PLAN.md D30)', () => {
     const tips = new Map(Object.entries(EN.paletteTips))
     expect(rows.length).toBeGreaterThan(0)
     for (const row of rows) {
-      expect(row.label).toContain('(paid)')
+      expect(row.label).toContain('(Paid)')
       expect(row.detail).toBeUndefined()
       // The static per-row tip still reads; only the exact price waits.
       expect(row.tip).toBe(tips.get(row.id))
@@ -972,6 +972,19 @@ describe('M115 bound schedule palette', () => {
       expect(rows.find((row) => row.id === 'schedulePrompt')?.action).toEqual(schedules.create)
       expect(rows.find((row) => row.id === 'scheduleTimeline')?.action).toEqual(schedules.timeline)
       expect(rows.find((row) => row.id === 'loop')?.action).toEqual({ type: 'startLoop' })
+      const dormant = pricedPalette({
+        ...context,
+        backend,
+        schedules: { ...schedules, isAvailable: false },
+      })
+      const dormantCommands = slashCommandsOf(dormant).map((command) => command.name)
+      expect(dormantCommands).toContain('loop')
+      expect(dormantCommands).not.toContain('schedule')
+      expect(
+        dormant
+          .flatMap((group) => group.items)
+          .filter((row) => ['schedule', 'schedulePrompt', 'scheduleTimeline'].includes(row.id)),
+      ).toEqual([])
       for (const id of ['schedule', 'schedulePrompt', 'scheduleTimeline']) {
         expect(rows.find((row) => row.id === id)?.tip?.trim(), id).toBeTruthy()
       }

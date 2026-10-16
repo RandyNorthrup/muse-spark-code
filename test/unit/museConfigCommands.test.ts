@@ -126,7 +126,7 @@ describe('showMcpServers', () => {
   it('lists each server with its transport, target, mode and secret names, then the actions', async () => {
     const t = harness({ settings: TWO_SERVERS })
     await showMcpServers(t.deps)
-    expect(t.picks[0]?.title).toBe('Muse Code MCP servers')
+    expect(t.picks[0]?.title).toBe('Muse Code MCP Servers')
     expect(t.picks[0]?.placeholder).toBe(`2 MCP servers in ${SETTINGS}`)
     expect(t.picks[0]?.items).toEqual([
       {
@@ -141,13 +141,13 @@ describe('showMcpServers', () => {
         description: 'stdio · tool',
         detail: 'optional · turned off · environment: K',
       },
-      { id: 'action:openSettings', label: 'Open the settings file', detail: SETTINGS },
+      { id: 'action:openSettings', label: 'Open the Settings File', detail: SETTINGS },
       {
         id: 'action:restart',
-        label: 'Restart Muse Code to load changes',
+        label: 'Restart Muse Code to Load Changes',
         detail: 'A reply that is running stops; the conversation continues on your next message',
       },
-      { id: 'action:docs', label: 'MCP servers in Muse Code (documentation)' },
+      { id: 'action:docs', label: 'MCP Servers in Muse Code (Documentation)' },
     ])
     expect(t.warnings).toEqual([])
   })
@@ -290,7 +290,7 @@ describe('showMcpServers on the Model API backend (M50)', () => {
   it('shows each server as this window runs it, and the built-in diagnostics server', async () => {
     const t = harness({ settings: FIVE_SERVERS, modelApi: { snapshot: LIVE } })
     await showMcpServers(t.deps)
-    expect(t.picks[0]?.title).toBe('MCP servers on the Model API backend')
+    expect(t.picks[0]?.title).toBe('MCP Servers on the Model API Backend')
     expect(t.picks[0]?.items.map((item) => [item.id, item.detail])).toEqual([
       ['server:docs', 'Connected: 1 tool · required (a message stops if it is not running)'],
       ['server:local', 'Connected: 3 tools · 2 more not offered · optional'],
@@ -321,7 +321,7 @@ describe('showMcpServers on the Model API backend (M50)', () => {
     ])
     expect(t.picks[0]?.items.find((item) => item.id === 'builtin:ide')).toMatchObject({
       label: 'ide',
-      description: 'built in',
+      description: 'Built In',
     })
   })
 
@@ -407,7 +407,7 @@ describe('showHooks', () => {
   it('shows Model API hook opt-in state before source files', async () => {
     const off = harness({ modelApiHooks: false, existing: [SETTINGS, HOOKS] })
     await showHooks(off.deps)
-    expect(off.picks[0]?.title).toBe('Model API hooks')
+    expect(off.picks[0]?.title).toBe('Model API Hooks')
     expect(off.picks[0]?.items[0]).toMatchObject({
       id: 'hooks:modelApiSetting',
       label: 'museSpark.modelApiHooks',
@@ -562,7 +562,7 @@ describe('showHooks', () => {
         [
           '4 hooks in .muse/spark-hooks.json',
           SPARK,
-          'Cursor format, Kiro format',
+          'Cursor Format, Kiro Format',
           'Hooks in another agent’s format run only on the Model API backend.',
           'Stop is a Muse Code event: configure it in .muse/hooks.json, so it runs once.',
         ].join(' · '),

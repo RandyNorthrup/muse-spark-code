@@ -1,0 +1,306 @@
+{
+  "browser": "155.0.8059.39",
+  "platform": "darwin",
+  "rasterization": "e4bd853949ddc1c668289d95481d03838d9bc01ee4e99ae2637830498c851ec0",
+  "rows": [
+    {
+      "theme": "light",
+      "width": 320,
+      "colour": "rgb(10, 92, 255)",
+      "background": "rgb(248, 248, 248)",
+      "ratio": 4.958596452886895,
+      "box": {
+        "x": 97.6875,
+        "y": 121.40625,
+        "width": 28.796875,
+        "height": 19.1875,
+        "top": 121.40625,
+        "right": 126.484375,
+        "bottom": 140.59375,
+        "left": 97.6875
+      },
+      "unchangedPositions": true,
+      "changedPixels": 293,
+      "outsidePixels": 0,
+      "violations": [],
+      "incomplete": [],
+      "sha256": "b7ebef7faead1b2e28b0ce839fb69aede582cc1d793bba3de2b6d983c09ad6ee"
+    },
+    {
+      "theme": "light",
+      "width": 690,
+      "colour": "rgb(10, 92, 255)",
+      "background": "rgb(248, 248, 248)",
+      "ratio": 4.958596452886895,
+      "box": {
+        "x": 282.6875,
+        "y": 187.40625,
+        "width": 28.796875,
+        "height": 19.1875,
+        "top": 187.40625,
+        "right": 311.484375,
+        "bottom": 206.59375,
+        "left": 282.6875
+      },
+      "unchangedPositions": true,
+      "changedPixels": 293,
+      "outsidePixels": 0,
+      "violations": [],
+      "incomplete": [],
+      "sha256": "5d6853c8259e807781e7e90996a96e54269d737c35896eb9b39a3b341835b20b"
+    },
+    {
+      "theme": "dark",
+      "width": 320,
+      "colour": "rgb(61, 139, 255)",
+      "background": "rgb(24, 24, 24)",
+      "ratio": 5.356868456466181,
+      "box": {
+        "x": 97.6875,
+        "y": 121.40625,
+        "width": 28.796875,
+        "height": 19.1875,
+        "top": 121.40625,
+        "right": 126.484375,
+        "bottom": 140.59375,
+        "left": 97.6875
+      },
+      "unchangedPositions": true,
+      "changedPixels": 293,
+      "outsidePixels": 0,
+      "violations": [],
+      "incomplete": [],
+      "sha256": "452d79c584a24df33f11aede5c8f196de0dab8064acb51c54fd6e4cd6478a69d"
+    },
+    {
+      "theme": "dark",
+      "width": 690,
+      "colour": "rgb(61, 139, 255)",
+      "background": "rgb(24, 24, 24)",
+      "ratio": 5.356868456466181,
+      "box": {
+        "x": 282.6875,
+        "y": 187.40625,
+        "width": 28.796875,
+        "height": 19.1875,
+        "top": 187.40625,
+        "right": 311.484375,
+        "bottom": 206.59375,
+        "left": 282.6875
+      },
+      "unchangedPositions": true,
+      "changedPixels": 293,
+      "outsidePixels": 0,
+      "violations": [],
+      "incomplete": [],
+      "sha256": "9fbeb3da7f6b87711d490cb5802ec2736eeadee17b3f3cea7828752db07897b6"
+    },
+    {
+      "theme": "hc-dark",
+      "width": 320,
+      "colour": "rgb(255, 255, 255)",
+      "background": "rgb(0, 0, 0)",
+      "ratio": 21,
+      "box": {
+        "x": 97.6875,
+        "y": 121.40625,
+        "width": 28.796875,
+        "height": 19.1875,
+        "top": 121.40625,
+        "right": 126.484375,
+        "bottom": 140.59375,
+        "left": 97.6875
+      },
+      "unchangedPositions": true,
+      "changedPixels": 287,
+      "outsidePixels": 0,
+      "violations": [],
+      "incomplete": [],
+      "sha256": "ba9f437aec547eaf4be86c3ac51f3bc746a0741069ccfe4708435d62b46d9767"
+    },
+    {
+      "theme": "hc-dark",
+      "width": 690,
+      "colour": "rgb(255, 255, 255)",
+      "background": "rgb(0, 0, 0)",
+      "ratio": 21,
+      "box": {
+        "x": 282.6875,
+        "y": 187.40625,
+        "width": 28.796875,
+        "height": 19.1875,
+        "top": 187.40625,
+        "right": 311.484375,
+        "bottom": 206.59375,
+        "left": 282.6875
+      },
+      "unchangedPositions": true,
+      "changedPixels": 287,
+      "outsidePixels": 0,
+      "violations": [],
+      "incomplete": [],
+      "sha256": "2a9c4b77f00e523daaa91c84b4515a9f151591d1f5d1c972707c3c74d14ec50d"
+    },
+    {
+      "theme": "hc-light",
+      "width": 320,
+      "colour": "rgb(41, 41, 41)",
+      "background": "rgb(255, 255, 255)",
+      "ratio": 14.5481984654954,
+      "box": {
+        "x": 97.6875,
+        "y": 121.40625,
+        "width": 28.796875,
+        "height": 19.1875,
+        "top": 121.40625,
+        "right": 126.484375,
+        "bottom": 140.59375,
+        "left": 97.6875
+      },
+      "unchangedPositions": true,
+      "changedPixels": 287,
+      "outsidePixels": 0,
+      "violations": [],
+      "incomplete": [],
+      "sha256": "b4f6c69b5cfa34b4b223a2a2d3f52151193bd2d8d1f80a8b5c0d7f6026d5a9f8"
+    },
+    {
+      "theme": "hc-light",
+      "width": 690,
+      "colour": "rgb(41, 41, 41)",
+      "background": "rgb(255, 255, 255)",
+      "ratio": 14.5481984654954,
+      "box": {
+        "x": 282.6875,
+        "y": 187.40625,
+        "width": 28.796875,
+        "height": 19.1875,
+        "top": 187.40625,
+        "right": 311.484375,
+        "bottom": 206.59375,
+        "left": 282.6875
+      },
+      "unchangedPositions": true,
+      "changedPixels": 287,
+      "outsidePixels": 0,
+      "violations": [],
+      "incomplete": [],
+      "sha256": "8e636dca131aae5de94e3ed083e4779d01f21c5dd6ea2ac3ef74e147af58c4a1"
+    },
+    {
+      "theme": "one-dark-pro",
+      "width": 320,
+      "colour": "rgb(61, 139, 255)",
+      "background": "rgb(33, 37, 43)",
+      "ratio": 4.644166953141502,
+      "box": {
+        "x": 97.6875,
+        "y": 121.40625,
+        "width": 28.796875,
+        "height": 19.1875,
+        "top": 121.40625,
+        "right": 126.484375,
+        "bottom": 140.59375,
+        "left": 97.6875
+      },
+      "unchangedPositions": true,
+      "changedPixels": 291,
+      "outsidePixels": 0,
+      "violations": [],
+      "incomplete": [],
+      "sha256": "a8089e65fa9a2c9c1b9cef9c2110a1caf4ff09a2999533c763b7e2f4f8224c63"
+    },
+    {
+      "theme": "one-dark-pro",
+      "width": 690,
+      "colour": "rgb(61, 139, 255)",
+      "background": "rgb(33, 37, 43)",
+      "ratio": 4.644166953141502,
+      "box": {
+        "x": 282.6875,
+        "y": 187.40625,
+        "width": 28.796875,
+        "height": 19.1875,
+        "top": 187.40625,
+        "right": 311.484375,
+        "bottom": 206.59375,
+        "left": 282.6875
+      },
+      "unchangedPositions": true,
+      "changedPixels": 291,
+      "outsidePixels": 0,
+      "violations": [],
+      "incomplete": [],
+      "sha256": "03f887a7c7902d7a9980acf853aef3ababf317b1d958c33824740a0100846322"
+    },
+    {
+      "theme": "dracula",
+      "width": 320,
+      "colour": "rgb(61, 139, 255)",
+      "background": "rgb(33, 34, 44)",
+      "ratio": 4.764055960676086,
+      "box": {
+        "x": 97.6875,
+        "y": 121.40625,
+        "width": 28.796875,
+        "height": 19.1875,
+        "top": 121.40625,
+        "right": 126.484375,
+        "bottom": 140.59375,
+        "left": 97.6875
+      },
+      "unchangedPositions": true,
+      "changedPixels": 292,
+      "outsidePixels": 0,
+      "violations": [],
+      "incomplete": [],
+      "sha256": "210eff053956b2e9945ed3827a3b942dc146c0b3e19ff6b7b916e9288fd526a1"
+    },
+    {
+      "theme": "dracula",
+      "width": 690,
+      "colour": "rgb(61, 139, 255)",
+      "background": "rgb(33, 34, 44)",
+      "ratio": 4.764055960676086,
+      "box": {
+        "x": 282.6875,
+        "y": 187.40625,
+        "width": 28.796875,
+        "height": 19.1875,
+        "top": 187.40625,
+        "right": 311.484375,
+        "bottom": 206.59375,
+        "left": 282.6875
+      },
+      "unchangedPositions": true,
+      "changedPixels": 292,
+      "outsidePixels": 0,
+      "violations": [],
+      "incomplete": [],
+      "sha256": "8b5213fe5820d227788b06e1f4df8639345b1cc467916300a22bf6e9f3345b54"
+    }
+  ],
+  "sourceBase": "1b16c9a618954b23d5ad0fdf1da53ee58d2eb939",
+  "sources": [
+    {
+      "file": "src/webview/components/EmptyState.tsx",
+      "sha256": "991ecbf9aed7cc5732f3398bf57ea8a90bd84fc8b250d2248190a46a0f9bbd88"
+    },
+    {
+      "file": "src/webview/components/icons.tsx",
+      "sha256": "fc515a5ebbd95a0066718deadb18c5ac5b8c618dcbac4a010cb2b30c5af01779"
+    },
+    {
+      "file": "src/webview/styles.css",
+      "sha256": "271fc4774d655c30a8debc83c33f53807a0405ac4e3c3896185496b624be5652"
+    },
+    {
+      "file": "src/webview/tokens.css",
+      "sha256": "dfaed5e9c1429033b5703e856ea10c727ede3daf3bcdca2f52baf92dc1f44e6b"
+    },
+    {
+      "file": "design/tokens/muse.tokens.json",
+      "sha256": "aef60532cd1e11d506bcfc411d038e7494533c4094ed0d09af8b118738173d82"
+    }
+  ]
+}

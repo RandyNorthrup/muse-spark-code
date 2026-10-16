@@ -317,3 +317,24 @@ describe('gitExitCode (RVCM1063D #7)', () => {
     expect(gitExitCode(new GitMissingError())).toBeUndefined()
   })
 })
+
+describe('gitExitCode (REVIEWEXIT)', () => {
+  it('reads the production runner’s GitExitError first', () => {
+    expect(gitExitCode(new GitExitError(1, '', 'config'))).toBe(1)
+    expect(gitExitCode(new GitExitError(128, 'fatal', 'diff'))).toBe(128)
+  })
+
+  it('falls back to a Node error’s numeric code', () => {
+    expect(gitExitCode(Object.assign(new Error('no match'), { code: 1 }))).toBe(1)
+  })
+
+  it('reads no code from anything else', () => {
+    for (const error of [
+      new Error('git config timed out after 15000 ms'),
+      Object.assign(new Error('denied'), { code: 'EACCES' }),
+      undefined,
+    ]) {
+      expect(gitExitCode(error)).toBeUndefined()
+    }
+  })
+})

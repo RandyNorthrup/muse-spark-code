@@ -456,6 +456,8 @@ export interface ResponseAttemptGuard {
   readonly paidFeature?: PaidFeature
   readonly paidEstimatedInputTokens?: number
   (keyDigest: string | undefined): void
+  /** Pure request-policy fence after admission waits and last before dispatch; never reserves. */
+  readonly check?: () => void
   /** After every final fence and request build, adjacent to the actual fetch call. */
   readonly onRequestStarted?: () => void
   readonly observe?: (observation: ResponseObservation) => void
@@ -880,10 +882,12 @@ export class RequestTransport {
       if (isAborted(signal)) {
         throw new ModelApiError('cancelled', NETWORK_FAILURE_STATUS, undefined, undefined)
       }
+      admitAttempt?.check?.()
       await this.deps.verifyEndpoint?.(url)
       if (isAborted(signal)) {
         throw new ModelApiError('cancelled', NETWORK_FAILURE_STATUS, undefined, undefined)
       }
+      admitAttempt?.check?.()
       if (
         confirmed !== undefined &&
         (credentials.keyDigest !== confirmed.keyDigest ||
@@ -931,6 +935,7 @@ export class RequestTransport {
         } finally {
           admission.abort()
         }
+        admitAttempt?.check?.()
         if (kind !== 'foreground' && credentials.keyDigest !== (await this.currentKeyDigest()))
           throw new Error(UI_TEXT.notSignedInReason)
       }
@@ -940,6 +945,7 @@ export class RequestTransport {
       // Local consent refusal is outside the transport retry catch: it never
       // becomes another billable attempt.
       await admitAttempt?.prepare?.()
+      admitAttempt?.check?.()
       if (init.paid !== undefined) {
         if (init.paid.isSent) {
           throw new Error(UI_TEXT.sessionBudgetRetryUnavailable)
@@ -997,6 +1003,7 @@ export class RequestTransport {
         ...(init.body !== undefined && { body: wireBody ?? JSON.stringify(init.body) }),
         ...(signal !== undefined && { signal }),
       }
+      admitAttempt?.check?.()
       noteConfirmedRequestStarted(confirmed, admitAttempt)
       if (init.paid !== undefined) {
         init.paid.isSent = true

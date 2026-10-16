@@ -273,7 +273,7 @@ function MediaControls({
               upload.current?.abort()
             }}
           >
-            {UI_TEXT.media.uploadStop}
+            {UI_TEXT.media.uploadStopLabel}
           </button>
         )}
       </div>

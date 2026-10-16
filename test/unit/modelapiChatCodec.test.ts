@@ -211,6 +211,17 @@ const ZAI: ChatPresetQuirks = {
   replayField: 'content',
 }
 
+// Lane DSTHINK: DeepSeek with its declared Thinking-off switch and effort
+// list (lead capture L98P2; the catalogue gives DeepSeek `toggle` plus
+// effort `[low, high, max]`, so effort `none` must ride the documented
+// `thinking: {type: "disabled"}` switch, never an unlisted effort value).
+const DEEPSEEK_DECLARED: ChatPresetQuirks = {
+  ...DEEPSEEK,
+  thinkingOff: 'thinking-switch',
+  effortLevels: ['low', 'high', 'max'],
+  canDisable: true,
+}
+
 // --- canonical bodies rebuilt from a capture's own request ---
 
 function canonicalTool(native: unknown): ToolDefinition {
@@ -735,6 +746,97 @@ describe('chat codec request goldens', () => {
   it('encodes Z.ai byte for byte: tool_stream, no reasoning parameter', () => {
     expectRoundTrip('zai', '02-tool-call-stream.json', ZAI)
     expectRoundTrip('zai', '03-tool-result-stream.json', ZAI)
+  })
+
+  it('sends DeepSeek Thinking off as the thinking switch, without reasoning_effort', () => {
+    const body = tinyBody({ reasoning: { effort: 'none', summary: 'auto' } })
+    const encoded = encodeChatRequest(body, 'deepseek-flash', DEEPSEEK_DECLARED)
+    expect(encoded.body.thinking).toEqual({ type: 'disabled' })
+    expect(encoded.body).not.toHaveProperty('reasoning_effort')
+    expect(encoded.body).not.toHaveProperty('reasoning')
+    expect(Object.keys(encoded.body)).toEqual([
+      'model',
+      'messages',
+      'stream',
+      'stream_options',
+      'max_tokens',
+      'thinking',
+    ])
+    expect(JSON.stringify(encoded.body)).toContain('"thinking":{"type":"disabled"}')
+  })
+
+  it('still sends a listed DeepSeek effort flat once the switch is declared', () => {
+    const body = tinyBody({ reasoning: { effort: 'high', summary: 'auto' } })
+    const encoded = encodeChatRequest(body, 'deepseek-flash', DEEPSEEK_DECLARED)
+    expect(encoded.body.reasoning_effort).toBe('high')
+    expect(encoded.body).not.toHaveProperty('thinking')
+  })
+
+  it('maps an unlisted Thinking-on effort to the nearest listed level, never to off', () => {
+    // Lane DSTHINK3: the shared resolver; a tie takes the higher level.
+    for (const [requested, sent] of [
+      ['medium', 'high'],
+      ['minimal', 'low'],
+      ['xhigh', 'max'],
+    ] as const) {
+      const encoded = encodeChatRequest(
+        tinyBody({ reasoning: { effort: requested, summary: 'auto' } }),
+        'deepseek-flash',
+        DEEPSEEK_DECLARED,
+      )
+      expect(encoded.body.reasoning_effort).toBe(sent)
+      expect(encoded.body).not.toHaveProperty('thinking')
+    }
+  })
+
+  it('refuses an unknown effort and Thinking off where the model forbids it', () => {
+    const unknown = tinyBody({ reasoning: { effort: 'ultra', summary: 'auto' } })
+    expect(() => encodeChatRequest(unknown, 'deepseek-flash', DEEPSEEK_DECLARED)).toThrow(
+      `${UI_TEXT.chatCodecEffortUnsupported} (unsupported_reasoning_effort)`,
+    )
+    const off = tinyBody({ reasoning: { effort: 'none', summary: 'auto' } })
+    const locked: ChatPresetQuirks = { ...DEEPSEEK_DECLARED, canDisable: false }
+    expect(() => encodeChatRequest(off, 'deepseek-flash', locked)).toThrow(
+      `${UI_TEXT.chatCodecThinkingOffUnsupported} (unsupported_reasoning_effort)`,
+    )
+    try {
+      encodeChatRequest(off, 'deepseek-flash', locked)
+      expect.unreachable()
+    } catch (error) {
+      expect(error).toBeInstanceOf(Error)
+      expect((error as Error).name).toBe('ChatCodecError')
+    }
+    // A preset without the switch keeps the base behaviour for any effort.
+    expect(encodeChatRequest(unknown, 'm', OPENROUTER).body.reasoning).toEqual({ effort: 'ultra' })
+  })
+
+  it('keeps presets without the switch byte-identical with Thinking off', () => {
+    const quirks: ChatPresetQuirks = { ...GROQ, effortLevels: ['low', 'medium', 'high'] }
+    const body = tinyBody({ reasoning: { effort: 'none', summary: 'auto' } })
+    const encoded = encodeChatRequest(body, 'm', quirks)
+    expect(encoded.body.reasoning_effort).toBe('none')
+    expect(encoded.body).not.toHaveProperty('thinking')
+  })
+
+  it('sends the thinking switch for a toggle-only model with no effort list', () => {
+    // Lane FIXDSTHINK2 finding 2: toggle support must not depend on an
+    // affirmative effort-level list (reasoningParam none, no effortLevels).
+    const quirks: ChatPresetQuirks = {
+      ...DEEPSEEK,
+      reasoningParam: 'none',
+      thinkingOff: 'thinking-switch',
+      canDisable: true,
+    }
+    const off = tinyBody({ reasoning: { effort: 'none', summary: 'auto' } })
+    const encoded = encodeChatRequest(off, 'deepseek-flash', quirks)
+    expect(encoded.body.thinking).toEqual({ type: 'disabled' })
+    expect(encoded.body).not.toHaveProperty('reasoning_effort')
+    expect(encoded.body).not.toHaveProperty('reasoning')
+    const on = tinyBody({ reasoning: { effort: 'high', summary: 'auto' } })
+    const encodedOn = encodeChatRequest(on, 'deepseek-flash', quirks)
+    expect(encodedOn.body).not.toHaveProperty('thinking')
+    expect(encodedOn.body).not.toHaveProperty('reasoning_effort')
+    expect(encodedOn.body).not.toHaveProperty('reasoning')
   })
 
   it('keeps a fixed key order on every request', () => {

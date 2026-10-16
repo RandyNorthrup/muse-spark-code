@@ -3,6 +3,7 @@
 
 import capturedOpenai from '../../docs/certification/m95-captures/openai/02-tool-call-stream.json'
 import { describe, expect, it } from 'vitest'
+import { usdAmountSchema } from '../../src/shared/usdSchema'
 import {
   capabilitiesOf,
   CONSERVATIVE_CAPABILITIES,
@@ -208,7 +209,7 @@ describe('priceCard', () => {
 
   it('settles from the reported cost, else the card, else unknown', () => {
     const usage = { inputTokens: 1000, outputTokens: 100 }
-    expect(settleUsageUsd(card, usage, { cost: 0.0055 })).toBe(0.0055)
+    expect(settleUsageUsd(card, usage, { cost: usdAmountSchema.parse('0.0055') })).toBe(0.0055)
     expect(settleUsageUsd(card, usage, { costInUsdTicks: 23_184_000 })).toBeCloseTo(0.0023184, 10)
     expect(settleUsageUsd(card, usage)).toBeCloseTo(reserveRequestUsd(card, usage), 12)
     // Invalid usage leaves the cost unknown instead of guessing zero.

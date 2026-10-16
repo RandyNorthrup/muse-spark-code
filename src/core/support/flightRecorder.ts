@@ -244,6 +244,7 @@ export function buildFlightRecord(input: FlightEventInput, at: number): BuiltFli
  * `reportWebviewErrorSchema` (the webview's own failure kinds only, strict,
  * no free-text fields), and its frames are re-verified as package-relative
  * here, since transport bounds alone cannot see an absolute path.
+ * @unwired M93 report dialog flight record
  */
 export function buildWebviewFlightRecord(
   input: unknown,
