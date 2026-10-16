@@ -1999,7 +1999,6 @@
   "attachmentUnreadable": "A fájlt nem sikerült beolvasni.",
   "documentTooLarge": "A PDF-fájlok legfeljebb 32 MB méretűek lehetnek.",
   "documentsOverBudget": "A fájlok üzenetenként összesen legfeljebb 50 képet és PDF-oldalt tartalmazhatnak.",
-  "mediaTotalTooLarge": "A csatolt képek és PDF-ek túllépik az együttes médiaméret-korlátot.",
   "olderMediaOmitted": "A régebbi képek vagy PDF-ek a médiakorlát miatt kimaradtak ebből a kérésből. A helyi előzményekben megmaradnak.",
   "pdfNeedsModelApi": "A PDF-mellékletekhez a Model API háttérrendszer szükséges.",
   "invalidPdf": "A fájl neve PDF-re utal, de nem érvényes PDF.",

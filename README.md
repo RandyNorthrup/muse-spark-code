@@ -2938,11 +2938,8 @@ integration owners; editor font settings continue to decide inside editors.
   changes after confinement. Host file I/O also rejects an observed change
   to that checked path when a parent directory becomes a junction after the
   first check; paid image output reservations recheck before fill and cleanup.
-  Combined image
-  and PDF data URLs are capped at 48 million encoded characters per message;
-  an excess pasted or dropped attachment is refused before the browser reads
-  and encodes it. Replayed requests use the same cap and
-  keep newer media, announcing when older media is omitted from the request.
+  Replayed requests keep newer media within the provider's per-request image
+  budget, announcing when older media is omitted from the request.
   Paste/drop checks the first 1 KiB of image-labelled files: a PDF named
   `.png` or `.txt` uses the 32 MB PDF limit and PDF media type, while a real image over
   10 MiB is refused without encoding its full bytes. The check is discarded
@@ -4049,7 +4046,7 @@ source cannot elevate their priority. See [M95 N's record contract](docs/certifi
 | -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Images and PDFs                  | 20 attachments per message together; images 10 MiB each (PDFs: next row)                                                                                                                                                                                        |
 | PDFs on the Model API backend    | 32 MB each locally (Meta allows 50 MB per inline file); images and PDF page images together: 50 per message. Meta reads text from the first 100 pages and page images from the first 50 (Meta's [file-handling guide](https://dev.meta.ai/docs/file-handling)). |
-| Model API encoded media          | 48 million data URL characters total per new message and replay request; older replayed media is named but omitted when over the cap.                                                                                                                           |
+| Model API replayed media         | No aggregate character budget; the provider's per-request image budget decides, newest first, with older media named when left out. The platform refuses what it cannot take.                                                                                   |
 | Picked UTF-8 text attachments    | 1 MiB per-file read cap from trusted and indexed workspace paths; Model API also caps combined text and file-name wrappers at 768 KiB to leave context room.                                                                                                    |
 | A message to Muse Code           | 10 MiB. Attachment admission reserves 2 MiB for the prompt, context and frame; serialized text and base64 images count toward the rest. The exact outbound frame is checked at send.                                                                            |
 | Model API: tool rounds           | 50 per turn                                                                                                                                                                                                                                                     |
@@ -4057,7 +4054,7 @@ source cannot elevate their priority. See [M95 N's record contract](docs/certifi
 | Model API: retries               | Up to 5 attempts on 429, 500, 502 and 503, and when a reply stream ends because the server shut down or was overloaded, honouring `Retry-After`, shown in the transcript; Stop cuts the wait short                                                              |
 | Model API: a silent reply stream | Ended after 5 minutes with nothing from the server; send again to retry                                                                                                                                                                                         |
 | Model API: file tools            | Text and images up to 10 MiB, PDFs up to 32 MB; the search tool skips files over 1 MiB                                                                                                                                                                          |
-| Opened tool outputs              | 16 MiB each; the latest 20, and 33,554,432 characters together                                                                                                                                                                                                  |
+| Opened tool outputs              | 16 MiB each; every document is kept and stays readable                                                                                                                                                                                                          |
 
 ## Legal scan (M97)
 

@@ -1970,7 +1970,6 @@
   "attachmentUnreadable": "파일을 읽을 수 없습니다.",
   "documentTooLarge": "PDF는 32MB 이하여야 합니다.",
   "documentsOverBudget": "메시지당 이미지와 PDF 페이지를 합쳐 최대 50개까지 포함할 수 있습니다.",
-  "mediaTotalTooLarge": "첨부된 이미지와 PDF의 합계 크기가 미디어 제한을 초과합니다.",
   "olderMediaOmitted": "미디어 제한을 지키기 위해 이전 이미지 또는 PDF를 이 요청에서 제외했습니다. 로컬 기록에는 남아 있습니다.",
   "pdfNeedsModelApi": "PDF 첨부에는 Model API 백엔드가 필요합니다.",
   "invalidPdf": "이 파일은 PDF 이름을 사용하지만 유효한 PDF가 아닙니다.",

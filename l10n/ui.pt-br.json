@@ -2028,7 +2028,6 @@
   "attachmentUnreadable": "Não foi possível ler o arquivo.",
   "documentTooLarge": "Os PDFs devem ter 32 MB ou menos.",
   "documentsOverBudget": "Os arquivos devem somar no máximo 50 imagens e páginas de PDF por mensagem.",
-  "mediaTotalTooLarge": "As imagens e os PDFs anexados excedem o limite de tamanho combinado de mídia.",
   "olderMediaOmitted": "Imagens ou PDFs mais antigos foram omitidos desta solicitação para respeitar os limites de mídia. Eles permanecem no histórico local.",
   "pdfNeedsModelApi": "Anexos PDF exigem o backend Model API.",
   "invalidPdf": "Este arquivo tem nome de PDF, mas não é um PDF válido.",

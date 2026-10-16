@@ -1401,9 +1401,10 @@ export const SCREEN_RECORDING_REMOVE_RETRY_MS = 200
 export const PDF_MEDIA_TYPE = 'application/pdf'
 export const PDF_EXTENSION = '.pdf'
 export const MAX_DOCUMENT_BYTES = 32_000_000
-// A conservative aggregate cap on base64 media in one message and in a
-// replayed Model API request. Meta's 50 MB inline limit is per file; this
-// separate bound keeps a long session from serializing gigabytes of PDFs.
+// Sizes the ACP transport's NDJSON frame (with the headroom below): a valid
+// prompt can carry tens of megabytes of base64 media. It caps no model
+// media: the record carries no aggregate character budget, so none is
+// enforced on attach, in the composer or per request.
 export const MAX_ENCODED_MEDIA_CHARS = 48_000_000
 // ACP SDK 1.5.1 refuses an NDJSON line over 32 MiB unless told otherwise (1.7.0
 // unchanged, SDK144), and a valid prompt can carry the whole aggregate media
