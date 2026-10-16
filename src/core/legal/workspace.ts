@@ -21,7 +21,6 @@ import {
   LEGAL_DIRECTORY_ENTRIES_MAX,
   LEGAL_FILE_MAX_BYTES,
   LEGAL_TOTAL_MAX_BYTES,
-  LEGAL_SCAN_TIMEOUT_MS,
 } from '../../shared/constants'
 import { sameFile } from '../fs/fileIdentity'
 import {
@@ -49,7 +48,9 @@ function isWithin(root: string, candidate: string): boolean {
 export function createLegalSnapshot(
   rootPath: string,
   signal?: AbortSignal,
-  deadline = Date.now() + LEGAL_SCAN_TIMEOUT_MS,
+  // A deadline only when the caller names one: unnamed, the walk runs until
+  // it is done or the signal aborts (owner 2026-10-16: no arbitrary limits).
+  deadline?: number,
 ): LegalWorkspaceSnapshot {
   if (signal?.aborted === true) throw new LegalScanError(UI_TEXT.legalScanner.m111)
   const root = realpathSync(rootPath)
@@ -61,7 +62,7 @@ export function createLegalSnapshot(
   let bytesRead = 0
   const cache = new Map<string, string>()
   const isWithinTime = (): boolean => {
-    if (Date.now() < deadline) return true
+    if (deadline === undefined || Date.now() < deadline) return true
     const message = 'scan stopped at limit: elapsed time'
     if (!incompleteChecks.includes(message)) incompleteChecks.push(message)
     return false

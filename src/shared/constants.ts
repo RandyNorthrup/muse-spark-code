@@ -7826,11 +7826,10 @@ export const LEGAL_EXIT = {
 // scanner, loaded lazily by the host and the headless command, never part of
 // activation. The bundle-split gate refuses it in dist/extension.js.
 
-// The headless scan's own deadline: a workspace walk of up to
-// LEGAL_FILES_SCANNED_MAX files plus the bounded registry reads below. The
-// headless lifecycle still owns the process deadline.
+// The headless scan used to stop at its own deadline; it now runs until it
+// is done or a signal stops it (owner 2026-10-16: no arbitrary limits). The
+// headless lifecycle still owns the process for commands that name one.
 export const LEGAL_REGISTRY_NOTICE_KEY = 'legalRegistryNoticed'
-export const LEGAL_SCAN_TIMEOUT_MS = 120_000
 // Registry enrichment (D76: disclosed, bounded, OFF unless `--registry`): the
 // only hosts ever queried, over HTTPS, with no credentials. npm answers one
 // version document per package@version; PyPI one project document per
@@ -7849,7 +7848,8 @@ export const LEGAL_REGISTRY_NAME_MAX_CHARS = 214
 // A version or project document past this is refused instead of buffered:
 // the license shapes both registries use fit in kilobytes.
 export const LEGAL_REGISTRY_RESPONSE_MAX_BYTES = 262_144
-// One registry request's own deadline; LEGAL_SCAN_TIMEOUT_MS bounds the run.
+// One registry request's own deadline (registry enrichment is OFF unless
+// `--registry`; its per-request wait is not this lane's row to remove).
 export const LEGAL_REGISTRY_TIMEOUT_MS = 10_000
 // A rendered report past this is refused instead of written: 500 findings
 // with full excerpts stay far below it, so past it means a broken renderer.

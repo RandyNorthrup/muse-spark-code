@@ -4,7 +4,7 @@
 // schema.
 
 import { describe, expect, it } from 'vitest'
-import { LEGAL_FILES_SCANNED_MAX, LEGAL_FINDINGS_MAX } from '../../src/shared/constants'
+import { LEGAL_FILES_SCANNED_MAX, LEGAL_FINDINGS_MAX, UI_TEXT } from '../../src/shared/constants'
 import { formatNumber } from '../../src/shared/l10n/text'
 import { scanLegal } from '../../src/core/legal/scan'
 import { legalScanResultSchema } from '../../src/shared/legal'
@@ -144,5 +144,16 @@ describe('scanLegal', () => {
     expect(() => {
       Reflect.apply(scanLegal, undefined, [snapshotFrom(project), { headerPolicy: 'sometimes' }])
     }).toThrow('Unknown header policy')
+  })
+
+  it('honours a named deadline and marks what it could not cover (NOLIMITS2 A32)', () => {
+    const result = scanLegal(snapshotFrom(project), { headerPolicy: 'required', deadline: 1 })
+    expect(result.incompleteChecks).toContain(UI_TEXT.legalScanner.m112)
+  })
+
+  it('reads everything when no deadline is named (NOLIMITS2 A32)', () => {
+    const result = scanLegal(snapshotFrom(project), { headerPolicy: 'required' })
+    expect(result.incompleteChecks).not.toContain(UI_TEXT.legalScanner.m112)
+    expect(result.findings).toEqual([])
   })
 })
