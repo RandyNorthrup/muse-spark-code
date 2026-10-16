@@ -117,7 +117,9 @@ export function scheduleConsentFailure(
     : undefined
 }
 
-/** Creation/renewal only. No workspace-wide grant can silently authorize a schedule. */
+/** Creation/renewal only. No workspace-wide grant can silently authorize a schedule.
+ * @unwired M58 schedule-run paid consent
+ */
 export async function askSchedulePaidConsent(deps: {
   readonly schedule: ScheduleV2
   readonly identity: SchedulePaidIdentity
@@ -187,7 +189,9 @@ export async function askSchedulePaidConsent(deps: {
   return deps.isOn() && deps.isCurrent() ? approved : undefined
 }
 
-/** The run's paid port: live identity/gates plus a hard, noninteractive reservation. */
+/** The run's paid port: live identity/gates plus a hard, noninteractive reservation.
+ * @unwired M58 schedule paid scope
+ */
 export function createSchedulePaidScope(deps: {
   readonly runId?: string
   readonly backend: 'modelApi' | 'museCode'
@@ -909,6 +913,7 @@ export interface AccountPaidUseConsentDeps extends Omit<
   readonly revokeQuoteGrants: () => Promise<void>
 }
 
+/** @unwired M58 account paid-use question */
 export function paidAccountQuestion(binding: PaidAccountBinding): string {
   return fill(UI_TEXT.accounts.paidConsent, {
     provider: binding.provider,
@@ -954,6 +959,7 @@ function quoteGrantEpoch(generation: string): number | undefined {
  * decision is fenced against the captured epoch too, so a revocation during
  * the ask refuses even when persistence downgrades to Allow once. The
  * instance-local generation fences in-flight asks inside one instance only.
+ * @unwired M58 account paid-use consent
  */
 export class AccountPaidUseConsent {
   private readonly binding: PaidAccountBinding

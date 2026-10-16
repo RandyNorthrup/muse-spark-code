@@ -77,7 +77,9 @@ export function diskPressure(volumes: readonly ResourceDiskVolume[], settings: R
   return { high, isPaused, isCritical, hasRecovered }
 }
 
-/** Peer data is validated by deviceResourceSchema before this admission check. */
+/** Peer data is validated by deviceResourceSchema before this admission check.
+ * @unwired M107 device disk headroom check
+ */
 export function hasDeviceDiskHeadroom(device: DeviceResource): boolean {
   const disk = device.diskFree
   return (

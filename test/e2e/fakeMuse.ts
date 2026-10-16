@@ -13,7 +13,6 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
-  rmSync,
   writeFileSync,
 } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -29,29 +28,6 @@ const STUB_SOURCE = path.join(here, 'fake-muse', 'stub.cs')
 const STUB_EXE = 'muse-bin-0.0.0-fake.exe'
 const CSC_RELATIVE_PATH = String.raw`Microsoft.NET\Framework64\v4.0.30319\csc.exe`
 const EXECUTABLE_MODE = 0o755
-// On Windows the fake CLI's executable can still be held for a moment after
-// its process has exited (seen in CI and under a full local run, every test
-// green), and removing its folder then fails with EPERM. Node retries the
-// removal; if the folder still cannot go, the suite says so and leaves it
-// to the OS temp cleanup rather than fail on housekeeping.
-const RM_RETRIES = 5
-const RM_RETRY_DELAY_MS = 200
-
-/** A suite's teardown: its temporary folders, removed or named. */
-export function removeTestFolders(dirs: readonly string[]): void {
-  for (const dir of dirs) {
-    try {
-      rmSync(dir, {
-        recursive: true,
-        force: true,
-        maxRetries: RM_RETRIES,
-        retryDelay: RM_RETRY_DELAY_MS,
-      })
-    } catch (error: unknown) {
-      process.stderr.write(`e2e teardown left ${dir} behind: ${String(error)}\n`)
-    }
-  }
-}
 
 export interface FakeMuseInstall {
   /** What `museSpark.museBinaryPath` should point at. */
