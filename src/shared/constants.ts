@@ -2082,9 +2082,9 @@ export const CODE_INTEL_NAME_MAX_CHARS = 200
 // A language server that does not answer (a stuck one, a project still
 // loading) ends the call with that reason instead of holding it.
 export const CODE_INTEL_TIMEOUT_MS = 20_000
-// A rename touching more files than this is refused (a rename that large is
-// a refactor for the user); its card names a few and counts the rest.
-export const RENAME_MAX_FILES = 200
+// A rename touches as many files as the language service names (D121: the
+// removed 200-file ceiling was invented); its card names a few and counts
+// the rest.
 export const RENAME_CARD_FILES_SHOWN = 5
 // VS Code's `SymbolKind`, by value (vscode.d.ts): the words the model reads.
 export const SYMBOL_KIND_NAMES = [
@@ -6474,7 +6474,6 @@ export const CODE_INTEL_MODEL_TEXT = {
   renameSameName: 'the new name `{name}` is already the name there; nothing to rename',
   renameOutside:
     'this rename would also change {count} files outside the workspace; nothing was changed',
-  renameTooMany: 'this rename would change {count} files, more than {max}; nothing was changed',
   renameStale:
     "the language service's rename does not match {path} as it is now (it differs between VS Code and the disk, has unsaved changes, or changed after the service last read it); nothing was changed, so call rename_symbol again shortly",
   renameNothing: 'nothing to rename at {place}',
