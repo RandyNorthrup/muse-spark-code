@@ -1000,6 +1000,7 @@
   "sessionResumesOnSend": "Następna wiadomość ją wznowi.",
   "sessionContinued": "Rozmowa jest kontynuowana po ponownym uruchomieniu.",
   "sessionNotContinued": "Nie można kontynuować rozmowy po ponownym uruchomieniu, więc ta wiadomość rozpoczyna nową",
+  "modelNotKeptAfterRestart": "Muse Code zgłasza, że ta rozmowa działa na {active} zamiast {wanted}, więc wiadomość nie została wysłana. Wybierz model ponownie i wyślij wiadomość jeszcze raz, aby kontynuować.",
   "surfaceClosed": "Panel został zamknięty",
   "hostStartFailed": "Nie można uruchomić backendu",
   "decisionErrorNotice": "Muse Code zgłosił błąd dotyczący decyzji (narzędzie mogło mimo to zostać uruchomione)",
