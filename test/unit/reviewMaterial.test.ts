@@ -4,29 +4,47 @@
 // prints: the uncommitted changes, a branch against its base, one commit.
 
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync, realpathSync, symlinkSync, unlinkSync } from 'node:fs'
+import {
+  appendFileSync,
+  mkdtempSync,
+  realpathSync,
+  symlinkSync,
+  unlinkSync,
+  writeFileSync,
+} from 'node:fs'
 import { mkdir, mkdtemp, readFile, unlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import type { PickItem } from '../../src/host/commands/pickItem'
-import { processGitRunner } from '../../src/host/git'
+import { GitExitError, isGitExitError, processGitRunner } from '../../src/host/git'
 import {
   createReviewCollector,
   type ReviewCollection,
   reviewMarker,
 } from '../../src/host/review/reviewCollector'
 import {
+  GIT_FILTER_NAMES_ARGS,
   GIT_METADATA_OPTIONS,
   REVIEW_DIFF_MAX_CHARS,
   REVIEW_MARKER_BYTES,
 } from '../../src/shared/constants'
 import { removeFolder } from './helpers/temporaryFolders'
 import { hostileFilterListings } from './helpers/gitFilterNames'
+import { isolatedGitConfig } from './helpers/isolatedGitConfig'
 import { aliasedReviewRepositories } from './helpers/reviewRoots'
 
 const REAL_GIT_TIMEOUT_MS = 60_000
 const base = realpathSync.native(mkdtempSync(path.join(tmpdir(), 'muse-review-')))
+// Never the machine's Git configuration: a filter, alias, signing or LFS
+// setting there must not change a test's result. Repository-local
+// configuration still applies, so each filter case writes its own.
+const isolated = isolatedGitConfig()
+
+/** Real git over the test-owned configuration only, never the machine's. */
+function isolatedEnv(): NodeJS.ProcessEnv {
+  return { ...process.env, ...isolated.env }
+}
 
 function git(cwd: string, args: readonly string[]): string {
   return execFileSync(
@@ -42,7 +60,7 @@ function git(cwd: string, args: readonly string[]): string {
       'core.autocrlf=false',
       ...args,
     ],
-    { cwd, encoding: 'utf8' },
+    { cwd, encoding: 'utf8', env: isolatedEnv() },
   )
 }
 
@@ -66,7 +84,7 @@ function collector(folder: string, pick: (items: readonly PickItem[]) => string 
   const pickOne = vi.fn((items: readonly PickItem[]) => Promise.resolve(pick(items)))
   const collect = createReviewCollector({
     workspaceRoot: folder,
-    runGit: processGitRunner(),
+    runGit: processGitRunner({ env: isolatedEnv() }),
     pickOne,
   })
   return {
@@ -95,6 +113,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await removeFolder(base)
+  await isolated.dispose()
 })
 
 describe('the uncommitted changes', { timeout: REAL_GIT_TIMEOUT_MS }, () => {
@@ -370,7 +389,7 @@ describe('review collection ownership and trust', () => {
   describe.each([false, true])('held native base picker, allowed=%s', (isKeptAllowed) => {
     const entered = Promise.withResolvers<undefined>()
     const picked = Promise.withResolvers<string | undefined>()
-    const runGit = vi.fn(processGitRunner())
+    const runGit = vi.fn(processGitRunner({ env: isolatedEnv() }))
     let isAllowed = true
     let collecting: Promise<ReviewCollection> | undefined
     let callsBeforeChoice = 0
@@ -454,7 +473,7 @@ describe('physical review request ownership', { timeout: REAL_GIT_TIMEOUT_MS }, 
       const roots = await aliasedReviewRepositories(base, `picker-${scope}-${change}`)
       const entered = Promise.withResolvers<readonly PickItem[]>()
       const picked = Promise.withResolvers<string | undefined>()
-      const runGit = vi.fn(processGitRunner())
+      const runGit = vi.fn(processGitRunner({ env: isolatedEnv() }))
       const collect = createReviewCollector({
         workspaceRoot: roots.alias,
         runGit,
@@ -491,7 +510,7 @@ describe('physical review request ownership', { timeout: REAL_GIT_TIMEOUT_MS }, 
       const roots = await aliasedReviewRepositories(base, `git-${change}`)
       const entered = Promise.withResolvers<undefined>()
       const release = Promise.withResolvers<undefined>()
-      const native = processGitRunner()
+      const native = processGitRunner({ env: isolatedEnv() })
       const runGit = vi.fn(async (...args: Parameters<typeof native>) => {
         const output = await native(...args)
         if (args[0].includes('diff') && !args[0].includes('--name-status')) {
@@ -522,7 +541,7 @@ describe('physical review request ownership', { timeout: REAL_GIT_TIMEOUT_MS }, 
 
   it('enters actual Git at its captured canonical cwd even if the alias retargets at runner entry', async () => {
     const roots = await aliasedReviewRepositories(base, 'runner-entry')
-    const native = processGitRunner()
+    const native = processGitRunner({ env: isolatedEnv() })
     let actualRoot: string | undefined
     const collect = createReviewCollector({
       workspaceRoot: roots.alias,
@@ -543,7 +562,7 @@ describe('physical review request ownership', { timeout: REAL_GIT_TIMEOUT_MS }, 
     const roots = await aliasedReviewRepositories(base, 'released-material')
     const collect = createReviewCollector({
       workspaceRoot: roots.alias,
-      runGit: processGitRunner(),
+      runGit: processGitRunner({ env: isolatedEnv() }),
       pickOne: vi.fn(),
     })
     const result = await collect({ scope: 'uncommitted', focus: 'general' }, () => true)
@@ -626,7 +645,7 @@ describe('review Git programs', { timeout: REAL_GIT_TIMEOUT_MS }, () => {
     const picked = Promise.withResolvers<string | undefined>()
     const collect = createReviewCollector({
       workspaceRoot: folder,
-      runGit: processGitRunner(),
+      runGit: processGitRunner({ env: isolatedEnv() }),
       pickOne: () => {
         entered.resolve(undefined)
         return picked.promise
@@ -723,6 +742,119 @@ describe('bounded names-only filter discovery', () => {
     const t = namesOnlyCollector(Object.assign(new Error('no matching keys'), { code: 1 }))
     const result = await t.collect({ scope: 'uncommitted', focus: 'general' }, () => true)
     expect(result.kind).toBe('material')
+  })
+
+  // The production runner reports the no-match exit 1 as a `GitExitError`,
+  // which carries the code in `exitCode` and has no `code` field: this is
+  // the case that would have caught REVIEWEXIT.
+  it('treats the production runner’s exit 1 as an empty filter inventory', async () => {
+    const t = namesOnlyCollector(new GitExitError(1, '', 'config'))
+    const result = await t.collect({ scope: 'uncommitted', focus: 'general' }, () => true)
+    expect(result.kind).toBe('material')
+  })
+})
+
+describe('filter discovery over real git', { timeout: REAL_GIT_TIMEOUT_MS }, () => {
+  it('reads the production runner’s exit 1 as no filters and proceeds', async () => {
+    const folder = await repository('no-filters')
+    await commitFile(folder, 'a.ts', 'a\n', 'first')
+    await writeFile(path.join(folder, 'a.ts'), 'b\n')
+    const native = processGitRunner({ env: isolatedEnv() })
+    // The premise: with no filter configured anywhere git reads, the names
+    // read fails with the production runner's own error class.
+    let failure: unknown
+    try {
+      await native([...GIT_METADATA_OPTIONS, ...GIT_FILTER_NAMES_ARGS], folder)
+    } catch (error: unknown) {
+      failure = error
+    }
+    if (!isGitExitError(failure)) {
+      throw new Error(`expected GitExitError, got ${String(failure)}`)
+    }
+    expect(failure.exitCode).toBe(1)
+    const found = material(
+      await collector(folder, () => undefined).collect({ scope: 'uncommitted', focus: 'general' }),
+    )
+    expect(found.diff).toContain('+b')
+  })
+
+  // A machine with Git LFS installed lists a global LFS filter here; the
+  // review must read the same inventory there as on a machine with none.
+  it('proceeds when the test-owned global configuration defines an LFS filter', async () => {
+    const folder = await repository('global-lfs-filter')
+    await commitFile(folder, 'a.ts', 'a\n', 'first')
+    await writeFile(path.join(folder, 'a.ts'), 'b\n')
+    appendFileSync(
+      isolated.globalFile,
+      '[filter "lfs"]\n\tclean = git-lfs clean -- %f\n\tsmudge = git-lfs smudge -- %f\n\tprocess = git-lfs filter-process\n\trequired = true\n',
+    )
+    try {
+      const found = material(
+        await collector(folder, () => undefined).collect({
+          scope: 'uncommitted',
+          focus: 'general',
+        }),
+      )
+      expect(found.diff).toContain('+b')
+    } finally {
+      writeFileSync(isolated.globalFile, '')
+    }
+  })
+
+  it('carries a configured clean, process and required filter as scoped overrides', async () => {
+    const folder = await repository('filter-overrides')
+    await commitFile(folder, '.gitattributes', 'a.txt filter=probe\n', 'attributes')
+    await commitFile(folder, 'a.txt', 'old\n', 'file')
+    git(folder, ['config', 'filter.probe.clean', 'definitely-not-a-program'])
+    git(folder, ['config', 'filter.probe.process', 'definitely-not-a-program'])
+    git(folder, ['config', 'filter.probe.required', 'true'])
+    await writeFile(path.join(folder, 'a.txt'), 'new\n')
+    const runGit = vi.fn(processGitRunner({ env: isolatedEnv() }))
+    const collect = createReviewCollector({ workspaceRoot: folder, runGit, pickOne: vi.fn() })
+    const found = material(await collect({ scope: 'uncommitted', focus: 'general' }, () => true))
+    expect(found.diff).toContain('+new')
+    const diffs = runGit.mock.calls.filter(
+      ([args]) => args.includes('diff') && !args.includes('--name-status'),
+    )
+    expect(diffs.length).toBeGreaterThan(0)
+    for (const [args] of diffs) {
+      expect(args).toContain('filter.probe.clean=')
+      expect(args).toContain('filter.probe.process=')
+      expect(args).toContain('filter.probe.required=false')
+    }
+  })
+
+  it.each([
+    [
+      'exit 128',
+      new GitExitError(128, 'fatal: bad configuration', 'config'),
+      'git config exited 128',
+    ],
+    ['a signal', new GitExitError(-1, '', 'config'), 'git config exited -1'],
+    [
+      'a timeout',
+      new Error('git config timed out after 15000 ms'),
+      'git config exited with no exit code',
+    ],
+  ])('keeps review closed when the names read fails with %s', async (_label, failure, expected) => {
+    const runGit = vi.fn((args: readonly string[]) => {
+      const command = args.find((arg) => !arg.startsWith('-') && !arg.includes('='))
+      if (command === 'config') {
+        return Promise.reject(failure)
+      }
+      if (command === 'rev-parse') {
+        return Promise.resolve(
+          args.includes('--is-inside-work-tree') ? 'true\n' : '0123456789abcdef\n',
+        )
+      }
+      return Promise.resolve('')
+    })
+    const collect = createReviewCollector({ workspaceRoot: base, runGit, pickOne: vi.fn() })
+    expect(await collect({ scope: 'uncommitted', focus: 'general' }, () => true)).toEqual({
+      kind: 'refused',
+      refusal: 'gitFailed',
+      failure: expected,
+    })
   })
 })
 

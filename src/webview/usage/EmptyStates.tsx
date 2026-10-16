@@ -39,6 +39,9 @@ export function EmptyStates({
       {state.history.tornLines > 0 ? (
         <p role="status">{plural(USAGE_TEXT.tornLines, state.history.tornLines)}</p>
       ) : null}
+      {state.history.inexactRecords > 0 ? (
+        <p role="status">{plural(USAGE_TEXT.inexactRecords, state.history.inexactRecords)}</p>
+      ) : null}
     </>
   )
 }

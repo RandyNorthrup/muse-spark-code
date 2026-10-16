@@ -168,6 +168,7 @@ export class PaidFeatureGate {
   public async review(): Promise<void> {
     const pending: PaidFeature[] = []
     for (const feature of PAID_FEATURES) {
+      if (this.deps.isAvailable?.(feature) === false) continue
       // A feature available by default needs no turn-on confirmation: its
       // price is asked per use. Nothing is forgotten either: it holds no
       // acceptance to lose.
@@ -218,6 +219,7 @@ export class PaidFeatureGate {
 
   /** The palette's toggle turning a feature on: the confirmation first, then the setting. */
   public async turnOn(feature: PaidFeature): Promise<boolean> {
+    if (this.deps.isAvailable?.(feature) === false) return false
     if (this.isOn(feature)) {
       return true
     }

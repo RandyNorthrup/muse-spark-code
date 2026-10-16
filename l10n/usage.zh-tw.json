@@ -73,6 +73,9 @@
   "tornLines": {
     "other": "已略過{count}個不完整的行"
   },
+  "inexactRecords": {
+    "other": "{count} 筆舊記錄的金額無法精確讀取，未計入"
+  },
   "recordCount": {
     "other": "{count}條記錄"
   },

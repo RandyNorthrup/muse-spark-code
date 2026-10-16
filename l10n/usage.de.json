@@ -80,6 +80,10 @@
     "one": "{count} unvollständige Zeile übersprungen",
     "other": "{count} unvollständige Zeilen übersprungen"
   },
+  "inexactRecords": {
+    "one": "{count} älterer Datensatz nicht gezählt: sein Betrag ist nicht exakt lesbar",
+    "other": "{count} ältere Datensätze nicht gezählt: ihre Beträge sind nicht exakt lesbar"
+  },
   "recordCount": {
     "one": "{count} Datensatz",
     "other": "{count} Datensätze"

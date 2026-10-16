@@ -42,7 +42,12 @@ beforeEach(() => {
 })
 
 it('property: chart readings/limits, level band, event totals and harness table agree with the journal', () => {
-  for (let seed = 1; seed <= 30; seed++) {
+  // Two seeds: every other fixture variation is index-based, so only the
+  // seed's parity branches (check/worker event kind). Thirty full renders in
+  // one test exceeded the 5 s default timeout on hosted Ubuntu (874 ms for
+  // 30 seeds here, ~29 ms a render with its assertions); two cover each
+  // branch for ~60 ms.
+  for (const seed of [1, 2]) {
     const records = historyRecords(seed)
     const { container, unmount } = render(
       <ResourcesSection history={aggregateResources(records)} />,

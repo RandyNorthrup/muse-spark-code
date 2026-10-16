@@ -3,6 +3,7 @@
 // the other arguments are our own tool interface. This is not an MSP parser.
 
 import * as z from 'zod/mini'
+import type { PanelPlaybookPort } from '../../orchestration/panelPlaybook'
 import {
   MODEL_API_SUBAGENT_TOOLS,
   REVIEWER_ROLE,
@@ -208,3 +209,16 @@ export type SubagentAdmission = <T>(
   isOver: (wake: () => void) => boolean,
   refused: (reason: string, shown: string) => T,
 ) => Promise<T> | undefined
+
+/** M116: bind immediately before a new child/follow-up actually starts, after paid
+ * consent and ordinary tool admission. Idempotent spawn retries start no work.
+ * @unwired M116 playbook subagent dispatch
+ * Muse Code's native spawn owner binds this same port at its dispatch boundary. */
+export async function dispatchPlaybookSubagent<T>(
+  playbook: PanelPlaybookPort,
+  sessionId: string,
+  targetId: string | undefined,
+  start: (signal: AbortSignal) => Promise<T>,
+): Promise<T> {
+  return await playbook.dispatch('subagent', sessionId, targetId, start)
+}

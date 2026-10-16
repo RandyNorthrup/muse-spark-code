@@ -169,6 +169,13 @@ async function exercise(api, name, table) {
         { tool_name: 'shell', tool_input: { command: 'pwd' } },
       )
     }
+    case 'modelApiTools.js': {
+      const passed = api.checkPageUrl('https://Docs.Example.com/a/b?x=1#part')
+      assert.equal(passed.ok, true)
+      const refused = api.checkPageUrl('http://localhost/')
+      assert.equal(refused.ok, false)
+      return { ok: passed.ok, refusedOk: refused.ok }
+    }
     default: {
       return
     }

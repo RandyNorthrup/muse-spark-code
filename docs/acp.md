@@ -358,6 +358,9 @@ Creator's ACP Client, sublime-acp, Devin Desktop's custom agents).
   `/questions` and `/answer <n> <text>` (reserved ahead of skills), and
   M116's `/playbook <status|record|settings ...>`, answered locally with no
   model turn.
+  M108's `/accounts <list|current|thresholds [id]>` on the Model API
+  backend, answered locally with no model turn; `/accounts use <id>` is
+  refused and names the account the session keeps.
 - **Permission prompts**: the backend's own choices (allow once, allow for
   the session, reject). A prompt the editor cancels, or answers with a
   choice it was not offered, is rejected; nothing runs by default.
@@ -467,6 +470,21 @@ answers, and failed sends release without writing. Panel enforcement
 (leases, outcome receipts, dispatch gating) is not installed here; see
 [the milestone certification](certification/m116.md) for what is bound and
 what waits for M96's planner.
+
+## Several accounts per provider (M108)
+
+On the Model API backend `/accounts list`, `/accounts current` and
+`/accounts thresholds [id]` read local metadata without a model turn, and the
+`account` session option shows the same accounts. The Muse Code backend runs
+on its subscription and has neither. Changing the session's account
+(`/accounts use <id>`, or another choice in the picker) is still refused: the
+refusal names the account the session keeps, and the agent never reports a
+swap while retaining another account's key. A session starts without accounts
+when their metadata cannot be read.
+
+The terminal's `providers accounts` commands manage metadata, ordering,
+thresholds and stored API keys. Keys are read only from standard input,
+never an argument or file.
 
 ## Paid features
 

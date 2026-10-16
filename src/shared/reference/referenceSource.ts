@@ -69,6 +69,10 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
   ...['strict-tools', 'parallel-reads', 'cut-short-tools', 'structured-side-calls'].map(
     (id): [string, readonly string[]] => [id, ['vscode:modelApi', 'acp:modelApi']],
   ),
+  // M106 (C-M106-2): the selected model's record is bound in production, so
+  // previews render in the panel and in ACP where that record verifies
+  // streamed arguments.
+  ['argument-preview', ['vscode:modelApi', 'acp:modelApi']],
   ...['service-status'].map((id): [string, readonly string[]] => [id, ['vscode:modelApi']]),
   ['native-deletion', ['vscode:museCode']],
   ['output-schema', ['acp:modelApi']],
@@ -78,7 +82,6 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
   ['legal-explanation', ['vscode:museCode', 'vscode:modelApi']],
   ['team-workers', []],
   ['auto-compaction', []],
-  ['argument-preview', []],
   ['compaction', ['vscode:modelApi', 'acp:modelApi']],
   ['custom-agents', ['vscode:modelApi']],
   ['mcp-elicitation', ['vscode:modelApi']],
@@ -146,11 +149,12 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
   // M112: ACP asks through forms or text and answers with /questions and /answer.
   ['questions', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
   ['reports', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
-  // M116: the CLI, ACP and the VS Code composer answer /playbook from the
-  // journal; the panel's Agent map opens its status, record and settings.
-  ['orchestrator-playbook', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
-  // M108/W: several accounts per provider are in progress on every surface.
-  ['accounts', []],
+  // M116: CLI/ACP journal commands work; the VS Code panel has no mount.
+  ['orchestrator-playbook', ['acp:museCode', 'acp:modelApi']],
+  // M108 (CM108ACC): the terminal and ACP on the Model API backend list
+  // accounts, show the current one and its thresholds, and hold per-account
+  // keys; the editor's page, swapping and pooling are not bound.
+  ['accounts', ['acp:modelApi']],
   // M109: production vault service is unbound on every surface.
   ['vault', []],
   // M117: the production plan snapshot port refuses on every surface.
@@ -208,7 +212,6 @@ export const REFERENCE_ACTION_FEATURES = {
   updateBundledSkills: 'skills',
   declineBundledSkills: 'skills',
   showWhatsNew: 'chat',
-  openPlaybook: 'orchestrator-playbook',
 
   readReference: 'support',
   openReferenceSetting: 'support',
@@ -242,7 +245,6 @@ export const REFERENCE_ACTION_FEATURES = {
   scheduleCancel: 'schedules',
   scheduleRun: 'schedules',
   schedulesRequest: 'schedules',
-  playbook: 'orchestrator-playbook',
   openSchedules: 'schedules',
   exportConversation: 'conversation-actions',
   importSession: 'conversation-actions',

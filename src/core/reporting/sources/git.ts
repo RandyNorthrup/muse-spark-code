@@ -218,14 +218,30 @@ export function gitSource(io: ReportGitIo, scrub: SourceScrub, roots: readonly s
         defaultBranch: scrub(defaultRef?.replace(/^refs\/(?:heads|remotes)\//u, '') ?? ''),
         commits: commits
           .slice(0, REPORT_GIT_MAX_COMMITS)
-          .toSorted((a, b) => codeUnitCompare(a.sha, b.sha)),
+          .toSorted(
+            (a, b) =>
+              codeUnitCompare(a.sha, b.sha) ||
+              codeUnitCompare(JSON.stringify(a), JSON.stringify(b)),
+          ),
         tags: tags
           .slice(0, REPORT_GIT_MAX_COMMITS)
-          .toSorted((a, b) => codeUnitCompare(a.name, b.name)),
-        branches: branches.toSorted((a, b) => codeUnitCompare(a.name, b.name)),
+          .toSorted(
+            (a, b) =>
+              codeUnitCompare(a.name, b.name) ||
+              codeUnitCompare(JSON.stringify(a), JSON.stringify(b)),
+          ),
+        branches: branches.toSorted(
+          (a, b) =>
+            codeUnitCompare(a.name, b.name) ||
+            codeUnitCompare(JSON.stringify(a), JSON.stringify(b)),
+        ),
         worktrees: worktrees
           .slice(0, REPORT_GIT_MAX_COMMITS)
-          .toSorted((a, b) => codeUnitCompare(a.path, b.path)),
+          .toSorted(
+            (a, b) =>
+              codeUnitCompare(a.path, b.path) ||
+              codeUnitCompare(JSON.stringify(a), JSON.stringify(b)),
+          ),
       },
       ...((isBounded || defaultRef === undefined) && {
         partial: sourceReason(isBounded ? 'limit' : 'unbound'),

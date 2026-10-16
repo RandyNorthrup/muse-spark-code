@@ -13,13 +13,24 @@ import {
   negateUsd,
   sumUsd,
   usdAmountSchema,
+  usdPeriodDelta,
 } from '../../src/shared/usd'
+import { MONEY_PERIOD_CASES } from './helpers/moneyPeriodCases'
 
 afterEach(() => {
   setUiText(EN, BASE_LOCALE)
 })
 
 describe('shared exact USD', () => {
+  it.each(MONEY_PERIOD_CASES)(
+    'rounds exact period change %s against %s to %s without negative zero',
+    (current, previous, expected) => {
+      expect(usdPeriodDelta(Usd.from(current).toAmount(), Usd.from(previous).toAmount())).toBe(
+        expected,
+      )
+    },
+  )
+
   it('normalizes legacy edges and rejects noncanonical or nonfinite money', () => {
     expect(legacyUsdSchema.parse(0.0005872)).toBe('0.0005872')
     for (const [input, expected] of [

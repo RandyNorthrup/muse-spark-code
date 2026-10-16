@@ -18,7 +18,6 @@
 // one's id is never hit.
 
 import { parseProcessTable, type ProcessRow } from '../core/resources/trees/processTable'
-export { parseProcessTable } from '../core/resources/trees/processTable'
 
 import {
   execFile,
