@@ -159,6 +159,8 @@ describe('RVHELPREF host and terminal regressions', () => {
     // Each headless command's --help is its own screen, never the reference.
     for (const route of ['exec', 'report', 'scan-secrets'])
       expect(parseCommandLine([route, '--help'])).toEqual({ command: 'help', topic: route })
+    for (const route of ['share', 'prompts'])
+      expect(parseCommandLine([route, '--help'])).toEqual({ command: 'help', topic: 'sharing' })
   })
   it('R20 leaves an unsupported host value set empty without reading sensitive values', async () => {
     const bridge = host()

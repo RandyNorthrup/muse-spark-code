@@ -161,7 +161,7 @@ export type RuntimeCommand =
   | {
       readonly command: 'help'
       readonly all?: boolean
-      readonly topic?: 'scan-secrets' | 'exec' | 'report'
+      readonly topic?: 'scan-secrets' | 'exec' | 'report' | 'sharing'
     }
   | { readonly command: 'version' }
   | { readonly command: 'vaultHelp' }
@@ -260,6 +260,9 @@ export function parseCommandLine<T>(
   // M118-X-CLI: main's owner injects the local parser/runner once P/C bind.
   // Without that binding these reserved commands fail explicitly, never serve.
   if (argv[0] === 'share' || argv[0] === 'prompts') {
+    // The sharing commands' help is their own one screen, answered before
+    // any local binding is needed.
+    if (argv.length === 2 && argv[1] === '--help') return { command: 'help', topic: 'sharing' }
     if (localSharing === undefined) return invalid(argv[0])
     try {
       return localSharing(argv)

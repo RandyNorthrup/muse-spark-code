@@ -79,6 +79,7 @@ import {
   formatExecHelp,
   formatReportHelp,
   formatScanSecretsHelp,
+  formatSharingHelp,
 } from './cliOptions'
 import { referenceLoader } from '../host/referenceLoader'
 import { createRuntimeEstimate, runRuntimeEstimateCommand } from './estimator/ports'
@@ -1582,6 +1583,11 @@ async function main(): Promise<number> {
         }
         case 'report': {
           writeLine(process.stdout, formatReportHelp(UI_TEXT, ACP_AGENT_NAME))
+
+          break
+        }
+        case 'sharing': {
+          writeLine(process.stdout, formatSharingHelp(UI_TEXT))
 
           break
         }
