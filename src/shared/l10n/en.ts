@@ -2015,7 +2015,7 @@ export const EN = {
   gitChecksRunning: forms({ one: '{count} running', other: '{count} running' }),
   gitChecksSkipped: forms({ one: '{count} skipped', other: '{count} skipped' }),
   gitChecksCancelled: forms({ one: '{count} cancelled', other: '{count} cancelled' }),
-  gitChecksNotRead: forms({ one: '{count} more not read', other: '{count} more not read' }),
+
   gitStatusNeedsSignIn: 'Sign in to GitHub to see its status.',
   gitCheckedAt: 'as of {time}',
   gitSignInGitHub: 'Sign In to GitHub',

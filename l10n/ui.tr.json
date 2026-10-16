@@ -1672,10 +1672,6 @@
     "one": "{count} iptal edildi",
     "other": "{count} iptal edildi"
   },
-  "gitChecksNotRead": {
-    "one": "{count} tane daha okunmadı",
-    "other": "{count} tane daha okunmadı"
-  },
   "gitStatusNeedsSignIn": "Durumunu görmek için GitHub'da oturum açın.",
   "gitCheckedAt": "{time} itibarıyla",
   "gitSignInGitHub": "GitHub'da oturum aç",

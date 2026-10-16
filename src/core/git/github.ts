@@ -114,8 +114,6 @@ export interface ChecksSummary {
   readonly failedNames: readonly string[]
   /** Any check in a state the capture did not show, as `name: state` (D36). */
   readonly other: readonly string[]
-  /** Check runs and commit statuses beyond the one page of each read. */
-  readonly notRead: number
 }
 
 /** A repository's default branch, and for a fork the repository it came from. */
@@ -263,8 +261,8 @@ function repositoryPath(repository: GitHubRepository): string {
 
 /** Counts check runs and commit statuses into one summary. */
 function summarizeChecks(
-  runs: z.infer<typeof checkRunsSchema>,
-  statuses: z.infer<typeof combinedStatusSchema>,
+  runs: readonly z.infer<typeof checkRunsSchema>['check_runs'][number][],
+  statuses: readonly z.infer<typeof combinedStatusSchema>['statuses'][number][],
 ): ChecksSummary {
   const counts: Record<CountKey, number> = {
     passed: 0,
@@ -281,7 +279,7 @@ function summarizeChecks(
       failedNames.push(name)
     }
   }
-  for (const run of runs.check_runs) {
+  for (const run of runs) {
     const { conclusion } = run
     if (run.status === CHECK_IN_PROGRESS) {
       count('running', run.name)
@@ -295,7 +293,7 @@ function summarizeChecks(
       other.push(`${run.name}: ${conclusion ?? run.status}`)
     }
   }
-  for (const status of statuses.statuses) {
+  for (const status of statuses) {
     if (isKnownKey(STATUS_COUNTS, status.state)) {
       count(STATUS_COUNTS[status.state], status.context)
     } else {
@@ -306,9 +304,6 @@ function summarizeChecks(
     ...counts,
     failedNames,
     other,
-    notRead:
-      Math.max(runs.total_count - runs.check_runs.length, 0) +
-      Math.max(statuses.total_count - statuses.statuses.length, 0),
   }
 }
 
@@ -447,7 +442,7 @@ export class GitHubClient {
     return toPullRequest(this.parse(pullRequestSchema, raw, 'new pull request'))
   }
 
-  /** The check runs and commit statuses (one page of each) on `sha`, counted. */
+  /** The check runs and commit statuses on `sha`, every page of each, counted. */
   public async checks(
     token: string,
     repository: GitHubRepository,
@@ -457,17 +452,42 @@ export class GitHubClient {
       throw new GitHubError(fill(UI_TEXT.gitHubCommitInvalid, { sha }), 'invalid', undefined)
     }
     const commit = `${repositoryPath(repository)}/commits/${sha}`
-    const [runs, statuses] = await Promise.all([
-      this.request(
-        token,
-        'GET',
-        `${commit}/check-runs?per_page=${String(GITHUB_CHECKS_PAGE_SIZE)}`,
-      ),
-      this.request(token, 'GET', `${commit}/status?per_page=${String(GITHUB_CHECKS_PAGE_SIZE)}`),
-    ])
-    return summarizeChecks(
-      this.parse(checkRunsSchema, runs, 'check runs'),
-      this.parse(combinedStatusSchema, statuses, 'commit status'),
-    )
+    const runs: z.infer<typeof checkRunsSchema>['check_runs'] = []
+    for (let page = 1; ; page += 1) {
+      const parsed = this.parse(
+        checkRunsSchema,
+        await this.request(
+          token,
+          'GET',
+          `${commit}/check-runs?per_page=${String(GITHUB_CHECKS_PAGE_SIZE)}&page=${String(page)}`,
+        ),
+        'check runs',
+      )
+      runs.push(...parsed.check_runs)
+      if (
+        page * GITHUB_CHECKS_PAGE_SIZE >= parsed.total_count ||
+        parsed.check_runs.length < GITHUB_CHECKS_PAGE_SIZE
+      )
+        break
+    }
+    const statuses: z.infer<typeof combinedStatusSchema>['statuses'] = []
+    for (let page = 1; ; page += 1) {
+      const parsed = this.parse(
+        combinedStatusSchema,
+        await this.request(
+          token,
+          'GET',
+          `${commit}/status?per_page=${String(GITHUB_CHECKS_PAGE_SIZE)}&page=${String(page)}`,
+        ),
+        'commit status',
+      )
+      statuses.push(...parsed.statuses)
+      if (
+        page * GITHUB_CHECKS_PAGE_SIZE >= parsed.total_count ||
+        parsed.statuses.length < GITHUB_CHECKS_PAGE_SIZE
+      )
+        break
+    }
+    return summarizeChecks(runs, statuses)
   }
 }

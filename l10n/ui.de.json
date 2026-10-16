@@ -1672,10 +1672,6 @@
     "one": "{count} abgebrochen",
     "other": "{count} abgebrochen"
   },
-  "gitChecksNotRead": {
-    "one": "{count} weitere nicht gelesen",
-    "other": "{count} weitere nicht gelesen"
-  },
   "gitStatusNeedsSignIn": "Melden Sie sich bei GitHub an, um den Status zu sehen.",
   "gitCheckedAt": "Stand: {time}",
   "gitSignInGitHub": "Bei GitHub anmelden",

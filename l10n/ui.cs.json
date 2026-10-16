@@ -1726,12 +1726,6 @@
     "few": "{count} zrušeny",
     "many": "{count} zrušeno"
   },
-  "gitChecksNotRead": {
-    "one": "{count} další nenačtena",
-    "other": "{count} dalších nenačteno",
-    "few": "{count} další nenačteny",
-    "many": "{count} další nenačteno"
-  },
   "gitStatusNeedsSignIn": "Chcete-li zobrazit stav, přihlaste se ke GitHubu.",
   "gitCheckedAt": "stav k {time}",
   "gitSignInGitHub": "Přihlásit se ke GitHubu",

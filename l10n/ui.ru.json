@@ -1726,12 +1726,6 @@
     "few": "отменено: {count}",
     "many": "отменено: {count}"
   },
-  "gitChecksNotRead": {
-    "one": "еще не прочитано: {count}",
-    "other": "еще не прочитано: {count}",
-    "few": "еще не прочитано: {count}",
-    "many": "еще не прочитано: {count}"
-  },
   "gitStatusNeedsSignIn": "Войдите в GitHub, чтобы увидеть статус.",
   "gitCheckedAt": "по состоянию на {time}",
   "gitSignInGitHub": "Войти в GitHub",

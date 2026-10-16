@@ -1645,9 +1645,6 @@
   "gitChecksCancelled": {
     "other": "{count} 件キャンセル"
   },
-  "gitChecksNotRead": {
-    "other": "ほかに {count} 件は未取得"
-  },
   "gitStatusNeedsSignIn": "状態を確認するには、GitHub にサインインしてください。",
   "gitCheckedAt": "{time} 時点",
   "gitSignInGitHub": "GitHub にサインイン",

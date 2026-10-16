@@ -1645,9 +1645,6 @@
   "gitChecksCancelled": {
     "other": "{count} 个已取消"
   },
-  "gitChecksNotRead": {
-    "other": "另有 {count} 个未读取"
-  },
   "gitStatusNeedsSignIn": "登录 GitHub 以查看其状态。",
   "gitCheckedAt": "截至 {time}",
   "gitSignInGitHub": "登录 GitHub",
