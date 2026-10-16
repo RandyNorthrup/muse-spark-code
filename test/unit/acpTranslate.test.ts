@@ -609,8 +609,8 @@ describe('promptParts', () => {
       { type: 'text', text: 'https://example.com/doc' },
     ])
     const attached = result.parts[4]
-    expect(attached?.type === 'text' ? attached.text.length : 0).toBeLessThan(
-      SELECTION_TEXT_MAX_CHARS + 100,
+    expect(attached?.type === 'text' ? attached.text : '').toContain(
+      'y'.repeat(SELECTION_TEXT_MAX_CHARS + 5),
     )
     expect(result.parts[5]).toEqual({
       type: 'image',

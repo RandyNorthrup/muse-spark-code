@@ -16,7 +16,6 @@ import {
   MEDIA_MAX_UPLOAD_DEFAULT_MIB,
   PDF_MEDIA_TYPE,
   MODEL_API_WEB_SEARCH_TOOL,
-  SELECTION_TEXT_MAX_CHARS,
   SHELL_TOOLS,
   type PaidFeature,
   UI_TEXT,
@@ -620,12 +619,10 @@ export interface PromptMediaPort {
   readonly block: (block: ContentBlock, signal: AbortSignal) => Promise<TurnPart | string>
 }
 
-/** A file the client attached, as context the model reads (clipped like a selection). */
+/** A file the client attached, as context the model reads in full. */
 function attachedContext(uri: string, text: string): string {
-  const body =
-    text.length > SELECTION_TEXT_MAX_CHARS ? text.slice(0, SELECTION_TEXT_MAX_CHARS) : text
   const tag = IDE_CONTEXT_TAGS.attachedContext
-  return `<${tag} uri="${uri}">\n${body}\n</${tag}>`
+  return `<${tag} uri="${uri}">\n${text}\n</${tag}>`
 }
 
 /** A `file:` link inside the folder as an @mention, anything else as its URI. */

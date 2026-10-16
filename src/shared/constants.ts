@@ -4616,8 +4616,9 @@ export const CLI_STDERR_LOG_MAX_CHARS = 4096
 
 // Active-editor changes are broadcast to the composer after this quiet gap.
 export const EDITOR_CONTEXT_DEBOUNCE_MS = 150
-// The selected text handed to the model with a message; longer selections
-// are clipped with a marker rather than dropped.
+// The exec untrusted-input chunk capacity (runtime/exec/untrustedInput.ts).
+// Selections and attached files reach the model whole; the provider's own
+// context limit decides what fits.
 export const SELECTION_TEXT_MAX_CHARS = 64 * 1024
 // The wording Claude Code uses for editor context (its system reminders).
 // A message replying to an output or quoting a highlighted passage (M17):
@@ -6058,7 +6059,6 @@ export const MODEL_TEXT = {
     'read part of it with a shell command instead (the search tool skips files over 1 MiB)',
   fileNotText:
     'is not UTF-8 text (binary, or another encoding such as UTF-16 or Latin-1), so it cannot be read or edited as text',
-  selectionClipped: '[selection clipped]',
   selectionNotShared:
     'Its content is not shared because the file is excluded from the workspace index.',
   // M34: what the model is told when an image cannot be made.
