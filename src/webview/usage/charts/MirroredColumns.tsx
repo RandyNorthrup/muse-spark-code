@@ -1,5 +1,5 @@
 import { USAGE_TEXT } from '../../../shared/l10n/usageTable'
-import { formatDateTime } from '../../../shared/l10n/text'
+import { bucketHourLabel } from '../../../shared/usage'
 import type { UsagePageState } from '../../../shared/usagePage'
 import { count, dayLabel } from '../display'
 import { ChartFrame, ColumnBucket } from './ChartFrame'
@@ -14,7 +14,7 @@ export function MirroredColumns({ state }: { readonly state: UsagePageState }) {
   ]
   const points = state.buckets.map((bucket, index) => ({
     id: String(index),
-    label: state.query.range === 'today' ? formatDateTime(bucket.at) : dayLabel(bucket.day),
+    label: state.query.range === 'today' ? bucketHourLabel(bucket) : dayLabel(bucket.day),
     values: [
       bucket.totals.tokens.input,
       bucket.totals.tokens.output,

@@ -15,6 +15,7 @@ import { usagePeriodDelta, usageRange, usageSumUsd, usageWindowStatus } from './
 // provider/model labels are escaped; numbers use the installed display locale.
 
 import { USAGE_TEXT } from '../../shared/l10n/usageTable'
+import { bucketHourLabel, planDisplayName, planLabel } from '../../shared/usage'
 import type { UsageCertainty, UsageLimitSnapshot } from '../../shared/usageJournal'
 import type { UsagePageState, UsageTotals } from '../../shared/usagePage'
 import type { UsdAmount } from '../../shared/usdSchema'
@@ -132,9 +133,14 @@ export function usageText(
   row(USAGE_TEXT.retries, count(state.totals.retries))
   row(USAGE_TEXT.rateLimited, count(state.totals.rateLimited))
   heading(USAGE_TEXT.certainty)
+  // A plan cost is named by the meter it rode on (F22): the generic label
+  // stays only while no stored meter names the plan.
+  const planName = planDisplayName(state.limits)
   for (const cost of state.totals.costs) {
     row(
-      certaintyLabel(cost.certainty),
+      planName !== undefined && cost.certainty === 'plan'
+        ? planName
+        : certaintyLabel(cost.certainty),
       `${amount(cost.usd)} · ${plural(USAGE_TEXT.recordCount, cost.records)}`,
     )
     if (cost.apiEquivalentUsd !== undefined)
@@ -171,7 +177,10 @@ export function usageText(
       (window) => latest.get(limitKey(limit, window.id)) === limit,
     )
     if (!isLatestSource && windows.length === 0) continue
-    row(limit.provider, fill(USAGE_TEXT.asOf, { date: formatDateTime(limit.observedAt) }))
+    row(
+      limit.plan === undefined ? limit.provider : planLabel(limit.plan),
+      fill(USAGE_TEXT.asOf, { date: formatDateTime(limit.observedAt) }),
+    )
     for (const window of windows) {
       const status = usageWindowStatus(window, limit.observedAt, state.generatedAt)
       const freshness = { fresh: '', stale: USAGE_TEXT.stale, awaiting: USAGE_TEXT.awaitingFresh }[
@@ -234,9 +243,15 @@ export function usageText(
   switch (section) {
     case 'daily': {
       lines.splice(introEnd)
+      // Hourly buckets of one day would print the same date twice (F24):
+      // rows that share a day name the hour that separates them instead.
+      const days = new Set(state.buckets.map((bucket) => bucket.day))
+      const hasSharedDay = days.size < state.buckets.length
       for (const bucket of state.buckets)
         row(
-          formatDate(new Date(`${bucket.day}T12:00:00`).getTime()),
+          hasSharedDay
+            ? bucketHourLabel(bucket)
+            : formatDate(new Date(`${bucket.day}T12:00:00`).getTime()),
           `${amount(charge(bucket.totals))} · ${count(bucket.totals.tokens.input)} / ${count(bucket.totals.tokens.output)} · ${plural(USAGE_TEXT.requestCount, bucket.totals.records)}`,
         )
       break

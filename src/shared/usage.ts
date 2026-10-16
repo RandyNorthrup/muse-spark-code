@@ -15,7 +15,13 @@ import {
   SECONDS_PER_MINUTE,
   UI_TEXT,
 } from './constants'
-import { type DurationUnit, formatUnit, plural } from './l10n/text'
+import {
+  type DurationUnit,
+  formatDateTime,
+  formatDateTimeUtc,
+  formatUnit,
+  plural,
+} from './l10n/text'
 import { legacyUsdSchema } from './usdSchema'
 
 export const subscriptionUsageSchema = z.object({
@@ -150,6 +156,43 @@ const OPAQUE_TIER = /^[\d-]+$/
  */
 export function planLabel(tier: string): string {
   return tier === '' || OPAQUE_TIER.test(tier) ? UI_TEXT.usagePlanSubscription : tier
+}
+
+/**
+ * Whose plan the spend rode on: the latest observed Muse Code meter's own
+ * plan name. Undefined when no stored meter names one, and plan rows keep
+ * their generic label then rather than guessing.
+ */
+export function planDisplayName(
+  limits: readonly {
+    readonly provider: string
+    readonly observedAt: number
+    readonly plan?: string | undefined
+  }[],
+): string | undefined {
+  let latest: { readonly observedAt: number; readonly plan: string } | undefined
+  for (const limit of limits) {
+    if (limit.provider !== 'museCode' || limit.plan === undefined) continue
+    if (latest === undefined || limit.observedAt >= latest.observedAt)
+      latest = { observedAt: limit.observedAt, plan: limit.plan }
+  }
+  return latest === undefined ? undefined : planLabel(latest.plan)
+}
+
+/**
+ * An hour bucket's label in the timezone its records were written in. The
+ * bucket keeps its hour-start instant; shifting it back by the recorded
+ * offset recovers the recorded-local wall clock, so a later timezone change
+ * (or DST) cannot move the hour onto another day. Buckets without a
+ * recorded offset (rollup months) keep the viewer's local rendering.
+ */
+export function bucketHourLabel(bucket: {
+  readonly at: number
+  readonly timezoneOffsetMins?: number | undefined
+}): string {
+  return bucket.timezoneOffsetMins === undefined
+    ? formatDateTime(bucket.at)
+    : formatDateTimeUtc(bucket.at - bucket.timezoneOffsetMins * MILLISECONDS_PER_MINUTE)
 }
 
 /** "5-hour window" / "90-minute window" from the provider's duration. */

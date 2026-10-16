@@ -374,9 +374,15 @@ export function aggregateUsage(
   const features = new Map<UsageKind, Accumulator>()
   const buckets = new Map<
     string,
-    { at: number; day: string; sum: Accumulator; groups: Map<string, Group> }
+    {
+      at: number
+      day: string
+      timezoneOffsetMins?: number | undefined
+      sum: Accumulator
+      groups: Map<string, Group>
+    }
   >()
-  function visit(row: UsageAggregateRow, at?: number): void {
+  function visit(row: UsageAggregateRow, at?: number, timezoneOffsetMins?: number): void {
     if (row.day >= range.previousFrom && row.day <= range.previousTo) add(previous, row)
     if (row.day < range.from || row.day > range.to) return
     add(current, row)
@@ -395,6 +401,7 @@ export function aggregateUsage(
       bucket = {
         at: interval === 'hour' && at !== undefined ? at : Date.parse(day),
         day,
+        ...(timezoneOffsetMins !== undefined && { timezoneOffsetMins }),
         sum: accumulator(),
         groups: new Map(),
       }
@@ -405,7 +412,11 @@ export function aggregateUsage(
   }
   for (const record of records) {
     const offset = record.timezoneOffsetMins * MINUTE_MS
-    visit(recordRow(record), Math.floor((record.at - offset) / HOUR_MS) * HOUR_MS + offset)
+    visit(
+      recordRow(record),
+      Math.floor((record.at - offset) / HOUR_MS) * HOUR_MS + offset,
+      record.timezoneOffsetMins,
+    )
   }
   for (const row of rollups) visit(row)
   return {
@@ -418,6 +429,9 @@ export function aggregateUsage(
       .map((bucket) => ({
         at: bucket.at,
         day: bucket.day,
+        ...(bucket.timezoneOffsetMins !== undefined && {
+          timezoneOffsetMins: bucket.timezoneOffsetMins,
+        }),
         totals: finish(bucket.sum),
         groups: groupRows(bucket.groups, query.groupBy),
       })),

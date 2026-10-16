@@ -98,7 +98,7 @@ export function usageStateFor(scenario = 'one-provider', now = Date.now()): Usag
       }
   const observedAt = scenario === 'stale' ? now - 16 * 60 * 1000 : now
   return {
-    v: 2,
+    v: 3,
     query: { range: 'today', groupBy: 'provider', metric: 'cost' },
     generatedAt: now,
     history: {
@@ -120,7 +120,7 @@ export function usageStateFor(scenario = 'one-provider', now = Date.now()): Usag
     limits: [
       {
         type: 'limit',
-        v: 2,
+        v: 3,
         id: 'limit-1',
         at: observedAt,
         day,
@@ -142,7 +142,7 @@ export function usageStateFor(scenario = 'one-provider', now = Date.now()): Usag
       },
       {
         type: 'limit',
-        v: 2,
+        v: 3,
         id: 'headers-1',
         at: now,
         day,

@@ -35,6 +35,7 @@ import {
   type RequirementRef,
   requirementRefSchema,
   type SessionGoal,
+  type TokenUsageCompletion,
 } from '../../../shared/agentEvents'
 import {
   APPROVAL_REJECT_ATTEMPTS,
@@ -859,7 +860,37 @@ export function describeExit(
       }
 }
 
-/** Each cumulative MSP report is journaled immediately as a known delta. */
+/** The journal's limit snapshot for one `usage/changed` meter reading: the
+ * meter's tier names the subscription plan, except an empty tier, which the
+ * label reader falls back from. Exported for the exact-assertion test. */
+export function museCodeLimitInput(
+  usage: SubscriptionUsage,
+): Parameters<UsageRecording['limit']>[0] {
+  return {
+    backend: 'museCode',
+    provider: 'museCode',
+    source: 'museCode',
+    observedAt: usage.observedAtMs,
+    // An empty tier names no plan; the label reader falls back then.
+    ...(usage.tier !== '' && { plan: usage.tier }),
+    windows: [
+      {
+        id: 'window',
+        usedPercent: usage.window.usedPercent,
+        resetsAt: usage.window.resetsAtMs,
+        windowMins: usage.window.windowDurationMins,
+      },
+      {
+        id: 'weekly',
+        usedPercent: usage.weekly.usedPercent,
+        resetsAt: usage.weekly.resetsAtMs,
+      },
+    ],
+  }
+}
+
+/** Each MSP report is journaled immediately: one completion's own counters
+ * where the frame carries them (1.4), else the known cumulative delta. */
 export class MuseUsageDeltas {
   private baseline: { inputTokens: number; outputTokens: number } | undefined
   private startedAt: number | undefined
@@ -873,6 +904,51 @@ export class MuseUsageDeltas {
   ) {
     this.currentModel = modelId
     if (isNew) this.baseline = { inputTokens: 0, outputTokens: 0 }
+  }
+  /** One completion's own counters, wall time and model: never a re-derived split. */
+  private noteCompletion(
+    event: Extract<AgentEvent, { type: 'tokenUsage' }>,
+    model: string,
+    startedAt: number,
+    at: number,
+  ): void {
+    const completion: TokenUsageCompletion | undefined = event.completion
+    if (completion === undefined) return
+    if (completion.inputTokens === 0 && completion.outputTokens === 0) return
+    this.recording.note(
+      {
+        input_tokens: completion.inputTokens,
+        output_tokens: completion.outputTokens,
+        ...((completion.cachedTokens !== undefined ||
+          completion.cacheWriteTokens !== undefined) && {
+          input_tokens_details: {
+            ...(completion.cachedTokens !== undefined && {
+              cached_tokens: completion.cachedTokens,
+            }),
+            ...(completion.cacheWriteTokens !== undefined && {
+              cache_write_tokens: completion.cacheWriteTokens,
+            }),
+          },
+        }),
+        ...(completion.reasoningTokens !== undefined && {
+          output_tokens_details: { reasoning_tokens: completion.reasoningTokens },
+        }),
+      },
+      {
+        backend: 'museCode',
+        provider: 'museCode',
+        model,
+        session: this.sessionId,
+        kind: 'turn',
+        pricing: { kind: 'plan' },
+        startedAt,
+        durationMs:
+          completion.durationMs !== undefined && Number.isFinite(completion.durationMs)
+            ? Math.max(0, completion.durationMs)
+            : Math.max(0, at - startedAt),
+        outcome: 'incomplete',
+      },
+    )
   }
   public receive(event: AgentEvent, isReplay = false): void {
     if (isReplay) {
@@ -897,6 +973,35 @@ export class MuseUsageDeltas {
     const prior = this.baseline
     this.baseline = next
     if (event.modelId !== undefined) this.currentModel = event.modelId
+    // The tier the request was really sent as is this completion's own
+    // effective model; the standing model is only the fallback for frames
+    // that predate it. A later model change must not rename an earlier call.
+    const model = event.completion?.modelId ?? event.modelId ?? this.currentModel
+    if (event.completion !== undefined) {
+      const at = this.now()
+      // The CLI can deliver the same completion-bearing frame twice; its
+      // cumulative totals then did not move. Only a forward move records,
+      // the same rule headless counting uses (`isCountedCompletion` in
+      // runExec.ts), so the journal and the request count never count the
+      // same report differently.
+      const base = prior ?? { inputTokens: 0, outputTokens: 0 }
+      const hasMovedForward =
+        next.inputTokens >= base.inputTokens &&
+        next.outputTokens >= base.outputTokens &&
+        (next.inputTokens > base.inputTokens || next.outputTokens > base.outputTokens)
+      if (!hasMovedForward) return
+      // The frame carries this completion's own wall time: its start is
+      // the notification time minus that duration, not the turn's start,
+      // so later requests in one turn do not overlap the first. Frames
+      // without a duration keep the turn start (then the receipt time).
+      const ownDuration = event.completion.durationMs
+      const completionStartedAt =
+        ownDuration !== undefined && Number.isFinite(ownDuration)
+          ? Math.max(0, at - Math.max(0, ownDuration))
+          : (this.startedAt ?? at)
+      this.noteCompletion(event, model, completionStartedAt, at)
+      return
+    }
     if (
       prior === undefined ||
       next.inputTokens < prior.inputTokens ||
@@ -913,7 +1018,7 @@ export class MuseUsageDeltas {
       {
         backend: 'museCode',
         provider: 'museCode',
-        model: this.currentModel,
+        model,
         session: this.sessionId,
         kind: 'turn',
         pricing: { kind: 'plan' },
@@ -2215,25 +2320,7 @@ export class MuseCodeHost implements AgentHost {
         const usage = parsed.data
         if (!this.observedUsage.has(usage.observedAtMs)) {
           this.observedUsage.add(usage.observedAtMs)
-          this.usageRecording?.limit({
-            backend: 'museCode',
-            provider: 'museCode',
-            source: 'museCode',
-            observedAt: usage.observedAtMs,
-            windows: [
-              {
-                id: 'window',
-                usedPercent: usage.window.usedPercent,
-                resetsAt: usage.window.resetsAtMs,
-                windowMins: usage.window.windowDurationMins,
-              },
-              {
-                id: 'weekly',
-                usedPercent: usage.weekly.usedPercent,
-                resetsAt: usage.weekly.resetsAtMs,
-              },
-            ],
-          })
+          this.usageRecording?.limit(museCodeLimitInput(usage))
         }
         this.accountHome?.assertCurrent()
         this.accountHome?.observeUsage(parsed.data)
