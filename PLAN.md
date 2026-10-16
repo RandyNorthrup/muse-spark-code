@@ -14394,6 +14394,10 @@ heading; the other NOLIMITS lanes add no PLAN.md lines).
   with no ceiling of ours.
 - A11 (NOLIMITS1): `RENAME_MAX_FILES` = 200 removed — not about a model; a
   rename touches as many files as the language service names.
+- A13 (NOLIMITS1): `HOOK_AGENT_MAX_STEPS` = 5 removed — our own bound on a
+  model loop, no provider documents one; the agent loops until the model
+  stops calling tools (each step stays admitted/settled on the budgets;
+  Stop aborts).
 
 ## 3. Open questions (need the owner)
 
