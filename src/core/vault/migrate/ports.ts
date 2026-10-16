@@ -12,6 +12,15 @@ export const migrationRecordSchema = z
     // A trusted release-history ordinal; patches do not advance it.
     startedRelease: release,
     retainLegacy: z.boolean(),
+    // Set while `retire` runs, before it removes the legacy copy: a missing
+    // legacy copy with this flag is the engine's own interrupted retire, one
+    // without it is a deletion behind the vault. Cleared on completion.
+    retireIntent: z.optional(z.boolean()),
+    // Set when a finished retire found the legacy copy already absent: the
+    // engine deleted nothing and the note says so, so the join can tell a
+    // watched retire from a possibly raced external deletion. Cleared when
+    // `store` re-seeds the row or `delete` records the confirmed delete.
+    retireNote: z.optional(z.string().check(z.minLength(1), z.maxLength(VAULT_LIMITS.text))),
     phase: z.enum(['copying', 'active', 'writing', 'deleting', 'deleted', 'undone', 'retired']),
     digest: z.nullable(z.string().check(z.regex(/^[a-f0-9]{64}$/u))),
     previous: z.optional(
@@ -38,6 +47,12 @@ export interface LegacyCredentialPort {
 export interface MigrationCredential {
   readonly key: string
   readonly itemId: string
+  /**
+   * The vault item name `decode` builds, always equal to it: the constructor
+   * binds a wrapper that refuses any other decoded name with `conflict`, and
+   * refuses a name shared by two credentials outright.
+   */
+  readonly name: string
   decode(value: Uint8Array): VaultItem
   encode(item: VaultItem): Uint8Array
   /** Null for records whose owner's API consumes structured material rather than a key. */

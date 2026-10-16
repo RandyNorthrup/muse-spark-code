@@ -4,6 +4,9 @@ import { VaultMigration } from '../../../src/core/vault/migrate/migrate'
 import { type MigrationDeps, VaultMigrationFault } from '../../../src/core/vault/migrate/ports'
 import { generatedKey, migrationFixture } from './migrationFixture'
 import { eraseItem } from '../../../src/core/vault/migrate/material'
+import { type SecretStore } from '../../../src/host/auth/credentialStore'
+import { saveProviderCredential } from '../../../src/host/providers/credentialRecords'
+import { providerCredentialMigrationCredential } from '../../../src/core/vault/migrate/providerCredentials'
 
 async function readyToRetire() {
   const f = migrationFixture()
@@ -50,7 +53,11 @@ describe('D89.14 credential migration', () => {
     const f = migrationFixture()
     await f.service.store(f.credential.key, generatedKey())
     vi.mocked(f.deps.vault.remove).mockRejectedValueOnce(new Error('interrupted delete'))
-    await expect(f.service.delete(f.credential.key)).rejects.toThrow()
+    // Born-in-vault rows are retired with no legacy copy, so the vault copy
+    // is the only copy: deleting it needs the confirmed flag.
+    await expect(
+      f.service.delete(f.credential.key, { destroyLastCopyConfirmed: true }),
+    ).rejects.toThrow()
     const second = new VaultMigration(f.deps, [f.credential])
     await Promise.all([f.service.resume(f.credential.key), second.resume(f.credential.key)])
     expect(f.journal.get(f.credential.key)?.phase).toBe('deleted')
@@ -289,13 +296,145 @@ describe('D89.14 credential migration', () => {
     expect(f.journal.get(f.credential.key)?.phase).toBe('active')
     expect(f.legacy.has(f.credential.key)).toBe(true)
   })
+  it('finishes a pending retire intent at open instead of leaving it lying', async () => {
+    // RVCM1094E finding 1: a crash between the retire intent write and the
+    // legacy delete leaves `active` with the intent and the copy present. A
+    // later deletion behind the vault would then read as the engine's own
+    // retire, so the vault finishes every pending intent at the next open,
+    // before any other migration call: the copy still present is deleted by
+    // the engine itself and the slot is recorded `retired`.
+    const f = await readyToRetire()
+    const remove = f.deps.legacy.remove
+    f.deps.legacy.remove = vi.fn(() => Promise.reject(new Error('crash before the legacy delete')))
+    await expect(f.service.retire(f.credential.key)).rejects.toMatchObject({ code: 'storage' })
+    f.deps.legacy.remove = remove
+    expect(f.journal.get(f.credential.key)?.retireIntent).toBe(true)
+    expect(f.legacy.has(f.credential.key)).toBe(true)
+    const opened = new VaultMigration(f.deps, [f.credential])
+    expect(await opened.finishPendingRetires()).toEqual({ [f.credential.key]: 'retired' })
+    expect(f.journal.get(f.credential.key)?.phase).toBe('retired')
+    expect(f.journal.get(f.credential.key)?.retireIntent).toBeUndefined()
+    expect(f.legacy.has(f.credential.key)).toBe(false)
+    expect(f.deps.onRetired).toHaveBeenCalledExactlyOnceWith(f.credential.key)
+    // No intent survives the open: a second call finds nothing pending.
+    expect(await opened.finishPendingRetires()).toEqual({})
+    expect(await opened.migrate(f.credential.key)).toBe('retired')
+  })
+  it('notes a pending retire intent resumed with the legacy copy already absent', async () => {
+    // RVCM1094E finding 1: the intent cannot tell whose delete removed the
+    // copy, so when the open finds it already absent the engine still
+    // finishes to `retired` — but the journal row says the engine did not
+    // see the delete, instead of reading as a watched retire.
+    const f = await readyToRetire()
+    const remove = f.deps.legacy.remove
+    f.deps.legacy.remove = vi.fn(() => Promise.reject(new Error('crash before the legacy delete')))
+    await expect(f.service.retire(f.credential.key)).rejects.toMatchObject({ code: 'storage' })
+    f.deps.legacy.remove = remove
+    f.legacy.delete(f.credential.key)
+    const opened = new VaultMigration(f.deps, [f.credential])
+    expect(await opened.finishPendingRetires()).toEqual({ [f.credential.key]: 'retired' })
+    expect(f.journal.get(f.credential.key)?.phase).toBe('retired')
+    expect(typeof f.journal.get(f.credential.key)?.retireNote).toBe('string')
+    expect(f.deps.onRetired).toHaveBeenCalledExactlyOnceWith(f.credential.key)
+  })
+  it('reports a changed legacy copy at open and still finishes the other rows', async () => {
+    // RVCM1094E finding 1: `finishPendingRetires` must not throw for a row
+    // whose legacy copy changed after the intent — it reports that row's
+    // state and goes on to the others. The engine deletes nobody else's
+    // bytes: the stale intent is cleared so the change reads honestly.
+    const f = migrationFixture()
+    const second = providerCredentialMigrationCredential('openai', () => 1000)
+    const both = new VaultMigration(f.deps, [f.credential, second])
+    f.legacy.set(f.credential.key, generatedKey())
+    const entries = new Map<string, string>()
+    const secrets: SecretStore = {
+      get: (key) => Promise.resolve(entries.get(key)),
+      store: (key, value) => {
+        entries.set(key, value)
+        return Promise.resolve()
+      },
+      delete: (key) => {
+        entries.delete(key)
+        return Promise.resolve()
+      },
+    }
+    const record = {
+      v: 1,
+      auth: 'apiKey',
+      origin: 'https://api.openai.com',
+      secret: 'synthetic-open-key',
+    } as const
+    await saveProviderCredential(secrets, 'openai', record)
+    f.legacy.set(second.key, Buffer.from(entries.get(second.key)!, 'utf8'))
+    expect(await both.migrate(f.credential.key)).toBe('active')
+    expect(await both.migrate(second.key)).toBe('active')
+    f.advanceRelease()
+    f.advanceRelease()
+    const remove = f.deps.legacy.remove
+    f.deps.legacy.remove = vi.fn(() => Promise.reject(new Error('crash before the legacy delete')))
+    await expect(both.retire(f.credential.key)).rejects.toMatchObject({ code: 'storage' })
+    await expect(both.retire(second.key)).rejects.toMatchObject({ code: 'storage' })
+    f.deps.legacy.remove = remove
+    // Behind the vault, the provider slot's legacy copy is overwritten.
+    await saveProviderCredential(secrets, 'openai', { ...record, secret: 'synthetic-changed-key' })
+    const changed = Buffer.from(entries.get(second.key)!, 'utf8')
+    f.legacy.set(second.key, changed)
+    const opened = new VaultMigration(f.deps, [f.credential, second])
+    expect(await opened.finishPendingRetires()).toEqual({
+      [f.credential.key]: 'retired',
+      [second.key]: 'diverged',
+    })
+    // The changed copy is left alone and the stale intent is gone, so the
+    // change reads honestly; the other row still finished.
+    expect(f.legacy.get(second.key)).toEqual(changed)
+    expect(f.journal.get(second.key)?.phase).toBe('active')
+    expect(f.journal.get(second.key)?.retireIntent).toBeUndefined()
+    expect(f.journal.get(f.credential.key)?.phase).toBe('retired')
+    expect(f.legacy.has(f.credential.key)).toBe(false)
+    expect(f.deps.onRetired).toHaveBeenCalledExactlyOnceWith(f.credential.key)
+    expect(await opened.migrate(second.key)).toBe('diverged')
+  })
+  it('resume reports a changed legacy copy instead of throwing', async () => {
+    // RVCM1094E finding 1: `resume` must not throw for an active row whose
+    // legacy copy changed after the intent — it clears the stale intent and
+    // reports the row's state, so the join's per-key sequence goes on to the
+    // other rows. The engine deletes nobody else's bytes.
+    const f = await readyToRetire()
+    const remove = f.deps.legacy.remove
+    f.deps.legacy.remove = vi.fn(() => Promise.reject(new Error('crash before the legacy delete')))
+    await expect(f.service.retire(f.credential.key)).rejects.toMatchObject({ code: 'storage' })
+    f.deps.legacy.remove = remove
+    expect(f.journal.get(f.credential.key)?.retireIntent).toBe(true)
+    // Behind the vault, the legacy copy is overwritten after the intent.
+    const changed = generatedKey()
+    f.legacy.set(f.credential.key, changed)
+    await f.service.resume(f.credential.key)
+    expect(f.journal.get(f.credential.key)?.phase).toBe('active')
+    expect(f.journal.get(f.credential.key)?.retireIntent).toBeUndefined()
+    expect(f.legacy.get(f.credential.key)).toEqual(changed)
+    expect(await f.service.migrate(f.credential.key)).toBe('diverged')
+  })
+  it('keeps the two last-copy confirmations apart', async () => {
+    // RVCM1094E finding 1: `destroyLastCopyConfirmed` is the ordinary delete
+    // (a plain sign-out may pass it) and never answers `legacyDeleted`; the
+    // `legacyDeleted` answer carries its own option after asking the person.
+    // A `retired` slot takes only the ordinary one.
+    const f = await readyToRetire()
+    expect(await f.service.retire(f.credential.key)).toBe(true)
+    await expect(
+      f.service.delete(f.credential.key, { legacyDeletionConfirmed: true }),
+    ).rejects.toMatchObject({ code: 'conflict' })
+    expect(f.journal.get(f.credential.key)?.phase).toBe('retired')
+    await f.service.delete(f.credential.key, { destroyLastCopyConfirmed: true })
+    expect(f.journal.get(f.credential.key)?.phase).toBe('deleted')
+  })
   it('born-in-vault credentials never get a downgrade copy; logout removes both stores', async () => {
     const f = migrationFixture()
     expect(await f.service.migrate(f.credential.key)).toBe('missing')
     await f.service.store(f.credential.key, generatedKey())
     expect(f.legacy.size).toBe(0)
     expect(f.deps.legacy.write).not.toHaveBeenCalled()
-    await f.service.delete(f.credential.key)
+    await f.service.delete(f.credential.key, { destroyLastCopyConfirmed: true })
     expect(await f.service.resolve(f.credential.key)).toBeNull()
     expect(await f.vault.list()).toEqual([])
   })
