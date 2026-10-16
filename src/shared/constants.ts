@@ -309,12 +309,9 @@ export const OAUTH_LOOPBACK_TIMEOUT_MS = 10 * 60 * 1000
 export const CHATGPT_HOST_ID_URN_PREFIX = 'urn:uuid:'
 export const CHATGPT_GRANT_LOCK_PIPE = 'muse-spark-chatgpt-grant'
 /**
- * A Unix socket path holds at most 103 characters on macOS, and a typical
- * macOS temp folder takes 48 of them. A lock's socket entry is
- * `<tmp>/<folder>-<scope>/<file>.<entry>`: the grant lock's is 48 + 1 + 29 + 1
- * + 17 = 96 characters, the credential store's 48 + 1 + 28 + 1 + 20 = 98.
- * Keep these names short; a longer one makes a bind fail on macOS
- * (test/unit/namedLockRace.test.ts measures both against the limit).
+ * POSIX locks use the short platform root /tmp, independent of TMPDIR.
+ * Each entry names its process and a random suffix. Keep these names short
+ * for sockaddr_un (103 usable bytes on macOS, 107 on Linux).
  */
 export const CHATGPT_GRANT_LOCK_DIR = 'muse-spark-grant'
 export const CHATGPT_GRANT_LOCK_FILE = 'grant.lock'
@@ -322,16 +319,17 @@ export const CHATGPT_GRANT_LOCK_FILE = 'grant.lock'
 export const CHATGPT_GRANT_LOCK_SCOPE_CHARS = 12
 /** A private per-user folder holds the socket; created mode 0700. */
 export const CHATGPT_GRANT_LOCK_DIR_MODE = 0o700
+/** Group/other permissions must be absent on an existing lock directory. */
+export const NAMED_LOCK_FOREIGN_MODE_MASK = 0o077
 export const CHATGPT_REFRESH_LOCK_RETRY_MS = 100
 /**
  * POSIX ownership by entry (docs/certification/chatgpt-grant-lock.md, "PLANFIX
  * R2"): each contender binds a socket under a random name of this many bytes
  * (hex in the file name) and holds the lock only if no other entry has a
- * listener. A dead entry is removed only once it is older than a bind needs to
- * become a listener, so a file that is being born is never taken.
+ * listener. An entry is removed only when its PID is proven gone; age
+ * never proves that a paused process cannot finish binding.
  */
 export const NAMED_LOCK_ENTRY_BYTES = 3
-export const NAMED_LOCK_GARBAGE_MIN_AGE_MS = 10 * 1000
 /** A removed provider's secret waits ten seconds behind Undo (D74). */
 export const PROVIDER_UNDO_WINDOW_MS = 10 * 1000
 /** How long Scan this computer waits on one loopback port (D74). */

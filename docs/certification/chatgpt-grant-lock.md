@@ -708,7 +708,47 @@ What else changed with it:
   the prober. The first run on Linux measured it (a process failed with
   `lock-unavailable ECONNRESET`); it now counts as a live listener.
 
-## Proof
+## RVPLANFIX: POSIX owner proof and stable short root (2026-10-16)
+
+The age-based cleanup argument above was not sound: a process may be suspended
+between native bind and listen for longer than ten seconds. Age is not death.
+Entries now include their PID; cleanup requires `kill(pid, 0)` to report `ESRCH`.
+Unknown/legacy entries and live-PID entries remain. A refused unlistening entry
+still does not hold the lock; a resumed contender must scan the already-live
+holder before entering. Normal release uses Node's close-time pathname cleanup,
+not a second unconditional unlink after the name may have been reused.
+
+The old default also depended on `tmpdir()`: a long TMPDIR exceeded the native
+socket bound, and two processes with different TMPDIR values could take different
+locks for the same account. Default POSIX names now use the short `/tmp` platform
+root (both Linux and macOS), with the existing per-person folder and mode 0700.
+Existing directories must be real directories, owned by the current uid, with no
+group/other permissions; a symlink or permissive root refuses. No new lock kind,
+model cap or arbitrary stale-age limit was added. Explicit test directories remain
+supported.
+
+Native Linux qualification ran under the installed WSL Arch Linux, Node v26.9.0,
+with sockets in ext4 `/tmp` and the real bundled module:
+
+- Old bytes plus the historical age constant: exit 1, `ENOENT` inside protected
+  work because the old cleanup unlinked an old entry belonging to the still-live
+  proving process. Repaired bytes: exit 0; old live entry preserved, unsafe and
+  symlinked directories refused, overlong TMPDIR ignored, proven-dead PID entry
+  reclaimed. Logs `.lane/RVPLANFIX-posix-red-valid.log` and
+  `.lane/RVPLANFIX-posix-restored-valid.log`. The first attempted drill failed
+  to compile after the old constant had been removed; it is discarded, not proof.
+- Repaired race: six real processes, eight rounds, entered 48/48, zero violations,
+  failures or crashes, exit 0 (`.lane/RVPLANFIX-posix-race.log`).
+- Windows lock/race suites: nine passed, six platform skips, exit 0.
+- `namedLock.ts` SHA-256 unchanged across old/new bundle-only drill:
+  `554D2A35AC02AD3A0C5CB4DA14EBCC82FFF74648B38F0AC7C888D356B6F5938B`.
+
+macOS native execution and multi-user Windows pipe ACL qualification remain
+unverified; the old claim that typical temp-path arithmetic proves all temp
+paths is superseded, not repeated. Kept product deadlines (including the new
+30-second keystore wait) are separately flagged in the final limits audit.
+
+## Proof (historical PLANFIX run)
 
 `test/hosts/named-lock-race.mjs` (a plain node script, with
 `named-lock-worker.mjs`): first it leaves dead socket files in every round's

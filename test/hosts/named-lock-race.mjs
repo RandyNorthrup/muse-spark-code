@@ -47,7 +47,7 @@ async function main(bundle, base, processes, rounds) {
   const stale = []
   for (let round = 0; round < rounds; round += 1) {
     const directory = path.join(base, `r${String(round)}`)
-    await mkdir(directory, { recursive: true })
+    await mkdir(directory, { recursive: true, mode: 0o700 })
     // The old shared name, and one entry of the per-contender kind: dead both.
     stale.push(path.join(directory, FILE), path.join(directory, `${FILE}.deadbeef`))
   }
