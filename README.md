@@ -5736,12 +5736,15 @@ format. Compaction applies its own summary contract even when a headless final
 answer schema is active. Retry waits,
 idle deadlines and fan-out pacing are bounded and Stop aborts the wait.
 
-The SDK is pinned to 1.4.2. Its effort, manual feedback and permanent deletion
-ports are present, but this integration does not yet have the recorded MSP
-feature frames needed to enable them. No receipt or terminal parser is
-inferred from SDK declarations. Until those readers are bound, current model
-effort controls and History archive behavior continue; feedback and permanent
-deletion refuse before dispatch. This release is unofficial.
+The SDK is pinned to 1.4.4. Its effort catalogue and note-only feedback
+receipt are bound from the recorded 1.4.4 frames: the served variants and
+default drive the effort dots, keyboard stepping, the palette and ACP
+admission, with unfamiliar tiers shown and disabled. A reply's actions menu
+offers Send feedback to Muse Code: a note with its classification, previewed
+scrubbed before consent and uploaded without files or session record.
+Record-attached feedback outcomes and permanent deletion have no recorded
+frame, so they refuse before dispatch with the upstream request; History
+stays archive-only. This release is unofficial.
 
 ### Models and providers
 
