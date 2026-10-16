@@ -352,6 +352,7 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
       ...translation,
       accounts: { ...UI_TEXT.accounts, ...accountTranslation.accounts },
       acpChatGpt: { ...UI_TEXT.acpChatGpt, ...translation.acpChatGpt },
+      cliHelp: { ...UI_TEXT.cliHelp, ...translation.cliHelp },
       referenceCliOptions: { ...UI_TEXT.referenceCliOptions, ...translation.referenceCliOptions },
       scheduleV2: {
         ...UI_TEXT.scheduleV2,
