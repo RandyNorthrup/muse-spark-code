@@ -89,13 +89,17 @@ describe('portable prompt store and library', () => {
     const draft = { title: 'Good', body: 'Plain', tags: ['review'], scope: 'user' as const }
     for (const invalid of [
       { ...draft, title: ' ' },
-      { ...draft, title: 'x'.repeat(81) },
-      { ...draft, body: 'x'.repeat(10_001) },
       { ...draft, tags: [''] },
       { ...draft, tags: [1] },
       { ...draft, scope: 'remote' },
     ])
       expect(promptDraftSchema.safeParse(invalid).success).toBe(false)
+    // D121: the removed 80/10000 ceilings refuse nothing.
+    for (const valid of [
+      { ...draft, title: 'x'.repeat(81) },
+      { ...draft, body: 'x'.repeat(10_001) },
+    ])
+      expect(promptDraftSchema.safeParse(valid).success).toBe(true)
     const callerDraft = { ...draft, id: 'caller', untrusted: true }
     expect(promptDraftSchema.parse(callerDraft)).toEqual(draft)
     const prepared = library.prepare(callerDraft)
@@ -154,12 +158,16 @@ describe('portable prompt store and library', () => {
     await symlink(root, directory)
     await expect(store.write(fixture)).rejects.toThrow()
   })
-  it('enforces title/body/count limits and preserves untrusted status on edit', async () => {
+  it('accepts any title, body and count, and preserves untrusted status on edit', async () => {
     const { store, data } = await rig()
-    expect(() => validatePrompt({ ...fixture, title: 'x'.repeat(81) })).toThrow()
+    // D121: the removed 80/10000 ceilings refuse nothing; only blank refuses.
+    expect(() => validatePrompt({ ...fixture, title: 'x'.repeat(81) })).not.toThrow()
     expect(() => validatePrompt({ ...fixture, title: ' '.repeat(3) })).toThrow()
+    // The prompt file itself stays bounded.
     expect(() => validatePrompt({ ...fixture, tags: ['x'.repeat(131_073)] })).toThrow()
-    expect(() => validatePrompt({ ...fixture, body: 'x'.repeat(10_001), variables: [] })).toThrow()
+    expect(() =>
+      validatePrompt({ ...fixture, body: 'x'.repeat(10_001), variables: [] }),
+    ).not.toThrow()
     const library = new PromptLibrary(store, identity)
     await store.write({ ...fixture, untrusted: true })
     await store.write(fixture)
@@ -169,8 +177,9 @@ describe('portable prompt store and library', () => {
       { ...fixture, untrusted: true },
     )
     expect(await store.list('user')).toEqual([expect.objectContaining({ untrusted: true })])
-    // Seed valid portable files directly: admission is tested once at the cap,
-    // avoiding 199 full-directory scans and fsyncs during fixture construction.
+    // Seed valid portable files directly, avoiding 199 full-directory scans
+    // and fsyncs during fixture construction; the 201st stands (the removed
+    // 200-per-scope ceiling refused it).
     await Promise.all(
       Array.from({ length: 199 }, (_, index) => {
         const id = `p-${String(index + 1)}`
@@ -181,9 +190,10 @@ describe('portable prompt store and library', () => {
       }),
     )
     expect(await store.list('user')).toHaveLength(200)
-    await expect(library.duplicate(fixture)).rejects.toThrow()
+    await library.duplicate(fixture)
+    expect(await store.list('user')).toHaveLength(201)
     await library.remove(fixture)
-    expect(await store.list('user')).toHaveLength(199)
+    expect(await store.list('user')).toHaveLength(200)
   })
   it('refuses a concurrent writer and preserves the lock', async () => {
     const { store, data } = await rig()
@@ -260,7 +270,7 @@ describe('insert-only variable review', () => {
     expect(calls).toEqual(['selection', 'file', 'clipboard', 'audience', 'review', 'insert'])
     expect(port.insert.mock.calls).toHaveLength(1)
   })
-  it('cancelled variables/review and oversized expansion never insert', async () => {
+  it('cancelled variables/review never insert, and any expansion length inserts', async () => {
     const insert = vi.fn(() => Promise.resolve())
     await usePrompt(fixture, {
       valueFor: () => Promise.resolve(undefined),
@@ -272,13 +282,15 @@ describe('insert-only variable review', () => {
       review: () => Promise.resolve(false),
       insert,
     })
+    expect(insert).not.toHaveBeenCalled()
+    // D121: the removed 10000-character ceiling refuses nothing.
     await expect(
       usePrompt(fixture, {
         valueFor: () => Promise.resolve('x'.repeat(10_001)),
         review: () => Promise.resolve(true),
         insert,
       }),
-    ).rejects.toThrow()
-    expect(insert).not.toHaveBeenCalled()
+    ).resolves.toBe('inserted')
+    expect(insert).toHaveBeenCalledTimes(1)
   })
 })

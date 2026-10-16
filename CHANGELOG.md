@@ -18,7 +18,9 @@ happened, not what was planned; superseded entries are kept.
   read-only tools until the model stops calling them instead of stopping
   after 5 steps; a goal objective of any length stands instead of refusing
   past 4000 characters; a plan keeps every step past 50 and saves and reads
-  back at any size instead of refusing past 256 KB (handoff briefs too).
+  back at any size instead of refusing past 256 KB (handoff briefs too);
+  a saved prompt keeps any title, body and per-scope count past 200, 80
+  and 10000 characters.
 - On Windows, two requests that reserve session spend at the same moment
   could end one of them with "The session spend ledger could not be read or
   saved", although nothing was wrong with the ledger. Windows answers a lock

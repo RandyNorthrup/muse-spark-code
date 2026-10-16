@@ -18,16 +18,15 @@ import {
 } from '../../shared/prompts'
 import { sameFile, lstatIdentity } from '../fs/fileIdentity'
 
-/** Reject caps at every ingress, including imported and synced files. */
+/**
+ * Reject a blank title at every ingress, including imported and synced
+ * files. D121: any title/body length stands — the removed 80/10000 ceilings
+ * were invented; only the prompt file itself stays bounded.
+ */
 export function validatePrompt(prompt: SavedPrompt): SavedPrompt {
   const file = serialisePromptFile(prompt)
   const checked = parsePromptFile(file)
-  if (
-    checked.title.trim() === '' ||
-    checked.title.length > PROMPT_LIMITS.title ||
-    checked.body.length > PROMPT_LIMITS.body ||
-    Buffer.byteLength(file, 'utf8') > PROMPT_LIMITS.fileBytes
-  ) {
+  if (checked.title.trim() === '' || Buffer.byteLength(file, 'utf8') > PROMPT_LIMITS.fileBytes) {
     throw new Error(UI_TEXT.promptLimits)
   }
   return checked
@@ -99,7 +98,6 @@ export class PromptStore implements PromptStoragePort {
         throw new Error(UI_TEXT.promptStoreDamaged)
       }
       rows.push({ prompt, file })
-      if (rows.length > PROMPT_LIMITS.perScope) throw new Error(UI_TEXT.promptLimits)
     }
     return rows
   }
@@ -142,8 +140,6 @@ export class PromptStore implements PromptStoragePort {
     await this.mutate(prompt.scope, async (directory) => {
       const rows = await this.scan(prompt.scope)
       const existing = rows.find((row) => row.prompt.id === prompt.id)
-      if (existing === undefined && rows.length >= PROMPT_LIMITS.perScope)
-        throw new Error(UI_TEXT.promptLimits)
       // Trust cannot be upgraded by an edit or synchronization.
       // Sync's snapshot may be stale: choose the revision again under this same lock.
       const winner =
