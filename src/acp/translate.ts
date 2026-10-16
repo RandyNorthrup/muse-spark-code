@@ -3,7 +3,6 @@ import { estimateCostUsd } from '../core/usage/insights'
 import { Usd } from '../shared/usd'
 import {
   MODEL_API_PRICED_MODELS,
-  ACP_TOOL_OUTPUT_MAX_CHARS,
   BASE64_INPUT_BLOCK_BYTES,
   BASE64_OUTPUT_BLOCK_CHARS,
   BYTES_PER_MIB,
@@ -188,12 +187,8 @@ function toolLocations(args: Arguments | undefined, cwd: string): ToolCallLocati
   return resolved.ok ? [{ path: resolved.absolute }] : []
 }
 
-function clippedOutput(text: string): string {
-  return text.length > ACP_TOOL_OUTPUT_MAX_CHARS ? text.slice(0, ACP_TOOL_OUTPUT_MAX_CHARS) : text
-}
-
 function textContent(text: string): ToolCallContent {
-  return { type: 'content', content: { type: 'text', text: clippedOutput(text) } }
+  return { type: 'content', content: { type: 'text', text } }
 }
 
 /** An edit's change as a diff where the arguments carry it (edit and write), else nothing. */

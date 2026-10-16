@@ -18,11 +18,7 @@ import {
   UpdateTranslator,
 } from '../../src/acp/translate'
 import type { ApprovalChoice, ItemSnapshot, Question } from '../../src/shared/agentEvents'
-import {
-  ACP_TOOL_OUTPUT_MAX_CHARS,
-  SELECTION_TEXT_MAX_CHARS,
-  UI_TEXT,
-} from '../../src/shared/constants'
+import { SELECTION_TEXT_MAX_CHARS, UI_TEXT } from '../../src/shared/constants'
 
 // M63 (PLAN.md D62): what an ACP client sees of the panel's events, prompts,
 // approvals and questions.
@@ -118,9 +114,9 @@ describe('UpdateTranslator', () => {
     })
   })
 
-  it('fails a declined or failed call with its reason, clipped output and all', () => {
+  it('fails a declined or failed call with its reason and its whole output', () => {
     const translator = new UpdateTranslator(CWD, false)
-    const long = 'x'.repeat(ACP_TOOL_OUTPUT_MAX_CHARS + 10)
+    const long = 'x'.repeat(20_010)
     const [, failed] = translator.updates({
       type: 'itemCompleted',
       item: tool({ status: 'failed', visibleOutput: long, failureReason: 'exit code 1' }),
@@ -133,8 +129,8 @@ describe('UpdateTranslator', () => {
     })
     const first = content?.[0]
     expect(
-      first?.type === 'content' && first.content.type === 'text' ? first.content.text.length : 0,
-    ).toBe(ACP_TOOL_OUTPUT_MAX_CHARS)
+      first?.type === 'content' && first.content.type === 'text' ? first.content.text : '',
+    ).toBe(long)
     // Muse Code's `declined` and the Model API backend's `rejected` are the user's no.
     for (const status of ['declined', 'rejected']) {
       const [, denied] = translator.updates({

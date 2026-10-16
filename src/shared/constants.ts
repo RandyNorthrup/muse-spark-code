@@ -4176,8 +4176,8 @@ export const ACP_PAID_OPTIONS = {
   allowAlways: 'paid-allow-always',
   deny: 'paid-deny',
 } as const
-// A tool's output as the client sees it; the full text stays with the backend.
-export const ACP_TOOL_OUTPUT_MAX_CHARS = 20_000
+// One session-list page the agent reads for the editor's cursor; the editor
+// pages through every one, so no session is hidden past the page.
 export const ACP_SESSION_LIST_LIMIT = 50
 // Model API sessions of the agent, per folder, under the user's data folder:
 // the folder named per platform, and the length of the folder's hash.

@@ -229,6 +229,7 @@ import {
   type SessionHistoryOutcome,
   type SessionMcpHttpServer,
   type SessionListEvent,
+  sessionRecordsPage,
   type SessionPage,
   type SessionRecord,
   type SkillSummary,
@@ -17795,7 +17796,7 @@ export class ModelApiHost implements AgentHost {
         records.push(recordOf(stored))
       }
     }
-    const sessions = records
+    const ordered = records
       .filter(
         (record) =>
           record.workspaceRoot === options.workspaceRoot &&
@@ -17805,8 +17806,7 @@ export class ModelApiHost implements AgentHost {
         (a, b) =>
           Date.parse(b.lastActivityAt ?? b.updatedAt) - Date.parse(a.lastActivityAt ?? a.updatedAt),
       )
-      .slice(0, options.limit)
-    return { sessions, nextCursor: undefined }
+    return sessionRecordsPage(ordered, options.limit, options.cursor)
   }
 
   /** A conversation or one of its private child transcripts (M48). */
