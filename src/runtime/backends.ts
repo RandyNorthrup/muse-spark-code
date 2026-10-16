@@ -752,12 +752,10 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
       return { state: 'unavailable', message: UI_TEXT.acpChatGpt.failure }
     }
     // A plan model's refusal names its own sign-in, never the Meta key.
-    const refusal =
-      isPlan && modelHint.startsWith('chatgpt/')
-        ? UI_TEXT.acpChatGpt.states['signed-out']
-        : isPlan && modelHint.startsWith('copilot/')
-          ? UI_TEXT.planUi.copilotUnavailable
-          : UI_TEXT.acpNoStoredKey
+    let refusal = UI_TEXT.acpNoStoredKey
+    if (isPlan && modelHint.startsWith('chatgpt/'))
+      refusal = UI_TEXT.acpChatGpt.states['signed-out']
+    else if (isPlan && modelHint.startsWith('copilot/')) refusal = UI_TEXT.planUi.copilotUnavailable
     return { state: 'signedOut', message: refusal }
   }
 
