@@ -4665,10 +4665,11 @@ export const OUTPUT_DOCUMENTS_KEPT = 20
 // first: the IDE server's warning names it.
 export const MSP_REQUESTED_CAPABILITIES = ['sessionMcp', 'sessionListStream', 'userShell'] as const
 export const MSP_USER_SHELL_CAPABILITY = 'userShell'
-// How long the extension waits on `muse serve` (PLAN.md D25; the SDK has no
-// timeouts of its own, INV-006): the handshake, an ordinary command, and the
-// commands that load or copy a whole session. Past them the command fails
-// with a message instead of leaving the panel waiting for ever.
+// How the extension waits on `muse serve` (PLAN.md D25; the SDK has no
+// timeouts of its own, INV-006): a command is waited on until Muse Code
+// answers or the wait is stopped, saying so out loud on the log while it
+// waits (owner 2026-10-16: no arbitrary limits, no silent hangs). A test
+// may still name a wait through CommandTimeouts.
 export const MSP_HANDSHAKE_TIMEOUT_MS = 30_000
 // A `muse serve` whose process still runs at the handshake's deadline is
 // starting slowly, not stuck: on a CPU-starved machine (0.10.0, an
@@ -4677,8 +4678,6 @@ export const MSP_HANDSHAKE_TIMEOUT_MS = 30_000
 // two (the log's "Connected ... in N ms"), so a process still silent after
 // four times the first deadline is stuck, and is ended.
 export const MSP_SLOW_HANDSHAKE_TIMEOUT_MS = 120_000
-export const MSP_COMMAND_TIMEOUT_MS = 60_000
-export const MSP_LONG_COMMAND_TIMEOUT_MS = 180_000
 // A command the host refused without admitting it (the SDK's own rule, D26):
 // sent again with the same id up to this many times in all.
 export const MSP_COMMAND_ATTEMPTS = 3
