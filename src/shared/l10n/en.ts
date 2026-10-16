@@ -1211,6 +1211,11 @@ export const EN = {
   sessionContinued: 'Conversation continued after the restart.',
   sessionNotContinued:
     'The conversation could not be continued after the restart, so this message starts a new one',
+  // After a restart the resumed conversation runs on {active} instead of the
+  // chosen {wanted}: the message is not sent, and the conversation stays
+  // resumable, so choosing the reported model and resending continues it.
+  modelNotKeptAfterRestart:
+    'Muse Code reports this conversation runs on {active} instead of {wanted}, so the message was not sent. Choose the model again and resend to continue it.',
   surfaceClosed: 'The panel was closed',
   hostStartFailed: 'The backend could not start',
   decisionErrorNotice:
