@@ -1355,6 +1355,8 @@ export const MEDIA_FILE_EXPIRY_MAX_S = 2_592_000
 export const MEDIA_FILE_EXPIRY_DEFAULT_S = 604_800
 export const MEDIA_MAX_UPLOAD_DEFAULT_MIB = 200
 export const MEDIA_CONVERSION_DEFAULT_OUTPUT_BYTES = MEDIA_MAX_UPLOAD_DEFAULT_MIB * 1024 * 1024
+// The recorder and the companion upload keep their own 1024 MiB bound; the
+// person's attach setting has no ceiling of ours.
 export const MEDIA_MAX_UPLOAD_MIB = 1024
 export const MEDIA_NAME_MAX_CHARS = 256
 export const MEDIA_ID_MAX_CHARS = 256

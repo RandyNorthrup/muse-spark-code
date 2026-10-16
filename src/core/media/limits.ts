@@ -1,7 +1,6 @@
 import {
   BYTES_PER_MIB,
   MEDIA_MAX_UPLOAD_DEFAULT_MIB,
-  MEDIA_MAX_UPLOAD_MIB,
   MEDIA_SNIFF_MAX_BYTES,
   UI_TEXT,
 } from '../../shared/constants'
@@ -105,7 +104,6 @@ export function checkMediaLimits(info: MediaFileInfo, limits: MediaLimits = {}):
   if (
     !Number.isSafeInteger(maximum) ||
     maximum <= 0 ||
-    maximum > MEDIA_MAX_UPLOAD_MIB * BYTES_PER_MIB ||
     (limits.maxDurationSeconds !== undefined &&
       (!Number.isFinite(limits.maxDurationSeconds) || limits.maxDurationSeconds <= 0))
   )

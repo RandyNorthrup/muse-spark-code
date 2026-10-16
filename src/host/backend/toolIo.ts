@@ -55,7 +55,6 @@ import {
   HOOK_OUTPUT_MAX_BYTES,
   HOOK_STDIN_MAX_BYTES,
   MAX_DOCUMENT_BYTES,
-  MEDIA_MAX_UPLOAD_MIB,
   UI_TEXT,
   MODEL_TEXT,
   PDF_HEADER_WINDOW_BYTES,
@@ -647,11 +646,7 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
   }
   return {
     async readMedia(absolutePath, maxBytes, expectedCanonicalPath, signal, observeSource) {
-      if (
-        !Number.isSafeInteger(maxBytes) ||
-        maxBytes <= 0 ||
-        maxBytes > MEDIA_MAX_UPLOAD_MIB * BYTES_PER_MIB
-      )
+      if (!Number.isSafeInteger(maxBytes) || maxBytes <= 0)
         throw new RangeError('Invalid media read limit')
       signal?.throwIfAborted()
       const { createMediaInspector } = await import('../../core/media/inspectEntry')
